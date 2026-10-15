@@ -30,6 +30,7 @@ use std::{collections::BTreeSet, sync::Arc};
 use ui_toolkit::{rsx, screen::SharedContext, widget_def::Element};
 
 pub const MODEL: &str = "PerksProgramMainModelScene";
+pub const PLAYER_MODEL: &str = "PerksProgramPlayerModelScene";
 pub const LIST: &str = "PerksProgramScrollBox";
 pub const WIDTH: f32 = 1920.;
 pub const HEIGHT: f32 = 1080.;
@@ -421,6 +422,13 @@ pub fn trading_post_screen(ctx: &SharedContext) -> Element {
             children.extend(rsx! {r#frame{name:{DynName(MODEL.into())},left:0.0,top:0.0,width:WIDTH,height:HEIGHT,pos_type:"absolute",frame_level:500.0}});
         } else {
             children.extend(selected_details(view));
+        }
+        let pet_comparison = view.preview_product().is_some_and(|row| {
+            row.category_id == 3 && row.creature_display_id != 0 && row.grant_unavailable.is_none()
+        });
+        if pet_comparison {
+            // PerksProgram.xml633–637: independent player scene behind MainModelScene500.
+            children.extend(rsx! {r#frame{name:{DynName(PLAYER_MODEL.into())},left:0.0,top:0.0,width:WIDTH,height:HEIGHT,pos_type:"absolute",frame_level:100.0}});
         }
         children.extend(currency(snapshot.tender, view.cart_visible));
     } else {

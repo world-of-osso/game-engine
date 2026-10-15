@@ -12,7 +12,7 @@ pub(super) const RIDER_ANIMATION: u16 = 91;
 pub(super) const SELF_MOUNT_ANIMATION: u16 = 618;
 const SADDLE: &str = "NpcModel/Skeleton3D/AttachmentBone0/Attachment0";
 
-fn stage_actor(
+pub(super) fn stage_actor(
     name: &str,
     model: Gd<Node3D>,
     authored: &ModelSceneActor,

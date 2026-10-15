@@ -1,3 +1,7 @@
+## 2026-10-15 — Trading Post pet comparison implementation
+
+[Pet comparison](systems/trading-post.md#pet-comparison-composition--implementation-october15-proof-pending): independent dressed-player world/camera, authored race/sex actor and relative offset; raw category camera avoids product-rounding contamination. Behavioral missing-host RED observed; native GREEN/pixels pending. Lead decisionA retains desiredScale provider and kit23877 cross-segment loop as named gaps; fullRank3 incomplete.
+
 ## 2026-10-15 — Guild member note implementation
 
 [Member details and notes](systems/guilds.md#member-details-and-notes): additive public-note storage preserves existing officer records; authenticated self/public/officer permissions, per-recipient privacy and Mainline31-letter popup source implemented. Current UI/decision28, actualUDP4 and server main-binary11 pass, including popup-target RED→GREEN, note commands/public-self payloads, rank-right/privacy and durable reopen. Six actual private5891 master/self/server-restart-readback runs now pass in Modern and Forever; fourteen inspected1920×1080 PNGs verify corrected border layering, input backdrops, self privacy and source removal confirmation. Current widgets22/22 includes destructive-confirmation RED→GREEN; native No/Escape sends nothing. Merged-head checks remain separate. Local TDB1210 contains62 guild reward rows; runtime import/eligibility, not source availability, remains a later guild gap.

@@ -23,6 +23,14 @@ The inherited ordinary product row is not the final frozen layout. `FrozenProduc
 
 Lead-authorized boundary: inherited category-camera two-point native zoom splines and ModelScene default-FOV equivalence remain unresolved. Existing project FOV stays unchanged, with no guessed spline formula. Celestial633 camera619 target0/yaw137.5°/zoom23 describes the authored **base**, not the spline-derived Retail pose. Installed-data core4 passes. The compatible generic-camera native regression failed at eye(14.01286,-0.725194,-0.163963) instead of the authored619 base eye(16.957382,0,15.538568). Both-skin `camera-native-green-57-{modern,forever}.log` now passes actual camera pose, held left/right and outside release, effective-scale drag, wheel23→13.1→23, unchanged authored actor bases, hide/restore and category/HUD teardown. Actual binaries engine57d522994/server50fcd1c5/protocol7313ec4;24 inspected full-HD PNGs are under `/syncthing/AgentShared/2026-10-15/trading-post-camera/`. Diagnostic `camera-proof-manifest.json` pins binary hashes/revisions and six PSI/swap boundaries. Pet base-camera images do not certify Rank3 comparison/desiredScale/kit23877. [Requirements and source boundary](../../specs/trading-post.md#authored-base-cameraorbit).
 
+## Pet comparison composition — implementation October15, proof pending
+
+`core/trading_post_pet.rs` keeps the pet category actor and applies product display transform overrides, then selects the Transmog category's race/sex player actor. The comparison player receives the source(-2,+2.2,0) relative offset and its own raw primary category camera with yaw150 degrees. Unlike product display translation, this nil-displayData player path does not round targetZ1.01 to1.0. Source: cached Retail Model.lua675–720,820–861 and PerksProgram.xml617–643.
+
+Native `trading_post_pet.rs` owns a separate dressed-player detached request and Scene behind the pet scene (frame levels100/500), with visible sheathed weapons. Product changes clear both scene identities before UI projection; appearance changes replace only the comparison visual. Close/category/cart-composite changes cancel pending requests and free the player viewport. Pet camera orbit never modifies the comparison camera or actor transforms. Behavioral host-absence RED is recorded; native GREEN/lifetime/pixels remain pending.
+
+Lead October15 decisionA permits this composition slice, not full Rank3 parity. Pet desiredScale's native provider and kit23877's authored cross-segment loop remain unsupported and exposed as debug gaps, not guessed scale/animation behavior. Existing FOV/zoom-spline and native inset-projection limits remain separate. See the [spec](../../specs/trading-post.md#petplayer-comparison-scenes).
+
 ## Previews
 
 - Mounts/pets: `UnitAppearance::Creature` from the row's authored display, else the granted mount's unconditional `MountXDisplay` or the pet species display.
