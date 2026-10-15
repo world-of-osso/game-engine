@@ -1,3 +1,7 @@
+## 2026-10-15 — Housing control tooltips
+
+[Source controls](systems/housing.md#editor-control-tooltips--implementation2026-10-14): enabled owner-top mode/submode tooltips, full binding in a gold inline suffix and current Options rather than the retained UI-only binding copy. Native missing-tooltip and stale-binding REDs, registry/shared-tooltip/binding-boundary GREEN and inspected both-skin normal Options assignment/unbind/actual hover/bounds/conservation proof. No unsupported availability/glow/audio/locale or complete appearance claim.
+
 ## 2026-10-14 — Cleanup cursor tooltip
 
 [Central tooltip](systems/housing.md#cleanup-central-tooltip--implementation2026-10-14): removed fixed bespoke panel/invented visitor line; source white GameTooltip title/ANCHOR_CURSOR and normal central lifetime. Native missing-tooltip RED, scoped GREEN24 and both-skin owner/readonly title/anchor/leave/mode-exit proof. Event-time diagnostics classified stale-pixel rehover failure; fixture re-picks currently visible decor, without changing gameplay picking. Pet/lock/removability/exterior metadata, audio and complete appearance remain gaps.
