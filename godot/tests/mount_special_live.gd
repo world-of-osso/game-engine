@@ -185,7 +185,7 @@ func pose_record() -> Dictionary:
 func capture(file: String) -> void:
 	if role != "observer":
 		await super.capture(file)
-		write_record("capture-" + file.get_basename(), pose_record())
+		write_capture_record(file)
 		return
 	# GameClient makes its own camera current each frame. The fixture camera runs
 	# afterward, changing only the view of the actual replicated actor.
@@ -199,9 +199,15 @@ func capture(file: String) -> void:
 	root.add_child(camera)
 	await process_frame
 	await super.capture(file)
-	write_record("capture-" + file.get_basename(), pose_record())
+	write_capture_record(file)
 	previous.make_current()
 	camera.queue_free()
+
+func write_capture_record(file: String) -> void:
+	var record := pose_record()
+	write_record("capture-" + file.get_basename(), record)
+	if file.ends_with("special.png") and record.mount_clip != 94:
+		fail("Rendered capture missed the active MountSpecial phase: " + file)
 
 func capture_spelltome_diagnostic() -> void:
 	# Freeze the naturally reached frame only for isolation; normal proof shots precede it.
