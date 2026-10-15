@@ -253,6 +253,61 @@ fn monthly_thresholds_use_received_points_not_claimed_currency_state() {
 }
 
 #[test]
+fn monthly_source_rows_collapse_children_and_leaf_clicks_do_not_expand_details() {
+    use game_engine_ui_model::adventure_guide::View;
+    use std::sync::Arc;
+    for skin in [ActiveSkin::Modern, ActiveSkin::Forever] {
+        let mut data = snapshot();
+        data.activities = vec![activity(6), activity(81), activity(4)];
+        let mut view = View {
+            activities: Some(Arc::new(data.clone())),
+            ..Default::default()
+        };
+        let registry = render(skin, Some(data.clone()), view.activity_filters.clone(), "");
+        assert!(
+            registry.get_by_name("JournalActivity81").is_none(),
+            "Source trees start collapsed"
+        );
+        assert_eq!(
+            frame(&registry, "JournalActivity6").height,
+            ui_toolkit::frame::Dimension::Fixed(78.)
+        );
+        assert_eq!(
+            frame(&registry, "JournalActivity6").width,
+            ui_toolkit::frame::Dimension::Fixed(521.)
+        );
+        assert!(registry.get_by_name("JournalActivity6Track").is_none());
+        view.apply("journal:activity:6").unwrap();
+        let registry = render(skin, Some(data.clone()), view.activity_filters.clone(), "");
+        assert_eq!(
+            frame(&registry, "JournalActivity81").height,
+            ui_toolkit::frame::Dimension::Fixed(48.)
+        );
+        assert_eq!(
+            frame(&registry, "JournalActivity81").width,
+            ui_toolkit::frame::Dimension::Fixed(521.)
+        );
+        assert_eq!(
+            frame(&registry, "JournalActivity81").position.left,
+            ui_toolkit::layout_values::Val::Px(32.)
+        );
+        let previous = view.activity_filters.clone();
+        view.apply("journal:activity:4").unwrap();
+        assert_eq!(
+            view.activity_filters, previous,
+            "Source leaf click has no details-pane action"
+        );
+        view.apply("journal:activity-tag:1").unwrap();
+        view.apply("journal:activity-tag:0").unwrap();
+        let registry = render(skin, Some(data), view.activity_filters, "");
+        assert!(
+            registry.get_by_name("JournalActivity81").is_none(),
+            "Changing source filter collapses the tree"
+        );
+    }
+}
+
+#[test]
 fn monthly_unavailable_is_not_zero_progress_in_both_skins() {
     for skin in [ActiveSkin::Modern, ActiveSkin::Forever] {
         let registry = render(
