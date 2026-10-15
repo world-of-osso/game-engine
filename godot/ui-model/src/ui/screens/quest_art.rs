@@ -391,36 +391,35 @@ fn flat_background(prefix: &str, (left, top, right, bottom): (f32, f32, f32, f32
 }
 
 fn window_background(prefix: &str, width: f32, height: f32) -> Element {
-    let mut elements = rsx! {
+    let streak = read_active_atlas_art(TOP_TILE_STREAKS);
+    let streak_coords = streak.tex_coords(1.0);
+    // SharedUIPanelTemplates.xml:598–609,663–675: one rock region preserves the
+    // tile origin under the portrait; splitting it at y51 would restart the pattern.
+    rsx! {
         texture {
             name: {DynName(format!("{prefix}Bg"))},
             width: {width - 4.0},
-            height: {height - 53.0},
+            height: {height - 23.0},
             texture_fdid: WINDOW_BACKGROUND,
-            pos_type: "absolute",
-            left: 2.0,
-            top: 51.0,
-        }
-        // PortraitFrameTexturedBaseTemplate, SharedUIPanelTemplates.xml:595-609:
-        // rock beneath the translucent streaks and opaque masked portrait. Leaving a
-        // rectangular gap around the circular mask exposes the room beside the ring.
-        texture {
-            name: {DynName(format!("{prefix}BgTop"))},
-            width: {width - 4.0},
-            height: 30.0,
-            texture_fdid: WINDOW_BACKGROUND,
+            horiz_tile: true,
+            vert_tile: true,
             pos_type: "absolute",
             left: 2.0,
             top: 21.0,
         }
-    };
-    elements.extend(named_atlas_texture(
-        format!("{prefix}TopTileStreaks"),
-        TOP_TILE_STREAKS,
-        // Streaks stay beside the portrait; opaque rock underneath closes the corner gap.
-        (55.0, 21.0, width - 57.0, 43.0),
-    ));
-    elements
+        // Source _UI-Frame-TopTileStreaks:256×43, horizontal repeat only (:76–78).
+        texture {
+            name: {DynName(format!("{prefix}TopTileStreaks"))},
+            width: {width - 8.0},
+            height: 43.0,
+            texture_fdid: {streak.fdid},
+            tex_coords: {streak_coords.as_str()},
+            horiz_tile: true,
+            pos_type: "absolute",
+            left: 6.0,
+            top: 21.0,
+        }
+    }
 }
 
 /// The `layout` metal border on a frame [`MetalTopLeft::outset`] larger than the window.
