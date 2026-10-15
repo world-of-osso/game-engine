@@ -1,6 +1,6 @@
 # Wiki Index
 
-- [Suggested fixed source panes](systems/adventure-guide.md#suggested-fixed-source-panes--2026-10-15) — frame-only pixels rejected; installed-CSV/bonus provider fix awaits joint three-populated-pane native proof.
+- [Suggested fixed source panes](systems/adventure-guide.md#suggested-fixed-source-panes--2026-10-15) — joint installed-CSV/bonus provider and both-skin three-card native proof; source-height title fitting, explicit ordering/authority gaps.
 
 - [Housing pressed-hover lifecycle](systems/housing.md#control-pressed-hover-lifecycle--implementation2026-10-15) — source additive hover suppression during real press, inside/outside release and inspected both-skin six-control native matrix; no timing/whole-art claim.
 
