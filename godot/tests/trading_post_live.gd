@@ -76,6 +76,7 @@ func run_fixture() -> void:
 		"mount-rider-cancel": await mount_rider_cancel_proof()
 		"freeze-workflow": await freeze_workflow_proof()
 		"authored-camera": await authored_camera_proof()
+		"pet-comparison": await pet_comparison_proof()
 		"frozen-slot-before": await frozen_slot_geometry_proof(false)
 		"frozen-slot-after": await frozen_slot_geometry_proof(true)
 		"refund": await refund_after_relog()
@@ -520,6 +521,62 @@ func frozen_slot_geometry_proof(check_geometry: bool) -> void:
 	if not await wait_until(func(): return int(client.trading_post_state().frozen) < 0 and not client.trading_post_state().pending, "geometry fixture clears reservation"): return
 	if int(client.trading_post_state().tender) != tender: fail("Frozen geometry capture changed Tender"); return
 	await finish(phase)
+
+func pet_comparison_proof() -> void:
+	if not await choose_category(3): return
+	if not await select_first_available(): return
+	if int(client.trading_post_state().selected) != 224: fail("Pet fixture requires Garrlok224/scene640"); return
+	if not client.trading_post_state().has("comparison_ready"):
+		await capture("single-pet-before")
+		fail("Trading Post pet has no dedicated comparison player scene")
+		return
+	if not await wait_until(func(): return client.trading_post_state().get("comparison_ready", false), "dedicated pet comparison player", 120000): return
+	var player: Node3D = instance_from_id(int(client.trading_post_state().comparison_actor_id)) as Node3D
+	var pet := client.find_child("TradingPostPetActor", true, false) as Node3D
+	if player == null or pet == null: fail("Dedicated pet/player actor missing"); return
+	if player.get_viewport() == pet.get_viewport() or player.get_world_3d() == pet.get_world_3d(): fail("Pet and player share one scene/world"); return
+	var player_camera := player.get_viewport().get_camera_3d()
+	var pet_camera := pet.get_viewport().get_camera_3d()
+	var expected_player_eye := Vector3(cos(deg_to_rad(30.0))*6.5, 1.01, 3.25)
+	if not player_camera.position.is_equal_approx(expected_player_eye): fail("Comparison player camera lacks raw scene430 targetZ1.01/yaw150/zoom6.5: %s" % player_camera.position); return
+	var player_basis := Basis(Vector3.UP, deg_to_rad(-55.0)).scaled(Vector3.ONE*1.1)
+	if not player.basis.is_equal_approx(player_basis): fail("Comparison player lacks authored human actor1702 yaw/scale"); return
+	if not client.trading_post_state().pet_scale_gap or not client.trading_post_state().pet_animation_kit_gap: fail("Unresolved desiredScale/kit23877 were falsely certified"); return
+	var initial_player := player.transform
+	var initial_camera := player_camera.transform
+	var initial_pet := pet.transform
+	await capture("dedicated-scenes-base")
+	var point := control("PerksProgramRotateLeftButton").get_global_rect().get_center()
+	var before := pet_camera.position
+	await motion(point, false)
+	await button_event(point, MOUSE_BUTTON_LEFT, true)
+	await wait_frames(10)
+	await button_event(point, MOUSE_BUTTON_LEFT, false)
+	if pet_camera.position.distance_to(before) < 0.2: fail("Pet camera did not orbit"); return
+	if not player_camera.transform.is_equal_approx(initial_camera) or player.transform != initial_player or pet.transform != initial_pet: fail("Pet orbit changed comparison camera or authored actors"); return
+	await capture("pet-orbit-independent-player")
+	await click("PerksProgramProduct429")
+	if not await wait_until(func(): return int(client.trading_post_state().selected) == 429 and client.trading_post_state().comparison_ready, "replacement pet comparison", 120000): return
+	if is_instance_valid(player) or is_instance_valid(pet): fail("Product change retained old comparison actors"); return
+	await capture("reselected-pet-fresh-scenes")
+	player = instance_from_id(int(client.trading_post_state().comparison_actor_id))
+	if not await choose_category(2): return
+	if not await select_first_available(): return
+	if is_instance_valid(player) or client.trading_post_state().comparison_ready or client.trading_post_state().comparison_pending: fail("Mount selection retained pet comparison scene"); return
+	await capture("mount-no-comparison")
+	if not await choose_category(3): return
+	if not await select_first_available(): return
+	if not await wait_until(func(): return client.trading_post_state().comparison_ready, "comparison after category return", 120000): return
+	await capture("returned-pet-comparison")
+	queue_click("PerksProgramProduct429")
+	if not await wait_until(func(): return client.trading_post_state().comparison_pending, "actual pending comparison request", 30000): return
+	queue_click("PerksProgramLeaveButton")
+	if not await wait_until(func(): return not client.trading_post_state().open, "leave while comparison pending"): return
+	await wait_frames(60)
+	var state: Dictionary = client.trading_post_state()
+	if state.comparison_pending or state.comparison_ready or int(state.comparison_actor_id) != 0: fail("Late comparison actor arrived after close"); return
+	await capture("closed-pending-no-late-comparison")
+	await finish("pet-comparison")
 
 func authored_camera_proof() -> void:
 	if not await choose_category(2): return

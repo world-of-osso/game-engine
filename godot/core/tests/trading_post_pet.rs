@@ -1,4 +1,4 @@
-use game_engine_core::trading_post_pet::PetComparison;
+use game_engine_core::trading_post_pet::{PetComparison, PetScenes};
 use std::path::PathBuf;
 
 fn data_root() -> PathBuf {
@@ -7,7 +7,12 @@ fn data_root() -> PathBuf {
 
 #[test]
 fn trading_post_pet_keeps_category_actor_and_separate_dressed_player_scene() {
-    let comparison = PetComparison::read(&data_root(), 419, 555, 430, 1, 0).unwrap();
+    let scenes = PetScenes {
+        category: 419,
+        display: 555,
+        player: 430,
+    };
+    let comparison = PetComparison::read(&data_root(), scenes, 1, 0).unwrap();
     assert_eq!(comparison.pet.id, 1216);
     assert_eq!(comparison.pet.flags, 2);
     assert_eq!(comparison.pet.position, [-2.2, -3.4, 0.]);
@@ -27,11 +32,16 @@ fn trading_post_pet_keeps_category_actor_and_separate_dressed_player_scene() {
 
 #[test]
 fn trading_post_pet_player_uses_sex_specific_actor_before_race_actor() {
-    let comparison = PetComparison::read(&data_root(), 419, 419, 430, 1, 1).unwrap();
+    let scenes = PetScenes {
+        category: 419,
+        display: 419,
+        player: 430,
+    };
+    let comparison = PetComparison::read(&data_root(), scenes, 1, 1).unwrap();
     assert_eq!(comparison.player.id, 1703);
     assert!((comparison.player.position[0] + 2.05).abs() < 0.00001);
     assert_eq!(comparison.player.position[1], 2.2);
     assert_eq!(comparison.pet.position, [0., -3., 0.]);
-    let error = PetComparison::read(&data_root(), 419, 419, 430, u8::MAX, 0).unwrap_err();
+    let error = PetComparison::read(&data_root(), scenes, u8::MAX, 0).unwrap_err();
     assert!(error.contains("255"), "{error}");
 }
