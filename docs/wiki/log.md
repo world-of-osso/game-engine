@@ -1,3 +1,7 @@
+## 2026-10-14 — Guild tabard final focused acceptance
+
+[Guild tabards](systems/guilds.md#guild-tabard-data-flow): approved catalog-valid arrows skip real missing border combinations without changing the other four fields; four model tests pass. Requested three source-verified goldens pass with only tab Button rows and fractional clear-button anchors changed. Final merged all-target checks/formatting and both native scripts pass; fourteen refreshed full-HD PNGs inspected. Server durability and offline rendering remain separate proofs; lead owns the full protocol landing gate.
+
 ## 2026-10-14 — Tabard pixels exposed BGRA palette reversal
 
 [BLP palette normalization](formats/blp-format.md#palettized-bgra-correction-2026-10-14): native vendor/worn/character-select fixtures completed in both skins, but inspected red tabard backgrounds rendered blue. Authenticated180071 RED decoded `[0,9,129,255]` instead of `[129,9,0,255]`; normalize `image-blp` Raw1 palette input. Twelve focused decoder tests pass. Corrected vendor/three worn tiers/Communities and production character-selection native fixtures pass in both skins; fourteen1920×1080 PNGs inspected. No live-network proof inferred.
