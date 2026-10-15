@@ -12,6 +12,16 @@ Client and server resolve ADT terrain, WMO floors and authored M2 doodad floors 
 
 A face is walkable when its world normal satisfies `|n.y| >= cos(MAX_SLOPE_ANGLE)`. The test is two-sided because collision-only faces have no reliable winding.
 
+## Native grounded steps — 2026-10-15
+
+`TerrainGround::validate_move` admits the destination floor at the current feet height before wall collision. Only a grounded snapped rise lifts the wall ray; airborne proposals retain the original ray height. After wall clamping, the final support column is sampled again rather than retaining an unreached landing's height.
+
+Stockade WMO108631/group15/FDID108647 face3153 is a vertical lip whose top is0.6557564yd above captured feet `(108.2204,-26.26199,3.454892)`. The old feet+0.6 wall ray hit it0.04996yd away, less than the0.05 stop margin, before face3041's reachable upper floor was sampled. The shared1.6 step budget and wall constants are unchanged.
+
+A raised ray alone can miss a thin wall up to0.6yd above the landing. Grounded rises therefore check head lift and continuously sweep the existing zero-radius upright body through the live WMO/GO triangles. Godot's broad-phase box selects meshes only; triangle/vertical-plane clipping decides obstruction. Body height2.03128 matches TrinityCore's default and the server's existing head-clearance value. Destination support is reconstructed from the authored floor plane so ray-interpolation rounding cannot turn the floor's adjoining lip edge into a wall. No geometric epsilon or collision radius is introduced. This is not a volumetric capsule controller.
+
+Server `networking_movement::land_height` already samples the destination ground from current Y before applying its land envelope; it has no earlier client-style wall ray. No server change accompanies this fix. Regression fixtures: `godot/rust/src/ground_step_tests.rs`, full-WMO `wmo/collision_tests.rs::ramp_lip_full_stockade_walks_from_captured_feet_onto_landing`, native `godot/tests/ramp_lip_walk.gd`.
+
 ## WMO group collision
 
 `WmoGroupCollision::parse` reads the group file itself (MOGP header flags and bbox, MOPY, MOVI, MOVT, MOBN, MOBR). The file keeps the file's coordinates (Z up).

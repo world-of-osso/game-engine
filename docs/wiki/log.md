@@ -1,3 +1,7 @@
+## 2026-10-15 — Stockade ramp lip movement
+
+[Player ground](systems/player-ground.md#native-grounded-steps--2026-10-15): captured face3153 lip blocks before reachable face3041 support; floor-first order plus continuous zero-radius upright-body clearance, unchanged step/wall constants. Exact-face RED and raised-ray counterexample RED recorded; native acceptance tracked by the movement owner.
+
 ## 2026-10-15 — AH duration source menu
 
 Shared dropdown/radios replace the StaticPopup/plain-row stand-in; caller Lua width/font/alignment preserved locally. [Source and bounded proof](systems/auction-house-ui.md#duration-source-composition--2026-10-15): RED2→GREEN10, four inspected both-skin full-HD native after samples plus before controls; no fresh server/trading/persistence acceptance.
