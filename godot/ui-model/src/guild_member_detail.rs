@@ -296,12 +296,14 @@ pub fn removal_confirmation(session: &GuildRanksSession) -> Element {
     // exclusive and hideOnEscape. GameDialog base: 320px, 16px text insets.
     let mut children = rsx! { texture { name: "GuildMemberRemovePopupBackground", texture_fdid: 6839810,
     left: 7.0, top: 7.0, width: 306.0, height: 84.0, pos_type: "absolute", draw_layer: "BACKGROUND" } };
-    children.extend(label(
-        "GuildMemberRemovePopupText".into(),
-        &format!("Are you sure you want to remove {name} from the guild?"),
-        (15.0, 16.0, 290.0, 36.0),
-        (14.0, "1,1,1,1", "CENTER"),
-    ));
+    let prompt = format!("Are you sure you want to remove {name} from the guild?");
+    children.extend(
+        rsx! { fontstring { name: "GuildMemberRemovePopupText", text: {prompt.as_str()},
+        left: 15.0, top: 16.0, width: 290.0, height: 36.0, pos_type: "absolute",
+        font: crate::ui::widgets::font_string::GameFont::FrizQuadrata, font_size: 14.0,
+        font_color: "1,1,1,1", justify_h: "CENTER", word_wrap: true,
+        shadow_color: "0,0,0,1", shadow_offset: "1,-1" } },
+    );
     for (name, text, action, x) in [
         ("Yes", "Yes", "guild:remove_confirm", 27.0),
         ("No", "No", "guild:remove_cancel", 165.0),
