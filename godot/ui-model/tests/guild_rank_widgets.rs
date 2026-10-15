@@ -833,9 +833,9 @@ fn guild_communities_metadata_columns_sort_numeric_values_and_preserve_member_id
             info_text: String::new(),
             // Deliberately not in the rank snapshot's member order.
             members: [
-                ("Alessio", 80, "Druid"),
-                ("Zara", 20, "Mage"),
-                ("Cara", 8, "Paladin"),
+                ("Alessio", 80, "Paladin"),
+                ("Zara", 20, "Druid"),
+                ("Cara", 8, "Mage"),
             ]
             .into_iter()
             .map(|(name, level, class_name)| GuildMemberSnapshot {
@@ -851,7 +851,7 @@ fn guild_communities_metadata_columns_sort_numeric_values_and_preserve_member_id
         });
         let profile = session.profile.clone();
         // Retail numeric columns begin ascending; missing attributes begin first.
-        // Class uses IDs2/8/11, not alphabetic Druid/Mage/Paladin ordering.
+        // Class uses IDs2/8/11, not alphabetic Druid/Mage/Paladin or level ordering.
         for (column, ascending, descending) in [
             (
                 0,
@@ -860,8 +860,8 @@ fn guild_communities_metadata_columns_sort_numeric_values_and_preserve_member_id
             ),
             (
                 1,
-                ["Unknown", "Cara", "Zara", "Alessio"],
-                ["Alessio", "Zara", "Cara", "Unknown"],
+                ["Unknown", "Alessio", "Cara", "Zara"],
+                ["Zara", "Cara", "Alessio", "Unknown"],
             ),
         ] {
             for expected in [ascending, descending] {
