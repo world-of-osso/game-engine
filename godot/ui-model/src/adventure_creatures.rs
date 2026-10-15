@@ -4,24 +4,44 @@ use ui_toolkit::{rsx, widget_def::Element};
 use crate::{
     adventure_guide::View,
     adventure_guide_art::{Art, art, highlight},
-    bank_art::{WHITE, texture},
     game_tooltip::GameTooltip,
+    inworld_unit_frames_component::{FULL_PORTRAIT, PortraitSlot},
     quest_art::DynName,
     tooltip_presentation::{TooltipLineState, TooltipPresentation},
 };
 
+/// XML535–543: the whole portrait with TempPortraitAlphaMask.
+/// Native host geometry supplies either authored40px or36px output size.
+pub const PORTRAIT: PortraitSlot = PortraitSlot {
+    frame: "JournalCreaturePortrait",
+    rect: (0., 0., 40., 40.),
+    mask_fdid: game_engine_core::character_creation_icon_mask_data::PORTRAIT_MASK_FDID,
+    mask_rect: (0., 0., 40., 40.),
+    tex_coords: FULL_PORTRAIT,
+};
+pub const MAX_CREATURES: usize = 9;
+const SELECTED_SIZE: (f32, f32, f32) = (64., 61., 40.);
+const OTHER_SIZE: (f32, f32, f32) = (50., 49., 36.);
+const OVERLAP: f32 = 8.;
+const FIRST_TOP: f32 = crate::adventure_guide_art::MODEL.1 + 35.;
+const FIRST_LEFT: f32 = crate::adventure_guide_art::MODEL.0 + 3.;
+
 pub(crate) fn buttons(view: &View) -> Element {
     view.model_creatures()
         .into_iter()
-        .scan(100., |top, creature| {
+        .scan(FIRST_TOP, |top, creature| {
             let selected = view.creature == Some(creature.id);
-            let height = if selected { 61. } else { 49. };
+            let (_, height, _) = button_size(selected);
             let result = creature_button(creature, selected, *top);
-            *top += height - 8.;
+            *top += height - OVERLAP;
             Some(result)
         })
         .flatten()
         .collect()
+}
+
+fn button_size(selected: bool) -> (f32, f32, f32) {
+    if selected { SELECTED_SIZE } else { OTHER_SIZE }
 }
 
 fn creature_button(
@@ -30,17 +50,16 @@ fn creature_button(
     top: f32,
 ) -> Element {
     let name = format!("JournalCreature{}", creature.id);
-    let (width, height, icon) = if selected {
-        (64., 61., 40.)
-    } else {
-        (50., 49., 36.)
+    let (width, height, icon) = button_size(selected);
+    let portrait_left = (width - icon) / 2.;
+    let portrait_top = (height - icon) / 2.;
+    let portrait_name = DynName(format!("{name}Portrait"));
+    let mut content = rsx! {
+        frame {
+            name: {portrait_name}, left: portrait_left, top: portrait_top,
+            width: icon, height: icon, pos_type: "absolute"
+        }
     };
-    let mut content = texture(
-        format!("{name}Portrait"),
-        creature.portrait,
-        ((width - icon) / 2., (height - icon) / 2., icon, icon),
-        WHITE,
-    );
     content.extend(art(
         format!("{name}ButtonArt"),
         Art::InstanceRing,
@@ -52,7 +71,13 @@ fn creature_button(
         (0., 0., width, height),
     ));
     let action = format!("journal:creature:{}", creature.id);
-    rsx! { button { name: {DynName(name)}, left: 402., top, width, height, pos_type: "absolute", frame_level: 2., disabled: selected, onclick: {action.as_str()}, button_default_skin: false, {content} } }
+    rsx! {
+        button {
+            name: {DynName(name)}, left: FIRST_LEFT, top, width, height,
+            pos_type: "absolute", frame_level: 2., disabled: selected,
+            onclick: {action.as_str()}, button_default_skin: false, {content}
+        }
+    }
 }
 
 pub fn tooltip(view: &View, frame: &str) -> Option<GameTooltip> {
