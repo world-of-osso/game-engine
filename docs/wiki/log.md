@@ -1,3 +1,10 @@
+## 2026-10-15 — Stockade ramp lip movement
+
+[Player ground](systems/player-ground.md#native-grounded-steps--2026-10-15): captured face3153 lip blocks before reachable face3041 support; floor-first order with unchanged low-ray movement corridor and step/wall constants. Exact-face RED and thin-wall counterexample RED recorded; lead explicitly excluded full-height body clearance after authored-route regressions. Full-body clearance is a named gap. [Bounded native proof](systems/player-ground.md#bounded-native-proof): Godot old-ray contact0.04996484yd, held-W rise0.65576yd with matching client/server positions, inspected before/after PNGs;10+4 focused regressions pass. Authoritative private pose setup is recorded; no server source changes.
+
+## 2026-10-15 — Guild member note implementation
+
+[Member details and notes](systems/guilds.md#member-details-and-notes): additive public-note storage preserves existing officer records; authenticated self/public/officer permissions, per-recipient privacy and Mainline31-letter popup source implemented. Current UI/decision28, actualUDP4 and server main-binary11 pass, including popup-target RED→GREEN, note commands/public-self payloads, rank-right/privacy and durable reopen. Six actual private5891 master/self/server-restart-readback runs now pass in Modern and Forever; fourteen inspected1920×1080 PNGs verify corrected border layering, input backdrops, self privacy and source removal confirmation. Current widgets22/22 includes destructive-confirmation RED→GREEN; native No/Escape sends nothing. Merged-head checks remain separate. Local TDB1210 contains62 guild reward rows; runtime import/eligibility, not source availability, remains a later guild gap.
 ## 2026-10-15 — MountSpecial authored playback continuation
 
 [MountSpecial](systems/mounts.md#mountspecial-continuation--2026-10-15): unified input/identity/emote routing and deterministic complete-segment scheduler. Core6/server3 GREEN; mount sequence ownership native PASS. Actual rider FishingCast1000ms versus AnimStartTime2000 exposes unresolved offset semantics; both-skin three-mount/observer rendering not yet proven.
@@ -8,6 +15,10 @@
 ## 2026-10-15 — Communities numeric roster sorting
 
 [Level/Class header continuation](systems/guilds.md#communities-metadata-sorting--verified2026-10-15): actual disabled-header RED→seven focused controls GREEN, numeric class IDs and missing-value order sourced from Retail. Both-skin native physical sort and prior Communities regression pass; ten before/after PNGs inspected. Offline fixture authority only; service gaps and numeric tie-order boundary retained.
+## 2026-10-15 — Native bot health qualification and per-ability triage
+
+[Health boundary](systems/bot-harness.md#capture-and-detection): Ret70 was alreadyhealth0/8208 while input eligibility remainedtrue, so no new in-window death event existed. Readiness/collection now require observed positive health; archived before/in-window samples qualify derived reports without rewriting originals. Actual native proof keeps six MVP windows valid, quarantines two Ret windows as DPSnull and confirms eight raw report hashes unchanged. Per-ability JSON/Markdown preserves real triggered event IDs and separates untagged native errors. Integrated57 tests pass; old loaded all40 capture continues with final health-qualified comparison. Stockade deferred until a maintained source-backed controller exists.
+
 ## 2026-10-15 — Comparable three-DPS bot MVP
 
 [Native receipts](systems/bot-harness.md#common-budget-three-dps-mvp--verified2026-10-15): Arms/Fury/Havoc each complete two60s windows with equal30/quality2/era0 equipment, empty jewelry and common observed dummy/level/world inputs. Fury ordinary dual-two-hand succeeds; Havoc five normal jewelry removals preserve four bag identities. Median19.1167 from equal-spec means, max/median5.7363, min/median0.1844; no tolerance/balance or bug-free claim. All40/detector completeness/Stockade remain open. Evidence native-equal-budget2; all owned runtime stopped.
@@ -49,6 +60,14 @@ Shared dropdown/radios replace the StaticPopup/plain-row stand-in; caller Lua wi
 ## 2026-10-15 — Suggested joint provider and three-pane native proof
 
 [Suggested panes](systems/adventure-guide.md#suggested-fixed-source-panes--2026-10-15) now use installed702-row CSV and evaluated authored priority bonuses. Both-skin native330/816 shows genuine881/852/27; a pixel-found91px title overflow is RED→GREEN at the unchanged source66px frame/8px gap, with both lines visible. Server12/UI8, checks/fmt pass; exact executable/input/PNG hashes retained. Unknown predicates and opaque selection/rotation remain explicit gaps; earlier one-record pictures were not acceptance.
+## 2026-10-15 — Trading Post frozen-slot overlap
+
+[Effective frozen geometry](systems/trading-post.md#frozen-slot-geometry--implementation-october15): missing FrozenProductContainer OnLoad overrides left a32px icon inside64px frost art overlapping its label. Source64px icon/95px centered mask and233×45 label preserve the price column and8px frame-to-label gap. Geometry/real-icon alpha RED→GREEN,27 UI/12 native tests and actual both-skin before/after layout/art/conservation pass.16 full-HD originals+8 unscaled paired crops with exact binary/hash/12-memory-edge manifest; ordinary32/48 mask behavior unchanged.
+
+## 2026-10-15 — Trading Post authored base camera/orbit
+
+[Camera ownership](systems/trading-post.md#authored-base-orbit-camera--implementation-october15): installed scene camera target/angles/zoom, product override tag handling and source decimal rounding replace generic bounds fitting. Actual camera-only held/drag orbit and wheel zoom preserve actor bases and rider/HUD lifetimes. Core4 and compatible generic-camera native RED→both-skin GREEN;24 inspected full-HD originals with binary-hash/memory manifest. Inherited native zoom splines/default FOV remain explicit lead-authorized gaps; no full Retail-framing or pet-comparison claim.
+
 ## 2026-10-15 — Trading Post frozen replacement consent
 
 [Frozen confirmation](systems/trading-post.md#frozen-replacement-confirmation--implementation-october15): old-item dialog, candidate slot preview, five-second Confirm-only delay, Cancel/global right-down and consumed Escape. Native premature-request RED→both-skin GREEN; only accepted/empty-slot freezes prune their cart member, authority/Tender unchanged.20 inspected full-HD PNGs and exact binary/memory manifest retained.
@@ -3941,7 +3960,19 @@ Ported authored parent/child geometry, tree disclosure and successor promotion; 
 [Harness](systems/bot-harness.md): actual native combat fixture, injected missing request, fixed-window actor/target DPS, multiplicity-preserving ring polling and comparable-fixture median spread. Generic active direct-enemy damage selector preserves actual installed DB2 coefficients/cast times/cooldowns. Native runs and broader detection remain open.
 - 2026-10-15: [Housing disabled icons](systems/housing.md#disabled-editor-icon-visuals--implementation2026-10-15): inspected untouched native1920×1080 both-skin PNGs; inherited1280 downsampling separated from full-HD evidence.
 
+- 2026-10-15: [Stationary Cleanup ray](systems/housing.md#stationary-cleanup-ray--implementation2026-10-15): actual owner/readonly process RED, unchanged input/current-ray receipts and exact paid restoration; minimal per-frame picker refresh implemented, acceptance pending.
+
+- 2026-10-15: [Stationary Cleanup ray](systems/housing.md#stationary-cleanup-ray--implementation2026-10-15): both-skin native GREEN, one input event/current ray/name/highlight clear+return and exact normal-owner restoration; launch hashes and six inspected functional PNGs retained, no timing/full-HD claim.
 ## 2026-10-15 — Native talent Import/Export proof
 
 Completed Retailv2 codec/authoritative Create and committed Copy callbacks, exact source labels/fonts and modal-only error host. Core5/5, ui-model9/9, native build/format pass; both-skin real private UDP full-code reimport/relog and12 inspected native1920×1080 PNGs, with source-hash and OS clipboard delivery gaps explicit. [Contract and receipts](../specs/talent-loadouts.md); [implementation and source](systems/talents.md#retail-loadout-strings--2026-10-15). Starter remains a separate server-authoritative slice.
+
+- 2026-10-15: [Active Expert submode continuity](systems/housing.md#active-expert-submode-continuity--implementation2026-10-15): model/native assigned-key RED reproduced; same-submode early return implemented, different-submode policy unchanged; acceptance pending.
+
+- 2026-10-15: [Active Expert submode continuity](systems/housing.md#active-expert-submode-continuity--implementation2026-10-15): focused13 GREEN and both-skin actual held-input Translate/Rotate/Scale/key/release/Escape conservation; inspected functional frames and exact launch hashes retained.
 - 2026-10-15 — Action cooldown source swipe: ordinary actions now use existing radial shader at black0.64/inset3; obsolete rectangle/toy flag removed. RED2→GREEN6, before/after both-skin fullHD frozen-fraction quadrant/opacity/reset proof; journal/viewer0.8 and timing/countdowns/inputs preserved. Initial native hidden/snapped-bounds fixture failure excluded and corrected without extension rebuild. [System](systems/spellbook-action-bar.md#action-cooldown-source-swipe-2026-10-15), diagnostics ui-questlog-action-swipe-2026-10-15/action-swipe-proof-ledger.json; no live lifecycle/server claim.
+- 2026-10-15: Slam active70391 source revalidation: genuine core/native stale-kit RED; update same-weapon/no-snapshot/replicated-spec expectations and impact model166330/attachment22. Runtime unchanged; GREEN pending.
+
+- 2026-10-15: Lead assigned Battle Shout sound drift; source616→190617→562175/279043→789655/368264 authenticated. Corrected initial Slam type1 misread: actual model is type2 effect789206→638041→25213/1283017, attachment15 unchanged. No runtime changes; full-file GREEN pending.
+
+- 2026-10-15: Slam/Battle Shout fixture refresh4fe654f81 bounded GREEN: core17/17, native specialization5/5, core/native all-target check1m13s, workspace fmt/manual readability clean. Same active70391 rows; no runtime or rendered/audio acceptance claim.

@@ -13,6 +13,8 @@ use std::{
 const MOVE_REQUEST: u64 = 10;
 const RESTORE_REQUEST: u64 = 11;
 const ENTER_REQUEST: u64 = 12;
+// Admission may queue the native observer before it starts; movement assertions keep their own bounds.
+const COORDINATION_TIMEOUT: Duration = Duration::from_secs(3600);
 
 #[derive(Clone, Copy, PartialEq)]
 enum Phase {
@@ -338,7 +340,7 @@ fn connect_peer() -> Result<Peer, String> {
 
 fn run() -> Result<(), String> {
     let mut peer = connect_peer()?;
-    let result = peer.drive(Duration::from_secs(600));
+    let result = peer.drive(COORDINATION_TIMEOUT);
     if let Err(error) = result {
         if peer.original.is_some() && peer.phase != Phase::Done {
             peer.begin_restore()
