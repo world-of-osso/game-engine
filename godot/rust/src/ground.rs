@@ -122,21 +122,29 @@ impl TerrainGround<'_> {
             return current;
         }
         let candidate = self.apply_floor_rules(current, proposed, target, snap);
-        let stepping = snap && target.is_some() && candidate.y > current.y;
-        let wall_start = if stepping {
-            current.with_y(candidate.y)
-        } else {
-            current
-        };
-        let clamped = clamp_movement_to_walls(wall_start, candidate, self.walls);
-        if stepping && (self.step_wall_blocked)(wall_start, clamped, current.y + STEP_UP_HEIGHT) {
-            return current;
+        let clamped = clamp_movement_to_walls(current, candidate, self.walls);
+        let reached = clamped.x == candidate.x && clamped.z == candidate.z;
+        if reached {
+            return candidate;
         }
-        // A wall may have shortened the move onto a different support column. Never
-        // retain the height of a landing that the player did not actually reach.
+        let stepping = snap && target.is_some() && candidate.y > current.y;
+        if stepping && self.step_past_wall_is_clear(current, candidate) {
+            return candidate;
+        }
+        // A blocked step keeps the ordinary wall clamp. Never retain the height
+        // of a landing that the player did not actually reach.
         let proposed = clamped.with_y(proposed.y);
         let target = self.sample(proposed.with_y(current.y));
         self.apply_floor_rules(current, proposed, target, snap)
+    }
+
+    /// Only a wall-blocked move attempts a step: unobstructed ramps keep their
+    /// existing low-ray corridor, including authored floor detail below that ray.
+    fn step_past_wall_is_clear(&self, current: Vec3, candidate: Vec3) -> bool {
+        let raised = current.with_y(candidate.y);
+        let across = clamp_movement_to_walls(raised, candidate, self.walls);
+        let reached = across.x == candidate.x && across.z == candidate.z;
+        reached && !(self.step_wall_blocked)(raised, candidate, current.y + STEP_UP_HEIGHT)
     }
 
     fn apply_floor_rules(

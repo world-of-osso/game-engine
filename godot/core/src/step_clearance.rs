@@ -45,11 +45,6 @@ fn blocks_step_sweep(triangle: [Vec3; 3], from: Vec3, to: Vec3) -> bool {
     }
     let above_feet = section.iter().any(|point| point.y > 0.0);
     let below_ray = section.iter().any(|point| point.y < WALL_RAY_HEIGHT);
-    if above_feet && below_ray {
-        eprintln!(
-            "STEP_WALL_DIAGNOSTIC triangle={triangle:?} from={from:?} to={to:?} section={section:?}"
-        );
-    }
     above_feet && below_ray
 }
 
