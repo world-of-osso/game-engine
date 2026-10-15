@@ -1,0 +1,16 @@
+ID,Filename,Name_lang,ArmorTypeMask
+1,WARRIOR,Warrior,113
+2,PALADIN,Paladin,2289
+3,HUNTER,Hunter,41
+4,ROGUE,Rogue,37
+5,PRIEST,Priest,35
+6,DEATHKNIGHT,Death Knight,3121
+7,SHAMAN,Shaman,2665
+8,MAGE,Mage,35
+9,WARLOCK,Warlock,35
+10,MONK,Monk,37
+11,DRUID,Druid,2341
+12,DEMONHUNTER,Demon Hunter,37
+13,EVOKER,Evoker,41
+14,Adventurer,Adventurer,0
+15,TRAVELER,Traveler,63

@@ -548,6 +548,7 @@ impl UiProjection {
                     action.starts_with("bank_slot:")
                         || action.starts_with("guild:member:")
                         || action.starts_with("mount:select:")
+                        || action.starts_with("journal:activity:")
                         || action.starts_with("transmog:outfit:")
                         || action.starts_with(game_engine_ui_model::toybox::USE_PREFIX)
                         || action.starts_with(
@@ -711,6 +712,7 @@ impl UiProjection {
                         | "EncounterJournalModelScene"
                         | "EncounterJournalTutorialsFrame"
                         | "EncounterJournalSuggestedFrame"
+                        | "EncounterJournalMonthlyActivitiesFrame"
                         | "JourneyRenownTrackClip"
                         | "QuestMapRewardsFrameContainer"
                 )
@@ -1360,6 +1362,10 @@ fn connect_edit_box(pending: &PendingInputs, frame: &Frame, node: &mut Gd<Contro
         return;
     };
     let text_changed = if data.multi_line {
+        if frame.name.as_deref() == Some("TalentLoadoutCodeInput") {
+            let keys = talent_import_keys(pending.clone(), node.clone());
+            node.connect("gui_input", &keys);
+        }
         let mut editor = node.clone().cast::<TextEdit>();
         let max_letters = data.max_letters;
         Callable::from_fn("registry-multiline-text-changed", move |_| {
@@ -1456,6 +1462,26 @@ fn read_limited_multiline_text(node: &mut Gd<TextEdit>, max_letters: Option<u32>
 }
 
 /// The original login clears edit focus on Escape; LineEdit keeps it by default.
+/// Retail ImportControl.OnEnterPressed submits, not a newline in the code.
+fn talent_import_keys(pending: PendingInputs, mut edit: Gd<Control>) -> Callable {
+    Callable::from_fn("talent-import-submit", move |args| {
+        let submitted = args
+            .first()
+            .and_then(|event| event.try_to::<Gd<godot::classes::InputEventKey>>().ok())
+            .is_some_and(|key| {
+                key.is_pressed()
+                    && matches!(
+                        key.get_keycode(),
+                        godot::global::Key::ENTER | godot::global::Key::KP_ENTER
+                    )
+            });
+        if submitted {
+            pending.push(UiInput::Submit);
+            edit.accept_event();
+        }
+    })
+}
+
 fn search_preview_keys(pending: PendingInputs, mut edit: Gd<Control>) -> Callable {
     Callable::from_fn("talent-search-preview-keys", move |args| {
         let Some(key) = args

@@ -1,11 +1,28 @@
 # Wiki Index
 
+- [Guild invitation source chrome](systems/guilds.md#invitation-chrome--verified2026-10-15) — source translucent inset/corners/tiled edges replace static-popup art; two controls and both-skin native Join/Decline/pending proof, four inspected PNGs. Inner art/payload/lifecycle gaps remain separate.
+
+- [Communities numeric roster sorting](systems/guilds.md#communities-metadata-sorting--verified2026-10-15) — source Level/Class headers, numeric/missing-value ordering, preserved member identity; seven controls and both-skin native physical proof with ten inspected before/after PNGs.
+- [Action cooldown source swipe](systems/spellbook-action-bar.md#action-cooldown-source-swipe-2026-10-15) — ordinary actions join existing radial renderer at source0.64; RED2→GREEN6, both-skin fullHD quadrant/opacity/reset proof; clocks/countdown/input unchanged.
+
+- [MountSpecial continuation](systems/mounts.md#mountspecial-continuation--2026-10-15) — unified input/wire/real observer dispatch; phase-qualified three-mount both-skin input/peer proof, real Spelltome saddle/body identity and explicit Grrloc/unsupported-VFX gaps; lead pixel review and integration OPEN.
+
+- [Pet queue caption tag](systems/battle-pets.md#queue-ready-caption-tag--2026-10-15) — missing-text RED→typed caption, two inspected both-skin native samples; outside-caption pixels unchanged, remaining popup parity separate.
+- [Initial local-player facing](systems/networking.md#initial-local-player-facing-2026-10-15) — native first-root source yaw is later overwritten by PI prediction; constructor uses authoritative yaw;12 world controls and both-skin native Bashiok GREEN without a turn stimulus.
+
+- [Equipped-item material closure](systems/asset-pipeline.md#equipped-item-material-closure--verified-2026-10-15) — actual ten-item Human-male graph43/43 authenticated, typed3/4 overrides beyond M2 TXID; canonical publication and native clear pending.
+- [AH duration source menu](systems/auction-house-ui.md#duration-source-composition--2026-10-15) — shared dropdown/radios, caller115/Arial Narrow12/RIGHT,10 source/reducer controls and four inspected both-skin native samples; no fresh trading claim.
+
+- [Player-bot measurement](systems/bot-harness.md) — native combat detection and common-budget Arms/Fury/Havoc MVP, six complete60s windows with empty jewelry/retained bags; all40/full detection/Stockade gates remain open.
 - [Native summon lifetime proofs](systems/toy-box.md#native-summon-lifetime-proofs-2026-10-15) — release Forever Scarab and quiet both-skin Flute expiry; prior debug failures, unresolved following/navigation and exact binary scopes retained.
+- [Disabled housing icon source color](systems/housing.md#disabled-editor-icon-visuals--implementation2026-10-15) — default atlas/DARKGRAY tint/full alpha instead of invented desaturation/transparency; both-skin model and actual painted-control proof, availability unchanged.
 
 - [Empty purchased-bank audit sample](systems/banks.md#empty-purchased-tab-audit-sample--2026-10-14) — malformed zero-capacity sample corrected; both-skin98 native controls/backgrounds and no item icons, with before/after pixel proof; production and purchase prompt unchanged.
 - [Modern target cast source art](investigations/target-cast-source-art.md) — source background/textbox, cropped four-state fills and6×16 pip;9 focused regressions and inspected both-skin before/after samples, Forever byte-identical.
 - [Active housing mode no-op](systems/housing.md#active-mode-activation--implementation2026-10-15) — active pointer/assigned-key activation preserves Basic selection/owned preview and Expert staged render/list; both-skin hash-qualified native proof.
 - [Source creature opacity](systems/toy-box.md#source-creature-opacity-2026-10-15) — authored byte retained in catalog and per-instance native binding;15+2 CPU regressions pass, native Bashiok pixels pending.
+- [Traveler's Log source rows](systems/adventure-guide.md#travelers-log--bounded-native-source-proof) — both-skin genuine disclosure/Options overflow, source activity tooltip without criterion diagnostics and authoritative Shift tracking ACK; assignment/reward gaps remain.
+- [Source creature opacity](systems/toy-box.md#source-creature-opacity-2026-10-15) — authored byte retained in catalog and per-instance native binding;15+2 CPU regressions and inspected both-skin Bashiok50 pixels, with wall timing separately unqualified.
 - [Suggested fixed source panes](systems/adventure-guide.md#suggested-fixed-source-panes--2026-10-15) — joint installed-CSV/bonus provider and both-skin three-card native proof; source-height title fitting, explicit ordering/authority gaps.
 
 - [Housing pressed-hover lifecycle](systems/housing.md#control-pressed-hover-lifecycle--implementation2026-10-15) — source additive hover suppression during real press, inside/outside release and inspected both-skin six-control native matrix; no timing/whole-art claim.
@@ -389,3 +406,5 @@ External resources and asset lists.
 - [Spell overrides and teleports](systems/spell-overrides-teleports.md) — aura332 effective actions, destination targeting and native aura312 base/action replacement hooks; conditional-flag and citation limits.
 
 - [Group-private owner capture fixtures](systems/toy-box.md#source-group-private-owner-capture-fixtures-2026-10-13) — source doll/gong lifecycle and actual UDP membership proof fixtures, execution pending.
+
+- [Retail loadout strings](systems/talents.md#retail-loadout-strings--2026-10-15) — installed version2/source provenance, committed export/native Import, Lua-produced fixtures and both-skin private relog/full-HD proof; hash/OS clipboard limits explicit.
