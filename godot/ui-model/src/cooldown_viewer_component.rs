@@ -18,6 +18,13 @@ pub const VIEWER_NAMES: [&str; 4] = [
     "BuffBarCooldownViewer",
 ];
 
+// CooldownViewerBuffBarItemTemplate, CooldownViewer.xml:209-277.
+const BUFF_ICON_SIZE: f32 = 30.0;
+const BUFF_ITEM_WIDTH: f32 = 220.0;
+const BUFF_BAR_HEIGHT: f32 = 19.0;
+const BUFF_BAR_LEFT: f32 = BUFF_ICON_SIZE + 2.0;
+const BUFF_BAR_WIDTH: f32 = BUFF_ITEM_WIDTH - BUFF_BAR_LEFT;
+
 pub fn cooldown_viewer_screen(ctx: &SharedContext) -> Element {
     let _ = ctx.get::<ui_toolkit::atlas::ActiveSkin>();
     let state = ctx
@@ -43,10 +50,10 @@ fn viewer(category: usize, icons: &[CooldownIconView], enabled: bool) -> Element
         0 => (50.0, 12, 2.0, 310.0, 0.0),
         1 => (30.0, 7, 2.0, 240.0, 0.0),
         2 => (40.0, 1, 5.0, 370.0, 0.0),
-        _ => (30.0, 1, 5.0, 430.0, 420.0),
+        _ => (BUFF_ICON_SIZE, 1, 5.0, 430.0, 420.0),
     };
     let bar = category == 3;
-    let item_width = if bar { 220.0 } else { side };
+    let item_width = if bar { BUFF_ITEM_WIDTH } else { side };
     let width = icons.len().min(columns).max(1) as f32 * (item_width + padding) - padding;
     let height = icons.len().div_ceil(columns).max(1) as f32 * (side + padding) - padding;
     let bottom = bottom.to_string();
@@ -99,23 +106,18 @@ fn viewer_item_content(
     size: (f32, f32),
     bar: bool,
 ) -> Element {
-    let timer = if icon.remaining > 0.0 {
-        format!("{:.0}", icon.remaining.ceil())
-    } else {
-        String::new()
-    };
+    if bar {
+        return buff_bar_content(name, icon);
+    }
+    let timer = remaining_text(icon.remaining);
     let charges = icon
         .charges
         .map(|count| count.to_string())
         .unwrap_or_default();
     let hide_glow = !icon.assisted_highlight;
-    let progress_width = if bar {
-        (size.0 - size.1) * icon.fraction
-    } else {
-        size.1
-    };
+    let progress_width = size.1;
     let progress_height = size.1;
-    let label = if bar { icon.name.as_str() } else { "" };
+    let label = "";
     rsx! {
         texture {
             name: {DynName(format!("{name}Icon"))},
@@ -126,9 +128,9 @@ fn viewer_item_content(
         r#frame {
             name: {DynName(format!("{name}Cooldown"))},
             width: progress_width, height: progress_height,
-            background_color: {if bar { "0.7,0.5,0.15,0.85" } else { "0.0,0.0,0.0,0.0" }},
-            pos_type: "absolute", pos_x: {if bar { size.1 } else { 0.0 }},
-            pos_y: {if bar { 0.0 } else { size.1 - progress_height }},
+            background_color: "0.0,0.0,0.0,0.0",
+            pos_type: "absolute", pos_x: 0.0,
+            pos_y: {size.1 - progress_height},
         }
         {crate::assisted_highlight::highlight(format!("{name}AssistedHighlight"), size.1, hide_glow)}
         fontstring {
@@ -141,7 +143,7 @@ fn viewer_item_content(
             name: {DynName(format!("{name}Timer"))},
             width: {size.1}, height: {size.1}, text: {timer.as_str()},
             font: GameFont::FrizQuadrata, font_size: 14.0, font_color: "1.0,1.0,1.0,1.0", outline: "OUTLINE",
-            justify_h: "CENTER", pos_type: "absolute", pos_x: {if bar { size.0 - size.1 } else { 0.0 }}, pos_y: 0.0,
+            justify_h: "CENTER", pos_type: "absolute", pos_x: 0.0, pos_y: 0.0,
         }
         fontstring {
             name: {DynName(format!("{name}Charges"))},
@@ -149,5 +151,88 @@ fn viewer_item_content(
             font: GameFont::FrizQuadrata, font_size: 12.0, font_color: "1.0,1.0,1.0,1.0", outline: "OUTLINE",
             justify_h: "RIGHT", pos_type: "absolute", pos_x: 0.0, pos_y: {size.1 - 12.0},
         }
+    }
+}
+
+fn remaining_text(remaining: f32) -> String {
+    if remaining > 0.0 {
+        format!("{:.0}", remaining.ceil())
+    } else {
+        String::new()
+    }
+}
+
+fn buff_bar_content(name: &str, icon: &CooldownIconView) -> Element {
+    let image = buff_bar_icon(name, icon);
+    let art = buff_bar_art(name, icon);
+    let labels = buff_bar_labels(name, icon);
+    rsx! {
+        {image}
+        r#frame { name: {DynName(format!("{name}Cooldown"))},
+            width: BUFF_BAR_WIDTH, height: BUFF_BAR_HEIGHT, frame_level: 511.0,
+            pos_type: "absolute", left: BUFF_BAR_LEFT, top: {(BUFF_ICON_SIZE - BUFF_BAR_HEIGHT) / 2.0},
+            {art} {labels} }
+    }
+}
+
+fn buff_bar_icon(name: &str, icon: &CooldownIconView) -> Element {
+    let hide_glow = !icon.assisted_highlight;
+    let charges = icon
+        .charges
+        .map(|count| count.to_string())
+        .unwrap_or_default();
+    rsx! {
+        r#frame { name: {DynName(format!("{name}IconFrame"))},
+            width: BUFF_ICON_SIZE, height: BUFF_ICON_SIZE, frame_level: 512.0,
+            pos_type: "absolute", left: 0.0, top: 0.0,
+            texture { name: {DynName(format!("{name}Icon"))},
+                width: BUFF_ICON_SIZE, height: BUFF_ICON_SIZE, texture_fdid: {icon.icon_fdid},
+                pos_type: "absolute", left: 0.0, top: 0.0, draw_layer: "BACKGROUND" }
+            {crate::assisted_highlight::highlight(format!("{name}AssistedHighlight"), BUFF_ICON_SIZE, hide_glow)}
+            fontstring { name: {DynName(format!("{name}Charges"))},
+                width: 32.0, height: 10.0, text: {charges.as_str()},
+                font: GameFont::FrizQuadrata, font_size: 12.0, font_color: "1,1,1,1", outline: "OUTLINE",
+                justify_h: "RIGHT", pos_type: "absolute", right: 5.0, bottom: 5.0 }
+        }
+    }
+}
+
+fn buff_bar_art(name: &str, icon: &CooldownIconView) -> Element {
+    let pip = ui_toolkit::atlas::resolve_region(
+        "UI-HUD-CoolDownManager-Bar-Pip",
+        ui_toolkit::atlas::thread_skin(),
+    )
+    .expect("CooldownViewer buff pip atlas");
+    let width = BUFF_BAR_WIDTH * icon.fraction;
+    let coords = format!("0,{},0,1", icon.fraction);
+    let hidden = icon.remaining <= 0.0;
+    rsx! {
+        texture { name: {DynName(format!("{name}BarBackground"))},
+            texture_atlas: "UI-HUD-CoolDownManager-Bar-BG", width: {BUFF_BAR_WIDTH + 6.0},
+            height: {BUFF_BAR_HEIGHT + 9.0}, pos_type: "absolute", left: -2.0, top: -2.0,
+            draw_layer: "BACKGROUND" }
+        texture { name: {DynName(format!("{name}BarFill"))},
+            texture_atlas: "UI-HUD-CoolDownManager-Bar", width, height: BUFF_BAR_HEIGHT,
+            vertex_color: "1,0.5,0.25,1", tex_coords: {coords.as_str()}, hidden,
+            pos_type: "absolute", left: 0.0, top: 0.0 }
+        texture { name: {DynName(format!("{name}BarPip"))},
+            texture_atlas: "UI-HUD-CoolDownManager-Bar-Pip", width: pip.width, height: pip.height,
+            hidden, pos_type: "absolute", left: {width - pip.width / 2.0},
+            top: {(BUFF_BAR_HEIGHT - pip.height) / 2.0 + 1.0}, draw_layer: "OVERLAY" }
+    }
+}
+
+fn buff_bar_labels(name: &str, icon: &CooldownIconView) -> Element {
+    let timer = remaining_text(icon.remaining);
+    rsx! {
+        fontstring { name: {DynName(format!("{name}Name"))},
+            width: {BUFF_BAR_WIDTH - 30.0}, height: BUFF_BAR_HEIGHT, text: {icon.name.as_str()},
+            font: GameFont::FrizQuadrata, font_size: 12.0, font_color: "1,1,1,1", justify_h: "LEFT",
+            pos_type: "absolute", left: 5.0, top: 0.0, draw_layer: "OVERLAY" }
+        fontstring { name: {DynName(format!("{name}Timer"))},
+            width: "auto", height: BUFF_BAR_HEIGHT, text: {timer.as_str()},
+            font: GameFont::FrizQuadrata, font_size: 14.0, font_color: "1,1,1,1", outline: "OUTLINE",
+            justify_h: "LEFT", pos_type: "absolute", right: 8.0,
+            top: 0.0, draw_layer: "OVERLAY" }
     }
 }
