@@ -1,5 +1,7 @@
 # Wiki Index
 
+- [Cleanup cursor tooltip](systems/housing.md#cleanup-central-tooltip--implementation2026-10-14) — source GameTooltip title/anchor/lifetime, both-skin owner/readonly inspection and classified stale-pixel pick boundary; pet/lock/exterior metadata remains unavailable.
+
 - [Close-camera observation](systems/character-rendering.md#close-camera-observation--2026-10-14) — actual Goldshire mailbox collision; post-AV dead login prevents standing-body acceptance, no camera/material change.
 
 - [Collections source layout](systems/collections-ui.md) — shared PortraitFrame/Filter/context menus, source pet decoration and ToyBox composition; inspected both-skin1920×1080 native controls/models,52 focused regressions and explicit projection boundary.
