@@ -10,7 +10,7 @@
 - [Pet queue caption tag](systems/battle-pets.md#queue-ready-caption-tag--2026-10-15) — missing-text RED→typed caption, two inspected both-skin native samples; outside-caption pixels unchanged, remaining popup parity separate.
 - [Initial local-player facing](systems/networking.md#initial-local-player-facing-2026-10-15) — native first-root source yaw is later overwritten by PI prediction; constructor uses authoritative yaw;12 world controls and both-skin native Bashiok GREEN without a turn stimulus.
 
-- [Equipped-item material closure](systems/asset-pipeline.md#equipped-item-material-closure--verified-2026-10-15) — actual ten-item Human-male graph43/43 authenticated, typed3/4 overrides beyond M2 TXID; canonical publication and native clear pending.
+- [Equipped-item material closure](systems/asset-pipeline.md#equipped-item-material-closure--verified-2026-10-15) — actual ten-item Human-male graph43/43 authenticated, typed3/4 overrides beyond M2 TXID; canonical publication unconfirmed; [later native Baron kill/loot proof](../headless-live-run.md#bounded-baron-party-proof--2026-10-15) excludes full dungeon clear and post-kill automation acceptance.
 - [AH duration source menu](systems/auction-house-ui.md#duration-source-composition--2026-10-15) — shared dropdown/radios, caller115/Arial Narrow12/RIGHT,10 source/reducer controls and four inspected both-skin native samples; no fresh trading claim.
 
 - [Player-bot measurement](systems/bot-harness.md) — native combat detection and common-budget Arms/Fury/Havoc MVP, six complete60s windows with empty jewelry/retained bags; all40/full detection/Stockade gates remain open.
