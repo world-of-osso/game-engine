@@ -1,0 +1,3 @@
+ID,Name_lang,CreatureDisplayID,CreatureType,Flags,AttackIconFileID,BonusActionBar,CombatRoundTime,DamageVariance,MountTypeID,PresetSpellID_0,PresetSpellID_1,PresetSpellID_2,PresetSpellID_3,PresetSpellID_4,PresetSpellID_5,PresetSpellID_6,PresetSpellID_7
+1,Cat Form,115603,1,248,132116,1,1000,0.400000006,0,0,0,0,0,0,0,0,0
+5,Bear Form,115602,1,248,132143,3,2500,0.400000006,0,0,0,0,0,0,0,0,0

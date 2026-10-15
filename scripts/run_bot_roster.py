@@ -17,7 +17,10 @@ from pathlib import Path
 from types import SimpleNamespace
 
 from bot_roster import build_roster
-from bot_gear import load_plan as load_gear_plan, required_grants
+from bot_harness import balance
+from bot_health import qualify_report_health, require_living_player
+from bot_forms import form_is_observed, load_plan as load_form_plan
+from bot_gear import equipment_receipt, load_plan as load_gear_plan, required_grants
 from bot_rotation import authored_order
 from bot_talents import load_plan
 from run_dummy_bots import collect, read_state
@@ -34,13 +37,13 @@ def command(output, argv, env=None):
 
 def record_inputs(args):
     files = [args.engine / "scripts" / f"{name}.py" for name in
-             ("bot_harness", "bot_rotation", "bot_roster", "bot_talents", "bot_gear", "run_dummy_bots", "run_bot_roster")]
+             ("bot_harness", "bot_rotation", "bot_roster", "bot_talents", "bot_gear", "bot_health", "bot_forms", "run_dummy_bots", "run_bot_roster")]
     files += [args.engine / "godot/tests" / f"{name}.gd" for name in ("bot_harness_observer", "bot_harness_talents", "bot_harness_gear")]
     files.append(args.world_db)
     tables = ("ChrSpecialization", "ChrRaces", "ChrClasses", "CharBaseInfo", "SpellEffect", "SpellMisc",
               "SpellPower", "SpellCooldowns", "SpellCastTimes", "AssistedCombat", "AssistedCombatStep",
               "AssistedCombatRule", "TraitTreeLoadout", "TraitTreeLoadoutEntry", "TraitNodeXTraitNodeEntry",
-              "TraitNodeEntry", "TraitDefinition")
+              "TraitNodeEntry", "TraitDefinition", "SpellShapeshiftForm")
     files += [args.engine / "data/db2/active" / f"{table}.csv" for table in tables]
     files += [args.engine / "target/debug/libgame_engine_godot.so",
               args.engine / "target/debug/game-engine-cli", args.server / "target/debug/game-server"]
@@ -53,6 +56,7 @@ def record_inputs(args):
                "db2_directory": str((args.engine / "data/db2/active").resolve()),
                "binary_source": "Binary hashes identify running artifacts; driver revision does not establish their Rust build revision."}
     (args.output / "inputs.json").write_text(json.dumps(receipt, indent=2) + "\n")
+    return receipt
 
 
 def wait_capacity(args, gpu=False):
@@ -161,13 +165,71 @@ def verified_dummy_target(state, npc_info):
     return target
 
 
+def dummy_fixture(npc_info, target):
+    pattern = r"Training Dummy \(entity (\d+)\) level (\d+) health [\d.]+/([\d.]+) difficulty (\d+)"
+    for line in npc_info.splitlines():
+        match = re.fullmatch(pattern, line)
+        if match and int(match[1]) == target:
+            return {"entry": 44548, "level": int(match[2]),
+                    "max_health": float(match[3]), "difficulty": int(match[4])}
+    raise ValueError(f"Live dummy fixture for entity {target} was not observed")
+
+
+def read_roster_reports(output, specs, repeat):
+    rows, missing = [], []
+    for spec in specs:
+        for index in range(1, repeat + 1):
+            relative = Path(str(spec)) / f"run-{index:03d}/report.json"
+            path = output / relative
+            if not path.exists():
+                missing.append(str(relative))
+                continue
+            row = qualify_report_health(path.parent, json.loads(path.read_text()))
+            row["source_report"] = str(relative)
+            rows.append(row)
+            if not row.get("measurement_complete"):
+                missing.append(str(relative))
+    return rows, missing
+
+
+def compare_roster_reports(rows, specs, missing):
+    if len(specs) < 3:
+        return {"available": False, "reason": "Three complete DPS specs are required for the MVP comparison"}
+    if missing:
+        return {"available": False, "reason": "Expected DPS runs are missing or incomplete"}
+    try:
+        return {"available": True, **balance(rows)}
+    except ValueError as error:
+        return {"available": False, "reason": str(error)}
+
+
+def write_roster_comparison(output, bots, repeat):
+    specs = [bot["spec"] for bot in bots if bot["role"] == 2]
+    rows, missing = read_roster_reports(output, specs, repeat)
+    result = compare_roster_reports(rows, specs, missing)
+    health_failures = [{"report": row["source_report"], "error": row["health_qualification"]["error"]}
+                       for row in rows if not row["health_qualification"]["valid"]]
+    result.update(expected_specs=specs, missing_runs=missing, health_failures=health_failures)
+    (output / "balance.json").write_text(json.dumps(result, indent=2) + "\n")
+    if result["available"]:
+        summary = (f"Median {result['median_dps']:.2f} DPS; "
+                   f"max/median {result['max_over_median']:.3f}; min/median {result['min_over_median']:.3f}. "
+                   "No tolerance or balance pass/fail.")
+    else:
+        summary = "Comparison unavailable: " + result["reason"]
+    (output / "comparison.md").write_text("# Dummy comparison\n\n" + summary + "\n\nFull receipts: balance.json and each spec's fixture-receipt.json.\n")
+
+
 def native_ready(state, spec, requires_authored):
     player_ready = state["account"].get("gameplay_input_allowed") and state["spells"]["spec"] == spec
     evaluator_ready = not requires_authored or (state["assisted"].get("available", False) and state["spells"].get("catalog_ready", False))
     target = state["target"]
     talent_ready = state.get("talent_status") == "observed"
     gear_ready = state.get("gear_status") == "observed"
-    return bool(player_ready and evaluator_ready and talent_ready and gear_ready and target.get("target_name") == "Training Dummy")
+    health = state["account"].get("local_player_health")
+    alive = health is not None and health > 0
+    target_ready = target.get("target_name") == "Training Dummy"
+    return all((player_ready, alive, evaluator_ready, talent_ready, gear_ready, target_ready))
 
 
 def wait_native(args, output, bot):
@@ -188,6 +250,9 @@ def wait_native(args, output, bot):
                     receipt = output / ("native-gear.json" if phase == "gear" else "native-talents.json")
                     detail = json.loads(receipt.read_text()).get("error") if receipt.exists() else str(status)
                     raise RuntimeError(f"Native {phase} setup blocked: {detail}; receipt={receipt}")
+            setup_observed = all(state.get(phase + "_status") == "observed" for phase in ("talent", "gear"))
+            if setup_observed and state["account"].get("gameplay_input_allowed"):
+                require_living_player(state["account"])
             if native_ready(state, bot["spec"], requires_authored):
                 return state
             if state.get("target_attempts", 0) >= 32:
@@ -196,14 +261,43 @@ def wait_native(args, output, bot):
     raise RuntimeError("Native readiness/Training Dummy selection exceeded 180 seconds")
 
 
+def prepare_native_form(args, output, socket, plan):
+    receipt = {"plan": plan, "cast_requested": False}
+    if not plan["required"]:
+        (output / "native-form.json").write_text(json.dumps(receipt, indent=2) + "\n")
+        return receipt
+    state = read_state(output / "native-state.json")
+    (output / "form-before.json").write_text(json.dumps(state) + "\n")
+    if plan["spell"] not in state["spells"]["known"]:
+        raise RuntimeError(f"Sourced fixture form spell {plan['spell']} is not natively known")
+    if not form_is_observed(state, plan):
+        actor = state["account"]["local_player_id"]
+        command(args.output, [args.engine / "target/debug/game-engine-cli", "--socket", socket,
+                              "spell", "cast", "--spell", str(plan["spell"]), "--target", str(actor)])
+        receipt["cast_requested"] = True
+    deadline = time.monotonic() + 10
+    while time.monotonic() < deadline:
+        state = read_state(output / "native-state.json")
+        if form_is_observed(state, plan):
+            receipt.update(observed_at_ms=state["at_ms"], observed_aura=plan["spell"],
+                           proof="ordinary native cast and replicated own form aura; combat effects remain measured separately")
+            (output / "form-after.json").write_text(json.dumps(state) + "\n")
+            (output / "native-form.json").write_text(json.dumps(receipt, indent=2) + "\n")
+            return receipt
+        time.sleep(.1)
+    raise RuntimeError(f"Native source form spell {plan['spell']} aura not confirmed; no repeat/toggle or alternate form")
+
+
 def run_bot(args, bot):
     output = args.output / str(bot["spec"])
     output.mkdir(mode=0o700)
     (output / "bot.json").write_text(json.dumps(bot, indent=2) + "\n")
     talent_plan = load_plan(args.engine / "data/db2/active", bot["spec"])
     (output / "talent-plan.json").write_text(json.dumps(talent_plan, indent=2) + "\n")
-    gear_plan = load_gear_plan(args.world_db, args.engine / "data/db2/active", bot["spec"])
+    gear_plan = load_gear_plan(args.world_db, args.engine / "data/db2/active", bot["spec"], bot["level"])
     (output / "gear-plan.json").write_text(json.dumps(gear_plan, indent=2) + "\n")
+    form_plan = load_form_plan(args.engine / "data/db2/active", bot["spec"])
+    (output / "form-plan.json").write_text(json.dumps(form_plan, indent=2) + "\n")
     provision(args, bot)
     equipment = admin(args, "list-equipment", bot["name"])
     (output / "equipment-before.txt").write_text(equipment)
@@ -241,6 +335,9 @@ def run_bot(args, bot):
         reply = command(args.output, argv)
         pid = int(re.search(r"cage pid (\d+)", reply)[1])
         state = wait_native(args, output, bot)
+        talent_receipt = json.loads((output / "native-talents.json").read_text())
+        fixture = equipment_receipt(gear_plan, state["inventory"], talent_receipt["sheet_stats"])
+        (output / "fixture-receipt.json").write_text(json.dumps(fixture, indent=2) + "\n")
         npcs = admin(args, "npc-info", "0", "0", "44548")
         (output / "dummy-identity.txt").write_text(npcs)
         target = verified_dummy_target(state, npcs)
@@ -249,12 +346,24 @@ def run_bot(args, bot):
         sockets = [path for path in sockets if path.exists()]
         if len(sockets) != 1:
             raise RuntimeError(f"Expected one owned native IPC socket, found {sockets}")
+        fixture["precombat_form"] = prepare_native_form(args, output, sockets[0], form_plan)
+        fixture["native_stats_phase"] = "after native talents; before precombat form"
+        (output / "fixture-receipt.json").write_text(json.dumps(fixture, indent=2) + "\n")
         approach_dummy(args, output, sockets[0], target)
         options = SimpleNamespace(cli=args.engine / "target/debug/game-engine-cli", socket=sockets[0],
                                   state=output / "native-state.json", db2=args.engine / "data/db2/active",
                                   target=target, duration=args.duration, comparison=None, server_log=args.server_log)
         stats = command(args.output, [options.cli, "--socket", sockets[0], "status", "character-stats"])
         (output / "character-stats.txt").write_text(stats)
+        native_level = re.search(r"(?m)^level: (\d+)$", stats)
+        if native_level is None or int(native_level[1]) != bot["level"]:
+            raise ValueError("Native character level does not match the fixed fixture")
+        dummy = dummy_fixture(npcs, target)
+        dummy["world_sha256"] = args.input_receipt["sha256"][str(args.world_db)]
+        comparison = {"level": int(native_level[1]), "stats": fixture["budget"],
+                      "dummy": dummy, "duration_ms": int(args.duration * 1000)}
+        options.comparison = output / "comparison.json"
+        options.comparison.write_text(json.dumps(comparison, indent=2) + "\n")
         for index in range(args.repeat):
             collect(options, output / f"run-{index + 1:03d}")
         (output / "equipment-after.txt").write_text(admin(args, "list-equipment", bot["name"]))
@@ -280,7 +389,7 @@ def main():
     if args.duration <= 0 or args.repeat < 1:
         parser.error("Positive duration and repeat required")
     args.output.mkdir(mode=0o700, parents=True, exist_ok=False)
-    record_inputs(args)
+    args.input_receipt = record_inputs(args)
     admin(args, "ping")
     bots = build_roster(args.engine / "data/db2/active", args.level)
     bots = [bot for bot in bots if args.all_specs or bot["spec"] in args.specs]
@@ -296,6 +405,7 @@ def main():
             (directory / "setup-error.json").write_text(json.dumps(failure, indent=2) + "\n")
             (directory / "summary.md").write_text(f"# Spec {bot['spec']} — setup blocked\n\n{error}\n\nNo complete DPS measurement or balance claim.\n")
     (args.output / "failures.json").write_text(json.dumps(failures, indent=2) + "\n")
+    write_roster_comparison(args.output, bots, args.repeat)
     return int(bool(failures))
 
 

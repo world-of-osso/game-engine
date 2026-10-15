@@ -685,6 +685,14 @@ impl SpellVisualCatalog {
         Some(self.resolve_kit(kit_id, KitTarget::Caster, VisualEvent::DisplayEnd))
     }
 
+    /// Mount rider AnimKits are scheduled in full by MountSpecialCatalog, not the
+    /// legacy first-segment spell animation resolver. Return remaining supported effects.
+    pub fn mount_special_kit(&self, kit_id: u32) -> VisualKit {
+        let mut kit = self.resolve_kit(kit_id, KitTarget::Caster, VisualEvent::OneShot);
+        kit.animation = None;
+        kit
+    }
+
     fn resolve_kit(&self, kit_id: u32, target: KitTarget, end: VisualEvent) -> VisualKit {
         let kit = self.kits.get(&kit_id);
         VisualKit {
