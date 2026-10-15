@@ -39,9 +39,33 @@ def spell_rows(directory, name, known):
     return result
 
 
+def load_effect_closure(directory, known):
+    effects = {}
+    pending = set(known)
+    while pending:
+        loaded = spell_rows(directory, "SpellEffect", pending)
+        for identity in pending:
+            effects[identity] = loaded[identity]
+        triggered = {int(row["EffectTriggerSpell"]) for rows in loaded.values() for row in rows
+                     if row["Effect"] in ("32", "64") and row["EffectTriggerSpell"] != "0"}
+        pending = triggered - effects.keys()
+    return effects
+
+
+def school_damage_rows(effects, identity, visiting=frozenset()):
+    if identity in visiting:
+        raise ValueError(f"Cyclic direct damage trigger at spell {identity}")
+    rows = effects.get(identity, [])
+    result = [row for row in rows if row["Effect"] == "2" and row["ImplicitTarget_0"] == "6"]
+    for row in rows:
+        if row["Effect"] in ("32", "64") and row["EffectTriggerSpell"] != "0":
+            result.extend(school_damage_rows(effects, int(row["EffectTriggerSpell"]), visiting | {identity}))
+    return result
+
+
 def load_spells(directory, known, direct_only=True):
     known = set(known)
-    effects = spell_rows(directory, "SpellEffect", known)
+    effects = load_effect_closure(directory, known)
     misc = spell_rows(directory, "SpellMisc", known)
     cooldowns = spell_rows(directory, "SpellCooldowns", known)
     power = spell_rows(directory, "SpellPower", known)
@@ -52,16 +76,17 @@ def load_spells(directory, known, direct_only=True):
             continue
         if any(int(row["Attributes_0"]) & 0x40 for row in misc[identity]):
             continue  # TC SPELL_ATTR0_PASSIVE; never cast a learned passive.
-        direct = [row for row in effects[identity] if row["Effect"] == "2" and row["ImplicitTarget_0"] == "6"]
+        direct = school_damage_rows(effects, identity)
         coefficient = sum(float(row["EffectBonusCoefficient"]) + float(row["BonusCoefficientFromAP"]) for row in direct)
         if direct_only and coefficient <= 0:
             continue
         result.append({
-            "id": identity, "damage": bool(direct), "damage_ids": [identity], "coefficient": coefficient,
+            "id": identity, "damage": bool(direct),
+            "damage_ids": sorted({int(row["SpellID"]) for row in direct}), "coefficient": coefficient,
             "cast_ms": max(times[int(row["CastingTimeIndex"])] for row in misc[identity]),
             "gcd_ms": max((int(row["StartRecoveryTime"]) for row in cooldowns[identity]), default=0),
             "cooldown_ms": max((max(int(row["RecoveryTime"]), int(row["CategoryRecoveryTime"])) for row in cooldowns[identity]), default=0),
-            "source": {"SpellEffect": effects[identity], "SpellMisc": misc[identity],
+            "source": {"SpellEffect": effects[identity], "damage_effects": direct, "SpellMisc": misc[identity],
                        "SpellCooldowns": cooldowns[identity], "SpellPower": power[identity]},
         })
     return result
