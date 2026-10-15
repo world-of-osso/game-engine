@@ -1,5 +1,7 @@
 # Wiki Index
 
+- [Empty purchased-bank audit sample](systems/banks.md#empty-purchased-tab-audit-sample--2026-10-14) — malformed zero-capacity sample corrected; both-skin98 native controls/backgrounds and no item icons, with before/after pixel proof; production and purchase prompt unchanged.
+
 - [Housing pressed-hover lifecycle](systems/housing.md#control-pressed-hover-lifecycle--implementation2026-10-15) — source additive hover suppression during real press, inside/outside release and inspected both-skin six-control native matrix; no timing/whole-art claim.
 
 - [Housing control tooltips](systems/housing.md#editor-control-tooltips--implementation2026-10-14) — source owner-top labels/full gold bindings, current Options authority and inspected both-skin assignment/unbind native proof; unsupported predicates/glow/audio remain gaps.
