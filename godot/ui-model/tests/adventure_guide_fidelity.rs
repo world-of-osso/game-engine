@@ -337,3 +337,52 @@ fn adventure_guide_fidelity_background_geometry_is_relative_to_its_pane() {
         );
     }
 }
+
+// EncounterCreatureButtonTemplate XML525–581; Lua1044–1054/1455–1517.
+#[test]
+fn adventure_guide_model_creature_buttons_follow_authored_order_and_selection() {
+    for skin in [ActiveSkin::Modern, ActiveSkin::Forever] {
+        let mut v = view();
+        v.apply("journal:encounter:90").unwrap();
+        v.apply("journal:page:model").unwrap();
+        let r = render(&v, skin);
+        assert_eq!(rect(&r, "JournalCreature359"), [402., 100., 64., 61.]);
+        assert_eq!(rect(&r, "JournalCreature630"), [402., 153., 50., 49.]);
+        assert_eq!(
+            rect(&r, "JournalCreature359Portrait"),
+            [12., 10.5, 40., 40.]
+        );
+        assert_eq!(
+            button(&r, "JournalCreature359").state,
+            ButtonState::Disabled
+        );
+        assert_eq!(text(&r, "EncounterJournalModelTitle"), "Helix Gearbreaker");
+        v.apply("journal:creature:630").unwrap();
+        let r = render(&v, skin);
+        assert_eq!(rect(&r, "JournalCreature359"), [402., 100., 50., 49.]);
+        assert_eq!(rect(&r, "JournalCreature630"), [402., 141., 64., 61.]);
+        assert_eq!(
+            rect(&r, "JournalCreature630Portrait"),
+            [12., 10.5, 40., 40.]
+        );
+        assert_eq!(
+            button(&r, "JournalCreature630").state,
+            ButtonState::Disabled
+        );
+        assert_eq!(text(&r, "EncounterJournalModelTitle"), "Lumbering Oaf");
+        assert!(
+            v.apply("journal:creature:371").is_err(),
+            "Other encounter must not replace model"
+        );
+        assert_eq!(
+            text(&render(&v, skin), "EncounterJournalModelTitle"),
+            "Lumbering Oaf"
+        );
+        v.apply("journal:page:overview").unwrap();
+        v.apply("journal:page:model").unwrap();
+        assert_eq!(
+            text(&render(&v, skin), "EncounterJournalModelTitle"),
+            "Helix Gearbreaker"
+        );
+    }
+}
