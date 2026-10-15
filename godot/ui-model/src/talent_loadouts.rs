@@ -40,6 +40,9 @@ impl TalentEditor {
     }
     /// An exclusive Retail loadout popup owns Escape before its parent window.
     pub fn cancel_loadout_dialog(&mut self) -> bool {
+        if self.loadout_dialog == Some(LoadoutDialog::Import) && self.error_text.take().is_some() {
+            return true;
+        }
         if self.loadout_dialog.is_none() {
             return false;
         }

@@ -22,21 +22,30 @@ fn talent_string_real_mage_allocation_round_trips_all_class_nodes() {
     let tree = mage();
     let mut purchases = Vec::new();
     // Build a concrete legal allocation through the same authoritative rule port.
-    for node in &tree.nodes {
-        for entry in &node.entries {
-            let mut candidate = purchases.clone();
-            candidate.push(Purchase {
-                node_id: node.id,
-                entry_id: entry.id,
-                ranks: 1,
-            });
-            if build_config(&tree, CONTEXT, &candidate).is_ok() {
-                purchases = candidate;
-                break;
+    for _ in 0..5 {
+        for node in &tree.nodes {
+            if purchases
+                .iter()
+                .any(|purchase: &Purchase| purchase.node_id == node.id)
+            {
+                continue;
+            }
+            for entry in &node.entries {
+                let mut candidate = purchases.clone();
+                candidate.push(Purchase {
+                    node_id: node.id,
+                    entry_id: entry.id,
+                    ranks: 1,
+                });
+                if build_config(&tree, CONTEXT, &candidate).is_ok() {
+                    purchases = candidate;
+                    break;
+                }
             }
         }
     }
-    assert!(purchases.len() > 10);
+    purchases.sort_by_key(|purchase| (purchase.node_id, purchase.entry_id));
+    assert!(purchases.len() > 10, "Actual allocation: {purchases:?}");
     let expected = build_config(&tree, CONTEXT, &purchases).unwrap();
     let text = encode(&tree, CONTEXT.spec_id, &expected).unwrap();
     assert!(text.starts_with("C"));
@@ -94,4 +103,21 @@ fn talent_string_matches_actual_blizzard_lua_zero_and_nonzero_hashes() {
     assert_eq!(encode(&tree, 62, &expected).unwrap(), zero);
     assert_eq!(decode(&tree, CONTEXT, zero).unwrap(), expected);
     assert_eq!(decode(&tree, CONTEXT, nonzero).unwrap(), expected);
+}
+
+#[test]
+fn talent_string_rejects_lua_encoded_invalid_choices_ranks_and_allocations() {
+    let tree = mage();
+    for text in [
+        include_str!("fixtures/talent_mage_overrank.txt"),
+        include_str!("fixtures/talent_mage_choice.txt"),
+        include_str!("fixtures/talent_mage_prerequisite.txt"),
+        include_str!("fixtures/talent_mage_otherspec.txt"),
+    ] {
+        assert_eq!(
+            decode(&tree, CONTEXT, text.trim()),
+            Err(LoadoutError::InvalidNodes),
+            "{text}"
+        );
+    }
 }
