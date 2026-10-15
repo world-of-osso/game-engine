@@ -507,17 +507,17 @@ mod tests {
             std::path::PathBuf::from(env!("CARGO_MANIFEST_DIR")).join("../../data"),
         )
         .unwrap();
-        // Compositor fixtures use real AdventureJournal195/227 icon payloads, not realm eligibility.
+        // Compositor fixtures use real AdventureJournal642/227 icon payloads, not realm eligibility.
         for skin in [ActiveSkin::Modern, ActiveSkin::Forever] {
             set_thread_skin(skin);
             let mut registry = FrameRegistry::new(1920., 1080.);
             Screen::new(|_| ui_toolkit::rsx! {
-                texture { name: "JournalSuggestion195Texture", texture_fdid: 136349, width: 64., height: 64. }
+                texture { name: "JournalSuggestion642Texture", texture_fdid: 4696085, width: 64., height: 64. }
                 texture { name: "JournalSuggestion227Texture", texture_fdid: 133201, width: 64., height: 64. }
             }).sync(&SharedContext::new(), &mut registry);
             IconMasks::default().apply(&mut registry);
             for (name, fdid) in [
-                ("JournalSuggestion195Texture", 136349),
+                ("JournalSuggestion642Texture", 4696085),
                 ("JournalSuggestion227Texture", 133201),
             ] {
                 let frame = registry.get(registry.get_by_name(name).unwrap()).unwrap();
