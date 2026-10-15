@@ -24,6 +24,8 @@ func capture_panels() -> void:
 			assert(button != null and button.size.x > 0, "Missing representative button " + button_name)
 			var source_size: Vector2 = {"quest": Vector2(77, 22), "mail": Vector2(80, 22), "raid": Vector2(245, 30), "bank": Vector2(256, 24), "settings": Vector2(164, 22)}[panel]
 			assert(button.size.is_equal_approx(source_size), "XML/Lua geometry at UI scale1: " + button_name + " got " + str(button.size))
+			if panel != "raid":
+				verify_window_region_bounds(probe, panel)
 			var skin := "forever" if forever else "modern"
 			var image := root.get_texture().get_image()
 			assert(image.get_size() == Vector2i(1920, 1080), "Full-HD required")
@@ -33,3 +35,14 @@ func capture_panels() -> void:
 			probe.queue_free()
 			await process_frame
 	quit(0)
+
+func verify_window_region_bounds(probe: Node, panel: String) -> void:
+	var prefix: String = {"quest": "QuestFrame", "mail": "MailFrame", "bank": "BankFrame", "settings": "CooldownViewerSettings"}[panel]
+	var shell := probe.find_child(prefix, true, false) as Control
+	var background := probe.find_child(prefix + "Bg", true, false) as Control
+	var streaks := probe.find_child(prefix + "TopTileStreaks", true, false) as Control
+	assert(background != null and streaks != null, "Source window regions " + prefix)
+	assert(background.size == shell.size - Vector2(4, 23), "Full continuous rock region " + prefix)
+	assert(background.global_position.is_equal_approx(shell.global_position + Vector2(2, 21)), "Source rock origin " + prefix)
+	assert(streaks.size == Vector2(shell.size.x - 8, 43), "Source streak extent " + prefix)
+	assert(streaks.global_position.is_equal_approx(shell.global_position + Vector2(6, 21)), "Source streak origin " + prefix)
