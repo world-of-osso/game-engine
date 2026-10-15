@@ -167,19 +167,23 @@ func frame_observed_actor() -> void:
 	camera.look_at(unit.global_position + Vector3(0, 2, 0))
 
 func capture_spelltome_diagnostic() -> void:
+	# Freeze the naturally reached frame only for isolation; normal proof shots precede it.
+	paused = true
 	# Unit particles share model/emitter pools under WorldUnits, not each unit node.
 	var pools := client.find_children("Particles4061989_*", "MultiMeshInstance3D", true, false)
 	var visible_pools := []
-	for pool in pools:
+	for child in pools:
+		var pool := child as MultiMeshInstance3D
 		if pool.visible:
 			visible_pools.append(pool)
 			pool.hide()
-	write_record("spelltome-particle-isolation", {"hidden_pools": visible_pools.size(), "pose": pose_record()})
+	write_record("spelltome-particle-isolation", {"paused_diagnostic": true, "hidden_pools": visible_pools.size(), "pose": pose_record()})
 	await capture("diagnostic-spelltome-without-particles.png")
 	for pool in visible_pools: pool.show()
 	var model := mount_animation().get_parent()
 	var materials := []
-	for mesh in model.find_children("Batch*", "MeshInstance3D", true, false):
+	for child in model.find_children("Batch*", "MeshInstance3D", true, false):
+		var mesh := child as MeshInstance3D
 		var material := mesh.material_override as ShaderMaterial
 		materials.append({"name": mesh.name, "visible": mesh.visible, "shader": material.get_shader_parameter("pixel_shader") if material != null else null, "opacity": material.get_shader_parameter("transparency") if material != null else null})
 	write_record("spelltome-materials", materials)
@@ -190,6 +194,7 @@ func capture_spelltome_diagnostic() -> void:
 			mesh.hide()
 			await capture("diagnostic-spelltome-without-" + batch + ".png")
 			mesh.show()
+	paused = false
 
 func control(name: String) -> Control:
 	return client.find_child(name, true, false) as Control
