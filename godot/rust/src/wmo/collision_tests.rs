@@ -77,15 +77,13 @@ fn ray_hit(triangles: &[[Vec3; 3]], origin: Vec3, direction: Vec3, length: f32) 
 }
 
 fn triangles_block_step(triangles: &[[Vec3; 3]], from: Vec3, to: Vec3, top: f32) -> bool {
-    triangles.iter().any(|&triangle| {
-        game_engine_core::step_clearance::blocks_step_sweep(
-            triangle,
-            from,
-            to,
-            top,
-            shared::ground::min_walkable_normal_y(),
-        )
-    })
+    game_engine_core::step_clearance::step_body_blocked(
+        triangles,
+        from,
+        to,
+        top,
+        shared::ground::min_walkable_normal_y(),
+    )
 }
 
 #[test]

@@ -4,19 +4,29 @@ use glam::{Vec2, Vec3};
 /// TrinityCore Object.h DEFAULT_COLLISION_HEIGHT; matches server head clearance.
 pub const BODY_HEIGHT: f32 = 2.03128;
 
-/// Whether an authored triangle crosses the raised body's horizontal sweep.
-/// Destination support faces are not obstacles, including when a sampled ray's
-/// interpolated height rounds slightly below the supporting triangle's plane.
-pub fn blocks_step_sweep(
-    triangle: [Vec3; 3],
+/// Reconstruct the admitted destination support plane before sweeping. Ground ray
+/// interpolation can round feet below that plane; floor contact must not turn its
+/// adjoining vertical edge into an obstruction. This uses authored support, not an epsilon.
+pub fn step_body_blocked(
+    triangles: &[[Vec3; 3]],
     from: Vec3,
     to: Vec3,
     support_top: f32,
     min_walkable_normal_y: f32,
 ) -> bool {
-    if supports_destination(triangle, to, support_top, min_walkable_normal_y) {
-        return false;
-    }
+    let support = triangles
+        .iter()
+        .filter_map(|&triangle| {
+            destination_support_height(triangle, to, support_top, min_walkable_normal_y)
+        })
+        .fold(to.y, f32::max);
+    triangles
+        .iter()
+        .any(|&triangle| blocks_step_sweep(triangle, from.with_y(support), to.with_y(support)))
+}
+
+/// Whether an authored triangle enters the raised body's horizontal sweep.
+fn blocks_step_sweep(triangle: [Vec3; 3], from: Vec3, to: Vec3) -> bool {
     let movement = (to - from).with_y(0.0);
     let distance = movement.length();
     if distance == 0.0 {
@@ -37,20 +47,27 @@ pub fn blocks_step_sweep(
     above_feet && below_head
 }
 
-fn supports_destination(triangle: [Vec3; 3], feet: Vec3, top: f32, min_normal_y: f32) -> bool {
+fn destination_support_height(
+    triangle: [Vec3; 3],
+    feet: Vec3,
+    top: f32,
+    min_normal_y: f32,
+) -> Option<f32> {
     let [a, b, c] = triangle;
     let normal = (b - a).cross(c - a).normalize_or_zero();
     if normal.y.abs() < min_normal_y {
-        return false;
+        return None;
     }
     let height = a.y - (normal.x * (feet.x - a.x) + normal.z * (feet.z - a.z)) / normal.y;
     if height < feet.y || height > top {
-        return false;
+        return None;
     }
     let point = feet.with_y(height);
     let edge_sides =
         [(a, b), (b, c), (c, a)].map(|(start, end)| (end - start).cross(point - start).dot(normal));
-    edge_sides.iter().all(|side| *side >= 0.0) || edge_sides.iter().all(|side| *side <= 0.0)
+    let inside =
+        edge_sides.iter().all(|side| *side >= 0.0) || edge_sides.iter().all(|side| *side <= 0.0);
+    inside.then_some(height)
 }
 
 fn intersect_body_plane(triangle: [Vec3; 3], from: Vec3, direction: Vec3) -> Vec<Vec2> {
