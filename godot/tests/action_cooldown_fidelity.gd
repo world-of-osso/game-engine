@@ -55,9 +55,9 @@ func verify_quadrants(probe: Node, baseline: Image, image: Image, fraction: floa
 			var actual := image.get_pixelv(point)
 			var covered: bool = (float(index) + 0.5) / 4.0 < fraction
 			var original_luma: float = (original.r + original.g + original.b) / 3.0
-			var actual_luma: float = (actual.r + actual.g + actual.b) / 3.0
 			assert(original_luma > 0.03, "Concrete source icon sample is observable")
 			if covered:
-				assert(actual_luma < original_luma * 0.8, "Covered radial quadrant %s/%d" % [prefix, index])
+				var expected := original * 0.36 # Source black at 0.64 opacity.
+				assert(absf(actual.r - expected.r) < 0.015 and absf(actual.g - expected.g) < 0.015 and absf(actual.b - expected.b) < 0.015, "Source opacity quadrant %s/%d: original=%s actual=%s expected=%s" % [prefix, index, original, actual, expected])
 			else:
 				assert(absf(actual.r - original.r) < 0.01 and absf(actual.g - original.g) < 0.01 and absf(actual.b - original.b) < 0.01, "Uncovered/reset quadrant %s/%d" % [prefix, index])
