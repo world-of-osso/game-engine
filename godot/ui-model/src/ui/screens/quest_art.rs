@@ -567,7 +567,7 @@ pub fn shared_button_small(
     } }
 }
 
-/// `UIPanelButtonTemplate` (Retail default nine-slice button art as used by StaticPopup).
+/// `UIPanelButtonTemplate`: SecureUIPanelTemplates.xml:39–78 sheet strips and highlight.
 /// A disabled button shows the disabled art and carries no action.
 pub fn panel_button(
     name: String,
@@ -589,10 +589,10 @@ pub fn panel_button(
             onclick: action,
             disabled,
             strata: FrameStrata::Dialog,
-            button_atlas_up: "defaultbutton-nineslice-up",
-            button_atlas_pressed: "defaultbutton-nineslice-pressed",
-            button_atlas_highlight: "defaultbutton-nineslice-highlight",
-            button_atlas_disabled: "defaultbutton-nineslice-disabled",
+            button_fdid_up: 130828_u32,
+            button_fdid_pressed: 130825_u32,
+            button_fdid_highlight: 130826_u32,
+            button_fdid_disabled: 130824_u32,
             pos_type: "absolute",
             left: x,
             top: y,

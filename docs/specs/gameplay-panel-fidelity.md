@@ -2,6 +2,10 @@
 
 Retail XML/Lua under `Blizzard_*/retail/AddOns` defines controls, sizes, anchors and art for both skins; Forever swaps art only. Preserve existing reducers and authoritative decisions. Use shared panel tabs, dropdown/menu elements and MinimalScrollBar; never substitute defaultbutton rows or solid popup fills. Atlas-coordinate drift is a named data gap, not permission to hand-correct coordinates.
 
+## Shared UIPanel buttons
+
+`quest_art::panel_button` emits `UIPanelButtonNoTooltipTemplate`/`UIPanelButtonTemplate` art from `Blizzard_SharedXML/SecureUIPanelTemplates.xml:39–78` and its mouse-state Lua: UI-Panel-Button-Up/Down/Disabled strips and the additive highlight. Keep the authored rectangle, label and existing enabled/action decisions in both skins. Callers must not require postsetup texture repairs; other button template families retain their own art.
+
 ## Acceptance
 
 - [x] Customer orders: Place Order/My Orders PanelTabButtonTemplate and recipient/duration WowStyle1DropdownTemplate use authored anchors, pending state and existing actions. Personal orders show Order To; payment labels stay inside the right pane and share input centerlines. Back uses UIPanelButtonTemplate sheet art; the portrait shows the interacting NPC. Form.lua overrides recipient/duration widths to136/143px. [Crafting contract](crafting-ui.md).

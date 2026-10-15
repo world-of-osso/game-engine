@@ -1,5 +1,8 @@
 # Wiki Index
 
+- [Housing control tooltips](systems/housing.md#editor-control-tooltips--implementation2026-10-14) — source owner-top labels/full gold bindings, current Options authority and inspected both-skin assignment/unbind native proof; unsupported predicates/glow/audio remain gaps.
+
+- [Shared UIPanel button art](systems/menu-primitives.md#shared-uipanel-button-art--2026-10-14-assignment) — source state files, fixed12px caps, five redundant caller repairs removed; four real-window both-skin before/after proof, with background tiling separate.
 - [Source ribbon scalar parsing](formats/m2-format.md#ribbon-emitter-scalars-2026-10-13) — actual rainbow1417024 density/lifetime RED, corrected Retail offsets and strip semantics; both-skin moving raster, native alpha and priority counterexamples pass. Real-byte animated UV and non-square tile regressions cover subsequent bindings.
 
 - [Native source Toy area lifecycle](systems/toy-box.md#native-source-area-lifecycle-2026-10-13) — actual both-skin journal rejection, permitted activation and exit removal with retained cooldown.
@@ -143,7 +146,7 @@ The Bevy client was retired on 2026-10-02 ([log](log.md#2026-10-02--bevy-client-
 
 ## Systems
 
-- [Trading Post](systems/trading-post.md) — native Mainline PerksProgram vendor, source category dropdown, creature/player previews over an authenticated asset closure, HUD hiding, freeze, and Traveler's Log Tender; both-skin live proof and purchase-proof boundary.
+- [Trading Post](systems/trading-post.md) — native Mainline vendor/cart/held controls and [mounted Hide Character proof](systems/trading-post.md#rider-proof--2026-10-14): ordinary seated rider, stable-camera hide/show, retained selection and cleanup in both skins; exact native scale and special rider kits remain named gaps.
 
 - [Native Adventure Guide](systems/adventure-guide.md) — ten-defect layout correction and bounded Journeys Retail cards/track/reward-tooltip/wheel/jump/Home, receipt-bound both-skin full-HD proof; unsourced faction presentation metadata and broader feature/extra-test gaps explicit.
 
