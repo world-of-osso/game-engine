@@ -80,16 +80,7 @@ func drive_mounts() -> void:
 		await tap(KEY_SPACE)
 		if not await until(func(): return mount_animation().current_animation_id() == 94, "stationary jump MountSpecial"): return
 		await capture(prefix + "-stationary-special.png")
-		var samples := []
-		for frame in range(45):
-			await process_frame
-			var position: Vector3 = client.account_state().local_player_position
-			if abs(position.y - before.y) > 0.05: fail("Stationary special left ground"); return
-			if frame % 10 == 0: samples.append(pose_record())
-		write_record(prefix + "-stationary", {"before": before, "after": client.account_state().local_player_position, "poses": samples})
-		await capture(prefix + "-rider-special.png")
-		if mount[0] == 1532:
-			await capture_spelltome_diagnostic()
+		if not await sample_stationary_special(prefix, before, mount[0] == 1532): return
 		if not await until(func(): return mount_animation().current_animation_id() == 0, "special returns to idle", 30000): return
 		if not await send_line("/mountspecial"): return
 		if not await until(func(): return mount_animation().current_animation_id() == 94, "slash same MountSpecial"): return
@@ -119,6 +110,28 @@ func drive_mounts() -> void:
 	write_record("actor-done", {"skin": proof_skin, "mounts": mounts})
 	print("MOUNT_SPECIAL_ACTOR PASS ", proof_skin)
 	quit(0)
+
+func sample_stationary_special(prefix: String, before: Vector3, book: bool) -> bool:
+	var samples := []
+	var captured := false
+	var deadline := Time.get_ticks_msec() + 30000
+	var capture_fraction := 0.875 if book else 0.4
+	while mount_animation() != null and mount_animation().current_animation_id() == 94:
+		var position: Vector3 = client.account_state().local_player_position
+		if abs(position.y - before.y) > 0.05: fail("Stationary special left ground"); return false
+		var phase := mount_animation().animation_phase()
+		var fraction: float = phase.time_ms / phase.duration_ms
+		if samples.size() < 5 and fraction >= samples.size() * 0.2:
+			samples.append(pose_record())
+		if not captured and fraction >= capture_fraction:
+			await capture(prefix + "-rider-special.png")
+			if book: await capture_spelltome_diagnostic()
+			captured = true
+		if Time.get_ticks_msec() >= deadline: fail("Stationary special did not finish"); return false
+		await process_frame
+	if not captured: fail("Special ended before the authored-phase capture"); return false
+	write_record(prefix + "-stationary", {"before": before, "after": client.account_state().local_player_position, "poses": samples})
+	return true
 
 func observe_actor() -> void:
 	for mount in mounts:
@@ -160,7 +173,7 @@ func pose_record() -> Dictionary:
 	var model := animation.get_parent() as Node3D if animation != null else null
 	var saddle := model.get_node_or_null("Skeleton3D/AttachmentBone0/Attachment0") as Node3D if model != null else null
 	var rider := skeleton.get_parent() as Node3D if skeleton != null else null
-	return {"mount_clip": animation.current_animation_id() if animation != null else -1, "rider_bones": poses, "actor_name": unit.name if unit != null else "", "actor_position": unit.global_position if unit != null else null, "mount_position": model.global_position if model != null else null, "mount_visible": model.is_visible_in_tree() if model != null else false, "mount_source": model.get_meta("m2_source_path") if model != null else "", "saddle_position": saddle.global_position if saddle != null else null, "rider_position": rider.global_position if rider != null else null, "rider_local_transform": rider.transform if rider != null else null, "camera_position": root.get_camera_3d().global_position, "account": client.account_state()}
+	return {"mount_clip": animation.current_animation_id() if animation != null else -1, "mount_phase": animation.animation_phase() if animation != null else {}, "rider_bones": poses, "actor_name": unit.name if unit != null else "", "actor_position": unit.global_position if unit != null else null, "mount_position": model.global_position if model != null else null, "mount_visible": model.is_visible_in_tree() if model != null else false, "mount_source": model.get_meta("m2_source_path") if model != null else "", "saddle_position": saddle.global_position if saddle != null else null, "rider_position": rider.global_position if rider != null else null, "rider_local_transform": rider.transform if rider != null else null, "camera_position": root.get_camera_3d().global_position, "account": client.account_state()}
 
 func capture(file: String) -> void:
 	if role != "observer":

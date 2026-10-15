@@ -1114,6 +1114,18 @@ impl WowAnimationPlayer {
     }
 
     /// The combat/spell clip layered over locomotion, or -1.
+    /// Read-only authored clip phase for source-qualified native captures.
+    #[func]
+    fn animation_phase(&self) -> VarDictionary {
+        let mut phase = VarDictionary::new();
+        if let Some((_, id, duration, time)) = self.footstep_phase() {
+            phase.set("animation_id", i64::from(id));
+            phase.set("time_ms", f64::from(time));
+            phase.set("duration_ms", f64::from(duration));
+        }
+        phase
+    }
+
     #[func]
     fn current_action_id(&self) -> i32 {
         self.animation
