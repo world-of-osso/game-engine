@@ -316,8 +316,7 @@ impl GuildRanksSession {
         if self.awaiting_state
             || self.profile_waiting
             || !self.can_edit_note(officer)
-            || note.chars().count() > 31
-            || note.chars().any(char::is_control)
+            || !valid_guild_member_note(note)
         {
             return None;
         }

@@ -23,7 +23,7 @@ pub fn apply_guild_postsetup(
             .expect("registered note input")
             .widget_data
         {
-            edit.max_letters = Some(31);
+            edit.max_letters = Some(GUILD_MEMBER_NOTE_MAX_LETTERS as u32);
         }
     }
     let Some(field) = session.profile_editor else {
