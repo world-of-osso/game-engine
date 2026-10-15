@@ -311,6 +311,7 @@ impl RegistryModel {
             .get::<game_engine_ui_model::trading_post::View>()
         {
             game_engine_ui_model::trading_post::apply_cart_art(view, &mut self.registry);
+            game_engine_ui_model::trading_post::apply_rotation_icon_positions(&mut self.registry);
         }
         if let Some(view) = self
             .shared
@@ -498,15 +499,6 @@ impl RegistryModel {
         {
             game_engine_ui_model::toybox_component::apply_toybox_postsetup(
                 view,
-                &mut self.registry,
-            );
-        }
-        if self
-            .shared
-            .get::<game_engine_ui_model::professions_frame::ProfessionView>()
-            .is_some_and(|view| view.orders.customer)
-        {
-            game_engine_ui_model::professions_frame::orders::apply_customer_postsetup(
                 &mut self.registry,
             );
         }
