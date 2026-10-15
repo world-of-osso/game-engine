@@ -344,7 +344,7 @@ fn monthly_unavailable_remains_unknown_in_source_tooltip_and_shift_request() {
         ));
         let lines = tooltip_lines(&data, 3);
         assert!(lines.contains("Complete quests that grant experience."));
-        assert!(lines.contains("Unavailable") && lines.contains("135693"));
+        assert!(!lines.contains("Unavailable") && !lines.contains("135693"));
         assert!(lines.contains("Shift click") && !lines.contains("0/"));
         let action = action(&registry, "JournalActivity3");
         assert_eq!(
@@ -385,7 +385,7 @@ fn available_progress_and_unevaluated_criteria_remain_distinct() {
         };
         render(skin, Some(data.clone()), ActivityFilters::default());
         let lines = tooltip_lines(&data, 3);
-        assert!(lines.contains("7/30") && lines.contains("Unavailable"));
+        assert!(lines.contains("7/30") && !lines.contains("Unavailable"));
         assert!(!lines.contains("0/30"));
         data.activities[0].progress = PerksActivityProgress::Available {
             current: 30,

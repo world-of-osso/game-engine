@@ -75,6 +75,15 @@ func verify_tree(scale: float) -> bool:
 	verify(absf(child.get_global_rect().position.x - parent_left - 32.0 * scale) < 2.0, "source child indent32")
 	if not await move_to("JournalActivityTag3") or not await shot("monthly-expanded-source-tree"):
 		return false
+	if not await move_to("JournalActivity81"):
+		return false
+	await settle()
+	var tooltip: Dictionary = client.tooltip_state()
+	var lines := str(tooltip.get("lines", ""))
+	verify(tooltip.get("title", "") == "Complete 15 Mythic+ Dungeons" and tooltip.get("visible", false), "source child activity tooltip absent")
+	verify(not lines.contains("140979") and not lines.contains("Unavailable:") and not lines.contains("untracked criteria"), "child tooltip exposes provider diagnostics")
+	if not await shot("monthly-activity-tooltip"):
+		return false
 	if not await reveal_activity("JournalActivity6", MOUSE_BUTTON_WHEEL_UP) or not await click("JournalActivity6"):
 		return false
 	verify(control("JournalActivity81") == null, "physical parent collapse did not hide child81")
@@ -151,6 +160,8 @@ func run() -> void:
 	var tooltip: Dictionary = client.tooltip_state()
 	var title := label_text(row_name + "Name")
 	verify(tooltip.get("visible", false) and tooltip.get("title", "") == title and str(tooltip.get("lines", "")).contains("Shift click"), "source activity tooltip missing")
+	var tooltip_lines := str(tooltip.get("lines", ""))
+	verify(not tooltip_lines.contains("Criteria tree") and not tooltip_lines.contains("Unavailable:") and not tooltip_lines.contains("untracked criteria"), "developer criteria diagnostics leaked into source tooltip")
 	print("MONTHLY_TOOLTIP_STATE row=%s tooltip=%s" % [row_name, JSON.stringify(tooltip)])
 	if not await shot("monthly-source-rows-tooltip"):
 		return
