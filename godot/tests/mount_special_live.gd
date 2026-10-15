@@ -182,14 +182,14 @@ func capture_spelltome_diagnostic() -> void:
 	for pool in visible_pools: pool.show()
 	var model := mount_animation().get_parent()
 	var materials := []
-	for child in model.find_children("Batch*", "MeshInstance3D", true, false):
+	for child in model.find_children("Batch*", "MeshInstance3D", false, false):
 		var mesh := child as MeshInstance3D
 		var material := mesh.material_override as ShaderMaterial
 		materials.append({"name": mesh.name, "visible": mesh.visible, "shader": material.get_shader_parameter("pixel_shader") if material != null else null, "opacity": material.get_shader_parameter("transparency") if material != null else null})
 	write_record("spelltome-materials", materials)
 	# Single-batch diagnostic isolation; every visibility edit is restored immediately.
 	for batch in ["Batch0", "Batch1", "Batch8", "Batch9", "Batch10"]:
-		var mesh := model.find_child(batch, true, false) as MeshInstance3D
+		var mesh := model.get_node_or_null(batch) as MeshInstance3D
 		if mesh != null and mesh.visible:
 			mesh.hide()
 			await capture("diagnostic-spelltome-without-" + batch + ".png")
