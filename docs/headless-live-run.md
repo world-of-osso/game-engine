@@ -181,13 +181,13 @@ The combat driver must own final capture and exact-PID cleanup in the same bound
 
 ## Bounded Baron party proof — 2026-10-15
 
-Private `native-shadowfang-20261015/party-live-u/bounded-party-proof.json` records engine `d4da58121`, server `852ec57f`, protocol `62865c2` and the five binary hashes in `party-build-pair-s-proof.json`:
+All-green private `native-shadowfang-20261015/party-live-v/bounded-party-proof.json` records engine `d4da58121`, server `852ec57f`, protocol `62865c2` and the five binary hashes in `party-build-pair-s-proof.json`:
 
-- One rendered mage and four real peers, ordinary tank invitation/native Accept, source level30 and normally equipped items. Authored entrance/room teleports are setup, not travel proof. No combat/stat/credit overrides.
-- Baron Silverlaine3887 died after1680.02 wall seconds, all five alive. All four peers received encounter1070/Normal1/group5/success. Combat healing:78545 raw,25257 overheal,53288 effective; continuous native combat sampling retained overlap continuity.
-- GroupLoot delivered6321, Silverlaine's Family Seal, to priest34 (Greed65). Authoritative InventoryDelta adds itemGUID239, Retail/soulbound, bag0slot8. Native timed out to Pass; explicit native Pass automation did **not** succeed.
-- Whole-runtime measured rate:3.73350 ticks/s across190 windows. Both-skin late-combat PNGs exist. This proves functional encounter success and delivered loot, not real-time balance or the full dungeon clear.
-- Native post-kill semantic Pass-button lookup succeeded, but the physical-control lookup failed and the renderer exited. Final corpse capture then timed out: the driver was **not all-green**. The server still completed normal loot delivery. Owned units stopped, UDP5798 freed and exact overlay links restored.
+- One rendered mage and four real peers, ordinary healer invitation/native Accept, source level30 and normally equipped items. Authored entrance/room teleports are setup, not travel proof. No combat/stat/credit overrides.
+- Baron Silverlaine3887 died after2055.73 wall seconds, all five alive. All four peers received encounter1070/Normal1/group5/success. Combat healing:88766 raw,30096 overheal,58670 effective; continuous native combat sampling retained overlap continuity.
+- Native physical Pass used the observed semantic button center(1076,585), with an authoritative response before timeout. Four peers chose Greed; priest34 won75. GroupLoot completed/delivered6323, Baron's Scepter; InventoryDelta adds itemGUID240, Retail/soulbound, bag0slot9, with53.75 simulation seconds remaining.
+- Whole-runtime measured rate:3.40827 ticks/s across200 windows. Both final-skin PNGs were inspected; driver exited0, owned units stopped, UDP5798 freed and exact overlay links restored. This proves functional encounter success and delivered loot, not real-time balance or the full dungeon clear.
+- Earlier `party-live-u` delivered6321 but was not all-green: fatal native control-name lookup quit the renderer, causing the downstream final-capture timeout. V instead used observed semantic bounds and real mouse input, retaining the actual Godot tree. The deeper name-collision hypothesis remains unproven; no production UI change was needed.
 
 Earlier `party-live-s` independently proved the kill and captured the corpse, but its85-wall-second loot wait ended before the server's60-simulation-second timeout. Do not combine different runs into an all-green fixture. Normal DONE progress survived restart and correctly suppressed that owner's boss in `party-live-t`; `party-live-u` used ordinary admission under the fresh tank leader without editing locks or spawning a replacement boss.
 
