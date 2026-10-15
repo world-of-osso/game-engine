@@ -59,8 +59,6 @@ fn guild_native_popup_projects_visible_registered_art() {
     )
     .unwrap();
     let mut registry = FrameRegistry::new(1920.0, 1080.0);
-    // The same popup style registration used by the native guild canvas.
-    super::register_auction_popup_style(&mut registry);
     let mut session = GuildRanksSession::default();
     session.invitation = Some(GuildInvitation {
         guild_id: 7,
@@ -70,14 +68,63 @@ fn guild_native_popup_projects_visible_registered_art() {
     let mut shared = SharedContext::new();
     shared.insert(session);
     Screen::new(guild_screen).sync(&shared, &mut registry);
-    let popup = registry
-        .get(registry.get_by_name("GuildInviteFrame").unwrap())
-        .unwrap();
-    let images = super::parts::project_images(popup, 310.0, 188.0);
+    // Native projection runs on every frame, not only the popup's parent.
+    // TranslucentFrameTemplate paints one solid inset and eight named border regions.
+    let images: Vec<_> = [
+        "Bg",
+        "TopLeftCorner",
+        "TopRightCorner",
+        "BottomLeftCorner",
+        "BottomRightCorner",
+        "TopBorder",
+        "BottomBorder",
+        "LeftBorder",
+        "RightBorder",
+    ]
+    .into_iter()
+    .flat_map(|suffix| {
+        let name = format!("GuildInviteFrame{suffix}");
+        let frame = registry
+            .get(registry.get_by_name(&name).expect(&name))
+            .unwrap();
+        super::parts::project_images(frame, frame.width.value(), frame.height.value())
+    })
+    .collect();
     assert_eq!(images.len(), 9);
     assert!(
         images
             .iter()
-            .all(|image| image.source.is_some() && image.rect[2] > 0.0 && image.rect[3] > 0.0)
+            .all(|image| image.rect[2] > 0.0 && image.rect[3] > 0.0 && image.color[3] > 0.0)
     );
+    let solids: Vec<_> = images
+        .iter()
+        .filter(|image| image.source.is_none())
+        .collect();
+    assert_eq!(solids.len(), 1);
+    assert_eq!(solids[0].rect, [0.0, 0.0, 290.0, 168.0]);
+    assert_eq!(solids[0].color, [0.0, 0.0, 0.0, 0.9]);
+    use super::parts::Crop;
+    use ui_toolkit::widgets::texture::TextureSource;
+    for uv in [
+        [0.0, 0.5, 0.0, 0.5],
+        [0.5, 1.0, 0.0, 0.5],
+        [0.0, 0.5, 0.5, 1.0],
+        [0.5, 1.0, 0.5, 1.0],
+    ] {
+        assert!(images.iter().any(
+            |image| image.source == Some(TextureSource::FileDataId(407329))
+                && image.crop == Crop::Normalized(uv)
+                && image.rect[2..] == [32.0, 32.0]
+        ));
+    }
+    for (fdid, tiling) in [
+        (407332, [true, false]),
+        (407328, [true, false]),
+        (407330, [false, true]),
+        (407331, [false, true]),
+    ] {
+        assert!(images.iter().any(
+            |image| image.source == Some(TextureSource::FileDataId(fdid)) && image.tiling == tiling
+        ));
+    }
 }

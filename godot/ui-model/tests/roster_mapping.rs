@@ -2,6 +2,12 @@ use game_engine_ui_model::char_select_component::{SELECTED_NAME_TEXT, STATUS_TEX
 use game_engine_ui_model::char_select_data::CharSelectNames;
 use game_engine_ui_model::{CharacterSelectModel, char_select_state_from_roster};
 
+fn initialize_roster_assets() {
+    let root = std::path::PathBuf::from(env!("CARGO_MANIFEST_DIR")).join("../../data");
+    // Match the host: register fonts and both atlas tables before building the screen.
+    game_engine_ui_model::paths::set_data_root(root).unwrap();
+}
+
 fn names() -> CharSelectNames {
     CharSelectNames::load(&std::path::PathBuf::from(env!("CARGO_MANIFEST_DIR")).join("../../data"))
         .unwrap()
@@ -34,6 +40,7 @@ fn text(model: &CharacterSelectModel, name: &str) -> String {
 
 #[test]
 fn protocol_roster_projects_original_card_text_and_selected_character() {
+    initialize_roster_assets();
     let roster = [
         character(101, "Alyra", 70, 1, 2),
         character(202, "Borin", 42, 8, 7),
@@ -101,6 +108,7 @@ fn stale_selection_keeps_original_index_and_unselected_prompt() {
 
 #[test]
 fn skyborne_names_are_loaded_from_active_data_in_both_skins() {
+    initialize_roster_assets();
     let names = names();
     for skin in [
         ui_toolkit::atlas::ActiveSkin::Modern,
