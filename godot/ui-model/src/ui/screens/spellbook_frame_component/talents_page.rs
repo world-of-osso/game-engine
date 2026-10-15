@@ -669,7 +669,13 @@ fn talent_controls(view: &TalentView, scale: f32) -> Element {
     children.extend(footer::controls(view, scale));
     children.extend(war_mode_control(view, scale));
     children.extend(pvp_talent_controls::render(view, scale));
-    if let Some(reason) = view.editor.error_text.as_ref().or(view.pvp_error.as_ref()) {
+    // ImportExport.ShowImportError owns a StaticPopup, not the commit footer.
+    let talent_error = view
+        .editor
+        .error_text
+        .as_ref()
+        .filter(|_| view.editor.loadout_dialog != Some(crate::talents::LoadoutDialog::Import));
+    if let Some(reason) = talent_error.or(view.pvp_error.as_ref()) {
         children.extend(label(
             Label {
                 name: "TalentError".into(),
