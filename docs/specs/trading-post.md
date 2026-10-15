@@ -20,6 +20,7 @@ Retail Mainline Blizzard_PerksProgram and the local C_PerksProgram/PerksActiviti
 - Confirm alone stays disabled for five monotonic seconds, showing the rounded-up remaining seconds, then “Confirm”. Cancel is immediately available; global right mouse-down also cancels. Escape is consumed, not cancellation (this popup has no hideOnEscape).
 - Cancel restores the authoritative frozen slot and preserves local cart order. Acceptance sends one Freeze request and removes only its candidate from the cart; the snapshot remains server-authoritative. Empty-slot freeze is immediate with the same cart pruning. No Tender mutation.
 - Sources: Blizzard_PerksProgramElements.lua87–100,583–670; Blizzard_PerksProgram.lua274–278; StaticPopup.lua525–538; GameDialog.lua737–745.
+- [x] Native RED→both-skin GREEN at engineb09e0a70d/server7356cad8/protocolcac6080: delay/early click, Cancel, Escape, right mouse-down, replacement/empty-slot cart pruning and unchanged Tender.20 inspected full-HD PNGs: `/syncthing/AgentShared/2026-10-15/trading-post-freeze/`; diagnostic `freeze-proof-manifest.json` retains original revisions/hashes and six PSI/swap boundaries.
 
 ## Retail layout acceptance — October13
 
