@@ -470,6 +470,38 @@ fn adventure_guide_instance_loot_uses_selected_instance_and_difficulty() {
 }
 
 #[test]
+fn adventure_guide_instance_loot_resolves_appearance_icon_instead_of_raw_item_zero() {
+    let mut v = view();
+    game_engine_ui_model::item_catalog::wait_for_item_catalog();
+    v.apply("journal:instance:1180").unwrap();
+    v.apply("journal:difficulty:14").unwrap();
+    v.apply("journal:page:loot").unwrap();
+    let r = render(&v, ActiveSkin::Modern);
+    let Some(WidgetData::Texture(icon)) = &frame(&r, "JournalLoot174139Icon").widget_data else {
+        panic!("Onyx-Imbued Breeches icon");
+    };
+    // ItemModifiedAppearance order0 -> appearance40916 -> DefaultIconFileDataID2978247.
+    assert_eq!(icon.source, TextureSource::FileDataId(2978247));
+}
+
+#[test]
+fn adventure_guide_instance_loot_uses_source_quality_icon_border() {
+    let mut v = view();
+    game_engine_ui_model::item_catalog::wait_for_item_catalog();
+    v.apply("journal:encounter:89").unwrap();
+    v.apply("journal:difficulty:1").unwrap();
+    v.apply("journal:page:loot").unwrap();
+    let r = render(&v, ActiveSkin::Modern);
+    assert_eq!(rect(&r, "JournalLoot2169IconBorder"), [2., 2., 42., 42.]);
+    let Some(WidgetData::Texture(border)) = &frame(&r, "JournalLoot2169IconBorder").widget_data
+    else {
+        panic!("Rare item quality border");
+    };
+    assert_eq!(border.source, TextureSource::FileDataId(651080));
+    assert_eq!(border.vertex_color, [0., 0.57, 0.95, 1.]);
+}
+
+#[test]
 fn adventure_guide_instance_loot_transition_keeps_valid_loot_tab() {
     let mut v = view();
     v.apply("journal:instance:63").unwrap();
