@@ -588,9 +588,10 @@ impl GameClient {
         let mut host = ui.bind_mut();
         host.set_state(view.clone())?;
         for icon in view.categories.iter().take(3).flatten() {
-            host.update_toy_swipe(
+            host.update_cooldown_swipe(
                 &format!("CooldownViewer{}Cooldown", icon.cooldown_id),
                 icon.fraction,
+                0.8,
             )?;
         }
         drop(host);
