@@ -1031,6 +1031,53 @@ fn guild_member_notes_gate_self_public_officer_visibility_and_wait_for_authority
 }
 
 #[test]
+fn guild_member_note_popup_keeps_original_target_when_roster_selection_changes() {
+    let mut session = GuildRanksSession::default();
+    session.open();
+    let mut roster = state(0);
+    roster.members.push(GuildRankMember {
+        character_name: "Dora".into(),
+        rank: 2,
+    });
+    session.apply(roster);
+    let member = |name: &str| GuildMemberSnapshot {
+        character_name: name.into(),
+        level: 80,
+        class_name: "Priest".into(),
+        rank_name: "Member".into(),
+        is_online: true,
+        public_note: String::new(),
+        officer_note: String::new(),
+        is_self: false,
+        last_online: "Online".into(),
+    };
+    session.profile = Some(GuildSnapshot {
+        guild_id: 7,
+        guild_name: "Guild Testers".into(),
+        tabard: None,
+        created_at: None,
+        motd: String::new(),
+        info_text: String::new(),
+        members: vec![member("Cara"), member("Dora")],
+    });
+    session.click("guild:member:Cara", &Default::default());
+    session.click("guild:note_public", &Default::default());
+    session.click("guild:member:Dora", &Default::default());
+    let texts = std::collections::HashMap::from([(
+        "GuildMemberNoteEditBox".to_owned(),
+        "Alchemy".to_owned(),
+    )]);
+    assert_eq!(
+        session.click("guild:note_accept", &texts),
+        Some(GuildRankRequest::SetMemberNote {
+            character_name: "Cara".into(),
+            note: "Alchemy".into(),
+            officer: false,
+        })
+    );
+}
+
+#[test]
 fn guild_member_detail_opens_from_roster_both_skins() {
     let _lock = SKIN.lock().unwrap_or_else(|p| p.into_inner());
     for skin in [ActiveSkin::Modern, ActiveSkin::Forever] {
