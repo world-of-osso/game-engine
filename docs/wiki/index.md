@@ -1,5 +1,7 @@
 # Wiki Index
 
+- [Housing control tooltips](systems/housing.md#editor-control-tooltips--implementation2026-10-14) — source owner-top labels/full gold bindings, current Options authority and inspected both-skin assignment/unbind native proof; unsupported predicates/glow/audio remain gaps.
+
 - [Cleanup cursor tooltip](systems/housing.md#cleanup-central-tooltip--implementation2026-10-14) — source GameTooltip title/anchor/lifetime, both-skin owner/readonly inspection and classified stale-pixel pick boundary; pet/lock/exterior metadata remains unavailable.
 - [Tutorials source presentation](systems/adventure-guide.md#tutorials-source-presentation--2026-10-14) — source inset/art, shared Morpheus and disabled Start Experience; four inspected both-skin native captures, focused layout4/4 and native check/format pass.
 
