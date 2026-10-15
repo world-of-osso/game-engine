@@ -1,6 +1,6 @@
 # Wiki Index
 
-- [Suggested fixed source panes](systems/adventure-guide.md#suggested-fixed-source-panes--implementation-gate-pending) — source record slots/font fitting replace scrolling groups; GREEN/native gate pending, authority gaps explicit.
+- [Suggested fixed source panes](systems/adventure-guide.md#suggested-fixed-source-panes--2026-10-15) — literal count-dependent source layout; UI8/8 and both-skin native proof, provider/paging gaps explicit.
 
 - [Shared UIPanel button art](systems/menu-primitives.md#shared-uipanel-button-art--2026-10-14-assignment) — source state files, fixed12px caps, five redundant caller repairs removed; four real-window both-skin before/after proof, with background tiling separate.
 - [Source ribbon scalar parsing](formats/m2-format.md#ribbon-emitter-scalars-2026-10-13) — actual rainbow1417024 density/lifetime RED, corrected Retail offsets and strip semantics; both-skin moving raster, native alpha and priority counterexamples pass. Real-byte animated UV and non-square tile regressions cover subsequent bindings.

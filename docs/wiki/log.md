@@ -1,6 +1,6 @@
-## 2026-10-14 — Suggested fixed source panes implementation
+## 2026-10-15 — Suggested literal partial-record source proof
 
-[Suggested panes](systems/adventure-guide.md#suggested-fixed-source-panes--implementation-gate-pending) record source mapping/fonts and removal of invented reward prose from body text. Fixed-slot and opaque-icon regressions are RED→GREEN; both-skin9c native captures contain one genuine record. Lead chose literal partial-record geometry; its correction awaits native proof. Provider count/paging authority remain open.
+[Suggested panes](systems/adventure-guide.md#suggested-fixed-source-panes--2026-10-15) preserve Lua's count-dependent geometry, including initial lower1px text frames and first-pass font at one/two records. Corrected engine628 native captures pass both skins with genuine record852; source line limits now reach native Labels. UI8/8, check/fmt pass; exact source/binary/PNG receipt retained. Provider count/paging authority remain open; no populated-primary native claim.
 
 ## 2026-10-14 — Trading Post post-landing native acceptance
 
