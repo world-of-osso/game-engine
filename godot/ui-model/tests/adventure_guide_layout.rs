@@ -276,8 +276,9 @@ fn adventure_guide_frame_geometry_matches_retail_xml_in_both_skins() {
             rect(&model, "EncounterJournalModelScene"),
             [399., 65., 390., 423.]
         );
-        // EncounterTabTemplate63×57; Overview TOPLEFT relative TOPRIGHT(-12,-35).
-        for (page, y) in [(0, 99.), (2, 154.), (1, 209.), (3, 264.)] {
+        // Lua1310–1320: without overview roots, hide extra Abilities and move Model below Loot.
+        assert!(model.get_by_name("EncounterJournalPage1").is_none());
+        for (page, y) in [(0, 99.), (2, 154.), (3, 209.)] {
             assert_eq!(
                 rect(&model, &format!("EncounterJournalPage{page}")),
                 [780., y, 63., 57.]

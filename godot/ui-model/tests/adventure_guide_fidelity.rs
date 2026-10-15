@@ -92,7 +92,8 @@ fn adventure_guide_fidelity_grid_has_no_unsourced_owned_keys_control() {
 fn adventure_guide_fidelity_overview_has_lore_and_authored_header_without_role_row() {
     for skin in [ActiveSkin::Modern, ActiveSkin::Forever] {
         let mut v = view();
-        v.apply("journal:encounter:112").unwrap();
+        // Ra-den has a real overview root; Ozruk's first tab is ability details.
+        v.apply("journal:encounter:2364").unwrap();
         let r = render(&v, skin);
         for role in [0, 1, 2, 4] {
             assert!(r.get_by_name(&format!("JournalRole{role}")).is_none());
@@ -265,7 +266,7 @@ fn adventure_guide_fidelity_ability_header_uses_paper_regions_and_source_icon_in
     for skin in [ActiveSkin::Modern, ActiveSkin::Forever] {
         let mut v = view();
         v.apply("journal:encounter:112").unwrap();
-        v.apply("journal:page:abilities").unwrap();
+        v.apply("journal:page:overview").unwrap();
         let section = v.sections().unwrap()[0].0.id;
         let mut r = render(&v, skin);
         let name = format!("JournalSection{section}");

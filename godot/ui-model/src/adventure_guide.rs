@@ -1005,18 +1005,16 @@ fn description_page(
     view: &View,
     encounter: &game_engine_core::adventure_guide::Encounter,
 ) -> Element {
-    let mut content = Vec::new();
-    let mut y = 0.;
-    if view.page == Page::Overview {
-        let height = paragraph_height(&encounter.description, 46.);
-        content.extend(paper_text(
-            "JournalEncounterLore",
-            &encounter.description,
-            (2., y + 8., 315., height),
-        ));
-        let header_y = 8. + height + 6.;
-        content.extend(crate::adventure_guide_sections::overview_header(header_y));
-        y = header_y + 30. + 6.;
+    let height = paragraph_height(&encounter.description, 46.);
+    let mut content = paper_text(
+        "JournalEncounterLore",
+        &encounter.description,
+        (2., 8., 315., height),
+    );
+    let mut y = 8. + height + 6.;
+    if view.shows_overview() {
+        content.extend(crate::adventure_guide_sections::overview_header(y));
+        y += 30. + 6.;
     }
     append_sections(&mut content, &mut y, view);
     scroll(ctx, content, (437., 105., 350., 383.), y.max(383.))
@@ -1034,8 +1032,9 @@ fn append_sections(content: &mut Element, y: &mut f32, view: &View) {
             return;
         }
     };
+    let overview_page = view.shows_overview();
     for (section, depth) in sections {
-        if view.page == Page::Overview && depth == 0 {
+        if overview_page && depth == 0 {
             crate::adventure_guide_sections::append_overview_body(
                 content,
                 y,
@@ -1044,7 +1043,7 @@ fn append_sections(content: &mut Element, y: &mut f32, view: &View) {
             );
             continue;
         }
-        let indent = if view.page == Page::Overview {
+        let indent = if overview_page {
             0.
         } else {
             depth as f32 * 15.
@@ -1059,7 +1058,7 @@ fn append_sections(content: &mut Element, y: &mut f32, view: &View) {
         ));
         *y += 26.;
         if !collapsed && !section.body.is_empty() {
-            if view.page == Page::Overview {
+            if overview_page {
                 crate::adventure_guide_sections::append_overview_body(
                     content,
                     y,
