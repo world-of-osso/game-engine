@@ -81,7 +81,9 @@ impl VehicleAttachmentFixture {
             host.visual = Some(visual);
         } else {
             host.mount = Some(mount::UnitMount {
-                display_id: 27224,
+                // Installed Mount280 / MountXDisplay422 (Traveler's Tundra Mammoth).
+                mount_id: 280,
+                display_id: 27237,
                 request: None,
                 node: Some(visual),
             });
