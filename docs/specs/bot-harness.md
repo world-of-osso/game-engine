@@ -22,6 +22,10 @@ Private real player characters exercise the native controller path and measure c
 
 Northshire Shaman bots use source-valid Draenei11 up front, not a retry-based alternative after Dwarf rejection. Other classes use the lowest source-valid Alliance race. Missing authored source pairs block provisioning. This fixture choice does not close the server's separately tracked Dwarf/Shaman eligibility gap.
 
+## Native pre-combat forms
+
+Feral103 prepares Cat Form768/form1 and Guardian104 prepares Bear Form5487/form5 from their installed specialization descriptions, SpellEffect aura36 and SpellShapeshiftForm rows. Require the spell to be natively known; use one ordinary validated self-cast, skip toggling an already-observed own form aura, and confirm the replicated own aura before collection. Missing source/confirmation blocks; do not reorder rotation steps or choose another form. Receipts retain source rows and before/after snapshots. Visible sheet stats are labeled as observed after talents but before form preparation; subsequent CharacterStats/combat observations retain actual post-preparation health and effects.
+
 ## Comparable equipment budget
 
 Every stat-bearing armor slot and preferred weapon uses authentic Item/ItemSparse at the same raw item-level30, quality2 and squish-era0, within the character's level requirement. Armor follows ChrClasses.ArmorTypeMask (cloaks use their native cloth class); positive primary-stat allocation follows ChrSpecialization.PrimaryStatPriority. Record item IDs, raw ilvl, quality, native owner GUIDs and visible native primary stats per spec in fixture-receipt.json. Comparison keys include observed character level, native dummy level/max-health/difficulty, source world.db SHA-256 and duration; roster comparison withholds medians when any expected DPS repetition is absent/incomplete or fewer than three DPS specs qualify. Neck, both rings and both trinkets must be empty for every bot, removed through ordinary paperdoll-to-empty-bag input and confirmed by authoritative equipment/bag snapshots. Storage bags remain equipped and are recorded separately from the combat budget. Missing source slots, mismatched native equipment or unbudgeted stat-bearing equipment block comparison; no changed item/stat definitions or alternate budget.
@@ -53,6 +57,7 @@ Every stat-bearing armor slot and preferred weapon uses authentic Item/ItemSpars
 - [x] Comparable spec-correct gear/stat receipts for the three-spec MVP: Arms10 slots, Fury/Havoc11 slots at30/quality2/era0, visible native stats and owner GUIDs; Fury native dual-two-hand25129 succeeds. Havoc jewelry moves normally into bag0/1 and retains all four storage-bag IDs/GUIDs/counts. Other specs remain unverified; no gear fallback.
 - [ ] Aura-effect, cooldown reset, charge and resource-spending observability; combat-log aura presence alone proves none of these.
 - [ ] All-spec comparable damage receipts beyond the completed three-spec MVP.
+- [ ] Native Feral/Guardian pre-combat form confirmation and follow-up measurements; source/unit proof does not establish live form/effect correctness.
 
 ## Out of scope
 
