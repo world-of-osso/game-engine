@@ -41,6 +41,24 @@ fn mount_special_rider_upper_body_keeps_the_seated_legs_and_finishes() {
                 }
             },
         );
+    let fishing = rider
+        .sequences
+        .iter()
+        .position(|sequence| sequence.id == 133 && sequence.variation_id == 0)
+        .unwrap();
+    eprintln!(
+        "FishingCast duration={} flags={} time={} upper_bones={} keyed_tracks={}",
+        rider.sequences[fishing].duration,
+        rider.sequences[fishing].flags,
+        rider.global_ms,
+        rider.upper_body.iter().filter(|bone| **bone).count(),
+        rider
+            .tracks
+            .iter()
+            .filter(|tracks| super::keyframed(&tracks.rotation, fishing)
+                || super::keyframed(&tracks.translation, fishing))
+            .count()
+    );
     assert!(upper > 0.01, "rider upper body did not animate: {upper}");
     assert!(lower < 1e-4, "rider legs left saddle pose: {lower}");
     rider.advance(6000.0).unwrap();
