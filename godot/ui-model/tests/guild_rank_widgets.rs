@@ -972,6 +972,11 @@ fn guild_member_notes_gate_self_public_officer_visibility_and_wait_for_authority
                 .is_none()
         );
         assert_eq!(text(&reg, "GuildMember0Note"), "Alchemy");
+        session.click("guild:detail_group_invite", &Default::default());
+        assert_eq!(
+            session.commands.last(),
+            Some(&game_engine_ui_model::guild_ranks::GuildCommand::GroupInvite("Cara".into()))
+        );
         session.click("guild:note_officer", &Default::default());
         assert_eq!(session.note_editor, None);
         session.click("guild:note_public", &Default::default());

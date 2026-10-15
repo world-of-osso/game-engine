@@ -94,7 +94,7 @@ pub fn detail(session: &GuildRanksSession) -> Element {
         "GuildMemberDetailGroupInvite".into(),
         "Group Invite",
         "guild:detail_group_invite",
-        member.is_some_and(|m| m.is_online && !m.is_self),
+        member.is_some_and(|m| m.is_online),
         (113.0, height - 34.0, 96.0, 22.0),
     ));
     rsx! { r#frame { name: "CommunitiesGuildMemberDetailFrame", width: 212.0, height, left: 806.0, top: 76.0,
