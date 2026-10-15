@@ -525,10 +525,17 @@ fn suggestions_display_only_authored_eligible_records_without_actions() {
         ctx.insert(snapshot());
         screen.sync(&ctx, &mut registry);
         assert!(registry.get_by_name("JournalSuggestion642").is_none());
-        assert_eq!(
-            text(&registry, "JournalSuggestedEmpty"),
-            "No eligible source suggestions available."
+        assert!(
+            registry.get_by_name("JournalSuggestedEmpty").is_none(),
+            "Retail leaves its three empty source panes, without an invented notice"
         );
+        for index in 1..=3 {
+            assert!(
+                registry
+                    .get_by_name(&format!("JournalSuggestionSlot{index}"))
+                    .is_some()
+            );
+        }
         let mut registry = FrameRegistry::new(800., 496.);
         Screen::new(|ctx| suggested(ctx, None)).sync(&ctx, &mut registry);
         assert_eq!(
