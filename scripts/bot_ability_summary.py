@@ -4,6 +4,8 @@ import json
 from collections import Counter
 from pathlib import Path
 
+from bot_health import qualify_report_health
+
 
 def summarize_run(manifest, report):
     requests = Counter(attempt["spell"] for attempt in manifest["attempts"])
@@ -37,7 +39,12 @@ def read_spec_runs(root, spec, repeats):
             if manifest_path.exists() or report_path.exists():
                 partial.append(name)
             continue
-        result = summarize_run(json.loads(manifest_path.read_text()), json.loads(report_path.read_text()))
+        report = qualify_report_health(directory, json.loads(report_path.read_text()))
+        result = summarize_run(json.loads(manifest_path.read_text()), report)
+        result["health_qualification"] = report["health_qualification"]
+        if "reported_dps" in report:
+            result["reported_dps"] = report["reported_dps"]
+            result["reported_measurement_complete"] = report["reported_measurement_complete"]
         result["run"] = name
         runs.append(result)
     return runs, missing, partial
@@ -68,6 +75,8 @@ def render_markdown(summary):
         if spec["partial_artifacts"]:
             lines.append("Incomplete artifact pairs: " + ", ".join(spec["partial_artifacts"]))
         for run in spec["runs"]:
+            if not run["health_qualification"]["valid"]:
+                lines.extend(["", "Health qualification failed: " + run["health_qualification"]["error"]])
             lines.extend(["", f"### {run['run']} — complete={run['measurement_complete']}; DPS={run['dps']}", "",
                           "| Spell | Requests | Successes | Event damage | Missing casts | Zero damage | Unused |",
                           "|---:|---:|---:|---:|---:|---:|:---:|"])
