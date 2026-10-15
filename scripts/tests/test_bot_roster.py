@@ -19,9 +19,14 @@ class BotRosterTests(unittest.TestCase):
         mage = next(bot for bot in bots if bot["spec"] == 62)
         self.assertEqual((mage["class"], mage["race"], mage["level"], mage["role"]), (8, 1, 32, 2))
         shaman = next(bot for bot in bots if bot["spec"] == 262)
-        self.assertEqual(shaman["race"], 3)
+        self.assertEqual(shaman["race"], 11, "explicit source-valid Draenei fixture, not a failed-Dwarf retry")
         self.assertTrue(all(bot["account"].startswith("fb_bot_harness_") for bot in bots))
         self.assertTrue(all(bot["name"].isalpha() and len(bot["name"]) <= 12 for bot in bots))
+
+    def test_authored_shaman_race_cannot_fall_back_to_another_source_pair(self):
+        pairs = [{"RaceID": "3", "ClassID": "7"}]
+        with self.assertRaisesRegex(ValueError, "11.*source"):
+            bot_roster.select_alliance_race(7, pairs, {3, 11})
 
 
 if __name__ == "__main__":

@@ -982,6 +982,7 @@ pub struct WorldUnits {
     root: Option<Gd<Node3D>>,
     /// `AnimationData.Fallback`, loaded on first use.
     anim_fallbacks: Option<HashMap<u16, u16>>,
+    mount_special_catalog: Option<game_engine_core::mount_special::MountSpecialCatalog>,
     animation_replacements:
         Option<game_engine_core::animation_replacements::AnimationReplacementCatalog>,
     data_root: PathBuf,
@@ -1006,6 +1007,7 @@ impl WorldUnits {
         Self {
             root: None,
             anim_fallbacks: None,
+            mount_special_catalog: None,
             animation_replacements: None,
             data_root: data_root.clone(),
             units: HashMap::new(),
@@ -1636,19 +1638,38 @@ impl WorldUnits {
 
     /// Player `server_id`'s social emote: a /wave plays once over its stance, a held
     /// emote replaces its standing clip until it moves. A unit not in view is ignored.
-    pub fn receive_emote(&mut self, server_id: u64, emote: EmoteKind) -> Result<(), String> {
+    pub fn receive_emote(
+        &mut self,
+        server_id: u64,
+        emote: EmoteKind,
+    ) -> Result<Option<u32>, String> {
         let Some(unit) = self.units.get_mut(&server_id) else {
-            return Ok(());
+            return Ok(None);
         };
+        if emote == EmoteKind::MountSpecial {
+            if self.mount_special_catalog.is_none() {
+                self.mount_special_catalog = Some(
+                    game_engine_core::mount_special::MountSpecialCatalog::read(&self.data_root)?,
+                );
+            }
+            let fallbacks = combat::load_fallbacks(&mut self.anim_fallbacks, &self.data_root);
+            return mount::play_special(
+                unit,
+                self.mount_special_catalog
+                    .as_ref()
+                    .expect("loaded mount special catalog"),
+                fallbacks,
+            );
+        }
         let Some(mut animation) = unit
             .visual
             .as_ref()
             .and_then(|visual| visual.try_get_node_as::<WowAnimationPlayer>("M2Animation"))
         else {
-            return Ok(());
+            return Ok(None);
         };
         let Some(clip) = emotes::emote_clip(emote, self.models.visual_gear()?)? else {
-            return Ok(());
+            return Ok(None);
         };
         let fallbacks = combat::load_fallbacks(&mut self.anim_fallbacks, &self.data_root);
         let missing = || format!("Player {} has no {emote:?} clip", unit.name);
@@ -1664,7 +1685,13 @@ impl WorldUnits {
                     .ok_or_else(missing)?;
             }
         }
-        Ok(())
+        Ok(None)
+    }
+
+    pub fn local_player_mounted(&self) -> bool {
+        self.local_player_id
+            .and_then(|id| self.units.get(&id))
+            .is_some_and(|unit| unit.mount.is_some())
     }
 
     /// The local player's replicated stand state.

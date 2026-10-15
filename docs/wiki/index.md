@@ -1,5 +1,7 @@
 # Wiki Index
 
+- [MountSpecial continuation](systems/mounts.md#mountspecial-continuation--2026-10-15) — unified input/wire/real observer dispatch; phase-qualified three-mount both-skin input/peer proof, real Spelltome saddle/body identity and explicit Grrloc/unsupported-VFX gaps; lead pixel review and integration OPEN.
+
 - [Pet queue caption tag](systems/battle-pets.md#queue-ready-caption-tag--2026-10-15) — missing-text RED→typed caption, two inspected both-skin native samples; outside-caption pixels unchanged, remaining popup parity separate.
 - [Initial local-player facing](systems/networking.md#initial-local-player-facing-2026-10-15) — native first-root source yaw is later overwritten by PI prediction; constructor uses authoritative yaw;12 world controls and both-skin native Bashiok GREEN without a turn stimulus.
 
