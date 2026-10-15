@@ -160,7 +160,7 @@ impl Peer {
             println!("HOUSING_HOVER_OWNER_READY house={}", self.house);
         } else if !self.enter_requested {
             if !state
-                .houses
+                .owned_houses
                 .iter()
                 .any(|house| house.house_id == self.house)
             {
