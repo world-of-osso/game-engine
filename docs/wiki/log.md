@@ -3890,3 +3890,5 @@ Staged chains cover all1,971 mount IDs;1,444 recovered readable targets rendered
 - 2026-10-15: [Housing disabled icons](systems/housing.md#disabled-editor-icon-visuals--implementation2026-10-15): inspected untouched native1920×1080 both-skin PNGs; inherited1280 downsampling separated from full-HD evidence.
 
 - 2026-10-15: [Stationary Cleanup ray](systems/housing.md#stationary-cleanup-ray--implementation2026-10-15): actual owner/readonly process RED, unchanged input/current-ray receipts and exact paid restoration; minimal per-frame picker refresh implemented, acceptance pending.
+
+- 2026-10-15: [Stationary Cleanup ray](systems/housing.md#stationary-cleanup-ray--implementation2026-10-15): both-skin native GREEN, one input event/current ray/name/highlight clear+return and exact normal-owner restoration; launch hashes and six inspected functional PNGs retained, no timing/full-HD claim.
