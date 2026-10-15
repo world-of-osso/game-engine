@@ -40,6 +40,10 @@ Native regression proof: corrected root51533 and child228562 each create two wol
 
 Pre-merge root51533 produced four wolves because script and generic summon count both applied. Upstream master now casts child228562 once; this harness branch made no gameplay correction. Those server/client CPU fixtures do not establish an all-spec rendered live run or balance acceptance.
 
+## Per-ability triage
+
+`python3 scripts/bot_ability_summary.py <run-root> <summary-output>` reads the configured roster and retained run/report pairs without controlling clients or changing collection. abilities.json/md report each spell's request/success counts, actual event-spell damage, missing-cast/zero-damage/unused findings and separate untagged native error totals. Trigger child damage keeps its actual spell ID; source damage_ids remain relationships, not duplicated root credit. Missing specs/repeats and partial artifact pairs remain explicit. The actual native Arms excerpt proves16 requests/3 successes/1163 damage/13 missing-cast findings and12 no-charges plus1not-ready errors; those errors cannot be assigned a spell from the error payload alone.
+
 ## Damage comparison
 
 The baseline leaves Neck, Finger1/2 and Trinket1/2 empty. The gear controller finds a visible native bag button absent from the occupied owner snapshot, clicks the equipped jewelry then that empty destination, and waits for the equipment slot to disappear and the item ID to appear at that destination. Missing space or confirmation blocks setup; no admin unequip path. Bag1–4 remain equipped and receipts retain their owner identities separately from budgeted combat items. Eight focused gear tests pass, including all five jewelry refusals with four retained native storage bags; integrated harness Python50 and Godot gear parse pass. Native-equal-budget2 proves all five Havoc removals into bag0 slot15 and bag1 slots0–3. Before/after snapshots preserve storage-bag IDs/GUIDs/counts; names/icons resolve asynchronously and are not item identity.
