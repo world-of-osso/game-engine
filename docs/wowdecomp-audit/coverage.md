@@ -24,7 +24,7 @@ An initial lead assumed atlas coordinates belonged to each edge at birth. `W/Eng
 
 ### Ribbon interpolation uses current width for both frame endpoints
 
-`W/Engine/Source/Services/RibbonEmitter.cpp:69–79` constructs previous/current endpoints with the same current `m_above`/`m_below`. `E/godot/core/src/m2_ribbons.rs:258–277` does the equivalent using current values plus the direction-difference bend. The assertion that reference interpolation necessarily retains previous-frame width is unsupported.
+`W/Engine/Source/Services/RibbonEmitter.cpp:95–107` constructs previous/current endpoints with the same current `m_above`/`m_below`. `E/godot/core/src/m2_ribbons.rs:258–277` does the equivalent using current values plus the direction-difference bend. The assertion that reference interpolation necessarily retains previous-frame width is unsupported.
 
 ### Long-frame particle replay intentionally caps whole steps
 
