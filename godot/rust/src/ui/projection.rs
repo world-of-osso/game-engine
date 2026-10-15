@@ -710,6 +710,7 @@ impl UiProjection {
                         | "EncounterJournalInstanceFrame"
                         | "EncounterJournalModelScene"
                         | "EncounterJournalTutorialsFrame"
+                        | "EncounterJournalSuggestedFrame"
                         | "JourneyRenownTrackClip"
                         | "QuestMapRewardsFrameContainer"
                 )

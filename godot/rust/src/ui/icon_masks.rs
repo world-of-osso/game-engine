@@ -280,7 +280,11 @@ fn is_round_icon(name: &str) -> bool {
                 | "EncounterJournalInstanceButtonIcon"
         );
     let talent = name.starts_with("TalentNode") && name.ends_with("RoundIcon");
-    creation || bag || portrait || talent
+    let suggestion = name
+        .strip_prefix("JournalSuggestion")
+        .and_then(|suffix| suffix.strip_suffix("Texture"))
+        .is_some_and(|id| id.parse::<u32>().is_ok());
+    creation || bag || portrait || talent || suggestion
 }
 
 fn load_atlas_mask(mask: Mask) -> Result<GrayImage, String> {
