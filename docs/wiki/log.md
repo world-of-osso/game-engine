@@ -1,6 +1,6 @@
 ## 2026-10-15 — Suggested literal partial-record source proof
 
-[Suggested panes](systems/adventure-guide.md#suggested-fixed-source-panes--2026-10-15) preserve Lua's count-dependent geometry, including initial lower1px text frames and first-pass font at one/two records. Corrected engine628 native captures pass both skins with genuine record852; source line limits now reach native Labels. UI8/8, check/fmt pass; exact source/binary/PNG receipt retained. Provider count/paging authority remain open; no populated-primary native claim.
+[Suggested panes](systems/adventure-guide.md#suggested-fixed-source-panes--2026-10-15) preserve Lua's count-dependent geometry, including initial lower1px text frames and first-pass font at one/two records. Corrected engine628 native captures pass both skins with genuine record852; source line limits now reach native Labels. UI8/8, check/fmt pass; exact source/binary/PNG receipt retained. Lead rejected the one-record pixels. Installed-CSV/bonus provider correction is now under joint verification; require a populated primary and both small cards. No new native acceptance claim.
 
 ## 2026-10-14 — Trading Post post-landing native acceptance
 
