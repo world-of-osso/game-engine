@@ -128,6 +128,14 @@ fn rect(registry: &FrameRegistry, name: &str) -> [f32; 4] {
 }
 
 #[test]
+fn journeys_watch_click_sound_follows_the_requested_target_not_optimistic_state() {
+    use game_engine_ui_model::adventure_journeys::watch_click_sound;
+    assert_eq!(watch_click_sound(0), 857);
+    assert_eq!(watch_click_sound(2503), 856);
+    assert_eq!(watch_click_sound(2696), 856);
+}
+
+#[test]
 fn journeys_watch_uses_source_hover_geometry_and_authoritative_checked_state() {
     for skin in [ActiveSkin::Modern, ActiveSkin::Forever] {
         let mut view = data_view();
@@ -563,21 +571,27 @@ fn selected_journey_reward_tooltip_uses_authored_text_without_invented_claim_sta
 }
 
 #[test]
-fn unevaluated_unlock_notice_uses_the_source_locked_state_anchor_in_both_skins() {
+fn unknown_unlock_preserves_known_progress_without_player_facing_implementation_text() {
     let mut view = data_view();
     view.renown = Some(Arc::new(snapshot()));
     view.apply("journal:tab:journeys").unwrap();
     view.apply("journal:journey:12").unwrap();
     for skin in [ActiveSkin::Modern, ActiveSkin::Forever] {
         let registry = render_skin(&view, skin);
-        assert_eq!(
-            rect(&registry, "JourneyProgressLockedState"),
-            [144.5, 50., 500., 25.]
+        assert!(registry.get_by_name("JourneyProgressUnlock").is_none());
+        let details = registry
+            .get(registry.get_by_name("JourneyProgressDetails").unwrap())
+            .unwrap();
+        assert!(
+            !details.hidden,
+            "Unknown unlock must not hide received progress"
         );
+        assert_eq!(text(&registry, "JourneyProgressLevel"), "2");
         assert_eq!(
-            text(&registry, "JourneyProgressUnlock"),
-            "Unlock condition is not evaluated by this realm."
+            text(&registry, "JourneyProgressCurrent"),
+            "Current Progress: 1000 / 2500"
         );
+        assert!(registry.get_by_name("JourneyRenownLevel2Earned").is_some());
     }
 }
 
