@@ -13,6 +13,82 @@ fn atlas(name: &str) -> Option<TextureSource> {
 }
 
 #[test]
+fn guild_tabard_arrow_hover_keeps_source_base_under_additive_highlight() {
+    use game_engine_ui_model::{guild_tabard_frame, guild_tabards::GuildTabards};
+    use shared::protocol::{GuildTabardReply, GuildTabardVendorSnapshot};
+    use ui_toolkit::{
+        registry::FrameRegistry,
+        screen::{Screen, SharedContext},
+    };
+    game_engine_ui_model::paths::set_data_root(
+        std::path::PathBuf::from(env!("CARGO_MANIFEST_DIR")).join("../../data"),
+    )
+    .unwrap();
+    ui_toolkit::atlas::set_thread_skin(ActiveSkin::Modern);
+    let mut view = GuildTabards::default();
+    view.begin_open(701);
+    view.receive(GuildTabardReply::Vendor(GuildTabardVendorSnapshot {
+        npc: 701,
+        npc_name: "Jondor Steelbrow".into(),
+        own_rank: Some(0),
+        design: None,
+        cost: 100000,
+    }))
+    .unwrap();
+    let mut shared = SharedContext::new();
+    shared.insert(view);
+    let mut registry = FrameRegistry::new(1920.0, 1080.0);
+    Screen::new(guild_tabard_frame::tabard_screen).sync(&shared, &mut registry);
+    guild_tabard_frame::apply_postsetup(&mut registry);
+    for (name, normal, pushed, highlight) in [
+        (
+            "TabardFrameCustomization1LeftButton",
+            130869,
+            130868,
+            130757,
+        ),
+        (
+            "TabardFrameCustomization1RightButton",
+            130866,
+            130865,
+            130757,
+        ),
+        (
+            "TabardCharacterModelRotateLeftButton",
+            130845,
+            130844,
+            130717,
+        ),
+        (
+            "TabardCharacterModelRotateRightButton",
+            130847,
+            130846,
+            130717,
+        ),
+    ] {
+        let id = registry.get_by_name(name).unwrap();
+        let frame = registry.get_mut(id).unwrap();
+        for (state, expected) in [(ButtonState::Normal, normal), (ButtonState::Pushed, pushed)] {
+            let Some(WidgetData::Button(button)) = &mut frame.widget_data else {
+                panic!("source button")
+            };
+            button.state = state;
+            button.hovered = true;
+            let parts = project_images(frame, 32.0, 32.0);
+            assert_eq!(
+                parts[0].source,
+                Some(TextureSource::FileDataId(expected)),
+                "{name}"
+            );
+            assert!(!parts[0].additive);
+            assert_eq!(parts.len(), 2, "{name} base plus highlight");
+            assert_eq!(parts[1].source, Some(TextureSource::FileDataId(highlight)));
+            assert!(parts[1].additive, "Retail HighlightTexture blendMode=ADD");
+        }
+    }
+}
+
+#[test]
 fn cooldown_revert_projects_retail_panel_strips_for_each_button_state() {
     use crate::ui::{RegistryModel, ScreenPostsetup};
     use game_engine_ui_model::cooldown_assist::CooldownViewerView;
@@ -91,6 +167,20 @@ fn retail_panel_button_preserves_12px_caps_and_crops_unused_sheet_area() {
             assert_eq!(image.rect, rect);
             assert_eq!(image.crop, Crop::Normalized(crop));
         }
+    }
+}
+
+#[test]
+fn shared_panel_art_keeps_xml_12px_caps_when_callers_change_height() {
+    for height in [21.0, 24.0, 30.0] {
+        let frame = button(ButtonData {
+            normal_texture: Some(TextureSource::FileDataId(130828)),
+            ..Default::default()
+        });
+        let images = project_images(&frame, 245.0, height);
+        assert_eq!(images[0].rect, [0.0, 0.0, 12.0, height]);
+        assert_eq!(images[1].rect, [12.0, 0.0, 221.0, height]);
+        assert_eq!(images[2].rect, [233.0, 0.0, 12.0, height]);
     }
 }
 
@@ -198,6 +288,41 @@ fn retail_shared_red_button_preserves_authored_caps_in_each_state() {
         assert_eq!(parts[0].rect[2], 114.0 * 28.0 / 128.0);
         assert_eq!(parts[2].rect[2], 292.0 * 28.0 / 128.0);
         assert_eq!(parts[2].rect[0] + parts[2].rect[2], 200.0);
+    }
+}
+
+#[test]
+fn trading_post_rotate_button_projects_additive_hover_and_offset_pressed_art() {
+    for state in [ButtonState::Normal, ButtonState::Pushed] {
+        let frame = button(ButtonData {
+            normal_texture: atlas("perks-button-up"),
+            pushed_texture: atlas("perks-button-down"),
+            highlight_texture: atlas("perks-button-up"),
+            highlight_alpha: 0.6,
+            hovered: true,
+            state,
+            use_default_skin: false,
+            ..Default::default()
+        });
+        let parts = project_images(&frame, 48., 48.);
+        assert_eq!(
+            parts.len(),
+            2,
+            "Retail normal/pushed plus additive highlight"
+        );
+        let base = &parts[0];
+        assert_eq!(
+            base.rect,
+            if state == ButtonState::Pushed {
+                [1., 1., 48., 48.]
+            } else {
+                [0., 0., 48., 48.]
+            }
+        );
+        let hover = &parts[1];
+        assert_eq!(hover.rect, [0., 0., 48., 48.]);
+        assert!(hover.additive);
+        assert_eq!(hover.color, [1., 1., 1., 0.6]);
     }
 }
 

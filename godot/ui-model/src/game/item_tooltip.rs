@@ -55,6 +55,7 @@ pub fn item_tooltip_in_catalog(
             y: 0.0,
             title: RETRIEVING_ITEM_INFO.into(),
             title_color: RED_FONT_COLOR,
+            title_suffix: None,
             lines: Vec::new(),
             border: TooltipBorder::Quality(slot.quality.id()),
         };
@@ -66,6 +67,7 @@ pub fn item_tooltip_in_catalog(
         y: 0.0,
         title: slot.name.clone(),
         title_color: parse_rgba(quality_color(slot.quality.id())),
+        title_suffix: None,
         lines: entry.map_or_else(Vec::new, |entry| item_lines(entry, &item, catalog)),
         border: TooltipBorder::Quality(slot.quality.id()),
     }
@@ -263,7 +265,7 @@ fn slot_line(entry: &ItemCatalogEntry, subclass: &str) -> Option<TooltipLineStat
 }
 
 /// `INVTYPE_*` GlobalStrings by `Enum.InventoryType`.
-fn inventory_type_label(inventory_type: u8) -> Option<&'static str> {
+pub(crate) fn inventory_type_label(inventory_type: u8) -> Option<&'static str> {
     Some(match inventory_type {
         1 => "Head",
         2 => "Neck",

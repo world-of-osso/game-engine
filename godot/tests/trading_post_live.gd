@@ -19,7 +19,7 @@ func run_fixture() -> void:
 		fail("Private compositor must expose 1920x1080 output")
 		return
 	var account := OS.get_environment("TP_ACCOUNT")
-	if server != "127.0.0.1:5791" or not account.begins_with("fb_") or shots.is_empty() or receipts.is_empty() or not phase in ["layout", "layout-proof", "browse", "relog", "purchase", "refund"]:
+	if server != "127.0.0.1:5791" or not account.begins_with("fb_") or shots.is_empty() or receipts.is_empty() or not phase in ["layout", "layout-proof", "browse", "relog", "purchase", "refund", "cart", "cart-lifetime", "rotate-controls", "mount-rider", "mount-rider-cancel"]:
 		fail("Explicit private 127.0.0.1:5791, fb_* account, phase and evidence paths required")
 		return
 	for directory in [shots, receipts]:
@@ -32,8 +32,9 @@ func run_fixture() -> void:
 	if not await wait_until(func(): return not client.account_state().assets_starting, "asset startup", 180000): return
 	var error: String = client.connect_account(server, account, OS.get_environment("TP_PASSWORD"), false)
 	if error != "": fail(error); return
-	if not await wait_until(func(): return client.get_node_or_null("CharacterSelectUI") != null, "character select", 120000): return
+	if not await wait_until(func(): return control("CharCard_0") != null and control("CharCard_0").is_visible_in_tree(), "character select reveal", 180000): return
 	await click("CharCard_0")
+	if not await wait_until(func(): return control("EnterWorld") != null and control("EnterWorld").is_visible_in_tree(), "selected character ready", 180000): return
 	await click("EnterWorld")
 	if not await wait_until(func(): return client.account_state().screen == "InWorld" and control("MinimapLauncherButton") != null, "world", 180000): return
 	var expected := "Modern" if skin == "modern" else "Forever"
@@ -42,8 +43,20 @@ func run_fixture() -> void:
 	if not await wait_until(func(): return float(client.account_state().local_player_health) > 0.0, "private character alive", 120000): return
 	client.set_world_minutes(720.0)
 	await wait_frames(120)
-	if not phase in ["layout", "layout-proof"] and not await travelers_log(): return
+	if not phase in ["layout", "layout-proof", "cart", "cart-lifetime", "rotate-controls", "mount-rider", "mount-rider-cancel"] and not await travelers_log(): return
 	if not await open_vendor(): return
+	if phase in ["cart", "cart-lifetime"]:
+		# Collection UI owners may replace a hidden CanvasLayer while this vendor is open.
+		var old_layer := CanvasLayer.new()
+		old_layer.name = "TradingPostLayerLifetimeFixture"
+		client.add_child(old_layer)
+		await wait_frames(3)
+		old_layer.free()
+		var new_layer := CanvasLayer.new()
+		new_layer.name = "TradingPostLayerLifetimeFixture"
+		client.add_child(new_layer)
+		await wait_frames(3)
+		if new_layer.visible: fail("Replacement UI owner stayed visible over vendor"); return
 	match phase:
 		"layout":
 			await capture("vendor-all")
@@ -56,6 +69,11 @@ func run_fixture() -> void:
 		"layout-proof": await layout_proof()
 		"relog": await relog_checks()
 		"purchase": await purchase_each_collection()
+		"cart": await checkout_cart()
+		"cart-lifetime": await finish("layer-lifetime")
+		"rotate-controls": await rotate_control_proof()
+		"mount-rider": await mount_rider_proof()
+		"mount-rider-cancel": await mount_rider_cancel_proof()
 		"refund": await refund_after_relog()
 		_: await browse()
 
@@ -221,6 +239,95 @@ func relog_checks() -> void:
 # Vendor category, label and the client collection receipt each purchase must change.
 const PURCHASES := [[1, "transmog", "appearance"], [2, "mount", "mounts"], [3, "pet", "pets"], [5, "toy", "toys"]]
 
+func cart_ensemble_preview() -> bool:
+	if not await choose_category(8): return false
+	if not await select_first_available(): return false
+	var state: Dictionary = client.trading_post_state()
+	var vendor := int(state.selected)
+	var members: PackedInt64Array = state.preview_item_ids
+	if members.size() < 2: fail("Authored ensemble needs multiple member rows"); return false
+	await click("PerksProgramAddToCartButton")
+	if not await wait_until(func(): return client.trading_post_state().cart.size() == 1, "ensemble add"): return false
+	await click("PerksProgramViewCartButton")
+	if not await wait_until(func(): return control("PerksProgramCartSet%d" % vendor) != null and client.trading_post_state().preview_ready, "source ensemble header and composite preview"): return false
+	await capture("cart-ensemble-preview")
+	var item := int(members[0])
+	await click("PerksProgramCartSubItem%d_%d" % [vendor,item])
+	if not await wait_until(func(): return not item in client.trading_post_state().cart_preview_items and client.trading_post_state().preview_ready, "ensemble member deselection"): return false
+	await capture("cart-ensemble-member-deselected")
+	await click("PerksProgramCartSubItem%d_%d" % [vendor,item])
+	if not await wait_until(func(): return item in client.trading_post_state().cart_preview_items, "ensemble member restored"): return false
+	await click("PerksProgramCartClearButton")
+	if not await wait_until(func(): return control("PerksProgramConfirmButton") != null, "ensemble clear confirmation"): return false
+	await click("PerksProgramConfirmButton")
+	if not await wait_until(func(): return client.trading_post_state().cart.size() == 0 and not client.trading_post_state().cart_visible, "confirmed clear"): return false
+	return true
+
+func checkout_cart() -> void:
+	var tender := int(client.trading_post_state().tender)
+	if tender < 2000: fail("Admin cart Tender setup missing"); return
+	if not await cart_ensemble_preview(): return
+	var bought := []
+	var total := 0
+	for entry in PURCHASES:
+		if not await choose_category(entry[0]): return
+		if not await select_first_available(tender - total): return
+		var state: Dictionary = client.trading_post_state()
+		if state.purchased or state.collected: fail("Cart fixture needs unowned authored rows: " + str(state)); return
+		if entry[0] == 1:
+			if not await wait_until(func(): return client.trading_post_state().preview_ready, "dressed preview"): return
+			await capture("cart-outfit-default")
+			var default_hide: bool = state.hide_armor
+			await click("PerksProgramToggleHideArmor")
+			if not await wait_until(func(): return client.trading_post_state().hide_armor != default_hide and client.trading_post_state().preview_ready, "Hide Armor override"): return
+			await capture("cart-outfit-hidden")
+			await click("PerksProgramToggleHideArmor")
+			if not await wait_until(func(): return client.trading_post_state().hide_armor == default_hide, "restore authored outfit"): return
+		var before := await collection_count(entry[2], int(state.item_id))
+		await click("PerksProgramAddToCartButton")
+		total += int(state.price)
+		bought.append({"category":entry[0],"kind":entry[2],"vendor":int(state.selected),"item_id":int(state.item_id),"price":int(state.price),"count":before + 1})
+		if not await wait_until(func(): return client.trading_post_state().cart.size() == bought.size(), "cart add"): return
+	await click("PerksProgramViewCartButton")
+	if not await wait_until(func(): return client.trading_post_state().cart_visible and control("PerksProgramCartPurchaseButton") != null and client.trading_post_state().preview_ready and client.trading_post_state().preview_kind == "player", "cart composite preview"): return
+	if int(client.trading_post_state().cart_price) != total: fail("Cart total differs from authored prices"); return
+	await capture("cart-four-products")
+	var wearable = bought[0]
+	var mount = bought[1]
+	await click("PerksProgramCartItem%d" % int(mount.vendor))
+	if not await wait_until(func(): return client.trading_post_state().preview_ready and client.trading_post_state().preview_kind == "creature", "OTHER cart preview"): return
+	var dimmed := control("PerksProgramCartItem%d" % int(wearable.vendor))
+	if absf(dimmed.modulate.a - 0.7) > 0.01: fail("OTHER preview did not dim wearable to source alpha0.7"); return
+	await capture("cart-other-preview")
+	await click("PerksProgramCartItem%d" % int(wearable.vendor))
+	if not await wait_until(func(): return client.trading_post_state().preview_ready and client.trading_post_state().preview_kind == "player" and int(wearable.item_id) in client.trading_post_state().cart_preview_items, "disabled wearable clears OTHER without deselection"): return
+	await capture("cart-other-cleared")
+	await click("PerksProgramCartClearButton")
+	if not await wait_until(func(): return control("PerksProgramConfirmDialog") != null, "clear confirmation"): return
+	await capture("cart-clear-confirm")
+	await click("PerksProgramConfirmCancelButton")
+	if not await wait_until(func(): return control("PerksProgramConfirmDialog") == null, "cancel clear"): return
+	if client.trading_post_state().cart.size() != 4: fail("Cancel clear removed products"); return
+	await click("PerksProgramCartPurchaseButton")
+	if not await wait_until(func(): return control("PerksProgramConfirmDialog") != null, "cart checkout confirmation"): return
+	if control("PerksProgramConfirmItemFrame") != null: fail("Cart incorrectly has single-item frame"); return
+	if int(client.trading_post_state().tender) != tender: fail("Cart confirmation debited locally"); return
+	await capture("cart-checkout-confirm")
+	await click("PerksProgramConfirmButton")
+	if not await wait_until(func(): return not client.trading_post_state().pending and int(client.trading_post_state().tender) == tender-total, "atomic checkout reply"): return
+	if client.trading_post_state().cart.size() != 0: fail("Accepted cart not cleared"); return
+	for row in bought:
+		if not await choose_category(int(row.category)): return
+		await click("PerksProgramProduct%d" % int(row.vendor))
+		if not await wait_until(func(): return int(client.trading_post_state().selected) == int(row.vendor) and client.trading_post_state().purchased and client.trading_post_state().collected, "checkout affected row"): return
+		if not await wait_until_count(row.kind,int(row.item_id),int(row.count),"checkout collection"): return
+		if control("PerksProgramHistoryRefundTime") == null: fail("Selected purchased item missing source refund history"); return
+		await capture("cart-owned-" + str(row.kind))
+	var file := FileAccess.open(receipts.path_join(skin + "-purchases.json"),FileAccess.WRITE)
+	file.store_string(JSON.stringify({"tender":tender-total,"bought":bought},"\t"))
+	file.close()
+	finish("cart-checkout")
+
 func purchase_each_collection() -> void:
 	var tender := int(client.trading_post_state().tender)
 	if tender < 2000: fail("Admin Tender setup missing: %d" % tender); return
@@ -341,6 +448,151 @@ func select_first_available(budget: int = -1) -> bool:
 		if int(state.price) <= budget and not state.purchased and not state.collected: return true
 	fail("No available row within %d Tender in category %d" % [budget, int(client.trading_post_state().category)])
 	return false
+
+func mount_rider_cancel_proof() -> void:
+	if not await choose_category(2): return
+	if not await select_first_available(): return
+	if not await wait_until(func(): return client.trading_post_state().rider_ready, "initial mounted rider", 120000): return
+	await click("PerksProgramTogglePlayerPreview")
+	if not await wait_until(func(): return not client.trading_post_state().rider_ready and not client.trading_post_state().rider_pending, "hidden rider before pending boundary"): return
+	queue_click("PerksProgramTogglePlayerPreview")
+	if not await wait_until(func(): return client.trading_post_state().rider_pending, "actual asynchronous rider request", 30000): return
+	print("TP_PENDING_RIDER_BOUNDARY ", client.trading_post_state())
+	queue_click("PerksProgramLeaveButton")
+	if not await wait_until(func(): return not client.trading_post_state().open, "close while rider pending"): return
+	await wait_frames(60)
+	var state: Dictionary = client.trading_post_state()
+	if state.rider_pending or state.rider_ready or state.preview_ready or int(state.rider_actor_id) != 0: fail("Close retained pending or loaded rider"); return
+	if client.find_children("TradingPostMountPreview", "Node3D", true, false).size() != 0: fail("Late rider arrival recreated closed preview"); return
+	var chat: CanvasLayer = client.get_node_or_null("ChatFrameUI")
+	if chat == null or not chat.visible or int(state.hidden_layers) != 0: fail("Pending-rider close did not restore HUD"); return
+	await capture("closed-pending-rider-no-late-arrival")
+	print("TRADING_POST_LIVE PASS skin=", skin, " phase=mount-rider-cancel state=", state)
+	client.free()
+	quit(0)
+
+func queue_click(name: String) -> void:
+	var node := control(name)
+	if node == null: fail("Missing pending-boundary control " + name); return
+	var point := node.get_global_rect().get_center()
+	var motion_event := InputEventMouseMotion.new()
+	motion_event.position = point
+	motion_event.global_position = point
+	root.push_input(motion_event, true)
+	for down in [true, false]:
+		var event := InputEventMouseButton.new()
+		event.position = point
+		event.global_position = point
+		event.button_index = MOUSE_BUTTON_LEFT
+		event.button_mask = MOUSE_BUTTON_MASK_LEFT if down else 0
+		event.pressed = down
+		root.push_input(event, true)
+
+func mount_rider_proof() -> void:
+	if not await choose_category(2): return
+	if not await select_first_available(): return
+	if not await wait_until(func(): return client.trading_post_state().rider_ready, "dressed mounted rider", 120000): return
+	if not assert_native_rect("PerksProgramTogglePlayerPreview", Rect2(1032,951,30,29)): return
+	var rider: Node3D = instance_from_id(int(client.trading_post_state().rider_actor_id)) as Node3D
+	if not assert_seated_rider(rider): return
+	var mount_group: Node = rider.get_parent()
+	while mount_group != null and mount_group.name != "TradingPostMountPreview":
+		mount_group = mount_group.get_parent()
+	if mount_group == null: fail("Rider is not owned by mounted preview"); return
+	var mount_camera: Camera3D = mount_group.get_viewport().get_camera_3d()
+	var camera_transform: Transform3D = mount_camera.transform
+	await capture("mounted-dressed-default")
+	await click("PerksProgramTogglePlayerPreview")
+	if not await wait_until(func(): return client.trading_post_state().hide_player_preview and not client.trading_post_state().rider_ready and not client.trading_post_state().rider_pending, "Hide Character frees rider"): return
+	if is_instance_valid(rider) or not is_instance_valid(mount_group): fail("Hide Character freed mount or retained rider"); return
+	if not mount_camera.transform.is_equal_approx(camera_transform): fail("Hide Character refitted mount camera"); return
+	await capture("mount-only-hidden")
+	await click("PerksProgramTogglePlayerPreview")
+	if not await wait_until(func(): return client.trading_post_state().rider_ready, "restored current player", 120000): return
+	rider = instance_from_id(int(client.trading_post_state().rider_actor_id))
+	if not assert_seated_rider(rider): return
+	if not mount_camera.transform.is_equal_approx(camera_transform): fail("Show Character refitted mount camera"); return
+	await capture("mounted-restored")
+	var actor_transform: Transform3D = mount_group.get_node("MountActor").transform
+	if not await rotate_model(): return
+	if mount_group.get_node("MountActor").transform != actor_transform: fail("Yaw overwrote authored actor transform"); return
+	await click("PerksProgramTogglePlayerPreview")
+	if not await choose_category(3): return
+	if not await select_first_available(): return
+	if is_instance_valid(mount_group) or is_instance_valid(rider): fail("Category change retained mounted actors"); return
+	if control("PerksProgramTogglePlayerPreview") != null: fail("Pet exposed mount-only checkbox"); return
+	await capture("pet-no-rider-control")
+	if not await choose_category(2): return
+	if not await select_first_available(): return
+	if not await wait_until(func(): return client.trading_post_state().preview_ready, "reselected hidden mount", 120000): return
+	if not client.trading_post_state().hide_player_preview or client.trading_post_state().rider_ready or client.trading_post_state().rider_pending: fail("Selection reset Hide Character"); return
+	await capture("reselected-retains-hidden")
+	await click("PerksProgramTogglePlayerPreview")
+	if not await wait_until(func(): return client.trading_post_state().rider_ready, "rider before close", 120000): return
+	rider = instance_from_id(int(client.trading_post_state().rider_actor_id))
+	await click("PerksProgramLeaveButton")
+	if not await wait_until(func(): return not client.trading_post_state().open, "close mounted preview"): return
+	await wait_frames(60)
+	if is_instance_valid(rider) or client.find_children("TradingPostMountPreview", "Node3D", true, false).size() != 0: fail("Close leaked a mounted preview or late rider"); return
+	await capture("closed-no-late-rider")
+	if not await open_vendor(): return
+	if not await choose_category(2): return
+	if not await select_first_available(): return
+	if not await wait_until(func(): return client.trading_post_state().rider_ready, "new preview after reopen", 120000): return
+	if not assert_seated_rider(instance_from_id(int(client.trading_post_state().rider_actor_id))): return
+	await capture("reopened-mounted")
+	await finish("mount-rider")
+
+func assert_seated_rider(actor: Node) -> bool:
+	if actor == null or actor.get_child_count() != 1: fail("Rider actor missing current player"); return false
+	var animation := actor.get_child(0).get_node_or_null("M2Animation")
+	if animation == null or int(animation.current_animation_id()) != 91: fail("Rider did not use seated animation91"); return false
+	if actor.get_parent().name != "Attachment0": fail("Rider did not attach to saddle0"); return false
+	return true
+
+func rotate_control_proof() -> void:
+	if not await choose_category(2): return
+	if not await select_first_available(): return
+	if not await wait_until(func(): return client.trading_post_state().preview_ready, "mount preview ready"): return
+	await capture("rotate-default")
+	for direction in ["Left", "Right"]:
+		var name: String = "PerksProgramRotate" + direction + "Button"
+		var target := control(name)
+		if target == null: fail("Missing Retail rotation button " + name); return
+		var point: Vector2 = target.get_global_rect().get_center()
+		var before := float(client.trading_post_state().model_yaw)
+		await motion(point, false)
+		await button_event(point, MOUSE_BUTTON_LEFT, true)
+		await wait_frames(10)
+		var held := float(client.trading_post_state().model_yaw)
+		if not assert_rotate_icon(name, true): return
+		var sign := -1.0 if direction == "Left" else 1.0
+		if sign * (held - before) < 0.5: fail("Held %s did not continuously rotate sourced direction: %s -> %s" % [direction, before, held]); return
+		await capture("rotate-held-" + direction.to_lower())
+		await motion(Vector2(1800, 500), true, Vector2(1, 0))
+		await button_event(Vector2(1800, 500), MOUSE_BUTTON_LEFT, false)
+		await wait_frames(3)
+		var released := float(client.trading_post_state().model_yaw)
+		if not assert_rotate_icon(name, false): return
+		await wait_frames(10)
+		if absf(float(client.trading_post_state().model_yaw) - released) > 0.0001: fail("Release outside did not stop rotation"); return
+		await capture("rotate-released-" + direction.to_lower())
+	if not await choose_category(5): return
+	if not await select_first_available(): return
+	if control("PerksProgramRotateLeftButton") != null: fail("Toy retained model-scene rotation controls"); return
+	await capture("toy-no-rotate-controls")
+	await finish("rotate-controls")
+
+func assert_rotate_icon(name: String, pressed: bool) -> bool:
+	var button := control(name)
+	var icon := control(name + "Icon")
+	if button == null or icon == null: fail("Missing sourced rotate icon"); return false
+	var rect: Rect2 = button.get_global_rect()
+	var offset := 1.0 if pressed else 0.0
+	var expected := rect.position + Vector2(11.0 + offset, 11.5 + offset) * rect.size.x / 48.0
+	if icon.get_global_rect().position.distance_to(expected) > 0.51:
+		fail("Rotation pressed icon offset differs from Retail: %s != %s" % [icon.get_global_rect().position, expected]); return false
+	return true
 
 func rotate_model() -> bool:
 	var start := control("PerksProgramMainModelScene").get_global_rect().get_center()

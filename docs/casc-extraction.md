@@ -191,6 +191,10 @@ TACT sections are counted, never replaced with invented rows.
 `TRANSMOG_DB2_DIR=<extracted-directory> python3 scripts/tests/test_transmog_db2.py`
 checks real set13 membership70594, OutfitEntry2 and illusion3.
 
+## Toy cast-area source tables
+
+Pinned69933 `SpellCastingRequirements` FDID1002166/layout02074290 exports signed spell/facing/reputation fields, unsigned faction/area/vision/focus fields and non-inline IDs. `AreaGroupMember` FDID1093406/layout6746D145 exports AreaID and the relation-sourced AreaGroupID. Use the maintained exporter after local CASC extraction; these exports alone do not implement cast restrictions or admit additional toys. Genuine snapshots under `scripts/tests/fixtures/toy-cast-limits-12.1.0.69933/` retain source hashes/counts. Casting requirements have28152 readable rows and3 encrypted omissions; group membership has27273 readable rows and no omissions. Unknown layouts fail before CSV publication.
+
 ## Related Notes
 
 - `docs/casc-db2-keys.md` — difference between WoWDBDefs schema metadata and TACT key sources for encrypted DB2 extraction

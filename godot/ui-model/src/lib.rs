@@ -3,6 +3,8 @@
 #[path = "../../core/src/db2_test_support.rs"]
 mod db2_test_support;
 
+pub mod reputation_status_bar;
+
 pub mod ui {
     pub use ui_toolkit::{anchor, strata};
 
@@ -50,6 +52,8 @@ mod adventure_guide_menus;
 mod adventure_guide_sections;
 pub mod adventure_guide_tooltip;
 pub mod adventure_journeys;
+pub mod adventure_suggestions;
+mod adventure_tutorials;
 pub mod assisted_highlight;
 pub mod battleground;
 pub mod challenge;
@@ -76,6 +80,8 @@ pub mod group_loot_component;
 pub mod group_state;
 pub mod guild_charter_frame;
 pub mod guild_charters;
+pub mod guild_tabard_frame;
+pub mod guild_tabards;
 pub mod housing;
 pub mod housing_basic_component;
 pub mod housing_bulletin_component;

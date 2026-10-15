@@ -20,9 +20,9 @@ use shared::{
         DerivedStats, EquipmentAppearance, FeatherFall, Gold, GuildMembership, Health, Mana,
         ModelDisplay, Mounted, MovementControl, MovementSpeed, Npc, Player, PlayerMotion,
         PlayerStandState, Position, PresenceStatus, Rotation, UnitAuras, UnitFactionTemplate,
-        UnitFlags, UnitFlags2, UnitFlags3, UnitLevel, UnitPose, UnitPowers, UnitRunes, UnitScale,
-        UnitStats, UnitSummonedBy, UnitTap, UnitTarget, UnitThreatList, UnitVignette, WorldArrival,
-        Zone,
+        UnitFlags, UnitFlags2, UnitFlags3, UnitIsPet, UnitLevel, UnitPose, UnitPowers, UnitRunes,
+        UnitScale, UnitStats, UnitSummonedBy, UnitTap, UnitTarget, UnitThreatList, UnitVignette,
+        WorldArrival, Zone,
     },
     level_scaling::LevelScaling,
     protocol::{GameObjectInfo, NpcFlags},
@@ -81,6 +81,7 @@ fn shared_codecs() -> Vec<Codec> {
         Codec::of::<UnitLevel>(),
         Codec::of::<LevelScaling>(),
         Codec::of::<UnitFactionTemplate>(),
+        Codec::of::<shared::components::CurrentPvpFaction>(),
         Codec::of::<UnitFlags>(),
         Codec::of::<UnitFlags2>(),
         Codec::of::<UnitFlags3>(),
@@ -105,6 +106,7 @@ fn shared_codecs() -> Vec<Codec> {
         Codec::of::<CreatureClassification>(),
         Codec::of::<UnitVignette>(),
         Codec::of::<UnitSummonedBy>(),
+        Codec::of::<UnitIsPet>(),
     ]
 }
 

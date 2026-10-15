@@ -4,9 +4,12 @@ use crate::minimal_scroll_bar::{MinimalScrollBar, Unscrollable, pixel_geometry, 
 use crate::quest_art::{DynName, NORMAL_FONT_COLOR, named_atlas_texture, portrait_border};
 use crate::selection_list::MenuTick;
 use game_engine_core::adventure_guide::{
-    Catalog, Instance, Item, ItemSet, Section, difficulty_matches,
+    Catalog, Instance, Item, ItemSet, JourneyPresentation, Section, difficulty_matches,
 };
-use std::{collections::BTreeSet, sync::Arc};
+use std::{
+    collections::{BTreeMap, BTreeSet},
+    sync::Arc,
+};
 use ui_toolkit::{rsx, screen::SharedContext, widget_def::Element};
 
 pub const SEARCH: &str = "EncounterJournalSearchBox";
@@ -76,6 +79,7 @@ pub struct View {
     pub trading_post: Option<Arc<shared::protocol::TradingPostSnapshot>>,
     pub activity_filters: crate::adventure_activities::ActivityFilters,
     pub renown: Option<Arc<shared::protocol::RenownSnapshot>>,
+    pub journey_presentation: Arc<BTreeMap<u32, JourneyPresentation>>,
     pub journeys: crate::adventure_journeys::Journeys,
 }
 impl Default for View {
@@ -111,6 +115,7 @@ impl Default for View {
             trading_post: None,
             activity_filters: Default::default(),
             renown: None,
+            journey_presentation: Arc::default(),
             journeys: Default::default(),
         }
     }
@@ -636,10 +641,13 @@ pub fn adventure_guide_screen(ctx: &SharedContext) -> Element {
         )
     } else {
         match view.tab {
-            Tab::Journeys => {
-                crate::adventure_journeys::journeys(ctx, &view.journeys, view.renown.as_deref())
-            }
-            Tab::Tutorials => tutorials(view),
+            Tab::Journeys => crate::adventure_journeys::journeys(
+                ctx,
+                &view.journeys,
+                view.renown.as_deref(),
+                &view.journey_presentation,
+            ),
+            Tab::Tutorials => crate::adventure_tutorials::tutorials(&view.catalog),
             Tab::ItemSets => sets(ctx, view),
             Tab::Monthly => crate::adventure_activities::monthly(
                 ctx,
@@ -648,7 +656,7 @@ pub fn adventure_guide_screen(ctx: &SharedContext) -> Element {
                 &view.search,
             ),
             Tab::Suggested => {
-                crate::adventure_activities::suggested(ctx, view.activities.as_deref())
+                crate::adventure_suggestions::suggested(ctx, view.activities.as_deref())
             }
             _ => {
                 if view.instance.is_some() {
@@ -1373,37 +1381,6 @@ fn search_results(ctx: &SharedContext, view: &View) -> Element {
     rsx! {r#frame {name:"EncounterJournalSearchResults",left:210.0,top:62.0,width:568.0,height:334.0,pos_type:"absolute",mouse_enabled:true,frame_level:25.0,background_color:"0.08,0.07,0.06,1.0",{list}}}
 }
 
-fn tutorials(view: &View) -> Element {
-    let title = view
-        .catalog
-        .text
-        .get("RPE_TITLE")
-        .map(String::as_str)
-        .unwrap_or("");
-    let body = view
-        .catalog
-        .text
-        .get("RPE_TUTORIAL_TEXT")
-        .map(String::as_str)
-        .unwrap_or("");
-    let mut out = rsx! {texture {name:"EncounterJournalTutorialArt",texture_atlas:"adventureguide-tutorial-rpe",left:34.0,top:76.0,width:270.0,height:390.0,pos_type:"absolute"}};
-    out.extend(text(
-        "EncounterJournalTutorialTitle",
-        title,
-        (330., 110., 380., 60.),
-    ));
-    out.extend(text(
-        "EncounterJournalTutorials",
-        body,
-        (330., 190., 380., 210.),
-    ));
-    out.extend(text(
-        "EncounterJournalTutorialUnavailable",
-        "Catch Up Experience is not available on this realm.",
-        (330., 420., 380., 44.),
-    ));
-    out
-}
 pub(crate) fn scroll(
     ctx: &SharedContext,
     children: Element,

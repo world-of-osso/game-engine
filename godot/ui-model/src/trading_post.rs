@@ -1,7 +1,18 @@
 //! Retail Mainline Blizzard_PerksProgram: full-screen list, category filter and model.
 //! Forever changes atlas art only; ToyOverlayFrame uses the authored item icon/details.
+#[path = "trading_post_cart.rs"]
+mod cart;
+#[path = "trading_post_cart_rows.rs"]
+mod cart_rows;
+pub use cart_rows::apply_cart_art;
+#[path = "trading_post_cart_ui.rs"]
+mod cart_ui;
 #[path = "trading_post_filter.rs"]
 mod filter_menu;
+#[path = "trading_post_history.rs"]
+mod history;
+#[path = "trading_post_outfit.rs"]
+mod outfit;
 use crate::{
     bank_art::{WHITE, label, texture},
     minimal_scroll_bar::{MinimalScrollBar, Unscrollable, pixel_geometry, scroll_list_attr},
@@ -13,6 +24,7 @@ use crate::{
         strata::FrameStrata,
     },
 };
+pub use outfit::{apply_rotation_icon_positions, load_scene_autodress};
 use shared::protocol::{TradingPostItem, TradingPostRequest, TradingPostSnapshot};
 use std::{collections::BTreeSet, sync::Arc};
 use ui_toolkit::{rsx, screen::SharedContext, widget_def::Element};
@@ -30,12 +42,26 @@ pub struct View {
     pub snapshot: Option<Arc<TradingPostSnapshot>>,
     pub filters: Filters,
     pub selected: Option<u32>,
+    pub cart: Vec<u32>,
+    pub cart_visible: bool,
+    pub cart_hover: Option<u32>,
+    pub cart_item_hover: Option<u32>,
+    /// Retail selectedItems keyed by ConvertInvTypeToSelectionKey; 0 is OTHER.
+    pub cart_selected: std::collections::BTreeMap<u8, u32>,
+    /// Retail resets this override on vendor open, not on product changes.
+    pub hide_armor_setting: Option<bool>,
+    /// PerksProgram OnLoad initializes false; product/category changes retain the choice.
+    pub hide_player_preview: bool,
     pub dropdown: bool,
     pub submenu: Option<FilterSubmenu>,
     pub sort: Sort,
     pub ascending: bool,
     pub pending: bool,
+    /// Monotonic seconds since observing the current authoritative snapshot.
+    pub refund_elapsed: u32,
     pub confirm: Option<String>,
+    /// Captured price/count survive source clear-on-accept cart lifecycle.
+    pub cart_confirmation: Option<(u64, usize)>,
     pub error: String,
 }
 #[derive(Clone, Debug, PartialEq, Eq)]
@@ -93,7 +119,9 @@ impl View {
         self.error = snapshot.error.clone().unwrap_or_default();
         self.snapshot = Some(snapshot);
         self.pending = false;
+        self.refund_elapsed = 0;
         self.confirm = None;
+        self.cart_confirmation = None;
         self.reselect();
     }
     pub fn rows(&self) -> Vec<&TradingPostItem> {
@@ -155,16 +183,32 @@ impl View {
                 && row.price <= snapshot.tender
         })
     }
+    pub fn remaining_refund_seconds(&self) -> u32 {
+        self.selected_item().map_or(0, |row| {
+            row.refund_seconds.saturating_sub(self.refund_elapsed)
+        })
+    }
+
     pub fn can_refund(&self) -> bool {
-        self.selected_item()
-            .is_some_and(|row| !self.pending && row.refund_seconds > 0)
+        !self.pending && self.remaining_refund_seconds() > 0
     }
     pub fn click(&mut self, action: &str) -> Result<Option<Action>, String> {
+        if self.pending && self.confirm.is_some() {
+            return Ok(None);
+        }
         if self.confirm.is_some() && !matches!(action, "perks:confirm" | "perks:cancel") {
+            return Ok(None);
+        }
+        if action.starts_with("perks:cart:") {
+            self.click_cart(action)?;
             return Ok(None);
         }
         match action {
             "perks:close" => return Ok(Some(Action::Close)),
+            "perks:hide-armor" => self.hide_armor_setting = Some(!self.hide_armor()?),
+            "perks:hide-character" => self.hide_player_preview = !self.hide_player_preview,
+            // Rotation is held pointer input, not a server request or a click increment.
+            "perks:rotate-left" | "perks:rotate-right" => {}
             "perks:filter" => {
                 self.dropdown = !self.dropdown;
                 self.submenu = None;
@@ -264,6 +308,23 @@ impl View {
         Err(format!("Unknown Trading Post action: {action}"))
     }
     fn confirm_request(&mut self) -> Result<Option<Action>, String> {
+        if self.confirm.as_deref() == Some("clear-cart") {
+            self.clear_cart();
+            self.confirm = None;
+            return Ok(None);
+        }
+        if self.confirm.as_deref() == Some("cart-checkout") {
+            if !self.can_checkout() {
+                return Ok(None);
+            }
+            let request = TradingPostRequest::Checkout {
+                vendor_item_ids: self.cart.clone(),
+            };
+            // Retail clears the local cart when acceptance enqueues checkout, not at receipt.
+            self.clear_cart();
+            self.pending = true;
+            return Ok(Some(Action::Request(request)));
+        }
         let Some(id) = self.selected else {
             return Ok(None);
         };
@@ -319,8 +380,13 @@ pub fn trading_post_screen(ctx: &SharedContext) -> Element {
     children.extend(footer(view));
     if let Some(snapshot) = &view.snapshot {
         children.extend(catalog_controls(ctx, view, snapshot));
-        children.extend(selected_details(view));
-        children.extend(currency(snapshot.tender));
+        if view.cart_visible {
+            children.extend(cart_ui::panel(ctx, view));
+            children.extend(rsx! {r#frame{name:{DynName(MODEL.into())},left:0.0,top:0.0,width:WIDTH,height:HEIGHT,pos_type:"absolute",frame_level:500.0}});
+        } else {
+            children.extend(selected_details(view));
+        }
+        children.extend(currency(snapshot.tender, view.cart_visible));
     } else {
         children.extend(label(
             "PerksProgramLoading".into(),
@@ -733,9 +799,13 @@ fn hold_art() -> Element {
 // PerksProgramFooterFrame: BOTTOMLEFT/BOTTOMRIGHT, height100; buttons BOTTOM+20.
 fn footer(view: &View) -> Element {
     let mut children = leave_button();
-    if let Some(row) = view.selected_item() {
+    let purchase_left = WIDTH - 46. - 180.;
+    children.extend(cart_ui::footer_controls(view, purchase_left));
+    children.extend(outfit::footer(view));
+    children.extend(outfit::rotation_controls(view));
+    if let Some(row) = view.selected_item().filter(|_| !view.cart_visible) {
         let x = WIDTH - 46. - 180.;
-        if row.refund_seconds > 0 {
+        if view.remaining_refund_seconds() > 0 {
             children.extend(perks_button(
                 "PerksProgramRefundButton",
                 "Refund",
@@ -743,9 +813,10 @@ fn footer(view: &View) -> Element {
                 view.can_refund(),
                 x,
             ));
-        } else {
+        } else if !row.purchased && !row.collected {
             children.extend(purchase_button(view, row, x));
         }
+        children.extend(history::render(view));
     }
     rsx! {r#frame{name:"PerksProgramFooterFrame",left:0.0,top:{HEIGHT-100.0},width:WIDTH,height:100.0,pos_type:"absolute",frame_level:1000.0,{children}}}
 }
@@ -795,10 +866,18 @@ fn purchase_button(view: &View, row: &TradingPostItem, x: f32) -> Element {
             unreachable!("shared button frame");
         };
         // PriceLayoutContainer: HorizontalLayout spacing8, width44+8+20, centered.
+        let price_text = row.price.to_string();
+        let price_width = ui_toolkit::text_measure::measure_text(
+            &price_text,
+            ui_toolkit::widgets::font_string::GameFont::FrizQuadrata,
+            20.,
+        )
+        .expect("GameFontNormalHuge metrics")
+        .0;
         let mut price = label(
             "PerksProgramPurchasePrice".into(),
-            &row.price.to_string(),
-            (0., 0., 44., 20.),
+            &price_text,
+            (44. - price_width, 0., price_width, 20.),
             (20., WHITE, "RIGHT"),
         );
         price.extend(texture(
@@ -814,16 +893,37 @@ fn purchase_button(view: &View, row: &TradingPostItem, x: f32) -> Element {
 
 /// SharedButtonLargeTemplate; native template-art pass composes all three slice states.
 fn perks_button(name: &str, text: &str, action: &str, enabled: bool, x: f32) -> Element {
+    perks_button_at(
+        name,
+        text,
+        action,
+        enabled,
+        (x, 100. - 20. - 46., 180., 46.),
+    )
+}
+
+fn perks_button_at(
+    name: &str,
+    text: &str,
+    action: &str,
+    enabled: bool,
+    (left, top, width, height): (f32, f32, f32, f32),
+) -> Element {
     let disabled = !enabled;
     let action = if enabled { action } else { "" };
-    rsx! {button{name:{DynName(name.into())},left:x,top:{100.0-20.0-46.0},width:180.0,height:46.0,pos_type:"absolute",frame_level:2000.0,text,font_size:16.0,font_color:"1,0.82,0,1",button_default_skin:false,disabled,onclick:action,button_atlas_highlight:"128-RedButton-Highlight"}}
+    rsx! {button{name:{DynName(name.into())},left,top,width,height,pos_type:"absolute",frame_level:2000.0,text,font_size:16.0,font_color:"1,0.82,0,1",button_default_skin:false,disabled,onclick:action,button_atlas_highlight:"128-RedButton-Highlight"}}
 }
 
 const TENDER_ICON: u32 = 4696085; // verified CurrencyTypes 2032 iconFileDataID
-fn currency(tender: u32) -> Element {
-    // CurrencyFrame RIGHT=container.RIGHT, BOTTOM=container.TOP+15, size200x50.
-    let x = CONTAINER_X + 527. - 200.;
-    let y = CONTAINER_Y - 15. - 50.;
+fn currency(tender: u32, cart_visible: bool) -> Element {
+    // CurrencyFrame reanchors to the cart's RIGHT/TOP while it is shown (Products.lua:825).
+    let (right, top) = if cart_visible {
+        (cart_ui::CART_LEFT + cart_ui::CART_WIDTH, cart_ui::CART_TOP)
+    } else {
+        (CONTAINER_X + 527., CONTAINER_Y)
+    };
+    let x = right - 200.;
+    let y = top - 15. - 50.;
     let mut content = texture(
         "PerksProgramCurrencyIcon".into(),
         TENDER_ICON,
@@ -966,6 +1066,37 @@ fn toy_overlay(row: &TradingPostItem) -> Element {
 }
 fn confirm_popup(view: &View, kind: &str) -> Element {
     use crate::static_popup_component::{ItemConfirmation, item_confirmation};
+    if kind == "cart-checkout" {
+        let (price, count) = view.cart_confirmation.expect("Captured cart confirmation");
+        let noun = if count == 1 { "item" } else { "items" };
+        let before = format!("Are you sure you want to exchange {price}");
+        let after = format!("for {count} {noun}?");
+        return item_confirmation(ItemConfirmation {
+            name: "PerksProgramConfirm",
+            pending: view.pending,
+            prompt: (&before, &after),
+            currency_icon: Some(TENDER_ICON),
+            item: None,
+            accept: ("Purchase", "perks:confirm"),
+            cancel_action: "perks:cancel",
+            screen: (WIDTH, HEIGHT),
+        });
+    }
+    if kind == "clear-cart" {
+        let count = view.cart.len();
+        let noun = if count == 1 { "item" } else { "items" };
+        let prompt = format!("Are you sure you want to remove {count} {noun} from the cart?");
+        return item_confirmation(ItemConfirmation {
+            name: "PerksProgramConfirm",
+            pending: false,
+            prompt: (&prompt, ""),
+            currency_icon: None,
+            item: None,
+            accept: ("Remove", "perks:confirm"),
+            cancel_action: "perks:cancel",
+            screen: (WIDTH, HEIGHT),
+        });
+    }
     let Some(row) = view.selected_item() else {
         return vec![];
     };
@@ -978,6 +1109,7 @@ fn confirm_popup(view: &View, kind: &str) -> Element {
     };
     item_confirmation(ItemConfirmation {
         name: "PerksProgramConfirm",
+        pending: false,
         prompt: (
             &before,
             if refund {
@@ -986,8 +1118,8 @@ fn confirm_popup(view: &View, kind: &str) -> Element {
                 "for the following item?"
             },
         ),
-        currency_icon: TENDER_ICON,
-        item: (&row.name, row.icon_fdid, row.quality),
+        currency_icon: Some(TENDER_ICON),
+        item: Some((&row.name, row.icon_fdid, row.quality)),
         accept: (if refund { "Refund" } else { "Purchase" }, "perks:confirm"),
         cancel_action: "perks:cancel",
         screen: (WIDTH, HEIGHT),

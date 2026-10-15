@@ -34,6 +34,9 @@ mod creature_sound_tests {
 #[path = "professions_account_tests.rs"]
 mod profession_snapshot_tests;
 #[cfg(test)]
+#[path = "renown_account_tests.rs"]
+mod renown_snapshot_tests;
+#[cfg(test)]
 #[path = "talents_account_tests.rs"]
 mod talents_account_tests;
 
@@ -257,6 +260,7 @@ pub enum AccountEvent {
     GuildAccepted(shared::protocol::GuildAcceptInviteResponse),
     GuildProfile(shared::protocol::GuildStateUpdate),
     GuildCharter(shared::protocol::GuildCharterReply),
+    GuildTabard(shared::protocol::GuildTabardReply),
     Loot(LootMessage),
     /// A chat line: players, creatures, the MOTD and server errors (`ChatChannel`).
     Chat(ChatMessage),
@@ -1117,6 +1121,15 @@ impl Account {
             .map_err(SessionError)
     }
 
+    pub fn send_guild_tabard(
+        &self,
+        request: shared::protocol::GuildTabardRequest,
+    ) -> Result<(), SessionError> {
+        self.bridge()?
+            .send::<_, shared::protocol::GuildChannel>(request)
+            .map_err(SessionError)
+    }
+
     pub fn send_guild_charter(
         &self,
         request: shared::protocol::GuildCharterRequest,
@@ -1832,6 +1845,23 @@ impl Account {
             || message.is::<shared::protocol::PlayerXpUpdate>()
     }
 
+    fn receive_renown_reply(
+        &mut self,
+        reply: shared::protocol::RenownSnapshot,
+        output: &mut Vec<AccountEvent>,
+    ) {
+        if let Some(error) = &reply.watch_error {
+            output.push(AccountEvent::Reputation(
+                shared::protocol::ReputationStateUpdate {
+                    snapshot: None,
+                    message: None,
+                    error: Some(error.clone()),
+                },
+            ));
+        }
+        self.renown = Some(std::sync::Arc::new(reply));
+    }
+
     fn dispatch_account_state_message(
         &mut self,
         message: ProtocolMessage,
@@ -1857,7 +1887,7 @@ impl Account {
             return Ok(());
         }
         if message.is::<shared::protocol::RenownSnapshot>() {
-            self.renown = Some(std::sync::Arc::new(decode(message)?));
+            self.receive_renown_reply(decode(message)?, output);
             return Ok(());
         }
         if message.is::<shared::protocol::PartyKeystoneSnapshot>() {
@@ -2092,6 +2122,10 @@ impl Account {
         }
         if message.is::<shared::protocol::GuildStateUpdate>() {
             output.push(AccountEvent::GuildProfile(decode(message)?));
+            return Ok(());
+        }
+        if message.is::<shared::protocol::GuildTabardReply>() {
+            output.push(AccountEvent::GuildTabard(decode(message)?));
             return Ok(());
         }
         if message.is::<shared::protocol::GuildCharterReply>() {
@@ -2567,6 +2601,9 @@ mod dungeonclient_tests;
 #[cfg(test)]
 #[path = "account_guild_charter_tests.rs"]
 mod guild_charter_tests;
+#[cfg(test)]
+#[path = "account_guild_tabard_tests.rs"]
+mod guild_tabard_tests;
 
 #[cfg(test)]
 #[path = "account_deathstate_tests.rs"]
@@ -2879,6 +2916,7 @@ mod tests {
             success: true,
             token: "new-token".into(),
             characters: vec![CharacterListEntry {
+                tabard: None,
                 character_id: 42,
                 name: "Alessio".into(),
                 level: 10,
