@@ -159,6 +159,20 @@ Ten inspected1280×720 PNGs are in `/syncthing/AgentShared/2026-10-12/cooldown-a
 
 The harness now waits for **both** own setup CastSuccess and replicated combat entry before cycling targets; CastSuccess can precede combat damage/replication. Moving enemies behind authentic occluders require another ordinary Tab candidate, not removing LoS or changing NPC data. No assistant predicate or casting behavior was changed.
 
+## Assigned bot rotation blockers — 2026-10-15
+
+Verified: 2026-10-15. Exact rows below match both published `12.1.5.70391` and current `data/db2/active` across AssistedCombatRule, Step and AssistedCombat (nine joined rows). Rule order is not a replacement policy: all40 specs already have authored steps.
+
+| Named source gap | Exact authored identity | Missing approved semantics / proof level |
+|---|---|---|
+| `ASSIST_RULE_12408_CONDITION20_SOURCE` | Arcane62; rotation209, step2999/order14, spell44425; rule12408/order3, type20, values100/0/0 | Checked TC/Retail sources do not define units, normalization or comparator. Third-party mana-percent naming is not Retail proof. Native bot receipt reports this explicit refusal. |
+| `ASSIST_RULE_6425_EQUALITY_INCLUSIVITY` | Retribution70; rotation117, step1655/order15, spell20271; rule6425/order3, type38, values3/0/0 | Holy Power3 is the unresolved equality boundary. Strict/inclusive outcomes differ; preserve the existing explicit error. Native default-kit receipt fails here; a different talent/loadout avoiding the boundary does not fix this rule. |
+| `ASSIST_RULE_33686_CONDITION67_POLICY` | Frost64; rotation85, step1165/order11, spell116; rule33686/order3, type67, values0/0/0 | Checked sources do not define predictive inputs, lookahead or horizon. Existing core condition67 refusal and reported earlier native block remain gaps, not a decoded prediction policy. |
+
+Rechecked the pinned a352b1fa SpellHandler.cpp, DB2Structure.h and spell_generic.cpp copies against their recorded SHA256 hashes; none contains an AssistedCombat decoder. This is a bounded search of those files, not an exhaustive TrinityCore audit. Retail `Blizzard_APIDocumentationGenerated/AssistedCombatDocumentation.lua` exposes `GetNextCastSpell` with empty `Tables`/`Predicates`; `Blizzard_ActionBar/Mainline/AssistedCombatManager.lua:329` delegates to `C_AssistedCombat.GetNextCastSpell(checkForVisibleButton)`. Neither checked Lua file defines these numeric predicates. No evaluator/gameplay/stat/protocol change follows from the DB2 fields alone.
+
+Exact source hashes, joined rows and named gaps: `/home/osso/.worktrees/game-server-s6/data/class-completeness6-2026-10-12/rotation-assigned-source-gaps.json`. Native Arcane/Ret counterexamples: `/home/osso/.worktrees/bot-harness-2026-10-15/mvp-dummy2/failures.json`. The bot harness's separately reported Elemental38530/type17 blocker is outside this three-rule assignment. These refusals must not be hidden by reordering, a generic no-order path or an invented lower-priority fallback; source-supported samples do not certify complete rotations.
+
 ## Sources
 - [Exact assistant DB2 receipt](../../../data/diagnostics/cooldown-assist4-2026-10-12/assistant-db2-audit.json) — named rows, reverse references and table counts.
 - [Exact unresolved-rule receipt](../../../data/diagnostics/cooldown-assist4-2026-10-12/remaining-predicate-audit.json) —333 rows in wholly undecoded predicate groups, numeric boundary6425, counts, special fields and charge encoding census.

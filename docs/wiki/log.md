@@ -4,6 +4,9 @@
 ## 2026-10-15 — Source creature opacity
 
 [Creature opacity](systems/toy-box.md#source-creature-opacity-2026-10-15): Bashiok60051 alpha175 omission reproduced in real catalog import; required source byte, old-schema reimport, per-instance geometry binding and15+2 CPU regressions. Native pixel/asset acceptance remains pending.
+## 2026-10-15 — Assigned rotation predicate source gaps
+
+[Exact bot blockers](investigations/cooldown-assist-data.md#assigned-bot-rotation-blockers--2026-10-15): authenticated70391/active rule-step-spec joins12408/20,6425/38 equality and33686/67. Checked pinned TC/Retail UI defines no usable exact predicate policy; three named source gaps retain explicit refusal, not guessed comparators/prediction or a generic rotation fallback. Arcane/Ret native failures retained; no runtime change or all-spec acceptance.
 
 ## 2026-10-15 — Housing pressed hover
 
