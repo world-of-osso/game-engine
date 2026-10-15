@@ -1,5 +1,11 @@
 //! Mounted stationary jump selects the same action as /mountspecial.
 
+#[path = "mount_special_kit.rs"]
+mod kit;
+pub use kit::{
+    KitBoneScope, KitSample, KitSegment, KitTimeline, MountSpecial, MountSpecialCatalog,
+};
+
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub enum JumpAction {
     Jump,

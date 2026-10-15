@@ -451,6 +451,11 @@ db2/active/SpellVisualEffectName.csv
 db2/active/SpellVisualAnim.csv
 db2/active/SpellVisualMissile.csv
 db2/active/AnimKitSegment.csv
+db2/active/Mount.csv
+db2/active/AnimKitConfig.csv
+db2/active/AnimKitConfigBoneSet.csv
+db2/active/AnimKitBoneSet.csv
+db2/active/AnimKitPriority.csv
 db2/active/PlayerCondition.csv
 db2/active/ModifierTree.csv
 textures/6992992.blp
