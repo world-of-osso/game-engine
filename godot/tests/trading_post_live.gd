@@ -19,7 +19,7 @@ func run_fixture() -> void:
 		fail("Private compositor must expose 1920x1080 output")
 		return
 	var account := OS.get_environment("TP_ACCOUNT")
-	if server != "127.0.0.1:5791" or not account.begins_with("fb_") or shots.is_empty() or receipts.is_empty() or not phase in ["layout", "layout-proof", "browse", "relog", "purchase", "refund", "cart", "cart-lifetime", "rotate-controls", "mount-rider"]:
+	if server != "127.0.0.1:5791" or not account.begins_with("fb_") or shots.is_empty() or receipts.is_empty() or not phase in ["layout", "layout-proof", "browse", "relog", "purchase", "refund", "cart", "cart-lifetime", "rotate-controls", "mount-rider", "mount-rider-cancel"]:
 		fail("Explicit private 127.0.0.1:5791, fb_* account, phase and evidence paths required")
 		return
 	for directory in [shots, receipts]:
@@ -43,7 +43,7 @@ func run_fixture() -> void:
 	if not await wait_until(func(): return float(client.account_state().local_player_health) > 0.0, "private character alive", 120000): return
 	client.set_world_minutes(720.0)
 	await wait_frames(120)
-	if not phase in ["layout", "layout-proof", "cart", "cart-lifetime", "rotate-controls", "mount-rider"] and not await travelers_log(): return
+	if not phase in ["layout", "layout-proof", "cart", "cart-lifetime", "rotate-controls", "mount-rider", "mount-rider-cancel"] and not await travelers_log(): return
 	if not await open_vendor(): return
 	if phase in ["cart", "cart-lifetime"]:
 		# Collection UI owners may replace a hidden CanvasLayer while this vendor is open.
@@ -73,6 +73,7 @@ func run_fixture() -> void:
 		"cart-lifetime": await finish("layer-lifetime")
 		"rotate-controls": await rotate_control_proof()
 		"mount-rider": await mount_rider_proof()
+		"mount-rider-cancel": await mount_rider_cancel_proof()
 		"refund": await refund_after_relog()
 		_: await browse()
 
@@ -447,6 +448,45 @@ func select_first_available(budget: int = -1) -> bool:
 		if int(state.price) <= budget and not state.purchased and not state.collected: return true
 	fail("No available row within %d Tender in category %d" % [budget, int(client.trading_post_state().category)])
 	return false
+
+func mount_rider_cancel_proof() -> void:
+	if not await choose_category(2): return
+	if not await select_first_available(): return
+	if not await wait_until(func(): return client.trading_post_state().rider_ready, "initial mounted rider", 120000): return
+	await click("PerksProgramTogglePlayerPreview")
+	if not await wait_until(func(): return not client.trading_post_state().rider_ready and not client.trading_post_state().rider_pending, "hidden rider before pending boundary"): return
+	queue_click("PerksProgramTogglePlayerPreview")
+	if not await wait_until(func(): return client.trading_post_state().rider_pending, "actual asynchronous rider request", 30000): return
+	print("TP_PENDING_RIDER_BOUNDARY ", client.trading_post_state())
+	queue_click("PerksProgramLeaveButton")
+	if not await wait_until(func(): return not client.trading_post_state().open, "close while rider pending"): return
+	await wait_frames(60)
+	var state: Dictionary = client.trading_post_state()
+	if state.rider_pending or state.rider_ready or state.preview_ready or int(state.rider_actor_id) != 0: fail("Close retained pending or loaded rider"); return
+	if client.find_children("TradingPostMountPreview", "Node3D", true, false).size() != 0: fail("Late rider arrival recreated closed preview"); return
+	var chat: CanvasLayer = client.get_node_or_null("ChatFrameUI")
+	if chat == null or not chat.visible or int(state.hidden_layers) != 0: fail("Pending-rider close did not restore HUD"); return
+	await capture("closed-pending-rider-no-late-arrival")
+	print("TRADING_POST_LIVE PASS skin=", skin, " phase=mount-rider-cancel state=", state)
+	client.free()
+	quit(0)
+
+func queue_click(name: String) -> void:
+	var node := control(name)
+	if node == null: fail("Missing pending-boundary control " + name); return
+	var point := node.get_global_rect().get_center()
+	var motion_event := InputEventMouseMotion.new()
+	motion_event.position = point
+	motion_event.global_position = point
+	root.push_input(motion_event, true)
+	for down in [true, false]:
+		var event := InputEventMouseButton.new()
+		event.position = point
+		event.global_position = point
+		event.button_index = MOUSE_BUTTON_LEFT
+		event.button_mask = MOUSE_BUTTON_MASK_LEFT if down else 0
+		event.pressed = down
+		root.push_input(event, true)
 
 func mount_rider_proof() -> void:
 	if not await choose_category(2): return
