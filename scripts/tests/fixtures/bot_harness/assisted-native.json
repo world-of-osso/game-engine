@@ -1,0 +1,17 @@
+{
+  "action_spell": 1229376,
+  "available": true,
+  "failure_reason": "",
+  "in_combat": true,
+  "next_spell": 35395,
+  "rotation_spells": [
+    343527,
+    255937,
+    85256,
+    53385,
+    184575,
+    375576,
+    20271,
+    35395
+  ]
+}
