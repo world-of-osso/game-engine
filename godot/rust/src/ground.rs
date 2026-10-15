@@ -124,7 +124,7 @@ impl TerrainGround<'_> {
         if reached {
             return candidate;
         }
-        if snap && self.step_past_wall_is_clear(current, proposed) {
+        if snap && self.step_past_wall_is_clear(current, proposed, candidate) {
             return candidate;
         }
         // A blocked step keeps the ordinary wall clamp. Never retain the height
@@ -135,17 +135,22 @@ impl TerrainGround<'_> {
 
     /// Only a wall-blocked move attempts a step: unobstructed ramps keep their
     /// existing low-ray corridor, including authored floor detail below that ray.
-    fn step_past_wall_is_clear(&self, current: Vec3, proposed: Vec3) -> bool {
+    fn step_past_wall_is_clear(&self, current: Vec3, proposed: Vec3, candidate: Vec3) -> bool {
         // The wall ray sees WALL_MARGIN beyond the requested displacement. Admit
         // support over that same reach, otherwise short frames stop before the lip
         // reaches the destination column. This probe never adds player movement.
-        let movement = (proposed - current).with_y(0.0);
-        let reach = proposed.with_y(current.y) + movement.normalize() * WALL_MARGIN;
-        let target = self.sample(reach);
-        let landing = self.apply_floor_rules(current, reach, target, true);
-        if target.is_none() || landing.y <= current.y {
-            return false;
-        }
+        let landing = if candidate.y > current.y {
+            candidate
+        } else {
+            let movement = (proposed - current).with_y(0.0);
+            let reach = proposed.with_y(current.y) + movement.normalize() * WALL_MARGIN;
+            let target = self.sample(reach);
+            let landing = self.apply_floor_rules(current, reach, target, true);
+            if target.is_none() || landing.y <= current.y {
+                return false;
+            }
+            landing
+        };
         let raised = current.with_y(landing.y);
         let destination = proposed.with_y(landing.y);
         let across = clamp_movement_to_walls(raised, destination, self.walls);
