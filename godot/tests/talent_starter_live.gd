@@ -21,6 +21,7 @@ func _run() -> void:
 	if root.find_child("TalentLoadoutEdit4294967295", true, false) != null:
 		abort("Starter must not have a user-config gear")
 		return
+	await hover_starter_description()
 	await capture("starter-menu")
 	await click("TalentStarterBuild")
 	await expect_caption("Starter Build")
@@ -87,6 +88,24 @@ func _run() -> void:
 	file.close()
 	print("TALENT_STARTER_LIVE_PASS ", skin)
 	quit(0)
+
+func hover_starter_description() -> void:
+	var starter := await control("TalentStarterBuild")
+	var motion := InputEventMouseMotion.new()
+	motion.position = starter.get_global_rect().get_center()
+	root.push_input(motion)
+	var deadline := Time.get_ticks_msec() + 10000
+	while Time.get_ticks_msec() < deadline:
+		for node in root.find_children("*", "Label", true, false):
+			if node.is_visible_in_tree() and node.text == "A preset talent build that's suitable for most content":
+				var color: Color = node.get_theme_color("font_color")
+				if not color.is_equal_approx(Color(1.0, 0.82, 0.0, 1.0)):
+					abort("Starter tooltip does not use Retail YELLOW_FONT_COLOR: " + str(color))
+					return
+				evidence.append({"starter_description":node.text,"yellow_color":str(color)})
+				return
+		await process_frame
+	abort("Starter Retail description tooltip missing")
 
 func node_rank(node_id: int, expected: String) -> void:
 	var deadline := Time.get_ticks_msec() + 60000
