@@ -1,3 +1,7 @@
+## 2026-10-15 — Assigned rotation predicate source gaps
+
+[Exact bot blockers](investigations/cooldown-assist-data.md#assigned-bot-rotation-blockers--2026-10-15): authenticated70391/active rule-step-spec joins12408/20,6425/38 equality and33686/67. Checked pinned TC/Retail UI defines no usable exact predicate policy; three named source gaps retain explicit refusal, not guessed comparators/prediction or a generic rotation fallback. Arcane/Ret native failures retained; no runtime change or all-spec acceptance.
+
 ## 2026-10-15 — Housing pressed hover
 
 [Shared controls](systems/housing.md#control-pressed-hover-lifecycle--implementation2026-10-15): source hover overlay hides while pressed, restores on inside release and stays hidden outside/disabled. Behavioral0.5-versus0.0 RED, both-skin registry GREEN and actual six-control press/release/conservation proof; inspected paired hover/pressed captures. Existing atlas/authority policy unchanged, no timing or full-art claim.
