@@ -96,21 +96,23 @@ fn ahportrait_opaque_top_inset_uses_retail_rock_fill() {
         for (registry, name, width) in [
             (
                 mount(preview_view("browse").unwrap(), native_auction_screen),
-                "AuctionHouseFrameBgTop",
+                "AuctionHouseFrame",
                 796.0,
             ),
             (
                 mount(BankFrameState::default(), bank_frame_screen),
-                "BankFrameBgTop",
+                "BankFrame",
                 734.0,
             ),
         ] {
-            let fill = frame(&registry, name);
-            assert_rect(fill, (2.0, 21.0, width, 30.0));
+            let height = frame(&registry, name).height.value() - 23.0;
+            let fill = frame(&registry, &format!("{name}Bg"));
+            assert_rect(fill, (2.0, 21.0, width, height));
             let Some(WidgetData::Texture(texture)) = &fill.widget_data else {
                 panic!("rock texture required")
             };
             assert_eq!(texture.source, TextureSource::FileDataId(374_155));
+            assert_eq!((texture.horiz_tile, texture.vert_tile), (true, true));
             assert_eq!(texture.vertex_color, [1.0; 4]);
             assert_eq!(fill.alpha, 1.0);
         }
