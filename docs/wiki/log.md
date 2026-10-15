@@ -1,3 +1,7 @@
+## 2026-10-15 — Native bomb observer boundary
+
+[Modern80](systems/battlegrounds.md#ioc-bomb-disarm-interaction--active-2026-10-14) reaches physical fresh-item pickup/use and visible planted bomb, but fails an owner-client log expectation. Existing log routing sends to source/target owners; charges2 remains the GO caster in pinned TC, so observe typed combat receipts at the victim peer instead of changing gameplay ownership. Six private flat particle files were absent despite indexed copies; producer now includes the exact already-published flat bytes. Failed images/transform/NPC-coverage errors retained; no complete native chain or particle-recovery claim.
+
 ## 2026-10-15 — Authored IoC disarm requests
 
 [Normal/huge bomb interaction](systems/battlegrounds.md#ioc-bomb-disarm-interaction--active-2026-10-14): actual request RED→GREEN with physical picking, cursor and soft-interaction paths; game-object15/15 and soft10/10, no generic trap enablement. Native both-skin bomb deployment/disarm and full IoC remain pending.
