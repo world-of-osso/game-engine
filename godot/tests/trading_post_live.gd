@@ -19,7 +19,7 @@ func run_fixture() -> void:
 		fail("Private compositor must expose 1920x1080 output")
 		return
 	var account := OS.get_environment("TP_ACCOUNT")
-	if server != "127.0.0.1:5791" or not account.begins_with("fb_") or shots.is_empty() or receipts.is_empty() or not phase in ["layout", "layout-proof", "browse", "relog", "purchase", "refund", "cart", "cart-lifetime", "rotate-controls"]:
+	if server != "127.0.0.1:5791" or not account.begins_with("fb_") or shots.is_empty() or receipts.is_empty() or not phase in ["layout", "layout-proof", "browse", "relog", "purchase", "refund", "cart", "cart-lifetime", "rotate-controls", "mount-rider"]:
 		fail("Explicit private 127.0.0.1:5791, fb_* account, phase and evidence paths required")
 		return
 	for directory in [shots, receipts]:
@@ -43,7 +43,7 @@ func run_fixture() -> void:
 	if not await wait_until(func(): return float(client.account_state().local_player_health) > 0.0, "private character alive", 120000): return
 	client.set_world_minutes(720.0)
 	await wait_frames(120)
-	if not phase in ["layout", "layout-proof", "cart", "cart-lifetime", "rotate-controls"] and not await travelers_log(): return
+	if not phase in ["layout", "layout-proof", "cart", "cart-lifetime", "rotate-controls", "mount-rider"] and not await travelers_log(): return
 	if not await open_vendor(): return
 	if phase in ["cart", "cart-lifetime"]:
 		# Collection UI owners may replace a hidden CanvasLayer while this vendor is open.
@@ -72,6 +72,7 @@ func run_fixture() -> void:
 		"cart": await checkout_cart()
 		"cart-lifetime": await finish("layer-lifetime")
 		"rotate-controls": await rotate_control_proof()
+		"mount-rider": await mount_rider_proof()
 		"refund": await refund_after_relog()
 		_: await browse()
 
@@ -446,6 +447,64 @@ func select_first_available(budget: int = -1) -> bool:
 		if int(state.price) <= budget and not state.purchased and not state.collected: return true
 	fail("No available row within %d Tender in category %d" % [budget, int(client.trading_post_state().category)])
 	return false
+
+func mount_rider_proof() -> void:
+	if not await choose_category(2): return
+	if not await select_first_available(): return
+	if not await wait_until(func(): return client.trading_post_state().rider_ready, "dressed mounted rider", 120000): return
+	if not assert_native_rect("PerksProgramTogglePlayerPreview", Rect2(1032,951,30,29)): return
+	var rider = instance_from_id(int(client.trading_post_state().rider_actor_id))
+	if not assert_seated_rider(rider): return
+	var mount_group := rider.get_parent()
+	while mount_group != null and mount_group.name != "TradingPostMountPreview":
+		mount_group = mount_group.get_parent()
+	if mount_group == null: fail("Rider is not owned by mounted preview"); return
+	await capture("mounted-dressed-default")
+	await click("PerksProgramTogglePlayerPreview")
+	if not await wait_until(func(): return client.trading_post_state().hide_player_preview and not client.trading_post_state().rider_ready and not client.trading_post_state().rider_pending, "Hide Character frees rider"): return
+	if is_instance_valid(rider) or not is_instance_valid(mount_group): fail("Hide Character freed mount or retained rider"); return
+	await capture("mount-only-hidden")
+	await click("PerksProgramTogglePlayerPreview")
+	if not await wait_until(func(): return client.trading_post_state().rider_ready, "restored current player", 120000): return
+	rider = instance_from_id(int(client.trading_post_state().rider_actor_id))
+	if not assert_seated_rider(rider): return
+	await capture("mounted-restored")
+	var actor_transform: Transform3D = mount_group.get_node("MountActor").transform
+	if not await rotate_model(): return
+	if mount_group.get_node("MountActor").transform != actor_transform: fail("Yaw overwrote authored actor transform"); return
+	await click("PerksProgramTogglePlayerPreview")
+	if not await choose_category(3): return
+	if not await select_first_available(): return
+	if is_instance_valid(mount_group) or is_instance_valid(rider): fail("Category change retained mounted actors"); return
+	if control("PerksProgramTogglePlayerPreview") != null: fail("Pet exposed mount-only checkbox"); return
+	await capture("pet-no-rider-control")
+	if not await choose_category(2): return
+	if not await select_first_available(): return
+	if not await wait_until(func(): return client.trading_post_state().preview_ready, "reselected hidden mount", 120000): return
+	if not client.trading_post_state().hide_player_preview or client.trading_post_state().rider_ready or client.trading_post_state().rider_pending: fail("Selection reset Hide Character"); return
+	await capture("reselected-retains-hidden")
+	await click("PerksProgramTogglePlayerPreview")
+	if not await wait_until(func(): return client.trading_post_state().rider_ready, "rider before close", 120000): return
+	rider = instance_from_id(int(client.trading_post_state().rider_actor_id))
+	await click("PerksProgramLeaveButton")
+	if not await wait_until(func(): return not client.trading_post_state().open, "close mounted preview"): return
+	await wait_frames(60)
+	if is_instance_valid(rider) or client.find_children("TradingPostMountPreview", "Node3D", true, false).size() != 0: fail("Close leaked a mounted preview or late rider"); return
+	await capture("closed-no-late-rider")
+	if not await open_vendor(): return
+	if not await choose_category(2): return
+	if not await select_first_available(): return
+	if not await wait_until(func(): return client.trading_post_state().rider_ready, "new preview after reopen", 120000): return
+	if not assert_seated_rider(instance_from_id(int(client.trading_post_state().rider_actor_id))): return
+	await capture("reopened-mounted")
+	await finish("mount-rider")
+
+func assert_seated_rider(actor: Node) -> bool:
+	if actor == null or actor.get_child_count() != 1: fail("Rider actor missing current player"); return false
+	var animation := actor.get_child(0).get_node_or_null("M2Animation")
+	if animation == null or int(animation.current_animation_id()) != 91: fail("Rider did not use seated animation91"); return false
+	if actor.get_parent().name != "Attachment0": fail("Rider did not attach to saddle0"); return false
+	return true
 
 func rotate_control_proof() -> void:
 	if not await choose_category(2): return
