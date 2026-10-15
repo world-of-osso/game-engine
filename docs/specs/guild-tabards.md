@@ -4,12 +4,12 @@ Guild tabard appearance and registration follow Retail Mainline `Blizzard_UIPane
 
 ## What it must do
 
-- [ ] Communities uses the guild snapshot's registered five-ID design, the installed palette and source large emblem UVs/56×64 width. Unregistered guilds keep the exact no-design branch.
-- [ ] GuildTabardVendor opens source338×424 TabardFrame with NPC portrait/name, actual player model, five32px left/right variation controls, authored texture plates, cost/personal money and80×22 Accept/Cancel anchors. Both skins implement the same controls and layout.
-- [ ] Arrows cycle only IDs that pass existing catalog validation with the other four fields unchanged; unavailable texture combinations are not selectable and never produce an invalid draft. Variation changes are local drafts. Accept sends one authoritative vendor registration and disables repeat writes while pending; failure reports the server reason without changing guild appearance or spending local money. Cancel/Escape closes the matching interaction.
-- [ ] Only a guild leader can accept. Others can browse, with the source non-GM greeting and disabled Accept.
-- [ ] Designed guild tabards use installed GuildTabard background/emblem/border torso layers on the actual model. Source customizable items5976,69209,69210 use tiers0,1,2 (WoWModelViewer WoWItem.cpp863–868 and TabardDetails.cpp209–217); unrelated tabards remain unchanged.
-- [ ] Entering world, guild design changes and membership removal refresh replicated appearance. Character selection renders the persisted design too.
+- [x] Communities uses the guild snapshot's registered five-ID design, the installed palette and source large emblem UVs/56×64 width. Unregistered guilds keep the exact no-design branch.
+- [x] GuildTabardVendor opens source338×424 TabardFrame with NPC portrait/name, actual player model, five32px left/right variation controls, authored texture plates, cost/personal money and80×22 Accept/Cancel anchors. Both skins implement the same controls and layout.
+- [x] Arrows cycle only IDs that pass existing catalog validation with the other four fields unchanged; unavailable texture combinations are not selectable and never produce an invalid draft. Variation changes are local drafts. Accept sends one authoritative vendor registration and disables repeat writes while pending; failure reports the server reason without changing guild appearance or spending local money. Cancel/Escape closes the matching interaction.
+- [x] Only a guild leader can accept. Others can browse, with the source non-GM greeting and disabled Accept.
+- [x] Designed guild tabards use installed GuildTabard background/emblem/border torso layers on the actual model. Source customizable items5976,69209,69210 use tiers0,1,2 (WoWModelViewer WoWItem.cpp863–868 and TabardDetails.cpp209–217); unrelated tabards remain unchanged.
+- [x] Entering world, guild design changes and membership removal refresh replicated appearance. Character selection renders the persisted design too.
 
 ## How it works
 
@@ -44,7 +44,7 @@ Guild tabard appearance and registration follow Retail Mainline `Blizzard_UIPane
 - Both-skin native vendor/draft/reply/rotation, three worn tiers, designed Communities and tier0 character-selection captures passed and were inspected at1920×1080. Corrected BGRA decoding preserves authored body colors.
 - Native replies/roster are fabricated. Separate server tests prove durable payment/design and roster projection; no authenticated client/server run or deployment is claimed.
 - Installed70391 tier0 border styles6–9 lack colors4–16:52 unavailable combinations,104 missing upper/lower texture entries. Arrows filter IDs using existing catalog validation; no authored texture is replaced or synthesized.
-- Final checks and lead full protocol gate remain pending.
+- Final merged all-target checks, formatting, focused tests and refreshed both-skin native captures pass. Lead owns the full protocol landing gate.
 
 ## Out of scope
 
