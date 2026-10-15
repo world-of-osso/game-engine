@@ -44,6 +44,60 @@ func first_visible_activity() -> Control:
 			return node
 	return null
 
+func search_activity(value: String) -> bool:
+	if not await click("EncounterJournalSearchBox"):
+		return false
+	for character in value:
+		var event := InputEventKey.new()
+		event.unicode = character.unicode_at(0)
+		event.pressed = true
+		Input.parse_input_event(event)
+		await process_frame
+	await settle()
+	return true
+
+func verify_tree(scale: float) -> bool:
+	if not await search_activity("Complete 5 Mythic+ Dungeons"):
+		return false
+	verify(control("JournalActivity6") != null, "authored Mythic+ parent6 absent after search")
+	verify(control("JournalActivity81") == null, "source child81 must initially be collapsed")
+	if control("JournalActivity6") == null or not await click("JournalActivity6"):
+		return false
+	var child := control("JournalActivity81")
+	var parent := control("JournalActivity6")
+	verify(child != null, "physical parent click did not reveal source child81")
+	if child == null:
+		return false
+	verify(child.get_global_rect().size.distance_to(Vector2(521,48) * scale) < 2.0, "source child row521x48")
+	verify(absf(child.get_global_rect().position.x - parent.get_global_rect().position.x - 32.0 * scale) < 2.0, "source child indent32")
+	if not await move_to("JournalActivity81") or not await shot("monthly-expanded-source-tree"):
+		return false
+	if not await click("JournalActivity6"):
+		return false
+	verify(control("JournalActivity81") == null, "physical parent collapse did not hide child81")
+	return await click("EncounterJournalSearchBoxClearButton")
+
+func visible_filter_names() -> Array[String]:
+	var names: Array[String] = []
+	for node in client.find_children("JournalActivityTag*", "Button", true, false):
+		if node.is_visible_in_tree():
+			names.append(str(node.name))
+	return names
+
+func verify_filter_scroll() -> bool:
+	var before := visible_filter_names()
+	for index in 8:
+		if not await wheel("EncounterJournalFilterList", MOUSE_BUTTON_WHEEL_DOWN):
+			return false
+	verify(visible_filter_names() != before, "physical tag-list wheel did not reach later categories")
+	if not await shot("monthly-options-scrolled"):
+		return false
+	for index in 8:
+		if not await wheel("EncounterJournalFilterList", MOUSE_BUTTON_WHEEL_UP):
+			return false
+	verify(visible_filter_names() == before, "physical tag-list wheel did not restore categories")
+	return true
+
 func run() -> void:
 	var server := OS.get_environment("ADVENTURE_GUIDE_SERVER")
 	var account := OS.get_environment("ADVENTURE_GUIDE_ACCOUNT")
@@ -106,6 +160,8 @@ func run() -> void:
 		var tracked := int(client.adventure_guide_state().tracked_activity_count)
 		await shift_click(row_name)
 		verify(await wait_tracking_change(tracked) and int(client.adventure_guide_state().tracked_activity_count) == before, "second Shift-click did not restore tracking state")
+	if not await verify_tree(scale) or not await verify_filter_scroll():
+		return
 	if not failures.is_empty():
 		stop("Monthly source failures: " + "; ".join(failures))
 		return
