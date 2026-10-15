@@ -226,6 +226,46 @@ impl UiAuditProbe {
         result.err().unwrap_or_default().as_str().into()
     }
 
+    /// Four real window callsites for shared-helper before/after raster proof.
+    #[func]
+    fn mount_shared_helper_panel(&mut self, forever: bool, panel: GString) -> GString {
+        use game_engine_ui_model::bank_frame_component::BankFrameState;
+        use game_engine_ui_model::raid_info::RaidInfoState;
+        match panel.to_string().as_str() {
+            "quest" => return self.mount_quest_overflow(forever, "detail".into(), false),
+            "mail" => return self.mount_mail(forever),
+            _ => {}
+        }
+        if let Err(error) = set_audit_data_and_skin(forever) {
+            return error.as_str().into();
+        }
+        let mut ui = RegistryUi::new_alloc();
+        ui.set_name("SharedHelperAuditUI");
+        self.base_mut().add_child(&ui);
+        if let Err(error) = ui.bind_mut().set_ui_scale(1.0) {
+            return error.as_str().into();
+        }
+        let result = match panel.to_string().as_str() {
+            "bank" => ui.bind_mut().show_bank(BankFrameState {
+                visible: true,
+                title: "Bank".into(),
+                header: "Bank".into(),
+                deposit_all_label: "Deposit All Reagents".into(),
+                ..Default::default()
+            }),
+            "raid" => ui.bind_mut().show_raid_info(RaidInfoState {
+                visible: true,
+                ..Default::default()
+            }),
+            other => {
+                return format!("Unknown helper audit panel {other}")
+                    .as_str()
+                    .into();
+            }
+        };
+        result.err().unwrap_or_default().as_str().into()
+    }
+
     #[func]
     fn mount_mail(&mut self, forever: bool) -> GString {
         use game_engine_ui_model::mail::NativeMailView;
