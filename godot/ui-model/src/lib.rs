@@ -53,6 +53,7 @@ mod adventure_guide_menus;
 mod adventure_guide_sections;
 pub mod adventure_guide_tooltip;
 pub mod adventure_journeys;
+mod adventure_loot;
 pub mod adventure_suggestions;
 mod adventure_tutorials;
 pub mod assisted_highlight;
