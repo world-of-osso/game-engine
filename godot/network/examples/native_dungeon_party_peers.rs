@@ -184,7 +184,7 @@ impl Peer {
         self.record("registration", &serde_json::json!({
             "success":reply.success,"pending_approval":reply.pending_approval,"error":reply.error
         }))?;
-        if !reply.success {
+        if !reply.success && !reply.pending_approval {
             return Err(format!(
                 "{} registration refused: {:?}",
                 self.profile.name, reply.error
