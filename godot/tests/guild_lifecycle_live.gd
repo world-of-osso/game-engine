@@ -38,6 +38,18 @@ func run_test() -> void:
 	client.free()
 	quit(0)
 
+# Bank's ten-frame settling delay per successful wait multiplies across100 UI actions.
+# Readiness here requires the actual drawn frame instead of an arbitrary sleep.
+func wait_until(predicate: Callable, what: String) -> bool:
+	var deadline := Time.get_ticks_msec() + WAIT_MS
+	while Time.get_ticks_msec() < deadline:
+		await process_frame
+		await RenderingServer.frame_post_draw
+		if predicate.call():
+			return true
+	await capture("fail")
+	return fail("Lifecycle timed out waiting for " + what)
+
 func produce_history() -> bool:
 	if not await wait_until(func(): return FileAccess.file_exists(diagnostics.path_join("peer-ready.json")), "real peer world entry"):
 		return false

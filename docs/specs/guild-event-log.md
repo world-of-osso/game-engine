@@ -36,7 +36,7 @@ Retail Mainline's member-only lifecycle history in Modern and Forever. Sources: 
 ## Known gaps (current cycle)
 
 - [ ] Source dialog/list and atomic server lifecycle producer GREEN.
-- [ ] End-to-end acceptance and merged-head gates.
+- [ ] End-to-end acceptance and merged-head gates. First private run completed both skins' eight-action sequences and five inspected PNGs, but hit900s during100 physical rank changes. Replace inherited ten-frame settling sleeps with actual drawn-frame readiness; preserve all100 actions/overflow/restart assertions under a bounded1800s functional watchdog.
 
 ## Out of scope
 
