@@ -121,15 +121,7 @@ impl TerrainGround<'_> {
         if target.is_none() && self.covered(proposed.with_y(current.y)) {
             return current;
         }
-        let candidate = validate_movement_slope(
-            current,
-            proposed,
-            self.sample(current).map(ground_sample),
-            target.map(ground_sample),
-            snap,
-            MAX_SLOPE_ANGLE,
-            STEP_UP_HEIGHT,
-        );
+        let candidate = self.apply_floor_rules(current, proposed, target, snap);
         let stepping = snap && target.is_some() && candidate.y > current.y;
         let wall_start = if stepping {
             current.with_y(candidate.y)
@@ -144,6 +136,16 @@ impl TerrainGround<'_> {
         // retain the height of a landing that the player did not actually reach.
         let proposed = clamped.with_y(proposed.y);
         let target = self.sample(proposed.with_y(current.y));
+        self.apply_floor_rules(current, proposed, target, snap)
+    }
+
+    fn apply_floor_rules(
+        &self,
+        current: Vec3,
+        proposed: Vec3,
+        target: Option<Ground>,
+        snap: bool,
+    ) -> Vec3 {
         validate_movement_slope(
             current,
             proposed,
