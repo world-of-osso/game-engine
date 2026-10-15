@@ -161,6 +161,10 @@ fn ground_sample(ground: Ground) -> GroundSample {
 }
 
 #[cfg(test)]
+#[path = "ground_step_tests.rs"]
+mod step_tests;
+
+#[cfg(test)]
 mod tests {
     use std::{
         path::PathBuf,
