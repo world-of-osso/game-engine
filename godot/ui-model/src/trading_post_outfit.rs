@@ -53,6 +53,9 @@ impl View {
         if let Some(setting) = self.hide_armor_setting {
             return Ok(setting);
         }
+        load_scene_autodress(self.preview_scene_id()?).map(|autodress| !autodress)
+    }
+    pub fn preview_scene_id(&self) -> Result<u32, String> {
         let row = self
             .preview_product()
             .ok_or("Trading Post preview selection missing")?;
@@ -76,7 +79,7 @@ impl View {
                 .map(|category| category.model_scene_id)
                 .ok_or("Trading Post category scene missing")?
         };
-        load_scene_autodress(scene).map(|autodress| !autodress)
+        Ok(scene)
     }
 }
 
