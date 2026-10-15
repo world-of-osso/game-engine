@@ -3943,3 +3943,5 @@ Ported authored parent/child geometry, tree disclosure and successor promotion; 
 ## 2026-10-15 — Native talent Import/Export proof
 
 Completed Retailv2 codec/authoritative Create and committed Copy callbacks, exact source labels/fonts and modal-only error host. Core5/5, ui-model9/9, native build/format pass; both-skin real private UDP full-code reimport/relog and12 inspected native1920×1080 PNGs, with source-hash and OS clipboard delivery gaps explicit. [Contract and receipts](../specs/talent-loadouts.md); [implementation and source](systems/talents.md#retail-loadout-strings--2026-10-15). Starter remains a separate server-authoritative slice.
+
+- 2026-10-15: [Active Expert submode continuity](systems/housing.md#active-expert-submode-continuity--implementation2026-10-15): model/native assigned-key RED reproduced; same-submode early return implemented, different-submode policy unchanged; acceptance pending.
