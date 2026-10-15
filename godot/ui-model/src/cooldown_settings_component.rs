@@ -33,7 +33,7 @@ pub struct CooldownSettingsView {
     pub can_undo: bool,
 }
 
-/// CooldownViewerSettings.xml RevertButton inherits UIPanelButtonTemplate.
+/// SearchBox properties not expressed by the shared markup.
 pub fn apply_settings_postsetup(
     state: &CooldownSettingsView,
     registry: &mut ui_toolkit::registry::FrameRegistry,
@@ -41,22 +41,6 @@ pub fn apply_settings_postsetup(
     apply_search_insets(registry);
     apply_search_art(state, registry);
     apply_clear_button_art(registry);
-    if ui_toolkit::atlas::thread_skin() != ui_toolkit::atlas::ActiveSkin::Modern {
-        return;
-    }
-    let Some(id) = registry.get_by_name("CooldownSettingsUndo") else {
-        return;
-    };
-    let Some(ui_toolkit::frame::WidgetData::Button(button)) =
-        &mut registry.get_mut(id).expect("Revert frame").widget_data
-    else {
-        panic!("Revert must be a UIPanel button");
-    };
-    use ui_toolkit::widgets::texture::TextureSource;
-    button.normal_texture = Some(TextureSource::FileDataId(130828));
-    button.pushed_texture = Some(TextureSource::FileDataId(130825));
-    button.disabled_texture = Some(TextureSource::FileDataId(130824));
-    button.highlight_texture = None;
 }
 
 fn apply_search_insets(registry: &mut ui_toolkit::registry::FrameRegistry) {

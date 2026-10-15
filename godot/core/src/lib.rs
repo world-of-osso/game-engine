@@ -97,12 +97,15 @@ pub mod m2_billboard;
 pub mod m2_lights;
 pub mod m2_material;
 pub mod m2_particles;
+pub mod m2_ribbons;
 pub mod mount_special;
 #[path = "asset/m2_texture_composite_data.rs"]
 pub mod m2_texture_composite_data;
 pub mod map_catalog;
 pub mod minimap_data;
 pub mod model_asset_index;
+pub mod model_scene_actor;
+pub mod mount_preview;
 #[path = "movement_animation_data.rs"]
 pub mod movement_animation_data;
 #[path = "movement_input_data.rs"]

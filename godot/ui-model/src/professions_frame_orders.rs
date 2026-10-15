@@ -602,30 +602,6 @@ fn right_label(name: &str, text: &str, (right, top, height): (f32, f32, f32)) ->
     )
 }
 
-/// SecureUIPanelTemplates.xml:47-78 sheet strips; Forever re-skins only the same controls.
-pub fn apply_customer_postsetup(registry: &mut ui_toolkit::registry::FrameRegistry) {
-    if ui_toolkit::atlas::thread_skin() != ui_toolkit::atlas::ActiveSkin::Modern {
-        return;
-    }
-    for name in [
-        "CraftingOrderFormBack",
-        "CraftingOrderBack",
-        "CraftingOrderPlace",
-        "CraftingOrderCancel",
-    ] {
-        if let Some(id) = registry.get_by_name(name)
-            && let Some(frame) = registry.get_mut(id)
-            && let Some(ui_toolkit::frame::WidgetData::Button(button)) = &mut frame.widget_data
-        {
-            use ui_toolkit::widgets::texture::TextureSource;
-            button.normal_texture = Some(TextureSource::FileDataId(130828));
-            button.pushed_texture = Some(TextureSource::FileDataId(130825));
-            button.disabled_texture = Some(TextureSource::FileDataId(130824));
-            button.highlight_texture = None;
-        }
-    }
-}
-
 fn customer_reagent(view: &ProfessionView, index: usize, item: u32, quantity: u32) -> Element {
     let supplied = view.orders.supplied.get(&item).copied().unwrap_or(0);
     let owned = view.bag_counts.get(&item).copied().unwrap_or(0);

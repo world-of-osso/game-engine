@@ -1,4 +1,7 @@
 //! Retail UIModelSceneCamera/Actor data and ModelSceneActorMixin normalization.
+use crate::model_scene_actor::{
+    actor_origin, engine_rotation, engine_vector, normalized_actor_scale,
+};
 use glam::{Quat, Vec3};
 use serde::Deserialize;
 
@@ -25,44 +28,18 @@ impl PetModelScene {
         (eye, target, rotation * Vec3::Y)
     }
     pub fn actor_scale(&self, size: Vec3) -> f32 {
-        if self.normalized_scale <= 0.0 {
-            return self.scale;
-        }
-        // ModelSceneActorMixin MODEL_SCENE_ACTOR_DIMENSIONS_FOR_NORMALIZATION (WoW XYZ).
-        let max_scale = (size.x / 0.9984).max(size.z / 1.121).max(size.y / 2.118);
-        if max_scale == 0.0 {
-            return self.scale;
-        }
-        self.scale / (1.0 + (max_scale - 1.0) * self.normalized_scale)
+        normalized_actor_scale(self.scale, self.normalized_scale, size)
     }
     pub fn actor_rotation(&self) -> Quat {
         engine_rotation(self.actor_orientation)
     }
     pub fn actor_origin(&self, center: Vec3, scale: f32) -> Vec3 {
-        // UIModelSceneActorFlag UseCenterForOrigin X=2,Y=4,Z=8, mapped into engine axes.
-        let centered = Vec3::new(
-            if self.origin_flags & 2 != 0 {
-                center.x
-            } else {
-                0.0
-            },
-            if self.origin_flags & 8 != 0 {
-                center.y
-            } else {
-                0.0
-            },
-            if self.origin_flags & 4 != 0 {
-                center.z
-            } else {
-                0.0
-            },
-        );
-        engine_vector(self.actor_position) - self.actor_rotation() * centered * scale
+        actor_origin(
+            self.origin_flags,
+            self.actor_position,
+            self.actor_orientation,
+            center,
+            scale,
+        )
     }
-}
-fn engine_vector([x, y, z]: [f32; 3]) -> Vec3 {
-    Vec3::new(x, z, -y)
-}
-fn engine_rotation([yaw, pitch, roll]: [f32; 3]) -> Quat {
-    Quat::from_rotation_y(yaw) * Quat::from_rotation_z(-pitch) * Quat::from_rotation_x(roll)
 }

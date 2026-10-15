@@ -76,6 +76,35 @@ impl CollectionFilter {
     }
 }
 
+/// Supported ModeButtons/ExpertDecor XML enabledTooltip fields (installed70391 enUS).
+pub const EDITOR_CONTROL_TOOLTIPS: [(
+    &str,
+    game_engine_core::input_bindings_data::InputAction,
+    &str,
+); 6] = {
+    use game_engine_core::input_bindings_data::InputAction::*;
+    [
+        (
+            "HouseEditorBasicDecorModeButton",
+            HousingBasicMode,
+            "Decorate Mode",
+        ),
+        (
+            "HouseEditorExpertDecorModeButton",
+            HousingExpertMode,
+            "Advanced Mode",
+        ),
+        (
+            "HouseEditorCleanupModeButton",
+            HousingCleanupMode,
+            "Cleanup Mode",
+        ),
+        ("TranslateSubmodeButton", HousingExpertTranslate, "Move"),
+        ("RotateSubmodeButton", HousingExpertRotate, "Rotate"),
+        ("ScaleSubmodeButton", HousingExpertScale, "Scale"),
+    ]
+};
+
 pub const SEARCH_FIELD: &str = "HousingCatalogSearchBox";
 pub const STORAGE_SEARCH_FIELD: &str = "HouseEditorStorageSearchBox";
 pub const VISIBLE_ENTRIES: usize = 12;
@@ -198,6 +227,33 @@ pub struct HousingDashboard {
 }
 
 impl HousingDashboard {
+    /// BaseHousingActionButton.UpdateTooltip uses the full binding, not its icon abbreviation.
+    pub fn editor_control_tooltip(
+        &self,
+        action: game_engine_core::input_bindings_data::InputAction,
+        binding: Option<game_engine_core::input_bindings_data::InputBinding>,
+    ) -> Option<crate::game_tooltip::GameTooltip> {
+        use crate::game_tooltip::GameTooltip;
+        use crate::tooltip_presentation::{TOOLTIP_WHITE, TooltipPresentation};
+        if self.surface != HousingSurface::Editor || self.pending {
+            return None;
+        }
+        let (_, _, label) = EDITOR_CONTROL_TOOLTIPS
+            .iter()
+            .find(|(_, candidate, _)| *candidate == action)?;
+        let suffix =
+            binding.map(|binding| (format!(" ({})", binding.display()), NORMAL_FONT_COLOR));
+        Some(GameTooltip::new(
+            TooltipPresentation {
+                title: (*label).into(),
+                title_color: TOOLTIP_WHITE,
+                title_suffix: suffix,
+                ..TooltipPresentation::hidden()
+            },
+            None,
+        ))
+    }
+
     /// Cleanup ShowDecorInstanceTooltip uses GameTooltip at ANCHOR_CURSOR.
     /// Pet/lock/removability fields are not supplied by the authoritative snapshot.
     pub fn cleanup_hover_tooltip(

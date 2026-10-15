@@ -2,6 +2,64 @@
 
 [MountSpecial](systems/mounts.md#mountspecial-continuation--2026-10-15): unified input/identity/emote routing and deterministic complete-segment scheduler. Core6/server3 GREEN; mount sequence ownership native PASS. Actual rider FishingCast1000ms versus AnimStartTime2000 exposes unresolved offset semantics; both-skin three-mount/observer rendering not yet proven.
 
+## 2026-10-15 — Native summon lifetime proofs
+
+[Bounded native proofs](systems/toy-box.md#native-summon-lifetime-proofs-2026-10-15): source-qualified release Forever Scarab fixed-window removal and owner following pass; quiet both-skin Flute expiry retained separately. Exact binary/pressure/image evidence and earlier debug failures stay revision-scoped; no complete-toy/full1166 claim.
+
+## 2026-10-15 — Active housing mode preservation
+
+[Active mode](systems/housing.md#active-mode-activation--implementation2026-10-15): native Basic active-click selection-loss RED; source no-op before transition teardown fixes pointer/assigned-key reactivation. Both skins preserve Basic selection/owned Tesla preview and Expert staged bookcase draft/render/open list, then Escape restores paid state. Launch binary SHA receipts replace revision assumptions; earlier F8/F9 exact server labels remain explicitly withdrawn, not retroactively certified. No numeric-rate/different-mode redesign or full parity claim.
+## 2026-10-15 — Source creature opacity
+
+[Creature opacity](systems/toy-box.md#source-creature-opacity-2026-10-15): Bashiok60051 alpha175 omission reproduced in real catalog import; required source byte, old-schema reimport, per-instance geometry binding and15+2 CPU regressions. Native pixel/asset acceptance remains pending.
+## 2026-10-15 — Assigned rotation predicate source gaps
+
+[Exact bot blockers](investigations/cooldown-assist-data.md#assigned-bot-rotation-blockers--2026-10-15): authenticated70391/active rule-step-spec joins12408/20,6425/38 equality and33686/67. Checked pinned TC/Retail UI defines no usable exact predicate policy; three named source gaps retain explicit refusal, not guessed comparators/prediction or a generic rotation fallback. Arcane/Ret native failures retained; no runtime change or all-spec acceptance.
+
+## 2026-10-15 — Suggested joint provider and three-pane native proof
+
+[Suggested panes](systems/adventure-guide.md#suggested-fixed-source-panes--2026-10-15) now use installed702-row CSV and evaluated authored priority bonuses. Both-skin native330/816 shows genuine881/852/27; a pixel-found91px title overflow is RED→GREEN at the unchanged source66px frame/8px gap, with both lines visible. Server12/UI8, checks/fmt pass; exact executable/input/PNG hashes retained. Unknown predicates and opaque selection/rotation remain explicit gaps; earlier one-record pictures were not acceptance.
+## 2026-10-15 — Housing pressed hover
+
+[Shared controls](systems/housing.md#control-pressed-hover-lifecycle--implementation2026-10-15): source hover overlay hides while pressed, restores on inside release and stays hidden outside/disabled. Behavioral0.5-versus0.0 RED, both-skin registry GREEN and actual six-control press/release/conservation proof; inspected paired hover/pressed captures. Existing atlas/authority policy unchanged, no timing or full-art claim.
+
+## 2026-10-15 — Housing control tooltips
+
+[Source controls](systems/housing.md#editor-control-tooltips--implementation2026-10-14): enabled owner-top mode/submode tooltips, full binding in a gold inline suffix and current Options rather than the retained UI-only binding copy. Native missing-tooltip and stale-binding REDs, registry/shared-tooltip/binding-boundary GREEN and inspected both-skin normal Options assignment/unbind/actual hover/bounds/conservation proof. No unsupported availability/glow/audio/locale or complete appearance claim.
+
+## 2026-10-14 — Empty purchased-bank sample correction
+
+[Bank sample](systems/banks.md#empty-purchased-tab-audit-sample--2026-10-14): capture supplied zero capacity, not a purchased-but-empty tab. One selected tab/98None repairs the fixture; native both-skin count0 RED→98GREEN, source geometry/background/no-icon assertions and inspected1920×1080 before/after proof. Production bank/purchase behavior unchanged; build/check/format pass. No live-server claim.
+## 2026-10-14 — Modern target cast source art
+
+[Target cast correction](investigations/target-cast-source-art.md): source background/textbox, cropped status-fill member and6×16 pip replace Modern-only flat stand-ins. Genuine source-region RED→9 focused GREEN; native8/source textures/geometry pass, sixteen both-skin before/after target regions inspected, four Forever controls byte-identical. Build/check/format pass; presentation only, no new server/lifecycle/phase-FX acceptance.
+
+## 2026-10-14 — Shared window tiling implementation
+
+[Shared window tiling](systems/menu-primitives.md#shared-window-texture-tiling--2026-10-14-assignment): source-one-region origin and streak anchors, paired toolkit repeat attributes, genuine RED→GREEN toolkit1/source6 and twelve scoped golden blocks. Source/Quest/small-window3 plus unchanged character golden1 pass; merged engine/network check and extension build pass. Native10PASS, eight inspected both-skin before/after window pairs, two comparisons and byte-identical Raid controls. Captured binaryc8c2d819f/toolkit06eb00c; unrelated later Housing merge excluded from pixel revision. No server, whole-tree or every-caller acceptance claim.
+
+## 2026-10-14 — Trading Post post-landing native acceptance
+
+[Compatible-binary proof](systems/trading-post.md#post-landing-compatible-binary-proof): both-skin held controls and checkout/relog/individual refunds pass after stats/Renown wire integration. Registry-owned pressed-icon offsets survive projection; Modern receipts additionally survive a server restart.22 UI/11 native/12 server/1 admin/3 protocol targeted tests, checks/format and86 inspected1920×1080 PNGs recorded. Private setup waits for admin Update readiness, not UDP binding; no checkout replay or deadline extension.
+## 2026-10-13 — Ribbon round-2 bindings and saved material rasters
+
+[Format](formats/m2-format.md#ribbon-emitter-scalars-2026-10-13): real1865728 enabled UV lookup/global-sequence translation reproduces unsupported-transform RED and passes per-pass lookup sampling. Native shader sampling moves a synthetic red/green texture from green at0ms to red at633ms using those real tracks. Rows2/cols1/slot1 reproduces vertical-half RED and now selects the reference horizontal half; scoped core6/6 pass. Alpha/priority PNGs and revisioned sanitized receipts are present in `/syncthing/AgentShared/2026-10-13/toy-ribbons/`; earlier console-only proof did not provide those artifacts. Broader natural-expiry/delivery failures remain open.
+
+## 2026-10-13 — Source ribbon semantic counterexamples
+
+[Bauble boundary](systems/toy-box.md#prismatic-bauble-rendering-boundary-2026-10-13): rate/lifetime, long-frame movement and animated tiles reproduce3RED→5GREEN. Native production material raster reproduces blend0 opaque and ignored priority, then passes alpha-red0.5333/farther high-priority green. Current moving source trail passes Modern2359/Forever1805 pixels, four bands each; requested PNGs published. Initial catalog/delivery failures and Forever natural-removal gate remain open.
+
+## 2026-10-13 — Real-source ribbon scalar parsing
+
+[Format](formats/m2-format.md#ribbon-emitter-scalars-2026-10-13): actual1417024 RED demonstrates incorrect track-overlap reads; source50 edges/s and0.5s lifetime fix. Native ribbon rendering remains open.
+
+## 2026-10-13 — Native source area lifecycle
+
+[Area lifecycle](systems/toy-box.md#native-source-area-lifecycle-2026-10-13): typed source failure/detail and both-skin actual journal rejection, allowed use, aura exit and remaining cooldown proof.
+
+## 2026-10-13 — War Banner team condition and native combat removal
+
+[War Banner presentation](systems/toy-box.md#war-banner-faction-and-combat-presentation-2026-10-13): source scalar decoder/context/parser,54 condition contexts and both faction models in both skins; four physical AttackSwing/native aura-kit removal proofs,8 inspected effect PNGs. Cloth/physics remain explicitly uncertified.
 ## 2026-10-14 — Cleanup cursor tooltip
 
 [Central tooltip](systems/housing.md#cleanup-central-tooltip--implementation2026-10-14): removed fixed bespoke panel/invented visitor line; source white GameTooltip title/ANCHOR_CURSOR and normal central lifetime. Native missing-tooltip RED, scoped GREEN24 and both-skin owner/readonly title/anchor/leave/mode-exit proof. Event-time diagnostics classified stale-pixel rehover failure; fixture re-picks currently visible decor, without changing gameplay picking. Pet/lock/removability/exterior metadata, audio and complete appearance remain gaps.
@@ -1132,6 +1190,8 @@ MAIN read FULL and accepts independent1429 bounded PASS. [Acceptance SSOT](syste
 MAIN observed GREEN for single startup MainHand inventory at native `ee2d3e47` + `2d1829fc`, test `57b30f57`. Independent1421 active/report pending, not accepted until MAIN confirms. Tooltip1415/docs `2142e85f` acceptance retained. [SSOT](systems/godot-conversion.md#occupied-startup-equipment--bounded-main-observed-green) records fresh Depot `04kwqv77h7` build0/runtime0, pre-Equip GUID9170105, authoritative GUID9170005 replacement, exact one Equip/two Destroy and original popup flow. Intentional child3934038 kill/reap/readers0 is not shutdown; broader coverage excluded. Supersedes pending-GREEN docs `cf9c3d63`.
 
 # Wiki Log
+
+- 2026-10-14 assignment: [shared UIPanel button art](systems/menu-primitives.md#shared-uipanel-button-art--2026-10-14-assignment) replaces generated default-button art with source state files; fixed12px caps, real-window before/after proof and explicit scale/provenance boundaries.
 
 -2026-10-11 Mount Journal continuation: real UDP paid vendor learning and known feedback; traced stale favourite before client receipt, implemented compact row publication/retained SharedContext view, added generation regression and central no-mount-transmog test.
 
@@ -3811,6 +3871,9 @@ Staged chains cover all1,971 mount IDs;1,444 recovered readable targets rendered
 
 - 2026-10-13: [Follower Group Finder role policy](systems/follower-dungeons.md#binding-role-template-repair--2026-10-13) corrected to Retail solo-enable/grouped-non-leader disablement; two RED cases,14 GREEN cases/check/fmt and four recaptured after PNGs pass.
 
+- 2026-10-13 — [Group-private owner/UDP fixtures](systems/toy-box.md#source-group-private-owner-capture-fixtures-2026-10-13): source doll/gong identity and natural-lifetime fixtures; execution gates pending.
+
+- 2026-10-13 — [Guardian scenery/pet identity](systems/toy-box.md#guardian-scenery-is-not-a-pet-2026-10-13): actual both-skin Gong-as-pet failure and selector RED; source UnitIsPet designation replaces the flags heuristic for local/party frames; owner-only PetSpells remains the bar declaration.
 - 2026-10-13: [[quest-ui]] records owned story/reward and roster-Share implementation plus targeted proofs; fresh native delivery and Retail reward-container geometry remain open, with UTC2026-10-14 publication/no-receipt trace evidence. No transport fix or both-skin/party acceptance claimed.
 
 - 2026-10-13: [[quest-ui]] source RewardsFrameContainer/spacer/reveal and SmallItemButtonTemplate rows implemented. Four Rust regressions and four both-skin offline native clipping/bounds cases pass; eight final source-template PNGs inspected. First capture’s dark money regression preserved separately. Fresh-login/real-party proof remains transport-blocked.
@@ -3826,3 +3889,8 @@ Staged chains cover all1,971 mount IDs;1,444 recovered readable targets rendered
 - 2026-10-14: [[cooldown-assist-data#Source tracked-buff bar art — 2026-10-14]] replaces gold fills with source188×19 bars/BG/cropped texture and normal-alpha pip. Missing-background/LEFT-name/Application-anchor RED→15 core+7 UI tests GREEN after current-active CSV expectation repair; build/check/fmt pass. Review recaptures ef4372c64 show both-skin full/half/empty source geometry and contained stack counts in inspected1920×1080 PNGs. Lead accepted source pip overlap/BG bounds; no invented clipping. Aura authority and icon-mask/font-family parity excluded.
 
 - 2026-10-15: [MountSpecial](systems/mounts.md#mountspecial-continuation--2026-10-15) private UDP5851 native actor/observer PASS on Mare18, Gryphon129 and Spelltome1532 in both skins; stationary/slash/moving-jump and peer receipts. AnimKit inference/Grrloc oversized one-shot/unsupported VFX gaps retained.
+- 2026-10-14: [Trading Post mounted preview](systems/trading-post.md#mounted-player-composition--implementation-october14): actor-data loader/shared normalization RED→GREEN5; independent native mount/rider ownership implementation, process proof pending; authored-scale and special-kit gaps explicit.
+
+- 2026-10-14: [Trading Post rider proof](systems/trading-post.md#rider-proof--2026-10-14): actual both-skin Celestial Steed223/376 mounted91/saddle0, Hide Character restore/selection/cleanup and process RED→GREEN stable camera;20 inspected full-HD PNGs, eight data tests and separate native graph proof. Native scale API/special kits remain named gaps, no guessed compensation.
+
+- 2026-10-15: [Trading Post rider proof](systems/trading-post.md#rider-proof--2026-10-14): both-skin actual pending-request→Leave→60-frame late-arrival/HUD boundary PASS, four inspected full-HD PNGs; final targeted23UI+11native/12server+admin1/protocol3 and allthreechecks PASS, scoped Rustfmt PASS. Runtime and later source/test-only revisions remain distinguished.
