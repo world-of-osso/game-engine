@@ -96,6 +96,14 @@ def stop_client(pid, output):
     (output / "stopped-pids.json").write_text(json.dumps({"terminated": stopped, "forced": forced}) + "\n")
 
 
+def native_ready(state, spec, requires_authored):
+    player_ready = state["account"].get("gameplay_input_allowed") and state["spells"]["spec"] == spec
+    evaluator_ready = not requires_authored or (state["assisted"].get("available", False) and state["spells"].get("catalog_ready", False))
+    target = state["target"]
+    acknowledged = target.get("target") == target.get("server_target")
+    return bool(player_ready and evaluator_ready and acknowledged and target.get("target_name") == "Training Dummy")
+
+
 def wait_native(args, output, bot):
     deadline = time.monotonic() + 180
     requires_authored = bool(authored_order(args.engine / "data/db2/active", bot["spec"]))
@@ -108,9 +116,7 @@ def wait_native(args, output, bot):
             state = json.loads(path.read_text())
             if state["account"].get("selected_character_name") not in ("", bot["name"]):
                 raise RuntimeError("Native logged into a different character")
-            ready = state["account"].get("gameplay_input_allowed") and state["spells"]["spec"] == bot["spec"]
-            evaluator_ready = not requires_authored or state["assisted"].get("available", False)
-            if ready and evaluator_ready and state["target"].get("target_name") == "Training Dummy":
+            if native_ready(state, bot["spec"], requires_authored):
                 return state
             if state.get("target_attempts", 0) >= 32:
                 raise RuntimeError("Native Tab cycling found no Training Dummy after 32 targets")
