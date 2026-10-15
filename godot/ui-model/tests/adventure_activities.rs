@@ -194,6 +194,60 @@ fn monthly_uses_retail_inset_header_options_filters_and_list_rects() {
 }
 
 #[test]
+fn monthly_thresholds_use_received_points_not_claimed_currency_state() {
+    use shared::protocol::{TradingPostSnapshot, TradingPostThreshold};
+    use std::sync::Arc;
+    for skin in [ActiveSkin::Modern, ActiveSkin::Forever] {
+        let mut ctx = context(skin);
+        let mut data = snapshot();
+        data.points = 400;
+        let tender = TradingPostSnapshot {
+            npc_net_id: None,
+            tender: 0,
+            points: 400,
+            now_unix: data.month.now_unix,
+            month_end_unix: data.month.end_unix,
+            frozen_item_id: None,
+            categories: vec![],
+            items: vec![],
+            thresholds: (1..=5)
+                .map(|id| TradingPostThreshold {
+                    id,
+                    points: id * 200,
+                    tender: 100,
+                    claimed: false,
+                })
+                .collect(),
+            source_gaps: vec![],
+            error: None,
+            catalog_complete: false,
+        };
+        ctx.insert(game_engine_ui_model::adventure_guide::View {
+            trading_post: Some(Arc::new(tender)),
+            ..Default::default()
+        });
+        let mut registry = FrameRegistry::new(800., 496.);
+        Screen::new(move |ctx| monthly(ctx, Some(&data), &ActivityFilters::default(), ""))
+            .sync(&ctx, &mut registry);
+        assert_eq!(text(&registry, "JournalMonthlyPoints"), "Travel Points");
+        assert_eq!(text(&registry, "JournalMonthlyProgress"), "400 / 1000");
+        assert_eq!(
+            frame(&registry, "JournalMonthlyBarFill").width,
+            ui_toolkit::frame::Dimension::Fixed(265.2)
+        );
+        assert_eq!(
+            frame(&registry, "JournalMonthlyThreshold1Diamond").width,
+            ui_toolkit::frame::Dimension::Fixed(34.)
+        );
+        assert_eq!(
+            frame(&registry, "JournalMonthlyThreshold3Diamond").width,
+            ui_toolkit::frame::Dimension::Fixed(40.)
+        );
+        assert_eq!(text(&registry, "JournalMonthlyThreshold1Points"), "100");
+    }
+}
+
+#[test]
 fn monthly_unavailable_is_not_zero_progress_in_both_skins() {
     for skin in [ActiveSkin::Modern, ActiveSkin::Forever] {
         let registry = render(
