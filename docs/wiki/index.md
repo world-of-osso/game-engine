@@ -1,5 +1,7 @@
 # Wiki Index
 
+- [Shared WowStyle1 caption centering](systems/menu-primitives.md#wowstyle1-caption-centering-2026-10-15) — native font-minimum adaptation, paired core attribute wiring and explicit one-line policy; both-skin AH/shared caption deltas0 and unchanged Filter/Style2 control pixels.
+
 - [Guild invitation source chrome](systems/guilds.md#invitation-chrome--verified2026-10-15) — source translucent inset/corners/tiled edges replace static-popup art; two controls and both-skin native Join/Decline/pending proof, four inspected PNGs. Inner art/payload/lifecycle gaps remain separate.
 
 - [Communities numeric roster sorting](systems/guilds.md#communities-metadata-sorting--verified2026-10-15) — source Level/Class headers, numeric/missing-value ordering, preserved member identity; seven controls and both-skin native physical proof with ten inspected before/after PNGs.
