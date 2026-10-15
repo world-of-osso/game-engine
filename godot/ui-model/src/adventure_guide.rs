@@ -1403,6 +1403,9 @@ pub(crate) fn scroll_in(
         (left + width - 20., top + 10., height - 20., width)
     } else if list == "EncounterJournalBosses" {
         (left + width + 5., top + 5., height - 10., width)
+    } else if list == LIST && width == 521. {
+        // MonthlyActivities.ScrollBar TOPRIGHT+8,-6 / BOTTOMRIGHT+8,+6.
+        (left + width + 8., top + 6., height - 12., width)
     } else if list == LIST && width == 345. {
         (left + width + 5., top + 5., height - 10., width)
     } else if list == LIST && width == 748. {

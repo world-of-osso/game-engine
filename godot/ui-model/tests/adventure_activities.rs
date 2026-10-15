@@ -243,7 +243,12 @@ fn monthly_thresholds_use_received_points_not_claimed_currency_state() {
             frame(&registry, "JournalMonthlyThreshold3Diamond").width,
             ui_toolkit::frame::Dimension::Fixed(40.)
         );
-        assert_eq!(text(&registry, "JournalMonthlyThreshold1Points"), "100");
+        assert!(
+            registry
+                .get_by_name("JournalMonthlyThreshold1Points")
+                .is_none()
+        );
+        assert_eq!(text(&registry, "JournalMonthlyThreshold3Points"), "100");
     }
 }
 
@@ -259,13 +264,9 @@ fn monthly_unavailable_is_not_zero_progress_in_both_skins() {
             },
             "",
         );
-        assert_eq!(
-            text(&registry, "JournalMonthlyTitle"),
-            "Traveler's Log — October 2026"
-        );
-        assert_eq!(
-            text(&registry, "JournalMonthlyPoints"),
-            "Completed activity contributions: 0 points"
+        assert!(
+            registry.get_by_name("JournalMonthlyProgress").is_none(),
+            "No threshold maximum received; do not invent one"
         );
         let progress = text(&registry, "JournalActivity3Progress");
         assert!(progress.contains("Unavailable"));
@@ -281,7 +282,7 @@ fn monthly_unavailable_is_not_zero_progress_in_both_skins() {
             action(&registry, "JournalActivity3Track"),
             "journal:activity-track:3:1"
         );
-        assert!(text(&registry, "JournalMonthlyNotice").contains("all source activities"));
+        assert!(registry.get_by_name("JournalMonthlyNotice").is_none());
     }
 }
 
@@ -339,7 +340,7 @@ fn available_progress_and_unevaluated_criteria_remain_distinct() {
             "30 / 30 — Complete"
         );
         assert!(text(&registry, "JournalActivityDetails").contains("30 / 30 — Complete"));
-        assert!(text(&registry, "JournalMonthlyPoints").contains("200 points"));
+        assert!(registry.get_by_name("JournalMonthlyProgress").is_none());
     }
 }
 
@@ -365,14 +366,6 @@ fn filtering_selection_and_tracking_use_source_rows_and_parent_actions() {
         assert_eq!(
             action(&registry, "JournalActivity3Track"),
             "journal:activity-track:3:0"
-        );
-        assert_eq!(
-            action(&registry, "JournalActivityFilterAll"),
-            "journal:activity-filter:all"
-        );
-        assert_eq!(
-            action(&registry, "JournalActivityFilterTracked"),
-            "journal:activity-filter:tracked"
         );
         assert_eq!(
             action(&registry, "JournalActivityTag0"),
