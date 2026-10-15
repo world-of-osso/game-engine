@@ -1,3 +1,7 @@
+## 2026-10-15 — Winner's Podium native fixture
+
+[Podium54 boundary](systems/toy-box.md#winners-podium-native-boundary-2026-10-15): actual bag/journal/source actor and static movement fixture, unchanged gameplay camera; private authenticated70391 closure8/4aliases and one127527 appearance-coverage addition. Source server RED3→GREEN6 separate; native and20min wall lifetime not yet claimed.
+
 ## 2026-10-15 — Pet queue caption tag
 
 [Tag-only root fix](systems/battle-pets.md#queue-ready-caption-tag--2026-10-15) restores the omitted ready text; RED1→GREEN2, two inspected both-skin native after captures and identical outside-caption pixels. Remaining popup source parity and fresh server queue acceptance are separate.
