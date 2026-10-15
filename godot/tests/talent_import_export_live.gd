@@ -17,6 +17,22 @@ func _run() -> void:
 	root.add_child(client)
 	await frames(120)
 	await login(endpoint)
+	if OS.get_environment("TALENT_LOADOUT_PHASE") == "error-only":
+		await open_import()
+		await type_code("bad!")
+		await type_name("Invalid")
+		await click("TalentLoadoutSave")
+		await control("TalentImportError")
+		if root.find_child("TalentError", true, false) != null:
+			abort("Import modal duplicated its error in the commit footer")
+			return
+		await capture("invalid-import")
+		var receipt := FileAccess.open(directory.path_join(skin + "-error-only-proof.json"), FileAccess.WRITE)
+		receipt.store_string(JSON.stringify(evidence, "\t"))
+		receipt.close()
+		print("TALENT_IMPORT_ERROR_LIVE_PASS ", skin)
+		quit(0)
+		return
 	await expect_caption("Default Loadout")
 	await menu()
 	await capture("import-export-menu")

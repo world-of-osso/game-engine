@@ -310,6 +310,17 @@ fn talent_loadouts_invalid_import_retains_dialog_and_never_sends_request() {
     assert_eq!(editor.loadout_dialog, Some(LoadoutDialog::Import));
     assert!(editor.take_loadout_request().is_none());
     assert!(!editor.loadout_busy);
+    let mut state = state.clone();
+    state.talents.as_mut().unwrap().editor = editor;
+    let mut shared = SharedContext::new();
+    shared.insert(state);
+    let mut registry = FrameRegistry::new(1920.0, 1080.0);
+    Screen::new(spellbook_frame_screen).sync(&shared, &mut registry);
+    assert!(registry.get_by_name("TalentImportErrorText").is_some());
+    assert!(
+        registry.get_by_name("TalentError").is_none(),
+        "Retail Import error belongs only to its modal, not the commit footer"
+    );
 }
 
 #[test]
