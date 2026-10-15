@@ -67,6 +67,29 @@ fn mount_special_rider_upper_body_keeps_the_seated_legs_and_finishes() {
 }
 
 #[test]
+fn mount_special_spelltome_late_rider_segment_outlives_the_first_segment() {
+    let mut rider = human_male_hd();
+    let mut seated = human_male_hd();
+    rider.update_locomotion(91, false, false).unwrap();
+    seated.update_locomotion(91, false, false).unwrap();
+    let catalog = kit_catalog();
+    let root = Path::new(env!("CARGO_MANIFEST_DIR")).join("../../data/db2/active");
+    let fallbacks = game_engine_core::spell_visual::read_animation_fallbacks(&root).unwrap();
+    rider
+        .play_mount_kits(&[catalog.kit(23323).unwrap()], 12000.0, &fallbacks)
+        .unwrap();
+    rider.advance(8000.0).unwrap();
+    seated.advance(8000.0).unwrap();
+    assert!(
+        pose_distance(&rider.poses(), &seated.poses()) > 0.01,
+        "later Spelltome segments were dropped"
+    );
+    rider.advance(5000.0).unwrap();
+    seated.advance(5000.0).unwrap();
+    assert!(pose_distance(&rider.poses(), &seated.poses()) < 1e-4);
+}
+
+#[test]
 fn mount_special_full_body_sequence_is_not_replaced_by_per_frame_locomotion() {
     let mut mount: AnimationState = human_male_hd();
     let fallback = HashMap::from([(94, 60)]);
