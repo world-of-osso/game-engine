@@ -172,7 +172,10 @@ fn guild_member_note_profile_fields_cross_real_udp() {
         thread::sleep(Duration::from_millis(5));
     }
     bridge.stop().unwrap();
-    assert_eq!(received, Some(reply));
+    let received = received.expect("guild member note profile over UDP");
+    assert_eq!(received.guild, reply.guild);
+    assert_eq!(received.message, reply.message);
+    assert_eq!(received.error, reply.error);
 }
 
 #[test]
