@@ -32,7 +32,8 @@ func prove_toy(_sample: Array) -> void:
 	if not native_display(-1): fail("Bashiok replaced native player"); return
 	var offset := bashiok.global_position - owner.origin
 	offset.y = 0.0
-	var forward := owner.basis.z
+	# gameplay.rs applies facing_yaw - PI/2: the rendered M2 forward axis is +X.
+	var forward := owner.basis.x
 	forward.y = 0.0
 	var transparencies := []
 	for mesh in model.find_children("*", "MeshInstance3D", true, false):
