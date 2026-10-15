@@ -58,7 +58,7 @@ def collect(args, output):
         "scenario": "dummy", "spec": spells["spec"],
         "actor": str(state["account"]["local_player_id"]), "target": str(args.target),
         "start_ms": start, "end_ms": start + int(args.duration * 1000),
-        "attempts": [], "spells": candidates, "measurement_complete": False,
+        "attempts": [], "spells": metadata if order else candidates, "measurement_complete": False,
         "rotation_rule": "native sourced AssistedCombatStep order/rules" if order else "generic highest available DB2 SP+AP direct damage coefficient; no authored order exists",
         "rotation_exclusions": "unsupported native predicates block the run" if order else "periodic/trigger-only, weapon, pet, AoE, utility and passive abilities",
         "authored_order": order,
