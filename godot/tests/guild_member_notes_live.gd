@@ -75,8 +75,9 @@ func write_note(officer: bool, value: String) -> bool:
 	await press("GuildMemberDetailOfficerNote" if officer else "GuildMemberDetailNote")
 	if not await wait_until(func(): return shown("GuildMemberNoteEditBox"), "note popup"):
 		return false
-	await press("GuildMemberNoteEditBox")
 	var editor := control("GuildMemberNoteEditBox") as LineEdit
+	if not editor.has_focus():
+		return fail("Mainline note popup did not focus its input on show")
 	editor.select_all()
 	await tap(KEY_BACKSPACE)
 	await type_text(value)

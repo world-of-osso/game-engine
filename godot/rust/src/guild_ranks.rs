@@ -218,9 +218,17 @@ impl GameClient {
             if action.is_empty() {
                 break;
             }
+            let previous_editor = self.guild_ranks.session.note_editor.clone();
             let texts = read_inputs(&mut ui, &self.guild_ranks.session);
             if let Some(request) = self.guild_ranks.session.click(&action, &texts) {
                 self.send_guild_rank_request(request)?;
+            }
+            if previous_editor != self.guild_ranks.session.note_editor
+                && self.guild_ranks.session.note_editor.is_some()
+            {
+                self.sync_guild_ranks()?;
+                ui.bind_mut()
+                    .focus_frame_named(game_engine_ui_model::guild_member_detail::NOTE_BOX)?;
             }
             if !self.guild_ranks.session.visible {
                 break;
