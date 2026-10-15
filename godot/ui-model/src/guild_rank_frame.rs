@@ -17,6 +17,16 @@ pub fn apply_guild_postsetup(
 ) {
     use ui_toolkit::frame::WidgetData;
     crate::guild_control::apply_postsetup(registry);
+    crate::guild_member_detail::apply_note_art(registry);
+    if let Some(id) = registry.get_by_name(crate::guild_member_detail::NOTE_BOX) {
+        if let Some(WidgetData::EditBox(edit)) = &mut registry
+            .get_mut(id)
+            .expect("registered note input")
+            .widget_data
+        {
+            edit.max_letters = Some(GUILD_MEMBER_NOTE_MAX_LETTERS as u32);
+        }
+    }
     let Some(field) = session.profile_editor else {
         return;
     };
@@ -52,8 +62,38 @@ pub fn guild_screen(shared: &SharedContext) -> Element {
     if session.visible {
         children.extend(invite_member_dialog(session));
         children.extend(profile_editor(session));
+        children.extend(crate::guild_member_detail::editor(session));
+        children.extend(crate::guild_member_detail::removal_confirmation(session));
     }
     children
+}
+
+/// UIPanelTemplates.xml984–1043: TranslucentFrameTemplate, no StaticPopup art.
+fn invitation_chrome() -> Element {
+    let mut out = rsx! { texture { name: "GuildInviteFrameBg", width: 290.0, height: 168.0,
+    left: 10.0, top: 10.0, pos_type: "absolute", draw_layer: "BACKGROUND", background_color: "0,0,0,0.9" } };
+    for (suffix, coords, x, y) in [
+        ("TopLeftCorner", "0,0.5,0,0.5", 0.0, 0.0),
+        ("TopRightCorner", "0.5,1,0,0.5", 278.0, 0.0),
+        ("BottomLeftCorner", "0,0.5,0.5,1", 0.0, 156.0),
+        ("BottomRightCorner", "0.5,1,0.5,1", 278.0, 156.0),
+    ] {
+        let name = DynName(format!("GuildInviteFrame{suffix}"));
+        out.extend(rsx! { texture { name, texture_fdid: 407329, tex_coords: coords,
+            left: x, top: y, width: 32.0, height: 32.0, pos_type: "absolute", draw_layer: "BORDER" } });
+    }
+    for (suffix, fdid, x, y, width, height, horizontal) in [
+        ("TopBorder", 407332, 32.0, 1.0, 246.0, 16.0, true),
+        ("BottomBorder", 407328, 32.0, 172.0, 246.0, 16.0, true),
+        ("LeftBorder", 407330, 1.0, 32.0, 16.0, 124.0, false),
+        ("RightBorder", 407331, 294.0, 32.0, 16.0, 124.0, false),
+    ] {
+        let name = DynName(format!("GuildInviteFrame{suffix}"));
+        let vertical = !horizontal;
+        out.extend(rsx! { texture { name, texture_fdid: fdid, left: x, top: y, width, height,
+            horiz_tile: horizontal, vert_tile: vertical, pos_type: "absolute", draw_layer: "BORDER" } });
+    }
+    out
 }
 
 /// Retail GuildInviteFrame.xml: centered 310×188, inviter, invitation, guild, Join/Decline.
@@ -61,12 +101,13 @@ fn invitation_popup(session: &GuildRanksSession) -> Element {
     let Some(invite) = &session.invitation else {
         return vec![];
     };
-    let mut children = label(
+    let mut children = invitation_chrome();
+    children.extend(label(
         "GuildInviteFrameInviterName".into(),
         &invite.inviter_name,
         (40.0, 28.0, 230.0, 16.0),
         (12.0, "1,1,1,1", "CENTER"),
-    );
+    ));
     children.extend(label(
         "GuildInviteFrameInviteText".into(),
         "invites you to join the guild:",
@@ -91,11 +132,11 @@ fn invitation_popup(session: &GuildRanksSession) -> Element {
         "Decline Invitation",
         "guild:decline_invite",
         !session.invitation_waiting,
-        (176.0, 142.0, 110.0, 22.0),
+        (146.0, 142.0, 140.0, 22.0),
     ));
     rsx! { r#frame { name: {DynName("GuildInviteFrame".into())}, width: 310.0, height: 188.0,
     left: "50%", top: "50%", translate_x: "-50%", translate_y: "-50%", pos_type: "absolute",
-    mouse_enabled: true, strata: FrameStrata::Dialog, style: "static_popup", {children} } }
+    mouse_enabled: true, strata: FrameStrata::Dialog, {children} } }
 }
 
 fn title(name: &str, text: &str, x: f32, y: f32, width: f32) -> Element {
@@ -110,6 +151,7 @@ fn roster(session: &GuildRanksSession, shared: &SharedContext) -> Element {
     let mut children = crate::guild_communities::shell(session, shared);
     children.extend(guild_profile(session));
     children.extend(member_menu(session));
+    children.extend(crate::guild_member_detail::detail(session));
     rsx! { r#frame { name: {DynName("CommunitiesFrame".into())}, width: 814.0, height: 426.0,
     left: "50%", top: "50%", translate_x: "-50%", translate_y: "-50%", pos_type: "absolute", mouse_enabled: true, strata: FrameStrata::Dialog, {children} } }
 }

@@ -987,6 +987,10 @@ impl GameClient {
         state.set("ui_layout", self.ui_layout.name.as_str());
         state.set("ui_skin", format!("{:?}", self.ui_layout.skin).as_str());
         state.set(
+            "talent_export_clipboard",
+            self.spells.talent_export_clipboard.as_deref().unwrap_or(""),
+        );
+        state.set(
             "reconnect_phase",
             format!("{:?}", session.reconnect_phase).as_str(),
         );
