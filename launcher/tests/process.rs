@@ -657,7 +657,8 @@ fn missing_pinned_godot_names_build_script_and_prevents_build() {
     let output = fixture.launch_with_cache(&fixture.directory.join("cache"));
     assert!(!output.status.success());
     let stderr = String::from_utf8_lossy(&output.stderr);
-    let pinned = "cache/game-engine/godot/4.7.2-pr123946-pr123546/godot-4.7.2-pr123946-pr123546 is missing";
+    let pinned =
+        "cache/game-engine/godot/4.7.2-pr123946-pr123546/godot-4.7.2-pr123946-pr123546 is missing";
     assert!(stderr.contains(pinned), "{stderr}");
     assert!(
         stderr.contains("scripts/godot/build-patched-godot.sh"),
@@ -673,7 +674,11 @@ fn unpinned_godot_is_refused_before_build() {
     let version = cache.join("game-engine/godot/4.7.2-pr123946-pr123546");
     fs::create_dir_all(&version).unwrap();
     // Any binary other than the pinned build is refused, even in the pinned slot.
-    fs::copy(&fixture.godot, version.join("godot-4.7.2-pr123946-pr123546")).unwrap();
+    fs::copy(
+        &fixture.godot,
+        version.join("godot-4.7.2-pr123946-pr123546"),
+    )
+    .unwrap();
     let output = fixture.launch_with_cache(&cache);
     assert!(!output.status.success());
     let stderr = String::from_utf8_lossy(&output.stderr);
