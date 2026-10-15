@@ -1,6 +1,6 @@
 # Wiki Index
 
-- [IoC bomb disarm interaction](systems/battlegrounds.md#ioc-bomb-disarm-interaction--active-2026-10-14) — authored normal/huge request, picking and cursor GREEN15 plus soft-interaction10; Shadow Sight stays nonmanual, native activation proof pending.
+- [IoC bomb disarm interaction](systems/battlegrounds.md#ioc-bomb-disarm-interaction--active-2026-10-14) — authored request/cursor GREEN25; Modern83 normal/huge native hit/disarm/return passes, Forever pending; explicit model-art/framing/whole-render/timing gaps retained.
 - [Shared UIPanel button art](systems/menu-primitives.md#shared-uipanel-button-art--2026-10-14-assignment) — source state files, fixed12px caps, five redundant caller repairs removed; four real-window both-skin before/after proof, with background tiling separate.
 - [Cleanup cursor tooltip](systems/housing.md#cleanup-central-tooltip--implementation2026-10-14) — source GameTooltip title/anchor/lifetime, both-skin owner/readonly inspection and classified stale-pixel pick boundary; pet/lock/exterior metadata remains unavailable.
 - [Tutorials source presentation](systems/adventure-guide.md#tutorials-source-presentation--2026-10-14) — source inset/art, shared Morpheus and disabled Start Experience; four inspected both-skin native captures, focused layout4/4 and native check/format pass.
