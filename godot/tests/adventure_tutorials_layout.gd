@@ -21,8 +21,9 @@ func check_tutorial_layout() -> bool:
 	if title.get_theme_font("font").get_font_name() != "Morpheus":
 		stop("Fancy27Font did not load published Morpheus")
 		return false
-	if title.text.is_empty() or body.text.is_empty() or start.text.is_empty():
-		stop("Authored RPE strings missing")
+	var start_label := start.find_child("Text", true, false) as Label
+	if title.text.is_empty() or body.text.is_empty() or start_label == null or start_label.text.is_empty():
+		stop("Authored RPE strings missing from drawn labels")
 		return false
 	if abs(art.get_global_rect().size.x - 700.0 * scale) > 1.0 or abs(art.get_global_rect().size.y - 342.0 * scale) > 1.0:
 		stop("Tutorial art stretched away from source700x342")
