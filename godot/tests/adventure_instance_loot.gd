@@ -44,6 +44,14 @@ func verify_subclass_width(name: String) -> bool:
 	if label.size.x + 0.5 < required:
 		stop("Source intrinsic subclass text clipped: " + name)
 		return false
+	var row_name := name.trim_suffix("ArmorClass")
+	var row := control(row_name).get_global_rect()
+	var slot := control(row_name + "Slot").get_global_rect()
+	var armor := label.get_global_rect()
+	var scale := row.size.x / 321.0
+	if absf(armor.end.x - row.position.x - 315.0 * scale) > 1.0 or absf(slot.position.x - row.position.x - 51.0 * scale) > 1.0 or absf(armor.position.x - slot.end.x - 15.0 * scale) > 1.0:
+		stop("Source slot/subclass left51/right315/gap15 anchors changed")
+		return false
 	return true
 
 func verify_painted_icon(name: String) -> bool:
