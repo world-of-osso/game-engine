@@ -131,6 +131,7 @@ mod unit_dead_text;
 mod unit_frame_atlas;
 mod vigor_bar;
 mod wild_pet_battle;
+mod window_tiling;
 mod world_map_quest_panel;
 mod world_quests;
 mod xp_bar;
