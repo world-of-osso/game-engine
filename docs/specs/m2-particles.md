@@ -15,7 +15,7 @@ M2 `ParticleSystem2` emitters on placed doodads (ADT MDDF and WMO MODD), creatur
 - [x] Replay long gaps in 0.1 s steps, at most one lifespan of them.
 - [x] Retire a particle after its seed-varied lifespan; sample the lifetime ramps at age / maximum lifespan; apply seed-based size variation, random atlas cell (0x10000), twinkle, spin and inherited scale (0x20).
 - [x] Size each emitter's pool to ceil((rate + variation) × (lifespan + variation) × 1.15), capped at 500.
-- [x] Build head quads only (0x20000): camera-facing, emitter-plane (0x1000) or velocity-streak (0x4).
+- [x] Build independent head (0x20000) and tail (0x40000) quads. Heads are camera-facing, emitter-plane (0x1000) or velocity-streak (0x4). Tails extend opposite velocity for tailLength seconds, use tail atlas keys, and clamp duration to age for 0x400. Near-view-parallel tails use the finite tiny-quad policy from WebWowViewerCpp buildVertex2.
 
 ### Rendering
 - [x] Map particle blend types 0-7 to the M2 GL factors (Opaque, AlphaKey, Alpha, NoAlphaAdd, Add, Mod, Mod2x, BlendAdd); only 0/1 write depth; alpha test -1 / 0.502 / 1/255.
@@ -60,7 +60,7 @@ M2 `ParticleSystem2` emitters on placed doodads (ADT MDDF and WMO MODD), creatur
 ## Known gaps (current cycle)
 
 - [ ] Animated emitter tracks: `set_animation` keys emission rate, speed and `enabledIn` per sequence, but skips global-sequence tracks and tracks with at most one key per sequence; the other tracks use their first key.
-- [ ] Tail quads (0x40000), spline emitters (type 3), model particles, follow-position (0x4000), burst/inherit velocity (0x40), randomized atlas mask (0x8000), ground snap (0x2000), TXAC UV shader variants, the actual refraction pass, alpha-cutoff discard and lit particles (no 0x1 flag).
+- [ ] Tail native real-asset pixel acceptance (CPU geometry implemented), spline emitters (type 3), model particles, follow-position (0x4000), burst/inherit velocity (0x40), randomized atlas mask (0x8000), ground snap (0x2000), TXAC UV shader variants, the actual refraction pass, alpha-cutoff discard and lit particles (no 0x1 flag).
 - [ ] Emitters of attached item models (weapons, held torches, enchants) and player models; display state spell kits (the HD kobold candle flame is not a model emitter).
 - [ ] Particles within a pool are not depth-sorted; a shared pool sorts as one transparent object.
 
@@ -68,3 +68,7 @@ M2 `ParticleSystem2` emitters on placed doodads (ADT MDDF and WMO MODD), creatur
 
 - The Bevy client's Hanabi particle path (abandoned client).
 - Ribbon emitters (separate feature).
+
+### Clean-room P1 (2026-10-15)
+
+Behaviour provenance: user-supplied particle clean-room spec and WebWowViewerCpp `particleEmitter.cpp::buildVertex2` (duration, 0x400 age clamp, projected squared threshold 0.0001 and tiny scale 0.05). No decompiled sources consulted. Native pools reserve both styles rather than dropping half of combined output. Targeted `particle_cleanroom_tail` fixtures assert independent geometry/cells and age/degeneracy. RED: two tests failed because tails produced zero quads; GREEN and 1920×1080 real-asset pixels pending.

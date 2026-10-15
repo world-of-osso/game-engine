@@ -730,6 +730,8 @@ M2 particles: see [Native M2 particles](#native-m2-particles).
 
 ## Native M2 particles
 
+Clean-room P1 (2026-10-15): native shared simulation now emits independent heads/tails, tail-cell ramps and duration × velocity geometry (0x400 age clamp), using WebWowViewerCpp `buildVertex2` as allowed provenance. Pools reserve two quads per combined-style particle. CPU RED recorded (zero tail geometry); GREEN and native real-asset pixel acceptance pending. Contract: [m2-particles](../../specs/m2-particles.md).
+
 Branch `particles` draws the particle emitters of placed doodads (contract: [m2-particles](../../specs/m2-particles.md)).
 
 - **Data.** `m2::Model::particle_emitters` comes from the shared MD20 parser. The EXP2 chunk overrides zSource and supplies colorMult/alphaMult/alpha cutoff (WWV `M2Object::initParticleEmitters`). `instanceportal.m2` (197007) has six sphere emitters on bones 2-7: sparkles (blend 4, multitexture, 200/s), two swirl sheets (blend 4, 2×2 random cell, 100/s), two BlendAdd multitexture swirls (blend 7) and one emitter-plane glow (0x1000, 12/s). All spawn on a 4.44 yd shell in the emitter XZ plane and move inward.

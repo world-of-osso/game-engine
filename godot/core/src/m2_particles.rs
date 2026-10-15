@@ -20,6 +20,11 @@ const FLAG_SPIN_FLIP: u32 = 0x200;
 const FLAG_LOCAL_ORIENTATION: u32 = 0x1000;
 const FLAG_RANDOM_CELL: u32 = 0x1_0000;
 const FLAG_HEAD: u32 = 0x2_0000;
+const FLAG_TAIL: u32 = 0x4_0000;
+const FLAG_TAIL_AGE_CLAMP: u32 = 0x400;
+// WebWowViewerCpp buildVertex2: projected trail degeneracy and tiny-quad scale.
+const TAIL_PROJECTED_LENGTH_SQUARED: f32 = 0.0001;
+const TAIL_DEGENERATE_SCALE: f32 = 0.05;
 const FLAG_SCALE_VARY_2D: u32 = 0x8_0000;
 /// Non-multitexture screen-space displacement (WWV particle type 3 / shaderId5).
 const FLAG_REFRACTION: u32 = 0x0010_0000;
@@ -381,7 +386,7 @@ pub struct Quad {
     pub axis_y: Vec3,
     /// Authored-space (gamma) RGB and opacity.
     pub color: Vec4,
-    /// Atlas offset of the head cell, in UV units.
+    /// Atlas offset of the head or tail cell, in UV units.
     pub cell_offset: Vec2,
     /// UV offsets of multitexture layers 1 and 2.
     pub tex_pos: [Vec2; 2],
@@ -644,19 +649,70 @@ impl EmitterSim {
         }
     }
 
-    /// Visible particles as world-space quads (`prepearAndUpdateBuffers`,
-    /// `buildVertex1`): head quads only, twinkle-culled.
+    /// Maximum drawable quads, independent head and tail styles sharing a particle.
+    pub fn quad_capacity(&self, emitter: &ParticleEmitter) -> usize {
+        let styles = usize::from(emitter.flags & FLAG_HEAD != 0)
+            + usize::from(emitter.flags & FLAG_TAIL != 0);
+        self.capacity * styles
+    }
+
+    /// Visible world-space heads and tails, sharing lifetime appearance and twinkle.
     pub fn quads(&self, emitter: &ParticleEmitter, view: &ViewBasis, out: &mut Vec<Quad>) {
-        if emitter.flags & FLAG_HEAD == 0 {
-            return;
-        }
         let max_life = max_lifespan(emitter, self.props.lifespan);
-        out.extend(
-            self.particles
-                .iter()
-                .filter(|particle| particle.age <= max_life)
-                .filter_map(|particle| self.quad(emitter, particle, view)),
+        for particle in self.particles.iter().filter(|p| p.age <= max_life) {
+            let Some(head) = self.quad(emitter, particle, view) else {
+                continue;
+            };
+            if emitter.flags & FLAG_HEAD != 0 {
+                out.push(head);
+            }
+            if emitter.flags & FLAG_TAIL != 0 {
+                out.push(self.tail_quad(emitter, particle, view, head));
+            }
+        }
+    }
+
+    /// WWV buildVertex2: tailLength is a duration, not a normalized trail distance.
+    fn tail_quad(
+        &self,
+        emitter: &ParticleEmitter,
+        particle: &Particle,
+        view: &ViewBasis,
+        mut quad: Quad,
+    ) -> Quad {
+        let velocity = if emitter.flags & FLAG_MODEL_SPACE != 0 {
+            self.emitter_to_world.transform_vector3(particle.velocity)
+        } else {
+            particle.velocity
+        };
+        let duration = if emitter.flags & FLAG_TAIL_AGE_CLAMP != 0 {
+            emitter.tail_length.min(particle.age)
+        } else {
+            emitter.tail_length
+        };
+        let scale = Vec2::new(quad.axis_x.length(), quad.axis_y.length());
+        let (offset, width) = tail_axes(-velocity * duration, scale, view);
+        let projected = Vec2::new(velocity.dot(view.right), velocity.dot(view.up)) * duration;
+        if projected.length_squared() > TAIL_PROJECTED_LENGTH_SQUARED {
+            quad.center += offset;
+        }
+        quad.axis_x = offset;
+        quad.axis_y = width;
+        let time = particle.age / max_lifespan(emitter, self.props.lifespan);
+        let cols = u32::from(emitter.tile_cols.max(1));
+        let rows = u32::from(emitter.tile_rows.max(1));
+        let default_cell = if emitter.flags & FLAG_RANDOM_CELL != 0 {
+            let random = Rng::new(u32::from(particle.seed)).next_u32();
+            ((u64::from(cols * rows) * u64::from(random)) >> 32) as u16
+        } else {
+            0
+        };
+        let cell = sample_keys(&emitter.tail_cell_keys, time, default_cell);
+        quad.cell_offset = Vec2::new(
+            (u32::from(cell) % cols) as f32 / cols as f32,
+            (u32::from(cell) / cols % rows) as f32 / rows as f32,
         );
+        quad
     }
 
     fn quad(
@@ -784,6 +840,20 @@ fn spin(emitter: &ParticleEmitter, seed: u16) -> (f32, f32) {
         emitter.spin + rand.uniform() * emitter.spin_variation
     };
     (base, speed)
+}
+
+/// Tail half-axes; near-view-parallel velocity uses WWV's finite tiny quad.
+fn tail_axes(back: Vec3, scale: Vec2, view: &ViewBasis) -> (Vec3, Vec3) {
+    let projected = Vec2::new(back.dot(view.right), back.dot(view.up));
+    if projected.length_squared() <= TAIL_PROJECTED_LENGTH_SQUARED {
+        return (
+            view.right * scale.x * TAIL_DEGENERATE_SCALE,
+            view.up * scale.y * TAIL_DEGENERATE_SCALE,
+        );
+    }
+    let screen = projected.normalize() * scale;
+    let width = -view.right * screen.y + view.up * screen.x;
+    (back * 0.5, width)
 }
 
 /// Screen-space velocity streak: x along -velocity, y perpendicular on screen.
