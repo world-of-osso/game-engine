@@ -70,6 +70,7 @@ fn shared_codecs() -> Vec<Codec> {
         Codec::of::<WorldArrival>(),
         Codec::of::<Zone>(),
         Codec::of::<GuildMembership>(),
+        Codec::of::<shared::guild_creation::GuildTabardDesign>(),
         Codec::of::<PresenceStatus>(),
         Codec::of::<EquipmentAppearance>(),
         Codec::of::<CastState>(),

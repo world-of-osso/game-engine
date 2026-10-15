@@ -1,5 +1,9 @@
 //! Selected-player body appearance from authored customization and local CASC.
 
+#[cfg(test)]
+#[path = "player_tabard_tests.rs"]
+mod tabard_tests;
+
 use std::{
     collections::{HashMap, HashSet},
     path::{Path, PathBuf},
@@ -281,15 +285,28 @@ pub(crate) fn prepare_player_parts(
     data_root: &Path,
     player: &Player,
     equipment: &EquipmentAppearance,
+    tabard: Option<shared::guild_creation::GuildTabardDesign>,
 ) -> Result<PlayerParts, String> {
     let (resolver, model) = load_player_body(data_root, player)?;
-    let outfit_catalog = share_player_outfit_catalog(data_root);
-    let equipment = resolve_equipment_appearance(
-        equipment,
-        &outfit_catalog,
-        player.race,
-        player.appearance.sex,
-    )?;
+    let outfit = share_player_outfit_catalog(data_root);
+    let equipment = if let Some(design) = tabard.filter(|_| {
+        equipment
+            .entries
+            .iter()
+            .any(|entry| crate::equipment_appearance_data::guild_tabard_tier(entry).is_some())
+    }) {
+        let catalog =
+            shared::guild_tabards::GuildTabardCatalog::load(&data_root.join("db2/active"))?;
+        crate::equipment_appearance_data::resolve_equipment_with_guild_tabard(
+            equipment,
+            &outfit,
+            player.race,
+            player.appearance.sex,
+            (design, &catalog),
+        )?
+    } else {
+        resolve_equipment_appearance(equipment, &outfit, player.race, player.appearance.sex)?
+    };
     let appearance = prepare_player_appearance(data_root, player, &equipment)?;
     let fdids = cache_model_textures(&resolver, data_root, &[0; 3], &model.model)?;
     let mut textures = decode_new_textures(model_asset_root(&model)?, &fdids)?;
@@ -374,7 +391,7 @@ pub(crate) fn load_player_model(
     player: &Player,
     equipment: &EquipmentAppearance,
 ) -> Result<Gd<Node3D>, String> {
-    let parts = prepare_player_parts(data_root, player, equipment)?;
+    let parts = prepare_player_parts(data_root, player, equipment, None)?;
     build_player_model(data_root, parts)
 }
 
@@ -587,10 +604,10 @@ mod catalog_lifetime_tests {
                 hidden: false,
             }],
         };
-        let initial = prepare_player_parts(&root, &player, &equipment).unwrap();
+        let initial = prepare_player_parts(&root, &player, &equipment, None).unwrap();
         assert!(!initial.equipment.outfit.item_textures.is_empty());
         std::fs::remove_file(root.join(retail_dir).join("ItemDisplayInfo.csv")).unwrap();
-        let next = prepare_player_parts(&root, &player, &equipment)
+        let next = prepare_player_parts(&root, &player, &equipment, None)
             .expect("prepared outfit rows must survive in the player catalog");
         assert_eq!(
             next.equipment.outfit.item_textures,

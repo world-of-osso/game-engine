@@ -11,6 +11,7 @@ use std::path::Path;
 
 fn character(id: u64, name: &str) -> CharacterListEntry {
     CharacterListEntry {
+        tabard: None,
         character_id: id,
         name: name.into(),
         level: 10,
