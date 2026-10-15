@@ -1,6 +1,6 @@
 # Wiki Index
 
-- [MountSpecial continuation](systems/mounts.md#mountspecial-continuation--2026-10-15) — unified input/wire/real observer dispatch; authored timeline6/server3 PASS, native rider timing ambiguity and rendered proof OPEN.
+- [MountSpecial continuation](systems/mounts.md#mountspecial-continuation--2026-10-15) — unified input/wire/real observer dispatch; phase-qualified three-mount both-skin input/peer proof, real Spelltome saddle/body identity and explicit Grrloc/unsupported-VFX gaps; lead pixel review and integration OPEN.
 
 - [Native summon lifetime proofs](systems/toy-box.md#native-summon-lifetime-proofs-2026-10-15) — release Forever Scarab and quiet both-skin Flute expiry; prior debug failures, unresolved following/navigation and exact binary scopes retained.
 
