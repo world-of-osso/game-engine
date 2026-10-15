@@ -280,6 +280,7 @@ pub mod guild_bank_frame_component;
 pub mod guild_communities;
 pub mod guild_control;
 mod guild_control_art;
+pub mod guild_member_detail;
 pub mod guild_rank_frame;
 pub mod guild_ranks;
 #[path = "ipc/format_shared.rs"]

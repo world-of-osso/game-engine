@@ -135,6 +135,15 @@ impl GameClient {
         if !guild_pointer_enabled(&self.guild_ranks.session, self.game_menu_ui.is_some()) {
             return false;
         }
+        if let Ok(key) = event.clone().try_cast::<godot::classes::InputEventKey>()
+            && key.is_pressed()
+            && !key.is_echo()
+            && key.get_keycode() == godot::global::Key::ESCAPE
+            && self.guild_ranks.session.dismiss_member_popup()
+        {
+            self.mark_viewport_input_handled();
+            return true;
+        }
         let Some(ui) = self.guild_ranks.ui.as_mut() else {
             return false;
         };
@@ -170,12 +179,7 @@ impl GameClient {
     }
 
     pub(super) fn close_guild_ranks(&mut self) -> bool {
-        let visible = self.guild_ranks.session.visible;
-        self.guild_ranks.session.visible = false;
-        self.guild_ranks.session.settings_open = false;
-        self.guild_ranks.session.invite_open = false;
-        self.guild_ranks.session.profile_editor = None;
-        self.guild_ranks.session.member_menu = None;
+        let visible = self.guild_ranks.session.close();
         self.guild_ranks.free_ui();
         visible
     }
@@ -216,9 +220,17 @@ impl GameClient {
             if action.is_empty() {
                 break;
             }
+            let previous_editor = self.guild_ranks.session.note_editor.clone();
             let texts = read_inputs(&mut ui, &self.guild_ranks.session);
             if let Some(request) = self.guild_ranks.session.click(&action, &texts) {
                 self.send_guild_rank_request(request)?;
+            }
+            if previous_editor != self.guild_ranks.session.note_editor
+                && self.guild_ranks.session.note_editor.is_some()
+            {
+                self.sync_guild_ranks()?;
+                ui.bind_mut()
+                    .focus_frame_named(game_engine_ui_model::guild_member_detail::NOTE_BOX)?;
             }
             if !self.guild_ranks.session.visible {
                 break;
@@ -233,9 +245,10 @@ impl GameClient {
         }
         while let Some((action, right, _)) = ui.bind_mut().pop_alt_click() {
             if right && action.starts_with("guild:member:") {
-                self.guild_ranks
-                    .session
-                    .click(&action, &InputTexts::default());
+                self.guild_ranks.session.click(
+                    &action.replacen("guild:member:", "guild:member-menu:", 1),
+                    &InputTexts::default(),
+                );
             }
         }
         Ok(())
@@ -310,6 +323,7 @@ fn guild_input_names(session: &GuildRanksSession) -> impl Iterator<Item = String
         GOLD_BOX.to_owned(),
         INVITE_BOX.to_owned(),
         PROFILE_BOX.to_owned(),
+        game_engine_ui_model::guild_member_detail::NOTE_BOX.to_owned(),
     ]
     .into_iter()
     .chain((0..tabs).map(|index| format!("GuildTabItems{index}")))
