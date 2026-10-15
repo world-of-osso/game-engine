@@ -71,6 +71,43 @@ def missing_casts(attempts, successes):
     return findings
 
 
+def ownership_graph(events, snapshots):
+    records = [dict(row, via="owner_snapshot") for row in snapshots]
+    for event in events:
+        if event["kind"] != "summon":
+            continue
+        if event["spell"] is None:
+            raise ValueError("SPELL_SUMMON requires its real summoning spell")
+        records.append({"unit": event["dst"], "owner": event["src"],
+                        "at_ms": event["at_ms"], "via": "summon"})
+    owners = {}
+    for record in records:
+        unit, owner = str(record["unit"]), str(record["owner"])
+        if unit in ("-", "None") or owner in ("-", "None") or unit == owner:
+            raise ValueError(f"Invalid summon ownership {owner}->{unit}")
+        previous = owners.get(unit)
+        if previous and previous["owner"] != owner:
+            raise ValueError(f"Conflicting summon ownership for {unit}")
+        if previous is None or record["at_ms"] < previous["at_ms"]:
+            owners[unit] = dict(record, unit=unit, owner=owner)
+    return owners
+
+
+def classify_damage_source(unit, at_ms, actor, owners, party):
+    visited = set()
+    while unit != actor:
+        if unit in party:
+            return "party"
+        if unit in visited:
+            raise ValueError(f"Cyclic summon ownership at {unit}")
+        visited.add(unit)
+        owner = owners.get(unit)
+        if owner is None or owner["at_ms"] > at_ms:
+            return "unknown"
+        unit = owner["owner"]
+    return "owned"
+
+
 def analyze(run, events):
     """Produce findings only where the evidence can demonstrate the observation."""
     duration = run["end_ms"] - run["start_ms"]
@@ -84,17 +121,25 @@ def analyze(run, events):
     evaluated = [attempt for attempt in run["attempts"] if attempt not in pending]
     findings = missing_casts(evaluated, successes)
     used = Counter(e["spell"] for e in successes)
-    damage = [e for e in own if e["kind"] == "damage" and e["dst"] == str(run["target"])]
-    by_spell = Counter()
-    for event in damage:
-        by_spell[event["spell"]] += max(0, event["amount"])
+    owners = ownership_graph(events, run.get("owner_snapshot", []))
+    party = {str(actor) for actor in run.get("party_actors", [])}
+    by_spell, by_actor, unknown = Counter(), Counter(), Counter()
+    for event in window:
+        if event["kind"] != "damage" or event["dst"] != str(run["target"]):
+            continue
+        source = classify_damage_source(event["src"], event["at_ms"], str(run["actor"]), owners, party)
+        amount = max(0, event["amount"])
+        if source == "owned":
+            by_spell[event["spell"]] += amount
+            by_actor[event["src"]] += amount
+        elif source == "unknown" and amount > 0:
+            unknown[event["src"]] += amount
     for spell in run["spells"]:
         identity = spell["id"]
         if not used[identity]:
             findings.append({"kind": "ability_never_used", "spell": identity})
         elif spell["damage"] and not sum(by_spell[value] for value in spell.get("damage_ids", [identity])):
             findings.append({"kind": "zero_damage_spell", "spell": identity})
-    party = {str(actor) for actor in run.get("party_actors", [])}
     party.add(str(run["actor"]))
     for event in window:
         if event["kind"] == "death" and event["dst"] in party:
@@ -104,16 +149,23 @@ def analyze(run, events):
     for sample in run.get("native_errors", []):
         for error in sample["errors"]:
             findings.append({"kind": "native_cast_error", "at_ms": sample["at_ms"], "error": error, "spell": None})
+    for actor, amount in unknown.items():
+        findings.append({"kind": "unattributed_damage", "actor": actor, "damage": amount})
+    complete = bool(run.get("measurement_complete") and not unknown)
+    unobserved = ["aura_effect", "cooldown_resets", "charges", "resource_spending"]
+    if unknown:
+        unobserved.append("owned_damage_attribution")
     report = {
         "schema": 1, "scenario": run["scenario"], "spec": run["spec"], "role": run.get("role"),
         "actor": run["actor"], "target": run["target"], "duration_ms": duration,
         "damage": sum(by_spell.values()),
-        "dps": sum(by_spell.values()) / (duration / 1000) if run.get("measurement_complete") else None,
+        "dps": sum(by_spell.values()) / (duration / 1000) if complete else None,
         "casts": dict(used), "damage_by_spell": dict(by_spell), "findings": findings,
         "pending_casts": pending,
-        "unobserved": ["aura_effect", "cooldown_resets", "charges", "resource_spending"],
+        "damage_by_actor": dict(by_actor), "ownership": owners,
+        "attribution_complete": not unknown, "unobserved": unobserved,
         "comparison": run.get("comparison"),
-        "measurement_complete": run.get("measurement_complete", False),
+        "capture_complete": run.get("measurement_complete", False), "measurement_complete": complete,
     }
     return report
 
