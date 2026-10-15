@@ -50,6 +50,7 @@ mod game_menu;
 mod group_countdown;
 mod guild_charters;
 mod guild_rank_widgets;
+mod guild_tabards;
 mod housing;
 mod housing_key_labels;
 mod item_catalog_pending;
