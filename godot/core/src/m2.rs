@@ -70,6 +70,8 @@ pub struct Model {
     pub collision: Option<M2CollisionMesh>,
     /// MD20 particle emitters with their TXID texture FDIDs resolved.
     pub particle_emitters: Vec<ParticleEmitter>,
+    /// Authored ribbon references, tracks and edge density/lifetime.
+    pub ribbon_emitters: Vec<format::m2_ribbon::M2RibbonEmitter>,
     /// MD20 animation events, their timestamps indexed like `sequences`.
     pub events: Vec<Event>,
     /// MD20 global flags.
@@ -428,6 +430,7 @@ pub fn parse_model_with_skeleton(
         bounding_box_max,
         collision,
         particle_emitters,
+        ribbon_emitters: format::m2_ribbon::parse_ribbon_emitters(chunks.md20)?,
         events,
         flags,
         lights: m2_light::parse_lights(chunks.md20),

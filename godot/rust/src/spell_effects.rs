@@ -47,6 +47,7 @@ use crate::assets::build_model;
 use crate::background_load::BackgroundLoad;
 use crate::particles::{ParticlePools, PlacedParticles, view_basis};
 use crate::replicated::is_unit;
+use crate::ribbons::PlacedRibbons;
 use crate::spell_assets::{EffectModel, SpellAsset, SpellAssets, kit_assets};
 use crate::spell_sounds::{SoundHold, SoundRequest, SoundSource, SoundStart, SpellSounds};
 use crate::world::WorldUnits;
@@ -131,6 +132,7 @@ enum Phase {
 struct ActiveEffect {
     node: Gd<Node3D>,
     particles: Option<PlacedParticles>,
+    ribbons: Option<PlacedRibbons>,
     owner: u64,
     spell_id: u32,
     kit_id: u32,
