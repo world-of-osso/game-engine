@@ -25,6 +25,10 @@ Shared dropdown/radios replace the StaticPopup/plain-row stand-in; caller Lua wi
 ## 2026-10-15 — Suggested joint provider and three-pane native proof
 
 [Suggested panes](systems/adventure-guide.md#suggested-fixed-source-panes--2026-10-15) now use installed702-row CSV and evaluated authored priority bonuses. Both-skin native330/816 shows genuine881/852/27; a pixel-found91px title overflow is RED→GREEN at the unchanged source66px frame/8px gap, with both lines visible. Server12/UI8, checks/fmt pass; exact executable/input/PNG hashes retained. Unknown predicates and opaque selection/rotation remain explicit gaps; earlier one-record pictures were not acceptance.
+## 2026-10-15 — Trading Post authored base camera/orbit
+
+[Camera ownership](systems/trading-post.md#authored-base-orbit-camera--implementation-october15): installed scene camera target/angles/zoom, product override tag handling and source decimal rounding replace generic bounds fitting. Actual camera-only held/drag orbit and wheel zoom preserve actor bases and rider/HUD lifetimes. Core4 and compatible generic-camera native RED→both-skin GREEN;24 inspected full-HD originals with binary-hash/memory manifest. Inherited native zoom splines/default FOV remain explicit lead-authorized gaps; no full Retail-framing or pet-comparison claim.
+
 ## 2026-10-15 — Trading Post frozen replacement consent
 
 [Frozen confirmation](systems/trading-post.md#frozen-replacement-confirmation--implementation-october15): old-item dialog, candidate slot preview, five-second Confirm-only delay, Cancel/global right-down and consumed Escape. Native premature-request RED→both-skin GREEN; only accepted/empty-slot freezes prune their cart member, authority/Tender unchanged.20 inspected full-HD PNGs and exact binary/memory manifest retained.
