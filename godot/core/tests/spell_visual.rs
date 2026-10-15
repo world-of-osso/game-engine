@@ -1,4 +1,4 @@
-//! Retail spell visuals resolved from the pinned 12.1.0.69933 local-CASC exports.
+//! Retail spell visuals resolved from the active local-CASC exports.
 
 use std::path::Path;
 use std::sync::OnceLock;
@@ -280,23 +280,13 @@ fn slam_uses_the_weapon_class_combat_ability_and_authored_target_impact() {
     assert_eq!(two_hand_cast[0].animation.unwrap().anim_id, 812);
 
     let impact = catalog.kits(one_hand, VisualEvent::Impact);
-    eprintln!(
-        "Slam runtime DB2 {:?} canonical {:?}; impact {:?}",
-        db2_dir(),
-        std::fs::canonicalize(db2_dir()),
-        impact
-    );
-    let events = std::fs::read_to_string(db2_dir().join("SpellVisualEvent.csv")).unwrap();
-    eprintln!(
-        "Slam raw event230297 {:?}",
-        events.lines().find(|row| row.starts_with("230297,"))
-    );
     assert_eq!(impact.len(), 1);
     assert_eq!(impact[0].target, KitTarget::PrimaryTarget);
     let model = &impact[0].models[0];
-    // Active70391: event230297 → kit278885 → model attach376845
-    // → effect name226/model166330 at authored attachment22.
-    assert_eq!((model.model_fdid, model.attachment), (166330, Some(22)));
+    // Active70391: event230297 → kit278885 → type2 effect789206
+    // → model attach638041 → effect name25213/model1283017 at attachment15.
+    assert_eq!(impact[0].kit_id, 278885);
+    assert_eq!((model.model_fdid, model.attachment), (1283017, Some(15)));
     // Models lacking CombatAbility1H01 fall back to Special1H.
     let fallbacks = read_animation_fallbacks(&db2_dir()).unwrap();
     assert_eq!(fallbacks.get(&818), Some(&57));
