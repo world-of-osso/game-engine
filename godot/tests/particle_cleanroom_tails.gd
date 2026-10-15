@@ -55,12 +55,18 @@ func run_test() -> void:
 		fail("Real tail asset has missing texture or unexpected authored flags: " + str(state))
 		return
 	await create_timer(1.0).timeout
-	scene.set_process(false)
+	# Freeze bone/material descendants too, so the surrounding red glow cannot
+	# contaminate the particle-only difference.
+	scene.process_mode = Node.PROCESS_MODE_DISABLED
 	var pool := scene.find_child("Particles%d_0" % TAIL_MODEL, true, false) as MultiMeshInstance3D
 	if pool == null or pool.multimesh.visible_instance_count <= 0:
 		fail("No real native tail pool")
 		return
 	var shown := await capture(output + "/p1-bloodpresence-tails-on.png")
+	var stable := await capture(output + "/p1-bloodpresence-tails-stable.png")
+	if shown.get_data() != stable.get_data():
+		fail("Frozen scene is not pixel-stable before hiding the tail pool")
+		return
 	pool.visible = false
 	var hidden := await capture(output + "/p1-bloodpresence-tails-off.png")
 	var changed := 0
@@ -68,7 +74,7 @@ func run_test() -> void:
 		for x in shown.get_width():
 			var a := shown.get_pixel(x, y)
 			var b := hidden.get_pixel(x, y)
-			if maxf(absf(a.r-b.r), maxf(absf(a.g-b.g), absf(a.b-b.b))) > 0.08:
+			if a != b:
 				changed += 1
 	print("P1_REAL_TAIL_PIXELS ", changed, " visible quads ", pool.multimesh.visible_instance_count)
 	if changed <= 0:
