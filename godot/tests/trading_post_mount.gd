@@ -32,8 +32,13 @@ func check() -> void:
 			return
 		var rider_scale := rider.scale
 		var mount_transform := actor.transform
+		var display_transform := mount.transform
+		if not mount.scale.is_equal_approx(Vector3.ONE * 2.0) or not is_equal_approx(mount.rotation.y, PI / 2):
+			push_error("Authored actor overwrote display transform")
+			quit(1)
+			return
 		probe.rotate(1.2)
-		if actor.transform != mount_transform or rider.scale != rider_scale or not is_equal_approx(group.rotation.y, 1.2):
+		if actor.transform != mount_transform or mount.transform != display_transform or rider.scale != rider_scale or not is_equal_approx(group.rotation.y, 1.2):
 			push_error("Yaw replaced actor scale or rider transform")
 			quit(1)
 			return

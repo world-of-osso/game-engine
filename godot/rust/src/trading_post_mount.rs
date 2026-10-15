@@ -94,11 +94,13 @@ impl WowTradingPostMountProbe {
             animation: 0,
         };
         let mut mount = Node3D::new_alloc();
+        mount.set_scale(Vector3::ONE * 2.);
+        mount.set_rotation(Vector3::new(0., std::f32::consts::FRAC_PI_2, 0.));
         let mut mesh = MeshInstance3D::new_alloc();
         let mut box_mesh = BoxMesh::new_gd();
-        box_mesh.set_size(Vector3::new(1.9968, 4.236, 2.242));
+        box_mesh.set_size(Vector3::new(1.121, 2.118, 0.9984));
         mesh.set_mesh(&box_mesh);
-        mesh.set_position(Vector3::new(0., 1., 0.));
+        mesh.set_position(Vector3::new(0., 0.5, 0.));
         mount.add_child(&mesh);
         let mut owner = mount.clone();
         for name in ["NpcModel", "Skeleton3D", "AttachmentBone0", "Attachment0"] {
