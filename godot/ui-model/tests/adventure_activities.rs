@@ -1,4 +1,5 @@
-use game_engine_ui_model::adventure_activities::{ActivityFilters, monthly, suggested};
+use game_engine_ui_model::adventure_activities::{ActivityFilters, monthly};
+use game_engine_ui_model::adventure_suggestions::suggested;
 use shared::protocol::{
     AchievementCriterionLine, AdventureGuideSnapshot, AdventureSuggestion, JournalMonth,
     PerksActivityProgress, PerksActivitySnapshot, PerksActivityTag, SuggestionCensus,
@@ -409,13 +410,46 @@ fn suggestions_display_only_authored_eligible_records_without_actions() {
         assert!(registry.get_by_name("JournalSuggestion642Reward").is_none());
         assert!(registry.get_by_name("JournalSuggestion642Button").is_none());
         assert!(frame(&registry, "JournalSuggestion642").onclick.is_none());
+        for (name, [left, top, width, height]) in [
+            ("EncounterJournalSuggestedFrame", [9., 111., 784., 380.]),
+            ("JournalSuggestionSlot1", [393., 194., 344., 161.]),
+            ("JournalSuggestionSlot2", [393., 22., 344., 161.]),
+            ("JournalSuggestionSlot3", [28., 18., 335., 337.]),
+        ] {
+            let pane = frame(&registry, name);
+            assert_eq!(pane.position.left, ui_toolkit::layout_values::Val::Px(left));
+            assert_eq!(pane.position.top, ui_toolkit::layout_values::Val::Px(top));
+            assert_eq!(pane.width, ui_toolkit::frame::Dimension::Fixed(width));
+            assert_eq!(pane.height, ui_toolkit::frame::Dimension::Fixed(height));
+        }
+        assert!(registry.get_by_name("JournalSuggestedTitle").is_none());
+        for (name, left) in [
+            ("JournalSuggestedPrev", 16.),
+            ("JournalSuggestedNext", 287.),
+        ] {
+            let button = frame(&registry, name);
+            assert_eq!(
+                button.position.left,
+                ui_toolkit::layout_values::Val::Px(left)
+            );
+            assert_eq!(
+                button.position.top,
+                ui_toolkit::layout_values::Val::Px(293.)
+            );
+            assert_eq!(button.width, ui_toolkit::frame::Dimension::Fixed(32.));
+            assert_eq!(button.height, ui_toolkit::frame::Dimension::Fixed(32.));
+            assert!(
+                matches!(&button.widget_data, Some(WidgetData::Button(data)) if data.state == ui_toolkit::widgets::button::ButtonState::Disabled)
+            );
+            assert!(button.onclick.as_deref().unwrap_or_default().is_empty());
+        }
         assert_eq!(
             frame(&registry, "JournalSuggestion642").width,
-            ui_toolkit::frame::Dimension::Fixed(335.)
+            ui_toolkit::frame::Dimension::Fixed(344.)
         );
         assert_eq!(
             frame(&registry, "JournalSuggestion642").height,
-            ui_toolkit::frame::Dimension::Fixed(337.)
+            ui_toolkit::frame::Dimension::Fixed(161.)
         );
         match &frame(&registry, "JournalSuggestion642Texture").widget_data {
             Some(WidgetData::Texture(texture)) => assert_eq!(
@@ -443,7 +477,7 @@ fn suggestions_display_only_authored_eligible_records_without_actions() {
         });
         ctx.insert(rewarded);
         screen.sync(&ctx, &mut registry);
-        for id in [195, 227] {
+        for id in [642, 195] {
             assert_eq!(
                 frame(&registry, &format!("JournalSuggestion{id}")).width,
                 ui_toolkit::frame::Dimension::Fixed(344.)
@@ -453,9 +487,28 @@ fn suggestions_display_only_authored_eligible_records_without_actions() {
                 ui_toolkit::frame::Dimension::Fixed(161.)
             );
         }
+        assert_eq!(
+            frame(&registry, "JournalSuggestion227").width,
+            ui_toolkit::frame::Dimension::Fixed(335.)
+        );
+        assert_eq!(
+            frame(&registry, "JournalSuggestion227").height,
+            ui_toolkit::frame::Dimension::Fixed(337.)
+        );
+        let title = &frame(&registry, "JournalSuggestion227Name").widget_data;
         assert!(
-            text(&registry, "JournalSuggestion195Reward")
-                .contains("renown with the Midnight faction")
+            matches!(title, Some(WidgetData::FontString(font)) if font.font == ui_toolkit::widgets::font_string::GameFont::Morpheus && font.font_size == 32.)
+        );
+        assert!(
+            registry.get_by_name("JournalSuggestion195Reward").is_none(),
+            "Reward description belongs to reward hover, not pane body"
+        );
+        assert!(
+            registry
+                .scroll_lists
+                .get("EncounterJournalContent")
+                .is_none(),
+            "Retail Suggested panes are fixed, not groups on a generic ScrollBox"
         );
         assert!(
             registry.get_by_name("JournalSuggestion195Button").is_none(),
@@ -472,15 +525,99 @@ fn suggestions_display_only_authored_eligible_records_without_actions() {
         ctx.insert(snapshot());
         screen.sync(&ctx, &mut registry);
         assert!(registry.get_by_name("JournalSuggestion642").is_none());
-        assert_eq!(
-            text(&registry, "JournalSuggestedEmpty"),
-            "No eligible source suggestions available."
+        assert!(
+            registry.get_by_name("JournalSuggestedEmpty").is_none(),
+            "Retail leaves its three empty source panes, without an invented notice"
         );
+        for index in 1..=3 {
+            assert!(
+                registry
+                    .get_by_name(&format!("JournalSuggestionSlot{index}"))
+                    .is_some()
+            );
+        }
         let mut registry = FrameRegistry::new(800., 496.);
         Screen::new(|ctx| suggested(ctx, None)).sync(&ctx, &mut registry);
         assert_eq!(
             text(&registry, "JournalSuggestedLoading"),
             "Loading suggested content…"
+        );
+    }
+}
+
+#[test]
+fn suggestions_partial_records_preserve_literal_initial_lower_geometry() {
+    use ui_toolkit::{frame::Dimension, layout_values::Val};
+    for skin in [ActiveSkin::Modern, ActiveSkin::Forever] {
+        let mut ctx = context(skin);
+        let mut data = snapshot();
+        // Authored records are rendering inputs, not fabricated live realm eligibility.
+        data.suggestions = vec![AdventureSuggestion {
+            id: 227,
+            name: "Brewfest".into(),
+            description: String::new(),
+            reward_description: String::new(),
+            texture_fdid: 133201,
+            button_text: String::new(),
+        }];
+        ctx.insert(data.clone());
+        let mut registry = FrameRegistry::new(800., 496.);
+        let mut screen = Screen::new(|ctx| suggested(ctx, ctx.get()));
+        screen.sync(&ctx, &mut registry);
+        let assert_initial = |registry: &FrameRegistry| {
+            let block = frame(registry, "JournalSuggestion227Text");
+            assert_eq!(block.position.top, Val::Px(3.5));
+            assert_eq!(block.height, Dimension::Fixed(152.));
+            assert_eq!(
+                frame(registry, "JournalSuggestion227TitleFrame").height,
+                Dimension::Fixed(1.)
+            );
+            let description = frame(registry, "JournalSuggestion227DescriptionFrame");
+            assert_eq!(description.position.top, Val::Px(5.));
+            assert_eq!(description.height, Dimension::Fixed(1.));
+        };
+        let size = |registry: &FrameRegistry, name: &str| match &frame(registry, name).widget_data {
+            Some(WidgetData::FontString(font)) => font.font_size,
+            _ => panic!("Expected title font"),
+        };
+        assert_initial(&registry);
+        assert_eq!(size(&registry, "JournalSuggestion227Name"), 18.);
+
+        // Lua's first pass shrinks the upper title, but the skipped lower frame keeps18.
+        data.suggestions.push(AdventureSuggestion {
+            id: 823,
+            name: "The Ghosts of K'aresh: A Shadowy Invitation".into(),
+            description: String::new(),
+            reward_description: String::new(),
+            texture_fdid: 6937965,
+            button_text: String::new(),
+        });
+        ctx.insert(data.clone());
+        screen.sync(&ctx, &mut registry);
+        assert_initial(&registry);
+        assert_eq!(size(&registry, "JournalSuggestion227Name"), 18.);
+        assert_eq!(size(&registry, "JournalSuggestion823Name"), 16.);
+
+        // Three records finally run the second pass on both small frames.
+        data.suggestions.push(AdventureSuggestion {
+            id: 642,
+            name: "Trading Post, Open for Business".into(),
+            description: String::new(),
+            reward_description: String::new(),
+            texture_fdid: 4696085,
+            button_text: String::new(),
+        });
+        ctx.insert(data);
+        screen.sync(&ctx, &mut registry);
+        assert_eq!(size(&registry, "JournalSuggestion227Name"), 16.);
+        assert_eq!(size(&registry, "JournalSuggestion823Name"), 16.);
+        assert_eq!(
+            frame(&registry, "JournalSuggestion227Text").position.top,
+            Val::Px(63.5)
+        );
+        assert_eq!(
+            frame(&registry, "JournalSuggestion227TitleFrame").height,
+            Dimension::Fixed(16.)
         );
     }
 }

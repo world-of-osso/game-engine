@@ -656,7 +656,7 @@ pub fn adventure_guide_screen(ctx: &SharedContext) -> Element {
                 &view.search,
             ),
             Tab::Suggested => {
-                crate::adventure_activities::suggested(ctx, view.activities.as_deref())
+                crate::adventure_suggestions::suggested(ctx, view.activities.as_deref())
             }
             _ => {
                 if view.instance.is_some() {
