@@ -42,7 +42,7 @@ func run_fixture() -> void:
 		await prove_toy(sample)
 		if failed: return
 	write_receipts()
-	print("PASS toy-effects14 actual release-server Scarab ", skin)
+	print("PASS toy-effects14 actual release-server cases ", proof_cases(), " ", skin)
 	client.free()
 	quit(0)
 
