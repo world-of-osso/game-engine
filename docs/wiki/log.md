@@ -1,3 +1,7 @@
+## 2026-10-15 — Source creature opacity
+
+[Creature opacity](systems/toy-box.md#source-creature-opacity-2026-10-15): Bashiok60051 alpha175 omission reproduced in real catalog import; required source byte, old-schema reimport, per-instance geometry binding and15+2 CPU regressions. Native pixel/asset acceptance remains pending.
+
 ## 2026-10-15 — Housing pressed hover
 
 [Shared controls](systems/housing.md#control-pressed-hover-lifecycle--implementation2026-10-15): source hover overlay hides while pressed, restores on inside release and stays hidden outside/disabled. Behavioral0.5-versus0.0 RED, both-skin registry GREEN and actual six-control press/release/conservation proof; inspected paired hover/pressed captures. Existing atlas/authority policy unchanged, no timing or full-art claim.
