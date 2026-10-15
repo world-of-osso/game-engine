@@ -241,6 +241,7 @@ pub fn apply_note_art(registry: &mut ui_toolkit::registry::FrameRegistry) {
     for name in [
         "GuildMemberDetailBackground",
         "GuildMemberNotePopupBackground",
+        "GuildMemberRemovePopupBackground",
     ] {
         if let Some(id) = registry.get_by_name(name)
             && let Some(WidgetData::Texture(texture)) = &mut registry
@@ -285,6 +286,37 @@ pub fn apply_note_art(registry: &mut ui_toolkit::registry::FrameRegistry) {
             }
         }
     }
+}
+
+pub fn removal_confirmation(session: &GuildRanksSession) -> Element {
+    let Some(name) = &session.removal_target else {
+        return vec![];
+    };
+    // Mainline/GameDialogDefs.lua REMOVE_GUILDMEMBER: captured member, YES/NO,
+    // exclusive and hideOnEscape. GameDialog base: 320px, 16px text insets.
+    let mut children = rsx! { texture { name: "GuildMemberRemovePopupBackground", texture_fdid: 6839810,
+    left: 7.0, top: 7.0, width: 306.0, height: 84.0, pos_type: "absolute", draw_layer: "BACKGROUND" } };
+    children.extend(label(
+        "GuildMemberRemovePopupText".into(),
+        &format!("Are you sure you want to remove {name} from the guild?"),
+        (15.0, 16.0, 290.0, 36.0),
+        (14.0, "1,1,1,1", "CENTER"),
+    ));
+    for (name, text, action, x) in [
+        ("Yes", "Yes", "guild:remove_confirm", 27.0),
+        ("No", "No", "guild:remove_cancel", 165.0),
+    ] {
+        children.extend(panel_button(
+            format!("GuildMemberRemove{name}"),
+            text,
+            action,
+            !session.awaiting_state,
+            (x, 61.0, 128.0, 21.0),
+        ));
+    }
+    rsx! { r#frame { name: "GuildMemberRemovePopup", width: 320.0, height: 98.0, left: "50%", top: 135.0,
+    translate_x: "-50%", pos_type: "absolute", strata: FrameStrata::Dialog, frame_level: 1100.0,
+    style: "static_popup", mouse_enabled: true, {children} } }
 }
 
 pub fn editor(session: &GuildRanksSession) -> Element {

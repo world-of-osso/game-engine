@@ -8,7 +8,7 @@ Retail Mainline member details and public/officer notes in Modern and Forever. S
 - [x] Mainline permits own-public-note editing without the general public-edit right. Other public writes require that right. Officer writes require edit-officer permission; the native editor additionally requires view permission. Officer payloads are stripped from unauthorized recipients.
 - [ ] Authenticated actor and same-guild target are validated server-side;31 Unicode characters maximum, no control characters. Cancel writes nothing. Popup target remains the member selected when editing began even if roster selection subsequently changes. Enter/Accept waits for authoritative profile replacement, including the interval between rank ACK and profile reply.
 - [x] Both note types survive durable database close/reopen, preserving existing officer records. Leave/removal deletes both before rejoin. Native relog remains a separate acceptance boundary below.
-- [ ] Group Invite uses the actual group service and Remove uses existing hierarchy authority, with physical native proof.
+- [ ] Group Invite uses the actual group service. Remove requires Mainline `REMOVE_GUILDMEMBER` Yes/No confirmation with the captured member, rechecks existing hierarchy authority on Yes, and closes the detail only after confirmation. No/Escape sends nothing; closing the guild window discards the popup. Physical native proof remains required.
 
 ## How it works
 

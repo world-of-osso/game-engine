@@ -1113,6 +1113,22 @@ fn guild_member_remove_requires_yes_and_keeps_original_target_both_skins() {
             );
             session.click(entry, &Default::default());
             session.click(remove, &Default::default());
+            assert!(session.dismiss_member_popup());
+            assert!(session.visible, "Escape closes popup, not the guild window");
+            assert!(session.removal_target.is_none());
+            assert!(!session.awaiting_state, "Cancel sends no removal request");
+            session.click(entry, &Default::default());
+            session.click(remove, &Default::default());
+            let reopened = session.state().unwrap().clone();
+            session.close();
+            session.open();
+            assert!(
+                session.removal_target.is_none(),
+                "Closed popup cannot reopen stale"
+            );
+            session.apply(reopened);
+            session.click(entry, &Default::default());
+            session.click(remove, &Default::default());
             session.click("guild:member:Dora", &Default::default());
             let before = session.state().cloned();
             assert_eq!(
