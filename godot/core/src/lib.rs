@@ -113,6 +113,7 @@ pub mod nameplate_visibility_data;
 #[cfg(test)]
 mod nameplate_visibility_data_tests;
 pub mod model_scene_actor;
+pub mod mount_preview;
 pub mod pet_model_scene;
 #[path = "quest_area_data.rs"]
 pub mod quest_area_data;
