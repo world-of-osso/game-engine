@@ -31,6 +31,10 @@ func _run() -> void:
 	await key(KEY_ENTER)
 	await expect_caption("Seed " + skin)
 	await expect_rank("1/1")
+	var committed_ranks := rank_state()
+	if committed_ranks.size() < 60:
+		abort("Expected a full real class/spec/hero rank projection")
+		return
 	await menu()
 	await capture("full-committed-export")
 	await click("TalentExportLoadout")
@@ -61,6 +65,9 @@ func _run() -> void:
 	await login(endpoint)
 	await expect_caption("Imported " + skin)
 	await expect_rank("1/1")
+	if rank_state() != committed_ranks:
+		abort("Authoritative relog changed the committed rank/entry projection")
+		return
 	await capture("import-relog")
 	evidence.append({"clipboard_set":exported,"retail_feedback":feedback,"authoritative_roundtrip":true,"os_clipboard_delivery":"environment gap: no Cage seat serial"})
 	var file := FileAccess.open(directory.path_join(skin + "-import-export-proof.json"), FileAccess.WRITE)
@@ -68,6 +75,16 @@ func _run() -> void:
 	file.close()
 	print("TALENT_IMPORT_EXPORT_LIVE_PASS ", skin)
 	quit(0)
+
+func rank_state() -> Dictionary:
+	var result := {}
+	for node in root.find_children("TalentNode*Ranks", "Label", true, false):
+		if node.is_visible_in_tree():
+			result[str(node.name)] = node.text
+	for node in root.find_children("TalentNode*Entry*Spell*Button", "Button", true, false):
+		if node.is_visible_in_tree():
+			result[str(node.name)] = true
+	return result
 
 func login(endpoint: String) -> void:
 	var error: String = client.connect_account(endpoint, OS.get_environment("TALENT_LOADOUT_ACCOUNT"), OS.get_environment("TALENT_LOADOUT_PASSWORD"), false)
