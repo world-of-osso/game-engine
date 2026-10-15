@@ -737,19 +737,8 @@ impl EmitterSim {
         quad.axis_x = offset;
         quad.axis_y = width;
         let time = particle.age / max_lifespan(emitter, self.props.lifespan);
-        let cols = u32::from(emitter.tile_cols.max(1));
-        let rows = u32::from(emitter.tile_rows.max(1));
-        let default_cell = if emitter.flags & FLAG_RANDOM_CELL != 0 {
-            let random = Rng::new(u32::from(particle.seed)).next_u32();
-            ((u64::from(cols * rows) * u64::from(random)) >> 32) as u16
-        } else {
-            0
-        };
-        let cell = sample_keys(&emitter.tail_cell_keys, time, default_cell);
-        quad.cell_offset = Vec2::new(
-            (u32::from(cell) % cols) as f32 / cols as f32,
-            (u32::from(cell) / cols % rows) as f32 / rows as f32,
-        );
+        let cell = tail_cell(emitter, time, particle.seed);
+        quad.cell_offset = atlas_offset(emitter, u32::from(cell));
         quad
     }
 
@@ -775,23 +764,38 @@ impl EmitterSim {
             (particle.position, particle.velocity)
         };
         let (axis_x, axis_y) = quad_axes(emitter, particle, matrix, velocity, scale, view);
-        let cols = u32::from(emitter.tile_cols.max(1));
-        let rows = u32::from(emitter.tile_rows.max(1));
         Some((
             Quad {
                 center,
                 axis_x,
                 axis_y,
                 color: look.color.extend(look.alpha),
-                cell_offset: Vec2::new(
-                    (look.head_cell % cols) as f32 / cols as f32,
-                    (look.head_cell / cols % rows) as f32 / rows as f32,
-                ),
+                cell_offset: atlas_offset(emitter, look.head_cell),
                 tex_pos: particle.tex_pos,
             },
             scale,
         ))
     }
+}
+
+fn atlas_offset(emitter: &ParticleEmitter, cell: u32) -> Vec2 {
+    let cols = u32::from(emitter.tile_cols.max(1));
+    let rows = u32::from(emitter.tile_rows.max(1));
+    Vec2::new(
+        (cell % cols) as f32 / cols as f32,
+        (cell / cols % rows) as f32 / rows as f32,
+    )
+}
+
+fn tail_cell(emitter: &ParticleEmitter, time: f32, seed: u16) -> u16 {
+    let default_cell = if emitter.flags & FLAG_RANDOM_CELL != 0 {
+        let cells = u32::from(emitter.tile_cols.max(1)) * u32::from(emitter.tile_rows.max(1));
+        let random = Rng::new(u32::from(seed)).next_u32();
+        ((u64::from(cells) * u64::from(random)) >> 32) as u16
+    } else {
+        0
+    };
+    sample_keys(&emitter.tail_cell_keys, time, default_cell)
 }
 
 /// Authored follow curve in speed (yd/s); independent of birth velocity.
