@@ -69,10 +69,11 @@ fn loot_row(item: &Item, top: f32, height: f32, bosses: Option<&[&str]>) -> Elem
             (2., 47., 315., 12.),
         ));
     }
+    let action = format!("journal:loot:{}", item.id);
     rsx! {
         button {
             name: {DynName(name)}, left: 0., top, width: 321., height,
-            pos_type: "absolute", button_default_skin: false, {content}
+            pos_type: "absolute", onclick: {action.as_str()}, button_default_skin: false, {content}
         }
     }
 }

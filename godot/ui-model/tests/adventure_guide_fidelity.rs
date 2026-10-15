@@ -519,7 +519,11 @@ fn adventure_guide_instance_loot_row_opens_authored_boss_and_retains_loot() {
         assert_eq!(v.page, game_engine_ui_model::adventure_guide::Page::Loot);
         let r = render(&v, skin);
         assert_eq!(rect(&r, "JournalLoot2169")[3], 45.);
-        assert!(frame(&r, "JournalLoot2169").onclick.is_none());
+        v.search = "Buzzer".into();
+        v.apply(frame(&r, "JournalLoot2169").onclick.as_deref().unwrap())
+            .unwrap();
+        assert_eq!(v.encounter, Some(89));
+        assert_eq!(v.search, "Buzzer", "Same-boss row click must be a no-op");
     }
 }
 
