@@ -442,12 +442,13 @@ fn both_skins_render_authored_ability_loot_and_raid_text() {
         set_thread_skin(skin);
         let mut view = journal();
         view.select_encounter(112).unwrap();
-        view.page = Page::Abilities;
+        assert_eq!(view.page, Page::Overview); // Stonecore's first tab contains details.
         let mut context = SharedContext::new();
         context.insert(skin);
         context.insert(view.clone());
         let mut registry = FrameRegistry::new(1280., 720.);
-        Screen::new(adventure_guide_screen).sync(&context, &mut registry);
+        let mut screen = Screen::new(adventure_guide_screen);
+        screen.sync(&context, &mut registry);
         let root = registry
             .get(registry.get_by_name("EncounterJournal").unwrap())
             .unwrap();
@@ -473,21 +474,18 @@ fn both_skins_render_authored_ability_loot_and_raid_text() {
         view.page = Page::Loot;
         let loot_id = view.loot()[0].id;
         context.insert(view.clone());
-        Screen::new(adventure_guide_screen).sync(&context, &mut registry);
+        screen.sync(&context, &mut registry);
         assert!(
             registry
                 .get_by_name(&format!("JournalLoot{loot_id}Name"))
                 .is_some()
         );
         view.select_encounter(1519).unwrap();
+        assert_eq!(view.page, Page::Loot); // Preserve Loot; root0 has no Overview.
         context.insert(view);
-        Screen::new(adventure_guide_screen).sync(&context, &mut registry);
+        screen.sync(&context, &mut registry);
         let title = registry
-            .get(
-                registry
-                    .get_by_name("EncounterJournalEncounterTitle")
-                    .unwrap(),
-            )
+            .get(registry.get_by_name("JournalBoss1519Name").unwrap())
             .unwrap();
         match &title.widget_data {
             Some(WidgetData::FontString(font)) => assert_eq!(font.text, "Lucifron"),
