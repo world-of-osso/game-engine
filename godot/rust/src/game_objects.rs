@@ -640,6 +640,32 @@ mod tests {
     }
 
     #[test]
+    fn isle_bombs_offer_normal_disarm_requests_but_arena_traps_do_not() {
+        for (entry, name) in [(195235, "Seaforium Bomb"), (195331, "Huge Seaforium Bomb")] {
+            let bomb = GameObjectInfo {
+                entry,
+                go_type: 6,
+                display_id: 9061,
+                name: name.into(),
+                scale: 1.0,
+            };
+            assert_eq!(
+                crate::meeting_stones::spell_or_quest_object_request(77, &bomb),
+                Some(shared::protocol::UseGameObject { object: 77 }),
+                "normal source bomb interaction must reach the disarm request"
+            );
+        }
+        let shadow_sight = GameObjectInfo {
+            entry: 184663,
+            go_type: 6,
+            display_id: 5932,
+            name: "Shadow Sight".into(),
+            scale: 1.0,
+        };
+        assert!(crate::meeting_stones::spell_or_quest_object_request(77, &shadow_sight).is_none());
+    }
+
+    #[test]
     fn arena_doors_and_shadow_sight_render_without_manual_use_cursor() {
         for kind in [0, 6, shared::protocol::GAMEOBJECT_TYPE_TRAPDOOR] {
             assert!(game_object_is_renderable(kind));
