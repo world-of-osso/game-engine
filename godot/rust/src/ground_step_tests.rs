@@ -99,6 +99,50 @@ fn ramp_lip_without_walkable_landing_blocks() {
     assert!(moved.x <= 108.26844, "crossed unsupported lip: {moved}");
 }
 
+#[test]
+fn ramp_lip_thin_wall_above_budget_but_below_raised_ray_blocks() {
+    let mut faces = authored_faces();
+    // A 1.5 yd landing does not authorize crossing a 2.0 yd wall in front of it.
+    for vertex in &mut faces[2] {
+        vertex.y = FEET.y + 1.5;
+    }
+    let x = 108.26844;
+    let bottom = FEET.y - 1.0;
+    let top = FEET.y + 2.0;
+    faces[0] = [
+        Vec3::new(x, top, 2.0),
+        Vec3::new(x, top, 5.0),
+        Vec3::new(x, bottom, 2.0),
+    ];
+    faces.push([
+        Vec3::new(x, top, 5.0),
+        Vec3::new(x, bottom, 5.0),
+        Vec3::new(x, bottom, 2.0),
+    ]);
+    let moved = walk(&faces, true);
+    assert!(moved.x <= x, "crossed wall above step budget: {moved}");
+}
+
+#[test]
+fn ramp_lip_mid_body_beam_blocks_step() {
+    let mut faces = authored_faces();
+    let x = 108.26844;
+    let bottom = UPPER_Y + 0.8;
+    let top = UPPER_Y + 1.3;
+    faces.push([
+        Vec3::new(x, bottom, 2.0),
+        Vec3::new(x, top, 2.0),
+        Vec3::new(x, bottom, 5.0),
+    ]);
+    faces.push([
+        Vec3::new(x, top, 2.0),
+        Vec3::new(x, top, 5.0),
+        Vec3::new(x, bottom, 5.0),
+    ]);
+    let moved = walk(&faces, true);
+    assert!(moved.x <= x, "passed body through beam: {moved}");
+}
+
 fn overhead_slab(y: f32) -> [Vec3; 3] {
     [
         Vec3::new(107.0, y, 2.0),
