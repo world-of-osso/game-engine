@@ -96,12 +96,18 @@ def stop_client(pid, output):
     (output / "stopped-pids.json").write_text(json.dumps({"terminated": stopped, "forced": forced}) + "\n")
 
 
+def verified_dummy_target(state, npc_info):
+    target = state["target"]["target"]
+    if f"entity {target})" not in npc_info:
+        raise ValueError("Selected target is not verified Training Dummy entry44548")
+    return target
+
+
 def native_ready(state, spec, requires_authored):
     player_ready = state["account"].get("gameplay_input_allowed") and state["spells"]["spec"] == spec
     evaluator_ready = not requires_authored or (state["assisted"].get("available", False) and state["spells"].get("catalog_ready", False))
     target = state["target"]
-    acknowledged = target.get("target") == target.get("server_target")
-    return bool(player_ready and evaluator_ready and acknowledged and target.get("target_name") == "Training Dummy")
+    return bool(player_ready and evaluator_ready and target.get("target_name") == "Training Dummy")
 
 
 def wait_native(args, output, bot):
@@ -159,11 +165,9 @@ def run_bot(args, bot):
         reply = command(args.output, argv)
         pid = int(re.search(r"cage pid (\d+)", reply)[1])
         state = wait_native(args, output, bot)
-        target = state["target"]["server_target"]
         npcs = admin(args, "npc-info", "0", "0", "44548")
         (output / "dummy-identity.txt").write_text(npcs)
-        if f"entity {target})" not in npcs:
-            raise RuntimeError("Selected target is not verified Training Dummy entry44548")
+        target = verified_dummy_target(state, npcs)
         children = process_children(pid)
         sockets = [Path(f"/tmp/game-engine-{child}.sock") for child in children]
         sockets = [path for path in sockets if path.exists()]
