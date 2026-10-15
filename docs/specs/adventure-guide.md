@@ -1,6 +1,10 @@
 # Adventure Guide
 
-Retail Mainline Blizzard_EncounterJournal defines structure and behavior. Modern and Forever display the same controls; Forever changes art only.
+Retail Mainline Blizzard_EncounterJournal defines structure and behavior. Modern and Forever display the same controls; Forever changes art only. Authored Morpheus labels use the published `data/fonts/MORPHEUS.TTF` (FDID615962), not a substitute typeface; shared `GameFont` owns font filenames for native loading and text measurement.
+
+## Tutorials capability boundary
+
+`Blizzard_EncounterJournal.xml:2265–2314` defines the Tutorials inset, atlas-sized art, Fancy27Font header, material text colors, divider and SharedButtonSmallTemplate Start Experience control in both skins. Keep that source button disabled with no action and no custom explanatory text until realm RPE-start authority exists. **Gap: realm RPE-start authority.** Do not infer account eligibility or account-seen state from the local catalog. `adventure_tutorials_layout.gd` exercises physical tab selection, source dimensions/text-relative anchors, native Morpheus binding and the disabled Start control; it requires genuine private-realm readiness in each skin.
 
 ## Retail layout contract
 

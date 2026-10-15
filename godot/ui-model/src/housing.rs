@@ -198,6 +198,45 @@ pub struct HousingDashboard {
 }
 
 impl HousingDashboard {
+    /// Cleanup ShowDecorInstanceTooltip uses GameTooltip at ANCHOR_CURSOR.
+    /// Pet/lock/removability fields are not supplied by the authoritative snapshot.
+    pub fn cleanup_hover_tooltip(
+        &self,
+        authority: &HousingAuthority,
+    ) -> Option<crate::game_tooltip::GameTooltip> {
+        use crate::game_tooltip::GameTooltip;
+        use crate::housing_editor::EditorMode;
+        use crate::tooltip_presentation::{TOOLTIP_WHITE, TooltipPresentation};
+        if self.surface != HousingSurface::Editor
+            || self.editor.mode != EditorMode::Cleanup
+            || self.pending
+        {
+            return None;
+        }
+        let instance = self.editor.hovered?;
+        let layout = authority.state.as_ref()?.layout.as_ref()?;
+        let placed = layout
+            .decor
+            .iter()
+            .find(|decor| decor.instance_id == instance)?;
+        let source = self
+            .catalog
+            .decor
+            .iter()
+            .find(|decor| decor.id == placed.decor_id)?;
+        Some(
+            GameTooltip::new(
+                TooltipPresentation {
+                    title: source.name.clone(),
+                    title_color: TOOLTIP_WHITE,
+                    ..TooltipPresentation::hidden()
+                },
+                None,
+            )
+            .at_cursor(),
+        )
+    }
+
     pub fn new(catalog: Arc<HousingCatalog>) -> Self {
         let selection = catalog.decor.first().map(|decor| decor.id);
         Self {
