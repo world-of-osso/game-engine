@@ -150,6 +150,47 @@ fn trading_post_rotation_controls_project_source_bounds_and_visible_icons_in_bot
 }
 
 #[test]
+fn trading_post_rotate_pressed_icon_survives_registry_layout_then_restores_on_release() {
+    use ui_toolkit::{frame::WidgetData, widgets::button::ButtonState};
+    game_engine_ui_model::paths::set_data_root(
+        std::path::PathBuf::from(env!("CARGO_MANIFEST_DIR")).join("../../data"),
+    )
+    .unwrap();
+    game_engine_ui_model::item_catalog::wait_for_item_catalog();
+    for skin in [ActiveSkin::Modern, ActiveSkin::Forever] {
+        set_thread_skin(skin);
+        let (mut registry, _) = render(View {
+            visible: true,
+            selected: Some(4),
+            snapshot: Some(Arc::new(vendor())),
+            ..Default::default()
+        });
+        for (name, left) in [
+            ("PerksProgramRotateLeftButton", 1050.),
+            ("PerksProgramRotateRightButton", 1102.),
+        ] {
+            let button = registry.get_by_name(name).unwrap();
+            for (state, offset) in [(ButtonState::Pushed, 1.), (ButtonState::Normal, 0.)] {
+                let Some(WidgetData::Button(data)) =
+                    &mut registry.get_mut(button).unwrap().widget_data
+                else {
+                    panic!("rotation button")
+                };
+                data.state = state;
+                game_engine_ui_model::trading_post::apply_rotation_icon_positions(&mut registry);
+                let bounds = compute_layout_with_intrinsics(&registry, &HashMap::new()).unwrap();
+                assert_rect(
+                    &registry,
+                    &bounds,
+                    &format!("{name}Icon"),
+                    [left + 11. + offset, 1001.5 + offset, 26., 25.],
+                );
+            }
+        }
+    }
+}
+
+#[test]
 fn trading_post_pending_checkout_keeps_source_overlay_and_centred_spinner_bounds() {
     game_engine_ui_model::paths::set_data_root(
         std::path::PathBuf::from(env!("CARGO_MANIFEST_DIR")).join("../../data"),
