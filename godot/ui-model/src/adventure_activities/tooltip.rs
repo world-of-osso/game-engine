@@ -48,10 +48,7 @@ pub fn activity_tooltip(snapshot: &AdventureGuideSnapshot, frame: &str) -> Optio
 
 fn progress_lines(activity: &PerksActivitySnapshot) -> Vec<TooltipLineState> {
     match &activity.progress {
-        PerksActivityProgress::Unavailable { reason } => vec![TooltipLineState::colored(
-            format!("Unavailable: {reason}"),
-            GRAY,
-        )],
+        PerksActivityProgress::Unavailable { .. } => Vec::new(),
         PerksActivityProgress::Available {
             current,
             required,
@@ -71,27 +68,22 @@ fn progress_lines(activity: &PerksActivitySnapshot) -> Vec<TooltipLineState> {
             });
             aggregate
                 .into_iter()
-                .chain(criteria.into_iter().map(criterion_line))
+                .chain(criteria.into_iter().filter_map(criterion_line))
                 .collect()
         }
     }
 }
 
-fn criterion_line(criterion: &AchievementCriterionLine) -> TooltipLineState {
-    let progress = if criterion.progress_supported {
-        format!("{}/{}", criterion.current, criterion.required)
-    } else {
-        "Unavailable: criterion is not tracked".into()
-    };
+fn criterion_line(criterion: &AchievementCriterionLine) -> Option<TooltipLineState> {
+    if !criterion.progress_supported {
+        return None;
+    }
+    let progress = format!("{}/{}", criterion.current, criterion.required);
     let text = if criterion.description.is_empty() {
         progress
     } else {
         format!("{} — {progress}", criterion.description)
     };
-    let color = if criterion.progress_supported && criterion.completed {
-        GRAY
-    } else {
-        WHITE
-    };
-    TooltipLineState::colored(text, color)
+    let color = if criterion.completed { GRAY } else { WHITE };
+    Some(TooltipLineState::colored(text, color))
 }
