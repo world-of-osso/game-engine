@@ -24,9 +24,17 @@ Targeted integration module `tests/menu_primitives.rs` asserts source geometry, 
 
 Proof: toolkit attribute/action rebuild RED→GREEN1, real-screen/postsetup-family UI40, native projection24 and emitted Quest/Mail golden controls3 pass; engine/toolkit checks and format pass. Quest Accept, Mail Cancel, disabled Raid Info Extend and Bank Deposit retain their authored/Lua-sized rectangles in both skins. All ten full-HD after views and four-window before/after pixel comparisons were inspected. Settings is an additional control. Captures: `AgentShared/2026-10-14/ui-questlog-helpers/{shared-helper-before-scale1,shared-helper-panel-after}/`; exact source/binary/image hashes and commands live in `data/diagnostics/ui-questlog-helper-fidelity-2026-10-14/helper-proof-ledger.json`.
 
-Before views use the archived7cb2dfee2 renderer in the current native host with the corrected scale1 fixture, not a complete historical client. Initial Quest/Mail captures inherited scale1.40625 and are diagnostic only; their replacements assert exact source geometry. Supplied offline samples prove presentation, not server authority or every helper caller. Window-background tiling remains a separate open item.
+Before views use the archived7cb2dfee2 renderer in the current native host with the corrected scale1 fixture, not a complete historical client. Initial Quest/Mail captures inherited scale1.40625 and are diagnostic only; their replacements assert exact source geometry. Supplied offline samples prove presentation, not server authority or every helper caller. Window-background tiling has its own implementation and proof boundary below.
 
 Sources: `Blizzard_SharedXML/SecureUIPanelTemplates.xml:39–78`, `.lua:40–80`; Mainline `SharedUIPanelTemplates.xml:3–5,315–320`. Both skins use the same source file button geometry; existing surrounding skin art remains unchanged.
+
+## Shared window texture tiling — 2026-10-14 assignment
+
+`quest_art::window_background` emits one rock region at `(2,21)` with dimensions `(width−4,height−23)`, repeating both axes. The former split at Y51 restarted the texture origin. `_UI-Frame-TopTileStreaks` starts at `(6,21)`, has height43 and width `width−8`, and repeats horizontally only. Retail `Blizzard_SharedXML/Mainline/SharedUIPanelTemplates.xml:76–78,598–609,663–675` supplies these bounds and flags. Border and portrait geometry are unchanged.
+
+Toolkit RSX `horiz_tile`/`vert_tile` write the existing `TextureData` flags independently; native projection already supports repeating a cropped atlas member rather than its entire sheet. Toolkit and engine consumers must land together. [Contract](../../specs/gameplay-panel-fidelity.md).
+
+Current proof: toolkit axis/rebuild RED→GREEN1; real Quest/Mail/Bank/Settings emitted regions and AH source coverage6 pass in both skins. Only twelve expected background/streak golden blocks changed across Quest, small-window and character fixtures; the unused historical bank fixture was not refreshed. Native pixel acceptance and final merged checks remain pending. Evidence lives in `data/diagnostics/ui-questlog-window-tiling-2026-10-14/`; earlier panel-button captures remain the unchanged-tiling before control, not fresh tiling acceptance.
 
 ## Sources
 
