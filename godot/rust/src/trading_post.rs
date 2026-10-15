@@ -446,44 +446,7 @@ impl GameClient {
         if desired.as_ref() != current || mount_product != self.trading_post.mount_product {
             self.clear_trading_model();
             if let Some(product) = mount_product {
-                let row = self
-                    .trading_post
-                    .view
-                    .preview_product()
-                    .expect("selected mount");
-                let journal = self
-                    .mount_journal
-                    .view
-                    .catalog
-                    .values()
-                    .find(|mount| mount.teaching_items.contains(&row.item_id))
-                    .ok_or_else(|| {
-                        format!(
-                            "Trading Post mount item{} metadata still loading",
-                            row.item_id
-                        )
-                    })?;
-                let category_scene = self
-                    .trading_post
-                    .view
-                    .snapshot
-                    .as_ref()
-                    .and_then(|snapshot| {
-                        snapshot
-                            .categories
-                            .iter()
-                            .find(|category| category.id == row.category_id)
-                    })
-                    .map(|category| category.model_scene_id)
-                    .ok_or("Trading Post mount category scene missing")?;
-                let mut mount = game_engine_core::mount_preview::MountPreview::read(
-                    &self.data_root,
-                    journal.mount_id,
-                    category_scene,
-                )?;
-                let display_scene = self.trading_post.view.preview_scene_id()?;
-                mount.apply_display_scene(&self.data_root, display_scene)?;
-                self.trading_post.mount = Some(mount);
+                self.trading_post.mount = Some(self.read_trading_mount()?);
                 self.trading_post.mount_product = Some(product);
             }
             if let Some(appearance) = desired {
@@ -492,6 +455,42 @@ impl GameClient {
             }
         }
         Ok(())
+    }
+    fn read_trading_mount(&self) -> Result<game_engine_core::mount_preview::MountPreview, String> {
+        let view = &self.trading_post.view;
+        let row = view
+            .preview_product()
+            .ok_or("Trading Post mount selection missing")?;
+        let journal = self
+            .mount_journal
+            .view
+            .catalog
+            .values()
+            .find(|mount| mount.teaching_items.contains(&row.item_id))
+            .ok_or_else(|| {
+                format!(
+                    "Trading Post mount item{} metadata still loading",
+                    row.item_id
+                )
+            })?;
+        let category_scene = view
+            .snapshot
+            .as_ref()
+            .and_then(|snapshot| {
+                snapshot
+                    .categories
+                    .iter()
+                    .find(|category| category.id == row.category_id)
+            })
+            .map(|category| category.model_scene_id)
+            .ok_or("Trading Post mount category scene missing")?;
+        let mut mount = game_engine_core::mount_preview::MountPreview::read(
+            &self.data_root,
+            journal.mount_id,
+            category_scene,
+        )?;
+        mount.apply_display_scene(&self.data_root, view.preview_scene_id()?)?;
+        Ok(mount)
     }
     fn sync_trading_model(&mut self) -> Result<(), String> {
         if self.trading_post.pending.is_none() && self.trading_post.shown.is_none() {
@@ -603,6 +602,10 @@ impl GameClient {
             );
             return Ok(());
         }
+        self.request_trading_rider();
+        self.attach_pending_trading_rider(&mount)
+    }
+    fn request_trading_rider(&mut self) {
         let desired = self.desired_trading_rider();
         let current = self
             .trading_post
@@ -617,6 +620,11 @@ impl GameClient {
                 self.trading_post.rider_pending = Some((id, appearance));
             }
         }
+    }
+    fn attach_pending_trading_rider(
+        &mut self,
+        mount: &game_engine_core::mount_preview::MountPreview,
+    ) -> Result<(), String> {
         let Some(group) = self.trading_post.scene.as_ref().and_then(Scene::model) else {
             return Ok(());
         };
@@ -632,7 +640,7 @@ impl GameClient {
             .take()
             .expect("pending rider");
         let rider = loaded?;
-        let attached = self.attach_trading_rider(&group, &rider, &mount);
+        let attached = self.attach_trading_rider(&group, &rider, mount);
         match attached {
             Ok(actor) => {
                 self.trading_post.rider_actor = Some(actor);
