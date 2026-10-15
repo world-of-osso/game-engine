@@ -213,7 +213,9 @@ def main():
         except (OSError, ValueError, RuntimeError, subprocess.SubprocessError) as error:
             failure = {"spec": bot["spec"], "error": str(error), "measurement_complete": False}
             failures.append(failure)
-            (args.output / str(bot["spec"]) / "setup-error.json").write_text(json.dumps(failure, indent=2) + "\n")
+            directory = args.output / str(bot["spec"])
+            (directory / "setup-error.json").write_text(json.dumps(failure, indent=2) + "\n")
+            (directory / "summary.md").write_text(f"# Spec {bot['spec']} — setup blocked\n\n{error}\n\nNo complete DPS measurement or balance claim.\n")
     (args.output / "failures.json").write_text(json.dumps(failures, indent=2) + "\n")
     return int(bool(failures))
 

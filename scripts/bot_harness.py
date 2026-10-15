@@ -68,7 +68,10 @@ def analyze(run, events):
     window = [e for e in events if run["start_ms"] <= e["at_ms"] < run["end_ms"]]
     own = [e for e in window if e["src"] == str(run["actor"])]
     successes = [e for e in own if e["kind"] == "cast_success"]
-    findings = missing_casts(run["attempts"], successes)
+    observed_until = run.get("observed_until_ms", run["end_ms"])
+    pending = [attempt for attempt in run["attempts"] if attempt["deadline_ms"] > observed_until and not attempt.get("error")]
+    evaluated = [attempt for attempt in run["attempts"] if attempt not in pending]
+    findings = missing_casts(evaluated, successes)
     used = Counter(e["spell"] for e in successes)
     damage = [e for e in own if e["kind"] == "damage" and e["dst"] == str(run["target"])]
     by_spell = Counter()
@@ -90,6 +93,7 @@ def analyze(run, events):
         "actor": run["actor"], "target": run["target"], "duration_ms": duration,
         "damage": sum(by_spell.values()), "dps": sum(by_spell.values()) / (duration / 1000),
         "casts": dict(used), "damage_by_spell": dict(by_spell), "findings": findings,
+        "pending_casts": pending,
         "unobserved": ["aura_effect", "cooldown_resets", "charges", "resource_spending"],
         "comparison": run.get("comparison"),
         "measurement_complete": run.get("measurement_complete", False),

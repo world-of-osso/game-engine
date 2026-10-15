@@ -32,6 +32,12 @@ class BotHarnessTests(unittest.TestCase):
         self.assertEqual(report["dps"], expected / 6)
         self.assertGreater(expected, 0)
 
+    def test_aborted_observation_does_not_call_pending_request_missing(self):
+        self.run["observed_until_ms"] = 1791992756100
+        report = harness.analyze(self.run, self.events)
+        self.assertNotIn({"kind": "cast_never_fired", "spell": 44425, "at_ms": 1791992756000}, report["findings"])
+        self.assertEqual(report["pending_casts"], [self.run["attempts"][0]])
+
     def test_missing_damage_is_distinct_from_missing_cast(self):
         events = [e for e in self.events if not (e["src"] == ACTOR and e["kind"] == "damage")]
         report = harness.analyze(self.run, events)
