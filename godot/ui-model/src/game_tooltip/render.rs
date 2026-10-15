@@ -81,11 +81,16 @@ fn line_width(line: &TooltipLineState) -> f32 {
 
 /// `[width, height]` of the tooltip: the widest line plus the insets, the lines stacked.
 pub fn tooltip_size(tooltip: &TooltipPresentation) -> [f32; 2] {
+    let suffix_width = tooltip
+        .title_suffix
+        .as_ref()
+        .map_or(0.0, |(text, _)| text_width(text, HEADER_SIZE));
+    let title_width = text_width(&tooltip.title, HEADER_SIZE) + suffix_width;
     let widest = tooltip
         .lines
         .iter()
         .map(line_width)
-        .fold(text_width(&tooltip.title_text(), HEADER_SIZE), f32::max);
+        .fold(title_width, f32::max);
     let lines = tooltip.lines.len() as f32;
     [
         widest + 2.0 * INSET,
