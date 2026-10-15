@@ -1,3 +1,7 @@
+## 2026-10-15 — Modern native bomb chain, bounded
+
+[Modern83](systems/battlegrounds.md#modern83-functional-bomb-chain--2026-10-15) passes fresh normal/huge pickup/use, typed117284/281481 hits, exact native-picker physical disarm with no later hit, and all20 normal return ACKs plus saves.23 newPNG originals inspected; normal bomb/removal clear, huge/banner overlap and origin/pile clipping remain.2718 nonfinite-transform/three NPC25292 errors and pressure exclude whole-render/framing/timing claims. Forever remains pending; no vehicle/siege/victory claim.
+
 ## 2026-10-15 — Native bomb observer boundary
 
 [Modern80](systems/battlegrounds.md#ioc-bomb-disarm-interaction--active-2026-10-14) reaches physical fresh-item pickup/use and visible planted bomb, but fails an owner-client log expectation. Existing log routing sends to source/target owners; charges2 remains the GO caster in pinned TC, so observe typed combat receipts at the victim peer instead of changing gameplay ownership. Six private flat particle files were absent despite indexed copies; producer now includes the exact already-published flat bytes. Failed images/transform/NPC-coverage errors retained; no complete native chain or particle-recovery claim.

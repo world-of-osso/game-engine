@@ -119,6 +119,14 @@ Native Modern80 on server00721c1d/engine da6fad094/protocol4135e69 reaches actua
 
 The six published peer particle receipts/bytes were present in indexed product paths, but `assets/texture_file.rs` reads the flat `textures/<fdid>.blp` consumer path for particle materials. Modern80 exposes that private staging omission. The private producer now copies the same six hash-verified canonical flat files too; no renderer lookup change, extraction or canonical publication occurs. Native particle recovery remains unverified. Modern80 also records nonfinite transform and uncovered NPC-display errors; no whole-render parity claim follows from the functional pickup/planting observations.
 
+### Modern83 functional bomb chain — 2026-10-15
+
+On unchanged server00721c1d, extension/CLI da6fad094, recipient peer a4387b161 and protocol4135e69, Modern83 completes all four normal/huge phases through actual pile use, fresh bag-slot tooltip/right-click, model replication, typed enemy receipts and physical world clicks. Normal46847 creates195235/66676 and records117284 damage; huge47030 creates195331/66672 and records281481. Each disarm first proves `UnitPicker` selected that exact source GO, physically right-clicks it and observes removal with no later explosion event beyond the fuse. Normal bags5→6→5 and huge0→1→0 are retained without resets. All twenty normal Leave/origin ACKs and periodic saves pass. `modern-isle83-bomb-chain-proof.json` and the component-specific immutable binary receipt retain the functional scope; Forever is still pending.
+
+Three earlier failures remain separate: wrong owner-client observer80, unvalidated Quarry bounds-centre click81, and neutral Workshop-name readiness after capture82. The approved fixture uses controlled Workshop A195132/B195130 identity and existing posed-triangle/native-pick sampling; no gameplay bypass or deadline change was added.
+
+All23 original1920×1080 PNGs were individually inspected through1280px previews. Normal green bomb/removal is clear in source-point crops. Huge bomb overlaps the banner and is not a clear standalone model-art witness. Queue/invite/return and pile views retain world-camera/geometry clipping; readable inventory and Workshop stages are not standing-body/framing acceptance. Native log has zero particle-missing and duplicate-receipt errors, but2718 nonfinite-transform messages and three uncovered NPC-display25292 errors prevent whole-render acceptance. Memory-full PSI maxima5.16/2.03(avg10/60) reject timing acceptance. No explosion-VFX-kit, siege, vehicle or victory claim follows from these functional phases.
+
 ## Sources
 
 - [PvP progression contract](../../specs/pvp-progression.md) — wallet, source talents, War Mode proof and unresolved lifetime honor policy.
