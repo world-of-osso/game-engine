@@ -57,6 +57,7 @@ mod scroll_lists;
 mod selection_list_tests;
 mod sidebarbinds_preview;
 mod spellbook_preview;
+mod target_cast_preview;
 mod toy_cooldown;
 mod toybox_preview;
 pub(crate) mod ui_parent;
@@ -176,6 +177,7 @@ enum ScreenPostsetup {
     Minimap,
     CharacterFrame,
     Guild,
+    GuildTabard,
     /// Bag bar icons and container portraits get their round `CircleMask`.
     Bags,
     /// Header glyphs become tinted masks (`IconMasks`).
@@ -307,6 +309,13 @@ impl RegistryModel {
     fn apply_postsetup(&mut self) {
         if let Some(view) = self
             .shared
+            .get::<game_engine_ui_model::trading_post::View>()
+        {
+            game_engine_ui_model::trading_post::apply_cart_art(view, &mut self.registry);
+            game_engine_ui_model::trading_post::apply_rotation_icon_positions(&mut self.registry);
+        }
+        if let Some(view) = self
+            .shared
             .get::<game_engine_ui_model::adventure_guide::View>()
         {
             game_engine_ui_model::adventure_guide_art::apply_postsetup(view, &mut self.registry);
@@ -315,6 +324,15 @@ impl RegistryModel {
         game_engine_ui_model::collections_component::apply_collections_postsetup(
             &mut self.registry,
         );
+        if self
+            .shared
+            .get::<game_engine_ui_model::encounter_timeline_component::EncounterTimelineScreen>()
+            .is_some()
+        {
+            game_engine_ui_model::encounter_timeline_component::apply_timeline_bar_art(
+                &mut self.registry,
+            );
+        }
         if self.shared.get::<GameMenuViewModel>().is_some() {
             game_engine_ui_model::game_menu_main::sync_menu_button_art(&mut self.registry);
         }
@@ -350,6 +368,9 @@ impl RegistryModel {
         }
         match self.postsetup {
             ScreenPostsetup::None | ScreenPostsetup::Loading | ScreenPostsetup::Trade => {}
+            ScreenPostsetup::GuildTabard => {
+                game_engine_ui_model::guild_tabard_frame::apply_postsetup(&mut self.registry);
+            }
             ScreenPostsetup::Guild => {
                 if let Some(state) = self
                     .shared
@@ -482,15 +503,6 @@ impl RegistryModel {
                 &mut self.registry,
             );
         }
-        if self
-            .shared
-            .get::<game_engine_ui_model::professions_frame::ProfessionView>()
-            .is_some_and(|view| view.orders.customer)
-        {
-            game_engine_ui_model::professions_frame::orders::apply_customer_postsetup(
-                &mut self.registry,
-            );
-        }
         if let Some(view) = self
             .shared
             .get::<game_engine_ui_model::cooldown_assist::CooldownViewerView>()
@@ -582,7 +594,11 @@ impl RegistryModel {
         if disabled {
             return None;
         }
-        let action = self.registry.click_frame(id)?;
+        // Passive held controls have empty callbacks; pop_action reserves empty for queue-end.
+        let action = self
+            .registry
+            .click_frame(id)
+            .filter(|action| !action.is_empty())?;
         let clear_search = search_for_clear_action(&action);
         if let Some(name) = clear_search {
             let search = self.registry.get_by_name(name)?;
@@ -1571,6 +1587,18 @@ impl RegistryUi {
         self.show_viewport_screen(state, objective_tracker_screen, ScreenPostsetup::None)
     }
 
+    /// Retail's watched reputation status-bar canvas, sharing the HUD skin/scale mirror.
+    pub fn show_reputation_status_bar(
+        &mut self,
+        state: game_engine_ui_model::reputation_status_bar::ReputationBarState,
+    ) -> Result<(), String> {
+        self.show_viewport_screen(
+            state,
+            game_engine_ui_model::reputation_status_bar::reputation_bar_screen,
+            ScreenPostsetup::None,
+        )
+    }
+
     /// Initialize a dedicated RegistryUi instance for the experience bar.
     pub fn show_xp_bar(
         &mut self,
@@ -2065,6 +2093,27 @@ impl RegistryUi {
             state,
             game_engine_ui_model::guild_rank_frame::guild_screen,
             ScreenPostsetup::Guild,
+            registry,
+            parent,
+        )?;
+        self.toplevel = true;
+        Ok(())
+    }
+
+    pub fn show_guild_tabard(
+        &mut self,
+        state: game_engine_ui_model::guild_tabards::GuildTabards,
+    ) -> Result<(), String> {
+        let parent = self.hud_parent()?;
+        let mut registry = parent.registry();
+        register_metal_frame_style(
+            &mut registry,
+            game_engine_ui_model::panel_style_data::MetalTopLeft::Portrait,
+        )?;
+        self.show_viewport_screen_in(
+            state,
+            game_engine_ui_model::guild_tabard_frame::tabard_screen,
+            ScreenPostsetup::GuildTabard,
             registry,
             parent,
         )?;

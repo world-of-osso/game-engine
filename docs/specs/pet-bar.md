@@ -6,7 +6,7 @@ References (`~/.cache/wow-ui-sim/blizzard-ui/retail/AddOns/`): `Blizzard_UnitFra
 
 ## What it must do
 
-- [x] The local player's pet is the replicated unit whose `UnitSummonedBy` is the local player's server entity.
+- [x] Local and party PetFrames select replicated units with source `UnitIsPet(true)` and matching `UnitSummonedBy`. Actual pet constructors and SummonProperties Control=PET emit that designation; ally guardians such as Witherbark Gong143703 do not. Ownership and `PLAYER_CONTROLLED` alone never select a pet. The owner-only `PetSpells`/`PetClearSpells` pair still controls the action bar, not remote party pet identity.
 - [x] Right-click PetFrame opens its unit menu with "Dismiss Pet". Summoned pets send `PetAction` command 3 without a target/position; hunters instead cast learned 2641 (the entry is hidden before learning it), because command 3 abandons/deletes hunter pets. The menu closes when its pet disappears. Retail: `UnitPopupSharedMenus.lua` pet menu's `UnitPopupPetDismissButtonMixin`, `UnitPopupSharedButtonMixins.lua:1037-1056` (`PET_DISMISS`, `CanShow`, `OnClick`).
 - [x] PetFrame (120×49, TargetofTarget art) hangs under PlayerFrame as the first `PlayerBottomManagedFrameContainer` child: TOP at PlayerFrame BOTTOM + (30 + 7.5, 25), i.e. left edge 438.5 left of the screen centre, bottom 226. Portrait 37×37 at (5, 5) in a circle mask, gold name 68×10 at (44, 5), health bar 70×10 at (44, 17), power bar 74×7 at (40, 28) with the `TargetofTarget-PortraitOn-Bar-<power>` fill (Focus for hunter pets). Retail PetFrame has no level text; none is drawn.
 - [x] PetActionBar shows while a `PetSpells` bar exists and its pet is replicated; `PetClearSpells` hides it. `PetSpells`/`PetClearSpells` keep their channel order.

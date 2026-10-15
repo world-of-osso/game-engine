@@ -2,6 +2,9 @@ extends "res://tests/housing_basic_bindings_live.gd"
 
 # These are private fixture assignments, never Retail defaults.
 const EXPERT_BINDINGS: Array = [
+	["HOUSING_TOGGLEBASICDECORMODE", KEY_F1],
+	["HOUSING_TOGGLEEXPERTDECORMODE", KEY_F2],
+	["HOUSING_TOGGLECLEANUPMODE", KEY_F3],	
 	["HOUSING_EXPERTDECORTRANSLATESUBMODE", KEY_F8],
 	["HOUSING_EXPERTDECORROTATESUBMODE", KEY_F9],
 	["HOUSING_EXPERTDECORSCALESUBMODE", KEY_F10],
@@ -10,6 +13,8 @@ const EXPERT_BINDINGS: Array = [
 	["HOUSING_EXPERTDECORINCREMENT_ROTATERIGHT", KEY_F6],
 	["HOUSING_EXPERTDECORROTATION_NEXTAXIS", KEY_F11],
 ]
+
+var expert_bindings_cleared: bool = false
 
 func run_test() -> void:
 	root.size = Vector2i(1280,720)
@@ -82,7 +87,18 @@ func run_test() -> void:
 
 func enter_expert() -> bool:
 	await click_control(housing_control("HouseEditorExpertDecorModeButton"),MOUSE_BUTTON_LEFT)
-	return await wait_housing(func(): return housing_control("HouseEditorExpertSubmodeBar")!=null and housing_control("HouseEditorStorageFrame")==null,"Expert source mode")
+	if not await wait_housing(func(): return housing_control("HouseEditorExpertSubmodeBar")!=null and housing_control("HouseEditorStorageFrame")==null,"Expert source mode"): return false
+	return await prove_source_key_labels()
+
+func prove_source_key_labels() -> bool:
+	for control in [["HouseEditorBasicDecorModeButton","F1"],["HouseEditorExpertDecorModeButton","F2"],["HouseEditorCleanupModeButton","F3"],["TranslateSubmodeButton","F8"],["RotateSubmodeButton","F9"],["ScaleSubmodeButton","F10"]]:
+		var name: String = control[0]+"ControlText"
+		var expected: String = "" if expert_bindings_cleared else control[1]
+		if not await wait_housing(func(): return housing_text(name)==expected,"assigned/unbound native source mode key label "+name): return false
+		if expert_bindings_cleared and housing_control(name)!=null:
+			fail("Unbound mode icon retained a fabricated key label: "+name)
+			return false
+	return await record_editor("expert-mode-key-labels-unbound" if expert_bindings_cleared else "expert-mode-key-labels-assigned")
 
 func stage_assigned_precision() -> bool:
 	await source_key(KEY_F9)
@@ -204,6 +220,7 @@ func configure_expert_bindings(clear: bool) -> bool:
 			await source_key(binding[1])
 			if not await wait_housing(func(): return binding_label(action)==OS.get_keycode_string(binding[1]),"native Expert binding assignment"): return false
 	if not await record_editor("expert-binding-options-unbound" if clear else "expert-binding-options-assigned"): return false
+	expert_bindings_cleared = clear
 	return await close_binding_page()
 
 func reveal_binding(action: String) -> Control:

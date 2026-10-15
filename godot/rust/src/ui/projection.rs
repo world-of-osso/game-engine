@@ -515,19 +515,6 @@ impl UiProjection {
                 .as_deref()
                 .unwrap_or(&format!("Frame{}", frame.id)),
         );
-        // Shared dropdown chrome carries ButtonData for pressed/hover art only; its
-        // owner, not this actionless child surface, receives pointer events.
-        let passive_dropdown_art = frame.onclick.is_none()
-            && matches!(&frame.widget_data, Some(WidgetData::Button(button))
-                if matches!(&button.normal_texture, Some(TextureSource::Atlas(atlas))
-                    if atlas.starts_with("common-dropdown-")));
-        node.set_mouse_filter(if passive_dropdown_art {
-            godot::classes::control::MouseFilter::IGNORE
-        } else if frame.mouse_enabled {
-            godot::classes::control::MouseFilter::STOP
-        } else {
-            godot::classes::control::MouseFilter::IGNORE
-        });
         let mut parts = Control::new_alloc();
         parts.set_name(PARTS_NODE);
         parts.set_mouse_filter(godot::classes::control::MouseFilter::IGNORE);
@@ -681,6 +668,19 @@ impl UiProjection {
         registry: &FrameRegistry,
     ) -> Result<(), String> {
         let mut node = self.nodes[&frame.id].clone();
+        // Reconcile pointer policy when a disabled breadcrumb becomes actionable.
+        // Shared dropdown chrome is passive; its owner receives pointer events.
+        let passive_dropdown_art = frame.onclick.is_none()
+            && matches!(&frame.widget_data, Some(WidgetData::Button(button))
+                if matches!(&button.normal_texture, Some(TextureSource::Atlas(atlas))
+                    if atlas.starts_with("common-dropdown-")));
+        node.set_mouse_filter(if passive_dropdown_art {
+            godot::classes::control::MouseFilter::IGNORE
+        } else if frame.mouse_enabled {
+            godot::classes::control::MouseFilter::STOP
+        } else {
+            godot::classes::control::MouseFilter::IGNORE
+        });
         let parent = frame.parent_id.and_then(|id| bounds.get(&id));
         let origin = parent.map_or(Vector2::ZERO, |rect| Vector2::new(rect.x, rect.y));
         // Godot snaps every control to whole pixels on its own. A turned texture's rect
@@ -709,6 +709,8 @@ impl UiProjection {
                         | "EncounterJournalInstanceSelect"
                         | "EncounterJournalInstanceFrame"
                         | "EncounterJournalModelScene"
+                        | "EncounterJournalTutorialsFrame"
+                        | "EncounterJournalSuggestedFrame"
                         | "JourneyRenownTrackClip"
                         | "QuestMapRewardsFrameContainer"
                 )
@@ -939,6 +941,7 @@ impl UiProjection {
             rect.width
         };
         let fixed_rectangle = frame.width != Dimension::Auto && frame.height != Dimension::Auto;
+        let bounded_wrapping = data.word_wrap && data.max_lines.is_some_and(|lines| lines > 1);
         let fit_multiline = fixed_rectangle && data.text.contains('\n');
         // A height cap hides single-line captions whose font metrics exceed their
         // authored height; only cap lines whose spacing we fit into that height.
@@ -963,15 +966,21 @@ impl UiProjection {
         // ending in "…". Godot's plain `TRIM_ELLIPSIS` drops the ellipsis when fewer than six
         // characters would remain, which in a 32-wide hotkey is always; the `_FORCE` mode
         // adds it however short the rest.
-        let one_line = fixed_rectangle && !fit_multiline && rect.height < 2.0 * data.font_size;
+        let short_rectangle = fixed_rectangle && rect.height < 2.0 * data.font_size;
+        let multiline = fit_multiline || bounded_wrapping;
+        let one_line = short_rectangle && !multiline;
         let (wrap, overrun) = if one_line {
             (AutowrapMode::OFF, OverrunBehavior::TRIM_ELLIPSIS_FORCE)
         } else {
             (AutowrapMode::WORD, OverrunBehavior::NO_TRIMMING)
         };
         node.set_autowrap_mode(wrap);
+        node.set_max_lines_visible(data.max_lines.map_or(-1, |lines| lines as i32));
         node.set_text_overrun_behavior(overrun);
-        if fit_multiline {
+        let fit_wrapped = fixed_rectangle && bounded_wrapping && node.get_line_count() > 1;
+        if fit_multiline || fit_wrapped {
+            // WoW's bounded FontString keeps its authored height, also after automatic wrapping.
+            node.set_custom_maximum_size(Vector2::new(maximum_width, rect.height));
             fit_multiline_label_spacing(&mut node, data, rect.height)?;
         }
         // Styling can raise Control's minimum size before tighter spacing lowers it.
@@ -998,12 +1007,12 @@ fn fit_multiline_label_spacing(
     };
     let available_height = height - shadow_reserved_height(data.justify_v, shadow_y);
     let themed_spacing = node.get_theme_constant("line_spacing");
-    let spacing = multiline_line_spacing(
-        available_height,
-        font_height,
-        node.get_line_count(),
-        themed_spacing,
-    );
+    let line_count = node.get_line_count();
+    let visible_lines = data
+        .max_lines
+        .map_or(line_count, |limit| line_count.min(limit as i32));
+    let spacing =
+        multiline_line_spacing(available_height, font_height, visible_lines, themed_spacing);
     node.add_theme_constant_override("line_spacing", spacing);
     Ok(())
 }

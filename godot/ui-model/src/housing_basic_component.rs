@@ -16,11 +16,26 @@ const ROW: f32 = 45.0;
 const GAP: f32 = 10.0;
 const MODE_BAR_WIDTH: f32 = 4.0 * BUTTON + GAP;
 const UNBOUND: &str = "[UNBOUND]";
-const MODES: [(&str, &str, &str); 4] = [
-    ("BasicDecorMode", "move", "housing:basic"),
-    ("ExpertDecorMode", "expertmode", "housing:expert"),
-    ("CustomizeMode", "alterations", ""),
-    ("CleanupMode", "cleanup", "housing:cleanup"),
+const MODES: [(&str, &str, &str, Option<InputAction>); 4] = [
+    (
+        "BasicDecorMode",
+        "move",
+        "housing:basic",
+        Some(InputAction::HousingBasicMode),
+    ),
+    (
+        "ExpertDecorMode",
+        "expertmode",
+        "housing:expert",
+        Some(InputAction::HousingExpertMode),
+    ),
+    ("CustomizeMode", "alterations", "", None),
+    (
+        "CleanupMode",
+        "cleanup",
+        "housing:cleanup",
+        Some(InputAction::HousingCleanupMode),
+    ),
 ];
 
 pub fn basic_screen(view: &HousingView) -> Element {
@@ -38,8 +53,20 @@ pub fn basic_screen(view: &HousingView) -> Element {
         view.model.editor.placing.is_none() && view.model.editor.selected.is_none();
     let left = (view.viewport[0] - MODE_BAR_WIDTH) / 2.0 - 26.0;
     let top = view.viewport[1] - BUTTON - 82.0;
-    let snap = icon_button(("Snap", "snap", ""), (0.0, 0.0), true, false);
-    let free = icon_button(("FreePlace", "freeplacement", ""), (52.0, 0.0), true, false);
+    let snap = icon_button(
+        ("Snap", "snap", ""),
+        (0.0, 0.0),
+        true,
+        false,
+        Element::default(),
+    );
+    let free = icon_button(
+        ("FreePlace", "freeplacement", ""),
+        (52.0, 0.0),
+        true,
+        false,
+        Element::default(),
+    );
     rsx! {r#frame {name:"HouseEditorFrame",stretch:true,
         button {name:"HouseEditorDecorMoveOverlay",stretch:true,hidden:overlay_hidden,strata:FrameStrata::High,mouse_enabled:true,button_default_skin:false}
         {drawer} {modes} {instructions}
@@ -168,7 +195,7 @@ fn instruction_row(row: (&str, &str, Option<&str>, bool), label_width: f32, top:
 pub(super) fn mode_button_center(view: &HousingView, name: &str) -> f32 {
     let index = MODES
         .iter()
-        .position(|(mode, _, _)| *mode == name)
+        .position(|(mode, _, _, _)| *mode == name)
         .expect("Housing submode bar requires an existing mode button");
     (view.viewport[0] - MODE_BAR_WIDTH) / 2.0 + BUTTON * (index as f32 + 0.5)
 }
@@ -203,12 +230,18 @@ pub(super) fn mode_bar(view: &HousingView) -> Element {
         "decor-abilitybar-divider",
         (256.0, 13.0, 10.0, 46.0),
     ));
-    for (index, (name, atlas, action)) in MODES.into_iter().enumerate() {
+    for (index, (name, atlas, action, binding)) in MODES.into_iter().enumerate() {
+        let control_text = binding
+            .map(|action| {
+                binding_control_text(view, &format!("HouseEditor{name}Button"), action, false)
+            })
+            .unwrap_or_default();
         children.extend(icon_button(
             (name, atlas, action),
             (index as f32 * BUTTON, 0.0),
             view.model.pending || action.is_empty(),
             mode_is_active(view, name),
+            control_text,
         ));
     }
     rsx! {r#frame {name:"HouseEditorModeBar",width,height:64.0,left,top,pos_type:"absolute",strata:FrameStrata::Dialog,mouse_enabled:true,
@@ -222,6 +255,7 @@ fn icon_button(
     position: (f32, f32),
     disabled: bool,
     active: bool,
+    control_text: Element,
 ) -> Element {
     let (name, atlas, action) = mode;
     icon_control(
@@ -229,7 +263,34 @@ fn icon_button(
         position,
         disabled,
         active,
+        control_text,
     )
+}
+
+/// BaseHousingActionButton.UpdateKeybind hides missing bindings, unlike instruction rows.
+pub(super) fn binding_control_text(
+    view: &HousingView,
+    prefix: &str,
+    action: InputAction,
+    submode: bool,
+) -> Element {
+    let Some(binding) = view.model.editor_bindings.binding(action) else {
+        return Element::default();
+    };
+    let text = binding.hotkey_text();
+    let font_size = if submode { 10.0 } else { 14.0 };
+    let width = if submode {
+        40.0
+    } else {
+        measure_text(&text, GameFont::ArialNarrow, font_size)
+            .expect("Housing control text requires initialized fonts")
+            .0
+    };
+    let (left, top) = if submode { (12.0, 12.0) } else { (8.0, 10.0) };
+    let outline = if submode { "NONE" } else { "NORMAL" };
+    let shadow_color = if submode { "0,0,0,1" } else { "0,0,0,0" };
+    let shadow_offset = if submode { "1,-1" } else { "0,0" };
+    rsx! {fontstring {name:{DynName(format!("{prefix}ControlText"))},text,width,height:10.0,left,top,pos_type:"absolute",font:GameFont::ArialNarrow,font_size,font_color:"1,1,1,1",outline,shadow_color,shadow_offset,justify_h:"LEFT",word_wrap:false,mouse_enabled:false}}
 }
 
 pub(super) fn icon_control(
@@ -237,6 +298,7 @@ pub(super) fn icon_control(
     position: (f32, f32),
     disabled: bool,
     active: bool,
+    control_text: Element,
 ) -> Element {
     let (prefix, atlas, action) = mode;
     let state = if active { "active" } else { "default" };
@@ -244,29 +306,24 @@ pub(super) fn icon_control(
     let icon = named_atlas_texture(format!("{prefix}Icon"), &atlas, (0.0, 0.0, BUTTON, BUTTON));
     let hover = named_atlas_texture(format!("{prefix}Hover"), &atlas, (0.0, 0.0, BUTTON, BUTTON));
     let (left, top) = position;
-    rsx! {button {name:{DynName(prefix.into())},width:64.0,height:64.0,left,top,pos_type:"absolute",onclick:action,disabled,button_default_skin:false,{icon}{hover}}}
+    rsx! {button {name:{DynName(prefix.into())},width:64.0,height:64.0,left,top,pos_type:"absolute",onclick:action,disabled,button_default_skin:false,{icon}{control_text}{hover}}}
 }
 
 fn mode_is_active(view: &HousingView, name: &str) -> bool {
     use crate::housing_editor::EditorMode;
     matches!(
         (view.model.editor.mode, name),
-        (EditorMode::Basic, "BasicDecorMode") | (EditorMode::Expert, "ExpertDecorMode")
+        (EditorMode::Basic, "BasicDecorMode")
+            | (EditorMode::Expert, "ExpertDecorMode")
+            | (EditorMode::Cleanup, "CleanupMode")
     )
 }
 
 pub fn apply_editor_postsetup(view: &HousingView, registry: &mut FrameRegistry) {
-    use crate::housing_editor::EditorMode;
-    if !matches!(
-        view.model.editor.mode,
-        EditorMode::Basic | EditorMode::Expert
-    ) {
-        return;
-    }
-    for (name, atlas, _) in MODES
-        .into_iter()
-        .chain([("Snap", "snap", ""), ("FreePlace", "freeplacement", "")])
-    {
+    for (name, atlas, _, _) in MODES.into_iter().chain([
+        ("Snap", "snap", "", None),
+        ("FreePlace", "freeplacement", "", None),
+    ]) {
         update_icon_control(
             registry,
             &format!("HouseEditor{name}Button"),
@@ -298,8 +355,9 @@ pub(super) fn update_icon_control(
         panic!("Housing mode control must be a Button")
     };
     let disabled = button.state == ButtonState::Disabled;
-    let hovered = button.hovered && !disabled;
-    let state = if button.state == ButtonState::Pushed {
+    let pressed = button.state == ButtonState::Pushed;
+    let hovered = button.hovered && !disabled && !pressed;
+    let state = if pressed {
         "pressed"
     } else if active {
         "active"

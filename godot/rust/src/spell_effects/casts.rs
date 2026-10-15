@@ -38,6 +38,7 @@ mod specialization_tests {
             spec_order_index: caster_spec_order_index(caster, local_spec, units, catalog()),
             main_hand_subclass: Some(8), // Item.SubclassID: two-handed sword.
             auras: Vec::new(),
+            current_pvp_faction: 0,
         };
         let visual = catalog().visual_for_spell(1464, &context).unwrap();
         catalog().kits(visual, VisualEvent::Cast)[0].kit_id
@@ -271,6 +272,9 @@ impl SpellEffects {
         let unit = units.unit(caster);
         let player = unit.and_then(|unit| unit.get::<Player>());
         CasterContext {
+            current_pvp_faction: unit
+                .and_then(|unit| unit.get::<shared::components::CurrentPvpFaction>())
+                .map_or(0, |faction| faction.0),
             race: player.map_or(0, |player| player.race),
             class: player.map_or(0, |player| player.class),
             gender: player.map_or(0, |player| player.appearance.sex),

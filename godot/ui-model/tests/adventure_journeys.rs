@@ -30,10 +30,17 @@ fn reward(id: u32, level: u32, name: &str) -> RenownReward {
     }
 }
 
-fn faction(id: u32, name: &str, expansion: u8, level: u32, standing: u32) -> MajorFactionSnapshot {
+fn faction(
+    id: u32,
+    faction_id: u32,
+    name: &str,
+    expansion: u8,
+    level: u32,
+    standing: u32,
+) -> MajorFactionSnapshot {
     MajorFactionSnapshot {
         id,
-        faction_id: 2400 + id,
+        faction_id,
         name: name.into(),
         description: String::new(),
         expansion,
@@ -60,10 +67,12 @@ fn faction(id: u32, name: &str, expansion: u8, level: u32, standing: u32) -> Maj
 fn snapshot() -> RenownSnapshot {
     RenownSnapshot {
         factions: vec![
-            faction(12, "Maruuk Centaur", 9, 2, 1000),
-            faction(37, "Amani Tribe", 11, 0, 0),
+            faction(12, 2503, "Maruuk Centaur", 9, 2, 1000),
+            faction(37, 2696, "Amani Tribe", 11, 0, 0),
         ],
         source_error: None,
+        watched_faction: None,
+        watch_error: None,
     }
 }
 
@@ -119,13 +128,232 @@ fn rect(registry: &FrameRegistry, name: &str) -> [f32; 4] {
 }
 
 #[test]
+fn journeys_watch_click_sound_follows_the_requested_target_not_optimistic_state() {
+    use game_engine_ui_model::adventure_journeys::watch_click_sound;
+    assert_eq!(watch_click_sound(0), 857);
+    assert_eq!(watch_click_sound(2503), 856);
+    assert_eq!(watch_click_sound(2696), 856);
+}
+
+#[test]
+fn journeys_watch_uses_source_hover_geometry_and_authoritative_checked_state() {
+    for skin in [ActiveSkin::Modern, ActiveSkin::Forever] {
+        let mut view = data_view();
+        let mut data = snapshot();
+        data.factions[0].unlock = RenownUnlock::Ungated;
+        data.watched_faction = Some(2503);
+        view.renown = Some(Arc::new(data));
+        view.apply("journal:tab:journeys").unwrap();
+        view.apply("journal:journey-expansion:9").unwrap();
+        view.journeys.hovered = Some(12);
+        let registry = render_skin(&view, skin);
+        assert_eq!(
+            rect(&registry, "JourneyCard12Watch"),
+            [204., 76., 200., 20.]
+        );
+        assert_eq!(
+            rect(&registry, "JourneyCard12WatchCheckbox"),
+            [0., -3., 26., 26.]
+        );
+        let checkbox = registry
+            .get(registry.get_by_name("JourneyCard12WatchCheckbox").unwrap())
+            .unwrap();
+        assert_eq!(
+            checkbox.onclick.as_deref(),
+            Some("journal:journey-watch:12:0")
+        );
+        assert!(
+            registry
+                .get_by_name("JourneyCard12WatchCheckboxCheck")
+                .is_some()
+        );
+        let mut unchecked = snapshot();
+        unchecked.factions[0].unlock = RenownUnlock::Ungated;
+        view.renown = Some(Arc::new(unchecked));
+        let registry = render_skin(&view, skin);
+        let checkbox = registry
+            .get(registry.get_by_name("JourneyCard12WatchCheckbox").unwrap())
+            .unwrap();
+        assert_eq!(
+            checkbox.onclick.as_deref(),
+            Some("journal:journey-watch:12:2503")
+        );
+        assert!(
+            registry
+                .get_by_name("JourneyCard12WatchCheckboxCheck")
+                .is_none()
+        );
+        let mut refused = snapshot();
+        refused.factions[0].unlock = RenownUnlock::Ungated;
+        refused.watched_faction = Some(2503);
+        refused.watch_error = Some("Watched faction write refused.".into());
+        view.renown = Some(Arc::new(refused));
+        let registry = render_skin(&view, skin);
+        assert!(registry.get_by_name("JourneyCard12WatchCheckbox").is_some());
+        assert!(
+            registry
+                .get_by_name("JourneyCard12WatchCheckboxCheck")
+                .is_some()
+        );
+        view.journeys.hovered = None;
+        assert!(
+            render_skin(&view, skin)
+                .get_by_name("JourneyCard12Watch")
+                .is_none()
+        );
+    }
+}
+
+#[test]
+fn journeys_watch_child_hover_keeps_the_card_not_the_clear_target_selected() {
+    use game_engine_ui_model::adventure_journeys::hovered_faction;
+    for (action, faction) in [
+        ("journal:journey:12", Some(12)),
+        ("journal:journey-watch:12:0", Some(12)),
+        ("journal:journey-watch:12:2503", Some(12)),
+        ("journal:journey-level:next", None),
+        ("journal:journey:invalid", None),
+    ] {
+        assert_eq!(hovered_faction(action), faction);
+    }
+}
+
+#[test]
+fn journeys_watch_unevaluated_unlock_never_exposes_a_toggle() {
+    let mut view = data_view();
+    view.renown = Some(Arc::new(snapshot()));
+    view.apply("journal:tab:journeys").unwrap();
+    view.apply("journal:journey-expansion:9").unwrap();
+    view.journeys.hovered = Some(12);
+    assert!(render(&view).get_by_name("JourneyCard12Watch").is_none());
+}
+
+#[test]
+fn journeys_held_arrow_moves_fractionally_then_snaps_on_release() {
+    let mut view = data_view();
+    view.renown = Some(Arc::new(snapshot()));
+    view.apply("journal:tab:journeys").unwrap();
+    view.apply("journal:journey:12").unwrap();
+    view.journeys.start_scroll(1);
+    view.journeys.advance_scroll(0.5, 25);
+    assert_eq!(view.journeys.level, 2);
+    assert_eq!(rect(&render(&view), "JourneyRenownLevel2")[0], 257.5);
+    view.journeys.advance_scroll(0.2, 25);
+    let moving_left = rect(&render(&view), "JourneyRenownLevel2")[0];
+    assert!((moving_left - 256.1).abs() < 0.01);
+    view.apply("journal:journey-select-level:9").unwrap();
+    assert_eq!(view.journeys.level, 2, "Clicks cannot interfere while held");
+    view.journeys.stop_scroll(25);
+    assert_eq!(view.journeys.level, 3);
+    assert_eq!(rect(&render(&view), "JourneyRenownLevel3")[0], 257.5);
+    view.journeys.advance_scroll(3., 25);
+    assert_eq!(view.journeys.level, 3, "Release stops movement");
+}
+
+#[test]
+fn journeys_boundary_arrows_reenable_after_selection_moves_inward() {
+    use ui_toolkit::widgets::button::ButtonState;
+    ui_toolkit::atlas::set_thread_skin(ActiveSkin::Modern);
+    let mut view = data_view();
+    view.renown = Some(Arc::new(snapshot()));
+    view.apply("journal:tab:journeys").unwrap();
+    view.apply("journal:journey:12").unwrap();
+    let mut context = SharedContext::new();
+    context.insert(ActiveSkin::Modern);
+    let mut registry = FrameRegistry::new(1280., 720.);
+    let mut screen = Screen::new(adventure_guide_screen);
+    for level in [2, 1, 2, 25, 24, 1, 3] {
+        view.apply(&format!("journal:journey-select-level:{level}"))
+            .unwrap();
+        context.insert(view.clone());
+        screen.sync(&context, &mut registry);
+        for (name, disabled) in [
+            ("JourneyLevelPrev", level == 1),
+            ("JourneyLevelFirst", level == 1),
+            ("JourneyLevelNext", level == 25),
+            ("JourneyLevelLast", level == 25),
+        ] {
+            let frame = registry.get(registry.get_by_name(name).unwrap()).unwrap();
+            let Some(WidgetData::Button(button)) = &frame.widget_data else {
+                panic!("{name} is not a button");
+            };
+            assert_eq!(
+                button.state == ButtonState::Disabled,
+                disabled,
+                "{name} at level {level}"
+            );
+        }
+    }
+}
+
+#[test]
+fn journeys_left_arrow_stays_enabled_until_the_fractional_offset_reaches_zero() {
+    let mut view = data_view();
+    view.renown = Some(Arc::new(snapshot()));
+    view.apply("journal:tab:journeys").unwrap();
+    view.apply("journal:journey:12").unwrap();
+    view.journeys.start_scroll(-1);
+    view.journeys.advance_scroll(0.7, 25);
+    assert_eq!(view.journeys.level, 1);
+    assert!(view.journeys.track_offset() > 0.);
+    let registry = render(&view);
+    for name in ["JourneyLevelPrev", "JourneyLevelFirst"] {
+        let frame = registry.get(registry.get_by_name(name).unwrap()).unwrap();
+        let Some(WidgetData::Button(button)) = &frame.widget_data else {
+            panic!("arrow")
+        };
+        assert_ne!(
+            button.state,
+            ui_toolkit::widgets::button::ButtonState::Disabled,
+            "{name} uses offset/original selection, not centre index"
+        );
+    }
+    view.journeys.stop_scroll(25);
+    let registry = render(&view);
+    let frame = registry
+        .get(registry.get_by_name("JourneyLevelPrev").unwrap())
+        .unwrap();
+    let Some(WidgetData::Button(button)) = &frame.widget_data else {
+        panic!("arrow")
+    };
+    assert_eq!(
+        button.state,
+        ui_toolkit::widgets::button::ButtonState::Disabled,
+        "Release at1 disables the boundary arrow"
+    );
+}
+
+#[test]
+fn journeys_short_hold_steps_once_and_boundary_stops() {
+    let mut view = data_view();
+    view.renown = Some(Arc::new(snapshot()));
+    view.apply("journal:tab:journeys").unwrap();
+    view.apply("journal:journey:12").unwrap();
+    view.journeys.start_scroll(-1);
+    view.journeys.advance_scroll(0.1, 25);
+    view.journeys.stop_scroll(25);
+    assert_eq!(view.journeys.level, 1);
+    view.journeys.start_scroll(1);
+    for _frame in 0..240 {
+        view.journeys.advance_scroll(0.1, 25);
+    }
+    assert_eq!(view.journeys.level, 25);
+    view.journeys.stop_scroll(25);
+    assert_eq!(view.journeys.level, 25);
+    view.journeys.start_scroll(-1);
+    view.journeys.advance_scroll(0.7, 25);
+    view.journeys.stop_scroll(25);
+    assert_eq!(view.journeys.level, 24, "Left release rounds down");
+}
+
+#[test]
 fn journeys_cards_use_sequence_padding_and_spacing_from_retail() {
     let mut view = data_view();
     let mut catalog = snapshot();
     catalog.factions = vec![
-        faction(12, "Maruuk Centaur", 9, 2, 1000),
-        faction(13, "Valdrakken Accord", 9, 1, 0),
-        faction(14, "Iskaara Tuskarr", 9, 1, 0),
+        faction(12, 2503, "Maruuk Centaur", 9, 2, 1000),
+        faction(13, 2507, "Dragonscale Expedition", 9, 1, 0),
+        faction(14, 2511, "Iskaara Tuskarr", 9, 1, 0),
     ];
     view.renown = Some(Arc::new(catalog));
     view.apply("journal:tab:journeys").unwrap();
@@ -140,8 +368,9 @@ fn journeys_cards_use_sequence_padding_and_spacing_from_retail() {
         rect(&registry, "JournalJourneysCategory"),
         [14., 15., 765., 20.]
     );
-    assert_eq!(rect(&registry, "JourneyCard12"), [14., 40., 374., 112.]);
-    assert_eq!(rect(&registry, "JourneyCard13"), [393., 40., 374., 112.]);
+    // Authored priority4 Expedition precedes priority3 Maruuk.
+    assert_eq!(rect(&registry, "JourneyCard13"), [14., 40., 374., 112.]);
+    assert_eq!(rect(&registry, "JourneyCard12"), [393., 40., 374., 112.]);
     assert_eq!(rect(&registry, "JourneyCard14"), [14., 157., 374., 112.]);
     // XML name LEFT IconFrame.RIGHT+5; level below name, both children of card.
     assert_eq!(rect(&registry, "JourneyCard12Name"), [85., 41., 225., 20.]);
@@ -342,33 +571,94 @@ fn selected_journey_reward_tooltip_uses_authored_text_without_invented_claim_sta
 }
 
 #[test]
-fn unevaluated_unlock_notice_uses_the_source_locked_state_anchor_in_both_skins() {
+fn unknown_unlock_preserves_known_progress_without_player_facing_implementation_text() {
     let mut view = data_view();
     view.renown = Some(Arc::new(snapshot()));
     view.apply("journal:tab:journeys").unwrap();
     view.apply("journal:journey:12").unwrap();
     for skin in [ActiveSkin::Modern, ActiveSkin::Forever] {
         let registry = render_skin(&view, skin);
-        assert_eq!(
-            rect(&registry, "JourneyProgressLockedState"),
-            [144.5, 50., 500., 25.]
+        assert!(registry.get_by_name("JourneyProgressUnlock").is_none());
+        let details = registry
+            .get(registry.get_by_name("JourneyProgressDetails").unwrap())
+            .unwrap();
+        assert!(
+            !details.hidden,
+            "Unknown unlock must not hide received progress"
         );
+        assert_eq!(text(&registry, "JourneyProgressLevel"), "2");
         assert_eq!(
-            text(&registry, "JourneyProgressUnlock"),
-            "Unlock condition is not evaluated by this realm."
+            text(&registry, "JourneyProgressCurrent"),
+            "Current Progress: 1000 / 2500"
         );
+        assert!(registry.get_by_name("JourneyRenownLevel2Earned").is_some());
     }
 }
 
 fn data_view() -> View {
-    game_engine_ui_model::paths::set_data_root(
-        std::path::PathBuf::from(env!("CARGO_MANIFEST_DIR")).join("../../data"),
-    )
-    .unwrap();
+    let data = std::path::PathBuf::from(env!("CARGO_MANIFEST_DIR")).join("../../data");
+    game_engine_ui_model::paths::set_data_root(data.clone()).unwrap();
     View {
         visible: true,
+        journey_presentation: Arc::new(
+            game_engine_core::adventure_guide::read_journey_presentation(&data).unwrap(),
+        ),
         ..Default::default()
     }
+}
+
+#[test]
+fn journeys_cards_use_centered_texture_kit_icons_in_both_skins() {
+    use ui_toolkit::{atlas::AtlasSource, widgets::texture::TextureSource};
+    for skin in [ActiveSkin::Modern, ActiveSkin::Forever] {
+        let mut view = data_view();
+        let mut data = snapshot();
+        data.factions = vec![
+            faction(12, 2503, "Maruuk Centaur", 9, 2, 1000),
+            faction(13, 2507, "Dragonscale Expedition", 9, 0, 0),
+            faction(14, 2511, "Iskaara Tuskarr", 9, 0, 0),
+            faction(15, 2510, "Valdrakken Accord", 9, 0, 0),
+        ];
+        view.renown = Some(Arc::new(data));
+        view.apply("journal:tab:journeys").unwrap();
+        view.apply("journal:journey-expansion:9").unwrap();
+        let registry = render_skin(&view, skin);
+        for (id, kit) in [
+            (13, "Expedition"),
+            (12, "Centaur"),
+            (14, "Tuskarr"),
+            (15, "Valdrakken"),
+        ] {
+            let name = format!("JourneyCard{id}Icon");
+            assert_eq!(rect(&registry, &name), [30., 36., 40., 40.]);
+            let frame = registry.get(registry.get_by_name(&name).unwrap()).unwrap();
+            let Some(WidgetData::Texture(icon)) = &frame.widget_data else {
+                panic!("{name} has no icon");
+            };
+            let atlas = format!("majorfactions_icons_{kit}512");
+            let region = ui_toolkit::atlas::resolve_region(&atlas, skin).unwrap();
+            let AtlasSource::FileDataId(fdid) = region.source else {
+                panic!("{atlas} has no authored sheet");
+            };
+            assert_eq!(icon.source, TextureSource::FileDataId(fdid));
+            assert_eq!(
+                icon.tex_coords,
+                [region.left, region.right, region.top, region.bottom]
+            );
+        }
+    }
+}
+
+#[test]
+fn journeys_missing_covenant_presentation_is_an_explicit_error() {
+    let mut view = data_view();
+    Arc::make_mut(&mut view.journey_presentation).remove(&12);
+    view.renown = Some(Arc::new(snapshot()));
+    view.apply("journal:tab:journeys").unwrap();
+    view.apply("journal:journey-expansion:9").unwrap();
+    let registry = render(&view);
+    assert!(text(&registry, "JournalJourneysPresentationError").contains("12"));
+    assert!(registry.get_by_name("JourneyCard12").is_none());
 }
 
 #[test]

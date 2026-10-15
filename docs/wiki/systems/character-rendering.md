@@ -374,3 +374,9 @@ the equipped player and loaded/visible60×60 portrait in both skins; the alias i
 not recreated and no player/texture errors occur. The source-origin restoration
 receipt succeeds; client stops without hardkill, server393293 requires SIGKILL,
 UDP5712 is freed. No canonical bytes are changed.
+
+## Close-camera observation — 2026-10-14
+
+Private framing73/74 adds read-only Godot physics queries matching [camera.rs](../../../godot/rust/src/camera.rs): terrain/WMO/doodad mask11 and the same invisible/player exclusions. At the retained Goldshire mailbox origin, the intended ray hits visible `Mailbox_4294776079/GameObjectModel/M2Collision` (layer40) at0.5479167m; actual eye distance is0.5m, matching the collision offset/minimum. Rear-view samples hit at1.06518m and pull to0.76518m. This identifies that capture's real solid, not a camera/shader defect or a cause assigned retrospectively to older head/Seething captures.
+
+The fresh map0 login after AV25 also reports health0 and a death dialog. Normal movement commands therefore do not establish standing-body acceptance. Four inspected Modern73/Forever74 front/rear originals retain observations and loaded portraits, not full-body certification. No camera, material, shader or native gameplay code changed. Evidence: `data/diagnostics/bg-coverage-2026-10-12/framing73-camera-boundary.json`, per-view `*-visuals.json`, and originals in `/syncthing/AgentShared/2026-10-12/bg-coverage/`. Initial framing71/72 failed the private observer's GDScript return-path parse; that failure is retained separately.

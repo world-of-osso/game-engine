@@ -61,6 +61,7 @@ fn indexed(frame: &Frame, prefix: &str) -> Option<usize> {
 }
 
 enum HousingTooltipTarget {
+    EditorControl(game_engine_core::input_bindings_data::InputAction),
     Decor(u32),
     Chest,
     Category(u32),
@@ -70,6 +71,12 @@ enum HousingTooltipTarget {
 
 fn parse_housing_tooltip_target(frame: &Frame) -> Option<HousingTooltipTarget> {
     let name = name_of(frame)?;
+    if let Some((_, action, _)) = game_engine_ui_model::housing::EDITOR_CONTROL_TOOLTIPS
+        .iter()
+        .find(|(control, _, _)| *control == name)
+    {
+        return Some(HousingTooltipTarget::EditorControl(*action));
+    }
     if name == "HouseEditorStorageExpandButton" {
         return Some(HousingTooltipTarget::Chest);
     }
@@ -147,10 +154,22 @@ impl GameClient {
         let ui = hit.ui.bind();
         let (owner, target) =
             named_ancestor(ui.registry()?, hit.frame, parse_housing_tooltip_target)?;
+        let editor_control = matches!(target, HousingTooltipTarget::EditorControl(_));
+        if editor_control {
+            let frame = ui.registry()?.get(owner)?;
+            let Some(ui_toolkit::frame::WidgetData::Button(button)) = &frame.widget_data else {
+                return None;
+            };
+            if button.state == ui_toolkit::widgets::button::ButtonState::Disabled {
+                return None;
+            }
+        }
         drop(ui);
         let (tooltip, category) = self.housing_tooltip_content(target)?;
         let rect = self.owner_rect(&hit.ui, owner)?;
-        let tooltip = if category {
+        let tooltip = if editor_control {
+            tooltip.owned(rect, OwnerSide::Top)
+        } else if category {
             tooltip.owned_offset(rect, OwnerSide::Right, [-12.0, 12.0])
         } else {
             tooltip.owned(rect, OwnerSide::Right)
@@ -166,6 +185,11 @@ impl GameClient {
                 | HousingTooltipTarget::AllSubcategories
         );
         let tooltip = match target {
+            HousingTooltipTarget::EditorControl(action) => self
+                .housing
+                .model
+                .as_ref()?
+                .editor_control_tooltip(action, self.client_options.bindings.binding(action))?,
             HousingTooltipTarget::Chest => game_engine_ui_model::housing::storage_handle_tooltip(),
             HousingTooltipTarget::Decor(id) => {
                 let model = self.housing.model.as_ref()?;
@@ -229,13 +253,6 @@ impl GameClient {
     fn journey_tooltip_for_frame(&self, frame: &Frame) -> Option<(GameTooltip, bool)> {
         let view = &self.adventure_guide.view;
         let name = frame.name.as_deref()?;
-        if name == "JourneyProgressUnlock" {
-            return game_engine_ui_model::adventure_journeys::unlock_tooltip(
-                &view.journeys,
-                view.renown.as_deref(),
-            )
-            .map(|tooltip| (tooltip, true));
-        }
         game_engine_ui_model::adventure_journeys::reward_tooltip(
             &view.journeys,
             view.renown.as_deref(),

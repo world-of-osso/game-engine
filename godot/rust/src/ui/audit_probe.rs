@@ -25,6 +25,95 @@ fn set_audit_data_and_skin(forever: bool) -> Result<(), String> {
     Ok(())
 }
 
+fn build_encounter_timer_fixture()
+-> game_engine_ui_model::encounter_timeline_component::EncounterTimelineScreen {
+    use game_engine_ui_model::encounter_timeline::EncounterTimeline;
+    use game_engine_ui_model::encounter_timeline_component::EncounterTimelineScreen;
+    use shared::protocol::{EncounterTimelineEvent, EncounterTimer};
+    let timers = [0, 5_000, 10_000]
+        .into_iter()
+        .enumerate()
+        .map(|(index, remaining_ms)| EncounterTimer {
+            event_id: index as u32 + 1,
+            spell_id: 20805,
+            remaining_ms,
+            duration_ms: 10_000,
+            conditional: false,
+        })
+        .collect();
+    let mut timeline = EncounterTimeline::default();
+    timeline.receive(
+        EncounterTimelineEvent::Timers {
+            caster: 3669,
+            sample_unix_ms: 0,
+            timers,
+        },
+        0,
+        |_| ("Lightning Bolt".into(), 136048),
+    );
+    EncounterTimelineScreen {
+        timeline,
+        enabled: true,
+        bars: true,
+        warnings: false,
+        preview: false,
+    }
+}
+
+fn build_cooldown_buff_fixture() -> game_engine_ui_model::cooldown_assist::CooldownViewerView {
+    use game_engine_ui_model::cooldown_assist::{CooldownIconView, CooldownViewerView};
+    let mut state = CooldownViewerView {
+        enabled: true,
+        ..Default::default()
+    };
+    state.categories[3] = [0.0, 0.5, 1.0]
+        .into_iter()
+        .enumerate()
+        .map(|(index, fraction)| CooldownIconView {
+            cooldown_id: 900 + index as u32,
+            spell_id: 31884,
+            name: "Avenging Wrath".into(),
+            icon_fdid: 135875,
+            fraction,
+            remaining: fraction * 10.0,
+            charges: Some(2),
+            assisted_highlight: false,
+        })
+        .collect();
+    state
+}
+
+fn build_cooldown_settings_fixture(
+    category: usize,
+) -> game_engine_ui_model::cooldown_assist::CooldownViewerView {
+    use game_engine_ui_model::cooldown_settings_component::{
+        CooldownSettingEntry, CooldownSettingsView,
+    };
+    game_engine_ui_model::cooldown_assist::CooldownViewerView {
+        settings: CooldownSettingsView {
+            open: true,
+            category,
+            portrait_fdid: 132355,
+            entries: [
+                (26, 0, "Colossus Smash", 2065633),
+                (27, 0, "Mortal Strike", 132355),
+                (68661, 3, "Avenging Wrath", 135875),
+            ]
+            .into_iter()
+            .map(|(id, category, label, icon_fdid)| CooldownSettingEntry {
+                id,
+                category,
+                label: label.into(),
+                icon_fdid,
+                selected: true,
+            })
+            .collect(),
+            ..Default::default()
+        },
+        ..Default::default()
+    }
+}
+
 #[derive(GodotClass)]
 #[class(base = Node, init)]
 struct UiAuditProbe {
@@ -86,6 +175,104 @@ impl UiAuditProbe {
     }
 
     #[func]
+    fn mount_encounter_timer_bars(&mut self, forever: bool) -> GString {
+        if let Err(error) = set_audit_data_and_skin(forever) {
+            return error.as_str().into();
+        }
+        let mut ui = RegistryUi::new_alloc();
+        ui.set_name("EncounterTimerAuditUI");
+        self.base_mut().add_child(&ui);
+        if let Err(error) = ui.bind_mut().set_ui_scale(1.0) {
+            return error.as_str().into();
+        }
+        let result = ui
+            .bind_mut()
+            .show_encounter_timeline(build_encounter_timer_fixture());
+        result.err().unwrap_or_default().as_str().into()
+    }
+
+    #[func]
+    fn mount_cooldown_buff_bars(&mut self, forever: bool) -> GString {
+        if let Err(error) = set_audit_data_and_skin(forever) {
+            return error.as_str().into();
+        }
+        let mut ui = RegistryUi::new_alloc();
+        ui.set_name("CooldownBuffAuditUI");
+        self.base_mut().add_child(&ui);
+        if let Err(error) = ui.bind_mut().set_ui_scale(1.0) {
+            return error.as_str().into();
+        }
+        let result = ui
+            .bind_mut()
+            .show_cooldown_viewer(build_cooldown_buff_fixture());
+        result.err().unwrap_or_default().as_str().into()
+    }
+
+    #[func]
+    fn mount_cooldown_settings(&mut self, forever: bool, auras: bool) -> GString {
+        if let Err(error) = set_audit_data_and_skin(forever) {
+            return error.as_str().into();
+        }
+        let mut ui = RegistryUi::new_alloc();
+        ui.set_name("CooldownSettingsAuditUI");
+        self.base_mut().add_child(&ui);
+        if let Err(error) = ui.bind_mut().set_ui_scale(1.0) {
+            return error.as_str().into();
+        }
+        let category = if auras { 2 } else { 0 };
+        let result = ui
+            .bind_mut()
+            .show_cooldown_viewer(build_cooldown_settings_fixture(category));
+        result.err().unwrap_or_default().as_str().into()
+    }
+
+    /// Real window callsites for shared-helper before/after raster proof.
+    #[func]
+    fn mount_shared_helper_panel(&mut self, forever: bool, panel: GString) -> GString {
+        use game_engine_ui_model::bank_frame_component::{BankFrameState, SideTab};
+        use game_engine_ui_model::raid_info::RaidInfoState;
+        match panel.to_string().as_str() {
+            "quest" => return self.mount_quest_overflow(forever, "detail".into(), false),
+            "mail" => return self.mount_mail(forever),
+            "settings" => return self.mount_cooldown_settings(forever, false),
+            _ => {}
+        }
+        if let Err(error) = set_audit_data_and_skin(forever) {
+            return error.as_str().into();
+        }
+        let mut ui = RegistryUi::new_alloc();
+        ui.set_name("SharedHelperAuditUI");
+        self.base_mut().add_child(&ui);
+        if let Err(error) = ui.bind_mut().set_ui_scale(1.0) {
+            return error.as_str().into();
+        }
+        let result = match panel.to_string().as_str() {
+            "bank" => ui.bind_mut().show_bank(BankFrameState {
+                visible: true,
+                title: "Bank".into(),
+                header: "Tab 1".into(),
+                tabs: vec![SideTab {
+                    icon_fdid: 134_400,
+                    selected: true,
+                }],
+                slots: vec![None; shared::protocol::BANK_TAB_SLOTS],
+                deposit_all_label: "Deposit All Reagents".into(),
+                ..Default::default()
+            }),
+            "raid" => ui.bind_mut().show_raid_info(RaidInfoState {
+                visible: true,
+                ..Default::default()
+            }),
+            other => {
+                return format!("Unknown helper audit panel {other}")
+                    .as_str()
+                    .into();
+            }
+        };
+        result.err().unwrap_or_default().as_str().into()
+    }
+
+    #[func]
     fn mount_mail(&mut self, forever: bool) -> GString {
         use game_engine_ui_model::mail::NativeMailView;
         use game_engine_ui_model::mail_frame_component::{MailFrameState, MailFrameTab};
@@ -103,6 +290,9 @@ impl UiAuditProbe {
         let mut ui = RegistryUi::new_alloc();
         ui.set_name("MailAuditUI");
         self.base_mut().add_child(&ui);
+        if let Err(error) = ui.bind_mut().set_ui_scale(1.0) {
+            return error.as_str().into();
+        }
         let result = ui.bind_mut().show_mail(state);
         result.err().unwrap_or_default().as_str().into()
     }
@@ -136,6 +326,9 @@ impl UiAuditProbe {
         let mut ui = RegistryUi::new_alloc();
         ui.set_name("QuestOverflowUI");
         self.base_mut().add_child(&ui);
+        if let Err(error) = ui.bind_mut().set_ui_scale(1.0) {
+            return error.as_str().into();
+        }
         let result = if page.to_string() == "log" {
             ui.bind_mut().show_world_map(
                 WorldMapFrameState {

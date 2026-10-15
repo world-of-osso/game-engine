@@ -81,11 +81,16 @@ fn line_width(line: &TooltipLineState) -> f32 {
 
 /// `[width, height]` of the tooltip: the widest line plus the insets, the lines stacked.
 pub fn tooltip_size(tooltip: &TooltipPresentation) -> [f32; 2] {
+    let suffix_width = tooltip
+        .title_suffix
+        .as_ref()
+        .map_or(0.0, |(text, _)| text_width(text, HEADER_SIZE));
+    let title_width = text_width(&tooltip.title, HEADER_SIZE) + suffix_width;
     let widest = tooltip
         .lines
         .iter()
         .map(line_width)
-        .fold(text_width(&tooltip.title, HEADER_SIZE), f32::max);
+        .fold(title_width, f32::max);
     let lines = tooltip.lines.len() as f32;
     [
         widest + 2.0 * INSET,
@@ -117,12 +122,26 @@ pub fn retail_tooltip(state: &TooltipPresentation, prefix: &str, skin: ActiveSki
             )
         }
     };
-    let title = text(
+    let mut title = text(
         format!("{prefix}Title"),
         &state.title,
         [INSET, INSET, width - 2.0 * INSET, HEADER_SIZE],
         (HEADER_SIZE, state.title_color, "LEFT"),
     );
+    if let Some((suffix, color)) = &state.title_suffix {
+        let label_width = text_width(&state.title, HEADER_SIZE);
+        title.extend(text(
+            format!("{prefix}TitleSuffix"),
+            suffix,
+            [
+                INSET + label_width,
+                INSET,
+                width - 2.0 * INSET - label_width,
+                HEADER_SIZE,
+            ],
+            (HEADER_SIZE, *color, "LEFT"),
+        ));
+    }
     let lines: Element = state
         .lines
         .iter()
@@ -222,7 +241,7 @@ fn mark(name: &str, mark: Option<ItemMark>, top: f32) -> Element {
 
 /// `TooltipDefaultLayout` over a `width`×`height` tooltip: corners at their size, edges
 /// stretched between them in `border_color`, the centre inset 3 in `center_color`.
-fn nine_slice(
+pub(crate) fn nine_slice(
     prefix: &str,
     (width, height): (f32, f32),
     border_color: &str,

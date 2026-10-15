@@ -391,36 +391,35 @@ fn flat_background(prefix: &str, (left, top, right, bottom): (f32, f32, f32, f32
 }
 
 fn window_background(prefix: &str, width: f32, height: f32) -> Element {
-    let mut elements = rsx! {
+    let streak = read_active_atlas_art(TOP_TILE_STREAKS);
+    let streak_coords = streak.tex_coords(1.0);
+    // SharedUIPanelTemplates.xml:598–609,663–675: one rock region preserves the
+    // tile origin under the portrait; splitting it at y51 would restart the pattern.
+    rsx! {
         texture {
             name: {DynName(format!("{prefix}Bg"))},
             width: {width - 4.0},
-            height: {height - 53.0},
+            height: {height - 23.0},
             texture_fdid: WINDOW_BACKGROUND,
-            pos_type: "absolute",
-            left: 2.0,
-            top: 51.0,
-        }
-        // PortraitFrameTexturedBaseTemplate, SharedUIPanelTemplates.xml:595-609:
-        // rock beneath the translucent streaks and opaque masked portrait. Leaving a
-        // rectangular gap around the circular mask exposes the room beside the ring.
-        texture {
-            name: {DynName(format!("{prefix}BgTop"))},
-            width: {width - 4.0},
-            height: 30.0,
-            texture_fdid: WINDOW_BACKGROUND,
+            horiz_tile: true,
+            vert_tile: true,
             pos_type: "absolute",
             left: 2.0,
             top: 21.0,
         }
-    };
-    elements.extend(named_atlas_texture(
-        format!("{prefix}TopTileStreaks"),
-        TOP_TILE_STREAKS,
-        // Streaks stay beside the portrait; opaque rock underneath closes the corner gap.
-        (55.0, 21.0, width - 57.0, 43.0),
-    ));
-    elements
+        // Source _UI-Frame-TopTileStreaks:256×43, horizontal repeat only (:76–78).
+        texture {
+            name: {DynName(format!("{prefix}TopTileStreaks"))},
+            width: {width - 8.0},
+            height: 43.0,
+            texture_fdid: {streak.fdid},
+            tex_coords: {streak_coords.as_str()},
+            horiz_tile: true,
+            pos_type: "absolute",
+            left: 6.0,
+            top: 21.0,
+        }
+    }
 }
 
 /// The `layout` metal border on a frame [`MetalTopLeft::outset`] larger than the window.
@@ -540,7 +539,34 @@ pub fn panel_button_fit_to_text_width(text: &str) -> f32 {
         + 40.0
 }
 
-/// `UIPanelButtonTemplate` (Retail default nine-slice button art as used by StaticPopup).
+/// SharedButtonSmallTemplate:138×28, inheriting BigRedThreeSliceButtonTemplate.
+/// Native projection expands the left atlas marker to its authored three slices.
+pub fn shared_button_small(
+    name: &str,
+    text: &str,
+    action: &str,
+    enabled: bool,
+    (left, top): (f32, f32),
+) -> Element {
+    let disabled = !enabled;
+    let action = if enabled { action } else { "" };
+    let font_color = if enabled {
+        NORMAL_FONT_COLOR
+    } else {
+        "0.5,0.5,0.5,1.0"
+    };
+    rsx! { button {
+        name: {DynName(name.into())}, text, width: 138., height: 28.,
+        left, top, pos_type: "absolute", font_size: 12., font_color,
+        onclick: action, disabled,
+        button_atlas_up: "128-redbutton-left",
+        button_atlas_pressed: "128-redbutton-left-pressed",
+        button_atlas_disabled: "128-redbutton-left-disabled",
+        button_atlas_highlight: "retail-128-redbutton-highlight",
+    } }
+}
+
+/// `UIPanelButtonTemplate`: SecureUIPanelTemplates.xml:39–78 sheet strips and highlight.
 /// A disabled button shows the disabled art and carries no action.
 pub fn panel_button(
     name: String,
@@ -562,10 +588,10 @@ pub fn panel_button(
             onclick: action,
             disabled,
             strata: FrameStrata::Dialog,
-            button_atlas_up: "defaultbutton-nineslice-up",
-            button_atlas_pressed: "defaultbutton-nineslice-pressed",
-            button_atlas_highlight: "defaultbutton-nineslice-highlight",
-            button_atlas_disabled: "defaultbutton-nineslice-disabled",
+            button_fdid_up: 130828_u32,
+            button_fdid_pressed: 130825_u32,
+            button_fdid_highlight: 130826_u32,
+            button_fdid_disabled: 130824_u32,
             pos_type: "absolute",
             left: x,
             top: y,
@@ -575,20 +601,30 @@ pub fn panel_button(
 
 /// Lines `text` takes when word-wrapped at `width` (explicit `\n` breaks kept).
 pub fn wrapped_line_count(text: &str, width: f32, font_size: f32) -> usize {
+    wrapped_line_count_with_font(text, width, GameFont::FrizQuadrata, font_size)
+}
+
+/// The same wrapping calculation for source templates using a different typeface.
+pub fn wrapped_line_count_with_font(
+    text: &str,
+    width: f32,
+    font: GameFont,
+    font_size: f32,
+) -> usize {
     if text.is_empty() {
         return 0;
     }
     text.split('\n')
-        .map(|paragraph| paragraph_line_count(paragraph, width, font_size))
+        .map(|paragraph| paragraph_line_count(paragraph, width, font, font_size))
         .sum()
 }
 
 /// Greedy word wrap measuring the original text between breaks, so runs of spaces
 /// (quest texts use two after a full stop) count like the renderer lays them out.
-fn paragraph_line_count(paragraph: &str, width: f32, font_size: f32) -> usize {
+fn paragraph_line_count(paragraph: &str, width: f32, font: GameFont, font_size: f32) -> usize {
     let measure = |s: &str| {
-        measure_text(s, GameFont::FrizQuadrata, font_size)
-            .expect("FrizQuadrata text measurement")
+        measure_text(s, font, font_size)
+            .expect("Authored font text measurement")
             .0
     };
     let word_ends: Vec<usize> = paragraph

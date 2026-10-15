@@ -40,7 +40,7 @@ impl SpellVisualCatalog {
     }
 }
 
-const HANDLED: [&str; 20] = [
+const HANDLED: [&str; 21] = [
     "ID",
     "Failure_description_lang",
     "Flags",
@@ -61,6 +61,7 @@ const HANDLED: [&str; 20] = [
     "AuraStacks_1",
     "AuraStacks_2",
     "AuraStacks_3",
+    "CurrentPvpFaction",
 ];
 // Columns whose "no requirement" value is -1; every other column's is 0.
 const UNSET_MINUS_ONE: [&str; 7] = [
@@ -97,7 +98,7 @@ fn condition_cell(row: &[String], index: usize) -> i64 {
 
 fn parse_condition(
     row: &[String],
-    indices: &[usize; 20],
+    indices: &[usize; 21],
     others: &[(usize, i64)],
 ) -> (u32, PlayerCondition) {
     let value = |slot: usize| condition_cell(row, indices[slot]);
@@ -121,6 +122,7 @@ fn parse_condition(
         aura_spell: value(12) as u32,
         aura_stacks: value(16) as u32,
         aura_inverted: aura_logic == INVERT_FIRST_AURA,
+        current_pvp_faction: value(20) as u8,
         unsupported: unsupported_aura
             || others
                 .iter()

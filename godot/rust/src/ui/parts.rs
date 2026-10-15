@@ -63,6 +63,7 @@ pub fn project_images(frame: &Frame, width: f32, height: f32) -> Vec<ImagePart> 
     let mut parts = Vec::new();
     if project_shared_red_button(frame, width, height, &mut parts)
         || project_panel_button(frame, width, height, &mut parts)
+        || project_perks_rotate_button(frame, width, height, &mut parts)
     {
         return parts;
     }
@@ -89,6 +90,56 @@ pub fn project_images(frame: &Frame, width: f32, height: f32) -> Vec<ImagePart> 
     project_border(frame, width, height, &mut parts);
     project_highlight(frame, width, height, &mut parts);
     parts
+}
+
+/// PerksModelSceneControlButtonTemplate: offset pressed art and additive0.6 hover.
+fn project_perks_rotate_button(
+    frame: &Frame,
+    width: f32,
+    height: f32,
+    parts: &mut Vec<ImagePart>,
+) -> bool {
+    let Some(WidgetData::Button(button)) = &frame.widget_data else {
+        return false;
+    };
+    let is_perks_rotation = matches!(&button.normal_texture, Some(TextureSource::Atlas(atlas)) if atlas == "perks-button-up");
+    if !is_perks_rotation {
+        return false;
+    }
+    let pressed = button.state == ButtonState::Pushed;
+    let source = if pressed {
+        "perks-button-down"
+    } else {
+        "perks-button-up"
+    };
+    let offset = if pressed { 1. } else { 0. };
+    parts.push(textured(
+        [offset, offset, width, height],
+        TextureSource::Atlas(source.into()),
+        Crop::Full,
+        WHITE,
+    ));
+    project_perks_rotate_highlight(button, width, height, parts);
+    true
+}
+
+fn project_perks_rotate_highlight(
+    button: &ButtonData,
+    width: f32,
+    height: f32,
+    parts: &mut Vec<ImagePart>,
+) {
+    if !(button.hovered || button.highlight_locked) {
+        return;
+    }
+    let mut hover = textured(
+        [0., 0., width, height],
+        TextureSource::Atlas("perks-button-up".into()),
+        Crop::Full,
+        [1., 1., 1., 0.6],
+    );
+    hover.additive = true;
+    parts.push(hover);
 }
 
 /// SharedButtonTemplate inherits128-RedButton; its114px/292px caps scale with height.
@@ -153,7 +204,8 @@ fn project_panel_button(
     else {
         return false;
     };
-    let cap = 12.0 * height / 22.0;
+    // TOP/BOTTOM anchors stretch the strip vertically; its XML width stays12px.
+    let cap = 12.0;
     for (x, w, left, right) in [
         (0.0, cap, 0.0, 0.09375),
         (cap, width - 2.0 * cap, 0.09375, 0.53125),
@@ -440,7 +492,8 @@ fn project_highlight(frame: &Frame, width: f32, height: f32, parts: &mut Vec<Ima
     part.overlay = true;
     // Blizzard_TransmogTemplates.xml: model-card BorderHighlight uses ADD;
     // its black centre must not cover the separately composited 3D preview.
-    part.additive = matches!(source, TextureSource::Atlas(name) if matches!(name.as_str(),
+    part.additive = matches!(source, TextureSource::FileDataId(130757 | 130717))
+        || matches!(source, TextureSource::Atlas(name) if matches!(name.as_str(),
         "transmog-itemcard-default" | "transmog-setcard-default" | "transmog-setcard-incomplete"
         | "transmog-gearslot-default" | "transmog-gearslot-transmogrified" | "transmog-gearslot-pending"
         | "transmog-gearslot-default-small" | "transmog-gearslot-transmogrified-small"
@@ -453,6 +506,13 @@ fn button_skin(frame: &Frame) -> Option<TextureSource> {
     let Some(WidgetData::Button(button)) = &frame.widget_data else {
         return None;
     };
+    // TabardFrame.xml authored arrows keep Normal/Pushed art under a separate ADD highlight.
+    if matches!(
+        button.normal_texture,
+        Some(TextureSource::FileDataId(130869 | 130866 | 130845 | 130847))
+    ) {
+        return None;
+    }
     if !button.use_default_skin
         && (frame.three_slice.is_some()
             || frame.nine_slice.is_some()
