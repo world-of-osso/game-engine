@@ -972,6 +972,7 @@ impl UiProjection {
             (AutowrapMode::WORD, OverrunBehavior::NO_TRIMMING)
         };
         node.set_autowrap_mode(wrap);
+        node.set_max_lines_visible(data.max_lines.map_or(-1, |lines| lines as i32));
         node.set_text_overrun_behavior(overrun);
         if fit_multiline {
             fit_multiline_label_spacing(&mut node, data, rect.height)?;
