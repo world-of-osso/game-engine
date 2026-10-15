@@ -1,69 +1,55 @@
 # Player-bot measurement harness
 
-Contract: [bot-harness spec](../../specs/bot-harness.md).
+Contract: [bot-harness spec](../../specs/bot-harness.md). Verified evidence below is dated2026-10-15; it is not all-class or balance acceptance.
 
-`python3 scripts/bot_harness.py RUN.json COMBAT.log OUTPUT` reads submitted cast attempts and native IPC combat text. Server timestamps delimit a fixed half-open measurement window. Actor/target identity excludes companions and unrelated damage. Cast successes are consumed once when reconciling requests; requests include their explicit response deadline. Expected damage spells may list child `damage_ids`.
+## Native players and source inputs
 
-The first regression fixture retains unmodified combat lines from the private native Mage32 Stockade controller at `/home/osso/.worktrees/follower-dungeons-2026-10-13/stockade-diagnostic/physical-los-run/command-00236.log`. The test adds a deliberately absent Arcane Barrage request after that capture; this is a detector test, not evidence that a live Arcane Barrage request failed. A second controlled test removes actual damage records while keeping actual successes.
+`bot_roster.py` reads installed ChrSpecialization ClassID>0/OrderIndex<4:40 playable specs, excluding Initial/Adventurer and retaining Devourer1480. This is a source census, not40 executed bots. For the Northshire fixture it selects the lowest valid Alliance playable race from ChrRaces/CharBaseInfo; old Orc-shaman captures are historical and are not rewritten.
 
-Reports separate findings from unobservable checks. Combat text alone does not expose charges, authoritative resource spending, aura effect state or cooldown resets. The observer now also captures existing native assisted/cooldown/aura snapshots; their live detection coverage remains unverified. An applied aura alone cannot certify effect/no-effect. No clean gameplay claim is made for these checks.
+`run_bot_roster.py` provisions `fb_bot_harness_<spec>` on an already-running private UDP5871. Each client has isolated XDG credentials/state, an explicit owned IPC socket and a preserved private-port token. Capacity ADD and1.5GiB free VRAM gate each launch. One Cage/Godot client is owned/stopped at a time. Extracted-only asset mode and a private cache copy prevent runtime extraction into shared asset links. The driver does not own shared realms or change game stats.
 
-Comparison groups require an explicit equal `comparison` receipt (level, stats, dummy, duration). Median-relative spread has no pass/fail threshold and is not an external DPS comparison. A raw report defaults to incomplete until native fixed-duration collection provides its receipt.
+`bot_harness_observer.gd` selects the requested spec only after initial spec/metadata arrival, then publishes existing account/spell/target/aura/cooldown/assisted snapshots. After talent input completes, native Tab selects a dummy. The explicit `target` consumed by native evaluation/casting is verified against admin `npc-info` entry44548; `server_target` is retained as an echo, not substituted for that cast target. The original incorrect field choice and early spec request are harness setup bugs, not gameplay fixes.
 
-## Proof ledger — 2026-10-15
+Ordinary bounded movement approaches the observed dummy model origin to2.5 horizontal yards before measurement. The existing ground-tested private destination is only initial placement. Missing position, changed target or a100-step approach failure blocks; there is no teleport/collision bypass during approach.
 
-- Detector RED: seven focused unittest cases fail against empty implementation; native combat fixture and missing-request assertion reproduce absent detection.
-- Native execution: pending; extension build succeeded, CLI build still running; no client launched yet.
+## Sourced rotations and talents
 
-Related: [native follower controller proof](follower-dungeons.md), [class proof](../investigations/class-spell-live-proof.md).
+All40 installed specs have AssistedCombatStep order. When order exists, the collector consumes the existing [native assisted evaluator](../investigations/cooldown-assist-data.md); unknown/loading predicates stop collection. Only an absent authored order permits the approved, labeled highest-available DB2 coefficient rule. No source gap silently enables that generic rule.
 
-## Native collector
+`bot_rotation.py` preserves SpellMisc/Power/Cooldowns/Effect/CastTimes rows and excludes passives. Explicit missile/spell triggers32/64 retain their damage identities: Frostbolt116 deals through228597. Cyclic direct triggers fail explicitly. Periodic, weapon-only and script-only damage classification remains incomplete.
 
-`godot/tests/bot_harness_observer.gd` publishes existing account/spell/target/aura/cooldown/assisted snapshots to an owned output directory and selects its requested specialization through the existing private method. `scripts/run_dummy_bots.py` requires an explicit socket, observed state, DB2 directory and dummy entity. It collects overlapping1024-event ring snapshots, preserving duplicate multiplicity, and saves every IPC reply plus native samples. Repeats remain separate runs; no automatic stat equality is assumed. Static DB2 cooldown scheduling is a generic driver, not proof of authoritative cooldown correctness.
+`bot_talents.py` emits TraitTreeLoadoutEntry OrderIndex with node/entry/spell and the existing native button name. NumPoints is a cumulative target rank, not an additional purchase count. Pinned TC a352b1fa TraitMgr::InitializeStarterBuild subtracts existing Rank; its48138-byte cached source matches pinned tree blob`10ff78b0d921b36f7d7cb91e632eea7d69c9cca8`. TraitMgr::Load's last-encountered loadout policy selects Fire931. An explicit sourceID override is recorded; ambiguous unselected multi-entry nodes fail rather than invent a choice.
+
+`bot_harness_talents.gd` drives actual N/mouse input. Already-present ranks are not repurchased, unavailable/disabled nodes are recorded, and the ordinary Apply button commits staged choices. Native UI observations are not automatically persistence proof. Ret32's12 positive source-plan ranks were separately retained across a stopped client and fresh credential login (`talent-persistence.json`).
+
+## Capture and detection
+
+`run_dummy_bots.py` requires an explicit socket/state/DB2 directory/dummy. It saves every IPC reply, native samples, run manifest and raw combat. Overlapping ring polls preserve true event multiplicity without recounting overlap; sequence gaps use the observed200-event retention, not the requested1024 lines.
+
+Server timestamps delimit a fixed half-open window. Only the bot's damage to the chosen dummy contributes to DPS. A cast success can satisfy one request only. Deadlines not yet observed after interruption remain pending. Findings distinguish unused active abilities, a successfully cast damage spell with zero observed damage, missing casts, native rejections, participant deaths and server errors. Collateral NPC deaths are raw evidence, not bot/follower failures.
+
+Rejection strings currently lack spell IDs, so `native_cast_error` uses null attribution. Charge/resource/aura-effect/reset violations are not certified from combat text or aura presence alone. Existing native assisted/cooldown/aura snapshots are retained for further detection; these checks remain explicitly unobserved.
+
+Incomplete collection exposes DPS as null. Setup failures also receive JSON/Markdown. Summaries remain short; full per-ability findings live in JSON.
+
+## Damage comparison
+
+Comparison requires equal explicit receipts for level, stats, dummy and duration. ChrSpecialization.Role2 alone enters the DPS median. Equal-duration repetitions first produce one mean DPS per spec; unequal repeat counts and tank/healer damage cannot weight that median. Reports give max/median and min/median with no tolerance or pass/fail. No external DPS numbers are used. Comparable gear/stat receipts remain open; ordinary source-derived starting characters alone do not establish them.
+
+## Recorded native proof and remaining gates
+
+- Ret32, sourced talents and physical melee approach: first complete60s run deals2406 own-dummy damage,40.1DPS, with15 unmatched submissions and15 native rejections. Two later60s windows record33.9333 and20DPS. These are actual measurements, not bug-free or balanced-class claims.
+- Ret talent fresh-login evidence retains12/12 previously positive source-plan ranks. Stopped/started client PIDs, account identity, source manifests and realized ranks are preserved.
+- Earlier default-kit runs stop on Arcane12408/condition20, Ret6425/equality, Elemental38530/condition17; Frost reports33686/condition67. Sourced talents/melee approach later permit the Ret windows; the other evaluator semantics remain owner gaps.
+- Detection regressions retain an actual submitted20271 request1792056099829 without success, alongside three successes/899 damage. The separate Stockade fixture has an explicitly injected absent request; neither fixture fabricates combat values.
+- Three-DPS MVP, all-spec execution, full detection observability, comparable-stat spread and repeated Stockade/follower completion remain open.
+
+Durable evidence: `/home/osso/.worktrees/bot-harness-2026-10-15/`, linked from slot `data/diagnostics/bot-harness-2026-10-15/`. Initial extension/CLI helper build passed698.7s; server helper passed9m36s. Those binaries predate later master UI/terrain merges; live receipts do not certify unrelated merged Rust changes. Source revisions and targeted RED/GREEN command logs live in the handoff/proof ledger.
 
 ## Sources
 
-- `godot/rust/src/ipc/combat.rs`: native text serialization and server timestamps.
-- `godot/rust/src/ipc/world.rs`: ordinary SpellCastIntent path, server validation retained.
-- `data/db2/active/{SpellEffect,SpellMisc,SpellPower,SpellCooldowns,SpellCastTimes}.csv`: retained source rows and generic direct-damage coefficients; passive flag follows pinned TC SPELL_ATTR0_PASSIVE.
-- [Follower native proof](follower-dungeons.md): owned private real-player controller precedent.
-
-## Authored order discovery
-
-[Existing assisted data](../investigations/cooldown-assist-data.md) already supplies AssistedCombatStep.OrderIndex and the native evaluator. The collector uses that evaluator when the installed table orders the specialization; failure to load/evaluate blocks that run, never enabling generic behavior. The approved generic coefficient rule applies only to a spec absent from the authored step table. This supersedes the initial direct-only driver plan. A retained actual private Ret snapshot proves exact native selection35395, not an invented top ability.
-
-## Source roster and client lifetime
-
-`bot_roster.py` enumerates installed ChrSpecialization ClassID>0/OrderIndex<4 and chooses each class's lowest valid CharBaseInfo RaceID. Installed70391 census is40 playable specs, excluding Initial/Adventurer slots and retaining Devourer1480. This is a source census, not40 executed bots. `run_bot_roster.py` provisions fb_bot_harness_<spec> on an already-running private5871, sets the common requested level, uses the existing ground-tested cooldown-assist destination and selects an actual44548 dummy through native Tab. Each bot has its own XDG credentials/state; private port tokens are preserved between clients, never reused across accounts. Capacity ADD and1.5GiB free VRAM gate each launch. Extracted-only mode prevents runtime CASC extraction into shared asset links; cache is a private copy. It owns/stops one client at a time and never starts/stops the shared realm.
-
-## Native setup boundary — first attempt
-
-Own5871 native Mage32 selected a dummy in prediction while the authoritative target still named another entity. The identity guard rejected this sample instead of reporting DPS on the wrong target. Retained actual snapshot reproduces readiness RED; initial mitigation waited for target/server_target equality and spell metadata; the next root-cause check supersedes that target gate below. Fire remained on default62 after its early one-shot spec request; observer now waits for initial spec plus metadata before sending, pending live confirmation. These are harness readiness changes, not gameplay/stat fixes.
-
-The collector had incorrectly chosen server_target for its explicit IPC cast target. Native assisted facts and native selection use target; the explicit spell request independently names that verified entity. The driver now verifies target against admin npc-info44548 and uses that same ID for evaluation/casting. A differing echoed target is retained as diagnostic evidence, not a requirement that can redirect a cast to an unrelated entity. Actual snapshot regression exercises this exact mismatch.
-
-Aborted observations retain requests whose response deadline has not elapsed as pending, rather than falsely classifying them never-fired. Setup failures also get JSON and Markdown without claiming a measurement. For authored rotations, all known active metadata participates in never-used coverage; the selected source order remains separate from coverage.
-
-Native cast-rejection strings are reported as native_cast_error with a null spell ID because the current public snapshot does not identify their originating spell. The collector retains only newly appended errors; it never invents an attribution. Private Ret32 produced No charges remain during the live60s run; source/gameplay cause remains owner investigation, not a harness balance fix.
-
-## Live MVP source blockers —2026-10-15
-
-Private5871 native Arcane62 stops on authored12408/condition20 (mana percentage semantics); Ret70 casts Judgment and records899 own-target damage before6425 equality-inclusivity blocks; Elemental262 stops on38530/condition17. Frost64 earlier reported33686/condition67. All40 installed specs have authored step order, so none permits the no-order generic path. No completed60s measurement or balance conclusion exists. Incomplete reports expose DPS as null, never a nominal-window number that could be mistaken for sustained DPS. Raw initial reports are retained; reanalysis receipts identify the current detector revision. All owned clients/private server stopped after these captures. Source/evaluator semantics belong to the lead/owning agent; no gameplay changes made here.
-
-The actual owned Ret32 dummy combat and submitted attempts now back a non-injected detector regression:20271 request1792056099829 has no success before its elapsed deadline; the same log has three successes and899 damage. The original Stockade/injected-request fixture remains a separate controlled case. Current native kits use default/granted talents only; purchased loadouts and comparable gear/stats remain explicit gates.
-
-Frostbolt116 uses SpellEffect32 to trigger228597; damage is recorded on the child, not the parent. Retained installed rows reproduce the previous damage-classification miss. The source loader follows explicit missile/spell triggers32/64, records damage IDs/rows and rejects cyclic direct triggers rather than fabricating a coefficient. Periodic/weapon/script-only damage semantics remain separate coverage gaps.
-
-## Sourced talent manifest
-
-`bot_talents.py DB2 SPEC OUTPUT [--loadout ID]` emits installed TraitTreeLoadoutEntry OrderIndex with concrete node/entry/spell and the existing native TalentNode...Button name. Repeated62123 rank1→2 remains cumulative, not two plus two purchases. Verified pinned TC a352b1fa TraitMgr::InitializeStarterBuild subtracts existing Rank from NumPoints; cached48138-byte TraitMgr.cpp matches pinned tree blob10ff78b0d921b36f7d7cb91e632eea7d69c9cca8. An unselected multi-entry node stays a source ambiguity; no invented choice. Pinned TraitMgr::Load uses the last encountered loadout for each spec; the manifest follows that installed row order (Fire931), or records an explicit sourceID override. This manifest is not a purchased/native talent acceptance receipt.
-
-The native observer now reads that manifest and drives actual N/mouse input through bot_harness_talents.gd. Source target ranks already present are not repurchased; invisible/disabled nodes retain explicit observations. The ordinary Apply button is clicked only when enabled, with realized UI ranks retained in native-talents.json. This is staged/native-input coverage until fresh-login persistence proves purchases; earlier live runs predate this addition. Dummy readiness waits for the talent receipt.
-
-The Northshire fixture now chooses the lowest valid Alliance playable race using ChrRaces.Alliance0/PlayableRaceBit and CharBaseInfo, rather than placing an Orc shaman among Alliance guards. Authentic rows reproduce the old race2 versus sourced Dwarf3 mismatch. Existing old-run characters are not rewritten; a fresh owned redb is needed for the corrected roster. This changes test provisioning, not gameplay stats.
-
-Dummy approach uses the observed selected model origin and ordinary bounded native movement (the follower-controller yaw convention), stopping2.5 horizontal yards away before measurement. Every physical observation/command is retained; changed target, absent position or100-step failure blocks rather than teleports. This removes the original25yd ranged-only stand from melee comparisons without changing game speed/grounding. Talent-panel input completes before Tab target selection starts.
-
-First source-talented/melee-range Ret32 run completes60s:2406 own-dummy damage,40.1DPS,15 unmatched submissions and15 native rejection observations. This is one-spec measurement, not a balanced/bug-free kit. A collateral NPC death was initially misclassified as a participant death; the retained actual line reproduces that harness bug. Findings now restrict deaths to the bot and explicitly supplied party actors; all other deaths remain in raw combat evidence. Source-talent ranks have not yet been proved after relog.
-
-Balance aggregation uses authored ChrSpecialization.Role2 only. Repeated equal-duration runs first reduce to one mean DPS per spec, then the median/spread weights each DPS spec once; tank/healer damage and unequal repeat counts cannot bias that median. Missing role/comparison/completion evidence blocks comparison. No tolerance/pass-fail added.
+- `godot/rust/src/ipc/{combat,world}.rs`: server timestamps/text and ordinary validated SpellCastIntent.
+- `data/db2/active/`: installed spell, specialization, race and talent rows; selected authentic fixtures retain provenance.
+- `godot/rust/src/spells/{snapshot,assisted_combat,cooldown_viewer}.rs`: existing native observability and source evaluator.
+- Pinned TC a352b1fa `TraitMgr.cpp`: starter rank and loadout semantics, matching blob above.
+- [Follower native controller proof](follower-dungeons.md), [class proof](../investigations/class-spell-live-proof.md), [private terrain destination](../../../../game-server/docs/wiki/investigations/private-terrain-destinations.md).

@@ -4,6 +4,7 @@ The caller owns server lifetime. This driver owns at most one Cage/Godot client,
 uses an isolated XDG directory per bot, and preserves each private login token.
 """
 import argparse
+import hashlib
 import json
 import math
 import os
@@ -28,6 +29,28 @@ def command(output, argv, env=None):
     if result.returncode:
         raise RuntimeError(result.stderr or result.stdout)
     return result.stdout
+
+
+def record_inputs(args):
+    files = [args.engine / "scripts" / f"{name}.py" for name in
+             ("bot_harness", "bot_rotation", "bot_roster", "bot_talents", "run_dummy_bots", "run_bot_roster")]
+    files += [args.engine / "godot/tests" / f"{name}.gd" for name in ("bot_harness_observer", "bot_harness_talents")]
+    tables = ("ChrSpecialization", "ChrRaces", "ChrClasses", "CharBaseInfo", "SpellEffect", "SpellMisc",
+              "SpellPower", "SpellCooldowns", "SpellCastTimes", "AssistedCombat", "AssistedCombatStep",
+              "AssistedCombatRule", "TraitTreeLoadout", "TraitTreeLoadoutEntry", "TraitNodeXTraitNodeEntry",
+              "TraitNodeEntry", "TraitDefinition")
+    files += [args.engine / "data/db2/active" / f"{table}.csv" for table in tables]
+    files += [args.engine / "target/debug/libgame_engine_godot.so",
+              args.engine / "target/debug/game-engine-cli", args.server / "target/debug/game-server"]
+    hashes = {}
+    for path in files:
+        with path.open("rb") as source:
+            hashes[str(path)] = hashlib.file_digest(source, "sha256").hexdigest()
+    revision = command(args.output, ["git", "-C", args.engine, "rev-parse", "HEAD"]).strip()
+    receipt = {"at_ms": int(time.time() * 1000), "driver_source_revision": revision, "sha256": hashes,
+               "db2_directory": str((args.engine / "data/db2/active").resolve()),
+               "binary_source": "Binary hashes identify running artifacts; driver revision does not establish their Rust build revision."}
+    (args.output / "inputs.json").write_text(json.dumps(receipt, indent=2) + "\n")
 
 
 def wait_capacity(args, gpu=False):
@@ -240,6 +263,7 @@ def main():
     if args.duration <= 0 or args.repeat < 1:
         parser.error("Positive duration and repeat required")
     args.output.mkdir(mode=0o700, parents=True, exist_ok=False)
+    record_inputs(args)
     admin(args, "ping")
     bots = build_roster(args.engine / "data/db2/active", args.level)
     bots = [bot for bot in bots if args.all_specs or bot["spec"] in args.specs]
