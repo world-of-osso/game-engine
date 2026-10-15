@@ -46,7 +46,8 @@ mod specialization_tests {
 
     #[test]
     fn specialization_local_slam_changes_from_arms_to_fury_with_the_same_weapon() {
-        // ChrSpecialization 71 (Arms): OrderIndex 0; 72 (Fury): OrderIndex 1.
+        // Active70391: SpellXSpellVisual1727 → visual190513 → event561991
+        // → cast kit278884. ChrSpecialization71/72 OrderIndex0/1 is unchanged.
         let mut spells = crate::player_spells::PlayerSpells::default();
         assert_eq!(
             slam_cast_kit(
@@ -54,7 +55,7 @@ mod specialization_tests {
                 spells.spec().map(|spec| (42, spec)),
                 &Replica::default()
             ),
-            62428
+            278884
         );
         spells.set_spec(71);
         assert_eq!(
@@ -63,7 +64,7 @@ mod specialization_tests {
                 spells.spec().map(|spec| (42, spec)),
                 &Replica::default()
             ),
-            62428
+            278884
         );
         spells.set_spec(72);
         assert_eq!(
@@ -80,8 +81,8 @@ mod specialization_tests {
     fn specialization_before_the_snapshot_and_unknown_remote_specs_keep_no_spec_behavior() {
         // No primary specialization: TrinityCore skips the spec comparison.
         let units = Replica::for_tests();
-        assert_eq!(slam_cast_kit(42, None, &units), 62428);
-        assert_eq!(slam_cast_kit(99, Some((42, 72)), &units), 62428);
+        assert_eq!(slam_cast_kit(42, None, &units), 278884);
+        assert_eq!(slam_cast_kit(99, Some((42, 72)), &units), 278884);
         let none = caster_spec_order_index(99, Some((42, 72)), &units, catalog());
         assert_eq!(none, None);
     }
@@ -94,7 +95,7 @@ mod specialization_tests {
         assert_eq!(slam_cast_kit(99, Some((42, 71)), &units), 128672);
         assert_eq!(slam_cast_kit(99, None, &units), 128672);
         units.insert(99, shared::components::ActiveSpec(71));
-        assert_eq!(slam_cast_kit(99, Some((42, 72)), &units), 62428);
+        assert_eq!(slam_cast_kit(99, Some((42, 72)), &units), 278884);
     }
 }
 
