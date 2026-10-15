@@ -64,7 +64,7 @@ func verify_portrait_corners(name: String) -> bool:
 			var difference := painted.get_pixelv(point) - backdrop.get_pixelv(point)
 			var changed := Vector3(difference.r, difference.g, difference.b).length() > 0.04
 			var normalized := Vector2(x,y) / rect.size - Vector2(0.5,0.5)
-			if normalized.length() > 0.62 and changed:
+			if normalized.length() > 0.55 and changed:
 				changed_corners += 1
 			if normalized.length() < 0.3 and changed:
 				changed_center += 1
@@ -107,6 +107,10 @@ func run() -> void:
 	if not await expect_model(359, 33002, "Helix Gearbreaker") or not verify_selection_sizes("JournalCreature359", "JournalCreature630"):
 		return
 	if not await move_to("JournalCreature630") or not await shot("model-selector-helix"):
+		return
+	if not await verify_portrait_corners("JournalCreature359Portrait") or not await verify_portrait_corners("JournalCreature630Portrait"):
+		return
+	if not await move_to("JournalCreature630"):
 		return
 	if client.tooltip_state().get("title", "") != "Lumbering Oaf":
 		stop("Authored Oaf tooltip absent")
