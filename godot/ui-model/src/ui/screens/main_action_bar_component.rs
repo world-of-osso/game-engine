@@ -36,7 +36,6 @@ const FRAME_ART_W: f32 = 46.0;
 /// `Cooldown` is inset 3 px from the icon.
 const COOLDOWN_INSET: f32 = 3.0;
 /// Cooldown `SwipeTexture` colour 0,0,0,0.8.
-const COOLDOWN_SWIPE: &str = "0.0,0.0,0.0,0.8";
 /// `HotKey` at TOPRIGHT -4,-5 (`hotkeyTextKeyboardX/Y`).
 const HOTKEY_ANCHOR: (f32, f32) = (4.0, 5.0);
 /// `HotKey` (`ActionButtonTemplate.xml:85-91`): 32×10, `justifyH="RIGHT"`, one line (its
@@ -112,8 +111,6 @@ pub struct ActionButtonView {
     pub icon_fdid: u32,
     /// Remaining fraction of the running cooldown or GCD, 0 when none.
     pub cooldown_fraction: f32,
-    /// Toy actions use the native radial CooldownFrame swipe.
-    pub radial_cooldown: bool,
     /// Retail Assisted Highlight recommendation, separate from pointer hover.
     pub assisted_highlight: bool,
     /// Countdown text of cooldowns of 2 s and longer.
@@ -398,33 +395,23 @@ fn icon(name: String, fdid: u32, size: f32) -> Element {
     }
 }
 
-/// The swipe covers the icon's remaining fraction, draining downward.
+/// Full inset host for the native clockwise CooldownFrame swipe.
 fn cooldown(name: &str, view: &ActionButtonView, scale: f32) -> Element {
     let size = BUTTON_SIZE * scale;
     let inset = COOLDOWN_INSET * scale;
     let side = size - 2.0 * inset;
-    let height = if view.radial_cooldown {
-        side
-    } else {
-        (side * view.cooldown_fraction.clamp(0.0, 1.0)).round()
-    };
-    let background = if view.radial_cooldown {
-        "0.0,0.0,0.0,0.0"
-    } else {
-        COOLDOWN_SWIPE
-    };
     let swipe = DynName(format!("{name}Cooldown"));
     let text = DynName(format!("{name}CooldownText"));
     rsx! {
         r#frame {
             name: swipe,
             width: side,
-            height,
-            hidden: {height <= 0.0},
-            background_color: background,
+            height: side,
+            hidden: {view.cooldown_fraction <= 0.0},
+            background_color: "0.0,0.0,0.0,0.0",
             pos_type: "absolute",
             pos_x: inset,
-            pos_y: {size - inset - height},
+            pos_y: inset,
         }
         fontstring {
             name: text,

@@ -37,8 +37,6 @@ fn build_action_cooldown_fixture(
             ..Default::default()
         };
     }
-    // Control for the existing toy-only branch, beside the ordinary spell button.
-    state.buttons[1].radial_cooldown = true;
     state
 }
 
@@ -204,7 +202,7 @@ impl UiAuditProbe {
             host.set_ui_scale(1.0)?;
             let state = build_action_cooldown_fixture(0.0);
             host.show_main_action_bar(state.clone())?;
-            crate::spells::sync_toy_swipes(&mut host, &state)
+            crate::spells::sync_action_bar_swipes(&mut host, &state)
         })();
         result.err().unwrap_or_default().as_str().into()
     }
@@ -218,7 +216,7 @@ impl UiAuditProbe {
         let result = (|| {
             let mut host = ui.bind_mut();
             host.set_state(state.clone())?;
-            crate::spells::sync_toy_swipes(&mut host, &state)
+            crate::spells::sync_action_bar_swipes(&mut host, &state)
         })();
         result.err().unwrap_or_default().as_str().into()
     }
