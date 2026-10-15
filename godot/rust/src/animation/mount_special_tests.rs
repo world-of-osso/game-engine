@@ -81,6 +81,29 @@ fn mount_special_spelltome_late_rider_segment_outlives_the_first_segment() {
 }
 
 #[test]
+fn mount_special_spelltome_fourth_segment_changes_pose_within_real_mount_duration() {
+    let mut full = human_male_hd();
+    let mut without_last = human_male_hd();
+    full.update_locomotion(91, false, false).unwrap();
+    without_last.update_locomotion(91, false, false).unwrap();
+    let catalog = kit_catalog();
+    let kit = catalog.kit(23323).unwrap();
+    let root = Path::new(env!("CARGO_MANIFEST_DIR")).join("../../data/db2/active");
+    let fallbacks = game_engine_core::spell_visual::read_animation_fallbacks(&root).unwrap();
+    // The actual Spelltome sequence94 is4000ms (authored attachment fixture below).
+    full.play_mount_kits(&[kit], 4000.0, &fallbacks).unwrap();
+    without_last
+        .play_mount_kits(&[&kit[..3]], 4000.0, &fallbacks)
+        .unwrap();
+    full.advance(3850.0).unwrap();
+    without_last.advance(3850.0).unwrap();
+    assert!(
+        pose_distance(&full.poses(), &without_last.poses()) > 0.001,
+        "fourth Spelltome rider segment had no effect before the real mount special ended"
+    );
+}
+
+#[test]
 fn mount_special_full_body_sequence_is_not_replaced_by_per_frame_locomotion() {
     let mut mount: AnimationState = human_male_hd();
     let fallback = HashMap::from([(94, 60)]);
