@@ -50,6 +50,8 @@ func run_test() -> void:
 	if mode == "master":
 		if not await write_note(false, prefix + " alchemy") or not await write_note(true, prefix + " officer"):
 			return
+		if not await cancel_member_popups(prefix + " alchemy"):
+			return
 	elif mode == "self":
 		if shown("GuildMemberDetailOfficerNoteText"):
 			fail("Private officer note exposed to ordinary member")
@@ -135,6 +137,34 @@ func write_note(officer: bool, value: String) -> bool:
 	var target := "GuildMemberDetailOfficerNoteText" if officer else "GuildMemberDetailNoteText"
 	var note_button := "GuildMemberDetailOfficerNote" if officer else "GuildMemberDetailNote"
 	return await wait_until(func(): return text(target) == value and not shown("GuildMemberNoteEditBox") and shown(note_button) and not (control(note_button) as BaseButton).disabled, "authoritative note reply and edit re-enable")
+
+func cancel_member_popups(public_note: String) -> bool:
+	await press("GuildMemberDetailNote")
+	if not await wait_until(func(): return shown("GuildMemberNoteEditBox"), "cancelable note popup"):
+		return false
+	var editor := control("GuildMemberNoteEditBox") as LineEdit
+	editor.select_all()
+	await tap(KEY_BACKSPACE)
+	await type_text("Do not save this note")
+	await tap(KEY_ESCAPE)
+	if not await wait_until(func(): return not shown("GuildMemberNoteEditBox") and shown("GuildMemberDetailName"), "Escape closes only note popup"):
+		return false
+	if text("GuildMemberDetailNoteText") != public_note:
+		return fail("Escape committed an unwanted note")
+	await press("GuildMemberDetailRemove")
+	if not await wait_until(func(): return shown("GuildMemberRemovePopupText"), "member removal confirmation"):
+		return false
+	if text("GuildMemberRemovePopupText") != "Are you sure you want to remove %s from the guild?" % OS.get_environment("GUILD_NOTE_TARGET"):
+		return fail("Wrong member removal confirmation target")
+	await capture("remove-confirmation")
+	await press("GuildMemberRemoveNo")
+	if not await wait_until(func(): return not shown("GuildMemberRemovePopupText") and shown("GuildMemberDetailName"), "No keeps member detail"):
+		return false
+	await press("GuildMemberDetailRemove")
+	if not await wait_until(func(): return shown("GuildMemberRemovePopupText"), "reopened removal confirmation"):
+		return false
+	await tap(KEY_ESCAPE)
+	return await wait_until(func(): return not shown("GuildMemberRemovePopupText") and shown("GuildMemberDetailName") and text("GuildMemberDetailNoteText") == public_note, "Escape cancels removal without closing guild detail")
 
 func select_skin(skin: String) -> bool:
 	if str(client.account_state().ui_skin) == skin:
