@@ -2,6 +2,7 @@
 use crate::bank_art::label;
 use crate::guild_ranks::GuildRanksSession;
 use crate::quest_art::{DynName, flat_panel_chrome, panel_button};
+use crate::ui::strata::FrameStrata;
 use shared::protocol::*;
 use ui_toolkit::{rsx, widget_def::Element};
 
@@ -186,5 +187,5 @@ pub fn editor(session: &GuildRanksSession) -> Element {
         ));
     }
     rsx! { r#frame { name: "GuildMemberNotePopup", width: 310.0, height: 150.0, left: "50%", top: "50%",
-    translate_x: "-50%", translate_y: "-50%", pos_type: "absolute", frame_level: 1100.0, mouse_enabled: true, {children} } }
+    translate_x: "-50%", translate_y: "-50%", pos_type: "absolute", strata: FrameStrata::Dialog, frame_level: 1100.0, mouse_enabled: true, {children} } }
 }
