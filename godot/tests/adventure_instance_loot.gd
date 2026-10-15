@@ -32,6 +32,33 @@ func verify_loot_row(name: String, height: float, boss: String) -> bool:
 		return false
 	return true
 
+func verify_loaded_icon(name: String) -> bool:
+	var deadline := Time.get_ticks_msec() + 30000
+	var icon: TextureRect
+	while Time.get_ticks_msec() < deadline:
+		icon = control(name) as TextureRect
+		if icon != null and icon.texture != null:
+			break
+		await process_frame
+	if icon == null or icon.texture == null or not icon.is_visible_in_tree():
+		stop("Authored loot icon did not load: " + name)
+		return false
+	var image := icon.texture.get_image()
+	if image == null or image.is_empty():
+		stop("Authored loot icon image absent: " + name)
+		return false
+	var colored := 0
+	for y in image.get_height():
+		for x in image.get_width():
+			var pixel := image.get_pixel(x,y)
+			if pixel.a > 0.5 and maxf(pixel.r,maxf(pixel.g,pixel.b)) > 0.08:
+				colored += 1
+	if colored < 20:
+		stop("Authored loot icon is blank: " + name)
+		return false
+	print("INSTANCE_LOOT_ICON %s colored=%s" % [name,colored])
+	return true
+
 func verify_loot_scroll() -> bool:
 	var first := first_visible_loot()
 	if first.is_empty() or client.adventure_guide_state().loot_count * 64 <= 382:
@@ -122,6 +149,8 @@ func run() -> void:
 	if label_text("JournalLoot2169Slot") != "One-Hand" or label_text("JournalLoot2169ArmorClass") != "Dagger":
 		stop("Source slot/subclass missing or combined with invented item-level text")
 		return
+	if not await verify_loaded_icon("JournalLoot2169Icon"):
+		return
 	if not await move_to("JournalLoot2169") or not client.tooltip_state().get("visible", false) or client.tooltip_state().get("title", "") != "Buzzer Blade":
 		stop("Shared actual item tooltip missing")
 		return
@@ -147,7 +176,7 @@ func run() -> void:
 		stop("Genuine Ny'alotha instance loot absent or insufficient for overflow")
 		return
 	var raid_item := first_visible_loot()
-	if raid_item.is_empty() or not await move_to(raid_item) or not await shot("raid-instance-loot-tooltip"):
+	if raid_item.is_empty() or not await verify_loaded_icon(raid_item + "Icon") or not await move_to(raid_item) or not await shot("raid-instance-loot-tooltip"):
 		return
 	print("INSTANCE_LOOT_PASS skin=%s physicalinstance/boss/scroll/slot/tooltip/raid" % client.account_state().ui_skin)
 	quit(0)
