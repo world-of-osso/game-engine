@@ -167,7 +167,8 @@ func frame_observed_actor() -> void:
 	camera.look_at(unit.global_position + Vector3(0, 2, 0))
 
 func capture_spelltome_diagnostic() -> void:
-	var pools := actor_unit().find_children("*", "MultiMeshInstance3D", true, false)
+	# Unit particles share model/emitter pools under WorldUnits, not each unit node.
+	var pools := client.find_children("Particles4061989_*", "MultiMeshInstance3D", true, false)
 	var visible_pools := []
 	for pool in pools:
 		if pool.visible:
