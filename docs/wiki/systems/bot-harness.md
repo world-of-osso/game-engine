@@ -27,3 +27,7 @@ Related: [native follower controller proof](follower-dungeons.md), [class proof]
 - `godot/rust/src/ipc/world.rs`: ordinary SpellCastIntent path, server validation retained.
 - `data/db2/active/{SpellEffect,SpellMisc,SpellPower,SpellCooldowns,SpellCastTimes}.csv`: retained source rows and generic direct-damage coefficients; passive flag follows pinned TC SPELL_ATTR0_PASSIVE.
 - [Follower native proof](follower-dungeons.md): owned private real-player controller precedent.
+
+## Authored order discovery
+
+[Existing assisted data](../investigations/cooldown-assist-data.md) already supplies AssistedCombatStep.OrderIndex and the native evaluator. The collector uses that evaluator when the installed table orders the specialization; failure to load/evaluate blocks that run, never enabling generic behavior. The approved generic coefficient rule applies only to a spec absent from the authored step table. This supersedes the initial direct-only driver plan. A retained actual private Ret snapshot proves exact native selection35395, not an invented top ability.
