@@ -1,6 +1,9 @@
 ## 2026-10-15 — Clean-room M2 particle slices
 
 [Native particles](systems/godot-conversion.md#native-m2-particles): independent tails/follow, actual6316199 cubic controls and2994778 inherited scale decode. Targeted RED→GREEN7 controls; follow-up tail-width RED fixed, GREEN pending. P3 timer/reset, P4 density, S1 lighting oracle and P5 product/lifecycle provenance remain named gaps. Real165894 tail pixels pending; no prohibited sources consulted.
+## 2026-10-15 — Stockade ramp lip movement
+
+[Player ground](systems/player-ground.md#native-grounded-steps--2026-10-15): captured face3153 lip blocks before reachable face3041 support; floor-first order with unchanged low-ray movement corridor and step/wall constants. Exact-face RED and thin-wall counterexample RED recorded; lead explicitly excluded full-height body clearance after authored-route regressions. Full-body clearance is a named gap. [Bounded native proof](systems/player-ground.md#bounded-native-proof): Godot old-ray contact0.04996484yd, held-W rise0.65576yd with matching client/server positions, inspected before/after PNGs;10+4 focused regressions pass. Authoritative private pose setup is recorded; no server source changes.
 
 ## 2026-10-15 — Guild member note implementation
 
@@ -60,6 +63,14 @@ Shared dropdown/radios replace the StaticPopup/plain-row stand-in; caller Lua wi
 ## 2026-10-15 — Suggested joint provider and three-pane native proof
 
 [Suggested panes](systems/adventure-guide.md#suggested-fixed-source-panes--2026-10-15) now use installed702-row CSV and evaluated authored priority bonuses. Both-skin native330/816 shows genuine881/852/27; a pixel-found91px title overflow is RED→GREEN at the unchanged source66px frame/8px gap, with both lines visible. Server12/UI8, checks/fmt pass; exact executable/input/PNG hashes retained. Unknown predicates and opaque selection/rotation remain explicit gaps; earlier one-record pictures were not acceptance.
+## 2026-10-15 — Trading Post frozen-slot overlap
+
+[Effective frozen geometry](systems/trading-post.md#frozen-slot-geometry--implementation-october15): missing FrozenProductContainer OnLoad overrides left a32px icon inside64px frost art overlapping its label. Source64px icon/95px centered mask and233×45 label preserve the price column and8px frame-to-label gap. Geometry/real-icon alpha RED→GREEN,27 UI/12 native tests and actual both-skin before/after layout/art/conservation pass.16 full-HD originals+8 unscaled paired crops with exact binary/hash/12-memory-edge manifest; ordinary32/48 mask behavior unchanged.
+
+## 2026-10-15 — Trading Post authored base camera/orbit
+
+[Camera ownership](systems/trading-post.md#authored-base-orbit-camera--implementation-october15): installed scene camera target/angles/zoom, product override tag handling and source decimal rounding replace generic bounds fitting. Actual camera-only held/drag orbit and wheel zoom preserve actor bases and rider/HUD lifetimes. Core4 and compatible generic-camera native RED→both-skin GREEN;24 inspected full-HD originals with binary-hash/memory manifest. Inherited native zoom splines/default FOV remain explicit lead-authorized gaps; no full Retail-framing or pet-comparison claim.
+
 ## 2026-10-15 — Trading Post frozen replacement consent
 
 [Frozen confirmation](systems/trading-post.md#frozen-replacement-confirmation--implementation-october15): old-item dialog, candidate slot preview, five-second Confirm-only delay, Cancel/global right-down and consumed Escape. Native premature-request RED→both-skin GREEN; only accepted/empty-slot freezes prune their cart member, authority/Tender unchanged.20 inspected full-HD PNGs and exact binary/memory manifest retained.
