@@ -1177,6 +1177,8 @@ fn pose_write_due(changed: bool, sampling: bool, stale: &mut bool) -> bool {
 
 #[cfg(test)]
 mod action_tests;
+#[cfg(test)]
+mod mount_special_tests;
 
 #[cfg(test)]
 mod global_sequence_tests;
