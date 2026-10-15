@@ -102,6 +102,8 @@ pub mod m2_texture_composite_data;
 pub mod map_catalog;
 pub mod minimap_data;
 pub mod model_asset_index;
+pub mod model_scene_actor;
+pub mod mount_preview;
 #[path = "movement_animation_data.rs"]
 pub mod movement_animation_data;
 #[path = "movement_input_data.rs"]
@@ -112,8 +114,6 @@ pub mod nameplate_style_data;
 pub mod nameplate_visibility_data;
 #[cfg(test)]
 mod nameplate_visibility_data_tests;
-pub mod model_scene_actor;
-pub mod mount_preview;
 pub mod pet_model_scene;
 #[path = "quest_area_data.rs"]
 pub mod quest_area_data;
