@@ -85,7 +85,7 @@ pub fn tooltip_size(tooltip: &TooltipPresentation) -> [f32; 2] {
         .lines
         .iter()
         .map(line_width)
-        .fold(text_width(&tooltip.title, HEADER_SIZE), f32::max);
+        .fold(text_width(&tooltip.title_text(), HEADER_SIZE), f32::max);
     let lines = tooltip.lines.len() as f32;
     [
         widest + 2.0 * INSET,
@@ -117,12 +117,26 @@ pub fn retail_tooltip(state: &TooltipPresentation, prefix: &str, skin: ActiveSki
             )
         }
     };
-    let title = text(
+    let mut title = text(
         format!("{prefix}Title"),
         &state.title,
         [INSET, INSET, width - 2.0 * INSET, HEADER_SIZE],
         (HEADER_SIZE, state.title_color, "LEFT"),
     );
+    if let Some((suffix, color)) = &state.title_suffix {
+        let label_width = text_width(&state.title, HEADER_SIZE);
+        title.extend(text(
+            format!("{prefix}TitleSuffix"),
+            suffix,
+            [
+                INSET + label_width,
+                INSET,
+                width - 2.0 * INSET - label_width,
+                HEADER_SIZE,
+            ],
+            (HEADER_SIZE, *color, "LEFT"),
+        ));
+    }
     let lines: Element = state
         .lines
         .iter()
