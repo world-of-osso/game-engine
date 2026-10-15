@@ -10,5 +10,6 @@
   },
   "db2": "Unmodified row slices for spells 116,133,30451,44425,137018 from data/db2/active (12.1.5.70391); SpellCastTimes retains full small table.",
   "assisted_native": "/home/osso/Projects/world-of-osso/game-engine/data/diagnostics/cooldown-assist3-2026-10-12/finish-modern/assisted-cast.json: assisted snapshot, unmodified",
-  "roster": "Selected columns retaining every unmodified installed row from active ChrSpecialization, ChrClasses, CharBaseInfo."
+  "roster": "Selected columns retaining every unmodified installed row from active ChrSpecialization, ChrClasses, CharBaseInfo.",
+  "native_target_pending": "Own private5871 mvp-dummy1/62/native-state.json, selected account readiness fields plus unmodified spells/target/assisted; predicted dummy4294959692 while server still acknowledged4294959694."
 }
