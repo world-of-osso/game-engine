@@ -15,6 +15,7 @@ from pathlib import Path
 from types import SimpleNamespace
 
 from bot_roster import build_roster
+from bot_rotation import authored_order
 from run_dummy_bots import collect
 
 
@@ -97,6 +98,7 @@ def stop_client(pid, output):
 
 def wait_native(args, output, bot):
     deadline = time.monotonic() + 180
+    requires_authored = bool(authored_order(args.engine / "data/db2/active", bot["spec"]))
     while time.monotonic() < deadline:
         log = (args.engine / "target/headless-client.log").read_text(errors="replace")
         if "SCRIPT ERROR" in log:
@@ -107,7 +109,8 @@ def wait_native(args, output, bot):
             if state["account"].get("selected_character_name") not in ("", bot["name"]):
                 raise RuntimeError("Native logged into a different character")
             ready = state["account"].get("gameplay_input_allowed") and state["spells"]["spec"] == bot["spec"]
-            if ready and state["target"].get("target_name") == "Training Dummy":
+            evaluator_ready = not requires_authored or state["assisted"].get("available", False)
+            if ready and evaluator_ready and state["target"].get("target_name") == "Training Dummy":
                 return state
             if state.get("target_attempts", 0) >= 32:
                 raise RuntimeError("Native Tab cycling found no Training Dummy after 32 targets")
@@ -186,6 +189,8 @@ def main():
     parser.add_argument("--duration", type=float, default=60)
     parser.add_argument("--repeat", type=int, default=2)
     args = parser.parse_args()
+    if args.duration <= 0 or args.repeat < 1:
+        parser.error("Positive duration and repeat required")
     args.output.mkdir(mode=0o700, parents=True, exist_ok=False)
     admin(args, "ping")
     bots = build_roster(args.engine / "data/db2/active", args.level)
