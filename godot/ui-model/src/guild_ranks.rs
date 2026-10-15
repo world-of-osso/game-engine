@@ -252,10 +252,7 @@ impl GuildRanksSession {
                 None
             }
             "guild:detail_group_invite" => {
-                if let Some(member) = self
-                    .detail_member()
-                    .filter(|member| member.is_online && !member.is_self)
-                {
+                if let Some(member) = self.detail_member().filter(|member| member.is_online) {
                     self.commands
                         .push(GuildCommand::GroupInvite(member.character_name.clone()));
                 }
