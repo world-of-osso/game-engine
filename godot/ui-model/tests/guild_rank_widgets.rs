@@ -1252,6 +1252,40 @@ fn guild_member_note_popup_keeps_original_target_when_roster_selection_changes()
 }
 
 #[test]
+fn guild_event_log_opens_from_info_and_closes_independently_both_skins() {
+    let _lock = SKIN.lock().unwrap_or_else(|p| p.into_inner());
+    for skin in [ActiveSkin::Modern, ActiveSkin::Forever] {
+        set_thread_skin(skin);
+        let mut session = GuildRanksSession::default();
+        session.open();
+        session.apply(state(2));
+        assert!(
+            mounted(&session)
+                .get_by_name("CommunitiesGuildLogButton")
+                .is_none()
+        );
+        session.click("guild:info_open", &Default::default());
+        let registry = mounted(&session);
+        assert_eq!(text(&registry, "CommunitiesGuildLogButton"), "View Log");
+        session.click(
+            &action(&registry, "CommunitiesGuildLogButton"),
+            &Default::default(),
+        );
+        assert_eq!(
+            text(&mounted(&session), "CommunitiesGuildLogFrameTitle"),
+            "Guild Event Log"
+        );
+        session.click("guild:log_close", &Default::default());
+        assert!(
+            mounted(&session)
+                .get_by_name("CommunitiesGuildLogFrame")
+                .is_none()
+        );
+        assert!(session.visible, "Closing the log keeps Communities open");
+    }
+}
+
+#[test]
 fn guild_member_remove_requires_yes_and_keeps_original_target_both_skins() {
     let _lock = SKIN.lock().unwrap_or_else(|p| p.into_inner());
     for skin in [ActiveSkin::Modern, ActiveSkin::Forever] {
