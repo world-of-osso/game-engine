@@ -7,9 +7,11 @@ pub enum JumpAction {
 }
 
 pub fn jump_action(mounted: bool, stationary: bool, grounded: bool) -> JumpAction {
-    // Baseline reproducer: before MountSpecial every key press requested a jump.
-    let _ = (mounted, stationary, grounded);
-    JumpAction::Jump
+    if mounted && stationary && grounded {
+        JumpAction::MountSpecial
+    } else {
+        JumpAction::Jump
+    }
 }
 
 #[cfg(test)]

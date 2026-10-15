@@ -1667,6 +1667,12 @@ impl WorldUnits {
         Ok(())
     }
 
+    pub fn local_player_mounted(&self) -> bool {
+        self.local_player_id
+            .and_then(|id| self.units.get(&id))
+            .is_some_and(|unit| unit.mount.is_some())
+    }
+
     /// The local player's replicated stand state.
     pub fn local_player_stand_state(&self) -> Option<StandState> {
         self.units.get(&self.local_player_id?)?.stand_state
