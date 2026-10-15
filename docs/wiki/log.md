@@ -1,6 +1,6 @@
 ## 2026-10-14 — Tutorials source presentation implementation
 
-[Adventure Guide](systems/adventure-guide.md#tutorials-source-presentation--2026-10-14-native-gate-pending) records Retail art/anchors, shared Morpheus and disabled Start Experience authority boundary; targeted GREEN and both-skin native gate pending.
+[Adventure Guide](systems/adventure-guide.md#tutorials-source-presentation--2026-10-14) records Retail art/anchors, shared Morpheus and disabled Start Experience authority boundary; focused layout4/4 and four inspected both-skin native captures. Final check pending admission; RPE authority remains missing.
 
 ## 2026-10-14 — Shared Cleanup controls
 
