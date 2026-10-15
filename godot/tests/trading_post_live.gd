@@ -19,7 +19,7 @@ func run_fixture() -> void:
 		fail("Private compositor must expose 1920x1080 output")
 		return
 	var account := OS.get_environment("TP_ACCOUNT")
-	if server != "127.0.0.1:5791" or not account.begins_with("fb_") or shots.is_empty() or receipts.is_empty() or not phase in ["layout", "layout-proof", "browse", "relog", "purchase", "refund", "cart", "cart-lifetime", "rotate-controls", "mount-rider", "mount-rider-cancel", "freeze-workflow"]:
+	if server != "127.0.0.1:5791" or not account.begins_with("fb_") or shots.is_empty() or receipts.is_empty() or not phase in ["layout", "layout-proof", "browse", "relog", "purchase", "refund", "cart", "cart-lifetime", "rotate-controls", "mount-rider", "mount-rider-cancel", "freeze-workflow", "authored-camera"]:
 		fail("Explicit private 127.0.0.1:5791, fb_* account, phase and evidence paths required")
 		return
 	for directory in [shots, receipts]:
@@ -43,7 +43,7 @@ func run_fixture() -> void:
 	if not await wait_until(func(): return float(client.account_state().local_player_health) > 0.0, "private character alive", 120000): return
 	client.set_world_minutes(720.0)
 	await wait_frames(120)
-	if not phase in ["layout", "layout-proof", "cart", "cart-lifetime", "rotate-controls", "mount-rider", "mount-rider-cancel", "freeze-workflow"] and not await travelers_log(): return
+	if not phase in ["layout", "layout-proof", "cart", "cart-lifetime", "rotate-controls", "mount-rider", "mount-rider-cancel", "freeze-workflow", "authored-camera"] and not await travelers_log(): return
 	if not await open_vendor(): return
 	if phase in ["cart", "cart-lifetime"]:
 		# Collection UI owners may replace a hidden CanvasLayer while this vendor is open.
@@ -75,6 +75,7 @@ func run_fixture() -> void:
 		"mount-rider": await mount_rider_proof()
 		"mount-rider-cancel": await mount_rider_cancel_proof()
 		"freeze-workflow": await freeze_workflow_proof()
+		"authored-camera": await authored_camera_proof()
 		"refund": await refund_after_relog()
 		_: await browse()
 
@@ -475,6 +476,54 @@ func open_freeze_replacement(original: int, candidate: int, other: int) -> bool:
 	if control("PerksProgramConfirmDialog") == null:
 		fail("Frozen replacement sent a request before showing Retail confirmation"); return false
 	return assert_freeze_waiting(original, candidate, other)
+
+func authored_camera_proof() -> void:
+	if not await choose_category(2): return
+	if not await select_first_available(): return
+	if int(client.trading_post_state().selected) != 223: fail("Camera fixture requires source Celestial Steed223/scene633"); return
+	if not await wait_until(func(): return client.trading_post_state().rider_ready, "authored camera mount ready", 120000): return
+	var rider: Node3D = instance_from_id(int(client.trading_post_state().rider_actor_id)) as Node3D
+	var group: Node = rider.get_parent()
+	while group != null and group.name != "TradingPostMountPreview": group = group.get_parent()
+	if group == null: fail("Camera fixture mount group missing"); return
+	var camera: Camera3D = group.get_viewport().get_camera_3d()
+	var authored_yaw := deg_to_rad(137.5)
+	var expected_eye := Vector3(-cos(authored_yaw) * 23.0, 0, sin(authored_yaw) * 23.0)
+	if not camera.position.is_equal_approx(expected_eye): fail("Trading Post camera did not use authored633/619 base target0/yaw137.5deg/zoom23: %s" % camera.position); return
+	var initial_basis: Basis = group.basis
+	var initial_actor: Transform3D = group.get_node("MountActor").transform
+	var initial_camera: Transform3D = camera.transform
+	await capture("authored-base-mounted")
+	await click("PerksProgramTogglePlayerPreview")
+	if not await wait_until(func(): return not client.trading_post_state().rider_ready, "camera retains mount while hiding rider"): return
+	if not camera.transform.is_equal_approx(initial_camera): fail("Hide rider changed authored camera"); return
+	await capture("authored-base-mount-only")
+	for direction in ["Left", "Right"]:
+		var point: Vector2 = control("PerksProgramRotate" + direction + "Button").get_global_rect().get_center()
+		var before := camera.position
+		await motion(point, false)
+		await button_event(point, MOUSE_BUTTON_LEFT, true)
+		await wait_frames(10)
+		if camera.position.distance_to(before) < 1.0: fail("Held rotation did not orbit actual camera"); return
+		if not is_equal_approx(camera.position.length(), 23.0): fail("Orbit refitted camera distance"); return
+		if group.basis != initial_basis or group.get_node("MountActor").transform != initial_actor: fail("Orbit rotated actor instead of camera"); return
+		await capture("authored-orbit-held-" + direction.to_lower())
+		await motion(Vector2(1800,500), true, Vector2(1,0))
+		await button_event(Vector2(1800,500), MOUSE_BUTTON_LEFT, false)
+		await wait_frames(3)
+		var released := camera.transform
+		await wait_frames(10)
+		if not camera.transform.is_equal_approx(released): fail("Released orbit continued moving"); return
+		await capture("authored-orbit-released-" + direction.to_lower())
+	await click("PerksProgramTogglePlayerPreview")
+	if not await wait_until(func(): return client.trading_post_state().rider_ready, "restored rider under authored camera", 120000): return
+	if group.basis != initial_basis or group.get_node("MountActor").transform != initial_actor: fail("Rider restore changed authored actor"); return
+	await capture("authored-orbit-rider-restored")
+	if not await choose_category(3): return
+	if not await select_first_available(): return
+	if is_instance_valid(group): fail("Camera category change retained old mount scene"); return
+	await capture("pet-base-camera")
+	await finish("authored-camera")
 
 func freeze_workflow_proof() -> void:
 	var tender := int(client.trading_post_state().tender)
