@@ -44,17 +44,20 @@ func run_test() -> void:
 		return
 	var mode := OS.get_environment("GUILD_NOTE_MODE")
 	var skin := OS.get_environment("GUILD_NOTE_SKIN")
+	var build := OS.get_environment("GUILD_NOTE_BUILD")
+	assert(build.length() == 6, "Artifact-bound note fixture tag required")
+	var prefix := skin + " " + build
 	if mode == "master":
-		if not await write_note(false, skin + " alchemy") or not await write_note(true, skin + " raid healer"):
+		if not await write_note(false, prefix + " alchemy") or not await write_note(true, prefix + " officer"):
 			return
 	elif mode == "self":
 		if shown("GuildMemberDetailOfficerNoteText"):
 			fail("Private officer note exposed to ordinary member")
 			return
-		if not await write_note(false, skin + " cooking"):
+		if not await write_note(false, prefix + " cooking"):
 			return
 	elif mode == "readback":
-		if text("GuildMemberDetailNoteText") != skin + " cooking" or text("GuildMemberDetailOfficerNoteText") != skin + " raid healer":
+		if text("GuildMemberDetailNoteText") != prefix + " cooking" or text("GuildMemberDetailOfficerNoteText") != prefix + " officer":
 			fail("Restart/relog did not preserve both distinct notes")
 			return
 	else:
