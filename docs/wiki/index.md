@@ -1,5 +1,7 @@
 # Wiki Index
 
+- [Native summon lifetime proofs](systems/toy-box.md#native-summon-lifetime-proofs-2026-10-15) — release Forever Scarab and quiet both-skin Flute expiry; prior debug failures, unresolved following/navigation and exact binary scopes retained.
+
 - [Source creature opacity](systems/toy-box.md#source-creature-opacity-2026-10-15) — authored byte retained in catalog and per-instance native binding;15+2 CPU regressions pass, native Bashiok pixels pending.
 
 - [Housing pressed-hover lifecycle](systems/housing.md#control-pressed-hover-lifecycle--implementation2026-10-15) — source additive hover suppression during real press, inside/outside release and inspected both-skin six-control native matrix; no timing/whole-art claim.
