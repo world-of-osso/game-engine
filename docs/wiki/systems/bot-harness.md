@@ -36,7 +36,7 @@ Incomplete collection exposes DPS as null. Setup failures also receive JSON/Mark
 
 `CombatLogKind::Summon` is appended to the protocol enum. Effect28 wild/guardian creation and effect56 controlled-pet creation log only after successful creation, retaining the actual child/root spell ID in that context. Recalling an existing pet and non-spell login restoration do not create summon events. Native IPC exposes `summon src=... dst=... spell=...` with the server timestamp. Log delivery follows temporary summon ancestry to the owner, independently of gameplay credit policies.
 
-Native regression boundary: child228562 creates two wolves29264 whose owner events remain after expiry; gargoyle49206/27829 damage must reach the owner without a guardian client. Existing root51533 fixture currently produces four wolves instead of its expected two, because script and generic summon count both apply. This gameplay counterexample is reported separately, not corrected or hidden by logging changes.
+Native regression boundary: child228562 creates two wolves29264 whose owner events remain after expiry; gargoyle49206/27829 damage must reach the owner without a guardian client. Pre-merge root51533 fixture produced four wolves instead of its expected two, because script and generic summon count both applied. Upstream master now casts child228562 once; the merged root fixture is included in the pending logging gate. This harness branch made no gameplay correction.
 
 ## Damage comparison
 
