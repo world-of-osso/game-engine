@@ -730,6 +730,8 @@ M2 particles: see [Native M2 particles](#native-m2-particles).
 
 ## Native M2 particles
 
+Clean-room P4 (2026-10-15): real6316199 establishes 0x1C0 M2Array float3 controls. Shared parser preserves these and the placement predicate admits complete cubic splines; curve generation follows allowed WWV. Rate-per-unit target semantics remain the named P4-density gap in [contract](../../specs/m2-particles.md). CPU RED: admission/zero emission, GREEN pending.
+
 Clean-room P2 (2026-10-15): speed-dependent follow displacement, post-age eligibility and proportional replay carry implemented from the supplied spec and allowed WWV. Birth velocity unchanged. Modern assets and combined model-space/follow remain unqualified; CPU RED 0/2, GREEN pending.
 
 Clean-room P1 (2026-10-15): native shared simulation now emits independent heads/tails, tail-cell ramps and duration × velocity geometry (0x400 age clamp), using WebWowViewerCpp `buildVertex2` as allowed provenance. Pools reserve two quads per combined-style particle. CPU RED recorded (zero tail geometry); GREEN and native real-asset pixel acceptance pending. Contract: [m2-particles](../../specs/m2-particles.md).

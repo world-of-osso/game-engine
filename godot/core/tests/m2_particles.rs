@@ -664,3 +664,88 @@ fn particle_cleanroom_follow_clamps_speed_and_distributes_replay() {
             < 1e-5
     );
 }
+
+/// Real type-3 header supplies the MD20 spline M2Array; substitute only controls.
+fn spline_fixture(points: [[f32; 3]; 4]) -> ParticleEmitter {
+    let base = format!("{}/../../data/models", env!("CARGO_MANIFEST_DIR"));
+    let mut bytes = std::fs::read(format!("{base}/6316199.m2")).unwrap();
+    let md20 = if &bytes[..4] == b"MD21" {
+        &mut bytes[8..]
+    } else {
+        &mut bytes[..]
+    };
+    let read = |at: usize| u32::from_le_bytes(md20[at..at + 4].try_into().unwrap()) as usize;
+    let emitter = read(0x12c);
+    assert_eq!(md20[emitter + 0x29], 3);
+    assert_eq!(read(emitter + 0x1c0), 4);
+    let controls = read(emitter + 0x1c4);
+    for (index, value) in points.into_iter().flatten().enumerate() {
+        md20[controls + index * 4..controls + index * 4 + 4].copy_from_slice(&value.to_le_bytes());
+    }
+    let skin = std::fs::read(format!("{base}/631619900.skin")).unwrap();
+    let mut emitter = m2::parse_model(&bytes, &skin)
+        .unwrap()
+        .particle_emitters
+        .remove(0);
+    let authored = still_emitter(0);
+    // Preserve parsed spline controls while isolating generator motion/appearance.
+    emitter.flags = authored.flags;
+    emitter.tracks = Default::default();
+    emitter.emission_rate = 100.0;
+    emitter.emission_rate_variation = 0.0;
+    emitter.lifespan = 1.0;
+    emitter.lifespan_variation = 0.0;
+    emitter.emission_speed = 0.0;
+    emitter.speed_variation = 0.0;
+    emitter.gravity_vector = [0.0; 3];
+    emitter.wind_vector = [0.0; 3];
+    emitter.area_length = 0.0;
+    emitter.area_width = 1.0;
+    emitter.vertical_range = 0.0;
+    emitter.horizontal_range = 0.0;
+    emitter.z_source = 0.0;
+    emitter.twinkle_percent = 1.0;
+    emitter.twinkle_scale_min = 1.0;
+    emitter.twinkle_scale_max = 1.0;
+    emitter
+}
+
+#[test]
+fn particle_cleanroom_spline_uses_bent_cubic_and_changed_controls() {
+    let points = [
+        [0.0, 0.0, 0.0],
+        [1.0, 2.0, 0.0],
+        [2.0, 2.0, 0.0],
+        [3.0, 0.0, 0.0],
+    ];
+    let emitter = spline_fixture(points);
+    assert!(
+        m2_particles::shape(&emitter).is_some(),
+        "type 3 must reach placement"
+    );
+    let shifted = spline_fixture(points.map(|p| [p[0], p[1] + 5.0, p[2]]));
+    let mut sim = EmitterSim::new(&emitter, 11);
+    let mut other = EmitterSim::new(&shifted, 11);
+    sim.update(&emitter, 0.1, Mat4::IDENTITY, Mat3::IDENTITY, 1.0);
+    other.update(&shifted, 0.1, Mat4::IDENTITY, Mat3::IDENTITY, 1.0);
+    assert!(sim.particles().len() >= 8);
+    assert!(sim.particles().iter().any(|p| p.position.y > 0.5));
+    for (p, q) in sim.particles().iter().zip(other.particles()) {
+        let t = p.position.x / 3.0;
+        assert!(close(p.position.y, 6.0 * t * (1.0 - t)), "{:?}", p.position);
+        assert!((q.position - p.position).distance(Vec3::Y * 5.0) < 1e-4);
+    }
+}
+
+#[test]
+fn particle_cleanroom_spline_width_length_bound_curve_parameter() {
+    let mut emitter = spline_fixture([[0.0; 3], [1.0, 0.0, 0.0], [2.0, 0.0, 0.0], [3.0, 0.0, 0.0]]);
+    emitter.area_length = 0.25;
+    emitter.area_width = 0.75;
+    let mut sim = EmitterSim::new(&emitter, 7);
+    sim.update(&emitter, 0.1, Mat4::IDENTITY, Mat3::IDENTITY, 1.0);
+    assert!(!sim.particles().is_empty());
+    for p in sim.particles() {
+        assert!(p.position.x >= 0.75 && p.position.x <= 2.25);
+    }
+}
