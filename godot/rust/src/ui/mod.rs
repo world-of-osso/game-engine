@@ -1489,6 +1489,7 @@ impl RegistryUi {
             &mut registry,
             game_engine_ui_model::panel_style_data::MetalTopLeft::Portrait,
         )?;
+        register_auction_popup_style(&mut registry);
         self.show_viewport_screen_in(
             state,
             spellbook_frame_screen,
