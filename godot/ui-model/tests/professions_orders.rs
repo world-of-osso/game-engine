@@ -20,7 +20,6 @@ fn render(view: ProfessionView, skin: ActiveSkin) -> FrameRegistry {
     shared.insert(view);
     let mut r = FrameRegistry::new(1280.0, 900.0);
     Screen::new(professions_screen).sync(&shared, &mut r);
-    game_engine_ui_model::professions_frame::orders::apply_customer_postsetup(&mut r);
     r
 }
 fn view() -> ProfessionView {
