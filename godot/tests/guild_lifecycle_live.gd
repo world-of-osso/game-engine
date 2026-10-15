@@ -195,14 +195,24 @@ func rank_of(name: String) -> String:
 
 func scroll_to_oldest() -> bool:
 	var viewport := control("CommunitiesGuildLogScrollFrame").get_global_rect()
-	var oldest := control("CommunitiesGuildLogEntry99Row0Run0")
-	if viewport.intersects(oldest.get_global_rect()):
+	if viewport.intersects(entry_bounds(99)):
 		return fail("Overflow proof needs a genuine second page")
 	for turn in range(160):
-		if viewport.intersects(oldest.get_global_rect()):
+		var oldest := entry_bounds(99) # Re-observe after every UI rebuild, never retain freed controls.
+		if oldest.position.y >= viewport.position.y and oldest.end.y <= viewport.end.y:
 			return true
 		await click_at(viewport.get_center(), MOUSE_BUTTON_WHEEL_DOWN)
-	return fail("Real wheel input never reached the oldest retained entry")
+	return fail("Real wheel input never fully revealed the oldest retained entry")
+
+func entry_bounds(index: int) -> Rect2:
+	var bounds := Rect2()
+	var ui := client.get_node("GuildRanksUI")
+	for node in ui.find_children("CommunitiesGuildLogEntry%dRow*" % index, "Label", true, false):
+		var label := node as Control
+		var rectangle := label.get_global_rect()
+		bounds = bounds.merge(rectangle) if bounds.has_area() else rectangle
+	assert(bounds.has_area(), "Actual rendered event labels required")
+	return bounds
 
 func kind(event: Dictionary) -> String:
 	assert(event.kind is Dictionary and event.kind.size() == 1, "Typed event kind required")
