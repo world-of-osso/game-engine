@@ -111,7 +111,22 @@ pub(crate) fn build_creature_model(
             godot_error!("Creature model {}: {error}", display.model_fdid);
         }
     }
+    apply_display_alpha(&mut model, display.model_alpha);
     Ok((model, missing))
+}
+
+/// Fade this visual's geometry, never materials shared with another creature.
+fn apply_display_alpha(model: &mut Gd<Node3D>, alpha: u8) {
+    let transparency = 1.0 - f32::from(alpha) / f32::from(u8::MAX);
+    let meshes = model
+        .find_children_ex("*")
+        .type_("MeshInstance3D")
+        .owned(false)
+        .done();
+    for mesh in meshes.iter_shared() {
+        mesh.cast::<godot::classes::MeshInstance3D>()
+            .set_transparency(transparency);
+    }
 }
 
 /// Apply only to this model's own batches, before adding armor or virtual-item children.
@@ -460,6 +475,7 @@ mod tests {
         let display = CreatureDisplay {
             source_product: game_engine_core::asset_product::AssetProduct::Retail,
             model_fdid: 126278,
+            model_alpha: 255,
             uses_display_geosets: false,
             skin_fdids: [126280, 0, 0, 0],
             scale_milli: 1000,
@@ -510,6 +526,7 @@ mod tests {
         let display = CreatureDisplay {
             source_product: game_engine_core::asset_product::AssetProduct::Retail,
             model_fdid: 1011653,
+            model_alpha: 255,
             uses_display_geosets: false,
             skin_fdids: [0; 4],
             scale_milli: 1000,
