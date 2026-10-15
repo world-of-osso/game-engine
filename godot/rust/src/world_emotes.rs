@@ -34,7 +34,11 @@ pub(crate) fn emote_clip(
     Ok(Some(match emote {
         EmoteKind::Wave => EmoteClip::Once(emote_anim(EMOTE_ONESHOT_WAVE)?),
         EmoteKind::Dance => EmoteClip::Held(emote_anim(EMOTE_STATE_DANCE)?),
-        EmoteKind::Sit | EmoteKind::Sleep | EmoteKind::Kneel | EmoteKind::Love => {
+        EmoteKind::Sit
+        | EmoteKind::Sleep
+        | EmoteKind::Kneel
+        | EmoteKind::Love
+        | EmoteKind::MountSpecial => {
             return Ok(None);
         }
     }))

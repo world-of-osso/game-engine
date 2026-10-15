@@ -1,3 +1,16 @@
+## 2026-10-15 — MountSpecial authored playback continuation
+
+[MountSpecial](systems/mounts.md#mountspecial-continuation--2026-10-15): unified input/identity/emote routing and deterministic complete-segment scheduler. Core6/server3 GREEN; mount sequence ownership native PASS. Actual rider FishingCast1000ms versus AnimStartTime2000 exposes unresolved offset semantics; both-skin three-mount/observer rendering not yet proven.
+## 2026-10-15 — Pet queue caption tag
+
+[Tag-only root fix](systems/battle-pets.md#queue-ready-caption-tag--2026-10-15) restores the omitted ready text; RED1→GREEN2, two inspected both-skin native after captures and identical outside-caption pixels. Remaining popup source parity and fresh server queue acceptance are separate.
+## 2026-10-15 — Initial local-player facing
+
+[Native source trace](systems/networking.md#initial-local-player-facing-2026-10-15): first replicated player pose is correct, then idle gameplay consumes PI instead of spawn yaw. Constructor now retains the authoritative initial yaw; focused RED is PI versus6.6752367. Static NPC first-root source rotations match independently. GREEN9c0927eb8:12 focused world controls, matched current both-skin native Bashiok front placement/opacity/non-follow and inspected1920×1080 body images; no turn stimulus. Wall removal60501/60641ms unqualified at PSI2.42.
+
+## 2026-10-15 — Complete equipped-item material graph
+
+[Typed material closure](systems/asset-pipeline.md#equipped-item-material-closure--verified-2026-10-15) explains preview6256534→6153788 failures: M2/base material audit omitted per-model type3/4 overrides. Fresh ten-item inventory/current70391 source selection stages43/43 authenticated assets with duplicate0; canonical selected24/43. Lead publication requested; no native-clear claim.
 ## 2026-10-15 — AH duration source menu
 
 Shared dropdown/radios replace the StaticPopup/plain-row stand-in; caller Lua width/font/alignment preserved locally. [Source and bounded proof](systems/auction-house-ui.md#duration-source-composition--2026-10-15): RED2→GREEN10, four inspected both-skin full-HD native after samples plus before controls; no fresh server/trading/persistence acceptance.
@@ -3898,6 +3911,7 @@ Staged chains cover all1,971 mount IDs;1,444 recovered readable targets rendered
 
 - 2026-10-14: [[cooldown-assist-data#Source tracked-buff bar art — 2026-10-14]] replaces gold fills with source188×19 bars/BG/cropped texture and normal-alpha pip. Missing-background/LEFT-name/Application-anchor RED→15 core+7 UI tests GREEN after current-active CSV expectation repair; build/check/fmt pass. Review recaptures ef4372c64 show both-skin full/half/empty source geometry and contained stack counts in inspected1920×1080 PNGs. Lead accepted source pip overlap/BG bounds; no invented clipping. Aura authority and icon-mask/font-family parity excluded.
 
+- 2026-10-15: [MountSpecial](systems/mounts.md#mountspecial-continuation--2026-10-15) private UDP5851 native actor/observer PASS on Mare18, Gryphon129 and Spelltome1532 in both skins; stationary/slash/moving-jump and peer receipts. AnimKit inference/Grrloc oversized one-shot/unsupported VFX gaps retained.
 - 2026-10-14: [Trading Post mounted preview](systems/trading-post.md#mounted-player-composition--implementation-october14): actor-data loader/shared normalization RED→GREEN5; independent native mount/rider ownership implementation, process proof pending; authored-scale and special-kit gaps explicit.
 
 - 2026-10-14: [Trading Post rider proof](systems/trading-post.md#rider-proof--2026-10-14): actual both-skin Celestial Steed223/376 mounted91/saddle0, Hide Character restore/selection/cleanup and process RED→GREEN stable camera;20 inspected full-HD PNGs, eight data tests and separate native graph proof. Native scale API/special kits remain named gaps, no guessed compensation.
@@ -3907,6 +3921,10 @@ Staged chains cover all1,971 mount IDs;1,444 recovered readable targets rendered
 ## 2026-10-15 — Talent loadout strings
 
 Installed Blizzard Lua and approved installed addon version2 pair establish exact wire layout; full-class Mage codec4/4 including actual-Lua fixtures passes. Import/Create/clipboard native integration implemented; live proof pending. Hash-comparison gap and separate Starter authority slice documented in [talents](systems/talents.md#retail-loadout-strings--2026-10-15).
+- 2026-10-15: [MountSpecial frame provenance](systems/mounts.md#spelltome-attachment-and-rendered-body): actual clip-phase captures replace frame counts; Spelltome attachment lift and opaque foreground book identified by data and reversible body isolation; living three-quarter peer proof in both skins. Pixel acceptance/integration remain lead-owned.
+## 2026-10-15 — Traveler’s Log source rows
+
+Ported authored parent/child geometry, tree disclosure and successor promotion; central activity tooltip and physical Shift tracking request routing replace invented details/Track controls. Focused13/13 GREEN after row/search/navbar and criterion-diagnostic REDs. The086 tooltip diagnostics were rejected; corrected066/0a/731 native in both skins keeps source text/known progress only, including child81/tree140979. Genuine6→81 tree, Options overflow and Shift tracking938 ACK0→1→0 still pass; ten corrected full-HD PNGs inspected. See [system](systems/adventure-guide.md#travelers-log--bounded-native-source-proof).
 ## 2026-10-15 — Player-bot detector
 
 [Harness](systems/bot-harness.md): actual native combat fixture, injected missing request, fixed-window actor/target DPS, multiplicity-preserving ring polling and comparable-fixture median spread. Generic active direct-enemy damage selector preserves actual installed DB2 coefficients/cast times/cooldowns. Native runs and broader detection remain open.

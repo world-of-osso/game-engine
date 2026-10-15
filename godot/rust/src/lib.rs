@@ -2453,7 +2453,18 @@ impl GameClient {
                 game_engine_ui_model::chat_data::now_timestamp(),
             ),
             AccountEvent::Emote(event) => {
-                if let Err(error) = self.world.receive_emote(event.player_entity, event.emote) {
+                let result = self
+                    .world
+                    .receive_emote(event.player_entity, event.emote)
+                    .and_then(|kit| match kit {
+                        Some(kit) => self.spell_effects.mount_special(
+                            kit,
+                            event.player_entity,
+                            &mut self.world,
+                        ),
+                        None => Ok(()),
+                    });
+                if let Err(error) = result {
                     godot_error!("Emote of {}: {error}", event.sender);
                 }
             }
