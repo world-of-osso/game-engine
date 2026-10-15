@@ -248,3 +248,9 @@ No verified first-house exterior/interior component grant, legal outdoor bounds,
 
 - [[instances]] — property-copy isolation and world-port handshakes.
 - [[game-objects]] — source display/model resolution and model-box interaction reach.
+
+## Cleanup central tooltip — implementation2026-10-14
+
+Replaced the bespoke280×70/y+18 hover panel with the central GameTooltip lifecycle and source ANCHOR_CURSOR white title. Names resolve through confirmed placed instances and the catalog. Readonly inspection uses the same title; no can_edit-to-lock/removability guess or invented visitor tooltip line. UI obstruction, pending authority, removed instances and mode/hover exit clear content. Pet/lock/removability/exterior metadata and audio remain unavailable. Source ShowDecorInstanceTooltip in Blizzard_HouseEditorCleanupMode.lua; [contract](../../specs/housing.md#cleanup-hover-tooltip).
+
+Native F6 baseline reproduced missing central tooltip (core21-cleanup-tooltip-red); focused housing registry/model GREEN24 includes both skins/title/anchor/pending/removal/leave and no authority change. Native updated-runtime proof pending; prior F6 physical removal proof has its own runtime boundary.

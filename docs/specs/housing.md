@@ -162,6 +162,12 @@ Storage category focus is separate from Dashboard Catalog focus. Show All and so
 
 Use the source75px category rail,64px roots and54px subcategories. A category with more than one authored child shows Back/All; specific child buttons appear only when more than one owned child is showable, exactly as DisplaySubcategoriesUnderCategory. Header shows source category or `%s | %s` path. Source: Retail StorageFrame Initialize/OnStorageTabSelected/OnSearchTextUpdated/OnCategoryFocusChanged and HousingCatalogCategories Lua/XML filter/populate/focus/order/Back/All rules. Animated selection art remains separate native presentation coverage.
 
+## Cleanup hover tooltip
+
+Cleanup uses the maintained GameTooltip renderer at source `ANCHOR_CURSOR`, with the authenticated placed decor name and source white title. Readonly visitors may inspect the same title; only the existing server refusal decides failed removal. No bespoke fixed280×70 black panel or invented visitor tooltip line remains. Pointer leave, UI obstruction, pending removal, mode exit and a removed authoritative instance hide stale content. No pet, lock or `canBeRemoved` fields exist in the current snapshot, so no conditional lines are fabricated from `can_edit`. Exterior hover stays unavailable. Both skins share content and cursor anchoring; only maintained tooltip art differs.
+
+Source: `Blizzard_HouseEditorCleanupMode.lua` ShowDecorInstanceTooltip. Native title/anchor/lifetime acceptance is separate from prior F6 proof; full shader/pixel parity and source sounds remain open.
+
 ## Cleanup mode
 
 Retail Cleanup is a distinct editor mode: hide storage, highlight the hovered placed decor, show its name at the pointer, and left-click the actual picked target to remove it into owned storage. Do not require a prior Basic selection or a second click. Empty ground clicks do nothing. A visitor may inspect the hover name but receives a read-only refusal; never change quantities/layout optimistically. Pending requests cannot submit twice. Mode exit/removal/close clears hover and restores saved materials. Existing owner-only RemoveDecor authority preserves paid dye variants and exact stored/placed quantities across relog. Both skins share the same controls/behavior; native highlight styling is presentation, not authenticated Retail shader/art parity.
