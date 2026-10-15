@@ -36,6 +36,18 @@ func run_test() -> void:
 	client.free()
 	quit(0)
 
+func capture_housing(phase: String) -> bool:
+	await RenderingServer.frame_post_draw
+	var image: Image = root.get_texture().get_image()
+	if image.get_size() != Vector2i(1920, 1080):
+		fail("Disabled icon capture requires native 1920x1080 pixels, got " + str(image.get_size()))
+		return false
+	var path: String = shots.path_join("%s-%s.png" % [housing_skin.to_lower(), phase])
+	if image.save_png(path) != OK:
+		fail("Disabled icon PNG save failed: " + path)
+		return false
+	return true
+
 func prove_disabled_icon(name: String, phase: String) -> bool:
 	if not await wait_housing(func(): return painted_icon(name) != null, "authenticated disabled icon art " + name): return false
 	var button: BaseButton = housing_control(name) as BaseButton
