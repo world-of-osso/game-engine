@@ -198,6 +198,53 @@ fn housing_editor_saved_selection_moves_rotates_removes_and_visitor_is_read_only
 }
 
 #[test]
+fn housing_same_active_submode_preserves_mouse_anchor_and_staged_draft() {
+    use crate::housing_editor::{EditorMode, PrecisionSubmode};
+    let auth = authority(true);
+    let confirmed = auth.state.clone();
+    for submode in [
+        PrecisionSubmode::Translate,
+        PrecisionSubmode::Rotate,
+        PrecisionSubmode::Scale,
+    ] {
+        let mut editor = EditorInteraction::default();
+        editor.set_mode(EditorMode::Expert);
+        editor.select(&auth, 7).unwrap();
+        editor.scale_allowed = true;
+        editor.set_submode(submode);
+        editor.begin_mouse_drag(&auth).unwrap();
+        editor.update_mouse_drag(0.25).unwrap();
+        let staged = editor.expert_transform();
+        editor.set_submode(submode);
+        assert!(editor.is_manipulating(), "same {submode:?} ended the drag");
+        assert_eq!(editor.expert_transform(), staged);
+        editor.update_mouse_drag(0.5).unwrap();
+        let mut expected = DecorTransform {
+            position: [1.0, 2.0, 3.0],
+            yaw: 0.5,
+            pitch: 0.0,
+            roll: 0.0,
+            scale: 1.0,
+        };
+        match submode {
+            PrecisionSubmode::Translate => expected.position[0] = 1.5,
+            PrecisionSubmode::Rotate => expected.pitch = 0.5,
+            PrecisionSubmode::Scale => expected.scale = 1.5,
+        }
+        assert_eq!(editor.expert_transform(), Some(expected));
+        let different = if submode == PrecisionSubmode::Translate {
+            PrecisionSubmode::Rotate
+        } else {
+            PrecisionSubmode::Translate
+        };
+        editor.set_submode(different);
+        assert!(!editor.is_manipulating());
+        assert_eq!(editor.expert_transform(), Some(expected));
+        assert_eq!(auth.state, confirmed);
+    }
+}
+
+#[test]
 fn housing_expert_mouse_drag_stages_from_press_not_previous_motion_and_never_saves_on_release() {
     use crate::housing_editor::{EditorMode, PrecisionSubmode};
     let auth = authority(true);
