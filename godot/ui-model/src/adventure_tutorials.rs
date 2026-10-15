@@ -34,21 +34,9 @@ const TEXT_COLOR: FontColor = FontColor::new(36. / 255., 0., 0., 1.);
 const TITLE_COLOR: FontColor = FontColor::new(53. / 255., 0., 0., 1.);
 
 pub(crate) fn tutorials(catalog: &Catalog) -> Element {
-    let title = catalog
-        .text
-        .get("RPE_TITLE")
-        .map(String::as_str)
-        .unwrap_or("");
-    let body = catalog
-        .text
-        .get("RPE_TUTORIAL_TEXT")
-        .map(String::as_str)
-        .unwrap_or("");
-    let start = catalog
-        .text
-        .get("RPE_START_EXPERIENCE")
-        .map(String::as_str)
-        .unwrap_or("");
+    let title = catalog.text["RPE_TITLE"].as_str();
+    let body = catalog.text["RPE_TUTORIAL_TEXT"].as_str();
+    let start_label = catalog.text["RPE_START_EXPERIENCE"].as_str();
     let art = named_atlas_texture(
         "EncounterJournalTutorialArt".into(),
         "adventureguide-tutorial-rpe",
@@ -61,7 +49,7 @@ pub(crate) fn tutorials(catalog: &Catalog) -> Element {
     );
     let start = shared_button_small(
         "EncounterJournalTutorialStart",
-        start,
+        start_label,
         "",
         false,
         (423., 284.),
