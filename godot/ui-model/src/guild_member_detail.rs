@@ -1,7 +1,7 @@
 //! Retail Mainline GuildRoster.xml detail panel and GameDialogDefs.lua 31-letter notes.
 use crate::bank_art::label;
 use crate::guild_ranks::GuildRanksSession;
-use crate::quest_art::{DynName, flat_panel_chrome, panel_button};
+use crate::quest_art::{DynName, panel_button};
 use crate::ui::strata::FrameStrata;
 use shared::protocol::*;
 use ui_toolkit::{rsx, widget_def::Element};
@@ -218,12 +218,19 @@ fn note_border(suffix: &str) -> Element {
 
 pub fn apply_note_art(registry: &mut ui_toolkit::registry::FrameRegistry) {
     use ui_toolkit::frame::WidgetData;
-    if let Some(id) = registry.get_by_name("GuildMemberDetailBackground")
-        && let Some(WidgetData::Texture(texture)) =
-            &mut registry.get_mut(id).expect("detail background").widget_data
-    {
-        texture.horiz_tile = true;
-        texture.vert_tile = true;
+    for name in [
+        "GuildMemberDetailBackground",
+        "GuildMemberNotePopupBackground",
+    ] {
+        if let Some(id) = registry.get_by_name(name)
+            && let Some(WidgetData::Texture(texture)) = &mut registry
+                .get_mut(id)
+                .expect("guild dialog background")
+                .widget_data
+        {
+            texture.horiz_tile = true;
+            texture.vert_tile = true;
+        }
     }
     for suffix in ["Note", "OfficerNote"] {
         for part in [
@@ -273,26 +280,31 @@ pub fn editor(session: &GuildRanksSession) -> Element {
     } else {
         &member.public_note
     };
-    let mut children = flat_panel_chrome(
-        "GuildMemberNotePopup",
-        (310.0, 150.0),
+    // GameDialog.xml:320px base,16px top/bottom,24px edit at BOTTOM+45;
+    // GameDialog.lua:128px buttons with10px spacing. Single18px text line =>111px.
+    let mut children = rsx! { texture { name: "GuildMemberNotePopupBackground", texture_fdid: 6839810,
+    left: 7.0, top: 7.0, width: 306.0, height: 97.0, pos_type: "absolute", draw_layer: "BACKGROUND" } };
+    children.extend(label(
+        "GuildMemberNotePopupText".into(),
         title,
-        "guild:note_close",
-    );
+        (15.0, 16.0, 290.0, 18.0),
+        (14.0, "1,1,1,1", "CENTER"),
+    ));
     children.extend(rsx! { editbox { name: {DynName(NOTE_BOX.into())}, text: {text.as_str()}, width: 260.0, height: 24.0,
-        left: 25.0, top: 56.0, pos_type: "absolute", font_size: 13.0 } });
+        left: 30.0, top: 42.0, pos_type: "absolute", font_size: 13.0 } });
     for (name, text, action, x) in [
-        ("Accept", "Accept", "guild:note_accept", 24.0),
-        ("Cancel", "Cancel", "guild:note_close", 176.0),
+        ("Accept", "Accept", "guild:note_accept", 27.0),
+        ("Cancel", "Cancel", "guild:note_close", 165.0),
     ] {
         children.extend(panel_button(
             format!("GuildMemberNote{name}"),
             text,
             action,
             !session.awaiting_state,
-            (x, 108.0, 110.0, 22.0),
+            (x, 74.0, 128.0, 21.0),
         ));
     }
-    rsx! { r#frame { name: "GuildMemberNotePopup", width: 310.0, height: 150.0, left: "50%", top: "50%",
-    translate_x: "-50%", translate_y: "-50%", pos_type: "absolute", strata: FrameStrata::Dialog, frame_level: 1100.0, mouse_enabled: true, {children} } }
+    rsx! { r#frame { name: "GuildMemberNotePopup", width: 320.0, height: 111.0, left: "50%", top: 135.0,
+    translate_x: "-50%", pos_type: "absolute", strata: FrameStrata::Dialog, frame_level: 1100.0,
+    style: "static_popup", mouse_enabled: true, {children} } }
 }
