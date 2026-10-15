@@ -43,8 +43,11 @@ func run_test() -> void:
 func enter_world() -> bool:
 	print("MOUNT_SPECIAL_WAIT_ROSTER")
 	if not await until(func(): return client.account_state().reply_received and client.account_state().screen == "CharacterSelect" and client.account_state().character_count >= 1 and client.get_node_or_null("CharacterSelectUI") != null, "character roster", 60000): return false
-	print("MOUNT_SPECIAL_ROSTER ", client.account_state())
-	await click_control(client.get_node("CharacterSelectUI").find_child("EnterWorld", true, false))
+	await RenderingServer.frame_post_draw
+	var enter := client.get_node("CharacterSelectUI").find_child("EnterWorld", true, false) as Button
+	if not await until(func(): return enter.is_visible_in_tree() and not enter.disabled and enter.get_global_rect().size.y > 0, "enabled Enter World button", 60000): return false
+	print("MOUNT_SPECIAL_ROSTER ", client.account_state(), " enter=", enter.get_global_rect())
+	await click_control(enter)
 	print("MOUNT_SPECIAL_ENTER_CLICKED")
 	if not await until(func(): return client.account_state().screen == "InWorld" and client.account_state().local_player_position != null, "world entry", 300000): return false
 	for frame in range(30): await process_frame
