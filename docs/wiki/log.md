@@ -1122,6 +1122,8 @@ MAIN observed GREEN for single startup MainHand inventory at native `ee2d3e47` +
 
 # Wiki Log
 
+- 2026-10-14 assignment: [shared UIPanel button art](systems/menu-primitives.md#shared-uipanel-button-art--2026-10-14-assignment) replaces generated default-button art with source state files; fixed12px caps, real-window before/after proof and explicit scale/provenance boundaries.
+
 -2026-10-11 Mount Journal continuation: real UDP paid vendor learning and known feedback; traced stale favourite before client receipt, implemented compact row publication/retained SharedContext view, added generation regression and central no-mount-transmog test.
 
 ## 2026-10-06 — Rendered Stormwind resource scheduling
