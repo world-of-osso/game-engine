@@ -353,10 +353,17 @@ fn target_cast_interrupted_fading_bar_shows_its_text_at_its_alpha_in_both_skins(
         assert_eq!(root.alpha, 0.4);
         assert_eq!(text(&r, "TargetCastingBarSpellName"), "Interrupted");
         let normal = registry(skin, state(Some(cast())));
-        assert_ne!(
-            frame(&r, "TargetCastingBarFill").background_color,
-            frame(&normal, "TargetCastingBarFill").background_color,
-            "interrupted bars use the failed colour"
-        );
+        match skin {
+            ActiveSkin::Modern => assert_ne!(
+                texture(&r, "TargetCastingBarFill").source,
+                texture(&normal, "TargetCastingBarFill").source,
+                "interrupted bars use the failed source art"
+            ),
+            ActiveSkin::Forever => assert_ne!(
+                frame(&r, "TargetCastingBarFill").background_color,
+                frame(&normal, "TargetCastingBarFill").background_color,
+                "interrupted bars use the failed colour"
+            ),
+        }
     }
 }
