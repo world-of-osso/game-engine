@@ -128,11 +128,13 @@ impl Peer {
         })
     }
 
-    fn scarabs(&self) -> Vec<(u8, u64, f32)> {
+    fn owned_scarabs(&self) -> Vec<(u8, u64, f32)> {
         self.replica
             .units()
             .filter_map(|unit| {
-                if unit.get::<Npc>()?.template_id != SCARAB {
+                if unit.get::<Npc>()?.template_id != SCARAB
+                    || unit.get::<UnitSummonedBy>()?.0 != self.player?
+                {
                     return None;
                 }
                 Some((
@@ -194,40 +196,47 @@ fn wait(peer: &mut Peer, label: &str, predicate: impl Fn(&Peer) -> bool) -> Resu
     Err(format!("{label}: actual UDP deadline"))
 }
 
+fn wait_for_owner(peer: &mut Peer, expected_level: u8) -> Result<u64, String> {
+    wait(peer, "selected owner and collections", |peer| {
+        peer.player.and_then(|id| peer.replica.unit(id)).is_some()
+            && peer.inventory.is_some()
+            && peer.catalog.is_some()
+    })?;
+    let player = peer.player.ok_or("missing owner")?;
+    let level = peer
+        .replica
+        .unit(player)
+        .and_then(|unit| unit.get::<UnitLevel>())
+        .ok_or("owner level absent")?
+        .0;
+    if level != expected_level {
+        return Err(format!("owner level {level}, expected {expected_level}"));
+    }
+    Ok(player)
+}
+
+fn learn_and_activate(peer: &mut Peer) -> Result<(), String> {
+    peer.send_learning()?;
+    wait(peer, "actual bag learning", Peer::learned)?;
+    peer.bridge.send::<_, CollectionChannel>(UseToy {
+        item_id: TOY,
+        destination: None,
+        witness: None,
+    })?;
+    wait(peer, "replicated source Scarabs", |peer| {
+        peer.owned_scarabs().len() >= 20
+    })
+}
+
 fn prove_account(
     account: String,
     owner_level: u8,
     expected_level: u8,
 ) -> Result<serde_json::Value, String> {
     let mut peer = connect(account.clone())?;
-    wait(&mut peer, "selected owner and collections", |peer| {
-        peer.player.and_then(|id| peer.replica.unit(id)).is_some()
-            && peer.inventory.is_some()
-            && peer.catalog.is_some()
-    })?;
-    let player = peer.player.ok_or("missing owner")?;
-    let actual_owner_level = peer
-        .replica
-        .unit(player)
-        .and_then(|unit| unit.get::<UnitLevel>())
-        .ok_or("owner level absent")?
-        .0;
-    if actual_owner_level != owner_level {
-        return Err(format!(
-            "owner level {actual_owner_level}, expected {owner_level}"
-        ));
-    }
-    peer.send_learning()?;
-    wait(&mut peer, "actual bag learning", Peer::learned)?;
-    peer.bridge.send::<_, CollectionChannel>(UseToy {
-        item_id: TOY,
-        destination: None,
-        witness: None,
-    })?;
-    wait(&mut peer, "replicated source Scarabs", |peer| {
-        peer.scarabs().len() >= 20
-    })?;
-    let actors = peer.scarabs();
+    let player = wait_for_owner(&mut peer, owner_level)?;
+    learn_and_activate(&mut peer)?;
+    let actors = peer.owned_scarabs();
     if !(20..=30).contains(&actors.len())
         || actors.iter().any(|&(level, owner, health)| {
             level != expected_level || owner != player || health <= 0.0
@@ -238,7 +247,7 @@ fn prove_account(
         ));
     }
     Ok(
-        serde_json::json!({"account": account, "player": player, "owner_level": actual_owner_level,
+        serde_json::json!({"account": account, "player": player, "owner_level": owner_level,
         "expected_scarab_level": expected_level, "actors": actors, "learning": "actual UseItem then UseToy"}),
     )
 }
