@@ -5,6 +5,7 @@ from pathlib import Path
 
 sys.path.insert(0, str(Path(__file__).resolve().parents[1]))
 import bot_harness
+import run_dummy_bots
 
 
 def event(kind, source, target, spell, amount, at):
@@ -19,6 +20,21 @@ class SummonAccountingTests(unittest.TestCase):
 
     def analyze(self, *lines):
         return bot_harness.analyze(self.run, bot_harness.parse_combat("\n".join(lines)))
+
+    def test_native_local_pet_relation_is_collected_without_inventing_a_summon(self):
+        state = {"at_ms": 900, "account": {"local_player_id": 42},
+                 "pet": {"local_pet": 80, "pet": 81}}
+        self.assertEqual(run_dummy_bots.observed_pet_owner(state),
+                         {"unit": "80", "owner": "42", "at_ms": 900})
+        state["pet"]["local_pet"] = None
+        self.assertIsNone(run_dummy_bots.observed_pet_owner(state))
+
+    def test_summon_history_before_measurement_and_nested_guardians_are_retained(self):
+        report = self.analyze(event("summon", 42, 80, 228562, "-", 800),
+                              event("summon", 80, 81, 228562, "-", 900),
+                              event("damage", 81, 999, 58867, 12, 1100))
+        self.assertEqual(report["damage"], 12)
+        self.assertTrue(report["measurement_complete"])
 
     def test_short_lived_guardian_needs_no_later_unit_snapshot(self):
         report = self.analyze(event("summon", 42, 80, 228562, "-", 1000),

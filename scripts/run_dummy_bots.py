@@ -33,6 +33,15 @@ def read_state(path):
     return state
 
 
+def observed_pet_owner(state):
+    """local_pet is backed by replicated UnitIsPet + UnitSummonedBy, not bar state."""
+    pet = state["pet"]["local_pet"]
+    if pet is None:
+        return None
+    return {"unit": str(pet), "owner": str(state["account"]["local_player_id"]),
+            "at_ms": state["at_ms"]}
+
+
 def server_errors(path, offset):
     if path is None:
         return []
@@ -66,12 +75,14 @@ def collect(args, output):
         "rotation_rule": "native sourced AssistedCombatStep order/rules" if order else "generic highest available DB2 SP+AP direct damage coefficient; no authored order exists",
         "rotation_exclusions": "unsupported native predicates block the run" if order else "periodic/trigger-only, weapon, pet, AoE, utility and passive abilities",
         "authored_order": order,
+        "owner_snapshot": [],
         "known_not_in_rotation": sorted(set(spells["known"]) - {s["id"] for s in candidates}),
     }
     if args.comparison:
         run["comparison"] = json.loads(args.comparison.read_text())
     offset = args.server_log.stat().st_size if args.server_log else 0
     polls = []
+    observed_pets = set()
     unavailable = {}
     next_cast = 0
     last_sequence = spells["combat_log_seq"]
@@ -83,6 +94,10 @@ def collect(args, output):
         while int(time.time() * 1000) < run["end_ms"]:
             state = read_state(args.state)
             current = state["spells"]
+            ownership = observed_pet_owner(state)
+            if ownership and ownership["unit"] not in observed_pets:
+                run["owner_snapshot"].append(ownership)
+                observed_pets.add(ownership["unit"])
             sequence += 1
             poll = invoke(args.cli, args.socket, output, sequence, "combat", "log", "--lines", "1024")
             polls.append(poll)
