@@ -194,6 +194,7 @@ def run_bot(args, bot):
     talent_plan = load_plan(args.engine / "data/db2/active", bot["spec"])
     (output / "talent-plan.json").write_text(json.dumps(talent_plan, indent=2) + "\n")
     provision(args, bot)
+    (output / "equipment.txt").write_text(admin(args, "list-equipment", bot["name"]))
     token = args.engine / "data/auth_token.127.0.0.1_5871"
     if token.is_symlink():
         raise RuntimeError("Private token unexpectedly links outside the owned data root")

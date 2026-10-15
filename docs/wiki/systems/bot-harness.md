@@ -20,7 +20,7 @@ All40 installed specs have AssistedCombatStep order. When order exists, the coll
 
 `bot_talents.py` emits TraitTreeLoadoutEntry OrderIndex with node/entry/spell and the existing native button name. NumPoints is a cumulative target rank, not an additional purchase count. Pinned TC a352b1fa TraitMgr::InitializeStarterBuild subtracts existing Rank; its48138-byte cached source matches pinned tree blob`10ff78b0d921b36f7d7cb91e632eea7d69c9cca8`. TraitMgr::Load's last-encountered loadout policy selects Fire931. An explicit sourceID override is recorded; ambiguous unselected multi-entry nodes fail rather than invent a choice.
 
-`bot_harness_talents.gd` drives actual N/mouse input. Already-present ranks are not repurchased, unavailable/disabled nodes are recorded, and the ordinary Apply button commits staged choices. Native UI observations are not automatically persistence proof. Ret32's12 positive source-plan ranks were separately retained across a stopped client and fresh credential login (`talent-persistence.json`).
+`bot_harness_talents.gd` drives actual N/mouse input. Already-present ranks are not repurchased, unavailable/disabled nodes are recorded, and the ordinary Apply button commits staged choices. Native UI observations are not automatically persistence proof. Ret32's12 positive source-plan ranks were separately retained across a stopped client and fresh credential login (`talent-persistence.json`). The controller also opens the existing CharacterFrame and reads visible source stats-pane labels/values using the maintained `sheet_stats_live.gd` path. Each bot retains admin equipment ownership output; neither receipt alone asserts cross-class stat comparability.
 
 ## Capture and detection
 
