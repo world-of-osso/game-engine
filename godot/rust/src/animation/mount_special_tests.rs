@@ -111,10 +111,18 @@ fn mount_special_spelltome_authored_attachment_diagnostic() {
         "SPELLTOME_TEXTURES {:?} MATERIALS {:?}",
         model.texture_fdids, model.materials
     );
+    println!(
+        "SPELLTOME_SUBMESHES {:?} BATCHES {:?}",
+        model.submeshes, model.batches
+    );
     for emitter in &model.particle_emitters {
         println!(
-            "SPELLTOME_EMITTER texture={:?} blend={} position={:?} bone={}",
-            emitter.texture_fdid, emitter.blend_type, emitter.position, emitter.bone_index
+            "SPELLTOME_EMITTER texture={:?} multi={:?} blend={} position={:?} bone={}",
+            emitter.texture_fdid,
+            emitter.multi_texture,
+            emitter.blend_type,
+            emitter.position,
+            emitter.bone_index
         );
     }
     let mut mount = AnimationState::new(&model).unwrap();
