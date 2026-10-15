@@ -1,5 +1,7 @@
 # Wiki Index
 
+- [Active housing mode no-op](systems/housing.md#active-mode-activation--implementation2026-10-15) — active pointer/assigned-key activation preserves Basic selection/owned preview and Expert staged render/list; both-skin hash-qualified native proof.
+
 - [Housing pressed-hover lifecycle](systems/housing.md#control-pressed-hover-lifecycle--implementation2026-10-15) — source additive hover suppression during real press, inside/outside release and inspected both-skin six-control native matrix; no timing/whole-art claim.
 
 - [Housing control tooltips](systems/housing.md#editor-control-tooltips--implementation2026-10-14) — source owner-top labels/full gold bindings, current Options authority and inspected both-skin assignment/unbind native proof; unsupported predicates/glow/audio remain gaps.
