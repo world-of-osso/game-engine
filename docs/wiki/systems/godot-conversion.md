@@ -730,6 +730,8 @@ M2 particles: see [Native M2 particles](#native-m2-particles).
 
 ## Native M2 particles
 
+P1 pixel fixture adds authentic tail-only Blood Presence165894 to particledebug after Frostbolt; source emitter height and the existing torch orbit frame it. `particle_cleanroom_tails.gd` freezes simulation and captures pool-on/off PNGs at1920×1080. RED on the old catalog, native GREEN pending.
+
 Clean-room P5 (2026-10-15): legacy filename arrays in the inspected local cache were empty/NUL-only; allowed references do not establish product-qualified modern geometry/child model resolution or recursive timing. P5-product-resolution/P5-recursive-timing remain [contract gaps](../../specs/m2-particles.md); no replacement quads or guessed attachment path added.
 
 Clean-room S1 (2026-10-15): authored bit0 polarity is not established by allowed evidence; WWV inversion plus real torch/portal flags do not provide a target incident-light oracle. Shader unchanged; S1-polarity-oracle and native lit/unlit pixel acceptance remain explicit [contract gaps](../../specs/m2-particles.md).

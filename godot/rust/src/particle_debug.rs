@@ -54,7 +54,7 @@ pub(crate) struct DebugModel {
 
 /// Models the screen cycles through; the first is the original screen's torch at its
 /// original 3-yard orbit about the model origin.
-pub(crate) const MODELS: [DebugModel; 3] = [
+pub(crate) const MODELS: [DebugModel; 4] = [
     DebugModel {
         fdid: 145304,
         name: "club_1h_torch_a_01",
@@ -77,6 +77,15 @@ pub(crate) const MODELS: [DebugModel; 3] = [
         focus_height: 0.0,
         focus_x: 3.0,
         distance: 7.0,
+        yaw: 0.0,
+    },
+    DebugModel {
+        fdid: 165894,
+        name: "deathknight_bloodpresence",
+        // Authored emitter Z; keep the original torch's three-yard orbit.
+        focus_height: 1.181_361_4,
+        focus_x: 0.0,
+        distance: 3.0,
         yaw: 0.0,
     },
 ];
