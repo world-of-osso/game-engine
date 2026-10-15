@@ -563,6 +563,12 @@ pub(super) fn apply_talents_postsetup(state: &SpellbookFrameState, registry: &mu
         edit.multi_line = true;
         edit.max_letters = Some(1000);
     }
+    if let Some(id) = registry.get_by_name("TalentLoadoutNameInput")
+        && let Some(frame) = registry.get_mut(id)
+        && let Some(WidgetData::EditBox(edit)) = frame.widget_data.as_mut()
+    {
+        edit.max_letters = Some(30);
+    }
     let Some(view) = &state.talents else {
         return;
     };
