@@ -4,10 +4,16 @@
 ## 2026-10-15 — AH duration source menu
 
 Shared dropdown/radios replace the StaticPopup/plain-row stand-in; caller Lua width/font/alignment preserved locally. [Source and bounded proof](systems/auction-house-ui.md#duration-source-composition--2026-10-15): RED2→GREEN10, four inspected both-skin full-HD native after samples plus before controls; no fresh server/trading/persistence acceptance.
+## 2026-10-15 — Bot summon attribution
+
+[Bot ownership capture](systems/bot-harness.md#spell-driven-ownership-events): native combat IPC serializes Summon identities/timestamp; accounting follows event-time ancestry and replicated local-pet snapshots, excludes follower descendants, and withholds DPS for unknown damage sources. Protocol wire and focused accounting/IPC gates are revision-scoped; live/all-spec/Stockade balance acceptance remains open.
 
 ## 2026-10-15 — Native summon lifetime proofs
 
 [Bounded native proofs](systems/toy-box.md#native-summon-lifetime-proofs-2026-10-15): source-qualified release Forever Scarab fixed-window removal and owner following pass; quiet both-skin Flute expiry retained separately. Exact binary/pressure/image evidence and earlier debug failures stay revision-scoped; no complete-toy/full1166 claim.
+## 2026-10-15 — Disabled housing icon visuals
+
+[Source colors](systems/housing.md#disabled-editor-icon-visuals--implementation2026-10-15): current GlobalColor43 DARKGRAY/default atlas/full alpha replaces invented disabled-active art, desaturation and transparency. Behavioral RED/GREEN plus both-skin actual Customize/Snap/FreePlace painted-color/ignored-click/remount proof; four inspected captures. Availability and paid state unchanged; no pending-transition timing or full pixel claim.
 
 ## 2026-10-15 — Active housing mode preservation
 
@@ -3896,3 +3902,8 @@ Staged chains cover all1,971 mount IDs;1,444 recovered readable targets rendered
 - 2026-10-14: [Trading Post rider proof](systems/trading-post.md#rider-proof--2026-10-14): actual both-skin Celestial Steed223/376 mounted91/saddle0, Hide Character restore/selection/cleanup and process RED→GREEN stable camera;20 inspected full-HD PNGs, eight data tests and separate native graph proof. Native scale API/special kits remain named gaps, no guessed compensation.
 
 - 2026-10-15: [Trading Post rider proof](systems/trading-post.md#rider-proof--2026-10-14): both-skin actual pending-request→Leave→60-frame late-arrival/HUD boundary PASS, four inspected full-HD PNGs; final targeted23UI+11native/12server+admin1/protocol3 and allthreechecks PASS, scoped Rustfmt PASS. Runtime and later source/test-only revisions remain distinguished.
+
+## 2026-10-15 — Player-bot detector
+
+[Harness](systems/bot-harness.md): actual native combat fixture, injected missing request, fixed-window actor/target DPS, multiplicity-preserving ring polling and comparable-fixture median spread. Generic active direct-enemy damage selector preserves actual installed DB2 coefficients/cast times/cooldowns. Native runs and broader detection remain open.
+- 2026-10-15: [Housing disabled icons](systems/housing.md#disabled-editor-icon-visuals--implementation2026-10-15): inspected untouched native1920×1080 both-skin PNGs; inherited1280 downsampling separated from full-HD evidence.
