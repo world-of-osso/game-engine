@@ -43,6 +43,37 @@ func verify_selection_sizes(selected: String, other: String) -> bool:
 		return false
 	return true
 
+func verify_portrait_corners(name: String) -> bool:
+	# Compare actual framebuffer against the same frame without this portrait.
+	# Circle mask must clear corners while retaining visible central art.
+	var portrait := control(name)
+	var rect := portrait.get_global_rect()
+	await RenderingServer.frame_post_draw
+	var painted := root.get_texture().get_image()
+	portrait.hide()
+	await process_frame
+	await RenderingServer.frame_post_draw
+	var backdrop := root.get_texture().get_image()
+	portrait.show()
+	await settle()
+	var changed_corners := 0
+	var changed_center := 0
+	for y in range(2, int(rect.size.y) - 2):
+		for x in range(2, int(rect.size.x) - 2):
+			var point := Vector2i(rect.position) + Vector2i(x,y)
+			var difference := painted.get_pixelv(point) - backdrop.get_pixelv(point)
+			var changed := Vector3(difference.r, difference.g, difference.b).length() > 0.04
+			var normalized := Vector2(x,y) / rect.size - Vector2(0.5,0.5)
+			if normalized.length() > 0.62 and changed:
+				changed_corners += 1
+			if normalized.length() < 0.3 and changed:
+				changed_center += 1
+	print("MODEL_PORTRAIT_PIXELS %s corners=%s center=%s" % [name, changed_corners, changed_center])
+	if changed_corners > 0 or changed_center == 0:
+		stop("Source circular portrait corners/visible center failed: " + name)
+		return false
+	return true
+
 func run() -> void:
 	var server := OS.get_environment("ADVENTURE_GUIDE_SERVER")
 	var account := OS.get_environment("ADVENTURE_GUIDE_ACCOUNT")
@@ -95,6 +126,8 @@ func run() -> void:
 		stop("Authored Nezir tooltip description absent")
 		return
 	if not await shot("model-selector-authored-tooltip"):
+		return
+	if not await verify_portrait_corners("JournalCreature555Portrait"):
 		return
 	print("MODEL_SELECTOR_PASS skin=%s physicalHelix/Oaf/reset/Nezir-tooltip" % client.account_state().ui_skin)
 	quit(0)
