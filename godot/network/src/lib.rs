@@ -351,6 +351,7 @@ impl NetworkBridge {
             .receive::<protocol::GuildAcceptInviteResponse>()
             .receive::<protocol::GuildStateUpdate>()
             .receive::<protocol::GuildCharterReply>()
+            .receive::<protocol::GuildTabardReply>()
             // Chat lines for the chat frame.
             .receive::<ChatMessage>()
             .receive::<protocol::CreatureTextSound>()

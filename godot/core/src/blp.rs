@@ -18,7 +18,16 @@ pub fn decode_rgba(bytes: &[u8]) -> Result<RgbaImage, String> {
     }
     let mut bytes = bytes.to_vec();
     strip_mipmaps(&mut bytes);
-    let blp = load_blp_from_buf(&bytes).map_err(|e| format!("Failed to load BLP: {e}"))?;
+    let mut blp = load_blp_from_buf(&bytes).map_err(|e| format!("Failed to load BLP: {e}"))?;
+    // BLP palettes store BGRA. image-blp1.2 raw1_to_image reads the low byte
+    // as red; normalize its palette input. Remove when that decoder handles BGRA.
+    if let BlpContent::Raw1(palette) = &mut blp.content {
+        for color in &mut palette.cmap {
+            let mut channels = color.to_le_bytes();
+            channels.swap(0, 2);
+            *color = u32::from_le_bytes(channels);
+        }
+    }
     let rgba = blp_to_image(&blp, 0)
         .map_err(|e| format!("Failed to convert BLP: {e}"))?
         .to_rgba8();

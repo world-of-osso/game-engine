@@ -141,6 +141,7 @@ fn guild_communities_invite_and_profile_controls_send_authoritative_actions_both
             guild_id: 7,
             guild_name: "Raid Team".into(),
             created_at: None,
+            tabard: None,
             motd: "Meeting tonight".into(),
             info_text: "Raid Tuesdays".into(),
             members: vec![],
@@ -202,6 +203,7 @@ fn guild_info_editor_preserves_multiline_text_limits_and_authoritative_pacing() 
             guild_id: 7,
             guild_name: "Raid Team".into(),
             created_at: None,
+            tabard: None,
             motd: "Meeting".into(),
             info_text: "Tuesday raid\nThursday dungeon".into(),
             members: vec![],
@@ -632,6 +634,7 @@ fn guild_communities_roster_uses_profile_metadata_without_exposing_officer_notes
         guild_id: 7,
         guild_name: "Raid Team".into(),
         created_at: None,
+        tabard: None,
         motd: String::new(),
         info_text: String::new(),
         members: vec![GuildMemberSnapshot {
@@ -701,6 +704,64 @@ fn guild_communities_no_design_portrait_matches_retail_both_skins() {
             };
             assert_eq!(texture.source, TextureSource::FileDataId(fdid));
             assert_eq!(texture.tex_coords, uv);
+            assert_eq!(texture.vertex_color, color);
+        }
+    }
+}
+
+#[test]
+fn guild_communities_registered_design_uses_authoritative_sheet_palette_and_narrow_width() {
+    use shared::guild_creation::GuildTabardDesign;
+    use ui_toolkit::widgets::texture::TextureSource;
+    let _lock = SKIN.lock().unwrap_or_else(|p| p.into_inner());
+    for skin in [ActiveSkin::Modern, ActiveSkin::Forever] {
+        set_thread_skin(skin);
+        let mut session = GuildRanksSession::default();
+        session.open();
+        session.apply(state(0));
+        session.profile = Some(GuildSnapshot {
+            guild_id: 7,
+            guild_name: "Raid Team".into(),
+            created_at: None,
+            motd: String::new(),
+            info_text: String::new(),
+            members: vec![],
+            tabard: Some(GuildTabardDesign {
+                icon: 1,
+                icon_color: 2,
+                border: 3,
+                border_color: 4,
+                background_color: 5,
+            }),
+        });
+        let registry = mounted(&session);
+        let emblem = registry
+            .get(registry.get_by_name("CommunitiesTabardEmblem").unwrap())
+            .unwrap();
+        assert_eq!((emblem.width.value(), emblem.height.value()), (56.0, 64.0));
+        let Some(WidgetData::Texture(texture)) = &emblem.widget_data else {
+            panic!("emblem texture");
+        };
+        assert_eq!(texture.source, TextureSource::FileDataId(459023));
+        assert_eq!(texture.tex_coords, [0.0625, 0.125, 0.0, 0.0625]);
+        assert_eq!(
+            texture.vertex_color,
+            [103.0 / 255.0, 69.0 / 255.0, 0.0, 1.0]
+        );
+        for (name, color) in [
+            (
+                "CommunitiesTabardBackground",
+                [177.0 / 255.0, 0.0, 46.0 / 255.0, 1.0],
+            ),
+            (
+                "CommunitiesTabardBorder",
+                [99.0 / 255.0, 148.0 / 255.0, 0.0, 1.0],
+            ),
+        ] {
+            let layer = registry.get(registry.get_by_name(name).unwrap()).unwrap();
+            let Some(WidgetData::Texture(texture)) = &layer.widget_data else {
+                panic!("tabard layer");
+            };
             assert_eq!(texture.vertex_color, color);
         }
     }

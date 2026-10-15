@@ -1794,7 +1794,7 @@ fn housing_basic_selection_hides_both_drawer_parts_and_cancel_restores_preferenc
 }
 
 #[test]
-fn housing_cleanup_hides_storage_and_shows_hover_name_and_readonly_error_in_both_skins() {
+fn housing_cleanup_hides_storage_and_uses_source_cursor_tooltip_in_both_skins() {
     use game_engine_ui_model::housing::{HousingAuthority, HousingSurface};
     use game_engine_ui_model::housing_editor::EditorMode;
     game_engine_ui_model::paths::set_data_root(
@@ -1877,26 +1877,104 @@ fn housing_cleanup_hides_storage_and_shows_hover_name_and_readonly_error_in_both
             assert!(registry.get_by_name("HouseEditorStorageFrame").is_none());
             assert!(registry.get_by_name("HouseEditorStored1693").is_none());
             assert!(registry.get_by_name("HouseEditorRemove").is_none());
-            let name = registry
-                .get(registry.get_by_name("HouseEditorCleanupHoverName").unwrap())
+            let mode_bar = registry
+                .get(registry.get_by_name("HouseEditorModeBar").unwrap())
                 .unwrap();
-            assert!(
-                matches!(&name.widget_data, Some(WidgetData::FontString(text)) if text.text == "Small Val'sharah Bookcase")
+            assert_eq!(mode_bar.width, Dimension::Fixed(266.0));
+            assert_eq!(mode_bar.height, Dimension::Fixed(64.0));
+            assert_eq!(
+                mode_bar.position.left,
+                ui_toolkit::layout_values::Val::Px(507.0)
             );
             assert_eq!(
-                registry
-                    .get_by_name("HouseEditorCleanupHoverError")
-                    .is_some(),
-                !can_edit
+                mode_bar.position.top,
+                ui_toolkit::layout_values::Val::Px(656.0)
             );
+            assert!(
+                registry
+                    .get_by_name("HouseEditorCustomizeModeButton")
+                    .is_some()
+            );
+            assert!(registry.get_by_name("HouseEditorBasicSubmodeBar").is_none());
+            assert!(
+                registry
+                    .get_by_name("HouseEditorExpertSubmodeBar")
+                    .is_none()
+            );
+            let instruction = registry
+                .get(
+                    registry
+                        .get_by_name("HouseEditorSelectInstruction")
+                        .expect("Source Cleanup SelectInstruction"),
+                )
+                .unwrap();
+            assert_eq!(instruction.height, Dimension::Fixed(45.0));
+            let instruction_text = registry
+                .get(
+                    registry
+                        .get_by_name("HouseEditorSelectInstructionText")
+                        .unwrap(),
+                )
+                .unwrap();
+            assert!(
+                matches!(&instruction_text.widget_data, Some(WidgetData::FontString(font)) if font.text == "Remove Decor" && font.font_size == 16.0)
+            );
+            assert!(
+                registry
+                    .get_by_name("HouseEditorSelectInstructionControlIcon")
+                    .is_some()
+            );
+            let instructions = registry
+                .get(registry.get_by_name("HouseEditorInstructions").unwrap())
+                .unwrap();
+            assert_eq!(
+                instructions.position.left,
+                ui_toolkit::layout_values::Val::Px(1250.0 - instructions.width.value())
+            );
+            use game_engine_ui_model::game_tooltip::{TooltipAnchor, TooltipScreen, place};
+            use game_engine_ui_model::tooltip_presentation::TOOLTIP_WHITE;
+            let before = view.authority.clone();
+            let tooltip = view.model.cleanup_hover_tooltip(&view.authority).unwrap();
+            assert_eq!(tooltip.anchor, TooltipAnchor::Cursor);
+            assert_eq!(tooltip.content.title, "Small Val'sharah Bookcase");
+            assert_eq!(tooltip.content.title_color, TOOLTIP_WHITE);
+            assert!(
+                tooltip.content.lines.is_empty(),
+                "No fabricated pet/lock/removability metadata"
+            );
+            let shown = place(
+                tooltip.for_skin(skin),
+                TooltipScreen {
+                    size: view.viewport,
+                    cursor: [600.0, 300.0],
+                },
+            );
+            assert_eq!([shown.x, shown.y], [600.0, 280.0]);
+            assert!(shown.visible);
+            assert_eq!(view.authority, before);
+            view.model.pending = true;
+            assert!(view.model.cleanup_hover_tooltip(&view.authority).is_none());
+            view.model.pending = false;
+            let mut removed = view.authority.clone();
+            removed
+                .state
+                .as_mut()
+                .unwrap()
+                .layout
+                .as_mut()
+                .unwrap()
+                .decor
+                .clear();
+            assert!(view.model.cleanup_hover_tooltip(&removed).is_none());
             view.model
                 .editor
                 .hover(&view.authority, None, [0.0; 2])
                 .unwrap();
             context.insert(view.clone());
             screen.sync(&context, &mut registry);
-            assert!(registry.get_by_name("HouseEditorCleanupTooltip").is_none());
+            assert!(view.model.cleanup_hover_tooltip(&view.authority).is_none());
             view.model.editor.set_mode(EditorMode::Basic);
+            assert!(view.model.cleanup_hover_tooltip(&view.authority).is_none());
             context.insert(view);
             screen.sync(&context, &mut registry);
             assert!(registry.get_by_name("HouseEditorStorageFrame").is_some());
