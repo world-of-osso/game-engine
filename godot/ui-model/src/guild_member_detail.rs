@@ -28,18 +28,22 @@ pub fn detail(session: &GuildRanksSession) -> Element {
         .unwrap_or("");
     let member = session.detail_member();
     let officer = session.can(GUILD_RIGHT_VIEW_OFFICER_NOTE);
-    // GuildRoster.lua:175/228 + name height; rank dropdown is a separate follow-up.
-    let height = if officer { 240.0 } else { 187.0 };
+    // GuildRoster.lua:175/228 + GameFontNormal12 + natural GameFontNormalSmall10.
+    // SetHeight(0) restores natural FontString height, not a collapsed row
+    // (ObjectiveTrackerBlock.lua:SetStringText). Direct-rank dropdown remains separate.
+    let height = if officer { 250.0 } else { 197.0 };
     let border =
         crate::game_menu_main::dialog_border("GuildMemberDetailBorder", 214.0, height - 1.0);
     let mut children = rsx! { r#frame { name: "GuildMemberDetailBorder", width: 214.0, height: {height-1.0}, left: 4.0, top: 0.0, pos_type: "absolute", {border} }
         texture { name: "GuildMemberDetailBackground", texture_fdid: 6839810, left: 11.0, top: 7.0, width: 200.0, height: {height-15.0}, pos_type: "absolute", draw_layer: "BACKGROUND" }
     };
-    children.extend(crate::quest_art::close_button(
-        "GuildMemberDetail",
-        212.0,
-        "guild:detail_close",
-    ));
+    let close_art = crate::quest_art::named_atlas_texture(
+        "GuildMemberDetailCloseButtonNormal".into(),
+        "RedButton-Exit",
+        (0.0, 0.0, 24.0, 24.0),
+    );
+    children.extend(rsx! { button { name: "GuildMemberDetailCloseButton", width: 24.0, height: 24.0,
+        left: 191.0, top: 4.0, pos_type: "absolute", onclick: "guild:detail_close", button_default_skin: false, {close_art} } });
     children.extend(label(
         "GuildMemberDetailName".into(),
         name,
@@ -62,25 +66,38 @@ pub fn detail(session: &GuildRanksSession) -> Element {
             "Online",
             "Last Online:",
             member.map(|m| m.last_online.as_str()).unwrap_or(""),
-            79.0,
+            89.0,
         ),
     ] {
+        let heading_width = ui_toolkit::text_measure::measure_text(
+            heading,
+            crate::ui::widgets::font_string::GameFont::FrizQuadrata,
+            10.0,
+        )
+        .expect("GuildRoster source font is loaded")
+        .0;
+        let value_left = 17.0 + heading_width + 2.0;
+        let value_width = if id == "Zone" {
+            147.0
+        } else {
+            195.0 - value_left
+        };
         children.extend(label(
             format!("GuildMemberDetail{id}Label"),
             heading,
-            (17.0, y, 72.0, 12.0),
-            (11.0, "1,0.82,0,1", "LEFT"),
+            (17.0, y, heading_width, 10.0),
+            (10.0, "1,0.82,0,1", "LEFT"),
         ));
         children.extend(label(
             format!("GuildMemberDetail{id}"),
             value,
-            (90.0, y, 105.0, 12.0),
-            (11.0, "1,1,1,1", "LEFT"),
+            (value_left, y - 1.0, value_width, 12.0),
+            (12.0, "1,1,1,1", "LEFT"),
         ));
     }
-    children.extend(note(session, false, 97.0));
+    children.extend(note(session, false, 107.0));
     if officer {
-        children.extend(note(session, true, 150.0));
+        children.extend(note(session, true, 160.0));
     }
     // Source buttons are 96x22 at x16 and113, bottom12; use existing hierarchy action.
     children.extend(panel_button(
@@ -136,8 +153,8 @@ fn note(session: &GuildRanksSession, officer: bool, y: f32) -> Element {
     let heading = label(
         format!("GuildMemberDetail{suffix}Label"),
         title,
-        (17.0, y, 178.0, 12.0),
-        (11.0, "1,0.82,0,1", "LEFT"),
+        (17.0, y, 178.0, 10.0),
+        (10.0, "1,0.82,0,1", "LEFT"),
     );
     let disabled = !editable;
     let mut body = note_border(suffix);
@@ -145,11 +162,11 @@ fn note(session: &GuildRanksSession, officer: bool, y: f32) -> Element {
         format!("GuildMemberDetail{suffix}Text"),
         text,
         (8.0, 6.0, 165.0, 32.0),
-        (11.0, color, "LEFT"),
+        (12.0, color, "LEFT"),
     ));
     let mut out = heading;
     out.extend(rsx! { button { name: {DynName(format!("GuildMemberDetail{suffix}"))}, text: "", onclick: action,
-        disabled, width: 181.0, height: 40.0, left: 15.0, top: {y+12.0}, pos_type: "absolute",
+        disabled, width: 181.0, height: 40.0, left: 15.0, top: {y+10.0}, pos_type: "absolute",
         button_default_skin: false, {body} } });
     out
 }
@@ -291,7 +308,7 @@ pub fn editor(session: &GuildRanksSession) -> Element {
         (14.0, "1,1,1,1", "CENTER"),
     ));
     children.extend(rsx! { editbox { name: {DynName(NOTE_BOX.into())}, text: {text.as_str()}, width: 260.0, height: 24.0,
-        left: 30.0, top: 42.0, pos_type: "absolute", font_size: 13.0 } });
+        left: 30.0, top: 42.0, pos_type: "absolute", font_size: 14.0, font_color: "1,1,1,1", text_insets: "6,6,2,2" } });
     for (name, text, action, x) in [
         ("Accept", "Accept", "guild:note_accept", 27.0),
         ("Cancel", "Cancel", "guild:note_close", 165.0),
