@@ -121,6 +121,28 @@ fn tutorials_use_source_pane_art_and_fonts_in_both_skins() {
             .unwrap();
         assert_eq!(divider.width, Dimension::Fixed(353.));
         assert_eq!(divider.height, Dimension::Fixed(6.));
+        assert_eq!(
+            rect(&registry, "EncounterJournalTutorialStart"),
+            [423., 284., 138., 28.]
+        );
+        let start = registry
+            .get(
+                registry
+                    .get_by_name("EncounterJournalTutorialStart")
+                    .unwrap(),
+            )
+            .unwrap();
+        let Some(WidgetData::Button(button)) = &start.widget_data else {
+            panic!("start button")
+        };
+        assert_eq!(button.state, ButtonState::Disabled);
+        assert_eq!(button.text, catalog.text["RPE_START_EXPERIENCE"]);
+        assert!(start.onclick.as_deref().unwrap_or_default().is_empty());
+        assert!(
+            registry
+                .get_by_name("EncounterJournalTutorialUnavailable")
+                .is_none()
+        );
     }
 }
 
