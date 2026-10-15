@@ -15,6 +15,8 @@ class NativeReadinessTests(unittest.TestCase):
         self.assertNotEqual(state["target"]["target"], state["target"]["server_target"])
         self.assertFalse(run_bot_roster.native_ready(state, 62, True))
         state["target"]["server_target"] = state["target"]["target"]
+        self.assertFalse(run_bot_roster.native_ready(state, 62, True))
+        state["spells"]["catalog_ready"] = True
         self.assertTrue(run_bot_roster.native_ready(state, 62, True))
         state["spells"]["catalog_ready"] = False
         self.assertFalse(run_bot_roster.native_ready(state, 62, True))
