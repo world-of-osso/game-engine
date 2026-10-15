@@ -128,6 +128,16 @@ fn guild_ranks_wire_sends_exact_requests_and_receives_ordered_authority() {
     connect(&mut server, &mut bridge);
     let requests = vec![
         GuildRankRequest::Query,
+        GuildRankRequest::SetMemberNote {
+            character_name: "Cara".into(),
+            note: "Alchemy".into(),
+            officer: false,
+        },
+        GuildRankRequest::SetMemberNote {
+            character_name: "Cara".into(),
+            note: "Raid healer".into(),
+            officer: true,
+        },
         GuildRankRequest::Add {
             name: "Raider".into(),
         },
