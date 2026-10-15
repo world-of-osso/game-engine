@@ -28,7 +28,9 @@ Retail Mainline's member-only lifecycle history in Modern and Forever. Sources: 
 - `godot/ui-model/tests/guild_rank_widgets.rs::guild_event_log_opens_from_info_and_closes_independently_both_skins` — source entry/dialog RED reproduced; GREEN pending.
 - `guild_event_log_renders_real_newest_entries_and_keeps_rank_authority_independent_both_skins` — actual reply text/order, pending-authority independence, late close and membership cleanup.
 - `guild_event_log_formats_only_the_six_source_lifecycle_kinds` — active GlobalStrings sentences.
-- Actual UDP, overflow scrolling and native/restart tests remain pending.
+- `godot/network/src/guild_rank_wire_tests.rs::guild_event_log_wire_preserves_six_kinds_order_and_typed_refusal` — actual UDP query and all six payload kinds; pending run.
+- Overflow scrolling and native/restart tests remain pending.
+- UI/source subset5/5 passes at3c327b62e/protocol4fad8c7, including independent authority/late reply behavior and unchanged shared invitation chrome.
 
 ## Known gaps (current cycle)
 
