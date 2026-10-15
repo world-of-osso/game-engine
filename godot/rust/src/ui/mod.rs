@@ -773,9 +773,11 @@ impl RegistryModel {
                 actions.push_back("talent:search_submit".into());
             }
             ScreenPostsetup::Spellbook
-                if self.registry.focused_frame
-                    == self.registry.get_by_name("TalentLoadoutNameInput")
-                    && self.registry.focused_frame.is_some() =>
+                if self.registry.focused_frame.is_some()
+                    && (self.registry.focused_frame
+                        == self.registry.get_by_name("TalentLoadoutNameInput")
+                        || self.registry.focused_frame
+                            == self.registry.get_by_name("TalentLoadoutCodeInput")) =>
             {
                 actions.push_back("talent:loadout_save".into());
             }
