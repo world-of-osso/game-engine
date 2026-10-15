@@ -65,6 +65,11 @@ class BotHarnessTests(unittest.TestCase):
         with self.assertRaisesRegex(ValueError, "complete"):
             harness.balance([{"dps": 10, "spec": 62, "comparison": {"level": 32}}])
 
+    def test_native_cast_rejections_are_machine_readable_without_invented_spell_id(self):
+        self.run["native_errors"] = [{"at_ms": 1791992756000, "errors": ["No charges remain."]}]
+        findings = harness.analyze(self.run, self.events)["findings"]
+        self.assertIn({"kind": "native_cast_error", "at_ms": 1791992756000, "error": "No charges remain.", "spell": None}, findings)
+
     def test_server_error_and_cast_error_remain_findings_without_success(self):
         self.run["attempts"][0]["error"] = "OutOfRange"
         self.run["server_errors"] = ["ERROR failed effect"]
