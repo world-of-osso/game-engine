@@ -17,6 +17,7 @@ from pathlib import Path
 from types import SimpleNamespace
 
 from bot_roster import build_roster
+from bot_gear import load_plan as load_gear_plan, required_grants
 from bot_rotation import authored_order
 from bot_talents import load_plan
 from run_dummy_bots import collect, read_state
@@ -33,8 +34,9 @@ def command(output, argv, env=None):
 
 def record_inputs(args):
     files = [args.engine / "scripts" / f"{name}.py" for name in
-             ("bot_harness", "bot_rotation", "bot_roster", "bot_talents", "run_dummy_bots", "run_bot_roster")]
-    files += [args.engine / "godot/tests" / f"{name}.gd" for name in ("bot_harness_observer", "bot_harness_talents")]
+             ("bot_harness", "bot_rotation", "bot_roster", "bot_talents", "bot_gear", "run_dummy_bots", "run_bot_roster")]
+    files += [args.engine / "godot/tests" / f"{name}.gd" for name in ("bot_harness_observer", "bot_harness_talents", "bot_harness_gear")]
+    files.append(args.world_db)
     tables = ("ChrSpecialization", "ChrRaces", "ChrClasses", "CharBaseInfo", "SpellEffect", "SpellMisc",
               "SpellPower", "SpellCooldowns", "SpellCastTimes", "AssistedCombat", "AssistedCombatStep",
               "AssistedCombatRule", "TraitTreeLoadout", "TraitTreeLoadoutEntry", "TraitNodeXTraitNodeEntry",
@@ -164,7 +166,8 @@ def native_ready(state, spec, requires_authored):
     evaluator_ready = not requires_authored or (state["assisted"].get("available", False) and state["spells"].get("catalog_ready", False))
     target = state["target"]
     talent_ready = state.get("talent_status") == "observed"
-    return bool(player_ready and evaluator_ready and talent_ready and target.get("target_name") == "Training Dummy")
+    gear_ready = state.get("gear_status") == "observed"
+    return bool(player_ready and evaluator_ready and talent_ready and gear_ready and target.get("target_name") == "Training Dummy")
 
 
 def wait_native(args, output, bot):
@@ -179,6 +182,12 @@ def wait_native(args, output, bot):
             state = json.loads(path.read_text())
             if state["account"].get("selected_character_name") not in ("", bot["name"]):
                 raise RuntimeError("Native logged into a different character")
+            for phase in ("gear", "talent"):
+                status = state.get(phase + "_status")
+                if status not in ("pending", "applying", "observed"):
+                    receipt = output / ("native-gear.json" if phase == "gear" else "native-talents.json")
+                    detail = json.loads(receipt.read_text()).get("error") if receipt.exists() else str(status)
+                    raise RuntimeError(f"Native {phase} setup blocked: {detail}; receipt={receipt}")
             if native_ready(state, bot["spec"], requires_authored):
                 return state
             if state.get("target_attempts", 0) >= 32:
@@ -193,8 +202,13 @@ def run_bot(args, bot):
     (output / "bot.json").write_text(json.dumps(bot, indent=2) + "\n")
     talent_plan = load_plan(args.engine / "data/db2/active", bot["spec"])
     (output / "talent-plan.json").write_text(json.dumps(talent_plan, indent=2) + "\n")
+    gear_plan = load_gear_plan(args.world_db, args.engine / "data/db2/active", bot["spec"])
+    (output / "gear-plan.json").write_text(json.dumps(gear_plan, indent=2) + "\n")
     provision(args, bot)
-    (output / "equipment.txt").write_text(admin(args, "list-equipment", bot["name"]))
+    equipment = admin(args, "list-equipment", bot["name"])
+    (output / "equipment-before.txt").write_text(equipment)
+    for item, count in required_grants(gear_plan, equipment).items():
+        admin(args, "grant-item", bot["name"], str(item), str(count))
     token = args.engine / "data/auth_token.127.0.0.1_5871"
     if token.is_symlink():
         raise RuntimeError("Private token unexpectedly links outside the owned data root")
@@ -211,6 +225,7 @@ def run_bot(args, bot):
         "XDG_CACHE_HOME": str(output / "cache"), "BOT_HARNESS_OUTPUT": str(output),
         "BOT_HARNESS_SPEC": str(bot["spec"]), "ASSET_RESOLVER_SHARED_DATA_DIR": str(args.engine / "data"),
         "BOT_HARNESS_TALENTS": str(output / "talent-plan.json"),
+        "BOT_HARNESS_GEAR": str(output / "gear-plan.json"),
         "GODOT_BIN": str(args.godot), "ASSET_RESOLVER_CACHE_DIR": str(args.output / "resolver"),
         "GAME_ENGINE_ASSET_MODE": "extracted-only",
     }
@@ -242,6 +257,7 @@ def run_bot(args, bot):
         (output / "character-stats.txt").write_text(stats)
         for index in range(args.repeat):
             collect(options, output / f"run-{index + 1:03d}")
+        (output / "equipment-after.txt").write_text(admin(args, "list-equipment", bot["name"]))
     finally:
         if pid is not None:
             stop_client(pid, output)
@@ -253,7 +269,7 @@ def run_bot(args, bot):
 
 def main():
     parser = argparse.ArgumentParser(description=__doc__)
-    for name in ("engine", "server", "output", "capacity", "server-log", "godot"):
+    for name in ("engine", "server", "output", "capacity", "server-log", "godot", "world-db"):
         parser.add_argument("--" + name, type=Path, required=True)
     parser.add_argument("--specs", type=int, nargs="+", default=[62, 63, 64])
     parser.add_argument("--all-specs", action="store_true")
