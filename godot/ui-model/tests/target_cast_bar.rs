@@ -8,7 +8,7 @@ use ui_toolkit::{
     layout_values::Val,
     registry::FrameRegistry,
     screen::{Screen, SharedContext},
-    widgets::texture::TextureSource,
+    widgets::texture::{TextureData, TextureSource},
 };
 
 fn state(cast: Option<CastingBarState>) -> InWorldUnitFramesState {
@@ -70,6 +70,92 @@ fn text(r: &FrameRegistry, name: &str) -> String {
     };
     t.text.clone()
 }
+fn texture<'a>(registry: &'a FrameRegistry, name: &str) -> &'a TextureData {
+    let Some(WidgetData::Texture(texture)) = &frame(registry, name).widget_data else {
+        panic!("{name} must supply texture render input");
+    };
+    texture
+}
+
+#[test]
+fn modern_target_cast_uses_source_regions_and_crops_each_status_fill() {
+    for (channel, interruptible, interrupted, atlas, pip) in [
+        (
+            false,
+            true,
+            false,
+            "ui-castingbar-filling-standard",
+            "ui-castingbar-pip",
+        ),
+        (
+            true,
+            true,
+            false,
+            "ui-castingbar-filling-channel",
+            "ui-castingbar-pip",
+        ),
+        (
+            false,
+            false,
+            false,
+            "ui-castingbar-uninterruptable",
+            "ui-castingbar-pip",
+        ),
+        (
+            false,
+            true,
+            true,
+            "ui-castingbar-interrupted",
+            "ui-castingbar-pip-red",
+        ),
+    ] {
+        for progress in [0.0, 0.25, 1.0] {
+            let mut sample = cast();
+            sample.is_channel = channel;
+            sample.is_interruptible = interruptible;
+            sample.is_interrupted = interrupted;
+            sample.progress = progress;
+            let registry = registry(ActiveSkin::Modern, state(Some(sample)));
+            for (name, source) in [
+                ("TargetCastingBarBackgroundArt", "ui-castingbar-background"),
+                ("TargetCastingBarTextBorder", "ui-castingbar-textbox"),
+                ("TargetCastingBarFill", atlas),
+                ("TargetCastingBarSpark", pip),
+            ] {
+                assert_eq!(
+                    texture(&registry, name).source,
+                    TextureSource::Atlas(source.into())
+                );
+            }
+            assert_eq!(
+                rect(&registry, "TargetCastingBarBackgroundArt"),
+                (0.0, 0.0, 150.0, 10.0)
+            );
+            assert_eq!(
+                rect(&registry, "TargetCastingBarTextBorder"),
+                (0.0, 0.0, 150.0, 22.0)
+            );
+            assert_eq!(
+                rect(&registry, "TargetCastingBarFill"),
+                (0.0, 0.0, 150.0 * progress, 10.0)
+            );
+            assert_eq!(
+                texture(&registry, "TargetCastingBarFill").tex_coords,
+                [0.0, progress, 0.0, 1.0]
+            );
+            assert_eq!(
+                rect(&registry, "TargetCastingBarSpark"),
+                (150.0 * progress - 3.0, -3.0, 6.0, 16.0)
+            );
+            assert!(
+                frame(&registry, "TargetCastingBarBackground")
+                    .background_color
+                    .is_none()
+            );
+        }
+    }
+}
+
 #[test]
 fn target_cast_modern_tree_has_retail_track_icon_shield_name_timer() {
     let r = registry(ActiveSkin::Modern, state(Some(cast())));
@@ -267,10 +353,17 @@ fn target_cast_interrupted_fading_bar_shows_its_text_at_its_alpha_in_both_skins(
         assert_eq!(root.alpha, 0.4);
         assert_eq!(text(&r, "TargetCastingBarSpellName"), "Interrupted");
         let normal = registry(skin, state(Some(cast())));
-        assert_ne!(
-            frame(&r, "TargetCastingBarFill").background_color,
-            frame(&normal, "TargetCastingBarFill").background_color,
-            "interrupted bars use the failed colour"
-        );
+        match skin {
+            ActiveSkin::Modern => assert_ne!(
+                texture(&r, "TargetCastingBarFill").source,
+                texture(&normal, "TargetCastingBarFill").source,
+                "interrupted bars use the failed source art"
+            ),
+            ActiveSkin::Forever => assert_ne!(
+                frame(&r, "TargetCastingBarFill").background_color,
+                frame(&normal, "TargetCastingBarFill").background_color,
+                "interrupted bars use the failed colour"
+            ),
+        }
     }
 }
