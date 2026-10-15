@@ -458,12 +458,27 @@ impl GameClient {
                             row.item_id
                         )
                     })?;
-                self.trading_post.mount =
-                    Some(game_engine_core::mount_preview::MountPreview::read(
-                        &self.data_root,
-                        journal.mount_id,
-                        self.trading_post.view.preview_scene_id()?,
-                    )?);
+                let category_scene = self
+                    .trading_post
+                    .view
+                    .snapshot
+                    .as_ref()
+                    .and_then(|snapshot| {
+                        snapshot
+                            .categories
+                            .iter()
+                            .find(|category| category.id == row.category_id)
+                    })
+                    .map(|category| category.model_scene_id)
+                    .ok_or("Trading Post mount category scene missing")?;
+                let mut mount = game_engine_core::mount_preview::MountPreview::read(
+                    &self.data_root,
+                    journal.mount_id,
+                    category_scene,
+                )?;
+                let display_scene = self.trading_post.view.preview_scene_id()?;
+                mount.apply_display_scene(&self.data_root, display_scene)?;
+                self.trading_post.mount = Some(mount);
                 self.trading_post.mount_product = Some(product);
             }
             if let Some(appearance) = desired {

@@ -40,6 +40,22 @@ impl MountPreview {
             actors,
         })
     }
+    /// Products.TranslateDisplayInfo supplies display overrides, while the mount
+    /// scene's actor roster/normalization/requested scale remain active.
+    pub fn apply_display_scene(&mut self, root: &Path, scene_id: u32) -> Result<(), String> {
+        let actors = read_scene_actors(root, scene_id)?;
+        let display = actors
+            .values()
+            .min_by_key(|actor| actor.id)
+            .ok_or_else(|| format!("Mount display scene {scene_id} has no actor"))?;
+        let mount = self.actors.get_mut("mount").expect("validated mount actor");
+        mount.position = display.position.map(|value| (value * 10.).round() / 10.);
+        mount.orientation = display
+            .orientation
+            .map(|value| ((value.to_degrees() * 10.).round() / 10.).to_radians());
+        mount.animation = display.animation;
+        Ok(())
+    }
     pub fn is_self_mount(&self) -> bool {
         self.flags & 2 != 0
     }
