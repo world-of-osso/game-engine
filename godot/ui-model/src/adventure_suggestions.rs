@@ -17,6 +17,7 @@ pub fn apply_postsetup(
     registry: &mut ui_toolkit::registry::FrameRegistry,
 ) {
     use ui_toolkit::{frame::WidgetData, widgets::font_string::JustifyV};
+    apply_paging_art(registry);
     let Some(snapshot) = &view.activities else {
         return;
     };
@@ -96,6 +97,9 @@ fn suggestion_slot(
         atlas,
         (0., 0., width, height),
     );
+    if primary {
+        body.extend(primary_paging());
+    }
     if let Some(suggestion) = suggestion {
         body.extend(suggestion_card(
             suggestion,
@@ -105,6 +109,38 @@ fn suggestion_slot(
         ));
     }
     rsx! { r#frame { name: {DynName(format!("JournalSuggestionSlot{}", index + 1))}, left, top, width, height, pos_type: "absolute", {body} } }
+}
+
+fn primary_paging() -> Element {
+    // XML2188–2228 source controls stay present; no primary-offset capability exists yet.
+    [("JournalSuggestedPrev", 16.), ("JournalSuggestedNext", 287.)]
+        .into_iter()
+        .flat_map(|(name, left)| rsx! {
+            button { name: {DynName(name.into())}, left, top: 293., width: 32., height: 32., pos_type: "absolute", disabled: true, }
+        })
+        .collect()
+}
+
+fn apply_paging_art(registry: &mut ui_toolkit::registry::FrameRegistry) {
+    use ui_toolkit::{frame::WidgetData, widgets::texture::TextureSource};
+    for (name, normal, pressed, disabled) in [
+        ("JournalSuggestedPrev", 130869, 130868, 130867),
+        ("JournalSuggestedNext", 130866, 130865, 130864),
+    ] {
+        let Some(id) = registry.get_by_name(name) else {
+            continue;
+        };
+        let Some(WidgetData::Button(button)) = registry
+            .get_mut(id)
+            .and_then(|frame| frame.widget_data.as_mut())
+        else {
+            continue;
+        };
+        button.normal_texture = Some(TextureSource::FileDataId(normal));
+        button.pushed_texture = Some(TextureSource::FileDataId(pressed));
+        button.disabled_texture = Some(TextureSource::FileDataId(disabled));
+        button.highlight_texture = Some(TextureSource::FileDataId(130757));
+    }
 }
 
 fn suggestion_card(

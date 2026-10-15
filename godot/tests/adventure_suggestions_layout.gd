@@ -67,7 +67,17 @@ func run() -> void:
 		await process_frame
 	if not await click("EncounterJournalSuggestTab"):
 		return
-	if not check_suggestions_layout() or not await shot("suggested-source-layout"):
+	if not check_suggestions_layout():
+		return
+	for name in ["JournalSuggestedPrev", "JournalSuggestedNext"]:
+		var button := control(name) as Button
+		if button == null or not button.disabled:
+			stop("Unbacked primary paging must retain disabled source controls")
+			return
+		if not await click(name) or client.adventure_guide_state().tab != "Suggested":
+			stop("Disabled source paging changed selected tab")
+			return
+	if not await move_to("JournalSuggestionSlot2") or not await shot("suggested-source-layout-paging"):
 		return
 	print("SUGGESTED_LAYOUT_PASS skin=%s three-source-slots/Morpheus/roundicons/noinventedactions" % client.account_state().ui_skin)
 	quit(0)
