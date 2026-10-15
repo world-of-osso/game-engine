@@ -52,3 +52,7 @@ At `82ad03641`, the native/core specialization filter passed (three feature test
 ## Out of scope
 
 Shared-protocol/game-server changes, remote specialization replication, unrelated condition types, renderer changes and cache/builder policy changes.
+
+## Active70391 sound regression
+
+- [x] Battle Shout6673 resolves authored cast visual190617/kit279043/SoundKit368264 while keeping unit sound38 and both Human caster-voice assertions. Source chain and evidence: [active Battle Shout sound](../wiki/systems/spell-visuals.md#active-battle-shout-sound-chain--2026-10-15). This is a fixture refresh, not a sound-runtime change.

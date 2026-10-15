@@ -416,8 +416,9 @@ fn mage() -> CasterContext {
     }
 }
 
-/// Battle Shout's cast kit 43995 plays SoundKit 114049 and the warrior's own battle shout
-/// (unit sound 38): Human male CreatureSoundData 49 → 58088, female 50 → 58100.
+/// Active70391: SpellXSpellVisual616 → visual190617 → event562175/kit279043
+/// → effect789655/SoundKit368264. Unit sound38 retains the caster's own voice:
+/// Human male CreatureSoundData49 → 58088, female50 → 58100.
 #[test]
 fn battle_shout_plays_its_kit_sound_and_the_caster_voice() {
     let catalog = catalog();
@@ -426,7 +427,9 @@ fn battle_shout_plays_its_kit_sound_and_the_caster_voice() {
         .unwrap();
     let cast = &catalog.kits(visual, VisualEvent::Cast)[0];
     let kit_sounds: Vec<u32> = cast.sounds.iter().map(|sound| sound.sound_kit_id).collect();
-    assert_eq!(kit_sounds, vec![114049]);
+    assert_eq!(visual, 190617);
+    assert_eq!(cast.kit_id, 279043);
+    assert_eq!(kit_sounds, vec![368264]);
     assert_eq!(cast.unit_sounds, vec![UnitSound::BattleShout]);
     let voice = |sex| {
         let source = VoiceSource::Player { race: 1, sex };
