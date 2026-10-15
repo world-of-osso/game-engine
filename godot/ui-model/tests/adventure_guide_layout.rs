@@ -60,6 +60,93 @@ fn render(view: &View, skin: ActiveSkin) -> FrameRegistry {
 }
 
 #[test]
+fn tutorials_use_source_pane_art_and_fonts_in_both_skins() {
+    use game_engine_ui_model::adventure_guide::Tab;
+    use ui_toolkit::widgets::font_string::GameFont;
+
+    let root = std::path::PathBuf::from(env!("CARGO_MANIFEST_DIR")).join("../../data");
+    game_engine_ui_model::paths::set_data_root(root.clone()).unwrap();
+    let catalog = Arc::new(Catalog::load(&root.join("cache/adventure_guide.sqlite")).unwrap());
+    for skin in [ActiveSkin::Modern, ActiveSkin::Forever] {
+        let view = View {
+            visible: true,
+            tab: Tab::Tutorials,
+            catalog: catalog.clone(),
+            ..Default::default()
+        };
+        let registry = render(&view, skin);
+        // XML2265: Inset+(5,-51) to Inset bottomright+(-3,0).
+        assert_eq!(
+            rect(&registry, "EncounterJournalTutorialsFrame"),
+            [9., 111., 784., 380.]
+        );
+        // Atlas size700x342, TOPLEFT+(27,-10), not stretched to a portrait column.
+        assert_eq!(
+            rect(&registry, "EncounterJournalTutorialArt"),
+            [27., 10., 700., 342.]
+        );
+        let title = registry
+            .get(
+                registry
+                    .get_by_name("EncounterJournalTutorialTitle")
+                    .unwrap(),
+            )
+            .unwrap();
+        let Some(WidgetData::FontString(title)) = &title.widget_data else {
+            panic!("title font")
+        };
+        assert_eq!(title.text, catalog.text["RPE_TITLE"]);
+        assert_eq!(title.font, GameFont::Morpheus);
+        assert_eq!(title.font_size, 27.);
+        assert_eq!(title.max_lines, Some(2));
+        assert_eq!(title.color, [53. / 255., 0., 0., 1.]);
+        assert!(title.shadow_color.is_none());
+        let body = registry
+            .get(registry.get_by_name("EncounterJournalTutorials").unwrap())
+            .unwrap();
+        let Some(WidgetData::FontString(body)) = &body.widget_data else {
+            panic!("body font")
+        };
+        assert_eq!(body.text, catalog.text["RPE_TUTORIAL_TEXT"]);
+        assert_eq!(body.font, GameFont::FrizQuadrata);
+        assert_eq!(body.font_size, 16.);
+        assert_eq!(body.color, [36. / 255., 0., 0., 1.]);
+        assert!(body.shadow_color.is_none());
+        let divider = registry
+            .get(
+                registry
+                    .get_by_name("EncounterJournalTutorialDivider")
+                    .unwrap(),
+            )
+            .unwrap();
+        assert_eq!(divider.width, Dimension::Fixed(353.));
+        assert_eq!(divider.height, Dimension::Fixed(6.));
+        assert_eq!(
+            rect(&registry, "EncounterJournalTutorialStart"),
+            [423., 284., 138., 28.]
+        );
+        let start = registry
+            .get(
+                registry
+                    .get_by_name("EncounterJournalTutorialStart")
+                    .unwrap(),
+            )
+            .unwrap();
+        let Some(WidgetData::Button(button)) = &start.widget_data else {
+            panic!("start button")
+        };
+        assert_eq!(button.state, ButtonState::Disabled);
+        assert_eq!(button.text, catalog.text["RPE_START_EXPERIENCE"]);
+        assert!(start.onclick.as_deref().unwrap_or_default().is_empty());
+        assert!(
+            registry
+                .get_by_name("EncounterJournalTutorialUnavailable")
+                .is_none()
+        );
+    }
+}
+
+#[test]
 fn adventure_guide_frame_geometry_matches_retail_xml_in_both_skins() {
     let root = std::path::PathBuf::from(env!("CARGO_MANIFEST_DIR")).join("../../data");
     game_engine_ui_model::paths::set_data_root(root.clone()).unwrap();
