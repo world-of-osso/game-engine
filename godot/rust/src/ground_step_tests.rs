@@ -79,8 +79,14 @@ fn walk_frames(faces: &[[Vec3; 3]], snap: bool, speed: f32, fps: f32, frames: us
 
 fn assert_authored_rate_crosses(speed: f32, fps: f32, frames: usize) {
     let moved = walk_frames(&authored_faces(), true, speed, fps, frames);
-    assert!(moved.x > 108.32, "stopped at {speed} yd/s, {fps} FPS: {moved}");
-    assert!((moved.y - UPPER_Y).abs() < 0.00001, "not on landing: {moved}");
+    assert!(
+        moved.x > 108.32,
+        "stopped at {speed} yd/s, {fps} FPS: {moved}"
+    );
+    assert!(
+        (moved.y - UPPER_Y).abs() < 0.00001,
+        "not on landing: {moved}"
+    );
 }
 
 #[test]
