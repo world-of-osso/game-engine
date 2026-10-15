@@ -15,6 +15,10 @@ pub fn jump_action(mounted: bool, stationary: bool, grounded: bool) -> JumpActio
 }
 
 #[cfg(test)]
+#[path = "mount_special_kit_tests.rs"]
+mod kit_tests;
+
+#[cfg(test)]
 mod tests {
     use super::*;
 
