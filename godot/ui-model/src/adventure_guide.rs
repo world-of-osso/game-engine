@@ -477,22 +477,18 @@ impl View {
                 self.encounter = None;
                 self.filter_menu = None;
                 self.search.clear();
+                self.activity_filters.expanded.clear();
             }
-            "activity-filter" => {
-                self.activity_filters.tracked_only = match value {
-                    Some("all") => false,
-                    Some("tracked") => true,
-                    _ => return Err("Unknown activity filter".into()),
-                };
+            "activity-tag" => {
+                let tag = number()?;
+                if self.activity_filters.tag != tag {
+                    self.activity_filters.tag = tag;
+                    self.activity_filters.expanded.clear();
+                }
             }
-            "activity-tag" => self.activity_filters.tag = number()?,
             "activity" => {
-                let id = number()?;
-                self.activity_filters.selected = if self.activity_filters.selected == Some(id) {
-                    None
-                } else {
-                    Some(id)
-                };
+                self.activity_filters
+                    .toggle_group(self.activities.as_deref(), number()?);
             }
             "owned-keys" => {
                 self.owned_keys_only = !self.owned_keys_only;
@@ -630,8 +626,12 @@ pub fn adventure_guide_screen(ctx: &SharedContext) -> Element {
         "journal:close",
     );
     body.extend(crate::adventure_guide_art::portrait(view));
-    body.extend(crate::adventure_guide_art::navigation(view));
-    body.extend(crate::adventure_guide_art::search_box(&view.search));
+    if matches!(view.tab, Tab::Dungeons | Tab::Raids | Tab::Journeys) {
+        body.extend(crate::adventure_guide_art::navigation(view));
+    }
+    if matches!(view.tab, Tab::Dungeons | Tab::Raids | Tab::ItemSets) {
+        body.extend(crate::adventure_guide_art::search_box(&view.search));
+    }
     body.extend(crate::adventure_guide_art::bottom_tabs(view));
     body.extend(if view.loading {
         text(
@@ -653,10 +653,9 @@ pub fn adventure_guide_screen(ctx: &SharedContext) -> Element {
                 ctx,
                 view.activities.as_deref(),
                 &view.activity_filters,
-                &view.search,
             ),
             Tab::Suggested => {
-                crate::adventure_activities::suggested(ctx, view.activities.as_deref())
+                crate::adventure_suggestions::suggested(ctx, view.activities.as_deref())
             }
             _ => {
                 if view.instance.is_some() {
@@ -1403,6 +1402,9 @@ pub(crate) fn scroll_in(
         (left + width - 20., top + 10., height - 20., width)
     } else if list == "EncounterJournalBosses" {
         (left + width + 5., top + 5., height - 10., width)
+    } else if list == LIST && width == 521. {
+        // MonthlyActivities.ScrollBar TOPRIGHT+8,-6 / BOTTOMRIGHT+8,+6.
+        (left + width + 8., top + 6., height - 12., width)
     } else if list == LIST && width == 345. {
         (left + width + 5., top + 5., height - 10., width)
     } else if list == LIST && width == 748. {

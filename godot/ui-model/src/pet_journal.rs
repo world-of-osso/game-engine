@@ -505,7 +505,7 @@ fn queue_popup(view: &PetJournalView) -> Element {
         texture { name: "PetBattleQueueArt", texture_fdid: 655474,
             width: 256.0, height: 100.0, left: 32.0, top: 20.0,
             pos_type: "absolute", strata: FrameStrata::Dialog, frame_level: 6.0 }
-        font_string { name: "PetBattleQueueLabel", text: "A pet battle is ready!",
+        fontstring { name: "PetBattleQueueLabel", text: "A pet battle is ready!",
             width: 300.0, height: 25.0, left: 10.0, top: 130.0, font_size: 14.0,
             font_color: WHITE, justify_h: "CENTER", pos_type: "absolute",
             strata: FrameStrata::Dialog, frame_level: 6.0 }

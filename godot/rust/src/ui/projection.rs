@@ -548,6 +548,7 @@ impl UiProjection {
                     action.starts_with("bank_slot:")
                         || action.starts_with("guild:member:")
                         || action.starts_with("mount:select:")
+                        || action.starts_with("journal:activity:")
                         || action.starts_with("transmog:outfit:")
                         || action.starts_with(game_engine_ui_model::toybox::USE_PREFIX)
                         || action.starts_with(
@@ -710,6 +711,8 @@ impl UiProjection {
                         | "EncounterJournalInstanceFrame"
                         | "EncounterJournalModelScene"
                         | "EncounterJournalTutorialsFrame"
+                        | "EncounterJournalSuggestedFrame"
+                        | "EncounterJournalMonthlyActivitiesFrame"
                         | "JourneyRenownTrackClip"
                         | "QuestMapRewardsFrameContainer"
                 )
@@ -940,6 +943,7 @@ impl UiProjection {
             rect.width
         };
         let fixed_rectangle = frame.width != Dimension::Auto && frame.height != Dimension::Auto;
+        let bounded_wrapping = data.word_wrap && data.max_lines.is_some_and(|lines| lines > 1);
         let fit_multiline = fixed_rectangle && data.text.contains('\n');
         // A height cap hides single-line captions whose font metrics exceed their
         // authored height; only cap lines whose spacing we fit into that height.
@@ -964,15 +968,21 @@ impl UiProjection {
         // ending in "…". Godot's plain `TRIM_ELLIPSIS` drops the ellipsis when fewer than six
         // characters would remain, which in a 32-wide hotkey is always; the `_FORCE` mode
         // adds it however short the rest.
-        let one_line = fixed_rectangle && !fit_multiline && rect.height < 2.0 * data.font_size;
+        let short_rectangle = fixed_rectangle && rect.height < 2.0 * data.font_size;
+        let multiline = fit_multiline || bounded_wrapping;
+        let one_line = short_rectangle && !multiline;
         let (wrap, overrun) = if one_line {
             (AutowrapMode::OFF, OverrunBehavior::TRIM_ELLIPSIS_FORCE)
         } else {
             (AutowrapMode::WORD, OverrunBehavior::NO_TRIMMING)
         };
         node.set_autowrap_mode(wrap);
+        node.set_max_lines_visible(data.max_lines.map_or(-1, |lines| lines as i32));
         node.set_text_overrun_behavior(overrun);
-        if fit_multiline {
+        let fit_wrapped = fixed_rectangle && bounded_wrapping && node.get_line_count() > 1;
+        if fit_multiline || fit_wrapped {
+            // WoW's bounded FontString keeps its authored height, also after automatic wrapping.
+            node.set_custom_maximum_size(Vector2::new(maximum_width, rect.height));
             fit_multiline_label_spacing(&mut node, data, rect.height)?;
         }
         // Styling can raise Control's minimum size before tighter spacing lowers it.
@@ -999,12 +1009,12 @@ fn fit_multiline_label_spacing(
     };
     let available_height = height - shadow_reserved_height(data.justify_v, shadow_y);
     let themed_spacing = node.get_theme_constant("line_spacing");
-    let spacing = multiline_line_spacing(
-        available_height,
-        font_height,
-        node.get_line_count(),
-        themed_spacing,
-    );
+    let line_count = node.get_line_count();
+    let visible_lines = data
+        .max_lines
+        .map_or(line_count, |limit| line_count.min(limit as i32));
+    let spacing =
+        multiline_line_spacing(available_height, font_height, visible_lines, themed_spacing);
     node.add_theme_constant_override("line_spacing", spacing);
     Ok(())
 }
@@ -1352,6 +1362,10 @@ fn connect_edit_box(pending: &PendingInputs, frame: &Frame, node: &mut Gd<Contro
         return;
     };
     let text_changed = if data.multi_line {
+        if frame.name.as_deref() == Some("TalentLoadoutCodeInput") {
+            let keys = talent_import_keys(pending.clone(), node.clone());
+            node.connect("gui_input", &keys);
+        }
         let mut editor = node.clone().cast::<TextEdit>();
         let max_letters = data.max_letters;
         Callable::from_fn("registry-multiline-text-changed", move |_| {
@@ -1448,6 +1462,26 @@ fn read_limited_multiline_text(node: &mut Gd<TextEdit>, max_letters: Option<u32>
 }
 
 /// The original login clears edit focus on Escape; LineEdit keeps it by default.
+/// Retail ImportControl.OnEnterPressed submits, not a newline in the code.
+fn talent_import_keys(pending: PendingInputs, mut edit: Gd<Control>) -> Callable {
+    Callable::from_fn("talent-import-submit", move |args| {
+        let submitted = args
+            .first()
+            .and_then(|event| event.try_to::<Gd<godot::classes::InputEventKey>>().ok())
+            .is_some_and(|key| {
+                key.is_pressed()
+                    && matches!(
+                        key.get_keycode(),
+                        godot::global::Key::ENTER | godot::global::Key::KP_ENTER
+                    )
+            });
+        if submitted {
+            pending.push(UiInput::Submit);
+            edit.accept_event();
+        }
+    })
+}
+
 fn search_preview_keys(pending: PendingInputs, mut edit: Gd<Control>) -> Callable {
     Callable::from_fn("talent-search-preview-keys", move |args| {
         let Some(key) = args
