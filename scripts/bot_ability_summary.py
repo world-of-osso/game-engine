@@ -44,9 +44,9 @@ def describe_abilities(manifest, report, outcomes, samples):
     abilities = []
     for spell in sorted(identities, key=lambda value: (-1 if value is None else value)):
         source = metadata.get(spell, {}).get("source")
-        counts = {"hits": None, "crits": None, "misses": None, "miss_by_kind": None}
+        counts = {"owned_successes": None, "hits": None, "crits": None, "misses": None, "miss_by_kind": None}
         if outcomes is not None:
-            counts = outcomes["by_spell"].get(spell, {"hits": 0, "crits": 0, "misses": 0, "miss_by_kind": {}})
+            counts = outcomes["by_spell"].get(spell, {"owned_successes": 0, "hits": 0, "crits": 0, "misses": 0, "miss_by_kind": {}})
         abilities.append({"spell": spell, "names": sorted(names[spell]),
                           "requests": requests[spell], "successes": successes.get(spell, 0),
                           "event_damage": damage.get(spell, 0), **counts,
@@ -119,7 +119,7 @@ def summarize_roster(root, roster, repeats):
                       "missing_runs": missing, "partial_artifacts": partial,
                       "setup_error": json.loads(failure.read_text()) if failure.exists() else None})
     return {"schema": 1, "source": str(root.resolve()), "specs": specs,
-            "damage_policy": "event_damage retains actual combat spell IDs; damage_ids are source relationships, not duplicate root credit",
+            "damage_policy": "event_damage retains actual combat spell IDs; damage_ids are source relationships, not duplicate root credit; successes count local casts, owned_successes include owned pets/guardians; hits/damage are own-target outcomes",
             "error_policy": "native errors lack spell IDs and remain unattributed; missing_casts are not added to them as a new failure count"}
 
 
@@ -137,12 +137,12 @@ def render_markdown(summary):
             if not run["health_qualification"]["valid"]:
                 lines.extend(["", "Health qualification failed: " + run["health_qualification"]["error"]])
             lines.extend(["", f"### {run['run']} — complete={run['measurement_complete']}; DPS={run['dps']}", "",
-                          "| Spell | Names | Requests | Successes | Hits | Crits | Misses | Event damage | Missing casts | Unused |",
-                          "|---:|---|---:|---:|---:|---:|---:|---:|---:|:---:|"])
+                          "| Spell | Names | Requests | Local successes | Owned successes | Hits | Crits | Misses | Event damage | Missing casts | Unused |",
+                          "|---:|---|---:|---:|---:|---:|---:|---:|---:|---:|:---:|"])
             for row in run["abilities"]:
                 label = "swing" if row["spell"] is None else str(row["spell"])
                 names = ", ".join(row["names"]).replace("|", "\\|")
-                lines.append(f"| {label} | {names} | {row['requests']} | {row['successes']} | {row['hits']} | {row['crits']} | {row['misses']} | {row['event_damage']} | {row['missing_casts']} | {row['unused']} |")
+                lines.append(f"| {label} | {names} | {row['requests']} | {row['successes']} | {row['owned_successes']} | {row['hits']} | {row['crits']} | {row['misses']} | {row['event_damage']} | {row['missing_casts']} | {row['unused']} |")
             lines.extend(["", "Auto-attack: " + json.dumps(run["auto_attack"]),
                           "", "Sampled timing (not exact server occupancy): " + json.dumps(run["sampling"]),
                           "", "Resource net change (NOT spending): " + json.dumps(run["resource_net_change"]),

@@ -57,6 +57,26 @@ class BotAbilitySummaryTests(unittest.TestCase):
         self.assertEqual(swing["event_damage"], 100)
         self.assertEqual(result["auto_attack"]["share"], 2 / 3)
 
+    def test_owned_pet_casts_are_counted_but_follower_pet_casts_are_excluded(self):
+        combat = "\n".join([
+            'summon src=1 dst=2 spell=688 amount=- aura=- text=1 Summon 2 timestamp_unix_ms=100 spell_name="Summon Imp"',
+            'summon src=3 dst=4 spell=688 amount=- aura=- text=3 Summon 4 timestamp_unix_ms=200 spell_name="Summon Imp"',
+            'cast_success src=2 dst=9 spell=3110 amount=- aura=- text=2 CastSuccess 9 timestamp_unix_ms=1000 spell_name="Firebolt"',
+            'damage src=2 dst=9 spell=3110 amount=10 aura=- text=2 damaged 9 for 10 timestamp_unix_ms=1000 spell_name="Firebolt" crit=false',
+            'cast_success src=4 dst=9 spell=3110 amount=- aura=- text=4 CastSuccess 9 timestamp_unix_ms=1100 spell_name="Firebolt"',
+            'damage src=4 dst=9 spell=3110 amount=90 aura=- text=4 damaged 9 for 90 timestamp_unix_ms=1100 spell_name="Firebolt" crit=false',
+        ])
+        manifest = {"spec": 267, "role": 2, "actor": "1", "target": "9", "start_ms": 0, "end_ms": 2000,
+                    "attempts": [], "spells": [], "owner_snapshot": [], "party_actors": ["3"]}
+        report = {"duration_ms": 2000, "measurement_complete": True, "dps": 5, "damage": 10,
+                  "casts": {}, "damage_by_spell": {"3110": 10}, "findings": [], "native_errors": []}
+        result = bot_ability_summary.summarize_run(manifest, report, parse_combat(combat))
+        firebolt = next(row for row in result["abilities"] if row["spell"] == 3110)
+        self.assertEqual(firebolt["successes"], 0, "no local-player Firebolt cast")
+        self.assertEqual(firebolt["owned_successes"], 1)
+        self.assertEqual(firebolt["hits"], 1)
+        self.assertEqual(firebolt["event_damage"], 10)
+
     def test_sampled_gcd_idle_and_resource_net_change_are_not_invented_spending(self):
         manifest = {"spec": 72, "role": 2, "actor": "1", "target": "9", "start_ms": 0, "end_ms": 2000,
                     "attempts": [], "spells": [], "owner_snapshot": []}
