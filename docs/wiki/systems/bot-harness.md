@@ -4,7 +4,7 @@ Contract: [bot-harness spec](../../specs/bot-harness.md). Verified evidence belo
 
 ## Native players and source inputs
 
-`bot_roster.py` reads installed ChrSpecialization ClassID>0/OrderIndex<4:40 playable specs, excluding Initial/Adventurer and retaining Devourer1480. This is a source census, not40 executed bots. For the Northshire fixture it selects the lowest valid Alliance playable race from ChrRaces/CharBaseInfo; old Orc-shaman captures are historical and are not rewritten.
+`bot_roster.py` reads installed ChrSpecialization ClassID>0/OrderIndex<4:40 playable specs, excluding Initial/Adventurer and retaining Devourer1480. This is a source census, not40 executed bots. For the Northshire fixture it selects source-valid Alliance playable races from ChrRaces/CharBaseInfo: explicitly authored Draenei11 for Shaman, otherwise the lowest valid race. Draenei is selected before provisioning, never retried after another race fails; absence of its source pair blocks. The observed Dwarf3/Shaman7 server-table rejection is retained separately from this fixture choice and its approved source-table fix. Old Orc-shaman captures are historical and are not rewritten.
 
 `run_bot_roster.py` provisions `fb_bot_harness_<spec>` on an already-running private UDP5871. Each client has isolated XDG credentials/state, an explicit owned IPC socket and a preserved private-port token. Capacity ADD and1.5GiB free VRAM gate each launch. One Cage/Godot client is owned/stopped at a time. Extracted-only asset mode and a private cache copy prevent runtime extraction into shared asset links. The driver does not own shared realms or change game stats.
 
