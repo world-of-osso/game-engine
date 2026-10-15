@@ -1,6 +1,10 @@
 # Wiki Index
 
+- [AH duration source menu](systems/auction-house-ui.md#duration-source-composition--2026-10-15) — shared dropdown/radios, caller115/Arial Narrow12/RIGHT,10 source/reducer controls and four inspected both-skin native samples; no fresh trading claim.
+
+- [Player-bot measurement](systems/bot-harness.md) — native combat detection, fixed-window own-target DPS and comparable-fixture spread; live three-spec/all-spec/Stockade gates remain open.
 - [Native summon lifetime proofs](systems/toy-box.md#native-summon-lifetime-proofs-2026-10-15) — release Forever Scarab and quiet both-skin Flute expiry; prior debug failures, unresolved following/navigation and exact binary scopes retained.
+- [Disabled housing icon source color](systems/housing.md#disabled-editor-icon-visuals--implementation2026-10-15) — default atlas/DARKGRAY tint/full alpha instead of invented desaturation/transparency; both-skin model and actual painted-control proof, availability unchanged.
 
 - [Empty purchased-bank audit sample](systems/banks.md#empty-purchased-tab-audit-sample--2026-10-14) — malformed zero-capacity sample corrected; both-skin98 native controls/backgrounds and no item icons, with before/after pixel proof; production and purchase prompt unchanged.
 - [Modern target cast source art](investigations/target-cast-source-art.md) — source background/textbox, cropped four-state fills and6×16 pip;9 focused regressions and inspected both-skin before/after samples, Forever byte-identical.
