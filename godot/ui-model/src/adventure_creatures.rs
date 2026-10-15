@@ -20,6 +20,7 @@ pub(crate) fn buttons(view: &View) -> Element {
             *top += height - 8.;
             Some(result)
         })
+        .flatten()
         .collect()
 }
 
