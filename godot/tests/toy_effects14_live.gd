@@ -79,7 +79,6 @@ func capture(label: String) -> void:
 	await create_timer(1.0).timeout
 	await RenderingServer.frame_post_draw
 	var image := root.get_texture().get_image()
-	image.resize(1280, 720, Image.INTERPOLATE_LANCZOS)
 	var path := OS.get_environment("TOYFX_SHOTS").path_join("%s-%s.png" % [skin, label])
 	if image.save_png(path) != OK: fail("PNG capture"); return
 	var state = client.account_state()

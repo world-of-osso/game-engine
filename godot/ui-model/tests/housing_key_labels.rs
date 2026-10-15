@@ -25,6 +25,187 @@ fn view(mode: EditorMode) -> HousingView {
     }
 }
 
+#[test]
+fn housing_mode_tooltips_use_full_keys_source_colors_and_owner_top_both_skins() {
+    use game_engine_ui_model::game_tooltip::render::tooltip_size;
+    use game_engine_ui_model::game_tooltip::{OwnerSide, TooltipScreen, place};
+    use game_engine_ui_model::housing::EDITOR_CONTROL_TOOLTIPS;
+    game_engine_ui_model::paths::set_data_root(
+        std::path::PathBuf::from(env!("CARGO_MANIFEST_DIR")).join("../../data"),
+    )
+    .unwrap();
+    for skin in [ActiveSkin::Modern, ActiveSkin::Forever] {
+        set_thread_skin(skin);
+        let mut view = view(EditorMode::Expert);
+        let before = view.authority.clone();
+        for (_, action, label) in EDITOR_CONTROL_TOOLTIPS {
+            for (binding, suffix) in [
+                (None, ""),
+                (
+                    Some(InputBinding::CtrlKeyboard(BindingKey::F8)),
+                    " (Ctrl-F8)",
+                ),
+                (
+                    Some(InputBinding::ShiftKeyboard(BindingKey::F12)),
+                    " (Shift-F12)",
+                ),
+                (None, ""),
+            ] {
+                // Native tooltip content reads current Options, not the housing snapshot's UI-only copy.
+                assert!(view.model.editor_bindings.binding(action).is_none());
+                let tooltip = view
+                    .model
+                    .editor_control_tooltip(action, binding)
+                    .unwrap()
+                    .owned([600.0, 600.0, 64.0, 64.0], OwnerSide::Top)
+                    .for_skin(skin);
+                assert_eq!(tooltip.content.title_text(), format!("{label}{suffix}"));
+                assert_eq!(tooltip.content.title_color, [1.0; 4]);
+                let shown = place(
+                    tooltip,
+                    TooltipScreen {
+                        size: [1280.0, 720.0],
+                        cursor: [0.0; 2],
+                    },
+                );
+                let [width, height] = tooltip_size(&shown);
+                assert_eq!(shown.y + height, 600.0);
+                assert!((shown.x + width / 2.0 - 632.0).abs() < 0.01);
+                assert_tooltip_text_runs(shown, label, suffix);
+                assert_eq!(view.authority, before);
+            }
+        }
+        assert!(
+            view.model
+                .editor_control_tooltip(InputAction::HousingRemoveDecor, None)
+                .is_none()
+        );
+        view.model.pending = true;
+        assert!(
+            view.model
+                .editor_control_tooltip(InputAction::HousingBasicMode, None)
+                .is_none()
+        );
+        view.model.pending = false;
+        view.model.surface = HousingSurface::Dashboard;
+        assert!(
+            view.model
+                .editor_control_tooltip(InputAction::HousingBasicMode, None)
+                .is_none()
+        );
+    }
+}
+
+fn assert_tooltip_text_runs(
+    shown: game_engine_ui_model::tooltip_presentation::TooltipPresentation,
+    label: &str,
+    suffix: &str,
+) {
+    use game_engine_ui_model::game_tooltip::{GameTooltipView, game_tooltip_screen};
+    let mut shared = SharedContext::new();
+    shared.insert(ui_toolkit::atlas::thread_skin());
+    shared.insert(GameTooltipView {
+        main: shown,
+        ..Default::default()
+    });
+    let mut registry = FrameRegistry::new(1280.0, 720.0);
+    Screen::new(game_tooltip_screen).sync(&shared, &mut registry);
+    let label_frame = registry
+        .get(registry.get_by_name("TooltipTitle").unwrap())
+        .unwrap();
+    let Some(WidgetData::FontString(label_text)) = &label_frame.widget_data else {
+        panic!("Tooltip label must render text")
+    };
+    assert_eq!(label_text.text, label);
+    assert_eq!(label_text.color, [1.0; 4]);
+    if suffix.is_empty() {
+        assert!(registry.get_by_name("TooltipTitleSuffix").is_none());
+    } else {
+        let suffix_frame = registry
+            .get(registry.get_by_name("TooltipTitleSuffix").unwrap())
+            .unwrap();
+        let Some(WidgetData::FontString(suffix_text)) = &suffix_frame.widget_data else {
+            panic!("Binding suffix must render text")
+        };
+        assert_eq!(suffix_text.text, suffix);
+        assert_eq!(suffix_text.color, [1.0, 0.82, 0.0, 1.0]);
+        assert_eq!(suffix_text.font_size, label_text.font_size);
+        let (Val::Px(suffix_left), Val::Px(label_left)) =
+            (suffix_frame.position.left, label_frame.position.left)
+        else {
+            panic!("Tooltip spans require resolved inline positions")
+        };
+        assert!(suffix_left > label_left);
+    }
+}
+
+#[test]
+fn housing_control_hover_hides_while_pressed_and_restores_on_release_both_skins() {
+    game_engine_ui_model::paths::set_data_root(
+        std::path::PathBuf::from(env!("CARGO_MANIFEST_DIR")).join("../../data"),
+    )
+    .unwrap();
+    for skin in [ActiveSkin::Modern, ActiveSkin::Forever] {
+        set_thread_skin(skin);
+        for mode in [EditorMode::Basic, EditorMode::Expert, EditorMode::Cleanup] {
+            let mut view = view(mode);
+            view.authority.state = Some(shared::protocol::HousingState {
+                layout: Some(shared::protocol::HouseLayout {
+                    house_id: 1,
+                    can_edit: true,
+                    decor: vec![],
+                }),
+                ..Default::default()
+            });
+            let mut shared = SharedContext::new();
+            shared.insert(view.clone());
+            let mut registry = FrameRegistry::new(1280.0, 720.0);
+            Screen::new(housing_screen).sync(&shared, &mut registry);
+            assert_editor_hover_states(&view, &mut registry);
+        }
+    }
+}
+
+fn assert_editor_hover_states(view: &HousingView, registry: &mut FrameRegistry) {
+    use game_engine_ui_model::housing_component::apply_housing_postsetup;
+    use ui_toolkit::widgets::button::ButtonState;
+    for name in [
+        "HouseEditorBasicDecorModeButton",
+        "HouseEditorExpertDecorModeButton",
+        "HouseEditorCleanupModeButton",
+        "TranslateSubmodeButton",
+        "RotateSubmodeButton",
+        "ScaleSubmodeButton",
+    ] {
+        let Some(id) = registry.get_by_name(name) else {
+            continue;
+        };
+        for (state, hovered, expected_alpha) in [
+            (ButtonState::Normal, true, 0.5),
+            (ButtonState::Pushed, true, 0.0),
+            (ButtonState::Normal, true, 0.5),
+            (ButtonState::Normal, false, 0.0),
+            (ButtonState::Disabled, true, 0.0),
+        ] {
+            let Some(WidgetData::Button(button)) =
+                registry.get_mut(id).unwrap().widget_data.as_mut()
+            else {
+                panic!("Editor controls require real button state")
+            };
+            button.state = state;
+            button.hovered = hovered;
+            apply_housing_postsetup(view, registry);
+            let hover = registry
+                .get(registry.get_by_name(&format!("{name}Hover")).unwrap())
+                .unwrap();
+            assert_eq!(
+                hover.alpha, expected_alpha,
+                "{name} {state:?} hover={hovered}"
+            );
+        }
+    }
+}
+
 fn assert_key_label(registry: &FrameRegistry, name: &str, expected: &str, submode: bool) {
     let id = registry
         .get_by_name(name)

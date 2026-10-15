@@ -18,6 +18,26 @@ The current RSX parser truncates bare float literals to their integer prefix. Na
 
 Targeted integration module `tests/menu_primitives.rs` asserts source geometry, active-skin art, callbacks, selection ticks, disabled items, reset control, overflow retention and pressed art. `godot/tests/menu_primitives_capture.gd` mounts actual RegistryUi in each skin, waits for async art and saves PNGs; native backdrop RED is retained under `data/diagnostics/ui-primitives-2026-10-13/`.
 
+## Shared UIPanel button art — 2026-10-14 assignment
+
+`quest_art::panel_button` now emits the actual UIPanel sheet files through toolkit RSX `button_fdid_up/pressed/highlight/disabled`, reusing the existing `ButtonData` texture slots. FDIDs130828/130825/130826/130824 are Up/Down/Highlight/Disabled. `ui::parts::project_panel_button` crops the80×22 member from the128×32 sheet, keeping12px caps even when a caller changes height; highlight is additive. Generic default-button rendering and other template families are unchanged. Five caller-specific repairs (Settings, Talents, customer orders, guild ranks and tabard registration) became redundant and were removed. [Contract](../../specs/gameplay-panel-fidelity.md#shared-uipanel-buttons).
+
+Proof: toolkit attribute/action rebuild RED→GREEN1, real-screen/postsetup-family UI40, native projection24 and emitted Quest/Mail golden controls3 pass; engine/toolkit checks and format pass. Quest Accept, Mail Cancel, disabled Raid Info Extend and Bank Deposit retain their authored/Lua-sized rectangles in both skins. All ten full-HD after views and four-window before/after pixel comparisons were inspected. Settings is an additional control. Captures: `AgentShared/2026-10-14/ui-questlog-helpers/{shared-helper-before-scale1,shared-helper-panel-after}/`; exact source/binary/image hashes and commands live in `data/diagnostics/ui-questlog-helper-fidelity-2026-10-14/helper-proof-ledger.json`.
+
+Before views use the archived7cb2dfee2 renderer in the current native host with the corrected scale1 fixture, not a complete historical client. Initial Quest/Mail captures inherited scale1.40625 and are diagnostic only; their replacements assert exact source geometry. Supplied offline samples prove presentation, not server authority or every helper caller. Window-background tiling has its own implementation and proof boundary below.
+
+Sources: `Blizzard_SharedXML/SecureUIPanelTemplates.xml:39–78`, `.lua:40–80`; Mainline `SharedUIPanelTemplates.xml:3–5,315–320`. Both skins use the same source file button geometry; existing surrounding skin art remains unchanged.
+
+## Shared window texture tiling — 2026-10-14 assignment
+
+`quest_art::window_background` emits one rock region at `(2,21)` with dimensions `(width−4,height−23)`, repeating both axes. The former split at Y51 restarted the texture origin. `_UI-Frame-TopTileStreaks` starts at `(6,21)`, has height43 and width `width−8`, and repeats horizontally only. Retail `Blizzard_SharedXML/Mainline/SharedUIPanelTemplates.xml:76–78,598–609,663–675` supplies these bounds and flags. Border and portrait geometry are unchanged.
+
+Toolkit RSX `horiz_tile`/`vert_tile` write the existing `TextureData` flags independently; native projection already supports repeating a cropped atlas member rather than its entire sheet. Toolkit and engine consumers must land together. [Contract](../../specs/gameplay-panel-fidelity.md).
+
+Proof: toolkit axis/rebuild RED→GREEN1; real Quest/Mail/Bank/Settings emitted regions and AH source coverage6 pass in both skins. Only twelve expected background/streak golden blocks changed across Quest, small-window and character fixtures; the unused historical bank fixture was not refreshed. Final source/Quest/small-window3 and unchanged character golden1 pass. The streak retains the existing resolved FDID/crop representation; an intermediate atlas-name change failed the existing source-art check and was removed.
+
+Both-skin full-HD Quest/Mail/Bank/Settings before/after views and two comparison sheets were inspected; all four callers change visible background sampling without moving borders/buttons. Raid's flat-chrome control is byte-identical in both skins. Native10PASS/exit0 includes actual full-background/streak bounds. Engine/network check and extension build pass; formatter/manual Rust audit pass. Captured binary is enginec8c2d819f/toolkit06eb00c; subsequent unrelated Housing-only merge does not invalidate these helper pixels. Offline samples do not prove server actions or every caller. Exact commands/revisions/source/binary/image hashes live in `data/diagnostics/ui-questlog-window-tiling-2026-10-14/window-proof-ledger.json`; PNGs in `AgentShared/2026-10-14/ui-questlog-helpers/window-tiling-source/`. Earlier panel-merged captures are the unchanged-tiling before control. Lead owns atomic landing.
+
 ## Sources
 
 - Retail `Blizzard_Menu/Mainline/MenuTemplates.xml:3,66`; shared `MenuTemplates.xml:4` — dropdown geometry/art/reset anchors.

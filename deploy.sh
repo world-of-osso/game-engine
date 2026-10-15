@@ -93,28 +93,43 @@ run() {
     fi
 }
 
-# publish: files first, then the manifest, then deletions, so the live manifest never
-# names a missing file. no-cache because paths keep their names across deploys.
+# publish: changed files first, then the manifest, then deletions, so the live manifest
+# never names a missing file. Only paths whose (sha256, size) differ from the live
+# manifest are uploaded and only paths it alone names are deleted: a full-tree
+# rclone copy/sync of the 1.6M-file bundle spent most of a day listing and comparing
+# (2026-10-14). no-cache because paths keep their names across deploys.
 publish() {
     if [ ! -f "$FILE_SERVER_DIR/Cargo.toml" ]; then
         echo "file-server checkout not found at $FILE_SERVER_DIR (set FILE_SERVER_DIR)" >&2
         exit 1
     fi
-    if [ "$dry_run" = 0 ] && ! rclone lsf "$DESTINATION" --max-depth 1 >/dev/null; then
+    local top=""
+    if [ "$dry_run" = 0 ] && ! top=$(rclone lsf "$DESTINATION" --max-depth 1); then
         echo "cannot list $DESTINATION; configure the rclone remote (docs/deploy.md)" >&2
         exit 1
     fi
-    local upload=(--header-upload "Cache-Control: no-cache" --transfers 8 --checkers 16)
+    local upload=(--header-upload "Cache-Control: no-cache" --transfers 48 --checkers 16 --low-level-retries 20)
+    local work
+    work=$(mktemp -d)
+    trap 'rm -rf "$work"' RETURN
     echo "=== Generating manifest ==="
     run cargo run --release --quiet --manifest-path "$FILE_SERVER_DIR/Cargo.toml" -- manifest "$BUNDLE"
     echo "=== Verifying staged bytes ==="
     run python3 "$ROOT/scripts/player_bundle.py" --root "$ROOT" --bundle "$BUNDLE" --platform "$PLATFORM" --verify-manifest
-    echo "=== Uploading bundle to $DESTINATION ==="
-    run rclone copy "$BUNDLE/" "$DESTINATION" --exclude /manifest.json "${upload[@]}" --progress
+    echo "=== Diffing against the live manifest ==="
+    if grep -qx manifest.json <<<"$top"; then
+        rclone copyto "$DESTINATION/manifest.json" "$work/live-manifest.json"
+    fi
+    run python3 "$ROOT/scripts/manifest_diff.py" --new "$BUNDLE/manifest.json" \
+        --live "$work/live-manifest.json" --upload "$work/upload.txt" --delete "$work/delete.txt"
+    echo "=== Uploading changed files to $DESTINATION ==="
+    run rclone copy "$BUNDLE/" "$DESTINATION" --files-from "$work/upload.txt" --no-traverse \
+        "${upload[@]}" --stats 60s --stats-one-line
     echo "=== Publishing manifest ==="
     run rclone copyto "$BUNDLE/manifest.json" "$DESTINATION/manifest.json" "${upload[@]}"
     echo "=== Deleting files the manifest no longer names ==="
-    run rclone sync "$BUNDLE/" "$DESTINATION" "${upload[@]}"
+    run rclone delete "$DESTINATION" --files-from "$work/delete.txt" --no-traverse \
+        --checkers 16 --low-level-retries 20
 }
 
 echo "=== Building Linux native extension (release, bookworm) ==="

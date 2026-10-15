@@ -8,6 +8,8 @@ use rusqlite::{Connection, OptionalExtension};
 pub struct CreatureDisplay {
     pub source_product: crate::asset_product::AssetProduct,
     pub model_fdid: u32,
+    /// CreatureDisplayInfo.CreatureModelAlpha: 0 transparent, 255 opaque.
+    pub model_alpha: u8,
     /// CreatureModelData.CreatureGeosetDataID declares display-selected creature variants.
     pub uses_display_geosets: bool,
     pub skin_fdids: [u32; 4],
@@ -23,12 +25,13 @@ pub fn query_display(
     display_id: u32,
 ) -> rusqlite::Result<Option<CreatureDisplay>> {
     let mut stmt = conn.prepare(
-        "SELECT model_fdid, skin_fdid_0, skin_fdid_1, skin_fdid_2, skin_fdid_3, scale_milli, source_product, pet_instance_scale_milli, uses_display_geosets
+        "SELECT model_fdid, skin_fdid_0, skin_fdid_1, skin_fdid_2, skin_fdid_3, scale_milli, source_product, pet_instance_scale_milli, uses_display_geosets, model_alpha
          FROM creature_displays WHERE display_id = ?1",
     )?;
     stmt.query_row([display_id], |row| {
         Ok(CreatureDisplay {
             model_fdid: row.get(0)?,
+            model_alpha: row.get(9)?,
             uses_display_geosets: row.get(8)?,
             skin_fdids: [row.get(1)?, row.get(2)?, row.get(3)?, row.get(4)?],
             scale_milli: row.get(5)?,

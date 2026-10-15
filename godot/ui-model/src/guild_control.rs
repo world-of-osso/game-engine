@@ -24,7 +24,6 @@ pub fn input_action(name: &str) -> Option<String> {
 
 pub fn apply_postsetup(registry: &mut ui_toolkit::registry::FrameRegistry) {
     use ui_toolkit::frame::WidgetData;
-    use ui_toolkit::widgets::texture::TextureSource;
     let names: Vec<_> = registry
         .frames_iter()
         .filter_map(|frame| frame.name.clone())
@@ -45,17 +44,6 @@ pub fn apply_postsetup(registry: &mut ui_toolkit::registry::FrameRegistry) {
         {
             edit.max_letters = Some(max);
             edit.numeric = !name.starts_with("GuildRankOrderName");
-        }
-    }
-    if ui_toolkit::atlas::thread_skin() == ui_toolkit::atlas::ActiveSkin::Modern {
-        if let Some(id) = registry.get_by_name("GuildControlUIRankOrderFrameNewButton") {
-            if let Some(WidgetData::Button(button)) =
-                &mut registry.get_mut(id).expect("guild new rank").widget_data
-            {
-                button.normal_texture = Some(TextureSource::FileDataId(130828));
-                button.pushed_texture = Some(TextureSource::FileDataId(130825));
-                button.disabled_texture = Some(TextureSource::FileDataId(130824));
-            }
         }
     }
     refresh_button_art(registry);

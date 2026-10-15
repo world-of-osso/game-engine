@@ -55,6 +55,7 @@ pub fn item_tooltip_in_catalog(
             y: 0.0,
             title: RETRIEVING_ITEM_INFO.into(),
             title_color: RED_FONT_COLOR,
+            title_suffix: None,
             lines: Vec::new(),
             border: TooltipBorder::Quality(slot.quality.id()),
         };
@@ -66,6 +67,7 @@ pub fn item_tooltip_in_catalog(
         y: 0.0,
         title: slot.name.clone(),
         title_color: parse_rgba(quality_color(slot.quality.id())),
+        title_suffix: None,
         lines: entry.map_or_else(Vec::new, |entry| item_lines(entry, &item, catalog)),
         border: TooltipBorder::Quality(slot.quality.id()),
     }

@@ -131,6 +131,8 @@ pub struct TooltipPresentation {
     pub y: f32,
     pub title: String,
     pub title_color: [f32; 4],
+    /// Inline trailing text with its own color, e.g. a Retail button's gold binding.
+    pub title_suffix: Option<(String, [f32; 4])>,
     pub lines: Vec<TooltipLineState>,
     /// What the tooltip describes, for skins that colour its border by it.
     pub border: TooltipBorder,
@@ -163,8 +165,16 @@ impl TooltipPresentation {
             y: 0.0,
             title: String::new(),
             title_color: TOOLTIP_TEXT_COLOR,
+            title_suffix: None,
             lines: Vec::new(),
             border: TooltipBorder::Default,
+        }
+    }
+
+    pub fn title_text(&self) -> String {
+        match &self.title_suffix {
+            Some((suffix, _)) => format!("{}{suffix}", self.title),
+            None => self.title.clone(),
         }
     }
 

@@ -19,7 +19,7 @@ Range regression (2026-10-08): `data/diagnostics/bankloop-2026-10-08/resume-too-
 
 ### Layout
 - [x] Frame 738×460 (BF.xml:674) with the `metal_frame` chrome and the active-skin `bank-frame-background` atlas. In both skins the portrait is the open banker (`BF.lua:94`, `SetPortraitToUnit("npc")`), masked at (-3,-7,58,58). Backgrounds exclude that mask; the bank atlas begins at y=51 and retains its bottom inset of 30.
-- [x] Slot grid: 98 slots, column-major in 7 rows (BF.lua:941-968).
+- [x] Slot grid: 98 slots, column-major in 7 rows (BF.lua:941-968). An empty purchased tab still shows all 98 clickable slot backgrounds, without item icons; the purchase prompt remains a separate no-grid state.
   - The first slot is at 26,63; the next row is 10 px below; columns are 8 apart within a pair and 19 apart between pairs.
   - Slot backgrounds are `bags-item-slot64` (4701874) in the character bank. The Warband bank uses `warband-bank-slot`, grown −6,5 / 6,−7.
   - Stack counts show above 1.

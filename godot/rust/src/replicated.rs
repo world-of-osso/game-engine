@@ -3,8 +3,8 @@
 use game_engine_network::replica::{Replica, Unit};
 use shared::{
     components::{
-        CombatStatus, Gold, Health, Npc, Player, UnitFactionTemplate, UnitFlags, UnitSummonedBy,
-        UnitTap, UnitTarget, UnitThreatList,
+        CombatStatus, Gold, Health, Npc, Player, UnitFactionTemplate, UnitFlags, UnitIsPet,
+        UnitSummonedBy, UnitTap, UnitTarget, UnitThreatList,
     },
     death::DeathState,
     protocol::NpcFlags,
@@ -15,25 +15,15 @@ pub(crate) fn is_unit(unit: Unit) -> bool {
     unit.has::<Player>() || unit.has::<Npc>()
 }
 
-/// Ownership alone includes stationary toy scenery. A pet must be player-controlled.
+/// Source-designated pets only. TC SetMinion sets PLAYER_CONTROLLED on other
+/// minions too; UnitIsPet is emitted by pet constructors, independently of that flag.
 pub(crate) fn local_pet(replica: &Replica, player: u64) -> Option<u64> {
-    const UNIT_FLAG_PLAYER_CONTROLLED: u32 = 0x8;
     replica
         .units()
         .find(|unit| {
-            let controlled = unit
-                .unit_flags()
-                .is_some_and(|flags| flags & UNIT_FLAG_PLAYER_CONTROLLED != 0);
-            unit.summoned_by() == Some(player) && controlled && !is_non_combat_companion(*unit)
+            unit.get::<UnitIsPet>().is_some_and(|pet| pet.0) && unit.summoned_by() == Some(player)
         })
         .map(|unit| unit.server_id)
-}
-
-fn is_non_combat_companion(unit: Unit) -> bool {
-    // Companion minions are non-attackable and immune to both players and NPCs.
-    use shared::pet_battle::COMPANION_UNIT_FLAGS;
-    unit.unit_flags()
-        .is_some_and(|flags| flags & COMPANION_UNIT_FLAGS == COMPANION_UNIT_FLAGS)
 }
 
 pub(crate) trait UnitFields<'a> {
@@ -160,8 +150,30 @@ mod tests {
         }
     }
 
-    /// `UnitIsUnit("pet", unit)`: the unit whose `SummonedBy` is the local player; another
-    /// hunter's wolf and an unowned boar are not it.
+    /// Owned player-controlled scenery still has no authoritative pet identity.
+    #[test]
+    fn toyfx28_player_controlled_gong_is_not_the_combat_pet() {
+        let mut replica = Replica::for_tests();
+        let gong = 143703;
+        replica.insert(
+            gong,
+            Npc {
+                template_id: 143703,
+                name: "Witherbark Gong".into(),
+            },
+        );
+        replica.insert(gong, UnitSummonedBy(HUNTER));
+        replica.insert(gong, UnitFlags(0x8));
+        assert_eq!(local_pet(&replica, HUNTER), None);
+        replica.insert(gong, UnitIsPet(false));
+        assert_eq!(local_pet(&replica, HUNTER), None);
+        replica.insert(WOLF, npc("Wolf"));
+        replica.insert(WOLF, UnitSummonedBy(HUNTER));
+        replica.insert(WOLF, UnitFlags(0x8));
+        replica.insert(WOLF, UnitIsPet(true));
+        assert_eq!(local_pet(&replica, HUNTER), Some(WOLF));
+    }
+
     #[test]
     fn non_combat_companion_does_not_take_the_combat_pet_frame() {
         let mut replica = Replica::for_tests();
@@ -179,6 +191,7 @@ mod tests {
         replica.insert(WOLF, npc("Wolf"));
         replica.insert(WOLF, UnitSummonedBy(HUNTER));
         replica.insert(WOLF, UnitFlags(0x8));
+        replica.insert(WOLF, UnitIsPet(true));
         assert_eq!(local_pet(&replica, HUNTER), Some(WOLF));
     }
 
@@ -198,6 +211,7 @@ mod tests {
         replica.insert(WOLF, npc("Wolf"));
         replica.insert(WOLF, UnitSummonedBy(HUNTER));
         replica.insert(WOLF, UnitFlags(0x8));
+        replica.insert(WOLF, UnitIsPet(true));
         assert_eq!(local_pet(&replica, HUNTER), Some(WOLF));
     }
 
@@ -208,9 +222,11 @@ mod tests {
         replica.insert(OTHER_WOLF, npc("Wolf"));
         replica.insert(OTHER_WOLF, UnitSummonedBy(OTHER_HUNTER));
         replica.insert(OTHER_WOLF, UnitFlags(0x8));
+        replica.insert(OTHER_WOLF, UnitIsPet(true));
         replica.insert(WOLF, npc("Wolf"));
         replica.insert(WOLF, UnitSummonedBy(HUNTER));
         replica.insert(WOLF, UnitFlags(0x8));
+        replica.insert(WOLF, UnitIsPet(true));
         replica.insert(
             WOLF,
             Health {
