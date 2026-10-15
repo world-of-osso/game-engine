@@ -910,6 +910,12 @@ fn trading_post_drag_freeze_replace_and_drag_off_wait_for_authority() {
     );
     assert_eq!(
         view.drop_item(5, false, true),
+        None,
+        "occupied slot waits for confirmation"
+    );
+    view.update_freeze_confirmation(5.0);
+    assert_eq!(
+        view.click("perks:confirm").unwrap(),
         Some(Action::Request(TradingPostRequest::Freeze {
             vendor_item_id: Some(5)
         }))
