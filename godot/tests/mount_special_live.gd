@@ -108,6 +108,9 @@ func drive_mounts() -> void:
 		await open_mounts()
 		await click_control(control("MountJournalMountButton"))
 		if not await until(func(): return mount_animation() == null, "dismount"): return
+		write_record(prefix + "-actor-dismounted", {"skin": proof_skin})
+		# Keep the unmounted state stable until the real peer observes it.
+		if not await until(func(): return FileAccess.file_exists(path(prefix + "-observer-dismounted")), "observer dismount acknowledgement", 120000): return
 		await tap(KEY_ESCAPE)
 	write_record("actor-done", {"skin": proof_skin, "mounts": mounts})
 	print("MOUNT_SPECIAL_ACTOR PASS ", proof_skin)
@@ -122,6 +125,7 @@ func observe_actor() -> void:
 		await capture(prefix + "-observer-special.png")
 		write_record(prefix + "-observer-special", pose_record())
 		if not await until(func(): return mount_animation() == null, "actor dismount", 120000): return
+		write_record(prefix + "-observer-dismounted", {"skin": proof_skin})
 	print("MOUNT_SPECIAL_OBSERVER PASS ", proof_skin)
 	quit(0)
 
