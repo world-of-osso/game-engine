@@ -114,7 +114,8 @@ impl GameClient {
     /// The tooltip of the hovered frame, if it has one.
     pub(crate) fn frame_tooltip(&mut self, hit: &HoveredFrame) -> Option<HoveredTooltip> {
         type Source = fn(&mut GameClient, &HoveredFrame) -> Option<HoveredTooltip>;
-        const SOURCES: [Source; 30] = [
+        const SOURCES: [Source; 31] = [
+            GameClient::journal_monthly_tooltip,
             GameClient::journal_journey_tooltip,
             GameClient::journal_set_tooltip,
             GameClient::transmog_set_tooltip,
@@ -231,6 +232,18 @@ impl GameClient {
             },
             None,
         ))
+    }
+
+    fn journal_monthly_tooltip(&mut self, hit: &HoveredFrame) -> Option<HoveredTooltip> {
+        let snapshot = self.adventure_guide.view.activities.as_deref()?;
+        let ui = hit.ui.bind();
+        let (_, tooltip) = named_ancestor(ui.registry()?, hit.frame, |frame| {
+            game_engine_ui_model::adventure_activities::activity_tooltip(
+                snapshot,
+                frame.name.as_deref()?,
+            )
+        })?;
+        Some(HoveredTooltip::text(tooltip))
     }
 
     /// SetRewards uses ANCHOR_RIGHT; LockedState's requirement uses ANCHOR_CURSOR_RIGHT.

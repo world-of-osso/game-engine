@@ -577,6 +577,22 @@ fn petbattle_pvp_ready_popup_appears_without_open_journal_in_both_skins() {
         let mut registry = FrameRegistry::new(1280.0, 720.0);
         Screen::new(pet_journal_screen).sync(&context, &mut registry);
         assert!(registry.get_by_name("PetBattleQueueReadyFrame").is_some());
+        let caption = registry
+            .get(
+                registry
+                    .get_by_name("PetBattleQueueLabel")
+                    .expect("ready caption"),
+            )
+            .unwrap();
+        let Some(WidgetData::FontString(text)) = &caption.widget_data else {
+            panic!("Ready popup caption must be a rendered FontString")
+        };
+        assert_eq!(text.text, "A pet battle is ready!");
+        assert_eq!(text.font_size, 14.0);
+        assert_eq!(
+            text.justify_h,
+            ui_toolkit::widgets::font_string::JustifyH::Center
+        );
         assert!(registry.get_by_name("PetBattleQueueAcceptButton").is_some());
         assert!(
             registry
