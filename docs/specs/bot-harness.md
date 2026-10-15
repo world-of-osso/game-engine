@@ -48,10 +48,10 @@ Every stat-bearing armor slot and preferred weapon uses authentic Item/ItemSpars
 
 ## Known gaps (current cycle)
 
-- [ ] Complete three-DPS sustained dummy MVP before all-spec/Stockade phase expansion. Native provisioning/spec selection/dummy casts work, but source evaluator stops Arcane12408/20, Ret6425/equality, Elemental38530/17 and Frost33686/67. No fallback and no sustained-DPS claim.
-- [ ] Comparable spec-correct gear/stat receipts. Sourced native talent purchase and Ret fresh-login12/12-rank persistence are verified. Ret/Arms ordinary native2361 equip is verified; Arms has two complete60s windows, while source-geared Ret again stops6425. Other weapon plans remain unverified. Fury's dual-two-hand kit is blocked by unmodelled Titan's Grip; no gear fallback.
+- [x] Three-DPS common-budget dummy MVP: Arms71/Fury72/Havoc577 each complete two60s windows with matching fixture keys and empty jewelry; native-equal-budget2 retains receipts and findings. This qualifies only the phase gate, not balance or all-spec correctness. Arcane12408/20, Ret6425/equality, Elemental38530/17 and Frost33686/67 refusals remain recorded.
+- [x] Comparable spec-correct gear/stat receipts for the three-spec MVP: Arms10 slots, Fury/Havoc11 slots at30/quality2/era0, visible native stats and owner GUIDs; Fury native dual-two-hand25129 succeeds. Havoc jewelry moves normally into bag0/1 and retains all four storage-bag IDs/GUIDs/counts. Other specs remain unverified; no gear fallback.
 - [ ] Aura-effect, cooldown reset, charge and resource-spending observability; combat-log aura presence alone proves none of these.
-- [ ] Three-spec and all-spec comparable damage receipts.
+- [ ] All-spec comparable damage receipts beyond the completed three-spec MVP.
 
 ## Out of scope
 
