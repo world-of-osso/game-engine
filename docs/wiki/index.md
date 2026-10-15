@@ -1,5 +1,7 @@
 # Wiki Index
 
+- [Tutorials source presentation](systems/adventure-guide.md#tutorials-source-presentation--2026-10-14-native-gate-pending) — source inset/art, shared Morpheus and disabled Start Experience; native gate pending.
+
 - [Close-camera observation](systems/character-rendering.md#close-camera-observation--2026-10-14) — actual Goldshire mailbox collision; post-AV dead login prevents standing-body acceptance, no camera/material change.
 
 - [Collections source layout](systems/collections-ui.md) — shared PortraitFrame/Filter/context menus, source pet decoration and ToyBox composition; inspected both-skin1920×1080 native controls/models,52 focused regressions and explicit projection boundary.
