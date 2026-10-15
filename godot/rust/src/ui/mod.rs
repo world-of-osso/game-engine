@@ -57,6 +57,7 @@ mod scroll_lists;
 mod selection_list_tests;
 mod sidebarbinds_preview;
 mod spellbook_preview;
+mod target_cast_preview;
 mod toy_cooldown;
 mod toybox_preview;
 pub(crate) mod ui_parent;
