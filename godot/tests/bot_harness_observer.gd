@@ -11,8 +11,8 @@ var talents_started := false
 
 func _initialize() -> void:
     output = OS.get_environment("BOT_HARNESS_OUTPUT")
-    if output.is_empty() or OS.get_environment("BOT_HARNESS_SPEC").is_empty():
-        push_error("bot harness requires output directory and specialization")
+    if output.is_empty() or OS.get_environment("BOT_HARNESS_SPEC").is_empty() or OS.get_environment("BOT_HARNESS_TALENTS").is_empty():
+        push_error("bot harness requires output directory, specialization and sourced talent plan")
         quit(2)
         return
     call_deferred("boot")
@@ -34,12 +34,18 @@ func sample() -> void:
         talents_started = true
         apply_talents()
     var target: Dictionary = client.target_state()
-    if target_attempts < 32 and target.get("target_name", "") != "Training Dummy" and spells.get("spec", 0) == int(OS.get_environment("BOT_HARNESS_SPEC")) and account.get("gameplay_input_allowed", false):
+    if talent_status == "observed" and target_attempts < 32 and target.get("target_name", "") != "Training Dummy" and spells.get("spec", 0) == int(OS.get_environment("BOT_HARNESS_SPEC")) and account.get("gameplay_input_allowed", false):
         target_attempts += 1
         select_nearest()
+    var target_position: Array[float] = []
+    if target.get("target") != null:
+        var transform: Variant = client.unit_transform(int(target["target"]))
+        if transform is Transform3D:
+            target_position.assign([transform.origin.x, transform.origin.y, transform.origin.z])
     var snapshot := {"at_ms": int(Time.get_unix_time_from_system() * 1000.0),
         "account": account, "spells": spells, "spec_request_error": error,
-        "target": target, "target_attempts": target_attempts, "spec_requested": spec_requested,
+        "target": target, "target_position": target_position,
+        "target_attempts": target_attempts, "spec_requested": spec_requested,
         "talent_status": talent_status, "auras": client.aura_state(),
         "assisted": client.assisted_combat_state(), "cooldowns": client.cooldown_viewer_state()}
     var destination := output.path_join("native-state.json")
@@ -60,9 +66,6 @@ func sample() -> void:
 
 func apply_talents() -> void:
     var path := OS.get_environment("BOT_HARNESS_TALENTS")
-    if path.is_empty():
-        talent_status = "not requested"
-        return
     var plan: Variant = JSON.parse_string(FileAccess.get_file_as_string(path))
     if not plan is Dictionary:
         talent_status = "invalid source plan"
