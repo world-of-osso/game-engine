@@ -1,6 +1,6 @@
 ## 2026-10-15 — IoC NPC passenger scene attachment
 
-[Native scene regression](systems/battlegrounds.md#ioc-npc-attachment--implementation2026-10-15): actual WorldUnits.advance retains player-owned mount seating but fails NPC seat5766 at two moved/turned poses. Select NPC visual separately from player mount host; GREEN pending. No model/network/pixel/control/fire or epoch2 landing claim.
+[Native scene regression](systems/battlegrounds.md#ioc-npc-attachment--implementation2026-10-15): actual WorldUnits.advance retains player-owned mount seating but fails NPC seat5766 at two moved/turned poses. Select NPC visual separately from player mount host; native build and both scene paths GREEN at2aa01a3fc. No model/network/pixel/control/fire or epoch2 landing claim.
 
 ## 2026-10-15 — Both-skin native bomb chain, bounded
 
