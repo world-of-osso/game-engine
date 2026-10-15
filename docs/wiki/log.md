@@ -9,6 +9,25 @@
 ## 2026-10-14 — Trading Post post-landing native acceptance
 
 [Compatible-binary proof](systems/trading-post.md#post-landing-compatible-binary-proof): both-skin held controls and checkout/relog/individual refunds pass after stats/Renown wire integration. Registry-owned pressed-icon offsets survive projection; Modern receipts additionally survive a server restart.22 UI/11 native/12 server/1 admin/3 protocol targeted tests, checks/format and86 inspected1920×1080 PNGs recorded. Private setup waits for admin Update readiness, not UDP binding; no checkout replay or deadline extension.
+## 2026-10-13 — Ribbon round-2 bindings and saved material rasters
+
+[Format](formats/m2-format.md#ribbon-emitter-scalars-2026-10-13): real1865728 enabled UV lookup/global-sequence translation reproduces unsupported-transform RED and passes per-pass lookup sampling. Native shader sampling moves a synthetic red/green texture from green at0ms to red at633ms using those real tracks. Rows2/cols1/slot1 reproduces vertical-half RED and now selects the reference horizontal half; scoped core6/6 pass. Alpha/priority PNGs and revisioned sanitized receipts are present in `/syncthing/AgentShared/2026-10-13/toy-ribbons/`; earlier console-only proof did not provide those artifacts. Broader natural-expiry/delivery failures remain open.
+
+## 2026-10-13 — Source ribbon semantic counterexamples
+
+[Bauble boundary](systems/toy-box.md#prismatic-bauble-rendering-boundary-2026-10-13): rate/lifetime, long-frame movement and animated tiles reproduce3RED→5GREEN. Native production material raster reproduces blend0 opaque and ignored priority, then passes alpha-red0.5333/farther high-priority green. Current moving source trail passes Modern2359/Forever1805 pixels, four bands each; requested PNGs published. Initial catalog/delivery failures and Forever natural-removal gate remain open.
+
+## 2026-10-13 — Real-source ribbon scalar parsing
+
+[Format](formats/m2-format.md#ribbon-emitter-scalars-2026-10-13): actual1417024 RED demonstrates incorrect track-overlap reads; source50 edges/s and0.5s lifetime fix. Native ribbon rendering remains open.
+
+## 2026-10-13 — Native source area lifecycle
+
+[Area lifecycle](systems/toy-box.md#native-source-area-lifecycle-2026-10-13): typed source failure/detail and both-skin actual journal rejection, allowed use, aura exit and remaining cooldown proof.
+
+## 2026-10-13 — War Banner team condition and native combat removal
+
+[War Banner presentation](systems/toy-box.md#war-banner-faction-and-combat-presentation-2026-10-13): source scalar decoder/context/parser,54 condition contexts and both faction models in both skins; four physical AttackSwing/native aura-kit removal proofs,8 inspected effect PNGs. Cloth/physics remain explicitly uncertified.
 ## 2026-10-14 — Cleanup cursor tooltip
 
 [Central tooltip](systems/housing.md#cleanup-central-tooltip--implementation2026-10-14): removed fixed bespoke panel/invented visitor line; source white GameTooltip title/ANCHOR_CURSOR and normal central lifetime. Native missing-tooltip RED, scoped GREEN24 and both-skin owner/readonly title/anchor/leave/mode-exit proof. Event-time diagnostics classified stale-pixel rehover failure; fixture re-picks currently visible decor, without changing gameplay picking. Pet/lock/removability/exterior metadata, audio and complete appearance remain gaps.
@@ -3820,6 +3839,9 @@ Staged chains cover all1,971 mount IDs;1,444 recovered readable targets rendered
 
 - 2026-10-13: [Follower Group Finder role policy](systems/follower-dungeons.md#binding-role-template-repair--2026-10-13) corrected to Retail solo-enable/grouped-non-leader disablement; two RED cases,14 GREEN cases/check/fmt and four recaptured after PNGs pass.
 
+- 2026-10-13 — [Group-private owner/UDP fixtures](systems/toy-box.md#source-group-private-owner-capture-fixtures-2026-10-13): source doll/gong identity and natural-lifetime fixtures; execution gates pending.
+
+- 2026-10-13 — [Guardian scenery/pet identity](systems/toy-box.md#guardian-scenery-is-not-a-pet-2026-10-13): actual both-skin Gong-as-pet failure and selector RED; source UnitIsPet designation replaces the flags heuristic for local/party frames; owner-only PetSpells remains the bar declaration.
 - 2026-10-13: [[quest-ui]] records owned story/reward and roster-Share implementation plus targeted proofs; fresh native delivery and Retail reward-container geometry remain open, with UTC2026-10-14 publication/no-receipt trace evidence. No transport fix or both-skin/party acceptance claimed.
 
 - 2026-10-13: [[quest-ui]] source RewardsFrameContainer/spacer/reveal and SmallItemButtonTemplate rows implemented. Four Rust regressions and four both-skin offline native clipping/bounds cases pass; eight final source-template PNGs inspected. First capture’s dark money regression preserved separately. Fresh-login/real-party proof remains transport-blocked.

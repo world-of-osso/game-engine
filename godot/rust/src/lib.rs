@@ -96,6 +96,7 @@ mod raid_info;
 mod raid_targets;
 mod replicated;
 mod reputation_status_bar;
+mod ribbons;
 mod scene;
 mod scene_export;
 mod selection_debug;
