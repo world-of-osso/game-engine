@@ -10,6 +10,14 @@ Atlas names resolve under active skin; source file regions remain source files i
 
 RegistryUi synchronizes child normal/pressed regions and dropdown atlas states after screen sync and pointer input. `menu_template_art` sets authored ADD/tile flags unavailable as RSX attributes and applies Retail `C_Texture.GetAtlasInfo` slices: backdrop16/13/16/19, text holder16/0/19/0, Filter8/0/18/0, Style2 12/0/12/0. Whole-member stretching shifts the backdrop metal edge into labels; the native fixture checks source edge pixels. The real world-map consumer and standalone shared-menu capture use the same code paths.
 
+## WowStyle1 caption centering (2026-10-15)
+
+The AH Duration `1 Week` caption and shared open/closed WowStyle1 captions rendered3px low in both skins. `Mainline/MenuTemplates.xml:20-25` authors a10px FontString at TOPLEFT8,-8, extending horizontally to Arrow.LEFT. Copying that height to a native Godot Label did not keep its drawn bounds: both packaged12px font faces had15px minimum height, expanding downward from the copied top8. `ui/projection.rs::update_label` deliberately avoids clipping single-line glyphs to undersized authored heights.
+
+`menu_primitives::dropdown_text` uses a full-button-height centering rectangle only for WowStyle1, retaining the source8px left edge and Arrow-relative right edge. Fonts, AH RIGHT alignment, text-holder/arrow art, actions and caller dimensions are unchanged. Filter's source20px/TOP and WowStyle2's centered20px rectangle are unchanged. This native adaptation can retire when FontString projection can preserve the source10px bounds without clipping glyphs. No global label/projection workaround is added.
+
+RED2 covers shared and actual AH caption rect centering; native before measurements confirm owner25/caption15/top8/center delta+3 in both skins. Fifteen external builder call sites are inventoried in `data/diagnostics/ui-questlog-dropdown-centering-2026-10-15/consumer-source-inventory.json`; the helper's internal props reconstruction is not a consumer. Final after-pixel acceptance remains pending.
+
 ## Source-decimal gotcha
 
 The current RSX parser truncates bare float literals to their integer prefix. Native capture found `selection_list::menu_background` alpha0 instead of source.925, making authentic menu borders invisible. Express fractional attrs as strings/dynamic expressions: `alpha: "0.925"`, reset `button_highlight_alpha: "0.4"`. The native capture fixture checks actual CanvasItem opacity, not source spelling.
