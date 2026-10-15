@@ -69,7 +69,7 @@ func drive_mounts() -> void:
 		await tap(KEY_ESCAPE)
 		if not await until(func(): return mount_animation().current_animation_id() == 0, "mount idle"): return
 		var prefix := "mount-%d" % mount[0]
-		write_record(prefix + "-stage", {"mount_id": mount[0], "skin": proof_skin})
+		write_record(prefix + "-stage", {"mount_id": mount[0], "skin": proof_skin, "idle": pose_record()})
 		if not await until(func(): return FileAccess.file_exists(path(prefix + "-observer-mounted")), "observer mounted model", 120000): return
 		var before: Vector3 = client.account_state().local_player_position
 		await tap(KEY_SPACE)
@@ -83,6 +83,8 @@ func drive_mounts() -> void:
 			if frame % 10 == 0: samples.append(pose_record())
 		write_record(prefix + "-stationary", {"before": before, "after": client.account_state().local_player_position, "poses": samples})
 		await capture(prefix + "-rider-special.png")
+		if mount[0] == 1532:
+			await capture_spelltome_diagnostic()
 		if not await until(func(): return mount_animation().current_animation_id() == 0, "special returns to idle", 30000): return
 		if not await send_line("/mountspecial"): return
 		if not await until(func(): return mount_animation().current_animation_id() == 94, "slash same MountSpecial"): return
@@ -144,7 +146,35 @@ func pose_record() -> Dictionary:
 	if skeleton != null:
 		for bone in range(skeleton.get_bone_count()):
 			poses.append(str(skeleton.get_bone_pose(bone)))
-	return {"mount_clip": mount_animation().current_animation_id() if mount_animation() != null else -1, "rider_bones": poses, "account": client.account_state()}
+	var unit := actor_unit() as Node3D
+	var animation := mount_animation()
+	var model := animation.get_parent() as Node3D if animation != null else null
+	var saddle := model.get_node_or_null("Skeleton3D/AttachmentBone0/Attachment0") as Node3D if model != null else null
+	var rider := skeleton.get_parent() as Node3D if skeleton != null else null
+	return {"mount_clip": animation.current_animation_id() if animation != null else -1, "rider_bones": poses, "actor_name": unit.name if unit != null else "", "actor_position": unit.global_position if unit != null else null, "mount_position": model.global_position if model != null else null, "mount_visible": model.is_visible_in_tree() if model != null else false, "saddle_position": saddle.global_position if saddle != null else null, "rider_position": rider.global_position if rider != null else null, "rider_local_transform": rider.transform if rider != null else null, "camera_position": root.get_camera_3d().global_position, "account": client.account_state()}
+
+func capture(file: String) -> void:
+	# Observer framing changes only its render camera, not unit/animation/replica state.
+	if role == "observer":
+		RenderingServer.frame_pre_draw.connect(frame_observed_actor, CONNECT_ONE_SHOT)
+	await super.capture(file)
+
+func frame_observed_actor() -> void:
+	var unit := actor_unit() as Node3D
+	var camera := root.get_camera_3d()
+	camera.global_position = unit.global_position + Vector3(0, 4, 12)
+	camera.look_at(unit.global_position + Vector3(0, 2, 0))
+
+func capture_spelltome_diagnostic() -> void:
+	var pools := actor_unit().find_children("*", "MultiMeshInstance3D", true, false)
+	var visible_pools := []
+	for pool in pools:
+		if pool.visible:
+			visible_pools.append(pool)
+			pool.hide()
+	write_record("spelltome-particle-isolation", {"hidden_pools": visible_pools.size(), "pose": pose_record()})
+	await capture("diagnostic-spelltome-without-particles.png")
+	for pool in visible_pools: pool.show()
 
 func control(name: String) -> Control:
 	return client.find_child(name, true, false) as Control
