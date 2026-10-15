@@ -3,9 +3,9 @@ use glam::{Vec2, Vec3};
 
 use crate::player_physics_data::WALL_RAY_HEIGHT;
 
-/// Reconstruct the admitted destination support plane before sweeping. Ground ray
-/// interpolation can round feet below that plane; floor contact must not turn its
-/// adjoining vertical edge into an obstruction. This uses authored support, not an epsilon.
+/// Walkable faces supporting the destination are floors, not wall obstructions.
+/// Reconstruct their support plane for the adjoining vertical edges: ground-ray
+/// interpolation can round feet below the authored plane. No epsilon is used.
 pub fn step_wall_blocked(
     triangles: &[[Vec3; 3]],
     from: Vec3,
@@ -19,9 +19,11 @@ pub fn step_wall_blocked(
             destination_support_height(triangle, to, support_top, min_walkable_normal_y)
         })
         .fold(to.y, f32::max);
-    triangles
-        .iter()
-        .any(|&triangle| blocks_step_sweep(triangle, from.with_y(support), to.with_y(support)))
+    triangles.iter().any(|&triangle| {
+        let supports_landing =
+            destination_support_height(triangle, to, support_top, min_walkable_normal_y).is_some();
+        !supports_landing && blocks_step_sweep(triangle, from.with_y(support), to.with_y(support))
+    })
 }
 
 /// Whether an authored triangle enters the interval below the existing low wall ray.
@@ -43,11 +45,6 @@ fn blocks_step_sweep(triangle: [Vec3; 3], from: Vec3, to: Vec3) -> bool {
     }
     let above_feet = section.iter().any(|point| point.y > 0.0);
     let below_ray = section.iter().any(|point| point.y < WALL_RAY_HEIGHT);
-    if above_feet && below_ray {
-        eprintln!(
-            "STEP_WALL_DIAGNOSTIC triangle={triangle:?} from={from:?} to={to:?} section={section:?}"
-        );
-    }
     above_feet && below_ray
 }
 
@@ -63,7 +60,7 @@ fn destination_support_height(
         return None;
     }
     let height = a.y - (normal.x * (feet.x - a.x) + normal.z * (feet.z - a.z)) / normal.y;
-    if height < feet.y || height > top {
+    if height > top {
         return None;
     }
     let point = feet.with_y(height);
