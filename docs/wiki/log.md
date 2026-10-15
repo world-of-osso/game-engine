@@ -1,9 +1,20 @@
+## 2026-10-15 — Guild member note implementation
+
+[Member details and notes](systems/guilds.md#member-details-and-notes): additive public-note storage preserves existing officer records; authenticated self/public/officer permissions, per-recipient privacy and Mainline31-letter popup source implemented. Current UI/decision28, actualUDP4 and server main-binary11 pass, including popup-target RED→GREEN, note commands/public-self payloads, rank-right/privacy and durable reopen. Six actual private5891 master/self/server-restart-readback runs now pass in Modern and Forever; fourteen inspected1920×1080 PNGs verify corrected border layering, input backdrops, self privacy and source removal confirmation. Current widgets22/22 includes destructive-confirmation RED→GREEN; native No/Escape sends nothing. Merged-head checks remain separate. Local TDB1210 contains62 guild reward rows; runtime import/eligibility, not source availability, remains a later guild gap.
 ## 2026-10-15 — MountSpecial authored playback continuation
 
 [MountSpecial](systems/mounts.md#mountspecial-continuation--2026-10-15): unified input/identity/emote routing and deterministic complete-segment scheduler. Core6/server3 GREEN; mount sequence ownership native PASS. Actual rider FishingCast1000ms versus AnimStartTime2000 exposes unresolved offset semantics; both-skin three-mount/observer rendering not yet proven.
+## 2026-10-15 — Guild invitation source chrome
+
+[TranslucentFrameTemplate](systems/guilds.md#invitation-chrome--verified2026-10-15) replaces only GuildInviteFrame's static-popup skin. Missing-inset RED→two controls GREEN; both-skin native source rectangles and physical Join/Decline/pending pacing pass, four inspected before/after PNGs. Fixture authority and remaining inner-art/content/lifecycle boundaries remain explicit.
+
 ## 2026-10-15 — Communities numeric roster sorting
 
 [Level/Class header continuation](systems/guilds.md#communities-metadata-sorting--verified2026-10-15): actual disabled-header RED→seven focused controls GREEN, numeric class IDs and missing-value order sourced from Retail. Both-skin native physical sort and prior Communities regression pass; ten before/after PNGs inspected. Offline fixture authority only; service gaps and numeric tie-order boundary retained.
+## 2026-10-15 — Native bot health qualification and per-ability triage
+
+[Health boundary](systems/bot-harness.md#capture-and-detection): Ret70 was alreadyhealth0/8208 while input eligibility remainedtrue, so no new in-window death event existed. Readiness/collection now require observed positive health; archived before/in-window samples qualify derived reports without rewriting originals. Actual native proof keeps six MVP windows valid, quarantines two Ret windows as DPSnull and confirms eight raw report hashes unchanged. Per-ability JSON/Markdown preserves real triggered event IDs and separates untagged native errors. Integrated57 tests pass; old loaded all40 capture continues with final health-qualified comparison. Stockade deferred until a maintained source-backed controller exists.
+
 ## 2026-10-15 — Comparable three-DPS bot MVP
 
 [Native receipts](systems/bot-harness.md#common-budget-three-dps-mvp--verified2026-10-15): Arms/Fury/Havoc each complete two60s windows with equal30/quality2/era0 equipment, empty jewelry and common observed dummy/level/world inputs. Fury ordinary dual-two-hand succeeds; Havoc five normal jewelry removals preserve four bag identities. Median19.1167 from equal-spec means, max/median5.7363, min/median0.1844; no tolerance/balance or bug-free claim. All40/detector completeness/Stockade remain open. Evidence native-equal-budget2; all owned runtime stopped.
@@ -3947,3 +3958,9 @@ Completed Retailv2 codec/authoritative Create and committed Copy callbacks, exac
 - 2026-10-15: [Active Expert submode continuity](systems/housing.md#active-expert-submode-continuity--implementation2026-10-15): model/native assigned-key RED reproduced; same-submode early return implemented, different-submode policy unchanged; acceptance pending.
 
 - 2026-10-15: [Active Expert submode continuity](systems/housing.md#active-expert-submode-continuity--implementation2026-10-15): focused13 GREEN and both-skin actual held-input Translate/Rotate/Scale/key/release/Escape conservation; inspected functional frames and exact launch hashes retained.
+- 2026-10-15 — Action cooldown source swipe: ordinary actions now use existing radial shader at black0.64/inset3; obsolete rectangle/toy flag removed. RED2→GREEN6, before/after both-skin fullHD frozen-fraction quadrant/opacity/reset proof; journal/viewer0.8 and timing/countdowns/inputs preserved. Initial native hidden/snapped-bounds fixture failure excluded and corrected without extension rebuild. [System](systems/spellbook-action-bar.md#action-cooldown-source-swipe-2026-10-15), diagnostics ui-questlog-action-swipe-2026-10-15/action-swipe-proof-ledger.json; no live lifecycle/server claim.
+- 2026-10-15: Slam active70391 source revalidation: genuine core/native stale-kit RED; update same-weapon/no-snapshot/replicated-spec expectations and impact model166330/attachment22. Runtime unchanged; GREEN pending.
+
+- 2026-10-15: Lead assigned Battle Shout sound drift; source616→190617→562175/279043→789655/368264 authenticated. Corrected initial Slam type1 misread: actual model is type2 effect789206→638041→25213/1283017, attachment15 unchanged. No runtime changes; full-file GREEN pending.
+
+- 2026-10-15: Slam/Battle Shout fixture refresh4fe654f81 bounded GREEN: core17/17, native specialization5/5, core/native all-target check1m13s, workspace fmt/manual readability clean. Same active70391 rows; no runtime or rendered/audio acceptance claim.
