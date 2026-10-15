@@ -28,18 +28,22 @@ pub fn detail(session: &GuildRanksSession) -> Element {
     let member = session.detail_member();
     let officer = session.can(GUILD_RIGHT_VIEW_OFFICER_NOTE);
     // GuildRoster.lua:175/228 + name height; rank dropdown is a separate follow-up.
-    let height = if officer { 242.0 } else { 189.0 };
-    let mut children = flat_panel_chrome(
+    let height = if officer { 240.0 } else { 187.0 };
+    let border =
+        crate::game_menu_main::dialog_border("GuildMemberDetailBorder", 214.0, height - 1.0);
+    let mut children = rsx! { r#frame { name: "GuildMemberDetailBorder", width: 214.0, height: {height-1.0}, left: 4.0, top: 0.0, pos_type: "absolute", {border} }
+        texture { name: "GuildMemberDetailBackground", texture_fdid: 6839810, left: 11.0, top: 7.0, width: 200.0, height: {height-15.0}, pos_type: "absolute", draw_layer: "BACKGROUND" }
+    };
+    children.extend(crate::quest_art::close_button(
         "GuildMemberDetail",
-        (212.0, height),
-        "",
+        212.0,
         "guild:detail_close",
-    );
+    ));
     children.extend(label(
         "GuildMemberDetailName".into(),
         name,
-        (17.0, 18.0, 165.0, 14.0),
-        (13.0, "1,0.82,0,1", "LEFT"),
+        (17.0, 18.0, 165.0, 12.0),
+        (12.0, "1,0.82,0,1", "LEFT"),
     ));
     let level = member
         .map(|m| format!("Level {} {}", m.level, m.class_name))
@@ -47,17 +51,17 @@ pub fn detail(session: &GuildRanksSession) -> Element {
     children.extend(label(
         "GuildMemberDetailLevel".into(),
         &level,
-        (17.0, 34.0, 178.0, 12.0),
-        (11.0, "1,1,1,1", "LEFT"),
+        (17.0, 32.0, 178.0, 10.0),
+        (10.0, "1,1,1,1", "LEFT"),
     ));
     for (id, heading, value, y) in [
-        ("Zone", "Zone:", "", 57.0),
-        ("Rank", "Rank:", rank, 77.0),
+        ("Zone", "Zone:", "", 53.0),
+        ("Rank", "Rank:", rank, 71.0),
         (
             "Online",
             "Last Online:",
             member.map(|m| m.last_online.as_str()).unwrap_or(""),
-            97.0,
+            79.0,
         ),
     ] {
         children.extend(label(
@@ -73,9 +77,9 @@ pub fn detail(session: &GuildRanksSession) -> Element {
             (11.0, "1,1,1,1", "LEFT"),
         ));
     }
-    children.extend(note(session, false, 117.0));
+    children.extend(note(session, false, 97.0));
     if officer {
-        children.extend(note(session, true, 170.0));
+        children.extend(note(session, true, 150.0));
     }
     // Source buttons are 96x22 at x16 and113, bottom12; use existing hierarchy action.
     children.extend(panel_button(
