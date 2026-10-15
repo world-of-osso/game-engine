@@ -1,54 +1,83 @@
 # Coverage, exclusions and proof ledger
 
-[Backlog index and revision pins](README.md). Source inspection is not native-client validation or an exhaustive compatibility audit.
+[Finding index and source pins](README.md). **23 findings do not mean 23 total project gaps.** They describe completed paired-source comparisons within the slices below. Absence of a finding is not parity; unreviewed rows are not implementation findings.
 
-## Capability matrix
+## Reviewed capability matrix
 
-| Area | Inspected evidence | Established gap | Still missing / blocked | Proof level |
+| Slice | Mismatched / missing behavior | Implemented or matching evidence | Uncertain / still unreviewed | Proof |
 |---|---|---|---|---|
-| Generic M2 track evaluation | W `M2Model.cpp` specializations; E `m2_anim.rs`, native `animation/mod.rs`, ribbon sampler | A1–A3 | Authored-asset census, native bone/edge samples; Hermite/Bezier scope not established | Paired source + explicit input/output examples |
-| Particle geometry, birth/motion and order | W `M2Model.cpp`, `Services/ParticleSystem2.cpp`, world projection callback; E parser, simulation and native placement | P1–P7 | Real tail/follow/inheritance/spline/model-particle fixtures and native output; modern scale/spline/model-resolution provenance | Paired source, explicit missing consumer/branch |
-| Particle lighting | W material mapping/render effect choice; E native variant and particle shader | S1 | Target-build light equation/normals and native pixels | Paired source, contrasting lit/unlit paths |
-| General M2 material combiners | W `M2Shared.cpp:464–573,640–684,711–760`; E `m2_material.rs:10–99`, `m2.gdshader:167–239` | None established; V1–V3 retained for validation | Same-asset/batch/pass comparison and shader output | Partial source comparison; not parity |
-| Bone hierarchy, skinning, attachments, variation and billboards | W `M2Model.cpp`; E attachment/bone code, `m2_variation.rs`, `m2_billboard.rs` | None established | End-to-end transform and lifetime fixtures; no general correctness claim | Partial source comparison |
-| World movement/collision | W `WoW/Source/Object/Movement.cpp`; E native ground/player control; S shared movement | None established | Contact/slide/step-up, jump trajectories and water boundaries need matched inputs | Partial source comparison |
-| WMO portal/frustum visibility | W `WoW/Source/WorldClient/MapObj.cpp`; E `wmo/portals.rs`, collision and format support | None established | Same camera/group/portal visibility fixture; no pass-equivalence proof | Reference mechanisms and existing current mechanisms inspected |
-| Terrain compositing and liquids | Existing [terrain blend investigation](../wiki/investigations/terrain-blend-steps.md), [water investigation](../wiki/investigations/northshire-pale-water.md); reference world-render paths identified | None established | Direct paired shader/math and asset comparison incomplete | Coverage incomplete; no rework claim |
-| Authoritative server gameplay | S shared movement/navmesh; W is client-only | None established | Server-side combat, persistence, pathing and authority are not recoverable from this source alone | No server defect established |
+| Generic M2 track evaluation | A1–A3 | Material sampler separately honors interpolation and short-table rules | Asset census, spline interpolation families, native outputs | Paired functions + explicit counterexamples |
+| Model events / replay | A4–A5 | Six selected action/missile event IDs, variation families and crossfades already have native paths | Other event handlers, real replay usage, original-binary fidelity | Paired runtime paths; no execution |
+| Bone transforms / attachments / skinning | None established | Both sides have hierarchy/billboard mechanisms; E retains bone flags | Ignore-parent flags, IK, animated attachment lifecycle and weighted normal transforms not fully traced | Partial source review only |
+| Authored model cameras | None promoted to finding | W animates camera position/target/roll; E parses first-key snapshots | E native consumers and intended dynamic-camera contract incomplete; animated FOV not established | Located source mechanisms; incomplete pair |
+| Particle geometry / birth / motion | P1–P5, P7 | Plane/sphere simulation, force integration, model/world axes, keyframed emitters, head quads, several appearance flags | Asset/layout provenance for spline/model/velocity scale; full flag census | Paired native consumer paths |
+| Particle ordering | P6 | Object/pool-level transparent sorting is not claimed absent | Cross-emitter global sort semantics and actual overlapping assets | Paired generation/upload order |
+| M2 mesh material order | R1 | Priority plane/material layer are retained | Projected batches, clip-plane passes, exhaustive texcoord generation | Authored metadata discarded; reference sort consumer traced |
+| M2/particle shader lighting | S1 | M2 scene light, several combiners and particle fog/blend handling exist | Alpha cutoff/quat/fog candidates, lit flag polarity and target equation | Paired shader/binder paths; no pixels |
+| WMO materials | S2 | 24-entry native shader mapping, texture combinations, interior ambient, point lights and shadow flags exist | Equation-by-equation parity, special lightmap branch and asset applicability | Paired SIDN parser/binder/shader trace |
+| Terrain compositing/detail | None established | Reference's inspected MCSH use affects detail-doodad alpha; E samples that detail shadow mask | Full terrain alpha/height/material equation comparison incomplete | Bounded matching mechanism; not full parity |
+| Weather / storm environment | ENV1 | E clear-time-of-day sky, stars, planets, skyboxes and fog exist | Weather authority/wire input, all precipitation families and asset appearance | Reference lifecycle vs native clear-only environment inputs |
+| Camera immersion | ENV2 | E samples underwater light data and fogs refracted water-surface samples | Glare depth fade, underwater sound, modern flag/parameter correspondence | Native scene-light input/output trace, separate from surface shader |
+| Walking contacts | M1–M2 | E slope/support sampling, wall clamping, ordinary jump/fall and transport carry exist | Matched geometry, body parameters, transport fall/seat edges, launch/knockback producer | Paired contact-response algorithms |
+| Camera collision / WMO visibility | None established | Native camera ray/smoothing checks and WMO portal/collision paths exist | Matched reference camera/group/portal outputs, exact body/culling policies | Partial review; not parity |
+| World audio | AU1–AU4 | Native zone channels, footsteps, spell-kit/voice and UI audio paths exist | WMO-specific spatial emitter producer, audio occlusion, full kit/concurrency/doppler rules | Paired contextual selection/scheduling paths |
+| Server authority | None established | S has independent ground/movement/navmesh implementations | Combat/persistence/authority cannot be recovered from W alone | Client-only reference limit |
+
+## Domains not systematically audited
+
+These are **audit gaps**, not a claim that every named feature is missing from E/S. They prevent an exhaustive conclusion.
+
+| Reference area | Outstanding comparison |
+|---|---|
+| `Engine/Source/Frame*`, `WoW/Source/Ui`, `Glue`, `UIUtil` | Full authored layout/input/focus/scroll/tooltips, UI model scenes and glue transitions vs native UI; no blanket missing-UI claim |
+| `WoW/Source/Net`, `Battlenet`, `WowServices`, `WowSvcs` | Session/reconnect/security/state ordering; historical wire formats are not a migration requirement for the project's protocol |
+| `WoW/Source/Magic`, `Game`, `Object`, `Minigame` | Full spell visual/impact/aura timelines, object visibility/interaction, combat presentation and minigames; server gameplay requires independent contracts |
+| Model/world special paths | IK and inheritance flags, animated authored camera consumers, projected textures/shadows, collision-material details, streaming/occlusion/LOD boundary cases and exhaustive shader variants |
+| Remaining sound/environment/backend paths | Audio occlusion, doppler and concurrency; WMO spatial emitters; liquid glare, uncommon weather/material families; device/backend behavior and performance |
 
 ## Checked claims that must not become rework tasks
 
-### Existing ribbon UVs do use the newest slot in the reference
+### Existing ribbon UVs use the newest slot in the reference
 
-An initial lead assumed atlas coordinates belonged to each edge at birth. `W/Engine/Source/Services/RibbonEmitter.cpp:349–354` rewrites surviving edge UVs using the current slot every update. `E/godot/core/src/m2_ribbons.rs:231–242` likewise derives them from the current trail slot. Storing each edge's birth slot would introduce a difference, not fix the proposed one.
+`W/Engine/Source/Services/RibbonEmitter.cpp:349–354` rewrites surviving edge UVs using the current slot every update. `E/godot/core/src/m2_ribbons.rs:231–242` likewise derives them from the trail's current slot. Retaining each edge's birth slot would introduce a difference.
 
-### Ribbon interpolation uses current width for both frame endpoints
+### Ribbon interpolation uses current width for both endpoints
 
-`W/Engine/Source/Services/RibbonEmitter.cpp:95–107` constructs previous/current endpoints with the same current `m_above`/`m_below`. `E/godot/core/src/m2_ribbons.rs:258–277` does the equivalent using current values plus the direction-difference bend. The assertion that reference interpolation necessarily retains previous-frame width is unsupported.
+`W/Engine/Source/Services/RibbonEmitter.cpp:95–107` constructs previous/current endpoints with current `m_above`/`m_below`. `E/godot/core/src/m2_ribbons.rs:258–277` does the equivalent with current values and the direction-difference bend. Previous-frame width retention was not reference behavior in this path.
 
-### Long-frame particle replay intentionally caps whole steps
+### Long-frame particle replay caps whole steps on both sides
 
-`W/Engine/Source/Services/ParticleSystem2.cpp:1037–1063` computes remainder before capping whole steps to one lifespan. `E/godot/core/src/m2_particles.rs:528–540` does the same. For lifespan 1 s and delta 2.05 s, both cap the nominal whole-step replay to 1 s and retain the approximately 0.05 s remainder. This is not a demonstrated engine-only loss of elapsed time. Follow displacement distribution is a separate missing behavior, P2.
+`W/Engine/Source/Services/ParticleSystem2.cpp:1037–1063` computes remainder before capping whole steps to one lifespan. `E/godot/core/src/m2_particles.rs:528–540` does the same. Lifespan 1 s and delta 2.05 s replay approximately 1.05 s on both. Follow displacement distribution is a separate omission, P2.
 
-### A 45-degree slope is not rejected by a cos(50-degree) threshold
+### A 45-degree slope is not rejected by cos(50 degrees)
 
-`W/WoW/Source/Object/Movement.cpp:2037–2039` uses normal Z `<= 0.64278764`, approximately cos(50 degrees). `S/crates/shared/src/movement.rs:3–4,77–84` uses a 50-degree maximum slope. A planar 45-degree slope has normal Z approximately 0.7071, above the reference rejection threshold: these snippets do not prove a 45-versus-50-degree policy discrepancy. Facet collision and height-delta validation remain different mechanisms requiring actual contact tests.
+`W/WoW/Source/Object/Movement.cpp:2037–2039` uses normal Z `<= 0.64278764`, approximately cos(50 degrees). `S/crates/shared/src/movement.rs:3–4,77–84` uses a 50-degree maximum. A 45-degree plane has normal Z approximately 0.7071; these snippets do not prove a 45-versus-50-degree policy defect. M1/M2 concern response/clearance, not that false numerical lead.
 
-### A root-owned top-level ribbon mesh is not proof of a leak
+### Root-owned top-level ribbon meshes are not proof of a leak
 
-`E/godot/rust/src/ribbons.rs:206–222` adds ribbon meshes as children before making transforms top-level; `:27–32` hides empty geometry. That representation alone does not prove surviving nodes after owner removal. Natural effect-tail teardown still warrants a lifecycle fixture, but no current ownership leak is established here.
+`E/godot/rust/src/ribbons.rs:206–222` adds meshes as children before making transforms top-level; `:27–32` hides empty geometry. This alone does not establish surviving nodes after owner removal. Natural effect-tail teardown still needs its own lifecycle fixture.
 
-## Game-server boundary
+### MOUV and terrain-surface MCSH claims lack paired proof
 
-The reference README identifies a client decompilation. Client collision queries and packet consumption can reveal client expectations, not authoritative server policy. Different navmesh representations are not themselves defects. Do not change `game-server` slope rules, water policy, movement validation, protocols or persistence from these partial comparisons. A server finding would require an exact observable contract, traced producer/consumer paths and a discriminating test; none was established.
+E parses MOUV (`godot/core/src/asset/wmo_format/parser.rs:100–108`) and notes unported UV animation (`godot/shaders/wmo.gdshader:255–259`), but the pinned W producer/animation formula was not established. Record this as an uncompleted comparison, not a wowdecomp-proven defect. W's inspected MCSH use at `WoW/Source/WorldClient/MapChunk.cpp:1331–1339` concerns detail-doodad vertex alpha, which E handles at `godot/core/src/ground_detail.rs:166–169,207–211,293–299`; it does not prove a missing terrain-surface shadow.
+
+### Audio and model events are partial, not absent
+
+Native action events at `E/godot/rust/src/animation/action.rs:29–35,69–103,244–256` feed real melee/voice consumers. Native spell audio at `E/godot/rust/src/spell_effects/kits.rs:198–229` and `spell_sounds.rs:130–150,184–208,321–332` includes authored kit selection and weighted sound choice. A4 and AU1–AU4 must not be paraphrased as no model events or no real spell audio. Likewise, no WMO emitter semantics are inferred from an unverified chunk name such as MOSB.
+
+## Server boundary and prerequisites
+
+W reconstructs a client. Collision queries, weather consumers and packet handling reveal client expectations, not authoritative server decisions. Do not change S slope policy, world scheduling, protocols, combat or persistence from this audit alone. ENV1's producer contract, model-particle asset resolution, modern inherited-velocity scale and applicable historic/new material rules are named dependencies—not permission to invent fields, constants or fallback behavior.
 
 ## Proof ledger
 
-| Check | Revision/scope | Result | Invalidation rule |
-|---|---|---|---|
-| Baseline `git rev-parse HEAD` and `git status --short` for E/W/S | Revisions in index | Reference/server clean; engine no tracked changes, pre-existing untracked paths preserved | Relevant source or checkout modification requires rechecking affected citations |
-| Paired read-only source inspection | File/line ranges in each entry | Eleven conditional gaps; four separate candidates; rejected leads recorded above | A changed cited function invalidates its finding until re-audited |
-| Asset-backed/native/original-binary checks | None | **Not run**; no rendered or gameplay reproduction claimed | Required before claiming a real affected asset or target-build parity |
-| Builds/tests/deployment | None | **Not run**; documentation-only work | Not a code-fix or deployment completion claim |
+| Check | Scope / revision | Evidence and limits |
+|---|---|---|
+| E/W/S baseline metadata | Pins in index; expansion began at E docs HEAD `201d6288a` | No tracked source changes; W/S clean; unrelated E untracked paths preserved |
+| Initial independent artifact gate | Original nine findings through `c9eb3880a` | All nine supported; 32/32 links resolved; docs-only diff/whitespace passed; citation/fixture corrections required |
+| Initial narrow follow-up | `201d6288a` corrections | PASS: affected citations, inherited-velocity overrides/variance and four-point Bézier fixture; whitespace check exit 0; unaffected proof retained |
+| Expansion source inspection | P6–P7, A4–A5, R1, S2, ENV1–ENV2, M1–M2, AU1–AU4 | Fourteen additional conditional findings traced; final independent expansion verification recorded in task delivery, not presumed from explorer reports |
+| Runtime/asset/original-binary checks | None | Not run; no native visual/acoustic/gameplay reproduction, affected-asset census, performance or exhaustive parity claim |
+| Builds/tests/deployment | None | Not run; documentation-only work, no implementation or deployment acceptance claim |
 
-Documentation verification checks source citations, internal links, coherent classifications and docs-only Git scope. It does not upgrade source evidence into runtime proof.
+Documentation verification validates source citations, links, coherent classification and Git scope. It cannot upgrade this evidence into runtime proof.
