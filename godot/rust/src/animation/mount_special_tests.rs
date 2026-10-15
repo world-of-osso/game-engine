@@ -107,6 +107,21 @@ fn mount_special_spelltome_uses_authored_elevated_saddle() {
     .unwrap();
     let seat = model.attachments.iter().find(|seat| seat.id == 0).unwrap();
     println!("SPELLTOME_AUTHORED_SEAT {seat:?}");
+    let batches =
+        game_engine_core::m2::resolve_render_batches(&model, &[4062006, 0, 0, 0], true, |_| None)
+            .unwrap();
+    for (index, batch) in batches.iter().enumerate() {
+        println!(
+            "SPELLTOME_SORTED_BATCH {index} source_unit={} submesh={} vertices={} texture={:?}/{:?} raw_blend={} shader={}",
+            batch.source_unit_index,
+            batch.submesh_index,
+            model.submeshes[batch.submesh_index].vertex_count,
+            batch.texture_fdid,
+            batch.texture_2_fdid,
+            batch.blend_mode,
+            batch.shader_id
+        );
+    }
     println!(
         "SPELLTOME_TEXTURES {:?} MATERIALS {:?}",
         model.texture_fdids, model.materials
