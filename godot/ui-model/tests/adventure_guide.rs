@@ -187,16 +187,14 @@ fn item_sets_render_retail_rows_and_filter_paladin_specialization() {
     game_engine_ui_model::item_catalog::wait_for_item_catalog();
     let mut view = journal();
     view.visible = true;
-    view.apply("journal:class:2").unwrap();
-    assert_eq!(view.spec, 0);
+    view.player_spec = Some(70);
     view.apply("journal:tab:sets").unwrap();
-    assert_ne!(
-        view.spec, 0,
-        "Entering Item Sets must choose a specific class specialization"
-    );
+    assert_eq!(view.class_spec_filters(), (2, 70));
     view.apply("journal:class:2").unwrap();
     view.apply("journal:spec:70").unwrap();
-    view.search = "Lightsworn Battlegear".into();
+    let mut catalog = (*view.catalog).clone();
+    catalog.sets.retain(|set| set.id == 900);
+    view.catalog = Arc::new(catalog);
     let mut context = SharedContext::new();
     context.insert(ActiveSkin::Modern);
     context.insert(view.clone());
@@ -243,7 +241,9 @@ fn set_name_takes_quality_of_last_sorted_member_like_retail_configure_order() {
     view.apply("journal:tab:sets").unwrap();
     view.apply("journal:class:3").unwrap();
     view.apply("journal:spec:253").unwrap();
-    view.search = "The Defiler's Determination".into();
+    let mut catalog = (*view.catalog).clone();
+    catalog.sets.retain(|set| set.id == 483);
+    view.catalog = Arc::new(catalog);
     let mut context = SharedContext::new();
     context.insert(ActiveSkin::Modern);
     context.insert(view);

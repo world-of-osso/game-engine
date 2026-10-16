@@ -452,9 +452,11 @@ fn adventure_guide_item_sets_use_source_pane_rows_and_item_borders() {
     for skin in [ActiveSkin::Modern, ActiveSkin::Forever] {
         let mut v = view();
         game_engine_ui_model::item_catalog::wait_for_item_catalog();
-        v.apply("journal:class:1").unwrap();
         v.apply("journal:tab:sets").unwrap();
-        v.search = "Gladiator's Battlegear".into();
+        v.apply("journal:class:1").unwrap();
+        let mut catalog = (*v.catalog).clone();
+        catalog.sets.retain(|set| set.id == 567);
+        v.catalog = Arc::new(catalog);
         let index = v.item_sets().iter().position(|set| set.id == 567).unwrap();
         let r = render(&v, skin);
         assert_eq!(rect(&r, "LootJournalItems"), [8., 111., 784., 380.]);
@@ -478,9 +480,11 @@ fn adventure_guide_item_sets_use_source_pane_rows_and_item_borders() {
 fn adventure_guide_item_sets_resolve_real_appearance_icons() {
     let mut v = view();
     game_engine_ui_model::item_catalog::wait_for_item_catalog();
-    v.apply("journal:class:1").unwrap();
     v.apply("journal:tab:sets").unwrap();
-    v.search = "Gladiator's Battlegear".into();
+    v.apply("journal:class:1").unwrap();
+    let mut catalog = (*v.catalog).clone();
+    catalog.sets.retain(|set| set.id == 567);
+    v.catalog = Arc::new(catalog);
     assert_eq!(v.catalog.items[&24544].icon, 0);
     let r = render(&v, ActiveSkin::Modern);
     let Some(WidgetData::Texture(icon)) = &frame(&r, "JournalSet567Item24544Icon").widget_data
@@ -496,7 +500,7 @@ fn adventure_guide_item_sets_use_one_source_class_specialization_menu() {
         let mut v = view();
         v.player_spec = Some(71);
         v.apply("journal:tab:sets").unwrap();
-        assert_eq!((v.class, v.spec), (1, 71));
+        assert_eq!(v.class_spec_filters(), (1, 71));
         let r = render(&v, skin);
         assert_eq!(rect(&r, "JournalClassFilter"), [587., -35., 175., 26.]);
         assert!(r.get_by_name("JournalSpecFilter").is_none());
@@ -510,13 +514,14 @@ fn adventure_guide_item_sets_use_one_source_class_specialization_menu() {
         assert!(r.get_by_name("JournalClass2").is_some());
         v.apply(frame(&r, "JournalClass2").onclick.as_deref().unwrap())
             .unwrap();
-        assert_eq!(v.class, 2);
-        assert_ne!(v.spec, 0);
+        let (class, selected) = v.class_spec_filters();
+        assert_eq!(class, 2);
+        assert_ne!(selected, 0);
         assert!(
             v.catalog
                 .specs
                 .iter()
-                .any(|spec| spec.class == 2 && spec.id == v.spec)
+                .any(|spec| spec.class == 2 && spec.id == selected)
         );
     }
 }

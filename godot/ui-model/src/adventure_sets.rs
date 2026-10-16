@@ -15,7 +15,9 @@ const LIST_HEIGHT: f32 = 332.;
 
 pub(crate) fn item_sets(ctx: &SharedContext, view: &View) -> Element {
     let rows = view.item_sets();
-    let offset = ctx.scroll_first_row(LIST) as f32;
+    let height = rows.len() as f32 * ROW_STEP + FIRST_TOP - (ROW_STEP - ROW_HEIGHT);
+    let geometry = crate::minimal_scroll_bar::pixel_geometry(LIST_HEIGHT, height, LIST_HEIGHT - 8.);
+    let offset = geometry.clamp(ctx.scroll_first_row(LIST)) as f32;
     let content = rows
         .iter()
         .enumerate()
@@ -26,7 +28,6 @@ pub(crate) fn item_sets(ctx: &SharedContext, view: &View) -> Element {
         })
         .flatten()
         .collect();
-    let height = rows.len() as f32 * ROW_STEP + FIRST_TOP - (ROW_STEP - ROW_HEIGHT);
     let mut controls = scroll(ctx, content, (0., 0., 762., LIST_HEIGHT), height);
     controls.extend(class_dropdown(view));
     if view.filter_menu.is_some() {
@@ -50,17 +51,18 @@ pub(crate) fn item_sets(ctx: &SharedContext, view: &View) -> Element {
 }
 
 fn class_dropdown(view: &View) -> Element {
+    let (class, specialization) = view.class_spec_filters();
     let class = view
         .catalog
         .classes
-        .get(&view.class)
+        .get(&class)
         .map(String::as_str)
         .unwrap_or(crate::auction_mail::text("ALL_CLASSES"));
     let title = view
         .catalog
         .specs
         .iter()
-        .find(|spec| spec.id == view.spec)
+        .find(|spec| spec.id == specialization)
         .map_or_else(
             || class.to_string(),
             |spec| format!("{class} ({})", spec.name),

@@ -67,6 +67,8 @@ pub struct View {
     pub class: u32,
     pub spec: u32,
     pub player_spec: Option<u32>,
+    /// LootJournalItems owns filters independently of the encounter Loot panel.
+    pub set_filters: Option<(u32, u32)>,
     pub slot: u32,
     pub filter_menu: Option<LootFilter>,
     pub search: String,
@@ -105,6 +107,7 @@ impl Default for View {
             class: 0,
             spec: 0,
             player_spec: None,
+            set_filters: None,
             slot: 0,
             filter_menu: None,
             search: String::new(),
@@ -149,8 +152,23 @@ impl View {
             .find(|row| row.id == set && row.items.contains(&item))?;
         Some((set, self.catalog.items.get(&item)?))
     }
+    pub fn class_spec_filters(&self) -> (u32, u32) {
+        if self.tab == Tab::ItemSets {
+            self.set_filters
+                .unwrap_or((self.player_class(), self.player_spec.unwrap_or(0)))
+        } else {
+            (self.class, self.spec)
+        }
+    }
+    pub(crate) fn player_class(&self) -> u32 {
+        self.catalog
+            .specs
+            .iter()
+            .find(|spec| Some(spec.id) == self.player_spec)
+            .map_or(0, |spec| spec.class)
+    }
     pub fn item_sets(&self) -> Vec<&ItemSet> {
-        let search = self.search.to_lowercase();
+        let (class, _) = self.class_spec_filters();
         let mut sets: Vec<_> = self
             .catalog
             .sets
@@ -161,12 +179,11 @@ impl View {
                     .iter()
                     .filter_map(|id| self.catalog.items.get(id))
                     .collect();
-                set.name.to_lowercase().contains(&search)
-                    && !items.is_empty()
+                !items.is_empty()
                     && items.iter().all(|item| {
-                        let class_matches = self.class == 0
+                        let class_matches = class == 0
                             || item.class_mask == -1
-                            || item.class_mask & (1 << (self.class - 1)) != 0;
+                            || item.class_mask & (1 << (class - 1)) != 0;
                         class_matches && self.matches_specialization(item.id)
                     })
             })
@@ -191,15 +208,15 @@ impl View {
             })
             .max()
     }
-    fn choose_set_specialization(&self) -> u32 {
-        if self.class == 0 {
+    fn choose_set_specialization(&self, class: u32) -> u32 {
+        if class == 0 {
             return 0;
         }
         let specs: Vec<_> = self
             .catalog
             .specs
             .iter()
-            .filter(|spec| spec.class == self.class && spec.name != "Initial")
+            .filter(|spec| spec.class == class && spec.name != "Initial")
             .collect();
         specs
             .iter()
@@ -529,20 +546,21 @@ impl View {
         names
     }
     fn matches_specialization(&self, item: u32) -> bool {
-        if self.class == 0 && self.spec == 0 {
+        let (class, spec) = self.class_spec_filters();
+        if class == 0 && spec == 0 {
             return true;
         }
         // ObjectMgr::LoadItemTemplates: no authored specialization means unrestricted.
         let Some(specs) = self.catalog.item_specs.get(&item) else {
             return true;
         };
-        if self.spec != 0 {
-            return specs.contains(&self.spec);
+        if spec != 0 {
+            return specs.contains(&spec);
         }
         self.catalog
             .specs
             .iter()
-            .any(|spec| spec.class == self.class && specs.contains(&spec.id))
+            .any(|entry| entry.class == class && specs.contains(&entry.id))
     }
     pub fn apply(&mut self, action: &str) -> Result<(), String> {
         let mut parts = action.split(':');
@@ -579,16 +597,8 @@ impl View {
                     _ => return Err("Unknown journal tab".into()),
                 };
                 self.visible = true;
-                if self.tab == Tab::ItemSets && self.spec == 0 {
-                    if self.class == 0 {
-                        self.class = self
-                            .catalog
-                            .specs
-                            .iter()
-                            .find(|spec| Some(spec.id) == self.player_spec)
-                            .map_or(0, |spec| spec.class);
-                    }
-                    self.spec = self.choose_set_specialization();
+                if self.tab == Tab::ItemSets && self.set_filters.is_none() {
+                    self.set_filters = Some((self.player_class(), self.player_spec.unwrap_or(0)));
                 }
                 self.instance = None;
                 self.encounter = None;
@@ -716,19 +726,25 @@ impl View {
                 };
             }
             "class" => {
-                self.class = number()?;
-                self.spec = if self.tab == Tab::ItemSets {
-                    self.choose_set_specialization()
+                let class = number()?;
+                if self.tab == Tab::ItemSets {
+                    self.set_filters = Some((class, self.choose_set_specialization(class)));
                 } else {
-                    0
-                };
+                    self.class = class;
+                    self.spec = 0;
+                }
                 self.filter_menu = None;
                 self.class_menu_open = false;
             }
             "spec" => {
-                self.spec = number()?;
-                if let Some(spec) = self.catalog.specs.iter().find(|s| s.id == self.spec) {
-                    self.class = spec.class;
+                let id = number()?;
+                if let Some(spec) = self.catalog.specs.iter().find(|spec| spec.id == id) {
+                    if self.tab == Tab::ItemSets {
+                        self.set_filters = Some((spec.class, id));
+                    } else {
+                        self.class = spec.class;
+                        self.spec = id;
+                    }
                 }
                 self.filter_menu = None;
                 self.class_menu_open = false;
@@ -812,9 +828,9 @@ pub fn adventure_guide_screen(ctx: &SharedContext) -> Element {
         }
     });
     if !view.loading
-        && matches!(view.tab, Tab::Dungeons | Tab::Raids)
+        && matches!(view.tab, Tab::Dungeons | Tab::Raids | Tab::ItemSets)
         && view.search.chars().count() >= 3
-        && view.page != Page::Loot
+        && (view.tab == Tab::ItemSets || view.page != Page::Loot)
     {
         body.extend(search_results(ctx, view));
     }
@@ -1257,7 +1273,7 @@ fn loot_filter_buttons(view: &View) -> Element {
 }
 pub(crate) fn loot_filter_entries(view: &View, menu: LootFilter) -> Vec<(u32, String)> {
     match menu {
-        LootFilter::Class => std::iter::once((0, "All classes".into()))
+        LootFilter::Class => std::iter::once((0, crate::auction_mail::text("ALL_CLASSES").into()))
             .chain(
                 view.catalog
                     .classes
