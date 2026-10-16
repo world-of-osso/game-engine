@@ -1587,6 +1587,9 @@ fn release_focus_on_escape(mut edit: Gd<Control>) -> Callable {
             .is_some_and(|key| key.is_pressed() && key.get_keycode() == godot::global::Key::ESCAPE);
         if escaped {
             edit.release_focus();
+            // EditBox_ClearFocus owns this Escape; do not also close the window
+            // in GameClient::_unhandled_key_input after focus has gone away.
+            edit.accept_event();
         }
     })
 }
