@@ -1,6 +1,9 @@
 ## 2026-10-16 — Product-row cart toggle implementation
 
 [Row toggle](systems/trading-post.md#product-row-cart-toggle--implementation-october16): source36px hovered-row control carries its own vendor identity, authored add/minus art, cart indicator and left tooltip. Existing cart eligibility/default wearable selection shared without resetting current choices. Model missing-action3 and actual native missing-button RED precede implementation; both-skin GREEN pending.
+## 2026-10-16 — Unavailable storage-filter semantics
+
+[F20](systems/housing.md#unavailable-storage-filters--qualified2026-10-16): read-only70391 catalog/API/persistence inspection distinguishes query contracts from absent location/history/tag-definition mappings. No invented semantics/product edits or replay; full-HD remains F21.
 
 ## 2026-10-16 — Fade effect native projection
 
@@ -8,12 +11,20 @@
 ## 2026-10-16 — Installed guild perk list
 
 [Perks](systems/guilds.md#perks): real five-definition catalog and source Benefits list. Missing-title RED→five actual names/order and other-tab hiding GREEN1/1 in both skins. Real spell-link draft/render REDs reproduced visible raw markup; the shared labeled-link decoder and wire-link/caret insertion now support source modified-click spell identity without changing bare combat links. Focused link GREEN, tooltip, native and effect proof remain pending; no functional-buff claim.
+## 2026-10-16 — Instrumented BM comparison and native target preparation
+
+[BM](systems/bot-harness.md#instrumented-bm-comparison--2026-10-16): received native Assist0→3, then two complete60s windows157.45/168.50DPS, pet6.44%/4.77%;28 requests/server receipts/CastSuccess and no cast denials. Earlier Cobra timeout did not reproduce; no fabricated server RED/root-fix claim. Native75 repetition remains missing/unproven. Corrected owned diagnostic options produce a real4.9ticks/s stack/host/per-system receipt; navigation root is ground_dir/navmesh, not an unsupported environment override. Native Tab bridge now has process/hostile/alive controls and syntax proof; actual Stockade opening/clear still pending.
+
 ## 2026-10-16 — BM native pet Assist preparation
 
 [Preparation](systems/bot-harness.md#bm-native-assist-preparation--2026-10-16): one ordinary viewport click on the received Assist reaction slot, owned identity and react_state3 ACK required. Portable slot/ownership controls and native GDScript syntax pass; fresh BM input/DPS proof pending. Pinned TC Pet/CharmInfo creation chain confirms Passive default and stored-mode restoration, so no server-default change or persistence override.
 ## 2026-10-16 — Lifetime honor source boundary
 
 [Honor](systems/battlegrounds.md#lifetime-honor-source-boundary--2026-10-16): pinned concrete world-kill XP plumbing is distinct from spendable1792; no8800 guess, old Prestige curve reinterpretation or quest-to-match payout assignment. Persist/replicate lifetime XP, leave level/fill unknown, preserve source faction art and tooltip. Merged server10/UI4/wire1/check/fmt pass; actual private damage/death0→47→94, both-skin full-HD tooltip, dead replay and fresh-process relog are bounded native proof. Character Currency's absent consumer/UI remains open, not excused by unavailable award policy.
+## 2026-10-16 — Encounter section flags
+
+[Header flag art and hover](systems/adventure-guide.md#encounter-section-flags--2026-10-16): source raw mask→zero-based atlas flags in32px frames, title reservation and white owner-right tooltips. Missing-frame RED→three focused tests plus60 adjacent controls GREEN; current both-skin Ozruk2410 native painted-art/anchor/title/hover pass, six inspected fullHD originals. Registered check/fmt0 and independent source/wiring/readability gate pass. Opaque C API flag ordering and nonempty-description wrapping remain unclaimed; all14 current descriptions are empty. Search and Journeys masks remain active.
+
 ## 2026-10-16 — Multi-area world-quest pin continuation
 
 [Area/floor boundary](investigations/world-quest-availability.md#multi-area-pin-continuation--implementation-checkpoint): actual82521 lower2256 pin RED0/1 and server availability REDfirst-area-only, while acceptance already accepts either source area. Source CSV also providesZ, which the importer discarded: new height-preservation/missing-height tests are RED. Importer/runtime/wire now retain all309areas' XYZ for239tasks; the renderer keeps existing3D floor checks instead of using the unverified2D workaround. Minimap nearest-area navigation keeps one logical task. Continuation gate passes: importer14/UI7/server2/protocol2, registered build/check/fmt0, independent verification and both-skin physical lower/main-map selection plus real expiry, with eight inspected fullHD originals. Prior3c08 settlement proof remains separate. Every one of the five admission gaps is now named against fresh installed70391 sources; no invented trigger volumes or label membership. Source choice census239/0 makes reward choice not applicable.
@@ -118,6 +129,14 @@
 ## 2026-10-15 — Minimap zoom state art
 
 - [Minimap](systems/minimap.md#zoom-button-source-states--2026-10-15): source Button states/full-opacity disabled grayscale; both-skin physical native proof, bounded offline screen/input acceptance.
+## 2026-10-16 — Waywatcher private closure and Grizzlesnout canonical readback
+
+[Waywatcher](systems/toy-box.md#waywatcher-private-body-closure-2026-10-16): both source99572 display choices share1120483 but retain distinct overrides;18 authenticated70391 dependencies and four aliases published privately without canonical ownership collisions. Actual private combined Rust loader passes18 receipts/four aliases; canonical publication and native rendering remain separate. [Grizzlesnout](systems/toy-box.md#grizzlesnout-canonical-body-readback-2026-10-16):12 already-owned canonical receipts/two aliases pass actual Rust loader and independent content authentication; no new fragment needed.
+
+## 2026-10-16 — Ysera canonical cross-fragment readback
+
+[Ysera body](systems/toy-box.md#ysera-body-asset-closure-2026-10-16): lead canonical publication independently passes actual Rust `ModelAssetIndex::load`, seventeen cross-fragment receipt lookups, four alias byte-equality checks and SHA256/content-key readback. Duplicate receipts removed without losing chain/aliases; procedural appearance and pixels remain open.
+
 ## 2026-10-16 — Ysera private body closure
 
 [Ysera body](systems/toy-box.md#ysera-body-asset-closure-2026-10-16): seventeen same-build70391 body/texture/animation/skin files and four aliases authenticated/published privately; rebuilt namespace graph passes. Procedural8605/type22 remains ignored by the renderer and is not replaced by a guessed shader. No native pixels/canonical publication claim.
