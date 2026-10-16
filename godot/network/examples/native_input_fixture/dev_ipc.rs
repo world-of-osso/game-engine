@@ -1066,6 +1066,12 @@ fn check_local_cast_origin(run: &mut Run, target: u64, local_x: f64) -> Result<(
                 .witness
                 .as_ref()
                 .ok_or("local cast omitted its sampled origin")?;
+            fs::write(
+                run.artifacts.join("local-cast-origin.json"),
+                serde_json::to_string(&serde_json::json!({"local_x": local_x, "received": cast}))
+                    .map_err(|error| error.to_string())?,
+            )
+            .map_err(|error| error.to_string())?;
             if (f64::from(ray.start[0]) - local_x).abs() > 1.0 {
                 return Err(format!(
                     "cast origin disagrees with local range pose {local_x}: {cast:?}"
@@ -1109,8 +1115,13 @@ fn check_local_range_pose(run: &mut Run) -> Result<(), String> {
     check_local_cast_origin(run, target, local_x)
 }
 
-fn run_checks(run: &mut Run, address: SocketAddr, tiles: &str) -> Result<(), String> {
-    if std::env::var("GODOT_TEST_LOCAL_RANGE_ONLY").as_deref() == Ok("1") {
+fn run_checks(
+    run: &mut Run,
+    address: SocketAddr,
+    tiles: &str,
+    local_range_only: bool,
+) -> Result<(), String> {
+    if local_range_only {
         check_timed_forward(run)?;
         return check_local_range_pose(run);
     }
@@ -1167,7 +1178,8 @@ pub(super) fn run(
         run.child.id(),
         run.socket.display()
     );
-    if let Err(error) = run_checks(&mut run, address, &tiles) {
+    let local_range_only = std::env::var("GODOT_TEST_LOCAL_RANGE_ONLY").as_deref() == Ok("1");
+    if let Err(error) = run_checks(&mut run, address, &tiles, local_range_only) {
         // The client's link state tells a lost connection from a wrong answer.
         let network = run.cli(&["status", "network"]);
         return Err(format!(
@@ -1175,8 +1187,14 @@ pub(super) fn run(
         ));
     }
     finish(&mut run, readers)?;
-    println!(
-        "PASS: public CLI status network/sound/terrain, map position/target/waypoint (walk), group, emote, spell cast/stop, quests, bags, inventory, storage, item info, presence, character stats, quest interact, trade, combat log/recap, mail, hover, camera set, export-scene and scripted movement forward/stop drove the live native client"
-    );
+    if local_range_only {
+        println!(
+            "PASS: native local-pose range and ordinary cast origin with frozen server replica"
+        );
+    } else {
+        println!(
+            "PASS: public CLI status network/sound/terrain, map position/target/waypoint (walk), group, emote, spell cast/stop, quests, bags, inventory, storage, item info, presence, character stats, quest interact, trade, combat log/recap, mail, hover, camera set, export-scene and scripted movement forward/stop drove the live native client"
+        );
+    }
     Ok(())
 }
