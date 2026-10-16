@@ -379,6 +379,11 @@ impl GameClient {
     }
 
     fn sync_guild_ranks(&mut self) -> Result<(), String> {
+        if self.guild_ranks.session.communities_tab
+            == game_engine_ui_model::guild_ranks::CommunitiesTab::Benefits
+        {
+            game_engine_ui_model::guild_perks::load_catalog()?;
+        }
         let scale = self.effective_ui_scale();
         let state = self.guild_ranks.session.clone();
         if self.guild_ranks.ui.is_none() {
