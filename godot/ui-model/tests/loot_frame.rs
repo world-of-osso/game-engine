@@ -138,7 +138,7 @@ fn server_removal_rebinds_the_remaining_card_and_closure_hides_the_frame() {
     );
     assert!(registry.get_by_name("LootFrameElement2").is_none());
     let remaining = registry
-        .get(registry.get_by_name("LootFrameElement1").unwrap())
+        .get(registry.get_by_name("LootFrameElement1Item").unwrap())
         .unwrap();
     assert_eq!(
         request_for_action(remaining.onclick.as_deref().unwrap()),
