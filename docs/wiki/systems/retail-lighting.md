@@ -113,7 +113,7 @@ Fog uses the camera's `DistanceFog` range and colour, applied in authored space.
 
 - `M2Material = ExtendedMaterial<StandardMaterial, RetailLit>` (`src/rendering/model/retail_m2_material.rs`, `assets/shaders/retail_m2.wgsl`). StandardMaterial supplies the texture, vertex colour and alpha. `retail_m2_material(base, render_flags, blend_mode)` disables the base fog.
 - `M2EffectMaterial` (`assets/shaders/m2_effect.wgsl`): combiners in authored space, then the same lighting and fog.
-- `TerrainMaterial` (`assets/shaders/terrain.wgsl`): layers blended in authored space. The MTXF cube-map reflection samples the sky cubemap. MCSH baked shadows are not rendered (WebWowViewerCpp ignores them): the ADT parser still reads MCSH, but no texture is built, uploaded or bound. The PBR roughness/reflectance are gone.
+- `TerrainMaterial` (`assets/shaders/terrain.wgsl`): layers blended in authored space. The MTXF cube-map reflection samples the sky cubemap. MCSH surface darkening remains unimplemented (inspected WebWowViewerCpp paths omit it). The native [MCSH continuation](terrain.md#mcsh-surface-shadow-clean-room-continuation) now uploads separate raw coverage and proves diagnostic UV pixels; the target modulation/enable/dynamic-composition rules are still gaps. The PBR roughness/reflectance are gone.
 
 ## Native Godot producer boundary
 

@@ -4,9 +4,9 @@ Carry authored ADT shadow data to native terrain-surface materials without repla
 
 ## What it must do
 
-- [ ] Preserve the resolved chunk mask from root/texture-companion parsing through native material construction, separately from MCAL and MCCV.
-- [ ] Zero/full/half masks produce distinct uploaded coverage; missing masks have no payload. Half-mask texels follow the actual chunk UV orientation.
-- [ ] A real nontrivial masked chunk has native 1920×1080 coverage proof with no grass/doodads or UI-skin dependency.
+- [x] Preserve the resolved chunk mask from root/texture-companion parsing through native material construction, separately from MCAL and MCCV.
+- [x] Zero/full/half masks produce distinct uploaded coverage; missing masks have no payload. Half-mask texels follow the actual chunk UV orientation.
+- [x] A real nontrivial masked chunk has native 1920×1080 coverage proof with no grass/doodads or UI-skin dependency.
 - [ ] Apply the target-established modulation equation only under its established enable policy, preserving authored layers, color and lighting.
 - [ ] Establish composition with Godot dynamic shadows rather than double-darkening overlapping shadows.
 
@@ -36,9 +36,13 @@ The diagnostic maps mask data to visible texels; black/white diagnostic pixels a
 - [ ] **S3-modulation-equation:** inspected allowed WWV terrain shaders do not consume MCSH; pinned wow.export c2fd7bd reads only its offset. Active LightData.csv has an authored `ShadowOpacity` column, but its existence does not establish a modulation texture/equation. No target modulation texture/equation is established. Never invent a darkness constant.
 - [ ] **S3-enable-policy:** supplied spec establishes a renderer-internal world enable bit, not its mapping to native graphics settings or target renderer modes. Diagnostic enable/disable controls do not establish that policy.
 - [ ] **S3-dynamic-composition:** allowed sources do not establish how authored coverage combines with Godot's directional shadow attenuation.
-- [ ] **S3-modern-applicability:** non-gating local70391 census is separate. The cached2703_31_36 chunk fixture is genuine data but not current-WDT active-tile or exact-build authentication evidence.
+- [ ] **S3-active-world-applicability:** the non-gating70391 census is separate. The selected root/texture companion, WDT and eight terrain textures match their content keys in the fresh current70391 CASC namespace (11/11); that does not make this tile active in current WDT MAIN.
 
 ## Out of scope
 
 - Grass/detail-doodad shadow shading (separate existing consumer), new terrain visibility/streaming rules, replacing authored textures or coloring terrain as a shadow substitute.
 - Decompiled/leaked client sources, external CDN downloads and guessed rendering constants.
+
+## Proof scope
+
+Native binding RED at0e87e1ad2 precedes the e3f79f0b1 implementation. Forward-integratedca760b954 passes CPU2/2, native diagnostic6/6 (covered cells0/4096/2048/0/2230/0), existing terrain material14/14 and dynamic-shadow6/6 GPU controls, native build and fmt. Seven1920×1080 PNGs are under `/syncthing/AgentShared/2026-10-15/terrain-mcsh/`; real/half coverage and the unmodified textured surface were inspected. These are DATA/UV/regression proofs, not a target MCSH modulation pass. Full S3 remains blocked on the named equation/enable/composition gaps. [Provenance and ledger](../wiki/systems/terrain.md#mcsh-surface-shadow-clean-room-continuation).
