@@ -1,5 +1,7 @@
 # In-world chat frame
 
+Native `/hug` (case-insensitive) sends `EmoteKind::Hug` with the current requested target entity through the existing emote intent. Installed `EmotesText`56 has EmoteID0: no animation or stand-state change. Achievement qualifiers remain server-owned; client selection does not manufacture credit.
+
 > Root `src/` paths below name files deleted with the [retired Bevy client](godot-conversion.md#retired-bevy-client-user-decision-2026-10-02).
 
 Phase 2 of the [in-game UI plan](../plans/2026-09-23-ingame-ui.md): a Retail-style tabbed chat at the
