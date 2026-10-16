@@ -40,7 +40,7 @@ At `741344ca`, native `NativeSound` consumes those catalogs: two owned Godot pla
 
 ## Trading Post UI kit lifecycle
 
-Source menu visibility dispatch and its bounded file/gain proof live in [Trading Post menu sounds](trading-post.md#menu-lifecycle-sounds--implementation-october15-proof-pending); it reuses the existing UiKits player and leaves close-kit pitch as a named gap.
+Source menu visibility dispatch and its bounded file/gain proof live in [Trading Post menu sounds](trading-post.md#menu-lifecycle-sounds--bounded-proof-october15); it reuses the existing UiKits player and leaves close-kit pitch as a named gap.
 
 ## Native UI click
 
