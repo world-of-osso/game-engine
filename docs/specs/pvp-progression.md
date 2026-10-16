@@ -20,13 +20,19 @@ Private UDP5941, fb_pvpprog/Honorproof, source level30 versus opposing level30: 
 
 Fifteen inspected1920x1080 originals (including one explicitly named failed/dead-target diagnostic) live at `/syncthing/AgentShared/2026-10-16/pvp-progression/`; receipts, source hashes and exact revision/proof ledger at `data/diagnostics/pvp-progression-2026-10-16/`. These are existing private-admin damage stimuli, not native player-controlled PvP combat certification. Runtime source: engine1107f3f7e (later wiki-only90ff3656f), serverc5d4e9cd, protocol7f16f326. Server10/UI4/wire1 targeted tests and scoped Rust checks/fmt pass. No broader parity claim.
 
-Character Currency remains a real implementation gap: native IPC returns `unported request CurrenciesStatus`, the native account does not consume CurrencyStateUpdate, and only Character/Reputation tabs render. Fresh wallets remain0; no award was fabricated to enable a currency tab. The requested Currency consumer/UI is the next slice, not marked accepted by these captures. Match-completion payout binding, current season-cap authority, rated-BG reference policy and account-wide aggregation remain separate named gaps.
+At lifetime-XP acceptance, Character Currency was a real implementation gap: native IPC returned `unported request CurrenciesStatus`, the native account did not consume CurrencyStateUpdate, and only Character/Reputation tabs rendered. Fresh wallets remain0; no award was fabricated to enable a currency tab. The requested Currency consumer/UI is the next slice, not marked accepted by these captures. Match-completion payout binding, current season-cap authority, rated-BG reference policy and account-wide aggregation remain separate named gaps.
 
 ## Native Currency consumer — continuation
 
-The default native network bridge must relay the existing owner-only CurrencyStateUpdate. The account keeps the last supplied snapshot, distinguishes no receipt from an empty wallet, retains the last snapshot on a refusal with no replacement, and clears it on new connections/world resets. Currency IPC status exposes that authoritative cache, not PvP lifetime XP. Message/error feedback uses normal chat/UI error delivery. Character Currency/TokenFrame presentation remains a separate gate.
+The default native network bridge must relay the existing owner-only CurrencyStateUpdate. The account keeps the last supplied snapshot, distinguishes no receipt from an empty wallet, retains the last snapshot on a refusal with no replacement, and clears it on new connections/world resets. Currency IPC status exposes that authoritative cache, not PvP lifetime XP. Message/error feedback uses normal chat/UI error delivery. Character Currency/TokenFrame presentation requires a separate native gate.
 
 For native presentation proof only, the parent approved a private server-owned saved discovered Honor1792 entry of quantity0. This is neither an earned balance nor an award. Fresh empty-wallet receipt/hidden-tab behavior must also be proved. No cap, reward, transfer or preference mutation policy is invented.
+
+## Bounded Currency presentation
+
+The discovered PvP wallet exposes Mainline CharacterFrameTab3 and TokenFrame in both skins: source bottom tabs, Player vs. Player category, authored header/entry art, received Honor/Conquest names and quantities, category collapse/re-expand, and owned hover tooltips. Honor uses the source15000 maximum; Conquest's unresolved dynamic cap is not replaced by zero or a guessed weekly maximum. Fresh empty-wallet receipts hide Currency. Existing undiscovered-wallet character chrome is outside this continuation; new discovered-wallet tabs must not inherit Forever side-tab geometry.
+
+Authority: local Mainline CharacterFrame.xml159–184, Blizzard_TokenUI.xml/.lua, SharedXML/ListTemplates.xml and active70391 CurrencyTypes/CurrencyCategory records. Unknown currency metadata fails explicitly. Watched/unused preferences, transfer, details/settings controls, filters and non-PvP currencies remain unimplemented; this bounded readout does not claim full TokenUI parity. Native presentation acceptance is pending final source-anchor recapture.
 
 ## Local source export
 
