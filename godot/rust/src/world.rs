@@ -1399,6 +1399,7 @@ impl WorldUnits {
     }
 
     pub fn advance(&mut self, delta: f32) {
+        self.adopt_local_mover();
         let mover = self.local_mover_id();
         let driver_control = self
             .local_player_id
@@ -1745,7 +1746,34 @@ impl WorldUnits {
         }
         let passenger = rider.passenger.as_ref()?;
         let host = self.units.get(&passenger.state.driver)?;
+        host.motion.target.yaw?;
         (!host.is_player).then_some(passenger.state.driver)
+    }
+
+    /// Take over the newest authoritative NPC pose once per rider control epoch.
+    pub fn adopt_local_mover(&mut self) {
+        let Some(epoch) = self.local_player_server_epoch() else {
+            return;
+        };
+        let Some(id) = self.local_vehicle_id() else {
+            return;
+        };
+        let unit = self.units.get_mut(&id).expect("Validated local NPC mover");
+        if unit.motion.adopted_epoch == Some(epoch) {
+            return;
+        }
+        let target = unit.motion.target;
+        let yaw = target
+            .yaw
+            .expect("Local NPC mover requires source Rotation");
+        unit.node.set_position(Vector3::new(
+            target.position.x,
+            target.position.y,
+            target.position.z,
+        ));
+        unit.node.set_rotation(Vector3::new(0.0, yaw, 0.0));
+        unit.motion.facing_yaw = yaw;
+        unit.motion.adopted_epoch = Some(epoch);
     }
 
     pub fn local_mover_node(&self) -> Option<Gd<Node3D>> {
