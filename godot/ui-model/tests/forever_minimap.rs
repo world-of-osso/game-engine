@@ -20,12 +20,16 @@ use ui_toolkit::layout_values::Val;
 use ui_toolkit::registry::FrameRegistry;
 use ui_toolkit::screen::{Screen, SharedContext};
 
-fn build(skin: ActiveSkin, state: MinimapClusterState) -> FrameRegistry {
+fn load_skin_atlases(skin: ActiveSkin) {
     game_engine_ui_model::paths::set_data_root(
         std::path::PathBuf::from(env!("CARGO_MANIFEST_DIR")).join("../../data"),
     )
     .unwrap();
     ui_toolkit::atlas::set_thread_skin(skin);
+}
+
+fn build(skin: ActiveSkin, state: MinimapClusterState) -> FrameRegistry {
+    load_skin_atlases(skin);
     let mut shared = SharedContext::new();
     shared.insert(skin);
     shared.insert(state);
@@ -393,6 +397,7 @@ fn forever_map_marks_follow_the_square_map() {
 /// cluster on a fresh canvas to keep the draw order (`GameClient::sync_minimap`).
 #[test]
 fn switching_skin_reshapes_the_live_cluster() {
+    load_skin_atlases(ActiveSkin::Modern);
     let frames = |registry: &FrameRegistry| {
         let tree = dump(registry);
         let mut lines: Vec<String> = tree.lines().map(str::to_owned).collect();
@@ -408,11 +413,13 @@ fn switching_skin_reshapes_the_live_cluster() {
     let modern = frames(&registry);
     assert_eq!(fixed_rect(&registry, MINIMAP_DISPLAY).2, 198.0);
 
+    load_skin_atlases(ActiveSkin::Forever);
     shared.insert(ActiveSkin::Forever);
     screen.sync(&shared, &mut registry);
     assert_eq!(fixed_rect(&registry, MINIMAP_DISPLAY).2, 244.0);
     assert!(registry.get_by_name("MinimapCompassTexture").is_none());
 
+    load_skin_atlases(ActiveSkin::Modern);
     shared.insert(ActiveSkin::Modern);
     screen.sync(&shared, &mut registry);
     assert_eq!(frames(&registry), modern);
