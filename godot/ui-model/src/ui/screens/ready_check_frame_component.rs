@@ -24,7 +24,8 @@ const TEXT_TOP: f32 = 37.0;
 const BUTTON_W: f32 = 119.0;
 const BUTTON_H: f32 = 24.0;
 const BUTTON_BOTTOM: f32 = 16.0;
-const BUTTON_GAP: f32 = 11.0;
+const YES_RIGHT_OFFSET: f32 = 11.0;
+const NO_LEFT_OFFSET: f32 = 22.0;
 const TITLE_COLOR: FontColor = FontColor::new(1.0, 0.82, 0.0, 1.0);
 const TEXT_COLOR: FontColor = FontColor::new(1.0, 1.0, 1.0, 1.0);
 
@@ -105,8 +106,8 @@ pub fn ready_check_frame(state: &ReadyCheckFrameState) -> Element {
                 pos_x: {(FRAME_W - TEXT_W) / 2.0},
                 pos_y: {TEXT_TOP - TITLE_H / 2.0},
             }
-            {ready_button("YesButton", "Ready", ACTION_READY_CHECK_YES, FRAME_W / 2.0 - BUTTON_GAP - BUTTON_W)}
-            {ready_button("NoButton", "Not Ready", ACTION_READY_CHECK_NO, FRAME_W / 2.0 + BUTTON_GAP)}
+            {ready_button("YesButton", "Ready", ACTION_READY_CHECK_YES, FRAME_W / 2.0 + YES_RIGHT_OFFSET - BUTTON_W)}
+            {ready_button("NoButton", "Not Ready", ACTION_READY_CHECK_NO, FRAME_W / 2.0 + NO_LEFT_OFFSET)}
         }
     }
 }
@@ -122,10 +123,10 @@ fn ready_button(suffix: &str, text: &str, onclick: &str, x: f32) -> Element {
             onclick,
             strata: FrameStrata::Dialog,
             frame_level: 10.0,
-            button_atlas_up: "defaultbutton-nineslice-up",
-            button_atlas_pressed: "defaultbutton-nineslice-pressed",
-            button_atlas_highlight: "defaultbutton-nineslice-highlight",
-            button_atlas_disabled: "defaultbutton-nineslice-disabled",
+            button_fdid_up: 130828_u32,
+            button_fdid_pressed: 130825_u32,
+            button_fdid_highlight: 130826_u32,
+            button_fdid_disabled: 130824_u32,
             pos_type: "absolute",
             pos_x: x,
             pos_y: {FRAME_H - BUTTON_BOTTOM - BUTTON_H},
