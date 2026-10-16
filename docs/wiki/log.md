@@ -1,6 +1,10 @@
 ## 2026-10-16 — Lifetime honor source boundary
 
 [Honor](systems/battlegrounds.md#lifetime-honor-source-boundary--2026-10-16): pinned concrete world-kill XP plumbing is distinct from spendable1792; no8800 guess, old Prestige curve reinterpretation or quest-to-match payout assignment. Persist/replicate lifetime XP, leave level/fill unknown, preserve source faction art and tooltip. Merged server10/UI4/wire1/check/fmt pass; actual private damage/death0→47→94, both-skin full-HD tooltip, dead replay and fresh-process relog are bounded native proof. Character Currency's absent consumer/UI remains open, not excused by unavailable award policy.
+## 2026-10-16 — Native PvP Currency continuation
+
+[Currency](systems/battlegrounds.md#native-currency-readout--2026-10-16): real UDP owner relay, account receipt/reset/refusal handling and IPC, source TokenFrame PvP rows/hover/collapse. Both-skin empty-wallet hidden tab and private saved Honor0 presentation observed; discovered-wallet tabs corrected from inherited Forever side chrome to Mainline bottom anchors. Final merged proof and post-anchor recapture pending; no earned-award or full TokenUI claim.
+
 ## 2026-10-16 — Unavailable storage-filter semantics
 
 [F20](systems/housing.md#unavailable-storage-filters--qualified2026-10-16): read-only70391 catalog/API/persistence inspection distinguishes query contracts from absent location/history/tag-definition mappings. No invented semantics/product edits or replay; full-HD remains F21.
