@@ -131,13 +131,11 @@ impl GameClient {
             row.set("sequence", (first_sequence + index as u64 + 1) as i64);
             row.set("spell_id", failure.spell_id);
             row.set("reason", format!("{:?}", failure.reason));
-            row.set(
-                "detail",
-                failure
-                    .detail
-                    .as_deref()
-                    .map_or(Variant::nil(), |detail| detail.to_variant()),
-            );
+            let detail = failure
+                .detail
+                .as_deref()
+                .map_or(Variant::nil(), |text| text.to_variant());
+            row.set("detail", &detail);
             failures.push(&row);
         }
         state.set("cast_failure_events", &failures);
