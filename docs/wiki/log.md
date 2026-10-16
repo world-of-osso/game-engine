@@ -4123,3 +4123,5 @@ Completed Retailv2 codec/authoritative Create and committed Copy callbacks, exac
 - 2026-10-16: Maintained [explicit pinned Arcane provider](systems/bot-harness.md#explicit-approved-arcane-source-provider) with portable captured source/trait fixtures; source24/36/64 and strict level32/kit/fight coverage, no fallback or native/all-spec acceptance.
 
 - 2026-10-16: Button tooltips source content2 and native both-skin real-control/lifetime proof pass;16 full-HD screenshots plus4 contacts published. Final29UI12native/check/scopedformat pass; pending-item/native disabled-refund boundaries remain explicit. [Trading Post](systems/trading-post.md#button-tooltips--implementation-october16).
+
+- 2026-10-16: [Owner pet assisted predicates](investigations/cooldown-assist-data.md#owner-pet-predicates--2026-10-16): source-decoded57/58 and recorded owner presence; living controlled pet versus absent, unknown dead/missing actor retained. BM Call Pet authored decision regression; fresh UDP and Arms1187/12 exact count geometry remain open.
