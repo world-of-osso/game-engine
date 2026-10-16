@@ -5,8 +5,8 @@ The Godot client selects Retail DB2 spell visuals and plays their event kits on 
 ## What it must do
 
 - [x] Local casts use the latest spellbook specialization from `SpecializationChanged`, mapped from `ChrSpecialization.ID` to zero-based `OrderIndex`, when evaluating `PlayerCondition.ChrSpecializationIndex`. Cast, precast/channel, aura, missile and prefetch selection use the same caster context.
-- [x] With the same two-handed sword, Slam 1464 chooses Arms visual 51946 / cast kit 62428 and Fury visual 97446 / cast kit 128672.
-- [x] Before specialization is received, skip specialization comparison rather than assuming the first spec. For Slam with a two-handed sword this chooses visual 51946 / kit 62428. This follows the reference evaluator; direct Retail startup visual timing remains unverified.
+- [x] With the same two-handed sword, Slam 1464 chooses active12.1.5.70391 Arms visual190513 / cast kit278884 and Fury visual97446 / cast kit128672; animations812/818 remain distinct.
+- [x] Before specialization is received, skip specialization comparison rather than assuming the first spec. For Slam with a two-handed sword, active12.1.5.70391 chooses visual190513 / kit278884. This follows the reference evaluator; direct Retail startup visual timing remains unverified.
 - [x] Other casters keep the existing no-spec selection behavior; never apply the local player's specialization to remote players or NPCs.
 
 ## Toy conditional visuals (2026-10-10)
@@ -52,3 +52,9 @@ At `82ad03641`, the native/core specialization filter passed (three feature test
 ## Out of scope
 
 Shared-protocol/game-server changes, remote specialization replication, unrelated condition types, renderer changes and cache/builder policy changes.
+
+## Active70391 sound regression
+
+- [x] Battle Shout6673 resolves authored cast visual190617/kit279043/SoundKit368264 while keeping unit sound38 and both Human caster-voice assertions. Source chain and evidence: [active Battle Shout sound](../wiki/systems/spell-visuals.md#active-battle-shout-sound-chain--2026-10-15). This is a fixture refresh, not a sound-runtime change.
+
+Active70391 refresh at4fe654f81: genuine core/native Slam REDs and Battle Shout sound RED → full core spell_visual17/17, native specialization5/5 (three Slam plus two existing icon controls). Core/native all-target check, workspace fmt and manual Rust readability pass; logs warning-free. No runtime changes or rendered/audio acceptance claim. Proof ledger: class-completeness6-2026-10-12/slam-proof-ledger.json; source receipts slam-active-source.json and battle-shout-active-source.json.

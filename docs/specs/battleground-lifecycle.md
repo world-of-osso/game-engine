@@ -62,6 +62,8 @@ Ships 35/36 render source WMO displays 9002/9001 (307812/307818) and their autho
 
 ## Isle of Conquest continuation — active
 
+Authoritative NPC vehicle passengers must follow the source NPC visual’s animated VehicleSeat attachment and authored local offset/rotation, including host translation/turning and normal exit. Player-owned passenger mounts retain their own mount-model attachment path; never substitute the player body as the vehicle host.
+
 Retail queue 30/map 628 displays authoritative reinforcements against source starting 400, without unrelated team-flag cells. Source banner entries use normal replicated object rendering and Opening interaction. Both skins retain the same queue identity, HUD, ordered Bases Assaulted 245/Bases Defended 246 scoreboard columns and automatic results. The shared AV/IoC both-skin fixture proves these UI contracts. Private Modern/Forever native runs (`modern-isle1`, `forever-isle2`) prove 20 real accounts, visible Quarry banner Opening, one-minute capture, natural 400→401 reinforcement tick, stat 245 and both scoreboard columns, exact native origin return and all 20 return ACKs/saves. Receipts are `*-isle-proof.json` in the coverage diagnostics. This does not prove victory, terrain/player appearance parity, destructible gates, siege vehicles or hangar transport.
 
 ## Alterac Valley continuation — active

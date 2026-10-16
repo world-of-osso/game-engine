@@ -987,6 +987,10 @@ impl GameClient {
         state.set("ui_layout", self.ui_layout.name.as_str());
         state.set("ui_skin", format!("{:?}", self.ui_layout.skin).as_str());
         state.set(
+            "talent_export_clipboard",
+            self.spells.talent_export_clipboard.as_deref().unwrap_or(""),
+        );
+        state.set(
             "reconnect_phase",
             format!("{:?}", session.reconnect_phase).as_str(),
         );
@@ -1294,6 +1298,12 @@ impl GameClient {
     #[func]
     fn spells_state(&self) -> VarDictionary {
         self.spells_snapshot()
+    }
+
+    /// Read native usability and cast metadata without selecting or casting at the unit.
+    #[func]
+    fn spell_priority_state(&self, target: i64, spells: PackedInt32Array) -> VarDictionary {
+        self.spell_priority_snapshot(target, spells.as_slice())
     }
 
     #[func]
@@ -2449,7 +2459,18 @@ impl GameClient {
                 game_engine_ui_model::chat_data::now_timestamp(),
             ),
             AccountEvent::Emote(event) => {
-                if let Err(error) = self.world.receive_emote(event.player_entity, event.emote) {
+                let result = self
+                    .world
+                    .receive_emote(event.player_entity, event.emote)
+                    .and_then(|kit| match kit {
+                        Some(kit) => self.spell_effects.mount_special(
+                            kit,
+                            event.player_entity,
+                            &mut self.world,
+                        ),
+                        None => Ok(()),
+                    });
+                if let Err(error) = result {
                     godot_error!("Emote of {}: {error}", event.sender);
                 }
             }

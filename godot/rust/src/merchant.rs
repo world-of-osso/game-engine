@@ -25,7 +25,7 @@ use crate::GameClient;
 use crate::account::NpcMessage;
 use crate::faction_reaction::{Reaction, reaction};
 use crate::frame_error::{FrameError, SessionError, report_once};
-use crate::game_objects::game_object_cursor;
+use crate::game_objects::game_object_info_cursor;
 use crate::replicated::UnitFields;
 use crate::targeting::pick_unit;
 use crate::ui::{MerchantStates, RegistryUi};
@@ -396,7 +396,7 @@ impl GameClient {
             return Some(ActiveWowCursor::Default);
         };
         if let Some(info) = self.replica.unit(id)?.get::<GameObjectInfo>() {
-            return game_object_cursor(info.go_type);
+            return game_object_info_cursor(info);
         }
         self.unit_cursor(id)
     }

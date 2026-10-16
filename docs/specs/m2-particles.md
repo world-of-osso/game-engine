@@ -9,13 +9,13 @@ M2 `ParticleSystem2` emitters on placed doodads (ADT MDDF and WMO MODD), creatur
 - [x] With an EXP2 chunk, take zSource, colorMult, alphaMult and the alpha-cutoff ramp from the emitter's EXP2 record; the portal's MD20 zSource 255 reads 0.
 
 ### Simulation
-- [x] Spawn per WWV `CPlaneGenerator` (type 1) and `CSphereGenerator` (type 2), in the WWV random-stream order; other types are not simulated.
+- [x] Spawn per WWV plane (1), sphere (2) and cubic Bézier spline (3) generators; spline controls must form complete 3n+1 finite points. Types beyond these are not simulated.
 - [x] Accumulate emission at (rate + variation) × particle density, capped by the pool; `particleDensity` scales the rate except for flag 0x02000000. Each placement captures the current density at registration. An Options density change updates only the default: existing placements retain their captured rate and future registrations use the new default, without recreating pools.
 - [x] Advance ballistically with drag, gravity and wind (while age < windTime). Model-space emitters (0x10) simulate in the emitter frame; others in world axes, with WoW gravity converted.
 - [x] Replay long gaps in 0.1 s steps, at most one lifespan of them.
 - [x] Retire a particle after its seed-varied lifespan; sample the lifetime ramps at age / maximum lifespan; apply seed-based size variation, random atlas cell (0x10000), twinkle, spin and inherited scale (0x20).
 - [x] Size each emitter's pool to ceil((rate + variation) × (lifespan + variation) × 1.15), capped at 500.
-- [x] Build head quads only (0x20000): camera-facing, emitter-plane (0x1000) or velocity-streak (0x4).
+- [x] Build independent head (0x20000) and tail (0x40000) quads. Heads are camera-facing, emitter-plane (0x1000) or velocity-streak (0x4). Tails extend opposite velocity for tailLength seconds, use tail atlas keys, and clamp duration to age for 0x400. Near-view-parallel tails use the finite tiny-quad policy from WebWowViewerCpp buildVertex2.
 
 ### Rendering
 - [x] Map particle blend types 0-7 to the M2 GL factors (Opaque, AlphaKey, Alpha, NoAlphaAdd, Add, Mod, Mod2x, BlendAdd); only 0/1 write depth; alpha test -1 / 0.502 / 1/255.
@@ -60,7 +60,7 @@ M2 `ParticleSystem2` emitters on placed doodads (ADT MDDF and WMO MODD), creatur
 ## Known gaps (current cycle)
 
 - [ ] Animated emitter tracks: `set_animation` keys emission rate, speed and `enabledIn` per sequence, but skips global-sequence tracks and tracks with at most one key per sequence; the other tracks use their first key.
-- [ ] Tail quads (0x40000), spline emitters (type 3), model particles, follow-position (0x4000), burst/inherit velocity (0x40), randomized atlas mask (0x8000), ground snap (0x2000), TXAC UV shader variants, the actual refraction pass, alpha-cutoff discard and lit particles (no 0x1 flag).
+- [ ] Clean-room unresolved dependencies: **P3-timer-reset** (birth-velocity timer/reset), **P4-density** (spline rate per unit), **S1-polarity-oracle** (target lit/unlit polarity and coefficients), **P5-product-resolution / P5-recursive-timing** (real model/child assets and clocks). Details below; none are claimed as implemented. Randomized atlas mask (0x8000), ground snap (0x2000), TXAC UV variants, refraction pass and alpha-cutoff discard also remain open.
 - [ ] Emitters of attached item models (weapons, held torches, enchants) and player models; display state spell kits (the HD kobold candle flame is not a model emitter).
 - [ ] Particles within a pool are not depth-sorted; a shared pool sorts as one transparent object.
 
@@ -68,3 +68,40 @@ M2 `ParticleSystem2` emitters on placed doodads (ADT MDDF and WMO MODD), creatur
 
 - The Bevy client's Hanabi particle path (abandoned client).
 - Ribbon emitters (separate feature).
+
+## Clean-room evidence (2026-10-15)
+
+### P1 — tails
+
+Behaviour provenance: user-supplied particle clean-room spec and WebWowViewerCpp `particleEmitter.cpp::buildVertex2` (duration, 0x400 age clamp, projected squared threshold 0.0001 and tiny scale 0.05). No decompiled sources consulted. Native pools reserve both styles rather than dropping half of combined output. Targeted `particle_cleanroom_tail` fixtures assert independent geometry/cells and age/degeneracy. RED: two tests failed because tails produced zero quads; GREEN 2/2 at1ce73e656. Native real-asset pixels PASS at `edc9c82be` with fixture `33cb46507`: five real165894 tail-only quads change4,547 pixels; two frozen baseline frames are byte-identical. PNGs at `/syncthing/AgentShared/2026-10-15/m2-particles/p1-bloodpresence-tails-{on,stable,off}.png` were inspected (on/off and amplified difference). This proves native authored geometry visibility, not target-client visual parity. Tail width remains independent of the optional velocity-oriented head: view-parallel velocity reproduced a zero-width tail (RED); scale is now taken directly from appearance rather than inferred from head axes.
+
+P1 native fixture: `godot/tests/particle_cleanroom_tails.gd` opens the real particledebug screen at1920×1080, cycles to actual Blood Presence165894 (tail-only flags0x40422), freezes simulation and compares native pool visible/hidden pixels. Original three-model screen RED cannot reach the asset; the debug catalog now includes it using its authored emitter height and existing three-yard camera distance. GREEN: five quads,4,547 changed pixels, frozen baseline byte-identical; 1920×1080 PNGs saved and inspected.
+
+Native capture calibration: the first real165894 run drew5 tail quads but the inherited0.08 brightness threshold excluded every changed pixel (observed peak14/255). The fixture now freezes bone/material descendants as well as emission, requires two byte-identical baseline PNGs, and counts actual changed 8-bit pixels rather than imposing an unrelated brightness cutoff. This is a fixture correction, not particle brightening.
+
+
+### Clean-room P2 (2026-10-15)
+
+Follow-position 0x4000 applies clamped authored speed/scale interpolation to emitter displacement, only when the already-advanced particle age exceeds twice the step. Replay slices receive their proportional displacement, not the entire frame displacement repeatedly. Provenance: supplied clean-room spec and allowed WebWowViewerCpp Update/UpdateParticle. Duplicate speed points produce zero carry as in WWV. Modern asset applicability remains unproven; combined model-space/follow semantics require target observation. Tests isolate old/young, flag off, clamped speed and multi-step carry. RED 0/2; GREEN 2/2 at05de65324.
+
+### Clean-room P4 (2026-10-15)
+
+Layout established from allowed WWV `M2ParticleOld::splinePoints` and real local MD21 6316199: emitter 0 has M2Array count4/MD20-offset264608 at 0x1C0/0x1C4, float3 payload [(0,0,0),(0,0.002777778,0),(0,0.005555556,0),(0,0,0)]. Parser preserves controls; the native admission predicate now admits type3 only with complete cubic controls. WWV C3Spline supplies four-point Bézier evaluation, twenty-interval segment-length weighting, and CSplineGenerator supplies clamped width/length parameter bounds, endpoint-on-width-change, tangent-axis launch and zSource rules. Synthetic bent controls are substituted only in a disposable in-memory real asset. RED: no particles/admission; GREEN 2/2 at23823f1c0. **Named gap P4-density:** allowed WWV uses ordinary rate; the supplied spec does not state the rate-per-unit convention. No density multiplier invented; exact target per-length semantics and native bent-spline pixels remain open.
+
+### Clean-room P3 provenance and runtime gap (2026-10-15)
+
+The modern scale is established: allowed WWV `M2ParticleOld::BurstMultiplier` is labelled ivelScale, and `Update` multiplies it into the inherited vector. The matching local stride places it at 0x170. Real2994778 emitter3 has flag0x40 and raw3.0; parser now retains3.0 in `inherit_velocity_scale`, rather than an invented default1.0. RED real-asset decode1≠3; GREEN1/1 atd7e7f2ae7. **Named gap P3-timer-reset:** WWV uses a >30ms timer and 30ms/timer displacement scale, but computes its vector only when the previous pool is empty and clears it when live. The supplied acceptance instead calls for a no-live reset; it does not supply the numerical timer convention or reset predicate. No ordinary yd/s or guessed inverse predicate is substituted. Runtime birth contribution, timer-boundary, continuing-trajectory and no-live-reset acceptance remain unimplemented pending allowed target evidence.
+
+### Clean-room S1 blocked polarity oracle (2026-10-15)
+
+**Named gap S1-polarity-oracle:** allowed WWV assigns material bit0 to NOT authored bit0 for ordinary particles, clears it for multitexture/refraction, and initializes material flags separately. This corroborates the supplied inversion ambiguity, not target lighting. Local torch145304 emitter0 has bit0 clear; portal197007 has both bit0 states, but asset flags alone do not establish whether their intended particle effect is lit. Pinned wow.export c2fd7bd M2Loader skips particle payloads and supplies no oracle. No incident-light observation of the target client is available in this checkout. Therefore shader selection, normals, lighting coefficients and fixed-light pixel acceptance remain blocked; existing unshaded blend/fog behavior stays unchanged. No generic PBR or invented flag polarity is substituted.
+
+### Clean-room P5 blocked asset/lifecycle provenance (2026-10-15)
+
+**Named gap P5-product-resolution:** bounded local-cache census (83,123 parseable unqualified M2 files; not a current-build publication audit) found no nonempty geometry/recursion filenames after stripping NUL terminators. Nonzero M2Array counts frequently describe a single NUL, not a referenced asset. Allowed WWV retains the two legacy filenames but has no implemented per-particle geometry/child-emitter consumer establishing Retail product-qualified FDID resolution. Pinned wow.export M2Loader skips particle emitters. Legacy listfile-name guessing is not a valid substitute for [product-isolated model assets](product-isolated-model-assets.md).
+
+**Named gap P5-recursive-timing:** supplied spec identifies lifetime ownership/orientation and retirement requirements, but not the child-emission clock, loop/recursion termination policy, or target asset resolution. No authentic uniquely identifiable geometry/child fixture can presently exercise those boundaries. Actual model-instance, child-emission, natural-retirement and owner-teardown acceptance therefore remain open; no colored-quads substitute, synthetic asset receipt, or attachment-path reuse was added.
+
+### Integrated proof
+
+After merging origin/master, `edc9c82be` passes all eight `particle_cleanroom_` controls (no full suite), native helper build exits0 without compiler warnings, and Godot-workspace `cargo fmt --all --check` exits0. Logs: `/home/osso/.worktrees/logs/m2particles-{integrated-green,native-green-build,native-stable,fmt-check}.log`. Later changes are fixture/docs only. Helper has no cargo-check mode; native build supplies compile proof rather than claiming an unrun check. S1/P5 and the named partial P3/P4 boundaries remain open.

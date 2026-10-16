@@ -24,6 +24,8 @@ pub struct TalentEditor {
     pub loadouts: Option<TraitLoadoutsSnapshot>,
     pub loadout_dialog: Option<LoadoutDialog>,
     pub loadout_name: String,
+    pub loadout_code: String,
+    pub(super) loadout_export: Option<String>,
     pub loadout_busy: bool,
     pub loadout_focus_requested: bool,
     loadout_request: Option<TraitLoadoutRequest>,
@@ -525,7 +527,7 @@ impl TalentEditor {
             _ => (),
         }
         if let Some(command) = action.strip_prefix("talent:loadout") {
-            self.loadout_action(command)?;
+            self.loadout_action(view, level, command)?;
             return Ok(None);
         }
         if let Some(command) = action.strip_prefix("talent:search") {

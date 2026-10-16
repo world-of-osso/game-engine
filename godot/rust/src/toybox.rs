@@ -206,7 +206,11 @@ impl GameClient {
             let fraction = toy
                 .spell_id
                 .map_or(0.0, |spell| self.toybox.model.cooldowns.fraction(spell));
-            host.update_toy_swipe(&format!("ToySpellButton{}Cooldown", index + 1), fraction)?;
+            host.update_cooldown_swipe(
+                &format!("ToySpellButton{}Cooldown", index + 1),
+                fraction,
+                0.8,
+            )?;
         }
         Ok(())
     }
