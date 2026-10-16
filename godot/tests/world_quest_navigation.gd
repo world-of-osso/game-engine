@@ -132,27 +132,18 @@ func task_progress() -> int:
 	return -1
 
 func kill_authored_elemental() -> bool:
-	var deadline := Time.get_ticks_msec()+45000
-	while Time.get_ticks_msec()<deadline:
-		var units := client.find_child("WorldUnits",true,false)
-		if units != null:
-			for unit in units.get_children():
-				if unit.get_meta("unit_name", "") != "Enslaved Inferno":
-					continue
-				var pick := unit.find_child("UnitPick",true,false)
-				if pick == null:
-					continue
-				var id := int(pick.get_meta("unit_server_id"))
-				if client.unit_alive(id):
-					var reply := admin({"Damage": {"character_name":character,"amount":1000000.,"target":id}})
-					return not reply.is_empty()
-		await process_frame
-	var summary := []
-	var units := client.find_child("WorldUnits",true,false)
-	if units != null:
-		for unit in units.get_children().slice(0,20):
-			summary.append(unit.get_meta("unit_name",""))
-	stop("Living authored Enslaved Inferno not mirrored; root=" + str(units!=null) + " names=" + str(summary))
+	# NPC authority does not depend on optional rendered meshes/UnitPick children.
+	var report := admin({"NpcInfo":{"map_id":0,"instance_id":0,"entry":46327}})
+	var pattern := RegEx.new()
+	pattern.compile("entity ([0-9]+)\\) level [0-9]+ health ([0-9.]+)/")
+	for line in report.get("NpcInfoList",{}).get("lines",[]):
+		var found := pattern.search(str(line))
+		if found != null and float(found.get_string(2))>0.0:
+			var id := int(found.get_string(1))
+			print("WORLD_QUEST_ACTOR ", line)
+			var reply := admin({"Damage":{"character_name":character,"amount":1000000.,"target":id}})
+			return not reply.is_empty() and not reply.has("Error")
+	stop("Authoritative living entry46327 absent")
 	return false
 
 func check_arrival_and_reward() -> bool:
