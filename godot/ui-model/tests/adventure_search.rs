@@ -140,4 +140,18 @@ fn journal_search_minimum_empty_and_section_result_navigation() {
     );
     assert_eq!(view.page, Page::Overview);
     assert!(view.search.is_empty());
+    view.search = "Molten Core".into();
+    view.apply("journal:search-select:0").unwrap();
+    assert_eq!(view.instance, Some(741));
+    assert_eq!(view.tab, Tab::Raids);
+    assert_eq!(view.encounter, None);
+    assert!(view.search.is_empty());
+    view.search = "Lucifron".into();
+    view.apply("journal:search-select:0").unwrap();
+    assert_eq!(view.encounter, Some(1519));
+    view.search = "flame".into();
+    view.apply("journal:search-focus").unwrap();
+    view.apply("journal:close").unwrap();
+    assert!(view.search.is_empty());
+    assert!(!view.visible);
 }
