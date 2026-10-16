@@ -232,7 +232,8 @@ impl TerrainMaterials {
             if geometry.indices.is_empty() {
                 continue;
             }
-            let material = self.build_material(parsed, &layers.layers, shader)?;
+            let material =
+                self.build_material(parsed, &layers.layers, chunk.shadow_map.as_ref(), shader)?;
             let collision = collision_from_geometry(&geometry);
             let mesh = super::build_mesh(geometry, &chunk.vertex_colors);
             build.chunks.push((
@@ -271,10 +272,11 @@ impl TerrainMaterials {
         &mut self,
         parsed: &NativeTerrainTile,
         layers: &[adt::TextureLayer],
+        shadow_map: Option<&[u8; 512]>,
         shader: &Gd<Shader>,
     ) -> Result<Gd<ShaderMaterial>, String> {
         let _material = crate::profile::span(|| "phase.material.terrain".to_owned());
-        let inputs = ChunkMaterialInputs::new(parsed, layers)?;
+        let inputs = ChunkMaterialInputs::new(parsed, layers, shadow_map)?;
         let span = crate::profile::span(|| "terrain.set_shader".to_owned());
         let mut material = ShaderMaterial::new_gd();
         material.set_shader(shader);
@@ -293,6 +295,10 @@ impl TerrainMaterials {
         }
         let alpha = texture_from_rgba(64, 64, &inputs.alpha)?;
         material.set_shader_parameter("alpha_packed", &alpha.to_variant());
+        if let Some(mask) = inputs.shadow_map {
+            let shadow = texture_from_shadow(mask)?;
+            material.set_shader_parameter("mcsh_mask", &shadow.to_variant());
+        }
         if let Some(light) = &self.light {
             light.bind(&mut material);
         }
@@ -355,10 +361,16 @@ struct ChunkMaterialInputs<'a> {
     layer_params: [[f32; 4]; 4],
     animation: [[f32; 4]; 4],
     alpha: Vec<u8>,
+    /// Resolved root/texture-companion DATA, independent of blend/alpha inputs.
+    shadow_map: Option<&'a [u8; 512]>,
 }
 
 impl<'a> ChunkMaterialInputs<'a> {
-    fn new(parsed: &'a NativeTerrainTile, layers: &[adt::TextureLayer]) -> Result<Self, String> {
+    fn new(
+        parsed: &'a NativeTerrainTile,
+        layers: &[adt::TextureLayer],
+        shadow_map: Option<&'a [u8; 512]>,
+    ) -> Result<Self, String> {
         let tex = parsed.tex.as_ref().ok_or("Missing texture companion")?;
         // Preserve the original renderer's four texture slots, including campsite
         // chunks with a fifth MCLY record; do not reject the entire authored tile.
@@ -397,6 +409,7 @@ impl<'a> ChunkMaterialInputs<'a> {
             layer_params: adt::texture_layer_params(&tex.texture_params, layers, has_height),
             animation: adt::terrain_layer_animation_params(layers),
             alpha: adt::pack_alpha_map_bytes(layers),
+            shadow_map,
         })
     }
 }
@@ -435,6 +448,21 @@ fn spawn_chunk(
 
 fn vector4(values: [f32; 4]) -> Vector4 {
     Vector4::new(values[0], values[1], values[2], values[3])
+}
+
+/// MCSH DATA, not source-color or a target modulation texture.
+fn texture_from_shadow(mask: &[u8; 512]) -> Result<Gd<ImageTexture>, String> {
+    let pixels = adt::unpack_shadow_coverage(mask);
+    let image = Image::create_from_data(
+        64,
+        64,
+        false,
+        image::Format::R8,
+        &PackedByteArray::from(pixels.as_slice()),
+    )
+    .ok_or("Godot rejected64x64 MCSH coverage image")?;
+    ImageTexture::create_from_image(&image)
+        .ok_or_else(|| "Godot rejected MCSH coverage texture".into())
 }
 
 fn texture_from_rgba(width: u32, height: u32, pixels: &[u8]) -> Result<Gd<ImageTexture>, String> {
@@ -478,9 +506,13 @@ mod tests {
         let mut untextured = 0;
         for tile in campsite_tiles(scene_id) {
             let tex = tile.tex.as_ref().expect("texture companion");
-            for layers in &tex.chunk_layers {
-                let inputs = ChunkMaterialInputs::new(&tile, &layers.layers)
-                    .unwrap_or_else(|error| panic!("scene {scene_id}: {error}"));
+            for (index, layers) in tex.chunk_layers.iter().enumerate() {
+                let inputs = ChunkMaterialInputs::new(
+                    &tile,
+                    &layers.layers,
+                    tile.root.chunks[index].shadow_map.as_ref(),
+                )
+                .unwrap_or_else(|error| panic!("scene {scene_id}: {error}"));
                 if !layers.layers.is_empty() {
                     continue;
                 }

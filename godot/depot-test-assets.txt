@@ -4895,3 +4895,7 @@ data/models/631619900.skin
 # Clean-room inherited-scale authored field.
 data/models/2994778.m2
 data/models/299477800.skin
+
+# S3 real split-mask CPU/native fixture (historical cache, not active-tile policy).
+terrain/2703_31_36.adt
+terrain/2703_31_36_tex0.adt
