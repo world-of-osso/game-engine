@@ -1,6 +1,6 @@
 ## 2026-10-16 — Waywatcher private closure and Grizzlesnout canonical readback
 
-[Waywatcher](systems/toy-box.md#waywatcher-private-body-closure-2026-10-16): both source99572 display choices share1120483 but retain distinct overrides;18 authenticated70391 dependencies and four aliases published privately without canonical ownership collisions. Actual private loader gate/canonical publication/native rendering remain separate. [Grizzlesnout](systems/toy-box.md#grizzlesnout-canonical-body-readback-2026-10-16):12 already-owned canonical receipts/two aliases pass actual Rust loader and independent content authentication; no new fragment needed.
+[Waywatcher](systems/toy-box.md#waywatcher-private-body-closure-2026-10-16): both source99572 display choices share1120483 but retain distinct overrides;18 authenticated70391 dependencies and four aliases published privately without canonical ownership collisions. Actual private combined Rust loader passes18 receipts/four aliases; canonical publication and native rendering remain separate. [Grizzlesnout](systems/toy-box.md#grizzlesnout-canonical-body-readback-2026-10-16):12 already-owned canonical receipts/two aliases pass actual Rust loader and independent content authentication; no new fragment needed.
 
 ## 2026-10-16 — Ysera canonical cross-fragment readback
 
