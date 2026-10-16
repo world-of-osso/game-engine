@@ -1,0 +1,217 @@
+extends "res://tests/adventure_journeys_watch.gd"
+# Real private realm task snapshots, physical map input, polygon acceptance and item settlement.
+const TASK := 86941
+var character := ""
+var skin := ""
+
+func stop(reason: String) -> void:
+	push_error("WORLD_QUEST_NAV_FAIL " + reason)
+	if client != null:
+		client.queue_free()
+	quit(1)
+
+func key(code: Key) -> void:
+	for pressed in [true, false]:
+		var event := InputEventKey.new()
+		event.physical_keycode = code
+		event.keycode = code
+		event.pressed = pressed
+		root.push_input(event, true)
+		await process_frame
+	await settle()
+
+func admin(request: Dictionary) -> Dictionary:
+	var output: Array[String] = []
+	var result := OS.execute("/usr/bin/uv", ["run", "--with", "msgpack", "python", OS.get_environment("WQ_ADMIN"), JSON.stringify(request)], output, true)
+	if result != 0:
+		stop("Private admin failed: " + str(output))
+		return {}
+	var lines := "\n".join(output).strip_edges().split("\n")
+	var reply = JSON.parse_string(lines[-1])
+	print("WORLD_QUEST_ADMIN ", JSON.stringify(request), " reply=", JSON.stringify(reply))
+	return reply if reply is Dictionary else {}
+
+func task_in_log() -> bool:
+	for entry in client.quest_state().log:
+		if entry.quest_id == TASK:
+			return true
+	return false
+
+func wait_task(accepted: bool) -> bool:
+	var deadline := Time.get_ticks_msec() + 45000
+	while Time.get_ticks_msec() < deadline:
+		if task_in_log() == accepted:
+			return true
+		await process_frame
+	stop("Task log acceptance mismatch wanted=" + str(accepted))
+	return false
+
+func teleport(x: float, y: float, z: float) -> bool:
+	admin({"Teleport": {"character_name": character, "map_id": 0, "x": x, "y": y, "z": z}})
+	var deadline := Time.get_ticks_msec() + 60000
+	while Time.get_ticks_msec() < deadline:
+		var position = client.account_state().local_player_position
+		if position != null and Vector2(position.x-x, position.z+y).length() < 8.0:
+			await create_timer(2.0).timeout
+			return true
+		await process_frame
+	stop("Authoritative teleport not observed")
+	return false
+
+func pin_index(id: int) -> int:
+	var state: Dictionary = client.world_map_state()
+	var pins: Array = state.get("pins", [])
+	for index in pins.size():
+		if pins[index].quest_id == id and pins[index].type == "WorldQuest":
+			return index
+	return -1
+
+func open_task_map() -> bool:
+	await key(KEY_M)
+	var deadline := Time.get_ticks_msec() + 45000
+	while Time.get_ticks_msec() < deadline:
+		if client.world_map_state().get("open", false) and pin_index(TASK) >= 0:
+			return true
+		await process_frame
+	stop("Real task pin absent on active zone map: " + str(client.world_map_state().get("map_id")))
+	return false
+
+func capture_phase(phase: String) -> bool:
+	await RenderingServer.frame_post_draw
+	var path := shots.path_join(skin + "-" + phase + ".png")
+	var image := root.get_texture().get_image()
+	if image.get_size() != Vector2i(1920,1080) or image.save_png(path) != OK:
+		stop("FullHD PNG failed")
+		return false
+	print("WORLD_QUEST_CAPTURE ", path)
+	return true
+
+func check_pin_navigation() -> bool:
+	if task_in_log():
+		stop("Outside polygon already accepted task")
+		return false
+	if not await open_task_map():
+		return false
+	var index := pin_index(TASK)
+	var map_before: int = client.world_map_state().map_id
+	if not await move_to("WorldMapPin%s" % index):
+		return false
+	var tooltip := control("WorldQuestMapTooltip")
+	if tooltip == null or not tooltip.is_visible_in_tree():
+		stop("Native world quest reward tooltip missing")
+		return false
+	var texts := []
+	for node in tooltip.find_children("*", "Label", true, false):
+		texts.append(node.text)
+	print("WORLD_QUEST_TOOLTIP ", texts)
+	if not "Rewards" in texts or not "11765 XP" in texts:
+		stop("Real task reward preview not present: " + str(texts))
+		return false
+	if not await capture_phase("map-reward-tooltip") or not await click("WorldMapPin%s" % index):
+		return false
+	if client.world_map_state().map_id != map_before or client.objective_tracker_state().super_tracked != TASK or task_in_log():
+		stop("Pin click navigated map/accepted quest instead of selecting received task")
+		return false
+	if not await capture_phase("map-selected"):
+		return false
+	await key(KEY_M)
+	var deadline := Time.get_ticks_msec()+30000
+	while control("MinimapSuperTrack%s" % TASK) == null and Time.get_ticks_msec()<deadline:
+		await process_frame
+	if client.objective_tracker_state().super_tracked != TASK or control("MinimapSuperTrack%s" % TASK) == null:
+		stop("Pre-accept selection did not persist into minimap direction")
+		return false
+	return await capture_phase("minimap-selected-direction")
+
+func check_arrival_and_reward() -> bool:
+	# Authenticated polygon centroid, not invented POI geometry. Controlled travel/item supply only.
+	if not await teleport(-3243., -5498., 76.) or not await wait_task(true):
+		return false
+	var deadline := Time.get_ticks_msec()+30000
+	while control("MinimapWorldQuest%s" % TASK) == null and Time.get_ticks_msec()<deadline:
+		await process_frame
+	if control("MinimapWorldQuest%s" % TASK) == null or control("WorldQuest%sProgressLabel" % TASK) != null:
+		stop("Source task marker missing or counted objective has invented progressbar")
+		return false
+	if control("MinimapQuestObjective%s" % TASK) != null:
+		stop("Duplicate ordinary numbered task POI")
+		return false
+	admin({"GrantItem": {"character_name": character, "item_id": 235666, "count": 5}})
+	deadline = Time.get_ticks_msec()+30000
+	while Time.get_ticks_msec()<deadline:
+		var label := control("QuestBlock%sLine0Text" % TASK) as Label
+		if label != null and label.text.begins_with("5/6"):
+			break
+		await process_frame
+	var progress := control("QuestBlock%sLine0Text" % TASK) as Label
+	if progress == null or not progress.text.begins_with("5/6"):
+		stop("Genuine item acquisition progress5/6 not observed")
+		return false
+	if not await capture_phase("tracker-five-of-six"):
+		return false
+	var before: int = client.quest_state().get("xp", -1)
+	admin({"GrantItem": {"character_name": character, "item_id": 235666, "count": 1}})
+	if not await wait_task(false):
+		return false
+	deadline = Time.get_ticks_msec()+30000
+	while int(client.quest_state().get("xp", -1)) == before and Time.get_ticks_msec()<deadline:
+		await process_frame
+	var after: int = client.quest_state().get("xp", -1)
+	if after-before != 11765:
+		stop("Actual XP settlement mismatch %s -> %s" % [before,after])
+		return false
+	await settle()
+	print("WORLD_QUEST_REWARD quest=%s XP=%s->%s delta=%s logRemoved=true" % [TASK,before,after,after-before])
+	if not await capture_phase("completed-reward"):
+		return false
+	if not await teleport(-3500.,-5500.,13.) or not await teleport(-3243.,-5498.,76.):
+		return false
+	if task_in_log():
+		stop("Completed task replayed in same active window")
+		return false
+	return true
+
+func check_expiry() -> bool:
+	# Advance the private realm clock to its real policy window end, with an actual gap.
+	var end := int(OS.get_environment("WQ_EPOCH"))+86400
+	var remaining := end-int(Time.get_unix_time_from_system())
+	admin({"ClockAdvance": {"seconds": remaining+2}})
+	await key(KEY_M)
+	var deadline := Time.get_ticks_msec()+30000
+	while pin_index(86948)>=0 and Time.get_ticks_msec()<deadline:
+		await process_frame
+	if pin_index(86948)>=0 or pin_index(TASK)>=0:
+		stop("Expired availability pin retained across real window end")
+		return false
+	return await capture_phase("expired-window-map")
+
+func run() -> void:
+	var server := OS.get_environment("WQ_SERVER")
+	var account := OS.get_environment("WQ_ACCOUNT")
+	skin = OS.get_environment("WQ_SKIN")
+	shots = OS.get_environment("WQ_SHOTS")
+	if server != "127.0.0.1:5771" or not account.begins_with("fb_wqnav") or shots.is_empty():
+		stop("Explicit owned private realm/accounts and screenshots required")
+		return
+	root.size = Vector2i(1920,1080)
+	client = load("res://scenes/client.tscn").instantiate()
+	root.add_child(client)
+	var deadline := Time.get_ticks_msec()+180000
+	while client.account_state().assets_starting and Time.get_ticks_msec()<deadline:
+		await process_frame
+	var error: String = client.connect_account(server,account,"fbtest",false)
+	if not error.is_empty():
+		stop(error)
+		return
+	if not await enter_world_when_ready():
+		return
+	character = client.account_state().selected_character_name
+	if client.account_state().ui_skin.to_lower() != skin:
+		stop("Actual skin differs from receipt")
+		return
+	if not await check_pin_navigation() or not await check_arrival_and_reward() or not await check_expiry():
+		return
+	print("WORLD_QUEST_NAV_PASS skin=%s real86941 selection/minimap/area/progress/XP/replay/expiry" % skin)
+	client.queue_free()
+	await process_frame
+	quit(0)
