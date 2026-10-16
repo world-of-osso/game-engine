@@ -121,6 +121,12 @@ func accepted_dialog_waits(label: String, tender: int, purchased: bool) -> bool:
 	if not await wait_until(func(): return texture_ready("PerksProgramConfirmSpinnerRing") and texture_ready("PerksProgramConfirmSpinnerSparks"), "real decoded pending spinner", 3000): return false
 	if control("PerksProgramConfirmDarkOverlay") == null:
 		fail("Pending transaction has no source dark overlay"); return false
+	var spinner := control("PerksProgramConfirmSpinner")
+	var initial_rotation := spinner.rotation
+	await wait_frames(3)
+	if is_equal_approx(spinner.rotation, initial_rotation):
+		fail("Pending " + label + " spinner is static despite source rotation"); return false
+	print("TP_PENDING_SPINNER_ROTATION kind=", label, " before=", initial_rotation, " after=", spinner.rotation)
 	await button_event(control("PerksProgramConfirmButton").get_global_rect().get_center(), MOUSE_BUTTON_LEFT, true)
 	await button_event(control("PerksProgramConfirmButton").get_global_rect().get_center(), MOUSE_BUTTON_LEFT, false)
 	await tap(KEY_ESCAPE)
