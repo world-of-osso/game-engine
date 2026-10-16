@@ -14,6 +14,7 @@
 - [Fade effect projection](systems/battle-pets.md#fade-effect-projection--2026-10-16) — current70391 sourced random self-swap, both-skin fullHD pointer/log/model proof and91 identical rectangles; complete Retail art/timing excluded.
 
 - [BM native Assist preparation](systems/bot-harness.md#bm-native-assist-preparation--2026-10-16) — ordinary received-slot input/ack gate; pinned TC constructor proves Passive default, stored stance preserved; fresh DPS remains separate.
+- [BM native Assist preparation](systems/bot-harness.md#bm-native-assist-preparation--2026-10-16) — ordinary received-slot input/ACK; [two native SimC windows](systems/bot-harness.md#instrumented-bm-comparison--2026-10-16)157.45/168.50DPS,28 real outcomes, incomplete full-SimC/old frozen-sequence proof explicit.
 
 - [Terminal follower death delivery](systems/bot-harness.md#terminal-follower-death-delivery--2026-10-16) — delayed child-process delivery RED→receiver-drain; server owner-emission baseline passes, live timing proof pending.
 - [Trading Post accepted-item pending dialog](systems/trading-post.md#accepted-single-item-confirmation-lifetime--implementation-october16) — model/native RED→both-skin painted spinner/overlay/rotation/reply GREEN, source inset and accepted-item cart pruning; ten full-HD originals, provider/error gaps explicit.

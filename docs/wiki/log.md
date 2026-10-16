@@ -8,6 +8,10 @@
 ## 2026-10-16 — Installed guild perk list
 
 [Perks](systems/guilds.md#perks): real five-definition catalog and source Benefits list. Missing-title RED→five actual names/order and other-tab hiding GREEN1/1 in both skins. Real spell-link draft/render REDs reproduced visible raw markup; the shared labeled-link decoder and wire-link/caret insertion now support source modified-click spell identity without changing bare combat links. Focused link GREEN, tooltip, native and effect proof remain pending; no functional-buff claim.
+## 2026-10-16 — Instrumented BM comparison and native target preparation
+
+[BM](systems/bot-harness.md#instrumented-bm-comparison--2026-10-16): received native Assist0→3, then two complete60s windows157.45/168.50DPS, pet6.44%/4.77%;28 requests/server receipts/CastSuccess and no cast denials. Earlier Cobra timeout did not reproduce; no fabricated server RED/root-fix claim. Native75 repetition remains missing/unproven. Corrected owned diagnostic options produce a real4.9ticks/s stack/host/per-system receipt; navigation root is ground_dir/navmesh, not an unsupported environment override. Native Tab bridge now has process/hostile/alive controls and syntax proof; actual Stockade opening/clear still pending.
+
 ## 2026-10-16 — BM native pet Assist preparation
 
 [Preparation](systems/bot-harness.md#bm-native-assist-preparation--2026-10-16): one ordinary viewport click on the received Assist reaction slot, owned identity and react_state3 ACK required. Portable slot/ownership controls and native GDScript syntax pass; fresh BM input/DPS proof pending. Pinned TC Pet/CharmInfo creation chain confirms Passive default and stored-mode restoration, so no server-default change or persistence override.
