@@ -7,6 +7,8 @@
 - [Clean-room M2 particles](systems/godot-conversion.md#native-m2-particles) — native tails/follow/cubic controls, authored sorting and map-collision births; inherited-scale provenance and explicit lighting, timer/reset, spline-density, target-mask and model-recursion oracle gaps.
 # Wiki Index
 
+- [Guild perk authority](systems/guilds.md#perk-native-authority-and-effect-boundary-2026-10-16) — real five-definition Benefits and owner grants, ordered native spell messages, actual invitation/removal/quit receipts, both-skin tooltip/chat/restart proof; individual effects remain separately qualified.
+
 - [Storage filter popup](systems/housing.md#storage-filter-popup--implementation2026-10-15) — native old-geometry RED→both-skin source root/Sort anchors, real radio/checkbox/reset and paid conservation; current-binary F17 recapture has durable four-record proof.
 
 - [Trading Post confirmation keyboard cover](systems/trading-post.md#confirmation-keyboard-ownership--implementation-october16) — source no-hideOnEscape; native RED→both-skin Escape-preserve/explicit-Cancel GREEN, one purchase/refund round trip per skin and12 full-HD screenshots.
