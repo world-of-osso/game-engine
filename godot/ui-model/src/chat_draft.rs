@@ -107,6 +107,20 @@ impl ChatDraft {
 mod tests {
     use super::*;
     #[test]
+    fn guild_news_item_link_draft_preserves_item_identity_and_existing_achievement() {
+        let wire =
+            "é |Hachievement:14782|h[Level 50]|h |Hitem:50335|h[Greater Inscription of the Axe]|h";
+        let mut draft = ChatDraft::from_wire(wire);
+        assert_eq!(
+            draft.visible(),
+            "é [Level 50] [Greater Inscription of the Axe]"
+        );
+        assert_eq!(draft.wire(), wire);
+        draft.apply_visible_edit("prefix é [Level 50] [Greater Inscription of the Axe]");
+        assert_eq!(draft.wire(), format!("prefix {wire}"));
+    }
+
+    #[test]
     fn achievements_art_draft_displays_names_without_losing_wire_ids() {
         let wire = "é |Hachievement:633|h[Stormwind Stockade]|h!";
         let draft = ChatDraft::from_wire(wire);
