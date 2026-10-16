@@ -220,13 +220,14 @@ fn arrow(
 ) -> Element {
     let name = format!("{FRAME_NAME}{key}");
     let action = if enabled { action } else { "" };
+    let is_disabled = !enabled;
     rsx! {
         button {
             name: {DynName(name)},
             width: 16.0,
             height: 16.0,
             onclick: action,
-            enabled,
+            disabled: is_disabled,
             button_fdid_up: up,
             button_fdid_pressed: down,
             button_fdid_disabled: disabled,
