@@ -1,11 +1,39 @@
 """Authored Stockade fixture data and native state adapters; no private driver copy."""
 import json
 import math
+import re
 import sqlite3
 from contextlib import closing
 from pathlib import Path
 
 from bot_rotation import authored_next
+
+
+def admitted_copy(server_text, character_id):
+    pattern = (rf"Created instance (\d+) of map 34 at difficulty 1 for InstanceEntrant "
+               rf"\{{ character_id: {int(character_id)},")
+    copies = {int(value) for value in re.findall(pattern, server_text)}
+    if len(copies) != 1:
+        raise ValueError(f"Native admitted Stockade copy is not unique: {sorted(copies)}")
+    return copies.pop()
+
+
+def parse_npc(text, entry):
+    pattern = (r"^(.+) \(entity (\d+)\) level (\d+) health ([\d.]+)/([\d.]+) "
+               r"difficulty (\d+) combat=(\{.*\})$")
+    matches = list(re.finditer(pattern, text, re.MULTILINE))
+    if len(matches) != 1:
+        raise ValueError(f"Expected one unique live NPC for entry {entry}, found {len(matches)}")
+    row = matches[0]
+    return {"name": row[1], "entity": row[2], "entry": entry, "level": int(row[3]),
+            "health": float(row[4]), "max_health": float(row[5]), "difficulty": int(row[6]),
+            "combat": json.loads(row[7])}
+
+
+def encounter_states(server_text, instance):
+    pattern = (rf"Instance InMap \{{ map_id: 34, instance_id: {int(instance)} \}}: "
+               r"boss \d+ \(encounter (\d+)\) \w+ -> (\w+)")
+    return {int(encounter): state for encounter, state in re.findall(pattern, server_text)}
 
 
 def authored_priority(state, target):
