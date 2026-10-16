@@ -40,6 +40,7 @@ pub fn frame(session: &GuildRanksSession, shared: &SharedContext) -> Element {
     ));
     children.extend(filter_link());
     children.extend(news_list(session, shared));
+    children.extend(news_menu(session, shared));
     rsx! { r#frame { name: "CommunitiesGuildNews", left: 494.0, top: 63.0,
     width: NEWS_WIDTH, height: NEWS_HEIGHT, pos_type: "absolute", {children} } }
 }
@@ -197,9 +198,6 @@ fn news_contents(session: &GuildRanksSession) -> (Element, f32) {
             day = Some(entry.timestamp / 86400);
         }
         out.extend(entry_row(entry, top));
-        if session.news.menu == Some(entry.id) {
-            out.extend(entry_menu(session, entry, top));
-        }
         top += 18.0;
     }
     (out, top)
@@ -268,6 +266,32 @@ fn entry_row(entry: &shared::protocol::GuildNewsEntry, top: f32) -> Element {
     let action = format!("guild:news_entry:{}", entry.id);
     rsx! { button { name: {DynName(name)}, left: 0.0, top, width: 300.0, height: 18.0,
     pos_type: "absolute", button_default_skin: false, onclick: action, {art} } }
+}
+
+// Menus belong outside the scroll viewport so bottom-row actions remain visible.
+fn news_menu(session: &GuildRanksSession, shared: &SharedContext) -> Element {
+    let Some(id) = session.news.menu else {
+        return vec![];
+    };
+    let entries = session.news.entries();
+    let mut top = if session.profile.as_ref().is_some_and(|profile| !profile.motd.is_empty()) {
+        18.0
+    } else {
+        0.0
+    };
+    let mut day = None;
+    for entry in entries {
+        if !entry.sticky && day != Some(entry.timestamp / 86400) {
+            top += 18.0;
+            day = Some(entry.timestamp / 86400);
+        }
+        if entry.id == id {
+            let y = 22.0 + top - shared.scroll_first_row(SCROLL_BOX) as f32;
+            return entry_menu(session, entry, y);
+        }
+        top += 18.0;
+    }
+    vec![]
 }
 
 fn entry_menu(
