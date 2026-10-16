@@ -8,7 +8,6 @@ impl GameClient {
     pub fn guild_perks_observation(&self) -> GString {
         let json = serde_json::to_string(&serde_json::json!({
             "known_spells": self.account.spells.known(),
-            "guild_id": self.guild_ranks.session.profile.as_ref().map(|profile| profile.guild_id),
             "chat_open": self.chat.model.state.input_open,
             "draft_visible": self.chat.draft.visible(),
             "draft_wire": self.chat.draft.wire(),

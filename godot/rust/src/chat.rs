@@ -29,6 +29,10 @@ use crate::replicated::UnitFields;
 use crate::ui::RegistryUi;
 use game_engine_ui_model::group_state::GroupCommand;
 
+#[cfg(debug_assertions)]
+#[path = "guild_perks_preview.rs"]
+mod guild_perks_preview;
+
 /// The root client's line when `/who` has no who state.
 const WHO_UNAVAILABLE_TEXT: &str = "Who is unavailable.";
 
