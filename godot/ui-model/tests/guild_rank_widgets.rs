@@ -1293,6 +1293,58 @@ fn guild_member_note_popup_keeps_original_target_when_roster_selection_changes()
 }
 
 #[test]
+fn guild_news_info_renders_source_controls_and_only_real_motd_both_skins() {
+    let _lock = SKIN.lock().unwrap_or_else(|p| p.into_inner());
+    for skin in [ActiveSkin::Modern, ActiveSkin::Forever] {
+        set_thread_skin(skin);
+        let mut session = GuildRanksSession::default();
+        session.open();
+        session.apply(state(2));
+        session.profile = Some(GuildSnapshot {
+            guild_id: 7,
+            guild_name: "Guild Testers".into(),
+            tabard: None,
+            created_at: None,
+            motd: "Raid at seven".into(),
+            info_text: String::new(),
+            members: vec![],
+        });
+        assert!(
+            mounted(&session)
+                .get_by_name("CommunitiesGuildNewsHeaderText")
+                .is_none()
+        );
+        session.click("guild:info_open", &Default::default());
+        let registry = mounted(&session);
+        assert_eq!(
+            text(&registry, "CommunitiesGuildNewsHeaderText"),
+            "Guild News"
+        );
+        assert_eq!(
+            text(&registry, "CommunitiesGuildNewsSetFiltersText"),
+            "[Click to set news filters]"
+        );
+        assert_eq!(
+            text(&registry, "CommunitiesGuildNewsMOTDText"),
+            "MotD: Raid at seven"
+        );
+        assert!(
+            registry.get_by_name("CommunitiesGuildNewsEntry0").is_none(),
+            "No invented news from present roster"
+        );
+        assert!(
+            registry.get_by_name("CommunitiesGuildNewsNoNews").is_none(),
+            "Actual MOTD is a source news row"
+        );
+        session.profile.as_mut().unwrap().motd.clear();
+        assert_eq!(
+            text(&mounted(&session), "CommunitiesGuildNewsNoNews"),
+            "No Guild News"
+        );
+    }
+}
+
+#[test]
 fn guild_event_log_opens_from_info_and_closes_independently_both_skins() {
     let _lock = SKIN.lock().unwrap_or_else(|p| p.into_inner());
     for skin in [ActiveSkin::Modern, ActiveSkin::Forever] {
