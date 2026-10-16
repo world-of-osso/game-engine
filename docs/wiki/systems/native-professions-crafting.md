@@ -44,6 +44,12 @@ Private UDP5951, `Craftmodern`1 and `Craftforever`2, both explicit skins at1920�
 
 The rendered run exposed a real native conversion failure: `show_professions` registered Portrait chrome, while the new quality dialog uses Plain chrome. Registering both styles resolves `ProfessionsQualityNineSlice` and lets the native input fields materialize; the original failing log is `gates/native-quality-red-missing-plain-chrome.log`. Harness fixes separately wait for asset startup and actual character-select control visibility: that UI node exists while the character-scene loading screen still hides its controls. Readiness requires the private admin pong, not merely a bound UDP socket.
 
+## Knowledge reuse — verified2026-10-16
+
+No second progression engine was added. Existing specialization authority passes six targeted tests, including authored recipe learning, one-point quest rewards, no committed refunds and atomic wallet/rank/recipe reopen. Private native `modern_crafting_knowledge_live.gd` at1920×1080 passes both skins: unlock tree350, inspect path28546/perk28534 tooltips, stage and Undo, then Apply. Both actual characters move0→1/30 and25→24 knowledge; fixture grants are not acquisition evidence.
+
+A subsequent private server restart and fresh clients use the fixture's read-only `CRAFTING_PHASE=readback`, physically reopen the path and retain1/30 plus24 knowledge. `Modern-4-persisted-point.png` and `Forever-4-persisted-point.png` in the same AgentShared directory are the inspected stable relog comparison. The ignored server test `assert_private_modern_knowledge_commit_persisted` independently reopens that actual run database and verifies both characters' public specialization snapshots, with profession skill2830 still25. Post-quality conservation separately passes for both characters' three reagent stacks. Exact logs and hashes remain in the shared proof ledger above.
+
 ## Sources
 
 - [Modern crafting contract](../../specs/modern-crafting.md) — requirements, static receipts, source citations and gaps.

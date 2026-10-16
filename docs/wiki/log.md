@@ -1,3 +1,7 @@
+## 2026-10-16 — Existing specialization authority reused
+
+[Knowledge reuse](systems/native-professions-crafting.md#knowledge-reuse--verified2026-10-16): both full-HD skins unlock, inspect tooltips, stage/Undo/Apply, spend25→24 and retain rank1/30 after fresh private server/client relogs. Existing authority6, actual-native database reopen1 and post-quality inventory/skill conservation1 pass. Fixture points are not acquisition proof.
+
 ## 2026-10-16 — Authored quality reagent selection
 
 [Native quality selection](systems/native-professions-crafting.md#authored-quality-selection--verified2026-10-16): both1920×1080 skins pass physical mixed-tier selection, typed clamp, Cancel, owned-stock disablement, incomplete-slot authority refusal and complete allocation with no fabricated outcome. Native Plain chrome registration fixed reproduced dialog conversion failure; source operation composition remains a named gap. Twelve quality originals inspected; conservation gate tracked separately.
