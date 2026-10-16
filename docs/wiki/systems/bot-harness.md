@@ -90,6 +90,10 @@ Persisted-owner preparation walks authored exit trigger503 through strict navmes
 
 `bot_dungeon.py` consumes native combat identities plus final authoritative encounter states. Boss rates include player and event-time-owned pets/guardians, exclude party followers/their descendants and other targets, and retain pre-entry summon ancestry. The interval begins at the first observed boss-related damage/hostile cast and ends at its native death; final damage sharing that death millisecond is included while elapsed duration remains end-start. Missing/ambiguous death, unknown damage ownership, capture gaps or unresolved duration withhold DPS. Clear credit and its monotonic entry→last Done receipt stay distinct from rate qualification, so missing combat metrics do not erase real authoritative completion. Death counters cover local player/party only; observed counts survive capture gaps, while totals become unknown. Source-only unit fixtures are accounting proofs, not a dungeon clear or class DPS oracle.
 
+### Terminal follower death delivery — 2026-10-16
+
+Server real-profile Garrick lethal-melee test already delivers one stamped Death to the authenticated owner; no duplicate server emitter was added. The retained Fury4 caller ended its combat poll44ms after receiving dead roster state, before another server/network frame could necessarily deliver the combat event. A separate child-process delayed-delivery fixture reproduces premature terminal closure (party totalnull) and gates native receiver draining. The caller now keeps polling up to10s for the corresponding real Death and records `terminal-death-delivery.json`; timeout remains explicitly unqualified, never a synthesized death. Live timing-window/stack proof is pending; source/protocol ordering tests alone do not prove the historical packet arrived.
+
 ## Recorded native proof and remaining gates
 
 ### BM pet-presence follow-up — verified2026-10-16
