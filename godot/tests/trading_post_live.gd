@@ -111,6 +111,9 @@ func item_tooltip_proof() -> void:
 	for product in products:
 		var name := "PerksProgramProduct%d" % int(product.selected)
 		await motion(control(name).get_global_rect().get_center(), false)
+		await wait_frames(30)
+		print("TP_TOOLTIP_PROBE owner=", name, " expected=", product.selected_name, " rect=", control(name).get_global_rect(), " hovered=", root.gui_get_hovered_control(), " tooltip=", client.tooltip_state())
+		await capture("hover-probe-%d" % int(product.selected))
 		if not await wait_until(func(): return client.tooltip_state().get("visible", false) and client.tooltip_state().get("title", "") == product.selected_name, "Retail hovered product item tooltip", 10000): return
 		var tooltip: Dictionary = client.tooltip_state()
 		var lines := str(tooltip.get("lines", []))
@@ -1159,7 +1162,7 @@ func wait_frames(count: int) -> void:
 func fail(message: String) -> void:
 	if client != null and not receipts.is_empty():
 		var file := FileAccess.open(receipts.path_join(skin + "-" + phase + "-failure.json"), FileAccess.WRITE)
-		file.store_string(JSON.stringify({"failure": message, "trading_post": client.trading_post_state(), "journal": client.adventure_guide_state(), "account": client.account_state()}, "\t"))
+		file.store_string(JSON.stringify({"failure": message, "tooltip": client.tooltip_state(), "trading_post": client.trading_post_state(), "journal": client.adventure_guide_state(), "account": client.account_state()}, "\t"))
 		file.close()
 	push_error("Trading Post live: " + message)
 	quit(1)
