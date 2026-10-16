@@ -88,3 +88,5 @@ Actual UDP invitations/acceptance, online officer removal, rejoin and ordinary q
 | Guild Mail83951 | Source dummy aura; mail send checks actual same guild | Existing `mail::send` sets attached-mail delay to zero for same-guild members; retain separate behavioral control. |
 
 Authority: installed active Spell/SpellEffect CSVs; server `auras/stat_mods.rs`, `auras/handlers.rs`, `spell_cast/effects.rs`, `mail.rs`; pinned TC Guild.cpp2322/3002. Missing effect behavior is an explicit gap, not a fabricated buff or chest.
+
+Native existing-caret follow-up: `before  after` + real Shift-click at caret7 initially reverted to the old text. The shared chat insertion path wrote only Godot LineEdit, while the next chat update read RegistryUi's unchanged EditBox state and removed the link from the draft. The insertion now uses RegistryUi::set_editbox_text, then restores the returned caret; this keeps model/native text synchronized. This is a separate actual native RED, not inferred from the earlier empty-draft proof.

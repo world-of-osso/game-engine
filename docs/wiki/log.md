@@ -4203,3 +4203,5 @@ Completed Retailv2 codec/authoritative Create and committed Copy callbacks, exac
 ## 2026-10-16 — authentic guild perk knowledge and native input
 
 [Guild perks](systems/guilds.md#perk-native-authority-and-effect-boundary-2026-10-16): five real DB2 definitions, source Benefits rows/tooltips, TalentChannel snapshot/delta ordering RED→GREEN, actual owner joins/removal/rejoin/quit and class conservation. Both-skin native modified-link/server echo and identical-binary fresh-process readback pass. Effects remain individually qualified; no fabricated mounted-speed, Hearthstone, resurrection or guild-chest functionality.
+
+- Guild perk follow-up: physical existing-caret RED revealed native-only edit text bypassing RegistryUi state; d82f213cc updates the authoritative edit model before restoring caret. Actual both-skin no-cast/caret/server-echo and fresh-process readback now pass on current merged binaries; actual UDP membership sequence also refreshed.
