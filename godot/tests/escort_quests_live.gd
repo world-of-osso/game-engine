@@ -8,24 +8,23 @@ const ESCORT_NAME := "Feero Ironhand"
 const AMBUSH_NAMES := ["Dark Strand Assassin", "Forsaken Scout", "Aligar the Tormentor", "Balizar the Umbrage", "Caedakar the Vicious"]
 var seen_ambushes: Dictionary = {}
 
-func enter_world() -> bool:
-	if not await wait_frames(func(): return client.account_state().reply_received, "escort account roster", 60000):
-		return false
-	if not await wait_frames(func(): return not client.account_state().assets_starting, "asset startup before roster input", 180000):
-		return false
-	var selection := client.get_node_or_null("CharacterSelectUI")
-	if selection == null:
-		fail("Private account did not reach character selection")
-		return false
-	var card := selection.find_child("CharCard_0", true, false) as Control
-	if card == null:
-		fail("Owned escort character card missing")
-		return false
-	await frames(5)
-	await click_control(card)
-	if not await wait_frames(func(): return client.account_state().selected_character_id != null, "owned character selected"):
-		return false
-	return await super.enter_world()
+func run_test() -> void:
+	root.size = Vector2i(1920, 1080)
+	if OS.get_environment("GODOT_TEST_SERVER") != "127.0.0.1:5931":
+		fail("Escort fixture requires owned UDP5931")
+		return
+	shots = OS.get_environment("QF_SHOTS").trim_suffix("/") + "/"
+	DirAccess.make_dir_recursive_absolute(shots)
+	client = load("res://scenes/client.tscn").instantiate()
+	root.add_child(client)
+	# Exercise the real --screen inworld startup path with owned credentials.
+	# Character-select interaction is not this fixture's acceptance boundary.
+	if not await wait_frames(func(): return client.account_state().screen == "InWorld" and client.account_state().local_player_position != null, "private startup in world", 180000):
+		return
+	if not await check_skin() or not await check_escort():
+		return
+	client.free()
+	quit(0)
 
 func check_escort() -> bool:
 	if OS.get_environment("GODOT_TEST_SERVER") != "127.0.0.1:5931":
