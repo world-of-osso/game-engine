@@ -73,6 +73,11 @@ func run_close() -> void:
 			var idle := capture(panel, label + "-idle")
 			await move(ui, point)
 			var hover := capture(panel, label + "-hover")
+			if verify:
+				var glow := close.get_node("Parts/Part1") as TextureRect
+				assert(glow != null and glow.texture != null)
+				var material := glow.material as CanvasItemMaterial
+				assert(material != null and material.blend_mode == CanvasItemMaterial.BLEND_MODE_ADD)
 			await press(ui, point, true)
 			var pushed := capture(panel, label + "-pressed")
 			assert(idle.get_data() != hover.get_data(), "Hover paints source art")

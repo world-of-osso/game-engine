@@ -34,8 +34,12 @@ pub fn settings_screen(view: &HousingView) -> Element {
             {background} {header} {decoration} {columns}
             fontstring { name: "HousingSettingsTitle", text: "House Settings", width: 400.0, height: 30.0,
                 pos_type: "absolute", left: 100.0, top: 14.0, font_size: 17.0 }
-            button { name: "HousingSettingsClose", text: "X", width: 32.0, height: 32.0,
-                pos_type: "absolute", left: 564.0, top: 4.0, onclick: "housing:close" }
+            button { name: "HousingSettingsClose", width: 24.0, height: 24.0,
+                pos_type: "absolute", left: 577.0, top: 0.0, frame_level: 510.0,
+                onclick: "housing:close", button_default_skin: false,
+                button_atlas_up: "RedButton-Exit", button_atlas_pressed: "RedButton-exit-pressed",
+                button_atlas_disabled: "RedButton-Exit-Disabled", button_atlas_highlight: "RedButton-Highlight",
+                button_highlight_alpha: "1.0" }
             fontstring { name: "HousingSettingsOwnerLabel", text: "House Owner", width: 200.0, height: 20.0,
                 pos_type: "absolute", left: 46.0, top: 104.0, font_size: 15.0, justify_h: "LEFT" }
             button { name: "HousingSettingsOwner", text: "Owner assignment unavailable", width: 200.0, height: 28.0,

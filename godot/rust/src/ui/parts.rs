@@ -533,7 +533,8 @@ fn project_highlight(frame: &Frame, width: f32, height: f32, parts: &mut Vec<Ima
         "transmog-itemcard-default" | "transmog-setcard-default" | "transmog-setcard-incomplete"
         | "transmog-gearslot-default" | "transmog-gearslot-transmogrified" | "transmog-gearslot-pending"
         | "transmog-gearslot-default-small" | "transmog-gearslot-transmogrified-small"
-        | "house-chest-open-drawer-button" | "house-chest-close-drawer-button"));
+        | "house-chest-open-drawer-button" | "house-chest-close-drawer-button"
+        | "RedButton-Highlight"));
     parts.push(part);
 }
 
