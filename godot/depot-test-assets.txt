@@ -1,4 +1,7 @@
 # data/-relative files uploaded for `scripts/depot-build.py --test`; see docs/remote-builds.md.
+# A7 authentic attachment activation bytes; no remote source access.
+models/1081566.m2
+models/971117.m2
 # Installed Retail source scene flags; existing atlas/catalog source pins stay unchanged.
 db2/12.1.5.70391/UiModelScene.csv
 # Source-qualified current cloak geometry for item-material regression fixtures.
@@ -4881,6 +4884,22 @@ cache/adventure_guide.sqlite
 # Mainline RaidBossEmote warning kit12197 (SoundKitEntry15068).
 sounds/ui/567394.ogg
 sounds/ui/6838456.ogg
+# Trading Post menu kits218932/218933, exact local70391 SoundKitEntry variants.
+sounds/ui/4956048.ogg
+sounds/ui/4956050.ogg
+sounds/ui/4956052.ogg
+sounds/ui/4956054.ogg
+sounds/ui/4956056.ogg
+sounds/ui/4555731.ogg
+sounds/ui/4555733.ogg
+sounds/ui/4555735.ogg
+sounds/ui/4555737.ogg
+sounds/ui/4555739.ogg
+sounds/ui/4555741.ogg
+sounds/ui/4555743.ogg
+sounds/ui/4555745.ogg
+sounds/ui/4555747.ogg
+sounds/ui/4555749.ogg
 models/6371365.wmo
 models/6371389.wmo
 

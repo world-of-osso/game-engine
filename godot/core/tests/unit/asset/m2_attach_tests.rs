@@ -5,6 +5,116 @@ mod required_asset;
 use required_asset::require_asset;
 
 #[test]
+fn a7_truncated_activation_track_is_rejected_in_md20_and_ska1() {
+    let mut md20 = vec![0; 0x100 + 39];
+    md20[0xf0..0xf4].copy_from_slice(&1_u32.to_le_bytes());
+    md20[0xf4..0xf8].copy_from_slice(&0x100_u32.to_le_bytes());
+    assert!(
+        parse_attachments(&md20).is_err(),
+        "truncated byte track was discarded"
+    );
+    let mut ska1 = vec![0; 16 + 39];
+    ska1[0..4].copy_from_slice(&1_u32.to_le_bytes());
+    ska1[4..8].copy_from_slice(&16_u32.to_le_bytes());
+    assert!(
+        parse_ska1_attachments(&ska1).is_err(),
+        "SKA1 truncated track was discarded"
+    );
+}
+
+fn activation_fixture(ska1: bool) -> Vec<u8> {
+    let mut bytes = vec![0; 400];
+    let header = if ska1 { 0 } else { 0xf0 };
+    bytes[header..header + 4].copy_from_slice(&1_u32.to_le_bytes());
+    bytes[header + 4..header + 8].copy_from_slice(&256_u32.to_le_bytes());
+    bytes[256..260].copy_from_slice(&19_u32.to_le_bytes());
+    bytes[278..280].copy_from_slice(&(-1_i16).to_le_bytes());
+    for (offset, value) in [
+        (280, 2),
+        (284, 320),
+        (288, 2),
+        (292, 336),
+        (320, 3),
+        (324, 352),
+        (328, 1),
+        (332, 368),
+        (336, 3),
+        (340, 364),
+        (344, 1),
+        (348, 372),
+        (352, 0),
+        (356, 100),
+        (360, 200),
+        (368, 0),
+    ] {
+        bytes[offset..offset + 4].copy_from_slice(&u32::to_le_bytes(value));
+    }
+    bytes[364..367].copy_from_slice(&[1, 0, 1]);
+    bytes[372] = 1;
+    bytes
+}
+
+#[test]
+fn a7_activation_keys_sequence_switch_global_and_missing_controls() {
+    for ska1 in [false, true] {
+        let bytes = activation_fixture(ska1);
+        let mut attachments = if ska1 {
+            parse_ska1_attachments(&bytes)
+        } else {
+            parse_attachments(&bytes)
+        }
+        .unwrap();
+        let attachment = &mut attachments[0];
+        assert_eq!(attachment.id, 19);
+        for (time, active) in [
+            (0, true),
+            (99, true),
+            (100, false),
+            (199, false),
+            (200, true),
+            (250, true),
+        ] {
+            assert_eq!(
+                attachment.active_at(0, time, &[], 0.0),
+                active,
+                "SKA1={ska1}, time={time}"
+            );
+            assert!(
+                attachment.active_at(1, time, &[], 0.0),
+                "always-active sequence switch"
+            );
+        }
+        attachment.activation.global_sequence = 0;
+        assert!(
+            !attachment.active_at(1, 0, &[300], 100.0),
+            "global ignores local sequence/time"
+        );
+        assert!(
+            attachment.active_at(1, 100, &[300], 300.0),
+            "global wraps to active0"
+        );
+        attachment.activation.global_sequence = -1;
+        attachment.activation.sequences.clear();
+        assert!(
+            attachment.active_at(0, 100, &[], 0.0),
+            "missing track starts active1"
+        );
+    }
+}
+
+#[test]
+fn a7_authentic_solar_spell_and_soul_aegis_disable_attached_children() {
+    let models = std::path::Path::new(env!("CARGO_MANIFEST_DIR")).join("../../data/models");
+    for (fdid, sequence) in [(1081566, 2), (971117, 1)] {
+        let bytes = std::fs::read(models.join(format!("{fdid}.m2"))).unwrap();
+        let attachments = parse_attachments(find_md20(&bytes).unwrap()).unwrap();
+        assert!(attachments[0].active_at(0, 0, &[], 0.0));
+        assert!(!attachments[0].active_at(sequence, 0, &[], 0.0));
+        assert_eq!(attachments[0].activation.sequences[sequence].1, [0]);
+    }
+}
+
+#[test]
 fn parse_humanmale_hd_attachments() {
     let path = std::path::Path::new("data/models/humanmale_hd.m2");
     let data = std::fs::read(require_asset(path)).unwrap();

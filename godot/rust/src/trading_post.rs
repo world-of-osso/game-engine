@@ -6,6 +6,7 @@ use crate::{
     ui::RegistryUi,
     world_models::UnitAppearance,
 };
+use game_engine_core::ui_sound_kits::{TRADING_POST_UI_MENU_CLOSE, TRADING_POST_UI_MENU_OPEN};
 use game_engine_session::SessionScreen;
 use game_engine_ui_model::trading_post::{Action, FilterSubmenu, HEIGHT, MODEL, View, WIDTH};
 use godot::classes::CanvasLayer;
@@ -31,6 +32,7 @@ struct ProductDrag {
 pub(crate) struct TradingPost {
     pub view: View,
     ui: Option<Gd<RegistryUi>>,
+    menu_was_shown: bool,
     scene: Option<Scene>,
     pending: Option<(u64, UnitAppearance)>,
     shown: Option<UnitAppearance>,
@@ -131,6 +133,7 @@ impl GameClient {
     pub(super) fn update_trading_post(&mut self) -> Result<(), FrameError> {
         if self.account.session.screen != SessionScreen::InWorld {
             self.close_trading_post();
+            self.play_trading_post_menu_sound()?;
             return Ok(());
         }
         // The vendor waits for a whole catalog; a Log balance alone has no rows.
@@ -150,6 +153,7 @@ impl GameClient {
             }
         }
         if !self.trading_post.view.visible {
+            self.play_trading_post_menu_sound()?;
             return Ok(());
         }
         if let Some(observed_at) = self.trading_post.snapshot_observed_at {
@@ -173,8 +177,24 @@ impl GameClient {
                 self.record_trading_preview(preview);
             }
         }
+        self.play_trading_post_menu_sound()?;
         Ok(())
     }
+
+    /// Retail PerksProgram.OnShow/OnHide; a request alone is not a shown menu.
+    fn play_trading_post_menu_sound(&mut self) -> Result<(), String> {
+        let shown = self.trading_post.ui.is_some();
+        if self.trading_post.menu_was_shown == shown {
+            return Ok(());
+        }
+        self.trading_post.menu_was_shown = shown;
+        self.play_ui_sound_kit(if shown {
+            TRADING_POST_UI_MENU_OPEN
+        } else {
+            TRADING_POST_UI_MENU_CLOSE
+        })
+    }
+
     /// A failed preview must not leave the previous selection's model on screen; the
     /// next successful one restores the server's own error text.
     fn record_trading_preview(&mut self, preview: Result<(), String>) {

@@ -94,6 +94,7 @@ pub mod liquid_data;
 pub mod loading_readiness;
 pub mod m2;
 pub mod m2_billboard;
+pub mod m2_inheritance;
 pub mod m2_lights;
 pub mod m2_material;
 pub mod m2_particles;
