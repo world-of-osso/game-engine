@@ -35,6 +35,11 @@ pub fn reset_changed_scrolls(
     for list in lists {
         registry.scroll_lists.scroll_to(list, 0);
     }
+    if previous.search != next.search || previous.search_mode != next.search_mode {
+        registry
+            .scroll_lists
+            .scroll_to("EncounterJournalSearchList", 0);
+    }
 }
 
 pub fn apply_postsetup(view: &View, registry: &mut ui_toolkit::registry::FrameRegistry) {

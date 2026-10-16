@@ -1404,7 +1404,10 @@ fn connect_edit_box(pending: &PendingInputs, frame: &Frame, node: &mut Gd<Contro
                     edit.release_focus();
                 }),
             );
-            if frame.name.as_deref() == Some("TalentSearchBox") {
+            if matches!(
+                frame.name.as_deref(),
+                Some("TalentSearchBox" | "EncounterJournalSearchBox")
+            ) {
                 let keys = search_preview_keys(pending.clone(), node.clone());
                 node.connect("gui_input", &keys);
             }

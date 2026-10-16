@@ -72,6 +72,9 @@ pub struct View {
     pub slot: u32,
     pub filter_menu: Option<LootFilter>,
     pub search: String,
+    pub search_mode: crate::adventure_search::SearchMode,
+    pub search_selected: usize,
+    pub search_section: Option<u32>,
     pub collapsed: BTreeSet<u32>,
     pub lockouts: Vec<(u32, String)>,
     pub saved_instances: Vec<shared::protocol::InstanceLockInfo>,
@@ -111,6 +114,9 @@ impl Default for View {
             slot: 0,
             filter_menu: None,
             search: String::new(),
+            search_mode: Default::default(),
+            search_selected: 0,
+            search_section: None,
             collapsed: BTreeSet::new(),
             lockouts: Vec::new(),
             saved_instances: Vec::new(),
@@ -411,7 +417,7 @@ impl View {
         let previous_page = self.page;
         self.page = Page::Overview;
         self.visible = true;
-        self.search.clear();
+        self.clear_search();
         self.tier_open = false;
         self.difficulty_open = false;
         self.filter_menu = None;
@@ -588,14 +594,17 @@ impl View {
                 .map_err(|_| "Invalid journal ID")
         };
         match key {
-            "close" => self.visible = false,
+            "close" => {
+                self.visible = false;
+                self.clear_search();
+            }
             "back" => {
                 if self.tab == Tab::Journeys {
                     self.journeys.selected = None;
                 }
                 self.instance = None;
                 self.encounter = None;
-                self.search.clear();
+                self.clear_search();
             }
             "tab" => {
                 self.tab = match value {
@@ -616,7 +625,7 @@ impl View {
                 self.encounter = None;
                 self.filter_menu = None;
                 self.class_menu_open = false;
-                self.search.clear();
+                self.clear_search();
                 self.activity_filters.expanded.clear();
             }
             "activity-tag" => {
@@ -636,7 +645,28 @@ impl View {
             }
             "nav-overflow" => self.nav_overflow_open = !self.nav_overflow_open,
             "class-menu" => self.class_menu_open = !self.class_menu_open,
-            "search-clear" => self.search.clear(),
+            "search-clear" => self.clear_search(),
+            "search-focus" => {
+                self.search_mode = crate::adventure_search::SearchMode::Preview;
+                self.search_selected = 0;
+            }
+            "search-blur" => {
+                if self.search_mode == crate::adventure_search::SearchMode::Preview {
+                    self.search_mode = crate::adventure_search::SearchMode::Hidden;
+                }
+            }
+            "search-close" => self.search_mode = crate::adventure_search::SearchMode::Hidden,
+            "search-full" => self.show_full_search(),
+            "search-move" => {
+                let step = value
+                    .ok_or("Missing search step")?
+                    .parse::<isize>()
+                    .map_err(|_| "Invalid search step")?;
+                self.move_search_preview(step);
+            }
+            "search-hover" => self.search_selected = number()? as usize,
+            "search-submit" => self.submit_search()?,
+            "search-select" => self.select_search(number()? as usize)?,
             "tier-menu" => self.tier_open = !self.tier_open,
             "tier" => {
                 self.tier_open = false;
@@ -657,11 +687,11 @@ impl View {
                         *difficulties.first().ok_or("Instance has no difficulties")?;
                 }
                 self.validate_selected_page();
-                self.search.clear();
+                self.clear_search();
             }
             "encounter" => {
                 self.select_encounter(number()?)?;
-                self.search.clear();
+                self.clear_search();
             }
             "loot" => {
                 let item = number()?;
@@ -843,10 +873,9 @@ pub fn adventure_guide_screen(ctx: &SharedContext) -> Element {
     });
     if !view.loading
         && matches!(view.tab, Tab::Dungeons | Tab::Raids | Tab::ItemSets)
-        && view.search.chars().count() >= 3
-        && (view.tab == Tab::ItemSets || view.page != Page::Loot)
+        && view.search.len() >= 3
     {
-        body.extend(search_results(ctx, view));
+        body.extend(crate::adventure_search::search_results(ctx, view));
     }
     let left = (view.viewport[0] - 800.) / 2.;
     let top = (view.viewport[1] - 496.) / 2.;
@@ -1313,58 +1342,6 @@ pub(crate) fn loot_filter_entries(view: &View, menu: LootFilter) -> Vec<(u32, St
         }
     }
 }
-fn search_results(ctx: &SharedContext, view: &View) -> Element {
-    let search = view.search.to_lowercase();
-    let instances = view
-        .catalog
-        .instances
-        .iter()
-        .filter(|i| i.name.to_lowercase().contains(&search))
-        .map(|i| (i.name.clone(), format!("journal:instance:{}", i.id)));
-    let encounters = view
-        .catalog
-        .encounters
-        .iter()
-        .filter(|e| e.name.to_lowercase().contains(&search))
-        .map(|e| (e.name.clone(), format!("journal:encounter:{}", e.id)));
-    let sections = view
-        .catalog
-        .sections
-        .values()
-        .filter(|s| s.title.to_lowercase().contains(&search))
-        .map(|s| {
-            (
-                s.title.clone(),
-                format!("journal:encounter:{}", s.encounter),
-            )
-        });
-    let matches: Vec<_> = instances.chain(encounters).chain(sections).collect();
-    let rows: Element = matches
-        .iter()
-        .enumerate()
-        .map(|(index, (title, action))| {
-            crate::selection_list::text_row(
-                format!("JournalSearchResult{index}"),
-                title,
-                action,
-                (true, false),
-                (0., index as f32 * 26., 546., 24.),
-                &crate::selection_list::SEARCH,
-            )
-        })
-        .flatten()
-        .collect();
-    let content_height = (matches.len() as f32 * 26.).max(330.);
-    let list = scroll_in(
-        ctx,
-        rows,
-        (0., 0., 564., 330.),
-        content_height,
-        "EncounterJournalSearchList",
-    );
-    rsx! {r#frame {name:"EncounterJournalSearchResults",left:210.0,top:62.0,width:568.0,height:334.0,pos_type:"absolute",mouse_enabled:true,frame_level:25.0,background_color:"0.08,0.07,0.06,1.0",{list}}}
-}
-
 pub(crate) fn scroll(
     ctx: &SharedContext,
     children: Element,
@@ -1385,6 +1362,9 @@ pub(crate) fn scroll_in(
     let (bar_left, bar_top, bar_height, child_width) = if list == "EncounterJournalJourneysList" {
         // JourneysFrameTemplate: ScrollBar LEFT list.RIGHT-20, TOP/BOTTOM10.
         (left + width - 20., top + 10., height - 20., width)
+    } else if list == "EncounterJournalSearchList" {
+        // BottomPopupScrollBoxTemplate: bar LEFT ScrollBox.RIGHT+5, inset5.
+        (left + width + 5., top + 5., height - 10., width)
     } else if list == "EncounterJournalBosses" {
         (left + width + 5., top + 5., height - 10., width)
     } else if list == LIST && width == 521. {
