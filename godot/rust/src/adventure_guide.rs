@@ -454,10 +454,6 @@ impl GameClient {
             if action.is_empty() {
                 break;
             }
-            let filters = (
-                self.adventure_guide.view.class,
-                self.adventure_guide.view.spec,
-            );
             if self.send_journey_watch(&action)? {
                 continue;
             }
@@ -466,12 +462,6 @@ impl GameClient {
             self.adventure_guide.view.apply(&action)?;
             if previous_filters.tag != self.adventure_guide.view.activity_filters.tag
                 || previous_tab != self.adventure_guide.view.tab
-            {
-                ui.bind_mut().reset_journal_set_scroll();
-            }
-            let view = &self.adventure_guide.view;
-            if view.tab == game_engine_ui_model::adventure_guide::Tab::ItemSets
-                && filters != (view.class, view.spec)
             {
                 ui.bind_mut().reset_journal_set_scroll();
             }
@@ -679,8 +669,9 @@ impl GameClient {
         );
         state.set("difficulty", view.difficulty);
         state.set("role", view.role);
-        state.set("class", view.class);
-        state.set("spec", view.spec);
+        let (class, spec) = view.class_spec_filters();
+        state.set("class", class);
+        state.set("spec", spec);
         state.set("slot", view.slot);
         state.set("loot_count", view.loot().len() as i64);
         state.set("owned_keys_only", view.owned_keys_only);

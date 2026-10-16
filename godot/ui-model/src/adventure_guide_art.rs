@@ -26,7 +26,7 @@ pub fn reset_changed_scrolls(
     } else if previous.encounter != next.encounter
         || previous.page != next.page
         || previous.tab != next.tab
-        || (next.tab == Tab::ItemSets && (previous.class, previous.spec) != (next.class, next.spec))
+        || (next.tab == Tab::ItemSets && previous.set_filters != next.set_filters)
     {
         &[crate::adventure_guide::LIST]
     } else {

@@ -153,14 +153,12 @@ fn has_world_difficulty(view: &View, instance: u32) -> bool {
 }
 
 fn class_id(view: &View) -> u32 {
-    if view.class != 0 {
-        return view.class;
+    let (class, _) = view.class_spec_filters();
+    if class != 0 {
+        class
+    } else {
+        view.player_class()
     }
-    view.catalog
-        .specs
-        .iter()
-        .find(|s| Some(s.id) == view.player_spec)
-        .map_or(0, |s| s.class)
 }
 pub fn loot_menu(view: &View, filter: LootFilter) -> Element {
     if filter == LootFilter::Slot {
@@ -199,7 +197,7 @@ fn filter_entries(view: &View, filter: LootFilter) -> Vec<Entry> {
     let (key, selected) = if filter == LootFilter::Slot {
         ("Slot", view.slot)
     } else {
-        ("Class", view.class)
+        ("Class", view.class_spec_filters().0)
     };
     loot_filter_entries(view, filter)
         .into_iter()
@@ -215,6 +213,7 @@ fn filter_entries(view: &View, filter: LootFilter) -> Vec<Entry> {
 }
 fn class_spec_entries(view: &View) -> Vec<Entry> {
     let id = class_id(view);
+    let (class_filter, spec_filter) = view.class_spec_filters();
     let mut entries = vec![(
         "JournalClassMenu".into(),
         text("CLASS").into(),
@@ -239,7 +238,7 @@ fn class_spec_entries(view: &View) -> Vec<Entry> {
                     format!("JournalSpec{}", spec.id),
                     spec.name.clone(),
                     format!("journal:spec:{}", spec.id),
-                    view.spec == spec.id,
+                    spec_filter == spec.id,
                 )
             }),
     );
@@ -248,7 +247,7 @@ fn class_spec_entries(view: &View) -> Vec<Entry> {
             "JournalAllSpecs".into(),
             text("ALL_SPECS").into(),
             format!("journal:class:{id}"),
-            view.class == id && view.spec == 0,
+            class_filter == id && spec_filter == 0,
         ));
     }
     entries
