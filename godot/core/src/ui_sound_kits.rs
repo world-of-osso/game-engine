@@ -20,6 +20,9 @@ pub const UI_COUNTDOWN_FINISHED: u32 = 158566;
 pub const UI_COUNTDOWN_BAR_STATE_STARTS: u32 = 158958;
 pub const UI_COUNTDOWN_BAR_STATE_FINISHED: u32 = 158959;
 pub const UI_COUNTDOWN_MEDIUM_NUMBER_FINISHED: u32 = 158960;
+/// Retail PerksProgram.OnShow/OnHide, active70391 SoundKitConstants.lua.
+pub const TRADING_POST_UI_MENU_OPEN: u32 = 218932;
+pub const TRADING_POST_UI_MENU_CLOSE: u32 = 218933;
 
 #[derive(Clone, Copy, Debug, PartialEq)]
 pub struct UiSoundKit {
@@ -29,7 +32,22 @@ pub struct UiSoundKit {
     pub files: &'static [u32],
 }
 
-const KITS: [UiSoundKit; 11] = [
+const KITS: [UiSoundKit; 13] = [
+    UiSoundKit {
+        id: TRADING_POST_UI_MENU_OPEN,
+        volume: 0.562_341_33,
+        files: &[4956048, 4956050, 4956052, 4956054, 4956056],
+    },
+    // Lifecycle/files/gain only. Kit218933 pitch adjustment/variation remains a
+    // named audio-engine gap; this existing player deliberately has no pitch path.
+    UiSoundKit {
+        id: TRADING_POST_UI_MENU_CLOSE,
+        volume: 0.01,
+        files: &[
+            4555731, 4555733, 4555735, 4555737, 4555739, 4555741, 4555743, 4555745, 4555747,
+            4555749,
+        ],
+    },
     UiSoundKit {
         id: RAID_BOSS_EMOTE_WARNING,
         volume: 0.398_107_17,
