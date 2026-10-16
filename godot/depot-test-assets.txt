@@ -4807,6 +4807,7 @@ db2/active/GuildColorBackground.csv
 db2/active/GuildColorBorder.csv
 db2/active/GuildColorEmblem.csv
 db2/active/GuildEmblem.csv
+db2/active/GuildPerkSpells.csv
 db2/active/GuildTabardBackground.csv
 db2/active/GuildTabardBorder.csv
 db2/active/GuildTabardEmblem.csv

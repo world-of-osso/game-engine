@@ -112,6 +112,12 @@ pub enum ChatSpan {
     /// A spell hyperlink shown as the bare spell name (`TEXT_MODE_A_STRING_SPELL`, no
     /// braces: `spellBraces = false`); the name is resolved when the line is laid out.
     SpellLink { id: u32, color: [f32; 4] },
+    /// Received spell hyperlink retains its authored label/brackets, unlike combat text.
+    SpellChatLink {
+        id: u32,
+        display: String,
+        color: [f32; 4],
+    },
     /// Achievement chat label; its ID opens authoritative own-character state, never comparison.
     AchievementLink { id: u32, display: String },
     /// Authored received item label and optional inline colour; input/tooltip behaviour is separate.
@@ -151,9 +157,9 @@ impl ChatLine {
             .map(|span| match span {
                 ChatSpan::Text(value) | ChatSpan::Colored(_, value) => value.clone(),
                 ChatSpan::SpellLink { id, .. } => spell_name(*id),
-                ChatSpan::AchievementLink { display, .. } | ChatSpan::ItemLink { display, .. } => {
-                    display.clone()
-                }
+                ChatSpan::AchievementLink { display, .. }
+                | ChatSpan::ItemLink { display, .. }
+                | ChatSpan::SpellChatLink { display, .. } => display.clone(),
             })
             .collect()
     }
@@ -465,46 +471,70 @@ pub fn chat_message_line(msg: &ChatMessage) -> ChatLine {
     }
 }
 
-fn parse_received_chat_links(value: &str) -> Vec<ChatSpan> {
+// TrinityCore a352b1fa SharedDefines.h6571 CHAT_LINK_COLOR_SPELL.
+const SPELL_CHAT_LINK_COLOR: [f32; 4] = [113.0 / 255.0, 213.0 / 255.0, 1.0, 1.0];
+
+pub(crate) fn parse_received_chat_links(value: &str) -> Vec<ChatSpan> {
     parse_achievement_links(value)
         .into_iter()
         .flat_map(|span| match span {
             ChatSpan::Text(value) => parse_item_links(&value),
             other => vec![other],
         })
+        .flat_map(|span| match span {
+            ChatSpan::Text(value) => parse_spell_links(&value),
+            other => vec![other],
+        })
         .collect()
 }
 
 fn parse_item_links(value: &str) -> Vec<ChatSpan> {
-    const PREFIX: &str = "|Hitem:";
+    parse_labeled_links(value, "|Hitem:", |id, display, color| ChatSpan::ItemLink {
+        id,
+        display,
+        color,
+    })
+}
+
+fn parse_spell_links(value: &str) -> Vec<ChatSpan> {
+    parse_labeled_links(value, "|Hspell:", |id, display, color| {
+        ChatSpan::SpellChatLink {
+            id,
+            display,
+            color: color.unwrap_or(SPELL_CHAT_LINK_COLOR),
+        }
+    })
+}
+
+fn parse_labeled_links(
+    value: &str,
+    marker: &str,
+    make_link: fn(u32, String, Option<[f32; 4]>) -> ChatSpan,
+) -> Vec<ChatSpan> {
     let mut spans = Vec::new();
     let mut remaining = value;
-    while let Some(start) = remaining.find(PREFIX) {
-        let Some((id, label, tail)) = split_item_link(&remaining[start + PREFIX.len()..]) else {
+    while let Some(start) = remaining.find(marker) {
+        let Some((id, label, tail)) = split_subject_link(&remaining[start + marker.len()..]) else {
             break;
         };
-        let (prefix, outer_color) = strip_item_prefix_colour(&remaining[..start]);
-        let (display, inner_color) = strip_item_label_colour(label);
+        let (prefix, outer_color) = strip_link_prefix_colour(&remaining[..start]);
+        let (display, inner_color) = strip_link_label_colour(label);
         spans.push(text(prefix));
-        spans.push(ChatSpan::ItemLink {
-            id,
-            display: display.into(),
-            color: inner_color.or(outer_color),
-        });
+        spans.push(make_link(id, display.into(), inner_color.or(outer_color)));
         remaining = tail.strip_prefix("|r").unwrap_or(tail);
     }
     spans.push(text(remaining));
     spans
 }
 
-fn split_item_link(value: &str) -> Option<(u32, &str, &str)> {
+fn split_subject_link(value: &str) -> Option<(u32, &str, &str)> {
     let (payload, label) = value.split_once("|h")?;
     let id: u32 = payload.split(':').next()?.parse().ok()?;
     let (display, tail) = label.split_once("|h")?;
     (id != 0 && !display.is_empty()).then_some((id, display, tail))
 }
 
-fn item_argb_colour(code: &str) -> Option<[f32; 4]> {
+fn link_argb_colour(code: &str) -> Option<[f32; 4]> {
     let hex = code.strip_prefix("|c")?;
     if hex.len() != 8 {
         return None;
@@ -513,9 +543,9 @@ fn item_argb_colour(code: &str) -> Option<[f32; 4]> {
     Some([red, green, blue, alpha].map(|channel| f32::from(channel) / 255.0))
 }
 
-fn strip_item_prefix_colour(prefix: &str) -> (&str, Option<[f32; 4]>) {
+fn strip_link_prefix_colour(prefix: &str) -> (&str, Option<[f32; 4]>) {
     let start = prefix.len().saturating_sub(10);
-    let color = prefix.get(start..).and_then(item_argb_colour);
+    let color = prefix.get(start..).and_then(link_argb_colour);
     if color.is_some() {
         (&prefix[..start], color)
     } else {
@@ -523,8 +553,8 @@ fn strip_item_prefix_colour(prefix: &str) -> (&str, Option<[f32; 4]>) {
     }
 }
 
-fn strip_item_label_colour(label: &str) -> (&str, Option<[f32; 4]>) {
-    let color = label.get(..10).and_then(item_argb_colour);
+fn strip_link_label_colour(label: &str) -> (&str, Option<[f32; 4]>) {
+    let color = label.get(..10).and_then(link_argb_colour);
     if color.is_some() {
         let display = &label[10..];
         (display.strip_suffix("|r").unwrap_or(display), color)
@@ -538,7 +568,7 @@ pub(crate) fn parse_achievement_links(value: &str) -> Vec<ChatSpan> {
     let mut spans = Vec::new();
     let mut remaining = value;
     while let Some(start) = remaining.find(PREFIX) {
-        let Some((id, display, tail)) = split_achievement_link(&remaining[start + PREFIX.len()..])
+        let Some((id, display, tail)) = split_subject_link(&remaining[start + PREFIX.len()..])
         else {
             break;
         };
@@ -552,13 +582,6 @@ pub(crate) fn parse_achievement_links(value: &str) -> Vec<ChatSpan> {
     }
     spans.push(text(remaining));
     spans
-}
-
-fn split_achievement_link(value: &str) -> Option<(u32, &str, &str)> {
-    let (payload, label) = value.split_once("|h")?;
-    let id: u32 = payload.split(':').next()?.parse().ok()?;
-    let (display, tail) = label.split_once("|h")?;
-    (id != 0 && !display.is_empty()).then_some((id, display, tail))
 }
 
 /// What a submitted chat edit box line does.
@@ -1042,6 +1065,9 @@ fn line_tokens(
         match span {
             ChatSpan::SpellLink { id, color } => {
                 tokens.push((spell_name(*id), *color, Some(*id), None))
+            }
+            ChatSpan::SpellChatLink { id, display, color } => {
+                tokens.push((display.clone(), *color, Some(*id), None))
             }
             ChatSpan::AchievementLink { id, display } => {
                 tokens.push((display.clone(), [1.0, 1.0, 0.0, 1.0], None, Some(*id)))

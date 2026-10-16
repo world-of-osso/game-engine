@@ -12,9 +12,10 @@ use ui_toolkit::widgets::font_string::GameFont;
 use crate::hud_layout::{FOREVER_TRACKER_SCALE, HudAnchor, hud_layout};
 use crate::quest_runtime::QuestRuntime;
 use crate::ui::screens::quest_art::{
-    DynName, POI_NUMBER, POI_TURN_IN, TRACKER_CHECK, TRACKER_COLLAPSE_ALL, TRACKER_EXPAND_ALL,
-    TRACKER_PRIMARY_HEADER, TRACKER_SECONDARY_COLLAPSE, TRACKER_SECONDARY_EXPAND,
-    TRACKER_SECONDARY_HEADER, atlas_texture, line_height, wrapped_text_height,
+    DynName, POI_NUMBER, POI_TURN_IN, POI_WORLD_QUEST, TRACKER_CHECK, TRACKER_COLLAPSE_ALL,
+    TRACKER_EXPAND_ALL, TRACKER_PRIMARY_HEADER, TRACKER_SECONDARY_COLLAPSE,
+    TRACKER_SECONDARY_EXPAND, TRACKER_SECONDARY_HEADER, atlas_texture, line_height,
+    wrapped_text_height,
 };
 
 pub const TRACKER_FRAME: &str = "ObjectiveTrackerFrame";
@@ -101,7 +102,7 @@ pub struct ObjectiveTrackerState {
     pub quests: Vec<TrackedQuest>,
     pub dungeon: Option<DungeonBlock>,
     pub scenario: Option<ScenarioStage>,
-    pub world_quests: Vec<(TrackedQuest, (u32, u32))>,
+    pub world_quests: Vec<(TrackedQuest, Option<(u32, u32)>)>,
 }
 
 impl ObjectiveTrackerState {
@@ -125,7 +126,9 @@ impl ObjectiveTrackerState {
                     text: "Quest completion failed.".into(),
                     style: ObjectiveLineStyle::InProgress,
                 }];
-            } else if let Some(end) = entry.expires_at {
+            } else if let Some(end) = entry.expires_at
+                && !runtime.is_world_quest(entry.quest_id)
+            {
                 let remaining = (end - now).max(0);
                 block.lines.insert(
                     0,
@@ -143,31 +146,7 @@ impl ObjectiveTrackerState {
         state.quests = ordinary;
         state.world_quests = world
             .into_iter()
-            .map(|block| {
-                let entry = runtime
-                    .entry(block.quest_id)
-                    .expect("tracked world quest entry");
-                let (current, total) = match entry.objectives.iter().find(|objective| {
-                    objective.kind == shared::protocol::QuestObjectiveKind::ProgressBar
-                }) {
-                    Some(bar) => (bar.current, bar.required),
-                    None => (
-                        entry
-                            .objectives
-                            .iter()
-                            .filter(|objective| !objective.optional)
-                            .map(|objective| objective.current)
-                            .sum(),
-                        entry
-                            .objectives
-                            .iter()
-                            .filter(|objective| !objective.optional)
-                            .map(|objective| objective.required)
-                            .sum(),
-                    ),
-                };
-                (block, (current, total))
-            })
+            .map(|block| world_quest_block(block, runtime, now))
             .collect();
         state
     }
@@ -187,6 +166,61 @@ impl ObjectiveTrackerState {
             world_quests: Vec::new(),
         }
     }
+}
+
+/// Only an authored progressbar objective creates a bar; counted objectives remain text.
+fn world_quest_block(
+    mut block: TrackedQuest,
+    runtime: &QuestRuntime,
+    now: i64,
+) -> (TrackedQuest, Option<(u32, u32)>) {
+    let entry = runtime
+        .entry(block.quest_id)
+        .expect("tracked world quest entry");
+    let progress = entry
+        .objectives
+        .iter()
+        .find(|objective| {
+            objective.kind == shared::protocol::QuestObjectiveKind::ProgressBar
+                && !objective.completed
+        })
+        .map(|bar| (bar.current, bar.required));
+    block.lines = entry
+        .objectives
+        .iter()
+        .filter(|objective| !objective.text.is_empty())
+        .map(world_quest_objective_line)
+        .collect();
+    if let Some(end) = entry.expires_at {
+        let remaining = end - now;
+        if (1..crate::world_quest_ui::TIME_CRITICAL_SECONDS).contains(&remaining) {
+            block.lines.push(ObjectiveLine {
+                // 70391 GlobalStrings MINUTES_ABBR / BONUS_OBJECTIVE_TIME_LEFT.
+                text: format!("Time Left: {} Min", (remaining / 60).max(1)),
+                style: ObjectiveLineStyle::CompletionText,
+            });
+        }
+    }
+    (block, progress)
+}
+
+fn world_quest_objective_line(
+    objective: &shared::protocol::QuestObjectiveSnapshot,
+) -> ObjectiveLine {
+    let text = if objective.kind == shared::protocol::QuestObjectiveKind::ProgressBar {
+        objective.text.clone()
+    } else {
+        format!(
+            "{}/{} {}",
+            objective.current, objective.required, objective.text
+        )
+    };
+    let style = if objective.completed {
+        ObjectiveLineStyle::Completed
+    } else {
+        ObjectiveLineStyle::InProgress
+    };
+    ObjectiveLine { text, style }
 }
 
 /// `QuestObjectiveTrackerMixin:UpdateSingle`: a finished quest shows only its
@@ -381,7 +415,7 @@ fn quests_module(state: &ObjectiveTrackerState, height: &mut f32, scale: f32) ->
     }
     let mut y = top + MODULE_HEADER_HEIGHT + FROM_HEADER_OFFSET_Y;
     for (index, quest) in state.quests.iter().enumerate() {
-        elements.extend(quest_block(quest, index + 1, &mut y, scale));
+        elements.extend(quest_block(quest, Some(index + 1), &mut y, scale));
         *height = y;
         y += FROM_BLOCK_OFFSET_Y;
     }
@@ -402,16 +436,19 @@ fn world_quests_module(state: &ObjectiveTrackerState, height: &mut f32, scale: f
         scale,
     ));
     let mut y = top + MODULE_HEADER_HEIGHT + FROM_HEADER_OFFSET_Y;
-    for (index, (quest, progress)) in state.world_quests.iter().enumerate() {
-        elements.extend(quest_block(quest, index + 1, &mut y, scale));
-        y += LINE_SPACING;
-        elements.extend(crate::world_quest_ui::progress_bar(
-            quest.quest_id,
-            *progress,
-            y,
-            scale,
-        ));
-        y += 38. + FROM_BLOCK_OFFSET_Y;
+    for (quest, progress) in &state.world_quests {
+        elements.extend(quest_block(quest, None, &mut y, scale));
+        if let Some(progress) = progress {
+            y += LINE_SPACING;
+            elements.extend(crate::world_quest_ui::progress_bar(
+                quest.quest_id,
+                *progress,
+                y,
+                scale,
+            ));
+            y += 38.;
+        }
+        y += FROM_BLOCK_OFFSET_Y;
     }
     *height = y;
     elements
@@ -684,7 +721,7 @@ fn header_button(
     }
 }
 
-fn quest_block(quest: &TrackedQuest, number: usize, y: &mut f32, scale: f32) -> Element {
+fn quest_block(quest: &TrackedQuest, number: Option<usize>, y: &mut f32, scale: f32) -> Element {
     let block = format!("QuestBlock{}", quest.quest_id);
     let action = format!("{OPEN_QUEST_PREFIX}{}", quest.quest_id);
     let block_top = *y;
@@ -710,7 +747,7 @@ fn quest_block(quest: &TrackedQuest, number: usize, y: &mut f32, scale: f32) -> 
 /// objective plate, or the turn-in icon for a finished quest.
 fn poi_button(
     block: &str,
-    number: usize,
+    number: Option<usize>,
     complete: bool,
     action: &str,
     top: f32,
@@ -729,7 +766,16 @@ fn poi_button(
             scale,
         )
     };
-    let mut elements = if complete {
+    // POIButton.lua retains NormalTexture beneath the unnumbered WorldQuest Display.
+    let mut elements = if number.is_none() {
+        let mut plate = atlas_texture(format!("{block}POIButtonNormal"), &POI_NUMBER, centre(32.0));
+        plate.extend(atlas_texture(
+            format!("{block}POIButtonWorldQuest"),
+            &POI_WORLD_QUEST,
+            centre(32.0),
+        ));
+        plate
+    } else if complete {
         atlas_texture(
             format!("{block}POIButtonTurnIn"),
             &POI_TURN_IN,
@@ -737,7 +783,7 @@ fn poi_button(
         )
     } else {
         let mut plate = atlas_texture(format!("{block}POIButtonNormal"), &POI_NUMBER, centre(32.0));
-        let text = number.to_string();
+        let text = number.expect("numbered ordinary quest").to_string();
         plate.extend(rsx! { fontstring {
             name: {DynName(format!("{block}POIButtonNumber"))},
             text: {text.as_str()}, font: GameFont::FrizQuadrata,

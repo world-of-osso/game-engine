@@ -1484,3 +1484,190 @@ fn trading_post_button_tooltips_keep_disabled_view_cart_but_hide_disabled_clear_
             .is_none()
     );
 }
+
+#[test]
+fn trading_post_cart_tooltip_resolves_regular_and_ensemble_members_in_retail_namespace() {
+    use game_engine_ui_model::game_tooltip::TooltipRecord;
+    let mut data = snapshot();
+    data.items[0].category_id = 8;
+    data.items[0].preview_item_ids = vec![25, 876];
+    let mut regular = data.items[0].clone();
+    regular.id = 5;
+    regular.category_id = 1;
+    regular.item_id = 25;
+    regular.name = "Worn Shortsword".into();
+    regular.quality = 1;
+    regular.preview_item_ids = vec![25];
+    data.items.push(regular);
+    let view = View {
+        visible: true,
+        selected: Some(4),
+        cart: vec![5, 4],
+        cart_visible: true,
+        snapshot: Some(Arc::new(data)),
+        ..Default::default()
+    };
+    for skin in [ActiveSkin::Modern, ActiveSkin::Forever] {
+        set_thread_skin(skin);
+        for (owner, id, title) in [
+            ("PerksProgramCartItem5", 25, "Worn Shortsword"),
+            ("PerksProgramCartSubItem4_876", 876, "Worn Wooden Buckler"),
+        ] {
+            let tooltip = view.cart_item_tooltip(owner, Some(80)).unwrap().unwrap();
+            assert_eq!(tooltip.record, Some(TooltipRecord::Item(id)));
+            assert_eq!(tooltip.content.title, title);
+            assert!(
+                tooltip
+                    .content
+                    .lines
+                    .iter()
+                    .all(|line| line.money.is_none())
+            );
+            assert!(
+                tooltip.content.lines.len() >= 2,
+                "Real catalog item details remain present"
+            );
+        }
+    }
+    assert_eq!(view.cart, vec![5, 4]);
+    assert_eq!(view.selected, Some(4));
+    assert_eq!(view.snapshot.as_ref().unwrap().tender, 500);
+}
+
+#[test]
+fn trading_post_cart_tooltip_rejects_headers_other_vendor_members_and_removed_owners() {
+    let mut data = snapshot();
+    data.items[0].category_id = 8;
+    data.items[0].preview_item_ids = vec![25, 876];
+    let mut view = View {
+        visible: true,
+        selected: Some(4),
+        cart: vec![4],
+        cart_visible: true,
+        snapshot: Some(Arc::new(data)),
+        ..Default::default()
+    };
+    for owner in [
+        "PerksProgramCartSet4",
+        "PerksProgramCartSubItem5_876",
+        "PerksProgramCartSubItem4_12345",
+        "PerksProgramProduct4",
+    ] {
+        assert!(view.cart_item_tooltip(owner, Some(80)).unwrap().is_none());
+    }
+    assert!(
+        view.cart_item_tooltip("PerksProgramCartSubItem4_876", Some(80))
+            .unwrap()
+            .is_some()
+    );
+    view.click("perks:cart:remove:4").unwrap();
+    assert!(
+        view.cart_item_tooltip("PerksProgramCartSubItem4_876", Some(80))
+            .unwrap()
+            .is_none()
+    );
+}
+
+#[test]
+fn trading_post_pending_dialog_purchase_waits_for_reply_and_prunes_only_accepted_cart_item() {
+    let mut data = snapshot();
+    let mut other = data.items[0].clone();
+    other.id = 5;
+    other.item_id = 190000;
+    data.items.push(other);
+    let mut view = View {
+        visible: true,
+        selected: Some(4),
+        cart: vec![4, 5],
+        snapshot: Some(Arc::new(data.clone())),
+        ..Default::default()
+    };
+    view.click("perks:purchase").unwrap();
+    assert_eq!(
+        view.click("perks:confirm").unwrap(),
+        Some(game_engine_ui_model::trading_post::Action::Request(
+            TradingPostRequest::Purchase { vendor_item_id: 4 }
+        ))
+    );
+    assert_eq!(
+        view.confirm.as_deref(),
+        Some("purchase"),
+        "Pending purchase keeps the confirmation owner alive"
+    );
+    assert!(view.pending);
+    assert_eq!(view.cart, vec![5]);
+    assert_eq!(view.snapshot.as_ref().unwrap().tender, 500);
+    assert!(!view.selected_item().unwrap().purchased);
+    assert_eq!(view.click("perks:confirm").unwrap(), None);
+    assert_eq!(view.click("perks:cancel").unwrap(), None);
+    assert_eq!(view.confirm.as_deref(), Some("purchase"));
+    for skin in [ActiveSkin::Modern, ActiveSkin::Forever] {
+        let registry = render(skin, view.clone());
+        assert!(registry.get_by_name("PerksProgramConfirmSpinner").is_some());
+        assert!(
+            registry
+                .get_by_name("PerksProgramConfirmDarkOverlay")
+                .is_some()
+        );
+        for name in [
+            "PerksProgramConfirmButton",
+            "PerksProgramConfirmCancelButton",
+        ] {
+            let frame = registry.get(registry.get_by_name(name).unwrap()).unwrap();
+            let Some(WidgetData::Button(button)) = &frame.widget_data else {
+                panic!("Confirmation button")
+            };
+            assert_eq!(
+                button.state,
+                ui_toolkit::widgets::button::ButtonState::Disabled
+            );
+        }
+    }
+    data.tender = 400;
+    data.items[0].purchased = true;
+    view.receive(Arc::new(data));
+    assert!(!view.pending);
+    assert!(view.confirm.is_none());
+    assert!(view.selected_item().unwrap().purchased);
+    assert_eq!(view.snapshot.as_ref().unwrap().tender, 400);
+    assert_eq!(view.cart, vec![5]);
+}
+
+#[test]
+fn trading_post_pending_dialog_refund_keeps_owner_until_authoritative_reply() {
+    let mut data = snapshot();
+    data.tender = 400;
+    data.items[0].purchased = true;
+    data.items[0].refund_seconds = 3600;
+    let mut view = View {
+        visible: true,
+        selected: Some(4),
+        snapshot: Some(Arc::new(data.clone())),
+        ..Default::default()
+    };
+    view.click("perks:refund").unwrap();
+    assert_eq!(
+        view.click("perks:confirm").unwrap(),
+        Some(game_engine_ui_model::trading_post::Action::Request(
+            TradingPostRequest::Refund { vendor_item_id: 4 }
+        ))
+    );
+    assert_eq!(
+        view.confirm.as_deref(),
+        Some("refund"),
+        "Pending refund keeps the confirmation owner alive"
+    );
+    assert!(view.pending);
+    assert!(view.selected_item().unwrap().purchased);
+    assert_eq!(view.snapshot.as_ref().unwrap().tender, 400);
+    assert_eq!(view.click("perks:cancel").unwrap(), None);
+    assert_eq!(view.click("perks:confirm").unwrap(), None);
+    data.tender = 500;
+    data.items[0].purchased = false;
+    data.items[0].refund_seconds = 0;
+    view.receive(Arc::new(data));
+    assert!(!view.pending);
+    assert!(view.confirm.is_none());
+    assert!(!view.selected_item().unwrap().purchased);
+    assert_eq!(view.snapshot.as_ref().unwrap().tender, 500);
+}

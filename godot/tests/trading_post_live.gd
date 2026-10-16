@@ -9,6 +9,7 @@ var skin := OS.get_environment("TP_SKIN")
 var phase := OS.get_environment("TP_PHASE")
 var server := OS.get_environment("TP_SERVER")
 var menu_audio_events := []
+var paused_private_server := 0
 # Retail70391 SoundKitEntry rows for218932/218933.
 const MENU_OPEN_FILES := [4956048,4956050,4956052,4956054,4956056]
 const MENU_CLOSE_FILES := [4555731,4555733,4555735,4555737,4555739,4555741,4555743,4555745,4555747,4555749]
@@ -23,7 +24,7 @@ func run_fixture() -> void:
 		fail("Private compositor must expose 1920x1080 output")
 		return
 	var account := OS.get_environment("TP_ACCOUNT")
-	if server != "127.0.0.1:5791" or not account.begins_with("fb_") or shots.is_empty() or receipts.is_empty() or not phase in ["confirmations", "button-tooltips", "item-tooltips", "menu-sounds", "layout", "layout-proof", "browse", "relog", "purchase", "refund", "cart", "cart-lifetime", "rotate-controls", "mount-rider", "mount-rider-cancel", "freeze-workflow", "authored-camera", "frozen-slot-before", "frozen-slot-after"]:
+	if server != "127.0.0.1:5791" or not account.begins_with("fb_") or shots.is_empty() or receipts.is_empty() or not phase in ["cart-tooltips", "pending-dialogs", "confirmations", "button-tooltips", "item-tooltips", "menu-sounds", "layout", "layout-proof", "browse", "relog", "purchase", "refund", "cart", "cart-lifetime", "rotate-controls", "mount-rider", "mount-rider-cancel", "freeze-workflow", "authored-camera", "frozen-slot-before", "frozen-slot-after"]:
 		fail("Explicit private 127.0.0.1:5791, fb_* account, phase and evidence paths required")
 		return
 	for directory in [shots, receipts]:
@@ -47,7 +48,7 @@ func run_fixture() -> void:
 	if not await wait_until(func(): return float(client.account_state().local_player_health) > 0.0, "private character alive", 120000): return
 	client.set_world_minutes(720.0)
 	await wait_frames(120)
-	if not phase in ["confirmations", "button-tooltips", "item-tooltips", "menu-sounds", "layout", "layout-proof", "cart", "cart-lifetime", "rotate-controls", "mount-rider", "mount-rider-cancel", "freeze-workflow", "authored-camera", "frozen-slot-before", "frozen-slot-after"] and not await travelers_log(): return
+	if not phase in ["cart-tooltips", "pending-dialogs", "confirmations", "button-tooltips", "item-tooltips", "menu-sounds", "layout", "layout-proof", "cart", "cart-lifetime", "rotate-controls", "mount-rider", "mount-rider-cancel", "freeze-workflow", "authored-camera", "frozen-slot-before", "frozen-slot-after"] and not await travelers_log(): return
 	if phase == "menu-sounds" and not watch_menu_sound_players(): return
 	if not await open_vendor(): return
 	if phase in ["cart", "cart-lifetime"]:
@@ -84,12 +85,112 @@ func run_fixture() -> void:
 		"menu-sounds": await menu_sound_proof()
 		"item-tooltips": await item_tooltip_proof()
 		"confirmations": await confirmation_escape_proof()
+		"pending-dialogs": await pending_dialog_proof()
 
 		"button-tooltips": await button_tooltip_proof()
+		"cart-tooltips": await cart_item_tooltip_proof()
 		"frozen-slot-before": await frozen_slot_geometry_proof(false)
 		"frozen-slot-after": await frozen_slot_geometry_proof(true)
 		"refund": await refund_after_relog()
 		_: await browse()
+
+func pause_private_reply() -> bool:
+	var pid := int(OS.get_environment("TP_SERVER_PID"))
+	if server != "127.0.0.1:5791" or pid <= 1:
+		fail("Pending proof requires host-verified owned private server PID"); return false
+	var output := []
+	if OS.execute("/usr/bin/kill", ["-STOP", str(pid)], output, true) != 0:
+		fail("Cannot pause own private server: " + str(output)); return false
+	paused_private_server = pid
+	return true
+
+func resume_private_reply() -> void:
+	if paused_private_server > 1:
+		var output := []
+		var result := OS.execute("/usr/bin/kill", ["-CONT", str(paused_private_server)], output, true)
+		print("TP_PRIVATE_SERVER_CONT pid=", paused_private_server, " code=", result)
+		paused_private_server = 0
+
+func assert_pending_painted() -> bool:
+	var dialog := control("PerksProgramConfirmDialog")
+	var spinner := control("PerksProgramConfirmSpinner")
+	var overlay := control("PerksProgramConfirmDarkOverlay")
+	var scale := dialog.get_global_rect().size.x / 320.0
+	var expected := dialog.get_global_rect().grow(-11.0 * scale)
+	if not overlay.get_global_rect().is_equal_approx(expected):
+		fail("Pending dark overlay lacks source 11px inset"); return false
+	# Counterfactual image controls, not forged UI state: freeze the host update
+	# briefly so native visibility toggles survive until each actual frame draws.
+	client.set_process(false)
+	var center := dialog.get_global_rect().get_center()
+	var rect := Rect2i(center - Vector2(30, 30) * scale, Vector2(60, 60) * scale)
+	await RenderingServer.frame_post_draw
+	var painted := root.get_texture().get_image().get_region(rect).get_data()
+	spinner.hide()
+	await process_frame
+	await RenderingServer.frame_post_draw
+	var without_spinner := root.get_texture().get_image().get_region(rect).get_data()
+	overlay.hide()
+	await process_frame
+	await RenderingServer.frame_post_draw
+	var without_overlay := root.get_texture().get_image().get_region(rect).get_data()
+	overlay.show()
+	spinner.show()
+	client.set_process(true)
+	if painted == without_spinner:
+		fail("Pending spinner node rotates but paints no pixels above dialog"); return false
+	if without_spinner == without_overlay:
+		fail("Pending dark overlay paints no pixels above dialog"); return false
+	print("TP_PENDING_PAINT spinner_diff=true overlay_diff=true inset=", overlay.get_global_rect())
+	return true
+
+func accepted_dialog_waits(label: String, tender: int, purchased: bool) -> bool:
+	if not await pause_private_reply(): return false
+	await click("PerksProgramConfirmButton")
+	if not await wait_until(func(): return client.trading_post_state().pending, "accepted transaction pending", 3000): return false
+	if control("PerksProgramConfirmDialog") == null:
+		fail("Retail pending " + label + " dialog disappeared before server reply"); return false
+	if control_enabled("PerksProgramConfirmButton") or control_enabled("PerksProgramConfirmCancelButton"):
+		fail("Pending transaction left a dialog button enabled"); return false
+	if not await wait_until(func(): return texture_ready("PerksProgramConfirmSpinnerRing") and texture_ready("PerksProgramConfirmSpinnerSparks"), "real decoded pending spinner", 3000): return false
+	if control("PerksProgramConfirmDarkOverlay") == null:
+		fail("Pending transaction has no source dark overlay"); return false
+	var spinner := control("PerksProgramConfirmSpinner")
+	var initial_rotation := spinner.rotation
+	await wait_frames(3)
+	if is_equal_approx(spinner.rotation, initial_rotation):
+		fail("Pending " + label + " spinner is static despite source rotation"); return false
+	print("TP_PENDING_SPINNER_ROTATION kind=", label, " before=", initial_rotation, " after=", spinner.rotation)
+	if not await assert_pending_painted(): return false
+	await button_event(control("PerksProgramConfirmButton").get_global_rect().get_center(), MOUSE_BUTTON_LEFT, true)
+	await button_event(control("PerksProgramConfirmButton").get_global_rect().get_center(), MOUSE_BUTTON_LEFT, false)
+	await tap(KEY_ESCAPE)
+	var state: Dictionary = client.trading_post_state()
+	if not state.pending or int(state.tender) != tender or bool(state.purchased) != purchased or control("PerksProgramConfirmDialog") == null:
+		fail("Pending input mutated authoritative state or dismissed dialog"); return false
+	if label == "purchase" and int(state.selected) in state.cart:
+		fail("Accepted single purchase did not remove its product from cart"); return false
+	await capture(label + "-pending-before-reply")
+	resume_private_reply()
+	return true
+
+func pending_dialog_proof() -> void:
+	var tender := int(client.trading_post_state().tender)
+	if not await choose_category(1): return
+	if not await select_first_available(tender): return
+	var price := int(client.trading_post_state().price)
+	await click("PerksProgramAddToCartButton")
+	await click("PerksProgramPurchaseButton")
+	if not await accepted_dialog_waits("purchase", tender, false): return
+	if not await wait_until(func(): return not client.trading_post_state().pending and client.trading_post_state().purchased and control("PerksProgramConfirmDialog") == null and int(client.trading_post_state().tender) == tender - price, "purchase reply closes pending dialog", 120000): return
+	await capture("purchase-reply-completed")
+	if int(client.trading_post_state().refund_seconds) <= 0:
+		fail("Pending proof requires existing explicit private refund policy"); return
+	await click("PerksProgramRefundButton")
+	if not await accepted_dialog_waits("refund", tender - price, true): return
+	if not await wait_until(func(): return not client.trading_post_state().pending and not client.trading_post_state().purchased and control("PerksProgramConfirmDialog") == null and int(client.trading_post_state().tender) == tender, "refund reply closes pending dialog", 120000): return
+	await capture("refund-reply-completed")
+	await finish("pending-dialogs")
 
 func preserve_confirmation_on_escape(label: String, item_frame: bool) -> bool:
 	if not await wait_until(func(): return control("PerksProgramConfirmDialog") != null, label + " confirmation"): return false
@@ -148,6 +249,65 @@ func confirmation_escape_proof() -> void:
 	if not await wait_until(func(): return not client.trading_post_state().purchased and not client.trading_post_state().pending and int(client.trading_post_state().tender) == tender, "one confirmed authoritative refund", 120000): return
 	await capture("refunded-tender-restored")
 	await finish("confirmations")
+
+func expect_cart_item_tooltip(owner_name: String, title: String, item_id: int, label: String, before: Dictionary) -> bool:
+	var owner := control(owner_name)
+	if owner == null:
+		fail("Missing real cart tooltip owner " + owner_name); return false
+	print("TP_CART_CURSOR_BEFORE raw=", root.get_mouse_position(), " target=", owner.get_global_rect().get_center())
+	await motion(owner.get_global_rect().get_center(), false)
+	print("TP_CART_CURSOR_AFTER raw=", root.get_mouse_position(), " hovered=", root.gui_get_hovered_control())
+	if not await wait_until(func(): return client.tooltip_state().get("visible", false) and client.tooltip_state().get("title", "") == title, "Retail cart hovered item tooltip", 10000): return false
+	var tooltip: Dictionary = client.tooltip_state()
+	var lines := str(tooltip.get("lines", []))
+	if not lines.contains("Item ID: %d" % item_id) or lines.contains("Sell Price"):
+		fail("Cart tooltip lost hovered item ID or included SellPrice: " + str(tooltip)); return false
+	var rect := owner.get_global_rect()
+	var scale := control("PerksProgramLeaveButton").get_global_rect().size.x / 180.0
+	if absf(float(tooltip.rect[0]) + float(tooltip.rect[2]) - (rect.position.x / scale - 8.0)) > 1.5 or absf(float(tooltip.rect[1]) + float(tooltip.rect[3]) - (rect.position.y / scale + 20.0)) > 1.5:
+		fail("Cart tooltip lacks source left(-8,-20) owner offset: " + str(tooltip)); return false
+	var state: Dictionary = client.trading_post_state()
+	if state.selected != before.selected or state.tender != before.tender or state.cart != before.cart or state.cart_preview_items != before.cart_preview_items:
+		fail("Cart tooltip hover changed selected preview/cart/Tender"); return false
+	await capture(label)
+	return true
+
+func cart_item_tooltip_proof() -> void:
+	var tender := int(client.trading_post_state().tender)
+	if not await choose_category(1): return
+	if not await select_first_available(tender): return
+	var regular: Dictionary = client.trading_post_state().duplicate(true)
+	await click("PerksProgramAddToCartButton")
+	if not await choose_category(8): return
+	if not await select_first_available(tender): return
+	var ensemble: Dictionary = client.trading_post_state().duplicate(true)
+	var members: PackedInt64Array = ensemble.preview_item_ids
+	if members.size() < 2:
+		fail("Cart tooltip proof needs genuine ensemble member identities"); return
+	await click("PerksProgramAddToCartButton")
+	await click("PerksProgramViewCartButton")
+	var regular_name := "PerksProgramCartItem%d" % int(regular.selected)
+	if not await wait_until(func(): return control(regular_name) != null and control("PerksProgramCartSet%d" % int(ensemble.selected)) != null, "real regular and ensemble cart rows"): return
+	var before: Dictionary = client.trading_post_state().duplicate(true)
+	if not await expect_cart_item_tooltip(regular_name, str(regular.selected_name), int(regular.item_id), "regular-item", before): return
+	for index in range(2):
+		var item_id := int(members[index])
+		var owner_name := "PerksProgramCartSubItem%d_%d" % [int(ensemble.selected), item_id]
+		if control(owner_name + "Name") == null:
+			fail("Missing real ensemble member name " + owner_name); return
+		var title: String = control(owner_name + "Name").text
+		if not await expect_cart_item_tooltip(owner_name, title, item_id, "ensemble-member-%d" % index, before): return
+	await motion(control("PerksProgramCartTitle").get_global_rect().get_center(), false)
+	if not await wait_until(func(): return not client.tooltip_state().get("visible", false), "cart row leave clears item tooltip"): return
+	if not await expect_cart_item_tooltip(regular_name, str(regular.selected_name), int(regular.item_id), "regular-before-remove", before): return
+	await click(regular_name + "Remove")
+	if not await wait_until(func(): return control(regular_name) == null and not client.tooltip_state().get("visible", false), "removed cart row clears owned tooltip"): return
+	await capture("removed-owner-hidden")
+	await click("PerksProgramCartCloseButton")
+	if not await wait_until(func(): return control("PerksProgramShoppingCartFrame") == null and not client.tooltip_state().get("visible", false), "cart panel close clears tooltip"): return
+	if int(client.trading_post_state().tender) != tender:
+		fail("Tooltip-only proof changed authoritative Tender"); return
+	await finish("cart-tooltips")
 
 func expect_button_tooltip(owner_name: String, title: String, label: String) -> bool:
 	var owner := control(owner_name)
@@ -1227,7 +1387,10 @@ func motion(point: Vector2, down: bool, relative: Vector2 = Vector2.ZERO) -> voi
 	event.global_position = point
 	event.relative = relative
 	event.button_mask = MOUSE_BUTTON_MASK_LEFT if down else 0
-	root.push_input(event, true)
+	if phase == "cart-tooltips":
+		Input.parse_input_event(event)
+	else:
+		root.push_input(event, true)
 	await process_frame
 
 func button_event(point: Vector2, button: int, down: bool) -> void:
@@ -1270,6 +1433,7 @@ func wait_frames(count: int) -> void:
 	for frame in range(count): await process_frame
 
 func fail(message: String) -> void:
+	resume_private_reply()
 	if client != null and not receipts.is_empty():
 		var file := FileAccess.open(receipts.path_join(skin + "-" + phase + "-failure.json"), FileAccess.WRITE)
 		file.store_string(JSON.stringify({"failure": message, "tooltip": client.tooltip_state(), "trading_post": client.trading_post_state(), "journal": client.adventure_guide_state(), "account": client.account_state()}, "\t"))

@@ -172,6 +172,9 @@ pub struct Account {
     pub combat_log: std::collections::VecDeque<CombatLogEvent>,
     /// Count of `CombatLogEvent`s received this connection.
     pub combat_log_seq: u64,
+    /// Exact owner cast failures, retained independently of transient UI error text.
+    pub cast_failures: std::collections::VecDeque<CastFailed>,
+    pub cast_failure_seq: u64,
     /// The server's newest damage meter sessions.
     pub damage_meter: Option<DamageMeterSnapshot>,
     /// Threat changes awaiting the HUD; drained each frame, not historical sessions.
@@ -257,6 +260,7 @@ pub enum AccountEvent {
     Stable(StableMessage),
     GuildRanks(shared::protocol::GuildRanksState),
     GuildEventLog(shared::protocol::GuildEventLog),
+    GuildNews(shared::protocol::GuildNewsState),
     GuildInvitation(shared::protocol::GuildInvitation),
     GuildInviteResult(shared::protocol::GuildInviteResponse),
     GuildAccepted(shared::protocol::GuildAcceptInviteResponse),
@@ -404,6 +408,8 @@ impl Account {
             talents: Default::default(),
             combat_log: std::collections::VecDeque::new(),
             combat_log_seq: 0,
+            cast_failures: std::collections::VecDeque::new(),
+            cast_failure_seq: 0,
             damage_meter: None,
             threat_updates: Vec::new(),
             xp: None,
@@ -1174,6 +1180,7 @@ impl Account {
             GuildCommand::QueryEventLog => {
                 bridge.send::<_, GuildChannel>(GuildRankRequest::QueryEventLog)
             }
+            GuildCommand::News(request) => bridge.send::<_, GuildChannel>(request),
         }
         .map_err(SessionError)
     }
@@ -2157,6 +2164,10 @@ impl Account {
             output.push(AccountEvent::GuildRanks(decode(message)?));
             return Ok(());
         }
+        if message.is::<shared::protocol::GuildNewsState>() {
+            output.push(AccountEvent::GuildNews(decode(message)?));
+            return Ok(());
+        }
         if message.is::<shared::protocol::GuildEventLog>() {
             output.push(AccountEvent::GuildEventLog(decode(message)?));
             return Ok(());
@@ -2319,7 +2330,13 @@ impl Account {
         } else if message.is::<shared::protocol::SpellCostSnapshot>() {
             spells.apply_costs(decode(message)?);
         } else if message.is::<CastFailed>() {
-            output.push(AccountEvent::CastFailed(decode(message)?));
+            let failed: CastFailed = decode(message)?;
+            if self.cast_failures.len() == COMBAT_LOG_KEEP {
+                self.cast_failures.pop_front();
+            }
+            self.cast_failures.push_back(failed.clone());
+            self.cast_failure_seq += 1;
+            output.push(AccountEvent::CastFailed(failed));
         } else if message.is::<SpellGo>() {
             output.push(AccountEvent::Combat(CombatMessage::SpellGo(decode(
                 message,
@@ -2892,6 +2909,28 @@ mod tests {
             assert!(!window.rows()[0].is_local_player);
         }
         assert!(account.combat_log.is_empty());
+    }
+
+    #[test]
+    fn bot_bm_identical_cast_failures_keep_distinct_owner_receipts() {
+        let mut account = Account::new(PathBuf::new());
+        let mut output = Vec::new();
+        let failed = CastFailed {
+            spell_id: 217200,
+            reason: shared::spell_data::CastFailReason::NoChargesRemain,
+            detail: None,
+        };
+        for _ in 0..2 {
+            account
+                .dispatch_message(ProtocolMessage::for_tests(failed.clone()), &mut output)
+                .unwrap();
+        }
+        assert_eq!(account.cast_failure_seq, 2);
+        assert_eq!(
+            account.cast_failures,
+            std::collections::VecDeque::from([failed.clone(), failed])
+        );
+        assert_eq!(output.len(), 2);
     }
 
     #[test]

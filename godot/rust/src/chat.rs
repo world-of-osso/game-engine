@@ -29,6 +29,10 @@ use crate::replicated::UnitFields;
 use crate::ui::RegistryUi;
 use game_engine_ui_model::group_state::GroupCommand;
 
+#[cfg(debug_assertions)]
+#[path = "guild_perks_preview.rs"]
+mod guild_perks_preview;
+
 /// The root client's line when `/who` has no who state.
 const WHO_UNAVAILABLE_TEXT: &str = "Who is unavailable.";
 
@@ -491,13 +495,34 @@ impl crate::GameClient {
         id: u32,
         name: &str,
     ) -> Result<(), String> {
-        let link = game_engine_ui_model::achievements::achievement_link(id, name);
+        self.insert_chat_subject_link(&game_engine_ui_model::achievements::achievement_link(
+            id, name,
+        ))
+    }
+
+    pub(super) fn insert_guild_news_item_link(&mut self, id: u32) -> Result<(), String> {
+        let name = game_engine_ui_model::item_catalog::item_catalog_entry(id)
+            .ok_or_else(|| format!("Guild news item {id} metadata is not loaded"))?
+            .name
+            .clone();
+        self.insert_chat_subject_link(&format!("|Hitem:{id}|h[{name}]|h"))
+    }
+
+    pub(super) fn insert_guild_perk_chat_link(&mut self, id: u32) -> Result<(), String> {
+        let perk = game_engine_ui_model::guild_perks::load_catalog()?
+            .iter()
+            .find(|perk| perk.spell_id == id)
+            .ok_or_else(|| format!("Spell {id} is not an installed guild perk"))?;
+        self.insert_chat_subject_link(&format!("|Hspell:{id}|h[{}]|h", perk.name))
+    }
+
+    fn insert_chat_subject_link(&mut self, link: &str) -> Result<(), String> {
         if !self.chat.model.state.input_open {
-            return self.open_chat_input(&link);
+            return self.open_chat_input(link);
         }
         let visible = self.chat_editbox_text();
         self.chat.draft.apply_visible_edit(&visible);
-        let ui = self.chat.ui.as_ref().ok_or("Chat frame is not shown")?;
+        let mut ui = self.chat.ui.clone().ok_or("Chat frame is not shown")?;
         let node = ui
             .find_child_ex(CHAT_EDITBOX.0)
             .owned(false)
@@ -518,8 +543,9 @@ impl crate::GameClient {
         let caret = self
             .chat
             .draft
-            .insert_achievement(start as usize, end as usize, id, name);
-        edit.set_text(self.chat.draft.visible());
+            .insert_wire_link(start as usize, end as usize, link)?;
+        ui.bind_mut()
+            .set_editbox_text(CHAT_EDITBOX.0, self.chat.draft.visible())?;
         edit.set_caret_column(caret as i32);
         Ok(())
     }

@@ -562,6 +562,8 @@ impl UiProjection {
                 if frame.onclick.as_deref().is_some_and(|action| {
                     action.starts_with("bank_slot:")
                         || action.starts_with("guild:member:")
+                        || action.starts_with("guild:news_entry:")
+                        || action.starts_with("guild:perk:")
                         || action.starts_with("mount:select:")
                         || action.starts_with("journal:activity:")
                         || action.starts_with("transmog:outfit:")

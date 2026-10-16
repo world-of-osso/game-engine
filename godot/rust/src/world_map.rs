@@ -342,17 +342,13 @@ impl GameClient {
             let layout =
                 WorldMapLayout::new(state.viewport, self.world_map.display.maximized, true);
             let [_, _, w, h] = layout.canvas_rect();
-            let hovered = state.pins.iter().find(|pin| {
-                pin.pin_type == MapPinType::WorldQuest
-                    && ((pin.x - uv[0]) * w).abs() < 16.
-                    && ((pin.y - uv[1]) * h).abs() < 16.
-            });
-            if let Some(quest) = hovered.and_then(|pin| {
+            let hovered = game_engine_ui_model::world_quest_ui::pin_at(&state.pins, uv, [w, h]);
+            if let Some(quest) = hovered.and_then(|id| {
                 self.account
                     .quests
                     .world_quests
                     .iter()
-                    .find(|quest| Some(quest.quest_id) == pin.quest_id)
+                    .find(|quest| quest.quest_id == id)
             }) {
                 let position = [
                     (uv[0] * w + 18.).min((w - 300.).max(0.)),
@@ -365,7 +361,7 @@ impl GameClient {
                 ));
             }
         }
-        state.highlighted_quest = self.quests.ui.highlighted;
+        state.highlighted_quest = self.quests.ui.highlighted.or(self.quests.ui.super_tracked);
         state
             .pins
             .extend(self.world_map_quest_offer_pins(&data.catalog, state.map_id));
@@ -527,6 +523,7 @@ impl GameClient {
     }
 
     fn open_world_map(&mut self) -> Result<(), String> {
+        self.load_and_apply_quest_pois()?;
         self.load_world_map_data()?;
         let player = self.world_map_player();
         let data = self.world_map.data().ok_or("World map data not loaded")?;
@@ -840,9 +837,24 @@ impl GameClient {
             return false;
         }
         if let Some(uv) = uv {
-            self.navigate_world_map(button.get_button_index(), uv);
+            if button.get_button_index() == MouseButton::LEFT
+                && let Some(id) = self.world_quest_pin_at(uv, layout)
+            {
+                let prefix = game_engine_ui_model::world_quest_ui::SELECT_PREFIX;
+                if let Err(error) = self.apply_quest_action(&format!("{prefix}{id}")) {
+                    godot_error!("World quest selection: {error}");
+                }
+            } else {
+                self.navigate_world_map(button.get_button_index(), uv);
+            }
         }
         true
+    }
+
+    fn world_quest_pin_at(&self, uv: [f32; 2], layout: &WorldMapLayout) -> Option<u32> {
+        let state = self.world_map_view()?;
+        let [_, _, width, height] = layout.canvas_rect();
+        game_engine_ui_model::world_quest_ui::pin_at(&state.pins, uv, [width, height])
     }
 
     fn world_map_title_buttons(&self, scale: f32) -> Vec<[f32; 4]> {
