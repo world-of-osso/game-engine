@@ -76,6 +76,9 @@ func native_display(expected: int) -> bool:
 	return false
 
 func capture(label: String) -> void:
+	await capture_native_frame(label)
+
+func capture_native_frame(label: String) -> void:
 	await create_timer(1.0).timeout
 	await RenderingServer.frame_post_draw
 	var image := root.get_texture().get_image()

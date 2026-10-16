@@ -5,6 +5,16 @@
 ## 2026-10-15 — Housing Expert sound event scheduling
 
 [Expert source kits](systems/housing.md#expert-submode-sound-scheduling--implementation2026-10-15): native missing-release-kit RED/core missing-lookup RED→four kit tests and both-skin actual pointer/assigned-key/stream/mute proof. Generic precision press cue removed; changed shortcut path retains both-skin held manipulation and paid conservation. Modern old-checkbox selector failure retained separately; only unfinished mute resumed. Dummy driver excludes physical audibility/full audio parity; two inspected functional1280 held-input captures published.
+## 2026-10-15 — Trading Post menu lifecycle sound implementation
+
+[Menu sounds](systems/trading-post.md#menu-lifecycle-sounds--bounded-proof-october15): core2 missing-kit and actual native missing-call RED→GREEN. Both skins at67b1a92eb/231c68dc/4930acb observe eight real decoded playback/finished events, source gain ratio, no replay during idle/closed updates, Leave/reopen/Escape. Eight inspected full-HD PNGs+two contacts published;15 local70391 Vorbis variants authenticated. Canonical publication15/15 hash-verified, original slot sound link restored and owned overlay removed; native staging proof not relabeled. Close pitch named gap/no pitch path, Rank3 separately unlanded.
+## 2026-10-15 — Authored M2 attachment participation
+
+[A7](systems/animation.md#authored-attachment-participation-a7--2026-10-15): MD20/SKA1 byte tracks, ancestor pose/callback eligibility and reversible shadows. Truncation, native inactive-pose/shadow and actual `$SCD` callback REDs reproduced; post-integration animation83/parser7/inheritance3 and strengthened native nested-gear lifecycle GREEN. Format/native compilation pass without Rust warnings. Private solar-spell fixture retains real equipped item identity. Existing native clocks/visibility retained; reference color/clock and external-key gaps explicit.
+
+## 2026-10-15 — Clean-room authored M2 parent contribution
+
+[A6](systems/animation.md#authored-parent-contribution-a6--2026-10-15): parent-scale/translation/rotation CPU RED reproduced; authored low-bit affine composition added without replacing ordinary hierarchy or crossfades. Native acceptance, runtime flags and A7 semantics remain open in the linked spec. Local non-gating census retained outside git; no prohibited sources accessed.
 
 ## 2026-10-15 — Authored talent Starter selection
 ## 2026-10-15 — Guild lifecycle query flow
@@ -34,6 +44,13 @@
 
 [Player ground](systems/player-ground.md#native-grounded-steps--2026-10-15): captured face3153 lip blocks before reachable face3041 support; floor-first order with unchanged low-ray movement corridor and step/wall constants. Exact-face RED and thin-wall counterexample RED recorded; lead explicitly excluded full-height body clearance after authored-route regressions. Full-body clearance is a named gap. [Bounded native proof](systems/player-ground.md#bounded-native-proof): Godot old-ray contact0.04996484yd, held-W rise0.65576yd with matching client/server positions, inspected before/after PNGs;10+4 focused regressions pass. Authoritative private pose setup is recorded; no server source changes.
 
+## 2026-10-15 — Private summon initial-state probe
+
+[Wild55 wire probe](systems/toy-box.md#private-summon-initial-state-probe-2026-10-15) extends the existing private Scarab fixture with explicit Podium/Shrine modes, source count/level/HP checks and Shrine cursor targeting. Default Scarab control and120s waits remain. Fresh actual bag-learning/UseToy wire now passes all three modes with initialized levels/HP; server whole-Toy/check/build and matching peer/network gates pass. Exact source/binary scopes live in the linked coverage ledger; no old native/pixel/expiry recertification.
+
+## 2026-10-15 — Winner's Podium native fixture
+
+[Podium54 boundary](systems/toy-box.md#winners-podium-native-boundary-2026-10-15): actual bag/journal/source actor and static movement fixture, unchanged gameplay camera; private authenticated70391 closure8/4aliases and one127527 appearance-coverage addition. Source server RED3→GREEN6, postmerge20/20 and both matching builds/checks pass. Fresh native Modern/Forever frames show127527, correct source position/scale/alpha/no pet frame and static behavior after real movement; original full-HD frames inspected. Exact ed425/fe1d/ab40 scope retained across later server-only pure47 extraction;20min wall lifetime remains unclaimed.
 ## 2026-10-15 — Guild member note implementation
 
 [Member details and notes](systems/guilds.md#member-details-and-notes): additive public-note storage preserves existing officer records; authenticated self/public/officer permissions, per-recipient privacy and Mainline31-letter popup source implemented. Current UI/decision28, actualUDP4 and server main-binary11 pass, including popup-target RED→GREEN, note commands/public-self payloads, rank-right/privacy and durable reopen. Six actual private5891 master/self/server-restart-readback runs now pass in Modern and Forever; fourteen inspected1920×1080 PNGs verify corrected border layering, input backdrops, self privacy and source removal confirmation. Current widgets22/22 includes destructive-confirmation RED→GREEN; native No/Escape sends nothing. Merged-head checks remain separate. Local TDB1210 contains62 guild reward rows; runtime import/eligibility, not source availability, remains a later guild gap.
