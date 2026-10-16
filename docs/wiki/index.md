@@ -3,6 +3,9 @@
 
 - [Shared WowStyle1 caption centering](systems/menu-primitives.md#wowstyle1-caption-centering-2026-10-15) — native font-minimum adaptation, paired core attribute wiring and explicit one-line policy; both-skin AH/shared caption deltas0 and unchanged Filter/Style2 control pixels.
 
+- [IoC NPC attachment](systems/battlegrounds.md#ioc-npc-attachment--implementation2026-10-15) — native synthetic scene RED→GREEN plus real-UDP NPC identity/release; merged consumer gates pass; actual models/both-skin driving/fire remain open.
+
+- [IoC bomb disarm interaction](systems/battlegrounds.md#ioc-bomb-disarm-interaction--active-2026-10-14) — authored request/cursor GREEN25; Modern83/Forever88 normal/huge native hit/disarm/20-player return pass; explicit model-art/framing/whole-render/timing gaps retained.
 - [Guild invitation source chrome](systems/guilds.md#invitation-chrome--verified2026-10-15) — source translucent inset/corners/tiled edges replace static-popup art; two controls and both-skin native Join/Decline/pending proof, four inspected PNGs. Inner art/payload/lifecycle gaps remain separate.
 
 - [Communities numeric roster sorting](systems/guilds.md#communities-metadata-sorting--verified2026-10-15) — source Level/Class headers, numeric/missing-value ordering, preserved member identity; seven controls and both-skin native physical proof with ten inspected before/after PNGs.

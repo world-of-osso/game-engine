@@ -29,6 +29,7 @@ struct Peer {
     traits: Option<TraitConfigSnapshot>,
     trait_result: Option<TraitCommitResult>,
     known_spells: Vec<u32>,
+    combat_log: Vec<CombatLogEvent>,
 }
 impl Peer {
     fn receive(&mut self, message: ProtocolMessage) -> Result<(), String> {
@@ -46,7 +47,13 @@ impl Peer {
         if spellbook_receipt {
             return self.receive_spellbook(message);
         }
-        if message.is::<TraitConfigSnapshot>() {
+        if message.is::<CombatLogEvent>() {
+            let event = message
+                .downcast::<CombatLogEvent>()
+                .map_err(|_| "combat log type")?;
+            println!("{} combat log {event:?}", self.username);
+            self.combat_log.push(event);
+        } else if message.is::<TraitConfigSnapshot>() {
             let snapshot = message
                 .downcast::<TraitConfigSnapshot>()
                 .map_err(|_| "trait config type")?;
@@ -353,7 +360,8 @@ impl Peer {
             "snapshot":self.snapshot,"npcs":self.observed_npcs(),
             "players":self.observed_players(),"inventory":self.inventory,
             "equipment":self.equipment,"inventory_delta":self.inventory_delta,
-            "traits":self.traits,"trait_result":self.trait_result,"known_spells":self.known_spells});
+            "traits":self.traits,"trait_result":self.trait_result,"known_spells":self.known_spells,
+            "combat_log":self.combat_log});
         write_peer_snapshot(&directory.join(format!("peer{}.json", self.index)), &value)
     }
 }
@@ -401,6 +409,7 @@ fn run() -> Result<(), String> {
             .receive::<AttackStart>()
             .receive::<AttackStopped>()
             .receive::<CastFailed>()
+            .receive::<CombatLogEvent>()
             .receive::<InventorySnapshot>()
             .receive::<EquipmentSnapshot>()
             .receive::<InventoryDelta>()
@@ -433,6 +442,7 @@ fn run() -> Result<(), String> {
             traits: None,
             trait_result: None,
             known_spells: Vec::new(),
+            combat_log: Vec::new(),
         });
         // Each real account completes entry before another worker starts. Large
         // rosters must not starve earlier handshakes during parallel app setup.
