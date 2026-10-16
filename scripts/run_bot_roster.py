@@ -18,8 +18,8 @@ from types import SimpleNamespace
 
 from bot_roster import build_roster
 from bot_harness import balance, routed_player
-from bot_controller import native_usable, publish, requested_snapshot
-from bot_pets import TAME_BEAST, owned_pet, tame_plan, verified_tame_target
+from bot_controller import FileBridge, native_usable, publish, requested_snapshot
+from bot_pets import TAME_BEAST, owned_pet, tame_plan, verified_tame_target, assist_plan, verified_assist
 from bot_health import qualify_report_health, require_living_player
 from bot_forms import form_is_observed, load_plan as load_form_plan
 from bot_gear import equipment_receipt, load_plan as load_gear_plan, required_grants
@@ -40,7 +40,7 @@ def command(output, argv, env=None):
 def record_inputs(args):
     files = [args.engine / "scripts" / f"{name}.py" for name in
              ("bot_harness", "bot_rotation", "bot_controller", "bot_routes", "bot_roster", "bot_talents", "bot_gear", "bot_health", "bot_forms", "bot_pets", "run_dummy_bots", "run_bot_roster")]
-    files += [args.engine / "godot/tests" / f"{name}.gd" for name in ("bot_harness_observer", "bot_harness_talents", "bot_harness_gear")]
+    files += [args.engine / "godot/tests" / f"{name}.gd" for name in ("bot_harness_observer", "bot_harness_talents", "bot_harness_gear", "bot_harness_pets")]
     files.append(args.world_db)
     tables = ("ChrSpecialization", "ChrRaces", "ChrClasses", "CharBaseInfo", "SpellEffect", "SpellMisc",
               "SpellPower", "SpellCooldowns", "SpellCastTimes", "AssistedCombat", "AssistedCombatStep",
@@ -382,6 +382,19 @@ def wait_replicated_owned_pet(output, previous_errors):
     raise RuntimeError('Tame Beast did not produce a replicated owned pet within60s; input not retried')
 
 
+def prepare_native_pet_assist(output):
+    state = read_state(output / 'native-state.json')
+    pet = owned_pet(state)
+    plan = assist_plan(state)
+    if plan is None:
+        receipt = {'before': state['pet'], 'after': state['pet'], 'input': 'native Assist already received'}
+    else:
+        receipt = FileBridge(output).request('pet-assist', plan)
+    verified_assist(receipt, pet)
+    publish(output / 'native-pet-assist.json', receipt)
+    return receipt
+
+
 def prepare_native_pet(args, output, socket):
     state = read_state(output / 'native-state.json')
     existing = owned_pet(state)
@@ -466,6 +479,7 @@ def run_bot(args, bot):
             raise RuntimeError(f"Expected one owned native IPC socket, found {sockets}")
         if bot['spec'] == 253:
             fixture['combat_pet'] = prepare_native_pet(args, output, sockets[0])
+            fixture['combat_pet_assist'] = prepare_native_pet_assist(output)
             state = wait_native(args, output, bot)
         npcs = admin(args, 'npc-info', '0', '0', '44548')
         (output / 'dummy-identity.txt').write_text(npcs)

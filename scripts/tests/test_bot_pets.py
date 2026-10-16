@@ -8,7 +8,7 @@ from contextlib import closing
 from pathlib import Path
 
 sys.path.insert(0, str(Path(__file__).resolve().parents[1]))
-from bot_pets import owned_pet, tame_plan, verified_tame_target
+from bot_pets import owned_pet, tame_plan, verified_tame_target, assist_plan, verified_assist
 
 
 class PetPreparationTests(unittest.TestCase):
@@ -51,6 +51,24 @@ class PetPreparationTests(unittest.TestCase):
         state['spells']['target_health'] = 0
         with self.assertRaisesRegex(ValueError,'alive|health'):
             verified_tame_target(state,text,plan)
+
+    def test_assist_plan_uses_received_reaction_slot_not_a_hardcoded_index(self):
+        state = {'pet': {'local_pet': 81, 'pet': 81, 'react_state': 0,
+                         'buttons': [0, (7 << 24) | 3, 0, (6 << 24) | 3]}}
+        self.assertEqual(assist_plan(state), {'pet': '81', 'name': 'PetActionButton4'})
+        state['pet']['react_state'] = 3
+        self.assertIsNone(assist_plan(state))
+        state['pet']['react_state'] = 0
+        state['pet']['buttons'][3] = 0
+        with self.assertRaisesRegex(ValueError, 'Assist'):
+            assist_plan(state)
+
+    def test_assist_receipt_requires_received_mode_and_same_replicated_owner_pet(self):
+        after = {'local_pet': 81, 'pet': 81, 'react_state': 3}
+        self.assertEqual(verified_assist({'after': after, 'input': 'native viewport'}, '81'), after)
+        for bad in [{**after, 'react_state': 0}, {**after, 'pet': 82}, {**after, 'local_pet': None}]:
+            with self.assertRaisesRegex(ValueError, 'Assist|owned'):
+                verified_assist({'after': bad}, '81')
 
     def test_server_pet_bar_alone_does_not_prove_replicated_owned_unit(self):
         self.assertIsNone(owned_pet({'pet':{'pet':81,'local_pet':None}}))
