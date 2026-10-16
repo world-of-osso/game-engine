@@ -20,7 +20,13 @@ func run_test() -> void:
 		for pose in [Vector4(10, 2, -20, 0.0), Vector4(-8, 3, 17, 1.2)]:
 			fixture.advance_host(Vector3(pose.x, pose.y, pose.z), pose.w)
 			check(rider.global_transform.is_equal_approx(point.global_transform), "rider follows authored seat transform npc=" + str(npc) + " rider=" + str(rider.global_transform) + " seat=" + str(point.global_transform))
+		var driving: Dictionary = fixture.claim_driver()
+		check(driving.vehicle == npc, "only NPC controlling seat selects the vehicle mover")
+		check(driving.blocked != npc, "non-driver passenger remains held")
+		check(str(driving.mover) == ("Host" if npc else "Rider"), "input uses NPC logical root, never rider seat position")
 		check(fixture.release_rider() == "", "release rider")
+		var released: Dictionary = fixture.mover_state()
+		check(not released.vehicle and str(released.mover) == "Rider", "removed seat cannot retain NPC mover authority")
 		fixture.advance_host(Vector3(22, 4, -13), -0.6)
 		check(rider.transform.is_equal_approx(Transform3D.IDENTITY), "exit restores rider local transform")
 		check(rider.get_parent().name == "Rider", "exit restores independent rider parent")
