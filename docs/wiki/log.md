@@ -1,3 +1,11 @@
+## 2026-10-16 — Pet queue-ready button art
+
+[Source button family](systems/battle-pets.md#queue-ready-button-art--2026-10-16): explicit default atlas RED replaced with inherited UIPanel sheet IDs; RED→GREEN, both-skin8 physical cases/24crops; four fullHD comparisons change only inside buttons. Captions/typography/lifecycle unchanged and not newly certified.
+
+## 2026-10-16 — House Access dropdown
+
+[Source caller](systems/housing.md#house-access-dropdown--2026-10-16): generic160×28/plain rows replaced by inherited122×25 WowStyle2/MenuStyle1; genuine RED→GREEN, both-skin physical states/three draft selections and pending refusal. All26 context changes confined to House Access column; Save/persistence/other panel fidelity excluded.
+
 ## 2026-10-15 — Campsite selected-hover
 
 - [Glue/menu fidelity](investigations/glue-menu-fidelity.md#campsite-selected-hover-branch--2026-10-15): existing selected state picks source selected-hover art/18px margins, both-skin native pointer/reselection proof.
@@ -4106,3 +4114,6 @@ Completed Retailv2 codec/authoritative Create and committed Copy callbacks, exac
 - 2026-10-16: Product-row item tooltip native both-skin GREEN at569419cb7; final-scale ordering fixes real owner-bound mismatch without changing layout/framing.27 UI+12 native Trading Post and52 tooltip regressions/check/scoped format pass at846cf1d1d. Eight full-HD PNGs plus two contacts published; [proof inventory](systems/trading-post.md#product-row-item-tooltips--implementation-october16).
 
 - 2026-10-16: Button tooltip source/label branches inventoried; disabled View Cart actual native RED observed. Existing Traveler's Log pane is owned by Adventure Guide; pending-item delivery remains a distinct provider gap. [Trading Post](systems/trading-post.md#button-tooltips--implementation-october16).
+- 2026-10-16: Extracted [routed native player-controller boundary](systems/bot-harness.md#routed-native-controller--implementation-2026-10-16): explicit per-spec provider/strict route/native F and semantic loot input; native Greed and all-spec rotation coverage remain separate gates.
+
+- 2026-10-16: Maintained [explicit pinned Arcane provider](systems/bot-harness.md#explicit-approved-arcane-source-provider) with portable captured source/trait fixtures; source24/36/64 and strict level32/kit/fight coverage, no fallback or native/all-spec acceptance.
