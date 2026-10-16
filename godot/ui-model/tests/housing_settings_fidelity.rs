@@ -121,3 +121,196 @@ fn house_access_source_dropdown_menu_and_staged_selection_both_skins() {
         );
     }
 }
+
+#[test]
+fn house_settings_paints_source_header_foliage_and_divider_both_skins() {
+    use ui_toolkit::atlas::{AtlasSource, resolve_region};
+    use ui_toolkit::widgets::texture::TextureSource;
+    game_engine_ui_model::paths::set_data_root(
+        std::path::PathBuf::from(env!("CARGO_MANIFEST_DIR")).join("../../data"),
+    )
+    .unwrap();
+    for skin in [ActiveSkin::Modern, ActiveSkin::Forever] {
+        set_thread_skin(skin);
+        let foliage = resolve_region("housing-decorative-foliage-left", skin).unwrap();
+        println!(
+            "SOURCE_FOLIAGE {skin:?} {}x{} {:?}",
+            foliage.width, foliage.height, foliage.source
+        );
+        let mut shared = SharedContext::new();
+        shared.insert(view());
+        let mut registry = FrameRegistry::new(1920.0, 1080.0);
+        Screen::new(housing_screen).sync(&shared, &mut registry);
+        for (name, atlas, rect) in [
+            (
+                "HousingSettingsHeaderGradient",
+                "housing-basic-panel-gradient-header-bg",
+                (100.0, 0.0, 400.0, 80.0),
+            ),
+            (
+                "HousingSettingsPlantDecoLeft",
+                "housing-decorative-foliage-left",
+                (6.0, 7.0, foliage.width, foliage.height),
+            ),
+            (
+                "HousingSettingsSpacer",
+                "Options_HorizontalDivider",
+                (25.0, 174.0, 550.0, 1.0),
+            ),
+        ] {
+            let source = resolve_region(atlas, skin).unwrap();
+            let AtlasSource::FileDataId(fdid) = source.source else {
+                panic!("source must resolve to installed DB2 file")
+            };
+            println!("SOURCE_REGION {skin:?} {atlas} fdid={fdid} rect={rect:?}");
+            let region = frame(&registry, name);
+            assert_eq!(
+                (region.position.left, region.position.top),
+                (Val::Px(rect.0), Val::Px(rect.1))
+            );
+            assert_eq!(
+                (region.width.value(), region.height.value()),
+                (rect.2, rect.3)
+            );
+            let Some(WidgetData::Texture(texture)) = &region.widget_data else {
+                panic!("source decorative texture missing")
+            };
+            assert_eq!(texture.source, TextureSource::FileDataId(fdid));
+            assert_eq!(
+                texture.tex_coords,
+                [source.left, source.right, source.top, source.bottom]
+            );
+        }
+        for name in [
+            "HousingSettingsClose",
+            "HousingSettingsSave",
+            "HousingSettingsHouseMode",
+        ] {
+            assert!(
+                registry.get_by_name(name).is_some(),
+                "{name} remains present"
+            );
+        }
+    }
+}
+
+#[test]
+fn house_settings_source_close_button_both_skins() {
+    use ui_toolkit::widgets::texture::TextureSource;
+    game_engine_ui_model::paths::set_data_root(
+        std::path::PathBuf::from(env!("CARGO_MANIFEST_DIR")).join("../../data"),
+    )
+    .unwrap();
+    for skin in [ActiveSkin::Modern, ActiveSkin::Forever] {
+        set_thread_skin(skin);
+        for pending in [false, true] {
+            let mut view = view();
+            view.model.pending = pending;
+            let mut shared = SharedContext::new();
+            shared.insert(view);
+            let mut registry = FrameRegistry::new(1920.0, 1080.0);
+            Screen::new(housing_screen).sync(&shared, &mut registry);
+            let close = frame(&registry, "HousingSettingsClose");
+            assert_eq!((close.width.value(), close.height.value()), (24.0, 24.0));
+            assert_eq!(
+                (close.position.left, close.position.top),
+                (Val::Px(577.0), Val::Px(0.0))
+            );
+            assert_eq!(close.frame_level, 510);
+            assert_eq!(close.onclick.as_deref(), Some("housing:close"));
+            let Some(WidgetData::Button(button)) = &close.widget_data else {
+                panic!("HouseSettings close must be a button")
+            };
+            assert!(button.text.is_empty());
+            assert!(!button.use_default_skin);
+            assert!(button.enabled);
+            assert_eq!(button.state, ButtonState::Normal);
+            for (actual, atlas) in [
+                (&button.normal_texture, "RedButton-Exit"),
+                (&button.pushed_texture, "RedButton-exit-pressed"),
+                (&button.disabled_texture, "RedButton-Exit-Disabled"),
+                (&button.highlight_texture, "RedButton-Highlight"),
+            ] {
+                assert_eq!(*actual, Some(TextureSource::Atlas(atlas.into())));
+            }
+            assert_eq!(button.highlight_alpha, 1.0);
+        }
+    }
+}
+
+#[test]
+fn house_settings_action_button_art_both_skins() {
+    use ui_toolkit::widgets::texture::TextureSource;
+    game_engine_ui_model::paths::set_data_root(
+        std::path::PathBuf::from(env!("CARGO_MANIFEST_DIR")).join("../../data"),
+    )
+    .unwrap();
+    for skin in [ActiveSkin::Modern, ActiveSkin::Forever] {
+        set_thread_skin(skin);
+        for pending in [false, true] {
+            let mut view = view();
+            view.model.pending = pending;
+            let mut shared = SharedContext::new();
+            shared.insert(view);
+            let mut registry = FrameRegistry::new(1920.0, 1080.0);
+            Screen::new(housing_screen).sync(&shared, &mut registry);
+            for (name, caption, left, top, disabled, action) in [
+                (
+                    "HousingSettingsSave",
+                    "Save",
+                    402.0,
+                    488.0,
+                    pending,
+                    Some("housing:settings:save"),
+                ),
+                (
+                    "HousingSettingsIgnoreList",
+                    "Ignore List",
+                    46.0,
+                    488.0,
+                    true,
+                    None,
+                ),
+                (
+                    "HousingSettingsAbandon",
+                    "Abandon House",
+                    401.0,
+                    132.0,
+                    true,
+                    None,
+                ),
+            ] {
+                let control = frame(&registry, name);
+                assert_eq!(
+                    (control.width.value(), control.height.value()),
+                    (152.0, 28.0)
+                );
+                assert_eq!(
+                    (control.position.left, control.position.top),
+                    (Val::Px(left), Val::Px(top))
+                );
+                assert_eq!(control.onclick.as_deref(), action);
+                let Some(WidgetData::Button(button)) = &control.widget_data else {
+                    panic!("{name} must remain a button")
+                };
+                assert_eq!(button.text, caption);
+                assert_eq!(
+                    button.state,
+                    if disabled {
+                        ButtonState::Disabled
+                    } else {
+                        ButtonState::Normal
+                    }
+                );
+                for (actual, fdid) in [
+                    (&button.normal_texture, 130828),
+                    (&button.pushed_texture, 130825),
+                    (&button.disabled_texture, 130824),
+                    (&button.highlight_texture, 130826),
+                ] {
+                    assert_eq!(*actual, Some(TextureSource::FileDataId(fdid)), "{name}");
+                }
+            }
+        }
+    }
+}

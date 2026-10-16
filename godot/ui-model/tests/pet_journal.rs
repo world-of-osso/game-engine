@@ -604,6 +604,69 @@ fn petbattle_pvp_ready_popup_appears_without_open_journal_in_both_skins() {
     set_thread_skin(ActiveSkin::Modern);
 }
 
+#[test]
+fn pet_ready_buttons_project_source_panel_sheets_without_changing_input_or_geometry() {
+    use shared::protocol::PetBattleQueueState;
+    use ui_toolkit::widgets::{button::ButtonState, texture::TextureSource};
+    game_engine_ui_model::paths::set_data_root(
+        std::path::PathBuf::from(env!("CARGO_MANIFEST_DIR")).join("../../data"),
+    )
+    .unwrap();
+    for skin in [ActiveSkin::Modern, ActiveSkin::Forever] {
+        set_thread_skin(skin);
+        for pending in [false, true] {
+            let mut view = view();
+            view.visible = false;
+            view.queue = PetBattleQueueState::Proposal {
+                proposal_id: 91,
+                accepted: false,
+            };
+            view.queue_pending = pending;
+            let mut context = SharedContext::new();
+            context.insert(view);
+            let mut registry = FrameRegistry::new(1920.0, 1080.0);
+            Screen::new(pet_journal_screen).sync(&context, &mut registry);
+            for (name, action, left) in [
+                ("PetBattleQueueAcceptButton", "pet:queue-accept", 35.0),
+                ("PetBattleQueueDeclineButton", "pet:queue-decline", 165.0),
+            ] {
+                let id = registry.get_by_name(name).expect(name);
+                let frame = registry.get(id).unwrap();
+                assert_eq!((frame.width.value(), frame.height.value()), (120.0, 21.0));
+                assert_eq!(
+                    frame.position.left,
+                    ui_toolkit::layout_values::Val::Px(left)
+                );
+                assert_eq!(
+                    frame.position.top,
+                    ui_toolkit::layout_values::Val::Px(159.0)
+                );
+                let Some(WidgetData::Button(button)) = &frame.widget_data else {
+                    panic!("ready action button missing")
+                };
+                assert_eq!(
+                    button.normal_texture,
+                    Some(TextureSource::FileDataId(130828))
+                );
+                assert_eq!(
+                    button.pushed_texture,
+                    Some(TextureSource::FileDataId(130825))
+                );
+                assert_eq!(
+                    button.highlight_texture,
+                    Some(TextureSource::FileDataId(130826))
+                );
+                assert_eq!(
+                    button.disabled_texture,
+                    Some(TextureSource::FileDataId(130824))
+                );
+                assert_eq!(button.state == ButtonState::Disabled, pending);
+                assert_eq!(frame.onclick.as_deref(), Some(action));
+            }
+        }
+    }
+}
+
 fn combat_details(
     selected: u32,
     locked: bool,

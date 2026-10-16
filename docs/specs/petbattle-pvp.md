@@ -43,3 +43,7 @@ One driver retry fixed a real file-publication race: truncate/write let GDScript
 ## Out of scope
 
 - Unsupported battle-engine effects remain rejected; no invented pet content.
+
+## Queue-ready button art
+
+- [x] Accept/Decline use the inherited `UIPanelButtonTemplate` up/down/disabled sheets with fixed12px caps and additive highlight, in both skins. Existing120×21 extents/anchors, captions, request identity and pending behavior remain unchanged. Sources: `StaticPopupSpecial.xml`23–45; `SecureUIPanelTemplates.xml`39–85 and Lua state textures. Model regression: `pet_ready_buttons_project_source_panel_sheets_without_changing_input_or_geometry`; native fixture: `pet_ready_button_fidelity.gd`. [Implementation/proof](../wiki/systems/battle-pets.md#queue-ready-button-art--2026-10-16). Whole-popup typography/lifecycle parity is separate.
