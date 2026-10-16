@@ -1,3 +1,7 @@
+## 2026-10-16 — House Access checkbox-only hit targets
+
+[Source checkbox targeting](systems/housing.md#house-access-checkbox-hit-targets--2026-10-16):140px row button replaced with30×29 checkbox in noninteractive row; RED→GREEN5, both-skin label refusal/checkbox staging/mode/pending proof. Forty fullHD comparisons change only checkbox art after source LEFT anchoring. Typography/backend remain separate.
+
 ## 2026-10-16 — Native BM predicate follow-up and party-death reporting
 
 [BM follow-up](systems/bot-harness.md#bm-pet-presence-follow-up--verified2026-10-16): latest pet-presence predicates remove29672/58 refusal; two fresh60s windows remain0damage because every sample selects CallPet1 and no pet appears. Collection complete is not working rotation/pet proof. [Stockade](systems/bot-harness.md#stockade-boss-accounting) later stops504.704s at native tankdeath; roster confirms one death absent from combat events. Actual-fixture RED→GREEN accounting now retains that observation and withholds death totals; original report preserved. Ordinary source-box exit completes natively. No boss clear/DPS proof or stat/kit override; owned runtimes stopped.
@@ -17,6 +21,9 @@
 
 [Three action buttons](systems/housing.md#housesettings-action-button-art--2026-10-16): four source UIPanel bindings only, RED→GREEN and both-skin enabled/disabled/pending native proof; all eight fullHD changes confined to button rectangles. No typography/lifecycle/backend claim.
 
+## 2026-10-15 — Housing storage filter popup
+
+[Source popup](systems/housing.md#storage-filter-popup--implementation2026-10-15): native old-position/width RED→shared menu description/Sort arrows/radios/root6/2 anchor and both-skin four-phase native GREEN at65c1a18c3/14db32ab. Missing Placeable/date/tag/collection semantics remain unavailable. Affected F17 Forever recaptured on that current binary with four durable records; startup terrain_mcsh noise traced to shared used_shaders warmup state, no S3/shared-state changes. Four popup/two recapture inspected1280 PNGs published.
 ## 2026-10-16 — HouseSettings inherited close button
 
 [Source close](systems/housing.md#housesettings-close-button--2026-10-16): text-X geometry RED and native highlight-replacement RED repaired; both-skin/pending state/input/cancel/ADD proof,16 context pairs unchanged outside old/new close rectangles. No lifecycle/backend claim.
@@ -76,6 +83,9 @@
 ## 2026-10-15 — Minimap zoom state art
 
 - [Minimap](systems/minimap.md#zoom-button-source-states--2026-10-15): source Button states/full-opacity disabled grayscale; both-skin physical native proof, bounded offline screen/input acceptance.
+## 2026-10-15 — Private Shrine viewer-level probe
+
+[Viewer probe](systems/toy-box.md#shrine-viewer-level-probe-2026-10-15) adds replicated range/delta projection for viewers1/20/80 to the existing real-learning/UseToy fixture; Shrine native30 differs from viewer20 while zero-tuning Podium/default Scarab controls stay native. Current matched build/check/fmt and private wire pass all three modes; initial admin timeout is retained and only unfinished scenarios resumed on fresh accounts. No target-text pixels/combat/HP certificate.
 
 ## 2026-10-15 — Housing Expert active glow implementation
 
@@ -4150,3 +4160,5 @@ Completed Retailv2 codec/authoritative Create and committed Copy callbacks, exac
 
 - 2026-10-16: [Owner pet assisted predicates](investigations/cooldown-assist-data.md#owner-pet-predicates--2026-10-16): source-decoded57/58 and recorded owner presence; living controlled pet versus absent, unknown dead/missing actor retained. BM Call Pet authored decision regression; fresh UDP and Arms1187/12 exact count geometry remain open.
 - 2026-10-16: Confirmation covers native both-skin GREEN: Escape preserves Purchase/Refund/Cart/Clear; explicit Cancel retains authority/cart, one real purchase/refund restores Tender.12 full-HD screenshots+2 contacts published;29UI12native/check/format pass atfc1d4c351. [Trading Post](systems/trading-post.md#confirmation-keyboard-ownership--implementation-october16).
+
+- 2026-10-16: [Actual native Greed](systems/bot-harness.md#native-actual-greed--2026-10-16): maintained route/F/provider/viewport bridge; Moloch63346 Greed95→GUID525,7.040s ACK, inspected1280 input/win PNGs and owned cleanup. Azure/full-spec remain separate.
