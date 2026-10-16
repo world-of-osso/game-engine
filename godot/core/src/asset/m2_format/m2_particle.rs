@@ -102,12 +102,14 @@ pub struct M2ParticleEmitter {
     pub follow_speed2: f32,
     /// Follow-scale paired with `follow_speed2`.
     pub follow_scale2: f32,
+    /// Cubic Bézier controls from the MD20-relative M2Array at 0x1C0.
+    pub spline_points: Vec<[f32; 3]>,
     /// Keyframed emission tracks, evaluated at the model's playing sequence time.
     pub tracks: EmitterTracks,
     /// Scale applied when inheriting parent particle velocity.
     ///
-    /// Local runtime references default this to 1.0, but the local M2 file
-    /// layout references do not expose a persisted header field yet.
+    /// WWV M2ParticleOld::BurstMultiplier / ivelScale, persisted at 0x170.
+    /// Retains the authored value, including zero; not ordinary yd/s.
     pub inherit_velocity_scale: f32,
     /// Color over lifetime: start, mid, end (RGB 0–255).
     pub colors: [[f32; 3]; 3],
@@ -510,6 +512,7 @@ fn fill_track_values(em: &mut M2ParticleEmitter, md20: &[u8], data: &[u8]) {
     fill_motion_track_values(em, md20, data);
     fill_shape_and_spin_track_values(em, md20, data);
     fill_wind_and_follow_track_values(em, data);
+    em.spline_points = read_spline_points(md20, data);
 }
 
 fn fill_motion_track_values(em: &mut M2ParticleEmitter, md20: &[u8], data: &[u8]) {
@@ -554,6 +557,26 @@ fn fill_wind_and_follow_track_values(em: &mut M2ParticleEmitter, data: &[u8]) {
     em.follow_scale2 = read_f32(data, EMITTER_FOLLOW_SCALE2_OFFSET).unwrap_or(0.0);
 }
 
+/// WWV M2ParticleOld::splinePoints; real 6316199 contains four float3 controls.
+fn read_spline_points(md20: &[u8], data: &[u8]) -> Vec<[f32; 3]> {
+    let count = read_u32(data, 0x1C0).unwrap_or(0) as usize;
+    let offset = read_u32(data, 0x1C4).unwrap_or(0) as usize;
+    let Some(bytes) = count
+        .checked_mul(12)
+        .and_then(|size| md20.get(offset..offset.checked_add(size)?))
+    else {
+        return Vec::new();
+    };
+    bytes
+        .chunks_exact(12)
+        .map(|point| {
+            std::array::from_fn(|axis| {
+                f32::from_le_bytes(point[axis * 4..axis * 4 + 4].try_into().unwrap())
+            })
+        })
+        .collect()
+}
+
 /// Fill FakeAnimBlock visual values (color, opacity, scale).
 fn fill_visual_values(em: &mut M2ParticleEmitter, md20: &[u8], data: &[u8]) {
     em.mid_point = read_midpoint(md20, data, EMITTER_VISUAL_COLOR_OFFSET);
@@ -571,6 +594,7 @@ fn fill_visual_values(em: &mut M2ParticleEmitter, md20: &[u8], data: &[u8]) {
     em.tail_cell_track = read_u16_values(md20, data, EMITTER_TAIL_CELL_TRACK_OFFSET);
     em.head_cell_keys = read_cell_keys(md20, data, EMITTER_HEAD_CELL_TRACK_OFFSET);
     em.tail_cell_keys = read_cell_keys(md20, data, EMITTER_TAIL_CELL_TRACK_OFFSET);
+    em.inherit_velocity_scale = read_f32(data, EMITTER_BURST_MULTIPLIER_OFFSET).unwrap_or(0.0);
     em.burst_multiplier = match read_f32(data, EMITTER_BURST_MULTIPLIER_OFFSET).unwrap_or(0.0) {
         value if value > 0.0 => value,
         _ => 1.0,
