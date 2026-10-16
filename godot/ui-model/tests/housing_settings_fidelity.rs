@@ -314,3 +314,65 @@ fn house_settings_action_button_art_both_skins() {
         }
     }
 }
+
+#[test]
+fn house_settings_checkbox_hit_area_excludes_labels_both_skins() {
+    use game_engine_ui_model::housing_settings::AccessMode;
+    game_engine_ui_model::paths::set_data_root(
+        std::path::PathBuf::from(env!("CARGO_MANIFEST_DIR")).join("../../data"),
+    )
+    .unwrap();
+    for skin in [ActiveSkin::Modern, ActiveSkin::Forever] {
+        set_thread_skin(skin);
+        for mode in [AccessMode::Anyone, AccessMode::NoOne, AccessMode::Limited] {
+            for pending in [false, true] {
+                let mut view = view();
+                view.model.settings.as_mut().unwrap().mode = mode;
+                view.model.pending = pending;
+                let mut shared = SharedContext::new();
+                shared.insert(view);
+                let mut registry = FrameRegistry::new(1920.0, 1080.0);
+                Screen::new(housing_screen).sync(&shared, &mut registry);
+                for (index, key) in ["neighbors", "guild", "friends", "party"]
+                    .into_iter()
+                    .enumerate()
+                {
+                    let name = format!("HousingSettingsFlag{key}");
+                    let checkbox = frame(&registry, &name);
+                    assert_eq!(
+                        (checkbox.width.value(), checkbox.height.value()),
+                        (30.0, 29.0)
+                    );
+                    assert_eq!(
+                        (checkbox.position.left, checkbox.position.top),
+                        (Val::Px(0.0), Val::Px(0.5))
+                    );
+                    assert_eq!(
+                        checkbox.onclick.as_deref(),
+                        Some(format!("housing:settings:toggle:{key}").as_str())
+                    );
+                    let row = frame(&registry, &format!("{name}Row"));
+                    assert_eq!((row.width.value(), row.height.value()), (100.0, 30.0));
+                    assert_eq!(
+                        (row.position.left, row.position.top),
+                        (Val::Px(20.0), Val::Px(74.0 + index as f32 * 44.0))
+                    );
+                    assert!(!row.mouse_enabled && row.onclick.is_none());
+                    let label = frame(&registry, &format!("{name}Label"));
+                    assert!(!label.mouse_enabled && label.onclick.is_none());
+                    let Some(WidgetData::Button(button)) = &checkbox.widget_data else {
+                        panic!("checkbox action target")
+                    };
+                    assert_eq!(
+                        button.state,
+                        if pending || mode != AccessMode::Limited {
+                            ButtonState::Disabled
+                        } else {
+                            ButtonState::Normal
+                        }
+                    );
+                }
+            }
+        }
+    }
+}
