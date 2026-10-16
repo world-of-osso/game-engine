@@ -1,5 +1,9 @@
 # Test Assets
 
+## Screen-building host setup
+
+Before constructing/synchronizing UI models, fixtures must call `game_engine_ui_model::paths::set_data_root` with the checkout's data root, just as the native host does. This registers both font assets and Retail/Forever atlas tables. Loading a standalone names catalog does not initialize the screen host; warming fonts alone still leaves DB2 atlas lookups unavailable. Keep roster-mapping screen tests runnable in a fresh filtered test process, not dependent on another test's initialization. Missing actual source assets must remain explicit errors, never replacement art.
+
 ## Authored character names
 
 Runtime and the existing selectable-race invariant require both `data/NameGen.csv` (Retail) and `data/db2/1.60.1.70205/NameGen.csv` (Forever); both are listed in `godot/depot-test-assets.txt`. Do not replace Retail names with the Forever table.
