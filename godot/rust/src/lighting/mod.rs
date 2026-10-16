@@ -72,6 +72,10 @@ impl TerrainLight {
     pub fn bind(&self, material: &mut Gd<ShaderMaterial>) {
         self.bind_model(material);
         material.set_shader_parameter("environment_map", &self.cube.to_variant());
+        if let Some(pass) = material.get_next_pass() {
+            let mut shadow = pass.cast::<ShaderMaterial>();
+            self.bind_model(&mut shadow);
+        }
     }
 
     /// Writes the scene light and fog: the global uniforms every `bind_model` material
