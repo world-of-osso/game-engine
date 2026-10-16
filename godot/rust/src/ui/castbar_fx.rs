@@ -83,7 +83,7 @@ pub(super) fn apply_masks(
     Ok(loading)
 }
 
-fn atlas_uv(image: &Gd<godot::classes::Texture2D>, region: [f32; 4]) -> Vector4 {
+pub(super) fn atlas_uv(image: &Gd<godot::classes::Texture2D>, region: [f32; 4]) -> Vector4 {
     let width = image.get_width() as f32;
     let height = image.get_height() as f32;
     Vector4::new(
@@ -110,7 +110,7 @@ fn masked_sprite(name: &str) -> bool {
     )
 }
 
-fn mask_material(additive: bool) -> Gd<ShaderMaterial> {
+pub(super) fn mask_material(additive: bool) -> Gd<ShaderMaterial> {
     let code = if additive {
         MASK_SHADER.replace(
             "shader_type canvas_item;",

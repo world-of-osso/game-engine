@@ -1,4 +1,4 @@
-//! Retail window portrait sources and background exclusion in both skins.
+//! Retail window portrait sources and background paint order in both skins.
 use game_engine_ui_model::{
     auction_house_frame_component::{AuctionHouseFrameState, auction_house_frame_screen},
     bank_frame_component::{BankFrameState, bank_frame_screen},
@@ -153,7 +153,7 @@ fn npcportraits_sources_in_both_skins() {
 }
 
 #[test]
-fn npcportraits_backgrounds_exclude_mask_area() {
+fn npcportraits_backgrounds_render_below_portrait_in_both_skins() {
     for skin in [ActiveSkin::Modern, ActiveSkin::Forever] {
         set_thread_skin(skin);
         let bank = mount(
@@ -163,26 +163,20 @@ fn npcportraits_backgrounds_exclude_mask_area() {
             },
             bank_frame_screen,
         );
-        let mask = (-3.0, -7.0, 58.0, 58.0);
+        // PortraitFrameTexturedBaseTemplate intentionally overlaps the portrait:
+        // SharedUIPanelTemplates.xml:598–613 anchors Bg at (2,-21), streaks at
+        // (6,-21). PortraitContainer's frameLevel 400 (:551) keeps it above them.
+        // Source rectangles and tiling are covered by window_tiling.rs.
+        let portrait = frame(&bank, "BankFramePortrait");
         for name in [
             "BankFrameBg",
             "BankFrameTopTileStreaks",
             "BankFrameBackground",
         ] {
-            let f = frame(&bank, name);
-            let ui_toolkit::layout_values::Val::Px(x) = f.position.left else {
-                panic!("{name} left must be pixels")
-            };
-            let ui_toolkit::layout_values::Val::Px(y) = f.position.top else {
-                panic!("{name} top must be pixels")
-            };
-            let intersects = x < mask.0 + mask.2
-                && mask.0 < x + f.width.value()
-                && y < mask.1 + mask.3
-                && mask.1 < y + f.height.value();
+            let background = frame(&bank, name);
             assert!(
-                !intersects,
-                "{skin:?} {name} intersects portrait mask at ({x}, {y})"
+                background.frame_level < portrait.frame_level,
+                "{skin:?} {name} must paint below the portrait"
             );
         }
     }

@@ -22,12 +22,15 @@ mod forevergaps_preview;
 mod gameplay_panels_input_fixture;
 mod gameplay_panels_preview;
 #[cfg(debug_assertions)]
+mod guild_event_log_preview;
+#[cfg(debug_assertions)]
 mod guild_invite_preview;
 mod guild_preview;
 #[cfg(test)]
 mod guild_tests;
 #[cfg(test)]
 mod housing_drag_input_tests;
+mod housing_glow;
 #[cfg(test)]
 mod housing_placed_list_input_tests;
 mod hud_edit_controls_fixture;
@@ -574,8 +577,9 @@ impl RegistryModel {
             }) {
                 return false;
             }
-            if frame.onclick.is_some() {
-                return true;
+            if let Some(action) = &frame.onclick {
+                // Expert submodes play their authored kit on click release, not a generic press cue.
+                return !action.starts_with("housing:precision:");
             }
             let Some(parent) = frame.parent_id else {
                 return false;
@@ -926,6 +930,7 @@ impl ICanvasLayer for RegistryUi {
             crate::frame_error::report_once(&format!("UI textures: {error}"));
         }
         projection.advance_assisted_highlights(delta, &model.registry);
+        projection.advance_housing_glows(&model.registry);
     }
 
     fn input(&mut self, event: Gd<godot::classes::InputEvent>) {
