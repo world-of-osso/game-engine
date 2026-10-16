@@ -1,4 +1,7 @@
 # data/-relative files uploaded for `scripts/depot-build.py --test`; see docs/remote-builds.md.
+# A7 authentic attachment activation bytes; no remote source access.
+models/1081566.m2
+models/971117.m2
 # Installed Retail source scene flags; existing atlas/catalog source pins stay unchanged.
 db2/12.1.5.70391/UiModelScene.csv
 # Source-qualified current cloak geometry for item-material regression fixtures.

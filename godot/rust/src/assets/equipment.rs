@@ -200,6 +200,7 @@ pub(crate) fn place_equipment(
             .done();
     }
     item.set_visible(true);
+    crate::animation::refresh_attachment_shadows(&item.upcast());
     Ok(())
 }
 
