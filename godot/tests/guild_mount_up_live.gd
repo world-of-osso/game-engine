@@ -145,6 +145,21 @@ func move_key(code: Key, pressed: bool) -> void:
 	event.pressed = pressed
 	root.push_input(event, true)
 
+func capture(label: String) -> void:
+	# Reuse the established mount fixture's camera: view-only, no physics changes.
+	var previous := root.get_camera_3d()
+	var camera := load("res://tests/mount_special_observer_camera.gd").new() as Camera3D
+	camera.set("actor", client.get_node("WorldUnits/Gcperkspeer"))
+	camera.process_priority = 1000000
+	camera.fov = previous.fov
+	camera.near = previous.near
+	camera.far = previous.far
+	root.add_child(camera)
+	await process_frame
+	await super.capture(label)
+	camera.queue_free()
+	previous.make_current()
+
 func mark_officer(name: String) -> bool:
 	var file := FileAccess.open(officer_dir.path_join(name), FileAccess.WRITE)
 	if file == null:
