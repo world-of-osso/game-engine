@@ -114,7 +114,8 @@ impl GameClient {
     /// The tooltip of the hovered frame, if it has one.
     pub(crate) fn frame_tooltip(&mut self, hit: &HoveredFrame) -> Option<HoveredTooltip> {
         type Source = fn(&mut GameClient, &HoveredFrame) -> Option<HoveredTooltip>;
-        const SOURCES: [Source; 37] = [
+        const SOURCES: [Source; 38] = [
+            GameClient::guild_perk_tooltip,
             GameClient::guild_news_tooltip,
             GameClient::trading_post_button_tooltip,
             GameClient::trading_post_tooltip,
@@ -154,6 +155,24 @@ impl GameClient {
             GameClient::hud_frame_tooltip,
         ];
         SOURCES.iter().find_map(|source| source(self, hit))
+    }
+
+    /// GuildPerks.lua: real spell tooltip at ANCHOR_RIGHT, offset36,0.
+    fn guild_perk_tooltip(&mut self, hit: &HoveredFrame) -> Option<HoveredTooltip> {
+        let ui = hit.ui.bind();
+        let (owner, spell_id) = named_ancestor(ui.registry()?, hit.frame, |frame| {
+            indexed(frame, "CommunitiesGuildPerk")
+        })?;
+        drop(ui);
+        let spell_id = u32::try_from(spell_id).ok()?;
+        self.spells.catalog()?.get(spell_id)?;
+        let tooltip = self.spell_game_tooltip(spell_id, None);
+        let rect = self.owner_rect(&hit.ui, owner)?;
+        Some(HoveredTooltip::text(tooltip.owned_offset(
+            rect,
+            OwnerSide::Right,
+            [36.0, 0.0],
+        )))
     }
 
     /// PerksProgram button ShowTooltip methods own ANCHOR_LEFT, including disabled controls.
