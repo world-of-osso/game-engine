@@ -61,6 +61,37 @@ fn trading_post_row_cart_toggle_rejects_ineligible_products() {
     assert_eq!(view.snapshot.as_ref().unwrap().tender, 500);
 }
 
+#[test]
+fn trading_post_row_cart_toggle_preserves_open_cart_preview_choices() {
+    let mut data = snapshot();
+    data.frozen_item_id = None;
+    let mut sword = data.items[0].clone();
+    sword.id = 5;
+    sword.item_id = 25;
+    sword.name = "Worn Shortsword".into();
+    sword.preview_item_ids = vec![25];
+    data.items.push(sword);
+    let mut view = View {
+        visible: true,
+        selected: Some(4),
+        snapshot: Some(Arc::new(data)),
+        cart: vec![4],
+        ..Default::default()
+    };
+    view.click("perks:cart:show").unwrap();
+    assert_eq!(view.cart_preview_item_ids(), [189869]);
+    view.click("perks:cart:item:189869").unwrap();
+    assert!(view.cart_preview_item_ids().is_empty());
+    view.click("perks:cart:toggle:5").unwrap();
+    assert_eq!(view.cart, [4, 5]);
+    assert_eq!(view.cart_preview_item_ids(), [25]);
+    assert_eq!(view.selected, Some(4));
+    assert!(view.cart_visible);
+    view.click("perks:cart:toggle:5").unwrap();
+    assert_eq!(view.cart, [4]);
+    assert!(view.cart_preview_item_ids().is_empty());
+}
+
 fn snapshot() -> TradingPostSnapshot {
     game_engine_ui_model::paths::set_data_root(
         std::path::PathBuf::from(env!("CARGO_MANIFEST_DIR")).join("../../data"),
