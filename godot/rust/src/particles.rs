@@ -759,23 +759,7 @@ impl WowParticleProbe {
         flags: i64,
         position: Vector3,
     ) -> Variant {
-        let emitter = ParticleEmitter {
-            flags: flags as u32 | 0x20000,
-            emitter_type: 1,
-            blend_type: 2,
-            texture_fdid: Some(910001),
-            tile_rows: 1,
-            tile_cols: 1,
-            emission_rate: 100.0,
-            lifespan: 1.0,
-            scale_keys: vec![(0.0, [0.25, 0.5])],
-            color_keys: vec![(0.0, [255.0; 3])],
-            opacity_keys: vec![(0.0, 1.0)],
-            twinkle_percent: 1.0,
-            twinkle_scale_min: 1.0,
-            twinkle_scale_max: 1.0,
-            ..ParticleEmitter::default()
-        };
+        let emitter = fixture_emitter(flags as u32);
         let mut sim = EmitterSim::new(&emitter, 11);
         sim.update(
             &emitter,
@@ -795,19 +779,7 @@ impl WowParticleProbe {
             },
             &mut quads,
         );
-        let dir = godot::classes::ProjectSettings::singleton()
-            .globalize_path(&texture_dir)
-            .to_string();
-        let material = match particle_material(&emitter, Path::new(&dir)) {
-            Ok(material) => material,
-            Err(error) => return error.to_variant(),
-        };
-        let mut pool = ParticlePool::new("ParticleGroundProbe", &material);
-        pool.reserve(quads.len());
-        pool.begin_frame();
-        pool.push(&quads, 1.0);
-        pool.end_frame();
-        pool.node().clone().upcast::<Node3D>().to_variant()
+        upload_probe_quads(&emitter, &texture_dir, "ParticleGroundProbe", &quads)
     }
 
     /// Two stationary half-alpha particles, near blue born before far red.
@@ -822,13 +794,6 @@ impl WowParticleProbe {
     ) -> Variant {
         let (mut emitter, sim) = overlap_fixture(sorted);
         emitter.blend_type = blend as u8;
-        let dir = godot::classes::ProjectSettings::singleton()
-            .globalize_path(&texture_dir)
-            .to_string();
-        let material = match particle_material(&emitter, Path::new(&dir)) {
-            Ok(material) => material,
-            Err(error) => return error.to_variant(),
-        };
         let sign = if reverse { -1.0 } else { 1.0 };
         let view = ViewBasis {
             right: Vec3::X * sign,
@@ -837,12 +802,7 @@ impl WowParticleProbe {
         };
         let mut quads = Vec::new();
         sim.quads(&emitter, &view, &mut quads);
-        let mut pool = ParticlePool::new("ParticleOverlapProbe", &material);
-        pool.reserve(quads.len());
-        pool.begin_frame();
-        pool.push(&quads, 1.0);
-        pool.end_frame();
-        pool.node().clone().upcast::<Node3D>().to_variant()
+        upload_probe_quads(&emitter, &texture_dir, "ParticleOverlapProbe", &quads)
     }
 
     /// A pool node drawing one `size`-half-extent quad at the origin in the XZ plane,
@@ -891,6 +851,47 @@ impl WowParticleProbe {
     }
 }
 
+fn fixture_emitter(flags: u32) -> ParticleEmitter {
+    ParticleEmitter {
+        flags: flags | 0x20000,
+        emitter_type: 1,
+        blend_type: 2,
+        texture_fdid: Some(910001),
+        tile_rows: 1,
+        tile_cols: 1,
+        emission_rate: 100.0,
+        lifespan: 1.0,
+        scale_keys: vec![(0.0, [0.25, 0.5])],
+        color_keys: vec![(0.0, [255.0; 3])],
+        opacity_keys: vec![(0.0, 1.0)],
+        twinkle_percent: 1.0,
+        twinkle_scale_min: 1.0,
+        twinkle_scale_max: 1.0,
+        ..ParticleEmitter::default()
+    }
+}
+
+fn upload_probe_quads(
+    emitter: &ParticleEmitter,
+    texture_dir: &GString,
+    name: &str,
+    quads: &[Quad],
+) -> Variant {
+    let dir = godot::classes::ProjectSettings::singleton()
+        .globalize_path(texture_dir)
+        .to_string();
+    let material = match particle_material(emitter, Path::new(&dir)) {
+        Ok(material) => material,
+        Err(error) => return error.to_variant(),
+    };
+    let mut pool = ParticlePool::new(name, &material);
+    pool.reserve(quads.len());
+    pool.begin_frame();
+    pool.push(quads, 1.0);
+    pool.end_frame();
+    pool.node().clone().upcast::<Node3D>().to_variant()
+}
+
 fn read_spline_probe(controls: &PackedVector3Array) -> Result<m2::Model, String> {
     let data = Path::new(env!("CARGO_MANIFEST_DIR")).join("../../data/models");
     let bytes = std::fs::read(data.join("6316199.m2")).map_err(|e| e.to_string())?;
@@ -908,20 +909,11 @@ fn read_spline_probe(controls: &PackedVector3Array) -> Result<m2::Model, String>
         emitter_type: 3,
         blend_type: 2,
         spline_points: controls.as_slice().iter().map(|p| p.to_array()).collect(),
-        texture_fdid: Some(910001),
-        tile_rows: 1,
-        tile_cols: 1,
-        emission_rate: 100.0,
         lifespan: 2.0,
         area_length: 0.0,
         area_width: 1.0,
-        color_keys: vec![(0.0, [255.0; 3])],
-        opacity_keys: vec![(0.0, 1.0)],
         scale_keys: vec![(0.0, [0.025; 2])],
-        twinkle_percent: 1.0,
-        twinkle_scale_min: 1.0,
-        twinkle_scale_max: 1.0,
-        ..ParticleEmitter::default()
+        ..fixture_emitter(0)
     }];
     Ok(model)
 }
