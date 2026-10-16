@@ -22,7 +22,9 @@ Server persistence links owned item GUIDs to petitions and signing account IDs. 
 
 ## News
 
-[News contract](../../specs/guild-news.md): separate from lifecycle and bank logs. Source `GuildDetails.News` occupies the right316px of Info; `GuildNews.xml` supplies its300×18 rows,306px updated list extent and MinimalScrollBar. The first implementation renders only the actual current MOTD as source `MotD: %s`; no present roster or administrative setup becomes news. The filter link is source-shaped but its dialog/actions, event producers, authority/wire and native acceptance remain pending. Initial both-skin behavioral RED reproduces the absent news header. GuildExtra446203 is the sourced MOTD icon; local asset extraction remains pending.
+[News contract](../../specs/guild-news.md). Info composes source316px pane,300×18 rows, date headers, sticky pins,306px list and MinimalScrollBar. Real current MOTD stays first. Separate `GuildNewsSession` owns member reply, category filters, menu stable ID and pending sticky target; old queued pushes cannot release a pending opposite sticky mutation. Membership loss clears news independently from rank/log authority. Native network/account dispatch receives actual GuildNewsState; query/SetSticky travel GuildChannel. Source264×230 Translucent filter popup and24px checkboxes use installed labels; unsupported guild-achievement/encounter categories collapse. Real subject metadata drives achievement and item tooltips, achievement navigation and item chat links. Chat drafts now retain both actual item and achievement IDs while showing labels.
+
+Model GREEN4/4 atf0fe3d4f8/protocol9bb88b6 (`logs/guild-completion-news-link-green.log`); native build GREEN atda196ced9 (`logs/guild-completion-engine-build.log`). Source data are never synthetic roster/admin history. Private UDP/native both-skin interaction/pixel/restart proof remains open.
 
 ## Guild tabard data flow
 
