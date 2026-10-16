@@ -19,7 +19,7 @@ func run_fixture() -> void:
 		fail("Private compositor must expose 1920x1080 output")
 		return
 	var account := OS.get_environment("TP_ACCOUNT")
-	if server != "127.0.0.1:5791" or not account.begins_with("fb_") or shots.is_empty() or receipts.is_empty() or not phase in ["pet-comparison", "layout", "layout-proof", "browse", "relog", "purchase", "refund", "cart", "cart-lifetime", "rotate-controls", "mount-rider", "mount-rider-cancel", "freeze-workflow", "authored-camera", "frozen-slot-before", "frozen-slot-after"]:
+	if server != "127.0.0.1:5791" or not account.begins_with("fb_") or shots.is_empty() or receipts.is_empty() or not phase in ["pet-comparison-cart", "pet-comparison", "layout", "layout-proof", "browse", "relog", "purchase", "refund", "cart", "cart-lifetime", "rotate-controls", "mount-rider", "mount-rider-cancel", "freeze-workflow", "authored-camera", "frozen-slot-before", "frozen-slot-after"]:
 		fail("Explicit private 127.0.0.1:5791, fb_* account, phase and evidence paths required")
 		return
 	for directory in [shots, receipts]:
@@ -43,7 +43,7 @@ func run_fixture() -> void:
 	if not await wait_until(func(): return float(client.account_state().local_player_health) > 0.0, "private character alive", 120000): return
 	client.set_world_minutes(720.0)
 	await wait_frames(120)
-	if not phase in ["pet-comparison", "layout", "layout-proof", "cart", "cart-lifetime", "rotate-controls", "mount-rider", "mount-rider-cancel", "freeze-workflow", "authored-camera", "frozen-slot-before", "frozen-slot-after"] and not await travelers_log(): return
+	if not phase in ["pet-comparison-cart", "pet-comparison", "layout", "layout-proof", "cart", "cart-lifetime", "rotate-controls", "mount-rider", "mount-rider-cancel", "freeze-workflow", "authored-camera", "frozen-slot-before", "frozen-slot-after"] and not await travelers_log(): return
 	if not await open_vendor(): return
 	if phase in ["cart", "cart-lifetime"]:
 		# Collection UI owners may replace a hidden CanvasLayer while this vendor is open.
@@ -77,6 +77,7 @@ func run_fixture() -> void:
 		"freeze-workflow": await freeze_workflow_proof()
 		"authored-camera": await authored_camera_proof()
 		"pet-comparison": await pet_comparison_proof()
+		"pet-comparison-cart": await pet_comparison_cart_proof()
 		"frozen-slot-before": await frozen_slot_geometry_proof(false)
 		"frozen-slot-after": await frozen_slot_geometry_proof(true)
 		"refund": await refund_after_relog()
@@ -585,6 +586,30 @@ func pet_comparison_proof() -> void:
 	if not await wait_until(func(): return client.trading_post_state().comparison_ready, "fresh comparison after reopen", 120000): return
 	await capture("reopened-comparison")
 	await finish("pet-comparison")
+
+func pet_comparison_cart_proof() -> void:
+	var tender := int(client.trading_post_state().tender)
+	if not await choose_category(1): return
+	var wearable := await select_other_cartable([])
+	if wearable < 0: return
+	await click("PerksProgramAddToCartButton")
+	if not await wait_until(func(): return client.trading_post_state().cart.size() == 1, "one wearable for cart-composite lifetime boundary"): return
+	if not await choose_category(3): return
+	if not await select_first_available(): return
+	if not await wait_until(func(): return client.trading_post_state().comparison_ready and client.trading_post_state().preview_ready, "pet before cart composite", 120000): return
+	var player: Node3D = instance_from_id(int(client.trading_post_state().comparison_actor_id))
+	var pet := client.find_child("TradingPostPetActor", true, false)
+	await capture("pet-with-wearable-cart")
+	await click("PerksProgramViewCartButton")
+	if not await wait_until(func(): return client.trading_post_state().cart_visible and client.trading_post_state().preview_kind == "player" and client.trading_post_state().preview_ready, "wearable composite replaces both pet scenes", 120000): return
+	var state: Dictionary = client.trading_post_state()
+	if is_instance_valid(player) or is_instance_valid(pet) or state.comparison_ready or state.comparison_pending or control("PerksProgramPlayerModelScene") != null: fail("Cart composite retained pet comparison viewport or actor"); return
+	await capture("cart-composite-no-pet-comparison")
+	await click("PerksProgramCartCloseButton")
+	if not await wait_until(func(): return not client.trading_post_state().cart_visible and client.trading_post_state().comparison_ready, "pet comparison restored after cart composite", 120000): return
+	if int(client.trading_post_state().tender) != tender or client.trading_post_state().cart.size() != 1: fail("Comparison/cart transition changed Tender or cart"); return
+	await capture("pet-restored-after-cart")
+	await finish("pet-comparison-cart")
 
 func authored_camera_proof() -> void:
 	if not await choose_category(2): return
