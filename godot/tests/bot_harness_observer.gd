@@ -48,6 +48,7 @@ func sample() -> void:
     var snapshot := {"at_ms": int(Time.get_unix_time_from_system() * 1000.0),
         "account": account, "spells": spells, "spec_request_error": error,
         "target": target, "target_position": target_position,
+        "priority": requested_priority(target, spells),
         "target_attempts": target_attempts, "spec_requested": spec_requested,
         "talent_status": talent_status, "gear_status": gear_status,
         "inventory": client.merchant_state(), "auras": client.aura_state(),
@@ -68,6 +69,20 @@ func sample() -> void:
         quit(2)
         return
     create_timer(0.2).timeout.connect(sample, CONNECT_ONE_SHOT)
+
+func requested_priority(target: Dictionary, spells: Dictionary) -> Dictionary:
+    if target.get("target") == null or spells.get("known", []).is_empty():
+        return {"error": "Native priority query awaiting target and learned spells"}
+    var requested := PackedInt32Array()
+    for identity in spells["known"]:
+        requested.append(int(identity))
+    var result: Dictionary = client.call("spell_priority_state", int(target["target"]), requested)
+    if result.has("error"):
+        return result
+    var parsed: Variant = JSON.parse_string(result["state_json"])
+    if not parsed is Dictionary:
+        return {"error": "Native priority query returned invalid JSON"}
+    return parsed
 
 func publish_receipt(filename: String, receipt: Dictionary) -> bool:
     var file := FileAccess.open(output.path_join(filename), FileAccess.WRITE)

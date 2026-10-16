@@ -45,6 +45,26 @@ Every stat-bearing armor slot and preferred weapon uses authentic Item/ItemSpars
 - [Evidence and detection boundaries](../wiki/systems/bot-harness.md)
 - [Native automation contract](native-ui-automation.md)
 
+## Maintained routed-controller interface
+
+- `bot_harness.routed_player(...)` constructs one owned controller with the concrete `NavmeshRoute` adapter and correlated input bridge. Caller supplies the agent-run/query-binary argv prefix, baked navmesh directory, output directory, checked native IPC and fresh observations. The adapter preserves raw query/error receipts; empty, malformed or unbaked results block.
+- `PlayerController.walk_route(goals, position, observe, timeout)` consumes caller-authored goals, reobserves after each bounded physical step, and services loot before combat/recovery observation ticks. The caller's observation callback retains encounter/party-health/credit policy; `True` yields input to combat/recovery, never substitutes a priority.
+- `scripts/bot_controller.py` exposes `PlayerController(invoke, snapshot, route, bridge)`. Callers provide checked native IPC, fresh target-bound facts and an explicit authored/navmesh route query. `step_toward` submits one bounded physical forward step toward the first unreached sourced corner; empty/exhausted routes block, never substitute direct movement.
+- `cast_next(target, priority)` accepts an explicitly selected per-spec provider. Provider errors propagate without another rotation; submitted spells must be learned and native-ready, affordable and in range. Ordinary native `Ok(false)` waits without submitting; unavailable/error facts block explicitly. No hardcoded class/spec rotation lives in this controller. Source/trait coverage remains the provider's responsibility.
+- `assist(leader_name)` selects the named party leader through existing interaction, then requests native F press/release. An unchanged leader produces no victim; no entity-selection shortcut is introduced.
+- `FileBridge` atomically publishes correlated per-client input requests, waits at most ten seconds and never resubmits input on timeout. One controller/writer owns each output directory. Terminal ACK/error/timeout removes its request file, preventing replay by a later client using that directory.
+- `vote_loot()` clicks the visible semantic non-Need choice via the native viewport bridge and preserves its actual Greed/Transmog name. Submission ACK is not authoritative vote, win, delivery or pixel proof. Callers must service offers during recovery as well as after encounters.
+
+Launch `godot/tests/bot_controller_live.gd` with an existing `BOT_CONTROLLER_OUTPUT` directory and `BOT_CONTROLLER_SPELL_IDS` JSON array. It observes the real client and exposes the correlated F/mouse bridge; it does not change spec, talents, gear or learned spells. Server admission, encounter credit, natural recovery, route assets and measurement orchestration remain caller-owned. Generic interface tests do not establish an implemented priority for every spec or full-dungeon acceptance.
+
+## Approved pinned Arcane provider
+
+`scripts/bot_simc_arcane.py::ArcaneSimcProvider(receipt, apl_path, captured_kit, db2_dir, initial_snapshot, context)` is an explicitly selected provider, never an alternate path after native authored-evaluator failure. Caller passes it directly to `PlayerController.cast_next`. It verifies SimC commit `515f4a3fe9d1f35e1dbaf253745b6105fba906fb`, the approved raw URL and APL SHA-256 `b1d85887ec62431864cc2db45b95993868bc02a0c0852b5189997542f47cabd4`; all file paths are explicit inputs.
+
+Coverage is only the captured level32/spec62 kit: Counterspell APL24 when observed interruptible casting, four-charge Barrage APL36 at the declared DungeonRoute iteration end, and Blast APL64 filler. Caller explicitly supplies DungeonRoute2700s context, not target TTD or the separate600s combat safety bound. Received server traits and native kit identity are frozen at preflight; changed/unsupported kit, level, talents or context block. DB2 spell names and trait entries resolve source actions; missing data never becomes inferred absence. No OOM Barrage, consumables, external/on-use buffs, other-spec or full-APL claim.
+
+Portable captured [fixtures and provenance](../../scripts/tests/fixtures/bot_harness/simc_arcane32/provenance.json) preserve exact approved source bytes and native DB2 row slices. These are offline decision tests, not native sustained damage or balance proof.
+
 ## Implementation inventory
 
 - `godot/rust/src/ipc/combat.rs`: preserve received crit/glancing/periodic, school mask, overflow and absorbed/resisted/blocked values in combat-log/recap output; never infer historical missing fields.
@@ -53,7 +73,7 @@ Every stat-bearing armor slot and preferred weapon uses authentic Item/ItemSpars
 - `scripts/bot_ability_summary.py` / `bot_combat_metrics.py`: read-only expected-roster per-ability requests/successes/hits/crits/misses/event damage, auto-attack share, sampled GCD/idle intervals, observed raw power net changes and raw DB2 effect/cost/cooldown/auto-attack metadata. Preserve absent specs/repetitions, real child event IDs, and unattributed native errors. Missing crit flags remain unknown, resource net change is never spending, sampled timing is not exact server occupancy.
 - `scripts/tests/test_bot_harness.py`: behavioral detector and comparable-fixture regressions.
 - `scripts/bot_rotation.py`: sourced metadata, absent-order generic rule and fail-closed native authored selection.
-- `scripts/run_dummy_bots.py`: repeated explicit-socket fixed-duration collection and raw receipts.
+- `scripts/run_dummy_bots.py`: repeated explicit-socket fixed-duration collection and raw receipts; actual submissions use `PlayerController` with the existing explicitly chosen native-authored/absent-order source provider. Atomic observer samples include requested native usability/trait facts; unavailable or wrong-target facts block rather than bypassing the shared boundary.
 - `godot/tests/bot_harness_observer.gd`: existing native account/spell/aura/charge/assisted observation and private spec selection.
 - `godot/rust/src/spells/assisted_combat.rs`: shared native usability facts and read-only requested-spell snapshot; no target mutation.
 - `godot/tests/spell_priority_facts_live.gd`: native selected/unselected query and invalid-input response fixture.
@@ -64,6 +84,9 @@ Every stat-bearing armor slot and preferred weapon uses authentic Item/ItemSpars
 
 - `scripts/tests/test_bot_harness.py`
 - `scripts/tests/test_bot_rotation.py`
+- `scripts/tests/test_bot_controller.py` (generic-spec action boundary, strict route, native-input file correlation; not gameplay acceptance)
+- `scripts/tests/test_bot_routes.py` (query-process CSV/failure receipts, busy-loop loot service and physical blocked-route boundary)
+- `scripts/tests/test_bot_simc_arcane.py` (pinned source/context/trait/kit decision coverage; not live-game proof)
 
 ## Known gaps (current cycle)
 
