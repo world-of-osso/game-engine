@@ -86,6 +86,14 @@ impl GameClient {
             .get_visible_rect()
             .size;
         self.battleground.view.viewport = [size.x / scale, size.y / scale];
+        self.battleground.view.honor_faction = self
+            .account
+            .session
+            .characters
+            .iter()
+            .find(|entry| Some(entry.character_id) == self.account.session.selected_character_id)
+            .and_then(|entry| game_engine_ui_model::char_create_data::race_by_id(entry.race))
+            .map(|race| race.faction);
         let view = self.battleground.view.clone();
         self.extract_art(&crate::quests::screen_texture_fdids(
             view.clone(),

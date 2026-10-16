@@ -57,6 +57,8 @@ fn retail_war_mode_control_exists_but_requires_authoritative_context_in_both_ski
         assert_eq!(frame.onclick.as_deref(), Some("pvp:warmode"));
         let mut pvp = game_engine_ui_model::battleground::PvpView::default();
         pvp.snapshot = Some(shared::protocol::PvpSnapshot {
+            lifetime_honor_xp: 0,
+            honor_level: None,
             honor: 750,
             honor_max: 15000,
             conquest: 120,
@@ -164,6 +166,8 @@ fn three_source_pvp_slots_and_authoritative_choice_actions_render_in_both_skins(
         assert_eq!(locked.onclick.as_deref(), Some(""));
         let mut view = game_engine_ui_model::battleground::PvpView::default();
         view.snapshot = Some(PvpSnapshot {
+            lifetime_honor_xp: 0,
+            honor_level: None,
             honor: 0,
             honor_max: 15000,
             conquest: 0,
@@ -201,6 +205,8 @@ fn quick_match_and_rated_tabs_show_wallet_balances_without_fake_season_policy() 
         let mut view = PvpView::default();
         view.visible = true;
         view.snapshot = Some(PvpSnapshot {
+            lifetime_honor_xp: 0,
+            honor_level: None,
             honor: 750,
             honor_max: 15000,
             conquest: 120,
@@ -300,6 +306,63 @@ fn quick_match_and_rated_tabs_show_wallet_balances_without_fake_season_policy() 
         assert!(
             registry.get_by_name("HonorFrameQueueButton").is_none(),
             "rated tab uses its own authoritative queue action"
+        );
+    }
+}
+
+#[test]
+fn honor_lifetime_display_never_substitutes_spendable_cap_for_unknown_level_curve() {
+    use game_engine_ui_model::battleground::{PvpView, pvp_screen};
+    let data = std::path::PathBuf::from(env!("CARGO_MANIFEST_DIR")).join("../../data");
+    game_engine_ui_model::paths::set_data_root(data).unwrap();
+    for skin in [ActiveSkin::Modern, ActiveSkin::Forever] {
+        set_thread_skin(skin);
+        let mut view = PvpView::default();
+        view.visible = true;
+        view.viewport = [1920.0, 1080.0];
+        view.honor_faction = Some(game_engine_ui_model::char_create_data::Faction::Alliance);
+        view.snapshot = Some(shared::protocol::PvpSnapshot {
+            lifetime_honor_xp: 47,
+            honor_level: None,
+            honor: 750,
+            honor_max: 15000,
+            conquest: 0,
+            conquest_max: None,
+            brackets: vec![],
+            queue: None,
+            battleground: None,
+            war_mode: None,
+            talents: None,
+        });
+        let tooltip = view.honor_tooltip().unwrap();
+        assert_eq!(tooltip.content.title, "Lifetime Honor");
+        assert_eq!(tooltip.content.lines[0].left_text, "47");
+        let mut shared = SharedContext::new();
+        shared.insert(view);
+        let mut registry = FrameRegistry::new(1920.0, 1080.0);
+        Screen::new(pvp_screen).sync(&shared, &mut registry);
+        let level = registry
+            .get(
+                registry
+                    .get_by_name("PVPUIHonorLevelLabel")
+                    .expect("Retail HonorLevelDisplay label"),
+            )
+            .unwrap();
+        let Some(WidgetData::FontString(text)) = level.widget_data.as_ref() else {
+            panic!("honor level text")
+        };
+        assert_eq!(
+            text.text, "Honor Level —",
+            "unknown level, not fabricated zero or wallet amount"
+        );
+        assert!(registry.get_by_name("PVPUIHonorLevelDisplay").is_some());
+        assert!(
+            registry.get_by_name("PVPUIHonorFactionBadge").is_some(),
+            "source faction identity, not an invented honor-level badge"
+        );
+        assert!(
+            registry.get_by_name("PVPUIHonorLevelFill").is_none(),
+            "no certified lifetime XP maximum"
         );
     }
 }
