@@ -25,12 +25,13 @@ pub fn settings_screen(view: &HousingView) -> Element {
         "housing-basic-container-woodheader",
         (6.0, 6.0, 588.0, 39.0),
     );
+    let decoration = decorative_regions();
     let columns = access_columns(draft, view.model.pending);
     let save_disabled = view.model.pending || draft.access.is_none();
     rsx! { r#frame { name: "HousingRoot", stretch: true,
         r#frame { name: "HousingHouseSettingsFrame", width: 600.0, height: 550.0,
             pos_type: "absolute", left, top, strata: FrameStrata::Dialog, mouse_enabled: true,
-            {background} {header} {columns}
+            {background} {header} {decoration} {columns}
             fontstring { name: "HousingSettingsTitle", text: "House Settings", width: 400.0, height: 30.0,
                 pos_type: "absolute", left: 100.0, top: 14.0, font_size: 17.0 }
             button { name: "HousingSettingsClose", text: "X", width: 32.0, height: 32.0,
@@ -49,6 +50,35 @@ pub fn settings_screen(view: &HousingView) -> Element {
                 pos_type: "absolute", left: 402.0, top: 488.0, onclick: "housing:settings:save", disabled: save_disabled }
         }
     } }
+}
+
+/// HouseSettings XML Header/PlantDecoLeft/Spacer; no caller Lua overrides.
+fn decorative_regions() -> Element {
+    let foliage = ui_toolkit::atlas::resolve_region(
+        "housing-decorative-foliage-left",
+        ui_toolkit::atlas::thread_skin(),
+    )
+    .expect("HouseSettings source foliage atlas");
+    [
+        (
+            "HousingSettingsHeaderGradient",
+            "housing-basic-panel-gradient-header-bg",
+            (100.0, 0.0, 400.0, 80.0),
+        ),
+        (
+            "HousingSettingsPlantDecoLeft",
+            "housing-decorative-foliage-left",
+            (6.0, 7.0, foliage.width, foliage.height),
+        ),
+        (
+            "HousingSettingsSpacer",
+            "Options_HorizontalDivider",
+            (25.0, 174.0, 550.0, 1.0),
+        ),
+    ]
+    .into_iter()
+    .flat_map(|(name, atlas, rect)| named_atlas_texture(name.into(), atlas, rect))
+    .collect()
 }
 
 fn access_columns(draft: &HouseSettings, pending: bool) -> Element {
