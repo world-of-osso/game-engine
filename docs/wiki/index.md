@@ -1,6 +1,8 @@
 - [Clean-room M2 particles](systems/godot-conversion.md#native-m2-particles) — native tails/follow/cubic controls, authored sorting and map-collision births; inherited-scale provenance and explicit lighting, timer/reset, spline-density, target-mask and model-recursion oracle gaps.
 # Wiki Index
 
+- [Campsite selected-hover](investigations/glue-menu-fidelity.md#campsite-selected-hover-branch--2026-10-15) — source gold selected-hover member/18px slicing; both-skin physical dispatch/reselection proof,24 unchanged control/context pairs.
+
 - [Storage Filter header](systems/housing.md#storage-filter-header--implementation2026-10-15) — native missing-surface RED→both-skin fixed source Filter/reset geometry, physical Dyeable/reset and paid conservation; popup/full-image parity excluded, Forever final JSON limitation retained.
 - [Caster-centered assisted range](investigations/cooldown-assist-data.md#caster-centered-assisted-range--2026-10-16) — retain authored Self Only range identity instead of excluding selected-enemy distance; actual Whirlwind RED→GREEN and25 core controls, fresh native acceptance open.
 - [Minimap zoom source states](systems/minimap.md#zoom-button-source-states--2026-10-15) — both-skin native hover/press/limit-disabled and release cancellation; unchanged enabled idle/context pixels outside zoom rectangles.
