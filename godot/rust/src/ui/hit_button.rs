@@ -19,7 +19,7 @@ impl IButton for RegistryButton {
 fn contains_point(size: Vector2, [left, right, top, bottom]: [f32; 4], point: Vector2) -> bool {
     let origin = Vector2::new(left, top);
     let hit_size = size - Vector2::new(left + right, top + bottom);
-    Rect2::new(origin, hit_size).has_point(point)
+    Rect2::new(origin, hit_size).contains_point(point)
 }
 
 #[cfg(test)]
