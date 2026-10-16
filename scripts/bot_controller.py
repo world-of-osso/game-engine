@@ -131,11 +131,29 @@ class PlayerController:
         spell = int(selected["spell"])
         if not native_usable(state, spell):
             return None
+        response = self.submit_cast(state, target, spell)
+        return {**selected, "response": response, "native": state}
+
+    def submit_cast(self, state, target, spell):
         self.pending = {"spell": spell, "actor": int(state["actor"]), "at_ms": state["at_ms"],
                         "successes": self.success_counts(state),
-                        "failure_seq": spells["cast_failure_seq"], "deadline": time.monotonic() + 10}
-        response = self.invoke("spell", "cast", "--spell", str(spell), "--target", str(target))
-        return {**selected, "response": response, "native": state}
+                        "failure_seq": state["spells"]["cast_failure_seq"], "deadline": time.monotonic() + 10}
+        return self.invoke("spell", "cast", "--spell", str(spell), "--target", str(target))
+
+    def cast_opening(self, target, spell):
+        """One explicit prepull cast; server validates range/usability, no retry."""
+        if self.pending is not None:
+            raise RuntimeError("Opening cannot replace an outstanding cast")
+        state = self.snapshot(target)
+        if state.get("target") != int(target) or spell not in state["spells"]["known"]:
+            raise ValueError("Opening requires observed target and learned spell")
+        self.submit_cast(state, target, spell)
+        while not self.observe_cast_outcome(self.snapshot(target)):
+            time.sleep(.05)
+        outcome = self.outcomes[-1]
+        if not outcome["success"]:
+            raise RuntimeError(f"Native opening refused: {outcome}")
+        return outcome
 
     def step_toward(self, here, goal, label):
         """One bounded physical step; caller reobserves combat/route after it."""

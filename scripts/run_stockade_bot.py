@@ -41,11 +41,12 @@ class StockadeRun:
         self.last_errors = []
         self.credit_offset = 0
         self.blocked_steps = 0
+        self.opening_target = None
         self.plan = stockade_plan(args.world_db)
         self.run = {"spec": args.spec, "role": 2, "actor": None, "party_actors": [],
                     "start_ms": int(time.time() * 1000), "end_ms": None,
                     "elapsed_ms": 0, "clear_elapsed_ms": None, "capture_complete": True,
-                    "bosses": self.plan["bosses"], "attempts": [], "native_errors": [],
+                    "bosses": self.plan["bosses"], "attempts": [], "openings": [], "native_errors": [],
                     "owner_snapshot": [], "capture_gaps": [], "failure": None}
         self.player = routed_player(self.invoke, self.snapshot,
                                    [str(args.engine / "scripts/agent/agent-run"), "bot-harness",
@@ -237,19 +238,36 @@ class StockadeRun:
         if self.blocked_steps >= 8:
             raise RuntimeError(f"Native route blocked after eight steps at {after}; goal {goal}")
 
+    def open_pull(self):
+        target = self.player.tab_to_enemy()
+        receipt = {"at_ms": int(time.time() * 1000), "target": target, "spell": 57755,
+                   "source": "approved native Heroic Throw prep; server validates range/usability"}
+        self.run["openings"].append(receipt)
+        try:
+            receipt["outcome"] = self.player.cast_opening(target, 57755)
+            self.opening_target = target
+        except Exception as error:
+            receipt["error"] = str(error)
+            raise
+        finally:
+            publish(self.output / f"opening-{len(self.run['openings']):04d}.json", receipt)
+
     def step(self):
         self.poll_combat()
         self.record_credit()
         if self.run["clear_elapsed_ms"] is not None:
             return True
         party = self.party()
-        target = self.player.assist(self.tank)
+        target = self.opening_target or self.player.assist(self.tank)
         here = position(self.account())
         if target is not None:
             state = self.snapshot(target)
             if state["spells"]["target_health"] == 0:
-                time.sleep(.2)
-                return False
+                if not self.player.observe_cast_outcome(state):
+                    return False
+                self.opening_target = None
+                target = None
+        if target is not None:
             goal = state["target_position"]
             if len(goal) != 3:
                 raise RuntimeError("Native assisted target origin not observed")
@@ -261,8 +279,7 @@ class StockadeRun:
             else:
                 self.player.cast_next(target, authored_priority)
         elif all(row["health"] >= row["max_health"] for row in party):
-            goal = next(boss["goal"] for boss in self.run["bosses"] if boss["state"] != "Done")
-            self.move(here, goal, "authored-boss-goal")
+            self.open_pull()
         time.sleep(.2)
         return False
 
