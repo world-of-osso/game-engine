@@ -77,6 +77,8 @@ pub(crate) struct PlayerMovement {
     server_speed: Option<f32>,
     /// `unmodified_speed` of the newest input reported to the server.
     reported_speed: f32,
+    /// Last body gait before boarding; the body retains that replicated speed while seated.
+    body_reported_speed: f32,
     /// Whether the newest reported input moved or jumped, so a release reports one stop.
     reported_motion: bool,
     /// Facing of the newest reported input (or of the first idle frame); a turn in place
@@ -138,6 +140,7 @@ impl Default for PlayerMovement {
             server_speed: None,
             // The server spawns players with `MovementSpeed(RUN_SPEED)`.
             reported_speed: RUN_SPEED,
+            body_reported_speed: RUN_SPEED,
             reported_motion: false,
             reported_yaw: None,
             reported_epoch: None,
@@ -188,6 +191,9 @@ impl PlayerMovement {
         if self.vehicle == vehicle {
             return;
         }
+        if self.vehicle.is_none() {
+            self.body_reported_speed = self.reported_speed;
+        }
         self.stop();
         self.vehicle = vehicle;
         self.swimming = false;
@@ -197,7 +203,9 @@ impl PlayerMovement {
         self.grounded = true;
         self.server_speed = None;
         self.speed_modifier = 1.0;
-        self.reported_speed = self.unmodified_speed();
+        // Boarding publishes the run gait; exiting restores the body's last
+        // reported gait, which need not match the current run/walk toggle.
+        self.reported_speed = vehicle.map_or(self.body_reported_speed, |state| state.run_speed);
     }
 
     fn restrict_vehicle_direction(&mut self, direction: Vec3, yaw: f32) -> Vec3 {
