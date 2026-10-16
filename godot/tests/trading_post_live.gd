@@ -576,7 +576,14 @@ func pet_comparison_proof() -> void:
 	await wait_frames(60)
 	var state: Dictionary = client.trading_post_state()
 	if state.comparison_pending or state.comparison_ready or int(state.comparison_actor_id) != 0: fail("Late comparison actor arrived after close"); return
+	var chat: CanvasLayer = client.get_node_or_null("ChatFrameUI")
+	if int(state.hidden_layers) != 0 or chat == null or not chat.visible: fail("Pending comparison close did not restore HUD"); return
 	await capture("closed-pending-no-late-comparison")
+	if not await open_vendor(): return
+	if not await choose_category(3): return
+	if not await select_first_available(): return
+	if not await wait_until(func(): return client.trading_post_state().comparison_ready, "fresh comparison after reopen", 120000): return
+	await capture("reopened-comparison")
 	await finish("pet-comparison")
 
 func authored_camera_proof() -> void:
