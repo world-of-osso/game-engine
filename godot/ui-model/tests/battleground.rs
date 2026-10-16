@@ -9,6 +9,8 @@ use ui_toolkit::{
 };
 fn snapshot(phase: BgPhase, accepted: bool) -> PvpSnapshot {
     PvpSnapshot {
+        lifetime_honor_xp: 0,
+        honor_level: None,
         honor: 0,
         honor_max: 0,
         conquest: 0,

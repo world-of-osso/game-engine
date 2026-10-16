@@ -9,6 +9,8 @@ use shared::protocol::{
 };
 #[path = "arena_ui.rs"]
 mod arena_ui;
+#[path = "pvp_honor_ui.rs"]
+mod honor_ui;
 use ui_toolkit::{rsx, screen::SharedContext, strata::FrameStrata, widget_def::Element};
 
 #[derive(Clone, Debug, PartialEq, Eq)]
@@ -345,6 +347,9 @@ fn queue(context: &SharedContext, view: &PvpView) -> Element {
             (10.0, 66.0 + index as f32 * 80.0, 168.0, 50.0),
             &crate::selection_list::PVP_CATEGORY,
         ));
+    }
+    if view.category != PvpCategory::PremadeGroups {
+        children.extend(honor_ui::honor_inset(view));
     }
     if view.category != PvpCategory::QuickMatch {
         children.extend(category_panel(view));
