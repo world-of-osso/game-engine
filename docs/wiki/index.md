@@ -9,6 +9,8 @@
 # Wiki Index
 
 - [Inherited frozen item tooltip](systems/trading-post.md#inherited-frozen-product-tooltip--implementation-october16) — same source item contract through displayed selection action, missing native tooltip RED, GREEN pending; no frozen state/geometry change.
+- [Trading Post cart item tooltips](systems/trading-post.md#cart-item-tooltips--implementation-october16) — regular/member identity and source owner offset/no sell price; native RED→both-skin hover/remove GREEN, global-input fixture correction and eight inspected full-HD samples.
+- [Fade effect projection](systems/battle-pets.md#fade-effect-projection--2026-10-16) — current70391 sourced random self-swap, both-skin fullHD pointer/log/model proof and91 identical rectangles; complete Retail art/timing excluded.
 
 - [BM native Assist preparation](systems/bot-harness.md#bm-native-assist-preparation--2026-10-16) — ordinary received-slot input/ack gate; pinned TC constructor proves Passive default, stored stance preserved; fresh DPS remains separate.
 
