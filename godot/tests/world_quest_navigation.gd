@@ -96,7 +96,7 @@ func check_pin_navigation() -> bool:
 	var map_before: int = client.world_map_state().map_id
 	if not await move_to("WorldMapPin%s" % index):
 		return false
-	var tooltip := control("WorldQuestMapTooltip")
+	var tooltip := control("WorldQuestMapTooltipFrame")
 	if tooltip == null or not tooltip.is_visible_in_tree():
 		stop("Native world quest reward tooltip missing")
 		return false
