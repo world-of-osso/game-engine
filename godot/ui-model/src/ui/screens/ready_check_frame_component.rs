@@ -20,6 +20,7 @@ const CENTER_Y: f32 = 10.0;
 const BACKGROUND_FDID: u32 = 6_839_810;
 const TITLE_H: f32 = 20.0;
 const TEXT_W: f32 = 240.0;
+const TEXT_CENTER_X: f32 = 20.0;
 const TEXT_TOP: f32 = 37.0;
 const BUTTON_W: f32 = 119.0;
 const BUTTON_H: f32 = 24.0;
@@ -103,8 +104,8 @@ pub fn ready_check_frame(state: &ReadyCheckFrameState) -> Element {
                 strata: FrameStrata::Dialog,
                 frame_level: 6.0,
                 pos_type: "absolute",
-                pos_x: {(FRAME_W - TEXT_W) / 2.0},
-                pos_y: {TEXT_TOP - TITLE_H / 2.0},
+                pos_x: {(FRAME_W - TEXT_W) / 2.0 + TEXT_CENTER_X},
+                pos_y: TEXT_TOP,
             }
             {ready_button("YesButton", "Ready", ACTION_READY_CHECK_YES, FRAME_W / 2.0 + YES_RIGHT_OFFSET - BUTTON_W)}
             {ready_button("NoButton", "Not Ready", ACTION_READY_CHECK_NO, FRAME_W / 2.0 + NO_LEFT_OFFSET)}
