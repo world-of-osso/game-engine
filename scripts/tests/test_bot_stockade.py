@@ -8,7 +8,7 @@ from contextlib import closing
 from pathlib import Path
 
 sys.path.insert(0, str(Path(__file__).resolve().parents[1]))
-from bot_stockade import authored_priority, parse_party, stockade_plan
+from bot_stockade import admitted_copy, authored_priority, encounter_states, parse_npc, parse_party, stockade_plan
 
 
 class StockadeSourceTests(unittest.TestCase):
@@ -33,6 +33,29 @@ class StockadeSourceTests(unittest.TestCase):
         self.assertEqual(party[1]["power"], ["Mana", 4430, 4430])
         with self.assertRaisesRegex(ValueError, "live|health"):
             parse_party('group_roster: 1\nCaptain Garrick leader=false role=tank online=true subgroup=0 level=32')
+
+    def test_authoritative_copy_is_bound_to_character_and_normal_map_not_a_fixed_one(self):
+        text = ('Created instance 1 of map 34 at difficulty 1 for InstanceEntrant { character_id: 69, group_id: None }\n'
+                'Created instance 2 of map 34 at difficulty 1 for InstanceEntrant { character_id: 70, group_id: None }')
+        self.assertEqual(admitted_copy(text, 70), 2)
+        with self.assertRaisesRegex(ValueError, 'copy|instance'):
+            admitted_copy(text, 71)
+        with self.assertRaisesRegex(ValueError, 'copy|instance'):
+            admitted_copy(text + '\nCreated instance 3 of map 34 at difficulty 1 for InstanceEntrant { character_id: 70, group_id: None }', 70)
+
+    def test_live_npc_identity_and_encounter_credit_never_cross_instance_copies(self):
+        text = ('Randolph Moloch (entity 4294959692) level 30 health 12/13137 difficulty 1 '
+                'combat={"creature_armor":155.0,"stats":null,"threat":null,"victim":null}')
+        npc = parse_npc(text, 46383)
+        self.assertEqual(npc['entity'], '4294959692')
+        self.assertEqual(npc['entry'], 46383)
+        self.assertEqual(npc['health'], 12)
+        with self.assertRaisesRegex(ValueError, 'unique|NPC'):
+            parse_npc(text + '\n' + text, 46383)
+        log = ('Instance InMap { map_id: 34, instance_id: 1 }: boss 0 (encounter 1146) InProgress -> Done\n'
+               'Instance InMap { map_id: 34, instance_id: 2 }: boss 0 (encounter 1146) NotStarted -> InProgress\n'
+               'Instance InMap { map_id: 34, instance_id: 2 }: boss 1 (encounter 1145) InProgress -> Done')
+        self.assertEqual(encounter_states(log, 2), {1146: 'InProgress', 1145: 'Done'})
 
     def test_stockade_plan_joins_authored_encounters_spawns_and_entrance_read_only(self):
         with tempfile.TemporaryDirectory() as root:
