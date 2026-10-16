@@ -732,7 +732,7 @@ M2 particles: see [Native M2 particles](#native-m2-particles).
 
 ### P6 continuation — authored particle ordering
 
-Flag0x2 now orders each emitter’s live world-space particle centers far-to-near in the current camera; model-space centers are transformed before ordering, and each particle’s head/tail stays adjacent. Unflagged paths retain live order and allocate no sort list. Actual165894 observes the flag. Two CPU controls reproduced near-first RED; native half-alpha/additive overlap fixture and GREEN pending. See [contract](../../specs/m2-particles.md#p6--authored-depth-ordering-2026-10-15).
+Flag0x2 now orders each emitter’s live world-space particle centers far-to-near in the current camera; model-space centers are transformed before ordering, and each particle’s head/tail stays adjacent. Unflagged paths retain live order and allocate no sort list. Actual165894 observes the flag. Two CPU controls reproduced near-first RED; GREEN2/2 and native8/8 alpha/additive overlap controls pass at5b76a724d; eight1920×1080 PNGs saved and representative alpha/additive samples inspected. See [contract](../../specs/m2-particles.md#p6--authored-depth-ordering-2026-10-15).
 
 ### Clean-room continuation — 2026-10-15
 
