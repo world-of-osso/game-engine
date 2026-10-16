@@ -311,17 +311,25 @@ def grant_missing_native_gear(args, output, bot, plan, state):
     raise RuntimeError("Granted source items not confirmed in native owned bags within10s")
 
 
+def native_inventory_ready(state, bot):
+    account, inventory = state["account"], state["inventory"]
+    if account.get("selected_character_name") != bot["name"] or account.get("screen") != "InWorld":
+        return False
+    if not account.get("gameplay_input_allowed") or account.get("local_player_health") is None:
+        return False
+    if not inventory["equipment"] or not inventory["item_catalog_loaded"]:
+        return False
+    require_living_player(account)
+    return True
+
+
 def provision_native_gear(args, output, bot, gear_plan):
     deadline = time.monotonic() + 180
     while time.monotonic() < deadline:
         path = output / "native-state.json"
         if path.exists():
-            state = read_state(path)
-            account, inventory = state["account"], state["inventory"]
-            native_owner = account.get("selected_character_name") == bot["name"]
-            inworld = account.get("screen") == "InWorld" and account.get("gameplay_input_allowed")
-            if native_owner and inworld and inventory["equipment"] and inventory["item_catalog_loaded"]:
-                require_living_player(account)
+            state = json.loads(path.read_text())
+            if native_inventory_ready(state, bot):
                 grant_missing_native_gear(args, output, bot, gear_plan, state)
                 return
         time.sleep(.25)

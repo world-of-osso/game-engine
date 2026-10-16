@@ -48,6 +48,21 @@ class NativeReadinessTests(unittest.TestCase):
             self.assertTrue(run_bot_roster.native_ready(state, 70, True))
             self.assertEqual(run_dummy_bots.read_state(path)["account"]["local_player_health"], 8208)
 
+    def test_inventory_provisioning_waits_through_actual_login_before_health(self):
+        source = Path(__file__).parent / "fixtures/bot_harness/native-inventory-before-health.json"
+        state = json.loads(source.read_text())
+        bot = {"name": "Bdrurestor"}
+        self.assertIsNone(state["account"]["local_player_health"])
+        self.assertFalse(run_bot_roster.native_inventory_ready(state, bot))
+        state["account"].update(screen="InWorld", selected_character_name=bot["name"])
+        state["inventory"].update(equipment=[{"slot": "MainHand", "item_id": 3661}], item_catalog_loaded=True)
+        self.assertFalse(run_bot_roster.native_inventory_ready(state, bot))
+        state["account"]["local_player_health"] = 8208
+        self.assertTrue(run_bot_roster.native_inventory_ready(state, bot))
+        state["account"]["local_player_health"] = 0
+        with self.assertRaisesRegex(RuntimeError, "dead"):
+            run_bot_roster.native_inventory_ready(state, bot)
+
     def test_absent_health_observation_cannot_qualify_a_live_measurement(self):
         source = Path(__file__).parent / "fixtures/bot_harness/native-dead-player.json"
         state = json.loads(source.read_text())
