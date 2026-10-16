@@ -48,11 +48,13 @@ func run_test() -> void:
 		fail("Inactive Expert binding emitted an Expert shortcut sound")
 		return
 	if not await enter_expert(): return
-	for spec in [["Translate", "TranslateSubmodeButton", KEY_F8], ["Rotate", "RotateSubmodeButton", KEY_F9], ["Scale", "ScaleSubmodeButton", KEY_F10]]:
-		if not await prove_pointer_sound(spec): return
-		if not await prove_pointer_sound(spec): return
-		if not await prove_cancelled_pointer_sound(spec[1]): return
-		if not await prove_shortcut_sound(spec): return
+	# Resume only the unfinished mute phase after its old checkbox selector failed.
+	if OS.get_environment("HOUSING_SOUND_MUTE_ONLY") != "1":
+		for spec in [["Translate", "TranslateSubmodeButton", KEY_F8], ["Rotate", "RotateSubmodeButton", KEY_F9], ["Scale", "ScaleSubmodeButton", KEY_F10]]:
+			if not await prove_pointer_sound(spec): return
+			if not await prove_pointer_sound(spec): return
+			if not await prove_cancelled_pointer_sound(spec[1]): return
+			if not await prove_shortcut_sound(spec): return
 	if not await set_sound_mute(true): return
 	if not await enter_expert(): return
 	if not await prove_shortcut_sound(["Rotate", "RotateSubmodeButton", KEY_F9], true): return
@@ -172,7 +174,8 @@ func record_sound(phase: String, gain: float) -> bool:
 func set_sound_mute(muted: bool) -> bool:
 	if not await open_housing_binding_page(): return false
 	if not await click_exposed_control(menu_control("OptionsTabsound")): return false
-	var name := "ToggleSwitchmutedRightHit" if muted else "ToggleSwitchmutedLeftHit"
-	if not await wait_housing(func(): return menu_control(name) != null, "native sound mute preference"): return false
-	if not await click_exposed_control(menu_control(name)): return false
+	if not await wait_housing(func(): return menu_control("ToggleSwitchmuted") != null and menu_control("ToggleSwitchmutedChecked") != null, "native sound mute checkbox"): return false
+	if menu_control("ToggleSwitchmutedChecked").is_visible_in_tree() != muted:
+		if not await click_exposed_control(menu_control("ToggleSwitchmuted")): return false
+	if not await wait_housing(func(): return menu_control("ToggleSwitchmutedChecked").is_visible_in_tree() == muted, "native saved mute preference"): return false
 	return await close_binding_page()
