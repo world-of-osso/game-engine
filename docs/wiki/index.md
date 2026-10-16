@@ -1,4 +1,4 @@
-- [Alliance escort native fixture](systems/quest-ui.md#alliance-escort-native-fixture--2026-10-16) — Feero976 real-input harness; server GREEN, both-skin native partial proof; completion blocked.
+- [Alliance escort native fixture](systems/quest-ui.md#alliance-escort-native-fixture--2026-10-16) — Feero976 real-input harness; both skins earned all-three-wave credit; authenticated receipt closure and server grid-lifecycle fix.
 - [House Access dropdown](systems/housing.md#house-access-dropdown--2026-10-16) — source WowStyle2/MenuStyle1 caller replacement; RED→GREEN, both-skin physical states/draft selections,26 context comparisons confined to the House Access column.
 - [Clean-room M2 particles](systems/godot-conversion.md#native-m2-particles) — native tails/follow/cubic controls, authored sorting and map-collision births; inherited-scale provenance and explicit lighting, timer/reset, spline-density, target-mask and model-recursion oracle gaps.
 # Wiki Index
