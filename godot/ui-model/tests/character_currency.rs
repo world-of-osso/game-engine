@@ -76,6 +76,11 @@ fn discovered_zero_pvp_wallet_opens_source_token_rows_in_both_skins_but_empty_wa
             )
             .unwrap();
         assert_eq!(tab.onclick.as_deref(), Some("character_tab:currency"));
+        assert_eq!(
+            tab.position.top,
+            ui_toolkit::layout_values::Val::Px(422.0),
+            "discovered-wallet tabs use Retail BOTTOMLEFT y-2 in both skins"
+        );
         view.tab = CharacterTab::from_action(tab.onclick.as_deref().unwrap()).unwrap();
         view.currencies = wallet_rows();
         shared.insert(view.clone());

@@ -1026,8 +1026,10 @@ fn slot_icon(button: &PaperDollButton, view: &PaperDollSlotView) -> Element {
 /// CF.xml: tabs TOPLEFT at previous TOPRIGHT+1, first BOTTOMLEFT11,2.
 /// CF.lua67–73/TokenUI.lua: undiscovered wallets do not expose Currency.
 fn tabs(selected: CharacterTab, has_currencies: bool, size: (f32, f32)) -> Element {
-    if thread_skin() == ActiveSkin::Forever {
-        return forever_tabs(selected, has_currencies, size.0);
+    // Keep pre-existing undiscovered-wallet chrome out of this continuation.
+    // Once Currency is present, all three tabs follow Mainline in both skins.
+    if thread_skin() == ActiveSkin::Forever && !has_currencies {
+        return forever_tabs(selected, size.0);
     }
     let (character_w, reputation_w) = (tab_width("Character"), tab_width("Reputation"));
     let definitions = [
@@ -1075,7 +1077,7 @@ fn tabs(selected: CharacterTab, has_currencies: bool, size: (f32, f32)) -> Eleme
 /// Existing Character/Reputation actions, with Camelot's vertical mode-tab chrome.
 /// CharacterFrame.xml:569-589; CharacterFrame.lua:207; SharedUIPanelTemplates.lua:313.
 /// Keep the existing Character/Reputation labels and approved tab art.
-fn forever_tabs(selected: CharacterTab, has_currencies: bool, frame_width: f32) -> Element {
+fn forever_tabs(selected: CharacterTab, frame_width: f32) -> Element {
     let background = art::resolve_art("common-sidetab");
     let (w, art_h) = background.size();
     let h = art_h - 5.0;
@@ -1093,15 +1095,8 @@ fn forever_tabs(selected: CharacterTab, has_currencies: bool, frame_width: f32) 
             CharacterTab::Reputation,
             ACTION_TAB_REPUTATION,
         ),
-        (
-            3,
-            "Currency",
-            CharacterTab::Currency,
-            "character_tab:currency",
-        ),
     ]
     .into_iter()
-    .filter(|(index, _, _, _)| *index != 3 || has_currencies)
     .flat_map(|(index, label, tab, action)| {
         let name = format!("CharacterFrameTab{index}");
         let y = 30.0 + (index - 1) as f32 * (h + 2.0);
