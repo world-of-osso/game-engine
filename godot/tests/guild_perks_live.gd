@@ -100,6 +100,15 @@ func prove_ordinary_clicks() -> bool:
 	return true
 
 func prove_modified_link() -> bool:
+	await tap(KEY_ENTER)
+	if not await wait_until(func(): return shown("ChatFrame1EditBox"), "ordinary chat input"):
+		return false
+	await type_text("before  after")
+	for index in range(6):
+		await tap(KEY_LEFT)
+	var initial := control("ChatFrame1EditBox") as LineEdit
+	if initial.text != "before  after" or initial.caret_column != 7:
+		return fail("Physical chat text/caret setup failed")
 	var point := control("CommunitiesGuildPerk78633").get_global_rect().get_center()
 	await hover_at(point)
 	for pressed in [true, false]:
@@ -112,10 +121,10 @@ func prove_modified_link() -> bool:
 		event.pressed = pressed
 		root.push_input(event, true)
 		await wait_frames(2)
-	if not await wait_until(func(): return shown("ChatFrame1EditBox") and perk_observation().draft_wire == "|Hspell:78633|h[Mount Up]|h", "real modified-click spell draft"):
+	if not await wait_until(func(): return shown("ChatFrame1EditBox") and perk_observation().draft_wire == "before |Hspell:78633|h[Mount Up]|h after", "real modified-click spell draft"):
 		return false
 	var edit := control("ChatFrame1EditBox") as LineEdit
-	if edit.text != "[Mount Up]":
+	if edit.text != "before [Mount Up] after":
 		return fail("Native edit displays raw markup or wrong metadata")
 	await capture("chat-draft")
 	await tap(KEY_ENTER)
