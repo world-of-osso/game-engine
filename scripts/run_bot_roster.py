@@ -292,6 +292,42 @@ def prepare_native_form(args, output, socket, plan):
     raise RuntimeError(f"Native source form spell {plan['spell']} aura not confirmed; no repeat/toggle or alternate form")
 
 
+def grant_missing_native_gear(args, output, bot, plan, state):
+    (output / "inventory-before-grants.json").write_text(json.dumps(state, indent=2) + "\n")
+    equipment = admin(args, "list-equipment", bot["name"])
+    (output / "equipment-before-grants.txt").write_text(equipment)
+    grants = required_grants(plan, equipment, state["inventory"]["bags"])
+    for item, count in grants.items():
+        admin(args, "grant-item", bot["name"], str(item), str(count))
+    deadline = time.monotonic() + 10
+    while time.monotonic() < deadline:
+        state = read_state(output / "native-state.json")
+        if not required_grants(plan, equipment, state["inventory"]["bags"]):
+            (output / "inventory-after-grants.json").write_text(json.dumps(state, indent=2) + "\n")
+            receipt = {"grants": grants, "proof": "authenticated owned bags confirmed before ordinary gear input"}
+            (output / "gear-provisioned.json").write_text(json.dumps(receipt, indent=2) + "\n")
+            return
+        time.sleep(.1)
+    raise RuntimeError("Granted source items not confirmed in native owned bags within10s")
+
+
+def provision_native_gear(args, output, bot, gear_plan):
+    deadline = time.monotonic() + 180
+    while time.monotonic() < deadline:
+        path = output / "native-state.json"
+        if path.exists():
+            state = read_state(path)
+            account, inventory = state["account"], state["inventory"]
+            native_owner = account.get("selected_character_name") == bot["name"]
+            inworld = account.get("screen") == "InWorld" and account.get("gameplay_input_allowed")
+            if native_owner and inworld and inventory["equipment"] and inventory["item_catalog_loaded"]:
+                require_living_player(account)
+                grant_missing_native_gear(args, output, bot, gear_plan, state)
+                return
+        time.sleep(.25)
+    raise RuntimeError("Authenticated owned inventory not observed before gear provisioning within180s")
+
+
 def run_bot(args, bot):
     output = args.output / str(bot["spec"])
     output.mkdir(mode=0o700)
@@ -305,8 +341,6 @@ def run_bot(args, bot):
     provision(args, bot)
     equipment = admin(args, "list-equipment", bot["name"])
     (output / "equipment-before.txt").write_text(equipment)
-    for item, count in required_grants(gear_plan, equipment).items():
-        admin(args, "grant-item", bot["name"], str(item), str(count))
     token = args.engine / "data/auth_token.127.0.0.1_5871"
     if token.is_symlink():
         raise RuntimeError("Private token unexpectedly links outside the owned data root")
@@ -338,6 +372,7 @@ def run_bot(args, bot):
                 "--screen", "inworld", "--char", bot["name"]]
         reply = command(args.output, argv)
         pid = int(re.search(r"cage pid (\d+)", reply)[1])
+        provision_native_gear(args, output, bot, gear_plan)
         state = wait_native(args, output, bot)
         talent_receipt = json.loads((output / "native-talents.json").read_text())
         fixture = equipment_receipt(gear_plan, state["inventory"], talent_receipt["sheet_stats"])
