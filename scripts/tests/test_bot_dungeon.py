@@ -1,6 +1,10 @@
 """Dungeon accounting uses native identities, death events and authoritative credit."""
 import copy
 import json
+import subprocess
+import tempfile
+import time
+from collections import Counter
 import sys
 import unittest
 from pathlib import Path
@@ -47,6 +51,40 @@ class DungeonReportTests(unittest.TestCase):
             event("damage", 1, 13, 1464, 40, 8000),
             event("death", 1, 13, "-", "-", 8000),
         ]))
+
+    def test_terminal_report_waits_for_death_delivered_after_dead_roster(self):
+        from run_stockade_bot import StockadeRun
+        fixture = json.loads((Path(__file__).parent / 'fixtures/bot_harness/native-stockade-party-death.json').read_text())
+        with tempfile.TemporaryDirectory() as root:
+            output = Path(root)
+            delivered = output / 'delayed-native-combat.log'
+            tank = next(row['entity'] for row in fixture['native_actors'] if row['name'] == 'Captain Garrick')
+            at = fixture['run']['end_ms'] - 1
+            payload = event('death', 99, tank, '-', '-', at)
+            controller = StockadeRun.__new__(StockadeRun)
+            controller.output = output
+            controller.run = {**fixture['run'], 'native_errors': [], 'owner_snapshot': [],
+                              'party_death_observations': [{'entity': tank, 'at_ms': at, 'death': 'Dead'}]}
+            controller.args = type('Args', (), {'spec': 72})()
+            controller.events = Counter()
+            controller.last_sequence = 0
+            controller.last_errors = []
+            controller.account = lambda: fixture['account']
+            controller.invoke = lambda *words: delivered.read_text() if delivered.exists() else ''
+            controller.record_credit = lambda: None
+            controller.rotation = lambda: {'at_ms': int(time.time() * 1000), 'pet': {'local_pet': None},
+                'spells': {'combat_log_seq': int(delivered.exists()), 'combat_log_count': int(delivered.exists()), 'errors': []}}
+            child = subprocess.Popen([sys.executable, '-c',
+                'import pathlib,sys,time; time.sleep(.3); pathlib.Path(sys.argv[1]).write_text(sys.argv[2])',
+                str(delivered), payload])
+            try:
+                controller.finish()
+                result = json.loads((output / 'report.json').read_text())
+                self.assertEqual(result['party_deaths'], 1)
+                self.assertEqual(result['observed_party_deaths'], 1)
+                self.assertTrue(result['death_capture_complete'])
+            finally:
+                child.wait(timeout=5)
 
     def test_actual_native_tank_death_without_combat_death_never_reports_zero(self):
         from run_stockade_bot import StockadeRun

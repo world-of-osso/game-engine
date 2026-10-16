@@ -89,6 +89,15 @@ pub(crate) struct ChargeTimer {
 }
 
 impl ChargeTimer {
+    pub(crate) fn snapshot(&self) -> serde_json::Value {
+        serde_json::json!({
+            "current": self.current,
+            "max": self.max,
+            "recharge_ms": f64::from(self.recharge) * 1000.0,
+            "remaining_ms": f64::from(self.remaining) * 1000.0,
+        })
+    }
+
     fn tick(&mut self, dt: f32) {
         let mut dt = dt;
         while self.current < self.max && dt >= self.remaining {
@@ -535,6 +544,33 @@ mod tests {
 
     /// Two Skyriding Charges spent (4 of 6 left, 10.35 s each): the client recovers them
     /// between updates, one every 10.35 s, and stops at 6.
+    #[test]
+    fn bot_bm_charge_snapshot_preserves_empty_and_fractional_recovery_clock() {
+        let mut spells = PlayerSpells::default();
+        spells.apply_charges(&SpellChargesUpdate {
+            spell_id: 217200,
+            category: 1675,
+            current: 0,
+            max: 2,
+            recharge_ms: 18000,
+            remaining_ms: 17000,
+        });
+        spells.tick(8.5);
+        assert_eq!(
+            spells.charges(1675).unwrap().snapshot(),
+            serde_json::json!({
+                "current": 0, "max": 2, "recharge_ms": 18000.0, "remaining_ms": 8500.0
+            })
+        );
+        spells.tick(9.0);
+        assert_eq!(
+            spells.charges(1675).unwrap().snapshot(),
+            serde_json::json!({
+                "current": 1, "max": 2, "recharge_ms": 18000.0, "remaining_ms": 17500.0
+            })
+        );
+    }
+
     #[test]
     fn skyriding_charges_recover_locally_between_updates() {
         let mut spells = PlayerSpells::default();
