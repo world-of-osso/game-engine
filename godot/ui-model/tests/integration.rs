@@ -129,6 +129,7 @@ mod trainer;
 mod trainer_art;
 mod trainer_tooltips;
 mod transmog_wardrobe;
+mod ui_error_hold_fidelity;
 mod ui_errors;
 mod unit_dead_text;
 mod unit_frame_atlas;
