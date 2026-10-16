@@ -156,7 +156,7 @@ fn invitation_popup(session: &GuildRanksSession) -> Element {
         "Decline Invitation",
         "guild:decline_invite",
         !session.invitation_waiting,
-        (176.0, 142.0, 110.0, 22.0),
+        (146.0, 142.0, 140.0, 22.0),
     ));
     rsx! { r#frame { name: {DynName("GuildInviteFrame".into())}, width: 310.0, height: 188.0,
     left: "50%", top: "50%", translate_x: "-50%", translate_y: "-50%", pos_type: "absolute",
