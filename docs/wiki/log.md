@@ -8,7 +8,7 @@
 
 ## 2026-10-16 — Housing storage menu lifetime
 
-[Menu lifetime](systems/housing.md#storage-menu-lifetime--implementation2026-10-16): native missing-hover-open RED→source0.33s hover/cancel/collapse, outside/Escape/owner lifetime and checkbox Refresh/radio CloseAll implementation. No new filter semantics; GREEN pending.
+[Menu lifetime](systems/housing.md#storage-menu-lifetime--implementation2026-10-16): native missing-hover-open RED→source0.33s model delay/cancel/retention tests and both-skin seven-phase hover/collapse/outside/Escape/owner/checkbox Refresh/radio CloseAll GREEN. Actual Options binding cleanup and exact paid conservation pass; four inspected1280 PNGs. No new filter semantics or wall-clock/full-HD claim; one ADD admits the full server/client run.
 
 ## 2026-10-15 — Housing storage filter popup
 
