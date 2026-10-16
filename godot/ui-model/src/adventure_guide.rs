@@ -310,9 +310,11 @@ impl View {
         let Some(difficulties) = self.catalog.map_difficulties.get(&instance.map) else {
             return Vec::new();
         };
+        let mut seen = BTreeSet::new();
         difficulties
             .iter()
-            .copied()
+            .flat_map(|id| [*id, crate::adventure_guide_menus::base_difficulty(*id)])
+            .filter(|id| seen.insert(*id))
             .filter(|difficulty| {
                 encounter.is_none_or(|id| {
                     difficulty_matches(&self.catalog.encounter_difficulties, id, *difficulty)
