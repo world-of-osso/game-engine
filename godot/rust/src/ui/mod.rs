@@ -32,6 +32,7 @@ mod guild_news_preview;
 mod guild_preview;
 #[cfg(test)]
 mod guild_tests;
+mod hit_button;
 #[cfg(test)]
 mod housing_drag_input_tests;
 mod housing_glow;
