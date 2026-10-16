@@ -1,3 +1,7 @@
+## 2026-10-15 — Particle sorting, projected births and native bent curves
+
+[Native particles](systems/godot-conversion.md#native-m2-particles): P6 CPU near-first RED→current-view sorting and native8/8 alpha/additive controls; P7 real-collision flat/raised RED→6/6 projection/control cases; P4 native model-emitter admission/placement yields99 particles and99 visible centers on each opposing cubic. Forward-integrated native build,13 focused controls and fmt pass. Requested1920×1080 PNGs saved in AgentShared/2026-10-15/m2-particles and representative cases inspected. P4-density remains an evidence gap; target-mask/P3/S1/P5 equivalence unclaimed. No prohibited sources accessed.
+
 ## 2026-10-15 — Clean-room M2 particle slices
 
 [Native particles](systems/godot-conversion.md#native-m2-particles): independent tails/follow, actual6316199 cubic controls and2994778 inherited scale decode. Eight focused RED→GREEN controls, including independent tail width; native build and fmt pass. P3 timer/reset, P4 density, S1 lighting oracle and P5 product/lifecycle provenance remain named gaps. Real165894 tail-only native PASS: five quads/4,547 changed pixels at1920×1080 with two byte-identical baselines; inspected PNGs in AgentShared/2026-10-15/m2-particles; no prohibited sources consulted.
