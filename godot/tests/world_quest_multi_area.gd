@@ -28,13 +28,18 @@ func wait_map_pin(map_id: int) -> bool:
 	return false
 
 func enter_authored_lower_area() -> bool:
-	var response := admin({"Teleport": {"character_name": character, "map_id": 2601, "x": -2268.4, "y": -1960.9, "z": -1591.7}})
+	# Inside blob514681 but outside earlier overlapping tasks: 90% of its
+	# authored vertex(-2663,-1796,-1606) +10% of its source centroid.
+	var response := admin({"Teleport": {"character_name": character, "map_id": 2601, "x": -2623.54, "y": -1812.49, "z": -1604.57}})
 	if response.is_empty() or response.has("Error"):
 		stop("SourceXYZ player teleport failed")
 		return false
 	var deadline := Time.get_ticks_msec() + 120000
 	while Time.get_ticks_msec() < deadline:
-		if has_multi_task() and client.account_state().screen == "InWorld":
+		var watched = client.quest_state().watched
+		var position = client.account_state().local_player_position
+		var arrived := position != null and Vector2(position.x + 2623.54, position.z - 1812.49).length() < 8.0
+		if has_multi_task() and watched.size() == 1 and watched[0] == MULTI_TASK and arrived and client.account_state().screen == "InWorld":
 			await settle()
 			print("WORLD_QUEST_MULTI_ARRIVAL ", JSON.stringify(client.quest_state()))
 			return true
