@@ -1,7 +1,13 @@
+- [Clean-room M2 particles](systems/godot-conversion.md#native-m2-particles) — tails/follow/cubic controls and inherited-scale provenance; lighting, timer/reset, spline density and model-recursion oracle gaps remain explicit.
 # Wiki Index
 
 - [Trading Post pet comparison](systems/trading-post.md#pet-comparison-composition--bounded-proof-october15) — independent worlds/cameras and pending-close/category/reopen both-skin proof; inspected Garrlok framing is clipped, desiredScale/kit23877 and native framing semantics remain named gaps.
 
+- [Shared WowStyle1 caption centering](systems/menu-primitives.md#wowstyle1-caption-centering-2026-10-15) — native font-minimum adaptation, paired core attribute wiring and explicit one-line policy; both-skin AH/shared caption deltas0 and unchanged Filter/Style2 control pixels.
+
+- [IoC NPC attachment](systems/battlegrounds.md#ioc-npc-attachment--implementation2026-10-15) — native synthetic scene RED→GREEN plus real-UDP NPC identity/release; merged consumer gates pass; actual models/both-skin driving/fire remain open.
+
+- [IoC bomb disarm interaction](systems/battlegrounds.md#ioc-bomb-disarm-interaction--active-2026-10-14) — authored request/cursor GREEN25; Modern83/Forever88 normal/huge native hit/disarm/20-player return pass; explicit model-art/framing/whole-render/timing gaps retained.
 - [Guild invitation source chrome](systems/guilds.md#invitation-chrome--verified2026-10-15) — source translucent inset/corners/tiled edges replace static-popup art; two controls and both-skin native Join/Decline/pending proof, four inspected PNGs. Inner art/payload/lifecycle gaps remain separate.
 
 - [Communities numeric roster sorting](systems/guilds.md#communities-metadata-sorting--verified2026-10-15) — source Level/Class headers, numeric/missing-value ordering, preserved member identity; seven controls and both-skin native physical proof with ten inspected before/after PNGs.
@@ -259,7 +265,7 @@ Engine subsystems and how they work.
 - [elastic-trees](systems/elastic-trees.md) — accepted coarse Barrens FDID 201394 prototype; lit deformation/recovery and private mounted-input/network proof, material-uniform buffer root cause, revision-scoped checks and remaining prototype boundaries
 - [mounts](systems/mounts.md) — Mount model with the rider on MountMain (attachment 0), Mount/MountFlight clips, steady flight controls (Space take off/ascend, X descend, pitch steering, landing), recast dismount
 - [swimming](systems/swimming.md) — Godot swim path: Space/X ascend/descend, float at `SWIM_DEPTH` under the surface, pitch steering, server-adopted swim height, climb capped at `SWIM_SPEED`; server-driven MirrorTimer breath/fatigue/feign-death bars
-- [player-ground](systems/player-ground.md) — shared terrain/WMO/M2 support, authored-normal doodad floor bake, pre-render native loading, real EotS/Northshire both-skin geometry proof and tick-cost boundaries
+- [player-ground](systems/player-ground.md) — shared terrain/WMO/M2 support, Stockade step-before-wall ordering, unchanged low-ray corridor and named full-body clearance gap, authored-normal doodad floor bake, pre-render native loading, real EotS/Northshire both-skin geometry proof and tick-cost boundaries
 - [terrain](systems/terrain.md) — Forever Zephras FDID streaming/provisioning and product-isolated liquid catalogs/texture closure, ADT loading, ground detail (clutter) scatter, split files, authored MCVT axes, native per-chunk terrain and WMO placement surface queries, tile ordering, object placement rotation, doodad collision, map switches and WMO-only maps (WDT global WMO)
 - [asset-pipeline](systems/asset-pipeline.md) — installed-build patch-following/cache/provenance and private native world proof; CASC lookup chain, casc-local tool, community listfile, FDID resolution for runtime/UI consumers, TACT keys; shared-cache legacy `.missing` repair `c24d035`, standalone `25debb1` cold-marker bounded PASS; accepted saved native compile/load/eight Options helpers/Menu/UDP/Exit bounded PASS (Depot `s1q4qhb120`), not native cold-marker/full-conversion/deploy/unfrozen whole-tree acceptance
 - [character-rendering](systems/character-rendering.md) — grounded appearance pixel oracle, 78-cell isolated garment matrix with bounded rendered/region PASS and six inspected sheets, race/sex item file selection, all-race equipped fixtures, HD skeletons, shared Godot/Bevy outfit catalog with serialized cache imports, player model-completion appearance boundary, authored NPC selected-type canvas composition, four creature variations and tabard-enabled batches with linked native per-type/world-consumer acceptance, geosets, helmet hiding, target circles
@@ -411,6 +417,8 @@ External resources and asset lists.
 
 - [Stationary Cleanup ray](systems/housing.md#stationary-cleanup-ray--implementation2026-10-15) — authoritative owner movement/native readonly RED→both-skin GREEN; fixed input, actual ray/highlight/name clear and return, exact paid restoration and inspected functional captures.
 - [Retail loadout strings](systems/talents.md#retail-loadout-strings--2026-10-15) — installed version2/source provenance, committed export/native Import, Lua-produced fixtures and both-skin private relog/full-HD proof; hash/OS clipboard limits explicit.
+
+- [Active Expert submode continuity](systems/housing.md#active-expert-submode-continuity--implementation2026-10-15) — model/native RED→both-skin GREEN; assigned active keys retain all three live mouse submodes, global release/Escape and exact paid conservation.
 - [Active Slam visual chain](systems/spell-visuals.md#slam-1464-same-two-handed-sword-different-spec) — verified70391 Arms190513/278884, Fury97446/128672 and authored impact278885; fixture refresh only; full core17/17 and native specialization5/5 pass.
 
 - [Active Battle Shout sound](systems/spell-visuals.md#active-battle-shout-sound-chain--2026-10-15) —70391 cast279043/SoundKit368264, distinct unchanged caster voice; bounded fixture refresh.
