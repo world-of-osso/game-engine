@@ -1486,7 +1486,7 @@ fn trading_post_button_tooltips_keep_disabled_view_cart_but_hide_disabled_clear_
 }
 
 #[test]
-fn trading_post_purchase_confirmation_waits_for_reply_and_prunes_only_accepted_cart_item() {
+fn trading_post_pending_dialog_purchase_waits_for_reply_and_prunes_only_accepted_cart_item() {
     let mut data = snapshot();
     let mut other = data.items[0].clone();
     other.id = 5;
@@ -1551,7 +1551,7 @@ fn trading_post_purchase_confirmation_waits_for_reply_and_prunes_only_accepted_c
 }
 
 #[test]
-fn trading_post_refund_confirmation_keeps_pending_owner_until_authoritative_reply() {
+fn trading_post_pending_dialog_refund_keeps_owner_until_authoritative_reply() {
     let mut data = snapshot();
     data.tender = 400;
     data.items[0].purchased = true;
