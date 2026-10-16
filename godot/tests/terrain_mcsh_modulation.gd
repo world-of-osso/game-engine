@@ -34,13 +34,16 @@ func run_test() -> void:
 	for mode in [0, 1, 2, 3, 4]:
 		if not await check_modulation(mode):
 			return
+	if not await check_modulation(4, true):
+		return
 	stage.free()
 	probe = null
 	print("PASS: supplied S3 byte modulation and0x10 gate; alpha-channel production mapping remains separate")
 	quit(0)
 
-func check_modulation(mode: int) -> bool:
-	var result: Dictionary = probe.chunk(mode)
+func check_modulation(mode: int, goldshire: bool = false) -> bool:
+	var result: Dictionary = probe.goldshire_chunk() if goldshire else probe.chunk(mode)
+	var label := "s3-goldshire" if goldshire else "s3-modulation-mode%d" % mode
 	if result.has("error"):
 		fail(str(result.error))
 		return false
@@ -63,9 +66,9 @@ func check_modulation(mode: int) -> bool:
 	overlay.set_shader_parameter("ambient", Vector3(AMBIENT_BYTES)/255.0)
 	overlay.set_shader_parameter("shadow_alpha", float(ALPHA_BYTE)/255.0)
 	overlay.set_shader_parameter("world_shadow_enable_bits", 0)
-	var before := await capture("s3-modulation-mode%d-before.png" % mode)
+	var before := await capture(label + "-before.png")
 	overlay.set_shader_parameter("world_shadow_enable_bits", 16)
-	var after := await capture("s3-modulation-mode%d-after.png" % mode)
+	var after := await capture(label + "-after.png")
 	# Each channel applies exactly (85*(ambient_byte+3))>>8, then ordinary alpha blend.
 	var color := Color(float((85*(AMBIENT_BYTES.x+3))>>8)/255.0, float((85*(AMBIENT_BYTES.y+3))>>8)/255.0, float((85*(AMBIENT_BYTES.z+3))>>8)/255.0)
 	var mask: PackedByteArray = result.mask
@@ -90,10 +93,10 @@ func check_modulation(mode: int) -> bool:
 				fail("S3 modulation mismatch mode%d row%d col%d expected%s actual%s" % [mode,row,col,expected,actual])
 				return false
 	overlay.set_shader_parameter("world_shadow_enable_bits", 1)
-	var disabled := await capture("s3-modulation-mode%d-wrongbit.png" % mode)
+	var disabled := await capture(label + "-wrongbit.png")
 	if disabled.get_data() != before.get_data():
 		fail("Wrong shadow enable bit changed pixels")
 		return false
-	print("PASS S3 modulation mode",mode," cells4096")
+	print("PASS ",label," cells4096 mask_bytes=",mask.size())
 	node.free()
 	return true
