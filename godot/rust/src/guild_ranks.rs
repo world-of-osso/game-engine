@@ -162,6 +162,53 @@ impl GameClient {
         Ok(())
     }
 
+    pub(crate) fn guild_news_tooltip(
+        &mut self,
+        hit: &crate::tooltips::HoveredFrame,
+    ) -> Option<crate::tooltips::HoveredTooltip> {
+        use game_engine_ui_model::game_tooltip::{GameTooltip, OwnerSide};
+        use game_engine_ui_model::tooltip_presentation::{TooltipPresentation, description_lines};
+        let ui = hit.ui.bind();
+        let (owner, id) = crate::tooltips::named_ancestor(ui.registry()?, hit.frame, |frame| {
+            frame
+                .name
+                .as_deref()?
+                .strip_prefix("CommunitiesGuildNewsEntry")?
+                .parse::<u64>()
+                .ok()
+        })?;
+        drop(ui);
+        let entry = self.guild_ranks.session.news.entry(id)?;
+        let tooltip = match &entry.kind {
+            shared::protocol::GuildNewsKind::PlayerAchievement {
+                name, description, ..
+            } => GameTooltip::new(
+                TooltipPresentation {
+                    title: name.clone(),
+                    lines: description_lines(description, [1.0; 4]),
+                    ..Default::default()
+                },
+                None,
+            ),
+            shared::protocol::GuildNewsKind::ItemLooted { item_id, .. }
+            | shared::protocol::GuildNewsKind::ItemCrafted { item_id, .. }
+            | shared::protocol::GuildNewsKind::ItemPurchased { item_id, .. } => {
+                let item = game_engine_ui_model::item_catalog::item_catalog_entry(*item_id)?;
+                let slot = game_engine_ui_model::game_tooltip::item::named_item(
+                    *item_id,
+                    &item.name,
+                    item.quality,
+                    1,
+                );
+                game_engine_ui_model::game_tooltip::item::item_game_tooltip(&slot, None)
+            }
+        };
+        let rect = self.owner_rect(&hit.ui, owner)?;
+        Some(crate::tooltips::HoveredTooltip::text(
+            tooltip.owned(rect, OwnerSide::Right),
+        ))
+    }
+
     fn guild_notice(&mut self, text: &str, error: bool) -> Result<(), FrameError> {
         game_engine_ui_model::chat_frame::add_system_line(&mut self.chat.model.log, text);
         if error {
@@ -259,6 +306,10 @@ impl GameClient {
             if action.is_empty() {
                 break;
             }
+            if action == "guild:news_view" {
+                self.open_guild_news_subject()?;
+                continue;
+            }
             let previous_editor = self.guild_ranks.session.note_editor.clone();
             let texts = read_inputs(&mut ui, &self.guild_ranks.session);
             if let Some(request) = self.guild_ranks.session.click(&action, &texts) {
@@ -298,6 +349,35 @@ impl GameClient {
         }
         Ok(())
     }
+    fn open_guild_news_subject(&mut self) -> Result<(), FrameError> {
+        let entry = self
+            .guild_ranks
+            .session
+            .news
+            .menu
+            .and_then(|id| self.guild_ranks.session.news.entry(id))
+            .cloned();
+        self.guild_ranks.session.news.menu = None;
+        match entry.map(|entry| entry.kind) {
+            Some(shared::protocol::GuildNewsKind::PlayerAchievement { achievement_id, .. }) => {
+                let requests = self
+                    .account
+                    .achievements
+                    .action(&format!("achievement:open:{achievement_id}"));
+                self.send_achievement_requests(requests)?;
+            }
+            Some(
+                shared::protocol::GuildNewsKind::ItemLooted { item_id, .. }
+                | shared::protocol::GuildNewsKind::ItemCrafted { item_id, .. }
+                | shared::protocol::GuildNewsKind::ItemPurchased { item_id, .. },
+            ) => {
+                self.insert_guild_news_item_link(item_id)?;
+            }
+            None => {}
+        }
+        Ok(())
+    }
+
     fn sync_guild_ranks(&mut self) -> Result<(), String> {
         let scale = self.effective_ui_scale();
         let state = self.guild_ranks.session.clone();
