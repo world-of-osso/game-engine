@@ -26,6 +26,7 @@ pub fn reset_changed_scrolls(
     } else if previous.encounter != next.encounter
         || previous.page != next.page
         || previous.tab != next.tab
+        || (next.tab == Tab::ItemSets && previous.set_filters != next.set_filters)
     {
         &[crate::adventure_guide::LIST]
     } else {
@@ -45,6 +46,7 @@ pub fn apply_postsetup(view: &View, registry: &mut ui_toolkit::registry::FrameRe
     crate::adventure_journeys::apply_postsetup(registry);
     crate::adventure_tutorials::apply_postsetup(registry);
     crate::adventure_suggestions::apply_postsetup(view, registry);
+    crate::adventure_sets::apply_postsetup(view, registry);
 }
 /// XML layers keep the ModelScene viewport above its BACKGROUND and below paper OVERLAY.
 fn apply_pane_texture_layers(registry: &mut ui_toolkit::registry::FrameRegistry) {
@@ -56,6 +58,8 @@ fn apply_pane_texture_layers(registry: &mut ui_toolkit::registry::FrameRegistry)
         ("EncounterJournalModelPaper", Overlay),
         ("EncounterJournalModelTitleBG", Overlay),
         ("EncounterJournalModelTitle", Overlay),
+        ("EncounterJournalDifficultyIcon", Overlay),
+        ("EncounterJournalLeftTitle", Overlay),
     ] {
         if let Some(id) = registry.get_by_name(name) {
             registry.get_mut(id).unwrap().draw_layer = layer;
@@ -155,23 +159,43 @@ fn apply_button_art(view: &View, registry: &mut ui_toolkit::registry::FrameRegis
             Art::BossDown,
         );
     }
+    for creature in view.model_creatures() {
+        apply_button_state(
+            registry,
+            &format!("JournalCreature{}", creature.id),
+            Art::InstanceRing,
+            Art::InstanceRing,
+        );
+    }
+    apply_side_tab_art(view, registry);
+}
+fn apply_side_tab_art(view: &View, registry: &mut ui_toolkit::registry::FrameRegistry) {
+    use ui_toolkit::frame::WidgetData;
     for (index, page) in [
         (0, Page::Overview),
         (1, Page::Abilities),
         (2, Page::Loot),
         (3, Page::Model),
     ] {
+        let name = format!("EncounterJournalPage{index}");
         let normal = if view.page == page {
             Art::TabDown
         } else {
             Art::TabUp
         };
-        apply_button_state(
-            registry,
-            &format!("EncounterJournalPage{index}"),
-            normal,
-            Art::TabDown,
-        );
+        apply_button_state(registry, &name, normal, Art::TabDown);
+        let disabled = !view.page_enabled(page);
+        for suffix in ["ButtonArt", "Icon"] {
+            let Some(id) = registry.get_by_name(&format!("{name}{suffix}")) else {
+                continue;
+            };
+            if let Some(WidgetData::Texture(texture)) = registry
+                .get_mut(id)
+                .and_then(|frame| frame.widget_data.as_mut())
+            {
+                texture.desaturated = disabled;
+            }
+        }
     }
 }
 fn apply_button_state(
@@ -244,6 +268,7 @@ pub enum Art {
     DungeonName,
     BossName,
     LootFrame,
+    DungeonLootFrame,
 }
 impl Art {
     pub fn uv(self) -> &'static str {
@@ -271,6 +296,7 @@ impl Art {
             Self::DungeonName => "0.34570313,0.84570313,0.42871094,0.49121094",
             Self::BossName => "0.00195313,0.77343750,0.26953125,0.33105469",
             Self::LootFrame => "0.00195313,0.62890625,0.61816406,0.66210938",
+            Self::DungeonLootFrame => "0.00195313,0.72265625,0.52441406,0.58691406",
         }
     }
 }
@@ -474,20 +500,55 @@ pub fn bottom_tabs(view: &View) -> Element {
     .collect()
 }
 
-pub fn side_tabs(page: Page) -> Element {
-    [(0,Page::Overview,"overview",Art::BossIcon(page==Page::Overview)),
-     (2,Page::Loot,"loot",Art::LootIcon(page==Page::Loot)),
-     (1,Page::Abilities,"abilities",Art::AbilitiesIcon(page==Page::Abilities)),
-     (3,Page::Model,"model",Art::ModelIcon(page==Page::Model))]
-     .into_iter().enumerate().flat_map(|(index,(id,value,action,icon))| {
-        let name=format!("EncounterJournalPage{id}");
-        let mut parts=art(format!("{name}ButtonArt"),if page==value {Art::TabDown}else{Art::TabUp},(0.,0.,63.,57.));
-        parts.extend(highlight(format!("{name}ButtonHighlight"),Art::TabHighlight,(0.,0.,63.,57.)));
-        parts.extend(art(format!("{name}Icon"),icon,(9.,7.,48.,43.)));
-        let action=format!("journal:page:{action}");
-        let top=99.+index as f32*55.;
-        rsx! {button {name:{DynName(name)},left:780.0,top,width:63.0,height:57.0,pos_type:"absolute",frame_level:510.0,onclick:{action.as_str()},button_default_skin:false,{parts}}}
-     }).collect()
+pub fn side_tabs(view: &View) -> Element {
+    let page = view.page;
+    let has_overview = view.instance_has_overview();
+    [
+        (
+            0,
+            Page::Overview,
+            "overview",
+            Art::BossIcon(page == Page::Overview),
+        ),
+        (2, Page::Loot, "loot", Art::LootIcon(page == Page::Loot)),
+        (
+            1,
+            Page::Abilities,
+            "abilities",
+            Art::AbilitiesIcon(page == Page::Abilities),
+        ),
+        (3, Page::Model, "model", Art::ModelIcon(page == Page::Model)),
+    ]
+    .into_iter()
+    .filter(|(_, value, _, _)| *value != Page::Abilities || has_overview)
+    .enumerate()
+    .flat_map(|(index, choice)| side_tab(view, index, choice))
+    .collect()
+}
+fn side_tab(view: &View, index: usize, (id, page, key, icon): (u8, Page, &str, Art)) -> Element {
+    let name = format!("EncounterJournalPage{id}");
+    let selected = view.page == page;
+    let disabled = !view.page_enabled(page);
+    let mut parts = art(
+        format!("{name}ButtonArt"),
+        if selected { Art::TabDown } else { Art::TabUp },
+        (0., 0., 63., 57.),
+    );
+    parts.extend(highlight(
+        format!("{name}ButtonHighlight"),
+        Art::TabHighlight,
+        (0., 0., 63., 57.),
+    ));
+    parts.extend(art(format!("{name}Icon"), icon, (9., 7., 48., 43.)));
+    let action = format!("journal:page:{key}");
+    let top = 99. + index as f32 * 55.;
+    rsx! {
+        button {
+            name: {DynName(name)}, left: 780., top, width: 63., height: 57.,
+            pos_type: "absolute", frame_level: 510., disabled,
+            onclick: {action.as_str()}, button_default_skin: false, {parts}
+        }
+    }
 }
 
 pub fn boss_row(view: &View, encounter: &Encounter, index: usize) -> Element {
@@ -521,9 +582,56 @@ pub fn boss_row(view: &View, encounter: &Encounter, index: usize) -> Element {
         (105., 4.5, 160., 40.),
         (14., "0.827,0.659,0.463,1", "LEFT"),
     ));
+    parts.extend(crate::adventure_defeated::overlay(view, encounter));
     let top = 10. + index as f32 * 70.;
     let action = format!("journal:encounter:{}", encounter.id);
     rsx! {button {name:{DynName(name)},left:0.0,top,width:325.0,height:55.0,pos_type:"absolute",onclick:{action.as_str()},button_default_skin:false,{parts}}}
+}
+
+/// XML1611–1624 / EJ.lua1189–1196,1261–1270; SetFlagIcon selects published atlases.
+fn difficulty_glyph(difficulty: u32) -> (Element, f32, f32) {
+    let atlas = match difficulty {
+        15 => Some("icons_16x16_heroic"),
+        16 => Some("icons_16x16_mythic"),
+        _ => None,
+    };
+    if let Some(atlas) = atlas {
+        let (width, height) =
+            crate::inworld_unit_frames_component::inworld_unit_frames_art::atlas_size(
+                atlas,
+                ui_toolkit::atlas::thread_skin(),
+            )
+            .expect("Journal difficulty atlas must be published for this skin");
+        let icon = named_atlas_texture(
+            "EncounterJournalDifficultyIcon".into(),
+            atlas,
+            (INFO.0 + 60., INFO.1 + 16., width, height),
+        );
+        (
+            icon,
+            INFO.0 + 60. + width + 3.,
+            INFO.1 + 16. + height / 2. - 6.,
+        )
+    } else {
+        (vec![], INFO.0 + 65., INFO.1 + 20.)
+    }
+}
+
+pub(crate) fn instance_header(view: &View, instance: &Instance) -> Element {
+    let (mut content, left, top) = difficulty_glyph(view.difficulty);
+    // Preserve the source12px FontString rectangle; center the native intrinsic glyph height.
+    content.extend(rsx! {
+        frame {
+            name: "EncounterJournalLeftTitleBounds", left, top, width: 290., height: 12.,
+            pos_type: "absolute", layout: "flex-row", align: "center",
+            fontstring {
+                name: "EncounterJournalLeftTitle", text: {instance.name.as_str()}, width: 290., height: "auto",
+                pos_type: "relative", font_size: 16., font_color: HEADER, justify_h: "LEFT",
+                word_wrap: false, max_lines: 1, shadow_color: "0,0,0,1", shadow_offset: "1,-1"
+            }
+        }
+    });
+    content
 }
 
 pub fn instance_button(instance: &Instance) -> Element {

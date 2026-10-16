@@ -1395,3 +1395,92 @@ fn trading_post_freeze_replacement_initial_accept_delay_disables_only_confirm() 
         );
     }
 }
+
+#[test]
+fn trading_post_button_tooltips_follow_source_enabled_and_affordability_branches() {
+    use game_engine_ui_model::tooltip_presentation::{TOOLTIP_DESCRIPTION_COLOR, TOOLTIP_WHITE};
+    let mut data = snapshot();
+    data.tender = 99;
+    let view = View {
+        visible: true,
+        selected: Some(4),
+        cart: vec![4],
+        snapshot: Some(Arc::new(data)),
+        ..Default::default()
+    };
+    for name in [
+        "PerksProgramPurchaseButton",
+        "PerksProgramCartPurchaseButton",
+    ] {
+        let tooltip = view.button_tooltip(name, false).unwrap();
+        assert_eq!(
+            tooltip.content.title,
+            "You don't have enough currency for this purchase"
+        );
+        assert_eq!(tooltip.content.title_color, TOOLTIP_DESCRIPTION_COLOR);
+    }
+    let mut affordable = view.clone();
+    Arc::make_mut(affordable.snapshot.as_mut().unwrap()).tender = 100;
+    for (name, title) in [
+        ("PerksProgramPurchaseButton", "Purchase"),
+        ("PerksProgramCartPurchaseButton", "Purchase Cart"),
+    ] {
+        let tooltip = affordable.button_tooltip(name, true).unwrap();
+        assert_eq!(tooltip.content.title, title);
+        assert_eq!(tooltip.content.title_color, TOOLTIP_WHITE);
+        assert!(tooltip.record.is_none());
+        assert!(tooltip.content.lines.is_empty());
+        assert_eq!(
+            affordable
+                .button_tooltip(name, false)
+                .unwrap()
+                .content
+                .title,
+            "Purchasing Unavailable"
+        );
+    }
+    assert_eq!(view.snapshot.as_ref().unwrap().tender, 99);
+    assert_eq!(view.selected, Some(4));
+    assert_eq!(view.cart, vec![4]);
+}
+
+#[test]
+fn trading_post_button_tooltips_keep_disabled_view_cart_but_hide_disabled_clear_and_enabled_refund()
+{
+    let view = View::default();
+    for enabled in [true, false] {
+        assert_eq!(
+            view.button_tooltip("PerksProgramViewCartButton", enabled)
+                .unwrap()
+                .content
+                .title,
+            "View Cart"
+        );
+    }
+    assert_eq!(
+        view.button_tooltip("PerksProgramCartClearButton", true)
+            .unwrap()
+            .content
+            .title,
+        "Clear Cart"
+    );
+    assert!(
+        view.button_tooltip("PerksProgramCartClearButton", false)
+            .is_none()
+    );
+    assert_eq!(
+        view.button_tooltip("PerksProgramRefundButton", false)
+            .unwrap()
+            .content
+            .title,
+        "Refund Unavailable"
+    );
+    assert!(
+        view.button_tooltip("PerksProgramRefundButton", true)
+            .is_none()
+    );
+    assert!(
+        view.button_tooltip("PerksProgramLeaveButton", true)
+            .is_none()
+    );
+}
