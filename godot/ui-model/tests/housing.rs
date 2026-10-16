@@ -441,6 +441,7 @@ fn housing_storage_filters_render_independent_choices_and_reset_in_both_skins() 
         context.insert(view.clone());
         screen.sync(&context, &mut registry);
         assert_storage_filter_header(&registry, true, false);
+        assert_storage_filter_popup(&registry);
         let date = registry
             .get(
                 registry
@@ -501,6 +502,41 @@ fn housing_storage_filters_render_independent_choices_and_reset_in_both_skins() 
         assert!(!view.model.filters_open);
         assert_storage_filter_header(&registry, true, false);
     }
+}
+
+fn assert_storage_filter_popup(registry: &FrameRegistry) {
+    let frame = |name| registry.get(registry.get_by_name(name).unwrap()).unwrap();
+    let root = frame("HouseEditorStorageFilterMenu");
+    assert_eq!(root.width, Dimension::Fixed(125.0));
+    assert_eq!(root.height, Dimension::Fixed(109.0));
+    assert_eq!(
+        frame("HouseEditorStorageSortMenu").height,
+        Dimension::Fixed(63.0)
+    );
+    for (name, expected) in [
+        ("HouseEditorStorageSortText", "Sort By"),
+        ("HouseEditorStorageLocationUnavailableText", "Placeable"),
+        ("HouseEditorStorageSortDateAddedText", "Date Added"),
+        ("HouseEditorStorageSortAlphabeticalText", "Alphabetical"),
+    ] {
+        assert!(
+            matches!(&frame(name).widget_data, Some(WidgetData::FontString(text)) if text.text == expected)
+        );
+    }
+    assert!(
+        registry
+            .get_by_name("HouseEditorStorageSortSubmenuArrow")
+            .is_some()
+    );
+    assert!(
+        registry
+            .get_by_name("HouseEditorStorageFilterDivider")
+            .is_some()
+    );
+    assert!(
+        matches!(&frame("HouseEditorStorageLocationUnavailable").widget_data,
+        Some(WidgetData::Button(button)) if !button.enabled)
+    );
 }
 
 fn assert_storage_filter_header(registry: &FrameRegistry, open: bool, reset_visible: bool) {
