@@ -2,6 +2,12 @@
 
 Verified: 2026-10-10. Native Collections journal and Toy Box consume game-server master (`3753ca2`, containing `d74aafa`) and shared-protocol master (`75fe6a4`), without sibling overrides. The [contract](../../specs/toy-box.md) owns requirements and parity boundaries.
 
+## Spitzy source asset closure (2026-10-16)
+
+Spitzy156871/261981 references visual74073 behind CasterPlayerCondition64572 (AuraSpellLogic65536, AuraSpellID181943); condition outcome is not inferred. StateKit94072 attaches effect31847/model1858263 at attachment55, scale0.14, offset(0.01,0,0.005). Its literal TextureFileDataID1276146 is retained as a source dependency, not an asserted runtime texture override. Kit sound18633/volume0.8 is source metadata, not playback proof.
+
+Four assets (M2 1858263, skin1858264, BLP1851495/1276146;103138bytes) authenticate against70391 config/root/encoding/frozen resolution with content-key MD5, SHA256 and length checks. Three body keys already have canonical owners; maintained private publication adds only1276146, avoiding duplicate body receipts. Skin alias185826300.skin is byte-equal. Production combined-loader verification is pending. Evidence: `spitzy67-source-preflight.json`, `spitzy67-native-verified.json` in the external toy-effects14-continuation ledger. Existing real learned-use/cancel test is included in server66's143/143 whole-Toy proof; no new server behavior, canonical publication, wire, pixels, audio, one-hour expiry or complete-toy claim.
+
 ## Waywatcher private body closure (2026-10-16)
 
 Waywatcher's Boon130249/195806 transforms through99572 with authentic display choices63609/63606, both Model8261/M2 1120483; display texture overrides1120502/1120500 differ. Eighteen body dependencies (M2, three BLPs, ten animations, four skins) authenticate against wow70391 build334a36cf5f3c32a5f7a167405487fa14 resolution/config/root/encoding. Maintained importer privately publishes18 receipts/four byte-equal runtime skin aliases with zero missing/unresolved graph dependencies; no key was already canonically owned in any build. Evidence `waywatcher64-native-{staged,publication,verified}.json` under the continuation evidence root below. Actual production `ModelAssetIndex::load` accepts the private combined namespace, resolves all18 receipts and proves all four skin aliases byte-equal; lead owns canonical publication. [Server/source acceptance and remaining boundaries](../../../../game-server/docs/toy-effects14-coverage.md#waywatcher64-source-lifecycle-2026-10-16) are not native metadata, pixels, wire, audio or full-toy parity.
