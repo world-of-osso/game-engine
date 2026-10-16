@@ -233,7 +233,8 @@ fn victims_voice_wounds_and_deaths() {
 }
 
 /// An interrupt sounds through the interrupting spell's own kits: Pummel (6552) visual
-/// 47968's impact kit 59620 plays SoundKit 53711 on its target.
+/// 190605's impact kit 279030 plays SoundKit 368232 on its target (active 70391:
+/// SpellXSpellVisual 440 → SpellVisualEvent 562156 → SpellVisualKitEffect 789602).
 #[test]
 fn pummel_interrupts_with_its_impact_kit_sound() {
     let catalog = catalog();
@@ -248,7 +249,7 @@ fn pummel_interrupts_with_its_impact_kit_sound() {
         current_pvp_faction: 0,
     };
     let visual = catalog.visual_for_spell(6552, &warrior).unwrap();
-    assert_eq!(visual, 47968);
+    assert_eq!(visual, 190605);
     let impact: Vec<(u32, Vec<u32>)> = catalog
         .kits(visual, VisualEvent::Impact)
         .into_iter()
@@ -259,7 +260,7 @@ fn pummel_interrupts_with_its_impact_kit_sound() {
             )
         })
         .collect();
-    assert_eq!(impact, vec![(59620, vec![53711])]);
+    assert_eq!(impact, vec![(279030, vec![368232])]);
 }
 
 /// The live Northshire's Blackrock Worg (creature 49871, display 40147 → CreatureSoundData
