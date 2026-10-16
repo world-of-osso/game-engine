@@ -15,7 +15,7 @@ func live_run() -> void:
 	if not endpoint.begins_with("127.0.0.1:") or endpoint.ends_with(":5000"):
 		fail("Wild battle proof requires its owned private UDP endpoint")
 		return
-	root.size = Vector2i(1280, 720)
+	root.size = Vector2i(1920, 1080)
 	directory = OS.get_environment("PBWILD_DIR")
 	client = load("res://scenes/client.tscn").instantiate()
 	root.add_child(client)
