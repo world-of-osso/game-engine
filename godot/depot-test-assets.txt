@@ -455,6 +455,11 @@ db2/active/SpellVisualEffectName.csv
 db2/active/SpellVisualAnim.csv
 db2/active/SpellVisualMissile.csv
 db2/active/AnimKitSegment.csv
+db2/active/Mount.csv
+db2/active/AnimKitConfig.csv
+db2/active/AnimKitConfigBoneSet.csv
+db2/active/AnimKitBoneSet.csv
+db2/active/AnimKitPriority.csv
 db2/active/PlayerCondition.csv
 db2/active/ModifierTree.csv
 textures/6992992.blp
@@ -4876,4 +4881,17 @@ models/6371389.wmo
 # Installed Retail Trading Post mount actor and rider metadata.
 db2/active/UiModelSceneActor.csv
 db2/active/UiModelSceneActorDisplay.csv
+# Trading Post authored base orbit camera, same installed active export.
+db2/active/UiModelSceneCamera.csv
 db2/active/Mount.csv
+
+data/models/4061989.m2
+data/models/406198900.skin
+
+# Clean-room spline payload fixture (real type 3).
+data/models/6316199.m2
+data/models/631619900.skin
+
+# Clean-room inherited-scale authored field.
+data/models/2994778.m2
+data/models/299477800.skin

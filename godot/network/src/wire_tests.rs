@@ -1204,6 +1204,91 @@ fn native_bridge_decodes_udp_input_and_receives_control_epochs() {
     host.stop();
 }
 
+/// Epoch2 permits VehiclePassenger.driver to identify an NPC, not only a mount owner.
+#[test]
+fn native_bridge_keeps_npc_vehicle_host_identity_and_passenger_release() {
+    use shared::components::{ModelDisplay, Mounted, VehiclePassenger};
+    let (mut server, address) = start_fixture_server();
+    let mut host = Host::connect(address, 8194);
+    await_connected(&mut server, &mut host);
+    let vehicle = server
+        .world_mut()
+        .spawn((
+            Npc {
+                template_id: 34775,
+                name: "Demolisher".into(),
+            },
+            ModelDisplay { display_id: 27658 },
+            Position {
+                x: 10.0,
+                y: 2.0,
+                z: 30.0,
+            },
+            Replicate::to_clients(NetworkTarget::All),
+        ))
+        .id();
+    let seat = VehiclePassenger {
+        driver: vehicle.to_bits(),
+        seat_index: 0,
+        seat_id: 5766,
+    };
+    let rider = server
+        .world_mut()
+        .spawn((
+            fixture_player("Vehicle rider"),
+            Position {
+                x: 10.0,
+                y: 6.647964,
+                z: 27.118006,
+            },
+            seat,
+            Replicate::to_clients(NetworkTarget::All),
+        ))
+        .id();
+    await_unit(
+        &mut server,
+        &mut host,
+        vehicle.to_bits(),
+        "NPC vehicle",
+        |unit| {
+            unit.get::<Npc>()
+                .is_some_and(|npc| npc.template_id == 34775)
+        },
+    );
+    await_unit(
+        &mut server,
+        &mut host,
+        rider.to_bits(),
+        "NPC driver seat",
+        |unit| unit.get::<VehiclePassenger>() == Some(&seat),
+    );
+    let npc = host.unit(seat.driver).unwrap();
+    assert!(npc.get::<Player>().is_none());
+    assert!(npc.get::<Mounted>().is_none());
+    assert_eq!(npc.get::<ModelDisplay>().unwrap().display_id, 27658);
+    assert_eq!(
+        host.unit(rider.to_bits())
+            .unwrap()
+            .get::<Player>()
+            .unwrap()
+            .name,
+        "Vehicle rider"
+    );
+    server
+        .world_mut()
+        .entity_mut(rider)
+        .remove::<VehiclePassenger>();
+    await_unit(
+        &mut server,
+        &mut host,
+        rider.to_bits(),
+        "released NPC passenger",
+        |unit| unit.get::<VehiclePassenger>().is_none(),
+    );
+    assert!(host.unit(vehicle.to_bits()).unwrap().get::<Npc>().is_some());
+    host.stop();
+}
+
 /// A wandering creature's replicated `CreatureMotion` reaches the host with its unit,
 /// including a stop that changes no other component.
 #[test]

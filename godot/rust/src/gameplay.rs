@@ -753,6 +753,7 @@ impl crate::GameClient {
             .client_options
             .bindings
             .is_just_pressed(InputAction::Jump, &input);
+        let jump = self.dispatch_jump_action(&frame, jump)?;
         if !self.player_movement.swimming
             && !self.player_movement.flying
             && self
@@ -765,6 +766,28 @@ impl crate::GameClient {
         }
         let delta = step.map_or(delta, |step| step.duration_secs);
         self.predict_player(frame, jump, yaw, delta)
+    }
+
+    /// Stationary mounted Space and /mountspecial send the same emote intent.
+    fn dispatch_jump_action(&self, frame: &MovementFrame, pressed: bool) -> Result<bool, String> {
+        use game_engine_core::mount_special::{JumpAction, jump_action};
+        if !pressed {
+            return Ok(false);
+        }
+        let grounded = self.player_movement.grounded
+            && !self.player_movement.swimming
+            && !self.player_movement.flying;
+        let action = jump_action(
+            self.world.local_player_mounted(),
+            frame.direction == [0.0; 3],
+            grounded,
+        );
+        if action == JumpAction::Jump {
+            return Ok(true);
+        }
+        self.send_emote(shared::protocol::EmoteKind::MountSpecial)
+            .map_err(|error| error.0)?;
+        Ok(false)
     }
 
     /// Retail `SitStandOrDescendStart` on land: toggle sitting.
@@ -806,6 +829,9 @@ impl crate::GameClient {
         let ground = crate::ground::TerrainGround {
             terrain: &self.terrain,
             walls: &walls,
+            step_wall_blocked: &|from, to, top| {
+                crate::wmo::step_clearance::step_wall_blocked(&space, from, to, top)
+            },
             game_object_floor: &|feet| crate::game_objects::floor_hit(&space, feet),
         };
         let mut contacts = |from, to, step_delta| flight_tree_contact(&space, from, to, step_delta);
@@ -961,6 +987,9 @@ fn follow_waypoint(
     let ground = crate::ground::TerrainGround {
         terrain,
         walls: &walls,
+        step_wall_blocked: &|from, to, top| {
+            crate::wmo::step_clearance::step_wall_blocked(&space, from, to, top)
+        },
         game_object_floor: &|feet| crate::game_objects::floor_hit(&space, feet),
     };
     Ok(path.follow(
@@ -1207,6 +1236,7 @@ mod tests {
         let ground = TerrainGround {
             terrain: &terrain,
             walls: &|_, _, _| None,
+            step_wall_blocked: &|_, _, _| false,
             game_object_floor: &|_| None,
         };
         let yaw = std::f32::consts::FRAC_PI_2;
@@ -1235,6 +1265,7 @@ mod tests {
         let ground = TerrainGround {
             terrain: &terrain,
             walls: &|_, _, _| None,
+            step_wall_blocked: &|_, _, _| false,
             game_object_floor: &|_| None,
         };
         let yaw = std::f32::consts::FRAC_PI_2;
@@ -1412,6 +1443,7 @@ mod tests {
         let ground = TerrainGround {
             terrain: &terrain,
             walls: &|_, _, _| None,
+            step_wall_blocked: &|_, _, _| false,
             game_object_floor: &|_| None,
         };
         let bed = seabed(&terrain);
@@ -1534,6 +1566,7 @@ mod tests {
         let ground = TerrainGround {
             terrain: &terrain,
             walls: &|_, _, _| None,
+            step_wall_blocked: &|_, _, _| false,
             game_object_floor: &|_| None,
         };
         let bed = seabed(&terrain);
@@ -1579,6 +1612,7 @@ mod tests {
         let ground = TerrainGround {
             terrain: &terrain,
             walls: &|_, _, _| None,
+            step_wall_blocked: &|_, _, _| false,
             game_object_floor: &|_| None,
         };
         let top = swim_top(WATER);
@@ -1640,6 +1674,7 @@ mod tests {
         let ground = TerrainGround {
             terrain: &terrain,
             walls: &|_, _, _| None,
+            step_wall_blocked: &|_, _, _| false,
             game_object_floor: &|_| None,
         };
         let top = swim_top(WATER);
@@ -1688,6 +1723,7 @@ mod tests {
         let ground = TerrainGround {
             terrain: &terrain,
             walls: &|_, _, _| None,
+            step_wall_blocked: &|_, _, _| false,
             game_object_floor: &|_| None,
         };
         let top = swim_top(WATER);
@@ -1754,6 +1790,7 @@ mod tests {
         let ground = TerrainGround {
             terrain: &terrain,
             walls: &|_, _, _| None,
+            step_wall_blocked: &|_, _, _| false,
             game_object_floor: &|_| None,
         };
         let bed = seabed(&terrain);
@@ -1841,6 +1878,7 @@ mod tests {
         let ground = TerrainGround {
             terrain: &terrain,
             walls: &|_, _, _| None,
+            step_wall_blocked: &|_, _, _| false,
             game_object_floor: &|_| None,
         };
         let mut movement = PlayerMovement::default();
@@ -1884,6 +1922,7 @@ mod tests {
         let ground = TerrainGround {
             terrain: &terrain,
             walls: &|_, _, _| None,
+            step_wall_blocked: &|_, _, _| false,
             game_object_floor: &|_| None,
         };
         let mut movement = PlayerMovement::default();
@@ -1946,6 +1985,7 @@ mod tests {
         let ground = TerrainGround {
             terrain: &terrain,
             walls: &|_, _, _| None,
+            step_wall_blocked: &|_, _, _| false,
             game_object_floor: &|_| None,
         };
         let mut movement = PlayerMovement::default();
@@ -2008,6 +2048,7 @@ mod tests {
         let ground = TerrainGround {
             terrain: &terrain,
             walls: &|_, _, _| None,
+            step_wall_blocked: &|_, _, _| false,
             game_object_floor: &|_| None,
         };
         let mut movement = PlayerMovement::default();
@@ -2052,6 +2093,7 @@ mod tests {
         let ground = TerrainGround {
             terrain: &terrain,
             walls: &|_, _, _| None,
+            step_wall_blocked: &|_, _, _| false,
             game_object_floor: &|_| None,
         };
         let mut movement = PlayerMovement::default();
@@ -2079,6 +2121,7 @@ mod tests {
         let ground = TerrainGround {
             terrain: &terrain,
             walls: &|_, _, _| None,
+            step_wall_blocked: &|_, _, _| false,
             game_object_floor: &|_| None,
         };
         let start = SHORE + Vec3::Y * 50.0;
@@ -2135,6 +2178,7 @@ mod tests {
         let ground = TerrainGround {
             terrain: &terrain,
             walls: &|_, _, _| None,
+            step_wall_blocked: &|_, _, _| false,
             game_object_floor: &|_| None,
         };
         let mut movement = PlayerMovement::default();
@@ -2193,6 +2237,7 @@ mod tests {
         let ground = TerrainGround {
             terrain: &terrain,
             walls: &|_, _, _| None,
+            step_wall_blocked: &|_, _, _| false,
             game_object_floor: &|_| None,
         };
         let mut movement = PlayerMovement::default();
@@ -2221,6 +2266,7 @@ mod tests {
         let ground = TerrainGround {
             terrain: &terrain,
             walls: &|_, _, _| None,
+            step_wall_blocked: &|_, _, _| false,
             game_object_floor: &|_| None,
         };
         let mut movement = PlayerMovement::default();
@@ -2268,6 +2314,7 @@ mod tests {
         let ground = TerrainGround {
             terrain: &terrain,
             walls: &|_, _, _| None,
+            step_wall_blocked: &|_, _, _| false,
             game_object_floor: &|_| None,
         };
         let mut movement = PlayerMovement::default();

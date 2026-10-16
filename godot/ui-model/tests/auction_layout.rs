@@ -63,12 +63,18 @@ fn auction_duration_uses_retail_dropdown_geometry() {
             (dropdown.width.value(), dropdown.height.value()),
             (115.0, 25.0)
         );
-        let Some(WidgetData::FontString(text)) = &frame(
+        let caption = frame(
             &registry,
             "AuctionHouseFrameItemSellFrameDurationDropdownText",
-        )
-        .widget_data
-        else {
+        );
+        assert_eq!(
+            caption.position.top,
+            ui_toolkit::layout_values::Val::Px(
+                (dropdown.height.value() - caption.height.value()) / 2.0
+            ),
+            "Duration caption must be vertically centered"
+        );
+        let Some(WidgetData::FontString(text)) = &caption.widget_data else {
             panic!("duration text missing")
         };
         assert_eq!(

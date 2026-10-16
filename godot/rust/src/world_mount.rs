@@ -61,19 +61,19 @@ pub(super) fn sync_passenger(
 
 pub(super) fn seat_passenger(
     unit: &mut UnitNode,
-    mounts: &HashMap<u64, Gd<Node3D>>,
+    vehicles: &HashMap<u64, Gd<Node3D>>,
 ) -> Result<(), String> {
     let Some(passenger) = &unit.passenger else {
         return Ok(());
     };
-    let Some(mount) = mounts.get(&passenger.state.driver) else {
+    let Some(vehicle) = vehicles.get(&passenger.state.driver) else {
         return Ok(());
     };
     let Some(visual) = unit.visual.as_mut() else {
         return Ok(());
     };
     let id = passenger.definition.attachment;
-    let attachment = mount
+    let attachment = vehicle
         .try_get_node_as::<Node3D>(&format!(
             "NpcModel/Skeleton3D/AttachmentBone{id}/Attachment{id}"
         ))
@@ -98,6 +98,7 @@ pub(super) fn seat_passenger(
 
 /// The mount model of a mounted unit.
 pub(super) struct UnitMount {
+    pub mount_id: u32,
     pub display_id: u32,
     /// The model request still loading.
     pub request: Option<u64>,
@@ -143,6 +144,13 @@ pub(super) fn animate_mounted(
     else {
         return Some(Err(format!("Mount of {} has no bone animation", unit.name)));
     };
+    if locomotion.animation_id != game_engine_core::movement_animation_data::ANIM_STAND
+        || locomotion.jumping
+        || flying
+    {
+        animation.bind_mut().cancel_mount_special();
+        rider.bind_mut().cancel_mount_special();
+    }
     let clip = mount_clip(locomotion.animation_id, flying);
     let clip = animation
         .bind()
@@ -161,20 +169,53 @@ pub(super) fn animate_mounted(
     Some(result.map_err(|error| format!("Mounted {} clip {clip}: {error}", unit.name)))
 }
 
+pub(super) fn play_special(
+    unit: &UnitNode,
+    catalog: &game_engine_core::mount_special::MountSpecialCatalog,
+    fallbacks: &HashMap<u16, u16>,
+) -> Result<Option<u32>, String> {
+    let Some(mount) = unit.mount.as_ref() else {
+        return Ok(None);
+    };
+    let Some(node) = mount.node.as_ref() else {
+        return Ok(None);
+    };
+    let definition = catalog.mount(mount.mount_id)?;
+    let mut animation = node
+        .try_get_node_as::<WowAnimationPlayer>("NpcModel/M2Animation")
+        .ok_or("Mount has no animation player")?;
+    let duration = animation.bind_mut().play_mount_special(fallbacks)?;
+    let kits = catalog.rider_kits(definition)?;
+    let mut rider = unit
+        .animation_player()
+        .ok_or("Mounted unit has no rider animation player")?;
+    rider
+        .bind_mut()
+        .play_mount_kits(&kits, duration, fallbacks)?;
+    Ok((definition.visual_kit != 0).then_some(definition.visual_kit))
+}
+
 /// Follow the unit's replicated `Mounted`: a new or changed mount requests its model, a
 /// dismount seats the rider back on the ground and frees the mount.
 pub(super) fn sync_mount(unit: &mut UnitNode, mounted: Option<&Mounted>, models: &mut WorldModels) {
     let wanted = mounted.map(|mounted| mounted.mount_display_id);
     if unit.mount.as_ref().map(|mount| mount.display_id) == wanted {
+        if let Some(mount) = &mut unit.mount {
+            mount.mount_id = mounted.map_or(0, |state| state.mount_id);
+        }
         return;
     }
     if let Some(previous) = unit.mount.take() {
+        if let Some(mut rider) = unit.animation_player() {
+            rider.bind_mut().cancel_mount_special();
+        }
         seat_rider(unit);
         if let Some(node) = previous.node {
             node.free();
         }
     }
     unit.mount = wanted.map(|display_id| UnitMount {
+        mount_id: mounted.map_or(0, |state| state.mount_id),
         display_id,
         request: Some(models.request(
             &UnitAppearance::Creature {
