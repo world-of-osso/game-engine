@@ -82,7 +82,9 @@ class ArcaneSimcProvider:
         if captured_kit.get("spec") != SPEC or captured_kit.get("level") != LEVEL:
             raise ValueError("Captured kit is not level-32 Arcane")
         self.known = frozenset(int(spell) for spell in captured_kit["known"])
-        if set(initial_snapshot["spells"]["known"]) != self.known:
+        initial_spells = initial_snapshot["spells"]
+        if (initial_spells.get("level") != LEVEL or initial_spells.get("spec") != SPEC
+                or set(initial_spells["known"]) != self.known):
             raise ValueError("Initial native kit differs from the captured level-32 Arcane kit")
         if "trait_config" not in initial_snapshot:
             raise ValueError("Received server trait configuration snapshot required")
@@ -118,7 +120,8 @@ class ArcaneSimcProvider:
         if snapshot["target"] != int(target):
             raise ValueError("Native facts do not belong to the assisted target")
         spells = snapshot["spells"]
-        if spells["spec"] != SPEC or set(spells["known"]) != self.known:
+        if (spells.get("level") != LEVEL or spells["spec"] != SPEC
+                or set(spells["known"]) != self.known):
             raise ValueError("Native kit differs from the captured level-32 Arcane kit")
         if set(snapshot["facts"]["known"]) != self.known:
             raise ValueError("Native learned-spell and evaluator kit snapshots disagree")

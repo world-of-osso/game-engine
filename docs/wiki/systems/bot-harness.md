@@ -40,6 +40,10 @@ Future native drivers confirm the form spell is learned, request one ordinary va
 
 The [spec](../../specs/bot-harness.md#maintained-routed-controller-interface) records the public contract. Generic two-spec/file-process tests are distinct from native Stockade completion and do not prove actual Greed input; Stockade's terminal proof used Transmog for Moloch and ordinary corpse retrieval after Hogger's rolls expired. Greed remains a separate pending native gate.
 
+### Explicit approved Arcane source provider
+
+`bot_simc_arcane.ArcaneSimcProvider` carries the approved diagnostic projection into the maintained interface with caller-provided receipt/APL/captured-kit/DB2/native-preflight/fight context. Receipt URL/commit and actual APL bytes must match SimC515f4a3fe9d1; the [fixture provenance](../../../scripts/tests/fixtures/bot_harness/simc_arcane32/provenance.json) retains exact source paths/hashes and native row slices. The generic controller contains no Mage IDs or priority. Provider calls are read-only against frozen kit/traits; the [bounded source contract](../../specs/bot-harness.md#approved-pinned-arcane-provider) retains APL24/36/64,2700s iteration timing and explicit unsupported cases. Selection must be explicit; no provider is auto-selected after a native evaluator error.
+
 ## Capture and detection
 
 `run_dummy_bots.py` requires an explicit socket/state/DB2 directory/dummy. It saves every IPC reply, native samples, run manifest and raw combat. Overlapping ring polls preserve true event multiplicity without recounting overlap; sequence gaps use the observed200-event retention, not the requested1024 lines.

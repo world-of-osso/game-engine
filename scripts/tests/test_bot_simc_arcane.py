@@ -60,6 +60,18 @@ class ArcaneSimcProviderTests(unittest.TestCase):
             self.choose(snapshot)
         return str(caught.exception).lower()
 
+    def test_initial_native_level_or_spec_must_match_supported_projection(self):
+        for field, value in [("level", 33), ("spec", 63)]:
+            initial = captured_snapshot()
+            initial["spells"][field] = value
+            with self.assertRaisesRegex(ValueError, "level-32 Arcane"):
+                provider(initial=initial)
+
+    def test_native_level_change_blocks_even_without_newly_learned_spell(self):
+        packet = captured_snapshot()
+        packet["spells"]["level"] = 33
+        self.assertIn("kit", self.blocked(packet))
+
     # Original 13 cases.
     def test_native_known_spells_resolve_combat_actions_and_no_apl_talents(self):
         context = self.provider.context
