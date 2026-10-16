@@ -1,0 +1,99 @@
+{
+  "account": {
+    "area_id": null,
+    "assets_starting": true,
+    "camera_distance": 15.0,
+    "camera_pitch": -0.300000011920929,
+    "camera_yaw": 0.0,
+    "character_count": 0,
+    "connected": false,
+    "game_object_particles": {
+      "drawn": 0,
+      "pools": 0
+    },
+    "gameplay_input_allowed": true,
+    "ground_detail": {
+      "chunks": 0,
+      "doodads": 0,
+      "failed_chunks": 0,
+      "loading_models": 0,
+      "update_us": 0
+    },
+    "horizon_tiles": 0,
+    "local_player_epoch": null,
+    "local_player_facing": null,
+    "local_player_health": null,
+    "local_player_id": null,
+    "local_player_position": null,
+    "local_player_swimming": false,
+    "local_server_epoch": null,
+    "local_server_position": null,
+    "local_server_speed": null,
+    "pending_world_port": "None",
+    "pvp_snapshot_json": "null",
+    "reconnect_phase": "Inactive",
+    "reply_received": false,
+    "scene_light": null,
+    "screen": "Login",
+    "selected_character_id": null,
+    "selected_character_name": "",
+    "status": "",
+    "talent_export_clipboard": "",
+    "terrain": {
+      "failures": [],
+      "global_wmo_fdid": null,
+      "map": "",
+      "parsed_tiles": [],
+      "pending_count": 0,
+      "wdt_flags": null,
+      "wdt_path": ""
+    },
+    "ui_layout": "Forever",
+    "ui_skin": "Forever",
+    "unit_count": 0,
+    "unit_particles": {
+      "drawn": 0,
+      "emitters": 0,
+      "item_emitters": 0,
+      "item_models": 0,
+      "pools": 0,
+      "units": 0
+    },
+    "unit_visuals_pending": 0,
+    "world_attached": false,
+    "world_map_id": -1,
+    "world_objects": {
+      "failures": 0,
+      "particles": {
+        "capacity": 0,
+        "drawn": 0,
+        "emitters": 0,
+        "pools": 0,
+        "simulate_us": 0,
+        "updated_emitters": 0,
+        "upload_us": 0
+      },
+      "pending": 0,
+      "spawned": 0
+    },
+    "zone_id": null
+  },
+  "inventory": {
+    "bags": [],
+    "buyback": [],
+    "cursor": "",
+    "equipment": [],
+    "frame": "MerchantFrame",
+    "guild_repair_money": -1,
+    "item_catalog_loaded": false,
+    "items": [],
+    "money": 0,
+    "npc": null,
+    "open": false,
+    "repair_cost": 0,
+    "repair_mode": false,
+    "split_open": false,
+    "ui_sounds": [],
+    "vendor_name": ""
+  }
+}
