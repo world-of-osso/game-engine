@@ -840,6 +840,14 @@ impl GameClient {
     fn quest_state(&self) -> VarDictionary {
         let quests = &self.account.quests;
         let mut result = VarDictionary::new();
+        result.set("world_quest_count", quests.world_quests.len() as i64);
+        result.set("world_quest_server_offset", quests.server_clock_offset);
+        let available: PackedInt64Array = quests
+            .world_quests
+            .iter()
+            .map(|quest| i64::from(quest.quest_id))
+            .collect();
+        result.set("available_world_quests", &available);
         result.set("log_open", self.world_map.quest_log_is_open());
         result.set("frame_open", self.quests.frame_ui.is_some());
         if let Some(dialog) = &quests.dialog {
