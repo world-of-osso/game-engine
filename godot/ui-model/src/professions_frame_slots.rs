@@ -19,8 +19,10 @@ pub(super) fn schematic(view: &ProfessionView) -> Element {
         out.extend(craft_controls(view));
         return out;
     };
-    if let Some(item) = view.items.get(&recipe.output.0) {
-        out.extend(output_slot(item, recipe.output.1));
+    if let Some((item_id, count)) = recipe.output
+        && let Some(item) = view.items.get(&item_id)
+    {
+        out.extend(output_slot(item, count));
         out.extend(label(
             "ProfessionsOutputName".into(),
             &item.name,
@@ -34,9 +36,72 @@ pub(super) fn schematic(view: &ProfessionView) -> Element {
         (309.0, 224.0, 180.0, 20.0),
     ));
     for (index, &(item, owned, needed)) in view.reagents.iter().enumerate() {
-        out.extend(reagent_cell(view, index, item, owned, needed));
+        out.extend(reagent_cell(
+            view,
+            ReagentCell {
+                index,
+                item_id: item,
+                owned,
+                needed,
+                action: "",
+                quality_atlas: view
+                    .crafting_quality
+                    .get(&item)
+                    .map(|quality| quality.inventory_atlas.as_str()),
+            },
+        ));
+    }
+    out.extend(quality_reagent_cells(view));
+    if recipe.output.is_none() {
+        out.extend(text(
+            "ProfessionsOutputName",
+            &recipe.name,
+            (309.0, 102.0, 510.0, 24.0),
+        ));
     }
     out.extend(craft_controls(view));
+    out
+}
+
+fn quality_reagent_cells(view: &ProfessionView) -> Element {
+    let mut out = vec![];
+    for (index, slot) in view
+        .reagent_slots
+        .iter()
+        .filter(|slot| slot.reagent_type == 1)
+        .enumerate()
+    {
+        let Some(choice) = slot.choices.first() else {
+            continue;
+        };
+        let owned = slot
+            .choices
+            .iter()
+            .map(|choice| u64::from(view.bag_counts.get(&choice.item_id).copied().unwrap_or(0)))
+            .sum::<u64>()
+            .min(u64::from(u32::MAX)) as u32;
+        let action = if crate::professions_reagent_selection::selectable(slot) {
+            format!("profession:quality:open:{}", slot.slot_index)
+        } else {
+            String::new()
+        };
+        out.extend(reagent_cell(
+            view,
+            ReagentCell {
+                index: view.reagents.len() + index,
+                item_id: choice.item_id,
+                owned,
+                needed: slot.quantity,
+                action: &action,
+                quality_atlas: crate::professions_reagent_selection::reagent_quality_atlas(
+                    slot,
+                    &view.reagent_selection.allocations,
+                    &view.bag_counts,
+                    &view.crafting_quality,
+                ),
+            },
+        ));
+    }
     out
 }
 
@@ -65,13 +130,24 @@ fn output_slot(item: &super::ItemDisplay, count: u32) -> Element {
     pos_type: "absolute", button_default_skin: false, {children} } }
 }
 
-fn reagent_cell(
-    view: &ProfessionView,
+struct ReagentCell<'a> {
     index: usize,
     item_id: u32,
     owned: u32,
     needed: u32,
-) -> Element {
+    action: &'a str,
+    quality_atlas: Option<&'a str>,
+}
+
+fn reagent_cell(view: &ProfessionView, cell: ReagentCell<'_>) -> Element {
+    let ReagentCell {
+        index,
+        item_id,
+        owned,
+        needed,
+        action,
+        quality_atlas,
+    } = cell;
     let Some(item) = view.items.get(&item_id) else {
         return vec![];
     };
@@ -82,15 +158,15 @@ fn reagent_cell(
         DISABLED_REAGENT_COLOR
     };
     let mut children = reagent_slot(item, index);
-    if let Some(quality) = view.crafting_quality.get(&item_id) {
+    if let Some(atlas) = quality_atlas {
         children.extend(art::atlas_at_size(
             &format!("{prefix}QualityOverlay"),
-            &quality.inventory_atlas,
+            atlas,
             (-3.0, -2.0),
         ));
     }
     let mut out = rsx! { button { name: {DynName(format!("{prefix}Slot"))}, width: 39.0, height: 39.0,
-    left: 0.0, top: 5.5, pos_type: "absolute", button_default_skin: false, {children} } };
+    left: 0.0, top: 5.5, pos_type: "absolute", button_default_skin: false, onclick: action, {children} } };
     out.extend(label(
         prefix.clone(),
         &format!("{owned}/{needed} {}", item.name),
@@ -174,6 +250,16 @@ fn craft_controls(view: &ProfessionView) -> Element {
 }
 
 fn spinner_arrow(name: &str, action: &str, left: f32, enabled: bool, icons: (u32, u32)) -> Element {
+    spinner_arrow_at(name, action, (left, HEIGHT - 29.0), enabled, icons)
+}
+
+pub(super) fn spinner_arrow_at(
+    name: &str,
+    action: &str,
+    (left, top): (f32, f32),
+    enabled: bool,
+    icons: (u32, u32),
+) -> Element {
     let icon = if enabled { icons.0 } else { icons.1 };
     let disabled = !enabled;
     let action = if enabled { action } else { "" };
@@ -183,6 +269,6 @@ fn spinner_arrow(name: &str, action: &str, left: f32, enabled: bool, icons: (u32
         (0.0, 0.0, 23.0, 22.0),
         "1,1,1,1",
     );
-    rsx! { button { name: {DynName(name.into())}, width: 23.0, height: 22.0, left, top: {HEIGHT - 29.0},
+    rsx! { button { name: {DynName(name.into())}, width: 23.0, height: 22.0, left, top,
     pos_type: "absolute", onclick: action, disabled, button_default_skin: false, {children} } }
 }

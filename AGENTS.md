@@ -64,6 +64,7 @@ godot/           # Godot project + Rust workspace (built and tested through desk
 - After `cargo fmt`, immediately check `git status --short`.
 - Agents build and test through the launcher/helper with the saved default (`native` on agent-server: host cargo, artifacts in `<checkout>/target`, at most 3 concurrent runs via the helper's slots; no build-lock). `--build-host local|desktop` uses the bookworm container and is required for `--release` (glibc portability). Do not bypass the helper with direct extension Cargo or recreate bulk target caches unless explicitly asked; lightweight launcher tests are allowed. See `docs/remote-builds.md`.
 - Formatter changes count as your changes.
+- Append-only registries (tooltip sources, sound kits) use slices (`const REGISTRY: &[Entry] = &[...]`); append entries without updating a count. Preserve lookup order.
 
 ## UI Screens (rsx! + Screen pattern)
 

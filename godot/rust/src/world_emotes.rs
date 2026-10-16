@@ -38,6 +38,7 @@ pub(crate) fn emote_clip(
         | EmoteKind::Sleep
         | EmoteKind::Kneel
         | EmoteKind::Love
+        | EmoteKind::Hug
         | EmoteKind::MountSpecial => {
             return Ok(None);
         }
@@ -85,6 +86,8 @@ mod tests {
         assert_eq!(clip(EmoteKind::Kneel), None);
         // Local69933 EmotesText225 has EmoteID0; never replace the current pose.
         assert_eq!(clip(EmoteKind::Love), None);
+        // EmotesText56 also has EmoteID0: no invented hug animation.
+        assert_eq!(clip(EmoteKind::Hug), None);
     }
 
     #[test]

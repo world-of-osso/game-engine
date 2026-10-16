@@ -135,7 +135,7 @@ mod tests {
     fn fading_line_uses_red_with_line_alpha() {
         let mut errors = UiErrorsData::default();
         errors.add("Out of range.");
-        errors.lines[0].age = 3.25;
+        errors.lines[0].age = 2.25;
         let reg = build(errors);
         let frame = reg
             .get(reg.get_by_name("UIErrorsFrameLine1").unwrap())

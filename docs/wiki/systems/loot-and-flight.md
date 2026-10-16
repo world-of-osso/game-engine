@@ -10,6 +10,18 @@ How corpses, the LootFrame, the flight map and server-driven flights fit togethe
 - `LootState` holds the open corpse's remaining slots; `scenes/loot_frame` places the frame under the cursor once per corpse (`LootFrameAnchor`) and turns card clicks into `LootRequest::Take`.
 - Chrome: `quest_art::flat_panel_chrome` = `DefaultPanelFlatTemplate` on the `metal_frame_no_portrait` panel style (the portrait layout with `ui-frame-metal-cornertopleft-2x` in the top-left cell).
 
+### ItemButton input ownership — 2026-10-16
+
+`loot_frame_component::item_button` owns the slot action on a transparent 37×37 Button at (5,4), with right hit inset −157: effective hit width194. The enclosing row is passive; existing icon/count/card paint remains separate and unchanged. Left release commits only while still inside the authored target. The [loot-frame spec](../../specs/loot-frame.md) owns this contract; hover/pushed strokes, right/modified clicks, tooltips, animations and server lifecycle are separate gaps.
+
+Native `RegistryButton::_has_point` applies those insets without resizing the Button. Registry pointer lookup alone was insufficient: after adding the authored Item, icon clicks worked but name/extended-area clicks still missed Godot's default rectangle. All projected buttons use the same inset-aware native picking; zero insets retain the native rectangle. Existing button state signals and paint remain unchanged.
+
+The native debug fixture calls production `show_loot_frame`, not generic `show_viewport_screen`: the former registers the metal-border style. Skipping that host setup fails explicitly with `Unconverted native frame decoration: LootFrameNineSlice`; do not suppress it or change production art to make a preview pass.
+
+Bounded proof: model RED→GREEN2 (source input owner plus authoritative removal/rebinding/closure), native money slot5/item slot9 in both skins:32 physical gutter/icon/name/far-right-extension/outside-cancel probes. Baseline records12 gutter early dispatches,8 icon/name early dispatches,4 already-dispatched cancellations and4 unreachable extension targets. The first Item-only change fixes gutters/icon release/cancel but still misses8 name/extension cases; inset-aware native picking resolves those. Supplied state/input only, not server collection or whole-window acceptance.
+
+All68 before/after full-HD pairs have zero changed RGB pixels. Shared-input controls also pass16 StackSplit cases and4 ReadyCheck cases;48 full-HD StackSplit pairs and12 ReadyCheck button crops remain unchanged. Both-skin comparison panels and representative full contexts inspected. Model2 at `cf2244e9d`; inset math1, engine check and build pass at `00a450458`; scoped format/diff and changed-Rust readability pass. No toolkit/server edits. Exact commands, source/asset/binary/capture hashes and retained setup/partial failures: `data/diagnostics/ui-questlog-loot-hitarea-2026-10-16/loot-hitarea-proof-ledger.json`; PNGs: `/syncthing/AgentShared/2026-10-16/ui-questlog-loot-hitarea/`.
+
 ### Native Godot evidence and money-card overflow
 
 Native integration and bounded proof are tracked in [[godot-conversion#Native loot — implemented, proof pending]]. Shared exports and targeted tests (8 + 1), ordered relay wire test (1 at `c6ae14bf`) and root compilation have passed. Runtime `af03660f` reaches `LOOT_DONE` after four Auto Loot/Shift cases plus inventory/error/cursor assertions; post-DONE RenderingServer-null shutdown exits 101, unresolved and explicitly deferred. Independent final acceptance remains pending; no source-pinning requirement.
