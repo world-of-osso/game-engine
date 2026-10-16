@@ -4165,3 +4165,5 @@ Completed Retailv2 codec/authoritative Create and committed Copy callbacks, exac
 - 2026-10-16: Confirmation covers native both-skin GREEN: Escape preserves Purchase/Refund/Cart/Clear; explicit Cancel retains authority/cart, one real purchase/refund restores Tender.12 full-HD screenshots+2 contacts published;29UI12native/check/format pass atfc1d4c351. [Trading Post](systems/trading-post.md#confirmation-keyboard-ownership--implementation-october16).
 
 - 2026-10-16: [Actual native Greed](systems/bot-harness.md#native-actual-greed--2026-10-16): maintained route/F/provider/viewport bridge; Moloch63346 Greed95→GUID525,7.040s ACK, inspected1280 input/win PNGs and owned cleanup. Azure/full-spec remain separate.
+
+- 2026-10-16: Cart regular/member tooltip consumer added after real native missing-tooltip RED. Exact expanded owner/cached Retail metadata and source left−8/y−20 anchor, no SellPrice or preview mutation. [Trading Post](systems/trading-post.md#cart-item-tooltips--implementation-october16).
