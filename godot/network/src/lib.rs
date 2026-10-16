@@ -281,9 +281,6 @@ impl NetworkBridge {
             .receive::<protocol::TrainerList>()
             .receive::<protocol::TrainerBuyFailed>()
             // Spellbook, action bar and casting.
-            .receive::<KnownSpellsSnapshot>()
-            .receive::<SpellsLearned>()
-            .receive::<SpellsUnlearned>()
             .receive_talents()
             .receive::<ActionBarSnapshot>()
             .receive::<SpellCooldownUpdate>()
@@ -665,7 +662,10 @@ fn install_talent_relay(app: &mut App, events: Sender<Event>) {
     use protocol::{TraitCommitResult, TraitConfigSnapshot, TraitLoadoutsSnapshot};
     app.add_systems(
         Update,
-        (move |mut specs: Query<&mut MessageReceiver<SpecializationChanged>>,
+        (move |mut known: Query<&mut MessageReceiver<KnownSpellsSnapshot>>,
+               mut learned: Query<&mut MessageReceiver<SpellsLearned>>,
+               mut unlearned: Query<&mut MessageReceiver<SpellsUnlearned>>,
+               mut specs: Query<&mut MessageReceiver<SpecializationChanged>>,
                mut snapshots: Query<&mut MessageReceiver<TraitConfigSnapshot>>,
                mut results: Query<&mut MessageReceiver<TraitCommitResult>>,
                mut loadouts: Query<&mut MessageReceiver<TraitLoadoutsSnapshot>>| {
@@ -679,6 +679,9 @@ fn install_talent_relay(app: &mut App, events: Sender<Event>) {
                     }
                 };
             }
+            drain!(known);
+            drain!(learned);
+            drain!(unlearned);
             drain!(specs);
             drain!(snapshots);
             drain!(results);

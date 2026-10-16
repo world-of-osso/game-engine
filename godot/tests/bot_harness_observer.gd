@@ -9,6 +9,8 @@ var target_attempts := 0
 var talent_status := "pending"
 var gear_status := "pending"
 var setup_started := false
+var pet_assist_in_progress := false
+var handled_pet_assist := ""
 
 func _initialize() -> void:
     output = OS.get_environment("BOT_HARNESS_OUTPUT")
@@ -37,7 +39,8 @@ func sample() -> void:
         setup_started = true
         prepare_player()
     var target: Dictionary = client.target_state()
-    if talent_status == "observed" and target_attempts < 32 and target.get("target_name", "") != "Training Dummy" and spells.get("spec", 0) == int(OS.get_environment("BOT_HARNESS_SPEC")) and account.get("gameplay_input_allowed", false):
+    var preparation_owns_target := FileAccess.file_exists(output.path_join("native-target-preparation.json"))
+    if not preparation_owns_target and talent_status == "observed" and target_attempts < 32 and target.get("target_name", "") != "Training Dummy" and spells.get("spec", 0) == int(OS.get_environment("BOT_HARNESS_SPEC")) and account.get("gameplay_input_allowed", false):
         target_attempts += 1
         select_nearest()
     var target_position: Array[float] = []
@@ -68,7 +71,35 @@ func sample() -> void:
         push_error("Cannot publish bot observation: " + str(renamed))
         quit(2)
         return
+    service_pet_assist()
     create_timer(0.2).timeout.connect(sample, CONNECT_ONE_SHOT)
+
+func service_pet_assist() -> void:
+    var path := output.path_join("native-pet-assist-request.json")
+    if pet_assist_in_progress or talent_status != "observed" or not FileAccess.file_exists(path):
+        return
+    var request: Variant = JSON.parse_string(FileAccess.get_file_as_string(path))
+    if not request is Dictionary or str(request.get("request_id", "")).is_empty():
+        push_error("Invalid native pet Assist request")
+        quit(2)
+        return
+    if str(request["request_id"]) == handled_pet_assist:
+        return
+    handled_pet_assist = str(request["request_id"])
+    pet_assist_in_progress = true
+    apply_pet_assist(request)
+
+func apply_pet_assist(request: Dictionary) -> void:
+    var controller = load("res://tests/bot_harness_pets.gd").new()
+    var receipt: Dictionary = await controller.apply_assist(self, client, request)
+    receipt["request_id"] = request["request_id"]
+    var name := "native-pet-assist-result.json"
+    if publish_receipt(name + ".writing", receipt):
+        var result := DirAccess.rename_absolute(output.path_join(name + ".writing"), output.path_join(name))
+        if result != OK:
+            push_error("Cannot publish native pet Assist response: " + str(result))
+            quit(2)
+    pet_assist_in_progress = false
 
 func requested_priority(target: Dictionary, spells: Dictionary) -> Dictionary:
     if target.get("target") == null or spells.get("known", []).is_empty():

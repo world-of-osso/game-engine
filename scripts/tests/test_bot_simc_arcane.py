@@ -7,7 +7,7 @@ import unittest
 from pathlib import Path
 
 sys.path.insert(0, str(Path(__file__).resolve().parents[1]))
-from bot_controller import PlayerController
+from bot_controller import PlayerController, requested_snapshot
 from bot_simc_arcane import ArcaneSimcProvider
 
 FIXTURES = Path(__file__).resolve().parent / "fixtures/bot_harness/simc_arcane32"
@@ -208,11 +208,20 @@ class ArcaneSimcProviderTests(unittest.TestCase):
     def test_controller_casts_provider_selection_directly(self):
         commands = []
         native = captured_snapshot()
+        # Explicit receipt scenarios supplement the unchanged historic fixture.
+        native["spells"].update(cast_failure_seq=0, cast_failure_events=[])
+        observed = {"priority": native, "spells": native["spells"], "at_ms": 1000,
+                    "account": {"local_player_id": 7}}
         controller = PlayerController(lambda *argv: commands.append(argv) or "submitted",
-                                      lambda target: native, lambda *route: [], None)
+                                      lambda target: requested_snapshot(observed, target), lambda *route: [], None)
         result = controller.cast_next(self.target, self.provider)
         self.assertEqual((result["spell"], result["apl_line"]), (30451, 64))
         self.assertEqual(commands, [("spell", "cast", "--spell", "30451", "--target", str(self.target))])
+        self.assertIsNone(controller.cast_next(self.target, self.provider))
+        self.assertEqual(len(commands), 1, "Arcane waits for the actual server outcome too")
+        native["spells"]["cast_success_events"].append({"source": 7, "spell_id": 30451, "at_ms": 1001})
+        self.assertEqual(controller.cast_next(self.target, self.provider)["spell"], 30451)
+        self.assertEqual(len(commands), 2)
 
 
 if __name__ == "__main__":
