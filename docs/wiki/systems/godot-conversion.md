@@ -730,6 +730,10 @@ M2 particles: see [Native M2 particles](#native-m2-particles).
 
 ## Native M2 particles
 
+### P7 continuation — collision-projected births
+
+World-space plane/sphere0x2000 births now cast the supplied20-yard downward segment into existing native map collision, offset hit height by the larger sampled scale, then integrate motion. Actual misses, unflagged/model-space births and survivors preserve their normal behavior. Flat/raised native RED reproduced birthY5 versus0.5/3.5; four no-hit/control cases already pass. GREEN pending. Exact target surface-mask equivalence remains P7-surface-mask in the [contract](../../specs/m2-particles.md).
+
 ### P6 continuation — authored particle ordering
 
 Flag0x2 now orders each emitter’s live world-space particle centers far-to-near in the current camera; model-space centers are transformed before ordering, and each particle’s head/tail stays adjacent. Unflagged paths retain live order and allocate no sort list. Actual165894 observes the flag. Two CPU controls reproduced near-first RED; GREEN2/2 and native8/8 alpha/additive overlap controls pass at5b76a724d; eight1920×1080 PNGs saved and representative alpha/additive samples inspected. See [contract](../../specs/m2-particles.md#p6--authored-depth-ordering-2026-10-15).
