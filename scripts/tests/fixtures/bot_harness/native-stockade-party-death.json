@@ -1,0 +1,142 @@
+{
+  "source": "native-stockade-fury4 command-002378.json + admitted-party.json + run.json; death-event projection is empty in actual combat.log",
+  "roster_command": {
+    "at_ms": 1792147878103,
+    "argv": [
+      "/home/osso/.worktrees/game-engine-s8/target/debug/game-engine-cli",
+      "--socket",
+      "/tmp/game-engine-801807.sock",
+      "group",
+      "roster"
+    ],
+    "exit": 0,
+    "stdout": "group_roster: 5\nBwarfury leader=true role=damage online=true subgroup=1 level=32 hp=6426/8256 power=Rage:280/1000 death=Alive pos=131.7,-25.6,-2.6 debuffs=[]\nCaptain Garrick leader=false role=tank online=true subgroup=1 level=32 hp=0/10584 power=Mana:4430/4430 death=Dead pos=130.6,-25.6,-2.2 debuffs=[]\nCrenna Earth-Daughter leader=false role=healer online=true subgroup=1 level=32 hp=6245/7840 power=Mana:3338/4430 death=Alive pos=112.9,-25.6,-3.0 debuffs=[]\nShuja Grimaxe leader=false role=damage online=true subgroup=1 level=32 hp=7840/7840 power=Mana:4430/4430 death=Alive pos=112.9,-25.6,-3.0 debuffs=[]\nMeredy Huntswell leader=false role=damage online=true subgroup=1 level=32 hp=7840/7840 power=Mana:4430/4430 death=Alive pos=112.9,-25.6,-3.0 debuffs=[]\n",
+    "stderr": ""
+  },
+  "native_actors": [
+    {
+      "entity": "4294739339",
+      "name": "Captain Garrick"
+    },
+    {
+      "entity": "4294739338",
+      "name": "Crenna Earth-Daughter"
+    },
+    {
+      "entity": "4294739337",
+      "name": "Shuja Grimaxe"
+    },
+    {
+      "entity": "4294739336",
+      "name": "Meredy Huntswell"
+    }
+  ],
+  "account": {
+    "world_map_id": 34,
+    "local_player_health": 6426.0
+  },
+  "run": {
+    "spec": 72,
+    "role": 2,
+    "actor": "4294739520",
+    "party_actors": [
+      "4294739339",
+      "4294739338",
+      "4294739337",
+      "4294739336"
+    ],
+    "start_ms": 1792147373461,
+    "end_ms": 1792147878166,
+    "elapsed_ms": 504704,
+    "clear_elapsed_ms": null,
+    "capture_complete": true,
+    "bosses": [
+      {
+        "encounter": 1146,
+        "name": "Randolph Moloch",
+        "entry": 46383,
+        "spawn_guid": 20375766,
+        "goal": [
+          172.463,
+          -25.5229,
+          2.24164
+        ],
+        "state": "NotStarted",
+        "entity": "4294739418",
+        "native_before": {
+          "name": "Randolph Moloch",
+          "entity": "4294739418",
+          "entry": 46383,
+          "level": 32,
+          "health": 134429.0,
+          "max_health": 134429.0,
+          "difficulty": 1,
+          "combat": {
+            "creature_armor": 159.0,
+            "stats": null,
+            "threat": [],
+            "victim": null
+          }
+        }
+      },
+      {
+        "encounter": 1145,
+        "name": "Lord Overheat",
+        "entry": 46264,
+        "spawn_guid": 20375719,
+        "goal": [
+          99.4527,
+          -35.1063,
+          116.802
+        ],
+        "state": "NotStarted",
+        "entity": "4294739465",
+        "native_before": {
+          "name": "Lord Overheat",
+          "entity": "4294739465",
+          "entry": 46264,
+          "level": 32,
+          "health": 139064.0,
+          "max_health": 139064.0,
+          "difficulty": 1,
+          "combat": {
+            "creature_armor": 159.0,
+            "stats": null,
+            "threat": [],
+            "victim": null
+          }
+        }
+      },
+      {
+        "encounter": 1144,
+        "name": "Hogger",
+        "entry": 46254,
+        "spawn_guid": 20375720,
+        "goal": [
+          158.016,
+          -35.1063,
+          -116.564
+        ],
+        "state": "NotStarted",
+        "entity": "4294739464",
+        "native_before": {
+          "name": "Hogger",
+          "entity": "4294739464",
+          "entry": 46254,
+          "level": 32,
+          "health": 162241.0,
+          "max_health": 162241.0,
+          "difficulty": 1,
+          "combat": {
+            "creature_armor": 159.0,
+            "stats": null,
+            "threat": [],
+            "victim": null
+          }
+        }
+      }
+    ],
+    "capture_gaps": [],
+    "failure": "Native party death/disconnect; no stat reset or replacement"
+  }
+}
