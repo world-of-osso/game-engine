@@ -20,6 +20,9 @@ const ARMS: u32 = 71;
 fn assisted_caster_whirlwind_does_not_range_check_the_selected_enemy() {
     let whirlwind = catalog().get(190411).expect("native Fury Whirlwind");
     assert!(game_engine_core::assisted_combat::is_assisted_spell_in_range(whirlwind, 3.0));
+    assert!(game_engine_core::assisted_combat::is_assisted_spell_in_range(whirlwind, 100.0));
+    let shout = catalog().get(BATTLE_SHOUT).unwrap();
+    assert!(game_engine_core::assisted_combat::is_assisted_spell_in_range(shout, 3.0));
 }
 
 #[test]
