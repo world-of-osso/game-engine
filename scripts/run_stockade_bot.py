@@ -278,7 +278,13 @@ class StockadeRun:
                 return
             if account.get("world_map_id") != 34:
                 raise ValueError("Exit preparation encountered an unexpected map")
-            self.move(position(account), plan["goal"], "authored-exit-trigger")
+            here = position(account)
+            # Trigger centers are not ground heights. At the nav endpoint, await
+            # the ordinary map transition instead of requesting vertical movement.
+            if math.hypot(here[0] - plan["goal"][0], here[2] - plan["goal"][2]) < .5:
+                time.sleep(.2)
+                continue
+            self.move(here, plan["goal"], "authored-exit-trigger")
         raise TimeoutError("Ordinary Stockade exit exceeded240s")
 
     def execute(self):
