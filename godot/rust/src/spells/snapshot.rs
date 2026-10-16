@@ -73,6 +73,7 @@ impl GameClient {
     fn write_cast_snapshot(&self, state: &mut VarDictionary) {
         state.set("sent", &packed_ids(&self.spells.sent));
         state.set("errors", &packed_strings(&self.spells.errors));
+        self.write_cast_failure_snapshot(state);
         state.set(
             "casting",
             self.world
@@ -114,9 +115,32 @@ impl GameClient {
             let mut row = VarDictionary::new();
             row.set("source", event.source.map_or(0, |id| id as i64));
             row.set("spell_id", event.spell_id.unwrap_or(0));
+            row.set("at_ms", event.timestamp_unix_ms as i64);
             events.push(&row);
         }
         state.set("cast_success_events", &events);
+    }
+
+    fn write_cast_failure_snapshot(&self, state: &mut VarDictionary) {
+        state.set("cast_failure_seq", self.account.cast_failure_seq as i64);
+        let first_sequence =
+            self.account.cast_failure_seq - self.account.cast_failures.len() as u64;
+        let mut failures = Array::<VarDictionary>::new();
+        for (index, failure) in self.account.cast_failures.iter().enumerate() {
+            let mut row = VarDictionary::new();
+            row.set("sequence", (first_sequence + index as u64 + 1) as i64);
+            row.set("spell_id", failure.spell_id);
+            row.set("reason", format!("{:?}", failure.reason));
+            row.set(
+                "detail",
+                failure
+                    .detail
+                    .as_deref()
+                    .map_or(Variant::nil(), |detail| detail.to_variant()),
+            );
+            failures.push(&row);
+        }
+        state.set("cast_failure_events", &failures);
     }
 
     fn write_spell_ui_snapshot(&self, state: &mut VarDictionary) {
