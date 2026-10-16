@@ -1,3 +1,7 @@
+## 2026-10-16 — UIErrors source hold
+
+[Bounded lifetime proof](systems/ui-system.md#uierrors-source-hold--bounded-proof-2026-10-16): hold3→2 seconds restores2.5s expiry, retaining fade calculation as an unqualified fadePower gap. Model RED2→GREEN4; ten both-skin supplied-elapsed native cases and ten unchanged-outside full-HD pairs. No wall-clock cadence/full MessageFrame claim.
+
 ## 2026-10-16 — ReadyCheck response anchors and art
 
 [Bounded button proof](systems/group-frames.md#readycheck-response-buttons--bounded-proof-2026-10-16): source bottom anchors and inherited UIPanel sheets replace wrong spacing/defaultbutton art. Model RED→GREEN1, four both-skin physical cases and twelve full-HD state pairs unchanged outside old/new button union. Existing action/cancellation retained; full dialog/server lifecycle excluded.
