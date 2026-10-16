@@ -317,6 +317,17 @@ pub fn minimap_texture_fdids(state: &MinimapClusterState, skin: ActiveSkin) -> V
     {
         fdids.push(SUPERTRACK_ARROW_FDID);
     }
+    if state
+        .blips
+        .iter()
+        .any(|blip| blip.kind == BlipKind::WorldQuest)
+    {
+        let region = ui_toolkit::atlas::get_region("worldquest-tracker-questmarker")
+            .expect("published world quest marker atlas");
+        if let ui_toolkit::atlas::AtlasSource::FileDataId(fdid) = region.source {
+            fdids.push(fdid);
+        }
+    }
     if state.tracking.open {
         fdids.extend([
             crate::bank_art::CHECKBOX_UP,
@@ -339,6 +350,7 @@ pub enum BlipKind {
         number: usize,
     },
     QuestPoiTurnIn,
+    WorldQuest,
     QuestSuperTrackArrow,
     /// A creature vignette (`VignetteKill`, `VignetteKillElite`).
     Vignette {
@@ -659,6 +671,7 @@ fn blip(blip: &MinimapBlip, style: &ClusterStyle) -> Element {
         BlipKind::QuestAvailable => (MINIMAP_BLIP_PREFIX, QUEST_AVAILABLE),
         BlipKind::QuestTurnIn => (MINIMAP_BLIP_PREFIX, QUEST_TURN_IN),
         BlipKind::QuestPoiTurnIn => (MINIMAP_OBJECTIVE_PREFIX, QUEST_TURN_IN),
+        BlipKind::WorldQuest => return world_quest_blip(blip, style),
         BlipKind::QuestObjective { .. } => (MINIMAP_OBJECTIVE_PREFIX, QUEST_NUMBER),
         BlipKind::QuestSuperTrackArrow => (
             MINIMAP_SUPERTRACK_PREFIX,
@@ -697,6 +710,21 @@ fn blip(blip: &MinimapBlip, style: &ClusterStyle) -> Element {
         }});
     }
     elements
+}
+
+fn world_quest_blip(blip: &MinimapBlip, style: &ClusterStyle) -> Element {
+    let [right, down] = blip.offset;
+    let [left, top] = style.map_origin;
+    crate::quest_art::named_atlas_texture(
+        format!("MinimapWorldQuest{}", blip.unit),
+        "worldquest-tracker-questmarker",
+        (
+            left + style.map_size * (0.5 + right) - BLIP_SIZE / 2.,
+            top + style.map_size * (0.5 + down) - BLIP_SIZE / 2.,
+            BLIP_SIZE,
+            BLIP_SIZE,
+        ),
+    )
 }
 
 fn corpse_arrow(blip: &MinimapBlip, style: &ClusterStyle) -> Element {

@@ -297,13 +297,47 @@ impl GameClient {
             .as_ref()
             .ok_or("Priority server trait configuration not received")?;
         Ok(serde_json::json!({
+            "actor": player,
             "target": target,
             "facts": facts,
             "trait_config": trait_config,
             "player_haste_pct": stats.haste_pct,
             "spell_gcd_ms": self.read_priority_gcds(&needed)?,
+            "spell_charge_state": self.read_priority_charges(&needed)?,
             "target_cast": self.priority_target_cast(target),
         }))
+    }
+
+    fn read_priority_charges(
+        &self,
+        needed: &BTreeSet<u32>,
+    ) -> Result<std::collections::BTreeMap<u32, serde_json::Value>, String> {
+        let catalog = self
+            .spells
+            .catalog()
+            .ok_or("Priority spell catalog not loaded")?;
+        let ViewerLoad::Ready(data) = &self.spells.cooldowns.load else {
+            return Err("Priority charge categories not loaded".into());
+        };
+        let mut snapshots = std::collections::BTreeMap::new();
+        for id in needed {
+            let effective = self.effective_spell(*id);
+            let spell = catalog
+                .get(effective)
+                .ok_or_else(|| format!("Priority spell metadata {effective} absent"))?;
+            if spell.charges.is_none() {
+                continue;
+            }
+            let category = data
+                .catalog
+                .charge_category(effective)
+                .ok_or_else(|| format!("Priority charge category for {effective} absent"))?;
+            let timer = self.account.spells.charges(category).ok_or_else(|| {
+                format!("Priority server charges for category {category} not received")
+            })?;
+            snapshots.insert(*id, timer.snapshot());
+        }
+        Ok(snapshots)
     }
 
     fn read_priority_gcds(
