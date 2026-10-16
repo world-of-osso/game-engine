@@ -4,6 +4,7 @@ import sqlite3
 import sys
 import tempfile
 import unittest
+from contextlib import closing
 from pathlib import Path
 
 sys.path.insert(0, str(Path(__file__).resolve().parents[1]))
@@ -20,7 +21,7 @@ class PetPreparationTests(unittest.TestCase):
                 writer.writerow(['ID', 'Name_lang'])
                 writer.writerow([1, 'Wolf'])
             path = root / 'world.db'
-            with sqlite3.connect(path) as db:
+            with closing(sqlite3.connect(path)) as db, db:
                 db.executescript('CREATE TABLE content_creature(guid INTEGER,id1 INTEGER,map INTEGER,position_x REAL,position_y REAL,position_z REAL);'
                                  'CREATE TABLE content_creature_template(entry INTEGER,name TEXT,family INTEGER,type INTEGER,type_flags INTEGER,minlevel INTEGER);')
                 for row in [(49871,'Blackrock Worg',1,1,1,1),(448,'Hogger',0,7,0,1),(6498,'Devilsaur',1,1,65537,1)]:
