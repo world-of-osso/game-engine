@@ -67,7 +67,9 @@ fn house_access_source_dropdown_menu_and_staged_selection_both_skins() {
                 .is_some()
         );
         assert_eq!(
-            frame(&registry, "HousingSettingsFlagfriends").position.top,
+            frame(&registry, "HousingSettingsFlagfriendsRow")
+                .position
+                .top,
             Val::Px(162.0)
         );
         for (key, label) in [
