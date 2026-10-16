@@ -35,6 +35,7 @@ const LANDING_SLACK: f32 = 0.05;
 
 pub(crate) struct PlayerMovement {
     pub running: bool,
+    vehicle: Option<shared::components::VehicleDriverMovement>,
     pub autorun: bool,
     pub jumping: bool,
     pub swimming: bool,
@@ -114,6 +115,7 @@ impl Default for PlayerMovement {
     fn default() -> Self {
         Self {
             running: true,
+            vehicle: None,
             autorun: false,
             jumping: false,
             swimming: false,
@@ -177,7 +179,37 @@ fn pitch_forward(direction: Vec3, yaw: f32, pitch: f32) -> Vec3 {
     lateral + (forward * pitch.cos() + Vec3::Y * pitch.sin()) * along
 }
 
+const VEHICLE_NO_STRAFE: u32 = 0x00000001;
+const VEHICLE_NO_JUMPING: u32 = 0x00000002;
+const VEHICLE_FIXED_POSITION: u32 = 0x00200000;
+
 impl PlayerMovement {
+    fn adopt_vehicle(&mut self, vehicle: Option<shared::components::VehicleDriverMovement>) {
+        if self.vehicle == vehicle {
+            return;
+        }
+        self.stop();
+        self.vehicle = vehicle;
+        self.swimming = false;
+        self.set_can_fly(false);
+        self.set_can_adv_fly(false);
+        self.vertical_velocity = 0.0;
+        self.grounded = true;
+        self.server_speed = None;
+        self.speed_modifier = 1.0;
+        self.reported_speed = self.unmodified_speed();
+    }
+
+    fn restrict_vehicle_yaw(&self, current: f32, wanted: f32, delta: f32) -> f32 {
+        let Some(vehicle) = self.vehicle else {
+            return wanted;
+        };
+        let turn = (wanted - current + std::f32::consts::PI).rem_euclid(std::f32::consts::TAU)
+            - std::f32::consts::PI;
+        let limit = vehicle.turn_speed * delta;
+        current + turn.clamp(-limit, limit)
+    }
+
     fn animation_id(&mut self, facing: f32) -> u16 {
         let previous = self.previous_facing.replace(facing);
         let locomotion = direction_to_anim_id(self.direction, self.running, self.swimming);
@@ -226,6 +258,18 @@ impl PlayerMovement {
         } else {
             0.0
         };
+        if let Some(vehicle) = self.vehicle {
+            let forward = Vec3::new(yaw.sin(), 0.0, yaw.cos());
+            if vehicle.flags & VEHICLE_FIXED_POSITION != 0 {
+                direction = Vec3::ZERO;
+                self.direction = MoveDirection::None;
+            } else if vehicle.flags & VEHICLE_NO_STRAFE != 0 {
+                direction = forward * direction.dot(forward);
+                if matches!(self.direction, MoveDirection::Left | MoveDirection::Right) {
+                    self.direction = MoveDirection::None;
+                }
+            }
+        }
         MovementFrame {
             direction: direction.to_array(),
             speed: self.unmodified_speed() * self.speed_modifier,
@@ -275,7 +319,13 @@ impl PlayerMovement {
     /// The server's speed for the current state without auras (game-server
     /// `compute_movement_speed`): flight, swim, run or walk base × the direction multiplier.
     fn unmodified_speed(&self) -> f32 {
-        let base = if self.flying {
+        let base = if let Some(vehicle) = self.vehicle {
+            if self.running {
+                vehicle.run_speed
+            } else {
+                vehicle.walk_speed
+            }
+        } else if self.flying {
             FLIGHT_SPEED
         } else if self.swimming {
             SWIM_SPEED
@@ -697,7 +747,7 @@ impl crate::GameClient {
             && !viewport
                 .gui_get_focus_owner()
                 .is_some_and(|focus| focus.is_class("LineEdit") || focus.is_class("TextEdit"));
-        let Some(facing) = self.world.local_player_facing() else {
+        let Some(facing) = self.world.local_mover_facing() else {
             self.halt_player_movement();
             return Ok(());
         };
@@ -737,8 +787,11 @@ impl crate::GameClient {
         let yaw = waypoint_yaw
             .or(step.and_then(|step| step.facing_yaw))
             .unwrap_or(yaw);
-        self.world.set_local_player_facing(yaw);
-        if self.world.local_player_controlled() {
+        let yaw = self
+            .player_movement
+            .restrict_vehicle_yaw(facing, yaw, delta);
+        self.world.set_local_mover_facing(yaw);
+        if self.world.local_input_blocked() {
             self.halt_player_movement();
             return Ok(());
         }
@@ -753,8 +806,13 @@ impl crate::GameClient {
             .client_options
             .bindings
             .is_just_pressed(InputAction::Jump, &input);
-        let jump = self.dispatch_jump_action(&frame, jump)?;
-        if !self.player_movement.swimming
+        let jump = if let Some(vehicle) = self.player_movement.vehicle {
+            jump && vehicle.flags & VEHICLE_NO_JUMPING == 0
+        } else {
+            self.dispatch_jump_action(&frame, jump)?
+        };
+        if self.player_movement.vehicle.is_none()
+            && !self.player_movement.swimming
             && !self.player_movement.flying
             && self
                 .client_options
@@ -816,8 +874,8 @@ impl crate::GameClient {
         use godot::prelude::*;
         let mut player = self
             .world
-            .local_player_node()
-            .ok_or("Selected player vanished during input")?;
+            .local_mover_node()
+            .ok_or("Selected mover vanished during input")?;
         let current = player.get_position();
         let space = player
             .get_world_3d()
@@ -859,14 +917,14 @@ impl crate::GameClient {
 
     pub(super) fn send_player_input(&mut self) -> Result<(), crate::frame_error::FrameError> {
         if !self.gameplay_input_allowed()
-            || self.world.local_player_controlled()
+            || self.world.local_input_blocked()
             || !self.transport_ready()
         {
             return Ok(());
         }
         let (Some(yaw), Some(node), Some(epoch)) = (
-            self.world.local_player_facing(),
-            self.world.local_player_node(),
+            self.world.local_mover_facing(),
+            self.world.local_mover_node(),
             self.world.local_player_epoch(),
         ) else {
             return Ok(());
@@ -910,9 +968,11 @@ impl crate::GameClient {
     /// The local player's replicated `MovementSpeed`, as the aura speed multiplier, and
     /// whether its `PlayerMotion` lets it fly and skyride.
     fn adopt_server_speed(&mut self) {
+        self.player_movement
+            .adopt_vehicle(self.world.local_vehicle_movement());
         let Some(unit) = self
             .world
-            .local_player_id()
+            .local_mover_id()
             .and_then(|id| self.replica.unit(id))
         else {
             return;
@@ -1184,6 +1244,40 @@ mod tests {
             (swim - shared::movement::SWIM_SPEED * 0.5).abs() < 1e-5,
             "{swim}"
         );
+    }
+
+    #[test]
+    fn vehicle_driver_uses_authored_gaits_turn_limit_and_no_strafe() {
+        let mut movement = PlayerMovement::default();
+        movement.adopt_vehicle(Some(shared::components::VehicleDriverMovement {
+            flags: 1594726007,
+            turn_speed: 1.04719758,
+            walk_speed: 3.0,
+            run_speed: 0.98571 * 7.0,
+        }));
+        assert!((resolve_speed(&mut movement, &[BindingKey::KeyW]) - 6.89997).abs() < 0.00001);
+        let packet = movement.network_input(0.0, FEET, 12).unwrap();
+        assert_eq!(packet.epoch, 12);
+        assert!(!packet.jumping && !packet.swimming && !packet.flying);
+        movement.running = false;
+        assert_eq!(resolve_speed(&mut movement, &[BindingKey::KeyW]), 3.0);
+        assert!((resolve_speed(&mut movement, &[BindingKey::KeyS]) - 1.8).abs() < 0.00001);
+        let mut keys = PhysicalInput::default();
+        keys.set_key(BindingKey::KeyD, true);
+        let frame = movement.resolve(&InputBindingsData::default(), &keys, 0.0, 0.0, false);
+        assert_eq!(frame.direction, [0.0; 3]);
+        assert_eq!(
+            movement.network_input(0.0, FEET, 12).unwrap().direction,
+            [0.0; 3]
+        );
+        let turn = movement.restrict_vehicle_yaw(0.0, 2.0, 0.1);
+        assert!((turn - 0.104719758).abs() < 0.000001);
+        let wrapped = movement.restrict_vehicle_yaw(3.12, -3.12, 0.1);
+        assert!((wrapped - (std::f32::consts::TAU - 3.12)).abs() < 0.000001);
+        movement.adopt_vehicle(None);
+        movement.running = true;
+        assert_eq!(resolve_speed(&mut movement, &[BindingKey::KeyW]), 7.0);
+        assert_eq!(movement.restrict_vehicle_yaw(0.0, 2.0, 0.1), 2.0);
     }
 
     /// Unsnared swimming uses the server's swim speed, not run speed.
