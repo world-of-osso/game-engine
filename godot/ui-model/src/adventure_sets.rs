@@ -67,13 +67,73 @@ fn class_dropdown(view: &View) -> Element {
             || class.to_string(),
             |spec| format!("{class} ({})", spec.name),
         );
-    crate::adventure_guide_art::dropdown(
+    let mut dropdown = crate::adventure_guide_art::dropdown(
         "JournalClassFilter",
         &title,
         "journal:filter:spec",
         (587., -35., 175., 26.),
         view.filter_menu == Some(LootFilter::Spec),
-    )
+    );
+    dropdown.extend(class_caption_runs(view));
+    dropdown
+}
+
+fn class_caption_runs(view: &View) -> Element {
+    let (class, specialization) = view.class_spec_filters();
+    let Some(name) = view.catalog.classes.get(&class) else {
+        return vec![];
+    };
+    let suffix = view
+        .catalog
+        .specs
+        .iter()
+        .find(|spec| spec.id == specialization)
+        .map(|spec| format!(" ({})", spec.name))
+        .unwrap_or_default();
+    let [red, green, blue] = crate::damage_meter_data::class_color(class as u8);
+    let color = format!("{red},{green},{blue},1");
+    // ClassMenu's inline class-colour span plus uncoloured spec, with native intrinsic widths.
+    rsx! {
+        frame {
+            name: "JournalClassFilterCaptionRuns", left: 595., top: -35., width: 141., height: 26.,
+            pos_type: "absolute", layout: "flex-row",
+            fontstring {
+                name: "JournalClassFilterClassText", text: {name.as_str()}, width: "auto", height: 26.,
+                pos_type: "relative", font_size: 12., font_color: color.as_str(), word_wrap: false, max_lines: 1,
+                justify_h: "LEFT"
+            }
+            fontstring {
+                name: "JournalClassFilterSpecText", text: suffix, width: "fill", height: 26.,
+                pos_type: "relative", font_size: 12., font_color: WHITE, word_wrap: false, max_lines: 1,
+                justify_h: "LEFT"
+            }
+        }
+    }
+}
+
+pub(crate) fn apply_postsetup(view: &View, registry: &mut ui_toolkit::registry::FrameRegistry) {
+    if view.tab != crate::adventure_guide::Tab::ItemSets {
+        return;
+    }
+    let (class, _) = view.class_spec_filters();
+    if class != 0 {
+        // Shared dropdown text is replaced by the two source colour spans above.
+        if let Some(id) = registry.get_by_name("JournalClassFilterText") {
+            registry.get_mut(id).unwrap().visible = false;
+        }
+    }
+    let menu_class = if class == 0 {
+        view.player_class()
+    } else {
+        class
+    };
+    if let Some(id) = registry.get_by_name("JournalClassTitleText")
+        && let Some(ui_toolkit::frame::WidgetData::FontString(font)) =
+            &mut registry.get_mut(id).unwrap().widget_data
+    {
+        let [red, green, blue] = crate::damage_meter_data::class_color(menu_class as u8);
+        font.color = [red, green, blue, 1.];
+    }
 }
 
 fn sorted_items<'a>(view: &'a View, set: &ItemSet) -> Vec<&'a Item> {

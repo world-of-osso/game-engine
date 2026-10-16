@@ -46,6 +46,7 @@ pub fn apply_postsetup(view: &View, registry: &mut ui_toolkit::registry::FrameRe
     crate::adventure_journeys::apply_postsetup(registry);
     crate::adventure_tutorials::apply_postsetup(registry);
     crate::adventure_suggestions::apply_postsetup(view, registry);
+    crate::adventure_sets::apply_postsetup(view, registry);
 }
 /// XML layers keep the ModelScene viewport above its BACKGROUND and below paper OVERLAY.
 fn apply_pane_texture_layers(registry: &mut ui_toolkit::registry::FrameRegistry) {
