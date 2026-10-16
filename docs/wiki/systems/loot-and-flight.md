@@ -14,6 +14,8 @@ How corpses, the LootFrame, the flight map and server-driven flights fit togethe
 
 `loot_frame_component::item_button` owns the slot action on a transparent 37×37 Button at (5,4), with right hit inset −157: effective hit width194. The enclosing row is passive; existing icon/count/card paint remains separate and unchanged. Left release commits only while still inside the authored target. The [loot-frame spec](../../specs/loot-frame.md) owns this contract; hover/pushed strokes, right/modified clicks, tooltips, animations and server lifecycle are separate gaps.
 
+Native `RegistryButton::_has_point` applies those insets without resizing the Button. Registry pointer lookup alone was insufficient: after adding the authored Item, icon clicks worked but name/extended-area clicks still missed Godot's default rectangle. All projected buttons use the same inset-aware native picking; zero insets retain the native rectangle. Existing button state signals and paint remain unchanged.
+
 The native debug fixture calls production `show_loot_frame`, not generic `show_viewport_screen`: the former registers the metal-border style. Skipping that host setup fails explicitly with `Unconverted native frame decoration: LootFrameNineSlice`; do not suppress it or change production art to make a preview pass.
 
 ### Native Godot evidence and money-card overflow
