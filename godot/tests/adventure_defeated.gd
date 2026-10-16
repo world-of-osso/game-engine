@@ -93,7 +93,11 @@ func run() -> void:
 		stop("No received save or physical defeated-icon hover")
 		return
 	var tooltip: Dictionary = client.tooltip_state()
+	var hovered := root.gui_get_hovered_control()
+	print("JOURNAL_DEFEATED_TOOLTIP actual=%s native_hover=%s marker=%s" % [JSON.stringify(tooltip), str(hovered.get_path()) if hovered != null else "none", control(MARKER).get_global_rect()])
 	if not tooltip.get("visible", false) or not str(tooltip.get("lines", "")).contains("You've already defeated this boss on Heroic difficulty this week."):
+		await RenderingServer.frame_post_draw
+		root.get_texture().get_image().save_png(evidence.path_join("tooltip-failure.png"))
 		stop("Source saved-boss difficulty tooltip missing")
 		return
 	if not await shot("defeated-after-kill-tooltip"):
