@@ -1,0 +1,64 @@
+"""Authored Stockade fixture data and native state adapters; no private driver copy."""
+import json
+import math
+import sqlite3
+from contextlib import closing
+from pathlib import Path
+
+from bot_rotation import authored_next
+
+
+def authored_priority(state, target):
+    assisted = state["assisted"]
+    spell = authored_next(assisted)
+    evaluation = json.loads(assisted["evaluation_json"])
+    if evaluation["target"] != int(target) or state["target"] != int(target):
+        raise ValueError("Authored selection belongs to another native target")
+    return {"spell": spell, "source": "native AssistedCombatStep evaluation"} if spell else None
+
+
+def parse_party(text):
+    lines = text.splitlines()
+    if not lines or not lines[0].startswith("group_roster: "):
+        raise ValueError("Native group roster header absent")
+    expected = int(lines[0].split(": ")[1])
+    result = []
+    for line in lines[1:]:
+        if line == "-":
+            continue
+        name, metadata = line.split(" leader=", 1)
+        fields = dict(token.split("=", 1) for token in ("leader=" + metadata).split() if "=" in token)
+        if not {"hp", "death", "pos", "role", "online"}.issubset(fields):
+            raise ValueError("Native group live health/position facts absent")
+        current, maximum = map(float, fields["hp"].split("/"))
+        position = [float(value) for value in fields["pos"].split(",")]
+        if len(position) != 3 or not all(math.isfinite(value) for value in position):
+            raise ValueError("Native group member position invalid")
+        power = None
+        if "power" in fields:
+            kind, values = fields["power"].split(":")
+            power = [kind, *map(float, values.split("/"))]
+        result.append({"name": name, "role": fields["role"], "online": fields["online"] == "true",
+                       "health": current, "max_health": maximum, "death": fields["death"],
+                       "position": position, "power": power})
+    if len(result) != expected:
+        raise ValueError("Native group roster count disagrees with live members")
+    return result
+
+
+def stockade_plan(database):
+    with closing(sqlite3.connect(Path(database).resolve().as_uri() + "?mode=ro", uri=True)) as db:
+        entrance = db.execute("SELECT MapID,LocX,LocY,LocZ FROM tdb_world_safe_locs WHERE ID=3599").fetchone()
+        rows = db.execute("SELECT e.ID,e.Name_lang,t.entry,c.guid,c.position_x,c.position_y,c.position_z "
+                          "FROM dungeon_encounter e JOIN content_creature_template t ON t.name=e.Name_lang "
+                          "JOIN content_creature c ON c.id1=t.entry AND c.map=e.MapID "
+                          "WHERE e.MapID=34 AND e.DifficultyID=1").fetchall()
+    if entrance is None or entrance[0] != 34 or len(rows) != 3 or len({row[0] for row in rows}) != 3:
+        raise ValueError("Authored Stockade entrance and three unique boss spawns required")
+    origin = [entrance[1], entrance[3], -entrance[2]]
+    bosses = [{"encounter": encounter, "name": name, "entry": entry, "spawn_guid": guid,
+               "goal": [x, z, -y], "state": "NotStarted"}
+              for encounter, name, entry, guid, x, y, z in rows]
+    bosses.sort(key=lambda boss: math.dist(origin, boss["goal"]))
+    return {"map": 34, "difficulty": 1, "entrance_id": 3599, "entrance": origin,
+            "bosses": bosses, "route_policy": "entrance-distance ordered authored boss goals; strict native navmesh corners only"}
