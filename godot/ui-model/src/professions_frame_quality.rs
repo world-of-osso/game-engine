@@ -1,6 +1,6 @@
 //! Mainline ProfessionsQualityDialogTemplate and its quality containers.
 use super::{ProfessionView, art};
-use crate::bank_art::{HIGHLIGHT_FONT_COLOR, edit_box, texture};
+use crate::bank_art::{HIGHLIGHT_FONT_COLOR, numeric_spinner_edit_box, texture};
 use crate::quest_art::{DynName, flat_panel_chrome, panel_button};
 use shared::crafting_reagents::ReagentSlot;
 use ui_toolkit::{rsx, widget_def::Element};
@@ -180,7 +180,8 @@ fn quantity_spinner(view: &ProfessionView, slot: &ReagentSlot, item_id: u32) -> 
         .dialog
         .as_ref()
         .map_or(0, |dialog| dialog.quantity(item_id));
-    let mut children = edit_box(&format!("{prefix}Quantity"), (34.5, 54.0, 31.0, 20.0));
+    let mut children =
+        numeric_spinner_edit_box(&format!("{prefix}Quantity"), (34.5, 54.0, 31.0, 20.0));
     children.extend(super::slots::spinner_arrow_at(
         &format!("{prefix}Decrease"),
         &format!("profession:quality:decrease:{item_id}"),
