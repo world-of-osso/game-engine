@@ -29,7 +29,7 @@ fn render(view: &View, skin: ActiveSkin) -> FrameRegistry {
 fn present(registry: &FrameRegistry, name: &str) -> bool {
     registry
         .get_by_name(name)
-        .is_some_and(|id| !registry.get(id).unwrap().hidden)
+        .is_some_and(|id| registry.get(id).unwrap().visible)
 }
 #[test]
 fn journal_search_preview_keyboard_full_popup_and_close_preserve_query() {
