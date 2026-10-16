@@ -558,10 +558,18 @@ func menu_sound_count(kit: int) -> int:
 	return count
 
 func assert_menu_audio_count(kind: String, expected: int) -> bool:
+	var settings_gain := -1.0
+	for event in menu_audio_events:
+		if event.kind == "open":
+			settings_gain = float(event.gain) / 0.562341332
+			break
+	if settings_gain < 0.0: fail("No native menu open gain observation"); return false
+	var source_gain := 0.562341332 if kind == "open" else 0.01
 	var count := 0
 	for event in menu_audio_events:
 		if event.kind != kind: continue
 		count += 1
+		if absf(float(event.gain) - source_gain*settings_gain) > 0.00001: fail("Menu kit ignored source gain/current audio settings: %s" % event); return false
 		if float(event.length) <= 0.0 or not (event.playing_observed or event.finished): fail("Menu kit has no actual decoded native playback: %s" % event); return false
 	if count != expected: fail("Decoded %s playback count%d, expected%d" % [kind,count,expected]); return false
 	return true
@@ -575,6 +583,7 @@ func assert_menu_sound_state(kind: String, expected: int) -> bool:
 
 func menu_sound_proof() -> void:
 	if menu_sound_count(218932) != 1: fail("Retail menu open kit218932 did not play once on actual show"); return
+	if menu_sound_count(218933) != 0: fail("Unprojected/initially closed vendor emitted a close sound"); return
 	await wait_frames(30)
 	if not assert_menu_sound_state("open", 1): return
 	await capture("opened-once")
