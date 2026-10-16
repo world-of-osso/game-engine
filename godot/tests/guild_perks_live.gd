@@ -24,6 +24,8 @@ func run_test() -> void:
 		if not await select_skin(skin) or not await open_guild():
 			return
 		role = skin.to_lower() + "-perks"
+		if perk_mode == "readback":
+			role += "-restart"
 		await press("CommunitiesGuildBenefitsTab")
 		if not await wait_until(func(): return text("CommunitiesGuildPerksTitle") == "Guild Perks" and known_perks().size() == 5, "actual Benefits definitions and owner spell grants"):
 			return
@@ -43,7 +45,7 @@ func run_test() -> void:
 				return
 			tooltips.append({"id": PERK_IDS[index], "title": text("TooltipTitle"), "lines": lines})
 			await capture("tooltip-%d" % PERK_IDS[index])
-		write_json(skin.to_lower() + "-perks-tooltips.json", {"tooltips": tooltips, "owner": perk_observation()})
+		write_json(role + "-tooltips.json", {"tooltips": tooltips, "owner": perk_observation()})
 		if perk_mode == "controls" and not await prove_modified_link():
 			return
 		await close_guild()
