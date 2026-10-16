@@ -8,7 +8,7 @@ use crate::{
     adventure_guide_menus::{JOURNAL_DIFFICULTIES, base_difficulty, difficulty_name},
     game_tooltip::GameTooltip,
     quest_art::DynName,
-    tooltip_presentation::{TooltipLineState, TooltipPresentation},
+    tooltip_presentation::{TOOLTIP_DESCRIPTION_COLOR, TooltipLineState, TooltipPresentation},
 };
 
 impl View {
@@ -60,7 +60,8 @@ pub(crate) fn is_defeated(view: &View, encounter: &Encounter) -> bool {
     view.saved_instances.iter().any(|lock| {
         let active = lock.locked && lock.time_remaining_secs > 0;
         let key = (lock.map_id, base_difficulty(lock.difficulty_id));
-        active && key == (metadata.map, difficulty) && lock.completed_mask & bit != 0
+        let completed = lock.completed_mask & bit != 0;
+        active && key == (metadata.map, difficulty) && completed
     })
 }
 
@@ -100,7 +101,7 @@ pub fn tooltip(view: &View, frame: &str) -> Option<GameTooltip> {
         .replacen("%s", difficulty, 1);
     Some(GameTooltip::new(
         TooltipPresentation {
-            lines: vec![TooltipLineState::new(line)],
+            lines: vec![TooltipLineState::colored(line, TOOLTIP_DESCRIPTION_COLOR)],
             ..Default::default()
         },
         None,
