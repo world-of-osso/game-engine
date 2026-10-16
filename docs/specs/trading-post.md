@@ -14,6 +14,13 @@ Retail Mainline Blizzard_PerksProgram and the local C_PerksProgram/PerksActiviti
 - [x] Traveler's Log displays authoritative monthly Tender earned/cap/balance. No invented mail awards. Retail XML defines visible controls; remove unsourced vendor SearchBox, Log/Collections and Freeze/Unfreeze buttons (lead clarification October13).
 - [x] Targeted behavioural tests and inspected private UDP5731 fb_* account PNG proof in Modern and Forever.
 
+## Button tooltips
+
+- Purchase, View Cart, Clear Cart, Purchase Cart and disabled Refund use Retail Elements.lua767–782/832–838/869–873/2065–2070/2099–2112 `ShowTooltip` branches. Tooltip owner is the actual projected button at `ANCHOR_LEFT`, offsets0/0; exact labels come from GlobalStrings70391.
+- Purchase/Checkout show their action when enabled; when disabled, insufficient Tender takes the gold normal-text explanation, otherwise white “Purchasing Unavailable”. View Cart remains inspectable while disabled; disabled Clear Cart and enabled Refund produce no tooltip. Pointer exit, covering dialog and vendor teardown clear the old owner. No request or balance/selection mutation follows from hover.
+- NAMED GAP: per-item `isPurchasePending` is absent from the current wire. Do not map generic request-pending state to the source's two-line delivery-pending tooltip; keep that provider branch unsupported. Currency/cart-toggle/frozen/detail-row tooltips remain separate.
+- [x] Native missing-tooltip RED→both-skin GREEN atb282d3793/a820dfda/dc30250 with fixture4965a8ca4: actual View Cart disabled/enabled, Purchase/Clear/Checkout, left anchors, hover leave/modal occlusion/cart teardown and unchanged selected712/Tender19670. Model2 covers remaining disabled/affordability branches; native empty-cart/disabled-refund states were not forced. Sixteen inspected full-HD originals+four contacts: `/syncthing/AgentShared/2026-10-16/trading-post-button-tooltips/`. Fixture: `trading_post_live.gd`, phase `button-tooltips`; content: `trading_post_tooltip.rs`.
+
 ## Product-row item tooltips
 
 - Hovering a vendor product shows that hovered row's Retail item ID, quality/name and catalog item details, independently of the selected model preview. Use the shared native tooltip renderer, not a product-description substitute.
