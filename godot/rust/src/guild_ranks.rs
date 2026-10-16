@@ -333,7 +333,14 @@ impl GameClient {
                 return Err(error);
             }
         }
-        while let Some((action, right, _)) = ui.bind_mut().pop_alt_click() {
+        while let Some((action, right, shift)) = ui.bind_mut().pop_alt_click() {
+            if shift && !right && action.starts_with("guild:perk:") {
+                let id = action
+                    .trim_start_matches("guild:perk:")
+                    .parse::<u32>()
+                    .map_err(|error| format!("Guild perk spell ID: {error}"))?;
+                self.insert_guild_perk_chat_link(id)?;
+            }
             if right && action.starts_with("guild:news_entry:") {
                 self.guild_ranks.session.click(
                     &action.replacen("guild:news_entry:", "guild:news_menu:", 1),

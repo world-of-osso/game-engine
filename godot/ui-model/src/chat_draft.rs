@@ -1,4 +1,4 @@
-//! LineEdit displays labels; transport retains the corresponding real achievement IDs.
+//! LineEdit displays labels; transport retains real achievement, item and spell IDs.
 //! Positions are Unicode character offsets, matching Godot's caret/selection API.
 use crate::chat_frame::{ChatSpan, parse_received_chat_links};
 
@@ -6,6 +6,7 @@ use crate::chat_frame::{ChatSpan, parse_received_chat_links};
 enum LinkKind {
     Achievement,
     Item,
+    Spell,
 }
 
 impl LinkKind {
@@ -13,6 +14,7 @@ impl LinkKind {
         match self {
             Self::Achievement => "achievement",
             Self::Item => "item",
+            Self::Spell => "spell",
         }
     }
 }
@@ -35,11 +37,13 @@ impl ChatDraft {
         for span in parse_received_chat_links(wire) {
             let kind = match &span {
                 ChatSpan::ItemLink { .. } => LinkKind::Item,
+                ChatSpan::SpellChatLink { .. } => LinkKind::Spell,
                 _ => LinkKind::Achievement,
             };
             match span {
                 ChatSpan::AchievementLink { id, display }
-                | ChatSpan::ItemLink { id, display, .. } => {
+                | ChatSpan::ItemLink { id, display, .. }
+                | ChatSpan::SpellChatLink { id, display, .. } => {
                     let start = draft.visible.chars().count();
                     draft.visible.push_str(&display);
                     draft.links.push(DraftLink {
@@ -50,7 +54,7 @@ impl ChatDraft {
                     });
                 }
                 ChatSpan::Text(text) => draft.visible.push_str(&text),
-                _ => unreachable!("chat link parser produces text and achievement/item links"),
+                _ => unreachable!("received chat parser produces text and labeled subject links"),
             }
         }
         draft
@@ -114,34 +118,26 @@ impl ChatDraft {
             .chain(&old[end..])
             .collect();
     }
-    pub fn insert_achievement(&mut self, start: usize, end: usize, id: u32, name: &str) -> usize {
-        self.insert_link(start, end, id, name, LinkKind::Achievement)
-    }
-
-    pub fn insert_item(&mut self, start: usize, end: usize, id: u32, name: &str) -> usize {
-        self.insert_link(start, end, id, name, LinkKind::Item)
-    }
-
-    fn insert_link(
+    pub fn insert_wire_link(
         &mut self,
         start: usize,
         end: usize,
-        id: u32,
-        name: &str,
-        kind: LinkKind,
-    ) -> usize {
-        assert!(id != 0, "real link subject ID");
-        let label: Vec<_> = format!("[{name}]").chars().collect();
+        wire: &str,
+    ) -> Result<usize, String> {
+        let inserted = Self::from_wire(wire);
+        if inserted.links.len() != 1 {
+            return Err("Chat insertion requires one real subject hyperlink".into());
+        }
+        let label: Vec<_> = inserted.visible.chars().collect();
         self.replace_range(start, end, &label);
-        let end = start + label.len();
-        self.links.push(DraftLink {
-            start,
-            end,
-            id,
-            kind,
-        });
+        self.links
+            .extend(inserted.links.into_iter().map(|mut link| {
+                link.start += start;
+                link.end += start;
+                link
+            }));
         self.links.sort_by_key(|link| link.start);
-        end
+        Ok(start + label.len())
     }
 }
 
@@ -159,6 +155,32 @@ mod tests {
         assert_eq!(draft.wire(), wire);
         draft.apply_visible_edit("prefix é [Mount Up] [Level 50] [Greater Inscription of the Axe]");
         assert_eq!(draft.wire(), format!("prefix {wire}"));
+    }
+
+    #[test]
+    fn guild_perks_spell_insertion_replaces_unicode_selection_without_losing_other_subjects() {
+        let mut draft = ChatDraft::from_wire(
+            "é |Hitem:50335|h[Greater Inscription of the Axe]|h |Hachievement:14782|h[Level 50]|h",
+        );
+        let caret = draft
+            .insert_wire_link(0, 1, "|Hspell:78633|h[Mount Up]|h")
+            .unwrap();
+        assert_eq!(caret, 10);
+        assert_eq!(
+            draft.visible(),
+            "[Mount Up] [Greater Inscription of the Axe] [Level 50]"
+        );
+        assert_eq!(
+            draft.wire(),
+            "|Hspell:78633|h[Mount Up]|h |Hitem:50335|h[Greater Inscription of the Axe]|h |Hachievement:14782|h[Level 50]|h"
+        );
+        let before = draft.wire();
+        assert!(
+            draft
+                .insert_wire_link(0, 0, "|Hspell:0|h[Mount Up]|h")
+                .is_err()
+        );
+        assert_eq!(draft.wire(), before);
     }
 
     #[test]
@@ -185,9 +207,13 @@ mod tests {
     #[test]
     fn achievements_art_draft_edits_at_unicode_caret_and_preserves_two_same_name_ids() {
         let mut draft = ChatDraft::from_wire("é hello!");
-        let caret = draft.insert_achievement(2, 7, 633, "Stockade");
+        let caret = draft
+            .insert_wire_link(2, 7, "|Hachievement:633|h[Stockade]|h")
+            .unwrap();
         assert_eq!(caret, 12);
-        draft.insert_achievement(caret, caret, 646, "Stockade");
+        draft
+            .insert_wire_link(caret, caret, "|Hachievement:646|h[Stockade]|h")
+            .unwrap();
         assert_eq!(draft.visible(), "é [Stockade][Stockade]!");
         draft.apply_visible_edit("avant é [Stockade][Stockade]!");
         draft.apply_visible_edit("avant é [Stockade][Stockade]! après");
