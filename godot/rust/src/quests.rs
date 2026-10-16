@@ -343,7 +343,7 @@ impl GameClient {
         Ok(())
     }
 
-    fn load_and_apply_quest_pois(&mut self) -> Result<(), String> {
+    pub(super) fn load_and_apply_quest_pois(&mut self) -> Result<(), String> {
         if self.quests.poi_catalog.is_none() {
             let catalog = game_engine_ui_model::quest_poi::QuestPoiCatalog::load(
                 &self.data_root.join("db2/active"),
@@ -369,12 +369,14 @@ impl GameClient {
             .as_ref()
             .expect("loaded quest POIs")
             .apply(&mut self.account.quests.log);
-        if self
-            .quests
-            .ui
-            .super_tracked
-            .is_some_and(|id| self.account.quests.entry(id).is_none())
-        {
+        if self.quests.ui.super_tracked.is_some_and(|id| {
+            self.account.quests.entry(id).is_none()
+                && !self
+                    .account
+                    .quests
+                    .active_world_quests(crate::account::quest_local_unix())
+                    .any(|quest| quest.quest_id == id)
+        }) {
             self.quests.ui.super_tracked = None;
         }
         Ok(())
@@ -837,6 +839,14 @@ impl GameClient {
     fn quest_state(&self) -> VarDictionary {
         let quests = &self.account.quests;
         let mut result = VarDictionary::new();
+        result.set("world_quest_count", quests.world_quests.len() as i64);
+        result.set("world_quest_server_offset", quests.server_clock_offset);
+        let available: PackedInt64Array = quests
+            .world_quests
+            .iter()
+            .map(|quest| i64::from(quest.quest_id))
+            .collect();
+        result.set("available_world_quests", &available);
         result.set("log_open", self.world_map.quest_log_is_open());
         result.set("frame_open", self.quests.frame_ui.is_some());
         if let Some(dialog) = &quests.dialog {
