@@ -76,16 +76,29 @@ fn discovered_zero_pvp_wallet_opens_source_token_rows_in_both_skins_but_empty_wa
             )
             .unwrap();
         assert_eq!(tab.onclick.as_deref(), Some("character_tab:currency"));
+        let window = registry
+            .get(registry.get_by_name("CharacterFrame").unwrap())
+            .unwrap();
+        let ui_toolkit::frame::Dimension::Fixed(height) = window.height else {
+            panic!("CharacterFrame must have a fixed source size")
+        };
         assert_eq!(
             tab.position.top,
-            ui_toolkit::layout_values::Val::Px(422.0),
-            "discovered-wallet tabs use Retail BOTTOMLEFT y-2 in both skins"
+            ui_toolkit::layout_values::Val::Px(height - 2.0),
+            "discovered-wallet tabs anchor to the shown subframe BOTTOMLEFT y-2"
         );
         view.tab = CharacterTab::from_action(tab.onclick.as_deref().unwrap()).unwrap();
         view.currencies = wallet_rows();
         shared.insert(view.clone());
         screen.sync(&shared, &mut registry);
         apply_character_frame_postsetup(&mut registry, view.tab);
+        let currency_tab = registry
+            .get(registry.get_by_name("CharacterFrameTab3").unwrap())
+            .unwrap();
+        assert_eq!(
+            currency_tab.position.top,
+            ui_toolkit::layout_values::Val::Px(422.0)
+        );
         assert_eq!(text(&registry, "CharacterFrameTitleText"), "Currency");
         assert_eq!(text(&registry, "TokenHeader2Name"), "Player vs. Player");
         assert_eq!(text(&registry, "TokenEntry1792Name"), "Honor");
