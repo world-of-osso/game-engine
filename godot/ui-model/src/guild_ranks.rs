@@ -37,6 +37,7 @@ pub enum GuildCommand {
     SetInfo(String),
     Query,
     QueryEventLog,
+    News(GuildNewsRequest),
 }
 
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
@@ -72,6 +73,7 @@ pub struct GuildRanksSession {
     pub log_open: bool,
     pub log_waiting: bool,
     pub event_log: Option<GuildEventLog>,
+    pub news: crate::guild_news_state::GuildNewsSession,
     state: Option<GuildRanksState>,
     selected_rank: usize,
 }
@@ -94,6 +96,8 @@ impl GuildRanksSession {
         self.note_editor = None;
         self.removal_target = None;
         self.log_open = false;
+        self.news.filters_open = false;
+        self.news.menu = None;
         visible
     }
 
@@ -102,6 +106,13 @@ impl GuildRanksSession {
             return true;
         }
         if self.note_editor.take().is_some() {
+            return true;
+        }
+        if self.news.menu.take().is_some() {
+            return true;
+        }
+        if self.news.filters_open {
+            self.news.filters_open = false;
             return true;
         }
         let log_open = self.log_open;
@@ -123,6 +134,7 @@ impl GuildRanksSession {
             self.log_open = false;
             self.log_waiting = false;
             self.event_log = None;
+            self.news = Default::default();
         }
         if state.error.is_some() {
             self.profile_waiting = false;
@@ -152,7 +164,37 @@ impl GuildRanksSession {
     }
     fn click_profile(&mut self, action: &str, texts: &crate::bank::InputTexts) {
         match action {
-            "guild:info_open" => self.communities_tab = CommunitiesTab::Info,
+            "guild:info_open" => {
+                self.communities_tab = CommunitiesTab::Info;
+                if let Some(request) = self.news.query() {
+                    self.commands.push(GuildCommand::News(request));
+                }
+            }
+            "guild:news_filters" => self.news.filters_open = true,
+            "guild:news_filters_close" => self.news.filters_open = false,
+            "guild:news_sticky" => {
+                let can_edit = self.can(GUILD_RIGHT_EDIT_MOTD);
+                if let Some(request) = self.news.sticky(can_edit) {
+                    self.commands.push(GuildCommand::News(request));
+                }
+            }
+            _ if action.starts_with("guild:news_filter:") => {
+                if let Ok(id) = action
+                    .trim_start_matches("guild:news_filter:")
+                    .parse::<usize>()
+                {
+                    if let Some(filter) = self.news.filters.get_mut(id) {
+                        *filter = !*filter;
+                    }
+                }
+            }
+            _ if action.starts_with("guild:news_menu:") => {
+                self.news.menu = action
+                    .trim_start_matches("guild:news_menu:")
+                    .parse::<u64>()
+                    .ok()
+                    .filter(|&id| self.news.entry(id).is_some());
+            }
             "guild:log_open" => {
                 self.log_open = true;
                 if !self.log_waiting {

@@ -297,11 +297,42 @@ fn prove_account(
     learn_and_activate(&mut peer)?;
     let actors = peer.owned_summons();
     let expected_health = verify_source_summons(source, &actors, player, expected_level)?;
+    let viewer_levels = verify_viewer_levels(&peer, expected_level)?;
     Ok(
         serde_json::json!({"account": account, "player": player, "owner_level": owner_level,
         "expected_summon_level": expected_level, "source": format!("{source:?}"),
-        "expected_health": expected_health, "actors": actors, "learning": "actual UseItem then UseToy"}),
+        "expected_health": expected_health, "actors": actors, "viewer_levels": viewer_levels,
+        "learning": "actual UseItem then UseToy"}),
     )
+}
+
+fn verify_viewer_levels(peer: &Peer, native: u8) -> Result<Vec<serde_json::Value>, String> {
+    use shared::level_scaling::{LevelScaling, level_for_viewer};
+    let mut observations = Vec::new();
+    for unit in peer.replica.units().filter(|unit| {
+        unit.get::<Npc>()
+            .is_some_and(|npc| npc.template_id == peer.source.entry())
+            && unit.get::<UnitSummonedBy>().map(|owner| owner.0) == peer.player
+    }) {
+        let level = *unit.get::<UnitLevel>().ok_or("missing native level")?;
+        let scaling = unit.get::<LevelScaling>();
+        for viewer in [1, 20, 80] {
+            let expected = if matches!(peer.source, SourceSummon::Shrine) {
+                viewer.clamp(1, 30)
+            } else {
+                native
+            };
+            let actual = level_for_viewer(level, scaling, viewer);
+            if actual != expected {
+                return Err(format!(
+                    "viewer{viewer}: level{actual}, expected{expected}; scaling{scaling:?}"
+                ));
+            }
+            observations
+                .push(serde_json::json!({"viewer": viewer, "level": actual, "scaling": scaling}));
+        }
+    }
+    Ok(observations)
 }
 
 fn read_source_scenario() -> Result<SourceSummon, String> {
