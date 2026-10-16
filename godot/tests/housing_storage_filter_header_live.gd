@@ -25,11 +25,13 @@ func run_test() -> void:
 	if not await wait_housing(func(): return tile_atlas("HouseEditorStorageFiltersBackground") != null, "source painted WowStyle1 Filter background", 3000): return
 	var control := housing_control("HouseEditorStorageFilters")
 	var storage := housing_control("HouseEditorStorageFrame")
-	var search := housing_control("HouseEditorStorageSearch")
-	var scale: float = storage.get_global_rect().size.x / 600.0
+	var search := housing_control("HouseEditorStorageSearchBox")
+	# The saved drawer is resizable (currently725px); use a fixed64px mode button
+	# for UI scale instead of treating the saved drawer width as the600px default.
+	var scale: float = housing_control("HouseEditorBasicDecorModeButton").get_global_rect().size.x / 64.0
 	var bounds: Rect2 = control.get_global_rect()
 	if bounds.size.distance_to(Vector2(125.0, 20.0) * scale) > 0.1 or absf(bounds.position.x - search.get_global_rect().end.x - 10.0 * scale) > 0.1 or absf(storage.get_global_rect().end.x - bounds.end.x - 25.0 * scale) > 0.1 or absf(bounds.get_center().y - search.get_global_rect().get_center().y) > 0.1:
-		fail("Filter header lost source fixed125x20 SearchBox+10/right25 anchors")
+		fail("Filter header lost source fixed125x20 SearchBox+10/right25 anchors: " + str({"filter": bounds, "search": search.get_global_rect(), "storage": storage.get_global_rect(), "scale": scale}))
 		return
 	var label := housing_control("HouseEditorStorageFiltersText") as Label
 	if label == null or label.text != "Filter":
