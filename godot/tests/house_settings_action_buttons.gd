@@ -36,7 +36,7 @@ func press(ui: Node, point: Vector2, down: bool) -> void:
 	drain(ui)
 	await settle()
 
-func capture(panel: Control, owner: Control, label: String, context: bool = false) -> Image:
+func capture(owner: Control, label: String, context: bool = false) -> Image:
 	var image := root.get_texture().get_image()
 	if context:
 		assert(image.save_png(output.path_join(label + "-context.png")) == OK)
@@ -58,7 +58,7 @@ func run_buttons() -> void:
 			["HousingSettingsIgnoreList", false, true],
 			["HousingSettingsAbandon", false, true],
 			["HousingSettingsSave", true, true]]:
-			var label := skin + "-" + spec[0] + ("-pending" if spec[1] else "-current")
+			var label: String = skin + "-" + spec[0] + ("-pending" if spec[1] else "-current")
 			var ui = ClassDB.instantiate("RegistryUi")
 			root.add_child(ui)
 			assert(ui.show_house_access_preview(forever, spec[1]).is_empty())
@@ -75,11 +75,11 @@ func run_buttons() -> void:
 			var outside := Vector2(150, 500)
 			var point := owner.get_global_rect().get_center()
 			await move(ui, outside)
-			var idle := capture(panel, owner, label + "-idle", true)
+			var idle := capture(owner, label + "-idle", true)
 			await move(ui, point)
-			var hover := capture(panel, owner, label + "-hover")
+			var hover := capture(owner, label + "-hover")
 			await press(ui, point, true)
-			var pushed := capture(panel, owner, label + "-pressed")
+			var pushed := capture(owner, label + "-pressed")
 			if spec[2]:
 				assert(idle.get_data() == hover.get_data() and hover.get_data() == pushed.get_data(), "Disabled art stays static")
 			else:
