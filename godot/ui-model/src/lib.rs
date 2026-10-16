@@ -55,6 +55,7 @@ mod adventure_guide_sections;
 pub mod adventure_guide_tooltip;
 pub mod adventure_journeys;
 mod adventure_loot;
+pub mod adventure_section_flags;
 mod adventure_sets;
 pub mod adventure_suggestions;
 mod adventure_tutorials;
@@ -289,6 +290,7 @@ pub mod guild_event_log;
 pub mod guild_member_detail;
 pub mod guild_news;
 pub mod guild_news_state;
+pub mod guild_perks;
 pub mod guild_rank_frame;
 pub mod guild_ranks;
 #[path = "ipc/format_shared.rs"]

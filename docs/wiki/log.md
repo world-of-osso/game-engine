@@ -2,6 +2,26 @@
 
 [Local pose](systems/bot-harness.md#local-rangecast-pose--2026-10-16): real one-second input moves the local client7yd while the loopback host keeps its owner Position frozen; RED shows native Slam range still true at the old replica. Range and cast origin now share the current local pose. Focused fixture also receives the ordinary cast origin; full dev-IPC bag-catalog readiness and fresh release-server Stockade acceptance remain separate.
 
+## 2026-10-16 — Two-way pet-wall HUD projection
+
+[Ice Barrier479](systems/battle-pets.md#two-way-wall-projection--2026-10-16): actual private5961 pointer casts in both explicit skins preserve incoming-block HP, show shared pad/cooldown, then outgoing Claw consumes the second block and the next Scratch damages. Six fullHD originals inspected;94/101/104 named geometry differs only by HP fill and timed float position. Both models framed, retained injury visible, all owned PIDs stopped. No new widgets/simulation; all-wall native casts,3D VFX and full Retail timing remain separate.
+## 2026-10-16 — Full-HD storage capture boundary
+
+[F21](systems/housing.md#full-hd-storage-captures--verified2026-10-16): current merged helper builds, both-skin five-phase physical Filter/Sort/disabled/Dyeable/reset proof and ten inspected untouched1920×1080 originals. Private snapshot Z-schema drift refreshed from authentic current table; no product fix/full-image-parity claim. All owned processes stopped.
+
+## 2026-10-16 — Unavailable storage-filter semantics
+
+[F20](systems/housing.md#unavailable-storage-filters--qualified2026-10-16): read-only70391 catalog/API/persistence inspection distinguishes query contracts from absent location/history/tag-definition mappings. No invented semantics/product edits or replay; full-HD remains F21.
+## 2026-10-16 — Inherited frozen Trading Post item tooltip
+
+[Inherited tooltip](systems/trading-post.md#inherited-frozen-product-tooltip--implementation-october16): resolve the existing displayed selection action instead of ordinary-only names. Missing native frozen-hover RED→actual8e9/7f7c8875/44e6bed both-skin settled-slot GREEN, independent item/model identity, source anchor/no sell price/leave/teardown and unchanged Tender. Four inspected full-HD hover/leave originals+two contacts published; genuine private frozen slots retained. Pending-freeze/drag/framing excluded.
+
+## 2026-10-16 — Fade effect native projection
+
+[Fade107](systems/battle-pets.md#fade-effect-projection--2026-10-16): both explicit skins on privateUDP5961 physically cast authored Jadefire Spirit Fade, observe Scratch miss/expiry/reserve swap, and retain two framed active models. Four fullHD originals inspected;91 shared PetBattle rectangles identical. Fixture removes broken auction inheritance and uses shared posed geometry. Current-CASC11-asset Jadefire closure staged privately; canonical publication remains lead-owned. All owned processes stopped.
+## 2026-10-16 — Installed guild perk list
+
+[Perks](systems/guilds.md#perks): real five-definition catalog and source Benefits list. Missing-title RED→five actual names/order and other-tab hiding GREEN1/1 in both skins. Real spell-link draft/render REDs reproduced visible raw markup; the shared labeled-link decoder and wire-link/caret insertion now support source modified-click spell identity without changing bare combat links. Focused link GREEN, tooltip, native and effect proof remain pending; no functional-buff claim.
 ## 2026-10-16 — Instrumented BM comparison and native target preparation
 
 [BM](systems/bot-harness.md#instrumented-bm-comparison--2026-10-16): received native Assist0→3, then two complete60s windows157.45/168.50DPS, pet6.44%/4.77%;28 requests/server receipts/CastSuccess and no cast denials. Earlier Cobra timeout did not reproduce; no fabricated server RED/root-fix claim. Native75 repetition remains missing/unproven. Corrected owned diagnostic options produce a real4.9ticks/s stack/host/per-system receipt; navigation root is ground_dir/navmesh, not an unsupported environment override. Native Tab bridge now has process/hostile/alive controls and syntax proof; actual Stockade opening/clear still pending.
@@ -9,6 +29,35 @@
 ## 2026-10-16 — BM native pet Assist preparation
 
 [Preparation](systems/bot-harness.md#bm-native-assist-preparation--2026-10-16): one ordinary viewport click on the received Assist reaction slot, owned identity and react_state3 ACK required. Portable slot/ownership controls and native GDScript syntax pass; fresh BM input/DPS proof pending. Pinned TC Pet/CharmInfo creation chain confirms Passive default and stored-mode restoration, so no server-default change or persistence override.
+## 2026-10-16 — Lifetime honor source boundary
+
+[Honor](systems/battlegrounds.md#lifetime-honor-source-boundary--2026-10-16): pinned concrete world-kill XP plumbing is distinct from spendable1792; no8800 guess, old Prestige curve reinterpretation or quest-to-match payout assignment. Persist/replicate lifetime XP, leave level/fill unknown, preserve source faction art and tooltip. Merged server10/UI4/wire1/check/fmt pass; actual private damage/death0→47→94, both-skin full-HD tooltip, dead replay and fresh-process relog are bounded native proof. Character Currency's absent consumer/UI remains open, not excused by unavailable award policy.
+## 2026-10-16 — Encounter section flags
+
+[Header flag art and hover](systems/adventure-guide.md#encounter-section-flags--2026-10-16): source raw mask→zero-based atlas flags in32px frames, title reservation and white owner-right tooltips. Missing-frame RED→three focused tests plus60 adjacent controls GREEN; current both-skin Ozruk2410 native painted-art/anchor/title/hover pass, six inspected fullHD originals. Registered check/fmt0 and independent source/wiring/readability gate pass. Opaque C API flag ordering and nonempty-description wrapping remain unclaimed; all14 current descriptions are empty. Search and Journeys masks remain active.
+
+## 2026-10-16 — Multi-area world-quest pin continuation
+
+[Area/floor boundary](investigations/world-quest-availability.md#multi-area-pin-continuation--implementation-checkpoint): actual82521 lower2256 pin RED0/1 and server availability REDfirst-area-only, while acceptance already accepts either source area. Source CSV also providesZ, which the importer discarded: new height-preservation/missing-height tests are RED. Importer/runtime/wire now retain all309areas' XYZ for239tasks; the renderer keeps existing3D floor checks instead of using the unverified2D workaround. Minimap nearest-area navigation keeps one logical task. Continuation gate passes: importer14/UI7/server2/protocol2, registered build/check/fmt0, independent verification and both-skin physical lower/main-map selection plus real expiry, with eight inspected fullHD originals. Prior3c08 settlement proof remains separate. Every one of the five admission gaps is now named against fresh installed70391 sources; no invented trigger volumes or label membership. Source choice census239/0 makes reward choice not applicable.
+
+## 2026-10-16 — World-quest navigation and Deathwing diagnosis
+
+[Task navigation and hazard](investigations/world-quest-availability.md#2026-10-16-navigation-and-authored-deathwing-hazard): available pins select without acceptance, received-position minimap markers, source-only bars/time text and unnumbered tracker POIs;13 scoped UI controls GREEN. Actual ten46327 actors spawn5552/5552; Deathwing's authored Molten Flame kills them on grid activation, not spawn/scaling/terrain. Current both-skin navigation/window/controlled-reward gate passes: actual7/8→8/8,11765XP, replay/expiry and26 inspected fullHD PNGs. The explicitly approved private fixture omits only hazard spawn20383796; product data is unchanged, no injected credit or NPC health restore. Ordinary-world hazard/phasing remains open.
+## 2026-10-16 — ReadyCheck message origin
+
+[Source TOP anchor](systems/group-frames.md#readycheck-message-origin--bounded-proof-2026-10-16): retain parent-relative(+20,−37), removing title-height subtraction. Model RED→GREEN2; both-skin native positions and2080-pixel message-only delta per full-HD pair. Existing baseline binary reused with exact hash provenance; typography/difficulty/full-popup remain open.
+
+## 2026-10-16 — UIErrors source hold
+
+[Bounded lifetime proof](systems/ui-system.md#uierrors-source-hold--bounded-proof-2026-10-16): hold3→2 seconds restores2.5s expiry, retaining fade calculation as an unqualified fadePower gap. Model RED2→GREEN4; ten both-skin supplied-elapsed native cases and ten unchanged-outside full-HD pairs. No wall-clock cadence/full MessageFrame claim.
+
+## 2026-10-16 — ReadyCheck response anchors and art
+
+[Bounded button proof](systems/group-frames.md#readycheck-response-buttons--bounded-proof-2026-10-16): source bottom anchors and inherited UIPanel sheets replace wrong spacing/defaultbutton art. Model RED→GREEN1, four both-skin physical cases and twelve full-HD state pairs unchanged outside old/new button union. Existing action/cancellation retained; full dialog/server lifecycle excluded.
+
+## 2026-10-16 — StackSplit arrow source states
+
+[Arrow state proof](systems/cursor-item.md#stacksplit-arrow-states--bounded-proof-2026-10-16): static clickable frames lacked pushed art and dispatched before outside release. Source16×16 buttons restore Up/Down/Disabled art and cancellation; model RED→GREEN1,16 both-skin physical cases,48 context comparisons unchanged outside arrows. Supplied-state input only; quantity/purchase/full-picker parity excluded.
 
 ## 2026-10-16 — Guild news live acceptance
 
@@ -36,10 +85,6 @@
 ## 2026-10-16 — Maintained Stockade controller integration
 
 [Bot Stockade boundary](systems/bot-harness.md#stockade-boss-accounting): follower523dc4ce5/master merged preserving both native parser/metrics and routed player interface;115 bot Python cases/controller syntax pass. New readonly encounter/spawn plan, target-bound native authored provider, party facts and native equal-budget sheet/inventory observations are implemented after source-module RED. Actual Fury Stockade execution/credit/clear time remains pending; no diagnostic driver, Mage cycle or stat override copied.
-## 2026-10-16 — World-quest navigation and Deathwing diagnosis
-
-[Task navigation and hazard](investigations/world-quest-availability.md#2026-10-16-navigation-and-authored-deathwing-hazard): available pins select without acceptance, received-position minimap markers, source-only bars/time text and unnumbered tracker POIs;13 scoped UI controls GREEN. Actual ten46327 actors spawn5552/5552; Deathwing's authored Molten Flame kills them on grid activation, not spawn/scaling/terrain. Current both-skin navigation/window/controlled-reward gate passes: actual7/8→8/8,11765XP, replay/expiry and26 inspected fullHD PNGs. The explicitly approved private fixture omits only hazard spawn20383796; product data is unchanged, no injected credit or NPC health restore. Ordinary-world hazard/phasing remains open.
-
 ## 2026-10-16 — HouseSettings action-button source art
 
 [Three action buttons](systems/housing.md#housesettings-action-button-art--2026-10-16): four source UIPanel bindings only, RED→GREEN and both-skin enabled/disabled/pending native proof; all eight fullHD changes confined to button rectangles. No typography/lifecycle/backend claim.
@@ -110,6 +155,14 @@
 ## 2026-10-15 — Minimap zoom state art
 
 - [Minimap](systems/minimap.md#zoom-button-source-states--2026-10-15): source Button states/full-opacity disabled grayscale; both-skin physical native proof, bounded offline screen/input acceptance.
+## 2026-10-16 — Waywatcher private closure and Grizzlesnout canonical readback
+
+[Waywatcher](systems/toy-box.md#waywatcher-private-body-closure-2026-10-16): both source99572 display choices share1120483 but retain distinct overrides;18 authenticated70391 dependencies and four aliases published privately without canonical ownership collisions. Actual private combined Rust loader passes18 receipts/four aliases; canonical publication and native rendering remain separate. [Grizzlesnout](systems/toy-box.md#grizzlesnout-canonical-body-readback-2026-10-16):12 already-owned canonical receipts/two aliases pass actual Rust loader and independent content authentication; no new fragment needed.
+
+## 2026-10-16 — Ysera canonical cross-fragment readback
+
+[Ysera body](systems/toy-box.md#ysera-body-asset-closure-2026-10-16): lead canonical publication independently passes actual Rust `ModelAssetIndex::load`, seventeen cross-fragment receipt lookups, four alias byte-equality checks and SHA256/content-key readback. Duplicate receipts removed without losing chain/aliases; procedural appearance and pixels remain open.
+
 ## 2026-10-16 — Ysera private body closure
 
 [Ysera body](systems/toy-box.md#ysera-body-asset-closure-2026-10-16): seventeen same-build70391 body/texture/animation/skin files and four aliases authenticated/published privately; rebuilt namespace graph passes. Procedural8605/type22 remains ignored by the renderer and is not replaced by a guessed shader. No native pixels/canonical publication claim.
@@ -4204,4 +4257,17 @@ Completed Retailv2 codec/authoritative Create and committed Copy callbacks, exac
 - 2026-10-16: Single Purchase/Refund pending popup lifetime model2 and actual paused-private-server native RED observed. Source retains modal/spinner and purchase removes its own cart item; request-reply snapshot boundary unchanged. [Trading Post](systems/trading-post.md#accepted-single-item-confirmation-lifetime--implementation-october16).
 - 2026-10-16: [Actual native Greed](systems/bot-harness.md#native-actual-greed--2026-10-16): maintained route/F/provider/viewport bridge; Moloch63346 Greed95→GUID525,7.040s ACK, inspected1280 input/win PNGs and owned cleanup. Azure/full-spec remain separate.
 
+- 2026-10-16: Cart regular/member tooltip consumer added after real native missing-tooltip RED. Exact expanded owner/cached Retail metadata and source left−8/y−20 anchor, no SellPrice or preview mutation. [Trading Post](systems/trading-post.md#cart-item-tooltips--implementation-october16).
 - 2026-10-16: Accepted request dialogs now pass both-skin painted spinner/overlay counterfactuals and real rotation/reply proof, after rejecting node-only art evidence. Source11px inset and modal-relative ordering fixed.31UI12native/check/5scopedRustfmt pass; ten full-HD originals+two contacts+two crops published, private RED purchase state retained. [Trading Post](systems/trading-post.md#accepted-single-item-confirmation-lifetime--implementation-october16).
+## 2026-10-16 — authentic guild perk knowledge and native input
+
+[Guild perks](systems/guilds.md#perk-native-authority-and-effect-boundary-2026-10-16): five real DB2 definitions, source Benefits rows/tooltips, TalentChannel snapshot/delta ordering RED→GREEN, actual owner joins/removal/rejoin/quit and class conservation. Both-skin native modified-link/server echo and identical-binary fresh-process readback pass. Effects remain individually qualified; no fabricated mounted-speed, Hearthstone, resurrection or guild-chest functionality.
+
+- Guild perk follow-up: physical existing-caret RED revealed native-only edit text bypassing RegistryUi state; d82f213cc updates the authoritative edit model before restoring caret. Actual both-skin no-cast/caret/server-echo and fresh-process readback now pass on current merged binaries; actual UDP membership sequence also refreshed.
+
+- 2026-10-16: Frozen ProductButton inherits base item tooltip; ordinary-name-only native lookup missed it. Actual genuine-Freeze native RED observed; resolve already-rendered selection action without new frozen state. [Trading Post](systems/trading-post.md#inherited-frozen-product-tooltip--implementation-october16).
+- 2026-10-16: Cart regular/member source tooltip both-skin native GREEN including actual hover-only removal; phase-local global input parsing corrects viewport-only fixture cursor.33UI12native/check/3scopedRustfmt pass at9e7; eight full-HD originals+two contacts published. [Trading Post](systems/trading-post.md#cart-item-tooltips--implementation-october16).
+
+## 2026-10-16 — Loot ItemButton hit rectangle and release
+
+Source Item ownership replaces row-press actions; inset-aware native Button picking fixes the actual expanded-hit boundary. Model2/native32 GREEN,68 unchanged full-HD pairs; StackSplit16/ReadyCheck4 shared-input controls and60 pixel pairs unchanged. Retained setup failures and Item-only partial RED, server/full-window exclusions explicit. See [[loot-and-flight#ItemButton input ownership — 2026-10-16]].
