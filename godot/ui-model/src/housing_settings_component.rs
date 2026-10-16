@@ -157,9 +157,12 @@ fn choice(key: &str, label: &str, checked: bool, disabled: bool, top: f32) -> El
         ));
     }
     let action = format!("housing:settings:toggle:{key}");
-    rsx! { button { name: {DynName(name.clone())}, width: 140.0, height: 30.0,
-        pos_type: "absolute", left: 20.0, top, onclick: action, disabled, button_default_skin: false,
-        {art}
+    rsx! { r#frame { name: {DynName(format!("{name}Row"))}, width: 100.0, height: 30.0,
+        pos_type: "absolute", left: 20.0, top,
+        button { name: {DynName(name.clone())}, width: 30.0, height: 29.0,
+            pos_type: "absolute", left: 0.0, top: 0.5, onclick: action, disabled, button_default_skin: false,
+            {art}
+        }
         fontstring { name: {DynName(format!("{name}Label"))}, text: label, width: 105.0, height: 29.0,
             pos_type: "absolute", left: 35.0, font_size: 13.0, justify_h: "LEFT" }
     } }
