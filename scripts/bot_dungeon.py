@@ -1,5 +1,22 @@
 """Native boss accounting; authoritative completion and observed DPS are separate."""
+from collections import Counter
+
 from bot_harness import analyze
+
+
+def summarize_deaths(run, deaths):
+    logged = Counter(row["dst"] for row in deaths)
+    native = run.get("party_death_observations", [])
+    native_actors = {str(row["entity"]) for row in native}
+    observed = logged | Counter({actor: 1 for actor in native_actors})
+    missing = native_actors - logged.keys()
+    complete = run["capture_complete"] and not missing
+    player = str(run["actor"])
+    return {"player_deaths": observed[player] if run["capture_complete"] and player not in missing else None,
+            "party_deaths": sum(observed.values()) if complete else None,
+            "observed_player_deaths": observed[player], "observed_party_deaths": sum(observed.values()),
+            "death_capture_complete": complete, "death_events": deaths,
+            "native_death_observations": native}
 
 
 def boss_combat(event, identity, party):
@@ -61,13 +78,9 @@ def summarize_dungeon(run, events):
     party = {str(actor) for actor in [run["actor"], *run["party_actors"]]}
     deaths = [row for row in window if row["kind"] == "death" and row["dst"] in party]
     credited = all(boss["state"] == "Done" for boss in bosses)
-    player_deaths = sum(row["dst"] == str(run["actor"]) for row in deaths)
     return {"schema": 1, "scenario": "stockade", "spec": run["spec"], "actor": run["actor"],
             "clear_complete": credited, "clear_time_ms": run["clear_elapsed_ms"] if credited else None,
             "clear_time_basis": "local monotonic elapsed from ordinary entry confirmation to final authoritative Done observation",
             "elapsed_ms": run["elapsed_ms"], "bosses": bosses,
-            "player_deaths": player_deaths if run["capture_complete"] else None,
-            "party_deaths": len(deaths) if run["capture_complete"] else None,
-            "observed_player_deaths": player_deaths, "observed_party_deaths": len(deaths),
-            "death_events": deaths, "capture_complete": run["capture_complete"],
+            **summarize_deaths(run, deaths), "capture_complete": run["capture_complete"],
             "metrics_complete": run["capture_complete"] and all(boss["measurement_complete"] for boss in bosses)}
