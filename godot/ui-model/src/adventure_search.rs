@@ -412,12 +412,12 @@ fn full_results(ctx: &SharedContext, view: &View, rows: &[ResultRow<'_>]) -> Ele
 }
 fn atlas_size(name: &str) -> (f32, f32) {
     let region = ui_toolkit::atlas::resolve_region(name, ui_toolkit::atlas::thread_skin())
-        .expect("Retail search template atlas");
+        .unwrap_or_else(|| panic!("Retail search atlas {name} is missing"));
     (region.width, region.height)
 }
 fn atlas_region(name: &str, atlas: &str, rect: (f32, f32, f32, f32)) -> Element {
     let region = ui_toolkit::atlas::resolve_region(atlas, ui_toolkit::atlas::thread_skin())
-        .expect("Retail search template atlas");
+        .unwrap_or_else(|| panic!("Retail search atlas {atlas} is missing"));
     let ui_toolkit::atlas::AtlasSource::FileDataId(fdid) = region.source else {
         panic!("Search atlas must have a FileDataID")
     };
@@ -478,12 +478,12 @@ fn popup_art() -> Element {
     // BottomPopupScrollBoxTemplate: rock background, two rows of top corners and
     // tiled side borders. No invented bottom cap; the source omits it too.
     let mut art = rsx! {texture {name:"JournalSearchPopupBackground",texture_fdid:374155,left:0.0,top:0.0,width:600.0,height:400.0,pos_type:"absolute",horiz_tile:true,vert_tile:true,vertex_color:"0.9,0.8,0.7,1"}};
-    let left = atlas_size("UI-Frame-TopCornerLeft");
+    let left = (14., 14.);
     let right = atlas_size("UI-Frame-TopCornerRightSimple");
     for (suffix, top) in [("Top", -4.), ("Second", 20.)] {
         art.extend(atlas_region(
             &format!("JournalSearchPopup{suffix}Left"),
-            "UI-Frame-TopCornerLeft",
+            "UI-Frame-TopLeftCorner",
             (-7., top, left.0, left.1),
         ));
         art.extend(atlas_region(
@@ -491,16 +491,12 @@ fn popup_art() -> Element {
             "UI-Frame-TopCornerRightSimple",
             (604. - right.0, top, right.0, right.1),
         ));
-        art.extend(atlas_region(
-            &format!("JournalSearchPopup{suffix}Border"),
-            "_UI-Frame-Top",
-            (
-                left.0 - 7.,
-                top,
-                611. - right.0 - left.0,
-                atlas_size("_UI-Frame-Top").1,
-            ),
-        ));
+        // UIPanelTemplates.xml455: this XML virtual texture is a file crop,
+        // not an atlas named like its template.
+        let name = DynName(format!("JournalSearchPopup{suffix}Border"));
+        let x = left.0 - 7.;
+        let width = 611. - right.0 - left.0;
+        art.extend(rsx! {texture {name,texture_fdid:374157,tex_coords:"0,1,0.27343750,0.20312500",left:x,top,width,height:9.0,pos_type:"absolute",horiz_tile:true}});
     }
     art.extend(atlas_region(
         "JournalSearchPopupLeft",
