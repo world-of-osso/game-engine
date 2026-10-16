@@ -14,7 +14,7 @@ from collections import Counter
 from contextlib import closing
 from pathlib import Path
 
-from bot_controller import publish
+from bot_controller import native_usable, publish
 from bot_dungeon import summarize_dungeon
 from bot_gear import equipment_receipt, load_plan
 from bot_harness import parse_combat, poll_has_gap, routed_player
@@ -238,12 +238,30 @@ class StockadeRun:
         if self.blocked_steps >= 8:
             raise RuntimeError(f"Native route blocked after eight steps at {after}; goal {goal}")
 
+    def approach_opening(self, target):
+        deadline = time.monotonic() + 60
+        while time.monotonic() < deadline:
+            self.party()
+            self.poll_combat()
+            state = self.snapshot(target)
+            if native_usable(state, 57755):
+                return
+            ranged = state["facts"]["in_range"]["57755"]["Ok"]
+            with (self.output / "opening-approach.jsonl").open("a") as stream:
+                stream.write(json.dumps({"at_ms": state["at_ms"], "target": target,
+                    "facts": state["facts"], "in_range": ranged}) + "\n")
+            if not ranged:
+                self.move(position(self.account()), state["target_position"], "native-ranged-approach")
+            time.sleep(.1)
+        raise TimeoutError("Native opening range/usability not reached in60s; no cast or alternate")
+
     def open_pull(self):
         target = self.player.tab_to_enemy()
         receipt = {"at_ms": int(time.time() * 1000), "target": target, "spell": 57755,
                    "source": "approved native Heroic Throw prep; server validates range/usability"}
         self.run["openings"].append(receipt)
         try:
+            self.approach_opening(target)
             receipt["outcome"] = self.player.cast_opening(target, 57755)
             self.opening_target = target
         except Exception as error:
