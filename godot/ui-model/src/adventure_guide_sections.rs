@@ -71,6 +71,8 @@ pub fn section_header(
 ) -> Element {
     let name = format!("JournalSection{}", section.id);
     let (left, top, width, height) = rect;
+    let (flags, title_right) =
+        crate::adventure_section_flags::header_flags(section, (width, height));
     let mut contents = paper_regions(&name, width, collapsed, false);
     contents.extend(label(
         format!("{name}ExpandedIcon"),
@@ -86,10 +88,11 @@ pub fn section_header(
             "1,1,1,1",
         ));
     }
+    contents.extend(flags);
     contents.extend(label(
         format!("{name}Name"),
         title,
-        (45., 8., width - 50., 10.),
+        (45., 8., title_right - 45., 10.),
         (12., GOLD, "LEFT"),
     ));
     let action = format!("journal:section:{}", section.id);
