@@ -31,6 +31,14 @@ Native `trading_post_pet.rs` owns a separate dressed-player detached request and
 
 Lead October15 decisionA permits this composition slice, not full Rank3 parity. Pet desiredScale's native provider and kit23877's authored cross-segment loop remain unsupported and exposed as debug gaps, not guessed scale/animation behavior. Existing FOV/zoom-spline and native inset-projection limits remain separate. See the [spec](../../specs/trading-post.md#petplayer-comparison-scenes).
 
+### Pet projection diagnosis — October15
+
+Both-skin actualc810/d5/ab capture35c05502a measures a1440×810 viewport (logical host1920×1080), FOV30°, requested category scale1. Garrlok224 projects to(-45.510,417.393)→(122.007,732.283):45.510px left overflow. Spectral Tiger Cub429 projects to(432.135,518.657)→(703.106,664.605), fully inside; inspected both-skin fitting-pet/dressed-player samples and independent camera/lifetime/cart controls pass. Pure projection reproduces Camera3D corner samples within0.000148px.
+
+One-variable calculated thresholds would fit Garrlok at requestedScale≤0.431988 or FOV≥31.803004°, but neither is an authentic input or an applied fix. Source insets230/0/100/0 map to172.5/0/75/0 physical: a viewport-shrink interpretation still clips60.880px, while a principal-point-only interpretation fits. Native inset semantics are unestablished; these diagnostic models cannot uniquely attribute clipping to desiredScale. No tuned reframe/fallback was added. Lead19:53/20:23 holds Rank3 unlandable until authentic framing is resolved; kit23877 remains a separate gap.
+
+Evidence: diagnostic `pet-projection-c810-{modern,forever}/pet-projection-{224,429}.json`, `pet-projection-analysis.py/.json` and `pet-projection-diagnosis.md`; actual binary receipts remain in `pet-comparison-proof-manifest.json`. Later source/check revisions are not relabeled as runtime proof.
+
 ## Previews
 
 - Mounts/pets: `UnitAppearance::Creature` from the row's authored display, else the granted mount's unconditional `MountXDisplay` or the pet species display.

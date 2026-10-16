@@ -1,3 +1,7 @@
+## 2026-10-15 — Trading Post pet projection diagnosis
+
+[Pet projection](systems/trading-post.md#pet-projection-diagnosis--october15): both-skin native AABB/camera capture and independently reproduced projection identify Garrlok45.510px left overflow versus fully fitting Spectral Tiger Cub. Scale/FOV fit thresholds and two explicit inset interpretations do not establish authentic native values; no production mutations or tuned reframe. Rank3 holds unlandable pending authentic framing. Cart boundary and merged27UI/13native/check/scopedformat proof complete.
+
 ## 2026-10-15 — Trading Post pet comparison implementation
 
 [Pet comparison](systems/trading-post.md#pet-comparison-composition--bounded-proof-october15): independent dressed-player world/camera, authored race/sex actor and relative offset; raw category camera avoids product-rounding contamination. Missing-host + actual single-pet RED→both-skin native composition/lifetime GREEN at c810ca30d/d5e59a071/ab40a187; core5 + UI27/native13 pass. Inspected Garrlok remains clipped at the left edge; desiredScale provider/kit23877 and native framing semantics stay named gaps, fullRank3 incomplete.
