@@ -24,7 +24,7 @@ func run_fixture() -> void:
 		fail("Private compositor must expose 1920x1080 output")
 		return
 	var account := OS.get_environment("TP_ACCOUNT")
-	if server != "127.0.0.1:5791" or not account.begins_with("fb_") or shots.is_empty() or receipts.is_empty() or not phase in ["cart-tooltips", "pending-dialogs", "confirmations", "button-tooltips", "item-tooltips", "menu-sounds", "layout", "layout-proof", "browse", "relog", "purchase", "refund", "cart", "cart-lifetime", "rotate-controls", "mount-rider", "mount-rider-cancel", "freeze-workflow", "authored-camera", "frozen-slot-before", "frozen-slot-after"]:
+	if server != "127.0.0.1:5791" or not account.begins_with("fb_") or shots.is_empty() or receipts.is_empty() or not phase in ["row-cart-toggle", "cart-tooltips", "pending-dialogs", "confirmations", "button-tooltips", "item-tooltips", "menu-sounds", "layout", "layout-proof", "browse", "relog", "purchase", "refund", "cart", "cart-lifetime", "rotate-controls", "mount-rider", "mount-rider-cancel", "freeze-workflow", "authored-camera", "frozen-slot-before", "frozen-slot-after"]:
 		fail("Explicit private 127.0.0.1:5791, fb_* account, phase and evidence paths required")
 		return
 	for directory in [shots, receipts]:
@@ -48,7 +48,7 @@ func run_fixture() -> void:
 	if not await wait_until(func(): return float(client.account_state().local_player_health) > 0.0, "private character alive", 120000): return
 	client.set_world_minutes(720.0)
 	await wait_frames(120)
-	if not phase in ["cart-tooltips", "pending-dialogs", "confirmations", "button-tooltips", "item-tooltips", "menu-sounds", "layout", "layout-proof", "cart", "cart-lifetime", "rotate-controls", "mount-rider", "mount-rider-cancel", "freeze-workflow", "authored-camera", "frozen-slot-before", "frozen-slot-after"] and not await travelers_log(): return
+	if not phase in ["row-cart-toggle", "cart-tooltips", "pending-dialogs", "confirmations", "button-tooltips", "item-tooltips", "menu-sounds", "layout", "layout-proof", "cart", "cart-lifetime", "rotate-controls", "mount-rider", "mount-rider-cancel", "freeze-workflow", "authored-camera", "frozen-slot-before", "frozen-slot-after"] and not await travelers_log(): return
 	if phase == "menu-sounds" and not watch_menu_sound_players(): return
 	if not await open_vendor(): return
 	if phase in ["cart", "cart-lifetime"]:
@@ -88,11 +88,59 @@ func run_fixture() -> void:
 		"pending-dialogs": await pending_dialog_proof()
 
 		"button-tooltips": await button_tooltip_proof()
+		"row-cart-toggle": await row_cart_toggle_proof()
 		"cart-tooltips": await cart_item_tooltip_proof()
 		"frozen-slot-before": await frozen_slot_geometry_proof(false)
 		"frozen-slot-after": await frozen_slot_geometry_proof(true)
 		"refund": await refund_after_relog()
 		_: await browse()
+
+func row_cart_toggle_proof() -> void:
+	if not await choose_category(1): return
+	var target := await select_other_cartable([])
+	if target <= 0: return
+	var target_name: String = client.trading_post_state().selected_name
+	var other := await select_other_cartable([target])
+	if other <= 0: return
+	var initial: Dictionary = client.trading_post_state().duplicate(true)
+	var owner := "PerksProgramCartToggle%d" % target
+	var row := "PerksProgramProduct%d" % target
+	var scale := control("PerksProgramLeaveButton").get_global_rect().size.x / 180.0
+	await motion(control("PerksProgramLeaveButton").get_global_rect().get_center(), false)
+	if control(owner) != null: fail("Row cart toggle visible without row hover"); return
+	await motion(control(row).get_global_rect().position + Vector2(96, 24) * scale, false)
+	if not await wait_until(func(): return control(owner) != null, "Retail row cart toggle on eligible product hover", 10000): return
+	var rect := control(owner).get_global_rect()
+	var expected := control(row).get_global_rect().position + Vector2(443, 6) * scale
+	if rect.position.distance_to(expected) > 1.5 or rect.size.distance_to(Vector2(36, 36) * scale) > 1.5:
+		fail("Row cart toggle lacks source36x36/TimeRemaining center anchor"); return
+	await motion(rect.get_center(), false)
+	if not await wait_until(func(): return client.tooltip_state().get("title", "") == "Add to Cart", "row cart Add tooltip"): return
+	var tooltip: Dictionary = client.tooltip_state()
+	if absf(float(tooltip.rect[0]) + float(tooltip.rect[2]) - rect.position.x / scale) > 1.5:
+		fail("Row cart tooltip lacks source ANCHOR_LEFT"); return
+	await capture("add-hover")
+	await button_event(rect.get_center(), MOUSE_BUTTON_LEFT, true)
+	await capture("pressed")
+	await button_event(rect.get_center(), MOUSE_BUTTON_LEFT, false)
+	if not await wait_until(func(): return target in client.trading_post_state().cart, "row Add toggles hovered item"): return
+	if not await wait_until(func(): return client.tooltip_state().get("title", "") == "Remove from Cart", "row tooltip tracks cart membership"): return
+	var added: Dictionary = client.trading_post_state()
+	if int(added.selected) != other or int(added.tender) != int(initial.tender) or int(added.frozen) != int(initial.frozen) or added.pending:
+		fail("Row cart toggle changed selected preview/Tender/frozen authority"); return
+	await capture("remove-hover")
+	await click(owner)
+	if not await wait_until(func(): return client.trading_post_state().cart == initial.cart, "row Remove restores initial cart"): return
+	await motion(control(row).get_global_rect().position + Vector2(96, 24) * scale, false)
+	if not await wait_until(func(): return client.tooltip_state().get("title", "") == target_name, "leaving cart toggle restores product tooltip"): return
+	await capture("row-tooltip-restored")
+	await motion(control("PerksProgramLeaveButton").get_global_rect().get_center(), false)
+	if not await wait_until(func(): return control(owner) == null and not client.tooltip_state().get("visible", false), "row leave hides toggle and tooltip"): return
+	var final: Dictionary = client.trading_post_state()
+	if int(final.selected) != other or int(final.tender) != int(initial.tender) or int(final.frozen) != int(initial.frozen) or final.pending:
+		fail("Row toggle roundtrip changed model/Tender/frozen authority"); return
+	print("TP_ROW_CART_TOGGLE target=", target, " selected=", other, " tender=", final.tender, " frozen=", final.frozen)
+	await finish("row-cart-toggle")
 
 func pause_private_reply() -> bool:
 	var pid := int(OS.get_environment("TP_SERVER_PID"))
@@ -1387,7 +1435,7 @@ func motion(point: Vector2, down: bool, relative: Vector2 = Vector2.ZERO) -> voi
 	event.global_position = point
 	event.relative = relative
 	event.button_mask = MOUSE_BUTTON_MASK_LEFT if down else 0
-	if phase == "cart-tooltips":
+	if phase in ["cart-tooltips", "row-cart-toggle"]:
 		Input.parse_input_event(event)
 	else:
 		root.push_input(event, true)

@@ -8,6 +8,59 @@ use ui_toolkit::{
     screen::{Screen, SharedContext},
 };
 
+#[test]
+fn trading_post_row_cart_toggle_changes_hovered_product_not_selected_preview() {
+    let mut data = snapshot();
+    let mut other = data.items[0].clone();
+    other.id = 5;
+    data.items.push(other);
+    let mut view = View {
+        visible: true,
+        selected: Some(4),
+        snapshot: Some(Arc::new(data)),
+        ..Default::default()
+    };
+    assert!(view.click("perks:cart:toggle:5").unwrap().is_none());
+    assert_eq!(view.cart, [5]);
+    assert_eq!(view.selected, Some(4));
+    assert_eq!(view.snapshot.as_ref().unwrap().tender, 500);
+    assert!(!view.pending);
+    assert!(view.click("perks:cart:toggle:5").unwrap().is_none());
+    assert!(view.cart.is_empty());
+    assert_eq!(view.selected, Some(4));
+    assert_eq!(view.snapshot.as_ref().unwrap().frozen_item_id, Some(4));
+}
+
+#[test]
+fn trading_post_row_cart_toggle_rejects_ineligible_products() {
+    let mut data = snapshot();
+    for id in 5..=8 {
+        let mut row = data.items[0].clone();
+        row.id = id;
+        row.purchased = id == 5;
+        row.collected = id == 6;
+        row.refund_seconds = if id == 7 { 600 } else { 0 };
+        row.grant_unavailable = (id == 8).then(|| "Unbound grant".into());
+        data.items.push(row);
+    }
+    let mut view = View {
+        visible: true,
+        selected: Some(4),
+        snapshot: Some(Arc::new(data)),
+        ..Default::default()
+    };
+    for id in 4..=8 {
+        assert!(
+            view.click(&format!("perks:cart:toggle:{id}"))
+                .unwrap()
+                .is_none()
+        );
+        assert!(view.cart.is_empty());
+    }
+    assert_eq!(view.selected, Some(4));
+    assert_eq!(view.snapshot.as_ref().unwrap().tender, 500);
+}
+
 fn snapshot() -> TradingPostSnapshot {
     game_engine_ui_model::paths::set_data_root(
         std::path::PathBuf::from(env!("CARGO_MANIFEST_DIR")).join("../../data"),
