@@ -1345,6 +1345,57 @@ fn guild_news_info_renders_source_controls_and_only_real_motd_both_skins() {
 }
 
 #[test]
+fn guild_news_info_queries_once_and_opens_source_filter_dialog_both_skins() {
+    let _lock = SKIN.lock().unwrap_or_else(|p| p.into_inner());
+    for skin in [ActiveSkin::Modern, ActiveSkin::Forever] {
+        set_thread_skin(skin);
+        let mut session = GuildRanksSession::default();
+        session.open();
+        session.apply(state(0));
+        session.profile = Some(GuildSnapshot {
+            guild_id: 7,
+            guild_name: "Guild Testers".into(),
+            tabard: None,
+            created_at: None,
+            motd: String::new(),
+            info_text: String::new(),
+            members: vec![],
+        });
+        session.click("guild:info_open", &Default::default());
+        assert_eq!(
+            session.commands.len(),
+            1,
+            "opening Info must query real news"
+        );
+        session.click("guild:info_open", &Default::default());
+        assert_eq!(
+            session.commands.len(),
+            1,
+            "pending query is independent and deduplicated"
+        );
+        session.click("guild:news_filters", &Default::default());
+        let registry = mounted(&session);
+        assert_eq!(
+            text(&registry, "GuildNewsFiltersFrameTitle"),
+            "Guild News Filters"
+        );
+        let dialog = registry
+            .get(registry.get_by_name("GuildNewsFiltersFrame").unwrap())
+            .unwrap();
+        assert_eq!(
+            (dialog.width.value(), dialog.height.value()),
+            (264.0, 230.0)
+        );
+        session.click("guild:news_filters_close", &Default::default());
+        assert!(
+            mounted(&session)
+                .get_by_name("GuildNewsFiltersFrame")
+                .is_none()
+        );
+    }
+}
+
+#[test]
 fn guild_event_log_opens_from_info_and_closes_independently_both_skins() {
     let _lock = SKIN.lock().unwrap_or_else(|p| p.into_inner());
     for skin in [ActiveSkin::Modern, ActiveSkin::Forever] {
