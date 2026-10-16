@@ -3,6 +3,15 @@
 
 - [Campsite selected-hover](investigations/glue-menu-fidelity.md#campsite-selected-hover-branch--2026-10-15) — source gold selected-hover member/18px slicing; both-skin physical dispatch/reselection proof,24 unchanged control/context pairs.
 
+- [Raid title glyphs](systems/adventure-guide.md#raid-title-glyphs--bounded-proof-2026-10-16) — published Heroic/Mythic20px atlas flags, source16px title/right3/centerY and Normal/LFR reset; six inspected both-skin native originals, visibility authority excluded.
+
+- [Item Sets source composition](systems/adventure-guide.md#item-sets-source-composition--bounded-proof-2026-10-15) — real pane/rows/icons, independent class/spec filters, class-colour spans and global search;59 focused regressions and fourteen inspected both-skin native originals, with unsupported shared tooltip actions named.
+
+- [Saved boss defeated overlays](systems/adventure-guide.md#saved-boss-defeated-overlays--bounded-proof-2026-10-15) — authoritative sparse DungeonEncounter bits, source icon/gold owner tooltip, real Heroic boss deaths and expiry;49 focused tests and ten inspected actual both-skin native PNGs with per-skin fixture identity.
+
+- [Journal source difficulties](systems/adventure-guide.md#difficulty-source-menus--bounded-proof-2026-10-15) — source order/captions/group sizes and documented World/Mythic Flex aliases;48 focused tests and eight inspected both-skin one-line native menu captures.
+
+- [Instance and encounter Loot](systems/adventure-guide.md#instance-and-encounter-loot--2026-10-15) — selected-instance/difficulty drops, source64/45px rows, real icons/quality/tooltip, intrinsic subclass sizing and physical Loot-row→boss navigation;45 focused tests and twelve inspected both-skin native PNGs.
 - [Storage Filter header](systems/housing.md#storage-filter-header--implementation2026-10-15) — native missing-surface RED→both-skin fixed source Filter/reset geometry, physical Dyeable/reset and paid conservation; popup/full-image parity excluded, Forever final JSON limitation retained.
 - [Caster-centered assisted range](investigations/cooldown-assist-data.md#caster-centered-assisted-range--2026-10-16) — retain authored Self Only range identity instead of excluding selected-enemy distance; actual Whirlwind RED→GREEN and25 core controls, fresh native acceptance open.
 - [Minimap zoom source states](systems/minimap.md#zoom-button-source-states--2026-10-15) — both-skin native hover/press/limit-disabled and release cancellation; unchanged enabled idle/context pixels outside zoom rectangles.
