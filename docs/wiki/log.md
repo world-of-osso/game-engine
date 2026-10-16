@@ -12,6 +12,29 @@
 ## 2026-10-15 — Guild member note implementation
 
 [Member details and notes](systems/guilds.md#member-details-and-notes): additive public-note storage preserves existing officer records; authenticated self/public/officer permissions, per-recipient privacy and Mainline31-letter popup source implemented. Current UI/decision28, actualUDP4 and server main-binary11 pass, including popup-target RED→GREEN, note commands/public-self payloads, rank-right/privacy and durable reopen. Six actual private5891 master/self/server-restart-readback runs now pass in Modern and Forever; fourteen inspected1920×1080 PNGs verify corrected border layering, input backdrops, self privacy and source removal confirmation. Current widgets22/22 includes destructive-confirmation RED→GREEN; native No/Escape sends nothing. Merged-head checks remain separate. Local TDB1210 contains62 guild reward rows; runtime import/eligibility, not source availability, remains a later guild gap.
+## 2026-10-15 — Merged IoC vehicle consumers
+
+[Attachment foundation](systems/battlegrounds.md#ioc-npc-attachment--implementation2026-10-15): engine65b160b00/serverd414bb03/protocol5ce52e0 pass client28, server27, shared handshake2, runtime/extension/CLI checks, native extension build and headless2host scene proof. RealUDP retains NPC34775 host/seat5766 identity and removal. Source model/both-skin movement/fire/siege/victory still open; old bomb native receipts remain immutable.
+
+## 2026-10-15 — IoC NPC passenger scene attachment
+
+[Native scene regression](systems/battlegrounds.md#ioc-npc-attachment--implementation2026-10-15): actual WorldUnits.advance retains player-owned mount seating but fails NPC seat5766 at two moved/turned poses. Select NPC visual separately from player mount host; native build and both scene paths GREEN at2aa01a3fc. No model/network/pixel/control/fire or epoch2 landing claim.
+
+## 2026-10-15 — Both-skin native bomb chain, bounded
+
+[Forever88](systems/battlegrounds.md#forever88-functional-bomb-chain--2026-10-15) completes the same four physical normal/huge phases as Modern83: typed117284/281481 damage, exact native-picker disarm with no later hit, all20 normal return ACKs/save. All23 newPNG originals inspected; normal bomb/removal visible, huge/banner overlap and camera clipping remain.2650 nonfinite/three NPC25292 errors and PSI1.85/0.73 prevent whole-render/framing/timing acceptance. Admission failures84–87 retained; one shared capacity reservation fixes the harness admission path, not gameplay. Vehicles/siege/victory remain open; MR171 palette fixtures fixed separately by lead9de485b3c.
+
+## 2026-10-15 — Modern native bomb chain, bounded
+
+[Modern83](systems/battlegrounds.md#modern83-functional-bomb-chain--2026-10-15) passes fresh normal/huge pickup/use, typed117284/281481 hits, exact native-picker physical disarm with no later hit, and all20 normal return ACKs plus saves.23 newPNG originals inspected; normal bomb/removal clear, huge/banner overlap and origin/pile clipping remain.2718 nonfinite-transform/three NPC25292 errors and pressure exclude whole-render/framing/timing claims. Forever remains pending; no vehicle/siege/victory claim.
+
+## 2026-10-15 — Native bomb observer boundary
+
+[Modern80](systems/battlegrounds.md#ioc-bomb-disarm-interaction--active-2026-10-14) reaches physical fresh-item pickup/use and visible planted bomb, but fails an owner-client log expectation. Existing log routing sends to source/target owners; charges2 remains the GO caster in pinned TC, so observe typed combat receipts at the victim peer instead of changing gameplay ownership. Six private flat particle files were absent despite indexed copies; producer now includes the exact already-published flat bytes. Failed images/transform/NPC-coverage errors retained; no complete native chain or particle-recovery claim.
+
+## 2026-10-15 — Authored IoC disarm requests
+
+[Normal/huge bomb interaction](systems/battlegrounds.md#ioc-bomb-disarm-interaction--active-2026-10-14): actual request RED→GREEN with physical picking, cursor and soft-interaction paths; game-object15/15 and soft10/10, no generic trap enablement. Native both-skin bomb deployment/disarm and full IoC remain pending.
 ## 2026-10-15 — MountSpecial authored playback continuation
 
 [MountSpecial](systems/mounts.md#mountspecial-continuation--2026-10-15): unified input/identity/emote routing and deterministic complete-segment scheduler. Core6/server3 GREEN; mount sequence ownership native PASS. Actual rider FishingCast1000ms versus AnimStartTime2000 exposes unresolved offset semantics; both-skin three-mount/observer rendering not yet proven.
