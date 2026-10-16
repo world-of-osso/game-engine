@@ -7,10 +7,15 @@
 //! offsets in frame space converted from the XML anchors. docs/specs/character-frame.md.
 
 mod art;
+mod currency;
 mod reputation;
 mod reputation_catalog;
 mod reputation_detail;
 
+pub use currency::{
+    ACTION_CURRENCY_COLLAPSE, CurrencyRow, TOKEN_SCROLL, currency_rows, currency_tooltip,
+    token_pan_extent,
+};
 pub use reputation_catalog::enrich_reputation_rows;
 pub use reputation_detail::{
     ACTION_REPUTATION_DETAIL_CLOSE, REPUTATION_DESCRIPTION_SCROLL,
@@ -325,6 +330,8 @@ pub enum CharacterTab {
     PaperDoll,
     /// `ReputationFrame`, `CharacterFrameTab2`.
     Reputation,
+    /// Retail TokenFrame, CharacterFrameTab3; visible only with discovered entries.
+    Currency,
 }
 
 impl CharacterTab {
@@ -333,6 +340,7 @@ impl CharacterTab {
         match action {
             ACTION_TAB_CHARACTER => Some(Self::PaperDoll),
             ACTION_TAB_REPUTATION => Some(Self::Reputation),
+            "character_tab:currency" => Some(Self::Currency),
             _ => None,
         }
     }
@@ -346,6 +354,9 @@ pub struct CharacterFrameView {
     pub reputation: Vec<ReputationRow>,
     /// Selected faction ID, not its position in a mutable snapshot.
     pub selected_reputation: Option<u32>,
+    pub has_currencies: bool,
+    pub currencies: Vec<CurrencyRow>,
+    pub currency_collapsed: bool,
     /// `UnitPVPName("player")`.
     pub title: String,
     pub level: LevelLine,
@@ -523,15 +534,15 @@ pub fn character_frame_screen(ctx: &SharedContext) -> Element {
         .expect("CharacterFrameView must be in SharedContext");
     let hide = !view.visible;
     let paperdoll = view.tab == CharacterTab::PaperDoll;
-    let (width, height) = match paperdoll {
-        true => read_character_layout().size,
-        false => reputation::frame_size(read_character_layout().size),
+    let (width, height) = match view.tab {
+        CharacterTab::PaperDoll => read_character_layout().size,
+        CharacterTab::Reputation => reputation::frame_size(read_character_layout().size),
+        CharacterTab::Currency => (currency::WIDTH, FRAME_H),
     };
-    // `UpdateTitle` (CharacterFrame.lua:117-121): the player's name or `REPUTATION`.
-    let title = if paperdoll {
-        &view.title
-    } else {
-        reputation::TITLE
+    let title = match view.tab {
+        CharacterTab::PaperDoll => &view.title,
+        CharacterTab::Reputation => reputation::TITLE,
+        CharacterTab::Currency => "Currency",
     };
     let mut children = match thread_skin() {
         ActiveSkin::Modern => window_chrome(FRAME_NAME, (width, height), title, ACTION_CLOSE),
@@ -541,6 +552,13 @@ pub fn character_frame_screen(ctx: &SharedContext) -> Element {
     children.extend(window_portrait(&PORTRAIT));
     if paperdoll {
         children.extend(paperdoll_frame(view));
+    } else if view.tab == CharacterTab::Currency {
+        children.extend(currency::backgrounds());
+        children.extend(currency::entries(
+            &view.currencies,
+            view.currency_collapsed,
+            ctx.scroll_first_row(currency::TOKEN_SCROLL),
+        ));
     } else {
         children.extend(reputation::backgrounds());
         children.extend(reputation::entries(
@@ -553,7 +571,7 @@ pub fn character_frame_screen(ctx: &SharedContext) -> Element {
             .find(|row| Some(row.faction_id) == view.selected_reputation);
         children.extend(reputation_detail::detail(selected, ctx));
     }
-    children.extend(tabs(view.tab));
+    children.extend(tabs(view.tab, view.has_currencies, (width, height)));
     rsx! {
         r#frame {
             name: {DynName(FRAME_NAME.into())},
@@ -593,6 +611,15 @@ fn paperdoll_frame(view: &CharacterFrameView) -> Element {
 /// `NORMAL_FONT_COLOR`) and the desaturated race backdrop (`PaperDollBgDesaturate(true)`).
 pub fn apply_character_frame_postsetup(registry: &mut FrameRegistry, tab: CharacterTab) {
     apply_named_chrome(registry, tab);
+    if tab == CharacterTab::Currency {
+        for part in ["Left", "Middle", "Right"] {
+            if let Some(WidgetData::Texture(texture)) =
+                widget_mut(registry, &format!("TokenHeader2Highlight{part}"))
+            {
+                texture.blend_mode = ui_toolkit::widgets::texture::BlendMode::Additive;
+            }
+        }
+    }
     if tab != CharacterTab::PaperDoll {
         return;
     }
@@ -620,7 +647,17 @@ fn apply_named_chrome(registry: &mut FrameRegistry, tab: CharacterTab) {
             "CharacterFrameTopTileStreaks",
             "_UI-Frame-TopTileStreaks",
         );
-        for (index, tab_of) in [(1, CharacterTab::PaperDoll), (2, CharacterTab::Reputation)] {
+        for (index, tab_of) in [
+            (1, CharacterTab::PaperDoll),
+            (2, CharacterTab::Reputation),
+            (3, CharacterTab::Currency),
+        ] {
+            if registry
+                .get_by_name(&format!("CharacterFrameTab{index}"))
+                .is_none()
+            {
+                continue; // Tab3 is intentionally absent for an empty wallet.
+            }
             let prefix = if tab_of == tab {
                 "uiframe-activetab"
             } else {
@@ -986,44 +1023,63 @@ fn slot_icon(button: &PaperDollButton, view: &PaperDollSlotView) -> Element {
     children
 }
 
-/// `CharacterFrameTab1` TOPLEFT at BOTTOMLEFT 11,2; Tab2 at Tab1 TOPRIGHT +1. The
-/// Currency tab stays hidden (CF.xml): `ToggleTokenFrame` opens nothing while
-/// `C_CurrencyInfo.GetCurrencyListSize() <= 0` (CharacterFrame.lua:67-73).
-fn tabs(selected: CharacterTab) -> Element {
+/// CF.xml: tabs TOPLEFT at previous TOPRIGHT+1, first BOTTOMLEFT11,2.
+/// CF.lua67–73/TokenUI.lua: undiscovered wallets do not expose Currency.
+fn tabs(selected: CharacterTab, has_currencies: bool, size: (f32, f32)) -> Element {
     if thread_skin() == ActiveSkin::Forever {
-        return forever_tabs(selected);
+        return forever_tabs(selected, has_currencies, size.0);
     }
-    let top = FRAME_H - 2.0;
     let (character_w, reputation_w) = (tab_width("Character"), tab_width("Reputation"));
-    let reputation = tab(
-        "CharacterFrameTab2",
-        "Reputation",
-        (11.0 + character_w + 1.0, top, reputation_w),
-        selected == CharacterTab::Reputation,
-        ACTION_TAB_REPUTATION,
-    );
-    let character = tab(
-        "CharacterFrameTab1",
-        "Character",
-        (11.0, top, character_w),
-        selected == CharacterTab::PaperDoll,
-        ACTION_TAB_CHARACTER,
-    );
-    // The selected tab draws over its neighbour.
-    match selected {
-        CharacterTab::PaperDoll => reputation.into_iter().chain(character).collect(),
-        CharacterTab::Reputation => character.into_iter().chain(reputation).collect(),
-    }
+    let definitions = [
+        (
+            1,
+            "Character",
+            11.0,
+            CharacterTab::PaperDoll,
+            ACTION_TAB_CHARACTER,
+        ),
+        (
+            2,
+            "Reputation",
+            12.0 + character_w,
+            CharacterTab::Reputation,
+            ACTION_TAB_REPUTATION,
+        ),
+        (
+            3,
+            "Currency",
+            13.0 + character_w + reputation_w,
+            CharacterTab::Currency,
+            "character_tab:currency",
+        ),
+    ];
+    let mut visible: Vec<_> = definitions
+        .into_iter()
+        .filter(|(id, _, _, _, _)| *id != 3 || has_currencies)
+        .collect();
+    visible.sort_by_key(|(_, _, _, which, _)| *which == selected);
+    visible
+        .into_iter()
+        .flat_map(|(id, title, left, which, action)| {
+            tab(
+                &format!("CharacterFrameTab{id}"),
+                title,
+                (left, size.1 - 2.0, tab_width(title)),
+                which == selected,
+                action,
+            )
+        })
+        .collect()
 }
 
 /// Existing Character/Reputation actions, with Camelot's vertical mode-tab chrome.
 /// CharacterFrame.xml:569-589; CharacterFrame.lua:207; SharedUIPanelTemplates.lua:313.
 /// Keep the existing Character/Reputation labels and approved tab art.
-fn forever_tabs(selected: CharacterTab) -> Element {
+fn forever_tabs(selected: CharacterTab, has_currencies: bool, frame_width: f32) -> Element {
     let background = art::resolve_art("common-sidetab");
     let (w, art_h) = background.size();
     let h = art_h - 5.0;
-    let x = read_character_layout().size.0;
+    let x = frame_width;
     [
         (
             1,
@@ -1037,8 +1093,15 @@ fn forever_tabs(selected: CharacterTab) -> Element {
             CharacterTab::Reputation,
             ACTION_TAB_REPUTATION,
         ),
+        (
+            3,
+            "Currency",
+            CharacterTab::Currency,
+            "character_tab:currency",
+        ),
     ]
     .into_iter()
+    .filter(|(index, _, _, _)| *index != 3 || has_currencies)
     .flat_map(|(index, label, tab, action)| {
         let name = format!("CharacterFrameTab{index}");
         let y = 30.0 + (index - 1) as f32 * (h + 2.0);

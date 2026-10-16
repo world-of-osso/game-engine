@@ -93,6 +93,10 @@ fn scroll_steps(model: &RegistryModel, list: &str) -> (usize, usize) {
         let pan = reputation_description_pan_extent();
         return (pan * 2, pan);
     }
+    if list == game_engine_ui_model::character_frame::TOKEN_SCROLL {
+        let pan = game_engine_ui_model::character_frame::token_pan_extent();
+        return (pan * 2, pan);
+    }
     if list == REPUTATION_SCROLL {
         let pan = reputation_pan_extent();
         return (pan * 2, pan);

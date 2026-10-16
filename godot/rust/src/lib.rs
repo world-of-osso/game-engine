@@ -573,7 +573,7 @@ impl INode3D for GameClient {
             || self.follower_dungeon_pointer(&event)
             || self.adventure_guide_pointer(&event)
             || self.trading_post_pointer(&event)
-            || self.character_reputation_pointer(&event)
+            || self.character_lists_pointer(&event)
             || self.mailbox_pointer(&event)
             || self.pet_bar_pointer(&event)
             || self.boss_frame_pointer(&event)
