@@ -11,9 +11,9 @@ use game_engine_core::{
 use glam::{Mat3, Mat4, Vec3};
 use godot::{
     classes::{
-        ArrayMesh, ImageTexture, MultiMesh, MultiMeshInstance3D, Node3D, ResourceLoader, Shader,
-        ShaderMaterial, Skeleton3D, geometry_instance_3d::ShadowCastingSetting, mesh,
-        multi_mesh::TransformFormat,
+        ArrayMesh, ImageTexture, MultiMesh, MultiMeshInstance3D, Node3D,
+        PhysicsRayQueryParameters3D, ResourceLoader, Shader, ShaderMaterial, Skeleton3D,
+        geometry_instance_3d::ShadowCastingSetting, mesh, multi_mesh::TransformFormat,
     },
     prelude::*,
 };
@@ -377,6 +377,35 @@ impl ModelParticles {
     }
 }
 
+/// Query existing map collision bodies, independent of their render visibility.
+fn intersect_ground(root: &Gd<Node3D>, from: Vec3, to: Vec3) -> Option<Vec3> {
+    use crate::game_objects::GAME_OBJECT_LAYER;
+    use crate::terrain::doodad_collision::DOODAD_LAYER;
+    use crate::wmo::collision::{TERRAIN_LAYER, WMO_LAYER};
+    let world = root
+        .get_world_3d()
+        .expect("ground-projected particle must belong to a 3D world");
+    let mut space = world
+        .get_direct_space_state()
+        .expect("particle ground query requires physics space");
+    let mut query = PhysicsRayQueryParameters3D::create(
+        Vector3::from_array(from.to_array()),
+        Vector3::from_array(to.to_array()),
+    )
+    .expect("Godot could not allocate particle ground ray");
+    query.set_collision_mask(TERRAIN_LAYER | WMO_LAYER | DOODAD_LAYER | GAME_OBJECT_LAYER);
+    query.set_hit_back_faces(true);
+    let hit = space.intersect_ray(&query);
+    if hit.is_empty() {
+        return None;
+    }
+    let point = hit
+        .get("position")
+        .expect("particle ground ray hit lacks position")
+        .to::<Vector3>();
+    Some(Vec3::from(point.to_array()))
+}
+
 fn wow_vector([x, y, z]: [f32; 3]) -> Vector3 {
     Vector3::new(x, z, -y)
 }
@@ -487,9 +516,14 @@ impl PlacedParticles {
                 };
                 placed.sim.set_animation(emitter, &time);
             }
-            placed
-                .sim
-                .update(emitter, dt, mat4(emitter_to_world), wow_to_godot(), density);
+            placed.sim.update(
+                emitter,
+                dt,
+                mat4(emitter_to_world),
+                wow_to_godot(),
+                density,
+                &mut |from, to| intersect_ground(root, from, to),
+            );
             pools.quads.clear();
             placed.sim.quads(emitter, view, &mut pools.quads);
             let quads = std::mem::take(&mut pools.quads);
@@ -583,7 +617,7 @@ impl ParticlePools {
                 Ok(pool) => {
                     let sim =
                         EmitterSim::new(emitter, seed.wrapping_mul(31).wrapping_add(slot as u32));
-                    self.pools[pool].reserve(sim.capacity());
+                    self.pools[pool].reserve(sim.quad_capacity(emitter));
                     emitters.push(PlacedEmitter {
                         emitter: slot,
                         pool,
@@ -702,6 +736,75 @@ impl IRefCounted for WowParticleProbe {
 
 #[godot_api]
 impl WowParticleProbe {
+    /// Actual type3 admission/place/update path with controlled cubic controls.
+    #[func]
+    fn spline_node(
+        &self,
+        mut world_root: Gd<Node3D>,
+        texture_dir: GString,
+        controls: PackedVector3Array,
+    ) -> Variant {
+        match place_spline_probe(&mut world_root, &texture_dir, &controls) {
+            Ok(node) => node.to_variant(),
+            Err(error) => error.to_variant(),
+        }
+    }
+
+    /// Native collision fixture entry: one stationary birth with scale(.25,.5).
+    #[func]
+    fn projected_birth_node(
+        &self,
+        world_root: Gd<Node3D>,
+        texture_dir: GString,
+        flags: i64,
+        position: Vector3,
+    ) -> Variant {
+        let emitter = fixture_emitter(flags as u32);
+        let mut sim = EmitterSim::new(&emitter, 11);
+        sim.update(
+            &emitter,
+            0.015,
+            Mat4::from_translation(Vec3::from(position.to_array())),
+            wow_to_godot(),
+            1.0,
+            &mut |from, to| intersect_ground(&world_root, from, to),
+        );
+        let mut quads = Vec::new();
+        sim.quads(
+            &emitter,
+            &ViewBasis {
+                right: Vec3::X,
+                up: Vec3::Y,
+                back: Vec3::Z,
+            },
+            &mut quads,
+        );
+        upload_probe_quads(&emitter, &texture_dir, "ParticleGroundProbe", &quads)
+    }
+
+    /// Two stationary half-alpha particles, near blue born before far red.
+    /// Uses actual shared simulation ordering and the native pooled renderer.
+    #[func]
+    fn overlap_node(
+        &self,
+        texture_dir: GString,
+        sorted: bool,
+        blend: i64,
+        reverse: bool,
+    ) -> Variant {
+        let (mut emitter, sim) = overlap_fixture(sorted);
+        emitter.blend_type = blend as u8;
+        let sign = if reverse { -1.0 } else { 1.0 };
+        let view = ViewBasis {
+            right: Vec3::X * sign,
+            up: Vec3::Y,
+            back: Vec3::Z * sign,
+        };
+        let mut quads = Vec::new();
+        sim.quads(&emitter, &view, &mut quads);
+        upload_probe_quads(&emitter, &texture_dir, "ParticleOverlapProbe", &quads)
+    }
+
     /// A pool node drawing one `size`-half-extent quad at the origin in the XZ plane,
     /// textured by `texture_dir`/`fdid`.blp, of colour `color` (authored space) and
     /// placement `fade`; blend type `blend`. An error string on failure.
@@ -746,6 +849,157 @@ impl WowParticleProbe {
         pool.end_frame();
         pool.node().clone().upcast::<Node3D>().to_variant()
     }
+}
+
+fn fixture_emitter(flags: u32) -> ParticleEmitter {
+    ParticleEmitter {
+        flags: flags | 0x20000,
+        emitter_type: 1,
+        blend_type: 2,
+        texture_fdid: Some(910001),
+        tile_rows: 1,
+        tile_cols: 1,
+        emission_rate: 100.0,
+        lifespan: 1.0,
+        scale_keys: vec![(0.0, [0.25, 0.5])],
+        color_keys: vec![(0.0, [255.0; 3])],
+        opacity_keys: vec![(0.0, 1.0)],
+        twinkle_percent: 1.0,
+        twinkle_scale_min: 1.0,
+        twinkle_scale_max: 1.0,
+        ..ParticleEmitter::default()
+    }
+}
+
+fn upload_probe_quads(
+    emitter: &ParticleEmitter,
+    texture_dir: &GString,
+    name: &str,
+    quads: &[Quad],
+) -> Variant {
+    let dir = godot::classes::ProjectSettings::singleton()
+        .globalize_path(texture_dir)
+        .to_string();
+    let material = match particle_material(emitter, Path::new(&dir)) {
+        Ok(material) => material,
+        Err(error) => return error.to_variant(),
+    };
+    let mut pool = ParticlePool::new(name, &material);
+    pool.reserve(quads.len());
+    pool.begin_frame();
+    pool.push(quads, 1.0);
+    pool.end_frame();
+    pool.node().clone().upcast::<Node3D>().to_variant()
+}
+
+fn read_spline_probe(controls: &PackedVector3Array) -> Result<m2::Model, String> {
+    let data = Path::new(env!("CARGO_MANIFEST_DIR")).join("../../data/models");
+    let bytes = std::fs::read(data.join("6316199.m2")).map_err(|e| e.to_string())?;
+    let skin = std::fs::read(data.join("631619900.skin")).map_err(|e| e.to_string())?;
+    let mut model = m2::parse_model(&bytes, &skin)?;
+    let source = model
+        .particle_emitters
+        .first()
+        .ok_or("6316199 has no emitter")?;
+    if source.emitter_type != 3 || source.spline_points.len() != 4 {
+        return Err("6316199 no longer supplies the expected four-control type3 header".into());
+    }
+    model.particle_emitters = vec![ParticleEmitter {
+        flags: 0x20000,
+        emitter_type: 3,
+        blend_type: 2,
+        spline_points: controls.as_slice().iter().map(|p| p.to_array()).collect(),
+        lifespan: 2.0,
+        area_length: 0.0,
+        area_width: 1.0,
+        scale_keys: vec![(0.0, [0.025; 2])],
+        ..fixture_emitter(0)
+    }];
+    Ok(model)
+}
+
+fn place_spline_probe(
+    world_root: &mut Gd<Node3D>,
+    texture_dir: &GString,
+    controls: &PackedVector3Array,
+) -> Result<Gd<Node3D>, String> {
+    let model = read_spline_probe(controls)?;
+    let source = ModelParticles::from_model(6316199, &model)
+        .ok_or("native type3 admission rejected controls")?;
+    let mut node = Node3D::new_alloc();
+    world_root.add_child(&node);
+    let mut pools = ParticlePools::new(1.0);
+    pools.attach(&mut node);
+    let dir = godot::classes::ProjectSettings::singleton()
+        .globalize_path(texture_dir)
+        .to_string();
+    let (mut placed, errors) = pools.place(&source, &node, 11, Path::new(&dir));
+    if !errors.is_empty() {
+        node.free();
+        return Err(errors.join("; "));
+    }
+    let view = ViewBasis {
+        right: Vec3::X,
+        up: Vec3::Y,
+        back: Vec3::Z,
+    };
+    for _ in 0..10 {
+        pools.begin_frame();
+        placed.update_and_draw(&node, 0.1, 1.0, &view, &mut pools);
+        pools.end_frame();
+    }
+    Ok(node)
+}
+
+/// Fixed inputs for the native depth-order pixel fixture; no production emitters changed.
+fn overlap_fixture(sorted: bool) -> (ParticleEmitter, EmitterSim) {
+    let emitter = ParticleEmitter {
+        flags: 0x20000 | if sorted { 0x2 } else { 0 },
+        emitter_type: 1,
+        texture_fdid: Some(910001),
+        tile_rows: 1,
+        tile_cols: 1,
+        emission_rate: 100.0,
+        lifespan: 1.0,
+        color_keys: vec![
+            (0.0, [255.0, 0.0, 0.0]),
+            (0.1, [255.0, 0.0, 0.0]),
+            (0.4, [0.0, 0.0, 255.0]),
+            (1.0, [0.0, 0.0, 255.0]),
+        ],
+        opacity_keys: vec![(0.0, 0.5)],
+        scale_keys: vec![(0.0, [1.5; 2])],
+        twinkle_percent: 1.0,
+        twinkle_scale_min: 1.0,
+        twinkle_scale_max: 1.0,
+        ..ParticleEmitter::default()
+    };
+    let mut sim = EmitterSim::new(&emitter, 11);
+    sim.update(
+        &emitter,
+        0.015,
+        Mat4::from_translation(Vec3::Z),
+        Mat3::IDENTITY,
+        1.0,
+        &mut |_, _| None,
+    );
+    sim.update(
+        &emitter,
+        0.5,
+        Mat4::from_translation(Vec3::Z),
+        Mat3::IDENTITY,
+        0.0,
+        &mut |_, _| None,
+    );
+    sim.update(
+        &emitter,
+        0.015,
+        Mat4::from_translation(Vec3::NEG_Z),
+        Mat3::IDENTITY,
+        1.0,
+        &mut |_, _| None,
+    );
+    (emitter, sim)
 }
 
 #[cfg(test)]

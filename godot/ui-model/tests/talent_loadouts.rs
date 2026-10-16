@@ -35,6 +35,7 @@ fn list(spec_id: u32, selected_id: u32) -> TraitLoadoutsSnapshot {
     TraitLoadoutsSnapshot {
         spec_id,
         selected_id,
+        starter_available: false,
         configs: vec![
             TraitLoadoutInfo {
                 id: 1,
@@ -51,6 +52,28 @@ fn list(spec_id: u32, selected_id: u32) -> TraitLoadoutsSnapshot {
         ],
     }
 }
+#[test]
+fn talent_loadouts_starter_selection_waits_for_authority_and_is_not_a_named_config() {
+    let state = state();
+    let view = state.talents.as_ref().unwrap();
+    let mut editor = view.editor.clone();
+    editor.loadouts.as_mut().unwrap().starter_available = true;
+    editor
+        .action(view, 80, &format!("talent:loadout_select:{}", u32::MAX))
+        .unwrap();
+    assert_eq!(
+        editor.take_loadout_request().unwrap().operation,
+        TraitLoadoutOperation::Activate { id: u32::MAX }
+    );
+    assert_eq!(editor.loadout_caption(), "Raid");
+    let spec = view.editor.snapshot.as_ref().unwrap().spec_id;
+    let mut snapshot = list(spec, u32::MAX);
+    snapshot.starter_available = true;
+    editor.receive_loadouts(snapshot);
+    assert_eq!(editor.loadout_caption(), "Starter Build");
+    assert_eq!(editor.loadouts.as_ref().unwrap().configs.len(), 3);
+}
+
 #[test]
 fn talent_loadouts_create_copies_pending_allocation_and_waits_for_server_selection() {
     let mut state = state();
@@ -77,6 +100,7 @@ fn talent_loadouts_create_copies_pending_allocation_and_waits_for_server_selecti
     editor.receive_loadouts(TraitLoadoutsSnapshot {
         spec_id,
         selected_id: 4,
+        starter_available: true,
         configs: vec![TraitLoadoutInfo {
             id: 4,
             name: "My Build".into(),
@@ -183,6 +207,97 @@ fn talent_loadouts_both_skins_render_three_server_rows_and_selected_caption() {
         assert!(registry.get_by_name("TalentStarterBuild").is_none());
     }
 }
+#[test]
+fn talent_loadouts_both_skins_show_builtin_starter_without_gear() {
+    for skin in [ActiveSkin::Modern, ActiveSkin::Forever] {
+        set_thread_skin(skin);
+        let mut state = state();
+        let editor = &mut state.talents.as_mut().unwrap().editor;
+        let list = editor.loadouts.as_mut().unwrap();
+        list.starter_available = true;
+        list.selected_id = u32::MAX;
+        editor.loadout_menu = true;
+        let mut shared = SharedContext::new();
+        shared.insert(state.clone());
+        let mut registry = FrameRegistry::new(1920.0, 1080.0);
+        let mut screen = Screen::new(spellbook_frame_screen);
+        screen.sync(&shared, &mut registry);
+        game_engine_ui_model::spellbook_frame_component::apply_spellbook_postsetup(
+            &state,
+            &mut registry,
+        );
+        assert!(registry.get_by_name("TalentStarterBuild").is_some());
+        assert!(registry.get_by_name("TalentStarterBuildCheck").is_some());
+        assert!(
+            registry
+                .get_by_name(&format!("TalentLoadoutEdit{}", u32::MAX))
+                .is_none()
+        );
+        let Some(WidgetData::FontString(text)) = &registry
+            .get(registry.get_by_name("TalentLoadoutName").unwrap())
+            .unwrap()
+            .widget_data
+        else {
+            panic!("caption")
+        };
+        assert_eq!(text.text, "Starter Build");
+        assert_eq!(text.color, [0.53, 0.67, 1.0, 1.0]);
+        state
+            .talents
+            .as_mut()
+            .unwrap()
+            .editor
+            .loadouts
+            .as_mut()
+            .unwrap()
+            .selected_id = 1;
+        shared.insert(state.clone());
+        screen.sync(&shared, &mut registry);
+        game_engine_ui_model::spellbook_frame_component::apply_spellbook_postsetup(
+            &state,
+            &mut registry,
+        );
+        let Some(WidgetData::FontString(text)) = &registry
+            .get(registry.get_by_name("TalentLoadoutName").unwrap())
+            .unwrap()
+            .widget_data
+        else {
+            panic!("caption after named switch")
+        };
+        assert_eq!(text.text, "Raid");
+        assert_eq!(text.color, [1.0; 4]);
+    }
+}
+
+#[test]
+fn talent_loadouts_starter_deviation_requires_confirmation_and_undo_restores_guidance() {
+    let state = state();
+    let view = state.talents.as_ref().unwrap();
+    let mut editor = view.editor.clone();
+    editor.loadouts.as_mut().unwrap().selected_id = u32::MAX;
+    let action = "talent:node:62122"; // Mage class root authored in Starter991.
+    editor.action(view, 80, action).unwrap();
+    assert_eq!(
+        editor.loadout_dialog,
+        Some(LoadoutDialog::StarterDeviation(action.into()))
+    );
+    assert!(!editor.dirty());
+    editor.action(view, 80, "talent:loadout_cancel").unwrap();
+    assert!(!editor.dirty());
+    editor.action(view, 80, action).unwrap();
+    editor.action(view, 80, "talent:loadout_confirm").unwrap();
+    assert!(editor.dirty());
+    assert_eq!(editor.loadout_caption(), "Default Loadout");
+    editor.action(view, 80, "talent:undo").unwrap();
+    assert!(!editor.dirty());
+    assert_eq!(editor.loadout_caption(), "Starter Build");
+    editor.action(view, 80, action).unwrap();
+    assert!(matches!(
+        editor.loadout_dialog,
+        Some(LoadoutDialog::StarterDeviation(_))
+    ));
+}
+
 #[test]
 fn talent_loadouts_modern_dialog_draws_the_mainline_panel_button_sheets() {
     set_thread_skin(ActiveSkin::Modern);

@@ -730,10 +730,38 @@ M2 particles: see [Native M2 particles](#native-m2-particles).
 
 ## Native M2 particles
 
+### P4 native continuation
+
+Forward-integrated continuation: origin/master merged54731f9c2; implementation85932e156 builds, test-onlydcf850fe8 passes13 focused CPU controls, native sorting8/8/collision6/6/bent curves2/2 pass. Format check passes. Exact logs and unresolved provenance are in the [contract](../../specs/m2-particles.md#continuation-integration-proof).
+
+A native acceptance fixture now traverses real type3 header parsing, ordinary model-emitter admission/placement and pool updates with explicit bent controls; it checks cubic positions and bright pixels for every center, then reverses curvature. Native GREEN at85932e156: up/down curves each have99 admitted particles,86 significantly bent and99/99 bright center pixels; both1920×1080 PNGs inspected. Rechecked allowed WWV rate path has no spline-length multiplier/override; P4-density still lacks a supported target rule, so no multiplier is guessed. See [contract](../../specs/m2-particles.md#p4-native-continuation-2026-10-15).
+
+### P7 continuation — collision-projected births
+
+World-space plane/sphere0x2000 births now cast the supplied20-yard downward segment into existing native map collision, offset hit height by the larger sampled scale, then integrate motion. Actual misses, unflagged/model-space births and survivors preserve their normal behavior. Flat/raised native RED reproduced birthY5 versus0.5/3.5; four no-hit/control cases already pass. GREEN at7cfed41dd: CPU12/12 and native collision6/6 (flat0.5, raised3.5, four free-birth controls5);1920×1080 capture saved/inspected. Exact target surface-mask equivalence remains P7-surface-mask in the [contract](../../specs/m2-particles.md).
+
+### P6 continuation — authored particle ordering
+
+Flag0x2 now orders each emitter’s live world-space particle centers far-to-near in the current camera; model-space centers are transformed before ordering, and each particle’s head/tail stays adjacent. Unflagged paths retain live order and allocate no sort list. Actual165894 observes the flag. Two CPU controls reproduced near-first RED; GREEN2/2 and native8/8 alpha/additive overlap controls pass at5b76a724d; eight1920×1080 PNGs saved and representative alpha/additive samples inspected. See [contract](../../specs/m2-particles.md#p6--authored-depth-ordering-2026-10-15).
+
+### Clean-room continuation — 2026-10-15
+
+Allowed provenance is the supplied clean-room spec, local assets, WebWowViewerCpp and pinned wow.export c2fd7bd; no decompiled/leaked sources were accessed. Contract and unresolved dependencies: [M2 particles](../../specs/m2-particles.md#clean-room-evidence-2026-10-15).
+
+| Capability | Implemented and proof | Remaining boundary |
+|---|---|---|
+| P1 tails | Independent heads/tails and atlas cells, age clamp, finite view-parallel geometry, independent width and native pool capacity. Three RED→GREEN CPU controls. Actual tail-only165894 in particledebug: five quads/4,547 pixels, byte-identical frozen baseline, inspected1920×1080 PNGs in `/syncthing/AgentShared/2026-10-15/m2-particles/`. | Target-client pixel parity not claimed. |
+| P2 follow | Clamped authored speed/scale carry, post-age eligibility and proportional replay; two RED→GREEN controls. | Modern asset applicability and combined model-space/follow target semantics unqualified. |
+| P4 splines | Actual6316199 establishes float3 M2Array at0x1C0. Parser preserves complete cubic controls; native predicate admits type3. Two RED→GREEN curve/change and width-range controls. | P4-density rate-per-unit oracle; controlled native bent-curve pixels now pass (continuation above). |
+| P3 inheritance | Actual2994778 emitter3 scale3.0 decoded from0x170 (WWV ivelScale), one RED→GREEN control. | P3-timer-reset runtime contribution and trajectory tests. |
+| S1 lighting / P5 model particles | No guessed polarity, generic PBR, replacement quads or legacy-name asset fallback added. | S1-polarity-oracle; P5-product-resolution/P5-recursive-timing. |
+
+Merged-source `edc9c82be`: eight focused controls, native build and fmt check pass. Native fixture `33cb46507` additionally freezes bone/material descendants and requires two byte-identical PNGs before hiding only the tail pool; the initial inherited brightness threshold was not a valid tail visibility criterion. See the contract's proof ledger; no full-suite, S1-lighting or P5-lifecycle acceptance claim.
+
 Branch `particles` draws the particle emitters of placed doodads (contract: [m2-particles](../../specs/m2-particles.md)).
 
 - **Data.** `m2::Model::particle_emitters` comes from the shared MD20 parser. The EXP2 chunk overrides zSource and supplies colorMult/alphaMult/alpha cutoff (WWV `M2Object::initParticleEmitters`). `instanceportal.m2` (197007) has six sphere emitters on bones 2-7: sparkles (blend 4, multitexture, 200/s), two swirl sheets (blend 4, 2×2 random cell, 100/s), two BlendAdd multitexture swirls (blend 7) and one emitter-plane glow (0x1000, 12/s). All spawn on a 4.44 yd shell in the emitter XZ plane and move inward.
-- **Simulation** (`godot/core/src/m2_particles.rs`, engine-free) follows WWV `particleEmitter.cpp`: `CRndSeed` stream, `CSphereGenerator`/`CPlaneGenerator` spawn, 0.1 s steps capped at one lifespan, ballistic motion with drag, lifetime ramps at age / max lifespan, twinkle, spin, head quads. The emitter frame is placement × bone skin matrix × emitter position × `particleCoordinatesFix`, then WoW → Godot axes.
+- **Simulation** (`godot/core/src/m2_particles.rs`, engine-free) follows WWV `particleEmitter.cpp`: `CRndSeed` stream, `CSphereGenerator`/`CPlaneGenerator` spawn, 0.1 s steps capped at one lifespan, ballistic motion with drag, lifetime ramps at age / max lifespan, twinkle, spin, independent head/tail quads. The emitter frame is placement × bone skin matrix × emitter position × `particleCoordinatesFix`, then WoW → Godot axes.
 - **Pools.** Each emitter's pool is ceil((rate + var) × (life + var) × 1.15), capped at 500 (solarityclient `reserve_authored_capacity`; WWV's 500-quad budget). One `MultiMeshInstance3D` per (model FDID, emitter index) is shared by every placement and capped at 4096 instances (80 B each). This replaces Hanabi's 65,536-particle slab per effect ([[stormwind-vram]]). Instance data holds the quad axes (basis x/y), the layer-1 UV offset and doodad fade (basis z), the colour, the atlas cell and the layer-2 UV offset (custom).
 - **Culling.** `TerrainObjects::update_particles` runs after the doodad cull. A doodad advances and draws its emitters only while its scenery opacity is above 0 (including the WMO group portal cull) and its world box is in the frustum. The time it skips is replayed later, bounded by the lifespan. Particles fade with the doodad. `particleEffectsEnabled` gates the pools. A placement captures `particleDensity` from the current pool default at registration; Options commits update only that default, so existing placements retain their captured rate and future registrations use the new density without replacing pools. Emitters with `NO_GLOBAL_SCALE` (0x02000000) still emit at authored rate.
 - **Blend.** `particle.gdshader` samples in authored space and maps blend 0-7 to the M2 GL factors in Godot's linear framebuffer, like M2 batches. Mod/Mod2x/NoAlphaAdd fade toward their identity colour.
