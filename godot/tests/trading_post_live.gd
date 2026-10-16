@@ -24,7 +24,7 @@ func run_fixture() -> void:
 		fail("Private compositor must expose 1920x1080 output")
 		return
 	var account := OS.get_environment("TP_ACCOUNT")
-	if server != "127.0.0.1:5791" or not account.begins_with("fb_") or shots.is_empty() or receipts.is_empty() or not phase in ["pending-dialogs", "confirmations", "button-tooltips", "item-tooltips", "menu-sounds", "layout", "layout-proof", "browse", "relog", "purchase", "refund", "cart", "cart-lifetime", "rotate-controls", "mount-rider", "mount-rider-cancel", "freeze-workflow", "authored-camera", "frozen-slot-before", "frozen-slot-after"]:
+	if server != "127.0.0.1:5791" or not account.begins_with("fb_") or shots.is_empty() or receipts.is_empty() or not phase in ["frozen-tooltip", "pending-dialogs", "confirmations", "button-tooltips", "item-tooltips", "menu-sounds", "layout", "layout-proof", "browse", "relog", "purchase", "refund", "cart", "cart-lifetime", "rotate-controls", "mount-rider", "mount-rider-cancel", "freeze-workflow", "authored-camera", "frozen-slot-before", "frozen-slot-after"]:
 		fail("Explicit private 127.0.0.1:5791, fb_* account, phase and evidence paths required")
 		return
 	for directory in [shots, receipts]:
@@ -48,7 +48,7 @@ func run_fixture() -> void:
 	if not await wait_until(func(): return float(client.account_state().local_player_health) > 0.0, "private character alive", 120000): return
 	client.set_world_minutes(720.0)
 	await wait_frames(120)
-	if not phase in ["pending-dialogs", "confirmations", "button-tooltips", "item-tooltips", "menu-sounds", "layout", "layout-proof", "cart", "cart-lifetime", "rotate-controls", "mount-rider", "mount-rider-cancel", "freeze-workflow", "authored-camera", "frozen-slot-before", "frozen-slot-after"] and not await travelers_log(): return
+	if not phase in ["frozen-tooltip", "pending-dialogs", "confirmations", "button-tooltips", "item-tooltips", "menu-sounds", "layout", "layout-proof", "cart", "cart-lifetime", "rotate-controls", "mount-rider", "mount-rider-cancel", "freeze-workflow", "authored-camera", "frozen-slot-before", "frozen-slot-after"] and not await travelers_log(): return
 	if phase == "menu-sounds" and not watch_menu_sound_players(): return
 	if not await open_vendor(): return
 	if phase in ["cart", "cart-lifetime"]:
@@ -86,12 +86,52 @@ func run_fixture() -> void:
 		"item-tooltips": await item_tooltip_proof()
 		"confirmations": await confirmation_escape_proof()
 		"pending-dialogs": await pending_dialog_proof()
+		"frozen-tooltip": await frozen_item_tooltip_proof()
 
 		"button-tooltips": await button_tooltip_proof()
 		"frozen-slot-before": await frozen_slot_geometry_proof(false)
 		"frozen-slot-after": await frozen_slot_geometry_proof(true)
 		"refund": await refund_after_relog()
 		_: await browse()
+
+func frozen_item_tooltip_proof() -> void:
+	var initial: Dictionary = client.trading_post_state().duplicate(true)
+	if int(initial.frozen) < 0:
+		await motion(control("PerksProgramFrozenSlot").get_global_rect().get_center(), false)
+		if not await wait_until(func(): return not client.tooltip_state().get("visible", false), "empty frozen slot has no item tooltip"): return
+		if not await choose_category(1): return
+		if not await select_first_available(int(initial.tender)): return
+		var candidate := int(client.trading_post_state().selected)
+		if not await drag_to_frozen("PerksProgramProduct%d" % candidate): return
+		if not await wait_until(func(): return int(client.trading_post_state().frozen) == candidate and not client.trading_post_state().pending, "real private frozen-item setup", 120000): return
+	else:
+		await click("PerksProgramFrozenSlot")
+		if not await wait_until(func(): return int(client.trading_post_state().selected) == int(initial.frozen), "select actual occupied frozen product"): return
+	var frozen: Dictionary = client.trading_post_state().duplicate(true)
+	print("TP_FROZEN_TOOLTIP_SETUP initial=", initial.frozen, " used=", frozen.frozen, " item=", frozen.item_id, " tender=", frozen.tender)
+	if int(frozen.category) != 1 and not await choose_category(1): return
+	var other := await select_other_cartable([int(frozen.frozen)])
+	if other <= 0: return
+	await motion(control("PerksProgramFrozenSlot").get_global_rect().get_center(), false)
+	if not await wait_until(func(): return client.tooltip_state().get("visible", false) and client.tooltip_state().get("title", "") == frozen.selected_name, "Retail inherited frozen product item tooltip", 10000): return
+	var tooltip: Dictionary = client.tooltip_state()
+	var lines := str(tooltip.get("lines", []))
+	if not lines.contains("Item ID: %d" % int(frozen.item_id)) or lines.contains("Sell Price"):
+		fail("Frozen tooltip lost displayed item identity or included SellPrice"); return
+	var rect := control("PerksProgramFrozenSlot").get_global_rect()
+	var scale := control("PerksProgramLeaveButton").get_global_rect().size.x / 180.0
+	if absf(float(tooltip.rect[0]) - (rect.end.x / scale - 16.0)) > 1.5 or absf(float(tooltip.rect[1]) + float(tooltip.rect[3]) - rect.position.y / scale) > 1.5:
+		fail("Frozen tooltip lacks inherited source Right−16/Y0 owner anchor"); return
+	var state: Dictionary = client.trading_post_state()
+	if int(state.selected) != other or int(state.frozen) != int(frozen.frozen) or int(state.tender) != int(initial.tender) or state.pending:
+		fail("Frozen tooltip hover changed selected model/frozen authority/Tender"); return
+	await capture("settled-frozen-hover")
+	await motion(control("PerksProgramLeaveButton").get_global_rect().get_center(), false)
+	if not await wait_until(func(): return not client.tooltip_state().get("visible", false), "frozen item leave clears tooltip"): return
+	await capture("leave-hidden")
+	# Keep genuine private setup state. Retail explicitly removes OnDragStart
+	# from frozen products; do not use the engine's drag-off path as a source oracle.
+	await finish("frozen-tooltip")
 
 func pause_private_reply() -> bool:
 	var pid := int(OS.get_environment("TP_SERVER_PID"))
