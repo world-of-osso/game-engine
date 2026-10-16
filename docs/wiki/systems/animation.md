@@ -180,6 +180,14 @@ The non-gating local census is `data/diagnostics/m2-anim-2026-10-15/census.json`
 
 A6 proof at19d9850e8: CPU3 RED→GREEN, native root/ordinary-descendant1 GREEN. `m2_inheritance_pixels.gd` opens the real m2debug stage, loads authentic125913 and fixes750ms. Clearing global overrides supplies the ordinary-hierarchy baseline; restoring at zero elapsed preserves clock/crossfade. Native bone67's tilted basis becomes identity while its transformed pivot stays fixed. Both1920×1080 PNGs were inspected in `/syncthing/AgentShared/2026-10-15/m2-anim/`; this is a same-binary branch counterfactual, not an old executable comparison. First capture attempt hit a fixture dictionary-key typo, corrected retry passed.
 
+## Authored attachment participation (A7) — 2026-10-15
+
+MD20 and SKA1 records retain their trailing byte tracks. Samples use the owning model's current local sequence/time or its global timeline; absent samples start active1. Authentic solar spell1081566 and soul aegis971117 contain authored zero keys, independently observed in local bytes. No color-hiding conclusion follows from those keys.
+
+Native animation players bind persistent authored points (including lookup aliases), publish activation on the point, and evaluate effective eligibility through every attachment ancestor. Ineligible children keep their existing continuous clocks but skip bone-pose writes and consume callbacks without dispatch/replay. Parent players tick before deeper children. Shadow recursion stores each geometry's original casting mode on first exclusion and restores exactly that mode on reactivation; equipment placement refreshes this state after relocation. Nodes are never removed, detached or hidden by activation.
+
+Pre-change native measurement on the private solar-spell fixture: at parent0/99/100/199/200ms, child clocks20/40/60/80/100ms and native item visibility remained true; bone poses and double-sided shadows continued through inactive100/199ms (RED). The fixture retains authentic spell geometry/rig and actual production-loaded item25; only three parent activation tracks are changed privately. Actual HumanMaleHD `$SCD` callback RED independently demonstrates dispatch during ineligibility. These measurements establish native baselines, not reference-client color-pass or reactivation-clock behavior. External attachment keys and separate material/emitter evaluation remain named gaps in the [spec](../../specs/m2-animation-inheritance-attachments.md).
+
 ## Sources
 
 - User-supplied clean-room A6/A7 spec (2026-10-15), `/home/osso/.worktrees/logs/anim-cleanroom-spec-2026-10-15.md`; provenance labels were not opened or searched.

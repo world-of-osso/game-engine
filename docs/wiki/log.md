@@ -1,3 +1,7 @@
+## 2026-10-15 — Authored M2 attachment participation
+
+[A7](systems/animation.md#authored-attachment-participation-a7--2026-10-15): MD20/SKA1 byte tracks, ancestor pose/callback eligibility and reversible shadows. Truncation, native inactive-pose/shadow and actual `$SCD` callback REDs reproduced; GREEN pending. Private solar-spell fixture retains real equipped item identity. Existing native clocks/visibility retained; reference color/clock and external-key gaps explicit.
+
 ## 2026-10-15 — Clean-room authored M2 parent contribution
 
 [A6](systems/animation.md#authored-parent-contribution-a6--2026-10-15): parent-scale/translation/rotation CPU RED reproduced; authored low-bit affine composition added without replacing ordinary hierarchy or crossfades. Native acceptance, runtime flags and A7 semantics remain open in the linked spec. Local non-gating census retained outside git; no prohibited sources accessed.
