@@ -24,9 +24,9 @@ mod gameplay_panels_preview;
 #[cfg(debug_assertions)]
 mod guild_event_log_preview;
 #[cfg(debug_assertions)]
-mod guild_news_preview;
-#[cfg(debug_assertions)]
 mod guild_invite_preview;
+#[cfg(debug_assertions)]
+mod guild_news_preview;
 mod guild_preview;
 #[cfg(test)]
 mod guild_tests;
