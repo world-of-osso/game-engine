@@ -1,3 +1,7 @@
+## 2026-10-16 — First native Fury Stockade attempts
+
+[Stockade receipts](systems/bot-harness.md#stockade-boss-accounting): authentic equal-budget owner/Normal party entry confirmed twice; first81.541s attempt exposed dead assisted-target observation, reproduced/fixed with native fixture. Second405.948s attempt passed that boundary but lost connection as server ticks degraded12.2→0.5/s; no boss credit, all boss DPSnull, zero observed deaths/totalsunknown after capture loss. Ordinary source-trigger exit observedmap0; async trigger-ack replay fixed separately. Owned runtimes stopped; clear/loot/boss metrics remain open.
+
 ## 2026-10-16 — Owned Stockade run caller
 
 [Native caller](systems/bot-harness.md#stockade-boss-accounting) requires existing equal-budget gear, native five-role group and copy-bound actors, then consumes maintained F-assist/IPC casts/strict navmesh movement. It records raw continuity/priority/error/credit evidence and separates clear timing, deaths and owned per-boss DPS. No provisioning/stat overrides or private Mage driver. Actual Fury run remains pending; matched extension/CLI/server/native route-query builds completed separately.
