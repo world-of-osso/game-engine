@@ -32,6 +32,9 @@
 - [Owner pet assisted predicates](investigations/cooldown-assist-data.md#owner-pet-predicates--2026-10-16) — source-decoded57/58, owner pet facts and actual BM Call Pet selection regression; fresh UDP and Arms nearby-target semantics open.
 - [Caster-centered assisted range](investigations/cooldown-assist-data.md#caster-centered-assisted-range--2026-10-16) — retain authored Self Only range identity instead of excluding selected-enemy distance; actual Whirlwind RED→GREEN and25 core controls, fresh native acceptance open.
 - [Minimap zoom source states](systems/minimap.md#zoom-button-source-states--2026-10-15) — both-skin native hover/press/limit-disabled and release cancellation; unchanged enabled idle/context pixels outside zoom rectangles.
+- [Ysera body closure](systems/toy-box.md#ysera-body-asset-closure-2026-10-16) — seventeen authenticated70391 dependencies and four private runtime aliases; procedural8605/type22 remains unrendered.
+- [Stone Whistle asset closure](systems/toy-box.md#stone-whistle-native-asset-closure-2026-10-16) — five same-build70391 assets and two runtime skin aliases authenticated/published privately; native pixels remain open.
+
 - [Shrine viewer-level probe](systems/toy-box.md#shrine-viewer-level-probe-2026-10-15) — real UseToy replicated range/delta projection and zero-tuning controls pass fresh private wire; rendered target text/combat/HP remain separate.
 
 - [Expert active submode glow](systems/housing.md#expert-active-glow--implementation2026-10-15) — native missing-glow RED→both-skin painted fixed-mask/six-second shared-phase/canvas-lifetime GREEN, unchanged paid state and six inspected1280 PNGs; full appearance remains open.
