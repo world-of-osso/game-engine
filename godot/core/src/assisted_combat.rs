@@ -29,6 +29,8 @@ pub struct AssistedFacts {
     pub player_auras: BTreeSet<u32>,
     pub target_auras: BTreeSet<u32>,
     pub target_hostile: Option<bool>,
+    /// Owner-controlled pet presence; None means no authoritative reading.
+    pub has_pet: Option<bool>,
     /// Same raw DB2 power units as SpellPower/UnitPowers, not display values.
     pub powers: BTreeMap<u8, f64>,
     pub charges: BTreeMap<u32, u8>,
@@ -77,6 +79,7 @@ pub fn evaluate_rule(rule: &AssistedRule, facts: &AssistedFacts) -> Result<bool,
         15 => Ok(!facts.target_auras.contains(&rule.values[0])),
         16 => Ok(!facts.player_auras.contains(&rule.values[0])),
         56 => read_boolean(&facts.in_range, spell, "spell range"),
+        57 | 58 => evaluate_pet(rule, facts),
         7 | 8 | 68 | 69 => evaluate_health(rule, facts),
         65 | 66 => evaluate_cooldown(rule, facts),
         63 | 64 => evaluate_charges(rule, facts),
@@ -85,6 +88,16 @@ pub fn evaluate_rule(rule: &AssistedRule, facts: &AssistedFacts) -> Result<bool,
             rule.id, rule.condition_type
         )),
     }
+}
+
+fn evaluate_pet(rule: &AssistedRule, facts: &AssistedFacts) -> Result<bool, String> {
+    if rule.values != [0, 0, 0] {
+        return Err(format!("rule {}: pet operands are unverified", rule.id));
+    }
+    let present = facts
+        .has_pet
+        .ok_or_else(|| format!("rule {}: owner pet presence not received", rule.id))?;
+    Ok(present == (rule.condition_type == 57))
 }
 
 fn evaluate_health(rule: &AssistedRule, facts: &AssistedFacts) -> Result<bool, String> {
