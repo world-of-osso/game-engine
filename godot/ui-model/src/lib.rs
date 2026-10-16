@@ -123,6 +123,7 @@ pub mod professions_catalog;
 pub mod professions_frame;
 pub mod professions_orders;
 pub mod professions_quality;
+pub mod professions_reagent_selection;
 pub mod professions_specializations;
 pub mod raid_manager_component;
 pub mod raid_warning;

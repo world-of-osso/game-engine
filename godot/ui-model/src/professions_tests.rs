@@ -209,6 +209,22 @@ fn professions_db2_catalog_joins_classic_tailoring_recipe() {
     std::fs::create_dir_all(&dir).unwrap();
     for (table, data) in [
         (
+            "ModifiedCraftingSpellSlot",
+            "SpellID,Slot,ModifiedCraftingReagentSlotID,ReagentCount,ReagentReCraftCount\n",
+        ),
+        (
+            "ModifiedCraftingReagentSlot",
+            "ID,Name_lang,ReagentType,PlayerConditionID\n",
+        ),
+        (
+            "MCRSlotXMCRCategory",
+            "ModifiedCraftingReagentSlotID,ModifiedCraftingCategoryID,Order\n",
+        ),
+        (
+            "CraftingReagentQuality",
+            "ModifiedCraftingCategoryID,ItemID,CurrencyTypesID,OrderIndex\n",
+        ),
+        (
             "CraftingQuality",
             "ID,QualityTier,CraftingQualityAtlasSetID\n14,2,7\n",
         ),

@@ -1,0 +1,38 @@
+[
+  {
+    "path": "/syncthing/World of Warcraft/_retail_/BlizzardInterfaceCode/Interface/AddOns/Blizzard_ProfessionsTemplates/Blizzard_ProfessionsQualityDialog.xml",
+    "sha256": "226abca2e03733d9f18accedc7e0396854f3c36573761dc2e986abdfde17eff0"
+  },
+  {
+    "path": "/syncthing/World of Warcraft/_retail_/BlizzardInterfaceCode/Interface/AddOns/Blizzard_ProfessionsTemplates/Blizzard_ProfessionsQualityDialog.lua",
+    "sha256": "f6f910a746aeae895688f09aa86ec9f1b363055ab5afefd5f3072c045d4571cc"
+  },
+  {
+    "path": "/syncthing/World of Warcraft/_retail_/BlizzardInterfaceCode/Interface/AddOns/Blizzard_ProfessionsTemplates/Blizzard_ProfessionsRecipeSchematicForm.lua",
+    "sha256": "bd9e67f388df613171cf56fa6939c43fc3cee4abd0e00f53bc5b905bd614e587"
+  },
+  {
+    "path": "/syncthing/World of Warcraft/_retail_/BlizzardInterfaceCode/Interface/AddOns/Blizzard_ProfessionsTemplates/Blizzard_ProfessionsRecipeSchematicForm.xml",
+    "sha256": "a8758050cb656ae45e1071a1345e55a5440a715ff4870dd9ce472227947b38af"
+  },
+  {
+    "path": "/syncthing/World of Warcraft/_retail_/BlizzardInterfaceCode/Interface/AddOns/Blizzard_ProfessionsTemplates/Blizzard_ProfessionsRecipeReagentSlot.lua",
+    "sha256": "142e2a2a048ece5a9b9e9f7f51b7badd1f9493f484f4edffa964a55722eaaf1d"
+  },
+  {
+    "path": "/syncthing/World of Warcraft/_retail_/BlizzardInterfaceCode/Interface/AddOns/Blizzard_ProfessionsTemplates/Blizzard_ProfessionsTemplates.xml",
+    "sha256": "4b2a66e3b501887317b9a1966706f310ba47c30c68b66feacc789011c2882fdd"
+  },
+  {
+    "path": "/syncthing/World of Warcraft/_retail_/BlizzardInterfaceCode/Interface/AddOns/Blizzard_Professions/Blizzard_ProfessionsCrafting.xml",
+    "sha256": "31bdc8a4aed37e71f760b0860cb2d1e1ae00235e46cb65e06e92b0ecdd5053ba"
+  },
+  {
+    "path": "/syncthing/World of Warcraft/_retail_/BlizzardInterfaceCode/Interface/AddOns/Blizzard_SharedXML/Shared/InputBox/InputBoxTemplates.xml",
+    "sha256": "88dd3f9f05a1a172fa0b98ffecc60ef064910ed5e028d32bfdbb9934f8cf7fc3"
+  },
+  {
+    "path": "/syncthing/World of Warcraft/_retail_/BlizzardInterfaceCode/Interface/AddOns/Blizzard_APIDocumentationGenerated/ProfessionConstantsDocumentation.lua",
+    "sha256": "65360762616ac3e18c8af4061176163a1a29aba010f4cd7cbc766e345d292557"
+  }
+]
