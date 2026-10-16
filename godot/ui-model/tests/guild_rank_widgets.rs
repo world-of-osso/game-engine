@@ -172,6 +172,11 @@ fn guild_communities_invite_and_profile_controls_send_authoritative_actions_both
         assert_eq!(session.commands, vec![GuildCommand::Invite("Cara".into())]);
         session.commands.clear();
         session.click("guild:info_open", &Default::default());
+        // GuildNews.lua:42–51 queries news when the Info news pane is shown.
+        assert_eq!(
+            std::mem::take(&mut session.commands),
+            vec![GuildCommand::News(shared::GuildNewsRequest::Query)]
+        );
         let registry = mounted(&session);
         assert_eq!(text(&registry, "GuildMOTDText"), "Meeting tonight");
         assert_eq!(text(&registry, "GuildInfoText"), "Raid Tuesdays");
