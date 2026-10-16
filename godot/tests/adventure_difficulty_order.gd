@@ -2,6 +2,9 @@ extends "res://tests/adventure_instance_loot.gd"
 # Retail EJ_DIFFICULTIES order on genuine instance menus; no catalog injection.
 
 func verify_menu_order(instance: int, tier: int, ids: Array) -> bool:
+	# The selected bottom tab is disabled; switch away before opening another grid.
+	if client.adventure_guide_state().tab == "Raids" and not await click("EncounterJournalDungeonTab"):
+		return false
 	if not await open_loot_instance("EncounterJournalRaidTab", tier, instance) or not await click("JournalDifficultyDropdown"):
 		return false
 	var previous := -INF
