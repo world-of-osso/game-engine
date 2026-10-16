@@ -114,7 +114,7 @@ impl GameClient {
     /// The tooltip of the hovered frame, if it has one.
     pub(crate) fn frame_tooltip(&mut self, hit: &HoveredFrame) -> Option<HoveredTooltip> {
         type Source = fn(&mut GameClient, &HoveredFrame) -> Option<HoveredTooltip>;
-        const SOURCES: [Source; 37] = [
+        const SOURCES: [Source; 38] = [
             GameClient::guild_news_tooltip,
             GameClient::trading_post_button_tooltip,
             GameClient::trading_post_tooltip,
@@ -300,8 +300,8 @@ impl GameClient {
                 frame.name.as_deref()?,
             )
         })?;
-        let bounds = ui.effective_rects()?;
-        let rect = bounds_rect(&bounds, owner)?;
+        drop(ui);
+        let rect = self.owner_rect(&hit.ui, owner)?;
         Some(HoveredTooltip::text(tooltip.owned(rect, OwnerSide::Right)))
     }
 
