@@ -1,3 +1,7 @@
+## 2026-10-16 — HouseSettings omitted decorative regions
+
+[Source regions](systems/housing.md#housesettings-decorative-regions--2026-10-16): genuine missing-region RED restores gradient/foliage/divider only; after proof pending.
+
 ## 2026-10-16 — Pet queue-ready button art
 
 [Source button family](systems/battle-pets.md#queue-ready-button-art--2026-10-16): explicit default atlas RED replaced with inherited UIPanel sheet IDs; RED→GREEN, both-skin8 physical cases/24crops; four fullHD comparisons change only inside buttons. Captions/typography/lifecycle unchanged and not newly certified.
