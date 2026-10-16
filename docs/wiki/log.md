@@ -13,6 +13,29 @@
 ## 2026-10-15 — Adventure Guide authored creature selection
 
 [Model choices](systems/adventure-guide.md#authored-model-selection--bounded-native-proof-2026-10-15) now select authored names/displays and owner-right description tooltips. Both-skin native47be Helix→Oaf/reset/Nezir passes with M2-camera-rendered heads and the source circle mask. Independent verification caught prior3f static boss-art substitution despite passing corner checks; native RED→GREEN covers the corrected portrait identity. Full-model authored UiModelScene camera remains a named gap.
+## 2026-10-15 — Post-parity all40 attempt boundary
+
+[Exact coverage](systems/bot-harness.md#post-parity-all40-attempt-coverage):40 expected specs,39 retained reports,34 setup/collection errors; full comparison withheld. Six specs have two complete windows, not class correctness. Resto105 owned-bag retry now grants0/equips10 normally, survives fresh login, then source2305/condition11 refuses; partial189 damage/DPSnull.68 Python cases and native provisioning proof; remaining predicates/loadout/dead/movement boundaries retained. Stockade deferred; no owned runtime left.
+
+## 2026-10-15 — Retry-safe bot equipment grants
+
+[Owned inventory boundary](systems/bot-harness.md#retry-safe-owned-gear-provisioning): Resto105's earlier granted kit survived login timeout, but pre-login retry counted only equipped slots and filled bags with duplicates. Grants now follow authenticated native inventory, subtract bag copies and await replication before ordinary gear input. No deletion/account reset/admin equip. Exact native recovery now proves zero grants/full10-item normal equip; source2305/condition11 still blocks measurement.
+
+## 2026-10-15 — Native-controller three-DPS proof
+
+[Fresh native proof](systems/bot-harness.md#native-controller-three-dps-proof): Arms/Fury/BM six common-budget60s windows with actual auto-attack and received outcomes; mean-spec median129.0833, max/median1.00342, min/median0.281407, no tolerance/pass-fail. Old IPC windows remain diagnostic. Havoc now triggers Demon Blades then source21566/3 refuses; Cat/Bear confirm then5968/5741 condition3 refuse. Explicit new roster and preserved blocked comparisons prevent silent dropout. All40 post-parity attempts remain active; Stockade deferred.
+
+## 2026-10-15 — Current native dummy admin schema
+
+[Fixture boundary](systems/bot-harness.md#current-admin-fixture-boundary): actual native setup reaches Cat/Bear form confirmation, then rejects the newly appended combat JSON. Parser regression uses captured server lines; current suffix/static armor required, transient threat excluded. Frozen private render cache refreshed from published source with all prior-column rows hash-identical; canonical data untouched. Combat remeasurement still pending.
+
+## 2026-10-15 — All40 bot diagnostic batch and received outcome fields
+
+[Batch boundaries](systems/bot-harness.md#first-all40-diagnostic-batch):40 expected specs,43 raw reports,31 setup/collection errors; full comparison withheld, dead Ret quarantined. Per-ability final diagnostics retained; old IPC path still invalidates representative-controller acceptance. Received crit/glancing/periodic/mitigation fields now serialized unchanged after a focused Rust RED; fresh Rust/native gates pending. Private batch runtime stopped.
+
+## 2026-10-15 — Bot combat outcomes and native-cast parity gap
+
+[Per-ability triage](systems/bot-harness.md#per-ability-triage) adds raw hit/miss counts, nullable crits, real swing identity/share, sampled GCD/idle and raw power changes plus sourced DB2 coefficients/costs/order. No inferred spending or exact timing. The first diagnostic MVP has1368 auto_attack=null samples/zero swings despite all three requested abilities carrying the native OnCast attribute; raw-intent IPC bypasses the normal auto-attack hook. Six native replay assertions RED; IPC parity fix/new outcome exposure/native remeasurement pending, so representative-controller acceptance is reopened. All40 diagnosis continues unchanged; these are not evidence for a Fury coefficient fix or balance acceptance.
 ## 2026-10-15 — Housing storage Filter header
 
 [Filter header](systems/housing.md#storage-filter-header--implementation2026-10-15): actual native missing-source-surface RED→shared fixed-width Filter/reset primitive and both-skin physical four-phase assertions GREEN on the existing725px drawer. Existing popup/semantics/authority unchanged. Four inspected1280 PNGs; Forever truncated final JSON retained with three complete records and final reset/conservation PASS/screenshot, no invented fourth record. Unrelated missing terrain shader is excluded from scoped header proof. Primary-mode animation hypothesis rejected because source enables it only on unsupported Layout/Exterior.

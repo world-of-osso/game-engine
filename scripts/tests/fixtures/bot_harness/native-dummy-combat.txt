@@ -1,0 +1,3 @@
+Training Dummy (entity 4294959695) level 30 health 13137/13137 difficulty 0 combat={"creature_armor":155.0,"stats":null,"threat":null,"victim":null}
+Training Dummy (entity 4294959693) level 30 health 13137/13137 difficulty 0 combat={"creature_armor":155.0,"stats":null,"threat":null,"victim":null}
+Training Dummy (entity 4294959692) level 30 health 13137/13137 difficulty 0 combat={"creature_armor":155.0,"stats":null,"threat":null,"victim":null}

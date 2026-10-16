@@ -59,11 +59,27 @@ class BotComparisonTests(unittest.TestCase):
         self.assertTrue(reports[1]["measurement_complete"])
 
     def test_live_dummy_fixture_retains_max_health_not_current_damage(self):
-        text = "Training Dummy (entity 42) level 30 health 12/13137 difficulty 0\nTraining Dummy (entity 99) level 32 health 900/900 difficulty 1"
+        text = ('Training Dummy (entity 42) level 30 health 12/13137 difficulty 0 '
+                'combat={"creature_armor":155.0,"stats":null,"threat":{},"victim":17}\n'
+                'Training Dummy (entity 99) level 32 health 900/900 difficulty 1 '
+                'combat={"creature_armor":160.0,"stats":null,"threat":null,"victim":null}')
         self.assertEqual(run_bot_roster.dummy_fixture(text, 42),
-                         {"entry": 44548, "level": 30, "max_health": 13137, "difficulty": 0})
+                         {"entry": 44548, "level": 30, "max_health": 13137, "difficulty": 0,
+                          "creature_armor": 155.0})
         with self.assertRaisesRegex(ValueError, "dummy fixture"):
             run_bot_roster.dummy_fixture(text, 123)
+
+    def test_actual_native_dummy_combat_suffix_preserves_static_fixture_armor(self):
+        source = Path(__file__).parent / "fixtures/bot_harness/native-dummy-combat.txt"
+        self.assertEqual(run_bot_roster.dummy_fixture(source.read_text(), 4294959692),
+                         {"entry": 44548, "level": 30, "max_health": 13137, "difficulty": 0,
+                          "creature_armor": 155.0})
+
+    def test_dummy_fixture_refuses_missing_or_malformed_combat_metadata(self):
+        header = "Training Dummy (entity 42) level 30 health 12/13137 difficulty 0"
+        for text in (header, header + ' combat={}', header + ' combat={broken}'):
+            with self.subTest(text=text), self.assertRaises(ValueError):
+                run_bot_roster.dummy_fixture(text, 42)
 
     def test_three_complete_equal_budget_specs_produce_spec_weighted_median(self):
         run_bot_roster.write_roster_comparison(self.output, self.bots, 2)
