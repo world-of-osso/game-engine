@@ -16,7 +16,7 @@ Retail Mainline Blizzard_PerksProgram and the local C_PerksProgram/PerksActiviti
 
 ## Accepted single-item confirmation lifetime
 
-- Purchase/Refund acceptance retains its real confirmation owner while a request is outstanding: both buttons disabled, shared dark overlay and decoded spinner shown immediately (Retail `StaticPopup_OnAcceptWithSpinner`, delay0). Duplicate Confirm/Cancel/Escape cannot enqueue a second transaction or mutate Tender/ownership.
+- Purchase/Refund acceptance retains its real confirmation owner while a request is outstanding: both buttons disabled, shared dark overlay and decoded rotating spinner painted above dialog contents immediately (Retail `StaticPopup_OnAcceptWithSpinner`, delay0). GameDialog.xml296–320 supplies the overlay's11px inset and spinner60×60 center placement. Native proof must show painted output changes, not merely existing or rotating nodes. Duplicate Confirm/Cancel/Escape cannot enqueue a second transaction or mutate Tender/ownership.
 - Purchase acceptance removes only that vendor product from the local cart, per Elements.lua1–4; other members remain. Authoritative snapshot receipt ends the existing request-pending state and dismisses its dialog; balances/collection never update optimistically.
 - Per-item delivery-pending,45-second slow/server-error dialogs and richer success-event correlation remain separate provider/lifecycle gaps. This request-modal slice does not claim those states or change production refund policy.
 
