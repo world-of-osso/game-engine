@@ -1,6 +1,6 @@
 # Coverage, exclusions and proof ledger
 
-[Finding index and source pins](README.md). **23 findings do not mean 23 total project gaps.** They describe completed paired-source comparisons within the slices below. Absence of a finding is not parity; unreviewed rows are not implementation findings.
+[Finding index and source pins](README.md). **28 findings do not mean 28 total project gaps.** They describe completed paired-source comparisons within the slices below. Absence of a finding is not parity; unreviewed rows are not implementation findings.
 
 ## Reviewed capability matrix
 
@@ -8,18 +8,19 @@
 |---|---|---|---|---|
 | Generic M2 track evaluation | A1–A3 | Material sampler separately honors interpolation and short-table rules | Asset census, spline interpolation families, native outputs | Paired functions + explicit counterexamples |
 | Model events / replay | A4–A5 | Six selected action/missile IDs, variation families and crossfades have native paths | Other event handlers and real finite-repeat usage; independent event-clock/pose semantics and original-binary fidelity need separate proof | Paired runtime paths; no execution |
-| Bone transforms / attachments / skinning | None established | Both sides have hierarchy/billboard mechanisms; E retains bone flags | Ignore-parent flags, IK, animated attachment lifecycle and weighted normal transforms not fully traced | Partial source review only |
-| Authored model cameras | None promoted to finding | W animates camera position/target/roll; E parses first-key snapshots | E native consumers and intended dynamic-camera contract incomplete; animated FOV not established | Located source mechanisms; incomplete pair |
+| Bone transforms / attachments / skinning | A6–A7: low-bit parent adjustment and attachment activation, using C | Hierarchy/billboards and static bone attachment points exist | IK, runtime flag producers, child color-pass/reactivation behavior and weighted normal transforms | [Paired C/E4 paths](cataclysm-434.md#a6-low-bone-inheritance-bits-do-not-affect-native-pose-composition); no native fixture |
+| Authored model cameras | None promoted to finding | C samples/outputs camera tracks; E4 snapshots drive creation/portrait framing | No established native time-varying camera requirement or affected asset | [Paired capability difference, applicability incomplete](cataclysm-434.md#matched-mechanisms-and-leads-not-promoted) |
 | Particle geometry / birth / motion | P1–P5, P7 | Plane/sphere simulation, force integration, model/world axes, keyframed emitters, head quads, several appearance flags | Asset/layout provenance for spline/model/velocity scale; full flag census | Paired native consumer paths |
 | Particle ordering | P6 | Object/pool-level transparent sorting is not claimed absent | Cross-emitter global sort semantics and actual overlapping assets | Paired generation/upload order |
 | M2 mesh material order | R1 | Priority plane/material layer are retained | Projected batches, clip-plane passes, exhaustive texcoord generation | Authored metadata discarded; reference sort consumer traced |
-| M2/particle shader lighting | S1 | M2 scene light, several combiners and particle fog/blend handling exist | Alpha cutoff/quat/fog candidates, lit flag polarity and target equation | Paired shader/binder paths; no pixels |
+| M2/particle shader lighting | S1 | Scene light, combiners and particle fog/blend exist; C/E4 centered UV rotation/scale/translation paths match | Alpha cutoff/quat/fog candidates, lit flag polarity and exhaustive variants | Paired shader/binder paths; [UV lead rejected](cataclysm-434.md#matched-mechanisms-and-leads-not-promoted); no pixels |
 | WMO materials | S2 | 24-entry native shader mapping, texture combinations, interior ambient, point lights and shadow flags exist | Equation-by-equation parity, special lightmap branch and asset applicability | Paired SIDN parser/binder/shader trace |
-| Terrain compositing/detail | None established | Reference's inspected MCSH use affects detail-doodad alpha; E samples that detail shadow mask | Full terrain alpha/height/material equation comparison incomplete | Bounded matching mechanism; not full parity |
+| Terrain compositing/detail | S3: C terrain-surface MCSH consumer has no E4 binding | Detail-doodad mask sampling exists; terrain layers/colors/dynamic lighting exist | Modern surface modulation equation, split-file applicability and full material parity | [Paired C surface pass/native binding](cataclysm-434.md#s3-authored-mcsh-shadows-do-not-reach-terrain-surface-shading); no pixels |
 | Weather / storm environment | ENV1 | E clear-time-of-day sky, stars, planets, skyboxes and fog exist | Weather authority/wire input, all precipitation families and asset appearance | Reference lifecycle vs native clear-only environment inputs |
 | Camera immersion | ENV2: underwater scene-light/fog selection | E samples underwater light data and fogs refracted water-surface samples | V5 depth-darkening producer-sign/update-order conflict; glare depth fade, underwater sound and modern parameter correspondence | Native scene-light input/output trace, separate from surface shader |
 | Walking contacts | M1–M2 | E slope/support sampling, wall clamping, ordinary jump/fall and transport carry exist | Matched geometry, body parameters, transport fall/seat edges, launch/knockback producer | Paired contact-response algorithms |
-| Camera collision / WMO visibility | None established | Native camera ray/smoothing checks and WMO portal/collision paths exist | Matched reference camera/group/portal outputs, exact body/culling policies | Partial review; not parity |
+| Camera collision / target fade / WMO visibility | C1–C2: finite-width obstruction query and camera-target opacity binding | Camera ray/smoothing and WMO portal/collision paths exist | Modern camera dimensions/fade policy, matched portal outputs and vehicle specifics | [Paired C/E4 active paths](cataclysm-434.md#c1-camera-obstruction-probes-have-no-lateral-extent); no native pixels |
+| WMO liquids | None established | C hidden-tile query and E4 hidden-tile geometry have matching low-nibble predicate | Query flags, gameplay height/type consumer and edge interpolation | [Bounded render/query mechanism comparison](cataclysm-434.md#matched-mechanisms-and-leads-not-promoted), not full liquid parity |
 | World audio | AU1–AU4 | Native zone channels, footsteps, spell-kit/voice and UI audio paths exist | WMO-specific spatial emitter producer, audio occlusion, full kit/concurrency/doppler rules | Paired contextual selection/scheduling paths |
 | Server authority | None established | S has independent ground/movement/navmesh implementations | Combat/persistence/authority cannot be recovered from W alone | Client-only reference limit |
 
@@ -32,7 +33,7 @@ These are **audit gaps**, not a claim that every named feature is missing from E
 | `Engine/Source/Frame*`, `WoW/Source/Ui`, `Glue`, `UIUtil` | Full authored layout/input/focus/scroll/tooltips, UI model scenes and glue transitions vs native UI; no blanket missing-UI claim |
 | `WoW/Source/Net`, `Battlenet`, `WowServices`, `WowSvcs` | Session/reconnect/security/state ordering; historical wire formats are not a migration requirement for the project's protocol |
 | `WoW/Source/Magic`, `Game`, `Object`, `Minigame` | Full spell visual/impact/aura timelines, object visibility/interaction, combat presentation and minigames; server gameplay requires independent contracts |
-| Model/world special paths | IK and inheritance flags, animated authored camera consumers, projected textures/shadows, collision-material details, streaming/occlusion/LOD boundary cases and exhaustive shader variants |
+| Model/world special paths | IK and runtime inheritance-flag producers; animated authored camera applicability; projected textures and shadow-batch eligibility; collision-material details, streaming/occlusion/LOD boundaries and exhaustive shader variants |
 | Remaining sound/environment/backend paths | Audio occlusion, doppler and concurrency; WMO spatial emitters; liquid glare, uncommon weather/material families; device/backend behavior and performance |
 
 ## Checked claims that must not become rework tasks
@@ -57,9 +58,9 @@ These are **audit gaps**, not a claim that every named feature is missing from E
 
 `E/godot/rust/src/ribbons.rs:206–222` adds meshes as children before making transforms top-level; `:27–32` hides empty geometry. This alone does not establish surviving nodes after owner removal. Natural effect-tail teardown still needs its own lifecycle fixture.
 
-### MOUV and terrain-surface MCSH claims lack paired proof
+### MOUV and the original terrain-surface MCSH lead
 
-E parses MOUV (`godot/core/src/asset/wmo_format/parser.rs:100–108`) and notes unported UV animation (`godot/shaders/wmo.gdshader:255–259`), but the pinned W producer/animation formula was not established. Record this as an uncompleted comparison, not a wowdecomp-proven defect. W's inspected MCSH use at `WoW/Source/WorldClient/MapChunk.cpp:1331–1339` concerns detail-doodad vertex alpha, which E handles at `godot/core/src/ground_detail.rs:166–169,207–211,293–299`; it does not prove a missing terrain-surface shadow.
+E parses MOUV (`godot/core/src/asset/wmo_format/parser.rs:100–108`) and notes unported UV animation (`godot/shaders/wmo.gdshader:255–259`), but the pinned W producer/animation formula was not established. Record this as an uncompleted comparison, not a wowdecomp-proven defect. W's inspected MCSH use at `WoW/Source/WorldClient/MapChunk.cpp:1331–1339` concerns detail-doodad vertex alpha, which E handles at `godot/core/src/ground_detail.rs:166–169,207–211,293–299`; it does not prove a missing terrain-surface shadow. The separate [C/E4 comparison now establishes S3](cataclysm-434.md#s3-authored-mcsh-shadows-do-not-reach-terrain-surface-shading) through an actual C surface pass; this does not upgrade the old W citation. MOUV remains unproven against either reference.
 
 ### Audio and model events are partial, not absent
 
