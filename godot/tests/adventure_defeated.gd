@@ -54,6 +54,9 @@ func run() -> void:
 		return
 	if not await enter_world_when_ready():
 		return
+	if client.account_state().ui_skin != OS.get_environment("ADVENTURE_GUIDE_EXPECTED_SKIN"):
+		stop("Authenticated character did not select the requested UI skin")
+		return
 	error = client.set_dungeon_difficulty(2)
 	if not error.is_empty():
 		stop(error)
