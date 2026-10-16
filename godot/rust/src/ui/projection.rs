@@ -939,8 +939,11 @@ impl UiProjection {
         ] {
             style.set_content_margin(side, inset);
         }
-        node.add_theme_stylebox_override("normal", &style);
-        node.add_theme_stylebox_override("focus", &style);
+        // LineEdit::get_minimum_size takes max(normal, read_only) even while
+        // editable. Leaving read_only themed inflated the journal's20px box to23px.
+        for state in ["normal", "focus", "read_only"] {
+            node.add_theme_stylebox_override(state, &style);
+        }
         // Apply authored bounds after the font/border theme, not the default theme's minimum.
         // Labels use the same ordering; otherwise small copper inputs retain their creation size.
         node.set_size(Vector2::new(rect.width, rect.height));
