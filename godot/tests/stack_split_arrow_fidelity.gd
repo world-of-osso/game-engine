@@ -81,7 +81,9 @@ func run_arrows() -> void:
 					await move(ui, point)
 					await press(ui, point, true)
 					await press(ui, point, false)
-					var expected: Array[String] = ["stack_split:" + key.to_lower()] if enabled else []
+					var expected: Array[String] = []
+					if enabled:
+						expected.append("stack_split:" + key.to_lower())
 					assert(actions == expected, "Exact arrow action or disabled refusal; no reducer call")
 					actions.clear()
 					print("STACK_ARROW ", label, " physical art/cancel/action PASS")

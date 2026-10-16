@@ -27,7 +27,9 @@ impl RegistryUi {
                 left_enabled: enabled,
                 right_enabled: enabled,
             };
-            self.show_viewport_screen(state, stack_split_frame_screen, ScreenPostsetup::None)
+            self.show_viewport_screen(state, stack_split_frame_screen, ScreenPostsetup::None)?;
+            self.enable_cursor_inputs();
+            Ok::<(), String>(())
         })();
         result.err().unwrap_or_default().as_str().into()
     }
