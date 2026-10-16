@@ -14,6 +14,62 @@ sys.path.insert(0, str(Path(__file__).resolve().parents[1]))
 from bot_stockade import admitted_copy, authored_priority, encounter_states, parse_npc, parse_party, stockade_exit_plan, stockade_plan, target_observation_ready
 
 
+class StockadeOpeningTests(unittest.TestCase):
+    def test_idle_pull_tabs_and_acknowledges_throw_before_any_movement(self):
+        from run_stockade_bot import StockadeRun
+        calls = []
+        controller = StockadeRun.__new__(StockadeRun)
+        controller.opening_target = None
+        controller.run = {"clear_elapsed_ms": None, "bosses": [
+            {"state": "NotStarted", "goal": [103, -19, 0]}], "openings": []}
+        controller.tank = "Captain Garrick"
+        controller.poll_combat = lambda: None
+        controller.record_credit = lambda: None
+        controller.party = lambda: [{"health": 100, "max_health": 100}]
+        controller.account = lambda: {"local_player_position": "(56,-19,0)"}
+        controller.snapshot = lambda target: {"at_ms": 1000, "spells": {"known": [57755]},
+            "facts": {"known": [57755], **{field: {"57755": {"Ok": True}}
+                for field in ("in_range", "ready", "affordable")}}}
+        controller.move = lambda *args: self.fail("Moved before ranged opening")
+        controller.player = SimpleNamespace(
+            assist=lambda tank: None, tab_to_enemy=lambda: 41,
+            cast_opening=lambda target, spell: calls.append((target, spell)) or {"success": True})
+        with tempfile.TemporaryDirectory() as root:
+            controller.output = Path(root)
+            with patch('run_stockade_bot.time.sleep'):
+                self.assertFalse(controller.step())
+            receipt = json.loads((Path(root) / 'opening-0001.json').read_text())
+            self.assertTrue(receipt['outcome']['success'])
+        self.assertEqual(calls, [(41, 57755)])
+        self.assertEqual(controller.opening_target, 41)
+
+
+    def test_native_range_stops_strict_approach_before_waiting_on_cooldown(self):
+        from run_stockade_bot import StockadeRun
+        controller = StockadeRun.__new__(StockadeRun)
+        states = []
+        for ranged, ready in [(False, True), (True, False), (True, True)]:
+            state = {"at_ms": 1000, "spells": {"known": [57755]},
+                "facts": {"known": [57755], **{field: {"57755": {"Ok": True}}
+                    for field in ("in_range", "ready", "affordable")}}}
+            state["facts"]["in_range"]["57755"] = {"Ok": ranged}
+            state["facts"]["ready"]["57755"] = {"Ok": ready}
+            state["target_position"] = [93, -25, 0]
+            states.append(state)
+        iterator = iter(states)
+        controller.snapshot = lambda target: next(iterator)
+        controller.party = lambda: []
+        controller.poll_combat = lambda: None
+        controller.account = lambda: {"local_player_position": "(56,-19,0)"}
+        moved = []
+        controller.move = lambda here, goal, label: moved.append((here, goal, label))
+        with tempfile.TemporaryDirectory() as root:
+            controller.output = Path(root)
+            with patch('run_stockade_bot.time.sleep'):
+                controller.approach_opening(41)
+        self.assertEqual(moved, [([56, -19, 0], [93, -25, 0], "native-ranged-approach")])
+
+
 class StockadeSourceTests(unittest.TestCase):
     def test_actual_dead_assist_target_needs_no_authored_evaluation_and_never_casts(self):
         fixture = Path(__file__).parent / 'fixtures/bot_harness/native-stockade-dead-target.json'
