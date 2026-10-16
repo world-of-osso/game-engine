@@ -114,7 +114,8 @@ impl GameClient {
     /// The tooltip of the hovered frame, if it has one.
     pub(crate) fn frame_tooltip(&mut self, hit: &HoveredFrame) -> Option<HoveredTooltip> {
         type Source = fn(&mut GameClient, &HoveredFrame) -> Option<HoveredTooltip>;
-        const SOURCES: [Source; 35] = [
+        const SOURCES: [Source; 36] = [
+            GameClient::trading_post_button_tooltip,
             GameClient::trading_post_tooltip,
             GameClient::journal_defeated_tooltip,
             GameClient::journal_creature_tooltip,
@@ -152,6 +153,28 @@ impl GameClient {
             GameClient::hud_frame_tooltip,
         ];
         SOURCES.iter().find_map(|source| source(self, hit))
+    }
+
+    /// PerksProgram button ShowTooltip methods own ANCHOR_LEFT, including disabled controls.
+    fn trading_post_button_tooltip(&mut self, hit: &HoveredFrame) -> Option<HoveredTooltip> {
+        use ui_toolkit::{frame::WidgetData, widgets::button::ButtonState};
+        let ui = hit.ui.bind();
+        let (owner, tooltip) = named_ancestor(ui.registry()?, hit.frame, |frame| {
+            let WidgetData::Button(button) = frame.widget_data.as_ref()? else {
+                return None;
+            };
+            let enabled = button.state != ButtonState::Disabled;
+            self.trading_post
+                .view
+                .button_tooltip(name_of(frame)?, enabled)
+        })?;
+        drop(ui);
+        Some(HoveredTooltip::text(self.owned_by(
+            hit,
+            owner,
+            OwnerSide::Left,
+            tooltip,
+        )?))
     }
 
     /// PerksProgramElements.lua306–314: hovered product GetItemByID, no SellPrice.

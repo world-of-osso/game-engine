@@ -23,7 +23,7 @@ func run_fixture() -> void:
 		fail("Private compositor must expose 1920x1080 output")
 		return
 	var account := OS.get_environment("TP_ACCOUNT")
-	if server != "127.0.0.1:5791" or not account.begins_with("fb_") or shots.is_empty() or receipts.is_empty() or not phase in ["item-tooltips", "menu-sounds", "layout", "layout-proof", "browse", "relog", "purchase", "refund", "cart", "cart-lifetime", "rotate-controls", "mount-rider", "mount-rider-cancel", "freeze-workflow", "authored-camera", "frozen-slot-before", "frozen-slot-after"]:
+	if server != "127.0.0.1:5791" or not account.begins_with("fb_") or shots.is_empty() or receipts.is_empty() or not phase in ["confirmations", "button-tooltips", "item-tooltips", "menu-sounds", "layout", "layout-proof", "browse", "relog", "purchase", "refund", "cart", "cart-lifetime", "rotate-controls", "mount-rider", "mount-rider-cancel", "freeze-workflow", "authored-camera", "frozen-slot-before", "frozen-slot-after"]:
 		fail("Explicit private 127.0.0.1:5791, fb_* account, phase and evidence paths required")
 		return
 	for directory in [shots, receipts]:
@@ -47,7 +47,7 @@ func run_fixture() -> void:
 	if not await wait_until(func(): return float(client.account_state().local_player_health) > 0.0, "private character alive", 120000): return
 	client.set_world_minutes(720.0)
 	await wait_frames(120)
-	if not phase in ["item-tooltips", "menu-sounds", "layout", "layout-proof", "cart", "cart-lifetime", "rotate-controls", "mount-rider", "mount-rider-cancel", "freeze-workflow", "authored-camera", "frozen-slot-before", "frozen-slot-after"] and not await travelers_log(): return
+	if not phase in ["confirmations", "button-tooltips", "item-tooltips", "menu-sounds", "layout", "layout-proof", "cart", "cart-lifetime", "rotate-controls", "mount-rider", "mount-rider-cancel", "freeze-workflow", "authored-camera", "frozen-slot-before", "frozen-slot-after"] and not await travelers_log(): return
 	if phase == "menu-sounds" and not watch_menu_sound_players(): return
 	if not await open_vendor(): return
 	if phase in ["cart", "cart-lifetime"]:
@@ -83,10 +83,117 @@ func run_fixture() -> void:
 		"authored-camera": await authored_camera_proof()
 		"menu-sounds": await menu_sound_proof()
 		"item-tooltips": await item_tooltip_proof()
+		"confirmations": await confirmation_escape_proof()
+
+		"button-tooltips": await button_tooltip_proof()
 		"frozen-slot-before": await frozen_slot_geometry_proof(false)
 		"frozen-slot-after": await frozen_slot_geometry_proof(true)
 		"refund": await refund_after_relog()
 		_: await browse()
+
+func preserve_confirmation_on_escape(label: String, item_frame: bool) -> bool:
+	if not await wait_until(func(): return control("PerksProgramConfirmDialog") != null, label + " confirmation"): return false
+	if item_frame:
+		if not await wait_until(func(): return texture_ready("PerksProgramConfirmItem") and texture_ready("PerksProgramConfirmButtonNormalArt") and texture_ready("PerksProgramConfirmBorder"), "decoded confirmation art"): return false
+		if not assert_dialog_rects_and_art(): return false
+	var before: Dictionary = client.trading_post_state()
+	await tap(KEY_ESCAPE)
+	if control("PerksProgramConfirmDialog") == null:
+		fail("Retail " + label + " confirmation consumed no hideOnEscape but native dismissed it"); return false
+	var after: Dictionary = client.trading_post_state()
+	if after.pending or before.tender != after.tender or before.cart != after.cart or before.selected != after.selected or before.purchased != after.purchased:
+		fail("Escape mutated confirmation authority/cart state"); return false
+	await capture(label + "-escape-preserved")
+	return true
+
+func cancel_confirmation_and_check(tender: int) -> bool:
+	await click("PerksProgramConfirmCancelButton")
+	if not await wait_until(func(): return control("PerksProgramConfirmDialog") == null, "explicit Cancel dismisses confirmation"): return false
+	if int(client.trading_post_state().tender) != tender or client.trading_post_state().pending:
+		fail("Cancel changed Tender or issued a request"); return false
+	return true
+
+func confirmation_escape_proof() -> void:
+	var tender := int(client.trading_post_state().tender)
+	if not await choose_category(1): return
+	if not await select_first_available(tender): return
+	var selected := int(client.trading_post_state().selected)
+	var price := int(client.trading_post_state().price)
+	await click("PerksProgramPurchaseButton")
+	if not await preserve_confirmation_on_escape("purchase", true): return
+	if not await cancel_confirmation_and_check(tender): return
+	await click("PerksProgramAddToCartButton")
+	await click("PerksProgramViewCartButton")
+	await click("PerksProgramCartPurchaseButton")
+	if not await preserve_confirmation_on_escape("cart-purchase", false): return
+	if not await cancel_confirmation_and_check(tender): return
+	await click("PerksProgramCartClearButton")
+	if not await preserve_confirmation_on_escape("clear-cart", false): return
+	if not await cancel_confirmation_and_check(tender): return
+	if not selected in client.trading_post_state().cart:
+		fail("Cancel removed the cart item"); return
+	await click("PerksProgramCartCloseButton")
+	await click("PerksProgramPurchaseButton")
+	await click("PerksProgramConfirmButton")
+	if not await wait_until(func(): return client.trading_post_state().purchased and not client.trading_post_state().pending and int(client.trading_post_state().tender) == tender - price, "one confirmed authoritative purchase", 120000): return
+	if int(client.trading_post_state().refund_seconds) <= 0:
+		fail("Confirmation proof needs explicit private refund policy, never production policy change"); return
+	await click("PerksProgramRefundButton")
+	if not await preserve_confirmation_on_escape("refund", true): return
+	if not await cancel_confirmation_and_check(tender - price): return
+	if not client.trading_post_state().purchased:
+		fail("Refund Cancel revoked purchase"); return
+	await click("PerksProgramRefundButton")
+	await click("PerksProgramConfirmButton")
+	if not await wait_until(func(): return not client.trading_post_state().purchased and not client.trading_post_state().pending and int(client.trading_post_state().tender) == tender, "one confirmed authoritative refund", 120000): return
+	await capture("refunded-tender-restored")
+	await finish("confirmations")
+
+func expect_button_tooltip(owner_name: String, title: String, label: String) -> bool:
+	var owner := control(owner_name)
+	if owner == null:
+		fail("Missing tooltip owner " + owner_name); return false
+	await motion(owner.get_global_rect().get_center(), false)
+	if not await wait_until(func(): return client.tooltip_state().get("visible", false) and client.tooltip_state().get("title", "") == title, "Retail button tooltip " + title, 10000): return false
+	var tooltip: Dictionary = client.tooltip_state()
+	var scale := control("PerksProgramLeaveButton").get_global_rect().size.x / 180.0
+	var rect := owner.get_global_rect()
+	if absf(float(tooltip.rect[0]) + float(tooltip.rect[2]) - rect.position.x / scale) > 1.5 or absf(float(tooltip.rect[1]) + float(tooltip.rect[3]) - rect.position.y / scale) > 1.5:
+		fail("Button tooltip lacks source ANCHOR_LEFT zero offset: " + str(tooltip)); return false
+	await capture(label)
+	return true
+
+func button_tooltip_proof() -> void:
+	var tender := int(client.trading_post_state().tender)
+	if not client.trading_post_state().cart.is_empty():
+		fail("Button tooltip proof requires preserved empty local cart on open"); return
+	if control_enabled("PerksProgramViewCartButton"):
+		fail("Empty View Cart unexpectedly enabled"); return
+	if not await expect_button_tooltip("PerksProgramViewCartButton", "View Cart", "disabled-view-cart"): return
+	if not await choose_category(1): return
+	if not await select_first_available(tender): return
+	var selected := int(client.trading_post_state().selected)
+	if not await expect_button_tooltip("PerksProgramPurchaseButton", "Purchase", "purchase"): return
+	await motion(control("PerksProgramLeaveButton").get_global_rect().get_center(), false)
+	if not await wait_until(func(): return not client.tooltip_state().get("visible", false), "button leave hides tooltip"): return
+	await click("PerksProgramAddToCartButton")
+	if not await expect_button_tooltip("PerksProgramViewCartButton", "View Cart", "enabled-view-cart"): return
+	await click("PerksProgramViewCartButton")
+	if not await expect_button_tooltip("PerksProgramCartPurchaseButton", "Purchase Cart", "checkout"): return
+	if not await expect_button_tooltip("PerksProgramCartClearButton", "Clear Cart", "clear-cart"): return
+	await click("PerksProgramCartClearButton")
+	if not await wait_until(func(): return control("PerksProgramConfirmDialog") != null, "clear confirmation blocks tooltip owner"): return
+	if not await wait_until(func(): return not client.tooltip_state().get("visible", false), "modal blocks underlying button tooltip"): return
+	await click("PerksProgramConfirmButton")
+	if not await wait_until(func(): return client.trading_post_state().cart.is_empty(), "confirmed local cart clear"): return
+	# Existing clear-cart lifecycle hides the panel; do not force an unreachable
+	# empty panel just to manufacture disabled Clear/Checkout native states.
+	if not await wait_until(func(): return control("PerksProgramShoppingCartFrame") == null and not client.tooltip_state().get("visible", false), "cart teardown clears tooltip owner"): return
+	await capture("clear-panel-hidden")
+	if not await expect_button_tooltip("PerksProgramViewCartButton", "View Cart", "cleared-view-cart"): return
+	if int(client.trading_post_state().tender) != tender or int(client.trading_post_state().selected) != selected:
+		fail("Button tooltip/cart-clear proof changed Tender or selected row"); return
+	await finish("button-tooltips")
 
 # Product OnEnter (Elements.lua306-314): hovered item, not selected preview;
 # ANCHOR_RIGHT -16, no SellPrice. Native hit testing must own the lifecycle.
@@ -184,7 +291,10 @@ func layout_proof() -> void:
 	if not assert_dialog_rects_and_art(): return
 	await capture("purchase-confirm")
 	await tap(KEY_ESCAPE)
-	if not await wait_until(func(): return control("PerksProgramConfirmDialog") == null and client.trading_post_state().open, "Escape cancels popup without leaving vendor"): return
+	if control("PerksProgramConfirmDialog") == null or not client.trading_post_state().open:
+		fail("Source confirmation cover failed to consume Escape"); return
+	await click("PerksProgramConfirmCancelButton")
+	if not await wait_until(func(): return control("PerksProgramConfirmDialog") == null, "Cancel dismisses purchase popup"): return
 	if int(client.trading_post_state().tender) != tender: fail("cancel changed Tender"); return
 	await click("PerksProgramPurchaseButton")
 	await click("PerksProgramConfirmButton")
