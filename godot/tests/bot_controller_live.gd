@@ -187,18 +187,29 @@ func tab_to_enemy(request: Dictionary) -> void:
     if after.get("target") == null:
         finish_enemy_tab(request, {"error": "Native Tab found no target", "before": before, "after": after})
         return
-    var query: Dictionary = client.call("spell_priority_state", int(after["target"]), spell_ids)
-    if query.has("error"):
-        finish_enemy_tab(request, {"error": query["error"], "before": before, "after": after})
-        return
-    var native: Variant = JSON.parse_string(query["state_json"])
-    if not native is Dictionary:
-        finish_enemy_tab(request, {"error": "Native Tab priority JSON unavailable"})
-        return
-    finish_enemy_tab(request, {"before": before, "after": after,
-        "selected_health": client.spells_state().get("target_health", -1.0),
-        "selected_hostile": native["facts"]["target_hostile"],
-        "input": "one native KEY_TAB press/release; observed target and native hostility"})
+    var deadline := Time.get_ticks_msec() + 8000
+    var observation := {"error": "Target-bound native hostility not observed"}
+    while Time.get_ticks_msec() < deadline:
+        var assisted: Dictionary = client.assisted_combat_state()
+        observation = enemy_observation(int(after["target"]),
+            str(assisted.get("evaluation_json", "")),
+            float(client.spells_state().get("target_health", -1.0)))
+        if not observation.has("error"):
+            break
+        await process_frame
+    observation.merge({"before": before, "after": client.target_state(),
+        "input": "one native KEY_TAB press/release; target-bound authored native hostility"})
+    finish_enemy_tab(request, observation)
+
+static func enemy_observation(target: int, encoded: String, health: float) -> Dictionary:
+    var evaluation: Variant = JSON.parse_string(encoded)
+    if not evaluation is Dictionary or evaluation.get("target") != target:
+        return {"error": "Native hostility evaluation belongs to another or missing target"}
+    var facts: Variant = evaluation.get("facts")
+    if not facts is Dictionary or facts.get("target_hostile") != true or health <= 0.0:
+        return {"error": "Native selected target lacks alive hostile observation"}
+    return {"selected_hostile": true, "selected_health": health,
+        "hostility_evaluation": evaluation}
 
 func finish_assist(request: Dictionary, result: Dictionary) -> void:
     result["request_id"] = request["request_id"]
