@@ -32,10 +32,10 @@ class StockadeSourceTests(unittest.TestCase):
         with tempfile.TemporaryDirectory() as root:
             path = Path(root) / 'exit.sqlite'
             with closing(sqlite3.connect(path)) as db:
-                db.executescript('CREATE TABLE area_trigger(ID INTEGER,ContinentID INTEGER,Pos_0 REAL,Pos_1 REAL,Pos_2 REAL);'
+                db.executescript('CREATE TABLE area_trigger(ID INTEGER,ContinentID INTEGER,Pos_0 REAL,Pos_1 REAL,Pos_2 REAL,ShapeType INTEGER,Box_length REAL,Box_width REAL,Box_height REAL,Box_yaw REAL);'
                                  'CREATE TABLE tdb_areatrigger_teleport(ID INTEGER,PortLocID INTEGER);'
                                  'CREATE TABLE tdb_world_safe_locs(ID INTEGER,MapID INTEGER,LocX REAL,LocY REAL,LocZ REAL);')
-                db.execute('INSERT INTO area_trigger VALUES(503,34,48.0937233,0.933266521,-13.7769003)')
+                db.execute('INSERT INTO area_trigger VALUES(503,34,48.0937233,0.933266521,-13.7769003,1,6,12,11.3136997,0)')
                 db.execute('INSERT INTO tdb_areatrigger_teleport VALUES(503,3618)')
                 db.execute('INSERT INTO tdb_world_safe_locs VALUES(3618,0,-8762,848,87)');db.commit()
             plan = stockade_exit_plan(path)
@@ -50,12 +50,14 @@ class StockadeSourceTests(unittest.TestCase):
             # Actual terminal map34 observation has nav-surface Y below trigger center.
             base = {'screen': 'InWorld', 'selected_character_name': 'Bwarfury', 'local_player_health': 8256}
             observations = iter([{**base, 'world_map_id': 34,
-                                  'local_player_position': '(48.09372, -16.07247, -0.933267)'},
+                                  'local_player_position': '(50.49923, -16.96527, -0.846576)'},
                                  {**base, 'world_map_id': 0,
                                   'local_player_position': '(-8766.11,87.9952,-845.499)'}])
             controller.account = lambda: next(observations)
             from bot_controller import PlayerController
-            controller.player = PlayerController(None, None,
+            def unexpected_movement(*words):
+                self.fail(f"Movement submitted after native entry into authored trigger volume: {words}")
+            controller.player = PlayerController(unexpected_movement, None,
                 lambda *args: [[48.09372, -15.718611, -0.933267]], None)
             with patch('run_stockade_bot.time.sleep'):
                 controller.exit_instance()
