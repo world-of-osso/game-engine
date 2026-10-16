@@ -73,7 +73,7 @@ func open_task_map() -> bool:
 		if client.world_map_state().get("open", false) and pin_index(TASK) >= 0:
 			return true
 		await process_frame
-	stop("Real task pin absent on active zone map: " + str(client.world_map_state().get("map_id")))
+	stop("Real task pin absent map=" + str(client.world_map_state()) + " quests=" + str(client.quest_state()))
 	return false
 
 func capture_phase(phase: String) -> bool:
