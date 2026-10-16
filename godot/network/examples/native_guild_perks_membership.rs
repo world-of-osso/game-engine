@@ -67,18 +67,27 @@ impl Actor {
             }
             self.entered = true;
         } else if message.is::<GuildInvitation>() {
-            let invitation = message
-                .downcast::<GuildInvitation>()
-                .map_err(|_| "invite decode")?;
-            if self.name != "Gcperkspeer"
-                || invitation.guild_name != "Guild Perks"
-                || invitation.inviter_name != "Gcperkslead"
-            {
-                return Err(format!("Unexpected invitation: {invitation:?}"));
-            }
-            self.bridge
-                .send::<_, AuthChannel>(GuildAcceptInviteRequest)?;
-        } else if message.is::<GuildInviteResponse>() {
+            return self.accept_invitation(message);
+        } else {
+            return self.receive_reply(message);
+        }
+        Ok(())
+    }
+
+    fn accept_invitation(&self, message: ProtocolMessage) -> Result<(), String> {
+        let invitation = message
+            .downcast::<GuildInvitation>()
+            .map_err(|_| "invite decode")?;
+        let expected_peer = self.name == "Gcperkspeer";
+        let expected_inviter = invitation.inviter_name == "Gcperkslead";
+        if !expected_peer || !expected_inviter || invitation.guild_name != "Guild Perks" {
+            return Err(format!("Unexpected invitation: {invitation:?}"));
+        }
+        self.bridge.send::<_, AuthChannel>(GuildAcceptInviteRequest)
+    }
+
+    fn receive_reply(&mut self, message: ProtocolMessage) -> Result<(), String> {
+        if message.is::<GuildInviteResponse>() {
             let reply = message
                 .downcast::<GuildInviteResponse>()
                 .map_err(|_| "invite reply decode")?;
@@ -170,7 +179,7 @@ fn wait_for(
     }
 }
 
-fn transitions(actors: &mut [Actor; 2], perks: &BTreeSet<u32>) -> Result<(), String> {
+fn await_login(actors: &mut [Actor; 2], perks: &BTreeSet<u32>) -> Result<BTreeSet<u32>, String> {
     wait_for(actors, "actual member/nonmember login", |a| {
         a.iter().all(|v| v.entered && v.snapshot) && perks.is_subset(&a[0].known)
     })?;
@@ -181,6 +190,11 @@ fn transitions(actors: &mut [Actor; 2], perks: &BTreeSet<u32>) -> Result<(), Str
     let baseline = actors[1].known.clone();
     actors[1].additions.clear();
     actors[1].removals.clear();
+    Ok(baseline)
+}
+
+fn transitions(actors: &mut [Actor; 2], perks: &BTreeSet<u32>) -> Result<(), String> {
+    let baseline = await_login(actors, perks)?;
     actors[0].invite()?;
     wait_for(actors, "accepted invitation grants", |a| {
         perks.is_subset(&a[1].known)
@@ -201,11 +215,16 @@ fn transitions(actors: &mut [Actor; 2], perks: &BTreeSet<u32>) -> Result<(), Str
     wait_for(actors, "ordinary quit revocation", |a| {
         a[1].known == baseline
     })?;
+    assert_exact_deltas(&actors[1], perks);
+    Ok(())
+}
+
+fn assert_exact_deltas(peer: &Actor, perks: &BTreeSet<u32>) {
     let mut expected: Vec<_> = perks.iter().copied().chain(perks.iter().copied()).collect();
     expected.sort_unstable();
-    let mut additions = actors[1].additions.clone();
+    let mut additions = peer.additions.clone();
     additions.sort_unstable();
-    let mut removals = actors[1].removals.clone();
+    let mut removals = peer.removals.clone();
     removals.sort_unstable();
     assert_eq!(
         additions, expected,
@@ -215,7 +234,6 @@ fn transitions(actors: &mut [Actor; 2], perks: &BTreeSet<u32>) -> Result<(), Str
         removals, expected,
         "Exactly two real revocations, preserving class knowledge"
     );
-    Ok(())
 }
 
 fn run() -> Result<(), String> {

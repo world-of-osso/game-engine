@@ -72,3 +72,19 @@ Actual missing-inset RED at37c31d967 retained the invitation action control PASS
 ## See Also
 
 - [Native UI automation](../../specs/native-ui-automation.md) — native interaction boundaries.
+
+### Perk native authority and effect boundary —2026-10-16
+
+Private5891 exposed a real transport bug: independently draining KnownSpellsSnapshot/SpellsLearned/SpellsUnlearned reordered their shared TalentChannel, losing a membership grant behind the login snapshot. Held-worker real-UDP RED151f18d4c→GREEN66ea7bd1e joins these messages to the existing message-ID-sorted talent relay; existing spec/config lifecycle control also passes. Native owner knowledge now contains all five IDs. Actual source tooltips use ANCHOR_RIGHT36,0 and fully resolve installed descriptions. Both-skin physical Shift-click produces a labeled draft, actual server chat echo and the correct received spell tooltip. Fresh server/client readback passes with identical binaries. Sixteen first-run1920×1080 screenshots inspected; restart files remain separate.
+
+Actual UDP invitations/acceptance, online officer removal, rejoin and ordinary quit produce exactly two copies of each real perk learn/unlearn ID, preserving every baseline class spell (`native_guild_perks_membership`). Server persisted existing-member login, forced/offline removal and database reopen controls pass separately. These prove catalog, knowledge and UI—not the effects below.
+
+| Perk | Installed effect boundary | Current effect evidence |
+|---|---|---|
+| Mount Up78633 | Aura172/211/210,10% | Mounted/flight nonstacking modifiers and PvP exclusion not behaviorally proven; current movement accumulator does not dispatch these IDs. |
+| Hasty Hearth83944 | Aura453,−900000ms, misc2309 | Existing453 charge-recovery path does not establish a reduction of ordinary Hearthstone cooldown; no functional claim. |
+| Mobile Banking83958 | Script effect77; description references88306,5min | No83958/88306 script or guild-chest reputation authority established. Effect77 is not a generic summon-object effect. |
+| The Quick and the Dead83950 | Aura340,+50%; second dummy effect10% | Resurrection-health, ghost-speed and combat/PvP exclusion not implemented/proven by this slice. |
+| Guild Mail83951 | Source dummy aura; mail send checks actual same guild | Existing `mail::send` sets attached-mail delay to zero for same-guild members; retain separate behavioral control. |
+
+Authority: installed active Spell/SpellEffect CSVs; server `auras/stat_mods.rs`, `auras/handlers.rs`, `spell_cast/effects.rs`, `mail.rs`; pinned TC Guild.cpp2322/3002. Missing effect behavior is an explicit gap, not a fabricated buff or chest.
