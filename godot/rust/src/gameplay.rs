@@ -200,6 +200,24 @@ impl PlayerMovement {
         self.reported_speed = self.unmodified_speed();
     }
 
+    fn restrict_vehicle_direction(&mut self, direction: Vec3, yaw: f32) -> Vec3 {
+        let Some(vehicle) = self.vehicle else {
+            return direction;
+        };
+        if vehicle.flags & VEHICLE_FIXED_POSITION != 0 {
+            self.direction = MoveDirection::None;
+            return Vec3::ZERO;
+        }
+        if vehicle.flags & VEHICLE_NO_STRAFE == 0 {
+            return direction;
+        }
+        if matches!(self.direction, MoveDirection::Left | MoveDirection::Right) {
+            self.direction = MoveDirection::None;
+        }
+        let forward = Vec3::new(yaw.sin(), 0.0, yaw.cos());
+        forward * direction.dot(forward)
+    }
+
     fn restrict_vehicle_yaw(&self, current: f32, wanted: f32, delta: f32) -> f32 {
         let Some(vehicle) = self.vehicle else {
             return wanted;
@@ -258,18 +276,7 @@ impl PlayerMovement {
         } else {
             0.0
         };
-        if let Some(vehicle) = self.vehicle {
-            let forward = Vec3::new(yaw.sin(), 0.0, yaw.cos());
-            if vehicle.flags & VEHICLE_FIXED_POSITION != 0 {
-                direction = Vec3::ZERO;
-                self.direction = MoveDirection::None;
-            } else if vehicle.flags & VEHICLE_NO_STRAFE != 0 {
-                direction = forward * direction.dot(forward);
-                if matches!(self.direction, MoveDirection::Left | MoveDirection::Right) {
-                    self.direction = MoveDirection::None;
-                }
-            }
-        }
+        let direction = self.restrict_vehicle_direction(direction, yaw);
         MovementFrame {
             direction: direction.to_array(),
             speed: self.unmodified_speed() * self.speed_modifier,
@@ -902,7 +909,13 @@ impl crate::GameClient {
             delta,
         );
         player.set_position(Vector3::new(next.x, next.y, next.z));
-        player.set_rotation(Vector3::new(0.0, yaw - std::f32::consts::FRAC_PI_2, 0.0));
+        // NPC visuals already carry the M2 alignment under their logical root.
+        let root_yaw = if self.player_movement.vehicle.is_some() {
+            yaw
+        } else {
+            yaw - std::f32::consts::FRAC_PI_2
+        };
+        player.set_rotation(Vector3::new(0.0, root_yaw, 0.0));
         if self.player_movement.take_takeoff_request() {
             self.cast_spell(SKYWARD_ASCENT)
                 .map_err(|error| format!("Skyward Ascent takeoff: {error}"))?;

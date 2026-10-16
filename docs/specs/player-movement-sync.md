@@ -16,6 +16,13 @@ The Godot client predicts the local player's movement and reports each moved pos
 - [x] Live: in deep water the client swims at 4.72 yd/s (7.0 before) and the server ends where the client does (`godot/tests/world_speed_walk.gd`, `SPEED_SWIM=1`, `--fixed-fps 60`).
 - [ ] Live: under a snare or speed aura the server's position stays with the client's.
 
+### NPC vehicle driver
+- A controlling seat's replicated `VehicleDriverMovement` selects the NPC named by `VehiclePassenger.driver` as the input/prediction mover; the seated player's body remains server-controlled.
+- Driver reports use the rider's adopted movement epoch and the NPC's logical position/facing. No seat-height body position is reported as the vehicle position.
+- Source NPC walk/run speeds, Vehicle Flags and TurnSpeed govern gait, no-strafe/no-jump/fixed-position constraints and turn rate. NPC visuals retain their existing M2 alignment.
+- Non-controlling passengers remain held. Exit/removal restores ordinary body input; existing teleport, modal-stop and mount-owner behavior stay unchanged.
+- Server-channel, native input, synthetic attachments and actual-model/both-skin pixels require separate proof.
+
 ### Stop input
 - [x] The first idle frame after a moving or jumping input sends exactly one `PlayerInput` with no direction, no jump, the final predicted position and the adopted epoch; later idle frames in that epoch send nothing.
 - [x] Adopting a new teleport epoch reports current movement intent once even while stationary; a stop reported under the previous epoch cannot establish the new epoch's stopped state.
