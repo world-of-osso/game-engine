@@ -2354,6 +2354,17 @@ impl GameClient {
                     self.add_world_error(&error)?;
                 }
             }
+            AccountEvent::Currency(update) => {
+                if let Some(message) = update.message {
+                    game_engine_ui_model::chat_frame::add_system_line(
+                        &mut self.chat.model.log,
+                        &message,
+                    );
+                }
+                if let Some(error) = update.error {
+                    self.add_world_error(&error)?;
+                }
+            }
             AccountEvent::GameTime(time) => {
                 self.world_clock = Some((time.second_of_day(), time.new_speed, Instant::now()));
             }

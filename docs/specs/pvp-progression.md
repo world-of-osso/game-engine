@@ -22,6 +22,12 @@ Fifteen inspected1920x1080 originals (including one explicitly named failed/dead
 
 Character Currency remains a real implementation gap: native IPC returns `unported request CurrenciesStatus`, the native account does not consume CurrencyStateUpdate, and only Character/Reputation tabs render. Fresh wallets remain0; no award was fabricated to enable a currency tab. The requested Currency consumer/UI is the next slice, not marked accepted by these captures. Match-completion payout binding, current season-cap authority, rated-BG reference policy and account-wide aggregation remain separate named gaps.
 
+## Native Currency consumer — continuation
+
+The default native network bridge must relay the existing owner-only CurrencyStateUpdate. The account keeps the last supplied snapshot, distinguishes no receipt from an empty wallet, retains the last snapshot on a refusal with no replacement, and clears it on new connections/world resets. Currency IPC status exposes that authoritative cache, not PvP lifetime XP. Message/error feedback uses normal chat/UI error delivery. Character Currency/TokenFrame presentation remains a separate gate.
+
+For native presentation proof only, the parent approved a private server-owned saved discovered Honor1792 entry of quantity0. This is neither an earned balance nor an award. Fresh empty-wallet receipt/hidden-tab behavior must also be proved. No cap, reward, transfer or preference mutation policy is invented.
+
 ## Local source export
 
 `scripts/export_db2_csv.py` accepts exact pinned layouts for CurrencyTypes1095531, PvpTalent1302853, PvpTalentCategory1891534, PvpTalentSlotUnlock1950197 and PrestigeLevelInfo1275869. Exported fields describe source records, not runtime implementation guarantees. TrinityCore DB2Structure.h locally preserved in `data/diagnostics/scrap-2026-10-10/` supplies field semantics; CASC supplies values.
