@@ -768,3 +768,64 @@ fn particle_cleanroom_tail_width_is_independent_of_head_velocity_orientation() {
     assert_eq!(quad.axis_x, Vec3::X * 0.5 * 0.05);
     assert_eq!(quad.axis_y, Vec3::Y * 0.25 * 0.05);
 }
+
+/// Near is inserted first, far second; births remain stationary in world space.
+fn overlap_emitter(flags: u32) -> (ParticleEmitter, EmitterSim) {
+    let mut emitter = still_emitter(flags);
+    emitter.lifespan = 10.0;
+    emitter.opacity_keys = vec![(0.0, 0.5)];
+    emitter.color_keys = vec![(0.0, [255.0, 0.0, 0.0]), (1.0, [0.0, 0.0, 255.0])];
+    let mut sim = EmitterSim::new(&emitter, 11);
+    sim.update(
+        &emitter,
+        0.015,
+        Mat4::from_translation(Vec3::NEG_Z),
+        Mat3::IDENTITY,
+        1.0,
+    );
+    sim.update(
+        &emitter,
+        0.015,
+        Mat4::from_translation(Vec3::NEG_Z * 5.0),
+        Mat3::IDENTITY,
+        1.0,
+    );
+    assert_eq!(sim.particles().len(), 2);
+    (emitter, sim)
+}
+
+#[test]
+fn particle_cleanroom_sort_uses_view_depth_not_birth_order() {
+    let (emitter, sim) = overlap_emitter(0x2);
+    let mut quads = Vec::new();
+    sim.quads(&emitter, &camera(), &mut quads);
+    assert_eq!(quads.len(), 2);
+    assert_eq!(quads[0].center.z, -5.0);
+    assert_eq!(quads[1].center.z, -1.0);
+    quads.clear();
+    let reverse = ViewBasis {
+        right: Vec3::NEG_X,
+        up: Vec3::Y,
+        back: Vec3::NEG_Z,
+    };
+    sim.quads(&emitter, &reverse, &mut quads);
+    assert_eq!(quads[0].center.z, -1.0);
+    assert_eq!(quads[1].center.z, -5.0);
+}
+
+#[test]
+fn particle_cleanroom_sort_off_preserves_live_order_and_pairs_head_tail() {
+    let (mut emitter, sim) = overlap_emitter(0);
+    let mut quads = Vec::new();
+    sim.quads(&emitter, &camera(), &mut quads);
+    let expected: Vec<_> = sim.particles().iter().map(|p| p.position).collect();
+    assert_eq!(quads.iter().map(|q| q.center).collect::<Vec<_>>(), expected);
+    emitter.flags |= 0x2 | 0x40000;
+    quads.clear();
+    sim.quads(&emitter, &camera(), &mut quads);
+    assert_eq!(quads.len(), 4);
+    assert_eq!(quads[0].center.z, -5.0);
+    assert_eq!(quads[1].center.z, -5.0);
+    assert_eq!(quads[2].center.z, -1.0);
+    assert_eq!(quads[3].center.z, -1.0);
+}

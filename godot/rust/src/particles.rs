@@ -702,6 +702,41 @@ impl IRefCounted for WowParticleProbe {
 
 #[godot_api]
 impl WowParticleProbe {
+    /// Two stationary half-alpha particles, near blue born before far red.
+    /// Uses actual shared simulation ordering and the native pooled renderer.
+    #[func]
+    fn overlap_node(
+        &self,
+        texture_dir: GString,
+        sorted: bool,
+        blend: i64,
+        reverse: bool,
+    ) -> Variant {
+        let (mut emitter, sim) = overlap_fixture(sorted);
+        emitter.blend_type = blend as u8;
+        let dir = godot::classes::ProjectSettings::singleton()
+            .globalize_path(&texture_dir)
+            .to_string();
+        let material = match particle_material(&emitter, Path::new(&dir)) {
+            Ok(material) => material,
+            Err(error) => return error.to_variant(),
+        };
+        let sign = if reverse { -1.0 } else { 1.0 };
+        let view = ViewBasis {
+            right: Vec3::X * sign,
+            up: Vec3::Y,
+            back: Vec3::Z * sign,
+        };
+        let mut quads = Vec::new();
+        sim.quads(&emitter, &view, &mut quads);
+        let mut pool = ParticlePool::new("ParticleOverlapProbe", &material);
+        pool.reserve(quads.len());
+        pool.begin_frame();
+        pool.push(&quads, 1.0);
+        pool.end_frame();
+        pool.node().clone().upcast::<Node3D>().to_variant()
+    }
+
     /// A pool node drawing one `size`-half-extent quad at the origin in the XZ plane,
     /// textured by `texture_dir`/`fdid`.blp, of colour `color` (authored space) and
     /// placement `fade`; blend type `blend`. An error string on failure.
@@ -746,6 +781,54 @@ impl WowParticleProbe {
         pool.end_frame();
         pool.node().clone().upcast::<Node3D>().to_variant()
     }
+}
+
+/// Fixed inputs for the native depth-order pixel fixture; no production emitters changed.
+fn overlap_fixture(sorted: bool) -> (ParticleEmitter, EmitterSim) {
+    let emitter = ParticleEmitter {
+        flags: 0x20000 | if sorted { 0x2 } else { 0 },
+        emitter_type: 1,
+        texture_fdid: Some(910001),
+        tile_rows: 1,
+        tile_cols: 1,
+        emission_rate: 100.0,
+        lifespan: 1.0,
+        color_keys: vec![
+            (0.0, [255.0, 0.0, 0.0]),
+            (0.1, [255.0, 0.0, 0.0]),
+            (0.4, [0.0, 0.0, 255.0]),
+            (1.0, [0.0, 0.0, 255.0]),
+        ],
+        opacity_keys: vec![(0.0, 0.5)],
+        scale_keys: vec![(0.0, [1.5; 2])],
+        twinkle_percent: 1.0,
+        twinkle_scale_min: 1.0,
+        twinkle_scale_max: 1.0,
+        ..ParticleEmitter::default()
+    };
+    let mut sim = EmitterSim::new(&emitter, 11);
+    sim.update(
+        &emitter,
+        0.015,
+        Mat4::from_translation(Vec3::Z),
+        Mat3::IDENTITY,
+        1.0,
+    );
+    sim.update(
+        &emitter,
+        0.5,
+        Mat4::from_translation(Vec3::Z),
+        Mat3::IDENTITY,
+        0.0,
+    );
+    sim.update(
+        &emitter,
+        0.015,
+        Mat4::from_translation(Vec3::NEG_Z),
+        Mat3::IDENTITY,
+        1.0,
+    );
+    (emitter, sim)
 }
 
 #[cfg(test)]
