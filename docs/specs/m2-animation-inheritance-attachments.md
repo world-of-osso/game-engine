@@ -5,12 +5,12 @@ Authored M2 bone-parent selection and attachment participation follow the user-s
 ## What it must do
 
 ### A6
-- [ ] Preserve ordinary inheritance for unflagged bones and ignore low inheritance bits on roots.
-- [ ] With identity model transform and zero pivots, parent uniform scale2 produces child vertex length2 for flags0 and length1 for flags2.
-- [ ] Bit1 selects model translation; cases2/4/6 respectively retain parent directions/model lengths, model directions/parent lengths, and model basis.
-- [ ] Without bit1, preserve the parent's transformed child pivot when replacing its basis.
+- [x] Preserve ordinary inheritance for unflagged bones and ignore low inheritance bits on roots.
+- [x] With identity model transform and zero pivots, parent uniform scale2 produces child vertex length2 for flags0 and length1 for flags2.
+- [x] Bit1 selects model translation; cases2/4/6 respectively retain parent directions/model lengths, model directions/parent lengths, and model basis.
+- [x] Without bit1, preserve the parent's transformed child pivot when replacing its basis.
 - [ ] Apply low-bit selection before local animation and billboards, without changing crossfade state or losing affine shear in native skinning.
-- [ ] Render an authentic low-bit model before/after at1920×1080 in m2debug.
+- [x] Render an authentic low-bit model before/after at1920×1080 in m2debug.
 
 ### A7
 - [ ] Retain MD20 and SKA1 attachment byte tracks, defaulting missing samples to active1.
@@ -32,11 +32,12 @@ Authored M2 bone-parent selection and attachment participation follow the user-s
 
 - `godot/core/src/m2_inheritance.rs` — uniform scale, translation, rotation, pivot and nonidentity-model fixtures.
 - `godot/rust/src/animation/billboard.rs` — root and ordinary-descendant controls.
+- `godot/tests/m2_inheritance_pixels.gd` — authentic125913 bone67 flags4/parent12; same-clock ordinary-hierarchy baseline versus restored affine override, native1920×1080.
 
 ## Known gaps (current cycle)
 
 - [ ] A6 runtime-added flags/modern contracts: no allowed-source evidence established. Only authored low bits are implemented.
-- [ ] A6 native capture and exact affine override behavior await native acceptance; CPU parent-selection RED established.
+- [ ] A6 nonuniform/sheared native palette fixture remains unmeasured. Parent-selection CPU3 and native root/descendant1 pass. Authentic125913 same-clock m2debug native run passes; PNGs inspected at `/syncthing/AgentShared/2026-10-15/m2-anim/a6-125913-{before,after}.png`. Baseline clears affine overrides in the same binary; it is not an old-revision executable. Bone67 keeps its transformed pivot while its inherited tilted basis becomes identity.
 - [ ] A7 implementation and native participation fixture pending.
 - [ ] A7 color-pass behavior: activation alone does not establish hiding; do not change color visibility without evidence.
 - [ ] A7 reactivation clock: reference skip alone establishes neither freeze nor catch-up; do not claim either as client parity.
