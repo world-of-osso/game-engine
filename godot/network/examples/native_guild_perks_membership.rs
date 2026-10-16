@@ -187,7 +187,7 @@ fn transitions(actors: &mut [Actor; 2], perks: &BTreeSet<u32>) -> Result<(), Str
     })?;
     actors[0]
         .bridge
-        .send::<_, GuildChannel>(GuildRankRequest::Remove {
+        .send::<_, GuildChannel>(GuildRankRequest::RemoveMember {
             character_name: "Gcperkspeer".into(),
         })?;
     wait_for(actors, "online forced-removal revocation", |a| {
@@ -239,7 +239,7 @@ fn run() -> Result<(), String> {
         )
         .map_err(|e| e.to_string())?;
     }
-    for actor in actors {
+    for mut actor in actors {
         actor.bridge.stop()?;
     }
     result?;
