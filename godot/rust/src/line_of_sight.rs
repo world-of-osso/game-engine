@@ -1,8 +1,6 @@
-//! Line of sight witness rays for casts (game-server docs/specs/line-of-sight.md, Player
-//! casts): a clear segment from the local player's eye point to the first of the target's
-//! eyes, chest and feet. It runs the server's own rules over the same bake: `shared::los`
-//! reads `data/los` (eye table and map tiles), so a ray the client finds clear is clear
-//! on the server, and one it cannot find, the server would refuse.
+//! Client cast rays from the current local pose, over the shared `data/los` bake.
+//! The server independently validates target visibility at authoritative receipt-time
+//! positions; this client sample does not authorize or reject server LOS.
 
 use std::collections::HashMap;
 use std::path::{Path, PathBuf};
@@ -78,6 +76,16 @@ impl LineOfSight {
 }
 
 impl crate::GameClient {
+    /// Range queries and cast origins sample this same locally controlled pose.
+    pub(crate) fn local_cast_feet(&self) -> Option<Position> {
+        let feet = self.world.local_player_node()?.get_position();
+        Some(Position {
+            x: feet.x,
+            y: feet.y,
+            z: feet.z,
+        })
+    }
+
     /// The witness ray a cast at `target` carries: `None` for no target, the player
     /// itself, or no clear ray.
     pub(crate) fn cast_witness(
@@ -98,13 +106,10 @@ impl crate::GameClient {
         };
         // The player where it is drawn and reports itself; the target where the server
         // last placed it.
-        let (Some(node), Some(yaw)) = (
-            self.world.local_player_node(),
-            self.world.local_player_facing(),
-        ) else {
+        let (Some(feet), Some(yaw)) = (self.local_cast_feet(), self.world.local_player_facing())
+        else {
             return Ok(None);
         };
-        let feet = node.get_position();
         let caster = self
             .line_of_sight
             .body(caster, Vec3::new(feet.x, feet.y, feet.z), yaw)?;
