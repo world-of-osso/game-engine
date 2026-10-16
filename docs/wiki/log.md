@@ -5,6 +5,47 @@
 ## 2026-10-16 — Guild news live acceptance
 
 [News](systems/guilds.md#news): source-qualified actual producers, independent query/filter/sticky authority and source art. Private UDP/native both-skin controls,250 physical retained entries, permissions/privacy and exact fresh-process readback pass;16 full-HD captures inspected. Final merged-source model4/backend6/wire1 and cargo checks pass. Source right-click input omission fixed; harness readiness and JSON-number membership failures remain distinct from product failures. Independent lead gate/landing next.
+## 2026-10-16 — House Access checkbox-only hit targets
+
+[Source checkbox targeting](systems/housing.md#house-access-checkbox-hit-targets--2026-10-16):140px row button replaced with30×29 checkbox in noninteractive row; RED→GREEN5, both-skin label refusal/checkbox staging/mode/pending proof. Forty fullHD comparisons change only checkbox art after source LEFT anchoring. Typography/backend remain separate.
+
+## 2026-10-16 — Native BM predicate follow-up and party-death reporting
+
+[BM follow-up](systems/bot-harness.md#bm-pet-presence-follow-up--verified2026-10-16): latest pet-presence predicates remove29672/58 refusal; two fresh60s windows remain0damage because every sample selects CallPet1 and no pet appears. Collection complete is not working rotation/pet proof. [Stockade](systems/bot-harness.md#stockade-boss-accounting) later stops504.704s at native tankdeath; roster confirms one death absent from combat events. Actual-fixture RED→GREEN accounting now retains that observation and withholds death totals; original report preserved. Ordinary source-box exit completes natively. No boss clear/DPS proof or stat/kit override; owned runtimes stopped.
+
+## 2026-10-16 — First native Fury Stockade attempts
+
+[Stockade receipts](systems/bot-harness.md#stockade-boss-accounting): authentic equal-budget owner/Normal party entry confirmed twice; first81.541s attempt exposed dead assisted-target observation, reproduced/fixed with native fixture. Second405.948s attempt passed that boundary but lost connection as server ticks degraded12.2→0.5/s; no boss credit, all boss DPSnull, zero observed deaths/totalsunknown after capture loss. Ordinary source-trigger exit observedmap0; async trigger-ack replay fixed separately. Owned runtimes stopped; clear/loot/boss metrics remain open.
+
+## 2026-10-16 — Owned Stockade run caller
+
+[Native caller](systems/bot-harness.md#stockade-boss-accounting) requires existing equal-budget gear, native five-role group and copy-bound actors, then consumes maintained F-assist/IPC casts/strict navmesh movement. It records raw continuity/priority/error/credit evidence and separates clear timing, deaths and owned per-boss DPS. No provisioning/stat overrides or private Mage driver. Actual Fury run remains pending; matched extension/CLI/server/native route-query builds completed separately.
+
+## 2026-10-16 — Maintained Stockade controller integration
+
+[Bot Stockade boundary](systems/bot-harness.md#stockade-boss-accounting): follower523dc4ce5/master merged preserving both native parser/metrics and routed player interface;115 bot Python cases/controller syntax pass. New readonly encounter/spawn plan, target-bound native authored provider, party facts and native equal-budget sheet/inventory observations are implemented after source-module RED. Actual Fury Stockade execution/credit/clear time remains pending; no diagnostic driver, Mage cycle or stat override copied.
+## 2026-10-16 — HouseSettings action-button source art
+
+[Three action buttons](systems/housing.md#housesettings-action-button-art--2026-10-16): four source UIPanel bindings only, RED→GREEN and both-skin enabled/disabled/pending native proof; all eight fullHD changes confined to button rectangles. No typography/lifecycle/backend claim.
+
+## 2026-10-15 — Housing storage filter popup
+
+[Source popup](systems/housing.md#storage-filter-popup--implementation2026-10-15): native old-position/width RED→shared menu description/Sort arrows/radios/root6/2 anchor and both-skin four-phase native GREEN at65c1a18c3/14db32ab. Missing Placeable/date/tag/collection semantics remain unavailable. Affected F17 Forever recaptured on that current binary with four durable records; startup terrain_mcsh noise traced to shared used_shaders warmup state, no S3/shared-state changes. Four popup/two recapture inspected1280 PNGs published.
+## 2026-10-16 — HouseSettings inherited close button
+
+[Source close](systems/housing.md#housesettings-close-button--2026-10-16): text-X geometry RED and native highlight-replacement RED repaired; both-skin/pending state/input/cancel/ADD proof,16 context pairs unchanged outside old/new close rectangles. No lifecycle/backend claim.
+
+## 2026-10-16 — HouseSettings omitted decorative regions
+
+[Source regions](systems/housing.md#housesettings-decorative-regions--2026-10-16): genuine missing-region RED→GREEN restores gradient/foliage/divider only; both-skin native6region geometry and inspected panels, zero changes outside three source rectangles.
+
+## 2026-10-16 — Pet queue-ready button art
+
+[Source button family](systems/battle-pets.md#queue-ready-button-art--2026-10-16): explicit default atlas RED replaced with inherited UIPanel sheet IDs; RED→GREEN, both-skin8 physical cases/24crops; four fullHD comparisons change only inside buttons. Captions/typography/lifecycle unchanged and not newly certified.
+
+## 2026-10-16 — House Access dropdown
+
+[Source caller](systems/housing.md#house-access-dropdown--2026-10-16): generic160×28/plain rows replaced by inherited122×25 WowStyle2/MenuStyle1; genuine RED→GREEN, both-skin physical states/three draft selections and pending refusal. All26 context changes confined to House Access column; Save/persistence/other panel fidelity excluded.
 
 ## 2026-10-15 — Campsite selected-hover
 
@@ -17,6 +58,29 @@
 ## 2026-10-15 — Adventure Guide authored creature selection
 
 [Model choices](systems/adventure-guide.md#authored-model-selection--bounded-native-proof-2026-10-15) now select authored names/displays and owner-right description tooltips. Both-skin native47be Helix→Oaf/reset/Nezir passes with M2-camera-rendered heads and the source circle mask. Independent verification caught prior3f static boss-art substitution despite passing corner checks; native RED→GREEN covers the corrected portrait identity. Full-model authored UiModelScene camera remains a named gap.
+## 2026-10-15 — Post-parity all40 attempt boundary
+
+[Exact coverage](systems/bot-harness.md#post-parity-all40-attempt-coverage):40 expected specs,39 retained reports,34 setup/collection errors; full comparison withheld. Six specs have two complete windows, not class correctness. Resto105 owned-bag retry now grants0/equips10 normally, survives fresh login, then source2305/condition11 refuses; partial189 damage/DPSnull.68 Python cases and native provisioning proof; remaining predicates/loadout/dead/movement boundaries retained. Stockade deferred; no owned runtime left.
+
+## 2026-10-15 — Retry-safe bot equipment grants
+
+[Owned inventory boundary](systems/bot-harness.md#retry-safe-owned-gear-provisioning): Resto105's earlier granted kit survived login timeout, but pre-login retry counted only equipped slots and filled bags with duplicates. Grants now follow authenticated native inventory, subtract bag copies and await replication before ordinary gear input. No deletion/account reset/admin equip. Exact native recovery now proves zero grants/full10-item normal equip; source2305/condition11 still blocks measurement.
+
+## 2026-10-15 — Native-controller three-DPS proof
+
+[Fresh native proof](systems/bot-harness.md#native-controller-three-dps-proof): Arms/Fury/BM six common-budget60s windows with actual auto-attack and received outcomes; mean-spec median129.0833, max/median1.00342, min/median0.281407, no tolerance/pass-fail. Old IPC windows remain diagnostic. Havoc now triggers Demon Blades then source21566/3 refuses; Cat/Bear confirm then5968/5741 condition3 refuse. Explicit new roster and preserved blocked comparisons prevent silent dropout. All40 post-parity attempts remain active; Stockade deferred.
+
+## 2026-10-15 — Current native dummy admin schema
+
+[Fixture boundary](systems/bot-harness.md#current-admin-fixture-boundary): actual native setup reaches Cat/Bear form confirmation, then rejects the newly appended combat JSON. Parser regression uses captured server lines; current suffix/static armor required, transient threat excluded. Frozen private render cache refreshed from published source with all prior-column rows hash-identical; canonical data untouched. Combat remeasurement still pending.
+
+## 2026-10-15 — All40 bot diagnostic batch and received outcome fields
+
+[Batch boundaries](systems/bot-harness.md#first-all40-diagnostic-batch):40 expected specs,43 raw reports,31 setup/collection errors; full comparison withheld, dead Ret quarantined. Per-ability final diagnostics retained; old IPC path still invalidates representative-controller acceptance. Received crit/glancing/periodic/mitigation fields now serialized unchanged after a focused Rust RED; fresh Rust/native gates pending. Private batch runtime stopped.
+
+## 2026-10-15 — Bot combat outcomes and native-cast parity gap
+
+[Per-ability triage](systems/bot-harness.md#per-ability-triage) adds raw hit/miss counts, nullable crits, real swing identity/share, sampled GCD/idle and raw power changes plus sourced DB2 coefficients/costs/order. No inferred spending or exact timing. The first diagnostic MVP has1368 auto_attack=null samples/zero swings despite all three requested abilities carrying the native OnCast attribute; raw-intent IPC bypasses the normal auto-attack hook. Six native replay assertions RED; IPC parity fix/new outcome exposure/native remeasurement pending, so representative-controller acceptance is reopened. All40 diagnosis continues unchanged; these are not evidence for a Fury coefficient fix or balance acceptance.
 ## 2026-10-15 — Housing storage Filter header
 
 [Filter header](systems/housing.md#storage-filter-header--implementation2026-10-15): actual native missing-source-surface RED→shared fixed-width Filter/reset primitive and both-skin physical four-phase assertions GREEN on the existing725px drawer. Existing popup/semantics/authority unchanged. Four inspected1280 PNGs; Forever truncated final JSON retained with three complete records and final reset/conservation PASS/screenshot, no invented fourth record. Unrelated missing terrain shader is excluded from scoped header proof. Primary-mode animation hypothesis rejected because source enables it only on unsupported Layout/Exterior.
@@ -4081,8 +4145,24 @@ Completed Retailv2 codec/authoritative Create and committed Copy callbacks, exac
 - 2026-10-15: [Instance Loot](systems/adventure-guide.md#instance-and-encounter-loot--2026-10-15): source64/45px rows, resolved icons/quality borders, central tooltip, native intrinsic subclass sizing and actual row→boss navigation. Behavioral REDs→45/45, check/fmt0, independent correction proof and twelve inspected both-skin1e15 originals; runtime identity and authority gaps retained.
 - 2026-10-15 — Shared WowStyle1 caption centering: native15px font minimum expanded authored10px box3px low; full-height caption box plus explicit source one-line policy and paired toolkit FontString attribute wiring. Engine20/core2 tests and both-skin1080p actual AH/shared/long-caption proof pass; Filter/Style2 crops byte-identical and no changed RGB outside caption/shadow in six comparisons. Prior valid wrapping REDs and invalid fixture expectations retained in diagnostics ui-questlog-dropdown-centering-2026-10-15/caption-centering-proof-ledger.json. [System](systems/menu-primitives.md#wowstyle1-caption-centering-2026-10-15). No live trading/whole-UI parity claim.
 
+- 2026-10-16: Trading Post product-row hover consumer uses Retail item catalog and source right−16 anchor without sell price; actual missing-tooltip RED recorded, GREEN pending. See [system](systems/trading-post.md#product-row-item-tooltips--implementation-october16).
 - 2026-10-15: [Journal source difficulties](systems/adventure-guide.md#difficulty-source-menus--bounded-proof-2026-10-15): literal mode order, localized size captions, documented World/Mythic Flex bases and isolated toolkit attribute reconciliation after native two-line RED. Final48/48/check/fmt and eight inspected both-skin2cd3 PNGs; raw unsupported modes and defeated markers not claimed.
 
 - 2026-10-15: [Saved boss defeated overlays](systems/adventure-guide.md#saved-boss-defeated-overlays--bounded-proof-2026-10-15): real sparse-bit Heroic save authority, source atlas/gold tooltip, wrong-difficulty/reopen/expiry controls and ten inspected actual both-skin native originals. Final49/49/check/fmt and independent correction verification; per-skin fixture/profile identity retained.
 
 - 2026-10-15: [Item Sets source composition](systems/adventure-guide.md#item-sets-source-composition--bounded-proof-2026-10-15): source list/controls/appearance icons, independent class/spec state, global search and intrinsic title alignment. Final59/59/check/fmt, independent verification and fourteen inspected actual both-skin1e45 originals; unsupported shared tooltip authority/actions retained explicitly.
+
+- 2026-10-16: Product-row item tooltip native both-skin GREEN at569419cb7; final-scale ordering fixes real owner-bound mismatch without changing layout/framing.27 UI+12 native Trading Post and52 tooltip regressions/check/scoped format pass at846cf1d1d. Eight full-HD PNGs plus two contacts published; [proof inventory](systems/trading-post.md#product-row-item-tooltips--implementation-october16).
+
+- 2026-10-16: Button tooltip source/label branches inventoried; disabled View Cart actual native RED observed. Existing Traveler's Log pane is owned by Adventure Guide; pending-item delivery remains a distinct provider gap. [Trading Post](systems/trading-post.md#button-tooltips--implementation-october16).
+- 2026-10-16: Extracted [routed native player-controller boundary](systems/bot-harness.md#routed-native-controller--implementation-2026-10-16): explicit per-spec provider/strict route/native F and semantic loot input; native Greed and all-spec rotation coverage remain separate gates.
+
+- 2026-10-16: Maintained [explicit pinned Arcane provider](systems/bot-harness.md#explicit-approved-arcane-source-provider) with portable captured source/trait fixtures; source24/36/64 and strict level32/kit/fight coverage, no fallback or native/all-spec acceptance.
+
+- 2026-10-16: PerksProgram purchase/refund/cart/clear confirmations omit hideOnEscape. Native purchase premature-dismissal RED observed; dispatcher corrected, explicit Cancel retained. Earlier Escape-cancel fixture claim corrected. [Trading Post](systems/trading-post.md#confirmation-keyboard-ownership--implementation-october16).
+- 2026-10-16: Button tooltips source content2 and native both-skin real-control/lifetime proof pass;16 full-HD screenshots plus4 contacts published. Final29UI12native/check/scopedformat pass; pending-item/native disabled-refund boundaries remain explicit. [Trading Post](systems/trading-post.md#button-tooltips--implementation-october16).
+
+- 2026-10-16: [Owner pet assisted predicates](investigations/cooldown-assist-data.md#owner-pet-predicates--2026-10-16): source-decoded57/58 and recorded owner presence; living controlled pet versus absent, unknown dead/missing actor retained. BM Call Pet authored decision regression; fresh UDP and Arms1187/12 exact count geometry remain open.
+- 2026-10-16: Confirmation covers native both-skin GREEN: Escape preserves Purchase/Refund/Cart/Clear; explicit Cancel retains authority/cart, one real purchase/refund restores Tender.12 full-HD screenshots+2 contacts published;29UI12native/check/format pass atfc1d4c351. [Trading Post](systems/trading-post.md#confirmation-keyboard-ownership--implementation-october16).
+
+- 2026-10-16: [Actual native Greed](systems/bot-harness.md#native-actual-greed--2026-10-16): maintained route/F/provider/viewport bridge; Moloch63346 Greed95→GUID525,7.040s ACK, inspected1280 input/win PNGs and owned cleanup. Azure/full-spec remain separate.

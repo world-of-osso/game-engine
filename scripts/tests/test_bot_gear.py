@@ -50,10 +50,21 @@ class BotGearTests(unittest.TestCase):
         starter = "slot=MainHand guid=116 item_id=25 name=\"Worn Shortsword\"\nslot=OffHand guid=115 item_id=2362 name=\"Worn Wooden Shield\"\n"
         expected = {24930: 1, 24932: 1, 24928: 1, 24926: 1, 24931: 1,
                     24927: 1, 24933: 1, 24929: 1, 25031: 1, 25129: 2}
-        self.assertEqual(bot_gear.required_grants(plan, starter), expected)
+        self.assertEqual(bot_gear.required_grants(plan, starter, []), expected)
         correct = "\n".join(f'slot={item["slot"]} guid={index} item_id={item["item_id"]}'
                             for index, item in enumerate(plan["items"], 1))
-        self.assertEqual(bot_gear.required_grants(plan, correct), {})
+        self.assertEqual(bot_gear.required_grants(plan, correct, []), {})
+
+    def test_retry_grants_count_owned_bags_without_regranting_equipped_weapons(self):
+        plan = {"items": [{"slot": "MainHand", "item_id": 25129},
+                          {"slot": "OffHand", "item_id": 25129},
+                          {"slot": "Head", "item_id": 24930}]}
+        equipped = 'slot=MainHand guid=247 item_id=25129 name="Giant Leg Bone" count=1'
+        bags = [{"bag": 0, "slot": 0, "item_guid": 248, "item_id": 25129, "count": 1},
+                {"bag": 0, "slot": 1, "item_guid": 249, "item_id": 24930, "count": 1}]
+        self.assertEqual(bot_gear.required_grants(plan, equipped, bags), {})
+        self.assertEqual(bot_gear.required_grants(plan, equipped, bags[:1]), {24930: 1})
+        self.assertEqual(bot_gear.required_grants(plan, equipped, []), {25129: 1, 24930: 1})
 
     def test_every_installed_playable_spec_has_a_sourced_fixture(self):
         bots = bot_roster.build_roster(FIXTURES / "db2", 32)
