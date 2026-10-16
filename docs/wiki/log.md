@@ -1,3 +1,7 @@
+## 2026-10-16 — Authored quality reagent selection
+
+[Native quality selection](systems/native-professions-crafting.md#authored-quality-selection--verified2026-10-16): both1920×1080 skins pass physical mixed-tier selection, typed clamp, Cancel, owned-stock disablement, incomplete-slot authority refusal and complete allocation with no fabricated outcome. Native Plain chrome registration fixed reproduced dialog conversion failure; source operation composition remains a named gap. Twelve quality originals inspected; conservation gate tracked separately.
+
 ## 2026-10-16 — Fade effect native projection
 
 [Fade107](systems/battle-pets.md#fade-effect-projection--2026-10-16): both explicit skins on privateUDP5961 physically cast authored Jadefire Spirit Fade, observe Scratch miss/expiry/reserve swap, and retain two framed active models. Four fullHD originals inspected;91 shared PetBattle rectangles identical. Fixture removes broken auction inheritance and uses shared posed geometry. Current-CASC11-asset Jadefire closure staged privately; canonical publication remains lead-owned. All owned processes stopped.
