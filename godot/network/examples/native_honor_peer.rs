@@ -11,7 +11,7 @@ use std::{
 
 fn main() -> Result<(), String> {
     let directory = PathBuf::from(std::env::var("HONOR_DIRECTORY").map_err(|e| e.to_string())?);
-    let bridge = BridgeConfig::new()
+    let mut bridge = BridgeConfig::new()
         .receive::<LoginResponse>()
         .receive::<EnterWorldResponse>()
         .receive::<NewWorld>()
