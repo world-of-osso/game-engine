@@ -386,7 +386,7 @@ fn full_results(ctx: &SharedContext, view: &View, rows: &[ResultRow<'_>]) -> Ele
         (0., 0., 24., 24.),
     );
     art.extend(rsx! {button {name:"EncounterJournalSearchResultsClose",left:583.0,top:-2.0,width:24.0,height:24.0,pos_type:"absolute",button_default_skin:false,onclick:"journal:search-close",{close}}});
-    rsx! {r#frame {name:"EncounterJournalSearchResults",left:100.0,top:89.0,width:600.0,height:400.0,pos_type:"absolute",mouse_enabled:true,frame_level:25.0,{art},{list}}}
+    rsx! {r#frame {name:"EncounterJournalSearchResults",left:100.0,top:89.0,width:600.0,height:400.0,pos_type:"absolute",mouse_enabled:true,frame_level:25.0,{art} {list}}}
 }
 fn atlas_size(name: &str) -> (f32, f32) {
     let region = ui_toolkit::atlas::resolve_region(name, ui_toolkit::atlas::thread_skin())
