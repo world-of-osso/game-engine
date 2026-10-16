@@ -154,7 +154,9 @@ func expect_cart_item_tooltip(owner_name: String, title: String, item_id: int, l
 	var owner := control(owner_name)
 	if owner == null:
 		fail("Missing real cart tooltip owner " + owner_name); return false
+	print("TP_CART_CURSOR_BEFORE raw=", root.get_mouse_position(), " target=", owner.get_global_rect().get_center())
 	await motion(owner.get_global_rect().get_center(), false)
+	print("TP_CART_CURSOR_AFTER raw=", root.get_mouse_position(), " hovered=", root.gui_get_hovered_control())
 	if not await wait_until(func(): return client.tooltip_state().get("visible", false) and client.tooltip_state().get("title", "") == title, "Retail cart hovered item tooltip", 10000): return false
 	var tooltip: Dictionary = client.tooltip_state()
 	var lines := str(tooltip.get("lines", []))
@@ -1286,6 +1288,8 @@ func motion(point: Vector2, down: bool, relative: Vector2 = Vector2.ZERO) -> voi
 	event.relative = relative
 	event.button_mask = MOUSE_BUTTON_MASK_LEFT if down else 0
 	root.push_input(event, true)
+	if phase == "cart-tooltips":
+		Input.warp_mouse(point)
 	await process_frame
 
 func button_event(point: Vector2, button: int, down: bool) -> void:
