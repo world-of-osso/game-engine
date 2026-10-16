@@ -406,6 +406,41 @@ fn adventure_guide_model_limits_authored_choices_to_nine() {
 }
 
 #[test]
+fn adventure_guide_difficulty_base_aliases_keep_world_caption_and_base_actions() {
+    for skin in [ActiveSkin::Modern, ActiveSkin::Forever] {
+        let mut v = view();
+        v.apply("journal:instance:1317").unwrap();
+        assert_eq!(
+            v.catalog.instance(1317).unwrap().name,
+            "The Tidebound Grotto"
+        );
+        v.apply("journal:difficulty-menu").unwrap();
+        let r = render(&v, skin);
+        assert_eq!(text(&r, "JournalDifficulty16Text"), "Mythic");
+        assert_eq!(text(&r, "JournalDifficulty250Text"), "World");
+        assert!(r.get_by_name("JournalDifficulty233").is_none());
+        assert!(r.get_by_name("JournalDifficulty17").is_none());
+        assert!(rect(&r, "JournalDifficulty250")[1] < rect(&r, "JournalDifficulty14")[1]);
+        v.apply(
+            frame(&r, "JournalDifficulty250")
+                .onclick
+                .as_deref()
+                .unwrap(),
+        )
+        .unwrap();
+        assert_eq!(
+            v.difficulty, 17,
+            "World radio uses its source PrimaryRaidLFR base"
+        );
+        let selected = render(&v, skin);
+        assert_eq!(text(&selected, "JournalDifficultyDropdownText"), "World");
+        v.apply("journal:difficulty:16").unwrap();
+        let selected = render(&v, skin);
+        assert_eq!(text(&selected, "JournalDifficultyDropdownText"), "Mythic");
+    }
+}
+
+#[test]
 fn adventure_guide_difficulty_captions_use_source_names_and_actual_group_sizes() {
     for skin in [ActiveSkin::Modern, ActiveSkin::Forever] {
         for (instance, captions) in [
