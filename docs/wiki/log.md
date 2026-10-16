@@ -1,3 +1,7 @@
+## 2026-10-16 — Inherited frozen Trading Post item tooltip
+
+[Inherited tooltip](systems/trading-post.md#inherited-frozen-product-tooltip--implementation-october16): resolve the existing displayed selection action instead of ordinary-only names. Missing native frozen-hover RED→actual8e9/7f7c8875/44e6bed both-skin settled-slot GREEN, independent item/model identity, source anchor/no sell price/leave/teardown and unchanged Tender. Four inspected full-HD hover/leave originals+two contacts published; genuine private frozen slots retained. Pending-freeze/drag/framing excluded.
+
 ## 2026-10-16 — Fade effect native projection
 
 [Fade107](systems/battle-pets.md#fade-effect-projection--2026-10-16): both explicit skins on privateUDP5961 physically cast authored Jadefire Spirit Fade, observe Scratch miss/expiry/reserve swap, and retain two framed active models. Four fullHD originals inspected;91 shared PetBattle rectangles identical. Fixture removes broken auction inheritance and uses shared posed geometry. Current-CASC11-asset Jadefire closure staged privately; canonical publication remains lead-owned. All owned processes stopped.
