@@ -20,7 +20,7 @@ func run_test() -> void:
 	role = "mount-up-entry"
 	if not await connect_private_account() or not await enter_world("Gcperkspeer"):
 		return
-	if not mark("member-ready.go"):
+	if not mark_officer("member-ready.go"):
 		return
 	if not await wait_until(func(): return FileAccess.file_exists(officer_dir.path_join("riding-ready.go")), "actual riding/mount fixture setup"):
 		return
@@ -41,7 +41,7 @@ func run_test() -> void:
 		if not await prove_mount_cycle():
 			return
 		write_json(role + "-movement.json", {"samples": samples})
-	mark("done.go")
+	mark_officer("done.go")
 	print("PASS GUILD_MOUNT_UP_NATIVE both_skins=true real_invite_accept=true real_officer_remove=true ground=14/15.4/14 flight=22.4/24.64/22.4")
 	client.free()
 	quit(0)
@@ -53,7 +53,7 @@ func prove_mount_cycle() -> bool:
 		return false
 	if not await dismount_and_land():
 		return false
-	if not mark("invite-%d.go" % phase):
+	if not mark_officer("invite-%d.go" % phase):
 		return false
 	if not await wait_until(func(): return shown("GuildInviteFrameJoinButton"), "actual officer invitation"):
 		return false
@@ -65,7 +65,7 @@ func prove_mount_cycle() -> bool:
 		return false
 	if not await lift_off() or not await sample_movement(24.64, "member-flight"):
 		return false
-	if not mark("remove-%d.go" % phase):
+	if not mark_officer("remove-%d.go" % phase):
 		return false
 	if not await wait_until(func(): return known_perks().is_empty(), "real officer removal revokes grants"):
 		return false
@@ -134,7 +134,7 @@ func move_key(code: Key, pressed: bool) -> void:
 	event.pressed = pressed
 	root.push_input(event, true)
 
-func mark(name: String) -> bool:
+func mark_officer(name: String) -> bool:
 	var file := FileAccess.open(officer_dir.path_join(name), FileAccess.WRITE)
 	if file == null:
 		return fail("Cannot publish officer coordination marker " + name)
