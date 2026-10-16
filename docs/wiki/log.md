@@ -1,6 +1,10 @@
+## 2026-10-15 — Post-parity all40 attempt boundary
+
+[Exact coverage](systems/bot-harness.md#post-parity-all40-attempt-coverage):40 expected specs,39 retained reports,34 setup/collection errors; full comparison withheld. Six specs have two complete windows, not class correctness. Resto105 owned-bag retry now grants0/equips10 normally, survives fresh login, then source2305/condition11 refuses; partial189 damage/DPSnull.68 Python cases and native provisioning proof; remaining predicates/loadout/dead/movement boundaries retained. Stockade deferred; no owned runtime left.
+
 ## 2026-10-15 — Retry-safe bot equipment grants
 
-[Owned inventory boundary](systems/bot-harness.md#retry-safe-owned-gear-provisioning): Resto105's earlier granted kit survived login timeout, but pre-login retry counted only equipped slots and filled bags with duplicates. Grants now follow authenticated native inventory, subtract bag copies and await replication before ordinary gear input. No deletion/account reset/admin equip. Exact native recovery pending.
+[Owned inventory boundary](systems/bot-harness.md#retry-safe-owned-gear-provisioning): Resto105's earlier granted kit survived login timeout, but pre-login retry counted only equipped slots and filled bags with duplicates. Grants now follow authenticated native inventory, subtract bag copies and await replication before ordinary gear input. No deletion/account reset/admin equip. Exact native recovery now proves zero grants/full10-item normal equip; source2305/condition11 still blocks measurement.
 
 ## 2026-10-15 — Native-controller three-DPS proof
 
