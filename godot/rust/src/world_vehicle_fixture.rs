@@ -68,6 +68,7 @@ impl VehicleAttachmentFixture {
         state.set("vehicle", self.world.local_vehicle_movement().is_some());
         state.set("blocked", self.world.local_input_blocked());
         state.set("mover", self.world.local_mover_node().unwrap().get_name());
+        state.set("facing", self.world.local_mover_facing().unwrap());
         state
     }
 

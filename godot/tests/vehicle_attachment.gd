@@ -22,6 +22,8 @@ func run_test() -> void:
 			check(rider.global_transform.is_equal_approx(point.global_transform), "rider follows authored seat transform npc=" + str(npc) + " rider=" + str(rider.global_transform) + " seat=" + str(point.global_transform))
 		var driving: Dictionary = fixture.claim_driver()
 		check(driving.vehicle == npc, "only NPC controlling seat selects the vehicle mover")
+		if npc:
+			check(abs(float(driving.facing) - 1.2) < 0.00001, "boarding must adopt the NPC's latest remote facing, not its old spawn yaw")
 		check(driving.blocked != npc, "non-driver passenger remains held")
 		check(str(driving.mover) == ("Host" if npc else "Rider"), "input uses NPC logical root, never rider seat position")
 		check(fixture.release_rider() == "", "release rider")
