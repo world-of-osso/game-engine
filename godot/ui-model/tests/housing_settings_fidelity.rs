@@ -67,7 +67,9 @@ fn house_access_source_dropdown_menu_and_staged_selection_both_skins() {
                 .is_some()
         );
         assert_eq!(
-            frame(&registry, "HousingSettingsFlagfriends").position.top,
+            frame(&registry, "HousingSettingsFlagfriendsRow")
+                .position
+                .top,
             Val::Px(162.0)
         );
         for (key, label) in [
@@ -190,6 +192,189 @@ fn house_settings_paints_source_header_foliage_and_divider_both_skins() {
                 registry.get_by_name(name).is_some(),
                 "{name} remains present"
             );
+        }
+    }
+}
+
+#[test]
+fn house_settings_source_close_button_both_skins() {
+    use ui_toolkit::widgets::texture::TextureSource;
+    game_engine_ui_model::paths::set_data_root(
+        std::path::PathBuf::from(env!("CARGO_MANIFEST_DIR")).join("../../data"),
+    )
+    .unwrap();
+    for skin in [ActiveSkin::Modern, ActiveSkin::Forever] {
+        set_thread_skin(skin);
+        for pending in [false, true] {
+            let mut view = view();
+            view.model.pending = pending;
+            let mut shared = SharedContext::new();
+            shared.insert(view);
+            let mut registry = FrameRegistry::new(1920.0, 1080.0);
+            Screen::new(housing_screen).sync(&shared, &mut registry);
+            let close = frame(&registry, "HousingSettingsClose");
+            assert_eq!((close.width.value(), close.height.value()), (24.0, 24.0));
+            assert_eq!(
+                (close.position.left, close.position.top),
+                (Val::Px(577.0), Val::Px(0.0))
+            );
+            assert_eq!(close.frame_level, 510);
+            assert_eq!(close.onclick.as_deref(), Some("housing:close"));
+            let Some(WidgetData::Button(button)) = &close.widget_data else {
+                panic!("HouseSettings close must be a button")
+            };
+            assert!(button.text.is_empty());
+            assert!(!button.use_default_skin);
+            assert!(button.enabled);
+            assert_eq!(button.state, ButtonState::Normal);
+            for (actual, atlas) in [
+                (&button.normal_texture, "RedButton-Exit"),
+                (&button.pushed_texture, "RedButton-exit-pressed"),
+                (&button.disabled_texture, "RedButton-Exit-Disabled"),
+                (&button.highlight_texture, "RedButton-Highlight"),
+            ] {
+                assert_eq!(*actual, Some(TextureSource::Atlas(atlas.into())));
+            }
+            assert_eq!(button.highlight_alpha, 1.0);
+        }
+    }
+}
+
+#[test]
+fn house_settings_action_button_art_both_skins() {
+    use ui_toolkit::widgets::texture::TextureSource;
+    game_engine_ui_model::paths::set_data_root(
+        std::path::PathBuf::from(env!("CARGO_MANIFEST_DIR")).join("../../data"),
+    )
+    .unwrap();
+    for skin in [ActiveSkin::Modern, ActiveSkin::Forever] {
+        set_thread_skin(skin);
+        for pending in [false, true] {
+            let mut view = view();
+            view.model.pending = pending;
+            let mut shared = SharedContext::new();
+            shared.insert(view);
+            let mut registry = FrameRegistry::new(1920.0, 1080.0);
+            Screen::new(housing_screen).sync(&shared, &mut registry);
+            for (name, caption, left, top, disabled, action) in [
+                (
+                    "HousingSettingsSave",
+                    "Save",
+                    402.0,
+                    488.0,
+                    pending,
+                    Some("housing:settings:save"),
+                ),
+                (
+                    "HousingSettingsIgnoreList",
+                    "Ignore List",
+                    46.0,
+                    488.0,
+                    true,
+                    None,
+                ),
+                (
+                    "HousingSettingsAbandon",
+                    "Abandon House",
+                    401.0,
+                    132.0,
+                    true,
+                    None,
+                ),
+            ] {
+                let control = frame(&registry, name);
+                assert_eq!(
+                    (control.width.value(), control.height.value()),
+                    (152.0, 28.0)
+                );
+                assert_eq!(
+                    (control.position.left, control.position.top),
+                    (Val::Px(left), Val::Px(top))
+                );
+                assert_eq!(control.onclick.as_deref(), action);
+                let Some(WidgetData::Button(button)) = &control.widget_data else {
+                    panic!("{name} must remain a button")
+                };
+                assert_eq!(button.text, caption);
+                assert_eq!(
+                    button.state,
+                    if disabled {
+                        ButtonState::Disabled
+                    } else {
+                        ButtonState::Normal
+                    }
+                );
+                for (actual, fdid) in [
+                    (&button.normal_texture, 130828),
+                    (&button.pushed_texture, 130825),
+                    (&button.disabled_texture, 130824),
+                    (&button.highlight_texture, 130826),
+                ] {
+                    assert_eq!(*actual, Some(TextureSource::FileDataId(fdid)), "{name}");
+                }
+            }
+        }
+    }
+}
+
+#[test]
+fn house_settings_checkbox_hit_area_excludes_labels_both_skins() {
+    use game_engine_ui_model::housing_settings::AccessMode;
+    game_engine_ui_model::paths::set_data_root(
+        std::path::PathBuf::from(env!("CARGO_MANIFEST_DIR")).join("../../data"),
+    )
+    .unwrap();
+    for skin in [ActiveSkin::Modern, ActiveSkin::Forever] {
+        set_thread_skin(skin);
+        for mode in [AccessMode::Anyone, AccessMode::NoOne, AccessMode::Limited] {
+            for pending in [false, true] {
+                let mut view = view();
+                view.model.settings.as_mut().unwrap().mode = mode;
+                view.model.pending = pending;
+                let mut shared = SharedContext::new();
+                shared.insert(view);
+                let mut registry = FrameRegistry::new(1920.0, 1080.0);
+                Screen::new(housing_screen).sync(&shared, &mut registry);
+                for (index, key) in ["neighbors", "guild", "friends", "party"]
+                    .into_iter()
+                    .enumerate()
+                {
+                    let name = format!("HousingSettingsFlag{key}");
+                    let checkbox = frame(&registry, &name);
+                    assert_eq!(
+                        (checkbox.width.value(), checkbox.height.value()),
+                        (30.0, 29.0)
+                    );
+                    assert_eq!(
+                        (checkbox.position.left, checkbox.position.top),
+                        (Val::Px(0.0), Val::Px(0.5))
+                    );
+                    assert_eq!(
+                        checkbox.onclick.as_deref(),
+                        Some(format!("housing:settings:toggle:{key}").as_str())
+                    );
+                    let row = frame(&registry, &format!("{name}Row"));
+                    assert_eq!((row.width.value(), row.height.value()), (100.0, 30.0));
+                    assert_eq!(
+                        (row.position.left, row.position.top),
+                        (Val::Px(20.0), Val::Px(74.0 + index as f32 * 44.0))
+                    );
+                    assert!(!row.mouse_enabled && row.onclick.is_none());
+                    let label = frame(&registry, &format!("{name}Label"));
+                    assert!(!label.mouse_enabled && label.onclick.is_none());
+                    let Some(WidgetData::Button(button)) = &checkbox.widget_data else {
+                        panic!("checkbox action target")
+                    };
+                    assert_eq!(
+                        button.state,
+                        if pending || mode != AccessMode::Limited {
+                            ButtonState::Disabled
+                        } else {
+                            ButtonState::Normal
+                        }
+                    );
+                }
+            }
         }
     }
 }
