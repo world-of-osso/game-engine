@@ -26,11 +26,35 @@ func run_test() -> void:
 	if client.account_state().ui_skin != role:
 		fail("Observed skin differs from knowledge fixture")
 		return
-	if not await spend_knowledge():
+	var complete := false
+	if OS.get_environment("CRAFTING_PHASE") == "readback":
+		complete = await readback_knowledge()
+	else:
+		complete = await spend_knowledge()
+	if not complete:
 		return
 	print("FIXTURE MODERN_CRAFTING_KNOWLEDGE_DONE skin=", role)
 	client.free()
 	quit(0)
+
+func readback_knowledge() -> bool:
+	if not await open_recipe_book():
+		return false
+	await press("ProfessionsSpecializationsTab")
+	var tree := "ProfessionSpecTree" + OS.get_environment("CRAFTING_TREE")
+	if not await wait_until(func(): return shown(tree), "persisted specialization tree"):
+		return false
+	await press(tree)
+	var path := "ProfessionSpecNode" + OS.get_environment("CRAFTING_NODE")
+	if not await wait_until(func(): return shown(path), "visible persisted path"):
+		return false
+	await press(path)
+	if not await wait_until(func(): return text("ProfessionSpecDetailedRank") == "1/30" and text("ProfessionSpecKnowledge") == "Knowledge: 24", "persisted rank1 and24 knowledge"):
+		return false
+	await wait_frames(30)
+	await capture("4-persisted-point")
+	print("KNOWLEDGE READBACK rank=1/30 knowledge=24 path_visible=", shown(path), " rect=", control(path).get_global_rect())
+	return true
 
 func click(target: Control) -> void:
 	if not await wait_until(func(): return target.is_visible_in_tree(), "visible native input target " + str(target.name)):
