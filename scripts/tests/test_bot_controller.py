@@ -61,6 +61,34 @@ class ControllerTests(unittest.TestCase):
             self.assertIsNone(self.controller.cast_next(41, lambda state, target: {"spell": 30451}))
         self.assertEqual(self.commands, [])
 
+    def test_opening_uses_server_validation_and_requires_real_success(self):
+        self.native = snapshot(spec=72, spell=57755)
+        self.native["facts"]["in_range"]["57755"] = {"Ok": False}
+        observations = 0
+        def receive(target):
+            nonlocal observations
+            observations += 1
+            if observations >= 3:
+                self.native["spells"]["cast_success_events"] = [
+                    {"source": 7, "spell_id": 57755, "at_ms": 1001}]
+            return self.native
+        self.controller.snapshot = receive
+        result = self.controller.cast_opening(41, 57755)
+        self.assertTrue(result["success"])
+        self.assertGreaterEqual(observations, 3)
+        self.assertEqual(self.commands, [("spell", "cast", "--spell", "57755", "--target", "41")])
+
+    def test_opening_server_refusal_stops_without_repeat_or_alternate(self):
+        self.native = snapshot(spec=72, spell=57755)
+        def refuse(*argv):
+            self.commands.append(argv)
+            self.native["spells"].update(cast_failure_seq=1, cast_failure_events=[
+                {"sequence": 1, "spell_id": 57755, "reason": "OutOfRange", "detail": None}])
+        self.controller.invoke = refuse
+        with self.assertRaisesRegex(RuntimeError, "OutOfRange"):
+            self.controller.cast_opening(41, 57755)
+        self.assertEqual(len(self.commands), 1)
+
     def test_busy_player_never_submits(self):
         self.native["spells"]["casting"] = 30451
         self.assertIsNone(self.controller.cast_next(41, lambda state, target: {"spell": 30451}))
@@ -90,6 +118,21 @@ class ControllerTests(unittest.TestCase):
         result = self.controller.vote_loot()
         self.assertEqual(result["name"], "GroupLootFrame1GreedButton")
         self.assertEqual(requests, [("loot-click", {"name": "GroupLootFrame1GreedButton", "x": 25.0, "y": 40.0})])
+
+    def test_native_tab_accepts_only_observed_alive_hostile_without_entity_command(self):
+        class Bridge:
+            result = {"after": {"target": 41}, "selected_health": 100, "selected_hostile": True}
+            def request(self, kind, payload):
+                return self.result
+        bridge = Bridge()
+        self.controller.bridge = bridge
+        self.assertEqual(self.controller.tab_to_enemy(), 41)
+        for change in [{"selected_health": 0}, {"selected_hostile": False}, {"after": {"target": None}}]:
+            bridge.result = {"after": {"target": 41}, "selected_health": 100,
+                             "selected_hostile": True, **change}
+            with self.assertRaisesRegex(ValueError, "hostile|alive"):
+                self.controller.tab_to_enemy()
+        self.assertEqual(self.commands, [])
 
     def test_native_assist_rejects_unchanged_leader_instead_of_target_shortcut(self):
         class Bridge:
@@ -197,6 +240,27 @@ t=p/'response.writing';t.write_text(json.dumps({'request_id':r['request_id'],'er
             self.assertEqual(child.returncode, 0)
             self.assertFalse((path / "native-assist-request.json").exists(),
                              "Completed request must not be visible to a restarted native client")
+
+    def test_native_enemy_tab_receipt_crosses_a_real_process_boundary(self):
+        import subprocess
+        with tempfile.TemporaryDirectory() as directory:
+            program = '''import json,sys,time
+from pathlib import Path
+p=Path(sys.argv[1]); request=p/'native-enemy-tab-request.json'
+while not request.exists(): time.sleep(.005)
+r=json.loads(request.read_text())
+result={'request_id':r['request_id'],'after':{'target':41},'selected_health':100,'selected_hostile':True}
+t=p/'response.writing';t.write_text(json.dumps(result));t.replace(p/'native-enemy-tab-result.json')
+'''
+            child = subprocess.Popen([sys.executable, "-c", program, directory])
+            try:
+                result = FileBridge(directory, timeout=2).request("enemy-tab", {})
+                self.assertEqual(result["after"]["target"], 41)
+                self.assertTrue(result["selected_hostile"])
+            finally:
+                if child.poll() is None:
+                    child.terminate()
+                child.wait(timeout=3)
 
     def test_timeout_does_not_resubmit_input(self):
         with tempfile.TemporaryDirectory() as directory:

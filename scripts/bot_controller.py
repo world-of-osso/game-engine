@@ -29,7 +29,7 @@ class FileBridge:
         self.timeout = timeout
 
     def request(self, kind, payload):
-        if kind not in ("assist", "loot-click", "pet-assist"):
+        if kind not in ("assist", "loot-click", "pet-assist", "enemy-tab"):
             raise ValueError(f"Unsupported native input request: {kind}")
         identity = uuid.uuid4().hex
         request = self.directory / f"native-{kind}-request.json"
@@ -131,11 +131,29 @@ class PlayerController:
         spell = int(selected["spell"])
         if not native_usable(state, spell):
             return None
+        response = self.submit_cast(state, target, spell)
+        return {**selected, "response": response, "native": state}
+
+    def submit_cast(self, state, target, spell):
         self.pending = {"spell": spell, "actor": int(state["actor"]), "at_ms": state["at_ms"],
                         "successes": self.success_counts(state),
-                        "failure_seq": spells["cast_failure_seq"], "deadline": time.monotonic() + 10}
-        response = self.invoke("spell", "cast", "--spell", str(spell), "--target", str(target))
-        return {**selected, "response": response, "native": state}
+                        "failure_seq": state["spells"]["cast_failure_seq"], "deadline": time.monotonic() + 10}
+        return self.invoke("spell", "cast", "--spell", str(spell), "--target", str(target))
+
+    def cast_opening(self, target, spell):
+        """One explicit prepull cast; server validates range/usability, no retry."""
+        if self.pending is not None:
+            raise RuntimeError("Opening cannot replace an outstanding cast")
+        state = self.snapshot(target)
+        if state.get("target") != int(target) or spell not in state["spells"]["known"]:
+            raise ValueError("Opening requires observed target and learned spell")
+        self.submit_cast(state, target, spell)
+        while not self.observe_cast_outcome(self.snapshot(target)):
+            time.sleep(.05)
+        outcome = self.outcomes[-1]
+        if not outcome["success"]:
+            raise RuntimeError(f"Native opening refused: {outcome}")
+        return outcome
 
     def step_toward(self, here, goal, label):
         """One bounded physical step; caller reobserves combat/route after it."""
@@ -192,6 +210,14 @@ class PlayerController:
             raise ValueError("Native assist did not start on requested leader")
         target = after.get("target")
         return target if target is not None and target != before.get("target") else None
+
+    def tab_to_enemy(self):
+        """One native Tab input; no raw entity-selection command or alternate key."""
+        result = self.bridge.request("enemy-tab", {})
+        target = result["after"].get("target")
+        if target is None or result.get("selected_hostile") is not True or result.get("selected_health", -1) <= 0:
+            raise ValueError("Native Tab did not observe an alive hostile target")
+        return int(target)
 
     def vote_loot(self):
         """Click actual visible non-Need choice; retain Greed vs Transmog identity."""
