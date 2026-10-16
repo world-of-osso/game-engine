@@ -67,7 +67,7 @@ func check_escort() -> bool:
 	while Time.get_ticks_msec() < deadline:
 		await frames(2)
 		var entry := log_entry(client.quest_state(), ESCORT_QUEST)
-		if entry.get("failed", false) or player_dead():
+		if entry.get("failed", false) or player_dead() or not client.unit_alive(giver.id):
 			await capture("failed.png")
 			fail("Private escort or player died before source credit")
 			return false
