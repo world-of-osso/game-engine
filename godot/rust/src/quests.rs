@@ -343,7 +343,7 @@ impl GameClient {
         Ok(())
     }
 
-    fn load_and_apply_quest_pois(&mut self) -> Result<(), String> {
+    pub(super) fn load_and_apply_quest_pois(&mut self) -> Result<(), String> {
         if self.quests.poi_catalog.is_none() {
             let catalog = game_engine_ui_model::quest_poi::QuestPoiCatalog::load(
                 &self.data_root.join("db2/active"),

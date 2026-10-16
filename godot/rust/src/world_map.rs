@@ -527,6 +527,7 @@ impl GameClient {
     }
 
     fn open_world_map(&mut self) -> Result<(), String> {
+        self.load_and_apply_quest_pois()?;
         self.load_world_map_data()?;
         let player = self.world_map_player();
         let data = self.world_map.data().ok_or("World map data not loaded")?;
