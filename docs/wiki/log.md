@@ -1,3 +1,7 @@
+## 2026-10-16 — Native range/cast pose coherence
+
+[Local pose](systems/bot-harness.md#local-rangecast-pose--2026-10-16): real one-second input moves the local client7yd while the loopback host keeps its owner Position frozen; RED shows native Slam range still true at the old replica. Range and cast origin now share the current local pose. Focused fixture also receives the ordinary cast origin; full dev-IPC bag-catalog readiness and fresh release-server Stockade acceptance remain separate.
+
 ## 2026-10-16 — Instrumented BM comparison and native target preparation
 
 [BM](systems/bot-harness.md#instrumented-bm-comparison--2026-10-16): received native Assist0→3, then two complete60s windows157.45/168.50DPS, pet6.44%/4.77%;28 requests/server receipts/CastSuccess and no cast denials. Earlier Cobra timeout did not reproduce; no fabricated server RED/root-fix claim. Native75 repetition remains missing/unproven. Corrected owned diagnostic options produce a real4.9ticks/s stack/host/per-system receipt; navigation root is ground_dir/navmesh, not an unsupported environment override. Native Tab bridge now has process/hostile/alive controls and syntax proof; actual Stockade opening/clear still pending.

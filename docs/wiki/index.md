@@ -1,3 +1,4 @@
+- [Local range/cast pose](systems/bot-harness.md#local-rangecast-pose--2026-10-16) — real input moves the local client while the host replica stays frozen; range and cast origins share the current local pose.
 - [House Access checkbox targets](systems/housing.md#house-access-checkbox-hit-targets--2026-10-16) — source row/checkbox split; native bad label dispatch reproduced then refused,32 physical cases and40 unchanged-outside context pairs.
 - [Alliance escort native fixture](systems/quest-ui.md#alliance-escort-native-fixture--2026-10-16) — Feero976 real-input harness; both skins earned all-three-wave credit; authenticated receipt closure and server grid-lifecycle fix.
 - [HouseSettings action-button art](systems/housing.md#housesettings-action-button-art--2026-10-16) — source UIPanel sheets/fixed12px caps; RED→GREEN, both-skin physical states and eight unchanged-outside context pairs.

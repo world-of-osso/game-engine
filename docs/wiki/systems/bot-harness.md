@@ -50,6 +50,12 @@ The1280 input/result PNGs were inspected and published as `follower-dungeons/nat
 
 `bot_simc_arcane.ArcaneSimcProvider` carries the approved diagnostic projection into the maintained interface with caller-provided receipt/APL/captured-kit/DB2/native-preflight/fight context. Receipt URL/commit and actual APL bytes must match SimC515f4a3fe9d1; the [fixture provenance](../../../scripts/tests/fixtures/bot_harness/simc_arcane32/provenance.json) retains exact source paths/hashes and native row slices. The generic controller contains no Mage IDs or priority. Provider calls are read-only against frozen kit/traits; the [bounded source contract](../../specs/bot-harness.md#approved-pinned-arcane-provider) retains APL24/36/64,2700s iteration timing and explicit unsupported cases. Selection must be explicit; no provider is auto-selected after a native evaluator error.
 
+### Local range/cast pose — 2026-10-16
+
+`read_assisted_facts` and `cast_witness` share `local_cast_feet`, sampled from the current locally controlled node. The previous range reader used the replicated owner Position, which trails physical input. Native dev-IPC regression moves the real client7yd through ordinary input while its loopback host keeps the replica frozen: localx−8941.995 versus replicax−8949, yet old Slam1464 `in_range` remained true. The fixture also receives the ordinary cast and checks its origin against that local pose. `GODOT_TEST_LOCAL_RANGE_ONLY=1 native_input_fixture dev-ipc` selects this boundary without unrelated bag-catalog readiness; it is not a gameplay provider or full dev-IPC pass.
+
+Server target LOS independently uses authoritative receipt-time positions ([contract](../../../../game-server/docs/specs/line-of-sight.md#player-casts-authoritative-target-visibility)); it does not trust an endpoint that ages while an NPC moves. Neither fix changes range values, LOS tolerances, class kits or priority predicates. Fresh release-server Stockade credit remains separate.
+
 ## Capture and detection
 
 `run_dummy_bots.py` requires an explicit socket/state/DB2 directory/dummy. It saves every IPC reply, native samples, run manifest and raw combat. Overlapping ring polls preserve true event multiplicity without recounting overlap; sequence gaps use the observed200-event retention, not the requested1024 lines.
