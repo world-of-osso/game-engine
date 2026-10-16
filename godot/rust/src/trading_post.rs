@@ -40,7 +40,10 @@ pub(crate) struct TradingPost {
     rider_shown: Option<UnitAppearance>,
     rider_actor: Option<Gd<godot::classes::Node3D>>,
     rider_gap: String,
+    camera: Option<game_engine_core::model_scene_camera::ModelSceneCamera>,
+    camera_key: Option<(u32, u32, bool)>,
     yaw: f32,
+    zoom_percent: f32,
     rotating: bool,
     dragged: Option<ProductDrag>,
     /// HUD layers hidden while shown: UIPanelWindows area "full" hides UIParent.
@@ -82,6 +85,8 @@ impl GameClient {
         self.trading_post.freeze_started_at = None;
         self.trading_post.view.clear_cart();
         self.clear_trading_model();
+        self.trading_post.camera = None;
+        self.trading_post.camera_key = None;
         for id in std::mem::take(&mut self.trading_post.hidden_layers) {
             // Other UI owners may have removed their layer while the vendor was open.
             if let Ok(mut layer) = Gd::<CanvasLayer>::try_from_instance_id(id) {
@@ -331,8 +336,8 @@ impl GameClient {
         };
         // ModelSceneMixin.OnUpdate/PerksProgram.xml:0.1 radians per update, not per click.
         for (name, increment) in [
-            ("PerksProgramRotateLeftButton", -0.1),
-            ("PerksProgramRotateRightButton", 0.1),
+            ("PerksProgramRotateLeftButton", 0.1),
+            ("PerksProgramRotateRightButton", -0.1),
         ] {
             let down = pressed.as_deref() == Some(name);
             if down {
@@ -447,8 +452,34 @@ impl GameClient {
         }
         self.trading_post.shown = None;
     }
+    fn prepare_trading_camera(&mut self, has_model: bool) -> Result<(), String> {
+        if !has_model {
+            self.trading_post.camera = None;
+            self.trading_post.camera_key = None;
+            return Ok(());
+        }
+        let view = &self.trading_post.view;
+        let product = view
+            .preview_product()
+            .ok_or("Trading Post camera product missing")?;
+        let scene_id = view.preview_scene_id()?;
+        let key = (product.id, scene_id, view.cart_visible);
+        if self.trading_post.camera_key == Some(key) {
+            return Ok(());
+        }
+        let camera =
+            game_engine_core::model_scene_camera::read_perks_camera(&self.data_root, scene_id)?;
+        self.trading_post.zoom_percent = camera.zoom_percent();
+        self.trading_post.yaw = 0.;
+        self.trading_post.rotating = false;
+        self.trading_post.camera = Some(camera);
+        self.trading_post.camera_key = Some(key);
+        Ok(())
+    }
+
     fn prepare_trading_model(&mut self) -> Result<(), String> {
         let desired = self.desired_trading_appearance()?;
+        self.prepare_trading_camera(desired.is_some())?;
         let current = self
             .trading_post
             .pending
@@ -533,7 +564,16 @@ impl GameClient {
             .as_mut()
             .expect("Trading Post scene created");
         scene.fit_viewport();
-        scene.set_model_yaw(self.trading_post.yaw);
+        let camera = self
+            .trading_post
+            .camera
+            .as_ref()
+            .ok_or("Trading Post authored camera missing")?;
+        scene.set_authored_camera(
+            camera,
+            self.trading_post.yaw,
+            self.trading_post.zoom_percent,
+        );
         Ok(())
     }
     fn attach_trading_model(&mut self) -> Result<(), String> {
@@ -584,7 +624,7 @@ impl GameClient {
             .scene
             .as_mut()
             .ok_or("Trading Post model scene missing")?
-            .replace_model(model);
+            .replace_unframed_model(model);
         self.trading_post.shown = Some(appearance);
         Ok(())
     }
@@ -850,7 +890,7 @@ impl GameClient {
         true
     }
     fn trading_model_pointer(&mut self, event: &Gd<godot::classes::InputEvent>) -> bool {
-        if self.trading_post.view.confirm.is_some() {
+        if self.trading_post.view.confirm.is_some() || self.trading_post.camera.is_none() {
             return false;
         }
         if let Ok(motion) = event
@@ -858,7 +898,17 @@ impl GameClient {
             .try_cast::<godot::classes::InputEventMouseMotion>()
         {
             if self.trading_post.rotating {
-                self.trading_post.yaw += motion.get_relative().x * 0.01;
+                let Some([_, _, width, _]) = self
+                    .trading_post
+                    .ui
+                    .as_ref()
+                    .and_then(|ui| ui.bind().frame_viewport_rect(MODEL))
+                else {
+                    return false;
+                };
+                // InputUtil.GetCursorDelta divides physical deltas by effective UI scale.
+                let scale = width / WIDTH;
+                self.trading_post.yaw -= motion.get_relative().x / scale * 0.008;
                 return true;
             }
             return false;
@@ -869,13 +919,33 @@ impl GameClient {
         else {
             return false;
         };
-        if button.get_button_index() != godot::global::MouseButton::LEFT {
-            return false;
-        }
-        if !button.is_pressed() && self.trading_post.rotating {
+        let index = button.get_button_index();
+        if index == godot::global::MouseButton::LEFT
+            && !button.is_pressed()
+            && self.trading_post.rotating
+        {
             self.trading_post.rotating = false;
             return true;
         }
+        if !button.is_pressed() || !self.trading_model_contains(button.get_position()) {
+            return false;
+        }
+        match index {
+            godot::global::MouseButton::LEFT => self.trading_post.rotating = true,
+            godot::global::MouseButton::WHEEL_UP => {
+                self.trading_post.zoom_percent =
+                    (self.trading_post.zoom_percent - 0.1).clamp(0., 1.);
+            }
+            godot::global::MouseButton::WHEEL_DOWN => {
+                self.trading_post.zoom_percent =
+                    (self.trading_post.zoom_percent + 0.1).clamp(0., 1.);
+            }
+            _ => return false,
+        }
+        true
+    }
+
+    fn trading_model_contains(&self, position: Vector2) -> bool {
         let bounds = self
             .trading_post
             .ui
@@ -897,28 +967,24 @@ impl GameClient {
             .any(|name| {
                 ui.bind()
                     .frame_viewport_rect(name)
-                    .is_some_and(|rect| contains_pointer(rect, button.get_position()))
+                    .is_some_and(|rect| contains_pointer(rect, position))
             })
         });
-        if over_ui {
-            return false;
-        }
-        if let Some([x, y, width, height]) = bounds {
-            if Rect2::new(Vector2::new(x, y), Vector2::new(width, height))
-                .contains_point(button.get_position())
-            {
-                self.trading_post.rotating = button.is_pressed();
-                return true;
-            }
-        }
-        false
+        !over_ui && bounds.is_some_and(|rect| contains_pointer(rect, position))
     }
     pub(super) fn trading_post_snapshot(&self) -> VarDictionary {
         let view = &self.trading_post.view;
         let mut state = VarDictionary::new();
         state.set("open", view.visible);
         state.set("selected", view.selected.map_or(-1, i64::from));
-        state.set("model_yaw", self.trading_post.yaw);
+        if let Some(camera) = &self.trading_post.camera {
+            state.set("camera_id", camera.id);
+            state.set("camera_yaw", camera.yaw + self.trading_post.yaw);
+            state.set(
+                "camera_zoom_distance",
+                camera.zoom_distance_at(self.trading_post.zoom_percent),
+            );
+        }
         let enabled_types: Vec<_> = view
             .snapshot
             .iter()

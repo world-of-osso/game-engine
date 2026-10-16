@@ -583,7 +583,7 @@ impl ParticlePools {
                 Ok(pool) => {
                     let sim =
                         EmitterSim::new(emitter, seed.wrapping_mul(31).wrapping_add(slot as u32));
-                    self.pools[pool].reserve(sim.capacity());
+                    self.pools[pool].reserve(sim.quad_capacity(emitter));
                     emitters.push(PlacedEmitter {
                         emitter: slot,
                         pool,

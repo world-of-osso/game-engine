@@ -63,14 +63,18 @@ impl GameClient {
         if viewport.gui_get_hovered_control().is_some() {
             return Ok(None);
         }
-        if let Some(model) = &self.housing.model {
-            if model.surface == game_engine_ui_model::housing::HousingSurface::Editor
+        let cleanup = self.housing.model.as_ref().is_some_and(|model| {
+            model.surface == game_engine_ui_model::housing::HousingSurface::Editor
                 && model.editor.mode == game_engine_ui_model::housing_editor::EditorMode::Cleanup
-            {
-                return Ok(model
-                    .cleanup_hover_tooltip(&self.housing.authority)
-                    .map(HoveredTooltip::text));
-            }
+        });
+        if cleanup {
+            self.update_cleanup_hover(Vector2::from_array(self.physical_input.pointer()))?;
+            return Ok(self
+                .housing
+                .model
+                .as_ref()
+                .and_then(|model| model.cleanup_hover_tooltip(&self.housing.authority))
+                .map(HoveredTooltip::text));
         }
         let Some(camera) = viewport.get_camera_3d() else {
             return Ok(None);

@@ -17,6 +17,16 @@ pub fn apply_guild_postsetup(
 ) {
     use ui_toolkit::frame::WidgetData;
     crate::guild_control::apply_postsetup(registry);
+    crate::guild_member_detail::apply_note_art(registry);
+    if let Some(id) = registry.get_by_name(crate::guild_member_detail::NOTE_BOX) {
+        if let Some(WidgetData::EditBox(edit)) = &mut registry
+            .get_mut(id)
+            .expect("registered note input")
+            .widget_data
+        {
+            edit.max_letters = Some(GUILD_MEMBER_NOTE_MAX_LETTERS as u32);
+        }
+    }
     let Some(field) = session.profile_editor else {
         return;
     };
@@ -52,6 +62,8 @@ pub fn guild_screen(shared: &SharedContext) -> Element {
     if session.visible {
         children.extend(invite_member_dialog(session));
         children.extend(profile_editor(session));
+        children.extend(crate::guild_member_detail::editor(session));
+        children.extend(crate::guild_member_detail::removal_confirmation(session));
     }
     children
 }
@@ -120,7 +132,7 @@ fn invitation_popup(session: &GuildRanksSession) -> Element {
         "Decline Invitation",
         "guild:decline_invite",
         !session.invitation_waiting,
-        (176.0, 142.0, 110.0, 22.0),
+        (146.0, 142.0, 140.0, 22.0),
     ));
     rsx! { r#frame { name: {DynName("GuildInviteFrame".into())}, width: 310.0, height: 188.0,
     left: "50%", top: "50%", translate_x: "-50%", translate_y: "-50%", pos_type: "absolute",
@@ -139,6 +151,7 @@ fn roster(session: &GuildRanksSession, shared: &SharedContext) -> Element {
     let mut children = crate::guild_communities::shell(session, shared);
     children.extend(guild_profile(session));
     children.extend(member_menu(session));
+    children.extend(crate::guild_member_detail::detail(session));
     rsx! { r#frame { name: {DynName("CommunitiesFrame".into())}, width: 814.0, height: 426.0,
     left: "50%", top: "50%", translate_x: "-50%", translate_y: "-50%", pos_type: "absolute", mouse_enabled: true, strata: FrameStrata::Dialog, {children} } }
 }

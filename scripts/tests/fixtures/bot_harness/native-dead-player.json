@@ -1,0 +1,37 @@
+{
+  "at_ms": 1792098700027,
+  "account": {
+    "gameplay_input_allowed": true,
+    "local_player_health": 0.0,
+    "local_player_id": 4294739512,
+    "connected": true,
+    "selected_character_name": "Bpalretrib"
+  },
+  "spells": {
+    "spec": 70,
+    "catalog_ready": true
+  },
+  "assisted": {
+    "available": true
+  },
+  "target": {
+    "auto_attack": null,
+    "circle_diameter": 1.39999997615814,
+    "circle_on": 4294959692,
+    "health_text": "13137 / 13137",
+    "last_pick_candidates": 0,
+    "last_pick_us": 66,
+    "level_text": "30",
+    "sent": 4294959692,
+    "server_target": 4294959692,
+    "target": 4294959692,
+    "target_name": "Training Dummy"
+  },
+  "gear_status": "observed",
+  "talent_status": "observed",
+  "provenance": {
+    "source": "/home/osso/.worktrees/bot-harness-2026-10-15/native-all-specs1/70/run-001/native-before.json",
+    "server_character_stats": "health: 0/8208",
+    "symptom": "gameplay_input_allowed true while server and replicated health already dead"
+  }
+}
