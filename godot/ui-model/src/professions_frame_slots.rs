@@ -36,7 +36,17 @@ pub(super) fn schematic(view: &ProfessionView) -> Element {
         (309.0, 224.0, 180.0, 20.0),
     ));
     for (index, &(item, owned, needed)) in view.reagents.iter().enumerate() {
-        out.extend(reagent_cell(view, index, item, owned, needed, "", true));
+        out.extend(reagent_cell(
+            view,
+            ReagentCell {
+                index,
+                item_id: item,
+                owned,
+                needed,
+                action: "",
+                show_quality: true,
+            },
+        ));
     }
     out.extend(quality_reagent_cells(view));
     if recipe.output.is_none() {
@@ -74,12 +84,14 @@ fn quality_reagent_cells(view: &ProfessionView) -> Element {
         };
         out.extend(reagent_cell(
             view,
-            view.reagents.len() + index,
-            choice.item_id,
-            owned,
-            slot.quantity,
-            &action,
-            false,
+            ReagentCell {
+                index: view.reagents.len() + index,
+                item_id: choice.item_id,
+                owned,
+                needed: slot.quantity,
+                action: &action,
+                show_quality: false,
+            },
         ));
     }
     out
@@ -110,15 +122,24 @@ fn output_slot(item: &super::ItemDisplay, count: u32) -> Element {
     pos_type: "absolute", button_default_skin: false, {children} } }
 }
 
-fn reagent_cell(
-    view: &ProfessionView,
+struct ReagentCell<'a> {
     index: usize,
     item_id: u32,
     owned: u32,
     needed: u32,
-    action: &str,
+    action: &'a str,
     show_quality: bool,
-) -> Element {
+}
+
+fn reagent_cell(view: &ProfessionView, cell: ReagentCell<'_>) -> Element {
+    let ReagentCell {
+        index,
+        item_id,
+        owned,
+        needed,
+        action,
+        show_quality,
+    } = cell;
     let Some(item) = view.items.get(&item_id) else {
         return vec![];
     };
@@ -221,14 +242,13 @@ fn craft_controls(view: &ProfessionView) -> Element {
 }
 
 fn spinner_arrow(name: &str, action: &str, left: f32, enabled: bool, icons: (u32, u32)) -> Element {
-    spinner_arrow_at(name, action, left, HEIGHT - 29.0, enabled, icons)
+    spinner_arrow_at(name, action, (left, HEIGHT - 29.0), enabled, icons)
 }
 
 pub(super) fn spinner_arrow_at(
     name: &str,
     action: &str,
-    left: f32,
-    top: f32,
+    (left, top): (f32, f32),
     enabled: bool,
     icons: (u32, u32),
 ) -> Element {

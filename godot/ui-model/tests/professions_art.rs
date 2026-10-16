@@ -76,6 +76,10 @@ fn render(skin: ActiveSkin, view: ProfessionView) -> FrameRegistry {
     shared.insert(view);
     let mut registry = FrameRegistry::new(1920.0, 1080.0);
     Screen::new(professions_screen).sync(&shared, &mut registry);
+    game_engine_ui_model::professions_frame::apply_professions_art(
+        shared.get::<ProfessionView>().unwrap(),
+        &mut registry,
+    );
     registry
 }
 fn frame<'a>(registry: &'a FrameRegistry, name: &str) -> &'a Frame {
@@ -162,6 +166,16 @@ fn professions_quality_dialog_shows_authored_choices_without_a_crafted_tier_in_b
             registry
                 .get_by_name("ProfessionReagent1QualityOverlay")
                 .is_none()
+        );
+        let unowned_icon = frame(&registry, "ProfessionQuality193211Icon");
+        assert!(
+            matches!(unowned_icon.widget_data.as_ref(), Some(WidgetData::Texture(texture)) if texture.desaturated)
+        );
+        let unowned_input = frame(&registry, "ProfessionQuality193211Quantity");
+        assert!(!unowned_input.mouse_enabled);
+        assert!(!unowned_input.keyboard_enabled);
+        assert!(
+            matches!(unowned_input.widget_data.as_ref(), Some(WidgetData::EditBox(edit)) if edit.numeric && edit.max_letters == Some(3))
         );
         let dialog = frame(&registry, "ProfessionsQualityDialog");
         assert_eq!(dialog.width, ui_toolkit::frame::Dimension::Fixed(329.0));

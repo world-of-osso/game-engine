@@ -45,6 +45,7 @@ impl ReagentSelection {
     }
 
     pub fn accept(&mut self, slot: &ReagentSlot) -> Option<CraftingOperationRequest> {
+        let spell_id = self.spell_id?;
         let dialog = self.dialog.as_ref()?;
         if self.pending || dialog.slot_index != slot.slot_index || dialog.total() != slot.quantity {
             return None;
@@ -55,7 +56,7 @@ impl ReagentSelection {
         self.pending = true;
         self.response = None;
         Some(CraftingOperationRequest {
-            spell_id: self.spell_id?,
+            spell_id,
             allocations: self.allocations.clone(),
         })
     }
@@ -69,13 +70,14 @@ impl ReagentSelection {
 }
 
 pub fn selectable(slot: &ReagentSlot) -> bool {
-    slot.reagent_type == 1
-        && slot.player_condition == 0
-        && (1..=3).contains(&slot.choices.len())
-        && slot
-            .choices
-            .iter()
-            .all(|choice| choice.item_id != 0 && choice.currency_id == 0)
+    let basic_unconditional = slot.reagent_type == 1 && slot.player_condition == 0;
+    // Professions.lua745-752: one basic reagent is Fixed, not Quality input mode.
+    let fits_quality_dialog = (2..=3).contains(&slot.choices.len());
+    let item_choices = slot
+        .choices
+        .iter()
+        .all(|choice| choice.item_id != 0 && choice.currency_id == 0);
+    basic_unconditional && fits_quality_dialog && item_choices
 }
 
 impl QualityDialog {

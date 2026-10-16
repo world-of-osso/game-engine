@@ -72,6 +72,14 @@ pub struct ProfessionView {
     pub status: String,
 }
 
+/// QualityDialog.lua Setup desaturates unowned tiers and disables their numeric input.
+pub fn apply_professions_art(
+    view: &ProfessionView,
+    registry: &mut ui_toolkit::registry::FrameRegistry,
+) {
+    quality::apply_dialog_art(view, registry);
+}
+
 pub fn professions_screen(ctx: &SharedContext) -> Element {
     let _ = ctx.get::<ui_toolkit::atlas::ActiveSkin>();
     let Some(view) = ctx.get::<ProfessionView>().filter(|view| view.book.visible) else {

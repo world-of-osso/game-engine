@@ -38,6 +38,8 @@ func run_test() -> void:
 	await press("ProfessionReagent1Slot")
 	if not await wait_until(func(): return shown("ProfessionsQualityDialog"), "source reagent-quality dialog"):
 		return
+	if not await typed_quantity_commit():
+		return
 	if not await choose_leather():
 		return
 	await capture("2-mixed-tier-dialog")
@@ -67,7 +69,7 @@ func run_test() -> void:
 	await press("ProfessionReagent1Slot")
 	if not await wait_until(func(): return quantity(193208) == "6" and quantity(193210) == "4", "accepted allocation survives reopening"):
 		return
-	if not control("ProfessionQuality193211Choice").disabled:
+	if not control("ProfessionQuality193211Choice").disabled or control("ProfessionQuality193211Quantity").editable:
 		fail("Unowned tier3 reagent cannot be allocated")
 		return
 	await capture("5-accepted-tier-allocation")
@@ -80,6 +82,23 @@ func run_test() -> void:
 	print("FIXTURE MODERN_CRAFTING_QUALITY_DONE skin=", role, " recipe=375188 selected=193222x2+193208x6+193210x4 quality=UNASSIGNED")
 	client.free()
 	quit(0)
+
+func typed_quantity_commit() -> bool:
+	await press("ProfessionQuality193208Quantity")
+	for pressed in [true, false]:
+		var event := InputEventKey.new()
+		event.keycode = KEY_A
+		event.physical_keycode = KEY_A
+		event.ctrl_pressed = true
+		event.pressed = pressed
+		root.push_input(event, true)
+		await process_frame
+	await type_text("9")
+	await wait_frames(12)
+	if quantity(193208) != "9":
+		return fail("Focused input was overwritten before Enter/blur")
+	await tap(KEY_ENTER)
+	return await wait_until(func(): return quantity(193208) == "6", "Enter clamps typed quantity to six owned reagents")
 
 func choose_leather() -> bool:
 	if not await wait_until(func(): return shown("ProfessionQuality193208Choice"), "three authored leather tiers"):

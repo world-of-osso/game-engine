@@ -242,7 +242,7 @@ impl GameClient {
                 .unwrap_or(0);
         }
         self.read_order_form(&mut ui)?;
-        self.read_quality_quantities(&mut ui);
+        self.read_quality_quantities(&mut ui, false)?;
         loop {
             let action = ui.bind_mut().pop_action().to_string();
             if action.is_empty() {
@@ -476,7 +476,7 @@ impl GameClient {
         if let Some(ui) = &mut self.professions.ui {
             ui.bind_mut().set_ui_scale(scale)?;
             ui.bind_mut().set_state(view)?;
-            self.write_quality_quantities(&mut ui)?;
+            self.write_quality_quantities(&mut ui, false)?;
             return self.initialize_order_form();
         }
         let mut ui = RegistryUi::new_alloc();
