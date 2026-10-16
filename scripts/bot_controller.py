@@ -29,7 +29,7 @@ class FileBridge:
         self.timeout = timeout
 
     def request(self, kind, payload):
-        if kind not in ("assist", "loot-click"):
+        if kind not in ("assist", "loot-click", "pet-assist"):
             raise ValueError(f"Unsupported native input request: {kind}")
         identity = uuid.uuid4().hex
         request = self.directory / f"native-{kind}-request.json"
