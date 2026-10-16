@@ -706,6 +706,7 @@ fn emote_command(command: &str) -> Option<EmoteKind> {
         "kneel" => Some(EmoteKind::Kneel),
         "love" => Some(EmoteKind::Love),
         "mountspecial" => Some(EmoteKind::MountSpecial),
+        "hug" => Some(EmoteKind::Hug),
         _ => None,
     }
 }
