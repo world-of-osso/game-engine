@@ -8,6 +8,10 @@ var receipts := OS.get_environment("TP_RECEIPTS")
 var skin := OS.get_environment("TP_SKIN")
 var phase := OS.get_environment("TP_PHASE")
 var server := OS.get_environment("TP_SERVER")
+var menu_audio_events := []
+# Retail70391 SoundKitEntry rows for218932/218933.
+const MENU_OPEN_FILES := [4956048,4956050,4956052,4956054,4956056]
+const MENU_CLOSE_FILES := [4555731,4555733,4555735,4555737,4555739,4555741,4555743,4555745,4555747,4555749]
 
 func _initialize() -> void:
 	Engine.max_fps = 60
@@ -19,7 +23,7 @@ func run_fixture() -> void:
 		fail("Private compositor must expose 1920x1080 output")
 		return
 	var account := OS.get_environment("TP_ACCOUNT")
-	if server != "127.0.0.1:5791" or not account.begins_with("fb_") or shots.is_empty() or receipts.is_empty() or not phase in ["layout", "layout-proof", "browse", "relog", "purchase", "refund", "cart", "cart-lifetime", "rotate-controls", "mount-rider", "mount-rider-cancel", "freeze-workflow", "authored-camera", "frozen-slot-before", "frozen-slot-after"]:
+	if server != "127.0.0.1:5791" or not account.begins_with("fb_") or shots.is_empty() or receipts.is_empty() or not phase in ["menu-sounds", "layout", "layout-proof", "browse", "relog", "purchase", "refund", "cart", "cart-lifetime", "rotate-controls", "mount-rider", "mount-rider-cancel", "freeze-workflow", "authored-camera", "frozen-slot-before", "frozen-slot-after"]:
 		fail("Explicit private 127.0.0.1:5791, fb_* account, phase and evidence paths required")
 		return
 	for directory in [shots, receipts]:
@@ -43,7 +47,8 @@ func run_fixture() -> void:
 	if not await wait_until(func(): return float(client.account_state().local_player_health) > 0.0, "private character alive", 120000): return
 	client.set_world_minutes(720.0)
 	await wait_frames(120)
-	if not phase in ["layout", "layout-proof", "cart", "cart-lifetime", "rotate-controls", "mount-rider", "mount-rider-cancel", "freeze-workflow", "authored-camera", "frozen-slot-before", "frozen-slot-after"] and not await travelers_log(): return
+	if not phase in ["menu-sounds", "layout", "layout-proof", "cart", "cart-lifetime", "rotate-controls", "mount-rider", "mount-rider-cancel", "freeze-workflow", "authored-camera", "frozen-slot-before", "frozen-slot-after"] and not await travelers_log(): return
+	if phase == "menu-sounds" and not watch_menu_sound_players(): return
 	if not await open_vendor(): return
 	if phase in ["cart", "cart-lifetime"]:
 		# Collection UI owners may replace a hidden CanvasLayer while this vendor is open.
@@ -76,6 +81,7 @@ func run_fixture() -> void:
 		"mount-rider-cancel": await mount_rider_cancel_proof()
 		"freeze-workflow": await freeze_workflow_proof()
 		"authored-camera": await authored_camera_proof()
+		"menu-sounds": await menu_sound_proof()
 		"frozen-slot-before": await frozen_slot_geometry_proof(false)
 		"frozen-slot-after": await frozen_slot_geometry_proof(true)
 		"refund": await refund_after_relog()
@@ -520,6 +526,81 @@ func frozen_slot_geometry_proof(check_geometry: bool) -> void:
 	if not await wait_until(func(): return int(client.trading_post_state().frozen) < 0 and not client.trading_post_state().pending, "geometry fixture clears reservation"): return
 	if int(client.trading_post_state().tender) != tender: fail("Frozen geometry capture changed Tender"); return
 	await finish(phase)
+
+func watch_menu_sound_players() -> bool:
+	var kits := client.find_child("UiSoundKits", true, false)
+	if kits == null: fail("Native UI sound player is unavailable; not a menu sound RED"); return false
+	kits.child_entered_tree.connect(observe_menu_sound_player)
+	return true
+
+func observe_menu_sound_player(node: Node) -> void:
+	var player := node as AudioStreamPlayer
+	if player == null: return
+	var stream: AudioStream = player.stream
+	if stream == null: return
+	var fdid := int(stream.resource_name)
+	var kind := "open" if fdid in MENU_OPEN_FILES else "close" if fdid in MENU_CLOSE_FILES else ""
+	if kind.is_empty(): return
+	var event := {"kind":kind,"fdid":fdid,"length":stream.get_length(),"gain":player.volume_linear,"pitch_scale":player.pitch_scale,"playing_observed":false,"finished":false}
+	menu_audio_events.append(event)
+	player.finished.connect(func(): event.finished = true)
+	call_deferred("observe_menu_sound_playback", player, event)
+
+func observe_menu_sound_playback(player: AudioStreamPlayer, event: Dictionary) -> void:
+	if is_instance_valid(player):
+		event.playing_observed = player.playing
+		event.playback_position = player.get_playback_position()
+
+func menu_sound_count(kit: int) -> int:
+	var count := 0
+	for played in client.merchant_state().ui_sounds:
+		if int(played) == kit: count += 1
+	return count
+
+func assert_menu_audio_count(kind: String, expected: int) -> bool:
+	var count := 0
+	for event in menu_audio_events:
+		if event.kind != kind: continue
+		count += 1
+		if float(event.length) <= 0.0 or not (event.playing_observed or event.finished): fail("Menu kit has no actual decoded native playback: %s" % event); return false
+	if count != expected: fail("Decoded %s playback count%d, expected%d" % [kind,count,expected]); return false
+	return true
+
+func assert_menu_sound_state(kind: String, expected: int) -> bool:
+	var kit := 218932 if kind == "open" else 218933
+	if menu_sound_count(kit) != expected:
+		fail("Menu %s kit%d played%d times, expected%d" % [kind,kit,menu_sound_count(kit),expected])
+		return false
+	return assert_menu_audio_count(kind, expected)
+
+func menu_sound_proof() -> void:
+	if menu_sound_count(218932) != 1: fail("Retail menu open kit218932 did not play once on actual show"); return
+	await wait_frames(30)
+	if not assert_menu_sound_state("open", 1): return
+	await capture("opened-once")
+	await click("PerksProgramLeaveButton")
+	if not await wait_until(func(): return not client.trading_post_state().open, "Leave closes vendor"): return
+	await wait_frames(30)
+	if not assert_menu_sound_state("close", 1): return
+	await capture("closed-once")
+	if not await open_vendor(): return
+	await wait_frames(30)
+	if not assert_menu_sound_state("open", 2): return
+	await capture("reopened-once")
+	await tap(KEY_ESCAPE)
+	if not await wait_until(func(): return not client.trading_post_state().open, "Escape closes vendor"): return
+	await wait_frames(30)
+	if not assert_menu_sound_state("close", 2): return
+	var chat: CanvasLayer = client.get_node_or_null("ChatFrameUI")
+	if int(client.trading_post_state().hidden_layers) != 0 or chat == null or not chat.visible: fail("Sound fixture close did not restore HUD"); return
+	await capture("escape-closed-once")
+	var file := FileAccess.open(shots.path_join("menu-audio-events.json"), FileAccess.WRITE)
+	if file == null: fail("Cannot write menu audio observations"); return
+	file.store_string(JSON.stringify(menu_audio_events, "\t"))
+	file.close()
+	print("TRADING_POST_LIVE PASS skin=", skin, " phase=menu-sounds audio=", menu_audio_events)
+	client.free()
+	quit(0)
 
 func authored_camera_proof() -> void:
 	if not await choose_category(2): return
