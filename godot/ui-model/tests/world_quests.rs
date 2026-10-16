@@ -43,6 +43,39 @@ fn text(registry: &FrameRegistry, name: &str) -> String {
 }
 
 #[test]
+fn world_quests_authored_lower_floor_pin_does_not_invent_height_zero() {
+    let root = std::path::PathBuf::from(env!("CARGO_MANIFEST_DIR")).join("../../data");
+    let catalog = game_engine_ui_model::ui_map_data::UiMapCatalog::load(&root.join("db2/active"))
+        .expect("installed UiMap catalog");
+    // Real 70391 task82521/blob514681. UiMap2256's relevant ceilings are below -1360.
+    let mut quest = available().quests.remove(0);
+    quest.quest_id = 82521;
+    quest.title = "Pawns of Dark Masters".into();
+    quest.map_id = 2601;
+    quest.ui_map_id = 2256;
+    quest.position = QuestPoiPoint { x: -2268, y: -1960 };
+    quest.xp = 0;
+    let mut runtime = QuestRuntime::default();
+    runtime.apply_availability(
+        WorldQuestAvailability {
+            server_time: 1000,
+            quests: vec![quest],
+        },
+        900,
+    );
+    let pins = world_quest_ui::map_pins(&catalog, 2256, &runtime, 900);
+    assert_eq!(
+        pins.len(),
+        1,
+        "authored lower-floor task must remain visible without invented height"
+    );
+    assert_eq!(pins[0].quest_id, Some(82521));
+    assert_eq!(pins[0].label, "Pawns of Dark Masters");
+    assert!((pins[0].x - 0.6442027).abs() < 0.00001);
+    assert!((pins[0].y - 0.8322616).abs() < 0.00001);
+}
+
+#[test]
 fn world_quests_tooltip_time_uses_full_source_units_at_boundaries() {
     let quest = available().quests.remove(0);
     for (remaining, expected) in [
