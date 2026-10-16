@@ -24,7 +24,7 @@ func run_fixture() -> void:
 		fail("Private compositor must expose 1920x1080 output")
 		return
 	var account := OS.get_environment("TP_ACCOUNT")
-	if server != "127.0.0.1:5791" or not account.begins_with("fb_") or shots.is_empty() or receipts.is_empty() or not phase in ["pending-dialogs", "confirmations", "button-tooltips", "item-tooltips", "menu-sounds", "layout", "layout-proof", "browse", "relog", "purchase", "refund", "cart", "cart-lifetime", "rotate-controls", "mount-rider", "mount-rider-cancel", "freeze-workflow", "authored-camera", "frozen-slot-before", "frozen-slot-after"]:
+	if server != "127.0.0.1:5791" or not account.begins_with("fb_") or shots.is_empty() or receipts.is_empty() or not phase in ["cart-tooltips", "pending-dialogs", "confirmations", "button-tooltips", "item-tooltips", "menu-sounds", "layout", "layout-proof", "browse", "relog", "purchase", "refund", "cart", "cart-lifetime", "rotate-controls", "mount-rider", "mount-rider-cancel", "freeze-workflow", "authored-camera", "frozen-slot-before", "frozen-slot-after"]:
 		fail("Explicit private 127.0.0.1:5791, fb_* account, phase and evidence paths required")
 		return
 	for directory in [shots, receipts]:
@@ -48,7 +48,7 @@ func run_fixture() -> void:
 	if not await wait_until(func(): return float(client.account_state().local_player_health) > 0.0, "private character alive", 120000): return
 	client.set_world_minutes(720.0)
 	await wait_frames(120)
-	if not phase in ["pending-dialogs", "confirmations", "button-tooltips", "item-tooltips", "menu-sounds", "layout", "layout-proof", "cart", "cart-lifetime", "rotate-controls", "mount-rider", "mount-rider-cancel", "freeze-workflow", "authored-camera", "frozen-slot-before", "frozen-slot-after"] and not await travelers_log(): return
+	if not phase in ["cart-tooltips", "pending-dialogs", "confirmations", "button-tooltips", "item-tooltips", "menu-sounds", "layout", "layout-proof", "cart", "cart-lifetime", "rotate-controls", "mount-rider", "mount-rider-cancel", "freeze-workflow", "authored-camera", "frozen-slot-before", "frozen-slot-after"] and not await travelers_log(): return
 	if phase == "menu-sounds" and not watch_menu_sound_players(): return
 	if not await open_vendor(): return
 	if phase in ["cart", "cart-lifetime"]:
@@ -88,6 +88,7 @@ func run_fixture() -> void:
 		"pending-dialogs": await pending_dialog_proof()
 
 		"button-tooltips": await button_tooltip_proof()
+		"cart-tooltips": await cart_item_tooltip_proof()
 		"frozen-slot-before": await frozen_slot_geometry_proof(false)
 		"frozen-slot-after": await frozen_slot_geometry_proof(true)
 		"refund": await refund_after_relog()
@@ -248,6 +249,65 @@ func confirmation_escape_proof() -> void:
 	if not await wait_until(func(): return not client.trading_post_state().purchased and not client.trading_post_state().pending and int(client.trading_post_state().tender) == tender, "one confirmed authoritative refund", 120000): return
 	await capture("refunded-tender-restored")
 	await finish("confirmations")
+
+func expect_cart_item_tooltip(owner_name: String, title: String, item_id: int, label: String, before: Dictionary) -> bool:
+	var owner := control(owner_name)
+	if owner == null:
+		fail("Missing real cart tooltip owner " + owner_name); return false
+	print("TP_CART_CURSOR_BEFORE raw=", root.get_mouse_position(), " target=", owner.get_global_rect().get_center())
+	await motion(owner.get_global_rect().get_center(), false)
+	print("TP_CART_CURSOR_AFTER raw=", root.get_mouse_position(), " hovered=", root.gui_get_hovered_control())
+	if not await wait_until(func(): return client.tooltip_state().get("visible", false) and client.tooltip_state().get("title", "") == title, "Retail cart hovered item tooltip", 10000): return false
+	var tooltip: Dictionary = client.tooltip_state()
+	var lines := str(tooltip.get("lines", []))
+	if not lines.contains("Item ID: %d" % item_id) or lines.contains("Sell Price"):
+		fail("Cart tooltip lost hovered item ID or included SellPrice: " + str(tooltip)); return false
+	var rect := owner.get_global_rect()
+	var scale := control("PerksProgramLeaveButton").get_global_rect().size.x / 180.0
+	if absf(float(tooltip.rect[0]) + float(tooltip.rect[2]) - (rect.position.x / scale - 8.0)) > 1.5 or absf(float(tooltip.rect[1]) + float(tooltip.rect[3]) - (rect.position.y / scale + 20.0)) > 1.5:
+		fail("Cart tooltip lacks source left(-8,-20) owner offset: " + str(tooltip)); return false
+	var state: Dictionary = client.trading_post_state()
+	if state.selected != before.selected or state.tender != before.tender or state.cart != before.cart or state.cart_preview_items != before.cart_preview_items:
+		fail("Cart tooltip hover changed selected preview/cart/Tender"); return false
+	await capture(label)
+	return true
+
+func cart_item_tooltip_proof() -> void:
+	var tender := int(client.trading_post_state().tender)
+	if not await choose_category(1): return
+	if not await select_first_available(tender): return
+	var regular: Dictionary = client.trading_post_state().duplicate(true)
+	await click("PerksProgramAddToCartButton")
+	if not await choose_category(8): return
+	if not await select_first_available(tender): return
+	var ensemble: Dictionary = client.trading_post_state().duplicate(true)
+	var members: PackedInt64Array = ensemble.preview_item_ids
+	if members.size() < 2:
+		fail("Cart tooltip proof needs genuine ensemble member identities"); return
+	await click("PerksProgramAddToCartButton")
+	await click("PerksProgramViewCartButton")
+	var regular_name := "PerksProgramCartItem%d" % int(regular.selected)
+	if not await wait_until(func(): return control(regular_name) != null and control("PerksProgramCartSet%d" % int(ensemble.selected)) != null, "real regular and ensemble cart rows"): return
+	var before: Dictionary = client.trading_post_state().duplicate(true)
+	if not await expect_cart_item_tooltip(regular_name, str(regular.selected_name), int(regular.item_id), "regular-item", before): return
+	for index in range(2):
+		var item_id := int(members[index])
+		var owner_name := "PerksProgramCartSubItem%d_%d" % [int(ensemble.selected), item_id]
+		if control(owner_name + "Name") == null:
+			fail("Missing real ensemble member name " + owner_name); return
+		var title: String = control(owner_name + "Name").text
+		if not await expect_cart_item_tooltip(owner_name, title, item_id, "ensemble-member-%d" % index, before): return
+	await motion(control("PerksProgramCartTitle").get_global_rect().get_center(), false)
+	if not await wait_until(func(): return not client.tooltip_state().get("visible", false), "cart row leave clears item tooltip"): return
+	if not await expect_cart_item_tooltip(regular_name, str(regular.selected_name), int(regular.item_id), "regular-before-remove", before): return
+	await click(regular_name + "Remove")
+	if not await wait_until(func(): return control(regular_name) == null and not client.tooltip_state().get("visible", false), "removed cart row clears owned tooltip"): return
+	await capture("removed-owner-hidden")
+	await click("PerksProgramCartCloseButton")
+	if not await wait_until(func(): return control("PerksProgramShoppingCartFrame") == null and not client.tooltip_state().get("visible", false), "cart panel close clears tooltip"): return
+	if int(client.trading_post_state().tender) != tender:
+		fail("Tooltip-only proof changed authoritative Tender"); return
+	await finish("cart-tooltips")
 
 func expect_button_tooltip(owner_name: String, title: String, label: String) -> bool:
 	var owner := control(owner_name)
@@ -1327,7 +1387,10 @@ func motion(point: Vector2, down: bool, relative: Vector2 = Vector2.ZERO) -> voi
 	event.global_position = point
 	event.relative = relative
 	event.button_mask = MOUSE_BUTTON_MASK_LEFT if down else 0
-	root.push_input(event, true)
+	if phase == "cart-tooltips":
+		Input.parse_input_event(event)
+	else:
+		root.push_input(event, true)
 	await process_frame
 
 func button_event(point: Vector2, button: int, down: bool) -> void:

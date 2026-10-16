@@ -1,0 +1,13 @@
+{
+  "commit": "515f4a3fe9d1f35e1dbaf253745b6105fba906fb",
+  "raw_url": "https://raw.githubusercontent.com/simulationcraft/simc/515f4a3fe9d1f35e1dbaf253745b6105fba906fb/engine/class_modules/sc_hunter.cpp",
+  "sha256": "723d4c4b893e5ea21135e7538db14b6f01442c4ee38dd2b91d24e3bd20e744d2",
+  "howl_ready_aura_ids": [
+    471878,
+    472324,
+    472325
+  ],
+  "howl_cooldown_aura_id": 471877,
+  "natures_ally_rank3_buff": 1276720,
+  "cobra_fang_buff": 1299389
+}
