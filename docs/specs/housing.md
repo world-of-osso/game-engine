@@ -40,9 +40,21 @@ Supported Basic/Expert/Cleanup mode switches, Basic rotate-left/right and select
 
 ### Mode and Expert submode hotkey labels
 
-Supported Basic/Expert/Cleanup mode bars and Expert submode icons show only the player's assigned abbreviated binding (`GetBindingText(key, true)`), using the existing hotkey formatter. Assignment/rebinding updates the label; unbinding hides it. Unlike instruction rows, icon labels never display `[UNBOUND]`. Main mode labels inherit ArialNarrow14/normal outline at source8,10 and height10; Expert submode labels inherit ArialNarrow10/black shadow1,-1 at12,12 with source40×10 bounds. No new default keys or authority changes. Unsupported submode actions, tooltips and active-glow animation remain separate work.
+Supported Basic/Expert/Cleanup mode bars and Expert submode icons show only the player's assigned abbreviated binding (`GetBindingText(key, true)`), using the existing hotkey formatter. Assignment/rebinding updates the label; unbinding hides it. Unlike instruction rows, icon labels never display `[UNBOUND]`. Main mode labels inherit ArialNarrow14/normal outline at source8,10 and height10; Expert submode labels inherit ArialNarrow10/black shadow1,-1 at12,12 with source40×10 bounds. No new default keys or authority changes. Unsupported submode actions remain separate work; active-glow requirements follow below.
 
-Source: `Blizzard_HousingActionButton.lua` UpdateKeybind and `HouseEditorModeButtonTemplate`/`HouseEditorSubmodeButtonTemplate`. Basic/Expert both-skin native70391 acceptance proves normal Options assignments/unbinds and displayed labels; registry tests additionally cover modifier abbreviations and rebinding. Native source actions, real1693/2330 conservation and readonly refusal/relog passed in both skins. Other locales, active glow and complete appearance parity remain separate.
+Source: `Blizzard_HousingActionButton.lua` UpdateKeybind and `HouseEditorModeButtonTemplate`/`HouseEditorSubmodeButtonTemplate`. Basic/Expert both-skin native70391 acceptance proves normal Options assignments/unbinds and displayed labels; registry tests additionally cover modifier abbreviations and rebinding. Native source actions, real1693/2330 conservation and readonly refusal/relog passed in both skins. Other locales and complete appearance parity remain separate.
+
+### Expert active submode glow
+
+Translate/Rotate/Scale show the source `ActiveGlow` only for the active submode: centered176×178 `decor-ability-expert-fx-circlehighlight`, alpha blending/full opacity, above the icon and below the separate additive HoverIcon. The corresponding `decor-ability-expert-{horzmove,rotate,scale}-mask` stays fixed on the64×64 button, clipping only the glow; neither mask nor icon rotates. Glow rotates−360 degrees counter-clockwise (clockwise on screen) every six seconds, never opacity-pulses. All three use `HousingSubModeActiveAnims`: first play establishes the shared epoch, retained across submode/mode switches, hidden time and editor frame recreation; later activations resume elapsed modulo6 rather than restart. Input, authority, hotkey and paid-state behavior remain unchanged.
+
+Sources: `Blizzard_HouseEditorModeButtons.xml` HouseEditorSubmodeButtonTemplate, `.lua` UpdateCustomVisuals and `Blizzard_SharedXML/AnimationTemplates.lua` SyncedAnimGroupMixin. Installed70391 atlas members32885/33289–33291 resolve to authenticated local7263653/7266217/7266219/7266221. Native missing-painted-Translate-glow RED→both-skin GREEN proves actual source geometry, active visibility,6-second clockwise rate/shared phase across mode and canvas recreation, and painted pixels constrained by independently read raw-source masks. Confirmed paid decor/storage remain unchanged. Modern retained six successful submode samples before correcting an invalid retained-Scale oracle, then resumed lifecycle only; Forever completed all eight samples in one run. Functional1280 proof does not establish full-HD/full-image parity or primary-mode effects.
+
+### Expert submode sound events
+
+Expert submode pointer activation uses `HOUSING_EXPERTMODE_SUB_MENU_BUTTON_TOGGLE`286137 on successful click release, including an already-active button; no generic pointer-down cue substitutes or duplicates it. Assigned Expert-context keys use the distinct shortcut304887 before the existing same-submode no-op. Hover, echo, release and inactive-context input do not replay these kits. Existing pending/disabled/keyboard ownership remains unchanged.
+
+Both installed70391 kits use authenticated local FDID6838456 at nominal volume0.125892535, zero pitch/variation, and the existing master/effects/mute controls. This contract covers source event scheduling and supported native stream properties, not physical audibility, authored advanced-kit parity, other housing sounds or transform/authority changes. Sources: ExpertDecorMode.lua262, HousingEventHandler.lua85–104, BaseHousingModeButton.SetModeActive and BaseHousingActionButton mouse handlers.
 
 ## Cleanup source controls
 
@@ -51,6 +63,8 @@ Cleanup uses the maintained64px shared supported-mode bar at bottom center, incl
 Source: `Blizzard_HouseEditorCleanupMode.xml/lua`, shared ModeButtons/Instructions templates, installed70391 `HOUSING_CLEANUP_SELECT_INSTRUCTION`.
 
 ## Expert editor actions — continuation
+
+Expert Translate/Rotate/Scale assignments operate only in the Expert binding context. In Basic/Cleanup they do not activate Advanced Mode or change the precision submode; another existing global shortcut can still own the key. `Bindings_Standard.xml` declares `HousingEditorExpertDecorMode`, activated on Expert `OnShow` and deactivated on `OnHide`. The wrapper's defensive mode activation is not evidence of cross-context availability. Both-skin native acceptance covers all three inactive/active assignments, normal Options unbinding and unchanged paid layout/storage; no production change was needed.
 
 Retail Expert submode switching, six translation increments, rotate-left/right, scale-up/down and next rotation axis use their `HOUSING_EXPERTDECOR*` action identities in native Housing bindings. No unsourced default keys: arrows/PageUp/PageDown/Q/E/1–3/X cannot substitute for actual assignments. Increment bindings follow native down/up held lifecycle; leaving the mode or cancelling clears holds. Transform staging/cancel/explicit commit and visitor authority remain unchanged.
 
