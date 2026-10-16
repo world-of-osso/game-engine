@@ -89,8 +89,8 @@ fn journal_search_preview_keyboard_full_popup_and_close_preserve_query() {
             ("JournalSearchResult0Name", "Darkflame Cleft"),
             ("JournalSearchResult0Type", "Dungeon"),
             ("JournalSearchResult0Path", ""),
-            ("JournalSearchResult2Name", "Ambassador Flamelash"),
-            ("JournalSearchResult2Path", "Blackrock Depths"),
+            ("JournalSearchResult2Name", "Flame Leviathan"),
+            ("JournalSearchResult2Path", "Ulduar"),
         ] {
             let frame = registry.get(registry.get_by_name(name).unwrap()).unwrap();
             let Some(WidgetData::FontString(text)) = &frame.widget_data else {
