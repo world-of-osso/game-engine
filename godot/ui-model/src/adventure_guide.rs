@@ -950,12 +950,7 @@ fn encounter_page(ctx: &SharedContext, view: &View) -> Element {
         (7., 75., 386., 39.),
     ));
     out.extend(crate::adventure_guide_art::instance_button(instance));
-    out.extend(label(
-        "EncounterJournalLeftTitle".into(),
-        &instance.name,
-        (72., 84., 290., 12.),
-        (14., HEADER, "LEFT"),
-    ));
+    out.extend(crate::adventure_guide_art::instance_header(view, instance));
     let bosses: Vec<_> = view.encounters().collect();
     let rows = bosses
         .iter()

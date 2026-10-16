@@ -58,6 +58,8 @@ fn apply_pane_texture_layers(registry: &mut ui_toolkit::registry::FrameRegistry)
         ("EncounterJournalModelPaper", Overlay),
         ("EncounterJournalModelTitleBG", Overlay),
         ("EncounterJournalModelTitle", Overlay),
+        ("EncounterJournalDifficultyIcon", Overlay),
+        ("EncounterJournalLeftTitle", Overlay),
     ] {
         if let Some(id) = registry.get_by_name(name) {
             registry.get_mut(id).unwrap().draw_layer = layer;
@@ -584,6 +586,48 @@ pub fn boss_row(view: &View, encounter: &Encounter, index: usize) -> Element {
     let top = 10. + index as f32 * 70.;
     let action = format!("journal:encounter:{}", encounter.id);
     rsx! {button {name:{DynName(name)},left:0.0,top,width:325.0,height:55.0,pos_type:"absolute",onclick:{action.as_str()},button_default_skin:false,{parts}}}
+}
+
+/// XML1611–1624 / EJ.lua1189–1196,1261–1270; SetFlagIcon selects published atlases.
+pub(crate) fn instance_header(view: &View, instance: &Instance) -> Element {
+    let atlas = match view.difficulty {
+        15 => Some("icons_16x16_heroic"),
+        16 => Some("icons_16x16_mythic"),
+        _ => None,
+    };
+    let (mut content, left, top) = if let Some(atlas) = atlas {
+        let (width, height) =
+            crate::inworld_unit_frames_component::inworld_unit_frames_art::atlas_size(
+                atlas,
+                ui_toolkit::atlas::thread_skin(),
+            )
+            .expect("Journal difficulty atlas must be published for this skin");
+        let icon = named_atlas_texture(
+            "EncounterJournalDifficultyIcon".into(),
+            atlas,
+            (INFO.0 + 60., INFO.1 + 16., width, height),
+        );
+        (
+            icon,
+            INFO.0 + 60. + width + 3.,
+            INFO.1 + 16. + height / 2. - 6.,
+        )
+    } else {
+        (vec![], INFO.0 + 65., INFO.1 + 20.)
+    };
+    // Preserve the source12px FontString rectangle; center the native intrinsic glyph height.
+    content.extend(rsx! {
+        frame {
+            name: "EncounterJournalLeftTitleBounds", left, top, width: 290., height: 12.,
+            pos_type: "absolute", layout: "flex-row", align: "center",
+            fontstring {
+                name: "EncounterJournalLeftTitle", text: {instance.name.as_str()}, width: 290., height: "auto",
+                pos_type: "relative", font_size: 16., font_color: HEADER, justify_h: "LEFT",
+                word_wrap: false, max_lines: 1, shadow_color: "0,0,0,1", shadow_offset: "1,-1"
+            }
+        }
+    });
+    content
 }
 
 pub fn instance_button(instance: &Instance) -> Element {
