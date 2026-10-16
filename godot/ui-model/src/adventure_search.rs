@@ -8,8 +8,10 @@ use crate::{
 };
 use game_engine_core::adventure_guide::{Encounter, Instance, Section, difficulty_matches};
 use std::collections::BTreeSet;
-const GENERIC_CREATURE: u32 = 533888;
 use ui_toolkit::{rsx, screen::SharedContext, widget_def::Element};
+const GENERIC_CREATURE: u32 = 533888;
+pub const PREVIEW_LIMIT: usize = 5;
+const MIN_SEARCH_BYTES: usize = 3;
 
 #[derive(Clone, Copy, Debug, Default, PartialEq, Eq)]
 pub enum SearchMode {
@@ -46,7 +48,7 @@ impl View {
         // matching has no artificial progress state or delay.
     }
     fn search_rows(&self) -> Vec<ResultRow<'_>> {
-        if self.search.len() < 3 {
+        if self.search.len() < MIN_SEARCH_BYTES {
             return vec![];
         }
         let query = self.search.to_lowercase();
@@ -105,7 +107,7 @@ impl View {
         })
     }
     pub(crate) fn move_search_preview(&mut self, step: isize) {
-        let count = self.search_rows().len().min(6);
+        let count = self.search_rows().len().min(PREVIEW_LIMIT + 1);
         if self.search_mode == SearchMode::Preview && count > 0 {
             self.search_selected =
                 (self.search_selected as isize + step).rem_euclid(count as isize) as usize;
@@ -122,7 +124,7 @@ impl View {
         if self.search_mode != SearchMode::Preview || self.search_rows().is_empty() {
             return Ok(());
         }
-        if self.search_selected == 5 {
+        if self.search_selected == PREVIEW_LIMIT {
             self.show_full_search();
             Ok(())
         } else {
@@ -248,8 +250,8 @@ const LARGE: RowTemplate = RowTemplate {
     }),
     selected: None,
 };
-const NAME: &str = "0.96875,0.8984375,0.578125,1";
-const PATH: &str = "0.66796875,0.51171875,0.3359375,1";
+const NAME_COLOR: &str = "0.96875,0.8984375,0.578125,1";
+const PATH_COLOR: &str = "0.66796875,0.51171875,0.3359375,1";
 
 pub(crate) fn search_results(ctx: &SharedContext, view: &View) -> Element {
     let rows = view.search_rows();
@@ -270,7 +272,7 @@ fn row_background(name: &str, width: f32, height: f32, small: bool) -> Element {
     };
     rsx! {texture {name:{DynName(format!("{name}Background"))},texture_fdid:522973,tex_coords:coords,left:0.0,top:0.0,width,height,horiz_tile:true,pos_type:"absolute",draw_layer:"BACKGROUND"}}
 }
-fn selected(name: &str, width: f32, height: f32, chosen: bool) -> Element {
+fn selection_highlight(name: &str, width: f32, height: f32, chosen: bool) -> Element {
     let art = named_atlas_texture(
         format!("{name}SelectedArt"),
         "search-highlight",
@@ -282,7 +284,8 @@ fn selected(name: &str, width: f32, height: f32, chosen: bool) -> Element {
 fn result_icon(name: &str, row: &ResultRow<'_>, small: bool, height: f32) -> Element {
     // EncounterSearchSM overrides the inherited38px frame to21; LG retains38.
     let (left, frame_size) = if small { (5., 21.) } else { (10., 38.) };
-    let top = (height - frame_size) / 2. - if small { 1. } else { 0. };
+    let upward_offset = if small { 1. } else { 0. };
+    let top = (height - frame_size) / 2. - upward_offset;
     let mut out = cropped(
         format!("{name}IconFrame"),
         522972,
@@ -290,7 +293,8 @@ fn result_icon(name: &str, row: &ResultRow<'_>, small: bool, height: f32) -> Ele
         (left, top, frame_size, frame_size),
     );
     let rect = (left + 1., top + 2., frame_size - 2., frame_size - 3.);
-    out.extend(if matches!(row.target, Target::Instance(_)) && !small {
+    let crop_instance = matches!(row.target, Target::Instance(_)) && !small;
+    out.extend(if crop_instance {
         cropped(
             format!("{name}Icon"),
             row.icon,
@@ -302,93 +306,113 @@ fn result_icon(name: &str, row: &ResultRow<'_>, small: bool, height: f32) -> Ele
     });
     out
 }
-fn preview(view: &View, rows: &[ResultRow<'_>]) -> Element {
-    let mut children = Vec::new();
-    let mut top = 0.;
-    for (index, row) in rows.iter().take(5).enumerate() {
-        let name = format!("JournalSearchPreview{index}");
-        let height = if index == 0 { 24. } else { 27. };
-        let mut content = row_background(&name, 210., height, true);
-        content.extend(result_icon(&name, row, true, height));
-        content.extend(label(
-            format!("{name}Name"),
-            row.title,
-            (30., (height - 10.) / 2., 175., 10.),
-            (10., NAME, "LEFT"),
-        ));
-        content.extend(selected(&name, 210., height, view.search_selected == index));
-        children.extend(selection_list::row(
-            name,
-            &format!("journal:search-select:{index}"),
-            true,
-            (0., top, 210., height),
-            (&SMALL, false),
-            content,
-        ));
-        top += height;
-    }
-    if rows.len() > 5 {
-        let title = crate::auction_mail::text("SEARCH_RESULTS_SHOW_COUNT")
-            .replace("%d", &rows.len().to_string());
-        let mut content = row_background("JournalSearchAll", 210., 24., true);
-        content.extend(label(
-            "JournalSearchAllName".into(),
-            &title,
-            (0., 7., 210., 10.),
-            (12., NAME, "CENTER"),
-        ));
-        content.extend(selected(
-            "JournalSearchAll",
-            210.,
-            24.,
-            view.search_selected == 5,
-        ));
-        children.extend(selection_list::row(
-            "JournalSearchAll".into(),
-            "journal:search-full",
-            true,
-            (0., top, 210., 24.),
-            (&SMALL, false),
-            content,
-        ));
-        top += 24.;
-    }
-    children.extend(preview_border(top));
-    rsx! {r#frame {name:"EncounterJournalSearchPreview",left:580.0,top:52.0,width:210.0,height:top,pos_type:"absolute",mouse_enabled:true,frame_level:25.0,{children}}}
+fn preview_row(index: usize, row: &ResultRow<'_>, chosen: bool) -> Element {
+    let name = format!("JournalSearchPreview{index}");
+    let height = if index == 0 { 24. } else { 27. };
+    let top = if index == 0 {
+        0.
+    } else {
+        24. + (index - 1) as f32 * 27.
+    };
+    let mut content = row_background(&name, 210., height, true);
+    content.extend(result_icon(&name, row, true, height));
+    content.extend(label(
+        format!("{name}Name"),
+        row.title,
+        (30., (height - 10.) / 2., 175., 10.),
+        (10., NAME_COLOR, "LEFT"),
+    ));
+    content.extend(selection_highlight(&name, 210., height, chosen));
+    selection_list::row(
+        name,
+        &format!("journal:search-select:{index}"),
+        true,
+        (0., top, 210., height),
+        (&SMALL, false),
+        content,
+    )
 }
-fn full_results(ctx: &SharedContext, view: &View, rows: &[ResultRow<'_>]) -> Element {
-    let mut content = Vec::new();
-    for (index, row) in rows.iter().enumerate() {
-        let name = format!("JournalSearchResult{index}");
-        let mut text = row_background(&name, 575., 49., false);
-        text.extend(result_icon(&name, row, false, 49.));
-        text.extend(label(
-            format!("{name}Name"),
+fn show_all_row(count: usize, top: f32, chosen: bool) -> Element {
+    let title =
+        crate::auction_mail::text("SEARCH_RESULTS_SHOW_COUNT").replace("%d", &count.to_string());
+    let mut content = row_background("JournalSearchAll", 210., 24., true);
+    content.extend(label(
+        "JournalSearchAllName".into(),
+        &title,
+        (0., 7., 210., 10.),
+        (12., NAME_COLOR, "CENTER"),
+    ));
+    content.extend(selection_highlight("JournalSearchAll", 210., 24., chosen));
+    selection_list::row(
+        "JournalSearchAll".into(),
+        "journal:search-full",
+        true,
+        (0., top, 210., 24.),
+        (&SMALL, false),
+        content,
+    )
+}
+fn preview(view: &View, rows: &[ResultRow<'_>]) -> Element {
+    let count = rows.len().min(PREVIEW_LIMIT);
+    let mut children = rows
+        .iter()
+        .take(count)
+        .enumerate()
+        .flat_map(|(index, row)| preview_row(index, row, view.search_selected == index))
+        .collect::<Element>();
+    let mut height = 24. + count.saturating_sub(1) as f32 * 27.;
+    if rows.len() > PREVIEW_LIMIT {
+        children.extend(show_all_row(
+            rows.len(),
+            height,
+            view.search_selected == PREVIEW_LIMIT,
+        ));
+        height += 24.;
+    }
+    children.extend(preview_border(height));
+    rsx! {r#frame {name:"EncounterJournalSearchPreview",left:580.0,top:52.0,width:210.0,height,pos_type:"absolute",mouse_enabled:true,frame_level:25.0,{children}}}
+}
+fn full_result_row(index: usize, row: &ResultRow<'_>) -> Element {
+    let name = format!("JournalSearchResult{index}");
+    let mut content = row_background(&name, 575., 49., false);
+    content.extend(result_icon(&name, row, false, 49.));
+    for (suffix, value, rect, style) in [
+        (
+            "Name",
             row.title,
             (58., 5.5, 460., 12.),
-            (16., NAME, "LEFT"),
-        ));
-        text.extend(label(
-            format!("{name}Path"),
-            &row.path,
+            (16., NAME_COLOR, "LEFT"),
+        ),
+        (
+            "Path",
+            row.path.as_str(),
             (58., 24.5, 400., 12.),
-            (12., PATH, "LEFT"),
-        ));
-        text.extend(label(
-            format!("{name}Type"),
+            (12., PATH_COLOR, "LEFT"),
+        ),
+        (
+            "Type",
             crate::auction_mail::text(row.kind),
             (421., 18.5, 140., 12.),
-            (12., PATH, "RIGHT"),
-        ));
-        content.extend(selection_list::row(
-            name,
-            &format!("journal:search-select:{index}"),
-            true,
-            (0., index as f32 * 49., 575., 49.),
-            (&LARGE, false),
-            text,
-        ));
+            (12., PATH_COLOR, "RIGHT"),
+        ),
+    ] {
+        content.extend(label(format!("{name}{suffix}"), value, rect, style));
     }
+    selection_list::row(
+        name,
+        &format!("journal:search-select:{index}"),
+        true,
+        (0., index as f32 * 49., 575., 49.),
+        (&LARGE, false),
+        content,
+    )
+}
+fn full_results(ctx: &SharedContext, view: &View, rows: &[ResultRow<'_>]) -> Element {
+    let content = rows
+        .iter()
+        .enumerate()
+        .flat_map(|(index, row)| full_result_row(index, row))
+        .collect();
     let height = (rows.len() as f32 * 49.).max(371.);
     let list = scroll_in(
         ctx,
@@ -405,7 +429,7 @@ fn full_results(ctx: &SharedContext, view: &View, rows: &[ResultRow<'_>]) -> Ele
         "EncounterJournalSearchResultsTitle".into(),
         &title,
         (60., 7., 480., 12.),
-        (12., NAME, "CENTER"),
+        (12., NAME_COLOR, "CENTER"),
     ));
     let close = named_atlas_texture(
         "JournalSearchCloseArt".into(),
@@ -414,11 +438,6 @@ fn full_results(ctx: &SharedContext, view: &View, rows: &[ResultRow<'_>]) -> Ele
     );
     art.extend(rsx! {button {name:"EncounterJournalSearchResultsClose",left:583.0,top:-2.0,width:24.0,height:24.0,pos_type:"absolute",button_default_skin:false,onclick:"journal:search-close",{close}}});
     rsx! {r#frame {name:"EncounterJournalSearchResults",left:100.0,top:89.0,width:600.0,height:400.0,pos_type:"absolute",mouse_enabled:true,frame_level:25.0,{art} {list}}}
-}
-fn atlas_size(name: &str) -> (f32, f32) {
-    let region = ui_toolkit::atlas::resolve_region(name, ui_toolkit::atlas::thread_skin())
-        .unwrap_or_else(|| panic!("Retail search atlas {name} is missing"));
-    (region.width, region.height)
 }
 fn atlas_region(name: &str, atlas: &str, rect: (f32, f32, f32, f32)) -> Element {
     let region = ui_toolkit::atlas::resolve_region(atlas, ui_toolkit::atlas::thread_skin())
@@ -434,8 +453,9 @@ fn atlas_region(name: &str, atlas: &str, rect: (f32, f32, f32, f32)) -> Element 
     rsx! {texture {name:{DynName(name.into())},texture_fdid:fdid,tex_coords:{coords.as_str()},left,top,width,height,pos_type:"absolute",horiz_tile:{region.tiles_horizontally},vert_tile:{region.tiles_vertically}}}
 }
 fn preview_border(height: f32) -> Element {
-    let left = atlas_size("UI-Frame-BotCornerLeft");
-    let right = atlas_size("UI-Frame-BotCornerRight");
+    // SharedUIPanelTemplates.xml109/118 fixes dimensions, independently of skin art.
+    let left = (14., 14.);
+    let right = (11., 11.);
     let bottom = height + 8.;
     let mut art = Vec::new();
     for (suffix, atlas, rect) in [
@@ -452,12 +472,7 @@ fn preview_border(height: f32) -> Element {
         (
             "Bottom",
             "_UI-Frame-Bot",
-            (
-                left.0 - 7.,
-                bottom - atlas_size("_UI-Frame-Bot").1,
-                221. - right.0 - left.0,
-                atlas_size("_UI-Frame-Bot").1,
-            ),
+            (left.0 - 7., bottom - 9., 221. - right.0 - left.0, 9.),
         ),
         (
             "Left",
@@ -484,7 +499,7 @@ fn popup_art() -> Element {
     // tiled side borders. No invented bottom cap; the source omits it too.
     let mut art = rsx! {texture {name:"JournalSearchPopupBackground",texture_fdid:374155,left:0.0,top:0.0,width:600.0,height:400.0,pos_type:"absolute",horiz_tile:true,vert_tile:true,vertex_color:"0.9,0.8,0.7,1"}};
     let left = (14., 14.);
-    let right = atlas_size("UI-Frame-TopCornerRightSimple");
+    let right = (11., 11.);
     for (suffix, top) in [("Top", -4.), ("Second", 20.)] {
         art.extend(atlas_region(
             &format!("JournalSearchPopup{suffix}Left"),
@@ -516,7 +531,7 @@ fn popup_art() -> Element {
     art.extend(atlas_region(
         "JournalSearchPopupStreaks",
         "_UI-Frame-TopTileStreaks",
-        (0., 0., 600., atlas_size("_UI-Frame-TopTileStreaks").1),
+        (0., 0., 600., 43.),
     ));
     art
 }

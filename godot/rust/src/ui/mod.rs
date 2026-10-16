@@ -3191,7 +3191,7 @@ impl RegistryUi {
                         .and_then(|frame| frame.name.as_deref())
                         .unwrap_or("");
                     let index = if name == "JournalSearchAll" {
-                        Some(5)
+                        Some(game_engine_ui_model::adventure_search::PREVIEW_LIMIT)
                     } else {
                         name.strip_prefix("JournalSearchPreview")
                             .and_then(|value| value.parse::<usize>().ok())
