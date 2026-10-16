@@ -36,6 +36,7 @@ pub enum GuildCommand {
     SetMotd(String),
     SetInfo(String),
     Query,
+    QueryEventLog,
 }
 
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
@@ -68,6 +69,9 @@ pub struct GuildRanksSession {
     pub invite_open: bool,
     pub profile_editor: Option<GuildProfileField>,
     pub profile_waiting: bool,
+    pub log_open: bool,
+    pub log_waiting: bool,
+    pub event_log: Option<GuildEventLog>,
     state: Option<GuildRanksState>,
     selected_rank: usize,
 }
@@ -89,18 +93,37 @@ impl GuildRanksSession {
         self.member_detail = None;
         self.note_editor = None;
         self.removal_target = None;
+        self.log_open = false;
         visible
     }
 
-    pub fn dismiss_member_popup(&mut self) -> bool {
+    pub fn dismiss_subdialog(&mut self) -> bool {
         if self.removal_target.take().is_some() {
             return true;
         }
-        self.note_editor.take().is_some()
+        if self.note_editor.take().is_some() {
+            return true;
+        }
+        let log_open = self.log_open;
+        self.log_open = false;
+        log_open
+    }
+
+    pub fn apply_event_log(&mut self, log: GuildEventLog) {
+        self.log_waiting = false;
+        if log.error.is_some() {
+            self.log_open = false;
+        }
+        self.event_log = Some(log);
     }
 
     pub fn apply(&mut self, state: GuildRanksState) {
         self.awaiting_state = false;
+        if state.ranks.is_empty() {
+            self.log_open = false;
+            self.log_waiting = false;
+            self.event_log = None;
+        }
         if state.error.is_some() {
             self.profile_waiting = false;
         }
@@ -130,6 +153,14 @@ impl GuildRanksSession {
     fn click_profile(&mut self, action: &str, texts: &crate::bank::InputTexts) {
         match action {
             "guild:info_open" => self.communities_tab = CommunitiesTab::Info,
+            "guild:log_open" => {
+                self.log_open = true;
+                if !self.log_waiting {
+                    self.log_waiting = true;
+                    self.commands.push(GuildCommand::QueryEventLog);
+                }
+            }
+            "guild:log_close" => self.log_open = false,
             "guild:roster_open" => self.communities_tab = CommunitiesTab::Roster,
             "guild:chat_open" => self.communities_tab = CommunitiesTab::Chat,
             "guild:benefits_open" => self.communities_tab = CommunitiesTab::Benefits,
