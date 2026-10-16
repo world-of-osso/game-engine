@@ -6,7 +6,7 @@ Retail Mainline Benefits perks in Modern and Forever. Definitions: installed `db
 
 - [x] Display the five installed perk definitions in source order with real spell names/icons: Mount Up78633, Hasty Hearth83944, Mobile Banking83958, The Quick and the Dead83950, Guild Mail83951. Missing source data fails explicitly; never fabricate definitions.
 - [x] Benefits uses the source270×44 perk rows,39px icons, source background/list chrome and padding in both skins. Other tabs hide this list.
-- [ ] Hover renders the actual spell tooltip; modified chat-link clicks retain the actual spell identity. Ordinary clicks do not cast perks.
+- [x] Hover renders the actual spell tooltip; modified chat-link clicks retain the actual spell identity. Ordinary clicks do not cast perks.
 - [x] Actual guild membership grants the installed spells; leaving/removal revokes them. Login and ordinary class/spec rebuilds reconcile membership without dropping unrelated spell knowledge.
 - [x] Distinguish catalog/known-spell authority from implemented spell effects; never claim a functional buff, mail change or guild chest from its displayed name alone.
 
@@ -41,9 +41,10 @@ Retail Mainline Benefits perks in Modern and Forever. Definitions: installed `db
 
 - [x] Source Benefits names/order/tab visibility pass against the actual installed five-definition catalog in both skins.
 - [x] Real native spell tooltips, physical Shift-click draft/server echo and fresh-process owner knowledge pass both skins.
-- [ ] Ordinary no-cast native control and final merged consumer gates remain open.
+- [x] Physical ordinary clicks on all five rows send no spells in either skin. Actual modified insertion at an existing caret survives the next model sync and server echo.
+- [ ] Independent lead landing gate remains separate.
 - [ ] Mount Up, Hasty Hearth, Mobile Banking and The Quick and the Dead effects are not established; [effect matrix](../wiki/systems/guilds.md#perk-native-authority-and-effect-boundary-2026-10-16).
-- [ ] Private actual join/leave/relog and inspected1920×1080 both-skin captures.
+- [x] Actual UDP invitation/forced removal/rejoin/quit, fresh-process native owner/tooltip readback and inspected1920×1080 both-skin captures.
 
 ## Out of scope
 
