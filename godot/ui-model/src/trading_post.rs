@@ -375,8 +375,11 @@ impl View {
             }
             _ => return Ok(None),
         };
+        if matches!(request, TradingPostRequest::Purchase { .. }) {
+            self.remove_from_cart(id);
+        }
+        // StaticPopup_OnAcceptWithSpinner retains the owner until the reply.
         self.pending = true;
-        self.confirm = None;
         Ok(Some(Action::Request(request)))
     }
 }
@@ -1192,7 +1195,7 @@ fn confirm_popup(view: &View, kind: &str) -> Element {
     };
     item_confirmation(ItemConfirmation {
         name: "PerksProgramConfirm",
-        pending: false,
+        pending: view.pending,
         accept_enabled: true,
         prompt: (
             &before,

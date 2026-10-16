@@ -302,6 +302,16 @@ impl QuestRuntime {
         self.world_quests = snapshot.quests;
     }
 
+    pub fn active_world_quests(
+        &self,
+        local_now: i64,
+    ) -> impl Iterator<Item = &shared::protocol::AvailableWorldQuest> {
+        let server_now = local_now + self.server_clock_offset;
+        self.world_quests
+            .iter()
+            .filter(move |quest| quest.expires_at > server_now)
+    }
+
     pub fn is_world_quest(&self, id: u32) -> bool {
         self.world_quest_titles.contains_key(&id)
     }

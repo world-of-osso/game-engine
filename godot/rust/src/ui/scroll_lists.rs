@@ -73,6 +73,10 @@ fn scroll_steps(model: &RegistryModel, list: &str) -> (usize, usize) {
         let pan = game_engine_ui_model::guild_communities::ROW_HEIGHT as usize;
         return (pan * 2, pan);
     }
+    if list == game_engine_ui_model::guild_news::SCROLL_BOX {
+        // CommunitiesGuildNewsButtonTemplate18px; ScrollBoxListView wheel=two extents.
+        return (36, 18);
+    }
     if list == "GuildControlBankScrollBox" {
         // GuildControlUI_BankFrame_OnLoad sets ScrollFrame.stepSize=8 (Lua:606).
         return (8, 8);
