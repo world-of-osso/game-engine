@@ -1,6 +1,6 @@
 # wowdecomp behavior rework backlog
 
-Source audit: **2026-10-15**. **23 source-supported conditional gaps across seven behavior domains**, plus five separately gated validation candidates. This is a growing reviewed-slice inventory—not an upper bound on project gaps or a claim of exhaustive compatibility coverage. Unreviewed means **unknown**, not matching.
+Source audit: **2026-10-15**. **28 source-supported conditional gaps across eight behavior domains**, plus five separately gated validation candidates and three additional unresolved 4.3.4 leads. This is a growing reviewed-slice inventory—not an upper bound on project gaps or a claim of exhaustive compatibility coverage. Unreviewed means **unknown**, not matching.
 
 No client, server, shader, build or reference executable was run. Findings establish wrong/missing semantics for specified source inputs; affected-asset prevalence, visible/audible impact and target-client parity remain unmeasured.
 
@@ -13,14 +13,18 @@ No client, server, shader, build or reference executable was run. Findings estab
 | W | `~/Repos/wowdecomp` | `0e4e9fe0a4a9fa08027c5eed4b2c5e873739cfd3` |
 | E | game-engine, this repository | `3bdfb57b2e99205614e81bb7736ee3130677f24d` |
 | S | sibling `../game-server` | `0dcaa23bde680678d72b3c43a786eb574bd809b8` |
+| C | `~/Repos/wowdecomp15595` — 4.3.4/build 15595 | `959b0b85c5f55c565328d7c3ca33027a65e41327` |
+| E4 | game-engine, 4.3.4 comparison baseline | `3abdb6e6cd3273e08d65c97ddfa76090372af01a` |
 
 Path/line citations refer to these pinned source revisions. Expansion began at engine `201d6288a`, whose changes from E were documentation only; implementation sources remained identical. Reference/server were clean; engine's unrelated untracked files were preserved. This work changes documentation only and prescribes no server policy from a client-only reference.
+
+The [4.3.4 expansion](cataclysm-434.md#pins-and-historical-boundary) adds C as a separate historical reference, not a replacement for W. E4's intervening changes are documentation only. C explicitly carries some older-build bodies and disclaims behavioral correctness from address-tag coverage; the original 23 findings have not been wholesale revalidated against C.
 
 ## Finding index
 
 IDs identify behaviors, not measured severity. Each entry contains paired source/call-path evidence, required observable changes, concrete acceptance fixtures and unresolved applicability.
 
-### M2 track sampling and model runtime — 5
+### M2 track sampling and model runtime — 7
 
 | ID | Incorrect or omitted behavior | Detail |
 |---|---|---|
@@ -29,6 +33,8 @@ IDs identify behaviors, not measured severity. Each entry contains paired source
 | A3 | Short timeline tables lose authored timeline-zero transforms | [Timeline selection](m2-animation.md#a3-short-track-tables-do-not-select-timeline-zero) |
 | A4 | General model events lack dispatch, timing context and payload; selected action events already work | [Event coverage](model-runtime.md#a4-general-authored-events-lose-dispatch-timing-context-and-payload) |
 | A5 | Replay bounds do not extend finite sequence residence | [Repeat scheduling](model-runtime.md#a5-replay-bounds-do-not-control-finite-sequence-residence) |
+| A6 | Low bone inheritance bits cannot adjust the parent contribution | [Bone composition, C](cataclysm-434.md#a6-low-bone-inheritance-bits-do-not-affect-native-pose-composition) |
+| A7 | Authored attachment activation is discarded | [Child participation, C](cataclysm-434.md#a7-authored-attachment-activation-is-discarded) |
 
 ### Particle geometry and motion — 7
 
@@ -42,13 +48,14 @@ IDs identify behaviors, not measured severity. Each entry contains paired source
 | P6 | Authored per-particle depth sorting is ignored | [View-depth order](particle-order-and-ground.md#p6-authored-per-particle-depth-sorting-is-ignored) |
 | P7 | Ground-projected births do not query world geometry | [World contact](particle-order-and-ground.md#p7-ground-projected-particle-births-do-not-query-world-geometry) |
 
-### Mesh ordering and material lighting — 3
+### Mesh ordering and material lighting — 4
 
 | ID | Incorrect or omitted behavior | Detail |
 |---|---|---|
 | R1 | M2 section sort center/radius cannot affect transparent ordering | [Authored sort metadata](world-shading.md#r1-authored-m2-sort-center-and-radius-cannot-influence-draw-order) |
 | S1 | Lit/unlit particle distinction has no native lighting branch | [Particle lighting](particles-and-shaders.md#s1-lit-particles-are-rendered-unshaded) |
 | S2 | WMO SIDN color/curve contribution is retained but not bound | [Time-dependent emissive](world-shading.md#s2-authored-wmo-sidn-emissive-color-is-not-bound) |
+| S3 | MCSH mask does not reach terrain-surface shading | [Authored terrain shadows, C](cataclysm-434.md#s3-authored-mcsh-shadows-do-not-reach-terrain-surface-shading) |
 
 ### Environment — 2
 
@@ -64,6 +71,13 @@ IDs identify behaviors, not measured severity. Each entry contains paired source
 | M1 | Oblique wall contact discards residual tangential travel | [Wall sliding](movement.md#m1-oblique-wall-contact-discards-remaining-tangential-movement) |
 | M2 | Floor snapping lacks clearance-aware obstacle step-up | [Step clearance](movement.md#m2-sampled-floor-snapping-does-not-implement-clearance-aware-step-up) |
 
+### Camera clearance and target opacity — 2
+
+| ID | Incorrect or omitted behavior | Detail |
+|---|---|---|
+| C1 | Camera obstruction queries lack lateral extent | [Clearance corridor, C](cataclysm-434.md#c1-camera-obstruction-probes-have-no-lateral-extent) |
+| C2 | Close-camera fade has no target-model binding | [Camera target opacity, C](cataclysm-434.md#c2-close-camera-target-fade-has-no-native-camera-to-player-binding) |
+
 ### World audio — 4
 
 | ID | Incorrect or omitted behavior | Detail |
@@ -73,7 +87,7 @@ IDs identify behaviors, not measured severity. Each entry contains paired source
 | AU3 | Music immediately cycles a track cursor instead of authored scheduling | [Music timing/arbitration](audio.md#au3-zone-music-is-immediate-cursor-cycling-not-the-authored-scheduler) |
 | AU4 | Interior/underwater reverb preferences are not applied | [Acoustic environment](audio.md#au4-contextual-interiorunderwater-reverb-is-not-applied) |
 
-The seven domains are M2 sampling/runtime, particles, mesh ordering, material lighting, environment, movement and audio. Some share files; counts enumerate distinct conditional behaviors, not independent fixes or confirmed affected assets.
+The eight domains are M2 sampling/runtime, particles, mesh ordering, material lighting, environment, movement, camera and audio. Some share files; counts enumerate distinct conditional behaviors, not independent fixes or confirmed affected assets.
 
 ## What this inventory does not establish
 
