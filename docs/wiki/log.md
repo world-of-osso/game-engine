@@ -1,3 +1,7 @@
+## 2026-10-16 — Installed guild perk list
+
+[Perks](systems/guilds.md#perks): real five-definition catalog and source Benefits list. Missing-title RED→five actual names/order and other-tab hiding GREEN1/1 in both skins. Real spell-link draft/render REDs reproduced visible raw markup; the shared labeled-link decoder and wire-link/caret insertion now support source modified-click spell identity without changing bare combat links. Focused link GREEN, tooltip, native and effect proof remain pending; no functional-buff claim.
+
 ## 2026-10-16 — Guild news live acceptance
 
 [News](systems/guilds.md#news): source-qualified actual producers, independent query/filter/sticky authority and source art. Private UDP/native both-skin controls,250 physical retained entries, permissions/privacy and exact fresh-process readback pass;16 full-HD captures inspected. Final merged-source model4/backend6/wire1 and cargo checks pass. Source right-click input omission fixed; harness readiness and JSON-number membership failures remain distinct from product failures. Independent lead gate/landing next.
@@ -4189,3 +4193,6 @@ Completed Retailv2 codec/authoritative Create and committed Copy callbacks, exac
 - 2026-10-16: [Actual native Greed](systems/bot-harness.md#native-actual-greed--2026-10-16): maintained route/F/provider/viewport bridge; Moloch63346 Greed95→GUID525,7.040s ACK, inspected1280 input/win PNGs and owned cleanup. Azure/full-spec remain separate.
 
 - 2026-10-16: Accepted request dialogs now pass both-skin painted spinner/overlay counterfactuals and real rotation/reply proof, after rejecting node-only art evidence. Source11px inset and modal-relative ordering fixed.31UI12native/check/5scopedRustfmt pass; ten full-HD originals+two contacts+two crops published, private RED purchase state retained. [Trading Post](systems/trading-post.md#accepted-single-item-confirmation-lifetime--implementation-october16).
+## 2026-10-16 — authentic guild perk knowledge and native input
+
+[Guild perks](systems/guilds.md#perk-native-authority-and-effect-boundary-2026-10-16): five real DB2 definitions, source Benefits rows/tooltips, TalentChannel snapshot/delta ordering RED→GREEN, actual owner joins/removal/rejoin/quit and class conservation. Both-skin native modified-link/server echo and identical-binary fresh-process readback pass. Effects remain individually qualified; no fabricated mounted-speed, Hearthstone, resurrection or guild-chest functionality.
