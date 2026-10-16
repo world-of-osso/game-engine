@@ -53,6 +53,8 @@ pub const TRACKER_SECONDARY_EXPAND: AtlasArt = tracker((323.0, 339.0, 123.0, 139
 
 /// `UI-QuestPoi-QuestNumber` (23605), atlas 2549 `questpoi.blp`, 32×32.
 pub const POI_NUMBER: AtlasArt = art(5_320_914, (256.0, 128.0), (67.0, 99.0, 35.0, 67.0));
+/// `worldquest-icon` (27230), atlas743; QuestUtil's normal WorldQuest POI, 32×32.
+pub const POI_WORLD_QUEST: AtlasArt = art(1_339_312, (512.0, 512.0), (334.0, 366.0, 400.0, 432.0));
 /// `UI-QuestPoi-InnerGlow` (23600), atlas2549; POIButton.xml uses additive blending.
 pub const POI_INNER_GLOW: AtlasArt = art(5_320_914, (256.0, 128.0), (1.0, 33.0, 67.0, 99.0));
 /// `Quest-In-Progress-Icon-yellow` (25059), atlas 2670 (2x), shown 32×32.

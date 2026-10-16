@@ -122,6 +122,7 @@ pub fn quest_minimap_blips(
     runtime
         .map_entries()
         .iter()
+        .filter(|entry| !runtime.is_world_quest(entry.quest_id))
         .enumerate()
         .filter_map(|(index, entry)| {
             let poi = entry
