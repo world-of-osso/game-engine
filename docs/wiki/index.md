@@ -14,7 +14,7 @@
 - [AH duration source menu](systems/auction-house-ui.md#duration-source-composition--2026-10-15) — shared dropdown/radios, caller115/Arial Narrow12/RIGHT,10 source/reducer controls and four inspected both-skin native samples; no fresh trading claim.
 
 - [Player-bot measurement](systems/bot-harness.md) — health-qualified native/per-ability triage and common-budget Arms/Fury/Havoc MVP, six complete60s windows with empty jewelry/retained bags; all40/full detection open, Stockade deferred.
-- [Winner's Podium native fixture](systems/toy-box.md#winners-podium-native-boundary-2026-10-15) — actual source actor/static behavior with unchanged gameplay camera; private8-asset closure, native acceptance pending.
+- [Winner's Podium native fixture](systems/toy-box.md#winners-podium-native-boundary-2026-10-15) — actual source actor/static behavior with unchanged gameplay camera; private8-asset closure and both-skin rendered/static proof;20min wall expiry separate.
 - [Native summon lifetime proofs](systems/toy-box.md#native-summon-lifetime-proofs-2026-10-15) — release Forever Scarab and quiet both-skin Flute expiry; prior debug failures, unresolved following/navigation and exact binary scopes retained.
 - [Disabled housing icon source color](systems/housing.md#disabled-editor-icon-visuals--implementation2026-10-15) — default atlas/DARKGRAY tint/full alpha instead of invented desaturation/transparency; both-skin model and actual painted-control proof, availability unchanged.
 
