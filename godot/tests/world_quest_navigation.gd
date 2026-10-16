@@ -1,6 +1,6 @@
 extends "res://tests/adventure_journeys_watch.gd"
-# Real private realm task snapshots, physical map input, polygon acceptance and item settlement.
-const TASK := 86941
+# Real private realm snapshots, physical map input, polygon acceptance and controlled NPC deaths.
+const TASK := 86948
 var character := ""
 var skin := ""
 
@@ -125,48 +125,69 @@ func check_pin_navigation() -> bool:
 		return false
 	return await capture_phase("minimap-selected-direction")
 
+func task_progress() -> int:
+	for entry in client.quest_state().log:
+		if entry.quest_id == TASK and not entry.objectives.is_empty():
+			return int(str(entry.objectives[0]).split("/")[0])
+	return -1
+
+func kill_authored_elemental() -> bool:
+	var deadline := Time.get_ticks_msec()+45000
+	while Time.get_ticks_msec()<deadline:
+		var units := client.get_node_or_null("WorldUnits")
+		if units != null:
+			for unit in units.get_children():
+				if unit.get_meta("unit_name", "") != "Enslaved Inferno":
+					continue
+				var pick := unit.find_child("UnitPick",true,false)
+				if pick == null:
+					continue
+				var id := int(pick.get_meta("unit_server_id"))
+				if client.unit_alive(id):
+					var reply := admin({"Damage": {"character_name":character,"amount":6000.,"target":id}})
+					return not reply.is_empty()
+		await process_frame
+	stop("Living authored Enslaved Inferno not mirrored")
+	return false
+
 func check_arrival_and_reward() -> bool:
-	# Authenticated polygon centroid, not invented POI geometry. Controlled travel/item supply only.
-	if not await teleport(-3243., -5498., 76.) or not await wait_task(true):
+	# Real polygon centroid, then actual source NPCs. Administrator damage is not natural combat proof.
+	if not await teleport(-4655.,-4310.,294.) or not await wait_task(true):
 		return false
 	var deadline := Time.get_ticks_msec()+30000
 	while control("MinimapWorldQuest%s" % TASK) == null and Time.get_ticks_msec()<deadline:
 		await process_frame
-	if control("MinimapWorldQuest%s" % TASK) == null or control("WorldQuest%sProgressLabel" % TASK) != null:
-		stop("Source task marker missing or counted objective has invented progressbar")
+	if control("MinimapWorldQuest%s" % TASK) == null or control("WorldQuest%sProgressLabel" % TASK) != null or control("MinimapQuestObjective%s" % TASK) != null:
+		stop("Missing unnumbered task marker or invented counted bar/duplicate POI")
 		return false
-	if control("MinimapQuestObjective%s" % TASK) != null:
-		stop("Duplicate ordinary numbered task POI")
+	if not await capture_phase("minimap-arrived") or not await teleport(-4863.23,-4445.91,311.):
 		return false
-	admin({"GrantItem": {"character_name": character, "item_id": 235666, "count": 5}})
-	deadline = Time.get_ticks_msec()+30000
-	while Time.get_ticks_msec()<deadline:
-		var label := control("QuestBlock%sLine0Text" % TASK) as Label
-		if label != null and label.text.begins_with("5/6"):
-			break
-		await process_frame
-	var progress := control("QuestBlock%sLine0Text" % TASK) as Label
-	if progress == null or not progress.text.begins_with("5/6"):
-		stop("Genuine item acquisition progress5/6 not observed")
+	for count in 7:
+		if not await kill_authored_elemental():
+			return false
+		deadline = Time.get_ticks_msec()+30000
+		while task_progress()<count+1 and Time.get_ticks_msec()<deadline:
+			await process_frame
+		if task_progress()!=count+1:
+			stop("Actual creature death credit mismatch: " + str(client.quest_state()))
+			return false
+	if not await capture_phase("tracker-seven-of-eight"):
 		return false
-	if not await capture_phase("tracker-five-of-six"):
-		return false
-	var before: int = client.quest_state().get("xp", -1)
-	admin({"GrantItem": {"character_name": character, "item_id": 235666, "count": 1}})
-	if not await wait_task(false):
+	var before: int = client.quest_state().get("xp",-1)
+	if not await kill_authored_elemental() or not await wait_task(false):
 		return false
 	deadline = Time.get_ticks_msec()+30000
-	while int(client.quest_state().get("xp", -1)) == before and Time.get_ticks_msec()<deadline:
+	while not "Experience gained: 11765." in client.quest_state().system_lines and Time.get_ticks_msec()<deadline:
 		await process_frame
-	var after: int = client.quest_state().get("xp", -1)
-	if after-before != 11765:
-		stop("Actual XP settlement mismatch %s -> %s" % [before,after])
+	var after: int = client.quest_state().get("xp",-1)
+	if after-before<11765 or not "Experience gained: 11765." in client.quest_state().system_lines:
+		stop("Actual quest reward XP acknowledgement/settlement missing")
 		return false
 	await settle()
-	print("WORLD_QUEST_REWARD quest=%s XP=%s->%s delta=%s logRemoved=true" % [TASK,before,after,after-before])
+	print("WORLD_QUEST_REWARD quest=%s XP=%s->%s delta=%s realQuestXP11765 logRemoved=true" % [TASK,before,after,after-before])
 	if not await capture_phase("completed-reward"):
 		return false
-	if not await teleport(-3500.,-5500.,13.) or not await teleport(-3243.,-5498.,76.):
+	if not await teleport(-4000.,-4300.,198.) or not await teleport(-4655.,-4310.,294.):
 		return false
 	if task_in_log():
 		stop("Completed task replayed in same active window")
@@ -180,9 +201,9 @@ func check_expiry() -> bool:
 	admin({"ClockAdvance": {"seconds": remaining+2}})
 	await key(KEY_M)
 	var deadline := Time.get_ticks_msec()+30000
-	while pin_index(86948)>=0 and Time.get_ticks_msec()<deadline:
+	while pin_index(86941)>=0 and Time.get_ticks_msec()<deadline:
 		await process_frame
-	if pin_index(86948)>=0 or pin_index(TASK)>=0:
+	if pin_index(86941)>=0 or pin_index(TASK)>=0:
 		stop("Expired availability pin retained across real window end")
 		return false
 	return await capture_phase("expired-window-map")
@@ -213,7 +234,7 @@ func run() -> void:
 		return
 	if not await check_pin_navigation() or not await check_arrival_and_reward() or not await check_expiry():
 		return
-	print("WORLD_QUEST_NAV_PASS skin=%s real86941 selection/minimap/area/progress/XP/replay/expiry" % skin)
+	print("WORLD_QUEST_NAV_PASS skin=%s real86948 selection/minimap/area/actualDeaths/XP/replay/expiry" % skin)
 	client.queue_free()
 	await process_frame
 	quit(0)
