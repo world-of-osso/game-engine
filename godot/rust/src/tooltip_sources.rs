@@ -197,18 +197,20 @@ impl GameClient {
         )?))
     }
 
-    /// PerksProgramElements.lua306–314: hovered product GetItemByID, no SellPrice.
+    /// Elements.lua306–314, including its inherited frozen-product template.
     fn trading_post_tooltip(&mut self, hit: &HoveredFrame) -> Option<HoveredTooltip> {
         let ui = hit.ui.bind();
         let (owner, product_id) = named_ancestor(ui.registry()?, hit.frame, |frame| {
-            indexed(frame, "PerksProgramProduct")
+            frame
+                .onclick
+                .as_deref()?
+                .strip_prefix("perks:select:")?
+                .parse::<u32>()
+                .ok()
         })?;
         drop(ui);
         let snapshot = self.trading_post.view.snapshot.as_ref()?;
-        let product = snapshot
-            .items
-            .iter()
-            .find(|row| row.id as usize == product_id)?;
+        let product = snapshot.items.iter().find(|row| row.id == product_id)?;
         let item = named_item_for(
             shared::item_data::ItemDefinitionSource::Retail,
             product.item_id,
