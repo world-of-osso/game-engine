@@ -2746,11 +2746,12 @@ impl RegistryUi {
             .sections
             .get(&section)
             .ok_or("Journal section missing")?;
-        let name = if section.kind == 3 {
-            format!("JournalSection{}Body", section.id)
-        } else {
-            format!("JournalSection{}", section.id)
-        };
+        // The overview root is body text rather than a header. Retail's
+        // FocusSection returns without scrolling/flashing overview sections.
+        if section.kind == 3 {
+            return Ok(());
+        }
+        let name = format!("JournalSection{}", section.id);
         let target = model
             .registry
             .get_by_name(&name)
