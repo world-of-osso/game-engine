@@ -1,6 +1,10 @@
 ## 2026-10-15 — Clean-room M2 particle slices
 
 [Native particles](systems/godot-conversion.md#native-m2-particles): independent tails/follow, actual6316199 cubic controls and2994778 inherited scale decode. Eight focused RED→GREEN controls, including independent tail width; native build and fmt pass. P3 timer/reset, P4 density, S1 lighting oracle and P5 product/lifecycle provenance remain named gaps. Real165894 tail-only native PASS: five quads/4,547 changed pixels at1920×1080 with two byte-identical baselines; inspected PNGs in AgentShared/2026-10-15/m2-particles; no prohibited sources consulted.
+## 2026-10-15 — Stockade short-frame step admission
+
+[Short-frame proof](systems/player-ground.md#short-frame-regression-proof): same authored lip reproduced RED at run144/240FPS and walk60FPS. Support admission now includes the existing wall-margin reach without extra horizontal movement or a new tolerance/radius. Thirteen targeted regressions pass; native capture remains explicitly scoped to the earlier 60-FPS build.
+
 ## 2026-10-15 — Stockade ramp lip movement
 
 [Player ground](systems/player-ground.md#native-grounded-steps--2026-10-15): captured face3153 lip blocks before reachable face3041 support; floor-first order with unchanged low-ray movement corridor and step/wall constants. Exact-face RED and thin-wall counterexample RED recorded; lead explicitly excluded full-height body clearance after authored-route regressions. Full-body clearance is a named gap. [Bounded native proof](systems/player-ground.md#bounded-native-proof): Godot old-ray contact0.04996484yd, held-W rise0.65576yd with matching client/server positions, inspected before/after PNGs;10+4 focused regressions pass. Authoritative private pose setup is recorded; no server source changes.
@@ -3969,6 +3973,10 @@ Ported authored parent/child geometry, tree disclosure and successor promotion; 
 ## 2026-10-15 — Native talent Import/Export proof
 
 Completed Retailv2 codec/authoritative Create and committed Copy callbacks, exact source labels/fonts and modal-only error host. Core5/5, ui-model9/9, native build/format pass; both-skin real private UDP full-code reimport/relog and12 inspected native1920×1080 PNGs, with source-hash and OS clipboard delivery gaps explicit. [Contract and receipts](../specs/talent-loadouts.md); [implementation and source](systems/talents.md#retail-loadout-strings--2026-10-15). Starter remains a separate server-authoritative slice.
+
+- 2026-10-15: [Active Expert submode continuity](systems/housing.md#active-expert-submode-continuity--implementation2026-10-15): model/native assigned-key RED reproduced; same-submode early return implemented, different-submode policy unchanged; acceptance pending.
+
+- 2026-10-15: [Active Expert submode continuity](systems/housing.md#active-expert-submode-continuity--implementation2026-10-15): focused13 GREEN and both-skin actual held-input Translate/Rotate/Scale/key/release/Escape conservation; inspected functional frames and exact launch hashes retained.
 - 2026-10-15 — Action cooldown source swipe: ordinary actions now use existing radial shader at black0.64/inset3; obsolete rectangle/toy flag removed. RED2→GREEN6, before/after both-skin fullHD frozen-fraction quadrant/opacity/reset proof; journal/viewer0.8 and timing/countdowns/inputs preserved. Initial native hidden/snapped-bounds fixture failure excluded and corrected without extension rebuild. [System](systems/spellbook-action-bar.md#action-cooldown-source-swipe-2026-10-15), diagnostics ui-questlog-action-swipe-2026-10-15/action-swipe-proof-ledger.json; no live lifecycle/server claim.
 - 2026-10-15: Slam active70391 source revalidation: genuine core/native stale-kit RED; update same-weapon/no-snapshot/replicated-spec expectations and impact model166330/attachment22. Runtime unchanged; GREEN pending.
 

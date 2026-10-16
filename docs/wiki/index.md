@@ -410,6 +410,8 @@ External resources and asset lists.
 
 - [Stationary Cleanup ray](systems/housing.md#stationary-cleanup-ray--implementation2026-10-15) — authoritative owner movement/native readonly RED→both-skin GREEN; fixed input, actual ray/highlight/name clear and return, exact paid restoration and inspected functional captures.
 - [Retail loadout strings](systems/talents.md#retail-loadout-strings--2026-10-15) — installed version2/source provenance, committed export/native Import, Lua-produced fixtures and both-skin private relog/full-HD proof; hash/OS clipboard limits explicit.
+
+- [Active Expert submode continuity](systems/housing.md#active-expert-submode-continuity--implementation2026-10-15) — model/native RED→both-skin GREEN; assigned active keys retain all three live mouse submodes, global release/Escape and exact paid conservation.
 - [Active Slam visual chain](systems/spell-visuals.md#slam-1464-same-two-handed-sword-different-spec) — verified70391 Arms190513/278884, Fury97446/128672 and authored impact278885; fixture refresh only; full core17/17 and native specialization5/5 pass.
 
 - [Active Battle Shout sound](systems/spell-visuals.md#active-battle-shout-sound-chain--2026-10-15) —70391 cast279043/SoundKit368264, distinct unchanged caster voice; bounded fixture refresh.
