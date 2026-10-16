@@ -58,6 +58,8 @@ Every stat-bearing armor slot and preferred weapon uses authentic Item/ItemSpars
 
 ## Known gaps (current cycle)
 
+- [ ] Fresh serverbfe7d7a6/engine master76984ca3b three-spec measurements: Fury72 completes two60s windows with435/435 observed190411 in-range samples; Arms71 rule1187/condition12 and BM253 rule29672/condition58 refuse before casting. Preserve DPSnull/missing repetitions and withhold the comparison; do not reuse historical complete windows as these master revisions' acceptance.
+
 - [x] Native-controller-parity three-DPS follow-up: Arms71/Fury72/BM253 each complete two60s common-budget windows through shared native casting with observed auto-attack and received outcome fields. Historical raw-intent Arms/Fury/Havoc captures remain diagnostic only. Havoc's fresh source21566/condition3 refusal remains DPSnull; selecting BM for the new explicit MVP roster never rewrites that failed comparison. No balance or all-spec correctness claim.
 - [x] Comparable spec-correct gear/stat receipts for the three-spec MVP: Arms10 slots, Fury/Havoc11 slots at30/quality2/era0, visible native stats and owner GUIDs; Fury native dual-two-hand25129 succeeds. Havoc jewelry moves normally into bag0/1 and retains all four storage-bag IDs/GUIDs/counts. Other specs remain unverified; no gear fallback.
 - [ ] Aura-effect, cooldown reset, charge and resource-spending observability; combat-log aura presence alone proves none of these.

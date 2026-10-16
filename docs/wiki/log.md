@@ -1,3 +1,7 @@
+## 2026-10-16 — Fresh master bot readiness/range windows
+
+[Exact master proof](systems/bot-harness.md#fresh-master-readiness-clocks-and-caster-range--2026-10-16): new engine76984ca3b/serverbfe7d7a6/protocoldc30250 artifacts. Fury two60s191.7667/168.8333DPS,22 requests each,0/1 not-ready errors versus prior5/14;190411 in-range/ready/affordable all435 samples, authored1464/5308 selection. Arms1187/12 and BM29672/58 refuse before casting, DPSnull/comparison withheld. Source gaps/timing/binary hashes retained, all owned runtime stopped. Neutral DK priority creation RED separately fixed from Retail faction policy; no invented start or balance verdict.
+
 ## 2026-10-15 — Campsite selected-hover
 
 - [Glue/menu fidelity](investigations/glue-menu-fidelity.md#campsite-selected-hover-branch--2026-10-15): existing selected state picks source selected-hover art/18px margins, both-skin native pointer/reselection proof.
