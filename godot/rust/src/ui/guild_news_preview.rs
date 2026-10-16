@@ -7,7 +7,11 @@ use godot::prelude::*;
 impl RegistryUi {
     #[func]
     pub fn guild_news_observation(&self) -> GString {
-        let Some(session) = self.model.as_ref().and_then(|model| model.shared.get::<GuildRanksSession>()) else {
+        let Some(session) = self
+            .model
+            .as_ref()
+            .and_then(|model| model.shared.get::<GuildRanksSession>())
+        else {
             return GString::new();
         };
         let news = &session.news;
@@ -17,7 +21,8 @@ impl RegistryUi {
             "visible_ids": news.entries().iter().map(|entry| entry.id).collect::<Vec<_>>(),
             "pending_sticky": news.pending_sticky,
             "menu": news.menu,
-        })).expect("serialize real guild news receipt");
+        }))
+        .expect("serialize real guild news receipt");
         GString::from(json.as_str())
     }
 }

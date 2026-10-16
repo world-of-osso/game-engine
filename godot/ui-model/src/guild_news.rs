@@ -274,7 +274,11 @@ fn news_menu(session: &GuildRanksSession, shared: &SharedContext) -> Element {
         return vec![];
     };
     let entries = session.news.entries();
-    let mut top = if session.profile.as_ref().is_some_and(|profile| !profile.motd.is_empty()) {
+    let mut top = if session
+        .profile
+        .as_ref()
+        .is_some_and(|profile| !profile.motd.is_empty())
+    {
         18.0
     } else {
         0.0
