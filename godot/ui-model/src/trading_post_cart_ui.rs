@@ -321,7 +321,7 @@ fn cart_preview_status(prefix: &str, selected: bool, hovered: bool, enabled: boo
     children
 }
 
-fn cart_icon_button(
+pub(super) fn cart_icon_button(
     name: &str,
     atlas: &str,
     action: &str,

@@ -22,11 +22,28 @@ fn trading_post_row_cart_toggle_changes_hovered_product_not_selected_preview() {
     };
     assert!(view.click("perks:cart:toggle:5").unwrap().is_none());
     assert_eq!(view.cart, [5]);
+    let tooltip = view
+        .button_tooltip("PerksProgramCartToggle5", true)
+        .unwrap();
+    assert_eq!(tooltip.content.title, "Remove from Cart");
+    assert!(tooltip.content.lines.is_empty());
+    assert!(tooltip.record.is_none());
     assert_eq!(view.selected, Some(4));
     assert_eq!(view.snapshot.as_ref().unwrap().tender, 500);
     assert!(!view.pending);
     assert!(view.click("perks:cart:toggle:5").unwrap().is_none());
     assert!(view.cart.is_empty());
+    assert_eq!(
+        view.button_tooltip("PerksProgramCartToggle5", true)
+            .unwrap()
+            .content
+            .title,
+        "Add to Cart"
+    );
+    assert!(
+        view.button_tooltip("PerksProgramCartToggle4", true)
+            .is_none()
+    );
     assert_eq!(view.selected, Some(4));
     assert_eq!(view.snapshot.as_ref().unwrap().frozen_item_id, Some(4));
 }

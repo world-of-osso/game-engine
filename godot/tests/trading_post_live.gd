@@ -100,6 +100,7 @@ func row_cart_toggle_proof() -> void:
 	var target := await select_other_cartable([])
 	if target <= 0: return
 	var target_name: String = client.trading_post_state().selected_name
+	var target_item := int(client.trading_post_state().item_id)
 	var other := await select_other_cartable([target])
 	if other <= 0: return
 	var initial: Dictionary = client.trading_post_state().duplicate(true)
@@ -136,11 +137,37 @@ func row_cart_toggle_proof() -> void:
 	await capture("row-tooltip-restored")
 	await motion(control("PerksProgramLeaveButton").get_global_rect().get_center(), false)
 	if not await wait_until(func(): return control(owner) == null and not client.tooltip_state().get("visible", false), "row leave hides toggle and tooltip"): return
+	if not await hover_row_cart_toggle(target, "Add to Cart"): return
+	await click(owner)
+	await click("PerksProgramViewCartButton")
+	if not await wait_until(func(): return client.trading_post_state().cart_visible, "open row-added cart"): return
+	if not target_item in client.trading_post_state().cart_preview_items:
+		fail("Row-added item not initially selected in open cart"); return
+	await click("PerksProgramCartItem%d" % target)
+	if not await wait_until(func(): return not target_item in client.trading_post_state().cart_preview_items, "disable existing cart preview before append"): return
+	if not await hover_row_cart_toggle(other, "Add to Cart"): return
+	await click("PerksProgramCartToggle%d" % other)
+	if not await wait_until(func(): return other in client.trading_post_state().cart and int(initial.item_id) in client.trading_post_state().cart_preview_items, "append open-cart wearable default"): return
+	if target_item in client.trading_post_state().cart_preview_items:
+		fail("Open-cart row add reset disabled preview choice"); return
+	await capture("open-cart-added")
+	await click("PerksProgramCartToggle%d" % other)
+	if not await hover_row_cart_toggle(target, "Remove from Cart"): return
+	await click(owner)
+	if not await wait_until(func(): return client.trading_post_state().cart == initial.cart and not client.trading_post_state().cart_visible, "row remove closes emptied cart"): return
 	var final: Dictionary = client.trading_post_state()
 	if int(final.selected) != other or int(final.tender) != int(initial.tender) or int(final.frozen) != int(initial.frozen) or final.pending:
 		fail("Row toggle roundtrip changed model/Tender/frozen authority"); return
 	print("TP_ROW_CART_TOGGLE target=", target, " selected=", other, " tender=", final.tender, " frozen=", final.frozen)
 	await finish("row-cart-toggle")
+
+func hover_row_cart_toggle(vendor: int, title: String) -> bool:
+	var scale := control("PerksProgramLeaveButton").get_global_rect().size.x / 180.0
+	var owner := "PerksProgramCartToggle%d" % vendor
+	await motion(control("PerksProgramProduct%d" % vendor).get_global_rect().position + Vector2(96, 24) * scale, false)
+	if not await wait_until(func(): return control(owner) != null, "row toggle visible on hover"): return false
+	await motion(control(owner).get_global_rect().get_center(), false)
+	return await wait_until(func(): return client.tooltip_state().get("title", "") == title, "row toggle tooltip " + title)
 
 func pause_private_reply() -> bool:
 	var pid := int(OS.get_environment("TP_SERVER_PID"))
