@@ -1,3 +1,6 @@
+## 2026-10-16 — Fade effect native projection
+
+[Fade107](systems/battle-pets.md#fade-effect-projection--2026-10-16): both explicit skins on privateUDP5961 physically cast authored Jadefire Spirit Fade, observe Scratch miss/expiry/reserve swap, and retain two framed active models. Four fullHD originals inspected;91 shared PetBattle rectangles identical. Fixture removes broken auction inheritance and uses shared posed geometry. Current-CASC11-asset Jadefire closure staged privately; canonical publication remains lead-owned. All owned processes stopped.
 ## 2026-10-16 — Installed guild perk list
 
 [Perks](systems/guilds.md#perks): real five-definition catalog and source Benefits list. Missing-title RED→five actual names/order and other-tab hiding GREEN1/1 in both skins. Real spell-link draft/render REDs reproduced visible raw markup; the shared labeled-link decoder and wire-link/caret insertion now support source modified-click spell identity without changing bare combat links. Focused link GREEN, tooltip, native and effect proof remain pending; no functional-buff claim.
