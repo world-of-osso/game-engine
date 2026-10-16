@@ -84,7 +84,7 @@ fn adventure_guide_flags_tooltip_uses_source_zero_based_labels_and_rejects_unsho
     assert_eq!(magic.content.title, "Magic Effect");
     assert_eq!(magic.content.title_color, [1.; 4]);
     assert_eq!(magic.content.lines.len(), 1);
-    assert_eq!(magic.content.lines[0].text, ""); // Installed source description is empty.
+    assert_eq!(magic.content.lines[0].left_text, ""); // Installed source description is empty.
     let tank = crate::adventure_section_flags::tooltip(&view, "JournalSection829Flag0").unwrap();
     assert_eq!(tank.content.title, "Tank Alert");
     assert!(crate::adventure_section_flags::tooltip(&view, "JournalSection827Flag0").is_none());
