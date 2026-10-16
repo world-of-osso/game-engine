@@ -4875,6 +4875,22 @@ textures/7323575.blp
 cache/adventure_guide.sqlite
 # Mainline RaidBossEmote warning kit12197 (SoundKitEntry15068).
 sounds/ui/567394.ogg
+# Trading Post menu kits218932/218933, exact local70391 SoundKitEntry variants.
+sounds/ui/4956048.ogg
+sounds/ui/4956050.ogg
+sounds/ui/4956052.ogg
+sounds/ui/4956054.ogg
+sounds/ui/4956056.ogg
+sounds/ui/4555731.ogg
+sounds/ui/4555733.ogg
+sounds/ui/4555735.ogg
+sounds/ui/4555737.ogg
+sounds/ui/4555739.ogg
+sounds/ui/4555741.ogg
+sounds/ui/4555743.ogg
+sounds/ui/4555745.ogg
+sounds/ui/4555747.ogg
+sounds/ui/4555749.ogg
 models/6371365.wmo
 models/6371389.wmo
 
