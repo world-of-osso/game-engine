@@ -114,6 +114,7 @@ References (under `~/.cache/wow-ui-sim/blizzard-ui/retail/AddOns/`):
 - [x] Start it with `/readycheck` or `/rc` (SLASH_READYCHECK) or the self-menu entry. The server marks the leader Ready; the timeout is 30 s.
 - [x] `ReadyCheckFrame` (323×100 at CENTER 0,−10, RC) shows "%s has initiated a ready check." (`READY_CHECK_MESSAGE`) with Ready / Not Ready buttons (119×24). It shows only to members who still have to answer, not the initiator.
   - Buttons send `RespondReadyCheck`.
+  - Response buttons retain RC's bottom anchors: Yes BOTTOMRIGHT → parent BOTTOM (+11,+16), No BOTTOMLEFT → parent BOTTOM (+22,+16), resolving to (53.5,60)/(183.5,60). Both skins use inherited UIPanel Up/Down/Highlight/Disabled sheets130828/130825/130826/130824 with fixed12px caps and95px center. Physical release outside cancels; release inside emits only the corresponding response action. This button contract does not establish portrait/border/title/body/font/sound or whole-dialog fidelity.
   - Both Modern and Forever must project the Retail dark dialog background (6839810), nine-slice border (6795680), title, initiator message and both buttons through the native HUD. Answer and server timeout remove the popup; Ready / Not Ready answers appear on the leader's member frames.
 - [x] Member frames show `UI-LFG-ReadyMark/PendingMark/DeclineMark-Raid` at 20 × component scale, BOTTOM 0,h/3−4 (CUF:2038-2041).
   - After the check ends, members still waiting show Not Ready (`CompactUnitFrame_FinishReadyCheck`).
