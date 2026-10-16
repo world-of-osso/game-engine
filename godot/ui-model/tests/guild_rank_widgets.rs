@@ -1459,6 +1459,11 @@ fn guild_news_real_entries_filter_sticky_and_late_push_keep_independent_authorit
         session.click("guild:news_filter:2", &Default::default());
         session.click("guild:news_menu:1", &Default::default());
         assert_eq!(
+            text(&mounted(&session), "GuildNewsMenuTitle"),
+            "[Level 50]",
+            "source menu title contains only the actual subject"
+        );
+        assert_eq!(
             text(&mounted(&session), "GuildNewsMakeStickyText"),
             "Make Sticky"
         );
