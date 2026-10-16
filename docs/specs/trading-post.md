@@ -41,6 +41,7 @@ Retail Mainline Blizzard_PerksProgram and the local C_PerksProgram/PerksActiviti
 - Toggle the hovered vendor product ID without selecting its model or changing Tender/frozen authority. Reuse existing cart eligibility; reject frozen, purchased, collected, refundable, unavailable and outstanding-request cases. Missing per-item delivery-pending remains a provider gap, not inferred from generic request state.
 - The actual hovered toggle owns a highlight-color Add to Cart/Remove from Cart tooltip at source ANCHOR_LEFT0/0; membership changes its label immediately. Returning to the row restores its existing item tooltip; leave and vendor teardown clear ownership.
 - Adding while the cart is open appends default wearable selections only for unoccupied slots, preserving disabled previews and OTHER override (Elements.lua1221–1257/2167–2186). Removing uses the existing member cleanup/empty-cart close path. No new transaction or preview-framing policy.
+- The authored base state remains painted beneath its separate highlight. Node existence alone cannot certify cart glyphs: native frame inspection and a relative center-glyph contrast guard detect replacement by a flat highlight. Existing overlay opacity/blend remains unchanged in this bounded correction.
 - [ ] Model missing-action RED and actual missing-native-button RED precede implementation. Both-skin native painted art/geometry/add/remove/tooltip and state conservation GREEN remain pending; no completed parity claim.
 
 ## Button tooltips

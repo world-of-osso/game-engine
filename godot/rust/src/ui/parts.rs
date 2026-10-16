@@ -543,11 +543,12 @@ fn button_skin(frame: &Frame) -> Option<TextureSource> {
     let Some(WidgetData::Button(button)) = &frame.widget_data else {
         return None;
     };
-    // Tabard arrows and UIPanelCloseButtonNoScripts retain base art under ADD highlight.
+    // These explicit state textures retain base art beneath a separate highlight.
     if matches!(
         button.normal_texture,
         Some(TextureSource::FileDataId(130869 | 130866 | 130845 | 130847))
-    ) || matches!(&button.normal_texture, Some(TextureSource::Atlas(name)) if name == "RedButton-Exit")
+    ) || matches!(&button.normal_texture, Some(TextureSource::Atlas(name)) if matches!(name.as_str(),
+        "RedButton-Exit" | "128-redbutton-cart-add" | "128-redbutton-cart-minus"))
     {
         return None;
     }
