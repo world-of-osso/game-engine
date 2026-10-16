@@ -118,8 +118,8 @@ func row_cart_toggle_proof() -> void:
 	await motion(rect.get_center(), false)
 	if not await wait_until(func(): return client.tooltip_state().get("title", "") == "Add to Cart", "row cart Add tooltip"): return
 	var tooltip: Dictionary = client.tooltip_state()
-	if absf(float(tooltip.rect[0]) + float(tooltip.rect[2]) - rect.position.x / scale) > 1.5:
-		fail("Row cart tooltip lacks source ANCHOR_LEFT"); return
+	if absf(float(tooltip.rect[0]) + float(tooltip.rect[2]) - rect.position.x / scale) > 1.5 or absf(float(tooltip.rect[1]) + float(tooltip.rect[3]) - rect.position.y / scale) > 1.5:
+		fail("Row cart tooltip lacks source ANCHOR_LEFT0/0"); return
 	await capture("add-hover")
 	await button_event(rect.get_center(), MOUSE_BUTTON_LEFT, true)
 	await capture("pressed")
