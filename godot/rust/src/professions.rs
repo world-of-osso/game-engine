@@ -473,7 +473,7 @@ impl GameClient {
             view.clone(),
             professions_screen,
         ));
-        if let Some(ui) = &mut self.professions.ui {
+        if let Some(mut ui) = self.professions.ui.clone() {
             ui.bind_mut().set_ui_scale(scale)?;
             ui.bind_mut().set_state(view)?;
             self.write_quality_quantities(&mut ui, false)?;
