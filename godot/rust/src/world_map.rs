@@ -535,7 +535,14 @@ impl GameClient {
             .iter()
             .find(|quest| self.account.quests.is_watched(quest.quest_id));
         let opened = match task {
-            Some(quest) => Some(quest.ui_map_id),
+            Some(quest) => player.as_ref().and_then(|player| {
+                game_engine_ui_model::world_quest_ui::nearest_poi(
+                    quest,
+                    player.map_id,
+                    [player.position[0], -player.position[1]],
+                )
+                .map(|poi| poi.ui_map_id)
+            }),
             None => player.as_ref().and_then(|player| player_map(data, player)),
         };
         self.world_map.map_id = opened.ok_or("World map: no map under the player")?;

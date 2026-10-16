@@ -1,3 +1,7 @@
+## 2026-10-16 — Multi-area world-quest pin continuation
+
+[Area/floor boundary](investigations/world-quest-availability.md#multi-area-pin-continuation--implementation-checkpoint): actual82521 lower2256 pin RED0/1 and server availability REDfirst-area-only, while acceptance already accepts either source area. Wire now preserves all309areas for239tasks;2D projection does not invent height, nearest-area navigation keeps one logical task. Verification pending; prior3c08 native proof is a separate checkpoint. Source choice census239/0 makes reward choice not applicable.
+
 ## 2026-10-16 — World-quest navigation and Deathwing diagnosis
 
 [Task navigation and hazard](investigations/world-quest-availability.md#2026-10-16-navigation-and-authored-deathwing-hazard): available pins select without acceptance, received-position minimap markers, source-only bars/time text and unnumbered tracker POIs;13 scoped UI controls GREEN. Actual ten46327 actors spawn5552/5552; Deathwing's authored Molten Flame kills them on grid activation, not spawn/scaling/terrain. Current both-skin navigation/window/controlled-reward gate passes: actual7/8→8/8,11765XP, replay/expiry and26 inspected fullHD PNGs. The explicitly approved private fixture omits only hazard spawn20383796; product data is unchanged, no injected credit or NPC health restore. Ordinary-world hazard/phasing remains open.
