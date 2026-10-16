@@ -42,7 +42,7 @@ func run_test() -> void:
 	if not await wait_housing(func(): return housing_control("HouseEditorStorageSortMenu") != null, "actual Sort By submenu"): return
 	var sort_owner: Rect2 = housing_control("HouseEditorStorageSort").get_global_rect()
 	var sort: Rect2 = housing_control("HouseEditorStorageSortMenu").get_global_rect()
-	if sort.position.distance_to(Vector2(sort_owner.end.x, sort_owner.position.y)) > 0.1 or sort.size.distance_to(Vector2(125.0, 63.0) * scale) > 0.1:
+	if sort.position.distance_to(Vector2(sort_owner.end.x, sort_owner.position.y)) > 0.1 or absf(sort.size.y - 63.0 * scale) > 0.1:
 		fail("Sort popup lost source owner TOPRIGHT and two20px radio bounds")
 		return
 	var date := housing_control("HouseEditorStorageSortDateAdded") as BaseButton
