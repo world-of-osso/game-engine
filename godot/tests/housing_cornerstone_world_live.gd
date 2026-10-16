@@ -10,8 +10,8 @@ func run_test() -> void:
 	housing_account = OS.get_environment("HOUSING_ACCOUNT")
 	housing_skin = OS.get_environment("HOUSING_SKIN")
 	shots = OS.get_environment("HOUSING_SHOTS")
-	property_plot = 444
-	property_entry = 527261
+	property_plot = 444 if housing_skin == "Modern" else 424
+	property_entry = 527261 if housing_skin == "Modern" else 527282
 	if housing_server != "127.0.0.1:5870" or not housing_account.begins_with("fb_housing_world_") or shots.is_empty():
 		fail("Cornerstone WORLD proof needs isolated fresh world account")
 		return
@@ -24,7 +24,7 @@ func run_test() -> void:
 	if close != null and close.is_visible_in_tree():
 		await click_control(close, MOUSE_BUTTON_LEFT)
 	# GameObjects527261 actual authored position, NOT NeighborhoodPlot's marker.
-	var destination := Vector3(3641.85669, 104.272713, -258.151031)
+	var destination := Vector3(3641.85669, 104.272713, -258.151031) if housing_skin == "Modern" else Vector3(3569.20312, 102.340424, -265.888885)
 	if not await walk_to_cornerstone(destination): return
 	if not await capture_housing("walk-arrived-world"): return
 	if not await purchase_property(): return
