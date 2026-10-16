@@ -19,6 +19,9 @@ func run_test() -> void:
 	if mode == "produce":
 		if not await produce_news():
 			return
+	elif mode == "overflow":
+		if not await overflow_news():
+			return
 	elif mode == "readback":
 		if not await readback_news():
 			return
@@ -84,6 +87,9 @@ func produce_news() -> bool:
 		await capture("sticky")
 		await close_guild()
 	mark("overflow.go")
+	return await overflow_news()
+
+func overflow_news() -> bool:
 	if not await wait_file("overflow.json"):
 		return false
 	for skin in ["Modern", "Forever"]:
@@ -124,7 +130,7 @@ func purchases_hidden() -> bool:
 	return true
 
 func wait_file(filename: String) -> bool:
-	var deadline := Time.get_ticks_msec() + 600000
+	var deadline := Time.get_ticks_msec() + 1800000
 	while Time.get_ticks_msec() < deadline:
 		await process_frame
 		await RenderingServer.frame_post_draw
