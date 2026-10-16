@@ -1,3 +1,7 @@
+## 2026-10-16 — Guild news live acceptance
+
+[News](systems/guilds.md#news): source-qualified actual producers, independent query/filter/sticky authority and source art. Private UDP/native both-skin controls,250 physical retained entries, permissions/privacy and exact fresh-process readback pass;16 full-HD captures inspected. Final merged-source model4/backend6/wire1 and cargo checks pass. Source right-click input omission fixed; harness readiness and JSON-number membership failures remain distinct from product failures. Independent lead gate/landing next.
+
 ## 2026-10-15 — Campsite selected-hover
 
 - [Glue/menu fidelity](investigations/glue-menu-fidelity.md#campsite-selected-hover-branch--2026-10-15): existing selected state picks source selected-hover art/18px margins, both-skin native pointer/reselection proof.
