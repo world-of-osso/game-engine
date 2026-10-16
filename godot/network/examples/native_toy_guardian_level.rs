@@ -1,17 +1,60 @@
-//! Private UDP5911 Scarab Storm proof: real bag learning/use and replicated guardian levels.
+//! Private UDP5911 summoned-level proof: real bag learning/use and replicated source fields.
+//! Default Scarab control; explicit `podium`/`shrine` arguments probe wild initial stats.
 use game_engine_network::{BridgeConfig, Event, NetworkBridge, ProtocolMessage, replica::Replica};
-use shared::components::{Health, Npc, UnitLevel, UnitSummonedBy};
+use shared::components::{Health, Npc, Position, UnitLevel, UnitSummonedBy};
 use shared::protocol::*;
 use std::{
     fs, thread,
     time::{Duration, Instant, SystemTime, UNIX_EPOCH},
 };
 
-const TOY: u32 = 64881;
-const SCARAB: u32 = 51113;
 const DEADLINE: Duration = Duration::from_secs(120);
 
+#[derive(Clone, Copy, Debug)]
+enum SourceSummon {
+    Scarab,
+    Podium,
+    Shrine,
+}
+
+impl SourceSummon {
+    fn item(self) -> u32 {
+        match self {
+            Self::Scarab => 64881,
+            Self::Podium => 239018,
+            Self::Shrine => 245942,
+        }
+    }
+
+    fn entry(self) -> u32 {
+        match self {
+            Self::Scarab => 51113,
+            Self::Podium => 240220,
+            Self::Shrine => 246037,
+        }
+    }
+
+    fn count_range(self) -> std::ops::RangeInclusive<usize> {
+        match self {
+            Self::Scarab => 20..=30,
+            Self::Podium | Self::Shrine => 1..=1,
+        }
+    }
+
+    fn expected_health(self, level: u8) -> Result<Option<f32>, String> {
+        match (self, level) {
+            // Scarab full-stat parity is not asserted by this fixture.
+            (Self::Scarab, _) => Ok(None),
+            (Self::Podium, 20) => Ok(Some(48066.0)),
+            (Self::Podium, 30) => Ok(Some(87576.0)),
+            (Self::Shrine, 30) => Ok(Some(4379.0)),
+            _ => Err(format!("unsupported source level {level} for {self:?}")),
+        }
+    }
+}
+
 struct Peer {
+    source: SourceSummon,
     bridge: NetworkBridge,
     replica: Replica,
     player: Option<u64>,
@@ -100,7 +143,7 @@ impl Peer {
             catalog
                 .toys
                 .iter()
-                .any(|toy| toy.item_id == TOY && toy.learned)
+                .any(|toy| toy.item_id == self.source.item() && toy.learned)
         })
     }
 
@@ -115,7 +158,7 @@ impl Peer {
             .find_map(|bag| {
                 bag.items
                     .iter()
-                    .find(|slot| slot.item.item_id == TOY)
+                    .find(|slot| slot.item.item_id == self.source.item())
                     .map(|slot| ItemLocation::Bag {
                         bag: bag.bag,
                         slot: slot.slot,
@@ -128,11 +171,11 @@ impl Peer {
         })
     }
 
-    fn owned_scarabs(&self) -> Vec<(u8, u64, f32)> {
+    fn owned_summons(&self) -> Vec<(u8, u64, f32)> {
         self.replica
             .units()
             .filter_map(|unit| {
-                if unit.get::<Npc>()?.template_id != SCARAB
+                if unit.get::<Npc>()?.template_id != self.source.entry()
                     || unit.get::<UnitSummonedBy>()?.0 != self.player?
                 {
                     return None;
@@ -147,7 +190,7 @@ impl Peer {
     }
 }
 
-fn connect(account: String) -> Result<Peer, String> {
+fn connect(account: String, source: SourceSummon) -> Result<Peer, String> {
     let address = std::env::var("GODOT_TEST_SERVER").map_err(|e| e.to_string())?;
     if address != "127.0.0.1:5911" || !account.starts_with("fb_") {
         return Err("private5911/fb_* required".into());
@@ -176,6 +219,7 @@ fn connect(account: String) -> Result<Peer, String> {
         password: "fbtest".into(),
     })?;
     Ok(Peer {
+        source,
         bridge,
         replica: Replica::default(),
         player: None,
@@ -218,55 +262,104 @@ fn wait_for_owner(peer: &mut Peer, expected_level: u8) -> Result<u64, String> {
 fn learn_and_activate(peer: &mut Peer) -> Result<(), String> {
     peer.send_learning()?;
     wait(peer, "actual bag learning", Peer::learned)?;
+    let destination = source_destination(peer)?;
     peer.bridge.send::<_, CollectionChannel>(UseToy {
-        item_id: TOY,
-        destination: None,
+        item_id: peer.source.item(),
+        destination,
         witness: None,
     })?;
-    wait(peer, "replicated source Scarabs", |peer| {
-        peer.owned_scarabs().len() >= 20
+    wait(peer, "replicated source summons", |peer| {
+        peer.owned_summons().len() >= *peer.source.count_range().start()
     })
+}
+
+fn source_destination(peer: &Peer) -> Result<Option<[f32; 3]>, String> {
+    if !matches!(peer.source, SourceSummon::Shrine) {
+        return Ok(None);
+    }
+    let player = peer.player.ok_or("missing cursor caster")?;
+    let position = peer
+        .replica
+        .unit(player)
+        .and_then(|unit| unit.get::<Position>())
+        .ok_or("missing cursor caster position")?;
+    Ok(Some([position.x + 3.0, position.y, position.z]))
 }
 
 fn prove_account(
     account: String,
     owner_level: u8,
     expected_level: u8,
+    source: SourceSummon,
 ) -> Result<serde_json::Value, String> {
-    let mut peer = connect(account.clone())?;
+    let mut peer = connect(account.clone(), source)?;
     let player = wait_for_owner(&mut peer, owner_level)?;
     learn_and_activate(&mut peer)?;
-    let actors = peer.owned_scarabs();
-    if !(20..=30).contains(&actors.len())
-        || actors.iter().any(|&(level, owner, health)| {
-            level != expected_level || owner != player || health <= 0.0
-        })
-    {
+    let actors = peer.owned_summons();
+    let expected_health = verify_source_summons(source, &actors, player, expected_level)?;
+    Ok(
+        serde_json::json!({"account": account, "player": player, "owner_level": owner_level,
+        "expected_summon_level": expected_level, "source": format!("{source:?}"),
+        "expected_health": expected_health, "actors": actors, "learning": "actual UseItem then UseToy"}),
+    )
+}
+
+fn read_source_scenario() -> Result<SourceSummon, String> {
+    let source = match std::env::args().nth(1).as_deref() {
+        None | Some("scarab") => SourceSummon::Scarab,
+        Some("podium") => SourceSummon::Podium,
+        Some("shrine") => SourceSummon::Shrine,
+        Some(other) => return Err(format!("unknown source scenario {other}")),
+    };
+    Ok(source)
+}
+
+fn verify_source_summons(
+    source: SourceSummon,
+    actors: &[(u8, u64, f32)],
+    player: u64,
+    expected_level: u8,
+) -> Result<Option<f32>, String> {
+    if !source.count_range().contains(&actors.len()) {
+        return Err(format!("source count mismatch: {actors:?}"));
+    }
+    let expected_health = source.expected_health(expected_level)?;
+    let wrong_identity = actors
+        .iter()
+        .any(|&(level, owner, health)| level != expected_level || owner != player || health <= 0.0);
+    let wrong_health =
+        expected_health.is_some_and(|expected| actors.iter().any(|actor| actor.2 != expected));
+    if wrong_identity || wrong_health {
         return Err(format!(
             "source level/ownership/health mismatch: {actors:?}"
         ));
     }
-    Ok(
-        serde_json::json!({"account": account, "player": player, "owner_level": owner_level,
-        "expected_scarab_level": expected_level, "actors": actors, "learning": "actual UseItem then UseToy"}),
-    )
+    Ok(expected_health)
 }
 
 fn main() -> Result<(), String> {
+    let source = read_source_scenario()?;
+    let expected_at20 = if matches!(source, SourceSummon::Shrine) {
+        30
+    } else {
+        20
+    };
     let accounts = [
         std::env::var("TOYFX_LEVEL20_ACCOUNT").map_err(|e| e.to_string())?,
         std::env::var("TOYFX_LEVEL80_ACCOUNT").map_err(|e| e.to_string())?,
     ];
     let output = std::env::var("TOYFX_LEVEL_OUTPUT").map_err(|e| e.to_string())?;
     let proofs = vec![
-        prove_account(accounts[0].clone(), 20, 20)?,
-        prove_account(accounts[1].clone(), 80, 30)?,
+        prove_account(accounts[0].clone(), 20, expected_at20, source)?,
+        prove_account(accounts[1].clone(), 80, 30, source)?,
     ];
     fs::write(
         output,
         serde_json::to_vec_pretty(&proofs).map_err(|e| e.to_string())?,
     )
     .map_err(|e| e.to_string())?;
-    println!("PASS actual bag learning/UseToy: Northshire Scarab guardian20/30 at owner20/80");
+    println!(
+        "PASS actual bag learning/UseToy: Northshire {source:?} initialized fields at owner20/80"
+    );
     Ok(())
 }
