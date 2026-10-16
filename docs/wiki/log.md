@@ -1,3 +1,7 @@
+## 2026-10-16 — Full-HD storage capture boundary
+
+[F21](systems/housing.md#full-hd-storage-captures--verified2026-10-16): current merged helper builds, both-skin five-phase physical Filter/Sort/disabled/Dyeable/reset proof and ten inspected untouched1920×1080 originals. Private snapshot Z-schema drift refreshed from authentic current table; no product fix/full-image-parity claim. All owned processes stopped.
+
 ## 2026-10-16 — Unavailable storage-filter semantics
 
 [F20](systems/housing.md#unavailable-storage-filters--qualified2026-10-16): read-only70391 catalog/API/persistence inspection distinguishes query contracts from absent location/history/tag-definition mappings. No invented semantics/product edits or replay; full-HD remains F21.
