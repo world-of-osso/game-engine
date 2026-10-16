@@ -2,13 +2,30 @@
 
 [Model choices](systems/adventure-guide.md#authored-model-selection--bounded-native-proof-2026-10-15) now select authored names/displays and owner-right description tooltips. Both-skin native47be Helix→Oaf/reset/Nezir passes with M2-camera-rendered heads and the source circle mask. Independent verification caught prior3f static boss-art substitution despite passing corner checks; native RED→GREEN covers the corrected portrait identity. Full-model authored UiModelScene camera remains a named gap.
 
+## 2026-10-15 — Authored talent Starter selection
+## 2026-10-15 — Guild lifecycle query flow
+
+[Lifecycle log](systems/guilds.md#lifecycle-log): typed member-scoped query/reply and independent native open/cache/waiting state. Missing Info View Log control reproduced in both-skin fixture; source title is active GlobalStrings **Log**. Source dialog/footer, shared Translucent art, colored source paragraphs and MinimalScrollBar implemented; targeted UI5/5 passes source entry/order/authority/closure plus prior invitation controls. Server backend4/4 passes real actions/retention/abort/reopen; actual UDP six-kind/order/refusal transport passes1/1. Native/server-process restart GREEN remains pending; the new private fixture performs physical mutations in both skins, generates100 actual overflow rows and compares the raw rendered reply after restart, without injecting history. First private run completes both skins' real eight-action/permission/privacy steps and five inspected PNGs, then reaches the900s workload watchdog during100 actions; drawn-frame readiness replaces inherited ten-frame sleeps, with all assertions retained and a bounded1800s functional deadline. Run4 now passes both-skin actual actions/privacy,100 physical rank changes, source30px overflow/end-clamp and fresh server/client exact100-event/timestamp readback with unchanged binary receipts. Eleven full-HD PNGs inspected; evidence linked in the system page. Refreshed-master integration gates remain separate.
 ## 2026-10-15 — Stockade short-frame step admission
 
-[Short-frame proof](systems/player-ground.md#short-frame-regression-proof): same authored lip reproduced RED at run144/240FPS and walk60FPS. Support admission now includes the existing wall-margin reach without extra horizontal movement or a new tolerance/radius. Thirteen targeted regressions pass; native capture remains explicitly scoped to the earlier 60-FPS build.
+[Starter Build](systems/talents.md#starter-build--2026-10-15): server-advertised built-in selection, authoritative level allocation and shared-skin deviation confirmation. Starter5/UI12/UDP2/protocol1 scoped proofs pass; focused blue-caption RED→GREEN1 resets normal color on named switch. Real UDP5881 both-skin level10→11→80, exact relog projections, yellow tooltip and confirmed deactivation pass;12 inspected native1920×1080 PNGs delivered. Coupled landing remains lead-owned.
+
+## 2026-10-15 — Stockade short-frame step admission
+## 2026-10-15 — Housing Expert binding context
+
+[Expert-only context](systems/housing.md#expert-binding-context--verified2026-10-15): full XML/OnShow/OnHide source rejects wrapper-only cross-mode activation inference before production edits. Both-skin native actual Options keys preserve Basic/Cleanup, switch three Expert submodes and conserve paid state; six inspected functional1280 PNGs. Diagnostic invalid oracle and old-extension protocol mismatch retained separately; no product/audio/timing/full-HD claim.
+## 2026-10-15 — Stockade short-frame step admission
+## 2026-10-15 — Particle sorting, projected births and native bent curves
+
+[Native particles](systems/godot-conversion.md#native-m2-particles): P6 CPU near-first RED→current-view sorting and native8/8 alpha/additive controls; P7 real-collision flat/raised RED→6/6 projection/control cases; P4 native model-emitter admission/placement yields99 particles and99 visible centers on each opposing cubic. Forward-integrated native build,13 focused controls and fmt pass. Requested1920×1080 PNGs saved in AgentShared/2026-10-15/m2-particles and representative cases inspected. P4-density remains an evidence gap; target-mask/P3/S1/P5 equivalence unclaimed. No prohibited sources accessed.
 
 ## 2026-10-15 — Clean-room M2 particle slices
 
 [Native particles](systems/godot-conversion.md#native-m2-particles): independent tails/follow, actual6316199 cubic controls and2994778 inherited scale decode. Eight focused RED→GREEN controls, including independent tail width; native build and fmt pass. P3 timer/reset, P4 density, S1 lighting oracle and P5 product/lifecycle provenance remain named gaps. Real165894 tail-only native PASS: five quads/4,547 changed pixels at1920×1080 with two byte-identical baselines; inspected PNGs in AgentShared/2026-10-15/m2-particles; no prohibited sources consulted.
+## 2026-10-15 — Stockade short-frame step admission
+
+[Short-frame proof](systems/player-ground.md#short-frame-regression-proof): same authored lip reproduced RED at run144/240FPS and walk60FPS. Support admission now includes the existing wall-margin reach without extra horizontal movement or a new tolerance/radius. Thirteen targeted regressions pass; native capture remains explicitly scoped to the earlier 60-FPS build.
+
 ## 2026-10-15 — Stockade ramp lip movement
 
 [Player ground](systems/player-ground.md#native-grounded-steps--2026-10-15): captured face3153 lip blocks before reachable face3041 support; floor-first order with unchanged low-ray movement corridor and step/wall constants. Exact-face RED and thin-wall counterexample RED recorded; lead explicitly excluded full-height body clearance after authored-route regressions. Full-body clearance is a named gap. [Bounded native proof](systems/player-ground.md#bounded-native-proof): Godot old-ray contact0.04996484yd, held-W rise0.65576yd with matching client/server positions, inspected before/after PNGs;10+4 focused regressions pass. Authoritative private pose setup is recorded; no server source changes.

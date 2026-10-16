@@ -2148,6 +2148,7 @@ fn talents_wire_preserves_spec_result_snapshot_order_in_one_worker_batch() {
     let loadouts = TraitLoadoutsSnapshot {
         spec_id: 64,
         selected_id: 2,
+        starter_available: true,
         configs: vec![TraitLoadoutInfo {
             id: 2,
             name: "Raid".into(),

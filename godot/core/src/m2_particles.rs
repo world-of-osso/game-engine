@@ -14,10 +14,16 @@ use crate::m2::{AnimTime, ParticleEmitter};
 #[path = "m2_particle_spline.rs"]
 mod spline;
 
+const FLAG_SORT_DEPTH: u32 = 0x2;
 const FLAG_VELOCITY_ORIENTED: u32 = 0x4;
 const FLAG_MODEL_SPACE: u32 = 0x10;
 const FLAG_INHERIT_SCALE: u32 = 0x20;
 const FLAG_FOLLOW_POSITION: u32 = 0x4000;
+const FLAG_PROJECT_GROUND: u32 = 0x2000;
+/// Supplied clean-room P7: map intersection is a twenty-yard downward segment.
+const GROUND_PROJECTION_DISTANCE: f32 = 20.0;
+/// World-space segment intersection; None is an actual miss, never a scalar floor.
+pub type GroundQuery<'a> = dyn FnMut(Vec3, Vec3) -> Option<Vec3> + 'a;
 const FLAG_SPHERE_IMPLODE: u32 = 0x80;
 const FLAG_SPHERE_UP: u32 = 0x100;
 const FLAG_SPIN_FLIP: u32 = 0x200;
@@ -532,6 +538,7 @@ impl EmitterSim {
         emitter_to_world: Mat4,
         wow_to_world: Mat3,
         density: f32,
+        ground: &mut GroundQuery<'_>,
     ) {
         if shape(emitter).is_none() || !(dt > 0.0) {
             return;
@@ -555,6 +562,7 @@ impl EmitterSim {
                     wow_to_world,
                     density,
                     follow * (STEP_SECONDS / dt),
+                    ground,
                 );
             }
         }
@@ -564,6 +572,7 @@ impl EmitterSim {
             wow_to_world,
             density,
             follow * (remainder / dt),
+            ground,
         );
     }
 
@@ -575,6 +584,7 @@ impl EmitterSim {
         wow_to_world: Mat3,
         density: f32,
         follow: Vec3,
+        ground: &mut GroundQuery<'_>,
     ) {
         if dt < 0.0 {
             return;
@@ -595,7 +605,7 @@ impl EmitterSim {
         };
         let gravity = to_sim(self.props.gravity);
         let wind = to_sim(emitter.wind_vector);
-        self.emit(emitter, dt, density);
+        self.emit(emitter, dt, density, wow_to_world * Vec3::Z, ground);
         let center = if model_space {
             Vec3::ZERO
         } else {
@@ -633,7 +643,14 @@ impl EmitterSim {
 
     /// `EmitNewParticles`: rate (+ variation) x density accumulates; each whole
     /// particle spawns while the pool has room.
-    fn emit(&mut self, emitter: &ParticleEmitter, dt: f32, density: f32) {
+    fn emit(
+        &mut self,
+        emitter: &ParticleEmitter,
+        dt: f32,
+        density: f32,
+        up: Vec3,
+        ground: &mut GroundQuery<'_>,
+    ) {
         if !self.enabled {
             return;
         }
@@ -643,7 +660,8 @@ impl EmitterSim {
         self.emission += dt * rate;
         while self.emission > 1.0 {
             if self.particles.len() < self.capacity {
-                let particle = self.spawn(emitter, dt);
+                let mut particle = self.spawn(emitter, dt);
+                project_birth(emitter, &mut particle, self.props.lifespan, up, ground);
                 self.particles.push(particle);
             }
             self.emission -= 1.0;
@@ -697,16 +715,45 @@ impl EmitterSim {
     /// Visible world-space heads and tails, sharing lifetime appearance and twinkle.
     pub fn quads(&self, emitter: &ParticleEmitter, view: &ViewBasis, out: &mut Vec<Quad>) {
         let max_life = max_lifespan(emitter, self.props.lifespan);
-        for particle in self.particles.iter().filter(|p| p.age <= max_life) {
-            let Some((head, scale)) = self.quad(emitter, particle, view) else {
-                continue;
-            };
-            if emitter.flags & FLAG_HEAD != 0 {
-                out.push(head);
+        let live = self.particles.iter().filter(|p| p.age <= max_life);
+        if emitter.flags & FLAG_SORT_DEPTH != 0 {
+            let mut ordered: Vec<_> = live
+                .map(|particle| {
+                    let center = if emitter.flags & FLAG_MODEL_SPACE != 0 {
+                        self.emitter_to_world.transform_point3(particle.position)
+                    } else {
+                        particle.position
+                    };
+                    (particle, center.dot(view.back))
+                })
+                .collect();
+            // back points toward the camera: smaller dot products are farther.
+            ordered.sort_by(|a, b| a.1.total_cmp(&b.1));
+            for (particle, _) in ordered {
+                self.append_particle_quads(emitter, particle, view, out);
             }
-            if emitter.flags & FLAG_TAIL != 0 {
-                out.push(self.tail_quad(emitter, particle, view, (head, scale)));
+        } else {
+            for particle in live {
+                self.append_particle_quads(emitter, particle, view, out);
             }
+        }
+    }
+
+    fn append_particle_quads(
+        &self,
+        emitter: &ParticleEmitter,
+        particle: &Particle,
+        view: &ViewBasis,
+        out: &mut Vec<Quad>,
+    ) {
+        let Some((head, scale)) = self.quad(emitter, particle, view) else {
+            return;
+        };
+        if emitter.flags & FLAG_HEAD != 0 {
+            out.push(head);
+        }
+        if emitter.flags & FLAG_TAIL != 0 {
+            out.push(self.tail_quad(emitter, particle, view, (head, scale)));
         }
     }
 
@@ -775,6 +822,30 @@ impl EmitterSim {
             },
             scale,
         ))
+    }
+}
+
+/// World-space plane/sphere births only, before their first ballistic step.
+fn project_birth(
+    emitter: &ParticleEmitter,
+    particle: &mut Particle,
+    lifespan: f32,
+    up: Vec3,
+    ground: &mut GroundQuery<'_>,
+) {
+    let world_projection =
+        emitter.flags & (FLAG_PROJECT_GROUND | FLAG_MODEL_SPACE) == FLAG_PROJECT_GROUND;
+    let supported = matches!(
+        shape(emitter),
+        Some(ParticleShape::Plane | ParticleShape::Sphere)
+    );
+    if !world_projection || !supported {
+        return;
+    }
+    let end = particle.position - up * GROUND_PROJECTION_DISTANCE;
+    if let Some(hit) = ground(particle.position, end) {
+        let scale = appearance(emitter, lifespan, particle.age, particle.seed).scale;
+        particle.position = hit + up * scale.max_element();
     }
 }
 
