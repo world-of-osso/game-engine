@@ -4,6 +4,7 @@ import json
 import sys
 import unittest
 from pathlib import Path
+from unittest.mock import patch
 
 sys.path.insert(0, str(Path(__file__).resolve().parents[1]))
 from bot_harness import parse_combat
@@ -56,8 +57,9 @@ class DungeonReportTests(unittest.TestCase):
         controller.invoke = lambda *words: fixture['roster_command']['stdout']
         controller.party_actor_ids = {row['name']: row['entity'] for row in fixture['native_actors']}
         controller.party_actor_ids['Bwarfury'] = fixture['run']['actor']
-        with self.assertRaisesRegex(RuntimeError, 'death'):
-            controller.party()
+        with patch('run_stockade_bot.time.time', return_value=fixture['roster_command']['at_ms'] / 1000):
+            with self.assertRaisesRegex(RuntimeError, 'death'):
+                controller.party()
         result = summarize_dungeon(controller.run, [])
         self.assertEqual(result['observed_party_deaths'], 1)
         self.assertEqual(result['observed_player_deaths'], 0)

@@ -1,3 +1,7 @@
+## 2026-10-16 — Native BM predicate follow-up and party-death reporting
+
+[BM follow-up](systems/bot-harness.md#bm-pet-presence-follow-up--verified2026-10-16): latest pet-presence predicates remove29672/58 refusal; two fresh60s windows remain0damage because every sample selects CallPet1 and no pet appears. Collection complete is not working rotation/pet proof. [Stockade](systems/bot-harness.md#stockade-boss-accounting) later stops504.704s at native tankdeath; roster confirms one death absent from combat events. Actual-fixture RED→GREEN accounting now retains that observation and withholds death totals; original report preserved. Ordinary source-box exit completes natively. No boss clear/DPS proof or stat/kit override; owned runtimes stopped.
+
 ## 2026-10-16 — First native Fury Stockade attempts
 
 [Stockade receipts](systems/bot-harness.md#stockade-boss-accounting): authentic equal-budget owner/Normal party entry confirmed twice; first81.541s attempt exposed dead assisted-target observation, reproduced/fixed with native fixture. Second405.948s attempt passed that boundary but lost connection as server ticks degraded12.2→0.5/s; no boss credit, all boss DPSnull, zero observed deaths/totalsunknown after capture loss. Ordinary source-trigger exit observedmap0; async trigger-ack replay fixed separately. Owned runtimes stopped; clear/loot/boss metrics remain open.
