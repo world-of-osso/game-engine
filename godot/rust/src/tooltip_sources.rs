@@ -114,7 +114,7 @@ impl GameClient {
     /// The tooltip of the hovered frame, if it has one.
     pub(crate) fn frame_tooltip(&mut self, hit: &HoveredFrame) -> Option<HoveredTooltip> {
         type Source = fn(&mut GameClient, &HoveredFrame) -> Option<HoveredTooltip>;
-        const SOURCES: [Source; 41] = [
+        const SOURCES: &[Source] = &[
             GameClient::trading_post_cart_tooltip,
             GameClient::guild_perk_tooltip,
             GameClient::pvp_honor_tooltip,
@@ -136,6 +136,7 @@ impl GameClient {
             GameClient::action_button_tooltip,
             GameClient::mentor_teleport_tooltip,
             GameClient::talent_gate_tooltip,
+            GameClient::profession_reagent_quality_tooltip,
             GameClient::profession_specialization_tooltip,
             GameClient::spellbook_tooltip,
             GameClient::trainer_tooltip,
@@ -240,18 +241,20 @@ impl GameClient {
         )?))
     }
 
-    /// PerksProgramElements.lua306–314: hovered product GetItemByID, no SellPrice.
+    /// Elements.lua306–314, including its inherited frozen-product template.
     fn trading_post_tooltip(&mut self, hit: &HoveredFrame) -> Option<HoveredTooltip> {
         let ui = hit.ui.bind();
         let (owner, product_id) = named_ancestor(ui.registry()?, hit.frame, |frame| {
-            indexed(frame, "PerksProgramProduct")
+            frame
+                .onclick
+                .as_deref()?
+                .strip_prefix("perks:select:")?
+                .parse::<u32>()
+                .ok()
         })?;
         drop(ui);
         let snapshot = self.trading_post.view.snapshot.as_ref()?;
-        let product = snapshot
-            .items
-            .iter()
-            .find(|row| row.id as usize == product_id)?;
+        let product = snapshot.items.iter().find(|row| row.id == product_id)?;
         let item = named_item_for(
             shared::item_data::ItemDefinitionSource::Retail,
             product.item_id,
@@ -791,6 +794,22 @@ impl GameClient {
             OwnerSide::Right,
             tooltip,
         )?))
+    }
+
+    fn profession_reagent_quality_tooltip(&mut self, hit: &HoveredFrame) -> Option<HoveredTooltip> {
+        let ui = hit.ui.bind();
+        let (owner, item_id) = named_ancestor(ui.registry()?, hit.frame, |frame| {
+            name_of(frame)?
+                .strip_prefix("ProfessionQuality")?
+                .strip_suffix("Choice")?
+                .parse::<u32>()
+                .ok()
+        })?;
+        drop(ui);
+        let item = game_engine_ui_model::item_catalog::item_catalog_entry(item_id)?;
+        let slot = named_item(item_id, &item.name, item.quality, 1);
+        // QualityDialog.lua81-84: GameTooltip owner ANCHOR_TOPLEFT, actual reagent item.
+        self.item_owned(hit, owner, OwnerSide::TopLeft, slot)
     }
 
     fn profession_specialization_tooltip(&mut self, hit: &HoveredFrame) -> Option<HoveredTooltip> {
