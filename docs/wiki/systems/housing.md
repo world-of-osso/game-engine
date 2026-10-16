@@ -2,6 +2,12 @@
 
 Retail Mainline controls/behavior are shared by Modern and Forever; Forever changes art. Build-qualified static data, account ownership and actual item acquisition remain separate. Requirements/gaps: [client contract](../../specs/housing.md), [server contract](../../../../game-server/docs/specs/housing-catalog.md).
 
+## Unavailable storage filters — qualified2026-10-16
+
+[Capability/gap contract](../../specs/housing.md#unavailable-filter-semantics--qualified2026-10-16). F20 inspected the actual70391 catalog (build key334a36cf5f3c32a5f7a167405487fa14), core `Decor` loader, server persisted `State` and protocol `StoredDecor`/variants against Retail generated search APIs and CatalogFilters/StorageFrame callers.20119 authored tag links exist, but the47-table import has no DataTag definition/group records. HouseDecor carries Flags/OrderIndex, neither decoded as location nor acquisition chronology by the authenticated sources. Persistence stores counts/variants, not acquisition history. No additional storage predicate was authenticated: Date Added and Placeable remain disabled, tag groups unpopulated; collection/first-acquisition rows are intentionally absent in Storage by source, not merely disabled.
+
+This slice changes documentation only: no invented flag meanings, dates, grants, UI rows or product RED/GREEN. Existing F18 disabled-row/F19 paid-state native proof remains at its recorded runtime; no new native proof claimed. Private `F20-catalog-inspection.json` and `F20-source-receipt.json` under `/home/osso/.worktrees/housing-core14-evidence/` retain source hashes and read-only current-cache evidence. Full-HD capture is the separate F21 slice; unknown predicates remain open rather than being certified by screenshots.
+
 ## Expert active glow — implementation2026-10-15
 
 [Contract](../../specs/housing.md#expert-active-submode-glow). Expert controls add the source centered176×178 glow above the64×64 icon, with visibility derived from the active submode. `ui/housing_glow.rs` reuses `castbar_fx`'s alpha-mask shader: the sprite turns while mask coordinates stay in the button's unrotated64×64 space; source masks are selected per Translate/Rotate/Scale. Hover remains the separate additive overlay. A UI-thread first-play Instant implements the source `HousingSubModeActiveAnims` lifetime, independent of RegistryUi/control recreation; hidden time still counts. Native per-frame rotation changes only the projected glow part, not registry input/model/authority.

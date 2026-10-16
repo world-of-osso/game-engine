@@ -333,7 +333,14 @@ impl GameClient {
                 return Err(error);
             }
         }
-        while let Some((action, right, _)) = ui.bind_mut().pop_alt_click() {
+        while let Some((action, right, shift)) = ui.bind_mut().pop_alt_click() {
+            if shift && !right && action.starts_with("guild:perk:") {
+                let id = action
+                    .trim_start_matches("guild:perk:")
+                    .parse::<u32>()
+                    .map_err(|error| format!("Guild perk spell ID: {error}"))?;
+                self.insert_guild_perk_chat_link(id)?;
+            }
             if right && action.starts_with("guild:news_entry:") {
                 self.guild_ranks.session.click(
                     &action.replacen("guild:news_entry:", "guild:news_menu:", 1),
@@ -379,6 +386,11 @@ impl GameClient {
     }
 
     fn sync_guild_ranks(&mut self) -> Result<(), String> {
+        if self.guild_ranks.session.communities_tab
+            == game_engine_ui_model::guild_ranks::CommunitiesTab::Benefits
+        {
+            game_engine_ui_model::guild_perks::load_catalog()?;
+        }
         let scale = self.effective_ui_scale();
         let state = self.guild_ranks.session.clone();
         if self.guild_ranks.ui.is_none() {

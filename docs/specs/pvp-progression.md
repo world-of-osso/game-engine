@@ -8,6 +8,20 @@ Retail Mainline defines behavior/layout in both Modern and Forever art skins.
 - Queue pairing is not a combat result. Pairing alone cannot generate rating, honor or conquest.
 - War Mode changes require authoritative rest-area/combat/instance checks and the authored buff. Talent selection requires specialization, level, slot/category and conditions.
 
+## Lifetime XP continuation — 2026-10-16
+
+The authoritative snapshot exposes lifetime honor XP independently of spendable1792. `HONOR_LEVEL_XP_CURVE` remains a named source gap: unknown level is `None`, displayed as an em dash; no wallet15000 substitution for the lifetime maximum, no fabricated radial fill, badge level or reward grant. Retail Mainline HonorInset/128x128 HonorLevelDisplay uses the same XML anchors in both art skins. Its source-owned Lifetime Honor tooltip displays the actual accumulated XP without an invented denominator. This does not certify account-wide aggregation; active70391 LIFETIME_HONOR_DESC says Warband, while pinned TC stores player honor. Account aggregation remains a named gap.
+
+Authority: local `Blizzard_PVPUI/Mainline/Blizzard_PVPUI.xml`804–861,1670–1728 and `.lua`1904–1947,1975–1983. Both-skin native full-HD acceptance remains required; a registry test is not render proof. Reward identity catalogs do not imply progression through an unknown curve.
+
+## Bounded lifetime XP acceptance — 2026-10-16
+
+Private UDP5941, fb_pvpprog/Honorproof, source level30 versus opposing level30: private admin normal-damage path produces an actual player death, server lifetime0→47, native Forever tooltip47, fresh Modern process retains47, then another actual death produces94. Dead-target replay does not add another award. Both skins render source128px faction ring, unknown `Honor Level —`, and separate spendable Honor0/15000; no lifetime denominator/fill or reward is invented. Native input also selects sourced Arms Disarm3534 in Forever; Modern relog retains it. Pointer War Mode enable/disable projects desired/enlisted identities in both skins; this run does not independently inspect applied aura contents.
+
+Fifteen inspected1920x1080 originals (including one explicitly named failed/dead-target diagnostic) live at `/syncthing/AgentShared/2026-10-16/pvp-progression/`; receipts, source hashes and exact revision/proof ledger at `data/diagnostics/pvp-progression-2026-10-16/`. These are existing private-admin damage stimuli, not native player-controlled PvP combat certification. Runtime source: engine1107f3f7e (later wiki-only90ff3656f), serverc5d4e9cd, protocol7f16f326. Server10/UI4/wire1 targeted tests and scoped Rust checks/fmt pass. No broader parity claim.
+
+Character Currency remains a real implementation gap: native IPC returns `unported request CurrenciesStatus`, the native account does not consume CurrencyStateUpdate, and only Character/Reputation tabs render. Fresh wallets remain0; no award was fabricated to enable a currency tab. The requested Currency consumer/UI is the next slice, not marked accepted by these captures. Match-completion payout binding, current season-cap authority, rated-BG reference policy and account-wide aggregation remain separate named gaps.
+
 ## Local source export
 
 `scripts/export_db2_csv.py` accepts exact pinned layouts for CurrencyTypes1095531, PvpTalent1302853, PvpTalentCategory1891534, PvpTalentSlotUnlock1950197 and PrestigeLevelInfo1275869. Exported fields describe source records, not runtime implementation guarantees. TrinityCore DB2Structure.h locally preserved in `data/diagnostics/scrap-2026-10-10/` supplies field semantics; CASC supplies values.
