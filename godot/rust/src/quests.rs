@@ -369,12 +369,15 @@ impl GameClient {
             .as_ref()
             .expect("loaded quest POIs")
             .apply(&mut self.account.quests.log);
-        if self
-            .quests
-            .ui
-            .super_tracked
-            .is_some_and(|id| self.account.quests.entry(id).is_none())
-        {
+        if self.quests.ui.super_tracked.is_some_and(|id| {
+            self.account.quests.entry(id).is_none()
+                && !self.account.quests.world_quests.iter().any(|quest| {
+                    quest.quest_id == id
+                        && quest.expires_at
+                            > crate::account::quest_local_unix()
+                                + self.account.quests.server_clock_offset
+                })
+        }) {
             self.quests.ui.super_tracked = None;
         }
         Ok(())

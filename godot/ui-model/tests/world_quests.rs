@@ -79,24 +79,13 @@ fn world_quests_received_positions_reach_minimap_without_an_accepted_log() {
     for skin in [ActiveSkin::Modern, ActiveSkin::Forever] {
         let style = cluster_style(skin);
         let view = MinimapView::new([-4655., 4310.], 0).masked(style.mask);
-        let blips = game_engine_ui_model::quest_poi::quest_minimap_blips(
-            &runtime,
-            None,
-            0,
-            &view,
-            style.map_size,
-        );
+        let blips = world_quest_ui::minimap_blips(&runtime, None, 0, &view, style.map_size, 900);
         assert_eq!(blips.len(), 1, "received task missing in {skin:?}");
         assert_eq!(blips[0].unit, 86948);
         assert_eq!(blips[0].offset, [0., 0.]);
         assert!(runtime.log.is_empty());
-        let wrong_map = game_engine_ui_model::quest_poi::quest_minimap_blips(
-            &runtime,
-            None,
-            1,
-            &view,
-            style.map_size,
-        );
+        let wrong_map =
+            world_quest_ui::minimap_blips(&runtime, None, 1, &view, style.map_size, 900);
         assert!(wrong_map.is_empty());
         assert_eq!(
             style.mask,

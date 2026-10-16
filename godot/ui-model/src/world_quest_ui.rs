@@ -38,6 +38,42 @@ pub fn map_pins(
         .collect()
 }
 
+/// Received active task positions, without accepting a task or inventing quest-log POIs.
+/// Minimap icon composition is an engine presentation, not a Retail Lua minimap oracle.
+pub fn minimap_blips(
+    runtime: &QuestRuntime,
+    selected: Option<u32>,
+    map_id: u32,
+    view: &game_engine_core::minimap_data::MinimapView,
+    map_size: f32,
+    now: i64,
+) -> Vec<crate::minimap::MinimapBlip> {
+    use crate::minimap::{BlipKind, MinimapBlip, edge_offset};
+    runtime
+        .world_quests
+        .iter()
+        .filter(|quest| {
+            quest.map_id == map_id && quest.expires_at > now + runtime.server_clock_offset
+        })
+        .filter_map(|quest| {
+            let position = [quest.position.x as f32, -(quest.position.y as f32)];
+            let (offset, edge) = edge_offset(view, position, map_size);
+            if edge && selected != Some(quest.quest_id) {
+                return None;
+            }
+            Some(MinimapBlip {
+                unit: u64::from(quest.quest_id),
+                kind: if edge {
+                    BlipKind::QuestSuperTrackArrow
+                } else {
+                    BlipKind::WorldQuest
+                },
+                offset,
+            })
+        })
+        .collect()
+}
+
 pub fn tooltip(quest: &AvailableWorldQuest, now: i64, position: [f32; 2]) -> TooltipPresentation {
     let remaining = (quest.expires_at - now).max(0);
     let mut lines = vec![TooltipLineState::new(format!(
@@ -90,7 +126,7 @@ pub fn progress_bar(id: u32, progress: (u32, u32), y: f32, scale: f32) -> Elemen
     } else {
         (current as f32 / total as f32).clamp(0., 1.)
     };
-    let text = format!("{current}/{total} ({}%)", (fraction * 100.).round() as u32);
+    let text = format!("{}%", (fraction * 100.).round() as u32);
     let fill = 191. * fraction * scale;
     let mut elements = rsx! {
         r#frame {name: {DynName(format!("WorldQuest{id}ProgressBackground"))},width: {191.*scale},height:{17.*scale},background_color:"0.04,0.07,0.18,1",pos_type:"absolute",left:{30.*scale},top:{y*scale}}

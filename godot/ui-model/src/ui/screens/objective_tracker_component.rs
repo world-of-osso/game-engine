@@ -101,7 +101,7 @@ pub struct ObjectiveTrackerState {
     pub quests: Vec<TrackedQuest>,
     pub dungeon: Option<DungeonBlock>,
     pub scenario: Option<ScenarioStage>,
-    pub world_quests: Vec<(TrackedQuest, (u32, u32))>,
+    pub world_quests: Vec<(TrackedQuest, Option<(u32, u32)>)>,
 }
 
 impl ObjectiveTrackerState {
@@ -125,7 +125,9 @@ impl ObjectiveTrackerState {
                     text: "Quest completion failed.".into(),
                     style: ObjectiveLineStyle::InProgress,
                 }];
-            } else if let Some(end) = entry.expires_at {
+            } else if let Some(end) = entry.expires_at
+                && !runtime.is_world_quest(entry.quest_id)
+            {
                 let remaining = (end - now).max(0);
                 block.lines.insert(
                     0,
@@ -143,31 +145,7 @@ impl ObjectiveTrackerState {
         state.quests = ordinary;
         state.world_quests = world
             .into_iter()
-            .map(|block| {
-                let entry = runtime
-                    .entry(block.quest_id)
-                    .expect("tracked world quest entry");
-                let (current, total) = match entry.objectives.iter().find(|objective| {
-                    objective.kind == shared::protocol::QuestObjectiveKind::ProgressBar
-                }) {
-                    Some(bar) => (bar.current, bar.required),
-                    None => (
-                        entry
-                            .objectives
-                            .iter()
-                            .filter(|objective| !objective.optional)
-                            .map(|objective| objective.current)
-                            .sum(),
-                        entry
-                            .objectives
-                            .iter()
-                            .filter(|objective| !objective.optional)
-                            .map(|objective| objective.required)
-                            .sum(),
-                    ),
-                };
-                (block, (current, total))
-            })
+            .map(|block| world_quest_block(block, runtime, now))
             .collect();
         state
     }
@@ -187,6 +165,51 @@ impl ObjectiveTrackerState {
             world_quests: Vec::new(),
         }
     }
+}
+
+/// Only an authored progressbar objective creates a bar; counted objectives remain text.
+fn world_quest_block(
+    mut block: TrackedQuest,
+    runtime: &QuestRuntime,
+    now: i64,
+) -> (TrackedQuest, Option<(u32, u32)>) {
+    let entry = runtime
+        .entry(block.quest_id)
+        .expect("tracked world quest entry");
+    let progress = entry
+        .objectives
+        .iter()
+        .find(|objective| {
+            objective.kind == shared::protocol::QuestObjectiveKind::ProgressBar
+                && !objective.completed
+        })
+        .map(|bar| (bar.current, bar.required));
+    block.lines = entry
+        .objectives
+        .iter()
+        .filter(|objective| objective.kind != shared::protocol::QuestObjectiveKind::ProgressBar)
+        .map(|objective| ObjectiveLine {
+            text: format!(
+                "{}/{} {}",
+                objective.current, objective.required, objective.text
+            ),
+            style: if objective.completed {
+                ObjectiveLineStyle::Completed
+            } else {
+                ObjectiveLineStyle::InProgress
+            },
+        })
+        .collect();
+    if let Some(end) = entry.expires_at {
+        let remaining = end - now;
+        if (1..900).contains(&remaining) {
+            block.lines.push(ObjectiveLine {
+                text: format!("Time Left: {} min", (remaining + 59) / 60),
+                style: ObjectiveLineStyle::CompletionText,
+            });
+        }
+    }
+    (block, progress)
 }
 
 /// `QuestObjectiveTrackerMixin:UpdateSingle`: a finished quest shows only its
@@ -404,14 +427,17 @@ fn world_quests_module(state: &ObjectiveTrackerState, height: &mut f32, scale: f
     let mut y = top + MODULE_HEADER_HEIGHT + FROM_HEADER_OFFSET_Y;
     for (index, (quest, progress)) in state.world_quests.iter().enumerate() {
         elements.extend(quest_block(quest, index + 1, &mut y, scale));
-        y += LINE_SPACING;
-        elements.extend(crate::world_quest_ui::progress_bar(
-            quest.quest_id,
-            *progress,
-            y,
-            scale,
-        ));
-        y += 38. + FROM_BLOCK_OFFSET_Y;
+        if let Some(progress) = progress {
+            y += LINE_SPACING;
+            elements.extend(crate::world_quest_ui::progress_bar(
+                quest.quest_id,
+                *progress,
+                y,
+                scale,
+            ));
+            y += 38.;
+        }
+        y += FROM_BLOCK_OFFSET_Y;
     }
     *height = y;
     elements
