@@ -43,8 +43,6 @@ mod game_objects;
 mod gameplay;
 mod ground;
 mod guild_charters;
-#[cfg(debug_assertions)]
-mod guild_perks_preview;
 mod guild_ranks;
 mod guild_tabards;
 mod housing;
