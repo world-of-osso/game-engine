@@ -82,7 +82,7 @@ pub fn difficulty_menu(view: &View, instance: u32) -> Element {
         .map(|id| {
             radio(
                 format!("JournalDifficulty{id}"),
-                view.catalog.difficulties[&id].clone(),
+                difficulty_caption(view, id),
                 format!("journal:difficulty:{id}"),
                 view.difficulty == id,
             )
@@ -90,6 +90,31 @@ pub fn difficulty_menu(view: &View, instance: u32) -> Element {
         .collect();
     menu("EncounterJournalDifficultyMenu", &entries, 673., 102.)
 }
+/// DifficultyUtil_Base names and EJ.lua86–102; primary raids have no size prefix.
+pub(crate) fn difficulty_caption(view: &View, id: u32) -> String {
+    let key = match id {
+        1 | 3 | 4 | 9 | 14 => "PLAYER_DIFFICULTY1",
+        2 | 5 | 6 | 15 => "PLAYER_DIFFICULTY2",
+        7 | 17 => "PLAYER_DIFFICULTY3",
+        8 => "PLAYER_DIFFICULTY_MYTHIC_PLUS",
+        16 | 23 => "PLAYER_DIFFICULTY6",
+        24 | 33 => "PLAYER_DIFFICULTY_TIMEWALKER",
+        // EJ.lua59 explicitly identifies World's base as PrimaryRaidLFR.
+        250 => "PLAYER_DIFFICULTY_WORLD_RAID",
+        _ => return String::new(),
+    };
+    let name = text(key);
+    if matches!(id, 14..=17 | 33 | 250) {
+        return name.into();
+    }
+    let Some(players) = view.catalog.difficulty_max_players.get(&id) else {
+        return String::new();
+    };
+    text("ENCOUNTER_JOURNAL_DIFF_TEXT")
+        .replacen("%s", &players.to_string(), 1)
+        .replacen("%s", name, 1)
+}
+
 fn class_id(view: &View) -> u32 {
     if view.class != 0 {
         return view.class;

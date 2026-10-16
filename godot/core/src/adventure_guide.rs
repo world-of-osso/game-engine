@@ -1,4 +1,5 @@
 //! Retail Journal DB2 cache, imported from the pinned local CASC build.
+mod difficulty;
 mod presentation;
 pub use presentation::{JourneyPresentation, read_journey_presentation};
 use rusqlite::{Connection, OpenFlags, Row};
@@ -120,7 +121,7 @@ pub struct Catalog {
     pub loot_difficulties: BTreeMap<u32, Vec<u32>>,
     pub item_specs: BTreeMap<u32, Vec<u32>>,
     pub classes: BTreeMap<u32, String>,
-    pub difficulties: BTreeMap<u32, String>,
+    pub difficulty_max_players: BTreeMap<u32, u32>,
     pub map_difficulties: BTreeMap<u32, Vec<u32>>,
     pub text: BTreeMap<String, String>,
 }
@@ -332,11 +333,7 @@ impl Catalog {
                 "SELECT JournalEncounterItemID,DifficultyID FROM JournalItemXDifficulty",
             )?,
             item_specs: relations(&db, "SELECT item_id,spec_id FROM item_specialization")?,
-            difficulties: query(&db, "SELECT ID,name FROM difficulty", |r| {
-                Ok((r.get(0)?, r.get(1)?))
-            })?
-            .into_iter()
-            .collect(),
+            difficulty_max_players: difficulty::read_max_players(path)?,
             map_difficulties: relations(
                 &db,
                 "SELECT map_id,difficulty_id FROM map_difficulty ORDER BY difficulty_id",

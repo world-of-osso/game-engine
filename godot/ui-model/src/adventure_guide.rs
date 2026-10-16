@@ -1146,15 +1146,10 @@ fn section_row(
 }
 
 fn difficulty_button(view: &View) -> Element {
-    let name = view
-        .catalog
-        .difficulties
-        .get(&view.difficulty)
-        .map(String::as_str)
-        .unwrap_or("");
+    let name = crate::adventure_guide_menus::difficulty_caption(view, view.difficulty);
     crate::adventure_guide_art::dropdown(
         "JournalDifficultyDropdown",
-        name,
+        &name,
         "journal:difficulty-menu",
         (673., 77., 100., 25.),
         view.difficulty_open,
