@@ -1,3 +1,7 @@
+## 2026-10-15 — Clean-room authored M2 parent contribution
+
+[A6](systems/animation.md#authored-parent-contribution-a6--2026-10-15): parent-scale/translation/rotation CPU RED reproduced; authored low-bit affine composition added without replacing ordinary hierarchy or crossfades. Native acceptance, runtime flags and A7 semantics remain open in the linked spec. Local non-gating census retained outside git; no prohibited sources accessed.
+
 ## 2026-10-15 — Authored talent Starter selection
 
 [Starter Build](systems/talents.md#starter-build--2026-10-15): server-advertised built-in selection, authoritative level allocation and shared-skin deviation confirmation. Starter5/UI12/UDP2/protocol1 scoped proofs pass; focused blue-caption RED→GREEN1 resets normal color on named switch. Real UDP5881 both-skin level10→11→80, exact relog projections, yellow tooltip and confirmed deactivation pass;12 inspected native1920×1080 PNGs delivered. Coupled landing remains lead-owned.
