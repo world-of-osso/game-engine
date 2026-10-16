@@ -1,5 +1,8 @@
 //! Retail owned category rail: 75px, 64px roots, 54px children and source Back/All.
 use crate::housing_component::{HousingView, category_button, filter_choice};
+use crate::menu_primitives::{
+    DropdownButton, DropdownState, DropdownStyle, dropdown_button_with_state,
+};
 use crate::quest_art::named_atlas_texture;
 use crate::ui::strata::FrameStrata;
 use ui_toolkit::{rsx, widget_def::Element};
@@ -79,14 +82,39 @@ pub(crate) fn filters(view: &HousingView) -> Element {
     } else {
         Element::default()
     };
-    let hide_reset = !view.model.storage_dyeable_only;
-    let left = view.model.storage_panel.size[0] - 150.0;
-    let reset_left = left + 105.0;
-    rsx! {
-        button {name:"HouseEditorStorageFilters",text:"Filter",width:100.0,height:20.0,pos_type:"absolute",left,top:25.0,onclick:"housing:storage:filters"}
-        button {name:"HouseEditorStorageResetFilters",text:"X",width:20.0,height:20.0,pos_type:"absolute",left:reset_left,top:25.0,hidden:hide_reset,onclick:"housing:storage:filter:reset"}
-        {menu}
-    }
+    let mut contents = filter_header(view);
+    contents.extend(menu);
+    contents
+}
+
+fn filter_header(view: &HousingView) -> Element {
+    // StorageFrame XML: SearchBox RIGHT+10 through drawer RIGHT-25, centered y35.
+    dropdown_button_with_state(
+        DropdownButton {
+            frame_name: "HouseEditorStorageFilters",
+            label_name: "HouseEditorStorageFiltersText",
+            arrow_name: "HouseEditorStorageFiltersArrow",
+            text: "Filter",
+            width: 125.0,
+            height: 20.0,
+            x: view.model.storage_panel.size[0] - 150.0,
+            y: -25.0,
+            background_color: "",
+            text_color: "",
+            arrow_color: "",
+            onclick: Some("housing:storage:filters"),
+        },
+        DropdownState {
+            style: DropdownStyle::Filter,
+            resize_to_text: false,
+            open: view.model.storage_filters_open,
+            reset_action: view
+                .model
+                .storage_dyeable_only
+                .then_some("housing:storage:filter:reset"),
+            ..Default::default()
+        },
+    )
 }
 
 fn filter_menu(view: &HousingView) -> Element {

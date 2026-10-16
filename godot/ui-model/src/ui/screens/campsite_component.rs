@@ -34,6 +34,12 @@ fn card(
         })
         .unwrap_or_default();
     let hide_selected = !selected;
+    // GlueWarbandSceneCollection.lua:13-19; pinned slice elements29572/29531.
+    let (hover_atlas, hover_margin) = if selected {
+        ("campcollection-frame-selected-hover", 18.0)
+    } else {
+        ("campcollection-frame-hover", 17.0)
+    };
     let label_bar = ui_toolkit::atlas::get_region("campcollection-bg-text")
         .expect("WarbandSceneTemplate name background");
     rsx! {
@@ -56,7 +62,7 @@ fn card(
             }
             r#frame { name: DynName(format!("CampsiteHover_{id}")), width: 224.0, height: 183.0,
                 hidden: true, pos_type: "absolute", left: -4.0, top: -5.0,
-                {crate::game_menu_main::sliced_atlas(&format!("CampsiteHoverArt_{id}"), "campcollection-frame-hover", [224.0,183.0], [17.0;4])}
+                {crate::game_menu_main::sliced_atlas(&format!("CampsiteHoverArt_{id}"), hover_atlas, [224.0,183.0], [hover_margin;4])}
             }
             fontstring { name: DynName(format!("CampsiteLabel_{id}")), width: 200.0, height: 32.0,
                 text: name, font: GameFont::FrizQuadrata, font_size: 12.0, font_color: FontColor::new(1.0,1.0,1.0,1.0),

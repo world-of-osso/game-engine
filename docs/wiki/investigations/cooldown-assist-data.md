@@ -1,6 +1,12 @@
 # Cooldown Viewer and Assisted Combat authored data
 verified: 2026-10-12
 
+## Caster-centered assisted range — 2026-10-16
+
+Native-parity2 Fury72 recorded415 samples with Whirlwind190411 known/ready/affordable but out of range. Active70391 SpellMisc164411 uses Range1, authored "Self Only" with both min/max ranges0; effect279027 uses caster destination18/area-enemy16 and the other effects use self1. Comparing selected-enemy distance against [0,0] excludes the caster-centered cast. TC a352b1fa `Spell.cpp:621–650/7277–7321` normalizes explicit targets and checks the cast target/destination, not arbitrary selection.
+
+The catalog retains raw `SpellMisc.RangeIndex` as `range_id`, and the native assisted fact uses a shared predicate: Self Only row1 is distance-independent; other hostile min/max checks are unchanged. Cache format11 invalidates the old serialized shape. No radius, body-range, priority, training or unknown-rule change. Automated actual-catalog RED at334b795ca fails Whirlwind at3yd while targeted Slam/Charge controls pass. Ata6764af2b the bounded spell_catalog and cooldown_assist suites pass25/0/0, including near/far Whirlwind, self Battle Shout and unchanged targeted bounds. [Contract](../../specs/cooldown-assist.md); source/proof: `data/class-completeness6-2026-10-12/{fury-native-range-observation,caster-range-proof-ledger}.json` in the leased server evidence directory. Fresh native/UDP and independent acceptance remain open.
+
 ## Sources
 Retail Mainline Lua under `~/.cache/wow-ui-sim/blizzard-ui/retail/AddOns/`:
 `Blizzard_APIDocumentationGenerated/{CooldownViewerDocumentation,CooldownViewerConstantsDocumentation,AssistedCombatDocumentation}.lua`,

@@ -17,6 +17,28 @@ const WARRIOR_INITIAL: u32 = 1446;
 const ARMS: u32 = 71;
 
 #[test]
+fn assisted_caster_whirlwind_does_not_range_check_the_selected_enemy() {
+    let whirlwind = catalog().get(190411).expect("native Fury Whirlwind");
+    assert!(game_engine_core::assisted_combat::is_assisted_spell_in_range(whirlwind, 3.0));
+    assert!(game_engine_core::assisted_combat::is_assisted_spell_in_range(whirlwind, 100.0));
+    let shout = catalog().get(BATTLE_SHOUT).unwrap();
+    assert!(game_engine_core::assisted_combat::is_assisted_spell_in_range(shout, 3.0));
+}
+
+#[test]
+fn assisted_targeted_spell_range_bounds_remain_unchanged() {
+    use game_engine_core::assisted_combat::is_assisted_spell_in_range;
+
+    let slam = catalog().get(SLAM).unwrap();
+    assert!(is_assisted_spell_in_range(slam, 3.0));
+    assert!(!is_assisted_spell_in_range(slam, 6.0));
+    let charge = catalog().get(CHARGE).unwrap();
+    assert!(!is_assisted_spell_in_range(charge, 7.0));
+    assert!(is_assisted_spell_in_range(charge, 10.0));
+    assert!(!is_assisted_spell_in_range(charge, 26.0));
+}
+
+#[test]
 fn journal_text_uses_explicit_spell_references_without_a_section_spell() {
     let text = catalog()
         .render_external_text(
