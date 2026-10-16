@@ -46,6 +46,32 @@ impl VehicleAttachmentFixture {
     }
 
     #[func]
+    fn claim_driver(&mut self) -> Dictionary {
+        self.world.local_player_id = Some(RIDER);
+        let rider = self.world.units.get_mut(&RIDER).expect("Fixture rider");
+        rider.motion.control = Some(shared::components::MovementControl {
+            controlled: true,
+            epoch: 7,
+        });
+        rider.driver_movement = Some(shared::components::VehicleDriverMovement {
+            flags: 1594726007,
+            turn_speed: 1.04719758,
+            walk_speed: 3.0,
+            run_speed: 0.98571 * 7.0,
+        });
+        self.mover_state()
+    }
+
+    #[func]
+    fn mover_state(&self) -> Dictionary {
+        let mut state = Dictionary::new();
+        state.set("vehicle", self.world.local_vehicle_movement().is_some());
+        state.set("blocked", self.world.local_input_blocked());
+        state.set("mover", self.world.local_mover_node().unwrap().get_name());
+        state
+    }
+
+    #[func]
     fn release_rider(&mut self) -> GString {
         let rider = self.world.units.get_mut(&RIDER).expect("Fixture rider");
         mount::sync_passenger(rider, None, &self.world.data_root)
