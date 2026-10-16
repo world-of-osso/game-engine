@@ -14,6 +14,12 @@ Retail Mainline Blizzard_PerksProgram and the local C_PerksProgram/PerksActiviti
 - [x] Traveler's Log displays authoritative monthly Tender earned/cap/balance. No invented mail awards. Retail XML defines visible controls; remove unsourced vendor SearchBox, Log/Collections and Freeze/Unfreeze buttons (lead clarification October13).
 - [x] Targeted behavioural tests and inspected private UDP5731 fb_* account PNG proof in Modern and Forever.
 
+## Confirmation keyboard ownership
+
+- Purchase, Refund, Purchase Cart, Clear Cart and frozen replacement confirmations consume Escape without dismissal or requests. Their Retail Elements.lua definitions omit `hideOnEscape`; GameDialog.lua737–745's keyboard cover hides only when that flag exists. Explicit Cancel remains available and preserves Tender/purchase/cart state before acceptance.
+- Purchase/refund authority remains unchanged: one accepted request changes the server balance/collection; Cancel/Escape do not. Production refund policy stays zero; native refund inspection may use the existing explicit private3600-second test policy, never an invented production window.
+- Pending spinner/success/error/timeout dialog lifetime remains a separate gap; this slice changes keyboard dismissal only. Existing earlier layout proof's claim that Escape cancels these confirmations was incorrect; native fixtures now require source-preserved modal plus explicit Cancel.
+
 ## Product-row item tooltips
 
 - Hovering a vendor product shows that hovered row's Retail item ID, quality/name and catalog item details, independently of the selected model preview. Use the shared native tooltip renderer, not a product-description substitute.

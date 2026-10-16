@@ -243,7 +243,10 @@ func layout_proof() -> void:
 	if not assert_dialog_rects_and_art(): return
 	await capture("purchase-confirm")
 	await tap(KEY_ESCAPE)
-	if not await wait_until(func(): return control("PerksProgramConfirmDialog") == null and client.trading_post_state().open, "Escape cancels popup without leaving vendor"): return
+	if control("PerksProgramConfirmDialog") == null or not client.trading_post_state().open:
+		fail("Source confirmation cover failed to consume Escape"); return
+	await click("PerksProgramConfirmCancelButton")
+	if not await wait_until(func(): return control("PerksProgramConfirmDialog") == null, "Cancel dismisses purchase popup"): return
 	if int(client.trading_post_state().tender) != tender: fail("cancel changed Tender"); return
 	await click("PerksProgramPurchaseButton")
 	await click("PerksProgramConfirmButton")
