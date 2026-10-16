@@ -1,3 +1,6 @@
+## 2026-10-16 — Two-way pet-wall HUD projection
+
+[Ice Barrier479](systems/battle-pets.md#two-way-wall-projection--2026-10-16): actual private5961 pointer casts in both explicit skins preserve incoming-block HP, show shared pad/cooldown, then outgoing Claw consumes the second block and the next Scratch damages. Six fullHD originals inspected;94/101/104 named geometry differs only by HP fill and timed float position. Both models framed, retained injury visible, all owned PIDs stopped. No new widgets/simulation; all-wall native casts,3D VFX and full Retail timing remain separate.
 ## 2026-10-16 — Unavailable storage-filter semantics
 
 [F20](systems/housing.md#unavailable-storage-filters--qualified2026-10-16): read-only70391 catalog/API/persistence inspection distinguishes query contracts from absent location/history/tag-definition mappings. No invented semantics/product edits or replay; full-HD remains F21.
