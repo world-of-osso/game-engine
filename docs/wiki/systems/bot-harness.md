@@ -36,6 +36,8 @@ Future native drivers confirm the form spell is learned, request one ordinary va
 
 `godot/tests/bot_controller_live.gd` accepts caller spell IDs/output directory, observes native model origins and publishes atomic account/rotation/one-second meter snapshots. Correlated requests drive native F and viewport mouse events, retaining screenshots and the literal Greed/Transmog widget name. Input ACK is not vote/win/delivery acceptance. One owned controller writes each directory; timeout never repeats an uncertain input. Recovery/encounter orchestration must service loot offers before their actual server expiry.
 
+`bot_harness.routed_player` creates the controller with `bot_routes.NavmeshRoute`: explicit agent-run/query argv plus baked navmesh directory, concrete CSV corner parsing and retained raw query/error receipts. `walk_route` consumes caller-authored goals and yields to caller-owned combat/recovery observation, while servicing visible loot offers before every tick. No map34 coordinates or class policy live in either shared module.
+
 The [spec](../../specs/bot-harness.md#maintained-routed-controller-interface) records the public contract. Generic two-spec/file-process tests are distinct from native Stockade completion and do not prove actual Greed input; Stockade's terminal proof used Transmog for Moloch and ordinary corpse retrieval after Hogger's rolls expired. Greed remains a separate pending native gate.
 
 ## Capture and detection

@@ -122,6 +122,23 @@ class PlayerController:
             return False
         raise ValueError("Sourced route exhausted before goal; no direct-line fallback")
 
+    def walk_route(self, goals, position, observe, timeout):
+        """Walk authored goals; observe returns True while combat/recovery owns input.
+
+        Service native offers even during busy/recovery ticks. The caller owns
+        native party health/credit checks and explicit per-spec combat decisions.
+        """
+        deadline = time.monotonic() + timeout
+        for goal in goals:
+            require_point(goal)
+            while math.dist(position(), goal) >= .5:
+                if time.monotonic() >= deadline:
+                    raise TimeoutError("Authored route exceeded bounded execution time")
+                self.vote_loot()
+                if not observe():
+                    self.step_toward(position(), goal, "authored-leg")
+                time.sleep(.7)
+
     def assist(self, leader_name):
         self.invoke("quest", "interact", "--npc", leader_name)
         result = self.bridge.request("assist", {"leader_name": leader_name})

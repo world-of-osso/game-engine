@@ -37,7 +37,7 @@ def command(output, argv, env=None):
 
 def record_inputs(args):
     files = [args.engine / "scripts" / f"{name}.py" for name in
-             ("bot_harness", "bot_rotation", "bot_controller", "bot_roster", "bot_talents", "bot_gear", "bot_health", "bot_forms", "run_dummy_bots", "run_bot_roster")]
+             ("bot_harness", "bot_rotation", "bot_controller", "bot_routes", "bot_roster", "bot_talents", "bot_gear", "bot_health", "bot_forms", "run_dummy_bots", "run_bot_roster")]
     files += [args.engine / "godot/tests" / f"{name}.gd" for name in ("bot_harness_observer", "bot_harness_talents", "bot_harness_gear")]
     files.append(args.world_db)
     tables = ("ChrSpecialization", "ChrRaces", "ChrClasses", "CharBaseInfo", "SpellEffect", "SpellMisc",
