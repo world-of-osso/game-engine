@@ -406,6 +406,80 @@ fn adventure_guide_model_limits_authored_choices_to_nine() {
 }
 
 #[test]
+fn adventure_guide_item_sets_use_source_pane_rows_and_item_borders() {
+    for skin in [ActiveSkin::Modern, ActiveSkin::Forever] {
+        let mut v = view();
+        game_engine_ui_model::item_catalog::wait_for_item_catalog();
+        v.apply("journal:class:1").unwrap();
+        v.apply("journal:tab:sets").unwrap();
+        v.search = "Gladiator's Battlegear".into();
+        let index = v.item_sets().iter().position(|set| set.id == 567).unwrap();
+        let r = render(&v, skin);
+        assert_eq!(rect(&r, "LootJournalItems"), [8., 111., 784., 380.]);
+        assert_eq!(rect(&r, "LootJournalItemSetsFrame"), [0., 45., 762., 332.]);
+        assert_eq!(rect(&r, "EncounterJournalContent"), [0., 0., 762., 332.]);
+        assert_eq!(
+            rect(&r, "JournalSet567Row"),
+            [10., 29. + index as f32 * 54., 744., 41.]
+        );
+        assert_eq!(rect(&r, "JournalSet567Item24545"), [360., 4.5, 32., 32.]);
+        assert_eq!(
+            rect(&r, "JournalSet567Item24545Border"),
+            [-5., -5.5, 41., 41.]
+        );
+        assert!(frame(&r, "JournalSet567Item24545").onclick.is_none());
+        assert!(frame(&r, "JournalSet567Row").background_color.is_none());
+    }
+}
+
+#[test]
+fn adventure_guide_item_sets_resolve_real_appearance_icons() {
+    let mut v = view();
+    game_engine_ui_model::item_catalog::wait_for_item_catalog();
+    v.apply("journal:class:1").unwrap();
+    v.apply("journal:tab:sets").unwrap();
+    v.search = "Gladiator's Battlegear".into();
+    assert_eq!(v.catalog.items[&24544].icon, 0);
+    let r = render(&v, ActiveSkin::Modern);
+    let Some(WidgetData::Texture(icon)) = &frame(&r, "JournalSet567Item24544Icon").widget_data
+    else {
+        panic!("Authored Gladiator chest icon");
+    };
+    assert_eq!(icon.source, TextureSource::FileDataId(132754));
+}
+
+#[test]
+fn adventure_guide_item_sets_use_one_source_class_specialization_menu() {
+    for skin in [ActiveSkin::Modern, ActiveSkin::Forever] {
+        let mut v = view();
+        v.player_spec = Some(71);
+        v.apply("journal:tab:sets").unwrap();
+        assert_eq!((v.class, v.spec), (1, 71));
+        let r = render(&v, skin);
+        assert_eq!(rect(&r, "JournalClassFilter"), [587., -35., 175., 26.]);
+        assert!(r.get_by_name("JournalSpecFilter").is_none());
+        v.apply("journal:filter:spec").unwrap();
+        let r = render(&v, skin);
+        assert!(r.get_by_name("JournalClassMenu").is_some());
+        assert!(r.get_by_name("JournalSpec71").is_some());
+        assert!(r.get_by_name("JournalAllSpecs").is_none());
+        v.apply("journal:class-menu").unwrap();
+        let r = render(&v, skin);
+        assert!(r.get_by_name("JournalClass2").is_some());
+        v.apply(frame(&r, "JournalClass2").onclick.as_deref().unwrap())
+            .unwrap();
+        assert_eq!(v.class, 2);
+        assert_ne!(v.spec, 0);
+        assert!(
+            v.catalog
+                .specs
+                .iter()
+                .any(|spec| spec.class == 2 && spec.id == v.spec)
+        );
+    }
+}
+
+#[test]
 fn adventure_guide_defeated_marker_uses_saved_difficulty_and_sparse_encounter_bit() {
     use shared::protocol::InstanceLockInfo;
     for skin in [ActiveSkin::Modern, ActiveSkin::Forever] {
