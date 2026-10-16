@@ -105,6 +105,7 @@ mod housing_placed_list_tests;
 pub mod housing_settings;
 pub mod housing_settings_component;
 mod housing_storage;
+pub use housing_storage::StorageMenuTarget;
 mod housing_storage_component;
 mod housing_storage_tiles;
 #[cfg(test)]
@@ -288,6 +289,7 @@ pub mod guild_event_log;
 pub mod guild_member_detail;
 pub mod guild_news;
 pub mod guild_news_state;
+pub mod guild_perks;
 pub mod guild_rank_frame;
 pub mod guild_ranks;
 #[path = "ipc/format_shared.rs"]
