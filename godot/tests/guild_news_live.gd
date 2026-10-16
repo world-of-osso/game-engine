@@ -119,7 +119,7 @@ func purchases_hidden() -> bool:
 	if value.is_empty() or value.visible_ids.is_empty():
 		return false # Actual Level50 news remains under its separate checked category.
 	for entry in news().entries:
-		if entry.kind.has("ItemPurchased") and int(entry.id) in value.visible_ids:
+		if entry.kind.has("ItemPurchased") and not entry.sticky and int(entry.id) in value.visible_ids:
 			return false
 	return true
 
