@@ -6,6 +6,8 @@
 - [Clean-room M2 particles](systems/godot-conversion.md#native-m2-particles) — native tails/follow/cubic controls, authored sorting and map-collision births; inherited-scale provenance and explicit lighting, timer/reset, spline-density, target-mask and model-recursion oracle gaps.
 # Wiki Index
 
+- [Storage filter popup](systems/housing.md#storage-filter-popup--implementation2026-10-15) — native old-geometry RED→both-skin source root/Sort anchors, real radio/checkbox/reset and paid conservation; current-binary F17 recapture has durable four-record proof.
+
 - [Trading Post confirmation keyboard cover](systems/trading-post.md#confirmation-keyboard-ownership--implementation-october16) — source no-hideOnEscape; native RED→both-skin Escape-preserve/explicit-Cancel GREEN, one purchase/refund round trip per skin and12 full-HD screenshots.
 - [Trading Post button tooltips](systems/trading-post.md#button-tooltips--implementation-october16) — actual enabled/disabled owner branches and exact70391 labels; native RED→both-skin GREEN,16 inspected full-HD originals, provider-pending gap retained.
 
