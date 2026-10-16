@@ -176,7 +176,9 @@ impl GameClient {
                     row.strata,
                     row.frame_level,
                     row.mouse_enabled,
-                    row.visible
+                    row.visible,
+                    ui.frame_id_rect(row.id),
+                    row.hit_rect_insets
                 ))
             );
         }
