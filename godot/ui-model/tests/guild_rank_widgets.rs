@@ -175,7 +175,9 @@ fn guild_communities_invite_and_profile_controls_send_authoritative_actions_both
         // GuildNews.lua:42–51 queries news when the Info news pane is shown.
         assert_eq!(
             std::mem::take(&mut session.commands),
-            vec![GuildCommand::News(shared::GuildNewsRequest::Query)]
+            vec![GuildCommand::News(
+                shared::protocol::GuildNewsRequest::Query
+            )]
         );
         let registry = mounted(&session);
         assert_eq!(text(&registry, "GuildMOTDText"), "Meeting tonight");
