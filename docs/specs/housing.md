@@ -182,6 +182,12 @@ Storage category focus is separate from Dashboard Catalog focus. Show All and so
 
 Use the source75px category rail,64px roots and54px subcategories. A category with more than one authored child shows Back/All; specific child buttons appear only when more than one owned child is showable, exactly as DisplaySubcategoriesUnderCategory. Header shows source category or `%s | %s` path. Source: Retail StorageFrame Initialize/OnStorageTabSelected/OnSearchTextUpdated/OnCategoryFocusChanged and HousingCatalogCategories Lua/XML filter/populate/focus/order/Back/All rules. Animated selection art remains separate native presentation coverage.
 
+## Basic storage Filter/Reset header
+
+Storage uses the maintained `WowStyle1FilterDropdownTemplate` with `resizeToText=false`, not separate default Filter/X buttons. Source Filters frame anchors LEFT to SearchBox RIGHT+10 and RIGHT to drawer RIGHT−25, height20 centered on search: width125/top25 at a600px drawer. Shared Filter surface displays open/closed state; its23×23 `UIResetButtonTemplate` anchors centered on TOPRIGHT−3 and appears only when the existing supported Dyeable filter differs from default. Actual Filter/Reset actions, filter data, popup contents, quantities and authority remain unchanged; broader popup/template/semantics parity is separate.
+
+Sources: `Blizzard_HousingCatalogFilters.xml` FilterDropdown, `.lua` SetIsDefaultCallback/SetDefaultCallback, `Blizzard_HouseEditorStorageFrame.xml` Filters anchors and shared MenuTemplates. Native RED observed no painted source Filter surface; both-skin GREEN pending.
+
 ## Editor control tooltips
 
 Supported Basic/Expert/Cleanup mode and Expert Move/Rotate/Scale controls use central GameTooltip at actual-owner `ANCHOR_TOP`. Enabled controls show installed70391 enUS labels; assigned bindings append the full binding text in source NORMAL_FONT_COLOR, not the icon abbreviation or a fabricated default. Rebinding/unbinding updates content without changing authority. Disabled controls have no invented availability/refusal tooltip; unavailable tutorial/mode predicates remain separate. Both skins share content/anchor; tooltip art differs only through the maintained skin renderer. One optional inline colored title suffix carries the source parenthesized binding without raw WoW markup or a separate row.
