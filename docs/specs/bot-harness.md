@@ -58,11 +58,12 @@ Every stat-bearing armor slot and preferred weapon uses authentic Item/ItemSpars
 
 ## Known gaps (current cycle)
 
-- [ ] Native-controller-parity MVP follow-up: Arms71/Fury72/Havoc577 retain six complete common-budget diagnostic windows, but IPC raw-intent casting skipped the normal OnCast auto-attack hook. All six windows have zero swings and auto_attack=None. Fix and native remeasurement are required before representative controller/DPS acceptance; no balance or all-spec correctness claim. Source predicate refusals remain recorded.
+- [x] Native-controller-parity three-DPS follow-up: Arms71/Fury72/BM253 each complete two60s common-budget windows through shared native casting with observed auto-attack and received outcome fields. Historical raw-intent Arms/Fury/Havoc captures remain diagnostic only. Havoc's fresh source21566/condition3 refusal remains DPSnull; selecting BM for the new explicit MVP roster never rewrites that failed comparison. No balance or all-spec correctness claim.
 - [x] Comparable spec-correct gear/stat receipts for the three-spec MVP: Arms10 slots, Fury/Havoc11 slots at30/quality2/era0, visible native stats and owner GUIDs; Fury native dual-two-hand25129 succeeds. Havoc jewelry moves normally into bag0/1 and retains all four storage-bag IDs/GUIDs/counts. Other specs remain unverified; no gear fallback.
 - [ ] Aura-effect, cooldown reset, charge and resource-spending observability; combat-log aura presence alone proves none of these.
 - [ ] All-spec comparable damage receipts beyond the completed three-spec MVP.
-- [ ] Native Feral/Guardian pre-combat form confirmation and follow-up measurements; source/unit proof does not establish live form/effect correctness.
+- [x] Native Feral/Guardian pre-combat Cat768/Bear5487 confirmation through ordinary own-form casts and replicated auras.
+- [ ] Feral/Guardian complete follow-up measurements: native attempts stop on source-unverified rules5968/5741 condition3; aura presence is not form-effect correctness.
 
 ## Out of scope
 
