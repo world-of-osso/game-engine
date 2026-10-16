@@ -8,6 +8,8 @@
 - [Clean-room M2 particles](systems/godot-conversion.md#native-m2-particles) — native tails/follow/cubic controls, authored sorting and map-collision births; inherited-scale provenance and explicit lighting, timer/reset, spline-density, target-mask and model-recursion oracle gaps.
 # Wiki Index
 
+- [Loot ItemButton input](systems/loot-and-flight.md#itembutton-input-ownership--2026-10-16) — source37px target/right157px extension and left-release dispatch;32 both-skin physical probes,68 unchanged full-HD pairs; shared native-picking controls pass, server/full-window parity excluded.
+
 - [ReadyCheck message origin](systems/group-frames.md#readycheck-message-origin--bounded-proof-2026-10-16) — source parent TOP(+20,−37), RED→GREEN and both-skin native anchors/pixel conservation; font/height/color/difficulty content excluded.
 
 - [UIErrors source hold](systems/ui-system.md#uierrors-source-hold--bounded-proof-2026-10-16) — two-second opaque hold/2.5s expiry, RED→GREEN and ten both-skin supplied-elapsed native cases; curve/real-clock gaps explicit.
