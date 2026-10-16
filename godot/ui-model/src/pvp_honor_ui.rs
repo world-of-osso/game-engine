@@ -15,11 +15,12 @@ pub(super) fn honor_inset(view: &PvpView) -> Element {
         || "Honor Level —".to_string(),
         |level| format!("Honor Level {level}"),
     );
-    let mut ring = named_atlas_texture(
+    let mut ring = faction_art(view);
+    ring.extend(named_atlas_texture(
         "PVPUIHonorLevelBorder".into(),
         "pvpqueue-sidebar-honorbar-background",
         (-34.0, -20.5, 196.0, 171.0),
-    );
+    ));
     ring.extend(label(
         "PVPUIHonorLevelLabel".into(),
         &title,
@@ -39,6 +40,28 @@ pub(super) fn honor_inset(view: &PvpView) -> Element {
     ));
     // PVPUIFrame563 + Lua225 extra width; XML inset RIGHT-6, width166, top22/bottom25.
     frame("PVPUIHonorInset", (166.0, 381.0), (616.0, 22.0), children)
+}
+
+fn faction_art(view: &PvpView) -> Element {
+    use crate::char_create_data::Faction;
+    let Some(faction) = view.honor_faction else {
+        return vec![];
+    };
+    let kit = match faction {
+        Faction::Alliance => "alliance",
+        Faction::Horde => "horde",
+    };
+    let mut art = named_atlas_texture(
+        "PVPUIHonorFactionBackground".into(),
+        &format!("pvpqueue-sidebar-honorbar-background-{kit}"),
+        (16.5, 16.5, 95.0, 95.0),
+    );
+    art.extend(named_atlas_texture(
+        "PVPUIHonorFactionBadge".into(),
+        &format!("pvpqueue-sidebar-honorbar-badge-{kit}"),
+        (34.5, 29.5, 59.0, 69.0),
+    ));
+    art
 }
 
 impl PvpView {

@@ -320,6 +320,7 @@ fn honor_lifetime_display_never_substitutes_spendable_cap_for_unknown_level_curv
         let mut view = PvpView::default();
         view.visible = true;
         view.viewport = [1920.0, 1080.0];
+        view.honor_faction = Some(game_engine_ui_model::char_create_data::Faction::Alliance);
         view.snapshot = Some(shared::protocol::PvpSnapshot {
             lifetime_honor_xp: 47,
             honor_level: None,
@@ -355,6 +356,10 @@ fn honor_lifetime_display_never_substitutes_spendable_cap_for_unknown_level_curv
             "unknown level, not fabricated zero or wallet amount"
         );
         assert!(registry.get_by_name("PVPUIHonorLevelDisplay").is_some());
+        assert!(
+            registry.get_by_name("PVPUIHonorFactionBadge").is_some(),
+            "source faction identity, not an invented honor-level badge"
+        );
         assert!(
             registry.get_by_name("PVPUIHonorLevelFill").is_none(),
             "no certified lifetime XP maximum"
