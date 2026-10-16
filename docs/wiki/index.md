@@ -1,6 +1,8 @@
 - [Clean-room M2 particles](systems/godot-conversion.md#native-m2-particles) — native tails/follow/cubic controls, authored sorting and map-collision births; inherited-scale provenance and explicit lighting, timer/reset, spline-density, target-mask and model-recursion oracle gaps.
 # Wiki Index
 
+- [Saved boss defeated overlays](systems/adventure-guide.md#saved-boss-defeated-overlays--bounded-proof-2026-10-15) — authoritative sparse DungeonEncounter bits, source icon/gold owner tooltip, real Heroic boss deaths and expiry;49 focused tests and ten inspected actual both-skin native PNGs with per-skin fixture identity.
+
 - [Journal source difficulties](systems/adventure-guide.md#difficulty-source-menus--bounded-proof-2026-10-15) — source order/captions/group sizes and documented World/Mythic Flex aliases;48 focused tests and eight inspected both-skin one-line native menu captures.
 
 - [Instance and encounter Loot](systems/adventure-guide.md#instance-and-encounter-loot--2026-10-15) — selected-instance/difficulty drops, source64/45px rows, real icons/quality/tooltip, intrinsic subclass sizing and physical Loot-row→boss navigation;45 focused tests and twelve inspected both-skin native PNGs.
