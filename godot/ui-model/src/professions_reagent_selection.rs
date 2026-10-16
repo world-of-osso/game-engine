@@ -80,6 +80,39 @@ pub fn selectable(slot: &ReagentSlot) -> bool {
     basic_unconditional && fits_quality_dialog && item_choices
 }
 
+/// ReagentSlot.lua267-306: allocations own the glyph; inventory describes it only
+/// while no quality allocation exists. This never assigns a crafted-item quality.
+pub fn reagent_quality_atlas<'a>(
+    slot: &ReagentSlot,
+    allocations: &[ReagentAllocation],
+    owned: &BTreeMap<u32, u32>,
+    qualities: &'a BTreeMap<u32, crate::professions_quality::CraftingQuality>,
+) -> Option<&'a str> {
+    let allocated = allocations
+        .iter()
+        .filter(|allocation| allocation.slot_index == slot.slot_index && allocation.quantity > 0)
+        .filter_map(|allocation| qualities.get(&allocation.item_id));
+    if let Some(icon) = choose_quality_atlas(allocated) {
+        return Some(icon);
+    }
+    let inventory = slot
+        .choices
+        .iter()
+        .filter(|choice| owned.get(&choice.item_id).copied().unwrap_or(0) > 0)
+        .filter_map(|choice| qualities.get(&choice.item_id));
+    choose_quality_atlas(inventory)
+}
+
+fn choose_quality_atlas<'a>(
+    mut qualities: impl Iterator<Item = &'a crate::professions_quality::CraftingQuality>,
+) -> Option<&'a str> {
+    let first = qualities.next()?;
+    Some(match qualities.next() {
+        Some(second) => second.mixed_inventory_atlas.as_str(),
+        None => first.inventory_atlas.as_str(),
+    })
+}
+
 impl QualityDialog {
     pub fn quantity(&self, item: u32) -> u32 {
         self.allocations
@@ -136,6 +169,49 @@ impl QualityDialog {
 #[cfg(test)]
 mod tests {
     use super::*;
+    #[test]
+    fn professions_reagent_glyph_uses_allocated_tiers_or_actual_stock_never_a_default_tier() {
+        let dir =
+            std::path::PathBuf::from(env!("CARGO_MANIFEST_DIR")).join("../../data/db2/active");
+        let catalog = crate::professions_catalog::RecipeCatalog::load(&dir).unwrap();
+        let slot = &catalog.reagent_slots[&375188][1];
+        let owned = [(193208, 6), (193210, 4)].into();
+        let qualities = &catalog.crafting_quality;
+        assert_eq!(
+            reagent_quality_atlas(slot, &[], &owned, qualities),
+            Some("Professions-Icon-Quality-Mixed-Inv")
+        );
+        let selected = [ReagentAllocation {
+            slot_index: 1,
+            item_id: 193210,
+            quantity: 4,
+        }];
+        assert_eq!(
+            reagent_quality_atlas(slot, &selected, &owned, qualities),
+            Some("Professions-Icon-Quality-Tier2-Inv")
+        );
+        let mixed = [
+            selected[0].clone(),
+            ReagentAllocation {
+                slot_index: 1,
+                item_id: 193208,
+                quantity: 6,
+            },
+        ];
+        assert_eq!(
+            reagent_quality_atlas(slot, &mixed, &owned, qualities),
+            Some("Professions-Icon-Quality-Mixed-Inv")
+        );
+        assert_eq!(
+            reagent_quality_atlas(slot, &[], &BTreeMap::new(), qualities),
+            None
+        );
+        assert_eq!(
+            qualities[&244634].mixed_inventory_atlas,
+            "Professions-Icon-Quality-12-Mixed-Inv"
+        );
+    }
+
     #[test]
     fn quality_dialog_preserves_new_tier_and_cancel_does_not_commit() {
         let catalog = shared::crafting_reagents::CraftingReagentCatalog::load(
