@@ -1,12 +1,28 @@
 //! LineEdit displays labels; transport retains the corresponding real achievement IDs.
 //! Positions are Unicode character offsets, matching Godot's caret/selection API.
-use crate::chat_frame::{ChatSpan, parse_achievement_links};
+use crate::chat_frame::{ChatSpan, parse_received_chat_links};
+
+#[derive(Clone, Copy, Debug)]
+enum LinkKind {
+    Achievement,
+    Item,
+}
+
+impl LinkKind {
+    fn wire_name(self) -> &'static str {
+        match self {
+            Self::Achievement => "achievement",
+            Self::Item => "item",
+        }
+    }
+}
 
 #[derive(Clone, Debug)]
 struct DraftLink {
     start: usize,
     end: usize,
     id: u32,
+    kind: LinkKind,
 }
 #[derive(Clone, Debug, Default)]
 pub struct ChatDraft {
@@ -16,19 +32,25 @@ pub struct ChatDraft {
 impl ChatDraft {
     pub fn from_wire(wire: &str) -> Self {
         let mut draft = Self::default();
-        for span in parse_achievement_links(wire) {
+        for span in parse_received_chat_links(wire) {
+            let kind = match &span {
+                ChatSpan::ItemLink { .. } => LinkKind::Item,
+                _ => LinkKind::Achievement,
+            };
             match span {
-                ChatSpan::AchievementLink { id, display } => {
+                ChatSpan::AchievementLink { id, display }
+                | ChatSpan::ItemLink { id, display, .. } => {
                     let start = draft.visible.chars().count();
                     draft.visible.push_str(&display);
                     draft.links.push(DraftLink {
                         start,
                         end: start + display.chars().count(),
                         id,
+                        kind,
                     });
                 }
                 ChatSpan::Text(text) => draft.visible.push_str(&text),
-                _ => unreachable!("achievement parser produces only text and achievement links"),
+                _ => unreachable!("chat link parser produces text and achievement/item links"),
             }
         }
         draft
@@ -42,7 +64,7 @@ impl ChatDraft {
         let mut cursor = 0;
         for link in &self.links {
             result.extend(&chars[cursor..link.start]);
-            result.push_str(&format!("|Hachievement:{}|h", link.id));
+            result.push_str(&format!("|H{}:{}|h", link.kind.wire_name(), link.id));
             result.extend(&chars[link.start..link.end]);
             result.push_str("|h");
             cursor = link.end;
@@ -93,11 +115,31 @@ impl ChatDraft {
             .collect();
     }
     pub fn insert_achievement(&mut self, start: usize, end: usize, id: u32, name: &str) -> usize {
-        assert!(id != 0, "real achievement ID");
+        self.insert_link(start, end, id, name, LinkKind::Achievement)
+    }
+
+    pub fn insert_item(&mut self, start: usize, end: usize, id: u32, name: &str) -> usize {
+        self.insert_link(start, end, id, name, LinkKind::Item)
+    }
+
+    fn insert_link(
+        &mut self,
+        start: usize,
+        end: usize,
+        id: u32,
+        name: &str,
+        kind: LinkKind,
+    ) -> usize {
+        assert!(id != 0, "real link subject ID");
         let label: Vec<_> = format!("[{name}]").chars().collect();
         self.replace_range(start, end, &label);
         let end = start + label.len();
-        self.links.push(DraftLink { start, end, id });
+        self.links.push(DraftLink {
+            start,
+            end,
+            id,
+            kind,
+        });
         self.links.sort_by_key(|link| link.start);
         end
     }
@@ -106,6 +148,20 @@ impl ChatDraft {
 #[cfg(test)]
 mod tests {
     use super::*;
+    #[test]
+    fn guild_news_item_link_draft_preserves_item_identity_and_existing_achievement() {
+        let wire =
+            "é |Hachievement:14782|h[Level 50]|h |Hitem:50335|h[Greater Inscription of the Axe]|h";
+        let mut draft = ChatDraft::from_wire(wire);
+        assert_eq!(
+            draft.visible(),
+            "é [Level 50] [Greater Inscription of the Axe]"
+        );
+        assert_eq!(draft.wire(), wire);
+        draft.apply_visible_edit("prefix é [Level 50] [Greater Inscription of the Axe]");
+        assert_eq!(draft.wire(), format!("prefix {wire}"));
+    }
+
     #[test]
     fn achievements_art_draft_displays_names_without_losing_wire_ids() {
         let wire = "é |Hachievement:633|h[Stormwind Stockade]|h!";
