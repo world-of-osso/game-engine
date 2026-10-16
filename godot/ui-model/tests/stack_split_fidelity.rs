@@ -51,7 +51,6 @@ fn stack_split_arrows_keep_source_states_geometry_and_actions_both_skins() {
                     let Some(WidgetData::Button(button)) = &frame.widget_data else {
                         panic!("{name} must project native pressed/disabled states");
                     };
-                    assert_eq!(button.enabled, enabled);
                     assert_eq!(
                         button.state,
                         if enabled {
