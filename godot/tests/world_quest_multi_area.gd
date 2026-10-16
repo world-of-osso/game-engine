@@ -68,20 +68,44 @@ func navigate_to_main_area() -> bool:
 		return false
 	if not await wait_map_pin(2274):
 		return false
-	# The main zone and lower zone have the same authored XY rectangle. A parent
-	# canvas click away from the task marker enters the main2255 zone at Z0.
-	var canvas := control("WorldMapCanvas")
-	var pin: Dictionary = client.world_map_state().pins[pin_index(MULTI_TASK)]
-	var point: Vector2 = canvas.get_global_rect().position + Vector2(pin.uv.x, pin.uv.y - 0.08) * canvas.get_global_rect().size
-	for pressed in [true, false]:
-		await pointer_button(point, pressed)
-	await settle()
+	if not await click_main_zone():
+		return false
 	if not await wait_map_pin(2255):
 		return false
 	if client.objective_tracker_state().super_tracked != MULTI_TASK:
 		stop("Cross-map navigation lost selected quest identity")
 		return false
 	return await capture_phase("main-area-same-task")
+
+func click_main_zone() -> bool:
+	# Observe the actual authored zone highlight, avoiding every received pin.
+	# A blind offset from82521 can select another of the82 continent task pins.
+	var canvas := control("WorldMapCanvas")
+	var state: Dictionary = client.world_map_state()
+	var origin: Vector2 = state.pins[pin_index(MULTI_TASK)].uv
+	for offset in [Vector2(-0.05, 0.02), Vector2(0.05, 0.02), Vector2(-0.1, -0.03), Vector2(0.1, -0.03), Vector2(0.0, 0.08)]:
+		var uv: Vector2 = origin + offset
+		var clear := true
+		for pin in state.pins:
+			if ((pin.uv - uv) * canvas.get_global_rect().size).length() < 32.0:
+				clear = false
+		if not clear:
+			continue
+		var point: Vector2 = canvas.get_global_rect().position + uv * canvas.get_global_rect().size
+		var motion := InputEventMouseMotion.new()
+		motion.position = point
+		motion.global_position = point
+		root.push_input(motion, true)
+		await settle()
+		if client.world_map_state().highlight != "Azj-Kahet":
+			continue
+		print("WORLD_QUEST_MULTI_ZONE_TARGET uv=", uv, " highlight=Azj-Kahet pinsClear=true")
+		for pressed in [true, false]:
+			await pointer_button(point, pressed)
+		await settle()
+		return true
+	stop("No observed empty Azj-Kahet canvas target among bounded candidates")
+	return false
 
 func expire_received_areas() -> bool:
 	var end := int(OS.get_environment("WQ_EPOCH")) + 86400
