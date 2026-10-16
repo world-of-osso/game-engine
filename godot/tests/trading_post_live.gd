@@ -110,6 +110,39 @@ func resume_private_reply() -> void:
 		print("TP_PRIVATE_SERVER_CONT pid=", paused_private_server, " code=", result)
 		paused_private_server = 0
 
+func assert_pending_painted() -> bool:
+	var dialog := control("PerksProgramConfirmDialog")
+	var spinner := control("PerksProgramConfirmSpinner")
+	var overlay := control("PerksProgramConfirmDarkOverlay")
+	var scale := dialog.get_global_rect().size.x / 320.0
+	var expected := dialog.get_global_rect().grow(-11.0 * scale)
+	if not overlay.get_global_rect().is_equal_approx(expected):
+		fail("Pending dark overlay lacks source 11px inset"); return false
+	# Counterfactual image controls, not forged UI state: freeze the host update
+	# briefly so native visibility toggles survive until each actual frame draws.
+	client.set_process(false)
+	var center := dialog.get_global_rect().get_center()
+	var rect := Rect2i(center - Vector2(30, 30) * scale, Vector2(60, 60) * scale)
+	await RenderingServer.frame_post_draw
+	var painted := root.get_texture().get_image().get_region(rect).get_data()
+	spinner.hide()
+	await process_frame
+	await RenderingServer.frame_post_draw
+	var without_spinner := root.get_texture().get_image().get_region(rect).get_data()
+	overlay.hide()
+	await process_frame
+	await RenderingServer.frame_post_draw
+	var without_overlay := root.get_texture().get_image().get_region(rect).get_data()
+	overlay.show()
+	spinner.show()
+	client.set_process(true)
+	if painted == without_spinner:
+		fail("Pending spinner node rotates but paints no pixels above dialog"); return false
+	if without_spinner == without_overlay:
+		fail("Pending dark overlay paints no pixels above dialog"); return false
+	print("TP_PENDING_PAINT spinner_diff=true overlay_diff=true inset=", overlay.get_global_rect())
+	return true
+
 func accepted_dialog_waits(label: String, tender: int, purchased: bool) -> bool:
 	if not await pause_private_reply(): return false
 	await click("PerksProgramConfirmButton")
@@ -127,6 +160,7 @@ func accepted_dialog_waits(label: String, tender: int, purchased: bool) -> bool:
 	if is_equal_approx(spinner.rotation, initial_rotation):
 		fail("Pending " + label + " spinner is static despite source rotation"); return false
 	print("TP_PENDING_SPINNER_ROTATION kind=", label, " before=", initial_rotation, " after=", spinner.rotation)
+	if not await assert_pending_painted(): return false
 	await button_event(control("PerksProgramConfirmButton").get_global_rect().get_center(), MOUSE_BUTTON_LEFT, true)
 	await button_event(control("PerksProgramConfirmButton").get_global_rect().get_center(), MOUSE_BUTTON_LEFT, false)
 	await tap(KEY_ESCAPE)
