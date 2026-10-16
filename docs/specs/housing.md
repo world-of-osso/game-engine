@@ -92,6 +92,8 @@ Server/wire supports owner-local staged dyes, explicit atomic commit, preserved 
 
 ## HouseSettings access controls
 
+- [x] Save, Ignore List and Abandon House use their source `UIPanelButtonTemplate` up/down/disabled/highlight sheets with fixed12px caps. Existing152×28 rects/captions/actions and disabled/pending policy remain unchanged; typography and unsupported owner/abandon/ignore workflows are not certified by this art slice.
+
 - [x] Close uses inherited `UIPanelCloseButtonDefaultAnchors`:24×24, TOPRIGHT(+1,0), frameLevel510; source RedButton normal/pressed/disabled art and full-alpha ADD highlight, without a text glyph/default skin. `HousingSettingsClose`/`housing:close` remain enabled while a request is pending; unrelated panel controls/backend behavior stay unchanged.
 
 - [x] The existing600×550 House Settings panel paints its source400×80 Header gradient at100,0, natural-size left foliage at6,7 and550×1 owner/access divider at25,174. XML Header/PlantDecoLeft/Spacer own these decorations; title/control layout and actions remain unchanged. Regression: `house_settings_paints_source_header_foliage_and_divider_both_skins`; [implementation/proof](../wiki/systems/housing.md#housesettings-decorative-regions--2026-10-16).

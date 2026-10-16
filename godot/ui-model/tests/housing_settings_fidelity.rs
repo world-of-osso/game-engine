@@ -237,3 +237,80 @@ fn house_settings_source_close_button_both_skins() {
         }
     }
 }
+
+#[test]
+fn house_settings_action_button_art_both_skins() {
+    use ui_toolkit::widgets::texture::TextureSource;
+    game_engine_ui_model::paths::set_data_root(
+        std::path::PathBuf::from(env!("CARGO_MANIFEST_DIR")).join("../../data"),
+    )
+    .unwrap();
+    for skin in [ActiveSkin::Modern, ActiveSkin::Forever] {
+        set_thread_skin(skin);
+        for pending in [false, true] {
+            let mut view = view();
+            view.model.pending = pending;
+            let mut shared = SharedContext::new();
+            shared.insert(view);
+            let mut registry = FrameRegistry::new(1920.0, 1080.0);
+            Screen::new(housing_screen).sync(&shared, &mut registry);
+            for (name, caption, left, top, disabled, action) in [
+                (
+                    "HousingSettingsSave",
+                    "Save",
+                    402.0,
+                    488.0,
+                    pending,
+                    Some("housing:settings:save"),
+                ),
+                (
+                    "HousingSettingsIgnoreList",
+                    "Ignore List",
+                    46.0,
+                    488.0,
+                    true,
+                    None,
+                ),
+                (
+                    "HousingSettingsAbandon",
+                    "Abandon House",
+                    401.0,
+                    132.0,
+                    true,
+                    None,
+                ),
+            ] {
+                let control = frame(&registry, name);
+                assert_eq!(
+                    (control.width.value(), control.height.value()),
+                    (152.0, 28.0)
+                );
+                assert_eq!(
+                    (control.position.left, control.position.top),
+                    (Val::Px(left), Val::Px(top))
+                );
+                assert_eq!(control.onclick.as_deref(), action);
+                let Some(WidgetData::Button(button)) = &control.widget_data else {
+                    panic!("{name} must remain a button")
+                };
+                assert_eq!(button.text, caption);
+                assert_eq!(
+                    button.state,
+                    if disabled {
+                        ButtonState::Disabled
+                    } else {
+                        ButtonState::Normal
+                    }
+                );
+                for (actual, fdid) in [
+                    (&button.normal_texture, 130828),
+                    (&button.pushed_texture, 130825),
+                    (&button.disabled_texture, 130824),
+                    (&button.highlight_texture, 130826),
+                ] {
+                    assert_eq!(*actual, Some(TextureSource::FileDataId(fdid)), "{name}");
+                }
+            }
+        }
+    }
+}
