@@ -28,6 +28,12 @@ Current binary contains no `terrain_mcsh.gdshader` literal, yet startup still lo
 
 Actual native old-popup position/width RED preceded edits. Native65c1a18c3/extension14db32ab with explicit server2dadf94e/protocoldc30250 passes both skins' four phases: source root125×109 at Filter BOTTOMLEFT+6/+2, content-fit103×63 Sort at row TOPRIGHT, disabled Placeable/Date Added, physical Alphabetical/Dyeable/reset and unchanged confirmed paid decor/storage. Focused registry test initially inspected the unrelated `button.enabled` field; toolkit `disabled` writes ButtonState::Disabled, so only that oracle changed before GREEN. Four inspected untouched1280 PNGs `/syncthing/AgentShared/2026-10-16/housing-f18/`; manifests/ledger `/home/osso/.worktrees/housing-core14-evidence/F18-{public-manifest.json,proof-ledger.md}`. Menu hover-open/auto-dismiss, unavailable filter semantics, full-image/full-HD parity, later-master runtime and full housing remain separate.
 
+## Storage menu lifetime — implementation2026-10-16
+
+[Contract](../../specs/housing.md#storage-menu-lifetime). UI model keeps a transient hover target/elapsed timer and existing root/Sort flags; source0.33s row entry opens/collapses only child menus. Native `housing_storage_menu.rs` samples retained physical pointer against actual control rectangles, observes outside presses, gives menu Escape priority and clears menus when the source owner disappears. Filter left toggles itself; reset/outside clicks dismiss without inventing event consumption. Source checkbox Refresh retains root; radio closes it. Existing action identifiers, sorting/filter data and paid authority are unchanged.
+
+Actual native hover-open RED precedes code; deterministic model/native GREEN pending. One normal capacity ADD now covers each full private server/client run per lead, with GPU availability checked separately. Evidence `/home/osso/.worktrees/housing-core14-evidence/F19-proof-ledger.md`. Unavailable filter semantics and1920×1080 acceptance follow in source order.
+
 ## Authority and copies
 
 `HousingHud` retains a qualified catalog and independent `HousingAuthority`. Dashboard opening queries reliable HousingRequest/Reply; browsing never grants or enters property. Unknown storage stays unknown until a matching-build snapshot; confirmed absence means zero. Owned counts include stored plus placed copies across the account's houses. Logout/world reset clears authority.
