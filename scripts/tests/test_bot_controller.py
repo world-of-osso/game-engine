@@ -61,6 +61,34 @@ class ControllerTests(unittest.TestCase):
             self.assertIsNone(self.controller.cast_next(41, lambda state, target: {"spell": 30451}))
         self.assertEqual(self.commands, [])
 
+    def test_opening_uses_server_validation_and_requires_real_success(self):
+        self.native = snapshot(spec=72, spell=57755)
+        self.native["facts"]["in_range"]["57755"] = {"Ok": False}
+        observations = 0
+        def receive(target):
+            nonlocal observations
+            observations += 1
+            if observations >= 3:
+                self.native["spells"]["cast_success_events"] = [
+                    {"source": 7, "spell_id": 57755, "at_ms": 1001}]
+            return self.native
+        self.controller.snapshot = receive
+        result = self.controller.cast_opening(41, 57755)
+        self.assertTrue(result["success"])
+        self.assertGreaterEqual(observations, 3)
+        self.assertEqual(self.commands, [("spell", "cast", "--spell", "57755", "--target", "41")])
+
+    def test_opening_server_refusal_stops_without_repeat_or_alternate(self):
+        self.native = snapshot(spec=72, spell=57755)
+        def refuse(*argv):
+            self.commands.append(argv)
+            self.native["spells"].update(cast_failure_seq=1, cast_failure_events=[
+                {"sequence": 1, "spell_id": 57755, "reason": "OutOfRange", "detail": None}])
+        self.controller.invoke = refuse
+        with self.assertRaisesRegex(RuntimeError, "OutOfRange"):
+            self.controller.cast_opening(41, 57755)
+        self.assertEqual(len(self.commands), 1)
+
     def test_busy_player_never_submits(self):
         self.native["spells"]["casting"] = 30451
         self.assertIsNone(self.controller.cast_next(41, lambda state, target: {"spell": 30451}))

@@ -14,6 +14,33 @@ sys.path.insert(0, str(Path(__file__).resolve().parents[1]))
 from bot_stockade import admitted_copy, authored_priority, encounter_states, parse_npc, parse_party, stockade_exit_plan, stockade_plan, target_observation_ready
 
 
+class StockadeOpeningTests(unittest.TestCase):
+    def test_idle_pull_tabs_and_acknowledges_throw_before_any_movement(self):
+        from run_stockade_bot import StockadeRun
+        calls = []
+        controller = StockadeRun.__new__(StockadeRun)
+        controller.opening_target = None
+        controller.run = {"clear_elapsed_ms": None, "bosses": [
+            {"state": "NotStarted", "goal": [103, -19, 0]}], "openings": []}
+        controller.tank = "Captain Garrick"
+        controller.poll_combat = lambda: None
+        controller.record_credit = lambda: None
+        controller.party = lambda: [{"health": 100, "max_health": 100}]
+        controller.account = lambda: {"local_player_position": "(56,-19,0)"}
+        controller.move = lambda *args: self.fail("Moved before ranged opening")
+        controller.player = SimpleNamespace(
+            assist=lambda tank: None, tab_to_enemy=lambda: 41,
+            cast_opening=lambda target, spell: calls.append((target, spell)) or {"success": True})
+        with tempfile.TemporaryDirectory() as root:
+            controller.output = Path(root)
+            with patch('run_stockade_bot.time.sleep'):
+                self.assertFalse(controller.step())
+            receipt = json.loads((Path(root) / 'opening-0001.json').read_text())
+            self.assertTrue(receipt['outcome']['success'])
+        self.assertEqual(calls, [(41, 57755)])
+        self.assertEqual(controller.opening_target, 41)
+
+
 class StockadeSourceTests(unittest.TestCase):
     def test_actual_dead_assist_target_needs_no_authored_evaluation_and_never_casts(self):
         fixture = Path(__file__).parent / 'fixtures/bot_harness/native-stockade-dead-target.json'

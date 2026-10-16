@@ -24,6 +24,7 @@ Private real player characters exercise the native controller path and measure c
 ## Native Stockade runs
 
 - Run Fury72 first, adding specs only after current dummy predicates qualify; preserve the same native/IPC player path and equal-budget equipment, without stat/kit overrides.
+- Idle full-health pulls use native Tab selection followed by one explicitly approved Heroic Throw57755 through the ordinary native cast path. Server spell validation decides range/usability; require real owner CastSuccess before melee approach/authored combat. CastFailed or missing outcome stops that attempt without repeat/alternate. Retain opening target and request/outcome receipt; do not replace authored combat predicates.
 - A dead assisted target needs no authored recommendation and receives no cast. Retain target-bound native health and resume ordinary assist observation rather than waiting for an evaluation that intentionally omits dead targets.
 - Before repeating a persisted in-instance owner, walk the authored area-trigger exit through strict native navigation and confirm its destination map. No admin reposition or persistent-position rewrite.
 - Use existing approved Normal Stockade entry through authored WorldSafeLoc3599 and ordinary MapTransfer/WorldPortAck, with source-profile party attachment. Do not mutate the follower205 catalog or describe this diagnostic entry as native LFG205 UI proof.
