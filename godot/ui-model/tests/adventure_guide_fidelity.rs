@@ -462,6 +462,27 @@ fn adventure_guide_item_sets_clamp_stale_scroll_and_reset_class_changes() {
 }
 
 #[test]
+fn adventure_guide_item_sets_all_classes_caption_returns_after_colored_selection() {
+    let mut v = view();
+    v.player_spec = Some(71);
+    v.apply("journal:tab:sets").unwrap();
+    let mut context = SharedContext::new();
+    context.insert(ActiveSkin::Modern);
+    context.insert(v.clone());
+    let mut registry = FrameRegistry::new(1920., 1080.);
+    let mut screen = Screen::new(adventure_guide_screen);
+    screen.sync(&context, &mut registry);
+    game_engine_ui_model::adventure_guide_art::apply_postsetup(&v, &mut registry);
+    assert!(!frame(&registry, "JournalClassFilterText").visible);
+    v.apply("journal:class:0").unwrap();
+    context.insert(v.clone());
+    screen.sync(&context, &mut registry);
+    game_engine_ui_model::adventure_guide_art::apply_postsetup(&v, &mut registry);
+    assert_eq!(text(&registry, "JournalClassFilterText"), "All Classes");
+    assert!(frame(&registry, "JournalClassFilterText").visible);
+}
+
+#[test]
 fn adventure_guide_item_sets_class_labels_use_source_class_color_without_coloring_spec() {
     let mut v = view();
     v.player_spec = Some(71);
