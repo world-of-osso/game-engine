@@ -8,7 +8,7 @@ Verified: 2026-10-10. Native Collections journal and Toy Box consume game-server
 
 ## Shrine viewer-level probe (2026-10-15)
 
-`native_toy_guardian_level` additionally reads replicated `LevelScaling` and projects each owned actor for viewers1/20/80. Shrine expects1/20/30 while preserving native30; Podium and default Scarab zero-owner-tuning controls retain their native level. This tests the shared viewer-level consumer over real replicated fields, not rendered target text or combat/HP scaling. [Exact source, RED/GREEN and current acceptance scope](../../../../game-server/docs/toy-effects14-coverage.md#shrine-viewer-level-projection-2026-10-15) own evidence; fresh wire is pending.
+`native_toy_guardian_level` additionally reads replicated `LevelScaling` and projects each owned actor for viewers1/20/80. Shrine expects1/20/30 while preserving native30; Podium and default Scarab zero-owner-tuning controls retain their native level. This tests the shared viewer-level consumer over real replicated fields, not rendered target text or combat/HP scaling. [Exact source, RED/GREEN and current acceptance scope](../../../../game-server/docs/toy-effects14-coverage.md#shrine-viewer-level-projection-2026-10-15) own evidence. Fresh private wire now passes Shrine's replicatedCT73/range1..30/delta0 and1/20/30 projections, alongside native-only Podium/default-Scarab controls. This is the shared consumer over real replicas, not three rendered observer clients.
 
 ## Private summon initial-state probe (2026-10-15)
 
