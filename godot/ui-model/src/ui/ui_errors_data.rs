@@ -4,7 +4,7 @@ pub const MAX_ERROR_LINES: usize = 3;
 pub const ERROR_RGB: [f32; 3] = [1.0, 0.1, 0.1];
 pub const INFO_RGB: [f32; 3] = [1.0, 1.0, 0.0];
 /// Seconds a line stays fully opaque.
-pub const ERROR_HOLD_SECS: f32 = 3.0;
+pub const ERROR_HOLD_SECS: f32 = 2.0;
 /// Seconds of fade-out after the hold.
 pub const ERROR_FADE_SECS: f32 = 0.5;
 
