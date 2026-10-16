@@ -49,7 +49,7 @@ func run_zoom() -> void:
 			for name in ["MinimapZoomIn", "MinimapZoomOut"]:
 				var owner := ui.find_child(name, true, false) as Control
 				assert(owner != null)
-				var disabled := (zoom == 0 and name == "MinimapZoomOut") or (zoom == 5 and name == "MinimapZoomIn")
+				var disabled: bool = (zoom == 0 and name == "MinimapZoomOut") or (zoom == 5 and name == "MinimapZoomIn")
 				await inspect_states(ui, owner, "%s-z%d-%s" % [skin, zoom, name], disabled)
 			await move(Vector2(200, 500))
 			assert(root.get_texture().get_image().save_png(output.path_join("%s-z%d-context.png" % [skin, zoom])) == OK)
