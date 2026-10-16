@@ -158,7 +158,10 @@ func check_arrival_and_reward() -> bool:
 	# Lead-approved controlled fixture omits only source spawn20383796 (Deathwing).
 	# Real-world overlap is an open source gap, not a product exclusion or immunity.
 	var hazard := admin({"NpcInfo":{"map_id":0,"instance_id":0,"entry":44744}})
-	if not hazard.get("NpcInfoList",[[]])[0].is_empty():
+	if not hazard.has("NpcInfoList"):
+		stop("Authoritative hazard absence query failed: " + str(hazard))
+		return false
+	if not hazard.NpcInfoList[0].is_empty():
 		stop("Controlled reward fixture must omit Deathwing spawn20383796; ordinary-world hazard remains open")
 		return false
 	print("WORLD_QUEST_FIXTURE omittedSpawn=20383796 sourceNPC46327Unmodified=true noCreditInjection=true")
