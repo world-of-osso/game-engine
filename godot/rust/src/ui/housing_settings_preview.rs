@@ -43,7 +43,7 @@ impl RegistryUi {
             .expect("HouseSettings cursor input must be initialized")
             .into_iter()
             .filter_map(|(_, input)| match input {
-                crate::bag_cursor::BagInput::Click { action, .. } => Some(action.into()),
+                crate::bag_cursor::BagInput::Click { action, .. } => Some(action.as_str().into()),
                 crate::bag_cursor::BagInput::Release { .. } => None,
             })
             .collect()
