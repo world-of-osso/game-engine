@@ -730,6 +730,10 @@ M2 particles: see [Native M2 particles](#native-m2-particles).
 
 ## Native M2 particles
 
+### P4 native continuation
+
+A native acceptance fixture now traverses real type3 header parsing, ordinary model-emitter admission/placement and pool updates with explicit bent controls; it checks cubic positions and bright pixels for every center, then reverses curvature. Native GREEN pending. Rechecked allowed WWV rate path has no spline-length multiplier/override; P4-density still lacks a supported target rule, so no multiplier is guessed. See [contract](../../specs/m2-particles.md#p4-native-continuation-2026-10-15).
+
 ### P7 continuation — collision-projected births
 
 World-space plane/sphere0x2000 births now cast the supplied20-yard downward segment into existing native map collision, offset hit height by the larger sampled scale, then integrate motion. Actual misses, unflagged/model-space births and survivors preserve their normal behavior. Flat/raised native RED reproduced birthY5 versus0.5/3.5; four no-hit/control cases already pass. GREEN at7cfed41dd: CPU12/12 and native collision6/6 (flat0.5, raised3.5, four free-birth controls5);1920×1080 capture saved/inspected. Exact target surface-mask equivalence remains P7-surface-mask in the [contract](../../specs/m2-particles.md).
