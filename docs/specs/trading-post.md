@@ -14,6 +14,13 @@ Retail Mainline Blizzard_PerksProgram and the local C_PerksProgram/PerksActiviti
 - [x] Traveler's Log displays authoritative monthly Tender earned/cap/balance. No invented mail awards. Retail XML defines visible controls; remove unsourced vendor SearchBox, Log/Collections and Freeze/Unfreeze buttons (lead clarification October13).
 - [x] Targeted behavioural tests and inspected private UDP5731 fb_* account PNG proof in Modern and Forever.
 
+## Confirmation keyboard ownership
+
+- Purchase, Refund, Purchase Cart, Clear Cart and frozen replacement confirmations consume Escape without dismissal or requests. Their Retail Elements.lua definitions omit `hideOnEscape`; GameDialog.lua737–745's keyboard cover hides only when that flag exists. Explicit Cancel remains available and preserves Tender/purchase/cart state before acceptance.
+- Purchase/refund authority remains unchanged: one accepted request changes the server balance/collection; Cancel/Escape do not. Production refund policy stays zero; native refund inspection may use the existing explicit private3600-second test policy, never an invented production window.
+- Pending spinner/success/error/timeout dialog lifetime remains a separate gap; this slice changes keyboard dismissal only. Existing earlier layout proof's claim that Escape cancels these confirmations was incorrect; native fixtures now require source-preserved modal plus explicit Cancel.
+- [x] Actual premature purchase-dismissal RED→both-skin native7a25a4cd7/a820dfda/dc30250 GREEN for all four non-freeze covers, explicit Cancel and exact decoded Purchase/Refund item-frame art. One authorized purchase/refund per skin restores Tender19670→19340→19670 under private policy3600 only. Twelve full-HD originals+two contacts: `/syncthing/AgentShared/2026-10-16/trading-post-confirmations/`; diagnostic `confirmations-proof-manifest.json` pins actual artifacts/fixtures/receipts.
+
 ## Button tooltips
 
 - Purchase, View Cart, Clear Cart, Purchase Cart and disabled Refund use Retail Elements.lua767–782/832–838/869–873/2065–2070/2099–2112 `ShowTooltip` branches. Tooltip owner is the actual projected button at `ANCHOR_LEFT`, offsets0/0; exact labels come from GlobalStrings70391.
