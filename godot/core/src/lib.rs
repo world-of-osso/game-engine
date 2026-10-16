@@ -104,6 +104,7 @@ pub mod map_catalog;
 pub mod minimap_data;
 pub mod model_asset_index;
 pub mod model_scene_actor;
+pub mod model_scene_camera;
 pub mod mount_preview;
 pub mod mount_special;
 #[path = "movement_animation_data.rs"]
@@ -198,6 +199,7 @@ mod sqlite_util;
 pub mod startup_args_data;
 #[cfg(test)]
 mod startup_args_data_tests;
+pub mod step_clearance;
 #[path = "rendering/ui/target_selection_data.rs"]
 pub mod target_selection_data;
 #[cfg(test)]
