@@ -616,6 +616,96 @@ fn the_steppers_step_the_list_and_stop_at_its_ends() {
 }
 
 #[test]
+fn guild_lifecycle_log_scroll_moves_source_pan_and_fully_reveals_oldest() {
+    use game_engine_ui_model::guild_event_log::SCROLL_BOX;
+    use game_engine_ui_model::guild_rank_frame::guild_screen;
+    use game_engine_ui_model::guild_ranks::GuildRanksSession;
+    use shared::protocol::*;
+    game_engine_ui_model::paths::set_data_root(
+        std::path::PathBuf::from(env!("CARGO_MANIFEST_DIR")).join("../../data"),
+    )
+    .unwrap();
+    let mut session = GuildRanksSession::default();
+    session.open();
+    session.apply(GuildRanksState {
+        own_rank: 1,
+        ranks: ["Guild Master", "Member"]
+            .into_iter()
+            .map(|name| GuildRankSettings {
+                name: name.into(),
+                rights: GUILD_RIGHT_CHAT_LISTEN,
+                gold_per_day: 0,
+                tabs: vec![],
+            })
+            .collect(),
+        members: vec![],
+        tab_names: vec![],
+        error: None,
+    });
+    session.click("guild:info_open", &Default::default());
+    session.click("guild:log_open", &Default::default());
+    session.apply_event_log(GuildEventLog {
+        events: (0..100)
+            .map(|index| GuildEvent {
+                timestamp: 1000 + index,
+                kind: GuildEventKind::Join {
+                    member: format!("Member{index:02}"),
+                },
+            })
+            .collect(),
+        server_time: 2000,
+        error: None,
+    });
+    let mut shared = SharedContext::new();
+    shared.insert(session);
+    let mut model = RegistryModel {
+        screen: Screen::new(guild_screen),
+        shared,
+        registry: UiParent::for_viewport(VIEWPORT.0, VIEWPORT.1).registry(),
+        icon_masks: Default::default(),
+        postsetup: ScreenPostsetup::None,
+    };
+    rebuild(&mut model);
+    let viewport = rect(&model, SCROLL_BOX).unwrap();
+    let first = "CommunitiesGuildLogEntry0Row0Run0";
+    let oldest = "CommunitiesGuildLogEntry99Row0Run0";
+    assert!(
+        rect(&model, oldest).unwrap().y > viewport.y + viewport.height,
+        "Needs genuine overflow"
+    );
+    let before = rect(&model, first).unwrap().y;
+    assert!(wheel(&mut model, SCROLL_BOX, false));
+    rebuild(&mut model);
+    assert!(
+        (before - rect(&model, first).unwrap().y - 30.0).abs() < 0.01,
+        "ScrollFrameTemplate wheel moves its source30px pan, not one pixel"
+    );
+    let before = rect(&model, first).unwrap().y;
+    let forward = model
+        .registry
+        .get_by_name(&forward_stepper_name(SCROLL_BOX))
+        .unwrap();
+    assert!(press_stepper(&mut model, forward));
+    rebuild(&mut model);
+    assert!((before - rect(&model, first).unwrap().y - 30.0).abs() < 0.01);
+    for _ in 0..100 {
+        if !wheel(&mut model, SCROLL_BOX, false) {
+            break;
+        }
+        rebuild(&mut model);
+    }
+    let last = rect(&model, oldest).unwrap();
+    assert!(
+        last.y >= viewport.y - 0.01 && last.y + last.height <= viewport.y + viewport.height + 0.01,
+        "Oldest retained entry is fully inside the actual clipped viewport"
+    );
+    assert!(
+        !wheel(&mut model, SCROLL_BOX, false),
+        "Wheel clamps at retained history end"
+    );
+}
+
+#[test]
 fn guild_bank_log_wheel_scrolls_a_whole_transaction_and_reaches_oldest() {
     use game_engine_ui_model::bag_frame_component::BagFrameState;
     use game_engine_ui_model::guild_bank::{NativeGuildBankView, native_guild_bank_screen};
