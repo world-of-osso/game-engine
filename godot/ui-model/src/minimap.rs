@@ -317,6 +317,17 @@ pub fn minimap_texture_fdids(state: &MinimapClusterState, skin: ActiveSkin) -> V
     {
         fdids.push(SUPERTRACK_ARROW_FDID);
     }
+    if state
+        .blips
+        .iter()
+        .any(|blip| blip.kind == BlipKind::WorldQuest)
+    {
+        let region = ui_toolkit::atlas::get_region("worldquest-tracker-questmarker")
+            .expect("published world quest marker atlas");
+        if let ui_toolkit::atlas::AtlasSource::FileDataId(fdid) = region.source {
+            fdids.push(fdid);
+        }
+    }
     if state.tracking.open {
         fdids.extend([
             crate::bank_art::CHECKBOX_UP,

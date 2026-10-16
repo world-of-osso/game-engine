@@ -76,11 +76,26 @@ pub fn minimap_blips(
 
 pub fn tooltip(quest: &AvailableWorldQuest, now: i64, position: [f32; 2]) -> TooltipPresentation {
     let remaining = (quest.expires_at - now).max(0);
-    let mut lines = vec![TooltipLineState::new(format!(
-        "Time Remaining: {}h {}m",
-        remaining / 3600,
-        remaining % 3600 / 60
-    ))];
+    let color = if remaining <= 900 {
+        [1., 0.1, 0.1, 1.]
+    } else {
+        [1.; 4]
+    };
+    let time = format!("Time Left: {}", time_left(remaining));
+    let mut lines = vec![TooltipLineState::colored(time, color)];
+    let has_rewards = quest.xp > 0
+        || quest.rewards.money > 0
+        || !quest.rewards.items.is_empty()
+        || !quest.rewards.choice_items.is_empty()
+        || !quest.currencies.is_empty()
+        || !quest.reputation.is_empty();
+    if has_rewards {
+        lines.push(TooltipLineState::new(""));
+        lines.push(TooltipLineState::new("Rewards"));
+    }
+    if quest.xp > 0 {
+        lines.push(TooltipLineState::new(format!("{} XP", quest.xp)));
+    }
     if quest.rewards.money > 0 {
         lines.push(TooltipLineState::money(
             "Reward",
@@ -92,11 +107,9 @@ pub fn tooltip(quest: &AvailableWorldQuest, now: i64, position: [f32; 2]) -> Too
             .rewards
             .items
             .iter()
+            .chain(&quest.rewards.choice_items)
             .map(|item| TooltipLineState::new(format!("{} x{}", item.name, item.count))),
     );
-    if quest.xp > 0 {
-        lines.push(TooltipLineState::new(format!("{} XP", quest.xp)));
-    }
     lines.extend(
         quest.currencies.iter().map(|reward| {
             TooltipLineState::new(format!("Currency {}: {}", reward.id, reward.amount))
@@ -105,9 +118,6 @@ pub fn tooltip(quest: &AvailableWorldQuest, now: i64, position: [f32; 2]) -> Too
     lines.extend(quest.reputation.iter().map(|reward| {
         TooltipLineState::new(format!("Reputation {}: {:+}", reward.id, reward.amount))
     }));
-    if lines.len() == 1 {
-        lines.push(TooltipLineState::new("No reward data"));
-    }
     TooltipPresentation {
         visible: true,
         x: position[0],
@@ -115,6 +125,22 @@ pub fn tooltip(quest: &AvailableWorldQuest, now: i64, position: [f32; 2]) -> Too
         title: quest.title.clone(),
         lines,
         ..Default::default()
+    }
+}
+
+/// QuestUtils WorldQuestsSecondsFormatter uses one full unit at a day or less.
+fn time_left(seconds: i64) -> String {
+    if seconds > 86400 {
+        format!("{} Days {} Hours", seconds / 86400, seconds % 86400 / 3600)
+    } else if seconds >= 3600 {
+        let hours = seconds / 3600;
+        format!("{hours} {}", if hours == 1 { "Hour" } else { "Hours" })
+    } else {
+        let minutes = (seconds / 60).max(1);
+        format!(
+            "{minutes} {}",
+            if minutes == 1 { "Minute" } else { "Minutes" }
+        )
     }
 }
 
