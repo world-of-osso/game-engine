@@ -48,6 +48,22 @@ func run_test() -> void:
 	client.free()
 	quit(0)
 
+func enter_neighborhood() -> bool:
+	if not await wait_housing(func():
+		var button := housing_named_control("MicroMenuUI", "HousingMicroButton")
+		return button != null and button.is_visible_in_tree(), "visible world Housing entry", 180000): return false
+	if not await click_exposed_control(housing_named_control("MicroMenuUI", "HousingMicroButton")): return false
+	print("WORLD_FINDER_OPEN housing=",client.housing_state()," dashboard=",client.get_node_or_null("HousingDashboardUI"))
+	if not await wait_housing(func(): return housing_control("HousingDashboardHouseFinderButton") != null, "new-account House Finder entry"): return false
+	if not await click_exposed_control(housing_control("HousingDashboardHouseFinderButton")): return false
+	if not await wait_housing(func():
+		var visit := housing_control("HouseFinderVisitButton") as BaseButton
+		return visit != null and not visit.disabled, "authored neighborhood visit"): return false
+	if not await click_exposed_control(housing_control("HouseFinderVisitButton")): return false
+	if not await wait_housing(func(): return client.account_state().screen == "InWorld" and int(client.account_state().world_map_id) == 2735, "actual authored world admission", 420000): return false
+	await frames(90)
+	return await capture_housing("authored-entry-world")
+
 func walk_to_cornerstone(destination: Vector3) -> bool:
 	var deadline := Time.get_ticks_msec() + 240000
 	var last_position: Vector3 = client.account_state().local_player_position
@@ -102,6 +118,16 @@ func face_walk_direction(target: float) -> bool:
 		push_key(KEY_LEFT, false)
 	fail("Native turning could not face cornerstone")
 	return false
+
+func fail(message: String) -> void:
+	push_key(KEY_W, false)
+	push_key(KEY_RIGHT, false)
+	push_key(KEY_LEFT, false)
+	if client != null:
+		print("WORLD_FAILURE account=",client.account_state()," housing=",client.housing_state()," hovered=",root.gui_get_hovered_control())
+		client.print_tree_pretty()
+	push_error(message)
+	quit(1)
 
 func capture_housing(phase: String) -> bool:
 	await RenderingServer.frame_post_draw
