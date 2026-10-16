@@ -18,7 +18,7 @@ Retail Mainline guild news in Modern and Forever. Installed sources: `Blizzard_C
 
 | File | Role |
 |---|---|
-| `godot/ui-model/src/guild_news.rs` | Source news pane, current-MOTD row and scroll chrome; filters/history pending |
+| `godot/ui-model/src/guild_news.rs` | Source news pane, real rows/dates/MOTD, filter dialog and context/sticky controls |
 | `godot/ui-model/src/guild_rank_frame.rs` | Info composition |
 
 ## Tests asserting this spec
@@ -27,8 +27,8 @@ Retail Mainline guild news in Modern and Forever. Installed sources: `Blizzard_C
 
 ## Known gaps (current cycle)
 
-- [ ] Actual event producers, member query/sticky authority and durable storage/wire.
-- [ ] Filter dialog, actual rows/tooltips/context actions and independent state.
+- [x] Actual server producers, authenticated query/sticky and durable storage; backend6/6.
+- [x] Source filter dialog, actual rows/tooltips/context actions and independent news authority; model4/4. Native interaction/pixels remain unproven.
 - [ ] Both-skin real UDP/process-restart/pixel acceptance and independent integration gates.
 
 ## Out of scope
