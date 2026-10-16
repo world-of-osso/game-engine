@@ -22,7 +22,7 @@ Private real player characters exercise the native controller path and measure c
 
 ## Native race fixture
 
-Northshire Shaman bots use source-valid Draenei11 up front, not a retry-based alternative after Dwarf rejection. Other classes use the lowest source-valid Alliance race. Missing authored source pairs block provisioning. This fixture choice does not close the server's separately tracked Dwarf/Shaman eligibility gap.
+Northshire Shaman bots use source-valid Draenei11 up front, not a retry-based alternative after Dwarf rejection. Other classes use the lowest source-valid Alliance race. Missing authored source pairs block provisioning. This fixture choice is separate from the server's installed-DB2 race/class policy; the Dwarf/Shaman admin creation/persistence regression now passes.
 
 ## Native pre-combat forms
 
@@ -30,7 +30,7 @@ Feral103 prepares Cat Form768/form1 and Guardian104 prepares Bear Form5487/form5
 
 ## Comparable equipment budget
 
-Every stat-bearing armor slot and preferred weapon uses authentic Item/ItemSparse at the same raw item-level30, quality2 and squish-era0, within the character's level requirement. Armor follows ChrClasses.ArmorTypeMask (cloaks use their native cloth class); positive primary-stat allocation follows ChrSpecialization.PrimaryStatPriority. Record item IDs, raw ilvl, quality, native owner GUIDs and visible native primary stats per spec in fixture-receipt.json. Comparison keys include observed character level, native dummy level/max-health/difficulty, source world.db SHA-256 and duration; roster comparison withholds medians when any expected DPS repetition is absent/incomplete or fewer than three DPS specs qualify. Neck, both rings and both trinkets must be empty for every bot, removed through ordinary paperdoll-to-empty-bag input and confirmed by authoritative equipment/bag snapshots. Storage bags remain equipped and are recorded separately from the combat budget. Missing source slots, mismatched native equipment or unbudgeted stat-bearing equipment block comparison; no changed item/stat definitions or alternate budget.
+Every stat-bearing armor slot and preferred weapon uses authentic Item/ItemSparse at the same raw item-level30, quality2 and squish-era0, within the character's level requirement. Armor follows ChrClasses.ArmorTypeMask (cloaks use their native cloth class); positive primary-stat allocation follows ChrSpecialization.PrimaryStatPriority. Record item IDs, raw ilvl, quality, native owner GUIDs and visible native primary stats per spec in fixture-receipt.json. Comparison keys include observed character level, native dummy level/max-health/difficulty, source world.db SHA-256 and duration; current native dummy creature_armor is retained too, never transient threat/victim. Missing or malformed current admin combat metadata blocks fixture parsing. Roster comparison withholds medians when any expected DPS repetition is absent/incomplete or fewer than three DPS specs qualify. Neck, both rings and both trinkets must be empty for every bot, removed through ordinary paperdoll-to-empty-bag input and confirmed by authoritative equipment/bag snapshots. Storage bags remain equipped and are recorded separately from the combat budget. Provision missing items only after authenticated owned bag/equipment observation; count existing bag copies and confirm granted copies before normal gear input. Retries must not grant duplicate kits after login/setup failures. Missing source slots, mismatched native equipment or unbudgeted stat-bearing equipment block comparison; no changed item/stat definitions or alternate budget.
 
 ## How it works
 
@@ -39,8 +39,9 @@ Every stat-bearing armor slot and preferred weapon uses authentic Item/ItemSpars
 
 ## Implementation inventory
 
+- `godot/rust/src/ipc/combat.rs`: preserve received crit/glancing/periodic, school mask, overflow and absorbed/resisted/blocked values in combat-log/recap output; never infer historical missing fields.
 - `scripts/bot_harness.py`: native combat parsing, request/result reconciliation, fixed-window DPS and comparison reporting.
-- `scripts/bot_ability_summary.py`: read-only expected-roster JSON/Markdown per-ability request/success/event-damage/missing/unused breakdown. Keep child event IDs and untagged native errors unattributed; preserve absent specs/repetitions.
+- `scripts/bot_ability_summary.py` / `bot_combat_metrics.py`: read-only expected-roster per-ability requests/successes/hits/crits/misses/event damage, auto-attack share, sampled GCD/idle intervals, observed raw power net changes and raw DB2 effect/cost/cooldown/auto-attack metadata. Preserve absent specs/repetitions, real child event IDs, and unattributed native errors. Missing crit flags remain unknown, resource net change is never spending, sampled timing is not exact server occupancy.
 - `scripts/tests/test_bot_harness.py`: behavioral detector and comparable-fixture regressions.
 - `scripts/bot_rotation.py`: sourced metadata, absent-order generic rule and fail-closed native authored selection.
 - `scripts/run_dummy_bots.py`: repeated explicit-socket fixed-duration collection and raw receipts.
@@ -57,11 +58,12 @@ Every stat-bearing armor slot and preferred weapon uses authentic Item/ItemSpars
 
 ## Known gaps (current cycle)
 
-- [x] Three-DPS common-budget dummy MVP: Arms71/Fury72/Havoc577 each complete two60s windows with matching fixture keys and empty jewelry; native-equal-budget2 retains receipts and findings. This qualifies only the phase gate, not balance or all-spec correctness. Arcane12408/20, Ret6425/equality, Elemental38530/17 and Frost33686/67 refusals remain recorded.
+- [x] Native-controller-parity three-DPS follow-up: Arms71/Fury72/BM253 each complete two60s common-budget windows through shared native casting with observed auto-attack and received outcome fields. Historical raw-intent Arms/Fury/Havoc captures remain diagnostic only. Havoc's fresh source21566/condition3 refusal remains DPSnull; selecting BM for the new explicit MVP roster never rewrites that failed comparison. No balance or all-spec correctness claim.
 - [x] Comparable spec-correct gear/stat receipts for the three-spec MVP: Arms10 slots, Fury/Havoc11 slots at30/quality2/era0, visible native stats and owner GUIDs; Fury native dual-two-hand25129 succeeds. Havoc jewelry moves normally into bag0/1 and retains all four storage-bag IDs/GUIDs/counts. Other specs remain unverified; no gear fallback.
 - [ ] Aura-effect, cooldown reset, charge and resource-spending observability; combat-log aura presence alone proves none of these.
 - [ ] All-spec comparable damage receipts beyond the completed three-spec MVP.
-- [ ] Native Feral/Guardian pre-combat form confirmation and follow-up measurements; source/unit proof does not establish live form/effect correctness.
+- [x] Native Feral/Guardian pre-combat Cat768/Bear5487 confirmation through ordinary own-form casts and replicated auras.
+- [ ] Feral/Guardian complete follow-up measurements: native attempts stop on source-unverified rules5968/5741 condition3; aura presence is not form-effect correctness.
 
 ## Out of scope
 

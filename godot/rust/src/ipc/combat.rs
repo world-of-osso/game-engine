@@ -85,13 +85,28 @@ fn format_entry(event: &CombatLogEvent, spell_name: &impl Fn(u32) -> String) -> 
     let extra = event.extra_spell_id.map_or_else(String::new, |id| {
         format!(" extra_spell={id} extra_spell_name={:?}", spell_name(id))
     });
+    let outcome = format_outcome_fields(event);
     format!(
-        "{} src={} dst={} spell={spell} amount={amount} aura=- text={} timestamp_unix_ms={} spell_name={name}{extra}",
+        "{} src={} dst={} spell={spell} amount={amount} aura=- text={} timestamp_unix_ms={} spell_name={name}{extra} {outcome}",
         event_kind(event),
         event.source.map_or_else(|| "-".into(), |id| id.to_string()),
         event.target.map_or_else(|| "-".into(), |id| id.to_string()),
         event_text(event),
         event.timestamp_unix_ms,
+    )
+}
+
+fn format_outcome_fields(event: &CombatLogEvent) -> String {
+    format!(
+        "crit={} glancing={} periodic={} school_mask={} overflow={} absorbed={} resisted={} blocked={}",
+        event.crit,
+        event.glancing,
+        event.periodic,
+        event.school_mask,
+        event.overflow,
+        event.absorbed,
+        event.resisted,
+        event.blocked,
     )
 }
 
@@ -176,6 +191,23 @@ mod tests {
     }
 
     #[test]
+    fn combatipc_damage_preserves_outcome_and_mitigation_fields() {
+        let mut event = damage(42, 3110);
+        event.crit = true;
+        event.glancing = true;
+        event.periodic = true;
+        event.overflow = 2;
+        event.absorbed = 3;
+        event.resisted = 4;
+        event.blocked = 5;
+        let log = format_combat_log(&VecDeque::from([event]), 1, spell_name);
+        assert!(
+            log.contains("crit=true glancing=true periodic=true school_mask=4 overflow=2 absorbed=3 resisted=4 blocked=5"),
+            "{log}"
+        );
+    }
+
+    #[test]
     fn combatipc_summon_keeps_summoner_unit_and_actual_spell() {
         let mut event = damage(42, 3110);
         event.kind = serde_json::from_str("\"Summon\"").expect("SPELL_SUMMON protocol kind");
@@ -184,7 +216,7 @@ mod tests {
         let log = format_combat_log(&VecDeque::from([event]), 20, |_| "Feral Spirit".into());
         assert_eq!(
             log,
-            "combat_log: 1\nsummon src=42 dst=99 spell=228562 amount=- aura=- text=42 Summon 99 timestamp_unix_ms=1791210000123 spell_name=\"Feral Spirit\""
+            "combat_log: 1\nsummon src=42 dst=99 spell=228562 amount=- aura=- text=42 Summon 99 timestamp_unix_ms=1791210000123 spell_name=\"Feral Spirit\" crit=false glancing=false periodic=false school_mask=4 overflow=0 absorbed=0 resisted=0 blocked=0"
         );
     }
 
@@ -193,7 +225,7 @@ mod tests {
         let log = format_combat_log(&VecDeque::from([damage(42, 3110)]), 20, spell_name);
         assert_eq!(
             log,
-            "combat_log: 1\ndamage src=42 dst=99 spell=3110 amount=12 aura=- text=42 damaged 99 for 12 timestamp_unix_ms=1791210000123 spell_name=\"Firebolt\""
+            "combat_log: 1\ndamage src=42 dst=99 spell=3110 amount=12 aura=- text=42 damaged 99 for 12 timestamp_unix_ms=1791210000123 spell_name=\"Firebolt\" crit=false glancing=false periodic=false school_mask=4 overflow=0 absorbed=0 resisted=0 blocked=0"
         );
     }
 
@@ -203,14 +235,17 @@ mod tests {
         let log = format_combat_log(&events, 1, spell_name);
         assert_eq!(
             log,
-            "combat_log: 1\ndamage src=1 dst=99 spell=686 amount=12 aura=- text=1 damaged 99 for 12 timestamp_unix_ms=1791210000123 spell_name=\"Shadow Bolt\""
+            "combat_log: 1\ndamage src=1 dst=99 spell=686 amount=12 aura=- text=1 damaged 99 for 12 timestamp_unix_ms=1791210000123 spell_name=\"Shadow Bolt\" crit=false glancing=false periodic=false school_mask=4 overflow=0 absorbed=0 resisted=0 blocked=0"
         );
         let recap = format_combat_recap(&events, Some("42"), spell_name);
         assert!(
             recap.starts_with("combat_recap target=42: 1\ndamage src=42"),
             "{recap}"
         );
-        assert!(recap.ends_with("spell_name=\"Firebolt\""), "{recap}");
+        assert!(
+            recap.contains("spell_name=\"Firebolt\" crit=false"),
+            "{recap}"
+        );
     }
 
     #[test]
@@ -221,7 +256,7 @@ mod tests {
         let log = format_combat_log(&VecDeque::from([event]), 20, spell_name);
         assert_eq!(
             log,
-            "combat_log: 1\ninterrupt src=42 dst=99 spell=19647 amount=- aura=- text=42 interrupted 99 timestamp_unix_ms=1791210000123 spell_name=\"Spell Lock\" extra_spell=686 extra_spell_name=\"Shadow Bolt\""
+            "combat_log: 1\ninterrupt src=42 dst=99 spell=19647 amount=- aura=- text=42 interrupted 99 timestamp_unix_ms=1791210000123 spell_name=\"Spell Lock\" extra_spell=686 extra_spell_name=\"Shadow Bolt\" crit=false glancing=false periodic=false school_mask=4 overflow=0 absorbed=0 resisted=0 blocked=0"
         );
     }
 
@@ -232,7 +267,7 @@ mod tests {
         let log = format_combat_log(&VecDeque::from([event]), 20, spell_name);
         assert_eq!(
             log,
-            "combat_log: 1\ndamage src=42 dst=99 spell=- amount=12 aura=- text=42 hit 99 for 12 timestamp_unix_ms=1791210000123 spell_name=-"
+            "combat_log: 1\ndamage src=42 dst=99 spell=- amount=12 aura=- text=42 hit 99 for 12 timestamp_unix_ms=1791210000123 spell_name=- crit=false glancing=false periodic=false school_mask=4 overflow=0 absorbed=0 resisted=0 blocked=0"
         );
     }
 }

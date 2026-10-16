@@ -13,6 +13,14 @@ use shared::protocol::CastFailed;
 
 impl GameClient {
     pub(crate) fn cast_spell(&mut self, spell_id: u32) -> Result<(), SessionError> {
+        self.cast_spell_on_target(spell_id, self.targeting_target())
+    }
+
+    pub(crate) fn cast_spell_on_target(
+        &mut self,
+        spell_id: u32,
+        target: Option<u64>,
+    ) -> Result<(), SessionError> {
         let spell_id = if spell_id == game_engine_core::assisted_combat::SINGLE_BUTTON_ASSISTANT {
             match self.spells.cooldowns.recommendation {
                 game_engine_core::cooldown_assist::Recommendation::Spell(id) => id,
@@ -62,14 +70,10 @@ impl GameClient {
             });
             return Ok(());
         }
-        let target = self.targeting_target();
         if self.auto_attack_on_cast(spell_id, target)? {
             return Ok(());
         }
-        let witness = self.cast_witness(target).unwrap_or_else(|error| {
-            report_once(&error);
-            None
-        });
+        let witness = self.cast_witness(target).map_err(SessionError)?;
         self.account.send_cast(spell_id, &name, target, witness)?;
         self.spells.sent.push(spell_id);
         Ok(())
