@@ -1,0 +1,9 @@
+{
+  "authority": "Lead2026-10-15T18:15:39-05:00 USER APPROVED upstreamSimulationCraftAPLs atPINNEDcommit",
+  "repository": "simulationcraft/simc",
+  "commit": "515f4a3fe9d1f35e1dbaf253745b6105fba906fb",
+  "raw_url": "https://raw.githubusercontent.com/simulationcraft/simc/515f4a3fe9d1f35e1dbaf253745b6105fba906fb/ActionPriorityLists/default/mage_arcane.simc",
+  "sha256": "b1d85887ec62431864cc2db45b95993868bc02a0c0852b5189997542f47cabd4",
+  "path": "/home/osso/.worktrees/follower-dungeons-2026-10-13/data/simc-apl-515f4a3fe9d1/mage_arcane.simc",
+  "excluded": "IcyVeinsandotherthirdpartyguidebehavior remainsforbidden; no guideprofile restoration."
+}

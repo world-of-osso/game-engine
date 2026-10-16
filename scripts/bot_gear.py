@@ -145,12 +145,16 @@ def equipment_receipt(plan, native, sheet_stats):
             "retained_bags": [equipped[slot] for slot in sorted(STORAGE_SLOTS) if slot in equipped]}
 
 
-def required_grants(plan, equipment):
+def required_grants(plan, equipment, bags):
     equipped = {}
     for line in equipment.splitlines():
         if not line.startswith("slot="):
             continue
         fields = dict(part.split("=", 1) for part in shlex.split(line))
         equipped[fields["slot"]] = int(fields["item_id"])
-    return dict(Counter(item["item_id"] for item in plan["items"]
-                        if equipped.get(item["slot"]) != item["item_id"]))
+    missing = Counter(item["item_id"] for item in plan["items"]
+                      if equipped.get(item["slot"]) != item["item_id"])
+    owned = Counter()
+    for item in bags:
+        owned[item["item_id"]] += item["count"]
+    return dict(missing - owned)

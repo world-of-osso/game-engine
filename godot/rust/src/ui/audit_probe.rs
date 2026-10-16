@@ -184,10 +184,11 @@ impl UiAuditProbe {
                         ..Default::default()
                     },
                 ),
-                "pet-queue" => ui.bind_mut().show_pet_journal(
+                "pet-queue" | "pet-queue-pending" => ui.bind_mut().show_pet_journal(
                     game_engine_ui_model::pet_journal::PetJournalView {
                         visible: false,
                         viewport,
+                        queue_pending: journal == GString::from("pet-queue-pending"),
                         queue: shared::protocol::PetBattleQueueState::Proposal {
                             proposal_id: 91,
                             accepted: false,

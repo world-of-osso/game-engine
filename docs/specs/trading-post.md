@@ -14,6 +14,26 @@ Retail Mainline Blizzard_PerksProgram and the local C_PerksProgram/PerksActiviti
 - [x] Traveler's Log displays authoritative monthly Tender earned/cap/balance. No invented mail awards. Retail XML defines visible controls; remove unsourced vendor SearchBox, Log/Collections and Freeze/Unfreeze buttons (lead clarification October13).
 - [x] Targeted behavioural tests and inspected private UDP5731 fb_* account PNG proof in Modern and Forever.
 
+## Confirmation keyboard ownership
+
+- Purchase, Refund, Purchase Cart, Clear Cart and frozen replacement confirmations consume Escape without dismissal or requests. Their Retail Elements.lua definitions omit `hideOnEscape`; GameDialog.lua737–745's keyboard cover hides only when that flag exists. Explicit Cancel remains available and preserves Tender/purchase/cart state before acceptance.
+- Purchase/refund authority remains unchanged: one accepted request changes the server balance/collection; Cancel/Escape do not. Production refund policy stays zero; native refund inspection may use the existing explicit private3600-second test policy, never an invented production window.
+- Pending spinner/success/error/timeout dialog lifetime remains a separate gap; this slice changes keyboard dismissal only. Existing earlier layout proof's claim that Escape cancels these confirmations was incorrect; native fixtures now require source-preserved modal plus explicit Cancel.
+- [x] Actual premature purchase-dismissal RED→both-skin native7a25a4cd7/a820dfda/dc30250 GREEN for all four non-freeze covers, explicit Cancel and exact decoded Purchase/Refund item-frame art. One authorized purchase/refund per skin restores Tender19670→19340→19670 under private policy3600 only. Twelve full-HD originals+two contacts: `/syncthing/AgentShared/2026-10-16/trading-post-confirmations/`; diagnostic `confirmations-proof-manifest.json` pins actual artifacts/fixtures/receipts.
+
+## Button tooltips
+
+- Purchase, View Cart, Clear Cart, Purchase Cart and disabled Refund use Retail Elements.lua767–782/832–838/869–873/2065–2070/2099–2112 `ShowTooltip` branches. Tooltip owner is the actual projected button at `ANCHOR_LEFT`, offsets0/0; exact labels come from GlobalStrings70391.
+- Purchase/Checkout show their action when enabled; when disabled, insufficient Tender takes the gold normal-text explanation, otherwise white “Purchasing Unavailable”. View Cart remains inspectable while disabled; disabled Clear Cart and enabled Refund produce no tooltip. Pointer exit, covering dialog and vendor teardown clear the old owner. No request or balance/selection mutation follows from hover.
+- NAMED GAP: per-item `isPurchasePending` is absent from the current wire. Do not map generic request-pending state to the source's two-line delivery-pending tooltip; keep that provider branch unsupported. Currency/cart-toggle/frozen/detail-row tooltips remain separate.
+- [x] Native missing-tooltip RED→both-skin GREEN atb282d3793/a820dfda/dc30250 with fixture4965a8ca4: actual View Cart disabled/enabled, Purchase/Clear/Checkout, left anchors, hover leave/modal occlusion/cart teardown and unchanged selected712/Tender19670. Model2 covers remaining disabled/affordability branches; native empty-cart/disabled-refund states were not forced. Sixteen inspected full-HD originals+four contacts: `/syncthing/AgentShared/2026-10-16/trading-post-button-tooltips/`. Fixture: `trading_post_live.gd`, phase `button-tooltips`; content: `trading_post_tooltip.rs`.
+
+## Product-row item tooltips
+
+- Hovering a vendor product shows that hovered row's Retail item ID, quality/name and catalog item details, independently of the selected model preview. Use the shared native tooltip renderer, not a product-description substitute.
+- Retail PerksProgramElements.lua306–314 uses `GetItemByID`, excludes `SellPrice`, and owns the tooltip at `ANCHOR_RIGHT` with X−16/Y0. Preserve the shared screen clamp; hide on pointer leave or vendor teardown. Hover must not change selection, Tender or server state.
+- [x] Native missing-tooltip RED→both-skin GREEN at engine569419cb7/servera820dfda/protocoldc30250. Fixture `godot/tests/trading_post_live.gd`, phase `item-tooltips`, verifies two hovered item identities/details/right−16 positions without sell price, unchanged selected row/Tender, pointer leave and Escape/vendor teardown/reopen/HUD restoration. Eight inspected full-HD originals+two contacts: `/syncthing/AgentShared/2026-10-16/trading-post-item-tooltips/`; diagnostic `item-tooltips-proof-manifest.json` pins actual artifact hashes and receipts. Product-row coverage does not certify frozen/cart/detail-row or footer-button tooltips, item spell-effect formatting, or framing.
+
 ## Menu lifecycle sounds
 
 Source: Retail PerksProgram.lua226/253 and SoundKitConstants.lua, with SoundKit/SoundKitEntry12.1.5.70391. [Implementation/proof inventory](../wiki/systems/trading-post.md#menu-lifecycle-sounds--bounded-proof-october15); behavioral tests: `godot/core/tests/trading_post_menu_sound.rs`, `godot/tests/trading_post_live.gd` (`menu-sounds`).
