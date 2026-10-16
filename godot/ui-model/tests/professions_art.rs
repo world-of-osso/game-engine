@@ -168,6 +168,17 @@ fn professions_quality_dialog_shows_authored_choices_without_a_crafted_tier_in_b
                 .is_some(),
             "Mainline shows the mixed inventory-quality glyph before an allocation exists"
         );
+        assert_eq!(
+            frame(&registry, "ProfessionQuality193208QuantityRight")
+                .position
+                .left,
+            ui_toolkit::layout_values::Val::Px(57.5),
+            "NumericInputSpinner right cap is anchored at input RIGHT0"
+        );
+        assert_eq!(
+            frame(&registry, "ProfessionQuality193208QuantityMiddle").width,
+            ui_toolkit::frame::Dimension::Fixed(20.0)
+        );
         let unowned_icon = frame(&registry, "ProfessionQuality193211Icon");
         assert!(
             matches!(unowned_icon.widget_data.as_ref(), Some(WidgetData::Texture(texture)) if texture.desaturated)
