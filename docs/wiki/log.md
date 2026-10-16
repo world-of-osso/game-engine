@@ -1,6 +1,13 @@
 ## 2026-10-15 — Trading Post menu lifecycle sound implementation
 
 [Menu sounds](systems/trading-post.md#menu-lifecycle-sounds--bounded-proof-october15): core2 missing-kit and actual native missing-call RED→GREEN. Both skins at67b1a92eb/231c68dc/4930acb observe eight real decoded playback/finished events, source gain ratio, no replay during idle/closed updates, Leave/reopen/Escape. Eight inspected full-HD PNGs+two contacts published;15 local70391 Vorbis variants authenticated. Canonical publication15/15 hash-verified, original slot sound link restored and owned overlay removed; native staging proof not relabeled. Close pitch named gap/no pitch path, Rank3 separately unlanded.
+## 2026-10-15 — Authored M2 attachment participation
+
+[A7](systems/animation.md#authored-attachment-participation-a7--2026-10-15): MD20/SKA1 byte tracks, ancestor pose/callback eligibility and reversible shadows. Truncation, native inactive-pose/shadow and actual `$SCD` callback REDs reproduced; post-integration animation83/parser7/inheritance3 and strengthened native nested-gear lifecycle GREEN. Format/native compilation pass without Rust warnings. Private solar-spell fixture retains real equipped item identity. Existing native clocks/visibility retained; reference color/clock and external-key gaps explicit.
+
+## 2026-10-15 — Clean-room authored M2 parent contribution
+
+[A6](systems/animation.md#authored-parent-contribution-a6--2026-10-15): parent-scale/translation/rotation CPU RED reproduced; authored low-bit affine composition added without replacing ordinary hierarchy or crossfades. Native acceptance, runtime flags and A7 semantics remain open in the linked spec. Local non-gating census retained outside git; no prohibited sources accessed.
 
 ## 2026-10-15 — Authored talent Starter selection
 ## 2026-10-15 — Guild lifecycle query flow

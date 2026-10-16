@@ -12,7 +12,9 @@ use godot::{
 use godot::builtin::{Basis, Transform3D};
 
 mod action;
+mod attachment;
 mod billboard;
+pub(crate) use attachment::refresh_attachment_shadows;
 mod momentum;
 mod mount_special;
 #[cfg(test)]
@@ -211,6 +213,15 @@ impl AnimationState {
         }
         let globals = model.global_sequences.len();
         let unknown_global = |global: i16| usize::try_from(global).is_ok_and(|g| g >= globals);
+        if model
+            .attachments
+            .iter()
+            .any(|attachment| unknown_global(attachment.activation.global_sequence))
+        {
+            return Err(format!(
+                "M2 attachment track names a global sequence beyond the model's {globals}"
+            ));
+        }
         if model.bone_tracks.iter().any(|track| {
             unknown_global(track.translation.global_sequence)
                 || unknown_global(track.rotation.global_sequence)
@@ -739,6 +750,7 @@ pub struct WowAnimationPlayer {
     /// model keeps its first pose and never processes.
     animates: bool,
     billboards: Option<billboard::Billboards>,
+    attachments: Option<attachment::AttachmentGates>,
     /// The sequence whose bounds the sibling skinned batches cull by.
     bounds_sequence: Option<usize>,
     /// The skeleton's motion, fed to the momentum sway each processed frame.
@@ -757,12 +769,16 @@ impl INode for WowAnimationPlayer {
             stale: false,
             animates: true,
             billboards: None,
+            attachments: None,
             bounds_sequence: None,
             velocity: Default::default(),
         }
     }
 
     fn ready(&mut self) {
+        // A parent's attachment keys must be current before a deeper child's tick.
+        let depth = self.base().get_path().get_name_count() as i32;
+        self.base_mut().set_process_priority(i32::MIN + depth);
         if !self.animates {
             self.base_mut().set_process(false);
         }
@@ -778,6 +794,7 @@ impl WowAnimationPlayer {
     pub fn from_model(model: &m2::Model, skeleton: Gd<Skeleton3D>) -> Result<Gd<Self>, String> {
         let animation = AnimationState::new(model)?;
         let billboards = billboard::Billboards::new(model);
+        let attachments = attachment::AttachmentGates::new(model, &skeleton)?;
         if skeleton.get_bone_count() as usize != model.bones.len() {
             return Err(format!(
                 "M2 animation has {} bones but Skeleton3D has {}",
@@ -792,8 +809,9 @@ impl WowAnimationPlayer {
             paused: false,
             sampling: true,
             stale: false,
-            animates: !m2::bones_are_static(model) || billboards.is_some(),
+            animates: !m2::bones_are_static(model) || billboards.is_some() || attachments.is_some(),
             billboards,
+            attachments,
             bounds_sequence: None,
             velocity: Default::default(),
         });
@@ -976,9 +994,10 @@ impl WowAnimationPlayer {
 
     /// Reported M2 events (`$SCD`) its action clips passed since the last call.
     pub(crate) fn take_fired_events(&mut self) -> Vec<[u8; 4]> {
+        let active = self.callbacks_eligible();
         self.animation
             .as_mut()
-            .map(AnimationState::take_fired_events)
+            .map(|animation| attachment::take_callbacks(animation, active))
             .unwrap_or_default()
     }
 
@@ -1022,19 +1041,30 @@ impl WowAnimationPlayer {
     }
 
     fn write_poses(&mut self) {
+        self.write_attachment_gates();
+        if !self.callbacks_eligible() {
+            self.stale = true;
+            return;
+        }
         let (Some(animation), Some(skeleton)) = (&self.animation, &mut self.skeleton) else {
             return;
         };
-        let mut poses = animation.sampled_poses();
-        if let Some(billboards) = &self.billboards {
-            billboards.apply(&mut poses, skeleton);
-        }
-        for (index, pose) in poses.into_iter().enumerate() {
+        let poses = animation.sampled_poses();
+        for (index, pose) in poses.iter().enumerate() {
             skeleton.set_bone_pose_position(index as i32, pose.position);
             skeleton.set_bone_pose_rotation(index as i32, pose.rotation);
             skeleton.set_bone_pose_scale(index as i32, pose.scale);
         }
+        if let Some(billboards) = &self.billboards {
+            billboards.apply(&poses, skeleton);
+        }
         self.apply_sequence_bounds();
+    }
+
+    fn write_attachment_gates(&mut self) {
+        if let (Some(gates), Some(animation)) = (&mut self.attachments, &self.animation) {
+            gates.apply(animation);
+        }
     }
 
     pub(crate) fn use_battle_idle(&mut self) -> Result<(), String> {
@@ -1101,6 +1131,12 @@ fn sequence_bounds(sequence: &m2::Sequence) -> Option<Aabb> {
 
 #[godot_api]
 impl WowAnimationPlayer {
+    /// Attached children may retain color/identity/clock while callbacks are ineligible.
+    #[func]
+    fn callbacks_eligible(&self) -> bool {
+        attachment::participates(&self.base().clone())
+    }
+
     #[func]
     fn current_animation_id(&self) -> i32 {
         self.footstep_phase()
@@ -1171,6 +1207,7 @@ impl WowAnimationPlayer {
         if self.paused {
             return true;
         }
+        let active = self.callbacks_eligible();
         let result = self
             .animation
             .as_mut()
@@ -1180,12 +1217,17 @@ impl WowAnimationPlayer {
                 // static props keep the pose already on the skeleton.
                 let varied = animation.pose_varies();
                 animation.advance(delta_ms)?;
+                if !active {
+                    attachment::take_callbacks(animation, false);
+                }
                 Ok(varied || animation.pose_varies() || self.billboards.is_some())
             });
         match result {
             Ok(changed) => {
-                if pose_write_due(changed, self.sampling, &mut self.stale) {
+                if pose_write_due(changed, self.sampling && active, &mut self.stale) {
                     self.write_poses();
+                } else {
+                    self.write_attachment_gates();
                 }
             }
             Err(error) => {
