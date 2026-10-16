@@ -57,3 +57,16 @@ The host keeps the set of NPCs it has queried. It sends one `QuestGiverStatusQue
 
 - `QuestLogSnapshot` and `QuestLogUpdate` carry `watched_quest_ids`, and the tracker order comes from that list; see [[quest-ui]]. Before this port, `Account` kept only the entries.
 - A second `shared-protocol` commit breaks the handshake between an already-built private server and a rebuilt client ("the message protocol doesn't match"). Rebuild the server whenever the sibling protocol changes.
+
+
+## Zoom button source states — 2026-10-15
+
+Retail `Minimap.xml:190-219` defines actual Buttons, normal/down/mouseover atlas members and desaturated normal art while disabled. `Minimap.lua:254-257,309-345` disables the corresponding control at zoom0/5 and enables the opposite direction. The old `zoom_button` emitted a clickable Texture with disabled alpha0.5: no held/hover state, and activation on press rather than cancellable release.
+
+`minimap.rs` now emits source Buttons at unchanged rectangles. The scoped `parts.rs` projection preserves base art beneath a full ADD mouseover overlay and applies the existing sampled-image grayscale shader only while disabled. No toolkit/schema/server, map diameter, wheel/key binding, hover visibility, tooltip or sound changes.
+
+Proof: `minimap_zoom_source_states_keep_full_opacity_and_disabled_grayscale` builds both real screens at zoom0/2/5 (RED static Texture → GREEN). `godot/tests/minimap_zoom_fidelity.gd` drives real native motion/press/outside release/inside release through each control: both skins pass, disabled controls emit nothing and do not change hover/press pixels. Offline RegistryUi requires `pop_action()` after each event to synchronize queued input before observing pixels; an earlier capture omitted that synchronization and is excluded from hover acceptance.
+
+Both-skin before/after sheets and source-position context details were inspected at `AgentShared/2026-10-15/ui-questlog-minimap-zoom/`. At zoom2 the entire context is RGB-identical before/after; at limits all RGB changes remain within the two source zoom rectangles (six fullHD comparisons, zero outside changes). Native material inspection confirms disabled grayscale and full frame alpha. Baseline action-on-press/outside-release RED is retained, not accepted as a passing run.
+
+Exact revisions, source/atlas/binary/PNG hashes and exclusions: `data/diagnostics/ui-questlog-minimap-zoom-2026-10-15/zoom-proof-ledger.json`. Supplied offline states prove production screen/input/projection only: live host zoom transitions, tile recomposition, tooltips, sound and whole-minimap fidelity remain outside this proof. Contract: [minimap](../../specs/minimap.md).
