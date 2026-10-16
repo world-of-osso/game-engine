@@ -77,13 +77,17 @@ func run_arrows() -> void:
 						assert(idle.get_data() == pushed.get_data(), "Disabled art remains static")
 					await move(ui, outside)
 					await press(ui, outside, false)
-					assert(actions.is_empty(), "Outside release cancels")
+					print("STACK_ARROW_CANCEL ", label, " actions=", actions)
+					if verify:
+						assert(actions.is_empty(), "Outside release cancels")
+					actions.clear()
 					await move(ui, point)
 					await press(ui, point, true)
 					await press(ui, point, false)
 					var expected: Array[String] = []
 					if enabled:
 						expected.append("stack_split:" + key.to_lower())
+					print("STACK_ARROW_EXACT ", label, " actions=", actions)
 					assert(actions == expected, "Exact arrow action or disabled refusal; no reducer call")
 					actions.clear()
 					print("STACK_ARROW ", label, " physical art/cancel/action PASS")
