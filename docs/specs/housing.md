@@ -156,6 +156,19 @@ Owned storage has independent Dyeable Only and alphabetical ordering controls. D
 
 Source: `Blizzard_HousingCatalogFilters.lua` Initialize/ResetFiltersToDefault and `Blizzard_HouseEditorStorageFrame.lua` OnStorageTabSelected. Both-skin physical acceptance exercises alphabetical actual tiles, paid nondyeable stacks excluded, hidden/remounted filter retention, reset/search composition, conservation and normal paid-copy replacement. Dropdowns outside the drawer must remain UI input, never world-edit clicks. Cross-process saved filter/CVar persistence remains separate.
 
+### Unavailable filter semantics — qualified2026-10-16
+
+| Control | Retail contract | Current boundary |
+|---|---|---|
+| Date Added | `HousingCatalogSortType.DateAdded=0`; separate from Alphabetical1. | Disabled. Confirmed storage/wire carries quantities/variants, not acquisition dates. Neither decor `OrderIndex`, item IDs nor current array order is acquisition chronology; do not backfill dates. |
+| Placeable | Indoor/outdoor toggles include entries allowed in either selected location; entries may allow both. Storage initially enables indoors only when inside a house; Reset enables both. | Disabled. Generated APIs name `isAllowedIndoors`/`isAllowedOutdoors`, but the imported catalog/model has no authenticated mapping from HouseDecor.Flags to those predicates. Model type, category and current placement are not substitutes. |
+| Tag groups | `GetAllFilterTagGroups` supplies names/groups/association availability; checked tags match Any within their group. | Not populated. Current70391 import has20119 `DataTagXHouseDecorRecord` links but no DataTag definitions or authenticated group/name/order mapping. Links alone cannot manufacture a menu or assign location semantics. |
+| Collection/first acquisition | Storage calls `SetCollectionFiltersAvailable(false)`, resetting Collected/Uncollected to true and first-acquisition-only to false. | Intentionally absent in storage, not a missing owned-storage feature. Dashboard/market semantics are separate. |
+
+Dyeable and Alphabetical remain the supported controls. The API documents search behavior, not the missing DB2 flag mapping or historical acquisition data. Unavailable rows do not imply those Retail capabilities were implemented. Cross-process filter persistence remains unqualified.
+
+Sources: local Retail `HousingCatalogConstantsDocumentation.lua`, `HousingCatalogSearcherAPIDocumentation.lua` SetAllowedIndoors/SetAllowedOutdoors/SetAllInFilterTagGroup, `HousingCatalogUIDocumentation.lua` HousingCatalogEntryInfo, and `Blizzard_HouseEditorStorageFrame.lua` OnLoad/OnStorageTabSelected. [Inspection and proof boundary](../wiki/systems/housing.md#unavailable-storage-filters--qualified2026-10-16).
+
 ## Owned storage search input
 
 The inherited search input limits text to40 Unicode letters, not40 bytes. Native editing and the registry’s EditBoxData carry the same limit. Text and placeholder reserve16px left/20px right; placeholder RGB0.35 uses that inner span. The source10×10 magnifier sits left1/center UI-down+1, RGB0.6 for empty/unfocused and RGB1 when focused or nonempty. These properties survive drawer remount; typing and browsing never alter authoritative quantities/layout. Current SDK RSX lacks limit/inset setters, so the existing registry postsetup stage configures real widget data before native projection, not an independent renderer override.
