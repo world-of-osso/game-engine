@@ -41,6 +41,7 @@ Northshire Shaman bots use source-valid Draenei11 up front, not a retry-based al
 - Select the nearest authored non-exotic tameable Beast spawn on the player's current map, require its installed CreatureFamily row and native learned Tame Beast1515. Verify selected live NPC identity/health/level against ordinary native observations and current server entry lookup.
 - The preparation stage owns target selection while the observer keeps publishing state; dummy Tab selection must not interrupt the channel. Native spell usability and strict baked navigation gate the single ordinary tame request. Confirm matching replicated owned-pet and received bar IDs; no grants, persistence edits, substitute creature after failure or repeated uncertain casts.
 - Retain source plan, native target, cast request and resulting ownership. Restore ordinary dummy selection before collecting; missing source/native facts or a failed tame blocks collection.
+- Approved BM preparation selects the already-owned pet's received Assist reaction slot through one ordinary native viewport click. Require matching replicated pet/bar identity and received react_state3 before collection; retain before/after/input receipt in the fixture. An already received Assist state requires no click. Missing slot/UI/ack blocks without repeating input or editing stored state; this preparation does not override the server's valid Passive creation default.
 
 ## Native pre-combat forms
 
