@@ -75,6 +75,8 @@ W reconstructs a client. Collision queries, weather consumers and packet handlin
 | Check | Scope / revision | Evidence and limits |
 |---|---|---|
 | E/W/S baseline metadata | Pins in index; expansion began at E docs HEAD `201d6288a` | No tracked source changes; W/S clean; unrelated E untracked paths preserved |
+| 4.3.4 paired-source inspection | A6/A7/C1/C2/S3 added at `619bbde76`, C/E4 pins in expansion | Independent source inspection supports all five conditional conclusions; UV/liquid and mount/player citation ranges required follow-up corrections. No runtime parity proof |
+| 4.3.4 artifact gate | `495e83c7b`; six documentation paths | PASS: whitespace exit 0, 77 relative links / 40 anchors resolve, 28 unique finding IDs/headings, five prior candidates and three unpromoted leads. Later citation-only corrections do not alter links/headings; original untracked root paths remain, contents not inventoried before work |
 | Initial independent artifact gate | Original nine findings through `c9eb3880a` | All nine supported; 32/32 links resolved; docs-only diff/whitespace passed; citation/fixture corrections required |
 | Initial narrow follow-up | `201d6288a` corrections | PASS: affected citations, inherited-velocity overrides/variance and four-point Bézier fixture; whitespace check exit 0; unaffected proof retained |
 | Expansion source inspection | P6–P7, A4–A5, R1, S2, ENV1–ENV2, M1–M2, AU1–AU4 | Fourteen additional conditional capabilities traced; independent gate required event-timing, sort-citation, weather-input, finite-repeat and step-acceptance corrections. Depth darkening moved to V5 reference uncertainty. Final follow-up recorded in task delivery, not presumed from explorer reports |
