@@ -86,6 +86,12 @@ func verify_full_results() -> bool:
 		return false
 	if not await verify_painted_icon("JournalSearchResult0Icon") or not await shot("search-full-results"):
 		return false
+	var before := row.get_global_rect().position.y
+	if not await wheel("EncounterJournalSearchList", MOUSE_BUTTON_WHEEL_DOWN):
+		return false
+	if row.get_global_rect().position.y >= before or not await shot("search-full-scrolled"):
+		stop("Full search wheel did not move actual source rows")
+		return false
 	if not await click("EncounterJournalSearchResultsClose"):
 		return false
 	if shown("EncounterJournalSearchResults") or shown("EncounterJournalSearchPreview") or label_text("EncounterJournalSearchBox") != "flame":
@@ -94,6 +100,15 @@ func verify_full_results() -> bool:
 	return true
 
 func verify_section_selection() -> bool:
+	if not await click("EncounterJournalSearchBox"):
+		return false
+	if not shown("EncounterJournalSearchPreview"):
+		stop("Refocus did not restore source preview")
+		return false
+	await press_key(KEY_ESCAPE)
+	if shown("EncounterJournalSearchPreview") or label_text("EncounterJournalSearchBox") != "flame":
+		stop("Physical blur did not hide preview and retain query")
+		return false
 	if not await click("EncounterJournalSearchBox") or not await click("EncounterJournalSearchBoxClearButton"):
 		return false
 	if not await type_word("Paralyze", [KEY_P,KEY_A,KEY_R,KEY_A,KEY_L,KEY_Y,KEY_Z,KEY_E]):
@@ -130,11 +145,21 @@ func run() -> void:
 		return
 	if not await enter_world_when_ready():
 		return
+	if client.account_state().ui_skin != OS.get_environment("ADVENTURE_GUIDE_EXPECTED_SKIN"):
+		stop("Actual skin differs from bound search profile")
+		return
 	await journal_key()
 	deadline = Time.get_ticks_msec()+90000
 	while not client.adventure_guide_state().loaded and Time.get_ticks_msec()<deadline:
 		await process_frame
 	if client.adventure_guide_state().tab != "Dungeons" and not await click("EncounterJournalDungeonTab"):
+		return
+	if not await type_word("fl", [KEY_F,KEY_L]):
+		return
+	if shown("EncounterJournalSearchPreview") or shown("EncounterJournalSearchResults"):
+		stop("Two-character physical query incorrectly shows results")
+		return
+	if not await click("EncounterJournalSearchBoxClearButton"):
 		return
 	if not await type_word("flame", [KEY_F,KEY_L,KEY_A,KEY_M,KEY_E]) or not await verify_preview() or not await verify_full_results() or not await verify_section_selection():
 		return
