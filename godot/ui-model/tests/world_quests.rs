@@ -16,16 +16,55 @@ fn available() -> WorldQuestAvailability {
         quests: vec![AvailableWorldQuest {
             quest_id: 86948,
             title: "Twilight Bonds".into(),
-            map_id: 0,
             zone_id: 4922,
-            ui_map_id: 241,
-            position: QuestPoiPoint { x: -4655, y: -4310 },
+            pois: vec![WorldQuestPoi {
+                map_id: 0,
+                ui_map_id: 241,
+                position: QuestPoiPoint { x: -4655, y: -4310 },
+            }],
             expires_at: 87400,
             rewards: QuestRewards::default(),
             xp: 11765,
             currencies: vec![],
             reputation: vec![],
         }],
+    }
+}
+
+#[derive(serde::Deserialize)]
+struct PinFixture {
+    quests: Vec<PinFixtureQuest>,
+}
+
+#[derive(serde::Deserialize)]
+struct PinFixtureQuest {
+    quest_id: u32,
+    title: String,
+    zone_id: u32,
+    pois: Vec<WorldQuestPoi>,
+}
+
+fn received_pin_fixture() -> WorldQuestAvailability {
+    let fixture: PinFixture =
+        serde_json::from_str(include_str!("fixtures/world_quest_pins_70391.json"))
+            .expect("authentic239-task/309-area pin fixture");
+    WorldQuestAvailability {
+        server_time: 1000,
+        quests: fixture
+            .quests
+            .into_iter()
+            .map(|quest| AvailableWorldQuest {
+                quest_id: quest.quest_id,
+                title: quest.title,
+                zone_id: quest.zone_id,
+                pois: quest.pois,
+                expires_at: 87400,
+                rewards: QuestRewards::default(),
+                xp: 0,
+                currencies: vec![],
+                reputation: vec![],
+            })
+            .collect(),
     }
 }
 
@@ -51,9 +90,11 @@ fn world_quests_authored_lower_floor_pin_does_not_invent_height_zero() {
     let mut quest = available().quests.remove(0);
     quest.quest_id = 82521;
     quest.title = "Pawns of Dark Masters".into();
-    quest.map_id = 2601;
-    quest.ui_map_id = 2256;
-    quest.position = QuestPoiPoint { x: -2268, y: -1960 };
+    quest.pois = vec![WorldQuestPoi {
+        map_id: 2601,
+        ui_map_id: 2256,
+        position: QuestPoiPoint { x: -2268, y: -1960 },
+    }];
     quest.xp = 0;
     let mut runtime = QuestRuntime::default();
     runtime.apply_availability(
@@ -62,6 +103,12 @@ fn world_quests_authored_lower_floor_pin_does_not_invent_height_zero() {
             quests: vec![quest],
         },
         900,
+    );
+    assert!(
+        catalog
+            .map_position(2256, 2601, [-2268., -1960., 0.])
+            .is_none(),
+        "real-height callers must retain floor discrimination"
     );
     let pins = world_quest_ui::map_pins(&catalog, 2256, &runtime, 900);
     assert_eq!(
@@ -73,6 +120,101 @@ fn world_quests_authored_lower_floor_pin_does_not_invent_height_zero() {
     assert_eq!(pins[0].label, "Pawns of Dark Masters");
     assert!((pins[0].x - 0.6442027).abs() < 0.00001);
     assert!((pins[0].y - 0.8322616).abs() < 0.00001);
+}
+
+#[test]
+fn world_quests_all_authored_maps_survive_partial_snapshot_removal_until_real_expiry() {
+    let root = std::path::PathBuf::from(env!("CARGO_MANIFEST_DIR")).join("../../data");
+    let catalog =
+        game_engine_ui_model::ui_map_data::UiMapCatalog::load(&root.join("db2/active")).unwrap();
+    let snapshot = received_pin_fixture();
+    assert_eq!(snapshot.quests.len(), 239);
+    assert_eq!(
+        snapshot
+            .quests
+            .iter()
+            .map(|quest| quest.pois.len())
+            .sum::<usize>(),
+        309
+    );
+    let mut runtime = QuestRuntime::default();
+    runtime.apply_availability(snapshot.clone(), 900);
+    for quest in &snapshot.quests {
+        for poi in &quest.pois {
+            let pins = world_quest_ui::map_pins(&catalog, poi.ui_map_id, &runtime, 900);
+            let matches: Vec<_> = pins
+                .iter()
+                .filter(|pin| pin.quest_id == Some(quest.quest_id))
+                .collect();
+            assert_eq!(
+                matches.len(),
+                1,
+                "task{} on authored map{}",
+                quest.quest_id,
+                poi.ui_map_id
+            );
+            assert_eq!(matches[0].label, quest.title);
+            assert!((0.0..=1.0).contains(&matches[0].x) && (0.0..=1.0).contains(&matches[0].y));
+        }
+    }
+    // Bounding rectangles overlap, but a Twilight task does not belong to sibling Wetlands.
+    assert!(
+        !world_quest_ui::map_pins(&catalog, 56, &runtime, 900)
+            .iter()
+            .any(|pin| pin.quest_id == Some(86948))
+    );
+    let mut remaining = snapshot;
+    remaining.server_time = 1100;
+    remaining.quests.retain(|quest| quest.quest_id != 82521);
+    runtime.apply_availability(remaining, 1000);
+    assert_eq!(runtime.active_world_quests(1000).count(), 238);
+    assert!(
+        !world_quest_ui::map_pins(&catalog, 2256, &runtime, 1000)
+            .iter()
+            .any(|pin| pin.quest_id == Some(82521))
+    );
+    assert!(
+        world_quest_ui::map_pins(&catalog, 241, &runtime, 1000)
+            .iter()
+            .any(|pin| pin.quest_id == Some(86948))
+    );
+    assert_eq!(runtime.active_world_quests(87299).count(), 238);
+    assert_eq!(runtime.active_world_quests(87300).count(), 0);
+    assert!(world_quest_ui::map_pins(&catalog, 241, &runtime, 87300).is_empty());
+}
+
+#[test]
+fn world_quests_multiple_floor_areas_choose_the_nearest_navigation_point_once() {
+    use game_engine_core::minimap_data::MinimapView;
+    let root = std::path::PathBuf::from(env!("CARGO_MANIFEST_DIR")).join("../../data");
+    let catalog =
+        game_engine_ui_model::ui_map_data::UiMapCatalog::load(&root.join("db2/active")).unwrap();
+    let mut snapshot = received_pin_fixture();
+    snapshot.quests.retain(|quest| quest.quest_id == 82521);
+    let mut runtime = QuestRuntime::default();
+    runtime.apply_availability(snapshot, 900);
+    for (map, expected_uv) in [
+        (2256, [0.6442027, 0.8322616]),
+        (2255, [0.6488530, 0.8337875]),
+    ] {
+        let pins = world_quest_ui::map_pins(&catalog, map, &runtime, 900);
+        assert_eq!(pins.len(), 1);
+        assert_eq!(pins[0].quest_id, Some(82521));
+        assert!(
+            (pins[0].x - expected_uv[0]).abs() < 0.00001
+                && (pins[0].y - expected_uv[1]).abs() < 0.00001
+        );
+    }
+    for (center, map) in [([-2268., 1960.], 2256), ([-2275., 1992.], 2255)] {
+        let poi = world_quest_ui::nearest_poi(&runtime.world_quests[0], 2601, center).unwrap();
+        assert_eq!(poi.ui_map_id, map);
+        let view = MinimapView::new(center, 0);
+        let blips = world_quest_ui::minimap_blips(&runtime, Some(82521), 2601, &view, 150., 900);
+        assert_eq!(blips.len(), 1, "one task marker, not one marker per area");
+        assert_eq!(blips[0].unit, 82521);
+        assert_eq!(blips[0].offset, [0., 0.]);
+    }
+    assert!(world_quest_ui::nearest_poi(&runtime.world_quests[0], 0, [0., 0.]).is_none());
 }
 
 #[test]
