@@ -28,7 +28,7 @@ Private real player characters exercise the native controller path and measure c
 - Use existing approved Normal Stockade entry through authored WorldSafeLoc3599 and ordinary MapTransfer/WorldPortAck, with source-profile party attachment. Do not mutate the follower205 catalog or describe this diagnostic entry as native LFG205 UI proof.
 - Take one capacity ADD before each whole live run, not per route/combat phase. Preserve owned server/client cleanup, actual binary hashes, admitted copy, source route and player equipment receipts.
 - Report authoritative three-boss credit separately from combat-metric qualification. Clear time uses monotonic entry-confirmation→final Done observation. Per-boss player/owned-pet damage excludes follower/descendant and trash damage, over first observed boss combat→native boss death, including damage in the final death timestamp bucket.
-- Missing death/continuity/ownership or zero-resolution duration yields DPSnull. Missing authoritative Done never becomes a completed boss measurement. Preserve observed player/party deaths; total deaths remain unknown after capture gaps. No balance pass/fail tolerance.
+- Missing death/continuity/ownership or zero-resolution duration yields DPSnull. Missing authoritative Done never becomes a completed boss measurement. Preserve observed player/party deaths from combat events and copy-bound native roster death states without double counting the same actor. A roster-confirmed death missing from the combat stream cannot report zero or certify death totals; retain the native observation and mark death capture incomplete. Total deaths remain unknown after capture gaps. No balance pass/fail tolerance.
 
 ## Native race fixture
 

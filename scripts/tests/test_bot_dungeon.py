@@ -1,5 +1,6 @@
 """Dungeon accounting uses native identities, death events and authoritative credit."""
 import copy
+import json
 import sys
 import unittest
 from pathlib import Path
@@ -45,6 +46,31 @@ class DungeonReportTests(unittest.TestCase):
             event("damage", 1, 13, 1464, 40, 8000),
             event("death", 1, 13, "-", "-", 8000),
         ]))
+
+    def test_actual_native_tank_death_without_combat_death_never_reports_zero(self):
+        from run_stockade_bot import StockadeRun
+        fixture = json.loads((Path(__file__).parent / 'fixtures/bot_harness/native-stockade-party-death.json').read_text())
+        controller = StockadeRun.__new__(StockadeRun)
+        controller.run = fixture['run']
+        controller.account = lambda: fixture['account']
+        controller.invoke = lambda *words: fixture['roster_command']['stdout']
+        controller.party_actor_ids = {row['name']: row['entity'] for row in fixture['native_actors']}
+        controller.party_actor_ids['Bwarfury'] = fixture['run']['actor']
+        with self.assertRaisesRegex(RuntimeError, 'death'):
+            controller.party()
+        result = summarize_dungeon(controller.run, [])
+        self.assertEqual(result['observed_party_deaths'], 1)
+        self.assertEqual(result['observed_player_deaths'], 0)
+        self.assertIsNone(result['party_deaths'], 'missing combat death telemetry cannot certify totals')
+        self.assertFalse(result['death_capture_complete'])
+        dead_actor = controller.party_actor_ids['Captain Garrick']
+        self.assertEqual(result['native_death_observations'][0]['entity'], dead_actor)
+        # A delivered combat event for that same death must not double count it.
+        at = fixture['run']['end_ms'] - 1
+        delivered = parse_combat(event('death', 99, dead_actor, '-', '-', at))
+        qualified = summarize_dungeon(controller.run, delivered)
+        self.assertEqual(qualified['observed_party_deaths'], 1)
+        self.assertEqual(qualified['party_deaths'], 1)
 
     def test_unconfirmed_native_owner_still_reports_every_expected_boss_as_unknown(self):
         self.run['actor'] = None

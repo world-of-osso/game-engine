@@ -186,6 +186,8 @@ class StockadeRun:
                     raise ValueError("Native group member lacks its authored follower identity")
                 actors.append(parse_npc(self.admin("npc-info", 34, self.instance, row[0]), row[0]))
         self.run["party_actors"] = [row["entity"] for row in actors]
+        self.party_actor_ids = {row["name"]: row["entity"] for row in actors}
+        self.party_actor_ids[self.args.character] = str(account["local_player_id"])
         for boss in self.run["bosses"]:
             native = parse_npc(self.admin("npc-info", 34, self.instance, boss["entry"]), boss["entry"])
             if native["health"] <= 0 or native["difficulty"] != 1:
@@ -208,10 +210,18 @@ class StockadeRun:
 
     def party(self):
         account = self.account()
-        require_living_player(account)
         if account.get("world_map_id") != 34:
             raise RuntimeError("Native player left the Stockade map")
         party = parse_party(self.invoke("group", "roster"))
+        observations = self.run.setdefault("party_death_observations", [])
+        for member in party:
+            if member["death"] == "Alive":
+                continue
+            entity = self.party_actor_ids[member["name"]]
+            if not any(row["entity"] == entity for row in observations):
+                observations.append({"entity": entity, "at_ms": int(time.time() * 1000),
+                                     "source": "native group roster", **member})
+        require_living_player(account)
         if len(party) != 5 or any(not row["online"] or row["health"] <= 0 or row["death"] != "Alive" for row in party):
             raise RuntimeError("Native party death/disconnect; no stat reset or replacement")
         return party
