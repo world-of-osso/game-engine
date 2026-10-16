@@ -37,10 +37,10 @@ impl WowTerrainShadowProbe {
         match read_fixture_tile().and_then(|tile| build_fixture_chunk(tile, mask_mode)) {
             Ok((node, source, mask)) => {
                 result.set("node", &node);
-                result.set("source_mask", PackedByteArray::from(source.as_slice()));
+                result.set("source_mask", &PackedByteArray::from(source.as_slice()));
                 result.set(
                     "mask",
-                    PackedByteArray::from(mask.as_ref().map_or(&[][..], |m| m.as_slice())),
+                    &PackedByteArray::from(mask.as_ref().map_or(&[][..], |m| m.as_slice())),
                 );
             }
             Err(error) => result.set("error", error),
@@ -79,7 +79,7 @@ fn build_fixture_chunk(mut tile: NativeTerrainTile, mode: i32) -> Result<Fixture
     let mut node = MeshInstance3D::new_alloc();
     node.set_mesh(&mesh);
     node.set_material_override(&material);
-    node.set_position(-mesh.get_aabb().get_center());
+    node.set_position(-mesh.get_aabb().center());
     Ok((node, source, mask))
 }
 
