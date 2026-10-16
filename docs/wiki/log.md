@@ -1,11 +1,44 @@
 ## 2026-10-16 — IoC NPC mover consumer
 
 [Driver input](systems/battlegrounds.md#ioc-npc-mover-input--implementation2026-10-16): controlling-seat authored capabilities, real source-channel/UDP RED and NPC-root prediction/epoch wiring. Stop/resume, remote-yaw takeover, native input and both-skin model acceptance remain pending.
+## 2026-10-16 — House Access dropdown
+
+[Source caller](systems/housing.md#house-access-dropdown--2026-10-16): generic160×28/plain rows replaced by inherited122×25 WowStyle2/MenuStyle1; genuine RED→GREEN, both-skin physical states/three draft selections and pending refusal. All26 context changes confined to House Access column; Save/persistence/other panel fidelity excluded.
 
 ## 2026-10-15 — Campsite selected-hover
 
 - [Glue/menu fidelity](investigations/glue-menu-fidelity.md#campsite-selected-hover-branch--2026-10-15): existing selected state picks source selected-hover art/18px margins, both-skin native pointer/reselection proof.
 
+## 2026-10-16 — Adventure Guide raid title glyphs
+
+[Source title glyphs](systems/adventure-guide.md#raid-title-glyphs--bounded-proof-2026-10-16): missing-icon RED→published atlas20px/source16px title, physical15→16→14→17 both-skin native PASS at2f75579c6. Six originals individually inspected; exact private receipt, local-only asset publication requirement and unrelated exit diagnostics retained. No inferred difficulty visibility.
+
+## 2026-10-15 — Adventure Guide authored creature selection
+
+[Model choices](systems/adventure-guide.md#authored-model-selection--bounded-native-proof-2026-10-15) now select authored names/displays and owner-right description tooltips. Both-skin native47be Helix→Oaf/reset/Nezir passes with M2-camera-rendered heads and the source circle mask. Independent verification caught prior3f static boss-art substitution despite passing corner checks; native RED→GREEN covers the corrected portrait identity. Full-model authored UiModelScene camera remains a named gap.
+## 2026-10-15 — Post-parity all40 attempt boundary
+
+[Exact coverage](systems/bot-harness.md#post-parity-all40-attempt-coverage):40 expected specs,39 retained reports,34 setup/collection errors; full comparison withheld. Six specs have two complete windows, not class correctness. Resto105 owned-bag retry now grants0/equips10 normally, survives fresh login, then source2305/condition11 refuses; partial189 damage/DPSnull.68 Python cases and native provisioning proof; remaining predicates/loadout/dead/movement boundaries retained. Stockade deferred; no owned runtime left.
+
+## 2026-10-15 — Retry-safe bot equipment grants
+
+[Owned inventory boundary](systems/bot-harness.md#retry-safe-owned-gear-provisioning): Resto105's earlier granted kit survived login timeout, but pre-login retry counted only equipped slots and filled bags with duplicates. Grants now follow authenticated native inventory, subtract bag copies and await replication before ordinary gear input. No deletion/account reset/admin equip. Exact native recovery now proves zero grants/full10-item normal equip; source2305/condition11 still blocks measurement.
+
+## 2026-10-15 — Native-controller three-DPS proof
+
+[Fresh native proof](systems/bot-harness.md#native-controller-three-dps-proof): Arms/Fury/BM six common-budget60s windows with actual auto-attack and received outcomes; mean-spec median129.0833, max/median1.00342, min/median0.281407, no tolerance/pass-fail. Old IPC windows remain diagnostic. Havoc now triggers Demon Blades then source21566/3 refuses; Cat/Bear confirm then5968/5741 condition3 refuse. Explicit new roster and preserved blocked comparisons prevent silent dropout. All40 post-parity attempts remain active; Stockade deferred.
+
+## 2026-10-15 — Current native dummy admin schema
+
+[Fixture boundary](systems/bot-harness.md#current-admin-fixture-boundary): actual native setup reaches Cat/Bear form confirmation, then rejects the newly appended combat JSON. Parser regression uses captured server lines; current suffix/static armor required, transient threat excluded. Frozen private render cache refreshed from published source with all prior-column rows hash-identical; canonical data untouched. Combat remeasurement still pending.
+
+## 2026-10-15 — All40 bot diagnostic batch and received outcome fields
+
+[Batch boundaries](systems/bot-harness.md#first-all40-diagnostic-batch):40 expected specs,43 raw reports,31 setup/collection errors; full comparison withheld, dead Ret quarantined. Per-ability final diagnostics retained; old IPC path still invalidates representative-controller acceptance. Received crit/glancing/periodic/mitigation fields now serialized unchanged after a focused Rust RED; fresh Rust/native gates pending. Private batch runtime stopped.
+
+## 2026-10-15 — Bot combat outcomes and native-cast parity gap
+
+[Per-ability triage](systems/bot-harness.md#per-ability-triage) adds raw hit/miss counts, nullable crits, real swing identity/share, sampled GCD/idle and raw power changes plus sourced DB2 coefficients/costs/order. No inferred spending or exact timing. The first diagnostic MVP has1368 auto_attack=null samples/zero swings despite all three requested abilities carrying the native OnCast attribute; raw-intent IPC bypasses the normal auto-attack hook. Six native replay assertions RED; IPC parity fix/new outcome exposure/native remeasurement pending, so representative-controller acceptance is reopened. All40 diagnosis continues unchanged; these are not evidence for a Fury coefficient fix or balance acceptance.
 ## 2026-10-15 — Housing storage Filter header
 
 [Filter header](systems/housing.md#storage-filter-header--implementation2026-10-15): actual native missing-source-surface RED→shared fixed-width Filter/reset primitive and both-skin physical four-phase assertions GREEN on the existing725px drawer. Existing popup/semantics/authority unchanged. Four inspected1280 PNGs; Forever truncated final JSON retained with three complete records and final reset/conservation PASS/screenshot, no invented fourth record. Unrelated missing terrain shader is excluded from scoped header proof. Primary-mode animation hypothesis rejected because source enables it only on unsupported Layout/Exterior.
@@ -4067,4 +4100,17 @@ Completed Retailv2 codec/authoritative Create and committed Copy callbacks, exac
 
 - 2026-10-15: Slam/Battle Shout fixture refresh4fe654f81 bounded GREEN: core17/17, native specialization5/5, core/native all-target check1m13s, workspace fmt/manual readability clean. Same active70391 rows; no runtime or rendered/audio acceptance claim.
 
+- 2026-10-15: [Instance Loot](systems/adventure-guide.md#instance-and-encounter-loot--2026-10-15): source64/45px rows, resolved icons/quality borders, central tooltip, native intrinsic subclass sizing and actual row→boss navigation. Behavioral REDs→45/45, check/fmt0, independent correction proof and twelve inspected both-skin1e15 originals; runtime identity and authority gaps retained.
 - 2026-10-15 — Shared WowStyle1 caption centering: native15px font minimum expanded authored10px box3px low; full-height caption box plus explicit source one-line policy and paired toolkit FontString attribute wiring. Engine20/core2 tests and both-skin1080p actual AH/shared/long-caption proof pass; Filter/Style2 crops byte-identical and no changed RGB outside caption/shadow in six comparisons. Prior valid wrapping REDs and invalid fixture expectations retained in diagnostics ui-questlog-dropdown-centering-2026-10-15/caption-centering-proof-ledger.json. [System](systems/menu-primitives.md#wowstyle1-caption-centering-2026-10-15). No live trading/whole-UI parity claim.
+
+- 2026-10-16: Trading Post product-row hover consumer uses Retail item catalog and source right−16 anchor without sell price; actual missing-tooltip RED recorded, GREEN pending. See [system](systems/trading-post.md#product-row-item-tooltips--implementation-october16).
+- 2026-10-15: [Journal source difficulties](systems/adventure-guide.md#difficulty-source-menus--bounded-proof-2026-10-15): literal mode order, localized size captions, documented World/Mythic Flex bases and isolated toolkit attribute reconciliation after native two-line RED. Final48/48/check/fmt and eight inspected both-skin2cd3 PNGs; raw unsupported modes and defeated markers not claimed.
+
+- 2026-10-15: [Saved boss defeated overlays](systems/adventure-guide.md#saved-boss-defeated-overlays--bounded-proof-2026-10-15): real sparse-bit Heroic save authority, source atlas/gold tooltip, wrong-difficulty/reopen/expiry controls and ten inspected actual both-skin native originals. Final49/49/check/fmt and independent correction verification; per-skin fixture/profile identity retained.
+
+- 2026-10-15: [Item Sets source composition](systems/adventure-guide.md#item-sets-source-composition--bounded-proof-2026-10-15): source list/controls/appearance icons, independent class/spec state, global search and intrinsic title alignment. Final59/59/check/fmt, independent verification and fourteen inspected actual both-skin1e45 originals; unsupported shared tooltip authority/actions retained explicitly.
+
+- 2026-10-16: Product-row item tooltip native both-skin GREEN at569419cb7; final-scale ordering fixes real owner-bound mismatch without changing layout/framing.27 UI+12 native Trading Post and52 tooltip regressions/check/scoped format pass at846cf1d1d. Eight full-HD PNGs plus two contacts published; [proof inventory](systems/trading-post.md#product-row-item-tooltips--implementation-october16).
+- 2026-10-16: Extracted [routed native player-controller boundary](systems/bot-harness.md#routed-native-controller--implementation-2026-10-16): explicit per-spec provider/strict route/native F and semantic loot input; native Greed and all-spec rotation coverage remain separate gates.
+
+- 2026-10-16: Maintained [explicit pinned Arcane provider](systems/bot-harness.md#explicit-approved-arcane-source-provider) with portable captured source/trait fixtures; source24/36/64 and strict level32/kit/fight coverage, no fallback or native/all-spec acceptance.

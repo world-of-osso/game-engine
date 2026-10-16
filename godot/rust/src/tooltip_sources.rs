@@ -114,10 +114,14 @@ impl GameClient {
     /// The tooltip of the hovered frame, if it has one.
     pub(crate) fn frame_tooltip(&mut self, hit: &HoveredFrame) -> Option<HoveredTooltip> {
         type Source = fn(&mut GameClient, &HoveredFrame) -> Option<HoveredTooltip>;
-        const SOURCES: [Source; 31] = [
+        const SOURCES: [Source; 35] = [
+            GameClient::trading_post_tooltip,
+            GameClient::journal_defeated_tooltip,
+            GameClient::journal_creature_tooltip,
             GameClient::journal_monthly_tooltip,
             GameClient::journal_journey_tooltip,
             GameClient::journal_set_tooltip,
+            GameClient::journal_loot_tooltip,
             GameClient::transmog_set_tooltip,
             GameClient::transmog_source_tooltip,
             GameClient::transmog_illusion_tooltip,
@@ -148,6 +152,35 @@ impl GameClient {
             GameClient::hud_frame_tooltip,
         ];
         SOURCES.iter().find_map(|source| source(self, hit))
+    }
+
+    /// PerksProgramElements.lua306–314: hovered product GetItemByID, no SellPrice.
+    fn trading_post_tooltip(&mut self, hit: &HoveredFrame) -> Option<HoveredTooltip> {
+        let ui = hit.ui.bind();
+        let (owner, product_id) = named_ancestor(ui.registry()?, hit.frame, |frame| {
+            indexed(frame, "PerksProgramProduct")
+        })?;
+        drop(ui);
+        let snapshot = self.trading_post.view.snapshot.as_ref()?;
+        let product = snapshot
+            .items
+            .iter()
+            .find(|row| row.id as usize == product_id)?;
+        let item = named_item_for(
+            shared::item_data::ItemDefinitionSource::Retail,
+            product.item_id,
+            &product.name,
+            product.quality,
+            1,
+            0,
+        );
+        let tooltip = without_sell_price(item_game_tooltip(&item, self.player_level()));
+        let owner_rect = self.owner_rect(&hit.ui, owner)?;
+        Some(HoveredTooltip::text(tooltip.owned_offset(
+            owner_rect,
+            OwnerSide::Right,
+            [-16.0, 0.0],
+        )))
     }
 
     /// Catalog/stored decor and the source open-storage handle use `ANCHOR_RIGHT`.
@@ -234,6 +267,32 @@ impl GameClient {
         ))
     }
 
+    fn journal_defeated_tooltip(&mut self, hit: &HoveredFrame) -> Option<HoveredTooltip> {
+        let ui = hit.ui.bind();
+        let (owner, tooltip) = named_ancestor(ui.registry()?, hit.frame, |frame| {
+            game_engine_ui_model::adventure_defeated::tooltip(
+                &self.adventure_guide.view,
+                frame.name.as_deref()?,
+            )
+        })?;
+        drop(ui);
+        let rect = self.owner_rect(&hit.ui, owner)?;
+        Some(HoveredTooltip::text(tooltip.owned(rect, OwnerSide::Right)))
+    }
+
+    fn journal_creature_tooltip(&mut self, hit: &HoveredFrame) -> Option<HoveredTooltip> {
+        let ui = hit.ui.bind();
+        let (owner, tooltip) = named_ancestor(ui.registry()?, hit.frame, |frame| {
+            game_engine_ui_model::adventure_creatures::tooltip(
+                &self.adventure_guide.view,
+                frame.name.as_deref()?,
+            )
+        })?;
+        drop(ui);
+        let rect = self.owner_rect(&hit.ui, owner)?;
+        Some(HoveredTooltip::text(tooltip.owned(rect, OwnerSide::Right)))
+    }
+
     fn journal_monthly_tooltip(&mut self, hit: &HoveredFrame) -> Option<HoveredTooltip> {
         let snapshot = self.adventure_guide.view.activities.as_deref()?;
         let ui = hit.ui.bind();
@@ -272,6 +331,33 @@ impl GameClient {
             name,
         )
         .map(|tooltip| (tooltip, false))
+    }
+
+    fn journal_loot_tooltip(&mut self, hit: &HoveredFrame) -> Option<HoveredTooltip> {
+        let ui = hit.ui.bind();
+        let (owner, item) = named_ancestor(ui.registry()?, hit.frame, |frame| {
+            let id = frame
+                .name
+                .as_deref()?
+                .strip_prefix("JournalLoot")?
+                .parse::<u32>()
+                .ok()?;
+            self.adventure_guide
+                .view
+                .loot()
+                .into_iter()
+                .find(|item| item.id == id)
+        })?;
+        let slot = named_item_for(
+            shared::item_data::ItemDefinitionSource::Retail,
+            item.id,
+            &item.name,
+            item.quality as u8,
+            1,
+            0,
+        );
+        drop(ui);
+        self.item_owned(hit, owner, OwnerSide::Right, slot)
     }
 
     fn journal_set_tooltip(&mut self, hit: &HoveredFrame) -> Option<HoveredTooltip> {
