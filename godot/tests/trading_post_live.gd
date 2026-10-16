@@ -126,10 +126,11 @@ func button_tooltip_proof() -> void:
 	if not await wait_until(func(): return not client.tooltip_state().get("visible", false), "modal blocks underlying button tooltip"): return
 	await click("PerksProgramConfirmButton")
 	if not await wait_until(func(): return client.trading_post_state().cart.is_empty(), "confirmed local cart clear"): return
-	if not await expect_button_tooltip("PerksProgramCartPurchaseButton", "Purchasing Unavailable", "empty-checkout"): return
-	await motion(control("PerksProgramCartClearButton").get_global_rect().get_center(), false)
-	if not await wait_until(func(): return not client.tooltip_state().get("visible", false), "disabled Clear Cart has no tooltip"): return
-	await capture("disabled-clear-hidden")
+	# Existing clear-cart lifecycle hides the panel; do not force an unreachable
+	# empty panel just to manufacture disabled Clear/Checkout native states.
+	if not await wait_until(func(): return control("PerksProgramShoppingCartFrame") == null and not client.tooltip_state().get("visible", false), "cart teardown clears tooltip owner"): return
+	await capture("clear-panel-hidden")
+	if not await expect_button_tooltip("PerksProgramViewCartButton", "View Cart", "cleared-view-cart"): return
 	if int(client.trading_post_state().tender) != tender or int(client.trading_post_state().selected) != selected:
 		fail("Button tooltip/cart-clear proof changed Tender or selected row"); return
 	await finish("button-tooltips")
