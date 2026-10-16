@@ -17,6 +17,7 @@ pub struct RecipeCatalog {
     pub primary_skills: BTreeSet<u32>,
     pub profession_skills: BTreeSet<u32>,
     pub crafting_quality: BTreeMap<u32, crate::professions_quality::CraftingQuality>,
+    pub reagent_slots: BTreeMap<u32, Vec<shared::crafting_reagents::ReagentSlot>>,
     /// SkillLine ID -> (ParentSkillLineID, ParentTierIndex), for nonzero trait-tree variants.
     pub specialization_lines: BTreeMap<u32, (u32, i32)>,
 }
@@ -95,6 +96,8 @@ impl RecipeCatalog {
         )?;
         catalog.specialization_lines = load_specialization_lines(dir, &skill_tiers)?;
         catalog.crafting_quality = crate::professions_quality::load(dir)?;
+        catalog.reagent_slots =
+            shared::crafting_reagents::CraftingReagentCatalog::load(dir)?.recipes;
         let categories = load_categories(dir)?;
         let outputs = load_outputs(dir)?;
         let reagents = load_reagents(dir)?;

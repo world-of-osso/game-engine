@@ -26,6 +26,13 @@ Private Modern proof learned Handstitched Leather Pants2153 from Simon Tanner at
 - Authored reagent slots, eligible item tiers and owned allocations can be selected and validated independently; validation is not successful crafting.
 - [Pinned source receipts and gap ledger](../sources/modern-crafting/gaps.md) distinguish static identities from missing operation composition.
 
+## Authored quality-reagent selection
+
+- Mainline quality recipes remain selectable even when no output can be assigned. Only fixed CREATE_ITEM24 outputs use a concrete output item; CRAFT_ITEM288 does not choose the lowest tier.
+- Required basic slots use ModifiedCraftingSpellSlot → MCRSlotXMCRCategory → CraftingReagentQuality. Item.CraftingQualityID joins the authored tier independently of rarity; mixed allocations preserve per-item quantities.
+- The shared 329×207 Mainline quality dialog has 100×75 tier containers, source item buttons and NumericInputSpinner dimensions, Accept/Cancel and a non-consuming server validation response. Values clamp to owned/required; increasing one tier removes overflow from other tiers in source order. Cancel discards only dialog edits.
+- Server validates recipe knowledge, membership, exact slot totals and aggregate bag ownership. Both skins share this behavior. Modifying/finishing eligibility, currency-slot allocation and unevaluated slot conditions remain explicit gaps, not substitute basic slots.
+
 ## Explicit gaps
 
 - Effect288 quality crafting and effect157 loot-derived crafts require authored output selection and operation rules; fixed-output effect24 support is not evidence for either.
