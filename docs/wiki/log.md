@@ -1,3 +1,24 @@
+## 2026-10-15 — Campsite selected-hover
+
+- [Glue/menu fidelity](investigations/glue-menu-fidelity.md#campsite-selected-hover-branch--2026-10-15): existing selected state picks source selected-hover art/18px margins, both-skin native pointer/reselection proof.
+
+## 2026-10-16 — Adventure Guide raid title glyphs
+
+[Source title glyphs](systems/adventure-guide.md#raid-title-glyphs--bounded-proof-2026-10-16): missing-icon RED→published atlas20px/source16px title, physical15→16→14→17 both-skin native PASS at2f75579c6. Six originals individually inspected; exact private receipt, local-only asset publication requirement and unrelated exit diagnostics retained. No inferred difficulty visibility.
+
+## 2026-10-15 — Adventure Guide authored creature selection
+
+[Model choices](systems/adventure-guide.md#authored-model-selection--bounded-native-proof-2026-10-15) now select authored names/displays and owner-right description tooltips. Both-skin native47be Helix→Oaf/reset/Nezir passes with M2-camera-rendered heads and the source circle mask. Independent verification caught prior3f static boss-art substitution despite passing corner checks; native RED→GREEN covers the corrected portrait identity. Full-model authored UiModelScene camera remains a named gap.
+## 2026-10-15 — Housing storage Filter header
+
+[Filter header](systems/housing.md#storage-filter-header--implementation2026-10-15): actual native missing-source-surface RED→shared fixed-width Filter/reset primitive and both-skin physical four-phase assertions GREEN on the existing725px drawer. Existing popup/semantics/authority unchanged. Four inspected1280 PNGs; Forever truncated final JSON retained with three complete records and final reset/conservation PASS/screenshot, no invented fourth record. Unrelated missing terrain shader is excluded from scoped header proof. Primary-mode animation hypothesis rejected because source enables it only on unsupported Layout/Exterior.
+## 2026-10-16 — Caster-centered assisted range
+
+[Source range identity](investigations/cooldown-assist-data.md#caster-centered-assisted-range--2026-10-16): actual Whirlwind190411 at3yd RED→retain Range1 Self Only and preserve targeted hostile bounds;25 bounded core controls pass. Raw authored rotation, known spells and effect radii unchanged; fresh native and independent acceptance remain open.
+## 2026-10-15 — Minimap zoom state art
+
+- [Minimap](systems/minimap.md#zoom-button-source-states--2026-10-15): source Button states/full-opacity disabled grayscale; both-skin physical native proof, bounded offline screen/input acceptance.
+
 ## 2026-10-15 — Housing Expert active glow implementation
 
 [Active submode glow](systems/housing.md#expert-active-glow--implementation2026-10-15): native missing-painted-glow RED→source fixed-mask/six-second shared first-play rotation and both-skin raster/phase/canvas-recreation GREEN with unchanged paid state. Modern retained six completed samples before invalid Scale-retention oracle correction, then resumed lifecycle only; Forever eight samples in one run. Installed70391 local art authenticated and lead-published; six inspected1280 PNGs, no primary flipbook/full appearance claim.
@@ -4049,6 +4070,12 @@ Completed Retailv2 codec/authoritative Create and committed Copy callbacks, exac
 
 - 2026-10-15: Slam/Battle Shout fixture refresh4fe654f81 bounded GREEN: core17/17, native specialization5/5, core/native all-target check1m13s, workspace fmt/manual readability clean. Same active70391 rows; no runtime or rendered/audio acceptance claim.
 
+- 2026-10-15: [Instance Loot](systems/adventure-guide.md#instance-and-encounter-loot--2026-10-15): source64/45px rows, resolved icons/quality borders, central tooltip, native intrinsic subclass sizing and actual row→boss navigation. Behavioral REDs→45/45, check/fmt0, independent correction proof and twelve inspected both-skin1e15 originals; runtime identity and authority gaps retained.
 - 2026-10-15 — Shared WowStyle1 caption centering: native15px font minimum expanded authored10px box3px low; full-height caption box plus explicit source one-line policy and paired toolkit FontString attribute wiring. Engine20/core2 tests and both-skin1080p actual AH/shared/long-caption proof pass; Filter/Style2 crops byte-identical and no changed RGB outside caption/shadow in six comparisons. Prior valid wrapping REDs and invalid fixture expectations retained in diagnostics ui-questlog-dropdown-centering-2026-10-15/caption-centering-proof-ledger.json. [System](systems/menu-primitives.md#wowstyle1-caption-centering-2026-10-15). No live trading/whole-UI parity claim.
 
 - 2026-10-16: Trading Post product-row hover consumer uses Retail item catalog and source right−16 anchor without sell price; actual missing-tooltip RED recorded, GREEN pending. See [system](systems/trading-post.md#product-row-item-tooltips--implementation-october16).
+- 2026-10-15: [Journal source difficulties](systems/adventure-guide.md#difficulty-source-menus--bounded-proof-2026-10-15): literal mode order, localized size captions, documented World/Mythic Flex bases and isolated toolkit attribute reconciliation after native two-line RED. Final48/48/check/fmt and eight inspected both-skin2cd3 PNGs; raw unsupported modes and defeated markers not claimed.
+
+- 2026-10-15: [Saved boss defeated overlays](systems/adventure-guide.md#saved-boss-defeated-overlays--bounded-proof-2026-10-15): real sparse-bit Heroic save authority, source atlas/gold tooltip, wrong-difficulty/reopen/expiry controls and ten inspected actual both-skin native originals. Final49/49/check/fmt and independent correction verification; per-skin fixture/profile identity retained.
+
+- 2026-10-15: [Item Sets source composition](systems/adventure-guide.md#item-sets-source-composition--bounded-proof-2026-10-15): source list/controls/appearance icons, independent class/spec state, global search and intrinsic title alignment. Final59/59/check/fmt, independent verification and fourteen inspected actual both-skin1e45 originals; unsupported shared tooltip authority/actions retained explicitly.

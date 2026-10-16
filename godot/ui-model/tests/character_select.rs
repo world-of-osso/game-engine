@@ -509,3 +509,52 @@ fn eight_campsites_page_four_at_a_time_like_retail_paging_controls() {
         Some(CharSelectAction::CampsitePage(1))
     );
 }
+
+#[test]
+fn campsite_selected_hover_uses_source_selected_atlas_and_slice_after_reselection() {
+    use ui_toolkit::atlas::{ActiveSkin, set_thread_skin};
+    for skin in [ActiveSkin::Modern, ActiveSkin::Forever] {
+        set_thread_skin(skin);
+        let mut model = character_select_model(1920.0, 1080.0);
+        for selected in [1, 2, 1] {
+            let mut state = campsites(2, 0);
+            state.selected_id = Some(selected);
+            model.shared.insert(state);
+            model.sync();
+            for id in [1, 2] {
+                let name = format!("CampsiteScene_{id}");
+                let owner = model.registry.get_by_name(&name).unwrap();
+                let Some(WidgetData::Button(button)) =
+                    &mut model.registry.get_mut(owner).unwrap().widget_data
+                else {
+                    panic!("card button")
+                };
+                button.hovered = true;
+                game_engine_ui_model::campsite_component::sync_campsite_art(&mut model.registry);
+                assert!(!frame(&model, &format!("CampsiteHover_{id}")).hidden);
+                let corner = frame(&model, &format!("CampsiteHoverArt_{id}00"));
+                let Some(WidgetData::Texture(texture)) = &corner.widget_data else {
+                    panic!("source highlight corner")
+                };
+                let atlas = if id == selected {
+                    "campcollection-frame-selected-hover"
+                } else {
+                    "campcollection-frame-hover"
+                };
+                assert_eq!(texture.source, TextureSource::Atlas(atlas.into()));
+                assert_eq!(
+                    corner.width,
+                    Dimension::Fixed(if id == selected { 18.0 } else { 17.0 })
+                );
+                let Some(WidgetData::Button(button)) =
+                    &mut model.registry.get_mut(owner).unwrap().widget_data
+                else {
+                    unreachable!()
+                };
+                button.hovered = false;
+                game_engine_ui_model::campsite_component::sync_campsite_art(&mut model.registry);
+                assert!(frame(&model, &format!("CampsiteHover_{id}")).hidden);
+            }
+        }
+    }
+}

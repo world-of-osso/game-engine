@@ -1,5 +1,8 @@
 //! Retail Journal DB2 cache, imported from the pinned local CASC build.
+mod difficulty;
+mod encounter_locks;
 mod presentation;
+pub use encounter_locks::DungeonEncounter;
 pub use presentation::{JourneyPresentation, read_journey_presentation};
 use rusqlite::{Connection, OpenFlags, Row};
 use std::{collections::BTreeMap, path::Path};
@@ -36,6 +39,7 @@ pub struct Encounter {
 pub struct Creature {
     pub id: u32,
     pub name: String,
+    pub description: String,
     pub encounter: u32,
     pub display: u32,
     /// JournalEncounterCreature.FileDataID: the authored EncounterBossButton portrait.
@@ -116,10 +120,11 @@ pub struct Catalog {
     pub specs: Vec<Specialization>,
     pub section_difficulties: BTreeMap<u32, Vec<u32>>,
     pub encounter_difficulties: BTreeMap<u32, Vec<u32>>,
+    pub encounter_locks: BTreeMap<u32, DungeonEncounter>,
     pub loot_difficulties: BTreeMap<u32, Vec<u32>>,
     pub item_specs: BTreeMap<u32, Vec<u32>>,
     pub classes: BTreeMap<u32, String>,
-    pub difficulties: BTreeMap<u32, String>,
+    pub difficulty_max_players: BTreeMap<u32, u32>,
     pub map_difficulties: BTreeMap<u32, Vec<u32>>,
     pub text: BTreeMap<String, String>,
 }
@@ -141,6 +146,10 @@ fn relations(db: &Connection, sql: &str) -> Result<BTreeMap<u32, Vec<u32>>, Stri
 }
 impl Catalog {
     pub fn load(path: &Path) -> Result<Self, String> {
+        let data = path
+            .parent()
+            .and_then(Path::parent)
+            .ok_or_else(|| format!("Journal cache has no data root: {}", path.display()))?;
         let db = Connection::open_with_flags(path, OpenFlags::SQLITE_OPEN_READ_ONLY)
             .map_err(|e| format!("{}: {e}", path.display()))?;
         let builds = query(&db, "SELECT DISTINCT build FROM source", |row| {
@@ -199,11 +208,12 @@ impl Catalog {
         )?;
         let creatures = query(
             &db,
-            "SELECT ID,Name_lang,JournalEncounterID,CreatureDisplayInfoID,OrderIndex,FileDataID FROM JournalEncounterCreature ORDER BY OrderIndex,ID",
+            "SELECT ID,Name_lang,JournalEncounterID,CreatureDisplayInfoID,OrderIndex,FileDataID,Description_lang FROM JournalEncounterCreature ORDER BY OrderIndex,ID",
             |r| {
                 Ok(Creature {
                     id: r.get(0)?,
                     name: r.get(1)?,
+                    description: r.get(6)?,
                     encounter: r.get(2)?,
                     display: r.get(3)?,
                     order: r.get(4)?,
@@ -330,11 +340,8 @@ impl Catalog {
                 "SELECT JournalEncounterItemID,DifficultyID FROM JournalItemXDifficulty",
             )?,
             item_specs: relations(&db, "SELECT item_id,spec_id FROM item_specialization")?,
-            difficulties: query(&db, "SELECT ID,name FROM difficulty", |r| {
-                Ok((r.get(0)?, r.get(1)?))
-            })?
-            .into_iter()
-            .collect(),
+            difficulty_max_players: difficulty::read_max_players(data)?,
+            encounter_locks: encounter_locks::read_encounter_locks(data)?,
             map_difficulties: relations(
                 &db,
                 "SELECT map_id,difficulty_id FROM map_difficulty ORDER BY difficulty_id",

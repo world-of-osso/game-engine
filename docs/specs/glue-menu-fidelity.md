@@ -8,6 +8,7 @@ Character-select navigation, deletion/collections, game menu and Settings use Re
 - [x] MainMenuFrame uses260px width,48/34px vertical and28px side padding,zero spacing,20px sections; DialogBorder/DialogHeader and source three-slice button art replace independent framed panels.
 - [x] GlueDialog uses512x256 base container,150x32 input and200x30 buttons, source dialog/tooltip art; existing typed DELETE/countdown gate and actions stay.
 - [x] GlueCollections uses703x595 parent, source IconsFrame/grid anchors,215x173 cards and224x183 selected art at(-4,+5); paging follows the six entries fitting source geometry and clamps stale pages.
+- [x] Campsite hover follows selection: selected cards use `campcollection-frame-selected-hover` with18px atlas slices, unselected cards retain `campcollection-frame-hover` with17px slices. Hover remains224x183 at(-4,+5), disappears on leave, and updates after reselection without changing actions or selected-id behavior (`GlueWarbandSceneCollection.lua:13-19`, atlas slice elements29572/29531); both-skin native proof gates acceptance.
 - [x] Settings uses920x724 root,175x20 category rows,30x29 checkbox controls,160x22 source binding buttons and shared dropdown/radio art. Category/value/binding actions remain.
 - [x] Options has one popup open at a time, attached outside ScrollBox clipping; selecting forwards `options_toggle:key:value` and closes, Escape closes only popup, outside click closes without intercepting normal routing.
 - [x] Fractional source shadow crops must not render unrelated atlas members.

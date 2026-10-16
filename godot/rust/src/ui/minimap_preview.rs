@@ -143,6 +143,33 @@ impl RegistryUi {
         )
     }
 
+    /// Production minimap screen with supplied zoom state for source-state pixel proof.
+    #[func]
+    pub fn show_minimap_zoom_preview(&mut self, forever: bool, zoom: u8) -> GString {
+        let result = (|| {
+            super::party_preview::load_data_root()?;
+            let skin = if forever {
+                ActiveSkin::Forever
+            } else {
+                ActiveSkin::Modern
+            };
+            ui_toolkit::atlas::set_thread_skin(skin);
+            let viewport = self.base().get_viewport().ok_or("Missing viewport")?;
+            let size = viewport.get_visible_rect().size;
+            let mut model = load_preview_model(size.x, size.y)?;
+            model.shared.insert(MinimapClusterState {
+                zoom,
+                zoom_buttons: true,
+                ..model.shared.get::<MinimapClusterState>().unwrap().clone()
+            });
+            model.sync_skin(skin);
+            let state = model.shared.get::<MinimapClusterState>().unwrap().clone();
+            apply_minimap_postsetup(&state, &mut model.registry);
+            self.initialize_model(model, size.x, size.y)
+        })();
+        GString::from(result.err().unwrap_or_default().as_str())
+    }
+
     /// Offline Forever minimap chrome, badge and tracker for capture_ui_screen.gd.
     #[func]
     pub fn show_forever_minimap_preview(&mut self) -> GString {
