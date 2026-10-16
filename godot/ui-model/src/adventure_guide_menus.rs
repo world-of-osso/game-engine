@@ -76,15 +76,22 @@ pub fn tier_menu(view: &View) -> Element {
 }
 pub fn difficulty_menu(view: &View, instance: u32) -> Element {
     let available = view.available_difficulties(instance, view.encounter);
-    let entries: Vec<_> = JOURNAL_DIFFICULTIES
+    // EJ.lua579–605 emits text overrides first, then skips their base radios.
+    let world = has_world_difficulty(view, instance) && available.contains(&17);
+    let overrides = world.then_some((250, 17));
+    let regular = JOURNAL_DIFFICULTIES
         .into_iter()
-        .filter(|id| available.contains(id))
-        .map(|id| {
+        .filter(|id| *id != 250 && !(world && *id == 17) && available.contains(id))
+        .map(|id| (id, id));
+    let entries: Vec<_> = overrides
+        .into_iter()
+        .chain(regular)
+        .map(|(display, selected)| {
             radio(
-                format!("JournalDifficulty{id}"),
-                difficulty_caption(view, id),
-                format!("journal:difficulty:{id}"),
-                view.difficulty == id,
+                format!("JournalDifficulty{display}"),
+                difficulty_caption(view, display),
+                format!("journal:difficulty:{selected}"),
+                view.difficulty == selected,
             )
         })
         .collect();
@@ -92,6 +99,14 @@ pub fn difficulty_menu(view: &View, instance: u32) -> Element {
 }
 /// DifficultyUtil_Base names and EJ.lua86–102; primary raids have no size prefix.
 pub(crate) fn difficulty_caption(view: &View, id: u32) -> String {
+    let world = view
+        .instance
+        .is_some_and(|id| has_world_difficulty(view, id));
+    let id = match id {
+        17 if world => 250,
+        250 => 250,
+        _ => base_difficulty(id),
+    };
     let key = match id {
         1 | 3 | 4 | 9 | 14 => "PLAYER_DIFFICULTY1",
         2 | 5 | 6 | 15 => "PLAYER_DIFFICULTY2",
@@ -113,6 +128,21 @@ pub(crate) fn difficulty_caption(view: &View, id: u32) -> String {
     text("ENCOUNTER_JOURNAL_DIFF_TEXT")
         .replacen("%s", &players.to_string(), 1)
         .replacen("%s", name, 1)
+}
+
+// EJ.lua58–59 documents both aliases; other IDs are not guessed from fallback IDs.
+pub(crate) fn base_difficulty(id: u32) -> u32 {
+    match id {
+        233 => 16,
+        250 => 17,
+        _ => id,
+    }
+}
+fn has_world_difficulty(view: &View, instance: u32) -> bool {
+    view.catalog
+        .instance(instance)
+        .and_then(|instance| view.catalog.map_difficulties.get(&instance.map))
+        .is_some_and(|difficulties| difficulties.contains(&250))
 }
 
 fn class_id(view: &View) -> u32 {
