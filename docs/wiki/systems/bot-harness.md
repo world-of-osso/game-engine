@@ -64,6 +64,12 @@ Comparison requires equal explicit receipts for level, stats, dummy and duration
 
 ## Recorded native proof and remaining gates
 
+### First all40 diagnostic batch
+
+`native-all-specs1` preserves all40 expected specs:37 fresh attempts plus linked immutable Arms/Fury/Havoc receipts,43 raw report files and31 setup/collection errors. Full-roster comparison is unavailable; retained dead Ret reports fail health qualification. Duration-complete Feral caster-form and Subtlety zero-success windows are diagnostic failures, not representative spec DPS. `ability-summary-all-specs1/abilities.{json,md}` retains per-ability facts for class triage. All captures still used the old IPC path without native auto-attack initiation; none close controller parity. Private server3244035 stopped after the batch.
+
+Combat-log/recap output now appends received crit/glancing/periodic flags, school mask, overflow and absorbed/resisted/blocked amounts unchanged. The Rust serialization regression first failed on the omitted fields (`combat-outcome-red.log`); post-change gates and native captures remain pending. Existing Python parsing preserves absent historical fields as unknown.
+
 ### Common-budget three-DPS MVP — verified2026-10-15
 
 `native-equal-budget2` completes two60s windows per spec with the same character32, ilvl30/quality2/era0 and dummy44548 level30/max-health13137/difficulty0/source-world SHA-256. Arms10 items, Fury/Havoc11; jewelry is empty for each. Fury equips both25129 weapons normally, confirming the learned Titan's Grip path rather than replacing them with one-hand weapons.

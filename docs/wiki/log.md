@@ -1,3 +1,7 @@
+## 2026-10-15 — All40 bot diagnostic batch and received outcome fields
+
+[Batch boundaries](systems/bot-harness.md#first-all40-diagnostic-batch):40 expected specs,43 raw reports,31 setup/collection errors; full comparison withheld, dead Ret quarantined. Per-ability final diagnostics retained; old IPC path still invalidates representative-controller acceptance. Received crit/glancing/periodic/mitigation fields now serialized unchanged after a focused Rust RED; fresh Rust/native gates pending. Private batch runtime stopped.
+
 ## 2026-10-15 — Bot combat outcomes and native-cast parity gap
 
 [Per-ability triage](systems/bot-harness.md#per-ability-triage) adds raw hit/miss counts, nullable crits, real swing identity/share, sampled GCD/idle and raw power changes plus sourced DB2 coefficients/costs/order. No inferred spending or exact timing. The first diagnostic MVP has1368 auto_attack=null samples/zero swings despite all three requested abilities carrying the native OnCast attribute; raw-intent IPC bypasses the normal auto-attack hook. Six native replay assertions RED; IPC parity fix/new outcome exposure/native remeasurement pending, so representative-controller acceptance is reopened. All40 diagnosis continues unchanged; these are not evidence for a Fury coefficient fix or balance acceptance.
