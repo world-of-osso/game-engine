@@ -129,6 +129,7 @@ struct UnitNode {
     /// A player's mount (replicated `Mounted`), which its visual rides.
     mount: Option<mount::UnitMount>,
     passenger: Option<mount::UnitPassenger>,
+    driver_movement: Option<shared::components::VehicleDriverMovement>,
 }
 
 /// A unit visual's model node with the merged bounds of its mesh children, in model
@@ -425,6 +426,7 @@ fn spawn_unit(
         foot_ik: Default::default(),
         mount: None,
         passenger: None,
+        driver_movement: None,
     }
 }
 
@@ -1453,6 +1455,9 @@ impl WorldUnits {
         unit.node.set_scale(Vector3::ONE * scale);
         unit.is_player = snapshot.has::<Player>();
         unit.player_motion = snapshot.get::<PlayerMotion>().copied();
+        unit.driver_movement = snapshot
+            .get::<shared::components::VehicleDriverMovement>()
+            .copied();
         unit.life_state = snapshot.get::<DeathState>().copied();
         unit.in_combat = snapshot
             .get::<CombatStatus>()
@@ -1748,8 +1753,22 @@ impl WorldUnits {
     }
 
     pub fn advance(&mut self, delta: f32) {
+        let mover = self.local_mover_id();
+        let driver_control = self
+            .local_player_id
+            .and_then(|id| self.units.get(&id))
+            .and_then(|unit| unit.motion.control);
         for (id, unit) in &mut self.units {
-            advance_unit_transform(unit, self.local_player_id == Some(*id), delta);
+            if mover == Some(*id) && self.local_player_id != mover {
+                // The NPC predicts input under its rider's epoch. The seated body
+                // still follows the server and its visual follows the M2 attachment.
+                unit.motion.control = driver_control.map(|control| MovementControl {
+                    controlled: false,
+                    ..control
+                });
+            }
+            let local = self.local_player_id == Some(*id) || mover == Some(*id);
+            advance_unit_transform(unit, local, delta);
             mount::seat_rider(unit);
         }
         if self.units.values().all(|unit| unit.passenger.is_none()) {
@@ -2298,6 +2317,55 @@ impl WorldUnits {
         if let Some(unit) = self.local_player_id.and_then(|id| self.units.get_mut(&id)) {
             unit.motion.facing_yaw = yaw;
         }
+    }
+
+    /// The input mover is the source NPC only while its controlling seat is owned.
+    pub fn local_mover_id(&self) -> Option<u64> {
+        let player = self.local_player_id?;
+        let rider = self.units.get(&player)?;
+        if rider.driver_movement.is_some()
+            && rider
+                .motion
+                .control
+                .is_some_and(|control| control.controlled)
+            && let Some(passenger) = &rider.passenger
+            && self
+                .units
+                .get(&passenger.state.driver)
+                .is_some_and(|unit| !unit.is_player)
+        {
+            return Some(passenger.state.driver);
+        }
+        Some(
+            self.controlled_unit
+                .filter(|id| self.units.contains_key(id))
+                .unwrap_or(player),
+        )
+    }
+
+    pub fn local_mover_node(&self) -> Option<Gd<Node3D>> {
+        Some(self.units.get(&self.local_mover_id()?)?.node.clone())
+    }
+
+    pub fn local_mover_facing(&self) -> Option<f32> {
+        Some(self.units.get(&self.local_mover_id()?)?.motion.facing_yaw)
+    }
+
+    pub fn set_local_mover_facing(&mut self, yaw: f32) {
+        if let Some(unit) = self.local_mover_id().and_then(|id| self.units.get_mut(&id)) {
+            unit.motion.facing_yaw = yaw;
+        }
+    }
+
+    pub fn local_vehicle_movement(&self) -> Option<shared::components::VehicleDriverMovement> {
+        if self.local_mover_id() == self.local_player_id {
+            return None;
+        }
+        self.units.get(&self.local_player_id?)?.driver_movement
+    }
+
+    pub fn local_input_blocked(&self) -> bool {
+        self.local_player_controlled() && self.local_vehicle_movement().is_none()
     }
 
     pub fn local_player_controlled(&self) -> bool {
