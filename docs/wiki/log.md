@@ -4079,3 +4079,5 @@ Completed Retailv2 codec/authoritative Create and committed Copy callbacks, exac
 - 2026-10-15: [Saved boss defeated overlays](systems/adventure-guide.md#saved-boss-defeated-overlays--bounded-proof-2026-10-15): real sparse-bit Heroic save authority, source atlas/gold tooltip, wrong-difficulty/reopen/expiry controls and ten inspected actual both-skin native originals. Final49/49/check/fmt and independent correction verification; per-skin fixture/profile identity retained.
 
 - 2026-10-15: [Item Sets source composition](systems/adventure-guide.md#item-sets-source-composition--bounded-proof-2026-10-15): source list/controls/appearance icons, independent class/spec state, global search and intrinsic title alignment. Final59/59/check/fmt, independent verification and fourteen inspected actual both-skin1e45 originals; unsupported shared tooltip authority/actions retained explicitly.
+
+- 2026-10-16: Both-skin Feero976 native partial proof inspected; strict70391 CSV appearance preparation reproduces exact cache hash, while missing texture receipts and protective-heal/completion proof remain explicit gaps.
