@@ -20,9 +20,10 @@ The World Quests tracker shows counted objectives as text, not a synthesized agg
 
 ## Multiple authored areas and floor maps
 
-- Preserve all admitted source areas, not only the first. A task such as82521 has distinct2256/2255 map points under one identity, deadline and settlement.
-- Project received two-dimensional area points without inventing height zero. Keep real-height projection's floor discrimination for other callers. Pins use the area's assigned UI map or its navigable parent, not an unrelated sibling with overlapping world bounds; a displayed map gets at most one pin per task, using published area order when multiple areas qualify.
-- Minimap navigation and opening a watched task's map choose the nearest published area on the player's current world map, with no duplicate task markers. This is the project's explicit presentation policy, not a claim about opaque Retail C API area selection.
+- Preserve all admitted source areas and their source X/Y/Z, not only the first area or its horizontal coordinates. Task82521 has lower2256/main2255 map points and negative source heights under one identity, deadline and settlement.
+- Map projection retains its real-height floor discrimination, using the received source Z rather than inventing zero or bypassing the height check. Pins use the area's assigned UI map or its navigable parent, not an unrelated sibling with overlapping world bounds; a displayed map gets at most one pin per task, using published area order when multiple areas qualify.
+- Horizontal minimap navigation chooses the nearest published area on the player's current world map, with no duplicate task markers. Opening a watched task retains its first-published authored map. These are project presentation policies, not claims about opaque Retail C API area selection.
+- Rebuild private/runtime area data through the importer before running the new schema. Old XY-only area data must fail explicitly, not receive a fallback Z.
 - Keep other active tasks when a snapshot removes one; exact expiry and realm-policy gaps remove tasks until the next real window. Reconnection receives current windows and all current areas.
 - Reward choice is not applicable to the239 imported tasks: all six source `RewardChoiceItemID` columns are zero. Do not build or infer a world-quest choice path without a sourced quest and selection authority.
 
@@ -59,7 +60,7 @@ The existing-system representational boundary is an implementation gap, not abse
 
 ## Tests
 
-Server `world_quests::tests`, `world_quests::expiry_tests`, and `quest::tests::world_quest_area_entry_progress_reward_window_replay_and_expiry`; Python `test_import_world_quests`; protocol `world_quest_availability_round_trip_preserves_window_area_and_authentic_rewards`; UI integration `world_quests::world_quests_clock_tooltip_progress_and_expiry_both_skins`.
+Server `world_quests::tests`, `world_quests::expiry_tests`, and `quest::tests::world_quest_area_entry_progress_reward_window_replay_and_expiry`; Python `test_import_world_quests`; protocol `world_quest_availability_round_trip_preserves_window_areas_and_reward_payloads`; UI integration `world_quests::world_quests_clock_tooltip_progress_and_expiry_both_skins`.
 
 ## Out of scope
 
