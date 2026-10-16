@@ -20,6 +20,12 @@ pub const UI_COUNTDOWN_FINISHED: u32 = 158566;
 pub const UI_COUNTDOWN_BAR_STATE_STARTS: u32 = 158958;
 pub const UI_COUNTDOWN_BAR_STATE_FINISHED: u32 = 158959;
 pub const UI_COUNTDOWN_MEDIUM_NUMBER_FINISHED: u32 = 158960;
+/// Retail Expert submode pointer and assigned-key activation sounds.
+pub const HOUSING_EXPERTMODE_SUB_MENU_BUTTON_TOGGLE: u32 = 286137;
+pub const HOUSING_EXPERTMODE_SUB_MENU_BUTTON_TOGGLE_SHORTCUT: u32 = 304887;
+/// Retail PerksProgram.OnShow/OnHide, active70391 SoundKitConstants.lua.
+pub const TRADING_POST_UI_MENU_OPEN: u32 = 218932;
+pub const TRADING_POST_UI_MENU_CLOSE: u32 = 218933;
 
 #[derive(Clone, Copy, Debug, PartialEq)]
 pub struct UiSoundKit {
@@ -29,7 +35,32 @@ pub struct UiSoundKit {
     pub files: &'static [u32],
 }
 
-const KITS: [UiSoundKit; 11] = [
+const KITS: [UiSoundKit; 15] = [
+    UiSoundKit {
+        id: HOUSING_EXPERTMODE_SUB_MENU_BUTTON_TOGGLE,
+        volume: 0.125_892_53,
+        files: &[6_838_456],
+    },
+    UiSoundKit {
+        id: HOUSING_EXPERTMODE_SUB_MENU_BUTTON_TOGGLE_SHORTCUT,
+        volume: 0.125_892_53,
+        files: &[6_838_456],
+    },
+    UiSoundKit {
+        id: TRADING_POST_UI_MENU_OPEN,
+        volume: 0.562_341_33,
+        files: &[4956048, 4956050, 4956052, 4956054, 4956056],
+    },
+    // Lifecycle/files/gain only. Kit218933 pitch adjustment/variation remains a
+    // named audio-engine gap; this existing player deliberately has no pitch path.
+    UiSoundKit {
+        id: TRADING_POST_UI_MENU_CLOSE,
+        volume: 0.01,
+        files: &[
+            4555731, 4555733, 4555735, 4555737, 4555739, 4555741, 4555743, 4555745, 4555747,
+            4555749,
+        ],
+    },
     UiSoundKit {
         id: RAID_BOSS_EMOTE_WARNING,
         volume: 0.398_107_17,
@@ -116,6 +147,15 @@ mod tests {
         let off = ui_sound_kit(857).expect("Retail checkbox OFF kit");
         assert_eq!((on.volume, on.file(0)), (0.251_188_64, 567_407));
         assert_eq!((off.volume, off.file(0)), (0.5, 567_407));
+    }
+
+    #[test]
+    fn housing_expert_submode_sounds_resolve_the_same_authored_clip_and_gain() {
+        for id in [286137, 304887] {
+            let kit = ui_sound_kit(id).expect("Retail Expert submode sound kit");
+            assert_eq!((kit.volume, kit.file(0)), (0.125_892_53, 6_838_456));
+            assert_eq!(kit.file(1), 6_838_456);
+        }
     }
 
     #[test]
