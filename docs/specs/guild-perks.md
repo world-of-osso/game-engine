@@ -35,6 +35,8 @@ Retail Mainline Benefits perks in Modern and Forever. Definitions: installed `db
 
 - `godot/network/src/wire_guild_perks_tests.rs` — real UDP5891 held-worker login snapshot, grant, quit revocation, class snapshot and rejoin grant retain channel order.
 
+- `godot/network/examples/native_guild_perks_membership.rs` — private5891 actual login/invite acceptance, forced removal, rejoin and quit; verifies received knowledge and exact class conservation.
+
 ## Known gaps (current cycle)
 
 - [x] Source Benefits names/order/tab visibility pass against the actual installed five-definition catalog in both skins.
