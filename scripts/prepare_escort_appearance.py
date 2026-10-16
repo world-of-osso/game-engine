@@ -14,7 +14,7 @@ args = parser.parse_args()
 ROOT = args.root.resolve()
 SOURCE = args.source_world.resolve()
 OUTPUT = args.output.resolve()
-CSV = ROOT / 'data/db2/active'
+CSV = ROOT / 'data/db2/12.1.5.70391'
 spec = importlib.util.spec_from_file_location('npc_import', ROOT / 'scripts/import_npc_appearance.py')
 module = importlib.util.module_from_spec(spec)
 spec.loader.exec_module(module)
