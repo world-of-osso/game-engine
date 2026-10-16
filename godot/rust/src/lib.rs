@@ -52,6 +52,7 @@ mod housing_mouse;
 mod housing_placed_list;
 mod housing_preview;
 mod housing_storage;
+mod housing_storage_menu;
 mod hud_edit;
 mod input;
 mod input_keys;
@@ -1455,6 +1456,10 @@ impl GameClient {
             return true;
         }
         if self.static_popup_key(event) {
+            self.mark_viewport_input_handled();
+            return true;
+        }
+        if self.housing_storage_menu_input(event) {
             self.mark_viewport_input_handled();
             return true;
         }

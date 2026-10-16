@@ -1,6 +1,9 @@
 ## 2026-10-16 — Installed guild perk list
 
 [Perks](systems/guilds.md#perks): real five-definition catalog and source Benefits list. Missing-title RED→five actual names/order and other-tab hiding GREEN1/1 in both skins. Real spell-link draft/render REDs reproduced visible raw markup; the shared labeled-link decoder and wire-link/caret insertion now support source modified-click spell identity without changing bare combat links. Focused link GREEN, tooltip, native and effect proof remain pending; no functional-buff claim.
+## 2026-10-16 — BM native pet Assist preparation
+
+[Preparation](systems/bot-harness.md#bm-native-assist-preparation--2026-10-16): one ordinary viewport click on the received Assist reaction slot, owned identity and react_state3 ACK required. Portable slot/ownership controls and native GDScript syntax pass; fresh BM input/DPS proof pending. Pinned TC Pet/CharmInfo creation chain confirms Passive default and stored-mode restoration, so no server-default change or persistence override.
 
 ## 2026-10-16 — Guild news live acceptance
 
@@ -8,6 +11,10 @@
 ## 2026-10-16 — House Access checkbox-only hit targets
 
 [Source checkbox targeting](systems/housing.md#house-access-checkbox-hit-targets--2026-10-16):140px row button replaced with30×29 checkbox in noninteractive row; RED→GREEN5, both-skin label refusal/checkbox staging/mode/pending proof. Forty fullHD comparisons change only checkbox art after source LEFT anchoring. Typography/backend remain separate.
+
+## 2026-10-16 — Native Call Pet refusal and reliable party-death capture
+
+[Terminal boundary](systems/bot-harness.md#terminal-follower-death-delivery--2026-10-16): copied real character47 pet-storage probe and fresh native883 refusal now pass without a pet grant. Delayed child-process death delivery RED→GREEN and actual timing-window Fury58.121s report party1/player0, totals qualified; server already emits one real follower Death. Tank still dies to seven source attackers despite6281 healing; no clear/retuned kit. Owned stack/tick receipts retained, prior0.5ticks/s collapse not reproduced, no speculative performance rewrite.
 
 ## 2026-10-16 — Native BM predicate follow-up and party-death reporting
 
@@ -24,9 +31,17 @@
 ## 2026-10-16 — Maintained Stockade controller integration
 
 [Bot Stockade boundary](systems/bot-harness.md#stockade-boss-accounting): follower523dc4ce5/master merged preserving both native parser/metrics and routed player interface;115 bot Python cases/controller syntax pass. New readonly encounter/spawn plan, target-bound native authored provider, party facts and native equal-budget sheet/inventory observations are implemented after source-module RED. Actual Fury Stockade execution/credit/clear time remains pending; no diagnostic driver, Mage cycle or stat override copied.
+## 2026-10-16 — World-quest navigation and Deathwing diagnosis
+
+[Task navigation and hazard](investigations/world-quest-availability.md#2026-10-16-navigation-and-authored-deathwing-hazard): available pins select without acceptance, received-position minimap markers, source-only bars/time text and unnumbered tracker POIs;13 scoped UI controls GREEN. Actual ten46327 actors spawn5552/5552; Deathwing's authored Molten Flame kills them on grid activation, not spawn/scaling/terrain. Current both-skin navigation/window/controlled-reward gate passes: actual7/8→8/8,11765XP, replay/expiry and26 inspected fullHD PNGs. The explicitly approved private fixture omits only hazard spawn20383796; product data is unchanged, no injected credit or NPC health restore. Ordinary-world hazard/phasing remains open.
+
 ## 2026-10-16 — HouseSettings action-button source art
 
 [Three action buttons](systems/housing.md#housesettings-action-button-art--2026-10-16): four source UIPanel bindings only, RED→GREEN and both-skin enabled/disabled/pending native proof; all eight fullHD changes confined to button rectangles. No typography/lifecycle/backend claim.
+
+## 2026-10-16 — Housing storage menu lifetime
+
+[Menu lifetime](systems/housing.md#storage-menu-lifetime--implementation2026-10-16): native missing-hover-open RED→source0.33s model delay/cancel/retention tests and both-skin seven-phase hover/collapse/outside/Escape/owner/checkbox Refresh/radio CloseAll GREEN. Actual Options binding cleanup and exact paid conservation pass; four inspected1280 PNGs. No new filter semantics or wall-clock/full-HD claim; one ADD admits the full server/client run.
 
 ## 2026-10-15 — Housing storage filter popup
 
@@ -90,6 +105,14 @@
 ## 2026-10-15 — Minimap zoom state art
 
 - [Minimap](systems/minimap.md#zoom-button-source-states--2026-10-15): source Button states/full-opacity disabled grayscale; both-skin physical native proof, bounded offline screen/input acceptance.
+## 2026-10-16 — Ysera private body closure
+
+[Ysera body](systems/toy-box.md#ysera-body-asset-closure-2026-10-16): seventeen same-build70391 body/texture/animation/skin files and four aliases authenticated/published privately; rebuilt namespace graph passes. Procedural8605/type22 remains ignored by the renderer and is not replaced by a guessed shader. No native pixels/canonical publication claim.
+
+## 2026-10-16 — Stone Whistle private asset closure
+
+[Asset closure](systems/toy-box.md#stone-whistle-native-asset-closure-2026-10-16): five body/texture/skin files match70391 resolver content keys; maintained importer privately publishes all five plus two skin aliases. Rebuilt product graph and byte receipts pass; no canonical writes or native rendering certificate.
+
 ## 2026-10-15 — Private Shrine viewer-level probe
 
 [Viewer probe](systems/toy-box.md#shrine-viewer-level-probe-2026-10-15) adds replicated range/delta projection for viewers1/20/80 to the existing real-learning/UseToy fixture; Shrine native30 differs from viewer20 while zero-tuning Podium/default Scarab controls stay native. Current matched build/check/fmt and private wire pass all three modes; initial admin timeout is retained and only unfinished scenarios resumed on fresh accounts. No target-text pixels/combat/HP certificate.
@@ -4148,6 +4171,7 @@ Completed Retailv2 codec/authoritative Create and committed Copy callbacks, exac
 - 2026-10-15: [Instance Loot](systems/adventure-guide.md#instance-and-encounter-loot--2026-10-15): source64/45px rows, resolved icons/quality borders, central tooltip, native intrinsic subclass sizing and actual row→boss navigation. Behavioral REDs→45/45, check/fmt0, independent correction proof and twelve inspected both-skin1e15 originals; runtime identity and authority gaps retained.
 - 2026-10-15 — Shared WowStyle1 caption centering: native15px font minimum expanded authored10px box3px low; full-height caption box plus explicit source one-line policy and paired toolkit FontString attribute wiring. Engine20/core2 tests and both-skin1080p actual AH/shared/long-caption proof pass; Filter/Style2 crops byte-identical and no changed RGB outside caption/shadow in six comparisons. Prior valid wrapping REDs and invalid fixture expectations retained in diagnostics ui-questlog-dropdown-centering-2026-10-15/caption-centering-proof-ledger.json. [System](systems/menu-primitives.md#wowstyle1-caption-centering-2026-10-15). No live trading/whole-UI parity claim.
 
+- 2026-10-16: Added Feero976 native real-account fixture/contract; acceptance pending, private population and display adapter boundaries explicit.
 - 2026-10-16: Trading Post product-row hover consumer uses Retail item catalog and source right−16 anchor without sell price; actual missing-tooltip RED recorded, GREEN pending. See [system](systems/trading-post.md#product-row-item-tooltips--implementation-october16).
 - 2026-10-15: [Journal source difficulties](systems/adventure-guide.md#difficulty-source-menus--bounded-proof-2026-10-15): literal mode order, localized size captions, documented World/Mythic Flex bases and isolated toolkit attribute reconciliation after native two-line RED. Final48/48/check/fmt and eight inspected both-skin2cd3 PNGs; raw unsupported modes and defeated markers not claimed.
 
@@ -4155,8 +4179,12 @@ Completed Retailv2 codec/authoritative Create and committed Copy callbacks, exac
 
 - 2026-10-15: [Item Sets source composition](systems/adventure-guide.md#item-sets-source-composition--bounded-proof-2026-10-15): source list/controls/appearance icons, independent class/spec state, global search and intrinsic title alignment. Final59/59/check/fmt, independent verification and fourteen inspected actual both-skin1e45 originals; unsupported shared tooltip authority/actions retained explicitly.
 
+- 2026-10-16: Both-skin Feero976 native partial proof inspected; strict70391 CSV appearance preparation reproduces exact cache hash, while missing texture receipts and protective-heal/completion proof remain explicit gaps.
+
+- 2026-10-16: Corrected70391 Regrowth8936 native cast restores Feero236→484 without admin healing; missing ambusher receipt/completion boundary remains open.
 - 2026-10-16: Product-row item tooltip native both-skin GREEN at569419cb7; final-scale ordering fixes real owner-bound mismatch without changing layout/framing.27 UI+12 native Trading Post and52 tooltip regressions/check/scoped format pass at846cf1d1d. Eight full-HD PNGs plus two contacts published; [proof inventory](systems/trading-post.md#product-row-item-tooltips--implementation-october16).
 
+- 2026-10-16: Feero976 both native skins earn credit after all three waves; authenticated missing receipt-index entries resolved without substitutions; same-coordinate grid RED→GREEN8 fixes active escort dormancy beyond spawn grid. Eighteen inspected1920x1080 earned-run PNGs; cosmetic roar, native death-failure and unrelated renderer parity remain separate. See [escort contract](../specs/escort-quests.md).
 - 2026-10-16: Button tooltip source/label branches inventoried; disabled View Cart actual native RED observed. Existing Traveler's Log pane is owned by Adventure Guide; pending-item delivery remains a distinct provider gap. [Trading Post](systems/trading-post.md#button-tooltips--implementation-october16).
 - 2026-10-16: Extracted [routed native player-controller boundary](systems/bot-harness.md#routed-native-controller--implementation-2026-10-16): explicit per-spec provider/strict route/native F and semantic loot input; native Greed and all-spec rotation coverage remain separate gates.
 
@@ -4168,8 +4196,10 @@ Completed Retailv2 codec/authoritative Create and committed Copy callbacks, exac
 - 2026-10-16: [Owner pet assisted predicates](investigations/cooldown-assist-data.md#owner-pet-predicates--2026-10-16): source-decoded57/58 and recorded owner presence; living controlled pet versus absent, unknown dead/missing actor retained. BM Call Pet authored decision regression; fresh UDP and Arms1187/12 exact count geometry remain open.
 - 2026-10-16: Confirmation covers native both-skin GREEN: Escape preserves Purchase/Refund/Cart/Clear; explicit Cancel retains authority/cart, one real purchase/refund restores Tender.12 full-HD screenshots+2 contacts published;29UI12native/check/format pass atfc1d4c351. [Trading Post](systems/trading-post.md#confirmation-keyboard-ownership--implementation-october16).
 
+- 2026-10-16: Single Purchase/Refund pending popup lifetime model2 and actual paused-private-server native RED observed. Source retains modal/spinner and purchase removes its own cart item; request-reply snapshot boundary unchanged. [Trading Post](systems/trading-post.md#accepted-single-item-confirmation-lifetime--implementation-october16).
 - 2026-10-16: [Actual native Greed](systems/bot-harness.md#native-actual-greed--2026-10-16): maintained route/F/provider/viewport bridge; Moloch63346 Greed95→GUID525,7.040s ACK, inspected1280 input/win PNGs and owned cleanup. Azure/full-spec remain separate.
 
+- 2026-10-16: Accepted request dialogs now pass both-skin painted spinner/overlay counterfactuals and real rotation/reply proof, after rejecting node-only art evidence. Source11px inset and modal-relative ordering fixed.31UI12native/check/5scopedRustfmt pass; ten full-HD originals+two contacts+two crops published, private RED purchase state retained. [Trading Post](systems/trading-post.md#accepted-single-item-confirmation-lifetime--implementation-october16).
 ## 2026-10-16 — authentic guild perk knowledge and native input
 
 [Guild perks](systems/guilds.md#perk-native-authority-and-effect-boundary-2026-10-16): five real DB2 definitions, source Benefits rows/tooltips, TalentChannel snapshot/delta ordering RED→GREEN, actual owner joins/removal/rejoin/quit and class conservation. Both-skin native modified-link/server echo and identical-binary fresh-process readback pass. Effects remain individually qualified; no fabricated mounted-speed, Hearthstone, resurrection or guild-chest functionality.
