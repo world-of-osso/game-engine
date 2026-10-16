@@ -299,6 +299,17 @@ impl TerrainMaterials {
             let shadow = texture_from_shadow(mask)?;
             material.set_shader_parameter("mcsh_mask", &shadow.to_variant());
         }
+        // Ordinary alpha-blended second draw. Missing payloads retain a black
+        // sampler so diagnostic controls share the same explicit flag boundary.
+        let mut shadow_pass = ShaderMaterial::new_gd();
+        shadow_pass.set_shader(&crate::shader_warmup::load_shader(
+            "res://shaders/terrain_mcsh.gdshader",
+        )?);
+        if inputs.shadow_map.is_some() {
+            let texture = material.get_shader_parameter("mcsh_mask");
+            shadow_pass.set_shader_parameter("mcsh_mask", &texture);
+        }
+        material.set_next_pass(&shadow_pass);
         if let Some(light) = &self.light {
             light.bind(&mut material);
         }
