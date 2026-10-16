@@ -114,7 +114,7 @@ impl GameClient {
     /// The tooltip of the hovered frame, if it has one.
     pub(crate) fn frame_tooltip(&mut self, hit: &HoveredFrame) -> Option<HoveredTooltip> {
         type Source = fn(&mut GameClient, &HoveredFrame) -> Option<HoveredTooltip>;
-        const SOURCES: [Source; 41] = [
+        const SOURCES: &[Source] = &[
             GameClient::trading_post_cart_tooltip,
             GameClient::guild_perk_tooltip,
             GameClient::pvp_honor_tooltip,
