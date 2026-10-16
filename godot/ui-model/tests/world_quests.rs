@@ -19,18 +19,10 @@ fn available() -> WorldQuestAvailability {
             map_id: 0,
             zone_id: 4922,
             ui_map_id: 241,
-            position: QuestPoiPoint { x: -4995, y: -4653 },
+            position: QuestPoiPoint { x: -4655, y: -4310 },
             expires_at: 87400,
-            rewards: QuestRewards {
-                money: 125,
-                items: vec![QuestRewardItem {
-                    item_id: 782,
-                    name: "Painted Gnoll Armband".into(),
-                    count: 2,
-                }],
-                choice_items: vec![],
-            },
-            xp: 1234,
+            rewards: QuestRewards::default(),
+            xp: 11765,
             currencies: vec![],
             reputation: vec![],
         }],
@@ -51,6 +43,73 @@ fn text(registry: &FrameRegistry, name: &str) -> String {
 }
 
 #[test]
+fn world_quests_available_pin_selects_without_accepting_or_granting_rewards() {
+    let mut runtime = QuestRuntime::default();
+    runtime.apply_availability(available(), 900);
+    let mut ui = game_engine_ui_model::quest_runtime::QuestUiState::default();
+    let effects = game_engine_ui_model::quest_actions::quest_ui_action(
+        "world_quest:select:86948",
+        &mut runtime,
+        &mut ui,
+    );
+    assert_eq!(ui.super_tracked, Some(86948));
+    assert!(effects.is_empty());
+    assert!(runtime.log.is_empty());
+    assert!(runtime.watched.is_empty());
+    game_engine_ui_model::quest_actions::quest_ui_action(
+        "world_quest:select:86948",
+        &mut runtime,
+        &mut ui,
+    );
+    assert_eq!(ui.super_tracked, None);
+    game_engine_ui_model::quest_actions::quest_ui_action(
+        "world_quest:select:45068",
+        &mut runtime,
+        &mut ui,
+    );
+    assert_eq!(ui.super_tracked, None);
+}
+
+#[test]
+fn world_quests_received_positions_reach_minimap_without_an_accepted_log() {
+    use game_engine_core::minimap_data::{MapMask, MinimapView};
+    use game_engine_ui_model::minimap::cluster_style;
+    let mut runtime = QuestRuntime::default();
+    runtime.apply_availability(available(), 900);
+    for skin in [ActiveSkin::Modern, ActiveSkin::Forever] {
+        let style = cluster_style(skin);
+        let view = MinimapView::new([-4655., 4310.], 0).masked(style.mask);
+        let blips = game_engine_ui_model::quest_poi::quest_minimap_blips(
+            &runtime,
+            None,
+            0,
+            &view,
+            style.map_size,
+        );
+        assert_eq!(blips.len(), 1, "received task missing in {skin:?}");
+        assert_eq!(blips[0].unit, 86948);
+        assert_eq!(blips[0].offset, [0., 0.]);
+        assert!(runtime.log.is_empty());
+        let wrong_map = game_engine_ui_model::quest_poi::quest_minimap_blips(
+            &runtime,
+            None,
+            1,
+            &view,
+            style.map_size,
+        );
+        assert!(wrong_map.is_empty());
+        assert_eq!(
+            style.mask,
+            if skin == ActiveSkin::Modern {
+                MapMask::Round
+            } else {
+                MapMask::Square
+            }
+        );
+    }
+}
+
+#[test]
 fn world_quests_clock_tooltip_progress_and_expiry_both_skins() {
     let root = std::path::PathBuf::from(env!("CARGO_MANIFEST_DIR")).join("../../data");
     game_engine_ui_model::paths::set_data_root(root.clone()).unwrap();
@@ -66,8 +125,12 @@ fn world_quests_clock_tooltip_progress_and_expiry_both_skins() {
         assert!((0.0..=1.0).contains(&pins[0].x));
         let tooltip = world_quest_ui::tooltip(&runtime.world_quests[0], 4600, [20., 20.]);
         assert_eq!(tooltip.lines[0].left_text, "Time Remaining: 23h 0m");
-        assert_eq!(tooltip.lines[1].money, Some(125));
-        assert_eq!(tooltip.lines[2].left_text, "Painted Gnoll Armband x2");
+        assert!(
+            tooltip
+                .lines
+                .iter()
+                .any(|line| line.left_text == "11765 XP")
+        );
         runtime.apply_snapshot(QuestLogSnapshot {
             entries: vec![QuestEntrySnapshot {
                 quest_id: 86948,
@@ -110,8 +173,15 @@ fn world_quests_clock_tooltip_progress_and_expiry_both_skins() {
             text(&registry, "WorldQuestObjectiveTrackerHeaderText"),
             "World Quests"
         );
-        assert_eq!(text(&registry, "WorldQuest86948ProgressLabel"), "4/8 (50%)");
-        assert!(text(&registry, "QuestBlock86948Line0Text").contains("1440:00"));
+        assert!(
+            registry
+                .get_by_name("WorldQuest86948ProgressLabel")
+                .is_none()
+        );
+        assert_eq!(
+            text(&registry, "QuestBlock86948Line0Text"),
+            "4/8 Twilight enslavers slain"
+        );
         runtime.apply_update(QuestLogUpdate {
             changed: vec![],
             removed: vec![86948],
