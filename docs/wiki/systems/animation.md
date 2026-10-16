@@ -176,7 +176,9 @@ The [A6/A7 contract](../../specs/m2-animation-inheritance-attachments.md) separa
 
 Native composition evaluates ancestors first, applies this selection before the child's pivoted animation, then billboards. Ordinary local poses and authored hierarchy remain intact. Only adjusted/billboard bones receive exact affine global-pose overrides: converting compensation back to local TRS would lose shear under a nonuniform parent. Godot's legacy global override API is currently needed for an exact affine palette; retire that use when Godot exposes an equivalent non-decomposing replacement. No warning suppression or alternate render path is introduced.
 
-The non-gating local census is `data/diagnostics/m2-anim-2026-10-15/census.json`:83129 M2 +161 SKEL files,1171 with parented low-bit bones,341 with nonempty activation timeline headers. Headers alone are not proof of a toggling track. Runtime-added flags, modern inheritance contracts, native raster acceptance and A7 color/clock behavior remain explicit gaps in the spec.
+The non-gating local census is `data/diagnostics/m2-anim-2026-10-15/census.json`:83129 M2 +161 SKEL files,1171 with parented low-bit bones,341 with nonempty activation timeline headers. Headers alone are not proof of a toggling track. Runtime-added flags, modern inheritance contracts, nonuniform native palette measurement and A7 color/clock behavior remain explicit gaps in the spec.
+
+A6 proof at19d9850e8: CPU3 RED→GREEN, native root/ordinary-descendant1 GREEN. `m2_inheritance_pixels.gd` opens the real m2debug stage, loads authentic125913 and fixes750ms. Clearing global overrides supplies the ordinary-hierarchy baseline; restoring at zero elapsed preserves clock/crossfade. Native bone67's tilted basis becomes identity while its transformed pivot stays fixed. Both1920×1080 PNGs were inspected in `/syncthing/AgentShared/2026-10-15/m2-anim/`; this is a same-binary branch counterfactual, not an old executable comparison. First capture attempt hit a fixture dictionary-key typo, corrected retry passed.
 
 ## Sources
 
