@@ -9,6 +9,10 @@ use crate::{
 };
 use ui_toolkit::widget_def::Element;
 
+// Retail EJ_DIFFICULTIES (Lua62–80), not numeric MapDifficulty row order.
+pub(crate) const JOURNAL_DIFFICULTIES: [u32; 17] =
+    [1, 2, 23, 8, 24, 7, 3, 5, 4, 6, 250, 17, 14, 15, 16, 33, 9];
+
 type Entry = (String, String, String, MenuElementKind);
 fn radio(name: String, label: String, action: String, checked: bool) -> Entry {
     (name, label, action, MenuElementKind::Radio { checked })
@@ -71,9 +75,10 @@ pub fn tier_menu(view: &View) -> Element {
     menu("EncounterJournalTierMenu", &entries, 609., 97.)
 }
 pub fn difficulty_menu(view: &View, instance: u32) -> Element {
-    let entries: Vec<_> = view
-        .available_difficulties(instance, view.encounter)
+    let available = view.available_difficulties(instance, view.encounter);
+    let entries: Vec<_> = JOURNAL_DIFFICULTIES
         .into_iter()
+        .filter(|id| available.contains(id))
         .map(|id| {
             radio(
                 format!("JournalDifficulty{id}"),
