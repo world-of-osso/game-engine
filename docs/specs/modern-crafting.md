@@ -35,6 +35,10 @@ Private Modern proof learned Handstitched Leather Pants2153 from Simon Tanner at
 
 Native acceptance fixture: `godot/tests/modern_crafting_quality_live.gd` uses owned accounts on UDP5951, a rendered1920×1080 viewport, physical quality-dialog clicks, authoritative incomplete-slot refusal, accepted mixed allocations and disabled crafting with quality unassigned. Private test grants are not trainer/knowledge acquisition evidence.
 
+## Knowledge/specialization proof
+
+Reuse the existing authoritative trait engine and its authored currency mapping; do not create a second progression system. Native fixture `godot/tests/modern_crafting_knowledge_live.gd` exercises tree unlock, node/perk tooltips, staged spending, Undo and Apply on private UDP5951 at 1920×1080 in both skins. It uses recipe375188, tree350, path28546 and perk28534 from the existing authored catalog. Its explicitly seeded knowledge is not evidence of acquisition; quest-reward acquisition is independently covered by the existing server specialization tests. Native acceptance remains pending until both runs pass.
+
 ## Explicit gaps
 
 - Effect288 quality crafting and effect157 loot-derived crafts require authored output selection and operation rules; fixed-output effect24 support is not evidence for either.
