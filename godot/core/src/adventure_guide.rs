@@ -1,6 +1,8 @@
 //! Retail Journal DB2 cache, imported from the pinned local CASC build.
 mod difficulty;
+mod encounter_locks;
 mod presentation;
+pub use encounter_locks::DungeonEncounter;
 pub use presentation::{JourneyPresentation, read_journey_presentation};
 use rusqlite::{Connection, OpenFlags, Row};
 use std::{collections::BTreeMap, path::Path};
@@ -118,6 +120,7 @@ pub struct Catalog {
     pub specs: Vec<Specialization>,
     pub section_difficulties: BTreeMap<u32, Vec<u32>>,
     pub encounter_difficulties: BTreeMap<u32, Vec<u32>>,
+    pub encounter_locks: BTreeMap<u32, DungeonEncounter>,
     pub loot_difficulties: BTreeMap<u32, Vec<u32>>,
     pub item_specs: BTreeMap<u32, Vec<u32>>,
     pub classes: BTreeMap<u32, String>,
@@ -143,6 +146,10 @@ fn relations(db: &Connection, sql: &str) -> Result<BTreeMap<u32, Vec<u32>>, Stri
 }
 impl Catalog {
     pub fn load(path: &Path) -> Result<Self, String> {
+        let data = path
+            .parent()
+            .and_then(Path::parent)
+            .ok_or_else(|| format!("Journal cache has no data root: {}", path.display()))?;
         let db = Connection::open_with_flags(path, OpenFlags::SQLITE_OPEN_READ_ONLY)
             .map_err(|e| format!("{}: {e}", path.display()))?;
         let builds = query(&db, "SELECT DISTINCT build FROM source", |row| {
@@ -333,7 +340,8 @@ impl Catalog {
                 "SELECT JournalEncounterItemID,DifficultyID FROM JournalItemXDifficulty",
             )?,
             item_specs: relations(&db, "SELECT item_id,spec_id FROM item_specialization")?,
-            difficulty_max_players: difficulty::read_max_players(path)?,
+            difficulty_max_players: difficulty::read_max_players(data)?,
+            encounter_locks: encounter_locks::read_encounter_locks(data)?,
             map_difficulties: relations(
                 &db,
                 "SELECT map_id,difficulty_id FROM map_difficulty ORDER BY difficulty_id",

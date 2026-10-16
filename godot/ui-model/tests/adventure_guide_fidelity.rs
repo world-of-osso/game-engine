@@ -434,6 +434,12 @@ fn adventure_guide_defeated_marker_uses_saved_difficulty_and_sparse_encounter_bi
         );
         assert!(r.get_by_name("JournalBoss2365DefeatedOverlay").is_none());
         assert!(v.lockouts[0].1.contains("1 bosses defeated"));
+        let tooltip = game_engine_ui_model::adventure_defeated::tooltip(&v, name).unwrap();
+        assert!(tooltip.content.title.is_empty());
+        assert_eq!(
+            tooltip.content.lines[0].left_text,
+            "You've already defeated this boss on Normal difficulty this week."
+        );
         for invalid in [
             InstanceLockInfo {
                 map_id: 409,
@@ -465,6 +471,7 @@ fn adventure_guide_defeated_marker_uses_saved_difficulty_and_sparse_encounter_bi
         assert!(render(&v, skin).get_by_name(name).is_some());
         v.replace_saved_instances(&[], 0);
         assert!(render(&v, skin).get_by_name(name).is_none());
+        assert!(game_engine_ui_model::adventure_defeated::tooltip(&v, name).is_none());
     }
 }
 

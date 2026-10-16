@@ -122,7 +122,7 @@ pub(crate) fn difficulty_caption(view: &View, difficulty: u32) -> String {
         .replacen("%s", name, 1)
 }
 
-fn difficulty_name(id: u32) -> &'static str {
+pub(crate) fn difficulty_name(id: u32) -> &'static str {
     let key = match id {
         1 | 3 | 4 | 9 | 14 => "PLAYER_DIFFICULTY1",
         2 | 5 | 6 | 15 => "PLAYER_DIFFICULTY2",

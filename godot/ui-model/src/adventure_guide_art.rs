@@ -578,6 +578,7 @@ pub fn boss_row(view: &View, encounter: &Encounter, index: usize) -> Element {
         (105., 4.5, 160., 40.),
         (14., "0.827,0.659,0.463,1", "LEFT"),
     ));
+    parts.extend(crate::adventure_defeated::overlay(view, encounter));
     let top = 10. + index as f32 * 70.;
     let action = format!("journal:encounter:{}", encounter.id);
     rsx! {button {name:{DynName(name)},left:0.0,top,width:325.0,height:55.0,pos_type:"absolute",onclick:{action.as_str()},button_default_skin:false,{parts}}}
