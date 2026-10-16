@@ -6,7 +6,9 @@ use crate::{
     quest_art::{DynName, named_atlas_texture},
     selection_list::{self, Art, RowArt, RowTemplate},
 };
-use game_engine_core::adventure_guide::difficulty_matches;
+use game_engine_core::adventure_guide::{Encounter, Instance, Section, difficulty_matches};
+use std::collections::BTreeSet;
+const GENERIC_CREATURE: u32 = 533888;
 use ui_toolkit::{rsx, screen::SharedContext, widget_def::Element};
 
 #[derive(Clone, Copy, Debug, Default, PartialEq, Eq)]
@@ -48,58 +50,59 @@ impl View {
             return vec![];
         }
         let query = self.search.to_lowercase();
-        let mut rows = Vec::new();
-        for instance in &self.catalog.instances {
-            if instance.name.to_lowercase().contains(&query) {
-                rows.push(ResultRow {
-                    target: Target::Instance(instance.id),
-                    title: &instance.name,
-                    icon: instance.button,
-                    kind: "ENCOUNTER_JOURNAL_INSTANCE",
-                    path: String::new(),
-                });
-            }
+        let instances = self
+            .catalog
+            .instances
+            .iter()
+            .filter(|row| row.name.to_lowercase().contains(&query))
+            .map(instance_result);
+        let encounters = self
+            .catalog
+            .encounters
+            .iter()
+            .filter(|row| row.name.to_lowercase().contains(&query))
+            .map(|row| self.encounter_result(row));
+        let sections = self
+            .catalog
+            .sections
+            .values()
+            .filter(|row| row.title.to_lowercase().contains(&query))
+            .filter_map(|row| self.section_result(row));
+        instances.chain(encounters).chain(sections).collect()
+    }
+    fn encounter_result<'a>(&self, encounter: &'a Encounter) -> ResultRow<'a> {
+        let path = self
+            .catalog
+            .instance(encounter.instance)
+            .map(|row| row.name.clone())
+            .unwrap_or_default();
+        ResultRow {
+            target: Target::Encounter(encounter.id),
+            title: &encounter.name,
+            icon: GENERIC_CREATURE,
+            kind: "ENCOUNTER_JOURNAL_ENCOUNTER",
+            path,
         }
-        for encounter in &self.catalog.encounters {
-            if encounter.name.to_lowercase().contains(&query) {
-                let path = self
-                    .catalog
-                    .instance(encounter.instance)
-                    .map(|row| row.name.clone())
-                    .unwrap_or_default();
-                rows.push(ResultRow {
-                    target: Target::Encounter(encounter.id),
-                    title: &encounter.name,
-                    icon: 533888,
-                    kind: "ENCOUNTER_JOURNAL_ENCOUNTER",
-                    path,
-                });
-            }
-        }
-        for section in self.catalog.sections.values() {
-            if !section.title.to_lowercase().contains(&query) {
-                continue;
-            }
-            let Some(encounter) = self.catalog.encounter(section.encounter) else {
-                continue;
-            };
-            let Some(instance) = self.catalog.instance(encounter.instance) else {
-                continue;
-            };
-            let creature = section.creature_display > 0;
-            rows.push(ResultRow {
-                target: Target::Section(section.id),
-                title: &section.title,
-                icon: if creature { 533888 } else { section.icon },
-                kind: if creature {
-                    "ENCOUNTER_JOURNAL_ENCOUNTER_ADD"
-                } else {
-                    "ENCOUNTER_JOURNAL_ABILITY"
-                },
-                path: format!("{} > {}", instance.name, encounter.name),
-            });
-        }
-        rows
+    }
+    fn section_result<'a>(&self, section: &'a Section) -> Option<ResultRow<'a>> {
+        let encounter = self.catalog.encounter(section.encounter)?;
+        let instance = self.catalog.instance(encounter.instance)?;
+        let creature = section.creature_display > 0;
+        Some(ResultRow {
+            target: Target::Section(section.id),
+            title: &section.title,
+            icon: if creature {
+                GENERIC_CREATURE
+            } else {
+                section.icon
+            },
+            kind: if creature {
+                "ENCOUNTER_JOURNAL_ENCOUNTER_ADD"
+            } else {
+                "ENCOUNTER_JOURNAL_ABILITY"
+            },
+            path: format!("{} > {}", instance.name, encounter.name),
+        })
     }
     pub(crate) fn move_search_preview(&mut self, step: isize) {
         let count = self.search_rows().len().min(6);
@@ -156,38 +159,9 @@ impl View {
             .get(&id)
             .ok_or("Search section missing")?;
         let encounter = section.encounter;
-        let mut ancestors = Vec::new();
-        let mut current = id;
-        let mut overview = false;
-        while current != 0 {
-            if ancestors.contains(&current) {
-                return Err(format!("Journal section parent cycle at {current}"));
-            }
-            ancestors.push(current);
-            let section = self
-                .catalog
-                .sections
-                .get(&current)
-                .ok_or("Section ancestor missing")?;
-            overview |= section.kind == 3;
-            current = section.parent;
-        }
+        let (ancestors, overview) = self.section_search_path(id)?;
         self.select_encounter(encounter)?;
-        // Local results lack EJ_GetSearchResult's difficulty field. Retain the current
-        // authored difficulty when possible, otherwise use the first supported one.
-        let instance = self.instance.ok_or("Search encounter instance missing")?;
-        let available = self.available_difficulties(instance, Some(encounter));
-        let supports = |difficulty| {
-            ancestors
-                .iter()
-                .all(|id| difficulty_matches(&self.catalog.section_difficulties, *id, difficulty))
-        };
-        if !supports(self.difficulty) {
-            self.difficulty = available
-                .into_iter()
-                .find(|difficulty| supports(*difficulty))
-                .ok_or("Search section has no supported difficulty")?;
-        }
+        self.select_section_difficulty(encounter, &ancestors)?;
         self.page = if overview || !self.instance_has_overview() {
             Page::Overview
         } else {
@@ -203,6 +177,54 @@ impl View {
         }
         self.search_section = Some(id);
         Ok(())
+    }
+    fn section_search_path(&self, mut current: u32) -> Result<(BTreeSet<u32>, bool), String> {
+        let mut ancestors = BTreeSet::new();
+        let mut overview = false;
+        while current != 0 {
+            if !ancestors.insert(current) {
+                return Err(format!("Journal section parent cycle at {current}"));
+            }
+            let section = self
+                .catalog
+                .sections
+                .get(&current)
+                .ok_or("Section ancestor missing")?;
+            overview |= section.kind == 3;
+            current = section.parent;
+        }
+        Ok((ancestors, overview))
+    }
+    fn select_section_difficulty(
+        &mut self,
+        encounter: u32,
+        ancestors: &BTreeSet<u32>,
+    ) -> Result<(), String> {
+        // Local results lack EJ_GetSearchResult's difficulty field. Retain the current
+        // authored difficulty when possible, otherwise use the first supported one.
+        let instance = self.instance.ok_or("Search encounter instance missing")?;
+        let supports = |difficulty| {
+            ancestors
+                .iter()
+                .all(|id| difficulty_matches(&self.catalog.section_difficulties, *id, difficulty))
+        };
+        if !supports(self.difficulty) {
+            self.difficulty = self
+                .available_difficulties(instance, Some(encounter))
+                .into_iter()
+                .find(|difficulty| supports(*difficulty))
+                .ok_or("Search section has no supported difficulty")?;
+        }
+        Ok(())
+    }
+}
+fn instance_result(instance: &Instance) -> ResultRow<'_> {
+    ResultRow {
+        target: Target::Instance(instance.id),
+        title: &instance.name,
+        icon: instance.button,
+        kind: "ENCOUNTER_JOURNAL_INSTANCE",
+        path: String::new(),
     }
 }
 
