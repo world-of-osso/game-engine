@@ -9,6 +9,21 @@
 ## 2026-10-16 — Maintained Stockade controller integration
 
 [Bot Stockade boundary](systems/bot-harness.md#stockade-boss-accounting): follower523dc4ce5/master merged preserving both native parser/metrics and routed player interface;115 bot Python cases/controller syntax pass. New readonly encounter/spawn plan, target-bound native authored provider, party facts and native equal-budget sheet/inventory observations are implemented after source-module RED. Actual Fury Stockade execution/credit/clear time remains pending; no diagnostic driver, Mage cycle or stat override copied.
+## 2026-10-16 — HouseSettings action-button source art
+
+[Three action buttons](systems/housing.md#housesettings-action-button-art--2026-10-16): four source UIPanel bindings only, RED→GREEN and both-skin enabled/disabled/pending native proof; all eight fullHD changes confined to button rectangles. No typography/lifecycle/backend claim.
+
+## 2026-10-16 — HouseSettings inherited close button
+
+[Source close](systems/housing.md#housesettings-close-button--2026-10-16): text-X geometry RED and native highlight-replacement RED repaired; both-skin/pending state/input/cancel/ADD proof,16 context pairs unchanged outside old/new close rectangles. No lifecycle/backend claim.
+
+## 2026-10-16 — HouseSettings omitted decorative regions
+
+[Source regions](systems/housing.md#housesettings-decorative-regions--2026-10-16): genuine missing-region RED→GREEN restores gradient/foliage/divider only; both-skin native6region geometry and inspected panels, zero changes outside three source rectangles.
+
+## 2026-10-16 — Pet queue-ready button art
+
+[Source button family](systems/battle-pets.md#queue-ready-button-art--2026-10-16): explicit default atlas RED replaced with inherited UIPanel sheet IDs; RED→GREEN, both-skin8 physical cases/24crops; four fullHD comparisons change only inside buttons. Captions/typography/lifecycle unchanged and not newly certified.
 
 ## 2026-10-16 — House Access dropdown
 
@@ -4120,6 +4135,14 @@ Completed Retailv2 codec/authoritative Create and committed Copy callbacks, exac
 - 2026-10-15: [Item Sets source composition](systems/adventure-guide.md#item-sets-source-composition--bounded-proof-2026-10-15): source list/controls/appearance icons, independent class/spec state, global search and intrinsic title alignment. Final59/59/check/fmt, independent verification and fourteen inspected actual both-skin1e45 originals; unsupported shared tooltip authority/actions retained explicitly.
 
 - 2026-10-16: Product-row item tooltip native both-skin GREEN at569419cb7; final-scale ordering fixes real owner-bound mismatch without changing layout/framing.27 UI+12 native Trading Post and52 tooltip regressions/check/scoped format pass at846cf1d1d. Eight full-HD PNGs plus two contacts published; [proof inventory](systems/trading-post.md#product-row-item-tooltips--implementation-october16).
+
+- 2026-10-16: Button tooltip source/label branches inventoried; disabled View Cart actual native RED observed. Existing Traveler's Log pane is owned by Adventure Guide; pending-item delivery remains a distinct provider gap. [Trading Post](systems/trading-post.md#button-tooltips--implementation-october16).
 - 2026-10-16: Extracted [routed native player-controller boundary](systems/bot-harness.md#routed-native-controller--implementation-2026-10-16): explicit per-spec provider/strict route/native F and semantic loot input; native Greed and all-spec rotation coverage remain separate gates.
 
 - 2026-10-16: Maintained [explicit pinned Arcane provider](systems/bot-harness.md#explicit-approved-arcane-source-provider) with portable captured source/trait fixtures; source24/36/64 and strict level32/kit/fight coverage, no fallback or native/all-spec acceptance.
+
+- 2026-10-16: PerksProgram purchase/refund/cart/clear confirmations omit hideOnEscape. Native purchase premature-dismissal RED observed; dispatcher corrected, explicit Cancel retained. Earlier Escape-cancel fixture claim corrected. [Trading Post](systems/trading-post.md#confirmation-keyboard-ownership--implementation-october16).
+- 2026-10-16: Button tooltips source content2 and native both-skin real-control/lifetime proof pass;16 full-HD screenshots plus4 contacts published. Final29UI12native/check/scopedformat pass; pending-item/native disabled-refund boundaries remain explicit. [Trading Post](systems/trading-post.md#button-tooltips--implementation-october16).
+
+- 2026-10-16: [Owner pet assisted predicates](investigations/cooldown-assist-data.md#owner-pet-predicates--2026-10-16): source-decoded57/58 and recorded owner presence; living controlled pet versus absent, unknown dead/missing actor retained. BM Call Pet authored decision regression; fresh UDP and Arms1187/12 exact count geometry remain open.
+- 2026-10-16: Confirmation covers native both-skin GREEN: Escape preserves Purchase/Refund/Cart/Clear; explicit Cancel retains authority/cart, one real purchase/refund restores Tender.12 full-HD screenshots+2 contacts published;29UI12native/check/format pass atfc1d4c351. [Trading Post](systems/trading-post.md#confirmation-keyboard-ownership--implementation-october16).

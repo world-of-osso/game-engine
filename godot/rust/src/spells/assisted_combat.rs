@@ -175,7 +175,19 @@ impl GameClient {
                 .filter(|health| health.max > 0.0)
                 .map(|health| f64::from(health.current) * 100.0 / f64::from(health.max))
         };
+        // Only an absent controlled pet or a replicated living pet is established.
+        // Dead/missing pet actors remain unknown rather than guessing revival policy.
+        let has_pet = match self.account.pet_bar {
+            None => Some(false),
+            Some(bar) => self
+                .replica
+                .unit(bar.pet)
+                .and_then(|unit| unit.get::<Health>())
+                .filter(|health| health.current > 0.0)
+                .map(|_| true),
+        };
         let mut facts = AssistedFacts {
+            has_pet,
             powers,
             player_health_pct: health_pct(player),
             target_health_pct: health_pct(target),

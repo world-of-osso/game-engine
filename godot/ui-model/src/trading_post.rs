@@ -13,6 +13,8 @@ mod filter_menu;
 mod history;
 #[path = "trading_post_outfit.rs"]
 mod outfit;
+#[path = "trading_post_tooltip.rs"]
+mod tooltip;
 use crate::{
     bank_art::{WHITE, label, texture},
     minimal_scroll_bar::{MinimalScrollBar, Unscrollable, pixel_geometry, scroll_list_attr},

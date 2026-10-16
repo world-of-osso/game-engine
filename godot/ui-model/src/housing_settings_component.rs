@@ -25,30 +25,70 @@ pub fn settings_screen(view: &HousingView) -> Element {
         "housing-basic-container-woodheader",
         (6.0, 6.0, 588.0, 39.0),
     );
+    let decoration = decorative_regions();
     let columns = access_columns(draft, view.model.pending);
     let save_disabled = view.model.pending || draft.access.is_none();
     rsx! { r#frame { name: "HousingRoot", stretch: true,
         r#frame { name: "HousingHouseSettingsFrame", width: 600.0, height: 550.0,
             pos_type: "absolute", left, top, strata: FrameStrata::Dialog, mouse_enabled: true,
-            {background} {header} {columns}
+            {background} {header} {decoration} {columns}
             fontstring { name: "HousingSettingsTitle", text: "House Settings", width: 400.0, height: 30.0,
                 pos_type: "absolute", left: 100.0, top: 14.0, font_size: 17.0 }
-            button { name: "HousingSettingsClose", text: "X", width: 32.0, height: 32.0,
-                pos_type: "absolute", left: 564.0, top: 4.0, onclick: "housing:close" }
+            button { name: "HousingSettingsClose", width: 24.0, height: 24.0,
+                pos_type: "absolute", left: 577.0, top: 0.0, frame_level: 510.0,
+                onclick: "housing:close", button_default_skin: false,
+                button_atlas_up: "RedButton-Exit", button_atlas_pressed: "RedButton-exit-pressed",
+                button_atlas_disabled: "RedButton-Exit-Disabled", button_atlas_highlight: "RedButton-Highlight",
+                button_highlight_alpha: "1.0" }
             fontstring { name: "HousingSettingsOwnerLabel", text: "House Owner", width: 200.0, height: 20.0,
                 pos_type: "absolute", left: 46.0, top: 104.0, font_size: 15.0, justify_h: "LEFT" }
             button { name: "HousingSettingsOwner", text: "Owner assignment unavailable", width: 200.0, height: 28.0,
                 pos_type: "absolute", left: 46.0, top: 132.0, disabled: true }
             button { name: "HousingSettingsAbandon", text: "Abandon House", width: 152.0, height: 28.0,
-                pos_type: "absolute", left: 401.0, top: 132.0, disabled: true }
+                pos_type: "absolute", left: 401.0, top: 132.0, disabled: true,
+                button_fdid_up: 130828_u32, button_fdid_pressed: 130825_u32,
+                button_fdid_highlight: 130826_u32, button_fdid_disabled: 130824_u32 }
             fontstring { name: "HousingSettingsUnavailable", text: "Plot / blueprint access and owner assignment are unavailable; Save changes house access only.",
                 width: 508.0, height: 35.0, pos_type: "absolute", left: 46.0, top: 465.0, font_size: 12.0 }
             button { name: "HousingSettingsIgnoreList", text: "Ignore List", width: 152.0, height: 28.0,
-                pos_type: "absolute", left: 46.0, top: 488.0, disabled: true }
+                pos_type: "absolute", left: 46.0, top: 488.0, disabled: true,
+                button_fdid_up: 130828_u32, button_fdid_pressed: 130825_u32,
+                button_fdid_highlight: 130826_u32, button_fdid_disabled: 130824_u32 }
             button { name: "HousingSettingsSave", text: "Save", width: 152.0, height: 28.0,
-                pos_type: "absolute", left: 402.0, top: 488.0, onclick: "housing:settings:save", disabled: save_disabled }
+                pos_type: "absolute", left: 402.0, top: 488.0, onclick: "housing:settings:save", disabled: save_disabled,
+                button_fdid_up: 130828_u32, button_fdid_pressed: 130825_u32,
+                button_fdid_highlight: 130826_u32, button_fdid_disabled: 130824_u32 }
         }
     } }
+}
+
+/// HouseSettings XML Header/PlantDecoLeft/Spacer; no caller Lua overrides.
+fn decorative_regions() -> Element {
+    let foliage = ui_toolkit::atlas::resolve_region(
+        "housing-decorative-foliage-left",
+        ui_toolkit::atlas::thread_skin(),
+    )
+    .expect("HouseSettings source foliage atlas");
+    [
+        (
+            "HousingSettingsHeaderGradient",
+            "housing-basic-panel-gradient-header-bg",
+            (100.0, 0.0, 400.0, 80.0),
+        ),
+        (
+            "HousingSettingsPlantDecoLeft",
+            "housing-decorative-foliage-left",
+            (6.0, 7.0, foliage.width, foliage.height),
+        ),
+        (
+            "HousingSettingsSpacer",
+            "Options_HorizontalDivider",
+            (25.0, 174.0, 550.0, 1.0),
+        ),
+    ]
+    .into_iter()
+    .flat_map(|(name, atlas, rect)| named_atlas_texture(name.into(), atlas, rect))
+    .collect()
 }
 
 fn access_columns(draft: &HouseSettings, pending: bool) -> Element {
