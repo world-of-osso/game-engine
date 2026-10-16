@@ -24,12 +24,13 @@ Retail Mainline guild news in Modern and Forever. Installed sources: `Blizzard_C
 ## Tests asserting this spec
 
 - `godot/ui-model/tests/guild_rank_widgets.rs::guild_news_info_renders_source_controls_and_only_real_motd_both_skins` — RED reproduces absent news header, source controls and real MOTD display.
+- `godot/tests/guild_news_live.gd` + `godot/network/examples/native_guild_news_peer.rs` — private UDP5891 actual purchases/sales, native filters/sticky ACKs,250 retained rows, wheel overflow, permissions/privacy and fresh-process readback; no injected news.
 
 ## Known gaps (current cycle)
 
 - [x] Actual server producers, authenticated query/sticky and durable storage; backend6/6.
-- [x] Source filter dialog, actual rows/tooltips/context actions and independent news authority; model4/4. Native interaction/pixels remain unproven.
-- [ ] Both-skin real UDP/process-restart/pixel acceptance and independent integration gates.
+- [x] Source filter dialog, actual rows/tooltips/context actions and independent news authority; model4/4 before final art changes. Private native query/filter/sticky and both-skin250-row physical overflow pass; actual ordinary-member sticky refusal and post-quit privacy pass.
+- [ ] Current-artifact control screenshots, fresh-process readback, missing source-art publication and independent integration gates.
 
 ## Out of scope
 
