@@ -1,3 +1,7 @@
+## 2026-10-16 — Caster-centered assisted range
+
+[Source range identity](investigations/cooldown-assist-data.md#caster-centered-assisted-range--2026-10-16): actual Whirlwind190411 at3yd RED→retain Range1 Self Only and preserve targeted hostile bounds;25 bounded core controls pass. Raw authored rotation, known spells and effect radii unchanged; fresh native and independent acceptance remain open.
+
 ## 2026-10-15 — Housing Expert active glow implementation
 
 [Active submode glow](systems/housing.md#expert-active-glow--implementation2026-10-15): native missing-painted-glow RED→source fixed-mask/six-second shared first-play rotation and both-skin raster/phase/canvas-recreation GREEN with unchanged paid state. Modern retained six completed samples before invalid Scale-retention oracle correction, then resumed lifecycle only; Forever eight samples in one run. Installed70391 local art authenticated and lead-published; six inspected1280 PNGs, no primary flipbook/full appearance claim.
