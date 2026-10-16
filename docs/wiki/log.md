@@ -43,6 +43,21 @@
 ## 2026-10-16 — World-quest navigation and Deathwing diagnosis
 
 [Task navigation and hazard](investigations/world-quest-availability.md#2026-10-16-navigation-and-authored-deathwing-hazard): available pins select without acceptance, received-position minimap markers, source-only bars/time text and unnumbered tracker POIs;13 scoped UI controls GREEN. Actual ten46327 actors spawn5552/5552; Deathwing's authored Molten Flame kills them on grid activation, not spawn/scaling/terrain. Current both-skin navigation/window/controlled-reward gate passes: actual7/8→8/8,11765XP, replay/expiry and26 inspected fullHD PNGs. The explicitly approved private fixture omits only hazard spawn20383796; product data is unchanged, no injected credit or NPC health restore. Ordinary-world hazard/phasing remains open.
+## 2026-10-16 — ReadyCheck message origin
+
+[Source TOP anchor](systems/group-frames.md#readycheck-message-origin--bounded-proof-2026-10-16): retain parent-relative(+20,−37), removing title-height subtraction. Model RED→GREEN2; both-skin native positions and2080-pixel message-only delta per full-HD pair. Existing baseline binary reused with exact hash provenance; typography/difficulty/full-popup remain open.
+
+## 2026-10-16 — UIErrors source hold
+
+[Bounded lifetime proof](systems/ui-system.md#uierrors-source-hold--bounded-proof-2026-10-16): hold3→2 seconds restores2.5s expiry, retaining fade calculation as an unqualified fadePower gap. Model RED2→GREEN4; ten both-skin supplied-elapsed native cases and ten unchanged-outside full-HD pairs. No wall-clock cadence/full MessageFrame claim.
+
+## 2026-10-16 — ReadyCheck response anchors and art
+
+[Bounded button proof](systems/group-frames.md#readycheck-response-buttons--bounded-proof-2026-10-16): source bottom anchors and inherited UIPanel sheets replace wrong spacing/defaultbutton art. Model RED→GREEN1, four both-skin physical cases and twelve full-HD state pairs unchanged outside old/new button union. Existing action/cancellation retained; full dialog/server lifecycle excluded.
+
+## 2026-10-16 — StackSplit arrow source states
+
+[Arrow state proof](systems/cursor-item.md#stacksplit-arrow-states--bounded-proof-2026-10-16): static clickable frames lacked pushed art and dispatched before outside release. Source16×16 buttons restore Up/Down/Disabled art and cancellation; model RED→GREEN1,16 both-skin physical cases,48 context comparisons unchanged outside arrows. Supplied-state input only; quantity/purchase/full-picker parity excluded.
 
 ## 2026-10-16 — Guild news live acceptance
 
@@ -4252,3 +4267,7 @@ Completed Retailv2 codec/authoritative Create and committed Copy callbacks, exac
 
 - 2026-10-16: Frozen ProductButton inherits base item tooltip; ordinary-name-only native lookup missed it. Actual genuine-Freeze native RED observed; resolve already-rendered selection action without new frozen state. [Trading Post](systems/trading-post.md#inherited-frozen-product-tooltip--implementation-october16).
 - 2026-10-16: Cart regular/member source tooltip both-skin native GREEN including actual hover-only removal; phase-local global input parsing corrects viewport-only fixture cursor.33UI12native/check/3scopedRustfmt pass at9e7; eight full-HD originals+two contacts published. [Trading Post](systems/trading-post.md#cart-item-tooltips--implementation-october16).
+
+## 2026-10-16 — Loot ItemButton hit rectangle and release
+
+Source Item ownership replaces row-press actions; inset-aware native Button picking fixes the actual expanded-hit boundary. Model2/native32 GREEN,68 unchanged full-HD pairs; StackSplit16/ReadyCheck4 shared-input controls and60 pixel pairs unchanged. Retained setup failures and Item-only partial RED, server/full-window exclusions explicit. See [[loot-and-flight#ItemButton input ownership — 2026-10-16]].
