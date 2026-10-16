@@ -113,6 +113,21 @@ class BeastMasteryTests(unittest.TestCase):
         self.start_auto_shot()
         self.assertEqual(self.choose()["spell"], 217200)
 
+    def test_collector_requires_explicit_provider_selection_and_keeps_source_receipt(self):
+        from types import SimpleNamespace
+        from run_dummy_bots import load_priority_provider
+        args = SimpleNamespace(priority_provider="simc-bm", db2=FIXTURE,
+                               simc_receipt=FIXTURE / "source.json",
+                               simc_apl=FIXTURE / "hunter_beast_mastery.simc")
+        loaded = load_priority_provider(args, {"priority": self.state, "spells": self.state["spells"],
+            "at_ms": self.state["at_ms"], "account": {"local_player_id": self.state["actor"]}}, self.state["target"])
+        self.state["spells"]["cast_success_events"].append({
+            "source": self.state["actor"], "spell_id": 75, "at_ms": self.state["at_ms"] + 2})
+        self.assertEqual(loaded(self.state, self.state["target"])["spell"], 217200)
+        self.assertEqual(loaded.context["sha256"], json.loads((FIXTURE / "source.json").read_text())["sha256"])
+        args.priority_provider = "native"
+        self.assertIsNone(load_priority_provider(args, {}, 1))
+
     def test_native_busy_state_and_unavailable_readiness_never_submit(self):
         self.state["spells"]["gcd_ms"] = 200
         self.assertIsNone(self.choose())

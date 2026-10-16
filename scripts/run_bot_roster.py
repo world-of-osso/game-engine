@@ -47,6 +47,9 @@ def record_inputs(args):
               "AssistedCombatRule", "TraitTreeLoadout", "TraitTreeLoadoutEntry", "TraitNodeXTraitNodeEntry",
               "TraitNodeEntry", "TraitDefinition", "SpellShapeshiftForm", "CreatureFamily")
     files += [args.engine / "data/db2/active" / f"{table}.csv" for table in tables]
+    if getattr(args, "priority_provider", "native") == "simc-bm":
+        files += [args.engine / "scripts/bot_simc_bm.py", args.simc_receipt, args.simc_apl,
+                  args.engine / "data/db2/active/SpellName.csv"]
     files += [args.engine / "target/debug/libgame_engine_godot.so",
               args.engine / "target/debug/game-engine-cli", args.server / "target/debug/game-server"]
     hashes = {}
@@ -473,7 +476,9 @@ def run_bot(args, bot):
         approach_dummy(args, output, sockets[0], target)
         options = SimpleNamespace(cli=args.engine / "target/debug/game-engine-cli", socket=sockets[0],
                                   state=output / "native-state.json", db2=args.engine / "data/db2/active",
-                                  target=target, duration=args.duration, comparison=None, server_log=args.server_log)
+                                  target=target, duration=args.duration, comparison=None, server_log=args.server_log,
+                                  priority_provider=args.priority_provider,
+                                  simc_receipt=args.simc_receipt, simc_apl=args.simc_apl)
         stats = command(args.output, [options.cli, "--socket", sockets[0], "status", "character-stats"])
         (output / "character-stats.txt").write_text(stats)
         native_level = re.search(r"(?m)^level: (\d+)$", stats)
@@ -506,7 +511,13 @@ def main():
     parser.add_argument("--level", type=int, default=32)
     parser.add_argument("--duration", type=float, default=60)
     parser.add_argument("--repeat", type=int, default=2)
+    parser.add_argument("--priority-provider", choices=("native", "simc-bm"), default="native")
+    parser.add_argument("--simc-receipt", type=Path)
+    parser.add_argument("--simc-apl", type=Path)
     args = parser.parse_args()
+    if args.priority_provider == "simc-bm" and (args.specs != [253] or args.all_specs
+            or not args.simc_receipt or not args.simc_apl):
+        parser.error("SimC BM requires explicit --specs 253, --simc-receipt and --simc-apl")
     if args.duration <= 0 or args.repeat < 1:
         parser.error("Positive duration and repeat required")
     args.output.mkdir(mode=0o700, parents=True, exist_ok=False)
