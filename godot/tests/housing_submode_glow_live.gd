@@ -25,6 +25,7 @@ func run_test() -> void:
 		return
 	if not await configure_expert_bindings(false): return
 	if not await enter_expert(): return
+	push_mouse_motion(Vector2(20.0, 20.0))
 	for spec in [["Translate", "TranslateSubmodeButton", KEY_F8], ["Rotate", "RotateSubmodeButton", KEY_F9], ["Scale", "ScaleSubmodeButton", KEY_F10]]:
 		await source_key(spec[2])
 		if not await wait_housing(func(): return client.housing_state().precision_submode == spec[0], "assigned active glow submode"): return
@@ -87,6 +88,7 @@ func prove_glow(button: String, phase: String) -> bool:
 			return false
 	previous_sample = sample
 	glow_receipts.append(sample)
+	if not await prove_masked_pixels(button, phase): return false
 	var output := FileAccess.open(shots.path_join("submode-glow-receipts.json"), FileAccess.WRITE)
 	if output == null:
 		fail("Cannot save actual Expert glow receipts")
@@ -96,5 +98,49 @@ func prove_glow(button: String, phase: String) -> bool:
 	var image := root.get_texture().get_image()
 	if image.save_png(shots.path_join(housing_skin.to_lower() + "-glow-" + phase + ".png")) != OK:
 		fail("Cannot save actual source glow pixels")
+		return false
+	return true
+
+# Compare actual painted frames with only the projected glow hidden. Source mask
+# alpha is read independently from the authenticated, uncompressed BLP2 payload.
+func prove_masked_pixels(button: String, phase: String) -> bool:
+	var fdid: int = {"TranslateSubmodeButton": 7266217, "RotateSubmodeButton": 7266219, "ScaleSubmodeButton": 7266221}[button]
+	var path := ProjectSettings.globalize_path("res://").path_join("../data/textures/%d.blp" % fdid)
+	var source := FileAccess.get_file_as_bytes(path)
+	if source.size() < 1172 + 64 * 64 * 4 or source[8] != 3 or source.decode_u32(12) != 64 or source.decode_u32(16) != 64:
+		fail("Mask oracle requires authenticated raw64x64 BGRA BLP2 source")
+		return false
+	var offset: int = source.decode_u32(20)
+	var part := glow_part(button)
+	var ui := client.get_node("HousingDashboardUI")
+	ui.set_process(false)
+	await RenderingServer.frame_post_draw
+	var painted := root.get_texture().get_image()
+	part.visible = false
+	RenderingServer.force_draw()
+	var bare := root.get_texture().get_image()
+	part.visible = true
+	ui.set_process(true)
+	var bounds: Rect2 = housing_control(button).get_global_rect()
+	var area := bounds.grow(75.0).intersection(Rect2(Vector2.ZERO, Vector2(root.size)))
+	var inside: int = 0
+	var escaped: int = 0
+	for y in range(int(area.position.y), int(area.end.y)):
+		for x in range(int(area.position.x), int(area.end.x)):
+			var a := painted.get_pixel(x, y)
+			var b := bare.get_pixel(x, y)
+			if maxf(absf(a.r-b.r), maxf(absf(a.g-b.g), absf(a.b-b.b))) < 0.035: continue
+			var local: Vector2 = (Vector2(x + 0.5, y + 0.5) - bounds.position) * 64.0 / bounds.size
+			var allowed := false
+			# Include one texel of bilinear/filter coverage, not rotated mask coordinates.
+			for my in range(maxi(0, int(floor(local.y)) - 1), mini(64, int(ceil(local.y)) + 2)):
+				for mx in range(maxi(0, int(floor(local.x)) - 1), mini(64, int(ceil(local.x)) + 2)):
+					if source[offset + (my * 64 + mx) * 4 + 3] > 0: allowed = true
+			if allowed: inside += 1
+			else: escaped += 1
+	glow_receipts[-1]["painted_mask_pixels"] = inside
+	glow_receipts[-1]["escaped_mask_pixels"] = escaped
+	if inside < 5 or escaped != 0:
+		fail("Source fixed-mask painted-pixel mismatch %s: inside%d escaped%d" % [phase, inside, escaped])
 		return false
 	return true
