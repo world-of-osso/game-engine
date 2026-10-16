@@ -54,7 +54,10 @@ func capture_card(ui: Node, skin: String, step: int, selected: int, id: int) -> 
 	assert(texture != null and texture.texture != null)
 	print("CAMP_HOVER ", name, " corner_size=", corner.size, " source=", texture.texture.region if texture.texture is AtlasTexture else texture.texture)
 	if verify:
-		assert(corner.size == Vector2(18, 18) if selected == id else corner.size == Vector2(17, 17), "Source selected-hover18 vs ordinary-hover17 margins")
+		var margin := 18 if selected == id else 17
+		var source_y := 176 if selected == id else 65
+		assert(corner.size == Vector2(margin, margin), "Source selected-hover18 vs ordinary-hover17 margins")
+		assert(texture.texture is AtlasTexture and texture.texture.region == Rect2(865, source_y, margin, margin), "Actual native source atlas member, not only changed geometry")
 	await move(ui, Vector2(200, 900))
 	assert(not hover.is_visible_in_tree(), "Pointer leave hides hover art")
 
