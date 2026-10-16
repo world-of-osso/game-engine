@@ -170,7 +170,30 @@ Billboard targets stage the pivot-corrected Bevy result in `SphericalBillboard.p
 
 Sequence-local constant TRS tracks fold to the existing fixed raw-pose curve when every channel is non-global and has at most one timestamp and one value in the selected sequence. Missing sequences use the existing sampler defaults. Varying/global tracks retain normal sampling; targets, joints and blending remain intact. At `50454f89`, 87 scoped animation tests and fmt/check passed. Catalog construction improved in characterization; the clock-confounded native pair establishes no additional steady-state CPU gain. See [CPU investigation](../investigations/movement-performance.md#constant-curve-follow-up).
 
+## Authored parent contribution (A6) — 2026-10-15
+
+The [A6/A7 contract](../../specs/m2-animation-inheritance-attachments.md) separates authored low bits from billboard bits. `m2_inheritance::select_parent` works on converted world-space skin matrices: case2 retains parent basis directions with model lengths; case4 retains parent lengths with model directions; case6 uses the model basis. Bit1 selects model translation; otherwise translation compensates around the parent's transformed child pivot. Roots never enter parent selection.
+
+Native composition evaluates ancestors first, applies this selection before the child's pivoted animation, then billboards. Ordinary local poses and authored hierarchy remain intact. Only adjusted/billboard bones receive exact affine global-pose overrides: converting compensation back to local TRS would lose shear under a nonuniform parent. Godot's legacy global override API is currently needed for an exact affine palette; retire that use when Godot exposes an equivalent non-decomposing replacement. No warning suppression or alternate render path is introduced.
+
+The non-gating local census is `data/diagnostics/m2-anim-2026-10-15/census.json`:83129 M2 +161 SKEL files,1171 with parented low-bit bones,341 with nonempty activation timeline headers. Headers alone are not proof of a toggling track. Runtime-added flags, modern inheritance contracts, nonuniform native palette measurement and A7 color/clock behavior remain explicit gaps in the spec.
+
+A6 proof at19d9850e8: CPU3 RED→GREEN, native root/ordinary-descendant1 GREEN. `m2_inheritance_pixels.gd` opens the real m2debug stage, loads authentic125913 and fixes750ms. Clearing global overrides supplies the ordinary-hierarchy baseline; restoring at zero elapsed preserves clock/crossfade. Native bone67's tilted basis becomes identity while its transformed pivot stays fixed. Both1920×1080 PNGs were inspected in `/syncthing/AgentShared/2026-10-15/m2-anim/`; this is a same-binary branch counterfactual, not an old executable comparison. First capture attempt hit a fixture dictionary-key typo, corrected retry passed.
+
+## Authored attachment participation (A7) — 2026-10-15
+
+MD20 and SKA1 records retain their trailing byte tracks. Samples use the owning model's current local sequence/time or its global timeline; absent samples start active1. Authentic solar spell1081566 and soul aegis971117 contain authored zero keys, independently observed in local bytes. No color-hiding conclusion follows from those keys.
+
+Native animation players bind persistent authored points (including lookup aliases), publish activation on the point, and evaluate effective eligibility through every attachment ancestor. Ineligible children keep their existing continuous clocks but skip bone-pose writes and consume callbacks without dispatch/replay. Parent players tick before deeper children. Shadow recursion stores each geometry's original casting mode on first exclusion and restores exactly that mode on reactivation; equipment placement refreshes this state after relocation. Nodes are never removed, detached or hidden by activation.
+
+Pre-change native measurement on the private solar-spell fixture: at parent0/99/100/199/200ms, child clocks20/40/60/80/100ms and native item visibility remained true; bone poses and double-sided shadows continued through inactive100/199ms (RED). The fixture retains authentic spell geometry/rig and actual production-loaded HumanMaleHD with item25; only three parent activation tracks are changed privately. The strengthened native fixture keeps the item on its original authored hand point, checks controls during the inactive interval, and asserts that the sequence-switch precondition really reaches inactive100ms. Actual HumanMaleHD `$SCD` callback RED independently demonstrates dispatch during ineligibility. These measurements establish native baselines, not reference-client color-pass or reactivation-clock behavior. External attachment keys and separate material/emitter evaluation remain named gaps in the [spec](../../specs/m2-animation-inheritance-attachments.md).
+
+Post-integration8a1afc3b0 proof: native animation83 (including crossfade/root/billboard/event controls), attachment parser7 and inheritance3 pass; format check and native compilation pass without Rust warnings. Strengthened native solar-spell→HumanMaleHD→original item25 hand attachment passes: parent0/99/100/199/200ms yields pose/callback eligibility/shadows1/1/0/0/1, original casting mode2 restored, both controls always active, and actual inactive100ms→sequence1 reactivation verified. HumanMaleHD contains the authored marker; the actual marker dispatch/no-replay assertion is CPU action-playback proof, while the native fixture measures eligibility. No audible callback dispatch, reference-client raster or clock parity claim.
+
 ## Sources
+
+- User-supplied clean-room A6/A7 spec (2026-10-15), `/home/osso/.worktrees/logs/anim-cleanroom-spec-2026-10-15.md`; provenance labels were not opened or searched.
+- `godot/core/src/m2_inheritance.rs`, `godot/rust/src/animation/billboard.rs` — authored parent composition and behavioral fixtures.
 
 - AGENTS.md — Animation section, blend_time rules, ANIM_* location
 - `src/rendering/model/animation/bevy_curves.rs` and `bevy_player.rs` — runtime implementation and deferred teardown
