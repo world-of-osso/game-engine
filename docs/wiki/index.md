@@ -1,6 +1,8 @@
 - [Clean-room M2 particles](systems/godot-conversion.md#native-m2-particles) — tails/follow/cubic controls and inherited-scale provenance; lighting, timer/reset, spline density and model-recursion oracle gaps remain explicit.
 # Wiki Index
 
+- [Journal source difficulties](systems/adventure-guide.md#difficulty-source-menus--bounded-proof-2026-10-15) — source order/captions/group sizes and documented World/Mythic Flex aliases;48 focused tests and eight inspected both-skin one-line native menu captures.
+
 - [Instance and encounter Loot](systems/adventure-guide.md#instance-and-encounter-loot--2026-10-15) — selected-instance/difficulty drops, source64/45px rows, real icons/quality/tooltip, intrinsic subclass sizing and physical Loot-row→boss navigation;45 focused tests and twelve inspected both-skin native PNGs.
 
 - [Shared WowStyle1 caption centering](systems/menu-primitives.md#wowstyle1-caption-centering-2026-10-15) — native font-minimum adaptation, paired core attribute wiring and explicit one-line policy; both-skin AH/shared caption deltas0 and unchanged Filter/Style2 control pixels.
