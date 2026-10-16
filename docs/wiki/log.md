@@ -1,6 +1,6 @@
 ## 2026-10-16 — Encounter section flags
 
-[Header flag art and hover](systems/adventure-guide.md#encounter-section-flags--2026-10-16): source raw mask→zero-based atlas flags in32px frames, title reservation and white owner-right tooltips. Missing-frame RED→three focused tests plus60 adjacent controls GREEN; current both-skin Ozruk2410 native painted-art/anchor/title/hover pass, six inspected fullHD originals. Opaque C API flag ordering remains unclaimed; final check/independent gate pending. Search and Journeys masks remain active.
+[Header flag art and hover](systems/adventure-guide.md#encounter-section-flags--2026-10-16): source raw mask→zero-based atlas flags in32px frames, title reservation and white owner-right tooltips. Missing-frame RED→three focused tests plus60 adjacent controls GREEN; current both-skin Ozruk2410 native painted-art/anchor/title/hover pass, six inspected fullHD originals. Registered check/fmt0 and independent source/wiring/readability gate pass. Opaque C API flag ordering and nonempty-description wrapping remain unclaimed; all14 current descriptions are empty. Search and Journeys masks remain active.
 
 ## 2026-10-16 — Multi-area world-quest pin continuation
 
