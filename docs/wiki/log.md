@@ -1,3 +1,7 @@
+## 2026-10-16 — House Access dropdown
+
+[Source caller](systems/housing.md#house-access-dropdown--2026-10-16): generic160×28/plain rows replaced by inherited122×25 WowStyle2/MenuStyle1; genuine RED and corrected both-skin native baseline. GREEN/after proof pending.
+
 ## 2026-10-15 — Campsite selected-hover
 
 - [Glue/menu fidelity](investigations/glue-menu-fidelity.md#campsite-selected-hover-branch--2026-10-15): existing selected state picks source selected-hover art/18px margins, both-skin native pointer/reselection proof.
