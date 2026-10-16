@@ -406,6 +406,45 @@ fn adventure_guide_model_limits_authored_choices_to_nine() {
 }
 
 #[test]
+fn adventure_guide_difficulty_captions_use_source_names_and_actual_group_sizes() {
+    for skin in [ActiveSkin::Modern, ActiveSkin::Forever] {
+        for (instance, captions) in [
+            (
+                72,
+                vec![
+                    (3, "(10) Normal"),
+                    (5, "(10) Heroic"),
+                    (4, "(25) Normal"),
+                    (6, "(25) Heroic"),
+                ],
+            ),
+            (
+                1180,
+                vec![
+                    (17, "Raid Finder"),
+                    (14, "Normal"),
+                    (15, "Heroic"),
+                    (16, "Mythic"),
+                ],
+            ),
+            (741, vec![(9, "(40) Normal")]),
+            (63, vec![(1, "(5) Normal"), (2, "(5) Heroic")]),
+        ] {
+            let mut v = view();
+            v.apply(&format!("journal:instance:{instance}")).unwrap();
+            v.apply("journal:difficulty-menu").unwrap();
+            let r = render(&v, skin);
+            for (id, caption) in captions {
+                assert_eq!(text(&r, &format!("JournalDifficulty{id}Text")), caption);
+                v.apply(&format!("journal:difficulty:{id}")).unwrap();
+                let selected = render(&v, skin);
+                assert_eq!(text(&selected, "JournalDifficultyDropdownText"), caption);
+            }
+        }
+    }
+}
+
+#[test]
 fn adventure_guide_difficulty_menu_uses_retail_order_and_supported_modes() {
     for skin in [ActiveSkin::Modern, ActiveSkin::Forever] {
         for (instance, order) in [
