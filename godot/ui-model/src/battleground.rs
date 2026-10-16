@@ -9,6 +9,8 @@ use shared::protocol::{
 };
 #[path = "arena_ui.rs"]
 mod arena_ui;
+#[path = "pvp_honor_ui.rs"]
+mod honor_ui;
 use ui_toolkit::{rsx, screen::SharedContext, strata::FrameStrata, widget_def::Element};
 
 #[derive(Clone, Debug, PartialEq, Eq)]
@@ -46,6 +48,7 @@ pub struct PvpView {
     pub selected_arena: Option<ArenaQueueMode>,
     pub rated_bracket: PvpBracketSnapshot,
     pub selected_battleground: u32,
+    pub honor_faction: Option<crate::char_create_data::Faction>,
 }
 impl Default for PvpView {
     fn default() -> Self {
@@ -63,6 +66,7 @@ impl Default for PvpView {
             selected_arena: None,
             rated_bracket: PvpBracketSnapshot::Arena2v2,
             selected_battleground: 1014,
+            honor_faction: None,
         }
     }
 }
@@ -345,6 +349,9 @@ fn queue(context: &SharedContext, view: &PvpView) -> Element {
             (10.0, 66.0 + index as f32 * 80.0, 168.0, 50.0),
             &crate::selection_list::PVP_CATEGORY,
         ));
+    }
+    if view.category != PvpCategory::PremadeGroups {
+        children.extend(honor_ui::honor_inset(view));
     }
     if view.category != PvpCategory::QuickMatch {
         children.extend(category_panel(view));

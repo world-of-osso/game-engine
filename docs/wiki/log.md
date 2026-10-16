@@ -7,6 +7,9 @@
 ## 2026-10-16 — BM native pet Assist preparation
 
 [Preparation](systems/bot-harness.md#bm-native-assist-preparation--2026-10-16): one ordinary viewport click on the received Assist reaction slot, owned identity and react_state3 ACK required. Portable slot/ownership controls and native GDScript syntax pass; fresh BM input/DPS proof pending. Pinned TC Pet/CharmInfo creation chain confirms Passive default and stored-mode restoration, so no server-default change or persistence override.
+## 2026-10-16 — Lifetime honor source boundary
+
+[Honor](systems/battlegrounds.md#lifetime-honor-source-boundary--2026-10-16): pinned concrete world-kill XP plumbing is distinct from spendable1792; no8800 guess, old Prestige curve reinterpretation or quest-to-match payout assignment. Persist/replicate lifetime XP, leave level/fill unknown, preserve source faction art and tooltip. Merged server10/UI4/wire1/check/fmt pass; actual private damage/death0→47→94, both-skin full-HD tooltip, dead replay and fresh-process relog are bounded native proof. Character Currency's absent consumer/UI remains open, not excused by unavailable award policy.
 
 ## 2026-10-16 — Guild news live acceptance
 
