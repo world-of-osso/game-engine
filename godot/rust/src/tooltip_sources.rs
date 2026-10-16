@@ -114,7 +114,9 @@ impl GameClient {
     /// The tooltip of the hovered frame, if it has one.
     pub(crate) fn frame_tooltip(&mut self, hit: &HoveredFrame) -> Option<HoveredTooltip> {
         type Source = fn(&mut GameClient, &HoveredFrame) -> Option<HoveredTooltip>;
-        const SOURCES: [Source; 34] = [
+        const SOURCES: [Source; 36] = [
+            GameClient::trading_post_button_tooltip,
+            GameClient::trading_post_tooltip,
             GameClient::journal_defeated_tooltip,
             GameClient::journal_creature_tooltip,
             GameClient::journal_monthly_tooltip,
@@ -151,6 +153,57 @@ impl GameClient {
             GameClient::hud_frame_tooltip,
         ];
         SOURCES.iter().find_map(|source| source(self, hit))
+    }
+
+    /// PerksProgram button ShowTooltip methods own ANCHOR_LEFT, including disabled controls.
+    fn trading_post_button_tooltip(&mut self, hit: &HoveredFrame) -> Option<HoveredTooltip> {
+        use ui_toolkit::{frame::WidgetData, widgets::button::ButtonState};
+        let ui = hit.ui.bind();
+        let (owner, tooltip) = named_ancestor(ui.registry()?, hit.frame, |frame| {
+            let WidgetData::Button(button) = frame.widget_data.as_ref()? else {
+                return None;
+            };
+            let enabled = button.state != ButtonState::Disabled;
+            self.trading_post
+                .view
+                .button_tooltip(name_of(frame)?, enabled)
+        })?;
+        drop(ui);
+        Some(HoveredTooltip::text(self.owned_by(
+            hit,
+            owner,
+            OwnerSide::Left,
+            tooltip,
+        )?))
+    }
+
+    /// PerksProgramElements.lua306–314: hovered product GetItemByID, no SellPrice.
+    fn trading_post_tooltip(&mut self, hit: &HoveredFrame) -> Option<HoveredTooltip> {
+        let ui = hit.ui.bind();
+        let (owner, product_id) = named_ancestor(ui.registry()?, hit.frame, |frame| {
+            indexed(frame, "PerksProgramProduct")
+        })?;
+        drop(ui);
+        let snapshot = self.trading_post.view.snapshot.as_ref()?;
+        let product = snapshot
+            .items
+            .iter()
+            .find(|row| row.id as usize == product_id)?;
+        let item = named_item_for(
+            shared::item_data::ItemDefinitionSource::Retail,
+            product.item_id,
+            &product.name,
+            product.quality,
+            1,
+            0,
+        );
+        let tooltip = without_sell_price(item_game_tooltip(&item, self.player_level()));
+        let owner_rect = self.owner_rect(&hit.ui, owner)?;
+        Some(HoveredTooltip::text(tooltip.owned_offset(
+            owner_rect,
+            OwnerSide::Right,
+            [-16.0, 0.0],
+        )))
     }
 
     /// Catalog/stored decor and the source open-storage handle use `ANCHOR_RIGHT`.
