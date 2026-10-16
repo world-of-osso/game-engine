@@ -174,6 +174,7 @@ fn title(name: &str, text: &str, x: f32, y: f32, width: f32) -> Element {
 fn roster(session: &GuildRanksSession, shared: &SharedContext) -> Element {
     let mut children = crate::guild_communities::shell(session, shared);
     children.extend(guild_profile(session));
+    children.extend(crate::guild_news::frame(session, shared));
     children.extend(member_menu(session));
     children.extend(crate::guild_member_detail::detail(session));
     rsx! { r#frame { name: {DynName("CommunitiesFrame".into())}, width: 814.0, height: 426.0,
