@@ -1,4 +1,7 @@
 # data/-relative files uploaded for `scripts/depot-build.py --test`; see docs/remote-builds.md.
+# EJ Search templates: generic creature and authored file top border (local CASC334a36cf).
+textures/533888.blp
+textures/374157.blp
 # A7 authentic attachment activation bytes; no remote source access.
 models/1081566.m2
 models/971117.m2
