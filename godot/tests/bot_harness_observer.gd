@@ -37,7 +37,8 @@ func sample() -> void:
         setup_started = true
         prepare_player()
     var target: Dictionary = client.target_state()
-    if talent_status == "observed" and target_attempts < 32 and target.get("target_name", "") != "Training Dummy" and spells.get("spec", 0) == int(OS.get_environment("BOT_HARNESS_SPEC")) and account.get("gameplay_input_allowed", false):
+    var preparation_owns_target := FileAccess.file_exists(output.path_join("native-target-preparation.json"))
+    if not preparation_owns_target and talent_status == "observed" and target_attempts < 32 and target.get("target_name", "") != "Training Dummy" and spells.get("spec", 0) == int(OS.get_environment("BOT_HARNESS_SPEC")) and account.get("gameplay_input_allowed", false):
         target_attempts += 1
         select_nearest()
     var target_position: Array[float] = []
