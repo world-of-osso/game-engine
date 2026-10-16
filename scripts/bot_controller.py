@@ -131,13 +131,22 @@ class PlayerController:
         deadline = time.monotonic() + timeout
         for goal in goals:
             require_point(goal)
+            stuck = 0
             while math.dist(position(), goal) >= .5:
                 if time.monotonic() >= deadline:
                     raise TimeoutError("Authored route exceeded bounded execution time")
                 self.vote_loot()
-                if not observe():
-                    self.step_toward(position(), goal, "authored-leg")
+                if observe():
+                    time.sleep(.1)
+                    continue
+                before = position()
+                self.step_toward(before, goal, "authored-leg")
                 time.sleep(.7)
+                after = position()
+                progressed = math.hypot(after[0] - before[0], after[2] - before[2]) >= .15
+                stuck = 0 if progressed else stuck + 1
+                if stuck >= 8:
+                    raise RuntimeError(f"Physical route blocked at {after}; goal {goal}")
 
     def assist(self, leader_name):
         self.invoke("quest", "interact", "--npc", leader_name)

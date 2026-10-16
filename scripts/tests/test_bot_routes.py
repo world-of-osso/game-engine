@@ -33,6 +33,18 @@ class RouteQueryTests(unittest.TestCase):
                 with self.assertRaisesRegex(ValueError, 'route'):
                     query([0, 0, 0], [21, 0, 0], 'authored-leg')
 
+    def test_blocked_route_fails_at_existing_eight_step_boundary(self):
+        submitted = []
+        def command(*argv):
+            if argv[0] == 'movement':
+                submitted.append(argv)
+            return ''
+        controller = PlayerController(command, None, lambda start, goal, label: [goal], None)
+        with patch('bot_controller.time.sleep'), patch('bot_controller.time.monotonic', side_effect=range(200)):
+            with self.assertRaisesRegex(RuntimeError, 'blocked'):
+                controller.walk_route([[7., 0., 0.]], lambda: [0., 0., 0.], lambda: False, timeout=100)
+        self.assertEqual(len(submitted), 8)
+
     def test_routed_controller_reobserves_and_services_loot_during_busy_ticks(self):
         here = [0., 0., 0.]
         delivered = []
@@ -43,7 +55,7 @@ class RouteQueryTests(unittest.TestCase):
                 return payload
         def command(*argv):
             if argv[0] == 'dump-ui-tree':
-                return '' if delivered else 'GroupLootFrame1GreedButton [Button] visible x=10 y=20 w=30 h=40'
+                return '' if delivered else 'GroupLootFrame1GreedButton [Button] visible DIALOG:2 x=10 y=20 w=30 h=40'
             here[0] += float(argv[3]) * 7
             steps.append(list(here))
             return 'movement acknowledged'
