@@ -144,7 +144,7 @@ fn load_categories(dir: &Path) -> Result<BTreeMap<u32, (String, i32)>, String> {
     Ok(categories)
 }
 
-fn load_outputs(dir: &Path) -> Result<BTreeMap<u32, (u32, u32)>, String> {
+fn load_outputs(dir: &Path) -> Result<BTreeMap<u32, Option<(u32, u32)>>, String> {
     let mut outputs = BTreeMap::new();
     read_rows(
         dir,
@@ -158,7 +158,16 @@ fn load_outputs(dir: &Path) -> Result<BTreeMap<u32, (u32, u32)>, String> {
         ],
         |row| {
             const CREATE_ITEM: u32 = 24;
-            if number(row[1])? != 0 || number(row[2])? != CREATE_ITEM {
+            const CRAFT_ITEM: u32 = 288;
+            if number(row[1])? != 0 {
+                return Ok(());
+            }
+            let effect = number(row[2])?;
+            if effect == CRAFT_ITEM {
+                outputs.insert(number(row[0])?, None);
+                return Ok(());
+            }
+            if effect != CREATE_ITEM {
                 return Ok(());
             }
             let item = number(row[3])?;
@@ -170,7 +179,7 @@ fn load_outputs(dir: &Path) -> Result<BTreeMap<u32, (u32, u32)>, String> {
                 .map_err(|error| format!("SpellEffect points: {error}"))?
                 .round()
                 .max(1.0) as u32;
-            outputs.insert(number(row[0])?, (item, count));
+            outputs.insert(number(row[0])?, Some((item, count)));
             Ok(())
         },
     )?;
@@ -207,7 +216,7 @@ fn load_recipes(
     dir: &Path,
     skills: &BTreeMap<u32, String>,
     categories: &BTreeMap<u32, (String, i32)>,
-    outputs: &BTreeMap<u32, (u32, u32)>,
+    outputs: &BTreeMap<u32, Option<(u32, u32)>>,
     reagents: &BTreeMap<u32, Vec<(u32, u32)>>,
 ) -> Result<Vec<Recipe>, String> {
     let mut recipes = Vec::new();
