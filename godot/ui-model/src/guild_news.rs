@@ -96,11 +96,7 @@ pub fn filters(session: &GuildRanksSession) -> Element {
         let name = format!("GuildNewsFiltersCheck{id}");
         let action = format!("guild:news_filter:{id}");
         let checked = session.news.filters[id];
-        let mut art = rsx! { texture { name: {DynName(format!("{name}Box"))}, texture_fdid: 130755,
-        width: 24.0, height: 24.0, pos_type: "absolute", left: 0.0, top: 0.0 }
-        texture { name: {DynName(format!("{name}Highlight"))}, texture_fdid: 130753,
-        draw_layer: "HIGHLIGHT", blend_mode: "ADD", width: 24.0, height: 24.0,
-        pos_type: "absolute", left: 0.0, top: 0.0 } };
+        let mut art = vec![];
         if checked {
             art.extend(
                 rsx! { texture { name: {DynName(format!("{name}Check"))}, texture_fdid: 130751,
@@ -116,7 +112,8 @@ pub fn filters(session: &GuildRanksSession) -> Element {
         children.extend(
             rsx! { button { name: {DynName(name)}, left: 24.0, top: {40.0 + row as f32 * 24.0},
             width: 24.0, height: 24.0, pos_type: "absolute", button_default_skin: false,
-            onclick: action, {art} } },
+            onclick: action, button_fdid_up: 130755_u32, button_fdid_pressed: 130752_u32,
+            button_fdid_highlight: 130753_u32, {art} } },
         );
     }
     // UIPanelWindows.lua39: left area, no yoffset; native slotL is16,104.
@@ -241,13 +238,7 @@ pub fn entry_text(entry: &shared::protocol::GuildNewsEntry) -> String {
 
 fn entry_row(entry: &shared::protocol::GuildNewsEntry, top: f32) -> Element {
     let name = format!("CommunitiesGuildNewsEntry{}", entry.id);
-    let text = entry_text(entry);
-    let mut art = label(
-        format!("{name}Text"),
-        &text,
-        (24.0, 3.0, 268.0, 12.0),
-        (10.0, "1,1,1,1", "LEFT"),
-    );
+    let mut art = entry_labels(entry, &name);
     if entry.sticky {
         art.extend(cropped(
             format!("{name}Sticky"),
@@ -265,7 +256,45 @@ fn entry_row(entry: &shared::protocol::GuildNewsEntry, top: f32) -> Element {
     }
     let action = format!("guild:news_entry:{}", entry.id);
     rsx! { button { name: {DynName(name)}, left: 0.0, top, width: 300.0, height: 18.0,
-    pos_type: "absolute", button_default_skin: false, onclick: action, {art} } }
+    pos_type: "absolute", button_default_skin: false, onclick: action,
+    button_fdid_highlight: 440557_u32, {art} } }
+}
+
+fn entry_labels(entry: &shared::protocol::GuildNewsEntry, name: &str) -> Element {
+    let text = entry_text(entry);
+    let subject_start = text.find('[').expect("news subject starts with bracket");
+    let (prefix, subject) = text.split_at(subject_start);
+    let (prefix_width, _) = ui_toolkit::text_measure::measure_text(
+        prefix,
+        ui_toolkit::widgets::font_string::GameFont::FrizQuadrata,
+        10.0,
+    )
+    .expect("source news font");
+    let prefix_width = prefix_width.min(268.0);
+    let color = match &entry.kind {
+        shared::protocol::GuildNewsKind::PlayerAchievement { .. } => "1,1,0,1".to_string(),
+        shared::protocol::GuildNewsKind::ItemLooted { item_id, .. }
+        | shared::protocol::GuildNewsKind::ItemCrafted { item_id, .. }
+        | shared::protocol::GuildNewsKind::ItemPurchased { item_id, .. } => {
+            crate::item_catalog::item_catalog_entry(*item_id)
+                .map(|item| crate::merchant_data::quality_color(item.quality))
+                .unwrap_or("1,1,1,1")
+                .to_string()
+        }
+    };
+    let mut out = label(
+        format!("{name}Text"),
+        prefix,
+        (24.0, 3.0, prefix_width, 12.0),
+        (10.0, "1,1,1,1", "LEFT"),
+    );
+    out.extend(label(
+        format!("{name}Subject"),
+        subject,
+        (24.0 + prefix_width, 3.0, 268.0 - prefix_width, 12.0),
+        (10.0, &color, "LEFT"),
+    ));
+    out
 }
 
 // Menus belong outside the scroll viewport so bottom-row actions remain visible.

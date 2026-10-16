@@ -1444,7 +1444,11 @@ fn guild_news_real_entries_filter_sticky_and_late_push_keep_independent_authorit
         session.news.apply(news.clone());
         assert_eq!(
             text(&mounted(&session), "CommunitiesGuildNewsEntry2Text"),
-            "Lena earned the achievement [Level 60]"
+            "Lena earned the achievement "
+        );
+        assert_eq!(
+            text(&mounted(&session), "CommunitiesGuildNewsEntry2Subject"),
+            "[Level 60]"
         );
         session.click("guild:news_filter:2", &Default::default());
         assert!(
