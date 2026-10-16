@@ -197,6 +197,10 @@ fn house_settings_paints_source_header_foliage_and_divider_both_skins() {
 #[test]
 fn house_settings_source_close_button_both_skins() {
     use ui_toolkit::widgets::texture::TextureSource;
+    game_engine_ui_model::paths::set_data_root(
+        std::path::PathBuf::from(env!("CARGO_MANIFEST_DIR")).join("../../data"),
+    )
+    .unwrap();
     for skin in [ActiveSkin::Modern, ActiveSkin::Forever] {
         set_thread_skin(skin);
         for pending in [false, true] {
