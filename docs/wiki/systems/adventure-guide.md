@@ -1,6 +1,12 @@
 # Native Adventure Guide
 
-Verified: 2026-10-15. The [contract](../../specs/adventure-guide.md) owns Retail Mainline behavior; Forever only changes the shared screen's art.
+Verified: 2026-10-16. The [contract](../../specs/adventure-guide.md) owns Retail Mainline behavior; Forever only changes the shared screen's art.
+
+## Raid title glyphs — bounded proof 2026-10-16
+
+The [contract](../../specs/adventure-guide.md#instance-title-difficulty-glyphs) follows Retail `EncounterJournal_SetFlagIcon`'s published-atlas branch, not its older sheet: Heroic15/Mythic16 use `icons_16x16_heroic`/`icons_16x16_mythic`, authored20×20 overrides on FDID7494373. `instance_header` places the icon at INFO+(60,16), the title3px after its right edge and vertically centered; Normal14/Raid Finder17 remove it and restore INFO+(65,20). The290×12 title reservation retains source16px shadowed font with native intrinsic glyph height. No `shouldDisplayDifficulty` eligibility is inferred.
+
+Missing-icon RED→GREEN1/1 covers both skins and exact resolved FDID/crops. Exact engine2f75579c6/server379c2c6b/protocoldc30250/toolkit4de2309 passes physical15→16→14→17 in both skins, including painted glyphs, title16/right3/centerY and plain reset. All six original full-HD PNGs under `/syncthing/AgentShared/2026-10-16/adventure-guide-native/2f75579c6-raid-title/` were individually inspected against XML1611–1624/Lua1261–1270/2429–2443. Private `raid-title-runtime-receipt.json` binds binaries, inherited fixtures, static atlas inputs and PNG hashes. The texture was extracted only into the isolated slot from installed local CASC build334a36cf; canonical publication is separate. Independent source/wiring verification passes. Native logs retain unrelated XWayland/exit resource diagnostics; no clean-shutdown or whole-world certificate. Owned runtimes stopped.
 
 ## Tutorials source presentation — 2026-10-14
 

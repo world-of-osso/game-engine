@@ -1,3 +1,7 @@
+## 2026-10-16 — Adventure Guide raid title glyphs
+
+[Source title glyphs](systems/adventure-guide.md#raid-title-glyphs--bounded-proof-2026-10-16): missing-icon RED→published atlas20px/source16px title, physical15→16→14→17 both-skin native PASS at2f75579c6. Six originals individually inspected; exact private receipt, local-only asset publication requirement and unrelated exit diagnostics retained. No inferred difficulty visibility.
+
 ## 2026-10-15 — Adventure Guide authored creature selection
 
 [Model choices](systems/adventure-guide.md#authored-model-selection--bounded-native-proof-2026-10-15) now select authored names/displays and owner-right description tooltips. Both-skin native47be Helix→Oaf/reset/Nezir passes with M2-camera-rendered heads and the source circle mask. Independent verification caught prior3f static boss-art substitution despite passing corner checks; native RED→GREEN covers the corrected portrait identity. Full-model authored UiModelScene camera remains a named gap.

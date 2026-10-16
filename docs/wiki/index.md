@@ -1,6 +1,8 @@
 - [Clean-room M2 particles](systems/godot-conversion.md#native-m2-particles) — native tails/follow/cubic controls, authored sorting and map-collision births; inherited-scale provenance and explicit lighting, timer/reset, spline-density, target-mask and model-recursion oracle gaps.
 # Wiki Index
 
+- [Raid title glyphs](systems/adventure-guide.md#raid-title-glyphs--bounded-proof-2026-10-16) — published Heroic/Mythic20px atlas flags, source16px title/right3/centerY and Normal/LFR reset; six inspected both-skin native originals, visibility authority excluded.
+
 - [Item Sets source composition](systems/adventure-guide.md#item-sets-source-composition--bounded-proof-2026-10-15) — real pane/rows/icons, independent class/spec filters, class-colour spans and global search;59 focused regressions and fourteen inspected both-skin native originals, with unsupported shared tooltip actions named.
 
 - [Saved boss defeated overlays](systems/adventure-guide.md#saved-boss-defeated-overlays--bounded-proof-2026-10-15) — authoritative sparse DungeonEncounter bits, source icon/gold owner tooltip, real Heroic boss deaths and expiry;49 focused tests and ten inspected actual both-skin native PNGs with per-skin fixture identity.
