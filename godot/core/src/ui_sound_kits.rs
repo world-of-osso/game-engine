@@ -119,6 +119,15 @@ mod tests {
     }
 
     #[test]
+    fn housing_expert_submode_sounds_resolve_the_same_authored_clip_and_gain() {
+        for id in [286137, 304887] {
+            let kit = ui_sound_kit(id).expect("Retail Expert submode sound kit");
+            assert_eq!((kit.volume, kit.file(0)), (0.125_892_53, 6_838_456));
+            assert_eq!(kit.file(1), 6_838_456);
+        }
+    }
+
+    #[test]
     fn merchant_kits_carry_their_soundkit_rows() {
         let open = ui_sound_kit(IG_CHARACTER_INFO_OPEN).unwrap();
         assert_eq!((open.volume, open.file(0)), (0.398_107_17, 567_507));
