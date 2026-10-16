@@ -406,6 +406,51 @@ fn adventure_guide_model_limits_authored_choices_to_nine() {
 }
 
 #[test]
+fn adventure_guide_raid_title_uses_source_difficulty_atlas_and_restores_plain_anchor() {
+    for skin in [ActiveSkin::Modern, ActiveSkin::Forever] {
+        let mut v = view();
+        v.apply("journal:instance:1180").unwrap();
+        for (difficulty, atlas) in [
+            (15, Some("icons_16x16_heroic")),
+            (16, Some("icons_16x16_mythic")),
+            (14, None),
+            (17, None),
+        ] {
+            v.apply(&format!("journal:difficulty:{difficulty}"))
+                .unwrap();
+            let r = render(&v, skin);
+            let left = if let Some(atlas) = atlas {
+                assert_eq!(
+                    rect(&r, "EncounterJournalDifficultyIcon"),
+                    [67., 80., 20., 20.]
+                );
+                let Some(WidgetData::Texture(icon)) =
+                    &frame(&r, "EncounterJournalDifficultyIcon").widget_data
+                else {
+                    panic!("Source raid difficulty icon")
+                };
+                assert_eq!(icon.source, TextureSource::Atlas(atlas.into()));
+                90.
+            } else {
+                assert!(r.get_by_name("EncounterJournalDifficultyIcon").is_none());
+                72.
+            };
+            assert_eq!(
+                rect(&r, "EncounterJournalLeftTitleBounds"),
+                [left, 84., 290., 12.]
+            );
+            let Some(WidgetData::FontString(title)) =
+                &frame(&r, "EncounterJournalLeftTitle").widget_data
+            else {
+                panic!("Source raid instance title")
+            };
+            assert_eq!(title.font_size, 16.);
+            assert_eq!(title.text, "Ny'alotha, the Waking City");
+        }
+    }
+}
+
+#[test]
 fn adventure_guide_item_sets_clamp_stale_scroll_and_reset_class_changes() {
     let mut v = view();
     game_engine_ui_model::item_catalog::wait_for_item_catalog();
