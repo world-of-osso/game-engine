@@ -67,7 +67,7 @@ func produce_news() -> bool:
 			return false
 		await capture("filters")
 		await press("GuildNewsFiltersCheck6")
-		if not await wait_until(func(): return envelope().visible_ids.is_empty(), "purchase category actually hidden"):
+		if not await wait_until(purchases_hidden, "purchase category hidden while genuine achievements remain"): 
 			return false
 		await capture("filtered")
 		await press("GuildNewsFiltersCheck6")
@@ -112,6 +112,15 @@ func produce_news() -> bool:
 		return false
 	if read_json("permission-refusal.json").error != "Permissions" or read_json("privacy.json").error != "NotInGuild":
 		return fail("Missing actual UDP refusal receipts")
+	return true
+
+func purchases_hidden() -> bool:
+	var value := envelope()
+	if value.is_empty() or value.visible_ids.is_empty():
+		return false # Actual Level50 news remains under its separate checked category.
+	for entry in news().entries:
+		if entry.kind.has("ItemPurchased") and int(entry.id) in value.visible_ids:
+			return false
 	return true
 
 func wait_file(filename: String) -> bool:
