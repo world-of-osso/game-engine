@@ -34,20 +34,30 @@ pub fn settings_screen(view: &HousingView) -> Element {
             {background} {header} {decoration} {columns}
             fontstring { name: "HousingSettingsTitle", text: "House Settings", width: 400.0, height: 30.0,
                 pos_type: "absolute", left: 100.0, top: 14.0, font_size: 17.0 }
-            button { name: "HousingSettingsClose", text: "X", width: 32.0, height: 32.0,
-                pos_type: "absolute", left: 564.0, top: 4.0, onclick: "housing:close" }
+            button { name: "HousingSettingsClose", width: 24.0, height: 24.0,
+                pos_type: "absolute", left: 577.0, top: 0.0, frame_level: 510.0,
+                onclick: "housing:close", button_default_skin: false,
+                button_atlas_up: "RedButton-Exit", button_atlas_pressed: "RedButton-exit-pressed",
+                button_atlas_disabled: "RedButton-Exit-Disabled", button_atlas_highlight: "RedButton-Highlight",
+                button_highlight_alpha: "1.0" }
             fontstring { name: "HousingSettingsOwnerLabel", text: "House Owner", width: 200.0, height: 20.0,
                 pos_type: "absolute", left: 46.0, top: 104.0, font_size: 15.0, justify_h: "LEFT" }
             button { name: "HousingSettingsOwner", text: "Owner assignment unavailable", width: 200.0, height: 28.0,
                 pos_type: "absolute", left: 46.0, top: 132.0, disabled: true }
             button { name: "HousingSettingsAbandon", text: "Abandon House", width: 152.0, height: 28.0,
-                pos_type: "absolute", left: 401.0, top: 132.0, disabled: true }
+                pos_type: "absolute", left: 401.0, top: 132.0, disabled: true,
+                button_fdid_up: 130828_u32, button_fdid_pressed: 130825_u32,
+                button_fdid_highlight: 130826_u32, button_fdid_disabled: 130824_u32 }
             fontstring { name: "HousingSettingsUnavailable", text: "Plot / blueprint access and owner assignment are unavailable; Save changes house access only.",
                 width: 508.0, height: 35.0, pos_type: "absolute", left: 46.0, top: 465.0, font_size: 12.0 }
             button { name: "HousingSettingsIgnoreList", text: "Ignore List", width: 152.0, height: 28.0,
-                pos_type: "absolute", left: 46.0, top: 488.0, disabled: true }
+                pos_type: "absolute", left: 46.0, top: 488.0, disabled: true,
+                button_fdid_up: 130828_u32, button_fdid_pressed: 130825_u32,
+                button_fdid_highlight: 130826_u32, button_fdid_disabled: 130824_u32 }
             button { name: "HousingSettingsSave", text: "Save", width: 152.0, height: 28.0,
-                pos_type: "absolute", left: 402.0, top: 488.0, onclick: "housing:settings:save", disabled: save_disabled }
+                pos_type: "absolute", left: 402.0, top: 488.0, onclick: "housing:settings:save", disabled: save_disabled,
+                button_fdid_up: 130828_u32, button_fdid_pressed: 130825_u32,
+                button_fdid_highlight: 130826_u32, button_fdid_disabled: 130824_u32 }
         }
     } }
 }
@@ -147,9 +157,12 @@ fn choice(key: &str, label: &str, checked: bool, disabled: bool, top: f32) -> El
         ));
     }
     let action = format!("housing:settings:toggle:{key}");
-    rsx! { button { name: {DynName(name.clone())}, width: 140.0, height: 30.0,
-        pos_type: "absolute", left: 20.0, top, onclick: action, disabled, button_default_skin: false,
-        {art}
+    rsx! { r#frame { name: {DynName(format!("{name}Row"))}, width: 100.0, height: 30.0,
+        pos_type: "absolute", left: 20.0, top,
+        button { name: {DynName(name.clone())}, width: 30.0, height: 29.0,
+            pos_type: "absolute", left: 0.0, top: 0.5, onclick: action, disabled, button_default_skin: false,
+            {art}
+        }
         fontstring { name: {DynName(format!("{name}Label"))}, text: label, width: 105.0, height: 29.0,
             pos_type: "absolute", left: 35.0, font_size: 13.0, justify_h: "LEFT" }
     } }

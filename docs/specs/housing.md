@@ -92,6 +92,12 @@ Server/wire supports owner-local staged dyes, explicit atomic commit, preserved 
 
 ## HouseSettings access controls
 
+- [x] Each House Access option uses the source noninteractive100×30 row and a30×29 checkbox anchored LEFT at y0.5. Only the checkbox dispatches its existing toggle action; label/row clicks do not toggle. Mode/pending policy, staging reducer and natural-size art remain unchanged; label typography remains separately unqualified.
+
+- [x] Save, Ignore List and Abandon House use their source `UIPanelButtonTemplate` up/down/disabled/highlight sheets with fixed12px caps. Existing152×28 rects/captions/actions and disabled/pending policy remain unchanged; typography and unsupported owner/abandon/ignore workflows are not certified by this art slice.
+
+- [x] Close uses inherited `UIPanelCloseButtonDefaultAnchors`:24×24, TOPRIGHT(+1,0), frameLevel510; source RedButton normal/pressed/disabled art and full-alpha ADD highlight, without a text glyph/default skin. `HousingSettingsClose`/`housing:close` remain enabled while a request is pending; unrelated panel controls/backend behavior stay unchanged.
+
 - [x] The existing600×550 House Settings panel paints its source400×80 Header gradient at100,0, natural-size left foliage at6,7 and550×1 owner/access divider at25,174. XML Header/PlantDecoLeft/Spacer own these decorations; title/control layout and actions remain unchanged. Regression: `house_settings_paints_source_header_foliage_and_divider_both_skins`; [implementation/proof](../wiki/systems/housing.md#housesettings-decorative-regions--2026-10-16).
 
 - [x] House Access uses inherited122×25 WowStyle2 dropdown states, centered source caption and MenuStyle1 three ordinary20px buttons (Anyone/No One/Limited), anchored directly below the owner with minimum owner width. Pending disables dispatch. XML4–32 and Lua234–244 own presentation; other unavailable columns/owner remain unchanged. Regression: `housing_settings_fidelity`; native fixture: `house_access_fidelity.gd`. [Implementation/proof boundary](../wiki/systems/housing.md#house-access-dropdown--2026-10-16).
@@ -191,6 +197,12 @@ Use the source75px category rail,64px roots and54px subcategories. A category wi
 Storage uses the maintained `WowStyle1FilterDropdownTemplate` with `resizeToText=false`, not separate default Filter/X buttons. Source Filters frame anchors LEFT to SearchBox RIGHT+10 and RIGHT to drawer RIGHT−25, height20 centered on search: width125/top25 at a600px drawer. Shared Filter surface displays open/closed state; its23×23 `UIResetButtonTemplate` anchors centered on TOPRIGHT−3 and appears only when the existing supported Dyeable filter differs from default. Actual Filter/Reset actions, filter data, popup contents, quantities and authority remain unchanged; broader popup/template/semantics parity is separate.
 
 Sources: `Blizzard_HousingCatalogFilters.xml` FilterDropdown, `.lua` SetIsDefaultCallback/SetDefaultCallback, `Blizzard_HouseEditorStorageFrame.xml` Filters anchors and shared MenuTemplates. Native missing-painted-source-surface RED→both-skin four-phase assertions GREEN: source geometry on the existing resized725px drawer, actual closed/open artwork, Dyeable/reset visibility and physical paid-Tesla restoration without changed confirmed decor/storage. Functional1280 captures do not establish popup/full-image/full-HD parity. Forever's final structured receipt was truncated after three complete records; final reset/conservation assertions and saved screenshot passed. Original artifact and recovered complete prefix remain separate; no fourth record is reconstructed.
+
+## Storage filter popup composition
+
+Basic storage Filter uses the maintained Retail menu compositor, not a stretched fixed background and hand-positioned default rows. Root TOPLEFT anchors to Filter BOTTOMLEFT(+6,+2), uses minimum owner width125 and source20px rows/8px inset/15px bottom/13px dividers. Supported description: Sort By submenu, divider, Dyeable Only checkbox, disabled Placeable submenu, divider before unavailable tag groups. Sort popup anchors TOPLEFT to its row TOPRIGHT, content-fits Date Added/Alphabetical radio labels and has63px height. Date Added stays disabled without authenticated acquisition dates; location/tag/collection semantics remain unavailable. No invented diagnostic captions or literal `>` substitute for source submenu arrow art. Existing actions/reset/sort policy and paid authority are unchanged; hover-open/auto-dismiss lifecycle is separate.
+
+Sources: HousingCatalogFilters.lua SetupMenu; Mainline/MenuTemplates.xml Filter6/2; Menu.lua GenerateSubmenuInternal; installed70391 GlobalStrings55017/56152/56153/57903/57904. Actual native old-popup geometry RED→both-skin four-phase native GREEN: root owner+6/2/min125×109, content-fit103×63 Sort at its row TOPRIGHT, disabled Placeable/Date Added, physical Alphabetical/Dyeable/reset and exact paid decor/storage conservation. Functional1280 captures qualify popup composition only; hover-open/auto-dismiss, unavailable semantics and full-image/full-HD parity remain separate.
 
 ## Editor control tooltips
 
