@@ -1,6 +1,6 @@
 ## 2026-10-15 — Trading Post menu lifecycle sound implementation
 
-[Menu sounds](systems/trading-post.md#menu-lifecycle-sounds--implementation-october15-proof-pending): actual projected-UI visibility edges route source open/close kits through existing decoded UI playback; five/ten70391 variants and source gains. Core2 missing-kit RED and compatible native missing-open-call RED observed; GREEN/assets pending. Close pitch is a named gap, not an added pitch path; Rank3 framing remains separately unlanded.
+[Menu sounds](systems/trading-post.md#menu-lifecycle-sounds--bounded-proof-october15): core2 missing-kit and actual native missing-call RED→GREEN. Both skins at67b1a92eb/231c68dc/4930acb observe eight real decoded playback/finished events, source gain ratio, no replay during idle/closed updates, Leave/reopen/Escape. Eight inspected full-HD PNGs+two contacts published;15 local70391 Vorbis variants authenticated. Canonical publication pending; close pitch named gap/no pitch path, Rank3 separately unlanded.
 
 ## 2026-10-15 — Authored talent Starter selection
 
