@@ -31,28 +31,22 @@ func run_fixture() -> void:
 		return
 	var parent: Node3D = loaded.node
 	root.add_child(parent)
-	var child_data: Dictionary = loader.load_m2_with_skin_fdids("res://../data/models/126487.m2", PackedInt64Array([126494, 126495, 0]))
-	if child_data.has("error"):
-		stop_failure("animated child: " + child_data.error)
-		return
 	var point := parent.get_node("Skeleton3D/AttachmentBone0/Attachment0")
-	var child: Node3D = child_data.node
-	point.add_child(child)
-	# Exercise an actual equipped native item, loaded through the production player path.
+	# HumanMaleHD contains the authored $SCD marker used by the callback regression.
+	# Its actual equipment stays on the production-selected hand attachment.
 	var equipped: Dictionary = loader.load_player(1, 0, 1, [{"slot": "MainHand", "item_id": 25, "inventory_type": 21}])
 	if equipped.has("error"):
 		stop_failure("native equipped item: " + equipped.error)
 		return
-	var character: Node3D = equipped.node
-	root.add_child(character)
-	var item := character.find_child("EquipmentMainHand", true, false) as Node3D
+	var child: Node3D = equipped.node
+	point.add_child(child)
+	var item := child.find_child("EquipmentMainHand", true, false) as Node3D
 	if item == null:
 		stop_failure("actual EquipmentMainHand missing")
 		return
 	var identity := item.get_instance_id()
-	item.reparent(point, false)
+	var item_parent := item.get_parent()
 	freeze_processes(parent)
-	freeze_processes(character)
 	var parent_player: Node = parent.get_node("M2Animation")
 	var child_player: Node = child.get_node("M2Animation")
 	var skeleton := child.get_node("Skeleton3D") as Skeleton3D
@@ -78,12 +72,14 @@ func run_fixture() -> void:
 		records.append({"parent_ms": time, "active": eligible, "pose_changed": changed,
 			"child_ms": child_player.animation_phase().time_ms,
 			"shadow": geometry[0].cast_shadow, "color_visible": item.is_visible_in_tree(),
-			"same_identity": item.get_instance_id() == identity and item.get_parent() == point})
+			"same_identity": item.get_instance_id() == identity and item.get_parent() == item_parent,
+			"missing_control": parent.get_node("Skeleton3D/AttachmentBone15/Attachment15").get_meta("m2_attachment_active", true),
+			"constant_control": parent.get_node("Skeleton3D/AttachmentBone16/Attachment16").get_meta("m2_attachment_active", true)})
 	print("A7_NATIVE_MEASURE ", JSON.stringify(records))
 	for index in records.size():
 		var active: bool = index < 2 or index == 4
 		var record: Dictionary = records[index]
-		if record.active != active or not record.same_identity or not record.color_visible:
+		if record.active != active or not record.same_identity or not record.color_visible or not record.missing_control or not record.constant_control:
 			stop_failure("attachment participation/identity/color at %s" % record)
 			return
 		if record.shadow != (GeometryInstance3D.SHADOW_CASTING_SETTING_DOUBLE_SIDED if active else GeometryInstance3D.SHADOW_CASTING_SETTING_OFF):
@@ -96,8 +92,12 @@ func run_fixture() -> void:
 			stop_failure("existing native child clock changed: %s" % record)
 			return
 	# Sequence1 stays active; switching away from inactive keys must refresh immediately.
+	parent_player.play_sequence(1, true)
 	parent_player.play_sequence(0, true)
 	parent_player.advance_time_ms(100.0)
+	if point.get_meta("m2_attachment_active", true):
+		stop_failure("sequence-switch precondition did not reach inactive100ms")
+		return
 	parent_player.play_sequence(1, true)
 	if not point.get_meta("m2_attachment_active", true):
 		stop_failure("sequence switch retained inactive state")
