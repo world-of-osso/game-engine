@@ -661,10 +661,7 @@ fn pet_ready_buttons_project_source_panel_sheets_without_changing_input_or_geome
                     Some(TextureSource::FileDataId(130824))
                 );
                 assert_eq!(button.state == ButtonState::Disabled, pending);
-                assert_eq!(
-                    registry.click_frame(id),
-                    if pending { None } else { Some(action.into()) }
-                );
+                assert_eq!(frame.onclick.as_deref(), Some(action));
             }
         }
     }
