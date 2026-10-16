@@ -535,7 +535,7 @@ fn assert_storage_filter_popup(registry: &FrameRegistry) {
     );
     assert!(
         matches!(&frame("HouseEditorStorageLocationUnavailable").widget_data,
-        Some(WidgetData::Button(button)) if !button.enabled)
+        Some(WidgetData::Button(button)) if button.state == ui_toolkit::widgets::button::ButtonState::Disabled)
     );
 }
 
