@@ -11,15 +11,30 @@ use glam::{Mat3, Mat4, Vec2, Vec3, Vec4};
 use crate::asset::m2_format::m2_anim;
 use crate::m2::{AnimTime, ParticleEmitter};
 
+#[path = "m2_particle_spline.rs"]
+mod spline;
+
+const FLAG_SORT_DEPTH: u32 = 0x2;
 const FLAG_VELOCITY_ORIENTED: u32 = 0x4;
 const FLAG_MODEL_SPACE: u32 = 0x10;
 const FLAG_INHERIT_SCALE: u32 = 0x20;
+const FLAG_FOLLOW_POSITION: u32 = 0x4000;
+const FLAG_PROJECT_GROUND: u32 = 0x2000;
+/// Supplied clean-room P7: map intersection is a twenty-yard downward segment.
+const GROUND_PROJECTION_DISTANCE: f32 = 20.0;
+/// World-space segment intersection; None is an actual miss, never a scalar floor.
+pub type GroundQuery<'a> = dyn FnMut(Vec3, Vec3) -> Option<Vec3> + 'a;
 const FLAG_SPHERE_IMPLODE: u32 = 0x80;
 const FLAG_SPHERE_UP: u32 = 0x100;
 const FLAG_SPIN_FLIP: u32 = 0x200;
 const FLAG_LOCAL_ORIENTATION: u32 = 0x1000;
 const FLAG_RANDOM_CELL: u32 = 0x1_0000;
 const FLAG_HEAD: u32 = 0x2_0000;
+const FLAG_TAIL: u32 = 0x4_0000;
+const FLAG_TAIL_AGE_CLAMP: u32 = 0x400;
+// WebWowViewerCpp buildVertex2: projected trail degeneracy and tiny-quad scale.
+const TAIL_PROJECTED_LENGTH_SQUARED: f32 = 0.0001;
+const TAIL_DEGENERATE_SCALE: f32 = 0.05;
 const FLAG_SCALE_VARY_2D: u32 = 0x8_0000;
 /// Non-multitexture screen-space displacement (WWV particle type 3 / shaderId5).
 const FLAG_REFRACTION: u32 = 0x0010_0000;
@@ -121,14 +136,15 @@ impl Rng {
 pub enum ParticleShape {
     Plane,
     Sphere,
+    Spline,
 }
 
-/// `CPlaneGenerator` for type 1, `CSphereGenerator` for 2; spline (3) and others are
-/// not simulated (`particleEmitter.cpp:128-149`).
+/// Authored generator type; spline admission requires complete cubic controls.
 pub fn shape(emitter: &ParticleEmitter) -> Option<ParticleShape> {
     match emitter.emitter_type {
         1 => Some(ParticleShape::Plane),
         2 => Some(ParticleShape::Sphere),
+        3 if spline::valid_controls(&emitter.spline_points) => Some(ParticleShape::Spline),
         _ => None,
     }
 }
@@ -381,7 +397,7 @@ pub struct Quad {
     pub axis_y: Vec3,
     /// Authored-space (gamma) RGB and opacity.
     pub color: Vec4,
-    /// Atlas offset of the head cell, in UV units.
+    /// Atlas offset of the head or tail cell, in UV units.
     pub cell_offset: Vec2,
     /// UV offsets of multitexture layers 1 and 2.
     pub tex_pos: [Vec2; 2],
@@ -399,6 +415,7 @@ pub struct EmitterSim {
     props: GeneratorProps,
     /// `enabledIn` at that time.
     enabled: bool,
+    spline: Option<spline::Spline>,
 }
 
 /// The generator's animated values (`CGeneratorAniProp`); gravity in WoW axes.
@@ -480,6 +497,7 @@ impl EmitterSim {
             emitter_to_world: Mat4::IDENTITY,
             props: GeneratorProps::authored(emitter),
             enabled: true,
+            spline: spline::Spline::new(&emitter.spline_points),
         }
     }
 
@@ -520,11 +538,15 @@ impl EmitterSim {
         emitter_to_world: Mat4,
         wow_to_world: Mat3,
         density: f32,
+        ground: &mut GroundQuery<'_>,
     ) {
         if shape(emitter).is_none() || !(dt > 0.0) {
             return;
         }
+        let previous = self.emitter_to_world.w_axis.truncate();
         self.emitter_to_world = emitter_to_world;
+        let displacement = emitter_to_world.w_axis.truncate() - previous;
+        let follow = follow_displacement(emitter, displacement, dt);
         let mut remainder = dt;
         if dt >= STEP_SECONDS {
             let whole = (dt / STEP_SECONDS).floor();
@@ -534,14 +556,36 @@ impl EmitterSim {
                 .min(whole)
                 .max(0.0) as usize;
             for _ in 0..steps {
-                self.step(emitter, STEP_SECONDS, wow_to_world, density);
+                self.step(
+                    emitter,
+                    STEP_SECONDS,
+                    wow_to_world,
+                    density,
+                    follow * (STEP_SECONDS / dt),
+                    ground,
+                );
             }
         }
-        self.step(emitter, remainder, wow_to_world, density);
+        self.step(
+            emitter,
+            remainder,
+            wow_to_world,
+            density,
+            follow * (remainder / dt),
+            ground,
+        );
     }
 
     /// `ParticleEmitter::StepUpdate`: age and retire, emit, then move every particle.
-    fn step(&mut self, emitter: &ParticleEmitter, dt: f32, wow_to_world: Mat3, density: f32) {
+    fn step(
+        &mut self,
+        emitter: &ParticleEmitter,
+        dt: f32,
+        wow_to_world: Mat3,
+        density: f32,
+        follow: Vec3,
+        ground: &mut GroundQuery<'_>,
+    ) {
         if dt < 0.0 {
             return;
         }
@@ -561,7 +605,7 @@ impl EmitterSim {
         };
         let gravity = to_sim(self.props.gravity);
         let wind = to_sim(emitter.wind_vector);
-        self.emit(emitter, dt, density);
+        self.emit(emitter, dt, density, wow_to_world * Vec3::Z, ground);
         let center = if model_space {
             Vec3::ZERO
         } else {
@@ -581,6 +625,10 @@ impl EmitterSim {
             if particle.age < emitter.wind_time {
                 particle.velocity += wind * dt;
             }
+            // Age has already advanced; births are too young for this carry.
+            if particle.age > 2.0 * dt {
+                particle.position += follow;
+            }
             let step = particle.velocity * dt;
             (particle.position, particle.velocity) = integrate_particle(
                 particle.position,
@@ -595,7 +643,14 @@ impl EmitterSim {
 
     /// `EmitNewParticles`: rate (+ variation) x density accumulates; each whole
     /// particle spawns while the pool has room.
-    fn emit(&mut self, emitter: &ParticleEmitter, dt: f32, density: f32) {
+    fn emit(
+        &mut self,
+        emitter: &ParticleEmitter,
+        dt: f32,
+        density: f32,
+        up: Vec3,
+        ground: &mut GroundQuery<'_>,
+    ) {
         if !self.enabled {
             return;
         }
@@ -605,7 +660,8 @@ impl EmitterSim {
         self.emission += dt * rate;
         while self.emission > 1.0 {
             if self.particles.len() < self.capacity {
-                let particle = self.spawn(emitter, dt);
+                let mut particle = self.spawn(emitter, dt);
+                project_birth(emitter, &mut particle, self.props.lifespan, up, ground);
                 self.particles.push(particle);
             }
             self.emission -= 1.0;
@@ -623,6 +679,11 @@ impl EmitterSim {
         let seed = rng.next_u32() as u16;
         let (position, velocity) = match shape(emitter) {
             Some(ParticleShape::Plane) => spawn_plane(props, rng),
+            Some(ParticleShape::Spline) => self
+                .spline
+                .as_mut()
+                .expect("admitted spline controls")
+                .spawn(props, rng),
             _ => spawn_sphere(emitter, props, rng),
         };
         let (position, velocity) = if emitter.flags & FLAG_MODEL_SPACE == 0 {
@@ -644,19 +705,88 @@ impl EmitterSim {
         }
     }
 
-    /// Visible particles as world-space quads (`prepearAndUpdateBuffers`,
-    /// `buildVertex1`): head quads only, twinkle-culled.
+    /// Maximum drawable quads, independent head and tail styles sharing a particle.
+    pub fn quad_capacity(&self, emitter: &ParticleEmitter) -> usize {
+        let styles = usize::from(emitter.flags & FLAG_HEAD != 0)
+            + usize::from(emitter.flags & FLAG_TAIL != 0);
+        self.capacity * styles
+    }
+
+    /// Visible world-space heads and tails, sharing lifetime appearance and twinkle.
     pub fn quads(&self, emitter: &ParticleEmitter, view: &ViewBasis, out: &mut Vec<Quad>) {
-        if emitter.flags & FLAG_HEAD == 0 {
-            return;
-        }
         let max_life = max_lifespan(emitter, self.props.lifespan);
-        out.extend(
-            self.particles
-                .iter()
-                .filter(|particle| particle.age <= max_life)
-                .filter_map(|particle| self.quad(emitter, particle, view)),
-        );
+        let live = self.particles.iter().filter(|p| p.age <= max_life);
+        if emitter.flags & FLAG_SORT_DEPTH != 0 {
+            let mut ordered: Vec<_> = live
+                .map(|particle| {
+                    let center = if emitter.flags & FLAG_MODEL_SPACE != 0 {
+                        self.emitter_to_world.transform_point3(particle.position)
+                    } else {
+                        particle.position
+                    };
+                    (particle, center.dot(view.back))
+                })
+                .collect();
+            // back points toward the camera: smaller dot products are farther.
+            ordered.sort_by(|a, b| a.1.total_cmp(&b.1));
+            for (particle, _) in ordered {
+                self.append_particle_quads(emitter, particle, view, out);
+            }
+        } else {
+            for particle in live {
+                self.append_particle_quads(emitter, particle, view, out);
+            }
+        }
+    }
+
+    fn append_particle_quads(
+        &self,
+        emitter: &ParticleEmitter,
+        particle: &Particle,
+        view: &ViewBasis,
+        out: &mut Vec<Quad>,
+    ) {
+        let Some((head, scale)) = self.quad(emitter, particle, view) else {
+            return;
+        };
+        if emitter.flags & FLAG_HEAD != 0 {
+            out.push(head);
+        }
+        if emitter.flags & FLAG_TAIL != 0 {
+            out.push(self.tail_quad(emitter, particle, view, (head, scale)));
+        }
+    }
+
+    /// WWV buildVertex2: tailLength is a duration, not a normalized trail distance.
+    fn tail_quad(
+        &self,
+        emitter: &ParticleEmitter,
+        particle: &Particle,
+        view: &ViewBasis,
+        geometry: (Quad, Vec2),
+    ) -> Quad {
+        let (mut quad, scale) = geometry;
+        let velocity = if emitter.flags & FLAG_MODEL_SPACE != 0 {
+            self.emitter_to_world.transform_vector3(particle.velocity)
+        } else {
+            particle.velocity
+        };
+        let duration = if emitter.flags & FLAG_TAIL_AGE_CLAMP != 0 {
+            emitter.tail_length.min(particle.age)
+        } else {
+            emitter.tail_length
+        };
+        let (offset, width) = tail_axes(-velocity * duration, scale, view);
+        let projected = Vec2::new(velocity.dot(view.right), velocity.dot(view.up)) * duration;
+        if projected.length_squared() > TAIL_PROJECTED_LENGTH_SQUARED {
+            quad.center += offset;
+        }
+        quad.axis_x = offset;
+        quad.axis_y = width;
+        let time = particle.age / max_lifespan(emitter, self.props.lifespan);
+        let cell = tail_cell(emitter, time, particle.seed);
+        quad.cell_offset = atlas_offset(emitter, u32::from(cell));
+        quad
     }
 
     fn quad(
@@ -664,7 +794,7 @@ impl EmitterSim {
         emitter: &ParticleEmitter,
         particle: &Particle,
         view: &ViewBasis,
-    ) -> Option<Quad> {
+    ) -> Option<(Quad, Vec2)> {
         let twinkle = twinkle_scale(emitter, particle.age, particle.seed)?;
         let matrix = self.emitter_to_world;
         let look = appearance(emitter, self.props.lifespan, particle.age, particle.seed);
@@ -681,20 +811,75 @@ impl EmitterSim {
             (particle.position, particle.velocity)
         };
         let (axis_x, axis_y) = quad_axes(emitter, particle, matrix, velocity, scale, view);
-        let cols = u32::from(emitter.tile_cols.max(1));
-        let rows = u32::from(emitter.tile_rows.max(1));
-        Some(Quad {
-            center,
-            axis_x,
-            axis_y,
-            color: look.color.extend(look.alpha),
-            cell_offset: Vec2::new(
-                (look.head_cell % cols) as f32 / cols as f32,
-                (look.head_cell / cols % rows) as f32 / rows as f32,
-            ),
-            tex_pos: particle.tex_pos,
-        })
+        Some((
+            Quad {
+                center,
+                axis_x,
+                axis_y,
+                color: look.color.extend(look.alpha),
+                cell_offset: atlas_offset(emitter, look.head_cell),
+                tex_pos: particle.tex_pos,
+            },
+            scale,
+        ))
     }
+}
+
+/// World-space plane/sphere births only, before their first ballistic step.
+fn project_birth(
+    emitter: &ParticleEmitter,
+    particle: &mut Particle,
+    lifespan: f32,
+    up: Vec3,
+    ground: &mut GroundQuery<'_>,
+) {
+    let world_projection =
+        emitter.flags & (FLAG_PROJECT_GROUND | FLAG_MODEL_SPACE) == FLAG_PROJECT_GROUND;
+    let supported = matches!(
+        shape(emitter),
+        Some(ParticleShape::Plane | ParticleShape::Sphere)
+    );
+    if !world_projection || !supported {
+        return;
+    }
+    let end = particle.position - up * GROUND_PROJECTION_DISTANCE;
+    if let Some(hit) = ground(particle.position, end) {
+        let scale = appearance(emitter, lifespan, particle.age, particle.seed).scale;
+        particle.position = hit + up * scale.max_element();
+    }
+}
+
+fn atlas_offset(emitter: &ParticleEmitter, cell: u32) -> Vec2 {
+    let cols = u32::from(emitter.tile_cols.max(1));
+    let rows = u32::from(emitter.tile_rows.max(1));
+    Vec2::new(
+        (cell % cols) as f32 / cols as f32,
+        (cell / cols % rows) as f32 / rows as f32,
+    )
+}
+
+fn tail_cell(emitter: &ParticleEmitter, time: f32, seed: u16) -> u16 {
+    let default_cell = if emitter.flags & FLAG_RANDOM_CELL != 0 {
+        let cells = u32::from(emitter.tile_cols.max(1)) * u32::from(emitter.tile_rows.max(1));
+        let random = Rng::new(u32::from(seed)).next_u32();
+        ((u64::from(cells) * u64::from(random)) >> 32) as u16
+    } else {
+        0
+    };
+    sample_keys(&emitter.tail_cell_keys, time, default_cell)
+}
+
+/// Authored follow curve in speed (yd/s); independent of birth velocity.
+fn follow_displacement(emitter: &ParticleEmitter, displacement: Vec3, dt: f32) -> Vec3 {
+    let enabled = emitter.flags & FLAG_FOLLOW_POSITION != 0;
+    let speed_range = emitter.follow_speed2 - emitter.follow_speed1;
+    if !enabled || speed_range == 0.0 {
+        return Vec3::ZERO;
+    }
+    let slope = (emitter.follow_scale2 - emitter.follow_scale1) / speed_range;
+    let speed = displacement.length() / dt;
+    let factor = emitter.follow_scale1 + (speed - emitter.follow_speed1) * slope;
+    displacement * factor.clamp(0.0, 1.0)
 }
 
 /// Multitexture layer 1 and 2 UV offsets and scroll velocities (`CreateParticle`).
@@ -784,6 +969,20 @@ fn spin(emitter: &ParticleEmitter, seed: u16) -> (f32, f32) {
         emitter.spin + rand.uniform() * emitter.spin_variation
     };
     (base, speed)
+}
+
+/// Tail half-axes; near-view-parallel velocity uses WWV's finite tiny quad.
+fn tail_axes(back: Vec3, scale: Vec2, view: &ViewBasis) -> (Vec3, Vec3) {
+    let projected = Vec2::new(back.dot(view.right), back.dot(view.up));
+    if projected.length_squared() <= TAIL_PROJECTED_LENGTH_SQUARED {
+        return (
+            view.right * scale.x * TAIL_DEGENERATE_SCALE,
+            view.up * scale.y * TAIL_DEGENERATE_SCALE,
+        );
+    }
+    let screen = projected.normalize() * scale;
+    let width = -view.right * screen.y + view.up * screen.x;
+    (back * 0.5, width)
 }
 
 /// Screen-space velocity streak: x along -velocity, y perpendicular on screen.
