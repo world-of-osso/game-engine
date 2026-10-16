@@ -349,12 +349,14 @@ fn entry_menu(
             action: "guild:news_sticky",
         });
     }
+    let text = entry_text(entry);
+    let subject = &text[text.find('[').expect("news subject bracket")..];
     context_menu(ContextMenu {
         frame_name: "GuildNewsMenu",
         title_name: "GuildNewsMenuTitle",
         divider_name: "GuildNewsMenuDivider",
         hidden: false,
-        title: &entry_text(entry),
+        title: subject,
         width: 240.0,
         x: 24.0,
         y: top + 18.0,
