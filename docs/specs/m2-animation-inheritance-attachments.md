@@ -13,10 +13,10 @@ Authored M2 bone-parent selection and attachment participation follow the user-s
 - [x] Render an authentic low-bit model before/after at1920×1080 in m2debug.
 
 ### A7
-- [ ] Retain MD20 and SKA1 attachment byte tracks, defaulting missing samples to active1.
-- [ ] Sample current parent sequence/local or global timeline; preserve attachment lookup identity and ownership.
-- [ ] Gate attached-child animation evaluation, callbacks and shadow participation across active0→inactive100→active200ms, sequence switches and always-active/missing controls.
-- [ ] Exercise native equipment/spell attachment, not parser retention alone.
+- [x] Retain MD20 and SKA1 attachment byte tracks, defaulting missing samples to active1.
+- [x] Sample current parent sequence/local or global timeline; preserve attachment lookup identity and ownership.
+- [x] Gate attached-child animation evaluation, callbacks and shadow participation across active0→inactive100→active200ms, sequence switches and always-active/missing controls.
+- [x] Exercise native equipment/spell attachment, not parser retention alone.
 
 ## How it works
 
@@ -44,10 +44,10 @@ Authored M2 bone-parent selection and attachment participation follow the user-s
 
 - [ ] A6 runtime-added flags/modern contracts: no allowed-source evidence established. Only authored low bits are implemented.
 - [ ] A6 nonuniform/sheared native palette fixture remains unmeasured. Parent-selection CPU3 and native root/descendant1 pass. Authentic125913 same-clock m2debug native run passes; PNGs inspected at `/syncthing/AgentShared/2026-10-15/m2-anim/a6-125913-{before,after}.png`. Baseline clears affine overrides in the same binary; it is not an old-revision executable. Bone67 keeps its transformed pivot while its inherited tilted basis becomes identity.
-- [ ] A7 GREEN/native acceptance pending. RED parser discarded truncated track; native RED at100/199ms still sampled bones and retained double-sided shadows. Native marker RED delivered `$SCD` while inactive.
+- Native/CPU acceptance at8a1afc3b0: filtered native animation83, attachment parser7, inheritance3, format check pass; no Rust compile warnings. Native solar-spell→HumanMaleHD→original authored item25 hand point passes at0/99/100/199/200ms: eligibility/pose-write/shadow follows1/1/0/0/1; missing/constant controls remain active, item identity/owner/visibility stay unchanged, exact original shadow mode2 restores. Sequence switch first asserts inactive100ms, then active sequence1. Actual `$SCD` dispatch suppression/no replay is CPU evidence; native fixture observes callback eligibility, not audible voice dispatch.
 - [ ] External attachment-key storage/chunk association is not established here; parser currently reads activation elements from their containing MD20/SKA1 blob. No external attachment-chunk tag semantics are invented.
-- [ ] Native child material/particle/ribbon clocks remain their existing separate systems; no additional evaluation/clock parity claim.
-- [ ] A7 color-pass behavior: activation alone does not establish hiding; do not change color visibility without evidence.
+- [ ] Native child material/particle/ribbon clocks remain their existing separate systems; no additional evaluation/clock parity claim. The established native gate covers skeletal pose evaluation, reported action callbacks and recursive geometry shadow participation.
+- [ ] A7 reference-client color-pass behavior: activation alone does not establish hiding. Native visibility-state measurements stay true; no reference-client raster measurement or universal hiding rule is claimed.
 - [ ] A7 reactivation clock: reference skip alone establishes neither freeze nor catch-up. Native pre-change measurement advances child20/40/60/80/100ms across parent0/99/100/199/200ms; this existing clock policy is preserved while suppressing pose writes/callbacks. Neither clock policy is claimed as reference-client parity.
 
 ## Out of scope
