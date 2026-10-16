@@ -164,8 +164,11 @@ func check_arrival_and_reward() -> bool:
 	if control("MinimapWorldQuest%s" % TASK) == null or control("WorldQuest%sProgressLabel" % TASK) != null or control("MinimapQuestObjective%s" % TASK) != null:
 		stop("Missing unnumbered task marker or invented counted bar/duplicate POI")
 		return false
-	if not await capture_phase("minimap-arrived") or not await teleport(-4863.23,-4445.91,311.):
+	if not await capture_phase("minimap-arrived"):
 		return false
+	# Keep authored actors in place; remote administrator Damage is controlled proof,
+	# not natural combat. Approaching their southern spawn also wakes Deathwing's
+	# authentic addon83508 -> Molten Flame94644 instakill hazard (400yd).
 	for count in 7:
 		if not await kill_authored_elemental():
 			return false
