@@ -1733,22 +1733,19 @@ impl WorldUnits {
 
     /// The input mover is the source NPC only while its controlling seat is owned.
     pub fn local_mover_id(&self) -> Option<u64> {
-        let player = self.local_player_id?;
-        let rider = self.units.get(&player)?;
-        if rider.driver_movement.is_some()
-            && rider
-                .motion
-                .control
-                .is_some_and(|control| control.controlled)
-            && let Some(passenger) = &rider.passenger
-            && self
-                .units
-                .get(&passenger.state.driver)
-                .is_some_and(|unit| !unit.is_player)
-        {
-            return Some(passenger.state.driver);
+        self.local_vehicle_id().or(self.local_player_id)
+    }
+
+    fn local_vehicle_id(&self) -> Option<u64> {
+        let rider = self.units.get(&self.local_player_id?)?;
+        rider.driver_movement?;
+        let control = rider.motion.control?;
+        if !control.controlled {
+            return None;
         }
-        Some(player)
+        let passenger = rider.passenger.as_ref()?;
+        let host = self.units.get(&passenger.state.driver)?;
+        (!host.is_player).then_some(passenger.state.driver)
     }
 
     pub fn local_mover_node(&self) -> Option<Gd<Node3D>> {
@@ -1766,9 +1763,7 @@ impl WorldUnits {
     }
 
     pub fn local_vehicle_movement(&self) -> Option<shared::components::VehicleDriverMovement> {
-        if self.local_mover_id() == self.local_player_id {
-            return None;
-        }
+        self.local_vehicle_id()?;
         self.units.get(&self.local_player_id?)?.driver_movement
     }
 
