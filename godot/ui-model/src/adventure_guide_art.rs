@@ -589,13 +589,13 @@ pub fn boss_row(view: &View, encounter: &Encounter, index: usize) -> Element {
 }
 
 /// XML1611–1624 / EJ.lua1189–1196,1261–1270; SetFlagIcon selects published atlases.
-pub(crate) fn instance_header(view: &View, instance: &Instance) -> Element {
-    let atlas = match view.difficulty {
+fn difficulty_glyph(difficulty: u32) -> (Element, f32, f32) {
+    let atlas = match difficulty {
         15 => Some("icons_16x16_heroic"),
         16 => Some("icons_16x16_mythic"),
         _ => None,
     };
-    let (mut content, left, top) = if let Some(atlas) = atlas {
+    if let Some(atlas) = atlas {
         let (width, height) =
             crate::inworld_unit_frames_component::inworld_unit_frames_art::atlas_size(
                 atlas,
@@ -614,7 +614,11 @@ pub(crate) fn instance_header(view: &View, instance: &Instance) -> Element {
         )
     } else {
         (vec![], INFO.0 + 65., INFO.1 + 20.)
-    };
+    }
+}
+
+pub(crate) fn instance_header(view: &View, instance: &Instance) -> Element {
+    let (mut content, left, top) = difficulty_glyph(view.difficulty);
     // Preserve the source12px FontString rectangle; center the native intrinsic glyph height.
     content.extend(rsx! {
         frame {
