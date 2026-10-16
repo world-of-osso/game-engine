@@ -1,6 +1,6 @@
 //! Supplied money/item rows through production projection/input; no loot/server mutation.
-use super::{RegistryUi, ScreenPostsetup, party_preview};
-use game_engine_ui_model::loot_frame_component::{LootFrameRow, LootFrameState, loot_frame_screen};
+use super::{RegistryUi, party_preview};
+use game_engine_ui_model::loot_frame_component::{LootFrameRow, LootFrameState};
 use godot::prelude::*;
 use ui_toolkit::atlas::{ActiveSkin, set_thread_skin};
 
@@ -39,7 +39,7 @@ impl RegistryUi {
                     },
                 ],
             };
-            self.show_viewport_screen(state, loot_frame_screen, ScreenPostsetup::None)?;
+            self.show_loot_frame(state)?;
             self.enable_cursor_inputs();
             Ok::<(), String>(())
         })();
