@@ -16,7 +16,7 @@ use game_engine_network::movement_control::{ScriptedMovement, ScriptedMovementSt
 use game_engine_session::SessionScreen;
 use glam::Vec3;
 use shared::{
-    components::{MovementSpeed, PlayerMotion},
+    components::{MovementSpeed, PlayerMotion, UnitFlags2},
     movement::{FLIGHT_SPEED, RUN_SPEED, SWIM_SPEED, WALK_SPEED, swim_top},
     protocol::PlayerInput,
     skyriding::{Glider, SKYRIDING, SKYWARD_ASCENT},
@@ -214,6 +214,13 @@ impl PlayerMovement {
             compute_movement_input(bindings, input, self.autorun, scripted_forward, yaw);
         self.direction = animation;
         let mut direction = Vec3::from_array(direction);
+        if self.forced_forward {
+            // Source forced movement fixes the forward axis at one; strafe stays independent.
+            let forward = Vec3::new(yaw.sin(), 0.0, yaw.cos());
+            let lateral = direction - forward * direction.dot(forward);
+            direction = lateral + forward;
+            self.direction = MoveDirection::Forward;
+        }
         let steered = input.mouse_pressed(BindingMouseButton::Right);
         if (self.swimming || self.flying) && steered {
             direction = pitch_forward(direction, yaw, pitch);
@@ -923,6 +930,9 @@ impl crate::GameClient {
         if let Some(speed) = unit.get::<MovementSpeed>() {
             self.player_movement.adopt_server_speed(speed.0);
         }
+        self.player_movement.forced_forward = unit
+            .get::<UnitFlags2>()
+            .is_some_and(|flags| flags.contains(UnitFlags2::FORCE_MOVEMENT));
         self.player_movement.feather_fall = unit
             .get::<shared::components::FeatherFall>()
             .is_some_and(|state| state.0);
