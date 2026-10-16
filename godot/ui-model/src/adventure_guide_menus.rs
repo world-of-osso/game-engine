@@ -1,6 +1,6 @@
 //! Retail EJ dropdown contents composed from shared menu primitives.
 use crate::{
-    adventure_guide::{LootFilter, View, loot_filter_entries},
+    adventure_guide::{LootFilter, Tab, View, loot_filter_entries},
     auction_mail::text,
     menu_primitives::{
         ContextMenu, ContextMenuItem, MenuElementKind, context_menu_with_rows, menu_element,
@@ -180,6 +180,21 @@ pub fn loot_menu(view: &View, filter: LootFilter) -> Element {
     }
     out
 }
+pub(crate) fn item_sets_menu(view: &View) -> Element {
+    let entries = class_spec_entries(view);
+    let root_width = menu_width(&entries);
+    let mut out = menu("EncounterJournalFilterMenu", &entries, 587., -9.);
+    if view.class_menu_open {
+        out.extend(menu(
+            "EncounterJournalClassMenu",
+            &filter_entries(view, LootFilter::Class),
+            root_width + 587.,
+            -1.,
+        ));
+    }
+    out
+}
+
 fn filter_entries(view: &View, filter: LootFilter) -> Vec<Entry> {
     let (key, selected) = if filter == LootFilter::Slot {
         ("Slot", view.slot)
@@ -228,7 +243,7 @@ fn class_spec_entries(view: &View) -> Vec<Entry> {
                 )
             }),
     );
-    if id != 0 {
+    if id != 0 && view.tab != Tab::ItemSets {
         entries.push(radio(
             "JournalAllSpecs".into(),
             text("ALL_SPECS").into(),
