@@ -63,7 +63,8 @@ func check_escort() -> bool:
 	await click_control(quest_control("QuestFrameUI", "QuestFrameAcceptButton"))
 	if not await wait_quest(func(s): return in_log(s, ESCORT_QUEST), "real escort acceptance"):
 		return false
-	var deadline := Time.get_ticks_msec() + 600000
+	# Ten authentic combatants plus the48-node walk use ordinary low-rank casts.
+	var deadline := Time.get_ticks_msec() + 1200000
 	var walked := false
 	var heard_source_speech := false
 	var step := 0
@@ -122,7 +123,7 @@ func check_escort() -> bool:
 			print("ESCORT_TRACE position=", escort.global_position, " quest=", entry, " waves=", seen_ambushes.keys())
 		await create_timer(0.2).timeout
 	await capture("timeout.png")
-	fail("Escort976 did not complete in600s; inspect authored path/ambush trace")
+	fail("Escort976 did not complete in1200s; inspect authored path/ambush trace")
 	return false
 
 func abandon_previous_escort() -> bool:
