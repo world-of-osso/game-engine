@@ -19,6 +19,9 @@ func run_test() -> void:
 	if mode == "produce":
 		if not await produce_news():
 			return
+	elif mode == "controls":
+		if not await controls_news():
+			return
 	elif mode == "overflow":
 		if not await overflow_news():
 			return
@@ -57,6 +60,12 @@ func open_news() -> bool:
 func produce_news() -> bool:
 	if not await wait_until(func(): return FileAccess.file_exists(diagnostics.path_join("initial.json")), "real buyer committed acquisitions"):
 		return false
+	if not await controls_news():
+		return false
+	mark("overflow.go")
+	return await overflow_news()
+
+func controls_news() -> bool:
 	for skin in ["Modern", "Forever"]:
 		if not await select_skin(skin) or not await open_news():
 			return false
@@ -86,8 +95,7 @@ func produce_news() -> bool:
 			return false
 		await capture("sticky")
 		await close_guild()
-	mark("overflow.go")
-	return await overflow_news()
+	return true
 
 func overflow_news() -> bool:
 	if not await wait_file("overflow.json"):
@@ -122,10 +130,11 @@ func overflow_news() -> bool:
 
 func purchases_hidden() -> bool:
 	var value := envelope()
-	if value.is_empty() or value.visible_ids.is_empty():
-		return false # Actual Level50 news remains under its separate checked category.
+	if value.is_empty():
+		return false
 	for entry in news().entries:
-		if entry.kind.has("ItemPurchased") and not entry.sticky and int(entry.id) in value.visible_ids:
+		var expected: bool = entry.sticky or not entry.kind.has("ItemPurchased")
+		if (int(entry.id) in value.visible_ids) != expected:
 			return false
 	return true
 
