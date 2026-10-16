@@ -1,3 +1,7 @@
+## 2026-10-16 — Supported Mount Up native effect proof
+
+[Guild effects](systems/guilds.md#perk-native-authority-and-effect-boundary-2026-10-16): real invitation/removal and Golden Gryphon input produce14→15.4→14 ground and22.4→24.64→22.4 flight, with seven coherent samples per skin. Fourteen full-HD originals inspected; ten mounted ground/flight/removal frames selected, four occluded ground/unmounted frames rejected. Earlier flat retries were actual CasterDead after a cliff trial; fixture recovery uses existing private `.revive`, not speed/perk injection. Controlled-NPC210 remains blocked. Hasty core charge2309 controls pass3/3; native item proof remains separate.
+
 ## 2026-10-16 — Two-way pet-wall HUD projection
 
 [Ice Barrier479](systems/battle-pets.md#two-way-wall-projection--2026-10-16): actual private5961 pointer casts in both explicit skins preserve incoming-block HP, show shared pad/cooldown, then outgoing Claw consumes the second block and the next Scratch damages. Six fullHD originals inspected;94/101/104 named geometry differs only by HP fill and timed float position. Both models framed, retained injury visible, all owned PIDs stopped. No new widgets/simulation; all-wall native casts,3D VFX and full Retail timing remain separate.
