@@ -1,3 +1,7 @@
+## 2026-10-15 — Trading Post menu lifecycle sound implementation
+
+[Menu sounds](systems/trading-post.md#menu-lifecycle-sounds--implementation-october15-proof-pending): actual projected-UI visibility edges route source open/close kits through existing decoded UI playback; five/ten70391 variants and source gains. Core2 missing-kit RED and compatible native missing-open-call RED observed; GREEN/assets pending. Close pitch is a named gap, not an added pitch path; Rank3 framing remains separately unlanded.
+
 ## 2026-10-15 — Authored talent Starter selection
 
 [Starter Build](systems/talents.md#starter-build--2026-10-15): server-advertised built-in selection, authoritative level allocation and shared-skin deviation confirmation. Starter5/UI12/UDP2/protocol1 scoped proofs pass; focused blue-caption RED→GREEN1 resets normal color on named switch. Real UDP5881 both-skin level10→11→80, exact relog projections, yellow tooltip and confirmed deactivation pass;12 inspected native1920×1080 PNGs delivered. Coupled landing remains lead-owned.
