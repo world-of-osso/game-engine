@@ -48,6 +48,8 @@ mod icon_masks;
 pub(crate) mod input_queue;
 mod launcher_preview;
 mod layout;
+#[cfg(debug_assertions)]
+mod loot_hit_preview;
 mod mentor_host;
 mod menu_primitives_preview;
 mod meter_preview;
