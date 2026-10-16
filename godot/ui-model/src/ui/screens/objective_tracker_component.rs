@@ -766,13 +766,15 @@ fn poi_button(
             scale,
         )
     };
-    // POIButton.lua WorldQuest style uses the unnumbered QuestUtil icon.
+    // POIButton.lua retains NormalTexture beneath the unnumbered WorldQuest Display.
     let mut elements = if number.is_none() {
-        atlas_texture(
+        let mut plate = atlas_texture(format!("{block}POIButtonNormal"), &POI_NUMBER, centre(32.0));
+        plate.extend(atlas_texture(
             format!("{block}POIButtonWorldQuest"),
             &POI_WORLD_QUEST,
             centre(32.0),
-        )
+        ));
+        plate
     } else if complete {
         atlas_texture(
             format!("{block}POIButtonTurnIn"),
