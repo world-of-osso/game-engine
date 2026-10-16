@@ -62,7 +62,7 @@ impl GameClient {
                 }
                 let requested = ui
                     .bind_mut()
-                    .frame_text(name.into())
+                    .frame_text(name.as_str().into())
                     .to_string()
                     .parse()
                     .unwrap_or(0);
@@ -84,7 +84,7 @@ impl GameClient {
         &self,
         ui: &mut Gd<RegistryUi>,
         replace_focused: bool,
-    ) -> Result<(), FrameError> {
+    ) -> Result<(), String> {
         let Some(slot) = self.open_quality_slot() else {
             return Ok(());
         };
@@ -99,7 +99,7 @@ impl GameClient {
             let name = format!("ProfessionQuality{}Quantity", choice.item_id);
             let focused = ui.bind().is_frame_focused(&name);
             let expected = dialog.quantity(choice.item_id).to_string();
-            let current = ui.bind_mut().frame_text(name.clone().into()).to_string();
+            let current = ui.bind_mut().frame_text(name.as_str().into()).to_string();
             if (replace_focused || !focused) && current != expected {
                 ui.bind_mut().set_editbox_text(&name, &expected)?;
             }
@@ -152,6 +152,7 @@ impl GameClient {
             .clone()
             .ok_or("Profession UI unavailable")?;
         self.write_quality_quantities(&mut ui, true)
+            .map_err(FrameError::from)
     }
 
     fn change_quality_quantity(&mut self, operation: &str, item: u32) -> Result<(), FrameError> {
