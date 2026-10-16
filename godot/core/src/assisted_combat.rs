@@ -5,8 +5,15 @@ use crate::cooldown_assist::AssistedRule;
 use crate::spell_catalog::CatalogSpell;
 use std::collections::{BTreeMap, BTreeSet};
 
-/// Native assisted range fact for the currently selected hostile target.
+/// SpellRange1 is authored "Self Only", not a zero-yard enemy range.
+const SELF_ONLY_RANGE_ID: u32 = 1;
+
+/// TC Spell.cpp:621–650/7277–7321 checks the actual cast target, not selection.
+/// Self/caster-area spells use the caster; targeted spells keep their hostile bounds.
 pub fn is_assisted_spell_in_range(spell: &CatalogSpell, distance: f32) -> bool {
+    if spell.range_id == SELF_ONLY_RANGE_ID {
+        return true;
+    }
     distance >= spell.range.min_yd[0] && distance <= spell.range.max_yd[0]
 }
 

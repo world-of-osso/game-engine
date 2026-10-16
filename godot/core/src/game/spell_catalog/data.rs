@@ -120,6 +120,8 @@ pub struct CatalogSpell {
     pub spellbook: SpellbookListing,
     pub auto_attack: SpellAutoAttack,
     pub cast_time_ms: i32,
+    /// Authored `SpellMisc.RangeIndex` (`SpellRange.ID`); row1 is Self Only.
+    pub range_id: u32,
     pub range: SpellRange,
     /// `SpellDuration.Duration`; 0 = no duration, negative = until cancelled.
     pub duration_ms: i32,
