@@ -92,6 +92,10 @@ Persisted-owner preparation walks authored exit trigger503 through strict navmes
 
 ## Recorded native proof and remaining gates
 
+### BM pet-presence follow-up — verified2026-10-16
+
+After master's authored pet-presence57/58 implementation, newly built engine da767f19a/server334c57aa/protocoldc30250 ran `native-bm-pet-presence1`: two full60s positive-health windows,0damage/0DPS each. The old29672/58 refusal is gone. Both windows submit24 CallPet1/883 requests; exact-window native successes23/24, no received cast errors. All159/209 native samples recommend883 with has_petfalse/local_petnull. No owned pet appears, so functioning BM combat/pet damage is not proven by collection completeness. No fallback/reordered priority, granted pet or invented kit was used. `bm-pet-presence-observations.json` retains actual window filtering because raw combat rings include previous-run history. Complete40-spec census/comparison remains unavailable; MM254/Survival255 retain their unrelated condition11 gaps and were not blindly rerun. Owned1026475 server and1029810/1030345 client processes stopped. Build/hash receipts preserve exact revised artifacts separately from earlier Stockade binaries.
+
 ### Native-controller three-DPS proof
 
 `native-parity-qualified3` explicitly configures Arms71/Fury72/BM253, linking immutable native-parity2/71,72 and native-third1/253 receipts. All six60s windows qualify on positive native health, level32,30/quality2/era0 equipment, empty jewelry, dummy44548 level30/max-health13137/armor155/difficulty0 and the same world SHA-256. Arms10/Fury11/BM10 items retain owner GUIDs/native stats. Ordinary native OnCast auto-attack is observed for all six windows; raw combat now retains received outcome/mitigation fields, including nonzero crit observations. The original five-window replay is GREEN after six historical RED subcases; qualified-three replay and verification.json preserve exact scope.
