@@ -83,18 +83,20 @@ fn journal_search_preview_keyboard_full_popup_and_close_preserve_query() {
             (frame.width, frame.height),
             (Dimension::Fixed(575.), Dimension::Fixed(49.))
         );
-        for suffix in ["Name", "Type", "Path"] {
-            let frame = registry
-                .get(
-                    registry
-                        .get_by_name(&format!("JournalSearchResult0{suffix}"))
-                        .unwrap(),
-                )
-                .unwrap();
+        // EJ_GetSearchDisplay (Blizzard_EncounterJournal.lua2457–2471):
+        // instance has no path; the following encounter result names its instance.
+        for (name, expected) in [
+            ("JournalSearchResult0Name", "Darkflame Cleft"),
+            ("JournalSearchResult0Type", "Dungeon"),
+            ("JournalSearchResult0Path", ""),
+            ("JournalSearchResult2Name", "Ambassador Flamelash"),
+            ("JournalSearchResult2Path", "Blackrock Depths"),
+        ] {
+            let frame = registry.get(registry.get_by_name(name).unwrap()).unwrap();
             let Some(WidgetData::FontString(text)) = &frame.widget_data else {
-                panic!("result {suffix}")
+                panic!("result {name}")
             };
-            assert!(!text.text.is_empty());
+            assert_eq!(text.text, expected, "{name}");
         }
         view.apply("journal:search-close").unwrap();
         assert_eq!(view.search, "flame");
