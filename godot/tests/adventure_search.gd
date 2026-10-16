@@ -47,8 +47,10 @@ func verify_preview() -> bool:
 		return false
 	var search := control("EncounterJournalSearchBox").get_global_rect()
 	var preview := control("EncounterJournalSearchPreview").get_global_rect()
+	print("SEARCH_NATIVE_RECTS search=%s preview=%s journal=%s" % [search,preview,control("EncounterJournal").get_global_rect()])
 	if preview.position.distance_to(Vector2(search.position.x, search.end.y)) > 1.0 or absf(preview.size.x-search.size.x) > 1.0:
-		stop("Source preview must be anchored below the210px search field")
+		await shot("search-preview-anchor-red")
+		stop("Source preview must be anchored below the210px search field: search=%s preview=%s" % [search,preview])
 		return false
 	for index in 5:
 		var row := control("JournalSearchPreview%s" % index)
