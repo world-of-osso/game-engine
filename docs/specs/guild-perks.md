@@ -42,8 +42,8 @@ Retail Mainline Benefits perks in Modern and Forever. Definitions: installed `db
 - [x] Source Benefits names/order/tab visibility pass against the actual installed five-definition catalog in both skins.
 - [x] Real native spell tooltips, physical Shift-click draft/server echo and fresh-process owner knowledge pass both skins.
 - [x] Physical ordinary clicks on all five rows send no spells in either skin. Actual modified insertion at an existing caret survives the next model sync and server echo.
-- [ ] Independent lead landing gate remains separate.
-- [ ] Mount Up, Hasty Hearth, Mobile Banking and The Quick and the Dead effects are not established; [effect matrix](../wiki/systems/guilds.md#perk-native-authority-and-effect-boundary-2026-10-16).
+- [x] Bounded catalog/membership/UI and caret follow-up landed; individual effect gates remain separate.
+- [ ] Mount Up172/211 has real effect/native proof with its separate landing gate pending;210 remains explicitly blocked. Hasty Hearth, Mobile Banking and The Quick and the Dead remain separately qualified; [effect matrix](../wiki/systems/guilds.md#perk-native-authority-and-effect-boundary-2026-10-16).
 - [x] Actual UDP invitation/forced removal/rejoin/quit, fresh-process native owner/tooltip readback and inspected1920×1080 both-skin captures.
 
 ## Out of scope
