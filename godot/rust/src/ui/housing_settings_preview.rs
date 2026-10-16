@@ -36,6 +36,19 @@ impl RegistryUi {
         result.err().unwrap_or_default().as_str().into()
     }
 
+    /// Mirror the live housing cursor consumer; releases are not click actions.
+    #[func]
+    fn house_access_preview_actions(&mut self) -> Array<GString> {
+        self.drain_bag_inputs()
+            .expect("HouseSettings cursor input must be initialized")
+            .into_iter()
+            .filter_map(|(_, input)| match input {
+                crate::bag_cursor::BagInput::Click { action, .. } => Some(action.into()),
+                crate::bag_cursor::BagInput::Release { .. } => None,
+            })
+            .collect()
+    }
+
     /// Consume the observed pointer action with the real staging reducer, not a server.
     #[func]
     fn apply_house_access_preview_action(&mut self, action: GString) -> GString {

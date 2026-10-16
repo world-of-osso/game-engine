@@ -13,10 +13,8 @@ func settle() -> void:
 		await RenderingServer.frame_post_draw
 
 func drain(ui: Node) -> void:
-	var action: String = ui.pop_action()
-	while not action.is_empty():
+	for action in ui.house_access_preview_actions():
 		actions.append(action)
-		action = ui.pop_action()
 
 func move(ui: Node, point: Vector2) -> void:
 	var event := InputEventMouseMotion.new()
