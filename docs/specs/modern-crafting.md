@@ -33,6 +33,8 @@ Private Modern proof learned Handstitched Leather Pants2153 from Simon Tanner at
 - The shared 329×207 Mainline quality dialog has 100×75 tier containers, source item buttons and NumericInputSpinner dimensions, Accept/Cancel and a non-consuming server validation response. Values clamp to owned/required; increasing one tier removes overflow from other tiers in source order. Cancel discards only dialog edits.
 - Server validates recipe knowledge, membership, exact slot totals and aggregate bag ownership. Both skins share this behavior. Modifying/finishing eligibility, currency-slot allocation and unevaluated slot conditions remain explicit gaps, not substitute basic slots.
 
+Native acceptance fixture: `godot/tests/modern_crafting_quality_live.gd` uses owned accounts on UDP5951, a rendered1920×1080 viewport, physical quality-dialog clicks, authoritative incomplete-slot refusal, accepted mixed allocations and disabled crafting with quality unassigned. Private test grants are not trainer/knowledge acquisition evidence.
+
 ## Explicit gaps
 
 - Effect288 quality crafting and effect157 loot-derived crafts require authored output selection and operation rules; fixed-output effect24 support is not evidence for either.
