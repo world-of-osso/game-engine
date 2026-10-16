@@ -681,7 +681,7 @@ impl GameClient {
         let sets = view.item_sets();
         state.set("item_set_count", sets.len() as i64);
         let set_ids: PackedInt32Array = sets.iter().map(|set| set.id as i32).collect();
-        state.set("item_set_ids", set_ids);
+        state.set("item_set_ids", &set_ids);
         state.set("lockout_count", view.lockouts.len() as i64);
         state.set(
             "renown_faction_count",
