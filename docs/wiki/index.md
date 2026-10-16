@@ -1,3 +1,4 @@
+- [Unavailable storage filters](systems/housing.md#unavailable-storage-filters--qualified2026-10-16) — sourced location/tag query contracts, explicit missing field/history mappings; collection rows intentionally absent in storage.
 - [Lifetime honor source boundary](systems/battlegrounds.md#lifetime-honor-source-boundary--2026-10-16) — concrete world-kill XP0→47→94, both-skin native full-HD tooltip/relog; unknown level/curve and completion/season policies remain gaps; Character Currency port next.
 - [House Access checkbox targets](systems/housing.md#house-access-checkbox-hit-targets--2026-10-16) — source row/checkbox split; native bad label dispatch reproduced then refused,32 physical cases and40 unchanged-outside context pairs.
 - [Alliance escort native fixture](systems/quest-ui.md#alliance-escort-native-fixture--2026-10-16) — Feero976 real-input harness; both skins earned all-three-wave credit; authenticated receipt closure and server grid-lifecycle fix.
