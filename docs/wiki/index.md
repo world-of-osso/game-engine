@@ -1,3 +1,4 @@
+- [Alliance escort native fixture](systems/quests.md#alliance-escort-native-fixture--2026-10-16) — Feero976 real-input harness; server GREEN, native acceptance pending.
 - [Clean-room M2 particles](systems/godot-conversion.md#native-m2-particles) — native tails/follow/cubic controls, authored sorting and map-collision births; inherited-scale provenance and explicit lighting, timer/reset, spline-density, target-mask and model-recursion oracle gaps.
 # Wiki Index
 
