@@ -87,6 +87,31 @@ func verify_text_layout(name: String) -> bool:
 	print("ITEM_SETS_TEXT title=%s name_h=%s level_h=%s gap=%s" % [name,title.size.y,level.size.y,level.get_global_rect().position.y-title.get_global_rect().end.y])
 	return true
 
+func verify_painted_set_title(phase: String) -> bool:
+	var item := first_set_item()
+	var name := item.substr(0,item.find("Item"))
+	var label := control(name) as Label
+	var evidence := OS.get_environment("ADVENTURE_GUIDE_PIXEL_EVIDENCE")
+	for frame in 40:
+		await RenderingServer.frame_post_draw
+		var image := root.get_texture().get_image()
+		var rectangle := label.get_global_rect()
+		var expected := label.get_theme_color("font_color")
+		var pixels := 0
+		for y in int(rectangle.size.y):
+			for x in int(rectangle.size.x):
+				var pixel := image.get_pixelv(Vector2i(rectangle.position)+Vector2i(x,y))
+				if Vector3(pixel.r-expected.r,pixel.g-expected.g,pixel.b-expected.b).length() < 0.08:
+					pixels += 1
+		print("ITEM_SETS_TITLE_PAINT phase=%s frame=%s name=%s text=%s rect=%s visible=%s color=%s pixels=%s" % [phase,frame,name,label.text,rectangle,label.is_visible_in_tree(),expected,pixels])
+		if frame == 0 and not evidence.is_empty():
+			image.save_png(evidence.path_join("%s-%s-initial.png" % [client.account_state().ui_skin.to_lower(),phase]))
+		if pixels >= 8:
+			return true
+		await process_frame
+	stop("Source visible set title did not paint through40passiveframes: " + name)
+	return false
+
 func type_search(value: String) -> bool:
 	if not await click("EncounterJournalSearchBox"):
 		return false
@@ -126,7 +151,7 @@ func run() -> void:
 		await process_frame
 	if not await click("EncounterJournalLootJournalTab") or not await choose_class(1):
 		return
-	if control("JournalSpecFilter") != null or not verify_list_geometry() or not await shot("itemsets-source-list"):
+	if control("JournalSpecFilter") != null or not verify_list_geometry() or not await verify_painted_set_title("source-list") or not await shot("itemsets-source-list"):
 		return
 	if not await click("JournalClassFilter") or control("JournalAllSpecs") != null or not await shot("itemsets-class-spec-menu"):
 		return
@@ -154,7 +179,7 @@ func run() -> void:
 	if client.adventure_guide_state().get("class", -1) != 0 or label_text("JournalClassFilterText") != "All Classes" or not control("JournalClassFilterText").is_visible_in_tree():
 		stop("All Classes did not survive reopen or caption restoration")
 		return
-	if not await shot("itemsets-all-classes-reopened"):
+	if not await verify_painted_set_title("all-classes-reopened") or not await shot("itemsets-all-classes-reopened"):
 		return
 	print("ITEM_SETS_PASS skin=%s sourcepane/rows/menu/realicon/tooltip/scroll/specreset/independentsearch/allclasses" % client.account_state().ui_skin)
 	quit(0)
