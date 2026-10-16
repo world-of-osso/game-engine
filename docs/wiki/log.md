@@ -1,9 +1,26 @@
+## 2026-10-16 — Unavailable storage-filter semantics
+
+[F20](systems/housing.md#unavailable-storage-filters--qualified2026-10-16): read-only70391 catalog/API/persistence inspection distinguishes query contracts from absent location/history/tag-definition mappings. No invented semantics/product edits or replay; full-HD remains F21.
+
+## 2026-10-16 — Fade effect native projection
+
+[Fade107](systems/battle-pets.md#fade-effect-projection--2026-10-16): both explicit skins on privateUDP5961 physically cast authored Jadefire Spirit Fade, observe Scratch miss/expiry/reserve swap, and retain two framed active models. Four fullHD originals inspected;91 shared PetBattle rectangles identical. Fixture removes broken auction inheritance and uses shared posed geometry. Current-CASC11-asset Jadefire closure staged privately; canonical publication remains lead-owned. All owned processes stopped.
 ## 2026-10-16 — Installed guild perk list
 
 [Perks](systems/guilds.md#perks): real five-definition catalog and source Benefits list. Missing-title RED→five actual names/order and other-tab hiding GREEN1/1 in both skins. Real spell-link draft/render REDs reproduced visible raw markup; the shared labeled-link decoder and wire-link/caret insertion now support source modified-click spell identity without changing bare combat links. Focused link GREEN, tooltip, native and effect proof remain pending; no functional-buff claim.
 ## 2026-10-16 — BM native pet Assist preparation
 
 [Preparation](systems/bot-harness.md#bm-native-assist-preparation--2026-10-16): one ordinary viewport click on the received Assist reaction slot, owned identity and react_state3 ACK required. Portable slot/ownership controls and native GDScript syntax pass; fresh BM input/DPS proof pending. Pinned TC Pet/CharmInfo creation chain confirms Passive default and stored-mode restoration, so no server-default change or persistence override.
+## 2026-10-16 — Lifetime honor source boundary
+
+[Honor](systems/battlegrounds.md#lifetime-honor-source-boundary--2026-10-16): pinned concrete world-kill XP plumbing is distinct from spendable1792; no8800 guess, old Prestige curve reinterpretation or quest-to-match payout assignment. Persist/replicate lifetime XP, leave level/fill unknown, preserve source faction art and tooltip. Merged server10/UI4/wire1/check/fmt pass; actual private damage/death0→47→94, both-skin full-HD tooltip, dead replay and fresh-process relog are bounded native proof. Character Currency's absent consumer/UI remains open, not excused by unavailable award policy.
+## 2026-10-16 — Multi-area world-quest pin continuation
+
+[Area/floor boundary](investigations/world-quest-availability.md#multi-area-pin-continuation--implementation-checkpoint): actual82521 lower2256 pin RED0/1 and server availability REDfirst-area-only, while acceptance already accepts either source area. Source CSV also providesZ, which the importer discarded: new height-preservation/missing-height tests are RED. Importer/runtime/wire now retain all309areas' XYZ for239tasks; the renderer keeps existing3D floor checks instead of using the unverified2D workaround. Minimap nearest-area navigation keeps one logical task. Continuation gate passes: importer14/UI7/server2/protocol2, registered build/check/fmt0, independent verification and both-skin physical lower/main-map selection plus real expiry, with eight inspected fullHD originals. Prior3c08 settlement proof remains separate. Every one of the five admission gaps is now named against fresh installed70391 sources; no invented trigger volumes or label membership. Source choice census239/0 makes reward choice not applicable.
+
+## 2026-10-16 — World-quest navigation and Deathwing diagnosis
+
+[Task navigation and hazard](investigations/world-quest-availability.md#2026-10-16-navigation-and-authored-deathwing-hazard): available pins select without acceptance, received-position minimap markers, source-only bars/time text and unnumbered tracker POIs;13 scoped UI controls GREEN. Actual ten46327 actors spawn5552/5552; Deathwing's authored Molten Flame kills them on grid activation, not spawn/scaling/terrain. Current both-skin navigation/window/controlled-reward gate passes: actual7/8→8/8,11765XP, replay/expiry and26 inspected fullHD PNGs. The explicitly approved private fixture omits only hazard spawn20383796; product data is unchanged, no injected credit or NPC health restore. Ordinary-world hazard/phasing remains open.
 
 ## 2026-10-16 — Guild news live acceptance
 
@@ -31,10 +48,6 @@
 ## 2026-10-16 — Maintained Stockade controller integration
 
 [Bot Stockade boundary](systems/bot-harness.md#stockade-boss-accounting): follower523dc4ce5/master merged preserving both native parser/metrics and routed player interface;115 bot Python cases/controller syntax pass. New readonly encounter/spawn plan, target-bound native authored provider, party facts and native equal-budget sheet/inventory observations are implemented after source-module RED. Actual Fury Stockade execution/credit/clear time remains pending; no diagnostic driver, Mage cycle or stat override copied.
-## 2026-10-16 — World-quest navigation and Deathwing diagnosis
-
-[Task navigation and hazard](investigations/world-quest-availability.md#2026-10-16-navigation-and-authored-deathwing-hazard): available pins select without acceptance, received-position minimap markers, source-only bars/time text and unnumbered tracker POIs;13 scoped UI controls GREEN. Actual ten46327 actors spawn5552/5552; Deathwing's authored Molten Flame kills them on grid activation, not spawn/scaling/terrain. Current both-skin navigation/window/controlled-reward gate passes: actual7/8→8/8,11765XP, replay/expiry and26 inspected fullHD PNGs. The explicitly approved private fixture omits only hazard spawn20383796; product data is unchanged, no injected credit or NPC health restore. Ordinary-world hazard/phasing remains open.
-
 ## 2026-10-16 — HouseSettings action-button source art
 
 [Three action buttons](systems/housing.md#housesettings-action-button-art--2026-10-16): four source UIPanel bindings only, RED→GREEN and both-skin enabled/disabled/pending native proof; all eight fullHD changes confined to button rectangles. No typography/lifecycle/backend claim.
@@ -4199,9 +4212,11 @@ Completed Retailv2 codec/authoritative Create and committed Copy callbacks, exac
 - 2026-10-16: Single Purchase/Refund pending popup lifetime model2 and actual paused-private-server native RED observed. Source retains modal/spinner and purchase removes its own cart item; request-reply snapshot boundary unchanged. [Trading Post](systems/trading-post.md#accepted-single-item-confirmation-lifetime--implementation-october16).
 - 2026-10-16: [Actual native Greed](systems/bot-harness.md#native-actual-greed--2026-10-16): maintained route/F/provider/viewport bridge; Moloch63346 Greed95→GUID525,7.040s ACK, inspected1280 input/win PNGs and owned cleanup. Azure/full-spec remain separate.
 
+- 2026-10-16: Cart regular/member tooltip consumer added after real native missing-tooltip RED. Exact expanded owner/cached Retail metadata and source left−8/y−20 anchor, no SellPrice or preview mutation. [Trading Post](systems/trading-post.md#cart-item-tooltips--implementation-october16).
 - 2026-10-16: Accepted request dialogs now pass both-skin painted spinner/overlay counterfactuals and real rotation/reply proof, after rejecting node-only art evidence. Source11px inset and modal-relative ordering fixed.31UI12native/check/5scopedRustfmt pass; ten full-HD originals+two contacts+two crops published, private RED purchase state retained. [Trading Post](systems/trading-post.md#accepted-single-item-confirmation-lifetime--implementation-october16).
 ## 2026-10-16 — authentic guild perk knowledge and native input
 
 [Guild perks](systems/guilds.md#perk-native-authority-and-effect-boundary-2026-10-16): five real DB2 definitions, source Benefits rows/tooltips, TalentChannel snapshot/delta ordering RED→GREEN, actual owner joins/removal/rejoin/quit and class conservation. Both-skin native modified-link/server echo and identical-binary fresh-process readback pass. Effects remain individually qualified; no fabricated mounted-speed, Hearthstone, resurrection or guild-chest functionality.
 
 - Guild perk follow-up: physical existing-caret RED revealed native-only edit text bypassing RegistryUi state; d82f213cc updates the authoritative edit model before restoring caret. Actual both-skin no-cast/caret/server-echo and fresh-process readback now pass on current merged binaries; actual UDP membership sequence also refreshed.
+- 2026-10-16: Cart regular/member source tooltip both-skin native GREEN including actual hover-only removal; phase-local global input parsing corrects viewport-only fixture cursor.33UI12native/check/3scopedRustfmt pass at9e7; eight full-HD originals+two contacts published. [Trading Post](systems/trading-post.md#cart-item-tooltips--implementation-october16).

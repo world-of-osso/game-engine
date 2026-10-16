@@ -3229,6 +3229,7 @@ dependencies = [
  "chrono",
  "game-engine-core",
  "serde",
+ "serde_json",
  "shared",
  "ui-toolkit-core",
 ]
