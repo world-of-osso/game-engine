@@ -49,3 +49,7 @@ Retail Mainline Benefits perks in Modern and Forever. Definitions: installed `db
 ## Out of scope
 
 Guild rewards require their separate runtime import and reputation/achievement eligibility; existing62 TDB rows are not a working reward system. Invitation tabards follow this slice. Unimplemented perk effects remain named gaps rather than fabricated functionality.
+
+## Mount Up native effect proof (active)
+
+`guild_mount_up_live.gd` observes the local player's actual replicated MovementSpeed/Mounted/PlayerMotion. One rendered ordinary member and a real UDP officer perform invitation acceptance and forced removal, while real Golden Gryphon casts and physical forward/takeoff input exercise mounted ground/flight speed in both skins. Admin fixture setup teaches only the authored riding/mount spells and selects steady flight; no speed or perk/aura is injected. Expected source baseline→guild→removed is14→15.4→14 run and22.4→24.64→22.4 flight. Authored210's flying-vehicle context remains a separately named decision/proof gap, never folded into the normal player multiplier.

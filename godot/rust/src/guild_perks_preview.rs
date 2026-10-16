@@ -24,6 +24,7 @@ impl GameClient {
             "mount_id": mounted.map(|mount| mount.mount_id),
             "can_fly": motion.map(|motion| motion.contains(shared::components::PlayerMotion::CAN_FLY)),
             "flying": motion.map(|motion| motion.contains(shared::components::PlayerMotion::FLYING)),
+            "falling": motion.map(|motion| motion.contains(shared::components::PlayerMotion::FALLING)),
             "sent": sent,
             "known_spells": self.account.spells.known(),
             "chat_open": self.chat.model.state.input_open,
