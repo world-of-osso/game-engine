@@ -19,7 +19,7 @@ Cage's headless output defaults1280x720 and has no output-mode CLI on this host.
 
 Merged-server escort gate:36 passed,1 explicit private-account setup ignored; both Rust cargo checks and format checks pass. Modern and Forever native real-account runs prove acceptance, rendered authored speech and movement to the first source ambush, with inspected1920x1080 PNGs. Full earned native completion is NOT proved. No new client protocol or production UI behavior was added.
 
-Missing verified payload receipts for source assassin textures923044/919332/1105445 block complete visual ambush selection; the private CSV appearance import does not solve payload ownership. Native attempts also exposed removed Healing Touch5185 (absent70391, Unknown spell); fixture now uses independently CSV-verified Regrowth8936 (heal10/periodic-heal8), whose protective live reproof remains open. Do not label these partial PNGs as a completed escort or claim full appearance parity.
+Missing verified payload receipts for source assassin textures923044/919332/1105445 block complete visual ambush selection; the private CSV appearance import does not solve payload ownership. Native attempts also exposed removed Healing Touch5185 (absent70391, Unknown spell); fixture now uses independently CSV-verified Regrowth8936 (heal10/periodic-heal8). Native Regrowth casting restored Feero236/484→484/484 without admin healing; this closes the removed-spell harness issue, not the remaining appearance/completion boundary. Do not label these partial PNGs as a completed escort or claim full appearance parity.
 
 ## Authored ambusher appearance preparation
 
