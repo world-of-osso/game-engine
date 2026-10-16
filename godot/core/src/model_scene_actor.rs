@@ -50,9 +50,15 @@ pub fn read_scene_actors(
             return Ok(());
         }
         let display_id = row.parse::<u32>("UiModelSceneActorDisplayID")?;
-        let &(scale, alpha, animation) = displays
-            .get(&display_id)
-            .ok_or_else(|| format!("UiModelSceneActorDisplay {display_id} missing"))?;
+        let (scale, alpha, animation) = if display_id == 0 {
+            // ModelSceneActorMixin.ApplyFromModelSceneActorInfo: absent display
+            // explicitly requests scale1, alpha1 and animation0 (scene430 Harronir).
+            (1., 1., 0)
+        } else {
+            *displays
+                .get(&display_id)
+                .ok_or_else(|| format!("UiModelSceneActorDisplay {display_id} missing"))?
+        };
         let actor = ModelSceneActor {
             id: row.parse("ID")?,
             flags: row.parse("Flags")?,
