@@ -1,7 +1,13 @@
+- [Clean-room M2 particles](systems/godot-conversion.md#native-m2-particles) — tails/follow/cubic controls and inherited-scale provenance; lighting, timer/reset, spline density and model-recursion oracle gaps remain explicit.
 # Wiki Index
 
 - [Instance and encounter Loot](systems/adventure-guide.md#instance-and-encounter-loot--2026-10-15) — selected-instance/difficulty drops, source64/45px rows, real icons/quality/tooltip, intrinsic subclass sizing and physical Loot-row→boss navigation;45 focused tests and twelve inspected both-skin native PNGs.
 
+- [Shared WowStyle1 caption centering](systems/menu-primitives.md#wowstyle1-caption-centering-2026-10-15) — native font-minimum adaptation, paired core attribute wiring and explicit one-line policy; both-skin AH/shared caption deltas0 and unchanged Filter/Style2 control pixels.
+
+- [IoC NPC attachment](systems/battlegrounds.md#ioc-npc-attachment--implementation2026-10-15) — native synthetic scene RED→GREEN plus real-UDP NPC identity/release; merged consumer gates pass; actual models/both-skin driving/fire remain open.
+
+- [IoC bomb disarm interaction](systems/battlegrounds.md#ioc-bomb-disarm-interaction--active-2026-10-14) — authored request/cursor GREEN25; Modern83/Forever88 normal/huge native hit/disarm/20-player return pass; explicit model-art/framing/whole-render/timing gaps retained.
 - [Guild invitation source chrome](systems/guilds.md#invitation-chrome--verified2026-10-15) — source translucent inset/corners/tiled edges replace static-popup art; two controls and both-skin native Join/Decline/pending proof, four inspected PNGs. Inner art/payload/lifecycle gaps remain separate.
 
 - [Communities numeric roster sorting](systems/guilds.md#communities-metadata-sorting--verified2026-10-15) — source Level/Class headers, numeric/missing-value ordering, preserved member identity; seven controls and both-skin native physical proof with ten inspected before/after PNGs.
@@ -411,6 +417,8 @@ External resources and asset lists.
 
 - [Stationary Cleanup ray](systems/housing.md#stationary-cleanup-ray--implementation2026-10-15) — authoritative owner movement/native readonly RED→both-skin GREEN; fixed input, actual ray/highlight/name clear and return, exact paid restoration and inspected functional captures.
 - [Retail loadout strings](systems/talents.md#retail-loadout-strings--2026-10-15) — installed version2/source provenance, committed export/native Import, Lua-produced fixtures and both-skin private relog/full-HD proof; hash/OS clipboard limits explicit.
+
+- [Active Expert submode continuity](systems/housing.md#active-expert-submode-continuity--implementation2026-10-15) — model/native RED→both-skin GREEN; assigned active keys retain all three live mouse submodes, global release/Escape and exact paid conservation.
 - [Active Slam visual chain](systems/spell-visuals.md#slam-1464-same-two-handed-sword-different-spec) — verified70391 Arms190513/278884, Fury97446/128672 and authored impact278885; fixture refresh only; full core17/17 and native specialization5/5 pass.
 
 - [Active Battle Shout sound](systems/spell-visuals.md#active-battle-shout-sound-chain--2026-10-15) —70391 cast279043/SoundKit368264, distinct unchanged caster voice; bounded fixture refresh.
