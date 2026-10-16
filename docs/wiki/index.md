@@ -1,7 +1,7 @@
 - [Clean-room M2 particles](systems/godot-conversion.md#native-m2-particles) — native tails/follow/cubic controls, authored sorting and map-collision births; inherited-scale provenance and explicit lighting, timer/reset, spline-density, target-mask and model-recursion oracle gaps.
 # Wiki Index
 
-- [Trading Post menu sounds](systems/trading-post.md#menu-lifecycle-sounds--bounded-proof-october15) — source show/hide kits,15 exact70391 variants/gains; both-skin eight decoded native playback/lifecycle observations and inspected PNGs; canonical publication pending, close pitch remains a named gap.
+- [Trading Post menu sounds](systems/trading-post.md#menu-lifecycle-sounds--bounded-proof-october15) — source show/hide kits,15 exact70391 variants/gains; both-skin eight decoded native playback/lifecycle observations and inspected PNGs; canonical15-file closure verified; close pitch remains a named gap.
 
 - [Shared WowStyle1 caption centering](systems/menu-primitives.md#wowstyle1-caption-centering-2026-10-15) — native font-minimum adaptation, paired core attribute wiring and explicit one-line policy; both-skin AH/shared caption deltas0 and unchanged Filter/Style2 control pixels.
 

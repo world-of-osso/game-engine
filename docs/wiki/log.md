@@ -1,6 +1,6 @@
 ## 2026-10-15 — Trading Post menu lifecycle sound implementation
 
-[Menu sounds](systems/trading-post.md#menu-lifecycle-sounds--bounded-proof-october15): core2 missing-kit and actual native missing-call RED→GREEN. Both skins at67b1a92eb/231c68dc/4930acb observe eight real decoded playback/finished events, source gain ratio, no replay during idle/closed updates, Leave/reopen/Escape. Eight inspected full-HD PNGs+two contacts published;15 local70391 Vorbis variants authenticated. Canonical publication pending; close pitch named gap/no pitch path, Rank3 separately unlanded.
+[Menu sounds](systems/trading-post.md#menu-lifecycle-sounds--bounded-proof-october15): core2 missing-kit and actual native missing-call RED→GREEN. Both skins at67b1a92eb/231c68dc/4930acb observe eight real decoded playback/finished events, source gain ratio, no replay during idle/closed updates, Leave/reopen/Escape. Eight inspected full-HD PNGs+two contacts published;15 local70391 Vorbis variants authenticated. Canonical publication15/15 hash-verified, original slot sound link restored and owned overlay removed; native staging proof not relabeled. Close pitch named gap/no pitch path, Rank3 separately unlanded.
 
 ## 2026-10-15 — Authored talent Starter selection
 ## 2026-10-15 — Guild lifecycle query flow
