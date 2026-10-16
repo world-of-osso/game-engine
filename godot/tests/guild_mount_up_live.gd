@@ -96,6 +96,10 @@ func dismount_and_land() -> bool:
 
 func lift_off() -> bool:
 	release_widget_focus()
+	# dispatch_jump_action routes stationary mounted Space to MountSpecial.
+	# Move first so actual Space takes the normal Jump/Ascend path.
+	move_key(KEY_W, true)
+	await wait_frames(1)
 	move_key(KEY_SPACE, true)
 	await wait_frames(3)
 	write_json(role + "-takeoff-first-space.json", perk_observation())
@@ -105,6 +109,7 @@ func lift_off() -> bool:
 	move_key(KEY_SPACE, true)
 	var lifted: bool = await wait_until(func(): return perk_observation().flying, "physical steady-flight takeoff")
 	move_key(KEY_SPACE, false)
+	move_key(KEY_W, false)
 	return lifted
 
 func sample_movement(expected: float, label: String) -> bool:
