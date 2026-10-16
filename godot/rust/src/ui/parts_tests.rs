@@ -611,3 +611,47 @@ fn forever_short_nine_slice_keeps_its_bottom_row_inside_the_frame() {
         );
     }
 }
+
+#[test]
+fn minimap_zoom_source_states_keep_full_opacity_and_disabled_grayscale() {
+    use game_engine_ui_model::minimap::{MinimapClusterState, minimap_cluster_screen};
+    use ui_toolkit::{registry::FrameRegistry, screen::{Screen, SharedContext}};
+    for skin in [ActiveSkin::Modern, ActiveSkin::Forever] {
+        for zoom in [0, 2, 5] {
+            let mut shared = SharedContext::new();
+            shared.insert(skin);
+            shared.insert(MinimapClusterState { zoom_buttons: true, zoom, ..Default::default() });
+            let mut registry = FrameRegistry::new(1920.0, 1080.0);
+            Screen::new(minimap_cluster_screen).sync(&shared, &mut registry);
+            for (name, atlas_name, size, disabled) in [
+                ("MinimapZoomIn", "ui-hud-minimap-zoom-in", [17.,17.], zoom == 5),
+                ("MinimapZoomOut", "ui-hud-minimap-zoom-out", [17.,9.], zoom == 0),
+            ] {
+                let id = registry.get_by_name(name).unwrap();
+                let frame = registry.get_mut(id).unwrap();
+                assert_eq!(frame.alpha, 1.0, "source has no disabled alpha reduction");
+                let Some(WidgetData::Button(data)) = &mut frame.widget_data else { panic!("{name} must accept real button state"); };
+                assert_eq!(data.enabled, !disabled);
+                assert_eq!(data.state == ButtonState::Disabled, disabled);
+                for state in [ButtonState::Normal, ButtonState::Pushed] {
+                    for hovered in [false, true] {
+                        let Some(WidgetData::Button(data)) = &mut frame.widget_data else { unreachable!() };
+                        data.state = if disabled { ButtonState::Disabled } else { state };
+                        data.hovered = hovered;
+                        let parts = project_images(frame, size[0], size[1]);
+                        let suffix = if !disabled && state == ButtonState::Pushed { "-down" } else { "" };
+                        assert_eq!(parts[0].source, atlas(&format!("{atlas_name}{suffix}")));
+                        assert_eq!(parts[0].desaturated, disabled);
+                        assert_eq!(parts[0].color, [1.;4]);
+                        let highlighted = hovered && !disabled;
+                        assert_eq!(parts.len(), if highlighted { 2 } else { 1 });
+                        if highlighted {
+                            assert_eq!(parts[1].source, atlas(&format!("{atlas_name}-mouseover")));
+                            assert!(parts[1].additive);
+                        }
+                    }
+                }
+            }
+        }
+    }
+}
