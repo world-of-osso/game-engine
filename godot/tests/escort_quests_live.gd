@@ -68,7 +68,7 @@ func check_escort() -> bool:
 		var attacked := false
 		for name in AMBUSH_NAMES:
 			for unit in units_named(name):
-				var area := unit.find_child("UnitPick", true, false)
+				var area: Node = unit.find_child("UnitPick", true, false)
 				if area == null or unit.global_position.distance_to(player_position()) > 35.0:
 					continue
 				if not seen_ambushes.has(name):
