@@ -240,7 +240,8 @@ fn apply_misc(dir: &Path, spells: &mut SpellMap) -> Result<(), String> {
         spell.cast_time_ms = cast_times.get(&row.get(2)?).copied().unwrap_or(0);
         (spell.duration_ms, spell.max_duration_ms) =
             durations.get(&row.get(3)?).copied().unwrap_or((0, 0));
-        spell.range = ranges.get(&row.get(4)?).copied().unwrap_or_default();
+        spell.range_id = row.get(4)?;
+        spell.range = ranges.get(&spell.range_id).copied().unwrap_or_default();
         spell.school_mask = row.get(5)?;
         spell.icon_fdid = row.get(6)?;
         spell.active_icon_fdid = row.get(7)?;
