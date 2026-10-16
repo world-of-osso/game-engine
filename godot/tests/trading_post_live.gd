@@ -19,7 +19,7 @@ func run_fixture() -> void:
 		fail("Private compositor must expose 1920x1080 output")
 		return
 	var account := OS.get_environment("TP_ACCOUNT")
-	if server != "127.0.0.1:5791" or not account.begins_with("fb_") or shots.is_empty() or receipts.is_empty() or not phase in ["pet-comparison-cart", "pet-comparison", "layout", "layout-proof", "browse", "relog", "purchase", "refund", "cart", "cart-lifetime", "rotate-controls", "mount-rider", "mount-rider-cancel", "freeze-workflow", "authored-camera", "frozen-slot-before", "frozen-slot-after"]:
+	if server != "127.0.0.1:5791" or not account.begins_with("fb_") or shots.is_empty() or receipts.is_empty() or not phase in ["pet-projection", "pet-comparison-cart", "pet-comparison", "layout", "layout-proof", "browse", "relog", "purchase", "refund", "cart", "cart-lifetime", "rotate-controls", "mount-rider", "mount-rider-cancel", "freeze-workflow", "authored-camera", "frozen-slot-before", "frozen-slot-after"]:
 		fail("Explicit private 127.0.0.1:5791, fb_* account, phase and evidence paths required")
 		return
 	for directory in [shots, receipts]:
@@ -43,7 +43,7 @@ func run_fixture() -> void:
 	if not await wait_until(func(): return float(client.account_state().local_player_health) > 0.0, "private character alive", 120000): return
 	client.set_world_minutes(720.0)
 	await wait_frames(120)
-	if not phase in ["pet-comparison-cart", "pet-comparison", "layout", "layout-proof", "cart", "cart-lifetime", "rotate-controls", "mount-rider", "mount-rider-cancel", "freeze-workflow", "authored-camera", "frozen-slot-before", "frozen-slot-after"] and not await travelers_log(): return
+	if not phase in ["pet-projection", "pet-comparison-cart", "pet-comparison", "layout", "layout-proof", "cart", "cart-lifetime", "rotate-controls", "mount-rider", "mount-rider-cancel", "freeze-workflow", "authored-camera", "frozen-slot-before", "frozen-slot-after"] and not await travelers_log(): return
 	if not await open_vendor(): return
 	if phase in ["cart", "cart-lifetime"]:
 		# Collection UI owners may replace a hidden CanvasLayer while this vendor is open.
@@ -78,6 +78,7 @@ func run_fixture() -> void:
 		"authored-camera": await authored_camera_proof()
 		"pet-comparison": await pet_comparison_proof()
 		"pet-comparison-cart": await pet_comparison_cart_proof()
+		"pet-projection": await pet_projection_proof()
 		"frozen-slot-before": await frozen_slot_geometry_proof(false)
 		"frozen-slot-after": await frozen_slot_geometry_proof(true)
 		"refund": await refund_after_relog()
@@ -586,6 +587,45 @@ func pet_comparison_proof() -> void:
 	if not await wait_until(func(): return client.trading_post_state().comparison_ready, "fresh comparison after reopen", 120000): return
 	await capture("reopened-comparison")
 	await finish("pet-comparison")
+
+func pet_projection_proof() -> void:
+	if not await choose_category(3): return
+	for vendor in [224, 429]:
+		await click("PerksProgramProduct%d" % vendor)
+		if not await wait_until(func(): return int(client.trading_post_state().selected) == vendor and client.trading_post_state().comparison_ready and client.trading_post_state().preview_ready, "projection sample pet%d" % vendor, 120000): return
+		var actor := client.find_child("TradingPostPetActor", true, false) as Node3D
+		var sample := pet_projection_sample(actor)
+		if sample.is_empty(): return
+		var file := FileAccess.open(shots.path_join("pet-projection-%d.json" % vendor), FileAccess.WRITE)
+		if file == null: fail("Cannot write pet projection sample"); return
+		file.store_string(JSON.stringify(sample, "\t"))
+		file.close()
+		await capture("projection-pet-%d" % vendor)
+	await finish("pet-projection")
+
+func pet_projection_sample(actor: Node3D) -> Dictionary:
+	var camera := actor.get_viewport().get_camera_3d()
+	var inverse := actor.global_transform.affine_inverse()
+	var bounds := AABB()
+	var first := true
+	for mesh: MeshInstance3D in actor.find_children("*", "MeshInstance3D", true, false):
+		if not mesh.is_visible_in_tree(): continue
+		var local_bounds: AABB = inverse * mesh.global_transform * mesh.get_aabb()
+		bounds = local_bounds if first else bounds.merge(local_bounds)
+		first = false
+	if first: fail("Pet projection sample has no visible mesh AABB"); return {}
+	var corners := []
+	for i in range(8):
+		var local := bounds.get_endpoint(i)
+		var world := actor.to_global(local)
+		var pixel := camera.unproject_position(world)
+		corners.append({"local": vector3_data(local), "world": vector3_data(world), "pixel": [pixel.x, pixel.y], "behind": camera.is_position_behind(world)})
+	var size := actor.get_viewport().get_visible_rect().size
+	var host_rect := control("PerksProgramMainModelScene").get_global_rect()
+	return {"skin": skin, "vendor": int(client.trading_post_state().selected), "state": client.trading_post_state(), "viewport": [size.x, size.y], "host_rect": [host_rect.position.x, host_rect.position.y, host_rect.size.x, host_rect.size.y], "fov": camera.fov, "keep_aspect": camera.keep_aspect, "camera_origin": vector3_data(camera.global_position), "camera_basis": [vector3_data(camera.global_basis.x), vector3_data(camera.global_basis.y), vector3_data(camera.global_basis.z)], "actor_origin": vector3_data(actor.global_position), "actor_basis": [vector3_data(actor.global_basis.x), vector3_data(actor.global_basis.y), vector3_data(actor.global_basis.z)], "aabb_position": vector3_data(bounds.position), "aabb_size": vector3_data(bounds.size), "corners": corners}
+
+func vector3_data(value: Vector3) -> Array:
+	return [value.x, value.y, value.z]
 
 func pet_comparison_cart_proof() -> void:
 	var tender := int(client.trading_post_state().tender)
