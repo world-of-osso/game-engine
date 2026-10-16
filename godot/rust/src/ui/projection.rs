@@ -18,6 +18,7 @@ use ui_toolkit::widgets::font_string::{GameFont, JustifyH, JustifyV, Outline};
 use ui_toolkit::widgets::texture::TextureSource;
 
 use super::assets;
+use super::hit_button::RegistryButton;
 use super::input_queue::PendingInputs;
 use super::layout;
 use super::parts::{self, ImagePart, TextPart};
@@ -563,6 +564,7 @@ impl UiProjection {
                     action.starts_with("bank_slot:")
                         || action.starts_with("guild:member:")
                         || action.starts_with("guild:news_entry:")
+                        || action.starts_with("guild:perk:")
                         || action.starts_with("mount:select:")
                         || action.starts_with("journal:activity:")
                         || action.starts_with("transmog:outfit:")
@@ -767,7 +769,9 @@ impl UiProjection {
         }
         match &frame.widget_data {
             Some(WidgetData::Button(button)) => {
-                let mut button_node = node.cast::<Button>();
+                let mut hit_button = node.cast::<RegistryButton>();
+                hit_button.bind_mut().hit_rect_insets = frame.hit_rect_insets;
+                let mut button_node = hit_button.upcast::<Button>();
                 button_node.set_disabled(!button.enabled || button.state == ButtonState::Disabled);
             }
             Some(WidgetData::EditBox(edit)) => self.update_editbox(node, edit, rect)?,
@@ -1083,7 +1087,7 @@ mod spacing_tests;
 
 /// Input-only native button: registry parts draw every visual state.
 fn flat_button() -> Gd<Button> {
-    let mut button = Button::new_alloc();
+    let mut button = RegistryButton::new_alloc().upcast::<Button>();
     button.set_focus_mode(godot::classes::control::FocusMode::NONE);
     let empty = StyleBoxEmpty::new_gd();
     for state in [

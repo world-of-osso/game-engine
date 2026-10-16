@@ -3,7 +3,7 @@ use crate::quest_runtime::QuestRuntime;
 use crate::tooltip_presentation::{TooltipLineState, TooltipPresentation};
 use crate::ui::screens::world_map_frame_component::{MapPin, MapPinType};
 use crate::ui_map_data::UiMapCatalog;
-use shared::protocol::AvailableWorldQuest;
+use shared::protocol::{AvailableWorldQuest, WorldQuestPoi};
 use ui_toolkit::widgets::font_string::GameFont;
 use ui_toolkit::{rsx, screen::SharedContext, widget_def::Element};
 
@@ -21,11 +21,17 @@ pub fn map_pins(
     runtime
         .active_world_quests(now)
         .filter_map(|quest| {
-            let [x, y] = catalog.map_position(
-                map_id,
-                quest.map_id,
-                [quest.position.x as f32, quest.position.y as f32, 0.],
-            )?;
+            let [x, y] = quest
+                .pois
+                .iter()
+                .filter(|poi| catalog.lineage(poi.ui_map_id).contains(&map_id))
+                .find_map(|poi| {
+                    catalog.map_position(
+                        map_id,
+                        poi.map_id,
+                        [poi.x as f32, poi.y as f32, poi.z as f32],
+                    )
+                })?;
             Some(MapPin {
                 pin_type: MapPinType::WorldQuest,
                 quest_id: Some(quest.quest_id),
@@ -51,9 +57,9 @@ pub fn minimap_blips(
     use crate::minimap::{BlipKind, MinimapBlip, edge_offset};
     runtime
         .active_world_quests(now)
-        .filter(|quest| quest.map_id == map_id)
         .filter_map(|quest| {
-            let position = [quest.position.x as f32, -(quest.position.y as f32)];
+            let poi = find_nearest_poi(quest, map_id, view.center)?;
+            let position = [poi.x as f32, -(poi.y as f32)];
             let (offset, edge) = edge_offset(view, position, map_size);
             if edge && selected != Some(quest.quest_id) {
                 return None;
@@ -69,6 +75,28 @@ pub fn minimap_blips(
             })
         })
         .collect()
+}
+
+/// Minimap navigation chooses the nearest authored area in the horizontal view.
+/// `center` is engine [x,z], not the source height axis retained in WorldQuestPoi.
+fn find_nearest_poi(
+    quest: &AvailableWorldQuest,
+    map_id: u32,
+    center: [f32; 2],
+) -> Option<&WorldQuestPoi> {
+    quest
+        .pois
+        .iter()
+        .filter(|poi| poi.map_id == map_id)
+        .min_by(|first, second| {
+            poi_distance_squared(first, center).total_cmp(&poi_distance_squared(second, center))
+        })
+}
+
+fn poi_distance_squared(poi: &WorldQuestPoi, center: [f32; 2]) -> f32 {
+    let dx = poi.x as f32 - center[0];
+    let dz = -(poi.y as f32) - center[1];
+    dx * dx + dz * dz
 }
 
 pub fn pin_at(pins: &[MapPin], uv: [f32; 2], [width, height]: [f32; 2]) -> Option<u32> {
