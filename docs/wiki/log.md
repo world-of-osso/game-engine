@@ -1,3 +1,7 @@
+## 2026-10-16 — IoC NPC mover consumer
+
+[Driver input](systems/battlegrounds.md#ioc-npc-mover-input--implementation2026-10-16): controlling-seat authored capabilities, real source-channel/UDP RED and NPC-root prediction/epoch wiring. Stop/resume, remote-yaw takeover, native input and both-skin model acceptance remain pending.
+
 ## 2026-10-15 — Campsite selected-hover
 
 - [Glue/menu fidelity](investigations/glue-menu-fidelity.md#campsite-selected-hover-branch--2026-10-15): existing selected state picks source selected-hover art/18px margins, both-skin native pointer/reselection proof.
