@@ -1398,11 +1398,16 @@ fn connect_edit_box(pending: &PendingInputs, frame: &Frame, node: &mut Gd<Contro
         ) {
             let submit_pending = pending.clone();
             let mut edit = node.clone();
+            // Journal SearchBoxListMixin keeps focus on short/no-result Enter.
+            // Its successful selection/Show All action owns Close() instead.
+            let release_on_submit = frame.name.as_deref() != Some("EncounterJournalSearchBox");
             node.connect(
                 "text_submitted",
-                &Callable::from_fn("talent-search-submit", move |_| {
+                &Callable::from_fn("registry-search-submit", move |_| {
                     submit_pending.push(UiInput::Submit);
-                    edit.release_focus();
+                    if release_on_submit {
+                        edit.release_focus();
+                    }
                 }),
             );
             if matches!(
@@ -1505,7 +1510,7 @@ fn talent_import_keys(pending: PendingInputs, mut edit: Gd<Control>) -> Callable
 }
 
 fn search_preview_keys(pending: PendingInputs, mut edit: Gd<Control>) -> Callable {
-    Callable::from_fn("talent-search-preview-keys", move |args| {
+    Callable::from_fn("registry-search-preview-keys", move |args| {
         let Some(key) = args
             .first()
             .and_then(|event| event.try_to::<Gd<godot::classes::InputEventKey>>().ok())
