@@ -226,6 +226,21 @@ impl UiProjection {
         }
     }
 
+    /// The source sync key survives hidden modes and recreated editor frames.
+    pub fn advance_housing_glows(&self, registry: &FrameRegistry) {
+        for frame in registry.frames_iter().filter(|frame| {
+            frame
+                .name
+                .as_deref()
+                .and_then(super::housing_glow::mask_atlas)
+                .is_some()
+        }) {
+            if let Some(node) = self.nodes.get(&frame.id) {
+                super::housing_glow::advance(node);
+            }
+        }
+    }
+
     /// The control projecting frame `id`.
     pub fn node(&self, id: u64) -> Option<Gd<Control>> {
         self.nodes.get(&id).cloned()
@@ -806,6 +821,7 @@ impl UiProjection {
                 part.rotation,
                 part.additive,
             )?;
+            loading |= super::housing_glow::apply_mask(node, &mut control, registry)?;
             if part.overlay {
                 control.set_z_as_relative(false);
                 control.set_z_index(OVERLAY_Z);
