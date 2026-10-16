@@ -2,6 +2,7 @@
 # Wiki Index
 
 - [Storage Filter header](systems/housing.md#storage-filter-header--implementation2026-10-15) — native missing-surface RED→both-skin fixed source Filter/reset geometry, physical Dyeable/reset and paid conservation; popup/full-image parity excluded, Forever final JSON limitation retained.
+- [Caster-centered assisted range](investigations/cooldown-assist-data.md#caster-centered-assisted-range--2026-10-16) — retain authored Self Only range identity instead of excluding selected-enemy distance; actual Whirlwind RED→GREEN and25 core controls, fresh native acceptance open.
 
 - [Expert active submode glow](systems/housing.md#expert-active-glow--implementation2026-10-15) — native missing-glow RED→both-skin painted fixed-mask/six-second shared-phase/canvas-lifetime GREEN, unchanged paid state and six inspected1280 PNGs; full appearance remains open.
 
