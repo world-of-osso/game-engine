@@ -8,10 +8,42 @@ from contextlib import closing
 from pathlib import Path
 
 sys.path.insert(0, str(Path(__file__).resolve().parents[1]))
-from bot_stockade import admitted_copy, authored_priority, encounter_states, parse_npc, parse_party, stockade_plan
+from bot_stockade import admitted_copy, authored_priority, encounter_states, parse_npc, parse_party, stockade_exit_plan, stockade_plan, target_observation_ready
 
 
 class StockadeSourceTests(unittest.TestCase):
+    def test_actual_dead_assist_target_needs_no_authored_evaluation_and_never_casts(self):
+        fixture = Path(__file__).parent / 'fixtures/bot_harness/native-stockade-dead-target.json'
+        state = json.loads(fixture.read_text())
+        self.assertEqual(state['spells']['target_health'], 0)
+        self.assertNotIn('evaluation_json', state['assisted'])
+        self.assertTrue(target_observation_ready(state, state['target']))
+        self.assertIsNone(authored_priority(state, state['target']))
+        state['spells']['target_health'] = 20
+        self.assertFalse(target_observation_ready(state, state['target']))
+        state['assisted']['evaluation_json'] = json.dumps({'target': state['target']})
+        self.assertTrue(target_observation_ready(state, state['target']))
+        self.assertFalse(target_observation_ready(state, state['target'] + 1))
+
+    def test_exit_uses_authored_trigger_shape_and_world_safe_location_not_reposition(self):
+        with tempfile.TemporaryDirectory() as root:
+            path = Path(root) / 'exit.sqlite'
+            with closing(sqlite3.connect(path)) as db:
+                db.executescript('CREATE TABLE area_trigger(ID INTEGER,ContinentID INTEGER,Pos_0 REAL,Pos_1 REAL,Pos_2 REAL);'
+                                 'CREATE TABLE tdb_areatrigger_teleport(ID INTEGER,PortLocID INTEGER);'
+                                 'CREATE TABLE tdb_world_safe_locs(ID INTEGER,MapID INTEGER,LocX REAL,LocY REAL,LocZ REAL);')
+                db.execute('INSERT INTO area_trigger VALUES(503,34,48.0937233,0.933266521,-13.7769003)')
+                db.execute('INSERT INTO tdb_areatrigger_teleport VALUES(503,3618)')
+                db.execute('INSERT INTO tdb_world_safe_locs VALUES(3618,0,-8762,848,87)');db.commit()
+            plan = stockade_exit_plan(path)
+            self.assertEqual(plan['trigger_id'], 503)
+            self.assertEqual(plan['goal'], [48.0937233,-13.7769003,-0.933266521])
+            self.assertEqual(plan['destination_map'], 0)
+            with closing(sqlite3.connect(path)) as db:
+                db.execute('DELETE FROM tdb_areatrigger_teleport');db.commit()
+            with self.assertRaisesRegex(ValueError, 'exit|trigger'):
+                stockade_exit_plan(path)
+
     def test_native_provider_preserves_authored_selection_and_refuses_unknown_rule(self):
         state = {"target": 41, "assisted": {"available": True, "failure_reason": "", "next_spell": 1464,
                  "evaluation_json": json.dumps({"target": 41, "selection": {"Ok": {"Spell": 1464}}})}}

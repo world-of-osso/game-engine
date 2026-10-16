@@ -19,7 +19,7 @@ from bot_dungeon import summarize_dungeon
 from bot_gear import equipment_receipt, load_plan
 from bot_harness import parse_combat, poll_has_gap, routed_player
 from bot_health import require_living_player
-from bot_stockade import admitted_copy, authored_priority, encounter_states, parse_npc, parse_party, stockade_plan
+from bot_stockade import admitted_copy, authored_priority, encounter_states, parse_npc, parse_party, stockade_exit_plan, stockade_plan, target_observation_ready
 from run_dummy_bots import observed_pet_owner
 
 
@@ -89,14 +89,12 @@ class StockadeRun:
         deadline = time.monotonic() + 10
         while time.monotonic() < deadline:
             state = self.rotation()
-            encoded = state["assisted"].get("evaluation_json")
-            if state.get("target") == int(target) and state.get("facts") is not None and encoded:
-                if json.loads(encoded)["target"] == int(target):
-                    if state["spells"]["spec"] != self.args.spec:
-                        raise ValueError("Native specialization changed during the run")
-                    with (self.output / "priority-samples.jsonl").open("a") as stream:
-                        stream.write(json.dumps(state) + "\n")
-                    return state
+            if target_observation_ready(state, target):
+                if state["spells"]["spec"] != self.args.spec:
+                    raise ValueError("Native specialization changed during the run")
+                with (self.output / "priority-samples.jsonl").open("a") as stream:
+                    stream.write(json.dumps(state) + "\n")
+                return state
             time.sleep(.05)
         raise RuntimeError("Fresh target-bound native authored facts not observed within10s")
 
@@ -239,6 +237,9 @@ class StockadeRun:
         here = position(self.account())
         if target is not None:
             state = self.snapshot(target)
+            if state["spells"]["target_health"] == 0:
+                time.sleep(.2)
+                return False
             goal = state["target_position"]
             if len(goal) != 3:
                 raise RuntimeError("Native assisted target origin not observed")
@@ -254,6 +255,31 @@ class StockadeRun:
             self.move(here, goal, "authored-boss-goal")
         time.sleep(.2)
         return False
+
+    def exit_instance(self):
+        plan = stockade_exit_plan(self.args.world_db)
+        publish(self.output / "source-exit-plan.json", plan)
+        deadline = time.monotonic() + 240
+        while time.monotonic() < deadline:
+            path = self.output / "native-account-state.json"
+            if not path.exists():
+                time.sleep(.2)
+                continue
+            account = self.account()
+            if account.get("screen") != "InWorld":
+                time.sleep(.2)
+                continue
+            if account.get("selected_character_name") != self.args.character:
+                raise ValueError("Exit preparation selected another character")
+            require_living_player(account)
+            if account.get("world_map_id") == plan["destination_map"]:
+                publish(self.output / "exit-confirmation.json", {"at_ms": int(time.time() * 1000),
+                        "account": account, "source": plan, "basis": "native walking through authored area trigger"})
+                return
+            if account.get("world_map_id") != 34:
+                raise ValueError("Exit preparation encountered an unexpected map")
+            self.move(position(account), plan["goal"], "authored-exit-trigger")
+        raise TimeoutError("Ordinary Stockade exit exceeded240s")
 
     def execute(self):
         try:
@@ -297,11 +323,16 @@ def main():
         parser.add_argument("--" + name, type=Path, required=True)
     parser.add_argument("--character", required=True)
     parser.add_argument("--spec", type=int, default=72)
+    parser.add_argument("--exit-only", action="store_true", help="Walk a persisted owner through the authored exit before a fresh run")
     parser.add_argument("--timeout", type=float, default=7200)
     args = parser.parse_args()
     if args.timeout <= 0 or (args.output / "run.json").exists():
         parser.error("Positive time bound and unused output required")
-    StockadeRun(args).execute()
+    controller = StockadeRun(args)
+    if args.exit_only:
+        controller.exit_instance()
+    else:
+        controller.execute()
 
 
 if __name__ == "__main__":

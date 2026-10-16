@@ -36,7 +36,18 @@ def encounter_states(server_text, instance):
     return {int(encounter): state for encounter, state in re.findall(pattern, server_text)}
 
 
+def target_observation_ready(state, target):
+    if state.get("target") != int(target) or state.get("facts") is None:
+        return False
+    if state["spells"].get("target_health") == 0:
+        return True
+    encoded = state["assisted"].get("evaluation_json")
+    return bool(encoded) and json.loads(encoded)["target"] == int(target)
+
+
 def authored_priority(state, target):
+    if state.get("target") == int(target) and state.get("spells", {}).get("target_health") == 0:
+        return None
     assisted = state["assisted"]
     spell = authored_next(assisted)
     evaluation = json.loads(assisted["evaluation_json"])
@@ -72,6 +83,19 @@ def parse_party(text):
     if len(result) != expected:
         raise ValueError("Native group roster count disagrees with live members")
     return result
+
+
+def stockade_exit_plan(database):
+    with closing(sqlite3.connect(Path(database).resolve().as_uri() + "?mode=ro", uri=True)) as db:
+        rows = db.execute("SELECT a.ID,a.Pos_0,a.Pos_1,a.Pos_2,w.ID,w.MapID,w.LocX,w.LocY,w.LocZ "
+                          "FROM area_trigger a JOIN tdb_areatrigger_teleport t ON t.ID=a.ID "
+                          "JOIN tdb_world_safe_locs w ON w.ID=t.PortLocID "
+                          "WHERE a.ContinentID=34 AND w.MapID<>34").fetchall()
+    if len(rows) != 1:
+        raise ValueError("Expected one authored Stockade exit trigger and destination")
+    trigger, x, y, z, safe_loc, map_id, dx, dy, dz = rows[0]
+    return {"trigger_id": trigger, "goal": [x, z, -y], "destination_id": safe_loc,
+            "destination_map": map_id, "destination": [dx, dz, -dy]}
 
 
 def stockade_plan(database):
