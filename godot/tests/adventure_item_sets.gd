@@ -41,14 +41,34 @@ func verify_list_geometry() -> bool:
 	return verify_text_layout(first.substr(0,first.find("Item")))
 
 func reveal_set_item(name: String) -> bool:
-	for notch in 220:
-		var item := control(name)
-		if item != null and item.is_visible_in_tree() and control("EncounterJournalContent").get_global_rect().has_point(item.get_global_rect().get_center()):
-			return true
-		if not await wheel("EncounterJournalContent", MOUSE_BUTTON_WHEEL_DOWN):
-			return false
-	stop("Genuine source set item not reached: " + name)
-	return false
+	var set_id := int(name.trim_prefix("JournalSet").get_slice("Item", 0))
+	var ids: PackedInt32Array = client.adventure_guide_state().get("item_set_ids", PackedInt32Array())
+	var index := ids.find(set_id)
+	if index < 0 or ids.size() * 54 + 16 <= 332:
+		stop("Actual filtered source list does not contain target or second-page coverage")
+		return false
+	# Physical thumb input to the offset of the actual observed ordered ID, never UI-state mutation.
+	var fraction := clampf(float(index * 54) / float(ids.size() * 54 + 16 - 332), 0.0, 1.0)
+	var thumb := control("EncounterJournalContentScrollThumb").get_global_rect()
+	var track := control("EncounterJournalContentScrollTrack").get_global_rect()
+	if not await move_to("EncounterJournalContentScrollThumb"):
+		return false
+	await pointer_button(thumb.get_center(), true)
+	var point := Vector2(thumb.get_center().x, track.position.y + fraction * (track.size.y-thumb.size.y) + thumb.size.y/2.0)
+	var motion := InputEventMouseMotion.new()
+	motion.position = point
+	motion.global_position = point
+	motion.button_mask = MOUSE_BUTTON_MASK_LEFT
+	root.push_input(motion,true)
+	await settle()
+	await pointer_button(point,false)
+	await settle()
+	var item := control(name)
+	if item == null or not item.is_visible_in_tree() or not control("EncounterJournalContent").get_global_rect().has_point(item.get_global_rect().get_center()):
+		stop("Physical source thumb did not reveal authored set%s at observed index%s" % [set_id,index])
+		return false
+	print("ITEM_SETS_SCROLL actual_id=%s index=%s count=%s fraction=%s" % [set_id,index,ids.size(),fraction])
+	return true
 
 func verify_text_layout(name: String) -> bool:
 	var title := control(name) as Label

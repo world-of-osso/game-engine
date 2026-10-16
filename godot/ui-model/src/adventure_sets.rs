@@ -193,7 +193,7 @@ fn set_text(view: &View, set: &ItemSet, items: &[&Item]) -> Element {
         frame {
             name: {DynName(format!("JournalSet{}Text", set.id))},
             left: 39., top: 6., width: 550., height: "auto", pos_type: "absolute",
-            layout: "flex-column", gap: 2., {name}{level}
+            layout: "flex-column", align: "start", gap: 2., {name}{level}
         }
     }
 }

@@ -678,7 +678,10 @@ impl GameClient {
         state.set("loot_count", view.loot().len() as i64);
         state.set("owned_keys_only", view.owned_keys_only);
         state.set("owned_key_count", view.keys.len() as i64);
-        state.set("item_set_count", view.item_sets().len() as i64);
+        let sets = view.item_sets();
+        state.set("item_set_count", sets.len() as i64);
+        let set_ids: PackedInt32Array = sets.iter().map(|set| set.id as i32).collect();
+        state.set("item_set_ids", set_ids);
         state.set("lockout_count", view.lockouts.len() as i64);
         state.set(
             "renown_faction_count",
