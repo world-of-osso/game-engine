@@ -1,6 +1,6 @@
 ## 2026-10-16 — HouseSettings omitted decorative regions
 
-[Source regions](systems/housing.md#housesettings-decorative-regions--2026-10-16): genuine missing-region RED restores gradient/foliage/divider only; after proof pending.
+[Source regions](systems/housing.md#housesettings-decorative-regions--2026-10-16): genuine missing-region RED→GREEN restores gradient/foliage/divider only; both-skin native6region geometry and inspected panels, zero changes outside three source rectangles.
 
 ## 2026-10-16 — Pet queue-ready button art
 

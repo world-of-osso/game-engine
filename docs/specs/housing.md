@@ -92,7 +92,7 @@ Server/wire supports owner-local staged dyes, explicit atomic commit, preserved 
 
 ## HouseSettings access controls
 
-- [ ] The existing600×550 House Settings panel paints its source400×80 Header gradient at100,0, natural-size left foliage at6,7 and550×1 owner/access divider at25,174. XML Header/PlantDecoLeft/Spacer own these decorations; title/control layout and actions remain unchanged. Regression: `house_settings_paints_source_header_foliage_and_divider_both_skins`; [implementation/proof](../wiki/systems/housing.md#housesettings-decorative-regions--2026-10-16).
+- [x] The existing600×550 House Settings panel paints its source400×80 Header gradient at100,0, natural-size left foliage at6,7 and550×1 owner/access divider at25,174. XML Header/PlantDecoLeft/Spacer own these decorations; title/control layout and actions remain unchanged. Regression: `house_settings_paints_source_header_foliage_and_divider_both_skins`; [implementation/proof](../wiki/systems/housing.md#housesettings-decorative-regions--2026-10-16).
 
 - [x] House Access uses inherited122×25 WowStyle2 dropdown states, centered source caption and MenuStyle1 three ordinary20px buttons (Anyone/No One/Limited), anchored directly below the owner with minimum owner width. Pending disables dispatch. XML4–32 and Lua234–244 own presentation; other unavailable columns/owner remain unchanged. Regression: `housing_settings_fidelity`; native fixture: `house_access_fidelity.gd`. [Implementation/proof boundary](../wiki/systems/housing.md#house-access-dropdown--2026-10-16).
 
