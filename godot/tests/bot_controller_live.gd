@@ -68,8 +68,16 @@ func sample() -> void:
     var spells: Dictionary = client.spells_state()
     var now_ms := int(Time.get_unix_time_from_system() * 1000.0)
     var selected: Dictionary = client.target_state()
+    var target_position: Array[float] = []
+    if selected.get("target") != null:
+        var transform: Variant = client.unit_transform(int(selected["target"]))
+        if transform is Transform3D:
+            target_position.assign([transform.origin.x, transform.origin.y, transform.origin.z])
     var rotation := {"at_ms": now_ms, "spells": spells,
-        "target": selected.get("target"), "facts": null}
+        "target": selected.get("target"), "target_state": selected,
+        "target_position": target_position, "facts": null,
+        "assisted": client.assisted_combat_state(), "inventory": client.merchant_state(),
+        "pet": client.pet_bar_state()}
     if account.get("gameplay_input_allowed", false) and selected.get("target") != null:
         var query: Dictionary = client.call("spell_priority_state", int(selected["target"]),
             spell_ids)
@@ -93,6 +101,10 @@ func sample() -> void:
         if spells.get("catalog_ready", false) and not spells.get("known", []).is_empty():
             publish("native-spells-state.json", spells)
             kit_captured = true
+            var controller = load("res://tests/bot_harness_talents.gd").new()
+            var sheet: Dictionary = await controller.capture_sheet(self)
+            publish("native-sheet-stats.json", {"at_ms": int(Time.get_unix_time_from_system() * 1000.0),
+                "sheet_stats": sheet, "proof": "ordinary CharacterFrame input and visible stat labels"})
     var path := directory + "/native-assist-request.json"
     if not assisting and not clicking_loot and FileAccess.file_exists(path):
         var request: Variant = JSON.parse_string(FileAccess.get_file_as_string(path))

@@ -68,6 +68,7 @@ Portable captured [fixtures and provenance](../../scripts/tests/fixtures/bot_har
 ## Implementation inventory
 
 - `godot/rust/src/ipc/combat.rs`: preserve received crit/glancing/periodic, school mask, overflow and absorbed/resisted/blocked values in combat-log/recap output; never infer historical missing fields.
+- `scripts/bot_stockade.py`: read-only encounter/template/spawn/entrance plan, exact native party facts and explicit authored native priority provider; no Mage cycle or direct-line route.
 - `scripts/bot_dungeon.py`: native per-boss ownership/DPS and player/party deaths, separate authoritative completion/clear timing; capture/source gaps remain unqualified.
 - `scripts/bot_harness.py`: native combat parsing, request/result reconciliation, fixed-window DPS and comparison reporting.
 - `scripts/bot_ability_summary.py` / `bot_combat_metrics.py`: read-only expected-roster per-ability requests/successes/hits/crits/misses/event damage, auto-attack share, sampled GCD/idle intervals, observed raw power net changes and raw DB2 effect/cost/cooldown/auto-attack metadata. Preserve absent specs/repetitions, real child event IDs, and unattributed native errors. Missing crit flags remain unknown, resource net change is never spending, sampled timing is not exact server occupancy.
