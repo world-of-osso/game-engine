@@ -311,10 +311,26 @@ class StockadeRun:
         finally:
             self.finish()
 
+    def drain_terminal_deaths(self):
+        expected = {str(row["entity"]) for row in self.run.get("party_death_observations", [])}
+        started = time.monotonic()
+        while True:
+            self.poll_combat()
+            received = {row["dst"] for row in parse_combat("\n".join(self.events))
+                        if row["kind"] == "death"}
+            missing = expected - received
+            if not missing or time.monotonic() - started >= 10:
+                publish(self.output / "terminal-death-delivery.json", {
+                    "expected": sorted(expected), "unobserved": sorted(missing),
+                    "elapsed_ms": int((time.monotonic() - started) * 1000),
+                    "basis": "native roster death followed by actual combat delivery; no fabricated event"})
+                return
+            time.sleep(.1)
+
     def finish(self):
         if self.run["actor"] is not None:
             try:
-                self.poll_combat()
+                self.drain_terminal_deaths()
                 self.record_credit()
             except (OSError, ValueError, RuntimeError, subprocess.SubprocessError) as error:
                 self.run["capture_complete"] = False

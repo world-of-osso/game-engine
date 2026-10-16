@@ -52,6 +52,7 @@ mod housing_mouse;
 mod housing_placed_list;
 mod housing_preview;
 mod housing_storage;
+mod housing_storage_menu;
 mod hud_edit;
 mod input;
 mod input_keys;
@@ -1458,6 +1459,10 @@ impl GameClient {
             self.mark_viewport_input_handled();
             return true;
         }
+        if self.housing_storage_menu_input(event) {
+            self.mark_viewport_input_handled();
+            return true;
+        }
         let housing_key_used = self.housing_key_input(event).unwrap_or_else(|error| {
             self.handle_frame_error("House editor key", error.into());
             true
@@ -2413,6 +2418,7 @@ impl GameClient {
             AccountEvent::Stable(message) => self.receive_stable(message)?,
             AccountEvent::GuildRanks(state) => self.receive_guild_ranks(state)?,
             AccountEvent::GuildEventLog(log) => self.receive_guild_event_log(log)?,
+            AccountEvent::GuildNews(news) => self.receive_guild_news(news)?,
             AccountEvent::GuildInvitation(invite) => self.receive_guild_invitation(invite),
             AccountEvent::GuildInviteResult(result) => self.receive_guild_invite_result(result)?,
             AccountEvent::GuildAccepted(result) => self.receive_guild_accepted(result)?,

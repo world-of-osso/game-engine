@@ -9,6 +9,7 @@ import math
 import re
 import time
 import uuid
+from collections import Counter
 from pathlib import Path
 
 
@@ -28,7 +29,7 @@ class FileBridge:
         self.timeout = timeout
 
     def request(self, kind, payload):
-        if kind not in ("assist", "loot-click"):
+        if kind not in ("assist", "loot-click", "pet-assist"):
             raise ValueError(f"Unsupported native input request: {kind}")
         identity = uuid.uuid4().hex
         request = self.directory / f"native-{kind}-request.json"
@@ -56,7 +57,8 @@ def requested_snapshot(state, target):
         raise ValueError(query["error"])
     if query.get("target") != int(target):
         raise ValueError("Native priority query belongs to another target")
-    return {**query, "spells": state["spells"], "at_ms": state["at_ms"]}
+    return {**query, "spells": state["spells"], "at_ms": state["at_ms"],
+            "actor": int(state["account"]["local_player_id"])}
 
 
 def native_usable(snapshot, spell):
@@ -84,11 +86,42 @@ class PlayerController:
         self.snapshot = snapshot  # Fresh native snapshot bound to requested target.
         self.route = route  # (start, goal, label) -> authored/navmesh corners.
         self.bridge = bridge
+        self.pending = None
+        self.outcomes = []
+
+    @staticmethod
+    def success_counts(state):
+        return Counter((int(row["source"]), int(row["spell_id"]), int(row["at_ms"]))
+                       for row in state["spells"]["cast_success_events"])
+
+    def observe_cast_outcome(self, state):
+        """Receipt, not an IPC enqueue response or elapsed GCD, releases input."""
+        pending = self.pending
+        if pending is None:
+            return True
+        failures = [row for row in state["spells"]["cast_failure_events"]
+                    if row["sequence"] > pending["failure_seq"]
+                    and int(row["spell_id"]) == pending["spell"]]
+        successes = self.success_counts(state) - pending["successes"]
+        matched = [key for key in successes if key[:2] == (pending["actor"], pending["spell"])]
+        if failures or matched:
+            outcome = {"spell": pending["spell"], "requested_at_ms": pending["at_ms"],
+                       "observed_at_ms": state["at_ms"], "success": bool(matched)}
+            if failures:
+                outcome.update(failures[0])
+            self.outcomes.append(outcome)
+            self.pending = None
+            return True
+        if time.monotonic() >= pending["deadline"]:
+            raise TimeoutError(f"Native spell {pending['spell']} outcome not observed; request not repeated")
+        return False
 
     def cast_next(self, target, priority):
         state = self.snapshot(target)
         if state.get("target") != int(target):
             raise ValueError("Native priority facts belong to another target")
+        if not self.observe_cast_outcome(state):
+            return None
         spells = state["spells"]
         if spells["casting"] or spells["gcd_ms"] > 0:
             return None
@@ -98,6 +131,9 @@ class PlayerController:
         spell = int(selected["spell"])
         if not native_usable(state, spell):
             return None
+        self.pending = {"spell": spell, "actor": int(state["actor"]), "at_ms": state["at_ms"],
+                        "successes": self.success_counts(state),
+                        "failure_seq": spells["cast_failure_seq"], "deadline": time.monotonic() + 10}
         response = self.invoke("spell", "cast", "--spell", str(spell), "--target", str(target))
         return {**selected, "response": response, "native": state}
 

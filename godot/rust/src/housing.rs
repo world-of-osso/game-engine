@@ -243,6 +243,7 @@ impl GameClient {
         if let Some(model) = &mut self.housing.model {
             model.advance_storage_transition(delta)?;
         }
+        self.advance_housing_storage_menu(delta);
         let Some(ui) = &mut self.housing.ui else {
             return Ok(());
         };
