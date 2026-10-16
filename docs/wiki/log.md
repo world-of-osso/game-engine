@@ -4,6 +4,9 @@
 ## 2026-10-16 — Caster-centered assisted range
 
 [Source range identity](investigations/cooldown-assist-data.md#caster-centered-assisted-range--2026-10-16): actual Whirlwind190411 at3yd RED→retain Range1 Self Only and preserve targeted hostile bounds;25 bounded core controls pass. Raw authored rotation, known spells and effect radii unchanged; fresh native and independent acceptance remain open.
+## 2026-10-15 — Minimap zoom state art
+
+- [Minimap](systems/minimap.md#zoom-button-source-states--2026-10-15): source Button states/full-opacity disabled grayscale; both-skin physical native proof, bounded offline screen/input acceptance.
 
 ## 2026-10-15 — Housing Expert active glow implementation
 
