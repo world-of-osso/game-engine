@@ -46,7 +46,7 @@ impl VehicleAttachmentFixture {
     }
 
     #[func]
-    fn claim_driver(&mut self) -> Dictionary {
+    fn claim_driver(&mut self) -> VarDictionary {
         self.world.local_player_id = Some(RIDER);
         let rider = self.world.units.get_mut(&RIDER).expect("Fixture rider");
         rider.motion.control = Some(shared::components::MovementControl {
@@ -59,15 +59,16 @@ impl VehicleAttachmentFixture {
             walk_speed: 3.0,
             run_speed: 0.98571 * 7.0,
         });
+        self.world.advance(0.0);
         self.mover_state()
     }
 
     #[func]
-    fn mover_state(&self) -> Dictionary {
-        let mut state = Dictionary::new();
+    fn mover_state(&self) -> VarDictionary {
+        let mut state = VarDictionary::new();
         state.set("vehicle", self.world.local_vehicle_movement().is_some());
         state.set("blocked", self.world.local_input_blocked());
-        state.set("mover", self.world.local_mover_node().unwrap().get_name());
+        state.set("mover", &self.world.local_mover_node().unwrap().get_name());
         state.set("facing", self.world.local_mover_facing().unwrap());
         state
     }
