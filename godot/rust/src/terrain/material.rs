@@ -267,7 +267,7 @@ impl TerrainMaterials {
         Ok(root)
     }
 
-    fn build_material(
+    pub(super) fn build_material(
         &mut self,
         parsed: &NativeTerrainTile,
         layers: &[adt::TextureLayer],
