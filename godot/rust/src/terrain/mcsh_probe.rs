@@ -30,37 +30,55 @@ impl IRefCounted for WowTerrainShadowProbe {
 
 #[godot_api]
 impl WowTerrainShadowProbe {
+    /// Current Goldshire tile31_49 has no MCSH. Capture that boundary unchanged.
+    #[func]
+    fn goldshire_chunk(&self) -> VarDictionary {
+        probe_result(
+            read_fixture_tile_for("777832.adt", "777835.adt", "775971.wdt", (31, 49))
+                .and_then(|tile| build_fixture_chunk(tile, 4, (31, 49))),
+        )
+    }
+
     /// 0 zero, 1 all set, 2 left-half set, 3 missing, 4 authentic cached payload.
     #[func]
     fn chunk(&self, mask_mode: i32) -> VarDictionary {
-        let mut result = VarDictionary::new();
-        match read_fixture_tile().and_then(|tile| build_fixture_chunk(tile, mask_mode)) {
-            Ok((node, source, mask)) => {
-                result.set("node", &node);
-                result.set("source_mask", &PackedByteArray::from(source.as_slice()));
-                result.set(
-                    "mask",
-                    &PackedByteArray::from(mask.as_ref().map_or(&[][..], |m| m.as_slice())),
-                );
-            }
-            Err(error) => result.set("error", error),
-        }
-        result
+        probe_result(
+            read_fixture_tile().and_then(|tile| build_fixture_chunk(tile, mask_mode, (31, 36))),
+        )
     }
+}
+
+fn probe_result(result: Result<FixtureChunk, String>) -> VarDictionary {
+    let mut output = VarDictionary::new();
+    match result {
+        Ok((node, source, mask)) => {
+            output.set("node", &node);
+            output.set("source_mask", &PackedByteArray::from(source.as_slice()));
+            output.set(
+                "mask",
+                &PackedByteArray::from(mask.as_ref().map_or(&[][..], |m| m.as_slice())),
+            );
+        }
+        Err(error) => output.set("error", error),
+    }
+    output
 }
 
 type FixtureChunk = (Gd<MeshInstance3D>, [u8; 512], Option<[u8; 512]>);
 
-fn build_fixture_chunk(mut tile: NativeTerrainTile, mode: i32) -> Result<FixtureChunk, String> {
-    let source = tile.root.chunks[CHUNK]
-        .shadow_map
-        .ok_or("fixture chunk lacks MCSH")?;
+fn build_fixture_chunk(
+    mut tile: NativeTerrainTile,
+    mode: i32,
+    coords: (u32, u32),
+) -> Result<FixtureChunk, String> {
+    let authored = tile.root.chunks[CHUNK].shadow_map;
+    let source = authored.unwrap_or([0; 512]);
     let mask = match mode {
         0 => Some([0; 512]),
         1 => Some([255; 512]),
         2 => Some(std::array::from_fn(|i| if i % 8 < 4 { 255 } else { 0 })),
         3 => None,
-        4 => Some(source),
+        4 => authored,
         _ => return Err(format!("unknown MCSH fixture mask mode {mode}")),
     };
     tile.root.chunks[CHUNK].shadow_map = mask;
@@ -79,7 +97,7 @@ fn build_fixture_chunk(mut tile: NativeTerrainTile, mode: i32) -> Result<Fixture
         &shader,
     )?;
     let chunk = &tile.root.chunks[CHUNK];
-    let geometry = adt::chunk_geometry(chunk, Some((31, 36)));
+    let geometry = adt::chunk_geometry(chunk, Some(coords));
     let mesh = super::build_mesh(geometry, &chunk.vertex_colors);
     let mut node = MeshInstance3D::new_alloc();
     node.set_mesh(&mesh);
@@ -89,15 +107,28 @@ fn build_fixture_chunk(mut tile: NativeTerrainTile, mode: i32) -> Result<Fixture
 }
 
 fn read_fixture_tile() -> Result<NativeTerrainTile, String> {
+    read_fixture_tile_for(
+        "2703_31_36.adt",
+        "2703_31_36_tex0.adt",
+        "5493025.wdt",
+        (31, 36),
+    )
+}
+
+fn read_fixture_tile_for(
+    root_name: &str,
+    tex_name: &str,
+    wdt_name: &str,
+    coords: (u32, u32),
+) -> Result<NativeTerrainTile, String> {
     let data = Path::new(env!("CARGO_MANIFEST_DIR")).join("../../data");
-    let root_path = data.join("terrain/2703_31_36.adt");
-    let tex_path = data.join("terrain/2703_31_36_tex0.adt");
+    let root_path = data.join("terrain").join(root_name);
+    let tex_path = data.join("terrain").join(tex_name);
     let root_bytes = fs::read(&root_path).map_err(|e| format!("{}: {e}", root_path.display()))?;
     let tex_bytes = fs::read(&tex_path).map_err(|e| format!("{}: {e}", tex_path.display()))?;
-    // Active Map.csv row2703 WdtFileDataID; no inactive-tile runtime bypass.
-    let map = fs::read(data.join("terrain/5493025.wdt")).map_err(|e| e.to_string())?;
+    let map = fs::read(data.join("terrain").join(wdt_name)).map_err(|e| e.to_string())?;
     let flags = wdt::parse_wdt_mphd_flags(&map)?;
-    let root = adt::parse_root_for_tile(&root_bytes, 31, 36, Some(&tex_bytes))?;
+    let root = adt::parse_root_for_tile(&root_bytes, coords.0, coords.1, Some(&tex_bytes))?;
     let tex = adt::parse_tex(&tex_bytes, flags, &root)?;
     let textures = read_fixture_textures(&data, &tex)?;
     Ok(NativeTerrainTile {
