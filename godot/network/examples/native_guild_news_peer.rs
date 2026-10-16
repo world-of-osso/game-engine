@@ -112,7 +112,7 @@ impl Peer {
         }
         Ok(())
     }
-    fn workload(&mut self) -> Result<(), String> {
+    fn open_vendor(&mut self) -> Result<VendorInventory, String> {
         self.write("peer-ready.json", &serde_json::json!({"entered":true}))?;
         self.marker("npc.json")?;
         let npc: u64 = serde_json::from_slice(
@@ -135,25 +135,78 @@ impl Peer {
                 npc,
                 option_id: option.option_id,
             })?;
-        let vendor: VendorInventory = self.wait()?;
-        for _ in 0..2 {
-            self.buy_and_sell(&vendor)?;
-        }
-        let initial = self.query()?;
-        self.write("initial.json", &initial)?;
+        self.wait()
+    }
+    fn initial_acquisitions(
+        &mut self,
+        vendor: &VendorInventory,
+        resume: bool,
+    ) -> Result<GuildNewsState, String> {
+        let initial = if resume {
+            let bytes = fs::read(self.directory.join("initial.json")).map_err(|e| e.to_string())?;
+            serde_json::from_slice::<GuildNewsState>(&bytes).map_err(|e| e.to_string())?
+        } else {
+            for _ in 0..2 {
+                self.buy_and_sell(vendor)?;
+            }
+            let initial = self.query()?;
+            self.write("initial.json", &initial)?;
+            initial
+        };
+        Ok(initial)
+    }
+    fn workload(&mut self) -> Result<(), String> {
+        let vendor = self.open_vendor()?;
+        let resume = std::env::var("GUILD_NEWS_RESUME").as_deref() == Ok("1");
+        let initial = self.initial_acquisitions(&vendor, resume)?;
         self.marker("overflow.go")?;
-        for index in 0..251 {
+        let initial_id = initial
+            .entries
+            .last()
+            .ok_or("Initial real acquisition missing")?
+            .id;
+        let target = initial_id + 251;
+        let current = self
+            .query()?
+            .entries
+            .last()
+            .ok_or("Current real history missing")?
+            .id;
+        let remaining = target
+            .checked_sub(current)
+            .ok_or("Unrelated events exceeded private workload target")?;
+        println!(
+            "REAL_NEWS_TARGET initial_id={initial_id} target_id={target} current_id={current} remaining={remaining} resume={resume}"
+        );
+        for index in 0..remaining {
             self.buy_and_sell(&vendor)?;
             if index % 25 == 0 {
-                println!("REAL_NEWS_PURCHASES {}", index + 3);
+                println!("REAL_NEWS_COMMITTED_ID {}", current + index + 1);
             }
         }
-        let reply = self.query()?;
+        let reply = self.verify_retention(target)?;
+        self.write("overflow.json", &reply)?;
+        self.check_sticky_refusal(reply.entries.last().ok_or("No news")?.id)?;
+        self.leave_and_check_privacy()?;
+        println!(
+            "PASS GUILD_NEWS_PEER cumulative_purchases=253 cumulative_sold=253 retained=250 permission_refused=true former_member_private=true resumed={resume}"
+        );
+        Ok(())
+    }
+    fn verify_retention(&mut self, target: u64) -> Result<GuildNewsState, String> {
+        let mut reply = self.query()?;
+        while reply.entries.last().is_some_and(|entry| entry.id < target) {
+            reply = self.query()?;
+        }
+        if reply.entries.last().map(|entry| entry.id) != Some(target) {
+            return Err(format!("Wrong real acquisition target: expected{target}"));
+        }
         if reply.entries.len() != 250 {
             return Err(format!("Real retention {}", reply.entries.len()));
         }
-        self.write("overflow.json", &reply)?;
-        let id = reply.entries.last().ok_or("No news")?.id;
+        Ok(reply)
+    }
+    fn check_sticky_refusal(&mut self, id: u64) -> Result<(), String> {
         self.bridge
             .send::<_, GuildChannel>(GuildNewsRequest::SetSticky { id, sticky: true })?;
         loop {
@@ -163,6 +216,9 @@ impl Peer {
                 break;
             }
         }
+        Ok(())
+    }
+    fn leave_and_check_privacy(&mut self) -> Result<(), String> {
         self.marker("privacy.go")?;
         self.bridge
             .send::<_, GuildChannel>(GuildRankRequest::Leave)?;
@@ -177,9 +233,6 @@ impl Peer {
             return Err("Former member news exposed".into());
         }
         self.write("privacy.json", &private)?;
-        println!(
-            "PASS GUILD_NEWS_PEER purchases=253 sold=253 retained=250 permission_refused=true former_member_private=true"
-        );
         Ok(())
     }
 }
