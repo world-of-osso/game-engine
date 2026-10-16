@@ -28,7 +28,8 @@ Retail Mainline Benefits perks in Modern and Forever. Definitions: installed `db
 
 ## Known gaps (current cycle)
 
-- [ ] Installed catalog, source UI/tooltips, membership reconciliation and authentic effect coverage still require implementation/proof.
+- [x] Source Benefits names/order/tab visibility pass against the actual installed five-definition catalog in both skins.
+- [ ] Real spell tooltips/chat links, membership reconciliation and authentic effect coverage remain open.
 - [ ] Private actual join/leave/relog and inspected1920×1080 both-skin captures.
 
 ## Out of scope

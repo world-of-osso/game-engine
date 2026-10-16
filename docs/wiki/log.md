@@ -1,3 +1,7 @@
+## 2026-10-16 — Installed guild perk list
+
+[Perks](systems/guilds.md#perks): real five-definition catalog and source Benefits list. Missing-title RED→five actual names/order and other-tab hiding GREEN1/1 in both skins. Tooltips/chat links, membership authority, native and effect proof remain pending; no functional-buff claim.
+
 ## 2026-10-16 — Guild news live acceptance
 
 [News](systems/guilds.md#news): source-qualified actual producers, independent query/filter/sticky authority and source art. Private UDP/native both-skin controls,250 physical retained entries, permissions/privacy and exact fresh-process readback pass;16 full-HD captures inspected. Final merged-source model4/backend6/wire1 and cargo checks pass. Source right-click input omission fixed; harness readiness and JSON-number membership failures remain distinct from product failures. Independent lead gate/landing next.
