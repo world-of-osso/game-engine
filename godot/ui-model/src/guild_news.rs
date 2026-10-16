@@ -125,13 +125,16 @@ pub fn filters(session: &GuildRanksSession) -> Element {
 }
 
 fn news_list(session: &GuildRanksSession, shared: &SharedContext) -> Element {
-    let geometry = pixel_geometry(306.0, 18.0, 327.0);
+    let (content, height) = news_contents(session);
+    let geometry = pixel_geometry(306.0, height, 327.0);
     let offset = geometry.clamp(shared.scroll_first_row(SCROLL_BOX));
     let config = scroll_list_attr(&geometry);
-    let content = motd_row(session);
+    let top = -(offset as f32);
     let mut out = rsx! { r#frame { name: {DynName(SCROLL_BOX.into())}, left: 4.0, top: 22.0,
     width: 301.0, height: 306.0, pos_type: "absolute", scroll_list: config,
-    mouse_enabled: true, {content} } };
+    mouse_enabled: true,
+    r#frame { name: "CommunitiesGuildNewsScrollChild", left: 0.0, top, width: 300.0,
+        height, pos_type: "absolute", {content} } } };
     out.extend(
         MinimalScrollBar {
             list: SCROLL_BOX,
@@ -172,4 +175,132 @@ fn motd_row(session: &GuildRanksSession) -> Element {
     // GuildNewsButtonTemplate is a real18px list row, not an invented event.
     rsx! { r#frame { name: "CommunitiesGuildNewsMOTD", left: 0.0, top: 0.0,
     width: 300.0, height: 18.0, pos_type: "absolute", {content} } }
+}
+
+fn news_contents(session: &GuildRanksSession) -> (Element, f32) {
+    let entries = session.news.entries();
+    let motd = &session.profile.as_ref().expect("member news profile").motd;
+    if entries.is_empty() && motd.is_empty() {
+        return (motd_row(session), 18.0);
+    }
+    let mut out = if motd.is_empty() {
+        vec![]
+    } else {
+        motd_row(session)
+    };
+    let mut top = if motd.is_empty() { 0.0 } else { 18.0 };
+    let mut day = None;
+    for entry in entries {
+        if !entry.sticky && day != Some(entry.timestamp / 86400) {
+            out.extend(date_header(entry.timestamp, top));
+            top += 18.0;
+            day = Some(entry.timestamp / 86400);
+        }
+        out.extend(entry_row(entry, top));
+        if session.news.menu == Some(entry.id) {
+            out.extend(entry_menu(session, entry, top));
+        }
+        top += 18.0;
+    }
+    (out, top)
+}
+
+fn date_header(timestamp: u64, top: f32) -> Element {
+    let date =
+        chrono::DateTime::from_timestamp(i64::try_from(timestamp).expect("news timestamp"), 0)
+            .expect("valid news date");
+    let name = format!("CommunitiesGuildNewsDate{}", timestamp / 86400);
+    let mut art = cropped(
+        format!("{name}Background"),
+        410251,
+        "0.63183594,0.94531250,0.57617188,0.61523438",
+        (0.0, 0.0, 303.0, 18.0),
+    );
+    art.extend(label(
+        format!("{name}Text"),
+        &date.format("%A %-m/%-d").to_string(),
+        (14.0, 3.0, 278.0, 12.0),
+        (10.0, "1,0.82,0,1", "LEFT"),
+    ));
+    rsx! { r#frame { name: {DynName(name)}, left: 0.0, top, width: 300.0, height: 18.0, pos_type: "absolute", {art} } }
+}
+
+pub fn entry_text(entry: &shared::protocol::GuildNewsEntry) -> String {
+    use shared::protocol::GuildNewsKind;
+    let (member, verb, item) = match &entry.kind {
+        GuildNewsKind::PlayerAchievement { member, name, .. } => {
+            return format!("{member} earned the achievement [{name}]");
+        }
+        GuildNewsKind::ItemLooted { member, item_id } => (member, "looted", item_id),
+        GuildNewsKind::ItemCrafted { member, item_id } => (member, "crafted", item_id),
+        GuildNewsKind::ItemPurchased { member, item_id } => (member, "purchased", item_id),
+    };
+    let name = crate::item_catalog::item_catalog_entry(*item)
+        .map(|item| item.name.as_str())
+        .unwrap_or("Unknown"); // GuildUtil.lua unresolved whatText is UNKNOWN, not invented metadata.
+    format!("{member} {verb} [{name}]")
+}
+
+fn entry_row(entry: &shared::protocol::GuildNewsEntry, top: f32) -> Element {
+    let name = format!("CommunitiesGuildNewsEntry{}", entry.id);
+    let text = entry_text(entry);
+    let mut art = label(
+        format!("{name}Text"),
+        &text,
+        (24.0, 3.0, 268.0, 12.0),
+        (10.0, "1,1,1,1", "LEFT"),
+    );
+    if entry.sticky {
+        art.extend(cropped(
+            format!("{name}Sticky"),
+            410251,
+            "0.41406250,0.42675781,0.96875000,0.99023438",
+            (7.0, 3.5, 13.0, 11.0),
+        ));
+    } else {
+        art.extend(label(
+            format!("{name}Dash"),
+            "-",
+            (14.0, 3.0, 10.0, 12.0),
+            (10.0, "1,1,1,1", "RIGHT"),
+        ));
+    }
+    let action = format!("guild:news_entry:{}", entry.id);
+    rsx! { button { name: {DynName(name)}, left: 0.0, top, width: 300.0, height: 18.0,
+    pos_type: "absolute", button_default_skin: false, onclick: action, {art} } }
+}
+
+fn entry_menu(
+    session: &GuildRanksSession,
+    entry: &shared::protocol::GuildNewsEntry,
+    top: f32,
+) -> Element {
+    use crate::menu_primitives::{ContextMenu, ContextMenuItem, context_menu};
+    let mut items = vec![ContextMenuItem {
+        name: "GuildNewsView",
+        label: "View Achievement",
+        action: "guild:news_view",
+    }];
+    if session.can(shared::protocol::GUILD_RIGHT_EDIT_MOTD) {
+        items.push(ContextMenuItem {
+            name: "GuildNewsMakeSticky",
+            label: if entry.sticky {
+                "Remove Sticky"
+            } else {
+                "Make Sticky"
+            },
+            action: "guild:news_sticky",
+        });
+    }
+    context_menu(ContextMenu {
+        frame_name: "GuildNewsMenu",
+        title_name: "GuildNewsMenuTitle",
+        divider_name: "GuildNewsMenuDivider",
+        hidden: false,
+        title: &entry_text(entry),
+        width: 240.0,
+        x: 24.0,
+        y: top + 18.0,
+        items: &items,
+    })
 }
