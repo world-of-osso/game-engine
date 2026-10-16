@@ -29,8 +29,11 @@ func run_test() -> void:
 	await frames(120)
 	var state: Dictionary = client.account_state()
 	var position: Vector3 = state.local_player_position
-	# Retail coordinates (3807.76001,-160.427002,194.110992), converted to Y-up.
-	var expected := Vector3(160.427002, 194.110992, -3807.76001)
+	# Retail coordinates (3807.76001,-160.427002,194.110992), Y-up=(X,Z,-Y).
+	var expected := Vector3(3807.76001, 194.110992, 160.427002)
+	if Vector2(position.x, position.z).distance_to(Vector2(expected.x, expected.z)) > 1.0:
+		fail("Admission did not use authored neighborhood entry")
+		return
 	print("NEIGHBORHOOD_ENTRY_POSITION actual=", position, " expected=", expected, " terrain=", state.terrain)
 	var output := FileAccess.open(shots.path_join("neighborhood-world-receipt.json"), FileAccess.WRITE)
 	if output == null:
