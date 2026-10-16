@@ -159,11 +159,25 @@ impl GameClient {
             && self.physical_input.pointer()[1] > 700.0
             && TRACE_COUNT.fetch_add(1, std::sync::atomic::Ordering::Relaxed) < 32
         {
+            let registry = ui.registry()?;
+            let frame = registry.get(hit.frame)?;
+            let product = registry
+                .get_by_name("PerksProgramProduct643")
+                .and_then(|id| registry.get(id));
             eprintln!(
-                "TP_TOOLTIP_HIT ui={} frame={:?} pointer={:?}",
+                "TP_TOOLTIP_HIT ui={} frame={:?}/{:?}/{} pointer={:?} product={:?}",
                 hit.ui.get_name(),
-                ui.registry()?.get(hit.frame)?.name,
-                self.physical_input.pointer()
+                frame.name,
+                frame.strata,
+                frame.frame_level,
+                self.physical_input.pointer(),
+                product.map(|row| (
+                    &row.name,
+                    row.strata,
+                    row.frame_level,
+                    row.mouse_enabled,
+                    row.visible
+                ))
             );
         }
         let (owner, product_id) = named_ancestor(ui.registry()?, hit.frame, |frame| {
