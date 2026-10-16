@@ -21,6 +21,15 @@
 - [BM native Assist preparation](systems/bot-harness.md#bm-native-assist-preparation--2026-10-16) — ordinary received-slot input/ACK; [two native SimC windows](systems/bot-harness.md#instrumented-bm-comparison--2026-10-16)157.45/168.50DPS,28 real outcomes, incomplete full-SimC/old frozen-sequence proof explicit.
 
 - [Terminal follower death delivery](systems/bot-harness.md#terminal-follower-death-delivery--2026-10-16) — delayed child-process delivery RED→receiver-drain; server owner-emission baseline passes, live timing proof pending.
+- [Loot ItemButton input](systems/loot-and-flight.md#itembutton-input-ownership--2026-10-16) — source37px target/right157px extension and left-release dispatch;32 both-skin physical probes,68 unchanged full-HD pairs; shared native-picking controls pass, server/full-window parity excluded.
+
+- [ReadyCheck message origin](systems/group-frames.md#readycheck-message-origin--bounded-proof-2026-10-16) — source parent TOP(+20,−37), RED→GREEN and both-skin native anchors/pixel conservation; font/height/color/difficulty content excluded.
+
+- [UIErrors source hold](systems/ui-system.md#uierrors-source-hold--bounded-proof-2026-10-16) — two-second opaque hold/2.5s expiry, RED→GREEN and ten both-skin supplied-elapsed native cases; curve/real-clock gaps explicit.
+
+- [ReadyCheck response buttons](systems/group-frames.md#readycheck-response-buttons--bounded-proof-2026-10-16) — source anchors/UIPanel sheets; RED→GREEN and both-skin physical states/cancellation/actions, twelve unchanged-outside contexts; full popup/server lifecycle excluded.
+
+- [StackSplit arrow states](systems/cursor-item.md#stacksplit-arrow-states--bounded-proof-2026-10-16) — source16px Up/Down/Disabled buttons replace static clickable frames; RED→GREEN and both-skin physical press/cancel/disabled proof,48 unchanged outside-arrow contexts; quantity/purchase/full-picker parity excluded.
 - [Trading Post accepted-item pending dialog](systems/trading-post.md#accepted-single-item-confirmation-lifetime--implementation-october16) — model/native RED→both-skin painted spinner/overlay/rotation/reply GREEN, source inset and accepted-item cart pruning; ten full-HD originals, provider/error gaps explicit.
 - [Storage menu lifetime](systems/housing.md#storage-menu-lifetime--implementation2026-10-16) — native missing-hover RED→both-skin seven-phase hover/collapse/dismiss/owner lifetime and checkbox/radio GREEN, exact paid conservation; source0.33s model delay covered.
 - [Guild perk authority](systems/guilds.md#perk-native-authority-and-effect-boundary-2026-10-16) — real five-definition Benefits and owner grants, ordered native spell messages, actual invitation/removal/quit receipts, both-skin tooltip/chat/restart proof; individual effects remain separately qualified.
