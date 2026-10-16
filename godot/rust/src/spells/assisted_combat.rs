@@ -297,6 +297,7 @@ impl GameClient {
             .as_ref()
             .ok_or("Priority server trait configuration not received")?;
         Ok(serde_json::json!({
+            "actor": player,
             "target": target,
             "facts": facts,
             "trait_config": trait_config,
