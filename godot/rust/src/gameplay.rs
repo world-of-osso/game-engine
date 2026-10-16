@@ -42,6 +42,8 @@ pub(crate) struct PlayerMovement {
     /// flying mount's speed aura).
     can_fly: bool,
     feather_fall: bool,
+    /// Replicated UnitFlags2::FORCE_MOVEMENT (aura241).
+    forced_forward: bool,
     /// Flying (`MOVEMENTFLAG_FLYING`): no gravity; Jump ascends, SitOrStand descends and
     /// mouse steering pitches forward movement.
     pub flying: bool,
@@ -119,6 +121,7 @@ impl Default for PlayerMovement {
             swimming: false,
             can_fly: false,
             feather_fall: false,
+            forced_forward: false,
             flying: false,
             can_adv_fly: false,
             glider: None,
@@ -1055,6 +1058,52 @@ mod tests {
             movement.network_input(yaw, FEET, 2).unwrap().direction,
             [0.0; 3]
         );
+    }
+
+    #[test]
+    fn toyfx62_forced_forward_ignores_backward_preserves_strafe_and_releases() {
+        let mut movement = PlayerMovement {
+            forced_forward: true,
+            ..Default::default()
+        };
+        let bindings = InputBindingsData::default();
+        let mut input = PhysicalInput::default();
+        let frame = movement.resolve(&bindings, &input, 0.0, 0.0, false);
+        assert_eq!(
+            frame.direction,
+            [0.0, 0.0, 1.0],
+            "forced even without input"
+        );
+        input.set_key(BindingKey::KeyS, true);
+        input.set_key(BindingKey::KeyD, true);
+        let frame = movement.resolve(&bindings, &input, 0.0, 0.0, false);
+        assert_eq!(frame.direction, [-1.0, 0.0, 1.0]);
+        assert_eq!(movement.direction, MoveDirection::Forward);
+        assert_eq!(
+            movement.network_input(0.0, FEET, 2).unwrap().direction,
+            [0.0, 0.0, 1.0]
+        );
+        input.set_mouse(BindingMouseButton::Left, true);
+        input.set_mouse(BindingMouseButton::Right, true);
+        input.set_key(BindingKey::KeyW, true);
+        let frame = movement.resolve(&bindings, &input, 0.0, 0.0, false);
+        assert_eq!(
+            frame.direction,
+            [-1.0, 0.0, 1.0],
+            "forced forward axis is exactly one"
+        );
+        input.clear();
+        movement.forced_forward = false;
+        let frame = movement.resolve(&bindings, &input, 0.0, 0.0, false);
+        assert_eq!(frame.direction, [0.0; 3]);
+        assert_eq!(
+            movement.network_input(0.0, FEET, 2).unwrap().direction,
+            [0.0; 3]
+        );
+        input.set_key(BindingKey::KeyS, true);
+        let frame = movement.resolve(&bindings, &input, 0.0, 0.0, false);
+        assert_eq!(frame.direction, [0.0, 0.0, -1.0]);
+        assert_eq!(movement.direction, MoveDirection::Backward);
     }
 
     #[test]
