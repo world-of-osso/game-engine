@@ -871,10 +871,7 @@ pub fn adventure_guide_screen(ctx: &SharedContext) -> Element {
             }
         }
     });
-    if !view.loading
-        && matches!(view.tab, Tab::Dungeons | Tab::Raids | Tab::ItemSets)
-        && view.search.len() >= 3
-    {
+    if !view.loading && matches!(view.tab, Tab::Dungeons | Tab::Raids | Tab::ItemSets) {
         body.extend(crate::adventure_search::search_results(ctx, view));
     }
     let left = (view.viewport[0] - 800.) / 2.;
