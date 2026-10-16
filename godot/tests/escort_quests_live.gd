@@ -11,6 +11,8 @@ var seen_ambushes: Dictionary = {}
 func enter_world() -> bool:
 	if not await wait_frames(func(): return client.account_state().reply_received, "escort account roster", 60000):
 		return false
+	if not await wait_frames(func(): return not client.account_state().assets_starting, "asset startup before roster input", 180000):
+		return false
 	var selection := client.get_node_or_null("CharacterSelectUI")
 	if selection == null:
 		fail("Private account did not reach character selection")
