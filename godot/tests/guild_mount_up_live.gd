@@ -116,8 +116,12 @@ func sample_movement(expected: float, label: String) -> bool:
 	release_widget_focus()
 	move_key(KEY_W, true)
 	var matched: bool = await wait_until(func():
-		var value: Variant = perk_observation().movement_speed
-		return value != null and abs(float(value) - expected) < 0.02,
+		var observation: Dictionary = perk_observation()
+		var value: Variant = observation.movement_speed
+		var mounted: bool = observation.mount_id == 129
+		var expected_mount: bool = observation.mount_id == null if label == "unmounted" else mounted
+		var expected_flight: bool = observation.flying if label.ends_with("flight") else not observation.flying
+		return expected_mount and expected_flight and not observation.falling and value != null and abs(float(value) - expected) < 0.02,
 		"actual replicated movement speed %.2f: %s" % [expected, label])
 	if matched:
 		var sample: Dictionary = perk_observation()
