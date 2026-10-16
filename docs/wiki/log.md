@@ -1,3 +1,7 @@
+## 2026-10-15 — Housing storage Filter header
+
+[Filter header](systems/housing.md#storage-filter-header--implementation2026-10-15): actual native missing-source-surface RED→shared fixed-width Filter/reset primitive integration. Existing popup/semantics/authority unchanged; both-skin GREEN pending. Primary-mode animation hypothesis rejected because source enables it only on unsupported Layout/Exterior.
+
 ## 2026-10-15 — Housing Expert active glow implementation
 
 [Active submode glow](systems/housing.md#expert-active-glow--implementation2026-10-15): native missing-painted-glow RED→source fixed-mask/six-second shared first-play rotation and both-skin raster/phase/canvas-recreation GREEN with unchanged paid state. Modern retained six completed samples before invalid Scale-retention oracle correction, then resumed lifecycle only; Forever eight samples in one run. Installed70391 local art authenticated and lead-published; six inspected1280 PNGs, no primary flipbook/full appearance claim.
