@@ -19,6 +19,7 @@ Retail Mainline Blizzard_PerksProgram and the local C_PerksProgram/PerksActiviti
 - Purchase, Refund, Purchase Cart, Clear Cart and frozen replacement confirmations consume Escape without dismissal or requests. Their Retail Elements.lua definitions omit `hideOnEscape`; GameDialog.lua737–745's keyboard cover hides only when that flag exists. Explicit Cancel remains available and preserves Tender/purchase/cart state before acceptance.
 - Purchase/refund authority remains unchanged: one accepted request changes the server balance/collection; Cancel/Escape do not. Production refund policy stays zero; native refund inspection may use the existing explicit private3600-second test policy, never an invented production window.
 - Pending spinner/success/error/timeout dialog lifetime remains a separate gap; this slice changes keyboard dismissal only. Existing earlier layout proof's claim that Escape cancels these confirmations was incorrect; native fixtures now require source-preserved modal plus explicit Cancel.
+- [x] Actual premature purchase-dismissal RED→both-skin native7a25a4cd7/a820dfda/dc30250 GREEN for all four non-freeze covers, explicit Cancel and exact decoded Purchase/Refund item-frame art. One authorized purchase/refund per skin restores Tender19670→19340→19670 under private policy3600 only. Twelve full-HD originals+two contacts: `/syncthing/AgentShared/2026-10-16/trading-post-confirmations/`; diagnostic `confirmations-proof-manifest.json` pins actual artifacts/fixtures/receipts.
 
 ## Button tooltips
 
