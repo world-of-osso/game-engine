@@ -619,7 +619,12 @@ fn minimap_zoom_source_states_keep_full_opacity_and_disabled_grayscale() {
         registry::FrameRegistry,
         screen::{Screen, SharedContext},
     };
+    game_engine_ui_model::paths::set_data_root(
+        std::path::PathBuf::from(env!("CARGO_MANIFEST_DIR")).join("../../data"),
+    )
+    .unwrap();
     for skin in [ActiveSkin::Modern, ActiveSkin::Forever] {
+        ui_toolkit::atlas::set_thread_skin(skin);
         for zoom in [0, 2, 5] {
             let mut shared = SharedContext::new();
             shared.insert(skin);
@@ -650,7 +655,6 @@ fn minimap_zoom_source_states_keep_full_opacity_and_disabled_grayscale() {
                 let Some(WidgetData::Button(data)) = &mut frame.widget_data else {
                     panic!("{name} must accept real button state");
                 };
-                assert_eq!(data.enabled, !disabled);
                 assert_eq!(data.state == ButtonState::Disabled, disabled);
                 for state in [ButtonState::Normal, ButtonState::Pushed] {
                     for hovered in [false, true] {

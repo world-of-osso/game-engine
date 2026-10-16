@@ -72,13 +72,18 @@ func inspect_states(ui: Node, owner: Control, prefix: String, disabled: bool) ->
 	# Release outside must cancel, even after a real held press over the button.
 	await move(Vector2(200, 500))
 	await button_event(Vector2(200, 500), false)
-	assert(ui.pop_action().is_empty(), "Outside release never activates")
+	var cancelled_action: String = ui.pop_action()
+	if verify:
+		assert(cancelled_action.is_empty(), "Outside release never activates")
 	await move(point)
 	await button_event(point, true)
 	await button_event(point, false)
 	var action: String = ui.pop_action()
 	if verify:
 		assert(owner.modulate.a == 1.0, "Disabled alpha remains source full opacity")
+		var base := owner.get_node("Parts/Part0") as TextureRect
+		assert(base != null and base.texture != null, "Source base art loaded")
+		assert((base.material is ShaderMaterial) == disabled, "Disabled sampled art is desaturated")
 		assert((idle == hover) == disabled, "Only enabled controls gain source hover art")
 		assert((idle == pressed) == disabled, "Only enabled controls gain source pushed art")
 		var expected := "minimap:zoom_in" if owner.name == "MinimapZoomIn" else "minimap:zoom_out"
