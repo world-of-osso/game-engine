@@ -94,6 +94,14 @@
 ## 2026-10-15 — Minimap zoom state art
 
 - [Minimap](systems/minimap.md#zoom-button-source-states--2026-10-15): source Button states/full-opacity disabled grayscale; both-skin physical native proof, bounded offline screen/input acceptance.
+## 2026-10-16 — Ysera private body closure
+
+[Ysera body](systems/toy-box.md#ysera-body-asset-closure-2026-10-16): seventeen same-build70391 body/texture/animation/skin files and four aliases authenticated/published privately; rebuilt namespace graph passes. Procedural8605/type22 remains ignored by the renderer and is not replaced by a guessed shader. No native pixels/canonical publication claim.
+
+## 2026-10-16 — Stone Whistle private asset closure
+
+[Asset closure](systems/toy-box.md#stone-whistle-native-asset-closure-2026-10-16): five body/texture/skin files match70391 resolver content keys; maintained importer privately publishes all five plus two skin aliases. Rebuilt product graph and byte receipts pass; no canonical writes or native rendering certificate.
+
 ## 2026-10-15 — Private Shrine viewer-level probe
 
 [Viewer probe](systems/toy-box.md#shrine-viewer-level-probe-2026-10-15) adds replicated range/delta projection for viewers1/20/80 to the existing real-learning/UseToy fixture; Shrine native30 differs from viewer20 while zero-tuning Podium/default Scarab controls stay native. Current matched build/check/fmt and private wire pass all three modes; initial admin timeout is retained and only unfinished scenarios resumed on fresh accounts. No target-text pixels/combat/HP certificate.
