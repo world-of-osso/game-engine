@@ -166,12 +166,16 @@ def verified_dummy_target(state, npc_info):
 
 
 def dummy_fixture(npc_info, target):
-    pattern = r"Training Dummy \(entity (\d+)\) level (\d+) health [\d.]+/([\d.]+) difficulty (\d+)"
+    pattern = r"Training Dummy \(entity (\d+)\) level (\d+) health [\d.]+/([\d.]+) difficulty (\d+) combat=(\{.*\})"
     for line in npc_info.splitlines():
         match = re.fullmatch(pattern, line)
         if match and int(match[1]) == target:
+            combat = json.loads(match[5])
+            if "creature_armor" not in combat:
+                raise ValueError("Native dummy combat metadata omits creature_armor")
             return {"entry": 44548, "level": int(match[2]),
-                    "max_health": float(match[3]), "difficulty": int(match[4])}
+                    "max_health": float(match[3]), "difficulty": int(match[4]),
+                    "creature_armor": combat["creature_armor"]}
     raise ValueError(f"Live dummy fixture for entity {target} was not observed")
 
 

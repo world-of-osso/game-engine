@@ -64,6 +64,12 @@ Comparison requires equal explicit receipts for level, stats, dummy and duration
 
 ## Recorded native proof and remaining gates
 
+### Current admin fixture boundary
+
+`native-parity1` and `native-forms1` reach native setup but stop before measurement because current server `npc-info` appends `combat={...}`. The harness's old full-line regex rejected that real output; `native-dummy-combat.txt` retains three unmodified lines from native-parity1/71/dummy-identity.txt (server43fa0c2a). Parsing now requires the current JSON suffix, retains static creature_armor in the comparison envelope and excludes transient threat/victim. Missing/malformed combat metadata blocks; no old-format alternate path.
+
+Both native-forms1 receipts confirm one ordinary Cat768/Bear5487 self-cast and replicated own aura before that parser stop; neither has a combat measurement. Native render setup also used a private frozen cache without the new model_alpha column. Its refresh uses the published canonical catalog read-only, writes only the owned private copy and preserves every pre-existing column/row (identical ordered SHA-256); private-creature-cache-refresh.json records proof. No item/stat definitions change.
+
 ### First all40 diagnostic batch
 
 `native-all-specs1` preserves all40 expected specs:37 fresh attempts plus linked immutable Arms/Fury/Havoc receipts,43 raw report files and31 setup/collection errors. Full-roster comparison is unavailable; retained dead Ret reports fail health qualification. Duration-complete Feral caster-form and Subtlety zero-success windows are diagnostic failures, not representative spec DPS. `ability-summary-all-specs1/abilities.{json,md}` retains per-ability facts for class triage. All captures still used the old IPC path without native auto-attack initiation; none close controller parity. Private server3244035 stopped after the batch.
