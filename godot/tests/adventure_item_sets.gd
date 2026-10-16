@@ -38,7 +38,7 @@ func verify_list_geometry() -> bool:
 	if row.size.distance_to(Vector2(744,41)) > 1.0 or absf(row.position.x-pane.position.x-10.0)>1.0 or absf(row.position.y-pane.position.y-29.0)>1.0 or button.size.distance_to(Vector2(32,32))>1.0:
 		stop("Source first Item Sets row/button geometry mismatch")
 		return false
-	return true
+	return verify_text_layout(first.substr(0,first.find("Item")))
 
 func reveal_set_item(name: String) -> bool:
 	for notch in 220:
@@ -55,6 +55,11 @@ func verify_text_layout(name: String) -> bool:
 	var level := control(name + "Level") as Label
 	if title == null or level == null or title.get_theme_font_size("font_size") != 12 or level.get_theme_font_size("font_size") != 10 or title.get_line_count() != 1 or level.get_line_count() != 1:
 		stop("Source set title/level font or single-line layout mismatch")
+		return false
+	var row := control(name + "Row").get_global_rect()
+	print("ITEM_SETS_TEXT_ANCHOR name=%s title_left=%s expected=%s level_left=%s" % [name,title.get_global_rect().position.x,row.position.x+39.0,level.get_global_rect().position.x])
+	if absf(title.get_global_rect().position.x-row.position.x-39.0)>1.0 or absf(level.get_global_rect().position.x-title.get_global_rect().position.x)>1.0:
+		stop("Source title left39 is centered inside the550px level column")
 		return false
 	if absf(level.get_global_rect().position.y-title.get_global_rect().end.y-2.0)>1.0:
 		stop("Source item level is not anchored below the actual title plus2")
