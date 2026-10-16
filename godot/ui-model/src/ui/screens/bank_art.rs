@@ -182,7 +182,7 @@ impl MoneyBoxNames {
 }
 
 /// A text edit box on `InputBoxTemplate` art; the registry keeps what was typed.
-pub fn edit_box(name: &'static str, rect: (f32, f32, f32, f32)) -> Element {
+pub fn edit_box(name: &str, rect: (f32, f32, f32, f32)) -> Element {
     let (x, y, width, height) = rect;
     let mut children = cropped(
         format!("{name}Left"),

@@ -1,6 +1,6 @@
 //! Mainline ProfessionsQualityDialogTemplate and its quality containers.
 use super::{ProfessionView, art};
-use crate::bank_art::{HIGHLIGHT_FONT_COLOR, edit_box, label, texture};
+use crate::bank_art::{HIGHLIGHT_FONT_COLOR, edit_box, texture};
 use crate::quest_art::{DynName, flat_panel_chrome, panel_button};
 use shared::crafting_reagents::ReagentSlot;
 use ui_toolkit::{rsx, widget_def::Element};
@@ -128,9 +128,8 @@ fn quality_container(
 fn quality_button(view: &ProfessionView, item_id: u32) -> Element {
     let prefix = format!("ProfessionQuality{item_id}");
     let icon = quality_icon(view, item_id);
-    let disabled = view.bag_counts.get(&item_id).copied().unwrap_or(0) == 0;
     let action = format!("profession:quality:fill:{item_id}");
-    rsx! { button { name:{DynName(format!("{prefix}Choice"))},width:39.0,height:39.0,left:30.5,top:0.0,pos_type:"absolute",button_default_skin:false,onclick:action,disabled,{icon} } }
+    rsx! { button { name:{DynName(format!("{prefix}Choice"))},width:39.0,height:39.0,left:30.5,top:0.0,pos_type:"absolute",button_default_skin:false,onclick:action,{icon} } }
 }
 
 fn quality_icon(view: &ProfessionView, item_id: u32) -> Element {
@@ -150,10 +149,11 @@ fn quality_icon(view: &ProfessionView, item_id: u32) -> Element {
         (3.0, 3.0, 33.0, 33.0),
         "1,1,1,1",
     ));
-    icon.extend(art::atlas(
+    icon.extend(art::tinted(
         &format!("{prefix}Border"),
         "Professions-Slot-Frame",
         (2.0, 2.0, 35.0, 35.0),
+        crate::merchant_data::quality_color(item.quality),
     ));
     if let Some(quality) = view.crafting_quality.get(&item_id) {
         icon.extend(art::atlas_at_size(
@@ -162,12 +162,13 @@ fn quality_icon(view: &ProfessionView, item_id: u32) -> Element {
             (-3.0, -2.0),
         ));
     }
-    icon.extend(label(
-        format!("{prefix}Owned"),
-        &owned.to_string(),
-        (0.0, 24.0, 36.0, 14.0),
-        (12.0, HIGHLIGHT_FONT_COLOR, "RIGHT"),
-    ));
+    // Templates.xml Count: Icon BOTTOMRIGHT(-1,+1); NumberFontNormal = ArialNarrow14 outline.
+    icon.extend(rsx! { fontstring {
+        name:{DynName(format!("{prefix}Owned"))}, text:{owned.to_string()},
+        left:0.0, top:21.0, width:35.0, height:14.0, pos_type:"absolute",
+        font:ui_toolkit::widgets::font_string::GameFont::ArialNarrow,
+        font_size:14.0, font_color:HIGHLIGHT_FONT_COLOR, outline:"NORMAL", justify_h:"RIGHT",
+    }});
     icon
 }
 

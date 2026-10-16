@@ -69,10 +69,16 @@ func run_test() -> void:
 	await press("ProfessionReagent1Slot")
 	if not await wait_until(func(): return quantity(193208) == "6" and quantity(193210) == "4", "accepted allocation survives reopening"):
 		return
-	if not control("ProfessionQuality193211Choice").disabled or control("ProfessionQuality193211Quantity").editable:
-		fail("Unowned tier3 reagent cannot be allocated")
+	if control("ProfessionQuality193211Quantity").editable:
+		fail("Unowned tier3 quantity input must be disabled")
+		return
+	await press("ProfessionQuality193211Choice")
+	if quantity(193208) != "6" or quantity(193210) != "4" or quantity(193211) != "0":
+		fail("Unowned tier3 click must clamp to zero without replacing owned allocations")
 		return
 	await capture("5-accepted-tier-allocation")
+	if not await observe_quality_tooltip():
+		return
 	await press("ProfessionsQualityCancel")
 	await press("ProfessionsCreate")
 	await wait_frames(60)
@@ -82,6 +88,19 @@ func run_test() -> void:
 	print("FIXTURE MODERN_CRAFTING_QUALITY_DONE skin=", role, " recipe=375188 selected=193222x2+193208x6+193210x4 quality=UNASSIGNED")
 	client.free()
 	quit(0)
+
+func observe_quality_tooltip() -> bool:
+	var point := control("ProfessionQuality193210Choice").get_global_rect().get_center()
+	var motion := InputEventMouseMotion.new()
+	motion.position = point
+	motion.global_position = point
+	root.push_input(motion, true)
+	Input.warp_mouse(point)
+	if not await wait_until(func(): return client.tooltip_state().visible and client.tooltip_state().title == "Resilient Leather", "actual tier2 reagent tooltip"):
+		return false
+	print("MODERN CRAFTING REAGENT TOOLTIP ", client.tooltip_state())
+	await capture("6-reagent-item-tooltip")
+	return true
 
 func typed_quantity_commit() -> bool:
 	await press("ProfessionQuality193208Quantity")
