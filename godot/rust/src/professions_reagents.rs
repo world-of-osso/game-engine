@@ -37,9 +37,13 @@ impl GameClient {
             .find(|slot| slot.slot_index == index)
     }
 
-    pub(super) fn read_quality_quantities(&mut self, ui: &mut Gd<RegistryUi>) {
+    pub(super) fn read_quality_quantities(
+        &mut self,
+        ui: &mut Gd<RegistryUi>,
+        commit_focused: bool,
+    ) -> Result<(), FrameError> {
         let Some(slot) = self.open_quality_slot() else {
-            return;
+            return Ok(());
         };
         let owned = self.profession_reagent_counts();
         let dialog = self
@@ -53,6 +57,9 @@ impl GameClient {
             .iter()
             .filter_map(|choice| {
                 let name = format!("ProfessionQuality{}Quantity", choice.item_id);
+                if !commit_focused && ui.bind().is_frame_focused(&name) {
+                    return None;
+                }
                 let requested = ui
                     .bind_mut()
                     .frame_text(name.into())
@@ -63,14 +70,20 @@ impl GameClient {
                     .then_some((choice.item_id, requested))
             })
             .collect();
+        let changed = !edits.is_empty();
         for (item, requested) in edits {
             dialog.allocate(&slot, item, requested, &owned);
         }
+        if changed || commit_focused {
+            self.write_quality_quantities(ui, true)?;
+        }
+        Ok(())
     }
 
     pub(super) fn write_quality_quantities(
         &self,
         ui: &mut Gd<RegistryUi>,
+        replace_focused: bool,
     ) -> Result<(), FrameError> {
         let Some(slot) = self.open_quality_slot() else {
             return Ok(());
@@ -81,15 +94,30 @@ impl GameClient {
             .dialog
             .as_ref()
             .expect("open quality slot");
+        let owned = self.profession_reagent_counts();
         for choice in slot.choices {
             let name = format!("ProfessionQuality{}Quantity", choice.item_id);
-            ui.bind_mut()
-                .set_editbox_text(&name, &dialog.quantity(choice.item_id).to_string())?;
+            let focused = ui.bind().is_frame_focused(&name);
+            let expected = dialog.quantity(choice.item_id).to_string();
+            let current = ui.bind_mut().frame_text(name.clone().into()).to_string();
+            if (replace_focused || !focused) && current != expected {
+                ui.bind_mut().set_editbox_text(&name, &expected)?;
+            }
+            let enabled = owned.get(&choice.item_id).copied().unwrap_or(0) > 0;
+            ui.bind_mut().set_line_edit_enabled(&name, enabled)?;
         }
         Ok(())
     }
 
     pub(super) fn apply_quality_reagent_action(&mut self, action: &str) -> Result<(), FrameError> {
+        if action == "submit" {
+            let mut ui = self
+                .professions
+                .ui
+                .clone()
+                .ok_or("Profession UI unavailable")?;
+            return self.read_quality_quantities(&mut ui, true);
+        }
         if action == "cancel" {
             self.professions.reagent_selection.dialog = None;
             return Ok(());
@@ -117,7 +145,13 @@ impl GameClient {
             self.professions.reagent_selection.open(&slot);
             return Ok(());
         }
-        self.change_quality_quantity(operation, id)
+        self.change_quality_quantity(operation, id)?;
+        let mut ui = self
+            .professions
+            .ui
+            .clone()
+            .ok_or("Profession UI unavailable")?;
+        self.write_quality_quantities(&mut ui, true)
     }
 
     fn change_quality_quantity(&mut self, operation: &str, item: u32) -> Result<(), FrameError> {

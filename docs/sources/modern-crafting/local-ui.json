@@ -34,5 +34,9 @@
   {
     "path": "/syncthing/World of Warcraft/_retail_/BlizzardInterfaceCode/Interface/AddOns/Blizzard_APIDocumentationGenerated/ProfessionConstantsDocumentation.lua",
     "sha256": "65360762616ac3e18c8af4061176163a1a29aba010f4cd7cbc766e345d292557"
+  },
+  {
+    "path": "/syncthing/World of Warcraft/_retail_/BlizzardInterfaceCode/Interface/AddOns/Blizzard_ProfessionsTemplates/Blizzard_Professions.lua",
+    "sha256": "789a9176dcc605d7838eb443c35ecab6b3eccf3975c658c08b1efe4f3445b686"
   }
 ]
