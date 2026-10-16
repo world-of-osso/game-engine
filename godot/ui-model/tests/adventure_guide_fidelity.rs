@@ -429,7 +429,13 @@ fn adventure_guide_raid_title_uses_source_difficulty_atlas_and_restores_plain_an
                 else {
                     panic!("Source raid difficulty icon")
                 };
-                assert_eq!(icon.source, TextureSource::Atlas(atlas.into()));
+                assert_eq!(icon.source, TextureSource::FileDataId(7494373));
+                let coordinates = if atlas == "icons_16x16_heroic" {
+                    [367. / 512., 399. / 512., 1. / 256., 33. / 256.]
+                } else {
+                    [265. / 512., 297. / 512., 35. / 256., 67. / 256.]
+                };
+                assert_eq!(icon.tex_coords, coordinates);
                 90.
             } else {
                 assert!(r.get_by_name("EncounterJournalDifficultyIcon").is_none());
