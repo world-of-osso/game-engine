@@ -276,7 +276,14 @@ fn portal_sphere_emitter_reaches_steady_state_on_its_shell() {
     let mut sim = EmitterSim::new(emitter, 42);
     assert_eq!(sim.capacity(), 110);
     for _ in 0..120 {
-        sim.update(emitter, 1.0 / 60.0, Mat4::IDENTITY, wow_to_godot(), 1.0);
+        sim.update(
+            emitter,
+            1.0 / 60.0,
+            Mat4::IDENTITY,
+            wow_to_godot(),
+            1.0,
+            &mut |_, _| None,
+        );
     }
     let live = sim.particles().len();
     assert!((75..=105).contains(&live), "live {live}");
@@ -293,7 +300,14 @@ fn portal_sphere_emitter_reaches_steady_state_on_its_shell() {
     // Density scales the emission rate.
     let mut sparse = EmitterSim::new(emitter, 42);
     for _ in 0..120 {
-        sparse.update(emitter, 1.0 / 60.0, Mat4::IDENTITY, wow_to_godot(), 0.25);
+        sparse.update(
+            emitter,
+            1.0 / 60.0,
+            Mat4::IDENTITY,
+            wow_to_godot(),
+            0.25,
+            &mut |_, _| None,
+        );
     }
     let sparse_live = sparse.particles().len();
     assert!((12..=35).contains(&sparse_live), "sparse {sparse_live}");
@@ -305,7 +319,14 @@ fn portal_sphere_emitter_reaches_steady_state_on_its_shell() {
 fn long_updates_replay_at_most_one_lifetime() {
     let emitter = &portal()[1];
     let mut sim = EmitterSim::new(emitter, 7);
-    sim.update(emitter, 10.0, Mat4::IDENTITY, wow_to_godot(), 1.0);
+    sim.update(
+        emitter,
+        10.0,
+        Mat4::IDENTITY,
+        wow_to_godot(),
+        1.0,
+        &mut |_, _| None,
+    );
     let live = sim.particles().len();
     assert!((60..=110).contains(&live), "live {live}");
 }
@@ -329,7 +350,14 @@ fn world_space_plane_emitter_falls_along_converted_gravity() {
     let at = Mat4::from_translation(Vec3::new(10.0, 5.0, 0.0));
     let mut sim = EmitterSim::new(&emitter, 3);
     for _ in 0..30 {
-        sim.update(&emitter, 1.0 / 30.0, at, wow_to_godot(), 1.0);
+        sim.update(
+            &emitter,
+            1.0 / 30.0,
+            at,
+            wow_to_godot(),
+            1.0,
+            &mut |_, _| None,
+        );
     }
     assert!(!sim.particles().is_empty());
     for particle in sim.particles() {
@@ -352,7 +380,7 @@ fn camera() -> ViewBasis {
 
 fn one_quad(emitter: &ParticleEmitter, matrix: Mat4) -> Quad {
     let mut sim = EmitterSim::new(emitter, 11);
-    sim.update(emitter, 0.05, matrix, wow_to_godot(), 1.0);
+    sim.update(emitter, 0.05, matrix, wow_to_godot(), 1.0, &mut |_, _| None);
     let mut quads = Vec::new();
     sim.quads(emitter, &camera(), &mut quads);
     assert!(!quads.is_empty());
@@ -444,7 +472,14 @@ fn keyframed_emission_follows_the_playing_sequence_time() {
             },
         );
         for _ in 0..30 {
-            sim.update(emitter, 1.0 / 60.0, Mat4::IDENTITY, wow_to_godot(), 1.0);
+            sim.update(
+                emitter,
+                1.0 / 60.0,
+                Mat4::IDENTITY,
+                wow_to_godot(),
+                1.0,
+                &mut |_, _| None,
+            );
         }
         sim.particles().len()
     };
@@ -456,7 +491,14 @@ fn keyframed_emission_follows_the_playing_sequence_time() {
     // Without an animation time the static value (0/s) applies.
     let mut sim = EmitterSim::new(emitter, 3);
     for _ in 0..30 {
-        sim.update(emitter, 1.0 / 60.0, Mat4::IDENTITY, wow_to_godot(), 1.0);
+        sim.update(
+            emitter,
+            1.0 / 60.0,
+            Mat4::IDENTITY,
+            wow_to_godot(),
+            1.0,
+            &mut |_, _| None,
+        );
     }
     assert_eq!(sim.particles().len(), 0);
 }
@@ -489,7 +531,14 @@ fn global_sequence_emission_rate_follows_the_global_clock() {
             },
         );
         for _ in 0..30 {
-            sim.update(emitter, 1.0 / 60.0, Mat4::IDENTITY, wow_to_godot(), 1.0);
+            sim.update(
+                emitter,
+                1.0 / 60.0,
+                Mat4::IDENTITY,
+                wow_to_godot(),
+                1.0,
+                &mut |_, _| None,
+            );
         }
         sim.particles().len()
     };
@@ -514,7 +563,14 @@ fn run_at(emitter: &ParticleEmitter, time_ms: u32, seconds: f32) -> EmitterSim {
     );
     let steps = (seconds * 60.0).round() as usize;
     for _ in 0..steps {
-        sim.update(emitter, 1.0 / 60.0, Mat4::IDENTITY, wow_to_godot(), 1.0);
+        sim.update(
+            emitter,
+            1.0 / 60.0,
+            Mat4::IDENTITY,
+            wow_to_godot(),
+            1.0,
+            &mut |_, _| None,
+        );
     }
     sim
 }
@@ -570,7 +626,7 @@ fn particle_cleanroom_tail_styles_and_cells() {
     emitter.tail_cell_keys = vec![(0.0, 3)];
     let frame = Mat4::from_rotation_y(std::f32::consts::FRAC_PI_2);
     let mut sim = EmitterSim::new(&emitter, 11);
-    sim.update(&emitter, 0.05, frame, Mat3::IDENTITY, 1.0);
+    sim.update(&emitter, 0.05, frame, Mat3::IDENTITY, 1.0, &mut |_, _| None);
     for (flags, per_particle) in [(0x20000, 1), (0x40000, 1), (0x60000, 2)] {
         emitter.flags = flags;
         let mut quads = Vec::new();
@@ -601,7 +657,7 @@ fn particle_cleanroom_tail_age_clamp_and_view_parallel_velocity() {
     emitter.tail_length = 0.5;
     let frame = Mat4::from_rotation_y(std::f32::consts::FRAC_PI_2);
     let mut sim = EmitterSim::new(&emitter, 11);
-    sim.update(&emitter, 0.05, frame, Mat3::IDENTITY, 1.0);
+    sim.update(&emitter, 0.05, frame, Mat3::IDENTITY, 1.0, &mut |_, _| None);
     let mut quads = Vec::new();
     sim.quads(&emitter, &camera(), &mut quads);
     assert_eq!(quads.len(), sim.particles().len());
@@ -623,8 +679,22 @@ fn carried_particle(flags: u32, dt: f32, distance: f32, age: f32) -> (Vec3, f32)
     emitter.follow_speed2 = 10.0;
     emitter.follow_scale2 = 1.0;
     let mut sim = EmitterSim::new(&emitter, 11);
-    sim.update(&emitter, 0.05, Mat4::IDENTITY, Mat3::IDENTITY, 1.0);
-    sim.update(&emitter, age, Mat4::IDENTITY, Mat3::IDENTITY, 0.0);
+    sim.update(
+        &emitter,
+        0.05,
+        Mat4::IDENTITY,
+        Mat3::IDENTITY,
+        1.0,
+        &mut |_, _| None,
+    );
+    sim.update(
+        &emitter,
+        age,
+        Mat4::IDENTITY,
+        Mat3::IDENTITY,
+        0.0,
+        &mut |_, _| None,
+    );
     let before = sim.particles()[0];
     sim.update(
         &emitter,
@@ -632,6 +702,7 @@ fn carried_particle(flags: u32, dt: f32, distance: f32, age: f32) -> (Vec3, f32)
         Mat4::from_translation(Vec3::X * distance),
         Mat3::IDENTITY,
         0.0,
+        &mut |_, _| None,
     );
     (sim.particles()[0].position - before.position, before.age)
 }
@@ -726,8 +797,22 @@ fn particle_cleanroom_spline_uses_bent_cubic_and_changed_controls() {
     let shifted = spline_fixture(points.map(|p| [p[0], p[1] + 5.0, p[2]]));
     let mut sim = EmitterSim::new(&emitter, 11);
     let mut other = EmitterSim::new(&shifted, 11);
-    sim.update(&emitter, 0.1, Mat4::IDENTITY, Mat3::IDENTITY, 1.0);
-    other.update(&shifted, 0.1, Mat4::IDENTITY, Mat3::IDENTITY, 1.0);
+    sim.update(
+        &emitter,
+        0.1,
+        Mat4::IDENTITY,
+        Mat3::IDENTITY,
+        1.0,
+        &mut |_, _| None,
+    );
+    other.update(
+        &shifted,
+        0.1,
+        Mat4::IDENTITY,
+        Mat3::IDENTITY,
+        1.0,
+        &mut |_, _| None,
+    );
     assert!(sim.particles().len() >= 8);
     assert!(sim.particles().iter().any(|p| p.position.y > 0.5));
     for (p, q) in sim.particles().iter().zip(other.particles()) {
@@ -743,7 +828,14 @@ fn particle_cleanroom_spline_width_length_bound_curve_parameter() {
     emitter.area_length = 0.25;
     emitter.area_width = 0.75;
     let mut sim = EmitterSim::new(&emitter, 7);
-    sim.update(&emitter, 0.1, Mat4::IDENTITY, Mat3::IDENTITY, 1.0);
+    sim.update(
+        &emitter,
+        0.1,
+        Mat4::IDENTITY,
+        Mat3::IDENTITY,
+        1.0,
+        &mut |_, _| None,
+    );
     assert!(!sim.particles().is_empty());
     for p in sim.particles() {
         assert!(p.position.x >= 0.75 && p.position.x <= 2.25);
@@ -767,4 +859,174 @@ fn particle_cleanroom_tail_width_is_independent_of_head_velocity_orientation() {
     let quad = one_quad(&emitter, Mat4::IDENTITY);
     assert_eq!(quad.axis_x, Vec3::X * 0.5 * 0.05);
     assert_eq!(quad.axis_y, Vec3::Y * 0.25 * 0.05);
+}
+
+/// Near is inserted first, far second; births remain stationary in world space.
+fn overlap_emitter(flags: u32) -> (ParticleEmitter, EmitterSim) {
+    let mut emitter = still_emitter(flags);
+    emitter.lifespan = 10.0;
+    emitter.opacity_keys = vec![(0.0, 0.5)];
+    emitter.color_keys = vec![(0.0, [255.0, 0.0, 0.0]), (1.0, [0.0, 0.0, 255.0])];
+    let mut sim = EmitterSim::new(&emitter, 11);
+    sim.update(
+        &emitter,
+        0.015,
+        Mat4::from_translation(Vec3::NEG_Z),
+        Mat3::IDENTITY,
+        1.0,
+        &mut |_, _| None,
+    );
+    sim.update(
+        &emitter,
+        0.015,
+        Mat4::from_translation(Vec3::NEG_Z * 5.0),
+        Mat3::IDENTITY,
+        1.0,
+        &mut |_, _| None,
+    );
+    assert_eq!(sim.particles().len(), 2);
+    (emitter, sim)
+}
+
+#[test]
+fn particle_cleanroom_sort_uses_view_depth_not_birth_order() {
+    let (emitter, sim) = overlap_emitter(0x2);
+    let mut quads = Vec::new();
+    sim.quads(&emitter, &camera(), &mut quads);
+    assert_eq!(quads.len(), 2);
+    assert_eq!(quads[0].center.z, -5.0);
+    assert_eq!(quads[1].center.z, -1.0);
+    quads.clear();
+    let reverse = ViewBasis {
+        right: Vec3::NEG_X,
+        up: Vec3::Y,
+        back: Vec3::NEG_Z,
+    };
+    sim.quads(&emitter, &reverse, &mut quads);
+    assert_eq!(quads[0].center.z, -1.0);
+    assert_eq!(quads[1].center.z, -5.0);
+}
+
+#[test]
+fn particle_cleanroom_sort_off_preserves_live_order_and_pairs_head_tail() {
+    let (mut emitter, sim) = overlap_emitter(0);
+    let mut quads = Vec::new();
+    sim.quads(&emitter, &camera(), &mut quads);
+    let expected: Vec<_> = sim.particles().iter().map(|p| p.position).collect();
+    assert_eq!(quads.iter().map(|q| q.center).collect::<Vec<_>>(), expected);
+    emitter.flags |= 0x2 | 0x40000;
+    quads.clear();
+    sim.quads(&emitter, &camera(), &mut quads);
+    assert_eq!(quads.len(), 4);
+    assert_eq!(quads[0].center.z, -5.0);
+    assert_eq!(quads[1].center.z, -5.0);
+    assert_eq!(quads[2].center.z, -1.0);
+    assert_eq!(quads[3].center.z, -1.0);
+}
+
+#[test]
+fn particle_cleanroom_ground_projects_birth_before_ballistic_step() {
+    for shape in [1, 2] {
+        let mut emitter = still_emitter(0x2000);
+        emitter.emitter_type = shape;
+        emitter.emission_speed = 2.0;
+        emitter.scale_keys = vec![(0.0, [0.25, 0.5])];
+        let mut sim = EmitterSim::new(&emitter, 11);
+        let mut ground = |from: Vec3, to: Vec3| {
+            assert_eq!(from, Vec3::Y * 5.0);
+            assert_eq!(to, Vec3::NEG_Y * 15.0);
+            Some(Vec3::ZERO)
+        };
+        sim.update(
+            &emitter,
+            0.015,
+            Mat4::from_translation(Vec3::Y * 5.0) * Mat4::from_mat3(wow_to_godot()),
+            wow_to_godot(),
+            1.0,
+            &mut ground,
+        );
+        assert_eq!(sim.particles().len(), 1);
+        // Plane launches along authored+Z; the zero-angle sphere along authored+X.
+        let expected = if shape == 1 {
+            Vec3::Y * 0.53
+        } else {
+            Vec3::new(0.03, 0.5, 0.0)
+        };
+        assert!(sim.particles()[0].position.distance(expected) < 1e-5);
+        let before = sim.particles()[0].position;
+        sim.update(
+            &emitter,
+            0.015,
+            Mat4::IDENTITY,
+            wow_to_godot(),
+            0.0,
+            &mut |_, _| panic!("survivor must not be reprojected"),
+        );
+        assert!(
+            sim.particles()[0]
+                .position
+                .distance(before + sim.particles()[0].velocity * 0.015)
+                < 1e-5
+        );
+    }
+}
+
+#[test]
+fn particle_cleanroom_ground_no_hit_unflagged_and_model_space_stay_free() {
+    for flags in [0, 0x2000, 0x2010] {
+        let emitter = still_emitter(flags);
+        let mut sim = EmitterSim::new(&emitter, 11);
+        let mut ground = |from: Vec3, to: Vec3| {
+            assert_eq!(flags, 0x2000, "unflagged/model-space must not query");
+            assert_eq!(from, Vec3::Y * 5.0);
+            assert_eq!(to, Vec3::NEG_Y * 15.0);
+            None
+        };
+        sim.update(
+            &emitter,
+            0.015,
+            Mat4::from_translation(Vec3::Y * 5.0),
+            wow_to_godot(),
+            1.0,
+            &mut ground,
+        );
+        let mut quads = Vec::new();
+        sim.quads(&emitter, &camera(), &mut quads);
+        assert_eq!(quads.len(), 1);
+        assert_eq!(quads[0].center, Vec3::Y * 5.0);
+    }
+}
+
+#[test]
+fn particle_cleanroom_sort_transforms_model_space_depth_before_comparing() {
+    let mut emitter = still_emitter(0x10 | 0x2);
+    emitter.area_length = 3.0;
+    let matrix = Mat4::from_translation(Vec3::new(1.0, 2.0, 3.0))
+        * Mat4::from_rotation_y(std::f32::consts::FRAC_PI_2);
+    let mut sim = EmitterSim::new(&emitter, 11);
+    sim.update(&emitter, 0.05, matrix, Mat3::IDENTITY, 1.0, &mut |_, _| {
+        None
+    });
+    let mut expected: Vec<_> = sim
+        .particles()
+        .iter()
+        .map(|p| matrix.transform_point3(p.position))
+        .collect();
+    expected.sort_by(|a, b| a.z.total_cmp(&b.z));
+    assert!(expected.first().unwrap().z < expected.last().unwrap().z);
+    let mut quads = Vec::new();
+    sim.quads(&emitter, &camera(), &mut quads);
+    for (quad, position) in quads.iter().zip(&expected) {
+        assert!(quad.center.distance(*position) < 1e-5);
+    }
+    quads.clear();
+    let reverse = ViewBasis {
+        right: Vec3::NEG_X,
+        up: Vec3::Y,
+        back: Vec3::NEG_Z,
+    };
+    sim.quads(&emitter, &reverse, &mut quads);
+    for (quad, position) in quads.iter().zip(expected.iter().rev()) {
+        assert!(quad.center.distance(*position) < 1e-5);
+    }
 }

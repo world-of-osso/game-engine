@@ -2,12 +2,17 @@
 
 [Expert-only context](systems/housing.md#expert-binding-context--verified2026-10-15): full XML/OnShow/OnHide source rejects wrapper-only cross-mode activation inference before production edits. Both-skin native actual Options keys preserve Basic/Cleanup, switch three Expert submodes and conserve paid state; six inspected functional1280 PNGs. Diagnostic invalid oracle and old-extension protocol mismatch retained separately; no product/audio/timing/full-HD claim.
 ## 2026-10-15 — Stockade short-frame step admission
+## 2026-10-15 — Particle sorting, projected births and native bent curves
 
-[Short-frame proof](systems/player-ground.md#short-frame-regression-proof): same authored lip reproduced RED at run144/240FPS and walk60FPS. Support admission now includes the existing wall-margin reach without extra horizontal movement or a new tolerance/radius. Thirteen targeted regressions pass; native capture remains explicitly scoped to the earlier 60-FPS build.
+[Native particles](systems/godot-conversion.md#native-m2-particles): P6 CPU near-first RED→current-view sorting and native8/8 alpha/additive controls; P7 real-collision flat/raised RED→6/6 projection/control cases; P4 native model-emitter admission/placement yields99 particles and99 visible centers on each opposing cubic. Forward-integrated native build,13 focused controls and fmt pass. Requested1920×1080 PNGs saved in AgentShared/2026-10-15/m2-particles and representative cases inspected. P4-density remains an evidence gap; target-mask/P3/S1/P5 equivalence unclaimed. No prohibited sources accessed.
 
 ## 2026-10-15 — Clean-room M2 particle slices
 
 [Native particles](systems/godot-conversion.md#native-m2-particles): independent tails/follow, actual6316199 cubic controls and2994778 inherited scale decode. Eight focused RED→GREEN controls, including independent tail width; native build and fmt pass. P3 timer/reset, P4 density, S1 lighting oracle and P5 product/lifecycle provenance remain named gaps. Real165894 tail-only native PASS: five quads/4,547 changed pixels at1920×1080 with two byte-identical baselines; inspected PNGs in AgentShared/2026-10-15/m2-particles; no prohibited sources consulted.
+## 2026-10-15 — Stockade short-frame step admission
+
+[Short-frame proof](systems/player-ground.md#short-frame-regression-proof): same authored lip reproduced RED at run144/240FPS and walk60FPS. Support admission now includes the existing wall-margin reach without extra horizontal movement or a new tolerance/radius. Thirteen targeted regressions pass; native capture remains explicitly scoped to the earlier 60-FPS build.
+
 ## 2026-10-15 — Stockade ramp lip movement
 
 [Player ground](systems/player-ground.md#native-grounded-steps--2026-10-15): captured face3153 lip blocks before reachable face3041 support; floor-first order with unchanged low-ray movement corridor and step/wall constants. Exact-face RED and thin-wall counterexample RED recorded; lead explicitly excluded full-height body clearance after authored-route regressions. Full-body clearance is a named gap. [Bounded native proof](systems/player-ground.md#bounded-native-proof): Godot old-ray contact0.04996484yd, held-W rise0.65576yd with matching client/server positions, inspected before/after PNGs;10+4 focused regressions pass. Authoritative private pose setup is recorded; no server source changes.
