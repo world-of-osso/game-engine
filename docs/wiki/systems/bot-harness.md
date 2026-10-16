@@ -28,6 +28,22 @@ Feral103's first all-spec fixture remains in caster baseline:51/52 requests for 
 
 Future native drivers confirm the form spell is learned, request one ordinary validated self-cast only when its own aura is absent, and await replicated own-form aura facts from assisted evaluation. An existing form is never toggled again; timeout does not retry or select another form. form-plan.json/native-form.json and form-before/after.json retain source and observation. Equipment stat labels explicitly say before form preparation; ordinary post-form CharacterStats/combat retain resulting health/effects. Three focused source/observation tests pass. native-forms1 and native-forms2 confirm both ordinary own-form auras; follow-up combat still halts on source-unverified condition3. No server/evaluator/stat change or form-effect correctness claim follows from aura presence alone.
 
+## Routed native controller — implementation 2026-10-16
+
+`run_dummy_bots.py` now submits its existing explicitly selected source recommendation through `PlayerController`; its observer adds requested native facts to the same atomic sample. It does not switch source policies after an error. Attempt records are appended at actual IPC submission, preserving command failures without inventing requests for rejected choices.
+
+`PlayerController` in `scripts/bot_controller.py` extracts the Stockade diagnostic's action boundary without its map34 actors, Mage kit, encounter IDs or route coordinates. Callers inject checked CLI, fresh target-bound snapshots, sourced route queries and explicit per-spec priority providers. Native learned/readiness/affordability/range facts gate every submitted priority action. Unsupported provider errors propagate; there is no alternate rotation. This API does not itself implement all-spec APL coverage.
+
+`godot/tests/bot_controller_live.gd` accepts caller spell IDs/output directory, observes native model origins and publishes atomic account/rotation/one-second meter snapshots. Correlated requests drive native F and viewport mouse events, retaining screenshots and the literal Greed/Transmog widget name. Input ACK is not vote/win/delivery acceptance. One owned controller writes each directory; timeout never repeats an uncertain input. Recovery/encounter orchestration must service loot offers before their actual server expiry.
+
+`bot_harness.routed_player` creates the controller with `bot_routes.NavmeshRoute`: explicit agent-run/query argv plus baked navmesh directory, concrete CSV corner parsing and retained raw query/error receipts. `walk_route` consumes caller-authored goals and yields to caller-owned combat/recovery observation, while servicing visible loot offers before every tick. No map34 coordinates or class policy live in either shared module.
+
+The [spec](../../specs/bot-harness.md#maintained-routed-controller-interface) records the public contract. Generic two-spec/file-process tests are distinct from native Stockade completion and do not prove actual Greed input; Stockade's terminal proof used Transmog for Moloch and ordinary corpse retrieval after Hogger's rolls expired. Greed remains a separate pending native gate.
+
+### Explicit approved Arcane source provider
+
+`bot_simc_arcane.ArcaneSimcProvider` carries the approved diagnostic projection into the maintained interface with caller-provided receipt/APL/captured-kit/DB2/native-preflight/fight context. Receipt URL/commit and actual APL bytes must match SimC515f4a3fe9d1; the [fixture provenance](../../../scripts/tests/fixtures/bot_harness/simc_arcane32/provenance.json) retains exact source paths/hashes and native row slices. The generic controller contains no Mage IDs or priority. Provider calls are read-only against frozen kit/traits; the [bounded source contract](../../specs/bot-harness.md#approved-pinned-arcane-provider) retains APL24/36/64,2700s iteration timing and explicit unsupported cases. Selection must be explicit; no provider is auto-selected after a native evaluator error.
+
 ## Capture and detection
 
 `run_dummy_bots.py` requires an explicit socket/state/DB2 directory/dummy. It saves every IPC reply, native samples, run manifest and raw combat. Overlapping ring polls preserve true event multiplicity without recounting overlap; sequence gaps use the observed200-event retention, not the requested1024 lines.

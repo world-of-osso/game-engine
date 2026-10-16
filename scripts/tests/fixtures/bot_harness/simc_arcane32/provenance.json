@@ -1,0 +1,14 @@
+{
+  "purpose": "Portable unmodified inputs for scripts/bot_simc_arcane.py; offline decisions only, not live-game proof.",
+  "artifact_root": "/home/osso/.worktrees/follower-dungeons-2026-10-13",
+  "source-receipt.json": {"source": "data/simc-apl-515f4a3fe9d1/source-receipt.json", "sha256": "01e343c57d6a711e0162fe8af4e65f1341f29f81577771fd4e76552aaa8bcfe9", "note": "verbatim; its absolute 'path' is provenance only, the provider reads the APL from an explicit argument"},
+  "mage_arcane.simc": {"source": "data/simc-apl-515f4a3fe9d1/mage_arcane.simc", "sha256": "b1d85887ec62431864cc2db45b95993868bc02a0c0852b5189997542f47cabd4", "note": "verbatim pinned SimC 515f4a3fe9d1f35e1dbaf253745b6105fba906fb APL"},
+  "native-spells-state.json": {"source": "stockade-diagnostic/source-priority-run/native-spells-state.json", "sha256": "a0e1d63dc58c203072d39b69dc53959f0bd651e46a5435eda158b6c0425efb02", "note": "verbatim captured level-32 spec-62 native kit"},
+  "facts-result.json": {"source": "stockade-diagnostic/priority-traits-green/facts-result.json", "sha256": "d2c824549f4c04b6c0189722588b85483dccff0373d355cd38033258fa77a6cb", "note": "verbatim native priority facts with received server TraitConfigSnapshot"},
+  "db2": {
+    "source": "server/data/db2/active -> game-server/data/db2/12.1.5.70391",
+    "SpellName.csv": {"source_sha256": "a6b1af7f9075d88edd2584ab69f7613f3f5faeecd6f6407912f37e4e92ebbd72", "rows": "unmodified rows for the 94 captured known spells plus 5143 Arcane Missiles and 443739 Splintering Sorcery"},
+    "TraitNodeEntry.csv": {"source_sha256": "1c78846f7c3cb919f9692807d09d9991d0e8eb78c4d0afb76e35606bebd7d910", "rows": "unmodified 80180 (received config entry) and 117267 (Splintering Sorcery, APL talent block)"},
+    "TraitDefinition.csv": {"source_sha256": "51923f4bc70c67241e6a22477f2edc1c9e4a07e4197bab63bcbefec387536224", "rows": "unmodified 85183 -> 235450 and 122279 -> 443739"}
+  }
+}
