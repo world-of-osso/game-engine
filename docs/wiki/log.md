@@ -2,6 +2,10 @@
 
 [Source checkbox targeting](systems/housing.md#house-access-checkbox-hit-targets--2026-10-16):140px row button replaced with30×29 checkbox in noninteractive row; RED→GREEN5, both-skin label refusal/checkbox staging/mode/pending proof. Forty fullHD comparisons change only checkbox art after source LEFT anchoring. Typography/backend remain separate.
 
+## 2026-10-16 — Native Call Pet refusal and reliable party-death capture
+
+[Terminal boundary](systems/bot-harness.md#terminal-follower-death-delivery--2026-10-16): copied real character47 pet-storage probe and fresh native883 refusal now pass without a pet grant. Delayed child-process death delivery RED→GREEN and actual timing-window Fury58.121s report party1/player0, totals qualified; server already emits one real follower Death. Tank still dies to seven source attackers despite6281 healing; no clear/retuned kit. Owned stack/tick receipts retained, prior0.5ticks/s collapse not reproduced, no speculative performance rewrite.
+
 ## 2026-10-16 — Native BM predicate follow-up and party-death reporting
 
 [BM follow-up](systems/bot-harness.md#bm-pet-presence-follow-up--verified2026-10-16): latest pet-presence predicates remove29672/58 refusal; two fresh60s windows remain0damage because every sample selects CallPet1 and no pet appears. Collection complete is not working rotation/pet proof. [Stockade](systems/bot-harness.md#stockade-boss-accounting) later stops504.704s at native tankdeath; roster confirms one death absent from combat events. Actual-fixture RED→GREEN accounting now retains that observation and withholds death totals; original report preserved. Ordinary source-box exit completes natively. No boss clear/DPS proof or stat/kit override; owned runtimes stopped.
