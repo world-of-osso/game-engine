@@ -8,6 +8,7 @@
 - [Clean-room M2 particles](systems/godot-conversion.md#native-m2-particles) — native tails/follow/cubic controls, authored sorting and map-collision births; inherited-scale provenance and explicit lighting, timer/reset, spline-density, target-mask and model-recursion oracle gaps.
 # Wiki Index
 
+- [Trading Post cart item tooltips](systems/trading-post.md#cart-item-tooltips--implementation-october16) — regular/member identity and source owner offset/no sell price; native RED→both-skin hover/remove GREEN, global-input fixture correction and eight inspected full-HD samples.
 - [BM native Assist preparation](systems/bot-harness.md#bm-native-assist-preparation--2026-10-16) — ordinary received-slot input/ack gate; pinned TC constructor proves Passive default, stored stance preserved; fresh DPS remains separate.
 
 - [Terminal follower death delivery](systems/bot-harness.md#terminal-follower-death-delivery--2026-10-16) — delayed child-process delivery RED→receiver-drain; server owner-emission baseline passes, live timing proof pending.
