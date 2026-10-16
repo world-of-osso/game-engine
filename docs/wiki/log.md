@@ -1,6 +1,6 @@
 ## 2026-10-15 — Housing storage Filter header
 
-[Filter header](systems/housing.md#storage-filter-header--implementation2026-10-15): actual native missing-source-surface RED→shared fixed-width Filter/reset primitive integration. Existing popup/semantics/authority unchanged; both-skin GREEN pending. Primary-mode animation hypothesis rejected because source enables it only on unsupported Layout/Exterior.
+[Filter header](systems/housing.md#storage-filter-header--implementation2026-10-15): actual native missing-source-surface RED→shared fixed-width Filter/reset primitive and both-skin physical four-phase assertions GREEN on the existing725px drawer. Existing popup/semantics/authority unchanged. Four inspected1280 PNGs; Forever truncated final JSON retained with three complete records and final reset/conservation PASS/screenshot, no invented fourth record. Unrelated missing terrain shader is excluded from scoped header proof. Primary-mode animation hypothesis rejected because source enables it only on unsupported Layout/Exterior.
 
 ## 2026-10-15 — Housing Expert active glow implementation
 
