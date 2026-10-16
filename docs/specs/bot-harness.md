@@ -49,6 +49,14 @@ Every stat-bearing armor slot and preferred weapon uses authentic Item/ItemSpars
 
 Launch `godot/tests/bot_controller_live.gd` with an existing `BOT_CONTROLLER_OUTPUT` directory and `BOT_CONTROLLER_SPELL_IDS` JSON array. It observes the real client and exposes the correlated F/mouse bridge; it does not change spec, talents, gear or learned spells. Server admission, encounter credit, natural recovery, route assets and measurement orchestration remain caller-owned. Generic interface tests do not establish an implemented priority for every spec or full-dungeon acceptance.
 
+## Approved pinned Arcane provider
+
+`scripts/bot_simc_arcane.py::ArcaneSimcProvider(receipt, apl_path, captured_kit, db2_dir, initial_snapshot, context)` is an explicitly selected provider, never an alternate path after native authored-evaluator failure. Caller passes it directly to `PlayerController.cast_next`. It verifies SimC commit `515f4a3fe9d1f35e1dbaf253745b6105fba906fb`, the approved raw URL and APL SHA-256 `b1d85887ec62431864cc2db45b95993868bc02a0c0852b5189997542f47cabd4`; all file paths are explicit inputs.
+
+Coverage is only the captured level32/spec62 kit: Counterspell APL24 when observed interruptible casting, four-charge Barrage APL36 at the declared DungeonRoute iteration end, and Blast APL64 filler. Caller explicitly supplies DungeonRoute2700s context, not target TTD or the separate600s combat safety bound. Received server traits and native kit identity are frozen at preflight; changed/unsupported kit, level, talents or context block. DB2 spell names and trait entries resolve source actions; missing data never becomes inferred absence. No OOM Barrage, consumables, external/on-use buffs, other-spec or full-APL claim.
+
+Portable captured [fixtures and provenance](../../scripts/tests/fixtures/bot_harness/simc_arcane32/provenance.json) preserve exact approved source bytes and native DB2 row slices. These are offline decision tests, not native sustained damage or balance proof.
+
 ## Implementation inventory
 
 - `scripts/bot_harness.py`: native combat parsing, request/result reconciliation, fixed-window DPS and comparison reporting.
@@ -67,6 +75,8 @@ Launch `godot/tests/bot_controller_live.gd` with an existing `BOT_CONTROLLER_OUT
 - `scripts/tests/test_bot_harness.py`
 - `scripts/tests/test_bot_rotation.py`
 - `scripts/tests/test_bot_controller.py` (generic-spec action boundary, strict route, native-input file correlation; not gameplay acceptance)
+- `scripts/tests/test_bot_routes.py` (query-process CSV/failure receipts, busy-loop loot service and physical blocked-route boundary)
+- `scripts/tests/test_bot_simc_arcane.py` (pinned source/context/trait/kit decision coverage; not live-game proof)
 
 ## Known gaps (current cycle)
 
