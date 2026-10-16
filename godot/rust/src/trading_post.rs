@@ -320,9 +320,11 @@ impl GameClient {
         Ok(())
     }
     fn animate_trading_spinner(&mut self) {
-        if !self.trading_post.view.pending
-            || self.trading_post.view.confirm.as_deref() != Some("cart-checkout")
-        {
+        let pending_dialog = matches!(
+            self.trading_post.view.confirm.as_deref(),
+            Some("cart-checkout" | "purchase" | "refund")
+        );
+        if !self.trading_post.view.pending || !pending_dialog {
             self.trading_post.spinner_started_at = None;
             return;
         }
