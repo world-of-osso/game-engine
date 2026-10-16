@@ -16,7 +16,7 @@ Retail Mainline Blizzard_PerksProgram and the local C_PerksProgram/PerksActiviti
 
 ## Menu lifecycle sounds
 
-Source: Retail PerksProgram.lua226/253 and SoundKitConstants.lua, with SoundKit/SoundKitEntry12.1.5.70391.
+Source: Retail PerksProgram.lua226/253 and SoundKitConstants.lua, with SoundKit/SoundKitEntry12.1.5.70391. [Implementation/proof inventory](../wiki/systems/trading-post.md#menu-lifecycle-sounds--implementation-october15-proof-pending); behavioral tests: `godot/core/tests/trading_post_menu_sound.rs`, `godot/tests/trading_post_live.gd` (`menu-sounds`).
 
 - [ ] Actual menu show/hide plays OPEN218932/CLOSE218933 once per visibility edge via the existing UI SoundKit player; repeated updates/closed state do not replay either kit. A menu never projected must not emit a close sound.
 - [ ] Use the five authored open files at gain0.562341332 and ten authored close files at gain0.01, preserving existing master/effects/mute settings and explicit asset/decode failures. Native proof must observe real decoded AudioStreamPlayer playback, not only requested kit IDs.
