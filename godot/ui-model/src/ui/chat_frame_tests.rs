@@ -133,7 +133,11 @@ fn whisper_and_reply_target_the_named_player() {
 #[test]
 fn hug247_slash_uses_the_targeted_emote_action() {
     for text in ["/hug", "/HUG"] {
-        assert_eq!(format!("{:?}", parse_chat_input(text, None)), "Emote(Hug)");
+        assert_eq!(
+            parse_chat_input(text, None),
+            ChatCommand::Emote(EmoteKind::Hug),
+            "{text}"
+        );
     }
 }
 
