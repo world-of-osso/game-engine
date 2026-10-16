@@ -4,11 +4,11 @@ Retail Mainline guild news in Modern and Forever. Installed sources: `Blizzard_C
 
 ## What it must do
 
-- [ ] Info renders the source316px news pane, header/link,300×18 rows, scroll list and MinimalScrollBar in both skins. Current nonempty real MOTD appears first; no synthetic welcome/history rows.
-- [ ] Display only actual source-qualified player achievements and item loot/craft/purchase events, with real names/IDs/metadata and source date/sticky ordering. Retain250 durable news rows, independent of lifecycle and bank logs.
-- [ ] Queries use authenticated current membership. Sticky writes require the source CanEditMOTD right, preserve immutable entry identity and wait for authoritative replies. Nonmembers receive no news.
-- [ ] Source filter dialog toggles actual news categories; source row tooltip/context-menu actions use real metadata. Closing, membership loss and late replies preserve privacy and independent request pacing.
-- [ ] Real private UDP actions, process restart and relog preserve history/stickies; inspect1920×1080 Modern/Forever captures against source XML.
+- [x] Info renders the source316px news pane, header/link,300×18 rows, scroll list and MinimalScrollBar in both skins. Current nonempty real MOTD appears first; no synthetic welcome/history rows.
+- [x] Display only actual source-qualified player achievements and item loot/craft/purchase events, with real names/IDs/metadata and source date/sticky ordering. Retain250 durable news rows, independent of lifecycle and bank logs.
+- [x] Queries use authenticated current membership. Sticky writes require the source CanEditMOTD right, preserve immutable entry identity and wait for authoritative replies. Nonmembers receive no news.
+- [x] Source filter dialog toggles actual news categories; source row tooltip/context-menu actions use real metadata. Closing, membership loss and late replies preserve privacy and independent request pacing.
+- [x] Real private UDP actions, process restart and relog preserve history/stickies; inspect1920×1080 Modern/Forever captures against source XML.
 
 ## How it works
 
@@ -29,8 +29,9 @@ Retail Mainline guild news in Modern and Forever. Installed sources: `Blizzard_C
 ## Known gaps (current cycle)
 
 - [x] Actual server producers, authenticated query/sticky and durable storage; backend6/6.
-- [x] Source filter dialog, actual rows/tooltips/context actions and independent news authority; model4/4 before final art changes. Private native query/filter/sticky and both-skin250-row physical overflow pass; actual ordinary-member sticky refusal and post-quit privacy pass.
-- [ ] Current-artifact control screenshots, fresh-process readback, missing source-art publication and independent integration gates.
+- [x] Source filter dialog, actual rows/tooltips/context actions and independent news authority; post-merge model4/4. Private native query/filter/sticky and both-skin250-row physical overflow pass; actual ordinary-member sticky refusal and post-quit privacy pass.
+- [x] Source440557/446203 extracted locally and published by lead; current-artifact controls and fresh-process exact readback pass in both skins at engine5e1661761/server5001d9d1/protocol9bb88b6. Sixteen inspected full-HD PNGs; proof ledger in `/home/osso/.worktrees/logs/guild-news-2026-10-15-run1/`.
+- [ ] Independent lead integration gate/landing.
 
 ## Out of scope
 
