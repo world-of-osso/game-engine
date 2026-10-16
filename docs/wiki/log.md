@@ -1,6 +1,6 @@
 ## 2026-10-15 — Trading Post pet comparison implementation
 
-[Pet comparison](systems/trading-post.md#pet-comparison-composition--implementation-october15-proof-pending): independent dressed-player world/camera, authored race/sex actor and relative offset; raw category camera avoids product-rounding contamination. Behavioral missing-host RED observed; native GREEN/pixels pending. Lead decisionA retains desiredScale provider and kit23877 cross-segment loop as named gaps; fullRank3 incomplete.
+[Pet comparison](systems/trading-post.md#pet-comparison-composition--bounded-proof-october15): independent dressed-player world/camera, authored race/sex actor and relative offset; raw category camera avoids product-rounding contamination. Missing-host + actual single-pet RED→both-skin native composition/lifetime GREEN at c810ca30d/d5e59a071/ab40a187; core5 + UI27/native13 pass. Inspected Garrlok remains clipped at the left edge; desiredScale provider/kit23877 and native framing semantics stay named gaps, fullRank3 incomplete.
 
 ## 2026-10-15 — Guild member note implementation
 
