@@ -9,17 +9,17 @@ use ui_toolkit::{rsx, screen::SharedContext, widget_def::Element};
 
 struct DynName(String);
 
+pub const SELECT_PREFIX: &str = "world_quest:select:";
+pub const TIME_CRITICAL_SECONDS: i64 = 15 * 60;
+
 pub fn map_pins(
     catalog: &UiMapCatalog,
     map_id: u32,
     runtime: &QuestRuntime,
     now: i64,
 ) -> Vec<MapPin> {
-    let server_now = now + runtime.server_clock_offset;
     runtime
-        .world_quests
-        .iter()
-        .filter(|quest| quest.expires_at > server_now)
+        .active_world_quests(now)
         .filter_map(|quest| {
             let [x, y] = catalog.map_position(
                 map_id,
@@ -38,13 +38,72 @@ pub fn map_pins(
         .collect()
 }
 
+/// Received active task positions, without accepting a task or inventing quest-log POIs.
+/// Minimap icon composition is an engine presentation, not a Retail Lua minimap oracle.
+pub fn minimap_blips(
+    runtime: &QuestRuntime,
+    selected: Option<u32>,
+    map_id: u32,
+    view: &game_engine_core::minimap_data::MinimapView,
+    map_size: f32,
+    now: i64,
+) -> Vec<crate::minimap::MinimapBlip> {
+    use crate::minimap::{BlipKind, MinimapBlip, edge_offset};
+    runtime
+        .active_world_quests(now)
+        .filter(|quest| quest.map_id == map_id)
+        .filter_map(|quest| {
+            let position = [quest.position.x as f32, -(quest.position.y as f32)];
+            let (offset, edge) = edge_offset(view, position, map_size);
+            if edge && selected != Some(quest.quest_id) {
+                return None;
+            }
+            Some(MinimapBlip {
+                unit: u64::from(quest.quest_id),
+                kind: if edge {
+                    BlipKind::QuestSuperTrackArrow
+                } else {
+                    BlipKind::WorldQuest
+                },
+                offset,
+            })
+        })
+        .collect()
+}
+
+pub fn pin_at(pins: &[MapPin], uv: [f32; 2], [width, height]: [f32; 2]) -> Option<u32> {
+    const HIT_RADIUS: f32 = 16.;
+    pins.iter()
+        .find(|pin| {
+            pin.pin_type == MapPinType::WorldQuest
+                && ((pin.x - uv[0]) * width).abs() < HIT_RADIUS
+                && ((pin.y - uv[1]) * height).abs() < HIT_RADIUS
+        })
+        .and_then(|pin| pin.quest_id)
+}
+
 pub fn tooltip(quest: &AvailableWorldQuest, now: i64, position: [f32; 2]) -> TooltipPresentation {
     let remaining = (quest.expires_at - now).max(0);
-    let mut lines = vec![TooltipLineState::new(format!(
-        "Time Remaining: {}h {}m",
-        remaining / 3600,
-        remaining % 3600 / 60
-    ))];
+    let color = if remaining <= TIME_CRITICAL_SECONDS {
+        [1., 0.1, 0.1, 1.]
+    } else {
+        [1.; 4]
+    };
+    let time = format!("Time Left: {}", time_left(remaining));
+    let mut lines = vec![TooltipLineState::colored(time, color)];
+    let has_rewards = quest.xp > 0
+        || quest.rewards.money > 0
+        || !quest.rewards.items.is_empty()
+        || !quest.rewards.choice_items.is_empty()
+        || !quest.currencies.is_empty()
+        || !quest.reputation.is_empty();
+    if has_rewards {
+        lines.push(TooltipLineState::new(""));
+        lines.push(TooltipLineState::new("Rewards"));
+    }
+    if quest.xp > 0 {
+        lines.push(TooltipLineState::new(format!("{} XP", quest.xp)));
+    }
     if quest.rewards.money > 0 {
         lines.push(TooltipLineState::money(
             "Reward",
@@ -56,11 +115,9 @@ pub fn tooltip(quest: &AvailableWorldQuest, now: i64, position: [f32; 2]) -> Too
             .rewards
             .items
             .iter()
+            .chain(&quest.rewards.choice_items)
             .map(|item| TooltipLineState::new(format!("{} x{}", item.name, item.count))),
     );
-    if quest.xp > 0 {
-        lines.push(TooltipLineState::new(format!("{} XP", quest.xp)));
-    }
     lines.extend(
         quest.currencies.iter().map(|reward| {
             TooltipLineState::new(format!("Currency {}: {}", reward.id, reward.amount))
@@ -69,9 +126,6 @@ pub fn tooltip(quest: &AvailableWorldQuest, now: i64, position: [f32; 2]) -> Too
     lines.extend(quest.reputation.iter().map(|reward| {
         TooltipLineState::new(format!("Reputation {}: {:+}", reward.id, reward.amount))
     }));
-    if lines.len() == 1 {
-        lines.push(TooltipLineState::new("No reward data"));
-    }
     TooltipPresentation {
         visible: true,
         x: position[0],
@@ -82,6 +136,29 @@ pub fn tooltip(quest: &AvailableWorldQuest, now: i64, position: [f32; 2]) -> Too
     }
 }
 
+/// QuestUtils WorldQuestsSecondsFormatter uses one full unit at a day or less.
+fn time_left(seconds: i64) -> String {
+    const MINUTE: i64 = 60;
+    const HOUR: i64 = 60 * MINUTE;
+    const DAY: i64 = 24 * HOUR;
+    if seconds < MINUTE {
+        return "< 1 Minute".into();
+    }
+    let unit_count = if seconds > DAY { 2 } else { 1 };
+    let mut remaining = seconds;
+    [(DAY, "Day"), (HOUR, "Hour"), (MINUTE, "Minute")]
+        .into_iter()
+        .filter_map(|(unit, name)| {
+            let count = remaining / unit;
+            remaining %= unit;
+            let plural = if count == 1 { "" } else { "s" };
+            (count > 0).then(|| format!("{count} {name}{plural}"))
+        })
+        .take(unit_count)
+        .collect::<Vec<_>>()
+        .join(" ")
+}
+
 /// BonusTrackerProgressBarTemplate: 191x17 fill, 192x38 block.
 pub fn progress_bar(id: u32, progress: (u32, u32), y: f32, scale: f32) -> Element {
     let (current, total) = progress;
@@ -90,7 +167,7 @@ pub fn progress_bar(id: u32, progress: (u32, u32), y: f32, scale: f32) -> Elemen
     } else {
         (current as f32 / total as f32).clamp(0., 1.)
     };
-    let text = format!("{current}/{total} ({}%)", (fraction * 100.).round() as u32);
+    let text = format!("{}%", (fraction * 100.).round() as u32);
     let fill = 191. * fraction * scale;
     let mut elements = rsx! {
         r#frame {name: {DynName(format!("WorldQuest{id}ProgressBackground"))},width: {191.*scale},height:{17.*scale},background_color:"0.04,0.07,0.18,1",pos_type:"absolute",left:{30.*scale},top:{y*scale}}

@@ -347,6 +347,7 @@ impl NetworkBridge {
             .receive::<protocol::GuildBankFailed>()
             .receive::<protocol::GuildRanksState>()
             .receive::<protocol::GuildEventLog>()
+            .receive::<protocol::GuildNewsState>()
             .receive::<protocol::GuildInvitation>()
             .receive::<protocol::GuildInviteResponse>()
             .receive::<protocol::GuildAcceptInviteResponse>()

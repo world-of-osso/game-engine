@@ -465,8 +465,17 @@ fn housing_storage_filters_render_independent_choices_and_reset_in_both_skins() 
         view.model
             .storage_filter_action("housing:storage:sort:alphabetical")
             .unwrap();
+        assert!(!view.model.storage_filters_open && !view.model.storage_sort_open);
+        view.model
+            .storage_filter_action("housing:storage:filters")
+            .unwrap();
         view.model
             .storage_filter_action("housing:storage:filter:dyeable")
+            .unwrap();
+        // Checkbox Refresh keeps the root; reopen Sort to inspect retained radio state.
+        assert!(view.model.storage_filters_open && !view.model.storage_sort_open);
+        view.model
+            .storage_filter_action("housing:storage:sort")
             .unwrap();
         context.insert(view.clone());
         screen.sync(&context, &mut registry);
