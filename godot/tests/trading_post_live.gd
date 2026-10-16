@@ -23,7 +23,7 @@ func run_fixture() -> void:
 		fail("Private compositor must expose 1920x1080 output")
 		return
 	var account := OS.get_environment("TP_ACCOUNT")
-	if server != "127.0.0.1:5791" or not account.begins_with("fb_") or shots.is_empty() or receipts.is_empty() or not phase in ["menu-sounds", "layout", "layout-proof", "browse", "relog", "purchase", "refund", "cart", "cart-lifetime", "rotate-controls", "mount-rider", "mount-rider-cancel", "freeze-workflow", "authored-camera", "frozen-slot-before", "frozen-slot-after"]:
+	if server != "127.0.0.1:5791" or not account.begins_with("fb_") or shots.is_empty() or receipts.is_empty() or not phase in ["item-tooltips", "menu-sounds", "layout", "layout-proof", "browse", "relog", "purchase", "refund", "cart", "cart-lifetime", "rotate-controls", "mount-rider", "mount-rider-cancel", "freeze-workflow", "authored-camera", "frozen-slot-before", "frozen-slot-after"]:
 		fail("Explicit private 127.0.0.1:5791, fb_* account, phase and evidence paths required")
 		return
 	for directory in [shots, receipts]:
@@ -47,7 +47,7 @@ func run_fixture() -> void:
 	if not await wait_until(func(): return float(client.account_state().local_player_health) > 0.0, "private character alive", 120000): return
 	client.set_world_minutes(720.0)
 	await wait_frames(120)
-	if not phase in ["menu-sounds", "layout", "layout-proof", "cart", "cart-lifetime", "rotate-controls", "mount-rider", "mount-rider-cancel", "freeze-workflow", "authored-camera", "frozen-slot-before", "frozen-slot-after"] and not await travelers_log(): return
+	if not phase in ["item-tooltips", "menu-sounds", "layout", "layout-proof", "cart", "cart-lifetime", "rotate-controls", "mount-rider", "mount-rider-cancel", "freeze-workflow", "authored-camera", "frozen-slot-before", "frozen-slot-after"] and not await travelers_log(): return
 	if phase == "menu-sounds" and not watch_menu_sound_players(): return
 	if not await open_vendor(): return
 	if phase in ["cart", "cart-lifetime"]:
@@ -82,10 +82,61 @@ func run_fixture() -> void:
 		"freeze-workflow": await freeze_workflow_proof()
 		"authored-camera": await authored_camera_proof()
 		"menu-sounds": await menu_sound_proof()
+		"item-tooltips": await item_tooltip_proof()
 		"frozen-slot-before": await frozen_slot_geometry_proof(false)
 		"frozen-slot-after": await frozen_slot_geometry_proof(true)
 		"refund": await refund_after_relog()
 		_: await browse()
+
+# Product OnEnter (Elements.lua306-314): hovered item, not selected preview;
+# ANCHOR_RIGHT -16, no SellPrice. Native hit testing must own the lifecycle.
+func item_tooltip_proof() -> void:
+	if not await choose_category(1): return
+	var products := []
+	# Lower visible rows leave room above ANCHOR_RIGHT without screen clamping.
+	var rows: PackedStringArray = client.trading_post_state().rows
+	rows.reverse()
+	for row in rows:
+		var id := int(str(row).split("|")[0])
+		var name := "PerksProgramProduct%d" % id
+		if control(name) == null: continue
+		await click(name)
+		if not await wait_until(func(): return int(client.trading_post_state().selected) == id, "tooltip fixture selection"): return
+		products.append(client.trading_post_state().duplicate(true))
+		if products.size() == 2: break
+	if products.size() != 2:
+		fail("Tooltip fixture needs two distinct visible transmog rows"); return
+	var selected := int(products[1].selected)
+	var tender := int(client.trading_post_state().tender)
+	for product in products:
+		var name := "PerksProgramProduct%d" % int(product.selected)
+		await motion(control(name).get_global_rect().get_center(), false)
+		await wait_frames(30)
+		print("TP_TOOLTIP_PROBE owner=", name, " expected=", product.selected_name, " rect=", control(name).get_global_rect(), " hovered=", root.gui_get_hovered_control(), " tooltip=", client.tooltip_state())
+		await capture("hover-probe-%d" % int(product.selected))
+		if not await wait_until(func(): return client.tooltip_state().get("visible", false) and client.tooltip_state().get("title", "") == product.selected_name, "Retail hovered product item tooltip", 10000): return
+		var tooltip: Dictionary = client.tooltip_state()
+		var lines := str(tooltip.get("lines", []))
+		if not lines.contains("Item ID: %d" % int(product.item_id)) or not lines.contains("Item Level ") or lines.contains("Sell Price"):
+			fail("Product tooltip lost item detail/identity or included SellPrice: " + str(tooltip)); return
+		var scale := control("PerksProgramLeaveButton").get_global_rect().size.x / 180.0
+		var owner := control(name).get_global_rect()
+		if absf(float(tooltip.rect[0]) - (owner.end.x / scale - 16.0)) > 1.5 or absf(float(tooltip.rect[1]) + float(tooltip.rect[3]) - owner.position.y / scale) > 1.5:
+			fail("Product tooltip lacks source ANCHOR_RIGHT -16: " + str(tooltip)); return
+		if int(client.trading_post_state().selected) != selected or int(client.trading_post_state().tender) != tender:
+			fail("Hover changed selection or Tender"); return
+		await capture("product-%d" % int(product.selected))
+	await motion(control("PerksProgramLeaveButton").get_global_rect().get_center(), false)
+	if not await wait_until(func(): return not client.tooltip_state().get("visible", false), "product leave hides tooltip"): return
+	await capture("leave-hidden")
+	var last_name := "PerksProgramProduct%d" % selected
+	await motion(control(last_name).get_global_rect().get_center(), false)
+	if not await wait_until(func(): return client.tooltip_state().get("visible", false), "product tooltip re-enter"): return
+	await tap(KEY_ESCAPE)
+	if not await wait_until(func(): return not client.trading_post_state().open and not client.tooltip_state().get("visible", false), "vendor close hides owned tooltip"): return
+	await capture("closed-hidden")
+	if not await open_vendor(): return
+	await finish("item-tooltips")
 
 func layout_proof() -> void:
 	print("TP_LAYOUT_INITIAL footer=", control("PerksProgramFooterFrame").get_global_rect(), " purchase=", control("PerksProgramPurchaseButton").get_global_rect(), " filter=", control("PerksProgramFilter").get_global_rect())
@@ -1101,7 +1152,7 @@ func capture(label: String) -> void:
 	if file == null:
 		fail("Cannot save Trading Post evidence receipt: " + stem)
 		return
-	file.store_string(JSON.stringify({"trading_post": client.trading_post_state(), "journal": client.adventure_guide_state(), "account": client.account_state()}, "\t"))
+	file.store_string(JSON.stringify({"trading_post": client.trading_post_state(), "tooltip": client.tooltip_state(), "journal": client.adventure_guide_state(), "account": client.account_state()}, "\t"))
 	file.close()
 	print("TP_CAPTURE ", stem)
 
@@ -1111,7 +1162,7 @@ func wait_frames(count: int) -> void:
 func fail(message: String) -> void:
 	if client != null and not receipts.is_empty():
 		var file := FileAccess.open(receipts.path_join(skin + "-" + phase + "-failure.json"), FileAccess.WRITE)
-		file.store_string(JSON.stringify({"failure": message, "trading_post": client.trading_post_state(), "journal": client.adventure_guide_state(), "account": client.account_state()}, "\t"))
+		file.store_string(JSON.stringify({"failure": message, "tooltip": client.tooltip_state(), "trading_post": client.trading_post_state(), "journal": client.adventure_guide_state(), "account": client.account_state()}, "\t"))
 		file.close()
 	push_error("Trading Post live: " + message)
 	quit(1)
