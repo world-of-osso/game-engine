@@ -107,18 +107,7 @@ pub(crate) fn difficulty_caption(view: &View, id: u32) -> String {
         250 => 250,
         _ => base_difficulty(id),
     };
-    let key = match id {
-        1 | 3 | 4 | 9 | 14 => "PLAYER_DIFFICULTY1",
-        2 | 5 | 6 | 15 => "PLAYER_DIFFICULTY2",
-        7 | 17 => "PLAYER_DIFFICULTY3",
-        8 => "PLAYER_DIFFICULTY_MYTHIC_PLUS",
-        16 | 23 => "PLAYER_DIFFICULTY6",
-        24 | 33 => "PLAYER_DIFFICULTY_TIMEWALKER",
-        // EJ.lua59 explicitly identifies World's base as PrimaryRaidLFR.
-        250 => "PLAYER_DIFFICULTY_WORLD_RAID",
-        _ => return String::new(),
-    };
-    let name = text(key);
+    let name = difficulty_name(id);
     if matches!(id, 14..=17 | 33 | 250) {
         return name.into();
     }
@@ -128,6 +117,21 @@ pub(crate) fn difficulty_caption(view: &View, id: u32) -> String {
     text("ENCOUNTER_JOURNAL_DIFF_TEXT")
         .replacen("%s", &players.to_string(), 1)
         .replacen("%s", name, 1)
+}
+
+fn difficulty_name(id: u32) -> &'static str {
+    let key = match id {
+        1 | 3 | 4 | 9 | 14 => "PLAYER_DIFFICULTY1",
+        2 | 5 | 6 | 15 => "PLAYER_DIFFICULTY2",
+        7 | 17 => "PLAYER_DIFFICULTY3",
+        8 => "PLAYER_DIFFICULTY_MYTHIC_PLUS",
+        16 | 23 => "PLAYER_DIFFICULTY6",
+        24 | 33 => "PLAYER_DIFFICULTY_TIMEWALKER",
+        // EJ.lua59 explicitly identifies World's base as PrimaryRaidLFR.
+        250 => "PLAYER_DIFFICULTY_WORLD_RAID",
+        _ => return "",
+    };
+    text(key)
 }
 
 // EJ.lua58–59 documents both aliases; other IDs are not guessed from fallback IDs.
