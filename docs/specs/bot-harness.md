@@ -37,6 +37,16 @@ Every stat-bearing armor slot and preferred weapon uses authentic Item/ItemSpars
 - [Evidence and detection boundaries](../wiki/systems/bot-harness.md)
 - [Native automation contract](native-ui-automation.md)
 
+## Maintained routed-controller interface
+
+- `scripts/bot_controller.py` exposes `PlayerController(invoke, snapshot, route, bridge)`. Callers provide checked native IPC, fresh target-bound facts and an explicit authored/navmesh route query. `step_toward` submits one bounded physical forward step toward the first unreached sourced corner; empty/exhausted routes block, never substitute direct movement.
+- `cast_next(target, priority)` accepts an explicitly selected per-spec provider. Provider errors propagate without another rotation; submitted spells must be learned and native-ready, affordable and in range. No hardcoded class/spec rotation lives in this controller. Source/trait coverage remains the provider's responsibility.
+- `assist(leader_name)` selects the named party leader through existing interaction, then requests native F press/release. An unchanged leader produces no victim; no entity-selection shortcut is introduced.
+- `FileBridge` atomically publishes correlated per-client input requests, waits at most ten seconds and never resubmits input on timeout. One controller/writer owns each output directory.
+- `vote_loot()` clicks the visible semantic non-Need choice via the native viewport bridge and preserves its actual Greed/Transmog name. Submission ACK is not authoritative vote, win, delivery or pixel proof. Callers must service offers during recovery as well as after encounters.
+
+Launch `godot/tests/bot_controller_live.gd` with an existing `BOT_CONTROLLER_OUTPUT` directory and `BOT_CONTROLLER_SPELL_IDS` JSON array. It observes the real client and exposes the correlated F/mouse bridge; it does not change spec, talents, gear or learned spells. Server admission, encounter credit, natural recovery, route assets and measurement orchestration remain caller-owned. Generic interface tests do not establish an implemented priority for every spec or full-dungeon acceptance.
+
 ## Implementation inventory
 
 - `scripts/bot_harness.py`: native combat parsing, request/result reconciliation, fixed-window DPS and comparison reporting.
@@ -54,6 +64,7 @@ Every stat-bearing armor slot and preferred weapon uses authentic Item/ItemSpars
 
 - `scripts/tests/test_bot_harness.py`
 - `scripts/tests/test_bot_rotation.py`
+- `scripts/tests/test_bot_controller.py` (generic-spec action boundary, strict route, native-input file correlation; not gameplay acceptance)
 
 ## Known gaps (current cycle)
 

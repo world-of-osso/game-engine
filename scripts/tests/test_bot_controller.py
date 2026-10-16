@@ -1,0 +1,127 @@
+"""Behavioral controller tests; native file responses are produced by a child process."""
+import json
+import sys
+import tempfile
+import unittest
+from pathlib import Path
+
+sys.path.insert(0, str(Path(__file__).resolve().parents[1]))
+from bot_controller import FileBridge, PlayerController
+
+
+def snapshot(spec=62, spell=30451):
+    return {"at_ms": 1000, "target": 41, "trait_config": {"spec_id": spec},
+            "spells": {"spec": spec, "known": [spell], "casting": None, "gcd_ms": 0},
+            "facts": {"known": [spell], **{field: {str(spell): {"Ok": True}}
+                       for field in ("ready", "affordable", "in_range")}}}
+
+
+class ControllerTests(unittest.TestCase):
+    def setUp(self):
+        self.commands = []
+        self.native = snapshot()
+        self.controller = PlayerController(self.command, lambda target: self.native,
+                                           lambda start, end, label: [end], None)
+
+    def command(self, *argv):
+        self.commands.append(argv)
+        return "submitted"
+
+    def test_two_specs_use_explicit_provider_without_mage_branch(self):
+        for spec, spell in [(62, 30451), (71, 12294)]:
+            self.native = snapshot(spec, spell)
+            result = self.controller.cast_next(41, lambda state, target: {"spell": spell, "source": "test fixture"})
+            self.assertEqual(result["spell"], spell)
+            self.assertEqual(self.commands[-1], ("spell", "cast", "--spell", str(spell), "--target", "41"))
+
+    def test_unselected_or_unlearned_or_unusable_action_never_submits(self):
+        for change in [lambda s: s.update(target=42),
+                       lambda s: s["facts"]["ready"]["30451"].update(Ok=False),
+                       lambda s: s["spells"].update(known=[])]:
+            self.native = snapshot()
+            change(self.native)
+            with self.assertRaisesRegex(ValueError, "target|learned|usable|disagree"):
+                self.controller.cast_next(41, lambda state, target: {"spell": 30451})
+        self.assertEqual(self.commands, [])
+
+    def test_provider_error_does_not_invoke_another_rotation(self):
+        def blocked(state, target):
+            raise ValueError("unsupported APL predicate")
+        with self.assertRaisesRegex(ValueError, "unsupported APL predicate"):
+            self.controller.cast_next(41, blocked)
+        self.assertEqual(self.commands, [])
+
+    def test_busy_player_never_submits(self):
+        self.native["spells"]["casting"] = 30451
+        self.assertIsNone(self.controller.cast_next(41, lambda state, target: {"spell": 30451}))
+        self.assertEqual(self.commands, [])
+
+    def test_route_uses_first_unreached_sourced_corner_not_direct_goal(self):
+        self.controller.route = lambda start, goal, label: [[0, 0, 0], [7, 0, 0], goal]
+        result = self.controller.step_toward([0, 0, 0], [21, 0, 0], "authored-leg")
+        self.assertFalse(result)
+        self.assertEqual(self.commands, [("movement", "forward", "--seconds", "0.55", "--yaw-degrees", "90.0")])
+
+    def test_empty_route_blocks_without_straight_line_fallback(self):
+        self.controller.route = lambda start, goal, label: []
+        with self.assertRaisesRegex(ValueError, "route"):
+            self.controller.step_toward([0, 0, 0], [21, 0, 0], "authored-leg")
+        self.assertEqual(self.commands, [])
+
+    def test_native_loot_choice_preserves_actual_visible_button_identity(self):
+        tree = "GroupLootFrame1GreedButton [Button] visible enabled x=10 y=20 w=30 h=40\n"
+        requests = []
+        class Bridge:
+            def request(self, kind, payload):
+                requests.append((kind, payload))
+                return {"input": "native viewport mouse", **payload}
+        self.controller.bridge = Bridge()
+        self.controller.invoke = lambda *argv: tree
+        result = self.controller.vote_loot()
+        self.assertEqual(result["name"], "GroupLootFrame1GreedButton")
+        self.assertEqual(requests, [("loot-click", {"name": "GroupLootFrame1GreedButton", "x": 25.0, "y": 40.0})])
+
+    def test_native_assist_rejects_unchanged_leader_instead_of_target_shortcut(self):
+        class Bridge:
+            def request(self, kind, payload):
+                return {"before": {"target": 4, "target_name": "Tank"}, "after": {"target": 4}}
+        self.controller.bridge = Bridge()
+        self.assertIsNone(self.controller.assist("Tank"))
+        self.assertEqual(self.commands, [("quest", "interact", "--npc", "Tank")])
+
+
+class BridgeTests(unittest.TestCase):
+    def test_atomic_process_response_correlation_and_native_errors(self):
+        import subprocess
+        with tempfile.TemporaryDirectory() as directory:
+            path = Path(directory)
+            # Real separate process observes published request and emits stale then current ACK.
+            program = '''import json,sys,time
+from pathlib import Path
+p=Path(sys.argv[1]); request=p/'native-assist-request.json'
+while not request.exists(): time.sleep(.005)
+r=json.loads(request.read_text())
+(p/'native-assist-result.json').write_text(json.dumps({'request_id':'old'}))
+time.sleep(.05)
+t=p/'response.writing';t.write_text(json.dumps({'request_id':r['request_id'],'error':'wrong leader'}));t.replace(p/'native-assist-result.json')
+'''
+            child = subprocess.Popen([sys.executable, "-c", program, directory])
+            try:
+                with self.assertRaisesRegex(RuntimeError, "wrong leader"):
+                    FileBridge(path, timeout=2).request("assist", {"leader_name": "Tank"})
+            finally:
+                try:
+                    child.wait(timeout=3)
+                except subprocess.TimeoutExpired:
+                    child.kill()
+                    child.wait()
+            self.assertEqual(child.returncode, 0)
+
+    def test_timeout_does_not_resubmit_input(self):
+        with tempfile.TemporaryDirectory() as directory:
+            with self.assertRaisesRegex(TimeoutError, "assist"):
+                FileBridge(Path(directory), timeout=.03).request("assist", {"leader_name": "Tank"})
+
+
+if __name__ == "__main__":
+    unittest.main()
