@@ -30,6 +30,11 @@ products/wow/334a36cf5f3c32a5f7a167405487fa14/models/3719271.skin
 cache/model-asset-index-bg-head-7321940.json
 products/wow/334a36cf5f3c32a5f7a167405487fa14/models/7321940.m2
 products/wow/334a36cf5f3c32a5f7a167405487fa14/models/7530107.skin
+# Installed70391 Expert submode rotating glow and fixed per-submode alpha masks.
+textures/7263653.blp
+textures/7266217.blp
+textures/7266219.blp
+textures/7266221.blp
 # Trading Post SharedButtonLargeTemplate source three-slice state art (canonical).
 textures/7367529.blp
 # Trading Post cart's56px square mask and UIButton atlas (70391 local-CASC receipt).
@@ -4878,6 +4883,7 @@ textures/7323575.blp
 cache/adventure_guide.sqlite
 # Mainline RaidBossEmote warning kit12197 (SoundKitEntry15068).
 sounds/ui/567394.ogg
+sounds/ui/6838456.ogg
 # Trading Post menu kits218932/218933, exact local70391 SoundKitEntry variants.
 sounds/ui/4956048.ogg
 sounds/ui/4956050.ogg

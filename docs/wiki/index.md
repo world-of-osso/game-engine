@@ -6,6 +6,9 @@
 - [Journal source difficulties](systems/adventure-guide.md#difficulty-source-menus--bounded-proof-2026-10-15) — source order/captions/group sizes and documented World/Mythic Flex aliases;48 focused tests and eight inspected both-skin one-line native menu captures.
 
 - [Instance and encounter Loot](systems/adventure-guide.md#instance-and-encounter-loot--2026-10-15) — selected-instance/difficulty drops, source64/45px rows, real icons/quality/tooltip, intrinsic subclass sizing and physical Loot-row→boss navigation;45 focused tests and twelve inspected both-skin native PNGs.
+- [Expert active submode glow](systems/housing.md#expert-active-glow--implementation2026-10-15) — native missing-glow RED→both-skin painted fixed-mask/six-second shared-phase/canvas-lifetime GREEN, unchanged paid state and six inspected1280 PNGs; full appearance remains open.
+
+- [Expert housing sound events](systems/housing.md#expert-submode-sound-scheduling--implementation2026-10-15) — distinct source pointer/key kits, native nominal stream/mute properties and both-skin held-drag conservation; dummy driver excludes audible/full-audio parity.
 - [Trading Post menu sounds](systems/trading-post.md#menu-lifecycle-sounds--bounded-proof-october15) — source show/hide kits,15 exact70391 variants/gains; both-skin eight decoded native playback/lifecycle observations and inspected PNGs; canonical15-file closure verified; close pitch remains a named gap.
 
 - [Shared WowStyle1 caption centering](systems/menu-primitives.md#wowstyle1-caption-centering-2026-10-15) — native font-minimum adaptation, paired core attribute wiring and explicit one-line policy; both-skin AH/shared caption deltas0 and unchanged Filter/Style2 control pixels.

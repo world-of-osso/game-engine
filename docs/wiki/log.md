@@ -1,6 +1,13 @@
 ## 2026-10-15 — Adventure Guide authored creature selection
 
 [Model choices](systems/adventure-guide.md#authored-model-selection--bounded-native-proof-2026-10-15) now select authored names/displays and owner-right description tooltips. Both-skin native47be Helix→Oaf/reset/Nezir passes with M2-camera-rendered heads and the source circle mask. Independent verification caught prior3f static boss-art substitution despite passing corner checks; native RED→GREEN covers the corrected portrait identity. Full-model authored UiModelScene camera remains a named gap.
+## 2026-10-15 — Housing Expert active glow implementation
+
+[Active submode glow](systems/housing.md#expert-active-glow--implementation2026-10-15): native missing-painted-glow RED→source fixed-mask/six-second shared first-play rotation and both-skin raster/phase/canvas-recreation GREEN with unchanged paid state. Modern retained six completed samples before invalid Scale-retention oracle correction, then resumed lifecycle only; Forever eight samples in one run. Installed70391 local art authenticated and lead-published; six inspected1280 PNGs, no primary flipbook/full appearance claim.
+
+## 2026-10-15 — Housing Expert sound event scheduling
+
+[Expert source kits](systems/housing.md#expert-submode-sound-scheduling--implementation2026-10-15): native missing-release-kit RED/core missing-lookup RED→four kit tests and both-skin actual pointer/assigned-key/stream/mute proof. Generic precision press cue removed; changed shortcut path retains both-skin held manipulation and paid conservation. Modern old-checkbox selector failure retained separately; only unfinished mute resumed. Dummy driver excludes physical audibility/full audio parity; two inspected functional1280 held-input captures published.
 ## 2026-10-15 — Trading Post menu lifecycle sound implementation
 
 [Menu sounds](systems/trading-post.md#menu-lifecycle-sounds--bounded-proof-october15): core2 missing-kit and actual native missing-call RED→GREEN. Both skins at67b1a92eb/231c68dc/4930acb observe eight real decoded playback/finished events, source gain ratio, no replay during idle/closed updates, Leave/reopen/Escape. Eight inspected full-HD PNGs+two contacts published;15 local70391 Vorbis variants authenticated. Canonical publication15/15 hash-verified, original slot sound link restored and owned overlay removed; native staging proof not relabeled. Close pitch named gap/no pitch path, Rank3 separately unlanded.
