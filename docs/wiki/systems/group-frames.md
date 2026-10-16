@@ -26,6 +26,16 @@ Verified: 2026-10-16.
 - Proof: local `data/diagnostics/ui-questlog-ready-buttons-2026-10-16/ready-button-proof-ledger.json`; PNGs under `AgentShared/2026-10-16/ui-questlog-ready-buttons/`. Native binary revision `ceafdd3fd`; later module sorting is nonbehavioral.
 - Scope excludes portrait, border, body/title/font/sound fidelity, disabled rendering (binding only), response reducer/server lifecycle and full-popup parity. Earlier live acceptance is not rerun or broadened by this offline slice.
 
+### ReadyCheck message origin — bounded proof 2026-10-16
+
+Verified: 2026-10-16.
+
+XML's240px listener message is TOP(+20,−37), not centered under the title: (61.5,37) within323×100. Complete ReadyCheck Lua only formats its text; cache search finds no geometry override. `ready_check_frame_component.rs` now preserves that parent-relative origin instead of(41.5,27). Existing28px control height, font/color/text/title/buttons remain unchanged and unqualified where previously excluded.
+
+Model anchor RED→GREEN2 (including response-button controls); native both-skin offsets42,27→62,37 reflect half-unit rounding. Both1920×1080 pairs change2080 RGB pixels, zero outside old/new message rectangles. Comparison panels and full contexts inspected; shared art yields identical per-phase Modern/Forever PNG hashes. Existing binary395e6c4da was reused for baseline (hash matched), not relabeled as a new build; GREEN binary0aa6b29b9. No unaffected pointer replay.
+
+Proof: local `data/diagnostics/ui-questlog-ready-message-2026-10-16/ready-message-proof-ledger.json`; PNGs `AgentShared/2026-10-16/ui-questlog-ready-message/`. Check9.11s/build44.8s/helper, scoped format/diff/manual Rust readability pass. No claim about intrinsic height/wrapping/shadows/source colors, instance difficulty text, portrait/border/title or server lifecycle.
+
 ### Data flow
 
 - **Server** (`game-server crates/server/src/group/`):

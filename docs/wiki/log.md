@@ -1,3 +1,7 @@
+## 2026-10-16 — ReadyCheck message origin
+
+[Source TOP anchor](systems/group-frames.md#readycheck-message-origin--bounded-proof-2026-10-16): retain parent-relative(+20,−37), removing title-height subtraction. Model RED→GREEN2; both-skin native positions and2080-pixel message-only delta per full-HD pair. Existing baseline binary reused with exact hash provenance; typography/difficulty/full-popup remain open.
+
 ## 2026-10-16 — UIErrors source hold
 
 [Bounded lifetime proof](systems/ui-system.md#uierrors-source-hold--bounded-proof-2026-10-16): hold3→2 seconds restores2.5s expiry, retaining fade calculation as an unqualified fadePower gap. Model RED2→GREEN4; ten both-skin supplied-elapsed native cases and ten unchanged-outside full-HD pairs. No wall-clock cadence/full MessageFrame claim.
