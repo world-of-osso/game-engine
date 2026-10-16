@@ -28,6 +28,8 @@
 - [Trading Post product item tooltips](systems/trading-post.md#product-row-item-tooltips--implementation-october16) — sourced hovered-row identity/right−16 anchor/no sell price; native RED→both-skin GREEN, final-scale ordering root fix and eight inspected full-HD samples.
 - [Campsite selected-hover](investigations/glue-menu-fidelity.md#campsite-selected-hover-branch--2026-10-15) — source gold selected-hover member/18px slicing; both-skin physical dispatch/reselection proof,24 unchanged control/context pairs.
 
+- [Encounter section flags](systems/adventure-guide.md#encounter-section-flags--2026-10-16) — source mask/atlas/header anchors, title reservation and owner-right text; three focused/60 adjacent controls and both-skin painted native samples, opaque ranking unclaimed.
+
 - [Raid title glyphs](systems/adventure-guide.md#raid-title-glyphs--bounded-proof-2026-10-16) — published Heroic/Mythic20px atlas flags, source16px title/right3/centerY and Normal/LFR reset; six inspected both-skin native originals, visibility authority excluded.
 
 - [Item Sets source composition](systems/adventure-guide.md#item-sets-source-composition--bounded-proof-2026-10-15) — real pane/rows/icons, independent class/spec filters, class-colour spans and global search;59 focused regressions and fourteen inspected both-skin native originals, with unsupported shared tooltip actions named.
