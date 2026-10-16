@@ -45,13 +45,19 @@ pub fn settings_screen(view: &HousingView) -> Element {
             button { name: "HousingSettingsOwner", text: "Owner assignment unavailable", width: 200.0, height: 28.0,
                 pos_type: "absolute", left: 46.0, top: 132.0, disabled: true }
             button { name: "HousingSettingsAbandon", text: "Abandon House", width: 152.0, height: 28.0,
-                pos_type: "absolute", left: 401.0, top: 132.0, disabled: true }
+                pos_type: "absolute", left: 401.0, top: 132.0, disabled: true,
+                button_fdid_up: 130828_u32, button_fdid_pressed: 130825_u32,
+                button_fdid_highlight: 130826_u32, button_fdid_disabled: 130824_u32 }
             fontstring { name: "HousingSettingsUnavailable", text: "Plot / blueprint access and owner assignment are unavailable; Save changes house access only.",
                 width: 508.0, height: 35.0, pos_type: "absolute", left: 46.0, top: 465.0, font_size: 12.0 }
             button { name: "HousingSettingsIgnoreList", text: "Ignore List", width: 152.0, height: 28.0,
-                pos_type: "absolute", left: 46.0, top: 488.0, disabled: true }
+                pos_type: "absolute", left: 46.0, top: 488.0, disabled: true,
+                button_fdid_up: 130828_u32, button_fdid_pressed: 130825_u32,
+                button_fdid_highlight: 130826_u32, button_fdid_disabled: 130824_u32 }
             button { name: "HousingSettingsSave", text: "Save", width: 152.0, height: 28.0,
-                pos_type: "absolute", left: 402.0, top: 488.0, onclick: "housing:settings:save", disabled: save_disabled }
+                pos_type: "absolute", left: 402.0, top: 488.0, onclick: "housing:settings:save", disabled: save_disabled,
+                button_fdid_up: 130828_u32, button_fdid_pressed: 130825_u32,
+                button_fdid_highlight: 130826_u32, button_fdid_disabled: 130824_u32 }
         }
     } }
 }
