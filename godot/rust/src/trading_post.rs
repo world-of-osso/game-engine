@@ -104,12 +104,8 @@ impl GameClient {
     }
     pub(super) fn close_trading_post_window(&mut self) -> Result<bool, FrameError> {
         if self.trading_post.view.confirm.is_some() {
-            // Frozen override has no hideOnEscape; its keyboard cover consumes it.
-            if !self.trading_post.view.pending
-                && self.trading_post.view.confirm.as_deref() != Some("freeze")
-            {
-                self.trading_post.view.cancel_confirmation();
-            }
+            // PerksProgram confirmation definitions omit hideOnEscape. The
+            // GameDialog cover consumes Escape; only their Cancel button dismisses.
             return Ok(true);
         }
         if self.trading_post.view.dropdown {

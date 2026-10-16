@@ -4115,3 +4115,5 @@ Completed Retailv2 codec/authoritative Create and committed Copy callbacks, exac
 - 2026-10-16: Extracted [routed native player-controller boundary](systems/bot-harness.md#routed-native-controller--implementation-2026-10-16): explicit per-spec provider/strict route/native F and semantic loot input; native Greed and all-spec rotation coverage remain separate gates.
 
 - 2026-10-16: Maintained [explicit pinned Arcane provider](systems/bot-harness.md#explicit-approved-arcane-source-provider) with portable captured source/trait fixtures; source24/36/64 and strict level32/kit/fight coverage, no fallback or native/all-spec acceptance.
+
+- 2026-10-16: PerksProgram purchase/refund/cart/clear confirmations omit hideOnEscape. Native purchase premature-dismissal RED observed; dispatcher corrected, explicit Cancel retained. Earlier Escape-cancel fixture claim corrected. [Trading Post](systems/trading-post.md#confirmation-keyboard-ownership--implementation-october16).
