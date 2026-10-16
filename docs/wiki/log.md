@@ -1,3 +1,7 @@
+## 2026-10-16 — HouseSettings inherited close button
+
+[Source close](systems/housing.md#housesettings-close-button--2026-10-16): text-X geometry RED and native highlight-replacement RED repaired; both-skin/pending state/input/cancel/ADD proof,16 context pairs unchanged outside old/new close rectangles. No lifecycle/backend claim.
+
 ## 2026-10-16 — HouseSettings omitted decorative regions
 
 [Source regions](systems/housing.md#housesettings-decorative-regions--2026-10-16): genuine missing-region RED→GREEN restores gradient/foliage/divider only; both-skin native6region geometry and inspected panels, zero changes outside three source rectangles.
