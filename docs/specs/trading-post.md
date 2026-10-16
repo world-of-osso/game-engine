@@ -14,6 +14,14 @@ Retail Mainline Blizzard_PerksProgram and the local C_PerksProgram/PerksActiviti
 - [x] Traveler's Log displays authoritative monthly Tender earned/cap/balance. No invented mail awards. Retail XML defines visible controls; remove unsourced vendor SearchBox, Log/Collections and Freeze/Unfreeze buttons (lead clarification October13).
 - [x] Targeted behavioural tests and inspected private UDP5731 fb_* account PNG proof in Modern and Forever.
 
+## Menu lifecycle sounds
+
+Source: Retail PerksProgram.lua226/253 and SoundKitConstants.lua, with SoundKit/SoundKitEntry12.1.5.70391.
+
+- [ ] Actual menu show/hide plays OPEN218932/CLOSE218933 once per visibility edge via the existing UI SoundKit player; repeated updates/closed state do not replay either kit. A menu never projected must not emit a close sound.
+- [ ] Use the five authored open files at gain0.562341332 and ten authored close files at gain0.01, preserving existing master/effects/mute settings and explicit asset/decode failures. Native proof must observe real decoded AudioStreamPlayer playback, not only requested kit IDs.
+- [ ] NAMED GAP — close kit218933 pitch adjustment/variation is unsupported by the existing UI kit player. Lead October15 authorizes lifecycle/files/gain only; do not add a pitch path or claim complete acoustic parity in this slice. Hover/selection/purchase/refund/rotation sounds remain outside it.
+
 ## Named gap — native pet framing
 
 - [ ] No allowed oracle currently establishes native ModelScene default FOV, inset projection semantics or pet DesiredScale provider. Garrlok224 clips45.5 physical pixels at the left edge; Spectral Tiger Cub429 fits. Scene-only pet/player work remains unlanded and Rank3 incomplete until authentic framing is resolved. Do not apply calculated fit thresholds, tune a reframe, hide clipped pets or substitute an unapproved source. Allowed evidence: Retail BlizzardInterfaceCode cache, ModelScene Actor/Camera CSVs12.1.5.70391, WebWowViewerCpp and wow.export. Lead October15 accepted this as a named gap, not a framing fix.
