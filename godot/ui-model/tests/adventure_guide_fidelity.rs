@@ -406,6 +406,36 @@ fn adventure_guide_model_limits_authored_choices_to_nine() {
 }
 
 #[test]
+fn adventure_guide_difficulty_menu_uses_retail_order_and_supported_modes() {
+    for skin in [ActiveSkin::Modern, ActiveSkin::Forever] {
+        for (instance, order) in [
+            (72, vec![3, 5, 4, 6]),
+            (1180, vec![17, 14, 15, 16]),
+            (741, vec![9]),
+        ] {
+            let mut v = view();
+            v.apply(&format!("journal:instance:{instance}")).unwrap();
+            v.apply("journal:difficulty-menu").unwrap();
+            let r = render(&v, skin);
+            let tops: Vec<_> = order
+                .iter()
+                .map(|id| rect(&r, &format!("JournalDifficulty{id}"))[1])
+                .collect();
+            assert!(
+                tops.windows(2).all(|pair| pair[0] < pair[1]),
+                "Retail EJ_DIFFICULTIES order {order:?} for instance {instance}: {tops:?}"
+            );
+            if instance == 741 {
+                assert!(
+                    r.get_by_name("JournalDifficulty18").is_none(),
+                    "Event is in MapDifficulty, but not Retail's EJ_DIFFICULTIES"
+                );
+            }
+        }
+    }
+}
+
+#[test]
 fn adventure_guide_instance_loot_has_source_tabs_without_boss_selection() {
     for skin in [ActiveSkin::Modern, ActiveSkin::Forever] {
         let mut v = view();
