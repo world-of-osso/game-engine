@@ -579,6 +579,14 @@ impl GameClient {
                 view,
                 cluster_style(self.minimap.skin).map_size,
             ));
+            blips.extend(game_engine_ui_model::world_quest_ui::minimap_blips(
+                &self.account.quests,
+                self.quests.ui.super_tracked,
+                map_id,
+                view,
+                cluster_style(self.minimap.skin).map_size,
+                crate::account::quest_local_unix(),
+            ));
         }
         blips
     }

@@ -465,7 +465,7 @@ pub fn chat_message_line(msg: &ChatMessage) -> ChatLine {
     }
 }
 
-fn parse_received_chat_links(value: &str) -> Vec<ChatSpan> {
+pub(crate) fn parse_received_chat_links(value: &str) -> Vec<ChatSpan> {
     parse_achievement_links(value)
         .into_iter()
         .flat_map(|span| match span {

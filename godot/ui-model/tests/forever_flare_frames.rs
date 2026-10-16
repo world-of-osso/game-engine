@@ -66,6 +66,14 @@ fn unit_frames(skin: ActiveSkin) -> FrameRegistry {
 }
 
 fn unit_frames_with_player(skin: ActiveSkin, player: UnitFrameState) -> FrameRegistry {
+    unit_frames_with_menu(skin, player, UnitFrameMenuState::default())
+}
+
+fn unit_frames_with_menu(
+    skin: ActiveSkin,
+    player: UnitFrameState,
+    menu: UnitFrameMenuState,
+) -> FrameRegistry {
     load_atlas_tables();
     let mut shared = SharedContext::new();
     shared.insert(skin);
@@ -93,7 +101,7 @@ fn unit_frames_with_player(skin: ActiveSkin, player: UnitFrameState) -> FrameReg
             power_text: Default::default(),
         }),
         bosses: vec![unit("Edwin VanCleef", PowerType::Mana)],
-        menu: UnitFrameMenuState::default(),
+        menu,
         personal_resource: None,
     });
     let mut registry = FrameRegistry::new(1920.0, 1080.0);
@@ -201,8 +209,8 @@ fn modern_trees() -> String {
     .concat()
 }
 
-/// The Modern trees as the components built them before the Forever branch (forever5,
-/// 43cde936).
+/// Modern unit/cast frames, with source-reviewed Retail shared menu updates.
+/// The closed default menu has no unit name; actual named menus retain their title.
 #[test]
 fn modern_unit_frames_and_cast_bar_keep_their_frame_trees() {
     let trees = modern_trees();
@@ -210,6 +218,23 @@ fn modern_unit_frames_and_cast_bar_keep_their_frame_trees() {
         println!("<<<MODERN_TREES\n{trees}MODERN_TREES>>>");
     }
     assert!(trees == fixture::MODERN_TREES, "Modern frame trees changed");
+
+    // UnitPopupShared.lua:108–130 creates the main unit-name title. The missing
+    // heading in the golden is only the closed, unnamed default, not an open menu.
+    for skin in [ActiveSkin::Modern, ActiveSkin::Forever] {
+        let registry = unit_frames_with_menu(
+            skin,
+            unit("Fbflare", PowerType::Mana),
+            UnitFrameMenuState {
+                visible: true,
+                title: "Hogger".into(),
+                ..Default::default()
+            },
+        );
+        assert!(!frame(&registry, "UnitFrameContextMenu").hidden);
+        assert_eq!(label(&registry, "UnitFrameContextMenuTitle").text, "Hogger");
+        texture_source(&registry, "UnitFrameContextMenuDivider");
+    }
 }
 
 fn texture_source(registry: &FrameRegistry, name: &str) -> (TextureSource, [f32; 4]) {

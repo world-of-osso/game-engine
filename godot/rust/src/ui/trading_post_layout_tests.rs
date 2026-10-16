@@ -292,7 +292,18 @@ fn trading_post_pending_checkout_keeps_source_overlay_and_centred_spinner_bounds
         view.click("perks:confirm").unwrap();
         let (registry, bounds) = render(view);
         let dialog = rect(&registry, &bounds, "PerksProgramConfirmDialog");
-        assert_rect(&registry, &bounds, "PerksProgramConfirmDarkOverlay", dialog);
+        // GameDialog.xml301–302: pending overlay is inset11px on all sides.
+        assert_rect(
+            &registry,
+            &bounds,
+            "PerksProgramConfirmDarkOverlay",
+            [
+                dialog[0] + 11.,
+                dialog[1] + 11.,
+                dialog[2] - 22.,
+                dialog[3] - 22.,
+            ],
+        );
         assert_rect(
             &registry,
             &bounds,

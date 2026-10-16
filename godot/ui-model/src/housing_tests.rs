@@ -3,6 +3,62 @@ use game_engine_core::housing::{Category, Decor, HousingCatalog, Subcategory};
 use std::sync::Arc;
 
 #[test]
+fn housing_storage_menu_hover_delay_cancels_and_preserves_retained_levels() {
+    use crate::housing_storage::StorageMenuTarget::{RootRow, Sort};
+    let mut model = HousingDashboard::new(Arc::new(HousingCatalog::default()));
+    model
+        .storage_filter_action("housing:storage:filters")
+        .unwrap();
+    model.advance_storage_menu_hover(Some(Sort), 0.32);
+    assert!(!model.storage_sort_open);
+    model.advance_storage_menu_hover(None, 1.0);
+    assert!(!model.storage_sort_open);
+    model.advance_storage_menu_hover(Some(Sort), 0.2);
+    assert!(!model.storage_sort_open);
+    model.advance_storage_menu_hover(Some(Sort), 0.14);
+    assert!(model.storage_sort_open);
+    model.advance_storage_menu_hover(None, 1.0);
+    assert!(model.storage_filters_open && model.storage_sort_open);
+    model.advance_storage_menu_hover(Some(RootRow), 0.2);
+    assert!(model.storage_sort_open);
+    model.advance_storage_menu_hover(Some(RootRow), 0.14);
+    assert!(model.storage_filters_open && !model.storage_sort_open);
+    model.close_storage_menus();
+    model
+        .storage_filter_action("housing:storage:filters")
+        .unwrap();
+    model.advance_storage_menu_hover(Some(Sort), 0.1);
+    assert!(!model.storage_sort_open);
+}
+
+#[test]
+fn housing_storage_menu_checkbox_refresh_and_radio_close_are_independent() {
+    let mut model = HousingDashboard::new(Arc::new(HousingCatalog::default()));
+    for action in [
+        "housing:storage:filters",
+        "housing:storage:sort",
+        "housing:storage:sort",
+    ] {
+        model.storage_filter_action(action).unwrap();
+    }
+    assert!(model.storage_filters_open && model.storage_sort_open);
+    model
+        .storage_filter_action("housing:storage:filter:dyeable")
+        .unwrap();
+    assert!(model.storage_filters_open && !model.storage_sort_open && model.storage_dyeable_only);
+    model.storage_filter_action("housing:storage:sort").unwrap();
+    model
+        .storage_filter_action("housing:storage:sort:alphabetical")
+        .unwrap();
+    assert!(!model.storage_filters_open && !model.storage_sort_open && model.storage_alphabetical);
+    assert!(model.storage_dyeable_only);
+    model
+        .storage_filter_action("housing:storage:filters")
+        .unwrap();
+    assert!(model.storage_filters_open && !model.storage_sort_open);
+}
+
+#[test]
 fn housing_storage_transitions_use_source_order_durations_and_out_exponential_offsets() {
     use crate::housing_storage::DrawerPart;
     let mut model = HousingDashboard::new(Arc::new(HousingCatalog::default()));
