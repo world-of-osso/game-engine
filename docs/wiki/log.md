@@ -4274,3 +4274,4 @@ Completed Retailv2 codec/authoritative Create and committed Copy callbacks, exac
 ## 2026-10-16 — Loot ItemButton hit rectangle and release
 
 Source Item ownership replaces row-press actions; inset-aware native Button picking fixes the actual expanded-hit boundary. Model2/native32 GREEN,68 unchanged full-HD pairs; StackSplit16/ReadyCheck4 shared-input controls and60 pixel pairs unchanged. Retained setup failures and Item-only partial RED, server/full-window exclusions explicit. See [[loot-and-flight#ItemButton input ownership — 2026-10-16]].
+- 2026-10-16: Spitzy67 source/asset closure recorded in [Toy Box](systems/toy-box.md#spitzy-source-asset-closure-2026-10-16); conditional visual, playback and canonical publication remain separate.
