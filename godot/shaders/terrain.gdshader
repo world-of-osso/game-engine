@@ -26,8 +26,8 @@ uniform sampler2D height_2 : repeat_enable;
 uniform sampler2D height_3 : repeat_enable;
 // MCAL is packed linearly; sampling must never apply sRGB decoding.
 uniform sampler2D alpha_packed : filter_linear, repeat_disable;
-// Authored MCSH DATA only. Surface modulation/enable/dynamic composition remain
-// clean-room gaps (docs/specs/terrain-mcsh.md); do not invent a darkening factor.
+// Authored MCSH DATA; terrain_mcsh.gdshader performs the separately gated draw.
+// Alpha-index mapping and dynamic composition remain clean-room gaps.
 uniform sampler2D mcsh_mask : hint_default_black, filter_nearest, repeat_disable;
 uniform samplerCube environment_map : source_color;
 

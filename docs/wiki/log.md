@@ -1,3 +1,7 @@
+## 2026-10-15 — Supplied MCSH modulation equation
+
+[Terrain continuation](systems/terrain.md#supplied-mcsh-modulation-continuation): missing-pass RED→ordinary alpha next-pass with exact supplied byte RGB arithmetic and bit0x10 gate. Six native cases×4096 texels/wrong-bit frame identity pass;18 full-HD before/after/control PNGs saved, masked2703 and unchanged Goldshire samples inspected. Pinned definitions do not establish historicalcolor2→modern alpha mapping; alpha/gate producer and dynamic composition remain explicit gaps, no guessed live-world default. Goldshire root/tex0 authenticate4/4 current70391, contain no masks; cached WDT mismatch retained in provenance receipt.
+
 ## 2026-10-15 — Terrain MCSH data binding and diagnostic coverage
 
 [Terrain continuation](systems/terrain.md#mcsh-surface-shadow-clean-room-continuation): actual textured-chunk missing-input RED→separate R8 coverage. CPU2/native diagnostic6/material14/dynamic-shadow6 pass with native build/fmt; seven full-HD PNGs saved, representative cases inspected. Selected root/tex0/WDT/eight textures match fresh current70391 content keys11/11. Target modulation, world enable mapping and dynamic-shadow composition remain explicit gaps; this is not an S3 surface-darkening fix. Census remains separate/non-gating.
