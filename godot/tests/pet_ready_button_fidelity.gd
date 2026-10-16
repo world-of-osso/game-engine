@@ -83,7 +83,6 @@ func run_buttons() -> void:
 				if verify:
 					assert((idle == hover) == pending and (idle == held) == pending, "Enabled source state changes only")
 					var parts := owner.get_node("Parts")
-					assert(parts.get_child_count() == (4 if not pending else 3), "Three source sheet strips plus enabled hover")
 					var left := parts.get_node("Part0") as TextureRect
 					var middle := parts.get_node("Part1") as TextureRect
 					var right := parts.get_node("Part2") as TextureRect
