@@ -5,6 +5,7 @@ const SHORTCUT_KIT: int = 304887
 const CLIP: String = "6838456"
 const NOMINAL_GAIN: float = 0.125892535 * 0.8
 var sound_receipts: Array[Dictionary] = []
+var generic_finishes: Array[int] = [0]
 
 func run_test() -> void:
 	root.size = Vector2i(1280, 720)
@@ -30,6 +31,11 @@ func run_test() -> void:
 	root.add_child(client)
 	if not await connect_housing_account(): return
 	if not await open_cleanup_house(): return
+	var generic := client.get_node_or_null("NativeSound/Effects") as AudioStreamPlayer
+	if generic == null:
+		fail("Missing real generic click player for source cue separation")
+		return
+	generic.finished.connect(func(): generic_finishes[0] += 1)
 	var before: Dictionary = client.housing_state()
 	if not before.can_edit or before.decor.size() != 1 or int(before.decor[0].decor_id) != 1693:
 		fail("Submode sound proof requires the genuine editable paid bookcase")
@@ -45,6 +51,7 @@ func run_test() -> void:
 	for spec in [["Translate", "TranslateSubmodeButton", KEY_F8], ["Rotate", "RotateSubmodeButton", KEY_F9], ["Scale", "ScaleSubmodeButton", KEY_F10]]:
 		if not await prove_pointer_sound(spec): return
 		if not await prove_pointer_sound(spec): return
+		if not await prove_cancelled_pointer_sound(spec[1]): return
 		if not await prove_shortcut_sound(spec): return
 	if not await set_sound_mute(true): return
 	if not await enter_expert(): return
@@ -81,13 +88,14 @@ func prove_pointer_sound(spec: Array) -> bool:
 	push_mouse_motion(point)
 	await create_timer(0.4).timeout
 	var before: int = kit_count(POINTER_KIT)
+	var generic_before: int = generic_finishes[0]
 	pointer_event(point, true)
 	await frames(2)
 	if kit_count(POINTER_KIT) != before:
 		fail("Expert pointer sound played on press instead of successful release")
 		return false
 	var generic := client.get_node_or_null("NativeSound/Effects") as AudioStreamPlayer
-	if generic != null and generic.is_playing():
+	if generic != null and (generic.is_playing() or generic_finishes[0] != generic_before):
 		fail("Generic pointer-down click substituted for the source Expert submode sound")
 		return false
 	pointer_event(point, false)
@@ -99,6 +107,24 @@ func prove_pointer_sound(spec: Array) -> bool:
 	await frames(3)
 	if kit_count(POINTER_KIT) != before + 1:
 		fail("Hover/frame refresh duplicated the Expert pointer kit")
+		return false
+	return true
+
+func prove_cancelled_pointer_sound(name: String) -> bool:
+	var control: Control = housing_control(name)
+	if control == null:
+		fail("Missing actual submode button for outside release")
+		return false
+	var before: int = kit_count(POINTER_KIT)
+	var point: Vector2 = control.get_global_rect().get_center()
+	push_mouse_motion(point)
+	pointer_event(point, true)
+	await frames(2)
+	push_mouse_motion(Vector2(20.0, 20.0))
+	pointer_event(Vector2(20.0, 20.0), false)
+	await frames(3)
+	if kit_count(POINTER_KIT) != before:
+		fail("Cancelled outside release emitted the Expert pointer kit")
 		return false
 	return true
 
