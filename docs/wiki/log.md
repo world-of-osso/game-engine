@@ -114,6 +114,10 @@
 ## 2026-10-15 — Minimap zoom state art
 
 - [Minimap](systems/minimap.md#zoom-button-source-states--2026-10-15): source Button states/full-opacity disabled grayscale; both-skin physical native proof, bounded offline screen/input acceptance.
+## 2026-10-16 — Ysera canonical cross-fragment readback
+
+[Ysera body](systems/toy-box.md#ysera-body-asset-closure-2026-10-16): lead canonical publication independently passes actual Rust `ModelAssetIndex::load`, seventeen cross-fragment receipt lookups, four alias byte-equality checks and SHA256/content-key readback. Duplicate receipts removed without losing chain/aliases; procedural appearance and pixels remain open.
+
 ## 2026-10-16 — Ysera private body closure
 
 [Ysera body](systems/toy-box.md#ysera-body-asset-closure-2026-10-16): seventeen same-build70391 body/texture/animation/skin files and four aliases authenticated/published privately; rebuilt namespace graph passes. Procedural8605/type22 remains ignored by the renderer and is not replaced by a guessed shader. No native pixels/canonical publication claim.
