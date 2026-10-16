@@ -34,25 +34,7 @@ impl AttachmentGates {
         if !authored {
             return Ok(None);
         }
-        let indices: Vec<_> = if model.attachment_lookup.is_empty() {
-            model
-                .attachments
-                .iter()
-                .enumerate()
-                .map(|(index, attachment)| (attachment.id, index))
-                .collect()
-        } else {
-            model
-                .attachment_lookup
-                .iter()
-                .enumerate()
-                .filter_map(|(id, &index)| {
-                    let index = usize::try_from(index).ok()?;
-                    model.attachments.get(index).map(|_| (id as u32, index))
-                })
-                .collect()
-        };
-        let points = indices
+        let points = attachment_indices(model)
             .into_iter()
             .map(|(id, index)| {
                 let point = skeleton
@@ -79,6 +61,26 @@ impl AttachmentGates {
             refresh_attachment_shadows(&point.clone().upcast());
         }
     }
+}
+
+fn attachment_indices(model: &m2::Model) -> Vec<(u32, usize)> {
+    if model.attachment_lookup.is_empty() {
+        return model
+            .attachments
+            .iter()
+            .enumerate()
+            .map(|(index, attachment)| (attachment.id, index))
+            .collect();
+    }
+    model
+        .attachment_lookup
+        .iter()
+        .enumerate()
+        .filter_map(|(id, &index)| {
+            let index = usize::try_from(index).ok()?;
+            model.attachments.get(index).map(|_| (id as u32, index))
+        })
+        .collect()
 }
 
 /// Inactive outer attachments also exclude every recursively attached descendant.
