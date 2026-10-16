@@ -4896,6 +4896,6 @@ models/631619900.skin
 models/2994778.m2
 models/299477800.skin
 
-# S3 real split-mask CPU/native fixture (historical cache, not active-tile policy).
+# S3 real split-mask fixture (70391-authenticated bytes, not active-tile policy).
 terrain/2703_31_36.adt
 terrain/2703_31_36_tex0.adt

@@ -1,3 +1,7 @@
+## 2026-10-15 — Terrain MCSH data binding and diagnostic coverage
+
+[Terrain continuation](systems/terrain.md#mcsh-surface-shadow-clean-room-continuation): actual textured-chunk missing-input RED→separate R8 coverage. CPU2/native diagnostic6/material14/dynamic-shadow6 pass with native build/fmt; seven full-HD PNGs saved, representative cases inspected. Selected root/tex0/WDT/eight textures match fresh current70391 content keys11/11. Target modulation, world enable mapping and dynamic-shadow composition remain explicit gaps; this is not an S3 surface-darkening fix. Census remains separate/non-gating.
+
 ## 2026-10-15 — Authored talent Starter selection
 ## 2026-10-15 — Guild lifecycle query flow
 
