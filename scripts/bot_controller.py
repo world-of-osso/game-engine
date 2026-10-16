@@ -31,19 +31,22 @@ class FileBridge:
         if kind not in ("assist", "loot-click"):
             raise ValueError(f"Unsupported native input request: {kind}")
         identity = uuid.uuid4().hex
-        publish(self.directory / f"native-{kind}-request.json",
-                {**payload, "request_id": identity})
+        request = self.directory / f"native-{kind}-request.json"
+        publish(request, {**payload, "request_id": identity})
         response = self.directory / f"native-{kind}-result.json"
         deadline = time.monotonic() + self.timeout
-        while time.monotonic() < deadline:
-            if response.exists():
-                result = json.loads(response.read_text())
-                if result.get("request_id") == identity:
-                    if result.get("error"):
-                        raise RuntimeError(f"Native {kind}: {result['error']}")
-                    return result
-            time.sleep(.01)
-        raise TimeoutError(f"Native {kind} timed out; input not resubmitted")
+        try:
+            while time.monotonic() < deadline:
+                if response.exists():
+                    result = json.loads(response.read_text())
+                    if result.get("request_id") == identity:
+                        if result.get("error"):
+                            raise RuntimeError(f"Native {kind}: {result['error']}")
+                        return result
+                time.sleep(.01)
+            raise TimeoutError(f"Native {kind} timed out; input not resubmitted")
+        finally:
+            request.unlink(missing_ok=True)
 
 
 def requested_snapshot(state, target):
@@ -56,15 +59,18 @@ def requested_snapshot(state, target):
     return {**query, "spells": state["spells"], "at_ms": state["at_ms"]}
 
 
-def require_usable(snapshot, spell):
+def native_usable(snapshot, spell):
     if set(snapshot["spells"]["known"]) != set(snapshot["facts"]["known"]):
         raise ValueError("Native learned-spell snapshots disagree")
     if spell not in snapshot["facts"]["known"]:
         raise ValueError(f"Priority selected unlearned spell {spell}")
+    usable = True
     for field in ("ready", "affordable", "in_range"):
         value = snapshot["facts"][field][str(spell)]
-        if value != {"Ok": True}:
-            raise ValueError(f"Native spell {spell} not usable: {field}={value}")
+        if set(value) != {"Ok"} or not isinstance(value["Ok"], bool):
+            raise ValueError(f"Native spell {spell} not usable: unavailable {field}={value}")
+        usable = usable and value["Ok"]
+    return usable
 
 
 def require_point(point):
@@ -90,7 +96,8 @@ class PlayerController:
         if selected is None:
             return None
         spell = int(selected["spell"])
-        require_usable(state, spell)
+        if not native_usable(state, spell):
+            return None
         response = self.invoke("spell", "cast", "--spell", str(spell), "--target", str(target))
         return {**selected, "response": response, "native": state}
 

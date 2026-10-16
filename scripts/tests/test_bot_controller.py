@@ -36,7 +36,7 @@ class ControllerTests(unittest.TestCase):
 
     def test_unselected_or_unlearned_or_unusable_action_never_submits(self):
         for change in [lambda s: s.update(target=42),
-                       lambda s: s["facts"]["ready"]["30451"].update(Ok=False),
+                       lambda s: s["facts"]["ready"].update({"30451": {"Err": "charge categories not loaded"}}),
                        lambda s: s["spells"].update(known=[])]:
             self.native = snapshot()
             change(self.native)
@@ -49,6 +49,13 @@ class ControllerTests(unittest.TestCase):
             raise ValueError("unsupported APL predicate")
         with self.assertRaisesRegex(ValueError, "unsupported APL predicate"):
             self.controller.cast_next(41, blocked)
+        self.assertEqual(self.commands, [])
+
+    def test_temporarily_unusable_spell_waits_without_a_request_or_alternate(self):
+        for field in ["ready", "affordable", "in_range"]:
+            self.native = snapshot()
+            self.native["facts"][field]["30451"] = {"Ok": False}
+            self.assertIsNone(self.controller.cast_next(41, lambda state, target: {"spell": 30451}))
         self.assertEqual(self.commands, [])
 
     def test_busy_player_never_submits(self):
@@ -130,11 +137,15 @@ t=p/'response.writing';t.write_text(json.dumps({'request_id':r['request_id'],'er
                     child.kill()
                     child.wait()
             self.assertEqual(child.returncode, 0)
+            self.assertFalse((path / "native-assist-request.json").exists(),
+                             "Completed request must not be visible to a restarted native client")
 
     def test_timeout_does_not_resubmit_input(self):
         with tempfile.TemporaryDirectory() as directory:
             with self.assertRaisesRegex(TimeoutError, "assist"):
                 FileBridge(Path(directory), timeout=.03).request("assist", {"leader_name": "Tank"})
+            self.assertFalse((Path(directory) / "native-assist-request.json").exists(),
+                             "Expired request must not be replayed by a restarted native client")
 
 
 if __name__ == "__main__":
