@@ -45,7 +45,7 @@ def record_inputs(args):
     tables = ("ChrSpecialization", "ChrRaces", "ChrClasses", "CharBaseInfo", "SpellEffect", "SpellMisc",
               "SpellPower", "SpellCooldowns", "SpellCastTimes", "AssistedCombat", "AssistedCombatStep",
               "AssistedCombatRule", "TraitTreeLoadout", "TraitTreeLoadoutEntry", "TraitNodeXTraitNodeEntry",
-              "TraitNodeEntry", "TraitDefinition", "SpellShapeshiftForm")
+              "TraitNodeEntry", "TraitDefinition", "SpellShapeshiftForm", "CreatureFamily")
     files += [args.engine / "data/db2/active" / f"{table}.csv" for table in tables]
     files += [args.engine / "target/debug/libgame_engine_godot.so",
               args.engine / "target/debug/game-engine-cli", args.server / "target/debug/game-server"]
