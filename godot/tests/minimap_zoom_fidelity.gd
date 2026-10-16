@@ -2,6 +2,7 @@ extends SceneTree
 # Offline production screen/state projection, physical input; no server/terrain claim.
 var output: String
 var verify: bool
+var actions: Array[String] = []
 
 func _initialize() -> void:
 	call_deferred("run_zoom")
@@ -11,20 +12,30 @@ func settle() -> void:
 		await process_frame
 		await RenderingServer.frame_post_draw
 
-func move(point: Vector2) -> void:
+func sync_actions(ui: Node) -> void:
+	var action: String = ui.pop_action()
+	while not action.is_empty():
+		actions.append(action)
+		action = ui.pop_action()
+
+func move(ui: Node, point: Vector2) -> void:
 	var event := InputEventMouseMotion.new()
 	event.position = point
 	event.global_position = point
 	Input.parse_input_event(event)
+	await process_frame
+	sync_actions(ui)
 	await settle()
 
-func button_event(point: Vector2, pressed: bool) -> void:
+func button_event(ui: Node, point: Vector2, pressed: bool) -> void:
 	var event := InputEventMouseButton.new()
 	event.position = point
 	event.global_position = point
 	event.button_index = MOUSE_BUTTON_LEFT
 	event.pressed = pressed
 	Input.parse_input_event(event)
+	await process_frame
+	sync_actions(ui)
 	await settle()
 
 func save_crop(owner: Control, label: String) -> void:
@@ -51,7 +62,7 @@ func run_zoom() -> void:
 				assert(owner != null)
 				var disabled: bool = (zoom == 0 and name == "MinimapZoomOut") or (zoom == 5 and name == "MinimapZoomIn")
 				await inspect_states(ui, owner, "%s-z%d-%s" % [skin, zoom, name], disabled)
-			await move(Vector2(200, 500))
+			await move(ui, Vector2(200, 500))
 			assert(root.get_texture().get_image().save_png(output.path_join("%s-z%d-context.png" % [skin, zoom])) == OK)
 			ui.queue_free()
 			await process_frame
@@ -60,25 +71,27 @@ func run_zoom() -> void:
 
 func inspect_states(ui: Node, owner: Control, prefix: String, disabled: bool) -> void:
 	var point := owner.get_global_rect().get_center()
-	await move(Vector2(200, 500))
+	await move(ui, Vector2(200, 500))
 	save_crop(owner, prefix + "-idle")
 	var idle := root.get_texture().get_image().get_region(Rect2i(owner.get_global_rect())).get_data()
-	await move(point)
+	await move(ui, point)
 	save_crop(owner, prefix + "-hover")
 	var hover := root.get_texture().get_image().get_region(Rect2i(owner.get_global_rect())).get_data()
-	await button_event(point, true)
+	await button_event(ui, point, true)
 	save_crop(owner, prefix + "-pressed")
 	var pressed := root.get_texture().get_image().get_region(Rect2i(owner.get_global_rect())).get_data()
 	# Release outside must cancel, even after a real held press over the button.
-	await move(Vector2(200, 500))
-	await button_event(Vector2(200, 500), false)
-	var cancelled_action: String = ui.pop_action()
+	await move(ui, Vector2(200, 500))
+	await button_event(ui, Vector2(200, 500), false)
 	if verify:
-		assert(cancelled_action.is_empty(), "Outside release never activates")
-	await move(point)
-	await button_event(point, true)
-	await button_event(point, false)
-	var action: String = ui.pop_action()
+		assert(actions.is_empty(), "Outside release never activates")
+	actions.clear()
+	await move(ui, point)
+	await button_event(ui, point, true)
+	await button_event(ui, point, false)
+	var action: String = "" if actions.is_empty() else actions[0]
+	assert(actions.size() <= 1, "At most one click action")
+	actions.clear()
 	if verify:
 		assert(owner.modulate.a == 1.0, "Disabled alpha remains source full opacity")
 		var base := owner.get_node("Parts/Part0") as TextureRect
