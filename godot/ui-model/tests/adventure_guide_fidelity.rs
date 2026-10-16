@@ -406,6 +406,69 @@ fn adventure_guide_model_limits_authored_choices_to_nine() {
 }
 
 #[test]
+fn adventure_guide_defeated_marker_uses_saved_difficulty_and_sparse_encounter_bit() {
+    use shared::protocol::InstanceLockInfo;
+    for skin in [ActiveSkin::Modern, ActiveSkin::Forever] {
+        let mut v = view();
+        v.apply("journal:encounter:2364").unwrap();
+        v.apply("journal:difficulty:14").unwrap();
+        let name = "JournalBoss2364DefeatedOverlay";
+        assert!(render(&v, skin).get_by_name(name).is_none());
+        // Authored Ra-den DungeonEncounter2331 Bit3, not encounter OrderIndex5.
+        let saved = InstanceLockInfo {
+            map_id: 2217,
+            difficulty_id: 14,
+            instance_id: 71,
+            time_remaining_secs: 3600,
+            completed_mask: 1 << 3,
+            locked: true,
+            extended: false,
+        };
+        v.replace_saved_instances(&[saved], 0);
+        let r = render(&v, skin);
+        assert_eq!(rect(&r, name), [4., 39., 16., 16.]);
+        // UiTextureAtlasMember8468: source Icon uses its actual32px atlas size.
+        assert_eq!(
+            rect(&r, "JournalBoss2364DefeatedIcon"),
+            [-8., -8., 32., 32.]
+        );
+        assert!(r.get_by_name("JournalBoss2365DefeatedOverlay").is_none());
+        assert!(v.lockouts[0].1.contains("1 bosses defeated"));
+        for invalid in [
+            InstanceLockInfo {
+                map_id: 409,
+                ..saved
+            },
+            InstanceLockInfo {
+                difficulty_id: 15,
+                ..saved
+            },
+            InstanceLockInfo {
+                completed_mask: 1 << 5,
+                ..saved
+            },
+            InstanceLockInfo {
+                locked: false,
+                ..saved
+            },
+            InstanceLockInfo {
+                time_remaining_secs: 0,
+                ..saved
+            },
+        ] {
+            v.replace_saved_instances(&[invalid], 0);
+            assert!(render(&v, skin).get_by_name(name).is_none());
+        }
+        v.replace_saved_instances(&[saved], 3600);
+        assert!(render(&v, skin).get_by_name(name).is_none());
+        v.replace_saved_instances(&[saved], 0);
+        assert!(render(&v, skin).get_by_name(name).is_some());
+        v.replace_saved_instances(&[], 0);
+        assert!(render(&v, skin).get_by_name(name).is_none());
+    }
+}
+
+#[test]
 fn adventure_guide_difficulty_base_aliases_keep_world_caption_and_base_actions() {
     for skin in [ActiveSkin::Modern, ActiveSkin::Forever] {
         let mut v = view();
