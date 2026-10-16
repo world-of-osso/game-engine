@@ -13,6 +13,8 @@ Native Retail Mainline `Blizzard_PerksProgram` vendor and Traveler's Log Tender.
 
 The central `tooltip_sources.rs` source walks the hovered registry frame's ancestors to `PerksProgramProduct<vendorID>` and resolves that vendor row in the authoritative snapshot. Retail item identity is explicit even in the Forever art skin. Existing item formatting supplies quality/name and catalog details; `without_sell_price` removes money lines before the shared renderer owns the tooltip at right−16/Y0. Central pointer hit testing and tooltip update handle leave, occlusion and UI teardown; no selection or vendor request is emitted. [Spec](../../specs/trading-post.md#product-row-item-tooltips) owns the scope.
 
+Native diagnostics additionally exposed a process-ordering defect: Trading Post's own update temporarily projects at0.75, while the final shared UI-scale pass restores the actual rendered1.0 scale. Tooltip hit-testing ran before that final pass, seeing row643 at(34.5,546.375) while Godot rendered/hit it at(46,729). Tooltip updates now run after the existing final scale pass. No local scale, camera or rendered-layout policy changed; temporary native tracing was removed after recording the bounds mismatch.
+
 Native baseline95e61d6ce/servera820dfda/protocoldc30250, fixture964dba685, reproduced missing hover tooltip (`item-tooltips-native-red2-modern.log`). GREEN and inspected both-skin pixels remain pending. Other tooltip owners and item spell-effect formatting remain outside this slice.
 
 ## Menu lifecycle sounds — bounded proof October15
