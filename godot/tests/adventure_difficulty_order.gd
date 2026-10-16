@@ -27,6 +27,11 @@ func verify_menu_order(instance: int, tier: int, ids: Array, captions: Array) ->
 	if not await click("JournalDifficulty%s" % ids[0]) or client.adventure_guide_state().difficulty != selected or label_text("JournalDifficultyDropdownText") != captions[0]:
 		stop("Physical first source difficulty selection failed")
 		return false
+	var caption := control("JournalDifficultyDropdownText") as Label
+	print("JOURNAL_DIFFICULTY_CAPTION instance=%s lines=%s" % [instance,caption.get_line_count()])
+	if caption.get_line_count() != 1:
+		stop("Source dropdown caption wrapped instead of one Retail line")
+		return false
 	print("JOURNAL_DIFFICULTY_ORDER instance=%s ids=%s captions=%s selected=%s" % [instance,ids,captions,selected])
 	return true
 
