@@ -491,7 +491,23 @@ impl crate::GameClient {
         id: u32,
         name: &str,
     ) -> Result<(), String> {
-        let link = game_engine_ui_model::achievements::achievement_link(id, name);
+        self.insert_chat_subject_link(id, name, false)
+    }
+
+    pub(super) fn insert_guild_news_item_link(&mut self, id: u32) -> Result<(), String> {
+        let name = game_engine_ui_model::item_catalog::item_catalog_entry(id)
+            .ok_or_else(|| format!("Guild news item {id} metadata is not loaded"))?
+            .name
+            .clone();
+        self.insert_chat_subject_link(id, &name, true)
+    }
+
+    fn insert_chat_subject_link(&mut self, id: u32, name: &str, item: bool) -> Result<(), String> {
+        let link = if item {
+            format!("|Hitem:{id}|h[{name}]|h")
+        } else {
+            game_engine_ui_model::achievements::achievement_link(id, name)
+        };
         if !self.chat.model.state.input_open {
             return self.open_chat_input(&link);
         }
@@ -515,10 +531,15 @@ impl crate::GameClient {
             let caret = edit.get_caret_column();
             (caret, caret)
         };
-        let caret = self
-            .chat
-            .draft
-            .insert_achievement(start as usize, end as usize, id, name);
+        let caret = if item {
+            self.chat
+                .draft
+                .insert_item(start as usize, end as usize, id, name)
+        } else {
+            self.chat
+                .draft
+                .insert_achievement(start as usize, end as usize, id, name)
+        };
         edit.set_text(self.chat.draft.visible());
         edit.set_caret_column(caret as i32);
         Ok(())
