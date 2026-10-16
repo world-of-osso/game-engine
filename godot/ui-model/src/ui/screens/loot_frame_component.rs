@@ -149,14 +149,12 @@ fn loot_card(index: usize, row: &LootFrameRow) -> Element {
     ));
     children.extend(item_button(&prefix, row));
     children.extend(card_texts(&prefix, row));
-    let action = format!("{ACTION_SLOT_PREFIX}{}", row.slot);
     rsx! {
         r#frame {
             name: {DynName(prefix)},
             width: ROW_W,
             height: ROW_H,
-            onclick: {action.as_str()},
-            mouse_enabled: true,
+            mouse_enabled: false,
             pos_type: "absolute",
             left: x,
             top: y,
@@ -231,11 +229,26 @@ fn text(t: Text) -> Element {
 /// `ItemButton` 37×37: icon, UI-Quickslot2 normal texture, `Count` BOTTOMRIGHT -5,2.
 fn item_button(prefix: &str, row: &LootFrameRow) -> Element {
     let button = format!("{prefix}Item");
-    let mut children = texture(
+    let action = format!("{ACTION_SLOT_PREFIX}{}", row.slot);
+    let mut children = rsx! {
+        button {
+            name: {DynName(button.clone())},
+            width: ITEM_BUTTON,
+            height: ITEM_BUTTON,
+            onclick: {action.as_str()},
+            button_default_skin: false,
+            hit_rect_insets: "0,-157,0,0",
+            mouse_enabled: true,
+            pos_type: "absolute",
+            left: ITEM_X,
+            top: ITEM_Y,
+        }
+    };
+    children.extend(texture(
         format!("{button}Icon"),
         row.icon_fdid,
         (ITEM_X, ITEM_Y, ITEM_BUTTON, ITEM_BUTTON),
-    );
+    ));
     let quick = 64.0;
     let inset = (ITEM_BUTTON - quick) / 2.0;
     children.extend(texture(

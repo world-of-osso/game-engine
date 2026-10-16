@@ -16,6 +16,8 @@ mod castbar_preview;
 #[cfg(debug_assertions)]
 mod db2_atlas_preview;
 mod dungeon_preview;
+#[cfg(debug_assertions)]
+mod error_hold_preview;
 mod flight_map_preview;
 mod follower_layout_preview;
 mod forevergaps_preview;
@@ -30,6 +32,7 @@ mod guild_news_preview;
 mod guild_preview;
 #[cfg(test)]
 mod guild_tests;
+mod hit_button;
 #[cfg(test)]
 mod housing_drag_input_tests;
 mod housing_glow;
@@ -46,6 +49,8 @@ mod icon_masks;
 pub(crate) mod input_queue;
 mod launcher_preview;
 mod layout;
+#[cfg(debug_assertions)]
+mod loot_hit_preview;
 mod mentor_host;
 mod menu_primitives_preview;
 mod meter_preview;
@@ -57,6 +62,8 @@ mod parts;
 mod party_preview;
 mod professions_preview;
 mod projection;
+#[cfg(debug_assertions)]
+mod ready_check_preview;
 mod registration_preview;
 mod rosterfix_preview;
 #[cfg(test)]
@@ -66,6 +73,8 @@ mod scroll_lists;
 mod selection_list_tests;
 mod sidebarbinds_preview;
 mod spellbook_preview;
+#[cfg(debug_assertions)]
+mod stack_split_preview;
 mod target_cast_preview;
 mod toy_cooldown;
 mod toybox_preview;
