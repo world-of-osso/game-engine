@@ -1,6 +1,6 @@
 ## 2026-10-16 — Pet queue-ready button art
 
-[Source button family](systems/battle-pets.md#queue-ready-button-art--2026-10-16): explicit default atlas RED replaced with inherited UIPanel sheet IDs; ready/pending physical baseline, after proof pending.
+[Source button family](systems/battle-pets.md#queue-ready-button-art--2026-10-16): explicit default atlas RED replaced with inherited UIPanel sheet IDs; RED→GREEN, both-skin8 physical cases/24crops; four fullHD comparisons change only inside buttons. Captions/typography/lifecycle unchanged and not newly certified.
 
 ## 2026-10-16 — House Access dropdown
 
