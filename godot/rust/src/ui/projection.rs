@@ -970,7 +970,8 @@ impl UiProjection {
         // adds it however short the rest.
         let short_rectangle = fixed_rectangle && rect.height < 2.0 * data.font_size;
         let multiline = fit_multiline || bounded_wrapping;
-        let one_line = short_rectangle && !multiline;
+        let explicit_single_line = data.max_lines == Some(1) && !data.word_wrap;
+        let one_line = (short_rectangle || explicit_single_line) && !multiline;
         let (wrap, overrun) = if one_line {
             (AutowrapMode::OFF, OverrunBehavior::TRIM_ELLIPSIS_FORCE)
         } else {

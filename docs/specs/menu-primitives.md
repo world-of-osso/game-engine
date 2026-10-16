@@ -4,7 +4,7 @@ Dropdowns, context menus and breadcrumb navigation implement Retail Mainline `Bl
 
 ## What it must do
 
-- [x] Shared WowStyle1 dropdown uses the XML text-holder, 27px arrow and text anchors while preserving existing callback names and caller dimensions.
+- [x] Shared WowStyle1 dropdown uses the XML text-holder, 27px arrow and horizontal Text anchors while preserving callback names and caller dimensions. Its native caption rectangle stays vertically centered despite Godot's font minimum exceeding the source 10px FontString height; AH retains its Number12Font/RIGHT caller override. Filter and WowStyle2 keep their own source Text anchors. All dropdown captions retain the templates' `wordwrap=false`: long selected captions remain one line after native centering, with existing single-line truncation rather than wrapping.
 - [x] Filter and WowStyle2 variants expose open/disabled state and the 23px reset control; Filter follows measured-text+60 source resizing.
 - [x] Context menus use MenuStyle1 backdrop/insets and sourced button, checkbox, radio, title, divider and submenu elements; disabled entries lose responders and selection-art saturation. An empty title omits title/divider rows. Uniform radio root descriptions, including the follower dungeon type selector, retain their selected radio marker rather than using a push-button row.
 - [x] Shared NavBar exposes home, measured breadcrumbs and overflow; world map consumes it.

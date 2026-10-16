@@ -12,6 +12,32 @@ Client and server resolve ADT terrain, WMO floors and authored M2 doodad floors 
 
 A face is walkable when its world normal satisfies `|n.y| >= cos(MAX_SLOPE_ANGLE)`. The test is two-sided because collision-only faces have no reliable winding.
 
+## Native grounded steps — 2026-10-15
+
+`TerrainGround::validate_move` admits the destination floor at the current feet height before wall collision. The ordinary low wall ray retains its existing corridor. Only an actually wall-blocked grounded snapped move attempts a lifted ray when admitted support rises within the step budget. Support considers both the destination and the existing wall ray's extra `WALL_MARGIN` reach; the higher admitted support sets the clearance height, but the returned feet retain the requested XZ and their actual destination floor height. This prevents the ray from stopping short frames before the lip reaches their destination, without moving farther or requiring support beyond an already-admitted landing. Unobstructed ramps and airborne proposals retain the original admission. When a wall clamp is retained, its final support column is sampled and its covered/slope rules run there rather than retaining an unreached landing's height. Rejecting a high/steep original destination cannot cancel an otherwise reachable wall approach, and a clamped column under an out-of-reach floor remains blocked.
+
+Stockade WMO108631/group15/FDID108647 face3153 is a vertical lip whose top is0.6557564yd above captured feet `(108.2204,-26.26199,3.454892)`. The old feet+0.6 wall ray hit it0.04996yd away, less than the0.05 stop margin, before face3041's reachable upper floor was sampled. The shared1.6 step budget and wall constants are unchanged.
+
+A raised ray alone can miss a thin wall up to0.6yd above the landing. A wall-blocked step attempt therefore checks the interval between the admitted feet and the existing low wall ray against live WMO/GO triangles. Ordinary unobstructed rises do not run that interval check: Jasperlode's authored floor detail extends0.025yd above a sampled support column without reaching the existing ray, and must not become a new movement obstruction. Nothing above the original0.6-yd ray enters collision admission. Godot's broad-phase box selects meshes only; exact triangle/vertical-plane clipping decides obstruction. Destination support is reconstructed from the authored floor plane so ray-interpolation rounding cannot turn its adjoining lip edge into a wall. Clipping preserves coordinates shared by both edge vertices and sets the clipped axis to the mathematical boundary exactly; no geometric epsilon or collision radius is introduced.
+
+**Named gap — full-body/ceiling clearance:** the client has no full default-height body controller. A proposed2.03128-yd body/head check introduced extra restrictions above the existing wall ray; the lead explicitly excluded it from this change. Existing Stockade/Jasperlode routes remain required regressions. Their ascent trace separately exposed a walkable support face misclassified as a wall after float projection; destination-support faces are now excluded from wall admission by their existing walkable-floor semantics, not a tolerance. A future full-body contract must establish source dimensions and authored corridor compatibility separately.
+
+Server `networking_movement::land_height` already samples the destination ground from current Y before applying its land envelope; it has no earlier client-style wall ray. No server change accompanies this fix. Regression fixtures: `godot/rust/src/ground_step_tests.rs`, full-WMO `wmo/collision_tests.rs::ramp_lip_full_stockade_walks_from_captured_feet_onto_landing`, native `godot/tests/ramp_lip_walk.gd`.
+
+### Short-frame regression proof
+
+On `d3d594449`, deterministic exact-face traversal failed at 7 yd/s with 144/240 FPS and at 2.5 yd/s with 60 FPS, while the captured 7 yd/s 60-FPS case passed. Revision `18ccab0e1` passes all 13 ramp-lip/guard regressions, including those three rates and assertions that no frame adds horizontal displacement. Logs: `/home/osso/.worktrees/logs/movement-ramp-lip-rate-{red,green}-full.log`. This follow-up has deterministic geometry proof; the native proof below predates this support-reach refinement.
+
+### Bounded native proof
+
+Verified2026-10-15: exact-face RED stops at captured feet; final focused Rust gates pass10 ramp-lip/guard cases and4 existing Stockade/Jasperlode routes (including2FPS) on movement revision`505b5efb8`. Normal native extension build`3dcb5dadf`, fixture`1e41990bc`, pinned Godot4.7.2 and private UDP5921 peer server`3a982777`/shared`62865c2` produced the native proof.
+
+Normal `--screen inworld --char Ramplip` startup enters Stockade at its entrance. The existing online admin command `set-position Ramplip 108.2204 -3.454892 -26.26199` then establishes the captured pose server-authoritatively in that private instance; afterward the fixture only sends native turn/W input. The level80 test character avoids making dungeon combat completion a prerequisite; it still takes trash damage, remains alive, and reports server speed7 at both measured endpoints.
+
+Before movement, the actual Godot WMO-layer ray at feet+0.6 hits `(108.2684,-25.66199,3.441165)` at0.04996484yd, inside the unchanged0.05 wall margin. Held W then advances from `(108.2204,-26.26199,3.454892)` to `(108.8964,-25.60623,3.27322)` on the upper floor; client/server positions agree at both ends and the movement epoch stays unchanged during the walk. No client position writes or server source changes occur.
+
+Inspected1280×720 PNGs: `/syncthing/AgentShared/2026-10-15/ramp-lip/{before,after}.png`. Durable receipts and full logs: `/home/osso/.worktrees/logs/movement-ramp-lip-success-{native-receipt.json,runtime-receipt.json,native-client.log,server.log}`. The runtime receipt records the authoritative setup command and actual extension/server SHA-256s; the compiled runtime uses the supplied62865c2 peer even though the unrelated shared checkout later advances. Owned client/server processes are stopped after capture. This proves the captured direct lip traversal, not whole-dungeon completion or full-body clearance.
+
 ## WMO group collision
 
 `WmoGroupCollision::parse` reads the group file itself (MOGP header flags and bbox, MOPY, MOVI, MOVT, MOBN, MOBR). The file keeps the file's coordinates (Z up).

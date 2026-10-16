@@ -1,4 +1,7 @@
+- [Clean-room M2 particles](systems/godot-conversion.md#native-m2-particles) — tails/follow/cubic controls and inherited-scale provenance; lighting, timer/reset, spline density and model-recursion oracle gaps remain explicit.
 # Wiki Index
+
+- [Shared WowStyle1 caption centering](systems/menu-primitives.md#wowstyle1-caption-centering-2026-10-15) — native font-minimum adaptation, paired core attribute wiring and explicit one-line policy; both-skin AH/shared caption deltas0 and unchanged Filter/Style2 control pixels.
 
 - [Guild invitation source chrome](systems/guilds.md#invitation-chrome--verified2026-10-15) — source translucent inset/corners/tiled edges replace static-popup art; two controls and both-skin native Join/Decline/pending proof, four inspected PNGs. Inner art/payload/lifecycle gaps remain separate.
 
@@ -13,7 +16,7 @@
 - [Equipped-item material closure](systems/asset-pipeline.md#equipped-item-material-closure--verified-2026-10-15) — actual ten-item Human-male graph43/43 authenticated, typed3/4 overrides beyond M2 TXID; canonical publication and native clear pending.
 - [AH duration source menu](systems/auction-house-ui.md#duration-source-composition--2026-10-15) — shared dropdown/radios, caller115/Arial Narrow12/RIGHT,10 source/reducer controls and four inspected both-skin native samples; no fresh trading claim.
 
-- [Player-bot measurement](systems/bot-harness.md) — native combat detection and common-budget Arms/Fury/Havoc MVP, six complete60s windows with empty jewelry/retained bags; all40/full detection/Stockade gates remain open.
+- [Player-bot measurement](systems/bot-harness.md) — health-qualified native/per-ability triage and common-budget Arms/Fury/Havoc MVP, six complete60s windows with empty jewelry/retained bags; all40/full detection open, Stockade deferred.
 - [Native summon lifetime proofs](systems/toy-box.md#native-summon-lifetime-proofs-2026-10-15) — release Forever Scarab and quiet both-skin Flute expiry; prior debug failures, unresolved following/navigation and exact binary scopes retained.
 - [Disabled housing icon source color](systems/housing.md#disabled-editor-icon-visuals--implementation2026-10-15) — default atlas/DARKGRAY tint/full alpha instead of invented desaturation/transparency; both-skin model and actual painted-control proof, availability unchanged.
 
@@ -257,7 +260,7 @@ Engine subsystems and how they work.
 - [elastic-trees](systems/elastic-trees.md) — accepted coarse Barrens FDID 201394 prototype; lit deformation/recovery and private mounted-input/network proof, material-uniform buffer root cause, revision-scoped checks and remaining prototype boundaries
 - [mounts](systems/mounts.md) — Mount model with the rider on MountMain (attachment 0), Mount/MountFlight clips, steady flight controls (Space take off/ascend, X descend, pitch steering, landing), recast dismount
 - [swimming](systems/swimming.md) — Godot swim path: Space/X ascend/descend, float at `SWIM_DEPTH` under the surface, pitch steering, server-adopted swim height, climb capped at `SWIM_SPEED`; server-driven MirrorTimer breath/fatigue/feign-death bars
-- [player-ground](systems/player-ground.md) — shared terrain/WMO/M2 support, authored-normal doodad floor bake, pre-render native loading, real EotS/Northshire both-skin geometry proof and tick-cost boundaries
+- [player-ground](systems/player-ground.md) — shared terrain/WMO/M2 support, Stockade step-before-wall ordering, unchanged low-ray corridor and named full-body clearance gap, authored-normal doodad floor bake, pre-render native loading, real EotS/Northshire both-skin geometry proof and tick-cost boundaries
 - [terrain](systems/terrain.md) — Forever Zephras FDID streaming/provisioning and product-isolated liquid catalogs/texture closure, ADT loading, ground detail (clutter) scatter, split files, authored MCVT axes, native per-chunk terrain and WMO placement surface queries, tile ordering, object placement rotation, doodad collision, map switches and WMO-only maps (WDT global WMO)
 - [asset-pipeline](systems/asset-pipeline.md) — installed-build patch-following/cache/provenance and private native world proof; CASC lookup chain, casc-local tool, community listfile, FDID resolution for runtime/UI consumers, TACT keys; shared-cache legacy `.missing` repair `c24d035`, standalone `25debb1` cold-marker bounded PASS; accepted saved native compile/load/eight Options helpers/Menu/UDP/Exit bounded PASS (Depot `s1q4qhb120`), not native cold-marker/full-conversion/deploy/unfrozen whole-tree acceptance
 - [character-rendering](systems/character-rendering.md) — grounded appearance pixel oracle, 78-cell isolated garment matrix with bounded rendered/region PASS and six inspected sheets, race/sex item file selection, all-race equipped fixtures, HD skeletons, shared Godot/Bevy outfit catalog with serialized cache imports, player model-completion appearance boundary, authored NPC selected-type canvas composition, four creature variations and tabard-enabled batches with linked native per-type/world-consumer acceptance, geosets, helmet hiding, target circles
@@ -407,4 +410,10 @@ External resources and asset lists.
 
 - [Group-private owner capture fixtures](systems/toy-box.md#source-group-private-owner-capture-fixtures-2026-10-13) — source doll/gong lifecycle and actual UDP membership proof fixtures, execution pending.
 
+- [Stationary Cleanup ray](systems/housing.md#stationary-cleanup-ray--implementation2026-10-15) — authoritative owner movement/native readonly RED→both-skin GREEN; fixed input, actual ray/highlight/name clear and return, exact paid restoration and inspected functional captures.
 - [Retail loadout strings](systems/talents.md#retail-loadout-strings--2026-10-15) — installed version2/source provenance, committed export/native Import, Lua-produced fixtures and both-skin private relog/full-HD proof; hash/OS clipboard limits explicit.
+
+- [Active Expert submode continuity](systems/housing.md#active-expert-submode-continuity--implementation2026-10-15) — model/native RED→both-skin GREEN; assigned active keys retain all three live mouse submodes, global release/Escape and exact paid conservation.
+- [Active Slam visual chain](systems/spell-visuals.md#slam-1464-same-two-handed-sword-different-spec) — verified70391 Arms190513/278884, Fury97446/128672 and authored impact278885; fixture refresh only; full core17/17 and native specialization5/5 pass.
+
+- [Active Battle Shout sound](systems/spell-visuals.md#active-battle-shout-sound-chain--2026-10-15) —70391 cast279043/SoundKit368264, distinct unchanged caster voice; bounded fixture refresh.

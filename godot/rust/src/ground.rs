@@ -1,7 +1,7 @@
 //! Ground queries for the terrain currently loaded by the native host.
 
 use game_engine_core::player_physics_data::{
-    GroundSample, GroundState, clamp_movement_to_walls, validate_movement_slope,
+    GroundSample, GroundState, WALL_MARGIN, clamp_movement_to_walls, validate_movement_slope,
 };
 use game_engine_core::terrain_height_data::bevy_to_tile_coords;
 use glam::Vec3;
@@ -14,6 +14,8 @@ pub(crate) struct TerrainGround<'a> {
     pub terrain: &'a StreamedTerrain,
     /// Distance to the first WMO wall on a ray `(origin, direction, length)`.
     pub walls: &'a dyn Fn(Vec3, Vec3, f32) -> Option<f32>,
+    /// Wall interval between admitted feet and the existing low ray; support reach is Y.
+    pub step_wall_blocked: &'a dyn Fn(Vec3, Vec3, f32) -> bool,
     /// Highest active replicated game-object collision face under these feet.
     pub game_object_floor: &'a dyn Fn(Vec3) -> Option<f32>,
 }
@@ -110,13 +112,59 @@ impl TerrainGround<'_> {
             .max_by(|a, b| a.height.total_cmp(&b.height))
     }
 
-    /// The original order: stop short of a WMO wall, then apply the slope and step rules.
+    /// Admit the destination floor before casting the wall ray at the walking height.
     /// A move to where no ground is within reach but ground lies above (a hillside, or a WMO
     /// floor over a terrain hole) stops, as an underwater cliff stops a swimmer: walking on
     /// would put the feet under the world's surface, with nothing to land on.
     pub fn validate_move(&self, current: Vec3, proposed: Vec3, snap: bool) -> Vec3 {
-        let proposed = clamp_movement_to_walls(current, proposed, self.walls);
         let target = self.sample(proposed.with_y(current.y));
+        let candidate = self.apply_floor_rules(current, proposed, target, snap);
+        let clamped = clamp_movement_to_walls(current, proposed, self.walls);
+        let reached = clamped.x == proposed.x && clamped.z == proposed.z;
+        if reached {
+            return candidate;
+        }
+        if snap && self.step_past_wall_is_clear(current, proposed, candidate) {
+            return candidate;
+        }
+        // A blocked step keeps the ordinary wall clamp. Never retain the height
+        // of a landing that the player did not actually reach.
+        let target = self.sample(clamped.with_y(current.y));
+        self.apply_floor_rules(current, clamped, target, snap)
+    }
+
+    /// Only a wall-blocked move attempts a step: unobstructed ramps keep their
+    /// existing low-ray corridor, including authored floor detail below that ray.
+    fn step_past_wall_is_clear(&self, current: Vec3, proposed: Vec3, candidate: Vec3) -> bool {
+        // The wall ray sees WALL_MARGIN beyond the requested displacement. Admit
+        // support over that same reach, otherwise short frames stop before the lip
+        // reaches the destination column. This probe never adds player movement.
+        let movement = (proposed - current).with_y(0.0);
+        let reach = proposed.with_y(current.y) + movement.normalize() * WALL_MARGIN;
+        let target = self.sample(reach);
+        let reached_support = self.apply_floor_rules(current, reach, target, true);
+        let landing = if target.is_some() && reached_support.y > candidate.y {
+            reached_support
+        } else {
+            candidate
+        };
+        if landing.y <= current.y {
+            return false;
+        }
+        let raised = current.with_y(landing.y);
+        let destination = proposed.with_y(landing.y);
+        let across = clamp_movement_to_walls(raised, destination, self.walls);
+        let reached = across.x == destination.x && across.z == destination.z;
+        reached && !(self.step_wall_blocked)(raised, landing, current.y + STEP_UP_HEIGHT)
+    }
+
+    fn apply_floor_rules(
+        &self,
+        current: Vec3,
+        proposed: Vec3,
+        target: Option<Ground>,
+        snap: bool,
+    ) -> Vec3 {
         if target.is_none() && self.covered(proposed.with_y(current.y)) {
             return current;
         }
@@ -161,6 +209,10 @@ fn ground_sample(ground: Ground) -> GroundSample {
 }
 
 #[cfg(test)]
+#[path = "ground_step_tests.rs"]
+mod step_tests;
+
+#[cfg(test)]
 mod tests {
     use std::{
         path::PathBuf,
@@ -195,6 +247,7 @@ mod tests {
         let ground = TerrainGround {
             terrain,
             walls: &|_, _, _| None,
+            step_wall_blocked: &|_, _, _| false,
             game_object_floor: &|_| None,
         };
         match ground.probe(start) {
@@ -282,6 +335,7 @@ mod tests {
         let ground = TerrainGround {
             terrain: &terrain,
             walls: &|_, _, _| None,
+            step_wall_blocked: &|_, _, _| false,
             game_object_floor: &live_floor,
         };
         let mut movement = crate::gameplay::PlayerMovement::default();
@@ -350,6 +404,7 @@ mod tests {
             TerrainGround {
                 terrain: &terrain,
                 walls: &|_, _, _| None,
+                step_wall_blocked: &|_, _, _| false,
                 game_object_floor: &|_| None,
             }
             .probe(inside),
@@ -376,6 +431,7 @@ mod tests {
         let ground = TerrainGround {
             terrain: &terrain,
             walls: &|_, _, _| None,
+            step_wall_blocked: &|_, _, _| false,
             game_object_floor: &|_| None,
         };
         match ground.probe(inside) {
@@ -403,6 +459,7 @@ mod tests {
             TerrainGround {
                 terrain: &terrain,
                 walls: &|_, _, _| None,
+                step_wall_blocked: &|_, _, _| false,
                 game_object_floor: &|_| None,
             }
             .probe(inside),
@@ -432,6 +489,7 @@ mod tests {
         let ground = TerrainGround {
             terrain: &terrain,
             walls: &|_, _, _| None,
+            step_wall_blocked: &|_, _, _| false,
             game_object_floor: &|_| None,
         };
         // Where the server stood the player: WoW (-8785.926, 820.665, 97.652).
