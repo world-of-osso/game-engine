@@ -7,10 +7,18 @@ from bisect import bisect_left
 from collections import Counter, defaultdict
 from pathlib import Path
 
+from bot_controller import FileBridge, PlayerController
+from bot_routes import NavmeshRoute
+
 EVENT = re.compile(
     r"^(\w+) src=(\d+|-) dst=(\d+|-) spell=(\d+|-) amount=(-?\d+|-) "
     r".* timestamp_unix_ms=(\d+)\b"
 )
+
+
+def routed_player(invoke, snapshot, query_argv, navmesh, output):
+    """One owned native player; encounter and per-spec policy remain explicit callers."""
+    return PlayerController(invoke, snapshot, NavmeshRoute(query_argv, navmesh, output), FileBridge(output))
 
 
 def parse_combat(text):
