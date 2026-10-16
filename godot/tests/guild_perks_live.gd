@@ -100,27 +100,21 @@ func prove_ordinary_clicks() -> bool:
 	return true
 
 func prove_modified_link() -> bool:
-	await tap(KEY_ENTER)
-	if not await wait_until(func(): return shown("ChatFrame1EditBox"), "ordinary chat input"):
+	# Open through the already-proven modified row action, not Enter while a
+	# normal-clicked row still owns keyboard focus.
+	await shift_click_perk()
+	if not await wait_until(func(): return shown("ChatFrame1EditBox"), "modified row opens chat input"):
 		return false
+	var input := control("ChatFrame1EditBox") as LineEdit
+	input.select_all()
+	await tap(KEY_BACKSPACE)
 	await type_text("before  after")
 	for index in range(6):
 		await tap(KEY_LEFT)
 	var initial := control("ChatFrame1EditBox") as LineEdit
 	if initial.text != "before  after" or initial.caret_column != 7:
 		return fail("Physical chat text/caret setup failed")
-	var point := control("CommunitiesGuildPerk78633").get_global_rect().get_center()
-	await hover_at(point)
-	for pressed in [true, false]:
-		var event := InputEventMouseButton.new()
-		event.position = point
-		event.global_position = point
-		event.button_index = MOUSE_BUTTON_LEFT
-		event.button_mask = MOUSE_BUTTON_MASK_LEFT if pressed else 0
-		event.shift_pressed = true
-		event.pressed = pressed
-		root.push_input(event, true)
-		await wait_frames(2)
+	await shift_click_perk()
 	if not await wait_until(func(): return shown("ChatFrame1EditBox") and perk_observation().draft_wire == "before |Hspell:78633|h[Mount Up]|h after", "real modified-click spell draft"):
 		return false
 	var edit := control("ChatFrame1EditBox") as LineEdit
@@ -136,6 +130,20 @@ func prove_modified_link() -> bool:
 	await capture("chat-link")
 	write_json(role + "-chat.json", perk_observation())
 	return true
+
+func shift_click_perk() -> void:
+	var point := control("CommunitiesGuildPerk78633").get_global_rect().get_center()
+	await hover_at(point)
+	for pressed in [true, false]:
+		var event := InputEventMouseButton.new()
+		event.position = point
+		event.global_position = point
+		event.button_index = MOUSE_BUTTON_LEFT
+		event.button_mask = MOUSE_BUTTON_MASK_LEFT if pressed else 0
+		event.shift_pressed = true
+		event.pressed = pressed
+		root.push_input(event, true)
+		await wait_frames(2)
 
 func received_spell_label() -> Control:
 	var host := client.get_node_or_null("ChatFrameUI")
