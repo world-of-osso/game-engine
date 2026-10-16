@@ -112,3 +112,7 @@ Portable captured [fixtures and provenance](../../scripts/tests/fixtures/bot_har
 ## Out of scope
 
 Gameplay fixes, stat tuning and balance changes belong to owning agents via the lead. No external damage oracle or fabricated rotations.
+
+## Explicit BM SimC provider
+
+`bot_simc_bm.BeastMasterySimcProvider` requires the pinned upstream BM receipt/APL, captured native level32 kit, unchanged server TraitConfigSnapshot resolved through native DB2, single-target context and explicit absence of consumables/external/on-use actions. It preserves `actions.st` order and predicates; charge availability, full recharge time and fractional charges use native current/max/recharge/remaining clocks, never guessed cast delays. Missing authority, unsupported selected talents, active unobservable duration/stack predicates and kit/trait drift stop explicitly. No alternate provider runs after refusal. The current single-charge/no-Howl kit does not satisfy the source Kill Command conjunction; do not erase that predicate to force DPS. Auto Shot starts via native75; repeating ranged behavior and owned pet share require separate native proof before complete SimC rotation acceptance.
