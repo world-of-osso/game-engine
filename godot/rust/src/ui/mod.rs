@@ -22,6 +22,8 @@ mod forevergaps_preview;
 mod gameplay_panels_input_fixture;
 mod gameplay_panels_preview;
 #[cfg(debug_assertions)]
+mod guild_event_log_preview;
+#[cfg(debug_assertions)]
 mod guild_invite_preview;
 mod guild_preview;
 #[cfg(test)]

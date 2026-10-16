@@ -255,6 +255,7 @@ pub enum AccountEvent {
     Bank(BankMessage),
     Stable(StableMessage),
     GuildRanks(shared::protocol::GuildRanksState),
+    GuildEventLog(shared::protocol::GuildEventLog),
     GuildInvitation(shared::protocol::GuildInvitation),
     GuildInviteResult(shared::protocol::GuildInviteResponse),
     GuildAccepted(shared::protocol::GuildAcceptInviteResponse),
@@ -1160,6 +1161,9 @@ impl Account {
             GuildCommand::SetMotd(text) => bridge.send::<_, GuildChannel>(SetGuildMotd { text }),
             GuildCommand::SetInfo(text) => bridge.send::<_, GuildChannel>(SetGuildInfo { text }),
             GuildCommand::Query => bridge.send::<_, GuildChannel>(QueryGuild),
+            GuildCommand::QueryEventLog => {
+                bridge.send::<_, GuildChannel>(GuildRankRequest::QueryEventLog)
+            }
         }
         .map_err(SessionError)
     }
@@ -2137,6 +2141,10 @@ impl Account {
         }
         if message.is::<shared::protocol::GuildRanksState>() {
             output.push(AccountEvent::GuildRanks(decode(message)?));
+            return Ok(());
+        }
+        if message.is::<shared::protocol::GuildEventLog>() {
+            output.push(AccountEvent::GuildEventLog(decode(message)?));
             return Ok(());
         }
         let message = match auction_message(message)? {
