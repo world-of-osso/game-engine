@@ -5,6 +5,9 @@ extends "res://tests/questlog_fidelity_live.gd"
 ## Ambient world population is excluded by private fixture, not actor stat edits.
 const ESCORT_QUEST := 976
 const ESCORT_NAME := "Feero Ironhand"
+# SpellName/SpellEffect.csv70391: Wrath effect2; Regrowth heal10 + periodic heal8.
+const WRATH := 5176
+const REGROWTH := 8936
 const AMBUSH_NAMES := ["Dark Strand Assassin", "Forsaken Scout", "Aligar the Tormentor", "Balizar the Umbrage", "Caedakar the Vicious"]
 var seen_ambushes: Dictionary = {}
 
@@ -35,9 +38,9 @@ func check_escort() -> bool:
 		return false
 	if not await wait_frames(func(): return not player_dead(), "private account alive"):
 		return false
-	if not admin(["learn-spell", character_name(), "5176"]):
+	if not admin(["learn-spell", character_name(), str(WRATH)]):
 		return false
-	if not admin(["learn-spell", character_name(), "5185"]):
+	if not admin(["learn-spell", character_name(), str(REGROWTH)]):
 		return false
 	var giver := await locate(ESCORT_NAME)
 	if giver.is_empty():
@@ -101,9 +104,9 @@ func check_escort() -> bool:
 					await capture("03-ambush-%s.png" % name.to_lower().replace(" ", "-"))
 				var id: int = area.get_meta("unit_server_id")
 				if client.unit_alive(id):
-					await cast_live_spell(5176, id)
+					await cast_live_spell(WRATH, id)
 					await create_timer(2.5).timeout
-					await cast_live_spell(5185, giver.id)
+					await cast_live_spell(REGROWTH, giver.id)
 					await create_timer(3.5).timeout
 					attacked = true
 					break

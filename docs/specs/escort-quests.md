@@ -5,7 +5,7 @@ Source fixture: TDB1210 Feero Ironhand4484, quest976 Supplies to Auberdine, path
 ## Required proof
 
 - Native fixture `godot/tests/escort_quests_live.gd` extends existing real-account quest pixel-input harness. `QF_STEPS=check_skin,check_escort`, `QF_SKIN=modern|forever`, `QF_ACCOUNT=fb_escort_modern|fb_escort_forever`, `GODOT_TEST_SERVER=127.0.0.1:5931`; `QF_ADMIN` points at owned server admin binary with matching GAME_SERVER_ADMIN_SOCKET.
-- A real greeting/details/Accept click must precede observed walking, authored ambusher identities and server quest completion. Admin cannot fill976 objectives. Ordinary casts protect the escort; setup may teach local-source Wrath5176/Healing Touch5185.
+- A real greeting/details/Accept click must precede observed walking, authored ambusher identities and server quest completion. Admin cannot fill976 objectives. Ordinary casts protect the escort; setup may teach local-source Wrath5176/Regrowth8936.
 - Inspected1920x1080 PNGs in `/syncthing/AgentShared/2026-10-15/escort-quests/` required in both skins. Captures alone do not certify movement, combat, source speech or earned credit.
 - Source speech and failure must have explicit observed proof; presence of script rows is insufficient. Cosmetic SmartAI emote5 remains a named unimplemented gap.
 
@@ -17,7 +17,9 @@ Cage's headless output defaults1280x720 and has no output-mode CLI on this host.
 
 ## Current state
 
-Server authored-wave unit GREEN5. Native acceptance pending; startup harness fixes are not native escort GREEN. No new client protocol or production UI behavior required so far.
+Merged-server escort gate:36 passed,1 explicit private-account setup ignored; both Rust cargo checks and format checks pass. Modern and Forever native real-account runs prove acceptance, rendered authored speech and movement to the first source ambush, with inspected1920x1080 PNGs. Full earned native completion is NOT proved. No new client protocol or production UI behavior was added.
+
+Missing verified payload receipts for source assassin textures923044/919332/1105445 block complete visual ambush selection; the private CSV appearance import does not solve payload ownership. Native attempts also exposed removed Healing Touch5185 (absent70391, Unknown spell); fixture now uses independently CSV-verified Regrowth8936 (heal10/periodic-heal8), whose protective live reproof remains open. Do not label these partial PNGs as a completed escort or claim full appearance parity.
 
 ## Authored ambusher appearance preparation
 
