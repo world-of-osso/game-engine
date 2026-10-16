@@ -25,6 +25,7 @@ Retail Mainline Benefits perks in Modern and Forever. Definitions: installed `db
 ## Tests asserting this spec
 
 - `godot/ui-model/tests/guild_rank_widgets.rs::guild_perks_benefits_lists_the_five_installed_perk_spells_both_skins` — actual Benefits output in both skins.
+- `chat_draft::tests::guild_perks_real_spell_link_draft_hides_markup_and_preserves_existing_subjects` — real spell identity and visible text coexist with item/achievement links.
 
 ## Known gaps (current cycle)
 

@@ -149,6 +149,19 @@ impl ChatDraft {
 mod tests {
     use super::*;
     #[test]
+    fn guild_perks_real_spell_link_draft_hides_markup_and_preserves_existing_subjects() {
+        let wire = "é |Hspell:78633|h[Mount Up]|h |Hachievement:14782|h[Level 50]|h |Hitem:50335|h[Greater Inscription of the Axe]|h";
+        let mut draft = ChatDraft::from_wire(wire);
+        assert_eq!(
+            draft.visible(),
+            "é [Mount Up] [Level 50] [Greater Inscription of the Axe]"
+        );
+        assert_eq!(draft.wire(), wire);
+        draft.apply_visible_edit("prefix é [Mount Up] [Level 50] [Greater Inscription of the Axe]");
+        assert_eq!(draft.wire(), format!("prefix {wire}"));
+    }
+
+    #[test]
     fn guild_news_item_link_draft_preserves_item_identity_and_existing_achievement() {
         let wire =
             "é |Hachievement:14782|h[Level 50]|h |Hitem:50335|h[Greater Inscription of the Axe]|h";
