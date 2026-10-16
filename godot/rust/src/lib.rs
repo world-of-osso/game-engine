@@ -2229,7 +2229,6 @@ impl GameClient {
             }),
             ("Nameplates", |c, d| Ok(c.update_nameplates(d)?)),
             ("Soft interact icon", |c, _| c.sync_soft_interact_icon()),
-            ("Tooltips", |c, _| c.update_tooltips()),
             ("Culling", |c, _| {
                 c.cull_world_objects();
                 Ok(())
@@ -2237,6 +2236,8 @@ impl GameClient {
             ("UI scale after updates", |c, _| {
                 Ok(c.sync_registry_ui_scale()?)
             }),
+            // Tooltip ownership must use the final projected owner bounds.
+            ("Tooltips", |c, _| c.update_tooltips()),
             ("Pet battle HUD isolation", |c, _| {
                 c.sync_wild_battle_ui_visibility();
                 Ok(())

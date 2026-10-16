@@ -1,6 +1,6 @@
 //! Retail EJ dropdown contents composed from shared menu primitives.
 use crate::{
-    adventure_guide::{LootFilter, View, loot_filter_entries},
+    adventure_guide::{LootFilter, Tab, View, loot_filter_entries},
     auction_mail::text,
     menu_primitives::{
         ContextMenu, ContextMenuItem, MenuElementKind, context_menu_with_rows, menu_element,
@@ -8,6 +8,10 @@ use crate::{
     },
 };
 use ui_toolkit::widget_def::Element;
+
+// Retail EJ_DIFFICULTIES (Lua62–80), not numeric MapDifficulty row order.
+pub(crate) const JOURNAL_DIFFICULTIES: [u32; 17] =
+    [1, 2, 23, 8, 24, 7, 3, 5, 4, 6, 250, 17, 14, 15, 16, 33, 9];
 
 type Entry = (String, String, String, MenuElementKind);
 fn radio(name: String, label: String, action: String, checked: bool) -> Entry {
@@ -71,29 +75,90 @@ pub fn tier_menu(view: &View) -> Element {
     menu("EncounterJournalTierMenu", &entries, 609., 97.)
 }
 pub fn difficulty_menu(view: &View, instance: u32) -> Element {
-    let entries: Vec<_> = view
-        .available_difficulties(instance, view.encounter)
+    let available = view.available_difficulties(instance, view.encounter);
+    // EJ.lua579–605 emits text overrides first, then skips their base radios.
+    let world = has_world_difficulty(view, instance) && available.contains(&17);
+    let overrides = world.then_some((250, 17));
+    let regular = JOURNAL_DIFFICULTIES
         .into_iter()
-        .map(|id| {
+        .filter(|id| {
+            let overridden = *id == 250 || (world && *id == 17);
+            !overridden && available.contains(id)
+        })
+        .map(|id| (id, id));
+    let entries: Vec<_> = overrides
+        .into_iter()
+        .chain(regular)
+        .map(|(display, selected)| {
             radio(
-                format!("JournalDifficulty{id}"),
-                view.catalog.difficulties[&id].clone(),
-                format!("journal:difficulty:{id}"),
-                view.difficulty == id,
+                format!("JournalDifficulty{display}"),
+                difficulty_caption(view, display),
+                format!("journal:difficulty:{selected}"),
+                view.difficulty == selected,
             )
         })
         .collect();
     menu("EncounterJournalDifficultyMenu", &entries, 673., 102.)
 }
-fn class_id(view: &View) -> u32 {
-    if view.class != 0 {
-        return view.class;
+/// DifficultyUtil_Base names and EJ.lua86–102; primary raids have no size prefix.
+pub(crate) fn difficulty_caption(view: &View, difficulty: u32) -> String {
+    let world = view
+        .instance
+        .is_some_and(|instance| has_world_difficulty(view, instance));
+    let display = match difficulty {
+        17 if world => 250,
+        250 => 250,
+        _ => base_difficulty(difficulty),
+    };
+    let name = difficulty_name(display);
+    if matches!(display, 14..=17 | 33 | 250) {
+        return name.into();
     }
+    let Some(players) = view.catalog.difficulty_max_players.get(&display) else {
+        return String::new();
+    };
+    text("ENCOUNTER_JOURNAL_DIFF_TEXT")
+        .replacen("%s", &players.to_string(), 1)
+        .replacen("%s", name, 1)
+}
+
+pub(crate) fn difficulty_name(id: u32) -> &'static str {
+    let key = match id {
+        1 | 3 | 4 | 9 | 14 => "PLAYER_DIFFICULTY1",
+        2 | 5 | 6 | 15 => "PLAYER_DIFFICULTY2",
+        7 | 17 => "PLAYER_DIFFICULTY3",
+        8 => "PLAYER_DIFFICULTY_MYTHIC_PLUS",
+        16 | 23 => "PLAYER_DIFFICULTY6",
+        24 | 33 => "PLAYER_DIFFICULTY_TIMEWALKER",
+        // EJ.lua59 explicitly identifies World's base as PrimaryRaidLFR.
+        250 => "PLAYER_DIFFICULTY_WORLD_RAID",
+        _ => return "",
+    };
+    text(key)
+}
+
+// EJ.lua58–59 documents both aliases; other IDs are not guessed from fallback IDs.
+pub(crate) fn base_difficulty(id: u32) -> u32 {
+    match id {
+        233 => 16,
+        250 => 17,
+        _ => id,
+    }
+}
+fn has_world_difficulty(view: &View, instance: u32) -> bool {
     view.catalog
-        .specs
-        .iter()
-        .find(|s| Some(s.id) == view.player_spec)
-        .map_or(0, |s| s.class)
+        .instance(instance)
+        .and_then(|instance| view.catalog.map_difficulties.get(&instance.map))
+        .is_some_and(|difficulties| difficulties.contains(&250))
+}
+
+fn class_id(view: &View) -> u32 {
+    let (class, _) = view.class_spec_filters();
+    if class != 0 {
+        class
+    } else {
+        view.player_class()
+    }
 }
 pub fn loot_menu(view: &View, filter: LootFilter) -> Element {
     if filter == LootFilter::Slot {
@@ -113,11 +178,26 @@ pub fn loot_menu(view: &View, filter: LootFilter) -> Element {
     }
     out
 }
+pub(crate) fn item_sets_menu(view: &View) -> Element {
+    let entries = class_spec_entries(view);
+    let root_width = menu_width(&entries);
+    let mut out = menu("EncounterJournalFilterMenu", &entries, 587., -9.);
+    if view.class_menu_open {
+        out.extend(menu(
+            "EncounterJournalClassMenu",
+            &filter_entries(view, LootFilter::Class),
+            root_width + 587.,
+            -1.,
+        ));
+    }
+    out
+}
+
 fn filter_entries(view: &View, filter: LootFilter) -> Vec<Entry> {
     let (key, selected) = if filter == LootFilter::Slot {
         ("Slot", view.slot)
     } else {
-        ("Class", view.class)
+        ("Class", view.class_spec_filters().0)
     };
     loot_filter_entries(view, filter)
         .into_iter()
@@ -133,6 +213,7 @@ fn filter_entries(view: &View, filter: LootFilter) -> Vec<Entry> {
 }
 fn class_spec_entries(view: &View) -> Vec<Entry> {
     let id = class_id(view);
+    let (class_filter, spec_filter) = view.class_spec_filters();
     let mut entries = vec![(
         "JournalClassMenu".into(),
         text("CLASS").into(),
@@ -157,16 +238,16 @@ fn class_spec_entries(view: &View) -> Vec<Entry> {
                     format!("JournalSpec{}", spec.id),
                     spec.name.clone(),
                     format!("journal:spec:{}", spec.id),
-                    view.spec == spec.id,
+                    spec_filter == spec.id,
                 )
             }),
     );
-    if id != 0 {
+    if id != 0 && view.tab != Tab::ItemSets {
         entries.push(radio(
             "JournalAllSpecs".into(),
             text("ALL_SPECS").into(),
             format!("journal:class:{id}"),
-            view.class == id && view.spec == 0,
+            class_filter == id && spec_filter == 0,
         ));
     }
     entries

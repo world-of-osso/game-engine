@@ -57,6 +57,23 @@ impl RegistryUi {
         result.err().unwrap_or_default().as_str().into()
     }
 
+    /// Supplied selection for the offline Campsite source-state fixture only.
+    #[func]
+    fn select_campsite_preview(&mut self, selected_id: u32) -> GString {
+        use game_engine_ui_model::char_select_component::CampsiteState;
+        let result = (|| {
+            let model = self.model.as_ref().ok_or("Campsite preview missing")?;
+            let mut state = model
+                .shared
+                .get::<CampsiteState>()
+                .ok_or("Campsite state missing")?
+                .clone();
+            state.selected_id = Some(selected_id);
+            self.set_state(state)
+        })();
+        GString::from(result.err().unwrap_or_default().as_str())
+    }
+
     fn show_rosterfix_skin(&mut self, skin: ActiveSkin) -> GString {
         let result = party_preview::load_data_root().and_then(|()| {
             set_thread_skin(skin);
