@@ -46,6 +46,16 @@ class FileBridge:
         raise TimeoutError(f"Native {kind} timed out; input not resubmitted")
 
 
+def requested_snapshot(state, target):
+    """Adapt the dummy observer's atomic sample without changing query facts."""
+    query = state["priority"]
+    if query.get("error"):
+        raise ValueError(query["error"])
+    if query.get("target") != int(target):
+        raise ValueError("Native priority query belongs to another target")
+    return {**query, "spells": state["spells"], "at_ms": state["at_ms"]}
+
+
 def require_usable(snapshot, spell):
     if set(snapshot["spells"]["known"]) != set(snapshot["facts"]["known"]):
         raise ValueError("Native learned-spell snapshots disagree")

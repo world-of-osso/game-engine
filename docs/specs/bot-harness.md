@@ -53,7 +53,7 @@ Launch `godot/tests/bot_controller_live.gd` with an existing `BOT_CONTROLLER_OUT
 - `scripts/bot_ability_summary.py`: read-only expected-roster JSON/Markdown per-ability request/success/event-damage/missing/unused breakdown. Keep child event IDs and untagged native errors unattributed; preserve absent specs/repetitions.
 - `scripts/tests/test_bot_harness.py`: behavioral detector and comparable-fixture regressions.
 - `scripts/bot_rotation.py`: sourced metadata, absent-order generic rule and fail-closed native authored selection.
-- `scripts/run_dummy_bots.py`: repeated explicit-socket fixed-duration collection and raw receipts.
+- `scripts/run_dummy_bots.py`: repeated explicit-socket fixed-duration collection and raw receipts; actual submissions use `PlayerController` with the existing explicitly chosen native-authored/absent-order source provider. Atomic observer samples include requested native usability/trait facts; unavailable or wrong-target facts block rather than bypassing the shared boundary.
 - `godot/tests/bot_harness_observer.gd`: existing native account/spell/aura/charge/assisted observation and private spec selection.
 - `godot/rust/src/spells/assisted_combat.rs`: shared native usability facts and read-only requested-spell snapshot; no target mutation.
 - `godot/tests/spell_priority_facts_live.gd`: native selected/unselected query and invalid-input response fixture.

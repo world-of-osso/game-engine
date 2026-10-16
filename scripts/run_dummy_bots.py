@@ -12,6 +12,7 @@ from pathlib import Path
 
 from bot_harness import analyze, merge_polls, poll_has_gap, write_report
 from bot_health import require_living_player
+from bot_controller import PlayerController, requested_snapshot
 from bot_rotation import authored_next, authored_order, choose, load_spells, read_rows
 
 
@@ -92,6 +93,14 @@ def collect(args, output):
     capture_complete = True
     failure = None
     sequence = 0
+    def checked_command(*argv):
+        nonlocal sequence
+        # Record only actual submissions, including IPC failures, not rejected choices.
+        run["attempts"].append(attempt)
+        sequence += 1
+        return invoke(args.cli, args.socket, output, sequence, *argv)
+    controller = PlayerController(checked_command, lambda target: requested_snapshot(state, target),
+                                  None, None)  # Dummy collection does not move or use party input.
     try:
         while int(time.time() * 1000) < run["end_ms"]:
             state = read_state(args.state)
@@ -127,10 +136,10 @@ def collect(args, output):
             if selected and now + max(selected["cast_ms"], selected["gcd_ms"]) + 1000 < run["end_ms"]:
                 attempt = {"spell": selected["id"], "at_ms": now,
                            "deadline_ms": min(run["end_ms"] - 1, now + max(selected["cast_ms"], 1500) + 2000)}
-                run["attempts"].append(attempt)
-                sequence += 1
-                response = invoke(args.cli, args.socket, output, sequence, "spell", "cast", "--spell", str(selected["id"]), "--target", str(args.target))
-                attempt["response"] = response
+                action = controller.cast_next(args.target, lambda native, target: {"spell": selected["id"]})
+                if action is None:
+                    continue
+                attempt["response"] = action["response"]
                 next_cast = now + max(selected["cast_ms"], selected["gcd_ms"], 100)
                 unavailable[selected["id"]] = now + selected["cooldown_ms"]
             time.sleep(.2)
