@@ -398,23 +398,9 @@ impl GameClient {
 
     fn update_journal_lockouts(&mut self) {
         let elapsed = self.account.instance_info_at.elapsed().as_secs();
-        self.adventure_guide.view.lockouts = self
-            .account
-            .instance_locks
-            .iter()
-            .filter(|lock| lock.locked && u64::from(lock.time_remaining_secs) > elapsed)
-            .map(|lock| {
-                (
-                    lock.map_id,
-                    format!(
-                        "Saved · difficulty {} · {} bosses defeated · resets in {} minutes",
-                        lock.difficulty_id,
-                        lock.completed_mask.count_ones(),
-                        (u64::from(lock.time_remaining_secs) - elapsed).div_ceil(60),
-                    ),
-                )
-            })
-            .collect();
+        self.adventure_guide
+            .view
+            .replace_saved_instances(&self.account.instance_locks, elapsed);
     }
     fn send_journey_watch(&mut self, action: &str) -> Result<bool, String> {
         let Some(watch) = action.strip_prefix("journal:journey-watch:") else {
