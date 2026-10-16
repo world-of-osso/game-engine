@@ -1,6 +1,6 @@
 # Wiki Index
 
-- [Private summon initial-state probe](systems/toy-box.md#private-summon-initial-state-probe-2026-10-15) — retained Scarab control plus explicit Podium/Shrine source level/HP modes; runtime receipts pending.
+- [Private summon initial-state probe](systems/toy-box.md#private-summon-initial-state-probe-2026-10-15) — retained Scarab control plus explicit Podium/Shrine source level/HP modes; fresh actual learning/UseToy wire passes, not a pixel/expiry certificate.
 
 - [Guild invitation source chrome](systems/guilds.md#invitation-chrome--verified2026-10-15) — source translucent inset/corners/tiled edges replace static-popup art; two controls and both-skin native Join/Decline/pending proof, four inspected PNGs. Inner art/payload/lifecycle gaps remain separate.
 

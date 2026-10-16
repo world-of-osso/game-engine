@@ -8,7 +8,7 @@ Verified: 2026-10-10. Native Collections journal and Toy Box consume game-server
 
 ## Private summon initial-state probe (2026-10-15)
 
-`native_toy_guardian_level` retains its default Scarab control and accepts explicit `podium` or `shrine` arguments. Each mode requires private UDP5911/fresh `fb_*` accounts, actual bag learning/UseToy and owner20/80 replicas; wild modes additionally check concrete source HP and Shrine sends its authored cursor destination. Unknown scenarios/expected levels refuse, and120s waits are unchanged. This probes initialized wire fields, not pixels, natural expiry or complete creature-stat parity. [Source boundary and current server proof scope](../../../../game-server/docs/wiki/systems/toys.md#wild-summon-initial-level-and-stats-2026-10-15); new runtime receipts are pending.
+`native_toy_guardian_level` retains its default Scarab control and accepts explicit `podium` or `shrine` arguments. Each mode requires private UDP5911/fresh `fb_*` accounts, actual bag learning/UseToy and owner20/80 replicas; wild modes additionally check concrete source HP and Shrine sends a real owner-relative point through its source cursor destination type. Unknown scenarios/expected levels refuse, and120s waits are unchanged. This probes initialized wire fields, not pixels, natural expiry or complete creature-stat parity. Fresh Podium/Shrine/default-Scarab wire now passes actual learning and initialized fields; [exact source values, received counts, literal revisions/binary hashes and remaining boundaries](../../../../game-server/docs/toy-effects14-coverage.md#wild-summon-initial-state-proof-2026-10-15) own acceptance scope. No new rendered-client or natural-expiry proof is inferred.
 
 ## Native summon lifetime proofs (2026-10-15)
 
