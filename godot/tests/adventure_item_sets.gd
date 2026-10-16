@@ -139,7 +139,7 @@ func run() -> void:
 		return
 	if not await shot("itemsets-scrolled-resolved-icon-tooltip"):
 		return
-	if not await choose_class(2) or not await choose_spec(70) or not verify_list_geometry() or not await shot("itemsets-paladin-spec-reset"):
+	if not await choose_class(2) or not await choose_spec(70) or not verify_list_geometry() or not await move_to("JournalClassFilter") or not await shot("itemsets-paladin-spec-reset"):
 		return
 	var count: int = client.adventure_guide_state().item_set_count
 	if not await type_search("Lucifron"):
