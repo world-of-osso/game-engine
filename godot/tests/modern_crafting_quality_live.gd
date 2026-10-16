@@ -134,9 +134,8 @@ func choose_leather() -> bool:
 	return await wait_until(func(): return quantity(193208) == "6" and quantity(193210) == "4" and not control("ProfessionsQualityAccept").disabled, "mixed6+4 allocation enables Accept")
 
 func click(target: Control) -> void:
-	print("QUALITY INPUT ", target.name, " rect=", target.get_global_rect(), " root=", root.size, " viewport=", root.get_visible_rect(), " visible=", target.is_visible_in_tree())
-	if target.name == "EnterWorld":
-		await capture("0-character-select-input")
+	if not await wait_until(func(): return target.is_visible_in_tree(), "visible native input target " + str(target.name)):
+		return
 	await super.click(target)
 
 func quantity(item: int) -> String:
