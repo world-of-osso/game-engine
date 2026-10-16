@@ -172,6 +172,13 @@ fn guild_communities_invite_and_profile_controls_send_authoritative_actions_both
         assert_eq!(session.commands, vec![GuildCommand::Invite("Cara".into())]);
         session.commands.clear();
         session.click("guild:info_open", &Default::default());
+        // GuildNews.lua:42–51 queries news when the Info news pane is shown.
+        assert_eq!(
+            std::mem::take(&mut session.commands),
+            vec![GuildCommand::News(
+                shared::protocol::GuildNewsRequest::Query
+            )]
+        );
         let registry = mounted(&session);
         assert_eq!(text(&registry, "GuildMOTDText"), "Meeting tonight");
         assert_eq!(text(&registry, "GuildInfoText"), "Raid Tuesdays");
@@ -1290,6 +1297,209 @@ fn guild_member_note_popup_keeps_original_target_when_roster_selection_changes()
             officer: false,
         })
     );
+}
+
+#[test]
+fn guild_news_info_renders_source_controls_and_only_real_motd_both_skins() {
+    let _lock = SKIN.lock().unwrap_or_else(|p| p.into_inner());
+    for skin in [ActiveSkin::Modern, ActiveSkin::Forever] {
+        set_thread_skin(skin);
+        let mut session = GuildRanksSession::default();
+        session.open();
+        session.apply(state(2));
+        session.profile = Some(GuildSnapshot {
+            guild_id: 7,
+            guild_name: "Guild Testers".into(),
+            tabard: None,
+            created_at: None,
+            motd: "Raid at seven".into(),
+            info_text: String::new(),
+            members: vec![],
+        });
+        assert!(
+            mounted(&session)
+                .get_by_name("CommunitiesGuildNewsHeaderText")
+                .is_none()
+        );
+        session.click("guild:info_open", &Default::default());
+        let registry = mounted(&session);
+        assert_eq!(
+            text(&registry, "CommunitiesGuildNewsHeaderText"),
+            "Guild News"
+        );
+        assert_eq!(
+            text(&registry, "CommunitiesGuildNewsSetFiltersText"),
+            "[Click to set news filters]"
+        );
+        assert_eq!(
+            text(&registry, "CommunitiesGuildNewsMOTDText"),
+            "MotD: Raid at seven"
+        );
+        assert!(
+            registry.get_by_name("CommunitiesGuildNewsEntry0").is_none(),
+            "No invented news from present roster"
+        );
+        assert!(
+            registry.get_by_name("CommunitiesGuildNewsNoNews").is_none(),
+            "Actual MOTD is a source news row"
+        );
+        session.profile.as_mut().unwrap().motd.clear();
+        assert_eq!(
+            text(&mounted(&session), "CommunitiesGuildNewsNoNews"),
+            "No Guild News"
+        );
+    }
+}
+
+#[test]
+fn guild_news_info_queries_once_and_opens_source_filter_dialog_both_skins() {
+    let _lock = SKIN.lock().unwrap_or_else(|p| p.into_inner());
+    for skin in [ActiveSkin::Modern, ActiveSkin::Forever] {
+        set_thread_skin(skin);
+        let mut session = GuildRanksSession::default();
+        session.open();
+        session.apply(state(0));
+        session.profile = Some(GuildSnapshot {
+            guild_id: 7,
+            guild_name: "Guild Testers".into(),
+            tabard: None,
+            created_at: None,
+            motd: String::new(),
+            info_text: String::new(),
+            members: vec![],
+        });
+        session.click("guild:info_open", &Default::default());
+        assert_eq!(
+            session.commands.len(),
+            1,
+            "opening Info must query real news"
+        );
+        session.click("guild:info_open", &Default::default());
+        assert_eq!(
+            session.commands.len(),
+            1,
+            "pending query is independent and deduplicated"
+        );
+        session.click("guild:news_filters", &Default::default());
+        let registry = mounted(&session);
+        assert_eq!(
+            text(&registry, "GuildNewsFiltersFrameTitle"),
+            "Guild News Filters"
+        );
+        let dialog = registry
+            .get(registry.get_by_name("GuildNewsFiltersFrame").unwrap())
+            .unwrap();
+        assert_eq!(
+            (dialog.width.value(), dialog.height.value()),
+            (264.0, 230.0)
+        );
+        session.click("guild:news_filters_close", &Default::default());
+        assert!(
+            mounted(&session)
+                .get_by_name("GuildNewsFiltersFrame")
+                .is_none()
+        );
+    }
+}
+
+#[test]
+fn guild_news_real_entries_filter_sticky_and_late_push_keep_independent_authority_both_skins() {
+    let _lock = SKIN.lock().unwrap_or_else(|p| p.into_inner());
+    for skin in [ActiveSkin::Modern, ActiveSkin::Forever] {
+        set_thread_skin(skin);
+        let mut session = GuildRanksSession::default();
+        session.open();
+        session.apply(state(0));
+        session.profile = Some(GuildSnapshot {
+            guild_id: 7,
+            guild_name: "Guild Testers".into(),
+            tabard: None,
+            created_at: None,
+            motd: String::new(),
+            info_text: String::new(),
+            members: vec![],
+        });
+        session.click("guild:info_open", &Default::default());
+        let news = GuildNewsState {
+            server_time: 1792100000,
+            error: None,
+            entries: vec![
+                GuildNewsEntry {
+                    id: 1,
+                    timestamp: 1792090000,
+                    sticky: false,
+                    kind: GuildNewsKind::PlayerAchievement {
+                        member: "Cara".into(),
+                        achievement_id: 14782,
+                        name: "Level 50".into(),
+                        description: "Reach level 50.".into(),
+                    },
+                },
+                GuildNewsEntry {
+                    id: 2,
+                    timestamp: 1792100000,
+                    sticky: false,
+                    kind: GuildNewsKind::PlayerAchievement {
+                        member: "Lena".into(),
+                        achievement_id: 14783,
+                        name: "Level 60".into(),
+                        description: "Reach level 60.".into(),
+                    },
+                },
+            ],
+        };
+        session.news.apply(news.clone());
+        assert_eq!(
+            text(&mounted(&session), "CommunitiesGuildNewsEntry2Text"),
+            "Lena earned the achievement "
+        );
+        assert_eq!(
+            text(&mounted(&session), "CommunitiesGuildNewsEntry2Subject"),
+            "[Level 60]"
+        );
+        session.click("guild:news_filter:2", &Default::default());
+        assert!(
+            mounted(&session)
+                .get_by_name("CommunitiesGuildNewsEntry2Text")
+                .is_none()
+        );
+        session.click("guild:news_filter:2", &Default::default());
+        session.click("guild:news_menu:1", &Default::default());
+        assert_eq!(
+            text(&mounted(&session), "GuildNewsMenuTitle"),
+            "[Level 50]",
+            "source menu title contains only the actual subject"
+        );
+        assert_eq!(
+            text(&mounted(&session), "GuildNewsMakeStickyText"),
+            "Make Sticky"
+        );
+        session.click("guild:news_sticky", &Default::default());
+        assert_eq!(session.news.pending_sticky, Some((1, true)));
+        session.news.apply(news.clone());
+        assert_eq!(
+            session.news.pending_sticky,
+            Some((1, true)),
+            "old queued push is not sticky ACK"
+        );
+        let mut confirmed = news;
+        confirmed.entries[0].sticky = true;
+        session.news.apply(confirmed);
+        assert_eq!(session.news.pending_sticky, None);
+        assert_eq!(session.news.entries()[0].id, 1);
+        session.click("guild:news_filter:2", &Default::default());
+        assert!(
+            mounted(&session)
+                .get_by_name("CommunitiesGuildNewsEntry1Text")
+                .is_some(),
+            "source sticky ignores category filters"
+        );
+        let mut departed = state(0);
+        departed.ranks.clear();
+        session.apply(departed);
+        assert!(session.news.state.is_none());
+        assert!(session.news.pending_sticky.is_none());
+    }
 }
 
 #[test]
