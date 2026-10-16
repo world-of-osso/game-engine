@@ -777,7 +777,7 @@ impl INode for WowAnimationPlayer {
 
     fn ready(&mut self) {
         // A parent's attachment keys must be current before a deeper child's tick.
-        let depth = self.base().get_path().get_name_count();
+        let depth = self.base().get_path().get_name_count() as i32;
         self.base_mut().set_process_priority(i32::MIN + depth);
         if !self.animates {
             self.base_mut().set_process(false);
