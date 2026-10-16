@@ -414,7 +414,7 @@ fn adventure_guide_defeated_marker_uses_saved_difficulty_and_sparse_encounter_bi
         v.apply("journal:difficulty:14").unwrap();
         let name = "JournalBoss2364DefeatedOverlay";
         assert!(render(&v, skin).get_by_name(name).is_none());
-        // Ra-den DungeonEncounter2331 Bit3, not displayed boss ordinal5 or OrderIndex10.
+        // Ra-den DungeonEncounter2331 Bit3, not JournalEncounter.OrderIndex10.
         assert_eq!(v.catalog.encounter(2364).unwrap().order, 10);
         let saved = InstanceLockInfo {
             map_id: 2217,
