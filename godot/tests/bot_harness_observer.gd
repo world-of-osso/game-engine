@@ -32,7 +32,8 @@ func sample() -> void:
     if not spec_requested and spells.get("catalog_ready", false) and spells.get("spec", 0) != 0 and account.get("gameplay_input_allowed", false):
         error = client.set_specialization(int(OS.get_environment("BOT_HARNESS_SPEC")))
         spec_requested = true
-    if not setup_started and spells.get("spec", 0) == int(OS.get_environment("BOT_HARNESS_SPEC")) and spells.get("catalog_ready", false) and account.get("gameplay_input_allowed", false):
+    var gear_provisioned := FileAccess.file_exists(output.path_join("gear-provisioned.json"))
+    if gear_provisioned and not setup_started and spells.get("spec", 0) == int(OS.get_environment("BOT_HARNESS_SPEC")) and spells.get("catalog_ready", false) and account.get("gameplay_input_allowed", false):
         setup_started = true
         prepare_player()
     var target: Dictionary = client.target_state()

@@ -1,3 +1,7 @@
+## 2026-10-15 — Retry-safe bot equipment grants
+
+[Owned inventory boundary](systems/bot-harness.md#retry-safe-owned-gear-provisioning): Resto105's earlier granted kit survived login timeout, but pre-login retry counted only equipped slots and filled bags with duplicates. Grants now follow authenticated native inventory, subtract bag copies and await replication before ordinary gear input. No deletion/account reset/admin equip. Exact native recovery pending.
+
 ## 2026-10-15 — Native-controller three-DPS proof
 
 [Fresh native proof](systems/bot-harness.md#native-controller-three-dps-proof): Arms/Fury/BM six common-budget60s windows with actual auto-attack and received outcomes; mean-spec median129.0833, max/median1.00342, min/median0.281407, no tolerance/pass-fail. Old IPC windows remain diagnostic. Havoc now triggers Demon Blades then source21566/3 refuses; Cat/Bear confirm then5968/5741 condition3 refuse. Explicit new roster and preserved blocked comparisons prevent silent dropout. All40 post-parity attempts remain active; Stockade deferred.
