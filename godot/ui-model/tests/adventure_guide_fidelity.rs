@@ -414,7 +414,8 @@ fn adventure_guide_defeated_marker_uses_saved_difficulty_and_sparse_encounter_bi
         v.apply("journal:difficulty:14").unwrap();
         let name = "JournalBoss2364DefeatedOverlay";
         assert!(render(&v, skin).get_by_name(name).is_none());
-        // Authored Ra-den DungeonEncounter2331 Bit3, not encounter OrderIndex5.
+        // Ra-den DungeonEncounter2331 Bit3, not displayed boss ordinal5 or OrderIndex10.
+        assert_eq!(v.catalog.encounter(2364).unwrap().order, 10);
         let saved = InstanceLockInfo {
             map_id: 2217,
             difficulty_id: 14,
@@ -440,6 +441,7 @@ fn adventure_guide_defeated_marker_uses_saved_difficulty_and_sparse_encounter_bi
             tooltip.content.lines[0].left_text,
             "You've already defeated this boss on Normal difficulty this week."
         );
+        assert_eq!(tooltip.content.lines[0].left_color, [1., 0.82, 0., 1.]);
         for invalid in [
             InstanceLockInfo {
                 map_id: 409,
@@ -451,6 +453,10 @@ fn adventure_guide_defeated_marker_uses_saved_difficulty_and_sparse_encounter_bi
             },
             InstanceLockInfo {
                 completed_mask: 1 << 5,
+                ..saved
+            },
+            InstanceLockInfo {
+                completed_mask: 1 << 10,
                 ..saved
             },
             InstanceLockInfo {
