@@ -116,11 +116,9 @@ pub(crate) fn apply_postsetup(view: &View, registry: &mut ui_toolkit::registry::
         return;
     }
     let (class, _) = view.class_spec_filters();
-    if class != 0 {
-        // Shared dropdown text is replaced by the two source colour spans above.
-        if let Some(id) = registry.get_by_name("JournalClassFilterText") {
-            registry.get_mut(id).unwrap().visible = false;
-        }
+    // Restore All Classes in the same screen lifetime after coloured class spans.
+    if let Some(id) = registry.get_by_name("JournalClassFilterText") {
+        registry.get_mut(id).unwrap().visible = class == 0;
     }
     let menu_class = if class == 0 {
         view.player_class()
