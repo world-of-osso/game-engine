@@ -89,11 +89,11 @@ func hover_at(point: Vector2) -> void:
 	await wait_frames(2)
 
 func prove_ordinary_clicks() -> bool:
-	var before := perk_observation().sent.duplicate()
+	var before: Array = perk_observation().sent.duplicate()
 	for id in PERK_IDS:
 		await press("CommunitiesGuildPerk%d" % id)
 	await wait_frames(10)
-	var after := perk_observation().sent
+	var after: Array = perk_observation().sent
 	if after != before or perk_observation().chat_open:
 		return fail("Ordinary perk clicks cast a spell or opened chat")
 	write_json(role + "-ordinary-clicks.json", {"sent_before": before, "sent_after": after, "perk_ids": PERK_IDS})
