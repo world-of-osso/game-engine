@@ -1,3 +1,7 @@
+## 2026-10-15 — Housing Expert sound event scheduling
+
+[Expert source kits](systems/housing.md#expert-submode-sound-scheduling--implementation2026-10-15): native missing-release-kit RED/core missing-lookup RED→four kit tests and both-skin actual pointer/assigned-key/stream/mute proof. Generic precision press cue removed; changed shortcut path retains both-skin held manipulation and paid conservation. Modern old-checkbox selector failure retained separately; only unfinished mute resumed. Dummy driver excludes physical audibility/full audio parity; two inspected functional1280 held-input captures published.
+
 ## 2026-10-15 — Housing Expert binding context
 
 [Expert-only context](systems/housing.md#expert-binding-context--verified2026-10-15): full XML/OnShow/OnHide source rejects wrapper-only cross-mode activation inference before production edits. Both-skin native actual Options keys preserve Basic/Cleanup, switch three Expert submodes and conserve paid state; six inspected functional1280 PNGs. Diagnostic invalid oracle and old-extension protocol mismatch retained separately; no product/audio/timing/full-HD claim.

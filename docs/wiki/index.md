@@ -1,5 +1,7 @@
 # Wiki Index
 
+- [Expert housing sound events](systems/housing.md#expert-submode-sound-scheduling--implementation2026-10-15) — distinct source pointer/key kits, native nominal stream/mute properties and both-skin held-drag conservation; dummy driver excludes audible/full-audio parity.
+
 - [Expert housing binding context](systems/housing.md#expert-binding-context--verified2026-10-15) — Expert-only XML/context lifecycle rejects cross-mode activation hypothesis; both-skin native inactive/active assignments and paid conservation pass, no production fix.
 
 - [Guild invitation source chrome](systems/guilds.md#invitation-chrome--verified2026-10-15) — source translucent inset/corners/tiled edges replace static-popup art; two controls and both-skin native Join/Decline/pending proof, four inspected PNGs. Inner art/payload/lifecycle gaps remain separate.
