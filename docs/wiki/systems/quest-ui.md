@@ -124,3 +124,7 @@ Evidence: canonical `data/diagnostics/quest-objectives-2026-10-11/live-{go,spell
 - [World-quest availability source boundary](../investigations/world-quest-availability.md) — authorized rotation/import/expiry foundations and unresolved Retail task-area/eligibility; ordinary `world_quest_*` fixture names do not prove world quests.
 - [[minimap]] — objective polygons and tracker placement.
 - [[ui-system]] — native frame projection and font rendering.
+
+## Alliance escort native fixture —2026-10-16
+
+[Escort contract](../../specs/escort-quests.md) binds Feero4484/976/path35873 to real native greeting/detail/Accept, observed movement/ambusher identities and authoritative credit. The fixture reuses world_quest_flow pixel input and preview_world_skin, never fabricated quest snapshots. Server counter63/event77 and immunity145/attack49 have targeted GREEN; native acceptance remains pending. Private population/setup and compositor-only FullHD adapter are explicitly bounded in the contract.
