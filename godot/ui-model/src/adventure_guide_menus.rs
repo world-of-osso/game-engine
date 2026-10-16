@@ -81,7 +81,10 @@ pub fn difficulty_menu(view: &View, instance: u32) -> Element {
     let overrides = world.then_some((250, 17));
     let regular = JOURNAL_DIFFICULTIES
         .into_iter()
-        .filter(|id| *id != 250 && !(world && *id == 17) && available.contains(id))
+        .filter(|id| {
+            let overridden = *id == 250 || (world && *id == 17);
+            !overridden && available.contains(id)
+        })
         .map(|id| (id, id));
     let entries: Vec<_> = overrides
         .into_iter()
@@ -98,20 +101,20 @@ pub fn difficulty_menu(view: &View, instance: u32) -> Element {
     menu("EncounterJournalDifficultyMenu", &entries, 673., 102.)
 }
 /// DifficultyUtil_Base names and EJ.lua86–102; primary raids have no size prefix.
-pub(crate) fn difficulty_caption(view: &View, id: u32) -> String {
+pub(crate) fn difficulty_caption(view: &View, difficulty: u32) -> String {
     let world = view
         .instance
-        .is_some_and(|id| has_world_difficulty(view, id));
-    let id = match id {
+        .is_some_and(|instance| has_world_difficulty(view, instance));
+    let display = match difficulty {
         17 if world => 250,
         250 => 250,
-        _ => base_difficulty(id),
+        _ => base_difficulty(difficulty),
     };
-    let name = difficulty_name(id);
-    if matches!(id, 14..=17 | 33 | 250) {
+    let name = difficulty_name(display);
+    if matches!(display, 14..=17 | 33 | 250) {
         return name.into();
     }
-    let Some(players) = view.catalog.difficulty_max_players.get(&id) else {
+    let Some(players) = view.catalog.difficulty_max_players.get(&display) else {
         return String::new();
     };
     text("ENCOUNTER_JOURNAL_DIFF_TEXT")
