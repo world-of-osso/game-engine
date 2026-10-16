@@ -1,3 +1,7 @@
+## 2026-10-15 — Private summon initial-state probe
+
+[Wild55 wire probe](systems/toy-box.md#private-summon-initial-state-probe-2026-10-15) extends the existing private Scarab fixture with explicit Podium/Shrine modes, source count/level/HP checks and Shrine cursor targeting. Default Scarab control and120s waits remain. Runtime proof is pending; no old native/pixel/expiry recertification.
+
 ## 2026-10-15 — Winner's Podium native fixture
 
 [Podium54 boundary](systems/toy-box.md#winners-podium-native-boundary-2026-10-15): actual bag/journal/source actor and static movement fixture, unchanged gameplay camera; private authenticated70391 closure8/4aliases and one127527 appearance-coverage addition. Source server RED3→GREEN6, postmerge20/20 and both matching builds/checks pass. Fresh native Modern/Forever frames show127527, correct source position/scale/alpha/no pet frame and static behavior after real movement; original full-HD frames inspected. Exact ed425/fe1d/ab40 scope retained across later server-only pure47 extraction;20min wall lifetime remains unclaimed.
