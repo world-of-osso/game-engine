@@ -259,6 +259,7 @@ pub enum AccountEvent {
     Stable(StableMessage),
     GuildRanks(shared::protocol::GuildRanksState),
     GuildEventLog(shared::protocol::GuildEventLog),
+    GuildNews(shared::protocol::GuildNewsState),
     GuildInvitation(shared::protocol::GuildInvitation),
     GuildInviteResult(shared::protocol::GuildInviteResponse),
     GuildAccepted(shared::protocol::GuildAcceptInviteResponse),
@@ -1169,6 +1170,7 @@ impl Account {
             GuildCommand::QueryEventLog => {
                 bridge.send::<_, GuildChannel>(GuildRankRequest::QueryEventLog)
             }
+            GuildCommand::News(request) => bridge.send::<_, GuildChannel>(request),
         }
         .map_err(SessionError)
     }
@@ -2146,6 +2148,10 @@ impl Account {
         }
         if message.is::<shared::protocol::GuildRanksState>() {
             output.push(AccountEvent::GuildRanks(decode(message)?));
+            return Ok(());
+        }
+        if message.is::<shared::protocol::GuildNewsState>() {
+            output.push(AccountEvent::GuildNews(decode(message)?));
             return Ok(());
         }
         if message.is::<shared::protocol::GuildEventLog>() {

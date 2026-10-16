@@ -3,6 +3,20 @@ use crate::housing::{ALL_CATEGORY, FEATURED_CATEGORY, HousingAuthority, HousingD
 use game_engine_core::housing::{Category, Decor, Subcategory};
 use std::collections::BTreeSet;
 
+const MENU_HOVER_SECONDS: f32 = 0.33;
+
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+pub enum StorageMenuTarget {
+    Sort,
+    RootRow,
+}
+
+#[derive(Clone, Debug, Default, PartialEq)]
+pub(crate) struct StorageMenuHover {
+    target: Option<StorageMenuTarget>,
+    elapsed: f32,
+}
+
 const PANEL_SLIDE_SECONDS: f64 = 0.2;
 const HANDLE_SLIDE_SECONDS: f64 = 0.15;
 const HANDLE_SLIDE_DISTANCE: f32 = 64.0 * 0.67;
@@ -94,14 +108,51 @@ impl HousingDashboard {
         (part, 0.0)
     }
 
+    pub fn close_storage_menus(&mut self) {
+        self.storage_filters_open = false;
+        self.storage_sort_open = false;
+        self.storage_menu_hover = StorageMenuHover::default();
+    }
+
+    /// Menu.lua restarts its0.33s timer on entering another row; leave cancels its target.
+    pub fn advance_storage_menu_hover(&mut self, target: Option<StorageMenuTarget>, delta: f32) {
+        if !self.storage_filters_open {
+            self.storage_menu_hover = StorageMenuHover::default();
+            return;
+        }
+        if self.storage_menu_hover.target != target {
+            self.storage_menu_hover = StorageMenuHover {
+                target,
+                elapsed: 0.0,
+            };
+        }
+        self.storage_menu_hover.elapsed =
+            (self.storage_menu_hover.elapsed + delta).min(MENU_HOVER_SECONDS);
+        if self.storage_menu_hover.elapsed >= MENU_HOVER_SECONDS {
+            match target {
+                Some(StorageMenuTarget::Sort) => self.storage_sort_open = true,
+                Some(StorageMenuTarget::RootRow) => self.storage_sort_open = false,
+                None => {}
+            }
+        }
+    }
+
     /// Storage disables collection filters; missing acquisition dates cannot define a sort.
     pub fn storage_filter_action(&mut self, action: &str) -> Result<bool, String> {
         match action {
-            "housing:storage:filters" => self.storage_filters_open = !self.storage_filters_open,
-            "housing:storage:sort" => self.storage_sort_open = !self.storage_sort_open,
-            "housing:storage:sort:alphabetical" => self.storage_alphabetical = true,
+            "housing:storage:filters" => {
+                let opening = !self.storage_filters_open;
+                self.close_storage_menus();
+                self.storage_filters_open = opening;
+            }
+            "housing:storage:sort" => self.storage_sort_open = true,
+            "housing:storage:sort:alphabetical" => {
+                self.storage_alphabetical = true;
+                self.close_storage_menus();
+            }
             "housing:storage:filter:dyeable" => {
-                self.storage_dyeable_only = !self.storage_dyeable_only
+                self.storage_dyeable_only = !self.storage_dyeable_only;
+                self.storage_sort_open = false;
             }
             "housing:storage:filter:reset" => self.storage_dyeable_only = false,
             action if action.starts_with("housing:storage:sort:") => {
