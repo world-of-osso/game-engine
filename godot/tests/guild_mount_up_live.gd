@@ -164,6 +164,11 @@ func capture(label: String) -> void:
 	camera.queue_free()
 	previous.make_current()
 
+func fail(message: String) -> bool:
+	if is_instance_valid(client):
+		write_json(role + "-spell-failure-state.json", client.spells_state())
+	return super.fail(message)
+
 func mark_officer(name: String) -> bool:
 	var file := FileAccess.open(officer_dir.path_join(name), FileAccess.WRITE)
 	if file == null:
