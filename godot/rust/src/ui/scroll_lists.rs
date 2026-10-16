@@ -117,7 +117,9 @@ fn scroll_steps(model: &RegistryModel, list: &str) -> (usize, usize) {
     }
     if QUEST_SCROLL_FRAMES.contains(&list)
         || list == game_engine_ui_model::quest_log_frame_component::QUEST_LOG_DETAILS_SCROLL
+        || list == game_engine_ui_model::guild_event_log::SCROLL_BOX
     {
+        // ScrollFrameTemplate -> ScrollUtil.InitScrollFrameWithScrollBar uses30px (lua203).
         return (SCROLL_PAN_EXTENT, SCROLL_PAN_EXTENT);
     }
     if list == game_engine_ui_model::follower_dungeons::FOLLOWER_LIST {

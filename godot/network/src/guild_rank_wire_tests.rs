@@ -179,6 +179,90 @@ fn guild_member_note_profile_fields_cross_real_udp() {
 }
 
 #[test]
+fn guild_event_log_wire_preserves_six_kinds_order_and_typed_refusal() {
+    let (mut server, address) = crate::wire_tests::start_fixture_server_with(install);
+    let mut bridge = NetworkBridge::connect(address, 8262).unwrap();
+    connect(&mut server, &mut bridge);
+    bridge
+        .send::<_, GuildChannel>(GuildRankRequest::QueryEventLog)
+        .unwrap();
+    let deadline = Instant::now() + Duration::from_secs(10);
+    while server.world().resource::<Requests>().0.is_empty() && Instant::now() < deadline {
+        server.update();
+        thread::sleep(Duration::from_millis(5));
+    }
+    assert_eq!(
+        server.world().resource::<Requests>().0,
+        vec![GuildRankRequest::QueryEventLog]
+    );
+    let history = GuildEventLog {
+        events: [
+            GuildEventKind::Invite {
+                actor: "Ada".into(),
+                member: "Ben".into(),
+            },
+            GuildEventKind::Join {
+                member: "Ben".into(),
+            },
+            GuildEventKind::Promote {
+                actor: "Ada".into(),
+                member: "Ben".into(),
+                rank: "Veteran".into(),
+            },
+            GuildEventKind::Demote {
+                actor: "Ada".into(),
+                member: "Ben".into(),
+                rank: "Member".into(),
+            },
+            GuildEventKind::Remove {
+                actor: "Ada".into(),
+                member: "Ben".into(),
+            },
+            GuildEventKind::Quit {
+                member: "Ada".into(),
+            },
+        ]
+        .into_iter()
+        .map(|kind| GuildEvent {
+            timestamp: 123,
+            kind,
+        })
+        .collect(),
+        server_time: 456,
+        error: None,
+    };
+    let refused = GuildEventLog {
+        events: vec![],
+        server_time: 457,
+        error: Some(GuildRankError::NotInGuild),
+    };
+    for reply in [&history, &refused] {
+        let world = server.world_mut();
+        world
+            .query::<&mut MessageSender<GuildEventLog>>()
+            .single_mut(world)
+            .unwrap()
+            .send::<GuildChannel>(reply.clone());
+        server.update();
+    }
+    let mut received = Vec::new();
+    let deadline = Instant::now() + Duration::from_secs(10);
+    while received.len() < 2 && Instant::now() < deadline {
+        server.update();
+        for event in bridge.drain_events().unwrap() {
+            if let Event::Message(message) = event
+                && message.is::<GuildEventLog>()
+            {
+                received.push(message.downcast::<GuildEventLog>().ok().unwrap());
+            }
+        }
+        thread::sleep(Duration::from_millis(5));
+    }
+    bridge.stop().unwrap();
+    assert_eq!(received, vec![history, refused]);
+}
+
+#[test]
 fn guild_ranks_wire_sends_exact_requests_and_receives_ordered_authority() {
     let (mut server, address) = crate::wire_tests::start_fixture_server_with(install);
     let mut bridge = NetworkBridge::connect(address, 8261).unwrap();
