@@ -63,7 +63,7 @@ func verify_query(request: Dictionary) -> void:
     var state: Dictionary = JSON.parse_string(reply["state_json"])
     var bad_target: Dictionary = client.call("spell_priority_state", 0, ids)
     var bad_spell: Dictionary = client.call("spell_priority_state", int(request["target"]), PackedInt32Array([0]))
-    var known: Array = state["facts"]["known"]
+    var known := PackedInt32Array(state["facts"]["known"])
     var facts_passed: bool = (state["target"] == int(request["target"])
         and before.get("target") == after.get("target")
         and before.get("target") != int(request["target"])
