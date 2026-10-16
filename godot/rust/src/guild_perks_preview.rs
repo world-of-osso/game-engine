@@ -12,7 +12,18 @@ impl GameClient {
             .expect("actual spell automation sent receipt")
             .to::<PackedInt64Array>()
             .to_vec();
+        let player = self
+            .world
+            .local_player_id()
+            .and_then(|id| self.replica.unit(id));
+        let speed = player.and_then(|unit| unit.get::<shared::components::MovementSpeed>());
+        let mounted = player.and_then(|unit| unit.get::<shared::components::Mounted>());
+        let motion = player.and_then(|unit| unit.get::<shared::components::PlayerMotion>());
         let json = serde_json::to_string(&serde_json::json!({
+            "movement_speed": speed.map(|speed| speed.0),
+            "mount_id": mounted.map(|mount| mount.mount_id),
+            "can_fly": motion.map(|motion| motion.contains(shared::components::PlayerMotion::CAN_FLY)),
+            "flying": motion.map(|motion| motion.contains(shared::components::PlayerMotion::FLYING)),
             "sent": sent,
             "known_spells": self.account.spells.known(),
             "chat_open": self.chat.model.state.input_open,
