@@ -4126,3 +4126,5 @@ Completed Retailv2 codec/authoritative Create and committed Copy callbacks, exac
 - 2026-10-16: Button tooltips source content2 and native both-skin real-control/lifetime proof pass;16 full-HD screenshots plus4 contacts published. Final29UI12native/check/scopedformat pass; pending-item/native disabled-refund boundaries remain explicit. [Trading Post](systems/trading-post.md#button-tooltips--implementation-october16).
 
 - 2026-10-16: Confirmation covers native both-skin GREEN: Escape preserves Purchase/Refund/Cart/Clear; explicit Cancel retains authority/cart, one real purchase/refund restores Tender.12 full-HD screenshots+2 contacts published;29UI12native/check/format pass atfc1d4c351. [Trading Post](systems/trading-post.md#confirmation-keyboard-ownership--implementation-october16).
+
+- 2026-10-16: Single Purchase/Refund pending popup lifetime model2 and actual paused-private-server native RED observed. Source retains modal/spinner and purchase removes its own cart item; request-reply snapshot boundary unchanged. [Trading Post](systems/trading-post.md#accepted-single-item-confirmation-lifetime--implementation-october16).
