@@ -1037,7 +1037,7 @@ fn seed_range_pose_snapshot(app: &mut App) -> Result<(), String> {
     Ok(())
 }
 
-fn read_local_range_result(run: &mut Run, target: u64) -> Result<serde_json::Value, String> {
+fn request_local_range_result(run: &mut Run, target: u64) -> Result<serde_json::Value, String> {
     fs::write(
         run.artifacts.join("local-range-request.json"),
         format!("{{\"target\":{target}}}"),
@@ -1089,7 +1089,7 @@ fn check_local_range_pose(run: &mut Run) -> Result<(), String> {
         .find(|(_, npc)| npc.name == "Fixture Vendor")
         .map(|(entity, _)| entity.to_bits())
         .ok_or("local range vendor absent")?;
-    let result = read_local_range_result(run, target)?;
+    let result = request_local_range_result(run, target)?;
     let local_x = result["local_position"][0]
         .as_f64()
         .ok_or("local cast pose absent")?;
