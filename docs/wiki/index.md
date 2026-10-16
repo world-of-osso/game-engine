@@ -1,3 +1,4 @@
+- [HouseSettings action-button art](systems/housing.md#housesettings-action-button-art--2026-10-16) — source UIPanel sheets/fixed12px caps; RED→GREEN, both-skin physical states and eight unchanged-outside context pairs.
 - [HouseSettings close button](systems/housing.md#housesettings-close-button--2026-10-16) — source24px/anchor/frame level, retained state art under ADD; RED→GREEN, both-skin physical proof and16 unchanged-outside context pairs.
 - [HouseSettings decorative regions](systems/housing.md#housesettings-decorative-regions--2026-10-16) — source gradient/foliage/divider; RED→GREEN, both-skin native geometry/pixels and zero changes outside three XML rectangles.
 - [Pet ready-dialog button art](systems/battle-pets.md#queue-ready-button-art--2026-10-16) — source UIPanel sheets/fixed12px caps; RED→GREEN and both-skin physical state/pending proof, four contexts unchanged outside buttons.
