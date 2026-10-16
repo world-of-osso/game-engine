@@ -406,6 +406,89 @@ fn adventure_guide_model_limits_authored_choices_to_nine() {
 }
 
 #[test]
+fn adventure_guide_item_sets_clamp_stale_scroll_and_reset_class_changes() {
+    let mut v = view();
+    game_engine_ui_model::item_catalog::wait_for_item_catalog();
+    v.player_spec = Some(71);
+    v.apply("journal:tab:sets").unwrap();
+    set_thread_skin(ActiveSkin::Modern);
+    let mut context = SharedContext::new();
+    context.insert(ActiveSkin::Modern);
+    context.insert(v.clone());
+    let mut registry = FrameRegistry::new(1920., 1080.);
+    let mut screen = Screen::new(adventure_guide_screen);
+    screen.sync(&context, &mut registry);
+    registry
+        .scroll_lists
+        .scroll_to("EncounterJournalContent", 1800);
+    screen.sync(&context, &mut registry);
+    assert!(
+        registry
+            .scroll_lists
+            .get("EncounterJournalContent")
+            .unwrap()
+            .first_row
+            > 0
+    );
+    let previous = v.clone();
+    v.apply("journal:class:2").unwrap();
+    game_engine_ui_model::adventure_guide_art::reset_changed_scrolls(&previous, &v, &mut registry);
+    assert_eq!(
+        registry
+            .scroll_lists
+            .get("EncounterJournalContent")
+            .unwrap()
+            .first_row,
+        0
+    );
+    v.apply("journal:class:1").unwrap();
+    registry
+        .scroll_lists
+        .scroll_to("EncounterJournalContent", 1800);
+    let mut catalog = (*v.catalog).clone();
+    catalog.sets.retain(|set| set.id == 567);
+    v.catalog = Arc::new(catalog);
+    context.insert(v);
+    screen.sync(&context, &mut registry);
+    assert_eq!(rect(&registry, "JournalSet567Row"), [10., 29., 744., 41.]);
+    assert_eq!(
+        registry
+            .scroll_lists
+            .get("EncounterJournalContent")
+            .unwrap()
+            .first_row,
+        0
+    );
+}
+
+#[test]
+fn adventure_guide_item_sets_class_labels_use_source_class_color_without_coloring_spec() {
+    let mut v = view();
+    v.player_spec = Some(71);
+    v.apply("journal:tab:sets").unwrap();
+    let r = render(&v, ActiveSkin::Modern);
+    assert_eq!(text(&r, "JournalClassFilterClassText"), "Warrior");
+    assert_eq!(text(&r, "JournalClassFilterSpecText"), " (Arms)");
+    let Some(WidgetData::FontString(class)) = &frame(&r, "JournalClassFilterClassText").widget_data
+    else {
+        panic!("Source colored class run");
+    };
+    assert_eq!(class.color, [0.78, 0.61, 0.43, 1.]);
+    let Some(WidgetData::FontString(spec)) = &frame(&r, "JournalClassFilterSpecText").widget_data
+    else {
+        panic!("Source specialization run");
+    };
+    assert_eq!(spec.color, [1.; 4]);
+    v.apply("journal:filter:spec").unwrap();
+    let r = render(&v, ActiveSkin::Modern);
+    let Some(WidgetData::FontString(title)) = &frame(&r, "JournalClassTitleText").widget_data
+    else {
+        panic!("Source class menu title");
+    };
+    assert_eq!(title.color, class.color);
+}
+
+#[test]
 fn adventure_guide_item_sets_keep_source_filters_independent_and_preserve_all_classes() {
     let mut v = view();
     v.player_spec = Some(71);
