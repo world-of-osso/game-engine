@@ -134,7 +134,7 @@ func task_progress() -> int:
 func kill_authored_elemental() -> bool:
 	var deadline := Time.get_ticks_msec()+45000
 	while Time.get_ticks_msec()<deadline:
-		var units := client.get_node_or_null("WorldUnits")
+		var units := client.find_child("WorldUnits",true,false)
 		if units != null:
 			for unit in units.get_children():
 				if unit.get_meta("unit_name", "") != "Enslaved Inferno":
@@ -144,10 +144,15 @@ func kill_authored_elemental() -> bool:
 					continue
 				var id := int(pick.get_meta("unit_server_id"))
 				if client.unit_alive(id):
-					var reply := admin({"Damage": {"character_name":character,"amount":6000.,"target":id}})
+					var reply := admin({"Damage": {"character_name":character,"amount":1000000.,"target":id}})
 					return not reply.is_empty()
 		await process_frame
-	stop("Living authored Enslaved Inferno not mirrored")
+	var summary := []
+	var units := client.find_child("WorldUnits",true,false)
+	if units != null:
+		for unit in units.get_children().slice(0,20):
+			summary.append(unit.get_meta("unit_name",""))
+	stop("Living authored Enslaved Inferno not mirrored; root=" + str(units!=null) + " names=" + str(summary))
 	return false
 
 func check_arrival_and_reward() -> bool:
