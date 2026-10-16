@@ -1,3 +1,5 @@
+- [Unavailable storage filters](systems/housing.md#unavailable-storage-filters--qualified2026-10-16) — sourced location/tag query contracts, explicit missing field/history mappings; collection rows intentionally absent in storage.
+- [Lifetime honor source boundary](systems/battlegrounds.md#lifetime-honor-source-boundary--2026-10-16) — concrete world-kill XP0→47→94, both-skin native full-HD tooltip/relog; unknown level/curve and completion/season policies remain gaps; Character Currency port next.
 - [House Access checkbox targets](systems/housing.md#house-access-checkbox-hit-targets--2026-10-16) — source row/checkbox split; native bad label dispatch reproduced then refused,32 physical cases and40 unchanged-outside context pairs.
 - [Alliance escort native fixture](systems/quest-ui.md#alliance-escort-native-fixture--2026-10-16) — Feero976 real-input harness; both skins earned all-three-wave credit; authenticated receipt closure and server grid-lifecycle fix.
 - [HouseSettings action-button art](systems/housing.md#housesettings-action-button-art--2026-10-16) — source UIPanel sheets/fixed12px caps; RED→GREEN, both-skin physical states and eight unchanged-outside context pairs.
@@ -8,8 +10,15 @@
 - [Clean-room M2 particles](systems/godot-conversion.md#native-m2-particles) — native tails/follow/cubic controls, authored sorting and map-collision births; inherited-scale provenance and explicit lighting, timer/reset, spline-density, target-mask and model-recursion oracle gaps.
 # Wiki Index
 
+- [Trading Post cart item tooltips](systems/trading-post.md#cart-item-tooltips--implementation-october16) — regular/member identity and source owner offset/no sell price; native RED→both-skin hover/remove GREEN, global-input fixture correction and eight inspected full-HD samples.
+- [Fade effect projection](systems/battle-pets.md#fade-effect-projection--2026-10-16) — current70391 sourced random self-swap, both-skin fullHD pointer/log/model proof and91 identical rectangles; complete Retail art/timing excluded.
+
+- [BM native Assist preparation](systems/bot-harness.md#bm-native-assist-preparation--2026-10-16) — ordinary received-slot input/ack gate; pinned TC constructor proves Passive default, stored stance preserved; fresh DPS remains separate.
+
+- [Terminal follower death delivery](systems/bot-harness.md#terminal-follower-death-delivery--2026-10-16) — delayed child-process delivery RED→receiver-drain; server owner-emission baseline passes, live timing proof pending.
 - [Trading Post accepted-item pending dialog](systems/trading-post.md#accepted-single-item-confirmation-lifetime--implementation-october16) — model/native RED→both-skin painted spinner/overlay/rotation/reply GREEN, source inset and accepted-item cart pruning; ten full-HD originals, provider/error gaps explicit.
 - [Storage menu lifetime](systems/housing.md#storage-menu-lifetime--implementation2026-10-16) — native missing-hover RED→both-skin seven-phase hover/collapse/dismiss/owner lifetime and checkbox/radio GREEN, exact paid conservation; source0.33s model delay covered.
+- [Guild perk authority](systems/guilds.md#perk-native-authority-and-effect-boundary-2026-10-16) — real five-definition Benefits and owner grants, ordered native spell messages, actual invitation/removal/quit receipts, both-skin tooltip/chat/restart proof; individual effects remain separately qualified.
 
 - [Storage filter popup](systems/housing.md#storage-filter-popup--implementation2026-10-15) — native old-geometry RED→both-skin source root/Sort anchors, real radio/checkbox/reset and paid conservation; current-binary F17 recapture has durable four-record proof.
 
@@ -35,6 +44,7 @@
 - [Caster-centered assisted range](investigations/cooldown-assist-data.md#caster-centered-assisted-range--2026-10-16) — retain authored Self Only range identity instead of excluding selected-enemy distance; actual Whirlwind RED→GREEN and25 core controls, fresh native acceptance open.
 - [Minimap zoom source states](systems/minimap.md#zoom-button-source-states--2026-10-15) — both-skin native hover/press/limit-disabled and release cancellation; unchanged enabled idle/context pixels outside zoom rectangles.
 - [Ysera body closure](systems/toy-box.md#ysera-body-asset-closure-2026-10-16) — seventeen authenticated70391 dependencies and four private runtime aliases; procedural8605/type22 remains unrendered.
+- [Ysera body closure](systems/toy-box.md#ysera-body-asset-closure-2026-10-16) — seventeen authenticated70391 dependencies and four runtime aliases; canonical combined Rust-loader/hash readback passes after receipt deduplication. Procedural8605/type22 remains unrendered.
 - [Stone Whistle asset closure](systems/toy-box.md#stone-whistle-native-asset-closure-2026-10-16) — five same-build70391 assets and two runtime skin aliases authenticated/published privately; native pixels remain open.
 
 - [Shrine viewer-level probe](systems/toy-box.md#shrine-viewer-level-probe-2026-10-15) — real UseToy replicated range/delta projection and zero-tuning controls pass fresh private wire; rendered target text/combat/HP remain separate.
