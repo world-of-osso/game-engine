@@ -133,6 +133,8 @@ func wait_until(predicate: Callable, what: String) -> bool:
 	return fail("Timed out waiting for " + what)
 
 func fail(message: String) -> bool:
+	if is_instance_valid(client) and client.has_method("guild_perks_observation"):
+		write_json(role + "-failure-observation.json", perk_observation())
 	print("FAIL GUILD_PERKS_NATIVE ", message)
 	push_error(message)
 	quit(1)
