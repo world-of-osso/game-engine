@@ -1,3 +1,7 @@
+## 2026-10-15 — Housing storage filter popup
+
+[Source popup](systems/housing.md#storage-filter-popup--implementation2026-10-15): native old-position/width RED→shared menu description/Sort arrows/radios/root6/2 anchor. Missing Placeable/date/tag/collection semantics remain unavailable; both-skin GREEN pending.
+
 ## 2026-10-15 — Housing storage Filter header
 
 [Filter header](systems/housing.md#storage-filter-header--implementation2026-10-15): actual native missing-source-surface RED→shared fixed-width Filter/reset primitive and both-skin physical four-phase assertions GREEN on the existing725px drawer. Existing popup/semantics/authority unchanged. Four inspected1280 PNGs; Forever truncated final JSON retained with three complete records and final reset/conservation PASS/screenshot, no invented fourth record. Unrelated missing terrain shader is excluded from scoped header proof. Primary-mode animation hypothesis rejected because source enables it only on unsupported Layout/Exterior.

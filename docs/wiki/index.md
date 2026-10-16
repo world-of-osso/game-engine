@@ -1,6 +1,8 @@
 - [Clean-room M2 particles](systems/godot-conversion.md#native-m2-particles) — native tails/follow/cubic controls, authored sorting and map-collision births; inherited-scale provenance and explicit lighting, timer/reset, spline-density, target-mask and model-recursion oracle gaps.
 # Wiki Index
 
+- [Storage filter popup](systems/housing.md#storage-filter-popup--implementation2026-10-15) — source shared menu rows/root and Sort anchors after native old-geometry RED; both-skin GREEN pending.
+
 - [Storage Filter header](systems/housing.md#storage-filter-header--implementation2026-10-15) — native missing-surface RED→both-skin fixed source Filter/reset geometry, physical Dyeable/reset and paid conservation; popup/full-image parity excluded, Forever final JSON limitation retained.
 
 - [Expert active submode glow](systems/housing.md#expert-active-glow--implementation2026-10-15) — native missing-glow RED→both-skin painted fixed-mask/six-second shared-phase/canvas-lifetime GREEN, unchanged paid state and six inspected1280 PNGs; full appearance remains open.

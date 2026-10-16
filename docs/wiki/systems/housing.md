@@ -16,6 +16,12 @@ Actual native missing-source-background RED preceded code. Nativee3d902625/exten
 
 Forever final JSON was truncated at40960 bytes: original retained, three complete records recovered separately; final reset/conservation assertions, screenshot and PASS remain valid, not a fabricated fourth structured record. Subsequent fixture explicit flush/error-check/close precedes runner completion but was not replayed as new native UI evidence. Forever also logs unrelated missing `res://shaders/terrain_mcsh.gdshader`; no F17 terrain fix or clean-whole-runtime claim. No collection/location/tag/date semantics, popup/full-image/full-HD parity or later-master native claim. Primary-mode flipbook candidate was rejected before edits: shouldPlayActivateAnim is true only for unsupported Layout/Exterior buttons, not Basic/Expert/Cleanup.
 
+## Storage filter popup — implementation2026-10-15
+
+[Contract](../../specs/housing.md#storage-filter-popup-composition). Storage root/sort popups now use existing `context_menu_description` and typed source submenu/divider/checkbox/radio entries. Root uses Filter BOTTOMLEFT+6/+2 and owner minimum125; first source row inset8 places Sort's popup at its actual TOPRIGHT. The root retains both authored dividers, while missing tags/collection/location/date data do not become invented filters. Placeable/Date Added remain disabled source labels; generic diagnostic text rows/literal Sort By `>` are removed. Existing action state and paid authority remain unchanged.
+
+Actual native old-popup position/width RED preceded edits; both-skin GREEN pending. Ledger `/home/osso/.worktrees/housing-core14-evidence/F18-proof-ledger.md`. Menu hover-open/auto-dismiss, unavailable filter semantics and full housing remain separate.
+
 ## Authority and copies
 
 `HousingHud` retains a qualified catalog and independent `HousingAuthority`. Dashboard opening queries reliable HousingRequest/Reply; browsing never grants or enters property. Unknown storage stays unknown until a matching-build snapshot; confirmed absence means zero. Owned counts include stored plus placed copies across the account's houses. Logout/world reset clears authority.
