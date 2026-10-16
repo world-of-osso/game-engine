@@ -522,7 +522,7 @@ impl crate::GameClient {
         }
         let visible = self.chat_editbox_text();
         self.chat.draft.apply_visible_edit(&visible);
-        let ui = self.chat.ui.as_ref().ok_or("Chat frame is not shown")?;
+        let mut ui = self.chat.ui.clone().ok_or("Chat frame is not shown")?;
         let node = ui
             .find_child_ex(CHAT_EDITBOX.0)
             .owned(false)
@@ -544,7 +544,8 @@ impl crate::GameClient {
             .chat
             .draft
             .insert_wire_link(start as usize, end as usize, link)?;
-        edit.set_text(self.chat.draft.visible());
+        ui.bind_mut()
+            .set_editbox_text(CHAT_EDITBOX.0, self.chat.draft.visible())?;
         edit.set_caret_column(caret as i32);
         Ok(())
     }
