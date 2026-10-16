@@ -14,6 +14,12 @@ Retail Mainline Blizzard_PerksProgram and the local C_PerksProgram/PerksActiviti
 - [x] Traveler's Log displays authoritative monthly Tender earned/cap/balance. No invented mail awards. Retail XML defines visible controls; remove unsourced vendor SearchBox, Log/Collections and Freeze/Unfreeze buttons (lead clarification October13).
 - [x] Targeted behavioural tests and inspected private UDP5731 fb_* account PNG proof in Modern and Forever.
 
+## Product-row item tooltips
+
+- Hovering a vendor product shows that hovered row's Retail item ID, quality/name and catalog item details, independently of the selected model preview. Use the shared native tooltip renderer, not a product-description substitute.
+- Retail PerksProgramElements.lua306–314 uses `GetItemByID`, excludes `SellPrice`, and owns the tooltip at `ANCHOR_RIGHT` with X−16/Y0. Preserve the shared screen clamp; hide on pointer leave or vendor teardown. Hover must not change selection, Tender or server state.
+- [x] Native missing-tooltip RED→both-skin GREEN at engine569419cb7/servera820dfda/protocoldc30250. Fixture `godot/tests/trading_post_live.gd`, phase `item-tooltips`, verifies two hovered item identities/details/right−16 positions without sell price, unchanged selected row/Tender, pointer leave and Escape/vendor teardown/reopen/HUD restoration. Eight inspected full-HD originals+two contacts: `/syncthing/AgentShared/2026-10-16/trading-post-item-tooltips/`; diagnostic `item-tooltips-proof-manifest.json` pins actual artifact hashes and receipts. Product-row coverage does not certify frozen/cart/detail-row or footer-button tooltips, item spell-effect formatting, or framing.
+
 ## Menu lifecycle sounds
 
 Source: Retail PerksProgram.lua226/253 and SoundKitConstants.lua, with SoundKit/SoundKitEntry12.1.5.70391. [Implementation/proof inventory](../wiki/systems/trading-post.md#menu-lifecycle-sounds--bounded-proof-october15); behavioral tests: `godot/core/tests/trading_post_menu_sound.rs`, `godot/tests/trading_post_live.gd` (`menu-sounds`).

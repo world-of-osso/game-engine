@@ -1,7 +1,9 @@
 - [Alliance escort native fixture](systems/quest-ui.md#alliance-escort-native-fixture--2026-10-16) — Feero976 real-input harness; server GREEN, both-skin native partial proof; completion blocked.
+- [House Access dropdown](systems/housing.md#house-access-dropdown--2026-10-16) — source WowStyle2/MenuStyle1 caller replacement; RED→GREEN, both-skin physical states/draft selections,26 context comparisons confined to the House Access column.
 - [Clean-room M2 particles](systems/godot-conversion.md#native-m2-particles) — native tails/follow/cubic controls, authored sorting and map-collision births; inherited-scale provenance and explicit lighting, timer/reset, spline-density, target-mask and model-recursion oracle gaps.
 # Wiki Index
 
+- [Trading Post product item tooltips](systems/trading-post.md#product-row-item-tooltips--implementation-october16) — sourced hovered-row identity/right−16 anchor/no sell price; native RED→both-skin GREEN, final-scale ordering root fix and eight inspected full-HD samples.
 - [Campsite selected-hover](investigations/glue-menu-fidelity.md#campsite-selected-hover-branch--2026-10-15) — source gold selected-hover member/18px slicing; both-skin physical dispatch/reselection proof,24 unchanged control/context pairs.
 
 - [Raid title glyphs](systems/adventure-guide.md#raid-title-glyphs--bounded-proof-2026-10-16) — published Heroic/Mythic20px atlas flags, source16px title/right3/centerY and Normal/LFR reset; six inspected both-skin native originals, visibility authority excluded.
@@ -43,6 +45,7 @@
 - [Equipped-item material closure](systems/asset-pipeline.md#equipped-item-material-closure--verified-2026-10-15) — actual ten-item Human-male graph43/43 authenticated, typed3/4 overrides beyond M2 TXID; canonical publication and native clear pending.
 - [AH duration source menu](systems/auction-house-ui.md#duration-source-composition--2026-10-15) — shared dropdown/radios, caller115/Arial Narrow12/RIGHT,10 source/reducer controls and four inspected both-skin native samples; no fresh trading claim.
 
+- [Player-bot measurement](systems/bot-harness.md) — health-qualified per-ability triage and six common-budget Arms/Fury/Havoc diagnostic windows; native auto-attack parity follow-up/all40/full detection open, Stockade deferred.
 - [Player-bot measurement](systems/bot-harness.md) — health-qualified native/per-ability triage and common-budget Arms/Fury/Havoc MVP, six complete60s windows with empty jewelry/retained bags; all40/full detection open, Stockade deferred.
 - [Winner's Podium native fixture](systems/toy-box.md#winners-podium-native-boundary-2026-10-15) — actual source actor/static behavior with unchanged gameplay camera; private8-asset closure and both-skin rendered/static proof;20min wall expiry separate.
 - [Native summon lifetime proofs](systems/toy-box.md#native-summon-lifetime-proofs-2026-10-15) — release Forever Scarab and quiet both-skin Flute expiry; prior debug failures, unresolved following/navigation and exact binary scopes retained.
