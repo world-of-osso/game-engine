@@ -187,29 +187,38 @@ fn world_quest_block(
     block.lines = entry
         .objectives
         .iter()
-        .filter(|objective| objective.kind != shared::protocol::QuestObjectiveKind::ProgressBar)
-        .map(|objective| ObjectiveLine {
-            text: format!(
-                "{}/{} {}",
-                objective.current, objective.required, objective.text
-            ),
-            style: if objective.completed {
-                ObjectiveLineStyle::Completed
-            } else {
-                ObjectiveLineStyle::InProgress
-            },
-        })
+        .filter(|objective| !objective.text.is_empty())
+        .map(world_quest_objective_line)
         .collect();
     if let Some(end) = entry.expires_at {
         let remaining = end - now;
-        if (1..900).contains(&remaining) {
+        if (1..crate::world_quest_ui::TIME_CRITICAL_SECONDS).contains(&remaining) {
             block.lines.push(ObjectiveLine {
-                text: format!("Time Left: {} min", (remaining + 59) / 60),
+                text: format!("Time Left: {} min", (remaining / 60).max(1)),
                 style: ObjectiveLineStyle::CompletionText,
             });
         }
     }
     (block, progress)
+}
+
+fn world_quest_objective_line(
+    objective: &shared::protocol::QuestObjectiveSnapshot,
+) -> ObjectiveLine {
+    let text = if objective.kind == shared::protocol::QuestObjectiveKind::ProgressBar {
+        objective.text.clone()
+    } else {
+        format!(
+            "{}/{} {}",
+            objective.current, objective.required, objective.text
+        )
+    };
+    let style = if objective.completed {
+        ObjectiveLineStyle::Completed
+    } else {
+        ObjectiveLineStyle::InProgress
+    };
+    ObjectiveLine { text, style }
 }
 
 /// `QuestObjectiveTrackerMixin:UpdateSingle`: a finished quest shows only its

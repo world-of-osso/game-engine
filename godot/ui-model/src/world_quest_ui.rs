@@ -9,17 +9,17 @@ use ui_toolkit::{rsx, screen::SharedContext, widget_def::Element};
 
 struct DynName(String);
 
+pub const SELECT_PREFIX: &str = "world_quest:select:";
+pub const TIME_CRITICAL_SECONDS: i64 = 15 * 60;
+
 pub fn map_pins(
     catalog: &UiMapCatalog,
     map_id: u32,
     runtime: &QuestRuntime,
     now: i64,
 ) -> Vec<MapPin> {
-    let server_now = now + runtime.server_clock_offset;
     runtime
-        .world_quests
-        .iter()
-        .filter(|quest| quest.expires_at > server_now)
+        .active_world_quests(now)
         .filter_map(|quest| {
             let [x, y] = catalog.map_position(
                 map_id,
@@ -50,11 +50,8 @@ pub fn minimap_blips(
 ) -> Vec<crate::minimap::MinimapBlip> {
     use crate::minimap::{BlipKind, MinimapBlip, edge_offset};
     runtime
-        .world_quests
-        .iter()
-        .filter(|quest| {
-            quest.map_id == map_id && quest.expires_at > now + runtime.server_clock_offset
-        })
+        .active_world_quests(now)
+        .filter(|quest| quest.map_id == map_id)
         .filter_map(|quest| {
             let position = [quest.position.x as f32, -(quest.position.y as f32)];
             let (offset, edge) = edge_offset(view, position, map_size);
@@ -74,9 +71,20 @@ pub fn minimap_blips(
         .collect()
 }
 
+pub fn pin_at(pins: &[MapPin], uv: [f32; 2], [width, height]: [f32; 2]) -> Option<u32> {
+    const HIT_RADIUS: f32 = 16.;
+    pins.iter()
+        .find(|pin| {
+            pin.pin_type == MapPinType::WorldQuest
+                && ((pin.x - uv[0]) * width).abs() < HIT_RADIUS
+                && ((pin.y - uv[1]) * height).abs() < HIT_RADIUS
+        })
+        .and_then(|pin| pin.quest_id)
+}
+
 pub fn tooltip(quest: &AvailableWorldQuest, now: i64, position: [f32; 2]) -> TooltipPresentation {
     let remaining = (quest.expires_at - now).max(0);
-    let color = if remaining <= 900 {
+    let color = if remaining <= TIME_CRITICAL_SECONDS {
         [1., 0.1, 0.1, 1.]
     } else {
         [1.; 4]
@@ -130,18 +138,25 @@ pub fn tooltip(quest: &AvailableWorldQuest, now: i64, position: [f32; 2]) -> Too
 
 /// QuestUtils WorldQuestsSecondsFormatter uses one full unit at a day or less.
 fn time_left(seconds: i64) -> String {
-    if seconds > 86400 {
-        format!("{} Days {} Hours", seconds / 86400, seconds % 86400 / 3600)
-    } else if seconds >= 3600 {
-        let hours = seconds / 3600;
-        format!("{hours} {}", if hours == 1 { "Hour" } else { "Hours" })
-    } else {
-        let minutes = (seconds / 60).max(1);
-        format!(
-            "{minutes} {}",
-            if minutes == 1 { "Minute" } else { "Minutes" }
-        )
+    const MINUTE: i64 = 60;
+    const HOUR: i64 = 60 * MINUTE;
+    const DAY: i64 = 24 * HOUR;
+    if seconds < MINUTE {
+        return "< 1 Minute".into();
     }
+    let unit_count = if seconds > DAY { 2 } else { 1 };
+    let mut remaining = seconds;
+    [(DAY, "Day"), (HOUR, "Hour"), (MINUTE, "Minute")]
+        .into_iter()
+        .filter_map(|(unit, name)| {
+            let count = remaining / unit;
+            remaining %= unit;
+            let plural = if count == 1 { "" } else { "s" };
+            (count > 0).then(|| format!("{count} {name}{plural}"))
+        })
+        .take(unit_count)
+        .collect::<Vec<_>>()
+        .join(" ")
 }
 
 /// BonusTrackerProgressBarTemplate: 191x17 fill, 192x38 block.

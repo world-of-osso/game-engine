@@ -52,7 +52,7 @@ pub fn quest_ui_action(
     runtime: &mut QuestRuntime,
     ui: &mut QuestUiState,
 ) -> Vec<QuestUiEffect> {
-    if let Some(id) = parse_suffix::<u32>(action, "world_quest:select:") {
+    if let Some(id) = parse_suffix::<u32>(action, crate::world_quest_ui::SELECT_PREFIX) {
         if runtime
             .world_quests
             .iter()

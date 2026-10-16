@@ -342,17 +342,13 @@ impl GameClient {
             let layout =
                 WorldMapLayout::new(state.viewport, self.world_map.display.maximized, true);
             let [_, _, w, h] = layout.canvas_rect();
-            let hovered = state.pins.iter().find(|pin| {
-                pin.pin_type == MapPinType::WorldQuest
-                    && ((pin.x - uv[0]) * w).abs() < 16.
-                    && ((pin.y - uv[1]) * h).abs() < 16.
-            });
-            if let Some(quest) = hovered.and_then(|pin| {
+            let hovered = game_engine_ui_model::world_quest_ui::pin_at(&state.pins, uv, [w, h]);
+            if let Some(quest) = hovered.and_then(|id| {
                 self.account
                     .quests
                     .world_quests
                     .iter()
-                    .find(|quest| Some(quest.quest_id) == pin.quest_id)
+                    .find(|quest| quest.quest_id == id)
             }) {
                 let position = [
                     (uv[0] * w + 18.).min((w - 300.).max(0.)),
@@ -844,7 +840,8 @@ impl GameClient {
             if button.get_button_index() == MouseButton::LEFT
                 && let Some(id) = self.world_quest_pin_at(uv, layout)
             {
-                if let Err(error) = self.apply_quest_action(&format!("world_quest:select:{id}")) {
+                let prefix = game_engine_ui_model::world_quest_ui::SELECT_PREFIX;
+                if let Err(error) = self.apply_quest_action(&format!("{prefix}{id}")) {
                     godot_error!("World quest selection: {error}");
                 }
             } else {
@@ -857,15 +854,7 @@ impl GameClient {
     fn world_quest_pin_at(&self, uv: [f32; 2], layout: &WorldMapLayout) -> Option<u32> {
         let state = self.world_map_view()?;
         let [_, _, width, height] = layout.canvas_rect();
-        state
-            .pins
-            .iter()
-            .find(|pin| {
-                pin.pin_type == MapPinType::WorldQuest
-                    && ((pin.x - uv[0]) * width).abs() < 16.
-                    && ((pin.y - uv[1]) * height).abs() < 16.
-            })
-            .and_then(|pin| pin.quest_id)
+        game_engine_ui_model::world_quest_ui::pin_at(&state.pins, uv, [width, height])
     }
 
     fn world_map_title_buttons(&self, scale: f32) -> Vec<[f32; 4]> {
