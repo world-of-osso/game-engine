@@ -1,6 +1,6 @@
 # Wiki Index
 
-- [Trading Post pet comparison](systems/trading-post.md#pet-comparison-composition--implementation-october15-proof-pending) — independent dressed-player scene/source transforms and raw camera; host-absence RED observed, native proof pending; desiredScale/kit23877 remain named gaps.
+- [Trading Post pet comparison](systems/trading-post.md#pet-comparison-composition--bounded-proof-october15) — independent worlds/cameras and pending-close/category/reopen both-skin proof; inspected Garrlok framing is clipped, desiredScale/kit23877 and native framing semantics remain named gaps.
 
 - [Guild invitation source chrome](systems/guilds.md#invitation-chrome--verified2026-10-15) — source translucent inset/corners/tiled edges replace static-popup art; two controls and both-skin native Join/Decline/pending proof, four inspected PNGs. Inner art/payload/lifecycle gaps remain separate.
 
