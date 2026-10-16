@@ -74,6 +74,26 @@ fn adventure_guide_flags_real_burning_flames_reserves_title_and_renders_three_fl
 }
 
 #[test]
+fn adventure_guide_flags_tooltip_uses_source_zero_based_labels_and_rejects_unshown_flags() {
+    let mut view = crate::adventure_guide::View {
+        visible: true,
+        catalog: std::sync::Arc::new(catalog()),
+        ..Default::default()
+    };
+    let magic = crate::adventure_section_flags::tooltip(&view, "JournalSection827Flag7").unwrap();
+    assert_eq!(magic.content.title, "Magic Effect");
+    assert_eq!(magic.content.title_color, [1.; 4]);
+    assert_eq!(magic.content.lines.len(), 1);
+    assert_eq!(magic.content.lines[0].text, ""); // Installed source description is empty.
+    let tank = crate::adventure_section_flags::tooltip(&view, "JournalSection829Flag0").unwrap();
+    assert_eq!(tank.content.title, "Tank Alert");
+    assert!(crate::adventure_section_flags::tooltip(&view, "JournalSection827Flag0").is_none());
+    assert!(crate::adventure_section_flags::tooltip(&view, "JournalSection827Flag14").is_none());
+    view.visible = false;
+    assert!(crate::adventure_section_flags::tooltip(&view, "JournalSection827Flag7").is_none());
+}
+
+#[test]
 fn adventure_guide_flags_real_four_flag_header_and_unflagged_control() {
     let catalog = catalog();
     let section = &catalog.sections[&29828];

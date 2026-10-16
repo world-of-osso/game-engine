@@ -118,6 +118,7 @@ impl GameClient {
             GameClient::guild_news_tooltip,
             GameClient::trading_post_button_tooltip,
             GameClient::trading_post_tooltip,
+            GameClient::journal_section_flag_tooltip,
             GameClient::journal_defeated_tooltip,
             GameClient::journal_creature_tooltip,
             GameClient::journal_monthly_tooltip,
@@ -289,6 +290,19 @@ impl GameClient {
             },
             None,
         ))
+    }
+
+    fn journal_section_flag_tooltip(&mut self, hit: &HoveredFrame) -> Option<HoveredTooltip> {
+        let ui = hit.ui.bind();
+        let (owner, tooltip) = named_ancestor(ui.registry()?, hit.frame, |frame| {
+            game_engine_ui_model::adventure_section_flags::tooltip(
+                &self.adventure_guide.view,
+                frame.name.as_deref()?,
+            )
+        })?;
+        let bounds = ui.effective_rects()?;
+        let rect = bounds_rect(&bounds, owner)?;
+        Some(HoveredTooltip::text(tooltip.owned(rect, OwnerSide::Right)))
     }
 
     fn journal_defeated_tooltip(&mut self, hit: &HoveredFrame) -> Option<HoveredTooltip> {
