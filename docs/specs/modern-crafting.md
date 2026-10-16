@@ -37,7 +37,7 @@ Native acceptance verified2026-10-16: `godot/tests/modern_crafting_quality_live.
 
 ## Knowledge/specialization proof
 
-Reuse the existing authoritative trait engine and its authored currency mapping; do not create a second progression system. Native fixture `godot/tests/modern_crafting_knowledge_live.gd` exercises tree unlock, node/perk tooltips, staged spending, Undo and Apply on private UDP5951 at 1920×1080 in both skins. It uses recipe375188, tree350, path28546 and perk28534 from the existing authored catalog. Its explicitly seeded knowledge is not evidence of acquisition; quest-reward acquisition is independently covered by the existing server specialization tests. Native acceptance remains pending until both runs pass.
+Reuse the existing authoritative trait engine and its authored currency mapping; do not create a second progression system. Native fixture `godot/tests/modern_crafting_knowledge_live.gd` exercises tree unlock, node/perk tooltips, staged spending, Undo and Apply on private UDP5951 at 1920×1080 in both skins. It uses recipe375188, tree350, path28546 and perk28534 from the existing authored catalog. Its explicitly seeded knowledge is not evidence of acquisition; quest-reward acquisition is independently covered by the existing server specialization tests. Both native runs passed2026-10-16: rank0→1/30, knowledge25→24, Undo before Apply, committed rank retained after Apply. Fresh server/client relogs and an offline redb reopen both retain tree350 unlocked/rank1/knowledge24 without advancing profession skill. [Native proof](../wiki/systems/native-professions-crafting.md#knowledge-reuse--verified2026-10-16) owns evidence and limits.
 
 ## Explicit gaps
 
