@@ -12,6 +12,12 @@ Retail Mainline world quests with authoritative availability, POI-area acceptanc
 - [x] Controlled private UDP5861 proof completes real86941 with administrator-supplied authentic items and real86948 with administrator-driven authored NPC46327 deaths, in Modern/Forever using fb_* accounts. Current matching binaries show7/8→automatic completion/11765XP and living actors; Modern relog has no task. Inspected1280px PNGs under `/syncthing/AgentShared/2026-10-11/world-quests/`. Natural gathering/player combat is not certified.
 - [x] Integrate origin/master, targeted tests/check/fmt, full protocol suite when changed, explicit branch push and final census/SHAs/import command. Canonical world.db and UDP5000 untouched; protocol overrides uncommitted; patch blocks retained.
 
+## Active-task navigation and source tracker
+
+Received, unexpired world-quest pins accept a plain click as a client-local super-tracking toggle, without accepting a quest or granting progress/rewards. Selection survives while the received task remains available, including before polygon entry; completion/expiry removes it. Minimap placement uses the received authentic map/position, rotation and skin mask; nearby tasks have an unnumbered world-quest marker, while only the selected offscreen task has a rim direction arrow. Accepted tasks do not also become ordinary numbered quest POIs. This minimap composition is an engine presentation using source art, not a claim about the opaque Retail minimap renderer. Manual/Automatic remote world-quest watch semantics are not invented by the local navigation toggle.
+
+The World Quests tracker shows counted objectives as text, not a synthesized aggregate bar. Only an unfinished authored progressbar objective creates a percentage-only bar. Availability windows are not ordinary quest countdowns: show a low-time warning below fifteen minutes, after objective text/before a progressbar, rather than a day-long minute counter. Existing realm polygon acceptance and actual completion/reward settlement remain authoritative.
+
 ## World of Osso policy
 
 - `WORLD_QUEST_EPOCH`: Unix seconds, default1767225600 (2026-01-01 UTC). Nothing active before it.

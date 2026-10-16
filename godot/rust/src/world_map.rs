@@ -365,7 +365,7 @@ impl GameClient {
                 ));
             }
         }
-        state.highlighted_quest = self.quests.ui.highlighted;
+        state.highlighted_quest = self.quests.ui.highlighted.or(self.quests.ui.super_tracked);
         state
             .pins
             .extend(self.world_map_quest_offer_pins(&data.catalog, state.map_id));
@@ -840,9 +840,31 @@ impl GameClient {
             return false;
         }
         if let Some(uv) = uv {
-            self.navigate_world_map(button.get_button_index(), uv);
+            if button.get_button_index() == MouseButton::LEFT
+                && let Some(id) = self.world_quest_pin_at(uv, layout)
+            {
+                if let Err(error) = self.apply_quest_action(&format!("world_quest:select:{id}")) {
+                    godot_error!("World quest selection: {error}");
+                }
+            } else {
+                self.navigate_world_map(button.get_button_index(), uv);
+            }
         }
         true
+    }
+
+    fn world_quest_pin_at(&self, uv: [f32; 2], layout: &WorldMapLayout) -> Option<u32> {
+        let state = self.world_map_view()?;
+        let [_, _, width, height] = layout.canvas_rect();
+        state
+            .pins
+            .iter()
+            .find(|pin| {
+                pin.pin_type == MapPinType::WorldQuest
+                    && ((pin.x - uv[0]) * width).abs() < 16.
+                    && ((pin.y - uv[1]) * height).abs() < 16.
+            })
+            .and_then(|pin| pin.quest_id)
     }
 
     fn world_map_title_buttons(&self, scale: f32) -> Vec<[f32; 4]> {
