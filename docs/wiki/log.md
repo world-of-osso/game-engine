@@ -1,3 +1,7 @@
+## 2026-10-15 — Housing Expert binding context
+
+[Expert-only context](systems/housing.md#expert-binding-context--verified2026-10-15): full XML/OnShow/OnHide source rejects wrapper-only cross-mode activation inference before production edits. Both-skin native actual Options keys preserve Basic/Cleanup, switch three Expert submodes and conserve paid state; six inspected functional1280 PNGs. Diagnostic invalid oracle and old-extension protocol mismatch retained separately; no product/audio/timing/full-HD claim.
+
 ## 2026-10-15 — Guild member note implementation
 
 [Member details and notes](systems/guilds.md#member-details-and-notes): additive public-note storage preserves existing officer records; authenticated self/public/officer permissions, per-recipient privacy and Mainline31-letter popup source implemented. Current UI/decision28, actualUDP4 and server main-binary11 pass, including popup-target RED→GREEN, note commands/public-self payloads, rank-right/privacy and durable reopen. Six actual private5891 master/self/server-restart-readback runs now pass in Modern and Forever; fourteen inspected1920×1080 PNGs verify corrected border layering, input backdrops, self privacy and source removal confirmation. Current widgets22/22 includes destructive-confirmation RED→GREEN; native No/Escape sends nothing. Merged-head checks remain separate. Local TDB1210 contains62 guild reward rows; runtime import/eligibility, not source availability, remains a later guild gap.

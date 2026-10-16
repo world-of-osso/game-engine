@@ -1,5 +1,7 @@
 # Wiki Index
 
+- [Expert housing binding context](systems/housing.md#expert-binding-context--verified2026-10-15) — Expert-only XML/context lifecycle rejects cross-mode activation hypothesis; both-skin native inactive/active assignments and paid conservation pass, no production fix.
+
 - [Guild invitation source chrome](systems/guilds.md#invitation-chrome--verified2026-10-15) — source translucent inset/corners/tiled edges replace static-popup art; two controls and both-skin native Join/Decline/pending proof, four inspected PNGs. Inner art/payload/lifecycle gaps remain separate.
 
 - [Communities numeric roster sorting](systems/guilds.md#communities-metadata-sorting--verified2026-10-15) — source Level/Class headers, numeric/missing-value ordering, preserved member identity; seven controls and both-skin native physical proof with ten inspected before/after PNGs.
