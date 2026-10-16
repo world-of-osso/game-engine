@@ -4,7 +4,7 @@ use crate::bank_art::{label, texture};
 use crate::quest_art::named_atlas_texture;
 use crate::ui::strata::FrameStrata;
 use std::fmt;
-use ui_toolkit::{rsx, widget_def::Element};
+use ui_toolkit::{rsx, widget_def::Element, widgets::font_string::GameFont};
 
 const ROW_HEIGHT: f32 = 20.0;
 const MENU_INSET: f32 = 8.0;
@@ -219,20 +219,33 @@ fn dropdown_text(props: DropdownButton<'_>, state: DropdownState<'_>) -> Element
     } else {
         GOLD
     };
-    let (rect, justify) = match state.style {
-        DropdownStyle::WowStyle1 => ((8.0, 8.0, props.width - 34.0, 10.0), "LEFT"),
-        DropdownStyle::Filter => ((0.0, 0.0, props.width, 20.0), "CENTER"),
-        DropdownStyle::WowStyle2 => (
-            (13.0, (props.height - 20.0) / 2.0, props.width - 26.0, 20.0),
-            "CENTER",
-        ),
+    let rect = calculate_dropdown_text_rect(props, state.style);
+    let justify = if state.style == DropdownStyle::WowStyle1 {
+        "LEFT"
+    } else {
+        "CENTER"
     };
-    label(
-        props.label_name.into(),
-        props.text,
-        rect,
-        (12.0, color, justify),
-    )
+    rsx! { fontstring {
+        name: {DynName(props.label_name.into())},
+        width: {rect.2}, height: {rect.3}, text: {props.text},
+        font: GameFont::FrizQuadrata, font_size: 12.0, font_color: color,
+        shadow_color: "0.0,0.0,0.0,1.0", shadow_offset: "1,-1",
+        justify_h: justify, word_wrap: false, max_lines: 1,
+        pos_type: "absolute", left: {rect.0}, top: {rect.1},
+    } }
+}
+
+fn calculate_dropdown_text_rect(
+    props: DropdownButton<'_>,
+    style: DropdownStyle,
+) -> (f32, f32, f32, f32) {
+    match style {
+        // Retail's 10px FontString becomes a 15px-minimum native Label. Center
+        // that label in the button, retaining the source horizontal text/arrow anchors.
+        DropdownStyle::WowStyle1 => (8.0, 0.0, props.width - 34.0, props.height),
+        DropdownStyle::Filter => (0.0, 0.0, props.width, 20.0),
+        DropdownStyle::WowStyle2 => (13.0, (props.height - 20.0) / 2.0, props.width - 26.0, 20.0),
+    }
 }
 
 fn reset_button(props: DropdownButton<'_>, state: DropdownState<'_>) -> Element {

@@ -19,7 +19,7 @@ func run_fixture() -> void:
 		fail("Private compositor must expose 1920x1080 output")
 		return
 	var account := OS.get_environment("TP_ACCOUNT")
-	if server != "127.0.0.1:5791" or not account.begins_with("fb_") or shots.is_empty() or receipts.is_empty() or not phase in ["layout", "layout-proof", "browse", "relog", "purchase", "refund", "cart", "cart-lifetime", "rotate-controls", "mount-rider", "mount-rider-cancel", "freeze-workflow"]:
+	if server != "127.0.0.1:5791" or not account.begins_with("fb_") or shots.is_empty() or receipts.is_empty() or not phase in ["layout", "layout-proof", "browse", "relog", "purchase", "refund", "cart", "cart-lifetime", "rotate-controls", "mount-rider", "mount-rider-cancel", "freeze-workflow", "authored-camera", "frozen-slot-before", "frozen-slot-after"]:
 		fail("Explicit private 127.0.0.1:5791, fb_* account, phase and evidence paths required")
 		return
 	for directory in [shots, receipts]:
@@ -43,7 +43,7 @@ func run_fixture() -> void:
 	if not await wait_until(func(): return float(client.account_state().local_player_health) > 0.0, "private character alive", 120000): return
 	client.set_world_minutes(720.0)
 	await wait_frames(120)
-	if not phase in ["layout", "layout-proof", "cart", "cart-lifetime", "rotate-controls", "mount-rider", "mount-rider-cancel", "freeze-workflow"] and not await travelers_log(): return
+	if not phase in ["layout", "layout-proof", "cart", "cart-lifetime", "rotate-controls", "mount-rider", "mount-rider-cancel", "freeze-workflow", "authored-camera", "frozen-slot-before", "frozen-slot-after"] and not await travelers_log(): return
 	if not await open_vendor(): return
 	if phase in ["cart", "cart-lifetime"]:
 		# Collection UI owners may replace a hidden CanvasLayer while this vendor is open.
@@ -75,6 +75,9 @@ func run_fixture() -> void:
 		"mount-rider": await mount_rider_proof()
 		"mount-rider-cancel": await mount_rider_cancel_proof()
 		"freeze-workflow": await freeze_workflow_proof()
+		"authored-camera": await authored_camera_proof()
+		"frozen-slot-before": await frozen_slot_geometry_proof(false)
+		"frozen-slot-after": await frozen_slot_geometry_proof(true)
 		"refund": await refund_after_relog()
 		_: await browse()
 
@@ -476,6 +479,114 @@ func open_freeze_replacement(original: int, candidate: int, other: int) -> bool:
 		fail("Frozen replacement sent a request before showing Retail confirmation"); return false
 	return assert_freeze_waiting(original, candidate, other)
 
+func frozen_slot_geometry_proof(check_geometry: bool) -> void:
+	var tender := int(client.trading_post_state().tender)
+	if int(client.trading_post_state().frozen) >= 0:
+		if not await drag_off_frozen(): return
+		if not await wait_until(func(): return int(client.trading_post_state().frozen) < 0 and not client.trading_post_state().pending, "empty reservation for geometry capture"): return
+	if not await choose_category(2): return
+	if not await select_first_available(): return
+	if not await wait_until(func(): return client.trading_post_state().rider_ready, "mount ready for frozen geometry capture", 120000): return
+	var original := int(client.trading_post_state().selected)
+	await capture("empty-slot")
+	if not await drag_to_frozen("PerksProgramProduct%d" % original): return
+	if not await wait_until(func(): return int(client.trading_post_state().frozen) == original and not client.trading_post_state().pending, "settled frozen icon"): return
+	if check_geometry:
+		for name in ["PerksProgramFrozenIcon", "PerksProgramFrozenArtContainer", "PerksProgramFrozenFrame"]:
+			if not assert_native_rect(name, Rect2(78,801.5,64,64)): return
+		if not assert_native_rect("PerksProgramFrozenLabel", Rect2(150,811,233,45)): return
+	else:
+		# Preserve a genuinely old-layout before capture, not a hot-reloaded fix.
+		if not assert_native_rect("PerksProgramFrozenIcon", Rect2(78,817.5,32,32)): return
+		if not assert_native_rect("PerksProgramFrozenFrame", Rect2(62,801.5,64,64)): return
+	await capture("frozen-slot")
+	if check_geometry:
+		for frame_name in ["PerksProgramFrozenIcon", "PerksProgramFrozenSlotArt", "PerksProgramFrozenFrame"]:
+			if not assert_texture_pixels(frame_name): return
+	var candidate := await select_other_cartable([original])
+	if candidate < 0: return
+	if not await drag_to_frozen("PerksProgramProduct%d" % candidate): return
+	if not await wait_until(func(): return control("PerksProgramConfirmDialog") != null, "pending freeze glow"): return
+	if check_geometry:
+		if not assert_native_rect("PerksProgramFrozenItemGlow", Rect2(66,789.5,88,88)): return
+		var frost := control("PerksProgramFrozenFrame")
+		if frost != null and frost.is_visible_in_tree() and frost.modulate.a > 0.01: fail("Pending frozen icon incorrectly kept visible settled frost frame"); return
+	await capture("pending-slot")
+	if check_geometry and not assert_texture_pixels("PerksProgramFrozenItemGlow"): return
+	await click("PerksProgramConfirmCancelButton")
+	if not await wait_until(func(): return control("PerksProgramConfirmDialog") == null, "cancel pending geometry capture"): return
+	await capture("cancel-restores-frozen-slot")
+	if not await drag_off_frozen(): return
+	if not await wait_until(func(): return int(client.trading_post_state().frozen) < 0 and not client.trading_post_state().pending, "geometry fixture clears reservation"): return
+	if int(client.trading_post_state().tender) != tender: fail("Frozen geometry capture changed Tender"); return
+	await finish(phase)
+
+func authored_camera_proof() -> void:
+	if not await choose_category(2): return
+	if not await select_first_available(): return
+	if int(client.trading_post_state().selected) != 223: fail("Camera fixture requires source Celestial Steed223/scene633"); return
+	if not await wait_until(func(): return client.trading_post_state().rider_ready, "authored camera mount ready", 120000): return
+	var rider: Node3D = instance_from_id(int(client.trading_post_state().rider_actor_id)) as Node3D
+	var group: Node = rider.get_parent()
+	while group != null and group.name != "TradingPostMountPreview": group = group.get_parent()
+	if group == null: fail("Camera fixture mount group missing"); return
+	var camera: Camera3D = group.get_viewport().get_camera_3d()
+	var authored_yaw := deg_to_rad(137.5)
+	var expected_eye := Vector3(-cos(authored_yaw) * 23.0, 0, sin(authored_yaw) * 23.0)
+	if not camera.position.is_equal_approx(expected_eye): fail("Trading Post camera did not use authored633/619 base target0/yaw137.5deg/zoom23: %s" % camera.position); return
+	var initial_basis: Basis = group.basis
+	var initial_actor: Transform3D = group.get_node("MountActor").transform
+	var initial_camera: Transform3D = camera.transform
+	await capture("authored-base-mounted")
+	await click("PerksProgramTogglePlayerPreview")
+	if not await wait_until(func(): return not client.trading_post_state().rider_ready, "camera retains mount while hiding rider"): return
+	if not camera.transform.is_equal_approx(initial_camera): fail("Hide rider changed authored camera"); return
+	await capture("authored-base-mount-only")
+	for direction in ["Left", "Right"]:
+		var point: Vector2 = control("PerksProgramRotate" + direction + "Button").get_global_rect().get_center()
+		var before := camera.position
+		await motion(point, false)
+		await button_event(point, MOUSE_BUTTON_LEFT, true)
+		await wait_frames(10)
+		if camera.position.distance_to(before) < 1.0: fail("Held rotation did not orbit actual camera"); return
+		if not is_equal_approx(camera.position.length(), 23.0): fail("Orbit refitted camera distance"); return
+		if group.basis != initial_basis or group.get_node("MountActor").transform != initial_actor: fail("Orbit rotated actor instead of camera"); return
+		await capture("authored-orbit-held-" + direction.to_lower())
+		await motion(Vector2(1800,500), true, Vector2(1,0))
+		await button_event(Vector2(1800,500), MOUSE_BUTTON_LEFT, false)
+		await wait_frames(3)
+		var released := camera.transform
+		await wait_frames(10)
+		if not camera.transform.is_equal_approx(released): fail("Released orbit continued moving"); return
+		await capture("authored-orbit-released-" + direction.to_lower())
+	var drag_start := Vector2(900,500)
+	var yaw_before_drag := float(client.trading_post_state().camera_yaw)
+	await motion(drag_start, false)
+	await button_event(drag_start, MOUSE_BUTTON_LEFT, true)
+	await motion(drag_start + Vector2(60,0), true, Vector2(60,0))
+	await button_event(drag_start + Vector2(60,0), MOUSE_BUTTON_LEFT, false)
+	var ui_scale := control("PerksProgramMainModelScene").get_global_rect().size.x / 1920.0
+	var expected_drag := yaw_before_drag - 60.0 / ui_scale * 0.008
+	if absf(float(client.trading_post_state().camera_yaw) - expected_drag) > 0.0001: fail("Drag did not orbit with source effective-scale delta"); return
+	if group.basis != initial_basis or group.get_node("MountActor").transform != initial_actor: fail("Drag rotated authored actors"); return
+	await capture("authored-drag-camera-only")
+	await button_event(drag_start, MOUSE_BUTTON_WHEEL_UP, true)
+	await button_event(drag_start, MOUSE_BUTTON_WHEEL_UP, false)
+	if not is_equal_approx(camera.position.length(), 13.1): fail("Wheel did not change source zoom percent by0.1"); return
+	await capture("authored-wheel-zoom")
+	await button_event(drag_start, MOUSE_BUTTON_WHEEL_DOWN, true)
+	await button_event(drag_start, MOUSE_BUTTON_WHEEL_DOWN, false)
+	if not is_equal_approx(camera.position.length(), 23.0): fail("Wheel did not restore authored base zoom"); return
+	await click("PerksProgramTogglePlayerPreview")
+	if not await wait_until(func(): return client.trading_post_state().rider_ready, "restored rider under authored camera", 120000): return
+	if group.basis != initial_basis or group.get_node("MountActor").transform != initial_actor: fail("Rider restore changed authored actor"); return
+	await capture("authored-orbit-rider-restored")
+	if not await choose_category(3): return
+	if not await select_first_available(): return
+	if is_instance_valid(group): fail("Camera category change retained old mount scene"); return
+	await capture("pet-base-camera")
+	await finish("authored-camera")
+
 func freeze_workflow_proof() -> void:
 	var tender := int(client.trading_post_state().tender)
 	if int(client.trading_post_state().frozen) >= 0:
@@ -651,22 +762,22 @@ func rotate_control_proof() -> void:
 		var target := control(name)
 		if target == null: fail("Missing Retail rotation button " + name); return
 		var point: Vector2 = target.get_global_rect().get_center()
-		var before := float(client.trading_post_state().model_yaw)
+		var before := float(client.trading_post_state().camera_yaw)
 		await motion(point, false)
 		await button_event(point, MOUSE_BUTTON_LEFT, true)
 		await wait_frames(10)
-		var held := float(client.trading_post_state().model_yaw)
+		var held := float(client.trading_post_state().camera_yaw)
 		if not assert_rotate_icon(name, true): return
-		var sign := -1.0 if direction == "Left" else 1.0
+		var sign := 1.0 if direction == "Left" else -1.0
 		if sign * (held - before) < 0.5: fail("Held %s did not continuously rotate sourced direction: %s -> %s" % [direction, before, held]); return
 		await capture("rotate-held-" + direction.to_lower())
 		await motion(Vector2(1800, 500), true, Vector2(1, 0))
 		await button_event(Vector2(1800, 500), MOUSE_BUTTON_LEFT, false)
 		await wait_frames(3)
-		var released := float(client.trading_post_state().model_yaw)
+		var released := float(client.trading_post_state().camera_yaw)
 		if not assert_rotate_icon(name, false): return
 		await wait_frames(10)
-		if absf(float(client.trading_post_state().model_yaw) - released) > 0.0001: fail("Release outside did not stop rotation"); return
+		if absf(float(client.trading_post_state().camera_yaw) - released) > 0.0001: fail("Release outside did not stop rotation"); return
 		await capture("rotate-released-" + direction.to_lower())
 	if not await choose_category(5): return
 	if not await select_first_available(): return
