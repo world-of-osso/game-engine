@@ -21,6 +21,7 @@ mod buffcancel;
 mod buttonfit;
 mod capturepolish;
 mod char_create;
+mod character_currency;
 mod character_frame;
 mod character_reputation;
 mod character_select;
