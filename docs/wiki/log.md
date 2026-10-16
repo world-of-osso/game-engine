@@ -1,3 +1,6 @@
+## 2026-10-16 — Guild news live acceptance
+
+[News](systems/guilds.md#news): source-qualified actual producers, independent query/filter/sticky authority and source art. Private UDP/native both-skin controls,250 physical retained entries, permissions/privacy and exact fresh-process readback pass;16 full-HD captures inspected. Final merged-source model4/backend6/wire1 and cargo checks pass. Source right-click input omission fixed; harness readiness and JSON-number membership failures remain distinct from product failures. Independent lead gate/landing next.
 ## 2026-10-16 — House Access checkbox-only hit targets
 
 [Source checkbox targeting](systems/housing.md#house-access-checkbox-hit-targets--2026-10-16):140px row button replaced with30×29 checkbox in noninteractive row; RED→GREEN5, both-skin label refusal/checkbox staging/mode/pending proof. Forty fullHD comparisons change only checkbox art after source LEFT anchoring. Typography/backend remain separate.
@@ -83,6 +86,9 @@
 ## 2026-10-15 — Minimap zoom state art
 
 - [Minimap](systems/minimap.md#zoom-button-source-states--2026-10-15): source Button states/full-opacity disabled grayscale; both-skin physical native proof, bounded offline screen/input acceptance.
+## 2026-10-15 — Private Shrine viewer-level probe
+
+[Viewer probe](systems/toy-box.md#shrine-viewer-level-probe-2026-10-15) adds replicated range/delta projection for viewers1/20/80 to the existing real-learning/UseToy fixture; Shrine native30 differs from viewer20 while zero-tuning Podium/default Scarab controls stay native. Current matched build/check/fmt and private wire pass all three modes; initial admin timeout is retained and only unfinished scenarios resumed on fresh accounts. No target-text pixels/combat/HP certificate.
 
 ## 2026-10-15 — Housing Expert active glow implementation
 
