@@ -81,8 +81,12 @@ func verify_full_results() -> bool:
 		stop("Source BottomPopup600x400/bottom+7 anchors changed")
 		return false
 	var row := control("JournalSearchResult0")
-	if row == null or row.size.distance_to(Vector2(575,49)) > 1.0 or label_text("JournalSearchResult0Name").is_empty() or label_text("JournalSearchResult0Type").is_empty() or label_text("JournalSearchResult0Path").is_empty():
+	if row == null or row.size.distance_to(Vector2(575,49)) > 1.0 or label_text("JournalSearchResult0Name").is_empty() or label_text("JournalSearchResult0Type").is_empty():
 		stop("Source full49px name/type/path row missing")
+		return false
+	# EJ_GetSearchDisplay Lua2457–2471 leaves instance path nil, unlike encounter path.
+	if label_text("JournalSearchResult0Name") != "Darkflame Cleft" or not label_text("JournalSearchResult0Path").is_empty() or label_text("JournalSearchResult2Name") != "Ambassador Flamelash" or label_text("JournalSearchResult2Path") != "Blackrock Depths":
+		stop("Actual instance-empty/encounter breadcrumb contract differs")
 		return false
 	if not await verify_painted_icon("JournalSearchResult0Icon") or not await shot("search-full-results"):
 		return false
