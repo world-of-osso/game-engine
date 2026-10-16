@@ -1,6 +1,8 @@
 - [Clean-room M2 particles](systems/godot-conversion.md#native-m2-particles) — native tails/follow/cubic controls, authored sorting and map-collision births; inherited-scale provenance and explicit lighting, timer/reset, spline-density, target-mask and model-recursion oracle gaps.
 # Wiki Index
 
+- [Stone Whistle asset closure](systems/toy-box.md#stone-whistle-native-asset-closure-2026-10-16) — five same-build70391 assets and two runtime skin aliases authenticated/published privately; native pixels remain open.
+
 - [Shrine viewer-level probe](systems/toy-box.md#shrine-viewer-level-probe-2026-10-15) — real UseToy replicated range/delta projection and zero-tuning controls pass fresh private wire; rendered target text/combat/HP remain separate.
 
 - [Expert active submode glow](systems/housing.md#expert-active-glow--implementation2026-10-15) — native missing-glow RED→both-skin painted fixed-mask/six-second shared-phase/canvas-lifetime GREEN, unchanged paid state and six inspected1280 PNGs; full appearance remains open.
