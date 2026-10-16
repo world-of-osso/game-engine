@@ -22,6 +22,7 @@ func run_test() -> void:
 	if not await wait_frames(func(): return client.account_state().screen == "InWorld" and client.account_state().local_player_position != null, "private startup in world", 180000):
 		return
 	if not await check_skin() or not await check_escort():
+		fail("Native escort acceptance did not complete")
 		return
 	client.free()
 	quit(0)
@@ -42,8 +43,8 @@ func check_escort() -> bool:
 	if giver.is_empty():
 		return false
 	if in_log(client.quest_state(), ESCORT_QUEST):
-		fail("Fresh escort976 must be unaccepted")
-		return false
+		if not await abandon_previous_escort():
+			return false
 	var visible := await find_unit(ESCORT_NAME)
 	if not await open_giver(visible):
 		return false
@@ -100,15 +101,18 @@ func check_escort() -> bool:
 					await capture("03-ambush-%s.png" % name.to_lower().replace(" ", "-"))
 				var id: int = area.get_meta("unit_server_id")
 				if client.unit_alive(id):
-					await face_unit(id)
 					await cast_live_spell(5176, id)
 					await create_timer(2.5).timeout
+					await cast_live_spell(5185, giver.id)
+					await create_timer(3.5).timeout
 					attacked = true
 					break
 			if attacked:
 				break
 		if not attacked and player_position().distance_to(escort.global_position) > 8.0:
-			if not await approach(giver.id, 5.0):
+			var to_escort: Vector3 = escort.global_position - player_position()
+			var heading := rad_to_deg(atan2(to_escort.x, to_escort.z))
+			if not await send_live_cli(["movement", "forward", "--seconds", "1.0", "--yaw-degrees", str(heading)]):
 				return false
 		step += 1
 		if step % 10 == 0:
@@ -118,16 +122,37 @@ func check_escort() -> bool:
 	fail("Escort976 did not complete in600s; inspect authored path/ambush trace")
 	return false
 
+func abandon_previous_escort() -> bool:
+	await tap(KEY_L)
+	await click_control(quest_control("WorldMapUI", "QuestLogTitle976"))
+	await click_control(quest_control("WorldMapUI", "QuestMapFrameAbandonButton"))
+	if not await wait_frames(func(): return client.find_child("StaticPopup1Button1", true, false) != null, "previous attempt abandon confirmation"):
+		return false
+	await click_control(quest_control("StaticPopupUI", "StaticPopup1Button1"))
+	if not await wait_quest(func(s): return not in_log(s, ESCORT_QUEST), "previous failed escort abandoned"):
+		return false
+	await tap(KEY_L)
+	return true
+
 func cast_live_spell(spell: int, target: int) -> void:
-	var unit := unit_by_id(target)
-	if unit == null:
-		return
-	await face_unit(target)
-	var point := find_unit_point(unit, target)
-	if point == Vector2.INF:
-		print("ESCORT_CAST not visible target=", target)
-		return
-	await click(point, MOUSE_BUTTON_LEFT)
-	await frames(3)
-	var error: String = client.use_spell(spell)
-	print("ESCORT_CAST spell=", spell, " target=", target, " result=", error)
+	await send_live_cli(["spell", "cast", "--spell", str(spell), "--target", str(target)])
+
+func send_live_cli(arguments: Array) -> bool:
+	var socket := "/tmp/game-engine-%d.sock" % OS.get_process_id()
+	var argv := PackedStringArray(["--socket", socket] + arguments)
+	var pid := OS.create_process(OS.get_environment("QF_CLI"), argv, false)
+	if pid < 0:
+		fail("Cannot launch owned native IPC command")
+		return false
+	var deadline := Time.get_ticks_msec() + 15000
+	while OS.is_process_running(pid) and Time.get_ticks_msec() < deadline:
+		await process_frame
+	if OS.is_process_running(pid):
+		OS.kill(pid)
+		fail("Owned native IPC command timed out: " + str(arguments))
+		return false
+	var code := OS.get_process_exit_code(pid)
+	if code != 0:
+		fail("Owned native IPC command failed: %s exit%d" % [arguments, code])
+		return false
+	return true
