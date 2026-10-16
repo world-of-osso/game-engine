@@ -92,6 +92,8 @@ Server/wire supports owner-local staged dyes, explicit atomic commit, preserved 
 
 ## HouseSettings access controls
 
+- [x] Each House Access option uses the source noninteractive100×30 row and a30×29 checkbox anchored LEFT at y0.5. Only the checkbox dispatches its existing toggle action; label/row clicks do not toggle. Mode/pending policy, staging reducer and natural-size art remain unchanged; label typography remains separately unqualified.
+
 - [x] Save, Ignore List and Abandon House use their source `UIPanelButtonTemplate` up/down/disabled/highlight sheets with fixed12px caps. Existing152×28 rects/captions/actions and disabled/pending policy remain unchanged; typography and unsupported owner/abandon/ignore workflows are not certified by this art slice.
 
 - [x] Close uses inherited `UIPanelCloseButtonDefaultAnchors`:24×24, TOPRIGHT(+1,0), frameLevel510; source RedButton normal/pressed/disabled art and full-alpha ADD highlight, without a text glyph/default skin. `HousingSettingsClose`/`housing:close` remain enabled while a request is pending; unrelated panel controls/backend behavior stay unchanged.
