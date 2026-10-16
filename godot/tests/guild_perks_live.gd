@@ -46,8 +46,9 @@ func run_test() -> void:
 			tooltips.append({"id": PERK_IDS[index], "title": text("TooltipTitle"), "lines": lines})
 			await capture("tooltip-%d" % PERK_IDS[index])
 		write_json(role + "-tooltips.json", {"tooltips": tooltips, "owner": perk_observation()})
-		if perk_mode == "controls" and not await prove_modified_link():
-			return
+		if perk_mode == "controls":
+			if not await prove_ordinary_clicks() or not await prove_modified_link():
+				return
 		await close_guild()
 	print("PASS GUILD_PERKS_NATIVE mode=", perk_mode, " known=", known_perks(), " both_skins=true")
 	client.free()
@@ -86,6 +87,17 @@ func hover_at(point: Vector2) -> void:
 	root.push_input(motion, true)
 	Input.warp_mouse(point)
 	await wait_frames(2)
+
+func prove_ordinary_clicks() -> bool:
+	var before := perk_observation().sent.duplicate()
+	for id in PERK_IDS:
+		await press("CommunitiesGuildPerk%d" % id)
+	await wait_frames(10)
+	var after := perk_observation().sent
+	if after != before or perk_observation().chat_open:
+		return fail("Ordinary perk clicks cast a spell or opened chat")
+	write_json(role + "-ordinary-clicks.json", {"sent_before": before, "sent_after": after, "perk_ids": PERK_IDS})
+	return true
 
 func prove_modified_link() -> bool:
 	var point := control("CommunitiesGuildPerk78633").get_global_rect().get_center()
