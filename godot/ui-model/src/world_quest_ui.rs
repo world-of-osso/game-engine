@@ -26,10 +26,10 @@ pub fn map_pins(
                 .iter()
                 .filter(|poi| catalog.lineage(poi.ui_map_id).contains(&map_id))
                 .find_map(|poi| {
-                    catalog.map_position_2d(
+                    catalog.map_position(
                         map_id,
                         poi.map_id,
-                        [poi.position.x as f32, poi.position.y as f32],
+                        [poi.x as f32, poi.y as f32, poi.z as f32],
                     )
                 })?;
             Some(MapPin {
@@ -58,8 +58,8 @@ pub fn minimap_blips(
     runtime
         .active_world_quests(now)
         .filter_map(|quest| {
-            let poi = nearest_poi(quest, map_id, view.center)?;
-            let position = [poi.position.x as f32, -(poi.position.y as f32)];
+            let poi = find_nearest_poi(quest, map_id, view.center)?;
+            let position = [poi.x as f32, -(poi.y as f32)];
             let (offset, edge) = edge_offset(view, position, map_size);
             if edge && selected != Some(quest.quest_id) {
                 return None;
@@ -77,9 +77,9 @@ pub fn minimap_blips(
         .collect()
 }
 
-/// Project navigation chooses the nearest authored area on the current world map.
-/// `center` is the engine's horizontal [x,z], as in MinimapView; no height is invented.
-pub fn nearest_poi(
+/// Minimap navigation chooses the nearest authored area in the horizontal view.
+/// `center` is engine [x,z], not the source height axis retained in WorldQuestPoi.
+fn find_nearest_poi(
     quest: &AvailableWorldQuest,
     map_id: u32,
     center: [f32; 2],
@@ -94,8 +94,8 @@ pub fn nearest_poi(
 }
 
 fn poi_distance_squared(poi: &WorldQuestPoi, center: [f32; 2]) -> f32 {
-    let dx = poi.position.x as f32 - center[0];
-    let dz = -(poi.position.y as f32) - center[1];
+    let dx = poi.x as f32 - center[0];
+    let dz = -(poi.y as f32) - center[1];
     dx * dx + dz * dz
 }
 

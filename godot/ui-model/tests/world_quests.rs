@@ -20,7 +20,9 @@ fn available() -> WorldQuestAvailability {
             pois: vec![WorldQuestPoi {
                 map_id: 0,
                 ui_map_id: 241,
-                position: QuestPoiPoint { x: -4655, y: -4310 },
+                x: -4655,
+                y: -4310,
+                z: 342,
             }],
             expires_at: 87400,
             rewards: QuestRewards::default(),
@@ -93,7 +95,9 @@ fn world_quests_authored_lower_floor_pin_does_not_invent_height_zero() {
     quest.pois = vec![WorldQuestPoi {
         map_id: 2601,
         ui_map_id: 2256,
-        position: QuestPoiPoint { x: -2268, y: -1960 },
+        x: -2268,
+        y: -1960,
+        z: -1591,
     }];
     quest.xp = 0;
     let mut runtime = QuestRuntime::default();
@@ -120,6 +124,11 @@ fn world_quests_authored_lower_floor_pin_does_not_invent_height_zero() {
     assert_eq!(pins[0].label, "Pawns of Dark Masters");
     assert!((pins[0].x - 0.6442027).abs() < 0.00001);
     assert!((pins[0].y - 0.8322616).abs() < 0.00001);
+    runtime.world_quests[0].pois[0].z = 0;
+    assert!(
+        world_quest_ui::map_pins(&catalog, 2256, &runtime, 900).is_empty(),
+        "pin rendering must use the received height, not bypass the floor check"
+    );
 }
 
 #[test]
@@ -205,16 +214,17 @@ fn world_quests_multiple_floor_areas_choose_the_nearest_navigation_point_once() 
                 && (pins[0].y - expected_uv[1]).abs() < 0.00001
         );
     }
-    for (center, map) in [([-2268., 1960.], 2256), ([-2275., 1992.], 2255)] {
-        let poi = world_quest_ui::nearest_poi(&runtime.world_quests[0], 2601, center).unwrap();
-        assert_eq!(poi.ui_map_id, map);
+    for center in [[-2268., 1960.], [-2275., 1992.]] {
         let view = MinimapView::new(center, 0);
         let blips = world_quest_ui::minimap_blips(&runtime, Some(82521), 2601, &view, 150., 900);
         assert_eq!(blips.len(), 1, "one task marker, not one marker per area");
         assert_eq!(blips[0].unit, 82521);
         assert_eq!(blips[0].offset, [0., 0.]);
     }
-    assert!(world_quest_ui::nearest_poi(&runtime.world_quests[0], 0, [0., 0.]).is_none());
+    let wrong_world = MinimapView::new([0., 0.], 0);
+    assert!(
+        world_quest_ui::minimap_blips(&runtime, Some(82521), 0, &wrong_world, 150., 900).is_empty()
+    );
 }
 
 #[test]

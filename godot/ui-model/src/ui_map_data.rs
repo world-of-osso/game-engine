@@ -53,12 +53,9 @@ impl UiMapAssignment {
     }
 
     fn contains(&self, [x, y, z]: [f32; 3]) -> bool {
-        self.contains_2d([x, y]) && (self.region_min[2]..=self.region_max[2]).contains(&z)
-    }
-
-    fn contains_2d(&self, [x, y]: [f32; 2]) -> bool {
         (self.region_min[0]..=self.region_max[0]).contains(&x)
             && (self.region_min[1]..=self.region_max[1]).contains(&y)
+            && (self.region_min[2]..=self.region_max[2]).contains(&z)
     }
 
     fn contains_uv(&self, [u, v]: [f32; 2]) -> bool {
@@ -233,20 +230,6 @@ impl UiMapCatalog {
     pub fn map_position(&self, ui_map: u32, map_id: u32, position: [f32; 3]) -> Option<[f32; 2]> {
         self.assignments(ui_map)
             .filter(|row| row.map_id == map_id && row.contains(position))
-            .min_by_key(|row| row.order)
-            .map(|row| row.uv(position[0], position[1]))
-    }
-
-    /// Project an authored 2D point on its selected UI map without inventing a height.
-    /// Callers with a real height must retain `map_position`'s floor discrimination.
-    pub fn map_position_2d(
-        &self,
-        ui_map: u32,
-        map_id: u32,
-        position: [f32; 2],
-    ) -> Option<[f32; 2]> {
-        self.assignments(ui_map)
-            .filter(|row| row.map_id == map_id && row.contains_2d(position))
             .min_by_key(|row| row.order)
             .map(|row| row.uv(position[0], position[1]))
     }
