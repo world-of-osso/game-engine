@@ -6,6 +6,9 @@ import tempfile
 import unittest
 from contextlib import closing
 from pathlib import Path
+from types import SimpleNamespace
+
+from unittest.mock import patch
 
 sys.path.insert(0, str(Path(__file__).resolve().parents[1]))
 from bot_stockade import admitted_copy, authored_priority, encounter_states, parse_npc, parse_party, stockade_exit_plan, stockade_plan, target_observation_ready
@@ -39,6 +42,25 @@ class StockadeSourceTests(unittest.TestCase):
             self.assertEqual(plan['trigger_id'], 503)
             self.assertEqual(plan['goal'], [48.0937233,-13.7769003,-0.933266521])
             self.assertEqual(plan['destination_map'], 0)
+            from run_stockade_bot import StockadeRun
+            controller = StockadeRun.__new__(StockadeRun)
+            controller.args = SimpleNamespace(world_db=path, character='Bwarfury')
+            controller.output = Path(root)
+            (Path(root) / 'native-account-state.json').write_text('{}')
+            # Actual terminal map34 observation has nav-surface Y below trigger center.
+            base = {'screen': 'InWorld', 'selected_character_name': 'Bwarfury', 'local_player_health': 8256}
+            observations = iter([{**base, 'world_map_id': 34,
+                                  'local_player_position': '(48.09372, -16.07247, -0.933267)'},
+                                 {**base, 'world_map_id': 0,
+                                  'local_player_position': '(-8766.11,87.9952,-845.499)'}])
+            controller.account = lambda: next(observations)
+            from bot_controller import PlayerController
+            controller.player = PlayerController(None, None,
+                lambda *args: [[48.09372, -15.718611, -0.933267]], None)
+            with patch('run_stockade_bot.time.sleep'):
+                controller.exit_instance()
+            confirmation = json.loads((Path(root) / 'exit-confirmation.json').read_text())
+            self.assertEqual(confirmation['account']['world_map_id'], 0)
             with closing(sqlite3.connect(path)) as db:
                 db.execute('DELETE FROM tdb_areatrigger_teleport');db.commit()
             with self.assertRaisesRegex(ValueError, 'exit|trigger'):
