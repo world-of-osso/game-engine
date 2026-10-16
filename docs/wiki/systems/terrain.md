@@ -153,3 +153,9 @@ Native annotated ADT trees instead attach fixed trunk/bendable limb capsules and
 - [[collision-system]] — broader collision design and remaining layers
 - [[elastic-trees]] — annotated doodad collision, deformation and unload ownership
 - [[npc-motion-validation]] — bounded stream, WMO-basis, and grounded-walk evidence
+
+## MCSH surface-shadow clean-room continuation
+
+Contract: [terrain MCSH](../../specs/terrain-mcsh.md). Allowed-source investigation (2026-10-15) finds only MCSH flags/offsets in WWV `adtFileHeader.h`; its inspected forward `adtShader.frag.slang` combines layers/MCCV/lighting but has no MCSH operand. Pinned wow.export c2fd7bd `ADTLoader.js` retains the offset without a surface consumer. Modulation, enable mapping and dynamic-shadow composition therefore remain named gaps rather than guessed constants. Existing split ownership remains [unchanged](../../specs/split-adt-shadows.md).
+
+A cache-only native fixture reads actual2703_31_36 root/_tex0, current Map.csv row2703's WDT5493025 flags, and chunk7's four real MDID/MHID textures. The source chunk has2,230 set MCSH bits in its texture companion and no high-resolution holes. It is a historical inactive-tile fixture, not a runtime preview fallback or current-build authenticity claim. It varies only the resolved mask while preserving geometry/MCCV/MCAL and performs diagnostic coverage sampling on the actual surface UVs; production brightness is not inferred. RED/coverage proof pending.
