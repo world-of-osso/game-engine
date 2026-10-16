@@ -1724,6 +1724,47 @@ fn guild_member_remove_requires_yes_and_keeps_original_target_both_skins() {
 }
 
 #[test]
+fn guild_perks_benefits_lists_the_five_installed_perk_spells_both_skins() {
+    let _lock = SKIN.lock().unwrap_or_else(|p| p.into_inner());
+    for skin in [ActiveSkin::Modern, ActiveSkin::Forever] {
+        set_thread_skin(skin);
+        let mut session = GuildRanksSession::default();
+        session.open();
+        session.apply(state(0));
+        session.profile = Some(GuildSnapshot {
+            guild_id: 7,
+            guild_name: "Guild Testers".into(),
+            tabard: None,
+            created_at: None,
+            motd: String::new(),
+            info_text: String::new(),
+            members: vec![],
+        });
+        session.click("guild:benefits_open", &Default::default());
+        let registry = mounted(&session);
+        assert_eq!(text(&registry, "CommunitiesGuildPerksTitle"), "Guild Perks");
+        for (spell, name) in [
+            (78633, "Mount Up"),
+            (83944, "Hasty Hearth"),
+            (83958, "Mobile Banking"),
+            (83950, "The Quick and the Dead"),
+            (83951, "Guild Mail"),
+        ] {
+            assert_eq!(
+                text(&registry, &format!("CommunitiesGuildPerk{spell}Name")),
+                name
+            );
+        }
+        session.click("guild:info_open", &Default::default());
+        assert!(
+            mounted(&session)
+                .get_by_name("CommunitiesGuildPerksTitle")
+                .is_none()
+        );
+    }
+}
+
+#[test]
 fn guild_member_detail_opens_from_roster_both_skins() {
     let _lock = SKIN.lock().unwrap_or_else(|p| p.into_inner());
     for skin in [ActiveSkin::Modern, ActiveSkin::Forever] {
