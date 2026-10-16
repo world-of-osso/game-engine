@@ -29,7 +29,7 @@ Private Modern proof learned Handstitched Leather Pants2153 from Simon Tanner at
 ## Authored quality-reagent selection
 
 - Mainline quality recipes remain selectable even when no output can be assigned. Only fixed CREATE_ITEM24 outputs use a concrete output item; CRAFT_ITEM288 does not choose the lowest tier.
-- Required basic slots use ModifiedCraftingSpellSlot → MCRSlotXMCRCategory → CraftingReagentQuality. Item.CraftingQualityID joins the authored tier independently of rarity; mixed allocations preserve per-item quantities.
+- Required basic slots use ModifiedCraftingSpellSlot → MCRSlotXMCRCategory → CraftingReagentQuality. Item.CraftingQualityID joins the authored tier independently of rarity; mixed allocations preserve per-item quantities. Mainline ReagentSlot.lua267–306 displays the selected inventory-tier glyph or IconMixedInv for multiple tiers; before quality allocations exist, actual owned stock determines that glyph. No stock means no glyph, never a default tier.
 - The shared 329×207 Mainline quality dialog has 100×75 tier containers, source item buttons and NumericInputSpinner dimensions, Accept/Cancel and a non-consuming server validation response. Values clamp to owned/required; increasing one tier removes overflow from other tiers in source order. Cancel discards only dialog edits.
 - Server validates recipe knowledge, membership, exact slot totals and aggregate bag ownership. Both skins share this behavior. Modifying/finishing eligibility, currency-slot allocation and unevaluated slot conditions remain explicit gaps, not substitute basic slots.
 

@@ -58,5 +58,9 @@
   {
     "path": "/syncthing/World of Warcraft/_retail_/BlizzardInterfaceCode/Interface/AddOns/Blizzard_SharedXML/SecureUIPanelTemplates.xml",
     "sha256": "9e24dc240956fb06ec09a4a36df27850c61f2cf115f9f0146a2db9e38a9df3ce"
+  },
+  {
+    "path": "/syncthing/World of Warcraft/_retail_/BlizzardInterfaceCode/Interface/AddOns/Blizzard_ProfessionsTemplates/Blizzard_ProfessionsRecipeReagentSlotBase.xml",
+    "sha256": "5065e6b80e0ad844816a5ce9e1d5952639c81267d7ee4d53ccc325176d8b3a8b"
   }
 ]

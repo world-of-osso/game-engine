@@ -228,10 +228,13 @@ fn professions_db2_catalog_joins_classic_tailoring_recipe() {
             "CraftingQuality",
             "ID,QualityTier,CraftingQualityAtlasSetID\n14,2,7\n",
         ),
-        ("CraftingQualityAtlasSet", "ID,IconInv\n7,20209\n"),
+        (
+            "CraftingQualityAtlasSet",
+            "ID,IconInv,IconMixedInv\n7,32404,32399\n",
+        ),
         (
             "UiTextureAtlasElement",
-            "ID,Name\n20209,Professions-Icon-Quality-Tier1-Inv\n",
+            "ID,Name\n32404,Professions-Icon-Quality-12-Tier2-Inv\n32399,Professions-Icon-Quality-12-Mixed-Inv\n",
         ),
         ("Item", "ID,CraftingQualityID\n244634,14\n2589,0\n"),
         (

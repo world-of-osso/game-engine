@@ -165,7 +165,8 @@ fn professions_quality_dialog_shows_authored_choices_without_a_crafted_tier_in_b
         assert!(
             registry
                 .get_by_name("ProfessionReagent1QualityOverlay")
-                .is_none()
+                .is_some(),
+            "Mainline shows the mixed inventory-quality glyph before an allocation exists"
         );
         let unowned_icon = frame(&registry, "ProfessionQuality193211Icon");
         assert!(

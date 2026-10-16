@@ -44,7 +44,10 @@ pub(super) fn schematic(view: &ProfessionView) -> Element {
                 owned,
                 needed,
                 action: "",
-                show_quality: true,
+                quality_atlas: view
+                    .crafting_quality
+                    .get(&item)
+                    .map(|quality| quality.inventory_atlas.as_str()),
             },
         ));
     }
@@ -90,7 +93,12 @@ fn quality_reagent_cells(view: &ProfessionView) -> Element {
                 owned,
                 needed: slot.quantity,
                 action: &action,
-                show_quality: false,
+                quality_atlas: crate::professions_reagent_selection::reagent_quality_atlas(
+                    slot,
+                    &view.reagent_selection.allocations,
+                    &view.bag_counts,
+                    &view.crafting_quality,
+                ),
             },
         ));
     }
@@ -128,7 +136,7 @@ struct ReagentCell<'a> {
     owned: u32,
     needed: u32,
     action: &'a str,
-    show_quality: bool,
+    quality_atlas: Option<&'a str>,
 }
 
 fn reagent_cell(view: &ProfessionView, cell: ReagentCell<'_>) -> Element {
@@ -138,7 +146,7 @@ fn reagent_cell(view: &ProfessionView, cell: ReagentCell<'_>) -> Element {
         owned,
         needed,
         action,
-        show_quality,
+        quality_atlas,
     } = cell;
     let Some(item) = view.items.get(&item_id) else {
         return vec![];
@@ -150,10 +158,10 @@ fn reagent_cell(view: &ProfessionView, cell: ReagentCell<'_>) -> Element {
         DISABLED_REAGENT_COLOR
     };
     let mut children = reagent_slot(item, index);
-    if show_quality && let Some(quality) = view.crafting_quality.get(&item_id) {
+    if let Some(atlas) = quality_atlas {
         children.extend(art::atlas_at_size(
             &format!("{prefix}QualityOverlay"),
-            &quality.inventory_atlas,
+            atlas,
             (-3.0, -2.0),
         ));
     }
