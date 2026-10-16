@@ -10,7 +10,7 @@
 //!   0x04: bone (u16) — bone index
 //!   0x06: unknown (u16)
 //!   0x08: position [f32; 3] — offset relative to bone, WoW coordinates
-//!   0x14: AnimBlock (20 bytes, skipped)
+//!   0x14: activation byte AnimBlock (20 bytes)
 
 use super::{
     MD20_ATTACHMENT_LOOKUP_COUNT_OFFSET, MD20_ATTACHMENTS_COUNT_OFFSET, read_f32, read_u16,
@@ -19,7 +19,7 @@ use super::{
 use crate::asset::read_bytes::read_m2_array_header;
 
 const ATTACHMENT_ENTRY_SIZE: usize = 40;
-const ATTACHMENT_PARSED_SIZE: usize = 20;
+const ATTACHMENT_ACTIVATION_OFFSET: usize = 20;
 const ATTACHMENT_ID_OFFSET: usize = 0;
 const ATTACHMENT_BONE_OFFSET: usize = 4;
 const ATTACHMENT_POSITION_OFFSET: usize = 8;
@@ -34,6 +34,22 @@ pub struct M2Attachment {
     pub bone: u16,
     /// Position offset relative to the bone, in WoW coordinates.
     pub position: [f32; 3],
+    /// Authored child animation/callback/shadow eligibility; absent samples are active.
+    pub activation: super::m2_anim::AnimTrack<u8>,
+}
+
+impl M2Attachment {
+    pub fn active_at(
+        &self,
+        sequence: usize,
+        time_ms: u32,
+        globals: &[u32],
+        global_ms: f64,
+    ) -> bool {
+        let (timeline, time) = crate::m2::global_track_time(&self.activation, globals, global_ms)
+            .unwrap_or((sequence, time_ms));
+        super::m2_anim::evaluate_u8_track(&self.activation, timeline, time).unwrap_or(1) != 0
+    }
 }
 
 /// Parse M2Attachment entries from MD20 offset 0xF0.
@@ -42,7 +58,7 @@ pub fn parse_attachments(md20: &[u8]) -> Result<Vec<M2Attachment>, String> {
     let mut attachments = Vec::with_capacity(count);
     for i in 0..count {
         let base = offset + i * ATTACHMENT_ENTRY_SIZE;
-        if base + ATTACHMENT_PARSED_SIZE > md20.len() {
+        if base + ATTACHMENT_ENTRY_SIZE > md20.len() {
             return Err(format!("Attachment {i} out of bounds at {base:#x}"));
         }
         attachments.push(M2Attachment {
@@ -53,6 +69,7 @@ pub fn parse_attachments(md20: &[u8]) -> Result<Vec<M2Attachment>, String> {
                 read_f32(md20, base + ATTACHMENT_POSITION_OFFSET + 4)?,
                 read_f32(md20, base + ATTACHMENT_POSITION_OFFSET + 8)?,
             ],
+            activation: super::m2_anim::parse_u8_track(md20, base + ATTACHMENT_ACTIVATION_OFFSET)?,
         });
     }
     Ok(attachments)
@@ -67,7 +84,7 @@ pub fn parse_ska1_attachments(ska1: &[u8]) -> Result<Vec<M2Attachment>, String> 
     let mut attachments = Vec::with_capacity(count);
     for i in 0..count {
         let base = offset + i * ATTACHMENT_ENTRY_SIZE;
-        if base + ATTACHMENT_PARSED_SIZE > ska1.len() {
+        if base + ATTACHMENT_ENTRY_SIZE > ska1.len() {
             return Err(format!("SKA1 attachment {i} out of bounds at {base:#x}"));
         }
         attachments.push(M2Attachment {
@@ -78,6 +95,7 @@ pub fn parse_ska1_attachments(ska1: &[u8]) -> Result<Vec<M2Attachment>, String> 
                 read_f32(ska1, base + ATTACHMENT_POSITION_OFFSET + 4)?,
                 read_f32(ska1, base + ATTACHMENT_POSITION_OFFSET + 8)?,
             ],
+            activation: super::m2_anim::parse_u8_track(ska1, base + ATTACHMENT_ACTIVATION_OFFSET)?,
         });
     }
     Ok(attachments)

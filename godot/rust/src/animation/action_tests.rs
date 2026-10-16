@@ -246,6 +246,24 @@ fn cast_clip_reports_its_cast_voice_event() {
     assert!(player.take_fired_events().is_empty());
 }
 
+#[test]
+fn a7_callbacks_drop_inactive_marker_without_replay_on_reactivation() {
+    for active in [false, true] {
+        let mut player = human_male_hd();
+        player.update_locomotion(STAND, false, false).unwrap();
+        player
+            .play_action(SPELL_CAST_DIRECTED, false, ActionPriority::Spell)
+            .unwrap();
+        advance(&mut player, 13);
+        let events = super::attachment::take_callbacks(&mut player, active);
+        assert_eq!(events, if active { vec![*b"$SCD"] } else { vec![] });
+        assert!(
+            super::attachment::take_callbacks(&mut player, true).is_empty(),
+            "ineligible callbacks are consumed, not queued for reactivation"
+        );
+    }
+}
+
 /// Attack1H reports HumanMale HD's `$CSS` (weapon swoosh) and, 100 ms later, `$CAH`
 /// (where the swing lands), each once.
 #[test]
