@@ -269,6 +269,16 @@ func run() -> void:
 	if not await enter_world_when_ready():
 		return
 	character = client.account_state().selected_character_name
+	if client.account_state().local_player_health <= 0.0:
+		# Explicit player-only controlled setup, never NPC health or quest credit.
+		admin({"Revive":{"character_name":character}})
+		deadline = Time.get_ticks_msec()+30000
+		while client.account_state().local_player_health <= 0.0 and Time.get_ticks_msec()<deadline:
+			await process_frame
+		if client.account_state().local_player_health <= 0.0:
+			stop("Controlled player resurrection failed")
+			return
+		print("WORLD_QUEST_SETUP playerRevive=true NPCHealthUnchanged=true")
 	if client.account_state().ui_skin.to_lower() != skin:
 		stop("Actual skin differs from receipt")
 		return
