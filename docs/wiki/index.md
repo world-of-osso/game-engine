@@ -1,9 +1,11 @@
+- [HouseSettings decorative regions](systems/housing.md#housesettings-decorative-regions--2026-10-16) — source gradient/foliage/divider; RED→GREEN, both-skin native geometry/pixels and zero changes outside three XML rectangles.
 - [Pet ready-dialog button art](systems/battle-pets.md#queue-ready-button-art--2026-10-16) — source UIPanel sheets/fixed12px caps; RED→GREEN and both-skin physical state/pending proof, four contexts unchanged outside buttons.
 - [House Access dropdown](systems/housing.md#house-access-dropdown--2026-10-16) — source WowStyle2/MenuStyle1 caller replacement; RED→GREEN, both-skin physical states/draft selections,26 context comparisons confined to the House Access column.
 - [Clean-room M2 particles](systems/godot-conversion.md#native-m2-particles) — native tails/follow/cubic controls, authored sorting and map-collision births; inherited-scale provenance and explicit lighting, timer/reset, spline-density, target-mask and model-recursion oracle gaps.
 # Wiki Index
 
 - [Trading Post confirmation keyboard cover](systems/trading-post.md#confirmation-keyboard-ownership--implementation-october16) — source no-hideOnEscape; native premature dismissal RED, explicit Cancel retained, GREEN pending.
+- [Trading Post button tooltips](systems/trading-post.md#button-tooltips--implementation-october16) — actual enabled/disabled owner branches and exact70391 labels; native RED→both-skin GREEN,16 inspected full-HD originals, provider-pending gap retained.
 
 - [Trading Post product item tooltips](systems/trading-post.md#product-row-item-tooltips--implementation-october16) — sourced hovered-row identity/right−16 anchor/no sell price; native RED→both-skin GREEN, final-scale ordering root fix and eight inspected full-HD samples.
 - [Campsite selected-hover](investigations/glue-menu-fidelity.md#campsite-selected-hover-branch--2026-10-15) — source gold selected-hover member/18px slicing; both-skin physical dispatch/reselection proof,24 unchanged control/context pairs.
