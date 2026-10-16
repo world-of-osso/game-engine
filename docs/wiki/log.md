@@ -1,3 +1,7 @@
+## 2026-10-16 — Two-way pet-wall HUD projection
+
+[Ice Barrier479](systems/battle-pets.md#two-way-wall-projection--2026-10-16): actual private5961 pointer casts in both explicit skins preserve incoming-block HP, show shared pad/cooldown, then outgoing Claw consumes the second block and the next Scratch damages. Six fullHD originals inspected;94/101/104 named geometry differs only by HP fill and timed float position. Both models framed, retained injury visible, all owned PIDs stopped. No new widgets/simulation; all-wall native casts,3D VFX and full Retail timing remain separate.
+
 ## 2026-10-16 — Fade effect native projection
 
 [Fade107](systems/battle-pets.md#fade-effect-projection--2026-10-16): both explicit skins on privateUDP5961 physically cast authored Jadefire Spirit Fade, observe Scratch miss/expiry/reserve swap, and retain two framed active models. Four fullHD originals inspected;91 shared PetBattle rectangles identical. Fixture removes broken auction inheritance and uses shared posed geometry. Current-CASC11-asset Jadefire closure staged privately; canonical publication remains lead-owned. All owned processes stopped.
