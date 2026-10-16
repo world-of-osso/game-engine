@@ -15,6 +15,9 @@ func run_test() -> void:
 	DirAccess.make_dir_recursive_absolute(shots)
 	client = load("res://scenes/client.tscn").instantiate()
 	root.add_child(client)
+	await process_frame
+	if not await wait_until(func(): return not client.account_state().assets_starting, "client asset startup before private authentication"):
+		return
 	var error = client.connect_account(endpoint, OS.get_environment("BANK_ACCOUNT"), PASSWORD, false)
 	if error != "":
 		fail(error)
