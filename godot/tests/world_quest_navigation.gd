@@ -4,6 +4,14 @@ const TASK := 86948
 var character := ""
 var skin := ""
 
+func _initialize() -> void:
+	call_deferred("arm_watchdog")
+	call_deferred("run")
+
+func arm_watchdog() -> void:
+	await create_timer(600.0).timeout
+	stop("Native proof exceeded600s; inspect runtime errors")
+
 func stop(reason: String) -> void:
 	push_error("WORLD_QUEST_NAV_FAIL " + reason)
 	if client != null:
@@ -136,7 +144,7 @@ func kill_authored_elemental() -> bool:
 	var report := admin({"NpcInfo":{"map_id":0,"instance_id":0,"entry":46327}})
 	var pattern := RegEx.new()
 	pattern.compile("entity ([0-9]+)\\) level [0-9]+ health ([0-9.]+)/")
-	for line in report.get("NpcInfoList",{}).get("lines",[]):
+	for line in report.get("NpcInfoList",[[]])[0]:
 		var found := pattern.search(str(line))
 		if found != null and float(found.get_string(2))>0.0:
 			var id := int(found.get_string(1))
@@ -190,6 +198,39 @@ func check_arrival_and_reward() -> bool:
 		return false
 	return true
 
+func check_window_ui() -> bool:
+	if not await teleport(-4655.,-4310.,294.) or not await wait_task(true):
+		return false
+	var end := int(OS.get_environment("WQ_EPOCH"))+86400
+	admin({"ClockAdvance":{"seconds":end-int(Time.get_unix_time_from_system())-600}})
+	var deadline := Time.get_ticks_msec()+30000
+	var warning: Label
+	while Time.get_ticks_msec()<deadline:
+		warning = control("QuestBlock%sLine1Text" % TASK) as Label
+		if warning != null and warning.text.begins_with("Time Left:"):
+			break
+		await process_frame
+	if warning == null or not warning.text.begins_with("Time Left:") or control("WorldQuest%sProgressLabel" % TASK) != null:
+		stop("Real low-window warning/count-only tracker mismatch")
+		return false
+	print("WORLD_QUEST_LOW_TIME ",warning.text," realmOffset=",client.quest_state().world_quest_server_offset)
+	if not await capture_phase("tracker-low-window"):
+		return false
+	await key(KEY_M)
+	var index := pin_index(TASK)
+	if index<0 or not await move_to("WorldMapPin%s" % index):
+		return false
+	if not await capture_phase("map-low-window-reward"):
+		return false
+	admin({"ClockAdvance":{"seconds":610}})
+	deadline = Time.get_ticks_msec()+30000
+	while (pin_index(TASK)>=0 or task_in_log()) and Time.get_ticks_msec()<deadline:
+		await process_frame
+	if pin_index(TASK)>=0 or task_in_log() or client.objective_tracker_state().super_tracked==TASK:
+		stop("Authoritative window end retained task/pin/selection")
+		return false
+	return await capture_phase("expired-window-map")
+
 func check_expiry() -> bool:
 	# Advance the private realm clock to its real policy window end, with an actual gap.
 	var end := int(OS.get_environment("WQ_EPOCH"))+86400
@@ -227,6 +268,16 @@ func run() -> void:
 	character = client.account_state().selected_character_name
 	if client.account_state().ui_skin.to_lower() != skin:
 		stop("Actual skin differs from receipt")
+		return
+	if OS.get_environment("WQ_WINDOW_ONLY")=="1":
+		if OS.get_environment("WQ_RESUME_WINDOW")!="1" and not await check_pin_navigation():
+			return
+		if not await check_window_ui():
+			return
+		print("WORLD_QUEST_UI_WINDOW_PASS skin=%s actual86948/lowtime/expiry; reward settlement NOT certified" % skin)
+		client.queue_free()
+		await process_frame
+		quit(0)
 		return
 	if not await check_pin_navigation() or not await check_arrival_and_reward() or not await check_expiry():
 		return
