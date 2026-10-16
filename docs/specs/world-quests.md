@@ -50,7 +50,7 @@ The World Quests tracker shows counted objectives as text, not a synthesized agg
 | Completion/replay/expiry | Stored task history; items/money/numeric rewards transaction; pinned QuestXP | Host-message/persistence tests; controlled both-skin live completion |
 | Native presentation | Pins/tooltips, separate World Quests module, timer/bar/toasts | Both-skin UI test plus inspected native PNGs |
 
-The existing-system representational boundary is an implementation gap, not absence of authentic objectives. Extending it or approving exclusions needs reconciliation with the user's existing-system-only instruction; no narrower goal has been accepted. Natural objective acquisition/player combat is not certified by administrator-seeded completion. Living actors are now demonstrated during controlled creature-credit completion, not ordinary unassisted gameplay.
+The existing-system representational boundary is an implementation/source gap, not absence of authentic objectives or an approved content exclusion. The2026-10-16 continuation requires each of the five gaps to be resolved from allowed sources or explicitly named; [the server source audit](../../../game-server/docs/world-quests.md#five-admission-gaps--verified-2026-10-16) records each quest and missing binding/producer. Natural objective acquisition/player combat is not certified by administrator-seeded completion. Living actors are demonstrated during controlled creature-credit completion, not ordinary unassisted gameplay.
 
 ## Sources and implementation
 
