@@ -1,6 +1,6 @@
 ## 2026-10-15 — Authored talent Starter selection
 
-[Starter Build](systems/talents.md#starter-build--2026-10-15): server-advertised built-in row, authoritative selection and shared-skin deviation confirmation. Server RED→GREEN2 covers actual level-up/relog and authored Paladin/Mage ranks; native acceptance pending.
+[Starter Build](systems/talents.md#starter-build--2026-10-15): server-advertised built-in selection, authoritative level allocation and shared-skin deviation confirmation. Starter5/UI12/UDP2/protocol1 scoped proofs pass; focused blue-caption RED→GREEN1 resets normal color on named switch. Real UDP5881 both-skin level10→11→80, exact relog projections, yellow tooltip and confirmed deactivation pass;12 inspected native1920×1080 PNGs delivered. Coupled landing remains lead-owned.
 
 ## 2026-10-15 — MountSpecial authored playback continuation
 
