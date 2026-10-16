@@ -24,7 +24,7 @@ use shared::protocol::GameObjectInfo;
 
 use crate::GameClient;
 use crate::frame_error::FrameError;
-use crate::game_objects::game_object_cursor;
+use crate::game_objects::game_object_info_cursor;
 use crate::nameplates::plate_anchor;
 
 /// Every interaction the client sends (NPC, mailbox, vault, chair) is limited to
@@ -213,7 +213,7 @@ impl GameClient {
             return Some(SoftCandidate {
                 id,
                 position: self.game_objects.position(id)?,
-                kind: SoftKind::GameObject(game_object_cursor(info.go_type)?),
+                kind: SoftKind::GameObject(game_object_info_cursor(info)?),
             });
         }
         if !unit.has::<Npc>() {
