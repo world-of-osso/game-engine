@@ -915,6 +915,7 @@ impl crate::GameClient {
         {
             return Ok(());
         }
+        self.world.adopt_local_mover();
         self.adopt_server_speed();
         let viewport = self
             .base()
