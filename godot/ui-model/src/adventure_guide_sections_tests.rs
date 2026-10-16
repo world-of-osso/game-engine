@@ -1,6 +1,6 @@
 //! Actual70391 flags through Retail EncounterSectionIconTemplate in both skins.
+use super::section_header;
 use game_engine_core::adventure_guide::{Catalog, Section};
-use game_engine_ui_model::adventure_guide_sections::section_header;
 use ui_toolkit::{
     atlas::{ActiveSkin, set_thread_skin},
     frame::{Dimension, WidgetData},
@@ -11,7 +11,7 @@ use ui_toolkit::{
 
 fn catalog() -> Catalog {
     let root = std::path::PathBuf::from(env!("CARGO_MANIFEST_DIR")).join("../../data");
-    game_engine_ui_model::paths::set_data_root(root.clone()).unwrap();
+    crate::paths::set_data_root(root.clone()).unwrap();
     Catalog::load(&root.join("cache/adventure_guide.sqlite")).unwrap()
 }
 
