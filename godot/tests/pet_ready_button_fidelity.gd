@@ -58,7 +58,7 @@ func run_buttons() -> void:
 			root.add_child(probe)
 			assert(probe.mount_collections(forever, "pet-queue-pending" if pending else "pet-queue").is_empty())
 			await settle()
-			var ui := probe.find_child("CollectionsAuditUI", true, false)
+			var ui: Node = probe.find_child("CollectionsAuditUI", true, false)
 			assert(ui != null)
 			for kind in ["Accept", "Decline"]:
 				var owner := ui.find_child("PetBattleQueue" + kind + "Button", true, false) as Control
