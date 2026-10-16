@@ -64,6 +64,8 @@ mod scroll_lists;
 mod selection_list_tests;
 mod sidebarbinds_preview;
 mod spellbook_preview;
+#[cfg(debug_assertions)]
+mod stack_split_preview;
 mod target_cast_preview;
 mod toy_cooldown;
 mod toybox_preview;
