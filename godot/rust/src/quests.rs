@@ -371,12 +371,11 @@ impl GameClient {
             .apply(&mut self.account.quests.log);
         if self.quests.ui.super_tracked.is_some_and(|id| {
             self.account.quests.entry(id).is_none()
-                && !self.account.quests.world_quests.iter().any(|quest| {
-                    quest.quest_id == id
-                        && quest.expires_at
-                            > crate::account::quest_local_unix()
-                                + self.account.quests.server_clock_offset
-                })
+                && !self
+                    .account
+                    .quests
+                    .active_world_quests(crate::account::quest_local_unix())
+                    .any(|quest| quest.quest_id == id)
         }) {
             self.quests.ui.super_tracked = None;
         }
