@@ -10,8 +10,9 @@ from bot_controller import FileBridge, PlayerController, requested_snapshot
 
 
 def snapshot(spec=62, spell=30451):
-    return {"at_ms": 1000, "target": 41, "trait_config": {"spec_id": spec},
-            "spells": {"spec": spec, "known": [spell], "casting": None, "gcd_ms": 0},
+    return {"at_ms": 1000, "target": 41, "actor": 7, "trait_config": {"spec_id": spec},
+            "spells": {"spec": spec, "known": [spell], "casting": None, "gcd_ms": 0,
+                       "cast_success_events": [], "cast_failure_events": [], "cast_failure_seq": 0},
             "facts": {"known": [spell], **{field: {str(spell): {"Ok": True}}
                        for field in ("ready", "affordable", "in_range")}}}
 
@@ -30,6 +31,8 @@ class ControllerTests(unittest.TestCase):
     def test_two_specs_use_explicit_provider_without_mage_branch(self):
         for spec, spell in [(62, 30451), (71, 12294)]:
             self.native = snapshot(spec, spell)
+            self.controller = PlayerController(self.command, lambda target: self.native,
+                                               None, None)
             result = self.controller.cast_next(41, lambda state, target: {"spell": spell, "source": "test fixture"})
             self.assertEqual(result["spell"], spell)
             self.assertEqual(self.commands[-1], ("spell", "cast", "--spell", str(spell), "--target", "41"))
@@ -97,12 +100,67 @@ class ControllerTests(unittest.TestCase):
         self.assertEqual(self.commands, [("quest", "interact", "--npc", "Tank")])
 
 
+class CastAcknowledgementTests(unittest.TestCase):
+    def setUp(self):
+        self.native = snapshot(spell=217200)
+        self.native["actor"] = 7
+        self.native["spells"].update(cast_success_events=[], cast_failure_events=[],
+                                      cast_failure_seq=0, combat_log_seq=0,
+                                      combat_log_count=0, attack_start_events=[], attack_start_seq=0)
+        self.commands = []
+        self.controller = PlayerController(lambda *args: self.commands.append(args),
+                                           lambda target: self.native, None, None)
+
+    def cast(self):
+        return self.controller.cast_next(41, lambda state, target: {"spell": 217200})
+
+    def test_stale_ready_state_cannot_submit_again_before_real_outcome(self):
+        self.assertIsNotNone(self.cast())
+        for at in [1001, 2500, 5900, 9900]:
+            self.native["at_ms"] = at
+            self.assertIsNone(self.cast())
+        self.assertEqual(len(self.commands), 1)
+        self.native["spells"]["cast_success_events"] = [
+            {"source": 7, "spell_id": 217200, "at_ms": 9800}]
+        self.assertIsNotNone(self.cast())
+        self.assertEqual(len(self.commands), 2)
+
+    def test_old_foreign_and_other_spell_success_cannot_acknowledge_request(self):
+        old = {"source": 7, "spell_id": 217200, "at_ms": 500}
+        self.native["spells"]["cast_success_events"] = [old]
+        self.cast()
+        self.native["spells"]["cast_success_events"] += [
+            {"source": 8, "spell_id": 217200, "at_ms": 1001},
+            {"source": 7, "spell_id": 34026, "at_ms": 1001}]
+        self.assertIsNone(self.cast())
+        self.assertEqual(len(self.commands), 1)
+
+    def test_distinct_identical_failure_receipt_releases_each_request(self):
+        self.cast()
+        for sequence in [1, 2]:
+            self.native["spells"]["cast_failure_seq"] = sequence
+            self.native["spells"]["cast_failure_events"].append(
+                {"sequence": sequence, "spell_id": 217200, "reason": "NoCharges", "detail": None})
+            self.assertIsNotNone(self.cast())
+        self.assertEqual(len(self.commands), 3)
+        self.assertEqual([row["reason"] for row in self.controller.outcomes], ["NoCharges", "NoCharges"])
+
+    def test_server_rejection_does_not_bypass_new_unusable_state(self):
+        self.cast()
+        self.native["spells"].update(cast_failure_seq=1, cast_failure_events=[
+            {"sequence": 1, "spell_id": 217200, "reason": "NotReady"}])
+        self.native["facts"]["ready"]["217200"] = {"Ok": False}
+        self.assertIsNone(self.cast())
+        self.assertEqual(len(self.commands), 1)
+
+
 class SnapshotTests(unittest.TestCase):
     def test_native_query_target_and_authoritative_traits_are_preserved(self):
         query = {"target": 41, "facts": {"known": [12294]}, "trait_config": {"spec_id": 71}}
-        state = {"priority": query, "spells": {"known": [12294]}, "at_ms": 1000}
+        state = {"priority": query, "spells": {"known": [12294]}, "at_ms": 1000,
+                 "account": {"local_player_id": 7}}
         result = requested_snapshot(state, 41)
-        self.assertEqual(result, {**query, "spells": state["spells"], "at_ms": 1000})
+        self.assertEqual(result, {**query, "spells": state["spells"], "at_ms": 1000, "actor": 7})
         self.assertEqual(state["priority"], query)
 
     def test_unavailable_or_other_target_facts_block(self):
