@@ -1484,3 +1484,107 @@ fn trading_post_button_tooltips_keep_disabled_view_cart_but_hide_disabled_clear_
             .is_none()
     );
 }
+
+#[test]
+fn trading_post_purchase_confirmation_waits_for_reply_and_prunes_only_accepted_cart_item() {
+    let mut data = snapshot();
+    let mut other = data.items[0].clone();
+    other.id = 5;
+    other.item_id = 190000;
+    data.items.push(other);
+    let mut view = View {
+        visible: true,
+        selected: Some(4),
+        cart: vec![4, 5],
+        snapshot: Some(Arc::new(data.clone())),
+        ..Default::default()
+    };
+    view.click("perks:purchase").unwrap();
+    assert_eq!(
+        view.click("perks:confirm").unwrap(),
+        Some(game_engine_ui_model::trading_post::Action::Request(
+            TradingPostRequest::Purchase { vendor_item_id: 4 }
+        ))
+    );
+    assert_eq!(
+        view.confirm.as_deref(),
+        Some("purchase"),
+        "Pending purchase keeps the confirmation owner alive"
+    );
+    assert!(view.pending);
+    assert_eq!(view.cart, vec![5]);
+    assert_eq!(view.snapshot.as_ref().unwrap().tender, 500);
+    assert!(!view.selected_item().unwrap().purchased);
+    assert_eq!(view.click("perks:confirm").unwrap(), None);
+    assert_eq!(view.click("perks:cancel").unwrap(), None);
+    assert_eq!(view.confirm.as_deref(), Some("purchase"));
+    for skin in [ActiveSkin::Modern, ActiveSkin::Forever] {
+        let registry = render(skin, view.clone());
+        assert!(registry.get_by_name("PerksProgramConfirmSpinner").is_some());
+        assert!(
+            registry
+                .get_by_name("PerksProgramConfirmDarkOverlay")
+                .is_some()
+        );
+        for name in [
+            "PerksProgramConfirmButton",
+            "PerksProgramConfirmCancelButton",
+        ] {
+            let frame = registry.get(registry.get_by_name(name).unwrap()).unwrap();
+            let Some(WidgetData::Button(button)) = &frame.widget_data else {
+                panic!("Confirmation button")
+            };
+            assert_eq!(
+                button.state,
+                ui_toolkit::widgets::button::ButtonState::Disabled
+            );
+        }
+    }
+    data.tender = 400;
+    data.items[0].purchased = true;
+    view.receive(Arc::new(data));
+    assert!(!view.pending);
+    assert!(view.confirm.is_none());
+    assert!(view.selected_item().unwrap().purchased);
+    assert_eq!(view.snapshot.as_ref().unwrap().tender, 400);
+    assert_eq!(view.cart, vec![5]);
+}
+
+#[test]
+fn trading_post_refund_confirmation_keeps_pending_owner_until_authoritative_reply() {
+    let mut data = snapshot();
+    data.tender = 400;
+    data.items[0].purchased = true;
+    data.items[0].refund_seconds = 3600;
+    let mut view = View {
+        visible: true,
+        selected: Some(4),
+        snapshot: Some(Arc::new(data.clone())),
+        ..Default::default()
+    };
+    view.click("perks:refund").unwrap();
+    assert_eq!(
+        view.click("perks:confirm").unwrap(),
+        Some(game_engine_ui_model::trading_post::Action::Request(
+            TradingPostRequest::Refund { vendor_item_id: 4 }
+        ))
+    );
+    assert_eq!(
+        view.confirm.as_deref(),
+        Some("refund"),
+        "Pending refund keeps the confirmation owner alive"
+    );
+    assert!(view.pending);
+    assert!(view.selected_item().unwrap().purchased);
+    assert_eq!(view.snapshot.as_ref().unwrap().tender, 400);
+    assert_eq!(view.click("perks:cancel").unwrap(), None);
+    assert_eq!(view.click("perks:confirm").unwrap(), None);
+    data.tender = 500;
+    data.items[0].purchased = false;
+    data.items[0].refund_seconds = 0;
+    view.receive(Arc::new(data));
+    assert!(!view.pending);
+    assert!(view.confirm.is_none());
+    assert!(!view.selected_item().unwrap().purchased);
+    assert_eq!(view.snapshot.as_ref().unwrap().tender, 500);
+}
