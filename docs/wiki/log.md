@@ -1,6 +1,9 @@
 ## 2026-10-15 — Housing storage filter popup
 
 [Source popup](systems/housing.md#storage-filter-popup--implementation2026-10-15): native old-position/width RED→shared menu description/Sort arrows/radios/root6/2 anchor and both-skin four-phase native GREEN at65c1a18c3/14db32ab. Missing Placeable/date/tag/collection semantics remain unavailable. Affected F17 Forever recaptured on that current binary with four durable records; startup terrain_mcsh noise traced to shared used_shaders warmup state, no S3/shared-state changes. Four popup/two recapture inspected1280 PNGs published.
+## 2026-10-16 — HouseSettings inherited close button
+
+[Source close](systems/housing.md#housesettings-close-button--2026-10-16): text-X geometry RED and native highlight-replacement RED repaired; both-skin/pending state/input/cancel/ADD proof,16 context pairs unchanged outside old/new close rectangles. No lifecycle/backend claim.
 
 ## 2026-10-16 — HouseSettings omitted decorative regions
 
@@ -4126,4 +4129,8 @@ Completed Retailv2 codec/authoritative Create and committed Copy callbacks, exac
 
 - 2026-10-16: Maintained [explicit pinned Arcane provider](systems/bot-harness.md#explicit-approved-arcane-source-provider) with portable captured source/trait fixtures; source24/36/64 and strict level32/kit/fight coverage, no fallback or native/all-spec acceptance.
 
+- 2026-10-16: PerksProgram purchase/refund/cart/clear confirmations omit hideOnEscape. Native purchase premature-dismissal RED observed; dispatcher corrected, explicit Cancel retained. Earlier Escape-cancel fixture claim corrected. [Trading Post](systems/trading-post.md#confirmation-keyboard-ownership--implementation-october16).
 - 2026-10-16: Button tooltips source content2 and native both-skin real-control/lifetime proof pass;16 full-HD screenshots plus4 contacts published. Final29UI12native/check/scopedformat pass; pending-item/native disabled-refund boundaries remain explicit. [Trading Post](systems/trading-post.md#button-tooltips--implementation-october16).
+
+- 2026-10-16: [Owner pet assisted predicates](investigations/cooldown-assist-data.md#owner-pet-predicates--2026-10-16): source-decoded57/58 and recorded owner presence; living controlled pet versus absent, unknown dead/missing actor retained. BM Call Pet authored decision regression; fresh UDP and Arms1187/12 exact count geometry remain open.
+- 2026-10-16: Confirmation covers native both-skin GREEN: Escape preserves Purchase/Refund/Cart/Clear; explicit Cancel retains authority/cart, one real purchase/refund restores Tender.12 full-HD screenshots+2 contacts published;29UI12native/check/format pass atfc1d4c351. [Trading Post](systems/trading-post.md#confirmation-keyboard-ownership--implementation-october16).
