@@ -574,8 +574,9 @@ impl RegistryModel {
             }) {
                 return false;
             }
-            if frame.onclick.is_some() {
-                return true;
+            if let Some(action) = &frame.onclick {
+                // Expert submodes play their authored kit on click release, not a generic press cue.
+                return !action.starts_with("housing:precision:");
             }
             let Some(parent) = frame.parent_id else {
                 return false;

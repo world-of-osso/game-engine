@@ -1,6 +1,10 @@
 //! Native basic editor input. Ground placement uses the existing authored-surface ray.
 use crate::GameClient;
-use game_engine_ui_model::housing::HousingSurface;
+use game_engine_core::input_bindings_data::InputAction;
+use game_engine_ui_model::{
+    housing::HousingSurface,
+    housing_editor::{EditorMode, PrecisionSubmode},
+};
 use godot::classes::{InputEventMouseButton, InputEventMouseMotion};
 use godot::global::MouseButton;
 use godot::prelude::*;
@@ -108,7 +112,6 @@ impl GameClient {
             self.housing.decor.clear_preview();
             return Ok(true);
         }
-        use game_engine_ui_model::housing_editor::{EditorMode, PrecisionSubmode};
         let mode = match action {
             "housing:expert" => Some(EditorMode::Expert),
             "housing:basic" => Some(EditorMode::Basic),
@@ -139,6 +142,9 @@ impl GameClient {
         };
         if let Some(submode) = submode {
             model.editor.set_submode(submode);
+            self.play_ui_sound_kit(
+                game_engine_core::ui_sound_kits::HOUSING_EXPERTMODE_SUB_MENU_BUTTON_TOGGLE,
+            )?;
             return Ok(true);
         }
         let placement_rotation = match action {
@@ -206,12 +212,38 @@ impl GameClient {
         overlay_owns_keyboard || storage_owns_keyboard
     }
 
+    fn housing_expert_submode_shortcut(&mut self, action: InputAction) -> Result<bool, String> {
+        let submode = match action {
+            InputAction::HousingExpertTranslate => PrecisionSubmode::Translate,
+            InputAction::HousingExpertRotate => PrecisionSubmode::Rotate,
+            InputAction::HousingExpertScale => PrecisionSubmode::Scale,
+            _ => return Ok(false),
+        };
+        let pending = self
+            .housing
+            .model
+            .as_ref()
+            .ok_or("Housing model is unavailable.")?
+            .pending;
+        if pending {
+            return Ok(true);
+        }
+        self.play_ui_sound_kit(
+            game_engine_core::ui_sound_kits::HOUSING_EXPERTMODE_SUB_MENU_BUTTON_TOGGLE_SHORTCUT,
+        )?;
+        self.housing
+            .model
+            .as_mut()
+            .ok_or("Housing model is unavailable.")?
+            .editor
+            .set_submode(submode);
+        Ok(true)
+    }
+
     fn housing_bound_action(
         &mut self,
         event: &Gd<godot::classes::InputEvent>,
     ) -> Result<bool, String> {
-        use game_engine_core::input_bindings_data::InputAction;
-        use game_engine_ui_model::housing_editor::EditorMode;
         let Some(model) = self.housing.model.as_ref() else {
             return Ok(false);
         };
@@ -253,17 +285,11 @@ impl GameClient {
                 }
                 return Ok(true);
             }
+            if self.housing_expert_submode_shortcut(action)? {
+                return Ok(true);
+            }
         }
         let command = match action {
-            Some(InputAction::HousingExpertTranslate) if mode == EditorMode::Expert => {
-                "housing:precision:translate"
-            }
-            Some(InputAction::HousingExpertRotate) if mode == EditorMode::Expert => {
-                "housing:precision:rotate"
-            }
-            Some(InputAction::HousingExpertScale) if mode == EditorMode::Expert => {
-                "housing:precision:scale"
-            }
             Some(InputAction::HousingBasicMode) => "housing:basic",
             Some(InputAction::HousingExpertMode) => "housing:expert",
             Some(InputAction::HousingCleanupMode) => "housing:cleanup",

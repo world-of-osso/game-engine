@@ -44,6 +44,12 @@ Supported Basic/Expert/Cleanup mode bars and Expert submode icons show only the 
 
 Source: `Blizzard_HousingActionButton.lua` UpdateKeybind and `HouseEditorModeButtonTemplate`/`HouseEditorSubmodeButtonTemplate`. Basic/Expert both-skin native70391 acceptance proves normal Options assignments/unbinds and displayed labels; registry tests additionally cover modifier abbreviations and rebinding. Native source actions, real1693/2330 conservation and readonly refusal/relog passed in both skins. Other locales, active glow and complete appearance parity remain separate.
 
+### Expert submode sound events
+
+Expert submode pointer activation uses `HOUSING_EXPERTMODE_SUB_MENU_BUTTON_TOGGLE`286137 on successful click release, including an already-active button; no generic pointer-down cue substitutes or duplicates it. Assigned Expert-context keys use the distinct shortcut304887 before the existing same-submode no-op. Hover, echo, release and inactive-context input do not replay these kits. Existing pending/disabled/keyboard ownership remains unchanged.
+
+Both installed70391 kits use authenticated local FDID6838456 at nominal volume0.125892535, zero pitch/variation, and the existing master/effects/mute controls. This contract covers source event scheduling and supported native stream properties, not physical audibility, authored advanced-kit parity, other housing sounds or transform/authority changes. Sources: ExpertDecorMode.lua262, HousingEventHandler.lua85–104, BaseHousingModeButton.SetModeActive and BaseHousingActionButton mouse handlers.
+
 ## Cleanup source controls
 
 Cleanup uses the maintained64px shared supported-mode bar at bottom center, including disabled Customize, assigned icon labels and common active/pressed/hover art. No separate192px three-button/y84 toolbar remains. Its sole source `SelectInstruction` says `Remove Decor`, with the same45px/right30 layout and left-click glyph as the other editor instruction rows. Both storage parts and Basic/Expert submode bars stay hidden. Hover, authoritative removal/conservation and readonly refusal remain unchanged; tooltip style/predicates, unsupported modes and sounds are separate scope. Installed70391 native proof covers both-skin source bar/row bounds, paid-owner hover/store/relog/replant conservation and readonly visitor refusal/relog. Runtime61f878470/server22ba4903; diagnostic fixture4d8c76efe preserves original input ordering. One earlier Forever return-hover timeout did not reproduce with bounded ray/pointer diagnostics; no hover product fix or timing guarantee is claimed.

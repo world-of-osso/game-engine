@@ -20,6 +20,9 @@ pub const UI_COUNTDOWN_FINISHED: u32 = 158566;
 pub const UI_COUNTDOWN_BAR_STATE_STARTS: u32 = 158958;
 pub const UI_COUNTDOWN_BAR_STATE_FINISHED: u32 = 158959;
 pub const UI_COUNTDOWN_MEDIUM_NUMBER_FINISHED: u32 = 158960;
+/// Retail Expert submode pointer and assigned-key activation sounds.
+pub const HOUSING_EXPERTMODE_SUB_MENU_BUTTON_TOGGLE: u32 = 286137;
+pub const HOUSING_EXPERTMODE_SUB_MENU_BUTTON_TOGGLE_SHORTCUT: u32 = 304887;
 
 #[derive(Clone, Copy, Debug, PartialEq)]
 pub struct UiSoundKit {
@@ -29,7 +32,17 @@ pub struct UiSoundKit {
     pub files: &'static [u32],
 }
 
-const KITS: [UiSoundKit; 11] = [
+const KITS: [UiSoundKit; 13] = [
+    UiSoundKit {
+        id: HOUSING_EXPERTMODE_SUB_MENU_BUTTON_TOGGLE,
+        volume: 0.125_892_53,
+        files: &[6_838_456],
+    },
+    UiSoundKit {
+        id: HOUSING_EXPERTMODE_SUB_MENU_BUTTON_TOGGLE_SHORTCUT,
+        volume: 0.125_892_53,
+        files: &[6_838_456],
+    },
     UiSoundKit {
         id: RAID_BOSS_EMOTE_WARNING,
         volume: 0.398_107_17,
