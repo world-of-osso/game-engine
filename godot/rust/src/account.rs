@@ -2147,7 +2147,7 @@ impl Account {
         }
         if message.is::<shared::protocol::GuildNewsState>() {
             output.push(AccountEvent::GuildNews(decode(message)?));
-            continue;
+            return Ok(());
         }
         if message.is::<shared::protocol::GuildEventLog>() {
             output.push(AccountEvent::GuildEventLog(decode(message)?));
