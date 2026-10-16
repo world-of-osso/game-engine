@@ -1,4 +1,7 @@
-extends "res://tests/world_auction_flow.gd"
+extends SceneTree
+
+const POSED_TRIANGLES := preload("res://tests/posed_triangle_points.gd")
+var client: Node
 
 ## Owned private-server driver. Every battle decision uses actual native pointer input.
 ## PBWILD_DIR holds command/response JSON; PBWILD_ENDPOINT must be loopback, not5000.
@@ -117,7 +120,7 @@ func live_run() -> void:
 						var area = unit.find_child("UnitPick", true, false) as Area3D
 						if area == null:
 							continue
-						var picked = auctioneer_surface_point(unit, area, camera)
+						var picked = pet_surface_point(unit, area, camera)
 						if not picked.is_empty():
 							result.point = [picked.point.x, picked.point.y]
 							result.picked_unit = UnitPicker.pick(camera, picked.point)
@@ -137,3 +140,52 @@ func live_run() -> void:
 		var response = FileAccess.open(directory.path_join("response.json"), FileAccess.WRITE)
 		response.store_string(JSON.stringify(result))
 		response.close()
+
+func pet_surface_point(unit: Node, area: Area3D, camera: Camera3D) -> Dictionary:
+	var model := unit.get_node_or_null("NpcVisualRoot/NpcModel")
+	if model == null:
+		return {}
+	for node in model.find_children("*", "MeshInstance3D", true, false):
+		var mesh := node as MeshInstance3D
+		if mesh.mesh == null or not mesh.is_visible_in_tree():
+			continue
+		for surface in range(mesh.mesh.get_surface_count()):
+			for center in POSED_TRIANGLES.centroids(mesh, surface):
+				var point := camera.unproject_position(center)
+				if camera.is_position_in_frustum(center) and root.get_visible_rect().has_point(point) and UnitPicker.pick(camera, point) == area.get_meta("unit_server_id"):
+					return {"point": point}
+	return {}
+
+func pointer(point: Vector2, button: MouseButton) -> void:
+	var motion := InputEventMouseMotion.new()
+	motion.position = point
+	motion.global_position = point
+	root.push_input(motion, true)
+	await process_frame
+	for pressed in [true, false]:
+		var event := InputEventMouseButton.new()
+		event.position = point
+		event.global_position = point
+		event.button_index = button
+		event.pressed = pressed
+		root.push_input(event, true)
+		await process_frame
+	await frames(3)
+
+func tap(key: Key) -> void:
+	for pressed in [true, false]:
+		var event := InputEventKey.new()
+		event.keycode = key
+		event.physical_keycode = key
+		event.pressed = pressed
+		root.push_input(event, true)
+		await process_frame
+	await frames(3)
+
+func frames(count: int) -> void:
+	for _frame in range(count):
+		await process_frame
+
+func fail(message: String) -> void:
+	push_error("FIXTURE PET_BATTLE: " + message)
+	quit(1)
