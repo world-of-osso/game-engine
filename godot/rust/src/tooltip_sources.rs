@@ -154,6 +154,18 @@ impl GameClient {
     /// PerksProgramElements.lua306–314: hovered product GetItemByID, no SellPrice.
     fn trading_post_tooltip(&mut self, hit: &HoveredFrame) -> Option<HoveredTooltip> {
         let ui = hit.ui.bind();
+        static TRACE_COUNT: std::sync::atomic::AtomicUsize = std::sync::atomic::AtomicUsize::new(0);
+        if self.trading_post.view.visible
+            && self.physical_input.pointer()[1] > 700.0
+            && TRACE_COUNT.fetch_add(1, std::sync::atomic::Ordering::Relaxed) < 32
+        {
+            eprintln!(
+                "TP_TOOLTIP_HIT ui={} frame={:?} pointer={:?}",
+                hit.ui.get_name(),
+                ui.registry()?.get(hit.frame)?.name,
+                self.physical_input.pointer()
+            );
+        }
         let (owner, product_id) = named_ancestor(ui.registry()?, hit.frame, |frame| {
             indexed(frame, "PerksProgramProduct")
         })?;
