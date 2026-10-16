@@ -17,7 +17,9 @@ from pathlib import Path
 from types import SimpleNamespace
 
 from bot_roster import build_roster
-from bot_harness import balance
+from bot_harness import balance, routed_player
+from bot_controller import native_usable, publish, requested_snapshot
+from bot_pets import TAME_BEAST, owned_pet, tame_plan, verified_tame_target
 from bot_health import qualify_report_health, require_living_player
 from bot_forms import form_is_observed, load_plan as load_form_plan
 from bot_gear import equipment_receipt, load_plan as load_gear_plan, required_grants
@@ -37,7 +39,7 @@ def command(output, argv, env=None):
 
 def record_inputs(args):
     files = [args.engine / "scripts" / f"{name}.py" for name in
-             ("bot_harness", "bot_rotation", "bot_controller", "bot_routes", "bot_roster", "bot_talents", "bot_gear", "bot_health", "bot_forms", "run_dummy_bots", "run_bot_roster")]
+             ("bot_harness", "bot_rotation", "bot_controller", "bot_routes", "bot_roster", "bot_talents", "bot_gear", "bot_health", "bot_forms", "bot_pets", "run_dummy_bots", "run_bot_roster")]
     files += [args.engine / "godot/tests" / f"{name}.gd" for name in ("bot_harness_observer", "bot_harness_talents", "bot_harness_gear")]
     files.append(args.world_db)
     tables = ("ChrSpecialization", "ChrRaces", "ChrClasses", "CharBaseInfo", "SpellEffect", "SpellMisc",
@@ -336,6 +338,75 @@ def provision_native_gear(args, output, bot, gear_plan):
     raise RuntimeError("Authenticated owned inventory not observed before gear provisioning within180s")
 
 
+def wait_native_tame_target(args, output, socket, plan):
+    def invoke(*words):
+        return command(args.output, [args.engine / 'target/debug/game-engine-cli', '--socket', socket, *words])
+    player = routed_player(invoke, lambda target: requested_snapshot(read_state(output / 'native-state.json'), target),
+        [str(args.engine / 'scripts/agent/agent-run'), 'bot-harness', str(args.server / 'target/debug/examples/follower_route')],
+        args.world_db.parent / 'ground/navmesh' / str(plan['map']), output)
+    invoke('quest', 'interact', '--npc', plan['name'])
+    deadline = time.monotonic() + 60
+    while time.monotonic() < deadline:
+        state = read_state(output / 'native-state.json')
+        target = state['target']
+        if target.get('target_name') != plan['name'] or state['spells']['casting'] or state['spells']['gcd_ms'] > 0:
+            time.sleep(.2)
+            continue
+        native = verified_tame_target(state, admin(args, 'npc-info', plan['map'], 0, plan['entry']), plan)
+        snapshot = requested_snapshot(state, native['entity'])
+        if native_usable(snapshot, TAME_BEAST):
+            publish(output / 'tame-before.json', {'source': plan, 'native': native, 'state': state})
+            return native['entity']
+        if snapshot['facts']['in_range'][str(TAME_BEAST)] == {'Ok': False}:
+            here = [float(value) for value in state['account']['local_player_position'].strip('()').split(',')]
+            player.step_toward(here, state['target_position'], 'sourced-tame-approach')
+            time.sleep(.7)
+        else:
+            time.sleep(.2)
+    raise RuntimeError('Native sourced tame target not usable within60s; no alternate creature or cast')
+
+
+def wait_replicated_owned_pet(output, previous_errors):
+    deadline = time.monotonic() + 60
+    while time.monotonic() < deadline:
+        state = read_state(output / 'native-state.json')
+        pet = owned_pet(state)
+        if pet is not None:
+            return {'entity': pet, 'state': state, 'basis': 'matching received PetSpells and replicated UnitIsPet/UnitSummonedBy'}
+        if state['spells']['errors'] != previous_errors:
+            raise RuntimeError(f"Native Tame Beast failed: {state['spells']['errors']}")
+        time.sleep(.2)
+    raise RuntimeError('Tame Beast did not produce a replicated owned pet within60s; input not retried')
+
+
+def prepare_native_pet(args, output, socket):
+    state = read_state(output / 'native-state.json')
+    existing = owned_pet(state)
+    if existing is not None:
+        receipt = {'reused': True, 'entity': existing, 'state': state}
+        publish(output / 'native-pet.json', receipt)
+        return receipt
+    point = [float(value) for value in state['account']['local_player_position'].strip('()').split(',')]
+    plan = tame_plan(args.world_db, args.engine / 'data/db2/active/CreatureFamily.csv',
+        state['account']['world_map_id'], state['spells']['level'], point, state['spells']['known'])
+    publish(output / 'source-tame-plan.json', plan)
+    marker = output / 'native-target-preparation.json'
+    publish(marker, {'stage': 'explicit BM gameplay tame preparation'})
+    try:
+        target = wait_native_tame_target(args, output, socket, plan)
+        errors = read_state(output / 'native-state.json')['spells']['errors']
+        response = command(args.output, [args.engine / 'target/debug/game-engine-cli', '--socket', socket,
+                                       'spell', 'cast', '--spell', TAME_BEAST, '--target', target])
+        publish(output / 'tame-request.json', {'spell': TAME_BEAST, 'target': target, 'response': response})
+        receipt = {'reused': False, 'source': plan, **wait_replicated_owned_pet(output, errors)}
+        publish(output / 'native-pet.json', receipt)
+    finally:
+        marker.unlink(missing_ok=True)
+    command(args.output, [args.engine / 'target/debug/game-engine-cli', '--socket', socket,
+                          'quest', 'interact', '--npc', 'Training Dummy'])
+    return receipt
+
+
 def run_bot(args, bot):
     output = args.output / str(bot["spec"])
     output.mkdir(mode=0o700)
@@ -385,14 +456,17 @@ def run_bot(args, bot):
         talent_receipt = json.loads((output / "native-talents.json").read_text())
         fixture = equipment_receipt(gear_plan, state["inventory"], talent_receipt["sheet_stats"])
         (output / "fixture-receipt.json").write_text(json.dumps(fixture, indent=2) + "\n")
-        npcs = admin(args, "npc-info", "0", "0", "44548")
-        (output / "dummy-identity.txt").write_text(npcs)
-        target = verified_dummy_target(state, npcs)
         children = process_children(pid)
         sockets = [Path(f"/tmp/game-engine-{child}.sock") for child in children]
         sockets = [path for path in sockets if path.exists()]
         if len(sockets) != 1:
             raise RuntimeError(f"Expected one owned native IPC socket, found {sockets}")
+        if bot['spec'] == 253:
+            fixture['combat_pet'] = prepare_native_pet(args, output, sockets[0])
+            state = wait_native(args, output, bot)
+        npcs = admin(args, 'npc-info', '0', '0', '44548')
+        (output / 'dummy-identity.txt').write_text(npcs)
+        target = verified_dummy_target(state, npcs)
         fixture["precombat_form"] = prepare_native_form(args, output, sockets[0], form_plan)
         fixture["native_stats_phase"] = "after native talents; before precombat form"
         (output / "fixture-receipt.json").write_text(json.dumps(fixture, indent=2) + "\n")

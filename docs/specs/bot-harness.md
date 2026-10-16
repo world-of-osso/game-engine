@@ -34,6 +34,13 @@ Private real player characters exercise the native controller path and measure c
 
 Northshire Shaman bots use source-valid Draenei11 up front, not a retry-based alternative after Dwarf rejection. Other classes use the lowest source-valid Alliance race. Missing authored source pairs block provisioning. This fixture choice is separate from the server's installed-DB2 race/class policy; the Dwarf/Shaman admin creation/persistence regression now passes.
 
+## BM gameplay pet preparation
+
+- BM253 explicitly prepares its missing pet before dummy collection, not as an alternate rotation after a predicate failure. Existing matching replicated owned pet and received pet bar are reused.
+- Select the nearest authored non-exotic tameable Beast spawn on the player's current map, require its installed CreatureFamily row and native learned Tame Beast1515. Verify selected live NPC identity/health/level against ordinary native observations and current server entry lookup.
+- The preparation stage owns target selection while the observer keeps publishing state; dummy Tab selection must not interrupt the channel. Native spell usability and strict baked navigation gate the single ordinary tame request. Confirm matching replicated owned-pet and received bar IDs; no grants, persistence edits, substitute creature after failure or repeated uncertain casts.
+- Retain source plan, native target, cast request and resulting ownership. Restore ordinary dummy selection before collecting; missing source/native facts or a failed tame blocks collection.
+
 ## Native pre-combat forms
 
 Feral103 prepares Cat Form768/form1 and Guardian104 prepares Bear Form5487/form5 from their installed specialization descriptions, SpellEffect aura36 and SpellShapeshiftForm rows. Require the spell to be natively known; use one ordinary validated self-cast, skip toggling an already-observed own form aura, and confirm the replicated own aura before collection. Missing source/confirmation blocks; do not reorder rotation steps or choose another form. Receipts retain source rows and before/after snapshots. Visible sheet stats are labeled as observed after talents but before form preparation; subsequent CharacterStats/combat observations retain actual post-preparation health and effects.
