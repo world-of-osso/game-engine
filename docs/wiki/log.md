@@ -1,6 +1,6 @@
 ## 2026-10-15 — Housing storage filter popup
 
-[Source popup](systems/housing.md#storage-filter-popup--implementation2026-10-15): native old-position/width RED→shared menu description/Sort arrows/radios/root6/2 anchor. Missing Placeable/date/tag/collection semantics remain unavailable; both-skin GREEN pending.
+[Source popup](systems/housing.md#storage-filter-popup--implementation2026-10-15): native old-position/width RED→shared menu description/Sort arrows/radios/root6/2 anchor and both-skin four-phase native GREEN at65c1a18c3/14db32ab. Missing Placeable/date/tag/collection semantics remain unavailable. Affected F17 Forever recaptured on that current binary with four durable records; startup terrain_mcsh noise traced to shared used_shaders warmup state, no S3/shared-state changes. Four popup/two recapture inspected1280 PNGs published.
 
 ## 2026-10-16 — HouseSettings omitted decorative regions
 
