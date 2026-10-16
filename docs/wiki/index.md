@@ -1,3 +1,4 @@
+- [House Access checkbox targets](systems/housing.md#house-access-checkbox-hit-targets--2026-10-16) — source row/checkbox split; native bad label dispatch reproduced then refused,32 physical cases and40 unchanged-outside context pairs.
 - [HouseSettings action-button art](systems/housing.md#housesettings-action-button-art--2026-10-16) — source UIPanel sheets/fixed12px caps; RED→GREEN, both-skin physical states and eight unchanged-outside context pairs.
 - [HouseSettings close button](systems/housing.md#housesettings-close-button--2026-10-16) — source24px/anchor/frame level, retained state art under ADD; RED→GREEN, both-skin physical proof and16 unchanged-outside context pairs.
 - [HouseSettings decorative regions](systems/housing.md#housesettings-decorative-regions--2026-10-16) — source gradient/foliage/divider; RED→GREEN, both-skin native geometry/pixels and zero changes outside three XML rectangles.
@@ -7,6 +8,7 @@
 # Wiki Index
 
 - [Terminal follower death delivery](systems/bot-harness.md#terminal-follower-death-delivery--2026-10-16) — delayed child-process delivery RED→receiver-drain; server owner-emission baseline passes, live timing proof pending.
+- [Storage filter popup](systems/housing.md#storage-filter-popup--implementation2026-10-15) — native old-geometry RED→both-skin source root/Sort anchors, real radio/checkbox/reset and paid conservation; current-binary F17 recapture has durable four-record proof.
 
 - [Trading Post confirmation keyboard cover](systems/trading-post.md#confirmation-keyboard-ownership--implementation-october16) — source no-hideOnEscape; native RED→both-skin Escape-preserve/explicit-Cancel GREEN, one purchase/refund round trip per skin and12 full-HD screenshots.
 - [Trading Post button tooltips](systems/trading-post.md#button-tooltips--implementation-october16) — actual enabled/disabled owner branches and exact70391 labels; native RED→both-skin GREEN,16 inspected full-HD originals, provider-pending gap retained.
@@ -27,6 +29,7 @@
 - [Owner pet assisted predicates](investigations/cooldown-assist-data.md#owner-pet-predicates--2026-10-16) — source-decoded57/58, owner pet facts and actual BM Call Pet selection regression; fresh UDP and Arms nearby-target semantics open.
 - [Caster-centered assisted range](investigations/cooldown-assist-data.md#caster-centered-assisted-range--2026-10-16) — retain authored Self Only range identity instead of excluding selected-enemy distance; actual Whirlwind RED→GREEN and25 core controls, fresh native acceptance open.
 - [Minimap zoom source states](systems/minimap.md#zoom-button-source-states--2026-10-15) — both-skin native hover/press/limit-disabled and release cancellation; unchanged enabled idle/context pixels outside zoom rectangles.
+- [Shrine viewer-level probe](systems/toy-box.md#shrine-viewer-level-probe-2026-10-15) — real UseToy replicated range/delta projection and zero-tuning controls pass fresh private wire; rendered target text/combat/HP remain separate.
 
 - [Expert active submode glow](systems/housing.md#expert-active-glow--implementation2026-10-15) — native missing-glow RED→both-skin painted fixed-mask/six-second shared-phase/canvas-lifetime GREEN, unchanged paid state and six inspected1280 PNGs; full appearance remains open.
 

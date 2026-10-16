@@ -38,7 +38,13 @@ Future native drivers confirm the form spell is learned, request one ordinary va
 
 `bot_harness.routed_player` creates the controller with `bot_routes.NavmeshRoute`: explicit agent-run/query argv plus baked navmesh directory, concrete CSV corner parsing and retained raw query/error receipts. `walk_route` consumes caller-authored goals and yields to caller-owned combat/recovery observation, while servicing visible loot offers before every tick. No map34 coordinates or class policy live in either shared module.
 
-The [spec](../../specs/bot-harness.md#maintained-routed-controller-interface) records the public contract. Generic two-spec/file-process tests are distinct from native Stockade completion and do not prove actual Greed input; Stockade's terminal proof used Transmog for Moloch and ordinary corpse retrieval after Hogger's rolls expired. Greed remains a separate pending native gate.
+The [spec](../../specs/bot-harness.md#maintained-routed-controller-interface) records the public contract. Generic two-spec/file-process tests are distinct from native Stockade completion and do not prove actual Greed input; Stockade's terminal proof used Transmog for Moloch and ordinary corpse retrieval after Hogger's rolls expired. The subsequent native Greed gate is recorded below; the earlier run is not retroactively called Greed proof.
+
+### Native actual Greed — 2026-10-16
+
+At engine64302e8ee/server8d462f6f/protocoldc30250, fresh Stockgreed71/account5 used the maintained route/query/controller/file bridge and explicit approved Arcane provider, with `bot_controller_live.gd` observing the real client. Physical original Stockade routing/F-assisted combat reached Moloch1146 Done in copy3 at11:03:11Z. The actual `GroupLootFrame1GreedButton` received native viewport motion/left press/release at1038/614 for roll4/Wicked Dagger63346; correlated ACK arrived7.040s after the authoritative roll start, before60s expiry. Inspected native chat records Greed selection, roll95 and winner; inventory delivers GUID525/bag4. The separate shoes63344 choice was Transmog32, not Greed.
+
+The1280 input/result PNGs were inspected and published as `follower-dungeons/native-greed-{button,winner}.png` under the2026-10-13 AgentShared directory. Exact source hashes, input ACK, semantic chat, inventory and cleanup live in `stockade-diagnostic/maintained-greed-run/native-greed-proof.json` beneath the durable follower diagnostics root. All five ended alive/full pools, Garrick10584 retained; all four owned PIDs stopped and private UDP5761 freed. This bounded first-boss run proves the maintained route/F/priority/native Greed boundary, not a second full Stockade completion, all-spec performance, Retail admission or Azure mechanics.
 
 ### Explicit approved Arcane source provider
 
