@@ -1,4 +1,5 @@
 - [House Access checkbox targets](systems/housing.md#house-access-checkbox-hit-targets--2026-10-16) — source row/checkbox split; native bad label dispatch reproduced then refused,32 physical cases and40 unchanged-outside context pairs.
+- [Alliance escort native fixture](systems/quest-ui.md#alliance-escort-native-fixture--2026-10-16) — Feero976 real-input harness; both skins earned all-three-wave credit; authenticated receipt closure and server grid-lifecycle fix.
 - [HouseSettings action-button art](systems/housing.md#housesettings-action-button-art--2026-10-16) — source UIPanel sheets/fixed12px caps; RED→GREEN, both-skin physical states and eight unchanged-outside context pairs.
 - [HouseSettings close button](systems/housing.md#housesettings-close-button--2026-10-16) — source24px/anchor/frame level, retained state art under ADD; RED→GREEN, both-skin physical proof and16 unchanged-outside context pairs.
 - [HouseSettings decorative regions](systems/housing.md#housesettings-decorative-regions--2026-10-16) — source gradient/foliage/divider; RED→GREEN, both-skin native geometry/pixels and zero changes outside three XML rectangles.
