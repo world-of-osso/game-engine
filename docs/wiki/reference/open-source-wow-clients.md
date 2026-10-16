@@ -82,11 +82,13 @@ See also: [awesome-wow-rust](https://github.com/arlyon/awesome-wow-rust) — cur
 
 ## Source Audits
 
-- [wowdecomp behavior rework backlog](../../wowdecomp-audit/README.md) — source-only reconstructed 3.3.5a (build 12340) audit; evidence and limits live there. No runtime parity established.
+- [wowdecomp behavior rework backlog](../../wowdecomp-audit/README.md) — source-only reconstructed 3.3.5a (build 12340) audit plus a separate [4.3.4 (build 15595) reference expansion](../../wowdecomp-audit/cataclysm-434.md): five additional conditional findings, 28 total. The original 23 were not wholesale revalidated against 4.3.4. [Coverage](../../wowdecomp-audit/coverage.md) records evidence and unresolved boundaries; no runtime parity established.
 
 ## Sources
 
 - [wowdecomp audit README](../../wowdecomp-audit/README.md) — audit provenance, scope and evidence limits.
+- [4.3.4 source comparisons](../../wowdecomp-audit/cataclysm-434.md) — separate historical pins, five added conditional findings and reconstruction limits.
+- [Audit coverage](../../wowdecomp-audit/coverage.md) — reviewed slices, unresolved leads and proof boundaries.
 
 ## See Also
 
