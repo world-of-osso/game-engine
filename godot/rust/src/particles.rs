@@ -11,9 +11,9 @@ use game_engine_core::{
 use glam::{Mat3, Mat4, Vec3};
 use godot::{
     classes::{
-        ArrayMesh, ImageTexture, MultiMesh, MultiMeshInstance3D, Node3D, ResourceLoader, Shader,
-        ShaderMaterial, Skeleton3D, geometry_instance_3d::ShadowCastingSetting, mesh,
-        multi_mesh::TransformFormat,
+        ArrayMesh, ImageTexture, MultiMesh, MultiMeshInstance3D, Node3D,
+        PhysicsRayQueryParameters3D, ResourceLoader, Shader, ShaderMaterial, Skeleton3D,
+        geometry_instance_3d::ShadowCastingSetting, mesh, multi_mesh::TransformFormat,
     },
     prelude::*,
 };
@@ -377,6 +377,35 @@ impl ModelParticles {
     }
 }
 
+/// Query existing map collision bodies, independent of their render visibility.
+fn intersect_ground(root: &Gd<Node3D>, from: Vec3, to: Vec3) -> Option<Vec3> {
+    use crate::game_objects::GAME_OBJECT_LAYER;
+    use crate::terrain::doodad_collision::DOODAD_LAYER;
+    use crate::wmo::collision::{TERRAIN_LAYER, WMO_LAYER};
+    let world = root
+        .get_world_3d()
+        .expect("ground-projected particle must belong to a 3D world");
+    let mut space = world
+        .get_direct_space_state()
+        .expect("particle ground query requires physics space");
+    let mut query = PhysicsRayQueryParameters3D::create(
+        Vector3::from_array(from.to_array()),
+        Vector3::from_array(to.to_array()),
+    )
+    .expect("Godot could not allocate particle ground ray");
+    query.set_collision_mask(TERRAIN_LAYER | WMO_LAYER | DOODAD_LAYER | GAME_OBJECT_LAYER);
+    query.set_hit_back_faces(true);
+    let hit = space.intersect_ray(&query);
+    if hit.is_empty() {
+        return None;
+    }
+    let point = hit
+        .get("position")
+        .expect("particle ground ray hit lacks position")
+        .to::<Vector3>();
+    Some(Vec3::from(point.to_array()))
+}
+
 fn wow_vector([x, y, z]: [f32; 3]) -> Vector3 {
     Vector3::new(x, z, -y)
 }
@@ -487,9 +516,14 @@ impl PlacedParticles {
                 };
                 placed.sim.set_animation(emitter, &time);
             }
-            placed
-                .sim
-                .update(emitter, dt, mat4(emitter_to_world), wow_to_godot(), density);
+            placed.sim.update(
+                emitter,
+                dt,
+                mat4(emitter_to_world),
+                wow_to_godot(),
+                density,
+                &mut |from, to| intersect_ground(root, from, to),
+            );
             pools.quads.clear();
             placed.sim.quads(emitter, view, &mut pools.quads);
             let quads = std::mem::take(&mut pools.quads);
@@ -702,6 +736,66 @@ impl IRefCounted for WowParticleProbe {
 
 #[godot_api]
 impl WowParticleProbe {
+    /// Native collision fixture entry: one stationary birth with scale(.25,.5).
+    #[func]
+    fn projected_birth_node(
+        &self,
+        world_root: Gd<Node3D>,
+        texture_dir: GString,
+        flags: i64,
+        position: Vector3,
+    ) -> Variant {
+        let emitter = ParticleEmitter {
+            flags: flags as u32 | 0x20000,
+            emitter_type: 1,
+            blend_type: 2,
+            texture_fdid: Some(910001),
+            tile_rows: 1,
+            tile_cols: 1,
+            emission_rate: 100.0,
+            lifespan: 1.0,
+            scale_keys: vec![(0.0, [0.25, 0.5])],
+            color_keys: vec![(0.0, [255.0; 3])],
+            opacity_keys: vec![(0.0, 1.0)],
+            twinkle_percent: 1.0,
+            twinkle_scale_min: 1.0,
+            twinkle_scale_max: 1.0,
+            ..ParticleEmitter::default()
+        };
+        let mut sim = EmitterSim::new(&emitter, 11);
+        sim.update(
+            &emitter,
+            0.015,
+            Mat4::from_translation(Vec3::from(position.to_array())),
+            wow_to_godot(),
+            1.0,
+            &mut |from, to| intersect_ground(&world_root, from, to),
+        );
+        let mut quads = Vec::new();
+        sim.quads(
+            &emitter,
+            &ViewBasis {
+                right: Vec3::X,
+                up: Vec3::Y,
+                back: Vec3::Z,
+            },
+            &mut quads,
+        );
+        let dir = godot::classes::ProjectSettings::singleton()
+            .globalize_path(&texture_dir)
+            .to_string();
+        let material = match particle_material(&emitter, Path::new(&dir)) {
+            Ok(material) => material,
+            Err(error) => return error.to_variant(),
+        };
+        let mut pool = ParticlePool::new("ParticleGroundProbe", &material);
+        pool.reserve(quads.len());
+        pool.begin_frame();
+        pool.push(&quads, 1.0);
+        pool.end_frame();
+        pool.node().clone().upcast::<Node3D>().to_variant()
+    }
+
     /// Two stationary half-alpha particles, near blue born before far red.
     /// Uses actual shared simulation ordering and the native pooled renderer.
     #[func]
@@ -813,6 +907,7 @@ fn overlap_fixture(sorted: bool) -> (ParticleEmitter, EmitterSim) {
         Mat4::from_translation(Vec3::Z),
         Mat3::IDENTITY,
         1.0,
+        &mut |_, _| None,
     );
     sim.update(
         &emitter,
@@ -820,6 +915,7 @@ fn overlap_fixture(sorted: bool) -> (ParticleEmitter, EmitterSim) {
         Mat4::from_translation(Vec3::Z),
         Mat3::IDENTITY,
         0.0,
+        &mut |_, _| None,
     );
     sim.update(
         &emitter,
@@ -827,6 +923,7 @@ fn overlap_fixture(sorted: bool) -> (ParticleEmitter, EmitterSim) {
         Mat4::from_translation(Vec3::NEG_Z),
         Mat3::IDENTITY,
         1.0,
+        &mut |_, _| None,
     );
     (emitter, sim)
 }
