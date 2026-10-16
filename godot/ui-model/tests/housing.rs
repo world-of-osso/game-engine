@@ -426,7 +426,7 @@ fn housing_storage_filters_render_independent_choices_and_reset_in_both_skins() 
         let mut screen = Screen::new(housing_screen);
         context.insert(view.clone());
         screen.sync(&context, &mut registry);
-        assert!(registry.get_by_name("HouseEditorStorageFilters").is_some());
+        assert_storage_filter_header(&registry, false, false);
         assert!(
             registry
                 .get_by_name("HouseEditorStorageFilterMenu")
@@ -440,6 +440,7 @@ fn housing_storage_filters_render_independent_choices_and_reset_in_both_skins() 
             .unwrap();
         context.insert(view.clone());
         screen.sync(&context, &mut registry);
+        assert_storage_filter_header(&registry, true, false);
         let date = registry
             .get(
                 registry
@@ -480,6 +481,7 @@ fn housing_storage_filters_render_independent_choices_and_reset_in_both_skins() 
         );
         assert!(registry.get_by_name("HouseEditorStored1693").is_none());
         assert!(registry.get_by_name("HouseEditorStorageEmpty").is_some());
+        assert_storage_filter_header(&registry, true, true);
         view.model
             .storage_filter_action("housing:storage:filter:reset")
             .unwrap();
@@ -497,7 +499,34 @@ fn housing_storage_filters_render_independent_choices_and_reset_in_both_skins() 
         );
         assert!(registry.get_by_name("HouseEditorStored1693").is_some());
         assert!(!view.model.filters_open);
+        assert_storage_filter_header(&registry, true, false);
     }
+}
+
+fn assert_storage_filter_header(registry: &FrameRegistry, open: bool, reset_visible: bool) {
+    use ui_toolkit::widgets::texture::TextureSource;
+    let frame = |name| registry.get(registry.get_by_name(name).unwrap()).unwrap();
+    let filter = frame("HouseEditorStorageFilters");
+    assert_eq!(filter.width, Dimension::Fixed(125.0));
+    assert_eq!(filter.height, Dimension::Fixed(20.0));
+    let expected = if open {
+        "common-dropdown-b-button-open"
+    } else {
+        "common-dropdown-b-button"
+    };
+    let background = frame("HouseEditorStorageFiltersBackground");
+    assert!(
+        matches!(&background.widget_data, Some(WidgetData::Button(button))
+        if button.normal_texture == Some(TextureSource::Atlas(expected.into())))
+    );
+    let reset = frame("HouseEditorStorageFiltersResetButton");
+    assert_eq!(reset.visible, reset_visible);
+    assert_eq!(reset.width, Dimension::Fixed(23.0));
+    assert_eq!(reset.height, Dimension::Fixed(23.0));
+    assert!(
+        matches!(&reset.widget_data, Some(WidgetData::Button(button))
+        if button.normal_texture == Some(TextureSource::Atlas("auctionhouse-ui-filter-redx".into())))
+    );
 }
 
 #[test]

@@ -1,6 +1,16 @@
 ## 2026-10-15 — Adventure Guide authored creature selection
 
 [Model choices](systems/adventure-guide.md#authored-model-selection--bounded-native-proof-2026-10-15) now select authored names/displays and owner-right description tooltips. Both-skin native47be Helix→Oaf/reset/Nezir passes with M2-camera-rendered heads and the source circle mask. Independent verification caught prior3f static boss-art substitution despite passing corner checks; native RED→GREEN covers the corrected portrait identity. Full-model authored UiModelScene camera remains a named gap.
+## 2026-10-15 — Housing storage Filter header
+
+[Filter header](systems/housing.md#storage-filter-header--implementation2026-10-15): actual native missing-source-surface RED→shared fixed-width Filter/reset primitive and both-skin physical four-phase assertions GREEN on the existing725px drawer. Existing popup/semantics/authority unchanged. Four inspected1280 PNGs; Forever truncated final JSON retained with three complete records and final reset/conservation PASS/screenshot, no invented fourth record. Unrelated missing terrain shader is excluded from scoped header proof. Primary-mode animation hypothesis rejected because source enables it only on unsupported Layout/Exterior.
+## 2026-10-16 — Caster-centered assisted range
+
+[Source range identity](investigations/cooldown-assist-data.md#caster-centered-assisted-range--2026-10-16): actual Whirlwind190411 at3yd RED→retain Range1 Self Only and preserve targeted hostile bounds;25 bounded core controls pass. Raw authored rotation, known spells and effect radii unchanged; fresh native and independent acceptance remain open.
+## 2026-10-15 — Minimap zoom state art
+
+- [Minimap](systems/minimap.md#zoom-button-source-states--2026-10-15): source Button states/full-opacity disabled grayscale; both-skin physical native proof, bounded offline screen/input acceptance.
+
 ## 2026-10-15 — Housing Expert active glow implementation
 
 [Active submode glow](systems/housing.md#expert-active-glow--implementation2026-10-15): native missing-painted-glow RED→source fixed-mask/six-second shared first-play rotation and both-skin raster/phase/canvas-recreation GREEN with unchanged paid state. Modern retained six completed samples before invalid Scale-retention oracle correction, then resumed lifecycle only; Forever eight samples in one run. Installed70391 local art authenticated and lead-published; six inspected1280 PNGs, no primary flipbook/full appearance claim.
