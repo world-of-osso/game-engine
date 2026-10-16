@@ -610,7 +610,7 @@ impl Account {
             .map_err(SessionError)
     }
 
-    /// IPC `spell cast`: the intent as given, by spell ID or name token.
+    /// Explicit ground/item-target intent; the server validates cast admission.
     pub fn send_spell_intent(&self, intent: SpellCastIntent) -> Result<(), SessionError> {
         self.bridge()?
             .send::<_, CombatChannel>(intent)

@@ -2,6 +2,7 @@
 import argparse
 import json
 import re
+import shlex
 import statistics
 from bisect import bisect_left
 from collections import Counter, defaultdict
@@ -11,6 +12,24 @@ EVENT = re.compile(
     r"^(\w+) src=(\d+|-) dst=(\d+|-) spell=(\d+|-) amount=(-?\d+|-) "
     r".* timestamp_unix_ms=(\d+)\b"
 )
+
+
+def combat_details(line):
+    fields = dict(token.split("=", 1) for token in shlex.split(line) if "=" in token)
+    details = {}
+    for key in ("crit", "glancing", "periodic"):
+        value = fields.get(key)
+        if value is not None and value not in ("true", "false"):
+            raise ValueError(f"Invalid native combat {key}: {value}")
+        details[key] = None if value is None else value == "true"
+    for key in ("school_mask", "overflow", "absorbed", "resisted", "blocked"):
+        value = fields.get(key)
+        details[key] = None if value is None else int(value)
+    miss = re.search(r" text=\d+ missed \d+: (\w+)\b", line)
+    details["miss_kind"] = miss.group(1) if miss else None
+    name = fields.get("spell_name")
+    details["spell_name"] = None if name in (None, "-") else name
+    return details
 
 
 def parse_combat(text):
@@ -27,7 +46,7 @@ def parse_combat(text):
             "kind": kind, "src": source, "dst": target,
             "spell": None if spell == "-" else int(spell),
             "amount": 0 if amount == "-" else int(amount), "at_ms": int(stamp),
-            "text": line,
+            "amount_observed": amount != "-", "text": line, **combat_details(line),
         })
     return sorted(events, key=lambda event: event["at_ms"])
 
