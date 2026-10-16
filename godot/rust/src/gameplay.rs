@@ -932,7 +932,7 @@ impl crate::GameClient {
         }
         self.player_movement.forced_forward = unit
             .get::<UnitFlags2>()
-            .is_some_and(|flags| flags.contains(UnitFlags2::FORCE_MOVEMENT));
+            .is_some_and(|flags| flags.0 & UnitFlags2::FORCE_MOVEMENT != 0);
         self.player_movement.feather_fall = unit
             .get::<shared::components::FeatherFall>()
             .is_some_and(|state| state.0);
