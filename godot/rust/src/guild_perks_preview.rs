@@ -20,10 +20,12 @@ impl GameClient {
         let mounted = player.and_then(|unit| unit.get::<shared::components::Mounted>());
         let motion = player.and_then(|unit| unit.get::<shared::components::PlayerMotion>());
         let position = player.and_then(|unit| unit.get::<shared::components::Position>());
+        let health = player.and_then(|unit| unit.get::<shared::components::Health>());
         let input = self.physical_input.gameplay_state(self.keyboard_free());
         let json = serde_json::to_string(&serde_json::json!({
             // Installed Hearthstone8690 uses charge category2309.
             "hearth_charges": self.account.spells.charges(2309).map(|charges| charges.snapshot()),
+            "health": health.map(|health| health.current),
             "movement_speed": speed.map(|speed| speed.0),
             "position": position.map(|position| [position.x, position.y, position.z]),
             "startup_loading": self.asset_startup.is_some(),

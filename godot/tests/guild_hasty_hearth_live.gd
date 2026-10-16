@@ -28,6 +28,8 @@ func run_test() -> void:
 		return
 	if not await wait_until(func(): return FileAccess.file_exists(officer_dir.path_join("riding-ready.go")), "actual private actor setup"):
 		return
+	if not await wait_until(func(): return float(perk_observation().health) > 0.0, "actual living private actor after fixture recovery"):
+		return
 	for skin in ["Modern", "Forever"]:
 		phase += 1
 		if not await select_skin(skin):

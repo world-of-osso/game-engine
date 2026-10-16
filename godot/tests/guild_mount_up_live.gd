@@ -26,6 +26,8 @@ func run_test() -> void:
 		return
 	if not await wait_until(func(): return 32235 in Array(client.spells_state().known), "actual learned Golden Gryphon spell"):
 		return
+	if not await wait_until(func(): return float(perk_observation().health) > 0.0 and not perk_observation().falling, "living grounded actor after private fixture setup"):
+		return
 	client.set_world_minutes(720.0)
 	client.set_camera_orbit(PI, -0.3, 14.0)
 	for skin in ["Modern", "Forever"]:
