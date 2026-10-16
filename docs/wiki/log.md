@@ -1,3 +1,7 @@
+## 2026-10-15 — Housing Expert active glow implementation
+
+[Active submode glow](systems/housing.md#expert-active-glow--implementation2026-10-15): native missing-painted-glow RED precedes source fixed-mask/six-second shared first-play rotation implementation. Installed70391 local art authenticated privately; both-skin native GREEN and lead publication pending.
+
 ## 2026-10-15 — Housing Expert sound event scheduling
 
 [Expert source kits](systems/housing.md#expert-submode-sound-scheduling--implementation2026-10-15): native missing-release-kit RED/core missing-lookup RED→four kit tests and both-skin actual pointer/assigned-key/stream/mute proof. Generic precision press cue removed; changed shortcut path retains both-skin held manipulation and paid conservation. Modern old-checkbox selector failure retained separately; only unfinished mute resumed. Dummy driver excludes physical audibility/full audio parity; two inspected functional1280 held-input captures published.

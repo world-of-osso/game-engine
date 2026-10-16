@@ -30,6 +30,7 @@ mod guild_preview;
 mod guild_tests;
 #[cfg(test)]
 mod housing_drag_input_tests;
+mod housing_glow;
 #[cfg(test)]
 mod housing_placed_list_input_tests;
 mod hud_edit_controls_fixture;
@@ -929,6 +930,7 @@ impl ICanvasLayer for RegistryUi {
             crate::frame_error::report_once(&format!("UI textures: {error}"));
         }
         projection.advance_assisted_highlights(delta, &model.registry);
+        projection.advance_housing_glows(&model.registry);
     }
 
     fn input(&mut self, event: Gd<godot::classes::InputEvent>) {
