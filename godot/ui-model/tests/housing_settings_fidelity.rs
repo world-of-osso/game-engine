@@ -193,3 +193,43 @@ fn house_settings_paints_source_header_foliage_and_divider_both_skins() {
         }
     }
 }
+
+#[test]
+fn house_settings_source_close_button_both_skins() {
+    use ui_toolkit::widgets::texture::TextureSource;
+    for skin in [ActiveSkin::Modern, ActiveSkin::Forever] {
+        set_thread_skin(skin);
+        for pending in [false, true] {
+            let mut view = view();
+            view.model.pending = pending;
+            let mut shared = SharedContext::new();
+            shared.insert(view);
+            let mut registry = FrameRegistry::new(1920.0, 1080.0);
+            Screen::new(housing_screen).sync(&shared, &mut registry);
+            let close = frame(&registry, "HousingSettingsClose");
+            assert_eq!((close.width.value(), close.height.value()), (24.0, 24.0));
+            assert_eq!(
+                (close.position.left, close.position.top),
+                (Val::Px(577.0), Val::Px(0.0))
+            );
+            assert_eq!(close.frame_level, 510);
+            assert_eq!(close.onclick.as_deref(), Some("housing:close"));
+            let Some(WidgetData::Button(button)) = &close.widget_data else {
+                panic!("HouseSettings close must be a button")
+            };
+            assert!(button.text.is_empty());
+            assert!(!button.use_default_skin);
+            assert!(button.enabled);
+            assert_eq!(button.state, ButtonState::Normal);
+            for (actual, atlas) in [
+                (&button.normal_texture, "RedButton-Exit"),
+                (&button.pushed_texture, "RedButton-exit-pressed"),
+                (&button.disabled_texture, "RedButton-Exit-Disabled"),
+                (&button.highlight_texture, "RedButton-Highlight"),
+            ] {
+                assert_eq!(*actual, Some(TextureSource::Atlas(atlas.into())));
+            }
+            assert_eq!(button.highlight_alpha, 1.0);
+        }
+    }
+}
