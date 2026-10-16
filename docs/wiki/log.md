@@ -1,3 +1,7 @@
+## 2026-10-16 — Ysera private body closure
+
+[Ysera body](systems/toy-box.md#ysera-body-asset-closure-2026-10-16): seventeen same-build70391 body/texture/animation/skin files and four aliases authenticated/published privately; rebuilt namespace graph passes. Procedural8605/type22 remains ignored by the renderer and is not replaced by a guessed shader. No native pixels/canonical publication claim.
+
 ## 2026-10-16 — Stone Whistle private asset closure
 
 [Asset closure](systems/toy-box.md#stone-whistle-native-asset-closure-2026-10-16): five body/texture/skin files match70391 resolver content keys; maintained importer privately publishes all five plus two skin aliases. Rebuilt product graph and byte receipts pass; no canonical writes or native rendering certificate.
