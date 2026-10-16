@@ -78,7 +78,9 @@ func run_checkboxes() -> void:
 					assert(checkbox.size == Vector2(30, 29))
 					var row := control(ui, name + "Row")
 					assert(row.size == Vector2(100, 30))
-					assert(checkbox.global_position == row.global_position + Vector2(0, 0.5))
+					# Native scale-1 Taffy layout rounds the source half-pixel anchor.
+					var expected := (row.global_position + Vector2(0, 0.5)).round()
+					assert(checkbox.global_position == expected, str(checkbox.get_global_rect()) + " source rounded=" + str(expected))
 				var label_point := caption.global_position + Vector2(5, caption.size.y / 2.0)
 				await move(ui, label_point)
 				await press(ui, label_point, true)
