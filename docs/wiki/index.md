@@ -14,6 +14,7 @@
 - [Fade effect projection](systems/battle-pets.md#fade-effect-projection--2026-10-16) — current70391 sourced random self-swap, both-skin fullHD pointer/log/model proof and91 identical rectangles; complete Retail art/timing excluded.
 
 - [BM native Assist preparation](systems/bot-harness.md#bm-native-assist-preparation--2026-10-16) — ordinary received-slot input/ack gate; pinned TC constructor proves Passive default, stored stance preserved; fresh DPS remains separate.
+- [BM native Assist preparation](systems/bot-harness.md#bm-native-assist-preparation--2026-10-16) — ordinary received-slot input/ACK; [two native SimC windows](systems/bot-harness.md#instrumented-bm-comparison--2026-10-16)157.45/168.50DPS,28 real outcomes, incomplete full-SimC/old frozen-sequence proof explicit.
 
 - [Terminal follower death delivery](systems/bot-harness.md#terminal-follower-death-delivery--2026-10-16) — delayed child-process delivery RED→receiver-drain; server owner-emission baseline passes, live timing proof pending.
 - [Trading Post accepted-item pending dialog](systems/trading-post.md#accepted-single-item-confirmation-lifetime--implementation-october16) — model/native RED→both-skin painted spinner/overlay/rotation/reply GREEN, source inset and accepted-item cart pruning; ten full-HD originals, provider/error gaps explicit.
@@ -27,6 +28,8 @@
 
 - [Trading Post product item tooltips](systems/trading-post.md#product-row-item-tooltips--implementation-october16) — sourced hovered-row identity/right−16 anchor/no sell price; native RED→both-skin GREEN, final-scale ordering root fix and eight inspected full-HD samples.
 - [Campsite selected-hover](investigations/glue-menu-fidelity.md#campsite-selected-hover-branch--2026-10-15) — source gold selected-hover member/18px slicing; both-skin physical dispatch/reselection proof,24 unchanged control/context pairs.
+
+- [Encounter section flags](systems/adventure-guide.md#encounter-section-flags--2026-10-16) — source mask/atlas/header anchors, title reservation and owner-right text; three focused/60 adjacent controls and both-skin painted native samples, opaque ranking unclaimed.
 
 - [Raid title glyphs](systems/adventure-guide.md#raid-title-glyphs--bounded-proof-2026-10-16) — published Heroic/Mythic20px atlas flags, source16px title/right3/centerY and Normal/LFR reset; six inspected both-skin native originals, visibility authority excluded.
 
@@ -42,6 +45,9 @@
 - [Caster-centered assisted range](investigations/cooldown-assist-data.md#caster-centered-assisted-range--2026-10-16) — retain authored Self Only range identity instead of excluding selected-enemy distance; actual Whirlwind RED→GREEN and25 core controls, fresh native acceptance open.
 - [Minimap zoom source states](systems/minimap.md#zoom-button-source-states--2026-10-15) — both-skin native hover/press/limit-disabled and release cancellation; unchanged enabled idle/context pixels outside zoom rectangles.
 - [Ysera body closure](systems/toy-box.md#ysera-body-asset-closure-2026-10-16) — seventeen authenticated70391 dependencies and four private runtime aliases; procedural8605/type22 remains unrendered.
+- [Waywatcher private body closure](systems/toy-box.md#waywatcher-private-body-closure-2026-10-16) —18 same70391 dependencies/four aliases authenticated privately; canonical publication and native rendering separate.
+- [Grizzlesnout canonical readback](systems/toy-box.md#grizzlesnout-canonical-body-readback-2026-10-16) —12 existing canonical receipts/two aliases pass actual Rust loader and independent byte authentication; no duplicate fragment needed.
+
 - [Ysera body closure](systems/toy-box.md#ysera-body-asset-closure-2026-10-16) — seventeen authenticated70391 dependencies and four runtime aliases; canonical combined Rust-loader/hash readback passes after receipt deduplication. Procedural8605/type22 remains unrendered.
 - [Stone Whistle asset closure](systems/toy-box.md#stone-whistle-native-asset-closure-2026-10-16) — five same-build70391 assets and two runtime skin aliases authenticated/published privately; native pixels remain open.
 
