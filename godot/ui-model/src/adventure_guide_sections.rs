@@ -12,6 +12,10 @@ use ui_toolkit::{
 };
 const TILE: u32 = 522973;
 
+#[cfg(test)]
+#[path = "adventure_guide_sections_tests.rs"]
+mod tests;
+
 pub fn overview_header(top: f32) -> Element {
     let mut out = cropped(
         "JournalOverviewHeader".into(),
