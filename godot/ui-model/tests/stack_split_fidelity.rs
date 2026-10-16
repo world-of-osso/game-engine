@@ -46,7 +46,7 @@ fn stack_split_arrows_keep_source_states_geometry_and_actions_both_skins() {
                     assert_eq!(frame.position.top, ui_toolkit::layout_values::Val::Px(top));
                     assert_eq!(
                         frame.onclick.as_deref(),
-                        if enabled { Some(action) } else { None }
+                        Some(if enabled { action } else { "" })
                     );
                     let Some(WidgetData::Button(button)) = &frame.widget_data else {
                         panic!("{name} must project native pressed/disabled states");
