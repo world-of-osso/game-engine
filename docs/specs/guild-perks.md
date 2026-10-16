@@ -24,11 +24,13 @@ Retail Mainline Benefits perks in Modern and Forever. Definitions: installed `db
 | `godot/ui-model/src/chat_draft.rs` | Real spell/item/achievement identities behind editable labels |
 | `godot/ui-model/src/ui/chat_frame.rs` | Labeled received spell links, source color and tooltip identity |
 | `godot/rust/src/chat.rs` | Native source-link insertion at actual selection/caret |
+| `godot/rust/src/guild_perks_preview.rs` | Read-only actual owner knowledge/chat receipt |
 
 ## Tests asserting this spec
 
 - `godot/ui-model/tests/guild_rank_widgets.rs::guild_perks_benefits_lists_the_five_installed_perk_spells_both_skins` — actual Benefits output in both skins.
 - `chat_draft::tests::guild_perks_real_spell_link_draft_hides_markup_and_preserves_existing_subjects` — real spell identity and visible text coexist with item/achievement links.
+- `godot/tests/guild_perks_live.gd` — real owner spell receipts, source Benefits rows, physical tooltip/modified-link input and fresh-process observation.
 
 ## Known gaps (current cycle)
 
