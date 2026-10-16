@@ -31,6 +31,8 @@ mod guild_tests;
 #[cfg(test)]
 mod housing_drag_input_tests;
 mod housing_glow;
+#[cfg(debug_assertions)]
+mod housing_settings_preview;
 #[cfg(test)]
 mod housing_placed_list_input_tests;
 mod hud_edit_controls_fixture;
