@@ -33,6 +33,8 @@ func run_test() -> void:
 	if not await wait_housing(func(): return menu_open() and housing_control("HouseEditorStorageDyeableTick") != null, "checkbox Refresh retains root"): return
 	if not await record_lifetime("checkbox-refresh"): return
 	await click_control(housing_control("HouseEditorStorageFiltersResetButton"), MOUSE_BUTTON_LEFT)
+	if not await wait_housing(func(): return not menu_open(), "reset press is outside menu hierarchy"): return
+	if not await open_filter(): return
 	if not await hover_sort(): return
 	await click_control(housing_control("HouseEditorStorageSortAlphabetical"), MOUSE_BUTTON_LEFT)
 	if not await wait_housing(func(): return not menu_open() and housing_control("HouseEditorStorageSortMenu") == null, "radio default response closes all menus"): return
@@ -48,7 +50,7 @@ func run_test() -> void:
 		await click(Vector2(1100.0, 400.0), button)
 		if not await wait_housing(func(): return not menu_open(), "outside press dismisses root"): return
 		if client.housing_state().get("selected", 0) != 0 or client.housing_state().get("placing", 0) != 0:
-			fail("Outside dismissal leaked into world editing")
+			fail("Empty-ground dismissal unexpectedly started world editing")
 			return
 		if not await record_lifetime("outside-" + str(button)): return
 		if not await open_filter(): return
