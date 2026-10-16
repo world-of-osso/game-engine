@@ -14,6 +14,7 @@ use crate::m2::{AnimTime, ParticleEmitter};
 #[path = "m2_particle_spline.rs"]
 mod spline;
 
+const FLAG_SORT_DEPTH: u32 = 0x2;
 const FLAG_VELOCITY_ORIENTED: u32 = 0x4;
 const FLAG_MODEL_SPACE: u32 = 0x10;
 const FLAG_INHERIT_SCALE: u32 = 0x20;
@@ -697,16 +698,45 @@ impl EmitterSim {
     /// Visible world-space heads and tails, sharing lifetime appearance and twinkle.
     pub fn quads(&self, emitter: &ParticleEmitter, view: &ViewBasis, out: &mut Vec<Quad>) {
         let max_life = max_lifespan(emitter, self.props.lifespan);
-        for particle in self.particles.iter().filter(|p| p.age <= max_life) {
-            let Some((head, scale)) = self.quad(emitter, particle, view) else {
-                continue;
-            };
-            if emitter.flags & FLAG_HEAD != 0 {
-                out.push(head);
+        let live = self.particles.iter().filter(|p| p.age <= max_life);
+        if emitter.flags & FLAG_SORT_DEPTH != 0 {
+            let mut ordered: Vec<_> = live
+                .map(|particle| {
+                    let center = if emitter.flags & FLAG_MODEL_SPACE != 0 {
+                        self.emitter_to_world.transform_point3(particle.position)
+                    } else {
+                        particle.position
+                    };
+                    (particle, center.dot(view.back))
+                })
+                .collect();
+            // back points toward the camera: smaller dot products are farther.
+            ordered.sort_by(|a, b| a.1.total_cmp(&b.1));
+            for (particle, _) in ordered {
+                self.append_particle_quads(emitter, particle, view, out);
             }
-            if emitter.flags & FLAG_TAIL != 0 {
-                out.push(self.tail_quad(emitter, particle, view, (head, scale)));
+        } else {
+            for particle in live {
+                self.append_particle_quads(emitter, particle, view, out);
             }
+        }
+    }
+
+    fn append_particle_quads(
+        &self,
+        emitter: &ParticleEmitter,
+        particle: &Particle,
+        view: &ViewBasis,
+        out: &mut Vec<Quad>,
+    ) {
+        let Some((head, scale)) = self.quad(emitter, particle, view) else {
+            return;
+        };
+        if emitter.flags & FLAG_HEAD != 0 {
+            out.push(head);
+        }
+        if emitter.flags & FLAG_TAIL != 0 {
+            out.push(self.tail_quad(emitter, particle, view, (head, scale)));
         }
     }
 

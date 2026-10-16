@@ -730,6 +730,10 @@ M2 particles: see [Native M2 particles](#native-m2-particles).
 
 ## Native M2 particles
 
+### P6 continuation — authored particle ordering
+
+Flag0x2 now orders each emitter’s live world-space particle centers far-to-near in the current camera; model-space centers are transformed before ordering, and each particle’s head/tail stays adjacent. Unflagged paths retain live order and allocate no sort list. Actual165894 observes the flag. Two CPU controls reproduced near-first RED; native half-alpha/additive overlap fixture and GREEN pending. See [contract](../../specs/m2-particles.md#p6--authored-depth-ordering-2026-10-15).
+
 ### Clean-room continuation — 2026-10-15
 
 Allowed provenance is the supplied clean-room spec, local assets, WebWowViewerCpp and pinned wow.export c2fd7bd; no decompiled/leaked sources were accessed. Contract and unresolved dependencies: [M2 particles](../../specs/m2-particles.md#clean-room-evidence-2026-10-15).

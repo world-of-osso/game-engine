@@ -62,7 +62,7 @@ M2 `ParticleSystem2` emitters on placed doodads (ADT MDDF and WMO MODD), creatur
 - [ ] Animated emitter tracks: `set_animation` keys emission rate, speed and `enabledIn` per sequence, but skips global-sequence tracks and tracks with at most one key per sequence; the other tracks use their first key.
 - [ ] Clean-room unresolved dependencies: **P3-timer-reset** (birth-velocity timer/reset), **P4-density** (spline rate per unit), **S1-polarity-oracle** (target lit/unlit polarity and coefficients), **P5-product-resolution / P5-recursive-timing** (real model/child assets and clocks). Details below; none are claimed as implemented. Randomized atlas mask (0x8000), ground snap (0x2000), TXAC UV variants, refraction pass and alpha-cutoff discard also remain open.
 - [ ] Emitters of attached item models (weapons, held torches, enchants) and player models; display state spell kits (the HD kobold candle flame is not a model emitter).
-- [ ] Particles within a pool are not depth-sorted; a shared pool sorts as one transparent object.
+- [x] Authored0x2 sorts live particles far-to-near within one emitter/placement in the current camera, before expanding each head/tail pair; unflagged emitters retain live-list order. This does not claim global sorting across placements/emitters.
 
 ## Out of scope
 
@@ -105,3 +105,9 @@ The modern scale is established: allowed WWV `M2ParticleOld::BurstMultiplier` is
 ### Integrated proof
 
 After merging origin/master, `edc9c82be` passes all eight `particle_cleanroom_` controls (no full suite), native helper build exits0 without compiler warnings, and Godot-workspace `cargo fmt --all --check` exits0. Logs: `/home/osso/.worktrees/logs/m2particles-{integrated-green,native-green-build,native-stable,fmt-check}.log`. Later changes are fixture/docs only. Helper has no cargo-check mode; native build supplies compile proof rather than claiming an unrun check. S1/P5 and the named partial P3/P4 boundaries remain open.
+
+### P6 — authored depth ordering (2026-10-15)
+
+Supplied clean-room P6 establishes authored0x2, transformed particle depth, maximum-depth-first order, and unchanged live-list order without the bit. `EmitterSim::quads` now sorts only flagged live particles using their world center projected onto the current view back axis (ascending dot product = far first); model-space centers are transformed before comparison. Head/tail pairs stay together. Native `ParticlePool` consumes that sequence without a second spatial sort. Actual Blood Presence165894 emitter0 has flag0x40422, including0x2; this is one observed asset, not a full census.
+
+RED: both new CPU controls fail because near-born-first remains first. Tests cover forward/reversed camera, flag-off insertion order, and paired geometry. `particle_cleanroom_sort.gd` drives the shared simulator and native pool through two stationary red/blue half-alpha heads over black, with sort/camera toggles and additive controls, capturing1920×1080 PNGs. GREEN/native overlap proof pending.
