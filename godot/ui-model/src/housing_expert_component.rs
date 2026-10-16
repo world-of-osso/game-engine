@@ -143,12 +143,20 @@ fn submode_controls(view: &HousingView) -> Element {
         .flat_map(|(index, (name, atlas, action, mode, binding))| {
             let restricted =
                 disabled || (mode == PrecisionSubmode::Scale && cannot_scale_selection);
+            // HouseEditorSubmodeButtonTemplate: ARTWORK1 glow, then control text;
+            // the existing Hover overlay stays separate and above both.
+            let mut overlays = named_atlas_texture(
+                format!("{name}ActiveGlow"),
+                "decor-ability-expert-fx-circlehighlight",
+                (-56.0, -57.0, 176.0, 178.0),
+            );
+            overlays.extend(binding_control_text(view, name, binding, true));
             icon_control(
                 (name, atlas, action),
                 (index as f32 * SUBMODE_STEP, 0.0),
                 restricted,
                 editor.submode == mode,
-                binding_control_text(view, name, binding, true),
+                overlays,
             )
         })
         .collect()
@@ -180,6 +188,14 @@ pub fn apply_expert_postsetup(view: &HousingView, registry: &mut FrameRegistry) 
         return;
     }
     for (name, atlas, _, mode, _) in SUBMODES {
-        update_icon_control(registry, name, atlas, view.model.editor.submode == mode);
+        let active = view.model.editor.submode == mode;
+        update_icon_control(registry, name, atlas, active);
+        let glow = registry
+            .get_by_name(&format!("{name}ActiveGlow"))
+            .expect("Expert submode glow exists");
+        registry
+            .get_mut(glow)
+            .expect("Glow survived lookup")
+            .visible = active;
     }
 }
