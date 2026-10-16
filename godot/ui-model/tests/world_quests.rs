@@ -200,10 +200,16 @@ fn world_quests_clock_tooltip_progress_and_expiry_both_skins() {
             text(&registry, "QuestBlock86948Line0Text"),
             "4/8 Twilight enslavers slain"
         );
+        assert!(
+            registry
+                .get_by_name("QuestBlock86948POIButtonNumber")
+                .is_none(),
+            "World Quests use unnumbered POIs rather than restarting ordinary quest numbering"
+        );
         let low_time = ObjectiveTrackerState::from_runtime_at(&runtime, false, false, 86700);
         assert_eq!(
             low_time.world_quests[0].0.lines.last().unwrap().text,
-            "Time Left: 10 min"
+            "Time Left: 10 Min"
         );
         assert!(low_time.world_quests[0].1.is_none());
         runtime.log[0].objectives[0].kind = QuestObjectiveKind::ProgressBar;
@@ -216,7 +222,7 @@ fn world_quests_clock_tooltip_progress_and_expiry_both_skins() {
         let warning_edge = ObjectiveTrackerState::from_runtime_at(&runtime, false, false, 86401);
         assert_eq!(
             warning_edge.world_quests[0].0.lines.last().unwrap().text,
-            "Time Left: 14 min"
+            "Time Left: 14 Min"
         );
         ctx.insert(bar_state);
         let mut bar_registry = FrameRegistry::new(1280., 720.);
