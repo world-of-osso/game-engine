@@ -4,13 +4,14 @@ use crate::{
     character_frame::preview::{Scene, bind_sheet_light},
     frame_error::FrameError,
     ui::RegistryUi,
+    unit_portraits::Portrait,
     world_models::UnitAppearance,
 };
 use game_engine_core::{adventure_guide::Catalog, input_bindings_data::InputAction};
 use game_engine_session::SessionScreen;
 use game_engine_ui_model::adventure_guide::{Page, SEARCH, View, adventure_guide_screen};
 use godot::prelude::*;
-use std::sync::Arc;
+use std::{collections::BTreeMap, sync::Arc};
 
 #[derive(Default)]
 pub(crate) struct AdventureGuide {
@@ -21,8 +22,15 @@ pub(crate) struct AdventureGuide {
     scene: Option<Scene>,
     pending: Option<(u64, u32)>,
     shown: Option<u32>,
+    portraits: BTreeMap<u32, Portrait>,
 }
 impl AdventureGuide {
+    pub(crate) fn creature_portrait_state(&self, id: u32) -> VarDictionary {
+        self.portraits
+            .get(&id)
+            .map(Portrait::snapshot)
+            .unwrap_or_default()
+    }
     pub(crate) fn queue_encounter_start(&mut self, start: &shared::protocol::EncounterStart) {
         if self.view.visible {
             self.queued_encounter = Some((start.encounter_id, Some(start.difficulty_id)));
@@ -160,6 +168,7 @@ impl GameClient {
         self.adventure_guide.view.loading = false;
         self.adventure_guide.queued_encounter = None;
         self.clear_journal_model();
+        self.clear_journal_creature_portraits();
         if let Some(ui) = self.adventure_guide.ui.take() {
             ui.free();
         }
@@ -222,10 +231,13 @@ impl GameClient {
         self.update_journal_lockouts();
         self.adventure_guide.view.challenge = self.account.challenge.run.clone();
         self.adventure_guide.view.keys = self.account.challenge.keys.clone();
-        self.adventure_guide.view.player_spec = self.account.spells.spec();
+        self.adventure_guide
+            .view
+            .update_player_spec(self.account.spells.spec());
         if self.adventure_guide.view.visible {
             self.sync_adventure_guide()?;
             self.sync_journal_model()?;
+            self.sync_journal_creature_portraits()?;
         }
         Ok(())
     }
@@ -388,23 +400,9 @@ impl GameClient {
 
     fn update_journal_lockouts(&mut self) {
         let elapsed = self.account.instance_info_at.elapsed().as_secs();
-        self.adventure_guide.view.lockouts = self
-            .account
-            .instance_locks
-            .iter()
-            .filter(|lock| lock.locked && u64::from(lock.time_remaining_secs) > elapsed)
-            .map(|lock| {
-                (
-                    lock.map_id,
-                    format!(
-                        "Saved · difficulty {} · {} bosses defeated · resets in {} minutes",
-                        lock.difficulty_id,
-                        lock.completed_mask.count_ones(),
-                        (u64::from(lock.time_remaining_secs) - elapsed).div_ceil(60),
-                    ),
-                )
-            })
-            .collect();
+        self.adventure_guide
+            .view
+            .replace_saved_instances(&self.account.instance_locks, elapsed);
     }
     fn send_journey_watch(&mut self, action: &str) -> Result<bool, String> {
         let Some(watch) = action.strip_prefix("journal:journey-watch:") else {
@@ -458,10 +456,6 @@ impl GameClient {
             if action.is_empty() {
                 break;
             }
-            let filters = (
-                self.adventure_guide.view.class,
-                self.adventure_guide.view.spec,
-            );
             if self.send_journey_watch(&action)? {
                 continue;
             }
@@ -470,12 +464,6 @@ impl GameClient {
             self.adventure_guide.view.apply(&action)?;
             if previous_filters.tag != self.adventure_guide.view.activity_filters.tag
                 || previous_tab != self.adventure_guide.view.tab
-            {
-                ui.bind_mut().reset_journal_set_scroll();
-            }
-            let view = &self.adventure_guide.view;
-            if view.tab == game_engine_ui_model::adventure_guide::Tab::ItemSets
-                && filters != (view.class, view.spec)
             {
                 ui.bind_mut().reset_journal_set_scroll();
             }
@@ -520,6 +508,55 @@ impl GameClient {
         self.adventure_guide.ui = Some(ui);
         Ok(())
     }
+    fn clear_journal_creature_portraits(&mut self) {
+        for portrait in self.adventure_guide.portraits.values_mut() {
+            portrait.clear(&mut self.world);
+        }
+        self.adventure_guide.portraits.clear();
+    }
+    fn sync_journal_creature_portraits(&mut self) -> Result<(), String> {
+        if self.adventure_guide.view.page != Page::Model {
+            self.clear_journal_creature_portraits();
+            return Ok(());
+        }
+        let creatures: Vec<_> = self
+            .adventure_guide
+            .view
+            .model_creatures()
+            .iter()
+            .map(|creature| (creature.id, creature.display))
+            .collect();
+        self.adventure_guide.portraits.retain(|id, portrait| {
+            if creatures.iter().any(|(active, _)| active == id) {
+                true
+            } else {
+                portrait.clear(&mut self.world);
+                false
+            }
+        });
+        for (id, display_id) in creatures {
+            self.sync_journal_creature_portrait(id, display_id)?;
+        }
+        Ok(())
+    }
+    fn sync_journal_creature_portrait(&mut self, id: u32, display_id: u32) -> Result<(), String> {
+        let host = self.adventure_guide.ui.as_ref().and_then(|ui| {
+            ui.bind()
+                .frame_control(&format!("JournalCreature{id}Portrait"))
+        });
+        let portrait =
+            self.adventure_guide.portraits.entry(id).or_insert_with(|| {
+                Portrait::new(game_engine_ui_model::adventure_creatures::PORTRAIT)
+            });
+        portrait.sync(
+            &mut self.world,
+            host,
+            Some(UnitAppearance::Creature {
+                display_id,
+                items: Default::default(),
+            }),
+        )
+    }
     fn clear_journal_model(&mut self) {
         if let Some((id, _)) = self.adventure_guide.pending.take() {
             self.world.cancel_detached_visual(id);
@@ -537,8 +574,8 @@ impl GameClient {
         let display = self
             .adventure_guide
             .view
-            .encounter
-            .and_then(|id| self.adventure_guide.view.catalog.display(id));
+            .model_creature()
+            .map(|creature| creature.display);
         let current = self
             .adventure_guide
             .pending
@@ -627,15 +664,24 @@ impl GameClient {
         state.set("tier", view.tier);
         state.set("instance", view.instance.map(i64::from).unwrap_or(-1));
         state.set("encounter", view.encounter.map(i64::from).unwrap_or(-1));
+        state.set("creature", view.creature.map(i64::from).unwrap_or(-1));
+        state.set(
+            "model_display",
+            self.adventure_guide.shown.map(i64::from).unwrap_or(-1),
+        );
         state.set("difficulty", view.difficulty);
         state.set("role", view.role);
-        state.set("class", view.class);
-        state.set("spec", view.spec);
+        let (class, spec) = view.class_spec_filters();
+        state.set("class", class);
+        state.set("spec", spec);
         state.set("slot", view.slot);
         state.set("loot_count", view.loot().len() as i64);
         state.set("owned_keys_only", view.owned_keys_only);
         state.set("owned_key_count", view.keys.len() as i64);
-        state.set("item_set_count", view.item_sets().len() as i64);
+        let sets = view.item_sets();
+        state.set("item_set_count", sets.len() as i64);
+        let set_ids: PackedInt32Array = sets.iter().map(|set| set.id as i32).collect();
+        state.set("item_set_ids", &set_ids);
         state.set("lockout_count", view.lockouts.len() as i64);
         state.set(
             "renown_faction_count",
