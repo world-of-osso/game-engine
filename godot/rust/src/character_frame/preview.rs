@@ -226,13 +226,40 @@ impl Scene {
     }
 
     pub(crate) fn replace_model(&mut self, model: Gd<Node3D>) {
+        self.replace_unframed_model(model.clone());
+        self.frame_camera(&model);
+    }
+
+    /// Authored scenes install actors without a transient mesh-fit camera.
+    pub(crate) fn replace_unframed_model(&mut self, model: Gd<Node3D>) {
         if let Some(previous) = self.model.take() {
             previous.free();
         }
         self.root.add_child(&model);
         self.fit_viewport();
-        self.frame_camera(&model);
         self.model = Some(model);
+    }
+
+    pub(crate) fn set_authored_camera(
+        &mut self,
+        authored: &game_engine_core::model_scene_camera::ModelSceneCamera,
+        yaw_offset: f32,
+        zoom_percent: f32,
+    ) {
+        let (eye, _, _) = authored.vectors(yaw_offset, zoom_percent);
+        let rotation = authored.orientation(yaw_offset);
+        let rotation = Basis::from_quaternion(Quaternion::new(
+            rotation.x, rotation.y, rotation.z, rotation.w,
+        ));
+        // WoW's camera faces +X; Godot's camera faces -Z. Set orientation
+        // independently of eye-target distance so authored zoom0 remains valid.
+        let basis = Basis::from_cols(
+            rotation * Vector3::BACK,
+            rotation * Vector3::UP,
+            rotation * Vector3::LEFT,
+        );
+        self.camera
+            .set_transform(Transform3D::new(basis, Vector3::new(eye.x, eye.y, eye.z)));
     }
 
     /// PetJournal camera and actor framing are DB2-authored, not paperdoll bounds fitting.
