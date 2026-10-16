@@ -277,9 +277,16 @@ impl GameClient {
             .unit(player)
             .and_then(|unit| unit.get::<shared::components::DerivedStats>())
             .ok_or("Priority player derived stats not received")?;
+        let trait_config = self
+            .account
+            .talents
+            .snapshot
+            .as_ref()
+            .ok_or("Priority server trait configuration not received")?;
         Ok(serde_json::json!({
             "target": target,
             "facts": facts,
+            "trait_config": trait_config,
             "player_haste_pct": stats.haste_pct,
             "spell_gcd_ms": self.read_priority_gcds(&needed)?,
             "target_cast": self.priority_target_cast(target),
