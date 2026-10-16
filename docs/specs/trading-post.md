@@ -21,6 +21,12 @@ Retail Mainline Blizzard_PerksProgram and the local C_PerksProgram/PerksActiviti
 - Pending spinner/success/error/timeout dialog lifetime remains a separate gap; this slice changes keyboard dismissal only. Existing earlier layout proof's claim that Escape cancels these confirmations was incorrect; native fixtures now require source-preserved modal plus explicit Cancel.
 - [x] Actual premature purchase-dismissal RED→both-skin native7a25a4cd7/a820dfda/dc30250 GREEN for all four non-freeze covers, explicit Cancel and exact decoded Purchase/Refund item-frame art. One authorized purchase/refund per skin restores Tender19670→19340→19670 under private policy3600 only. Twelve full-HD originals+two contacts: `/syncthing/AgentShared/2026-10-16/trading-post-confirmations/`; diagnostic `confirmations-proof-manifest.json` pins actual artifacts/fixtures/receipts.
 
+## Cart item tooltips
+
+- Regular cart items and ensemble member rows inherit Retail Elements.lua1603–1623 details-row `GetItemByID` tooltip behavior: actual hovered item ID/name/quality/catalog details, no sell price, `ANCHOR_LEFT` X−8/Y−20 (UI y-down offset−8/+20).
+- Resolve the exact currently expanded cart owner, not the selected product/model. Ensemble headers, members belonging to another vendor, removed rows and closed panels do not supply item tooltips. Hover cannot change cart members/preview selection or authoritative Tender; central pointer leave/occlusion/teardown clears ownership.
+- Preserve explicit missing metadata errors; use the shared Retail item formatter in both art skins. Frozen/detail panes/currency/cart-toggle tooltips and item-effect formatting remain separate.
+
 ## Button tooltips
 
 - Purchase, View Cart, Clear Cart, Purchase Cart and disabled Refund use Retail Elements.lua767–782/832–838/869–873/2065–2070/2099–2112 `ShowTooltip` branches. Tooltip owner is the actual projected button at `ANCHOR_LEFT`, offsets0/0; exact labels come from GlobalStrings70391.
