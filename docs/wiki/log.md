@@ -1,6 +1,6 @@
 ## 2026-10-16 — IoC NPC mover consumer
 
-[Driver input](systems/battlegrounds.md#ioc-npc-mover-input--implementation2026-10-16): controlling-seat authored capabilities, real source-channel/UDP RED and NPC-root prediction/epoch wiring. Stop/resume, remote-yaw takeover, native input and both-skin model acceptance remain pending.
+[Driver input](systems/battlegrounds.md#ioc-npc-mover-input--implementation2026-10-16): source6/client49/UDP2/native synthetic2 gates pass for authored capabilities, stop/resume gait, per-mover speed pairing and epoch-based NPC pose takeover. Actual model/input/both-skin acceptance remains open: private data generations corrected; unchanged5s peer admission fails under host stalls. No protocol timing or source roster reduction.
 ## 2026-10-16 — House Access dropdown
 
 [Source caller](systems/housing.md#house-access-dropdown--2026-10-16): generic160×28/plain rows replaced by inherited122×25 WowStyle2/MenuStyle1; genuine RED→GREEN, both-skin physical states/three draft selections and pending refusal. All26 context changes confined to House Access column; Save/persistence/other panel fidelity excluded.
