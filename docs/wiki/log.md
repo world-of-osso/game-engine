@@ -1,6 +1,6 @@
 ## 2026-10-15 — Private summon initial-state probe
 
-[Wild55 wire probe](systems/toy-box.md#private-summon-initial-state-probe-2026-10-15) extends the existing private Scarab fixture with explicit Podium/Shrine modes, source count/level/HP checks and Shrine cursor targeting. Default Scarab control and120s waits remain. Runtime proof is pending; no old native/pixel/expiry recertification.
+[Wild55 wire probe](systems/toy-box.md#private-summon-initial-state-probe-2026-10-15) extends the existing private Scarab fixture with explicit Podium/Shrine modes, source count/level/HP checks and Shrine cursor targeting. Default Scarab control and120s waits remain. Fresh actual bag-learning/UseToy wire now passes all three modes with initialized levels/HP; server whole-Toy/check/build and matching peer/network gates pass. Exact source/binary scopes live in the linked coverage ledger; no old native/pixel/expiry recertification.
 
 ## 2026-10-15 — Winner's Podium native fixture
 
