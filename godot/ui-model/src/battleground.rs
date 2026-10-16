@@ -48,6 +48,7 @@ pub struct PvpView {
     pub selected_arena: Option<ArenaQueueMode>,
     pub rated_bracket: PvpBracketSnapshot,
     pub selected_battleground: u32,
+    pub honor_faction: Option<crate::char_create_data::Faction>,
 }
 impl Default for PvpView {
     fn default() -> Self {
@@ -65,6 +66,7 @@ impl Default for PvpView {
             selected_arena: None,
             rated_bracket: PvpBracketSnapshot::Arena2v2,
             selected_battleground: 1014,
+            honor_faction: None,
         }
     }
 }
