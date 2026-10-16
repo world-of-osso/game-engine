@@ -109,6 +109,39 @@ fn trading_post_row_cart_toggle_preserves_open_cart_preview_choices() {
     assert!(view.cart_preview_item_ids().is_empty());
 }
 
+#[test]
+fn trading_post_row_cart_toggle_keeps_other_override_while_appending_wearables() {
+    let mut data = snapshot();
+    let mut other = data.items[0].clone();
+    other.id = 5;
+    other.category_id = 2;
+    other.item_id = 117;
+    other.preview_item_ids = vec![117];
+    let mut sword = data.items[0].clone();
+    sword.id = 6;
+    sword.item_id = 25;
+    sword.preview_item_ids = vec![25];
+    data.items.extend([other, sword]);
+    let mut view = View {
+        visible: true,
+        selected: Some(5),
+        snapshot: Some(Arc::new(data)),
+        cart: vec![5],
+        ..Default::default()
+    };
+    view.click("perks:cart:show").unwrap();
+    assert_eq!(view.preview_product().unwrap().item_id, 117);
+    view.click("perks:cart:toggle:6").unwrap();
+    assert_eq!(view.cart, [5, 6]);
+    assert_eq!(view.preview_product().unwrap().item_id, 117);
+    assert_eq!(view.cart_preview_item_ids(), [25]);
+    view.click("perks:cart:item:25").unwrap();
+    assert_eq!(view.preview_product().unwrap().item_id, 25);
+    assert_eq!(view.cart_preview_item_ids(), [25]);
+    assert_eq!(view.selected, Some(5));
+    assert_eq!(view.snapshot.as_ref().unwrap().tender, 500);
+}
+
 fn snapshot() -> TradingPostSnapshot {
     game_engine_ui_model::paths::set_data_root(
         std::path::PathBuf::from(env!("CARGO_MANIFEST_DIR")).join("../../data"),
