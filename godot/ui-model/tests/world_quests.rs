@@ -87,6 +87,20 @@ fn world_quests_received_positions_reach_minimap_without_an_accepted_log() {
         let wrong_map =
             world_quest_ui::minimap_blips(&runtime, None, 1, &view, style.map_size, 900);
         assert!(wrong_map.is_empty());
+        let far = MinimapView::new([-5655., 4310.], 0).masked(style.mask);
+        assert!(
+            world_quest_ui::minimap_blips(&runtime, None, 0, &far, style.map_size, 900).is_empty()
+        );
+        let selected =
+            world_quest_ui::minimap_blips(&runtime, Some(86948), 0, &far, style.map_size, 900);
+        assert_eq!(
+            selected[0].kind,
+            game_engine_ui_model::minimap::BlipKind::QuestSuperTrackArrow
+        );
+        assert!(
+            world_quest_ui::minimap_blips(&runtime, Some(86948), 0, &view, style.map_size, 87300)
+                .is_empty()
+        );
         assert_eq!(
             style.mask,
             if skin == ActiveSkin::Modern {
@@ -113,7 +127,8 @@ fn world_quests_clock_tooltip_progress_and_expiry_both_skins() {
         assert_eq!(pins[0].quest_id, Some(86948));
         assert!((0.0..=1.0).contains(&pins[0].x));
         let tooltip = world_quest_ui::tooltip(&runtime.world_quests[0], 4600, [20., 20.]);
-        assert_eq!(tooltip.lines[0].left_text, "Time Remaining: 23h 0m");
+        assert_eq!(tooltip.lines[0].left_text, "Time Left: 23 Hours");
+        assert!(tooltip.lines.iter().any(|line| line.left_text == "Rewards"));
         assert!(
             tooltip
                 .lines
@@ -171,6 +186,21 @@ fn world_quests_clock_tooltip_progress_and_expiry_both_skins() {
             text(&registry, "QuestBlock86948Line0Text"),
             "4/8 Twilight enslavers slain"
         );
+        let low_time = ObjectiveTrackerState::from_runtime_at(&runtime, false, false, 86700);
+        assert_eq!(
+            low_time.world_quests[0].0.lines.last().unwrap().text,
+            "Time Left: 10 min"
+        );
+        assert!(low_time.world_quests[0].1.is_none());
+        runtime.log[0].objectives[0].kind = QuestObjectiveKind::ProgressBar;
+        let bar_state = ObjectiveTrackerState::from_runtime_at(&runtime, false, false, 900);
+        assert_eq!(bar_state.world_quests[0].1, Some((4, 8)));
+        assert!(bar_state.world_quests[0].0.lines.is_empty());
+        ctx.insert(bar_state);
+        let mut bar_registry = FrameRegistry::new(1280., 720.);
+        Screen::new(objective_tracker_screen).sync(&ctx, &mut bar_registry);
+        assert_eq!(text(&bar_registry, "WorldQuest86948ProgressLabel"), "50%");
+        runtime.log[0].objectives[0].kind = QuestObjectiveKind::Monster;
         runtime.apply_update(QuestLogUpdate {
             changed: vec![],
             removed: vec![86948],
