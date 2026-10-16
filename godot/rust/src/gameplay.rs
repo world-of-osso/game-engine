@@ -1293,6 +1293,30 @@ mod tests {
         assert_eq!(movement.restrict_vehicle_yaw(0.0, 2.0, 0.1), 2.0);
     }
 
+    #[test]
+    fn vehicle_boarding_and_exit_pair_speed_with_each_movers_last_gait() {
+        let mut movement = PlayerMovement::default();
+        movement.running = false;
+        assert_eq!(resolve_speed(&mut movement, &[BindingKey::KeyW]), 2.5);
+        movement.network_input(0.0, FEET, 1).unwrap();
+        let capabilities = shared::components::VehicleDriverMovement {
+            flags: 1594726007,
+            turn_speed: 1.04719758,
+            walk_speed: 3.0,
+            run_speed: 0.98571 * 7.0,
+        };
+        movement.adopt_vehicle(Some(capabilities));
+        // Boarding publishes the NPC run gait, regardless of the rider's walk toggle.
+        movement.adopt_server_speed(capabilities.run_speed);
+        assert_eq!(resolve_speed(&mut movement, &[BindingKey::KeyW]), 3.0);
+        movement.running = true;
+        movement.network_input(0.0, FEET, 2).unwrap();
+        movement.adopt_vehicle(None);
+        // The body still publishes its last pre-boarding walk gait, not the NPC run.
+        movement.adopt_server_speed(2.5);
+        assert_eq!(resolve_speed(&mut movement, &[BindingKey::KeyW]), 7.0);
+    }
+
     /// Unsnared swimming uses the server's swim speed, not run speed.
     #[test]
     fn swimming_predicts_at_swim_speed() {
