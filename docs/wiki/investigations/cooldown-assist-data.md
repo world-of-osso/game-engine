@@ -7,6 +7,12 @@ Native-parity2 Fury72 recorded415 samples with Whirlwind190411 known/ready/affor
 
 The catalog retains raw `SpellMisc.RangeIndex` as `range_id`, and the native assisted fact uses a shared predicate: Self Only row1 is distance-independent; other hostile min/max checks are unchanged. Cache format11 invalidates the old serialized shape. No radius, body-range, priority, training or unknown-rule change. Automated actual-catalog RED at334b795ca fails Whirlwind at3yd while targeted Slam/Charge controls pass. Ata6764af2b the bounded spell_catalog and cooldown_assist suites pass25/0/0, including near/far Whirlwind, self Battle Shout and unchanged targeted bounds. [Contract](../../specs/cooldown-assist.md); source/proof: `data/class-completeness6-2026-10-12/{fury-native-range-observation,caster-range-proof-ledger}.json` in the leased server evidence directory. Fresh native/UDP and independent acceptance remain open.
 
+## Owner pet predicates — 2026-10-16
+
+Fresh master-readiness1 BM253 stopped before casting at rule29672/type58, values[0,0,0], step5716/Call Pet883. Pinned SimC76f8118 `data_enums.hh` names57/58 HAS_PET/HAS_NO_PET; `player.cpp:4067–4072` decodes presence/absence without numeric operands. Native facts retain `has_pet` from owner PetSpells/PetClearSpells plus replicated living-pet health, not a scan for pet-looking NPCs. An absent bar supplies false; a living controlled pet supplies true; a missing/dead pet actor remains unknown. Missing readings and nonzero operands fail explicitly. Tests exercise Boolean opposites, unknown readings and the actual70391 authored BM Call Pet decision. Dead-pet/guardian-only distinctions and fresh UDP acceptance remain separate; this is not full BM or all-spec certification.
+
+Arms rule1187/type12 values[2,10,0] remains a named source gap: pinned SimC `player.cpp:3900–3903` explicitly omits distance targeting and3799 leaves comparator strictness TODO. A global active-enemy count is not a source-grounded implementation of nearby targets.
+
 ## Sources
 Retail Mainline Lua under `~/.cache/wow-ui-sim/blizzard-ui/retail/AddOns/`:
 `Blizzard_APIDocumentationGenerated/{CooldownViewerDocumentation,CooldownViewerConstantsDocumentation,AssistedCombatDocumentation}.lua`,
