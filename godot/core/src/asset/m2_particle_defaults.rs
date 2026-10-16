@@ -44,6 +44,7 @@ macro_rules! zeroed_emitter {
             follow_scale1: 0.0,
             follow_speed2: 0.0,
             follow_scale2: 0.0,
+            spline_points: Vec::new(),
             inherit_velocity_scale: 1.0,
             colors: [[0.0; 3]; 3],
             color_keys: Vec::new(),

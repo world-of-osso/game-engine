@@ -76,6 +76,55 @@ fn ray_hit(triangles: &[[Vec3; 3]], origin: Vec3, direction: Vec3, length: f32) 
         .reduce(f32::min)
 }
 
+fn triangles_block_step(triangles: &[[Vec3; 3]], from: Vec3, to: Vec3, top: f32) -> bool {
+    game_engine_core::step_clearance::step_wall_blocked(
+        triangles,
+        from,
+        to,
+        top,
+        shared::ground::min_walkable_normal_y(),
+    )
+}
+
+#[test]
+fn ramp_lip_full_stockade_walks_from_captured_feet_onto_landing() {
+    let terrain = load("stormwindjail", (32, 32), |terrain| {
+        terrain.map_wdt.is_some()
+    });
+    let collision = &terrain
+        .map_wdt
+        .as_ref()
+        .unwrap()
+        .global_wmo
+        .as_ref()
+        .unwrap()
+        .collision;
+    let start = Vec3::new(108.2204, -26.26199, 3.454892);
+    let triangles = world_triangles([collision], start, 8.0);
+    let walls = |origin, direction, length| ray_hit(&triangles, origin, direction, length);
+    let ground = TerrainGround {
+        terrain: &terrain,
+        walls: &walls,
+        step_wall_blocked: &|from, to, top| triangles_block_step(&triangles, from, to, top),
+        game_object_floor: &|_| None,
+    };
+    let mut movement = crate::gameplay::PlayerMovement::default();
+    let mut feet = start;
+    for _ in 0..7 {
+        let frame = crate::gameplay::MovementFrame {
+            direction: [0.96152194, 0.0, -0.27472818],
+            speed: 7.0,
+            vertical: 0.0,
+        };
+        feet = movement.predict(feet, frame, false, &ground, &mut |_, to, _| to, 1.0 / 60.0);
+    }
+    assert!(feet.x > 108.8, "authored WMO stopped walk at {feet}");
+    assert!(
+        (feet.y + 25.606234).abs() < 0.001,
+        "not on upper floor: {feet}"
+    );
+}
+
 /// Whether a solid face lies between the eye and the camera: the view is from outside a wall.
 fn wall_between(triangles: &[[Vec3; 3]], eye: Vec3, camera: Vec3) -> bool {
     let offset = camera - eye;
@@ -237,6 +286,7 @@ fn player_on_the_stockade_stairs_is_blocked_by_the_stairwell_wall() {
     let ground = TerrainGround {
         terrain: &terrain,
         walls: &walls,
+        step_wall_blocked: &|from, to, top| triangles_block_step(&triangles, from, to, top),
         game_object_floor: &|_| None,
     };
     let current = wow(-8774.0, 838.0, 92.1);
@@ -260,6 +310,7 @@ fn player_runs_down_and_back_up_the_stockade_stairs_between_the_walls() {
     let ground = TerrainGround {
         terrain: &terrain,
         walls: &walls,
+        step_wall_blocked: &|from, to, top| triangles_block_step(&triangles, from, to, top),
         game_object_floor: &|_| None,
     };
     let mut movement = crate::gameplay::PlayerMovement::default();
@@ -405,6 +456,7 @@ fn walk_into_jasperlode(delta: f32) {
     let ground = TerrainGround {
         terrain: &terrain,
         walls: &walls,
+        step_wall_blocked: &|from, to, top| triangles_block_step(&triangles, from, to, top),
         game_object_floor: &|_| None,
     };
     let (feet, lowest) = run_route(&ground, JASPERLODE_OUTSIDE, &JASPERLODE_ROUTE, delta, 60.0);
@@ -455,6 +507,7 @@ fn walking_into_the_jasperlode_hillside_never_drops_the_player() {
     let ground = TerrainGround {
         terrain: &terrain,
         walls: &walls,
+        step_wall_blocked: &|from, to, top| triangles_block_step(&triangles, from, to, top),
         game_object_floor: &|_| None,
     };
     for delta in [1.0 / 60.0, 0.5, 2.0] {
