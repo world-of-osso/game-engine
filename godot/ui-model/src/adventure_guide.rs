@@ -1,8 +1,7 @@
 //! Retail Mainline Adventure Guide; both skins share the same 800×496 layout.
-use crate::bank_art::{WHITE, label, texture};
+use crate::bank_art::{WHITE, label};
 use crate::minimal_scroll_bar::{MinimalScrollBar, Unscrollable, pixel_geometry, scroll_list_attr};
-use crate::quest_art::{DynName, NORMAL_FONT_COLOR, named_atlas_texture, portrait_border};
-use crate::selection_list::MenuTick;
+use crate::quest_art::{DynName, NORMAL_FONT_COLOR, portrait_border};
 use game_engine_core::adventure_guide::{
     Catalog, Instance, Item, ItemSet, JourneyPresentation, Section, difficulty_matches,
 };
@@ -180,7 +179,7 @@ impl View {
         });
         sets
     }
-    fn set_level(&self, set: &ItemSet) -> Option<u32> {
+    pub(crate) fn set_level(&self, set: &ItemSet) -> Option<u32> {
         set.items
             .iter()
             .filter_map(|id| crate::item_catalog::item_catalog_entry(*id))
@@ -193,6 +192,9 @@ impl View {
             .max()
     }
     fn choose_set_specialization(&self) -> u32 {
+        if self.class == 0 {
+            return 0;
+        }
         let specs: Vec<_> = self
             .catalog
             .specs
@@ -578,6 +580,14 @@ impl View {
                 };
                 self.visible = true;
                 if self.tab == Tab::ItemSets && self.spec == 0 {
+                    if self.class == 0 {
+                        self.class = self
+                            .catalog
+                            .specs
+                            .iter()
+                            .find(|spec| Some(spec.id) == self.player_spec)
+                            .map_or(0, |spec| spec.class);
+                    }
                     self.spec = self.choose_set_specialization();
                 }
                 self.instance = None;
@@ -744,15 +754,6 @@ impl View {
         Ok(())
     }
 }
-pub(crate) fn button(
-    name: String,
-    text: &str,
-    action: &str,
-    rect: (f32, f32, f32, f32),
-) -> Element {
-    let (left, top, width, height) = rect;
-    rsx! {button {name:{DynName(name)},text,onclick:action,left,top,width,height,pos_type:"absolute",font_size:12.0,font_color:NORMAL_FONT_COLOR,button_atlas_up:"defaultbutton-nineslice-up",button_atlas_pressed:"defaultbutton-nineslice-pressed",button_atlas_highlight:"defaultbutton-nineslice-highlight"}}
-}
 pub(crate) fn text(name: &str, value: &str, rect: (f32, f32, f32, f32)) -> Element {
     label(name.into(), value, rect, (12., WHITE, "LEFT"))
 }
@@ -792,7 +793,7 @@ pub fn adventure_guide_screen(ctx: &SharedContext) -> Element {
                 &view.journey_presentation,
             ),
             Tab::Tutorials => crate::adventure_tutorials::tutorials(&view.catalog),
-            Tab::ItemSets => sets(ctx, view),
+            Tab::ItemSets => crate::adventure_sets::item_sets(ctx, view),
             Tab::Monthly => crate::adventure_activities::monthly(
                 ctx,
                 view.activities.as_deref(),
@@ -1287,160 +1288,6 @@ pub(crate) fn loot_filter_entries(view: &View, menu: LootFilter) -> Vec<(u32, St
         }
     }
 }
-fn loot_filter_menu(ctx: &SharedContext, view: &View, menu: LootFilter) -> Element {
-    let (name, key, index) = match menu {
-        LootFilter::Class => ("Class", "class", 0),
-        LootFilter::Spec => ("Spec", "spec", 1),
-        LootFilter::Slot => ("Slot", "slot", 2),
-    };
-    let entries: Vec<_> = loot_filter_entries(view, menu)
-        .into_iter()
-        .filter(|(id, _)| view.tab != Tab::ItemSets || menu != LootFilter::Spec || *id != 0)
-        .collect();
-    let height = (entries.len() as f32 * 24.).min(300.);
-    let children = entries
-        .iter()
-        .enumerate()
-        .flat_map(|(row, (id, title))| {
-            let chosen = *id
-                == match menu {
-                    LootFilter::Class => view.class,
-                    LootFilter::Spec => view.spec,
-                    LootFilter::Slot => view.slot,
-                };
-            crate::selection_list::menu_choice(
-                format!("Journal{name}{id}"),
-                title,
-                &format!("journal:{key}:{id}"),
-                (MenuTick::Radio, chosen),
-                (0., row as f32 * 24., 174., 23.),
-            )
-        })
-        .collect();
-    let content = scroll_in(
-        ctx,
-        children,
-        (0., 0., 188., height),
-        entries.len() as f32 * 24.,
-        "EncounterJournalFilterList",
-    );
-    let (left, top) = if view.tab == Tab::ItemSets {
-        (202. + index as f32 * 190., 89.)
-    } else {
-        (437. + index as f32 * 110., 135.)
-    };
-    let background = crate::selection_list::menu_background(
-        "EncounterJournalFilterMenuBackground".into(),
-        (190.0, height),
-    );
-    rsx! {r#frame {name:"EncounterJournalFilterMenu",left,top,width:190.0,height,pos_type:"absolute",frame_level:530.0,mouse_enabled:true,{background}{content}}}
-}
-fn sets(ctx: &SharedContext, view: &View) -> Element {
-    let rows = view.item_sets();
-    let offset = ctx.scroll_first_row(LIST) as f32;
-    let content = rows
-        .iter()
-        .enumerate()
-        .filter(|(index, _)| {
-            let top = *index as f32 * 54.;
-            top + 41. >= offset && top <= offset + 370.
-        })
-        .flat_map(|(index, set)| item_set_row(view, set, index as f32 * 54.))
-        .collect();
-    let mut out = scroll(
-        ctx,
-        content,
-        (15., 110., 770., 370.),
-        (rows.len() as f32 * 54.).max(370.),
-    );
-    out.extend(set_filter_buttons(view));
-    if let Some(menu) = view.filter_menu {
-        out.extend(loot_filter_menu(ctx, view, menu));
-    }
-    out
-}
-fn set_filter_buttons(view: &View) -> Element {
-    let class = view
-        .catalog
-        .classes
-        .get(&view.class)
-        .map(String::as_str)
-        .unwrap_or("All classes");
-    let spec = view
-        .catalog
-        .specs
-        .iter()
-        .find(|spec| spec.id == view.spec)
-        .map(|spec| spec.name.as_str())
-        .unwrap_or("All specs");
-    let controls: Element = [("Class", class, "class"), ("Spec", spec, "spec")]
-        .into_iter()
-        .enumerate()
-        .flat_map(|(index, (name, title, key))| {
-            button(
-                format!("Journal{name}Filter"),
-                title,
-                &format!("journal:filter:{key}"),
-                (202. + index as f32 * 190., 0., 184., 24.),
-            )
-        })
-        .collect();
-    rsx! {r#frame {name:"JournalSetFilters",left:0.0,top:65.0,width:790.0,height:24.0,pos_type:"absolute",{controls}}}
-}
-fn item_set_row(view: &View, set: &ItemSet, top: f32) -> Element {
-    let mut children = named_atlas_texture(
-        format!("JournalSet{}Background", set.id),
-        "loottab-set-background",
-        (0., 0., 744., 41.),
-    );
-    let mut items: Vec<_> = set
-        .items
-        .iter()
-        .filter_map(|id| view.catalog.items.get(id))
-        .collect();
-    items.sort_by_key(|item| (slot_order(item.slot), item.id));
-    // Retail ConfigureItemButton recolors the name per button, so the last sorted member wins.
-    let quality = items.last().map_or(1, |item| item.quality as u8);
-    children.extend(label(
-        format!("JournalSet{}", set.id),
-        &set.name,
-        (39., 4., 318., 20.),
-        (12., crate::merchant_data::quality_color(quality), "LEFT"),
-    ));
-    let level_text = match view.set_level(set) {
-        Some(level) => format!("Item Level {level}"),
-        None => "Item level unavailable".into(),
-    };
-    children.extend(text(
-        &format!("JournalSet{}Level", set.id),
-        &level_text,
-        (39., 24., 318., 16.),
-    ));
-    children.extend(items.iter().enumerate().flat_map(|(index, item)| {
-        let prefix = format!("JournalSet{}Item{}", set.id, item.id);
-        let mut icon = texture(format!("{prefix}Icon"), item.icon, (2.,2.,28.,28.), WHITE);
-        let border = match item.quality {
-            2 => Some("loottab-set-itemborder-green"),
-            3 => Some("loottab-set-itemborder-blue"),
-            4 => Some("loottab-set-itemborder-purple"),
-            _ => None,
-        };
-        if let Some(atlas) = border {
-            icon.extend(named_atlas_texture(format!("{prefix}Border"), atlas, (-2.,0.,40.,32.)));
-        }
-        let left = 360. + index as f32 * 37.;
-        rsx! {r#frame {name:{DynName(prefix)},left,top:4.0,width:32.0,height:32.0,pos_type:"absolute",mouse_enabled:true,{icon}}}
-    }));
-    rsx! {r#frame {name:{DynName(format!("JournalSet{}Row",set.id))},left:10.0,top,width:744.0,height:41.0,pos_type:"absolute",background_color:"0.12,0.10,0.08,1.0",{children}}}
-}
-fn slot_order(slot: u32) -> usize {
-    [
-        1, 2, 3, 16, 5, 20, 9, 10, 6, 7, 8, 11, 12, 13, 17, 21, 22, 14, 23, 15, 26, 28,
-    ]
-    .iter()
-    .position(|id| *id == slot)
-    .unwrap_or(22)
-}
 fn search_results(ctx: &SharedContext, view: &View) -> Element {
     let search = view.search.to_lowercase();
     let instances = view
@@ -1518,6 +1365,9 @@ pub(crate) fn scroll_in(
     } else if list == LIST && width == 521. {
         // MonthlyActivities.ScrollBar TOPRIGHT+8,-6 / BOTTOMRIGHT+8,+6.
         (left + width + 8., top + 6., height - 12., width)
+    } else if list == LIST && width == 762. {
+        // LootJournalItems.xml ItemSetsFrame.ScrollBar: TOPRIGHT+8,-3 / BOTTOMRIGHT+8,+5.
+        (left + width + 8., top + 3., height - 8., width)
     } else if list == LIST && width == 345. {
         (left + width + 5., top + 5., height - 10., width)
     } else if list == LIST && width == 748. {
