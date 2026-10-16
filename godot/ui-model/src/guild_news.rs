@@ -65,6 +65,65 @@ fn filter_link() -> Element {
     button_default_skin: false, onclick: "guild:news_filters", {content} } }
 }
 
+/// GuildNews.xml:384–445; unsupported guild-achievement/encounter filters collapse.
+pub fn filters(session: &GuildRanksSession) -> Element {
+    if !session.news.filters_open {
+        return vec![];
+    }
+    let mut children =
+        crate::guild_rank_frame::translucent_chrome("GuildNewsFiltersFrame", (264.0, 230.0));
+    children.extend(label(
+        "GuildNewsFiltersFrameTitle".into(),
+        "Guild News Filters",
+        (24.0, 18.0, 210.0, 12.0),
+        (12.0, "1,0.82,0,1", "LEFT"),
+    ));
+    children.extend(rsx! { button { name: "GuildNewsFiltersFrameCloseButton", left: 236.0, top: 4.0,
+        width: 24.0, height: 24.0, pos_type: "absolute", button_default_skin: false,
+        onclick: "guild:news_filters_close", button_atlas_up: "RedButton-Exit",
+        button_atlas_pressed: "RedButton-exit-pressed", button_atlas_highlight: "RedButton-Highlight" } });
+    for (row, (id, text)) in [
+        (2, "Members Achievements"),
+        (4, "Epic Items Looted"),
+        (5, "Epic Items Crafted"),
+        (6, "Epic Items Purchased"),
+        (9, "Legendary Items Looted"),
+    ]
+    .into_iter()
+    .enumerate()
+    {
+        let name = format!("GuildNewsFiltersCheck{id}");
+        let action = format!("guild:news_filter:{id}");
+        let checked = session.news.filters[id];
+        let mut art = rsx! { texture { name: {DynName(format!("{name}Box"))}, texture_fdid: 130755,
+        width: 24.0, height: 24.0, pos_type: "absolute", left: 0.0, top: 0.0 }
+        texture { name: {DynName(format!("{name}Highlight"))}, texture_fdid: 130753,
+        draw_layer: "HIGHLIGHT", blend_mode: "ADD", width: 24.0, height: 24.0,
+        pos_type: "absolute", left: 0.0, top: 0.0 } };
+        if checked {
+            art.extend(
+                rsx! { texture { name: {DynName(format!("{name}Check"))}, texture_fdid: 130751,
+                width: 24.0, height: 24.0, pos_type: "absolute", left: 0.0, top: 0.0 } },
+            );
+        }
+        art.extend(label(
+            format!("{name}Text"),
+            text,
+            (25.0, 5.0, 195.0, 12.0),
+            (12.0, "1,1,1,1", "LEFT"),
+        ));
+        children.extend(
+            rsx! { button { name: {DynName(name)}, left: 24.0, top: {40.0 + row as f32 * 24.0},
+            width: 24.0, height: 24.0, pos_type: "absolute", button_default_skin: false,
+            onclick: action, {art} } },
+        );
+    }
+    // UIPanelWindows.lua39: left area, no yoffset; native slotL is16,104.
+    rsx! { r#frame { name: "GuildNewsFiltersFrame", left: 16.0, top: 104.0,
+    width: 264.0, height: 230.0, pos_type: "absolute", mouse_enabled: true,
+    strata: crate::ui::strata::FrameStrata::Dialog, frame_level: 1100.0, {children} } }
+}
+
 fn news_list(session: &GuildRanksSession, shared: &SharedContext) -> Element {
     let geometry = pixel_geometry(306.0, 18.0, 327.0);
     let offset = geometry.clamp(shared.scroll_first_row(SCROLL_BOX));

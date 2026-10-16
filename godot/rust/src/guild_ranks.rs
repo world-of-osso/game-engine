@@ -134,6 +134,34 @@ impl GameClient {
         Ok(())
     }
 
+    pub(super) fn receive_guild_news(
+        &mut self,
+        news: shared::protocol::GuildNewsState,
+    ) -> Result<(), FrameError> {
+        if self
+            .guild_ranks
+            .session
+            .state()
+            .is_none_or(|state| state.ranks.is_empty())
+        {
+            return Ok(());
+        }
+        if let Some(error) = news.error {
+            let message = match error {
+                shared::protocol::GuildNewsError::NotInGuild => "You are not in a guild.",
+                shared::protocol::GuildNewsError::Permissions => {
+                    "You don't have permission to do that."
+                }
+                shared::protocol::GuildNewsError::EntryNotFound => {
+                    "That guild news entry is no longer available."
+                }
+            };
+            self.guild_notice(message, true)?;
+        }
+        self.guild_ranks.session.news.apply(news);
+        Ok(())
+    }
+
     fn guild_notice(&mut self, text: &str, error: bool) -> Result<(), FrameError> {
         game_engine_ui_model::chat_frame::add_system_line(&mut self.chat.model.log, text);
         if error {
@@ -255,6 +283,12 @@ impl GameClient {
             }
         }
         while let Some((action, right, _)) = ui.bind_mut().pop_alt_click() {
+            if right && action.starts_with("guild:news_entry:") {
+                self.guild_ranks.session.click(
+                    &action.replacen("guild:news_entry:", "guild:news_menu:", 1),
+                    &InputTexts::default(),
+                );
+            }
             if right && action.starts_with("guild:member:") {
                 self.guild_ranks.session.click(
                     &action.replacen("guild:member:", "guild:member-menu:", 1),
