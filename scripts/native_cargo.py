@@ -6,7 +6,9 @@ from pathlib import Path
 import subprocess
 import time
 
-NATIVE_SLOTS = int(os.environ.get("GAME_ENGINE_NATIVE_SLOTS", "3"))
+# capacity.sh already admits builds on CPU, memory and pressure; three slots on top of it left
+# admitted builds waiting while the host sat at 30% CPU with 35 GiB free (2026-10-16).
+NATIVE_SLOTS = int(os.environ.get("GAME_ENGINE_NATIVE_SLOTS", "5"))
 
 
 @contextlib.contextmanager
