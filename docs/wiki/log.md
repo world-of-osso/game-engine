@@ -10,6 +10,13 @@
 ## 2026-10-16 — Lifetime honor source boundary
 
 [Honor](systems/battlegrounds.md#lifetime-honor-source-boundary--2026-10-16): pinned concrete world-kill XP plumbing is distinct from spendable1792; no8800 guess, old Prestige curve reinterpretation or quest-to-match payout assignment. Persist/replicate lifetime XP, leave level/fill unknown, preserve source faction art and tooltip. Merged server10/UI4/wire1/check/fmt pass; actual private damage/death0→47→94, both-skin full-HD tooltip, dead replay and fresh-process relog are bounded native proof. Character Currency's absent consumer/UI remains open, not excused by unavailable award policy.
+## 2026-10-16 — Multi-area world-quest pin continuation
+
+[Area/floor boundary](investigations/world-quest-availability.md#multi-area-pin-continuation--implementation-checkpoint): actual82521 lower2256 pin RED0/1 and server availability REDfirst-area-only, while acceptance already accepts either source area. Source CSV also providesZ, which the importer discarded: new height-preservation/missing-height tests are RED. Importer/runtime/wire now retain all309areas' XYZ for239tasks; the renderer keeps existing3D floor checks instead of using the unverified2D workaround. Minimap nearest-area navigation keeps one logical task. Continuation gate passes: importer14/UI7/server2/protocol2, registered build/check/fmt0, independent verification and both-skin physical lower/main-map selection plus real expiry, with eight inspected fullHD originals. Prior3c08 settlement proof remains separate. Every one of the five admission gaps is now named against fresh installed70391 sources; no invented trigger volumes or label membership. Source choice census239/0 makes reward choice not applicable.
+
+## 2026-10-16 — World-quest navigation and Deathwing diagnosis
+
+[Task navigation and hazard](investigations/world-quest-availability.md#2026-10-16-navigation-and-authored-deathwing-hazard): available pins select without acceptance, received-position minimap markers, source-only bars/time text and unnumbered tracker POIs;13 scoped UI controls GREEN. Actual ten46327 actors spawn5552/5552; Deathwing's authored Molten Flame kills them on grid activation, not spawn/scaling/terrain. Current both-skin navigation/window/controlled-reward gate passes: actual7/8→8/8,11765XP, replay/expiry and26 inspected fullHD PNGs. The explicitly approved private fixture omits only hazard spawn20383796; product data is unchanged, no injected credit or NPC health restore. Ordinary-world hazard/phasing remains open.
 
 ## 2026-10-16 — Guild news live acceptance
 
@@ -37,10 +44,6 @@
 ## 2026-10-16 — Maintained Stockade controller integration
 
 [Bot Stockade boundary](systems/bot-harness.md#stockade-boss-accounting): follower523dc4ce5/master merged preserving both native parser/metrics and routed player interface;115 bot Python cases/controller syntax pass. New readonly encounter/spawn plan, target-bound native authored provider, party facts and native equal-budget sheet/inventory observations are implemented after source-module RED. Actual Fury Stockade execution/credit/clear time remains pending; no diagnostic driver, Mage cycle or stat override copied.
-## 2026-10-16 — World-quest navigation and Deathwing diagnosis
-
-[Task navigation and hazard](investigations/world-quest-availability.md#2026-10-16-navigation-and-authored-deathwing-hazard): available pins select without acceptance, received-position minimap markers, source-only bars/time text and unnumbered tracker POIs;13 scoped UI controls GREEN. Actual ten46327 actors spawn5552/5552; Deathwing's authored Molten Flame kills them on grid activation, not spawn/scaling/terrain. Current both-skin navigation/window/controlled-reward gate passes: actual7/8→8/8,11765XP, replay/expiry and26 inspected fullHD PNGs. The explicitly approved private fixture omits only hazard spawn20383796; product data is unchanged, no injected credit or NPC health restore. Ordinary-world hazard/phasing remains open.
-
 ## 2026-10-16 — HouseSettings action-button source art
 
 [Three action buttons](systems/housing.md#housesettings-action-button-art--2026-10-16): four source UIPanel bindings only, RED→GREEN and both-skin enabled/disabled/pending native proof; all eight fullHD changes confined to button rectangles. No typography/lifecycle/backend claim.
