@@ -57,6 +57,8 @@ mod parts;
 mod party_preview;
 mod professions_preview;
 mod projection;
+#[cfg(debug_assertions)]
+mod ready_check_preview;
 mod registration_preview;
 mod rosterfix_preview;
 #[cfg(test)]
@@ -66,8 +68,6 @@ mod scroll_lists;
 mod selection_list_tests;
 mod sidebarbinds_preview;
 mod spellbook_preview;
-#[cfg(debug_assertions)]
-mod ready_check_preview;
 #[cfg(debug_assertions)]
 mod stack_split_preview;
 mod target_cast_preview;
