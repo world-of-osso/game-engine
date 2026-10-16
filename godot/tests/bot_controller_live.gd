@@ -97,7 +97,7 @@ func sample() -> void:
             "meter": client.damage_meter_state(), "rotation": rotation,
             "unit_origins": origins,
             "player_position": account.get("local_player_position")})
-    if not kit_captured and account.get("gameplay_input_allowed", false):
+    if not kit_captured and account.get("screen") == "InWorld" and account.get("local_player_health") != null and account.get("gameplay_input_allowed", false):
         if spells.get("catalog_ready", false) and not spells.get("known", []).is_empty():
             publish("native-spells-state.json", spells)
             kit_captured = true

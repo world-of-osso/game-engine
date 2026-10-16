@@ -46,6 +46,19 @@ class DungeonReportTests(unittest.TestCase):
             event("death", 1, 13, "-", "-", 8000),
         ]))
 
+    def test_unconfirmed_native_owner_still_reports_every_expected_boss_as_unknown(self):
+        self.run['actor'] = None
+        for boss in self.run['bosses']:
+            del boss['entity']
+        result = summarize_dungeon(self.run, [])
+        self.assertFalse(result['clear_complete'])
+        self.assertIsNone(result['clear_time_ms'])
+        self.assertIsNone(result['player_deaths'])
+        self.assertIsNone(result['party_deaths'])
+        self.assertEqual(len(result['bosses']), 3)
+        self.assertTrue(all(row['dps'] is None for row in result['bosses']))
+        self.assertFalse(result['metrics_complete'])
+
     def test_clear_requires_all_credit_and_owns_only_player_pet_boss_damage(self):
         result = summarize_dungeon(self.run, self.events)
         self.assertTrue(result["clear_complete"])

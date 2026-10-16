@@ -37,11 +37,24 @@ def summarize_boss(run, boss, events):
     return result
 
 
+def unavailable_dungeon(run):
+    bosses = [{"entry": boss["entry"], "name": boss["name"], "encounter": boss["encounter"],
+               "entity": None, "state": "Unobserved", "measurement_complete": False,
+               "damage": None, "duration_ms": None, "dps": None}
+              for boss in run["bosses"]]
+    return {"schema": 1, "scenario": "stockade", "spec": run["spec"], "actor": None,
+            "clear_complete": False, "clear_time_ms": None, "elapsed_ms": run["elapsed_ms"],
+            "player_deaths": None, "party_deaths": None, "metrics_complete": False,
+            "capture_complete": False, "bosses": bosses, "unobserved": ["native_owner_preflight"]}
+
+
 def summarize_dungeon(run, events):
-    if run["end_ms"] <= run["start_ms"]:
-        raise ValueError("Dungeon observation window must have positive duration")
     if not run["bosses"]:
         raise ValueError("Dungeon requires an explicit expected boss roster")
+    if run["actor"] is None:
+        return unavailable_dungeon(run)
+    if run["end_ms"] <= run["start_ms"]:
+        raise ValueError("Dungeon observation window must have positive duration")
     events = sorted(events, key=lambda row: row["at_ms"])
     window = [row for row in events if run["start_ms"] <= row["at_ms"] < run["end_ms"]]
     bosses = [summarize_boss(run, boss, events) for boss in run["bosses"]]

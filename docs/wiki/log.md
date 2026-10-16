@@ -1,3 +1,7 @@
+## 2026-10-16 — Owned Stockade run caller
+
+[Native caller](systems/bot-harness.md#stockade-boss-accounting) requires existing equal-budget gear, native five-role group and copy-bound actors, then consumes maintained F-assist/IPC casts/strict navmesh movement. It records raw continuity/priority/error/credit evidence and separates clear timing, deaths and owned per-boss DPS. No provisioning/stat overrides or private Mage driver. Actual Fury run remains pending; matched extension/CLI/server/native route-query builds completed separately.
+
 ## 2026-10-16 — Maintained Stockade controller integration
 
 [Bot Stockade boundary](systems/bot-harness.md#stockade-boss-accounting): follower523dc4ce5/master merged preserving both native parser/metrics and routed player interface;115 bot Python cases/controller syntax pass. New readonly encounter/spawn plan, target-bound native authored provider, party facts and native equal-budget sheet/inventory observations are implemented after source-module RED. Actual Fury Stockade execution/credit/clear time remains pending; no diagnostic driver, Mage cycle or stat override copied.
