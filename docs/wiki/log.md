@@ -1,3 +1,7 @@
+## 2026-10-15 — Native-controller three-DPS proof
+
+[Fresh native proof](systems/bot-harness.md#native-controller-three-dps-proof): Arms/Fury/BM six common-budget60s windows with actual auto-attack and received outcomes; mean-spec median129.0833, max/median1.00342, min/median0.281407, no tolerance/pass-fail. Old IPC windows remain diagnostic. Havoc now triggers Demon Blades then source21566/3 refuses; Cat/Bear confirm then5968/5741 condition3 refuse. Explicit new roster and preserved blocked comparisons prevent silent dropout. All40 post-parity attempts remain active; Stockade deferred.
+
 ## 2026-10-15 — Current native dummy admin schema
 
 [Fixture boundary](systems/bot-harness.md#current-admin-fixture-boundary): actual native setup reaches Cat/Bear form confirmation, then rejects the newly appended combat JSON. Parser regression uses captured server lines; current suffix/static armor required, transient threat excluded. Frozen private render cache refreshed from published source with all prior-column rows hash-identical; canonical data untouched. Combat remeasurement still pending.
