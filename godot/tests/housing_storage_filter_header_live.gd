@@ -82,6 +82,13 @@ func record_filter_header(phase: String) -> bool:
 		fail("Cannot save native Filter header receipts")
 		return false
 	output.store_string(JSON.stringify(filter_receipts, "\t"))
+	# The runner stops the client on PASS; persist receipts before any await/PASS.
+	output.flush()
+	var receipt_error := output.get_error()
+	output.close()
+	if receipt_error != OK:
+		fail("Cannot persist native Filter header receipts: " + str(receipt_error))
+		return false
 	await RenderingServer.frame_post_draw
 	if root.get_texture().get_image().save_png(shots.path_join(housing_skin.to_lower() + "-filter-header-" + phase + ".png")) != OK:
 		fail("Cannot save native Filter header pixels")
