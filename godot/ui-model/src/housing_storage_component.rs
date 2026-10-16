@@ -1,7 +1,8 @@
 //! Retail owned category rail: 75px, 64px roots, 54px children and source Back/All.
-use crate::housing_component::{HousingView, category_button, filter_choice};
+use crate::housing_component::{HousingView, category_button};
 use crate::menu_primitives::{
-    DropdownButton, DropdownState, DropdownStyle, dropdown_button_with_state,
+    ContextMenuItem, DescribedMenuElement, DropdownButton, DropdownState, DropdownStyle,
+    MenuElementKind, context_menu_description, dropdown_button_with_state,
 };
 use crate::quest_art::named_atlas_texture;
 use crate::ui::strata::FrameStrata;
@@ -118,61 +119,91 @@ fn filter_header(view: &HousingView) -> Element {
 }
 
 fn filter_menu(view: &HousingView) -> Element {
-    let background = named_atlas_texture(
-        "HouseEditorStorageFilterBackground".into(),
-        "common-dropdown-bg",
-        (-10.0, -3.0, 250.0, 116.0),
-    );
-    let dyeable = filter_choice(
-        "HouseEditorStorageDyeable",
-        "Dyeable Only",
-        "common-dropdown-ticksquare",
-        "common-dropdown-icon-checkmark-yellow",
-        view.model.storage_dyeable_only,
-        "housing:storage:filter:dyeable",
-        (42.0, false),
-    );
-    let sort = if view.model.storage_sort_open {
-        sort_menu(view)
-    } else {
-        Element::default()
-    };
-    let left = view.model.storage_panel.size[0] - 255.0;
-    rsx! {r#frame {name:"HouseEditorStorageFilterMenu",width:230.0,height:110.0,pos_type:"absolute",left,top:50.0,strata:FrameStrata::Tooltip,mouse_enabled:true,
-        {background}{dyeable}{sort}
-        button {name:"HouseEditorStorageSort",text:"Sort By >",width:184.0,height:20.0,pos_type:"absolute",left:28.0,top:18.0,button_default_skin:false,onclick:"housing:storage:sort"}
-        fontstring {name:"HouseEditorStorageLocationUnavailable",text:"Location filters unavailable",width:210.0,height:20.0,pos_type:"absolute",left:15.0,top:75.0,font_size:11.0,font_color:"0.5,0.5,0.5,1.0"}
-    }}
+    use MenuElementKind::{Checkbox, Divider, Submenu};
+    let entries = [
+        menu_entry(
+            "HouseEditorStorageSort",
+            "Sort By",
+            "housing:storage:sort",
+            Submenu,
+            true,
+        ),
+        menu_entry("HouseEditorStorageFilterDivider", "", "", Divider, false),
+        menu_entry(
+            "HouseEditorStorageDyeable",
+            "Dyeable Only",
+            "housing:storage:filter:dyeable",
+            Checkbox {
+                checked: view.model.storage_dyeable_only,
+            },
+            true,
+        ),
+        menu_entry(
+            "HouseEditorStorageLocationUnavailable",
+            "Placeable",
+            "",
+            Submenu,
+            false,
+        ),
+        menu_entry(
+            "HouseEditorStorageFilterTagsDivider",
+            "",
+            "",
+            Divider,
+            false,
+        ),
+    ];
+    // WowStyle1FilterDropdownTemplate: owner BOTTOMLEFT(+6,+2), y-down here.
+    let left = view.model.storage_panel.size[0] - 150.0 + 6.0;
+    let top = 25.0 + 20.0 - 2.0;
+    let mut popup =
+        context_menu_description("HouseEditorStorageFilterMenu", (left, top), 125.0, &entries);
+    if view.model.storage_sort_open {
+        // Menu.lua: submenu TOPLEFT to first row TOPRIGHT (shared8px inset).
+        popup.extend(sort_menu(view, (left + 125.0 - 8.0, top + 8.0)));
+    }
+    popup
 }
 
-fn sort_menu(view: &HousingView) -> Element {
-    let background = named_atlas_texture(
-        "HouseEditorStorageSortBackground".into(),
-        "common-dropdown-bg",
-        (-10.0, -3.0, 250.0, 116.0),
-    );
-    let date = filter_choice(
-        "HouseEditorStorageSortDateAdded",
-        "Date Added",
-        "common-dropdown-tickradial",
-        "common-dropdown-icon-radialtick-yellow",
-        false,
-        "housing:storage:sort:date-added",
-        (18.0, true),
-    );
-    let alphabetical = filter_choice(
-        "HouseEditorStorageSortAlphabetical",
-        "Alphabetical",
-        "common-dropdown-tickradial",
-        "common-dropdown-icon-radialtick-yellow",
-        view.model.storage_alphabetical,
-        "housing:storage:sort:alphabetical",
-        (42.0, false),
-    );
-    rsx! {r#frame {name:"HouseEditorStorageSortMenu",width:230.0,height:110.0,pos_type:"absolute",left:230.0,top:0.0,strata:FrameStrata::Tooltip,mouse_enabled:true,
-        {background}{date}{alphabetical}
-        fontstring {name:"HouseEditorStorageDatesUnavailable",text:"Acquisition dates unavailable",width:210.0,height:20.0,pos_type:"absolute",left:15.0,top:75.0,font_size:11.0,font_color:"0.5,0.5,0.5,1.0"}
-    }}
+fn sort_menu(view: &HousingView, anchor: (f32, f32)) -> Element {
+    use MenuElementKind::Radio;
+    let entries = [
+        menu_entry(
+            "HouseEditorStorageSortDateAdded",
+            "Date Added",
+            "housing:storage:sort:date-added",
+            Radio { checked: false },
+            false,
+        ),
+        menu_entry(
+            "HouseEditorStorageSortAlphabetical",
+            "Alphabetical",
+            "housing:storage:sort:alphabetical",
+            Radio {
+                checked: view.model.storage_alphabetical,
+            },
+            true,
+        ),
+    ];
+    context_menu_description("HouseEditorStorageSortMenu", anchor, 0.0, &entries)
+}
+
+fn menu_entry(
+    name: &'static str,
+    label: &'static str,
+    action: &'static str,
+    kind: MenuElementKind,
+    enabled: bool,
+) -> DescribedMenuElement<'static> {
+    (
+        ContextMenuItem {
+            name,
+            label,
+            action,
+        },
+        kind,
+        enabled,
+    )
 }
 
 pub(crate) fn categories(view: &HousingView) -> Element {

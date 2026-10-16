@@ -5,6 +5,7 @@ Retail Mainline built-ins from Blizzard_CooldownViewer and C_AssistedCombat. [Au
 ## What it must do
 - [x] Read authored per-specialization cooldown categories, order and linked spells from local Retail DB2 exports.
 - [x] Preserve authored rotation step/rule order; never substitute known-spell order or an invented rotation for an absent specialization.
+- [x] Pet-presence predicates57/58 consume the owner's PetSpells/PetClearSpells state. BM rule29672 permits authored Call Pet883 only without the controlled pet; missing readings and nonzero operands remain errors. This does not certify dead-pet, guardian-only or full rotation behavior.
 - [x] Caster-centered spells using authored SpellRange1 (Self Only, [0,0]) are not excluded by distance to the selected hostile. Targeted spells retain their existing hostile min/max range checks. This does not infer effect radius, nearby-enemy conditions or body-range adjustments.
 - [x] Propagate unavailable rule evaluation on a potentially eligible higher-priority step instead of recommending a lower step as though it were false.
 - [x] Render Essential/Utility cooldown icon rows and Tracked Buff icons/Bars for the active specialization. Default buff-bar rows retain CooldownViewerBuffBarItemTemplate220×30, with188×19 status bar at(32,5.5), source textured BG/fill/Pip, XML tint(1,.5,.25), cropped remaining fraction and a source-sized normal-alpha pip following the fill edge; zero remaining time hides fill/pip. Applications uses the XML32×10 fontstring at icon BOTTOMRIGHT(−5,+5), clear of the icon corner.
