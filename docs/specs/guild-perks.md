@@ -20,7 +20,10 @@ Retail Mainline Benefits perks in Modern and Forever. Definitions: installed `db
 |---|---|
 | `godot/ui-model/src/guild_communities.rs` | Benefits composition |
 | `godot/ui-model/src/guild_perks.rs` | Actual installed catalog and source perk list |
-| `godot/rust/src/guild_ranks.rs` | Explicit catalog readiness before native Benefits sync |
+| `godot/rust/src/guild_ranks.rs` | Catalog readiness and modified row input |
+| `godot/ui-model/src/chat_draft.rs` | Real spell/item/achievement identities behind editable labels |
+| `godot/ui-model/src/ui/chat_frame.rs` | Labeled received spell links, source color and tooltip identity |
+| `godot/rust/src/chat.rs` | Native source-link insertion at actual selection/caret |
 
 ## Tests asserting this spec
 

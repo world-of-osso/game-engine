@@ -1,6 +1,6 @@
 ## 2026-10-16 — Installed guild perk list
 
-[Perks](systems/guilds.md#perks): real five-definition catalog and source Benefits list. Missing-title RED→five actual names/order and other-tab hiding GREEN1/1 in both skins. Tooltips/chat links, membership authority, native and effect proof remain pending; no functional-buff claim.
+[Perks](systems/guilds.md#perks): real five-definition catalog and source Benefits list. Missing-title RED→five actual names/order and other-tab hiding GREEN1/1 in both skins. Real spell-link draft/render REDs reproduced visible raw markup; the shared labeled-link decoder and wire-link/caret insertion now support source modified-click spell identity without changing bare combat links. Focused link GREEN, tooltip, native and effect proof remain pending; no functional-buff claim.
 
 ## 2026-10-16 — Guild news live acceptance
 
