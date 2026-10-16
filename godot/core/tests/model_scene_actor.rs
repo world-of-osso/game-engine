@@ -31,6 +31,17 @@ fn trading_post_mount_scene_preserves_installed_actor_transforms() {
 }
 
 #[test]
+fn trading_post_pet_player_scene_zero_display_uses_source_default_state() {
+    let root = Path::new(env!("CARGO_MANIFEST_DIR")).join("../../data");
+    let actors = read_scene_actors(&root, 430).unwrap();
+    let actor = &actors["harronir"];
+    assert_eq!(actor.id, 3626);
+    assert_eq!(actor.scale, 1.);
+    assert_eq!(actor.alpha, 1.);
+    assert_eq!(actor.animation, 0);
+}
+
+#[test]
 fn missing_mount_scene_fails_instead_of_using_generic_actor() {
     let root = Path::new(env!("CARGO_MANIFEST_DIR")).join("../../data");
     assert!(
