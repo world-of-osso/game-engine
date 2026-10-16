@@ -93,7 +93,10 @@ func run_fixture() -> void:
 func item_tooltip_proof() -> void:
 	if not await choose_category(1): return
 	var products := []
-	for row in client.trading_post_state().rows:
+	# Lower visible rows leave room above ANCHOR_RIGHT without screen clamping.
+	var rows: PackedStringArray = client.trading_post_state().rows
+	rows.reverse()
+	for row in rows:
 		var id := int(str(row).split("|")[0])
 		var name := "PerksProgramProduct%d" % id
 		if control(name) == null: continue
