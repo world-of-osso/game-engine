@@ -52,7 +52,20 @@ pub fn quest_ui_action(
     runtime: &mut QuestRuntime,
     ui: &mut QuestUiState,
 ) -> Vec<QuestUiEffect> {
-    if action.starts_with("quest_tracker:") {
+    if let Some(id) = parse_suffix::<u32>(action, crate::world_quest_ui::SELECT_PREFIX) {
+        if runtime
+            .world_quests
+            .iter()
+            .any(|quest| quest.quest_id == id)
+        {
+            ui.super_tracked = if ui.super_tracked == Some(id) {
+                None
+            } else {
+                Some(id)
+            };
+        }
+        Vec::new()
+    } else if action.starts_with("quest_tracker:") {
         tracker_action(action, runtime, ui)
     } else if action.starts_with("quest_log:") {
         log_action(action, runtime, ui)
