@@ -126,6 +126,9 @@ func verify_section_selection() -> bool:
 	if state.encounter != 112 or state.difficulty != 2 or header == null or not viewport.get_global_rect().encloses(header.get_global_rect()):
 		stop("Real section search did not select Heroic Ozruk and reveal2410: " + str(state))
 		return false
+	if label_text("EncounterJournalSearchBox") != "Paralyze":
+		stop("Search selection incorrectly cleared retained source query")
+		return false
 	if shown("EncounterJournalSearchPreview") or shown("EncounterJournalSearchResults"):
 		stop("Search selection retained a results overlay")
 		return false
@@ -162,6 +165,10 @@ func run() -> void:
 		return
 	if shown("EncounterJournalSearchPreview") or shown("EncounterJournalSearchResults"):
 		stop("Two-character physical query incorrectly shows results")
+		return
+	await press_key(KEY_ENTER)
+	if not control("EncounterJournalSearchBox").has_focus():
+		stop("Enter on invalid short query incorrectly released source focus")
 		return
 	if not await click("EncounterJournalSearchBoxClearButton"):
 		return

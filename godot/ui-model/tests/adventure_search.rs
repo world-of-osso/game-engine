@@ -141,16 +141,20 @@ fn journal_search_minimum_empty_and_section_result_navigation() {
             .any(|(section, _)| section.id == 2410)
     );
     assert_eq!(view.page, Page::Overview);
-    assert!(view.search.is_empty());
+    assert_eq!(
+        view.search, "Paralyze",
+        "Retail Close hides preview without clearing text"
+    );
     view.search = "Molten Core".into();
     view.apply("journal:search-select:0").unwrap();
     assert_eq!(view.instance, Some(741));
     assert_eq!(view.tab, Tab::Raids);
     assert_eq!(view.encounter, None);
-    assert!(view.search.is_empty());
+    assert_eq!(view.search, "Molten Core");
     view.search = "Lucifron".into();
     view.apply("journal:search-select:0").unwrap();
     assert_eq!(view.encounter, Some(1519));
+    assert_eq!(view.search, "Lucifron");
     view.search = "flame".into();
     view.apply("journal:search-focus").unwrap();
     view.apply("journal:close").unwrap();
