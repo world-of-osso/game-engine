@@ -2,7 +2,13 @@
 //! Numeric outcomes are enabled only where strict/inclusive interpretations agree.
 //! Equality, undocumented encodings and prediction remain explicit source gaps.
 use crate::cooldown_assist::AssistedRule;
+use crate::spell_catalog::CatalogSpell;
 use std::collections::{BTreeMap, BTreeSet};
+
+/// Native assisted range fact for the currently selected hostile target.
+pub fn is_assisted_spell_in_range(spell: &CatalogSpell, distance: f32) -> bool {
+    distance >= spell.range.min_yd[0] && distance <= spell.range.max_yd[0]
+}
 
 /// SpellName/SpellMisc/SpellEffect of the local Retail built-in, not a new spell.
 pub const SINGLE_BUTTON_ASSISTANT: u32 = 1_229_376;
