@@ -4,6 +4,9 @@
 ## 2026-10-16 — Unavailable storage-filter semantics
 
 [F20](systems/housing.md#unavailable-storage-filters--qualified2026-10-16): read-only70391 catalog/API/persistence inspection distinguishes query contracts from absent location/history/tag-definition mappings. No invented semantics/product edits or replay; full-HD remains F21.
+## 2026-10-16 — Inherited frozen Trading Post item tooltip
+
+[Inherited tooltip](systems/trading-post.md#inherited-frozen-product-tooltip--implementation-october16): resolve the existing displayed selection action instead of ordinary-only names. Missing native frozen-hover RED→actual8e9/7f7c8875/44e6bed both-skin settled-slot GREEN, independent item/model identity, source anchor/no sell price/leave/teardown and unchanged Tender. Four inspected full-HD hover/leave originals+two contacts published; genuine private frozen slots retained. Pending-freeze/drag/framing excluded.
 
 ## 2026-10-16 — Fade effect native projection
 
@@ -4238,4 +4241,6 @@ Completed Retailv2 codec/authoritative Create and committed Copy callbacks, exac
 [Guild perks](systems/guilds.md#perk-native-authority-and-effect-boundary-2026-10-16): five real DB2 definitions, source Benefits rows/tooltips, TalentChannel snapshot/delta ordering RED→GREEN, actual owner joins/removal/rejoin/quit and class conservation. Both-skin native modified-link/server echo and identical-binary fresh-process readback pass. Effects remain individually qualified; no fabricated mounted-speed, Hearthstone, resurrection or guild-chest functionality.
 
 - Guild perk follow-up: physical existing-caret RED revealed native-only edit text bypassing RegistryUi state; d82f213cc updates the authoritative edit model before restoring caret. Actual both-skin no-cast/caret/server-echo and fresh-process readback now pass on current merged binaries; actual UDP membership sequence also refreshed.
+
+- 2026-10-16: Frozen ProductButton inherits base item tooltip; ordinary-name-only native lookup missed it. Actual genuine-Freeze native RED observed; resolve already-rendered selection action without new frozen state. [Trading Post](systems/trading-post.md#inherited-frozen-product-tooltip--implementation-october16).
 - 2026-10-16: Cart regular/member source tooltip both-skin native GREEN including actual hover-only removal; phase-local global input parsing corrects viewport-only fixture cursor.33UI12native/check/3scopedRustfmt pass at9e7; eight full-HD originals+two contacts published. [Trading Post](systems/trading-post.md#cart-item-tooltips--implementation-october16).
