@@ -116,12 +116,13 @@ impl GameClient {
         type Source = fn(&mut GameClient, &HoveredFrame) -> Option<HoveredTooltip>;
         const SOURCES: [Source; 41] = [
             GameClient::token_currency_tooltip,
-            GameClient::pvp_honor_tooltip,
             GameClient::trading_post_cart_tooltip,
             GameClient::guild_perk_tooltip,
+            GameClient::pvp_honor_tooltip,
             GameClient::guild_news_tooltip,
             GameClient::trading_post_button_tooltip,
             GameClient::trading_post_tooltip,
+            GameClient::journal_section_flag_tooltip,
             GameClient::journal_defeated_tooltip,
             GameClient::journal_creature_tooltip,
             GameClient::journal_monthly_tooltip,
@@ -185,21 +186,6 @@ impl GameClient {
         )?))
     }
 
-    /// Mainline PVPUI.lua1975: lifetime honor, ANCHOR_RIGHT offsets-20,-20.
-    fn pvp_honor_tooltip(&mut self, hit: &HoveredFrame) -> Option<HoveredTooltip> {
-        let ui = hit.ui.bind();
-        let (owner, ()) = named_ancestor(ui.registry()?, hit.frame, |frame| {
-            (name_of(frame)? == "PVPUIHonorLevelDisplay").then_some(())
-        })?;
-        drop(ui);
-        let tooltip = self.battleground.view.honor_tooltip()?;
-        Some(HoveredTooltip::text(tooltip.owned_offset(
-            self.owner_rect(&hit.ui, owner)?,
-            OwnerSide::Right,
-            [-20.0, -20.0],
-        )))
-    }
-
     /// Elements.lua1603–1623: cart details inherit GetItemByID, left(-8,-20).
     fn trading_post_cart_tooltip(&mut self, hit: &HoveredFrame) -> Option<HoveredTooltip> {
         let ui = hit.ui.bind();
@@ -240,6 +226,21 @@ impl GameClient {
             rect,
             OwnerSide::Right,
             [36.0, 0.0],
+        )))
+    }
+
+    /// Mainline PVPUI.lua1975: lifetime honor, ANCHOR_RIGHT offsets-20,-20.
+    fn pvp_honor_tooltip(&mut self, hit: &HoveredFrame) -> Option<HoveredTooltip> {
+        let ui = hit.ui.bind();
+        let (owner, ()) = named_ancestor(ui.registry()?, hit.frame, |frame| {
+            (name_of(frame)? == "PVPUIHonorLevelDisplay").then_some(())
+        })?;
+        drop(ui);
+        let tooltip = self.battleground.view.honor_tooltip()?;
+        Some(HoveredTooltip::text(tooltip.owned_offset(
+            self.owner_rect(&hit.ui, owner)?,
+            OwnerSide::Right,
+            [-20.0, -20.0],
         )))
     }
 
@@ -376,6 +377,19 @@ impl GameClient {
             },
             None,
         ))
+    }
+
+    fn journal_section_flag_tooltip(&mut self, hit: &HoveredFrame) -> Option<HoveredTooltip> {
+        let ui = hit.ui.bind();
+        let (owner, tooltip) = named_ancestor(ui.registry()?, hit.frame, |frame| {
+            game_engine_ui_model::adventure_section_flags::tooltip(
+                &self.adventure_guide.view,
+                frame.name.as_deref()?,
+            )
+        })?;
+        drop(ui);
+        let rect = self.owner_rect(&hit.ui, owner)?;
+        Some(HoveredTooltip::text(tooltip.owned(rect, OwnerSide::Right)))
     }
 
     fn journal_defeated_tooltip(&mut self, hit: &HoveredFrame) -> Option<HoveredTooltip> {

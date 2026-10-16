@@ -16,6 +16,12 @@ The Godot client predicts the local player's movement and reports each moved pos
 - [x] Live: in deep water the client swims at 4.72 yd/s (7.0 before) and the server ends where the client does (`godot/tests/world_speed_walk.gd`, `SPEED_SWIM=1`, `--fixed-fps 60`).
 - [ ] Live: under a snare or speed aura the server's position stays with the client's.
 
+### Forced-forward aura
+
+- The local player's replicated `UnitFlags2::FORCE_MOVEMENT` (0x40, aura241) forces forward input exactly1 even while idle or holding backward. Strafe remains independent; both mouse buttons cannot add another forward contribution.
+- Clearing the flag restores ordinary input. Forced movement must not enable persistent autorun or replace scripted-forward behavior.
+- This generic input contract does not establish individual toy mount/body availability, rendered pixels or fresh wire acceptance.
+
 ### Stop input
 - [x] The first idle frame after a moving or jumping input sends exactly one `PlayerInput` with no direction, no jump, the final predicted position and the adopted epoch; later idle frames in that epoch send nothing.
 - [x] Adopting a new teleport epoch reports current movement intent once even while stationary; a stop reported under the previous epoch cannot establish the new epoch's stopped state.
