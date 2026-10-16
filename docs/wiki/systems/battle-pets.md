@@ -126,3 +126,7 @@ Private UDP5598 native pointers cast real Sunlight404, Cyclone190 and Tranquilit
 ## See Also
 - [[godot-conversion]] — native screen hosting
 - [[shipped-assets]] — local asset policy
+
+## Queue-ready button art — 2026-10-16
+
+[Contract](../../specs/petbattle-pvp.md#queue-ready-button-art). `queue_popup` explicitly bound defaultbutton nine-slice atlases instead of the `UIPanelButtonTemplate` inherited by both buttons in `StaticPopupSpecial.xml`23–45. Binding source FileDataIDs130828/130825/130826/130824 selects the existing native fixed12px strip/additive-highlight projection, without a new renderer or caller geometry/typography/input change. Source `SecureUIPanelTemplates.xml`39–85 and `SecureUIPanelTemplates.lua` own art. Genuine expectedFileDataId/actualAtlas RED1 at1f9c0e3aa; both-skin native baseline at1f9c0e3aa with typed fixturee867571b8 physically verifies ready/pending/inside/outside release. First untyped-fixture parse failure is excluded. GREEN/after proof pending. Offlineproposal91 is supplied, not fresh live matchmaking.
