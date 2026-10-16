@@ -1,6 +1,6 @@
 ## 2026-10-16 — House Access dropdown
 
-[Source caller](systems/housing.md#house-access-dropdown--2026-10-16): generic160×28/plain rows replaced by inherited122×25 WowStyle2/MenuStyle1; genuine RED and corrected both-skin native baseline. GREEN/after proof pending.
+[Source caller](systems/housing.md#house-access-dropdown--2026-10-16): generic160×28/plain rows replaced by inherited122×25 WowStyle2/MenuStyle1; genuine RED→GREEN, both-skin physical states/three draft selections and pending refusal. All26 context changes confined to House Access column; Save/persistence/other panel fidelity excluded.
 
 ## 2026-10-15 — Campsite selected-hover
 

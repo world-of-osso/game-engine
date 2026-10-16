@@ -92,7 +92,7 @@ Server/wire supports owner-local staged dyes, explicit atomic commit, preserved 
 
 ## HouseSettings access controls
 
-- [ ] House Access uses inherited122×25 WowStyle2 dropdown states, centered source caption and MenuStyle1 three ordinary20px buttons (Anyone/No One/Limited), anchored directly below the owner with minimum owner width. Pending disables dispatch. XML4–32 and Lua234–244 own presentation; other unavailable columns/owner remain unchanged. Regression: `housing_settings_fidelity`; native fixture: `house_access_fidelity.gd`. [Implementation/proof boundary](../wiki/systems/housing.md#house-access-dropdown--2026-10-16).
+- [x] House Access uses inherited122×25 WowStyle2 dropdown states, centered source caption and MenuStyle1 three ordinary20px buttons (Anyone/No One/Limited), anchored directly below the owner with minimum owner width. Pending disables dispatch. XML4–32 and Lua234–244 own presentation; other unavailable columns/owner remain unchanged. Regression: `housing_settings_fidelity`; native fixture: `house_access_fidelity.gd`. [Implementation/proof boundary](../wiki/systems/housing.md#house-access-dropdown--2026-10-16).
 
 Owner House Settings opens the Retail600×550 panel and stages House Access without changing confirmed state. Dropdown Anyone checks/disables all four choices; No One clears/disables them; Limited enables Neighbors/Guild/Friends/Party independently. Explicit Save sends only HouseAccess and closes the panel; close discards the draft. Unconfigured access stays unknown and Save is disabled until an explicit selection. Reopening/relogging reads authoritative settings. Visitors cannot open owner settings. Both skins share the same controls/layout/behavior; Forever changes art only.
 
