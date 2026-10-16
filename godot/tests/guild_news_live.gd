@@ -132,9 +132,12 @@ func purchases_hidden() -> bool:
 	var value := envelope()
 	if value.is_empty():
 		return false
+	var visible_ids: Array[int] = []
+	for id in value.visible_ids:
+		visible_ids.append(int(id)) # JSON.parse_string numbers are floats; Array.has compares types.
 	for entry in news().entries:
 		var expected: bool = entry.sticky or not entry.kind.has("ItemPurchased")
-		if (int(entry.id) in value.visible_ids) != expected:
+		if (int(entry.id) in visible_ids) != expected:
 			return false
 	return true
 
