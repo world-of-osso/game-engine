@@ -130,6 +130,8 @@ fn scoreboard_view() -> game_engine_ui_model::battleground::PvpView {
         scoreboard: true,
         viewport: [1920.0, 1080.0],
         snapshot: Some(PvpSnapshot {
+            lifetime_honor_xp: 0,
+            honor_level: None,
             honor: 0,
             honor_max: 0,
             conquest: 0,
