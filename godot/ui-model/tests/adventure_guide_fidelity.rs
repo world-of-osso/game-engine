@@ -406,6 +406,48 @@ fn adventure_guide_model_limits_authored_choices_to_nine() {
 }
 
 #[test]
+fn adventure_guide_item_sets_keep_source_filters_independent_and_preserve_all_classes() {
+    let mut v = view();
+    v.player_spec = Some(71);
+    v.apply("journal:class:8").unwrap();
+    v.apply("journal:tab:sets").unwrap();
+    let r = render(&v, ActiveSkin::Modern);
+    assert_eq!(text(&r, "JournalClassFilterText"), "Warrior (Arms)");
+    v.apply("journal:class:2").unwrap();
+    v.apply("journal:spec:70").unwrap();
+    v.apply("journal:tab:dungeons").unwrap();
+    v.apply("journal:instance:63").unwrap();
+    v.apply("journal:page:loot").unwrap();
+    let r = render(&v, ActiveSkin::Modern);
+    assert_eq!(text(&r, "JournalClassFilterText"), "Mage");
+    v.apply("journal:tab:sets").unwrap();
+    let r = render(&v, ActiveSkin::Modern);
+    assert_eq!(text(&r, "JournalClassFilterText"), "Paladin (Retribution)");
+    v.apply("journal:class:0").unwrap();
+    v.apply("journal:tab:dungeons").unwrap();
+    v.apply("journal:tab:sets").unwrap();
+    let r = render(&v, ActiveSkin::Modern);
+    assert_eq!(text(&r, "JournalClassFilterText"), "All Classes");
+}
+
+#[test]
+fn adventure_guide_item_sets_search_uses_global_results_without_filtering_the_set_list() {
+    let mut v = view();
+    game_engine_ui_model::item_catalog::wait_for_item_catalog();
+    v.player_spec = Some(71);
+    v.apply("journal:tab:sets").unwrap();
+    let sets: Vec<_> = v.item_sets().iter().map(|set| set.id).collect();
+    assert!(sets.len() > 10);
+    v.search = "Lucifron".into();
+    assert_eq!(
+        v.item_sets().iter().map(|set| set.id).collect::<Vec<_>>(),
+        sets
+    );
+    let r = render(&v, ActiveSkin::Modern);
+    assert!(r.get_by_name("EncounterJournalSearchResults").is_some());
+}
+
+#[test]
 fn adventure_guide_item_sets_use_source_pane_rows_and_item_borders() {
     for skin in [ActiveSkin::Modern, ActiveSkin::Forever] {
         let mut v = view();
