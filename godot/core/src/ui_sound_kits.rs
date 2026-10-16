@@ -35,7 +35,7 @@ pub struct UiSoundKit {
     pub files: &'static [u32],
 }
 
-const KITS: [UiSoundKit; 15] = [
+const KITS: &[UiSoundKit] = &[
     UiSoundKit {
         id: HOUSING_EXPERTMODE_SUB_MENU_BUTTON_TOGGLE,
         volume: 0.125_892_53,
