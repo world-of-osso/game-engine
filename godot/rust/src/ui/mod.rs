@@ -16,6 +16,8 @@ mod castbar_preview;
 #[cfg(debug_assertions)]
 mod db2_atlas_preview;
 mod dungeon_preview;
+#[cfg(debug_assertions)]
+mod error_hold_preview;
 mod flight_map_preview;
 mod follower_layout_preview;
 mod forevergaps_preview;
