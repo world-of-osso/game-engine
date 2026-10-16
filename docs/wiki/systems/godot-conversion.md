@@ -732,7 +732,9 @@ M2 particles: see [Native M2 particles](#native-m2-particles).
 
 ### P4 native continuation
 
-A native acceptance fixture now traverses real type3 header parsing, ordinary model-emitter admission/placement and pool updates with explicit bent controls; it checks cubic positions and bright pixels for every center, then reverses curvature. Native GREEN pending. Rechecked allowed WWV rate path has no spline-length multiplier/override; P4-density still lacks a supported target rule, so no multiplier is guessed. See [contract](../../specs/m2-particles.md#p4-native-continuation-2026-10-15).
+Forward-integrated continuation: origin/master merged54731f9c2; implementation85932e156 builds, test-onlydcf850fe8 passes13 focused CPU controls, native sorting8/8/collision6/6/bent curves2/2 pass. Format check passes. Exact logs and unresolved provenance are in the [contract](../../specs/m2-particles.md#continuation-integration-proof).
+
+A native acceptance fixture now traverses real type3 header parsing, ordinary model-emitter admission/placement and pool updates with explicit bent controls; it checks cubic positions and bright pixels for every center, then reverses curvature. Native GREEN at85932e156: up/down curves each have99 admitted particles,86 significantly bent and99/99 bright center pixels; both1920×1080 PNGs inspected. Rechecked allowed WWV rate path has no spline-length multiplier/override; P4-density still lacks a supported target rule, so no multiplier is guessed. See [contract](../../specs/m2-particles.md#p4-native-continuation-2026-10-15).
 
 ### P7 continuation — collision-projected births
 
@@ -750,7 +752,7 @@ Allowed provenance is the supplied clean-room spec, local assets, WebWowViewerCp
 |---|---|---|
 | P1 tails | Independent heads/tails and atlas cells, age clamp, finite view-parallel geometry, independent width and native pool capacity. Three RED→GREEN CPU controls. Actual tail-only165894 in particledebug: five quads/4,547 pixels, byte-identical frozen baseline, inspected1920×1080 PNGs in `/syncthing/AgentShared/2026-10-15/m2-particles/`. | Target-client pixel parity not claimed. |
 | P2 follow | Clamped authored speed/scale carry, post-age eligibility and proportional replay; two RED→GREEN controls. | Modern asset applicability and combined model-space/follow target semantics unqualified. |
-| P4 splines | Actual6316199 establishes float3 M2Array at0x1C0. Parser preserves complete cubic controls; native predicate admits type3. Two RED→GREEN curve/change and width-range controls. | P4-density rate-per-unit oracle; native bent-curve pixels. |
+| P4 splines | Actual6316199 establishes float3 M2Array at0x1C0. Parser preserves complete cubic controls; native predicate admits type3. Two RED→GREEN curve/change and width-range controls. | P4-density rate-per-unit oracle; controlled native bent-curve pixels now pass (continuation above). |
 | P3 inheritance | Actual2994778 emitter3 scale3.0 decoded from0x170 (WWV ivelScale), one RED→GREEN control. | P3-timer-reset runtime contribution and trajectory tests. |
 | S1 lighting / P5 model particles | No guessed polarity, generic PBR, replacement quads or legacy-name asset fallback added. | S1-polarity-oracle; P5-product-resolution/P5-recursive-timing. |
 
