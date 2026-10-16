@@ -5,6 +5,7 @@ use crate::asset::adt_format::{adt, adt_geometry, adt_obj, adt_tex};
 pub use crate::terrain_material_data::{
     TerrainBlendMode, pack_alpha_map_bytes, terrain_blend_mode, terrain_layer_animation,
     terrain_layer_animation_params, terrain_texture_repeat, texture_layer_params,
+    unpack_shadow_coverage,
 };
 pub use adt::{
     BlendBatch, BlendMeshData, ChunkHeightGrid, FlightBounds, ParsedLodData, SoundEmitter,

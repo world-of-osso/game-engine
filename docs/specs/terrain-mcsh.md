@@ -17,6 +17,7 @@ Carry authored ADT shadow data to native terrain-surface materials without repla
 
 ## Implementation inventory
 
+- `godot/core/src/rendering/terrain/terrain_material_data.rs` — linear R8 data coverage unpacking; not a target modulation equation.
 - `godot/core/src/asset/adt_format/adt/parsing.rs`, `godot/core/src/adt.rs` — existing split-mask resolution and retained chunk payload.
 - `godot/rust/src/terrain/material.rs` — chunk material inputs and GPU resource construction.
 - `godot/rust/src/terrain/mcsh_probe.rs` — cache-only actual-chunk acceptance entry; no runtime WDT selection changes.
@@ -24,6 +25,7 @@ Carry authored ADT shadow data to native terrain-surface materials without repla
 
 ## Tests asserting this spec
 
+- `godot/core/tests/terrain_mcsh.rs` — every mask bit, half orientation/corners and real split-companion ownership.
 - `godot/tests/terrain_mcsh_pixels.gd` — native material binding, mask upload, unchanged geometry/MCCV/MCAL, and explicitly diagnostic coverage pixels for zero/full/half/missing/real/disabled cases.
 - `godot/core/src/asset/adt_format/adt_tests/mcnk.rs` — existing split ownership, conflict rejection and edge-fix behavior.
 
@@ -31,7 +33,7 @@ The diagnostic maps mask data to visible texels; black/white diagnostic pixels a
 
 ## Known gaps (current cycle)
 
-- [ ] **S3-modulation-equation:** inspected allowed WWV terrain shaders do not consume MCSH; pinned wow.export c2fd7bd reads only its offset. No target modulation texture/equation is established. Never invent a darkness constant.
+- [ ] **S3-modulation-equation:** inspected allowed WWV terrain shaders do not consume MCSH; pinned wow.export c2fd7bd reads only its offset. Active LightData.csv has an authored `ShadowOpacity` column, but its existence does not establish a modulation texture/equation. No target modulation texture/equation is established. Never invent a darkness constant.
 - [ ] **S3-enable-policy:** supplied spec establishes a renderer-internal world enable bit, not its mapping to native graphics settings or target renderer modes. Diagnostic enable/disable controls do not establish that policy.
 - [ ] **S3-dynamic-composition:** allowed sources do not establish how authored coverage combines with Godot's directional shadow attenuation.
 - [ ] **S3-modern-applicability:** non-gating local70391 census is separate. The cached2703_31_36 chunk fixture is genuine data but not current-WDT active-tile or exact-build authentication evidence.

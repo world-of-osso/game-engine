@@ -72,7 +72,12 @@ fn build_fixture_chunk(mut tile: NativeTerrainTile, mode: i32) -> Result<Fixture
         .chunk_layers[CHUNK]
         .layers;
     let mut resources = TerrainMaterials::default();
-    let material = resources.build_material(&tile, layers, &shader)?;
+    let material = resources.build_material(
+        &tile,
+        layers,
+        tile.root.chunks[CHUNK].shadow_map.as_ref(),
+        &shader,
+    )?;
     let chunk = &tile.root.chunks[CHUNK];
     let geometry = adt::chunk_geometry(chunk, Some((31, 36)));
     let mesh = super::build_mesh(geometry, &chunk.vertex_colors);

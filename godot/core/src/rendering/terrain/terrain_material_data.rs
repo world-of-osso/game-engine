@@ -83,6 +83,15 @@ pub fn terrain_layer_animation(flags: MclyFlags) -> [f32; 4] {
     ]
 }
 
+/// Raw MCSH DATA coverage in chunk-UV row order (64×64 linear R8).
+/// Bit order matches the existing ground-detail sampler: row*8 + column/8,
+/// least-significant bit first. Values0/255 encode bits, not a darkness equation.
+pub fn unpack_shadow_coverage(mask: &[u8; 512]) -> Vec<u8> {
+    mask.iter()
+        .flat_map(|byte| (0..8).map(move |bit| if byte & (1 << bit) != 0 { 255 } else { 0 }))
+        .collect()
+}
+
 /// 64×64 linear RGBA: R/G/B carry MCAL layers 1/2/3 and A is opaque.
 pub fn pack_alpha_map_bytes(layers: &[TextureLayer]) -> Vec<u8> {
     const PIXELS: usize = 64 * 64;
