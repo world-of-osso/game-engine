@@ -250,7 +250,8 @@ impl GameClient {
         if self.game_menu_ui.is_some() || model.storage_search_focused {
             return Ok(false);
         }
-        let active_editing = model.editor.placing.is_some() || model.editor.selected.is_some();
+        let selected = model.editor.selected.is_some();
+        let active_editing = model.editor.placing.is_some() || selected;
         if let Ok(key) = event.clone().try_cast::<godot::classes::InputEventKey>() {
             if key.is_echo() {
                 return Ok(false);
@@ -301,9 +302,7 @@ impl GameClient {
             {
                 "housing:rotate:right"
             }
-            Some(InputAction::HousingRemoveDecor)
-                if mode != EditorMode::Cleanup && model.editor.selected.is_some() =>
-            {
+            Some(InputAction::HousingRemoveDecor) if mode != EditorMode::Cleanup && selected => {
                 "housing:remove"
             }
             _ => return Ok(false),
