@@ -1,4 +1,4 @@
-- [Terrain MCSH coverage](systems/terrain.md#mcsh-surface-shadow-clean-room-continuation) — authenticated70391 split-mask data, native binding/UV coverage RED→GREEN and unchanged terrain/dynamic-shadow controls; actual modulation/enable/composition remain blocked.
+- [Terrain MCSH coverage](systems/terrain.md#mcsh-surface-shadow-clean-room-continuation) — authenticated70391 split-mask data, native binding/UV coverage RED→GREEN and unchanged terrain/dynamic-shadow controls; supplied modulation equation now has native pixel proof; historical alpha-index/native enable producer/dynamic composition remain blocked.
 - [Clean-room M2 particles](systems/godot-conversion.md#native-m2-particles) — native tails/follow/cubic controls, authored sorting and map-collision births; inherited-scale provenance and explicit lighting, timer/reset, spline-density, target-mask and model-recursion oracle gaps.
 # Wiki Index
 
