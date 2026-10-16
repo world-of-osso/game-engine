@@ -8,6 +8,7 @@ var last_metrics_ms := 0
 var last_assisted_target: Variant = null
 var clicking_loot := false
 var handled_loot_request := ""
+var handled_enemy_tab_request := ""
 var directory: String
 var spell_ids := PackedInt32Array()
 
@@ -112,6 +113,13 @@ func sample() -> void:
             handled_request = str(request["request_id"])
             assisting = true
             assist_target(request)
+    var enemy_path := directory + "/native-enemy-tab-request.json"
+    if not assisting and not clicking_loot and FileAccess.file_exists(enemy_path):
+        var request: Variant = JSON.parse_string(FileAccess.get_file_as_string(enemy_path))
+        if request is Dictionary and str(request.get("request_id", "")) != handled_enemy_tab_request:
+            handled_enemy_tab_request = str(request["request_id"])
+            assisting = true
+            tab_to_enemy(request)
     var loot_path := directory + "/native-loot-click-request.json"
     if not assisting and not clicking_loot and FileAccess.file_exists(loot_path):
         var request: Variant = JSON.parse_string(FileAccess.get_file_as_string(loot_path))
@@ -156,6 +164,42 @@ func click_loot(request: Dictionary) -> void:
     finish_loot_click(request, {"name": name, "x": point.x, "y": point.y,
         "input": "native viewport mouse motion + left press/release", "screenshot": path})
 
+func press_release_key(code: Key) -> void:
+    for pressed in [true, false]:
+        var event := InputEventKey.new()
+        event.keycode = code
+        event.physical_keycode = code
+        event.pressed = pressed
+        root.push_input(event)
+        await process_frame
+        await process_frame
+
+func finish_enemy_tab(request: Dictionary, result: Dictionary) -> void:
+    result["request_id"] = request["request_id"]
+    publish("native-enemy-tab-" + handled_enemy_tab_request + ".json", result)
+    publish("native-enemy-tab-result.json", result)
+    assisting = false
+
+func tab_to_enemy(request: Dictionary) -> void:
+    var before: Dictionary = client.target_state()
+    await press_release_key(KEY_TAB)
+    var after: Dictionary = client.target_state()
+    if after.get("target") == null:
+        finish_enemy_tab(request, {"error": "Native Tab found no target", "before": before, "after": after})
+        return
+    var query: Dictionary = client.call("spell_priority_state", int(after["target"]), spell_ids)
+    if query.has("error"):
+        finish_enemy_tab(request, {"error": query["error"], "before": before, "after": after})
+        return
+    var native: Variant = JSON.parse_string(query["state_json"])
+    if not native is Dictionary:
+        finish_enemy_tab(request, {"error": "Native Tab priority JSON unavailable"})
+        return
+    finish_enemy_tab(request, {"before": before, "after": after,
+        "selected_health": client.spells_state().get("target_health", -1.0),
+        "selected_hostile": native["facts"]["target_hostile"],
+        "input": "one native KEY_TAB press/release; observed target and native hostility"})
+
 func finish_assist(request: Dictionary, result: Dictionary) -> void:
     result["request_id"] = request["request_id"]
     publish("native-assist-" + handled_request + ".json", result)
@@ -168,14 +212,7 @@ func assist_target(request: Dictionary) -> void:
     if str(request.get("leader_name", "")).is_empty() or before.get("target_name", "") != request["leader_name"]:
         finish_assist(request, {"error": "Native assist must start on requested leader", "before": before})
         return
-    for pressed in [true, false]:
-        var event := InputEventKey.new()
-        event.keycode = KEY_F
-        event.physical_keycode = KEY_F
-        event.pressed = pressed
-        root.push_input(event)
-        await process_frame
-        await process_frame
+    await press_release_key(KEY_F)
     var after: Dictionary = client.target_state()
     var input_done_us := Time.get_ticks_usec()
     var path := ""

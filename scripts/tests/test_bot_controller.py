@@ -91,6 +91,21 @@ class ControllerTests(unittest.TestCase):
         self.assertEqual(result["name"], "GroupLootFrame1GreedButton")
         self.assertEqual(requests, [("loot-click", {"name": "GroupLootFrame1GreedButton", "x": 25.0, "y": 40.0})])
 
+    def test_native_tab_accepts_only_observed_alive_hostile_without_entity_command(self):
+        class Bridge:
+            result = {"after": {"target": 41}, "selected_health": 100, "selected_hostile": True}
+            def request(self, kind, payload):
+                return self.result
+        bridge = Bridge()
+        self.controller.bridge = bridge
+        self.assertEqual(self.controller.tab_to_enemy(), 41)
+        for change in [{"selected_health": 0}, {"selected_hostile": False}, {"after": {"target": None}}]:
+            bridge.result = {"after": {"target": 41}, "selected_health": 100,
+                             "selected_hostile": True, **change}
+            with self.assertRaisesRegex(ValueError, "hostile|alive"):
+                self.controller.tab_to_enemy()
+        self.assertEqual(self.commands, [])
+
     def test_native_assist_rejects_unchanged_leader_instead_of_target_shortcut(self):
         class Bridge:
             def request(self, kind, payload):
@@ -197,6 +212,27 @@ t=p/'response.writing';t.write_text(json.dumps({'request_id':r['request_id'],'er
             self.assertEqual(child.returncode, 0)
             self.assertFalse((path / "native-assist-request.json").exists(),
                              "Completed request must not be visible to a restarted native client")
+
+    def test_native_enemy_tab_receipt_crosses_a_real_process_boundary(self):
+        import subprocess
+        with tempfile.TemporaryDirectory() as directory:
+            program = '''import json,sys,time
+from pathlib import Path
+p=Path(sys.argv[1]); request=p/'native-enemy-tab-request.json'
+while not request.exists(): time.sleep(.005)
+r=json.loads(request.read_text())
+result={'request_id':r['request_id'],'after':{'target':41},'selected_health':100,'selected_hostile':True}
+t=p/'response.writing';t.write_text(json.dumps(result));t.replace(p/'native-enemy-tab-result.json')
+'''
+            child = subprocess.Popen([sys.executable, "-c", program, directory])
+            try:
+                result = FileBridge(directory, timeout=2).request("enemy-tab", {})
+                self.assertEqual(result["after"]["target"], 41)
+                self.assertTrue(result["selected_hostile"])
+            finally:
+                if child.poll() is None:
+                    child.terminate()
+                child.wait(timeout=3)
 
     def test_timeout_does_not_resubmit_input(self):
         with tempfile.TemporaryDirectory() as directory:

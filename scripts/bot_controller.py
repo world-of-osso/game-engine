@@ -29,7 +29,7 @@ class FileBridge:
         self.timeout = timeout
 
     def request(self, kind, payload):
-        if kind not in ("assist", "loot-click", "pet-assist"):
+        if kind not in ("assist", "loot-click", "pet-assist", "enemy-tab"):
             raise ValueError(f"Unsupported native input request: {kind}")
         identity = uuid.uuid4().hex
         request = self.directory / f"native-{kind}-request.json"
@@ -192,6 +192,14 @@ class PlayerController:
             raise ValueError("Native assist did not start on requested leader")
         target = after.get("target")
         return target if target is not None and target != before.get("target") else None
+
+    def tab_to_enemy(self):
+        """One native Tab input; no raw entity-selection command or alternate key."""
+        result = self.bridge.request("enemy-tab", {})
+        target = result["after"].get("target")
+        if target is None or result.get("selected_hostile") is not True or result.get("selected_health", -1) <= 0:
+            raise ValueError("Native Tab did not observe an alive hostile target")
+        return int(target)
 
     def vote_loot(self):
         """Click actual visible non-Need choice; retain Greed vs Transmog identity."""
