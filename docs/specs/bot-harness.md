@@ -20,6 +20,14 @@ Private real player characters exercise the native controller path and measure c
 - [x] Behavioral detection tests feed actual native combat records and a known missing request; distinguish zero damage from no cast and consume each server success once. Own private Ret32 fixture retains actual submitted20271 request1792056099829 without a success, three real successes and899 damage.
 - [x] Merge overlapping combat polls without double counting or collapsing real duplicate events; identify overflow using observed ring retention.
 
+## Native Stockade runs
+
+- Run Fury72 first, adding specs only after current dummy predicates qualify; preserve the same native/IPC player path and equal-budget equipment, without stat/kit overrides.
+- Use existing approved Normal Stockade entry through authored WorldSafeLoc3599 and ordinary MapTransfer/WorldPortAck, with source-profile party attachment. Do not mutate the follower205 catalog or describe this diagnostic entry as native LFG205 UI proof.
+- Take one capacity ADD before each whole live run, not per route/combat phase. Preserve owned server/client cleanup, actual binary hashes, admitted copy, source route and player equipment receipts.
+- Report authoritative three-boss credit separately from combat-metric qualification. Clear time uses monotonic entry-confirmation→final Done observation. Per-boss player/owned-pet damage excludes follower/descendant and trash damage, over first observed boss combat→native boss death, including damage in the final death timestamp bucket.
+- Missing death/continuity/ownership or zero-resolution duration yields DPSnull. Missing authoritative Done never becomes a completed boss measurement. Preserve observed player/party deaths; total deaths remain unknown after capture gaps. No balance pass/fail tolerance.
+
 ## Native race fixture
 
 Northshire Shaman bots use source-valid Draenei11 up front, not a retry-based alternative after Dwarf rejection. Other classes use the lowest source-valid Alliance race. Missing authored source pairs block provisioning. This fixture choice is separate from the server's installed-DB2 race/class policy; the Dwarf/Shaman admin creation/persistence regression now passes.
@@ -40,6 +48,7 @@ Every stat-bearing armor slot and preferred weapon uses authentic Item/ItemSpars
 ## Implementation inventory
 
 - `godot/rust/src/ipc/combat.rs`: preserve received crit/glancing/periodic, school mask, overflow and absorbed/resisted/blocked values in combat-log/recap output; never infer historical missing fields.
+- `scripts/bot_dungeon.py`: native per-boss ownership/DPS and player/party deaths, separate authoritative completion/clear timing; capture/source gaps remain unqualified.
 - `scripts/bot_harness.py`: native combat parsing, request/result reconciliation, fixed-window DPS and comparison reporting.
 - `scripts/bot_ability_summary.py` / `bot_combat_metrics.py`: read-only expected-roster per-ability requests/successes/hits/crits/misses/event damage, auto-attack share, sampled GCD/idle intervals, observed raw power net changes and raw DB2 effect/cost/cooldown/auto-attack metadata. Preserve absent specs/repetitions, real child event IDs, and unattributed native errors. Missing crit flags remain unknown, resource net change is never spending, sampled timing is not exact server occupancy.
 - `scripts/tests/test_bot_harness.py`: behavioral detector and comparable-fixture regressions.

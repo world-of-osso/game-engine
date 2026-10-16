@@ -62,6 +62,12 @@ The roster writes balance.json plus comparison.md, computing medians only when a
 
 Comparison requires equal explicit receipts for level, stats, dummy and duration. ChrSpecialization.Role2 alone enters the DPS median. Equal-duration repetitions first produce one mean DPS per spec; unequal repeat counts and tank/healer damage cannot weight that median. Reports give max/median and min/median with no tolerance or pass/fail. No external DPS numbers are used. All-spec comparable gear/stat receipts remain open beyond the three-spec MVP below; ordinary source-derived starting characters alone do not establish them.
 
+## Stockade boss accounting
+
+Lead channel567 reauthorizes Fury-first Stockade bot runs and subsequent clean specs, removing the earlier scheduling deferral. The existing [approved Normal admission](../../../../game-server/docs/specs/follower-dungeons.md#stockade-diagnostic-completion-not-retail-admission) uses named-character MapTransfer/WorldPortAck to authored3599 before source-profile attachment; it is not a205 catalog entry or LFG UI acceptance. Maintained routing/controller integration and actual new Stockade execution remain pending, not certified by unit accounting.
+
+`bot_dungeon.py` consumes native combat identities plus final authoritative encounter states. Boss rates include player and event-time-owned pets/guardians, exclude party followers/their descendants and other targets, and retain pre-entry summon ancestry. The interval begins at the first observed boss-related damage/hostile cast and ends at its native death; final damage sharing that death millisecond is included while elapsed duration remains end-start. Missing/ambiguous death, unknown damage ownership, capture gaps or unresolved duration withhold DPS. Clear credit and its monotonic entry→last Done receipt stay distinct from rate qualification, so missing combat metrics do not erase real authoritative completion. Death counters cover local player/party only; observed counts survive capture gaps, while totals become unknown. Source-only unit fixtures are accounting proofs, not a dungeon clear or class DPS oracle.
+
 ## Recorded native proof and remaining gates
 
 ### Native-controller three-DPS proof
