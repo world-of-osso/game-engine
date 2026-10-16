@@ -22,7 +22,7 @@ func key(code: Key) -> void:
 
 func admin(request: Dictionary) -> Dictionary:
 	var output: Array[String] = []
-	var result := OS.execute("/usr/bin/uv", ["run", "--with", "msgpack", "python", OS.get_environment("WQ_ADMIN"), JSON.stringify(request)], output, true)
+	var result := OS.execute("/usr/bin/uv", ["run", "--with", "msgpack", "python", OS.get_environment("WQ_ADMIN"), Marshalls.utf8_to_base64(JSON.stringify(request))], output, true)
 	if result != 0:
 		stop("Private admin failed: " + str(output))
 		return {}
@@ -47,7 +47,9 @@ func wait_task(accepted: bool) -> bool:
 	return false
 
 func teleport(x: float, y: float, z: float) -> bool:
-	admin({"Teleport": {"character_name": character, "map_id": 0, "x": x, "y": y, "z": z}})
+	var reply := admin({"Teleport": {"character_name": character, "map_id": 0, "x": x, "y": y, "z": z}})
+	if reply.is_empty():
+		return false
 	var deadline := Time.get_ticks_msec() + 60000
 	while Time.get_ticks_msec() < deadline:
 		var position = client.account_state().local_player_position
