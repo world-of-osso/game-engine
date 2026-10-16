@@ -160,6 +160,18 @@ impl View {
             (self.class, self.spec)
         }
     }
+    pub fn update_player_spec(&mut self, specialization: Option<u32>) {
+        self.player_spec = specialization;
+        self.initialize_set_filters();
+    }
+    fn initialize_set_filters(&mut self) {
+        if self.set_filters.is_none()
+            && let Some(spec) = self.player_spec
+            && self.player_class() != 0
+        {
+            self.set_filters = Some((self.player_class(), spec));
+        }
+    }
     pub(crate) fn player_class(&self) -> u32 {
         self.catalog
             .specs
@@ -597,12 +609,13 @@ impl View {
                     _ => return Err("Unknown journal tab".into()),
                 };
                 self.visible = true;
-                if self.tab == Tab::ItemSets && self.set_filters.is_none() {
-                    self.set_filters = Some((self.player_class(), self.player_spec.unwrap_or(0)));
+                if self.tab == Tab::ItemSets {
+                    self.initialize_set_filters();
                 }
                 self.instance = None;
                 self.encounter = None;
                 self.filter_menu = None;
+                self.class_menu_open = false;
                 self.search.clear();
                 self.activity_filters.expanded.clear();
             }
@@ -724,6 +737,7 @@ impl View {
                 } else {
                     Some(menu)
                 };
+                self.class_menu_open = false;
             }
             "class" => {
                 let class = number()?;

@@ -231,7 +231,9 @@ impl GameClient {
         self.update_journal_lockouts();
         self.adventure_guide.view.challenge = self.account.challenge.run.clone();
         self.adventure_guide.view.keys = self.account.challenge.keys.clone();
-        self.adventure_guide.view.player_spec = self.account.spells.spec();
+        self.adventure_guide
+            .view
+            .update_player_spec(self.account.spells.spec());
         if self.adventure_guide.view.visible {
             self.sync_adventure_guide()?;
             self.sync_journal_model()?;

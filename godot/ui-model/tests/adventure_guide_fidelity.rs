@@ -466,11 +466,10 @@ fn adventure_guide_item_sets_wait_for_received_player_spec_before_initializing_f
     let mut v = view();
     v.apply("journal:tab:sets").unwrap();
     assert_eq!(v.class_spec_filters(), (0, 0));
-    v.player_spec = Some(71);
-    v.apply("journal:tab:sets").unwrap();
+    v.update_player_spec(Some(71));
     assert_eq!(v.class_spec_filters(), (1, 71));
     v.apply("journal:class:0").unwrap();
-    v.player_spec = Some(70);
+    v.update_player_spec(Some(70));
     v.apply("journal:tab:dungeons").unwrap();
     v.apply("journal:tab:sets").unwrap();
     assert_eq!(
