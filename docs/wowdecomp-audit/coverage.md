@@ -2,7 +2,28 @@
 
 [Finding index and source pins](README.md). **28 findings do not mean 28 total project gaps.** They describe completed paired-source comparisons within the slices below. Absence of a finding is not parity; unreviewed rows are not implementation findings.
 
-## Reviewed capability matrix
+## Implementation follow-through
+
+**Snapshot reported 2026-10-16 by agent-server lead session `01a11b35-eff4-7f84-90eb-c1d4d71a5801`.** Reported engine master checkpoints: `46296ad85`, `0778a7d0b`, `c5979a74d`. The supplied implementation commits are not Git objects in this local checkout at `86568c6e0`; identity/ancestry and native results were not independently revalidated here. No fetch, implementation merge or runtime test was performed for this status update. Missing slice SHAs are stated explicitly rather than inferred from master checkpoints.
+
+Checkboxes in the [finding lists](README.md#finding-index) mean **reported landed**, not exhaustive acceptance or target-client parity. Partial work, named gaps and unlanded branches remain unchecked. The historical capability matrix below still describes E/E4 at the audit pins, not the remote implementation after these changes.
+
+| ID | Implementation status (reported) | Commit / remaining scope |
+|---|---|---|
+| P1 | Landed | `1ce73e656`, `443e43b4d` |
+| P2 | Landed | `05de65324` |
+| P6 | Landed | `5b76a724d` |
+| P7 | Landed | `7cfed41dd` |
+| A6 | Landed | `19d9850e8` |
+| A7 | Landed | `514c05a5e`, `65beaaa4e` |
+| P3 | Partial | Modern scale decode landed; original timer/reset gap remains. Slice SHA not supplied. |
+| P4 | Partial | Spline layout/curve support landed; per-unit density semantics remain incomplete. Slice SHA not supplied. |
+| S1 | Named gap | No allowed-source lit-flag polarity oracle; no completion SHA. |
+| P5 | Named gap | Product resolution and child timing unresolved; no completion SHA. |
+| S3 | In progress; unlanded | Mask transport reported proven; modulation work remains on `terrain-mcsh-cleanroom`. Slice SHA not supplied. |
+| A1–A5, R1, S2, ENV1–ENV2, M1–M2, C1–C2, AU1–AU4 | Not started / awaiting approval | No implementation SHA reported. |
+
+## Reviewed capability matrix (historical audit pins)
 
 | Slice | Mismatched / missing behavior | Implemented or matching evidence | Uncertain / still unreviewed | Proof |
 |---|---|---|---|---|
