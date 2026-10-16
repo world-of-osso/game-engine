@@ -82,7 +82,9 @@ func run_hit_area() -> void:
 		var skin := "forever" if forever else "modern"
 		var ui = ClassDB.instantiate("RegistryUi")
 		root.add_child(ui)
-		assert(ui.show_loot_hit_preview(forever).is_empty())
+		var preview_error: String = ui.show_loot_hit_preview(forever)
+		print("LOOT_HIT_PREVIEW ", skin, " error=", preview_error)
+		assert(preview_error.is_empty(), preview_error)
 		await settle()
 		var panel := ui.find_child("LootFrame", true, false) as Control
 		assert(panel != null)
