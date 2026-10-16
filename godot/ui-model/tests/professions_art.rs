@@ -33,7 +33,7 @@ fn view(rank: u16) -> ProfessionView {
                 min_rank: 1,
                 trivial_low: 30,
                 trivial_high: 60,
-                output: (1251, 1),
+                output: Some((1251, 1)),
                 reagents: vec![(2589, 3)],
             }],
             visible: true,
@@ -89,6 +89,28 @@ fn text(registry: &FrameRegistry, name: &str) -> (String, [f32; 4]) {
         other => panic!("Expected label {name}, got {other:?}"),
     }
 }
+#[test]
+fn professions_quality_recipe_is_visible_without_assigning_an_output() {
+    use game_engine_ui_model::professions_catalog::RecipeCatalog;
+    let dir = std::path::PathBuf::from(env!("CARGO_MANIFEST_DIR")).join("../../data/db2/active");
+    let catalog = RecipeCatalog::load(&dir).unwrap();
+    let recipe = catalog
+        .get(375188)
+        .expect("authored quality recipe must be selectable");
+    let book = ProfessionBook {
+        recipes: vec![recipe.clone()],
+        selected: Some(375188),
+        quantity: 1,
+        snapshot: ProfessionSnapshot {
+            spells: vec![375188],
+            ..Default::default()
+        },
+        ..Default::default()
+    };
+    let bags = game_engine_ui_model::bag_data::InventoryState::default();
+    assert!(book.craft_request(&bags, false).is_none());
+}
+
 #[test]
 fn professions_retail_page_tabs_in_both_skins() {
     for skin in [ActiveSkin::Modern, ActiveSkin::Forever] {

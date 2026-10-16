@@ -24,7 +24,7 @@ fn book() -> ProfessionBook {
                 min_rank: 1,
                 trivial_low: 30,
                 trivial_high: 60,
-                output: (1251, 1),
+                output: Some((1251, 1)),
                 reagents: vec![(2589, 1)],
             },
             Recipe {
@@ -37,7 +37,7 @@ fn book() -> ProfessionBook {
                 min_rank: 40,
                 trivial_low: 50,
                 trivial_high: 100,
-                output: (2581, 1),
+                output: Some((2581, 1)),
                 reagents: vec![(2589, 2)],
             },
             Recipe {
@@ -50,7 +50,7 @@ fn book() -> ProfessionBook {
                 min_rank: 1,
                 trivial_low: 25,
                 trivial_high: 50,
-                output: (2996, 1),
+                output: Some((2996, 1)),
                 reagents: vec![(2589, 2)],
             },
         ],
@@ -247,7 +247,7 @@ fn professions_db2_catalog_joins_classic_tailoring_recipe() {
     let recipe = catalog.get(3275).unwrap();
     assert_eq!(
         (recipe.spell_id, recipe.skill_line, recipe.output),
-        (3275, 2540, (1251, 1))
+        (3275, 2540, Some((1251, 1)))
     );
     assert_eq!(recipe.reagents, [(2589, 1)]);
     assert_eq!(recipe.category, "Bandages");

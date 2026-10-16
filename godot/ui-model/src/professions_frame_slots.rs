@@ -19,8 +19,10 @@ pub(super) fn schematic(view: &ProfessionView) -> Element {
         out.extend(craft_controls(view));
         return out;
     };
-    if let Some(item) = view.items.get(&recipe.output.0) {
-        out.extend(output_slot(item, recipe.output.1));
+    if let Some((item_id, count)) = recipe.output
+        && let Some(item) = view.items.get(&item_id)
+    {
+        out.extend(output_slot(item, count));
         out.extend(label(
             "ProfessionsOutputName".into(),
             &item.name,

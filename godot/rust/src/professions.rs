@@ -1,7 +1,6 @@
 //! Native owner professions, with DB2 catalogs and the existing ProfessionChannel.
 use crate::{GameClient, frame_error::FrameError, ui::RegistryUi};
 use game_engine_core::input_bindings_data::InputAction;
-use game_engine_core::spell_catalog::SPELL_DB2_BUILD;
 use game_engine_session::SessionScreen;
 use game_engine_ui_model::item_catalog::item_catalog;
 use game_engine_ui_model::professions::ProfessionBook;
@@ -72,7 +71,7 @@ impl Professions {
     fn poll_catalog(&mut self, data_root: &std::path::Path) -> Result<(), String> {
         if !self.started {
             self.started = true;
-            let path = data_root.join("db2").join(SPELL_DB2_BUILD);
+            let path = data_root.join("db2/active");
             let (sender, receiver) = mpsc::channel();
             game_engine_core::worker_shutdown::track(std::thread::spawn(move || {
                 let _ = sender.send(RecipeCatalog::load(&path));
@@ -508,7 +507,10 @@ fn profession_items(book: &ProfessionBook) -> BTreeMap<u32, ItemDisplay> {
     let Some(recipe) = book.selected_recipe() else {
         return BTreeMap::new();
     };
-    std::iter::once(recipe.output.0)
+    recipe
+        .output
+        .into_iter()
+        .map(|(item, _)| item)
         .chain(recipe.reagents.iter().map(|&(item, _)| item))
         .filter_map(|id| {
             let item = catalog.get(id)?;
