@@ -9,6 +9,7 @@
 
 - [IoC bomb disarm interaction](systems/battlegrounds.md#ioc-bomb-disarm-interaction--active-2026-10-14) — authored request/cursor GREEN25; Modern83/Forever88 normal/huge native hit/disarm/20-player return pass; explicit model-art/framing/whole-render/timing gaps retained.
 - [Expert housing binding context](systems/housing.md#expert-binding-context--verified2026-10-15) — Expert-only XML/context lifecycle rejects cross-mode activation hypothesis; both-skin native inactive/active assignments and paid conservation pass, no production fix.
+- [Private summon initial-state probe](systems/toy-box.md#private-summon-initial-state-probe-2026-10-15) — retained Scarab control plus explicit Podium/Shrine source level/HP modes; fresh actual learning/UseToy wire passes, not a pixel/expiry certificate.
 
 - [Guild invitation source chrome](systems/guilds.md#invitation-chrome--verified2026-10-15) — source translucent inset/corners/tiled edges replace static-popup art; two controls and both-skin native Join/Decline/pending proof, four inspected PNGs. Inner art/payload/lifecycle gaps remain separate.
 
@@ -24,6 +25,7 @@
 - [AH duration source menu](systems/auction-house-ui.md#duration-source-composition--2026-10-15) — shared dropdown/radios, caller115/Arial Narrow12/RIGHT,10 source/reducer controls and four inspected both-skin native samples; no fresh trading claim.
 
 - [Player-bot measurement](systems/bot-harness.md) — health-qualified native/per-ability triage and common-budget Arms/Fury/Havoc MVP, six complete60s windows with empty jewelry/retained bags; all40/full detection open, Stockade deferred.
+- [Winner's Podium native fixture](systems/toy-box.md#winners-podium-native-boundary-2026-10-15) — actual source actor/static behavior with unchanged gameplay camera; private8-asset closure and both-skin rendered/static proof;20min wall expiry separate.
 - [Native summon lifetime proofs](systems/toy-box.md#native-summon-lifetime-proofs-2026-10-15) — release Forever Scarab and quiet both-skin Flute expiry; prior debug failures, unresolved following/navigation and exact binary scopes retained.
 - [Disabled housing icon source color](systems/housing.md#disabled-editor-icon-visuals--implementation2026-10-15) — default atlas/DARKGRAY tint/full alpha instead of invented desaturation/transparency; both-skin model and actual painted-control proof, availability unchanged.
 
