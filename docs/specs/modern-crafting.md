@@ -20,6 +20,12 @@ Local world.db has only627 of1,286 distinct Leatherworking effect24 outputs join
 
 Private Modern proof learned Handstitched Leather Pants2153 from Simon Tanner at authored trainer rank15/cost50. Bags held14 Light Leather and1 Coarse Thread. Client incorrectly showed Create All[0]: pinned `SkillLineAbility.MinSkillLineRank` is30. TrinityCore a352b1fa `Player.cpp:25450` uses that field to remove **AutomaticSkillRank** abilities below their threshold; `Spell.cpp:CheckItems` does not impose it on manually learned spells. Retail `ProfessionsCrafting.lua:631-637` requires a learned recipe, and `ValidateCraftRequirements:569-623` delegates actual requirements/reagents. The client must not invent an additional automatic-learning gate for a recipe the authoritative trainer taught.
 
+## Operation authority (2026-10-16)
+
+- Quality/concentration/recraft outcome evaluation returns the named `CRAFTING_OPERATION_COMPOSITION` gap. Crafted quality stays unassigned; no default tier, reagent consumption or skill gain is permitted on refusal.
+- Authored reagent slots, eligible item tiers and owned allocations can be selected and validated independently; validation is not successful crafting.
+- [Pinned source receipts and gap ledger](../sources/modern-crafting/gaps.md) distinguish static identities from missing operation composition.
+
 ## Explicit gaps
 
 - Effect288 quality crafting and effect157 loot-derived crafts require authored output selection and operation rules; fixed-output effect24 support is not evidence for either.
