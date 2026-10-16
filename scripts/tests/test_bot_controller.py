@@ -6,7 +6,7 @@ import unittest
 from pathlib import Path
 
 sys.path.insert(0, str(Path(__file__).resolve().parents[1]))
-from bot_controller import FileBridge, PlayerController
+from bot_controller import FileBridge, PlayerController, requested_snapshot
 
 
 def snapshot(spec=62, spell=30451):
@@ -88,6 +88,20 @@ class ControllerTests(unittest.TestCase):
         self.controller.bridge = Bridge()
         self.assertIsNone(self.controller.assist("Tank"))
         self.assertEqual(self.commands, [("quest", "interact", "--npc", "Tank")])
+
+
+class SnapshotTests(unittest.TestCase):
+    def test_native_query_target_and_authoritative_traits_are_preserved(self):
+        query = {"target": 41, "facts": {"known": [12294]}, "trait_config": {"spec_id": 71}}
+        state = {"priority": query, "spells": {"known": [12294]}, "at_ms": 1000}
+        result = requested_snapshot(state, 41)
+        self.assertEqual(result, {**query, "spells": state["spells"], "at_ms": 1000})
+        self.assertEqual(state["priority"], query)
+
+    def test_unavailable_or_other_target_facts_block(self):
+        for query in [{"error": "native query loading"}, {"target": 42}]:
+            with self.assertRaisesRegex(ValueError, "loading|target"):
+                requested_snapshot({"priority": query}, 41)
 
 
 class BridgeTests(unittest.TestCase):

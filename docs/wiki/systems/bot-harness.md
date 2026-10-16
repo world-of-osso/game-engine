@@ -30,6 +30,8 @@ Future native drivers confirm the form spell is learned, request one ordinary va
 
 ## Routed native controller — implementation 2026-10-16
 
+`run_dummy_bots.py` now submits its existing explicitly selected source recommendation through `PlayerController`; its observer adds requested native facts to the same atomic sample. It does not switch source policies after an error. Attempt records are appended at actual IPC submission, preserving command failures without inventing requests for rejected choices.
+
 `PlayerController` in `scripts/bot_controller.py` extracts the Stockade diagnostic's action boundary without its map34 actors, Mage kit, encounter IDs or route coordinates. Callers inject checked CLI, fresh target-bound snapshots, sourced route queries and explicit per-spec priority providers. Native learned/readiness/affordability/range facts gate every submitted priority action. Unsupported provider errors propagate; there is no alternate rotation. This API does not itself implement all-spec APL coverage.
 
 `godot/tests/bot_controller_live.gd` accepts caller spell IDs/output directory, observes native model origins and publishes atomic account/rotation/one-second meter snapshots. Correlated requests drive native F and viewport mouse events, retaining screenshots and the literal Greed/Transmog widget name. Input ACK is not vote/win/delivery acceptance. One owned controller writes each directory; timeout never repeats an uncertain input. Recovery/encounter orchestration must service loot offers before their actual server expiry.
