@@ -2,7 +2,8 @@
 use std::collections::BTreeSet;
 
 use game_engine_core::assisted_combat::{
-    AssistedFacts, SINGLE_BUTTON_ASSISTANT, evaluate_rule, is_spell_usable,
+    AssistedFacts, SINGLE_BUTTON_ASSISTANT, evaluate_rule, is_assisted_spell_in_range,
+    is_spell_usable,
 };
 use game_engine_core::cooldown_assist::Recommendation;
 use game_engine_core::spell_catalog::CatalogSpell;
@@ -218,7 +219,7 @@ impl GameClient {
             facts
                 .affordable
                 .insert(*id, self.account.spells.affordable(effective));
-            let in_range = distance >= spell.range.min_yd[0] && distance <= spell.range.max_yd[0];
+            let in_range = is_assisted_spell_in_range(spell, distance);
             facts.in_range.insert(*id, Ok(in_range));
         }
         Ok(facts)

@@ -8,6 +8,10 @@
 - [Journal source difficulties](systems/adventure-guide.md#difficulty-source-menus--bounded-proof-2026-10-15) — source order/captions/group sizes and documented World/Mythic Flex aliases;48 focused tests and eight inspected both-skin one-line native menu captures.
 
 - [Instance and encounter Loot](systems/adventure-guide.md#instance-and-encounter-loot--2026-10-15) — selected-instance/difficulty drops, source64/45px rows, real icons/quality/tooltip, intrinsic subclass sizing and physical Loot-row→boss navigation;45 focused tests and twelve inspected both-skin native PNGs.
+- [Storage Filter header](systems/housing.md#storage-filter-header--implementation2026-10-15) — native missing-surface RED→both-skin fixed source Filter/reset geometry, physical Dyeable/reset and paid conservation; popup/full-image parity excluded, Forever final JSON limitation retained.
+- [Caster-centered assisted range](investigations/cooldown-assist-data.md#caster-centered-assisted-range--2026-10-16) — retain authored Self Only range identity instead of excluding selected-enemy distance; actual Whirlwind RED→GREEN and25 core controls, fresh native acceptance open.
+- [Minimap zoom source states](systems/minimap.md#zoom-button-source-states--2026-10-15) — both-skin native hover/press/limit-disabled and release cancellation; unchanged enabled idle/context pixels outside zoom rectangles.
+
 - [Expert active submode glow](systems/housing.md#expert-active-glow--implementation2026-10-15) — native missing-glow RED→both-skin painted fixed-mask/six-second shared-phase/canvas-lifetime GREEN, unchanged paid state and six inspected1280 PNGs; full appearance remains open.
 
 - [Expert housing sound events](systems/housing.md#expert-submode-sound-scheduling--implementation2026-10-15) — distinct source pointer/key kits, native nominal stream/mute properties and both-skin held-drag conservation; dummy driver excludes audible/full-audio parity.
