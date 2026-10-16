@@ -176,7 +176,11 @@ fn note(session: &GuildRanksSession, officer: bool, y: f32) -> Element {
     out
 }
 
-fn tooltip_border(prefix: &str, (width, height): (f32, f32), (left, top): (f32, f32)) -> Element {
+pub(crate) fn tooltip_border(
+    prefix: &str,
+    (width, height): (f32, f32),
+    (left, top): (f32, f32),
+) -> Element {
     const C: f32 = 7.0;
     [
         (
