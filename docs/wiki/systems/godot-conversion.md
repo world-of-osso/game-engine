@@ -732,7 +732,7 @@ M2 particles: see [Native M2 particles](#native-m2-particles).
 
 ### P7 continuation — collision-projected births
 
-World-space plane/sphere0x2000 births now cast the supplied20-yard downward segment into existing native map collision, offset hit height by the larger sampled scale, then integrate motion. Actual misses, unflagged/model-space births and survivors preserve their normal behavior. Flat/raised native RED reproduced birthY5 versus0.5/3.5; four no-hit/control cases already pass. GREEN pending. Exact target surface-mask equivalence remains P7-surface-mask in the [contract](../../specs/m2-particles.md).
+World-space plane/sphere0x2000 births now cast the supplied20-yard downward segment into existing native map collision, offset hit height by the larger sampled scale, then integrate motion. Actual misses, unflagged/model-space births and survivors preserve their normal behavior. Flat/raised native RED reproduced birthY5 versus0.5/3.5; four no-hit/control cases already pass. GREEN at7cfed41dd: CPU12/12 and native collision6/6 (flat0.5, raised3.5, four free-birth controls5);1920×1080 capture saved/inspected. Exact target surface-mask equivalence remains P7-surface-mask in the [contract](../../specs/m2-particles.md).
 
 ### P6 continuation — authored particle ordering
 
