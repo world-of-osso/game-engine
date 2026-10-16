@@ -1025,14 +1025,14 @@ impl WowAnimationPlayer {
         let (Some(animation), Some(skeleton)) = (&self.animation, &mut self.skeleton) else {
             return;
         };
-        let mut poses = animation.sampled_poses();
-        if let Some(billboards) = &self.billboards {
-            billboards.apply(&mut poses, skeleton);
-        }
-        for (index, pose) in poses.into_iter().enumerate() {
+        let poses = animation.sampled_poses();
+        for (index, pose) in poses.iter().enumerate() {
             skeleton.set_bone_pose_position(index as i32, pose.position);
             skeleton.set_bone_pose_rotation(index as i32, pose.rotation);
             skeleton.set_bone_pose_scale(index as i32, pose.scale);
+        }
+        if let Some(billboards) = &self.billboards {
+            billboards.apply(&poses, skeleton);
         }
         self.apply_sequence_bounds();
     }

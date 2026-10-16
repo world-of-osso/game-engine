@@ -170,7 +170,18 @@ Billboard targets stage the pivot-corrected Bevy result in `SphericalBillboard.p
 
 Sequence-local constant TRS tracks fold to the existing fixed raw-pose curve when every channel is non-global and has at most one timestamp and one value in the selected sequence. Missing sequences use the existing sampler defaults. Varying/global tracks retain normal sampling; targets, joints and blending remain intact. At `50454f89`, 87 scoped animation tests and fmt/check passed. Catalog construction improved in characterization; the clock-confounded native pair establishes no additional steady-state CPU gain. See [CPU investigation](../investigations/movement-performance.md#constant-curve-follow-up).
 
+## Authored parent contribution (A6) — 2026-10-15
+
+The [A6/A7 contract](../../specs/m2-animation-inheritance-attachments.md) separates authored low bits from billboard bits. `m2_inheritance::select_parent` works on converted world-space skin matrices: case2 retains parent basis directions with model lengths; case4 retains parent lengths with model directions; case6 uses the model basis. Bit1 selects model translation; otherwise translation compensates around the parent's transformed child pivot. Roots never enter parent selection.
+
+Native composition evaluates ancestors first, applies this selection before the child's pivoted animation, then billboards. Ordinary local poses and authored hierarchy remain intact. Only adjusted/billboard bones receive exact affine global-pose overrides: converting compensation back to local TRS would lose shear under a nonuniform parent. Godot's legacy global override API is currently needed for an exact affine palette; retire that use when Godot exposes an equivalent non-decomposing replacement. No warning suppression or alternate render path is introduced.
+
+The non-gating local census is `data/diagnostics/m2-anim-2026-10-15/census.json`:83129 M2 +161 SKEL files,1171 with parented low-bit bones,341 with nonempty activation timeline headers. Headers alone are not proof of a toggling track. Runtime-added flags, modern inheritance contracts, native raster acceptance and A7 color/clock behavior remain explicit gaps in the spec.
+
 ## Sources
+
+- User-supplied clean-room A6/A7 spec (2026-10-15), `/home/osso/.worktrees/logs/anim-cleanroom-spec-2026-10-15.md`; provenance labels were not opened or searched.
+- `godot/core/src/m2_inheritance.rs`, `godot/rust/src/animation/billboard.rs` — authored parent composition and behavioral fixtures.
 
 - AGENTS.md — Animation section, blend_time rules, ANIM_* location
 - `src/rendering/model/animation/bevy_curves.rs` and `bevy_player.rs` — runtime implementation and deferred teardown
