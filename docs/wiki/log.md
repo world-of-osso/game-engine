@@ -4112,3 +4112,5 @@ Completed Retailv2 codec/authoritative Create and committed Copy callbacks, exac
 
 - 2026-10-16: Corrected70391 Regrowth8936 native cast restores Feero236→484 without admin healing; missing ambusher receipt/completion boundary remains open.
 - 2026-10-16: Product-row item tooltip native both-skin GREEN at569419cb7; final-scale ordering fixes real owner-bound mismatch without changing layout/framing.27 UI+12 native Trading Post and52 tooltip regressions/check/scoped format pass at846cf1d1d. Eight full-HD PNGs plus two contacts published; [proof inventory](systems/trading-post.md#product-row-item-tooltips--implementation-october16).
+
+- 2026-10-16: Feero976 both native skins earn credit after all three waves; authenticated missing receipt-index entries resolved without substitutions; same-coordinate grid RED→GREEN8 fixes active escort dormancy beyond spawn grid. Eighteen inspected1920x1080 earned-run PNGs; cosmetic roar, native death-failure and unrelated renderer parity remain separate. See [escort contract](../specs/escort-quests.md).
