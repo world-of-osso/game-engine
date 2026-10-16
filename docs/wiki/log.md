@@ -1,3 +1,6 @@
+## 2026-10-15 — Housing Expert binding context
+
+[Expert-only context](systems/housing.md#expert-binding-context--verified2026-10-15): full XML/OnShow/OnHide source rejects wrapper-only cross-mode activation inference before production edits. Both-skin native actual Options keys preserve Basic/Cleanup, switch three Expert submodes and conserve paid state; six inspected functional1280 PNGs. Diagnostic invalid oracle and old-extension protocol mismatch retained separately; no product/audio/timing/full-HD claim.
 ## 2026-10-15 — Stockade short-frame step admission
 
 [Short-frame proof](systems/player-ground.md#short-frame-regression-proof): same authored lip reproduced RED at run144/240FPS and walk60FPS. Support admission now includes the existing wall-margin reach without extra horizontal movement or a new tolerance/radius. Thirteen targeted regressions pass; native capture remains explicitly scoped to the earlier 60-FPS build.
