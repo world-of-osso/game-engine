@@ -206,6 +206,17 @@ fn world_quests_clock_tooltip_progress_and_expiry_both_skins() {
                 .is_none(),
             "World Quests use unnumbered POIs rather than restarting ordinary quest numbering"
         );
+        assert!(
+            registry
+                .get_by_name("QuestBlock86948POIButtonNormal")
+                .is_some(),
+            "Retail WorldQuest icon retains its normal POI background"
+        );
+        assert!(
+            registry
+                .get_by_name("QuestBlock86948POIButtonWorldQuest")
+                .is_some()
+        );
         let low_time = ObjectiveTrackerState::from_runtime_at(&runtime, false, false, 86700);
         assert_eq!(
             low_time.world_quests[0].0.lines.last().unwrap().text,
