@@ -10,6 +10,12 @@ How corpses, the LootFrame, the flight map and server-driven flights fit togethe
 - `LootState` holds the open corpse's remaining slots; `scenes/loot_frame` places the frame under the cursor once per corpse (`LootFrameAnchor`) and turns card clicks into `LootRequest::Take`.
 - Chrome: `quest_art::flat_panel_chrome` = `DefaultPanelFlatTemplate` on the `metal_frame_no_portrait` panel style (the portrait layout with `ui-frame-metal-cornertopleft-2x` in the top-left cell).
 
+### ItemButton input ownership — 2026-10-16
+
+`loot_frame_component::item_button` owns the slot action on a transparent 37×37 Button at (5,4), with right hit inset −157: effective hit width194. The enclosing row is passive; existing icon/count/card paint remains separate and unchanged. Left release commits only while still inside the authored target. The [loot-frame spec](../../specs/loot-frame.md) owns this contract; hover/pushed strokes, right/modified clicks, tooltips, animations and server lifecycle are separate gaps.
+
+The native debug fixture calls production `show_loot_frame`, not generic `show_viewport_screen`: the former registers the metal-border style. Skipping that host setup fails explicitly with `Unconverted native frame decoration: LootFrameNineSlice`; do not suppress it or change production art to make a preview pass.
+
 ### Native Godot evidence and money-card overflow
 
 Native integration and bounded proof are tracked in [[godot-conversion#Native loot — implemented, proof pending]]. Shared exports and targeted tests (8 + 1), ordered relay wire test (1 at `c6ae14bf`) and root compilation have passed. Runtime `af03660f` reaches `LOOT_DONE` after four Auto Loot/Shift cases plus inventory/error/cursor assertions; post-DONE RenderingServer-null shutdown exits 101, unresolved and explicitly deferred. Independent final acceptance remains pending; no source-pinning requirement.

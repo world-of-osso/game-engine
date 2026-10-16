@@ -24,7 +24,7 @@ References:
 - [x] Cards 46 tall, 2 apart, inside the 6 px padding of the `ScrollBox` at 4,22 (LF.lua:1-3, SFP): height = cards + 46.
   - Item card: `looting_itemcard_bg` tinted by quality, `looting_itemcard_stroke_normal`, `looting_raritytag_frame` 100×13 at TOPRIGHT with `ITEM_QUALITY%d_DESC` (LF.xml:71-95), the 37×37 item button at 5,4 with UI-Quickslot2 and the count above 1, the name at the button's TOPRIGHT +8,-8 in the quality colour.
   - Money card: the coin icon (`inv_misc_coin_01/03/05` by largest coin), one `GOLD_AMOUNT`/`SILVER_AMOUNT`/`COPPER_AMOUNT` line per coin, 93×38 beside the button (LF.xml:97-111).
-- [x] Clicking a card sends `LootSlotRequest` (`LootSlot`, LF.lua:38-57); the close button sends `LootRelease` (`CloseLoot`).
+- [x] Left-button release inside a card's `Item` sends `LootSlotRequest` (`LootSlot`, LF.lua:38-57); pressing alone or releasing outside does not. The passive row owns no loot action. `Item` is 37×37 at (5,4), with hit insets (left0,right−157,top0,bottom0), extending its hit area to 194×37 (LF.xml:9-17); top/bottom/left row gutters refuse loot. The close button sends `LootRelease` (`CloseLoot`). Right/modified clicks remain unqualified.
 - [x] Looted items and coins reach the bags and money through `InventoryDelta` and `Gold`.
 - [ ] No Loot All button (Retail has none).
 - [ ] Not built: the scroll bar (more than five cards grow the frame past `panelMaxHeight` 290), card hover/pushed strokes, item tooltips, the show/hide and slide-out animations, quest item overlays, Escape to close, loot sounds, group loot roll frames (`GroupLootFrame`), `LOOT_BIND` confirmation.
