@@ -115,8 +115,18 @@ func row_cart_toggle_proof() -> void:
 	var expected := control(row).get_global_rect().position + Vector2(443, 6) * scale
 	if rect.position.distance_to(expected) > 1.5 or rect.size.distance_to(Vector2(36, 36) * scale) > 1.5:
 		fail("Row cart toggle lacks source36x36/TimeRemaining center anchor"); return
+	await wait_frames(3)
+	await RenderingServer.frame_post_draw
+	var glyph_rect := Rect2i(Vector2i(rect.position + Vector2(8, 8) * scale), Vector2i(Vector2(20, 20) * scale))
+	var normal_contrast := cart_glyph_contrast(root.get_texture().get_image().get_region(glyph_rect))
 	await motion(rect.get_center(), false)
 	if not await wait_until(func(): return client.tooltip_state().get("title", "") == "Add to Cart", "row cart Add tooltip"): return
+	await wait_frames(3)
+	await RenderingServer.frame_post_draw
+	var hover_contrast := cart_glyph_contrast(root.get_texture().get_image().get_region(glyph_rect))
+	print("TP_ROW_CART_GLYPH_CONTRAST normal=", normal_contrast, " hover=", hover_contrast)
+	if normal_contrast <= 0.0 or hover_contrast < normal_contrast * 0.25:
+		fail("Hovered row cart glyph lost base contrast under highlight"); return
 	var tooltip: Dictionary = client.tooltip_state()
 	if absf(float(tooltip.rect[0]) + float(tooltip.rect[2]) - rect.position.x / scale) > 1.5 or absf(float(tooltip.rect[1]) + float(tooltip.rect[3]) - rect.position.y / scale) > 1.5:
 		fail("Row cart tooltip lacks source ANCHOR_LEFT0/0"); return
@@ -160,6 +170,19 @@ func row_cart_toggle_proof() -> void:
 		fail("Row toggle roundtrip changed model/Tender/frozen authority"); return
 	print("TP_ROW_CART_TOGGLE target=", target, " selected=", other, " tender=", final.tender, " frozen=", final.frozen)
 	await finish("row-cart-toggle")
+
+# Pixel structure, not node/texture existence: highlighted cart glyph remains painted.
+func cart_glyph_contrast(image: Image) -> float:
+	var total := 0.0
+	var squares := 0.0
+	var count := image.get_width() * image.get_height()
+	for y in image.get_height():
+		for x in image.get_width():
+			var pixel := image.get_pixel(x, y)
+			var brightness := (pixel.r + pixel.g + pixel.b) / 3.0
+			total += brightness
+			squares += brightness * brightness
+	return sqrt(maxf(0.0, squares / count - pow(total / count, 2.0)))
 
 func hover_row_cart_toggle(vendor: int, title: String) -> bool:
 	var scale := control("PerksProgramLeaveButton").get_global_rect().size.x / 180.0
