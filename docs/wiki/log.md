@@ -1,3 +1,7 @@
+## 2026-10-16 — House Access checkbox-only hit targets
+
+[Source checkbox targeting](systems/housing.md#house-access-checkbox-hit-targets--2026-10-16):140px row button replaced with30×29 checkbox in noninteractive row; RED→GREEN5, both-skin label refusal/checkbox staging/mode/pending proof. Forty fullHD comparisons change only checkbox art after source LEFT anchoring. Typography/backend remain separate.
+
 ## 2026-10-16 — HouseSettings action-button source art
 
 [Three action buttons](systems/housing.md#housesettings-action-button-art--2026-10-16): four source UIPanel bindings only, RED→GREEN and both-skin enabled/disabled/pending native proof; all eight fullHD changes confined to button rectangles. No typography/lifecycle/backend claim.
