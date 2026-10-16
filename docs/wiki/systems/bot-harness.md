@@ -64,6 +64,20 @@ Comparison requires equal explicit receipts for level, stats, dummy and duration
 
 ## Recorded native proof and remaining gates
 
+### Fresh master readiness clocks and caster range — 2026-10-16
+
+`native-master-readiness1` runs newly built engine master76984ca3b, exact server masterbfe7d7a6 and protocoldc30250; master-readiness-build-revisions.json/binary-hashes.json and per-run inputs.json retain actual identities. No623/43fa/170 binary reuse. Arms71, Fury72 and BM253 were explicitly requested, each for two60s windows; failures retain DPSnull and keep the complete expected roster.
+
+| Spec | Actual outcome | Native proof |
+|---|---|---|
+| Arms71 | Before any cast, rule1187/condition12 refuses; DPSnull | One partial report,0 requests; second repetition unavailable |
+| Fury72 | Complete60s11506/10130 damage;191.7667/168.8333 DPS |22 requests/window,22/21 local successes;0/1 untagged not-ready errors,0 charge denials |
+| BM253 | Before any cast, rule29672/condition58 refuses; DPSnull | One partial report,0 requests; second repetition unavailable |
+
+Fury190411 is in_range/ready/affordable true in all435 native samples; authored selection returns1464 or5308, never190411. This proves range admission, not that190411 should be cast ahead of those steps. Prior native-parity2 Fury windows had5/14 not-ready errors; the fresh windows have0/1. master-readiness-observations.json retains each request's preceding sampled GCD/ready/charge/cooldown values, observation age and untagged error timestamps for both datasets. This before/after is observational, not isolated causal proof or exact server occupancy; absent charge data staysnull. Raw source rows and actual evaluations for the new Arms/BM gaps live in master-readiness-new-source-gaps.json. No guessed semantics or fallback rotation.
+
+The three-spec comparison is unavailable, not a new balance result. native-master-readiness1-abilities/abilities.{json,md} contains per-ability triage; verification.json confirms four reports/two complete windows and running artifact hashes. Owned private server4176402 and all clients stopped. Separately, the priority neutral Pandaren/DK creation RED is fixed from [Retail faction policy and authored TDB starts](../../../../game-server/docs/wiki/systems/race-class-eligibility.md#neutral-pandaren-death-knight-creation--2026-10-16), not by adding a start.
+
 ### Native-controller three-DPS proof
 
 `native-parity-qualified3` explicitly configures Arms71/Fury72/BM253, linking immutable native-parity2/71,72 and native-third1/253 receipts. All six60s windows qualify on positive native health, level32,30/quality2/era0 equipment, empty jewelry, dummy44548 level30/max-health13137/armor155/difficulty0 and the same world SHA-256. Arms10/Fury11/BM10 items retain owner GUIDs/native stats. Ordinary native OnCast auto-attack is observed for all six windows; raw combat now retains received outcome/mitigation fields, including nonzero crit observations. The original five-window replay is GREEN after six historical RED subcases; qualified-three replay and verification.json preserve exact scope.
@@ -102,7 +116,7 @@ Both native-forms1 receipts confirm one ordinary Cat768/Bear5487 self-cast and r
 
 No guessed predicates, generic rotation replacement, statistical tuning or external DPS oracle. Native outcome flags/auto-attack now observed; resource spending, aura-effect, cooldown-reset and charge correctness remain unobserved rather than passing. Stockade stays explicitly deferred until the maintained controller/route interface exists.
 
-Final upstream integration retains native proof at its actual build revisions, not the newer source heads. Engine IPC7/resolver2, server race3/control10, protocol Summon wire1, scoped engine/server checks and workspace formats pass;68 Python proof remains current because merged upstream did not change harness scripts. The broader named dummy12 filter runs13 tests:12 pass, while upstream class_completeness_native_feral_spirit_wolves_inherit_owner_ap_on_dummy_hits fails at dummy12_tests.rs:141 with initial wolf hits[51,0]. Own Summon root/child/lifetime/delivery cases pass. final-merged-gates-full.log preserves the failure; no retry, weakened assertion or gameplay change. Branch is not fully green or ready pending class-owner resolution.
+Final upstream integration retains native proof at its actual build revisions, not the newer source heads. Engine IPC7/resolver2, server race3/control10, protocol Summon wire1, scoped engine/server checks and workspace formats pass;68 Python proof remains current because merged upstream did not change harness scripts. The broader named dummy12 filter runs13 tests:12 pass, while upstream class_completeness_native_feral_spirit_wolves_inherit_owner_ap_on_dummy_hits fails at dummy12_tests.rs:141 with initial wolf hits[51,0]. Own Summon root/child/lifetime/delivery cases pass. final-merged-gates-full.log preserves the failure; no retry, weakened assertion or gameplay change. This historical gate is not fully green. Lead subsequently classified the wolf failure as load-dependent (passes isolated on master), assigned determinism to the class owner, and explicitly excluded it as a blocker for this harness continuation.
 
 ### First all40 diagnostic batch
 
