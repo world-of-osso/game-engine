@@ -1300,6 +1300,12 @@ impl GameClient {
         self.spells_snapshot()
     }
 
+    /// Read native usability and cast metadata without selecting or casting at the unit.
+    #[func]
+    fn spell_priority_state(&self, target: i64, spells: PackedInt32Array) -> VarDictionary {
+        self.spell_priority_snapshot(target, spells.as_slice())
+    }
+
     #[func]
     fn cooldown_viewer_state(&self) -> VarDictionary {
         self.cooldown_viewer_snapshot()

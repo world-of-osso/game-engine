@@ -15,7 +15,7 @@ pub(crate) fn spell_or_quest_object_request(
     id: u64,
     info: &GameObjectInfo,
 ) -> Option<UseGameObject> {
-    matches!(
+    (matches!(
         info.go_type,
         GAMEOBJECT_TYPE_MEETINGSTONE
             | GAMEOBJECT_TYPE_RITUAL
@@ -23,7 +23,7 @@ pub(crate) fn spell_or_quest_object_request(
             | crate::game_objects::GAMEOBJECT_TYPE_GOOBER
             | crate::game_objects::GAMEOBJECT_TYPE_SPELLCASTER
             | shared::protocol::GAMEOBJECT_TYPE_HOUSING_PLOT
-    )
+    ) || crate::game_objects::is_seaforium_bomb(info))
     .then_some(UseGameObject { object: id })
 }
 
