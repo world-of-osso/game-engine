@@ -1,3 +1,7 @@
+## 2026-10-16 — Lifetime honor source boundary
+
+[Honor](systems/battlegrounds.md#lifetime-honor-source-boundary--2026-10-16): pinned concrete world-kill XP plumbing is distinct from spendable1792; no8800 guess, old Prestige curve reinterpretation or quest-to-match payout assignment. Persist/replicate lifetime XP, leave level/fill unknown, preserve source faction art and tooltip. Initial ordinary-damage/registry RED→GREEN; merged gates and full-HD native proof pending.
+
 ## 2026-10-16 — Guild news live acceptance
 
 [News](systems/guilds.md#news): source-qualified actual producers, independent query/filter/sticky authority and source art. Private UDP/native both-skin controls,250 physical retained entries, permissions/privacy and exact fresh-process readback pass;16 full-HD captures inspected. Final merged-source model4/backend6/wire1 and cargo checks pass. Source right-click input omission fixed; harness readiness and JSON-number membership failures remain distinct from product failures. Independent lead gate/landing next.
