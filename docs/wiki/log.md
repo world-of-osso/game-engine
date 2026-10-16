@@ -4205,3 +4205,7 @@ Completed Retailv2 codec/authoritative Create and committed Copy callbacks, exac
 - 2026-10-16: [Actual native Greed](systems/bot-harness.md#native-actual-greed--2026-10-16): maintained route/F/provider/viewport bridge; Moloch63346 Greed95→GUID525,7.040s ACK, inspected1280 input/win PNGs and owned cleanup. Azure/full-spec remain separate.
 
 - 2026-10-16: Accepted request dialogs now pass both-skin painted spinner/overlay counterfactuals and real rotation/reply proof, after rejecting node-only art evidence. Source11px inset and modal-relative ordering fixed.31UI12native/check/5scopedRustfmt pass; ten full-HD originals+two contacts+two crops published, private RED purchase state retained. [Trading Post](systems/trading-post.md#accepted-single-item-confirmation-lifetime--implementation-october16).
+
+## 2026-10-16 — Loot ItemButton hit rectangle and release
+
+Source Item ownership replaces row-press actions; inset-aware native Button picking fixes the actual expanded-hit boundary. Model2/native32 GREEN,68 unchanged full-HD pairs; StackSplit16/ReadyCheck4 shared-input controls and60 pixel pairs unchanged. Retained setup failures and Item-only partial RED, server/full-window exclusions explicit. See [[loot-and-flight#ItemButton input ownership — 2026-10-16]].

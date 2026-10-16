@@ -54,6 +54,8 @@ The [saved reach gate](../wiki/systems/godot-conversion.md#native-loot-reach--bo
 
 ## Tests asserting this spec
 
+- `godot/ui-model/tests/loot_frame.rs` and `godot/tests/loot_item_hitarea.gd`: source Item hit rectangle, slot binding after removal, left-release/cancellation and both-skin money/item targets. [Bounded native/pixel evidence](../wiki/systems/loot-and-flight.md#itembutton-input-ownership--2026-10-16); not a fresh server-lifecycle or full-window proof.
+
 - `src/game/loot_state.rs` tests: slots taken until close, Shift inversion, right-click choice, money lines and coin icon, loot chat lines.
 - `godot/ui-model/src/ui/screens/loot_frame_component_tests.rs`: frame size, title, card offsets, quality tag only on items, stack count.
 - `src/scenes/loot_frame/mod.rs` tests: placement under the cursor, card clicks, card state.
