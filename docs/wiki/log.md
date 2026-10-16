@@ -11,6 +11,13 @@
 ## 2026-10-16 — Inherited frozen Trading Post item tooltip
 
 [Inherited tooltip](systems/trading-post.md#inherited-frozen-product-tooltip--implementation-october16): resolve the existing displayed selection action instead of ordinary-only names. Missing native frozen-hover RED→actual8e9/7f7c8875/44e6bed both-skin settled-slot GREEN, independent item/model identity, source anchor/no sell price/leave/teardown and unchanged Tender. Four inspected full-HD hover/leave originals+two contacts published; genuine private frozen slots retained. Pending-freeze/drag/framing excluded.
+## 2026-10-16 — Existing specialization authority reused
+
+[Knowledge reuse](systems/native-professions-crafting.md#knowledge-reuse--verified2026-10-16): both full-HD skins unlock, inspect tooltips, stage/Undo/Apply, spend25→24 and retain rank1/30 after fresh private server/client relogs. Existing authority6, actual-native database reopen1 and post-quality inventory/skill conservation1 pass. Fixture points are not acquisition proof.
+
+## 2026-10-16 — Authored quality reagent selection
+
+[Native quality selection](systems/native-professions-crafting.md#authored-quality-selection--verified2026-10-16): both1920×1080 skins pass physical mixed-tier selection, typed clamp, Cancel, owned-stock disablement, incomplete-slot authority refusal and complete allocation with no fabricated outcome. Native Plain chrome registration fixed reproduced dialog conversion failure; source operation composition remains a named gap. Twelve quality originals inspected; conservation gate tracked separately.
 
 ## 2026-10-16 — Fade effect native projection
 
