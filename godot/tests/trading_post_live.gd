@@ -1287,9 +1287,10 @@ func motion(point: Vector2, down: bool, relative: Vector2 = Vector2.ZERO) -> voi
 	event.global_position = point
 	event.relative = relative
 	event.button_mask = MOUSE_BUTTON_MASK_LEFT if down else 0
-	root.push_input(event, true)
 	if phase == "cart-tooltips":
-		Input.warp_mouse(point)
+		Input.parse_input_event(event)
+	else:
+		root.push_input(event, true)
 	await process_frame
 
 func button_event(point: Vector2, button: int, down: bool) -> void:
