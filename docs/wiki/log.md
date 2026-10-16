@@ -1,3 +1,7 @@
+## 2026-10-16 — StackSplit arrow source states
+
+[Arrow state proof](systems/cursor-item.md#stacksplit-arrow-states--bounded-proof-2026-10-16): static clickable frames lacked pushed art and dispatched before outside release. Source16×16 buttons restore Up/Down/Disabled art and cancellation; model RED→GREEN1,16 both-skin physical cases,48 context comparisons unchanged outside arrows. Supplied-state input only; quantity/purchase/full-picker parity excluded.
+
 ## 2026-10-16 — Guild news live acceptance
 
 [News](systems/guilds.md#news): source-qualified actual producers, independent query/filter/sticky authority and source art. Private UDP/native both-skin controls,250 physical retained entries, permissions/privacy and exact fresh-process readback pass;16 full-HD captures inspected. Final merged-source model4/backend6/wire1 and cargo checks pass. Source right-click input omission fixed; harness readiness and JSON-number membership failures remain distinct from product failures. Independent lead gate/landing next.
