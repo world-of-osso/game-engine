@@ -18,7 +18,9 @@ Retail Mainline Benefits perks in Modern and Forever. Definitions: installed `db
 
 | File | Role |
 |---|---|
-| `godot/ui-model/src/guild_communities.rs` | Existing Benefits tab; perks currently absent |
+| `godot/ui-model/src/guild_communities.rs` | Benefits composition |
+| `godot/ui-model/src/guild_perks.rs` | Actual installed catalog and source perk list |
+| `godot/rust/src/guild_ranks.rs` | Explicit catalog readiness before native Benefits sync |
 
 ## Tests asserting this spec
 
