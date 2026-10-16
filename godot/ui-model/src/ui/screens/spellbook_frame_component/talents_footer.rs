@@ -7,6 +7,27 @@ use crate::ui::screens::menu_primitives::{
 #[path = "talents_loadouts.rs"]
 mod loadouts;
 
+// ClassTalentsFrame::RefreshLoadoutOptions wraps Starter's name in BLUE_FONT_COLOR.
+const STARTER_BUILD_COLOR: crate::ui::widgets::font_string::FontColor =
+    crate::ui::widgets::font_string::FontColor::new(0.53, 0.67, 1.0, 1.0);
+
+pub(super) fn apply_loadout_caption(view: &TalentView, registry: &mut FrameRegistry) {
+    let committed_starter = view.editor.starter_active() && !view.editor.dirty();
+    let color = if committed_starter {
+        STARTER_BUILD_COLOR.0
+    } else {
+        [1.0; 4]
+    };
+    // Dropdown supplies its normal font color; Retail's wrapped Starter name
+    // adds a text-specific color independently of that template font.
+    if let Some(id) = registry.get_by_name("TalentLoadoutName")
+        && let Some(frame) = registry.get_mut(id)
+        && let Some(WidgetData::FontString(text)) = frame.widget_data.as_mut()
+    {
+        text.color = color;
+    }
+}
+
 pub(super) fn controls(view: &TalentView, scale: f32) -> Element {
     let y = BOOK_H - FOOTER_HEIGHT / 2.0 - 15.0;
     let mut children = dropdown_button_with_state(
