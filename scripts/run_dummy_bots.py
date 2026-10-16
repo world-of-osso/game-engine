@@ -138,6 +138,7 @@ def collect(args, output):
                            "deadline_ms": min(run["end_ms"] - 1, now + max(selected["cast_ms"], 1500) + 2000)}
                 action = controller.cast_next(args.target, lambda native, target: {"spell": selected["id"]})
                 if action is None:
+                    time.sleep(.2)
                     continue
                 attempt["response"] = action["response"]
                 next_cast = now + max(selected["cast_ms"], selected["gcd_ms"], 100)
