@@ -18,3 +18,7 @@ Cage's headless output defaults1280x720 and has no output-mode CLI on this host.
 ## Current state
 
 Server authored-wave unit GREEN5. Native acceptance pending; startup harness fixes are not native escort GREEN. No new client protocol or production UI behavior required so far.
+
+## Authored ambusher appearance preparation
+
+Native first-wave RED: server spawned four3879 and they attacked Feero, but client rejected actual displays19829/4227/4229 outside imported appearance coverage. This is missing data, not permission to substitute models. `scripts/prepare_escort_appearance.py --root <engine-slot> --source-world <read-only-world.db> --output <new-private.sqlite>` feeds the existing strict importer from active70391 Extra/Option/Geoset CSVs; selects all eleven actual template-model alternatives for Feero, ender and five ambusher templates; preserves the base cache, rejects conflicts and writes input/output SHA256 manifest. Private import:8 profiles/88 choices/11 coverage rows. Slot cache is de-linked into an owned overlay; canonical cache remains untouched. Runtime asset receipts and successful rendering remain separate proof.
