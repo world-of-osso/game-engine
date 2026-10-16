@@ -721,14 +721,14 @@ fn zoom_buttons(zoom: u8, [cx, cy]: [f32; 2]) -> Element {
     let top_zoom = zoom + 1 >= game_engine_core::minimap_data::ZOOM_LEVELS;
     let mut elements = zoom_button(
         MINIMAP_ZOOM_IN,
-        ZOOM_IN,
+        "ui-hud-minimap-zoom-in",
         ACTION_ZOOM_IN,
         top_zoom,
         [cx + 88.0, cy + 68.0, 17.0, 17.0],
     );
     elements.extend(zoom_button(
         MINIMAP_ZOOM_OUT,
-        ZOOM_OUT,
+        "ui-hud-minimap-zoom-out",
         ACTION_ZOOM_OUT,
         zoom == 0,
         [cx + 72.0, cy + 84.0, 17.0, 9.0],
@@ -738,21 +738,24 @@ fn zoom_buttons(zoom: u8, [cx, cy]: [f32; 2]) -> Element {
 
 fn zoom_button(
     name: &str,
-    art: SheetArt,
+    atlas: &str,
     action: &str,
     disabled: bool,
     [x, y, w, h]: [f32; 4],
 ) -> Element {
-    let coords = art.tex_coords();
-    let alpha = if disabled { 0.5 } else { 1.0 };
+    let pressed = format!("{atlas}-down");
+    let highlight = format!("{atlas}-mouseover");
     rsx! {
-        texture {
+        button {
             name: {DynName(name.into())},
             width: w,
             height: h,
-            texture_fdid: {art.fdid},
-            tex_coords: {coords.as_str()},
-            alpha,
+            button_default_skin: false,
+            button_atlas_up: atlas,
+            button_atlas_pressed: pressed,
+            button_atlas_highlight: highlight,
+            button_atlas_disabled: atlas,
+            disabled,
             onclick: action,
             pos_type: "absolute",
             left: {x - w / 2.0},
