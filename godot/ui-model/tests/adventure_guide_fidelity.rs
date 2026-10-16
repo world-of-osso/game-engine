@@ -462,6 +462,55 @@ fn adventure_guide_item_sets_clamp_stale_scroll_and_reset_class_changes() {
 }
 
 #[test]
+fn adventure_guide_item_sets_wait_for_received_player_spec_before_initializing_filters() {
+    let mut v = view();
+    v.apply("journal:tab:sets").unwrap();
+    assert_eq!(v.class_spec_filters(), (0, 0));
+    v.player_spec = Some(71);
+    v.apply("journal:tab:sets").unwrap();
+    assert_eq!(v.class_spec_filters(), (1, 71));
+    v.apply("journal:class:0").unwrap();
+    v.player_spec = Some(70);
+    v.apply("journal:tab:dungeons").unwrap();
+    v.apply("journal:tab:sets").unwrap();
+    assert_eq!(
+        v.class_spec_filters(),
+        (0, 0),
+        "Explicit All Classes is not an uninitialized filter"
+    );
+}
+
+#[test]
+fn adventure_guide_item_sets_reopen_only_the_root_filter_menu() {
+    let mut v = view();
+    v.player_spec = Some(71);
+    v.apply("journal:tab:sets").unwrap();
+    v.apply("journal:filter:spec").unwrap();
+    v.apply("journal:class-menu").unwrap();
+    assert!(
+        render(&v, ActiveSkin::Modern)
+            .get_by_name("EncounterJournalClassMenu")
+            .is_some()
+    );
+    v.apply("journal:filter:spec").unwrap();
+    v.apply("journal:filter:spec").unwrap();
+    assert!(
+        render(&v, ActiveSkin::Modern)
+            .get_by_name("EncounterJournalClassMenu")
+            .is_none()
+    );
+    v.apply("journal:class-menu").unwrap();
+    v.apply("journal:tab:dungeons").unwrap();
+    v.apply("journal:tab:sets").unwrap();
+    v.apply("journal:filter:spec").unwrap();
+    assert!(
+        render(&v, ActiveSkin::Modern)
+            .get_by_name("EncounterJournalClassMenu")
+            .is_none()
+    );
+}
+
+#[test]
 fn adventure_guide_item_sets_all_classes_caption_returns_after_colored_selection() {
     let mut v = view();
     v.player_spec = Some(71);
