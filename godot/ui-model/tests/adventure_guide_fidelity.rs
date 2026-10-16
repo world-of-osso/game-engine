@@ -625,6 +625,18 @@ fn adventure_guide_item_sets_use_source_pane_rows_and_item_borders() {
         );
         assert!(frame(&r, "JournalSet567Item24545").onclick.is_none());
         assert!(frame(&r, "JournalSet567Row").background_color.is_none());
+        let row = frame(&r, "JournalSet567Row").layout_rect.as_ref().unwrap();
+        let title = frame(&r, "JournalSet567").layout_rect.as_ref().unwrap();
+        let level = frame(&r, "JournalSet567Level")
+            .layout_rect
+            .as_ref()
+            .unwrap();
+        assert_eq!(
+            title.x - row.x,
+            39.,
+            "Source title left anchor, not centered in level width"
+        );
+        assert_eq!(level.x - title.x, 0.);
     }
 }
 
