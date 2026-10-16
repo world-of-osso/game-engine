@@ -137,6 +137,9 @@ impl EditorInteraction {
         };
     }
     pub fn set_submode(&mut self, submode: PrecisionSubmode) {
+        if self.submode == submode {
+            return;
+        }
         self.end_mouse_drag();
         self.submode = submode;
     }
