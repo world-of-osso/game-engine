@@ -9,6 +9,7 @@ from bot_controller import require_point
 from bot_stockade import parse_npc
 
 TAME_BEAST = 1515  # Existing hunter-taming contract: channel1515 triggers13481/TAMECREATURE55.
+PET_REACT_ASSIST, ACT_REACTION = 3, 6  # shared::protocol::pet_messages; received packed bar.
 
 
 def owned_pet(state):
@@ -18,6 +19,27 @@ def owned_pet(state):
     if native is not None and announced is not None and int(native) == int(announced):
         return str(int(native))
     return None
+
+
+def assist_plan(state):
+    pet = owned_pet(state)
+    if pet is None:
+        raise ValueError('Native Assist requires the replicated owned pet and its received bar')
+    bar = state['pet']
+    if bar['react_state'] == PET_REACT_ASSIST:
+        return None
+    slots = [index for index, packed in enumerate(bar['buttons'])
+             if int(packed) >> 24 == ACT_REACTION and int(packed) & 0xffffff == PET_REACT_ASSIST]
+    if len(slots) != 1:
+        raise ValueError('Native received pet bar requires one Assist reaction slot')
+    return {'pet': pet, 'name': f'PetActionButton{slots[0] + 1}'}
+
+
+def verified_assist(receipt, pet):
+    after = receipt['after']
+    if owned_pet({'pet': after}) != str(pet) or after['react_state'] != PET_REACT_ASSIST:
+        raise ValueError('Native owned pet Assist acknowledgement not observed')
+    return after
 
 
 def tame_plan(database, family_csv, map_id, level, position, known):
