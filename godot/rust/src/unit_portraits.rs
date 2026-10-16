@@ -264,7 +264,7 @@ impl Portrait {
         Ok(())
     }
 
-    fn snapshot(&self) -> VarDictionary {
+    pub(crate) fn snapshot(&self) -> VarDictionary {
         let mut state = VarDictionary::new();
         let scene = self
             .scene
@@ -699,11 +699,19 @@ impl GameClient {
 impl GameClient {
     /// Portrait state for automation: `frame` is `PlayerPortrait`, `TargetFramePortrait`,
     /// `PetPortrait`, `CharacterMicroButtonPortrait`, `MerchantFramePortrait` or
-    /// `QuestFramePortrait` or `CharacterFramePortrait`.
+    /// `QuestFramePortrait` or `CharacterFramePortrait`. `JournalCreature<ID>Portrait`
+    /// observes an Adventure Guide selector's rendered creature head.
     #[func]
     fn unit_portrait_state(&self, frame: GString) -> VarDictionary {
         let portraits = &self.targeting.portraits;
         let frame = frame.to_string();
+        if let Some(id) = frame
+            .strip_prefix("JournalCreature")
+            .and_then(|suffix| suffix.strip_suffix("Portrait"))
+            .and_then(|id| id.parse().ok())
+        {
+            return self.adventure_guide.creature_portrait_state(id);
+        }
         [
             &portraits.player,
             &portraits.target,
