@@ -1,3 +1,4 @@
+- [Full-HD storage captures](systems/housing.md#full-hd-storage-captures--verified2026-10-16) — both-skin five-phase1920×1080 originals, source Filter/root/Sort geometry and paid conservation; full-image parity remains unqualified.
 - [Unavailable storage filters](systems/housing.md#unavailable-storage-filters--qualified2026-10-16) — sourced location/tag query contracts, explicit missing field/history mappings; collection rows intentionally absent in storage.
 - [Lifetime honor source boundary](systems/battlegrounds.md#lifetime-honor-source-boundary--2026-10-16) — concrete world-kill XP0→47→94, both-skin native full-HD tooltip/relog; unknown level/curve and completion/season policies remain gaps; Character Currency port next.
 - [House Access checkbox targets](systems/housing.md#house-access-checkbox-hit-targets--2026-10-16) — source row/checkbox split; native bad label dispatch reproduced then refused,32 physical cases and40 unchanged-outside context pairs.
