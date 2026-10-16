@@ -996,3 +996,37 @@ fn particle_cleanroom_ground_no_hit_unflagged_and_model_space_stay_free() {
         assert_eq!(quads[0].center, Vec3::Y * 5.0);
     }
 }
+
+#[test]
+fn particle_cleanroom_sort_transforms_model_space_depth_before_comparing() {
+    let mut emitter = still_emitter(0x10 | 0x2);
+    emitter.area_length = 3.0;
+    let matrix = Mat4::from_translation(Vec3::new(1.0, 2.0, 3.0))
+        * Mat4::from_rotation_y(std::f32::consts::FRAC_PI_2);
+    let mut sim = EmitterSim::new(&emitter, 11);
+    sim.update(&emitter, 0.05, matrix, Mat3::IDENTITY, 1.0, &mut |_, _| {
+        None
+    });
+    let mut expected: Vec<_> = sim
+        .particles()
+        .iter()
+        .map(|p| matrix.transform_point3(p.position))
+        .collect();
+    expected.sort_by(|a, b| a.z.total_cmp(&b.z));
+    assert!(expected.first().unwrap().z < expected.last().unwrap().z);
+    let mut quads = Vec::new();
+    sim.quads(&emitter, &camera(), &mut quads);
+    for (quad, position) in quads.iter().zip(&expected) {
+        assert!(quad.center.distance(*position) < 1e-5);
+    }
+    quads.clear();
+    let reverse = ViewBasis {
+        right: Vec3::NEG_X,
+        up: Vec3::Y,
+        back: Vec3::NEG_Z,
+    };
+    sim.quads(&emitter, &reverse, &mut quads);
+    for (quad, position) in quads.iter().zip(expected.iter().rev()) {
+        assert!(quad.center.distance(*position) < 1e-5);
+    }
+}
