@@ -543,11 +543,12 @@ fn button_skin(frame: &Frame) -> Option<TextureSource> {
     let Some(WidgetData::Button(button)) = &frame.widget_data else {
         return None;
     };
-    // TabardFrame.xml authored arrows keep Normal/Pushed art under a separate ADD highlight.
+    // Tabard arrows and UIPanelCloseButtonNoScripts retain base art under ADD highlight.
     if matches!(
         button.normal_texture,
         Some(TextureSource::FileDataId(130869 | 130866 | 130845 | 130847))
-    ) {
+    ) || matches!(&button.normal_texture, Some(TextureSource::Atlas(name)) if name == "RedButton-Exit")
+    {
         return None;
     }
     if !button.use_default_skin
