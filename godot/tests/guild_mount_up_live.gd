@@ -30,10 +30,10 @@ func run_test() -> void:
 	client.set_camera_orbit(PI, -0.3, 14.0)
 	for skin in ["Modern", "Forever"]:
 		phase += 1
-		role = skin.to_lower() + "-mount-up"
 		samples.clear()
 		if not await select_skin(skin):
 			return
+		role = skin.to_lower() + "-mount-up"
 		await close_guild()
 		if known_perks().size() != 0:
 			fail("Native control must start as a real nonmember")
@@ -98,8 +98,10 @@ func lift_off() -> bool:
 	release_widget_focus()
 	move_key(KEY_SPACE, true)
 	await wait_frames(3)
+	write_json(role + "-takeoff-first-space.json", perk_observation())
 	move_key(KEY_SPACE, false)
 	await wait_frames(3)
+	write_json(role + "-takeoff-released.json", perk_observation())
 	move_key(KEY_SPACE, true)
 	var lifted: bool = await wait_until(func(): return perk_observation().flying, "physical steady-flight takeoff")
 	move_key(KEY_SPACE, false)
@@ -117,6 +119,10 @@ func sample_movement(expected: float, label: String) -> bool:
 		sample["phase"] = label
 		sample["expected_speed"] = expected
 		samples.append(sample)
+		write_json(role + "-" + label + "-sample.json", sample)
+		if not sample.forward_held:
+			move_key(KEY_W, false)
+			return fail("Physical forward input was not captured")
 		await capture(label)
 	move_key(KEY_W, false)
 	await wait_frames(3)
