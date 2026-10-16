@@ -64,7 +64,7 @@ func verify_query(request: Dictionary) -> void:
     var bad_target: Dictionary = client.call("spell_priority_state", 0, ids)
     var bad_spell: Dictionary = client.call("spell_priority_state", int(request["target"]), PackedInt32Array([0]))
     var known: Array = state["facts"]["known"]
-    var passed: bool = (state["target"] == int(request["target"])
+    var facts_passed: bool = (state["target"] == int(request["target"])
         and before.get("target") == after.get("target")
         and before.get("target") != int(request["target"])
         and known.has(2139) and state["facts"]["affordable"].has("2139")
@@ -72,5 +72,9 @@ func verify_query(request: Dictionary) -> void:
         and state["spell_gcd_ms"]["44425"] == 1500
         and state["target_cast"].has("casting")
         and bad_target.has("error") and bad_spell.has("error"))
-    publish("facts-result.json", {"passed": passed, "state": state,
+    var traits: Variant = state.get("trait_config")
+    var traits_passed: bool = (traits is Dictionary and traits.get("spec_id") == 62
+        and traits.get("entries") is Array and traits.get("tree_id", 0) > 0)
+    publish("facts-result.json", {"passed": facts_passed and traits_passed,
+        "facts_passed": facts_passed, "traits_passed": traits_passed, "state": state,
         "bad_target": bad_target, "bad_spell": bad_spell, "before": before, "after": after})
