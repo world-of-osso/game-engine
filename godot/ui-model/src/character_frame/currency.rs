@@ -81,8 +81,9 @@ pub fn currency_tooltip(row: &CurrencyRow) -> GameTooltip {
     )
 }
 
+/// ScrollBoxListView uses the first element's extent: this list starts with a header.
 pub fn token_pan_extent() -> usize {
-    (ENTRY_HEIGHT + SPACING) as usize
+    (HEADER_HEIGHT + SPACING) as usize
 }
 
 pub(super) fn backgrounds() -> Element {
