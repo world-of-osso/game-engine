@@ -82,7 +82,7 @@ Actual UDP invitations/acceptance, online officer removal, rejoin and ordinary q
 | Perk | Installed effect boundary | Current effect evidence |
 |---|---|---|
 | Mount Up78633 | Aura172/211/210,10% | Mounted/flight nonstacking modifiers and PvP exclusion not behaviorally proven; current movement accumulator does not dispatch these IDs. |
-| Hasty Hearth83944 | Aura453,−900000ms, misc2309 | Existing453 charge-recovery path does not establish a reduction of ordinary Hearthstone cooldown; no functional claim. |
+| Hasty Hearth83944 | Aura453,−900000ms, misc2309 | Hearthstone8690 uses charge category2309 (one charge,1800000ms); the existing453 charge modifier may already reduce it to900000ms. Actual8690/83944 behavioral proof is pending; do not assume an ordinary-cooldown defect. |
 | Mobile Banking83958 | Script effect77; description references88306,5min | No83958/88306 script or guild-chest reputation authority established. Effect77 is not a generic summon-object effect. |
 | The Quick and the Dead83950 | Aura340,+50%; second dummy effect10% | Resurrection-health, ghost-speed and combat/PvP exclusion not implemented/proven by this slice. |
 | Guild Mail83951 | Source dummy aura; mail send checks actual same guild | Existing `mail::send` sets attached-mail delay to zero for same-guild members; retain separate behavioral control. |
