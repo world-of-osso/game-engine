@@ -43,6 +43,20 @@ fn text(registry: &FrameRegistry, name: &str) -> String {
 }
 
 #[test]
+fn world_quests_tooltip_time_uses_full_source_units_at_boundaries() {
+    let quest = available().quests.remove(0);
+    for (remaining, expected) in [
+        (86400, "Time Left: 1 Day"),
+        (90000, "Time Left: 1 Day 1 Hour"),
+        (174600, "Time Left: 2 Days 30 Minutes"),
+        (30, "Time Left: < 1 Minute"),
+    ] {
+        let tip = world_quest_ui::tooltip(&quest, quest.expires_at - remaining, [0., 0.]);
+        assert_eq!(tip.lines[0].left_text, expected);
+    }
+}
+
+#[test]
 fn world_quests_available_pin_selects_without_accepting_or_granting_rewards() {
     let mut runtime = QuestRuntime::default();
     runtime.apply_availability(available(), 900);
@@ -195,7 +209,15 @@ fn world_quests_clock_tooltip_progress_and_expiry_both_skins() {
         runtime.log[0].objectives[0].kind = QuestObjectiveKind::ProgressBar;
         let bar_state = ObjectiveTrackerState::from_runtime_at(&runtime, false, false, 900);
         assert_eq!(bar_state.world_quests[0].1, Some((4, 8)));
-        assert!(bar_state.world_quests[0].0.lines.is_empty());
+        assert_eq!(
+            bar_state.world_quests[0].0.lines[0].text,
+            "Twilight enslavers slain"
+        );
+        let warning_edge = ObjectiveTrackerState::from_runtime_at(&runtime, false, false, 86401);
+        assert_eq!(
+            warning_edge.world_quests[0].0.lines.last().unwrap().text,
+            "Time Left: 14 min"
+        );
         ctx.insert(bar_state);
         let mut bar_registry = FrameRegistry::new(1280., 720.);
         Screen::new(objective_tracker_screen).sync(&ctx, &mut bar_registry);
