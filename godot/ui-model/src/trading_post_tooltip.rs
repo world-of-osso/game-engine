@@ -4,6 +4,36 @@ use crate::game_tooltip::GameTooltip;
 use crate::tooltip_presentation::{TOOLTIP_DESCRIPTION_COLOR, TOOLTIP_WHITE, TooltipPresentation};
 
 impl View {
+    /// Actual expanded cart owner, not the product selected in the model scene.
+    pub fn cart_item_tooltip(
+        &self,
+        owner: &str,
+        player_level: Option<u16>,
+    ) -> Result<Option<GameTooltip>, String> {
+        use crate::game_tooltip::item::{item_game_tooltip, named_item_for, without_sell_price};
+        if !self.cart_visible {
+            return Ok(None);
+        }
+        let Some(row) = super::cart_rows::expand(self)?
+            .into_iter()
+            .find(|row| !row.header && row.name == owner)
+        else {
+            return Ok(None);
+        };
+        let item = named_item_for(
+            shared::item_data::ItemDefinitionSource::Retail,
+            row.item.item_id,
+            &row.item.name,
+            row.item.quality,
+            1,
+            0,
+        );
+        Ok(Some(without_sell_price(item_game_tooltip(
+            &item,
+            player_level,
+        ))))
+    }
+
     /// Content only; the native hovered button supplies source ANCHOR_LEFT ownership.
     pub fn button_tooltip(&self, name: &str, enabled: bool) -> Option<GameTooltip> {
         let (title, color) = match (name, enabled) {

@@ -1,0 +1,3851 @@
+{
+  "provenance": {
+    "build": "12.1.5.70391",
+    "source_database_sha256": "60a8d60d08985f847564f143700eeb1e0407dd1a0407746a2933d655ce4c410c",
+    "source_tables": [
+      "content_world_quest",
+      "content_world_quest_area"
+    ],
+    "meaning": "239 admitted authentic task definitions and309 source XYZ area representatives; componentwise mean cast to integer, no invented Z. Not per-character eligibility or Retail schedule.",
+    "source_points": "12.1.5.70391/QuestPOIPoint.csv X,Y,Z, ordered by point ID per blob",
+    "source_points_sha256": "937504072b2ab3b9b34da5d4994e54c005ff31da5b16d392c20b89d4decf51c8"
+  },
+  "quests": [
+    {
+      "quest_id": 45068,
+      "title": "Barrels o' Fun",
+      "zone_id": 7637,
+      "pois": [
+        {
+          "map_id": 1220,
+          "ui_map_id": 680,
+          "x": 1696,
+          "y": 4639,
+          "z": 14
+        }
+      ]
+    },
+    {
+      "quest_id": 76587,
+      "title": "Research: Centaur of Ohn'ahran Plains",
+      "zone_id": 0,
+      "pois": [
+        {
+          "map_id": 2444,
+          "ui_map_id": 2023,
+          "x": -841,
+          "y": 1652,
+          "z": 0
+        }
+      ]
+    },
+    {
+      "quest_id": 76734,
+      "title": "Research: Djaradin of Zaralek Cavern",
+      "zone_id": 0,
+      "pois": [
+        {
+          "map_id": 2454,
+          "ui_map_id": 2133,
+          "x": 3,
+          "y": 3068,
+          "z": 0
+        }
+      ]
+    },
+    {
+      "quest_id": 76739,
+      "title": "Research: Niffen of Zaralek Cavern",
+      "zone_id": 0,
+      "pois": [
+        {
+          "map_id": 2454,
+          "ui_map_id": 2133,
+          "x": -72,
+          "y": 2644,
+          "z": 0
+        }
+      ]
+    },
+    {
+      "quest_id": 76911,
+      "title": "Research: Drakonid of Waking Shores",
+      "zone_id": 0,
+      "pois": [
+        {
+          "map_id": 2444,
+          "ui_map_id": 2022,
+          "x": 2917,
+          "y": 179,
+          "z": 0
+        }
+      ]
+    },
+    {
+      "quest_id": 77362,
+      "title": "Research: Drakonid of Forbidden Reach",
+      "zone_id": 0,
+      "pois": [
+        {
+          "map_id": 2444,
+          "ui_map_id": 2151,
+          "x": 7726,
+          "y": -1721,
+          "z": 0
+        }
+      ]
+    },
+    {
+      "quest_id": 77424,
+      "title": "Research: Dracthyr of Forbidden Reach",
+      "zone_id": 0,
+      "pois": [
+        {
+          "map_id": 2444,
+          "ui_map_id": 2151,
+          "x": 6914,
+          "y": -3428,
+          "z": 0
+        }
+      ]
+    },
+    {
+      "quest_id": 78616,
+      "title": "Technoscrying: The Mysteries of the Concord Observatory",
+      "zone_id": 0,
+      "pois": [
+        {
+          "map_id": 2444,
+          "ui_map_id": 2022,
+          "x": 2885,
+          "y": 168,
+          "z": 0
+        }
+      ]
+    },
+    {
+      "quest_id": 78645,
+      "title": "Excavation: Buried in the Riverbed",
+      "zone_id": 0,
+      "pois": [
+        {
+          "map_id": 2444,
+          "ui_map_id": 2023,
+          "x": -972,
+          "y": 1807,
+          "z": 0
+        }
+      ]
+    },
+    {
+      "quest_id": 78661,
+      "title": "Excavation: Treasures in the Cliffside",
+      "zone_id": 0,
+      "pois": [
+        {
+          "map_id": 2444,
+          "ui_map_id": 2151,
+          "x": 7748,
+          "y": -1627,
+          "z": 0
+        }
+      ]
+    },
+    {
+      "quest_id": 78663,
+      "title": "Excavation: Scattered Around the Tower",
+      "zone_id": 0,
+      "pois": [
+        {
+          "map_id": 2454,
+          "ui_map_id": 2133,
+          "x": -32,
+          "y": 2623,
+          "z": 0
+        }
+      ]
+    },
+    {
+      "quest_id": 78820,
+      "title": "Technoscrying: The Mysteries of Igira's Watch",
+      "zone_id": 0,
+      "pois": [
+        {
+          "map_id": 2454,
+          "ui_map_id": 2133,
+          "x": -110,
+          "y": 3150,
+          "z": 0
+        }
+      ]
+    },
+    {
+      "quest_id": 78931,
+      "title": "Technoscrying: The Mysteries of Dragonskull Island",
+      "zone_id": 0,
+      "pois": [
+        {
+          "map_id": 2444,
+          "ui_map_id": 2151,
+          "x": 7213,
+          "y": -4489,
+          "z": 0
+        }
+      ]
+    },
+    {
+      "quest_id": 78974,
+      "title": "Beetle-Minded",
+      "zone_id": 14752,
+      "pois": [
+        {
+          "map_id": 2601,
+          "ui_map_id": 2255,
+          "x": -2178,
+          "y": -2557,
+          "z": -1347
+        },
+        {
+          "map_id": 2601,
+          "ui_map_id": 2255,
+          "x": -2179,
+          "y": -2554,
+          "z": -1347
+        }
+      ]
+    },
+    {
+      "quest_id": 78995,
+      "title": "Truffle Shuffle",
+      "zone_id": 14752,
+      "pois": [
+        {
+          "map_id": 2601,
+          "ui_map_id": 2255,
+          "x": -2064,
+          "y": -2330,
+          "z": -1359
+        }
+      ]
+    },
+    {
+      "quest_id": 79116,
+      "title": "Spider Optics",
+      "zone_id": 14752,
+      "pois": [
+        {
+          "map_id": 2601,
+          "ui_map_id": 2255,
+          "x": -2332,
+          "y": -2591,
+          "z": -1314
+        },
+        {
+          "map_id": 2601,
+          "ui_map_id": 2255,
+          "x": -2337,
+          "y": -2566,
+          "z": -1315
+        },
+        {
+          "map_id": 2601,
+          "ui_map_id": 2255,
+          "x": -2325,
+          "y": -2602,
+          "z": -1315
+        }
+      ]
+    },
+    {
+      "quest_id": 79722,
+      "title": "Gutter Work",
+      "zone_id": 14752,
+      "pois": [
+        {
+          "map_id": 2601,
+          "ui_map_id": 2255,
+          "x": -1617,
+          "y": -1467,
+          "z": -1503
+        }
+      ]
+    },
+    {
+      "quest_id": 79958,
+      "title": "Worm Sign, Sealed, Delivered",
+      "zone_id": 14752,
+      "pois": [
+        {
+          "map_id": 2601,
+          "ui_map_id": 2255,
+          "x": -1986,
+          "y": -2557,
+          "z": -1364
+        }
+      ]
+    },
+    {
+      "quest_id": 79960,
+      "title": "Taking it To Go",
+      "zone_id": 14752,
+      "pois": [
+        {
+          "map_id": 2601,
+          "ui_map_id": 2255,
+          "x": -1968,
+          "y": -2985,
+          "z": -1265
+        }
+      ]
+    },
+    {
+      "quest_id": 80208,
+      "title": "Digging into Trouble",
+      "zone_id": 14795,
+      "pois": [
+        {
+          "map_id": 2601,
+          "ui_map_id": 2214,
+          "x": -405,
+          "y": -3707,
+          "z": 0
+        }
+      ]
+    },
+    {
+      "quest_id": 80295,
+      "title": "Rocks, Water and Elemental Fodder",
+      "zone_id": 14717,
+      "pois": [
+        {
+          "map_id": 2552,
+          "ui_map_id": 2248,
+          "x": 2127,
+          "y": -4387,
+          "z": 7
+        }
+      ]
+    },
+    {
+      "quest_id": 80323,
+      "title": "Foggy Faceoff",
+      "zone_id": 14795,
+      "pois": [
+        {
+          "map_id": 2601,
+          "ui_map_id": 2214,
+          "x": 1407,
+          "y": -4212,
+          "z": 222
+        }
+      ]
+    },
+    {
+      "quest_id": 80394,
+      "title": "Along for the Ride",
+      "zone_id": 14717,
+      "pois": [
+        {
+          "map_id": 2552,
+          "ui_map_id": 2248,
+          "x": 3990,
+          "y": -3579,
+          "z": 0
+        }
+      ]
+    },
+    {
+      "quest_id": 80395,
+      "title": "Elemental Excavation",
+      "zone_id": 14717,
+      "pois": [
+        {
+          "map_id": 2552,
+          "ui_map_id": 2248,
+          "x": 1929,
+          "y": -4639,
+          "z": 23
+        }
+      ]
+    },
+    {
+      "quest_id": 80409,
+      "title": "Polarized",
+      "zone_id": 14752,
+      "pois": [
+        {
+          "map_id": 2601,
+          "ui_map_id": 2255,
+          "x": -1330,
+          "y": -2951,
+          "z": -1208
+        }
+      ]
+    },
+    {
+      "quest_id": 80412,
+      "title": "Fending off Darkness",
+      "zone_id": 14838,
+      "pois": [
+        {
+          "map_id": 2601,
+          "ui_map_id": 2215,
+          "x": 2221,
+          "y": -390,
+          "z": -288
+        }
+      ]
+    },
+    {
+      "quest_id": 80457,
+      "title": "Serving the Queen",
+      "zone_id": 14752,
+      "pois": [
+        {
+          "map_id": 2601,
+          "ui_map_id": 2213,
+          "x": -2743,
+          "y": -807,
+          "z": 0
+        }
+      ]
+    },
+    {
+      "quest_id": 81465,
+      "title": "Artifacts Galore",
+      "zone_id": 14717,
+      "pois": [
+        {
+          "map_id": 2552,
+          "ui_map_id": 2248,
+          "x": 3502,
+          "y": -5139,
+          "z": 26
+        }
+      ]
+    },
+    {
+      "quest_id": 81512,
+      "title": "Props and Incense",
+      "zone_id": 14717,
+      "pois": [
+        {
+          "map_id": 2552,
+          "ui_map_id": 2248,
+          "x": 1928,
+          "y": -4067,
+          "z": 600
+        }
+      ]
+    },
+    {
+      "quest_id": 81615,
+      "title": "Wick Points",
+      "zone_id": 14717,
+      "pois": [
+        {
+          "map_id": 2552,
+          "ui_map_id": 2248,
+          "x": 2697,
+          "y": -3763,
+          "z": 247
+        }
+      ]
+    },
+    {
+      "quest_id": 81620,
+      "title": "Recovery Job",
+      "zone_id": 14838,
+      "pois": [
+        {
+          "map_id": 2601,
+          "ui_map_id": 2215,
+          "x": 1224,
+          "y": -276,
+          "z": 9
+        }
+      ]
+    },
+    {
+      "quest_id": 81621,
+      "title": "Tunnels Be Gone!",
+      "zone_id": 14717,
+      "pois": [
+        {
+          "map_id": 2552,
+          "ui_map_id": 2248,
+          "x": 2632,
+          "y": -3766,
+          "z": 245
+        }
+      ]
+    },
+    {
+      "quest_id": 81622,
+      "title": "Bells of the Light",
+      "zone_id": 14838,
+      "pois": [
+        {
+          "map_id": 2601,
+          "ui_map_id": 2215,
+          "x": 3007,
+          "y": 1288,
+          "z": 0
+        }
+      ]
+    },
+    {
+      "quest_id": 81639,
+      "title": "Honey Thieving Nerubians",
+      "zone_id": 14717,
+      "pois": [
+        {
+          "map_id": 2552,
+          "ui_map_id": 2248,
+          "x": 2998,
+          "y": -4806,
+          "z": 64
+        },
+        {
+          "map_id": 2552,
+          "ui_map_id": 2248,
+          "x": 2988,
+          "y": -4823,
+          "z": 77
+        }
+      ]
+    },
+    {
+      "quest_id": 81656,
+      "title": "Nothing to Waste",
+      "zone_id": 14795,
+      "pois": [
+        {
+          "map_id": 2601,
+          "ui_map_id": 2214,
+          "x": 1293,
+          "y": -3665,
+          "z": 175
+        },
+        {
+          "map_id": 2601,
+          "ui_map_id": 2214,
+          "x": 1309,
+          "y": -3648,
+          "z": 172
+        }
+      ]
+    },
+    {
+      "quest_id": 81675,
+      "title": "Water the Sheep",
+      "zone_id": 14717,
+      "pois": [
+        {
+          "map_id": 2552,
+          "ui_map_id": 2339,
+          "x": 2932,
+          "y": -2763,
+          "z": 251
+        },
+        {
+          "map_id": 2552,
+          "ui_map_id": 2248,
+          "x": 2929,
+          "y": -2756,
+          "z": 254
+        }
+      ]
+    },
+    {
+      "quest_id": 81691,
+      "title": "Special Assignment: Shadows Below",
+      "zone_id": 14795,
+      "pois": [
+        {
+          "map_id": 2601,
+          "ui_map_id": 2214,
+          "x": 1406,
+          "y": -4207,
+          "z": 0
+        }
+      ]
+    },
+    {
+      "quest_id": 81750,
+      "title": "Cloud Farming",
+      "zone_id": 14795,
+      "pois": [
+        {
+          "map_id": 2601,
+          "ui_map_id": 2214,
+          "x": 516,
+          "y": -3370,
+          "z": 213
+        }
+      ]
+    },
+    {
+      "quest_id": 81767,
+      "title": "Scrounge that Scrap!",
+      "zone_id": 14795,
+      "pois": [
+        {
+          "map_id": 2601,
+          "ui_map_id": 2214,
+          "x": 1767,
+          "y": -4521,
+          "z": 0
+        }
+      ]
+    },
+    {
+      "quest_id": 81862,
+      "title": "Feline Frenzy",
+      "zone_id": 14838,
+      "pois": [
+        {
+          "map_id": 2601,
+          "ui_map_id": 2215,
+          "x": 2022,
+          "y": 848,
+          "z": 175
+        },
+        {
+          "map_id": 2601,
+          "ui_map_id": 2215,
+          "x": 1974,
+          "y": 879,
+          "z": 168
+        }
+      ]
+    },
+    {
+      "quest_id": 82041,
+      "title": "Beledar's Blessing",
+      "zone_id": 14838,
+      "pois": [
+        {
+          "map_id": 2601,
+          "ui_map_id": 2215,
+          "x": 1516,
+          "y": 2338,
+          "z": 309
+        }
+      ]
+    },
+    {
+      "quest_id": 82088,
+      "title": "Kobyss Kibosh",
+      "zone_id": 14838,
+      "pois": [
+        {
+          "map_id": 2601,
+          "ui_map_id": 2215,
+          "x": 1912,
+          "y": 1439,
+          "z": 75
+        }
+      ]
+    },
+    {
+      "quest_id": 82120,
+      "title": "Pool Cleaner",
+      "zone_id": 14838,
+      "pois": [
+        {
+          "map_id": 2601,
+          "ui_map_id": 2215,
+          "x": 2154,
+          "y": 217,
+          "z": -380
+        }
+      ]
+    },
+    {
+      "quest_id": 82197,
+      "title": "Reserve Rumpus",
+      "zone_id": 14838,
+      "pois": [
+        {
+          "map_id": 2601,
+          "ui_map_id": 2215,
+          "x": 2048,
+          "y": 927,
+          "z": 172
+        }
+      ]
+    },
+    {
+      "quest_id": 82206,
+      "title": "Into Shadows",
+      "zone_id": 14838,
+      "pois": [
+        {
+          "map_id": 2601,
+          "ui_map_id": 2215,
+          "x": 2620,
+          "y": -977,
+          "z": 0
+        }
+      ]
+    },
+    {
+      "quest_id": 82225,
+      "title": "Excavation Extravaganza",
+      "zone_id": 14717,
+      "pois": [
+        {
+          "map_id": 2552,
+          "ui_map_id": 2248,
+          "x": 1044,
+          "y": -3679,
+          "z": 0
+        },
+        {
+          "map_id": 2552,
+          "ui_map_id": 2248,
+          "x": 966,
+          "y": -3561,
+          "z": 3
+        },
+        {
+          "map_id": 2552,
+          "ui_map_id": 2248,
+          "x": 1081,
+          "y": -3789,
+          "z": 4
+        },
+        {
+          "map_id": 2552,
+          "ui_map_id": 2248,
+          "x": 966,
+          "y": -3561,
+          "z": 3
+        },
+        {
+          "map_id": 2552,
+          "ui_map_id": 2248,
+          "x": 1081,
+          "y": -3789,
+          "z": 4
+        },
+        {
+          "map_id": 2552,
+          "ui_map_id": 2248,
+          "x": 1031,
+          "y": -3675,
+          "z": 0
+        },
+        {
+          "map_id": 2552,
+          "ui_map_id": 2248,
+          "x": 1116,
+          "y": -3641,
+          "z": 3
+        }
+      ]
+    },
+    {
+      "quest_id": 82234,
+      "title": "A Floral Flair for Every Ram",
+      "zone_id": 14717,
+      "pois": [
+        {
+          "map_id": 2552,
+          "ui_map_id": 2248,
+          "x": 895,
+          "y": -1974,
+          "z": 117
+        },
+        {
+          "map_id": 2552,
+          "ui_map_id": 2248,
+          "x": 884,
+          "y": -1988,
+          "z": 117
+        },
+        {
+          "map_id": 2552,
+          "ui_map_id": 2248,
+          "x": 890,
+          "y": -2081,
+          "z": 115
+        }
+      ]
+    },
+    {
+      "quest_id": 82237,
+      "title": "Rising the Falls",
+      "zone_id": 14717,
+      "pois": [
+        {
+          "map_id": 2552,
+          "ui_map_id": 2248,
+          "x": 2690,
+          "y": -3172,
+          "z": 0
+        }
+      ]
+    },
+    {
+      "quest_id": 82238,
+      "title": "Lava Glob Lobbin'",
+      "zone_id": 14795,
+      "pois": [
+        {
+          "map_id": 2601,
+          "ui_map_id": 2214,
+          "x": 3310,
+          "y": -3236,
+          "z": 414
+        }
+      ]
+    },
+    {
+      "quest_id": 82254,
+      "title": "Aquacalypse",
+      "zone_id": 14838,
+      "pois": [
+        {
+          "map_id": 2601,
+          "ui_map_id": 2215,
+          "x": 4131,
+          "y": 544,
+          "z": 28
+        }
+      ]
+    },
+    {
+      "quest_id": 82256,
+      "title": "Capturing the Cataract's Creatures",
+      "zone_id": 14795,
+      "pois": [
+        {
+          "map_id": 2601,
+          "ui_map_id": 2214,
+          "x": 1212,
+          "y": -3096,
+          "z": 0
+        }
+      ]
+    },
+    {
+      "quest_id": 82257,
+      "title": "Burrow Burial",
+      "zone_id": 14838,
+      "pois": [
+        {
+          "map_id": 2601,
+          "ui_map_id": 2215,
+          "x": 1669,
+          "y": -1392,
+          "z": -151
+        },
+        {
+          "map_id": 2601,
+          "ui_map_id": 2215,
+          "x": 1687,
+          "y": -1402,
+          "z": -151
+        }
+      ]
+    },
+    {
+      "quest_id": 82258,
+      "title": "Sieging Siege Weapons",
+      "zone_id": 14838,
+      "pois": [
+        {
+          "map_id": 2601,
+          "ui_map_id": 2215,
+          "x": 1291,
+          "y": -301,
+          "z": 6
+        },
+        {
+          "map_id": 2601,
+          "ui_map_id": 2215,
+          "x": 1286,
+          "y": -531,
+          "z": -72
+        }
+      ]
+    },
+    {
+      "quest_id": 82266,
+      "title": "Tower Washing Simulator",
+      "zone_id": 14752,
+      "pois": [
+        {
+          "map_id": 2601,
+          "ui_map_id": 2213,
+          "x": -1988,
+          "y": -432,
+          "z": -1158
+        }
+      ]
+    },
+    {
+      "quest_id": 82288,
+      "title": "Work Hard, Play Hard",
+      "zone_id": 14838,
+      "pois": [
+        {
+          "map_id": 2601,
+          "ui_map_id": 2215,
+          "x": 1869,
+          "y": 935,
+          "z": 0
+        }
+      ]
+    },
+    {
+      "quest_id": 82324,
+      "title": "Grub Run",
+      "zone_id": 14752,
+      "pois": [
+        {
+          "map_id": 2601,
+          "ui_map_id": 2255,
+          "x": -362,
+          "y": -228,
+          "z": -1119
+        }
+      ]
+    },
+    {
+      "quest_id": 82332,
+      "title": "Unassuming Delivery Spider",
+      "zone_id": 14752,
+      "pois": [
+        {
+          "map_id": 2601,
+          "ui_map_id": 2255,
+          "x": -1752,
+          "y": -987,
+          "z": 0
+        }
+      ]
+    },
+    {
+      "quest_id": 82355,
+      "title": "Special Assignment: Cinderbee Surge",
+      "zone_id": 14717,
+      "pois": [
+        {
+          "map_id": 2552,
+          "ui_map_id": 2248,
+          "x": 2984,
+          "y": -4397,
+          "z": 0
+        }
+      ]
+    },
+    {
+      "quest_id": 82387,
+      "title": "Slay the Goo, Save the World",
+      "zone_id": 14752,
+      "pois": [
+        {
+          "map_id": 2601,
+          "ui_map_id": 2255,
+          "x": -2141,
+          "y": -1916,
+          "z": 0
+        }
+      ]
+    },
+    {
+      "quest_id": 82414,
+      "title": "Special Assignment: A Pound of Cure",
+      "zone_id": 14752,
+      "pois": [
+        {
+          "map_id": 2601,
+          "ui_map_id": 2255,
+          "x": 1224,
+          "y": -1914,
+          "z": -615
+        }
+      ]
+    },
+    {
+      "quest_id": 82448,
+      "title": "Book It to the Library",
+      "zone_id": 14717,
+      "pois": [
+        {
+          "map_id": 2552,
+          "ui_map_id": 2248,
+          "x": 1937,
+          "y": -963,
+          "z": 26
+        }
+      ]
+    },
+    {
+      "quest_id": 82451,
+      "title": "Preserving Plush Pals",
+      "zone_id": 14717,
+      "pois": [
+        {
+          "map_id": 2552,
+          "ui_map_id": 2248,
+          "x": 2167,
+          "y": -945,
+          "z": 0
+        }
+      ]
+    },
+    {
+      "quest_id": 82455,
+      "title": "No More Bread",
+      "zone_id": 14717,
+      "pois": [
+        {
+          "map_id": 2552,
+          "ui_map_id": 2248,
+          "x": 1639,
+          "y": -1787,
+          "z": 5
+        }
+      ]
+    },
+    {
+      "quest_id": 82456,
+      "title": "Chew On This",
+      "zone_id": 14717,
+      "pois": [
+        {
+          "map_id": 2552,
+          "ui_map_id": 2248,
+          "x": 1940,
+          "y": -2768,
+          "z": 0
+        }
+      ]
+    },
+    {
+      "quest_id": 82481,
+      "title": "Enforcer Extermination",
+      "zone_id": 14752,
+      "pois": [
+        {
+          "map_id": 2601,
+          "ui_map_id": 2255,
+          "x": -1017,
+          "y": -1332,
+          "z": -1244
+        }
+      ]
+    },
+    {
+      "quest_id": 82518,
+      "title": "Pipe Patcher",
+      "zone_id": 14795,
+      "pois": [
+        {
+          "map_id": 2601,
+          "ui_map_id": 2214,
+          "x": 2286,
+          "y": -2867,
+          "z": 555
+        }
+      ]
+    },
+    {
+      "quest_id": 82519,
+      "title": "You Go Take Candle",
+      "zone_id": 14795,
+      "pois": [
+        {
+          "map_id": 2601,
+          "ui_map_id": 2214,
+          "x": 2630,
+          "y": -3602,
+          "z": 376
+        }
+      ]
+    },
+    {
+      "quest_id": 82521,
+      "title": "Pawns of Dark Masters",
+      "zone_id": 14752,
+      "pois": [
+        {
+          "map_id": 2601,
+          "ui_map_id": 2256,
+          "x": -2268,
+          "y": -1960,
+          "z": -1591
+        },
+        {
+          "map_id": 2601,
+          "ui_map_id": 2255,
+          "x": -2275,
+          "y": -1992,
+          "z": -1607
+        }
+      ]
+    },
+    {
+      "quest_id": 82523,
+      "title": "Candle Kingbreaker",
+      "zone_id": 14795,
+      "pois": [
+        {
+          "map_id": 2601,
+          "ui_map_id": 2214,
+          "x": 2218,
+          "y": -3982,
+          "z": 394
+        }
+      ]
+    },
+    {
+      "quest_id": 82524,
+      "title": "Exterminate",
+      "zone_id": 14752,
+      "pois": [
+        {
+          "map_id": 2601,
+          "ui_map_id": 2255,
+          "x": 214,
+          "y": -1904,
+          "z": -1008
+        }
+      ]
+    },
+    {
+      "quest_id": 82526,
+      "title": "Bug Them",
+      "zone_id": 14752,
+      "pois": [
+        {
+          "map_id": 2601,
+          "ui_map_id": 2213,
+          "x": -2120,
+          "y": -1427,
+          "z": -1222
+        },
+        {
+          "map_id": 2601,
+          "ui_map_id": 2213,
+          "x": -2498,
+          "y": -1567,
+          "z": -1167
+        }
+      ]
+    },
+    {
+      "quest_id": 82531,
+      "title": "Special Assignment: Bombs from Behind",
+      "zone_id": 14752,
+      "pois": [
+        {
+          "map_id": 2601,
+          "ui_map_id": 2255,
+          "x": -824,
+          "y": -2297,
+          "z": 0
+        },
+        {
+          "map_id": 2601,
+          "ui_map_id": 2255,
+          "x": -18,
+          "y": -1598,
+          "z": 0
+        }
+      ]
+    },
+    {
+      "quest_id": 82533,
+      "title": "Dye! Dye Dye!",
+      "zone_id": 14752,
+      "pois": [
+        {
+          "map_id": 2601,
+          "ui_map_id": 2255,
+          "x": -304,
+          "y": -2642,
+          "z": -1144
+        }
+      ]
+    },
+    {
+      "quest_id": 82536,
+      "title": "Exfiltration Operation",
+      "zone_id": 14752,
+      "pois": [
+        {
+          "map_id": 2601,
+          "ui_map_id": 2213,
+          "x": -2498,
+          "y": -1088,
+          "z": 0
+        }
+      ]
+    },
+    {
+      "quest_id": 82552,
+      "title": "All Worked Up",
+      "zone_id": 14795,
+      "pois": [
+        {
+          "map_id": 2601,
+          "ui_map_id": 2214,
+          "x": 2980,
+          "y": -2877,
+          "z": 385
+        }
+      ]
+    },
+    {
+      "quest_id": 82580,
+      "title": "Courier Mission: Ore Recovery",
+      "zone_id": 14795,
+      "pois": [
+        {
+          "map_id": 2601,
+          "ui_map_id": 2214,
+          "x": 786,
+          "y": -4118,
+          "z": 112
+        }
+      ]
+    },
+    {
+      "quest_id": 82582,
+      "title": "Mired in Shadow",
+      "zone_id": 14838,
+      "pois": [
+        {
+          "map_id": 2601,
+          "ui_map_id": 2215,
+          "x": 1991,
+          "y": -1803,
+          "z": 235
+        }
+      ]
+    },
+    {
+      "quest_id": 82583,
+      "title": "Igniting the Fire Within",
+      "zone_id": 14838,
+      "pois": [
+        {
+          "map_id": 2601,
+          "ui_map_id": 2215,
+          "x": 3092,
+          "y": -169,
+          "z": 28
+        }
+      ]
+    },
+    {
+      "quest_id": 82585,
+      "title": "With Great Pyre",
+      "zone_id": 14838,
+      "pois": [
+        {
+          "map_id": 2601,
+          "ui_map_id": 2215,
+          "x": 3132,
+          "y": -1335,
+          "z": -62
+        }
+      ]
+    },
+    {
+      "quest_id": 82586,
+      "title": "Spore Ender",
+      "zone_id": 14838,
+      "pois": [
+        {
+          "map_id": 2601,
+          "ui_map_id": 2215,
+          "x": 1481,
+          "y": -628,
+          "z": -199
+        }
+      ]
+    },
+    {
+      "quest_id": 82787,
+      "title": "Special Assignment: Rise of the Colossals",
+      "zone_id": 14838,
+      "pois": [
+        {
+          "map_id": 2601,
+          "ui_map_id": 2215,
+          "x": 4508,
+          "y": -626,
+          "z": 0
+        },
+        {
+          "map_id": 2601,
+          "ui_map_id": 2215,
+          "x": 4486,
+          "y": -828,
+          "z": 2
+        },
+        {
+          "map_id": 2601,
+          "ui_map_id": 2215,
+          "x": 4508,
+          "y": -626,
+          "z": 0
+        }
+      ]
+    },
+    {
+      "quest_id": 82852,
+      "title": "Special Assignment: Lynx Rescue",
+      "zone_id": 14838,
+      "pois": [
+        {
+          "map_id": 2601,
+          "ui_map_id": 2215,
+          "x": 1411,
+          "y": -1081,
+          "z": -115
+        },
+        {
+          "map_id": 2601,
+          "ui_map_id": 2215,
+          "x": 1427,
+          "y": -1080,
+          "z": -139
+        }
+      ]
+    },
+    {
+      "quest_id": 83028,
+      "title": "Thieving Snufflers",
+      "zone_id": 14795,
+      "pois": [
+        {
+          "map_id": 2601,
+          "ui_map_id": 2214,
+          "x": 2216,
+          "y": -3173,
+          "z": 408
+        },
+        {
+          "map_id": 2601,
+          "ui_map_id": 2214,
+          "x": 2147,
+          "y": -3182,
+          "z": 405
+        }
+      ]
+    },
+    {
+      "quest_id": 83048,
+      "title": "Wayward Walkers",
+      "zone_id": 14795,
+      "pois": [
+        {
+          "map_id": 2601,
+          "ui_map_id": 2214,
+          "x": 2130,
+          "y": -2495,
+          "z": 406
+        }
+      ]
+    },
+    {
+      "quest_id": 83079,
+      "title": "Mineral Buildup",
+      "zone_id": 14795,
+      "pois": [
+        {
+          "map_id": 2601,
+          "ui_map_id": 2214,
+          "x": 1695,
+          "y": -2683,
+          "z": 373
+        }
+      ]
+    },
+    {
+      "quest_id": 83080,
+      "title": "Taelloch Cleanup",
+      "zone_id": 14795,
+      "pois": [
+        {
+          "map_id": 2601,
+          "ui_map_id": 2214,
+          "x": 1044,
+          "y": -4051,
+          "z": 0
+        }
+      ]
+    },
+    {
+      "quest_id": 83101,
+      "title": "Reaching for Resources",
+      "zone_id": 14795,
+      "pois": [
+        {
+          "map_id": 2601,
+          "ui_map_id": 2214,
+          "x": 1351,
+          "y": -3361,
+          "z": 0
+        },
+        {
+          "map_id": 2601,
+          "ui_map_id": 2214,
+          "x": 1356,
+          "y": -3358,
+          "z": 0
+        }
+      ]
+    },
+    {
+      "quest_id": 83229,
+      "title": "Special Assignment: When the Deeps Stir",
+      "zone_id": 14795,
+      "pois": [
+        {
+          "map_id": 2601,
+          "ui_map_id": 2214,
+          "x": 3218,
+          "y": -3144,
+          "z": 0
+        }
+      ]
+    },
+    {
+      "quest_id": 83536,
+      "title": "Undertide Undertaker",
+      "zone_id": 14752,
+      "pois": [
+        {
+          "map_id": 2601,
+          "ui_map_id": 2255,
+          "x": -690,
+          "y": -618,
+          "z": -1184
+        }
+      ]
+    },
+    {
+      "quest_id": 83537,
+      "title": "Geothermal Gem Treatment",
+      "zone_id": 14795,
+      "pois": [
+        {
+          "map_id": 2601,
+          "ui_map_id": 2214,
+          "x": 3094,
+          "y": -2182,
+          "z": 293
+        },
+        {
+          "map_id": 2601,
+          "ui_map_id": 2214,
+          "x": 2904,
+          "y": -2371,
+          "z": 294
+        }
+      ]
+    },
+    {
+      "quest_id": 83538,
+      "title": "Excavation Liberation",
+      "zone_id": 14795,
+      "pois": [
+        {
+          "map_id": 2601,
+          "ui_map_id": 2214,
+          "x": -347,
+          "y": -3738,
+          "z": 180
+        },
+        {
+          "map_id": 2601,
+          "ui_map_id": 2214,
+          "x": -473,
+          "y": -3702,
+          "z": 193
+        }
+      ]
+    },
+    {
+      "quest_id": 83715,
+      "title": "Claimed Salvage",
+      "zone_id": 14795,
+      "pois": [
+        {
+          "map_id": 2601,
+          "ui_map_id": 2214,
+          "x": 65,
+          "y": -3527,
+          "z": 209
+        }
+      ]
+    },
+    {
+      "quest_id": 83718,
+      "title": "Eggstraction",
+      "zone_id": 14752,
+      "pois": [
+        {
+          "map_id": 2601,
+          "ui_map_id": 2255,
+          "x": -2127,
+          "y": -3017,
+          "z": -1256
+        },
+        {
+          "map_id": 2601,
+          "ui_map_id": 2255,
+          "x": -2132,
+          "y": -3009,
+          "z": -1201
+        }
+      ]
+    },
+    {
+      "quest_id": 83930,
+      "title": "Deworming Solution",
+      "zone_id": 14795,
+      "pois": [
+        {
+          "map_id": 2601,
+          "ui_map_id": 2214,
+          "x": 2018,
+          "y": -3579,
+          "z": 326
+        }
+      ]
+    },
+    {
+      "quest_id": 84429,
+      "title": "Construct Containment",
+      "zone_id": 14795,
+      "pois": [
+        {
+          "map_id": 2601,
+          "ui_map_id": 2214,
+          "x": 1887,
+          "y": -3599,
+          "z": 0
+        }
+      ]
+    },
+    {
+      "quest_id": 84929,
+      "title": "Lifeguard On Duty",
+      "zone_id": 15347,
+      "pois": [
+        {
+          "map_id": 2706,
+          "ui_map_id": 2346,
+          "x": 361,
+          "y": 106,
+          "z": -22
+        }
+      ]
+    },
+    {
+      "quest_id": 84955,
+      "title": "Contraband Banned",
+      "zone_id": 15347,
+      "pois": [
+        {
+          "map_id": 2706,
+          "ui_map_id": 2346,
+          "x": 2,
+          "y": 1005,
+          "z": 8
+        }
+      ]
+    },
+    {
+      "quest_id": 84962,
+      "title": "Exigent Extermination",
+      "zone_id": 15336,
+      "pois": [
+        {
+          "map_id": 2738,
+          "ui_map_id": 2371,
+          "x": 583,
+          "y": -455,
+          "z": 0
+        }
+      ]
+    },
+    {
+      "quest_id": 84971,
+      "title": "For Love of Grog",
+      "zone_id": 15347,
+      "pois": [
+        {
+          "map_id": 2706,
+          "ui_map_id": 2346,
+          "x": -485,
+          "y": 602,
+          "z": -12
+        }
+      ]
+    },
+    {
+      "quest_id": 85263,
+      "title": "Boomball",
+      "zone_id": 15347,
+      "pois": [
+        {
+          "map_id": 2706,
+          "ui_map_id": 2346,
+          "x": -179,
+          "y": -13,
+          "z": -15
+        }
+      ]
+    },
+    {
+      "quest_id": 85268,
+      "title": "Pow-Arr Wash Simulator",
+      "zone_id": 15347,
+      "pois": [
+        {
+          "map_id": 2706,
+          "ui_map_id": 2346,
+          "x": 547,
+          "y": 59,
+          "z": 0
+        }
+      ]
+    },
+    {
+      "quest_id": 85269,
+      "title": "Boom Balloon",
+      "zone_id": 15347,
+      "pois": [
+        {
+          "map_id": 2706,
+          "ui_map_id": 2346,
+          "x": 217,
+          "y": 662,
+          "z": 0
+        }
+      ]
+    },
+    {
+      "quest_id": 85270,
+      "title": "Cold as Ice",
+      "zone_id": 15347,
+      "pois": [
+        {
+          "map_id": 2706,
+          "ui_map_id": 2346,
+          "x": 242,
+          "y": 785,
+          "z": 0
+        },
+        {
+          "map_id": 2706,
+          "ui_map_id": 2346,
+          "x": 185,
+          "y": 766,
+          "z": 0
+        },
+        {
+          "map_id": 2706,
+          "ui_map_id": 2346,
+          "x": 242,
+          "y": 785,
+          "z": 0
+        }
+      ]
+    },
+    {
+      "quest_id": 85390,
+      "title": "Sunrise Sudser",
+      "zone_id": 15347,
+      "pois": [
+        {
+          "map_id": 2706,
+          "ui_map_id": 2346,
+          "x": 248,
+          "y": 179,
+          "z": -17
+        }
+      ]
+    },
+    {
+      "quest_id": 85396,
+      "title": "Heaps o' Scrap",
+      "zone_id": 15347,
+      "pois": [
+        {
+          "map_id": 2706,
+          "ui_map_id": 2346,
+          "x": -411,
+          "y": 193,
+          "z": 7
+        }
+      ]
+    },
+    {
+      "quest_id": 85397,
+      "title": "What Plants Crave",
+      "zone_id": 15347,
+      "pois": [
+        {
+          "map_id": 2706,
+          "ui_map_id": 2346,
+          "x": 76,
+          "y": 174,
+          "z": -11
+        }
+      ]
+    },
+    {
+      "quest_id": 85398,
+      "title": "Bomb Voyage!",
+      "zone_id": 15347,
+      "pois": [
+        {
+          "map_id": 2706,
+          "ui_map_id": 2346,
+          "x": 526,
+          "y": 126,
+          "z": -8
+        }
+      ]
+    },
+    {
+      "quest_id": 85399,
+      "title": "Caddyshock",
+      "zone_id": 15347,
+      "pois": [
+        {
+          "map_id": 2706,
+          "ui_map_id": 2346,
+          "x": -233,
+          "y": -56,
+          "z": 13
+        }
+      ]
+    },
+    {
+      "quest_id": 85400,
+      "title": "Reduce, Re-ooze, Recycle",
+      "zone_id": 15347,
+      "pois": [
+        {
+          "map_id": 2706,
+          "ui_map_id": 2346,
+          "x": -266,
+          "y": 711,
+          "z": -21
+        }
+      ]
+    },
+    {
+      "quest_id": 85402,
+      "title": "In The Heights",
+      "zone_id": 15347,
+      "pois": [
+        {
+          "map_id": 2706,
+          "ui_map_id": 2346,
+          "x": -11,
+          "y": 362,
+          "z": 6
+        }
+      ]
+    },
+    {
+      "quest_id": 85427,
+      "title": "Explosive Expiration",
+      "zone_id": 15347,
+      "pois": [
+        {
+          "map_id": 2706,
+          "ui_map_id": 2346,
+          "x": -537,
+          "y": 246,
+          "z": 25
+        }
+      ]
+    },
+    {
+      "quest_id": 85428,
+      "title": "Code Violations",
+      "zone_id": 15347,
+      "pois": [
+        {
+          "map_id": 2706,
+          "ui_map_id": 2346,
+          "x": 324,
+          "y": 768,
+          "z": 19
+        }
+      ]
+    },
+    {
+      "quest_id": 85466,
+      "title": "Hob or Cold",
+      "zone_id": 15347,
+      "pois": [
+        {
+          "map_id": 2706,
+          "ui_map_id": 2346,
+          "x": -166,
+          "y": 455,
+          "z": 4
+        }
+      ]
+    },
+    {
+      "quest_id": 85467,
+      "title": "Dumpster Fire",
+      "zone_id": 15347,
+      "pois": [
+        {
+          "map_id": 2706,
+          "ui_map_id": 2346,
+          "x": -445,
+          "y": 160,
+          "z": 0
+        },
+        {
+          "map_id": 2706,
+          "ui_map_id": 2346,
+          "x": -460,
+          "y": 179,
+          "z": 0
+        }
+      ]
+    },
+    {
+      "quest_id": 85472,
+      "title": "It's Free Reagents!",
+      "zone_id": 15347,
+      "pois": [
+        {
+          "map_id": 2706,
+          "ui_map_id": 2346,
+          "x": -513,
+          "y": 312,
+          "z": 0
+        }
+      ]
+    },
+    {
+      "quest_id": 85473,
+      "title": "Extra! Extra!",
+      "zone_id": 15347,
+      "pois": [
+        {
+          "map_id": 2706,
+          "ui_map_id": 2346,
+          "x": -456,
+          "y": 589,
+          "z": -13
+        }
+      ]
+    },
+    {
+      "quest_id": 85474,
+      "title": "Rat Pack Attack",
+      "zone_id": 15347,
+      "pois": [
+        {
+          "map_id": 2706,
+          "ui_map_id": 2346,
+          "x": -117,
+          "y": 788,
+          "z": -17
+        }
+      ]
+    },
+    {
+      "quest_id": 85488,
+      "title": "Special Assignment: Security Detail",
+      "zone_id": 15347,
+      "pois": [
+        {
+          "map_id": 2706,
+          "ui_map_id": 2346,
+          "x": 86,
+          "y": 144,
+          "z": -9
+        }
+      ]
+    },
+    {
+      "quest_id": 85497,
+      "title": "Blown a Gasket",
+      "zone_id": 15347,
+      "pois": [
+        {
+          "map_id": 2706,
+          "ui_map_id": 2346,
+          "x": -147,
+          "y": 805,
+          "z": -20
+        }
+      ]
+    },
+    {
+      "quest_id": 85498,
+      "title": "Firework It",
+      "zone_id": 15347,
+      "pois": [
+        {
+          "map_id": 2706,
+          "ui_map_id": 2346,
+          "x": 53,
+          "y": 319,
+          "z": 14
+        }
+      ]
+    },
+    {
+      "quest_id": 85499,
+      "title": "One Goblin's Trash",
+      "zone_id": 15347,
+      "pois": [
+        {
+          "map_id": 2706,
+          "ui_map_id": 2346,
+          "x": -235,
+          "y": -22,
+          "z": -22
+        }
+      ]
+    },
+    {
+      "quest_id": 85500,
+      "title": "Hazardous Waste",
+      "zone_id": 15347,
+      "pois": [
+        {
+          "map_id": 2706,
+          "ui_map_id": 2346,
+          "x": 348,
+          "y": 110,
+          "z": -21
+        },
+        {
+          "map_id": 2706,
+          "ui_map_id": 2346,
+          "x": 352,
+          "y": 105,
+          "z": -25
+        }
+      ]
+    },
+    {
+      "quest_id": 85512,
+      "title": "Rooting Out Counterfeits",
+      "zone_id": 15347,
+      "pois": [
+        {
+          "map_id": 2706,
+          "ui_map_id": 2346,
+          "x": -222,
+          "y": 739,
+          "z": -17
+        },
+        {
+          "map_id": 2706,
+          "ui_map_id": 2346,
+          "x": -250,
+          "y": 724,
+          "z": -17
+        }
+      ]
+    },
+    {
+      "quest_id": 85513,
+      "title": "Underrider Grease",
+      "zone_id": 15347,
+      "pois": [
+        {
+          "map_id": 2706,
+          "ui_map_id": 2346,
+          "x": -232,
+          "y": 493,
+          "z": 3
+        }
+      ]
+    },
+    {
+      "quest_id": 85514,
+      "title": "If They're Not Using It...",
+      "zone_id": 15347,
+      "pois": [
+        {
+          "map_id": 2706,
+          "ui_map_id": 2346,
+          "x": -2,
+          "y": 351,
+          "z": 4
+        }
+      ]
+    },
+    {
+      "quest_id": 85515,
+      "title": "Free Samples!",
+      "zone_id": 15347,
+      "pois": [
+        {
+          "map_id": 2706,
+          "ui_map_id": 2346,
+          "x": 292,
+          "y": 807,
+          "z": 23
+        }
+      ]
+    },
+    {
+      "quest_id": 85518,
+      "title": "Scalper Scum",
+      "zone_id": 15347,
+      "pois": [
+        {
+          "map_id": 2706,
+          "ui_map_id": 2346,
+          "x": 332,
+          "y": 384,
+          "z": 0
+        },
+        {
+          "map_id": 2706,
+          "ui_map_id": 2346,
+          "x": 335,
+          "y": 376,
+          "z": 0
+        }
+      ]
+    },
+    {
+      "quest_id": 85519,
+      "title": "Boom and Burst",
+      "zone_id": 15347,
+      "pois": [
+        {
+          "map_id": 2706,
+          "ui_map_id": 2346,
+          "x": -368,
+          "y": 164,
+          "z": -7
+        }
+      ]
+    },
+    {
+      "quest_id": 85524,
+      "title": "Disarming the Darkfuse",
+      "zone_id": 15347,
+      "pois": [
+        {
+          "map_id": 2706,
+          "ui_map_id": 2346,
+          "x": 234,
+          "y": 432,
+          "z": 0
+        }
+      ]
+    },
+    {
+      "quest_id": 85526,
+      "title": "Scum Bag",
+      "zone_id": 15347,
+      "pois": [
+        {
+          "map_id": 2706,
+          "ui_map_id": 2346,
+          "x": -162,
+          "y": 618,
+          "z": -18
+        }
+      ]
+    },
+    {
+      "quest_id": 85527,
+      "title": "Buccaneer Bonzai",
+      "zone_id": 15347,
+      "pois": [
+        {
+          "map_id": 2706,
+          "ui_map_id": 2346,
+          "x": -322,
+          "y": 28,
+          "z": -23
+        },
+        {
+          "map_id": 2706,
+          "ui_map_id": 2346,
+          "x": -320,
+          "y": 34,
+          "z": -25
+        }
+      ]
+    },
+    {
+      "quest_id": 85528,
+      "title": "Recrewtment",
+      "zone_id": 15347,
+      "pois": [
+        {
+          "map_id": 2706,
+          "ui_map_id": 2346,
+          "x": 163,
+          "y": 744,
+          "z": 18
+        }
+      ]
+    },
+    {
+      "quest_id": 85812,
+      "title": "Raid the Raiders",
+      "zone_id": 15336,
+      "pois": [
+        {
+          "map_id": 2738,
+          "ui_map_id": 2371,
+          "x": 545,
+          "y": -1097,
+          "z": 20
+        }
+      ]
+    },
+    {
+      "quest_id": 85822,
+      "title": "Making a Market",
+      "zone_id": 15336,
+      "pois": [
+        {
+          "map_id": 2738,
+          "ui_map_id": 2371,
+          "x": -65,
+          "y": 413,
+          "z": 135
+        }
+      ]
+    },
+    {
+      "quest_id": 85834,
+      "title": "Endangered Specimens",
+      "zone_id": 15336,
+      "pois": [
+        {
+          "map_id": 2738,
+          "ui_map_id": 2371,
+          "x": 41,
+          "y": 1578,
+          "z": 326
+        }
+      ]
+    },
+    {
+      "quest_id": 85855,
+      "title": "Anything to Declare?",
+      "zone_id": 15336,
+      "pois": [
+        {
+          "map_id": 2738,
+          "ui_map_id": 2371,
+          "x": -309,
+          "y": 710,
+          "z": 248
+        }
+      ]
+    },
+    {
+      "quest_id": 85863,
+      "title": "Phase Diving: Strange Storms",
+      "zone_id": 15336,
+      "pois": [
+        {
+          "map_id": 2738,
+          "ui_map_id": 2371,
+          "x": 556,
+          "y": -872,
+          "z": -5
+        }
+      ]
+    },
+    {
+      "quest_id": 85864,
+      "title": "Phase Diving: Fractured Laacunite",
+      "zone_id": 15336,
+      "pois": [
+        {
+          "map_id": 2738,
+          "ui_map_id": 2371,
+          "x": 1886,
+          "y": 590,
+          "z": -127
+        }
+      ]
+    },
+    {
+      "quest_id": 86305,
+      "title": "Watch me Make these Bugs Expire",
+      "zone_id": 15336,
+      "pois": [
+        {
+          "map_id": 2738,
+          "ui_map_id": 2371,
+          "x": -221,
+          "y": 1271,
+          "z": 267
+        }
+      ]
+    },
+    {
+      "quest_id": 86367,
+      "title": "Grub Stompin'",
+      "zone_id": 15336,
+      "pois": [
+        {
+          "map_id": 2738,
+          "ui_map_id": 2371,
+          "x": 216,
+          "y": -575,
+          "z": -34
+        }
+      ]
+    },
+    {
+      "quest_id": 86372,
+      "title": "Wasting the Wastelanders",
+      "zone_id": 15336,
+      "pois": [
+        {
+          "map_id": 2738,
+          "ui_map_id": 2371,
+          "x": 941,
+          "y": 76,
+          "z": -50
+        },
+        {
+          "map_id": 2738,
+          "ui_map_id": 2371,
+          "x": 917,
+          "y": 78,
+          "z": -49
+        }
+      ]
+    },
+    {
+      "quest_id": 86391,
+      "title": "Taking Back our Power",
+      "zone_id": 15336,
+      "pois": [
+        {
+          "map_id": 2738,
+          "ui_map_id": 2371,
+          "x": 838,
+          "y": -85,
+          "z": -57
+        }
+      ]
+    },
+    {
+      "quest_id": 86395,
+      "title": "Stealing the Stolen",
+      "zone_id": 15336,
+      "pois": [
+        {
+          "map_id": 2738,
+          "ui_map_id": 2371,
+          "x": 124,
+          "y": -195,
+          "z": -100
+        }
+      ]
+    },
+    {
+      "quest_id": 86409,
+      "title": "Stalking the Crags",
+      "zone_id": 15336,
+      "pois": [
+        {
+          "map_id": 2738,
+          "ui_map_id": 2371,
+          "x": 54,
+          "y": -1064,
+          "z": 16
+        },
+        {
+          "map_id": 2738,
+          "ui_map_id": 2371,
+          "x": 42,
+          "y": -1035,
+          "z": 34
+        }
+      ]
+    },
+    {
+      "quest_id": 86584,
+      "title": "Overwhelm Them with Mandatory Time Off",
+      "zone_id": 15336,
+      "pois": [
+        {
+          "map_id": 2738,
+          "ui_map_id": 2371,
+          "x": -903,
+          "y": -439,
+          "z": 526
+        }
+      ]
+    },
+    {
+      "quest_id": 86696,
+      "title": "Shadow Re-Disruption",
+      "zone_id": 15336,
+      "pois": [
+        {
+          "map_id": 2738,
+          "ui_map_id": 2371,
+          "x": 2126,
+          "y": 1418,
+          "z": -298
+        }
+      ]
+    },
+    {
+      "quest_id": 86707,
+      "title": "The Shadowguard Resurgence",
+      "zone_id": 15336,
+      "pois": [
+        {
+          "map_id": 2738,
+          "ui_map_id": 2371,
+          "x": -1324,
+          "y": -78,
+          "z": 553
+        }
+      ]
+    },
+    {
+      "quest_id": 86709,
+      "title": "Mana Falling from the Skies",
+      "zone_id": 15336,
+      "pois": [
+        {
+          "map_id": 2738,
+          "ui_map_id": 2371,
+          "x": 1942,
+          "y": 1314,
+          "z": -149
+        }
+      ]
+    },
+    {
+      "quest_id": 86800,
+      "title": "Swipe 'Em",
+      "zone_id": 15336,
+      "pois": [
+        {
+          "map_id": 2738,
+          "ui_map_id": 2371,
+          "x": 495,
+          "y": 837,
+          "z": 187
+        }
+      ]
+    },
+    {
+      "quest_id": 86872,
+      "title": "Phase Diving: Experimental Extermination",
+      "zone_id": 15336,
+      "pois": [
+        {
+          "map_id": 2738,
+          "ui_map_id": 2371,
+          "x": -51,
+          "y": 775,
+          "z": 212
+        }
+      ]
+    },
+    {
+      "quest_id": 86939,
+      "title": "Twilight's Wedge",
+      "zone_id": 4922,
+      "pois": [
+        {
+          "map_id": 0,
+          "ui_map_id": 241,
+          "x": -3209,
+          "y": -4469,
+          "z": 0
+        }
+      ]
+    },
+    {
+      "quest_id": 86941,
+      "title": "Elemental Infusion",
+      "zone_id": 4922,
+      "pois": [
+        {
+          "map_id": 0,
+          "ui_map_id": 241,
+          "x": -3243,
+          "y": -5498,
+          "z": 60
+        }
+      ]
+    },
+    {
+      "quest_id": 86948,
+      "title": "Twilight Bonds",
+      "zone_id": 4922,
+      "pois": [
+        {
+          "map_id": 0,
+          "ui_map_id": 241,
+          "x": -4655,
+          "y": -4310,
+          "z": 342
+        }
+      ]
+    },
+    {
+      "quest_id": 86957,
+      "title": "Drakgor's Revenge",
+      "zone_id": 4922,
+      "pois": [
+        {
+          "map_id": 0,
+          "ui_map_id": 241,
+          "x": -2766,
+          "y": -4642,
+          "z": 0
+        },
+        {
+          "map_id": 0,
+          "ui_map_id": 241,
+          "x": -2737,
+          "y": -4637,
+          "z": 189
+        }
+      ]
+    },
+    {
+      "quest_id": 86959,
+      "title": "Bloodeye Prisoners",
+      "zone_id": 4922,
+      "pois": [
+        {
+          "map_id": 0,
+          "ui_map_id": 241,
+          "x": -4524,
+          "y": -4586,
+          "z": 191
+        }
+      ]
+    },
+    {
+      "quest_id": 91207,
+      "title": "Prey: Apex Predator",
+      "zone_id": 0,
+      "pois": [
+        {
+          "map_id": 2771,
+          "ui_map_id": 2405,
+          "x": 1218,
+          "y": 664,
+          "z": -338
+        }
+      ]
+    },
+    {
+      "quest_id": 91458,
+      "title": "Prey: Endurance Hunter",
+      "zone_id": 0,
+      "pois": [
+        {
+          "map_id": 2771,
+          "ui_map_id": 2405,
+          "x": 1881,
+          "y": -1668,
+          "z": -79
+        }
+      ]
+    },
+    {
+      "quest_id": 91490,
+      "title": "Dousing Teldrassil",
+      "zone_id": 15355,
+      "pois": [
+        {
+          "map_id": 2694,
+          "ui_map_id": 2413,
+          "x": 459,
+          "y": 867,
+          "z": 1458
+        },
+        {
+          "map_id": 2694,
+          "ui_map_id": 2413,
+          "x": 1320,
+          "y": 1014,
+          "z": 1493
+        },
+        {
+          "map_id": 2601,
+          "ui_map_id": 2214,
+          "x": 2286,
+          "y": -2867,
+          "z": 555
+        }
+      ]
+    },
+    {
+      "quest_id": 91523,
+      "title": "Prey: Concealed Threat",
+      "zone_id": 0,
+      "pois": [
+        {
+          "map_id": 2771,
+          "ui_map_id": 2405,
+          "x": 2521,
+          "y": 1334,
+          "z": -266
+        }
+      ]
+    },
+    {
+      "quest_id": 91555,
+      "title": "Defenders of the Vale",
+      "zone_id": 15355,
+      "pois": [
+        {
+          "map_id": 2694,
+          "ui_map_id": 2413,
+          "x": -151,
+          "y": -826,
+          "z": 837
+        }
+      ]
+    },
+    {
+      "quest_id": 91582,
+      "title": "Pruning the Lattice",
+      "zone_id": 15355,
+      "pois": [
+        {
+          "map_id": 2694,
+          "ui_map_id": 2413,
+          "x": 1027,
+          "y": -611,
+          "z": 1200
+        }
+      ]
+    },
+    {
+      "quest_id": 91590,
+      "title": "Prey: Concealed Threat",
+      "zone_id": 0,
+      "pois": [
+        {
+          "map_id": 0,
+          "ui_map_id": 2395,
+          "x": 5626,
+          "y": -3539,
+          "z": 34
+        }
+      ]
+    },
+    {
+      "quest_id": 91591,
+      "title": "Prey: Concealed Threat",
+      "zone_id": 0,
+      "pois": [
+        {
+          "map_id": 0,
+          "ui_map_id": 2437,
+          "x": 4584,
+          "y": -5836,
+          "z": 320
+        }
+      ]
+    },
+    {
+      "quest_id": 91592,
+      "title": "Prey: Concealed Threat",
+      "zone_id": 0,
+      "pois": [
+        {
+          "map_id": 2694,
+          "ui_map_id": 2413,
+          "x": -497,
+          "y": -682,
+          "z": 1065
+        }
+      ]
+    },
+    {
+      "quest_id": 91594,
+      "title": "Prey: Endurance Hunter",
+      "zone_id": 0,
+      "pois": [
+        {
+          "map_id": 0,
+          "ui_map_id": 2395,
+          "x": 5591,
+          "y": -5504,
+          "z": 170
+        }
+      ]
+    },
+    {
+      "quest_id": 91595,
+      "title": "Prey: Endurance Hunter",
+      "zone_id": 0,
+      "pois": [
+        {
+          "map_id": 0,
+          "ui_map_id": 2437,
+          "x": 6369,
+          "y": -7344,
+          "z": 165
+        }
+      ]
+    },
+    {
+      "quest_id": 91596,
+      "title": "Prey: Endurance Hunter",
+      "zone_id": 0,
+      "pois": [
+        {
+          "map_id": 2694,
+          "ui_map_id": 2413,
+          "x": 745,
+          "y": -297,
+          "z": 1130
+        }
+      ]
+    },
+    {
+      "quest_id": 91601,
+      "title": "Prey: Apex Predator",
+      "zone_id": 0,
+      "pois": [
+        {
+          "map_id": 0,
+          "ui_map_id": 2395,
+          "x": 6649,
+          "y": -3862,
+          "z": 68
+        }
+      ]
+    },
+    {
+      "quest_id": 91602,
+      "title": "Prey: Apex Predator",
+      "zone_id": 0,
+      "pois": [
+        {
+          "map_id": 0,
+          "ui_map_id": 2437,
+          "x": 3414,
+          "y": -6997,
+          "z": 267
+        }
+      ]
+    },
+    {
+      "quest_id": 91604,
+      "title": "Prey: Apex Predator",
+      "zone_id": 0,
+      "pois": [
+        {
+          "map_id": 2694,
+          "ui_map_id": 2413,
+          "x": 879,
+          "y": -1536,
+          "z": 1024
+        }
+      ]
+    },
+    {
+      "quest_id": 91759,
+      "title": "Don't Bring That Here",
+      "zone_id": 4922,
+      "pois": [
+        {
+          "map_id": 0,
+          "ui_map_id": 241,
+          "x": -2515,
+          "y": -5516,
+          "z": 167
+        },
+        {
+          "map_id": 0,
+          "ui_map_id": 241,
+          "x": -2505,
+          "y": -5523,
+          "z": 167
+        }
+      ]
+    },
+    {
+      "quest_id": 91778,
+      "title": "Too Deep and Too Dark",
+      "zone_id": 4922,
+      "pois": [
+        {
+          "map_id": 0,
+          "ui_map_id": 241,
+          "x": -5331,
+          "y": -4372,
+          "z": 404
+        }
+      ]
+    },
+    {
+      "quest_id": 91779,
+      "title": "Combat Training for Cultists",
+      "zone_id": 4922,
+      "pois": [
+        {
+          "map_id": 0,
+          "ui_map_id": 241,
+          "x": -4644,
+          "y": -5066,
+          "z": 135
+        }
+      ]
+    },
+    {
+      "quest_id": 91785,
+      "title": "Ensporcelled",
+      "zone_id": 15355,
+      "pois": [
+        {
+          "map_id": 2694,
+          "ui_map_id": 2413,
+          "x": -1044,
+          "y": 747,
+          "z": 0
+        }
+      ]
+    },
+    {
+      "quest_id": 91798,
+      "title": "Fish Of The Day",
+      "zone_id": 15947,
+      "pois": [
+        {
+          "map_id": 0,
+          "ui_map_id": 2437,
+          "x": 3564,
+          "y": -7181,
+          "z": 0
+        }
+      ]
+    },
+    {
+      "quest_id": 91799,
+      "title": "Trial of Flight",
+      "zone_id": 15947,
+      "pois": [
+        {
+          "map_id": 0,
+          "ui_map_id": 2437,
+          "x": 3408,
+          "y": -8321,
+          "z": 844
+        }
+      ]
+    },
+    {
+      "quest_id": 91800,
+      "title": "Heirlooming Danger",
+      "zone_id": 15947,
+      "pois": [
+        {
+          "map_id": 0,
+          "ui_map_id": 2437,
+          "x": 4560,
+          "y": -5777,
+          "z": 324
+        }
+      ]
+    },
+    {
+      "quest_id": 91801,
+      "title": "Twilight's Bane",
+      "zone_id": 15947,
+      "pois": [
+        {
+          "map_id": 0,
+          "ui_map_id": 2437,
+          "x": 4009,
+          "y": -7003,
+          "z": 311
+        }
+      ]
+    },
+    {
+      "quest_id": 91802,
+      "title": "The Best Bites are Bog Bugs",
+      "zone_id": 15947,
+      "pois": [
+        {
+          "map_id": 0,
+          "ui_map_id": 2437,
+          "x": 4691,
+          "y": -7330,
+          "z": 63
+        }
+      ]
+    },
+    {
+      "quest_id": 91803,
+      "title": "Marsh Menace",
+      "zone_id": 15947,
+      "pois": [
+        {
+          "map_id": 0,
+          "ui_map_id": 2437,
+          "x": 4399,
+          "y": -8271,
+          "z": 11
+        }
+      ]
+    },
+    {
+      "quest_id": 91805,
+      "title": "Boughs in the Burrows",
+      "zone_id": 15947,
+      "pois": [
+        {
+          "map_id": 0,
+          "ui_map_id": 2437,
+          "x": 5443,
+          "y": -7207,
+          "z": 202
+        }
+      ]
+    },
+    {
+      "quest_id": 91806,
+      "title": "Big Game Hunting",
+      "zone_id": 15947,
+      "pois": [
+        {
+          "map_id": 0,
+          "ui_map_id": 2437,
+          "x": 6095,
+          "y": -6112,
+          "z": 377
+        }
+      ]
+    },
+    {
+      "quest_id": 91808,
+      "title": "Resource Recovery",
+      "zone_id": 15947,
+      "pois": [
+        {
+          "map_id": 0,
+          "ui_map_id": 2437,
+          "x": 6543,
+          "y": -6344,
+          "z": 344
+        }
+      ]
+    },
+    {
+      "quest_id": 91810,
+      "title": "Blistereel Boar Buffet",
+      "zone_id": 15947,
+      "pois": [
+        {
+          "map_id": 0,
+          "ui_map_id": 2437,
+          "x": 6829,
+          "y": -7862,
+          "z": 0
+        },
+        {
+          "map_id": 0,
+          "ui_map_id": 2437,
+          "x": 6829,
+          "y": -7860,
+          "z": 0
+        },
+        {
+          "map_id": 0,
+          "ui_map_id": 2437,
+          "x": 6829,
+          "y": -7861,
+          "z": 0
+        }
+      ]
+    },
+    {
+      "quest_id": 91927,
+      "title": "Ooze Booting",
+      "zone_id": 15355,
+      "pois": [
+        {
+          "map_id": 2694,
+          "ui_map_id": 2413,
+          "x": -282,
+          "y": -1138,
+          "z": 820
+        }
+      ]
+    },
+    {
+      "quest_id": 91937,
+      "title": "Portraits in the Vale",
+      "zone_id": 15355,
+      "pois": [
+        {
+          "map_id": 2694,
+          "ui_map_id": 2413,
+          "x": -19,
+          "y": -965,
+          "z": 0
+        }
+      ]
+    },
+    {
+      "quest_id": 91981,
+      "title": "To Poison and to Heal",
+      "zone_id": 15355,
+      "pois": [
+        {
+          "map_id": 2694,
+          "ui_map_id": 2413,
+          "x": -215,
+          "y": 427,
+          "z": 1161
+        },
+        {
+          "map_id": 2694,
+          "ui_map_id": 2413,
+          "x": -335,
+          "y": 439,
+          "z": 1173
+        }
+      ]
+    },
+    {
+      "quest_id": 92119,
+      "title": "Bitterbloom Burn Down",
+      "zone_id": 15355,
+      "pois": [
+        {
+          "map_id": 2694,
+          "ui_map_id": 2413,
+          "x": -752,
+          "y": 1094,
+          "z": 1270
+        }
+      ]
+    },
+    {
+      "quest_id": 92120,
+      "title": "To Understand Magic",
+      "zone_id": 15969,
+      "pois": [
+        {
+          "map_id": 0,
+          "ui_map_id": 2393,
+          "x": 8766,
+          "y": -4307,
+          "z": 99
+        },
+        {
+          "map_id": 0,
+          "ui_map_id": 2393,
+          "x": 8749,
+          "y": -4315,
+          "z": 101
+        }
+      ]
+    },
+    {
+      "quest_id": 92121,
+      "title": "The Great Outdoors",
+      "zone_id": 15968,
+      "pois": [
+        {
+          "map_id": 0,
+          "ui_map_id": 2395,
+          "x": 5869,
+          "y": -5448,
+          "z": 0
+        }
+      ]
+    },
+    {
+      "quest_id": 92122,
+      "title": "Beneath the Sunsails",
+      "zone_id": 15968,
+      "pois": [
+        {
+          "map_id": 0,
+          "ui_map_id": 2395,
+          "x": 7434,
+          "y": -3360,
+          "z": 0
+        }
+      ]
+    },
+    {
+      "quest_id": 92138,
+      "title": "Mobilize! Enlist! Recruit!",
+      "zone_id": 15968,
+      "pois": [
+        {
+          "map_id": 0,
+          "ui_map_id": 2395,
+          "x": 9044,
+          "y": -3705,
+          "z": 20
+        },
+        {
+          "map_id": 0,
+          "ui_map_id": 2395,
+          "x": 9119,
+          "y": -3719,
+          "z": 0
+        }
+      ]
+    },
+    {
+      "quest_id": 92139,
+      "title": "Special Assignment: Shade and Claw",
+      "zone_id": 15968,
+      "pois": [
+        {
+          "map_id": 0,
+          "ui_map_id": 2395,
+          "x": 5050,
+          "y": -5569,
+          "z": 196
+        },
+        {
+          "map_id": 0,
+          "ui_map_id": 2395,
+          "x": 5056,
+          "y": -5555,
+          "z": 188
+        }
+      ]
+    },
+    {
+      "quest_id": 92140,
+      "title": "Uprooting Efforts",
+      "zone_id": 15968,
+      "pois": [
+        {
+          "map_id": 0,
+          "ui_map_id": 2395,
+          "x": 6576,
+          "y": -5584,
+          "z": 211
+        }
+      ]
+    },
+    {
+      "quest_id": 92141,
+      "title": "Classic Threats",
+      "zone_id": 15968,
+      "pois": [
+        {
+          "map_id": 0,
+          "ui_map_id": 2395,
+          "x": 9150,
+          "y": -3786,
+          "z": 31
+        },
+        {
+          "map_id": 0,
+          "ui_map_id": 2395,
+          "x": 9128,
+          "y": -3769,
+          "z": 27
+        }
+      ]
+    },
+    {
+      "quest_id": 92143,
+      "title": "Arcane Reallocation",
+      "zone_id": 15968,
+      "pois": [
+        {
+          "map_id": 0,
+          "ui_map_id": 2395,
+          "x": 6076,
+          "y": -3261,
+          "z": 0
+        }
+      ]
+    },
+    {
+      "quest_id": 92144,
+      "title": "No Squatters",
+      "zone_id": 15968,
+      "pois": [
+        {
+          "map_id": 0,
+          "ui_map_id": 2395,
+          "x": 7007,
+          "y": -5745,
+          "z": 205
+        },
+        {
+          "map_id": 0,
+          "ui_map_id": 2395,
+          "x": 7037,
+          "y": -5780,
+          "z": 0
+        }
+      ]
+    },
+    {
+      "quest_id": 92146,
+      "title": "Containment Zone",
+      "zone_id": 15968,
+      "pois": [
+        {
+          "map_id": 0,
+          "ui_map_id": 2395,
+          "x": 6363,
+          "y": -4992,
+          "z": 180
+        }
+      ]
+    },
+    {
+      "quest_id": 92149,
+      "title": "Death to Twilight",
+      "zone_id": 15968,
+      "pois": [
+        {
+          "map_id": 0,
+          "ui_map_id": 2395,
+          "x": 4777,
+          "y": -3923,
+          "z": 41
+        },
+        {
+          "map_id": 0,
+          "ui_map_id": 2395,
+          "x": 4788,
+          "y": -3923,
+          "z": 0
+        }
+      ]
+    },
+    {
+      "quest_id": 92150,
+      "title": "A Breeze through Fairbreeze",
+      "zone_id": 15968,
+      "pois": [
+        {
+          "map_id": 0,
+          "ui_map_id": 2395,
+          "x": 7284,
+          "y": -4140,
+          "z": 125
+        }
+      ]
+    },
+    {
+      "quest_id": 92152,
+      "title": "Battling the Bloom",
+      "zone_id": 15968,
+      "pois": [
+        {
+          "map_id": 0,
+          "ui_map_id": 2395,
+          "x": 6710,
+          "y": -3742,
+          "z": 68
+        },
+        {
+          "map_id": 0,
+          "ui_map_id": 2395,
+          "x": 6718,
+          "y": -3782,
+          "z": 72
+        },
+        {
+          "map_id": 0,
+          "ui_map_id": 2395,
+          "x": 6671,
+          "y": -3798,
+          "z": 60
+        }
+      ]
+    },
+    {
+      "quest_id": 92153,
+      "title": "The Moon at Twilight",
+      "zone_id": 15968,
+      "pois": [
+        {
+          "map_id": 0,
+          "ui_map_id": 2395,
+          "x": 5840,
+          "y": -3953,
+          "z": 17
+        }
+      ]
+    },
+    {
+      "quest_id": 92160,
+      "title": "Hatchling Havoc",
+      "zone_id": 15968,
+      "pois": [
+        {
+          "map_id": 0,
+          "ui_map_id": 2395,
+          "x": 7949,
+          "y": -5179,
+          "z": 45
+        }
+      ]
+    },
+    {
+      "quest_id": 92184,
+      "title": "Potadpole Wrangling",
+      "zone_id": 15355,
+      "pois": [
+        {
+          "map_id": 2694,
+          "ui_map_id": 2413,
+          "x": 543,
+          "y": -1624,
+          "z": 960
+        }
+      ]
+    },
+    {
+      "quest_id": 92195,
+      "title": "Come On Down",
+      "zone_id": 15968,
+      "pois": [
+        {
+          "map_id": 0,
+          "ui_map_id": 2395,
+          "x": 8312,
+          "y": -5856,
+          "z": 56
+        }
+      ]
+    },
+    {
+      "quest_id": 92364,
+      "title": "Sun Support",
+      "zone_id": 15968,
+      "pois": [
+        {
+          "map_id": 0,
+          "ui_map_id": 2395,
+          "x": 5375,
+          "y": -4671,
+          "z": 72
+        },
+        {
+          "map_id": 0,
+          "ui_map_id": 2395,
+          "x": 5471,
+          "y": -4754,
+          "z": 68
+        }
+      ]
+    },
+    {
+      "quest_id": 93507,
+      "title": "Disrupting the Void",
+      "zone_id": 15458,
+      "pois": [
+        {
+          "map_id": 2771,
+          "ui_map_id": 2405,
+          "x": 2674,
+          "y": 987,
+          "z": -79
+        }
+      ]
+    },
+    {
+      "quest_id": 93648,
+      "title": "Gnarly Skullduggery",
+      "zone_id": 16365,
+      "pois": [
+        {
+          "map_id": 0,
+          "ui_map_id": 2512,
+          "x": 4424,
+          "y": -11967,
+          "z": 118
+        }
+      ]
+    },
+    {
+      "quest_id": 93664,
+      "title": "Rotten Fish",
+      "zone_id": 16365,
+      "pois": [
+        {
+          "map_id": 0,
+          "ui_map_id": 2512,
+          "x": 6537,
+          "y": -12266,
+          "z": 4
+        }
+      ]
+    },
+    {
+      "quest_id": 93670,
+      "title": "How 'Bout Them Apples?",
+      "zone_id": 16365,
+      "pois": [
+        {
+          "map_id": 0,
+          "ui_map_id": 2512,
+          "x": 6578,
+          "y": -12843,
+          "z": 20
+        }
+      ]
+    },
+    {
+      "quest_id": 93671,
+      "title": "A Tight Squeeze",
+      "zone_id": 16365,
+      "pois": [
+        {
+          "map_id": 0,
+          "ui_map_id": 2512,
+          "x": 5209,
+          "y": -12663,
+          "z": 25
+        }
+      ]
+    },
+    {
+      "quest_id": 93672,
+      "title": "Blade to Rest",
+      "zone_id": 16365,
+      "pois": [
+        {
+          "map_id": 0,
+          "ui_map_id": 2512,
+          "x": 6400,
+          "y": -11373,
+          "z": 74
+        }
+      ]
+    },
+    {
+      "quest_id": 94574,
+      "title": "Egg Thief",
+      "zone_id": 16365,
+      "pois": [
+        {
+          "map_id": 0,
+          "ui_map_id": 2512,
+          "x": 6492,
+          "y": -12413,
+          "z": 117
+        }
+      ]
+    },
+    {
+      "quest_id": 94611,
+      "title": "Predators and Prey",
+      "zone_id": 16365,
+      "pois": [
+        {
+          "map_id": 0,
+          "ui_map_id": 2512,
+          "x": 4847,
+          "y": -12606,
+          "z": 7
+        }
+      ]
+    },
+    {
+      "quest_id": 94612,
+      "title": "Claws for Celebration",
+      "zone_id": 16365,
+      "pois": [
+        {
+          "map_id": 0,
+          "ui_map_id": 2512,
+          "x": 4312,
+          "y": -13001,
+          "z": 1
+        },
+        {
+          "map_id": 0,
+          "ui_map_id": 2512,
+          "x": 4324,
+          "y": -12998,
+          "z": 1
+        }
+      ]
+    },
+    {
+      "quest_id": 94967,
+      "title": "Ki'clak Snack Attack",
+      "zone_id": 16365,
+      "pois": [
+        {
+          "map_id": 0,
+          "ui_map_id": 2512,
+          "x": 5517,
+          "y": -13007,
+          "z": 0
+        }
+      ]
+    },
+    {
+      "quest_id": 94996,
+      "title": "Gaze of the Dead",
+      "zone_id": 16365,
+      "pois": [
+        {
+          "map_id": 0,
+          "ui_map_id": 2512,
+          "x": 5106,
+          "y": -11289,
+          "z": 178
+        }
+      ]
+    },
+    {
+      "quest_id": 95448,
+      "title": "The Dose Makes the Poison",
+      "zone_id": 16365,
+      "pois": [
+        {
+          "map_id": 0,
+          "ui_map_id": 2512,
+          "x": 5125,
+          "y": -9430,
+          "z": 205
+        }
+      ]
+    },
+    {
+      "quest_id": 95449,
+      "title": "Snakes in the Grass",
+      "zone_id": 16365,
+      "pois": [
+        {
+          "map_id": 0,
+          "ui_map_id": 2512,
+          "x": 6672,
+          "y": -11989,
+          "z": 119
+        }
+      ]
+    },
+    {
+      "quest_id": 95662,
+      "title": "A Suspicious Stew",
+      "zone_id": 16365,
+      "pois": [
+        {
+          "map_id": 0,
+          "ui_map_id": 2512,
+          "x": 5932,
+          "y": -12048,
+          "z": 0
+        }
+      ]
+    },
+    {
+      "quest_id": 95918,
+      "title": "Special Assignment: Wraith Wrath",
+      "zone_id": 16365,
+      "pois": [
+        {
+          "map_id": 0,
+          "ui_map_id": 2512,
+          "x": 5916,
+          "y": -11033,
+          "z": 0
+        }
+      ]
+    },
+    {
+      "quest_id": 95922,
+      "title": "Special Assignment: Face the Swarm",
+      "zone_id": 16365,
+      "pois": [
+        {
+          "map_id": 0,
+          "ui_map_id": 2512,
+          "x": 5401,
+          "y": -11643,
+          "z": 0
+        }
+      ]
+    },
+    {
+      "quest_id": 95931,
+      "title": "Open Sea Fishing",
+      "zone_id": 16365,
+      "pois": [
+        {
+          "map_id": 0,
+          "ui_map_id": 2512,
+          "x": 6862,
+          "y": -12697,
+          "z": 0
+        },
+        {
+          "map_id": 0,
+          "ui_map_id": 2512,
+          "x": 7048,
+          "y": -12907,
+          "z": 0
+        },
+        {
+          "map_id": 0,
+          "ui_map_id": 2512,
+          "x": 6856,
+          "y": -12692,
+          "z": 0
+        }
+      ]
+    },
+    {
+      "quest_id": 95942,
+      "title": "Prey: Venom Ambush",
+      "zone_id": 0,
+      "pois": [
+        {
+          "map_id": 0,
+          "ui_map_id": 2512,
+          "x": 6190,
+          "y": -12950,
+          "z": 4
+        },
+        {
+          "map_id": 0,
+          "ui_map_id": 2512,
+          "x": 6197,
+          "y": -12954,
+          "z": 4
+        },
+        {
+          "map_id": 0,
+          "ui_map_id": 2512,
+          "x": 6199,
+          "y": -12954,
+          "z": 3
+        },
+        {
+          "map_id": 0,
+          "ui_map_id": 2512,
+          "x": 6190,
+          "y": -12950,
+          "z": 4
+        }
+      ]
+    },
+    {
+      "quest_id": 95974,
+      "title": "Prey: Abandoned Camp",
+      "zone_id": 0,
+      "pois": [
+        {
+          "map_id": 0,
+          "ui_map_id": 2512,
+          "x": 6262,
+          "y": -11646,
+          "z": 77
+        }
+      ]
+    },
+    {
+      "quest_id": 95989,
+      "title": "Prey: Venomblade Burrows",
+      "zone_id": 0,
+      "pois": [
+        {
+          "map_id": 0,
+          "ui_map_id": 2512,
+          "x": 5052,
+          "y": -9735,
+          "z": 254
+        }
+      ]
+    },
+    {
+      "quest_id": 95990,
+      "title": "Slithering Heights",
+      "zone_id": 16365,
+      "pois": [
+        {
+          "map_id": 0,
+          "ui_map_id": 2512,
+          "x": 5968,
+          "y": -10478,
+          "z": 479
+        },
+        {
+          "map_id": 0,
+          "ui_map_id": 2512,
+          "x": 5979,
+          "y": -10481,
+          "z": 0
+        }
+      ]
+    },
+    {
+      "quest_id": 96588,
+      "title": "Prey: Venom Ambush",
+      "zone_id": 0,
+      "pois": [
+        {
+          "map_id": 2771,
+          "ui_map_id": 2405,
+          "x": 2502,
+          "y": 1314,
+          "z": -264
+        },
+        {
+          "map_id": 2771,
+          "ui_map_id": 2405,
+          "x": 2508,
+          "y": 1309,
+          "z": -265
+        },
+        {
+          "map_id": 2771,
+          "ui_map_id": 2405,
+          "x": 2495,
+          "y": 1286,
+          "z": -266
+        }
+      ]
+    },
+    {
+      "quest_id": 96589,
+      "title": "Prey: Venom Ambush",
+      "zone_id": 0,
+      "pois": [
+        {
+          "map_id": 2694,
+          "ui_map_id": 2413,
+          "x": 691,
+          "y": -1432,
+          "z": 1009
+        },
+        {
+          "map_id": 2694,
+          "ui_map_id": 2413,
+          "x": 685,
+          "y": -1423,
+          "z": 1008
+        },
+        {
+          "map_id": 2694,
+          "ui_map_id": 2413,
+          "x": 706,
+          "y": -1433,
+          "z": 1012
+        },
+        {
+          "map_id": 2694,
+          "ui_map_id": 2413,
+          "x": 691,
+          "y": -1432,
+          "z": 1009
+        }
+      ]
+    },
+    {
+      "quest_id": 96590,
+      "title": "Prey: Venom Ambush",
+      "zone_id": 0,
+      "pois": [
+        {
+          "map_id": 0,
+          "ui_map_id": 2437,
+          "x": 3396,
+          "y": -6690,
+          "z": 320
+        },
+        {
+          "map_id": 0,
+          "ui_map_id": 2437,
+          "x": 3404,
+          "y": -6697,
+          "z": 321
+        },
+        {
+          "map_id": 0,
+          "ui_map_id": 2437,
+          "x": 3404,
+          "y": -6709,
+          "z": 315
+        },
+        {
+          "map_id": 0,
+          "ui_map_id": 2437,
+          "x": 3396,
+          "y": -6690,
+          "z": 320
+        }
+      ]
+    },
+    {
+      "quest_id": 96591,
+      "title": "Prey: Venom Ambush",
+      "zone_id": 0,
+      "pois": [
+        {
+          "map_id": 0,
+          "ui_map_id": 2395,
+          "x": 5725,
+          "y": -5624,
+          "z": 183
+        },
+        {
+          "map_id": 0,
+          "ui_map_id": 2395,
+          "x": 5738,
+          "y": -5631,
+          "z": 185
+        },
+        {
+          "map_id": 0,
+          "ui_map_id": 2395,
+          "x": 5725,
+          "y": -5624,
+          "z": 183
+        }
+      ]
+    },
+    {
+      "quest_id": 96592,
+      "title": "Prey: Venomblade Burrows",
+      "zone_id": 0,
+      "pois": [
+        {
+          "map_id": 2771,
+          "ui_map_id": 2405,
+          "x": 1849,
+          "y": -1738,
+          "z": -88
+        }
+      ]
+    },
+    {
+      "quest_id": 96593,
+      "title": "Prey: Venomblade Burrows",
+      "zone_id": 0,
+      "pois": [
+        {
+          "map_id": 2694,
+          "ui_map_id": 2413,
+          "x": -496,
+          "y": -732,
+          "z": 1067
+        }
+      ]
+    },
+    {
+      "quest_id": 96594,
+      "title": "Prey: Venomblade Burrows",
+      "zone_id": 0,
+      "pois": [
+        {
+          "map_id": 0,
+          "ui_map_id": 2437,
+          "x": 4586,
+          "y": -5893,
+          "z": 316
+        }
+      ]
+    },
+    {
+      "quest_id": 96595,
+      "title": "Prey: Venomblade Burrows",
+      "zone_id": 0,
+      "pois": [
+        {
+          "map_id": 0,
+          "ui_map_id": 2395,
+          "x": 5628,
+          "y": -3513,
+          "z": 31
+        }
+      ]
+    },
+    {
+      "quest_id": 96596,
+      "title": "Prey: Abandoned Camp",
+      "zone_id": 0,
+      "pois": [
+        {
+          "map_id": 2771,
+          "ui_map_id": 2405,
+          "x": 1189,
+          "y": 651,
+          "z": -341
+        }
+      ]
+    },
+    {
+      "quest_id": 96597,
+      "title": "Prey: Abandoned Camp",
+      "zone_id": 0,
+      "pois": [
+        {
+          "map_id": 2694,
+          "ui_map_id": 2413,
+          "x": 759,
+          "y": -620,
+          "z": 1059
+        }
+      ]
+    },
+    {
+      "quest_id": 96598,
+      "title": "Prey: Abandoned Camp",
+      "zone_id": 0,
+      "pois": [
+        {
+          "map_id": 0,
+          "ui_map_id": 2437,
+          "x": 6371,
+          "y": -7405,
+          "z": 142
+        }
+      ]
+    },
+    {
+      "quest_id": 96599,
+      "title": "Prey: Abandoned Camp",
+      "zone_id": 0,
+      "pois": [
+        {
+          "map_id": 0,
+          "ui_map_id": 2395,
+          "x": 6695,
+          "y": -3856,
+          "z": 80
+        }
+      ]
+    }
+  ]
+}
