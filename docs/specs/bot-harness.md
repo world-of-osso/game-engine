@@ -23,10 +23,12 @@ Private real player characters exercise the native controller path and measure c
 ## Native Stockade runs
 
 - Run Fury72 first, adding specs only after current dummy predicates qualify; preserve the same native/IPC player path and equal-budget equipment, without stat/kit overrides.
+- A dead assisted target needs no authored recommendation and receives no cast. Retain target-bound native health and resume ordinary assist observation rather than waiting for an evaluation that intentionally omits dead targets.
+- Before repeating a persisted in-instance owner, walk the authored area-trigger exit through strict native navigation and confirm its destination map. No admin reposition or persistent-position rewrite.
 - Use existing approved Normal Stockade entry through authored WorldSafeLoc3599 and ordinary MapTransfer/WorldPortAck, with source-profile party attachment. Do not mutate the follower205 catalog or describe this diagnostic entry as native LFG205 UI proof.
 - Take one capacity ADD before each whole live run, not per route/combat phase. Preserve owned server/client cleanup, actual binary hashes, admitted copy, source route and player equipment receipts.
 - Report authoritative three-boss credit separately from combat-metric qualification. Clear time uses monotonic entry-confirmation→final Done observation. Per-boss player/owned-pet damage excludes follower/descendant and trash damage, over first observed boss combat→native boss death, including damage in the final death timestamp bucket.
-- Missing death/continuity/ownership or zero-resolution duration yields DPSnull. Missing authoritative Done never becomes a completed boss measurement. Preserve observed player/party deaths; total deaths remain unknown after capture gaps. No balance pass/fail tolerance.
+- Missing death/continuity/ownership or zero-resolution duration yields DPSnull. Missing authoritative Done never becomes a completed boss measurement. Preserve observed player/party deaths from combat events and copy-bound native roster death states without double counting the same actor. A roster-confirmed death missing from the combat stream cannot report zero or certify death totals; retain the native observation and mark death capture incomplete. Total deaths remain unknown after capture gaps. No balance pass/fail tolerance.
 
 ## Native race fixture
 
@@ -68,6 +70,8 @@ Portable captured [fixtures and provenance](../../scripts/tests/fixtures/bot_har
 ## Implementation inventory
 
 - `godot/rust/src/ipc/combat.rs`: preserve received crit/glancing/periodic, school mask, overflow and absorbed/resisted/blocked values in combat-log/recap output; never infer historical missing fields.
+- `scripts/run_stockade_bot.py`: one already-admitted owned native player, equal-budget/role/copy preflight, maintained F-assist/IPC casts/strict native movement, raw events and per-boss reports; caller owns processes and single capacity admission.
+- `scripts/bot_stockade.py`: read-only encounter/template/spawn/entrance plan, exact native party facts and explicit authored native priority provider; no Mage cycle or direct-line route.
 - `scripts/bot_dungeon.py`: native per-boss ownership/DPS and player/party deaths, separate authoritative completion/clear timing; capture/source gaps remain unqualified.
 - `scripts/bot_harness.py`: native combat parsing, request/result reconciliation, fixed-window DPS and comparison reporting.
 - `scripts/bot_ability_summary.py` / `bot_combat_metrics.py`: read-only expected-roster per-ability requests/successes/hits/crits/misses/event damage, auto-attack share, sampled GCD/idle intervals, observed raw power net changes and raw DB2 effect/cost/cooldown/auto-attack metadata. Preserve absent specs/repetitions, real child event IDs, and unattributed native errors. Missing crit flags remain unknown, resource net change is never spending, sampled timing is not exact server occupancy.
