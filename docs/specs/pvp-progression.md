@@ -8,6 +8,12 @@ Retail Mainline defines behavior/layout in both Modern and Forever art skins.
 - Queue pairing is not a combat result. Pairing alone cannot generate rating, honor or conquest.
 - War Mode changes require authoritative rest-area/combat/instance checks and the authored buff. Talent selection requires specialization, level, slot/category and conditions.
 
+## Lifetime XP continuation — 2026-10-16
+
+The authoritative snapshot exposes lifetime honor XP independently of spendable1792. `HONOR_LEVEL_XP_CURVE` remains a named source gap: unknown level is `None`, displayed as an em dash; no wallet15000 substitution for the lifetime maximum, no fabricated radial fill, badge level or reward grant. Retail Mainline HonorInset/128x128 HonorLevelDisplay uses the same XML anchors in both art skins. Its source-owned Lifetime Honor tooltip displays the actual accumulated XP without an invented denominator. This does not certify account-wide aggregation; active70391 LIFETIME_HONOR_DESC says Warband, while pinned TC stores player honor. Account aggregation remains a named gap.
+
+Authority: local `Blizzard_PVPUI/Mainline/Blizzard_PVPUI.xml`804–861,1670–1728 and `.lua`1904–1947,1975–1983. Both-skin native full-HD acceptance remains required; a registry test is not render proof. Reward identity catalogs do not imply progression through an unknown curve.
+
 ## Local source export
 
 `scripts/export_db2_csv.py` accepts exact pinned layouts for CurrencyTypes1095531, PvpTalent1302853, PvpTalentCategory1891534, PvpTalentSlotUnlock1950197 and PrestigeLevelInfo1275869. Exported fields describe source records, not runtime implementation guarantees. TrinityCore DB2Structure.h locally preserved in `data/diagnostics/scrap-2026-10-10/` supplies field semantics; CASC supplies values.

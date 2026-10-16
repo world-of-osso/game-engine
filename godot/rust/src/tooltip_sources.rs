@@ -114,7 +114,8 @@ impl GameClient {
     /// The tooltip of the hovered frame, if it has one.
     pub(crate) fn frame_tooltip(&mut self, hit: &HoveredFrame) -> Option<HoveredTooltip> {
         type Source = fn(&mut GameClient, &HoveredFrame) -> Option<HoveredTooltip>;
-        const SOURCES: [Source; 36] = [
+        const SOURCES: [Source; 37] = [
+            GameClient::pvp_honor_tooltip,
             GameClient::trading_post_button_tooltip,
             GameClient::trading_post_tooltip,
             GameClient::journal_defeated_tooltip,
@@ -153,6 +154,21 @@ impl GameClient {
             GameClient::hud_frame_tooltip,
         ];
         SOURCES.iter().find_map(|source| source(self, hit))
+    }
+
+    /// Mainline PVPUI.lua1975: lifetime honor, ANCHOR_RIGHT offsets-20,-20.
+    fn pvp_honor_tooltip(&mut self, hit: &HoveredFrame) -> Option<HoveredTooltip> {
+        let ui = hit.ui.bind();
+        let (owner, ()) = named_ancestor(ui.registry()?, hit.frame, |frame| {
+            (name_of(frame)? == "PVPUIHonorLevelDisplay").then_some(())
+        })?;
+        drop(ui);
+        let tooltip = self.battleground.view.honor_tooltip()?;
+        Some(HoveredTooltip::text(tooltip.owned_offset(
+            self.owner_rect(&hit.ui, owner)?,
+            OwnerSide::Right,
+            [-20.0, -20.0],
+        )))
     }
 
     /// PerksProgram button ShowTooltip methods own ANCHOR_LEFT, including disabled controls.
