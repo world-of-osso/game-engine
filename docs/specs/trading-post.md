@@ -33,6 +33,7 @@ Retail Mainline Blizzard_PerksProgram and the local C_PerksProgram/PerksActiviti
 - Regular cart items and ensemble member rows inherit Retail Elements.lua1603–1623 details-row `GetItemByID` tooltip behavior: actual hovered item ID/name/quality/catalog details, no sell price, `ANCHOR_LEFT` X−8/Y−20 (UI y-down offset−8/+20).
 - Resolve the exact currently expanded cart owner, not the selected product/model. Ensemble headers, members belonging to another vendor, removed rows and closed panels do not supply item tooltips. Hover cannot change cart members/preview selection or authoritative Tender; central pointer leave/occlusion/teardown clears ownership.
 - Preserve explicit missing metadata errors; use the shared Retail item formatter in both art skins. Frozen/detail panes/currency/cart-toggle tooltips and item-effect formatting remain separate.
+- [x] Native missing-cart-tooltip RED→both-skin fa2f671f1/681461bd/ff22429 GREEN, fixture5d00ba393: regular item and two genuine ensemble members, source offset/no sell price/item identities, unchanged preview/cart/Tender and hover/remove/panel-close/HUD lifetimes. Model2 covers header/wrong-vendor/removed-owner cases. Eight inspected full-HD originals+two contacts: `/syncthing/AgentShared/2026-10-16/trading-post-cart-tooltips/`; diagnostic manifest binds exact artifacts and inputs.
 
 ## Button tooltips
 
