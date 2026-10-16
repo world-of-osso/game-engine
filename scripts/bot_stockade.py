@@ -87,15 +87,30 @@ def parse_party(text):
 
 def stockade_exit_plan(database):
     with closing(sqlite3.connect(Path(database).resolve().as_uri() + "?mode=ro", uri=True)) as db:
-        rows = db.execute("SELECT a.ID,a.Pos_0,a.Pos_1,a.Pos_2,w.ID,w.MapID,w.LocX,w.LocY,w.LocZ "
+        rows = db.execute("SELECT a.ID,a.Pos_0,a.Pos_1,a.Pos_2,w.ID,w.MapID,w.LocX,w.LocY,w.LocZ,"
+                          "a.ShapeType,a.Box_length,a.Box_width,a.Box_height,a.Box_yaw "
                           "FROM area_trigger a JOIN tdb_areatrigger_teleport t ON t.ID=a.ID "
                           "JOIN tdb_world_safe_locs w ON w.ID=t.PortLocID "
                           "WHERE a.ContinentID=34 AND w.MapID<>34").fetchall()
     if len(rows) != 1:
         raise ValueError("Expected one authored Stockade exit trigger and destination")
-    trigger, x, y, z, safe_loc, map_id, dx, dy, dz = rows[0]
+    trigger, x, y, z, safe_loc, map_id, dx, dy, dz, shape, length, width, height, yaw = rows[0]
+    if shape != 1 or min(length, width, height) <= 0:
+        raise ValueError("Authored Stockade exit requires its valid box trigger shape")
     return {"trigger_id": trigger, "goal": [x, z, -y], "destination_id": safe_loc,
-            "destination_map": map_id, "destination": [dx, dz, -dy]}
+            "destination_map": map_id, "destination": [dx, dz, -dy],
+            "box": {"length": length, "width": width, "height": height, "yaw": yaw}}
+
+
+def inside_exit_trigger(point, plan):
+    # Same WoW-coordinate box transform as server maps/store.rs AreaTriggerShape::contains.
+    dx, dy, dz = (point[0] - plan["goal"][0], -(point[2] - plan["goal"][2]),
+                  point[1] - plan["goal"][1])
+    box = plan["box"]
+    sine, cosine = math.sin(-box["yaw"]), math.cos(-box["yaw"])
+    return (abs(dx * cosine - dy * sine) <= box["length"] / 2
+            and abs(dy * cosine + dx * sine) <= box["width"] / 2
+            and abs(dz) <= box["height"] / 2)
 
 
 def stockade_plan(database):

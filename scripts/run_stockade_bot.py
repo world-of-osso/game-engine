@@ -19,7 +19,7 @@ from bot_dungeon import summarize_dungeon
 from bot_gear import equipment_receipt, load_plan
 from bot_harness import parse_combat, poll_has_gap, routed_player
 from bot_health import require_living_player
-from bot_stockade import admitted_copy, authored_priority, encounter_states, parse_npc, parse_party, stockade_exit_plan, stockade_plan, target_observation_ready
+from bot_stockade import admitted_copy, authored_priority, encounter_states, inside_exit_trigger, parse_npc, parse_party, stockade_exit_plan, stockade_plan, target_observation_ready
 from run_dummy_bots import observed_pet_owner
 
 
@@ -279,9 +279,9 @@ class StockadeRun:
             if account.get("world_map_id") != 34:
                 raise ValueError("Exit preparation encountered an unexpected map")
             here = position(account)
-            # Trigger centers are not ground heights. At the nav endpoint, await
-            # the ordinary map transition instead of requesting vertical movement.
-            if math.hypot(here[0] - plan["goal"][0], here[2] - plan["goal"][2]) < .5:
+            # Entering the authored volume starts transfer before its center.
+            # Await that transition rather than issuing input during map loading.
+            if inside_exit_trigger(here, plan):
                 time.sleep(.2)
                 continue
             self.move(here, plan["goal"], "authored-exit-trigger")
