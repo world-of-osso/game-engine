@@ -2120,6 +2120,10 @@ impl RegistryUi {
             &mut registry,
             game_engine_ui_model::panel_style_data::MetalTopLeft::Portrait,
         )?;
+        register_metal_frame_style(
+            &mut registry,
+            game_engine_ui_model::panel_style_data::MetalTopLeft::Plain,
+        )?;
         self.show_viewport_screen_in(
             state,
             game_engine_ui_model::professions_frame::professions_screen,
