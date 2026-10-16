@@ -135,6 +135,10 @@ impl View {
             .get(index)
             .map(|row| row.target)
             .ok_or("Unknown journal search result")?;
+        // EJ SelectSearch → OpenJournal → ClearDetails closes the search UI,
+        // but only SearchBox OnHide/clear-button erases its text (Lua2506–2522/2215).
+        // External encounter links retain their existing clear-search contract.
+        let query = self.search.clone();
         match target {
             Target::Instance(id) => {
                 self.apply(&format!("journal:instance:{id}"))?;
@@ -149,6 +153,7 @@ impl View {
             Target::Encounter(id) => self.select_encounter(id)?,
             Target::Section(id) => self.select_search_section(id)?,
         }
+        self.search = query;
         self.search_mode = SearchMode::Hidden;
         Ok(())
     }
