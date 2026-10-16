@@ -14,6 +14,10 @@ Retail Mainline Blizzard_PerksProgram and the local C_PerksProgram/PerksActiviti
 - [x] Traveler's Log displays authoritative monthly Tender earned/cap/balance. No invented mail awards. Retail XML defines visible controls; remove unsourced vendor SearchBox, Log/Collections and Freeze/Unfreeze buttons (lead clarification October13).
 - [x] Targeted behavioural tests and inspected private UDP5731 fb_* account PNG proof in Modern and Forever.
 
+## Named gap — native pet framing
+
+- [ ] No allowed oracle currently establishes native ModelScene default FOV, inset projection semantics or pet DesiredScale provider. Garrlok224 clips45.5 physical pixels at the left edge; Spectral Tiger Cub429 fits. Scene-only pet/player work remains unlanded and Rank3 incomplete until authentic framing is resolved. Do not apply calculated fit thresholds, tune a reframe, hide clipped pets or substitute an unapproved source. Allowed evidence: Retail BlizzardInterfaceCode cache, ModelScene Actor/Camera CSVs12.1.5.70391, WebWowViewerCpp and wow.export. Lead October15 accepted this as a named gap, not a framing fix.
+
 ## Authored base camera/orbit
 
 - Trading Post uses the selected display scene's authored UiModelSceneCamera base target, yaw/pitch/roll and zoom/min/max, not mesh-bounds fitting. Product overrides select their first camera even when its tag is `override` rather than `primary`; otherwise use the category display scene. Display translation rounds targets and angles to one decimal place (angles in degrees before conversion back to radians).
