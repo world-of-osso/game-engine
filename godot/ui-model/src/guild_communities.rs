@@ -49,7 +49,19 @@ pub fn shell(session: &GuildRanksSession, shared: &SharedContext) -> Element {
                 (679.0, 401.0, 130.0, 20.0),
             ));
         }
-        CommunitiesTab::Info | CommunitiesTab::Benefits => {}
+        CommunitiesTab::Info => {
+            // CommunitiesFrame.xml589–597; GUILD_INFO display mode, lua549–554.
+            if session.state().is_some_and(|state| !state.ranks.is_empty()) {
+                children.extend(panel_button(
+                    "CommunitiesGuildLogButton".into(),
+                    "View Log",
+                    "guild:log_open",
+                    !session.log_waiting,
+                    (190.0, 401.0, 130.0, 20.0),
+                ));
+            }
+        }
+        CommunitiesTab::Benefits => {}
     }
     children
 }
