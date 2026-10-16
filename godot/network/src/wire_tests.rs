@@ -1207,7 +1207,7 @@ fn native_bridge_decodes_udp_input_and_receives_control_epochs() {
 /// Epoch2 permits VehiclePassenger.driver to identify an NPC, not only a mount owner.
 #[test]
 fn native_bridge_keeps_npc_vehicle_host_identity_and_passenger_release() {
-    use shared::components::{ModelDisplay, Mounted, VehiclePassenger};
+    use shared::components::{ModelDisplay, Mounted, VehicleDriverMovement, VehiclePassenger};
     let (mut server, address) = start_fixture_server();
     let mut host = Host::connect(address, 8194);
     await_connected(&mut server, &mut host);
@@ -1232,10 +1232,17 @@ fn native_bridge_keeps_npc_vehicle_host_identity_and_passenger_release() {
         seat_index: 0,
         seat_id: 5766,
     };
+    let capabilities = VehicleDriverMovement {
+        flags: 1594726007,
+        turn_speed: 1.04719758,
+        walk_speed: 3.0,
+        run_speed: 0.98571 * 7.0,
+    };
     let rider = server
         .world_mut()
         .spawn((
             fixture_player("Vehicle rider"),
+            capabilities,
             Position {
                 x: 10.0,
                 y: 6.647964,
@@ -1260,7 +1267,10 @@ fn native_bridge_keeps_npc_vehicle_host_identity_and_passenger_release() {
         &mut host,
         rider.to_bits(),
         "NPC driver seat",
-        |unit| unit.get::<VehiclePassenger>() == Some(&seat),
+        |unit| {
+            unit.get::<VehiclePassenger>() == Some(&seat)
+                && unit.get::<VehicleDriverMovement>() == Some(&capabilities)
+        },
     );
     let npc = host.unit(seat.driver).unwrap();
     assert!(npc.get::<Player>().is_none());
@@ -1277,13 +1287,16 @@ fn native_bridge_keeps_npc_vehicle_host_identity_and_passenger_release() {
     server
         .world_mut()
         .entity_mut(rider)
-        .remove::<VehiclePassenger>();
+        .remove::<(VehiclePassenger, VehicleDriverMovement)>();
     await_unit(
         &mut server,
         &mut host,
         rider.to_bits(),
         "released NPC passenger",
-        |unit| unit.get::<VehiclePassenger>().is_none(),
+        |unit| {
+            unit.get::<VehiclePassenger>().is_none()
+                && unit.get::<VehicleDriverMovement>().is_none()
+        },
     );
     assert!(host.unit(vehicle.to_bits()).unwrap().get::<Npc>().is_some());
     host.stop();
