@@ -2,6 +2,12 @@
 
 Retail Mainline controls/behavior are shared by Modern and Forever; Forever changes art. Build-qualified static data, account ownership and actual item acquisition remain separate. Requirements/gaps: [client contract](../../specs/housing.md), [server contract](../../../../game-server/docs/specs/housing-catalog.md).
 
+## Expert active glow — implementation2026-10-15
+
+[Contract](../../specs/housing.md#expert-active-submode-glow). Expert controls add the source centered176×178 glow above the64×64 icon, with visibility derived from the active submode. `ui/housing_glow.rs` reuses `castbar_fx`'s alpha-mask shader: the sprite turns while mask coordinates stay in the button's unrotated64×64 space; source masks are selected per Translate/Rotate/Scale. Hover remains the separate additive overlay. A UI-thread first-play Instant implements the source `HousingSubModeActiveAnims` lifetime, independent of RegistryUi/control recreation; hidden time still counts. Native per-frame rotation changes only the projected glow part, not registry input/model/authority.
+
+Native missing-painted-glow RED preceded implementation. Installed70391 local payloads are privately authenticated by content-MD5; canonical publication and both-skin GREEN are pending. Proof ledger: `/home/osso/.worktrees/housing-core14-evidence/F16-proof-ledger.md`. No primary-mode flipbook or full appearance claim.
+
 ## Authority and copies
 
 `HousingHud` retains a qualified catalog and independent `HousingAuthority`. Dashboard opening queries reliable HousingRequest/Reply; browsing never grants or enters property. Unknown storage stays unknown until a matching-build snapshot; confirmed absence means zero. Owned counts include stored plus placed copies across the account's houses. Logout/world reset clears authority.

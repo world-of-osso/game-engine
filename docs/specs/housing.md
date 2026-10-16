@@ -40,9 +40,15 @@ Supported Basic/Expert/Cleanup mode switches, Basic rotate-left/right and select
 
 ### Mode and Expert submode hotkey labels
 
-Supported Basic/Expert/Cleanup mode bars and Expert submode icons show only the player's assigned abbreviated binding (`GetBindingText(key, true)`), using the existing hotkey formatter. Assignment/rebinding updates the label; unbinding hides it. Unlike instruction rows, icon labels never display `[UNBOUND]`. Main mode labels inherit ArialNarrow14/normal outline at source8,10 and height10; Expert submode labels inherit ArialNarrow10/black shadow1,-1 at12,12 with source40×10 bounds. No new default keys or authority changes. Unsupported submode actions, tooltips and active-glow animation remain separate work.
+Supported Basic/Expert/Cleanup mode bars and Expert submode icons show only the player's assigned abbreviated binding (`GetBindingText(key, true)`), using the existing hotkey formatter. Assignment/rebinding updates the label; unbinding hides it. Unlike instruction rows, icon labels never display `[UNBOUND]`. Main mode labels inherit ArialNarrow14/normal outline at source8,10 and height10; Expert submode labels inherit ArialNarrow10/black shadow1,-1 at12,12 with source40×10 bounds. No new default keys or authority changes. Unsupported submode actions remain separate work; active-glow requirements follow below.
 
-Source: `Blizzard_HousingActionButton.lua` UpdateKeybind and `HouseEditorModeButtonTemplate`/`HouseEditorSubmodeButtonTemplate`. Basic/Expert both-skin native70391 acceptance proves normal Options assignments/unbinds and displayed labels; registry tests additionally cover modifier abbreviations and rebinding. Native source actions, real1693/2330 conservation and readonly refusal/relog passed in both skins. Other locales, active glow and complete appearance parity remain separate.
+Source: `Blizzard_HousingActionButton.lua` UpdateKeybind and `HouseEditorModeButtonTemplate`/`HouseEditorSubmodeButtonTemplate`. Basic/Expert both-skin native70391 acceptance proves normal Options assignments/unbinds and displayed labels; registry tests additionally cover modifier abbreviations and rebinding. Native source actions, real1693/2330 conservation and readonly refusal/relog passed in both skins. Other locales and complete appearance parity remain separate.
+
+### Expert active submode glow
+
+Translate/Rotate/Scale show the source `ActiveGlow` only for the active submode: centered176×178 `decor-ability-expert-fx-circlehighlight`, alpha blending/full opacity, above the icon and below the separate additive HoverIcon. The corresponding `decor-ability-expert-{horzmove,rotate,scale}-mask` stays fixed on the64×64 button, clipping only the glow; neither mask nor icon rotates. Glow rotates−360 degrees counter-clockwise (clockwise on screen) every six seconds, never opacity-pulses. All three use `HousingSubModeActiveAnims`: first play establishes the shared epoch, retained across submode/mode switches, hidden time and editor frame recreation; later activations resume elapsed modulo6 rather than restart. Input, authority, hotkey and paid-state behavior remain unchanged.
+
+Sources: `Blizzard_HouseEditorModeButtons.xml` HouseEditorSubmodeButtonTemplate, `.lua` UpdateCustomVisuals and `Blizzard_SharedXML/AnimationTemplates.lua` SyncedAnimGroupMixin. Installed70391 atlas members32885/33289–33291 resolve to authenticated local7263653/7266217/7266219/7266221. Native RED observed the missing painted Translate glow; both-skin GREEN acceptance is pending.
 
 ### Expert submode sound events
 

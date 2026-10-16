@@ -1,6 +1,8 @@
 - [Clean-room M2 particles](systems/godot-conversion.md#native-m2-particles) — native tails/follow/cubic controls, authored sorting and map-collision births; inherited-scale provenance and explicit lighting, timer/reset, spline-density, target-mask and model-recursion oracle gaps.
 # Wiki Index
 
+- [Expert active submode glow](systems/housing.md#expert-active-glow--implementation2026-10-15) — source fixed masks/six-second shared rotation implemented after native missing-glow RED; both-skin GREEN pending.
+
 - [Expert housing sound events](systems/housing.md#expert-submode-sound-scheduling--implementation2026-10-15) — distinct source pointer/key kits, native nominal stream/mute properties and both-skin held-drag conservation; dummy driver excludes audible/full-audio parity.
 
 - [Shared WowStyle1 caption centering](systems/menu-primitives.md#wowstyle1-caption-centering-2026-10-15) — native font-minimum adaptation, paired core attribute wiring and explicit one-line policy; both-skin AH/shared caption deltas0 and unchanged Filter/Style2 control pixels.
