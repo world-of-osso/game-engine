@@ -1,3 +1,4 @@
+- [Clean-room M2 particles](systems/godot-conversion.md#native-m2-particles) — tails/follow/cubic controls and inherited-scale provenance; lighting, timer/reset, spline density and model-recursion oracle gaps remain explicit.
 # Wiki Index
 
 - [Shared WowStyle1 caption centering](systems/menu-primitives.md#wowstyle1-caption-centering-2026-10-15) — native font-minimum adaptation, paired core attribute wiring and explicit one-line policy; both-skin AH/shared caption deltas0 and unchanged Filter/Style2 control pixels.
