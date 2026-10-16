@@ -123,6 +123,17 @@ impl GameClient {
         self.guild_ranks.session.profile = update.guild;
         Ok(())
     }
+    pub(super) fn receive_guild_event_log(
+        &mut self,
+        log: shared::protocol::GuildEventLog,
+    ) -> Result<(), FrameError> {
+        if let Some(error) = log.error {
+            self.guild_notice(error.message(), true)?;
+        }
+        self.guild_ranks.session.apply_event_log(log);
+        Ok(())
+    }
+
     fn guild_notice(&mut self, text: &str, error: bool) -> Result<(), FrameError> {
         game_engine_ui_model::chat_frame::add_system_line(&mut self.chat.model.log, text);
         if error {
@@ -139,7 +150,7 @@ impl GameClient {
             && key.is_pressed()
             && !key.is_echo()
             && key.get_keycode() == godot::global::Key::ESCAPE
-            && self.guild_ranks.session.dismiss_member_popup()
+            && self.guild_ranks.session.dismiss_subdialog()
         {
             self.mark_viewport_input_handled();
             return true;
