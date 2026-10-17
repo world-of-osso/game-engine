@@ -17,6 +17,7 @@
 - [Earned-wallet source boundary](systems/battlegrounds.md#earned-wallet-source-continuation--2026-10-16) — kill/completion binding gaps remain; sourced static-weekly bookkeeping corrected separately, no invented payout.
 
 - [Inherited frozen item tooltip](systems/trading-post.md#inherited-frozen-product-tooltip--implementation-october16) — displayed selection action fixes inherited owner omission; actual both-skin settled frozen identity/anchor/leave GREEN, preserved slots/Tender, four inspected full-HD hover/leave samples.
+- [Same-species damage projection](systems/battle-pets.md#same-species-effect-projection--2026-10-16) — legal level2 trio, both-skin2283 actual85/77 damage, strict snapshots/canonical readback and four fullHD originals; full Retail timing/VFX unproved.
 - [Bench resurrection projection](systems/battle-pets.md#bench-resurrection-projection--2026-10-16) — both-skin2347→two78/1563 reserves→physical swap→147-damage win; eight fullHD originals and canonical strict model readback.
 - [Two-way wall projection](systems/battle-pets.md#two-way-wall-projection--2026-10-16) — both-skin private5961 physical Ice Barrier incoming/outgoing blocks, pad/cooldown/log/health and six fullHD native originals;3D VFX/full Retail parity excluded.
 
@@ -38,7 +39,7 @@
 - [StackSplit arrow states](systems/cursor-item.md#stacksplit-arrow-states--bounded-proof-2026-10-16) — source16px Up/Down/Disabled buttons replace static clickable frames; RED→GREEN and both-skin physical press/cancel/disabled proof,48 unchanged outside-arrow contexts; quantity/purchase/full-picker parity excluded.
 - [Trading Post accepted-item pending dialog](systems/trading-post.md#accepted-single-item-confirmation-lifetime--implementation-october16) — model/native RED→both-skin painted spinner/overlay/rotation/reply GREEN, source inset and accepted-item cart pruning; ten full-HD originals, provider/error gaps explicit.
 - [Storage menu lifetime](systems/housing.md#storage-menu-lifetime--implementation2026-10-16) — native missing-hover RED→both-skin seven-phase hover/collapse/dismiss/owner lifetime and checkbox/radio GREEN, exact paid conservation; source0.33s model delay covered.
-- [Guild perk authority](systems/guilds.md#perk-native-authority-and-effect-boundary-2026-10-16) — real five-definition Benefits and owner grants, ordered native spell messages, actual invitation/removal/quit receipts, both-skin tooltip/chat/restart proof; individual effects remain separately qualified.
+- [Guild perk authority](systems/guilds.md#perk-native-authority-and-effect-boundary-2026-10-16) — five-definition Benefits, ordered owner grants and native tooltip/chat/restart proof; supported Mount Up real mounted/removal rates and ten selected full-HD originals, blocked210 and remaining effects explicit.
 
 - [Storage filter popup](systems/housing.md#storage-filter-popup--implementation2026-10-15) — native old-geometry RED→both-skin source root/Sort anchors, real radio/checkbox/reset and paid conservation; current-binary F17 recapture has durable four-record proof.
 

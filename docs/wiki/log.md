@@ -21,6 +21,16 @@
 ## 2026-10-16 — Native range/cast pose coherence
 
 [Local pose](systems/bot-harness.md#local-rangecast-pose--2026-10-16): real one-second input moves the local client7yd while the loopback host keeps its owner Position frozen; RED shows native Slam range still true at the old replica. Range and cast origin now share the current local pose. Focused fixture also receives the ordinary cast origin; full dev-IPC bag-catalog readiness and fresh release-server Stockade acceptance remain separate.
+## 2026-10-16 — Same-species damage projection
+
+[Dragon's Call2283](systems/battle-pets.md#same-species-effect-projection--2026-10-16): both actual skins, legal level2 trio and physical85/77 damage, HP/cooldown3; four inspected fullHD originals.91 pre-cast rectangles match,97 post-cast common rectangles differ only HP fills and two timed Forever floats. Actual snapshots and canonical3-mesh loader report ExtractedOnly/tripwire0. Adopted70448 assets published; mechanics70391, exact artifact/fixture sources explicit. No new widget/client rule/full Retail timing/VFX claim; owned processes stopped.
+
+## 2026-10-16 — Bench resurrection HUD projection
+
+[Shared2347 projection](systems/battle-pets.md#bench-resurrection-projection--2026-10-16): both actual skins physically revive two persisted-dead reserves to78/1563, pointer swap, retain incoming damage and win through the revived pet's147-damage Metal Fist. Eight fullHD originals inspected;92/98/131/98 geometry differs only in timed float. Canonical78-asset closure and explicit strict loader readback pass; world-native mode, exact runtime heads and pre-auth recovery are documented. No UI change/full Retail timing/VFX claim; owned processes stopped.
+## 2026-10-16 — Supported Mount Up native effect proof
+
+[Guild effects](systems/guilds.md#perk-native-authority-and-effect-boundary-2026-10-16): real invitation/removal and Golden Gryphon input produce14→15.4→14 ground and22.4→24.64→22.4 flight, with seven coherent samples per skin. Fourteen full-HD originals inspected; ten mounted ground/flight/removal frames selected, four occluded ground/unmounted frames rejected. Earlier flat retries were actual CasterDead after a cliff trial; fixture recovery uses existing private `.revive`, not speed/perk injection. Controlled-NPC210 remains blocked. Hasty core charge2309 controls pass3/3; native item proof remains separate.
 
 ## 2026-10-16 — Two-way pet-wall HUD projection
 
