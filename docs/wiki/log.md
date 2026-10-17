@@ -6,6 +6,9 @@
 ## 2026-10-16 — Encounter section flags
 
 [Refund icon](systems/trading-post.md#product-row-refund-icon-tooltip--implementation-october16): real old-binary pointer RED shows generic item tooltip over refundable642 while848 is selected; genuine purchase/refund restores Tender/frozen state before assertion. Passive projected texture bounds own right0/0 and the existing colored footer formatter without blocking parent clicks. Model3 and actualca0/4e9/Pb701 both-skin painted GREEN: independent IDs, white caption/red59m, parent click, hover leave, Escape destroys currently hovered owner/HUD, one real purchase/refund restores Tender/collected/frozen state. Eight full-HD originals+two contacts+two crops published; diagnostic manifest binds exact inputs. Integrated933892f79/source protocol604ea609 passes40 UI+12 native, engine check without compiler warnings and scoped five Rustfmt (four unchanged hashes+one foreign tooltip-source delta). Actual native remainsca0/4e9/b701, not the later merged sources. No production refund policy/provider changes.
+## 2026-10-17 — Native-tree-bound starter talent preparation
+
+[Harness](systems/bot-harness.md#sourced-rotations-and-talents): run19's Fury starter plan chose954/tree880 against received tree850; all61 steps absent, no Apply. Captured70448 source rows reproduce wrong-tree selection. Plans now require received tree authority, select within it, and recheck tree/spec before normal native input. No grants/stat/rotation changes; runtime application/full-clear proof remains pending.
 
 ## 2026-10-16 — Product-row cart toggle implementation
 
