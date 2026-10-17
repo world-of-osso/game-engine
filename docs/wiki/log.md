@@ -1,3 +1,7 @@
+## 2026-10-17 — Existing-copy whole-party backfill
+
+[Backfill](systems/battlegrounds.md#whole-party-existing-copy-backfill--2026-10-17): real Waiting/running ordinary-party RED2 match2vs1→targeted GREEN22. Random5v5 Waiting reaches same20-player map/natural source minimum; running direct20 gains Random10 with mixed origins/old score/source60s capture clock preserved. Decline/leave and actual disconnect/existing300s expiry trigger refill without new requests. Atomic reservation ownership, outstanding capacity, match order/nonfit/range/Ended/arena controls pass. Explicit project policies replace TC faction/parity/push-front decisions; no timer/minimum/reward changes. Final scoped/integration evidence lives in the backfill proof ledger; no external UDP/rendered claim.
+
 ## 2026-10-17 — Random32 level-eligible selection policy
 
 [Random32](systems/battlegrounds.md#random32-level-eligible-configured-selection--2026-10-17): explicit RANDOM_BG_LEVEL_ELIGIBLE_MAPS policy replaces cross-map TC RangeIndex copying. Parent566 admission20+/5–10 per team/party≤5; weighted configured maps must contain actual queued levels in their own bracket. Original queue32 is retained per player independently of the concrete map. No new payout/daily state. BG_FILL_EXISTING_COPY remains explicitly accepted: selected8/team maps may remain Waiting with parent5/team; no reduced start criterion. RANDOM_BG_WIN_REWARD_PROFILE remains unresolved. Targeted proof ledger is authoritative; no rendered/live completion claim.
