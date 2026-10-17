@@ -1,7 +1,14 @@
 //! Sequence-local M2 bone playback on Godot's native Skeleton3D palette.
 //! Poses use local pivots matching the skeleton's rest and absolute inverse binds.
 use game_engine_core::movement_animation_data::locomotion_playback_rate;
-use game_engine_core::{asset::m2_format::m2_anim, m2};
+use game_engine_core::{
+    asset::m2_format::m2_anim,
+    m2,
+    m2_material::{
+        self, BatchBinding, MaterialSample, MaterialSnapshot, MaterialSource, MaterialTime,
+        MaterialTracks, MaterialTransition,
+    },
+};
 use godot::{
     builtin::{Quaternion, Vector3},
     classes::{INode, MeshInstance3D, Node, Skeleton3D},
@@ -134,6 +141,12 @@ struct Transition {
     duration_ms: f32,
 }
 
+impl Transition {
+    fn weight(&self) -> f32 {
+        (self.elapsed_ms / self.duration_ms).clamp(0.0, 1.0)
+    }
+}
+
 fn sample_roll(state: &mut u64, upper: u32) -> u32 {
     let threshold = upper.wrapping_neg() % upper;
     loop {
@@ -166,6 +179,8 @@ fn keyframed<T>(track: &m2_anim::AnimTrack<T>, sequence: usize) -> bool {
 pub struct AnimationState {
     sequences: Vec<m2::Sequence>,
     tracks: std::sync::Arc<Vec<m2::BoneAnimTracks>>,
+    material_tracks: MaterialTracks,
+    material_snapshot: MaterialSnapshot,
     /// Global sequence durations (ms) and the model's global clock, which runs
     /// whichever sequence plays.
     global_sequences: Vec<u32>,
@@ -253,7 +268,11 @@ impl AnimationState {
                 })
             })
             .collect();
+        let material_tracks = MaterialTracks::of(model);
+        let material_snapshot = MaterialSnapshot::new(&material_tracks);
         Ok(Self {
+            material_tracks,
+            material_snapshot,
             sequences: model.sequences.clone(),
             tracks: model.bone_tracks.clone(),
             global_sequences: model.global_sequences.clone(),
@@ -290,6 +309,39 @@ impl AnimationState {
             pose_transition: false,
             momentum: momentum::MomentumSway::new(model),
         })
+    }
+
+    fn material_time(&self, global_ms: u32) -> MaterialTime {
+        MaterialTime {
+            sequence: self.current,
+            time_ms: self.time_ms as u32,
+            global_ms,
+        }
+    }
+
+    fn sample_material(&self, binding: &BatchBinding, global_ms: u32) -> MaterialSample {
+        let transition = self
+            .transition
+            .as_ref()
+            .map(|transition| MaterialTransition {
+                source: match &transition.outgoing {
+                    Outgoing::Sequence { index, time_ms } => {
+                        MaterialSource::Sequence(MaterialTime {
+                            sequence: *index,
+                            time_ms: *time_ms as u32,
+                            global_ms,
+                        })
+                    }
+                    Outgoing::Snapshot(_) => MaterialSource::Snapshot(&self.material_snapshot),
+                },
+                weight: transition.weight(),
+            });
+        m2_material::sample_material_transition(
+            &self.material_tracks,
+            binding,
+            self.material_time(global_ms),
+            transition,
+        )
     }
 
     /// Current selected clip and clock, not the outgoing crossfade clip.
@@ -367,7 +419,7 @@ impl AnimationState {
         let Some(transition) = &self.transition else {
             return current;
         };
-        let weight = (transition.elapsed_ms / transition.duration_ms).clamp(0.0, 1.0);
+        let weight = transition.weight();
         let outgoing = match &transition.outgoing {
             Outgoing::Sequence { index, time_ms } => self.sample_sequence(*index, *time_ms),
             Outgoing::Snapshot(poses) => poses.clone(),
@@ -573,7 +625,26 @@ impl AnimationState {
         }
     }
 
+    fn capture_material_transition(&mut self) {
+        let Some(transition) = &self.transition else {
+            return;
+        };
+        let global_ms = self.global_ms as u32;
+        let time = self.material_time(global_ms);
+        let outgoing = match &transition.outgoing {
+            Outgoing::Sequence { index, time_ms } => Some(MaterialTime {
+                sequence: *index,
+                time_ms: *time_ms as u32,
+                global_ms,
+            }),
+            Outgoing::Snapshot(_) => None,
+        };
+        self.material_snapshot
+            .capture(&self.material_tracks, time, outgoing, transition.weight());
+    }
+
     fn start_transition(&mut self, index: usize, looping: bool) {
+        self.capture_material_transition();
         let outgoing = if self.transition.is_some() {
             Outgoing::Snapshot(self.sampled_base_poses())
         } else {
@@ -958,6 +1029,14 @@ impl WowAnimationPlayer {
         Some((animation.current, animation.time_ms as u32))
     }
 
+    pub(crate) fn sample_material(
+        &self,
+        binding: &BatchBinding,
+        global_ms: u32,
+    ) -> Option<MaterialSample> {
+        Some(self.animation.as_ref()?.sample_material(binding, global_ms))
+    }
+
     /// The model's global clock, which global-sequence tracks run on.
     pub(crate) fn global_ms(&self) -> Option<f64> {
         Some(self.animation.as_ref()?.global_ms)
@@ -1259,6 +1338,8 @@ mod mount_special_tests;
 
 #[cfg(test)]
 mod global_sequence_tests;
+#[cfg(test)]
+mod material_tests;
 
 #[cfg(test)]
 mod jump_tests;
