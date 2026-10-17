@@ -182,7 +182,17 @@ impl MoneyBoxNames {
 }
 
 /// A text edit box on `InputBoxTemplate` art; the registry keeps what was typed.
-pub fn edit_box(name: &'static str, rect: (f32, f32, f32, f32)) -> Element {
+pub fn edit_box(name: &str, rect: (f32, f32, f32, f32)) -> Element {
+    edit_box_with_right_inset(name, rect, 3.0)
+}
+
+/// NumericInputSpinnerTemplate: the8px right cap ends at RIGHT0, and the middle
+/// stretches between the left cap's RIGHT and the right cap's LEFT.
+pub fn numeric_spinner_edit_box(name: &str, rect: (f32, f32, f32, f32)) -> Element {
+    edit_box_with_right_inset(name, rect, 8.0)
+}
+
+fn edit_box_with_right_inset(name: &str, rect: (f32, f32, f32, f32), right_inset: f32) -> Element {
     let (x, y, width, height) = rect;
     let mut children = cropped(
         format!("{name}Left"),
@@ -194,13 +204,13 @@ pub fn edit_box(name: &'static str, rect: (f32, f32, f32, f32)) -> Element {
         format!("{name}Middle"),
         INPUT_BORDER,
         "0.0625,0.9375,0.0,0.625",
-        (x + 3.0, y, width - 6.0, height),
+        (x + 3.0, y, width - 3.0 - right_inset, height),
     ));
     children.extend(cropped(
         format!("{name}Right"),
         INPUT_BORDER,
         "0.9375,1.0,0.0,0.625",
-        (x + width - 3.0, y, 8.0, height),
+        (x + width - right_inset, y, 8.0, height),
     ));
     children.extend(rsx! {
         editbox {

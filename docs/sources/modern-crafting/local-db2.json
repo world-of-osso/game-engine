@@ -1,0 +1,57 @@
+[
+  {
+    "path": "/home/osso/Projects/world-of-osso/game-engine/data/db2/active/ModifiedCraftingSpellSlot.csv",
+    "resolved": "/home/osso/Projects/world-of-osso/game-engine/data/db2/12.1.5.70391/ModifiedCraftingSpellSlot.csv",
+    "sha256": "61225ab3809880576118c72219fdca28c60b6cbd4d6bf0f6fab9f479b5836d32"
+  },
+  {
+    "path": "/home/osso/Projects/world-of-osso/game-engine/data/db2/active/ModifiedCraftingReagentSlot.csv",
+    "resolved": "/home/osso/Projects/world-of-osso/game-engine/data/db2/12.1.5.70391/ModifiedCraftingReagentSlot.csv",
+    "sha256": "67044a5e39cfa0177d69386f436da98c70e15255a7135ec193eaa5dc1c38641b"
+  },
+  {
+    "path": "/home/osso/Projects/world-of-osso/game-engine/data/db2/active/MCRSlotXMCRCategory.csv",
+    "resolved": "/home/osso/Projects/world-of-osso/game-engine/data/db2/12.1.5.70391/MCRSlotXMCRCategory.csv",
+    "sha256": "8e23d80e0f2781e41c853ca327f9ee7969770bce505821b644a8fabb020b20d5"
+  },
+  {
+    "path": "/home/osso/Projects/world-of-osso/game-engine/data/db2/active/ModifiedCraftingCategory.csv",
+    "resolved": "/home/osso/Projects/world-of-osso/game-engine/data/db2/12.1.5.70391/ModifiedCraftingCategory.csv",
+    "sha256": "47af224e02c5884a0fe7eda3eb38f2ce6e9cbc235a7433cf4673fe99a8e7e0a8"
+  },
+  {
+    "path": "/home/osso/Projects/world-of-osso/game-engine/data/db2/active/CraftingReagentQuality.csv",
+    "resolved": "/home/osso/Projects/world-of-osso/game-engine/data/db2/12.1.5.70391/CraftingReagentQuality.csv",
+    "sha256": "fc456c24551264b42bc62cde794749b96b5f95b75a5312cda924f8a582dc66a2"
+  },
+  {
+    "path": "/home/osso/Projects/world-of-osso/game-engine/data/db2/active/ModifiedCraftingItem.csv",
+    "resolved": "/home/osso/Projects/world-of-osso/game-engine/data/db2/12.1.5.70391/ModifiedCraftingItem.csv",
+    "sha256": "463fff4efe09365de1cf68d2142deb5d36aa6c9e2c3b9b6a78ba70509e634979"
+  },
+  {
+    "path": "/home/osso/Projects/world-of-osso/game-engine/data/db2/active/ProfessionExpansion.csv",
+    "resolved": "/home/osso/Projects/world-of-osso/game-engine/data/db2/12.1.5.70391/ProfessionExpansion.csv",
+    "sha256": "460617a06199185d2bd57637c6d9dc118682eaf02e1aaa890c4e1328af2e5e0a"
+  },
+  {
+    "path": "/home/osso/Projects/world-of-osso/game-engine/data/db2/active/CurrencyTypes.csv",
+    "resolved": "/home/osso/Projects/world-of-osso/game-engine/data/db2/12.1.5.70391/CurrencyTypes.csv",
+    "sha256": "b4b20475ef1952fb457a289ef487a835ba6cce2e4e7c9af0e557628df4140009"
+  },
+  {
+    "path": "/home/osso/Projects/world-of-osso/game-engine/data/db2/active/CraftingDifficultyQuality.csv",
+    "resolved": "/home/osso/Projects/world-of-osso/game-engine/data/db2/12.1.5.70391/CraftingDifficultyQuality.csv",
+    "sha256": "11cc864592fbb94ac8d1efb3f076e6fc90734ea2ee9ecae030eca744715fb631"
+  },
+  {
+    "path": "/home/osso/Projects/world-of-osso/game-engine/data/db2/active/CraftingData.csv",
+    "resolved": "/home/osso/Projects/world-of-osso/game-engine/data/db2/12.1.5.70391/CraftingData.csv",
+    "sha256": "6893f0ec272311f14ccd08cf86a2867e29959e94560ba707e4ce1e058b6723c0"
+  },
+  {
+    "path": "/home/osso/Projects/world-of-osso/game-engine/data/db2/active/ProfessionEffect.csv",
+    "resolved": "/home/osso/Projects/world-of-osso/game-engine/data/db2/12.1.5.70391/ProfessionEffect.csv",
+    "sha256": "1cdf3ca4797dc2dc6b8c8f664952122a51556cff376fee117533d1b3a11a66e6"
+  }
+]

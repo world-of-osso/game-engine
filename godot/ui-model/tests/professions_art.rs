@@ -33,7 +33,7 @@ fn view(rank: u16) -> ProfessionView {
                 min_rank: 1,
                 trivial_low: 30,
                 trivial_high: 60,
-                output: (1251, 1),
+                output: Some((1251, 1)),
                 reagents: vec![(2589, 3)],
             }],
             visible: true,
@@ -76,6 +76,10 @@ fn render(skin: ActiveSkin, view: ProfessionView) -> FrameRegistry {
     shared.insert(view);
     let mut registry = FrameRegistry::new(1920.0, 1080.0);
     Screen::new(professions_screen).sync(&shared, &mut registry);
+    game_engine_ui_model::professions_frame::apply_professions_art(
+        shared.get::<ProfessionView>().unwrap(),
+        &mut registry,
+    );
     registry
 }
 fn frame<'a>(registry: &'a FrameRegistry, name: &str) -> &'a Frame {
@@ -89,6 +93,120 @@ fn text(registry: &FrameRegistry, name: &str) -> (String, [f32; 4]) {
         other => panic!("Expected label {name}, got {other:?}"),
     }
 }
+#[test]
+fn professions_quality_recipe_is_visible_without_assigning_an_output() {
+    use game_engine_ui_model::professions_catalog::RecipeCatalog;
+    let dir = std::path::PathBuf::from(env!("CARGO_MANIFEST_DIR")).join("../../data/db2/active");
+    let catalog = RecipeCatalog::load(&dir).unwrap();
+    let recipe = catalog
+        .get(375188)
+        .expect("authored quality recipe must be selectable");
+    let book = ProfessionBook {
+        recipes: vec![recipe.clone()],
+        selected: Some(375188),
+        quantity: 1,
+        snapshot: ProfessionSnapshot {
+            spells: vec![375188],
+            ..Default::default()
+        },
+        ..Default::default()
+    };
+    let bags = game_engine_ui_model::bag_data::InventoryState::default();
+    assert!(book.craft_request(&bags, false).is_none());
+}
+
+#[test]
+fn professions_quality_dialog_shows_authored_choices_without_a_crafted_tier_in_both_skins() {
+    use game_engine_ui_model::professions_catalog::RecipeCatalog;
+    use game_engine_ui_model::professions_reagent_selection::ReagentSelection;
+    let dir = std::path::PathBuf::from(env!("CARGO_MANIFEST_DIR")).join("../../data/db2/active");
+    let catalog = RecipeCatalog::load(&dir).unwrap();
+    let mut recipe = catalog.get(375188).unwrap().clone();
+    assert_eq!(recipe.output, None);
+    recipe.name = "Alchemist's Hat".into();
+    for skin in [ActiveSkin::Modern, ActiveSkin::Forever] {
+        let mut view = view(1);
+        view.book.recipes = vec![recipe.clone()];
+        view.book.snapshot.spells = vec![375188];
+        view.book.selected = Some(375188);
+        view.reagents.clear();
+        view.reagent_slots = catalog.reagent_slots[&375188].clone();
+        view.bag_counts = [(193208, 6), (193210, 4), (193222, 2)].into();
+        for item in [193208, 193210, 193211] {
+            view.items.insert(
+                item,
+                ItemDisplay {
+                    name: "Resilient Leather".into(),
+                    icon_fdid: 4559245,
+                    quality: 1,
+                },
+            );
+        }
+        view.items.insert(
+            193222,
+            ItemDisplay {
+                name: "Lustrous Scaled Hide".into(),
+                icon_fdid: 4559238,
+                quality: 1,
+            },
+        );
+        view.crafting_quality = catalog.crafting_quality.clone();
+        view.reagent_selection = ReagentSelection {
+            spell_id: Some(375188),
+            ..Default::default()
+        };
+        view.reagent_selection.open(&view.reagent_slots[1]);
+        let registry = render(skin, view);
+        assert_eq!(
+            text(&registry, "ProfessionReagent1").0,
+            "10/10 Resilient Leather"
+        );
+        assert!(registry.get_by_name("ProfessionsOutputSlot").is_none());
+        assert!(
+            registry
+                .get_by_name("ProfessionReagent1QualityOverlay")
+                .is_some(),
+            "Mainline shows the mixed inventory-quality glyph before an allocation exists"
+        );
+        assert_eq!(
+            frame(&registry, "ProfessionQuality193208QuantityRight")
+                .position
+                .left,
+            ui_toolkit::layout_values::Val::Px(57.5),
+            "NumericInputSpinner right cap is anchored at input RIGHT0"
+        );
+        assert_eq!(
+            frame(&registry, "ProfessionQuality193208QuantityMiddle").width,
+            ui_toolkit::frame::Dimension::Fixed(20.0)
+        );
+        let unowned_icon = frame(&registry, "ProfessionQuality193211Icon");
+        assert!(
+            matches!(unowned_icon.widget_data.as_ref(), Some(WidgetData::Texture(texture)) if texture.desaturated)
+        );
+        let unowned_input = frame(&registry, "ProfessionQuality193211Quantity");
+        assert!(!unowned_input.mouse_enabled);
+        assert!(!unowned_input.keyboard_enabled);
+        assert!(
+            matches!(unowned_input.widget_data.as_ref(), Some(WidgetData::EditBox(edit)) if edit.numeric && edit.max_letters == Some(3))
+        );
+        let dialog = frame(&registry, "ProfessionsQualityDialog");
+        assert_eq!(dialog.width, ui_toolkit::frame::Dimension::Fixed(329.0));
+        assert_eq!(dialog.height, ui_toolkit::frame::Dimension::Fixed(207.0));
+        for (item, owned) in [(193208, "6"), (193210, "4"), (193211, "0")] {
+            assert_eq!(
+                text(&registry, &format!("ProfessionQuality{item}Owned")).0,
+                owned
+            );
+            assert!(
+                registry
+                    .get_by_name(&format!("ProfessionQuality{item}Quality"))
+                    .is_some()
+            );
+        }
+    }
+    set_thread_skin(ActiveSkin::Modern);
+}
+
 #[test]
 fn professions_retail_page_tabs_in_both_skins() {
     for skin in [ActiveSkin::Modern, ActiveSkin::Forever] {

@@ -7,23 +7,36 @@ use std::path::Path;
 pub struct CraftingQuality {
     pub tier: u32,
     pub inventory_atlas: String,
+    pub mixed_inventory_atlas: String,
 }
 
-fn load_inventory_atlases(dir: &Path) -> Result<BTreeMap<u32, String>, String> {
+fn load_inventory_atlases(dir: &Path) -> Result<BTreeMap<u32, (String, String)>, String> {
     let mut names = BTreeMap::new();
     read_rows(dir, "UiTextureAtlasElement", &["ID", "Name"], |row| {
         names.insert(number(row[0])?, row[1].to_string());
         Ok(())
     })?;
     let mut sets = BTreeMap::new();
-    read_rows(dir, "CraftingQualityAtlasSet", &["ID", "IconInv"], |row| {
-        let icon = number(row[1])?;
-        let name = names
-            .get(&icon)
-            .ok_or_else(|| format!("Crafting atlas set {}: missing element {icon}", row[0]))?;
-        sets.insert(number(row[0])?, name.clone());
-        Ok(())
-    })?;
+    read_rows(
+        dir,
+        "CraftingQualityAtlasSet",
+        &["ID", "IconInv", "IconMixedInv"],
+        |row| {
+            let icon = number(row[1])?;
+            let name = names
+                .get(&icon)
+                .ok_or_else(|| format!("Crafting atlas set {}: missing element {icon}", row[0]))?;
+            let mixed_id = number(row[2])?;
+            let mixed = names.get(&mixed_id).ok_or_else(|| {
+                format!(
+                    "Crafting atlas set {}: missing mixed element {mixed_id}",
+                    row[0]
+                )
+            })?;
+            sets.insert(number(row[0])?, (name.clone(), mixed.clone()));
+            Ok(())
+        },
+    )?;
     Ok(sets)
 }
 
@@ -50,7 +63,8 @@ fn load_quality_types(dir: &Path) -> Result<BTreeMap<u32, CraftingQuality>, Stri
                 number(row[0])?,
                 CraftingQuality {
                     tier,
-                    inventory_atlas: atlas.clone(),
+                    inventory_atlas: atlas.0.clone(),
+                    mixed_inventory_atlas: atlas.1.clone(),
                 },
             );
             Ok(())
