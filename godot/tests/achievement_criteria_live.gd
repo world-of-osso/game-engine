@@ -131,10 +131,14 @@ func show_achievement(id: int, title: String, earned: bool) -> bool:
 
 func mount_counter() -> int:
 	var labels := criteria_labels(2141)
-	if labels.size() != 1 or not str(labels[0]).contains(" — "):
+	if labels.size() != 1:
 		fail("Stable Keeper lacks its authoritative mount count: " + str(labels))
 		return -1
-	return str(labels[0]).get_slice(" — ", 1).get_slice("/", 0).to_int()
+	var quantity := str(labels[0]).split("/")
+	if quantity.size() != 2 or not quantity[0].is_valid_int() or not quantity[1].is_valid_int():
+		fail("Stable Keeper quantity caption is invalid: " + str(labels))
+		return -1
+	return quantity[0].to_int()
 
 func criteria_labels(id: int) -> Array:
 	var result := []
