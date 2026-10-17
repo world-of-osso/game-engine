@@ -13,6 +13,7 @@
 
 - [Product-row cart toggle](systems/trading-post.md#product-row-cart-toggle--implementation-october16) — source36px row-owned Add/Remove control, independent identity/tooltip and preserved cart preview choices; native omission/paint RED→both-skin painted glyph GREEN.
 - [Inherited frozen item tooltip](systems/trading-post.md#inherited-frozen-product-tooltip--implementation-october16) — displayed selection action fixes inherited owner omission; actual both-skin settled frozen identity/anchor/leave GREEN, preserved slots/Tender, four inspected full-HD hover/leave samples.
+- [Same-species damage projection](systems/battle-pets.md#same-species-effect-projection--2026-10-16) — legal level2 trio, both-skin2283 actual85/77 damage, strict snapshots/canonical readback and four fullHD originals; full Retail timing/VFX unproved.
 - [Bench resurrection projection](systems/battle-pets.md#bench-resurrection-projection--2026-10-16) — both-skin2347→two78/1563 reserves→physical swap→147-damage win; eight fullHD originals and canonical strict model readback.
 - [Two-way wall projection](systems/battle-pets.md#two-way-wall-projection--2026-10-16) — both-skin private5961 physical Ice Barrier incoming/outgoing blocks, pad/cooldown/log/health and six fullHD native originals;3D VFX/full Retail parity excluded.
 
