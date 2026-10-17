@@ -37,9 +37,9 @@ Retail Mainline Blizzard_PerksProgram and the local C_PerksProgram/PerksActiviti
 
 ## Product-row refund glyph blending
 
-- [ ] Ordinary and inherited frozen product rows paint their21×21 `common-icon-undo` texture with source `alphaMode="ADD"` (Elements.xml325–333). Keep their atlas, geometry, input and tooltip ownership unchanged; do not tune opacity or introduce another renderer mode.
-- [ ] The separate32×32 PurchasedHistoryFrame refund icon retains its normal blend: Program.xml886–891 has no ADD override. No global atlas-name rule may make it additive.
-- [ ] Both skins require framebuffer agreement with ADD and a distinguishable MIX counterfactual for both21px owners, plus normal-footer control and restored-frame checks. Expose both row owners through one genuine purchase/refund of the existing reservation; preserve Tender, collected state, frozen ID and empty cart, without resetting the reservation. Native pixel failure must precede implementation; node/material selection alone is insufficient proof.
+- [x] Ordinary and inherited frozen product rows paint their21×21 `common-icon-undo` texture with source `alphaMode="ADD"` (Elements.xml325–333). Keep their atlas, geometry, input and tooltip ownership unchanged; do not tune opacity or introduce another renderer mode.
+- [x] The separate32×32 PurchasedHistoryFrame refund icon retains its normal blend: Program.xml886–891 has no ADD override. No global atlas-name rule may make it additive.
+- [x] Both skins require framebuffer agreement with ADD and a distinguishable MIX counterfactual for both21px owners, plus normal-footer control and restored-frame checks. Expose both row owners through one genuine purchase/refund of the existing reservation; preserve Tender, collected state, frozen ID and empty cart, without resetting the reservation. Native pixel failure must precede implementation; node/material selection alone is insufficient proof.
 
 ## Product-row refund icon tooltip
 
