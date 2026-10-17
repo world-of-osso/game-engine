@@ -172,3 +172,74 @@ fn material_snapshot_retains_interrupted_channel_pose_without_matrix_blending() 
     );
     assert_eq!(before, after);
 }
+
+// Count only this test thread, excluding fixtures, the test runner and other tests.
+thread_local! {
+    static ALLOCATIONS: std::cell::Cell<Option<usize>> = const { std::cell::Cell::new(None) };
+}
+struct CountingAllocator;
+#[global_allocator]
+static ALLOCATOR: CountingAllocator = CountingAllocator;
+
+fn count_allocation() {
+    ALLOCATIONS.with(|count| {
+        if let Some(value) = count.get() {
+            count.set(Some(value + 1));
+        }
+    });
+}
+
+unsafe impl std::alloc::GlobalAlloc for CountingAllocator {
+    unsafe fn alloc(&self, layout: std::alloc::Layout) -> *mut u8 {
+        count_allocation();
+        unsafe { std::alloc::GlobalAlloc::alloc(&std::alloc::System, layout) }
+    }
+    unsafe fn dealloc(&self, pointer: *mut u8, layout: std::alloc::Layout) {
+        unsafe { std::alloc::GlobalAlloc::dealloc(&std::alloc::System, pointer, layout) }
+    }
+    unsafe fn realloc(&self, pointer: *mut u8, layout: std::alloc::Layout, size: usize) -> *mut u8 {
+        count_allocation();
+        unsafe { std::alloc::GlobalAlloc::realloc(&std::alloc::System, pointer, layout, size) }
+    }
+}
+
+#[test]
+fn material_sampling_and_repeated_snapshot_capture_allocate_nothing_after_load() {
+    use m2_material::{MaterialSnapshot, MaterialSource, MaterialTransition};
+    let (tracks, binding) = transition_fixture();
+    let mut snapshot = MaterialSnapshot::new(&tracks);
+    let previous = MaterialTime {
+        sequence: 0,
+        time_ms: 250,
+        global_ms: 900,
+    };
+    ALLOCATIONS.with(|count| count.set(Some(0)));
+    for time_ms in 0..100 {
+        let time = MaterialTime {
+            sequence: 1,
+            time_ms,
+            global_ms: 900,
+        };
+        let transition = Some(MaterialTransition {
+            source: MaterialSource::Sequence(previous),
+            weight: 0.5,
+        });
+        std::hint::black_box(m2_material::sample_material_transition(
+            &tracks, &binding, time, transition,
+        ));
+        snapshot.capture(&tracks, time, Some(previous), 0.5);
+        snapshot.capture(&tracks, time, None, 0.25);
+        let transition = Some(MaterialTransition {
+            source: MaterialSource::Snapshot(&snapshot),
+            weight: 0.25,
+        });
+        std::hint::black_box(m2_material::sample_material_transition(
+            &tracks, &binding, time, transition,
+        ));
+    }
+    let count = ALLOCATIONS.with(|count| count.replace(None).unwrap());
+    assert_eq!(
+        count, 0,
+        "material frame sampling and interrupted transitions must not allocate"
+    );
+}
