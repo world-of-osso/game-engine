@@ -1,3 +1,7 @@
+## 2026-10-16 — Concentration metadata and unknown-origin display
+
+[Concentration boundary](systems/native-professions-crafting.md#concentration-metadata-boundary): both full-HD native skins show unknown quantity, authored currency tooltip and named origin gap while Create stays disabled. Catalog/owner4, screen9 and consumer checks/builds pass. No fabricated initialization or recharge lifecycle.
+
 ## 2026-10-16 — Bench resurrection HUD projection
 
 [Shared2347 projection](systems/battle-pets.md#bench-resurrection-projection--2026-10-16): both actual skins physically revive two persisted-dead reserves to78/1563, pointer swap, retain incoming damage and win through the revived pet's147-damage Metal Fist. Eight fullHD originals inspected;92/98/131/98 geometry differs only in timed float. Canonical78-asset closure and explicit strict loader readback pass; world-native mode, exact runtime heads and pre-auth recovery are documented. No UI change/full Retail timing/VFX claim; owned processes stopped.
