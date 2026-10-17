@@ -1010,7 +1010,121 @@ fn finish(run: &mut Run, readers: Vec<thread::JoinHandle<()>>) -> Result<(), Str
     Ok(())
 }
 
-fn run_checks(run: &mut Run, address: SocketAddr, tiles: &str) -> Result<(), String> {
+fn seed_range_pose_snapshot(app: &mut App) -> Result<(), String> {
+    use shared::components::DerivedStats;
+    use shared::protocol::TraitConfigSnapshot;
+
+    let local = app
+        .world_mut()
+        .query::<(Entity, &Player)>()
+        .iter(app.world())
+        .find(|(_, player)| player.name == NAME)
+        .map(|(entity, _)| entity)
+        .ok_or("local range player absent")?;
+    app.world_mut()
+        .entity_mut(local)
+        .insert(DerivedStats::default());
+    send::<_, TalentChannel>(app, KnownSpellsSnapshot { spells: vec![1464] });
+    send::<_, TalentChannel>(
+        app,
+        TraitConfigSnapshot {
+            spec_id: 70,
+            tree_id: 1,
+            entries: vec![],
+            unspent: vec![],
+        },
+    );
+    Ok(())
+}
+
+fn request_local_range_result(run: &mut Run, target: u64) -> Result<serde_json::Value, String> {
+    fs::write(
+        run.artifacts.join("local-range-request.json"),
+        format!("{{\"target\":{target}}}"),
+    )
+    .map_err(|error| error.to_string())?;
+    run.wait_marker("LOCAL_RANGE")?;
+    let text = fs::read_to_string(run.artifacts.join("local-range-result.json"))
+        .map_err(|error| error.to_string())?;
+    serde_json::from_str(&text).map_err(|error| error.to_string())
+}
+
+fn check_local_cast_origin(run: &mut Run, target: u64, local_x: f64) -> Result<(), String> {
+    let before = run.app.world().resource::<Incoming>().casts.len();
+    run.expect_text(&[
+        "spell",
+        "cast",
+        "--spell",
+        "1464",
+        "--target",
+        &target.to_string(),
+    ])?;
+    let deadline = Instant::now() + Duration::from_secs(5);
+    while Instant::now() < deadline {
+        if let Some(cast) = run.app.world().resource::<Incoming>().casts.get(before) {
+            let ray = cast
+                .witness
+                .as_ref()
+                .ok_or("local cast omitted its sampled origin")?;
+            fs::write(
+                run.artifacts.join("local-cast-origin.json"),
+                serde_json::to_string(&serde_json::json!({"local_x": local_x, "received": cast}))
+                    .map_err(|error| error.to_string())?,
+            )
+            .map_err(|error| error.to_string())?;
+            if (f64::from(ray.start[0]) - local_x).abs() > 1.0 {
+                return Err(format!(
+                    "cast origin disagrees with local range pose {local_x}: {cast:?}"
+                ));
+            }
+            return Ok(());
+        }
+        run.pump()?;
+        thread::sleep(TICK);
+    }
+    Err("local cast origin did not reach the loopback receiver".into())
+}
+
+fn check_local_range_pose(run: &mut Run) -> Result<(), String> {
+    seed_range_pose_snapshot(run.app)?;
+    let target = run
+        .app
+        .world_mut()
+        .query::<(Entity, &Npc)>()
+        .iter(run.app.world())
+        .find(|(_, npc)| npc.name == "Fixture Vendor")
+        .map(|(entity, _)| entity.to_bits())
+        .ok_or("local range vendor absent")?;
+    let result = request_local_range_result(run, target)?;
+    let local_x = result["local_position"][0]
+        .as_f64()
+        .ok_or("local cast pose absent")?;
+    let server_position = result["server_position"]
+        .as_str()
+        .ok_or("replica pose absent")?;
+    if local_x <= f64::from(FIRST[0] + 6.0) || !server_position.contains("-8949") {
+        return Err(format!(
+            "range fixture did not preserve moved-local/frozen-replica ordering: {result}"
+        ));
+    }
+    if result["in_range"] != serde_json::json!({"Ok": false}) {
+        return Err(format!(
+            "range must use the moved local cast pose, not frozen replica: {result}"
+        ));
+    }
+    check_local_cast_origin(run, target, local_x)
+}
+
+fn run_checks(
+    run: &mut Run,
+    address: SocketAddr,
+    tiles: &str,
+    local_range_only: bool,
+) -> Result<(), String> {
+    if local_range_only {
+        check_timed_forward(run)?;
+        return check_local_range_pose(run);
+    }
     check_network(run, address)?;
     check_sound(run)?;
     check_terrain(run, tiles)?;
@@ -1026,6 +1140,7 @@ fn run_checks(run: &mut Run, address: SocketAddr, tiles: &str) -> Result<(), Str
     check_camera(run)?;
     check_export(run)?;
     check_timed_forward(run)?;
+    check_local_range_pose(run)?;
     check_stopped_forward(run)?;
     check_waypoint_walk(run)?;
     mail::check_mail(run)?;
@@ -1063,7 +1178,8 @@ pub(super) fn run(
         run.child.id(),
         run.socket.display()
     );
-    if let Err(error) = run_checks(&mut run, address, &tiles) {
+    let local_range_only = std::env::var("GODOT_TEST_LOCAL_RANGE_ONLY").as_deref() == Ok("1");
+    if let Err(error) = run_checks(&mut run, address, &tiles, local_range_only) {
         // The client's link state tells a lost connection from a wrong answer.
         let network = run.cli(&["status", "network"]);
         return Err(format!(
@@ -1071,8 +1187,14 @@ pub(super) fn run(
         ));
     }
     finish(&mut run, readers)?;
-    println!(
-        "PASS: public CLI status network/sound/terrain, map position/target/waypoint (walk), group, emote, spell cast/stop, quests, bags, inventory, storage, item info, presence, character stats, quest interact, trade, combat log/recap, mail, hover, camera set, export-scene and scripted movement forward/stop drove the live native client"
-    );
+    if local_range_only {
+        println!(
+            "PASS: native local-pose range and ordinary cast origin with frozen server replica"
+        );
+    } else {
+        println!(
+            "PASS: public CLI status network/sound/terrain, map position/target/waypoint (walk), group, emote, spell cast/stop, quests, bags, inventory, storage, item info, presence, character stats, quest interact, trade, combat log/recap, mail, hover, camera set, export-scene and scripted movement forward/stop drove the live native client"
+        );
+    }
     Ok(())
 }
