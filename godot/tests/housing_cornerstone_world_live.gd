@@ -40,9 +40,11 @@ func run_test() -> void:
 	await frames(20)
 	if not record_floor_probe("after-jump"): return
 	if not await capture_housing("fountain-wall-jump-world"): return
-	# Reuse the observed clear corridor, then pass west across the open riverbank.
-	for waypoint in [Vector3(3750.0, 180.0, 160.427), Vector3(3675.0, 122.0, -125.0), Vector3(3655.0, 118.0, -135.0), Vector3(3650.0, 112.0, -170.0), destination]:
-		if not await walk_to_cornerstone(waypoint): return
+	var route: Array[Vector3] = read_baked_route(destination)
+	if route.is_empty(): return
+	for index in range(route.size()):
+		var radius := 3.5 if index == route.size() - 1 else 0.15
+		if not await walk_to_cornerstone(route[index], radius): return
 	if not await capture_housing("walk-arrived-world"): return
 	if not await purchase_property(): return
 	if not await capture_housing("claimed-world"): return
@@ -64,6 +66,33 @@ func run_test() -> void:
 	print("PASS: private5870 walked authored cornerstone WORLD ", housing_skin)
 	client.free()
 	quit(0)
+
+func read_baked_route(destination: Vector3) -> Array[Vector3]:
+	var path := OS.get_environment("HOUSING_WORLD_ROUTE_FILE")
+	if path.is_empty():
+		fail("World walk requires an explicit geometry-baked navigation route")
+		return []
+	var file := FileAccess.open(path, FileAccess.READ)
+	if file == null:
+		fail("Cannot read baked navigation route: "+path)
+		return []
+	var text := file.get_as_text()
+	file.close()
+	var route: Array[Vector3] = []
+	for line in text.strip_edges().split("\n"):
+		var values := line.split(",")
+		if values.size() != 3 or not values[0].is_valid_float() or not values[1].is_valid_float() or not values[2].is_valid_float():
+			fail("Invalid baked route coordinate: "+line)
+			return []
+		var point := Vector3(float(values[0]),float(values[1]),float(values[2]))
+		if not point.is_finite():
+			fail("Nonfinite baked route coordinate")
+			return []
+		route.append(point)
+	if route.size() < 2 or route[0].distance_to(client.account_state().local_player_position) > 5.0 or route.back().distance_to(destination) > 3.0:
+		fail("Baked route does not connect observed post-jump feet to authored cornerstone")
+		return []
+	return route
 
 func enter_neighborhood() -> bool:
 	if not await wait_housing(func():
