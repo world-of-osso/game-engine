@@ -235,6 +235,8 @@
       "target_hostile": null
     },
     "spells": {
+      "casting": 0,
+      "gcd_ms": 0,
       "known": [
         137047,
         1464,
