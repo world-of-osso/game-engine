@@ -1,3 +1,7 @@
+## 2026-10-16 — Product-row refund icon tooltip implementation
+
+[Refund icon](systems/trading-post.md#product-row-refund-icon-tooltip--implementation-october16): real old-binary pointer RED shows generic item tooltip over refundable642 while848 is selected; genuine purchase/refund restores Tender/frozen state before assertion. Texture-owned vendor identity/right0/0 and existing colored footer formatter implemented; model/native GREEN and both-skin pixels pending. No production refund policy/provider changes.
+
 ## 2026-10-16 — Product-row cart toggle implementation
 
 [Row toggle](systems/trading-post.md#product-row-cart-toggle--implementation-october16): source36px hovered-row control carries its own vendor identity, authored add/minus art, cart indicator and left tooltip. Existing cart eligibility/default wearable selection shared without resetting current choices. Model missing-action3 and actual native missing-button RED precede implementation. Modern behavior passed but paint acceptance was rejected: hover replaced the base glyph with highlight art (native center contrast ratio0.167). Base-plus-highlight correction9bbc554ad passes both-skin real-pixel/behavior proof (contrast ratio0.732, independent IDs, unchanged Tender/frozen slots and open-cart choices);10 inspected full-HD originals+2 contacts+2 crops published. Stale private world data is refreshed from the already-published canonical source, preserving account redb.

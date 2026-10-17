@@ -679,11 +679,8 @@ fn row_cart_toggle(view: &View, id: u32) -> Element {
 
 fn row_price(prefix: &str, row: &TradingPostItem, center_y: f32) -> Element {
     if row.refund_seconds > 0 {
-        return named_atlas_texture(
-            format!("{prefix}Owned{}", row.id),
-            "common-icon-undo",
-            (389., center_y - 21. / 2., 21., 21.),
-        );
+        // Elements.xml325–333: this texture owns OnEnter/OnLeave, not its row.
+        return rsx! {texture{name:{DynName(format!("{prefix}RefundIcon{}",row.id))},texture_atlas:"common-icon-undo",left:389.0,top:{center_y-21.0/2.0},width:21.0,height:21.0,pos_type:"absolute",mouse_enabled:true}};
     }
     if row.purchased {
         return named_atlas_texture(

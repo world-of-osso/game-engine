@@ -120,6 +120,7 @@ impl GameClient {
             GameClient::pvp_honor_tooltip,
             GameClient::guild_news_tooltip,
             GameClient::trading_post_button_tooltip,
+            GameClient::trading_post_refund_tooltip,
             GameClient::trading_post_tooltip,
             GameClient::journal_section_flag_tooltip,
             GameClient::journal_defeated_tooltip,
@@ -237,6 +238,26 @@ impl GameClient {
             hit,
             owner,
             OwnerSide::Left,
+            tooltip,
+        )?))
+    }
+
+    /// Elements.lua123–137: the21px undo texture owns ANCHOR_RIGHT, offsets0/0.
+    fn trading_post_refund_tooltip(&mut self, hit: &HoveredFrame) -> Option<HoveredTooltip> {
+        let ui = hit.ui.bind();
+        let (owner, vendor_id) = named_ancestor(ui.registry()?, hit.frame, |frame| {
+            indexed(frame, "PerksProgramRefundIcon")
+                .or_else(|| indexed(frame, "PerksProgramFrozenRefundIcon"))
+        })?;
+        drop(ui);
+        let tooltip = self
+            .trading_post
+            .view
+            .refund_icon_tooltip(u32::try_from(vendor_id).ok()?)?;
+        Some(HoveredTooltip::text(self.owned_by(
+            hit,
+            owner,
+            OwnerSide::Right,
             tooltip,
         )?))
     }

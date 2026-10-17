@@ -35,6 +35,12 @@ Retail Mainline Blizzard_PerksProgram and the local C_PerksProgram/PerksActiviti
 - Preserve explicit missing metadata errors; use the shared Retail item formatter in both art skins. Frozen/detail panes/currency/cart-toggle tooltips and item-effect formatting remain separate.
 - [x] Native missing-cart-tooltip RED→both-skin fa2f671f1/681461bd/ff22429 GREEN, fixture5d00ba393: regular item and two genuine ensemble members, source offset/no sell price/item identities, unchanged preview/cart/Tender and hover/remove/panel-close/HUD lifetimes. Model2 covers header/wrong-vendor/removed-owner cases. Eight inspected full-HD originals+two contacts: `/syncthing/AgentShared/2026-10-16/trading-post-cart-tooltips/`; diagnostic manifest binds exact artifacts and inputs.
 
+## Product-row refund icon tooltip
+
+- [ ] Hovering the21×21 undo texture uses Retail Elements.lua123–137/Elements.xml325–333 refund-time text, owned by that texture at ANCHOR_RIGHT0/0 rather than the enclosing row. The hovered vendorID determines remaining time even while another product is selected; ordinary row hover still shows its item tooltip.
+- [ ] Use the existing TimeLeftFooterFormatter (two nonzero units, minimum minutes, floor) and source time color: white above3600 seconds, red at/below. Unknown/nonrefundable/elapsed-to-zero products and a closed vendor supply no refund tooltip. Hover/leave cannot mutate selected product, cart, frozen reservation or Tender.
+- [ ] Both skins require native pointer/owner/leave/teardown and inspected painted proof. A genuine private-policy purchase/refund round trip restores the starting balance; production refund duration stays unchanged. Footer-history tooltip and provider/calendar states remain outside this slice.
+
 ## Product-row cart toggle
 
 - Eligible hovered ordinary rows show the Retail `ProductCartToggleButtonMixin` control (Elements.xml357–371; Elements.lua291–300/412–487):36×36 centered on the42×38 TimeRemaining field, derived row position443/6. Use all authored add/minus normal/pressed/disabled/highlight atlases; membership replaces the item icon with32×32 `perks-shoppingcart` (Elements.lua402–408). Leave hides the toggle; footer Add/Remove controls remain distinct.
