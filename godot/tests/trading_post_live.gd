@@ -101,8 +101,13 @@ func run_fixture() -> void:
 func refund_icon_blend_proof() -> void:
 	var before: Dictionary = client.trading_post_state().duplicate(true)
 	if not await choose_category(1): return
-	var target := await select_other_cartable([])
-	if target <= 0: return
+	var target := int(before.frozen)
+	if target <= 0 or control("PerksProgramProduct%d" % target) == null:
+		fail("Blend probe needs the preserved real frozen product and its visible ordinary row"); return
+	await click("PerksProgramFrozenSlot")
+	if not await wait_until(func(): return int(client.trading_post_state().selected) == target, "preserved frozen selection"): return
+	if control("PerksProgramPurchaseButton") == null or not control_enabled("PerksProgramPurchaseButton"):
+		fail("Preserved frozen product is not purchase-eligible; no reservation reset allowed"); return
 	var product: Dictionary = client.trading_post_state().duplicate(true)
 	var price := int(product.price)
 	await click("PerksProgramPurchaseButton")
@@ -112,19 +117,29 @@ func refund_icon_blend_proof() -> void:
 		fail("Blend probe requires explicit private refund window, not a production change"); return
 	await wait_frames(30)
 	var row_owner := "PerksProgramRefundIcon%d" % target
+	var frozen_owner := "PerksProgramFrozenRefundIcon%d" % target
 	var previous_process_mode: Node.ProcessMode = client.process_mode
 	client.process_mode = Node.PROCESS_MODE_DISABLED
 	var row_add: Dictionary = await capture_blend_reference(row_owner, CanvasItemMaterial.BLEND_MODE_ADD, "row-add")
 	var row_mix: Dictionary = await capture_blend_reference(row_owner, CanvasItemMaterial.BLEND_MODE_MIX, "row-mix")
+	var frozen_add: Dictionary = await capture_blend_reference(frozen_owner, CanvasItemMaterial.BLEND_MODE_ADD, "frozen-add")
+	var frozen_mix: Dictionary = await capture_blend_reference(frozen_owner, CanvasItemMaterial.BLEND_MODE_MIX, "frozen-mix")
 	var footer_mix: Dictionary = await capture_blend_reference("PerksProgramHistoryRefundIcon", CanvasItemMaterial.BLEND_MODE_MIX, "footer-normal")
+	var footer_add: Dictionary = await capture_blend_reference("PerksProgramHistoryRefundIcon", CanvasItemMaterial.BLEND_MODE_ADD, "footer-add-control")
 	client.process_mode = previous_process_mode
+	var samples := [row_add, row_mix, frozen_add, frozen_mix, footer_mix, footer_add]
 	var errors: Array[String] = []
-	for result in [row_add, row_mix, footer_mix]:
+	for result in samples:
 		if result.has("error"): errors.append(str(result.error))
-	var sensitive := false
+	var row_sensitive := false
+	var frozen_sensitive := false
+	var footer_sensitive := false
 	if errors.is_empty():
-		sensitive = count_different_bytes(row_add.reference_data, row_mix.reference_data) > 0
-	for result in [row_add, row_mix, footer_mix]:
+		row_sensitive = count_different_bytes(row_add.reference_data, row_mix.reference_data) > 0
+		frozen_sensitive = count_different_bytes(frozen_add.reference_data, frozen_mix.reference_data) > 0
+		footer_sensitive = count_different_bytes(footer_mix.reference_data, footer_add.reference_data) > 0
+	var sensitive: bool = row_sensitive and frozen_sensitive and footer_sensitive
+	for result in samples:
 		if not result.has("error") and int(result.restore_differences) != 0:
 			errors.append("Unstable render/restore for " + str(result.owner))
 		result.erase("reference_data")
@@ -151,8 +166,14 @@ func refund_icon_blend_proof() -> void:
 		"target": target,
 		"row_add": row_add,
 		"row_mix": row_mix,
+		"frozen_add": frozen_add,
+		"frozen_mix": frozen_mix,
 		"footer_mix": footer_mix,
+		"footer_add": footer_add,
 		"sensitive": sensitive,
+		"row_sensitive": row_sensitive,
+		"frozen_sensitive": frozen_sensitive,
+		"footer_sensitive": footer_sensitive,
 		"click_selected": click_selected,
 		"conserved": conserved,
 		"errors": errors,
@@ -171,9 +192,10 @@ func refund_icon_blend_proof() -> void:
 	if not sensitive: fail("Blend probe has no ADD/MIX paint sensitivity; not a feature RED"); return
 	if not conserved or not click_selected: fail("Blend probe changed authority or parent-row click"); return
 	if int(footer_mix.differences) != 0: fail("Footer32 normal-blend control changed; excluded from row ADD"); return
-	if int(row_add.differences) != 0:
-		fail("Row21 refund glyph does not match explicit source ADD; genuine purchase refunded before assertion"); return
-	if int(row_mix.differences) == 0: fail("Row21 source ADD paint has no MIX counterfactual difference"); return
+	if int(row_add.differences) != 0 or int(frozen_add.differences) != 0:
+		fail("Ordinary/inherited21 refund glyph does not match explicit source ADD; genuine purchase refunded before assertion"); return
+	if int(row_mix.differences) == 0 or int(frozen_mix.differences) == 0:
+		fail("Ordinary/inherited21 source ADD paint has no MIX counterfactual difference"); return
 	await finish("refund-icon-blend")
 
 func capture_blend_reference(owner_name: String, mode: CanvasItemMaterial.BlendMode, label: String) -> Dictionary:
