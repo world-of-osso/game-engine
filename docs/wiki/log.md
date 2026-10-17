@@ -5,6 +5,10 @@
 ## 2026-10-17 — Native release20 Arathi lifecycle
 
 [Bounded release proof](systems/battlegrounds.md#native-release20-arathi--bounded-proof2026-10-17): landed-master bookworm extension/server/19peers, actual loaded release hash; normal four5-player parties→one20/10v10 match, five banner assaults, natural1500–0, winning wallet/XP671 and losing61 across20, all origin-map returns. Four inspected both-skin1920×1080 scoreboard/end originals shared. First cold10.5686s frame/peer12 timeout retained; same-code/privateDB bounded retry passes, not a cold-stall fix. Numeric wallet pixels6... remain diagnostic-only; raw log order/timestamp limits/import errors explicit. Owned scope stopped,5941free/window cleared13:44:45.
+## 2026-10-17 — ReadyCheck title colour
+
+[Title colour](systems/group-frames.md#readycheck-title-colour--implementation-2026-10-17): XML53→GameFontNormal→FontStyles50→GlobalColor1 NORMAL_FONT_COLOR−11776/0xFFFFD200. Genuine RED3pass1fail green0.82vs0.8235294,295.3s helper; only TITLE_COLOR repaired, shadow/font/geometry/body/buttons/actions conserved. Existing fixture colour controls reconciled; old captures retain binary scope. GREEN/check receipts follow in local ledger; native pending lead gate, title layout/global palette/full-popup/lifecycle remain gaps.
+
 ## 2026-10-17 — ReadyCheck title shadow
 
 [Title shadow](systems/group-frames.md#readycheck-title-shadow--implementation-2026-10-17): XML53→GameFontNormal→Roman SystemFont_Shadow_Med1 black(+1,−1). Genuine RED3pass/1fail precedes only two production shadow attributes; existing title colour/layout and every other production field retained. Integrated b7363593c both-skin GREEN4/4 (45.4s helper), engine/network check89.0s/no warnings, scoped format/diff/readability pass; exact receipts in local ledger. Post436e landed5ff build140.3s; both-skin1920 native462 darkened/zero outside/exact RGBA restore, panels/full contexts inspected. Explicit WoW y-up(+1,−1)→Godot y-down(+1,+1) mapping; window cleared/slice stopped. Native accepted by lead; title colour/layout/full-popup/lifecycle remain gaps.

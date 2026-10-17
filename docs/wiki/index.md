@@ -1,3 +1,4 @@
+- [ReadyCheck title colour](systems/group-frames.md#readycheck-title-colour--implementation-2026-10-17) — source NORMAL_FONT_COLOR RGB(255,210,0), only TITLE_COLOR; genuine approximate-green RED, native pending gate.
 - [ReadyCheck title shadow](systems/group-frames.md#readycheck-title-shadow--implementation-2026-10-17) — inherited Roman black(+1,−1), native y-down(+1,+1); RED→GREEN4/check, post436e both-skin462 dark pixels/zero outside/exact restore; title colour/layout remain gaps.
 - [Trading Post accepted freeze-lock sound](systems/trading-post.md#accepted-freeze-lock-sound--october17) — sourced218229/four authenticated variants; registry/native RED→both-skin nine-checkpoint/two-play GREEN, genuine640/712 replacement/restoration, no reservation clearing.
 - [UI_SOUND_PITCH_ADJUST_RATE](systems/sound.md#ui_sound_pitch_adjust_rate) — Retail UI/data inspected, playback-rate equation unestablished; hide/show remains deferred with no code.

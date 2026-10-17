@@ -42,7 +42,7 @@ func run_message_color() -> void:
 		assert(absf(anchor.x - 61.5) <= 0.5 and anchor.y == 37)
 		# Existing title palette/geometry are conservation controls, not source-title qualification.
 		assert(title.text == "Ready Check" and title.get_theme_font_size("font_size") == 12)
-		assert(title.get_theme_color("font_color").is_equal_approx(Color(1, 0.82, 0)))
+		assert(title.get_theme_color("font_color").is_equal_approx(Color(1, 210.0 / 255.0, 0)))
 		var buttons: Array[Dictionary] = []
 		for suffix in ["Yes", "No"]:
 			var button := ui.find_child("ReadyCheckFrame" + suffix + "Button", true, false) as Button
