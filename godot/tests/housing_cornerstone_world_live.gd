@@ -200,6 +200,7 @@ func record_floor_probe(label: String) -> bool:
 	return true
 
 func fail(message: String) -> void:
+	print("WORLD_TURN_SAMPLES ", turn_samples.slice(maxi(0, turn_samples.size() - 10)))
 	push_key(KEY_W, false)
 	push_key(KEY_RIGHT, false)
 	push_key(KEY_LEFT, false)
