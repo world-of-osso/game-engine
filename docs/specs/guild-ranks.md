@@ -39,8 +39,8 @@ decisions; `guild_rank_frame.rs` renders the native roster/settings canvas and
 - [x] MOTD input preserves typed order and caret position across projection updates, including insertion in the middle of existing text.
 - [x] Authenticated native multiline editor and authoritative readback inspected; both-skin profile and restart preserve both lines.
 - [x] GuildInviteFrame uses its inherited TranslucentFrameTemplate: black0.9 background inset10px, four32px DialogFrame corner quadrants and tiled16px border strips at the source anchors. Join/Decline/pending state and existing content remain unchanged. Two focused controls and both-skin native source rectangles/physical Join/Decline/pending pacing pass; four1920×1080 before/after PNGs inspected2026-10-15. Offline fixture authority only.
-- [ ] GuildInviteFrame renders the inviting guild's actual optional registered tabard from GuildInvitation in both skins: source GuildExtra background/ring, GuildFrame background/border and large emblem sheet/palette. No design uses GuildUtil's explicit no-logo branch, never an invented registration. Implementation committed; focused and native proof pending.
-- [ ] Invitation text uses the source TOP-relative anchors: inviter28, invitation38, guild name50; inherited Roman Small10 and Normal12 fonts. Guild name measures intrinsically at the centered TOP anchor, not an invented28px-high cell over the crest. Actual no-design native images exposed the previous overlap; focused render and refreshed native proof pending.
+- [x] GuildInviteFrame renders the inviting guild's actual optional registered tabard from GuildInvitation in both skins: source GuildExtra background/ring, GuildFrame background/border and large emblem sheet/palette. No design uses GuildUtil's explicit no-logo branch, never an invented registration. Real no-design and registered owner packets, four actual invitations/four physical declines and identical-binary both-skin native source rectangles pass; four inspected1920×1080 originals published.
+- [x] Invitation text uses the source TOP-relative anchors: inviter28, invitation38, guild name50; inherited Roman Small10 and Normal12 fonts. Guild name measures intrinsically at the centered TOP anchor, not an invented28px-high cell over the crest. Native overlap→source-render RED→six focused controls GREEN; actual native fonts, top anchors, centered intrinsic text and non-overlap pass in both optional states/skins.
 - [ ] Achievement points and reputation warning data remain unavailable; no values are fabricated. Other source content geometry and reputation/expiry/Escape lifecycle acceptance remain separate.
 
 ### Permissions and members
@@ -69,6 +69,8 @@ decisions; `guild_rank_frame.rs` renders the native roster/settings canvas and
 | `godot/ui-model/src/ui/chat_frame.rs` | Officer chat command parsing |
 
 ## Tests asserting this spec
+
+- `guild_invitation_source_text_top_anchors_and_fonts_stay_above_tabard_both_skins` plus the five existing invitation render/action controls; `godot/tests/guild_invitation_tabard_live.gd` proves real received optional data, exact snapped art/text anchors and physical decline in both skins. [Native provenance and boundaries](../wiki/systems/guilds.md#native-invitation-tabards).
 
 - `godot/tests/communities_fidelity.gd`: source rectangles, physical wheel/thumb reaching member32, name sorting, member hierarchy menu, all four source tabs and invitation reducer in both skins; fixture authority only, not a live-server/deployment claim.
 - `godot/tests/communities_roster_sort.gd`: physical Level/Class ascending/descending clicks, numeric class ordering, unchanged40/45px headers and sorted-row context identity in both skins. `guild_rank_widgets::guild_communities_metadata_columns_sort_numeric_values_and_preserve_member_identity` additionally covers distinct numeric level/class order, missing metadata and unchanged authoritative state; seven focused Communities controls pass.
