@@ -164,6 +164,7 @@ impl GameClient {
     pub(super) fn close_adventure_guide(&mut self) -> bool {
         let shown = self.adventure_guide.view.visible;
         self.adventure_guide.view.visible = false;
+        self.adventure_guide.view.clear_search();
         self.adventure_guide.view.journeys.scroll = None;
         self.adventure_guide.view.loading = false;
         self.adventure_guide.queued_encounter = None;
@@ -448,7 +449,7 @@ impl GameClient {
         };
         let search = ui.bind_mut().frame_text(SEARCH.into()).to_string();
         if search != self.adventure_guide.view.search {
-            self.adventure_guide.view.search = search;
+            self.adventure_guide.view.update_search(search);
         }
         self.poll_activity_tracking(&mut ui)?;
         loop {
@@ -462,6 +463,12 @@ impl GameClient {
             let previous_filters = self.adventure_guide.view.activity_filters.clone();
             let previous_tab = self.adventure_guide.view.tab;
             self.adventure_guide.view.apply(&action)?;
+            if action.starts_with("journal:search-")
+                && self.adventure_guide.view.search_mode
+                    != game_engine_ui_model::adventure_search::SearchMode::Preview
+            {
+                ui.bind_mut().release_focus_named(SEARCH);
+            }
             if previous_filters.tag != self.adventure_guide.view.activity_filters.tag
                 || previous_tab != self.adventure_guide.view.tab
             {
@@ -483,14 +490,20 @@ impl GameClient {
             .get_visible_rect()
             .size;
         self.adventure_guide.view.viewport = [size.x / scale, size.y / scale];
+        let section = self.adventure_guide.view.search_section.take();
         let view = self.adventure_guide.view.clone();
         self.extract_art(&crate::quests::screen_texture_fdids(
             view.clone(),
             adventure_guide_screen,
         ));
         if let Some(ui) = &mut self.adventure_guide.ui {
-            ui.bind_mut().set_ui_scale(scale)?;
-            return ui.bind_mut().set_state(view);
+            let mut host = ui.bind_mut();
+            host.set_ui_scale(scale)?;
+            host.set_state(view)?;
+            if let Some(section) = section {
+                host.focus_journal_section(section)?;
+            }
+            return Ok(());
         }
         let mut ui = RegistryUi::new_alloc();
         ui.set_name("AdventureGuideUI");
@@ -504,6 +517,9 @@ impl GameClient {
         if let Err(error) = shown {
             ui.free();
             return Err(error);
+        }
+        if let Some(section) = section {
+            ui.bind_mut().focus_journal_section(section)?;
         }
         self.adventure_guide.ui = Some(ui);
         Ok(())

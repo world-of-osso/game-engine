@@ -35,6 +35,14 @@ Retail Mainline Blizzard_PerksProgram and the local C_PerksProgram/PerksActiviti
 - Preserve explicit missing metadata errors; use the shared Retail item formatter in both art skins. Frozen/detail panes/currency/cart-toggle tooltips and item-effect formatting remain separate.
 - [x] Native missing-cart-tooltip RED→both-skin fa2f671f1/681461bd/ff22429 GREEN, fixture5d00ba393: regular item and two genuine ensemble members, source offset/no sell price/item identities, unchanged preview/cart/Tender and hover/remove/panel-close/HUD lifetimes. Model2 covers header/wrong-vendor/removed-owner cases. Eight inspected full-HD originals+two contacts: `/syncthing/AgentShared/2026-10-16/trading-post-cart-tooltips/`; diagnostic manifest binds exact artifacts and inputs.
 
+## Product-row refund icon tooltip
+
+- [x] Hovering the21×21 undo texture uses Retail Elements.lua123–137/Elements.xml325–333 refund-time text, owned by that texture at ANCHOR_RIGHT0/0 rather than the enclosing row. The hovered vendorID determines remaining time even while another product is selected; ordinary row hover still shows its item tooltip.
+- [x] Use the existing TimeLeftFooterFormatter (two nonzero units, minimum minutes, floor) and source time color: white above3600 seconds, red at/below. Unknown/nonrefundable/elapsed-to-zero products and a closed vendor supply no refund tooltip. Hover/leave cannot mutate selected product, cart, frozen reservation or Tender.
+- [x] Both skins require native pointer/owner/leave/teardown and inspected painted proof. A genuine private-policy purchase/refund round trip restores the starting balance; production refund duration stays unchanged. Footer-history tooltip and provider/calendar states remain outside this slice.
+
+- [x] Actual9bbc/CLI0c00/server77c31f23/P540 native generic-item-tooltip RED→actualca0b75d39/server4e9bbb37/Pb701 both-skin GREEN, fixture d46da47b7: refundable642 versus selected848 (Modern),734 versus640 (Forever); painted59m/anchor, parent click, ordinary-tooltip return and real hovered-owner Escape teardown/HUD. One genuine purchase/refund per skin restores Tender19040/19670, collected state and frozen640/712; carts remain empty. Eight inspected full-HD originals+two contacts+two crops: `/syncthing/AgentShared/2026-10-16/trading-post-refund-icon-tooltip/`; diagnostic manifest binds exact binaries/fixture/eight receipts/twelve memory boundaries. Model3 covers threshold/units/expiry; native white-above-hour/expiry and inherited frozen refundable icon were not forced.
+
 ## Product-row cart toggle
 
 - Eligible hovered ordinary rows show the Retail `ProductCartToggleButtonMixin` control (Elements.xml357–371; Elements.lua291–300/412–487):36×36 centered on the42×38 TimeRemaining field, derived row position443/6. Use all authored add/minus normal/pressed/disabled/highlight atlases; membership replaces the item icon with32×32 `perks-shoppingcart` (Elements.lua402–408). Leave hides the toggle; footer Add/Remove controls remain distinct.
@@ -134,10 +142,10 @@ Retail SharedXML calls native `CalculateMountScale`; its formula remains unestab
 ## Tests asserting this spec
 
 - `scripts/tests/test_trading_post_import.py`: authentic category/price/UI group round-trip and mismatched-layout rejection.
-- `godot/ui-model/tests/trading_post.rs`: both-skin XML geometry/dropdown, Tender/price/frozen/refund controls, modal confirmation/no local debit/pending state, freeze/replace/drag-off requests and second-page/category clipping.
+- `godot/ui-model/tests/trading_post.rs`: both-skin XML geometry/dropdown, Tender/price/frozen/refund controls, modal confirmation/no local debit/pending state, freeze/replace/drag-off requests, second-page/category clipping and refund-icon row identity/time-unit/color/expiry/closed suppression.
 - `godot/network/src/trading_post_wire_tests.rs`: real UDP snapshot/request round-trip.
 - `scripts/tests/test_trading_post_asset_seeds.py`: server preview rules (mount/pet/transmog/set) and whole-chain receipt verdicts.
-- `godot/tests/trading_post_live.gd`: private 127.0.0.1:5791 fb_* native-input proof — Log Tender line, authentic NPC gossip, HUD hidden/restored, category dropdown, player transmog/set and creature mount/pet previews, drag rotation, ToyOverlay, unavailable row, drag-to-freeze, unaffordable gating and frozen slot after relog.
+- `godot/tests/trading_post_live.gd`: private 127.0.0.1:5791 fb_* native-input proof — Log Tender line, authentic NPC gossip, HUD hidden/restored, category dropdown, player transmog/set and creature mount/pet previews, drag rotation, ToyOverlay, unavailable row, drag-to-freeze, unaffordable gating and frozen slot after relog. Phase `refund-icon-tooltip` proves ordinary-row owner/parent-click/hovered-owner teardown and authoritative purchase/refund conservation.
 
 ## Known gaps (current cycle)
 

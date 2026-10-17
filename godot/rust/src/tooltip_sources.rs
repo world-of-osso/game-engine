@@ -60,6 +60,15 @@ fn indexed(frame: &Frame, prefix: &str) -> Option<usize> {
     name_of(frame)?.strip_prefix(prefix)?.parse().ok()
 }
 
+fn parse_trading_post_vendor_id(frame: &Frame) -> Option<u32> {
+    frame
+        .onclick
+        .as_deref()?
+        .strip_prefix("perks:select:")?
+        .parse()
+        .ok()
+}
+
 enum HousingTooltipTarget {
     EditorControl(game_engine_core::input_bindings_data::InputAction),
     Decor(u32),
@@ -121,6 +130,7 @@ impl GameClient {
             GameClient::pvp_honor_tooltip,
             GameClient::guild_news_tooltip,
             GameClient::trading_post_button_tooltip,
+            GameClient::trading_post_refund_tooltip,
             GameClient::trading_post_tooltip,
             GameClient::journal_section_flag_tooltip,
             GameClient::journal_defeated_tooltip,
@@ -267,17 +277,38 @@ impl GameClient {
         )?))
     }
 
+    /// Elements.lua123–137: the21px undo texture owns ANCHOR_RIGHT, offsets0/0.
+    fn trading_post_refund_tooltip(&mut self, hit: &HoveredFrame) -> Option<HoveredTooltip> {
+        let ui = hit.ui.bind();
+        let registry = ui.registry()?;
+        let (row, vendor_id) = named_ancestor(registry, hit.frame, parse_trading_post_vendor_id)?;
+        let prefix = if name_of(registry.get(row)?)? == "PerksProgramFrozenSlot" {
+            "PerksProgramFrozen"
+        } else {
+            "PerksProgram"
+        };
+        let owner = registry.get_by_name(&format!("{prefix}RefundIcon{vendor_id}"))?;
+        let rect = ui.frame_id_rect(owner)?;
+        // Motion ownership must not turn this texture into a click blocker.
+        let pointer = godot::prelude::Vector2::from_array(self.physical_input.pointer());
+        if !rect.contains_point(pointer) {
+            return None;
+        }
+        drop(ui);
+        let tooltip = self.trading_post.view.refund_icon_tooltip(vendor_id)?;
+        Some(HoveredTooltip::text(self.owned_by(
+            hit,
+            owner,
+            OwnerSide::Right,
+            tooltip,
+        )?))
+    }
+
     /// Elements.lua306–314, including its inherited frozen-product template.
     fn trading_post_tooltip(&mut self, hit: &HoveredFrame) -> Option<HoveredTooltip> {
         let ui = hit.ui.bind();
-        let (owner, product_id) = named_ancestor(ui.registry()?, hit.frame, |frame| {
-            frame
-                .onclick
-                .as_deref()?
-                .strip_prefix("perks:select:")?
-                .parse::<u32>()
-                .ok()
-        })?;
+        let (owner, product_id) =
+            named_ancestor(ui.registry()?, hit.frame, parse_trading_post_vendor_id)?;
         drop(ui);
         let snapshot = self.trading_post.view.snapshot.as_ref()?;
         let product = snapshot.items.iter().find(|row| row.id == product_id)?;

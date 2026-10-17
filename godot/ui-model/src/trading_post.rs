@@ -680,7 +680,7 @@ fn row_cart_toggle(view: &View, id: u32) -> Element {
 fn row_price(prefix: &str, row: &TradingPostItem, center_y: f32) -> Element {
     if row.refund_seconds > 0 {
         return named_atlas_texture(
-            format!("{prefix}Owned{}", row.id),
+            format!("{prefix}RefundIcon{}", row.id),
             "common-icon-undo",
             (389., center_y - 21. / 2., 21., 21.),
         );
