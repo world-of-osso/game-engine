@@ -41,7 +41,7 @@ func run_mirror_shadow() -> void:
 				assert(shadow == Color.BLACK and offset == Vector2i(1, 1), "WoW(+1,-1) projects right/down(+1,+1)")
 			else:
 				assert(shadow.a == 0 and offset == Vector2i.ZERO, "Genuine baseline shadow gap")
-			observations.append({"skin": skin, "label": prefix + "Text", "rect": str(label.get_global_rect()), "shadow": str(shadow), "offset": str(offset)})
+			observations.append({"skin": skin, "label": prefix + "Text", "rect": str(label.get_global_rect()), "position": [label.global_position.x, label.global_position.y], "size": [label.size.x, label.size.y], "shadow": str(shadow), "offset": str(offset)})
 			print("MIRROR_SHADOW ", skin, " ", prefix, " rect=", label.get_global_rect(), " color=", shadow, " offset=", offset)
 			labels.append(label)
 		var image := root.get_texture().get_image()
