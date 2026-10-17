@@ -25,7 +25,9 @@ func run_test() -> void:
 		await click_control(close, MOUSE_BUTTON_LEFT)
 	# GameObjects527261 actual authored position, NOT NeighborhoodPlot's marker.
 	var destination := Vector3(3641.85669, 104.272713, -258.151031) if housing_skin == "Modern" else Vector3(3569.20312, 102.340424, -265.888885)
-	if not await walk_to_cornerstone(destination): return
+	# Leave the entrance platform south of its observed boulder before heading west.
+	for waypoint in [Vector3(3807.76, 192.53, 185.0), Vector3(3730.0, 180.0, 185.0), destination]:
+		if not await walk_to_cornerstone(waypoint): return
 	if not await capture_housing("walk-arrived-world"): return
 	if not await purchase_property(): return
 	if not await capture_housing("claimed-world"): return
