@@ -3190,8 +3190,13 @@ impl RegistryUi {
                         .get(id)
                         .and_then(|frame| frame.name.as_deref())
                         .unwrap_or("");
-                    if let Some(index) = game_engine_ui_model::adventure_search::preview_index(name)
-                    {
+                    let index = if name == "JournalSearchAll" {
+                        Some(game_engine_ui_model::adventure_search::PREVIEW_LIMIT)
+                    } else {
+                        name.strip_prefix("JournalSearchPreview")
+                            .and_then(|value| value.parse::<usize>().ok())
+                    };
+                    if let Some(index) = index {
                         self.actions
                             .push_back(format!("journal:search-hover:{index}"));
                     }

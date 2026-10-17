@@ -536,16 +536,7 @@ impl UiProjection {
         // Parts draw behind the frame's own control content (label/edit text) and children.
         parts.set_draw_behind_parent(true);
         node.add_child(&parts);
-        let search_preview = frame
-            .name
-            .as_deref()
-            .and_then(game_engine_ui_model::adventure_search::preview_index)
-            .is_some();
-        // SearchBoxListMixin's previews keep the edit's sticky focus. Generic row
-        // focus would hide/delete the preview on mouse-down before its Click.
-        if game_engine_ui_model::selection_list::is_selection_row(registry, frame)
-            && !search_preview
-        {
+        if game_engine_ui_model::selection_list::is_selection_row(registry, frame) {
             node.set_focus_mode(godot::classes::control::FocusMode::ALL);
             node.connect(
                 "focus_entered",
@@ -1388,6 +1379,8 @@ fn connect_button(pending: &PendingInputs, id: u64, node: &mut Gd<Control>) {
 
 fn connect_edit_box(pending: &PendingInputs, frame: &Frame, node: &mut Gd<Control>) {
     let id = frame.id;
+    let journal_search =
+        frame.name.as_deref() == Some(game_engine_ui_model::adventure_guide::SEARCH);
     let text_pending = pending.clone();
     let Some(WidgetData::EditBox(data)) = &frame.widget_data else {
         return;
@@ -1412,7 +1405,7 @@ fn connect_edit_box(pending: &PendingInputs, frame: &Frame, node: &mut Gd<Contro
             let mut edit = node.clone();
             // Journal SearchBoxListMixin keeps focus on short/no-result Enter.
             // Its successful selection/Show All action owns Close() instead.
-            let release_on_submit = frame.name.as_deref() != Some("EncounterJournalSearchBox");
+            let release_on_submit = !journal_search;
             if !release_on_submit {
                 let mut search = node.clone().cast::<LineEdit>();
                 search.set_keep_editing_on_text_submit(true);
@@ -1455,7 +1448,7 @@ fn connect_edit_box(pending: &PendingInputs, frame: &Frame, node: &mut Gd<Contro
     } else if is_housing_search_field(frame.name.as_deref()) {
         release_housing_search_focus(node.clone())
     } else {
-        release_focus_on_escape(node.clone())
+        release_focus_on_escape(node.clone(), journal_search)
     };
     node.connect("gui_input", &keys);
 }
@@ -1592,7 +1585,7 @@ fn release_guild_field_focus(mut edit: Gd<Control>, pending: PendingInputs, id: 
     })
 }
 
-fn release_focus_on_escape(mut edit: Gd<Control>) -> Callable {
+fn release_focus_on_escape(mut edit: Gd<Control>, consume_escape: bool) -> Callable {
     Callable::from_fn("registry-editbox-escape", move |args| {
         let escaped = args
             .first()
@@ -1600,9 +1593,10 @@ fn release_focus_on_escape(mut edit: Gd<Control>) -> Callable {
             .is_some_and(|key| key.is_pressed() && key.get_keycode() == godot::global::Key::ESCAPE);
         if escaped {
             edit.release_focus();
-            // EditBox_ClearFocus owns this Escape; do not also close the window
-            // in GameClient::_unhandled_key_input after focus has gone away.
-            edit.accept_event();
+            // Journal search owns its Escape; other edit widgets retain their bindings.
+            if consume_escape {
+                edit.accept_event();
+            }
         }
     })
 }
