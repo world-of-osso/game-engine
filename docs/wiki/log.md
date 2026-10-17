@@ -1,3 +1,7 @@
+## 2026-10-17 — Lock-On target charge projection
+
+[Bounded77](systems/battle-pets.md#lock-on-projection--2026-10-17): both actual strict skins/private5961 physical first enemy lock/no damage/1round, then145/143 blast/removal/Rabbit2,4; retained own334→305→277→249→224. Six inspected fullHD originals/all saved phases two framed models, geometry91/99/100 only fills/timed floats. Canonical4files+fragment hashes/actual3mesh loader pass; no UI code. Native5c98/da304/e9; local lib132/wild29/check1m02/no warnings/bothfmt pass with charge regressions5 and unchanged UI12 retained. Full cross-caster/timing/VFX unproved.
+
 ## 2026-10-17 — Life Exchange HP projection
 
 [Bounded277](systems/battle-pets.md#life-exchange-projection--2026-10-17): both actual strict skins/private5961 physical shared98/108, subsequent Scratch28/30 and retained owned70→78HP, CD5. Four inspected fullHD originals/all saved phases two framed models, geometry91/97 only HP fills. Existing canonical Sprite6294 closure6/6/loader2meshes; no new Sprite publication or UI code. Earlier TormentedSpirit66620 loads12meshes but authentic scale1.0 clips fixed viewport; rejected before cast/capture, no camera/scale workaround. Native1068/f8 and shared-helper drift/source boundaries recorded; final lib126/check1m25/no warnings/bothfmt pass, unaffected wild-PvP27 + replacement Sprite1 and unchanged UI12 proof retained.
@@ -37,6 +41,10 @@
 ## 2026-10-17 — Section focus flash
 
 [Focus pulse](systems/adventure-guide.md#section-focus-flash--2026-10-17): independent source Glow/four phases on the existing section-focus path. Missing-effect RED→timing/art controls and Modern2/Forever5 rendered pulses/zero/conservation;12 full-HD originals inspected. Native3's324 outside pixels stay unattributed/not reproduced, with unchanged strict native4/5 passing controls and paint-owner receipts. Merged extension check and scoped fmt pass; independent lead gate remains separate. Prior Journeys mask landed via374e.
+## 2026-10-17 — Plain LootFrame quality-caption font
+
+[QualityText](systems/loot-and-flight.md#plain-quality-caption-font--2026-10-17): GameFontWhiteTiny2/SystemFont_Tiny2 RomanFriz8 has no inherited shadow; only its unwanted shared-helper shadow removed. Genuine RED2pass/1fail→GREEN3; both-skin native96×10/font8/white unchanged, all otherlabelshadows retained.232 pixels lighten/skin,0darkened/outsidequality unions/whitecontrastmask; oldblack reapplication restoresbaseline exactly. Stale-protocol AchievementDelta compile failure retained separately, not behavioral RED. FullLootFrame art/input/lifecycle parity unqualified.
+
 ## 2026-10-17 — Item-confirmation caption shadow
 
 [Separate presenter captions](systems/trading-post.md#item-confirmation-caption-shadow--bounded-proof-october17): only inherited black(+1,−1), current12px/template colors/geometry/actions preserved. Genuine RED→GREEN1;12 native captions across both skins normal/delay/pending pass.535/524/479 darkened pixels per skin, none outside caption unions/white diagnostic masks; exact baseline/source restoration. Initial omitted-post-sync disabled-color and magenta RGB8 green-channel oracle failures retained and resolved without production color/geometry edits. Effective scaling/full-popup/purchase lifetime remain unqualified.
