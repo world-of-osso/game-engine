@@ -73,6 +73,46 @@ fn toyfx71_rezan_roar_resolves_one_shot_caster_sound_and_animation() {
 }
 
 #[test]
+fn toyfx72_croak_crock_resolves_two_source_caster_sound_kits() {
+    let visual = catalog().visual_for_spell(273478, &warrior(None)).unwrap();
+    assert_eq!(visual, 80703);
+    let kits = catalog().kits(visual, VisualEvent::Cast);
+    assert_eq!(kits.len(), 1);
+    let kit = &kits[0];
+    assert_eq!(kit.target, KitTarget::Caster);
+    assert_eq!(kit.end, VisualEvent::OneShot);
+    assert!(kit.models.is_empty());
+    assert_eq!(kit.animation, None);
+    let sound_ids: Vec<_> = kit.sounds.iter().map(|sound| sound.sound_kit_id).collect();
+    assert_eq!(sound_ids, [115691, 115692]);
+    for sound in &kit.sounds {
+        assert_eq!(sound.min_distance, 8.0);
+        assert_eq!(sound.distance_cutoff, 45.0);
+        let files: Vec<_> = sound.files.iter().map(|file| file.fdid).collect();
+        assert_eq!(files, (1068065..=1068074).collect::<Vec<_>>());
+    }
+}
+
+#[test]
+fn toyfx73_witch_display_resolves_held_source_dance_and_ground_model() {
+    let kit = catalog().display_state_kit(86194).unwrap();
+    assert_eq!(kit.kit_id, 51522);
+    assert_eq!(kit.end, VisualEvent::DisplayEnd);
+    assert_eq!(
+        kit.animation,
+        Some(KitAnimation {
+            anim_id: 141,
+            looping: true,
+        })
+    );
+    assert_eq!(kit.models.len(), 1);
+    assert_eq!(kit.models[0].model_fdid, 1249985);
+    assert_eq!(kit.models[0].attachment, Some(19));
+    assert_eq!(kit.models[0].scale, 1.0);
+    assert!(kit.sounds.is_empty());
+}
+
+#[test]
 fn toyfx20_war_banner_visuals_follow_current_pvp_faction_not_race() {
     for (spell, faction, model) in [(300104, 2, 2925498), (300144, 1, 2925497)] {
         for race in [1, 2, 24, 52, 70, 84, 85, 86, 91] {
