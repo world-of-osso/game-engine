@@ -2,6 +2,24 @@
 
 Retail Mainline controls/behavior are shared by Modern and Forever; Forever changes art. Build-qualified static data, account ownership and actual item acquisition remain separate. Requirements/gaps: [client contract](../../specs/housing.md), [server contract](../../../../game-server/docs/specs/housing-catalog.md).
 
+## World redirect — active2026-10-16
+
+Editor-chrome work is paused. [Named cornerstone→House policy](../../specs/housing.md#world-of-osso-policy-cornerstone-plot-claim-grants-its-house) concerns the persisted `OwnedHouse.plot_id` record, not inferred static DB2 templates/components.
+
+| Ordered slice | Evidence / exact remaining boundary |
+|---|---|
+| Neighborhood | Both skins physically use House Finder to enter Founder’s Point2735 at authored entry; native feet(3807.76,192.53,160.427), nine ADT tiles, textured ground/trees/entrance architecture. Four inspected1920×1080 WORLD originals in `AgentShared/2026-10-16/housing-world/`; plot vista remains pending walking proof. Runtime5f6cdefc3/extension410940cb, server77c31f23/protocol5405246, installed70391. |
+| Walk/claim | New private account funded only for the real10000000-copper claim, no admin teleport/house/decor grant. Native straight route hit an actual entrance boulder; fixture now routes south/west around it. That route has not run: active install changed to70448 and native CASC bootstrap fails before initialization (see below). No successful walk/claim/relog claim. |
+| Exterior→door→2783 | **Source-blocked:** current imported NeighborhoodPlot/House records do not identify an initial selected exterior assembly/plot-local placement/door linkage. Sole static House2 is `Nope` with three unnamed zero fields. Exterior type9 Human House has sourced unlock/faction flags; ExteriorComponent141/FDID6648736 is one component, not an assembled house. ExitPoint28 is an offset relative to component590, not a placed plot door. Do not infer a house from the lot plane or choose components as a fake grant. Authored NeighborhoodMap7→2783 entry exists; missing entry coordinates are not the blocker. |
+| Real interior decor/visitor | **Depends on missing room-instance/layout selection/transforms:** HouseRoom1→RoomWmoData5 and component offsets exist, but unlocked-by-default rooms do not establish initial assembled instances. Bare2783 ADT is not a furnished/interior-room proof. Existing `housing_decor::load_visual` loads real bookcase1693→M2 FDID1096761 and Tesla2330→6699745, with missing textures an error; their earlier appearance is not proof of a new real-interior/visitor slice. |
+| Dashboard/house list | World-context native proof queued independently; do not substitute menu-art/rectangle tests. |
+
+The70391 W1 file audit matched23/28 loaded WDT/ADT files to active content keys; the five differing surrounding ADT companions were then extracted from installed local CASC, content-MD5 verified and replaced only in the private slot, with prior bytes retained. No canonical asset mutation. This refreshed boundary still needs the next native run; original entry screenshots retain their historical qualification.
+
+During the next attempt `.build.info` advanced to Retail12.1.5.70448/key88d5e8ef05ec5a8446cdec93d142d7c6. Native bootstrap needs encoding6e9260e140bd5f5b116d47229e937993 from archive `Data/data/data.149` at offset885039479 plus188062402 bytes, but local archive length is885039479. Syncthing reports identical global/local older archive metadata while `.build.info` is newer. No build pin, alternate payload or live-proof claim; source install synchronization is lead-owned. Private receipts: `W1-{runtime-heads,public-manifest,active-ground-receipt,current-ground-refresh}.json`, `world-assembly-source-inspection.json`, `world-install-sync-state.json`, `world-proof-ledger.md` under `/home/osso/.worktrees/housing-core14-evidence/`.
+
+Sources: local Retail HousingCornerstone/HouseFinder callers and generated PlayerHousing constants; imported70391 NeighborhoodMap/NeighborhoodPlot/House/ExteriorComponent/ExitPoint/HouseRoom/RoomComponent records; native `housing_neighborhood_world_live.gd`/`housing_cornerstone_world_live.gd`. Raw world assembly inspection retains all relevant rows; missing runtime assembly choices are not renamed a missing art payload.
+
 ## Full-HD storage captures — verified2026-10-16
 
 `housing_storage_fullhd_live.gd` opens genuine paid owner storage at1920×1080 in both skins and captures closed/root/hovered Sort/Dyeable/reset. Exact runtime: engine656bb8964, extension SHA256ae4509429af5a06f1e3031fd018514c9c68173a16d8f87a3f0facf1f0e38138b; serverb17dbd6b, binaryb56e60469336ba6efb77e1244da5097084448ca019ba8dde8b4cba1efdbcc4ad; protocola1c02ee. The maintained helpers built those merged sources sequentially; no later-source runtime claim. Both native five-phase runs pass with durable receipts and unchanged paid1693 placement/2330 stored copy.
