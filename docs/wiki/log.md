@@ -1,3 +1,7 @@
+## 2026-10-17 — Purchase-aware Trading Post Price key
+
+[Price comparator](systems/trading-post.md#purchase-aware-price-sorting--october17): genuine two-test ordering RED precedes sourced refundable−2/purchased−3/raw key using per-row elapsed refund time. Groups/name ties/frozen exclusion remain; TP_SORT_PER_PRODUCT_PENDING is unsupplied, never inferred globally. GREEN/code gate/native pending; original640/712 untouched.
+
 ## 2026-10-17 — Random32 level-eligible selection policy
 
 [Random32](systems/battlegrounds.md#random32-level-eligible-configured-selection--2026-10-17): explicit RANDOM_BG_LEVEL_ELIGIBLE_MAPS policy replaces cross-map TC RangeIndex copying. Parent566 admission20+/5–10 per team/party≤5; weighted configured maps must contain actual queued levels in their own bracket. Original queue32 is retained per player independently of the concrete map. No new payout/daily state. BG_FILL_EXISTING_COPY remains explicitly accepted: selected8/team maps may remain Waiting with parent5/team; no reduced start criterion. RANDOM_BG_WIN_REWARD_PROFILE remains unresolved. Targeted proof ledger is authoritative; no rendered/live completion claim.

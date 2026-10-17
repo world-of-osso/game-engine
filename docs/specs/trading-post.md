@@ -14,6 +14,12 @@ Retail Mainline Blizzard_PerksProgram and the local C_PerksProgram/PerksActiviti
 - [x] Traveler's Log displays authoritative monthly Tender earned/cap/balance. No invented mail awards. Retail XML defines visible controls; remove unsourced vendor SearchBox, Log/Collections and Freeze/Unfreeze buttons (lead clarification October13).
 - [x] Targeted behavioural tests and inspected private UDP5731 fb_* account PNG proof in Modern and Forever.
 
+## Purchase-aware Price sorting
+
+- [ ] Ordinary Price sorting uses Retail Products.lua402–485 effective values: refundable−2, purchased/nonrefundable−3, otherwise the actual unsigned price. Determine refundability from each row's remaining refund time, not the selected item. Preserve higher-group precedence, ascending name ties in either direction, committed frozen exclusion, selection and cart.
+- [ ] Both directions, sentinel-name ties and elapsed refund expiry require concrete model RED→GREEN. Both-skin native acceptance follows code landing: a real ordinary purchase/refund restores starting Tender, ownership and cart while original640/712 stay untouched.
+- [ ] `TP_SORT_PER_PRODUCT_PENDING`: Retail's per-product pending−1 branch lacks a supplied per-product flag. Never infer it from the view-global request flag. Time/calendar, group-header identity and production refund policy remain separate.
+
 ## Shared item-confirmation caption shadow
 
 - [x] The separate item-confirmation presenter's Confirm/Cancel captions inherit opaque black shadow at source(+1,−1), native(+1,+1), in both skins. Preserve current12px, colours, caption/button geometry, actions and pending/accept-delay behavior. [Bounded supplied-state proof](../wiki/systems/trading-post.md#item-confirmation-caption-shadow--bounded-proof-october17).
