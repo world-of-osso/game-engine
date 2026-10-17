@@ -4,6 +4,9 @@
 ## 2026-10-17 — Section focus flash
 
 [Focus pulse](systems/adventure-guide.md#section-focus-flash--2026-10-17): independent source Glow/four phases on the existing section-focus path. Missing-effect RED→timing/art controls and Modern2/Forever5 rendered pulses/zero/conservation;12 full-HD originals inspected. Native3's324 outside pixels stay unattributed/not reproduced, with unchanged strict native4/5 passing controls and paint-owner receipts. Merged extension check and scoped fmt pass; independent lead gate remains separate. Prior Journeys mask landed via374e.
+## 2026-10-17 — Ordinary StaticPopup body shadow
+
+[PARTY_INVITE body](systems/group-frames.md#ordinary-staticpopup-body-shadow--bounded-proof-2026-10-17): inherited Roman black(+1,−1) only;14px/white/geometry/actions preserved. Genuine model RED→both-skin GREEN; native source4bae444b1 darkens855 pixels/skin, zero outside the1225-pixel diagnostic shadow mask, exact alpha-off/source restoration. Initial rectangle oracle's one-pixel overhang failure retained with actual raster receipts. Effective user-font scaling/full-popup/server lifecycle remain unqualified.
 
 ## 2026-10-17 — Product-row refund glyph ADD implementation
 
