@@ -1,3 +1,7 @@
+## 2026-10-17 — Explicit recraft refusal
+
+[Recraft boundary](systems/crafting-ui.md#recraft-refusal--verified2026-10-17): sourced297/389195 refuses an actual owned GUID with named operation gap and unchanged inventory/profession/wallet. Both full-HD native skins retain three existing mailed items after physical clicks on disabled input/submission; four originals inspected. No outcome/lineage/eligibility or acquisition claim.
+
 ## 2026-10-17 — Public/Guild/Personal orders and mailbox settlement
 
 [Orders acceptance](systems/crafting-ui.md#publicguildpersonal-acceptance--verified2026-10-17): both full-HD native skins place/read back, claim, cast and mail all three fixed-output order kinds. Actual redb reopen retains three cloaks and70000 copper per customer,160000 copper/zero cloaks for the worker. Native selected-tab RED fixed by visible page instead of snapshot ownership; authority10/screen9/current consumer check-build pass. Fixture grants/relocation are not acquisition/world-placement proof.
