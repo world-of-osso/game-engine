@@ -203,3 +203,37 @@ fn p5_replay_is_per_substep_not_per_parent_or_frame() {
     }
     assert!((actual[0].age - 0.75).abs() < 1e-6);
 }
+
+#[test]
+fn p5_newborn_child_age_is_not_added_twice() {
+    let (e, mut root) = family(2);
+    tick(&e, &mut root, 0.05);
+    let children = root.children[0].sim.particles();
+    assert!(children.len() > 1);
+    assert!(children[1..].iter().all(|p| p.age < 0.05));
+}
+
+#[test]
+fn p5_model_space_parent_supplies_previous_world_position() {
+    let (mut e, mut root) = family(1);
+    e.flags |= FLAG_MODEL_SPACE;
+    root.particles[0].position = Vec3::ZERO;
+    root.particles[0].velocity = Vec3::ZERO;
+    root.emitter_to_world = Mat4::from_translation(Vec3::X * 10.0);
+    root.children[0].interpolate_position = true;
+    root.update(
+        &e,
+        0.05,
+        Mat4::from_translation(Vec3::X * 20.0),
+        Mat3::IDENTITY,
+        1.0,
+        &mut |_, _| None,
+    );
+    let births = &root.children[0].sim.particles()[1..];
+    assert!(!births.is_empty());
+    assert!(
+        births
+            .iter()
+            .all(|p| p.position.x > 10.0 && p.position.x < 20.0)
+    );
+}

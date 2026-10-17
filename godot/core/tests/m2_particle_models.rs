@@ -6,7 +6,10 @@ use glam::{Mat3, Mat4, Vec3};
 
 #[test]
 fn p5_parent_at_exact_lifespan_retires() {
-    let mut e = emitter();
+    let mut e = ParticleEmitter {
+        child_emitters_model_filename: Some("synthetic/child.m2".into()),
+        ..emitter()
+    };
     let mut sim = EmitterSim::new(&e, 17);
     sim.update(
         &e,
