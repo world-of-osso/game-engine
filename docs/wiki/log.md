@@ -1,6 +1,6 @@
 ## 2026-10-17 — Explicit recraft refusal
 
-[Recraft boundary](systems/crafting-ui.md#recraft-refusal--verified2026-10-17): sourced297/389195 refuses an actual owned GUID with named operation gap and unchanged inventory/profession/wallet. Both full-HD native skins retain three existing mailed items after physical clicks on disabled input/submission; four originals inspected. No outcome/lineage/eligibility or acquisition claim.
+[Recraft boundary](systems/crafting-ui.md#recraft-refusal--verified2026-10-17): sourced297/389195 refuses an actual owned GUID with named operation gap and unchanged inventory/profession/wallet. Both full-HD native skins retain three existing mailed items after physical clicks on disabled input/submission; four current post-master-runtime originals inspected. Scoped integration and serialized database invariants pass. No outcome/lineage/eligibility or acquisition claim.
 
 ## 2026-10-17 — Public/Guild/Personal orders and mailbox settlement
 
