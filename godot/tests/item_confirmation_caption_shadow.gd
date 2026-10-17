@@ -42,7 +42,8 @@ func run_caption_shadow() -> void:
 				assert(label.size == Vector2(128, 21))
 				assert(label.global_position - button.global_position == Vector2(0, -1))
 				assert(label.get_theme_font_size("font_size") == 12)
-				assert(label.get_theme_color("font_color").is_equal_approx(Color(1, 0.82, 0)))
+				var expected_color := Color(0.5, 0.5, 0.5) if button.disabled else Color(1, 0.82, 0)
+				assert(label.get_theme_color("font_color").is_equal_approx(expected_color))
 				var shadow := label.get_theme_color("font_shadow_color")
 				var offset := Vector2i(label.get_theme_constant("shadow_offset_x"), label.get_theme_constant("shadow_offset_y"))
 				if verify:
