@@ -1,3 +1,7 @@
+## 2026-10-17 — ReadyCheck title shadow
+
+[Title shadow](systems/group-frames.md#readycheck-title-shadow--implementation-2026-10-17): XML53→GameFontNormal→Roman SystemFont_Shadow_Med1 black(+1,−1). Genuine RED3pass/1fail precedes only two production shadow attributes; existing title colour/layout and every other production field retained. Both-skin model controls added; GREEN/check receipts follow in the local ledger. Native proof pending lead gate; title colour/layout/full-popup/lifecycle remain gaps.
+
 ## 2026-10-17 — PitchAdjust source gate
 
 [UI_SOUND_PITCH_ADJUST_RATE](systems/sound.md#ui_sound_pitch_adjust_rate):3647 cached Retail Lua/XML files, the full Sound API definition and active70391 SoundKit-family fields/pertinent rows do not establish a rate equation. Exact sources/search bound by hashes; supplementary DBD gives only a float declaration. No semitone/linear/log2 guess, code, asset extraction or runtime change; hide/show218236/218237 remains deferred, selection callbacks separate. Frozen ordinary-row exclusion is proposed independently, not folded into audio work.
