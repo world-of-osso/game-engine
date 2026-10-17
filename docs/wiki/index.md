@@ -10,7 +10,7 @@
 - [Clean-room M2 particles](systems/godot-conversion.md#native-m2-particles) — native tails/follow/cubic controls, authored sorting and map-collision births; inherited-scale provenance and explicit lighting, timer/reset, spline-density, target-mask and model-recursion oracle gaps.
 # Wiki Index
 
-- [Journal search implementation](systems/adventure-guide.md#search-preview-and-full-results--implementation-2026-10-16) — source preview/full popup and input ownership root fixes; scoped tests/source gate pass, both-skin native acceptance pending.
+- [Journal search implementation](systems/adventure-guide.md#search-preview-and-full-results--implementation-2026-10-16) — source preview/full popup, input ownership and localized quotes; scoped tests and both-skin physical search proof pass, current quote-fix check pending.
 - [Trading Post cart item tooltips](systems/trading-post.md#cart-item-tooltips--implementation-october16) — regular/member identity and source owner offset/no sell price; native RED→both-skin hover/remove GREEN, global-input fixture correction and eight inspected full-HD samples.
 - [Fade effect projection](systems/battle-pets.md#fade-effect-projection--2026-10-16) — current70391 sourced random self-swap, both-skin fullHD pointer/log/model proof and91 identical rectangles; complete Retail art/timing excluded.
 
