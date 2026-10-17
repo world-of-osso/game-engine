@@ -50,6 +50,12 @@ The1280 input/result PNGs were inspected and published as `follower-dungeons/nat
 
 `bot_simc_arcane.ArcaneSimcProvider` carries the approved diagnostic projection into the maintained interface with caller-provided receipt/APL/captured-kit/DB2/native-preflight/fight context. Receipt URL/commit and actual APL bytes must match SimC515f4a3fe9d1; the [fixture provenance](../../../scripts/tests/fixtures/bot_harness/simc_arcane32/provenance.json) retains exact source paths/hashes and native row slices. The generic controller contains no Mage IDs or priority. Provider calls are read-only against frozen kit/traits; the [bounded source contract](../../specs/bot-harness.md#approved-pinned-arcane-provider) retains APL24/36/64,2700s iteration timing and explicit unsupported cases. Selection must be explicit; no provider is auto-selected after a native evaluator error.
 
+### Melee endpoint completion stall — 2026-10-16
+
+Release14 records a tank death after126.461s with continuous healing, while the owner leaves a native-ready/affordable/in-range Execute unused for43s. Retained `metrics-1792204277951.json` places the owner at(76.19163,−25.60623,−0.839278) and target at(73.6949768,−25.6062336,−0.7099397): horizontal gap2.50000111yd. The Stockade step chooses movement above2.5yd, but its existing2.5yd melee endpoint is already within the route controller's0.5yd arrival threshold. No movement is sent, and the caller discarded the reached result instead of proceeding to the cast gate.
+
+`StockadeRun.move` now propagates endpoint completion. The melee branch proceeds to the unchanged authored/native cast gate after arrival; an actual input step still returns for a fresh observation. No distance threshold, LOS tolerance, spell predicate, stat or kit changes. RED replays the recorded pose and native Execute facts through the real `PlayerController.step_toward`; out-of-range and physical-step controls preserve admission ordering. Per-boss DPS remains unavailable because no boss started.
+
 ### Kill receipt across target changes — 2026-10-16
 
 Release13a records Execute5308 success at1792202422308 and its target's death10ms later. The next native sample selects another living enemy. The Stockade step processed pending outcomes only while casting again or observing a selected dead target; movement and later idle healing skipped that check. The next opening failed locally after the retained native success aged out, despite the original receipt being present in the captured log.

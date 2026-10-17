@@ -229,7 +229,7 @@ class StockadeRun:
 
     def move(self, here, goal, label):
         if self.player.step_toward(here, goal, label):
-            return
+            return True
         time.sleep(.7)
         after = position(self.account())
         progressed = math.hypot(after[0] - here[0], after[2] - here[2]) >= .15
@@ -237,6 +237,7 @@ class StockadeRun:
         # Preserve the maintained walk_route eight-step native failure boundary.
         if self.blocked_steps >= 8:
             raise RuntimeError(f"Native route blocked after eight steps at {after}; goal {goal}")
+        return False
 
     def approach_opening(self, target):
         deadline = time.monotonic() + 60
@@ -306,9 +307,10 @@ class StockadeRun:
             if gap > 2.5:
                 endpoint = [goal[0] + (here[0] - goal[0]) * 2.5 / gap, goal[1],
                             goal[2] + (here[2] - goal[2]) * 2.5 / gap]
-                self.move(here, endpoint, "native-melee-approach")
-            else:
-                self.player.cast_next(target, authored_priority)
+                if not self.move(here, endpoint, "native-melee-approach"):
+                    time.sleep(.2)
+                    return False
+            self.player.cast_next(target, authored_priority)
         elif all(row["health"] >= row["max_health"] for row in party):
             self.open_pull()
         time.sleep(.2)

@@ -74,6 +74,56 @@ class StockadeOpeningTests(unittest.TestCase):
         self.assertEqual(moved, [([56, -19, 0], [93, -25, 0], "native-ranged-approach")])
 
 
+class StockadeMeleeEndpointTests(unittest.TestCase):
+    def endpoint_controller(self):
+        from bot_controller import PlayerController
+        from run_stockade_bot import StockadeRun
+        path = Path(__file__).parent / 'fixtures/bot_harness/native-stockade-melee-endpoint.json'
+        fixture = json.loads(path.read_text())
+        controller = StockadeRun.__new__(StockadeRun)
+        controller.run = {"clear_elapsed_ms": None}
+        controller.opening_target = None
+        controller.tank = "Captain Garrick"
+        controller.blocked_steps = 0
+        controller.poll_combat = lambda: None
+        controller.record_credit = lambda: None
+        controller.party = lambda: [{"health": 80, "max_health": 100}]
+        controller.rotation = lambda: fixture["rotation"]
+        controller.snapshot = lambda target: fixture["rotation"]
+        controller.account = lambda: {"local_player_position": fixture["player_position"]}
+        inputs = []
+        controller.player = PlayerController(lambda *args: inputs.append(args), controller.snapshot,
+            lambda *args: self.fail("Queried a route after native endpoint completion"), None)
+        controller.player.assist = lambda tank: int(fixture["rotation"]["target"])
+        return controller, fixture, inputs
+
+    def test_actual_two_point_five_yard_endpoint_releases_native_usable_execute(self):
+        controller, fixture, inputs = self.endpoint_controller()
+        with patch('run_stockade_bot.time.sleep'):
+            self.assertFalse(controller.step())
+        self.assertEqual(inputs, [("spell", "cast", "--spell", "5308", "--target",
+                                   str(int(fixture["rotation"]["target"])))])
+        self.assertEqual(controller.player.pending["spell"], 5308)
+
+    def test_reached_endpoint_still_obeys_native_spell_range(self):
+        controller, fixture, inputs = self.endpoint_controller()
+        fixture["rotation"]["facts"]["in_range"]["5308"] = {"Ok": False}
+        with patch('run_stockade_bot.time.sleep'):
+            controller.step()
+        self.assertEqual(inputs, [])
+        self.assertIsNone(controller.player.pending)
+
+    def test_physical_route_step_waits_for_fresh_observation_before_cast(self):
+        controller, fixture, inputs = self.endpoint_controller()
+        fixture["player_position"] = "(80,-25.60623,-.839278)"
+        controller.player.route = lambda here, goal, label: [goal]
+        with patch('run_stockade_bot.time.sleep'):
+            controller.step()
+        self.assertEqual(len(inputs), 1)
+        self.assertEqual(inputs[0][:2], ("movement", "forward"))
+        self.assertIsNone(controller.player.pending)
+
+
 class StockadeReceiptLifecycleTests(unittest.TestCase):
     def switched_target_controller(self):
         from bot_controller import PlayerController
