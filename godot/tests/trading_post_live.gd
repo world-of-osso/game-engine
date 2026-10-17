@@ -1301,7 +1301,7 @@ func select_price_candidate() -> bool:
 		await click("PerksProgramProduct%d" % vendor)
 		if not await wait_until(func(): return int(client.trading_post_state().selected) == vendor, "ordinary price candidate"): return false
 		var selected: Dictionary = client.trading_post_state()
-		if not selected.purchased and not selected.collected and int(selected.price) <= int(state.tender): return true
+		if not selected.purchased and not selected.collected and int(selected.price) <= int(state.tender) and control_enabled("PerksProgramPurchaseButton"): return true
 	fail("No visible affordable ordinary non-reservation price candidate")
 	return false
 
