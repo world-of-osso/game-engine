@@ -1338,3 +1338,94 @@ fn dungeonclient_launcher_requests_categories_and_catalog_pages_render_both_skin
         assert_eq!(window.action("achievement:category:14808"), vec![]);
     }
 }
+
+fn source_presentation_entry(achievement_id: u32, tree_id: u32) -> AchievementCatalogEntry {
+    let root = std::path::PathBuf::from(env!("CARGO_MANIFEST_DIR")).join("../../data/db2/active");
+    let read_row = |table: &str, id: u32| {
+        let csv = std::fs::read_to_string(root.join(format!("{table}.csv"))).unwrap();
+        let records = game_engine_core::csv_util::parse_csv_records(&csv);
+        let header = &records[0];
+        let id_column = header.iter().position(|name| name == "ID").unwrap();
+        let row = records
+            .iter()
+            .skip(1)
+            .find(|row| row[id_column] == id.to_string())
+            .unwrap();
+        header
+            .iter()
+            .cloned()
+            .zip(row.iter().cloned())
+            .collect::<std::collections::BTreeMap<_, _>>()
+    };
+    let tree = read_row("CriteriaTree", tree_id);
+    let source = read_row("Achievement", achievement_id);
+    let mut entry = achievement();
+    entry.achievement_id = achievement_id;
+    entry.name = source["Title_lang"].clone();
+    entry.description = source["Description_lang"].clone();
+    entry.flags = source["Flags"].parse().unwrap();
+    entry.earned = false;
+    entry.earned_at = None;
+    entry.next_criteria_id = None;
+    // This is a received UI payload fixture, not a persisted/seeded gameplay counter.
+    // Before the wire change serde ignores flags, producing a real rendering RED.
+    entry.criteria = vec![
+        serde_json::from_value(serde_json::json!({
+            "tree_id": tree_id,
+            "order_index": tree["OrderIndex"].parse::<i32>().unwrap(),
+            "criteria_id": tree["CriteriaID"].parse::<u32>().unwrap(),
+            "description": tree["Description_lang"],
+            "flags": tree["Flags"].parse::<u32>().unwrap(),
+            "current": 0, "required": tree["Amount"].parse::<u64>().unwrap(),
+            "completed": false, "progress_supported": true
+        }))
+        .unwrap(),
+    ];
+    entry
+}
+
+fn source_presentation_registry(entry: AchievementCatalogEntry, skin: ActiveSkin) -> FrameRegistry {
+    assets(skin);
+    let mut window = AchievementWindow::default();
+    window.action(&format!("achievement:open:{}", entry.achievement_id));
+    window.apply(AchievementCatalogPage::Achievement {
+        achievement_id: entry.achievement_id,
+        entry: Some(entry),
+    });
+    achievement_registry(&window, skin)
+}
+
+#[test]
+fn achievements_presentation_authored_single_quantity_flag_requires_bar_both_skins() {
+    for skin in [ActiveSkin::Modern, ActiveSkin::Forever] {
+        let entry = source_presentation_entry(1017, 22151);
+        assert_eq!(entry.criteria[0].required, 1);
+        let registry = source_presentation_registry(entry, skin);
+        let bar = registry
+            .get_by_name("Achievement1017Criterion22151Bar")
+            .expect("authored ProgressBar1 must render a bar even when required quantity is1");
+        let bar = registry.get(bar).unwrap();
+        assert_eq!((bar.width.value(), bar.height.value()), (212.0, 14.0));
+        assert_eq!(text(&registry, "Achievement1017Criterion22151"), "0/1");
+    }
+}
+
+#[test]
+fn achievements_presentation_unflagged_hundred_quantity_uses_checklist_both_skins() {
+    for skin in [ActiveSkin::Modern, ActiveSkin::Forever] {
+        let entry = source_presentation_entry(155, 4716);
+        assert_eq!(entry.criteria[0].required, 100);
+        let description = entry.criteria[0].description.clone();
+        let registry = source_presentation_registry(entry, skin);
+        assert!(
+            registry
+                .get_by_name("Achievement155Criterion4716Bar")
+                .is_none(),
+            "authored Flags0 must not become a bar merely because quantity is100"
+        );
+        assert_eq!(
+            text(&registry, "Achievement155Criterion4716"),
+            format!("- {description}")
+        );
+    }
+}
