@@ -767,6 +767,10 @@ impl UiProjection {
             }
             self.visuals.insert(frame.id, visual);
         }
+        // The track mask stays fixed while scrolling moves unchanged level art.
+        if super::journeys_track_mask::apply(&node, frame, rect, registry)? {
+            self.waiting.insert(frame.id);
+        }
         match &frame.widget_data {
             Some(WidgetData::Button(button)) => {
                 let mut hit_button = node.cast::<RegistryButton>();

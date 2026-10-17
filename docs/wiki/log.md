@@ -1,6 +1,26 @@
 ## 2026-10-17 — P5 geometry/recursive lifecycle implementation
 
 [Native M2 particles](systems/godot-conversion.md#p5-geometry-and-recursive-ownership--2026-10-17): independent geometry lifetime instances and child-state consumers; approved parent-age/retirement/move/birth/one-child-advance ordering, descendant draining and previous-frame interpolation. Native missing-consumer RED observed; focused CPU/native GREEN pending. Current extracted-cache census finds no nonempty references; P5-product-resolution, P5-recursive-clock and depth/cycle-policy gaps retained. No S1/S3 changes.
+## 2026-10-16 — Miss-only pet self outcome projection
+
+[Haymaker762 / Gift989](systems/battle-pets.md#miss-only-self-outcome-projection--2026-10-16): actual pointer self-stun and59/68 healing in both skins, successful-hit controls and ten inspected fullHD originals. Strict canonical model readback passes; no shared layout/client combat change or full timing/VFX claim.
+
+## 2026-10-16 — Journeys track texture mask
+
+[Track mask](systems/adventure-guide.md#journeys-track-texture-mask--2026-10-16): authenticated70448 FDID3894493/source1024×128 centered on570×72 clip, per-layout texture-only alpha. Actual159-pixel opaque RED→both-skin edge attenuation/unchanged center/opaque caption and physical wheel5→6 GREEN; inherited search also passes. Twelve full-HD originals inspected. Caption-reference canvas mistake retained as a separate oracle failure, not a product defect. Merged extension check and package fmt pass; independent lead targeted-test/source gate pending.
+
+## 2026-10-16 — Journal search physical acceptance and localized title quotes
+
+[Search](systems/adventure-guide.md#search-preview-and-full-results--implementation-2026-10-16) native8 passes both skins on productf2c8a410a: continued typing, actual preview/full popup, wheel/close/query retention and authored section selection. Eight full-HD originals inspected. Pixel inspection found exported quote spelling leaking through localization; actual RED→four focused tests GREEN and current clean title assertion/paint pass. Native7 first-J failure remains separate; no readiness patch. Current quote-fix check pending; C API/data gaps unchanged.
+
+## 2026-10-16 — Journal search implementation; native acceptance pending (historical2344 checkpoint)
+## 2026-10-16 — Arathi completion Honor
+
+[Completion](systems/battlegrounds.md#arathi-completion-honor--2026-10-16): explicit BG_END_BONUS_ONCE_PER_MATCH normalizes pinned TC's roster-loop placement, not a Retail claim. Real terminal-resource-tick RED0vs122→GREEN proves separate39-bracket61+61 awards,90-bracket80-level clamp, eligible/dead/excluded recipients, cap/XP separation, no type35 event, replay and reopen. Original admission/mirror/Honor35 regressions11 remain GREEN; scoped server check passes. Additional channel lifecycle proves full node/capture/resource victory,60/30 wallet/XP and origin return after explicitly inserting the production-auth wallet component. Gate364 Deephaul RED traced to fixture level19 outside every source bracket; source-valid primary setup now uses80 and retains all gameplay assertions. No external UDP/rendered BG proof. Other BG callbacks remain open.
+
+## 2026-10-16 — Source battleground brackets
+
+[Brackets](systems/battlegrounds.md#source-match-brackets--2026-10-16): authenticated70391 PVPDifficulty ranges isolate groups/matches and survive admission into the live instance. Mixed39/40 group and mixed29/30–39 roster RED2→protocol36/server11 GREEN; scoped native/server checks pass. Exact epic20–79 and Deephaul80 minimum preserved; no decade guess, match-pairing award or Arena/Conquest policy. BG Honor callbacks remain next.
 
 ## 2026-10-16 — Product-row refund icon tooltip implementation
 ## 2026-10-16 — Journal search implementation; native acceptance pending
@@ -10,6 +30,17 @@
 ## 2026-10-16 — Encounter section flags
 
 [Refund icon](systems/trading-post.md#product-row-refund-icon-tooltip--implementation-october16): real old-binary pointer RED shows generic item tooltip over refundable642 while848 is selected; genuine purchase/refund restores Tender/frozen state before assertion. Passive projected texture bounds own right0/0 and the existing colored footer formatter without blocking parent clicks. Model3 and actualca0/4e9/Pb701 both-skin painted GREEN: independent IDs, white caption/red59m, parent click, hover leave, Escape destroys currently hovered owner/HUD, one real purchase/refund restores Tender/collected/frozen state. Eight full-HD originals+two contacts+two crops published; diagnostic manifest binds exact inputs. Integrated933892f79/source protocol604ea609 passes40 UI+12 native, engine check without compiler warnings and scoped five Rustfmt (four unchanged hashes+one foreign tooltip-source delta). Actual native remainsca0/4e9/b701, not the later merged sources. No production refund policy/provider changes.
+## 2026-10-17 — Ordinary exit transfer/input race
+
+[Run20 preparation](systems/bot-harness.md#ordinary-exit-transferinput-race--2026-10-17): ordinary NewWorld precedes stale-state movement refusal; retain exact refusal and await actual InWorld destination within240s, never repeat movement or invent arrival. Captured boundary RED; successful continuation synthetic, fresh native proof pending.
+
+## 2026-10-17 — Idle source-boss progression
+
+[Harness](systems/bot-harness.md#idle-boss-goal-progression--2026-10-17): explicit no-hostile Tab permits one existing strict-navmesh step toward first source-ordered NotStarted boss; fresh combat/health checks interrupt, boss arrival stops movement. RED preconditions are explicitly synthetic, with retained real source goals/native route corners; no historical cleared-area stall is claimed. No hazards, pack-size policy or rotation changes; live first-boss proof pending.
+
+## 2026-10-17 — Native-tree-bound starter talent preparation
+
+[Harness](systems/bot-harness.md#sourced-rotations-and-talents): run19's Fury starter plan chose954/tree880 against received tree850; all61 steps absent, no Apply. Captured70448 source rows reproduce wrong-tree selection. Plans now require received tree authority, select within it, and recheck tree/spec before normal native input. No grants/stat/rotation changes; runtime application/full-clear proof remains pending.
 
 ## 2026-10-16 — Product-row cart toggle implementation
 
@@ -91,6 +122,10 @@
 ## 2026-10-16 — Two-way pet-wall HUD projection
 
 [Ice Barrier479](systems/battle-pets.md#two-way-wall-projection--2026-10-16): actual private5961 pointer casts in both explicit skins preserve incoming-block HP, show shared pad/cooldown, then outgoing Claw consumes the second block and the next Scratch damages. Six fullHD originals inspected;94/101/104 named geometry differs only by HP fill and timed float position. Both models framed, retained injury visible, all owned PIDs stopped. No new widgets/simulation; all-wall native casts,3D VFX and full Retail timing remain separate.
+## 2026-10-16 — Housing world redirect
+
+[World slices](systems/housing.md#world-redirect--active2026-10-16): both-skin real Founder terrain/entry photographs, named plot→persistedHouse policy, actual native walking fixture and private current-ground authentication. Exterior/room assembly choices remain explicit source gaps. The70448 archive mismatch resolved externally;630/630 private ground payloads now match active content keys. Existing16-tile baker/query produces connected routes to both stones; Modern actual keyboard walk/claim10M→House3/plot444/relog passed on70448, with seven inspected `w2-modern-*` WORLD originals; Forever paid claim10M→House4/plot424/relog also passed via the proven444 corridor and retained baked444→424 query;14 inspected full-HD `w2-*` originals. The failed west-bank WMO69.856° contact remains a counterexample, not a repaired navigation claim. No geometry/physics/M2-floor mutation. The current70448 export comparison preserves seven partially unreadable source-table qualifications and the70391 runtime-catalog identity. Existing paid-owner house-list WORLD proof passed in both skins across actual relogs on2735, with eight inspected untouched full-HD `w5-*` captures; the separately verified new House3/4 claim→dashboard/relog state variant adds eight `w5-claimed-*` WORLD originals without invented access defaults. Exterior/interior admission remains source-blocked. No old-build pin, position override or chrome fallback.
+
 ## 2026-10-16 — Full-HD storage capture boundary
 
 [F21](systems/housing.md#full-hd-storage-captures--verified2026-10-16): current merged helper builds, both-skin five-phase physical Filter/Sort/disabled/Dyeable/reset proof and ten inspected untouched1920×1080 originals. Private snapshot Z-schema drift refreshed from authentic current table; no product fix/full-image-parity claim. All owned processes stopped.
@@ -4375,3 +4410,7 @@ Source Item ownership replaces row-press actions; inset-aware native Button pick
 ## 2026-10-16 — MirrorTimer inherited label shadow
 
 [Swimming](systems/swimming.md#mirrortimer-label-shadow--2026-10-16) records complete XML/Lua/font inheritance and the two-attribute black(+1,−1) repair. Genuine missing-shadow RED→5modelGREEN, six both-skin1920×1080 native cases retain geometry;731pixels/skin darken only inside labels/shadows and transparent-shadow controls restorebaselineRGBexactly. Check/build/scopedfmt pass; source census remains incomplete. No cadence/server, other-alphabet or full-timer art certification.
+
+## 2026-10-17 — ReadyCheck inherited message shadow
+
+[Message shadow](systems/group-frames.md#readycheck-message-shadow--bounded-proof-2026-10-16): exactly two attributes restore Roman black(+1,−1). RED→3GREEN and both-skin1920×1080 native proof retain font/currentcolor/text/240×28 box;1002 darkened pixels per skin, zero outside label/shadow union, shadow-off RGB exactly baseline. Check/build/scoped format/readability pass. Sourcecolor/full-popup/server lifecycle remain unqualified.
