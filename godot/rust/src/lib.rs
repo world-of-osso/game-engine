@@ -82,6 +82,7 @@ mod nameplates;
 pub mod npc_gear_data;
 mod objective_tracker;
 mod particle_debug;
+mod particle_models;
 mod particles;
 mod party_frames;
 mod pet_bar;

@@ -1,3 +1,10 @@
+## 2026-10-17 — P5 material-transition integration proof
+
+[Native M2 particles](systems/godot-conversion.md#p5-geometry-and-recursive-ownership--2026-10-17): forward merge30ca371e2, warning-free native build/check, fmt and both synthetic native lifecycle/raster cases pass. Existing45 CPU controls retained on unchanged particle source/test hashes. Independent artifact verifier accepts bounded synthetic claims; unsupported child-mode, hidden-bone and capacity-exhaustion cases explicitly excluded from proof. Retail resolution/recursive clock/depth-cycle gaps remain.
+
+## 2026-10-17 — P5 geometry/recursive lifecycle implementation
+
+[Native M2 particles](systems/godot-conversion.md#p5-geometry-and-recursive-ownership--2026-10-17): independent geometry lifetime instances and child-state consumers; approved parent-age/retirement/move/birth/one-child-advance ordering, descendant draining and previous-frame interpolation. Billboard/native missing-consumer REDs observed;45 scoped CPU controls and2 synthetic native cases now pass. Native1/2 geometry +6/11 child quads, independent lifetime transform/RGBA, tinted raster, drained native visibility0/0 and owner teardown; three-generation draining CPU-only. Explicit synthetic SFID910006 fixes a fixture setup failure without a legacy resolver path. Current extracted-cache census finds no nonempty references; P5-product-resolution, P5-recursive-clock and depth/cycle-policy gaps retained. No S1/S3 changes.
 ## 2026-10-17 — Armageddon sacrifice projection
 
 [Bounded1025](systems/battle-pets.md#armageddon-sacrifice-projection--2026-10-17): both actual skins/private5961 physical61/58 damage, caller321→0 without revival, forced reserve and actual attack. Eight inspected fullHD originals, two framed models/all snapshots strict/tripwire0, canonical adopted70448 loader pass. Native one-enemy and three-enemy server-test scopes remain distinct; no new UI layout/simulation or full timing/VFX claim.
