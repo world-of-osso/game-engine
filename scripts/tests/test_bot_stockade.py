@@ -32,7 +32,9 @@ class StockadeOpeningTests(unittest.TestCase):
             "facts": {"known": [57755], **{field: {"57755": {"Ok": True}}
                 for field in ("in_range", "ready", "affordable")}}}
         controller.move = lambda *args: self.fail("Moved before ranged opening")
+        controller.rotation = lambda: controller.snapshot(41)
         controller.player = SimpleNamespace(
+            observe_cast_outcome=lambda state: True,
             assist=lambda tank: None, tab_to_enemy=lambda: 41,
             cast_opening=lambda target, spell: calls.append((target, spell)) or {"success": True})
         with tempfile.TemporaryDirectory() as root:
@@ -70,6 +72,62 @@ class StockadeOpeningTests(unittest.TestCase):
             with patch('run_stockade_bot.time.sleep'):
                 controller.approach_opening(41)
         self.assertEqual(moved, [([56, -19, 0], [93, -25, 0], "native-ranged-approach")])
+
+
+class StockadeReceiptLifecycleTests(unittest.TestCase):
+    def switched_target_controller(self):
+        from bot_controller import PlayerController
+        from run_stockade_bot import StockadeRun
+        path = Path(__file__).parent / 'fixtures/bot_harness/native-stockade-kill-switch-receipt.json'
+        fixture = json.loads(path.read_text())
+        controller = StockadeRun.__new__(StockadeRun)
+        controller.run = {"clear_elapsed_ms": None}
+        controller.opening_target = None
+        controller.tank = "Captain Garrick"
+        controller.poll_combat = lambda: None
+        controller.record_credit = lambda: None
+        controller.party = lambda: [{"health": 80, "max_health": 100}]
+        controller.rotation = lambda: fixture["after"]
+        controller.snapshot = lambda target: fixture["after"]
+        controller.account = lambda: {"local_player_position": "(0,0,0)"}
+        controller.player = PlayerController(lambda *args: None, controller.snapshot, None, None)
+        controller.player.assist = lambda tank: int(fixture["after"]["target"])
+        controller.player.submit_cast(fixture["before"], fixture["before"]["target"], 5308)
+        return controller, fixture
+
+    def test_execute_kill_target_switch_consumes_real_receipt_before_movement(self):
+        controller, fixture = self.switched_target_controller()
+        moves = []
+        def move(*args):
+            self.assertIsNone(controller.player.pending, "Kill receipt not consumed before target-switch movement")
+            moves.append(args)
+        controller.move = move
+        with patch('run_stockade_bot.time.sleep'):
+            self.assertFalse(controller.step())
+        self.assertEqual(len(moves), 1)
+        self.assertTrue(controller.player.outcomes[-1]["success"])
+        self.assertEqual(controller.player.outcomes[-1]["spell"], 5308)
+
+    def test_target_switch_without_receipt_waits_before_movement_or_new_input(self):
+        controller, fixture = self.switched_target_controller()
+        fixture["after"]["spells"] = fixture["before"]["spells"]
+        moves = []
+        controller.move = lambda *args: moves.append(args)
+        with patch('run_stockade_bot.time.sleep'):
+            self.assertFalse(controller.step())
+        self.assertEqual(moves, [])
+        self.assertIsNotNone(controller.player.pending)
+        self.assertEqual(controller.player.outcomes, [])
+
+    def test_missing_kill_receipt_times_out_without_reset_or_movement(self):
+        controller, fixture = self.switched_target_controller()
+        fixture["after"]["spells"] = fixture["before"]["spells"]
+        controller.move = lambda *args: self.fail("Movement after missing outcome deadline")
+        deadline = controller.player.pending["deadline"]
+        with patch('run_stockade_bot.time.monotonic', return_value=deadline + 1):
+            with self.assertRaisesRegex(TimeoutError, "outcome not observed"):
+                controller.step()
+        self.assertIsNotNone(controller.player.pending)
 
 
 class StockadeVisibilityTests(unittest.TestCase):

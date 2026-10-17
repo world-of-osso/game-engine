@@ -283,6 +283,8 @@ class StockadeRun:
 
     def step(self):
         self.poll_combat()
+        if not self.player.observe_cast_outcome(self.rotation()):
+            return False
         self.record_credit()
         if self.run["clear_elapsed_ms"] is not None:
             return True

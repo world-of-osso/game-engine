@@ -50,6 +50,12 @@ The1280 input/result PNGs were inspected and published as `follower-dungeons/nat
 
 `bot_simc_arcane.ArcaneSimcProvider` carries the approved diagnostic projection into the maintained interface with caller-provided receipt/APL/captured-kit/DB2/native-preflight/fight context. Receipt URL/commit and actual APL bytes must match SimC515f4a3fe9d1; the [fixture provenance](../../../scripts/tests/fixtures/bot_harness/simc_arcane32/provenance.json) retains exact source paths/hashes and native row slices. The generic controller contains no Mage IDs or priority. Provider calls are read-only against frozen kit/traits; the [bounded source contract](../../specs/bot-harness.md#approved-pinned-arcane-provider) retains APL24/36/64,2700s iteration timing and explicit unsupported cases. Selection must be explicit; no provider is auto-selected after a native evaluator error.
 
+### Kill receipt across target changes — 2026-10-16
+
+Release13a records Execute5308 success at1792202422308 and its target's death10ms later. The next native sample selects another living enemy. The Stockade step processed pending outcomes only while casting again or observing a selected dead target; movement and later idle healing skipped that check. The next opening failed locally after the retained native success aged out, despite the original receipt being present in the captured log.
+
+Every Stockade step now consumes the fresh owner receipt before branching into movement, healing waits or pull preparation. Missing outcomes block progression and keep the existing10s deadline; no pending reset or invented success. Regression replays the actual before/after samples through `PlayerController`, including missing-receipt and timeout controls. Live acceptance remains separate.
+
 ### LOS-aware pull preparation — 2026-10-16
 
 Release Stockade12b reaches three acknowledged openings, then stops after225.631s on Riverpaw Poacher46250: native range is true but no client cast ray exists and authoritative server visibility is false. A post-run sampled caster-eye→target-feet ray is blocked in the canonical Map34 bake; this sample does not establish exact receipt-time geometry for every aim point. No bosses started, no deaths occurred, and per-boss DPS stays unavailable.

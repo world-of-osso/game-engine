@@ -14,6 +14,10 @@
 ## 2026-10-16 — Bench resurrection HUD projection
 
 [Shared2347 projection](systems/battle-pets.md#bench-resurrection-projection--2026-10-16): both actual skins physically revive two persisted-dead reserves to78/1563, pointer swap, retain incoming damage and win through the revived pet's147-damage Metal Fist. Eight fullHD originals inspected;92/98/131/98 geometry differs only in timed float. Canonical78-asset closure and explicit strict loader readback pass; world-native mode, exact runtime heads and pre-auth recovery are documented. No UI change/full Retail timing/VFX claim; owned processes stopped.
+## 2026-10-16 — Killing-cast receipt lifecycle
+
+[Target-switch receipt](systems/bot-harness.md#kill-receipt-across-target-changes--2026-10-16): release13a proves native LOS-aware movement, then exposes an unconsumed Execute success after its target dies. Stockade now drains real owner outcomes before movement/idle branches; missing receipts retain the original deadline, never a pending reset. Recorded native before/after frames supply RED replay controls.
+
 ## 2026-10-16 — LOS-aware opening preparation
 
 [Riverpaw boundary](systems/bot-harness.md#los-aware-pull-preparation--2026-10-16): release12b records native range true but native ray absent/server visibility false. Prepull movement now waits for native visibility along the same strict navmesh route, bounded by time/travel; no target cycling, cast retries or LOS relaxation. Captured-case RED and live runtime proof remain distinct.
