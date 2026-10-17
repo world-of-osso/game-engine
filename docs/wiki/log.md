@@ -1,3 +1,7 @@
+## 2026-10-17 — Launch Rocket setup/launch projection
+
+[Bounded75](systems/battle-pets.md#launch-rocket-projection--2026-10-17): both actual strict skins/private5961 physically set up294 without enemy damage, then launch/expire294 and win at enemy0. Authored Lil' Bling20; retained owned injury1205→1180→1153, six inspected fullHD originals/two framed models, unchanged shared HUD geometry except fills/timed floats. Canonical194 assets reused with53 hash checks; actual native server6b44/engine8c/shared6b and source scope recorded, no new UI code or full timing/VFX claim.
+
 ## 2026-10-17 — Armageddon sacrifice projection
 
 [Bounded1025](systems/battle-pets.md#armageddon-sacrifice-projection--2026-10-17): both actual skins/private5961 physical61/58 damage, caller321→0 without revival, forced reserve and actual attack. Eight inspected fullHD originals, two framed models/all snapshots strict/tripwire0, canonical adopted70448 loader pass. Native one-enemy and three-enemy server-test scopes remain distinct; no new UI layout/simulation or full timing/VFX claim.
