@@ -1547,6 +1547,26 @@ fn achievements_presentation_check_completion_and_cursor_flags_both_skins() {
                 .get_by_name("Achievement155Criterion4716Bar")
                 .is_none()
         );
+        let mut earned = source_presentation_entry(155, 4716);
+        earned.earned = true;
+        earned.criteria[0].current = 100;
+        earned.criteria[0].completed = true;
+        let earned_registry = source_presentation_registry(earned, skin);
+        let caption = earned_registry
+            .get(
+                earned_registry
+                    .get_by_name("Achievement155Criterion4716")
+                    .unwrap(),
+            )
+            .unwrap();
+        let Some(WidgetData::FontString(font)) = &caption.widget_data else {
+            panic!("earned checklist caption");
+        };
+        assert_eq!(
+            font.shadow_offset,
+            [0.0, 0.0],
+            "completed parent removes the inherited shadow offset"
+        );
         let mut entry = source_presentation_entry(155, 4716);
         entry.next_criteria_id = Some(4716);
         let mut window = AchievementWindow::default();
