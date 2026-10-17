@@ -1,3 +1,7 @@
+## 2026-10-16 — Hasty Hearth actual Human native proof
+
+[Guild effects](systems/guilds.md#perk-native-authority-and-effect-boundary-2026-10-16): real Human458619 retained, two physical6948/8690 uses per fresh scenario (one in each skin),25-minute ordinary versus10-minute guild recovery. Four real invitation/removal cycles preserve pending clocks and all114 non-guild IDs; binaries identical. Twelve inspected full-HD originals establish bag/item/cast context; numbers are actual native owner receipts, not rendered timer labels. Mixed25/10/25-minute queue and rate/snapshot core17 pass; extra controls/final checks remain separate.
+
 ## 2026-10-16 — Supported Mount Up native effect proof
 
 [Guild effects](systems/guilds.md#perk-native-authority-and-effect-boundary-2026-10-16): real invitation/removal and Golden Gryphon input produce14→15.4→14 ground and22.4→24.64→22.4 flight, with seven coherent samples per skin. Fourteen full-HD originals inspected; ten mounted ground/flight/removal frames selected, four occluded ground/unmounted frames rejected. Earlier flat retries were actual CasterDead after a cliff trial; fixture recovery uses existing private `.revive`, not speed/perk injection. Controlled-NPC210 remains blocked. Hasty core charge2309 controls pass3/3; native item proof remains separate.
