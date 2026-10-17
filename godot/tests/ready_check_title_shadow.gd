@@ -30,7 +30,7 @@ func run_title_shadow() -> void:
 		assert(panel != null and title != null and message != null)
 		assert(panel.size == Vector2(323, 100))
 		assert(title.is_visible_in_tree() and title.text == "Ready Check")
-		assert(title.size == Vector2(323, 20) and title.global_position - panel.global_position == Vector2(0, 4))
+		assert(title.size == Vector2(241, 20) and title.global_position - panel.global_position == Vector2(58, 6))
 		assert(title.get_theme_font_size("font_size") == 12)
 		assert(title.get_theme_color("font_color").is_equal_approx(Color(1, 210.0 / 255.0, 0)))
 		assert(title.get_theme_color("font_shadow_color") == Color.BLACK)
