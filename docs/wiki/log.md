@@ -3,6 +3,11 @@
 [Row glyph blend](systems/trading-post.md#product-row-refund-glyph-blending--implementation-october17): source21px ordinary/inherited ADD overrides the default field, not the32px footer. Actual native paint RED827/813 bytes versus ADD, exact MIX agreement; footer normal0/ADDcounterfactual1874, all restores0/sensitive controls and genuine frozen640 purchase/refund conservation. Minimal post-sync row-only property wiring committed before GREEN; no opacity/global renderer/provider change. Both-skin acceptance pending.
 
 ## 2026-10-16 — Product-row refund icon tooltip implementation
+## 2026-10-16 — Journal search implementation; native acceptance pending
+
+[Search](systems/adventure-guide.md#search-preview-and-full-results--implementation-2026-10-16) now uses source preview/full results and authored target paths. Actual native REDs cover23px inactive-style minimum, focus retained but editing stopped after Enter, and a generic list-row focus marker deleting previews before mouse-up.2344 fixes the root widget/adapter boundaries;95 prior scoped controls and two current search tests pass, build/source verification pass. Both-skin companion/current pixel/check acceptance remains pending; no historical-prefix or native C API parity claim. Installed orphan-parent records are named in the contract.
+
+## 2026-10-16 — Encounter section flags
 
 [Refund icon](systems/trading-post.md#product-row-refund-icon-tooltip--implementation-october16): real old-binary pointer RED shows generic item tooltip over refundable642 while848 is selected; genuine purchase/refund restores Tender/frozen state before assertion. Passive projected texture bounds own right0/0 and the existing colored footer formatter without blocking parent clicks. Model3 and actualca0/4e9/Pb701 both-skin painted GREEN: independent IDs, white caption/red59m, parent click, hover leave, Escape destroys currently hovered owner/HUD, one real purchase/refund restores Tender/collected/frozen state. Eight full-HD originals+two contacts+two crops published; diagnostic manifest binds exact inputs. Integrated933892f79/source protocol604ea609 passes40 UI+12 native, engine check without compiler warnings and scoped five Rustfmt (four unchanged hashes+one foreign tooltip-source delta). Actual native remainsca0/4e9/b701, not the later merged sources. No production refund policy/provider changes.
 
@@ -12,6 +17,10 @@
 ## 2026-10-16 — Lifetime honor source boundary
 
 [Honor](systems/battlegrounds.md#lifetime-honor-source-boundary--2026-10-16): pinned concrete world-kill XP plumbing is distinct from spendable1792; no8800 guess, old Prestige curve reinterpretation or quest-to-match payout assignment. Persist/replicate lifetime XP, leave level/fill unknown, preserve source faction art and tooltip. Merged server10/UI4/wire1/check/fmt pass; actual private damage/death0→47→94, both-skin full-HD tooltip, dead replay and fresh-process relog are bounded native proof. Character Currency's absent consumer/UI remains open, not excused by unavailable award policy.
+## 2026-10-16 — Explicit Honor wallet mirror policy
+
+[Policy](systems/battlegrounds.md#earned-wallet-source-continuation--2026-10-16): Lead authorized HONOR_WALLET_MIRRORS_HONOR_XP as World of Osso's event binding, not TC wallet behavior. Existing TC-derived N preserves lifetime XP and credits1792 with its holding cap; weekly0 unchanged, Arena/Conquest/Korrak excluded. Real lethal-damage RED0vs47 and14990vs15000 pin mirror and cap/XP separation; implementation now publishes/persists both projections. GREEN9 and scoped server/native checks/builds pass. Actual private5941 deaths: Modern wallet0→47/XP94→141, fresh Forever47→94/141→188; dead replay adds nothing, fresh-process relog retains94/188. Four inspected full-HD Currency row/full-tooltip captures prove the earned readout. Per-map BG callbacks remain unwired; Arena/Conquest unchanged.
+
 ## 2026-10-16 — Earned-wallet source boundary and weekly bookkeeping
 
 [Source boundary](systems/battlegrounds.md#earned-wallet-source-continuation--2026-10-16): fresh raw70391 RewardPack exports and42 pinned BG/arena scripts/default hook do not supply a wallet-event binding; award spells/config values alone are insufficient. Known weekly0 behavior exposed unconditional week_earned accumulation: real300-versus0 RED, protocol26 GREEN after counting only capped gains; capped reset coverage retained. Protocol26/server7, persistence and scoped server/native/shared checks plus fmt3 pass. No earned-wallet/native award claim, XP conversion or guessed season/reset policy.
@@ -19,9 +28,32 @@
 ## 2026-10-16 — Native PvP Currency continuation
 
 [Currency](systems/battlegrounds.md#native-currency-readout--2026-10-16): real UDP owner relay, account receipt/reset/refusal handling and IPC, source TokenFrame PvP rows/hover/collapse. Both-skin empty-wallet hidden tab and private saved Honor0 presentation observed; discovered-wallet tabs corrected from inherited Forever side chrome to Mainline bottom anchors. Final UI7/wire1/account1, scoped builds/checks/fmt and both-skin source-anchor recapture pass; six full-HD originals inspected, eleven rectangles identical. Owned private stale world copy refreshed read-only from published authored schema after master gained world-questZ; no product/data-policy workaround. No earned-award or full TokenUI claim.
+## 2026-10-16 — Product-row cart toggle implementation
+
+[Row toggle](systems/trading-post.md#product-row-cart-toggle--implementation-october16): source36px hovered-row control carries its own vendor identity, authored add/minus art, cart indicator and left tooltip. Existing cart eligibility/default wearable selection shared without resetting current choices. Model missing-action3 and actual native missing-button RED precede implementation. Modern behavior passed but paint acceptance was rejected: hover replaced the base glyph with highlight art (native center contrast ratio0.167). Base-plus-highlight correction9bbc554ad passes both-skin real-pixel/behavior proof (contrast ratio0.732, independent IDs, unchanged Tender/frozen slots and open-cart choices);10 inspected full-HD originals+2 contacts+2 crops published. Stale private world data is refreshed from the already-published canonical source, preserving account redb.
 ## 2026-10-16 — Bench resurrection HUD projection
 
 [Shared2347 projection](systems/battle-pets.md#bench-resurrection-projection--2026-10-16): both actual skins physically revive two persisted-dead reserves to78/1563, pointer swap, retain incoming damage and win through the revived pet's147-damage Metal Fist. Eight fullHD originals inspected;92/98/131/98 geometry differs only in timed float. Canonical78-asset closure and explicit strict loader readback pass; world-native mode, exact runtime heads and pre-auth recovery are documented. No UI change/full Retail timing/VFX claim; owned processes stopped.
+## 2026-10-16 — Uncast target-death handoff
+
+[Preparation target death](systems/bot-harness.md#preparation-target-death--2026-10-16): Trace17 delivers all4578 CombatChannel messages but exposes corpse pursuit during uncast prep. Consume received zero HP before movement/submission, record explicit abandonment, and resume assist without forcing a target or retry. Recorded alive→dead frames supply RED; prior delivery freeze is not claimed fixed.
+
+## 2026-10-16 — Frozen combat-channel observation
+
+[Delivery boundary](systems/bot-harness.md#combat-channel-delivery-boundary--2026-10-16): release16 proves policy-B uncast abandonment and continued authored combat, then loses all native combat-log progress while target HP still replicates. Queue replacement/ring eviction rejected; enqueue/transport/ingestion unresolved, host starvation recorded, no gameplay root fix. Local capture-complete is not wire completeness; per-spec rates stay unqualified and boss credit absent.
+
+## 2026-10-16 — Authoritative idle admission for pulls
+
+[Opening combat admission](systems/bot-harness.md#combat-admission-for-opening-preparation--2026-10-16): release15b's seventh target was already fighting before a point-blank Heroic Throw prep timed out. Received owner CombatStatus now gates new openings and abandons uncast prep on engagement; existing cast receipts remain mandatory. Captured seventh-pull RED, no withdrawal/alternate cast/forced target or balance tuning.
+
+## 2026-10-16 — Melee endpoint arrival handoff
+
+[Native endpoint stall](systems/bot-harness.md#melee-endpoint-completion-stall--2026-10-16): release14 retains an owner2.50000111yd from the target with Execute natively usable but no input for43s. Route arrival was discarded by the Stockade caller. Propagate that result into the existing cast gate; recorded-pose RED plus native-range and fresh-observation controls, no tolerance or balance changes.
+
+## 2026-10-16 — Killing-cast receipt lifecycle
+
+[Target-switch receipt](systems/bot-harness.md#kill-receipt-across-target-changes--2026-10-16): release13a proves native LOS-aware movement, then exposes an unconsumed Execute success after its target dies. Stockade now drains real owner outcomes before movement/idle branches; missing receipts retain the original deadline, never a pending reset. Recorded native before/after frames supply RED replay controls.
+
 ## 2026-10-16 — LOS-aware opening preparation
 
 [Riverpaw boundary](systems/bot-harness.md#los-aware-pull-preparation--2026-10-16): release12b records native range true but native ray absent/server visibility false. Prepull movement now waits for native visibility along the same strict navmesh route, bounded by time/travel; no target cycling, cast retries or LOS relaxation. Captured-case RED and live runtime proof remain distinct.
@@ -4330,3 +4362,7 @@ Source Item ownership replaces row-press actions; inset-aware native Button pick
 
 [Launcher](systems/launcher.md#portrait-inclusive-hud-clearance--2026-10-16): retain approved321×79 portrait mount; re-derive exact root/bars/portrait, include Camelot8px painted outset in Forever launcher−17.5 margin. Genuine master29pass2fail→31HUD+9launcher GREEN; production-faithful test skin setup, engine/networkcheck/build and both-skin1920×1080 native clearance pass. Modern0pixel changes, Forever113408 confined to launcher paint, zero outside. Supplied-state canvas proof, not live portrait/authority or full-HUD certification.
 - 2026-10-16: [Croak and Witch source closure](systems/toy-box.md#croak-and-witch-source-closure-2026-10-16): actual combined loader22 receipts/ten aliases and native catalog2/2; only three new private textures, nineteen canonical owners retained. Type7/Shadowy165 is not animation; native appearance/audio and installed-config revalidation remain separate.
+
+## 2026-10-16 — MirrorTimer inherited label shadow
+
+[Swimming](systems/swimming.md#mirrortimer-label-shadow--2026-10-16) records complete XML/Lua/font inheritance and the two-attribute black(+1,−1) repair. Genuine missing-shadow RED→5modelGREEN, six both-skin1920×1080 native cases retain geometry;731pixels/skin darken only inside labels/shadows and transparent-shadow controls restorebaselineRGBexactly. Check/build/scopedfmt pass; source census remains incomplete. No cadence/server, other-alphabet or full-timer art certification.

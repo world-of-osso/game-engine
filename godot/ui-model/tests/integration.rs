@@ -7,6 +7,7 @@ mod adventure_guide_fidelity;
 mod adventure_guide_layout;
 mod adventure_guide_shared_menu;
 mod adventure_journeys;
+mod adventure_search;
 mod ahportrait;
 mod atlas_skins;
 mod auction_dialogs;
