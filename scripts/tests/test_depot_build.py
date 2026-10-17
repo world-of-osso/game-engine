@@ -470,6 +470,31 @@ class DepotBuildTests(unittest.TestCase):
         self.assertIn("not allowed", result.stderr)
         self.assertEqual(self.records(), [])
 
+    def test_model_asset_selector_stages_current_receipt_without_historical_namespace(self):
+        selector = "model:wow:42:blp\n"
+        self._put(self.root, "godot/depot-test-assets.txt", selector)
+        for key in ("1" * 32, "2" * 32):
+            path = f"products/wow/{key}/textures/42.blp"
+            self._put(self.root, f"data/{path}", "unchanged texture")
+            document = {
+                "version": 1,
+                "assets": [{"product": "wow", "build_key": key,
+                            "fdid": 42, "kind": "blp", "path": path}],
+            }
+            self._put(self.root, "data/cache/model-asset-index.json", json.dumps(document))
+            result = self.run_test_mode()
+            self.assertEqual(result.returncode, 0, result.stderr)
+            self.assertEqual(self.records()[-1]["assets"], {path: "unchanged texture"})
+
+    def test_model_asset_selector_refuses_missing_receipt_even_with_old_file(self):
+        self._put(self.root, "godot/depot-test-assets.txt", "model:wow:42:blp\n")
+        self._put(self.root, "data/products/wow/old/textures/42.blp", "historical")
+        self._put(self.root, "data/cache/model-asset-index.json", '{"version":1,"assets":[]}')
+        result = self.run_test_mode()
+        self.assertNotEqual(result.returncode, 0)
+        self.assertIn("No model asset receipt for model:wow:42:blp", result.stderr)
+        self.assertEqual(self.records(), [])
+
     def test_test_mode_forwards_cargo_args_stages_listed_assets_and_prints_log(self):
         result = self.run_test_mode(
             "-p",
