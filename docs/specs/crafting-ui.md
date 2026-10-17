@@ -13,8 +13,8 @@ Rust ui-model screens and the native Godot extension extend [ProfessionsFrame](p
 
 ### Fixed-output orders
 - [x] Customer NPC lifecycle opens a separate Retail customer view; crafter orders open from the profession tab.
-- [x] Customer Browse/My Orders use PanelTabButtonTemplate, recipient/duration use WowStyle1DropdownTemplate with source anchors and reducer-owned enabled/open state; Forever changes art only.
-- [x] Public/guild/personal filters and customer/crafter views preserve server-scoped visibility and eligibility (scoped behavior tests; public orders additionally proved live).
+- [x] Customer Browse/My Orders use PanelTabButtonTemplate, recipient/duration use WowStyle1DropdownTemplate with source anchors and reducer-owned enabled/open state; Forever changes art only. The selected customer tab follows the visible page, not an owned-order query flag, so My Orders remains clickable while the placement form is visible.
+- [x] Public/guild/personal filters and customer/crafter views preserve server-scoped visibility and eligibility (scoped behavior tests and current private UDP5951 native Public, Guild and Personal order/mail proof in both skins).
 - [x] Customer form sends exact authored reagent quantities/customer contributions, recipient, commission, duration and note. Server owns escrow and validation.
 - [x] Claim/release/fulfill/cancel operate on selected authoritative order IDs; completion is observed through server order/mail/inventory state, never fabricated locally.
 
@@ -43,7 +43,7 @@ Rust ui-model screens and the native Godot extension extend [ProfessionsFrame](p
 - `godot/tests/crafting_ui_live.gd` — private both-skin specialization, public order and receiving-mail phases.
 
 ## Known gaps (current cycle)
-- [x] Both-skin private public-order/knowledge/mail proof complete; skills, knowledge and achievement were explicitly fixture-primed, not acquisition proof.
+- [x] Both-skin private public/guild/personal order/mail and knowledge proof complete; skills, knowledge, guild membership and acceptance reagents were explicitly fixture-primed, not acquisition proof.
 - [ ] Recraft evaluator/owned-item lineage unsupported by current server contract; no submission message exists.
 
 ## Out of scope
