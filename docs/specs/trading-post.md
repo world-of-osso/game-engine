@@ -84,7 +84,7 @@ Source: Retail `Blizzard_PerksProgramElements.lua:291–304` unconditionally pla
 
 - Ordinary and frozen buttons are distinct hover owners even for the same product. Nested cart-toggle hover retains the parent product owner. Hold/refresh does not replay; leave and teardown permit reentry/reopen. Empty-slot enter follows the item-independent source handler, without requiring selection or item data.
 - Reuse existing UiKits decoding/settings: file4906953, source gain0.891250908 × master × effects, no pitch adjustment/variation. Do not change selected product, cart, Tender, frozen reservation or collections. Selection218230 and other action sounds remain excluded.
-- [ ] Native missing-enter RED→both-skin decoded playback/finished, owner lifecycle and authority conservation GREEN; core source-kit test and focused integration gates.
+- [x] Native missing-enter RED→actual3a7bed652/serverf4260beaf/protocole9b80b8 both-skin GREEN:12 lifecycle checkpoints and5 measured decoded4906953 plays per skin, all playing/finished,0.378645837s, source×settings gain0.713000715 and pitch1; same-product ordinary/frozen owners differ and child/hold do not replay. Tender19040/19670, frozen640/712, selected642/734, collections/cart conserved. Core3+TP52(+1DB2)/check/scoped Rustfmt3/readability pass; native empty-slot and hardware output remain unclaimed. Ten inspected full-HD originals+two contacts: `/syncthing/AgentShared/2026-10-17/trading-post-product-hover-sound/`.
 
 ## Menu lifecycle sounds
 
