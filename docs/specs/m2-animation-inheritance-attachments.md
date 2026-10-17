@@ -26,8 +26,8 @@ Clean-room user-supplied M2-MAT requirements; W/C labels are provenance only.
 - [x] Material modes2/3 use ordinary non-step endpoint interpolation, not held keys. Scalar/vector0→1 at0–1000ms yields0.25 at250ms within fixed16 quantization.
 - [x] Runtime integration: active base transitions blend eligible local non-step RGB, alpha, texture weights and UV translation/scale/quaternion rotation, using both sequence clocks and the bone weight.
 - [x] Pure material sampler: empty transition sides contribute defaults; global tracks use their global clock without local blending; step tracks retain their current held value.
-- [x] Interrupted transitions retain raw eligible material channels in load-time buffers, using the same base-state bone weight. Runtime/native acceptance remains pending.
-- [ ] Native both-skin1920×1080 real-asset before/after and165644 tint control.
+- [x] Interrupted transitions retain raw eligible material channels in load-time buffers, using the same base-state bone weight. Runtime85 filtered animation tests and native interrupted-weight controls pass.
+- [x] Native both-skin1920×1080 real-asset before/after and165644 tint control; both Hold images are pixel-identical across binaries. [Proof](../wiki/systems/animation.md#local-material-transitions-m2-mat--2026-10-17).
 - [ ] M2-MAT-CUBIC: target-qualified material spline/tangent semantics remain unproven; camera-style Hermite/Bezier sampling is explicitly excluded.
 
 ## How it works
@@ -51,6 +51,11 @@ Clean-room user-supplied M2-MAT requirements; W/C labels are provenance only.
 - `godot/rust/src/animation/action_tests.rs` — actual HumanMaleHD `$SCD` marker delivery/consumption while active/inactive.
 - `godot/tests/m2_attachment_activation.gd`, `scripts/agent/m2-anim-fixtures.py` — private solar-spell track fixture with actual equipped item25, child pose writes, callback eligibility, shadows, identity, sequence/control tracks and existing native clock/color-state measurements.
 - `godot/tests/m2_inheritance_pixels.gd` — authentic125913 bone67 flags4/parent12; same-clock ordinary-hierarchy baseline versus restored affine override, native1920×1080.
+
+M2-MAT fixtures:
+- `godot/core/tests/m2_material.rs`, `m2_material_transition.rs` — authentic tint/clock/selection controls, ordinary nonzero interpolation, all local channels/defaults, quaternion composition, interrupted snapshots and thread-scoped allocation counts.
+- `godot/rust/src/animation/material_tests.rs` — authentic165644 base-state two-clock and repeated zero-elapsed retransition behavior.
+- `godot/tests/m2_material_transition.gd` — both skins, same-camera/fixed-clock full-HD before/after and165644 Hold tint control.
 
 ## Known gaps (current cycle)
 
