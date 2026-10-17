@@ -1,3 +1,4 @@
+- [Idle boss-goal progression](systems/bot-harness.md#idle-boss-goal-progression--2026-10-17) — explicit empty Tab permits one strict native source-goal step; combat/recovery interrupts, boss arrival stops movement; synthetic RED, live proof pending.
 - [Native-tree-bound starter talents](systems/bot-harness.md#sourced-rotations-and-talents) — received Fury tree850 selects installed915, not cross-tree954/880; unavailable authority stops prep.
 - [Projected walking endpoint](systems/bot-harness.md#projected-walking-endpoint--2026-10-16) — use the completed source nav-surface endpoint, not raw NPC height; unchanged arrival tolerance and partial/floor refusal controls.
 - [Preparation target death](systems/bot-harness.md#preparation-target-death--2026-10-16) — stop uncast prep on received zero HP before corpse movement/despawn; Trace17 delivers all4578 CombatChannel messages.
@@ -34,6 +35,7 @@
 - [Earned-wallet source boundary](systems/battlegrounds.md#earned-wallet-source-continuation--2026-10-16) — kill/completion binding gaps remain; sourced static-weekly bookkeeping corrected separately, no invented payout.
 
 - [Inherited frozen item tooltip](systems/trading-post.md#inherited-frozen-product-tooltip--implementation-october16) — displayed selection action fixes inherited owner omission; actual both-skin settled frozen identity/anchor/leave GREEN, preserved slots/Tender, four inspected full-HD hover/leave samples.
+- [Miss-only self outcome projection](systems/battle-pets.md#miss-only-self-outcome-projection--2026-10-16) — both-skin Haymaker self-stun, Gift59/68 healing, actual hit controls and ten fullHD originals; strict canonical readback, full timing/VFX unqualified.
 - [Refuge shield projection](systems/battle-pets.md#refuge-shield-projection--2026-10-16) — both-skin independent caller/Critter blocks, non-Critter28/26 damage, strict canonical readback and eight fullHD originals; full Retail timing/VFX unproved.
 - [Same-species damage projection](systems/battle-pets.md#same-species-effect-projection--2026-10-16) — legal level2 trio, both-skin2283 actual85/77 damage, strict snapshots/canonical readback and four fullHD originals; full Retail timing/VFX unproved.
 - [Bench resurrection projection](systems/battle-pets.md#bench-resurrection-projection--2026-10-16) — both-skin2347→two78/1563 reserves→physical swap→147-damage win; eight fullHD originals and canonical strict model readback.
