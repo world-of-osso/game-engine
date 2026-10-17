@@ -245,15 +245,29 @@ impl GameClient {
     /// Elements.lua123–137: the21px undo texture owns ANCHOR_RIGHT, offsets0/0.
     fn trading_post_refund_tooltip(&mut self, hit: &HoveredFrame) -> Option<HoveredTooltip> {
         let ui = hit.ui.bind();
-        let (owner, vendor_id) = named_ancestor(ui.registry()?, hit.frame, |frame| {
-            indexed(frame, "PerksProgramRefundIcon")
-                .or_else(|| indexed(frame, "PerksProgramFrozenRefundIcon"))
+        let registry = ui.registry()?;
+        let (row, vendor_id) = named_ancestor(registry, hit.frame, |frame| {
+            frame
+                .onclick
+                .as_deref()?
+                .strip_prefix("perks:select:")?
+                .parse::<u32>()
+                .ok()
         })?;
+        let prefix = if name_of(registry.get(row)?)? == "PerksProgramFrozenSlot" {
+            "PerksProgramFrozen"
+        } else {
+            "PerksProgram"
+        };
+        let owner = registry.get_by_name(&format!("{prefix}RefundIcon{vendor_id}"))?;
+        let rect = ui.frame_id_rect(owner)?;
+        // Motion ownership must not turn this texture into a click blocker.
+        let pointer = godot::prelude::Vector2::from_array(self.physical_input.pointer());
+        if !rect.contains_point(pointer) {
+            return None;
+        }
         drop(ui);
-        let tooltip = self
-            .trading_post
-            .view
-            .refund_icon_tooltip(u32::try_from(vendor_id).ok()?)?;
+        let tooltip = self.trading_post.view.refund_icon_tooltip(vendor_id)?;
         Some(HoveredTooltip::text(self.owned_by(
             hit,
             owner,
