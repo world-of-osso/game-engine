@@ -12,6 +12,7 @@ var menu_audio_events := []
 var hover_audio_events := []
 var hover_sound_checks := []
 var hover_kit_baseline := 0
+var row_exclusion_checks := []
 var paused_private_server := 0
 # Retail70391 SoundKitEntry rows for218932/218933.
 const MENU_OPEN_FILES := [4956048,4956050,4956052,4956054,4956056]
@@ -27,7 +28,7 @@ func run_fixture() -> void:
 		fail("Private compositor must expose 1920x1080 output")
 		return
 	var account := OS.get_environment("TP_ACCOUNT")
-	if server != "127.0.0.1:5791" or not account.begins_with("fb_") or shots.is_empty() or receipts.is_empty() or not phase in ["product-hover-sound", "refund-icon-blend", "refund-icon-tooltip", "row-cart-toggle", "frozen-tooltip", "cart-tooltips", "pending-dialogs", "confirmations", "button-tooltips", "item-tooltips", "menu-sounds", "layout", "layout-proof", "browse", "relog", "purchase", "refund", "cart", "cart-lifetime", "rotate-controls", "mount-rider", "mount-rider-cancel", "freeze-workflow", "authored-camera", "frozen-slot-before", "frozen-slot-after"]:
+	if server != "127.0.0.1:5791" or not account.begins_with("fb_") or shots.is_empty() or receipts.is_empty() or not phase in ["frozen-row-exclusion", "product-hover-sound", "refund-icon-blend", "refund-icon-tooltip", "row-cart-toggle", "frozen-tooltip", "cart-tooltips", "pending-dialogs", "confirmations", "button-tooltips", "item-tooltips", "menu-sounds", "layout", "layout-proof", "browse", "relog", "purchase", "refund", "cart", "cart-lifetime", "rotate-controls", "mount-rider", "mount-rider-cancel", "freeze-workflow", "authored-camera", "frozen-slot-before", "frozen-slot-after"]:
 		fail("Explicit private 127.0.0.1:5791, fb_* account, phase and evidence paths required")
 		return
 	for directory in [shots, receipts]:
@@ -51,7 +52,7 @@ func run_fixture() -> void:
 	if not await wait_until(func(): return float(client.account_state().local_player_health) > 0.0, "private character alive", 120000): return
 	client.set_world_minutes(720.0)
 	await wait_frames(120)
-	if not phase in ["product-hover-sound", "refund-icon-blend", "refund-icon-tooltip", "row-cart-toggle", "frozen-tooltip", "cart-tooltips", "pending-dialogs", "confirmations", "button-tooltips", "item-tooltips", "menu-sounds", "layout", "layout-proof", "cart", "cart-lifetime", "rotate-controls", "mount-rider", "mount-rider-cancel", "freeze-workflow", "authored-camera", "frozen-slot-before", "frozen-slot-after"] and not await travelers_log(): return
+	if not phase in ["frozen-row-exclusion", "product-hover-sound", "refund-icon-blend", "refund-icon-tooltip", "row-cart-toggle", "frozen-tooltip", "cart-tooltips", "pending-dialogs", "confirmations", "button-tooltips", "item-tooltips", "menu-sounds", "layout", "layout-proof", "cart", "cart-lifetime", "rotate-controls", "mount-rider", "mount-rider-cancel", "freeze-workflow", "authored-camera", "frozen-slot-before", "frozen-slot-after"] and not await travelers_log(): return
 	if phase in ["menu-sounds", "product-hover-sound"] and not watch_menu_sound_players(): return
 	if not await open_vendor(): return
 	if phase in ["cart", "cart-lifetime"]:
@@ -87,6 +88,7 @@ func run_fixture() -> void:
 		"authored-camera": await authored_camera_proof()
 		"menu-sounds": await menu_sound_proof()
 		"product-hover-sound": await product_hover_sound_proof()
+		"frozen-row-exclusion": await frozen_row_exclusion_proof()
 		"item-tooltips": await item_tooltip_proof()
 		"confirmations": await confirmation_escape_proof()
 		"pending-dialogs": await pending_dialog_proof()
@@ -1258,6 +1260,84 @@ func assert_menu_sound_state(kind: String, expected: int) -> bool:
 		return false
 	return assert_menu_audio_count(kind, expected)
 
+func record_row_exclusion(label: String, committed: int, ordinary: int) -> void:
+	await wait_frames(5)
+	var state: Dictionary = client.trading_post_state().duplicate(true)
+	var ids := []
+	for row in state.rows: ids.append(int(str(row).split("|")[0]))
+	row_exclusion_checks.append({"label":label,"expected_frozen":committed,"frozen":int(state.frozen),"ordinary_ids":ids,"committed_absent":not committed in ids and control("PerksProgramProduct%d" % committed) == null,"ordinary_present":ordinary < 0 or (ordinary in ids and control("PerksProgramProduct%d" % ordinary) != null),"slot_present":control("PerksProgramFrozenSlot") != null,"selected":int(state.selected),"item_id":int(state.item_id),"pending":state.pending})
+
+func open_row_exclusion_confirmation(candidate: int) -> bool:
+	if not await drag_to_frozen("PerksProgramProduct%d" % candidate): return false
+	return await wait_until(func(): return control("PerksProgramConfirmDialog") != null, "occupied-slot provider replacement confirmation")
+
+func accept_row_exclusion_confirmation(candidate: int) -> bool:
+	if not await wait_until(func(): return control_enabled("PerksProgramConfirmButton"), "provider replacement delay", 15000): return false
+	await click("PerksProgramConfirmButton")
+	return await wait_until(func(): return int(client.trading_post_state().frozen) == candidate and not client.trading_post_state().pending, "authoritative provider freeze %d" % candidate, 120000)
+
+func frozen_row_exclusion_proof() -> void:
+	if not await choose_category(1): return
+	var original := int(client.trading_post_state().frozen)
+	if original != (640 if skin == "modern" else 712): fail("Provider fixture must preserve genuine original640/712"); return
+	var candidate := await select_other_cartable([original])
+	if candidate <= 0: return
+	await click("PerksProgramFrozenSlot")
+	if not await wait_until(func(): return int(client.trading_post_state().selected) == original, "frozen selection from full snapshot"): return
+	var before: Dictionary = client.trading_post_state().duplicate(true)
+	if not before.cart.is_empty(): fail("Provider fixture needs untouched empty cart"); return
+	await record_row_exclusion("baseline-exclusive", original, candidate)
+	await capture("baseline-exclusive")
+	if not await choose_category(2): return
+	await record_row_exclusion("filtered-frozen-selection", original, -1)
+	var filtered: Dictionary = client.trading_post_state().duplicate(true)
+	if not await choose_category(1): return
+	if not await open_row_exclusion_confirmation(candidate): return
+	await record_row_exclusion("pending-candidate-visible", original, candidate)
+	var pending: Dictionary = client.trading_post_state().duplicate(true)
+	await capture("pending-candidate-visible")
+	await click("PerksProgramConfirmCancelButton")
+	if not await wait_until(func(): return control("PerksProgramConfirmDialog") == null, "provider cancel retains committed reservation"): return
+	await record_row_exclusion("cancel-original-retained", original, candidate)
+	var cancelled: Dictionary = client.trading_post_state().duplicate(true)
+	if not await open_row_exclusion_confirmation(candidate): return
+	if not await accept_row_exclusion_confirmation(candidate): return
+	await record_row_exclusion("accepted-replacement", candidate, original)
+	await capture("accepted-replacement")
+	# Restore the original through the now-returned ordinary row before assertions.
+	if not await open_row_exclusion_confirmation(original): return
+	if not await accept_row_exclusion_confirmation(original): return
+	await record_row_exclusion("accepted-original-restored", original, candidate)
+	await capture("accepted-original-restored")
+	var restored: Dictionary = client.trading_post_state().duplicate(true)
+	await tap(KEY_ESCAPE)
+	if not await wait_until(func(): return not client.trading_post_state().open, "provider closes after original restoration"): return
+	if not await open_vendor(): return
+	await record_row_exclusion("reopened-original-retained", original, candidate)
+	await capture("reopened-original-retained")
+	var after: Dictionary = client.trading_post_state().duplicate(true)
+	await tap(KEY_ESCAPE)
+	if not await wait_until(func(): return not client.trading_post_state().open, "provider proof final close"): return
+	var errors := []
+	for check in row_exclusion_checks:
+		if check.frozen != check.expected_frozen or not check.committed_absent or not check.ordinary_present or not check.slot_present: errors.append(check.label)
+	var selection_preserved: bool = filtered.selected == before.selected and filtered.item_id == before.item_id and restored.selected == before.selected and restored.item_id == before.item_id and after.selected == before.selected and after.item_id == before.item_id
+	var row_order_preserved: bool = pending.rows == before.rows and cancelled.rows == before.rows and restored.rows == before.rows and after.rows == before.rows
+	var conserved: bool = pending.frozen == before.frozen and cancelled.frozen == before.frozen and restored.frozen == before.frozen and after.frozen == before.frozen and restored.tender == before.tender and after.tender == before.tender and restored.collected == before.collected and after.collected == before.collected and restored.cart == before.cart and after.cart == before.cart
+	if not selection_preserved: errors.append("full-snapshot frozen selection/details")
+	if not row_order_preserved: errors.append("pending/cancel/restoration ordinary ordering")
+	if not conserved: errors.append("original/Tender/collection/cart conservation")
+	var proof := {"original":original,"candidate":candidate,"checks":row_exclusion_checks,"selection_preserved":selection_preserved,"row_order_preserved":row_order_preserved,"conserved":conserved,"before":before,"filtered":filtered,"pending":pending,"cancelled":cancelled,"restored":restored,"after":after,"errors":errors}
+	var file := FileAccess.open(receipts.path_join(skin+"-frozen-row-exclusion-proof.json"), FileAccess.WRITE)
+	if file == null: fail("Cannot write provider receipt after restoration"); return
+	file.store_string(JSON.stringify(proof,"\t"))
+	file.close()
+	print("TP_FROZEN_ROW_EXCLUSION ", JSON.stringify(proof))
+	if not errors.is_empty(): fail("Frozen ordinary-row exclusion failed after original restored: %s" % [errors]); return
+	print("TRADING_POST_LIVE PASS skin=", skin, " phase=frozen-row-exclusion")
+	client.free()
+	quit(0)
+
 func hover_sound_checkpoint(label: String, expected: int) -> void:
 	await wait_frames(60)
 	hover_sound_checks.append({"label":label,"expected":expected,"decoded_count":hover_audio_events.size(),"kit_count":menu_sound_count(218934)-hover_kit_baseline})
@@ -1826,7 +1906,7 @@ func motion(point: Vector2, down: bool, relative: Vector2 = Vector2.ZERO) -> voi
 	event.global_position = point
 	event.relative = relative
 	event.button_mask = MOUSE_BUTTON_MASK_LEFT if down else 0
-	if phase in ["product-hover-sound", "refund-icon-blend", "cart-tooltips", "row-cart-toggle", "refund-icon-tooltip"]:
+	if phase in ["frozen-row-exclusion", "product-hover-sound", "refund-icon-blend", "cart-tooltips", "row-cart-toggle", "refund-icon-tooltip"]:
 		Input.parse_input_event(event)
 	else:
 		root.push_input(event, true)
