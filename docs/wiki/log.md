@@ -14,6 +14,10 @@
 ## 2026-10-16 — Bench resurrection HUD projection
 
 [Shared2347 projection](systems/battle-pets.md#bench-resurrection-projection--2026-10-16): both actual skins physically revive two persisted-dead reserves to78/1563, pointer swap, retain incoming damage and win through the revived pet's147-damage Metal Fist. Eight fullHD originals inspected;92/98/131/98 geometry differs only in timed float. Canonical78-asset closure and explicit strict loader readback pass; world-native mode, exact runtime heads and pre-auth recovery are documented. No UI change/full Retail timing/VFX claim; owned processes stopped.
+## 2026-10-16 — Frozen combat-channel observation
+
+[Delivery boundary](systems/bot-harness.md#combat-channel-delivery-boundary--2026-10-16): release16 proves policy-B uncast abandonment and continued authored combat, then loses all native combat-log progress while target HP still replicates. Queue replacement/ring eviction rejected; enqueue/transport/ingestion unresolved, host starvation recorded, no gameplay root fix. Local capture-complete is not wire completeness; per-spec rates stay unqualified and boss credit absent.
+
 ## 2026-10-16 — Authoritative idle admission for pulls
 
 [Opening combat admission](systems/bot-harness.md#combat-admission-for-opening-preparation--2026-10-16): release15b's seventh target was already fighting before a point-blank Heroic Throw prep timed out. Received owner CombatStatus now gates new openings and abandons uncast prep on engagement; existing cast receipts remain mandatory. Captured seventh-pull RED, no withdrawal/alternate cast/forced target or balance tuning.
