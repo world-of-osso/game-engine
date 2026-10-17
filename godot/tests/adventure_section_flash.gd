@@ -62,7 +62,7 @@ func verify_section_selection() -> bool:
 	if inside < 20 or outside != 0:
 		stop("Focus flash pixel boundary differs inside=%s outside=%s" % [inside,outside])
 		return false
-	var prefix := client.account_state().ui_skin.to_lower()
+	var prefix: String = client.account_state().ui_skin.to_lower()
 	if peak.save_png(shots.path_join(prefix+"-section-flash-peak.png")) != OK or settled.save_png(shots.path_join(prefix+"-section-flash-settled.png")) != OK:
 		stop("Cannot persist focus flash frames")
 		return false
