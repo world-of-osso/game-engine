@@ -78,6 +78,14 @@ Retail Mainline Blizzard_PerksProgram and the local C_PerksProgram/PerksActiviti
 - Retail PerksProgramElements.lua306–314 uses `GetItemByID`, excludes `SellPrice`, and owns the tooltip at `ANCHOR_RIGHT` with X−16/Y0. Preserve the shared screen clamp; hide on pointer leave or vendor teardown. Hover must not change selection, Tender or server state.
 - [x] Native missing-tooltip RED→both-skin GREEN at engine569419cb7/servera820dfda/protocoldc30250. Fixture `godot/tests/trading_post_live.gd`, phase `item-tooltips`, verifies two hovered item identities/details/right−16 positions without sell price, unchanged selected row/Tender, pointer leave and Escape/vendor teardown/reopen/HUD restoration. Eight inspected full-HD originals+two contacts: `/syncthing/AgentShared/2026-10-16/trading-post-item-tooltips/`; diagnostic `item-tooltips-proof-manifest.json` pins actual artifact hashes and receipts. Product-row coverage does not certify frozen/cart/detail-row or footer-button tooltips, item spell-effect formatting, or framing.
 
+## Accepted freeze-lock sound
+
+Source: Retail `Blizzard_PerksProgramElements.lua:577–580,657–670` plays218229 only when accepting a genuinely dragged different product, not on cancel, query, same-item drop or a server snapshot update. [Implementation/proof](../wiki/systems/trading-post.md#accepted-freeze-lock-sound--october17).
+
+- Use existing UiKits with70391 source gain0.707945764 and equally weighted files4908453/4908455/4908457/4908459; no pitch/variation or Advanced interpretation. Actual installed70448 assets retain separate provenance.
+- Confirmed occupied-slot replacement and direct accepted freeze use the same sound dispatch before sending the request. Unfreeze requests do not play this kit. Repeated updates/reopen/cancel/disabled confirmation do not replay it; do not infer sound from authoritative frozen-ID changes.
+- [ ] Registry/native missing-lock RED→both-skin decoded native GREEN, negative lifecycle controls and genuine original640/712 replacement/restoration; never clear either reservation for proof. Preserve Tender, collection/cart and restored selection. Native random variants observed must be distinguished from four-file metadata/full-decode coverage.
+
 ## Product-enter sound
 
 Source: Retail `Blizzard_PerksProgramElements.lua:291–304` unconditionally plays `TRADING_POST_UI_ITEM_HOVER`218934 on product OnEnter; frozen `Elements.xml:383` inherits that handler. SoundKit/Entry metadata is12.1.5.70391; file4906953 is authenticated installed12.1.5.70448 Ogg, not relabeled70391. [Implementation and proof](../wiki/systems/trading-post.md#product-enter-sound--october17).

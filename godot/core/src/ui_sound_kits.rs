@@ -28,6 +28,8 @@ pub const TRADING_POST_UI_MENU_OPEN: u32 = 218932;
 pub const TRADING_POST_UI_MENU_CLOSE: u32 = 218933;
 /// Retail product OnEnter, including the inherited frozen product template.
 pub const TRADING_POST_UI_ITEM_HOVER: u32 = 218934;
+/// Retail FreezeDraggedItem after accepting the actual dragged product.
+pub const TRADING_POST_UI_ITEM_LOCKING: u32 = 218229;
 
 #[derive(Clone, Copy, Debug, PartialEq)]
 pub struct UiSoundKit {
@@ -124,6 +126,11 @@ const KITS: &[UiSoundKit] = &[
         id: TRADING_POST_UI_ITEM_HOVER,
         volume: 0.891_250_9,
         files: &[4_906_953],
+    },
+    UiSoundKit {
+        id: TRADING_POST_UI_ITEM_LOCKING,
+        volume: 0.707_945_76,
+        files: &[4_908_453, 4_908_455, 4_908_457, 4_908_459],
     },
 ];
 

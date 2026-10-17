@@ -7,7 +7,8 @@ use crate::{
     world_models::UnitAppearance,
 };
 use game_engine_core::ui_sound_kits::{
-    TRADING_POST_UI_ITEM_HOVER, TRADING_POST_UI_MENU_CLOSE, TRADING_POST_UI_MENU_OPEN,
+    TRADING_POST_UI_ITEM_HOVER, TRADING_POST_UI_ITEM_LOCKING, TRADING_POST_UI_MENU_CLOSE,
+    TRADING_POST_UI_MENU_OPEN,
 };
 use game_engine_session::SessionScreen;
 use game_engine_ui_model::trading_post::{Action, FilterSubmenu, HEIGHT, MODEL, View, WIDTH};
@@ -344,9 +345,9 @@ impl GameClient {
     fn apply_trading_action(&mut self, action: Option<Action>) -> Result<(), String> {
         match action {
             Some(Action::Request(request)) => {
-                if let Err(error) = self.account.send_trading_post(request) {
+                if let Err(error) = self.send_trading_post_vendor_request(request) {
                     self.trading_post.view.pending = false;
-                    return Err(error.to_string());
+                    return Err(error);
                 }
             }
             Some(Action::Close) => {
@@ -357,6 +358,24 @@ impl GameClient {
         }
         Ok(())
     }
+    /// FreezeDraggedItem plays on acceptance, before requesting authoritative state.
+    fn send_trading_post_vendor_request(
+        &mut self,
+        request: TradingPostRequest,
+    ) -> Result<(), String> {
+        if matches!(
+            request,
+            TradingPostRequest::Freeze {
+                vendor_item_id: Some(_)
+            }
+        ) {
+            self.play_ui_sound_kit(TRADING_POST_UI_ITEM_LOCKING)?;
+        }
+        self.account
+            .send_trading_post(request)
+            .map_err(|error| error.to_string())
+    }
+
     fn animate_trading_spinner(&mut self) {
         let pending_dialog = matches!(
             self.trading_post.view.confirm.as_deref(),
@@ -935,9 +954,9 @@ impl GameClient {
                 .view
                 .drop_item(drag.id, drag.from_frozen, dropped)
         {
-            if let Err(error) = self.account.send_trading_post(request) {
+            if let Err(error) = self.send_trading_post_vendor_request(request) {
                 self.trading_post.view.pending = false;
-                self.trading_post.view.error = error.to_string();
+                self.trading_post.view.error = error;
             }
         }
         if self.trading_post.view.confirm.as_deref() == Some("freeze") {

@@ -4901,6 +4901,11 @@ cache/adventure_guide.sqlite
 # Mainline RaidBossEmote warning kit12197 (SoundKitEntry15068).
 sounds/ui/567394.ogg
 sounds/ui/6838456.ogg
+# Accepted freeze-lock218229:70391 metadata, authenticated installed70448 variants.
+sounds/ui/4908453.ogg
+sounds/ui/4908455.ogg
+sounds/ui/4908457.ogg
+sounds/ui/4908459.ogg
 # Hover kit218934:70391 SoundKit metadata, authenticated installed70448 bytes.
 sounds/ui/4906953.ogg
 # Trading Post menu kits218932/218933, exact local70391 SoundKitEntry variants.
