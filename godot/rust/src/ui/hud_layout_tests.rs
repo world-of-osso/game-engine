@@ -1037,10 +1037,23 @@ fn launcher_panel_clears_player_name_on_default_1080p_layout() {
         }
         sync(&mut canvases, skin);
         let panel = rect(&canvases, "LauncherPanel");
+        let chrome = rect(&canvases, "LauncherNineSlice");
         let player = rect(&canvases, "PlayerFrame");
+        // Forever: 19/2 portrait height growth plus Camelot's 8px lower metal outset.
+        // Layout rounds the resulting 285.5 UI-unit top to native pixel 286 at scale 1.
+        let top = if skin == ActiveSkin::Forever {
+            286.0
+        } else {
+            303.0
+        };
+        assert_rect(&canvases, "LauncherPanel", (697.0, top, 526.0, 474.0));
         assert!(
             !intersects(&panel, &player),
             "{skin:?}: launcher {panel:?} clips player {player:?}"
+        );
+        assert!(
+            !intersects(&chrome, &player),
+            "{skin:?}: launcher chrome {chrome:?} clips player {player:?}"
         );
     }
 }

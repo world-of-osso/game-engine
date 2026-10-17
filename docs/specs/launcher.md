@@ -1,6 +1,6 @@
 # In-world launcher
 
-Centred search-and-icon launcher for in-world windows. Source: `godot/ui-model/src/launcher.rs` and `godot/rust/src/launcher.rs`. [Implementation](../wiki/systems/launcher.md).
+Horizontally centred search-and-icon launcher for in-world windows. Source: `godot/ui-model/src/launcher.rs` and `godot/rust/src/launcher.rs`. [Implementation](../wiki/systems/launcher.md).
 
 ## What it must do
 
@@ -20,7 +20,7 @@ Centred search-and-icon launcher for in-world windows. Source: `godot/ui-model/s
 - [x] Filled original SVG art only, chosen October 5, 2026: each of the seventeen entries and the magnifier has a distinct recognizable glyph. Preserve the five approved glyphs and Forever's tile tint; no outlines, style switch, placeholder tiles or duplicate glyphs.
 - [x] Modern uses Retail standard no-portrait window chrome; Forever uses its existing metal panel family. Two-column icon/list grid: 32px icons, 15pt one-line labels, 250×40 cells, 2px row/column gaps, 12px panel inset, grid top 86; full inventory 526×474, single-result panel 526×138. Magnifier stays 30×30, 6px left of the minimap cluster and bottom-aligned.
 - [x] Launcher-only 36-unit header contains the vertically centred 24×24 close button and 20pt vertically centred title in both skins. Preserve each skin's metal title strip and all other windows' shared chrome; search and list move down 16 units.
-- [x] Opening the launcher must not partially cover the player name on either default 1920×1080 layout.
+- [ ] Opening the launcher, including its painted metal outset, clears the complete player frame on either default 1920×1080 layout. Keep Modern centred; Forever sits 17.5 UI units above centre to retain clearance around the approved Retail portrait mount. Panel dimensions and horizontal centring stay unchanged.
 - [x] Recapture the filled launcher through actual native projection in both skins at 1920×1080, with 2× launcher and minimap-magnifier crops; save `-final` evidence and inspect it.
 
 ## How it works
