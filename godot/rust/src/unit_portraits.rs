@@ -32,6 +32,7 @@ use game_engine_ui_model::inworld_unit_frames_component::{
 use game_engine_ui_model::merchant_frame_component::PORTRAIT as MERCHANT_PORTRAIT;
 use game_engine_ui_model::micro_menu::CHARACTER_PORTRAIT;
 use game_engine_ui_model::quest_frame_component::PORTRAIT as QUEST_PORTRAIT;
+use game_engine_ui_model::ready_check_frame_component::PORTRAIT as READY_CHECK_PORTRAIT;
 use game_engine_ui_model::trade_frame_component::PORTRAIT as TRADE_PORTRAIT;
 use game_engine_ui_model::trainer_frame::PORTRAIT as TRAINER_PORTRAIT;
 use godot::classes::control::{LayoutPreset, MouseFilter};
@@ -47,6 +48,7 @@ use shared::components::SheathState;
 use crate::GameClient;
 use crate::assets::{M2_BOUNDS_META, M2_SOURCE_META, wow_vec3};
 use crate::character_frame::preview::bind_preview_light;
+use crate::ui::RegistryUi;
 use crate::world::WorldUnits;
 use crate::world_models::UnitAppearance;
 
@@ -88,6 +90,7 @@ pub(crate) struct UnitPortraits {
     tabard_vendor: Portrait,
     customer_orders: Portrait,
     party: PartyPortraits,
+    ready_check: Portrait,
 }
 
 impl Default for UnitPortraits {
@@ -110,6 +113,7 @@ impl Default for UnitPortraits {
                 game_engine_ui_model::professions_frame::orders::PORTRAIT,
             ),
             party: PartyPortraits::default(),
+            ready_check: Portrait::new(READY_CHECK_PORTRAIT),
         }
     }
 }
@@ -501,7 +505,51 @@ fn describe(appearance: &UnitAppearance) -> String {
     }
 }
 
+/// Shared by the live group HUD and its native process fixture.
+fn sync_ready_check_portrait(
+    portrait: &mut Portrait,
+    world: &mut WorldUnits,
+    ui: Option<&Gd<RegistryUi>>,
+    group: &game_engine_ui_model::group_state::GroupState,
+) -> Result<(), String> {
+    let host = ui.and_then(|ui| ui.bind().frame_control(READY_CHECK_PORTRAIT.frame));
+    let Some(host) = host else {
+        portrait.clear(world);
+        return Ok(());
+    };
+    match party::ready_check_appearance(group) {
+        Ok(appearance) => {
+            let current = portrait
+                .pending
+                .as_ref()
+                .map(|(_, appearance)| appearance)
+                .or(portrait.shown.as_ref());
+            if current != appearance.as_ref() {
+                portrait.clear(world);
+            }
+            portrait.sync(world, Some(host), appearance)
+        }
+        Err(error) => {
+            portrait.clear(world);
+            Err(error)
+        }
+    }
+}
+
 impl GameClient {
+    pub(super) fn sync_ready_check_portrait(&mut self) -> Result<(), String> {
+        sync_ready_check_portrait(
+            &mut self.targeting.portraits.ready_check,
+            &mut self.world,
+            self.group_frames.frame_ui(),
+            &self.account.group,
+        )
+    }
+
+    pub(super) fn clear_ready_check_portrait(&mut self) {
+        self.targeting.portraits.ready_check.clear(&mut self.world);
+    }
+
     /// The local player's portrait in PlayerFrame, the target's in TargetFrame, the pet's
     /// in PetFrame.
     pub(super) fn sync_unit_portraits(&mut self) -> Result<(), String> {
@@ -692,6 +740,7 @@ impl GameClient {
         portraits.tabard_vendor.clear(&mut self.world);
         portraits.customer_orders.clear(&mut self.world);
         portraits.party.clear(&mut self.world);
+        portraits.ready_check.clear(&mut self.world);
     }
 }
 
@@ -727,6 +776,7 @@ impl GameClient {
             &portraits.registrar,
             &portraits.tabard_vendor,
             &portraits.customer_orders,
+            &portraits.ready_check,
         ]
         .into_iter()
         .find(|portrait| portrait.slot.frame == frame)
