@@ -21,7 +21,7 @@
 
 - [Journeys track texture mask](systems/adventure-guide.md#journeys-track-texture-mask--2026-10-16) — authenticated70448 centered atlas, texture-only alpha, unchanged captions and moving-track controls; both-skin native pixels and12 inspected full-HD captures.
 
-- [Journal search implementation](systems/adventure-guide.md#search-preview-and-full-results--implementation-2026-10-16) — source preview/full popup, input ownership and localized quotes; scoped tests and both-skin physical search proof pass, current quote-fix check pending.
+- [Journal search implementation](systems/adventure-guide.md#search-preview-and-full-results--implementation-2026-10-16) — source preview/full popup, input ownership and localized quotes; scoped tests and both-skin physical search proof pass; quote fix independently accepted by lead gate361e.
 - [Product-row refund icon tooltip](systems/trading-post.md#product-row-refund-icon-tooltip--implementation-october16) — source texture-owned refund time; native generic-item-tooltip RED→both-skin painted right-anchor/parent-click/hovered-owner teardown GREEN, genuine purchase/refund conservation.
 - [ReadyCheck message shadow](systems/group-frames.md#readycheck-message-shadow--bounded-proof-2026-10-16) — inherited Roman black(+1,−1), RED→3GREEN and both-skin native1080p;1002 darkened pixels/skin, zero outside changes, exact shadow-off control; colors/full popup/lifecycle excluded.
 
