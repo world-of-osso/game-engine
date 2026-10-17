@@ -46,7 +46,18 @@ impl View {
             ("PerksProgramViewCartButton", _) => ("View Cart", TOOLTIP_WHITE),
             ("PerksProgramRefundButton", false) => ("Refund Unavailable", TOOLTIP_WHITE),
             ("PerksProgramCartClearButton", true) => ("Clear Cart", TOOLTIP_WHITE),
-            _ => return None,
+            _ => {
+                let id = name.strip_prefix("PerksProgramCartToggle")?.parse().ok()?;
+                if !self.can_cart_product(id) {
+                    return None;
+                }
+                let title = if self.cart.contains(&id) {
+                    "Remove from Cart"
+                } else {
+                    "Add to Cart"
+                };
+                (title, TOOLTIP_WHITE)
+            }
         };
         Some(GameTooltip::new(
             TooltipPresentation {
