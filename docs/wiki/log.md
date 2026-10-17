@@ -1,6 +1,6 @@
 ## 2026-10-17 — Committed frozen-product list exclusion
 
-[Ordinary-list contract](systems/trading-post.md#committed-frozen-product-list-exclusion--october17): two behavioral model REDs `[5,6,4]`vs`[5,6]` precede the minimal committed-ID predicate. Full snapshot/frozen selection/pending candidate stay intact; hover/lock fixture assumptions corrected without replaying historical audio proof. Focused GREEN/code gate pending; both-skin genuine640/712 replacement/restoration comes after the gate, never an empty-slot reset. Active SoundKit audit correction to70448 included; no pitch/audio/server changes.
+[Ordinary-list contract](systems/trading-post.md#committed-frozen-product-list-exclusion--october17): two behavioral model REDs `[5,6,4]`vs`[5,6]` precede the minimal committed-ID predicate. Full snapshot/frozen selection/pending candidate stay intact; hover/lock fixture assumptions corrected without replaying historical audio proof. Targeted GREEN2 and current7f source42UI+12native Rust(+1DB2)/helper check35.07s/noWarnings/scoped Rustfmt2/readability pass. Both-skin genuine640/712 replacement/restoration remains pending after the gate, never an empty-slot reset. Active SoundKit audit correction to70448 included; no pitch/audio/server changes.
 
 ## 2026-10-17 — PitchAdjust active-build correction
 

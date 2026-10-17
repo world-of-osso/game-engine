@@ -84,7 +84,8 @@ Source: Retail `Blizzard_PerksProgramProducts.lua:530–534` omits the committed
 
 - Exclude only `snapshot.frozen_item_id` from ordinary rows; keep every item in the authoritative snapshot and retain frozen-slot contents/details/selectability across ordinary filters. Preserve ordinary ordering and paging.
 - A pending replacement candidate stays in the ordinary list until authoritative acceptance. Cancel retains the original exclusion; acceptance removes the newly frozen ordinary row and returns the previous frozen product to the ordinary list. Genuine restoration reverses that swap without clearing the reservation or changing Tender/collections/cart.
-- [ ] Model missing-exclusion RED→GREEN and focused code gate; both-skin native640/712 replacement/restoration and inspected PNG evidence follows the gate. No pre-gate native run or provider-parity claim from earlier audio-only duplicate-row baselines.
+- [x] Model missing-exclusion RED2→GREEN2; current source7f737c021 passes42UI+12native Rust(+1DB2), helper check35.07s/no compiler warnings, scoped Rustfmt2/readability. Active SoundKit-family audit corrected to70448/key88d5e8ef…, original70391 receipt retained separately.
+- [ ] Both-skin native640/712 replacement/restoration and inspected PNG evidence follows the gate. No pre-gate native run or provider-parity claim from earlier audio-only duplicate-row baselines.
 
 ## Accepted freeze-lock sound
 
