@@ -3,8 +3,26 @@
 [Bounded75](systems/battle-pets.md#launch-rocket-projection--2026-10-17): both actual strict skins/private5961 physically set up294 without enemy damage, then launch/expire294 and win at enemy0. Authored Lil' Bling20; retained owned injury1205→1180→1153, six inspected fullHD originals/two framed models, unchanged shared HUD geometry except fills/timed floats. Canonical194 assets reused with53 hash checks; actual native server6b44/engine8c/shared6b and source scope recorded, no new UI code or full timing/VFX claim.
 
 ## 2026-10-17 — Armageddon sacrifice projection
+## 2026-10-17 — Explicit recraft refusal
+
+[Recraft boundary](systems/crafting-ui.md#recraft-refusal--verified2026-10-17): sourced297/389195 refuses an actual owned GUID with named operation gap and unchanged inventory/profession/wallet. Both full-HD native skins retain three existing mailed items after physical clicks on disabled input/submission; four current post-master-runtime originals inspected. Scoped integration and serialized database invariants pass. No outcome/lineage/eligibility or acquisition claim.
+
+## 2026-10-17 — Public/Guild/Personal orders and mailbox settlement
 
 [Bounded1025](systems/battle-pets.md#armageddon-sacrifice-projection--2026-10-17): both actual skins/private5961 physical61/58 damage, caller321→0 without revival, forced reserve and actual attack. Eight inspected fullHD originals, two framed models/all snapshots strict/tripwire0, canonical adopted70448 loader pass. Native one-enemy and three-enemy server-test scopes remain distinct; no new UI layout/simulation or full timing/VFX claim.
+## 2026-10-17 — Section focus flash
+
+[Focus pulse](systems/adventure-guide.md#section-focus-flash--2026-10-17): independent source Glow/four phases on the existing section-focus path. Missing-effect RED→timing/art controls and Modern2/Forever5 rendered pulses/zero/conservation;12 full-HD originals inspected. Native3's324 outside pixels stay unattributed/not reproduced, with unchanged strict native4/5 passing controls and paint-owner receipts. Merged extension check and scoped fmt pass; independent lead gate remains separate. Prior Journeys mask landed via374e.
+## 2026-10-17 — Ordinary StaticPopup body shadow
+
+[PARTY_INVITE body](systems/group-frames.md#ordinary-staticpopup-body-shadow--bounded-proof-2026-10-17): inherited Roman black(+1,−1) only;14px/white/geometry/actions preserved. Genuine model RED→both-skin GREEN; native source4bae444b1 darkens855 pixels/skin, zero outside the1225-pixel diagnostic shadow mask, exact alpha-off/source restoration. Initial rectangle oracle's one-pixel overhang failure retained with actual raster receipts. Effective user-font scaling/full-popup/server lifecycle remain unqualified.
+## 2026-10-17 — Alterac tower Honor
+
+[Tower destruction](systems/battlegrounds.md#alterac-tower-honor--2026-10-17): actual channel RED0vs368→both-faction GREEN, two separately rounded events736, canceled/defended/duplicate/graveyard exclusions and persistence/origin return. Prior10 controls retained; source Tower Point spawn-condition mismatch recorded, not changed. Survivor OnEnd and external UDP/rendered proof remain open.
+
+## 2026-10-16 — Alterac NPC Honor
+
+[NPC bonuses](systems/battlegrounds.md#alterac-npc-honor--2026-10-16): actual captain RED0vs368→GREEN10, source3/4 equivalents at retained max79 yield368+490=858 NPC-only subtotal. Both factions/all four entries, NPC-caused dead eligible teammate, other-copy exclusion, replay, persistence and origin return pass; prior9 controls and scoped server check retained. No independent-one-kill rounding, full AV/end/tower, external UDP/rendered or player-input claim.
 
 ## 2026-10-17 — Product-row refund glyph ADD implementation
 
@@ -26,10 +44,6 @@
 [Search](systems/adventure-guide.md#search-preview-and-full-results--implementation-2026-10-16) native8 passes both skins on productf2c8a410a: continued typing, actual preview/full popup, wheel/close/query retention and authored section selection. Eight full-HD originals inspected. Pixel inspection found exported quote spelling leaking through localization; actual RED→four focused tests GREEN and current clean title assertion/paint pass. Native7 first-J failure remains separate; no readiness patch. Current quote-fix check pending; C API/data gaps unchanged.
 
 ## 2026-10-16 — Journal search implementation; native acceptance pending (historical2344 checkpoint)
-## 2026-10-16 — Alterac NPC Honor
-
-[NPC bonuses](systems/battlegrounds.md#alterac-npc-honor--2026-10-16): actual captain RED0vs368→GREEN10, source3/4 equivalents at retained max79 yield368+490=858 NPC-only subtotal. Both factions/all four entries, NPC-caused dead eligible teammate, other-copy exclusion, replay, persistence and origin return pass; prior9 controls and scoped server check retained. No independent-one-kill rounding, full AV/end/tower, external UDP/rendered or player-input claim.
-
 ## 2026-10-16 — Isle resource Honor
 
 [Resources](systems/battlegrounds.md#isle-resource-honor--2026-10-16): source45s clock now credits separate12 per owned/uncontested Refinery/Quarry increment, with no new clock or wire state. Actual channel RED0vs24→GREEN9 proves two bases24, contested pause12, ownership transfer12/team, durable wallet/XP and weekly0; full player-death/commander/AV/Arathi/Eye/empty-root controls retained. Scoped server check passes. No external UDP/rendered or other-map reward claim.
@@ -58,6 +72,10 @@
 ## 2026-10-16 — Encounter section flags
 
 [Refund icon](systems/trading-post.md#product-row-refund-icon-tooltip--implementation-october16): real old-binary pointer RED shows generic item tooltip over refundable642 while848 is selected; genuine purchase/refund restores Tender/frozen state before assertion. Passive projected texture bounds own right0/0 and the existing colored footer formatter without blocking parent clicks. Model3 and actualca0/4e9/Pb701 both-skin painted GREEN: independent IDs, white caption/red59m, parent click, hover leave, Escape destroys currently hovered owner/HUD, one real purchase/refund restores Tender/collected/frozen state. Eight full-HD originals+two contacts+two crops published; diagnostic manifest binds exact inputs. Integrated933892f79/source protocol604ea609 passes40 UI+12 native, engine check without compiler warnings and scoped five Rustfmt (four unchanged hashes+one foreign tooltip-source delta). Actual native remainsca0/4e9/b701, not the later merged sources. No production refund policy/provider changes.
+## 2026-10-17 — Bounded zero-operand Fire67 projection
+
+[Source-backed modifier](investigations/cooldown-assist-data.md#fire-cast-overlap-modifier67--2026-10-17): actual retained Fire frame RED returns rule33340 instead of sourced Fireball133. Lead approves exactly[0,0,0] as no extra Boolean restriction; nonzero operands and ordinary usability still refuse. No default unflagged anti-overlap policy, Fury3/12 semantics, kit or provider change. Historical native JSON remains unchanged; new model/live proof is distinct.
+
 ## 2026-10-17 — Fire67 cast-overlap source classification
 
 [Allowed pinned SimC source](investigations/cooldown-assist-data.md#fire-cast-overlap-modifier67--2026-10-17) emits67 as a step option that relaxes same-action execution/last-foreground suppression, not a numeric prediction predicate. Native integration remains unimplemented; no unconditional true or global anti-recast behavior added. Focused independent replay1case/3retainedclass snapshots passes at1b0cef7d9 with exact11/11/67 refusals and no lower-step fallback.
