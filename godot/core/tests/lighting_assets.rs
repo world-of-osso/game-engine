@@ -16,8 +16,10 @@ fn fixture(name: &str) -> String {
 
 #[test]
 fn authored_light_rows_keep_world_positions_radii_and_circumstance_slots() {
-    let rows = parse_light_csv(&fixture("Light.csv")).expect("authored Light.csv");
-    assert_eq!(rows.len(), 5072);
+    let source = fixture("Light.csv");
+    let authored_rows = source.lines().skip(1).filter(|row| !row.is_empty()).count();
+    let rows = parse_light_csv(&source).expect("authored Light.csv");
+    assert_eq!(rows.len(), authored_rows);
     let global = rows.iter().find(|row| row.id == 1).unwrap();
     assert_eq!(global.map_id, 0);
     assert_eq!(global.position, [0.0; 3]);
