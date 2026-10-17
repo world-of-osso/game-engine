@@ -1,4 +1,8 @@
-## 2026-10-16 — Journal search implementation; native acceptance pending
+## 2026-10-16 — Journal search physical acceptance and localized title quotes
+
+[Search](systems/adventure-guide.md#search-preview-and-full-results--implementation-2026-10-16) native8 passes both skins on productf2c8a410a: continued typing, actual preview/full popup, wheel/close/query retention and authored section selection. Eight full-HD originals inspected. Pixel inspection found exported quote spelling leaking through localization; actual RED→four focused tests GREEN and current clean title assertion/paint pass. Native7 first-J failure remains separate; no readiness patch. Current quote-fix check pending; C API/data gaps unchanged.
+
+## 2026-10-16 — Journal search implementation; native acceptance pending (historical2344 checkpoint)
 
 [Search](systems/adventure-guide.md#search-preview-and-full-results--implementation-2026-10-16) now uses source preview/full results and authored target paths. Actual native REDs cover23px inactive-style minimum, focus retained but editing stopped after Enter, and a generic list-row focus marker deleting previews before mouse-up.2344 fixes the root widget/adapter boundaries;95 prior scoped controls and two current search tests pass, build/source verification pass. Both-skin companion/current pixel/check acceptance remains pending; no historical-prefix or native C API parity claim. Installed orphan-parent records are named in the contract.
 
