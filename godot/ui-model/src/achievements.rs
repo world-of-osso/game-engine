@@ -8,8 +8,9 @@ mod comparison_view;
 use crate::ui::strata::FrameStrata;
 use shared::protocol::{
     ACHIEVEMENT_SEARCH_MAX_CHARS, AchievementCatalogEntry, AchievementCatalogPage,
-    AchievementCategoryEntry, AchievementCriterionLine, AchievementScope, AchievementStateUpdate,
-    AchievementSnapshot, AchievementSummary, QueryAchievementCatalog,
+    AchievementCategoryEntry, AchievementCriterionLine, AchievementDelta,
+    AchievementProgressSnapshot, AchievementScope, AchievementSnapshot, AchievementStateUpdate,
+    AchievementSummary, QueryAchievementCatalog,
 };
 use std::collections::BTreeMap;
 use ui_toolkit::atlas::{ActiveSkin, thread_skin};
@@ -132,6 +133,8 @@ pub struct AchievementWindow {
     pub search_results: CategoryPage,
     categories_loaded: bool,
     pending: Vec<QueryAchievementCatalog>,
+    /// The connection's last full snapshot with every later delta applied.
+    baseline: Option<AchievementSnapshot>,
 }
 impl AchievementWindow {
     pub fn action(&mut self, action: &str) -> Vec<QueryAchievementCatalog> {
@@ -785,9 +788,37 @@ impl AchievementWindow {
     }
     /// The connection's earned set and progress: last full snapshot plus later deltas.
     pub fn snapshot(&self) -> Option<&AchievementSnapshot> {
-        None
+        self.baseline.as_ref()
     }
-    pub fn refresh(&mut self, _update: &AchievementStateUpdate) -> Vec<QueryAchievementCatalog> {
+    /// A full snapshot (initial or query) replaces the delta baseline; an earned alert
+    /// carries none and keeps it. Either invalidates the cached pages.
+    pub fn refresh(&mut self, update: &AchievementStateUpdate) -> Vec<QueryAchievementCatalog> {
+        if let Some(snapshot) = &update.snapshot {
+            self.baseline = Some(snapshot.clone());
+        }
+        self.invalidate()
+    }
+    /// Reduces a delta to the state of the full snapshot it replaces, with the same
+    /// invalidation. A delta without a full baseline on this connection is an error.
+    pub fn apply_delta(
+        &mut self,
+        delta: &AchievementDelta,
+    ) -> Result<Vec<QueryAchievementCatalog>, String> {
+        let baseline = self
+            .baseline
+            .as_mut()
+            .ok_or("Achievement delta before a full achievement snapshot on this connection")?;
+        if let Some(earned_ids) = &delta.earned_ids {
+            baseline.earned_ids = earned_ids.clone();
+        }
+        let progress = &mut baseline.progress;
+        progress.retain(|row| !delta.removed_progress_ids.contains(&row.achievement_id));
+        for row in &delta.progress_upserts {
+            upsert_progress(progress, row);
+        }
+        Ok(self.invalidate())
+    }
+    fn invalidate(&mut self) -> Vec<QueryAchievementCatalog> {
         for page in self.pages.values_mut() {
             page.loaded = false;
         }
@@ -1802,6 +1833,16 @@ fn achievement_row(
     content
 }
 
+/// Full snapshots list progress in ascending achievement id (the catalog's order).
+fn upsert_progress(
+    progress: &mut Vec<AchievementProgressSnapshot>,
+    row: &AchievementProgressSnapshot,
+) {
+    match progress.binary_search_by_key(&row.achievement_id, |existing| existing.achievement_id) {
+        Ok(index) => progress[index] = row.clone(),
+        Err(index) => progress.insert(index, row.clone()),
+    }
+}
 /// Own-context chat links carry only a real catalog ID; no fabricated GUID/comparison facts.
 pub fn achievement_link(id: u32, name: &str) -> String {
     format!("|Hachievement:{id}|h[{name}]|h")
