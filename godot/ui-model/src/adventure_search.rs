@@ -13,15 +13,6 @@ const GENERIC_CREATURE: u32 = 533888;
 pub const PREVIEW_LIMIT: usize = 5;
 const MIN_SEARCH_BYTES: usize = 3;
 
-/// Preview keyboard selection belongs to the search edit, not a focused list row.
-pub fn preview_index(name: &str) -> Option<usize> {
-    if name == "JournalSearchAll" {
-        Some(PREVIEW_LIMIT)
-    } else {
-        name.strip_prefix("JournalSearchPreview")?.parse().ok()
-    }
-}
-
 #[derive(Clone, Copy, Debug, Default, PartialEq, Eq)]
 pub enum SearchMode {
     #[default]
@@ -244,11 +235,6 @@ fn instance_result(instance: &Instance) -> ResultRow<'_> {
     }
 }
 
-const SMALL: RowTemplate = RowTemplate {
-    normal: None,
-    hover: None,
-    selected: None,
-};
 const LARGE: RowTemplate = RowTemplate {
     normal: None,
     hover: Some(RowArt {
@@ -315,6 +301,16 @@ fn result_icon(name: &str, row: &ResultRow<'_>, small: bool, height: f32) -> Ele
     });
     out
 }
+/// EncounterSearchSM is an edit-owned button, not a keyboard-focusable ScrollBox row.
+fn preview_button(
+    name: String,
+    action: &str,
+    rect: (f32, f32, f32, f32),
+    content: Element,
+) -> Element {
+    let (left, top, width, height) = rect;
+    rsx! {button {name:{DynName(name)},left,top,width,height,pos_type:"absolute",button_default_skin:false,onclick:action,{content}}}
+}
 fn preview_row(index: usize, row: &ResultRow<'_>, chosen: bool) -> Element {
     let name = format!("JournalSearchPreview{index}");
     let height = if index == 0 { 24. } else { 27. };
@@ -332,12 +328,10 @@ fn preview_row(index: usize, row: &ResultRow<'_>, chosen: bool) -> Element {
         (10., NAME_COLOR, "LEFT"),
     ));
     content.extend(selection_highlight(&name, 210., height, chosen));
-    selection_list::row(
+    preview_button(
         name,
         &format!("journal:search-select:{index}"),
-        true,
         (0., top, 210., height),
-        (&SMALL, false),
         content,
     )
 }
@@ -352,12 +346,10 @@ fn show_all_row(count: usize, top: f32, chosen: bool) -> Element {
         (12., NAME_COLOR, "CENTER"),
     ));
     content.extend(selection_highlight("JournalSearchAll", 210., 24., chosen));
-    selection_list::row(
+    preview_button(
         "JournalSearchAll".into(),
         "journal:search-full",
-        true,
         (0., top, 210., 24.),
-        (&SMALL, false),
         content,
     )
 }
