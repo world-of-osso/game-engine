@@ -4326,3 +4326,7 @@ Source Item ownership replaces row-press actions; inset-aware native Button pick
 
 [Launcher](systems/launcher.md#portrait-inclusive-hud-clearance--2026-10-16): retain approved321×79 portrait mount; re-derive exact root/bars/portrait, include Camelot8px painted outset in Forever launcher−17.5 margin. Genuine master29pass2fail→31HUD+9launcher GREEN; production-faithful test skin setup, engine/networkcheck/build and both-skin1920×1080 native clearance pass. Modern0pixel changes, Forever113408 confined to launcher paint, zero outside. Supplied-state canvas proof, not live portrait/authority or full-HUD certification.
 - 2026-10-16: [Croak and Witch source closure](systems/toy-box.md#croak-and-witch-source-closure-2026-10-16): actual combined loader22 receipts/ten aliases and native catalog2/2; only three new private textures, nineteen canonical owners retained. Type7/Shadowy165 is not animation; native appearance/audio and installed-config revalidation remain separate.
+
+## 2026-10-16 — MirrorTimer inherited label shadow
+
+[Swimming](systems/swimming.md#mirrortimer-label-shadow--2026-10-16) records complete XML/Lua/font inheritance and the two-attribute black(+1,−1) repair. Genuine missing-shadow RED→5modelGREEN, six both-skin1920×1080 native cases retain geometry;731pixels/skin darken only inside labels/shadows and transparent-shadow controls restorebaselineRGBexactly. Check/build/scopedfmt pass; source census remains incomplete. No cadence/server, other-alphabet or full-timer art certification.

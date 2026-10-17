@@ -182,6 +182,8 @@ fn text(name: String, label: &str) -> Element {
             font: GameFont::FrizQuadrata,
             font_size: TEXT_SIZE,
             font_color: FontColor::new(1.0, 1.0, 1.0, 1.0),
+            shadow_color: "0,0,0,1",
+            shadow_offset: "1,-1",
             justify_h: "CENTER",
             pos_type: "absolute",
             pos_x: 0.0,
