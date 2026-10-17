@@ -1,3 +1,4 @@
+- [Kill receipt across target changes](systems/bot-harness.md#kill-receipt-across-target-changes--2026-10-16) — consume owner outcomes before movement or idle prep, even after a killing cast changes the selected target.
 - [LOS-aware pull preparation](systems/bot-harness.md#los-aware-pull-preparation--2026-10-16) — blocked Riverpaw native replay; bounded same-target navmesh approach gates the single opening on native visibility.
 - [Local range/cast pose](systems/bot-harness.md#local-rangecast-pose--2026-10-16) — real input moves the local client while the host replica stays frozen; range and cast origins share the current local pose.
 - [Full-HD storage captures](systems/housing.md#full-hd-storage-captures--verified2026-10-16) — both-skin five-phase1920×1080 originals, source Filter/root/Sort geometry and paid conservation; full-image parity remains unqualified.
