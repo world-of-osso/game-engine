@@ -42,10 +42,10 @@ func run_test() -> void:
 		if not valid_received_design(receipt.tabard):
 			fail("Wrong optional registered invitation design: " + str(receipt))
 			return
-		if not prove_source_rectangles():
-			return
 		write_json(role + "-received.json", receipt)
 		await capture("pending")
+		if not prove_source_rectangles():
+			return
 		await press("GuildInviteFrameDeclineButton")
 		if not await wait_until(func(): return not shown("GuildInviteFrameJoinButton") and invitation_receipt() == null, "physical decline clears pending invitation"):
 			return
@@ -76,7 +76,8 @@ func prove_source_rectangles() -> bool:
 			return fail("Missing source invitation texture " + name)
 		var rectangle := control("GuildInviteFrame" + name).get_global_rect()
 		var expected: Rect2 = source[name]
-		expected.position += popup.position
+		# Projection snaps controls to whole pixels; the centered 287px art starts at x=11.5.
+		expected.position = (expected.position + popup.position).round()
 		if not rectangle.is_equal_approx(expected):
 			return fail("Wrong source rectangle " + name + ": " + str(rectangle))
 		actual[name] = [rectangle.position.x, rectangle.position.y, rectangle.size.x, rectangle.size.y]
