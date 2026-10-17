@@ -349,6 +349,33 @@ fn orders_native_crafter_detail_uses_server_eligibility_in_both_skins() {
     set_thread_skin(ActiveSkin::Modern);
 }
 #[test]
+fn orders_customer_tabs_follow_visible_page_even_when_snapshot_is_owned() {
+    for skin in [ActiveSkin::Modern, ActiveSkin::Forever] {
+        for creating in [true, false] {
+            let mut v = view();
+            v.orders.customer = true;
+            v.orders.creating = creating;
+            v.orders.selected = None;
+            // Customer catalog and Place replies both carry an owned-order snapshot.
+            v.orders.snapshot.as_mut().unwrap().mine = true;
+            let r = render(v, skin);
+            for (name, enabled) in [
+                ("CraftingOrdersBrowseTab", !creating),
+                ("CraftingOrdersMyOrdersTab", creating),
+            ] {
+                let Some(WidgetData::Button(button)) = &frame(&r, name).widget_data else {
+                    panic!("Customer navigation tab is not a button");
+                };
+                assert_eq!(
+                    button.enabled, enabled,
+                    "{skin:?} creating={creating} {name}"
+                );
+            }
+        }
+    }
+    set_thread_skin(ActiveSkin::Modern);
+}
+#[test]
 fn orders_native_customer_frame_is_separate_and_can_cancel_only_own_orders() {
     for skin in [ActiveSkin::Modern, ActiveSkin::Forever] {
         let mut v = view();

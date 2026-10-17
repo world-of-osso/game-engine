@@ -8,6 +8,10 @@ CustomerOrders.xml67-77 supplies Place Order (`BROWSE_ORDERS` in GlobalStrings.c
 
 Review RED caught missing Order To and120px vs136px; eight targeted order tests pass after caption fix005037ac2 (master merged932412df5), including pane bounds and input centerlines. Native1920×1080 captures: original `before/`, corrected recipient/duration/personal in `after-review/`, under `/syncthing/AgentShared/2026-10-13/ui-gameplay-panels/`. Both skins inspected against XML/Lua. The fixture asserts a populated portrait using a concrete offline human clerk; live NPC binding follows the active interaction, not the profession icon. Build and refreshed captures pass at005037ac2; helper check and fmt pass at33cfee500. Cage reports unavailable XWayland/libdecor/FIFO/activation/VSync capabilities but captures pass. These prove control geometry/art and portrait rendering, not new gameplay authority.
 
+## Customer tab selection — native regression
+
+The private modern-crafting fixture placed a Public order and observed commission escrow, then could not click My Orders. The form was visible while `snapshot.mine=true` selected and disabled My Orders. Customer catalog/placement replies carry owned snapshots; this flag describes query scope, not the visible page. Mainline CustomerOrders.lua123–138 selects the tab from the visible mode. Tab selection now follows `orders.creating`; a both-skin regression covers the owned snapshot on both pages. Current native revalidation is pending; earlier public/mail proof does not cover this regression.
+
 ## Projection and authority
 
 `ProfessionView` selects Recipes, Specializations, Orders or the disabled recraft schematic. Customer orders use the separate825×568 PortraitFrame; crafter orders use942×658 ProfessionsFrame; specialization page is1144px. Backgrounds, tabs, paths and dial art use the authored Retail atlases and profession kit.
