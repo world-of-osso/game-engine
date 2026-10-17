@@ -4218,3 +4218,5 @@ Completed Retailv2 codec/authoritative Create and committed Copy callbacks, exac
 
 - Guild perk follow-up: physical existing-caret RED revealed native-only edit text bypassing RegistryUi state; d82f213cc updates the authoritative edit model before restoring caret. Actual both-skin no-cast/caret/server-echo and fresh-process readback now pass on current merged binaries; actual UDP membership sequence also refreshed.
 - 2026-10-16: Cart regular/member source tooltip both-skin native GREEN including actual hover-only removal; phase-local global input parsing corrects viewport-only fixture cursor.33UI12native/check/3scopedRustfmt pass at9e7; eight full-HD originals+two contacts published. [Trading Post](systems/trading-post.md#cart-item-tooltips--implementation-october16).
+
+- 2026-10-16: [[native-professions-crafting]] documents read-only concentration metadata and the unsourced initialization/recharge-origin boundary.

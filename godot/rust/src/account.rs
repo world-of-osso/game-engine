@@ -242,6 +242,7 @@ pub enum AccountEvent {
     Professions(shared::protocol::ProfessionSnapshot),
     ProfessionSpecializations(shared::protocol::ProfessionSpecializationStateUpdate),
     CraftingOperation(shared::protocol::CraftingOperationStateUpdate),
+    ProfessionConcentration(shared::protocol::ProfessionConcentrationUpdate),
     CraftingOrders(shared::protocol::CraftingOrderStateUpdate),
     Collections(shared::protocol::CollectionStateUpdate),
     WildPetBattle(shared::protocol::WildPetBattleUpdate),
@@ -953,6 +954,15 @@ impl Account {
     ) -> Result<(), SessionError> {
         self.bridge()?
             .send::<_, shared::protocol::CollectionChannel>(request)
+            .map_err(SessionError)
+    }
+
+    pub fn send_profession_concentration(
+        &self,
+        request: shared::protocol::ProfessionConcentrationRequest,
+    ) -> Result<(), SessionError> {
+        self.bridge()?
+            .send::<_, shared::protocol::ProfessionChannel>(request)
             .map_err(SessionError)
     }
 
@@ -1720,6 +1730,10 @@ impl Account {
         }
         if message.is::<shared::protocol::CollectionStateUpdate>() {
             output.push(AccountEvent::Collections(decode(message)?));
+            return Ok(());
+        }
+        if message.is::<shared::protocol::ProfessionConcentrationUpdate>() {
+            output.push(AccountEvent::ProfessionConcentration(decode(message)?));
             return Ok(());
         }
         if message.is::<shared::protocol::CraftingOperationStateUpdate>() {

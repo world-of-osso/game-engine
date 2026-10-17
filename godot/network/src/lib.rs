@@ -271,6 +271,7 @@ impl NetworkBridge {
             .receive::<protocol::SummonRequest>()
             .receive::<protocol::ProfessionSnapshot>()
             .receive::<protocol::CraftingOperationStateUpdate>()
+            .receive::<protocol::ProfessionConcentrationUpdate>()
             .receive::<protocol::ProfessionSpecializationStateUpdate>()
             .receive::<protocol::CraftingOrderStateUpdate>()
             .receive::<protocol::CollectionStateUpdate>()
