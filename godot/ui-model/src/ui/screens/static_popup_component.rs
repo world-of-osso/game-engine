@@ -206,6 +206,8 @@ fn popup_text(name: &str, entry: &PopupEntry) -> Element {
             font: GameFont::FrizQuadrata,
             font_size: FONT_SIZE,
             font_color: COLOR_TEXT,
+            shadow_color: "0,0,0,1",
+            shadow_offset: "1,-1",
             justify_h: "CENTER",
             strata: FrameStrata::Dialog,
             frame_level: 6.0,
