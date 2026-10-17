@@ -24,6 +24,8 @@
 - [Clean-room M2 particles](systems/godot-conversion.md#native-m2-particles) — native tails/follow/cubic controls, authored sorting and map-collision births; inherited-scale provenance and explicit lighting, timer/reset, spline-density, target-mask and model-recursion oracle gaps.
 # Wiki Index
 
+- [Section focus flash](systems/adventure-guide.md#section-focus-flash--2026-10-17) — source Glow/four alpha phases; actual missing-effect RED, both-skin physical pulses,12 inspected full-HD captures and bounded pixel conservation; prior324 outside pixels retained as unattributed/not reproduced.
+
 - [Journeys track texture mask](systems/adventure-guide.md#journeys-track-texture-mask--2026-10-16) — authenticated70448 centered atlas, texture-only alpha, unchanged captions and moving-track controls; both-skin native pixels and12 inspected full-HD captures.
 
 - [Journal search implementation](systems/adventure-guide.md#search-preview-and-full-results--implementation-2026-10-16) — source preview/full popup, input ownership and localized quotes; scoped tests and both-skin physical search proof pass; quote fix independently accepted by lead gate361e.
