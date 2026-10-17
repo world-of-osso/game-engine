@@ -16,7 +16,8 @@ Retail Mainline Blizzard_PerksProgram and the local C_PerksProgram/PerksActiviti
 
 ## Shared item-confirmation caption shadow
 
-- [ ] The separate item-confirmation presenter's Confirm/Cancel captions inherit opaque black shadow (implemented; native/pixel GREEN pending) at source(+1,−1), native(+1,+1), in both skins. Preserve current12px, colours, caption/button geometry, actions and pending/accept-delay behavior. Effective user-font scaling, source state colours and full-popup parity remain gaps; supplied-state shadow proof does not qualify purchase authority/lifetime.
+- [x] The separate item-confirmation presenter's Confirm/Cancel captions inherit opaque black shadow at source(+1,−1), native(+1,+1), in both skins. Preserve current12px, colours, caption/button geometry, actions and pending/accept-delay behavior. [Bounded supplied-state proof](../wiki/systems/trading-post.md#item-confirmation-caption-shadow--bounded-proof-october17).
+- [ ] Effective user-font scaling, source state colours and full-popup parity remain gaps; supplied-state shadow proof does not qualify purchase authority/lifetime.
 
 ## Accepted single-item confirmation lifetime
 
