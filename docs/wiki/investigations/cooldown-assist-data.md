@@ -1,5 +1,29 @@
 # Cooldown Viewer and Assisted Combat authored data
-verified: 2026-10-12
+verified: 2026-10-17
+
+## Fury distance/nearby-count source boundary — 2026-10-17
+
+[Run21](../systems/bot-harness.md#run21-native-talents-and-predicate-boundary--2026-10-17) applied the matching installed talent loadout and persisted22 entries across a fresh client/server login. That made Whirlwind step330 eligible; native evaluation stopped at rule1261/type3 `[10,0,0]`. The same conjunction contains rule1268/type12 `[3,0,0]`. Neither predicate was replaced or skipped.
+
+Pinned upstream SimC `515f4a3fe9d1f35e1dbaf253745b6105fba906fb` gives the exact matching conjunction in `ActionPriorityLists/assisted_combat/warrior_fury.simc:24`. Source bytes, URLs and SHA-256 receipts are retained under `data/diagnostics/bot-predicate-2026-10-17/<pin>/` (not tracked assets). Line numbers below refer to those retained bytes.
+
+| Operand | Exact inspected source | Proof / unresolved boundary |
+|---|---|---|
+| Type3 | `engine/player/player.cpp:3840–3844`; `engine/action/action.cpp:4021–4023` | Emits `target.distance<=10`; the expression reads simulated base distance, not a live geometric measurement. Parser3799 still flags comparator precision as unverified. |
+| Type12 | `engine/player/player.cpp:3900–3903,7057–7060,7167–7170` | Emits `active_enemies>3` but explicitly omits spatial targeting. The counter follows enemy arise/demise; no nearby-player radius or zero-radius binding is established. |
+| Other spatial operands | `engine/action/action.cpp:3673–3703,3808–3886` | `active_enemies_within.N` and `spell_targets` have different spatial/action-list behavior; neither is the emitted operand. Substituting one would invent policy. |
+
+Allowed addon export inspection did not fill that gap: TalentLoadoutManager `d505fc7fdf6f229cacae5d574a17071a7647c16e`, `modules/SimulationCraft.lua:74–89`, appends saved talent strings; SimC addon `8741352777a1d22ec7c89cbd051cd736f6025c6e`, `core.lua:435–455`, serializes purchased entries/ranks. Inspected export modules supply no AssistedCombat radius/default-zero metadata. Their separate pin/hash receipts live beside the SimC sources.
+
+**Still blocked:** exact type12 eligible-set/radius/default-zero semantics, plus a justified live-distance/comparator mapping for type3. The source-to-runtime oracle is incomplete: no honest Boolean RED/GREEN implementation claim follows. Preserve the actual run21 refusal; keep both predicates fail-closed pending sufficient authority, with no global NPC count, alternate provider or lower-step substitution.
+
+## Fire cast-overlap modifier67 — 2026-10-17
+
+Pinned SimC `515f4a3fe9d1f35e1dbaf253745b6105fba906fb` identifies type67 as `AC_COOLDOWN_ALLOW_CASTING_SUCCESS` (`engine/dbc/data_enums.hh:2121`). `engine/player/player.cpp:3703–3710,3752–3753` emits a step option, while4109–4112 emits no Boolean expression. The matching Fireball line is `ActionPriorityLists/assisted_combat/mage_fire.simc:27`. The actual guard is `engine/action/action.cpp:2613–2618`: with the option disabled, same-action current execution or a positive-time last foreground action rejects readiness. This is a cast-overlap modifier, not a sourced numeric prediction/lookahead policy.
+
+Lead approved the bounded projection: type67 with exactly `[0,0,0]` adds no Boolean restriction; any nonzero operand remains an explicit error. Core recognition leaves learned/readiness/affordability/range and harness casting/outstanding-input gates unchanged. No executing-state reading is needed to remove a restriction from a flagged step. The separate default overlap policy for **unflagged** steps remains unimplemented; no global anti-recast behavior was added.
+
+The captured Fire63 frame originally refused rule33340; its newly sourced replay oracle is Fireball133 from the same facts and authored order, with readiness/cost/range refusal controls. Original native JSON/error is preserved, not rewritten into a later live success. Resto/Elemental type11 and Fury3/12 remain fail-closed. At383cee709 the actual Fire replay RED (`Err33340` versus sourced133) becomes GREEN: four focused helper tests pass, including ordinary usability, every nonzero operand position, unchanged Resto/Elemental boundaries and explicit Fury3/12 refusal controls. No compiler warnings; the two pre-existing manual skin cases were filtered. Source bytes/hashes are retained beside the Fury audit; fresh native Fire behavior still needs a matching rebuilt extension and live proof.
 
 ## Caster-centered assisted range — 2026-10-16
 
@@ -11,7 +35,7 @@ The catalog retains raw `SpellMisc.RangeIndex` as `range_id`, and the native ass
 
 Fresh master-readiness1 BM253 stopped before casting at rule29672/type58, values[0,0,0], step5716/Call Pet883. Pinned SimC76f8118 `data_enums.hh` names57/58 HAS_PET/HAS_NO_PET; `player.cpp:4067–4072` decodes presence/absence without numeric operands. Native facts retain `has_pet` from owner PetSpells/PetClearSpells plus replicated living-pet health, not a scan for pet-looking NPCs. An absent bar supplies false; a living controlled pet supplies true; a missing/dead pet actor remains unknown. Missing readings and nonzero operands fail explicitly. Tests exercise Boolean opposites, unknown readings and the actual70391 authored BM Call Pet decision. Dead-pet/guardian-only distinctions and fresh UDP acceptance remain separate; this is not full BM or all-spec certification.
 
-Arms rule1187/type12 values[2,10,0] remains a named source gap: pinned SimC `player.cpp:3900–3903` explicitly omits distance targeting and3799 leaves comparator strictness TODO. A global active-enemy count is not a source-grounded implementation of nearby targets.
+Arms rule1187/type12 values[2,10,0] shares the [nearby-count source boundary](#fury-distancenearby-count-source-boundary--2026-10-17). A global active-enemy count does not establish its radius-sensitive semantics.
 
 ## Sources
 Retail Mainline Lua under `~/.cache/wow-ui-sim/blizzard-ui/retail/AddOns/`:
@@ -50,7 +74,7 @@ SpellCategories also supplies the spell→charge category join missing from the 
 ## Assisted action and predicate boundary
 The real private server's KnownSpellsSnapshot already includes Single-Button Assistant1229376. Local SpellMisc attributes include Attributes10=32768 and Attributes13=65537; SpellEffect is Dummy3 with BasePoints25. Native interception must resolve an authored recommendation and send the ordinary actual-spell intent, not cast that dummy as though it were a damage spell. The native spellbook description states a25% longer global cooldown for the assistant. Current actual-spell interception does not preserve that assistant-cast penalty; execution parity remains incomplete. The description is evidence for the requirement, not proof of how the Dummy effect implements it.
 
-Core now evaluates qualitative condition kinds0/1/2/5/6/9/10/14/15/16/56 using supplied learned/readiness/range/cost/real-aura facts. It also checks ordinary usability on unconditional authored steps. Raw resource21–48/59–62, health7/8/68/69, charges63/64 and cooldown clocks65/66 now evaluate only away from equality, where strict and inclusive interpretations agree. Equality returns an explicit error; mana-percent19/20, distance3/4, aura/nearby/count/stack/duration predicates, predictive67 and nonzero chargeValue2 encodings remain gaps. Owner `SpellCostSnapshot` supplies effective nonzero amounts and affordability from the server's ordinary applicable_costs path, including aura gates, base mana, modifiers and scripts. Those errors block potentially eligible higher-priority steps instead of selecting lower spells. This is a bounded mechanism, not all-spec rotation certification.
+Core now evaluates qualitative condition kinds0/1/2/5/6/9/10/14/15/16/56 using supplied learned/readiness/range/cost/real-aura facts. It also checks ordinary usability on unconditional authored steps. Raw resource21–48/59–62, health7/8/68/69, charges63/64 and cooldown clocks65/66 now evaluate only away from equality, where strict and inclusive interpretations agree. Equality returns an explicit error; mana-percent19/20, distance3/4, aura/nearby/count/stack/duration predicates, nonzero [cast-overlap modifier67](#fire-cast-overlap-modifier67--2026-10-17) operands and nonzero chargeValue2 encodings remain errors; unflagged default overlap policy is a separate parity gap. Owner `SpellCostSnapshot` supplies effective nonzero amounts and affordability from the server's ordinary applicable_costs path, including aura gates, base mana, modifiers and scripts. Those errors block potentially eligible higher-priority steps instead of selecting lower spells. This is a bounded mechanism, not all-spec rotation certification.
 
 Cooldown and recommendation inputs now use raw counted-down UnitAuras, not BuffFrame's displayable-aura projection, so hidden gameplay auras remain available to these built-ins.
 
@@ -146,7 +170,7 @@ Pinned TC a352b1fa `Spell.cpp::TriggerGlobalCooldown` (downloaded lines9179–92
 The local3116 rules contain no comparator/operator field defining strictness or inclusive equality. The Retail UI cache calls `C_AssistedCombat.GetNextCastSpell`; its Lua and generated API documentation expose no predicate evaluator. Checked pinned TC definitions/cast paths do not decode this table. Existing source-limited numeric behavior remains unchanged.
 
 - Equality remains unresolved. Concrete private Ret boundary: rule6425, step1655, type38, values3/0/0; Holy Power3 returns the explicit equality error rather than an invented comparison.
-- Mana-percent type20 has2 authored rows; range/distance3/4, aura/count/stack/duration/nearby11/12/13/17/18/49–55/57/58 and predictive67 (60 rows) still lack exact approved-source comparison/target/prediction definitions. The receipt records counts and exact source rows, not inferred units or comparators.
+- Mana-percent type20 has2 authored rows; range/distance3/4, aura/count/stack/duration/nearby11/12/13/17/18/49–55/57/58 and type67 (60 rows) were originally unresolved; the [later SimC audit and bounded projection](#fire-cast-overlap-modifier67--2026-10-17) recognize zero-operand67 as a cast-overlap modifier, not prediction. Nonzero operands and unflagged default overlap policy remain gaps. The receipt records counts and exact source rows, not inferred units or comparators.
 - Charge predicates:10 authored type63 rows, **zero nonzero ConditionValue2 rows**, no type64 rows. Nonzero chargeValue2 is a reserved unsupported encoding, not an implementable gap in this pinned authored inventory.
 - Rule67752: step15297, order1, type55, values1254252/2/0, unidentified field1. Rule68820: step1223, order4, type55, values1254252/1/0, unidentified field1. No approved source defines that field; both remain explicit errors when potentially eligible.
 
@@ -179,7 +203,7 @@ Verified: 2026-10-15. Exact rows below match both published `12.1.5.70391` and c
 |---|---|---|
 | `ASSIST_RULE_12408_CONDITION20_SOURCE` | Arcane62; rotation209, step2999/order14, spell44425; rule12408/order3, type20, values100/0/0 | Checked TC/Retail sources do not define units, normalization or comparator. Third-party mana-percent naming is not Retail proof. Native bot receipt reports this explicit refusal. |
 | `ASSIST_RULE_6425_EQUALITY_INCLUSIVITY` | Retribution70; rotation117, step1655/order15, spell20271; rule6425/order3, type38, values3/0/0 | Holy Power3 is the unresolved equality boundary. Strict/inclusive outcomes differ; preserve the existing explicit error. Native default-kit receipt fails here; a different talent/loadout avoiding the boundary does not fix this rule. |
-| `ASSIST_RULE_33686_CONDITION67_POLICY` | Frost64; rotation85, step1165/order11, spell116; rule33686/order3, type67, values0/0/0 | Checked sources do not define predictive inputs, lookahead or horizon. Existing core condition67 refusal and reported earlier native block remain gaps, not a decoded prediction policy. |
+| `ASSIST_RULE_33686_CONDITION67_POLICY` | Frost64; rotation85, step1165/order11, spell116; rule33686/order3, type67, values0/0/0 | The [later allowed SimC audit](#fire-cast-overlap-modifier67--2026-10-17) identifies a cast-overlap step option, not predictive inputs/lookahead. The later zero-operand projection removes that Boolean refusal without adding default unflagged overlap policy. Earlier native refusal remains historical evidence, not proof of current rebuilt-native behavior. |
 
 Rechecked the pinned a352b1fa SpellHandler.cpp, DB2Structure.h and spell_generic.cpp copies against their recorded SHA256 hashes; none contains an AssistedCombat decoder. This is a bounded search of those files, not an exhaustive TrinityCore audit. Retail `Blizzard_APIDocumentationGenerated/AssistedCombatDocumentation.lua` exposes `GetNextCastSpell` with empty `Tables`/`Predicates`; `Blizzard_ActionBar/Mainline/AssistedCombatManager.lua:329` delegates to `C_AssistedCombat.GetNextCastSpell(checkForVisibleButton)`. Neither checked Lua file defines these numeric predicates. No evaluator/gameplay/stat/protocol change follows from the DB2 fields alone.
 

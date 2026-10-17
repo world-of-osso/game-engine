@@ -27,7 +27,7 @@ func run_fixture() -> void:
 		fail("Private compositor must expose 1920x1080 output")
 		return
 	var account := OS.get_environment("TP_ACCOUNT")
-	if server != "127.0.0.1:5791" or not account.begins_with("fb_") or shots.is_empty() or receipts.is_empty() or not phase in ["product-hover-sound", "refund-icon-tooltip", "row-cart-toggle", "frozen-tooltip", "cart-tooltips", "pending-dialogs", "confirmations", "button-tooltips", "item-tooltips", "menu-sounds", "layout", "layout-proof", "browse", "relog", "purchase", "refund", "cart", "cart-lifetime", "rotate-controls", "mount-rider", "mount-rider-cancel", "freeze-workflow", "authored-camera", "frozen-slot-before", "frozen-slot-after"]:
+	if server != "127.0.0.1:5791" or not account.begins_with("fb_") or shots.is_empty() or receipts.is_empty() or not phase in ["product-hover-sound", "refund-icon-blend", "refund-icon-tooltip", "row-cart-toggle", "frozen-tooltip", "cart-tooltips", "pending-dialogs", "confirmations", "button-tooltips", "item-tooltips", "menu-sounds", "layout", "layout-proof", "browse", "relog", "purchase", "refund", "cart", "cart-lifetime", "rotate-controls", "mount-rider", "mount-rider-cancel", "freeze-workflow", "authored-camera", "frozen-slot-before", "frozen-slot-after"]:
 		fail("Explicit private 127.0.0.1:5791, fb_* account, phase and evidence paths required")
 		return
 	for directory in [shots, receipts]:
@@ -51,7 +51,7 @@ func run_fixture() -> void:
 	if not await wait_until(func(): return float(client.account_state().local_player_health) > 0.0, "private character alive", 120000): return
 	client.set_world_minutes(720.0)
 	await wait_frames(120)
-	if not phase in ["product-hover-sound", "refund-icon-tooltip", "row-cart-toggle", "frozen-tooltip", "cart-tooltips", "pending-dialogs", "confirmations", "button-tooltips", "item-tooltips", "menu-sounds", "layout", "layout-proof", "cart", "cart-lifetime", "rotate-controls", "mount-rider", "mount-rider-cancel", "freeze-workflow", "authored-camera", "frozen-slot-before", "frozen-slot-after"] and not await travelers_log(): return
+	if not phase in ["product-hover-sound", "refund-icon-blend", "refund-icon-tooltip", "row-cart-toggle", "frozen-tooltip", "cart-tooltips", "pending-dialogs", "confirmations", "button-tooltips", "item-tooltips", "menu-sounds", "layout", "layout-proof", "cart", "cart-lifetime", "rotate-controls", "mount-rider", "mount-rider-cancel", "freeze-workflow", "authored-camera", "frozen-slot-before", "frozen-slot-after"] and not await travelers_log(): return
 	if phase in ["menu-sounds", "product-hover-sound"] and not watch_menu_sound_players(): return
 	if not await open_vendor(): return
 	if phase in ["cart", "cart-lifetime"]:
@@ -93,6 +93,7 @@ func run_fixture() -> void:
 		"frozen-tooltip": await frozen_item_tooltip_proof()
 
 		"button-tooltips": await button_tooltip_proof()
+		"refund-icon-blend": await refund_icon_blend_proof()
 		"refund-icon-tooltip": await refund_icon_tooltip_proof()
 		"row-cart-toggle": await row_cart_toggle_proof()
 		"cart-tooltips": await cart_item_tooltip_proof()
@@ -100,6 +101,148 @@ func run_fixture() -> void:
 		"frozen-slot-after": await frozen_slot_geometry_proof(true)
 		"refund": await refund_after_relog()
 		_: await browse()
+
+func refund_icon_blend_proof() -> void:
+	var before: Dictionary = client.trading_post_state().duplicate(true)
+	if not await choose_category(1): return
+	var target := int(before.frozen)
+	if target <= 0 or control("PerksProgramProduct%d" % target) == null:
+		fail("Blend probe needs the preserved real frozen product and its visible ordinary row"); return
+	await click("PerksProgramFrozenSlot")
+	if not await wait_until(func(): return int(client.trading_post_state().selected) == target, "preserved frozen selection"): return
+	if control("PerksProgramPurchaseButton") == null or not control_enabled("PerksProgramPurchaseButton"):
+		fail("Preserved frozen product is not purchase-eligible; no reservation reset allowed"); return
+	var product: Dictionary = client.trading_post_state().duplicate(true)
+	var price := int(product.price)
+	await click("PerksProgramPurchaseButton")
+	await click("PerksProgramConfirmButton")
+	if not await wait_until(func(): return client.trading_post_state().purchased and not client.trading_post_state().pending and int(client.trading_post_state().tender) == int(before.tender) - price, "blend probe genuine purchase", 120000): return
+	if int(client.trading_post_state().refund_seconds) <= 0:
+		fail("Blend probe requires explicit private refund window, not a production change"); return
+	await wait_frames(30)
+	var row_owner := "PerksProgramRefundIcon%d" % target
+	var frozen_owner := "PerksProgramFrozenRefundIcon%d" % target
+	var previous_process_mode: Node.ProcessMode = client.process_mode
+	client.process_mode = Node.PROCESS_MODE_DISABLED
+	var row_add: Dictionary = await capture_blend_reference(row_owner, CanvasItemMaterial.BLEND_MODE_ADD, "row-add")
+	var row_mix: Dictionary = await capture_blend_reference(row_owner, CanvasItemMaterial.BLEND_MODE_MIX, "row-mix")
+	var frozen_add: Dictionary = await capture_blend_reference(frozen_owner, CanvasItemMaterial.BLEND_MODE_ADD, "frozen-add")
+	var frozen_mix: Dictionary = await capture_blend_reference(frozen_owner, CanvasItemMaterial.BLEND_MODE_MIX, "frozen-mix")
+	var footer_mix: Dictionary = await capture_blend_reference("PerksProgramHistoryRefundIcon", CanvasItemMaterial.BLEND_MODE_MIX, "footer-normal")
+	var footer_add: Dictionary = await capture_blend_reference("PerksProgramHistoryRefundIcon", CanvasItemMaterial.BLEND_MODE_ADD, "footer-add-control")
+	client.process_mode = previous_process_mode
+	var samples := [row_add, row_mix, frozen_add, frozen_mix, footer_mix, footer_add]
+	var errors: Array[String] = []
+	for result in samples:
+		if result.has("error"): errors.append(str(result.error))
+	var row_sensitive := false
+	var frozen_sensitive := false
+	var footer_sensitive := false
+	if errors.is_empty():
+		row_sensitive = count_different_bytes(row_add.reference_data, row_mix.reference_data) > 0
+		frozen_sensitive = count_different_bytes(frozen_add.reference_data, frozen_mix.reference_data) > 0
+		footer_sensitive = count_different_bytes(footer_mix.reference_data, footer_add.reference_data) > 0
+	var sensitive: bool = row_sensitive and frozen_sensitive and footer_sensitive
+	for result in samples:
+		if not result.has("error") and int(result.restore_differences) != 0:
+			errors.append("Unstable render/restore for " + str(result.owner))
+		result.erase("reference_data")
+	var other := await select_other_cartable([target])
+	if other <= 0: return
+	var icon := control(row_owner)
+	var click_selected := false
+	if icon != null:
+		var point := icon.get_global_rect().get_center()
+		await motion(point, false)
+		await button_event(point, MOUSE_BUTTON_LEFT, true)
+		await button_event(point, MOUSE_BUTTON_LEFT, false)
+		await wait_frames(5)
+		click_selected = int(client.trading_post_state().selected) == target
+	# Select the ordinary row for cleanup independently of the icon-click verdict.
+	await click("PerksProgramProduct%d" % target)
+	await click("PerksProgramRefundButton")
+	await click("PerksProgramConfirmButton")
+	if not await wait_until(func(): return not client.trading_post_state().purchased and not client.trading_post_state().pending and int(client.trading_post_state().tender) == int(before.tender), "blend probe restores authoritative Tender", 120000): return
+	var restored: Dictionary = client.trading_post_state()
+	var conserved: bool = restored.frozen == before.frozen and restored.collected == product.collected and restored.cart.is_empty()
+	var observations: Dictionary = {
+		"probe": "refund-icon-blend",
+		"target": target,
+		"row_add": row_add,
+		"row_mix": row_mix,
+		"frozen_add": frozen_add,
+		"frozen_mix": frozen_mix,
+		"footer_mix": footer_mix,
+		"footer_add": footer_add,
+		"sensitive": sensitive,
+		"row_sensitive": row_sensitive,
+		"frozen_sensitive": frozen_sensitive,
+		"footer_sensitive": footer_sensitive,
+		"click_selected": click_selected,
+		"conserved": conserved,
+		"errors": errors,
+		"before_tender": before.tender,
+		"after_tender": restored.tender,
+		"before_frozen": before.frozen,
+		"after_frozen": restored.frozen,
+	}
+	var file := FileAccess.open(receipts.path_join(skin + "-refund-icon-blend-measurements.json"), FileAccess.WRITE)
+	if file == null: fail("Cannot write blend observations"); return
+	file.store_string(JSON.stringify(observations, "\t"))
+	file.close()
+	await capture("blend-refunded-restored")
+	print("TP_REFUND_ICON_BLEND ", observations)
+	if not errors.is_empty(): fail("Blend probe harness invalid: " + str(errors)); return
+	if not sensitive: fail("Blend probe has no ADD/MIX paint sensitivity; not a feature RED"); return
+	if not conserved or not click_selected: fail("Blend probe changed authority or parent-row click"); return
+	if int(footer_mix.differences) != 0: fail("Footer32 normal-blend control changed; excluded from row ADD"); return
+	if int(row_add.differences) != 0 or int(frozen_add.differences) != 0:
+		fail("Ordinary/inherited21 refund glyph does not match explicit source ADD; genuine purchase refunded before assertion"); return
+	if int(row_mix.differences) == 0 or int(frozen_mix.differences) == 0:
+		fail("Ordinary/inherited21 source ADD paint has no MIX counterfactual difference"); return
+	await finish("refund-icon-blend")
+
+func capture_blend_reference(owner_name: String, mode: CanvasItemMaterial.BlendMode, label: String) -> Dictionary:
+	var owner := control(owner_name)
+	if owner == null: return {"owner":owner_name,"error":"Missing visible blend owner " + owner_name}
+	var parts := owner.find_children("*", "TextureRect", true, false)
+	if parts.size() != 1: return {"owner":owner_name,"error":"Expected one decoded texture part for " + owner_name}
+	var part: TextureRect = parts[0] as TextureRect
+	if part.texture == null: return {"owner":owner_name,"error":"Undecoded blend texture " + owner_name}
+	var region := Rect2i(owner.get_global_rect())
+	if region.size.x <= 0 or region.size.y <= 0 or not Rect2i(Vector2i.ZERO, root.size).encloses(region):
+		return {"owner":owner_name,"error":"Blend owner outside native framebuffer " + owner_name}
+	var actual: Image = await capture_rgba_region(region)
+	if actual.save_png(shots.path_join(skin + "-" + label + "-actual-crop.png")) != OK:
+		return {"owner":owner_name,"error":"Cannot save actual blend crop"}
+	await capture(label + "-actual")
+	if not is_instance_valid(part): return {"owner":owner_name,"error":"Texture part replaced before counterfactual"}
+	var original: Material = part.material
+	var reference := CanvasItemMaterial.new()
+	reference.blend_mode = mode
+	part.material = reference
+	var expected: Image = await capture_rgba_region(region)
+	var save_error := expected.save_png(shots.path_join(skin + "-" + label + "-reference-crop.png"))
+	await capture(label + "-reference")
+	if not is_instance_valid(part): return {"owner":owner_name,"error":"Texture part replaced during frozen probe"}
+	part.material = original
+	var after_restore: Image = await capture_rgba_region(region)
+	if save_error != OK: return {"owner":owner_name,"error":"Cannot save blend reference crop"}
+	return {"owner":owner_name,"rect":[region.position.x,region.position.y,region.size.x,region.size.y],"differences":count_different_bytes(actual.get_data(), expected.get_data()),"restore_differences":count_different_bytes(actual.get_data(), after_restore.get_data()),"reference_data":expected.get_data()}
+
+func capture_rgba_region(region: Rect2i) -> Image:
+	await wait_frames(3)
+	await RenderingServer.frame_post_draw
+	var image: Image = root.get_texture().get_image().get_region(region)
+	image.convert(Image.FORMAT_RGBA8)
+	return image
+
+func count_different_bytes(actual: PackedByteArray, reference: PackedByteArray) -> int:
+	if actual.size() != reference.size(): return maxi(actual.size(), reference.size())
+	var count := 0
+	for index in range(actual.size()):
+		if actual[index] != reference[index]: count += 1
+	return count
 
 func refund_icon_tooltip_proof() -> void:
 	var before: Dictionary = client.trading_post_state().duplicate(true)
@@ -1683,7 +1826,7 @@ func motion(point: Vector2, down: bool, relative: Vector2 = Vector2.ZERO) -> voi
 	event.global_position = point
 	event.relative = relative
 	event.button_mask = MOUSE_BUTTON_MASK_LEFT if down else 0
-	if phase in ["product-hover-sound", "cart-tooltips", "row-cart-toggle", "refund-icon-tooltip"]:
+	if phase in ["product-hover-sound", "refund-icon-blend", "cart-tooltips", "row-cart-toggle", "refund-icon-tooltip"]:
 		Input.parse_input_event(event)
 	else:
 		root.push_input(event, true)

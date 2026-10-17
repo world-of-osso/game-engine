@@ -234,7 +234,7 @@ fn ready_check_command(action: &str) -> Result<GroupCommand, String> {
 }
 
 /// `PARTY_INVITE`: "%s invites you to a group." (`INVITATION`), Accept / Decline, 60 s.
-fn invite_popup_spec(inviter: &str) -> PopupSpec {
+pub(crate) fn invite_popup_spec(inviter: &str) -> PopupSpec {
     PopupSpec {
         key: PARTY_INVITE_POPUP.into(),
         text: format!("{inviter} invites you to a group."),

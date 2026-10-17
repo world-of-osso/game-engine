@@ -30,6 +30,27 @@ Feral103's first all-spec fixture remains in caster baseline:51/52 requests for 
 
 Future native drivers confirm the form spell is learned, request one ordinary validated self-cast only when its own aura is absent, and await replicated own-form aura facts from assisted evaluation. An existing form is never toggled again; timeout does not retry or select another form. form-plan.json/native-form.json and form-before/after.json retain source and observation. Equipment stat labels explicitly say before form preparation; ordinary post-form CharacterStats/combat retain resulting health/effects. Three focused source/observation tests pass. native-forms1 and native-forms2 confirm both ordinary own-form auras; follow-up combat still halts on source-unverified condition3. No server/evaluator/stat change or form-effect correctness claim follows from aura presence alone.
 
+## Independent player-spec boundary replays — 2026-10-17
+
+While Fury distance3/count12 sourcing is blocked, `cooldown_assist_live_replay.rs` replays retained positive-health native facts through the current core catalog/evaluator. `tests/fixtures/bot_boundaries/provenance.json` pins exact native JSON hashes and current70448 rotation-row hashes; unrelated cooldown tables retain only their real headers. These are historical native observations plus current source-model cases, not fresh native executions, repaired talent preparation for those specs, live casts or DPS acceptance.
+
+| Player spec | Retained native observation | Boundary asserted by replay |
+|---|---|---|
+| Protection66 | No native-state capture; old `native-all-specs1/66` setup stopped at ambiguous source loadout row58942/node101927 before launch | Native tree/target facts remain unavailable; no model/live boundary claim |
+| Restoration105 | `native-retry-gear3/105`, positive health8536 | rule2305/type11 |
+| Elemental262 | `native-all-specs2/262`, positive health8880 | rule38525/type11 |
+| Fire63 | `native-all-specs2/63`, positive health8200, original rule33340/type67 refusal retained | newly sourced zero-operand67 projection must select Fireball133; ordinary usability controls still apply |
+
+The actual serialized native facts are unchanged. Resto/Elemental must retain their exact recorded errors; Fire's separate replay oracle follows the [explicitly approved zero-operand67 projection](../investigations/cooldown-assist-data.md#fire-cast-overlap-modifier67--2026-10-17), not a changed native recording or a lower-priority fallback. At1b0cef7d9 the earlier model replay matched all three original refusals; that historical proof is not a claim that Fire must keep refusing after source-backed recognition. New controls retain ordinary readiness/cost/range and reject every nonzero operand position. No new live execution, default unflagged anti-overlap behavior, kit or provider is implied.
+
+## Run21 native talents and predicate boundary — 2026-10-17
+
+With release server423f1a26 and native extensionb7067ab84 (dev opt-level2), ordinary map0 exit confirmation preceded tree850/loadout915 input. Real native Apply expanded received owner entries2→22; fresh server/client credential login retained every entry/rank at10:05:36.872Z. Three points remained unspent under ordinary UI purchase eligibility. This proves the tree-bound preparation/persistence path, not all talents or balance.
+
+The full run entered at10:05:28.271Z and stopped28.362s later: one actual Heroic Throw ACK, no boss reached/engaged, all three authoritative statesNotStarted, zero player/party deaths. Whirlwind step330 now reached unsupported type3/rule1261; its type12/rule1268 conjunction is also unverified. The [source boundary](../investigations/cooldown-assist-data.md#fury-distancenearby-count-source-boundary--2026-10-17) owns semantics and allowed-source findings. No alternate rotation, step skip or guessed predicate was enabled; boss-goal progression was not reached in this run.
+
+Passive FPS capture retained3 Stormwind,3 Stockade out-of-combat and1 combat reading; two combat readings were unavailable before termination. RTX5060Ti,1280×720, unfocused headless native dev build: Stormwind1/8/3FPS during load/Apply; Stockade OOC1/11/4FPS; combat12FPS. Per-reading frame times, host load/CPU pressure and device log lines live in the durable run21 `report.json` and `native-stockade-fury21-trace-client-fps.{json,md}` beneath the leased bot evidence root. These are not steady-state or release-client measurements. Additional20s-settled Stormwind samples were skipped because the workflow offered no natural window; no bot timing was changed. Draw calls are not exposed by the performance CLI. Owned processes stopped10:05:59.019Z and the exact owned timing window was cleared.
+
 ## Ordinary exit transfer/input race — 2026-10-17
 
 Run20 preparation crossed authored trigger503 normally: server NewWorld map34→0 at09:03:28.180Z, client received it at09:03:28.203Z. The route controller still held a pre-transfer observation and queued movement at09:03:29.628Z; native correctly refused `scripted movement requires InWorld`. Final account state was living8256HP, map0, screenLoading, not a completed exit. No talents or full run followed; no FPS readings qualified before cleanup.
