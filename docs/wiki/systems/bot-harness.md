@@ -50,6 +50,12 @@ The1280 input/result PNGs were inspected and published as `follower-dungeons/nat
 
 `bot_simc_arcane.ArcaneSimcProvider` carries the approved diagnostic projection into the maintained interface with caller-provided receipt/APL/captured-kit/DB2/native-preflight/fight context. Receipt URL/commit and actual APL bytes must match SimC515f4a3fe9d1; the [fixture provenance](../../../scripts/tests/fixtures/bot_harness/simc_arcane32/provenance.json) retains exact source paths/hashes and native row slices. The generic controller contains no Mage IDs or priority. Provider calls are read-only against frozen kit/traits; the [bounded source contract](../../specs/bot-harness.md#approved-pinned-arcane-provider) retains APL24/36/64,2700s iteration timing and explicit unsupported cases. Selection must be explicit; no provider is auto-selected after a native evaluator error.
 
+### Projected walking endpoint — 2026-10-16
+
+Release18 stops after69.699s on `Sourced route exhausted before goal`, before the later dead-prep case. Controlled feet(72.20226,−25.10591,−0.554705) are horizontally at the melee endpoint, but its requested Y−24.17853 comes from the NPC position. The actual strict `follower_route` result is(72.20226,−24.690338,−0.554705):0.415572yd from the controlled feet, already within the existing0.5yd arrival threshold. Comparing raw-goal3D distance0.927384yd while skipping horizontally reached corners rejected valid arrival.
+
+`NavigationMap.path` projects endpoints to walkable polygons and rejects partial/incomplete corridors; portal corners are projected to the approximate detail surface while grounded feet use exact collision support. Arrival now checks both requested-goal XZ and3D proximity to the final queried surface corner. The same0.5yd threshold remains unchanged; a horizontally partial route or a different-floor endpoint still refuses, without direct movement. `walk_route` consumes the reached result rather than ignoring it. Captured18 CSV/poses supply RED; native acceptance remains separate.
+
 ### Preparation target death — 2026-10-16
 
 Trace17 reaches four acknowledged openings plus one combat abandonment, then selects target4294739425 for opening6 at1792214828146. That target dies at1792214833009; received samples retain selected-target health zero without an authored evaluation, then corpse despawn clears selection. Preparation previously kept moving toward the corpse and eventually failed its target-bound wait. The existing dead-assist observation path was correct; the prep caller did not consume the same death boundary.
