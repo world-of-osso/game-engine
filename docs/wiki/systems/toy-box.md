@@ -2,6 +2,12 @@
 
 Verified: 2026-10-10. Native Collections journal and Toy Box consume game-server master (`3753ca2`, containing `d74aafa`) and shared-protocol master (`75fe6a4`), without sibling overrides. The [contract](../../specs/toy-box.md) owns requirements and parity boundaries.
 
+## Croak and Witch source closure (2026-10-16)
+
+Croak Crock160740/273478 has ten body assets for four source displays; seven already have canonical owners, so the private fragment adds only BLP837572/837575/837577. Dance of the Dead160751/273491 has twelve body assets already canonically owned. All22 bytes match frozen70391 content keys, SHA256 and lengths; ten skin aliases are byte-equal. Frozen resolution/root/encoding match the retained64 authenticated identity; installed config334a36 is now absent, so this is not a fresh installed-config verification. Actual `ModelAssetIndex::load` passes the canonical-index plus three-private-receipt overlay, reading private product bytes, not canonical publication.
+
+Native source catalog assertions pass2/2: Frogs one-shot caster sound kits115691/115692, Witch display86194 kit51522 ground1249985. Type7/Effect165 references ShadowyEffect165, not the coincidentally existing SpellVisualAnim165; an initial invalid loop141 assertion was corrected without a production patch. Shadowy semantics, source advanced sound timing, displayed dance/ground effect, audio and wall expiry remain separate. Core/test check, fmt and manual Rust readability pass; [server source cases and retained144 whole-Toy proof](../../../../game-server/docs/toy-effects14-coverage.md#croak-crock72-and-dance-of-the-dead73-source-boundary-2026-10-16) require no duplicate run with server code unchanged. [Contract](../../specs/toy-box.md). Exact external receipts: `summon72-73-proof-ledger.json`, `summon72-73-private-loader-expected.json`, `frogs72-native-publication.json` under the continuation evidence root.
+
 ## Spitzy source asset closure (2026-10-16)
 
 Spitzy156871/261981 references visual74073 behind CasterPlayerCondition64572 (AuraSpellLogic65536, AuraSpellID181943); condition outcome is not inferred. StateKit94072 attaches effect31847/model1858263 at attachment55, scale0.14, offset(0.01,0,0.005). Its literal TextureFileDataID1276146 is retained as a source dependency, not an asserted runtime texture override. Kit sound18633/volume0.8 is source metadata, not playback proof.

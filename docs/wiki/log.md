@@ -25,6 +25,10 @@
 ## 2026-10-16 — Native range/cast pose coherence
 
 [Local pose](systems/bot-harness.md#local-rangecast-pose--2026-10-16): real one-second input moves the local client7yd while the loopback host keeps its owner Position frozen; RED shows native Slam range still true at the old replica. Range and cast origin now share the current local pose. Focused fixture also receives the ordinary cast origin; full dev-IPC bag-catalog readiness and fresh release-server Stockade acceptance remain separate.
+## 2026-10-16 — Refuge family-filtered shield projection
+
+[Refuge1344](systems/battle-pets.md#refuge-shield-projection--2026-10-16): both-skin physical cast/block caller→swap/block Critter→swap/damage non-Critter. Rat892 remains full twice, Squirrel978→950/952, Rabbit147 conserved; eight fullHD originals inspected,92/99/99/final99 source geometry differs only timed float. Actual strict snapshots and canonical one-mesh/4-asset closure pass; no new asset/publication/widget/rule. Owned processes stopped, full Retail timing/VFX unproved.
+
 ## 2026-10-16 — Same-species damage projection
 
 [Dragon's Call2283](systems/battle-pets.md#same-species-effect-projection--2026-10-16): both actual skins, legal level2 trio and physical85/77 damage, HP/cooldown3; four inspected fullHD originals.91 pre-cast rectangles match,97 post-cast common rectangles differ only HP fills and two timed Forever floats. Actual snapshots and canonical3-mesh loader report ExtractedOnly/tripwire0. Adopted70448 assets published; mechanics70391, exact artifact/fixture sources explicit. No new widget/client rule/full Retail timing/VFX claim; owned processes stopped.
@@ -32,6 +36,10 @@
 ## 2026-10-16 — Bench resurrection HUD projection
 
 [Shared2347 projection](systems/battle-pets.md#bench-resurrection-projection--2026-10-16): both actual skins physically revive two persisted-dead reserves to78/1563, pointer swap, retain incoming damage and win through the revived pet's147-damage Metal Fist. Eight fullHD originals inspected;92/98/131/98 geometry differs only in timed float. Canonical78-asset closure and explicit strict loader readback pass; world-native mode, exact runtime heads and pre-auth recovery are documented. No UI change/full Retail timing/VFX claim; owned processes stopped.
+## 2026-10-16 — Hasty Hearth actual Human native proof
+
+[Guild effects](systems/guilds.md#perk-native-authority-and-effect-boundary-2026-10-16): real Human458619 retained, two physical6948/8690 uses per fresh scenario (one in each skin),25-minute ordinary versus10-minute guild recovery. Four real invitation/removal cycles preserve pending clocks and all114 non-guild IDs; binaries identical. Twelve inspected full-HD originals establish bag/item/cast context; numbers are actual native owner receipts, not rendered timer labels. Mixed25/10/25-minute queue and rate/snapshot core17 pass; extra controls/final checks remain separate.
+
 ## 2026-10-16 — Supported Mount Up native effect proof
 
 [Guild effects](systems/guilds.md#perk-native-authority-and-effect-boundary-2026-10-16): real invitation/removal and Golden Gryphon input produce14→15.4→14 ground and22.4→24.64→22.4 flight, with seven coherent samples per skin. Fourteen full-HD originals inspected; ten mounted ground/flight/removal frames selected, four occluded ground/unmounted frames rejected. Earlier flat retries were actual CasterDead after a cliff trial; fixture recovery uses existing private `.revive`, not speed/perk injection. Controlled-NPC210 remains blocked. Hasty core charge2309 controls pass3/3; native item proof remains separate.
@@ -4317,3 +4325,4 @@ Source Item ownership replaces row-press actions; inset-aware native Button pick
 ## 2026-10-16 — Portrait-inclusive HUD and launcher clearance
 
 [Launcher](systems/launcher.md#portrait-inclusive-hud-clearance--2026-10-16): retain approved321×79 portrait mount; re-derive exact root/bars/portrait, include Camelot8px painted outset in Forever launcher−17.5 margin. Genuine master29pass2fail→31HUD+9launcher GREEN; production-faithful test skin setup, engine/networkcheck/build and both-skin1920×1080 native clearance pass. Modern0pixel changes, Forever113408 confined to launcher paint, zero outside. Supplied-state canvas proof, not live portrait/authority or full-HUD certification.
+- 2026-10-16: [Croak and Witch source closure](systems/toy-box.md#croak-and-witch-source-closure-2026-10-16): actual combined loader22 receipts/ten aliases and native catalog2/2; only three new private textures, nineteen canonical owners retained. Type7/Shadowy165 is not animation; native appearance/audio and installed-config revalidation remain separate.
