@@ -14,6 +14,45 @@ fn screen(shared: &SharedContext) -> Element {
 }
 
 #[test]
+fn ready_check_title_inherits_roman_shadow_both_skins() {
+    use ui_toolkit::{layout_values::Val, widgets::font_string::GameFont};
+
+    game_engine_ui_model::paths::set_data_root(
+        std::path::PathBuf::from(env!("CARGO_MANIFEST_DIR")).join("../../data"),
+    )
+    .unwrap();
+    for skin in [ActiveSkin::Modern, ActiveSkin::Forever] {
+        set_thread_skin(skin);
+        let mut shared = SharedContext::new();
+        shared.insert(ReadyCheckFrameState {
+            visible: true,
+            initiator: "Raidleader".into(),
+        });
+        let mut registry = FrameRegistry::new(1920.0, 1080.0);
+        Screen::new(screen).sync(&shared, &mut registry);
+        let frame = registry
+            .get(registry.get_by_name("ReadyCheckFrameTitle").unwrap())
+            .unwrap();
+        let Some(WidgetData::FontString(title)) = &frame.widget_data else {
+            panic!("ReadyCheck title must be text");
+        };
+        // Preserve current title fields; colour and layout are separate source gaps.
+        assert_eq!((frame.width.value(), frame.height.value()), (323.0, 20.0));
+        assert_eq!(
+            (frame.position.left, frame.position.top),
+            (Val::Px(0.0), Val::Px(4.0))
+        );
+        assert_eq!(title.text, "Ready Check");
+        assert_eq!(title.font, GameFont::FrizQuadrata);
+        assert_eq!(title.font_size, 12.0);
+        assert_eq!(title.color, [1.0, 0.82, 0.0, 1.0]);
+        // ReadyCheck.xml:53 → GameFontNormal → Roman SystemFont_Shadow_Med1.
+        assert_eq!(title.shadow_color, Some([0.0, 0.0, 0.0, 1.0]), "{skin:?}");
+        assert_eq!(title.shadow_offset, [1.0, -1.0], "{skin:?}");
+    }
+}
+
+#[test]
 fn ready_check_message_inherits_roman_color_and_shadow_both_skins() {
     use ui_toolkit::widgets::font_string::GameFont;
 

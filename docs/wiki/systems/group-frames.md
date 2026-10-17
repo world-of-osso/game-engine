@@ -46,6 +46,12 @@ Verified: 2026-10-17. Genuine model RED `fd34f46d0` (2pass/1fail) → `ae6f7a239
 
 Proof: local `data/diagnostics/ui-questlog-ready-shadow-2026-10-16/ready-shadow-proof-ledger.json`; PNGs `AgentShared/2026-10-16/ui-questlog-ready-shadow/{before-ready-shadow,after-ready-shadow,comparison-modern.png,comparison-forever.png}`. Final native binary is `ae6f7a239`; subsequent documentation does not change the proof scope. This supplied-state shadow proof does not certify source colors, title/portrait/border, full popup or server lifecycle; no unaffected physical-button replay.
 
+### ReadyCheck title shadow — implementation 2026-10-17
+
+`ReadyCheck.xml:53` title inherits `GameFontNormal` → `FontStyles.xml:50`/`SystemFont_Shadow_Med1` → `Fonts.xml:275–285`: Roman Friz12, opaque black shadow at source(+1,−1). Complete ReadyCheck Lua and cached title-caller lookup show no font/shadow override. Production title omitted that shadow; only its two shadow attributes are added. Current approximate title colour `(1,0.82,0,1)`, 323×20 box at(0,4), text/font, body gold/shadow/geometry and response buttons/actions are preserved. Title colour and layout remain source gaps, not qualified by this repair.
+
+Genuine model RED on landed7c5e7ddad:3pass/1fail, missing title shadow (`None` versus opaque black),23.2s helper. The new both-skin regression also conserves existing title colour/font/text/geometry; existing message and response-button regressions remain controls. Proof ledger: local `data/diagnostics/ui-questlog-ready-title-shadow-2026-10-17/proof-ledger.json`. Integrated b7363593c GREEN4/4 passes (45.4s helper), including both-skin title and unchanged body/button controls; engine/network check passes (89.0s wall), no warnings. Scoped Rust format/diff and changed-line readability pass. Native raster proof remains pending lead gate; no build/capture, physical-response replay, lifecycle or full-popup claim.
+
 ### ReadyCheck message colour — implementation 2026-10-17
 
 `ReadyCheck.xml:35` inherits GameFontNormal; FontStyles.xml50 binds its Color to NORMAL_FONT_COLOR. Complete ReadyCheck XML/Lua and the cache-wide ReadyCheckFrameText lookup show only SetFormattedText, no colour override. Active Retail12.1.5.70448 `GlobalColor.csv` row1 is NORMAL_FONT_COLOR, signed−11776 / ARGB0xFFFFD200 / RGB8(255,210,0). This is not white or the existing approximate0.82 shared/title green.
