@@ -1,3 +1,4 @@
+- [Projected walking endpoint](systems/bot-harness.md#projected-walking-endpoint--2026-10-16) — use the completed source nav-surface endpoint, not raw NPC height; unchanged arrival tolerance and partial/floor refusal controls.
 - [Preparation target death](systems/bot-harness.md#preparation-target-death--2026-10-16) — stop uncast prep on received zero HP before corpse movement/despawn; Trace17 delivers all4578 CombatChannel messages.
 - [Combat-channel delivery boundary](systems/bot-harness.md#combat-channel-delivery-boundary--2026-10-16) — native combat ring freezes while health replication/server casts continue; local capture flag is not wire-completeness proof.
 - [Opening combat admission](systems/bot-harness.md#combat-admission-for-opening-preparation--2026-10-16) — received owner CombatStatus gates new prep; abandon uncast openings when combat begins, never a spell fallback.
