@@ -98,7 +98,8 @@ func run_cases() -> void:
 				var origin := geometry.multimesh.get_instance_transform(index).origin
 				var pixel := camera3d.unproject_position(origin)
 				var color := image.get_pixel(roundi(pixel.x), roundi(pixel.y))
-				passed = color.r > 0.1 and passed
+				# A white/untinted geometry shader must fail, not merely count as visible.
+				passed = color.r > 0.1 and color.r > 2.0*color.g and color.r > 2.0*color.b and passed
 			var output := OS.get_environment("GODOT_PARTICLE_SCREENSHOTS")
 			passed = not output.is_empty() and image.save_png(output + "/p5-models-" + str(count) + ".png") == OK and passed
 			print("P5 synthetic parents=", count, " geometry=", geometry.multimesh.visible_instance_count, " children=", children.multimesh.visible_instance_count, " passed=", passed)
