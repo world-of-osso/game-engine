@@ -6,7 +6,7 @@
 //! `particle_system2/simulation.rs`. Values stay in the emitter's authored units: a
 //! model-space emitter (flag 0x10) simulates in its generator frame, any other in
 //! the caller's world axes, into which the caller converts WoW gravity and wind.
-use glam::{Mat3, Mat4, Vec2, Vec3, Vec4};
+use glam::{Mat3, Mat4, Quat, Vec2, Vec3, Vec4};
 
 use crate::asset::m2_format::m2_anim;
 use crate::m2::{AnimTime, ParticleEmitter};
@@ -374,6 +374,8 @@ pub struct Particle {
     /// Generator frame for model-space emitters, else world.
     pub position: Vec3,
     pub velocity: Vec3,
+    /// Birth orientation, independent of subsequent world-space emitter movement.
+    pub orientation: Quat,
     pub age: f32,
     pub seed: u16,
     tex_pos: [Vec2; 2],
@@ -401,6 +403,13 @@ pub struct Quad {
     pub cell_offset: Vec2,
     /// UV offsets of multitexture layers 1 and 2.
     pub tex_pos: [Vec2; 2],
+}
+
+/// Actual geometry instance state, never camera-facing quad axes.
+#[derive(Clone, Copy, Debug, PartialEq)]
+pub struct ModelParticle {
+    pub transform: Mat4,
+    pub color: Vec4,
 }
 
 /// Live particles of one placed emitter, its emission remainder and random stream.
@@ -698,10 +707,50 @@ impl EmitterSim {
         Particle {
             position,
             velocity,
+            orientation: if emitter.flags & FLAG_MODEL_SPACE != 0 {
+                Quat::IDENTITY
+            } else {
+                self.emitter_to_world.to_scale_rotation_translation().1
+            },
             age,
             seed,
             tex_pos,
             tex_vel,
+        }
+    }
+
+    /// Geometry lifetime state. The caller supplies the independently resolved model.
+    pub fn model_particles(&self, emitter: &ParticleEmitter, out: &mut Vec<ModelParticle>) {
+        if emitter.particle_model_filename.is_none() {
+            return;
+        }
+        for particle in &self.particles {
+            let Some(twinkle) = twinkle_scale(emitter, particle.age, particle.seed) else {
+                continue;
+            };
+            let look = appearance(emitter, self.props.lifespan, particle.age, particle.seed);
+            let scale = look.scale * twinkle;
+            let local = Mat4::from_scale_rotation_translation(
+                Vec3::new(scale.x, scale.y, scale.x),
+                particle.orientation * Quat::from_rotation_z(spin_angle(emitter, particle)),
+                particle.position,
+            );
+            let transform = if emitter.flags & FLAG_MODEL_SPACE != 0 {
+                self.emitter_to_world * local
+            } else if emitter.flags & FLAG_INHERIT_SCALE != 0 {
+                let inherited = self.emitter_to_world.x_axis.truncate().length();
+                Mat4::from_scale_rotation_translation(
+                    Vec3::new(scale.x, scale.y, scale.x) * inherited,
+                    particle.orientation * Quat::from_rotation_z(spin_angle(emitter, particle)),
+                    particle.position,
+                )
+            } else {
+                local
+            };
+            out.push(ModelParticle {
+                transform,
+                color: look.color.extend(look.alpha),
+            });
         }
     }
 
@@ -714,6 +763,9 @@ impl EmitterSim {
 
     /// Visible world-space heads and tails, sharing lifetime appearance and twinkle.
     pub fn quads(&self, emitter: &ParticleEmitter, view: &ViewBasis, out: &mut Vec<Quad>) {
+        if emitter.particle_model_filename.is_some() {
+            return;
+        }
         let max_life = max_lifespan(emitter, self.props.lifespan);
         let live = self.particles.iter().filter(|p| p.age <= max_life);
         if emitter.flags & FLAG_SORT_DEPTH != 0 {

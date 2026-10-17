@@ -103,6 +103,12 @@ The modern scale is established: allowed WWV `M2ParticleOld::BurstMultiplier` is
 
 **Named gap P5-recursive-timing:** supplied spec identifies lifetime ownership/orientation and retirement requirements, but not the child-emission clock, loop/recursion termination policy, or target asset resolution. No authentic uniquely identifiable geometry/child fixture can presently exercise those boundaries. Actual model-instance, child-emission, natural-retirement and owner-teardown acceptance therefore remain open; no colored-quads substitute, synthetic asset receipt, or attachment-path reuse was added.
 
+### P5 approved continuation (2026-10-17)
+
+Approved behavioral input: `/home/osso/.worktrees/logs/m2-p5-s1-mat-source-assistance-2026-10-17.md`, SHA256 `b16ad486bd0e706d2369679f91ef24569959e7b5709ca4d29503701482edb204` (P5 section only). W/C labels are provenance, not accessible implementation sources. Geometry references suppress billboard output; geometry instance state carries independent lifetime position, birth orientation/spin, scale, RGB and opacity. Synthetic geometry uses the existing two scale channels (X/Z share X); no untouched Retail geometry parity is asserted.
+
+Selected DB2 directory resolves to Retail `12.1.5.70448`. A bounded extracted-cache census finds no nonempty geometry or recursive filenames in 83,133 legacy-cache M2s and three product-qualified wow caches (28,040 / 28,211 / 28,213 M2s); receipt `/home/osso/.worktrees/logs/m2-p5-reference-census.json`. This is not a complete current-publication census. **P5-product-resolution** remains open; no legacy-name guessing or unrelated models substituted. Native proof must therefore be explicitly synthetic.
+
 ### Integrated proof
 
 After merging origin/master, `edc9c82be` passes all eight `particle_cleanroom_` controls (no full suite), native helper build exits0 without compiler warnings, and Godot-workspace `cargo fmt --all --check` exits0. Logs: `/home/osso/.worktrees/logs/m2particles-{integrated-green,native-green-build,native-stable,fmt-check}.log`. Later changes are fixture/docs only. Helper has no cargo-check mode; native build supplies compile proof rather than claiming an unrun check. S1/P5 and the named partial P3/P4 boundaries remain open.
