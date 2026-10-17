@@ -17,6 +17,9 @@ func verify_texture_fade(name: String, faded: bool) -> bool:
 	if reference == null or reference.get_size() != Vector2i(1024,128):
 		stop("Authenticated source1024x128 alpha reference required")
 		return false
+	# Freeze the client update while sampling one frame's art/background controls;
+	# normal projection must not overwrite those temporary measurement controls.
+	client.set_process(false)
 	var painted := await frame_image()
 	var material := part.material
 	part.material = null
@@ -28,6 +31,7 @@ func verify_texture_fade(name: String, faded: bool) -> bool:
 	part.visible = true
 	part.material = material
 	await settle()
+	client.set_process(true)
 	var samples := 0
 	var worst := 0.0
 	for y in range(ceili(bounds.position.y), floori(bounds.end.y)):
@@ -58,6 +62,7 @@ func verify_opaque_caption() -> bool:
 		stop("Real edge-level caption absent")
 		return false
 	var bounds := label.get_global_rect()
+	client.set_process(false)
 	var painted := await frame_image()
 	var copy := label.duplicate() as Label
 	root.add_child(copy)
@@ -73,6 +78,7 @@ func verify_opaque_caption() -> bool:
 	copy.queue_free()
 	label.visible = true
 	await settle()
+	client.set_process(true)
 	var differences := 0
 	for y in range(ceili(bounds.position.y),floori(bounds.end.y)):
 		for x in range(ceili(bounds.position.x),floori(bounds.end.x)):
