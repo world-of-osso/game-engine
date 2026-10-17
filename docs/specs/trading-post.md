@@ -78,6 +78,14 @@ Retail Mainline Blizzard_PerksProgram and the local C_PerksProgram/PerksActiviti
 - Retail PerksProgramElements.lua306–314 uses `GetItemByID`, excludes `SellPrice`, and owns the tooltip at `ANCHOR_RIGHT` with X−16/Y0. Preserve the shared screen clamp; hide on pointer leave or vendor teardown. Hover must not change selection, Tender or server state.
 - [x] Native missing-tooltip RED→both-skin GREEN at engine569419cb7/servera820dfda/protocoldc30250. Fixture `godot/tests/trading_post_live.gd`, phase `item-tooltips`, verifies two hovered item identities/details/right−16 positions without sell price, unchanged selected row/Tender, pointer leave and Escape/vendor teardown/reopen/HUD restoration. Eight inspected full-HD originals+two contacts: `/syncthing/AgentShared/2026-10-16/trading-post-item-tooltips/`; diagnostic `item-tooltips-proof-manifest.json` pins actual artifact hashes and receipts. Product-row coverage does not certify frozen/cart/detail-row or footer-button tooltips, item spell-effect formatting, or framing.
 
+## Product-enter sound
+
+Source: Retail `Blizzard_PerksProgramElements.lua:291–304` unconditionally plays `TRADING_POST_UI_ITEM_HOVER`218934 on product OnEnter; frozen `Elements.xml:383` inherits that handler. SoundKit/Entry metadata is12.1.5.70391; file4906953 is authenticated installed12.1.5.70448 Ogg, not relabeled70391. [Implementation and proof](../wiki/systems/trading-post.md#product-enter-sound--october17).
+
+- Ordinary and frozen buttons are distinct hover owners even for the same product. Nested cart-toggle hover retains the parent product owner. Hold/refresh does not replay; leave and teardown permit reentry/reopen. Empty-slot enter follows the item-independent source handler, without requiring selection or item data.
+- Reuse existing UiKits decoding/settings: file4906953, source gain0.891250908 × master × effects, no pitch adjustment/variation. Do not change selected product, cart, Tender, frozen reservation or collections. Selection218230 and other action sounds remain excluded.
+- [ ] Native missing-enter RED→both-skin decoded playback/finished, owner lifecycle and authority conservation GREEN; core source-kit test and focused integration gates.
+
 ## Menu lifecycle sounds
 
 Source: Retail PerksProgram.lua226/253 and SoundKitConstants.lua, with SoundKit/SoundKitEntry12.1.5.70391. [Implementation/proof inventory](../wiki/systems/trading-post.md#menu-lifecycle-sounds--bounded-proof-october15); behavioral tests: `godot/core/tests/trading_post_menu_sound.rs`, `godot/tests/trading_post_live.gd` (`menu-sounds`).
