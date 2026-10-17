@@ -16,8 +16,9 @@ Retail Mainline Blizzard_PerksProgram and the local C_PerksProgram/PerksActiviti
 
 ## Purchase-aware Price sorting
 
-- [ ] Ordinary Price sorting uses Retail Products.lua402–485 effective values: refundable−2, purchased/nonrefundable−3, otherwise the actual unsigned price. Determine refundability from each row's remaining refund time, not the selected item. Preserve higher-group precedence, ascending name ties in either direction, committed frozen exclusion, selection and cart.
-- [ ] Both directions, sentinel-name ties and elapsed refund expiry require concrete model RED→GREEN. Both-skin native acceptance follows code landing: a real ordinary purchase/refund restores starting Tender, ownership and cart while original640/712 stay untouched.
+- [x] Ordinary Price sorting uses Retail Products.lua402–485 effective values: refundable−2, purchased/nonrefundable−3, otherwise the actual unsigned price. Determine refundability from each row's remaining refund time, not the selected item. Preserve higher-group precedence, ascending name ties in either direction, committed frozen exclusion, selection and cart.
+- [x] Two concrete model RED→GREEN tests cover both directions, sentinel-name ties, elapsed59/60/61 refund expiry and a higher-group control; all44 focused Trading Post UI tests pass.
+- [ ] Both-skin native acceptance follows code landing: a real ordinary purchase/refund restores starting Tender, ownership and cart while original640/712 stay untouched.
 - [ ] `TP_SORT_PER_PRODUCT_PENDING`: Retail's per-product pending−1 branch lacks a supplied per-product flag. Never infer it from the view-global request flag. Time/calendar, group-header identity and production refund policy remain separate.
 
 ## Shared item-confirmation caption shadow
