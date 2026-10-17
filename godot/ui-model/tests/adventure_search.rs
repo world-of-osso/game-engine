@@ -32,6 +32,23 @@ fn present(registry: &FrameRegistry, name: &str) -> bool {
         .is_some_and(|id| registry.get(id).unwrap().visible)
 }
 #[test]
+fn journal_search_localized_display_quotes_are_not_export_escape_codes() {
+    let _view = journal("flame");
+    assert_eq!(
+        game_engine_ui_model::auction_mail::text("ENCOUNTER_JOURNAL_SEARCH_RESULTS"),
+        "Search Results for \"%s\"(%d)"
+    );
+    assert_eq!(
+        game_engine_ui_model::auction_mail::text("ABANDON_QUEST_CONFIRM"),
+        "Abandon \"%s\"?"
+    );
+    assert_eq!(
+        game_engine_ui_model::auction_mail::text("SEARCH_RESULTS_SHOW_COUNT"),
+        "Show All %d Results"
+    );
+}
+
+#[test]
 fn journal_search_preview_keyboard_full_popup_and_close_preserve_query() {
     for skin in [ActiveSkin::Modern, ActiveSkin::Forever] {
         let mut view = journal("flame");
