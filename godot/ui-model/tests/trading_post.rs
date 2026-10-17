@@ -36,6 +36,7 @@ fn purchase_price_view() -> View {
         snapshot: Some(Arc::new(data)),
         selected: Some(4),
         cart: vec![14],
+        sort: game_engine_ui_model::trading_post::Sort::Name,
         ..Default::default()
     }
 }
