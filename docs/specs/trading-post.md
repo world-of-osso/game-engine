@@ -92,7 +92,7 @@ Source: Retail PerksProgram.lua226/253 and SoundKitConstants.lua, with SoundKit/
 
 - [x] Actual menu show/hide plays OPEN218932/CLOSE218933 once per visibility edge via the existing UI SoundKit player; repeated updates/closed state do not replay either kit. A menu never projected must not emit a close sound.
 - [x] Use the five authored open files at gain0.562341332 and ten authored close files at gain0.01, preserving existing master/effects/mute settings and explicit asset/decode failures. Native proof must observe real decoded AudioStreamPlayer playback, not only requested kit IDs.
-- [ ] NAMED GAP — close kit218933 pitch adjustment/variation is unsupported by the existing UI kit player. Lead October15 authorizes lifecycle/files/gain only; do not add a pitch path or claim complete acoustic parity in this slice. Hover/selection/purchase/refund/rotation sounds remain outside it.
+- [ ] NAMED GAP — close kit218933 pitch adjustment/variation is unsupported by the existing UI kit player. The nonzero-adjustment rate equation is separately unestablished: [UI_SOUND_PITCH_ADJUST_RATE](../wiki/systems/sound.md#ui_sound_pitch_adjust_rate); hide/show218236/218237 remains deferred, with no guessed mapping. Lead October15 authorizes lifecycle/files/gain only; do not add a pitch path or claim complete acoustic parity in this slice. Hover/selection/purchase/refund/rotation sounds remain outside it.
 
 ## Named gap — native pet framing
 
