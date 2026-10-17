@@ -45,7 +45,7 @@ Retail Mainline Benefits perks in Modern and Forever. Definitions: installed `db
 - [x] Bounded catalog/membership/UI and caret follow-up landed; individual effect gates remain separate.
 - [x] Supported Mount Up172/211 and map suppression landed; both-skin actual movement/removal proof and ten inspected mounted originals pass. Controlled-NPC flight210 remains explicitly blocked.
 - [x] Hasty Hearth is independently qualified below; [effect matrix](../wiki/systems/guilds.md#perk-native-authority-and-effect-boundary-2026-10-16).
-- [ ] Mobile Banking83958 remains source-blocked: script77 has no authored trigger;88304/88306 summon actual206602/206603, but no pinned dispatch binding or Friendly guild-reputation eligibility authority is established. The description's88306 duration reference is not authority to invent either.
+- [ ] Mobile Banking83958 remains source-blocked: script77 has no authored trigger;88304/88306 summon actual206602/206603 for300000ms, but no pinned Mainline dispatch binding is established. Server CharacterReputation already represents authenticated guild faction1168; missing reputation storage is not a blocker. The installed tooltip requires Friendly chest users; a contemporary fork's Friendly caster check is not independently established Mainline policy. No fabricated dispatch or cast/use rule is implemented.
 - [ ] Quick/Dead83950 remains source-blocked: aura340/+50% has TC HandleNULL and a guild-member-resurrector enum name, unlike its unqualified installed tooltip; dummy3/+10% dead movement has no pinned script. Health formula/recipient/guild and dead-speed mechanics remain unclaimed.
 - [x] Actual UDP invitation/forced removal/rejoin/quit, fresh-process native owner/tooltip readback and inspected1920×1080 both-skin captures.
 
