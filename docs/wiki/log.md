@@ -1,9 +1,17 @@
 ## 2026-10-17 — P5 geometry/recursive lifecycle implementation
 
 [Native M2 particles](systems/godot-conversion.md#p5-geometry-and-recursive-ownership--2026-10-17): independent geometry lifetime instances and child-state consumers; approved parent-age/retirement/move/birth/one-child-advance ordering, descendant draining and previous-frame interpolation. Billboard/native missing-consumer REDs observed;45 scoped CPU controls and2 synthetic native cases now pass. Native1/2 geometry +6/11 child quads, independent lifetime transform/RGBA, tinted raster, drained native visibility0/0 and owner teardown; three-generation draining CPU-only. Explicit synthetic SFID910006 fixes a fixture setup failure without a legacy resolver path. Current extracted-cache census finds no nonempty references; P5-product-resolution, P5-recursive-clock and depth/cycle-policy gaps retained. No S1/S3 changes.
+## 2026-10-17 — Armageddon sacrifice projection
+
+[Bounded1025](systems/battle-pets.md#armageddon-sacrifice-projection--2026-10-17): both actual skins/private5961 physical61/58 damage, caller321→0 without revival, forced reserve and actual attack. Eight inspected fullHD originals, two framed models/all snapshots strict/tripwire0, canonical adopted70448 loader pass. Native one-enemy and three-enemy server-test scopes remain distinct; no new UI layout/simulation or full timing/VFX claim.
+
 ## 2026-10-17 — Product-row refund glyph ADD implementation
 
 [Row glyph blend](systems/trading-post.md#product-row-refund-glyph-blending--implementation-october17): source21px ordinary/inherited ADD overrides the default field, not the32px footer. Actual native paint RED827/813 bytes versus ADD, exact MIX agreement; footer normal0/ADDcounterfactual1874, all restores0/sensitive controls and genuine frozen640 purchase/refund conservation. Minimal post-sync row-only property wiring committed before GREEN; no opacity/global renderer/provider change. Actualbd1/2d7/P8f38 fixture889 both-skin framebuffer GREEN: ordinary/inherited ADD0/0, MIX827/813 Modern and819/813 Forever; footer MIX0/ADD1874, all restores0/sensitive controls. Real purchase/refund preserves Tender19040/19670, frozen640/712, collected state/cart and parent-row clicks. Ten inspected full-HD stages+two contacts+two glyph comparisons published; integrated78e68eed6/P5e4 passes52 targeted Trading Post tests/check(no warnings), with unchanged-hash scoped2Rustfmt/manual readability proof retained. Manifest binds actual binaries/fixture/30receiptJSON/6memoryedges. Later source integration is not relabeled nativebd1/2d7/P8f38 evidence; CI unverified.
+## 2026-10-17 — Native guild invitation tabards
+
+[Invitation tabards](systems/guilds.md#native-invitation-tabards): real optional design through source art, received-packet receipts and four actual officer invitations/physical declines in both skins. Native overlap exposed old TOP-anchor/font/cell errors; source render RED→six controls GREEN and final native text/font/center/non-overlap pass. Identical artifacts across both optional states; four inspected full-HD originals published. No earned gold/vendor UI or unsupported points/reputation/lifetime claim.
+
 ## 2026-10-16 — Miss-only pet self outcome projection
 
 [Haymaker762 / Gift989](systems/battle-pets.md#miss-only-self-outcome-projection--2026-10-16): actual pointer self-stun and59/68 healing in both skins, successful-hit controls and ten inspected fullHD originals. Strict canonical model readback passes; no shared layout/client combat change or full timing/VFX claim.
@@ -17,6 +25,10 @@
 [Search](systems/adventure-guide.md#search-preview-and-full-results--implementation-2026-10-16) native8 passes both skins on productf2c8a410a: continued typing, actual preview/full popup, wheel/close/query retention and authored section selection. Eight full-HD originals inspected. Pixel inspection found exported quote spelling leaking through localization; actual RED→four focused tests GREEN and current clean title assertion/paint pass. Native7 first-J failure remains separate; no readiness patch. Current quote-fix check pending; C API/data gaps unchanged.
 
 ## 2026-10-16 — Journal search implementation; native acceptance pending (historical2344 checkpoint)
+## 2026-10-16 — Alterac NPC Honor
+
+[NPC bonuses](systems/battlegrounds.md#alterac-npc-honor--2026-10-16): actual captain RED0vs368→GREEN10, source3/4 equivalents at retained max79 yield368+490=858 NPC-only subtotal. Both factions/all four entries, NPC-caused dead eligible teammate, other-copy exclusion, replay, persistence and origin return pass; prior9 controls and scoped server check retained. No independent-one-kill rounding, full AV/end/tower, external UDP/rendered or player-input claim.
+
 ## 2026-10-16 — Isle resource Honor
 
 [Resources](systems/battlegrounds.md#isle-resource-honor--2026-10-16): source45s clock now credits separate12 per owned/uncontested Refinery/Quarry increment, with no new clock or wire state. Actual channel RED0vs24→GREEN9 proves two bases24, contested pause12, ownership transfer12/team, durable wallet/XP and weekly0; full player-death/commander/AV/Arathi/Eye/empty-root controls retained. Scoped server check passes. No external UDP/rendered or other-map reward claim.
@@ -4442,10 +4454,14 @@ Source Item ownership replaces row-press actions; inset-aware native Button pick
 
 [Swimming](systems/swimming.md#mirrortimer-label-shadow--2026-10-16) records complete XML/Lua/font inheritance and the two-attribute black(+1,−1) repair. Genuine missing-shadow RED→5modelGREEN, six both-skin1920×1080 native cases retain geometry;731pixels/skin darken only inside labels/shadows and transparent-shadow controls restorebaselineRGBexactly. Check/build/scopedfmt pass; source census remains incomplete. No cadence/server, other-alphabet or full-timer art certification.
 
+- 2026-10-17: M2-MAT clean-room scope, existing short-table controls, ordinary nonzero interpolation, local raw-channel crossfade/snapshot sampler and explicit cubic gap; RED evidence recorded, native proof pending.
 ## 2026-10-17 — ReadyCheck inherited message shadow
 
 [Message shadow](systems/group-frames.md#readycheck-message-shadow--bounded-proof-2026-10-16): exactly two attributes restore Roman black(+1,−1). RED→3GREEN and both-skin1920×1080 native proof retain font/currentcolor/text/240×28 box;1002 darkened pixels per skin, zero outside label/shadow union, shadow-off RGB exactly baseline. Check/build/scoped format/readability pass. Sourcecolor/full-popup/server lifecycle remain unqualified.
 
+- 2026-10-17: Wire M2-MAT sampling to the active native base transition and shared bone weight; capture interrupted eligible channels in load-time buffers. Real165644 runtime RED observed; pure sampler16GREEN, native before/after still pending.
 ## 2026-10-17 — StackSplit inherited label shadow
 
 [Label shadow](systems/cursor-item.md#stacksplit-label-shadow--bounded-proof-2026-10-17): source20223a landsgate373e; RED→2GREEN plus lead9/7/4, mastere127 check/build and six both-skin native labels. Positive diagnostic masks and exact hidden-background RGB0 explain correctly inert black-on-black amount shadows; bundle total darkens281pixels/skin. All changes confined, shadow-off baseline exact and diagnostic restore exact. Green-only RGB8 counterexample retained with exact channel assertion, no tolerance;12 panels/context views inspected. Full-picker/sourcecolor/metrics/server/purchase excluded.
+
+- 2026-10-17: M2-MAT native85GREEN; both-skin1656441920×1080 half-blend before/after, exactly retained interrupted weights and pixel-identical Hold controls. Same final fixture across hashed old/new binaries; cubic/global-multivalue oracle limits retained.
