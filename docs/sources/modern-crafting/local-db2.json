@@ -58,5 +58,20 @@
     "path": "/home/osso/Projects/world-of-osso/game-engine/data/db2/active/GlobalStrings.csv",
     "resolved": "/home/osso/Projects/world-of-osso/game-engine/data/db2/12.1.5.70391/GlobalStrings.csv",
     "sha256": "3028c6f0520a18b4874fb4a3f64101bdd89dc9174798ee034350bc8a0316ad75"
+  },
+  {
+    "path": "/home/osso/Projects/world-of-osso/game-engine/data/db2/active/SpellEffect.csv",
+    "resolved": "/home/osso/Projects/world-of-osso/game-engine/data/db2/12.1.5.70391/SpellEffect.csv",
+    "sha256": "cfeb5b99be323da7e3c23f7d6b956247eafeb255d41135e57aac6b3abe16a115"
+  },
+  {
+    "path": "/home/osso/Projects/world-of-osso/game-engine/data/db2/active/SpellEffect.csv",
+    "resolved": "/home/osso/Projects/world-of-osso/game-engine/data/db2/12.1.5.70448/SpellEffect.csv",
+    "sha256": "e10e9344b9c5ddb71c31a3daebdd1731d349453e973f5e3a77fc91d9a4f1e366"
+  },
+  {
+    "path": "/home/osso/Projects/world-of-osso/game-engine/data/db2/active/ProfessionExpansion.csv",
+    "resolved": "/home/osso/Projects/world-of-osso/game-engine/data/db2/12.1.5.70448/ProfessionExpansion.csv",
+    "sha256": "460617a06199185d2bd57637c6d9dc118682eaf02e1aaa890c4e1328af2e5e0a"
   }
 ]
