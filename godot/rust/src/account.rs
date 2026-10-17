@@ -31,6 +31,9 @@ mod creature_sound_tests {
 }
 
 #[cfg(test)]
+#[path = "currency_account_tests.rs"]
+mod currency_snapshot_tests;
+#[cfg(test)]
 #[path = "professions_account_tests.rs"]
 mod profession_snapshot_tests;
 #[cfg(test)]
@@ -158,6 +161,8 @@ pub struct Account {
     pub adventure_guide: Option<std::sync::Arc<shared::protocol::AdventureGuideSnapshot>>,
     pub trading_post: Option<std::sync::Arc<shared::protocol::TradingPostSnapshot>>,
     pub renown: Option<std::sync::Arc<shared::protocol::RenownSnapshot>>,
+    /// Owner wallet from CurrencyStateUpdate; None until the realm sends it.
+    pub currencies: Option<shared::protocol::CurrencySnapshot>,
     pub party_keystones: shared::protocol::PartyKeystoneSnapshot,
     pub scenario_objectives: game_engine_ui_model::scenario_progress::ScenarioObjectives,
     pub achievements: game_engine_ui_model::achievements::AchievementWindow,
@@ -205,6 +210,7 @@ pub enum AccountEvent {
     RestState(RestStateUpdate),
     /// `ReputationStateUpdate`: faction standings (`UPDATE_FACTION`) or a refusal.
     Reputation(shared::protocol::ReputationStateUpdate),
+    Currency(shared::protocol::CurrencyStateUpdate),
     /// The realm's game time (`SMSG_LOGIN_SET_TIME_SPEED`).
     GameTime(shared::protocol::LoginSetTimeSpeed),
     LoadTerrain(LoadTerrain),
@@ -398,6 +404,7 @@ impl Account {
             adventure_guide: None,
             trading_post: None,
             renown: None,
+            currencies: None,
             party_keystones: Default::default(),
             scenario_objectives: Default::default(),
             achievements: Default::default(),
@@ -464,6 +471,7 @@ impl Account {
         self.adventure_guide = None;
         self.trading_post = None;
         self.renown = None;
+        self.currencies = None;
         self.achievements = Default::default();
         self.achievement_requests.clear();
         self.instance_locks.clear();
@@ -1616,6 +1624,7 @@ impl Account {
                     self.adventure_guide = None;
                     self.trading_post = None;
                     self.renown = None;
+                    self.currencies = None;
                     self.dungeon_objectives = Default::default();
                     self.scenario_objectives = Default::default();
                     self.achievements = Default::default();
@@ -1700,6 +1709,14 @@ impl Account {
         }
         if message.is::<shared::protocol::TrainerBuyFailed>() {
             output.push(AccountEvent::TrainerFailed(decode(message)?));
+            return Ok(());
+        }
+        if message.is::<shared::protocol::CurrencyStateUpdate>() {
+            let update: shared::protocol::CurrencyStateUpdate = decode(message)?;
+            if let Some(snapshot) = &update.snapshot {
+                self.currencies = Some(snapshot.clone());
+            }
+            output.push(AccountEvent::Currency(update));
             return Ok(());
         }
         if message.is::<shared::protocol::PvpStateUpdate>() {
@@ -2412,6 +2429,7 @@ impl Account {
                     self.adventure_guide = None;
                     self.trading_post = None;
                     self.renown = None;
+                    self.currencies = None;
                     self.dungeon_objectives = Default::default();
                     self.scenario_objectives = Default::default();
                     self.achievements = Default::default();

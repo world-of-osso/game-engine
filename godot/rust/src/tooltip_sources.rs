@@ -124,6 +124,7 @@ impl GameClient {
     pub(crate) fn frame_tooltip(&mut self, hit: &HoveredFrame) -> Option<HoveredTooltip> {
         type Source = fn(&mut GameClient, &HoveredFrame) -> Option<HoveredTooltip>;
         const SOURCES: &[Source] = &[
+            GameClient::token_currency_tooltip,
             GameClient::trading_post_cart_tooltip,
             GameClient::guild_perk_tooltip,
             GameClient::pvp_honor_tooltip,
@@ -169,6 +170,31 @@ impl GameClient {
             GameClient::hud_frame_tooltip,
         ];
         SOURCES.iter().find_map(|source| source(self, hit))
+    }
+
+    /// TokenEntryMixin:ShowCurrencyTooltip owns its source row at ANCHOR_RIGHT.
+    fn token_currency_tooltip(&mut self, hit: &HoveredFrame) -> Option<HoveredTooltip> {
+        let ui = hit.ui.bind();
+        let (owner, id) = named_ancestor(ui.registry()?, hit.frame, |frame| {
+            indexed(frame, "TokenEntry")
+        })?;
+        drop(ui);
+        let wallet = self.account.currencies.as_ref()?;
+        let rows = match game_engine_ui_model::character_frame::currency_rows(&wallet.entries) {
+            Ok(rows) => rows,
+            Err(error) => {
+                crate::frame_error::report_once(&error);
+                return None;
+            }
+        };
+        let row = rows.iter().find(|row| row.id as usize == id)?;
+        let tooltip = game_engine_ui_model::character_frame::currency_tooltip(row);
+        Some(HoveredTooltip::text(self.owned_by(
+            hit,
+            owner,
+            OwnerSide::Right,
+            tooltip,
+        )?))
     }
 
     /// Elements.lua1603–1623: cart details inherit GetItemByID, left(-8,-20).
