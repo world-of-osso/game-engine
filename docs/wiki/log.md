@@ -14,6 +14,10 @@
 [Search](systems/adventure-guide.md#search-preview-and-full-results--implementation-2026-10-16) native8 passes both skins on productf2c8a410a: continued typing, actual preview/full popup, wheel/close/query retention and authored section selection. Eight full-HD originals inspected. Pixel inspection found exported quote spelling leaking through localization; actual RED→four focused tests GREEN and current clean title assertion/paint pass. Native7 first-J failure remains separate; no readiness patch. Current quote-fix check pending; C API/data gaps unchanged.
 
 ## 2026-10-16 — Journal search implementation; native acceptance pending (historical2344 checkpoint)
+## 2026-10-16 — Isle commander Honor
+
+[Commander](systems/battlegrounds.md#isle-commander-honor--2026-10-16): full channel source gate-demolition/actual commander death RED0vs500→GREEN; fixed500 winner wallet/XP, no other-team credit, no dead replay, persisted quantities. Shared positive-team eligibility preserves Arathi/Eye behavior; targeted6 and scoped server check pass. No generic victory, Conquest, external UDP, rendered or native-item-use claim. Resource/objective callbacks remain open.
+
 ## 2026-10-16 — Eye completion Honor
 
 [Eye](systems/battlegrounds.md#eye-completion-honor--2026-10-16): physical tower presence and actual terminal tick RED0vs122→GREEN; source30–39 wallet/XP122/61, replay/reopen. Full channel tower/flag/drop/expiry/victory/origin-return also asserts source20–29 wallet/XP90/45 including the dead carrier. Eye/Arathi terminal and complete channel fixtures pass4; scoped server check passes. Once-per-match is the explicit project policy; no external UDP/rendered BG or objective-bonus claim.
