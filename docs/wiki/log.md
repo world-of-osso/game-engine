@@ -1,6 +1,6 @@
 ## 2026-10-17 — ReadyCheck title shadow
 
-[Title shadow](systems/group-frames.md#readycheck-title-shadow--implementation-2026-10-17): XML53→GameFontNormal→Roman SystemFont_Shadow_Med1 black(+1,−1). Genuine RED3pass/1fail precedes only two production shadow attributes; existing title colour/layout and every other production field retained. Both-skin model controls added; GREEN/check receipts follow in the local ledger. Native proof pending lead gate; title colour/layout/full-popup/lifecycle remain gaps.
+[Title shadow](systems/group-frames.md#readycheck-title-shadow--implementation-2026-10-17): XML53→GameFontNormal→Roman SystemFont_Shadow_Med1 black(+1,−1). Genuine RED3pass/1fail precedes only two production shadow attributes; existing title colour/layout and every other production field retained. Integrated b7363593c both-skin GREEN4/4 (45.4s helper), engine/network check89.0s/no warnings, scoped format/diff/readability pass; exact receipts in local ledger. Native proof pending lead gate; title colour/layout/full-popup/lifecycle remain gaps.
 
 ## 2026-10-17 — PitchAdjust source gate
 
