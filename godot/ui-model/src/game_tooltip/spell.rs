@@ -170,9 +170,12 @@ fn recast_text(spell: &CatalogSpell) -> String {
     if let Some(charges) = charges.filter(|charges| charges.max_charges > 1) {
         return format!("{} recharge", g2_duration(charges.recovery_ms));
     }
-    let ms = spell
-        .cooldown
-        .recovery_ms
+    let recovery_ms = if spell.id == 83958 {
+        shared::guild_perks::MOBILE_BANKING_COOLDOWN_2H
+    } else {
+        spell.cooldown.recovery_ms
+    };
+    let ms = recovery_ms
         .max(spell.cooldown.category_recovery_ms)
         .max(charges.map_or(0, |charges| charges.recovery_ms));
     if ms == 0 {
@@ -342,6 +345,19 @@ mod tests {
             tooltip.content.lines[2].left_color,
             TOOLTIP_DESCRIPTION_COLOR
         );
+    }
+
+    #[test]
+    fn guild_mobile_banking_tooltip_uses_user_two_hour_policy_over_installed_one_hour() {
+        let spell = CatalogSpell {
+            id: 83958,
+            cooldown: SpellCooldown {
+                recovery_ms: 3_600_000,
+                ..Default::default()
+            },
+            ..Default::default()
+        };
+        assert_eq!(recast_text(&spell), "2 hour cooldown");
     }
 
     #[test]
