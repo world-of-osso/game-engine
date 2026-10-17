@@ -1,3 +1,7 @@
+## 2026-10-17 — Authored achievement criterion presentation
+
+[Criteria source flags](systems/dungeon-achievements.md#authored-criterion-presentation--2026-10-17): protocol rawFlags/server named-column projection replaces client required>1 guessing. Actual1017Flag1/Amount1 and155Flag0/Amount100 give RED526ddbe500/2 before production, then UI-model GREENcb16f9b044/4/2.05s both skins. Source XML510–569 specifically changes only the bar to212×14; existing398-wide criteria allocation remains. Source completed checks/dash text, quantity-only centered caption,0/partial/complete/unknown and cursor controls; no seeded persisted/native progress or producer/policy change. Remaining triple checks/push pending; native both-skin proof follows landing as ordered.
+
 ## 2026-10-17 — Eye holiday492 read-only authority audit
 
 [70448 source finding](investigations/eye-holiday-authority.md): verified installed build/config/schema/CSV receipts, BML7→map566/PVPDifficulty links,811 readable Holidays rows. Holiday492 Date0 decodes2007-11-27UTC; durations72/1776h,Looping0/filter2 do not authorize77-day recurrence. Pinned TC evaluator/constructor sampling sourced, but effective game_event row/stage/schedule missing; HOLIDAY492_EFFECTIVE_EVENT_AUTHORITY remains open. Finding sent before code; no RED/runtime implementation/calendar default.

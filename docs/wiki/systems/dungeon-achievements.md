@@ -2,6 +2,14 @@
 
 Native client consumes copy snapshots and on-demand catalog pages; the server remains authoritative. [Feature contract](../../specs/dungeon-achievements.md).
 
+## Authored criterion presentation — 2026-10-17
+
+Mainline `Blizzard_FrameXMLBase/Constants.lua127` defines ProgressBar0x1; `Blizzard_AchievementUI.lua2009–2025` selects by that flag and supplies quantity/range/value, not a quantity>1 heuristic. XML510–569 requires212×14 and centered text; Lua2015 centers the bar at x+4. The existing398-wide criteria area/18px row positions remain; only its former398×16 bar changes. Unflagged supported criteria use source dash text/completed checks (Lua2054–2070, XML703–72420×16 check, local FDID130653). Unsupported rows remain Unevaluated without fake quantities/check/fill. Both skins share behavior and geometry.
+
+Protocol `AchievementCriterionLine.flags` carries raw CriteriaTree.Flags; server `achievement_window::load_tree_labels/criterion_line` projects the named SQL column without changing progress, thresholds, completion or cursor semantics. Native UI helpers render the source presentation; comparison, tracker, toast, hidden/meta behavior and progression producers are unchanged. Existing payload fixtures explicitly supply flags; no legacy decoder/default fallback was added. The existing post-landing native mount fixture now reads the source quantity-only caption, not the removed status/description prefix.
+
+Tests-only526ddbe50 gives genuine UI-model RED0/2: real active70448 Can I Keep Him?1017/tree22151 Flags1/Amount1 has no bar, while Arathi Basin Veteran155/tree4716 Flags0/Amount100 wrongly has one. Atcb16f9b04 UI-model GREEN4/4(2.05s) covers both skins, dimensions/caption/fill0/3/10, completed20×16 check, unsupported and cursor continuation. These are explicit received-UI-payload controls, not persisted/seeded gameplay progress or native-client capture proof. Protocol/server/consumer checks and triple push remain pending. Lead orders native Modern/Forever proof AFTER landing. [Contract](../../specs/dungeon-achievements.md); evidence `/home/osso/.worktrees/logs/achievements-criteria-2026-10-12/criteria-presentation-*`.
+
 ## State and rendering
 
 `godot/network/src/lib.rs` subscribes to DungeonProgress on InstanceChannel and catalog/live state on AchievementChannel. `account.rs` dispatches decoded messages into `DungeonObjectives` and `AchievementWindow`, and queues page continuations. The frame tick sends requests through NetworkBridge on AchievementChannel.
