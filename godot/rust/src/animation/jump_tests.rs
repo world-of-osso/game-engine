@@ -1,4 +1,4 @@
-use super::{AnimationState, MIN_MOVEMENT_BLEND_MS};
+use super::{AnimationState, MIN_MOVEMENT_BLEND_MS, MaterialSnapshot, MaterialTracks};
 use game_engine_core::{asset::m2_format::m2_anim, m2};
 
 fn sequence(id: u16, duration: u32, blend_time: u16) -> m2::Sequence {
@@ -43,7 +43,16 @@ pub(super) fn player(with_running_landing: bool) -> AnimationState {
             .map(|index| [index as f32 * 2.0, 0.0, 0.0])
             .collect(),
     );
+    let material_tracks = MaterialTracks {
+        global_sequences: Vec::new(),
+        stand_ms: 0,
+        colors: Vec::new(),
+        weights: Vec::new(),
+        transforms: Vec::new(),
+    };
     AnimationState {
+        material_snapshot: MaterialSnapshot::new(&material_tracks),
+        material_tracks,
         sequence_animated: vec![false; sequences.len()],
         release_ms: vec![None; sequences.len()],
         action_events: vec![Vec::new(); sequences.len()],
