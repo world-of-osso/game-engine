@@ -5,6 +5,10 @@
 ## 2026-10-17 — Product-row refund glyph ADD implementation
 
 [Row glyph blend](systems/trading-post.md#product-row-refund-glyph-blending--implementation-october17): source21px ordinary/inherited ADD overrides the default field, not the32px footer. Actual native paint RED827/813 bytes versus ADD, exact MIX agreement; footer normal0/ADDcounterfactual1874, all restores0/sensitive controls and genuine frozen640 purchase/refund conservation. Minimal post-sync row-only property wiring committed before GREEN; no opacity/global renderer/provider change. Actualbd1/2d7/P8f38 fixture889 both-skin framebuffer GREEN: ordinary/inherited ADD0/0, MIX827/813 Modern and819/813 Forever; footer MIX0/ADD1874, all restores0/sensitive controls. Real purchase/refund preserves Tender19040/19670, frozen640/712, collected state/cart and parent-row clicks. Ten inspected full-HD stages+two contacts+two glyph comparisons published; integrated78e68eed6/P5e4 passes52 targeted Trading Post tests/check(no warnings), with unchanged-hash scoped2Rustfmt/manual readability proof retained. Manifest binds actual binaries/fixture/30receiptJSON/6memoryedges. Later source integration is not relabeled nativebd1/2d7/P8f38 evidence; CI unverified.
+## 2026-10-17 — Native guild invitation tabards
+
+[Invitation tabards](systems/guilds.md#native-invitation-tabards): real optional design through source art, received-packet receipts and four actual officer invitations/physical declines in both skins. Native overlap exposed old TOP-anchor/font/cell errors; source render RED→six controls GREEN and final native text/font/center/non-overlap pass. Identical artifacts across both optional states; four inspected full-HD originals published. No earned gold/vendor UI or unsupported points/reputation/lifetime claim.
+
 ## 2026-10-16 — Miss-only pet self outcome projection
 
 [Haymaker762 / Gift989](systems/battle-pets.md#miss-only-self-outcome-projection--2026-10-16): actual pointer self-stun and59/68 healing in both skins, successful-hit controls and ten inspected fullHD originals. Strict canonical model readback passes; no shared layout/client combat change or full timing/VFX claim.
@@ -18,6 +22,10 @@
 [Search](systems/adventure-guide.md#search-preview-and-full-results--implementation-2026-10-16) native8 passes both skins on productf2c8a410a: continued typing, actual preview/full popup, wheel/close/query retention and authored section selection. Eight full-HD originals inspected. Pixel inspection found exported quote spelling leaking through localization; actual RED→four focused tests GREEN and current clean title assertion/paint pass. Native7 first-J failure remains separate; no readiness patch. Current quote-fix check pending; C API/data gaps unchanged.
 
 ## 2026-10-16 — Journal search implementation; native acceptance pending (historical2344 checkpoint)
+## 2026-10-16 — Alterac NPC Honor
+
+[NPC bonuses](systems/battlegrounds.md#alterac-npc-honor--2026-10-16): actual captain RED0vs368→GREEN10, source3/4 equivalents at retained max79 yield368+490=858 NPC-only subtotal. Both factions/all four entries, NPC-caused dead eligible teammate, other-copy exclusion, replay, persistence and origin return pass; prior9 controls and scoped server check retained. No independent-one-kill rounding, full AV/end/tower, external UDP/rendered or player-input claim.
+
 ## 2026-10-16 — Isle resource Honor
 
 [Resources](systems/battlegrounds.md#isle-resource-honor--2026-10-16): source45s clock now credits separate12 per owned/uncontested Refinery/Quarry increment, with no new clock or wire state. Actual channel RED0vs24→GREEN9 proves two bases24, contested pause12, ownership transfer12/team, durable wallet/XP and weekly0; full player-death/commander/AV/Arathi/Eye/empty-root controls retained. Scoped server check passes. No external UDP/rendered or other-map reward claim.
