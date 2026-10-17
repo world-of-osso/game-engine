@@ -1,3 +1,7 @@
+## 2026-10-17 — Fire67 cast-overlap source classification
+
+[Allowed pinned SimC source](investigations/cooldown-assist-data.md#fire-cast-overlap-modifier67--2026-10-17) emits67 as a step option that relaxes same-action execution/last-foreground suppression, not a numeric prediction predicate. Native integration remains unimplemented; no unconditional true or global anti-recast behavior added. Focused independent replay1case/3retainedclass snapshots passes at1b0cef7d9 with exact11/11/67 refusals and no lower-step fallback.
+
 ## 2026-10-17 — Independent player-spec boundary replay fixtures
 
 [Harness matrix](systems/bot-harness.md#independent-player-spec-boundary-replays--2026-10-17): retained positive-health Resto105/Elemental262/Fire63 facts exercise their own exact unsupported11/11/67 boundaries through current core/catalog. Native JSON and70448 row hashes retained; no manufactured facts, missing-rule bypass, new live/DPS claim or predicate implementation. Protection66 lacks a native capture after its old prelaunch source-choice failure and remains an explicit gap.

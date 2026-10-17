@@ -41,7 +41,7 @@ While Fury distance3/count12 sourcing is blocked, `cooldown_assist_live_replay.r
 | Elemental262 | `native-all-specs2/262`, positive health8880 | rule38525/type11 |
 | Fire63 | `native-all-specs2/63`, positive health8200 | rule33340/type67 |
 
-The actual serialized native facts are unchanged. No missing fact is filled, no unsupported rule is bypassed and no new predicate/provider is implemented. Each modeled result must equal the exact recorded named error, rather than accepting a lower-priority recommendation.
+The actual serialized native facts are unchanged. No missing fact is filled, no unsupported rule is bypassed and no new predicate/provider is implemented. Each modeled result must equal the exact recorded named error, rather than accepting a lower-priority recommendation. The focused native-build helper replay passes all three retained cases in one parameterized test at1b0cef7d9; two unrelated manual skin cases were filtered, not executed or newly ignored. Fire's [type67 source audit](../investigations/cooldown-assist-data.md#fire-cast-overlap-modifier67--2026-10-17) identifies its upstream cast-overlap flag without claiming native support.
 
 ## Run21 native talents and predicate boundary — 2026-10-17
 
