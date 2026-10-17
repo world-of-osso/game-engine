@@ -97,6 +97,7 @@ pub mod m2_billboard;
 pub mod m2_inheritance;
 pub mod m2_lights;
 pub mod m2_material;
+mod m2_material_transition;
 pub mod m2_particles;
 pub mod m2_ribbons;
 #[path = "asset/m2_texture_composite_data.rs"]
