@@ -50,6 +50,8 @@ Lead-authorized World of Osso policy [HONOR_WALLET_MIRRORS_HONOR_XP](../../../ga
 
 Select only configured BML32 maps with their own PVPDifficulty bracket containing all queued player levels and satisfying their admission bounds. Use existing configured weights; Retail weighting is undocumented. Missing Deepwind2245 template excludes it; level25 excludes Deephaul2656, while level80 can select it. An ineligible-only level range is refused explicitly. Retain the selected level-matching bracket, not a copied TC RangeIndex. Existing map payouts and concrete-map start minimums stay unchanged. UI map exclusions are a later slice.
 
+`BG_FILL_EXISTING_COPY` is the accepted remaining lifecycle gap: a parent5/team match on a map requiring8/team remains Waiting, and later parties do not yet fill that copy. Start criteria are not reduced; backfill is a separate slice.
+
 ## Eye holiday authority — 70448 read-only
 
 `HOLIDAY492_EFFECTIVE_EVENT_AUTHORITY` remains unresolved. Do not infer a77-day recurrence or treat missing calendar authority as inactive. Existing Eye completion Honor is unchanged; resource-Honor selection remains blocked.
