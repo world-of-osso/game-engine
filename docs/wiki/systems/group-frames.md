@@ -36,6 +36,12 @@ Model anchor RED→GREEN2 (including response-button controls); native both-skin
 
 Proof: local `data/diagnostics/ui-questlog-ready-message-2026-10-16/ready-message-proof-ledger.json`; PNGs `AgentShared/2026-10-16/ui-questlog-ready-message/`. Check9.11s/build44.8s/helper, scoped format/diff/manual Rust readability pass. No claim about intrinsic height/wrapping/shadows/source colors, instance difficulty text, portrait/border/title or server lifecycle.
 
+### ReadyCheck message shadow — bounded proof 2026-10-16
+
+`ReadyCheck.xml:35` message inherits `GameFontNormal` → `SystemFont_Shadow_Med1` (`FontStyles.xml:50–52`); Roman Friz12 has black(+1,−1) shadow (`Fonts.xml:275–285`). Complete `ReadyCheck.lua` only calls `ReadyCheckFrameText:SetFormattedText`; cache-wide Lua lookup finds no font/shadow override. The current white color is retained solely as a control: source `NORMAL_FONT_COLOR` is a separate unqualified contract, not certified as white here. Title/portrait/border, intrinsic height/wrapping, difficulty text and server lifecycle remain outside this message-shadow slice.
+
+The model regression reproduces `shadow_color=None`; only the message receives opaque black shadow attributes, with font12, current white,240×28 box, TOP(61.5,37), contents and response buttons unchanged. Existing verified extensionee1158b8e/`1012b8c2…` is reused for the native baseline after checking compiled-source equivalence and artifact hash; new Rust test/GDScript files do not require rebuilding that identical library. Both-skin1080p baseline confirms transparent shadow/zero offset. Model/native GREEN and isolated-shadow pixel proof pending.
+
 ### Data flow
 
 - **Server** (`game-server crates/server/src/group/`):
