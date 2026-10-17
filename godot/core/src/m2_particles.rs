@@ -789,6 +789,7 @@ impl EmitterSim {
     }
 
     fn spawn(&mut self, emitter: &ParticleEmitter, dt: f32) -> Particle {
+        let model_space = self.model_space(emitter);
         let rng = &mut self.rng;
         let dvary = dt * rng.uniform_pos();
         let life = rng.uniform();
@@ -806,7 +807,7 @@ impl EmitterSim {
                 .spawn(props, rng),
             _ => spawn_sphere(emitter, props, rng),
         };
-        let (position, velocity) = if !self.model_space(emitter) {
+        let (position, velocity) = if !model_space {
             (
                 self.emitter_to_world.transform_point3(position),
                 self.emitter_to_world.transform_vector3(velocity),
@@ -819,7 +820,7 @@ impl EmitterSim {
             position,
             previous_position: position,
             velocity,
-            orientation: if self.model_space(emitter) {
+            orientation: if model_space {
                 Quat::IDENTITY
             } else {
                 self.emitter_to_world.to_scale_rotation_translation().1
