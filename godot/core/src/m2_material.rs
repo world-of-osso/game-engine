@@ -293,8 +293,8 @@ impl MaterialTracks {
     }
 }
 
-/// animateTrack on the selected timeline: interpolation 0 holds a key, 1 interpolates
-/// linearly; before the first key it holds the first.
+/// Ordinary material sampling: mode 0 holds, nonzero modes interpolate endpoints.
+/// Camera spline semantics are not established for material tracks (M2-MAT-CUBIC).
 fn animate<T: Copy>(
     track: &AnimTrack<T>,
     tracks: &MaterialTracks,
@@ -317,7 +317,7 @@ fn animate<T: Copy>(
     if next == 0 {
         return Some(values[0]);
     }
-    if next == times.len() || track.interpolation_type != 1 {
+    if next == times.len() || track.interpolation_type == 0 {
         return Some(values[next - 1]);
     }
     let (start, end) = (times[next - 1], times[next]);
