@@ -31,7 +31,7 @@ func run_test() -> void:
 		return
 	if not await wait_until(func(): return float(perk_observation().health) > 0.0, "actual living private actor after fixture recovery"):
 		return
-	if not 458619 in Array(perk_observation().known_spells):
+	if not Array(client.spells_state().known).has(458619):
 		fail("Actual Human No Place Like Home racial must remain known")
 		return
 	for skin in ["Modern", "Forever"]:
@@ -104,7 +104,7 @@ func prove_pending(label: String) -> bool:
 	# Bounded native run observes the live clock, not injected/shortened recovery.
 	if float(charge.remaining_ms) < expected_recharge - 300000 or float(charge.remaining_ms) > expected_recharge:
 		return fail("Consumed Hearthstone remaining time changed unexpectedly: " + str(charge))
-	if not 458619 in Array(observation.known_spells):
+	if not Array(client.spells_state().known).has(458619):
 		return fail("Guild reconciliation removed the actual Human racial")
 	write_json(role + "-" + label + ".json", {"owner": observation, "spells": client.spells_state(), "bags": client.merchant_state().bags})
 	if not await open_hearth_backpack():
