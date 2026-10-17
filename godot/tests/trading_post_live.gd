@@ -11,6 +11,7 @@ var server := OS.get_environment("TP_SERVER")
 var menu_audio_events := []
 var hover_audio_events := []
 var hover_sound_checks := []
+var hover_kit_baseline := 0
 var paused_private_server := 0
 # Retail70391 SoundKitEntry rows for218932/218933.
 const MENU_OPEN_FILES := [4956048,4956050,4956052,4956054,4956056]
@@ -1116,24 +1117,24 @@ func assert_menu_sound_state(kind: String, expected: int) -> bool:
 
 func hover_sound_checkpoint(label: String, expected: int) -> void:
 	await wait_frames(60)
-	hover_sound_checks.append({"label":label,"expected":expected,"decoded_count":hover_audio_events.size(),"kit_count":menu_sound_count(218934)})
+	hover_sound_checks.append({"label":label,"expected":expected,"decoded_count":hover_audio_events.size(),"kit_count":menu_sound_count(218934)-hover_kit_baseline})
 
 func product_hover_sound_proof() -> void:
 	if not await choose_category(1): return
+	var frozen := int(client.trading_post_state().frozen)
+	var other_id := await select_other_cartable([frozen])
+	if other_id <= 0: return
 	await motion(control("PerksProgramLeaveButton").get_global_rect().get_center(), false)
-	await wait_frames(5)
+	await wait_frames(60)
+	# Selection setup precedes the measured pointer lifecycle; retain its kit count.
+	hover_kit_baseline = menu_sound_count(218934)
+	hover_audio_events.clear()
 	var before: Dictionary = client.trading_post_state().duplicate(true)
-	var frozen := int(before.frozen)
 	var row := control("PerksProgramProduct%d" % frozen)
 	var slot := control("PerksProgramFrozenSlot")
 	if row == null or slot == null: fail("Hover fixture needs visible ordinary/frozen owners for the same reserved product"); return
-	var other: Control
-	for value in before.rows:
-		var id := int(str(value).split("|")[0])
-		if id != frozen and str(value).split("|")[1] == "1" and control("PerksProgramProduct%d" % id) != null:
-			other = control("PerksProgramProduct%d" % id)
-			break
-	if other == null: fail("Hover fixture needs another visible product"); return
+	var other := control("PerksProgramProduct%d" % other_id)
+	if other == null: fail("Hover fixture needs another visible cartable product"); return
 	var scale := control("PerksProgramLeaveButton").get_global_rect().size.x / 180.0
 	var row_point := row.get_global_rect().position + Vector2(96,24)*scale
 	var other_point := other.get_global_rect().position + Vector2(96,24)*scale
@@ -1149,7 +1150,7 @@ func product_hover_sound_proof() -> void:
 	await motion(other_point, false)
 	await hover_sound_checkpoint("different-product-enter", 3)
 	# Frozen products deliberately have no cart toggle; use the eligible other row.
-	var child := control(str(other.name).replace("PerksProgramProduct", "PerksProgramCartToggle"))
+	var child := control("PerksProgramCartToggle%d" % other_id)
 	if child == null: fail("Hover fixture needs the eligible row's nested cart toggle"); return
 	await motion(child.get_global_rect().get_center(), false)
 	await hover_sound_checkpoint("nested-cart-same-owner", 3)
@@ -1186,7 +1187,7 @@ func product_hover_sound_proof() -> void:
 		if absf(float(event.length)-0.378646) > 0.001 or not event.playing_observed or not event.finished: errors.append("actual decoded playback/finished")
 	if settings_gain < 0.0: errors.append("missing settings gain observation")
 	if not conserved: errors.append("selection/Tender/frozen/collection/cart changed")
-	var proof := {"checks":hover_sound_checks,"audio":hover_audio_events,"settings_gain":settings_gain,"conserved":conserved,"before":before,"after":after,"errors":errors}
+	var proof := {"setup_kit_count":hover_kit_baseline,"checks":hover_sound_checks,"audio":hover_audio_events,"settings_gain":settings_gain,"conserved":conserved,"before":before,"after":after,"errors":errors}
 	var file := FileAccess.open(receipts.path_join(skin+"-product-hover-sound-audio.json"), FileAccess.WRITE)
 	if file == null: fail("Cannot write native hover audio receipt"); return
 	file.store_string(JSON.stringify(proof,"\t"))
