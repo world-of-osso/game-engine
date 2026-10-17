@@ -4,7 +4,7 @@
 //! and PlayerConditionID0. Files are local CASC Ogg copies at sounds/{fdid}.ogg.
 use crate::ui_sound_kits::UiSoundKit;
 
-const KITS: [UiSoundKit; 9] = [
+const KITS: &[UiSoundKit] = &[
     kit(269088, &[6177849]),
     kit(269089, &[6177850]),
     kit(269090, &[6177851]),

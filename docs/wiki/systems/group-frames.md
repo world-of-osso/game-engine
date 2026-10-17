@@ -14,6 +14,28 @@ Verified: 2026-10-11.
 - Ready-check completion names only unanswered members as AFK and emits the unanswered-recipient message; explicit Not Ready responses are not AFK.
 - Countdown sound-kit requests use native playback. Inspect stream file IDs rather than sound-kit IDs: the tick/finish observations used files567474/567438, corresponding to kits158565/158566. Audio driver capability limits are recorded with the [acceptance evidence](../../specs/group-frames.md#native-countdown-and-ready-check-acceptance--2026-10-11).
 
+### ReadyCheck response buttons — bounded proof 2026-10-16
+
+Verified: 2026-10-16.
+
+`ReadyCheck.xml:79–104` and complete `ReadyCheck.lua` govern the two119×24 response buttons. Lua localizes captions but does not override their anchors or inherited art. Yes resolves to(53.5,60), No to(183.5,60) within323×100; previous positions were(31.5,60)/(172.5,60). `ready_check_frame_component.rs` now binds UIPanel sheets130828/130825/130826/130824; existing `parts.rs::project_panel_button` supplies12+95+12px caps/center and additive hover. No renderer/toolkit/server changes.
+
+- Genuine model RED: Yes x31.5 versus source53.5; GREEN1 covers both skins, both anchors, captions/actions and four bindings.
+- Debug-only `ready_check_preview.rs` supplies listener state. `ready_check_button_fidelity.gd` physically hovers/presses/cancels/releases both buttons in both skins through production projection and cursor queue: four cases pass. Native half-unit positions round to54/184; exact model anchors remain unchanged.
+- Twelve1920×1080 before/after state pairs change only within the union of old/new button rectangles; zero changed RGB pixels outside. Both comparison sheets and Modern pressed/Forever hover full contexts inspected. Baseline cancellation/actions already worked; only anchors/art changed.
+- Proof: local `data/diagnostics/ui-questlog-ready-buttons-2026-10-16/ready-button-proof-ledger.json`; PNGs under `AgentShared/2026-10-16/ui-questlog-ready-buttons/`. Native binary revision `ceafdd3fd`; later module sorting is nonbehavioral.
+- Scope excludes portrait, border, body/title/font/sound fidelity, disabled rendering (binding only), response reducer/server lifecycle and full-popup parity. Earlier live acceptance is not rerun or broadened by this offline slice.
+
+### ReadyCheck message origin — bounded proof 2026-10-16
+
+Verified: 2026-10-16.
+
+XML's240px listener message is TOP(+20,−37), not centered under the title: (61.5,37) within323×100. Complete ReadyCheck Lua only formats its text; cache search finds no geometry override. `ready_check_frame_component.rs` now preserves that parent-relative origin instead of(41.5,27). Existing28px control height, font/color/text/title/buttons remain unchanged and unqualified where previously excluded.
+
+Model anchor RED→GREEN2 (including response-button controls); native both-skin offsets42,27→62,37 reflect half-unit rounding. Both1920×1080 pairs change2080 RGB pixels, zero outside old/new message rectangles. Comparison panels and full contexts inspected; shared art yields identical per-phase Modern/Forever PNG hashes. Existing binary395e6c4da was reused for baseline (hash matched), not relabeled as a new build; GREEN binary0aa6b29b9. No unaffected pointer replay.
+
+Proof: local `data/diagnostics/ui-questlog-ready-message-2026-10-16/ready-message-proof-ledger.json`; PNGs `AgentShared/2026-10-16/ui-questlog-ready-message/`. Check9.11s/build44.8s/helper, scoped format/diff/manual Rust readability pass. No claim about intrinsic height/wrapping/shadows/source colors, instance difficulty text, portrait/border/title or server lifecycle.
+
 ### Data flow
 
 - **Server** (`game-server crates/server/src/group/`):

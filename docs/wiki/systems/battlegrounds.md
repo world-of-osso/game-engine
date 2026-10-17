@@ -111,6 +111,10 @@ Live fresh-login discovery: unlike test fixtures, authenticated player spawn lac
 
 Both-skin private5790 pointer/relog proof and remaining honor-level/XP/tooltip/drag boundaries are recorded once in the [client progression contract](../../specs/pvp-progression.md#bounded-acceptance--2026-10-11).
 
+## Lifetime honor source boundary — 2026-10-16
+
+Concrete TC world-kill `RewardHonor` adds XP, not wallet1792. The server stores lifetime XP separately and sends it in the existing PvP snapshot; the Retail HonorInset/128px display and owned Lifetime Honor tooltip consume it in both skins. Unknown level/max remain absent; faction art is not a fabricated honor-rank badge. Current-install1391671 is still a Prestige0..32 table, while TC's universal8800 assignment explicitly admits an unknown curve. `HONOR_LEVEL_XP_CURVE` therefore blocks leveling/reward grants and radial fill, not earned-XP persistence. The [client continuation contract](../../specs/pvp-progression.md#lifetime-xp-continuation--2026-10-16) records the UI/account-aggregation boundary; [server contract](../../../../game-server/docs/specs/pvp-progression.md#lifetime-honor-xp--70391-continuation) owns exact pinned source hashes and kill rules. [Bounded native acceptance](../../specs/pvp-progression.md#bounded-lifetime-xp-acceptance--2026-10-16) proves actual private-admin damage/death,0→47→94 XP, two-skin full-HD tooltips and a fresh-process relog. It does not certify ordinary player input, level advancement or spendable Honor rewards. Character Currency's missing native consumer/tab is the next implementation slice.
+
 ## Arena integration — verified 2026-10-12
 
 [Arenas](arenas.md) share this transport and view but use elimination, source preparation/gates/orbs, enemy frames and played-match TC-reference rating. Arena combat columns are measured; WSG's existing uninstrumented columns remain dashes. Arena source/runtime/live acceptance is tracked separately, not inferred from the WSG proof.
