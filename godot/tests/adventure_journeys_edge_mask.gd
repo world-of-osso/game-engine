@@ -65,7 +65,15 @@ func verify_opaque_caption() -> bool:
 	client.set_process(false)
 	var painted := await frame_image()
 	var copy := label.duplicate() as Label
-	root.add_child(copy)
+	# RegistryUi is a CanvasLayer; a viewport-root copy draws behind the journal.
+	# Keep that draw layer while removing the track's ancestors from the control.
+	var canvas: Node = label.get_parent()
+	while canvas != null and not canvas is CanvasLayer:
+		canvas = canvas.get_parent()
+	if canvas == null:
+		stop("Caption has no native canvas layer")
+		return false
+	canvas.add_child(copy)
 	copy.position = bounds.position
 	copy.size = bounds.size
 	copy.modulate = Color.WHITE
@@ -87,7 +95,7 @@ func verify_opaque_caption() -> bool:
 			if Vector3(a.r-b.r,a.g-b.g,a.b-b.b).length() > 0.04:
 				differences += 1
 	if differences > 4:
-		stop("Level FontString was faded with textures; changed pixels=" + str(differences))
+		stop("Level FontString differs from opaque same-canvas reference; changed pixels=" + str(differences))
 		return false
 	print("JOURNEYS_EDGE_CAPTION opaque1 differences=", differences)
 	return true
