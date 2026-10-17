@@ -1,3 +1,7 @@
+## 2026-10-17 — Flag capture Honor
+
+[Flag captures](systems/battlegrounds.md#flag-capture-honor--2026-10-17): real channel RED0vs59→GREEN19, source WSG10–19 grants59/Twin30–39 grants121 per two-kill capture to both assigned rosters, final capture/replay/persistence/origin return. Existing flag/reconnect/achievement and prior13 callback controls retained. Conditional resource/WSG-end branches explicitly require unresolved BG_WEEKEND_AUTHORITY; no calendar default or native acceptance claim.
+
 ## 2026-10-17 — Alterac survivor Honor
 
 [Survivors](systems/battlegrounds.md#alterac-survivor-honor--2026-10-17): actual mixed-objective/general-end RED858vs1838→both-faction GREEN, controlled/contested/destroyed towers and living/dead captains, whole-team rounding, NPC/player/tower terminal paths, replay and persistence.13 distinct tests green across prior12 and corrected corpse-replay fixture. Depletion fixtures use explicit75/1 pre-terminal baselines, not full-match histories; no UDP/rendered/reputation claim.
