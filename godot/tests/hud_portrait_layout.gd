@@ -26,6 +26,9 @@ func run_hud() -> void:
 		assert(player != null and panel != null and portrait != null and name_label != null)
 		var player_rect := player.get_global_rect()
 		var panel_rect := panel.get_global_rect()
+		var chrome := ui.find_child("LauncherNineSlice", true, false) as Control
+		assert(chrome != null)
+		var chrome_rect := chrome.get_global_rect()
 		assert(player.is_visible_in_tree() and panel.is_visible_in_tree())
 		assert(panel_rect.size == Vector2(526, 474))
 		assert(name_label.text == "Launchpolish")
@@ -41,10 +44,11 @@ func run_hud() -> void:
 		if verify:
 			assert(not panel_rect.intersects(player_rect), "Launcher must clear the complete portrait-inclusive player frame")
 			assert(not panel_rect.intersects(name_label.get_global_rect()), "Launcher must clear player name")
-			var expected_y := 293.5 if forever else 303.0
+			assert(not chrome_rect.intersects(player_rect), "Launcher's authored metal outset must also clear player")
+			var expected_y := 285.5 if forever else 303.0
 			assert(absf(panel_rect.position.y - expected_y) <= 0.5)
 		print("HUD_PORTRAIT ", skin, " player=", player_rect, " launcher=", panel_rect, " overlap=", panel_rect.intersects(player_rect))
-		observations.append({"skin": skin, "player": str(player_rect), "panel": str(panel_rect), "name": str(name_label.get_global_rect()), "overlap": panel_rect.intersects(player_rect)})
+		observations.append({"skin": skin, "player": str(player_rect), "panel": str(panel_rect), "name": str(name_label.get_global_rect()), "overlap": panel_rect.intersects(player_rect), "chrome": str(chrome_rect), "chrome_overlap": chrome_rect.intersects(player_rect)})
 		var image := root.get_texture().get_image()
 		assert(image.get_size() == Vector2i(1920, 1080))
 		assert(image.save_png(output.path_join(skin + "-hud-context.png")) == OK)
