@@ -1375,7 +1375,7 @@ fn source_presentation_entry(achievement_id: u32, tree_id: u32) -> AchievementCa
     entry.earned_at = None;
     entry.next_criteria_id = None;
     // This is a received UI payload fixture, not a persisted/seeded gameplay counter.
-    // Before the wire change serde ignores flags, producing a real rendering RED.
+    // Decode the received criterion payload, including its authored presentation flags.
     entry.criteria = vec![
         serde_json::from_value(serde_json::json!({
             "tree_id": tree_id,

@@ -42,6 +42,11 @@ const ALERT_NO_POINTS: AtlasArt = AtlasArt {
     ..ALERT_BACKGROUND
 };
 const STATISTIC_ROW_HEIGHT: f32 = 24.0;
+const CRITERIA_AREA_LEFT: f32 = 80.0;
+const CRITERIA_AREA_WIDTH: f32 = 398.0;
+// Mainline AchievementProgressBarTemplate, XML510–569.
+const CRITERIA_BAR_WIDTH: f32 = 212.0;
+const CRITERIA_BAR_HEIGHT: f32 = 14.0;
 const CRITERIA: usize = 6;
 /// Local Retail art: UI-Achievement-Category-Background, AchievementBackground, Shield.
 pub const ART: &[u32] = &[
@@ -1659,10 +1664,10 @@ fn criterion_presentation(
 
 fn criterion_bar(name: &str, line: &AchievementCriterionLine, y: f32) -> Element {
     // Mainline XML510–569 is212×14, not the old398×16 heuristic bar.
-    // Lua2015 centers it with x+4; retain the existing398-wide criteria area.
-    let width = 212.0;
-    let height = 14.0;
-    let left = 80.0 + (398.0 - width) * 0.5 + 4.0;
+    // Lua2015 supplies x+4; retain the approved criteria-area width and row y.
+    let width = CRITERIA_BAR_WIDTH;
+    let height = CRITERIA_BAR_HEIGHT;
+    let left = CRITERIA_AREA_LEFT + (CRITERIA_AREA_WIDTH - width) * 0.5 + 4.0;
     let fraction = if line.required == 0 {
         0.0
     } else {
@@ -1670,8 +1675,9 @@ fn criterion_bar(name: &str, line: &AchievementCriterionLine, y: f32) -> Element
     };
     let text = format!("{}/{}", line.current, line.required);
     let caption = rsx! { fontstring {name:{DynName(name.to_owned())},width,height,
-        text:text.as_str(),font:GameFont::FrizQuadrata,font_size:12.0,font_color:WHITE,
-        justify_h:"CENTER",justify_v:"TOP",left:0.0,top:0.0,pos_type:"absolute",
+        text:text.as_str(),font:GameFont::FrizQuadrata,font_size:10.0,font_color:WHITE,
+        justify_h:"CENTER",justify_v:"MIDDLE",shadow_color:"0,0,0,1",shadow_offset:"1,-1",
+        left:0.0,top:0.0,pos_type:"absolute",
     }};
     artwork::criterion_progress(name, fraction, (left, y, width, height), caption)
 }
@@ -1706,7 +1712,7 @@ fn criterion_checklist(
     let mut content = label(
         name.into(),
         &text,
-        (text_left, 1.0, 398.0 - text_left, 15.0),
+        (text_left, 1.0, CRITERIA_AREA_WIDTH - text_left, 15.0),
         color,
         "",
     );
@@ -1719,8 +1725,8 @@ fn criterion_checklist(
             (18.0, 2.5, 20.0, 16.0),
         ));
     }
-    rsx! { r#frame {name:{DynName(format!("{name}Line"))},width:398.0,height:18.0,
-        left:80.0,top:y,pos_type:"absolute",{content}
+    rsx! { r#frame {name:{DynName(format!("{name}Line"))},width:CRITERIA_AREA_WIDTH,height:18.0,
+        left:CRITERIA_AREA_LEFT,top:y,pos_type:"absolute",{content}
     }}
 }
 
