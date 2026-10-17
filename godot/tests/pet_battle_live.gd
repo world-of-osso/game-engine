@@ -37,6 +37,7 @@ func live_run() -> void:
 		match command.action:
 			"snapshot":
 				result.account = client.account_state()
+				result.asset_runtime = WowAssetLoader.new().asset_runtime_status()
 				result.input_enabled = client.is_processing_input()
 				result.unhandled_enabled = client.is_processing_unhandled_input()
 				result.inventory = client.merchant_state()

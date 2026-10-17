@@ -20,6 +20,25 @@ Local world.db has only627 of1,286 distinct Leatherworking effect24 outputs join
 
 Private Modern proof learned Handstitched Leather Pants2153 from Simon Tanner at authored trainer rank15/cost50. Bags held14 Light Leather and1 Coarse Thread. Client incorrectly showed Create All[0]: pinned `SkillLineAbility.MinSkillLineRank` is30. TrinityCore a352b1fa `Player.cpp:25450` uses that field to remove **AutomaticSkillRank** abilities below their threshold; `Spell.cpp:CheckItems` does not impose it on manually learned spells. Retail `ProfessionsCrafting.lua:631-637` requires a learned recipe, and `ValidateCraftRequirements:569-623` delegates actual requirements/reagents. The client must not invent an additional automatic-learning gate for a recipe the authoritative trainer taught.
 
+## Operation authority (2026-10-16)
+
+- Quality/concentration/recraft outcome evaluation returns the named `CRAFTING_OPERATION_COMPOSITION` gap. Crafted quality stays unassigned; no default tier, reagent consumption or skill gain is permitted on refusal.
+- Authored reagent slots, eligible item tiers and owned allocations can be selected and validated independently; validation is not successful crafting.
+- [Pinned source receipts and gap ledger](../sources/modern-crafting/gaps.md) distinguish static identities from missing operation composition.
+
+## Authored quality-reagent selection
+
+- Mainline quality recipes remain selectable even when no output can be assigned. Only fixed CREATE_ITEM24 outputs use a concrete output item; CRAFT_ITEM288 does not choose the lowest tier.
+- Required basic slots use ModifiedCraftingSpellSlot → MCRSlotXMCRCategory → CraftingReagentQuality. Item.CraftingQualityID joins the authored tier independently of rarity; mixed allocations preserve per-item quantities. Mainline ReagentSlot.lua267–306 displays the selected inventory-tier glyph or IconMixedInv for multiple tiers; before quality allocations exist, actual owned stock determines that glyph. No stock means no glyph, never a default tier.
+- The shared 329×207 Mainline quality dialog has 100×75 tier containers, source item buttons and NumericInputSpinner dimensions, Accept/Cancel and a non-consuming server validation response. Values clamp to owned/required; increasing one tier removes overflow from other tiers in source order. Cancel discards only dialog edits.
+- Server validates recipe knowledge, membership, exact slot totals and aggregate bag ownership. Both skins share this behavior. Modifying/finishing eligibility, currency-slot allocation and unevaluated slot conditions remain explicit gaps, not substitute basic slots.
+
+Native acceptance verified2026-10-16: `godot/tests/modern_crafting_quality_live.gd` passes both explicit skins using owned accounts on UDP5951, a rendered1920×1080 viewport, physical quality-dialog clicks, typed ownership clamps, Cancel, authoritative incomplete-slot refusal, accepted mixed allocations, reagent item tooltip and disabled crafting with quality unassigned. [Native proof](../wiki/systems/native-professions-crafting.md#authored-quality-selection--verified2026-10-16) owns artifact paths and root-cause findings. Private test grants are not trainer/knowledge acquisition evidence.
+
+## Knowledge/specialization proof
+
+Reuse the existing authoritative trait engine and its authored currency mapping; do not create a second progression system. Native fixture `godot/tests/modern_crafting_knowledge_live.gd` exercises tree unlock, node/perk tooltips, staged spending, Undo and Apply on private UDP5951 at 1920×1080 in both skins. It uses recipe375188, tree350, path28546 and perk28534 from the existing authored catalog. Its explicitly seeded knowledge is not evidence of acquisition; quest-reward acquisition is independently covered by the existing server specialization tests. Both native runs passed2026-10-16: rank0→1/30, knowledge25→24, Undo before Apply, committed rank retained after Apply. Fresh server/client relogs and an offline redb reopen both retain tree350 unlocked/rank1/knowledge24 without advancing profession skill. [Native proof](../wiki/systems/native-professions-crafting.md#knowledge-reuse--verified2026-10-16) owns evidence and limits.
+
 ## Explicit gaps
 
 - Effect288 quality crafting and effect157 loot-derived crafts require authored output selection and operation rules; fixed-output effect24 support is not evidence for either.

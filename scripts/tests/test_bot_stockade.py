@@ -14,6 +14,130 @@ sys.path.insert(0, str(Path(__file__).resolve().parents[1]))
 from bot_stockade import admitted_copy, authored_priority, encounter_states, parse_npc, parse_party, stockade_exit_plan, stockade_plan, target_observation_ready
 
 
+class StockadeOpeningTests(unittest.TestCase):
+    def test_idle_pull_tabs_and_acknowledges_throw_before_any_movement(self):
+        from run_stockade_bot import StockadeRun
+        calls = []
+        controller = StockadeRun.__new__(StockadeRun)
+        controller.opening_target = None
+        controller.run = {"clear_elapsed_ms": None, "bosses": [
+            {"state": "NotStarted", "goal": [103, -19, 0]}], "openings": []}
+        controller.tank = "Captain Garrick"
+        controller.poll_combat = lambda: None
+        controller.record_credit = lambda: None
+        controller.party = lambda: [{"health": 100, "max_health": 100}]
+        controller.account = lambda: {"local_player_position": "(56,-19,0)"}
+        controller.snapshot = lambda target: {"at_ms": 1000,
+            "visibility": {"target": target, "visible": True}, "spells": {"known": [57755]},
+            "facts": {"known": [57755], **{field: {"57755": {"Ok": True}}
+                for field in ("in_range", "ready", "affordable")}}}
+        controller.move = lambda *args: self.fail("Moved before ranged opening")
+        controller.player = SimpleNamespace(
+            assist=lambda tank: None, tab_to_enemy=lambda: 41,
+            cast_opening=lambda target, spell: calls.append((target, spell)) or {"success": True})
+        with tempfile.TemporaryDirectory() as root:
+            controller.output = Path(root)
+            with patch('run_stockade_bot.time.sleep'):
+                self.assertFalse(controller.step())
+            receipt = json.loads((Path(root) / 'opening-0001.json').read_text())
+            self.assertTrue(receipt['outcome']['success'])
+        self.assertEqual(calls, [(41, 57755)])
+        self.assertEqual(controller.opening_target, 41)
+
+
+    def test_native_range_stops_strict_approach_before_waiting_on_cooldown(self):
+        from run_stockade_bot import StockadeRun
+        controller = StockadeRun.__new__(StockadeRun)
+        states = []
+        for ranged, ready in [(False, True), (True, False), (True, True)]:
+            state = {"at_ms": 1000, "visibility": {"target": 41, "visible": True},
+                "spells": {"known": [57755]},
+                "facts": {"known": [57755], **{field: {"57755": {"Ok": True}}
+                    for field in ("in_range", "ready", "affordable")}}}
+            state["facts"]["in_range"]["57755"] = {"Ok": ranged}
+            state["facts"]["ready"]["57755"] = {"Ok": ready}
+            state["target_position"] = [93, -25, 0]
+            states.append(state)
+        iterator = iter(states)
+        controller.snapshot = lambda target: next(iterator)
+        controller.party = lambda: []
+        controller.poll_combat = lambda: None
+        controller.account = lambda: {"local_player_position": "(56,-19,0)"}
+        moved = []
+        controller.move = lambda here, goal, label: moved.append((here, goal, label))
+        with tempfile.TemporaryDirectory() as root:
+            controller.output = Path(root)
+            with patch('run_stockade_bot.time.sleep'):
+                controller.approach_opening(41)
+        self.assertEqual(moved, [([56, -19, 0], [93, -25, 0], "native-ranged-approach")])
+
+
+class StockadeVisibilityTests(unittest.TestCase):
+    def poacher_controller(self, output):
+        from run_stockade_bot import StockadeRun
+        fixture = Path(__file__).parent / 'fixtures/bot_harness/native-stockade-poacher-blocked.json'
+        state = json.loads(fixture.read_text())
+        controller = StockadeRun.__new__(StockadeRun)
+        controller.output = output
+        controller.run = {"openings": []}
+        controller.opening_target = None
+        controller.party = lambda: []
+        controller.poll_combat = lambda: None
+        controller.snapshot = lambda target: state
+        controller.account = lambda: {"local_player_position": "(98.53893,-25.60623,.300785)"}
+        controller.player = SimpleNamespace(tab_to_enemy=lambda: int(state["target"]))
+        return controller, state
+
+    def test_riverpaw_poacher_in_range_moves_before_one_cast_only_when_visible(self):
+        with tempfile.TemporaryDirectory() as root:
+            controller, state = self.poacher_controller(Path(root))
+            inputs = []
+            def move(here, goal, label):
+                inputs.append(("move", here, goal))
+                state["visibility"]["visible"] = True
+            def cast(target, spell):
+                inputs.append(("cast", target, spell))
+                return {"success": True}
+            controller.move = move
+            controller.player.cast_opening = cast
+            with patch('run_stockade_bot.time.sleep'):
+                controller.open_pull()
+            self.assertEqual(inputs, [
+                ("move", [98.53893, -25.60623, .300785], state["target_position"]),
+                ("cast", 4294739508, 57755)])
+
+    def test_blocked_poacher_path_limit_stops_without_cast(self):
+        with tempfile.TemporaryDirectory() as root:
+            controller, state = self.poacher_controller(Path(root))
+            positions = iter(["(0,0,0)", "(61,0,0)"])
+            controller.account = lambda: {"local_player_position": next(positions)}
+            controller.move = lambda *args: None
+            controller.player.cast_opening = lambda *args: self.fail("Cast while visibility false")
+            with patch('run_stockade_bot.time.sleep'):
+                with self.assertRaisesRegex(RuntimeError, "opening.*path|path.*limit"):
+                    controller.open_pull()
+
+    def test_missing_stale_or_failed_visibility_never_casts_or_moves(self):
+        for visibility in [{}, {"target": 1, "visible": True},
+                           {"target": 4294739508, "error": "missing eye table"}]:
+            with self.subTest(visibility=visibility), tempfile.TemporaryDirectory() as root:
+                controller, state = self.poacher_controller(Path(root))
+                state["visibility"] = visibility
+                controller.move = lambda *args: self.fail("Moved without target visibility")
+                controller.player.cast_opening = lambda *args: self.fail("Cast without target visibility")
+                with self.assertRaisesRegex(ValueError, "visibility"):
+                    controller.open_pull()
+
+    def test_blocked_poacher_time_limit_stops_without_cast(self):
+        with tempfile.TemporaryDirectory() as root:
+            controller, state = self.poacher_controller(Path(root))
+            controller.move = lambda *args: None
+            controller.player.cast_opening = lambda *args: self.fail("Cast while visibility false")
+            with patch('run_stockade_bot.time.sleep'), patch('run_stockade_bot.time.monotonic', side_effect=[0, 0, 61]):
+                with self.assertRaisesRegex(TimeoutError, "visibility"):
+                    controller.open_pull()
+
+
 class StockadeSourceTests(unittest.TestCase):
     def test_actual_dead_assist_target_needs_no_authored_evaluation_and_never_casts(self):
         fixture = Path(__file__).parent / 'fixtures/bot_harness/native-stockade-dead-target.json'

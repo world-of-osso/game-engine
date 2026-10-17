@@ -1,0 +1,17 @@
+[
+  {
+    "url": "https://raw.githubusercontent.com/TrinityCore/TrinityCore/a352b1fa/src/server/game/Spells/SpellEffects.cpp",
+    "sha256": "fb804a9dfa59a1bb3ccaea7aeaec5850f2eeb6f5f177681dbe5da9377aa05b74",
+    "bytes": 238766
+  },
+  {
+    "url": "https://raw.githubusercontent.com/TrinityCore/TrinityCore/a352b1fa/src/server/game/Spells/Spell.cpp",
+    "sha256": "9d74facf70b3bcfb1d5238433d2d11e2ead5d85c90c6ddade0df07c58aa71fc0",
+    "bytes": 395450
+  },
+  {
+    "url": "https://raw.githubusercontent.com/TrinityCore/TrinityCore/a352b1fa/src/server/game/DataStores/DB2Stores.cpp",
+    "sha256": "a40392d254a689dee3c06e373493226171cc00a4d79c5088ed6ad46888f99a60",
+    "bytes": 180533
+  }
+]

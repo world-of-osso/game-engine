@@ -20,7 +20,9 @@ pub fn trainer_service_content(
     let Some(recipe) = recipe else {
         return Ok(tooltip);
     };
-    let (item_id, count) = recipe.output;
+    let Some((item_id, count)) = recipe.output else {
+        return Ok(tooltip);
+    };
     let item = item_catalog_entry(item_id).ok_or_else(|| {
         format!(
             "Trainer recipe {}: output item {item_id} missing from ItemCatalog",

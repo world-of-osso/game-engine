@@ -14,12 +14,12 @@ from collections import Counter
 from contextlib import closing
 from pathlib import Path
 
-from bot_controller import publish
+from bot_controller import native_usable, publish
 from bot_dungeon import summarize_dungeon
 from bot_gear import equipment_receipt, load_plan
 from bot_harness import parse_combat, poll_has_gap, routed_player
 from bot_health import require_living_player
-from bot_stockade import admitted_copy, authored_priority, encounter_states, inside_exit_trigger, parse_npc, parse_party, stockade_exit_plan, stockade_plan, target_observation_ready
+from bot_stockade import admitted_copy, authored_priority, encounter_states, inside_exit_trigger, native_visibility, parse_npc, parse_party, stockade_exit_plan, stockade_plan, target_observation_ready
 from run_dummy_bots import observed_pet_owner
 
 
@@ -41,11 +41,12 @@ class StockadeRun:
         self.last_errors = []
         self.credit_offset = 0
         self.blocked_steps = 0
+        self.opening_target = None
         self.plan = stockade_plan(args.world_db)
         self.run = {"spec": args.spec, "role": 2, "actor": None, "party_actors": [],
                     "start_ms": int(time.time() * 1000), "end_ms": None,
                     "elapsed_ms": 0, "clear_elapsed_ms": None, "capture_complete": True,
-                    "bosses": self.plan["bosses"], "attempts": [], "native_errors": [],
+                    "bosses": self.plan["bosses"], "attempts": [], "openings": [], "native_errors": [],
                     "owner_snapshot": [], "capture_gaps": [], "failure": None}
         self.player = routed_player(self.invoke, self.snapshot,
                                    [str(args.engine / "scripts/agent/agent-run"), "bot-harness",
@@ -237,19 +238,65 @@ class StockadeRun:
         if self.blocked_steps >= 8:
             raise RuntimeError(f"Native route blocked after eight steps at {after}; goal {goal}")
 
+    def approach_opening(self, target):
+        deadline = time.monotonic() + 60
+        previous = None
+        traveled = 0
+        while time.monotonic() < deadline:
+            self.party()
+            self.poll_combat()
+            state = self.snapshot(target)
+            here = position(self.account())
+            if previous is not None:
+                traveled += math.dist(previous, here)
+            previous = here
+            if traveled >= 60:
+                raise RuntimeError("Native opening path limit60yd reached without visibility/usability; no cast")
+            visible = native_visibility(state, target)
+            usable = native_usable(state, 57755)
+            ranged = state["facts"]["in_range"]["57755"]["Ok"]
+            with (self.output / "opening-approach.jsonl").open("a") as stream:
+                stream.write(json.dumps({"at_ms": state["at_ms"], "target": target,
+                    "facts": state["facts"], "in_range": ranged, "visibility": state["visibility"],
+                    "traveled_yards": traveled}) + "\n")
+            if visible and usable:
+                return
+            if not ranged or not visible:
+                self.move(here, state["target_position"], "native-ranged-approach")
+            time.sleep(.1)
+        raise TimeoutError("Native opening visibility/range/usability not reached in60s; no cast or alternate")
+
+    def open_pull(self):
+        target = self.player.tab_to_enemy()
+        receipt = {"at_ms": int(time.time() * 1000), "target": target, "spell": 57755,
+                   "source": "approved native Heroic Throw prep; server validates range/usability"}
+        self.run["openings"].append(receipt)
+        try:
+            self.approach_opening(target)
+            receipt["outcome"] = self.player.cast_opening(target, 57755)
+            self.opening_target = target
+        except Exception as error:
+            receipt["error"] = str(error)
+            raise
+        finally:
+            publish(self.output / f"opening-{len(self.run['openings']):04d}.json", receipt)
+
     def step(self):
         self.poll_combat()
         self.record_credit()
         if self.run["clear_elapsed_ms"] is not None:
             return True
         party = self.party()
-        target = self.player.assist(self.tank)
+        target = self.opening_target or self.player.assist(self.tank)
         here = position(self.account())
         if target is not None:
             state = self.snapshot(target)
             if state["spells"]["target_health"] == 0:
-                time.sleep(.2)
-                return False
+                if not self.player.observe_cast_outcome(state):
+                    return False
+                self.opening_target = None
+                target = None
+        if target is not None:
             goal = state["target_position"]
             if len(goal) != 3:
                 raise RuntimeError("Native assisted target origin not observed")
@@ -261,8 +308,7 @@ class StockadeRun:
             else:
                 self.player.cast_next(target, authored_priority)
         elif all(row["health"] >= row["max_health"] for row in party):
-            goal = next(boss["goal"] for boss in self.run["bosses"] if boss["state"] != "Done")
-            self.move(here, goal, "authored-boss-goal")
+            self.open_pull()
         time.sleep(.2)
         return False
 

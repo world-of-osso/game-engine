@@ -46,6 +46,7 @@ pub struct View {
     pub selected: Option<u32>,
     pub cart: Vec<u32>,
     pub cart_visible: bool,
+    pub product_hover: Option<u32>,
     pub cart_hover: Option<u32>,
     pub cart_item_hover: Option<u32>,
     /// Retail selectedItems keyed by ConvertInvTypeToSelectionKey; 0 is OTHER.
@@ -456,6 +457,7 @@ fn catalog_controls(ctx: &SharedContext, view: &View, snapshot: &TradingPostSnap
         })
         .flat_map(|(index, row)| {
             product_row(
+                view,
                 row,
                 index as f32 * ROW_HEIGHT,
                 view.selected == Some(row.id),
@@ -616,7 +618,7 @@ fn sort_header(sort: Sort, view: &View, (x, y, width, height): (f32, f32, f32, f
     rsx! {button{name:{DynName(format!("PerksProgram{kind}SortButton"))},left:x,top:y,width,height,pos_type:"absolute",button_default_skin:false,disabled,onclick:action,{art}}}
 }
 
-fn product_row(row: &TradingPostItem, top: f32, selected: bool) -> Element {
+fn product_row(view: &View, row: &TradingPostItem, top: f32, selected: bool) -> Element {
     let mut children = if selected {
         named_atlas_texture(
             format!("PerksProgramSelected{}", row.id),
@@ -626,12 +628,7 @@ fn product_row(row: &TradingPostItem, top: f32, selected: bool) -> Element {
     } else {
         vec![]
     };
-    children.extend(texture(
-        format!("PerksProgramIcon{}", row.id),
-        row.icon_fdid,
-        (32., 8., 32., 32.),
-        WHITE,
-    ));
+    children.extend(row_item_icon(view, row));
     children.extend(label(
         format!("PerksProgramName{}", row.id),
         &row.name,
@@ -639,14 +636,51 @@ fn product_row(row: &TradingPostItem, top: f32, selected: bool) -> Element {
         (16., WHITE, "LEFT"),
     ));
     children.extend(row_price("PerksProgram", row, ROW_HEIGHT / 2.));
+    children.extend(row_cart_toggle(view, row.id));
     let action = format!("perks:select:{}", row.id);
     rsx! {button{name:{DynName(format!("PerksProgramProduct{}",row.id))},left:0.0,top,width:LIST_WIDTH,height:ROW_HEIGHT,pos_type:"absolute",button_default_skin:false,onclick:action.as_str(),button_atlas_highlight:"perks-list-hover",{children}}}
+}
+
+fn row_item_icon(view: &View, row: &TradingPostItem) -> Element {
+    if view.cart.contains(&row.id) {
+        named_atlas_texture(
+            format!("PerksProgramCartIcon{}", row.id),
+            "perks-shoppingcart",
+            (32., 8., 32., 32.),
+        )
+    } else {
+        texture(
+            format!("PerksProgramIcon{}", row.id),
+            row.icon_fdid,
+            (32., 8., 32., 32.),
+            WHITE,
+        )
+    }
+}
+
+fn row_cart_toggle(view: &View, id: u32) -> Element {
+    if view.product_hover != Some(id) || !view.can_cart_product(id) {
+        return vec![];
+    }
+    let atlas = if view.cart.contains(&id) {
+        "128-redbutton-cart-minus"
+    } else {
+        "128-redbutton-cart-add"
+    };
+    // TimeRemaining is LEFT of PriceIcon.RIGHT+30,42x38; button36 centers there.
+    cart_ui::cart_icon_button(
+        &format!("PerksProgramCartToggle{id}"),
+        atlas,
+        &format!("perks:cart:toggle:{id}"),
+        true,
+        (443., (ROW_HEIGHT - 36.) / 2., 36., 36.),
+    )
 }
 
 fn row_price(prefix: &str, row: &TradingPostItem, center_y: f32) -> Element {
     if row.refund_seconds > 0 {
         return named_atlas_texture(
-            format!("{prefix}Owned{}", row.id),
+            format!("{prefix}RefundIcon{}", row.id),
             "common-icon-undo",
             (389., center_y - 21. / 2., 21., 21.),
         );

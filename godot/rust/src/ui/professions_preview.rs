@@ -203,7 +203,7 @@ fn preview_recipes() -> Vec<Recipe> {
             min_rank,
             trivial_low,
             trivial_high,
-            output: (6241, 1),
+            output: Some((6241, 1)),
             reagents: vec![(2996, 3), (2320, 1)],
         },
     )
