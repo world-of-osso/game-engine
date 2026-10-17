@@ -29,8 +29,11 @@ func run_test() -> void:
 		return
 	client.set_world_minutes(720.0)
 	client.set_camera_orbit(PI, -0.3, 14.0)
-	if not await join_actual_guild():
-		return
+	# A prior diagnostic trial may have left this real member joined.
+	# Read actual owner knowledge; never rewrite membership to reset the fixture.
+	if not (83958 in Array(client.spells_state().known)):
+		if not await join_actual_guild():
+			return
 	for skin in ["Modern", "Forever"]:
 		if not await select_skin(skin):
 			return
