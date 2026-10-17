@@ -1,4 +1,8 @@
 ## 2026-10-17 — Launch Rocket setup/launch projection
+## 2026-10-17 — Modern Warsong end Honor
+
+[Modern WSG](systems/battlegrounds.md#modern-warsong-end-honor--2026-10-17): actual third-capture RED177vs286→GREEN11, both factions286/118, empty timeout draw59/59, replay/persistence/origin return. Exact1014/1018→HOLIDAY_NONE→false source trace resolves modern WSG/AB branches without a calendar or legacy alias; AB160 callback remains pending, Eye7 holiday authority remains a gap. BG kills do not mint Honor XP in pinned HandleKillPlayer/KillRewarder; no fabricated award added.
+
 ## 2026-10-17 — Flag capture Honor
 
 [Flag captures](systems/battlegrounds.md#flag-capture-honor--2026-10-17): real channel RED0vs59→GREEN19, source WSG10–19 grants59/Twin30–39 grants121 per two-kill capture to both assigned rosters, final capture/replay/persistence/origin return. Existing flag/reconnect/achievement and prior13 callback controls retained. Conditional resource/WSG-end branches explicitly require unresolved BG_WEEKEND_AUTHORITY; no calendar default or native acceptance claim.
