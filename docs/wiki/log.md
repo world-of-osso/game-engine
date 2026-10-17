@@ -18,6 +18,14 @@
 [Search](systems/adventure-guide.md#search-preview-and-full-results--implementation-2026-10-16) native8 passes both skins on productf2c8a410a: continued typing, actual preview/full popup, wheel/close/query retention and authored section selection. Eight full-HD originals inspected. Pixel inspection found exported quote spelling leaking through localization; actual RED→four focused tests GREEN and current clean title assertion/paint pass. Native7 first-J failure remains separate; no readiness patch. Current quote-fix check pending; C API/data gaps unchanged.
 
 ## 2026-10-16 — Journal search implementation; native acceptance pending (historical2344 checkpoint)
+## 2026-10-16 — Isle resource Honor
+
+[Resources](systems/battlegrounds.md#isle-resource-honor--2026-10-16): source45s clock now credits separate12 per owned/uncontested Refinery/Quarry increment, with no new clock or wire state. Actual channel RED0vs24→GREEN9 proves two bases24, contested pause12, ownership transfer12/team, durable wallet/XP and weekly0; full player-death/commander/AV/Arathi/Eye/empty-root controls retained. Scoped server check passes. No external UDP/rendered or other-map reward claim.
+
+## 2026-10-16 — Isle commander Honor
+
+[Commander](systems/battlegrounds.md#isle-commander-honor--2026-10-16): full channel source gate-demolition/actual commander death RED0vs500→GREEN; fixed500 winner wallet/XP, no other-team credit, no dead replay, persisted quantities. Shared positive-team eligibility preserves Arathi/Eye behavior; targeted6 and scoped server check pass. No generic victory, Conquest, external UDP, rendered or native-item-use claim. Resource/objective callbacks remain open.
+
 ## 2026-10-16 — Eye completion Honor
 
 [Eye](systems/battlegrounds.md#eye-completion-honor--2026-10-16): physical tower presence and actual terminal tick RED0vs122→GREEN; source30–39 wallet/XP122/61, replay/reopen. Full channel tower/flag/drop/expiry/victory/origin-return also asserts source20–29 wallet/XP90/45 including the dead carrier. Eye/Arathi terminal and complete channel fixtures pass4; scoped server check passes. Once-per-match is the explicit project policy; no external UDP/rendered BG or objective-bonus claim.
@@ -38,6 +46,14 @@
 ## 2026-10-16 — Encounter section flags
 
 [Refund icon](systems/trading-post.md#product-row-refund-icon-tooltip--implementation-october16): real old-binary pointer RED shows generic item tooltip over refundable642 while848 is selected; genuine purchase/refund restores Tender/frozen state before assertion. Passive projected texture bounds own right0/0 and the existing colored footer formatter without blocking parent clicks. Model3 and actualca0/4e9/Pb701 both-skin painted GREEN: independent IDs, white caption/red59m, parent click, hover leave, Escape destroys currently hovered owner/HUD, one real purchase/refund restores Tender/collected/frozen state. Eight full-HD originals+two contacts+two crops published; diagnostic manifest binds exact inputs. Integrated933892f79/source protocol604ea609 passes40 UI+12 native, engine check without compiler warnings and scoped five Rustfmt (four unchanged hashes+one foreign tooltip-source delta). Actual native remainsca0/4e9/b701, not the later merged sources. No production refund policy/provider changes.
+## 2026-10-17 — Fire67 cast-overlap source classification
+
+[Allowed pinned SimC source](investigations/cooldown-assist-data.md#fire-cast-overlap-modifier67--2026-10-17) emits67 as a step option that relaxes same-action execution/last-foreground suppression, not a numeric prediction predicate. Native integration remains unimplemented; no unconditional true or global anti-recast behavior added. Focused independent replay1case/3retainedclass snapshots passes at1b0cef7d9 with exact11/11/67 refusals and no lower-step fallback.
+
+## 2026-10-17 — Independent player-spec boundary replay fixtures
+
+[Harness matrix](systems/bot-harness.md#independent-player-spec-boundary-replays--2026-10-17): retained positive-health Resto105/Elemental262/Fire63 facts exercise their own exact unsupported11/11/67 boundaries through current core/catalog. Native JSON and70448 row hashes retained; no manufactured facts, missing-rule bypass, new live/DPS claim or predicate implementation. Protection66 lacks a native capture after its old prelaunch source-choice failure and remains an explicit gap.
+
 ## 2026-10-17 — Run21 talents, predicate boundary and passive FPS
 
 [Native harness](systems/bot-harness.md#run21-native-talents-and-predicate-boundary--2026-10-17): ordinary tree850/loadout915 Apply expands entries2→22 and fresh client/server login preserves exact ranks. Full28.362s run stops at named distance3 rule1261; no boss/deaths/balance claim, count12 conjunction also unresolved. [Pinned-source audit](investigations/cooldown-assist-data.md#fury-distancenearby-count-source-boundary--2026-10-17) distinguishes emitted SimC expressions from missing live spatial semantics; no guessed implementation. Passive FPS3Stormwind/3OOC/1combat, two combat readings missing; exact dev-build/device/load qualification retained, settled Stormwind window unavailable without delay. Owned cleanup complete.
