@@ -1,5 +1,21 @@
 # Cooldown Viewer and Assisted Combat authored data
-verified: 2026-10-12
+verified: 2026-10-17
+
+## Fury distance/nearby-count source boundary — 2026-10-17
+
+[Run21](../systems/bot-harness.md#run21-native-talents-and-predicate-boundary--2026-10-17) applied the matching installed talent loadout and persisted22 entries across a fresh client/server login. That made Whirlwind step330 eligible; native evaluation stopped at rule1261/type3 `[10,0,0]`. The same conjunction contains rule1268/type12 `[3,0,0]`. Neither predicate was replaced or skipped.
+
+Pinned upstream SimC `515f4a3fe9d1f35e1dbaf253745b6105fba906fb` gives the exact matching conjunction in `ActionPriorityLists/assisted_combat/warrior_fury.simc:24`. Source bytes, URLs and SHA-256 receipts are retained under `data/diagnostics/bot-predicate-2026-10-17/<pin>/` (not tracked assets). Line numbers below refer to those retained bytes.
+
+| Operand | Exact inspected source | Proof / unresolved boundary |
+|---|---|---|
+| Type3 | `engine/player/player.cpp:3840–3844`; `engine/action/action.cpp:4021–4023` | Emits `target.distance<=10`; the expression reads simulated base distance, not a live geometric measurement. Parser3799 still flags comparator precision as unverified. |
+| Type12 | `engine/player/player.cpp:3900–3903,7057–7060,7167–7170` | Emits `active_enemies>3` but explicitly omits spatial targeting. The counter follows enemy arise/demise; no nearby-player radius or zero-radius binding is established. |
+| Other spatial operands | `engine/action/action.cpp:3673–3703,3808–3886` | `active_enemies_within.N` and `spell_targets` have different spatial/action-list behavior; neither is the emitted operand. Substituting one would invent policy. |
+
+Allowed addon export inspection did not fill that gap: TalentLoadoutManager `d505fc7fdf6f229cacae5d574a17071a7647c16e`, `modules/SimulationCraft.lua:74–89`, appends saved talent strings; SimC addon `8741352777a1d22ec7c89cbd051cd736f6025c6e`, `core.lua:435–455`, serializes purchased entries/ranks. Inspected export modules supply no AssistedCombat radius/default-zero metadata. Their separate pin/hash receipts live beside the SimC sources.
+
+**Still blocked:** exact type12 eligible-set/radius/default-zero semantics, plus a justified live-distance/comparator mapping for type3. The source-to-runtime oracle is incomplete: no honest Boolean RED/GREEN implementation claim follows. Preserve the actual run21 refusal; keep both predicates fail-closed pending sufficient authority, with no global NPC count, alternate provider or lower-step substitution.
 
 ## Caster-centered assisted range — 2026-10-16
 
@@ -11,7 +27,7 @@ The catalog retains raw `SpellMisc.RangeIndex` as `range_id`, and the native ass
 
 Fresh master-readiness1 BM253 stopped before casting at rule29672/type58, values[0,0,0], step5716/Call Pet883. Pinned SimC76f8118 `data_enums.hh` names57/58 HAS_PET/HAS_NO_PET; `player.cpp:4067–4072` decodes presence/absence without numeric operands. Native facts retain `has_pet` from owner PetSpells/PetClearSpells plus replicated living-pet health, not a scan for pet-looking NPCs. An absent bar supplies false; a living controlled pet supplies true; a missing/dead pet actor remains unknown. Missing readings and nonzero operands fail explicitly. Tests exercise Boolean opposites, unknown readings and the actual70391 authored BM Call Pet decision. Dead-pet/guardian-only distinctions and fresh UDP acceptance remain separate; this is not full BM or all-spec certification.
 
-Arms rule1187/type12 values[2,10,0] remains a named source gap: pinned SimC `player.cpp:3900–3903` explicitly omits distance targeting and3799 leaves comparator strictness TODO. A global active-enemy count is not a source-grounded implementation of nearby targets.
+Arms rule1187/type12 values[2,10,0] shares the [nearby-count source boundary](#fury-distancenearby-count-source-boundary--2026-10-17). A global active-enemy count does not establish its radius-sensitive semantics.
 
 ## Sources
 Retail Mainline Lua under `~/.cache/wow-ui-sim/blizzard-ui/retail/AddOns/`:

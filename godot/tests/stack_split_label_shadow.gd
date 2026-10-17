@@ -62,6 +62,24 @@ func run_label_shadow() -> void:
 					label.add_theme_color_override("font_shadow_color", Color.TRANSPARENT)
 				await settle()
 				assert(root.get_texture().get_image().save_png(output.path_join(case_name + "-shadow-off-control.png")) == OK)
+				# Black amount wells can hide a valid black shadow. Expose its raster mask without moving text.
+				for name in names:
+					var label := ui.find_child(name, true, false) as Label
+					label.add_theme_color_override("font_shadow_color", Color.MAGENTA)
+				await settle()
+				assert(root.get_texture().get_image().save_png(output.path_join(case_name + "-magenta-shadow-control.png")) == OK)
+				for name in names:
+					var label := ui.find_child(name, true, false) as Label
+					label.visible = false
+				await settle()
+				assert(root.get_texture().get_image().save_png(output.path_join(case_name + "-label-background-control.png")) == OK)
+				for name in names:
+					var label := ui.find_child(name, true, false) as Label
+					label.visible = true
+					label.add_theme_color_override("font_shadow_color", Color.BLACK)
+				await settle()
+				assert(root.get_texture().get_image().get_data() == image.get_data(), "Diagnostics must restore every source-rendered pixel")
+				print("STACK_LABEL_SHADOW_CONTROLS ", case_name, " restored source image exactly")
 			ui.queue_free()
 			await process_frame
 	var receipt := FileAccess.open(OS.get_environment("STACK_SHADOW_RECEIPT"), FileAccess.WRITE)

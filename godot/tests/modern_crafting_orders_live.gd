@@ -52,7 +52,17 @@ func place_order_types() -> bool:
 	await press("AuctionGossipOption0")
 	if not await wait_until(func(): return shown("ProfessionsCustomerOrdersFrame"), "authoritative customer orders service"):
 		return false
-	for kind in ["Public", "Guild", "Personal"]:
+	var kinds := ["Public", "Guild", "Personal"]
+	var first_kind := OS.get_environment("ORDERS_CUSTOMER_START").to_int()
+	if first_kind < 0 or first_kind >= kinds.size():
+		return fail("Invalid explicit customer resume index")
+	if first_kind > 0:
+		if not await wait_until(func(): return shown("CraftingOrderRecipe28208"), "initial owned customer catalog"):
+			return false
+		if not await observe_owned_order("Public"):
+			return false
+	for index in range(first_kind, kinds.size()):
+		var kind: String = kinds[index]
 		await press("CraftingOrdersBrowseTab")
 		if not await wait_until(func(): return shown("CraftingOrderRecipe28208"), "source fixed-output order recipe"):
 			return false
@@ -67,21 +77,26 @@ func place_order_types() -> bool:
 			await replace_field("CraftingOrderRecipient", "Craftworker")
 		await replace_field("CraftingOrderGold", "1")
 		await replace_field("CraftingOrderNote", role + " " + kind)
-		for index in range(4):
-			await press("CraftingOrderSupply%d" % index)
+		for supply_index in range(4):
+			await press("CraftingOrderSupply%d" % supply_index)
 		var before := money()
 		await capture(kind + "-1-form")
 		await press("CraftingOrderPlace")
-		if not await wait_until(func(): return money() == before - 10000, kind + " commission escrow"):
+		if not await wait_until(func(): return money() == before - 10000 and text("CraftingOrdersStatus") == "Order placed", kind + " authoritative placement and commission escrow"):
 			return false
-		await press("CraftingOrdersMyOrdersTab")
-		if not await wait_until(func(): return not client.find_children("CraftingOrderRow*", "Control", true, false).is_empty(), "owned order snapshot"):
-			return false
-		await click(client.find_children("CraftingOrderRow*", "Control", true, false)[0])
-		if not await wait_until(func(): return text("CraftingOrderState") == "Open", kind + " authoritative Open order"):
+		if not await observe_owned_order(kind):
 			return false
 		print("ORDERS CUSTOMER kind=", kind, " before=", before, " after=", money(), " recipient=", text("CraftingOrderRecipientDisplay"))
-		await capture(kind + "-2-escrow")
+	return true
+
+func observe_owned_order(kind: String) -> bool:
+	await press("CraftingOrdersMyOrdersTab")
+	if not await wait_until(func(): return not client.find_children("CraftingOrderRow*", "Control", true, false).is_empty(), "owned order snapshot"):
+		return false
+	await click(client.find_children("CraftingOrderRow*", "Control", true, false)[0])
+	if not await wait_until(func(): return text("CraftingOrderState") == "Open", kind + " authoritative Open order"):
+		return false
+	await capture(kind + "-2-escrow")
 	return true
 
 func fulfill_order_types() -> bool:

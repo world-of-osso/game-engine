@@ -74,6 +74,14 @@ def allowed(repo_name, path, tracked):
         return False
     if repo_name == ROOT_NAME and parts[0] not in ROOT_PATHS:
         return False
+    # Shared battleground brackets embed tracked reference CSVs at compile time.
+    if (
+        tracked
+        and repo_name == "shared-protocol"
+        and parts[:2] == ("scripts", "reference")
+        and path.suffix == ".csv"
+    ):
+        return True
     if path.suffix in SOURCE_SUFFIXES or path.name in {"Cargo.toml", "Cargo.lock"}:
         return True
     # material.rs embeds the ribbon shader with include_str!.
