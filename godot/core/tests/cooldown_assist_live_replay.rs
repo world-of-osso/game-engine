@@ -26,6 +26,34 @@ fn evaluate(
     )
 }
 
+#[derive(Deserialize)]
+struct CapturedBoundary {
+    spec: u32,
+    player_health: f64,
+    evaluation_json: String,
+    expected_error: String,
+}
+
+#[test]
+fn captured_player_specs_reach_their_own_fail_closed_boundary() {
+    let directory = Path::new(env!("CARGO_MANIFEST_DIR")).join("tests/fixtures/bot_boundaries");
+    let catalog = CooldownAssistCatalog::load(&directory).unwrap();
+    for encoded in [
+        include_str!("fixtures/bot_boundaries/native-105.json"),
+        include_str!("fixtures/bot_boundaries/native-262.json"),
+        include_str!("fixtures/bot_boundaries/native-63.json"),
+    ] {
+        let capture: CapturedBoundary = serde_json::from_str(encoded).unwrap();
+        let evaluation: Evaluation = serde_json::from_str(&capture.evaluation_json).unwrap();
+        assert!(capture.player_health > 0.0);
+        assert_eq!(evaluation.specialization, capture.spec);
+        assert_eq!(evaluation.facts.target_hostile, Some(true));
+        assert_eq!(evaluation.selection, Err(capture.expected_error.clone()));
+        assert_eq!(evaluate(&catalog, &evaluation), evaluation.selection);
+        println!("spec {}: {}", capture.spec, capture.expected_error);
+    }
+}
+
 fn replay_skin(skin: &str) {
     let directory = std::env::var("COOLDOWN_ASSIST_PROOF_DIR")
         .expect("set COOLDOWN_ASSIST_PROOF_DIR to the owned both-skin evidence directory");

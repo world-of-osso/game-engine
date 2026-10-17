@@ -1,0 +1,61 @@
+{
+  "scope": "current70448 source rows plus retained positive-health native facts; model replay,not fresh native execution or class-balance evidence",
+  "source_directory": "/home/osso/Projects/world-of-osso/game-engine/data/db2/12.1.5.70448",
+  "sources": {
+    "AssistedCombat": {
+      "sha256": "0a98f8b95939649a0cf40aea99975060378d3794205f4bfdf2778ed9d789b5cd",
+      "rows_retained": 3,
+      "qualification": "only rotations are in scope; nonrotation tables retain real headers but no unused rows"
+    },
+    "AssistedCombatStep": {
+      "sha256": "0ec2f45a7f5d544a5b46aee7e19de949e3fa51446579bf0e82371770a3a1c9ab",
+      "rows_retained": 60,
+      "qualification": "only rotations are in scope; nonrotation tables retain real headers but no unused rows"
+    },
+    "AssistedCombatRule": {
+      "sha256": "d5e2d9a6fd368ca74669d3bea0041731777e1d596308c99bc90b07cb25874a46",
+      "rows_retained": 273,
+      "qualification": "only rotations are in scope; nonrotation tables retain real headers but no unused rows"
+    },
+    "CooldownSet": {
+      "sha256": "3331ce54defa934c7ac66689cb1727129faca3e3736f9f062e7506a792ada381",
+      "rows_retained": 0,
+      "qualification": "only rotations are in scope; nonrotation tables retain real headers but no unused rows"
+    },
+    "CooldownSetSpell": {
+      "sha256": "8a98f96be744a317cf275ecfaf443f24d89ebe1ec817611102711bc95779a4eb",
+      "rows_retained": 0,
+      "qualification": "only rotations are in scope; nonrotation tables retain real headers but no unused rows"
+    },
+    "CooldownSetLinkedSpell": {
+      "sha256": "f329a5c1017a96fea975e83b5d96734eb1293a4f729841ffcc3d43c173a91e23",
+      "rows_retained": 0,
+      "qualification": "only rotations are in scope; nonrotation tables retain real headers but no unused rows"
+    },
+    "SpellCategories": {
+      "sha256": "4b38384bfa1478e28e8bdd56336a5a27b256f5aa6e632e7a1913dbbad1903386",
+      "rows_retained": 0,
+      "qualification": "only rotations are in scope; nonrotation tables retain real headers but no unused rows"
+    }
+  },
+  "captures": [
+    {
+      "spec": 105,
+      "source_file": "/home/osso/.worktrees/bot-harness-2026-10-15/native-retry-gear3/105/native-state.json",
+      "source_sha256": "2656f7e243a75b9a87cece350291bbb05cc135bcf1e554fd508f7dcfc4350f25",
+      "expected_error": "AssistedCombatRule 2305: condition 11 has unverified numeric/predictive semantics"
+    },
+    {
+      "spec": 262,
+      "source_file": "/home/osso/.worktrees/bot-harness-2026-10-15/native-all-specs2/262/native-state.json",
+      "source_sha256": "b431ee84b05873f9b4d6ddacfd385daa2b669986a894c6c0bfefa4b5012b931c",
+      "expected_error": "AssistedCombatRule 38525: condition 11 has unverified numeric/predictive semantics"
+    },
+    {
+      "spec": 63,
+      "source_file": "/home/osso/.worktrees/bot-harness-2026-10-15/native-all-specs2/63/native-state.json",
+      "source_sha256": "aaec01ad7eaccf6b861c9788ca341c81285de1b3f00a18334f00d75b25720dfa",
+      "expected_error": "AssistedCombatRule 33340: condition 67 has unverified numeric/predictive semantics"
+    }
+  ]
+}
