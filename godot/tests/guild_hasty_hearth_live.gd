@@ -16,7 +16,8 @@ func run_test() -> void:
 	assert(OS.get_environment("GODOT_TEST_SERVER") == "127.0.0.1:5891", "Private5891 only")
 	assert(OS.get_environment("BANK_ACCOUNT") == "fb_guildcompletion_perkspeer", "Private ordinary member only")
 	assert(hasty_mode in ["baseline", "member"], "Explicit fresh-process charge scenario required")
-	expected_recharge = 1800000 if hasty_mode == "baseline" else 900000
+	# Actual Human458619 supplies +1 charge/-300000ms, retained throughout.
+	expected_recharge = 1500000 if hasty_mode == "baseline" else 600000
 	DirAccess.make_dir_recursive_absolute(shots)
 	client = load("res://scenes/client.tscn").instantiate()
 	root.add_child(client)
@@ -29,6 +30,9 @@ func run_test() -> void:
 	if not await wait_until(func(): return FileAccess.file_exists(officer_dir.path_join("riding-ready.go")), "actual private actor setup"):
 		return
 	if not await wait_until(func(): return float(perk_observation().health) > 0.0, "actual living private actor after fixture recovery"):
+		return
+	if not 458619 in Array(perk_observation().known_spells):
+		fail("Actual Human No Place Like Home racial must remain known")
 		return
 	for skin in ["Modern", "Forever"]:
 		phase += 1
@@ -83,7 +87,7 @@ func cast_actual_hearthstone() -> bool:
 	await click_at(hearth_button().get_global_rect().get_center(), MOUSE_BUTTON_RIGHT)
 	if not await wait_until(func():
 		var charge: Variant = perk_observation().hearth_charges
-		return charge != null and charge.current == 0 and 8690 in Array(client.spells_state().cast_success), "real item6948 completes spell8690 and consumes charge2309"):
+		return charge != null and charge.current == 1 and charge.max == 2 and 8690 in Array(client.spells_state().cast_success), "real item6948 completes spell8690 and consumes charge2309"):
 		return false
 	cast_completed = true
 	return await prove_pending("actual-cast")
@@ -91,13 +95,15 @@ func cast_actual_hearthstone() -> bool:
 func prove_pending(label: String) -> bool:
 	var observation: Dictionary = perk_observation()
 	var charge: Variant = observation.hearth_charges
-	if charge == null or charge.current != 0 or charge.max != 1:
+	if charge == null or charge.current != 1 or charge.max != 2:
 		return fail("Actual pending Hearthstone charge missing: " + str(charge))
 	if abs(float(charge.recharge_ms) - expected_recharge) > 2.0:
 		return fail("Guild change retimed consumed Hearthstone duration: " + str(charge))
 	# Bounded native run observes the live clock, not injected/shortened recovery.
 	if float(charge.remaining_ms) < expected_recharge - 300000 or float(charge.remaining_ms) > expected_recharge:
 		return fail("Consumed Hearthstone remaining time changed unexpectedly: " + str(charge))
+	if not 458619 in Array(observation.known_spells):
+		return fail("Guild reconciliation removed the actual Human racial")
 	write_json(role + "-" + label + ".json", {"owner": observation, "spells": client.spells_state(), "bags": client.merchant_state().bags})
 	if not await open_hearth_backpack():
 		return false
