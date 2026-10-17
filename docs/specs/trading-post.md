@@ -14,6 +14,10 @@ Retail Mainline Blizzard_PerksProgram and the local C_PerksProgram/PerksActiviti
 - [x] Traveler's Log displays authoritative monthly Tender earned/cap/balance. No invented mail awards. Retail XML defines visible controls; remove unsourced vendor SearchBox, Log/Collections and Freeze/Unfreeze buttons (lead clarification October13).
 - [x] Targeted behavioural tests and inspected private UDP5731 fb_* account PNG proof in Modern and Forever.
 
+## Shared item-confirmation caption shadow
+
+- [ ] The separate item-confirmation presenter's Confirm/Cancel captions inherit opaque black shadow at source(+1,−1), native(+1,+1), in both skins. Preserve current12px, colours, caption/button geometry, actions and pending/accept-delay behavior. Effective user-font scaling, source state colours and full-popup parity remain gaps; supplied-state shadow proof does not qualify purchase authority/lifetime.
+
 ## Accepted single-item confirmation lifetime
 
 - Purchase/Refund acceptance retains its real confirmation owner while a request is outstanding: both buttons disabled, shared dark overlay and decoded rotating spinner painted above dialog contents immediately (Retail `StaticPopup_OnAcceptWithSpinner`, delay0). GameDialog.xml296–320 supplies the overlay's11px inset and spinner60×60 center placement. Native proof must show painted output changes, not merely existing or rotating nodes. Duplicate Confirm/Cancel/Escape cannot enqueue a second transaction or mutate Tender/ownership.
