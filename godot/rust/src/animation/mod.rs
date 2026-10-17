@@ -292,6 +292,23 @@ impl AnimationState {
         })
     }
 
+    fn sample_material(
+        &self,
+        tracks: &game_engine_core::m2_material::MaterialTracks,
+        binding: &game_engine_core::m2_material::BatchBinding,
+        global_ms: u32,
+    ) -> game_engine_core::m2_material::MaterialSample {
+        game_engine_core::m2_material::sample_material(
+            tracks,
+            binding,
+            game_engine_core::m2_material::MaterialTime {
+                sequence: self.current,
+                time_ms: self.time_ms as u32,
+                global_ms,
+            },
+        )
+    }
+
     /// Current selected clip and clock, not the outgoing crossfade clip.
     fn footstep_phase(&self) -> (usize, u16, f32, f32) {
         let sequence = &self.sequences[self.current];
@@ -958,6 +975,19 @@ impl WowAnimationPlayer {
         Some((animation.current, animation.time_ms as u32))
     }
 
+    pub(crate) fn sample_material(
+        &self,
+        tracks: &game_engine_core::m2_material::MaterialTracks,
+        binding: &game_engine_core::m2_material::BatchBinding,
+        global_ms: u32,
+    ) -> Option<game_engine_core::m2_material::MaterialSample> {
+        Some(
+            self.animation
+                .as_ref()?
+                .sample_material(tracks, binding, global_ms),
+        )
+    }
+
     /// The model's global clock, which global-sequence tracks run on.
     pub(crate) fn global_ms(&self) -> Option<f64> {
         Some(self.animation.as_ref()?.global_ms)
@@ -1259,6 +1289,8 @@ mod mount_special_tests;
 
 #[cfg(test)]
 mod global_sequence_tests;
+#[cfg(test)]
+mod material_tests;
 
 #[cfg(test)]
 mod jump_tests;

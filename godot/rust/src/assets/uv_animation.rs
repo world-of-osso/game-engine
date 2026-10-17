@@ -106,6 +106,7 @@ impl INode for WowMaterialAnimation {
     }
 }
 
+#[godot_api]
 impl WowMaterialAnimation {
     /// The batch materials with texture matrices, weights or colour; `None` when no
     /// batch has any. Local inputs follow their own model's animation.
@@ -145,6 +146,7 @@ impl WowMaterialAnimation {
         self.animates
     }
 
+    #[func]
     pub(crate) fn sample_materials(&mut self) {
         let (Some(clock), Some(tracks)) = (&self.clock, &self.tracks) else {
             return;
@@ -164,7 +166,16 @@ impl WowMaterialAnimation {
             None => tracks.stand_time(global_ms),
         };
         for entry in &mut self.materials {
-            let sample = m2_material::sample_material(tracks, &entry.binding, time);
+            let sample = self
+                .player
+                .as_ref()
+                .filter(|player| player.is_instance_valid())
+                .and_then(|player| {
+                    player
+                        .bind()
+                        .sample_material(tracks, &entry.binding, global_ms)
+                })
+                .unwrap_or_else(|| m2_material::sample_material(tracks, &entry.binding, time));
             super::material::apply_sample(&mut entry.material, &sample, entry.applied.as_ref());
             entry.applied = Some(sample);
         }
