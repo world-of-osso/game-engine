@@ -1,3 +1,4 @@
+- [Zero-operand cast modifier67](investigations/cooldown-assist-data.md#fire-cast-overlap-modifier67--2026-10-17) — sourced Fireball133 oracle, unchanged native casting/usability gates; nonzero operands refuse, unflagged overlap policy remains separate.
 - [Fury source boundary](investigations/cooldown-assist-data.md#fury-distancenearby-count-source-boundary--2026-10-17) — actual tree-bound talent Apply/persistence exposes distance3/count12 gaps; pinned APL alone does not establish spatial semantics; run21 FPS/death accounting retained.
 - [Idle boss-goal progression](systems/bot-harness.md#idle-boss-goal-progression--2026-10-17) — explicit empty Tab permits one strict native source-goal step; combat/recovery interrupts, boss arrival stops movement; synthetic RED, live proof pending.
 - [Native-tree-bound starter talents](systems/bot-harness.md#sourced-rotations-and-talents) — received Fury tree850 selects installed915, not cross-tree954/880; unavailable authority stops prep.
@@ -24,6 +25,9 @@
 - [Clean-room M2 particles](systems/godot-conversion.md#native-m2-particles) — native tails/follow/cubic controls, authored sorting and map-collision births; inherited-scale provenance and explicit lighting, timer/reset, spline-density, target-mask and model-recursion oracle gaps.
 # Wiki Index
 
+- [Section focus flash](systems/adventure-guide.md#section-focus-flash--2026-10-17) — source Glow/four alpha phases; actual missing-effect RED, both-skin physical pulses,12 inspected full-HD captures and bounded pixel conservation; prior324 outside pixels retained as unattributed/not reproduced.
+- [Ordinary StaticPopup body shadow](systems/group-frames.md#ordinary-staticpopup-body-shadow--bounded-proof-2026-10-17) — PARTY_INVITE RED→both-skin model/native GREEN;855 darkened pixels/skin, exact alpha-off restoration and diagnostic-mask confinement; initial rectangle-overhang failure retained, effective font scaling/full-popup parity unqualified.
+
 - [Journeys track texture mask](systems/adventure-guide.md#journeys-track-texture-mask--2026-10-16) — authenticated70448 centered atlas, texture-only alpha, unchanged captions and moving-track controls; both-skin native pixels and12 inspected full-HD captures.
 
 - [Journal search implementation](systems/adventure-guide.md#search-preview-and-full-results--implementation-2026-10-16) — source preview/full popup, input ownership and localized quotes; scoped tests and both-skin physical search proof pass; quote fix independently accepted by lead gate361e.
@@ -32,6 +36,7 @@
 - [Native invitation tabards](systems/guilds.md#native-invitation-tabards) — real optional guild design, source art/text anchors and four actual invitations/declines; both-skin identical-binary proof and four inspected full-HD originals, unsupported warning/points/lifetime scope explicit.
 
 - [Product-row refund icon tooltip](systems/trading-post.md#product-row-refund-icon-tooltip--implementation-october16) — source texture-owned refund time; native generic-item-tooltip RED→both-skin painted right-anchor/parent-click/hovered-owner teardown GREEN, genuine purchase/refund conservation.
+- [PvP Honor awards](systems/battlegrounds.md#earned-wallet-source-continuation--2026-10-16) — [source brackets](systems/battlegrounds.md#source-match-brackets--2026-10-16), [Arathi](systems/battlegrounds.md#arathi-completion-honor--2026-10-16)/[Eye](systems/battlegrounds.md#eye-completion-honor--2026-10-16) completion and Isle [commander](systems/battlegrounds.md#isle-commander-honor--2026-10-16)/[resource](systems/battlegrounds.md#isle-resource-honor--2026-10-16) grants plus [AV NPC bonuses](systems/battlegrounds.md#alterac-npc-honor--2026-10-16) and [tower destructions](systems/battlegrounds.md#alterac-tower-honor--2026-10-17) have bounded channel/persistence proof; world kills have both-skin native wallet proof. Other callbacks, Conquest and level curve remain gaps.
 - [ReadyCheck message shadow](systems/group-frames.md#readycheck-message-shadow--bounded-proof-2026-10-16) — inherited Roman black(+1,−1), RED→3GREEN and both-skin native1080p;1002 darkened pixels/skin, zero outside changes, exact shadow-off control; colors/full popup/lifecycle excluded.
 
 - [Earned-wallet source boundary](systems/battlegrounds.md#earned-wallet-source-continuation--2026-10-16) — explicit Honor mirror, actual both-skin world-kill wallet proof; [source match brackets](systems/battlegrounds.md#source-match-brackets--2026-10-16) retained at admission; [Arathi completion](systems/battlegrounds.md#arathi-completion-honor--2026-10-16) has terminal-tick/persistence proof under explicit once-per-match policy; other BG callbacks/Conquest open.
@@ -224,7 +229,7 @@
 - [Toy input/source rendering](systems/toy-box.md#toy-effects14-witnessed-input-and-source-rendering-2026-10-11) — actual both-skin ground/target/PCM, source BC5 upload, all four source-scaled identities and two authored CDI state kits/natural expiry; retained per-toy boundaries.
 
 - [Mount Journal](systems/mounts.md#mount-journal) — native account catalog, real-item learning, rotating preview and filters; [staged model closure](systems/mounts.md#mount-asset-closure-staging--2026-10-12) adds authenticated chains for all1,971 mount IDs, with publication and native census boundaries explicit.
-- [Crafting UI](systems/crafting-ui.md) — both-skin private knowledge spending and cross-character public order/cast/result/commission-mail proof; Retail source art, full committed-rank configurations and explicit disabled recraft boundary.
+- [Crafting UI](systems/crafting-ui.md) — both-skin private knowledge spending and cross-character Public/Guild/Personal order/cast/result/commission-mail proof; Retail source art, full committed-rank configurations and owned-GUID server refusal plus native disabled recraft.
 - [Retail achievement categories and filters](systems/dungeon-achievements.md#retail-categories-and-filters--verified-2026-10-11) — requested14 player roots, real DB2 children, separate Guild/Statistics trees, native completion dropdown and both-skin private5899 proof; Guild progress authority remains unavailable.
 
 - [Whole-world NPC appearance coverage](investigations/npc-appearance-coverage.md) — source census, strict world-root imports, ordinary geoset/source-asset recovery, selected server scale and private both-skin named-actor proof; canonical cache publication remains lead-owned.
@@ -249,7 +254,7 @@
 - [Native guilds](systems/guilds.md) — authoritative lifecycle/profile/vault and Retail charters; tabard persistence and receipted torso compositing; [member-detail/public-officer note implementation](systems/guilds.md#member-details-and-notes), with current native/private-relog acceptance pending.
 - [GO and item-spell live quest objectives](systems/quest-ui.md#go-and-item-spell-live-objectives--verified2026-10-11) — both-skin26446/28175 native turn-ins; chest-loot proof remains blocked by hosting/difficulty and typed-invisibility boundaries.
 - [Native Achievement UI](systems/dungeon-achievements.md#achievement-ui-continuation--verified-2026-10-11) — authoritative Summary/scopes, criteria, tracking, Statistics, full search and earned/chat links; both-skin private proof, authored art/foreground fixes and explicit unsupported-data/comparison boundary.
-- [Native professions crafting](systems/native-professions-crafting.md) — authored category ordering and crafting-tier glyphs; trainer-learned recipe gate RED→GREEN, both-skin private Leatherworking casts/results/rank16 and explicit quality-operation gaps.
+- [Native professions crafting](systems/native-professions-crafting.md) — authored category ordering and crafting-tier glyphs; trainer-learned recipe gate RED→GREEN, both-skin private Leatherworking casts/results/rank16, read-only concentration metadata and explicit quality/origin gaps.
 
 - [No-install receipt recovery](systems/offline-asset-closure.md#no-install-receipt-recovery--verified-2026-10-10) — authenticated legacy publication, pinned display-cache rebuild and bounded sandbox recheck; newly exposed skin/receipt gaps keep certification open.
 

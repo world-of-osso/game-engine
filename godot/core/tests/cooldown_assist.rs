@@ -317,10 +317,11 @@ fn cooldown_assist_numeric_rules_never_guess_unverified_equality_boundaries() {
     assert_eq!(evaluate_rule(&rule, &facts), Ok(true));
     rule.condition_type = 67;
     rule.values = [0, 0, 0];
-    assert!(
-        evaluate_rule(&rule, &facts).is_err(),
-        "prediction policy is not derivable from the layout/name"
-    );
+    // SimC 515f4a3fe9d1 engine/player/player.cpp:4109–4112:
+    // zero-operand67 adds no Boolean expression; other operands remain unverified.
+    assert_eq!(evaluate_rule(&rule, &facts), Ok(true));
+    rule.values = [1, 0, 0];
+    assert!(evaluate_rule(&rule, &facts).is_err());
 }
 
 #[test]
