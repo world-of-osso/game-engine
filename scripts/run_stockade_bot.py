@@ -23,6 +23,12 @@ from bot_stockade import admitted_copy, authored_priority, encounter_states, ins
 from run_dummy_bots import observed_pet_owner
 
 
+class NativeCommandError(RuntimeError):
+    def __init__(self, receipt):
+        super().__init__(f"Native command failed: {receipt}")
+        self.receipt = receipt
+
+
 def position(account):
     values = account["local_player_position"].strip("()").split(",")
     point = [float(value) for value in values]
@@ -62,7 +68,7 @@ class StockadeRun:
                    "exit": result.returncode, "stdout": result.stdout, "stderr": result.stderr}
         publish(self.output / f"command-{self.sequence:06d}.json", receipt)
         if result.returncode:
-            raise RuntimeError(f"Native command failed: {receipt}")
+            raise NativeCommandError(receipt)
         return result.stdout
 
     def invoke(self, *words):
@@ -361,32 +367,61 @@ class StockadeRun:
         plan = stockade_exit_plan(self.args.world_db)
         publish(self.output / "source-exit-plan.json", plan)
         deadline = time.monotonic() + 240
+        transfer_refusal = None
         while time.monotonic() < deadline:
             path = self.output / "native-account-state.json"
             if not path.exists():
-                time.sleep(.2)
+                time.sleep(0.2)
                 continue
             account = self.account()
             if account.get("screen") != "InWorld":
-                time.sleep(.2)
+                time.sleep(0.2)
                 continue
             if account.get("selected_character_name") != self.args.character:
                 raise ValueError("Exit preparation selected another character")
             require_living_player(account)
             if account.get("world_map_id") == plan["destination_map"]:
-                publish(self.output / "exit-confirmation.json", {"at_ms": int(time.time() * 1000),
-                        "account": account, "source": plan, "basis": "native walking through authored area trigger"})
+                publish(
+                    self.output / "exit-confirmation.json",
+                    {
+                        "at_ms": int(time.time() * 1000),
+                        "account": account,
+                        "source": plan,
+                        "basis": "native walking through authored area trigger",
+                    },
+                )
                 return
             if account.get("world_map_id") != 34:
                 raise ValueError("Exit preparation encountered an unexpected map")
+            if transfer_refusal is not None:
+                time.sleep(0.2)
+                continue
             here = position(account)
             # Entering the authored volume starts transfer before its center.
             # Await that transition rather than issuing input during map loading.
             if inside_exit_trigger(here, plan):
-                time.sleep(.2)
+                time.sleep(0.2)
                 continue
-            self.move(here, plan["goal"], "authored-exit-trigger")
-        raise TimeoutError("Ordinary Stockade exit exceeded240s")
+            try:
+                self.move(here, plan["goal"], "authored-exit-trigger")
+            except NativeCommandError as error:
+                receipt = error.receipt
+                is_movement = receipt["argv"][3:5] == ["movement", "forward"]
+                if (
+                    not is_movement
+                    or receipt["stderr"].strip() != "error: scripted movement requires InWorld"
+                ):
+                    raise
+                transfer_refusal = error
+                publish(
+                    self.output / "exit-transfer-input-refusal.json",
+                    {
+                        "command": receipt,
+                        "account_after": self.account(),
+                        "basis": "await ordinary exit destination confirmation; movement not repeated",
+                    },
+                )
+        raise TimeoutError("Ordinary Stockade exit exceeded240s") from transfer_refusal
 
     def execute(self):
         try:
