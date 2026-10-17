@@ -53,6 +53,14 @@ func run_body_shadow() -> void:
 			label.add_theme_color_override("font_shadow_color", Color.TRANSPARENT)
 			await settle()
 			assert(root.get_texture().get_image().save_png(output.path_join(skin + "-shadow-off-control.png")) == OK)
+			# Reveal raster contribution even where the existing dialog background is black.
+			label.add_theme_color_override("font_shadow_color", Color.MAGENTA)
+			await settle()
+			assert(root.get_texture().get_image().save_png(output.path_join(skin + "-magenta-shadow-control.png")) == OK)
+			label.visible = false
+			await settle()
+			assert(root.get_texture().get_image().save_png(output.path_join(skin + "-label-background-control.png")) == OK)
+			label.visible = true
 			label.add_theme_color_override("font_shadow_color", Color.BLACK)
 			await settle()
 			assert(root.get_texture().get_image().get_data() == image.get_data(), "Restore source-shadow pixels exactly")
