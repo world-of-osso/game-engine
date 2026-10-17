@@ -37,6 +37,12 @@ pub struct AssistedFacts {
     pub cooldowns_ms: BTreeMap<u32, f64>,
     pub player_health_pct: Option<f64>,
     pub target_health_pct: Option<f64>,
+    /// ASSISTED_COMBAT_SIMC_MIRROR: current target centre distance; absent target is None.
+    #[serde(default)]
+    pub target_distance_yd: Option<f64>,
+    /// Alive hostile replicas with the local player in their threat list, within 8yd.
+    #[serde(default)]
+    pub player_combat_enemies_within_8yd: Option<u32>,
 }
 
 /// Condition numbers/names from SimulationCraft data_enums.hh; spell0 means this step.
@@ -62,6 +68,23 @@ pub fn evaluate_rule(rule: &AssistedRule, facts: &AssistedFacts) -> Result<bool,
         0 => Ok(facts.known.contains(&spell)),
         1 => read_boolean(&facts.ready, spell, "cooldown readiness").map(|ready| !ready),
         2 => read_boolean(&facts.ready, spell, "cooldown readiness"),
+        3 if rule.id == 1261 && rule.step_spell == 190411 => {
+            require_zero_tail(rule)?;
+            match facts.target_distance_yd {
+                None => Ok(false),
+                Some(distance) if distance.is_finite() && distance >= 0.0 => {
+                    Ok(distance <= f64::from(rule.values[0]))
+                }
+                Some(_) => Err(format!("rule {}: invalid target distance", rule.id)),
+            }
+        }
+        12 if rule.id == 1268 && rule.step_spell == 190411 => {
+            require_zero_tail(rule)?;
+            facts
+                .player_combat_enemies_within_8yd
+                .map(|count| count > rule.values[0])
+                .ok_or_else(|| format!("rule {}: player combat nearby count not received", rule.id))
+        }
         5 => facts
             .target_hostile
             .ok_or_else(|| "target hostility unavailable".into()),

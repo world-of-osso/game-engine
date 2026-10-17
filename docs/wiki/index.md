@@ -1,3 +1,4 @@
+- [Trading Post product-enter sound](systems/trading-post.md#product-enter-sound--october17) — sourced218934, ordinary/inherited owner lifecycle, authenticated70448 Ogg; registry/native missing-playback RED→both-skin five decoded plays/12 lifecycle checkpoints, conserved authority.
 - [Zero-operand cast modifier67](investigations/cooldown-assist-data.md#fire-cast-overlap-modifier67--2026-10-17) — sourced Fireball133 oracle, unchanged native casting/usability gates; nonzero operands refuse, unflagged overlap policy remains separate.
 - [Fury source boundary](investigations/cooldown-assist-data.md#fury-distancenearby-count-source-boundary--2026-10-17) — actual tree-bound talent Apply/persistence exposes distance3/count12 gaps; pinned APL alone does not establish spatial semantics; run21 FPS/death accounting retained.
 - [Idle boss-goal progression](systems/bot-harness.md#idle-boss-goal-progression--2026-10-17) — explicit empty Tab permits one strict native source-goal step; combat/recovery interrupts, boss arrival stops movement; synthetic RED, live proof pending.
@@ -26,11 +27,13 @@
 # Wiki Index
 
 - [Ordinary party queue and late arrivals](systems/battlegrounds.md#ordinary-party-queue-and-late-arrivals--2026-10-17) — four real five-player parties enter one Arathi20 match; sequential-ack scoreboard18→20 preserves prior objective scores; channel8/check/fmt pass, release/native proof pending.
+- [Plain LootFrame quality font](systems/loot-and-flight.md#plain-quality-caption-font--2026-10-17) — source Tiny2 has no shadow; unwanted-black RED→3GREEN, both-skin native Friz8/96×10 unchanged and232 lightened pixels/skin, exact black-control restoration; other loot label shadows retained.
 
 - [Item-confirmation caption shadow](systems/trading-post.md#item-confirmation-caption-shadow--bounded-proof-october17) — inherited black(+1,−1); RED→both-skin normal/delay/pending model/native GREEN,535/524/479 darkened pixels, exact alpha-off restoration; disabled-color and magenta RGB8 oracle failures retained, scaling/full-popup parity unqualified.
 
 - [Section focus flash](systems/adventure-guide.md#section-focus-flash--2026-10-17) — source Glow/four alpha phases; actual missing-effect RED, both-skin physical pulses,12 inspected full-HD captures and bounded pixel conservation; prior324 outside pixels retained as unattributed/not reproduced.
 - [Ordinary StaticPopup body shadow](systems/group-frames.md#ordinary-staticpopup-body-shadow--bounded-proof-2026-10-17) — PARTY_INVITE RED→both-skin model/native GREEN;855 darkened pixels/skin, exact alpha-off restoration and diagnostic-mask confinement; initial rectangle-overhang failure retained, effective font scaling/full-popup parity unqualified.
+- [P5 geometry and recursive ownership](systems/godot-conversion.md#p5-geometry-and-recursive-ownership--2026-10-17) — approved substep lifecycle and explicit geometry resources;45 scoped CPU controls and2 synthetic native cases pass; Retail resolution and recursive animation clock remain gaps.
 
 - [Journeys track texture mask](systems/adventure-guide.md#journeys-track-texture-mask--2026-10-16) — authenticated70448 centered atlas, texture-only alpha, unchanged captions and moving-track controls; both-skin native pixels and12 inspected full-HD captures.
 
@@ -65,6 +68,7 @@
 - [Product-row cart toggle](systems/trading-post.md#product-row-cart-toggle--implementation-october16) — source36px row-owned Add/Remove control, independent identity/tooltip and preserved cart preview choices; native omission/paint RED→both-skin painted glyph GREEN.
 
 - [Inherited frozen item tooltip](systems/trading-post.md#inherited-frozen-product-tooltip--implementation-october16) — displayed selection action fixes inherited owner omission; actual both-skin settled frozen identity/anchor/leave GREEN, preserved slots/Tender, four inspected full-HD hover/leave samples.
+- [Lock-On target charge projection](systems/battle-pets.md#lock-on-projection--2026-10-17) — both strict skins enemy lock/no damage→145/143 blast/expiry; six inspected fullHD phases, canonical3mesh readback and final scoped gates pass.
 - [Life Exchange HP projection](systems/battle-pets.md#life-exchange-projection--2026-10-17) — both strict skins physical277/shared98,108 and retained70→78HP; four framed fullHD phases, explicit Tormented Spirit framing rejection, no camera/scale change.
 - [Launch Rocket setup/launch projection](systems/battle-pets.md#launch-rocket-projection--2026-10-17) — both actual strict skins physically set up294 without enemy damage, then launch/expire294 and win; six inspected fullHD originals/two framed models, no UI change.
 - [Armageddon sacrifice projection](systems/battle-pets.md#armageddon-sacrifice-projection--2026-10-17) — both-skin caster death without Mechanical revival, forced reserve and actual use; eight strict fullHD captures/canonical loader, three-enemy native proof unclaimed.
