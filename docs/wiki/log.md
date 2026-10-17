@@ -1,6 +1,10 @@
+## 2026-10-17 — PitchAdjust active-build correction
+
+[UI_SOUND_PITCH_ADJUST_RATE](systems/sound.md#ui_sound_pitch_adjust_rate): `data/db2/active` resolves70448/key88d5e8ef…, not70391. All five SoundKit-family field sets and pertinent rows reread/hash-bound from actual active files; hide/show still has−0.144405067 with no sourced rate equation. Original pinned70391 receipt retained as historical, not silently relabeled. No pitch code or asset/runtime change.
+
 ## 2026-10-17 — PitchAdjust source gate
 
-[UI_SOUND_PITCH_ADJUST_RATE](systems/sound.md#ui_sound_pitch_adjust_rate):3647 cached Retail Lua/XML files, the full Sound API definition and active70391 SoundKit-family fields/pertinent rows do not establish a rate equation. Exact sources/search bound by hashes; supplementary DBD gives only a float declaration. No semitone/linear/log2 guess, code, asset extraction or runtime change; hide/show218236/218237 remains deferred, selection callbacks separate. Frozen ordinary-row exclusion is proposed independently, not folded into audio work.
+[UI_SOUND_PITCH_ADJUST_RATE](systems/sound.md#ui_sound_pitch_adjust_rate):3647 cached Retail Lua/XML files, the full Sound API definition and initially pinned70391 SoundKit-family fields/pertinent rows do not establish a rate equation; that snapshot was mislabelled active and is superseded by the70448 recheck above. Exact sources/search bound by hashes; supplementary DBD gives only a float declaration. No semitone/linear/log2 guess, code, asset extraction or runtime change; hide/show218236/218237 remains deferred, selection callbacks separate. Frozen ordinary-row exclusion is proposed independently, not folded into audio work.
 
 ## 2026-10-17 — Ordinary party battleground queue
 
