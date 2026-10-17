@@ -60,6 +60,18 @@ impl MaterialSnapshot {
         outgoing: Option<MaterialTime>,
         weight: f32,
     ) {
+        self.capture_colors(tracks, time, outgoing, weight);
+        self.capture_weights(tracks, time, outgoing, weight);
+        self.capture_transforms(tracks, time, outgoing, weight);
+    }
+
+    fn capture_colors(
+        &mut self,
+        tracks: &MaterialTracks,
+        time: MaterialTime,
+        outgoing: Option<MaterialTime>,
+        weight: f32,
+    ) {
         for index in 0..self.colors.len() {
             let sampled = self.sampler(tracks, time, outgoing, weight).color(index);
             let track = &tracks.colors[index];
@@ -70,11 +82,29 @@ impl MaterialSnapshot {
                 self.colors[index].1 = sampled.1;
             }
         }
+    }
+
+    fn capture_weights(
+        &mut self,
+        tracks: &MaterialTracks,
+        time: MaterialTime,
+        outgoing: Option<MaterialTime>,
+        weight: f32,
+    ) {
         for index in 0..self.weights.len() {
             if eligible(&tracks.weights[index]) {
                 self.weights[index] = self.sampler(tracks, time, outgoing, weight).weight(index);
             }
         }
+    }
+
+    fn capture_transforms(
+        &mut self,
+        tracks: &MaterialTracks,
+        time: MaterialTime,
+        outgoing: Option<MaterialTime>,
+        weight: f32,
+    ) {
         for index in 0..self.transforms.len() {
             let sampled = self
                 .sampler(tracks, time, outgoing, weight)
