@@ -32,7 +32,7 @@ func run_fixture() -> void:
 		fail("Private compositor must expose 1920x1080 output")
 		return
 	var account := OS.get_environment("TP_ACCOUNT")
-	if server != "127.0.0.1:5791" or not account.begins_with("fb_") or shots.is_empty() or receipts.is_empty() or not phase in ["frozen-row-exclusion", "freeze-lock-sound", "product-hover-sound", "refund-icon-blend", "refund-icon-tooltip", "row-cart-toggle", "frozen-tooltip", "cart-tooltips", "pending-dialogs", "confirmations", "button-tooltips", "item-tooltips", "menu-sounds", "layout", "layout-proof", "browse", "relog", "purchase", "refund", "cart", "cart-lifetime", "rotate-controls", "mount-rider", "mount-rider-cancel", "freeze-workflow", "authored-camera", "frozen-slot-before", "frozen-slot-after"]:
+	if server != "127.0.0.1:5791" or not account.begins_with("fb_") or shots.is_empty() or receipts.is_empty() or not phase in ["purchase-price-sort", "frozen-row-exclusion", "freeze-lock-sound", "product-hover-sound", "refund-icon-blend", "refund-icon-tooltip", "row-cart-toggle", "frozen-tooltip", "cart-tooltips", "pending-dialogs", "confirmations", "button-tooltips", "item-tooltips", "menu-sounds", "layout", "layout-proof", "browse", "relog", "purchase", "refund", "cart", "cart-lifetime", "rotate-controls", "mount-rider", "mount-rider-cancel", "freeze-workflow", "authored-camera", "frozen-slot-before", "frozen-slot-after"]:
 		fail("Explicit private 127.0.0.1:5791, fb_* account, phase and evidence paths required")
 		return
 	for directory in [shots, receipts]:
@@ -56,7 +56,7 @@ func run_fixture() -> void:
 	if not await wait_until(func(): return float(client.account_state().local_player_health) > 0.0, "private character alive", 120000): return
 	client.set_world_minutes(720.0)
 	await wait_frames(120)
-	if not phase in ["frozen-row-exclusion", "freeze-lock-sound", "product-hover-sound", "refund-icon-blend", "refund-icon-tooltip", "row-cart-toggle", "frozen-tooltip", "cart-tooltips", "pending-dialogs", "confirmations", "button-tooltips", "item-tooltips", "menu-sounds", "layout", "layout-proof", "cart", "cart-lifetime", "rotate-controls", "mount-rider", "mount-rider-cancel", "freeze-workflow", "authored-camera", "frozen-slot-before", "frozen-slot-after"] and not await travelers_log(): return
+	if not phase in ["purchase-price-sort", "frozen-row-exclusion", "freeze-lock-sound", "product-hover-sound", "refund-icon-blend", "refund-icon-tooltip", "row-cart-toggle", "frozen-tooltip", "cart-tooltips", "pending-dialogs", "confirmations", "button-tooltips", "item-tooltips", "menu-sounds", "layout", "layout-proof", "cart", "cart-lifetime", "rotate-controls", "mount-rider", "mount-rider-cancel", "freeze-workflow", "authored-camera", "frozen-slot-before", "frozen-slot-after"] and not await travelers_log(): return
 	if phase in ["menu-sounds", "product-hover-sound", "freeze-lock-sound"] and not watch_menu_sound_players(): return
 	if not await open_vendor(): return
 	if phase in ["cart", "cart-lifetime"]:
@@ -92,6 +92,7 @@ func run_fixture() -> void:
 		"authored-camera": await authored_camera_proof()
 		"menu-sounds": await menu_sound_proof()
 		"product-hover-sound": await product_hover_sound_proof()
+		"purchase-price-sort": await purchase_price_sort_proof()
 		"frozen-row-exclusion": await frozen_row_exclusion_proof()
 		"freeze-lock-sound": await freeze_lock_sound_proof()
 		"item-tooltips": await item_tooltip_proof()
@@ -1270,6 +1271,100 @@ func assert_menu_sound_state(kind: String, expected: int) -> bool:
 		fail("Menu %s kit%d played%d times, expected%d" % [kind,kit,menu_sound_count(kit),expected])
 		return false
 	return assert_menu_audio_count(kind, expected)
+
+func price_sort_prefix(state: Dictionary) -> Array:
+	var ids := []
+	for row in state.rows: ids.append(int(str(row).split("|")[0]))
+	return ids
+
+func set_price_sort(ascending: bool, menu: bool = false) -> bool:
+	if menu:
+		await click("PerksProgramFilter")
+		await motion(control("PerksProgramFilterSort").get_global_rect().get_center(), false)
+		if not await wait_until(func(): return control("PerksProgramSortMenu") != null, "price submenu"): return false
+		await click("PerksProgramFilterSortPrice")
+		if bool(client.trading_post_state().ascending) != ascending:
+			await click("PerksProgramFilterAscending")
+		await capture("price-sort-menu")
+		await click("PerksProgramFilter")
+	else:
+		if client.trading_post_state().sort != "price": await click("PerksProgramPriceSortButton")
+		if bool(client.trading_post_state().ascending) != ascending: await click("PerksProgramPriceSortButton")
+	return await wait_until(func(): return client.trading_post_state().sort == "price" and bool(client.trading_post_state().ascending) == ascending, "native price direction")
+
+func select_price_candidate() -> bool:
+	var state: Dictionary = client.trading_post_state()
+	for row in state.rows:
+		var parts: PackedStringArray = str(row).split("|")
+		var vendor := int(parts[0])
+		if vendor in [640,712] or parts[1] != "1" or control("PerksProgramProduct%d" % vendor) == null: continue
+		await click("PerksProgramProduct%d" % vendor)
+		if not await wait_until(func(): return int(client.trading_post_state().selected) == vendor, "ordinary price candidate"): return false
+		var selected: Dictionary = client.trading_post_state()
+		if not selected.purchased and not selected.collected and int(selected.price) <= int(state.tender): return true
+	fail("No visible affordable ordinary non-reservation price candidate")
+	return false
+
+func purchase_price_sort_proof() -> void:
+	if not await choose_category(1): return
+	var original := int(client.trading_post_state().frozen)
+	if original != (640 if skin == "modern" else 712): fail("Price fixture needs untouched original640/712"); return
+	if not await set_price_sort(false): return
+	if not await select_price_candidate(): return
+	var before: Dictionary = client.trading_post_state().duplicate(true)
+	var candidate := int(before.selected)
+	if candidate in [640,712] or not before.cart.is_empty(): fail("Price fixture must buy an ordinary non-reservation with empty cart"); return
+	var before_appearances: Array = Array(client.tooltip_state().appearance_collection)
+	before_appearances.sort()
+	await capture("baseline-unowned-descending")
+	if not await set_price_sort(true): return
+	var unowned_ascending: Dictionary = client.trading_post_state().duplicate(true)
+	await capture("baseline-unowned-ascending")
+	if not await set_price_sort(false): return
+	await click("PerksProgramPurchaseButton")
+	if not await wait_until(func(): return control("PerksProgramConfirmDialog") != null, "ordinary price purchase confirmation"): return
+	await capture("purchase-confirm")
+	await click("PerksProgramConfirmButton")
+	if not await wait_until(func(): return not client.trading_post_state().pending and client.trading_post_state().purchased and client.trading_post_state().collected and int(client.trading_post_state().tender) == int(before.tender)-int(before.price), "price authoritative purchase", 120000): return
+	var bought_descending: Dictionary = client.trading_post_state().duplicate(true)
+	await capture("purchased-descending")
+	var bought_appearances: Array = Array(client.tooltip_state().appearance_collection)
+	bought_appearances.sort()
+	if not await set_price_sort(true, true): return
+	var bought_ascending: Dictionary = client.trading_post_state().duplicate(true)
+	await capture("purchased-ascending")
+	# Finish the genuine refund before evaluating comparator assertions.
+	await click("PerksProgramRefundButton")
+	if not await wait_until(func(): return control("PerksProgramConfirmDialog") != null, "ordinary price refund confirmation"): return
+	await capture("refund-confirm")
+	await click("PerksProgramConfirmButton")
+	if not await wait_until(func(): return not client.trading_post_state().pending and not client.trading_post_state().purchased and not client.trading_post_state().collected and int(client.trading_post_state().tender) == int(before.tender), "price authoritative refund restoration", 120000): return
+	if not await set_price_sort(false): return
+	var restored: Dictionary = client.trading_post_state().duplicate(true)
+	await capture("refunded-original-order")
+	var restored_appearances: Array = Array(client.tooltip_state().appearance_collection)
+	restored_appearances.sort()
+	var errors := []
+	var before_ids := price_sort_prefix(before)
+	var bought_desc_ids := price_sort_prefix(bought_descending)
+	var bought_asc_ids := price_sort_prefix(bought_ascending)
+	if not candidate in before_ids: errors.append("candidate not in observed original descending prefix")
+	if candidate in bought_desc_ids: errors.append("refundable candidate stayed in descending first12; do not claim unobserved tail ordering")
+	if not candidate in bought_asc_ids: errors.append("refundable candidate absent from ascending first12")
+	if price_sort_prefix(unowned_ascending) == bought_asc_ids: errors.append("purchase did not change ascending observed prefix")
+	if bought_appearances.size() <= before_appearances.size(): errors.append("no received appearance acquisition")
+	if restored_appearances != before_appearances: errors.append("appearance collection not restored")
+	if price_sort_prefix(restored) != before_ids: errors.append("refund did not restore original descending prefix")
+	for state in [unowned_ascending,bought_descending,bought_ascending,restored]:
+		if int(state.frozen) != original or state.cart != before.cart or int(state.selected) != candidate: errors.append("reservation/cart/selection mutation")
+	var proof := {"candidate":candidate,"original":original,"before":before,"unowned_ascending":unowned_ascending,"bought_descending":bought_descending,"bought_ascending":bought_ascending,"restored":restored,"before_appearances":before_appearances,"bought_appearances":bought_appearances,"restored_appearances":restored_appearances,"observed_prefix_limit":12,"refund_completed_before_verdict":true,"errors":errors}
+	var file := FileAccess.open(receipts.path_join(skin+"-purchase-price-sort-proof.json"), FileAccess.WRITE)
+	if file == null: fail("Cannot write price receipt after refund restoration"); return
+	file.store_string(JSON.stringify(proof,"\t"))
+	file.close()
+	print("TP_PURCHASE_PRICE_SORT ", JSON.stringify(proof))
+	if not errors.is_empty(): fail("Price proof after refund restoration: %s" % [errors]); return
+	await finish("purchase-price-sort")
 
 func record_row_exclusion(label: String, committed: int, ordinary: int) -> void:
 	await wait_frames(5)
