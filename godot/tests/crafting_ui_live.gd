@@ -70,9 +70,17 @@ func pick_mesh_point(node: Node3D, camera: Camera3D, id: int) -> Vector2:
 			centers.sort_custom(func(a, b): return a.y < b.y)
 			for center in centers:
 				var point := camera.unproject_position(center)
-				if camera.is_position_in_frustum(center) and Rect2(Vector2.ZERO, Vector2(root.size)).has_point(point) and UnitPicker.pick(camera, point) == id:
+				if camera.is_position_in_frustum(center) and Rect2(Vector2.ZERO, Vector2(root.size)).has_point(point) and UnitPicker.pick(camera, point) == id and world_pick_point_clear(point):
 					return point
 	return Vector2.INF
+
+func world_pick_point_clear(point: Vector2) -> bool:
+	# A physics hit behind the HUD is not a physical world click (e.g. bag buttons).
+	for node in client.find_children("*", "Control", true, false):
+		var target := node as Control
+		if target.is_visible_in_tree() and target.mouse_filter == Control.MOUSE_FILTER_STOP and target.get_global_rect().has_point(point):
+			return false
+	return true
 
 func open_recipe_book() -> bool:
 	await tap(KEY_K)
