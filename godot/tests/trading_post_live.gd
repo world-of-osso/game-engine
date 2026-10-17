@@ -123,7 +123,7 @@ func refund_icon_tooltip_proof() -> void:
 	await capture("refund-hover")
 	var anchor_ok := matched and absf(float(tooltip.rect[0]) - icon.end.x / scale) <= 1.5 and absf(float(tooltip.rect[1]) + float(tooltip.rect[3]) - icon.position.y / scale) <= 1.5
 	var state: Dictionary = client.trading_post_state()
-	var conserved := int(state.selected) == other and int(state.tender) == int(before.tender) - price and state.frozen == before.frozen and state.cart.is_empty()
+	var conserved: bool = int(state.selected) == other and int(state.tender) == int(before.tender) - price and state.frozen == before.frozen and state.cart.is_empty()
 	await motion(row.get_global_rect().position + Vector2(96, 24) * scale, false)
 	if not await wait_until(func(): return client.tooltip_state().get("title", "") == str(product.selected_name), "refund icon leave restores product tooltip"): return
 	await motion(control("PerksProgramLeaveButton").get_global_rect().get_center(), false)
