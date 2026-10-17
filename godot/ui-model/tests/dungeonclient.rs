@@ -1516,6 +1516,20 @@ fn achievements_presentation_check_completion_and_cursor_flags_both_skins() {
         let description = entry.criteria[0].description.clone();
         let registry = source_presentation_registry(entry, skin);
         assert_eq!(text(&registry, "Achievement155Criterion4716"), description);
+        let caption = registry
+            .get(registry.get_by_name("Achievement155Criterion4716").unwrap())
+            .unwrap();
+        let Some(WidgetData::FontString(font)) = &caption.widget_data else {
+            panic!("checklist caption");
+        };
+        // AchievementCriteriaFont -> AchievementDescriptionFont -> SystemFont_Small.
+        assert_eq!(font.font_size, 10.0);
+        assert_eq!(
+            (font.justify_h, font.justify_v),
+            (JustifyH::Left, JustifyV::Middle)
+        );
+        assert_eq!(font.shadow_color, Some([0.0, 0.0, 0.0, 1.0]));
+        assert_eq!(font.shadow_offset, [1.0, -1.0]);
         let check = registry
             .get(
                 registry
