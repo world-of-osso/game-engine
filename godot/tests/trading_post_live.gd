@@ -1374,8 +1374,10 @@ func freeze_lock_sound_proof() -> void:
 	var before: Dictionary = client.trading_post_state().duplicate(true)
 	if not before.cart.is_empty(): fail("Lock fixture requires untouched empty cart"); return
 	await lock_sound_checkpoint("opened-query", 0, original)
-	if not await drag_to_frozen("PerksProgramProduct%d" % original): return
-	await lock_sound_checkpoint("same-item-rejected-drop", 0, original)
+	# Retail excludes the committed item from ordinary rows; its slot cannot supply
+	# the old fixture's artificial same-item ordinary drag source.
+	await motion(control("PerksProgramFrozenSlot").get_global_rect().get_center(), false)
+	await lock_sound_checkpoint("frozen-owner-hold-no-accept", 0, original)
 	if not await open_lock_confirmation(candidate): return
 	var early_disabled := not control_enabled("PerksProgramConfirmButton")
 	if early_disabled: await click("PerksProgramConfirmButton")
