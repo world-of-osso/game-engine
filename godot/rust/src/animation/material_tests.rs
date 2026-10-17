@@ -62,11 +62,11 @@ fn material_base_retransition_has_no_zero_elapsed_pop() {
     player.select(1, true).unwrap();
     player.advance(60.0).unwrap();
     let before = player.sample_material(&tracks, &binding, 900);
-    player.select(2, true).unwrap();
+    player.select(0, true).unwrap();
     let after = player.sample_material(&tracks, &binding, 900);
     assert_eq!(before, after);
     player.advance(40.0).unwrap();
     let before = player.sample_material(&tracks, &binding, 900);
-    player.select(0, true).unwrap();
+    player.select(2, true).unwrap();
     assert_eq!(before, player.sample_material(&tracks, &binding, 900));
 }
