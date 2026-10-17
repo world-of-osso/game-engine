@@ -1,3 +1,7 @@
+## 2026-10-17 — Alterac tower Honor
+
+[Tower destruction](systems/battlegrounds.md#alterac-tower-honor--2026-10-17): actual channel RED0vs368→both-faction GREEN, two separately rounded events736, canceled/defended/duplicate/graveyard exclusions and persistence/origin return. Prior10 controls retained; source Tower Point spawn-condition mismatch recorded, not changed. Survivor OnEnd and external UDP/rendered proof remain open.
+
 ## 2026-10-16 — Alterac NPC Honor
 
 [NPC bonuses](systems/battlegrounds.md#alterac-npc-honor--2026-10-16): actual captain RED0vs368→GREEN10, source3/4 equivalents at retained max79 yield368+490=858 NPC-only subtotal. Both factions/all four entries, NPC-caused dead eligible teammate, other-copy exclusion, replay, persistence and origin return pass; prior9 controls and scoped server check retained. No independent-one-kill rounding, full AV/end/tower, external UDP/rendered or player-input claim.
