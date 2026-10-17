@@ -29,6 +29,7 @@
 
 - [Section focus flash](systems/adventure-guide.md#section-focus-flash--2026-10-17) — source Glow/four alpha phases; actual missing-effect RED, both-skin physical pulses,12 inspected full-HD captures and bounded pixel conservation; prior324 outside pixels retained as unattributed/not reproduced.
 - [Ordinary StaticPopup body shadow](systems/group-frames.md#ordinary-staticpopup-body-shadow--bounded-proof-2026-10-17) — PARTY_INVITE RED→both-skin model/native GREEN;855 darkened pixels/skin, exact alpha-off restoration and diagnostic-mask confinement; initial rectangle-overhang failure retained, effective font scaling/full-popup parity unqualified.
+- [P5 geometry and recursive ownership](systems/godot-conversion.md#p5-geometry-and-recursive-ownership--2026-10-17) — approved substep lifecycle and explicit geometry resources;45 scoped CPU controls and2 synthetic native cases pass; Retail resolution and recursive animation clock remain gaps.
 
 - [Journeys track texture mask](systems/adventure-guide.md#journeys-track-texture-mask--2026-10-16) — authenticated70448 centered atlas, texture-only alpha, unchanged captions and moving-track controls; both-skin native pixels and12 inspected full-HD captures.
 
