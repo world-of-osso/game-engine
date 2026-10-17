@@ -573,7 +573,7 @@ impl INode3D for GameClient {
             || self.follower_dungeon_pointer(&event)
             || self.adventure_guide_pointer(&event)
             || self.trading_post_pointer(&event)
-            || self.character_reputation_pointer(&event)
+            || self.character_lists_pointer(&event)
             || self.mailbox_pointer(&event)
             || self.pet_bar_pointer(&event)
             || self.boss_frame_pointer(&event)
@@ -1299,6 +1299,22 @@ impl GameClient {
     #[func]
     fn spells_state(&self) -> VarDictionary {
         self.spells_snapshot()
+    }
+
+    /// Sample the same native LOS ray a cast uses; server visibility remains final.
+    #[func]
+    fn target_visibility_state(&mut self, target: i64) -> VarDictionary {
+        let mut state = VarDictionary::new();
+        state.set("target", target);
+        if target <= 0 {
+            state.set("error", "Visibility requires a positive target entity");
+            return state;
+        }
+        match self.cast_witness(Some(target as u64)) {
+            Ok(ray) => state.set("visible", ray.is_some()),
+            Err(error) => state.set("error", error),
+        }
+        state
     }
 
     /// Read native usability and cast metadata without selecting or casting at the unit.
@@ -2354,6 +2370,17 @@ impl GameClient {
                     self.add_world_error(&error)?;
                 }
             }
+            AccountEvent::Currency(update) => {
+                if let Some(message) = update.message {
+                    game_engine_ui_model::chat_frame::add_system_line(
+                        &mut self.chat.model.log,
+                        &message,
+                    );
+                }
+                if let Some(error) = update.error {
+                    self.add_world_error(&error)?;
+                }
+            }
             AccountEvent::GameTime(time) => {
                 self.world_clock = Some((time.second_of_day(), time.new_speed, Instant::now()));
             }
@@ -2369,6 +2396,9 @@ impl GameClient {
             AccountEvent::Resurrection(offer) => self.death_flow.receive_offer(offer),
             AccountEvent::Summon(request) => self.receive_summon(request),
             AccountEvent::Professions(snapshot) => self.receive_professions(snapshot),
+            AccountEvent::CraftingOperation(update) => {
+                self.professions.reagent_selection.receive(update);
+            }
             AccountEvent::ProfessionSpecializations(update) => {
                 self.professions.specializations.receive(update)
             }

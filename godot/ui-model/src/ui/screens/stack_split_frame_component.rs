@@ -25,8 +25,10 @@ const SINGLE_BG: u32 = 136_494;
 const MULTI_BG: u32 = 1_667_824;
 const MULTI_BG_COORDS: &str = "0.00390625,0.67578125,0.0078125,0.9453125";
 const ARROW_LEFT_UP: u32 = 136_487;
+const ARROW_LEFT_DOWN: u32 = 136_486;
 const ARROW_LEFT_DISABLED: u32 = 136_485;
 const ARROW_RIGHT_UP: u32 = 136_490;
+const ARROW_RIGHT_DOWN: u32 = 136_489;
 const ARROW_RIGHT_DISABLED: u32 = 136_488;
 const BUTTON_W: f32 = 64.0;
 const BUTTON_H: f32 = 24.0;
@@ -80,7 +82,7 @@ pub fn stack_split_frame_screen(ctx: &SharedContext) -> Element {
         FRAME_W / 2.0 - 59.0 - 16.0,
         arrow_top,
         state.left_enabled,
-        (ARROW_LEFT_UP, ARROW_LEFT_DISABLED),
+        (ARROW_LEFT_UP, ARROW_LEFT_DOWN, ARROW_LEFT_DISABLED),
         ACTION_LEFT,
     ));
     children.extend(arrow(
@@ -88,7 +90,7 @@ pub fn stack_split_frame_screen(ctx: &SharedContext) -> Element {
         FRAME_W / 2.0 + 64.0,
         arrow_top,
         state.right_enabled,
-        (ARROW_RIGHT_UP, ARROW_RIGHT_DISABLED),
+        (ARROW_RIGHT_UP, ARROW_RIGHT_DOWN, ARROW_RIGHT_DISABLED),
         ACTION_RIGHT,
     ));
     // Okay RIGHT / Cancel LEFT at BOTTOM -3 / 5, 32 up (40 for bundles).
@@ -213,31 +215,26 @@ fn arrow(
     left: f32,
     top: f32,
     enabled: bool,
-    (up, disabled): (u32, u32),
+    (up, down, disabled): (u32, u32, u32),
     action: &str,
 ) -> Element {
     let name = format!("{FRAME_NAME}{key}");
     let action = if enabled { action } else { "" };
-    let fdid = if enabled { up } else { disabled };
+    let is_disabled = !enabled;
     rsx! {
-        r#frame {
-            name: {DynName(name.clone())},
+        button {
+            name: {DynName(name)},
             width: 16.0,
             height: 16.0,
             onclick: action,
+            disabled: is_disabled,
+            button_fdid_up: up,
+            button_fdid_pressed: down,
+            button_fdid_disabled: disabled,
             mouse_enabled: true,
             pos_type: "absolute",
             left,
             top,
-            texture {
-                name: {DynName(format!("{name}Normal"))},
-                width: 16.0,
-                height: 16.0,
-                texture_fdid: fdid,
-                pos_type: "absolute",
-                left: 0.0,
-                top: 0.0,
-            }
         }
     }
 }
