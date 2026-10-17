@@ -231,6 +231,10 @@ pub fn batch_binding(
     })
 }
 
+pub use crate::m2_material_transition::{
+    MaterialSnapshot, MaterialSource, MaterialTransition, sample_material_transition,
+};
+
 /// Model playback for local tracks, application time for global-sequence tracks.
 #[derive(Clone, Copy, Debug, Default, PartialEq, Eq)]
 pub struct MaterialTime {
@@ -293,8 +297,8 @@ impl MaterialTracks {
     }
 }
 
-/// animateTrack on the selected timeline: interpolation 0 holds a key, 1 interpolates
-/// linearly; before the first key it holds the first.
+/// Ordinary material sampling: mode 0 holds, nonzero modes interpolate endpoints.
+/// Camera spline semantics are not established for material tracks (M2-MAT-CUBIC).
 fn animate<T: Copy>(
     track: &AnimTrack<T>,
     tracks: &MaterialTracks,
@@ -317,7 +321,7 @@ fn animate<T: Copy>(
     if next == 0 {
         return Some(values[0]);
     }
-    if next == times.len() || track.interpolation_type != 1 {
+    if next == times.len() || track.interpolation_type == 0 {
         return Some(values[next - 1]);
     }
     let (start, end) = (times[next - 1], times[next]);
@@ -347,7 +351,7 @@ pub fn sample_vec3(
     })
 }
 
-fn sample_quat(
+pub(crate) fn sample_quat(
     track: &AnimTrack<[f32; 4]>,
     tracks: &MaterialTracks,
     time: MaterialTime,
@@ -410,8 +414,20 @@ pub fn texture_matrix(
     tracks: &MaterialTracks,
     time: MaterialTime,
 ) -> TextureMatrix {
+    texture_matrix_channels(
+        sample_quat(&transform.rotation, tracks, time).unwrap_or([0.0, 0.0, 0.0, 1.0]),
+        sample_vec3(&transform.scale, tracks, time).unwrap_or([1.0; 3]),
+        sample_vec3(&transform.translation, tracks, time).unwrap_or([0.0; 3]),
+    )
+}
+
+pub(crate) fn texture_matrix_channels(
+    [x, y, z, w]: [f32; 4],
+    [sx, sy, sz]: [f32; 3],
+    [tx, ty, tz]: [f32; 3],
+) -> TextureMatrix {
     let mut matrix = AFFINE_IDENTITY;
-    if let Some([x, y, z, w]) = sample_quat(&transform.rotation, tracks, time) {
+    {
         let rotation = [
             [
                 1.0 - 2.0 * (y * y + z * z),
@@ -434,7 +450,7 @@ pub fn texture_matrix(
         ];
         matrix = about_center(&matrix, &rotation);
     }
-    if let Some([sx, sy, sz]) = sample_vec3(&transform.scale, tracks, time) {
+    {
         let scale = [
             [sx, 0.0, 0.0, 0.0],
             [0.0, sy, 0.0, 0.0],
@@ -442,9 +458,7 @@ pub fn texture_matrix(
         ];
         matrix = about_center(&matrix, &scale);
     }
-    if let Some([tx, ty, tz]) = sample_vec3(&transform.translation, tracks, time) {
-        matrix = compose(&matrix, &translation(tx, ty, tz));
-    }
+    matrix = compose(&matrix, &translation(tx, ty, tz));
     [
         matrix[0][0],
         matrix[1][0],
@@ -470,30 +484,7 @@ pub fn sample_material(
     binding: &BatchBinding,
     time: MaterialTime,
 ) -> MaterialSample {
-    let color = binding.color.map(|index| &tracks.colors[index]);
-    let weights = binding.texture_weights.map(|index| {
-        index
-            .and_then(|index| sample_fixed16(&tracks.weights[index], tracks, time))
-            .unwrap_or(1.0)
-    });
-    let mut opacity = color
-        .and_then(|color| sample_fixed16(&color.opacity, tracks, time))
-        .unwrap_or(1.0);
-    if binding.apply_weight {
-        opacity *= weights[0];
-    }
-    MaterialSample {
-        mesh_color: color
-            .and_then(|color| sample_vec3(&color.color, tracks, time))
-            .unwrap_or([1.0; 3]),
-        opacity: opacity.clamp(0.0, 1.0),
-        texture_weights: weights,
-        texture_matrices: binding.texture_transforms.map(|index| {
-            index.map_or(IDENTITY_MATRIX, |index| {
-                texture_matrix(&tracks.transforms[index], tracks, time)
-            })
-        }),
-    }
+    sample_material_transition(tracks, binding, time, None)
 }
 
 /// Some input changes with time or when the model switches sequence.

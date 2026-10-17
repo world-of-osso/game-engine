@@ -2,7 +2,7 @@
 //! model data (values read independently from the files).
 use game_engine_core::m2;
 use game_engine_core::m2_material::{
-    self, BatchBinding, IDENTITY_MATRIX, MaterialTracks, gx_blend, pixel_shader_id,
+    self, BatchBinding, IDENTITY_MATRIX, MaterialTime, MaterialTracks, gx_blend, pixel_shader_id,
     vertex_shader_id,
 };
 
@@ -333,6 +333,70 @@ fn waterfall_single_texture_scrolls_and_loops_stand() {
         assert!(
             (matrix[5] - -0.262_368_8).abs() < 1e-5,
             "{elapsed} ms: {matrix:?}"
+        );
+    }
+}
+
+#[test]
+fn material_nonzero_modes_interpolate_ordinary_keys() {
+    use game_engine_core::m2::AnimTrack;
+    let effect = model(165644);
+    let tracks = MaterialTracks::of(&effect);
+    for mode in [1, 2, 3] {
+        let scalar = AnimTrack {
+            interpolation_type: mode,
+            global_sequence: -1,
+            sequences: vec![(vec![0, 1000], vec![0_i16, 32767])],
+        };
+        let vector = AnimTrack {
+            interpolation_type: mode,
+            global_sequence: -1,
+            sequences: vec![(vec![0, 1000], vec![[0.0; 3], [1.0; 3]])],
+        };
+        let time = MaterialTime {
+            sequence: 0,
+            time_ms: 250,
+            global_ms: 900,
+        };
+        let actual = m2_material::sample_fixed16(&scalar, &tracks, time).unwrap();
+        assert!(
+            (actual - 0.25).abs() < 1.0 / 32767.0,
+            "mode {mode}: {actual}"
+        );
+        assert_eq!(
+            m2_material::sample_vec3(&vector, &tracks, time),
+            Some([0.25; 3])
+        );
+    }
+}
+
+#[test]
+fn material_short_tables_do_not_replace_an_in_range_empty_timeline() {
+    use game_engine_core::m2::AnimTrack;
+    let effect = model(165644);
+    let tracks = MaterialTracks::of(&effect);
+    let track = AnimTrack {
+        interpolation_type: 1,
+        global_sequence: -1,
+        sequences: vec![(vec![0, 1000], vec![[0.0; 3], [1.0; 3]]), (vec![], vec![])],
+    };
+    for (sequence, expected) in [
+        (0, Some([0.25; 3])),
+        (1, None),
+        (2, Some([0.25; 3])),
+        (9, Some([0.25; 3])),
+    ] {
+        assert_eq!(
+            m2_material::sample_vec3(
+                &track,
+                &tracks,
+                MaterialTime {
+                    sequence,
+                    time_ms: 250,
+                    global_ms: 0
+                }
+            ),
+            expected
         );
     }
 }
