@@ -11,6 +11,11 @@ autotests = false
 name = "integration"
 path = "tests/integration.rs"
 
+# Host data roots and scene flags are process-global, so isolate source-switch proof.
+[[test]]
+name = "active_db2"
+path = "tests/active_db2.rs"
+
 [dependencies]
 # Shared chat timestamps: local `HH:MM:SS`, as the root client's chat frame formats them.
 chrono = { version = "0.4", default-features = false, features = ["clock"] }

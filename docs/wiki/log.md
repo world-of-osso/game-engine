@@ -30,6 +30,26 @@
 ## 2026-10-16 — Bench resurrection HUD projection
 
 [Shared2347 projection](systems/battle-pets.md#bench-resurrection-projection--2026-10-16): both actual skins physically revive two persisted-dead reserves to78/1563, pointer swap, retain incoming damage and win through the revived pet's147-damage Metal Fist. Eight fullHD originals inspected;92/98/131/98 geometry differs only in timed float. Canonical78-asset closure and explicit strict loader readback pass; world-native mode, exact runtime heads and pre-auth recovery are documented. No UI change/full Retail timing/VFX claim; owned processes stopped.
+## 2026-10-16 — Uncast target-death handoff
+
+[Preparation target death](systems/bot-harness.md#preparation-target-death--2026-10-16): Trace17 delivers all4578 CombatChannel messages but exposes corpse pursuit during uncast prep. Consume received zero HP before movement/submission, record explicit abandonment, and resume assist without forcing a target or retry. Recorded alive→dead frames supply RED; prior delivery freeze is not claimed fixed.
+
+## 2026-10-16 — Frozen combat-channel observation
+
+[Delivery boundary](systems/bot-harness.md#combat-channel-delivery-boundary--2026-10-16): release16 proves policy-B uncast abandonment and continued authored combat, then loses all native combat-log progress while target HP still replicates. Queue replacement/ring eviction rejected; enqueue/transport/ingestion unresolved, host starvation recorded, no gameplay root fix. Local capture-complete is not wire completeness; per-spec rates stay unqualified and boss credit absent.
+
+## 2026-10-16 — Authoritative idle admission for pulls
+
+[Opening combat admission](systems/bot-harness.md#combat-admission-for-opening-preparation--2026-10-16): release15b's seventh target was already fighting before a point-blank Heroic Throw prep timed out. Received owner CombatStatus now gates new openings and abandons uncast prep on engagement; existing cast receipts remain mandatory. Captured seventh-pull RED, no withdrawal/alternate cast/forced target or balance tuning.
+
+## 2026-10-16 — Melee endpoint arrival handoff
+
+[Native endpoint stall](systems/bot-harness.md#melee-endpoint-completion-stall--2026-10-16): release14 retains an owner2.50000111yd from the target with Execute natively usable but no input for43s. Route arrival was discarded by the Stockade caller. Propagate that result into the existing cast gate; recorded-pose RED plus native-range and fresh-observation controls, no tolerance or balance changes.
+
+## 2026-10-16 — Killing-cast receipt lifecycle
+
+[Target-switch receipt](systems/bot-harness.md#kill-receipt-across-target-changes--2026-10-16): release13a proves native LOS-aware movement, then exposes an unconsumed Execute success after its target dies. Stockade now drains real owner outcomes before movement/idle branches; missing receipts retain the original deadline, never a pending reset. Recorded native before/after frames supply RED replay controls.
+
 ## 2026-10-16 — LOS-aware opening preparation
 
 [Riverpaw boundary](systems/bot-harness.md#los-aware-pull-preparation--2026-10-16): release12b records native range true but native ray absent/server visibility false. Prepull movement now waits for native visibility along the same strict navmesh route, bounded by time/travel; no target cycling, cast retries or LOS relaxation. Captured-case RED and live runtime proof remain distinct.
