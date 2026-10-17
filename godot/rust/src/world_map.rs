@@ -535,7 +535,7 @@ impl GameClient {
             .iter()
             .find(|quest| self.account.quests.is_watched(quest.quest_id));
         let opened = match task {
-            Some(quest) => Some(quest.ui_map_id),
+            Some(quest) => quest.pois.first().map(|poi| poi.ui_map_id),
             None => player.as_ref().and_then(|player| player_map(data, player)),
         };
         self.world_map.map_id = opened.ok_or("World map: no map under the player")?;

@@ -96,6 +96,12 @@ Persisted-owner preparation walks authored exit trigger503 through strict navmes
 
 `bot_dungeon.py` consumes native combat identities plus final authoritative encounter states. Boss rates include player and event-time-owned pets/guardians, exclude party followers/their descendants and other targets, and retain pre-entry summon ancestry. The interval begins at the first observed boss-related damage/hostile cast and ends at its native death; final damage sharing that death millisecond is included while elapsed duration remains end-start. Missing/ambiguous death, unknown damage ownership, capture gaps or unresolved duration withhold DPS. Clear credit and its monotonic entry→last Done receipt stay distinct from rate qualification, so missing combat metrics do not erase real authoritative completion. Death counters cover local player/party only; observed counts survive capture gaps, while totals become unknown. Source-only unit fixtures are accounting proofs, not a dungeon clear or class DPS oracle.
 
+### Terminal follower death delivery — 2026-10-16
+
+Server real-profile Garrick lethal-melee test already delivers one stamped Death to the authenticated owner; no duplicate server emitter was added. The retained Fury4 caller ended its combat poll44ms after receiving dead roster state, before another server/network frame could necessarily deliver the combat event. A separate child-process delayed-delivery fixture reproduces premature terminal closure (party totalnull) and gates native receiver draining. The caller now keeps polling up to10s for the corresponding real Death and records `terminal-death-delivery.json`; timeout remains explicitly unqualified, never a synthesized death. Timing-window `native-stockade-fury5-rootfix` now reports58.121s, player_deaths0/party_deaths1/death_capture_complete=true; actual native Death is present and the terminal delivery receipt has no missing actor (75ms). This proves real party death accounting, not that the historical packet arrived. The source-profile tank still dies before any boss:10584 maximum health,17078 incoming damage from seven unique hostile actors,6281 real healer healing. All boss DPSnull; no stat/pack/kit change. Main-thread stack samples show achievement tree traversal/completion, while current work stays~450–480ms/~10–11ticks/s; earlier0.5ticks/s/11s-work collapse is not reproduced in this window. Frame-limited stack exit1 is partial evidence; a post-stop NoSuchProcess sample is explicitly excluded. No unproven achievement/performance rewrite was made.
+
+BM absence is now separately fixed server-side: actual character47's copied redb has no stored pet; missing PetStable used to admit883 then silently spawn nothing. Fresh native `native-bm-no-storage1` receives five exact no-pet errors in10s, zero883 successes and no pet in37samples. See the server [pet lifecycle](../../../../game-server/docs/wiki/systems/combat-pet-lifecycle.md#missing-storage-call-pet--2026-10-16). Sourced Human starting-pet mapping remains a named gap; no pet grant or alternate priority.
+
 ## Recorded native proof and remaining gates
 
 ### BM pet-presence follow-up — verified2026-10-16
@@ -191,3 +197,35 @@ The ordinary bag-to-paperdoll controller now handles all planned slots. Before c
 Native `native-source-gear1` proves Ret70 and Arms71 equip2361 via ordinary bag-to-MainHand input and authoritative equipment snapshots; the prior shield moves out normally. Arms completes two60s windows:770/776 damage,12.8333/12.9333DPS. Ret's source2H/source-talented run still stops on6425 equality after1788 damage (DPSnull), so talents never established a fix for that source gap. Enhancement263 provisioning stops before a client: installed CharBaseInfo permits Dwarf3/Shaman7, but the server's hardcoded race_class table rejects it. Preserve that source/runtime gap, not a silent race substitution. All owned clients/server were stopped after these captures; comparable three-spec and all-spec/Stockade gates remain open.
 
 Gear preparation grants only missing source items into owned bags via the ordinary admin catalog grant, then performs native bag-to-paperdoll cursor swaps. Pickup is local CursorItem state, not a bag-removal ACK; the server validates the final SwapItem and its equipment snapshot must match each requested slot. Explicit MainHand/OffHand avoids auto-equip choosing an unintended empty/low-level slot. No trusted admin equipment override or old-weapon fallback is used. Required private world.db and input hashes identify the actual item source.
+
+## BM native Assist preparation — 2026-10-16
+
+The actual retained tame windows have a replicated owned pet but received `react_state0` (Passive):444/3172 and518/4047 damage were pet-owned (14.00%/12.80%). These are historical native measurements, not proof of a correct SimC rotation. Explicit preparation now resolves the received ACT_REACTION6/action3 slot, clicks its real PetActionButton through viewport press/release once, and waits for received PetSpells react_state3 on the same owned pet. Missing identity, slot, visible control or ACK blocks; no grants, alternate commands, guessed sleeps or persistence edits. Already-received Assist needs no input. Fixture receipts preserve this preparation difference; new native DPS/repetition/pet-share acceptance remains open.
+
+The conditional default-state investigation did **not** establish a server bug. Pinned TC Pet::Pet calls InitCharmInfo; CharmInfo constructor explicitly sets REACT_PASSIVE. CreateTamedPetFrom/InitTamedPet retains that state; LoadPetFromDB restores the saved ReactState rather than replacing it. Source SHA-256 receipts:
+
+- [CharmInfo.cpp](https://raw.githubusercontent.com/TrinityCore/TrinityCore/a352b1fa/src/server/game/Entities/Unit/CharmInfo.cpp) — constructor lines26–38 sets Passive; SHA-256 `7549627bcbf51a03239e7a4cd66d2079484c23fa9f8b81b655ffcbd323d9e5a3`.
+- [Pet.cpp](https://raw.githubusercontent.com/TrinityCore/TrinityCore/a352b1fa/src/server/game/Entities/Pet/Pet.cpp) — constructor lines46–60; LoadPetFromDB line325 restores saved state; SHA-256 `05af4075958289caee8df47df991ae3b720f2a99affe6d6182c723b52282f6b2`.
+- [Unit.cpp](https://raw.githubusercontent.com/TrinityCore/TrinityCore/a352b1fa/src/server/game/Entities/Unit/Unit.cpp) — InitCharmInfo lines10445–10450; tame initialization lines11138–11215; SHA-256 `5aee33e5fad0132bb1905ea6d1c330806374457b15f918d89e0ce5d60353f981`.
+
+## Instrumented BM comparison — 2026-10-16
+
+`native-bm-simc2-debug` uses built engine2408e0399/server4bf33018/protocol44e6bed, the explicit pinned BM projection and the same persisted native pet. A preceding real PetActionButton8 click changed received stance0→3; this fresh process restored Assist without another click.
+
+| Native measurement | Full window | DPS | Owned pet damage/share |
+| --- | --- | --- | --- |
+| Earlier native priority, tame1/run1 | 60s | 52.87 | 444 /14.00% |
+| Earlier native priority, tame1/run2 | 60s | 67.45 | 518 /12.80% |
+| Explicit SimC, debug/run1 | 60s | 157.45 | 608 /6.44% |
+| Explicit SimC, debug/run2 | 60s | 168.50 | 482 /4.77% |
+| Historical Fury readiness mean | 2×60s | 180.30 | Not BM pet evidence |
+
+The new BM mean is162.975DPS, aggregate owned-pet share1090/19557=5.5735%. All28 submissions have server DEBUG receive records and retained owner CastSuccess; no native cast failures/charge denials. This is a cross-revision/provider/stance comparison, not isolated causal attribution, all40 acceptance or a balance verdict. Native75 produces one hit for one start per window; repeating ranged Auto Shot and complete SimC actor parity are **not** proved. The source KC conjunction stays unchanged for max1/noHowl.
+
+A preceding `native-bm-simc1` first window qualified148.12DPS; its second stopped on an unacknowledged Cobra193455. The target remained alive and received combat sequence241 froze while power observations advanced. Its INFO-only server log cannot establish whether that request reached the receiver. The instrumented repeat did not reproduce this gap; no server root-fix or fabricated RED test is claimed. The controller withheld further requests and the failed report keeps DPSnull. A local admission wrapper had discarded roster.main's nonzero return; it now propagates that exit, while the original exit0/raw failed report remain untouched.
+
+The corrected owned stack driver captures real frames with `eu-stack -p PID -n 64` under its process-only ptracer permission. At4.9ticks/s it retained stack, per-system timings and host load46.80/40.55/35.82; the main stack sample is in `interest::update_interest`, not proof of a universal stall cause. A previous startup stack attempt used an invalid option/exit64 and supplies **no** stack proof. Diagnostic system-timings overhead is explicit. Rendering receipt137353/sound567630 gaps remain separate from cast-delivery observations; no visual completeness claim.
+
+`navigation::open_navigation` reads `ground_data_dir()/navmesh`; GAME_SERVER_NAV_DIR is not a supported override. Both BM runs still used an incomplete engine nav alias. After them, only this owned slot's data/navmesh symlink was pointed at the already-published server map0/34 bakes, with its prior target retained in `owned-native-nav-view.json`. No canonical data, bake, coordinates or stats were changed. Stockade keeps its prepared authenticated ground root.
+
+Evidence under the durable harness root: `bm-simc-comparison.json`, `native-bm-simc{1,2-debug}/`, `server-bm-simc2-debug.log`, `stall-1792172015169-{receipt.json,stack.txt}`. Owned runtimes stopped and both timing windows cleared. Native Tab target preparation is process-correlated and alive/hostile gated; actual ranged opening and Stockade clear remain unproved.

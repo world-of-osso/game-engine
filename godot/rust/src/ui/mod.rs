@@ -502,6 +502,15 @@ impl RegistryModel {
         }
         if let Some(view) = self
             .shared
+            .get::<game_engine_ui_model::professions_frame::ProfessionView>()
+        {
+            game_engine_ui_model::professions_frame::apply_professions_art(
+                view,
+                &mut self.registry,
+            );
+        }
+        if let Some(view) = self
+            .shared
             .get::<game_engine_ui_model::trainer_frame::TrainerView>()
         {
             game_engine_ui_model::trainer_frame::apply_trainer_art(view, &mut self.registry);
@@ -766,6 +775,23 @@ impl RegistryModel {
 
     /// Original Enter in an edit box: login submits unless in flight; deletion confirms.
     fn submit(&self, actions: &mut VecDeque<String>) {
+        let profession_quantity = self
+            .shared
+            .get::<game_engine_ui_model::professions_frame::ProfessionView>()
+            .is_some()
+            && self
+                .registry
+                .focused_frame
+                .and_then(|id| self.registry.get(id))
+                .is_some_and(|frame| {
+                    frame.name.as_deref().is_some_and(|name| {
+                        name.starts_with("ProfessionQuality") && name.ends_with("Quantity")
+                    })
+                });
+        if profession_quantity {
+            actions.push_back("profession:quality:submit".into());
+            return;
+        }
         let connecting = self
             .shared
             .get::<login::SharedConnecting>()
@@ -2103,6 +2129,10 @@ impl RegistryUi {
             &mut registry,
             game_engine_ui_model::panel_style_data::MetalTopLeft::Portrait,
         )?;
+        register_metal_frame_style(
+            &mut registry,
+            game_engine_ui_model::panel_style_data::MetalTopLeft::Plain,
+        )?;
         self.show_viewport_screen_in(
             state,
             game_engine_ui_model::professions_frame::professions_screen,
@@ -2482,6 +2512,38 @@ impl RegistryUi {
             .as_mut()
             .ok_or("Native projection not initialized")?
             .sync(&mut model.registry)
+    }
+
+    /// Source SetEnabled for a numeric LineEdit; keep disabled tiers out of keyboard focus.
+    pub fn set_line_edit_enabled(&mut self, name: &str, enabled: bool) -> Result<(), String> {
+        let model = self
+            .model
+            .as_ref()
+            .ok_or("Registry model not initialized")?;
+        let id = model
+            .registry
+            .get_by_name(name)
+            .ok_or_else(|| format!("Missing frame {name}"))?;
+        let node = self
+            .projection
+            .as_ref()
+            .ok_or("Native projection not initialized")?
+            .node(id)
+            .ok_or_else(|| format!("Missing native frame {name}"))?;
+        let mut edit = node
+            .try_cast::<godot::classes::LineEdit>()
+            .map_err(|_| format!("{name} is not a LineEdit"))?;
+        edit.set_editable(enabled);
+        let focus = if enabled {
+            godot::classes::control::FocusMode::ALL
+        } else {
+            godot::classes::control::FocusMode::NONE
+        };
+        edit.set_focus_mode(focus);
+        if !enabled && edit.has_focus() {
+            edit.release_focus();
+        }
+        Ok(())
     }
 
     /// Set a frame's alpha without rebuilding the screen (animated art).

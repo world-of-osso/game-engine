@@ -8,6 +8,9 @@ game-server/world.db
 game-server/economy/config.json
 game-server/db2/active/ChrRaces.csv
 game-server/db2/active/CharBaseInfo.csv
+game-server/db2/active/GuildPerkSpells.csv
+game-server/db2/active/SpellName.csv
+game-server/db2/active/SpellMisc.csv
 
 # Ground of every spawned map (ADT terrain, WDTs, WMO floors) and the LOS bake.
 game-engine/terrain/*.adt

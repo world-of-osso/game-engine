@@ -1,3 +1,6 @@
+- [Full-HD storage captures](systems/housing.md#full-hd-storage-captures--verified2026-10-16) — both-skin five-phase1920×1080 originals, source Filter/root/Sort geometry and paid conservation; full-image parity remains unqualified.
+- [Unavailable storage filters](systems/housing.md#unavailable-storage-filters--qualified2026-10-16) — sourced location/tag query contracts, explicit missing field/history mappings; collection rows intentionally absent in storage.
+- [Lifetime honor source boundary](systems/battlegrounds.md#lifetime-honor-source-boundary--2026-10-16) — concrete world-kill XP0→47→94, both-skin native full-HD tooltip/relog; unknown level/curve and completion/season policies remain gaps; Character Currency port next.
 - [House Access checkbox targets](systems/housing.md#house-access-checkbox-hit-targets--2026-10-16) — source row/checkbox split; native bad label dispatch reproduced then refused,32 physical cases and40 unchanged-outside context pairs.
 - [Alliance escort native fixture](systems/quest-ui.md#alliance-escort-native-fixture--2026-10-16) — Feero976 real-input harness; both skins earned all-three-wave credit; authenticated receipt closure and server grid-lifecycle fix.
 - [HouseSettings action-button art](systems/housing.md#housesettings-action-button-art--2026-10-16) — source UIPanel sheets/fixed12px caps; RED→GREEN, both-skin physical states and eight unchanged-outside context pairs.
@@ -8,6 +11,20 @@
 - [Clean-room M2 particles](systems/godot-conversion.md#native-m2-particles) — native tails/follow/cubic controls, authored sorting and map-collision births; inherited-scale provenance and explicit lighting, timer/reset, spline-density, target-mask and model-recursion oracle gaps.
 # Wiki Index
 
+- [Portrait-inclusive HUD clearance](systems/launcher.md#portrait-inclusive-hud-clearance--2026-10-16) — approved321×79 player mount retained; exact HUD bounds and strict panel/metal clearance,31+9 tests and both-skin native1080p proof; Modern identical, no Forever changes outside launcher paint.
+
+- [Product-row cart toggle](systems/trading-post.md#product-row-cart-toggle--implementation-october16) — source36px row-owned Add/Remove control, independent identity/tooltip and preserved cart preview choices; native omission/paint RED→both-skin painted glyph GREEN.
+- [Inherited frozen item tooltip](systems/trading-post.md#inherited-frozen-product-tooltip--implementation-october16) — displayed selection action fixes inherited owner omission; actual both-skin settled frozen identity/anchor/leave GREEN, preserved slots/Tender, four inspected full-HD hover/leave samples.
+- [Bench resurrection projection](systems/battle-pets.md#bench-resurrection-projection--2026-10-16) — both-skin2347→two78/1563 reserves→physical swap→147-damage win; eight fullHD originals and canonical strict model readback.
+- [Two-way wall projection](systems/battle-pets.md#two-way-wall-projection--2026-10-16) — both-skin private5961 physical Ice Barrier incoming/outgoing blocks, pad/cooldown/log/health and six fullHD native originals;3D VFX/full Retail parity excluded.
+
+- [Trading Post cart item tooltips](systems/trading-post.md#cart-item-tooltips--implementation-october16) — regular/member identity and source owner offset/no sell price; native RED→both-skin hover/remove GREEN, global-input fixture correction and eight inspected full-HD samples.
+- [Fade effect projection](systems/battle-pets.md#fade-effect-projection--2026-10-16) — current70391 sourced random self-swap, both-skin fullHD pointer/log/model proof and91 identical rectangles; complete Retail art/timing excluded.
+
+- [BM native Assist preparation](systems/bot-harness.md#bm-native-assist-preparation--2026-10-16) — ordinary received-slot input/ack gate; pinned TC constructor proves Passive default, stored stance preserved; fresh DPS remains separate.
+- [BM native Assist preparation](systems/bot-harness.md#bm-native-assist-preparation--2026-10-16) — ordinary received-slot input/ACK; [two native SimC windows](systems/bot-harness.md#instrumented-bm-comparison--2026-10-16)157.45/168.50DPS,28 real outcomes, incomplete full-SimC/old frozen-sequence proof explicit.
+
+- [Terminal follower death delivery](systems/bot-harness.md#terminal-follower-death-delivery--2026-10-16) — delayed child-process delivery RED→receiver-drain; server owner-emission baseline passes, live timing proof pending.
 - [Loot ItemButton input](systems/loot-and-flight.md#itembutton-input-ownership--2026-10-16) — source37px target/right157px extension and left-release dispatch;32 both-skin physical probes,68 unchanged full-HD pairs; shared native-picking controls pass, server/full-window parity excluded.
 
 - [ReadyCheck message origin](systems/group-frames.md#readycheck-message-origin--bounded-proof-2026-10-16) — source parent TOP(+20,−37), RED→GREEN and both-skin native anchors/pixel conservation; font/height/color/difficulty content excluded.
@@ -19,6 +36,7 @@
 - [StackSplit arrow states](systems/cursor-item.md#stacksplit-arrow-states--bounded-proof-2026-10-16) — source16px Up/Down/Disabled buttons replace static clickable frames; RED→GREEN and both-skin physical press/cancel/disabled proof,48 unchanged outside-arrow contexts; quantity/purchase/full-picker parity excluded.
 - [Trading Post accepted-item pending dialog](systems/trading-post.md#accepted-single-item-confirmation-lifetime--implementation-october16) — model/native RED→both-skin painted spinner/overlay/rotation/reply GREEN, source inset and accepted-item cart pruning; ten full-HD originals, provider/error gaps explicit.
 - [Storage menu lifetime](systems/housing.md#storage-menu-lifetime--implementation2026-10-16) — native missing-hover RED→both-skin seven-phase hover/collapse/dismiss/owner lifetime and checkbox/radio GREEN, exact paid conservation; source0.33s model delay covered.
+- [Guild perk authority](systems/guilds.md#perk-native-authority-and-effect-boundary-2026-10-16) — real five-definition Benefits and owner grants, ordered native spell messages, actual invitation/removal/quit receipts, both-skin tooltip/chat/restart proof; individual effects remain separately qualified.
 
 - [Storage filter popup](systems/housing.md#storage-filter-popup--implementation2026-10-15) — native old-geometry RED→both-skin source root/Sort anchors, real radio/checkbox/reset and paid conservation; current-binary F17 recapture has durable four-record proof.
 
@@ -27,6 +45,8 @@
 
 - [Trading Post product item tooltips](systems/trading-post.md#product-row-item-tooltips--implementation-october16) — sourced hovered-row identity/right−16 anchor/no sell price; native RED→both-skin GREEN, final-scale ordering root fix and eight inspected full-HD samples.
 - [Campsite selected-hover](investigations/glue-menu-fidelity.md#campsite-selected-hover-branch--2026-10-15) — source gold selected-hover member/18px slicing; both-skin physical dispatch/reselection proof,24 unchanged control/context pairs.
+
+- [Encounter section flags](systems/adventure-guide.md#encounter-section-flags--2026-10-16) — source mask/atlas/header anchors, title reservation and owner-right text; three focused/60 adjacent controls and both-skin painted native samples, opaque ranking unclaimed.
 
 - [Raid title glyphs](systems/adventure-guide.md#raid-title-glyphs--bounded-proof-2026-10-16) — published Heroic/Mythic20px atlas flags, source16px title/right3/centerY and Normal/LFR reset; six inspected both-skin native originals, visibility authority excluded.
 
@@ -42,6 +62,11 @@
 - [Caster-centered assisted range](investigations/cooldown-assist-data.md#caster-centered-assisted-range--2026-10-16) — retain authored Self Only range identity instead of excluding selected-enemy distance; actual Whirlwind RED→GREEN and25 core controls, fresh native acceptance open.
 - [Minimap zoom source states](systems/minimap.md#zoom-button-source-states--2026-10-15) — both-skin native hover/press/limit-disabled and release cancellation; unchanged enabled idle/context pixels outside zoom rectangles.
 - [Ysera body closure](systems/toy-box.md#ysera-body-asset-closure-2026-10-16) — seventeen authenticated70391 dependencies and four private runtime aliases; procedural8605/type22 remains unrendered.
+- [Spitzy source asset closure](systems/toy-box.md#spitzy-source-asset-closure-2026-10-16) — four authenticated assets; three existing owners, one new private receipt; conditional rendering/audio unproved.
+- [Waywatcher private body closure](systems/toy-box.md#waywatcher-private-body-closure-2026-10-16) —18 same70391 dependencies/four aliases authenticated privately; canonical publication and native rendering separate.
+- [Grizzlesnout canonical readback](systems/toy-box.md#grizzlesnout-canonical-body-readback-2026-10-16) —12 existing canonical receipts/two aliases pass actual Rust loader and independent byte authentication; no duplicate fragment needed.
+
+- [Ysera body closure](systems/toy-box.md#ysera-body-asset-closure-2026-10-16) — seventeen authenticated70391 dependencies and four runtime aliases; canonical combined Rust-loader/hash readback passes after receipt deduplication. Procedural8605/type22 remains unrendered.
 - [Stone Whistle asset closure](systems/toy-box.md#stone-whistle-native-asset-closure-2026-10-16) — five same-build70391 assets and two runtime skin aliases authenticated/published privately; native pixels remain open.
 
 - [Shrine viewer-level probe](systems/toy-box.md#shrine-viewer-level-probe-2026-10-15) — real UseToy replicated range/delta projection and zero-tuning controls pass fresh private wire; rendered target text/combat/HP remain separate.
@@ -172,7 +197,7 @@
 
 - [Native Mythic Keystone UI](systems/mythic-plus.md) — Mainline Font, owned-bag slot/start, challenge tracker and completion banner; physical both-skin private proof and explicit numeric/visual boundaries.
 - [Native follower LFG transport](../specs/follower-dungeons.md) — authoritative205 queue/five roles, both-skin follow/combat/first-boss kill proof; source-empty loot and walked-route gates remain open.
-- [World-quest availability and native tasks](investigations/world-quest-availability.md) — authentic polygons/policy windows, available-pin/minimap navigation, source tracker and automatic settlement;239/244 admitted,5 source gaps. Current both-skin native navigation/window/controlled-reward gate passed with explicit hazard-absent fixture; measured Deathwing hazard, not zero-health spawn. Ordinary-world combat/phasing remains open.
+- [World-quest availability and native tasks](investigations/world-quest-availability.md) — authentic polygons/policy windows, available-pin/minimap navigation, source tracker and automatic settlement;239/244 admitted,5 source gaps. The3c08 controlled settlement checkpoint and new both-skin multi-area/sourceXYZ pin/expiry gate pass; eight inspected continuation PNGs and all scoped checks are recorded in the linked investigation. Measured Deathwing hazard, not zero-health spawn; ordinary-world combat/phasing remains open.
 
 - [Raid entry and saved instances](systems/raid-entry.md) — native both-skin private proof, persistent difficulty/locks, Tuesday reset, source-derived credit and explicit data gaps.
 - [Group loot](systems/group-loot.md) — authoritative four-choice rolls, numeric chat/history, leader methods and scoped Modern/Forever private two-account award proofs.
