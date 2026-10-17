@@ -42,7 +42,7 @@
 - [StackSplit arrow states](systems/cursor-item.md#stacksplit-arrow-states--bounded-proof-2026-10-16) — source16px Up/Down/Disabled buttons replace static clickable frames; RED→GREEN and both-skin physical press/cancel/disabled proof,48 unchanged outside-arrow contexts; quantity/purchase/full-picker parity excluded.
 - [Trading Post accepted-item pending dialog](systems/trading-post.md#accepted-single-item-confirmation-lifetime--implementation-october16) — model/native RED→both-skin painted spinner/overlay/rotation/reply GREEN, source inset and accepted-item cart pruning; ten full-HD originals, provider/error gaps explicit.
 - [Storage menu lifetime](systems/housing.md#storage-menu-lifetime--implementation2026-10-16) — native missing-hover RED→both-skin seven-phase hover/collapse/dismiss/owner lifetime and checkbox/radio GREEN, exact paid conservation; source0.33s model delay covered.
-- [Guild perk authority](systems/guilds.md#perk-native-authority-and-effect-boundary-2026-10-16) — five-definition Benefits, ordered owner grants and native tooltip/chat/restart proof; supported Mount Up real mounted/removal rates and ten selected full-HD originals, blocked210 and remaining effects explicit.
+- [Guild perk authority](systems/guilds.md#perk-native-authority-and-effect-boundary-2026-10-16) — five-definition Benefits, ordered owner grants and native tooltip/chat/restart proof; supported Mount Up real mounted/removal rates and ten selected originals; Hasty actual Human25/10-minute owner clocks and twelve native context originals; blocked210/remaining effects explicit.
 
 - [Storage filter popup](systems/housing.md#storage-filter-popup--implementation2026-10-15) — native old-geometry RED→both-skin source root/Sort anchors, real radio/checkbox/reset and paid conservation; current-binary F17 recapture has durable four-record proof.
 
@@ -68,6 +68,8 @@
 - [Caster-centered assisted range](investigations/cooldown-assist-data.md#caster-centered-assisted-range--2026-10-16) — retain authored Self Only range identity instead of excluding selected-enemy distance; actual Whirlwind RED→GREEN and25 core controls, fresh native acceptance open.
 - [Minimap zoom source states](systems/minimap.md#zoom-button-source-states--2026-10-15) — both-skin native hover/press/limit-disabled and release cancellation; unchanged enabled idle/context pixels outside zoom rectangles.
 - [Ysera body closure](systems/toy-box.md#ysera-body-asset-closure-2026-10-16) — seventeen authenticated70391 dependencies and four private runtime aliases; procedural8605/type22 remains unrendered.
+- [Croak and Witch source closure](systems/toy-box.md#croak-and-witch-source-closure-2026-10-16) —22 authenticated body receipts/ten aliases, only three new private textures; source catalog2/2, ShadowyEffect165 and native appearance/audio remain separate.
+
 - [Spitzy source asset closure](systems/toy-box.md#spitzy-source-asset-closure-2026-10-16) — four authenticated assets; three existing owners, one new private receipt; conditional rendering/audio unproved.
 - [Waywatcher private body closure](systems/toy-box.md#waywatcher-private-body-closure-2026-10-16) —18 same70391 dependencies/four aliases authenticated privately; canonical publication and native rendering separate.
 - [Grizzlesnout canonical readback](systems/toy-box.md#grizzlesnout-canonical-body-readback-2026-10-16) —12 existing canonical receipts/two aliases pass actual Rust loader and independent byte authentication; no duplicate fragment needed.
