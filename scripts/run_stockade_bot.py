@@ -14,7 +14,7 @@ from collections import Counter
 from contextlib import closing
 from pathlib import Path
 
-from bot_controller import native_usable, opening_abandonment, owner_in_combat, publish
+from bot_controller import NoHostileTarget, native_usable, opening_abandonment, owner_in_combat, publish
 from bot_dungeon import summarize_dungeon
 from bot_gear import equipment_receipt, load_plan
 from bot_harness import parse_combat, poll_has_gap, routed_player
@@ -270,12 +270,38 @@ class StockadeRun:
             time.sleep(.1)
         raise TimeoutError("Native opening visibility/range/usability not reached in60s; no cast or alternate")
 
-    def open_pull(self):
+    def advance_boss(self):
         if owner_in_combat(self.rotation()):
             return
-        target = self.player.tab_to_enemy()
-        receipt = {"at_ms": int(time.time() * 1000), "target": target, "spell": 57755,
-                   "source": "approved native Heroic Throw prep; server validates range/usability"}
+        if not all(row["health"] >= row["max_health"] for row in self.party()):
+            return
+        boss = next((row for row in self.run["bosses"] if row["state"] == "NotStarted"), None)
+        if boss is None:
+            return
+        reached = self.move(position(self.account()), boss["goal"], "native-boss-progression")
+        receipt = {
+            "at_ms": int(time.time() * 1000),
+            "encounter": boss["encounter"],
+            "goal": boss["goal"],
+            "reached": reached,
+            "basis": "single native Tab found no alive hostile; source boss plan order",
+        }
+        with (self.output / "boss-progression.jsonl").open("a") as stream:
+            stream.write(json.dumps(receipt) + "\n")
+
+    def open_pull(self):
+        if owner_in_combat(self.rotation()):
+            return True
+        try:
+            target = self.player.tab_to_enemy()
+        except NoHostileTarget:
+            return False
+        receipt = {
+            "at_ms": int(time.time() * 1000),
+            "target": target,
+            "spell": 57755,
+            "source": "approved native Heroic Throw prep; server validates range/usability",
+        }
         self.run["openings"].append(receipt)
         try:
             outcome = self.approach_opening(target)
@@ -283,9 +309,10 @@ class StockadeRun:
                 outcome = self.player.cast_opening(target, 57755)
             if "abandoned" in outcome:
                 receipt.update(outcome)
-                return
+                return True
             receipt["outcome"] = outcome
             self.opening_target = target
+            return True
         except Exception as error:
             receipt["error"] = str(error)
             raise
@@ -315,15 +342,19 @@ class StockadeRun:
                 raise RuntimeError("Native assisted target origin not observed")
             gap = math.hypot(goal[0] - here[0], goal[2] - here[2])
             if gap > 2.5:
-                endpoint = [goal[0] + (here[0] - goal[0]) * 2.5 / gap, goal[1],
-                            goal[2] + (here[2] - goal[2]) * 2.5 / gap]
+                endpoint = [
+                    goal[0] + (here[0] - goal[0]) * 2.5 / gap,
+                    goal[1],
+                    goal[2] + (here[2] - goal[2]) * 2.5 / gap,
+                ]
                 if not self.move(here, endpoint, "native-melee-approach"):
-                    time.sleep(.2)
+                    time.sleep(0.2)
                     return False
             self.player.cast_next(target, authored_priority)
         elif all(row["health"] >= row["max_health"] for row in party):
-            self.open_pull()
-        time.sleep(.2)
+            if not self.open_pull():
+                self.advance_boss()
+        time.sleep(0.2)
         return False
 
     def exit_instance(self):

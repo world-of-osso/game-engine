@@ -1,3 +1,4 @@
+- [Idle boss-goal progression](systems/bot-harness.md#idle-boss-goal-progression--2026-10-17) — explicit empty Tab permits one strict native source-goal step; combat/recovery interrupts, boss arrival stops movement; synthetic RED, live proof pending.
 - [Native-tree-bound starter talents](systems/bot-harness.md#sourced-rotations-and-talents) — received Fury tree850 selects installed915, not cross-tree954/880; unavailable authority stops prep.
 - [Projected walking endpoint](systems/bot-harness.md#projected-walking-endpoint--2026-10-16) — use the completed source nav-surface endpoint, not raw NPC height; unchanged arrival tolerance and partial/floor refusal controls.
 - [Preparation target death](systems/bot-harness.md#preparation-target-death--2026-10-16) — stop uncast prep on received zero HP before corpse movement/despawn; Trace17 delivers all4578 CombatChannel messages.
