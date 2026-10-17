@@ -21,6 +21,8 @@
 - [Clean-room M2 particles](systems/godot-conversion.md#native-m2-particles) — native tails/follow/cubic controls, authored sorting and map-collision births; inherited-scale provenance and explicit lighting, timer/reset, spline-density, target-mask and model-recursion oracle gaps.
 # Wiki Index
 
+- [StackSplit label shadow](systems/cursor-item.md#stacksplit-label-shadow--bounded-proof-2026-10-17) — inherited Roman black(+1,−1), RED→2GREEN and six both-skin master-native labels;281 total-text pixels darken/skin, diagnostic masks prove black-on-black amount shadows, exact conservation/restoration.
+
 - [Product-row refund icon tooltip](systems/trading-post.md#product-row-refund-icon-tooltip--implementation-october16) — source texture-owned refund time; native generic-item-tooltip RED→both-skin painted right-anchor/parent-click/hovered-owner teardown GREEN, genuine purchase/refund conservation.
 - [ReadyCheck message shadow](systems/group-frames.md#readycheck-message-shadow--bounded-proof-2026-10-16) — inherited Roman black(+1,−1), RED→3GREEN and both-skin native1080p;1002 darkened pixels/skin, zero outside changes, exact shadow-off control; colors/full popup/lifecycle excluded.
 
