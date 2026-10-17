@@ -61,6 +61,13 @@ def requested_snapshot(state, target):
             "actor": int(state["account"]["local_player_id"])}
 
 
+def owner_in_combat(snapshot):
+    assisted = snapshot.get("assisted")
+    if not isinstance(assisted, dict) or not isinstance(assisted.get("in_combat"), bool):
+        raise ValueError("Native owner combat status missing or invalid")
+    return assisted["in_combat"]
+
+
 def native_usable(snapshot, spell):
     if set(snapshot["spells"]["known"]) != set(snapshot["facts"]["known"]):
         raise ValueError("Native learned-spell snapshots disagree")
@@ -141,10 +148,12 @@ class PlayerController:
         return self.invoke("spell", "cast", "--spell", str(spell), "--target", str(target))
 
     def cast_opening(self, target, spell):
-        """One explicit prepull cast; server validates range/usability, no retry."""
+        """One prepull cast or None if combat began; submitted casts still need ACK."""
         if self.pending is not None:
             raise RuntimeError("Opening cannot replace an outstanding cast")
         state = self.snapshot(target)
+        if owner_in_combat(state):
+            return None
         if state.get("target") != int(target) or spell not in state["spells"]["known"]:
             raise ValueError("Opening requires observed target and learned spell")
         self.submit_cast(state, target, spell)

@@ -14,7 +14,7 @@ from collections import Counter
 from contextlib import closing
 from pathlib import Path
 
-from bot_controller import native_usable, publish
+from bot_controller import native_usable, owner_in_combat, publish
 from bot_dungeon import summarize_dungeon
 from bot_gear import equipment_receipt, load_plan
 from bot_harness import parse_combat, poll_has_gap, routed_player
@@ -247,6 +247,8 @@ class StockadeRun:
             self.party()
             self.poll_combat()
             state = self.snapshot(target)
+            if owner_in_combat(state):
+                return False
             here = position(self.account())
             if previous is not None:
                 traveled += math.dist(previous, here)
@@ -261,20 +263,28 @@ class StockadeRun:
                     "facts": state["facts"], "in_range": ranged, "visibility": state["visibility"],
                     "traveled_yards": traveled}) + "\n")
             if visible and usable:
-                return
+                return True
             if not ranged or not visible:
                 self.move(here, state["target_position"], "native-ranged-approach")
             time.sleep(.1)
         raise TimeoutError("Native opening visibility/range/usability not reached in60s; no cast or alternate")
 
     def open_pull(self):
+        if owner_in_combat(self.rotation()):
+            return
         target = self.player.tab_to_enemy()
         receipt = {"at_ms": int(time.time() * 1000), "target": target, "spell": 57755,
                    "source": "approved native Heroic Throw prep; server validates range/usability"}
         self.run["openings"].append(receipt)
         try:
-            self.approach_opening(target)
-            receipt["outcome"] = self.player.cast_opening(target, 57755)
+            if self.approach_opening(target):
+                outcome = self.player.cast_opening(target, 57755)
+            else:
+                outcome = None
+            if outcome is None:
+                receipt["abandoned"] = "received owner CombatStatus true before cast"
+                return
+            receipt["outcome"] = outcome
             self.opening_target = target
         except Exception as error:
             receipt["error"] = str(error)
