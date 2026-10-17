@@ -1,6 +1,10 @@
 ## 2026-10-16 — Lifetime honor source boundary
 
 [Honor](systems/battlegrounds.md#lifetime-honor-source-boundary--2026-10-16): pinned concrete world-kill XP plumbing is distinct from spendable1792; no8800 guess, old Prestige curve reinterpretation or quest-to-match payout assignment. Persist/replicate lifetime XP, leave level/fill unknown, preserve source faction art and tooltip. Merged server10/UI4/wire1/check/fmt pass; actual private damage/death0→47→94, both-skin full-HD tooltip, dead replay and fresh-process relog are bounded native proof. Character Currency's absent consumer/UI remains open, not excused by unavailable award policy.
+## 2026-10-16 — Earned-wallet source boundary and weekly bookkeeping
+
+[Source boundary](systems/battlegrounds.md#earned-wallet-source-continuation--2026-10-16): fresh raw70391 RewardPack exports and42 pinned BG/arena scripts/default hook do not supply a wallet-event binding; award spells/config values alone are insufficient. Known weekly0 behavior exposed unconditional week_earned accumulation: real300-versus0 RED, protocol26 GREEN after counting only capped gains; capped reset coverage retained. Persistence/consumer checks pending. No earned-wallet/native award claim, XP conversion or guessed season/reset policy.
+
 ## 2026-10-16 — Native PvP Currency continuation
 
 [Currency](systems/battlegrounds.md#native-currency-readout--2026-10-16): real UDP owner relay, account receipt/reset/refusal handling and IPC, source TokenFrame PvP rows/hover/collapse. Both-skin empty-wallet hidden tab and private saved Honor0 presentation observed; discovered-wallet tabs corrected from inherited Forever side chrome to Mainline bottom anchors. Final UI7/wire1/account1, scoped builds/checks/fmt and both-skin source-anchor recapture pass; six full-HD originals inspected, eleven rectangles identical. Owned private stale world copy refreshed read-only from published authored schema after master gained world-questZ; no product/data-policy workaround. No earned-award or full TokenUI claim.
