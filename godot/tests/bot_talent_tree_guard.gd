@@ -26,7 +26,12 @@ func require_error(receipt: Dictionary, label: String) -> void:
 
 func run_guard_cases() -> void:
     var client := ReceivedClient.new()
-    var controller = load("res://tests/bot_harness_talents.gd").new()
+    var script = load("res://tests/bot_harness_talents.gd")
+    if script == null or not script.can_instantiate():
+        client.free()
+        quit(1)
+        return
+    var controller = script.new()
     var wrong_tree: Dictionary = await controller.apply_plan(self, client, {"spec": 72, "tree": 880})
     require_error(wrong_tree, "Fury tree880 plan against received tree850")
     if wrong_tree.get("native_config", {}).get("tree_id") != 850:
