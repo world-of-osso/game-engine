@@ -202,6 +202,8 @@ fn label(
             font: GameFont::FrizQuadrata,
             font_size: 12.0,
             font_color: color,
+            shadow_color: "0,0,0,1",
+            shadow_offset: "1,-1",
             justify_h: justify,
             pos_type: "absolute",
             left,

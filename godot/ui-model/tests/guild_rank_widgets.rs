@@ -261,6 +261,174 @@ fn guild_info_editor_preserves_multiline_text_limits_and_authoritative_pacing() 
 }
 
 #[test]
+fn guild_invitation_source_text_top_anchors_and_fonts_stay_above_tabard_both_skins() {
+    use ui_toolkit::layout_values::Val;
+    let _lock = SKIN.lock().unwrap_or_else(|poison| poison.into_inner());
+    for skin in [ActiveSkin::Modern, ActiveSkin::Forever] {
+        set_thread_skin(skin);
+        let mut session = GuildRanksSession::default();
+        session.invitation = Some(GuildInvitation {
+            guild_id: 7,
+            guild_name: "Guild Perks".into(),
+            inviter_name: "Gcperkslead".into(),
+            tabard: None,
+        });
+        let registry = mounted(&session);
+        // GuildInviteFrame.xml: TOP relative to TOP, not to the prior text's bottom.
+        // FontStyles.xml50/56/92 + Fonts.xml39/275: Roman Small10 and Normal12.
+        for (suffix, top, font_size) in [
+            ("InviterName", 28.0, 10.0),
+            ("InviteText", 38.0, 10.0),
+            ("GuildName", 50.0, 12.0),
+        ] {
+            let name = format!("GuildInviteFrame{suffix}");
+            let frame = registry.get(registry.get_by_name(&name).unwrap()).unwrap();
+            assert_eq!(frame.position.top, Val::Px(top), "{name} source TOP anchor");
+            let Some(WidgetData::FontString(label)) = &frame.widget_data else {
+                panic!("{name} must display source text");
+            };
+            assert_eq!(label.font_size, font_size, "{name} inherited source font");
+        }
+        for suffix in ["InviterName", "InviteText"] {
+            let name = format!("GuildInviteFrame{suffix}");
+            let frame = registry.get(registry.get_by_name(&name).unwrap()).unwrap();
+            assert_eq!((frame.width.value(), frame.height.value()), (230.0, 10.0));
+        }
+        assert_eq!(text(&registry, "GuildInviteFrameGuildName"), "Guild Perks");
+    }
+}
+
+#[test]
+fn guild_invitation_no_design_renders_source_tabard_layers_both_skins() {
+    use ui_toolkit::layout_values::Val;
+    use ui_toolkit::widgets::texture::TextureSource;
+    let _lock = SKIN.lock().unwrap_or_else(|poison| poison.into_inner());
+    for skin in [ActiveSkin::Modern, ActiveSkin::Forever] {
+        set_thread_skin(skin);
+        let mut session = GuildRanksSession::default();
+        session.invitation = Some(GuildInvitation {
+            guild_id: 7,
+            guild_name: "Raid Team".into(),
+            inviter_name: "Alice".into(),
+            tabard: None,
+        });
+        let registry = mounted(&session);
+        // GuildInviteFrame.xml layers; GuildUtil.lua180–202 no-design branch.
+        for (name, fdid, rect, uv, color) in [
+            (
+                "Background",
+                446203,
+                (11.5, 12.0, 287.0, 116.0),
+                [0.00195313, 0.56250000, 0.00781250, 0.91406250],
+                [1.0; 4],
+            ),
+            (
+                "TabardBackground",
+                410251,
+                (123.0, 70.0, 62.0, 62.0),
+                [0.63183594, 0.69238281, 0.61914063, 0.74023438],
+                [0.2245, 0.2088, 0.1794, 1.0],
+            ),
+            (
+                "TabardEmblem",
+                460904,
+                (122.0, 69.0, 64.0, 64.0),
+                [0.0, 1.0, 0.0, 1.0],
+                [1.0; 4],
+            ),
+            (
+                "TabardBorder",
+                410251,
+                (124.0, 71.0, 61.0, 60.0),
+                [0.63183594, 0.69238281, 0.74414063, 0.86523438],
+                [0.2, 0.2, 0.2, 1.0],
+            ),
+            (
+                "TabardRing",
+                446203,
+                (96.0, 64.0, 118.0, 76.0),
+                [0.56640625, 0.79687500, 0.00781250, 0.60156250],
+                [1.0; 4],
+            ),
+        ] {
+            let name = format!("GuildInviteFrame{name}");
+            let frame = registry
+                .get(registry.get_by_name(&name).expect(&name))
+                .unwrap();
+            assert_eq!(
+                (frame.position.left, frame.position.top),
+                (Val::Px(rect.0), Val::Px(rect.1))
+            );
+            assert_eq!(
+                (frame.width.value(), frame.height.value()),
+                (rect.2, rect.3)
+            );
+            let Some(WidgetData::Texture(texture)) = &frame.widget_data else {
+                panic!("{name} must render texture");
+            };
+            assert_eq!(texture.source, TextureSource::FileDataId(fdid));
+            assert_eq!(texture.tex_coords, uv);
+            assert_eq!(texture.vertex_color, color);
+        }
+        assert_eq!(text(&registry, "GuildInviteFrameInviterName"), "Alice");
+        assert_eq!(text(&registry, "GuildInviteFrameGuildName"), "Raid Team");
+    }
+}
+
+#[test]
+fn guild_invitation_registered_tabard_uses_received_sheet_palette_both_skins() {
+    use ui_toolkit::widgets::texture::TextureSource;
+    let _lock = SKIN.lock().unwrap_or_else(|poison| poison.into_inner());
+    for skin in [ActiveSkin::Modern, ActiveSkin::Forever] {
+        set_thread_skin(skin);
+        let mut session = GuildRanksSession::default();
+        // Decode the received contract, not the player's current guild profile.
+        session.invitation = Some(
+            serde_json::from_value(serde_json::json!({
+                "guild_id": 7, "guild_name": "Raid Team", "inviter_name": "Alice",
+                "tabard": { "icon": 1, "icon_color": 2, "border": 3,
+                    "border_color": 4, "background_color": 5 }
+            }))
+            .unwrap(),
+        );
+        let registry = mounted(&session);
+        let emblem = registry
+            .get(
+                registry
+                    .get_by_name("GuildInviteFrameTabardEmblem")
+                    .expect("received invitation emblem"),
+            )
+            .unwrap();
+        assert_eq!((emblem.width.value(), emblem.height.value()), (56.0, 64.0));
+        let Some(WidgetData::Texture(texture)) = &emblem.widget_data else {
+            panic!("invitation emblem texture");
+        };
+        assert_eq!(texture.source, TextureSource::FileDataId(459023));
+        assert_eq!(texture.tex_coords, [0.0625, 0.125, 0.0, 0.0625]);
+        assert_eq!(
+            texture.vertex_color,
+            [103.0 / 255.0, 69.0 / 255.0, 0.0, 1.0]
+        );
+        for (name, color) in [
+            (
+                "GuildInviteFrameTabardBackground",
+                [177.0 / 255.0, 0.0, 46.0 / 255.0, 1.0],
+            ),
+            (
+                "GuildInviteFrameTabardBorder",
+                [99.0 / 255.0, 148.0 / 255.0, 0.0, 1.0],
+            ),
+        ] {
+            let frame = registry.get(registry.get_by_name(name).unwrap()).unwrap();
+            let Some(WidgetData::Texture(texture)) = &frame.widget_data else {
+                panic!("invitation palette texture");
+            };
+            assert_eq!(texture.vertex_color, color);
+        }
+    }
+}
+
+#[test]
 fn guild_invitation_decline_keeps_source_size_right_and_bottom_anchors() {
     use ui_toolkit::layout_values::Val;
     let _lock = SKIN.lock().unwrap_or_else(|poison| poison.into_inner());
@@ -271,6 +439,7 @@ fn guild_invitation_decline_keeps_source_size_right_and_bottom_anchors() {
             guild_id: 7,
             guild_name: "Raid Team".into(),
             inviter_name: "Alice".into(),
+            tabard: None,
         });
         let registry = mounted(&session);
         let decline = registry
@@ -313,6 +482,7 @@ fn guild_invitation_uses_source_translucent_dialog_chrome_in_both_skins() {
             guild_id: 7,
             guild_name: "Raid Team".into(),
             inviter_name: "Alice".into(),
+            tabard: None,
         });
         let registry = mounted(&session);
         // TranslucentFrameTemplate:10px black0.9 inset and32px quadrant corners.
@@ -394,6 +564,7 @@ fn guild_invitation_popup_works_without_open_roster_in_both_skins() {
             guild_id: 7,
             guild_name: "Raid Team".into(),
             inviter_name: "Alice".into(),
+            tabard: None,
         });
         let registry = mounted(&session);
         assert_eq!(text(&registry, "GuildInviteFrameInviterName"), "Alice");

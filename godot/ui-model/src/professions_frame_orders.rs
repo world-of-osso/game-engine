@@ -39,11 +39,8 @@ pub(super) fn customer_screen(ctx: &SharedContext, view: &ProfessionView) -> Ele
     }
     // CustomerOrders.xml:67-77: BOTTOMLEFT(20,-28), then LEFT at Browse RIGHT(-10,0).
     let browse_width = tab_width("Place Order");
-    let mine = view
-        .orders
-        .snapshot
-        .as_ref()
-        .is_some_and(|snapshot| snapshot.mine);
+    // CustomerOrders.lua:123-138 selects the tab from the visible mode.
+    let mine = !view.orders.creating;
     children.extend(tab(
         "CraftingOrdersBrowseTab",
         "Place Order",

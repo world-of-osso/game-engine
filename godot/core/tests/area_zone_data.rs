@@ -19,11 +19,35 @@ fn reordered_columns_and_northshire_ancestors() {
 }
 
 #[test]
-fn malformed_rows_are_skipped_without_rejecting_valid_rows() {
-    let csv = "ID,ParentAreaID\nwrong,12\n20,nope\n21\n22,0\n23,12\n";
+fn malformed_rows_report_the_exact_source_line_and_column() {
+    for (csv, detail) in [
+        (
+            "ID,ParentAreaID\nwrong,12\n",
+            "2: column 0=\"wrong\": invalid digit found in string",
+        ),
+        (
+            "ID,ParentAreaID\n20,nope\n",
+            "2: column 1=\"nope\": invalid digit found in string",
+        ),
+        ("ID,ParentAreaID\n21\n", "2: missing column 1"),
+        (
+            "ID,ParentAreaID\n23,12\n20,nope\n",
+            "3: column 1=\"nope\": invalid digit found in string",
+        ),
+    ] {
+        let path = Path::new("exports/AreaTable.csv");
+        let error = load_area_parents(Cursor::new(csv), path).unwrap_err();
+        assert_eq!(error, format!("exports/AreaTable.csv:{detail}"));
+    }
+}
+
+#[test]
+fn valid_rows_keep_parents_and_omit_root_areas() {
+    let csv = "ID,ParentAreaID\n22,0\n23,12\n";
     let parents = load_area_parents(Cursor::new(csv), Path::new("AreaTable.csv")).unwrap();
     assert_eq!(parents.len(), 1);
     assert_eq!(parents.get(&23), Some(&12));
+    assert!(!parents.contains_key(&22));
 }
 
 #[test]
