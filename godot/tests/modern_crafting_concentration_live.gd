@@ -38,7 +38,7 @@ func run_test() -> void:
 	motion.global_position = point
 	root.push_input(motion, true)
 	Input.warp_mouse(point)
-	if not await wait_until(func(): return client.tooltip_state().visible and client.tooltip_state().title == "Leatherworking Concentration", "Retail currency tooltip"):
+	if not await wait_until(func(): return client.tooltip_state().visible and client.tooltip_state().title == "Leatherworking Concentration  —/1000", "Retail currency tooltip"):
 		return
 	if not str(client.tooltip_state()).contains("CRAFTING_CONCENTRATION_ORIGIN"):
 		fail("Currency tooltip must disclose unsourced grant/recharge origin")
