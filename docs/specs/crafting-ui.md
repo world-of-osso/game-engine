@@ -20,6 +20,7 @@ Rust ui-model screens and the native Godot extension extend [ProfessionsFrame](p
 
 ### Recraft
 - [x] Expose the Retail owned-item input/output element; submission stays disabled while source operation/lineage is unavailable. Never substitute CREATE_ITEM24 for recrafting.
+- [x] Verify effect297/389195 refusal through the existing owned-item spell intent without inventory/instance, profession or currency mutation; physically click disabled input/submission in both native skins without consuming existing items. This certifies refusal only, not item eligibility or a recraft outcome.
 
 ### Integration
 - [x] Behavioral tests and private UDP5871 fb_* native proof cover both skins, followed by origin/master integration, targeted tests, native build and fmt.
