@@ -37,6 +37,10 @@
 ## 2026-10-17 — Section focus flash
 
 [Focus pulse](systems/adventure-guide.md#section-focus-flash--2026-10-17): independent source Glow/four phases on the existing section-focus path. Missing-effect RED→timing/art controls and Modern2/Forever5 rendered pulses/zero/conservation;12 full-HD originals inspected. Native3's324 outside pixels stay unattributed/not reproduced, with unchanged strict native4/5 passing controls and paint-owner receipts. Merged extension check and scoped fmt pass; independent lead gate remains separate. Prior Journeys mask landed via374e.
+## 2026-10-17 — Plain LootFrame quality-caption font
+
+[QualityText](systems/loot-and-flight.md#plain-quality-caption-font--2026-10-17): GameFontWhiteTiny2/SystemFont_Tiny2 RomanFriz8 has no inherited shadow; only its unwanted shared-helper shadow removed. Genuine RED2pass/1fail→GREEN3; both-skin native96×10/font8/white unchanged, all otherlabelshadows retained.232 pixels lighten/skin,0darkened/outsidequality unions/whitecontrastmask; oldblack reapplication restoresbaseline exactly. Stale-protocol AchievementDelta compile failure retained separately, not behavioral RED. FullLootFrame art/input/lifecycle parity unqualified.
+
 ## 2026-10-17 — Item-confirmation caption shadow
 
 [Separate presenter captions](systems/trading-post.md#item-confirmation-caption-shadow--bounded-proof-october17): only inherited black(+1,−1), current12px/template colors/geometry/actions preserved. Genuine RED→GREEN1;12 native captions across both skins normal/delay/pending pass.535/524/479 darkened pixels per skin, none outside caption unions/white diagnostic masks; exact baseline/source restoration. Initial omitted-post-sync disabled-color and magenta RGB8 green-channel oracle failures retained and resolved without production color/geometry edits. Effective scaling/full-popup/purchase lifetime remain unqualified.
