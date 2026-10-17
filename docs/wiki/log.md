@@ -14,6 +14,10 @@
 ## 2026-10-16 — Bench resurrection HUD projection
 
 [Shared2347 projection](systems/battle-pets.md#bench-resurrection-projection--2026-10-16): both actual skins physically revive two persisted-dead reserves to78/1563, pointer swap, retain incoming damage and win through the revived pet's147-damage Metal Fist. Eight fullHD originals inspected;92/98/131/98 geometry differs only in timed float. Canonical78-asset closure and explicit strict loader readback pass; world-native mode, exact runtime heads and pre-auth recovery are documented. No UI change/full Retail timing/VFX claim; owned processes stopped.
+## 2026-10-16 — Uncast target-death handoff
+
+[Preparation target death](systems/bot-harness.md#preparation-target-death--2026-10-16): Trace17 delivers all4578 CombatChannel messages but exposes corpse pursuit during uncast prep. Consume received zero HP before movement/submission, record explicit abandonment, and resume assist without forcing a target or retry. Recorded alive→dead frames supply RED; prior delivery freeze is not claimed fixed.
+
 ## 2026-10-16 — Frozen combat-channel observation
 
 [Delivery boundary](systems/bot-harness.md#combat-channel-delivery-boundary--2026-10-16): release16 proves policy-B uncast abandonment and continued authored combat, then loses all native combat-log progress while target HP still replicates. Queue replacement/ring eviction rejected; enqueue/transport/ingestion unresolved, host starvation recorded, no gameplay root fix. Local capture-complete is not wire completeness; per-spec rates stay unqualified and boss credit absent.

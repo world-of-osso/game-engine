@@ -14,7 +14,7 @@ from collections import Counter
 from contextlib import closing
 from pathlib import Path
 
-from bot_controller import native_usable, owner_in_combat, publish
+from bot_controller import native_usable, opening_abandonment, owner_in_combat, publish
 from bot_dungeon import summarize_dungeon
 from bot_gear import equipment_receipt, load_plan
 from bot_harness import parse_combat, poll_has_gap, routed_player
@@ -247,8 +247,9 @@ class StockadeRun:
             self.party()
             self.poll_combat()
             state = self.snapshot(target)
-            if owner_in_combat(state):
-                return False
+            abandoned = opening_abandonment(state, target)
+            if abandoned is not None:
+                return abandoned
             here = position(self.account())
             if previous is not None:
                 traveled += math.dist(previous, here)
@@ -263,7 +264,7 @@ class StockadeRun:
                     "facts": state["facts"], "in_range": ranged, "visibility": state["visibility"],
                     "traveled_yards": traveled}) + "\n")
             if visible and usable:
-                return True
+                return None
             if not ranged or not visible:
                 self.move(here, state["target_position"], "native-ranged-approach")
             time.sleep(.1)
@@ -277,12 +278,11 @@ class StockadeRun:
                    "source": "approved native Heroic Throw prep; server validates range/usability"}
         self.run["openings"].append(receipt)
         try:
-            if self.approach_opening(target):
-                outcome = self.player.cast_opening(target, 57755)
-            else:
-                outcome = None
+            outcome = self.approach_opening(target)
             if outcome is None:
-                receipt["abandoned"] = "received owner CombatStatus true before cast"
+                outcome = self.player.cast_opening(target, 57755)
+            if "abandoned" in outcome:
+                receipt.update(outcome)
                 return
             receipt["outcome"] = outcome
             self.opening_target = target

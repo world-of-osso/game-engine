@@ -12,7 +12,7 @@ from bot_controller import FileBridge, PlayerController, requested_snapshot
 def snapshot(spec=62, spell=30451):
     return {"at_ms": 1000, "target": 41, "actor": 7, "trait_config": {"spec_id": spec},
             "assisted": {"in_combat": False},
-            "spells": {"spec": spec, "known": [spell], "casting": None, "gcd_ms": 0,
+            "spells": {"spec": spec, "known": [spell], "casting": None, "gcd_ms": 0, "target_health": 100,
                        "cast_success_events": [], "cast_failure_events": [], "cast_failure_seq": 0},
             "facts": {"known": [spell], **{field: {str(spell): {"Ok": True}}
                        for field in ("ready", "affordable", "in_range")}}}
@@ -71,6 +71,7 @@ class ControllerTests(unittest.TestCase):
             observations += 1
             if observations >= 2:
                 self.native["assisted"]["in_combat"] = True
+                self.native["spells"]["target_health"] = 0
             if observations >= 3:
                 self.native["spells"]["cast_success_events"] = [
                     {"source": 7, "spell_id": 57755, "at_ms": 1001}]
@@ -86,9 +87,26 @@ class ControllerTests(unittest.TestCase):
         native = json.loads(path.read_text())
         self.controller.snapshot = lambda target: native
         self.controller.invoke = lambda *args: self.fail("Submitted opening after received combat began")
-        self.assertIsNone(self.controller.cast_opening(int(native["target"]), 57755))
+        self.assertEqual(self.controller.cast_opening(int(native["target"]), 57755),
+                         {"abandoned": "received owner CombatStatus true before cast"})
         self.assertIsNone(self.controller.pending)
         self.assertEqual(self.commands, [])
+
+    def test_dead_preparation_target_is_abandoned_at_fresh_submission_frame(self):
+        path = Path(__file__).parent / 'fixtures/bot_harness/native-stockade-prep-target-death.json'
+        native = json.loads(path.read_text())["dead"]
+        self.controller.snapshot = lambda target: native
+        self.controller.invoke = lambda *args: self.fail("Submitted cast at confirmed dead target")
+        self.assertEqual(self.controller.cast_opening(int(native["target"]), 57755),
+                         {"abandoned": "received selected target health zero before cast"})
+        self.assertIsNone(self.controller.pending)
+
+    def test_missing_native_target_health_blocks_uncast_opening(self):
+        self.native = snapshot(spec=72, spell=57755)
+        self.native["spells"].pop("target_health", None)
+        self.controller.invoke = lambda *args: self.fail("Submitted without native target health")
+        with self.assertRaisesRegex(ValueError, "target health"):
+            self.controller.cast_opening(41, 57755)
 
     def test_opening_server_refusal_stops_without_repeat_or_alternate(self):
         self.native = snapshot(spec=72, spell=57755)

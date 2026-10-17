@@ -68,6 +68,19 @@ def owner_in_combat(snapshot):
     return assisted["in_combat"]
 
 
+def opening_abandonment(snapshot, target):
+    if owner_in_combat(snapshot):
+        return {"abandoned": "received owner CombatStatus true before cast"}
+    if snapshot.get("target") != int(target):
+        raise ValueError("Native opening target observation changed")
+    health = snapshot["spells"].get("target_health")
+    if not isinstance(health, (int, float)) or health < 0:
+        raise ValueError("Native opening target health unavailable")
+    if health == 0:
+        return {"abandoned": "received selected target health zero before cast"}
+    return None
+
+
 def native_usable(snapshot, spell):
     if set(snapshot["spells"]["known"]) != set(snapshot["facts"]["known"]):
         raise ValueError("Native learned-spell snapshots disagree")
@@ -148,14 +161,15 @@ class PlayerController:
         return self.invoke("spell", "cast", "--spell", str(spell), "--target", str(target))
 
     def cast_opening(self, target, spell):
-        """One prepull cast or None if combat began; submitted casts still need ACK."""
+        """One prepull outcome or uncast abandonment; submitted casts still need ACK."""
         if self.pending is not None:
             raise RuntimeError("Opening cannot replace an outstanding cast")
         state = self.snapshot(target)
-        if owner_in_combat(state):
-            return None
-        if state.get("target") != int(target) or spell not in state["spells"]["known"]:
-            raise ValueError("Opening requires observed target and learned spell")
+        abandoned = opening_abandonment(state, target)
+        if abandoned is not None:
+            return abandoned
+        if spell not in state["spells"]["known"]:
+            raise ValueError("Opening requires a learned spell")
         self.submit_cast(state, target, spell)
         while not self.observe_cast_outcome(self.snapshot(target)):
             time.sleep(.05)
