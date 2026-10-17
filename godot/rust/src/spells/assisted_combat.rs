@@ -7,8 +7,9 @@ use game_engine_core::assisted_combat::{
 };
 use game_engine_core::cooldown_assist::Recommendation;
 use game_engine_core::spell_catalog::CatalogSpell;
+use game_engine_network::replica::Replica;
 use godot::prelude::*;
-use shared::components::{CombatStatus, Health, Position, UnitPowers, UnitRunes};
+use shared::components::{CombatStatus, Health, Position, UnitPowers, UnitRunes, UnitThreatList};
 
 use super::cooldown_viewer::ViewerLoad;
 use crate::GameClient;
@@ -104,6 +105,12 @@ impl GameClient {
         }
         let mut facts = self.read_assisted_facts(&needed, target)?;
         facts.target_hostile = Some(hostile);
+        if spec == 72 && needed.contains(&190411) {
+            facts.player_combat_enemies_within_8yd = self.read_player_combat_nearby_count();
+        }
+        let ViewerLoad::Ready(data) = &self.spells.cooldowns.load else {
+            return Err("Assisted data not loaded".into());
+        };
         let selection = data.catalog.recommend(
             spec,
             |id| facts.known.contains(&id),
@@ -120,6 +127,17 @@ impl GameClient {
             Recommendation::Spell(id) => Recommendation::Spell(self.effective_spell(id)),
             other => other,
         })
+    }
+
+    fn read_player_combat_nearby_count(&mut self) -> Option<u32> {
+        let player = self.world.local_player_id()?;
+        let origin = self.local_cast_feet()?;
+        let candidates: Vec<_> = self.replica.units().map(|unit| unit.server_id).collect();
+        let hostile: BTreeSet<_> = candidates
+            .into_iter()
+            .filter(|id| self.reaction_to(*id) == Reaction::Hostile)
+            .collect();
+        count_player_combat_enemies(&self.replica, player, &origin, &hostile)
     }
 
     fn read_assisted_facts(
@@ -187,6 +205,7 @@ impl GameClient {
         let mut facts = AssistedFacts {
             has_pet,
             powers,
+            target_distance_yd: Some(f64::from(distance)),
             player_health_pct: health_pct(player),
             target_health_pct: health_pct(target),
             known: self.account.spells.known().iter().copied().collect(),
@@ -439,6 +458,117 @@ fn parse_priority_spell_ids(requested: &[i32]) -> Result<BTreeSet<u32>, String> 
         .collect()
 }
 
+// ASSISTED_COMBAT_SIMC_MIRROR, approved 2026-10-17; Whirlwind SpellRadius14=8yd.
+fn count_player_combat_enemies(
+    replica: &Replica,
+    player: u64,
+    origin: &Position,
+    hostile: &BTreeSet<u64>,
+) -> Option<u32> {
+    let mut count = 0;
+    for unit in replica.units() {
+        if !hostile.contains(&unit.server_id)
+            || !unit
+                .get::<Health>()
+                .is_some_and(|health| health.current > 0.0)
+            || !unit
+                .get::<UnitThreatList>()
+                .is_some_and(|threat| threat.0.contains(&player))
+        {
+            continue;
+        }
+        let distance = position_distance(origin, unit.get::<Position>()?);
+        if !distance.is_finite() {
+            return None;
+        }
+        if distance <= 8.0 {
+            count += 1;
+        }
+    }
+    Some(count)
+}
+
 fn position_distance(a: &Position, b: &Position) -> f32 {
     ((a.x - b.x).powi(2) + (a.y - b.y).powi(2) + (a.z - b.z).powi(2)).sqrt()
+}
+
+#[cfg(test)]
+mod spatial_policy_tests {
+    use super::*;
+
+    #[test]
+    fn policy_count_reads_owner_threat_and_three_dimensional_eight_yard_boundary() {
+        let mut replica = Replica::for_tests();
+        let origin = Position {
+            x: 10.0,
+            y: 20.0,
+            z: 30.0,
+        };
+        // Four owner-engaged hostiles, including exactly8yd and a vertical8yd unit.
+        for (id, dx, dz, health, threats) in [
+            (10, 1.0, 0.0, 100.0, vec![1]),
+            (11, 8.0, 0.0, 100.0, vec![1]),
+            (12, 0.0, 8.0, 100.0, vec![1, 2]),
+            (13, 3.0, 4.0, 100.0, vec![1]),
+            (14, 8.001, 0.0, 100.0, vec![1]),
+            (15, 0.0, 8.001, 100.0, vec![1]),
+            (16, 1.0, 0.0, 0.0, vec![1]),
+            (17, 1.0, 0.0, 100.0, vec![2]), // party-only aggro
+            (18, 1.0, 0.0, 100.0, vec![]),
+            (19, 1.0, 0.0, 100.0, vec![1]), // friendly
+        ] {
+            replica.insert(
+                id,
+                Position {
+                    x: origin.x + dx,
+                    y: origin.y,
+                    z: origin.z + dz,
+                },
+            );
+            replica.insert(
+                id,
+                Health {
+                    current: health,
+                    max: 100.0,
+                },
+            );
+            replica.insert(id, UnitThreatList(threats));
+        }
+        let hostile = (10..=18).collect();
+        assert_eq!(
+            count_player_combat_enemies(&replica, 1, &origin, &hostile),
+            Some(4)
+        );
+        assert_eq!(
+            count_player_combat_enemies(&replica, 3, &origin, &hostile),
+            Some(0)
+        );
+        // A qualified actor with no spatial reading cannot silently undercount.
+        replica.insert(
+            20,
+            Health {
+                current: 100.0,
+                max: 100.0,
+            },
+        );
+        replica.insert(20, UnitThreatList(vec![1]));
+        let mut hostile = hostile;
+        hostile.insert(20);
+        assert_eq!(
+            count_player_combat_enemies(&replica, 1, &origin, &hostile),
+            None
+        );
+        replica.insert(
+            20,
+            Position {
+                x: f32::NAN,
+                y: 0.0,
+                z: 0.0,
+            },
+        );
+        assert_eq!(
+            count_player_combat_enemies(&replica, 1, &origin, &hostile),
+            None
+        );
+    }
 }
