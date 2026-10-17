@@ -4464,3 +4464,5 @@ Source Item ownership replaces row-press actions; inset-aware native Button pick
 - 2026-10-17: M2-MAT native85GREEN; both-skin1656441920×1080 half-blend before/after, exactly retained interrupted weights and pixel-identical Hold controls. Same final fixture across hashed old/new binaries; cubic/global-multivalue oracle limits retained.
 
 - 2026-10-17: Approved M2-MAT global-value follow-up: separate timestamp0/global clock from playing-index values; synthetic3RED,16 controls pass. Bounded real-asset census, real multi-value fixture and target oracle gaps documented; no parser changes.
+
+- 2026-10-17: Global material value follow-up GREEN19; scoped native-helper core check and fmt pass without warnings. Local/Hold/tint/transition controls retained; real multi-value asset and target oracle remain gaps.
