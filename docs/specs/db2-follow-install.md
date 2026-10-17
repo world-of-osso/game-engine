@@ -6,6 +6,7 @@
 - Select column order, signedness, arrays and localized strings from the payload's exact layout in WoWDBDefs at a pinned commit. Unknown layouts fail before output.
 - Record actual install version/build key, binary and DBD SHA-256, schema commit, readable row count and unreadable records in build-keyed receipts.
 - Regenerate client caches and server CSV inputs in an isolated output tree. Preserve TDB1210 world.db; report its broken joins rather than rewriting server content.
+- Trading Post outfit defaults read `db2/active/UiModelScene.csv`, including when no historical snapshot directory exists.
 - Catalog consumers validate one declared source identity, not a compiled build number. Housing catalog keys follow their imported receipt; the property-storage namespace is unchanged. Renown reads `data/db2/active/renown.json` at server startup (`GAME_SERVER_RENOWN_CATALOG` selects an explicit input).
 - Model-asset mappings follow the installed Retail build. A new-build receipt supersedes the prior receipt for the same product, FDID and kind, including unchanged bytes. Changed bytes use the new namespace; base and fragment indexes retain one mapping, not competing receipts.
 - Runtime and player bundles select the current asset namespace, not a compiled historical build key. Build-test asset manifests select receipt-backed files by `model:<product>:<FDID>:<kind>`; missing or duplicate receipts fail instead of selecting historical files.
