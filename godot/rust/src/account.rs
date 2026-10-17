@@ -1893,12 +1893,14 @@ impl Account {
             || message.is::<shared::protocol::DungeonProgress>()
             || message.is::<shared::protocol::ChallengeSnapshot>()
             || message.is::<shared::protocol::AdventureGuideSnapshot>()
+            || message.is::<shared::protocol::AdventureGuideClock>()
             || message.is::<shared::protocol::TradingPostSnapshot>()
             || message.is::<shared::protocol::RenownSnapshot>()
             || message.is::<shared::protocol::PartyKeystoneSnapshot>()
             || message.is::<shared::protocol::ScenarioProgress>()
             || message.is::<shared::protocol::AchievementCatalogPage>()
             || message.is::<shared::protocol::AchievementStateUpdate>()
+            || message.is::<shared::protocol::AchievementDelta>()
             || message.is::<DamageMeterSnapshot>()
             || message.is::<shared::protocol::ThreatUpdate>()
             || message.is::<shared::protocol::PlayerXpUpdate>()
@@ -1919,6 +1921,20 @@ impl Account {
             ));
         }
         self.renown = Some(std::sync::Arc::new(reply));
+    }
+
+    /// Clock-only Guide update: the full Guide with only its realm time replaced.
+    fn receive_adventure_guide_clock(
+        &mut self,
+        clock: shared::protocol::AdventureGuideClock,
+    ) -> Result<(), String> {
+        let guide = self
+            .adventure_guide
+            .as_mut()
+            .ok_or("Adventure Guide clock before a full Adventure Guide on this connection")?;
+        // Copy-on-write: a Guide the view still shows is replaced, never mutated in place.
+        std::sync::Arc::make_mut(guide).month.now_unix = clock.now_unix;
+        Ok(())
     }
 
     fn dispatch_account_state_message(
@@ -1944,6 +1960,9 @@ impl Account {
         if message.is::<shared::protocol::AdventureGuideSnapshot>() {
             self.adventure_guide = Some(std::sync::Arc::new(decode(message)?));
             return Ok(());
+        }
+        if message.is::<shared::protocol::AdventureGuideClock>() {
+            return self.receive_adventure_guide_clock(decode(message)?);
         }
         if message.is::<shared::protocol::RenownSnapshot>() {
             self.receive_renown_reply(decode(message)?, output);
@@ -1981,6 +2000,12 @@ impl Account {
             self.achievement_requests
                 .extend(self.achievements.refresh(&update));
             output.push(AccountEvent::Achievement(update));
+            return Ok(());
+        }
+        if message.is::<shared::protocol::AchievementDelta>() {
+            let delta: shared::protocol::AchievementDelta = decode(message)?;
+            let requests = self.achievements.apply_delta(&delta)?;
+            self.achievement_requests.extend(requests);
             return Ok(());
         }
         if message.is::<shared::protocol::WorldQuestAvailability>() {
@@ -2678,6 +2703,9 @@ mod guild_charter_tests;
 #[cfg(test)]
 #[path = "account_guild_tabard_tests.rs"]
 mod guild_tabard_tests;
+#[cfg(test)]
+#[path = "account_netdelta_tests.rs"]
+mod netdelta_tests;
 
 #[cfg(test)]
 #[path = "account_deathstate_tests.rs"]
