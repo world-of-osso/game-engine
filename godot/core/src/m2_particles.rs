@@ -18,6 +18,7 @@ const FLAG_SORT_DEPTH: u32 = 0x2;
 const FLAG_VELOCITY_ORIENTED: u32 = 0x4;
 const FLAG_MODEL_SPACE: u32 = 0x10;
 const FLAG_INHERIT_SCALE: u32 = 0x20;
+const FLAG_INHERIT_VELOCITY: u32 = 0x40;
 const FLAG_FOLLOW_POSITION: u32 = 0x4000;
 const FLAG_PROJECT_GROUND: u32 = 0x2000;
 /// Supplied clean-room P7: map intersection is a twenty-yard downward segment.
@@ -373,6 +374,8 @@ pub fn integrate_particle(
 pub struct Particle {
     /// Generator frame for model-space emitters, else world.
     pub position: Vec3,
+    /// Position before the current simulation substep, not the root emitter origin.
+    pub previous_position: Vec3,
     pub velocity: Vec3,
     /// Birth orientation, independent of subsequent world-space emitter movement.
     pub orientation: Quat,
@@ -412,6 +415,25 @@ pub struct ModelParticle {
     pub color: Vec4,
 }
 
+/// A separately resolved recursive emitter definition and its persistent live state.
+/// No depth/cycle policy or recursive animation clock is implied by this tree.
+#[derive(Clone, Debug)]
+pub struct RecursiveEmitter {
+    pub emitter: ParticleEmitter,
+    pub sim: EmitterSim,
+    /// Explicitly supplied by the resolved definition; no Retail flag guessed.
+    pub interpolate_position: bool,
+}
+
+#[derive(Clone, Copy)]
+struct ParentMotion {
+    previous_position: Vec3,
+    position: Vec3,
+    velocity: Vec3,
+    orientation: Quat,
+    interpolate: bool,
+}
+
 /// Live particles of one placed emitter, its emission remainder and random stream.
 #[derive(Clone, Debug)]
 pub struct EmitterSim {
@@ -425,6 +447,9 @@ pub struct EmitterSim {
     /// `enabledIn` at that time.
     enabled: bool,
     spline: Option<spline::Spline>,
+    pub children: Vec<RecursiveEmitter>,
+    /// Recursive births are already placed in world axes by their parent motion.
+    recursive_world: bool,
 }
 
 /// The generator's animated values (`CGeneratorAniProp`); gravity in WoW axes.
@@ -507,6 +532,8 @@ impl EmitterSim {
             props: GeneratorProps::authored(emitter),
             enabled: true,
             spline: spline::Spline::new(&emitter.spline_points),
+            children: Vec::new(),
+            recursive_world: false,
         }
     }
 
@@ -560,7 +587,7 @@ impl EmitterSim {
         if dt >= STEP_SECONDS {
             let whole = (dt / STEP_SECONDS).floor();
             remainder = dt - whole * STEP_SECONDS;
-            let steps = (self.props.lifespan / STEP_SECONDS)
+            let steps = (self.replay_lifespan() / STEP_SECONDS)
                 .floor()
                 .min(whole)
                 .max(0.0) as usize;
@@ -595,15 +622,35 @@ impl EmitterSim {
         follow: Vec3,
         ground: &mut GroundQuery<'_>,
     ) {
-        if dt < 0.0 {
+        if !(dt > 0.0) {
             return;
         }
+        self.age_particles(emitter, dt);
+        self.emit(emitter, dt, density, wow_to_world * Vec3::Z, ground, None);
+        self.move_particles(emitter, dt, wow_to_world, follow);
+        self.step_children(emitter, dt, wow_to_world, density, ground);
+    }
+
+    fn age_particles(&mut self, emitter: &ParticleEmitter, dt: f32) {
         let lifespan = self.props.lifespan;
         self.particles.retain_mut(|particle| {
             particle.age += dt;
-            particle.age <= particle_lifespan(emitter, lifespan, particle.seed).max(MIN_LIFESPAN)
+            particle.age < particle_lifespan(emitter, lifespan, particle.seed).max(MIN_LIFESPAN)
         });
-        let model_space = emitter.flags & FLAG_MODEL_SPACE != 0;
+    }
+
+    fn model_space(&self, emitter: &ParticleEmitter) -> bool {
+        emitter.flags & FLAG_MODEL_SPACE != 0 && !self.recursive_world
+    }
+
+    fn move_particles(
+        &mut self,
+        emitter: &ParticleEmitter,
+        dt: f32,
+        wow_to_world: Mat3,
+        follow: Vec3,
+    ) {
+        let model_space = self.model_space(emitter);
         let to_sim = |vector: [f32; 3]| {
             let vector = Vec3::from(vector);
             if model_space {
@@ -614,7 +661,6 @@ impl EmitterSim {
         };
         let gravity = to_sim(self.props.gravity);
         let wind = to_sim(emitter.wind_vector);
-        self.emit(emitter, dt, density, wow_to_world * Vec3::Z, ground);
         let center = if model_space {
             Vec3::ZERO
         } else {
@@ -624,6 +670,7 @@ impl EmitterSim {
             && emitter.flags & FLAG_SPHERE_IMPLODE != 0;
         let multitexture = emitter.multi_texture.is_some();
         self.particles.retain_mut(|particle| {
+            particle.previous_position = particle.position;
             if multitexture {
                 for layer in 0..2 {
                     let moved = particle.tex_pos[layer] + particle.tex_vel[layer] * dt;
@@ -650,6 +697,58 @@ impl EmitterSim {
         });
     }
 
+    fn replay_lifespan(&self) -> f32 {
+        let descendants = self
+            .children
+            .iter()
+            .map(|child| child.sim.replay_lifespan())
+            .fold(0.0_f32, f32::max);
+        self.props.lifespan + descendants
+    }
+
+    /// Birth requests for every surviving parent precede one child-state advance.
+    fn step_children(
+        &mut self,
+        emitter: &ParticleEmitter,
+        dt: f32,
+        wow_to_world: Mat3,
+        density: f32,
+        ground: &mut GroundQuery<'_>,
+    ) {
+        let model_space = self.model_space(emitter);
+        let frame = self.emitter_to_world;
+        for child in &mut self.children {
+            child.sim.recursive_world = true;
+            let child_density = if child.emitter.flags & FLAG_NO_GLOBAL_SCALE != 0 {
+                1.0
+            } else {
+                density
+            };
+            for particle in &self.particles {
+                let motion =
+                    parent_motion(particle, model_space, frame, child.interpolate_position);
+                child.sim.emitter_to_world =
+                    Mat4::from_rotation_translation(motion.orientation, motion.position)
+                        * Mat4::from_translation(wow_to_world * Vec3::from(child.emitter.position));
+                child.sim.emit(
+                    &child.emitter,
+                    dt,
+                    child_density,
+                    wow_to_world * Vec3::Z,
+                    ground,
+                    Some(motion),
+                );
+            }
+            child.sim.age_particles(&child.emitter, dt);
+            child
+                .sim
+                .move_particles(&child.emitter, dt, wow_to_world, Vec3::ZERO);
+            child
+                .sim
+                .step_children(&child.emitter, dt, wow_to_world, child_density, ground);
+        }
+    }
+
     /// `EmitNewParticles`: rate (+ variation) x density accumulates; each whole
     /// particle spawns while the pool has room.
     fn emit(
@@ -659,8 +758,9 @@ impl EmitterSim {
         density: f32,
         up: Vec3,
         ground: &mut GroundQuery<'_>,
+        parent: Option<ParentMotion>,
     ) {
-        if !self.enabled {
+        if !self.enabled || !(dt > 0.0) {
             return;
         }
         let rate = (self.props.emission_rate
@@ -670,6 +770,17 @@ impl EmitterSim {
         while self.emission > 1.0 {
             if self.particles.len() < self.capacity {
                 let mut particle = self.spawn(emitter, dt);
+                if let Some(parent) = parent {
+                    if parent.interpolate {
+                        particle.position +=
+                            (parent.previous_position - parent.position) * self.rng.uniform_pos();
+                    }
+                    if emitter.flags & FLAG_INHERIT_VELOCITY != 0 {
+                        let variation = 1.0 + self.props.speed_variation * self.rng.uniform();
+                        particle.velocity +=
+                            parent.velocity * emitter.inherit_velocity_scale * variation;
+                    }
+                }
                 project_birth(emitter, &mut particle, self.props.lifespan, up, ground);
                 self.particles.push(particle);
             }
@@ -695,7 +806,7 @@ impl EmitterSim {
                 .spawn(props, rng),
             _ => spawn_sphere(emitter, props, rng),
         };
-        let (position, velocity) = if emitter.flags & FLAG_MODEL_SPACE == 0 {
+        let (position, velocity) = if !self.model_space(emitter) {
             (
                 self.emitter_to_world.transform_point3(position),
                 self.emitter_to_world.transform_vector3(velocity),
@@ -706,8 +817,9 @@ impl EmitterSim {
         let (tex_pos, tex_vel) = spawn_texture_motion(emitter, rng);
         Particle {
             position,
+            previous_position: position,
             velocity,
-            orientation: if emitter.flags & FLAG_MODEL_SPACE != 0 {
+            orientation: if self.model_space(emitter) {
                 Quat::IDENTITY
             } else {
                 self.emitter_to_world.to_scale_rotation_translation().1
@@ -735,7 +847,7 @@ impl EmitterSim {
                 particle.orientation * Quat::from_rotation_z(spin_angle(emitter, particle)),
                 particle.position,
             );
-            let transform = if emitter.flags & FLAG_MODEL_SPACE != 0 {
+            let transform = if self.model_space(emitter) {
                 self.emitter_to_world * local
             } else if emitter.flags & FLAG_INHERIT_SCALE != 0 {
                 let inherited = self.emitter_to_world.x_axis.truncate().length();
@@ -771,7 +883,7 @@ impl EmitterSim {
         if emitter.flags & FLAG_SORT_DEPTH != 0 {
             let mut ordered: Vec<_> = live
                 .map(|particle| {
-                    let center = if emitter.flags & FLAG_MODEL_SPACE != 0 {
+                    let center = if self.model_space(emitter) {
                         self.emitter_to_world.transform_point3(particle.position)
                     } else {
                         particle.position
@@ -818,7 +930,7 @@ impl EmitterSim {
         geometry: (Quad, Vec2),
     ) -> Quad {
         let (mut quad, scale) = geometry;
-        let velocity = if emitter.flags & FLAG_MODEL_SPACE != 0 {
+        let velocity = if self.model_space(emitter) {
             self.emitter_to_world.transform_vector3(particle.velocity)
         } else {
             particle.velocity
@@ -854,7 +966,7 @@ impl EmitterSim {
         if emitter.flags & FLAG_INHERIT_SCALE != 0 {
             scale *= matrix.x_axis.truncate().length();
         }
-        let (center, velocity) = if emitter.flags & FLAG_MODEL_SPACE != 0 {
+        let (center, velocity) = if self.model_space(emitter) {
             (
                 matrix.transform_point3(particle.position),
                 matrix.transform_vector3(particle.velocity),
@@ -876,6 +988,40 @@ impl EmitterSim {
         ))
     }
 }
+
+fn parent_motion(
+    particle: &Particle,
+    model_space: bool,
+    frame: Mat4,
+    interpolate: bool,
+) -> ParentMotion {
+    let (previous_position, position, velocity, orientation) = if model_space {
+        (
+            frame.transform_point3(particle.previous_position),
+            frame.transform_point3(particle.position),
+            frame.transform_vector3(particle.velocity),
+            frame.to_scale_rotation_translation().1 * particle.orientation,
+        )
+    } else {
+        (
+            particle.previous_position,
+            particle.position,
+            particle.velocity,
+            particle.orientation,
+        )
+    };
+    ParentMotion {
+        previous_position,
+        position,
+        velocity,
+        orientation,
+        interpolate,
+    }
+}
+
+#[cfg(test)]
+#[path = "m2_particle_models_tests.rs"]
+mod model_tests;
 
 /// World-space plane/sphere births only, before their first ballistic step.
 fn project_birth(
