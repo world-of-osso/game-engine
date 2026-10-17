@@ -46,6 +46,12 @@ Verified: 2026-10-17. Genuine model RED `fd34f46d0` (2pass/1fail) → `ae6f7a239
 
 Proof: local `data/diagnostics/ui-questlog-ready-shadow-2026-10-16/ready-shadow-proof-ledger.json`; PNGs `AgentShared/2026-10-16/ui-questlog-ready-shadow/{before-ready-shadow,after-ready-shadow,comparison-modern.png,comparison-forever.png}`. Final native binary is `ae6f7a239`; subsequent documentation does not change the proof scope. This supplied-state shadow proof does not certify source colors, title/portrait/border, full popup or server lifecycle; no unaffected physical-button replay.
 
+### ReadyCheck title origin/width — implementation 2026-10-17
+
+`ReadyCheck.xml:45–58` places TitleContainer at listener TOPLEFT(58,−1)/TOPRIGHT(−24,−1), with child TitleText TOP(0,−5)/LEFT/RIGHT. Thus width323−58−24=241 and parent-relative title origin(58,6) in Godot y-down coordinates. Lead approved only x/y/width, preserving the existing20px title control height as conservation, not source intrinsic-height parity. Current frame/message/portrait/chrome, Friz12/exactgold/blackshadow, buttons/actions and all other production fields stay unchanged. Intrinsic title height/wrapping/frame level and full reference/lifecycle remain unqualified.
+
+Genuine model RED4pass/1fail on landede8000e571 reproduces title width323 versus241 (206.7s helper). The same both-skin title regression retains text/font/colour/shadow/20px height and four message/portrait/button controls. Only three production title geometry attributes change; existing native fixture expectations follow the new target, while earlier captures retain their original binary/geometry scope. GREEN/check receipts follow in local `data/diagnostics/ui-questlog-ready-title-bounds-2026-10-17/proof-ledger.json`; native title-origin/width proof waits for gate/landing, no new extension build/capture yet.
+
 ### ReadyCheck portrait-area source audit — 2026-10-17
 
 The right-of-centre message is authored, not an offset defect. `ReadyCheck.xml:16–18` specifies323×100 at CENTER(0,−10); `:35–38` specifies width240/TOP(+20,−37). Parent-relative x=(323−240)/2+20=61.5, y=37, hence authored message centre980 in a dialog centred960; native centre980.5 reflects the already-recorded half-unit rounding (native local x62 versus model61.5). The production component and native receipts already match within that known0.5px boundary. Do not recenter or resize the dialog/message to fill the empty band.
