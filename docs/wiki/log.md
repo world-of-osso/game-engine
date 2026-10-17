@@ -1,3 +1,7 @@
+## 2026-10-17 — Ordinary party battleground queue
+
+[Party admission and late arrivals](systems/battlegrounds.md#ordinary-party-queue-and-late-arrivals--2026-10-17): normal invitation/accept four5-player parties→oneArathi20/10v10. QueueRED0vs20; sequentialWorldPortAck scoreboardRED18vs20→final8GREEN/check/fmt, no warnings. One zeroed accepted late-arrival row preserves real prior banner-assault scores. Native release20 and diagnostic19-peer live proof remain pending.
+
 ## 2026-10-17 — Life Exchange HP projection
 
 [Bounded277](systems/battle-pets.md#life-exchange-projection--2026-10-17): both actual strict skins/private5961 physical shared98/108, subsequent Scratch28/30 and retained owned70→78HP, CD5. Four inspected fullHD originals/all saved phases two framed models, geometry91/97 only HP fills. Existing canonical Sprite6294 closure6/6/loader2meshes; no new Sprite publication or UI code. Earlier TormentedSpirit66620 loads12meshes but authentic scale1.0 clips fixed viewport; rejected before cast/capture, no camera/scale workaround. Native1068/f8 and shared-helper drift/source boundaries recorded; final lib126/check1m25/no warnings/bothfmt pass, unaffected wild-PvP27 + replacement Sprite1 and unchanged UI12 proof retained.
