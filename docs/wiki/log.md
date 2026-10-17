@@ -4531,3 +4531,5 @@ Source Item ownership replaces row-press actions; inset-aware native Button pick
 
 - 2026-10-17: M2-MAT native85GREEN; both-skin1656441920×1080 half-blend before/after, exactly retained interrupted weights and pixel-identical Hold controls. Same final fixture across hashed old/new binaries; cubic/global-multivalue oracle limits retained.
 - 2026-10-17: [Cooldown-assist](investigations/cooldown-assist-data.md#assisted_combat_simc_mirror): user-approved bounded Fury spatial mirror; native Retail authority remains unknown.
+
+- 2026-10-17: [Run22 native policy partial](investigations/cooldown-assist-data.md#native-policy-observation--run22): prior Fury predicate refusal passed; tank death before first boss leaves clear acceptance open.
