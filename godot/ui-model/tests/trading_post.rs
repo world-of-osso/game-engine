@@ -9,6 +9,117 @@ use ui_toolkit::{
 };
 
 #[test]
+fn trading_post_frozen_row_exclusion_keeps_frozen_details_selectable_in_both_skins() {
+    for skin in [ActiveSkin::Modern, ActiveSkin::Forever] {
+        let mut view = freeze_view();
+        view.cart.clear();
+        assert_eq!(
+            view.rows().iter().map(|row| row.id).collect::<Vec<_>>(),
+            [5, 6]
+        );
+        let registry = render(skin, view.clone());
+        assert!(registry.get_by_name("PerksProgramProduct4").is_none());
+        assert!(registry.get_by_name("PerksProgramProduct5").is_some());
+        assert!(registry.get_by_name("PerksProgramProduct6").is_some());
+        assert!(registry.get_by_name("PerksProgramFrozenSlot").is_some());
+        assert_eq!(
+            text(&registry, "PerksProgramFrozenLabel"),
+            "Distinguished Warcloak"
+        );
+        assert_eq!(view.selected_item().unwrap().id, 4);
+        assert_eq!(view.snapshot.as_ref().unwrap().items.len(), 3);
+
+        view.click("perks:type:1").unwrap();
+        assert!(view.rows().is_empty());
+        assert_eq!(view.selected, Some(4));
+        assert_eq!(view.selected_item().unwrap().id, 4);
+        let filtered = render(skin, view.clone());
+        assert!(filtered.get_by_name("PerksProgramFrozenSlot").is_some());
+        assert_eq!(
+            text(&filtered, "PerksProgramFrozenLabel"),
+            "Distinguished Warcloak"
+        );
+        view.click("perks:select:4").unwrap();
+        assert_eq!(view.selected, Some(4));
+        view.click("perks:filters:reset").unwrap();
+        assert_eq!(
+            view.rows().iter().map(|row| row.id).collect::<Vec<_>>(),
+            [5, 6]
+        );
+        assert_eq!(view.snapshot.as_ref().unwrap().tender, 500);
+        assert_eq!(view.snapshot.as_ref().unwrap().frozen_item_id, Some(4));
+        assert!(view.cart.is_empty());
+    }
+}
+
+#[test]
+fn trading_post_frozen_row_exclusion_follows_committed_not_pending_replacement() {
+    use game_engine_ui_model::trading_post::Action;
+    for skin in [ActiveSkin::Modern, ActiveSkin::Forever] {
+        let mut view = freeze_view();
+        view.cart.clear();
+        assert_eq!(view.drop_item(5, false, true), None);
+        assert_eq!(view.freeze_candidate, Some(5));
+        assert_eq!(view.snapshot.as_ref().unwrap().frozen_item_id, Some(4));
+        assert_eq!(
+            view.rows().iter().map(|row| row.id).collect::<Vec<_>>(),
+            [5, 6]
+        );
+        let pending = render(skin, view.clone());
+        assert!(pending.get_by_name("PerksProgramProduct4").is_none());
+        assert!(pending.get_by_name("PerksProgramProduct5").is_some());
+        assert_eq!(text(&pending, "PerksProgramFrozenLabel"), "Arcanofire Wrap");
+        view.click("perks:cancel").unwrap();
+        assert_eq!(
+            view.rows().iter().map(|row| row.id).collect::<Vec<_>>(),
+            [5, 6]
+        );
+
+        for (id, ordinary, frozen_name) in [
+            (5, vec![6, 4], "Arcanofire Wrap"),
+            (4, vec![5, 6], "Distinguished Warcloak"),
+        ] {
+            assert_eq!(view.drop_item(id, false, true), None);
+            view.update_freeze_confirmation(5.0);
+            assert_eq!(
+                view.click("perks:confirm").unwrap(),
+                Some(Action::Request(TradingPostRequest::Freeze {
+                    vendor_item_id: Some(id)
+                }))
+            );
+            let prior = view.snapshot.as_ref().unwrap().frozen_item_id.unwrap();
+            assert!(!view.rows().iter().any(|row| row.id == prior));
+            assert!(view.rows().iter().any(|row| row.id == id));
+            let mut reply = view.snapshot.as_ref().unwrap().as_ref().clone();
+            reply.frozen_item_id = Some(id);
+            view.receive(Arc::new(reply));
+            assert_eq!(
+                view.rows().iter().map(|row| row.id).collect::<Vec<_>>(),
+                ordinary
+            );
+            assert_eq!(view.selected, Some(id));
+            assert_eq!(view.selected_item().unwrap().id, id);
+            let accepted = render(skin, view.clone());
+            assert!(
+                accepted
+                    .get_by_name(&format!("PerksProgramProduct{id}"))
+                    .is_none()
+            );
+            assert!(
+                accepted
+                    .get_by_name(&format!("PerksProgramProduct{prior}"))
+                    .is_some()
+            );
+            assert_eq!(text(&accepted, "PerksProgramFrozenLabel"), frozen_name);
+        }
+        assert_eq!(view.snapshot.as_ref().unwrap().frozen_item_id, Some(4));
+        assert_eq!(view.snapshot.as_ref().unwrap().tender, 500);
+        assert_eq!(view.snapshot.as_ref().unwrap().items.len(), 3);
+        assert!(view.cart.is_empty());
+    }
+}
+
+#[test]
 fn trading_post_refund_icon_tooltip_uses_hovered_row_time_not_selected_product() {
     let mut data = snapshot();
     let mut refundable = data.items[0].clone();
@@ -1178,7 +1289,10 @@ fn trading_post_dropdown_selection_and_sort_headers_order_real_rows() {
     row.id = 5;
     row.name = "Arcanofire Wrap".into();
     row.price = 75;
-    data.items.push(row);
+    let mut second_ordinary = data.items[0].clone();
+    second_ordinary.id = 6;
+    second_ordinary.name = "Azure Warcloak".into();
+    data.items.extend([row, second_ordinary]);
     let mut view = View {
         visible: true,
         snapshot: Some(Arc::new(data)),
@@ -1188,12 +1302,12 @@ fn trading_post_dropdown_selection_and_sort_headers_order_real_rows() {
     view.click("perks:sort:price").unwrap();
     assert_eq!(
         view.rows().iter().map(|r| r.id).collect::<Vec<_>>(),
-        vec![5, 4]
+        vec![5, 6]
     );
     view.click("perks:sort:price").unwrap();
     assert_eq!(
         view.rows().iter().map(|r| r.id).collect::<Vec<_>>(),
-        vec![4, 5]
+        vec![6, 5]
     );
     view.click("perks:filter").unwrap();
     let registry = render(ActiveSkin::Forever, view.clone());
@@ -1226,11 +1340,15 @@ fn trading_post_retail_xml_geometry_and_dropdown_in_both_skins() {
     // Blizzard_PerksProgram.xml: LEFT+46, vertical center+22; WoW Y is upwards.
     // Elements.xml base extent 176x48; list stretches width to 527-24.
     for skin in [ActiveSkin::Modern, ActiveSkin::Forever] {
+        let mut data = snapshot();
+        let mut ordinary = data.items[0].clone();
+        ordinary.id = 5;
+        data.items.push(ordinary);
         let registry = render(
             skin,
             View {
                 visible: true,
-                snapshot: Some(Arc::new(snapshot())),
+                snapshot: Some(Arc::new(data)),
                 selected: Some(4),
                 ..Default::default()
             },
@@ -1243,8 +1361,8 @@ fn trading_post_retail_xml_geometry_and_dropdown_in_both_skins() {
             rect(&registry, "PerksProgramScrollBox"),
             [0., 58., 503., 573.]
         );
-        assert_eq!(rect(&registry, "PerksProgramProduct4"), [0., 0., 503., 48.]);
-        assert_eq!(rect(&registry, "PerksProgramIcon4"), [32., 8., 32., 32.]);
+        assert_eq!(rect(&registry, "PerksProgramProduct5"), [0., 0., 503., 48.]);
+        assert_eq!(rect(&registry, "PerksProgramIcon5"), [32., 8., 32., 32.]);
         assert_eq!(
             rect(&registry, "PerksProgramFilter"),
             [55., 95.5, 145., 25.]
@@ -1300,7 +1418,7 @@ fn trading_post_both_skins_show_real_tender_price_frozen_item_and_disabled_refun
             },
         );
         assert_eq!(text(&registry, "PerksProgramCurrencyAmount"), "500");
-        assert_eq!(text(&registry, "PerksProgramPrice4"), "100");
+        assert_eq!(text(&registry, "PerksProgramFrozenPrice4"), "100");
         assert_eq!(
             text(&registry, "PerksProgramFrozenLabel"),
             "Distinguished Warcloak"
@@ -1416,6 +1534,7 @@ fn trading_post_empty_freeze_slot_and_leave_use_sourced_text_and_arrow() {
 #[test]
 fn trading_post_retail_filter_checks_ownership_usability_and_multiple_types() {
     let mut source = snapshot();
+    source.frozen_item_id = None;
     let mut owned = source.items[0].clone();
     owned.id = 5;
     owned.purchased = true;

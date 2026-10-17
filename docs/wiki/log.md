@@ -1,17 +1,24 @@
 ## 2026-10-17 — Eye holiday492 read-only authority audit
 
 [70448 source finding](investigations/eye-holiday-authority.md): verified installed build/config/schema/CSV receipts, BML7→map566/PVPDifficulty links,811 readable Holidays rows. Holiday492 Date0 decodes2007-11-27UTC; durations72/1776h,Looping0/filter2 do not authorize77-day recurrence. Pinned TC evaluator/constructor sampling sourced, but effective game_event row/stage/schedule missing; HOLIDAY492_EFFECTIVE_EVENT_AUTHORITY remains open. Finding sent before code; no RED/runtime implementation/calendar default.
+## 2026-10-17 — Committed frozen-product list exclusion
+
+[Ordinary-list contract](systems/trading-post.md#committed-frozen-product-list-exclusion--october17): two behavioral model REDs `[5,6,4]`vs`[5,6]` precede the minimal committed-ID predicate. Full snapshot/frozen selection/pending candidate stay intact; hover/lock fixture assumptions corrected without replaying historical audio proof. Targeted GREEN2 and current7f source42UI+12native Rust(+1DB2)/helper check35.07s/noWarnings/scoped Rustfmt2/readability pass. Both-skin genuine640/712 replacement/restoration remains pending after the gate, never an empty-slot reset. Active SoundKit audit correction to70448 included; no pitch/audio/server changes.
+
+## 2026-10-17 — PitchAdjust active-build correction
+
+[UI_SOUND_PITCH_ADJUST_RATE](systems/sound.md#ui_sound_pitch_adjust_rate): `data/db2/active` resolves70448/key88d5e8ef…, not70391. All five SoundKit-family field sets and pertinent rows reread/hash-bound from actual active files; hide/show still has−0.144405067 with no sourced rate equation. Original pinned70391 receipt retained as historical, not silently relabeled. No pitch code or asset/runtime change.
 
 ## 2026-10-17 — Native release20 Arathi lifecycle
 
 [Bounded release proof](systems/battlegrounds.md#native-release20-arathi--bounded-proof2026-10-17): landed-master bookworm extension/server/19peers, actual loaded release hash; normal four5-player parties→one20/10v10 match, five banner assaults, natural1500–0, winning wallet/XP671 and losing61 across20, all origin-map returns. Four inspected both-skin1920×1080 scoreboard/end originals shared. First cold10.5686s frame/peer12 timeout retained; same-code/privateDB bounded retry passes, not a cold-stall fix. Numeric wallet pixels6... remain diagnostic-only; raw log order/timestamp limits/import errors explicit. Owned scope stopped,5941free/window cleared13:44:45.
 ## 2026-10-17 — ReadyCheck title shadow
 
-[Title shadow](systems/group-frames.md#readycheck-title-shadow--implementation-2026-10-17): XML53→GameFontNormal→Roman SystemFont_Shadow_Med1 black(+1,−1). Genuine RED3pass/1fail precedes only two production shadow attributes; existing title colour/layout and every other production field retained. Integrated b7363593c both-skin GREEN4/4 (45.4s helper), engine/network check89.0s/no warnings, scoped format/diff/readability pass; exact receipts in local ledger. Native proof pending lead gate; title colour/layout/full-popup/lifecycle remain gaps.
+[Title shadow](systems/group-frames.md#readycheck-title-shadow--implementation-2026-10-17): XML53→GameFontNormal→Roman SystemFont_Shadow_Med1 black(+1,−1). Genuine RED3pass/1fail precedes only two production shadow attributes; existing title colour/layout and every other production field retained. Integrated b7363593c both-skin GREEN4/4 (45.4s helper), engine/network check89.0s/no warnings, scoped format/diff/readability pass; exact receipts in local ledger. Post436e landed5ff build140.3s; both-skin1920 native462 darkened/zero outside/exact RGBA restore, panels/full contexts inspected. Explicit WoW y-up(+1,−1)→Godot y-down(+1,+1) mapping; window cleared/slice stopped. Native accepted by lead; title colour/layout/full-popup/lifecycle remain gaps.
 
 ## 2026-10-17 — PitchAdjust source gate
 
-[UI_SOUND_PITCH_ADJUST_RATE](systems/sound.md#ui_sound_pitch_adjust_rate):3647 cached Retail Lua/XML files, the full Sound API definition and active70391 SoundKit-family fields/pertinent rows do not establish a rate equation. Exact sources/search bound by hashes; supplementary DBD gives only a float declaration. No semitone/linear/log2 guess, code, asset extraction or runtime change; hide/show218236/218237 remains deferred, selection callbacks separate. Frozen ordinary-row exclusion is proposed independently, not folded into audio work.
+[UI_SOUND_PITCH_ADJUST_RATE](systems/sound.md#ui_sound_pitch_adjust_rate):3647 cached Retail Lua/XML files, the full Sound API definition and initially pinned70391 SoundKit-family fields/pertinent rows do not establish a rate equation; that snapshot was mislabelled active and is superseded by the70448 recheck above. Exact sources/search bound by hashes; supplementary DBD gives only a float declaration. No semitone/linear/log2 guess, code, asset extraction or runtime change; hide/show218236/218237 remains deferred, selection callbacks separate. Frozen ordinary-row exclusion is proposed independently, not folded into audio work.
 
 ## 2026-10-17 — Ordinary party battleground queue
 
