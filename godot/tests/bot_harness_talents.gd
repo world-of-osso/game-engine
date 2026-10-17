@@ -36,7 +36,27 @@ func rank_text(tree: SceneTree, node: int) -> String:
         return label.text
     return ""
 
-func apply_plan(tree: SceneTree, plan: Dictionary) -> Dictionary:
+func observe_config(client: Node) -> Dictionary:
+    var account: Dictionary = client.account_state()
+    var spells: Dictionary = client.spells_state()
+    if account.get("local_player_id") == null or spells.get("known", []).is_empty():
+        return {"error": "Native player/spells unavailable for talent tree observation"}
+    var requested := PackedInt32Array([int(spells["known"][0])])
+    var query: Dictionary = client.call("spell_priority_state", int(account["local_player_id"]), requested)
+    if query.has("error"):
+        return query
+    var state: Variant = JSON.parse_string(query.get("state_json", ""))
+    if not state is Dictionary or not state.get("trait_config") is Dictionary:
+        return {"error": "Received native talent configuration unavailable"}
+    return state["trait_config"]
+
+func apply_plan(tree: SceneTree, client: Node, plan: Dictionary) -> Dictionary:
+    var config := observe_config(client)
+    if config.has("error"):
+        return config
+    var same_tree := int(config.get("tree_id", 0)) > 0 and config.get("tree_id") == plan.get("tree")
+    if not same_tree or config.get("spec_id") != plan.get("spec"):
+        return {"error": "Sourced talent plan does not match received native tree/spec", "native_config": config}
     await press_key(tree, KEY_N)
     var panel: Node
     for attempt in range(100):
@@ -74,7 +94,8 @@ func apply_plan(tree: SceneTree, plan: Dictionary) -> Dictionary:
         realized[str(step["node"])] = rank_text(tree, int(step["node"]))
     await press_key(tree, KEY_N)
     var sheet := await capture_sheet(tree)
-    var receipt := {"loadout": plan["loadout"], "spec": plan["spec"], "steps": observations,
+    var receipt := {"loadout": plan["loadout"], "spec": plan["spec"], "tree": plan["tree"],
+        "native_config_before": config, "native_config_after": observe_config(client), "steps": observations,
         "clicked_apply": clicked_apply, "native_ranks_after_apply": realized, "sheet_stats": sheet,
         "proof": "native input and UI ranks only; server persistence requires fresh-login receipt"}
     if sheet.is_empty():
