@@ -46,10 +46,11 @@ func run_fixture() -> void:
 	root.size = SIZE
 	var client: Node = load("res://scenes/client.tscn").instantiate()
 	root.add_child(client)
-	for frame in 600:
+	# Startup includes asynchronous asset/catalog loading; frame count is not a deadline.
+	for attempt in 600:
 		if client.get_node_or_null("M2Debug") != null:
 			break
-		await process_frame
+		await create_timer(0.1).timeout
 	var stage := client.get_node_or_null("M2Debug")
 	if stage == null:
 		fail_fixture("m2debug stage did not start")
