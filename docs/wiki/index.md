@@ -1,3 +1,6 @@
+- [Idle boss-goal progression](systems/bot-harness.md#idle-boss-goal-progression--2026-10-17) — explicit empty Tab permits one strict native source-goal step; combat/recovery interrupts, boss arrival stops movement; synthetic RED, live proof pending.
+- [Native-tree-bound starter talents](systems/bot-harness.md#sourced-rotations-and-talents) — received Fury tree850 selects installed915, not cross-tree954/880; unavailable authority stops prep.
+- [Projected walking endpoint](systems/bot-harness.md#projected-walking-endpoint--2026-10-16) — use the completed source nav-surface endpoint, not raw NPC height; unchanged arrival tolerance and partial/floor refusal controls.
 - [Preparation target death](systems/bot-harness.md#preparation-target-death--2026-10-16) — stop uncast prep on received zero HP before corpse movement/despawn; Trace17 delivers all4578 CombatChannel messages.
 - [Combat-channel delivery boundary](systems/bot-harness.md#combat-channel-delivery-boundary--2026-10-16) — native combat ring freezes while health replication/server casts continue; local capture flag is not wire-completeness proof.
 - [Opening combat admission](systems/bot-harness.md#combat-admission-for-opening-preparation--2026-10-16) — received owner CombatStatus gates new prep; abandon uncast openings when combat begins, never a spell fallback.
@@ -5,6 +8,7 @@
 - [Kill receipt across target changes](systems/bot-harness.md#kill-receipt-across-target-changes--2026-10-16) — consume owner outcomes before movement or idle prep, even after a killing cast changes the selected target.
 - [LOS-aware pull preparation](systems/bot-harness.md#los-aware-pull-preparation--2026-10-16) — blocked Riverpaw native replay; bounded same-target navmesh approach gates the single opening on native visibility.
 - [Local range/cast pose](systems/bot-harness.md#local-rangecast-pose--2026-10-16) — real input moves the local client while the host replica stays frozen; range and cast origins share the current local pose.
+- [Housing world redirect](systems/housing.md#world-redirect--active2026-10-16) — real Founder entry/terrain in both skins;70448 ground630/630 authenticated, connected baked cornerstone routes, both-skin native paid claims/House3–4/relogs passed; assembly gaps and source qualifications explicit; both-skin existing paid-owner list/relog WORLD proof passed, chrome paused.
 - [Full-HD storage captures](systems/housing.md#full-hd-storage-captures--verified2026-10-16) — both-skin five-phase1920×1080 originals, source Filter/root/Sort geometry and paid conservation; full-image parity remains unqualified.
 - [Unavailable storage filters](systems/housing.md#unavailable-storage-filters--qualified2026-10-16) — sourced location/tag query contracts, explicit missing field/history mappings; collection rows intentionally absent in storage.
 - [Lifetime honor source boundary](systems/battlegrounds.md#lifetime-honor-source-boundary--2026-10-16) — concrete world-kill XP0→47→94, both-skin native full-HD tooltip/relog; unknown level/curve and completion/season policies remain gaps; [Currency continuation](systems/battlegrounds.md#native-currency-readout--2026-10-16) consumes the owner wallet; source bottom tabs/tooltip/collapse, native both-skin Honor0 presentation and empty-wallet hiding pass.
@@ -18,7 +22,12 @@
 - [Clean-room M2 particles](systems/godot-conversion.md#native-m2-particles) — native tails/follow/cubic controls, authored sorting and map-collision births; inherited-scale provenance and explicit lighting, timer/reset, spline-density, target-mask and model-recursion oracle gaps.
 # Wiki Index
 
+- [Journeys track texture mask](systems/adventure-guide.md#journeys-track-texture-mask--2026-10-16) — authenticated70448 centered atlas, texture-only alpha, unchanged captions and moving-track controls; both-skin native pixels and12 inspected full-HD captures.
+
+- [Journal search implementation](systems/adventure-guide.md#search-preview-and-full-results--implementation-2026-10-16) — source preview/full popup, input ownership and localized quotes; scoped tests and both-skin physical search proof pass; quote fix independently accepted by lead gate361e.
 - [Product-row refund icon tooltip](systems/trading-post.md#product-row-refund-icon-tooltip--implementation-october16) — source texture-owned refund time; native generic-item-tooltip RED→both-skin painted right-anchor/parent-click/hovered-owner teardown GREEN, genuine purchase/refund conservation.
+- [ReadyCheck message shadow](systems/group-frames.md#readycheck-message-shadow--bounded-proof-2026-10-16) — inherited Roman black(+1,−1), RED→3GREEN and both-skin native1080p;1002 darkened pixels/skin, zero outside changes, exact shadow-off control; colors/full popup/lifecycle excluded.
+
 - [MirrorTimer label shadow](systems/swimming.md#mirrortimer-label-shadow--2026-10-16) — inherited Roman black(+1,−1), RED→5GREEN and six both-skin native label cases;731 darkened pixels/skin, zero outside changes, exact transparent-shadow control; cadence/full-timer parity excluded.
 
 - [Earned-wallet source boundary](systems/battlegrounds.md#earned-wallet-source-continuation--2026-10-16) — explicit HONOR_WALLET_MIRRORS_HONOR_XP policy binds TC-derived Honor to1792, XP stays separate; Conquest unmapped, native proof pending.
@@ -30,11 +39,13 @@
 - [Earned-wallet source boundary](systems/battlegrounds.md#earned-wallet-source-continuation--2026-10-16) — kill/completion binding gaps remain; sourced static-weekly bookkeeping corrected separately, no invented payout.
 
 - [Inherited frozen item tooltip](systems/trading-post.md#inherited-frozen-product-tooltip--implementation-october16) — displayed selection action fixes inherited owner omission; actual both-skin settled frozen identity/anchor/leave GREEN, preserved slots/Tender, four inspected full-HD hover/leave samples.
+- [Miss-only self outcome projection](systems/battle-pets.md#miss-only-self-outcome-projection--2026-10-16) — both-skin Haymaker self-stun, Gift59/68 healing, actual hit controls and ten fullHD originals; strict canonical readback, full timing/VFX unqualified.
 - [Refuge shield projection](systems/battle-pets.md#refuge-shield-projection--2026-10-16) — both-skin independent caller/Critter blocks, non-Critter28/26 damage, strict canonical readback and eight fullHD originals; full Retail timing/VFX unproved.
 - [Same-species damage projection](systems/battle-pets.md#same-species-effect-projection--2026-10-16) — legal level2 trio, both-skin2283 actual85/77 damage, strict snapshots/canonical readback and four fullHD originals; full Retail timing/VFX unproved.
 - [Bench resurrection projection](systems/battle-pets.md#bench-resurrection-projection--2026-10-16) — both-skin2347→two78/1563 reserves→physical swap→147-damage win; eight fullHD originals and canonical strict model readback.
 - [Two-way wall projection](systems/battle-pets.md#two-way-wall-projection--2026-10-16) — both-skin private5961 physical Ice Barrier incoming/outgoing blocks, pad/cooldown/log/health and six fullHD native originals;3D VFX/full Retail parity excluded.
 
+- [Journal search implementation](systems/adventure-guide.md#search-preview-and-full-results--implementation-2026-10-16) — source preview/full popup and input ownership root fixes; scoped tests/source gate pass, both-skin native acceptance pending.
 - [Trading Post cart item tooltips](systems/trading-post.md#cart-item-tooltips--implementation-october16) — regular/member identity and source owner offset/no sell price; native RED→both-skin hover/remove GREEN, global-input fixture correction and eight inspected full-HD samples.
 - [Fade effect projection](systems/battle-pets.md#fade-effect-projection--2026-10-16) — current70391 sourced random self-swap, both-skin fullHD pointer/log/model proof and91 identical rectangles; complete Retail art/timing excluded.
 

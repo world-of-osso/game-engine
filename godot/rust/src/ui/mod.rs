@@ -47,6 +47,7 @@ mod hud_edit_preview;
 mod hud_edit_tests;
 mod icon_masks;
 pub(crate) mod input_queue;
+mod journeys_track_mask;
 mod launcher_preview;
 mod layout;
 #[cfg(debug_assertions)]
@@ -867,6 +868,18 @@ impl RegistryModel {
             // Original: Enter confirms a pending deletion once its gate is ready.
             ScreenPostsetup::CharacterSelect => {
                 actions.push_back(CharSelectAction::ConfirmDeleteChar.to_string());
+            }
+            _ if self
+                .shared
+                .get::<game_engine_ui_model::adventure_guide::View>()
+                .is_some()
+                && self.registry.focused_frame.is_some()
+                && self.registry.focused_frame
+                    == self
+                        .registry
+                        .get_by_name(game_engine_ui_model::adventure_guide::SEARCH) =>
+            {
+                actions.push_back("journal:search-submit".into());
             }
             _ => {}
         }
@@ -2795,6 +2808,48 @@ impl RegistryUi {
         self.sync_model()
     }
 
+    /// Retail FocusSectionCallback centers the authored section after layout.
+    pub fn focus_journal_section(&mut self, section: u32) -> Result<(), String> {
+        let model = self.model.as_mut().ok_or("Journal model missing")?;
+        let view = model
+            .shared
+            .get::<game_engine_ui_model::adventure_guide::View>()
+            .ok_or("Journal state missing")?;
+        let section = view
+            .catalog
+            .sections
+            .get(&section)
+            .ok_or("Journal section missing")?;
+        // The overview root is body text rather than a header. Retail's
+        // FocusSection returns without scrolling/flashing overview sections.
+        if section.kind == 3 {
+            return Ok(());
+        }
+        let name = format!("JournalSection{}", section.id);
+        let target = model
+            .registry
+            .get_by_name(&name)
+            .and_then(|id| model.registry.get(id))
+            .and_then(|frame| frame.layout_rect.as_ref())
+            .ok_or_else(|| format!("Journal search target {name} has no layout"))?;
+        let list = game_engine_ui_model::adventure_guide::LIST;
+        let bounds = model
+            .registry
+            .get_by_name(list)
+            .and_then(|id| model.registry.get(id))
+            .and_then(|frame| frame.layout_rect.as_ref())
+            .ok_or("Journal viewport has no layout")?;
+        let current = model
+            .registry
+            .scroll_lists
+            .get(list)
+            .ok_or("Journal scroll state missing")?
+            .first_row;
+        let offset = (current as f32 + target.y - bounds.y - bounds.height / 2.).max(0.) as usize;
+        model.registry.scroll_lists.scroll_to(list, offset);
+        self.sync_model()
+    }
+
     /// Name and screen rect `[x, y, w, h]` of the button under the pointer.
     pub fn hovered_button(&self) -> Option<(String, [f32; 4])> {
         let model = self.model.as_ref()?;
@@ -3162,12 +3217,64 @@ impl RegistryUi {
                 }
                 model.update_input_widgets(UiInput::Blur(id), &mut self.slider_events);
             }
+            UiInput::Focus(id) | UiInput::Blur(id)
+                if model
+                    .shared
+                    .get::<game_engine_ui_model::adventure_guide::View>()
+                    .is_some()
+                    && model
+                        .registry
+                        .get_by_name(game_engine_ui_model::adventure_guide::SEARCH)
+                        == Some(id) =>
+            {
+                let focused = matches!(event, UiInput::Focus(_));
+                self.actions.push_back(
+                    if focused {
+                        "journal:search-focus"
+                    } else {
+                        "journal:search-blur"
+                    }
+                    .into(),
+                );
+                model.update_input_widgets(event, &mut self.slider_events);
+            }
             UiInput::Submit => model.submit(&mut self.actions),
             UiInput::SearchPreviewStep(step) => {
-                self.actions.push_back(format!("talent:search_move:{step}"))
+                let action = if model
+                    .shared
+                    .get::<game_engine_ui_model::adventure_guide::View>()
+                    .is_some()
+                {
+                    format!("journal:search-move:{step}")
+                } else {
+                    format!("talent:search_move:{step}")
+                };
+                self.actions.push_back(action);
             }
             UiInput::Hover(id, entered) => {
                 model.update_input_widgets(UiInput::Hover(id, entered), &mut self.slider_events);
+                if entered
+                    && model
+                        .shared
+                        .get::<game_engine_ui_model::adventure_guide::View>()
+                        .is_some()
+                {
+                    let name = model
+                        .registry
+                        .get(id)
+                        .and_then(|frame| frame.name.as_deref())
+                        .unwrap_or("");
+                    let index = if name == "JournalSearchAll" {
+                        Some(game_engine_ui_model::adventure_search::PREVIEW_LIMIT)
+                    } else {
+                        name.strip_prefix("JournalSearchPreview")
+                            .and_then(|value| value.parse::<usize>().ok())
+                    };
+                    if let Some(index) = index {
+                        self.actions
+                            .push_back(format!("journal:search-hover:{index}"));
+                    }
+                }
                 if entered && matches!(model.postsetup, ScreenPostsetup::Spellbook) {
                     let name = model
                         .registry

@@ -21,6 +21,10 @@ def publish(path, value):
     temporary.replace(path)
 
 
+class NoHostileTarget(ValueError):
+    """One native Tab produced no observed living hostile target."""
+
+
 class FileBridge:
     """One outstanding input per owned client; timeout never repeats input."""
 
@@ -197,6 +201,11 @@ class PlayerController:
             yaw = math.degrees(math.atan2(dx, dz))
             self.invoke("movement", "forward", "--seconds", str(seconds), "--yaw-degrees", str(yaw))
             return False
+        # Detour returns the walkable surface, not the requested NPC/model height.
+        endpoint = corners[-1]
+        goal_gap = math.hypot(endpoint[0] - goal[0], endpoint[2] - goal[2])
+        if goal_gap < .5 and math.dist(here, endpoint) < .5:
+            return True
         raise ValueError("Sourced route exhausted before goal; no direct-line fallback")
 
     def walk_route(self, goals, position, observe, timeout):
@@ -217,7 +226,8 @@ class PlayerController:
                     time.sleep(.1)
                     continue
                 before = position()
-                self.step_toward(before, goal, "authored-leg")
+                if self.step_toward(before, goal, "authored-leg"):
+                    break
                 time.sleep(.7)
                 after = position()
                 progressed = math.hypot(after[0] - before[0], after[2] - before[2]) >= .15
@@ -238,8 +248,12 @@ class PlayerController:
         """One native Tab input; no raw entity-selection command or alternate key."""
         result = self.bridge.request("enemy-tab", {})
         target = result["after"].get("target")
-        if target is None or result.get("selected_hostile") is not True or result.get("selected_health", -1) <= 0:
-            raise ValueError("Native Tab did not observe an alive hostile target")
+        if (
+            target is None
+            or result.get("selected_hostile") is not True
+            or result.get("selected_health", -1) <= 0
+        ):
+            raise NoHostileTarget("Native Tab did not observe an alive hostile target")
         return int(target)
 
     def vote_loot(self):

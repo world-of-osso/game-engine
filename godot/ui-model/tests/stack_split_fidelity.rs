@@ -11,6 +11,69 @@ use ui_toolkit::{
 };
 
 #[test]
+fn stack_split_amount_labels_inherit_black_shadow_both_skins() {
+    use ui_toolkit::{layout_values::Val, widgets::font_string::GameFont};
+
+    game_engine_ui_model::paths::set_data_root(
+        std::path::PathBuf::from(env!("CARGO_MANIFEST_DIR")).join("../../data"),
+    )
+    .unwrap();
+    for skin in [ActiveSkin::Modern, ActiveSkin::Forever] {
+        set_thread_skin(skin);
+        for bundles in [false, true] {
+            let amount = if bundles { "4 Stack(s)" } else { "4" };
+            let mut shared = SharedContext::new();
+            shared.insert(StackSplitFrameState {
+                visible: true,
+                text: amount.into(),
+                total_text: bundles.then(|| "20 Total".into()),
+                left_enabled: true,
+                right_enabled: true,
+                ..Default::default()
+            });
+            let mut registry = FrameRegistry::new(1920.0, 1080.0);
+            Screen::new(stack_split_frame_screen).sync(&shared, &mut registry);
+            assert_eq!(
+                registry.get_by_name("StackItemCountText").is_some(),
+                bundles
+            );
+            let left = if bundles { 41.0 } else { 22.0 };
+            let amount_label = ("StackSplitText", amount, 23.0, [1.0; 4]);
+            let total_label = (
+                "StackItemCountText",
+                "20 Total",
+                48.0,
+                [1.0, 0.82, 0.0, 1.0],
+            );
+            for (name, expected_text, top, color) in
+                [Some(amount_label), bundles.then_some(total_label)]
+                    .into_iter()
+                    .flatten()
+            {
+                let frame = registry.get(registry.get_by_name(name).unwrap()).unwrap();
+                assert_eq!((frame.width.value(), frame.height.value()), (100.0, 14.0));
+                assert_eq!(frame.position.left, Val::Px(left));
+                assert_eq!(frame.position.top, Val::Px(top));
+                let Some(WidgetData::FontString(label)) = &frame.widget_data else {
+                    panic!("{name} must project text");
+                };
+                assert_eq!(label.text, expected_text);
+                assert_eq!(label.font, GameFont::FrizQuadrata);
+                assert_eq!(label.font_size, 12.0);
+                // Current colors are controls; this slice only qualifies inherited shadow.
+                assert_eq!(label.color, color);
+                assert_eq!(
+                    label.shadow_color,
+                    Some([0.0, 0.0, 0.0, 1.0]),
+                    "{skin:?}/{bundles}/{name}"
+                );
+                assert_eq!(label.shadow_offset, [1.0, -1.0]);
+            }
+        }
+    }
+}
+
+#[test]
 fn stack_split_arrows_keep_source_states_geometry_and_actions_both_skins() {
     game_engine_ui_model::paths::set_data_root(
         std::path::PathBuf::from(env!("CARGO_MANIFEST_DIR")).join("../../data"),

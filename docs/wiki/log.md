@@ -1,6 +1,35 @@
+## 2026-10-16 — Miss-only pet self outcome projection
+
+[Haymaker762 / Gift989](systems/battle-pets.md#miss-only-self-outcome-projection--2026-10-16): actual pointer self-stun and59/68 healing in both skins, successful-hit controls and ten inspected fullHD originals. Strict canonical model readback passes; no shared layout/client combat change or full timing/VFX claim.
+
+## 2026-10-16 — Journeys track texture mask
+
+[Track mask](systems/adventure-guide.md#journeys-track-texture-mask--2026-10-16): authenticated70448 FDID3894493/source1024×128 centered on570×72 clip, per-layout texture-only alpha. Actual159-pixel opaque RED→both-skin edge attenuation/unchanged center/opaque caption and physical wheel5→6 GREEN; inherited search also passes. Twelve full-HD originals inspected. Caption-reference canvas mistake retained as a separate oracle failure, not a product defect. Merged extension check and package fmt pass; independent lead targeted-test/source gate pending.
+
+## 2026-10-16 — Journal search physical acceptance and localized title quotes
+
+[Search](systems/adventure-guide.md#search-preview-and-full-results--implementation-2026-10-16) native8 passes both skins on productf2c8a410a: continued typing, actual preview/full popup, wheel/close/query retention and authored section selection. Eight full-HD originals inspected. Pixel inspection found exported quote spelling leaking through localization; actual RED→four focused tests GREEN and current clean title assertion/paint pass. Native7 first-J failure remains separate; no readiness patch. Current quote-fix check pending; C API/data gaps unchanged.
+
+## 2026-10-16 — Journal search implementation; native acceptance pending (historical2344 checkpoint)
 ## 2026-10-16 — Product-row refund icon tooltip implementation
+## 2026-10-16 — Journal search implementation; native acceptance pending
+
+[Search](systems/adventure-guide.md#search-preview-and-full-results--implementation-2026-10-16) now uses source preview/full results and authored target paths. Actual native REDs cover23px inactive-style minimum, focus retained but editing stopped after Enter, and a generic list-row focus marker deleting previews before mouse-up.2344 fixes the root widget/adapter boundaries;95 prior scoped controls and two current search tests pass, build/source verification pass. Both-skin companion/current pixel/check acceptance remains pending; no historical-prefix or native C API parity claim. Installed orphan-parent records are named in the contract.
+
+## 2026-10-16 — Encounter section flags
 
 [Refund icon](systems/trading-post.md#product-row-refund-icon-tooltip--implementation-october16): real old-binary pointer RED shows generic item tooltip over refundable642 while848 is selected; genuine purchase/refund restores Tender/frozen state before assertion. Passive projected texture bounds own right0/0 and the existing colored footer formatter without blocking parent clicks. Model3 and actualca0/4e9/Pb701 both-skin painted GREEN: independent IDs, white caption/red59m, parent click, hover leave, Escape destroys currently hovered owner/HUD, one real purchase/refund restores Tender/collected/frozen state. Eight full-HD originals+two contacts+two crops published; diagnostic manifest binds exact inputs. Integrated933892f79/source protocol604ea609 passes40 UI+12 native, engine check without compiler warnings and scoped five Rustfmt (four unchanged hashes+one foreign tooltip-source delta). Actual native remainsca0/4e9/b701, not the later merged sources. No production refund policy/provider changes.
+## 2026-10-17 — Ordinary exit transfer/input race
+
+[Run20 preparation](systems/bot-harness.md#ordinary-exit-transferinput-race--2026-10-17): ordinary NewWorld precedes stale-state movement refusal; retain exact refusal and await actual InWorld destination within240s, never repeat movement or invent arrival. Captured boundary RED; successful continuation synthetic, fresh native proof pending.
+
+## 2026-10-17 — Idle source-boss progression
+
+[Harness](systems/bot-harness.md#idle-boss-goal-progression--2026-10-17): explicit no-hostile Tab permits one existing strict-navmesh step toward first source-ordered NotStarted boss; fresh combat/health checks interrupt, boss arrival stops movement. RED preconditions are explicitly synthetic, with retained real source goals/native route corners; no historical cleared-area stall is claimed. No hazards, pack-size policy or rotation changes; live first-boss proof pending.
+
+## 2026-10-17 — Native-tree-bound starter talent preparation
+
+[Harness](systems/bot-harness.md#sourced-rotations-and-talents): run19's Fury starter plan chose954/tree880 against received tree850; all61 steps absent, no Apply. Captured70448 source rows reproduce wrong-tree selection. Plans now require received tree authority, select within it, and recheck tree/spec before normal native input. No grants/stat/rotation changes; runtime application/full-clear proof remains pending.
 
 ## 2026-10-16 — Product-row cart toggle implementation
 
@@ -22,9 +51,17 @@
 ## 2026-10-16 — Product-row cart toggle implementation
 
 [Row toggle](systems/trading-post.md#product-row-cart-toggle--implementation-october16): source36px hovered-row control carries its own vendor identity, authored add/minus art, cart indicator and left tooltip. Existing cart eligibility/default wearable selection shared without resetting current choices. Model missing-action3 and actual native missing-button RED precede implementation. Modern behavior passed but paint acceptance was rejected: hover replaced the base glyph with highlight art (native center contrast ratio0.167). Base-plus-highlight correction9bbc554ad passes both-skin real-pixel/behavior proof (contrast ratio0.732, independent IDs, unchanged Tender/frozen slots and open-cart choices);10 inspected full-HD originals+2 contacts+2 crops published. Stale private world data is refreshed from the already-published canonical source, preserving account redb.
+## 2026-10-16 — Concentration metadata and unknown-origin display
+
+[Concentration boundary](systems/native-professions-crafting.md#concentration-metadata-boundary): both full-HD native skins show unknown quantity, authored currency tooltip and named origin gap while Create stays disabled. Catalog/owner4, screen9 and consumer checks/builds pass. No fabricated initialization or recharge lifecycle.
+
 ## 2026-10-16 — Bench resurrection HUD projection
 
 [Shared2347 projection](systems/battle-pets.md#bench-resurrection-projection--2026-10-16): both actual skins physically revive two persisted-dead reserves to78/1563, pointer swap, retain incoming damage and win through the revived pet's147-damage Metal Fist. Eight fullHD originals inspected;92/98/131/98 geometry differs only in timed float. Canonical78-asset closure and explicit strict loader readback pass; world-native mode, exact runtime heads and pre-auth recovery are documented. No UI change/full Retail timing/VFX claim; owned processes stopped.
+## 2026-10-16 — Projected navigation arrival
+
+[Projected walking endpoint](systems/bot-harness.md#projected-walking-endpoint--2026-10-16): release18 feet are0.415572yd from their completed strict nav endpoint, but0.927384yd from the NPC-height goal. Recognize source-surface arrival with the unchanged0.5yd threshold; reject partial XZ/other-floor endpoints and honor completion in the route walker. Real CSV/pose RED, no direct-line fallback or nav/server changes.
+
 ## 2026-10-16 — Uncast target-death handoff
 
 [Preparation target death](systems/bot-harness.md#preparation-target-death--2026-10-16): Trace17 delivers all4578 CombatChannel messages but exposes corpse pursuit during uncast prep. Consume received zero HP before movement/submission, record explicit abandonment, and resume assist without forcing a target or retry. Recorded alive→dead frames supply RED; prior delivery freeze is not claimed fixed.
@@ -74,6 +111,10 @@
 ## 2026-10-16 — Two-way pet-wall HUD projection
 
 [Ice Barrier479](systems/battle-pets.md#two-way-wall-projection--2026-10-16): actual private5961 pointer casts in both explicit skins preserve incoming-block HP, show shared pad/cooldown, then outgoing Claw consumes the second block and the next Scratch damages. Six fullHD originals inspected;94/101/104 named geometry differs only by HP fill and timed float position. Both models framed, retained injury visible, all owned PIDs stopped. No new widgets/simulation; all-wall native casts,3D VFX and full Retail timing remain separate.
+## 2026-10-16 — Housing world redirect
+
+[World slices](systems/housing.md#world-redirect--active2026-10-16): both-skin real Founder terrain/entry photographs, named plot→persistedHouse policy, actual native walking fixture and private current-ground authentication. Exterior/room assembly choices remain explicit source gaps. The70448 archive mismatch resolved externally;630/630 private ground payloads now match active content keys. Existing16-tile baker/query produces connected routes to both stones; Modern actual keyboard walk/claim10M→House3/plot444/relog passed on70448, with seven inspected `w2-modern-*` WORLD originals; Forever paid claim10M→House4/plot424/relog also passed via the proven444 corridor and retained baked444→424 query;14 inspected full-HD `w2-*` originals. The failed west-bank WMO69.856° contact remains a counterexample, not a repaired navigation claim. No geometry/physics/M2-floor mutation. The current70448 export comparison preserves seven partially unreadable source-table qualifications and the70391 runtime-catalog identity. Existing paid-owner house-list WORLD proof passed in both skins across actual relogs on2735, with eight inspected untouched full-HD `w5-*` captures; newclaim/exterior/interior proof remains separate. No old-build pin, position override or chrome fallback.
+
 ## 2026-10-16 — Full-HD storage capture boundary
 
 [F21](systems/housing.md#full-hd-storage-captures--verified2026-10-16): current merged helper builds, both-skin five-phase physical Filter/Sort/disabled/Dyeable/reset proof and ten inspected untouched1920×1080 originals. Private snapshot Z-schema drift refreshed from authentic current table; no product fix/full-image-parity claim. All owned processes stopped.
@@ -4344,6 +4385,7 @@ Completed Retailv2 codec/authoritative Create and committed Copy callbacks, exac
 - 2026-10-16: Frozen ProductButton inherits base item tooltip; ordinary-name-only native lookup missed it. Actual genuine-Freeze native RED observed; resolve already-rendered selection action without new frozen state. [Trading Post](systems/trading-post.md#inherited-frozen-product-tooltip--implementation-october16).
 - 2026-10-16: Cart regular/member source tooltip both-skin native GREEN including actual hover-only removal; phase-local global input parsing corrects viewport-only fixture cursor.33UI12native/check/3scopedRustfmt pass at9e7; eight full-HD originals+two contacts published. [Trading Post](systems/trading-post.md#cart-item-tooltips--implementation-october16).
 
+- 2026-10-16: [[native-professions-crafting]] documents read-only concentration metadata and the unsourced initialization/recharge-origin boundary.
 ## 2026-10-16 — Loot ItemButton hit rectangle and release
 
 Source Item ownership replaces row-press actions; inset-aware native Button picking fixes the actual expanded-hit boundary. Model2/native32 GREEN,68 unchanged full-HD pairs; StackSplit16/ReadyCheck4 shared-input controls and60 pixel pairs unchanged. Retained setup failures and Item-only partial RED, server/full-window exclusions explicit. See [[loot-and-flight#ItemButton input ownership — 2026-10-16]].
@@ -4361,3 +4403,6 @@ Source Item ownership replaces row-press actions; inset-aware native Button pick
 ## 2026-10-17 — Achievement delta and Guide clock consumers
 
 [Dungeon achievements](systems/dungeon-achievements.md#state-and-rendering) and [Adventure Guide](systems/adventure-guide.md) record the engine consumers for protocol `AchievementDelta` and `AdventureGuideClock`: ordered bridge relays, per-connection full-snapshot baselines, state-equivalent reduction and explicit missing-baseline errors. Targeted dispatch/wire RED→GREEN only; server producers, integration and live proof belong to the lead.
+## 2026-10-17 — ReadyCheck inherited message shadow
+
+[Message shadow](systems/group-frames.md#readycheck-message-shadow--bounded-proof-2026-10-16): exactly two attributes restore Roman black(+1,−1). RED→3GREEN and both-skin1920×1080 native proof retain font/currentcolor/text/240×28 box;1002 darkened pixels per skin, zero outside label/shadow union, shadow-off RGB exactly baseline. Check/build/scoped format/readability pass. Sourcecolor/full-popup/server lifecycle remain unqualified.

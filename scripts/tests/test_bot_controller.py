@@ -4,6 +4,7 @@ import sys
 import tempfile
 import unittest
 from pathlib import Path
+from unittest.mock import patch
 
 sys.path.insert(0, str(Path(__file__).resolve().parents[1]))
 from bot_controller import FileBridge, PlayerController, requested_snapshot
@@ -16,6 +17,46 @@ def snapshot(spec=62, spell=30451):
                        "cast_success_events": [], "cast_failure_events": [], "cast_failure_seq": 0},
             "facts": {"known": [spell], **{field: {str(spell): {"Ok": True}}
                        for field in ("ready", "affordable", "in_range")}}}
+
+
+class ProjectedRouteArrivalTests(unittest.TestCase):
+    def setUp(self):
+        path = Path(__file__).parent / 'fixtures/bot_harness/native-stockade-projected-route.json'
+        self.fixture = json.loads(path.read_text())
+        self.commands = []
+        self.controller = PlayerController(lambda *args: self.commands.append(args), None,
+            lambda *args: self.fixture["corners"], None)
+
+    def test_actual_projected_endpoint_is_reached_without_movement_or_fallback(self):
+        try:
+            reached = self.controller.step_toward(self.fixture["start"],
+                self.fixture["requested_goal"], "native-melee-approach")
+        except ValueError as error:
+            self.fail(f"Already reached the real projected endpoint: {error}")
+        self.assertTrue(reached)
+        self.assertEqual(self.commands, [])
+
+    def test_walk_route_consumes_projected_endpoint_completion(self):
+        self.controller.vote_loot = lambda: None
+        with patch('bot_controller.time.sleep'):
+            try:
+                self.controller.walk_route([self.fixture["requested_goal"]],
+                    lambda: self.fixture["start"], lambda: False, timeout=5)
+            except (ValueError, RuntimeError) as error:
+                self.fail(f"Walker ignored the reached projected endpoint: {error}")
+        self.assertEqual(self.commands, [])
+
+    def test_partial_horizontal_route_does_not_claim_arrival(self):
+        self.controller.route = lambda *args: [[0, 0, 0]]
+        with self.assertRaisesRegex(ValueError, "exhausted"):
+            self.controller.step_toward([0, 0, 0], [4, 0, 0], "partial")
+        self.assertEqual(self.commands, [])
+
+    def test_vertical_other_floor_endpoint_does_not_claim_arrival(self):
+        self.controller.route = lambda *args: [[0, 3, 0]]
+        with self.assertRaisesRegex(ValueError, "exhausted"):
+            self.controller.step_toward([0, 0, 0], [0, 3, 0], "other-floor")
+        self.assertEqual(self.commands, [])
 
 
 class ControllerTests(unittest.TestCase):

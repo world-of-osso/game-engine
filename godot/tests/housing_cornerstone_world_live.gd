@@ -1,0 +1,260 @@
+extends "res://tests/housing_property_live.gd"
+
+# New private account; no admin teleport/house/decor grants. Walk from authored entry.
+var walk_samples: Array[Dictionary] = []
+var floor_probes: Array[Dictionary] = []
+var right_turn_sign := 0.0
+var turn_rate := 0.0
+var turn_samples: Array[Dictionary] = []
+var walking_route := false
+var walking_speed_confirmed := false
+
+func run_test() -> void:
+	root.size = Vector2i(1920, 1080)
+	housing_server = OS.get_environment("GODOT_TEST_SERVER")
+	housing_account = OS.get_environment("HOUSING_ACCOUNT")
+	housing_skin = OS.get_environment("HOUSING_SKIN")
+	shots = OS.get_environment("HOUSING_SHOTS")
+	property_plot = 444 if housing_skin == "Modern" else 424
+	property_entry = 527261 if housing_skin == "Modern" else 527282
+	if housing_server != "127.0.0.1:5870" or not housing_account.begins_with("fb_housing_world_") or shots.is_empty():
+		fail("Cornerstone WORLD proof needs isolated fresh world account")
+		return
+	DirAccess.make_dir_recursive_absolute(shots)
+	client = load("res://scenes/client.tscn").instantiate()
+	root.add_child(client)
+	if not await connect_housing_account(): return
+	if not await enter_neighborhood(): return
+	var close := housing_control("HousingDashboardFrameCloseButton")
+	if close != null and close.is_visible_in_tree():
+		await click_control(close, MOUSE_BUTTON_LEFT)
+	if not record_floor_probe("entry"): return
+	# GameObjects527261 actual authored position, NOT NeighborhoodPlot's marker.
+	var destination := Vector3(3641.85669, 104.272713, -258.151031) if housing_skin == "Modern" else Vector3(3569.20312, 102.340424, -265.888885)
+	# The authored spawn is inside the entrance fountain's raised stone ring.
+	# Approach its observed west wall, then use ordinary W+Space to clear it.
+	if not await walk_to_cornerstone(Vector3(3785.0, 192.0, 160.427), 0.6): return
+	if not record_floor_probe("wall-approach"): return
+	push_key(KEY_W, true)
+	push_key(KEY_SPACE, true)
+	await frames(2)
+	push_key(KEY_SPACE, false)
+	await create_timer(1.5).timeout
+	push_key(KEY_W, false)
+	await frames(20)
+	if not record_floor_probe("after-jump"): return
+	if not await capture_housing("fountain-wall-jump-world"): return
+	var route: Array[Vector3] = read_baked_route(destination)
+	if route.is_empty(): return
+	push_key(KEY_Z, true)
+	await frames(2)
+	push_key(KEY_Z, false)
+	walking_route = true
+	for index in range(route.size()):
+		var radius := 3.5 if index == route.size() - 1 else 0.75
+		if not await walk_to_cornerstone(route[index], radius): return
+	if not await capture_housing("walk-arrived-world"): return
+	if not await purchase_property(): return
+	if not await capture_housing("claimed-world"): return
+	if not await inspect_owned_property("owned"): return
+	if not await connect_housing_account(): return
+	if not await inspect_owned_property("relogged"): return
+	var state: Dictionary = client.housing_state()
+	var output := FileAccess.open(shots.path_join("cornerstone-world-receipt.json"), FileAccess.WRITE)
+	if output == null:
+		fail("Cannot persist cornerstone world receipt")
+		return
+	output.store_string(JSON.stringify({"walk":walk_samples,"turn":turn_samples,"walking_speed_confirmed":walking_speed_confirmed,"property":property_receipts,"final":state}, "\t"))
+	output.flush()
+	var error := output.get_error()
+	output.close()
+	if error != OK:
+		fail("Cannot flush cornerstone world receipt")
+		return
+	print("PASS: private5870 walked authored cornerstone WORLD ", housing_skin)
+	client.free()
+	quit(0)
+
+func read_baked_route(destination: Vector3) -> Array[Vector3]:
+	var path := OS.get_environment("HOUSING_WORLD_ROUTE_FILE")
+	if path.is_empty():
+		fail("World walk requires an explicit geometry-baked navigation route")
+		return []
+	var file := FileAccess.open(path, FileAccess.READ)
+	if file == null:
+		fail("Cannot read baked navigation route: "+path)
+		return []
+	var text := file.get_as_text()
+	file.close()
+	var route: Array[Vector3] = []
+	for line in text.strip_edges().split("\n"):
+		var values := line.split(",")
+		if values.size() != 3 or not values[0].is_valid_float() or not values[1].is_valid_float() or not values[2].is_valid_float():
+			fail("Invalid baked route coordinate: "+line)
+			return []
+		var point := Vector3(float(values[0]),float(values[1]),float(values[2]))
+		if not point.is_finite():
+			fail("Nonfinite baked route coordinate")
+			return []
+		route.append(point)
+	if route.size() < 2 or route[0].distance_to(client.account_state().local_player_position) > 5.0 or route.back().distance_to(destination) > 3.0:
+		fail("Baked route does not connect observed post-jump feet to authored cornerstone")
+		return []
+	return route
+
+func enter_neighborhood() -> bool:
+	if not await wait_housing(func():
+		var button := housing_named_control("MicroMenuUI", "HousingMicroButton")
+		return button != null and button.is_visible_in_tree(), "visible world Housing entry", 180000): return false
+	if not await click_exposed_control(housing_named_control("MicroMenuUI", "HousingMicroButton")): return false
+	print("WORLD_FINDER_OPEN housing=",client.housing_state()," dashboard=",client.get_node_or_null("HousingDashboardUI"))
+	if not await wait_housing(func(): return client.housing_state().get("confirmed", false) and housing_control("HousingDashboardHouseFinderButton") != null, "confirmed House Finder entry"): return false
+	if not await click_exposed_control(housing_control("HousingDashboardHouseFinderButton")): return false
+	if not await wait_housing(func():
+		var visit := housing_control("HouseFinderVisitButton") as BaseButton
+		return visit != null and not visit.disabled, "authored neighborhood visit"): return false
+	if not await click_exposed_control(housing_control("HouseFinderVisitButton")): return false
+	if not await wait_housing(func(): return client.account_state().screen == "InWorld" and int(client.account_state().world_map_id) == 2735, "actual authored world admission", 420000): return false
+	await frames(90)
+	return await capture_housing("authored-entry-world")
+
+func walk_to_cornerstone(destination: Vector3, stop_radius: float = 3.5) -> bool:
+	var deadline := Time.get_ticks_msec() + 240000
+	var last_position: Vector3 = client.account_state().local_player_position
+	var stalled := 0
+	while Time.get_ticks_msec() < deadline:
+		var state: Dictionary = client.account_state()
+		var position: Vector3 = state.local_player_position
+		var to := destination - position
+		walk_samples.append({"position":position,"server":state.local_server_position,"remaining":to.length(),"replicated_speed":state.local_server_speed,"destination":destination})
+		if Vector2(to.x, to.z).length() < stop_radius:
+			push_key(KEY_W, false)
+			await process_frame
+			return true
+		if not await face_walk_direction(atan2(to.x, to.z)): return false
+		client.set_camera_orbit(float(client.account_state().local_player_facing) - PI, -0.4, 20.0)
+		push_key(KEY_W, true)
+		await create_timer(minf(0.6, Vector2(to.x, to.z).length() / 14.0)).timeout
+		push_key(KEY_W, false)
+		await frames(3)
+		if walking_route and not walking_speed_confirmed:
+			if not await wait_housing(func(): return is_equal_approx(float(client.account_state().local_server_speed), 2.5), "replicated ordinary walk speed2.5"): return false
+			walking_speed_confirmed = true
+			print("WORLD_WALK_SPEED_CONFIRMED ", client.account_state().local_server_speed)
+		position = client.account_state().local_player_position
+		stalled = stalled + 1 if position.distance_to(last_position) < 0.2 else 0
+		last_position = position
+		if walk_samples.size() % 20 == 0:
+			print("HOUSING_WORLD_WALK ",walk_samples.back())
+			if not await capture_housing("walk-world-%03d" % walk_samples.size()): return false
+		if stalled >= 8:
+			if not record_floor_probe("blocked"): return false
+			if not record_blocked_walk(destination): return false
+			await capture_housing("walk-world-blocked")
+			fail("Native walk blocked on authored world geometry at " + str(position))
+			return false
+	push_key(KEY_W, false)
+	fail("Native walk exceeded4min; last=" + str(last_position))
+	return false
+
+func record_blocked_walk(destination: Vector3) -> bool:
+	var state: Dictionary = client.account_state()
+	var feet: Vector3 = state.local_player_position
+	var direction := Vector3(destination.x - feet.x, 0.0, destination.z - feet.z).normalized()
+	var rays: Array[Dictionary] = []
+	for layer in [2, 8]:
+		for height in [0.3, 0.9, 1.6]:
+			var origin := feet + Vector3.UP * float(height)
+			var query := PhysicsRayQueryParameters3D.create(origin, origin + direction * 3.0)
+			query.collision_mask = layer
+			var hit: Dictionary = client.get_world_3d().direct_space_state.intersect_ray(query)
+			var collider := hit.get("collider") as Node
+			rays.append({"layer":layer,"height":height,"hit":hit.get("position"),"collider":str(collider.get_path()) if collider != null else ""})
+	var file := FileAccess.open(shots.path_join("walk-obstacle-probes.json"), FileAccess.WRITE)
+	if file == null:
+		fail("Cannot save blocked walk probes")
+		return false
+	file.store_string(JSON.stringify({"feet":feet,"target":destination,"facing":state.local_player_facing,"rays":rays,"walk":walk_samples,"turn":turn_samples}, "\t"))
+	file.flush()
+	var error := file.get_error()
+	file.close()
+	if error != OK:
+		fail("Cannot flush blocked walk probes")
+		return false
+	return true
+
+func face_walk_direction(target: float) -> bool:
+	for attempt in range(60):
+		var facing: float = client.account_state().local_player_facing
+		var error := angle_difference(facing, target)
+		var frame_turn := 0.5 * turn_rate * client.get_process_delta_time()
+		if absf(error) <= maxf(0.04, frame_turn):
+			return true
+		if right_turn_sign == 0.0:
+			await tap_turn_key(KEY_RIGHT, 0.05)
+			continue
+		var key := KEY_RIGHT if signf(error) == right_turn_sign else KEY_LEFT
+		await tap_turn_key(key, minf(0.15, absf(error) / turn_rate))
+	fail("Native measured keyboard taps could not face cornerstone")
+	return false
+
+func tap_turn_key(key: Key, seconds: float) -> void:
+	var before: float = client.account_state().local_player_facing
+	var started := Time.get_ticks_msec()
+	push_key(key, true)
+	var processed := 0.0
+	while processed < seconds:
+		await RenderingServer.frame_post_draw
+		processed += client.get_process_delta_time()
+	push_key(key, false)
+	var elapsed := float(Time.get_ticks_msec() - started) / 1000.0
+	# Camera input integrates process delta, including time before this frame's key event.
+	# Native facing accumulates radians; wrapping a multi-frame calibration can invert its sign.
+	var turned := float(client.account_state().local_player_facing) - before
+	if processed > 0.0 and not is_zero_approx(turned):
+		turn_rate = absf(turned) / processed
+		right_turn_sign = signf(turned) if key == KEY_RIGHT else -signf(turned)
+	turn_samples.append({"key":key,"wall_seconds":elapsed,"process_seconds":processed,"radians":turned,"rate":turn_rate})
+
+func record_floor_probe(label: String) -> bool:
+	var state: Dictionary = client.account_state()
+	var feet: Vector3 = state.local_player_position
+	var sample: Dictionary = {"phase":label,"feet":feet,"server":state.local_server_position,"terrain_height":client.terrain_height_at(feet.x, feet.z)}
+	for probe in [{"layer":2,"above":2.0},{"layer":8,"above":2.0},{"layer":2,"above":20.0},{"layer":8,"above":20.0}]:
+		var query := PhysicsRayQueryParameters3D.create(feet + Vector3.UP * float(probe.above), feet - Vector3.UP * 5.0)
+		query.collision_mask = int(probe.layer)
+		var hit: Dictionary = client.get_world_3d().direct_space_state.intersect_ray(query)
+		var collider := hit.get("collider") as Node
+		sample[str(probe.layer)+"/"+str(probe.above)] = {"hit":hit.get("position"),"collider":str(collider.get_path()) if collider != null else ""}
+	floor_probes.append(sample)
+	print("WORLD_FLOOR_PROBE ",sample)
+	var file := FileAccess.open(shots.path_join("floor-probes.json"), FileAccess.WRITE)
+	if file == null:
+		fail("Cannot save world floor probe")
+		return false
+	file.store_string(JSON.stringify(floor_probes,"\t"))
+	file.flush()
+	var error := file.get_error()
+	file.close()
+	if error != OK:
+		fail("Cannot flush world floor probe")
+		return false
+	return true
+
+func fail(message: String) -> void:
+	print("WORLD_TURN_SAMPLES ", turn_samples.slice(maxi(0, turn_samples.size() - 10)))
+	push_key(KEY_W, false)
+	push_key(KEY_RIGHT, false)
+	push_key(KEY_LEFT, false)
+	if client != null:
+		print("WORLD_FAILURE account=",client.account_state()," housing=",client.housing_state()," hovered=",root.gui_get_hovered_control())
+		client.print_tree_pretty()
+	push_error(message)
+	quit(1)
+
+func capture_housing(phase: String) -> bool:
+	await RenderingServer.frame_post_draw
+	if root.get_texture().get_image().save_png(shots.path_join(housing_skin.to_lower()+"-"+phase+".png")) != OK:
+		fail("Cannot save cornerstone WORLD image")
+		return false
+	return true

@@ -385,3 +385,66 @@ fn professions_gathering_skill_bar_uses_progress_line_not_parent_holder() {
     }
     set_thread_skin(ActiveSkin::Modern);
 }
+
+#[test]
+fn professions_concentration_uses_retail_currency_geometry_without_inventing_quantity() {
+    for skin in [ActiveSkin::Modern, ActiveSkin::Forever] {
+        let mut view = view(25);
+        let catalog = shared::concentration::ConcentrationCatalog::load(
+            &std::path::PathBuf::from(env!("CARGO_MANIFEST_DIR")).join("../../data/db2/active"),
+        )
+        .unwrap();
+        view.concentration = catalog.snapshot(2830, &shared::currency::CurrencyWallet::default());
+        let registry = render(skin, view);
+        assert_eq!(
+            text(&registry, "ProfessionsConcentrationAmount").0,
+            "—/1000"
+        );
+        let icon = frame(&registry, "ProfessionsConcentrationIcon");
+        assert_eq!(
+            (icon.width, icon.height),
+            (
+                ui_toolkit::frame::Dimension::Fixed(24.0),
+                ui_toolkit::frame::Dimension::Fixed(24.0)
+            )
+        );
+    }
+}
+
+#[test]
+fn professions_concentration_known_amount_and_full_warning_preserve_origin_gap() {
+    let mut view = view(25);
+    let catalog = shared::concentration::ConcentrationCatalog::load(
+        &std::path::PathBuf::from(env!("CARGO_MANIFEST_DIR")).join("../../data/db2/active"),
+    )
+    .unwrap();
+    let mut snapshot = catalog
+        .snapshot(2830, &shared::currency::CurrencyWallet::default())
+        .unwrap();
+    for quantity in [137, 1000] {
+        snapshot.quantity = Some(quantity);
+        view.concentration = Some(snapshot.clone());
+        let registry = render(ActiveSkin::Modern, view.clone());
+        assert_eq!(
+            text(&registry, "ProfessionsConcentrationAmount").0,
+            format!("{quantity}/1000")
+        );
+        let tooltip = game_engine_ui_model::professions_frame::concentration::tooltip(&snapshot);
+        assert_eq!(tooltip.content.title, "Leatherworking Concentration");
+        assert_eq!(
+            tooltip
+                .content
+                .lines
+                .iter()
+                .any(|line| line.left_text == "Concentration is full."),
+            quantity == 1000
+        );
+        assert!(
+            tooltip
+                .content
+                .lines
+                .iter()
+                .any(|line| line.left_text.contains("CRAFTING_CONCENTRATION_ORIGIN"))
+        );
+    }
+}
