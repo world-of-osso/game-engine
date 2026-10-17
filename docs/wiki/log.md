@@ -11,7 +11,7 @@
 [70448 source finding](investigations/eye-holiday-authority.md): verified installed build/config/schema/CSV receipts, BML7→map566/PVPDifficulty links,811 readable Holidays rows. Holiday492 Date0 decodes2007-11-27UTC; durations72/1776h,Looping0/filter2 do not authorize77-day recurrence. Pinned TC evaluator/constructor sampling sourced, but effective game_event row/stage/schedule missing; HOLIDAY492_EFFECTIVE_EVENT_AUTHORITY remains open. Finding sent before code; no RED/runtime implementation/calendar default.
 ## 2026-10-17 — Committed frozen-product list exclusion
 
-[Ordinary-list contract](systems/trading-post.md#committed-frozen-product-list-exclusion--october17): two behavioral model REDs `[5,6,4]`vs`[5,6]` precede the minimal committed-ID predicate. Full snapshot/frozen selection/pending candidate stay intact; hover/lock fixture assumptions corrected without replaying historical audio proof. Targeted GREEN2 and current7f source42UI+12native Rust(+1DB2)/helper check35.07s/noWarnings/scoped Rustfmt2/readability pass. Both-skin genuine640/712 replacement/restoration remains pending after the gate, never an empty-slot reset. Active SoundKit audit correction to70448 included; no pitch/audio/server changes.
+[Ordinary-list contract](systems/trading-post.md#committed-frozen-product-list-exclusion--october17): two behavioral model REDs `[5,6,4]`vs`[5,6]` precede the minimal committed-ID predicate. Full snapshot/frozen selection/pending candidate stay intact; hover/lock fixture assumptions corrected without replaying historical audio proof. Targeted GREEN2 and current7f source42UI+12native Rust(+1DB2)/helper check35.07s/noWarnings/scoped Rustfmt2/readability pass. After443e, freshc123/S7f0/P7a both-skin seven-check native GREEN: committed row absent/slot present, filtered full-snapshot selection, pending/cancel stability, accepted row swap and genuine640→642→640/712→734→712 restored before verdict. Tender/appearance collections/cart/catalog1382/order conserved; twelve inspected PNGs published, exact binaries/receipts/six original memory edges retained. Startup readiness probe only expired while the same server PID progressed; no client/transaction before ready, no restart or reservation clearing. Active SoundKit audit correction to70448 included; no pitch/audio/server changes.
 
 ## 2026-10-17 — PitchAdjust active-build correction
 
@@ -4586,3 +4586,15 @@ Source Item ownership replaces row-press actions; inset-aware native Button pick
 - 2026-10-17: [Cooldown-assist](investigations/cooldown-assist-data.md#assisted_combat_simc_mirror): user-approved bounded Fury spatial mirror; native Retail authority remains unknown.
 
 - 2026-10-17: [Run22 native policy partial](investigations/cooldown-assist-data.md#native-policy-observation--run22): prior Fury predicate refusal passed; tank death before first boss leaves clear acceptance open.
+
+## 2026-10-17 — Resurrection guild perk excluded by user
+
+User clarification: World of Osso has no resurrection guild perk. Removed Quick/Dead from pending effect coverage; historical installed-data/native receipts are not project requirements. Mobile Banking remains active with the separately specified2h policy.
+
+## 2026-10-17 — Mobile Banking user policy implemented
+
+User decision specifies MOBILE_BANKING_COOLDOWN_2H7200000ms over installed3600000ms. Installed faction children/type34/lifetime and Friendly1168 chest-user gate; no Friendly cast gate. Real server5/5 and tooltip1/1 GREEN; midcast loss checked before consumption. Native actual5min/2h both-skin proof pending. Resurrection perk excluded by user, not a gap.
+
+## 2026-10-17 — Mobile native clock oracle
+
+[Guild perks](systems/guilds.md#perk-native-authority-and-effect-boundary-2026-10-16): production/Modern proof complete, real7311223ms accepted-recast gap saved; independent425/425b passed. Native measurement now uses the received server CastSuccess timestamp, not float32 countdown interpolation. Retry only remaining Forever case on unchanged artifacts; no overall completion claim yet.
