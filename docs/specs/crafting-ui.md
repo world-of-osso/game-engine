@@ -41,6 +41,8 @@ Rust ui-model screens and the native Godot extension extend [ProfessionsFrame](p
 - `godot/ui-model/tests/professions_art.rs`
 - `godot/ui-model/tests/professions_specializations.rs`
 - `godot/tests/crafting_ui_live.gd` — private both-skin specialization, public order and receiving-mail phases.
+- `godot/tests/modern_crafting_orders_live.gd` — current Public/Guild/Personal cast and mailbox settlement in both skins.
+- `godot/tests/modern_crafting_recraft_live.gd` — existing owned bag items retained after physical clicks on disabled recraft input/submission; no eligibility or operation claim.
 
 ## Known gaps (current cycle)
 - [x] Both-skin private public/guild/personal order/mail and knowledge proof complete; skills, knowledge, guild membership and acceptance reagents were explicitly fixture-primed, not acquisition proof.
