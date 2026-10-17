@@ -63,6 +63,10 @@
 ## 2026-10-16 — Encounter section flags
 
 [Refund icon](systems/trading-post.md#product-row-refund-icon-tooltip--implementation-october16): real old-binary pointer RED shows generic item tooltip over refundable642 while848 is selected; genuine purchase/refund restores Tender/frozen state before assertion. Passive projected texture bounds own right0/0 and the existing colored footer formatter without blocking parent clicks. Model3 and actualca0/4e9/Pb701 both-skin painted GREEN: independent IDs, white caption/red59m, parent click, hover leave, Escape destroys currently hovered owner/HUD, one real purchase/refund restores Tender/collected/frozen state. Eight full-HD originals+two contacts+two crops published; diagnostic manifest binds exact inputs. Integrated933892f79/source protocol604ea609 passes40 UI+12 native, engine check without compiler warnings and scoped five Rustfmt (four unchanged hashes+one foreign tooltip-source delta). Actual native remainsca0/4e9/b701, not the later merged sources. No production refund policy/provider changes.
+## 2026-10-17 — Bounded zero-operand Fire67 projection
+
+[Source-backed modifier](investigations/cooldown-assist-data.md#fire-cast-overlap-modifier67--2026-10-17): actual retained Fire frame RED returns rule33340 instead of sourced Fireball133. Lead approves exactly[0,0,0] as no extra Boolean restriction; nonzero operands and ordinary usability still refuse. No default unflagged anti-overlap policy, Fury3/12 semantics, kit or provider change. Historical native JSON remains unchanged; new model/live proof is distinct.
+
 ## 2026-10-17 — Fire67 cast-overlap source classification
 
 [Allowed pinned SimC source](investigations/cooldown-assist-data.md#fire-cast-overlap-modifier67--2026-10-17) emits67 as a step option that relaxes same-action execution/last-foreground suppression, not a numeric prediction predicate. Native integration remains unimplemented; no unconditional true or global anti-recast behavior added. Focused independent replay1case/3retainedclass snapshots passes at1b0cef7d9 with exact11/11/67 refusals and no lower-step fallback.
