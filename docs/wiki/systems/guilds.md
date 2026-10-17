@@ -81,12 +81,14 @@ Actual UDP invitations/acceptance, online officer removal, rejoin and ordinary q
 
 | Perk | Installed effect boundary | Current effect evidence |
 |---|---|---|
-| Mount Up78633 | Aura172/211/210,10% | Mounted/flight nonstacking modifiers and PvP exclusion not behaviorally proven; current movement accumulator does not dispatch these IDs. |
-| Hasty Hearth83944 | Aura453,−900000ms, misc2309 | Hearthstone8690 uses charge category2309 (one charge,1800000ms); the existing453 charge modifier may already reduce it to900000ms. Actual8690/83944 behavioral proof is pending; do not assume an ordinary-cooldown defect. |
+| Mount Up78633 | Aura172/211/210,10% | Supported172/211 and map suppression landed. Real Golden Gryphon/Crusader/map controls pass; actual both-skin invitation/removal produces run14→15.4→14 and flight22.4→24.64→22.4. Controlled-NPC flight210 remains explicitly blocked. |
+| Hasty Hearth83944 | Aura453,−900000ms, misc2309 | Isolated8690 casts produce30/15/30-minute charge2309 recovery; actual Human458619 adds a second charge/-5min. Four Hasty controls now preserve consumed clocks and mixed25/10/25-minute queued uses; ten rate and three snapshot controls also pass. Native Human actual-item6948 scenarios remain pending. |
 | Mobile Banking83958 | Script effect77; description references88306,5min | No83958/88306 script or guild-chest reputation authority established. Effect77 is not a generic summon-object effect. |
 | The Quick and the Dead83950 | Aura340,+50%; second dummy effect10% | Resurrection-health, ghost-speed and combat/PvP exclusion not implemented/proven by this slice. |
 | Guild Mail83951 | Source dummy aura; mail send checks actual same guild | Existing `mail::send` sets attached-mail delay to zero for same-guild members; retain separate behavioral control. |
 
 Authority: installed active Spell/SpellEffect CSVs; server `auras/stat_mods.rs`, `auras/handlers.rs`, `spell_cast/effects.rs`, `mail.rs`; pinned TC Guild.cpp2322/3002. Missing effect behavior is an explicit gap, not a fabricated buff or chest.
+
+Final Mount Up collector `alive-flat-1792192848` reads seven coherent actual movement/mount/motion samples per skin, with health18172 and held forward input. Fourteen full-HD originals inspected; ten selected mounted ground/flight/removal originals published under `/syncthing/AgentShared/2026-10-15/guild-completion/`. Four removed-ground/unmounted frames were rejected for wall/tree occlusion, not accepted as pixel proof; all fourteen numeric samples remain valid. Earlier cliff trials persisted fall death: real CastFailed32235/CasterDead explained subsequent flat-start failures. Fixture setup now uses the existing private-actor `.revive` authority and waits for living/grounded state; no speed or perk is injected. Ledger: `/home/osso/.worktrees/logs/guild-mount-up-2026-10-16-run1/proof-ledger.json`.
 
 Native existing-caret follow-up: `before  after` + real Shift-click at caret7 initially reverted to the old text. The shared chat insertion path wrote only Godot LineEdit, while the next chat update read RegistryUi's unchanged EditBox state and removed the link from the draft. The insertion now uses RegistryUi::set_editbox_text, then restores the returned caret; this keeps model/native text synchronized. This is a separate actual native RED, not inferred from the earlier empty-draft proof.
