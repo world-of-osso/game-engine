@@ -38,6 +38,7 @@ fn item_confirmation_captions_inherit_black_shadow_both_skins() {
             shared.insert((pending, accept_enabled));
             let mut registry = FrameRegistry::new(1920.0, 1080.0);
             Screen::new(confirmation_screen).sync(&shared, &mut registry);
+            game_engine_ui_model::menu_template_art::sync_template_art(&mut registry);
             for (suffix, caption, action, disabled) in [
                 (
                     "Button",
@@ -69,7 +70,14 @@ fn item_confirmation_captions_inherit_black_shadow_both_skins() {
                 };
                 assert_eq!(label.text, caption);
                 assert_eq!(label.font_size, 12.0);
-                assert_eq!(label.color, [1.0, 0.82, 0.0, 1.0]);
+                assert_eq!(
+                    label.color,
+                    if disabled {
+                        [0.5, 0.5, 0.5, 1.0]
+                    } else {
+                        [1.0, 0.82, 0.0, 1.0]
+                    }
+                );
                 assert_eq!(
                     label.shadow_color,
                     Some([0.0, 0.0, 0.0, 1.0]),
