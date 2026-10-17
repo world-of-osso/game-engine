@@ -32,7 +32,8 @@
 - [Clean-room M2 particles](systems/godot-conversion.md#native-m2-particles) — native tails/follow/cubic controls, authored sorting and map-collision births; inherited-scale provenance and explicit lighting, timer/reset, spline-density, target-mask and model-recursion oracle gaps.
 # Wiki Index
 
-- [Random32 level-eligible configured selection](systems/battlegrounds.md#random32-level-eligible-configured-selection--2026-10-17) — Retail-based project policy, actual-level selected bracket and original per-player32; no daily/reward grant, Deepwind template absent; BG_FILL_EXISTING_COPY remains an accepted Waiting/backfill gap.
+- [Whole-party existing-copy backfill](systems/battlegrounds.md#whole-party-existing-copy-backfill--2026-10-17) — real Waiting/running party RED→GREEN22, same map/reservation ownership and old60s capture preserved; decline/leave/offline-expiry refill, named smaller-team/match-order policies; no timer/minimum/reward changes.
+- [Random32 level-eligible configured selection](systems/battlegrounds.md#random32-level-eligible-configured-selection--2026-10-17) — Retail-based project policy, actual-level selected bracket and original per-player32; no daily/reward grant, Deepwind template absent; event-driven backfill handles existing copies.
 
 - [Eye7 holiday authority](investigations/eye-holiday-authority.md) — authenticated70448 holiday492 has fixed2007 date,72/1776-hour durations andLooping0; TC interval evaluation is sourced, but effective game_event schedule is not. Namedgap HOLIDAY492_EFFECTIVE_EVENT_AUTHORITY; no payout/default calendar policy adopted.
 
