@@ -1709,13 +1709,14 @@ fn criterion_checklist(
     let completed = line.progress_supported && line.completed;
     let text_left = if completed { 38.0 } else { 25.0 };
     let (text, color) = criterion_checklist_text(line, earned);
-    let mut content = label(
-        name.into(),
-        &text,
-        (text_left, 1.0, CRITERIA_AREA_WIDTH - text_left, 15.0),
-        color,
-        "",
-    );
+    let text_width = CRITERIA_AREA_WIDTH - text_left;
+    let shadow_offset = if earned && completed { "0,0" } else { "1,-1" };
+    // AchievementCriteriaFont inherits Roman SystemFont_Small10 (GameFontStyles168).
+    let mut content = rsx! {fontstring {name:{DynName(name.to_owned())},text:text.as_str(),
+        width:text_width,height:15.0,left:text_left,top:1.0,pos_type:"absolute",
+        font:GameFont::FrizQuadrata,font_size:10.0,font_color:color,
+        justify_h:"LEFT",justify_v:"MIDDLE",shadow_color:"0,0,0,1",shadow_offset,
+    }};
     if completed {
         // Mainline XML703–724/Lua2058–2060: authored20×16 check, cropped to0.625.
         content.extend(artwork::texture(
