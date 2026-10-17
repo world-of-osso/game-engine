@@ -18,7 +18,8 @@ func fail_fixture(message: String) -> void:
 	quit(1)
 
 func capture(label: String) -> bool:
-	for frame in 4:
+	# Fixed clocks let temporal rendering settle without advancing the asset.
+	for frame in 32:
 		await process_frame
 	await RenderingServer.frame_post_draw
 	var image := root.get_texture().get_image()
@@ -75,7 +76,7 @@ func run_fixture() -> void:
 	var bounds: AABB = model.get_meta("m2_bounds")
 	var focus := bounds.get_center()
 	var radius := maxf(bounds.size.length() * 0.5, 1.0)
-	camera.look_at_from_position(focus + Vector3(0.0, 0.12, 1.0).normalized() * radius * 2.8, focus)
+	camera.look_at_from_position(focus + Vector3(1.0, 0.12, 0.0).normalized() * radius * 2.8, focus)
 	var evidence := {}
 	for skin in ["modern", "forever"]:
 		var skin_error: String = client.preview_world_skin(skin == "forever")
