@@ -190,7 +190,17 @@ Pre-change native measurement on the private solar-spell fixture: at parent0/99/
 
 Post-integration8a1afc3b0 proof: native animation83 (including crossfade/root/billboard/event controls), attachment parser7 and inheritance3 pass; format check and native compilation pass without Rust warnings. Strengthened native solar-spell→HumanMaleHD→original item25 hand attachment passes: parent0/99/100/199/200ms yields pose/callback eligibility/shadows1/1/0/0/1, original casting mode2 restored, both controls always active, and actual inactive100ms→sequence1 reactivation verified. HumanMaleHD contains the authored marker; the actual marker dispatch/no-replay assertion is CPU action-playback proof, while the native fixture measures eligibility. No audible callback dispatch, reference-client raster or clock parity claim.
 
+## Local material transitions (M2-MAT) — 2026-10-17
+
+The [M2-MAT contract](../../specs/m2-animation-inheritance-attachments.md#m2-mat-approved-2026-10-17) keeps short-table selection separate from valid-empty channels. Master already selected timeline zero when a local playing index exceeded that individual track table; authentic165644/356426/125854 tint controls remain unchanged. Ordinary nonzero material interpolation now interpolates endpoints; mode0 still holds. M2-MAT-CUBIC remains an unproven material tangent/curve gap, not permission to copy camera spline sampling.
+
+`godot/core/src/m2_material_transition.rs` samples each local sequence at its own clock, inserts empty-side defaults before blending, and composes alpha/weight and UV matrices only afterwards. Eligible channels are local and non-step. Rotation crossfades quaternions, never matrix elements. Global and step channels bypass transition blending. Interrupted blends capture eligible raw channels into model-sized buffers allocated at load time; repeated capture reads each old channel before replacing it. Native base-state wiring and capture proof are pending.
+
+Proof so far: ordinary mode2 returned0 instead of0.25 (RED); no-blend baseline failed both half-weight color and interrupted-pose controls (RED). These are behavior failures, not compilation errors. See `godot/core/tests/m2_material{,_transition}.rs`; no Retail cubic parity claim.
+
 ## Sources
+
+- User-supplied clean-room M2-MAT section (approved2026-10-17), `/home/osso/.worktrees/logs/m2-p5-s1-mat-source-assistance-2026-10-17.md`, SHA256 `b16ad486bd0e706d2369679f91ef24569959e7b5709ca4d29503701482edb204`. W/C labels are provenance only; no underlying source accessed.
 
 - User-supplied clean-room A6/A7 spec (2026-10-15), `/home/osso/.worktrees/logs/anim-cleanroom-spec-2026-10-15.md`; provenance labels were not opened or searched.
 - `godot/core/src/m2_inheritance.rs`, `godot/rust/src/animation/billboard.rs` — authored parent composition and behavioral fixtures.

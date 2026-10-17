@@ -24,9 +24,9 @@ Clean-room user-supplied M2-MAT requirements; W/C labels are provenance only.
 
 - [x] Per-track out-of-range selection uses timeline zero; an in-range empty timeline uses the channel default. Existing master behavior retained, including classic wings165644 and creatures356426/125854 tint controls.
 - [x] Material modes2/3 use ordinary non-step endpoint interpolation, not held keys. Scalar/vector0→1 at0–1000ms yields0.25 at250ms within fixed16 quantization.
-- [ ] Active base transitions blend eligible local non-step RGB, alpha, texture weights and UV translation/scale/quaternion rotation, using both sequence clocks and the bone weight.
-- [ ] Empty transition sides contribute defaults; global tracks use their global clock without local blending; step tracks retain their current held value.
-- [ ] Interrupted transitions retain raw eligible material channels without pops or per-frame allocation.
+- [ ] Runtime integration: active base transitions blend eligible local non-step RGB, alpha, texture weights and UV translation/scale/quaternion rotation, using both sequence clocks and the bone weight.
+- [x] Pure material sampler: empty transition sides contribute defaults; global tracks use their global clock without local blending; step tracks retain their current held value.
+- [x] Pure material sampler: interrupted transitions retain raw eligible material channels without pops or per-frame allocation; native base-state wiring/proof still pending.
 - [ ] Native both-skin1920×1080 real-asset before/after and165644 tint control.
 - [ ] M2-MAT-CUBIC: target-qualified material spline/tangent semantics remain unproven; camera-style Hermite/Bezier sampling is explicitly excluded.
 
