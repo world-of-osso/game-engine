@@ -67,6 +67,8 @@
 - [Caster-centered assisted range](investigations/cooldown-assist-data.md#caster-centered-assisted-range--2026-10-16) — retain authored Self Only range identity instead of excluding selected-enemy distance; actual Whirlwind RED→GREEN and25 core controls, fresh native acceptance open.
 - [Minimap zoom source states](systems/minimap.md#zoom-button-source-states--2026-10-15) — both-skin native hover/press/limit-disabled and release cancellation; unchanged enabled idle/context pixels outside zoom rectangles.
 - [Ysera body closure](systems/toy-box.md#ysera-body-asset-closure-2026-10-16) — seventeen authenticated70391 dependencies and four private runtime aliases; procedural8605/type22 remains unrendered.
+- [Croak and Witch source closure](systems/toy-box.md#croak-and-witch-source-closure-2026-10-16) —22 authenticated body receipts/ten aliases, only three new private textures; source catalog2/2, ShadowyEffect165 and native appearance/audio remain separate.
+
 - [Spitzy source asset closure](systems/toy-box.md#spitzy-source-asset-closure-2026-10-16) — four authenticated assets; three existing owners, one new private receipt; conditional rendering/audio unproved.
 - [Waywatcher private body closure](systems/toy-box.md#waywatcher-private-body-closure-2026-10-16) —18 same70391 dependencies/four aliases authenticated privately; canonical publication and native rendering separate.
 - [Grizzlesnout canonical readback](systems/toy-box.md#grizzlesnout-canonical-body-readback-2026-10-16) —12 existing canonical receipts/two aliases pass actual Rust loader and independent byte authentication; no duplicate fragment needed.
