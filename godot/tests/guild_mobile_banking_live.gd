@@ -150,7 +150,16 @@ func refuse_recast(label: String) -> bool:
 	if int(row.spell_id) != 83958 or row.reason != "OnCooldown" or Array(client.spells_state().cast_success).count(83958) != count_before:
 		return fail("Wrong recast refusal: " + str(row))
 	write_json(role + "-" + label + ".json", {"at_ms": Time.get_ticks_msec(), "cast_at_ms": cast_at, "owner": perk_observation(), "failure": row})
+	if not await open_guild():
+		return false
+	await press("CommunitiesGuildBenefitsTab")
+	await hover_at(control("CommunitiesGuildPerk83958").get_global_rect().get_center())
+	if not await wait_until(func(): return text("TooltipTitle") == "Mobile Banking", "received spell tooltip during cooldown"):
+		return false
+	if not " ".join(tooltip_labels()).contains("2 hour cooldown"):
+		return fail("Mobile tooltip did not use user2h policy")
 	await capture(label)
+	await close_guild()
 	return true
 
 func wait_for_real_expiry() -> bool:
