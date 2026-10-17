@@ -55,6 +55,8 @@ mod mentor_host;
 mod menu_primitives_preview;
 mod meter_preview;
 mod minimap_preview;
+#[cfg(debug_assertions)]
+mod mirror_timer_shadow_preview;
 mod mount_journal_host;
 mod options_dropdown;
 mod options_keybindings;
