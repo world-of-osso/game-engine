@@ -53,9 +53,9 @@ Guild rewards require their separate runtime import and reputation/achievement e
 
 ## Hasty Hearth native effect proof (active)
 
-- [ ] Physical backpack use of real6948 completes8690 and reports charge2309. Actual Human458619 remains known: two charges,25-minute nonmember and10-minute guild recovery (isolated base without racial is30/15 minutes).
-- [ ] Actual invitation acceptance/removal does not retime an already-consumed Hearthstone charge. Modern/Forever observe the same owner authority.
-- [ ] Fresh server/client scenarios establish both baseline and member consumption without injecting or shortening charge clocks. `guild_hasty_hearth_live.gd` reads actual charge timers and cast-success receipts.
+- [x] Physical backpack use of real6948 completes8690 and reports charge2309. Actual Human458619 remains known: two charges,25-minute nonmember and10-minute guild recovery (isolated base without racial is30/15 minutes).
+- [x] Actual invitation acceptance/removal does not retime an already-consumed Hearthstone charge. Modern/Forever observe the same owner authority.
+- [x] Fresh server/client scenarios establish both baseline and member consumption without injecting or shortening charge clocks. `guild_hasty_hearth_live.gd` reads actual charge timers and cast-success receipts. Each scenario physically consumes one of the Human's two charges in each skin. Twelve inspected full-HD originals show backpack/item/cast context; numeric recovery comes from actual owner receipts, not a rendered timer label. Pending-clock persistence across restart is not claimed.
 
 ## Mount Up native effect proof
 
