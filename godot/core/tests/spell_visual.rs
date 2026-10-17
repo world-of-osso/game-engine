@@ -41,6 +41,38 @@ fn warrior(main_hand_subclass: Option<u8>) -> CasterContext {
 }
 
 #[test]
+fn toyfx71_rezan_roar_resolves_one_shot_caster_sound_and_animation() {
+    let visual = catalog()
+        .visual_for_spell(272071, &warrior(None))
+        .expect("source Roar of Rezan visual");
+    assert_eq!(visual, 77572);
+    let kits = catalog().kits(visual, VisualEvent::Cast);
+    assert_eq!(kits.len(), 1);
+    let kit = &kits[0];
+    assert_eq!(kit.target, KitTarget::Caster);
+    assert_eq!(kit.end, VisualEvent::OneShot);
+    assert!(kit.models.is_empty());
+    assert_eq!(
+        kit.animation,
+        Some(KitAnimation {
+            anim_id: 74,
+            looping: false,
+        })
+    );
+    assert_eq!(kit.sounds.len(), 1);
+    let sound = &kit.sounds[0];
+    assert_eq!(sound.sound_kit_id, 107006);
+    assert_eq!(sound.volume, 0.9);
+    assert_eq!(sound.min_distance, 5.0);
+    assert_eq!(sound.distance_cutoff, 30.0);
+    assert!(!sound.looping);
+    assert_eq!(sound.files.len(), 1);
+    assert_eq!(sound.files[0].fdid, 1777497);
+    assert_eq!(sound.files[0].frequency, 1);
+    assert_eq!(sound.files[0].volume, 1.0);
+}
+
+#[test]
 fn toyfx20_war_banner_visuals_follow_current_pvp_faction_not_race() {
     for (spell, faction, model) in [(300104, 2, 2925498), (300144, 1, 2925497)] {
         for race in [1, 2, 24, 52, 70, 84, 85, 86, 91] {
