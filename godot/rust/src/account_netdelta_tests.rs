@@ -151,16 +151,16 @@ fn netdelta_achievement_delta_without_earned_ids_keeps_the_earned_set() {
 }
 
 #[test]
-fn netdelta_achievement_full_snapshot_query_replaces_the_delta_baseline() {
+fn netdelta_achievement_full_snapshot_replaces_the_delta_baseline() {
     let mut account = account();
     dispatch(&mut account, full(before()), &mut Vec::new()).unwrap();
     dispatch(&mut account, before_to_after(), &mut Vec::new()).unwrap();
-    let query = AchievementSnapshot {
+    let replacement = AchievementSnapshot {
         earned_ids: vec![633],
         progress: vec![progress(9, 2, 3)],
     };
-    dispatch(&mut account, full(query.clone()), &mut Vec::new()).unwrap();
-    assert_eq!(account.achievements.snapshot(), Some(&query));
+    dispatch(&mut account, full(replacement.clone()), &mut Vec::new()).unwrap();
+    assert_eq!(account.achievements.snapshot(), Some(&replacement));
     let delta = AchievementDelta {
         earned_ids: None,
         progress_upserts: vec![progress(9, 3, 3)],
