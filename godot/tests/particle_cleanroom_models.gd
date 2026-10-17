@@ -8,6 +8,9 @@ func run_cases() -> void:
 		push_error("P5 missing native geometry/recursive emitter consumer")
 		quit(1)
 		return
+	if not prepare_fixture(7, 0, 1) or not write_fixture(FIXTURE + "/textures/910001.blp", make_blp(Color.WHITE)):
+		quit(1)
+		return
 	var stage := Node3D.new()
 	root.add_child(stage)
 	var env := Environment.new()
@@ -25,7 +28,7 @@ func run_cases() -> void:
 	camera3d.current = true
 	var passed := true
 	for count in [1, 2]:
-		var result = probe.model_recursion_node(stage, count, 0.05)
+		var result = probe.model_recursion_node(stage, FIXTURE + "/models/quad.m2", count, 0.05)
 		if not result is Node3D:
 			push_error("P5 native fixture failed: " + str(result))
 			passed = false
@@ -45,9 +48,17 @@ func run_cases() -> void:
 			for vertex in vertices:
 				depth = depth or absf(vertex.z) > 0.01
 			passed = depth and vertices.size() > 4 and passed
-			passed = absf(float(node.get_meta("tagged_child_age")) - 0.55) < 0.00001 and passed
-			passed = bool(node.get_meta("lifetime_state_pass")) and passed
-			passed = bool(node.get_meta("retirement_and_drain_pass")) and passed
+			passed = absf(float(node.get_meta("tagged_child_age_delta")) - 0.05) < 0.00001 and passed
+			var after := geometry.multimesh.get_instance_transform(0)
+			var before_origin: Vector3 = node.get_meta("before_origin")
+			var before_axis: Vector3 = node.get_meta("before_axis_x")
+			var before_color: Color = node.get_meta("before_color")
+			var after_color := geometry.multimesh.get_instance_color(0)
+			passed = after.origin.distance_to(before_origin) > 0.05 and passed
+			passed = after.basis.x.length() > before_axis.length() and passed
+			passed = after.basis.x.normalized().distance_to(before_axis.normalized()) > 0.05 and passed
+			passed = after_color.r < before_color.r and after_color.b > before_color.b and after_color.a < before_color.a and passed
+			passed = int(node.get_meta("drained_parent_count")) == 0 and int(node.get_meta("drained_child_count")) == 0 and passed
 			passed = bool(node.get_meta("zero_duration_pass")) and passed
 			await process_frame
 			await process_frame
@@ -61,7 +72,10 @@ func run_cases() -> void:
 			var output := OS.get_environment("GODOT_PARTICLE_SCREENSHOTS")
 			passed = not output.is_empty() and image.save_png(output + "/p5-models-" + str(count) + ".png") == OK and passed
 			print("P5 synthetic parents=", count, " geometry=", geometry.multimesh.visible_instance_count, " children=", children.multimesh.visible_instance_count, " passed=", passed)
+		var geometry_id := geometry.get_instance_id() if geometry != null else 0
+		var child_id := children.get_instance_id() if children != null else 0
 		node.free()
+		passed = not is_instance_id_valid(geometry_id) and not is_instance_id_valid(child_id) and passed
 	stage.free()
 	probe = null
 	cleanup()
