@@ -14,6 +14,12 @@ The client reads `data/cache/housing.sqlite` produced by game-server `scripts/im
 
 Further ranks: authentic vendor/quest/achievement/crafting acquisition; visiting/social permissions; charter/create-neighborhood/house finder/bulletin board; room/exterior/dye/blueprint customization; sourced initiatives/favor/levels/upgrades/market cart. Missing reward/grant/progression data stays a gap, never a synthetic substitute.
 
+## World of Osso policy: cornerstone plot claim grants its house
+
+Project policy approved2026-10-16, **not a Retail grant claim**: successfully claiming an authored NeighborhoodPlot through its real HousingCornerstone interaction grants the persisted House ownership record tied to that plot. The server validates the authenticated owner, neighborhood/copy, actual cornerstone reach and price, then atomically debits payment and creates that plot's House record. Browsing, approaching or visiting never grants ownership. Do not infer additional decor, exterior component selections, room layouts or progression grants from this rule.
+
+`OwnedHouse.plot_id` is the existing persisted plot relationship; this policy does not assert a decoded static DB2 House template relationship where none is authenticated. Exterior/door/interior assembly remains a separate world slice. Editor-chrome polish is paused until the ordered neighborhood→claim→exterior/interior→decor/visitor→house-list world slices are resolved or have exact source blockers.
+
 ## Basic placement release contract
 
 Normal owned-storage click starts placement but its original release does not place decor; the next visible move-overlay click commits on release, not press. Owned-storage drag starts placement armed for the first global left release. Selected placed decor moves only after an armed overlay release. Native GUI still receives the actual mouse release after world commit, so a captured mode button released outside restores its source artwork without switching modes. Invalid authored ground retains editing state with an explicit error. Cancel clears release capture. Assigned rotate actions update a new owned decor preview locally and include that yaw only in the eventual placement command; no persisted instance is fabricated for preview rotation. All commands preserve confirmed counts/layout until authority replies; visitors and absent-owned copies cannot start drag placement. Preview/market placement remains unavailable.

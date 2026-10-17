@@ -8,6 +8,7 @@
 - [Kill receipt across target changes](systems/bot-harness.md#kill-receipt-across-target-changes--2026-10-16) — consume owner outcomes before movement or idle prep, even after a killing cast changes the selected target.
 - [LOS-aware pull preparation](systems/bot-harness.md#los-aware-pull-preparation--2026-10-16) — blocked Riverpaw native replay; bounded same-target navmesh approach gates the single opening on native visibility.
 - [Local range/cast pose](systems/bot-harness.md#local-rangecast-pose--2026-10-16) — real input moves the local client while the host replica stays frozen; range and cast origins share the current local pose.
+- [Housing world redirect](systems/housing.md#world-redirect--active2026-10-16) — real Founder entry/terrain in both skins;70448 ground630/630 authenticated, connected baked cornerstone routes, both-skin native paid claims/House3–4/relogs passed; assembly gaps and source qualifications explicit; both-skin existing paid-owner list/relog WORLD proof passed, chrome paused.
 - [Full-HD storage captures](systems/housing.md#full-hd-storage-captures--verified2026-10-16) — both-skin five-phase1920×1080 originals, source Filter/root/Sort geometry and paid conservation; full-image parity remains unqualified.
 - [Unavailable storage filters](systems/housing.md#unavailable-storage-filters--qualified2026-10-16) — sourced location/tag query contracts, explicit missing field/history mappings; collection rows intentionally absent in storage.
 - [Lifetime honor source boundary](systems/battlegrounds.md#lifetime-honor-source-boundary--2026-10-16) — concrete world-kill XP0→47→94, both-skin native full-HD tooltip/relog; unknown level/curve and completion/season policies remain gaps; [Currency continuation](systems/battlegrounds.md#native-currency-readout--2026-10-16) consumes the owner wallet; source bottom tabs/tooltip/collapse, native both-skin Honor0 presentation and empty-wallet hiding pass.
@@ -21,6 +22,9 @@
 - [Clean-room M2 particles](systems/godot-conversion.md#native-m2-particles) — native tails/follow/cubic controls, authored sorting and map-collision births; inherited-scale provenance and explicit lighting, timer/reset, spline-density, target-mask and model-recursion oracle gaps.
 # Wiki Index
 
+- [Journeys track texture mask](systems/adventure-guide.md#journeys-track-texture-mask--2026-10-16) — authenticated70448 centered atlas, texture-only alpha, unchanged captions and moving-track controls; both-skin native pixels and12 inspected full-HD captures.
+
+- [Journal search implementation](systems/adventure-guide.md#search-preview-and-full-results--implementation-2026-10-16) — source preview/full popup, input ownership and localized quotes; scoped tests and both-skin physical search proof pass; quote fix independently accepted by lead gate361e.
 - [Product-row refund icon tooltip](systems/trading-post.md#product-row-refund-icon-tooltip--implementation-october16) — source texture-owned refund time; native generic-item-tooltip RED→both-skin painted right-anchor/parent-click/hovered-owner teardown GREEN, genuine purchase/refund conservation.
 - [ReadyCheck message shadow](systems/group-frames.md#readycheck-message-shadow--bounded-proof-2026-10-16) — inherited Roman black(+1,−1), RED→3GREEN and both-skin native1080p;1002 darkened pixels/skin, zero outside changes, exact shadow-off control; colors/full popup/lifecycle excluded.
 
