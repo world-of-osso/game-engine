@@ -42,6 +42,12 @@ Lead-authorized World of Osso policy [HONOR_WALLET_MIRRORS_HONOR_XP](../../../ga
 
 `scripts/export_db2_csv.py` accepts exact pinned layouts for CurrencyTypes1095531, PvpTalent1302853, PvpTalentCategory1891534, PvpTalentSlotUnlock1950197 and PrestigeLevelInfo1275869. Exported fields describe source records, not runtime implementation guarantees. TrinityCore DB2Structure.h locally preserved in `data/diagnostics/scrap-2026-10-10/` supplies field semantics; CASC supplies values.
 
+## Random Battleground reward profile — 70448
+
+`RANDOM_BG_WIN_REWARD_PROFILE` remains unresolved. Pinned TC a352b1fa compiled defaults and shipped assignments are first/repeat win27000/13500 and loss4500/3500, passed as kill equivalents rather than flat Honor. Daily reset defaults to06:00 server-local time; neither amounts nor reset authority is adopted by this project. No first-win/daily state or Random completion grant is authorized.
+
+Random32 admission uses parent map566's source bracket (first20–29), parent minimum5/team, capacity10/team and maximum party5. Configured templates are weighted; Deepwind2245 is excluded because its concrete template is absent. Each player's original queue32 must survive selection separately from the concrete map. Cross-range selection policy is pending: the same RangeIndex can label20–29 on566,10–19 on2107, and80 on2656. Existing payouts must not change before that decision.
+
 ## Eye holiday authority — 70448 read-only
 
 `HOLIDAY492_EFFECTIVE_EVENT_AUTHORITY` remains unresolved. Do not infer a77-day recurrence or treat missing calendar authority as inactive. Existing Eye completion Honor is unchanged; resource-Honor selection remains blocked.
