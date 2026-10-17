@@ -301,6 +301,11 @@ mod tests {
         };
         use ui_toolkit::screen::{Screen, SharedContext};
 
+        game_engine_ui_model::paths::set_data_root(
+            std::path::PathBuf::from(env!("CARGO_MANIFEST_DIR")).join("../../data"),
+        )
+        .unwrap();
+
         // BOTTOMRIGHT to an owner's TOPRIGHT at the left/top edge; opposite
         // anchors at right/bottom. Native coordinates already resolve SetPoint.
         for scale in [1.0, 2.0 / 3.0] {

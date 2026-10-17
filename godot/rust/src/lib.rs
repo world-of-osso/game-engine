@@ -2380,6 +2380,9 @@ impl GameClient {
             AccountEvent::Resurrection(offer) => self.death_flow.receive_offer(offer),
             AccountEvent::Summon(request) => self.receive_summon(request),
             AccountEvent::Professions(snapshot) => self.receive_professions(snapshot),
+            AccountEvent::CraftingOperation(update) => {
+                self.professions.reagent_selection.receive(update);
+            }
             AccountEvent::ProfessionSpecializations(update) => {
                 self.professions.specializations.receive(update)
             }
