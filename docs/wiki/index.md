@@ -1,6 +1,8 @@
+- [LOS-aware pull preparation](systems/bot-harness.md#los-aware-pull-preparation--2026-10-16) — blocked Riverpaw native replay; bounded same-target navmesh approach gates the single opening on native visibility.
+- [Local range/cast pose](systems/bot-harness.md#local-rangecast-pose--2026-10-16) — real input moves the local client while the host replica stays frozen; range and cast origins share the current local pose.
 - [Full-HD storage captures](systems/housing.md#full-hd-storage-captures--verified2026-10-16) — both-skin five-phase1920×1080 originals, source Filter/root/Sort geometry and paid conservation; full-image parity remains unqualified.
 - [Unavailable storage filters](systems/housing.md#unavailable-storage-filters--qualified2026-10-16) — sourced location/tag query contracts, explicit missing field/history mappings; collection rows intentionally absent in storage.
-- [Lifetime honor source boundary](systems/battlegrounds.md#lifetime-honor-source-boundary--2026-10-16) — concrete world-kill XP0→47→94, both-skin native full-HD tooltip/relog; unknown level/curve and completion/season policies remain gaps; Character Currency port next.
+- [Lifetime honor source boundary](systems/battlegrounds.md#lifetime-honor-source-boundary--2026-10-16) — concrete world-kill XP0→47→94, both-skin native full-HD tooltip/relog; unknown level/curve and completion/season policies remain gaps; [Currency continuation](systems/battlegrounds.md#native-currency-readout--2026-10-16) consumes the owner wallet; source bottom tabs/tooltip/collapse, native both-skin Honor0 presentation and empty-wallet hiding pass.
 - [House Access checkbox targets](systems/housing.md#house-access-checkbox-hit-targets--2026-10-16) — source row/checkbox split; native bad label dispatch reproduced then refused,32 physical cases and40 unchanged-outside context pairs.
 - [Alliance escort native fixture](systems/quest-ui.md#alliance-escort-native-fixture--2026-10-16) — Feero976 real-input harness; both skins earned all-three-wave credit; authenticated receipt closure and server grid-lifecycle fix.
 - [HouseSettings action-button art](systems/housing.md#housesettings-action-button-art--2026-10-16) — source UIPanel sheets/fixed12px caps; RED→GREEN, both-skin physical states and eight unchanged-outside context pairs.
@@ -12,6 +14,8 @@
 # Wiki Index
 
 - [Product-row cart toggle](systems/trading-post.md#product-row-cart-toggle--implementation-october16) — source36px row-owned Add/Remove control, independent identity/tooltip and preserved cart preview choices; native omission/paint RED→both-skin painted glyph GREEN.
+- [Earned-wallet source boundary](systems/battlegrounds.md#earned-wallet-source-continuation--2026-10-16) — kill/completion binding gaps remain; sourced static-weekly bookkeeping corrected separately, no invented payout.
+
 - [Inherited frozen item tooltip](systems/trading-post.md#inherited-frozen-product-tooltip--implementation-october16) — displayed selection action fixes inherited owner omission; actual both-skin settled frozen identity/anchor/leave GREEN, preserved slots/Tender, four inspected full-HD hover/leave samples.
 - [Same-species damage projection](systems/battle-pets.md#same-species-effect-projection--2026-10-16) — legal level2 trio, both-skin2283 actual85/77 damage, strict snapshots/canonical readback and four fullHD originals; full Retail timing/VFX unproved.
 - [Bench resurrection projection](systems/battle-pets.md#bench-resurrection-projection--2026-10-16) — both-skin2347→two78/1563 reserves→physical swap→147-damage win; eight fullHD originals and canonical strict model readback.
