@@ -32,7 +32,7 @@ References:
 
 ## Quality-caption font inheritance
 
-- [ ] LootFrame item `QualityText` uses plain `GameFontWhiteTiny2` / Roman `SystemFont_Tiny2`: current Friz8, white, no shadow. Preserve its96×10 box/anchors, the shadowed money/item names/title/count, artwork, slot/close actions and input behavior. Supplied-state typography proof does not qualify full-window art, hovering, loot authority or lifecycle.
+- [ ] LootFrame item `QualityText` uses plain `GameFontWhiteTiny2` / Roman `SystemFont_Tiny2`: current Friz8, white, no shadow (implemented; native/pixel GREEN pending). Preserve its96×10 box/anchors, the shadowed money/item names/title/count, artwork, slot/close actions and input behavior. Supplied-state typography proof does not qualify full-window art, hovering, loot authority or lifecycle.
 
 ## Native Godot conversion
 
