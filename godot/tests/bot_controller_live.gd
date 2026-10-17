@@ -80,6 +80,7 @@ func sample() -> void:
         "assisted": client.assisted_combat_state(), "inventory": client.merchant_state(),
         "pet": client.pet_bar_state()}
     if account.get("gameplay_input_allowed", false) and selected.get("target") != null:
+        rotation["visibility"] = client.call("target_visibility_state", int(selected["target"]))
         var query: Dictionary = client.call("spell_priority_state", int(selected["target"]),
             spell_ids)
         if query.has("error"):

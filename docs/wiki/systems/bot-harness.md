@@ -50,6 +50,18 @@ The1280 input/result PNGs were inspected and published as `follower-dungeons/nat
 
 `bot_simc_arcane.ArcaneSimcProvider` carries the approved diagnostic projection into the maintained interface with caller-provided receipt/APL/captured-kit/DB2/native-preflight/fight context. Receipt URL/commit and actual APL bytes must match SimC515f4a3fe9d1; the [fixture provenance](../../../scripts/tests/fixtures/bot_harness/simc_arcane32/provenance.json) retains exact source paths/hashes and native row slices. The generic controller contains no Mage IDs or priority. Provider calls are read-only against frozen kit/traits; the [bounded source contract](../../specs/bot-harness.md#approved-pinned-arcane-provider) retains APL24/36/64,2700s iteration timing and explicit unsupported cases. Selection must be explicit; no provider is auto-selected after a native evaluator error.
 
+### LOS-aware pull preparation — 2026-10-16
+
+Release Stockade12b reaches three acknowledged openings, then stops after225.631s on Riverpaw Poacher46250: native range is true but no client cast ray exists and authoritative server visibility is false. A post-run sampled caster-eye→target-feet ray is blocked in the canonical Map34 bake; this sample does not establish exact receipt-time geometry for every aim point. No bosses started, no deaths occurred, and per-boss DPS stays unavailable.
+
+The observer now records target-bound `target_visibility_state`, using the same native ray search as casting. Prepull navigation follows existing strict navmesh corners while either range or visibility is false; it stops moving once both hold, waits for ordinary usability, then sends one cast. Preparation stops at60s or60yd of observed travel, checked between bounded steps. Missing/stale/error visibility blocks; no target cycling, cast retries, LOS tolerance changes or server admission changes. The captured Riverpaw replay supplies the behavioral RED; native runtime acceptance remains separate. See [contract](../../specs/bot-harness.md#native-stockade-runs).
+
+### Local range/cast pose — 2026-10-16
+
+`read_assisted_facts` and `cast_witness` share `local_cast_feet`, sampled from the current locally controlled node. The previous range reader used the replicated owner Position, which trails physical input. Native dev-IPC regression moves the real client7yd through ordinary input while its loopback host keeps the replica frozen: localx−8941.995 versus replicax−8949, yet old Slam1464 `in_range` remained true. The fixture also receives the ordinary cast and checks its origin against that local pose. `GODOT_TEST_LOCAL_RANGE_ONLY=1 native_input_fixture dev-ipc` selects this boundary without unrelated bag-catalog readiness; it is not a gameplay provider or full dev-IPC pass.
+
+Server target LOS independently uses authoritative receipt-time positions ([contract](../../../../game-server/docs/specs/line-of-sight.md#player-casts-authoritative-target-visibility)); it does not trust an endpoint that ages while an NPC moves. Neither fix changes range values, LOS tolerances, class kits or priority predicates. Fresh release-server Stockade credit remains separate.
+
 ## Capture and detection
 
 `run_dummy_bots.py` requires an explicit socket/state/DB2 directory/dummy. It saves every IPC reply, native samples, run manifest and raw combat. Overlapping ring polls preserve true event multiplicity without recounting overlap; sequence gaps use the observed200-event retention, not the requested1024 lines.
