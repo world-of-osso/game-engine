@@ -89,8 +89,9 @@ func run_fixture() -> void:
 		materials.sample_materials()
 		var halfway := parameters()
 		var weights: Vector3 = halfway[0].weights
-		var incoming := 8192.0 / 32767.0
-		var outgoing := float(int(-2620.0 + 10812.0 * 208.0 / 367.0)) / 32767.0
+		# Skin batch0 resolves transparency lookup2: authored0→18022 over367ms.
+		var incoming := 18022.0 / 32767.0
+		var outgoing := float(int(18022.0 * 208.0 / 367.0)) / 32767.0
 		var expected := (incoming + outgoing) * 0.5 if phase == "after" else incoming
 		if absf(weights.x - expected) > 0.00001:
 			fail_fixture("authored half transition weight: expected %f got %f" % [expected, weights.x])
