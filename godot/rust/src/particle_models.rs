@@ -121,7 +121,7 @@ impl GeometryParticles {
             let mut mesh = node.get_multimesh().expect("geometry particle multimesh");
             mesh.set_instance_count(particles.len() as i32);
             for (index, particle) in particles.iter().enumerate() {
-                mesh.set_instance_transform(index as i32, &transform(particle));
+                mesh.set_instance_transform(index as i32, transform(particle));
                 let c = particle.color;
                 mesh.set_instance_color(index as i32, Color::from_rgba(c.x, c.y, c.z, c.w * fade));
             }
