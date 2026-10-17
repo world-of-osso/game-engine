@@ -94,8 +94,9 @@ Actual UDP invitations/acceptance, online officer removal, rejoin and ordinary q
 | Mount Up78633 | Aura172/211/210,10% | Supported172/211 and map suppression landed. Real Golden Gryphon/Crusader/map controls pass; actual both-skin invitation/removal produces run14→15.4→14 and flight22.4→24.64→22.4. Controlled-NPC flight210 remains explicitly blocked. |
 | Hasty Hearth83944 | Aura453,−900000ms, misc2309 | Isolated8690 casts produce30/15/30-minute charge2309 recovery; actual Human458619 adds a second charge/-5min. Four Hasty controls preserve consumed clocks and mixed25/10/25-minute queued uses; ten rate and three snapshot controls also pass. Identical-binary actual Human item6948 scenarios pass both skins: four physical8690 casts, current1→0/max2,25/10-minute recovery, four actual invitation/removal cycles and exact114 non-guild IDs retained. |
 | Mobile Banking83958 | Script effect77; description references88306,5min | No83958/88306 script or guild-chest reputation authority established. Effect77 is not a generic summon-object effect. |
-| The Quick and the Dead83950 | Aura340,+50%; second dummy effect10% | Resurrection-health, ghost-speed and combat/PvP exclusion not implemented/proven by this slice. |
 | Guild Mail83951 | Source dummy aura; mail send checks actual same guild | Existing `mail::send` sets attached-mail delay to zero for same-guild members; retain separate behavioral control. |
+
+User clarification2026-10-17: World of Osso has no resurrection guild perk;83950 is not a pending effect gap. Earlier five-ID native receipts describe installed catalog data, not a resurrection-effect requirement.
 
 Authority: installed active Spell/SpellEffect CSVs; server `auras/stat_mods.rs`, `auras/handlers.rs`, `spell_cast/effects.rs`, `mail.rs`; pinned TC Guild.cpp2322/3002. Missing effect behavior is an explicit gap, not a fabricated buff or chest.
 
