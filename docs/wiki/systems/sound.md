@@ -38,6 +38,10 @@ At `741344ca`, native `NativeSound` consumes those catalogs: two owned Godot pla
 
 `ce2a8c92` adds a real authenticated `GameClient` fixture. The retained run reaches MCNK area 9 → root zone 12, observes Music player track `53492`, confirms no zone-12 ambient track, then drives the authored Options Sound controls and observes native player volume/mute/music-enable state. The fixture log is [native-sound-client-final.log](../../../data/diagnostics/native-sound-client-final.log). This is volume/player-state proof only: no audible-output, full audio parity, or independent-verifier claim follows; verifier817 is pending. Unexpected fixture markers are ordering/discovery sentinels, not production REDs, and mutation assertions are harness-sensitivity checks only. Its verbose exit reports 16 leaked stream/playback/Ogg-packet objects but no native sound/player nodes; see [[native-audio-shutdown-leaks]]. Godot 4.7.2 remains pinned; the documented engine-level shutdown-timing issue is not being patched now, and client work continues without a full-parity waiver.
 
+## Trading Post accepted freeze-lock kit
+
+[Freeze-lock lifecycle/proof](trading-post.md#accepted-freeze-lock-sound--october17) registers218229 with four authored variants/gain0.707945764. Both native acceptance paths reuse UiKits; zero pitch/variation requires no player change. Metadata70391 and local installed70448 audio remain separately qualified. Hide/show218236/218237 needs nonzero PitchAdjust support in a future slice; selection218230 needs its own selection/silence callbacks, neither is implemented here.
+
 ## UI_SOUND_PITCH_ADJUST_RATE
 
 Verified2026-10-17: the mapping from Retail `SoundKit.PitchAdjust` to player playback rate is **not established** by the inspected sources. Current `data/db2/active` resolves to12.1.5.70448 (installed build key88d5e8ef05ec5a8446cdec93d142d7c6); reread kits218236/218237 contain `PitchAdjust=-0.144405067`, but the value/type declaration supplies neither units nor an equation. Retail `SoundDocumentation.lua:52–89,125–135` exposes kit/subtype/duplicate/finish/priority/volume options, not a pitch conversion.

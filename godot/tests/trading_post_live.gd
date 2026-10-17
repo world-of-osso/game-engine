@@ -13,6 +13,10 @@ var hover_audio_events := []
 var hover_sound_checks := []
 var hover_kit_baseline := 0
 var row_exclusion_checks := []
+var lock_audio_events := []
+var lock_sound_checks := []
+const FREEZE_LOCK_FILES := [4908453,4908455,4908457,4908459]
+const FREEZE_LOCK_LENGTHS := {4908453:3.349813,4908455:3.418396,4908457:3.782833,4908459:3.621125}
 var paused_private_server := 0
 # Retail70391 SoundKitEntry rows for218932/218933.
 const MENU_OPEN_FILES := [4956048,4956050,4956052,4956054,4956056]
@@ -28,7 +32,7 @@ func run_fixture() -> void:
 		fail("Private compositor must expose 1920x1080 output")
 		return
 	var account := OS.get_environment("TP_ACCOUNT")
-	if server != "127.0.0.1:5791" or not account.begins_with("fb_") or shots.is_empty() or receipts.is_empty() or not phase in ["frozen-row-exclusion", "product-hover-sound", "refund-icon-blend", "refund-icon-tooltip", "row-cart-toggle", "frozen-tooltip", "cart-tooltips", "pending-dialogs", "confirmations", "button-tooltips", "item-tooltips", "menu-sounds", "layout", "layout-proof", "browse", "relog", "purchase", "refund", "cart", "cart-lifetime", "rotate-controls", "mount-rider", "mount-rider-cancel", "freeze-workflow", "authored-camera", "frozen-slot-before", "frozen-slot-after"]:
+	if server != "127.0.0.1:5791" or not account.begins_with("fb_") or shots.is_empty() or receipts.is_empty() or not phase in ["frozen-row-exclusion", "freeze-lock-sound", "product-hover-sound", "refund-icon-blend", "refund-icon-tooltip", "row-cart-toggle", "frozen-tooltip", "cart-tooltips", "pending-dialogs", "confirmations", "button-tooltips", "item-tooltips", "menu-sounds", "layout", "layout-proof", "browse", "relog", "purchase", "refund", "cart", "cart-lifetime", "rotate-controls", "mount-rider", "mount-rider-cancel", "freeze-workflow", "authored-camera", "frozen-slot-before", "frozen-slot-after"]:
 		fail("Explicit private 127.0.0.1:5791, fb_* account, phase and evidence paths required")
 		return
 	for directory in [shots, receipts]:
@@ -52,8 +56,8 @@ func run_fixture() -> void:
 	if not await wait_until(func(): return float(client.account_state().local_player_health) > 0.0, "private character alive", 120000): return
 	client.set_world_minutes(720.0)
 	await wait_frames(120)
-	if not phase in ["frozen-row-exclusion", "product-hover-sound", "refund-icon-blend", "refund-icon-tooltip", "row-cart-toggle", "frozen-tooltip", "cart-tooltips", "pending-dialogs", "confirmations", "button-tooltips", "item-tooltips", "menu-sounds", "layout", "layout-proof", "cart", "cart-lifetime", "rotate-controls", "mount-rider", "mount-rider-cancel", "freeze-workflow", "authored-camera", "frozen-slot-before", "frozen-slot-after"] and not await travelers_log(): return
-	if phase in ["menu-sounds", "product-hover-sound"] and not watch_menu_sound_players(): return
+	if not phase in ["frozen-row-exclusion", "freeze-lock-sound", "product-hover-sound", "refund-icon-blend", "refund-icon-tooltip", "row-cart-toggle", "frozen-tooltip", "cart-tooltips", "pending-dialogs", "confirmations", "button-tooltips", "item-tooltips", "menu-sounds", "layout", "layout-proof", "cart", "cart-lifetime", "rotate-controls", "mount-rider", "mount-rider-cancel", "freeze-workflow", "authored-camera", "frozen-slot-before", "frozen-slot-after"] and not await travelers_log(): return
+	if phase in ["menu-sounds", "product-hover-sound", "freeze-lock-sound"] and not watch_menu_sound_players(): return
 	if not await open_vendor(): return
 	if phase in ["cart", "cart-lifetime"]:
 		# Collection UI owners may replace a hidden CanvasLayer while this vendor is open.
@@ -89,6 +93,7 @@ func run_fixture() -> void:
 		"menu-sounds": await menu_sound_proof()
 		"product-hover-sound": await product_hover_sound_proof()
 		"frozen-row-exclusion": await frozen_row_exclusion_proof()
+		"freeze-lock-sound": await freeze_lock_sound_proof()
 		"item-tooltips": await item_tooltip_proof()
 		"confirmations": await confirmation_escape_proof()
 		"pending-dialogs": await pending_dialog_proof()
@@ -1212,6 +1217,12 @@ func observe_menu_sound_player(node: Node) -> void:
 	var stream: AudioStream = player.stream
 	if stream == null: return
 	var fdid := int(stream.resource_name)
+	if phase == "freeze-lock-sound" and fdid in FREEZE_LOCK_FILES:
+		var lock_event := {"fdid":fdid,"length":stream.get_length(),"gain":player.volume_linear,"pitch_scale":player.pitch_scale,"playing_observed":false,"finished":false}
+		lock_audio_events.append(lock_event)
+		player.finished.connect(func(): lock_event.finished = true)
+		call_deferred("observe_menu_sound_playback", player, lock_event)
+		return
 	if phase == "product-hover-sound" and fdid == 4906953:
 		var hover_event := {"fdid":fdid,"length":stream.get_length(),"gain":player.volume_linear,"pitch_scale":player.pitch_scale,"playing_observed":false,"finished":false}
 		hover_audio_events.append(hover_event)
@@ -1335,6 +1346,88 @@ func frozen_row_exclusion_proof() -> void:
 	print("TP_FROZEN_ROW_EXCLUSION ", JSON.stringify(proof))
 	if not errors.is_empty(): fail("Frozen ordinary-row exclusion failed after original restored: %s" % [errors]); return
 	print("TRADING_POST_LIVE PASS skin=", skin, " phase=frozen-row-exclusion")
+	client.free()
+	quit(0)
+
+func lock_sound_checkpoint(label: String, expected: int, expected_frozen: int) -> void:
+	await wait_frames(5)
+	var state: Dictionary = client.trading_post_state()
+	lock_sound_checks.append({"label":label,"expected":expected,"decoded_count":lock_audio_events.size(),"kit_count":menu_sound_count(218229),"expected_frozen":expected_frozen,"frozen":int(state.frozen),"pending":state.pending})
+
+func open_lock_confirmation(candidate: int) -> bool:
+	if not await drag_to_frozen("PerksProgramProduct%d" % candidate): return false
+	return await wait_until(func(): return control("PerksProgramConfirmDialog") != null, "genuine occupied-slot replacement confirmation")
+
+func accept_lock_confirmation(candidate: int) -> bool:
+	if not await wait_until(func(): return control_enabled("PerksProgramConfirmButton"), "source replacement delay", 15000): return false
+	await click("PerksProgramConfirmButton")
+	return await wait_until(func(): return int(client.trading_post_state().frozen) == candidate and not client.trading_post_state().pending, "authoritative accepted freeze %d" % candidate, 120000)
+
+func freeze_lock_sound_proof() -> void:
+	if not await choose_category(1): return
+	var original := int(client.trading_post_state().frozen)
+	var expected_original := 640 if skin == "modern" else 712
+	if original != expected_original: fail("Lock sound fixture must preserve the genuine original reservation"); return
+	var candidate := await select_other_cartable([original])
+	if candidate <= 0: return
+	await click("PerksProgramFrozenSlot")
+	var before: Dictionary = client.trading_post_state().duplicate(true)
+	if not before.cart.is_empty(): fail("Lock fixture requires untouched empty cart"); return
+	await lock_sound_checkpoint("opened-query", 0, original)
+	if not await drag_to_frozen("PerksProgramProduct%d" % original): return
+	await lock_sound_checkpoint("same-item-rejected-drop", 0, original)
+	if not await open_lock_confirmation(candidate): return
+	var early_disabled := not control_enabled("PerksProgramConfirmButton")
+	if early_disabled: await click("PerksProgramConfirmButton")
+	await lock_sound_checkpoint("unaccepted-confirmation", 0, original)
+	await capture("pending-not-accepted")
+	await click("PerksProgramConfirmCancelButton")
+	if not await wait_until(func(): return control("PerksProgramConfirmDialog") == null, "cancel keeps original reservation"): return
+	await lock_sound_checkpoint("cancel", 0, original)
+	await capture("cancel-original-retained")
+	if not await open_lock_confirmation(candidate): return
+	if not await accept_lock_confirmation(candidate): return
+	await capture("accepted-replacement")
+	await create_timer(4.25).timeout
+	await lock_sound_checkpoint("accepted-replacement", 1, candidate)
+	await lock_sound_checkpoint("replacement-hold-refresh", 1, candidate)
+	# Always restore through genuine drag/confirmation before evaluating sound RED.
+	if not await open_lock_confirmation(original): return
+	if not await accept_lock_confirmation(original): return
+	await capture("accepted-original-restored")
+	await create_timer(4.25).timeout
+	await lock_sound_checkpoint("accepted-original-restored", 2, original)
+	var restored: Dictionary = client.trading_post_state().duplicate(true)
+	await tap(KEY_ESCAPE)
+	if not await wait_until(func(): return not client.trading_post_state().open, "lock vendor closes with original restored"): return
+	await lock_sound_checkpoint("closed", 2, original)
+	if not await open_vendor(): return
+	if not await wait_until(func(): return int(client.trading_post_state().frozen) == original and not client.trading_post_state().pending, "new query retains genuine original"): return
+	await lock_sound_checkpoint("reopened-query-no-lock", 2, original)
+	await capture("reopened-original-retained")
+	var after: Dictionary = client.trading_post_state().duplicate(true)
+	await tap(KEY_ESCAPE)
+	if not await wait_until(func(): return not client.trading_post_state().open, "lock proof final close"): return
+	var conserved: bool = restored.frozen == before.frozen and after.frozen == before.frozen and restored.tender == before.tender and after.tender == before.tender and restored.collected == before.collected and after.collected == before.collected and restored.cart == before.cart and after.cart == before.cart and restored.selected == before.selected and after.selected == before.selected
+	var settings_gain := -1.0
+	for event in menu_audio_events:
+		if event.kind == "open": settings_gain = float(event.gain)/0.562341332; break
+	var errors := []
+	for check in lock_sound_checks:
+		if check.decoded_count != check.expected or check.kit_count != check.expected or check.frozen != check.expected_frozen: errors.append(check.label)
+	for event in lock_audio_events:
+		if absf(float(event.gain)-0.707945764*settings_gain) > 0.00001 or not is_equal_approx(float(event.pitch_scale),1.0): errors.append("source gain/settings/pitch")
+		if absf(float(event.length)-float(FREEZE_LOCK_LENGTHS[event.fdid])) > 0.001 or not event.playing_observed or not event.finished: errors.append("actual decoded variant playback/finished")
+	if settings_gain < 0.0: errors.append("missing settings observation")
+	if not conserved: errors.append("original reservation/Tender/collection/cart/selection not restored")
+	var proof := {"original":original,"candidate":candidate,"early_disabled_observed":early_disabled,"checks":lock_sound_checks,"audio":lock_audio_events,"settings_gain":settings_gain,"conserved":conserved,"before":before,"restored":restored,"after":after,"errors":errors}
+	var file := FileAccess.open(receipts.path_join(skin+"-freeze-lock-sound-audio.json"), FileAccess.WRITE)
+	if file == null: fail("Cannot write lock audio receipt after original restoration"); return
+	file.store_string(JSON.stringify(proof,"\t"))
+	file.close()
+	print("TP_FREEZE_LOCK_SOUND ", JSON.stringify(proof))
+	if not errors.is_empty(): fail("Retail accepted freeze-lock kit218229 missing; original restored before assertion: %s" % [errors]); return
+	print("TRADING_POST_LIVE PASS skin=", skin, " phase=freeze-lock-sound")
 	client.free()
 	quit(0)
 
@@ -1908,7 +2001,7 @@ func motion(point: Vector2, down: bool, relative: Vector2 = Vector2.ZERO) -> voi
 	event.global_position = point
 	event.relative = relative
 	event.button_mask = MOUSE_BUTTON_MASK_LEFT if down else 0
-	if phase in ["frozen-row-exclusion", "product-hover-sound", "refund-icon-blend", "cart-tooltips", "row-cart-toggle", "refund-icon-tooltip"]:
+	if phase in ["frozen-row-exclusion", "freeze-lock-sound", "product-hover-sound", "refund-icon-blend", "cart-tooltips", "row-cart-toggle", "refund-icon-tooltip"]:
 		Input.parse_input_event(event)
 	else:
 		root.push_input(event, true)
