@@ -54,7 +54,7 @@ func apply_plan(tree: SceneTree, client: Node, plan: Dictionary) -> Dictionary:
     var config := observe_config(client)
     if config.has("error"):
         return config
-    var same_tree := int(config.get("tree_id", 0)) > 0 and config.get("tree_id") == plan.get("tree")
+    var same_tree: bool = int(config.get("tree_id", 0)) > 0 and config.get("tree_id") == plan.get("tree")
     if not same_tree or config.get("spec_id") != plan.get("spec"):
         return {"error": "Sourced talent plan does not match received native tree/spec", "native_config": config}
     await press_key(tree, KEY_N)
