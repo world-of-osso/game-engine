@@ -573,7 +573,7 @@ impl INode3D for GameClient {
             || self.follower_dungeon_pointer(&event)
             || self.adventure_guide_pointer(&event)
             || self.trading_post_pointer(&event)
-            || self.character_reputation_pointer(&event)
+            || self.character_lists_pointer(&event)
             || self.mailbox_pointer(&event)
             || self.pet_bar_pointer(&event)
             || self.boss_frame_pointer(&event)
@@ -2344,6 +2344,17 @@ impl GameClient {
                     self.reputation = Some(snapshot);
                 }
                 // `CHAT_MSG_COMBAT_FACTION_CHANGE`: the standing change as a chat line.
+                if let Some(message) = update.message {
+                    game_engine_ui_model::chat_frame::add_system_line(
+                        &mut self.chat.model.log,
+                        &message,
+                    );
+                }
+                if let Some(error) = update.error {
+                    self.add_world_error(&error)?;
+                }
+            }
+            AccountEvent::Currency(update) => {
                 if let Some(message) = update.message {
                     game_engine_ui_model::chat_frame::add_system_line(
                         &mut self.chat.model.log,

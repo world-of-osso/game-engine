@@ -28,7 +28,15 @@ References:
 - [x] Clicking a faction toggles its detail frame; changing faction refreshes its name, standing and local `Faction.db2 Description_lang`. Modern uses the adjacent Retail detail dialog (ReputationFrame.xml:270-324); Forever uses Camelot's existing right pane, subtitle and standing bar (CharacterFrame.xml:317-388; ReputationFrame.xml:251-286; ReputationFrame.lua:735-792). Description scrolls when it exceeds its viewport. Closing or leaving Reputation clears selection.
 - [x] At War is drawn only when the player's local race/class faction flags permit a declaration; it is disabled. No local war state is invented: the wire lacks `atWarWith`, `canToggleAtWar` and an at-war mutation request (`shared-protocol/src/protocol_snapshots.rs:180-185`). Inactive/watch controls are not added without their wire data/requests.
 - [ ] Reputation: faction headers (the wire has none), server-backed at-war/inactive/watch toggles, paragon and major factions.
-- [ ] Not built: stat tooltips, Stagger and mana regen (need a role), the Currency tab (no currencies on the wire; Retail opens nothing without them, CharacterFrame.lua:67-73), title and equipment-manager sidebars, slot flyouts.
+- [ ] Not built: stat tooltips, Stagger and mana regen (need a role), title and equipment-manager sidebars, slot flyouts.
+
+## PvP Currency readout
+
+- Owner CurrencyStateUpdate, not lifetime honor XP, determines discovered entries and quantities. A zero-quantity entry is still discovered; no receipt/empty entries hide CharacterFrameTab3, and a stale tab action cannot open an undiscovered wallet (CharacterFrame.lua67–73).
+- Tab3 selects TokenFrame, titled Currency,400×424 in both skins (Mainline CharacterFrame.lua15–19). Existing frame/tab art skins remain; no Camelot-only TokenFrame rows or data are introduced. Paperdoll/model/reputation contents are absent on this subframe.
+- Use Retail TokenFrame ScrollBox/MinimalScrollBar anchors and10px padding,2px spacing; TokenHeaderTemplate/ListHeaderThreeSliceTemplate26px and TokenEntryTemplate22px. Source PvP category2 labels the1792/1602 rows. Quantity0 uses DISABLED_FONT_COLOR; icons, descriptions and Honor maximum15000 come from current70391 CurrencyTypes. Unknown Conquest31270 maximum is not displayed as zero, a weekly number or an XP denominator.
+- Native hover owns the source row at ANCHOR_RIGHT. Categories collapse/expand locally; values never change locally. Unknown currency metadata fails explicitly, not with a guessed icon/name.
+- This bounded readout does not expose unused/watch preferences, transfer controls/account-wide filters or claim full TokenUI parity without their authoritative data/requests. Non-PvP currencies are not converted by this slice. Native full-HD acceptance is separate from model tests; the presentation-only zero-wallet fixture is governed by the [PvP progression contract](pvp-progression.md#native-currency-consumer--continuation).
 
 ## Forever first slice
 
