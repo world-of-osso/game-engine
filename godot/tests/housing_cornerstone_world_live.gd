@@ -40,8 +40,8 @@ func run_test() -> void:
 	await frames(20)
 	if not record_floor_probe("after-jump"): return
 	if not await capture_housing("fountain-wall-jump-world"): return
-	# Stay east of the observed riverside boulder before approaching Plot27/7.
-	for waypoint in [Vector3(3750.0, 180.0, 160.427), Vector3(3750.0, 145.0, -210.0), destination]:
+	# Reuse the observed clear corridor, then pass west across the open riverbank.
+	for waypoint in [Vector3(3750.0, 180.0, 160.427), Vector3(3675.0, 122.0, -125.0), Vector3(3655.0, 118.0, -135.0), Vector3(3650.0, 112.0, -170.0), destination]:
 		if not await walk_to_cornerstone(waypoint): return
 	if not await capture_housing("walk-arrived-world"): return
 	if not await purchase_property(): return
