@@ -1,6 +1,6 @@
 ## 2026-10-17 — Trading Post product-enter sound
 
-[Product-enter sound](systems/trading-post.md#product-enter-sound--october17): missing-kit registry RED and actual native zero-playback RED precede minimal218934 registration/owner dispatch through existing UiKits. Source70391 metadata versus authenticated70448 asset build retained; same-product ordinary/frozen owners differ, nested toggle remains parent, leave/teardown reset. Both-skin GREEN/final gates pending; no selection218230 or authority change.
+[Product-enter sound](systems/trading-post.md#product-enter-sound--october17): missing-kit registry RED and actual native zero-playback RED precede minimal218934 registration/owner dispatch through existing UiKits. Source70391 metadata versus authenticated70448 asset build retained; same-product ordinary/frozen owners differ, nested toggle remains parent, leave/teardown reset. Actual3a7/Sf426/Pe9b both-skin five decoded4906953 plays/12 lifecycle checkpoints, playing+finished/duration/gain and authority conservation GREEN; core3+TP52(+1DB2)/check/scoped Rustfmt3/readability pass. Twelve inspected PNGs published; exact binaries/receipts/six original memory boundaries retained. No selection218230, native empty-slot or hardware audibility claim.
 
 ## 2026-10-17 — Life Exchange HP projection
 
