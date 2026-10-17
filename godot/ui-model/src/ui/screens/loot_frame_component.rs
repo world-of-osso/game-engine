@@ -205,7 +205,7 @@ struct Text<'a> {
     justify: &'a str,
 }
 
-fn text(t: Text) -> Element {
+fn shadowed_text(t: Text) -> Element {
     let (x, y, width, height) = t.rect;
     rsx! {
         fontstring {
@@ -285,7 +285,7 @@ fn item_button(prefix: &str, row: &LootFrameRow) -> Element {
 fn card_texts(prefix: &str, row: &LootFrameRow) -> Element {
     let text_x = ITEM_X + ITEM_BUTTON + 8.0;
     let Some(quality) = row.quality_text else {
-        return text(Text {
+        return shadowed_text(Text {
             name: format!("{prefix}Text"),
             text: &row.name,
             rect: (text_x, ITEM_Y + ITEM_BUTTON / 2.0 - 19.0, 93.0, 38.0),
@@ -294,7 +294,7 @@ fn card_texts(prefix: &str, row: &LootFrameRow) -> Element {
             justify: "LEFT",
         });
     };
-    let mut children = text(Text {
+    let mut children = shadowed_text(Text {
         name: format!("{prefix}Text"),
         text: &row.name,
         rect: (text_x, ITEM_Y + 8.0, 150.0, 30.0),
@@ -302,13 +302,21 @@ fn card_texts(prefix: &str, row: &LootFrameRow) -> Element {
         color: row.color,
         justify: "LEFT",
     });
-    children.extend(text(Text {
-        name: format!("{prefix}QualityText"),
-        text: quality,
-        rect: (ROW_W - 4.0 - 96.0, 2.0, 96.0, 10.0),
-        size: 8.0,
-        color: WHITE,
-        justify: "RIGHT",
-    }));
+    // GameFontWhiteTiny2 inherits plain SystemFont_Tiny2, unlike the item name.
+    children.extend(rsx! {
+        fontstring {
+            name: {DynName(format!("{prefix}QualityText"))},
+            width: 96.0,
+            height: 10.0,
+            text: quality,
+            font: GameFont::FrizQuadrata,
+            font_size: 8.0,
+            font_color: WHITE,
+            justify_h: "RIGHT",
+            pos_type: "absolute",
+            left: {ROW_W - 4.0 - 96.0},
+            top: 2.0,
+        }
+    });
     children
 }
