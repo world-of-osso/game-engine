@@ -544,3 +544,4 @@ External resources and asset lists.
 - [Active Slam visual chain](systems/spell-visuals.md#slam-1464-same-two-handed-sword-different-spec) — verified70391 Arms190513/278884, Fury97446/128672 and authored impact278885; fixture refresh only; full core17/17 and native specialization5/5 pass.
 
 - [Active Battle Shout sound](systems/spell-visuals.md#active-battle-shout-sound-chain--2026-10-15) —70391 cast279043/SoundKit368264, distinct unchanged caster voice; bounded fixture refresh.
+- [Local material transitions](systems/animation.md#local-material-transitions-m2-mat--2026-10-17) — retained per-track selection, ordinary nonzero interpolation, base-state raw-channel crossfade/snapshots;85 native animation tests and both-skin full-HD classic-wing proof, pixel-identical Hold tint controls.
