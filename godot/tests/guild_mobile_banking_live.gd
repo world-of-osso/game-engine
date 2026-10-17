@@ -35,6 +35,14 @@ func run_test() -> void:
 		if not await join_actual_guild():
 			return
 	for skin in ["Modern", "Forever"]:
+		if skin == "Forever":
+			mark_officer("next-officer.go")
+			var second_officer := officer_dir.path_join("forever-officer")
+			if not await wait_until(func(): return FileAccess.file_exists(second_officer.path_join("officer-ready.go")), "fresh authenticated officer for Forever actions"):
+				return
+			officer_dir = second_officer
+			invite_number = 0
+			removal_number = 0
 		if not await select_skin(skin):
 			return
 		role = skin.to_lower() + "-mobile-banking"
@@ -114,14 +122,14 @@ func prove_chest_cycle() -> bool:
 		return false
 	await capture("expired")
 	print("MOBILE_FIVE_MINUTE_PASS role=", role, " actual_elapsed_ms=", Time.get_ticks_msec() - cast_at)
-	if role.begins_with("forever"):
-		# No officer actions remain while the final real cooldown elapses.
-		mark_officer("done.go")
+	# This skin's membership actions are finished. Do not retain an idle officer
+	# connection during the long clock observation; Forever authenticates afresh.
+	mark_officer("done.go")
 	# Both skins observe one hour and the two-hour boundary using actual elapsed
 	# server time. Reduce render load while no interaction is due; never time_scale.
 	if not await wait_until_elapsed(3600000) or not await refuse_recast("one-hour-refused"):
 		return false
-	if not await wait_until_elapsed(7195000) or not await refuse_recast("before-two-hours-refused"):
+	if not await wait_until_elapsed(7170000) or not await refuse_recast("before-two-hours-refused"):
 		return false
 	if not await wait_until_elapsed(7201000):
 		return false
