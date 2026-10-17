@@ -1,3 +1,6 @@
+## 2026-10-17 — Product-row refund glyph ADD implementation
+
+[Row glyph blend](systems/trading-post.md#product-row-refund-glyph-blending--implementation-october17): source21px ordinary/inherited ADD overrides the default field, not the32px footer. Actual native paint RED827/813 bytes versus ADD, exact MIX agreement; footer normal0/ADDcounterfactual1874, all restores0/sensitive controls and genuine frozen640 purchase/refund conservation. Minimal post-sync row-only property wiring committed before GREEN; no opacity/global renderer/provider change. Actualbd1/2d7/P8f38 fixture889 both-skin framebuffer GREEN: ordinary/inherited ADD0/0, MIX827/813 Modern and819/813 Forever; footer MIX0/ADD1874, all restores0/sensitive controls. Real purchase/refund preserves Tender19040/19670, frozen640/712, collected state/cart and parent-row clicks. Ten inspected full-HD stages+two contacts+two glyph comparisons published; integrated78e68eed6/P5e4 passes52 targeted Trading Post tests/check(no warnings), with unchanged-hash scoped2Rustfmt/manual readability proof retained. Manifest binds actual binaries/fixture/30receiptJSON/6memoryedges. Later source integration is not relabeled nativebd1/2d7/P8f38 evidence; CI unverified.
 ## 2026-10-16 — Miss-only pet self outcome projection
 
 [Haymaker762 / Gift989](systems/battle-pets.md#miss-only-self-outcome-projection--2026-10-16): actual pointer self-stun and59/68 healing in both skins, successful-hit controls and ten inspected fullHD originals. Strict canonical model readback passes; no shared layout/client combat change or full timing/VFX claim.
@@ -4415,3 +4418,7 @@ Source Item ownership replaces row-press actions; inset-aware native Button pick
 ## 2026-10-17 — ReadyCheck inherited message shadow
 
 [Message shadow](systems/group-frames.md#readycheck-message-shadow--bounded-proof-2026-10-16): exactly two attributes restore Roman black(+1,−1). RED→3GREEN and both-skin1920×1080 native proof retain font/currentcolor/text/240×28 box;1002 darkened pixels per skin, zero outside label/shadow union, shadow-off RGB exactly baseline. Check/build/scoped format/readability pass. Sourcecolor/full-popup/server lifecycle remain unqualified.
+
+## 2026-10-17 — StackSplit inherited label shadow
+
+[Label shadow](systems/cursor-item.md#stacksplit-label-shadow--bounded-proof-2026-10-17): source20223a landsgate373e; RED→2GREEN plus lead9/7/4, mastere127 check/build and six both-skin native labels. Positive diagnostic masks and exact hidden-background RGB0 explain correctly inert black-on-black amount shadows; bundle total darkens281pixels/skin. All changes confined, shadow-off baseline exact and diagnostic restore exact. Green-only RGB8 counterexample retained with exact channel assertion, no tolerance;12 panels/context views inspected. Full-picker/sourcecolor/metrics/server/purchase excluded.
