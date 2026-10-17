@@ -44,6 +44,10 @@
 ## 2026-10-17 — Section focus flash
 
 [Focus pulse](systems/adventure-guide.md#section-focus-flash--2026-10-17): independent source Glow/four phases on the existing section-focus path. Missing-effect RED→timing/art controls and Modern2/Forever5 rendered pulses/zero/conservation;12 full-HD originals inspected. Native3's324 outside pixels stay unattributed/not reproduced, with unchanged strict native4/5 passing controls and paint-owner receipts. Merged extension check and scoped fmt pass; independent lead gate remains separate. Prior Journeys mask landed via374e.
+## 2026-10-17 — ReadyCheck message NORMAL_FONT_COLOR implementation
+
+[Body colour](systems/group-frames.md#readycheck-message-colour--implementation-2026-10-17): active GlobalColor1−11776/0xFFFFD200 sources exactRGB8(255,210,0), not white. Only TEXT_COLOR changes; font/shadow/geometry/text/buttons/title retained. Genuine RED2pass/1fail→GREEN3 and engine/network check pass; native both-skin1920×1080 deliberately waits for lead landing/window. Historical shadow-test colour oracle reconciled; unrelated landed CSV CRLF warnings retained separately, no out-of-scope edits.
+
 ## 2026-10-17 — Plain LootFrame quality-caption font
 
 [QualityText](systems/loot-and-flight.md#plain-quality-caption-font--2026-10-17): GameFontWhiteTiny2/SystemFont_Tiny2 RomanFriz8 has no inherited shadow; only its unwanted shared-helper shadow removed. Genuine RED2pass/1fail→GREEN3; both-skin native96×10/font8/white unchanged, all otherlabelshadows retained.232 pixels lighten/skin,0darkened/outsidequality unions/whitecontrastmask; oldblack reapplication restoresbaseline exactly. Stale-protocol AchievementDelta compile failure retained separately, not behavioral RED. FullLootFrame art/input/lifecycle parity unqualified.
