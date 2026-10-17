@@ -54,6 +54,7 @@ func sample() -> void:
         "priority": requested_priority(target, spells),
         "target_attempts": target_attempts, "spec_requested": spec_requested,
         "talent_status": talent_status, "gear_status": gear_status,
+        "trait_config": load("res://tests/bot_harness_talents.gd").new().observe_config(client),
         "inventory": client.merchant_state(), "auras": client.aura_state(),
         "pet": client.pet_bar_state(),
         "assisted": client.assisted_combat_state(), "cooldowns": client.cooldown_viewer_state()}
@@ -141,6 +142,13 @@ func prepare_player() -> void:
 
 func apply_talents() -> void:
     var path := OS.get_environment("BOT_HARNESS_TALENTS")
+    var deadline := Time.get_ticks_msec() + 180000
+    while not FileAccess.file_exists(path) and Time.get_ticks_msec() < deadline:
+        await create_timer(0.1).timeout
+    if not FileAccess.file_exists(path):
+        talent_status = "blocked"
+        publish_receipt("native-talents.json", {"error": "Native-tree-bound talent plan unavailable within180s"})
+        return
     var plan: Variant = JSON.parse_string(FileAccess.get_file_as_string(path))
     if not plan is Dictionary:
         talent_status = "blocked"
@@ -148,7 +156,7 @@ func apply_talents() -> void:
         return
     talent_status = "applying"
     var controller = load("res://tests/bot_harness_talents.gd").new()
-    var receipt: Dictionary = await controller.apply_plan(self, plan)
+    var receipt: Dictionary = await controller.apply_plan(self, client, plan)
     var written := publish_receipt("native-talents.json", receipt)
     talent_status = "blocked" if not written or receipt.has("error") else "observed"
 

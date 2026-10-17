@@ -44,14 +44,16 @@ Retail Mainline Benefits perks in Modern and Forever. Definitions: installed `db
 - [x] Physical ordinary clicks on all five rows send no spells in either skin. Actual modified insertion at an existing caret survives the next model sync and server echo.
 - [x] Bounded catalog/membership/UI and caret follow-up landed; individual effect gates remain separate.
 - [x] Supported Mount Up172/211 and map suppression landed; both-skin actual movement/removal proof and ten inspected mounted originals pass. Controlled-NPC flight210 remains explicitly blocked.
-- [ ] Hasty Hearth, Mobile Banking and The Quick and the Dead remain separately qualified; [effect matrix](../wiki/systems/guilds.md#perk-native-authority-and-effect-boundary-2026-10-16).
+- [x] Hasty Hearth is independently qualified below; [effect matrix](../wiki/systems/guilds.md#perk-native-authority-and-effect-boundary-2026-10-16).
+- [ ] Mobile Banking83958 remains source-blocked: script77 has no authored trigger;88304/88306 summon actual206602/206603, but no pinned dispatch binding or Friendly guild-reputation eligibility authority is established. The description's88306 duration reference is not authority to invent either.
+- [ ] Quick/Dead83950 remains source-blocked: aura340/+50% has TC HandleNULL and a guild-member-resurrector enum name, unlike its unqualified installed tooltip; dummy3/+10% dead movement has no pinned script. Health formula/recipient/guild and dead-speed mechanics remain unclaimed.
 - [x] Actual UDP invitation/forced removal/rejoin/quit, fresh-process native owner/tooltip readback and inspected1920×1080 both-skin captures.
 
 ## Out of scope
 
 Guild rewards require their separate runtime import and reputation/achievement eligibility; existing62 TDB rows are not a working reward system. Invitation tabards follow this slice. Unimplemented perk effects remain named gaps rather than fabricated functionality.
 
-## Hasty Hearth native effect proof (active)
+## Hasty Hearth native effect proof
 
 - [x] Physical backpack use of real6948 completes8690 and reports charge2309. Actual Human458619 remains known: two charges,25-minute nonmember and10-minute guild recovery (isolated base without racial is30/15 minutes).
 - [x] Actual invitation acceptance/removal does not retime an already-consumed Hearthstone charge. Modern/Forever observe the same owner authority.

@@ -33,6 +33,14 @@ Model source-state RED→GREEN1 covers both skins, both parent heights, both dir
 
 Evidence: `data/diagnostics/ui-questlog-stack-arrows-2026-10-16/stack-arrow-proof-ledger.json`; PNGs `AgentShared/2026-10-16/ui-questlog-stack-arrows/{comparison-modern.png,comparison-forever.png,before-arrows-observed/,after-arrows-state/}`. This certifies supplied-state projection/pointer dispatch only, not quantity changes, bag/vendor/server ownership, purchase persistence or whole-picker parity. Okay/Cancel art, inherited fonts, background and strata remain unqualified. Later master guild-only input/render branches do not intersect these arrow paths; no unaffected native replay.
 
+## StackSplit label shadow — bounded proof 2026-10-17
+
+`StackSplitFrame.xml:12,17` inherits `GameFontHighlight` for the amount and `GameFontNormal` for bundle total. `FontStyles.xml:50–64` resolves both through `SystemFont_Shadow_Med1`; `Fonts.xml:275–285` defines Roman Friz12 black(+1,−1). Complete adjacent Lua changes text/anchors but not font/shadow; a cache-wide Lua lookup finds no such override. Only two attributes in the shared label emitter change. Current colors/text/justification/100×14 authored boxes, buttons and actions remain controls, not broader source-parity claims.
+
+Genuine model RED at `f968ac43f` reproduces `None` versus opaque black (1pass/1fail,581s helper). Native baseline reuses compiled-source-equivalent `ae6f7a239` binary SHA256 `0cc156a4923be522564111aea1b66e112aa6294406d03426928b3b6852aee4df`; new Rust test/GDScript do not change that library. Native font minimum may exceed authored14px; exact before/after receipt comparison, not a fabricated height, governs conservation. GREEN/native/pixels pending.
+
+Proof ledger: local `data/diagnostics/ui-questlog-stack-shadow-2026-10-17/stack-shadow-proof-ledger.json`. This supplied-state slice excludes intrinsic font-metric redesign, source-color qualification, Okay/Cancel art, background/strata, quantity reducers, server/purchase lifecycle and whole-picker parity. Retained arrow proof is not replayed for shadow-only attributes.
+
 ## Gotchas
 
 - Keyboard ownership: the split frame and edit-box popups read `KeyboardInput` directly and force `UiInputMode::Text`, so digits don't fire action-bar keybinds.
