@@ -30,6 +30,19 @@ Feral103's first all-spec fixture remains in caster baseline:51/52 requests for 
 
 Future native drivers confirm the form spell is learned, request one ordinary validated self-cast only when its own aura is absent, and await replicated own-form aura facts from assisted evaluation. An existing form is never toggled again; timeout does not retry or select another form. form-plan.json/native-form.json and form-before/after.json retain source and observation. Equipment stat labels explicitly say before form preparation; ordinary post-form CharacterStats/combat retain resulting health/effects. Three focused source/observation tests pass. native-forms1 and native-forms2 confirm both ordinary own-form auras; follow-up combat still halts on source-unverified condition3. No server/evaluator/stat change or form-effect correctness claim follows from aura presence alone.
 
+## Independent player-spec boundary replays — 2026-10-17
+
+While Fury distance3/count12 sourcing is blocked, `cooldown_assist_live_replay.rs` replays retained positive-health native facts through the current core catalog/evaluator. `tests/fixtures/bot_boundaries/provenance.json` pins exact native JSON hashes and current70448 rotation-row hashes; unrelated cooldown tables retain only their real headers. These are historical native observations plus current source-model cases, not fresh native executions, repaired talent preparation for those specs, live casts or DPS acceptance.
+
+| Player spec | Retained native observation | Boundary asserted by replay |
+|---|---|---|
+| Protection66 | No native-state capture; old `native-all-specs1/66` setup stopped at ambiguous source loadout row58942/node101927 before launch | Native tree/target facts remain unavailable; no model/live boundary claim |
+| Restoration105 | `native-retry-gear3/105`, positive health8536 | rule2305/type11 |
+| Elemental262 | `native-all-specs2/262`, positive health8880 | rule38525/type11 |
+| Fire63 | `native-all-specs2/63`, positive health8200 | rule33340/type67 |
+
+The actual serialized native facts are unchanged. No missing fact is filled, no unsupported rule is bypassed and no new predicate/provider is implemented. Each modeled result must equal the exact recorded named error, rather than accepting a lower-priority recommendation.
+
 ## Run21 native talents and predicate boundary — 2026-10-17
 
 With release server423f1a26 and native extensionb7067ab84 (dev opt-level2), ordinary map0 exit confirmation preceded tree850/loadout915 input. Real native Apply expanded received owner entries2→22; fresh server/client credential login retained every entry/rank at10:05:36.872Z. Three points remained unspent under ordinary UI purchase eligibility. This proves the tree-bound preparation/persistence path, not all talents or balance.

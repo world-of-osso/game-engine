@@ -1,3 +1,7 @@
+## 2026-10-17 — Independent player-spec boundary replay fixtures
+
+[Harness matrix](systems/bot-harness.md#independent-player-spec-boundary-replays--2026-10-17): retained positive-health Resto105/Elemental262/Fire63 facts exercise their own exact unsupported11/11/67 boundaries through current core/catalog. Native JSON and70448 row hashes retained; no manufactured facts, missing-rule bypass, new live/DPS claim or predicate implementation. Protection66 lacks a native capture after its old prelaunch source-choice failure and remains an explicit gap.
+
 ## 2026-10-17 — Run21 talents, predicate boundary and passive FPS
 
 [Native harness](systems/bot-harness.md#run21-native-talents-and-predicate-boundary--2026-10-17): ordinary tree850/loadout915 Apply expands entries2→22 and fresh client/server login preserves exact ranks. Full28.362s run stops at named distance3 rule1261; no boss/deaths/balance claim, count12 conjunction also unresolved. [Pinned-source audit](investigations/cooldown-assist-data.md#fury-distancenearby-count-source-boundary--2026-10-17) distinguishes emitted SimC expressions from missing live spatial semantics; no guessed implementation. Passive FPS3Stormwind/3OOC/1combat, two combat readings missing; exact dev-build/device/load qualification retained, settled Stormwind window unavailable without delay. Owned cleanup complete.
