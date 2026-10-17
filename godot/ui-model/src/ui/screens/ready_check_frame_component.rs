@@ -27,7 +27,7 @@ const BUTTON_H: f32 = 24.0;
 const BUTTON_BOTTOM: f32 = 16.0;
 const YES_RIGHT_OFFSET: f32 = 11.0;
 const NO_LEFT_OFFSET: f32 = 22.0;
-const TITLE_COLOR: FontColor = FontColor::new(1.0, 0.82, 0.0, 1.0);
+const TITLE_COLOR: FontColor = FontColor::new(1.0, 210.0 / 255.0, 0.0, 1.0);
 const TEXT_COLOR: FontColor = FontColor::new(1.0, 210.0 / 255.0, 0.0, 1.0);
 
 #[derive(Clone, Debug, PartialEq, Default)]
