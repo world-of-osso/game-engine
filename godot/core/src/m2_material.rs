@@ -280,7 +280,8 @@ impl MaterialTracks {
         }
     }
 
-    /// Local tracks use the playing sequence; global tracks always use timeline 0.
+    /// Timestamp timeline and clock; global timestamps use timeline 0.
+    /// Value timeline selection is independent and follows the playing sequence.
     fn track_time<T>(&self, track: &AnimTrack<T>, time: MaterialTime) -> Option<(usize, u32)> {
         let Ok(index) = usize::try_from(track.global_sequence) else {
             return Some((time.sequence, time.time_ms));
@@ -305,19 +306,21 @@ fn animate<T: Copy>(
     time: MaterialTime,
     lerp: impl Fn(T, T, f32) -> T,
 ) -> Option<T> {
-    let (sequence, time) = tracks.track_time(track, time)?;
-    // animate.h selects timeline 0 when the playing index exceeds the track table.
-    // An existing empty timeline remains empty and samples the authored default.
-    let timeline = if sequence < track.sequences.len() {
-        sequence
-    } else {
-        0
+    let (timestamp_sequence, clock_ms) = tracks.track_time(track, time)?;
+    // Select each table independently. An in-range empty table stays empty.
+    let timeline = |sequence| {
+        if sequence < track.sequences.len() {
+            sequence
+        } else {
+            0
+        }
     };
-    let (times, values) = track.sequences.get(timeline)?;
+    let (times, _) = track.sequences.get(timeline(timestamp_sequence))?;
+    let (_, values) = track.sequences.get(timeline(time.sequence))?;
     if times.is_empty() || values.len() < times.len() {
         return None;
     }
-    let next = times.partition_point(|&key| key <= time);
+    let next = times.partition_point(|&key| key <= clock_ms);
     if next == 0 {
         return Some(values[0]);
     }
@@ -325,7 +328,7 @@ fn animate<T: Copy>(
         return Some(values[next - 1]);
     }
     let (start, end) = (times[next - 1], times[next]);
-    let t = (time - start) as f32 / (end - start) as f32;
+    let t = (clock_ms - start) as f32 / (end - start) as f32;
     Some(lerp(values[next - 1], values[next], t))
 }
 

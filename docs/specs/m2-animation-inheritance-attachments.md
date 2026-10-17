@@ -22,7 +22,7 @@ Authored M2 bone-parent selection and attachment participation follow the user-s
 
 Clean-room user-supplied M2-MAT requirements; W/C labels are provenance only.
 
-- [x] Per-track out-of-range selection uses timeline zero; an in-range empty timeline uses the channel default. Existing master behavior retained, including classic wings165644 and creatures356426/125854 tint controls.
+- [x] Per-track out-of-range selection uses timeline zero; an in-range empty timeline uses the channel default. Global timestamps use timeline zero/global clock; values independently select the playing timeline with out-of-range zero selection. Classic wings165644 and creatures356426/125854 tint controls remain required.
 - [x] Material modes2/3 use ordinary non-step endpoint interpolation, not held keys. Scalar/vector0→1 at0–1000ms yields0.25 at250ms within fixed16 quantization.
 - [x] Runtime integration: active base transitions blend eligible local non-step RGB, alpha, texture weights and UV translation/scale/quaternion rotation, using both sequence clocks and the bone weight.
 - [x] Pure material sampler: empty transition sides contribute defaults; global tracks use their global clock without local blending; step tracks retain their current held value.
@@ -51,6 +51,8 @@ Clean-room user-supplied M2-MAT requirements; W/C labels are provenance only.
 - `godot/rust/src/animation/action_tests.rs` — actual HumanMaleHD `$SCD` marker delivery/consumption while active/inactive.
 - `godot/tests/m2_attachment_activation.gd`, `scripts/agent/m2-anim-fixtures.py` — private solar-spell track fixture with actual equipped item25, child pose writes, callback eligibility, shadows, identity, sequence/control tracks and existing native clock/color-state measurements.
 - `godot/tests/m2_inheritance_pixels.gd` — authentic125913 bone67 flags4/parent12; same-clock ordinary-hierarchy baseline versus restored affine override, native1920×1080.
+
+Global multi-value follow-up (approved2026-10-17): synthetic global RGB/weight fixtures distinguish timestamp0, playing values, wrapped global clock, empty/default and out-of-range behavior under sequence/snapshot transitions and step/zero-duration controls. No real multi-value global fixture or measured target multi-value oracle is established; the bounded five-asset inspection found only single-table globals. Parser representation/unequal outer-table counts are unchanged.
 
 M2-MAT fixtures:
 - `godot/core/tests/m2_material.rs`, `m2_material_transition.rs` — authentic tint/clock/selection controls, ordinary nonzero interpolation, all local channels/defaults, quaternion composition, interrupted snapshots and thread-scoped allocation counts.
