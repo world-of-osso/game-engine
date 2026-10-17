@@ -1,0 +1,49 @@
+{
+  "source_directory": "/home/osso/Projects/world-of-osso/game-engine/data/db2/12.1.5.70448",
+  "scope": "Fury72 source loadouts915/tree850 and954/tree880 plus exact dependent rows; native TraitConfig from run19",
+  "source_sha256": {
+    "TraitTreeLoadout": "5126703fdd77f595af491e730292379d0ca3cbe6056f0fa5995528a308cd8145",
+    "TraitTreeLoadoutEntry": "8d3cd32e18ff451558197e10c4401e7bab7c2d1ba2c5f7ca866603101b240695",
+    "TraitNodeXTraitNodeEntry": "8d89da657da3e2c946ed6f796d4c9eeccf2ecfe846615b8d81f53da1385fa394",
+    "TraitNodeEntry": "1c78846f7c3cb919f9692807d09d9991d0e8eb78c4d0afb76e35606bebd7d910",
+    "TraitDefinition": "51923f4bc70c67241e6a22477f2edc1c9e4a07e4197bab63bcbefec387536224"
+  },
+  "native_trait_config": {
+    "entries": [
+      {
+        "entry_id": 112182.0,
+        "node_id": 90325.0,
+        "rank": 1.0
+      },
+      {
+        "entry_id": 114644.0,
+        "node_id": 92538.0,
+        "rank": 1.0
+      }
+    ],
+    "spec_id": 72.0,
+    "tree_id": 850.0,
+    "unspent": [
+      [
+        2801.0,
+        12.0
+      ],
+      [
+        2800.0,
+        11.0
+      ],
+      [
+        2986.0,
+        0.0
+      ],
+      [
+        2987.0,
+        0.0
+      ],
+      [
+        2988.0,
+        0.0
+      ]
+    ]
+  }
+}
