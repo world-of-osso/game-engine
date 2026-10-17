@@ -1,3 +1,7 @@
+## 2026-10-17 — P5 geometry/recursive lifecycle implementation
+
+[Native M2 particles](systems/godot-conversion.md#p5-geometry-and-recursive-ownership--2026-10-17): independent geometry lifetime instances and child-state consumers; approved parent-age/retirement/move/birth/one-child-advance ordering, descendant draining and previous-frame interpolation. Native missing-consumer RED observed; focused CPU/native GREEN pending. Current extracted-cache census finds no nonempty references; P5-product-resolution, P5-recursive-clock and depth/cycle-policy gaps retained. No S1/S3 changes.
+
 ## 2026-10-16 — Product-row refund icon tooltip implementation
 ## 2026-10-16 — Journal search implementation; native acceptance pending
 

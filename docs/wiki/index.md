@@ -19,6 +19,8 @@
 - [Clean-room M2 particles](systems/godot-conversion.md#native-m2-particles) — native tails/follow/cubic controls, authored sorting and map-collision births; inherited-scale provenance and explicit lighting, timer/reset, spline-density, target-mask and model-recursion oracle gaps.
 # Wiki Index
 
+- [P5 geometry and recursive ownership](systems/godot-conversion.md#p5-geometry-and-recursive-ownership--2026-10-17) — approved substep lifecycle and explicit geometry resources; synthetic proof pending, Retail resolution and recursive animation clock remain gaps.
+
 - [Product-row refund icon tooltip](systems/trading-post.md#product-row-refund-icon-tooltip--implementation-october16) — source texture-owned refund time; native generic-item-tooltip RED→both-skin painted right-anchor/parent-click/hovered-owner teardown GREEN, genuine purchase/refund conservation.
 - [MirrorTimer label shadow](systems/swimming.md#mirrortimer-label-shadow--2026-10-16) — inherited Roman black(+1,−1), RED→5GREEN and six both-skin native label cases;731 darkened pixels/skin, zero outside changes, exact transparent-shadow control; cadence/full-timer parity excluded.
 
