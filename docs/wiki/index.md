@@ -1,3 +1,9 @@
+- [Projected walking endpoint](systems/bot-harness.md#projected-walking-endpoint--2026-10-16) — use the completed source nav-surface endpoint, not raw NPC height; unchanged arrival tolerance and partial/floor refusal controls.
+- [Preparation target death](systems/bot-harness.md#preparation-target-death--2026-10-16) — stop uncast prep on received zero HP before corpse movement/despawn; Trace17 delivers all4578 CombatChannel messages.
+- [Combat-channel delivery boundary](systems/bot-harness.md#combat-channel-delivery-boundary--2026-10-16) — native combat ring freezes while health replication/server casts continue; local capture flag is not wire-completeness proof.
+- [Opening combat admission](systems/bot-harness.md#combat-admission-for-opening-preparation--2026-10-16) — received owner CombatStatus gates new prep; abandon uncast openings when combat begins, never a spell fallback.
+- [Melee endpoint completion stall](systems/bot-harness.md#melee-endpoint-completion-stall--2026-10-16) — actual2.50000111yd native Execute stall; propagate waypoint arrival into the unchanged cast gate.
+- [Kill receipt across target changes](systems/bot-harness.md#kill-receipt-across-target-changes--2026-10-16) — consume owner outcomes before movement or idle prep, even after a killing cast changes the selected target.
 - [LOS-aware pull preparation](systems/bot-harness.md#los-aware-pull-preparation--2026-10-16) — blocked Riverpaw native replay; bounded same-target navmesh approach gates the single opening on native visibility.
 - [Local range/cast pose](systems/bot-harness.md#local-rangecast-pose--2026-10-16) — real input moves the local client while the host replica stays frozen; range and cast origins share the current local pose.
 - [Full-HD storage captures](systems/housing.md#full-hd-storage-captures--verified2026-10-16) — both-skin five-phase1920×1080 originals, source Filter/root/Sort geometry and paid conservation; full-image parity remains unqualified.
@@ -15,6 +21,9 @@
 
 - [Product-row refund icon tooltip](systems/trading-post.md#product-row-refund-icon-tooltip--implementation-october16) — source texture-owned refund time; native generic-item-tooltip RED→both-skin painted right-anchor/parent-click/hovered-owner teardown GREEN, genuine purchase/refund conservation.
 - [Earned-wallet source boundary](systems/battlegrounds.md#earned-wallet-source-continuation--2026-10-16) — explicit Honor mirror, actual both-skin world-kill wallet proof; [source match brackets](systems/battlegrounds.md#source-match-brackets--2026-10-16) retained at admission; [Arathi completion](systems/battlegrounds.md#arathi-completion-honor--2026-10-16) has terminal-tick/persistence proof under explicit once-per-match policy; other BG callbacks/Conquest open.
+- [MirrorTimer label shadow](systems/swimming.md#mirrortimer-label-shadow--2026-10-16) — inherited Roman black(+1,−1), RED→5GREEN and six both-skin native label cases;731 darkened pixels/skin, zero outside changes, exact transparent-shadow control; cadence/full-timer parity excluded.
+
+- [Earned-wallet source boundary](systems/battlegrounds.md#earned-wallet-source-continuation--2026-10-16) — explicit HONOR_WALLET_MIRRORS_HONOR_XP policy binds TC-derived Honor to1792, XP stays separate; Conquest unmapped, native proof pending.
 
 - [Product-row cart toggle](systems/trading-post.md#product-row-cart-toggle--implementation-october16) — source36px row-owned Add/Remove control, independent identity/tooltip and preserved cart preview choices; native omission/paint RED→both-skin painted glyph GREEN.
 - [Portrait-inclusive HUD clearance](systems/launcher.md#portrait-inclusive-hud-clearance--2026-10-16) — approved321×79 player mount retained; exact HUD bounds and strict panel/metal clearance,31+9 tests and both-skin native1080p proof; Modern identical, no Forever changes outside launcher paint.
@@ -27,6 +36,7 @@
 - [Bench resurrection projection](systems/battle-pets.md#bench-resurrection-projection--2026-10-16) — both-skin2347→two78/1563 reserves→physical swap→147-damage win; eight fullHD originals and canonical strict model readback.
 - [Two-way wall projection](systems/battle-pets.md#two-way-wall-projection--2026-10-16) — both-skin private5961 physical Ice Barrier incoming/outgoing blocks, pad/cooldown/log/health and six fullHD native originals;3D VFX/full Retail parity excluded.
 
+- [Journal search implementation](systems/adventure-guide.md#search-preview-and-full-results--implementation-2026-10-16) — source preview/full popup and input ownership root fixes; scoped tests/source gate pass, both-skin native acceptance pending.
 - [Trading Post cart item tooltips](systems/trading-post.md#cart-item-tooltips--implementation-october16) — regular/member identity and source owner offset/no sell price; native RED→both-skin hover/remove GREEN, global-input fixture correction and eight inspected full-HD samples.
 - [Fade effect projection](systems/battle-pets.md#fade-effect-projection--2026-10-16) — current70391 sourced random self-swap, both-skin fullHD pointer/log/model proof and91 identical rectangles; complete Retail art/timing excluded.
 

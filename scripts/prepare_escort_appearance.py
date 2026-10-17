@@ -1,10 +1,12 @@
-"""Private70391 CSV adapter for existing strict NPC importer; no canonical writes."""
+"""Private active-export adapter for the strict NPC importer; no canonical writes."""
 from pathlib import Path
 import argparse
 import hashlib
 import importlib.util
 import json
 import sqlite3
+
+from db2_source import active_directory
 
 parser = argparse.ArgumentParser(description=__doc__)
 parser.add_argument('--root', type=Path, required=True)
@@ -14,7 +16,7 @@ args = parser.parse_args()
 ROOT = args.root.resolve()
 SOURCE = args.source_world.resolve()
 OUTPUT = args.output.resolve()
-CSV = ROOT / 'data/db2/12.1.5.70391'
+CSV = active_directory(ROOT / 'data')
 spec = importlib.util.spec_from_file_location('npc_import', ROOT / 'scripts/import_npc_appearance.py')
 module = importlib.util.module_from_spec(spec)
 spec.loader.exec_module(module)

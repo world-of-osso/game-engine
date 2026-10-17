@@ -7,6 +7,7 @@ import contextlib
 import fcntl
 import gzip
 import hashlib
+import json
 import os
 import shlex
 import shutil
@@ -167,13 +168,37 @@ def install_artifact(compressed, destination, executable=False):
             temporary.unlink(missing_ok=True)
 
 
+def read_model_asset_paths(root):
+    cache = root / "data/cache"
+    indexes = [cache / "model-asset-index.json", *sorted(cache.glob("model-asset-index-*.json"))]
+    paths = {}
+    for index in indexes:
+        document = json.loads(index.read_text())
+        if document["version"] != 1:
+            raise ValueError(f"Unsupported model asset index version: {index}")
+        for row in document["assets"]:
+            selector = f'model:{row["product"]}:{row["fdid"]}:{row["kind"]}'
+            if selector in paths:
+                raise ValueError(f"Duplicate model asset receipt for {selector}")
+            paths[selector] = Path(row["path"])
+    return paths
+
+
 def read_asset_manifest(root):
     entries = []
+    model_paths = None
     for line in (root / TEST_ASSETS).read_text().splitlines():
         entry = line.split("#", 1)[0].strip()
         if not entry:
             continue
-        relative = Path(entry)
+        if entry.startswith("model:"):
+            if model_paths is None:
+                model_paths = read_model_asset_paths(root)
+            if entry not in model_paths:
+                raise ValueError(f"No model asset receipt for {entry}")
+            relative = model_paths[entry]
+        else:
+            relative = Path(entry)
         if relative.is_absolute() or ".." in relative.parts:
             raise ValueError(
                 f"{TEST_ASSETS}: asset path must stay inside data/: {entry}"

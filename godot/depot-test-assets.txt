@@ -1,33 +1,39 @@
 # data/-relative files uploaded for `scripts/depot-build.py --test`; see docs/remote-builds.md.
+# EJ Search templates: generic creature and authored file top border (local CASC334a36cf).
+textures/533888.blp
+textures/374157.blp
 # A7 authentic attachment activation bytes; no remote source access.
 models/1081566.m2
 models/971117.m2
 # Installed Retail source scene flags; existing atlas/catalog source pins stay unchanged.
-db2/12.1.5.70391/UiModelScene.csv
+db2/active/UiModelScene.csv
 # Source-qualified current cloak geometry for item-material regression fixtures.
 cache/model-asset-index-bg-equipment-material-70391.json
 cache/model-asset-index-npc-appearance-retail.json
-products/wow/334a36cf5f3c32a5f7a167405487fa14/textures/1360817.blp
-products/wow/334a36cf5f3c32a5f7a167405487fa14/models/2429553.m2
-products/wow/334a36cf5f3c32a5f7a167405487fa14/models/2429554.m2
-products/wow/334a36cf5f3c32a5f7a167405487fa14/textures/2431566.blp
-products/wow/334a36cf5f3c32a5f7a167405487fa14/textures/2431567.blp
-products/wow/334a36cf5f3c32a5f7a167405487fa14/models/2431569.skin
-products/wow/334a36cf5f3c32a5f7a167405487fa14/models/2431571.skin
-products/wow/334a36cf5f3c32a5f7a167405487fa14/models/2431572.skin
-products/wow/334a36cf5f3c32a5f7a167405487fa14/models/2431573.skin
-products/wow/334a36cf5f3c32a5f7a167405487fa14/models/2431586.skin
-products/wow/334a36cf5f3c32a5f7a167405487fa14/models/2431588.skin
-products/wow/334a36cf5f3c32a5f7a167405487fa14/models/2431589.skin
-products/wow/334a36cf5f3c32a5f7a167405487fa14/models/2431590.skin
-products/wow/334a36cf5f3c32a5f7a167405487fa14/models/3512290.m2
-products/wow/334a36cf5f3c32a5f7a167405487fa14/textures/3514198.blp
-products/wow/334a36cf5f3c32a5f7a167405487fa14/models/3514213.skin
-products/wow/334a36cf5f3c32a5f7a167405487fa14/models/3719257.skin
-products/wow/334a36cf5f3c32a5f7a167405487fa14/models/3719264.skin
-products/wow/334a36cf5f3c32a5f7a167405487fa14/models/3719271.skin
+model:wow:1360817:blp
+model:wow:2429553:m2
+model:wow:2429554:m2
+model:wow:2431566:blp
+model:wow:2431567:blp
+model:wow:2431569:skin
+model:wow:2431571:skin
+model:wow:2431572:skin
+model:wow:2431573:skin
+model:wow:2431586:skin
+model:wow:2431588:skin
+model:wow:2431589:skin
+model:wow:2431590:skin
+model:wow:3512290:m2
+model:wow:3514198:blp
+model:wow:3514213:skin
+model:wow:3719257:skin
+model:wow:3719264:skin
+model:wow:3719271:skin
 # Current local-CASC unnamed Retail helmet and its SFID7530107 primary skin.
 cache/model-asset-index-bg-head-7321940.json
+model:wow:7321940:m2
+model:wow:7530107:skin
+# Historical parser-isolation fixture intentionally exercises its recorded 70391 namespace.
 products/wow/334a36cf5f3c32a5f7a167405487fa14/models/7321940.m2
 products/wow/334a36cf5f3c32a5f7a167405487fa14/models/7530107.skin
 # Installed70391 Expert submode rotating glow and fixed per-submode alpha masks.
@@ -4930,3 +4936,7 @@ models/631619900.skin
 # Clean-room inherited-scale authored field.
 models/2994778.m2
 models/299477800.skin
+
+textures/5747318.blp
+db2/active/ProfessionExpansion.csv
+db2/active/CurrencyTypes.csv

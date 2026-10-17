@@ -34,6 +34,8 @@ pub(crate) struct Professions {
     pub(crate) orders: game_engine_ui_model::professions_orders::CraftingOrders,
     order_search: String,
     order_form_initialized: bool,
+    pub(crate) concentration: Option<shared::concentration::ConcentrationSnapshot>,
+    concentration_skill: Option<u32>,
 }
 impl Professions {
     pub(crate) fn recipe(
@@ -105,9 +107,43 @@ impl GameClient {
     pub(super) fn receive_professions(&mut self, snapshot: ProfessionSnapshot) {
         self.professions.book.snapshot = snapshot;
     }
+    pub(super) fn receive_profession_concentration(
+        &mut self,
+        update: shared::protocol::ProfessionConcentrationUpdate,
+    ) {
+        if self.professions.concentration_skill != Some(update.skill_line) {
+            return;
+        }
+        self.professions.concentration = update.snapshot;
+        if let Some(error) = update.error {
+            self.professions.error = error;
+        }
+    }
+
+    fn query_profession_concentration(&mut self) -> Result<(), FrameError> {
+        let skill = self
+            .professions
+            .book
+            .selected_recipe()
+            .map(|recipe| recipe.skill_line);
+        if skill == self.professions.concentration_skill {
+            return Ok(());
+        }
+        self.professions.concentration = None;
+        if let Some(skill_line) = skill {
+            self.account.send_profession_concentration(
+                shared::protocol::ProfessionConcentrationRequest { skill_line },
+            )?;
+        }
+        self.professions.concentration_skill = skill;
+        Ok(())
+    }
+
     pub(super) fn close_professions(&mut self) -> bool {
         let visible = self.professions.book.visible;
         self.professions.book.visible = false;
+        self.professions.concentration = None;
+        self.professions.concentration_skill = None;
         self.professions.page = ProfessionPage::Recipes;
         self.professions.order_form_initialized = false;
         self.professions.orders.menu = None;
@@ -171,6 +207,7 @@ impl GameClient {
         }
         self.poll_profession_inputs()?;
         if self.professions.book.visible {
+            self.query_profession_concentration()?;
             self.sync_professions()?;
         }
         Ok(())
@@ -406,6 +443,7 @@ impl GameClient {
             page: self.professions.page,
             now_unix: godot::classes::Time::singleton().get_unix_time_from_system() as u64,
             specializations: self.professions.specializations.clone(),
+            concentration: self.professions.concentration.clone(),
             crafting_quality,
             can_create: !casting && book.craft_request(inventory, false).is_some(),
             can_all: !casting && book.craft_request(inventory, true).is_some(),
@@ -461,6 +499,9 @@ impl GameClient {
                     node.icon = self.drawable_fdid(node.icon);
                 }
             }
+        }
+        if let Some(snapshot) = &mut view.concentration {
+            snapshot.currency.icon = self.drawable_fdid(snapshot.currency.icon);
         }
         for item in view.items.values_mut() {
             item.icon_fdid = self.drawable_fdid(item.icon_fdid);
