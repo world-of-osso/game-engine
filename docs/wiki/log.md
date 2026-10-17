@@ -1,3 +1,7 @@
+## 2026-10-17 — Public/Guild/Personal orders and mailbox settlement
+
+[Orders acceptance](systems/crafting-ui.md#publicguildpersonal-acceptance--verified2026-10-17): both full-HD native skins place/read back, claim, cast and mail all three fixed-output order kinds. Actual redb reopen retains three cloaks and70000 copper per customer,160000 copper/zero cloaks for the worker. Native selected-tab RED fixed by visible page instead of snapshot ownership; authority10/screen9/current consumer check-build pass. Fixture grants/relocation are not acquisition/world-placement proof.
+
 ## 2026-10-16 — Concentration metadata and unknown-origin display
 
 [Concentration boundary](systems/native-professions-crafting.md#concentration-metadata-boundary): both full-HD native skins show unknown quantity, authored currency tooltip and named origin gap while Create stays disabled. Catalog/owner4, screen9 and consumer checks/builds pass. No fabricated initialization or recharge lifecycle.
