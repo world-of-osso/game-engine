@@ -10,7 +10,7 @@ Review RED caught missing Order To and120px vs136px; eight targeted order tests 
 
 ## Customer tab selection — native regression
 
-The private modern-crafting fixture placed a Public order and observed commission escrow, then could not click My Orders. The form was visible while `snapshot.mine=true` selected and disabled My Orders. Customer catalog/placement replies carry owned snapshots; this flag describes query scope, not the visible page. Mainline CustomerOrders.lua123–138 selects the tab from the visible mode. Tab selection now follows `orders.creating`; a both-skin regression covers the owned snapshot on both pages. Current native revalidation is pending; earlier public/mail proof does not cover this regression.
+The private modern-crafting fixture placed a Public order and observed commission escrow, then could not click My Orders. The form was visible while `snapshot.mine=true` selected and disabled My Orders. Customer catalog/placement replies carry owned snapshots; this flag describes query scope, not the visible page. Mainline CustomerOrders.lua123–138 selects the tab from the visible mode. Tab selection now follows `orders.creating`; a both-skin regression covers the owned snapshot on both pages. Both-skin regression9, native engine check/build and fmt pass; native placement→My Orders navigation now passes. The Modern Public order placed before the fix was read back, not duplicated; Guild/Personal and all three Forever kinds were placed after the fix.
 
 ## Projection and authority
 
@@ -41,6 +41,16 @@ One private UDP5871 server lineage: initial integrated07b23ad9, then owner resta
 `godot/tests/crafting_ui_live.gd` drives normal character selection and physical controls. It samples actual posed model triangles, not unreliable bounds centers; startup graphics overrides the initial FPS cap, so input is paced after entering world. Initial completed-row and mail-row selector assumptions were corrected to the actual server/UI contract. Original failed logs remain; no failed run is relabeled as a passing fixture.
 
 Broker source appearance and authenticated local-CASC closure were staged privately by the server owner. Strict receipt loading exposed duplicates; publication retained79 missing identities after85 matching duplicates were excluded. Canonical appearance cache remained unchanged; engine-s6's temporary cache link was restored after proof. Unrelated NPC1052435 receipt gaps did not block these cases.
+
+## Public/Guild/Personal acceptance — verified2026-10-17
+
+Owned UDP5951 accounts `fb_moderncraft_m`, `fb_moderncraft_f`, `fb_moderncraft_w`; actual1920×1080 viewports in both skins. Each customer supplied the four authored Glacial Cloak28208 reagents and escrowed three10000-copper commissions:100000→70000. Separate Craftworker browsed each type, claimed it, completed the actual cast, and observed removal from open orders without a bag output. Each customer claimed three22658 outputs using the actual Northshire mailbox; worker claimed three commissions per skin,100000→130000→160000. Offline reopening of that same redb passes1: both customers retain70000 copper and three outputs, worker160000 and zero outputs, all four order-reagent bag counts zero.
+
+Current authority tests10 cover all three types, identity restrictions, escrow/refund/expiry, interrupted casts, partial supply, database reopen and wire requests. Shared customer tab regression9, native check/build/fmt and changed-line readability pass. Production server remains33fb1078; subsequent server commits add only an ignored actual-run persistence assertion. No variable-quality/concentration operation or recraft outcome is claimed.
+
+Source clerk215258/display117678 is relocated only inside the private snapshot; source rows and exact TDB NPC flags are retained in `orders-world-fixture.json`. Guild/material grants are recorded in `orders-admin-receipts.jsonl`, not acquisition/world-placement evidence. An initial fixture timeout and later HUD-occluded mailbox point were diagnosed separately from the tab bug; the shared fixture now excludes visible mouse-owning UI rectangles when choosing a world triangle. Accepted phases were resumed explicitly, never replayed blindly. Failed logs and PNGs remain private; no failed run is relabeled passing.
+
+Evidence SSOT: canonical `data/diagnostics/modern-crafting-2026-10-16/`, `orders-*.log`, `gates/orders-*.log`, and `gates/proof-ledger.jsonl`. All31 published current-state PNGs inspected as paired contact pages in `orders-previews/`; untouched originals `/syncthing/AgentShared/2026-10-16/modern-crafting/{Modern,Forever}-orders-*.png`. The pre-fix Modern Public form is retained only under private `failures/`; its current owned-order readback is published instead. Shared Retail customer/crafter geometry and source visible-page tab semantics match both-skin captures; no full Retail pixel-parity claim.
 
 ## Proof ledger and evidence
 
