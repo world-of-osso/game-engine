@@ -359,15 +359,16 @@ fn orders_customer_tabs_follow_visible_page_even_when_snapshot_is_owned() {
             // Customer catalog and Place replies both carry an owned-order snapshot.
             v.orders.snapshot.as_mut().unwrap().mine = true;
             let r = render(v, skin);
-            for (name, enabled) in [
-                ("CraftingOrdersBrowseTab", !creating),
-                ("CraftingOrdersMyOrdersTab", creating),
+            for (name, disabled) in [
+                ("CraftingOrdersBrowseTab", creating),
+                ("CraftingOrdersMyOrdersTab", !creating),
             ] {
                 let Some(WidgetData::Button(button)) = &frame(&r, name).widget_data else {
                     panic!("Customer navigation tab is not a button");
                 };
                 assert_eq!(
-                    button.enabled, enabled,
+                    button.state == ui_toolkit::widgets::button::ButtonState::Disabled,
+                    disabled,
                     "{skin:?} creating={creating} {name}"
                 );
             }
