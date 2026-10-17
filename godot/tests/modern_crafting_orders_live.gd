@@ -14,7 +14,13 @@ func run_test() -> void:
 	client = load("res://scenes/client.tscn").instantiate()
 	root.add_child(client)
 	await process_frame
-	if not await wait_until(func(): return not client.account_state().assets_starting, "asset startup before orders authentication"):
+	# The CASC startup join exceeded the shared 60s UI wait under host contention.
+	# Give startup its own bounded budget; interactive response deadlines stay unchanged.
+	var startup_deadline := Time.get_ticks_msec() + 240000
+	while client.account_state().assets_starting and Time.get_ticks_msec() < startup_deadline:
+		await process_frame
+	if client.account_state().assets_starting:
+		fail("Asset startup exceeded 240s before orders authentication")
 		return
 	var error = client.connect_account(endpoint, OS.get_environment("BANK_ACCOUNT"), PASSWORD, false)
 	if error != "":
