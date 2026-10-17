@@ -10,26 +10,49 @@ use super::Portrait;
 use crate::{ui::RegistryUi, world::WorldUnits, world_models::UnitAppearance};
 
 pub(super) fn roster_appearances(group: &GroupState) -> HashMap<String, UnitAppearance> {
-    use shared::components::{EquipmentAppearance, Player};
     group
         .members
         .iter()
-        .map(|member| {
-            let player = Player {
-                name: member.name.clone(),
-                race: member.portrait.race,
-                class: member.class,
-                appearance: member.portrait.appearance.clone(),
-            };
-            let equipment = EquipmentAppearance {
-                entries: member.portrait.head.iter().cloned().collect(),
-            };
-            (
-                member.name.clone(),
-                UnitAppearance::Player(player, equipment, None),
-            )
-        })
+        .map(|member| (member.name.clone(), roster_appearance(member)))
         .collect()
+}
+
+fn roster_appearance(member: &shared::protocol::GroupMemberSnapshot) -> UnitAppearance {
+    use shared::components::{EquipmentAppearance, Player};
+    let player = Player {
+        name: member.name.clone(),
+        race: member.portrait.race,
+        class: member.class,
+        appearance: member.portrait.appearance.clone(),
+    };
+    let equipment = EquipmentAppearance {
+        entries: member.portrait.head.iter().cloned().collect(),
+    };
+    UnitAppearance::Player(player, equipment, None)
+}
+
+/// ReadyCheck.lua:30 selects the initiator, not the viewer or current target.
+/// Missing received appearance is an error, never a made-up or retained head.
+pub(super) fn ready_check_appearance(group: &GroupState) -> Result<Option<UnitAppearance>, String> {
+    let Some(check) = group
+        .ready_check
+        .as_ref()
+        .filter(|check| !check.update.finished)
+    else {
+        return Ok(None);
+    };
+    let name = &check.update.initiator_name;
+    let member = group
+        .members
+        .iter()
+        .find(|member| member.name == *name)
+        .ok_or_else(|| format!("ReadyCheck initiator {name} has no roster portrait data"))?;
+    if member.portrait.race == 0 {
+        return Err(format!(
+            "ReadyCheck initiator {name} has no roster portrait race"
+        ));
+    }
+    Ok(Some(roster_appearance(member)))
 }
 
 #[derive(Debug, PartialEq)]
@@ -182,6 +205,79 @@ mod tests {
     use shared::components::Position;
     use shared::death::DeathState;
     use shared::protocol::{GroupMemberSnapshot, GroupMemberState, GroupRoleSnapshot};
+
+    fn ready_group() -> GroupState {
+        use shared::protocol::ReadyCheckUpdate;
+        let mut group = roster(&["Bob", "Ann"]);
+        group.members[0].portrait.race = 1;
+        group.members[1].portrait.race = 10;
+        group.members[1].portrait.appearance.sex = 1;
+        group.members[1].portrait.appearance.hair_color = 3;
+        group.members[1].portrait.head = Some(shared::components::EquippedAppearanceEntry {
+            slot: shared::components::EquipmentVisualSlot::Head,
+            item_id: None,
+            definition_source: Some(shared::item_data::ItemDefinitionSource::Retail),
+            display_info_id: Some(14903),
+            inventory_type: 1,
+            hidden: false,
+        });
+        group.apply_ready_check(ReadyCheckUpdate {
+            initiator_name: "Ann".into(),
+            time_remaining_secs: 30.0,
+            members: Vec::new(),
+            finished: false,
+        });
+        group
+    }
+
+    #[test]
+    fn ready_check_portrait_uses_actual_roster_initiator_without_replication() {
+        let mut group = ready_group();
+        group.members[1].online = false;
+        assert_eq!(group.members[1].entity, None);
+        let Some(UnitAppearance::Player(player, equipment, form)) =
+            ready_check_appearance(&group).unwrap()
+        else {
+            panic!("received initiator must have a portrait");
+        };
+        assert_eq!(
+            (player.name.as_str(), player.race, player.class),
+            ("Ann", 10, 8)
+        );
+        assert_eq!(
+            (player.appearance.sex, player.appearance.hair_color),
+            (1, 3)
+        );
+        assert_eq!(equipment.entries.len(), 1);
+        assert_eq!(equipment.entries[0].display_info_id, Some(14903));
+        assert!(!equipment.entries[0].hidden && form.is_none());
+        group.ready_check.as_mut().unwrap().update.initiator_name = "Bob".into();
+        let Some(UnitAppearance::Player(player, _, _)) = ready_check_appearance(&group).unwrap()
+        else {
+            panic!("replacement initiator must have a portrait");
+        };
+        assert_eq!((player.name.as_str(), player.race), ("Bob", 1));
+        group.ready_check.as_mut().unwrap().update.finished = true;
+        assert!(ready_check_appearance(&group).unwrap().is_none());
+        group.ready_check = None;
+        assert!(ready_check_appearance(&group).unwrap().is_none());
+    }
+
+    #[test]
+    fn ready_check_portrait_refuses_missing_roster_or_race() {
+        let mut group = ready_group();
+        group.members.retain(|member| member.name != "Ann");
+        assert_eq!(
+            ready_check_appearance(&group).err().as_deref(),
+            Some("ReadyCheck initiator Ann has no roster portrait data")
+        );
+        group = ready_group();
+        group.members[1].portrait.race = 0;
+        assert_eq!(
+            ready_check_appearance(&group).err().as_deref(),
+            Some("ReadyCheck initiator Ann has no roster portrait race")
+        );
+    }
 
     #[test]
     fn rosterclient_unreplicated_member_uses_canonical_roster_appearance() {
