@@ -1,3 +1,7 @@
+## 2026-10-17 — Native guild invitation tabards
+
+[Invitation tabards](systems/guilds.md#native-invitation-tabards): real optional design through source art, received-packet receipts and four actual officer invitations/physical declines in both skins. Native overlap exposed old TOP-anchor/font/cell errors; source render RED→six controls GREEN and final native text/font/center/non-overlap pass. Identical artifacts across both optional states; four inspected full-HD originals published. No earned gold/vendor UI or unsupported points/reputation/lifetime claim.
+
 ## 2026-10-16 — Miss-only pet self outcome projection
 
 [Haymaker762 / Gift989](systems/battle-pets.md#miss-only-self-outcome-projection--2026-10-16): actual pointer self-stun and59/68 healing in both skins, successful-hit controls and ten inspected fullHD originals. Strict canonical model readback passes; no shared layout/client combat change or full timing/VFX claim.
