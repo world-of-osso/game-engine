@@ -171,7 +171,9 @@ func run() -> void:
 		return
 	var identity: Dictionary = client.account_state()
 	print("SEARCH_ACCOUNT " + JSON.stringify({"character":identity.selected_character_name,"character_id":identity.selected_character_id,"skin":identity.ui_skin}))
+	print("SEARCH_OPEN_BEFORE focus=%s state=%s" % [root.gui_get_focus_owner(),client.adventure_guide_state()])
 	await journal_key()
+	print("SEARCH_OPEN_AFTER focus=%s state=%s" % [root.gui_get_focus_owner(),client.adventure_guide_state()])
 	deadline = Time.get_ticks_msec()+90000
 	while not client.adventure_guide_state().loaded and Time.get_ticks_msec()<deadline:
 		await process_frame
