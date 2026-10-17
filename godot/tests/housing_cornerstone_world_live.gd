@@ -43,7 +43,7 @@ func run_test() -> void:
 	var route: Array[Vector3] = read_baked_route(destination)
 	if route.is_empty(): return
 	for index in range(route.size()):
-		var radius := 3.5 if index == route.size() - 1 else 0.15
+		var radius := 3.5 if index == route.size() - 1 else 0.75
 		if not await walk_to_cornerstone(route[index], radius): return
 	if not await capture_housing("walk-arrived-world"): return
 	if not await purchase_property(): return
@@ -121,7 +121,7 @@ func walk_to_cornerstone(destination: Vector3, stop_radius: float = 3.5) -> bool
 		walk_samples.append({"position":position,"server":state.local_server_position,"remaining":to.length()})
 		if Vector2(to.x, to.z).length() < stop_radius:
 			push_key(KEY_W, false)
-			await frames(30)
+			await process_frame
 			return true
 		if not await face_walk_direction(atan2(to.x, to.z)): return false
 		client.set_camera_orbit(float(client.account_state().local_player_facing) - PI, -0.4, 20.0)
