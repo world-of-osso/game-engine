@@ -14,6 +14,22 @@
 [Search](systems/adventure-guide.md#search-preview-and-full-results--implementation-2026-10-16) native8 passes both skins on productf2c8a410a: continued typing, actual preview/full popup, wheel/close/query retention and authored section selection. Eight full-HD originals inspected. Pixel inspection found exported quote spelling leaking through localization; actual RED→four focused tests GREEN and current clean title assertion/paint pass. Native7 first-J failure remains separate; no readiness patch. Current quote-fix check pending; C API/data gaps unchanged.
 
 ## 2026-10-16 — Journal search implementation; native acceptance pending (historical2344 checkpoint)
+## 2026-10-16 — Alterac NPC Honor
+
+[NPC bonuses](systems/battlegrounds.md#alterac-npc-honor--2026-10-16): actual captain RED0vs368→GREEN10, source3/4 equivalents at retained max79 yield368+490=858 NPC-only subtotal. Both factions/all four entries, NPC-caused dead eligible teammate, other-copy exclusion, replay, persistence and origin return pass; prior9 controls and scoped server check retained. No independent-one-kill rounding, full AV/end/tower, external UDP/rendered or player-input claim.
+
+## 2026-10-16 — Isle resource Honor
+
+[Resources](systems/battlegrounds.md#isle-resource-honor--2026-10-16): source45s clock now credits separate12 per owned/uncontested Refinery/Quarry increment, with no new clock or wire state. Actual channel RED0vs24→GREEN9 proves two bases24, contested pause12, ownership transfer12/team, durable wallet/XP and weekly0; full player-death/commander/AV/Arathi/Eye/empty-root controls retained. Scoped server check passes. No external UDP/rendered or other-map reward claim.
+
+## 2026-10-16 — Isle commander Honor
+
+[Commander](systems/battlegrounds.md#isle-commander-honor--2026-10-16): full channel source gate-demolition/actual commander death RED0vs500→GREEN; fixed500 winner wallet/XP, no other-team credit, no dead replay, persisted quantities. Shared positive-team eligibility preserves Arathi/Eye behavior; targeted6 and scoped server check pass. No generic victory, Conquest, external UDP, rendered or native-item-use claim. Resource/objective callbacks remain open.
+
+## 2026-10-16 — Eye completion Honor
+
+[Eye](systems/battlegrounds.md#eye-completion-honor--2026-10-16): physical tower presence and actual terminal tick RED0vs122→GREEN; source30–39 wallet/XP122/61, replay/reopen. Full channel tower/flag/drop/expiry/victory/origin-return also asserts source20–29 wallet/XP90/45 including the dead carrier. Eye/Arathi terminal and complete channel fixtures pass4; scoped server check passes. Once-per-match is the explicit project policy; no external UDP/rendered BG or objective-bonus claim.
+
 ## 2026-10-16 — Arathi completion Honor
 
 [Completion](systems/battlegrounds.md#arathi-completion-honor--2026-10-16): explicit BG_END_BONUS_ONCE_PER_MATCH normalizes pinned TC's roster-loop placement, not a Retail claim. Real terminal-resource-tick RED0vs122→GREEN proves separate39-bracket61+61 awards,90-bracket80-level clamp, eligible/dead/excluded recipients, cap/XP separation, no type35 event, replay and reopen. Original admission/mirror/Honor35 regressions11 remain GREEN; scoped server check passes. Additional channel lifecycle proves full node/capture/resource victory,60/30 wallet/XP and origin return after explicitly inserting the production-auth wallet component. Gate364 Deephaul RED traced to fixture level19 outside every source bracket; source-valid primary setup now uses80 and retains all gameplay assertions. No external UDP/rendered BG proof. Other BG callbacks remain open.
@@ -30,6 +46,18 @@
 ## 2026-10-16 — Encounter section flags
 
 [Refund icon](systems/trading-post.md#product-row-refund-icon-tooltip--implementation-october16): real old-binary pointer RED shows generic item tooltip over refundable642 while848 is selected; genuine purchase/refund restores Tender/frozen state before assertion. Passive projected texture bounds own right0/0 and the existing colored footer formatter without blocking parent clicks. Model3 and actualca0/4e9/Pb701 both-skin painted GREEN: independent IDs, white caption/red59m, parent click, hover leave, Escape destroys currently hovered owner/HUD, one real purchase/refund restores Tender/collected/frozen state. Eight full-HD originals+two contacts+two crops published; diagnostic manifest binds exact inputs. Integrated933892f79/source protocol604ea609 passes40 UI+12 native, engine check without compiler warnings and scoped five Rustfmt (four unchanged hashes+one foreign tooltip-source delta). Actual native remainsca0/4e9/b701, not the later merged sources. No production refund policy/provider changes.
+## 2026-10-17 — Fire67 cast-overlap source classification
+
+[Allowed pinned SimC source](investigations/cooldown-assist-data.md#fire-cast-overlap-modifier67--2026-10-17) emits67 as a step option that relaxes same-action execution/last-foreground suppression, not a numeric prediction predicate. Native integration remains unimplemented; no unconditional true or global anti-recast behavior added. Focused independent replay1case/3retainedclass snapshots passes at1b0cef7d9 with exact11/11/67 refusals and no lower-step fallback.
+
+## 2026-10-17 — Independent player-spec boundary replay fixtures
+
+[Harness matrix](systems/bot-harness.md#independent-player-spec-boundary-replays--2026-10-17): retained positive-health Resto105/Elemental262/Fire63 facts exercise their own exact unsupported11/11/67 boundaries through current core/catalog. Native JSON and70448 row hashes retained; no manufactured facts, missing-rule bypass, new live/DPS claim or predicate implementation. Protection66 lacks a native capture after its old prelaunch source-choice failure and remains an explicit gap.
+
+## 2026-10-17 — Run21 talents, predicate boundary and passive FPS
+
+[Native harness](systems/bot-harness.md#run21-native-talents-and-predicate-boundary--2026-10-17): ordinary tree850/loadout915 Apply expands entries2→22 and fresh client/server login preserves exact ranks. Full28.362s run stops at named distance3 rule1261; no boss/deaths/balance claim, count12 conjunction also unresolved. [Pinned-source audit](investigations/cooldown-assist-data.md#fury-distancenearby-count-source-boundary--2026-10-17) distinguishes emitted SimC expressions from missing live spatial semantics; no guessed implementation. Passive FPS3Stormwind/3OOC/1combat, two combat readings missing; exact dev-build/device/load qualification retained, settled Stormwind window unavailable without delay. Owned cleanup complete.
+
 ## 2026-10-17 — Ordinary exit transfer/input race
 
 [Run20 preparation](systems/bot-harness.md#ordinary-exit-transferinput-race--2026-10-17): ordinary NewWorld precedes stale-state movement refusal; retain exact refusal and await actual InWorld destination within240s, never repeat movement or invent arrival. Captured boundary RED; successful continuation synthetic, fresh native proof pending.
@@ -62,6 +90,10 @@
 ## 2026-10-16 — Product-row cart toggle implementation
 
 [Row toggle](systems/trading-post.md#product-row-cart-toggle--implementation-october16): source36px hovered-row control carries its own vendor identity, authored add/minus art, cart indicator and left tooltip. Existing cart eligibility/default wearable selection shared without resetting current choices. Model missing-action3 and actual native missing-button RED precede implementation. Modern behavior passed but paint acceptance was rejected: hover replaced the base glyph with highlight art (native center contrast ratio0.167). Base-plus-highlight correction9bbc554ad passes both-skin real-pixel/behavior proof (contrast ratio0.732, independent IDs, unchanged Tender/frozen slots and open-cart choices);10 inspected full-HD originals+2 contacts+2 crops published. Stale private world data is refreshed from the already-published canonical source, preserving account redb.
+## 2026-10-17 — Public/Guild/Personal orders and mailbox settlement
+
+[Orders acceptance](systems/crafting-ui.md#publicguildpersonal-acceptance--verified2026-10-17): both full-HD native skins place/read back, claim, cast and mail all three fixed-output order kinds. Actual redb reopen retains three cloaks and70000 copper per customer,160000 copper/zero cloaks for the worker. Native selected-tab RED fixed by visible page instead of snapshot ownership; authority10/screen9/current consumer check-build pass. Fixture grants/relocation are not acquisition/world-placement proof.
+
 ## 2026-10-16 — Concentration metadata and unknown-origin display
 
 [Concentration boundary](systems/native-professions-crafting.md#concentration-metadata-boundary): both full-HD native skins show unknown quantity, authored currency tooltip and named origin gap while Create stays disabled. Catalog/owner4, screen9 and consumer checks/builds pass. No fabricated initialization or recharge lifecycle.
