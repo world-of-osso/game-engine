@@ -14,7 +14,7 @@ fn screen(shared: &SharedContext) -> Element {
 }
 
 #[test]
-fn ready_check_title_inherits_roman_shadow_both_skins() {
+fn ready_check_title_inherits_roman_color_and_shadow_both_skins() {
     use ui_toolkit::{layout_values::Val, widgets::font_string::GameFont};
 
     game_engine_ui_model::paths::set_data_root(
@@ -36,7 +36,7 @@ fn ready_check_title_inherits_roman_shadow_both_skins() {
         let Some(WidgetData::FontString(title)) = &frame.widget_data else {
             panic!("ReadyCheck title must be text");
         };
-        // Preserve current title fields; colour and layout are separate source gaps.
+        // Preserve current geometry; layout remains a separate source gap.
         assert_eq!((frame.width.value(), frame.height.value()), (323.0, 20.0));
         assert_eq!(
             (frame.position.left, frame.position.top),
@@ -45,7 +45,8 @@ fn ready_check_title_inherits_roman_shadow_both_skins() {
         assert_eq!(title.text, "Ready Check");
         assert_eq!(title.font, GameFont::FrizQuadrata);
         assert_eq!(title.font_size, 12.0);
-        assert_eq!(title.color, [1.0, 0.82, 0.0, 1.0]);
+        // GameFontNormal colour: GlobalColor row1 ARGB0xFFFFD200.
+        assert_eq!(title.color, [1.0, 210.0 / 255.0, 0.0, 1.0], "{skin:?}");
         // ReadyCheck.xml:53 → GameFontNormal → Roman SystemFont_Shadow_Med1.
         assert_eq!(title.shadow_color, Some([0.0, 0.0, 0.0, 1.0]), "{skin:?}");
         assert_eq!(title.shadow_offset, [1.0, -1.0], "{skin:?}");
