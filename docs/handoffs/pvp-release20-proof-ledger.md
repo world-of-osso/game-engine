@@ -32,7 +32,7 @@ All four builds passed without compiler warnings. `native-loaded-release.json` r
 Evidence root: `data/diagnostics/bg-release-20-2026-10-17/`.
 
 - **Attempt1 failed:** `attempt1/server-live.log` records the10.5686-second cold-transfer frame; `attempt1/peers-live.log` records peer12 ConnectionTimedOut and the support-process exit. The match remained Waiting. This failure was not relabeled success.
-- **Attempt2 passed:** identical code and private database, fresh processes, normal four-party queue and full lifecycle. Raw successful logs are `server-live.log` and `peers-live.log`.
+- **Attempt2 passed:** identical release binaries and private database, fresh processes, normal four-party queue and full lifecycle. Raw successful logs are `server-live.log` and `peers-live.log`. Diagnostic receipt parsing was corrected for textual group-roster output and the native account's transient null PvP projection during transfer; no runtime packet cadence, heartbeat deadline or criterion changed.
 - `raw-event-order-index.json` preserves original per-file line order, logged UTC timestamps and full-log hashes. It does not fabricate cross-log ordering or absent per-peer accept/WorldPortAck send timestamps. No system-timings feature was enabled; measured frame_stats are in the server logs.
 
 Full argv/revision/results reside in `*-release-master.json`; authoritative states in `normal20-invitation.json`, `ended-pvp.json`, `ended-peers.json`, `returned-peers.json` and `final-returned-currency.json`; objective events in `real-source-objective-events.json`; cleanup in `cleanup.json`. The machine-readable `proof-ledger.json` binds these receipts. Diagnostic data is intentionally not committed.
