@@ -38,6 +38,10 @@ At `741344ca`, native `NativeSound` consumes those catalogs: two owned Godot pla
 
 `ce2a8c92` adds a real authenticated `GameClient` fixture. The retained run reaches MCNK area 9 → root zone 12, observes Music player track `53492`, confirms no zone-12 ambient track, then drives the authored Options Sound controls and observes native player volume/mute/music-enable state. The fixture log is [native-sound-client-final.log](../../../data/diagnostics/native-sound-client-final.log). This is volume/player-state proof only: no audible-output, full audio parity, or independent-verifier claim follows; verifier817 is pending. Unexpected fixture markers are ordering/discovery sentinels, not production REDs, and mutation assertions are harness-sensitivity checks only. Its verbose exit reports 16 leaked stream/playback/Ogg-packet objects but no native sound/player nodes; see [[native-audio-shutdown-leaks]]. Godot 4.7.2 remains pinned; the documented engine-level shutdown-timing issue is not being patched now, and client work continues without a full-parity waiver.
 
+## Trading Post accepted freeze-lock kit
+
+[Freeze-lock lifecycle/proof](trading-post.md#accepted-freeze-lock-sound--october17) registers218229 with four authored variants/gain0.707945764. Both native acceptance paths reuse UiKits; zero pitch/variation requires no player change. Metadata70391 and local installed70448 audio remain separately qualified. Hide/show218236/218237 needs nonzero PitchAdjust support in a future slice; selection218230 needs its own selection/silence callbacks, neither is implemented here.
+
 ## Trading Post product-enter kit
 
 [Product-enter contract/proof](trading-post.md#product-enter-sound--october17) registers218934/file4906953/source gain0.891250908 through existing UiKits. Zero pitch/volume variation and adjustment require no new player path. Metadata70391 and authenticated installed70448 asset provenance remain distinct; selection218230 is excluded.
