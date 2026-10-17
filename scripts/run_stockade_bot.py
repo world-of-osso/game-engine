@@ -14,13 +14,19 @@ from collections import Counter
 from contextlib import closing
 from pathlib import Path
 
-from bot_controller import native_usable, publish
+from bot_controller import NoHostileTarget, native_usable, opening_abandonment, owner_in_combat, publish
 from bot_dungeon import summarize_dungeon
 from bot_gear import equipment_receipt, load_plan
 from bot_harness import parse_combat, poll_has_gap, routed_player
 from bot_health import require_living_player
-from bot_stockade import admitted_copy, authored_priority, encounter_states, inside_exit_trigger, parse_npc, parse_party, stockade_exit_plan, stockade_plan, target_observation_ready
+from bot_stockade import admitted_copy, authored_priority, encounter_states, inside_exit_trigger, native_visibility, parse_npc, parse_party, stockade_exit_plan, stockade_plan, target_observation_ready
 from run_dummy_bots import observed_pet_owner
+
+
+class NativeCommandError(RuntimeError):
+    def __init__(self, receipt):
+        super().__init__(f"Native command failed: {receipt}")
+        self.receipt = receipt
 
 
 def position(account):
@@ -62,7 +68,7 @@ class StockadeRun:
                    "exit": result.returncode, "stdout": result.stdout, "stderr": result.stderr}
         publish(self.output / f"command-{self.sequence:06d}.json", receipt)
         if result.returncode:
-            raise RuntimeError(f"Native command failed: {receipt}")
+            raise NativeCommandError(receipt)
         return result.stdout
 
     def invoke(self, *words):
@@ -229,7 +235,7 @@ class StockadeRun:
 
     def move(self, here, goal, label):
         if self.player.step_toward(here, goal, label):
-            return
+            return True
         time.sleep(.7)
         after = position(self.account())
         progressed = math.hypot(after[0] - here[0], after[2] - here[2]) >= .15
@@ -237,33 +243,82 @@ class StockadeRun:
         # Preserve the maintained walk_route eight-step native failure boundary.
         if self.blocked_steps >= 8:
             raise RuntimeError(f"Native route blocked after eight steps at {after}; goal {goal}")
+        return False
 
     def approach_opening(self, target):
         deadline = time.monotonic() + 60
+        previous = None
+        traveled = 0
         while time.monotonic() < deadline:
             self.party()
             self.poll_combat()
             state = self.snapshot(target)
-            if native_usable(state, 57755):
-                return
+            abandoned = opening_abandonment(state, target)
+            if abandoned is not None:
+                return abandoned
+            here = position(self.account())
+            if previous is not None:
+                traveled += math.dist(previous, here)
+            previous = here
+            if traveled >= 60:
+                raise RuntimeError("Native opening path limit60yd reached without visibility/usability; no cast")
+            visible = native_visibility(state, target)
+            usable = native_usable(state, 57755)
             ranged = state["facts"]["in_range"]["57755"]["Ok"]
             with (self.output / "opening-approach.jsonl").open("a") as stream:
                 stream.write(json.dumps({"at_ms": state["at_ms"], "target": target,
-                    "facts": state["facts"], "in_range": ranged}) + "\n")
-            if not ranged:
-                self.move(position(self.account()), state["target_position"], "native-ranged-approach")
+                    "facts": state["facts"], "in_range": ranged, "visibility": state["visibility"],
+                    "traveled_yards": traveled}) + "\n")
+            if visible and usable:
+                return None
+            if not ranged or not visible:
+                self.move(here, state["target_position"], "native-ranged-approach")
             time.sleep(.1)
-        raise TimeoutError("Native opening range/usability not reached in60s; no cast or alternate")
+        raise TimeoutError("Native opening visibility/range/usability not reached in60s; no cast or alternate")
+
+    def advance_boss(self):
+        if owner_in_combat(self.rotation()):
+            return
+        if not all(row["health"] >= row["max_health"] for row in self.party()):
+            return
+        boss = next((row for row in self.run["bosses"] if row["state"] == "NotStarted"), None)
+        if boss is None:
+            return
+        reached = self.move(position(self.account()), boss["goal"], "native-boss-progression")
+        receipt = {
+            "at_ms": int(time.time() * 1000),
+            "encounter": boss["encounter"],
+            "goal": boss["goal"],
+            "reached": reached,
+            "basis": "single native Tab found no alive hostile; source boss plan order",
+        }
+        with (self.output / "boss-progression.jsonl").open("a") as stream:
+            stream.write(json.dumps(receipt) + "\n")
 
     def open_pull(self):
-        target = self.player.tab_to_enemy()
-        receipt = {"at_ms": int(time.time() * 1000), "target": target, "spell": 57755,
-                   "source": "approved native Heroic Throw prep; server validates range/usability"}
+        if owner_in_combat(self.rotation()):
+            return True
+        try:
+            target = self.player.tab_to_enemy()
+        except NoHostileTarget:
+            return False
+        receipt = {
+            "at_ms": int(time.time() * 1000),
+            "target": target,
+            "spell": 57755,
+            "source": "approved native Heroic Throw prep; server validates range/usability",
+        }
         self.run["openings"].append(receipt)
         try:
-            self.approach_opening(target)
-            receipt["outcome"] = self.player.cast_opening(target, 57755)
+            outcome = self.approach_opening(target)
+            if outcome is None:
+                outcome = self.player.cast_opening(target, 57755)
+            if "abandoned" in outcome:
+                receipt.update(outcome)
+                return True
+            receipt["outcome"] = outcome
             self.opening_target = target
+            return True
         except Exception as error:
             receipt["error"] = str(error)
             raise
@@ -272,6 +327,8 @@ class StockadeRun:
 
     def step(self):
         self.poll_combat()
+        if not self.player.observe_cast_outcome(self.rotation()):
+            return False
         self.record_credit()
         if self.run["clear_elapsed_ms"] is not None:
             return True
@@ -291,46 +348,80 @@ class StockadeRun:
                 raise RuntimeError("Native assisted target origin not observed")
             gap = math.hypot(goal[0] - here[0], goal[2] - here[2])
             if gap > 2.5:
-                endpoint = [goal[0] + (here[0] - goal[0]) * 2.5 / gap, goal[1],
-                            goal[2] + (here[2] - goal[2]) * 2.5 / gap]
-                self.move(here, endpoint, "native-melee-approach")
-            else:
-                self.player.cast_next(target, authored_priority)
+                endpoint = [
+                    goal[0] + (here[0] - goal[0]) * 2.5 / gap,
+                    goal[1],
+                    goal[2] + (here[2] - goal[2]) * 2.5 / gap,
+                ]
+                if not self.move(here, endpoint, "native-melee-approach"):
+                    time.sleep(0.2)
+                    return False
+            self.player.cast_next(target, authored_priority)
         elif all(row["health"] >= row["max_health"] for row in party):
-            self.open_pull()
-        time.sleep(.2)
+            if not self.open_pull():
+                self.advance_boss()
+        time.sleep(0.2)
         return False
 
     def exit_instance(self):
         plan = stockade_exit_plan(self.args.world_db)
         publish(self.output / "source-exit-plan.json", plan)
         deadline = time.monotonic() + 240
+        transfer_refusal = None
         while time.monotonic() < deadline:
             path = self.output / "native-account-state.json"
             if not path.exists():
-                time.sleep(.2)
+                time.sleep(0.2)
                 continue
             account = self.account()
             if account.get("screen") != "InWorld":
-                time.sleep(.2)
+                time.sleep(0.2)
                 continue
             if account.get("selected_character_name") != self.args.character:
                 raise ValueError("Exit preparation selected another character")
             require_living_player(account)
             if account.get("world_map_id") == plan["destination_map"]:
-                publish(self.output / "exit-confirmation.json", {"at_ms": int(time.time() * 1000),
-                        "account": account, "source": plan, "basis": "native walking through authored area trigger"})
+                publish(
+                    self.output / "exit-confirmation.json",
+                    {
+                        "at_ms": int(time.time() * 1000),
+                        "account": account,
+                        "source": plan,
+                        "basis": "native walking through authored area trigger",
+                    },
+                )
                 return
             if account.get("world_map_id") != 34:
                 raise ValueError("Exit preparation encountered an unexpected map")
+            if transfer_refusal is not None:
+                time.sleep(0.2)
+                continue
             here = position(account)
             # Entering the authored volume starts transfer before its center.
             # Await that transition rather than issuing input during map loading.
             if inside_exit_trigger(here, plan):
-                time.sleep(.2)
+                time.sleep(0.2)
                 continue
-            self.move(here, plan["goal"], "authored-exit-trigger")
-        raise TimeoutError("Ordinary Stockade exit exceeded240s")
+            try:
+                self.move(here, plan["goal"], "authored-exit-trigger")
+            except NativeCommandError as error:
+                receipt = error.receipt
+                is_movement = receipt["argv"][3:5] == ["movement", "forward"]
+                if (
+                    not is_movement
+                    or receipt["stderr"].strip() != "error: scripted movement requires InWorld"
+                ):
+                    raise
+                transfer_refusal = error
+                publish(
+                    self.output / "exit-transfer-input-refusal.json",
+                    {
+                        "command": receipt,
+                        "account_after": self.account(),
+                        "basis": "await ordinary exit destination confirmation; movement not repeated",
+                    },
+                )
+        raise TimeoutError("Ordinary Stockade exit exceeded240s") from transfer_refusal
 
     def execute(self):
         try:

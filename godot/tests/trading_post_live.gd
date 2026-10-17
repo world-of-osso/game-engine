@@ -24,7 +24,7 @@ func run_fixture() -> void:
 		fail("Private compositor must expose 1920x1080 output")
 		return
 	var account := OS.get_environment("TP_ACCOUNT")
-	if server != "127.0.0.1:5791" or not account.begins_with("fb_") or shots.is_empty() or receipts.is_empty() or not phase in ["frozen-tooltip", "cart-tooltips", "pending-dialogs", "confirmations", "button-tooltips", "item-tooltips", "menu-sounds", "layout", "layout-proof", "browse", "relog", "purchase", "refund", "cart", "cart-lifetime", "rotate-controls", "mount-rider", "mount-rider-cancel", "freeze-workflow", "authored-camera", "frozen-slot-before", "frozen-slot-after"]:
+	if server != "127.0.0.1:5791" or not account.begins_with("fb_") or shots.is_empty() or receipts.is_empty() or not phase in ["refund-icon-blend", "refund-icon-tooltip", "row-cart-toggle", "frozen-tooltip", "cart-tooltips", "pending-dialogs", "confirmations", "button-tooltips", "item-tooltips", "menu-sounds", "layout", "layout-proof", "browse", "relog", "purchase", "refund", "cart", "cart-lifetime", "rotate-controls", "mount-rider", "mount-rider-cancel", "freeze-workflow", "authored-camera", "frozen-slot-before", "frozen-slot-after"]:
 		fail("Explicit private 127.0.0.1:5791, fb_* account, phase and evidence paths required")
 		return
 	for directory in [shots, receipts]:
@@ -48,7 +48,7 @@ func run_fixture() -> void:
 	if not await wait_until(func(): return float(client.account_state().local_player_health) > 0.0, "private character alive", 120000): return
 	client.set_world_minutes(720.0)
 	await wait_frames(120)
-	if not phase in ["frozen-tooltip", "cart-tooltips", "pending-dialogs", "confirmations", "button-tooltips", "item-tooltips", "menu-sounds", "layout", "layout-proof", "cart", "cart-lifetime", "rotate-controls", "mount-rider", "mount-rider-cancel", "freeze-workflow", "authored-camera", "frozen-slot-before", "frozen-slot-after"] and not await travelers_log(): return
+	if not phase in ["refund-icon-blend", "refund-icon-tooltip", "row-cart-toggle", "frozen-tooltip", "cart-tooltips", "pending-dialogs", "confirmations", "button-tooltips", "item-tooltips", "menu-sounds", "layout", "layout-proof", "cart", "cart-lifetime", "rotate-controls", "mount-rider", "mount-rider-cancel", "freeze-workflow", "authored-camera", "frozen-slot-before", "frozen-slot-after"] and not await travelers_log(): return
 	if phase == "menu-sounds" and not watch_menu_sound_players(): return
 	if not await open_vendor(): return
 	if phase in ["cart", "cart-lifetime"]:
@@ -89,11 +89,317 @@ func run_fixture() -> void:
 		"frozen-tooltip": await frozen_item_tooltip_proof()
 
 		"button-tooltips": await button_tooltip_proof()
+		"refund-icon-blend": await refund_icon_blend_proof()
+		"refund-icon-tooltip": await refund_icon_tooltip_proof()
+		"row-cart-toggle": await row_cart_toggle_proof()
 		"cart-tooltips": await cart_item_tooltip_proof()
 		"frozen-slot-before": await frozen_slot_geometry_proof(false)
 		"frozen-slot-after": await frozen_slot_geometry_proof(true)
 		"refund": await refund_after_relog()
 		_: await browse()
+
+func refund_icon_blend_proof() -> void:
+	var before: Dictionary = client.trading_post_state().duplicate(true)
+	if not await choose_category(1): return
+	var target := int(before.frozen)
+	if target <= 0 or control("PerksProgramProduct%d" % target) == null:
+		fail("Blend probe needs the preserved real frozen product and its visible ordinary row"); return
+	await click("PerksProgramFrozenSlot")
+	if not await wait_until(func(): return int(client.trading_post_state().selected) == target, "preserved frozen selection"): return
+	if control("PerksProgramPurchaseButton") == null or not control_enabled("PerksProgramPurchaseButton"):
+		fail("Preserved frozen product is not purchase-eligible; no reservation reset allowed"); return
+	var product: Dictionary = client.trading_post_state().duplicate(true)
+	var price := int(product.price)
+	await click("PerksProgramPurchaseButton")
+	await click("PerksProgramConfirmButton")
+	if not await wait_until(func(): return client.trading_post_state().purchased and not client.trading_post_state().pending and int(client.trading_post_state().tender) == int(before.tender) - price, "blend probe genuine purchase", 120000): return
+	if int(client.trading_post_state().refund_seconds) <= 0:
+		fail("Blend probe requires explicit private refund window, not a production change"); return
+	await wait_frames(30)
+	var row_owner := "PerksProgramRefundIcon%d" % target
+	var frozen_owner := "PerksProgramFrozenRefundIcon%d" % target
+	var previous_process_mode: Node.ProcessMode = client.process_mode
+	client.process_mode = Node.PROCESS_MODE_DISABLED
+	var row_add: Dictionary = await capture_blend_reference(row_owner, CanvasItemMaterial.BLEND_MODE_ADD, "row-add")
+	var row_mix: Dictionary = await capture_blend_reference(row_owner, CanvasItemMaterial.BLEND_MODE_MIX, "row-mix")
+	var frozen_add: Dictionary = await capture_blend_reference(frozen_owner, CanvasItemMaterial.BLEND_MODE_ADD, "frozen-add")
+	var frozen_mix: Dictionary = await capture_blend_reference(frozen_owner, CanvasItemMaterial.BLEND_MODE_MIX, "frozen-mix")
+	var footer_mix: Dictionary = await capture_blend_reference("PerksProgramHistoryRefundIcon", CanvasItemMaterial.BLEND_MODE_MIX, "footer-normal")
+	var footer_add: Dictionary = await capture_blend_reference("PerksProgramHistoryRefundIcon", CanvasItemMaterial.BLEND_MODE_ADD, "footer-add-control")
+	client.process_mode = previous_process_mode
+	var samples := [row_add, row_mix, frozen_add, frozen_mix, footer_mix, footer_add]
+	var errors: Array[String] = []
+	for result in samples:
+		if result.has("error"): errors.append(str(result.error))
+	var row_sensitive := false
+	var frozen_sensitive := false
+	var footer_sensitive := false
+	if errors.is_empty():
+		row_sensitive = count_different_bytes(row_add.reference_data, row_mix.reference_data) > 0
+		frozen_sensitive = count_different_bytes(frozen_add.reference_data, frozen_mix.reference_data) > 0
+		footer_sensitive = count_different_bytes(footer_mix.reference_data, footer_add.reference_data) > 0
+	var sensitive: bool = row_sensitive and frozen_sensitive and footer_sensitive
+	for result in samples:
+		if not result.has("error") and int(result.restore_differences) != 0:
+			errors.append("Unstable render/restore for " + str(result.owner))
+		result.erase("reference_data")
+	var other := await select_other_cartable([target])
+	if other <= 0: return
+	var icon := control(row_owner)
+	var click_selected := false
+	if icon != null:
+		var point := icon.get_global_rect().get_center()
+		await motion(point, false)
+		await button_event(point, MOUSE_BUTTON_LEFT, true)
+		await button_event(point, MOUSE_BUTTON_LEFT, false)
+		await wait_frames(5)
+		click_selected = int(client.trading_post_state().selected) == target
+	# Select the ordinary row for cleanup independently of the icon-click verdict.
+	await click("PerksProgramProduct%d" % target)
+	await click("PerksProgramRefundButton")
+	await click("PerksProgramConfirmButton")
+	if not await wait_until(func(): return not client.trading_post_state().purchased and not client.trading_post_state().pending and int(client.trading_post_state().tender) == int(before.tender), "blend probe restores authoritative Tender", 120000): return
+	var restored: Dictionary = client.trading_post_state()
+	var conserved: bool = restored.frozen == before.frozen and restored.collected == product.collected and restored.cart.is_empty()
+	var observations: Dictionary = {
+		"probe": "refund-icon-blend",
+		"target": target,
+		"row_add": row_add,
+		"row_mix": row_mix,
+		"frozen_add": frozen_add,
+		"frozen_mix": frozen_mix,
+		"footer_mix": footer_mix,
+		"footer_add": footer_add,
+		"sensitive": sensitive,
+		"row_sensitive": row_sensitive,
+		"frozen_sensitive": frozen_sensitive,
+		"footer_sensitive": footer_sensitive,
+		"click_selected": click_selected,
+		"conserved": conserved,
+		"errors": errors,
+		"before_tender": before.tender,
+		"after_tender": restored.tender,
+		"before_frozen": before.frozen,
+		"after_frozen": restored.frozen,
+	}
+	var file := FileAccess.open(receipts.path_join(skin + "-refund-icon-blend-measurements.json"), FileAccess.WRITE)
+	if file == null: fail("Cannot write blend observations"); return
+	file.store_string(JSON.stringify(observations, "\t"))
+	file.close()
+	await capture("blend-refunded-restored")
+	print("TP_REFUND_ICON_BLEND ", observations)
+	if not errors.is_empty(): fail("Blend probe harness invalid: " + str(errors)); return
+	if not sensitive: fail("Blend probe has no ADD/MIX paint sensitivity; not a feature RED"); return
+	if not conserved or not click_selected: fail("Blend probe changed authority or parent-row click"); return
+	if int(footer_mix.differences) != 0: fail("Footer32 normal-blend control changed; excluded from row ADD"); return
+	if int(row_add.differences) != 0 or int(frozen_add.differences) != 0:
+		fail("Ordinary/inherited21 refund glyph does not match explicit source ADD; genuine purchase refunded before assertion"); return
+	if int(row_mix.differences) == 0 or int(frozen_mix.differences) == 0:
+		fail("Ordinary/inherited21 source ADD paint has no MIX counterfactual difference"); return
+	await finish("refund-icon-blend")
+
+func capture_blend_reference(owner_name: String, mode: CanvasItemMaterial.BlendMode, label: String) -> Dictionary:
+	var owner := control(owner_name)
+	if owner == null: return {"owner":owner_name,"error":"Missing visible blend owner " + owner_name}
+	var parts := owner.find_children("*", "TextureRect", true, false)
+	if parts.size() != 1: return {"owner":owner_name,"error":"Expected one decoded texture part for " + owner_name}
+	var part: TextureRect = parts[0] as TextureRect
+	if part.texture == null: return {"owner":owner_name,"error":"Undecoded blend texture " + owner_name}
+	var region := Rect2i(owner.get_global_rect())
+	if region.size.x <= 0 or region.size.y <= 0 or not Rect2i(Vector2i.ZERO, root.size).encloses(region):
+		return {"owner":owner_name,"error":"Blend owner outside native framebuffer " + owner_name}
+	var actual: Image = await capture_rgba_region(region)
+	if actual.save_png(shots.path_join(skin + "-" + label + "-actual-crop.png")) != OK:
+		return {"owner":owner_name,"error":"Cannot save actual blend crop"}
+	await capture(label + "-actual")
+	if not is_instance_valid(part): return {"owner":owner_name,"error":"Texture part replaced before counterfactual"}
+	var original: Material = part.material
+	var reference := CanvasItemMaterial.new()
+	reference.blend_mode = mode
+	part.material = reference
+	var expected: Image = await capture_rgba_region(region)
+	var save_error := expected.save_png(shots.path_join(skin + "-" + label + "-reference-crop.png"))
+	await capture(label + "-reference")
+	if not is_instance_valid(part): return {"owner":owner_name,"error":"Texture part replaced during frozen probe"}
+	part.material = original
+	var after_restore: Image = await capture_rgba_region(region)
+	if save_error != OK: return {"owner":owner_name,"error":"Cannot save blend reference crop"}
+	return {"owner":owner_name,"rect":[region.position.x,region.position.y,region.size.x,region.size.y],"differences":count_different_bytes(actual.get_data(), expected.get_data()),"restore_differences":count_different_bytes(actual.get_data(), after_restore.get_data()),"reference_data":expected.get_data()}
+
+func capture_rgba_region(region: Rect2i) -> Image:
+	await wait_frames(3)
+	await RenderingServer.frame_post_draw
+	var image: Image = root.get_texture().get_image().get_region(region)
+	image.convert(Image.FORMAT_RGBA8)
+	return image
+
+func count_different_bytes(actual: PackedByteArray, reference: PackedByteArray) -> int:
+	if actual.size() != reference.size(): return maxi(actual.size(), reference.size())
+	var count := 0
+	for index in range(actual.size()):
+		if actual[index] != reference[index]: count += 1
+	return count
+
+func refund_icon_tooltip_proof() -> void:
+	var before: Dictionary = client.trading_post_state().duplicate(true)
+	if not await choose_category(1): return
+	var target := await select_other_cartable([])
+	if target <= 0: return
+	var product: Dictionary = client.trading_post_state().duplicate(true)
+	var price := int(product.price)
+	await click("PerksProgramPurchaseButton")
+	await click("PerksProgramConfirmButton")
+	if not await wait_until(func(): return client.trading_post_state().purchased and not client.trading_post_state().pending and int(client.trading_post_state().tender) == int(before.tender) - price, "refund tooltip genuine purchase", 120000): return
+	if int(client.trading_post_state().refund_seconds) <= 0:
+		fail("Refund tooltip needs explicit private refund window, not production policy"); return
+	var other := await select_other_cartable([target])
+	if other <= 0: return
+	var row := control("PerksProgramProduct%d" % target)
+	if row == null: fail("Purchased refund row not visible"); return
+	var scale := control("PerksProgramLeaveButton").get_global_rect().size.x / 180.0
+	var icon := Rect2(row.get_global_rect().position + Vector2(389, 13.5) * scale, Vector2(21, 21) * scale)
+	await motion(icon.get_center(), false)
+	await wait_frames(30)
+	var tooltip: Dictionary = client.tooltip_state().duplicate(true)
+	var prefix := "Time remaining to refund this item: "
+	var matched := str(tooltip.get("title", "")).begins_with(prefix)
+	await capture("refund-hover")
+	var anchor_ok := matched and absf(float(tooltip.rect[0]) - icon.end.x / scale) <= 1.5 and absf(float(tooltip.rect[1]) + float(tooltip.rect[3]) - icon.position.y / scale) <= 1.5
+	var state: Dictionary = client.trading_post_state()
+	var conserved: bool = int(state.selected) == other and int(state.tender) == int(before.tender) - price and state.frozen == before.frozen and state.cart.is_empty()
+	await button_event(icon.get_center(), MOUSE_BUTTON_LEFT, true)
+	await button_event(icon.get_center(), MOUSE_BUTTON_LEFT, false)
+	await wait_frames(5)
+	var click_selected := int(client.trading_post_state().selected) == target
+	await click("PerksProgramProduct%d" % other)
+	await motion(row.get_global_rect().position + Vector2(96, 24) * scale, false)
+	if not await wait_until(func(): return client.tooltip_state().get("title", "") == str(product.selected_name), "refund icon leave restores product tooltip"): return
+	await motion(control("PerksProgramLeaveButton").get_global_rect().get_center(), false)
+	if not await wait_until(func(): return not client.tooltip_state().get("visible", false), "refund icon pointer leave"): return
+	await capture("refund-leave")
+	# Destroy the hovered owner without moving off it, then restore the genuine
+	# purchase even when the tooltip assertion is RED.
+	await motion(icon.get_center(), false)
+	await wait_frames(5)
+	await tap(KEY_ESCAPE)
+	if not await wait_until(func(): return not client.trading_post_state().open and not client.tooltip_state().get("visible", false), "refund tooltip hovered-owner teardown"): return
+	await capture("refund-owner-teardown")
+	if not await open_vendor(): return
+	if not await choose_category(1): return
+	await click("PerksProgramProduct%d" % target)
+	if not await wait_until(func(): return int(client.trading_post_state().selected) == target, "purchased product reselect"): return
+	if control("PerksProgramRefundButton") == null:
+		fail("Private refund expired before cleanup"); return
+	await click("PerksProgramRefundButton")
+	await click("PerksProgramConfirmButton")
+	if not await wait_until(func(): return not client.trading_post_state().purchased and not client.trading_post_state().pending and int(client.trading_post_state().tender) == int(before.tender), "refund tooltip restores authoritative Tender", 120000): return
+	var restored: Dictionary = client.trading_post_state()
+	if restored.frozen != before.frozen or restored.collected != product.collected or not restored.cart.is_empty():
+		fail("Refund tooltip roundtrip changed frozen reservation, collection or cart"); return
+	await capture("refunded-restored")
+	print("TP_REFUND_ICON_TOOLTIP target=", target, " selected=", other, " tooltip=", tooltip, " matched=", matched, " anchor_ok=", anchor_ok, " conserved=", conserved, " click_selected=", click_selected)
+	if not matched:
+		fail("Retail row refund icon tooltip missing; genuine purchase refunded before assertion"); return
+	if not anchor_ok or not conserved or not click_selected:
+		fail("Refund icon tooltip lost source owner anchor, parent click or selection/authority"); return
+	await finish("refund-icon-tooltip")
+
+func row_cart_toggle_proof() -> void:
+	if not await choose_category(1): return
+	var target := await select_other_cartable([])
+	if target <= 0: return
+	var target_name: String = client.trading_post_state().selected_name
+	var target_item := int(client.trading_post_state().item_id)
+	var other := await select_other_cartable([target])
+	if other <= 0: return
+	var initial: Dictionary = client.trading_post_state().duplicate(true)
+	var owner := "PerksProgramCartToggle%d" % target
+	var row := "PerksProgramProduct%d" % target
+	var scale := control("PerksProgramLeaveButton").get_global_rect().size.x / 180.0
+	await motion(control("PerksProgramLeaveButton").get_global_rect().get_center(), false)
+	if control(owner) != null: fail("Row cart toggle visible without row hover"); return
+	await motion(control(row).get_global_rect().position + Vector2(96, 24) * scale, false)
+	if not await wait_until(func(): return control(owner) != null, "Retail row cart toggle on eligible product hover", 10000): return
+	var rect := control(owner).get_global_rect()
+	var expected := control(row).get_global_rect().position + Vector2(443, 6) * scale
+	if rect.position.distance_to(expected) > 1.5 or rect.size.distance_to(Vector2(36, 36) * scale) > 1.5:
+		fail("Row cart toggle lacks source36x36/TimeRemaining center anchor"); return
+	await wait_frames(3)
+	await RenderingServer.frame_post_draw
+	var glyph_rect := Rect2i(Vector2i(rect.position + Vector2(8, 8) * scale), Vector2i(Vector2(20, 20) * scale))
+	var normal_contrast := cart_glyph_contrast(root.get_texture().get_image().get_region(glyph_rect))
+	await motion(rect.get_center(), false)
+	if not await wait_until(func(): return client.tooltip_state().get("title", "") == "Add to Cart", "row cart Add tooltip"): return
+	await wait_frames(3)
+	await RenderingServer.frame_post_draw
+	var hover_contrast := cart_glyph_contrast(root.get_texture().get_image().get_region(glyph_rect))
+	print("TP_ROW_CART_GLYPH_CONTRAST normal=", normal_contrast, " hover=", hover_contrast)
+	if normal_contrast <= 0.0 or hover_contrast < normal_contrast * 0.25:
+		fail("Hovered row cart glyph lost base contrast under highlight"); return
+	var tooltip: Dictionary = client.tooltip_state()
+	if absf(float(tooltip.rect[0]) + float(tooltip.rect[2]) - rect.position.x / scale) > 1.5 or absf(float(tooltip.rect[1]) + float(tooltip.rect[3]) - rect.position.y / scale) > 1.5:
+		fail("Row cart tooltip lacks source ANCHOR_LEFT0/0"); return
+	await capture("add-hover")
+	await button_event(rect.get_center(), MOUSE_BUTTON_LEFT, true)
+	await capture("pressed")
+	await button_event(rect.get_center(), MOUSE_BUTTON_LEFT, false)
+	if not await wait_until(func(): return target in client.trading_post_state().cart, "row Add toggles hovered item"): return
+	if not await wait_until(func(): return client.tooltip_state().get("title", "") == "Remove from Cart", "row tooltip tracks cart membership"): return
+	var added: Dictionary = client.trading_post_state()
+	if int(added.selected) != other or int(added.tender) != int(initial.tender) or int(added.frozen) != int(initial.frozen) or added.pending:
+		fail("Row cart toggle changed selected preview/Tender/frozen authority"); return
+	await capture("remove-hover")
+	await click(owner)
+	if not await wait_until(func(): return client.trading_post_state().cart == initial.cart, "row Remove restores initial cart"): return
+	await motion(control(row).get_global_rect().position + Vector2(96, 24) * scale, false)
+	if not await wait_until(func(): return client.tooltip_state().get("title", "") == target_name, "leaving cart toggle restores product tooltip"): return
+	await capture("row-tooltip-restored")
+	await motion(control("PerksProgramLeaveButton").get_global_rect().get_center(), false)
+	if not await wait_until(func(): return control(owner) == null and not client.tooltip_state().get("visible", false), "row leave hides toggle and tooltip"): return
+	if not await hover_row_cart_toggle(target, "Add to Cart"): return
+	await click(owner)
+	await click("PerksProgramViewCartButton")
+	if not await wait_until(func(): return client.trading_post_state().cart_visible, "open row-added cart"): return
+	if not target_item in client.trading_post_state().cart_preview_items:
+		fail("Row-added item not initially selected in open cart"); return
+	await click("PerksProgramCartItem%d" % target)
+	if not await wait_until(func(): return not target_item in client.trading_post_state().cart_preview_items, "disable existing cart preview before append"): return
+	if not await hover_row_cart_toggle(other, "Add to Cart"): return
+	await click("PerksProgramCartToggle%d" % other)
+	if not await wait_until(func(): return other in client.trading_post_state().cart and int(initial.item_id) in client.trading_post_state().cart_preview_items, "append open-cart wearable default"): return
+	if target_item in client.trading_post_state().cart_preview_items:
+		fail("Open-cart row add reset disabled preview choice"); return
+	await capture("open-cart-added")
+	await click("PerksProgramCartToggle%d" % other)
+	if not await hover_row_cart_toggle(target, "Remove from Cart"): return
+	await click(owner)
+	if not await wait_until(func(): return client.trading_post_state().cart == initial.cart and not client.trading_post_state().cart_visible, "row remove closes emptied cart"): return
+	var final: Dictionary = client.trading_post_state()
+	if int(final.selected) != other or int(final.tender) != int(initial.tender) or int(final.frozen) != int(initial.frozen) or final.pending:
+		fail("Row toggle roundtrip changed model/Tender/frozen authority"); return
+	print("TP_ROW_CART_TOGGLE target=", target, " selected=", other, " tender=", final.tender, " frozen=", final.frozen)
+	await finish("row-cart-toggle")
+
+# Pixel structure, not node/texture existence: highlighted cart glyph remains painted.
+func cart_glyph_contrast(image: Image) -> float:
+	var total := 0.0
+	var squares := 0.0
+	var count := image.get_width() * image.get_height()
+	for y in image.get_height():
+		for x in image.get_width():
+			var pixel := image.get_pixel(x, y)
+			var brightness := (pixel.r + pixel.g + pixel.b) / 3.0
+			total += brightness
+			squares += brightness * brightness
+	return sqrt(maxf(0.0, squares / count - pow(total / count, 2.0)))
+
+func hover_row_cart_toggle(vendor: int, title: String) -> bool:
+	var scale := control("PerksProgramLeaveButton").get_global_rect().size.x / 180.0
+	var owner := "PerksProgramCartToggle%d" % vendor
+	await motion(control("PerksProgramProduct%d" % vendor).get_global_rect().position + Vector2(96, 24) * scale, false)
+	if not await wait_until(func(): return control(owner) != null, "row toggle visible on hover"): return false
+	await motion(control(owner).get_global_rect().get_center(), false)
+	return await wait_until(func(): return client.tooltip_state().get("title", "") == title, "row toggle tooltip " + title)
 
 func frozen_item_tooltip_proof() -> void:
 	var initial: Dictionary = client.trading_post_state().duplicate(true)
@@ -1427,7 +1733,7 @@ func motion(point: Vector2, down: bool, relative: Vector2 = Vector2.ZERO) -> voi
 	event.global_position = point
 	event.relative = relative
 	event.button_mask = MOUSE_BUTTON_MASK_LEFT if down else 0
-	if phase == "cart-tooltips":
+	if phase in ["cart-tooltips", "row-cart-toggle", "refund-icon-tooltip", "refund-icon-blend"]:
 		Input.parse_input_event(event)
 	else:
 		root.push_input(event, true)

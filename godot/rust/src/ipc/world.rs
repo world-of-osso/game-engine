@@ -23,6 +23,9 @@ impl crate::GameClient {
     pub(crate) fn world_request(&mut self, request: Request) -> Result<Response, Request> {
         let answer = match request {
             Request::DeathStatus => format_death_snapshot(self.death_flow.snapshot.as_ref()),
+            Request::CurrenciesStatus => {
+                serde_json::to_string(&self.account.currencies).map_err(|error| error.to_string())
+            }
             Request::PvpStatus => self
                 .account
                 .send_pvp(game_engine_ui_model::battleground::PvpAction::Query)

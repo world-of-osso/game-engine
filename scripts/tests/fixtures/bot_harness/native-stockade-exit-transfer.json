@@ -1,0 +1,71 @@
+{
+  "provenance": {
+    "run": "/home/osso/.worktrees/bot-harness-2026-10-15/native-stockade-fury20-trace-exit",
+    "failure": "server NewWorld at09:03:28.180Z,client09:03:28.203Z,stale-route movement refusal09:03:29.628Z",
+    "before": "pose from retained metrics; screen/map inferred from actual exit branch that submitted movement",
+    "loading": "actual terminal native-account-state fields",
+    "confirmed": "synthetic successful InWorld continuation; original run stopped before arrival confirmation"
+  },
+  "before": {
+    "screen": "InWorld",
+    "world_map_id": 34,
+    "pending_world_port": "Idle",
+    "selected_character_name": "Bwarfury",
+    "local_player_health": 8256.0,
+    "local_player_position": "(52.83455, -17.82621, -0.762414)"
+  },
+  "loading": {
+    "screen": "Loading",
+    "world_map_id": 0,
+    "pending_world_port": "Loading(0)",
+    "selected_character_name": "Bwarfury",
+    "local_player_health": 8256.0,
+    "local_player_position": "(-8766.11, 87.9952, -845.499)"
+  },
+  "confirmed": {
+    "screen": "InWorld",
+    "world_map_id": 0,
+    "pending_world_port": "Idle",
+    "selected_character_name": "Bwarfury",
+    "local_player_health": 8256.0,
+    "local_player_position": "(-8766.11, 87.9952, -845.499)"
+  },
+  "plan": {
+    "trigger_id": 503,
+    "goal": [
+      48.0937233,
+      -13.7769003,
+      -0.933266521
+    ],
+    "destination_id": 3618,
+    "destination_map": 0,
+    "destination": [
+      -8766.11,
+      87.9952,
+      -845.499
+    ],
+    "box": {
+      "length": 6.0,
+      "width": 12.0,
+      "height": 11.3136997,
+      "yaw": 0.0
+    }
+  },
+  "refusal": {
+    "at_ms": 1792227809628,
+    "argv": [
+      "/home/osso/.worktrees/game-engine-s8/target/debug/game-engine-cli",
+      "--socket",
+      "/tmp/game-engine-3491523.sock",
+      "movement",
+      "forward",
+      "--seconds",
+      "0.45973210724732544",
+      "--yaw-degrees",
+      "-92.06394916517887"
+    ],
+    "exit": 1,
+    "stdout": "",
+    "stderr": "error: scripted movement requires InWorld\n"
+  }
+}

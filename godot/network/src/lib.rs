@@ -279,6 +279,7 @@ impl NetworkBridge {
             .receive::<protocol::WildPetBattleUpdate>()
             .receive::<protocol::PetBattleQueueUpdate>()
             .receive::<protocol::PvpStateUpdate>()
+            .receive::<protocol::CurrencyStateUpdate>()
             .receive::<protocol::TrainerList>()
             .receive::<protocol::TrainerBuyFailed>()
             // Spellbook, action bar and casting.
@@ -1048,6 +1049,8 @@ pub mod deathstate_fixture;
 #[cfg(test)]
 mod wire_tests;
 
+#[cfg(test)]
+mod currency_wire_tests;
 #[cfg(test)]
 mod dungeonclient_wire_tests;
 #[cfg(test)]

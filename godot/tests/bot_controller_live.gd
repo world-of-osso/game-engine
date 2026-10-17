@@ -80,6 +80,7 @@ func sample() -> void:
         "assisted": client.assisted_combat_state(), "inventory": client.merchant_state(),
         "pet": client.pet_bar_state()}
     if account.get("gameplay_input_allowed", false) and selected.get("target") != null:
+        rotation["visibility"] = client.call("target_visibility_state", int(selected["target"]))
         var query: Dictionary = client.call("spell_priority_state", int(selected["target"]),
             spell_ids)
         if query.has("error"):
@@ -185,7 +186,8 @@ func tab_to_enemy(request: Dictionary) -> void:
     await press_release_key(KEY_TAB)
     var after: Dictionary = client.target_state()
     if after.get("target") == null:
-        finish_enemy_tab(request, {"error": "Native Tab found no target", "before": before, "after": after})
+        finish_enemy_tab(request, {"selected_hostile": false, "selected_health": 0.0,
+            "before": before, "after": after, "input": "one native KEY_TAB press/release; no target"})
         return
     var deadline := Time.get_ticks_msec() + 8000
     var observation := {"error": "Target-bound native hostility not observed"}

@@ -7,6 +7,17 @@ use game_engine_ui_model::guild_ranks::{GuildCommand, GuildRanksSession};
 use godot::prelude::*;
 use shared::protocol::{GuildRankRequest, GuildRanksState};
 
+#[godot_api(secondary)]
+impl GameClient {
+    /// Read only the real received invitation; never manufactures a tabard or membership.
+    #[func]
+    pub fn guild_invitation_observation(&self) -> GString {
+        let json = serde_json::to_string(&self.guild_ranks.session.invitation)
+            .expect("serialize received guild invitation");
+        GString::from(json.as_str())
+    }
+}
+
 #[derive(Default)]
 pub(crate) struct GuildRanks {
     session: GuildRanksSession,
@@ -500,6 +511,7 @@ mod tests {
             guild_id: 7,
             guild_name: "Raid Team".into(),
             inviter_name: "Alice".into(),
+            tabard: None,
         };
         let mut guild = GuildRanks::default();
         guild.session.invitation = Some(invitation.clone());
