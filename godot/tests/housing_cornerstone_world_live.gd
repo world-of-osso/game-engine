@@ -140,12 +140,12 @@ func record_floor_probe(label: String) -> bool:
 	var state: Dictionary = client.account_state()
 	var feet: Vector3 = state.local_player_position
 	var sample: Dictionary = {"phase":label,"feet":feet,"server":state.local_server_position,"terrain_height":client.terrain_height_at(feet.x, feet.z)}
-	for layer in [2, 8]:
-		var query := PhysicsRayQueryParameters3D.create(feet + Vector3.UP * 20.0, feet - Vector3.UP * 5.0)
-		query.collision_mask = layer
+	for probe in [{"layer":2,"above":2.0},{"layer":8,"above":2.0},{"layer":2,"above":20.0},{"layer":8,"above":20.0}]:
+		var query := PhysicsRayQueryParameters3D.create(feet + Vector3.UP * float(probe.above), feet - Vector3.UP * 5.0)
+		query.collision_mask = int(probe.layer)
 		var hit: Dictionary = client.get_world_3d().direct_space_state.intersect_ray(query)
 		var collider := hit.get("collider") as Node
-		sample[str(layer)] = {"hit":hit.get("position"),"collider":str(collider.get_path()) if collider != null else ""}
+		sample[str(probe.layer)+"/"+str(probe.above)] = {"hit":hit.get("position"),"collider":str(collider.get_path()) if collider != null else ""}
 	floor_probes.append(sample)
 	print("WORLD_FLOOR_PROBE ",sample)
 	var file := FileAccess.open(shots.path_join("floor-probes.json"), FileAccess.WRITE)
