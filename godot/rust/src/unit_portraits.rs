@@ -48,6 +48,7 @@ use shared::components::SheathState;
 use crate::GameClient;
 use crate::assets::{M2_BOUNDS_META, M2_SOURCE_META, wow_vec3};
 use crate::character_frame::preview::bind_preview_light;
+use crate::ui::RegistryUi;
 use crate::world::WorldUnits;
 use crate::world_models::UnitAppearance;
 
