@@ -186,6 +186,8 @@ fn set_data_root() {
 }
 
 fn sync(hud: &mut [RegistryModel], skin: ActiveSkin) {
+    // Production switches the atlas/chrome skin before mirroring it into each canvas.
+    ui_toolkit::atlas::set_thread_skin(skin);
     for model in hud {
         model.sync_skin(skin);
     }
@@ -415,11 +417,14 @@ fn forever_preset_moves_the_hud_and_modern_restores_it() {
     let mut hud = hud();
     sync(&mut hud, ActiveSkin::Modern);
     sync(&mut hud, ActiveSkin::Forever);
-    // FlareUI UnitFrames.lua:1888-1894 with its frame sizes (Core.lua:281-302):
-    // 240×60 player/target CENTER (∓330, -270); centre y 384.
-    assert_eq!(top_left(&hud, "PlayerFrame"), (233.0, 624.0));
-    assert_eq!(top_left(&hud, "TargetFrame"), (893.0, 624.0));
-    // Reference: pet 6px below player, right-aligned. ToT and focus: the next test.
+    // FlareUI UnitFrames.lua:1888-1894: CENTER (∓330, -270), canvas centre (683,384).
+    // Approved Retail portrait mount: PlayerFrame.xml portrait (24,19,60,60), bar
+    // LEFT85 minus Flare INSET4 gives group x81; 240×60 bars yield outer321×79.
+    assert_rect(&hud, "PlayerFrame", (192.5, 614.5, 321.0, 79.0));
+    assert_rect(&hud, "PlayerFrameBars", (273.5, 614.5, 240.0, 60.0));
+    assert_rect(&hud, "PlayerPortrait", (216.5, 633.5, 60.0, 60.0));
+    assert_rect(&hud, "TargetFrame", (893.0, 624.0, 240.0, 60.0));
+    // Pet retains its original Flare anchor; the portrait mount does not move it.
     assert_eq!(top_left(&hud, "PetFrame"), (313.0, 690.0));
     // The 292×26 cast bar plus flush 26px icon inside its 326×34 holder at BOTTOM (0,268).
     assert_eq!(top_left(&hud, "PlayerCastingBarFrame"), (520.0, 466.0));
@@ -1034,10 +1039,23 @@ fn launcher_panel_clears_player_name_on_default_1080p_layout() {
         }
         sync(&mut canvases, skin);
         let panel = rect(&canvases, "LauncherPanel");
+        let chrome = rect(&canvases, "LauncherNineSlice");
         let player = rect(&canvases, "PlayerFrame");
+        // Forever: 19/2 portrait height growth plus Camelot's 8px lower metal outset.
+        // Layout rounds the resulting 285.5 UI-unit top to native pixel 286 at scale 1.
+        let top = if skin == ActiveSkin::Forever {
+            286.0
+        } else {
+            303.0
+        };
+        assert_rect(&canvases, "LauncherPanel", (697.0, top, 526.0, 474.0));
         assert!(
             !intersects(&panel, &player),
             "{skin:?}: launcher {panel:?} clips player {player:?}"
+        );
+        assert!(
+            !intersects(&chrome, &player),
+            "{skin:?}: launcher chrome {chrome:?} clips player {player:?}"
         );
     }
 }
