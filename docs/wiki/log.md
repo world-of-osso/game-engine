@@ -1,3 +1,7 @@
+## 2026-10-16 — Miss-only pet self outcome projection
+
+[Haymaker762 / Gift989](systems/battle-pets.md#miss-only-self-outcome-projection--2026-10-16): actual pointer self-stun and59/68 healing in both skins, successful-hit controls and ten inspected fullHD originals. Strict canonical model readback passes; no shared layout/client combat change or full timing/VFX claim.
+
 ## 2026-10-16 — Product-row refund icon tooltip implementation
 ## 2026-10-16 — Journal search implementation; native acceptance pending
 
