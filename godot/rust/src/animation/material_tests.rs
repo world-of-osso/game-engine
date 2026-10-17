@@ -40,7 +40,7 @@ fn material_base_transition_samples_authentic_wings_at_each_sequence_clock() {
         },
     );
     assert_ne!(from.texture_weights[0], to.texture_weights[0]);
-    let actual = player.sample_material(&tracks, &binding, 900);
+    let actual = player.sample_material(&binding, 900);
     assert!(
         (actual.texture_weights[0] - (from.texture_weights[0] + to.texture_weights[0]) * 0.5).abs()
             < 1e-6,
@@ -55,18 +55,17 @@ fn material_base_transition_samples_authentic_wings_at_each_sequence_clock() {
 #[test]
 fn material_base_retransition_has_no_zero_elapsed_pop() {
     let model = wings();
-    let tracks = MaterialTracks::of(&model);
     let binding = m2_material::batch_binding(&model, &model.batches[0], &[0; 3]).unwrap();
     let mut player = AnimationState::new(&model).unwrap();
     player.advance(100.0).unwrap();
     player.select(1, true).unwrap();
     player.advance(60.0).unwrap();
-    let before = player.sample_material(&tracks, &binding, 900);
+    let before = player.sample_material(&binding, 900);
     player.select(0, true).unwrap();
-    let after = player.sample_material(&tracks, &binding, 900);
+    let after = player.sample_material(&binding, 900);
     assert_eq!(before, after);
     player.advance(40.0).unwrap();
-    let before = player.sample_material(&tracks, &binding, 900);
+    let before = player.sample_material(&binding, 900);
     player.select(2, true).unwrap();
-    assert_eq!(before, player.sample_material(&tracks, &binding, 900));
+    assert_eq!(before, player.sample_material(&binding, 900));
 }
