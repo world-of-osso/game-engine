@@ -14,6 +14,65 @@ fn screen(shared: &SharedContext) -> Element {
 }
 
 #[test]
+fn ready_check_portrait_keeps_source_slot_and_metal_ring_both_skins() {
+    use ui_toolkit::atlas::{AtlasSource, resolve_region};
+    use ui_toolkit::layout_values::Val;
+
+    game_engine_ui_model::paths::set_data_root(
+        std::path::PathBuf::from(env!("CARGO_MANIFEST_DIR")).join("../../data"),
+    )
+    .unwrap();
+    for skin in [ActiveSkin::Modern, ActiveSkin::Forever] {
+        set_thread_skin(skin);
+        let mut shared = SharedContext::new();
+        shared.insert(ReadyCheckFrameState {
+            visible: true,
+            initiator: "Raidleader".into(),
+        });
+        let mut registry = FrameRegistry::new(1920.0, 1080.0);
+        Screen::new(screen).sync(&shared, &mut registry);
+        let portrait = registry
+            .get(
+                registry
+                    .get_by_name("ReadyCheckPortrait")
+                    .expect("missing initiator portrait host"),
+            )
+            .unwrap();
+        assert_eq!(
+            (portrait.width.value(), portrait.height.value()),
+            (54.0, 54.0)
+        );
+        assert_eq!(
+            (portrait.position.left, portrait.position.top),
+            (Val::Px(0.0), Val::Px(-3.0))
+        );
+        let ring = registry
+            .get(
+                registry
+                    .get_by_name("ReadyCheckFramePortraitRing")
+                    .expect("missing portrait metal ring"),
+            )
+            .unwrap();
+        assert_eq!(
+            (ring.position.left, ring.position.top),
+            (Val::Px(-13.0), Val::Px(-16.0))
+        );
+        let region = resolve_region("UI-Frame-PortraitMetal-CornerTopLeft", skin).unwrap();
+        assert_eq!(
+            (ring.width.value(), ring.height.value()),
+            (region.width / 2.0, region.height / 2.0)
+        );
+        let AtlasSource::FileDataId(fdid) = region.source else {
+            panic!("source portrait ring must resolve to file art");
+        };
+        let Some(WidgetData::Texture(texture)) = &ring.widget_data else {
+            panic!("portrait metal ring must draw source art");
+        };
+        assert_eq!(texture.source, TextureSource::FileDataId(fdid));
+    }
+}
+
+#[test]
 fn ready_check_title_inherits_roman_color_and_shadow_both_skins() {
     use ui_toolkit::{layout_values::Val, widgets::font_string::GameFont};
 
