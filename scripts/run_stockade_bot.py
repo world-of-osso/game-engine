@@ -23,6 +23,10 @@ from bot_stockade import admitted_copy, authored_priority, encounter_states, ins
 from run_dummy_bots import observed_pet_owner
 
 
+class NativeSelectionLost(RuntimeError):
+    """Fresh in-combat selection withdrawal; no submitted cast is outstanding."""
+
+
 class NativeCommandError(RuntimeError):
     def __init__(self, receipt):
         super().__init__(f"Native command failed: {receipt}")
@@ -96,6 +100,12 @@ class StockadeRun:
         deadline = time.monotonic() + 10
         while time.monotonic() < deadline:
             state = self.rotation()
+            if ("target" in state and state["target"] is None
+                    and owner_in_combat(state) and self.player.pending is None):
+                account = self.account()
+                require_living_player(account)
+                if account.get("screen") == "InWorld":
+                    raise NativeSelectionLost("Native combat selection withdrawn; re-assist next cycle")
             if target_observation_ready(state, target):
                 if state["spells"]["spec"] != self.args.spec:
                     raise ValueError("Native specialization changed during the run")
@@ -336,7 +346,11 @@ class StockadeRun:
         target = self.opening_target or self.player.assist(self.tank)
         here = position(self.account())
         if target is not None:
-            state = self.snapshot(target)
+            try:
+                state = self.snapshot(target)
+            except NativeSelectionLost:
+                self.opening_target = None
+                return False
             if state["spells"]["target_health"] == 0:
                 if not self.player.observe_cast_outcome(state):
                     return False
@@ -356,7 +370,11 @@ class StockadeRun:
                 if not self.move(here, endpoint, "native-melee-approach"):
                     time.sleep(0.2)
                     return False
-            self.player.cast_next(target, authored_priority)
+            try:
+                self.player.cast_next(target, authored_priority)
+            except NativeSelectionLost:
+                self.opening_target = None
+                return False
         elif all(row["health"] >= row["max_health"] for row in party):
             if not self.open_pull():
                 self.advance_boss()

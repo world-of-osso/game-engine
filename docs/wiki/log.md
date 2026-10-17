@@ -1,3 +1,7 @@
+## 2026-10-17 — Vanish selection withdrawal
+
+[Harness boundary](systems/bot-harness.md#vanish-selection-withdrawal--2026-10-17): real run23 Vanish55964 withdraws selected living Moloch and its return does not reselect him. Retained-frame RED reaches original ten-second fact deadline. Approved recovery ends only fresh living/InWorld/in-combat no-selection steps with no pending cast, then leaves ordinary next-cycle Garrick assist and fresh cast gates intact. Synthetic continuation controls distinguished; live recovery/clear still pending.
+
 ## 2026-10-17 — Eye holiday492 read-only authority audit
 
 [70448 source finding](investigations/eye-holiday-authority.md): verified installed build/config/schema/CSV receipts, BML7→map566/PVPDifficulty links,811 readable Holidays rows. Holiday492 Date0 decodes2007-11-27UTC; durations72/1776h,Looping0/filter2 do not authorize77-day recurrence. Pinned TC evaluator/constructor sampling sourced, but effective game_event row/stage/schedule missing; HOLIDAY492_EFFECTIVE_EVENT_AUTHORITY remains open. Finding sent before code; no RED/runtime implementation/calendar default.
