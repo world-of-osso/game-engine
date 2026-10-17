@@ -3,7 +3,7 @@ extends "res://tests/guild_perks_live.gd"
 var officer_dir := ""
 var hasty_mode := ""
 var phase := 0
-var cast_completed := false
+var casts_completed := 0
 var expected_recharge := 0
 
 func run_test() -> void:
@@ -43,7 +43,7 @@ func run_test() -> void:
 		if not known_perks().is_empty():
 			fail("Each invitation must start with the actual nonmember")
 			return
-		if hasty_mode == "baseline" and not cast_completed:
+		if hasty_mode == "baseline":
 			if not await cast_actual_hearthstone():
 				return
 		if not mark_officer("invite-%d.go" % phase):
@@ -54,7 +54,7 @@ func run_test() -> void:
 		if not await wait_until(func(): return known_perks().size() == 5, "actual membership passive grants"):
 			return
 		await close_guild()
-		if hasty_mode == "member" and not cast_completed:
+		if hasty_mode == "member":
 			if not await cast_actual_hearthstone():
 				return
 		if not await prove_pending("member-pending"):
@@ -66,7 +66,7 @@ func run_test() -> void:
 		if not await prove_pending("removed-pending"):
 			return
 	mark_officer("done.go")
-	print("PASS GUILD_HASTY_HEARTH_NATIVE mode=%s recharge_ms=%d both_skins=true actual_item6948=true actual_spell8690=true" % [hasty_mode, expected_recharge])
+	print("PASS GUILD_HASTY_HEARTH_NATIVE mode=%s recharge_ms=%d both_skins=true actual_item6948=true actual_spell8690=true actual_casts=%d" % [hasty_mode, expected_recharge, casts_completed])
 	client.free()
 	quit(0)
 
@@ -84,18 +84,20 @@ func hearth_button() -> Control:
 func cast_actual_hearthstone() -> bool:
 	if not await open_hearth_backpack():
 		return false
+	var successes_before: int = Array(client.spells_state().cast_success).count(8690)
+	var expected_current: int = 2 - phase
 	await click_at(hearth_button().get_global_rect().get_center(), MOUSE_BUTTON_RIGHT)
 	if not await wait_until(func():
 		var charge: Variant = perk_observation().hearth_charges
-		return charge != null and charge.current == 1 and charge.max == 2 and 8690 in Array(client.spells_state().cast_success), "real item6948 completes spell8690 and consumes charge2309"):
+		return charge != null and charge.current == expected_current and charge.max == 2 and Array(client.spells_state().cast_success).count(8690) > successes_before, "real item6948 completes spell8690 and consumes charge2309"):
 		return false
-	cast_completed = true
+	casts_completed += 1
 	return await prove_pending("actual-cast")
 
 func prove_pending(label: String) -> bool:
 	var observation: Dictionary = perk_observation()
 	var charge: Variant = observation.hearth_charges
-	if charge == null or charge.current != 1 or charge.max != 2:
+	if charge == null or charge.current != 2 - casts_completed or charge.max != 2:
 		return fail("Actual pending Hearthstone charge missing: " + str(charge))
 	if abs(float(charge.recharge_ms) - expected_recharge) > 2.0:
 		return fail("Guild change retimed consumed Hearthstone duration: " + str(charge))
