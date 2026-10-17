@@ -31,6 +31,10 @@
 ## 2026-10-16 — Product-row cart toggle implementation
 
 [Row toggle](systems/trading-post.md#product-row-cart-toggle--implementation-october16): source36px hovered-row control carries its own vendor identity, authored add/minus art, cart indicator and left tooltip. Existing cart eligibility/default wearable selection shared without resetting current choices. Model missing-action3 and actual native missing-button RED precede implementation. Modern behavior passed but paint acceptance was rejected: hover replaced the base glyph with highlight art (native center contrast ratio0.167). Base-plus-highlight correction9bbc554ad passes both-skin real-pixel/behavior proof (contrast ratio0.732, independent IDs, unchanged Tender/frozen slots and open-cart choices);10 inspected full-HD originals+2 contacts+2 crops published. Stale private world data is refreshed from the already-published canonical source, preserving account redb.
+## 2026-10-16 — Concentration metadata and unknown-origin display
+
+[Concentration boundary](systems/native-professions-crafting.md#concentration-metadata-boundary): both full-HD native skins show unknown quantity, authored currency tooltip and named origin gap while Create stays disabled. Catalog/owner4, screen9 and consumer checks/builds pass. No fabricated initialization or recharge lifecycle.
+
 ## 2026-10-16 — Bench resurrection HUD projection
 
 [Shared2347 projection](systems/battle-pets.md#bench-resurrection-projection--2026-10-16): both actual skins physically revive two persisted-dead reserves to78/1563, pointer swap, retain incoming damage and win through the revived pet's147-damage Metal Fist. Eight fullHD originals inspected;92/98/131/98 geometry differs only in timed float. Canonical78-asset closure and explicit strict loader readback pass; world-native mode, exact runtime heads and pre-auth recovery are documented. No UI change/full Retail timing/VFX claim; owned processes stopped.
@@ -4353,6 +4357,7 @@ Completed Retailv2 codec/authoritative Create and committed Copy callbacks, exac
 - 2026-10-16: Frozen ProductButton inherits base item tooltip; ordinary-name-only native lookup missed it. Actual genuine-Freeze native RED observed; resolve already-rendered selection action without new frozen state. [Trading Post](systems/trading-post.md#inherited-frozen-product-tooltip--implementation-october16).
 - 2026-10-16: Cart regular/member source tooltip both-skin native GREEN including actual hover-only removal; phase-local global input parsing corrects viewport-only fixture cursor.33UI12native/check/3scopedRustfmt pass at9e7; eight full-HD originals+two contacts published. [Trading Post](systems/trading-post.md#cart-item-tooltips--implementation-october16).
 
+- 2026-10-16: [[native-professions-crafting]] documents read-only concentration metadata and the unsourced initialization/recharge-origin boundary.
 ## 2026-10-16 — Loot ItemButton hit rectangle and release
 
 Source Item ownership replaces row-press actions; inset-aware native Button picking fixes the actual expanded-hit boundary. Model2/native32 GREEN,68 unchanged full-HD pairs; StackSplit16/ReadyCheck4 shared-input controls and60 pixel pairs unchanged. Retained setup failures and Item-only partial RED, server/full-window exclusions explicit. See [[loot-and-flight#ItemButton input ownership — 2026-10-16]].
