@@ -77,8 +77,8 @@ func place_order_types() -> bool:
 			await replace_field("CraftingOrderRecipient", "Craftworker")
 		await replace_field("CraftingOrderGold", "1")
 		await replace_field("CraftingOrderNote", role + " " + kind)
-		for index in range(4):
-			await press("CraftingOrderSupply%d" % index)
+		for supply_index in range(4):
+			await press("CraftingOrderSupply%d" % supply_index)
 		var before := money()
 		await capture(kind + "-1-form")
 		await press("CraftingOrderPlace")
