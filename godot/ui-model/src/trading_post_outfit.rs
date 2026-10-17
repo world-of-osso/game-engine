@@ -2,7 +2,7 @@
 use super::*;
 use std::{collections::BTreeMap, sync::OnceLock};
 
-const SCENE_CSV: &str = "db2/12.1.5.70391/UiModelScene.csv";
+const SCENE_CSV: &str = "db2/active/UiModelScene.csv";
 static FLAGS: OnceLock<Result<BTreeMap<u32, u32>, String>> = OnceLock::new();
 
 fn load_scene_flags() -> Result<BTreeMap<u32, u32>, String> {

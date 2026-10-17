@@ -61,6 +61,26 @@ def requested_snapshot(state, target):
             "actor": int(state["account"]["local_player_id"])}
 
 
+def owner_in_combat(snapshot):
+    assisted = snapshot.get("assisted")
+    if not isinstance(assisted, dict) or not isinstance(assisted.get("in_combat"), bool):
+        raise ValueError("Native owner combat status missing or invalid")
+    return assisted["in_combat"]
+
+
+def opening_abandonment(snapshot, target):
+    if owner_in_combat(snapshot):
+        return {"abandoned": "received owner CombatStatus true before cast"}
+    if snapshot.get("target") != int(target):
+        raise ValueError("Native opening target observation changed")
+    health = snapshot["spells"].get("target_health")
+    if not isinstance(health, (int, float)) or health < 0:
+        raise ValueError("Native opening target health unavailable")
+    if health == 0:
+        return {"abandoned": "received selected target health zero before cast"}
+    return None
+
+
 def native_usable(snapshot, spell):
     if set(snapshot["spells"]["known"]) != set(snapshot["facts"]["known"]):
         raise ValueError("Native learned-spell snapshots disagree")
@@ -141,12 +161,15 @@ class PlayerController:
         return self.invoke("spell", "cast", "--spell", str(spell), "--target", str(target))
 
     def cast_opening(self, target, spell):
-        """One explicit prepull cast; server validates range/usability, no retry."""
+        """One prepull outcome or uncast abandonment; submitted casts still need ACK."""
         if self.pending is not None:
             raise RuntimeError("Opening cannot replace an outstanding cast")
         state = self.snapshot(target)
-        if state.get("target") != int(target) or spell not in state["spells"]["known"]:
-            raise ValueError("Opening requires observed target and learned spell")
+        abandoned = opening_abandonment(state, target)
+        if abandoned is not None:
+            return abandoned
+        if spell not in state["spells"]["known"]:
+            raise ValueError("Opening requires a learned spell")
         self.submit_cast(state, target, spell)
         while not self.observe_cast_outcome(self.snapshot(target)):
             time.sleep(.05)
@@ -174,6 +197,11 @@ class PlayerController:
             yaw = math.degrees(math.atan2(dx, dz))
             self.invoke("movement", "forward", "--seconds", str(seconds), "--yaw-degrees", str(yaw))
             return False
+        # Detour returns the walkable surface, not the requested NPC/model height.
+        endpoint = corners[-1]
+        goal_gap = math.hypot(endpoint[0] - goal[0], endpoint[2] - goal[2])
+        if goal_gap < .5 and math.dist(here, endpoint) < .5:
+            return True
         raise ValueError("Sourced route exhausted before goal; no direct-line fallback")
 
     def walk_route(self, goals, position, observe, timeout):
@@ -194,7 +222,8 @@ class PlayerController:
                     time.sleep(.1)
                     continue
                 before = position()
-                self.step_toward(before, goal, "authored-leg")
+                if self.step_toward(before, goal, "authored-leg"):
+                    break
                 time.sleep(.7)
                 after = position()
                 progressed = math.hypot(after[0] - before[0], after[2] - before[2]) >= .15
