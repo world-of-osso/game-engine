@@ -25,6 +25,8 @@
 - [Clean-room M2 particles](systems/godot-conversion.md#native-m2-particles) — native tails/follow/cubic controls, authored sorting and map-collision births; inherited-scale provenance and explicit lighting, timer/reset, spline-density, target-mask and model-recursion oracle gaps.
 # Wiki Index
 
+- [Item-confirmation caption shadow](systems/trading-post.md#item-confirmation-caption-shadow--bounded-proof-october17) — inherited black(+1,−1); RED→both-skin normal/delay/pending model/native GREEN,535/524/479 darkened pixels, exact alpha-off restoration; disabled-color and magenta RGB8 oracle failures retained, scaling/full-popup parity unqualified.
+
 - [Section focus flash](systems/adventure-guide.md#section-focus-flash--2026-10-17) — source Glow/four alpha phases; actual missing-effect RED, both-skin physical pulses,12 inspected full-HD captures and bounded pixel conservation; prior324 outside pixels retained as unattributed/not reproduced.
 - [Ordinary StaticPopup body shadow](systems/group-frames.md#ordinary-staticpopup-body-shadow--bounded-proof-2026-10-17) — PARTY_INVITE RED→both-skin model/native GREEN;855 darkened pixels/skin, exact alpha-off restoration and diagnostic-mask confinement; initial rectangle-overhang failure retained, effective font scaling/full-popup parity unqualified.
 
