@@ -83,10 +83,11 @@ func prove_chest_cycle() -> bool:
 		return fail("Native action rejected known perk")
 	if not await wait_until(func(): return Array(client.spells_state().cast_success).count(83958) > successes and find_new_chest(), "actual83958 cast and rendered206602"):
 		return false
-	cast_at = Time.get_ticks_msec()
 	var clock: Variant = perk_observation().mobile_cooldown
 	if clock == null or abs(float(clock.duration) - 7200.0) > 0.01:
 		return fail("Server cooldown is not user7200s: " + str(clock))
+	# Anchor to the actual received clock, not delayed model readiness.
+	cast_at = Time.get_ticks_msec() - int(round((7200.0 - float(clock.remaining)) * 1000.0))
 	await capture("cast-chest")
 	if not await click_pickable(func(node): return node.has_meta("game_object_server_id") and int(node.get_meta("game_object_server_id")) == chest_id, "game_object_server_id"):
 		return false
