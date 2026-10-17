@@ -265,6 +265,20 @@ class DepotBuildTests(unittest.TestCase):
         self.assertIn("--build-host", result.stderr)
         self.assertEqual(self.records(), [])
 
+    def test_shared_reference_csv_is_staged_but_untracked_csv_is_not(self):
+        shared = self.base / "shared-protocol"
+        relative = "scripts/reference/pvp-12.1.5.70391/PVPDifficulty.csv"
+        rows = "ID,MapID,MinLevel,MaxLevel\n1,489,10,19\n"
+        self._put(shared, relative, rows)
+        self._git(shared, "add", relative)
+        self._git(shared, "commit", "-qm", "add embedded bracket source")
+        self._put(shared, "scripts/reference/private.csv", "untracked input")
+        result = self.build()
+        self.assertEqual(result.returncode, 0, result.stderr)
+        files = self.records()[0]["files"]
+        self.assertEqual(files.get("shared-protocol/" + relative), rows)
+        self.assertNotIn("shared-protocol/scripts/reference/private.csv", files)
+
     def test_source_snapshot_and_originating_install(self):
         result = self.build(DEPOT_PROJECT_ID="custom-id")
         self.assertEqual(result.returncode, 0, result.stderr)
