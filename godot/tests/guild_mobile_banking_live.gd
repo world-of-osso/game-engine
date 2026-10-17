@@ -6,6 +6,7 @@ var invite_number := 0
 var removal_number := 0
 var chest_id := 0
 var cast_at := 0
+var first_skin := ""
 
 func run_test() -> void:
 	root.size = Vector2i(1920, 1080)
@@ -13,6 +14,8 @@ func run_test() -> void:
 	shots = OS.get_environment("BANK_SHOTS")
 	diagnostics = OS.get_environment("GUILD_PERKS_DIAGNOSTICS")
 	officer_dir = OS.get_environment("GUILD_PERKS_OFFICER_DIR")
+	first_skin = OS.get_environment("GUILD_MOBILE_START_SKIN")
+	assert(first_skin in ["Modern", "Forever"], "Explicit native case selection required")
 	assert(OS.get_environment("GODOT_TEST_SERVER") == "127.0.0.1:5891")
 	assert(OS.get_environment("BANK_ACCOUNT") == "fb_guildcompletion_perkspeer")
 	DirAccess.make_dir_recursive_absolute(shots)
@@ -34,8 +37,9 @@ func run_test() -> void:
 	if not (83958 in Array(client.spells_state().known)):
 		if not await join_actual_guild():
 			return
-	for skin in ["Modern", "Forever"]:
-		if skin == "Forever":
+	var skins := ["Modern", "Forever"] if first_skin == "Modern" else ["Forever"]
+	for skin in skins:
+		if skin == "Forever" and first_skin == "Modern":
 			mark_officer("next-officer.go")
 			var second_officer := officer_dir.path_join("forever-officer")
 			if not await wait_until(func(): return FileAccess.file_exists(second_officer.path_join("officer-ready.go")), "fresh authenticated officer for Forever actions"):
@@ -55,9 +59,10 @@ func run_test() -> void:
 	client.use_spell(83958)
 	if not await wait_until(func(): return Array(client.spells_state().cast_success).count(83958) > successes and find_new_chest(), "actual recast accepted after Forever2h"):
 		return
+	write_json(role + "-after-two-hours-recast.json", {"at_ms": Time.get_ticks_msec(), "cast_at_ms": cast_at, "owner": perk_observation(), "spells": client.spells_state()})
 	await capture("after-two-hours-recast")
 	mark_officer("done.go")
-	print("PASS GUILD_MOBILE_BANKING_NATIVE both_skins=true actual_cast=true member_bank=true nonmember_refused=true lifetime300s=true cooldown7200s=true real_wall_clock=true")
+	print("PASS GUILD_MOBILE_BANKING_NATIVE skins=%s actual_cast=true member_bank=true nonmember_refused=true lifetime300s=true cooldown7200s=true real_wall_clock=true" % str(skins))
 	client.free()
 	quit(0)
 
@@ -97,8 +102,18 @@ func prove_chest_cycle() -> bool:
 	var clock: Variant = perk_observation().mobile_cooldown
 	if clock == null or abs(float(clock.duration) - 7200.0) > 0.01:
 		return fail("Server cooldown is not user7200s: " + str(clock))
-	# Anchor to the actual received clock, not delayed model readiness.
-	cast_at = Time.get_ticks_msec() - int(round((7200.0 - float(clock.remaining)) * 1000.0))
+	# Both processes run on this same host. Use the actual server event's Unix
+	# timestamp, not the float32 UI timer's accumulated/interpolation error.
+	var origin: Dictionary = {}
+	for event in client.spells_state().cast_success_events:
+		if int(event.spell_id) == 83958:
+			origin = event
+	if origin.is_empty():
+		return fail("Actual server CastSuccess timestamp missing")
+	var observed_tick := Time.get_ticks_msec()
+	var observed_unix := int(round(Time.get_unix_time_from_system() * 1000.0))
+	cast_at = observed_tick - (observed_unix - int(origin.at_ms))
+	write_json(role + "-cast-origin.json", {"server_event": origin, "observer_unix_ms": observed_unix, "observer_tick_ms": observed_tick, "cast_at_ms": cast_at, "cooldown": clock})
 	await capture("cast-chest")
 	if not await click_pickable(func(node): return node.has_meta("game_object_server_id") and int(node.get_meta("game_object_server_id")) == chest_id, "game_object_server_id"):
 		return false
