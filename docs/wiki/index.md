@@ -30,6 +30,7 @@
 - [Bench resurrection projection](systems/battle-pets.md#bench-resurrection-projection--2026-10-16) — both-skin2347→two78/1563 reserves→physical swap→147-damage win; eight fullHD originals and canonical strict model readback.
 - [Two-way wall projection](systems/battle-pets.md#two-way-wall-projection--2026-10-16) — both-skin private5961 physical Ice Barrier incoming/outgoing blocks, pad/cooldown/log/health and six fullHD native originals;3D VFX/full Retail parity excluded.
 
+- [Journal search implementation](systems/adventure-guide.md#search-preview-and-full-results--implementation-2026-10-16) — source preview/full popup and input ownership root fixes; scoped tests/source gate pass, both-skin native acceptance pending.
 - [Trading Post cart item tooltips](systems/trading-post.md#cart-item-tooltips--implementation-october16) — regular/member identity and source owner offset/no sell price; native RED→both-skin hover/remove GREEN, global-input fixture correction and eight inspected full-HD samples.
 - [Fade effect projection](systems/battle-pets.md#fade-effect-projection--2026-10-16) — current70391 sourced random self-swap, both-skin fullHD pointer/log/model proof and91 identical rectangles; complete Retail art/timing excluded.
 

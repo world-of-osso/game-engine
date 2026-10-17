@@ -942,8 +942,11 @@ impl UiProjection {
         ] {
             style.set_content_margin(side, inset);
         }
-        node.add_theme_stylebox_override("normal", &style);
-        node.add_theme_stylebox_override("focus", &style);
+        // LineEdit::get_minimum_size takes max(normal, read_only) even while
+        // editable. Leaving read_only themed inflated the journal's20px box to23px.
+        for state in ["normal", "focus", "read_only"] {
+            node.add_theme_stylebox_override(state, &style);
+        }
         // Apply authored bounds after the font/border theme, not the default theme's minimum.
         // Labels use the same ordering; otherwise small copper inputs retain their creation size.
         node.set_size(Vector2::new(rect.width, rect.height));
@@ -1379,6 +1382,8 @@ fn connect_button(pending: &PendingInputs, id: u64, node: &mut Gd<Control>) {
 
 fn connect_edit_box(pending: &PendingInputs, frame: &Frame, node: &mut Gd<Control>) {
     let id = frame.id;
+    let journal_search =
+        frame.name.as_deref() == Some(game_engine_ui_model::adventure_guide::SEARCH);
     let text_pending = pending.clone();
     let Some(WidgetData::EditBox(data)) = &frame.widget_data else {
         return;
@@ -1401,14 +1406,26 @@ fn connect_edit_box(pending: &PendingInputs, frame: &Frame, node: &mut Gd<Contro
         ) {
             let submit_pending = pending.clone();
             let mut edit = node.clone();
+            // Journal SearchBoxListMixin keeps focus on short/no-result Enter.
+            // Its successful selection/Show All action owns Close() instead.
+            let release_on_submit = !journal_search;
+            if !release_on_submit {
+                let mut search = node.clone().cast::<LineEdit>();
+                search.set_keep_editing_on_text_submit(true);
+            }
             node.connect(
                 "text_submitted",
-                &Callable::from_fn("talent-search-submit", move |_| {
+                &Callable::from_fn("registry-search-submit", move |_| {
                     submit_pending.push(UiInput::Submit);
-                    edit.release_focus();
+                    if release_on_submit {
+                        edit.release_focus();
+                    }
                 }),
             );
-            if frame.name.as_deref() == Some("TalentSearchBox") {
+            if matches!(
+                frame.name.as_deref(),
+                Some("TalentSearchBox" | "EncounterJournalSearchBox")
+            ) {
                 let keys = search_preview_keys(pending.clone(), node.clone());
                 node.connect("gui_input", &keys);
             }
@@ -1434,7 +1451,7 @@ fn connect_edit_box(pending: &PendingInputs, frame: &Frame, node: &mut Gd<Contro
     } else if is_housing_search_field(frame.name.as_deref()) {
         release_housing_search_focus(node.clone())
     } else {
-        release_focus_on_escape(node.clone())
+        release_focus_on_escape(node.clone(), journal_search)
     };
     node.connect("gui_input", &keys);
 }
@@ -1505,7 +1522,7 @@ fn talent_import_keys(pending: PendingInputs, mut edit: Gd<Control>) -> Callable
 }
 
 fn search_preview_keys(pending: PendingInputs, mut edit: Gd<Control>) -> Callable {
-    Callable::from_fn("talent-search-preview-keys", move |args| {
+    Callable::from_fn("registry-search-preview-keys", move |args| {
         let Some(key) = args
             .first()
             .and_then(|event| event.try_to::<Gd<godot::classes::InputEventKey>>().ok())
@@ -1571,7 +1588,7 @@ fn release_guild_field_focus(mut edit: Gd<Control>, pending: PendingInputs, id: 
     })
 }
 
-fn release_focus_on_escape(mut edit: Gd<Control>) -> Callable {
+fn release_focus_on_escape(mut edit: Gd<Control>, consume_escape: bool) -> Callable {
     Callable::from_fn("registry-editbox-escape", move |args| {
         let escaped = args
             .first()
@@ -1579,6 +1596,10 @@ fn release_focus_on_escape(mut edit: Gd<Control>) -> Callable {
             .is_some_and(|key| key.is_pressed() && key.get_keycode() == godot::global::Key::ESCAPE);
         if escaped {
             edit.release_focus();
+            // Journal search owns its Escape; other edit widgets retain their bindings.
+            if consume_escape {
+                edit.accept_event();
+            }
         }
     })
 }
