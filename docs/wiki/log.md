@@ -1,6 +1,6 @@
 ## 2026-10-16 — Housing world redirect
 
-[World slices](systems/housing.md#world-redirect--active2026-10-16): both-skin real Founder terrain/entry photographs, named plot→persistedHouse policy, actual native walking fixture and private current-ground authentication. Exterior/room assembly choices remain explicit source gaps; new70448 archive bootstrap mismatch blocks further native work, no old-build pin or chrome fallback. House-list WORLD fixture prepared independently.
+[World slices](systems/housing.md#world-redirect--active2026-10-16): both-skin real Founder terrain/entry photographs, named plot→persistedHouse policy, actual native walking fixture and private current-ground authentication. Exterior/room assembly choices remain explicit source gaps. The70448 archive mismatch resolved externally;630/630 private ground payloads now match active content keys. Existing16-tile baker/query produces connected routes to both stones; native walk/claim remains pending measured keyboard-turn proof. Existing paid-owner house-list WORLD proof is independently queued. No old-build pin, position override or chrome fallback.
 
 ## 2026-10-16 — Full-HD storage capture boundary
 
