@@ -1,3 +1,7 @@
+## 2026-10-17 — Lock-On target charge projection
+
+[Bounded77](systems/battle-pets.md#lock-on-projection--2026-10-17): both actual strict skins/private5961 physical first enemy lock/no damage/1round, then145/143 blast/removal/Rabbit2,4; retained own334→305→277→249→224. Six inspected fullHD originals/all saved phases two framed models, geometry91/99/100 only fills/timed floats. Canonical4files+fragment hashes/actual3mesh loader pass; no UI code. Native5c98/da304/e9; local lib132/wild29/check1m02/no warnings/bothfmt pass with charge regressions5 and unchanged UI12 retained. Full cross-caster/timing/VFX unproved.
+
 ## 2026-10-17 — Life Exchange HP projection
 
 [Bounded277](systems/battle-pets.md#life-exchange-projection--2026-10-17): both actual strict skins/private5961 physical shared98/108, subsequent Scratch28/30 and retained owned70→78HP, CD5. Four inspected fullHD originals/all saved phases two framed models, geometry91/97 only HP fills. Existing canonical Sprite6294 closure6/6/loader2meshes; no new Sprite publication or UI code. Earlier TormentedSpirit66620 loads12meshes but authentic scale1.0 clips fixed viewport; rejected before cast/capture, no camera/scale workaround. Native1068/f8 and shared-helper drift/source boundaries recorded; final lib126/check1m25/no warnings/bothfmt pass, unaffected wild-PvP27 + replacement Sprite1 and unchanged UI12 proof retained.
