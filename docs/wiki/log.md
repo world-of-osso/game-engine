@@ -1,6 +1,12 @@
 ## 2026-10-17 — Ordinary party battleground queue
 
 [Party admission and late arrivals](systems/battlegrounds.md#ordinary-party-queue-and-late-arrivals--2026-10-17): normal invitation/accept four5-player parties→oneArathi20/10v10. QueueRED0vs20; sequentialWorldPortAck scoreboardRED18vs20→final8GREEN/check/fmt, no warnings. One zeroed accepted late-arrival row preserves real prior banner-assault scores. Native release20 and diagnostic19-peer live proof remain pending.
+## 2026-10-17 — Lock-On target charge projection
+
+[Bounded77](systems/battle-pets.md#lock-on-projection--2026-10-17): both actual strict skins/private5961 physical first enemy lock/no damage/1round, then145/143 blast/removal/Rabbit2,4; retained own334→305→277→249→224. Six inspected fullHD originals/all saved phases two framed models, geometry91/99/100 only fills/timed floats. Canonical4files+fragment hashes/actual3mesh loader pass; no UI code. Native5c98/da304/e9; local lib132/wild29/check1m02/no warnings/bothfmt pass with charge regressions5 and unchanged UI12 retained. Full cross-caster/timing/VFX unproved.
+## 2026-10-17 — Trading Post product-enter sound
+
+[Product-enter sound](systems/trading-post.md#product-enter-sound--october17): missing-kit registry RED and actual native zero-playback RED precede minimal218934 registration/owner dispatch through existing UiKits. Source70391 metadata versus authenticated70448 asset build retained; same-product ordinary/frozen owners differ, nested toggle remains parent, leave/teardown reset. Actual3a7/Sf426/Pe9b both-skin five decoded4906953 plays/12 lifecycle checkpoints, playing+finished/duration/gain and authority conservation GREEN; core3+TP52(+1DB2)/check/scoped Rustfmt3/readability pass. Twelve inspected PNGs published; exact binaries/receipts/six original memory boundaries retained. No selection218230, native empty-slot or hardware audibility claim.
 
 ## 2026-10-17 — Life Exchange HP projection
 
@@ -23,6 +29,13 @@
 
 [Bounded75](systems/battle-pets.md#launch-rocket-projection--2026-10-17): both actual strict skins/private5961 physically set up294 without enemy damage, then launch/expire294 and win at enemy0. Authored Lil' Bling20; retained owned injury1205→1180→1153, six inspected fullHD originals/two framed models, unchanged shared HUD geometry except fills/timed floats. Canonical194 assets reused with53 hash checks; actual native server6b44/engine8c/shared6b and source scope recorded, no new UI code or full timing/VFX claim.
 
+## 2026-10-17 — P5 material-transition integration proof
+
+[Native M2 particles](systems/godot-conversion.md#p5-geometry-and-recursive-ownership--2026-10-17): forward merge30ca371e2, warning-free native build/check, fmt and both synthetic native lifecycle/raster cases pass. Existing45 CPU controls retained on unchanged particle source/test hashes. Independent artifact verifier accepts bounded synthetic claims; unsupported child-mode, hidden-bone and capacity-exhaustion cases explicitly excluded from proof. Retail resolution/recursive clock/depth-cycle gaps remain.
+
+## 2026-10-17 — P5 geometry/recursive lifecycle implementation
+
+[Native M2 particles](systems/godot-conversion.md#p5-geometry-and-recursive-ownership--2026-10-17): independent geometry lifetime instances and child-state consumers; approved parent-age/retirement/move/birth/one-child-advance ordering, descendant draining and previous-frame interpolation. Billboard/native missing-consumer REDs observed;45 scoped CPU controls and2 synthetic native cases now pass. Native1/2 geometry +6/11 child quads, independent lifetime transform/RGBA, tinted raster, drained native visibility0/0 and owner teardown; three-generation draining CPU-only. Explicit synthetic SFID910006 fixes a fixture setup failure without a legacy resolver path. Current extracted-cache census finds no nonempty references; P5-product-resolution, P5-recursive-clock and depth/cycle-policy gaps retained. No S1/S3 changes.
 ## 2026-10-17 — Armageddon sacrifice projection
 ## 2026-10-17 — Explicit recraft refusal
 
@@ -34,6 +47,10 @@
 ## 2026-10-17 — Section focus flash
 
 [Focus pulse](systems/adventure-guide.md#section-focus-flash--2026-10-17): independent source Glow/four phases on the existing section-focus path. Missing-effect RED→timing/art controls and Modern2/Forever5 rendered pulses/zero/conservation;12 full-HD originals inspected. Native3's324 outside pixels stay unattributed/not reproduced, with unchanged strict native4/5 passing controls and paint-owner receipts. Merged extension check and scoped fmt pass; independent lead gate remains separate. Prior Journeys mask landed via374e.
+## 2026-10-17 — Plain LootFrame quality-caption font
+
+[QualityText](systems/loot-and-flight.md#plain-quality-caption-font--2026-10-17): GameFontWhiteTiny2/SystemFont_Tiny2 RomanFriz8 has no inherited shadow; only its unwanted shared-helper shadow removed. Genuine RED2pass/1fail→GREEN3; both-skin native96×10/font8/white unchanged, all otherlabelshadows retained.232 pixels lighten/skin,0darkened/outsidequality unions/whitecontrastmask; oldblack reapplication restoresbaseline exactly. Stale-protocol AchievementDelta compile failure retained separately, not behavioral RED. FullLootFrame art/input/lifecycle parity unqualified.
+
 ## 2026-10-17 — Item-confirmation caption shadow
 
 [Separate presenter captions](systems/trading-post.md#item-confirmation-caption-shadow--bounded-proof-october17): only inherited black(+1,−1), current12px/template colors/geometry/actions preserved. Genuine RED→GREEN1;12 native captions across both skins normal/delay/pending pass.535/524/479 darkened pixels per skin, none outside caption unions/white diagnostic masks; exact baseline/source restoration. Initial omitted-post-sync disabled-color and magenta RGB8 green-channel oracle failures retained and resolved without production color/geometry edits. Effective scaling/full-popup/purchase lifetime remain unqualified.
@@ -4516,3 +4533,4 @@ Source Item ownership replaces row-press actions; inset-aware native Button pick
 [Label shadow](systems/cursor-item.md#stacksplit-label-shadow--bounded-proof-2026-10-17): source20223a landsgate373e; RED→2GREEN plus lead9/7/4, mastere127 check/build and six both-skin native labels. Positive diagnostic masks and exact hidden-background RGB0 explain correctly inert black-on-black amount shadows; bundle total darkens281pixels/skin. All changes confined, shadow-off baseline exact and diagnostic restore exact. Green-only RGB8 counterexample retained with exact channel assertion, no tolerance;12 panels/context views inspected. Full-picker/sourcecolor/metrics/server/purchase excluded.
 
 - 2026-10-17: M2-MAT native85GREEN; both-skin1656441920×1080 half-blend before/after, exactly retained interrupted weights and pixel-identical Hold controls. Same final fixture across hashed old/new binaries; cubic/global-multivalue oracle limits retained.
+- 2026-10-17: [Cooldown-assist](investigations/cooldown-assist-data.md#assisted_combat_simc_mirror): user-approved bounded Fury spatial mirror; native Retail authority remains unknown.

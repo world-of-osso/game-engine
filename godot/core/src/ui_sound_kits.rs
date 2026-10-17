@@ -26,6 +26,8 @@ pub const HOUSING_EXPERTMODE_SUB_MENU_BUTTON_TOGGLE_SHORTCUT: u32 = 304887;
 /// Retail PerksProgram.OnShow/OnHide, active70391 SoundKitConstants.lua.
 pub const TRADING_POST_UI_MENU_OPEN: u32 = 218932;
 pub const TRADING_POST_UI_MENU_CLOSE: u32 = 218933;
+/// Retail product OnEnter, including the inherited frozen product template.
+pub const TRADING_POST_UI_ITEM_HOVER: u32 = 218934;
 
 #[derive(Clone, Copy, Debug, PartialEq)]
 pub struct UiSoundKit {
@@ -117,6 +119,11 @@ const KITS: &[UiSoundKit] = &[
         volume: 0.69,
         // sound/spells/tradeskills/mininghit{a..}.ogg
         files: &[569_801, 569_811, 569_792, 569_794, 569_821],
+    },
+    UiSoundKit {
+        id: TRADING_POST_UI_ITEM_HOVER,
+        volume: 0.891_250_9,
+        files: &[4_906_953],
     },
 ];
 
