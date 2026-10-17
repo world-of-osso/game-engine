@@ -14,6 +14,39 @@ fn screen(shared: &SharedContext) -> Element {
 }
 
 #[test]
+fn ready_check_message_inherits_black_shadow_both_skins() {
+    use ui_toolkit::widgets::font_string::GameFont;
+
+    game_engine_ui_model::paths::set_data_root(
+        std::path::PathBuf::from(env!("CARGO_MANIFEST_DIR")).join("../../data"),
+    )
+    .unwrap();
+    for skin in [ActiveSkin::Modern, ActiveSkin::Forever] {
+        set_thread_skin(skin);
+        let mut shared = SharedContext::new();
+        shared.insert(ReadyCheckFrameState {
+            visible: true,
+            initiator: "Raidleader".into(),
+        });
+        let mut registry = FrameRegistry::new(1920.0, 1080.0);
+        Screen::new(screen).sync(&shared, &mut registry);
+        let frame = registry
+            .get(registry.get_by_name("ReadyCheckFrameText").unwrap())
+            .unwrap();
+        let Some(WidgetData::FontString(text)) = &frame.widget_data else {
+            panic!("ReadyCheck message must be text");
+        };
+        assert_eq!(frame.height.value(), 28.0);
+        assert_eq!(text.font, GameFont::FrizQuadrata);
+        assert_eq!(text.font_size, 12.0);
+        // Existing white is a control, not certification of source NORMAL_FONT_COLOR.
+        assert_eq!(text.color, [1.0; 4]);
+        assert_eq!(text.shadow_color, Some([0.0, 0.0, 0.0, 1.0]), "{skin:?}");
+        assert_eq!(text.shadow_offset, [1.0, -1.0]);
+    }
+}
+
+#[test]
 fn ready_check_message_keeps_source_top_anchor_both_skins() {
     game_engine_ui_model::paths::set_data_root(
         std::path::PathBuf::from(env!("CARGO_MANIFEST_DIR")).join("../../data"),

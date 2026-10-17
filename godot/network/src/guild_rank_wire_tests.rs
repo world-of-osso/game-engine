@@ -84,31 +84,43 @@ fn guild_invitation_and_decline_cross_real_udp() {
     });
     let mut bridge = NetworkBridge::connect(address, 8262).unwrap();
     connect(&mut server, &mut bridge);
-    let invitation = GuildInvitation {
-        guild_id: 7,
-        guild_name: "Raid Team".into(),
-        inviter_name: "Alice".into(),
-    };
-    let world = server.world_mut();
-    world
-        .query::<&mut MessageSender<GuildInvitation>>()
-        .single_mut(world)
-        .unwrap()
-        .send::<AuthChannel>(invitation.clone());
-    let deadline = Instant::now() + Duration::from_secs(10);
-    let mut received = None;
-    while received.is_none() && Instant::now() < deadline {
-        server.update();
-        for event in bridge.drain_events().unwrap() {
-            if let Event::Message(message) = event {
-                if message.is::<GuildInvitation>() {
-                    received = Some(message.downcast::<GuildInvitation>().ok().unwrap());
+    for tabard in [
+        None,
+        Some(shared::guild_creation::GuildTabardDesign {
+            icon: 1,
+            icon_color: 2,
+            border: 3,
+            border_color: 4,
+            background_color: 5,
+        }),
+    ] {
+        let invitation = GuildInvitation {
+            guild_id: 7,
+            guild_name: "Raid Team".into(),
+            inviter_name: "Alice".into(),
+            tabard,
+        };
+        let world = server.world_mut();
+        world
+            .query::<&mut MessageSender<GuildInvitation>>()
+            .single_mut(world)
+            .unwrap()
+            .send::<AuthChannel>(invitation.clone());
+        let deadline = Instant::now() + Duration::from_secs(10);
+        let mut received = None;
+        while received.is_none() && Instant::now() < deadline {
+            server.update();
+            for event in bridge.drain_events().unwrap() {
+                if let Event::Message(message) = event {
+                    if message.is::<GuildInvitation>() {
+                        received = Some(message.downcast::<GuildInvitation>().ok().unwrap());
+                    }
                 }
             }
+            thread::sleep(Duration::from_millis(5));
         }
-        thread::sleep(Duration::from_millis(5));
+        assert_eq!(received, Some(invitation));
     }
-    assert_eq!(received, Some(invitation));
     bridge
         .send::<_, AuthChannel>(GuildDeclineInviteRequest)
         .unwrap();

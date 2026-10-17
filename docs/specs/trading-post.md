@@ -35,6 +35,29 @@ Retail Mainline Blizzard_PerksProgram and the local C_PerksProgram/PerksActiviti
 - Preserve explicit missing metadata errors; use the shared Retail item formatter in both art skins. Frozen/detail panes/currency/cart-toggle tooltips and item-effect formatting remain separate.
 - [x] Native missing-cart-tooltip RED→both-skin fa2f671f1/681461bd/ff22429 GREEN, fixture5d00ba393: regular item and two genuine ensemble members, source offset/no sell price/item identities, unchanged preview/cart/Tender and hover/remove/panel-close/HUD lifetimes. Model2 covers header/wrong-vendor/removed-owner cases. Eight inspected full-HD originals+two contacts: `/syncthing/AgentShared/2026-10-16/trading-post-cart-tooltips/`; diagnostic manifest binds exact artifacts and inputs.
 
+## Product-row refund glyph blending
+
+- [x] Ordinary and inherited frozen product rows paint their21×21 `common-icon-undo` texture with source `alphaMode="ADD"` (Elements.xml325–333). Keep their atlas, geometry, input and tooltip ownership unchanged; do not tune opacity or introduce another renderer mode.
+- [x] The separate32×32 PurchasedHistoryFrame refund icon retains its normal blend: Program.xml886–891 has no ADD override. No global atlas-name rule may make it additive.
+- [x] Both skins require framebuffer agreement with ADD and a distinguishable MIX counterfactual for both21px owners, plus normal-footer control and restored-frame checks. Expose both row owners through one genuine purchase/refund of the existing reservation; preserve Tender, collected state, frozen ID and empty cart, without resetting the reservation. Native pixel failure must precede implementation; node/material selection alone is insufficient proof.
+
+## Product-row refund icon tooltip
+
+- [x] Hovering the21×21 undo texture uses Retail Elements.lua123–137/Elements.xml325–333 refund-time text, owned by that texture at ANCHOR_RIGHT0/0 rather than the enclosing row. The hovered vendorID determines remaining time even while another product is selected; ordinary row hover still shows its item tooltip.
+- [x] Use the existing TimeLeftFooterFormatter (two nonzero units, minimum minutes, floor) and source time color: white above3600 seconds, red at/below. Unknown/nonrefundable/elapsed-to-zero products and a closed vendor supply no refund tooltip. Hover/leave cannot mutate selected product, cart, frozen reservation or Tender.
+- [x] Both skins require native pointer/owner/leave/teardown and inspected painted proof. A genuine private-policy purchase/refund round trip restores the starting balance; production refund duration stays unchanged. Footer-history tooltip and provider/calendar states remain outside this slice.
+
+- [x] Actual9bbc/CLI0c00/server77c31f23/P540 native generic-item-tooltip RED→actualca0b75d39/server4e9bbb37/Pb701 both-skin GREEN, fixture d46da47b7: refundable642 versus selected848 (Modern),734 versus640 (Forever); painted59m/anchor, parent click, ordinary-tooltip return and real hovered-owner Escape teardown/HUD. One genuine purchase/refund per skin restores Tender19040/19670, collected state and frozen640/712; carts remain empty. Eight inspected full-HD originals+two contacts+two crops: `/syncthing/AgentShared/2026-10-16/trading-post-refund-icon-tooltip/`; diagnostic manifest binds exact binaries/fixture/eight receipts/twelve memory boundaries. Model3 covers threshold/units/expiry; native white-above-hour/expiry and inherited frozen refundable icon were not forced.
+
+## Product-row cart toggle
+
+- Eligible hovered ordinary rows show the Retail `ProductCartToggleButtonMixin` control (Elements.xml357–371; Elements.lua291–300/412–487):36×36 centered on the42×38 TimeRemaining field, derived row position443/6. Use all authored add/minus normal/pressed/disabled/highlight atlases; membership replaces the item icon with32×32 `perks-shoppingcart` (Elements.lua402–408). Leave hides the toggle; footer Add/Remove controls remain distinct.
+- Toggle the hovered vendor product ID without selecting its model or changing Tender/frozen authority. Reuse existing cart eligibility; reject frozen, purchased, collected, refundable, unavailable and outstanding-request cases. Missing per-item delivery-pending remains a provider gap, not inferred from generic request state.
+- The actual hovered toggle owns a highlight-color Add to Cart/Remove from Cart tooltip at source ANCHOR_LEFT0/0; membership changes its label immediately. Returning to the row restores its existing item tooltip; leave and vendor teardown clear ownership.
+- Adding while the cart is open appends default wearable selections only for unoccupied slots, preserving disabled previews and OTHER override (Elements.lua1221–1257/2167–2186). Removing uses the existing member cleanup/empty-cart close path. No new transaction or preview-framing policy.
+- The authored base state remains painted beneath its separate highlight. Node existence alone cannot certify cart glyphs: native frame inspection and a relative center-glyph contrast guard detect replacement by a flat highlight. Existing overlay opacity/blend remains unchanged in this bounded correction.
+- [x] Model missing-action3 and actual missing-native-button/paint RED precede actual9bbc554ad/server77c31f23/protocol5405246 both-skin GREEN: source geometry, painted add/pressed/minus/cart indicator, left0/0 tooltips, row versus selected identity, leave/teardown and open-cart append retaining disabled preview. Native center-glyph contrast retains0.732 of normal versus prior RED0.167. Tender19040/19670 and frozen640/712 unchanged; carts restored empty, no transactions. Ten inspected full-HD originals+two contacts+two crops: `/syncthing/AgentShared/2026-10-16/trading-post-row-cart-toggle/`; diagnostic `row-cart-toggle-proof-manifest.json` binds exact runtime/fixture/receipts/memory.
+
 ## Button tooltips
 
 - Purchase, View Cart, Clear Cart, Purchase Cart and disabled Refund use Retail Elements.lua767–782/832–838/869–873/2065–2070/2099–2112 `ShowTooltip` branches. Tooltip owner is the actual projected button at `ANCHOR_LEFT`, offsets0/0; exact labels come from GlobalStrings70391.
@@ -125,10 +148,10 @@ Retail SharedXML calls native `CalculateMountScale`; its formula remains unestab
 ## Tests asserting this spec
 
 - `scripts/tests/test_trading_post_import.py`: authentic category/price/UI group round-trip and mismatched-layout rejection.
-- `godot/ui-model/tests/trading_post.rs`: both-skin XML geometry/dropdown, Tender/price/frozen/refund controls, modal confirmation/no local debit/pending state, freeze/replace/drag-off requests and second-page/category clipping.
+- `godot/ui-model/tests/trading_post.rs`: both-skin XML geometry/dropdown, Tender/price/frozen/refund controls, modal confirmation/no local debit/pending state, freeze/replace/drag-off requests, second-page/category clipping and refund-icon row identity/time-unit/color/expiry/closed suppression.
 - `godot/network/src/trading_post_wire_tests.rs`: real UDP snapshot/request round-trip.
 - `scripts/tests/test_trading_post_asset_seeds.py`: server preview rules (mount/pet/transmog/set) and whole-chain receipt verdicts.
-- `godot/tests/trading_post_live.gd`: private 127.0.0.1:5791 fb_* native-input proof — Log Tender line, authentic NPC gossip, HUD hidden/restored, category dropdown, player transmog/set and creature mount/pet previews, drag rotation, ToyOverlay, unavailable row, drag-to-freeze, unaffordable gating and frozen slot after relog.
+- `godot/tests/trading_post_live.gd`: private 127.0.0.1:5791 fb_* native-input proof — Log Tender line, authentic NPC gossip, HUD hidden/restored, category dropdown, player transmog/set and creature mount/pet previews, drag rotation, ToyOverlay, unavailable row, drag-to-freeze, unaffordable gating and frozen slot after relog. Phase `refund-icon-tooltip` proves ordinary-row owner/parent-click/hovered-owner teardown and authoritative purchase/refund conservation.
 
 ## Known gaps (current cycle)
 
