@@ -28,6 +28,7 @@
 - [Product-row refund icon tooltip](systems/trading-post.md#product-row-refund-icon-tooltip--implementation-october16) — source texture-owned refund time; native generic-item-tooltip RED→both-skin painted right-anchor/parent-click/hovered-owner teardown GREEN, genuine purchase/refund conservation.
 - [ReadyCheck message shadow](systems/group-frames.md#readycheck-message-shadow--bounded-proof-2026-10-16) — inherited Roman black(+1,−1), RED→3GREEN and both-skin native1080p;1002 darkened pixels/skin, zero outside changes, exact shadow-off control; colors/full popup/lifecycle excluded.
 
+- [Earned-wallet source boundary](systems/battlegrounds.md#earned-wallet-source-continuation--2026-10-16) — explicit Honor mirror, actual both-skin world-kill wallet proof; [source match brackets](systems/battlegrounds.md#source-match-brackets--2026-10-16) retained at admission; [Arathi completion](systems/battlegrounds.md#arathi-completion-honor--2026-10-16) has terminal-tick/persistence proof under explicit once-per-match policy; other BG callbacks/Conquest open.
 - [MirrorTimer label shadow](systems/swimming.md#mirrortimer-label-shadow--2026-10-16) — inherited Roman black(+1,−1), RED→5GREEN and six both-skin native label cases;731 darkened pixels/skin, zero outside changes, exact transparent-shadow control; cadence/full-timer parity excluded.
 
 - [Earned-wallet source boundary](systems/battlegrounds.md#earned-wallet-source-continuation--2026-10-16) — explicit HONOR_WALLET_MIRRORS_HONOR_XP policy binds TC-derived Honor to1792, XP stays separate; Conquest unmapped, native proof pending.
@@ -36,7 +37,6 @@
 - [Portrait-inclusive HUD clearance](systems/launcher.md#portrait-inclusive-hud-clearance--2026-10-16) — approved321×79 player mount retained; exact HUD bounds and strict panel/metal clearance,31+9 tests and both-skin native1080p proof; Modern identical, no Forever changes outside launcher paint.
 
 - [Product-row cart toggle](systems/trading-post.md#product-row-cart-toggle--implementation-october16) — source36px row-owned Add/Remove control, independent identity/tooltip and preserved cart preview choices; native omission/paint RED→both-skin painted glyph GREEN.
-- [Earned-wallet source boundary](systems/battlegrounds.md#earned-wallet-source-continuation--2026-10-16) — kill/completion binding gaps remain; sourced static-weekly bookkeeping corrected separately, no invented payout.
 
 - [Inherited frozen item tooltip](systems/trading-post.md#inherited-frozen-product-tooltip--implementation-october16) — displayed selection action fixes inherited owner omission; actual both-skin settled frozen identity/anchor/leave GREEN, preserved slots/Tender, four inspected full-HD hover/leave samples.
 - [Miss-only self outcome projection](systems/battle-pets.md#miss-only-self-outcome-projection--2026-10-16) — both-skin Haymaker self-stun, Gift59/68 healing, actual hit controls and ten fullHD originals; strict canonical readback, full timing/VFX unqualified.

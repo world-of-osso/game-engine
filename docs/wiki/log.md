@@ -11,6 +11,14 @@
 [Search](systems/adventure-guide.md#search-preview-and-full-results--implementation-2026-10-16) native8 passes both skins on productf2c8a410a: continued typing, actual preview/full popup, wheel/close/query retention and authored section selection. Eight full-HD originals inspected. Pixel inspection found exported quote spelling leaking through localization; actual RED→four focused tests GREEN and current clean title assertion/paint pass. Native7 first-J failure remains separate; no readiness patch. Current quote-fix check pending; C API/data gaps unchanged.
 
 ## 2026-10-16 — Journal search implementation; native acceptance pending (historical2344 checkpoint)
+## 2026-10-16 — Arathi completion Honor
+
+[Completion](systems/battlegrounds.md#arathi-completion-honor--2026-10-16): explicit BG_END_BONUS_ONCE_PER_MATCH normalizes pinned TC's roster-loop placement, not a Retail claim. Real terminal-resource-tick RED0vs122→GREEN proves separate39-bracket61+61 awards,90-bracket80-level clamp, eligible/dead/excluded recipients, cap/XP separation, no type35 event, replay and reopen. Original admission/mirror/Honor35 regressions11 remain GREEN; scoped server check passes. Additional channel lifecycle proves full node/capture/resource victory,60/30 wallet/XP and origin return after explicitly inserting the production-auth wallet component. Gate364 Deephaul RED traced to fixture level19 outside every source bracket; source-valid primary setup now uses80 and retains all gameplay assertions. No external UDP/rendered BG proof. Other BG callbacks remain open.
+
+## 2026-10-16 — Source battleground brackets
+
+[Brackets](systems/battlegrounds.md#source-match-brackets--2026-10-16): authenticated70391 PVPDifficulty ranges isolate groups/matches and survive admission into the live instance. Mixed39/40 group and mixed29/30–39 roster RED2→protocol36/server11 GREEN; scoped native/server checks pass. Exact epic20–79 and Deephaul80 minimum preserved; no decade guess, match-pairing award or Arena/Conquest policy. BG Honor callbacks remain next.
+
 ## 2026-10-16 — Product-row refund icon tooltip implementation
 ## 2026-10-16 — Journal search implementation; native acceptance pending
 
