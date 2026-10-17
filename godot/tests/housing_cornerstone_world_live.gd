@@ -25,7 +25,17 @@ func run_test() -> void:
 		await click_control(close, MOUSE_BUTTON_LEFT)
 	# GameObjects527261 actual authored position, NOT NeighborhoodPlot's marker.
 	var destination := Vector3(3641.85669, 104.272713, -258.151031) if housing_skin == "Modern" else Vector3(3569.20312, 102.340424, -265.888885)
-	# Keep the gate's centreline between its observed north/south collision pillars.
+	# The authored spawn is inside the entrance fountain's raised stone ring.
+	# Approach its observed west wall, then use ordinary W+Space to clear it.
+	if not await walk_to_cornerstone(Vector3(3785.0, 192.0, 160.427), 0.6): return
+	push_key(KEY_W, true)
+	push_key(KEY_SPACE, true)
+	await frames(2)
+	push_key(KEY_SPACE, false)
+	await create_timer(1.5).timeout
+	push_key(KEY_W, false)
+	await frames(20)
+	if not await capture_housing("fountain-wall-jump-world"): return
 	for waypoint in [Vector3(3750.0, 180.0, 160.427), destination]:
 		if not await walk_to_cornerstone(waypoint): return
 	if not await capture_housing("walk-arrived-world"): return
@@ -66,7 +76,7 @@ func enter_neighborhood() -> bool:
 	await frames(90)
 	return await capture_housing("authored-entry-world")
 
-func walk_to_cornerstone(destination: Vector3) -> bool:
+func walk_to_cornerstone(destination: Vector3, stop_radius: float = 3.5) -> bool:
 	var deadline := Time.get_ticks_msec() + 240000
 	var last_position: Vector3 = client.account_state().local_player_position
 	var stalled := 0
@@ -75,14 +85,14 @@ func walk_to_cornerstone(destination: Vector3) -> bool:
 		var position: Vector3 = state.local_player_position
 		var to := destination - position
 		walk_samples.append({"position":position,"server":state.local_server_position,"remaining":to.length()})
-		if Vector2(to.x, to.z).length() < 3.5:
+		if Vector2(to.x, to.z).length() < stop_radius:
 			push_key(KEY_W, false)
 			await frames(30)
 			return true
 		if not await face_walk_direction(atan2(to.x, to.z)): return false
 		client.set_camera_orbit(float(client.account_state().local_player_facing) - PI, -0.4, 20.0)
 		push_key(KEY_W, true)
-		await create_timer(0.6).timeout
+		await create_timer(minf(0.6, Vector2(to.x, to.z).length() / 14.0)).timeout
 		push_key(KEY_W, false)
 		await frames(3)
 		position = client.account_state().local_player_position
