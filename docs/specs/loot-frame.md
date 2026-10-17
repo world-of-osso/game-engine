@@ -30,6 +30,10 @@ References:
 - [ ] Not built: the scroll bar (more than five cards grow the frame past `panelMaxHeight` 290), card hover/pushed strokes, item tooltips, the show/hide and slide-out animations, quest item overlays, Escape to close, loot sounds, group loot roll frames (`GroupLootFrame`), `LOOT_BIND` confirmation.
 - [ ] Right-clicking a hostile living NPC still also sends an interaction the server refuses ("Target is hostile").
 
+## Quality-caption font inheritance
+
+- [ ] LootFrame item `QualityText` uses plain `GameFontWhiteTiny2` / Roman `SystemFont_Tiny2`: current Friz8, white, no shadow. Preserve its96×10 box/anchors, the shadowed money/item names/title/count, artwork, slot/close actions and input behavior. Supplied-state typography proof does not qualify full-window art, hovering, loot authority or lifecycle.
+
 ## Native Godot conversion
 
 - [x] Receive per-looter `CorpseLootable` and existing loot-window messages through the native transport/account host (bounded owned fixture).
