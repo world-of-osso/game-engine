@@ -1,3 +1,4 @@
+- [ReadyCheck title shadow](systems/group-frames.md#readycheck-title-shadow--implementation-2026-10-17) — inherited Roman black(+1,−1) only; genuine missing-shadow RED, title colour/layout retained as gaps; native proof pending gate.
 - [UI_SOUND_PITCH_ADJUST_RATE](systems/sound.md#ui_sound_pitch_adjust_rate) — Retail UI/data inspected, playback-rate equation unestablished; hide/show remains deferred with no code.
 - [Trading Post product-enter sound](systems/trading-post.md#product-enter-sound--october17) — sourced218934, ordinary/inherited owner lifecycle, authenticated70448 Ogg; registry/native missing-playback RED→both-skin five decoded plays/12 lifecycle checkpoints, conserved authority.
 - [Zero-operand cast modifier67](investigations/cooldown-assist-data.md#fire-cast-overlap-modifier67--2026-10-17) — sourced Fireball133 oracle, unchanged native casting/usability gates; nonzero operands refuse, unflagged overlap policy remains separate.
