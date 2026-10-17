@@ -1289,7 +1289,10 @@ fn trading_post_dropdown_selection_and_sort_headers_order_real_rows() {
     row.id = 5;
     row.name = "Arcanofire Wrap".into();
     row.price = 75;
-    data.items.push(row);
+    let mut second_ordinary = data.items[0].clone();
+    second_ordinary.id = 6;
+    second_ordinary.name = "Azure Warcloak".into();
+    data.items.extend([row, second_ordinary]);
     let mut view = View {
         visible: true,
         snapshot: Some(Arc::new(data)),
@@ -1299,12 +1302,12 @@ fn trading_post_dropdown_selection_and_sort_headers_order_real_rows() {
     view.click("perks:sort:price").unwrap();
     assert_eq!(
         view.rows().iter().map(|r| r.id).collect::<Vec<_>>(),
-        vec![5, 4]
+        vec![5, 6]
     );
     view.click("perks:sort:price").unwrap();
     assert_eq!(
         view.rows().iter().map(|r| r.id).collect::<Vec<_>>(),
-        vec![4, 5]
+        vec![6, 5]
     );
     view.click("perks:filter").unwrap();
     let registry = render(ActiveSkin::Forever, view.clone());
@@ -1337,11 +1340,15 @@ fn trading_post_retail_xml_geometry_and_dropdown_in_both_skins() {
     // Blizzard_PerksProgram.xml: LEFT+46, vertical center+22; WoW Y is upwards.
     // Elements.xml base extent 176x48; list stretches width to 527-24.
     for skin in [ActiveSkin::Modern, ActiveSkin::Forever] {
+        let mut data = snapshot();
+        let mut ordinary = data.items[0].clone();
+        ordinary.id = 5;
+        data.items.push(ordinary);
         let registry = render(
             skin,
             View {
                 visible: true,
-                snapshot: Some(Arc::new(snapshot())),
+                snapshot: Some(Arc::new(data)),
                 selected: Some(4),
                 ..Default::default()
             },
@@ -1354,8 +1361,8 @@ fn trading_post_retail_xml_geometry_and_dropdown_in_both_skins() {
             rect(&registry, "PerksProgramScrollBox"),
             [0., 58., 503., 573.]
         );
-        assert_eq!(rect(&registry, "PerksProgramProduct4"), [0., 0., 503., 48.]);
-        assert_eq!(rect(&registry, "PerksProgramIcon4"), [32., 8., 32., 32.]);
+        assert_eq!(rect(&registry, "PerksProgramProduct5"), [0., 0., 503., 48.]);
+        assert_eq!(rect(&registry, "PerksProgramIcon5"), [32., 8., 32., 32.]);
         assert_eq!(
             rect(&registry, "PerksProgramFilter"),
             [55., 95.5, 145., 25.]
@@ -1411,7 +1418,7 @@ fn trading_post_both_skins_show_real_tender_price_frozen_item_and_disabled_refun
             },
         );
         assert_eq!(text(&registry, "PerksProgramCurrencyAmount"), "500");
-        assert_eq!(text(&registry, "PerksProgramPrice4"), "100");
+        assert_eq!(text(&registry, "PerksProgramFrozenPrice4"), "100");
         assert_eq!(
             text(&registry, "PerksProgramFrozenLabel"),
             "Distinguished Warcloak"
@@ -1527,6 +1534,7 @@ fn trading_post_empty_freeze_slot_and_leave_use_sourced_text_and_arrow() {
 #[test]
 fn trading_post_retail_filter_checks_ownership_usability_and_multiple_types() {
     let mut source = snapshot();
+    source.frozen_item_id = None;
     let mut owned = source.items[0].clone();
     owned.id = 5;
     owned.purchased = true;
