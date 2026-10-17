@@ -14,6 +14,13 @@
 ## 2026-10-16 — Bench resurrection HUD projection
 
 [Shared2347 projection](systems/battle-pets.md#bench-resurrection-projection--2026-10-16): both actual skins physically revive two persisted-dead reserves to78/1563, pointer swap, retain incoming damage and win through the revived pet's147-damage Metal Fist. Eight fullHD originals inspected;92/98/131/98 geometry differs only in timed float. Canonical78-asset closure and explicit strict loader readback pass; world-native mode, exact runtime heads and pre-auth recovery are documented. No UI change/full Retail timing/VFX claim; owned processes stopped.
+## 2026-10-16 — LOS-aware opening preparation
+
+[Riverpaw boundary](systems/bot-harness.md#los-aware-pull-preparation--2026-10-16): release12b records native range true but native ray absent/server visibility false. Prepull movement now waits for native visibility along the same strict navmesh route, bounded by time/travel; no target cycling, cast retries or LOS relaxation. Captured-case RED and live runtime proof remain distinct.
+
+## 2026-10-16 — Native range/cast pose coherence
+
+[Local pose](systems/bot-harness.md#local-rangecast-pose--2026-10-16): real one-second input moves the local client7yd while the loopback host keeps its owner Position frozen; RED shows native Slam range still true at the old replica. Range and cast origin now share the current local pose. Focused fixture also receives the ordinary cast origin; full dev-IPC bag-catalog readiness and fresh release-server Stockade acceptance remain separate.
 
 ## 2026-10-16 — Two-way pet-wall HUD projection
 
