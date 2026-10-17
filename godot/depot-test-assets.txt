@@ -4936,3 +4936,7 @@ models/631619900.skin
 # Clean-room inherited-scale authored field.
 models/2994778.m2
 models/299477800.skin
+
+textures/5747318.blp
+db2/active/ProfessionExpansion.csv
+db2/active/CurrencyTypes.csv

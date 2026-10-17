@@ -57,3 +57,12 @@ Private UDP5770, owned `fb_moderncraft_m`/`fb_moderncraft_f`, Classic Leatherwor
 ## Sources
 
 Existing profession implementation cites TrinityCore a352b1fa `Trainer::TeachSpell`, `Spell::CheckItems`/`TakeReagents`, `Player::UpdateCraftSkill` and `SkillGainChance`. Retail local UI: `Blizzard_ProfessionsTemplates/Blizzard_ProfessionsRecipeList.lua`, `Blizzard_ProfessionsRecipeReagentSlot.lua` (quality overlay), `Blizzard_Professions.lua:GetReagentQualityInfo`; both skins reuse these elements.
+
+## Concentration currency display
+
+- Read-only owner queries require a learned skill line and return the authored ProfessionExpansion→CurrencyTypes ID, cap, icon, recharge amount and millisecond cycle. No crafting outcome is inferred.
+- Both skins use Mainline ProfessionsCurrencyTemplate:110×32 at CraftingPage TOPLEFT120,-35,24×24 icon and source label anchor. Known quantities use the source quantity/max format; unknown quantities use an em dash rather than an invented initial zero/full wallet.
+- The currency tooltip preserves the Retail description/full-cap warning where applicable and discloses `CRAFTING_CONCENTRATION_ORIGIN`. No initial grant, recharge epoch, login origin or live recharge is implemented while this gap remains unsourced. Static recharge fields are not live-regeneration proof.
+- Concentration metadata never enables Create or bypasses `CRAFTING_OPERATION_COMPOSITION`.
+
+Both rendered1920×1080 skins passed `modern_crafting_concentration_live.gd` on owned private UDP5951: unknown quantity, authored tooltip with named gap and disabled Create. [Native proof](../wiki/systems/native-professions-crafting.md#concentration-metadata-boundary) owns artifacts and exact gate scope; this is display/metadata proof, not live-regeneration proof.

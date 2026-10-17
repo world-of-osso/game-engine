@@ -1,0 +1,22 @@
+{
+  "provenance": "native-stockade-fury18-trace/route-e79fc7b0a1f84ef79cc6fe7b56a3fad1.json; actual strict Detour projection, no partial corridor",
+  "start": [
+    72.20226,
+    -25.10591,
+    -0.554705
+  ],
+  "requested_goal": [
+    72.20223003421471,
+    -24.1785259246826,
+    -0.5547040166157253
+  ],
+  "corners": [
+    [
+      72.20226,
+      -24.690338,
+      -0.554705
+    ]
+  ],
+  "raw_goal_distance": 0.9273840758020532,
+  "projected_end_distance": 0.41557200000000094
+}

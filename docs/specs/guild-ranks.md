@@ -39,7 +39,8 @@ decisions; `guild_rank_frame.rs` renders the native roster/settings canvas and
 - [x] MOTD input preserves typed order and caret position across projection updates, including insertion in the middle of existing text.
 - [x] Authenticated native multiline editor and authoritative readback inspected; both-skin profile and restart preserve both lines.
 - [x] GuildInviteFrame uses its inherited TranslucentFrameTemplate: black0.9 background inset10px, four32px DialogFrame corner quadrants and tiled16px border strips at the source anchors. Join/Decline/pending state and existing content remain unchanged. Two focused controls and both-skin native source rectangles/physical Join/Decline/pending pacing pass; four1920×1080 before/after PNGs inspected2026-10-15. Offline fixture authority only.
-- [ ] GuildInviteFrame tabard/achievement payload and inner GuildExtra art remain pending; no emblem or points are fabricated. Other source content geometry and reputation/expiry/Escape lifecycle acceptance are separate from the chrome continuation.
+- [ ] GuildInviteFrame renders the inviting guild's actual optional registered tabard from GuildInvitation in both skins: source GuildExtra background/ring, GuildFrame background/border and large emblem sheet/palette. No design uses GuildUtil's explicit no-logo branch, never an invented registration. Implementation committed; focused and native proof pending.
+- [ ] Achievement points and reputation warning data remain unavailable; no values are fabricated. Other source content geometry and reputation/expiry/Escape lifecycle acceptance remain separate.
 
 ### Permissions and members
 - [x] Mainline exposes guild-chat speak, Officer(id22), invite/remove/promote/demote and monetary checks. MOTD/info/note rights are preserved/enforced independently and appear only in source OfficerPermissions bullet text, not invented controls.
