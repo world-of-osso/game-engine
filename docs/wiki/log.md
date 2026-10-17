@@ -5,6 +5,9 @@
 ## 2026-10-17 — Native release20 Arathi lifecycle
 
 [Bounded release proof](systems/battlegrounds.md#native-release20-arathi--bounded-proof2026-10-17): landed-master bookworm extension/server/19peers, actual loaded release hash; normal four5-player parties→one20/10v10 match, five banner assaults, natural1500–0, winning wallet/XP671 and losing61 across20, all origin-map returns. Four inspected both-skin1920×1080 scoreboard/end originals shared. First cold10.5686s frame/peer12 timeout retained; same-code/privateDB bounded retry passes, not a cold-stall fix. Numeric wallet pixels6... remain diagnostic-only; raw log order/timestamp limits/import errors explicit. Owned scope stopped,5941free/window cleared13:44:45.
+## 2026-10-17 — PitchAdjust source gate
+
+[UI_SOUND_PITCH_ADJUST_RATE](systems/sound.md#ui_sound_pitch_adjust_rate):3647 cached Retail Lua/XML files, the full Sound API definition and active70391 SoundKit-family fields/pertinent rows do not establish a rate equation. Exact sources/search bound by hashes; supplementary DBD gives only a float declaration. No semitone/linear/log2 guess, code, asset extraction or runtime change; hide/show218236/218237 remains deferred, selection callbacks separate. Frozen ordinary-row exclusion is proposed independently, not folded into audio work.
 
 ## 2026-10-17 — Ordinary party battleground queue
 
@@ -12,6 +15,10 @@
 ## 2026-10-17 — Lock-On target charge projection
 
 [Bounded77](systems/battle-pets.md#lock-on-projection--2026-10-17): both actual strict skins/private5961 physical first enemy lock/no damage/1round, then145/143 blast/removal/Rabbit2,4; retained own334→305→277→249→224. Six inspected fullHD originals/all saved phases two framed models, geometry91/99/100 only fills/timed floats. Canonical4files+fragment hashes/actual3mesh loader pass; no UI code. Native5c98/da304/e9; local lib132/wild29/check1m02/no warnings/bothfmt pass with charge regressions5 and unchanged UI12 retained. Full cross-caster/timing/VFX unproved.
+## 2026-10-17 — Trading Post accepted freeze-lock sound
+
+[Accepted freeze-lock](systems/trading-post.md#accepted-freeze-lock-sound--october17): genuine registry/native RED precedes218229 registration and shared accepted-request dispatch; four authenticated70448 Ogg variants versus70391 metadata. Native RED restores frozen640→642→640 before asserting absent audio; negative controls and Tender/collection/cart/selected conservation pass. Actualc3b/Sf426/Pe9b both-skin9checkpoints/2decodedplays each GREEN: original640/712 genuinely replaced/restored before verdict, negative controls quiet, Tender/collection/cart/selected-original conserved. Native samples4908453/57; all4 metadata/selector/full-decode coverage distinct. Twelve inspected PNGs published; finalsource9be/S8586/Pe9b passes core4+TP52(+1DB2)/check20.34s/noWarnings/scoped Rustfmt3/readability. Exact actualruntimec3b/Sf426/Pe9b/fixturecf60 and12receipts/six original memory boundaries retained separately. No empty-slot clearing, pitch, hide/show or selection sound scope.
+
 ## 2026-10-17 — Trading Post product-enter sound
 
 [Product-enter sound](systems/trading-post.md#product-enter-sound--october17): missing-kit registry RED and actual native zero-playback RED precede minimal218934 registration/owner dispatch through existing UiKits. Source70391 metadata versus authenticated70448 asset build retained; same-product ordinary/frozen owners differ, nested toggle remains parent, leave/teardown reset. Actual3a7/Sf426/Pe9b both-skin five decoded4906953 plays/12 lifecycle checkpoints, playing+finished/duration/gain and authority conservation GREEN; core3+TP52(+1DB2)/check/scoped Rustfmt3/readability pass. Twelve inspected PNGs published; exact binaries/receipts/six original memory boundaries retained. No selection218230, native empty-slot or hardware audibility claim.
@@ -55,6 +62,10 @@
 ## 2026-10-17 — Section focus flash
 
 [Focus pulse](systems/adventure-guide.md#section-focus-flash--2026-10-17): independent source Glow/four phases on the existing section-focus path. Missing-effect RED→timing/art controls and Modern2/Forever5 rendered pulses/zero/conservation;12 full-HD originals inspected. Native3's324 outside pixels stay unattributed/not reproduced, with unchanged strict native4/5 passing controls and paint-owner receipts. Merged extension check and scoped fmt pass; independent lead gate remains separate. Prior Journeys mask landed via374e.
+## 2026-10-17 — ReadyCheck message colour native acceptance
+
+[Post-422e proof](systems/group-frames.md#readycheck-message-colour--implementation-2026-10-17): landed-master bd3f266a1/95fec2ca native both skins1920×1080, exactRGBA8(255,210,0,255), unchanged font/shadow/geometry/title/buttons.1040 green/blue pixels darken per skin versus old-white field counterfactual,0red/outside changes;69 pixels exactlyRGB(255,210,0). Gold restoration reproduces entire source image exactly. Both panels/contexts inspected; lead accepted Modern. Captured only in granted ui-questlog window with matching owner/agent-run, cleared/stopped immediately. No production change or broader popup/lifecycle claim; docs-only follow-up.
+
 ## 2026-10-17 — ReadyCheck message NORMAL_FONT_COLOR implementation
 
 [Body colour](systems/group-frames.md#readycheck-message-colour--implementation-2026-10-17): active GlobalColor1−11776/0xFFFFD200 sources exactRGB8(255,210,0), not white. Only TEXT_COLOR changes; font/shadow/geometry/text/buttons/title retained. Genuine RED2pass/1fail→GREEN3 and engine/network check pass; native both-skin1920×1080 deliberately waits for lead landing/window. Historical shadow-test colour oracle reconciled; unrelated landed CSV CRLF warnings retained separately, no out-of-scope edits.
@@ -4546,3 +4557,5 @@ Source Item ownership replaces row-press actions; inset-aware native Button pick
 
 - 2026-10-17: M2-MAT native85GREEN; both-skin1656441920×1080 half-blend before/after, exactly retained interrupted weights and pixel-identical Hold controls. Same final fixture across hashed old/new binaries; cubic/global-multivalue oracle limits retained.
 - 2026-10-17: [Cooldown-assist](investigations/cooldown-assist-data.md#assisted_combat_simc_mirror): user-approved bounded Fury spatial mirror; native Retail authority remains unknown.
+
+- 2026-10-17: [Run22 native policy partial](investigations/cooldown-assist-data.md#native-policy-observation--run22): prior Fury predicate refusal passed; tank death before first boss leaves clear acceptance open.

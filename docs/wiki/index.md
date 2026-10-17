@@ -1,3 +1,5 @@
+- [Trading Post accepted freeze-lock sound](systems/trading-post.md#accepted-freeze-lock-sound--october17) — sourced218229/four authenticated variants; registry/native RED→both-skin nine-checkpoint/two-play GREEN, genuine640/712 replacement/restoration, no reservation clearing.
+- [UI_SOUND_PITCH_ADJUST_RATE](systems/sound.md#ui_sound_pitch_adjust_rate) — Retail UI/data inspected, playback-rate equation unestablished; hide/show remains deferred with no code.
 - [Trading Post product-enter sound](systems/trading-post.md#product-enter-sound--october17) — sourced218934, ordinary/inherited owner lifecycle, authenticated70448 Ogg; registry/native missing-playback RED→both-skin five decoded plays/12 lifecycle checkpoints, conserved authority.
 - [Zero-operand cast modifier67](investigations/cooldown-assist-data.md#fire-cast-overlap-modifier67--2026-10-17) — sourced Fireball133 oracle, unchanged native casting/usability gates; nonzero operands refuse, unflagged overlap policy remains separate.
 - [Fury source boundary](investigations/cooldown-assist-data.md#fury-distancenearby-count-source-boundary--2026-10-17) — actual tree-bound talent Apply/persistence exposes distance3/count12 gaps; pinned APL alone does not establish spatial semantics; run21 FPS/death accounting retained.
@@ -30,6 +32,8 @@
 
 - [Ordinary party queue and late arrivals](systems/battlegrounds.md#ordinary-party-queue-and-late-arrivals--2026-10-17) — channel8/check/fmt; [native release20 Arathi](systems/battlegrounds.md#native-release20-arathi--bounded-proof2026-10-17) passes normal four-party20/10v10, five banners, natural end/wallet-XP671/61 and both-skin full-HD scoreboard/end captures; cold first-attempt stall remains unfixed.
 - [ReadyCheck message colour](systems/group-frames.md#readycheck-message-colour--implementation-2026-10-17) — inherited NORMAL_FONT_COLOR row1 RGB8(255,210,0), only TEXT_COLOR changes; genuine white-colour RED→3GREEN, native proof awaits lead landing/window; all other fields preserved.
+- [Ordinary party queue and late arrivals](systems/battlegrounds.md#ordinary-party-queue-and-late-arrivals--2026-10-17) — four real five-player parties enter one Arathi20 match; sequential-ack scoreboard18→20 preserves prior objective scores; channel8/check/fmt pass, release/native proof pending.
+- [ReadyCheck message colour](systems/group-frames.md#readycheck-message-colour--implementation-2026-10-17) — only TEXT_COLOR to row1 RGB8(255,210,0); RED→3GREEN and post-gate both-skin native1920 proof,1040 changed green/blue pixels with zero outside message,69 exact target-colour samples, exact source restoration; window released.
 
 - [Plain LootFrame quality font](systems/loot-and-flight.md#plain-quality-caption-font--2026-10-17) — source Tiny2 has no shadow; unwanted-black RED→3GREEN, both-skin native Friz8/96×10 unchanged and232 lightened pixels/skin, exact black-control restoration; other loot label shadows retained.
 
