@@ -124,6 +124,11 @@ func refund_icon_tooltip_proof() -> void:
 	var anchor_ok := matched and absf(float(tooltip.rect[0]) - icon.end.x / scale) <= 1.5 and absf(float(tooltip.rect[1]) + float(tooltip.rect[3]) - icon.position.y / scale) <= 1.5
 	var state: Dictionary = client.trading_post_state()
 	var conserved: bool = int(state.selected) == other and int(state.tender) == int(before.tender) - price and state.frozen == before.frozen and state.cart.is_empty()
+	await button_event(icon.get_center(), MOUSE_BUTTON_LEFT, true)
+	await button_event(icon.get_center(), MOUSE_BUTTON_LEFT, false)
+	await wait_frames(5)
+	var click_selected := int(client.trading_post_state().selected) == target
+	await click("PerksProgramProduct%d" % other)
 	await motion(row.get_global_rect().position + Vector2(96, 24) * scale, false)
 	if not await wait_until(func(): return client.tooltip_state().get("title", "") == str(product.selected_name), "refund icon leave restores product tooltip"): return
 	await motion(control("PerksProgramLeaveButton").get_global_rect().get_center(), false)
@@ -144,11 +149,11 @@ func refund_icon_tooltip_proof() -> void:
 	if client.trading_post_state().frozen != before.frozen:
 		fail("Refund tooltip roundtrip changed frozen reservation"); return
 	await capture("refunded-restored")
-	print("TP_REFUND_ICON_TOOLTIP target=", target, " selected=", other, " tooltip=", tooltip, " matched=", matched, " anchor_ok=", anchor_ok, " conserved=", conserved)
+	print("TP_REFUND_ICON_TOOLTIP target=", target, " selected=", other, " tooltip=", tooltip, " matched=", matched, " anchor_ok=", anchor_ok, " conserved=", conserved, " click_selected=", click_selected)
 	if not matched:
 		fail("Retail row refund icon tooltip missing; genuine purchase refunded before assertion"); return
-	if not anchor_ok or not conserved:
-		fail("Refund icon tooltip lost source owner anchor or changed selection/authority"); return
+	if not anchor_ok or not conserved or not click_selected:
+		fail("Refund icon tooltip lost source owner anchor, parent click or selection/authority"); return
 	await finish("refund-icon-tooltip")
 
 func row_cart_toggle_proof() -> void:
