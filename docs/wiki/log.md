@@ -4282,3 +4282,7 @@ Completed Retailv2 codec/authoritative Create and committed Copy callbacks, exac
 
 Source Item ownership replaces row-press actions; inset-aware native Button picking fixes the actual expanded-hit boundary. Model2/native32 GREEN,68 unchanged full-HD pairs; StackSplit16/ReadyCheck4 shared-input controls and60 pixel pairs unchanged. Retained setup failures and Item-only partial RED, server/full-window exclusions explicit. See [[loot-and-flight#ItemButton input ownership — 2026-10-16]].
 - 2026-10-16: Spitzy67 source/asset closure recorded in [Toy Box](systems/toy-box.md#spitzy-source-asset-closure-2026-10-16); conditional visual, playback and canonical publication remain separate.
+
+## 2026-10-16 — Portrait-inclusive HUD and launcher clearance
+
+[Launcher](systems/launcher.md#portrait-inclusive-hud-clearance--2026-10-16): retain approved321×79 portrait mount; re-derive exact root/bars/portrait, include Camelot8px painted outset in Forever launcher−17.5 margin. Genuine master29pass2fail→31HUD+9launcher GREEN; production-faithful test skin setup, engine/networkcheck/build and both-skin1920×1080 native clearance pass. Modern0pixel changes, Forever113408 confined to launcher paint, zero outside. Supplied-state canvas proof, not live portrait/authority or full-HUD certification.
