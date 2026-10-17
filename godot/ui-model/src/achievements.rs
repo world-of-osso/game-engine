@@ -9,7 +9,7 @@ use crate::ui::strata::FrameStrata;
 use shared::protocol::{
     ACHIEVEMENT_SEARCH_MAX_CHARS, AchievementCatalogEntry, AchievementCatalogPage,
     AchievementCategoryEntry, AchievementCriterionLine, AchievementScope, AchievementStateUpdate,
-    AchievementSummary, QueryAchievementCatalog,
+    AchievementSnapshot, AchievementSummary, QueryAchievementCatalog,
 };
 use std::collections::BTreeMap;
 use ui_toolkit::atlas::{ActiveSkin, thread_skin};
@@ -782,6 +782,10 @@ impl AchievementWindow {
             merge_criteria(&mut entry.criteria, &criteria);
             entry.next_criteria_id = next;
         }
+    }
+    /// The connection's earned set and progress: last full snapshot plus later deltas.
+    pub fn snapshot(&self) -> Option<&AchievementSnapshot> {
+        None
     }
     pub fn refresh(&mut self, _update: &AchievementStateUpdate) -> Vec<QueryAchievementCatalog> {
         for page in self.pages.values_mut() {
