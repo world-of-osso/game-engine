@@ -1,6 +1,21 @@
 extends "res://tests/m2_loader_pixels.gd"
 
 # Synthetic only: asymmetric 3-D arrow geometry, never a replacement billboard.
+const GEOMETRY_SKIN := 910006
+
+func prepare_model_fixture() -> bool:
+	var directory := ProjectSettings.globalize_path(FIXTURE)
+	if DirAccess.make_dir_recursive_absolute(directory + "/models") != OK or DirAccess.make_dir_recursive_absolute(directory + "/textures") != OK:
+		return false
+	var sfid := PackedByteArray()
+	sfid.resize(4)
+	put_u32(sfid, 0, GEOMETRY_SKIN)
+	var model := make_m2(7, 0)
+	model.append_array(chunk("SFID", sfid))
+	return write_fixture(FIXTURE + "/models/quad.m2", model) \
+		and write_fixture(FIXTURE + "/models/" + str(GEOMETRY_SKIN) + ".skin", make_skin(0, 1)) \
+		and write_fixture(FIXTURE + "/textures/910001.blp", make_blp(Color.WHITE))
+
 func run_cases() -> void:
 	root.size = Vector2i(1920, 1080)
 	var probe = ClassDB.instantiate("WowParticleProbe")
@@ -8,7 +23,7 @@ func run_cases() -> void:
 		push_error("P5 missing native geometry/recursive emitter consumer")
 		quit(1)
 		return
-	if not prepare_fixture(7, 0, 1) or not write_fixture(FIXTURE + "/textures/910001.blp", make_blp(Color.WHITE)):
+	if not prepare_model_fixture():
 		quit(1)
 		return
 	var stage := Node3D.new()
@@ -93,6 +108,7 @@ func run_cases() -> void:
 		passed = not is_instance_id_valid(geometry_id) and not is_instance_id_valid(child_id) and passed
 	stage.free()
 	probe = null
+	DirAccess.remove_absolute(ProjectSettings.globalize_path(FIXTURE + "/models/" + str(GEOMETRY_SKIN) + ".skin"))
 	cleanup()
 	print("PASS: P5 synthetic geometry and recursive lifecycle" if passed else "FAIL: P5 synthetic geometry and recursive lifecycle")
 	quit(0 if passed else 1)
