@@ -16,6 +16,10 @@
 ## 2026-10-17 — Ordinary StaticPopup body shadow
 
 [PARTY_INVITE body](systems/group-frames.md#ordinary-staticpopup-body-shadow--bounded-proof-2026-10-17): inherited Roman black(+1,−1) only;14px/white/geometry/actions preserved. Genuine model RED→both-skin GREEN; native source4bae444b1 darkens855 pixels/skin, zero outside the1225-pixel diagnostic shadow mask, exact alpha-off/source restoration. Initial rectangle oracle's one-pixel overhang failure retained with actual raster receipts. Effective user-font scaling/full-popup/server lifecycle remain unqualified.
+## 2026-10-17 — Alterac survivor Honor
+
+[Survivors](systems/battlegrounds.md#alterac-survivor-honor--2026-10-17): actual mixed-objective/general-end RED858vs1838→both-faction GREEN, controlled/contested/destroyed towers and living/dead captains, whole-team rounding, NPC/player/tower terminal paths, replay and persistence.13 distinct tests green across prior12 and corrected corpse-replay fixture. Depletion fixtures use explicit75/1 pre-terminal baselines, not full-match histories; no UDP/rendered/reputation claim.
+
 ## 2026-10-17 — Alterac tower Honor
 
 [Tower destruction](systems/battlegrounds.md#alterac-tower-honor--2026-10-17): actual channel RED0vs368→both-faction GREEN, two separately rounded events736, canceled/defended/duplicate/graveyard exclusions and persistence/origin return. Prior10 controls retained; source Tower Point spawn-condition mismatch recorded, not changed. Survivor OnEnd and external UDP/rendered proof remain open.
