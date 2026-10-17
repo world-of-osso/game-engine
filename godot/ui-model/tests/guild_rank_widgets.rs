@@ -261,6 +261,44 @@ fn guild_info_editor_preserves_multiline_text_limits_and_authoritative_pacing() 
 }
 
 #[test]
+fn guild_invitation_source_text_top_anchors_and_fonts_stay_above_tabard_both_skins() {
+    use ui_toolkit::layout_values::Val;
+    let _lock = SKIN.lock().unwrap_or_else(|poison| poison.into_inner());
+    for skin in [ActiveSkin::Modern, ActiveSkin::Forever] {
+        set_thread_skin(skin);
+        let mut session = GuildRanksSession::default();
+        session.invitation = Some(GuildInvitation {
+            guild_id: 7,
+            guild_name: "Guild Perks".into(),
+            inviter_name: "Gcperkslead".into(),
+            tabard: None,
+        });
+        let registry = mounted(&session);
+        // GuildInviteFrame.xml: TOP relative to TOP, not to the prior text's bottom.
+        // FontStyles.xml50/56/92 + Fonts.xml39/275: Roman Small10 and Normal12.
+        for (suffix, top, font_size) in [
+            ("InviterName", 28.0, 10.0),
+            ("InviteText", 38.0, 10.0),
+            ("GuildName", 50.0, 12.0),
+        ] {
+            let name = format!("GuildInviteFrame{suffix}");
+            let frame = registry.get(registry.get_by_name(&name).unwrap()).unwrap();
+            assert_eq!(frame.position.top, Val::Px(top), "{name} source TOP anchor");
+            let Some(WidgetData::FontString(label)) = &frame.widget_data else {
+                panic!("{name} must display source text");
+            };
+            assert_eq!(label.font_size, font_size, "{name} inherited source font");
+        }
+        for suffix in ["InviterName", "InviteText"] {
+            let name = format!("GuildInviteFrame{suffix}");
+            let frame = registry.get(registry.get_by_name(&name).unwrap()).unwrap();
+            assert_eq!((frame.width.value(), frame.height.value()), (230.0, 10.0));
+        }
+        assert_eq!(text(&registry, "GuildInviteFrameGuildName"), "Guild Perks");
+    }
+}
+
+#[test]
 fn guild_invitation_no_design_renders_source_tabard_layers_both_skins() {
     use ui_toolkit::layout_values::Val;
     use ui_toolkit::widgets::texture::TextureSource;
