@@ -26,6 +26,10 @@
 ## 2026-10-17 — Section focus flash
 
 [Focus pulse](systems/adventure-guide.md#section-focus-flash--2026-10-17): independent source Glow/four phases on the existing section-focus path. Missing-effect RED→timing/art controls and Modern2/Forever5 rendered pulses/zero/conservation;12 full-HD originals inspected. Native3's324 outside pixels stay unattributed/not reproduced, with unchanged strict native4/5 passing controls and paint-owner receipts. Merged extension check and scoped fmt pass; independent lead gate remains separate. Prior Journeys mask landed via374e.
+## 2026-10-17 — Item-confirmation caption shadow
+
+[Separate presenter captions](systems/trading-post.md#item-confirmation-caption-shadow--bounded-proof-october17): only inherited black(+1,−1), current12px/template colors/geometry/actions preserved. Genuine RED→GREEN1;12 native captions across both skins normal/delay/pending pass.535/524/479 darkened pixels per skin, none outside caption unions/white diagnostic masks; exact baseline/source restoration. Initial omitted-post-sync disabled-color and magenta RGB8 green-channel oracle failures retained and resolved without production color/geometry edits. Effective scaling/full-popup/purchase lifetime remain unqualified.
+
 ## 2026-10-17 — Ordinary StaticPopup body shadow
 
 [PARTY_INVITE body](systems/group-frames.md#ordinary-staticpopup-body-shadow--bounded-proof-2026-10-17): inherited Roman black(+1,−1) only;14px/white/geometry/actions preserved. Genuine model RED→both-skin GREEN; native source4bae444b1 darkens855 pixels/skin, zero outside the1225-pixel diagnostic shadow mask, exact alpha-off/source restoration. Initial rectangle oracle's one-pixel overhang failure retained with actual raster receipts. Effective user-font scaling/full-popup/server lifecycle remain unqualified.
@@ -4491,6 +4495,9 @@ Source Item ownership replaces row-press actions; inset-aware native Button pick
 [Swimming](systems/swimming.md#mirrortimer-label-shadow--2026-10-16) records complete XML/Lua/font inheritance and the two-attribute black(+1,−1) repair. Genuine missing-shadow RED→5modelGREEN, six both-skin1920×1080 native cases retain geometry;731pixels/skin darken only inside labels/shadows and transparent-shadow controls restorebaselineRGBexactly. Check/build/scopedfmt pass; source census remains incomplete. No cadence/server, other-alphabet or full-timer art certification.
 
 - 2026-10-17: M2-MAT clean-room scope, existing short-table controls, ordinary nonzero interpolation, local raw-channel crossfade/snapshot sampler and explicit cubic gap; RED evidence recorded, native proof pending.
+## 2026-10-17 — Achievement delta and Guide clock consumers
+
+[Dungeon achievements](systems/dungeon-achievements.md#state-and-rendering) and [Adventure Guide](systems/adventure-guide.md) record the engine consumers for protocol `AchievementDelta` and `AdventureGuideClock`: ordered bridge relays, per-connection full-snapshot baselines, state-equivalent reduction and explicit missing-baseline errors. Targeted dispatch/wire RED→GREEN only; server producers, integration and live proof belong to the lead.
 ## 2026-10-17 — ReadyCheck inherited message shadow
 
 [Message shadow](systems/group-frames.md#readycheck-message-shadow--bounded-proof-2026-10-16): exactly two attributes restore Roman black(+1,−1). RED→3GREEN and both-skin1920×1080 native proof retain font/currentcolor/text/240×28 box;1002 darkened pixels per skin, zero outside label/shadow union, shadow-off RGB exactly baseline. Check/build/scoped format/readability pass. Sourcecolor/full-popup/server lifecycle remain unqualified.
