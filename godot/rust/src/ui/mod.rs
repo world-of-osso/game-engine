@@ -2383,10 +2383,26 @@ impl RegistryUi {
         &mut self,
         state: game_engine_ui_model::group_frames_component::GroupFramesState,
     ) -> Result<(), String> {
-        self.show_viewport_screen(
+        if self.model.is_some() {
+            return Err("RegistryUi already has a screen".into());
+        }
+        let parent = self.hud_parent()?;
+        let mut registry = parent.registry();
+        register_flare_bronze_style(&mut registry, |fdid| {
+            let image = assets::decode_blp(&format!("data/textures/{fdid}.blp"))?;
+            Ok((image.pixels, image.width))
+        })?;
+        register_auction_popup_style(&mut registry);
+        register_metal_frame_style(
+            &mut registry,
+            game_engine_ui_model::panel_style_data::MetalTopLeft::Portrait,
+        )?;
+        self.show_viewport_screen_in(
             state,
             game_engine_ui_model::group_frames_component::group_frames_screen,
             ScreenPostsetup::PortraitParty,
+            registry,
+            parent,
         )
     }
 
