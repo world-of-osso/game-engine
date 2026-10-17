@@ -6,6 +6,9 @@
 
 [UI_SOUND_PITCH_ADJUST_RATE](systems/sound.md#ui_sound_pitch_adjust_rate): `data/db2/active` resolves70448/key88d5e8ef…, not70391. All five SoundKit-family field sets and pertinent rows reread/hash-bound from actual active files; hide/show still has−0.144405067 with no sourced rate equation. Original pinned70391 receipt retained as historical, not silently relabeled. No pitch code or asset/runtime change.
 
+## 2026-10-17 — Native release20 Arathi lifecycle
+
+[Bounded release proof](systems/battlegrounds.md#native-release20-arathi--bounded-proof2026-10-17): landed-master bookworm extension/server/19peers, actual loaded release hash; normal four5-player parties→one20/10v10 match, five banner assaults, natural1500–0, winning wallet/XP671 and losing61 across20, all origin-map returns. Four inspected both-skin1920×1080 scoreboard/end originals shared. First cold10.5686s frame/peer12 timeout retained; same-code/privateDB bounded retry passes, not a cold-stall fix. Numeric wallet pixels6... remain diagnostic-only; raw log order/timestamp limits/import errors explicit. Owned scope stopped,5941free/window cleared13:44:45.
 ## 2026-10-17 — PitchAdjust source gate
 
 [UI_SOUND_PITCH_ADJUST_RATE](systems/sound.md#ui_sound_pitch_adjust_rate):3647 cached Retail Lua/XML files, the full Sound API definition and initially pinned70391 SoundKit-family fields/pertinent rows do not establish a rate equation; that snapshot was mislabelled active and is superseded by the70448 recheck above. Exact sources/search bound by hashes; supplementary DBD gives only a float declaration. No semitone/linear/log2 guess, code, asset extraction or runtime change; hide/show218236/218237 remains deferred, selection callbacks separate. Frozen ordinary-row exclusion is proposed independently, not folded into audio work.
