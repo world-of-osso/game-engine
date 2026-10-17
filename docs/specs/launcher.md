@@ -42,6 +42,9 @@ Horizontally centred search-and-icon launcher for in-world windows. Source: `god
 
 ## Tests asserting this spec
 
+- `godot/rust/src/ui/hud_layout_tests.rs` — exact portrait-inclusive Forever root/bars/portrait bounds, preset restoration and default1080p launcher/painted-chrome clearance;31/31 pass. Test host initializes the atlas/chrome skin before syncing canvas contexts, as production does.
+- `godot/tests/hud_portrait_layout.gd` — both-skin1920×1080 native supplied-state HUD/launcher clearance. Modern unchanged; Forever pixel changes confined to old/new launcher paint bounds. [Proof and source derivation](../wiki/systems/launcher.md#portrait-inclusive-hud-clearance--2026-10-16).
+
 - `godot/ui-model/tests/launcher.rs` — toggle, filtering, selection, activation, Escape, minimap click, inventory, filled texture identities/sizes and one-line labels under both skins, and content-sized panel heights.
 - `godot/core/tests/input_bindings_data.rs` — binding label, section and Ctrl+Space matching.
 - `godot/ui-model/tests/micro_menu.rs` — retained button behavior, default-hidden presets, older-layout compatibility and portrait-slot retention across visibility changes.
