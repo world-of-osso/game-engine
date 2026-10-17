@@ -6,6 +6,8 @@ var floor_probes: Array[Dictionary] = []
 var right_turn_sign := 0.0
 var turn_rate := 0.0
 var turn_samples: Array[Dictionary] = []
+var walking_route := false
+var walking_speed_confirmed := false
 
 func run_test() -> void:
 	root.size = Vector2i(1920, 1080)
@@ -44,6 +46,10 @@ func run_test() -> void:
 	if not await capture_housing("fountain-wall-jump-world"): return
 	var route: Array[Vector3] = read_baked_route(destination)
 	if route.is_empty(): return
+	push_key(KEY_Z, true)
+	await frames(2)
+	push_key(KEY_Z, false)
+	walking_route = true
 	for index in range(route.size()):
 		var radius := 3.5 if index == route.size() - 1 else 0.75
 		if not await walk_to_cornerstone(route[index], radius): return
@@ -58,7 +64,7 @@ func run_test() -> void:
 	if output == null:
 		fail("Cannot persist cornerstone world receipt")
 		return
-	output.store_string(JSON.stringify({"walk":walk_samples,"turn":turn_samples,"property":property_receipts,"final":state}, "\t"))
+	output.store_string(JSON.stringify({"walk":walk_samples,"turn":turn_samples,"walking_speed_confirmed":walking_speed_confirmed,"property":property_receipts,"final":state}, "\t"))
 	output.flush()
 	var error := output.get_error()
 	output.close()
@@ -120,7 +126,7 @@ func walk_to_cornerstone(destination: Vector3, stop_radius: float = 3.5) -> bool
 		var state: Dictionary = client.account_state()
 		var position: Vector3 = state.local_player_position
 		var to := destination - position
-		walk_samples.append({"position":position,"server":state.local_server_position,"remaining":to.length()})
+		walk_samples.append({"position":position,"server":state.local_server_position,"remaining":to.length(),"replicated_speed":state.local_server_speed})
 		if Vector2(to.x, to.z).length() < stop_radius:
 			push_key(KEY_W, false)
 			await process_frame
@@ -131,6 +137,10 @@ func walk_to_cornerstone(destination: Vector3, stop_radius: float = 3.5) -> bool
 		await create_timer(minf(0.6, Vector2(to.x, to.z).length() / 14.0)).timeout
 		push_key(KEY_W, false)
 		await frames(3)
+		if walking_route and not walking_speed_confirmed:
+			if not await wait_housing(func(): return is_equal_approx(float(client.account_state().local_server_speed), 2.5), "replicated ordinary walk speed2.5"): return false
+			walking_speed_confirmed = true
+			print("WORLD_WALK_SPEED_CONFIRMED ", client.account_state().local_server_speed)
 		position = client.account_state().local_player_position
 		stalled = stalled + 1 if position.distance_to(last_position) < 0.2 else 0
 		last_position = position
@@ -149,7 +159,7 @@ func face_walk_direction(target: float) -> bool:
 	for attempt in range(60):
 		var facing: float = client.account_state().local_player_facing
 		var error := angle_difference(facing, target)
-		var frame_turn := turn_rate * client.get_process_delta_time()
+		var frame_turn := 0.5 * turn_rate * client.get_process_delta_time()
 		if absf(error) <= maxf(0.04, frame_turn):
 			return true
 		if right_turn_sign == 0.0:
