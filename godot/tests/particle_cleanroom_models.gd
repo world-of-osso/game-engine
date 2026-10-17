@@ -73,6 +73,7 @@ func run_cases() -> void:
 			passed = after.basis.x.normalized().distance_to(before_axis.normalized()) > 0.05 and passed
 			passed = after_color.r < before_color.r and after_color.b > before_color.b and after_color.a < before_color.a and passed
 			passed = int(node.get_meta("drained_parent_count")) == 0 and int(node.get_meta("drained_child_count")) == 0 and passed
+			passed = int(node.get_meta("drained_geometry_visible")) == 0 and int(node.get_meta("drained_children_visible")) == 0 and passed
 			passed = bool(node.get_meta("zero_duration_pass")) and passed
 			await process_frame
 			await process_frame

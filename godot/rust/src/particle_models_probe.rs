@@ -250,6 +250,38 @@ pub(super) fn place(
         "drained_child_count",
         &(drained.children[0].sim.particles().len() as i64).to_variant(),
     );
+    let alive = std::mem::replace(&mut placed.emitters[0].sim, drained);
+    pools.begin_frame();
+    placed.update_and_draw(&owner, 0.0, 1.0, &view, &mut pools);
+    pools.end_frame();
+    let geometry = owner
+        .find_child_ex("GeometryParticles")
+        .recursive(true)
+        .owned(false)
+        .done()
+        .ok_or("synthetic geometry pool missing")?
+        .cast::<MultiMeshInstance3D>();
+    owner.set_meta(
+        "drained_geometry_visible",
+        &geometry
+            .get_multimesh()
+            .expect("geometry multimesh")
+            .get_visible_instance_count()
+            .to_variant(),
+    );
+    owner.set_meta(
+        "drained_children_visible",
+        &child_pool
+            .get_multimesh()
+            .expect("child multimesh")
+            .get_visible_instance_count()
+            .to_variant(),
+    );
+    // Restore the same live snapshot for the raster and lifetime-transform assertions.
+    placed.emitters[0].sim = alive;
+    pools.begin_frame();
+    placed.update_and_draw(&owner, 0.0, 1.0, &view, &mut pools);
+    pools.end_frame();
     fixture.bind_mut().placed = Some(placed);
     fixture.bind_mut().pools = Some(pools);
     Ok(owner)
