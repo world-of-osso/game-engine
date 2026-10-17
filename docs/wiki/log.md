@@ -1,3 +1,7 @@
+## 2026-10-16 — Journal search implementation; native acceptance pending
+
+[Search](systems/adventure-guide.md#search-preview-and-full-results--implementation-2026-10-16) now uses source preview/full results and authored target paths. Actual native REDs cover23px inactive-style minimum, focus retained but editing stopped after Enter, and a generic list-row focus marker deleting previews before mouse-up.2344 fixes the root widget/adapter boundaries;95 prior scoped controls and two current search tests pass, build/source verification pass. Both-skin companion/current pixel/check acceptance remains pending; no historical-prefix or native C API parity claim. Installed orphan-parent records are named in the contract.
+
 ## 2026-10-16 — Encounter section flags
 
 [Header flag art and hover](systems/adventure-guide.md#encounter-section-flags--2026-10-16): source raw mask→zero-based atlas flags in32px frames, title reservation and white owner-right tooltips. Missing-frame RED→three focused tests plus60 adjacent controls GREEN; current both-skin Ozruk2410 native painted-art/anchor/title/hover pass, six inspected fullHD originals. Registered check/fmt0 and independent source/wiring/readability gate pass. Opaque C API flag ordering and nonempty-description wrapping remain unclaimed; all14 current descriptions are empty. Search and Journeys masks remain active.
