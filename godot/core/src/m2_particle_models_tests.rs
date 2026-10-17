@@ -101,12 +101,15 @@ fn p5_exact_parent_death_stops_births_but_not_existing_children() {
 #[test]
 fn p5_descendants_drain_and_zero_duration_is_inert() {
     let (mut emitter, mut root) = family(1);
+    let mut grandchild = emitter.clone();
+    let mut grandchild_sim = EmitterSim::new(&grandchild, 21);
+    // Disable births only after sizing every pool from its positive authored rate.
     emitter.emission_rate = 0.0;
     root.props.emission_rate = 0.0;
     root.children[0].emitter.emission_rate = 0.0;
     root.children[0].sim.props.emission_rate = 0.0;
-    let grandchild = emitter.clone();
-    let mut grandchild_sim = EmitterSim::new(&grandchild, 21);
+    grandchild.emission_rate = 0.0;
+    grandchild_sim.props.emission_rate = 0.0;
     grandchild_sim.particles.push(particle(80.0, 0.1));
     root.children[0].sim.children.push(RecursiveEmitter {
         emitter: grandchild,
