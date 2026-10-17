@@ -120,6 +120,20 @@ pub enum Sort {
     #[default]
     Price,
 }
+
+fn price_sort_value(row: &TradingPostItem, refund_elapsed: u32) -> i64 {
+    // Products.lua GetSortValue; per-product pending is not supplied by the snapshot.
+    const REFUNDABLE: i64 = -2;
+    const PURCHASED: i64 = -3;
+    if row.refund_seconds.saturating_sub(refund_elapsed) > 0 {
+        REFUNDABLE
+    } else if row.purchased {
+        PURCHASED
+    } else {
+        i64::from(row.price)
+    }
+}
+
 impl View {
     pub fn receive(&mut self, snapshot: Arc<TradingPostSnapshot>) {
         self.error = snapshot.error.clone().unwrap_or_default();
@@ -144,7 +158,8 @@ impl View {
         rows.sort_by(|a, b| {
             let order = match self.sort {
                 Sort::Name => a.name.cmp(&b.name),
-                Sort::Price => a.price.cmp(&b.price),
+                Sort::Price => price_sort_value(a, self.refund_elapsed)
+                    .cmp(&price_sort_value(b, self.refund_elapsed)),
                 // No per-row remaining duration in the snapshot; stable name tie-break.
                 Sort::Time => std::cmp::Ordering::Equal,
             };
