@@ -272,6 +272,7 @@ fn guild_invitation_no_design_renders_source_tabard_layers_both_skins() {
             guild_id: 7,
             guild_name: "Raid Team".into(),
             inviter_name: "Alice".into(),
+            tabard: None,
         });
         let registry = mounted(&session);
         // GuildInviteFrame.xml layers; GuildUtil.lua180–202 no-design branch.
@@ -400,6 +401,7 @@ fn guild_invitation_decline_keeps_source_size_right_and_bottom_anchors() {
             guild_id: 7,
             guild_name: "Raid Team".into(),
             inviter_name: "Alice".into(),
+            tabard: None,
         });
         let registry = mounted(&session);
         let decline = registry
@@ -442,6 +444,7 @@ fn guild_invitation_uses_source_translucent_dialog_chrome_in_both_skins() {
             guild_id: 7,
             guild_name: "Raid Team".into(),
             inviter_name: "Alice".into(),
+            tabard: None,
         });
         let registry = mounted(&session);
         // TranslucentFrameTemplate:10px black0.9 inset and32px quadrant corners.
@@ -523,6 +526,7 @@ fn guild_invitation_popup_works_without_open_roster_in_both_skins() {
             guild_id: 7,
             guild_name: "Raid Team".into(),
             inviter_name: "Alice".into(),
+            tabard: None,
         });
         let registry = mounted(&session);
         assert_eq!(text(&registry, "GuildInviteFrameInviterName"), "Alice");

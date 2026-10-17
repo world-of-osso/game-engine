@@ -21,6 +21,7 @@ impl RegistryUi {
             guild_id: 7,
             guild_name: "Raid Team".into(),
             inviter_name: "Alice".into(),
+            tabard: None,
         });
         GString::from(self.set_state(session).err().unwrap_or_default().as_str())
     }

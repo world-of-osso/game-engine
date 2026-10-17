@@ -88,6 +88,7 @@ fn guild_invitation_and_decline_cross_real_udp() {
         guild_id: 7,
         guild_name: "Raid Team".into(),
         inviter_name: "Alice".into(),
+        tabard: None,
     };
     let world = server.world_mut();
     world
