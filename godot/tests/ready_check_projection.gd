@@ -16,6 +16,8 @@ func run_test() -> void:
 		var fixture = ClassDB.instantiate("PartyPortraitFixture")
 		root.add_child(fixture)
 		check(fixture.initialize(forever) == "", "initialize group HUD")
+		var names: Array[String] = ["Ann", "Bob"]
+		check(fixture.set_members(names, true, true) == "", "received initiator and viewer roster")
 		var error: String = fixture.apply_ready_check(false)
 		check(error == "", "ready-check native projection: " + error)
 		await process_frame
@@ -28,8 +30,10 @@ func run_test() -> void:
 		var text = fixture.find_child("ReadyCheckFrameText", true, false)
 		check(title.text == "Ready Check", "title projected")
 		check(text.text == "Ann has initiated a ready check.", "initiator message projected")
-		var border = fixture.find_child("ReadyCheckFrameBorder", true, false)
-		check(border.get_node_or_null("Parts/Part0") is TextureRect, "Retail dialog art projected")
+		var border = fixture.find_child("ReadyCheckFrameNineSlice", true, false)
+		check(border.get_node_or_null("Parts/Part0") is TextureRect, "Retail portrait metal art projected")
+		var portrait = fixture.find_child("ReadyCheckPortrait", true, false)
+		check(portrait != null and portrait.size == Vector2(54, 54), "actual initiator portrait host")
 		check(fixture.apply_ready_check(true) == "", "finished update projects")
 		await process_frame
 		check(fixture.find_child("ReadyCheckFrame", true, false) == null, "timeout removes popup")

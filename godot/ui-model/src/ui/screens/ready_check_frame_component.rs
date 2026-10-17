@@ -1,17 +1,28 @@
 //! Retail `ReadyCheckFrame` (Blizzard_FrameXML/Mainline/ReadyCheck.xml): 323×100 at
-//! CENTER (0, -10) with the initiator's message and Ready / Not Ready buttons. The portrait
-//! is left out (no unit portraits in this UI) and the border is the static popup's.
+//! CENTER (0, -10) with the initiator's portrait, message and Ready / Not Ready buttons.
 
 use ui_toolkit::rsx;
 use ui_toolkit::widget_def::Element;
 
-use crate::ui::screens::static_popup_component::STATIC_POPUP_PANEL_STYLE;
+use crate::panel_style_data::MetalTopLeft;
+use crate::ui::screens::inworld_unit_frames_component::{FULL_PORTRAIT, PortraitSlot};
+use crate::ui::screens::quest_art;
 use crate::ui::strata::FrameStrata;
 use crate::ui::widgets::font_string::{FontColor, GameFont};
 
 pub const READY_CHECK_FRAME: &str = "ReadyCheckFrame";
 pub const ACTION_READY_CHECK_YES: &str = "ready_check_yes";
 pub const ACTION_READY_CHECK_NO: &str = "ready_check_no";
+
+/// ReadyCheck.xml:63–74, TOPLEFT(0,+3) in WoW's y-up coordinates.
+/// Masking uses the existing native portrait renderer's shared circle mask.
+pub const PORTRAIT: PortraitSlot = PortraitSlot {
+    frame: "ReadyCheckPortrait",
+    rect: (0.0, -3.0, 54.0, 54.0),
+    mask_fdid: 130_924,
+    mask_rect: (0.0, -3.0, 54.0, 54.0),
+    tex_coords: FULL_PORTRAIT,
+};
 
 const FRAME_W: f32 = 323.0;
 const FRAME_H: f32 = 100.0;
@@ -66,17 +77,8 @@ pub fn ready_check_frame(state: &ReadyCheckFrameState) -> Element {
                 pos_x: 3.0,
                 pos_y: 23.0,
             }
-            r#frame {
-                name: {DynName(format!("{READY_CHECK_FRAME}Border"))},
-                width: FRAME_W,
-                height: FRAME_H,
-                style: STATIC_POPUP_PANEL_STYLE,
-                strata: FrameStrata::Dialog,
-                frame_level: 5.0,
-                pos_type: "absolute",
-                pos_x: 0.0,
-                pos_y: 0.0,
-            }
+            {quest_art::metal_border(READY_CHECK_FRAME, FRAME_W, FRAME_H, MetalTopLeft::Portrait)}
+            {quest_art::window_portrait(&PORTRAIT)}
             fontstring {
                 name: {DynName(format!("{READY_CHECK_FRAME}Title"))},
                 width: FRAME_W,
