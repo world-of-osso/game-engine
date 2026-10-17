@@ -4451,10 +4451,14 @@ Source Item ownership replaces row-press actions; inset-aware native Button pick
 
 [Swimming](systems/swimming.md#mirrortimer-label-shadow--2026-10-16) records complete XML/Lua/font inheritance and the two-attribute black(+1,−1) repair. Genuine missing-shadow RED→5modelGREEN, six both-skin1920×1080 native cases retain geometry;731pixels/skin darken only inside labels/shadows and transparent-shadow controls restorebaselineRGBexactly. Check/build/scopedfmt pass; source census remains incomplete. No cadence/server, other-alphabet or full-timer art certification.
 
+- 2026-10-17: M2-MAT clean-room scope, existing short-table controls, ordinary nonzero interpolation, local raw-channel crossfade/snapshot sampler and explicit cubic gap; RED evidence recorded, native proof pending.
 ## 2026-10-17 — ReadyCheck inherited message shadow
 
 [Message shadow](systems/group-frames.md#readycheck-message-shadow--bounded-proof-2026-10-16): exactly two attributes restore Roman black(+1,−1). RED→3GREEN and both-skin1920×1080 native proof retain font/currentcolor/text/240×28 box;1002 darkened pixels per skin, zero outside label/shadow union, shadow-off RGB exactly baseline. Check/build/scoped format/readability pass. Sourcecolor/full-popup/server lifecycle remain unqualified.
 
+- 2026-10-17: Wire M2-MAT sampling to the active native base transition and shared bone weight; capture interrupted eligible channels in load-time buffers. Real165644 runtime RED observed; pure sampler16GREEN, native before/after still pending.
 ## 2026-10-17 — StackSplit inherited label shadow
 
 [Label shadow](systems/cursor-item.md#stacksplit-label-shadow--bounded-proof-2026-10-17): source20223a landsgate373e; RED→2GREEN plus lead9/7/4, mastere127 check/build and six both-skin native labels. Positive diagnostic masks and exact hidden-background RGB0 explain correctly inert black-on-black amount shadows; bundle total darkens281pixels/skin. All changes confined, shadow-off baseline exact and diagnostic restore exact. Green-only RGB8 counterexample retained with exact channel assertion, no tolerance;12 panels/context views inspected. Full-picker/sourcecolor/metrics/server/purchase excluded.
+
+- 2026-10-17: M2-MAT native85GREEN; both-skin1656441920×1080 half-blend before/after, exactly retained interrupted weights and pixel-identical Hold controls. Same final fixture across hashed old/new binaries; cubic/global-multivalue oracle limits retained.
