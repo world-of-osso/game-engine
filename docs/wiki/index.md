@@ -13,6 +13,8 @@
 - [Clean-room M2 particles](systems/godot-conversion.md#native-m2-particles) — native tails/follow/cubic controls, authored sorting and map-collision births; inherited-scale provenance and explicit lighting, timer/reset, spline-density, target-mask and model-recursion oracle gaps.
 # Wiki Index
 
+- [Product-row refund glyph blending](systems/trading-post.md#product-row-refund-glyph-blending--implementation-october17) — explicit21px row ADD versus unchanged32px footer; actual framebuffer RED established, both-skin GREEN pending.
+
 - [Product-row refund icon tooltip](systems/trading-post.md#product-row-refund-icon-tooltip--implementation-october16) — source texture-owned refund time; native generic-item-tooltip RED→both-skin painted right-anchor/parent-click/hovered-owner teardown GREEN, genuine purchase/refund conservation.
 - [Portrait-inclusive HUD clearance](systems/launcher.md#portrait-inclusive-hud-clearance--2026-10-16) — approved321×79 player mount retained; exact HUD bounds and strict panel/metal clearance,31+9 tests and both-skin native1080p proof; Modern identical, no Forever changes outside launcher paint.
 

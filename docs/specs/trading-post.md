@@ -35,6 +35,12 @@ Retail Mainline Blizzard_PerksProgram and the local C_PerksProgram/PerksActiviti
 - Preserve explicit missing metadata errors; use the shared Retail item formatter in both art skins. Frozen/detail panes/currency/cart-toggle tooltips and item-effect formatting remain separate.
 - [x] Native missing-cart-tooltip RED→both-skin fa2f671f1/681461bd/ff22429 GREEN, fixture5d00ba393: regular item and two genuine ensemble members, source offset/no sell price/item identities, unchanged preview/cart/Tender and hover/remove/panel-close/HUD lifetimes. Model2 covers header/wrong-vendor/removed-owner cases. Eight inspected full-HD originals+two contacts: `/syncthing/AgentShared/2026-10-16/trading-post-cart-tooltips/`; diagnostic manifest binds exact artifacts and inputs.
 
+## Product-row refund glyph blending
+
+- [ ] Ordinary and inherited frozen product rows paint their21×21 `common-icon-undo` texture with source `alphaMode="ADD"` (Elements.xml325–333). Keep their atlas, geometry, input and tooltip ownership unchanged; do not tune opacity or introduce another renderer mode.
+- [ ] The separate32×32 PurchasedHistoryFrame refund icon retains its normal blend: Program.xml886–891 has no ADD override. No global atlas-name rule may make it additive.
+- [ ] Both skins require framebuffer agreement with ADD and a distinguishable MIX counterfactual for both21px owners, plus normal-footer control and restored-frame checks. Expose both row owners through one genuine purchase/refund of the existing reservation; preserve Tender, collected state, frozen ID and empty cart, without resetting the reservation. Native pixel failure must precede implementation; node/material selection alone is insufficient proof.
+
 ## Product-row refund icon tooltip
 
 - [x] Hovering the21×21 undo texture uses Retail Elements.lua123–137/Elements.xml325–333 refund-time text, owned by that texture at ANCHOR_RIGHT0/0 rather than the enclosing row. The hovered vendorID determines remaining time even while another product is selected; ordinary row hover still shows its item tooltip.
