@@ -136,16 +136,14 @@ impl GameClient {
             .catalog()
             .ok_or("Assisted spell metadata not loaded")?;
         let player_position = self
-            .replica
-            .unit(player)
-            .and_then(|unit| unit.get::<Position>())
-            .ok_or("Assisted player position not received")?;
+            .local_cast_feet()
+            .ok_or("Assisted local cast pose not ready")?;
         let target_position = self
             .replica
             .unit(target)
             .and_then(|unit| unit.get::<Position>())
             .ok_or("Assisted target position not received")?;
-        let distance = position_distance(player_position, target_position);
+        let distance = position_distance(&player_position, target_position);
         let mut powers: std::collections::BTreeMap<_, _> = self
             .replica
             .unit(player)

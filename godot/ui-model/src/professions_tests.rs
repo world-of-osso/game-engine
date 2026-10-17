@@ -24,7 +24,7 @@ fn book() -> ProfessionBook {
                 min_rank: 1,
                 trivial_low: 30,
                 trivial_high: 60,
-                output: (1251, 1),
+                output: Some((1251, 1)),
                 reagents: vec![(2589, 1)],
             },
             Recipe {
@@ -37,7 +37,7 @@ fn book() -> ProfessionBook {
                 min_rank: 40,
                 trivial_low: 50,
                 trivial_high: 100,
-                output: (2581, 1),
+                output: Some((2581, 1)),
                 reagents: vec![(2589, 2)],
             },
             Recipe {
@@ -50,7 +50,7 @@ fn book() -> ProfessionBook {
                 min_rank: 1,
                 trivial_low: 25,
                 trivial_high: 50,
-                output: (2996, 1),
+                output: Some((2996, 1)),
                 reagents: vec![(2589, 2)],
             },
         ],
@@ -209,13 +209,32 @@ fn professions_db2_catalog_joins_classic_tailoring_recipe() {
     std::fs::create_dir_all(&dir).unwrap();
     for (table, data) in [
         (
+            "ModifiedCraftingSpellSlot",
+            "SpellID,Slot,ModifiedCraftingReagentSlotID,ReagentCount,ReagentReCraftCount\n",
+        ),
+        (
+            "ModifiedCraftingReagentSlot",
+            "ID,Name_lang,ReagentType,PlayerConditionID\n",
+        ),
+        (
+            "MCRSlotXMCRCategory",
+            "ModifiedCraftingReagentSlotID,ModifiedCraftingCategoryID,Order\n",
+        ),
+        (
+            "CraftingReagentQuality",
+            "ModifiedCraftingCategoryID,ItemID,CurrencyTypesID,OrderIndex\n",
+        ),
+        (
             "CraftingQuality",
             "ID,QualityTier,CraftingQualityAtlasSetID\n14,2,7\n",
         ),
-        ("CraftingQualityAtlasSet", "ID,IconInv\n7,20209\n"),
+        (
+            "CraftingQualityAtlasSet",
+            "ID,IconInv,IconMixedInv\n7,32404,32399\n",
+        ),
         (
             "UiTextureAtlasElement",
-            "ID,Name\n20209,Professions-Icon-Quality-Tier1-Inv\n",
+            "ID,Name\n32404,Professions-Icon-Quality-12-Tier2-Inv\n32399,Professions-Icon-Quality-12-Mixed-Inv\n",
         ),
         ("Item", "ID,CraftingQualityID\n244634,14\n2589,0\n"),
         (
@@ -247,7 +266,7 @@ fn professions_db2_catalog_joins_classic_tailoring_recipe() {
     let recipe = catalog.get(3275).unwrap();
     assert_eq!(
         (recipe.spell_id, recipe.skill_line, recipe.output),
-        (3275, 2540, (1251, 1))
+        (3275, 2540, Some((1251, 1)))
     );
     assert_eq!(recipe.reagents, [(2589, 1)]);
     assert_eq!(recipe.category, "Bandages");

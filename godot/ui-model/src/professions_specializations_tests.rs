@@ -66,7 +66,7 @@ fn specialization_query_uses_learned_specialization_tier_not_selected_classic_re
             min_rank: 30,
             trivial_low: 45,
             trivial_high: 75,
-            output: (2303, 1),
+            output: Some((2303, 1)),
             reagents: vec![(2318, 4), (2320, 1)],
         }],
         snapshot: ProfessionSnapshot {

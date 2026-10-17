@@ -2,6 +2,36 @@
 
 [Guild effects](systems/guilds.md#perk-native-authority-and-effect-boundary-2026-10-16): real Human458619 retained, two physical6948/8690 uses per fresh scenario (one in each skin),25-minute ordinary versus10-minute guild recovery. Four real invitation/removal cycles preserve pending clocks and all114 non-guild IDs; binaries identical. Twelve inspected full-HD originals establish bag/item/cast context; numbers are actual native owner receipts, not rendered timer labels. Mixed25/10/25-minute queue and rate/snapshot core17 pass; extra controls/final checks remain separate.
 
+## 2026-10-16 — Product-row cart toggle implementation
+
+[Row toggle](systems/trading-post.md#product-row-cart-toggle--implementation-october16): source36px hovered-row control carries its own vendor identity, authored add/minus art, cart indicator and left tooltip. Existing cart eligibility/default wearable selection shared without resetting current choices. Model missing-action3 and actual native missing-button RED precede implementation. Modern behavior passed but paint acceptance was rejected: hover replaced the base glyph with highlight art (native center contrast ratio0.167). Base-plus-highlight correction9bbc554ad passes both-skin real-pixel/behavior proof (contrast ratio0.732, independent IDs, unchanged Tender/frozen slots and open-cart choices);10 inspected full-HD originals+2 contacts+2 crops published. Stale private world data is refreshed from the already-published canonical source, preserving account redb.
+## 2026-10-16 — Lifetime honor source boundary
+
+[Honor](systems/battlegrounds.md#lifetime-honor-source-boundary--2026-10-16): pinned concrete world-kill XP plumbing is distinct from spendable1792; no8800 guess, old Prestige curve reinterpretation or quest-to-match payout assignment. Persist/replicate lifetime XP, leave level/fill unknown, preserve source faction art and tooltip. Merged server10/UI4/wire1/check/fmt pass; actual private damage/death0→47→94, both-skin full-HD tooltip, dead replay and fresh-process relog are bounded native proof. Character Currency's absent consumer/UI remains open, not excused by unavailable award policy.
+## 2026-10-16 — Earned-wallet source boundary and weekly bookkeeping
+
+[Source boundary](systems/battlegrounds.md#earned-wallet-source-continuation--2026-10-16): fresh raw70391 RewardPack exports and42 pinned BG/arena scripts/default hook do not supply a wallet-event binding; award spells/config values alone are insufficient. Known weekly0 behavior exposed unconditional week_earned accumulation: real300-versus0 RED, protocol26 GREEN after counting only capped gains; capped reset coverage retained. Protocol26/server7, persistence and scoped server/native/shared checks plus fmt3 pass. No earned-wallet/native award claim, XP conversion or guessed season/reset policy.
+
+## 2026-10-16 — Native PvP Currency continuation
+
+[Currency](systems/battlegrounds.md#native-currency-readout--2026-10-16): real UDP owner relay, account receipt/reset/refusal handling and IPC, source TokenFrame PvP rows/hover/collapse. Both-skin empty-wallet hidden tab and private saved Honor0 presentation observed; discovered-wallet tabs corrected from inherited Forever side chrome to Mainline bottom anchors. Final UI7/wire1/account1, scoped builds/checks/fmt and both-skin source-anchor recapture pass; six full-HD originals inspected, eleven rectangles identical. Owned private stale world copy refreshed read-only from published authored schema after master gained world-questZ; no product/data-policy workaround. No earned-award or full TokenUI claim.
+## 2026-10-16 — Bench resurrection HUD projection
+
+[Shared2347 projection](systems/battle-pets.md#bench-resurrection-projection--2026-10-16): both actual skins physically revive two persisted-dead reserves to78/1563, pointer swap, retain incoming damage and win through the revived pet's147-damage Metal Fist. Eight fullHD originals inspected;92/98/131/98 geometry differs only in timed float. Canonical78-asset closure and explicit strict loader readback pass; world-native mode, exact runtime heads and pre-auth recovery are documented. No UI change/full Retail timing/VFX claim; owned processes stopped.
+## 2026-10-16 — LOS-aware opening preparation
+
+[Riverpaw boundary](systems/bot-harness.md#los-aware-pull-preparation--2026-10-16): release12b records native range true but native ray absent/server visibility false. Prepull movement now waits for native visibility along the same strict navmesh route, bounded by time/travel; no target cycling, cast retries or LOS relaxation. Captured-case RED and live runtime proof remain distinct.
+
+## 2026-10-16 — Native range/cast pose coherence
+
+[Local pose](systems/bot-harness.md#local-rangecast-pose--2026-10-16): real one-second input moves the local client7yd while the loopback host keeps its owner Position frozen; RED shows native Slam range still true at the old replica. Range and cast origin now share the current local pose. Focused fixture also receives the ordinary cast origin; full dev-IPC bag-catalog readiness and fresh release-server Stockade acceptance remain separate.
+## 2026-10-16 — Same-species damage projection
+
+[Dragon's Call2283](systems/battle-pets.md#same-species-effect-projection--2026-10-16): both actual skins, legal level2 trio and physical85/77 damage, HP/cooldown3; four inspected fullHD originals.91 pre-cast rectangles match,97 post-cast common rectangles differ only HP fills and two timed Forever floats. Actual snapshots and canonical3-mesh loader report ExtractedOnly/tripwire0. Adopted70448 assets published; mechanics70391, exact artifact/fixture sources explicit. No new widget/client rule/full Retail timing/VFX claim; owned processes stopped.
+
+## 2026-10-16 — Bench resurrection HUD projection
+
+[Shared2347 projection](systems/battle-pets.md#bench-resurrection-projection--2026-10-16): both actual skins physically revive two persisted-dead reserves to78/1563, pointer swap, retain incoming damage and win through the revived pet's147-damage Metal Fist. Eight fullHD originals inspected;92/98/131/98 geometry differs only in timed float. Canonical78-asset closure and explicit strict loader readback pass; world-native mode, exact runtime heads and pre-auth recovery are documented. No UI change/full Retail timing/VFX claim; owned processes stopped.
 ## 2026-10-16 — Supported Mount Up native effect proof
 
 [Guild effects](systems/guilds.md#perk-native-authority-and-effect-boundary-2026-10-16): real invitation/removal and Golden Gryphon input produce14→15.4→14 ground and22.4→24.64→22.4 flight, with seven coherent samples per skin. Fourteen full-HD originals inspected; ten mounted ground/flight/removal frames selected, four occluded ground/unmounted frames rejected. Earlier flat retries were actual CasterDead after a cliff trial; fixture recovery uses existing private `.revive`, not speed/perk injection. Controlled-NPC210 remains blocked. Hasty core charge2309 controls pass3/3; native item proof remains separate.
@@ -19,6 +49,13 @@
 ## 2026-10-16 — Inherited frozen Trading Post item tooltip
 
 [Inherited tooltip](systems/trading-post.md#inherited-frozen-product-tooltip--implementation-october16): resolve the existing displayed selection action instead of ordinary-only names. Missing native frozen-hover RED→actual8e9/7f7c8875/44e6bed both-skin settled-slot GREEN, independent item/model identity, source anchor/no sell price/leave/teardown and unchanged Tender. Four inspected full-HD hover/leave originals+two contacts published; genuine private frozen slots retained. Pending-freeze/drag/framing excluded.
+## 2026-10-16 — Existing specialization authority reused
+
+[Knowledge reuse](systems/native-professions-crafting.md#knowledge-reuse--verified2026-10-16): both full-HD skins unlock, inspect tooltips, stage/Undo/Apply, spend25→24 and retain rank1/30 after fresh private server/client relogs. Existing authority6, actual-native database reopen1 and post-quality inventory/skill conservation1 pass. Fixture points are not acquisition proof.
+
+## 2026-10-16 — Authored quality reagent selection
+
+[Native quality selection](systems/native-professions-crafting.md#authored-quality-selection--verified2026-10-16): both1920×1080 skins pass physical mixed-tier selection, typed clamp, Cancel, owned-stock disablement, incomplete-slot authority refusal and complete allocation with no fabricated outcome. Native Plain chrome registration fixed reproduced dialog conversion failure; source operation composition remains a named gap. Twelve quality originals inspected; conservation gate tracked separately.
 
 ## 2026-10-16 — Fade effect native projection
 
@@ -47,6 +84,21 @@
 ## 2026-10-16 — World-quest navigation and Deathwing diagnosis
 
 [Task navigation and hazard](investigations/world-quest-availability.md#2026-10-16-navigation-and-authored-deathwing-hazard): available pins select without acceptance, received-position minimap markers, source-only bars/time text and unnumbered tracker POIs;13 scoped UI controls GREEN. Actual ten46327 actors spawn5552/5552; Deathwing's authored Molten Flame kills them on grid activation, not spawn/scaling/terrain. Current both-skin navigation/window/controlled-reward gate passes: actual7/8→8/8,11765XP, replay/expiry and26 inspected fullHD PNGs. The explicitly approved private fixture omits only hazard spawn20383796; product data is unchanged, no injected credit or NPC health restore. Ordinary-world hazard/phasing remains open.
+## 2026-10-16 — ReadyCheck message origin
+
+[Source TOP anchor](systems/group-frames.md#readycheck-message-origin--bounded-proof-2026-10-16): retain parent-relative(+20,−37), removing title-height subtraction. Model RED→GREEN2; both-skin native positions and2080-pixel message-only delta per full-HD pair. Existing baseline binary reused with exact hash provenance; typography/difficulty/full-popup remain open.
+
+## 2026-10-16 — UIErrors source hold
+
+[Bounded lifetime proof](systems/ui-system.md#uierrors-source-hold--bounded-proof-2026-10-16): hold3→2 seconds restores2.5s expiry, retaining fade calculation as an unqualified fadePower gap. Model RED2→GREEN4; ten both-skin supplied-elapsed native cases and ten unchanged-outside full-HD pairs. No wall-clock cadence/full MessageFrame claim.
+
+## 2026-10-16 — ReadyCheck response anchors and art
+
+[Bounded button proof](systems/group-frames.md#readycheck-response-buttons--bounded-proof-2026-10-16): source bottom anchors and inherited UIPanel sheets replace wrong spacing/defaultbutton art. Model RED→GREEN1, four both-skin physical cases and twelve full-HD state pairs unchanged outside old/new button union. Existing action/cancellation retained; full dialog/server lifecycle excluded.
+
+## 2026-10-16 — StackSplit arrow source states
+
+[Arrow state proof](systems/cursor-item.md#stacksplit-arrow-states--bounded-proof-2026-10-16): static clickable frames lacked pushed art and dispatched before outside release. Source16×16 buttons restore Up/Down/Disabled art and cancellation; model RED→GREEN1,16 both-skin physical cases,48 context comparisons unchanged outside arrows. Supplied-state input only; quantity/purchase/full-picker parity excluded.
 
 ## 2026-10-16 — Guild news live acceptance
 
@@ -4256,3 +4308,12 @@ Completed Retailv2 codec/authoritative Create and committed Copy callbacks, exac
 
 - 2026-10-16: Frozen ProductButton inherits base item tooltip; ordinary-name-only native lookup missed it. Actual genuine-Freeze native RED observed; resolve already-rendered selection action without new frozen state. [Trading Post](systems/trading-post.md#inherited-frozen-product-tooltip--implementation-october16).
 - 2026-10-16: Cart regular/member source tooltip both-skin native GREEN including actual hover-only removal; phase-local global input parsing corrects viewport-only fixture cursor.33UI12native/check/3scopedRustfmt pass at9e7; eight full-HD originals+two contacts published. [Trading Post](systems/trading-post.md#cart-item-tooltips--implementation-october16).
+
+## 2026-10-16 — Loot ItemButton hit rectangle and release
+
+Source Item ownership replaces row-press actions; inset-aware native Button picking fixes the actual expanded-hit boundary. Model2/native32 GREEN,68 unchanged full-HD pairs; StackSplit16/ReadyCheck4 shared-input controls and60 pixel pairs unchanged. Retained setup failures and Item-only partial RED, server/full-window exclusions explicit. See [[loot-and-flight#ItemButton input ownership — 2026-10-16]].
+- 2026-10-16: Spitzy67 source/asset closure recorded in [Toy Box](systems/toy-box.md#spitzy-source-asset-closure-2026-10-16); conditional visual, playback and canonical publication remain separate.
+
+## 2026-10-16 — Portrait-inclusive HUD and launcher clearance
+
+[Launcher](systems/launcher.md#portrait-inclusive-hud-clearance--2026-10-16): retain approved321×79 portrait mount; re-derive exact root/bars/portrait, include Camelot8px painted outset in Forever launcher−17.5 margin. Genuine master29pass2fail→31HUD+9launcher GREEN; production-faithful test skin setup, engine/networkcheck/build and both-skin1920×1080 native clearance pass. Modern0pixel changes, Forever113408 confined to launcher paint, zero outside. Supplied-state canvas proof, not live portrait/authority or full-HUD certification.

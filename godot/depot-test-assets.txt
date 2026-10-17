@@ -168,6 +168,8 @@ models/5646085.m2
 models/564608500.skin
 models/143187.m2
 models/14318700.skin
+# Extracted-only cold-start fixture: 143187.m2's authored primary SFID.
+models/490465.skin
 models/143490.m2
 models/14349000.skin
 models/3512290.m2
@@ -2409,6 +2411,13 @@ db2/active/SpellReagents.csv
 db2/active/TradeSkillCategory.csv
 db2/active/CraftingQuality.csv
 db2/active/CraftingQualityAtlasSet.csv
+# Modern crafting basic quality allocations, local Retail 12.1.5.70391.
+db2/active/ModifiedCraftingSpellSlot.csv
+db2/active/ModifiedCraftingReagentSlot.csv
+db2/active/MCRSlotXMCRCategory.csv
+db2/active/CraftingReagentQuality.csv
+textures/4559245.blp
+textures/4559238.blp
 dbfilesclient/4373538.db2
 dbfilesclient/7012110.db2
 dbfilesclient/4545612.db2
