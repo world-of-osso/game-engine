@@ -1,5 +1,5 @@
 extends SceneTree
-# Message shadow only. Existing white is a control, not source NORMAL_FONT_COLOR certification.
+# Message shadow only; colour follows NORMAL_FONT_COLOR row1 (0xFFFFD200).
 func _initialize() -> void:
 	call_deferred("run_ready_shadow")
 
@@ -25,7 +25,7 @@ func run_ready_shadow() -> void:
 		assert(label.text == "Raidleader has initiated a ready check.")
 		assert(label.size == Vector2(240, 28))
 		assert(label.get_theme_font_size("font_size") == 12)
-		assert(label.get_theme_color("font_color") == Color.WHITE)
+		assert(label.get_theme_color("font_color").is_equal_approx(Color(1, 210.0 / 255.0, 0)))
 		var anchor := label.global_position - panel.global_position
 		assert(absf(anchor.x - 61.5) <= 0.5 and anchor.y == 37)
 		var shadow := label.get_theme_color("font_shadow_color")
