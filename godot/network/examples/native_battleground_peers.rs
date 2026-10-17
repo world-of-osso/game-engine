@@ -375,15 +375,19 @@ fn write_peer_snapshot(path: &Path, value: &serde_json::Value) -> Result<(), Str
         .map_err(|error| format!("Publish peer snapshot {}: {error}", path.display()))
 }
 
+fn private_support_count(address: std::net::SocketAddr, minimum: u8) -> Result<usize, String> {
+    if !address.ip().is_loopback() || !(5710..=5712).contains(&address.port()) {
+        return Err("Private UDP5710–5712 only".into());
+    }
+    Ok(usize::from(minimum) * 2 - 1)
+}
+
 fn run() -> Result<(), String> {
     let directory = PathBuf::from(std::env::var("BG_DIRECTORY").map_err(|e| e.to_string())?);
     let address = std::env::var("BG_ENDPOINT")
         .map_err(|e| e.to_string())?
         .parse::<std::net::SocketAddr>()
         .map_err(|e| e.to_string())?;
-    if !address.ip().is_loopback() || !(5710..=5712).contains(&address.port()) {
-        return Err("Private UDP5710–5712 only".into());
-    }
     let battleground_id = std::env::var("BG_BATTLEGROUND_ID")
         .map_err(|e| e.to_string())?
         .parse()
@@ -394,7 +398,7 @@ fn run() -> Result<(), String> {
     if !prefix.starts_with("fb_") {
         return Err("Only private fb_* accounts are allowed".into());
     }
-    let count = usize::from(template.min_players_per_team) * 2 - 1;
+    let count = private_support_count(address, template.min_players_per_team)?;
     let mut peers = Vec::new();
     let clock = SystemTime::now()
         .duration_since(UNIX_EPOCH)
@@ -584,6 +588,21 @@ fn parse_source_attack(action: &str) -> Result<(u32, BgTeam), String> {
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    #[test]
+    fn release_twenty_proof_uses_nineteen_real_support_accounts_on_private5941() {
+        assert_eq!(
+            private_support_count("127.0.0.1:5941".parse().unwrap(), 8),
+            Ok(19)
+        );
+        assert_eq!(
+            private_support_count("127.0.0.1:5712".parse().unwrap(), 8),
+            Ok(15)
+        );
+        for address in ["127.0.0.1:5000", "192.0.2.1:5941", "127.0.0.1:5942"] {
+            assert!(private_support_count(address.parse().unwrap(), 8).is_err());
+        }
+    }
 
     #[test]
     fn peer_snapshot_readers_always_observe_complete_json_during_publication() {
