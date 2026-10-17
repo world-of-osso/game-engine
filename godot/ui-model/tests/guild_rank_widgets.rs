@@ -337,6 +337,59 @@ fn guild_invitation_no_design_renders_source_tabard_layers_both_skins() {
 }
 
 #[test]
+fn guild_invitation_registered_tabard_uses_received_sheet_palette_both_skins() {
+    use ui_toolkit::widgets::texture::TextureSource;
+    let _lock = SKIN.lock().unwrap_or_else(|poison| poison.into_inner());
+    for skin in [ActiveSkin::Modern, ActiveSkin::Forever] {
+        set_thread_skin(skin);
+        let mut session = GuildRanksSession::default();
+        // Decode the received contract, not the player's current guild profile.
+        session.invitation = Some(
+            serde_json::from_value(serde_json::json!({
+                "guild_id": 7, "guild_name": "Raid Team", "inviter_name": "Alice",
+                "tabard": { "icon": 1, "icon_color": 2, "border": 3,
+                    "border_color": 4, "background_color": 5 }
+            }))
+            .unwrap(),
+        );
+        let registry = mounted(&session);
+        let emblem = registry
+            .get(
+                registry
+                    .get_by_name("GuildInviteFrameTabardEmblem")
+                    .expect("received invitation emblem"),
+            )
+            .unwrap();
+        assert_eq!((emblem.width.value(), emblem.height.value()), (56.0, 64.0));
+        let Some(WidgetData::Texture(texture)) = &emblem.widget_data else {
+            panic!("invitation emblem texture");
+        };
+        assert_eq!(texture.source, TextureSource::FileDataId(459023));
+        assert_eq!(texture.tex_coords, [0.0625, 0.125, 0.0, 0.0625]);
+        assert_eq!(
+            texture.vertex_color,
+            [103.0 / 255.0, 69.0 / 255.0, 0.0, 1.0]
+        );
+        for (name, color) in [
+            (
+                "GuildInviteFrameTabardBackground",
+                [177.0 / 255.0, 0.0, 46.0 / 255.0, 1.0],
+            ),
+            (
+                "GuildInviteFrameTabardBorder",
+                [99.0 / 255.0, 148.0 / 255.0, 0.0, 1.0],
+            ),
+        ] {
+            let frame = registry.get(registry.get_by_name(name).unwrap()).unwrap();
+            let Some(WidgetData::Texture(texture)) = &frame.widget_data else {
+                panic!("invitation palette texture");
+            };
+            assert_eq!(texture.vertex_color, color);
+        }
+    }
+}
+
+#[test]
 fn guild_invitation_decline_keeps_source_size_right_and_bottom_anchors() {
     use ui_toolkit::layout_values::Val;
     let _lock = SKIN.lock().unwrap_or_else(|poison| poison.into_inner());
