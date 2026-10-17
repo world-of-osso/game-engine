@@ -20,23 +20,29 @@ func observe_focus_flash() -> void:
 		flash_done = true
 		return
 	var start := Time.get_ticks_msec()
+	var previous_alpha := 0.0
 	while Time.get_ticks_msec()-start < 5000:
 		await process_frame
 		var alpha := glow.modulate.a
 		flash_samples.append([Time.get_ticks_msec()-start,alpha])
-		# Discrete native frames need not land on the exact extrema. Pure tests cover
-		# the authored continuous curve; here require two visible rises and a trough.
-		if flash_phase == 0 and alpha > 0.55:
+		# Detect direction changes, not a sampled near-zero trough: a rendered
+		# frame can span the trough without changing the source's continuous curve.
+		var change := alpha-previous_alpha
+		if flash_phase == 0 and change > 0.0001 and alpha > 0.2:
 			flash_phase = 1
-		elif flash_phase == 1 and alpha < 0.35:
+		elif flash_phase == 1 and change < -0.0001 and previous_alpha > 0.5:
 			flash_phase = 2
-		elif flash_phase == 2 and alpha > 0.55:
+		elif flash_phase == 2 and change > 0.0001 and alpha > 0.2:
 			flash_phase = 3
-		if alpha > flash_peak_alpha:
+		elif flash_phase == 3 and change < -0.0001 and previous_alpha > 0.5:
+			flash_phase = 4
+		# One bright-frame readback avoids stalling the observer at every new max.
+		if flash_peak == null and alpha > 0.75:
 			flash_peak_alpha = alpha
 			await RenderingServer.frame_post_draw
 			flash_peak = root.get_texture().get_image()
-		if flash_phase == 3 and alpha < 0.01:
+		previous_alpha = alpha
+		if flash_phase == 4 and alpha < 0.01:
 			break
 	flash_done = true
 
@@ -52,7 +58,7 @@ func verify_section_selection() -> bool:
 	while not flash_done:
 		await process_frame
 	print("SECTION_FLASH_SAMPLES ",JSON.stringify(flash_samples))
-	if flash_phase != 3 or glow.modulate.a > 0.01 or flash_peak == null:
+	if flash_phase != 4 or glow.modulate.a > 0.01 or flash_peak == null:
 		stop("Source focus glow did not paint two pulses and return to zero; phase=" + str(flash_phase))
 		return false
 	await RenderingServer.frame_post_draw
