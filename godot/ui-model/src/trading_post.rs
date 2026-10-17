@@ -131,11 +131,15 @@ impl View {
         self.reselect();
     }
     pub fn rows(&self) -> Vec<&TradingPostItem> {
+        let committed_frozen = self
+            .snapshot
+            .as_ref()
+            .and_then(|snapshot| snapshot.frozen_item_id);
         let mut rows: Vec<_> = self
             .snapshot
             .iter()
             .flat_map(|snapshot| &snapshot.items)
-            .filter(|row| self.filters.includes(row))
+            .filter(|row| Some(row.id) != committed_frozen && self.filters.includes(row))
             .collect();
         rows.sort_by(|a, b| {
             let order = match self.sort {

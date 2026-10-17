@@ -78,6 +78,15 @@ Retail Mainline Blizzard_PerksProgram and the local C_PerksProgram/PerksActiviti
 - Retail PerksProgramElements.lua306–314 uses `GetItemByID`, excludes `SellPrice`, and owns the tooltip at `ANCHOR_RIGHT` with X−16/Y0. Preserve the shared screen clamp; hide on pointer leave or vendor teardown. Hover must not change selection, Tender or server state.
 - [x] Native missing-tooltip RED→both-skin GREEN at engine569419cb7/servera820dfda/protocoldc30250. Fixture `godot/tests/trading_post_live.gd`, phase `item-tooltips`, verifies two hovered item identities/details/right−16 positions without sell price, unchanged selected row/Tender, pointer leave and Escape/vendor teardown/reopen/HUD restoration. Eight inspected full-HD originals+two contacts: `/syncthing/AgentShared/2026-10-16/trading-post-item-tooltips/`; diagnostic `item-tooltips-proof-manifest.json` pins actual artifact hashes and receipts. Product-row coverage does not certify frozen/cart/detail-row or footer-button tooltips, item spell-effect formatting, or framing.
 
+## Committed frozen-product list exclusion
+
+Source: Retail `Blizzard_PerksProgramProducts.lua:530–534` omits the committed frozen vendor ID from the ordinary product provider. [Implementation/proof](../wiki/systems/trading-post.md#committed-frozen-product-list-exclusion--october17).
+
+- Exclude only `snapshot.frozen_item_id` from ordinary rows; keep every item in the authoritative snapshot and retain frozen-slot contents/details/selectability across ordinary filters. Preserve ordinary ordering and paging.
+- A pending replacement candidate stays in the ordinary list until authoritative acceptance. Cancel retains the original exclusion; acceptance removes the newly frozen ordinary row and returns the previous frozen product to the ordinary list. Genuine restoration reverses that swap without clearing the reservation or changing Tender/collections/cart.
+- [x] Model missing-exclusion RED2→GREEN2; current source7f737c021 passes42UI+12native Rust(+1DB2), helper check35.07s/no compiler warnings, scoped Rustfmt2/readability. Active SoundKit-family audit corrected to70448/key88d5e8ef…, original70391 receipt retained separately.
+- [ ] Both-skin native640/712 replacement/restoration and inspected PNG evidence follows the gate. No pre-gate native run or provider-parity claim from earlier audio-only duplicate-row baselines.
+
 ## Accepted freeze-lock sound
 
 Source: Retail `Blizzard_PerksProgramElements.lua:577–580,657–670` plays218229 only when accepting a genuinely dragged different product, not on cancel, query, same-item drop or a server snapshot update. [Implementation/proof](../wiki/systems/trading-post.md#accepted-freeze-lock-sound--october17).
@@ -90,7 +99,7 @@ Source: Retail `Blizzard_PerksProgramElements.lua:577–580,657–670` plays2182
 
 Source: Retail `Blizzard_PerksProgramElements.lua:291–304` unconditionally plays `TRADING_POST_UI_ITEM_HOVER`218934 on product OnEnter; frozen `Elements.xml:383` inherits that handler. SoundKit/Entry metadata is12.1.5.70391; file4906953 is authenticated installed12.1.5.70448 Ogg, not relabeled70391. [Implementation and proof](../wiki/systems/trading-post.md#product-enter-sound--october17).
 
-- Ordinary and frozen buttons are distinct hover owners even for the same product. Nested cart-toggle hover retains the parent product owner. Hold/refresh does not replay; leave and teardown permit reentry/reopen. Empty-slot enter follows the item-independent source handler, without requiring selection or item data.
+- Ordinary and frozen buttons are distinct hover owners, not selected-model identities; the [committed frozen-product exclusion](#committed-frozen-product-list-exclusion) prevents a simultaneous ordinary copy of the reserved product. Nested cart-toggle hover retains the parent product owner. Hold/refresh does not replay; leave and teardown permit reentry/reopen. Empty-slot enter follows the item-independent source handler, without requiring selection or item data.
 - Reuse existing UiKits decoding/settings: file4906953, source gain0.891250908 × master × effects, no pitch adjustment/variation. Do not change selected product, cart, Tender, frozen reservation or collections. Selection218230 and other action sounds remain excluded.
 - [x] Native missing-enter RED→actual3a7bed652/serverf4260beaf/protocole9b80b8 both-skin GREEN:12 lifecycle checkpoints and5 measured decoded4906953 plays per skin, all playing/finished,0.378645837s, source×settings gain0.713000715 and pitch1; same-product ordinary/frozen owners differ and child/hold do not replay. Tender19040/19670, frozen640/712, selected642/734, collections/cart conserved. Core3+TP52(+1DB2)/check/scoped Rustfmt3/readability pass; native empty-slot and hardware output remain unclaimed. Ten inspected full-HD originals+two contacts: `/syncthing/AgentShared/2026-10-17/trading-post-product-hover-sound/`.
 
