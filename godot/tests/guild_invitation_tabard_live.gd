@@ -23,6 +23,12 @@ func run_test() -> void:
 		return
 	if not await wait_until(func(): return not perk_observation().startup_loading, "actual world startup completion"):
 		return
+	# An interrupted trial leaves a real durable invitation. Consume it through the UI before new requests.
+	if invitation_receipt() != null:
+		await press("GuildInviteFrameDeclineButton")
+		if not await wait_until(func(): return invitation_receipt() == null and not shown("GuildInviteFrameJoinButton"), "decline the prior durable invitation"):
+			return
+		await wait_frames(30)
 	var phase := 0
 	for skin in ["Modern", "Forever"]:
 		phase += 1
