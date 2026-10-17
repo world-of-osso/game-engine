@@ -147,7 +147,6 @@ fn paper_regions(name: &str, width: f32, collapsed: bool, pushed: bool) -> Eleme
 
 fn paper_highlight(name: &str, width: f32, flash: bool) -> Element {
     let layer = if flash { "OVERLAY" } else { "HIGHLIGHT" };
-    let blend = if flash { "BLEND" } else { "ADD" };
     let mut out = Vec::new();
     for (suffix, fdid, uv, rect) in [
         (
@@ -170,7 +169,7 @@ fn paper_highlight(name: &str, width: f32, flash: bool) -> Element {
         ),
     ] {
         let (left, top, width, height) = rect;
-        out.extend(rsx! {texture {name:{DynName(format!("{name}{suffix}"))},texture_fdid:fdid,tex_coords:uv,left,top,width,height,pos_type:"absolute",draw_layer:{layer},blend_mode:{blend}}});
+        out.extend(rsx! {texture {name:{DynName(format!("{name}{suffix}"))},texture_fdid:fdid,tex_coords:uv,left,top,width,height,pos_type:"absolute",draw_layer:{layer}}});
     }
     out
 }

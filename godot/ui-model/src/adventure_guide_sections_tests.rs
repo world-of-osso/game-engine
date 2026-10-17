@@ -50,7 +50,7 @@ fn rect(registry: &FrameRegistry, name: &str) -> [f32; 4] {
 }
 
 #[test]
-fn adventure_section_flash_real_paralyze_uses_source_glow_regions_without_hover_blending() {
+fn adventure_section_flash_real_paralyze_uses_source_glow_regions_and_retains_hover() {
     let catalog = catalog();
     let section = &catalog.sections[&2410];
     assert_eq!(section.title, "Paralyze");
@@ -92,7 +92,22 @@ fn adventure_section_flash_real_paralyze_uses_source_glow_regions_without_hover_
             };
             assert_eq!(
                 texture.blend_mode,
-                ui_toolkit::widgets::texture::BlendMode::Additive
+                // Baseline rsx blend_mode was ignored; preserve observed hover data.
+                ui_toolkit::widgets::texture::BlendMode::AlphaKey
+            );
+            assert_eq!(
+                registry
+                    .get(registry.get_by_name(&hover).unwrap())
+                    .unwrap()
+                    .draw_layer,
+                ui_toolkit::strata::DrawLayer::Highlight
+            );
+            assert_eq!(
+                registry
+                    .get(registry.get_by_name(&name).unwrap())
+                    .unwrap()
+                    .draw_layer,
+                ui_toolkit::strata::DrawLayer::Overlay
             );
         }
     }
