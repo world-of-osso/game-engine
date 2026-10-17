@@ -25,6 +25,8 @@
 - [Clean-room M2 particles](systems/godot-conversion.md#native-m2-particles) — native tails/follow/cubic controls, authored sorting and map-collision births; inherited-scale provenance and explicit lighting, timer/reset, spline-density, target-mask and model-recursion oracle gaps.
 # Wiki Index
 
+- [Ordinary party queue and late arrivals](systems/battlegrounds.md#ordinary-party-queue-and-late-arrivals--2026-10-17) — four real five-player parties enter one Arathi20 match; sequential-ack scoreboard18→20 preserves prior objective scores; channel8/check/fmt pass, release/native proof pending.
+
 - [Item-confirmation caption shadow](systems/trading-post.md#item-confirmation-caption-shadow--bounded-proof-october17) — inherited black(+1,−1); RED→both-skin normal/delay/pending model/native GREEN,535/524/479 darkened pixels, exact alpha-off restoration; disabled-color and magenta RGB8 oracle failures retained, scaling/full-popup parity unqualified.
 
 - [Section focus flash](systems/adventure-guide.md#section-focus-flash--2026-10-17) — source Glow/four alpha phases; actual missing-effect RED, both-skin physical pulses,12 inspected full-HD captures and bounded pixel conservation; prior324 outside pixels retained as unattributed/not reproduced.
