@@ -58,6 +58,7 @@ pub struct Section {
     pub kind: u32,
     pub spell: u32,
     pub icon: u32,
+    pub creature_display: u32,
     pub roles: u32,
 }
 #[derive(Clone, Debug, PartialEq)]
@@ -223,12 +224,12 @@ impl Catalog {
         )?;
         let sections = query(
             &db,
-            "SELECT ID,Title_lang,BodyText_lang,JournalEncounterID,ParentSectionID,FirstChildSectionID,NextSiblingSectionID,Type,SpellID,IconFileDataID,IconFlags FROM JournalEncounterSection",
+            "SELECT ID,Title_lang,BodyText_lang,JournalEncounterID,ParentSectionID,FirstChildSectionID,NextSiblingSectionID,Type,SpellID,IconFileDataID,IconFlags,IconCreatureDisplayInfoID FROM JournalEncounterSection",
             |row| Ok(Section {
                 id: row.get(0)?, title: row.get(1)?, body: row.get(2)?,
                 encounter: row.get(3)?, parent: row.get(4)?, child: row.get(5)?,
                 next: row.get(6)?, kind: row.get(7)?, spell: row.get(8)?,
-                icon: row.get(9)?, roles: row.get(10)?,
+                icon: row.get(9)?, roles: row.get(10)?, creature_display: row.get(11)?,
             }),
         )?.into_iter().map(|section| (section.id, section)).collect();
         let loot = query(

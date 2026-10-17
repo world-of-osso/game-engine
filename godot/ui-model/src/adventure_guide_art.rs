@@ -35,10 +35,16 @@ pub fn reset_changed_scrolls(
     for list in lists {
         registry.scroll_lists.scroll_to(list, 0);
     }
+    if previous.search != next.search || previous.search_mode != next.search_mode {
+        registry
+            .scroll_lists
+            .scroll_to("EncounterJournalSearchList", 0);
+    }
 }
 
 pub fn apply_postsetup(view: &View, registry: &mut ui_toolkit::registry::FrameRegistry) {
     apply_pane_texture_layers(registry);
+    apply_search_popup_layers(registry);
     sync_search_state(registry);
     apply_button_art(view, registry);
     crate::adventure_guide_sections::sync_header_art(view, registry);
@@ -63,6 +69,29 @@ fn apply_pane_texture_layers(registry: &mut ui_toolkit::registry::FrameRegistry)
     ] {
         if let Some(id) = registry.get_by_name(name) {
             registry.get_mut(id).unwrap().draw_layer = layer;
+        }
+    }
+}
+
+/// BottomPopupScrollBoxTemplate XML1828–1900: streaks below both border rows.
+fn apply_search_popup_layers(registry: &mut ui_toolkit::registry::FrameRegistry) {
+    use ui_toolkit::strata::DrawLayer::{Background, Border};
+    for (name, layer, sub_layer) in [
+        ("JournalSearchPopupBackground", Background, 0),
+        ("JournalSearchPopupStreaks", Border, -1),
+        ("JournalSearchPopupTopLeft", Border, 0),
+        ("JournalSearchPopupTopRight", Border, 0),
+        ("JournalSearchPopupTopBorder", Border, 0),
+        ("JournalSearchPopupLeft", Border, 0),
+        ("JournalSearchPopupRight", Border, 0),
+        ("JournalSearchPopupSecondLeft", Border, 1),
+        ("JournalSearchPopupSecondRight", Border, 1),
+        ("JournalSearchPopupSecondBorder", Border, 1),
+    ] {
+        if let Some(id) = registry.get_by_name(name) {
+            let frame = registry.get_mut(id).unwrap();
+            frame.draw_layer = layer;
+            frame.draw_sub_layer = sub_layer;
         }
     }
 }
