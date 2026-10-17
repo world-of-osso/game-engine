@@ -1,3 +1,7 @@
+## 2026-10-16 — Arathi completion Honor
+
+[Completion](systems/battlegrounds.md#arathi-completion-honor--2026-10-16): explicit BG_END_BONUS_ONCE_PER_MATCH normalizes pinned TC's roster-loop placement, not a Retail claim. Real terminal-resource-tick RED0vs122→GREEN proves separate39-bracket61+61 awards,90-bracket80-level clamp, eligible/dead/excluded recipients, cap/XP separation, no type35 event, replay and reopen. Original admission/mirror/Honor35 regressions11 remain GREEN; scoped server check passes. Controlled pre-terminal fixture, not full network/live BG proof. Other BG callbacks remain open.
+
 ## 2026-10-16 — Source battleground brackets
 
 [Brackets](systems/battlegrounds.md#source-match-brackets--2026-10-16): authenticated70391 PVPDifficulty ranges isolate groups/matches and survive admission into the live instance. Mixed39/40 group and mixed29/30–39 roster RED2→protocol36/server11 GREEN; scoped native/server checks pass. Exact epic20–79 and Deephaul80 minimum preserved; no decade guess, match-pairing award or Arena/Conquest policy. BG Honor callbacks remain next.
