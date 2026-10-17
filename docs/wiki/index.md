@@ -1,3 +1,4 @@
+- [Opening combat admission](systems/bot-harness.md#combat-admission-for-opening-preparation--2026-10-16) — received owner CombatStatus gates new prep; abandon uncast openings when combat begins, never a spell fallback.
 - [Melee endpoint completion stall](systems/bot-harness.md#melee-endpoint-completion-stall--2026-10-16) — actual2.50000111yd native Execute stall; propagate waypoint arrival into the unchanged cast gate.
 - [Kill receipt across target changes](systems/bot-harness.md#kill-receipt-across-target-changes--2026-10-16) — consume owner outcomes before movement or idle prep, even after a killing cast changes the selected target.
 - [LOS-aware pull preparation](systems/bot-harness.md#los-aware-pull-preparation--2026-10-16) — blocked Riverpaw native replay; bounded same-target navmesh approach gates the single opening on native visibility.

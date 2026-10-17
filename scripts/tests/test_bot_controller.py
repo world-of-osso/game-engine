@@ -11,6 +11,7 @@ from bot_controller import FileBridge, PlayerController, requested_snapshot
 
 def snapshot(spec=62, spell=30451):
     return {"at_ms": 1000, "target": 41, "actor": 7, "trait_config": {"spec_id": spec},
+            "assisted": {"in_combat": False},
             "spells": {"spec": spec, "known": [spell], "casting": None, "gcd_ms": 0,
                        "cast_success_events": [], "cast_failure_events": [], "cast_failure_seq": 0},
             "facts": {"known": [spell], **{field: {str(spell): {"Ok": True}}
@@ -68,6 +69,8 @@ class ControllerTests(unittest.TestCase):
         def receive(target):
             nonlocal observations
             observations += 1
+            if observations >= 2:
+                self.native["assisted"]["in_combat"] = True
             if observations >= 3:
                 self.native["spells"]["cast_success_events"] = [
                     {"source": 7, "spell_id": 57755, "at_ms": 1001}]
@@ -77,6 +80,15 @@ class ControllerTests(unittest.TestCase):
         self.assertTrue(result["success"])
         self.assertGreaterEqual(observations, 3)
         self.assertEqual(self.commands, [("spell", "cast", "--spell", "57755", "--target", "41")])
+
+    def test_received_combat_status_at_submission_abandons_uncast_opening(self):
+        path = Path(__file__).parent / 'fixtures/bot_harness/native-stockade-engaged-opening.json'
+        native = json.loads(path.read_text())
+        self.controller.snapshot = lambda target: native
+        self.controller.invoke = lambda *args: self.fail("Submitted opening after received combat began")
+        self.assertIsNone(self.controller.cast_opening(int(native["target"]), 57755))
+        self.assertIsNone(self.controller.pending)
+        self.assertEqual(self.commands, [])
 
     def test_opening_server_refusal_stops_without_repeat_or_alternate(self):
         self.native = snapshot(spec=72, spell=57755)

@@ -50,6 +50,14 @@ The1280 input/result PNGs were inspected and published as `follower-dungeons/nat
 
 `bot_simc_arcane.ArcaneSimcProvider` carries the approved diagnostic projection into the maintained interface with caller-provided receipt/APL/captured-kit/DB2/native-preflight/fight context. Receipt URL/commit and actual APL bytes must match SimC515f4a3fe9d1; the [fixture provenance](../../../scripts/tests/fixtures/bot_harness/simc_arcane32/provenance.json) retains exact source paths/hashes and native row slices. The generic controller contains no Mage IDs or priority. Provider calls are read-only against frozen kit/traits; the [bounded source contract](../../specs/bot-harness.md#approved-pinned-arcane-provider) retains APL24/36/64,2700s iteration timing and explicit unsupported cases. Selection must be explicit; no provider is auto-selected after a native evaluator error.
 
+### Combat admission for opening preparation — 2026-10-16
+
+Release15b reaches six acknowledged openings without death, then spends60s preparing Heroic Throw against Vicious Thug4294739427 at0.364yd, below its authored8yd minimum (SpellMisc38799→SpellRange288). The tank had already hit that enemy with Avenger's Shield3.764s before the seventh opening; the received owner `CombatStatus` was true in the first prep sample. Full health plus an empty assist observation incorrectly classified an active fight as idle.
+
+New openings now require received owner `CombatStatus` false before Tab selection, at each prep observation, and in the fresh frame used for actual cast submission. If combat starts before the request, record an abandoned opening and return to ordinary assist/authored combat without forcing a target. A requested cast still awaits its real receipt even when combat becomes true. Missing/invalid combat state stops explicitly. No alternate spell, withdrawal, retry, range/LOS tolerance, stat or kit changes; genuinely out-of-combat minimum-range failures retain the existing bounded refusal.
+
+The captured seventh-pull frame supplies RED controls for already-engaged and fresh-submission admission; a modeled transition covers combat beginning during movement. Runtime full-clear acceptance remains separate.
+
 ### Melee endpoint completion stall — 2026-10-16
 
 Release14 records a tank death after126.461s with continuous healing, while the owner leaves a native-ready/affordable/in-range Execute unused for43s. Retained `metrics-1792204277951.json` places the owner at(76.19163,−25.60623,−0.839278) and target at(73.6949768,−25.6062336,−0.7099397): horizontal gap2.50000111yd. The Stockade step chooses movement above2.5yd, but its existing2.5yd melee endpoint is already within the route controller's0.5yd arrival threshold. No movement is sent, and the caller discarded the reached result instead of proceeding to the cast gate.
