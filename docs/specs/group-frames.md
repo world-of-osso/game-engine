@@ -39,7 +39,7 @@ References (under `~/.cache/wow-ui-sim/blizzard-ui/retail/AddOns/`):
 - [x] Server rejections use Retail `ERR_*` text, shown as system chat lines: BadPlayerName, InviteSelf, AlreadyInGroup, InvitePartyBusy, NotLeader, GroupFull, NotInGroup, TargetNotInGroup, NotInRaid, ReadyCheckInProgress.
 
 ### Ordinary PARTY_INVITE body shadow (bounded slice)
-- [ ] Ordinary StaticPopup body inherits black shadow at source (+1,−1), projected native (+1,+1), in both skins (implemented; native/pixel GREEN pending). Preserve current 14px FrizQuadrata, white text, geometry, Accept/Decline actions and timeout.
+- [x] Ordinary StaticPopup body inherits black shadow at source (+1,−1), projected native (+1,+1), in both skins. Preserve current 14px FrizQuadrata, white text, geometry, Accept/Decline actions and timeout. [Bounded supplied-PARTY_INVITE proof](../wiki/systems/group-frames.md#ordinary-staticpopup-body-shadow--bounded-proof-2026-10-17).
 - [ ] Effective user-font scaling and full-popup reference parity remain unqualified; supplied-state shadow proof does not qualify server/lifecycle behavior.
 
 ### Party frame (raid-style `CompactPartyFrame`)
