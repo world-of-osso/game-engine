@@ -24,7 +24,7 @@ fn p5_parent_at_exact_lifespan_retires() {
         &game_engine_core::m2::AnimTime {
             sequence: 0,
             time_ms: 0,
-            global_ms: 0,
+            global_ms: 0.0,
             global_sequences: &[],
         },
     );
