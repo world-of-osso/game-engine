@@ -811,6 +811,13 @@ impl EmitterSim {
 
     fn spawn(&mut self, emitter: &ParticleEmitter, dt: f32) -> Particle {
         let model_space = self.model_space(emitter);
+        let has_orientation_consumer =
+            emitter.particle_model_filename.is_some() || !self.children.is_empty();
+        let orientation = if model_space || !has_orientation_consumer {
+            Quat::IDENTITY
+        } else {
+            self.emitter_to_world.to_scale_rotation_translation().1
+        };
         let rng = &mut self.rng;
         let dvary = dt * rng.uniform_pos();
         let life = rng.uniform();
@@ -841,11 +848,7 @@ impl EmitterSim {
             position,
             previous_position: position,
             velocity,
-            orientation: if model_space {
-                Quat::IDENTITY
-            } else {
-                self.emitter_to_world.to_scale_rotation_translation().1
-            },
+            orientation,
             age,
             seed,
             tex_pos,

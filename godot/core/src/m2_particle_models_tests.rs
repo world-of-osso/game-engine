@@ -214,6 +214,26 @@ fn p5_newborn_child_age_is_not_added_twice() {
 }
 
 #[test]
+fn p5_plain_billboard_does_not_decompose_a_hidden_bone_frame() {
+    let e = emitter(1.0);
+    let mut sim = EmitterSim::new(&e, 17);
+    sim.update(
+        &e,
+        0.015,
+        Mat4::from_scale(Vec3::ZERO),
+        Mat3::IDENTITY,
+        1.0,
+        &mut |_, _| None,
+    );
+    assert_eq!(sim.particles().len(), 1);
+    assert!(sim.particles()[0].position.is_finite());
+    assert!(
+        sim.particles()[0].orientation.is_finite(),
+        "ordinary billboards have no geometry-orientation consumer"
+    );
+}
+
+#[test]
 fn p5_model_space_parent_supplies_previous_world_position() {
     let (mut e, mut root) = family(1);
     e.flags |= FLAG_MODEL_SPACE;
