@@ -1,6 +1,6 @@
 ## 2026-10-16 — Product-row refund icon tooltip implementation
 
-[Refund icon](systems/trading-post.md#product-row-refund-icon-tooltip--implementation-october16): real old-binary pointer RED shows generic item tooltip over refundable642 while848 is selected; genuine purchase/refund restores Tender/frozen state before assertion. Texture-owned vendor identity/right0/0 and existing colored footer formatter implemented; model/native GREEN and both-skin pixels pending. No production refund policy/provider changes.
+[Refund icon](systems/trading-post.md#product-row-refund-icon-tooltip--implementation-october16): real old-binary pointer RED shows generic item tooltip over refundable642 while848 is selected; genuine purchase/refund restores Tender/frozen state before assertion. Passive projected texture bounds own right0/0 and the existing colored footer formatter without blocking parent clicks. Model3 and actualca0/4e9/Pb701 both-skin painted GREEN: independent IDs, white caption/red59m, parent click, hover leave, Escape destroys currently hovered owner/HUD, one real purchase/refund restores Tender/collected/frozen state. Eight full-HD originals+two contacts+two crops published; diagnostic manifest binds exact inputs. Focused40 UI+12 native/scoped five Rustfmt pass; engine check pending. No production refund policy/provider changes.
 
 ## 2026-10-16 — Product-row cart toggle implementation
 

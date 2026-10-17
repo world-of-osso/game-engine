@@ -37,9 +37,11 @@ Retail Mainline Blizzard_PerksProgram and the local C_PerksProgram/PerksActiviti
 
 ## Product-row refund icon tooltip
 
-- [ ] Hovering the21×21 undo texture uses Retail Elements.lua123–137/Elements.xml325–333 refund-time text, owned by that texture at ANCHOR_RIGHT0/0 rather than the enclosing row. The hovered vendorID determines remaining time even while another product is selected; ordinary row hover still shows its item tooltip.
-- [ ] Use the existing TimeLeftFooterFormatter (two nonzero units, minimum minutes, floor) and source time color: white above3600 seconds, red at/below. Unknown/nonrefundable/elapsed-to-zero products and a closed vendor supply no refund tooltip. Hover/leave cannot mutate selected product, cart, frozen reservation or Tender.
-- [ ] Both skins require native pointer/owner/leave/teardown and inspected painted proof. A genuine private-policy purchase/refund round trip restores the starting balance; production refund duration stays unchanged. Footer-history tooltip and provider/calendar states remain outside this slice.
+- [x] Hovering the21×21 undo texture uses Retail Elements.lua123–137/Elements.xml325–333 refund-time text, owned by that texture at ANCHOR_RIGHT0/0 rather than the enclosing row. The hovered vendorID determines remaining time even while another product is selected; ordinary row hover still shows its item tooltip.
+- [x] Use the existing TimeLeftFooterFormatter (two nonzero units, minimum minutes, floor) and source time color: white above3600 seconds, red at/below. Unknown/nonrefundable/elapsed-to-zero products and a closed vendor supply no refund tooltip. Hover/leave cannot mutate selected product, cart, frozen reservation or Tender.
+- [x] Both skins require native pointer/owner/leave/teardown and inspected painted proof. A genuine private-policy purchase/refund round trip restores the starting balance; production refund duration stays unchanged. Footer-history tooltip and provider/calendar states remain outside this slice.
+
+- [x] Actual9bbc/CLI0c00/server77c31f23/P540 native generic-item-tooltip RED→actualca0b75d39/server4e9bbb37/Pb701 both-skin GREEN, fixture d46da47b7: refundable642 versus selected848 (Modern),734 versus640 (Forever); painted59m/anchor, parent click, ordinary-tooltip return and real hovered-owner Escape teardown/HUD. One genuine purchase/refund per skin restores Tender19040/19670, collected state and frozen640/712; carts remain empty. Eight inspected full-HD originals+two contacts+two crops: `/syncthing/AgentShared/2026-10-16/trading-post-refund-icon-tooltip/`; diagnostic manifest binds exact binaries/fixture/eight receipts/twelve memory boundaries. Model3 covers threshold/units/expiry; native white-above-hour/expiry and inherited frozen refundable icon were not forced.
 
 ## Product-row cart toggle
 
