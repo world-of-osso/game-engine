@@ -84,7 +84,7 @@ Source: Retail `Blizzard_PerksProgramElements.lua:577–580,657–670` plays2182
 
 - Use existing UiKits with70391 source gain0.707945764 and equally weighted files4908453/4908455/4908457/4908459; no pitch/variation or Advanced interpretation. Actual installed70448 assets retain separate provenance.
 - Confirmed occupied-slot replacement and direct accepted freeze use the same sound dispatch before sending the request. Unfreeze requests do not play this kit. Repeated updates/reopen/cancel/disabled confirmation do not replay it; do not infer sound from authoritative frozen-ID changes.
-- [ ] Registry/native missing-lock RED→both-skin decoded native GREEN, negative lifecycle controls and genuine original640/712 replacement/restoration; never clear either reservation for proof. Preserve Tender, collection/cart and restored selection. Native random variants observed must be distinguished from four-file metadata/full-decode coverage.
+- [x] Registry/native missing-lock RED→actualc3b62df05/Sf4260bea/Pe9b80b8 both-skin GREEN: nine checkpoints and two measured decoded plays each, actual playing/finished/gain0.566356599/pitch1; early-disabled confirmation, cancel, duplicate drop, hold and reopen stay silent. Genuine640→642→640 and712→734→712 restore originals before verdict; Tender19040/19670, collections/cart and original selection conserved, no reservation cleared. Native observes4908453/4908457 only; core metadata/selector and full ffmpeg decode cover all four. Ten inspected full-HD originals+two contacts: `/syncthing/AgentShared/2026-10-17/trading-post-freeze-lock-sound/`.
 
 ## Product-enter sound
 
