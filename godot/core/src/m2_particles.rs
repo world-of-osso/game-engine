@@ -794,15 +794,13 @@ impl EmitterSim {
             if self.particles.len() < self.capacity {
                 let mut particle = self.spawn(emitter, dt);
                 if let Some(parent) = parent {
-                    if parent.interpolate {
-                        particle.position +=
-                            (parent.previous_position - parent.position) * self.rng.uniform_pos();
-                    }
-                    if emitter.flags & FLAG_INHERIT_VELOCITY != 0 {
-                        let variation = 1.0 + self.props.speed_variation * self.rng.uniform();
-                        particle.velocity +=
-                            parent.velocity * emitter.inherit_velocity_scale * variation;
-                    }
+                    apply_parent_birth_motion(
+                        &mut particle,
+                        emitter,
+                        parent,
+                        self.props.speed_variation,
+                        &mut self.rng,
+                    );
                 }
                 project_birth(emitter, &mut particle, self.props.lifespan, up, ground);
                 self.particles.push(particle);
@@ -1017,6 +1015,22 @@ impl EmitterSim {
             },
             scale,
         ))
+    }
+}
+
+fn apply_parent_birth_motion(
+    particle: &mut Particle,
+    emitter: &ParticleEmitter,
+    parent: ParentMotion,
+    speed_variation: f32,
+    rng: &mut Rng,
+) {
+    if parent.interpolate {
+        particle.position += (parent.previous_position - parent.position) * rng.uniform_pos();
+    }
+    if emitter.flags & FLAG_INHERIT_VELOCITY != 0 {
+        let variation = 1.0 + speed_variation * rng.uniform();
+        particle.velocity += parent.velocity * emitter.inherit_velocity_scale * variation;
     }
 }
 
