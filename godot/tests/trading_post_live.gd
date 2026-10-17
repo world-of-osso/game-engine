@@ -134,9 +134,13 @@ func refund_icon_tooltip_proof() -> void:
 	await motion(control("PerksProgramLeaveButton").get_global_rect().get_center(), false)
 	if not await wait_until(func(): return not client.tooltip_state().get("visible", false), "refund icon pointer leave"): return
 	await capture("refund-leave")
-	# Restore the genuine purchase even when the tooltip assertion is RED.
-	await click("PerksProgramLeaveButton")
-	if not await wait_until(func(): return not client.trading_post_state().open and not client.tooltip_state().get("visible", false), "refund tooltip vendor teardown"): return
+	# Destroy the hovered owner without moving off it, then restore the genuine
+	# purchase even when the tooltip assertion is RED.
+	await motion(icon.get_center(), false)
+	await wait_frames(5)
+	await tap(KEY_ESCAPE)
+	if not await wait_until(func(): return not client.trading_post_state().open and not client.tooltip_state().get("visible", false), "refund tooltip hovered-owner teardown"): return
+	await capture("refund-owner-teardown")
 	if not await open_vendor(): return
 	if not await choose_category(1): return
 	await click("PerksProgramProduct%d" % target)
