@@ -42,6 +42,16 @@ Lead-authorized World of Osso policy [HONOR_WALLET_MIRRORS_HONOR_XP](../../../ga
 
 `scripts/export_db2_csv.py` accepts exact pinned layouts for CurrencyTypes1095531, PvpTalent1302853, PvpTalentCategory1891534, PvpTalentSlotUnlock1950197 and PrestigeLevelInfo1275869. Exported fields describe source records, not runtime implementation guarantees. TrinityCore DB2Structure.h locally preserved in `data/diagnostics/scrap-2026-10-10/` supplies field semantics; CASC supplies values.
 
+## Random Battleground reward profile — 70448
+
+`RANDOM_BG_WIN_REWARD_PROFILE` remains unresolved. Pinned TC a352b1fa compiled defaults and shipped assignments are first/repeat win27000/13500 and loss4500/3500, passed as kill equivalents rather than flat Honor. Daily reset defaults to06:00 server-local time; neither amounts nor reset authority is adopted by this project. No first-win/daily state or Random completion grant is authorized.
+
+**`RANDOM_BG_LEVEL_ELIGIBLE_MAPS` — project policy based on Retail level-banded Random BG behavior, not a TC port.** Admission uses parent map566's bracket (first20–29), parent minimum5/team, capacity10/team and party≤5. Each player's original queue32 survives selection, transfer and reconnect separately from the concrete map.
+
+Select only configured BML32 maps with their own PVPDifficulty bracket containing all queued player levels and satisfying their admission bounds. Use existing configured weights; Retail weighting is undocumented. Missing Deepwind2245 template excludes it; level25 excludes Deephaul2656, while level80 can select it. An ineligible-only level range is refused explicitly. Retain the selected level-matching bracket, not a copied TC RangeIndex. Existing map payouts and concrete-map start minimums stay unchanged. UI map exclusions are a later slice.
+
+`BG_FILL_EXISTING_COPY` is the accepted remaining lifecycle gap: a parent5/team match on a map requiring8/team remains Waiting, and later parties do not yet fill that copy. Start criteria are not reduced; backfill is a separate slice.
+
 ## Eye holiday authority — 70448 read-only
 
 `HOLIDAY492_EFFECTIVE_EVENT_AUTHORITY` remains unresolved. Do not infer a77-day recurrence or treat missing calendar authority as inactive. Existing Eye completion Honor is unchanged; resource-Honor selection remains blocked.
