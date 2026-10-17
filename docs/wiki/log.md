@@ -1,3 +1,7 @@
+## 2026-10-16 — Source battleground brackets
+
+[Brackets](systems/battlegrounds.md#source-match-brackets--2026-10-16): authenticated70391 PVPDifficulty ranges isolate groups/matches and survive admission into the live instance. Mixed39/40 group and mixed29/30–39 roster RED2→protocol36/server11 GREEN; scoped native/server checks pass. Exact epic20–79 and Deephaul80 minimum preserved; no decade guess, match-pairing award or Arena/Conquest policy. BG Honor callbacks remain next.
+
 ## 2026-10-16 — Product-row refund icon tooltip implementation
 
 [Refund icon](systems/trading-post.md#product-row-refund-icon-tooltip--implementation-october16): real old-binary pointer RED shows generic item tooltip over refundable642 while848 is selected; genuine purchase/refund restores Tender/frozen state before assertion. Passive projected texture bounds own right0/0 and the existing colored footer formatter without blocking parent clicks. Model3 and actualca0/4e9/Pb701 both-skin painted GREEN: independent IDs, white caption/red59m, parent click, hover leave, Escape destroys currently hovered owner/HUD, one real purchase/refund restores Tender/collected/frozen state. Eight full-HD originals+two contacts+two crops published; diagnostic manifest binds exact inputs. Integrated933892f79/source protocol604ea609 passes40 UI+12 native, engine check without compiler warnings and scoped five Rustfmt (four unchanged hashes+one foreign tooltip-source delta). Actual native remainsca0/4e9/b701, not the later merged sources. No production refund policy/provider changes.
