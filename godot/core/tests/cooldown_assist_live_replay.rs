@@ -94,7 +94,7 @@ fn cast_overlap_modifier_refuses_every_nonzero_operand_position() {
 }
 
 #[test]
-fn fury_spatial_rules_remain_fail_closed_after_cast_modifier_recognition() {
+fn fury_spatial_policy_has_no_target_or_missing_count_without_new_readings() {
     for (id, condition_type, values) in [(1261, 3, [10, 0, 0]), (1268, 12, [3, 0, 0])] {
         let rule = AssistedRule {
             id,
@@ -103,7 +103,12 @@ fn fury_spatial_rules_remain_fail_closed_after_cast_modifier_recognition() {
             values,
             field_11_1_7_60520_002: 0,
         };
-        assert!(evaluate_rule(&rule, &AssistedFacts::default()).is_err());
+        let result = evaluate_rule(&rule, &AssistedFacts::default());
+        if condition_type == 3 {
+            assert_eq!(result, Ok(false));
+        } else {
+            assert!(result.is_err());
+        }
     }
 }
 

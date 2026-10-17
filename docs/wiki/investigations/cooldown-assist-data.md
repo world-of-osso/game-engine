@@ -218,3 +218,12 @@ Exact source hashes, joined rows and named gaps: `/home/osso/.worktrees/game-ser
 ## See Also
 - [Native HUD Edit Mode](../systems/native-hud-edit-mode.md) — shared mover and account persistence behavior.
 - [Spellbook/action bars](../../specs/spellbook-action-bar.md) — actual learned-spell drag/casting surfaces.
+
+
+## ASSISTED_COMBAT_SIMC_MIRROR
+
+Verified: 2026-10-17. Explicit user-approved project policy, **not verified Retail predicate semantics**. Scope and exact behavior live in the [spec](../../specs/cooldown-assist.md#user-approved-spatial-policy); only Fury Whirlwind190411 rules1261/1268 are enabled. Other distance/count rows continue refusing, so full Fury completion is not implied.
+
+Source-only laptop packet `/syncthing/AgentShared/2026-10-17/laptop-requests/assisted-combat-types-3-12-ANSWER.md`, SHA256 `eab706331035349dca755d95d6d29b217bcfee78eca75df5565a7e1bcbe22b09`, reports no exact native authority. SimC1860cd1d5763db68095823d4cb15731987652bd8 `engine/player/player.cpp:3578–3583,3635–3642` supplies the approved comparator mirror only. User separately chose centre-position geometry, inclusive8yd and alive+hostile+local-player-threat membership. Build70448 Whirlwind SpellEffect279027 references SpellRadius14, Radius=RadiusMax=8 and RadiusPerLevel=0. Fixture provenance records actual source-table hashes.
+
+`godot/core/tests/assisted_simc_mirror.rs` retains original run21 native failure JSON unchanged and injects explicitly synthetic new distance/count inputs for ordered replay. Native replica tests cover owner versus party-only threat, death/friendliness, horizontal/vertical radius boundaries and unavailable positions. Model/replica proof does not establish a fresh native cast, boss engagement or clear.
