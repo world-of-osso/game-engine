@@ -42,6 +42,20 @@ func run_cases() -> void:
 		else:
 			passed = geometry.multimesh.visible_instance_count == count and passed
 			passed = children.multimesh.visible_instance_count > count and passed
+			var origins: Array[Vector3] = []
+			for index in geometry.multimesh.visible_instance_count:
+				origins.append(geometry.multimesh.get_instance_transform(index).origin)
+			var origins_seen := {}
+			# Slot0 is the already-live tagged child; births follow it in live order.
+			for index in range(1, children.multimesh.visible_instance_count):
+				var birth := children.multimesh.get_instance_transform(index).origin
+				var matched := false
+				for parent_index in origins.size():
+					if birth.distance_to(origins[parent_index]) < 0.0001:
+						matched = true
+						origins_seen[parent_index] = true
+				passed = matched and passed
+			passed = origins_seen.size() == count and passed
 			var mesh := geometry.multimesh.mesh
 			var vertices: PackedVector3Array = mesh.surface_get_arrays(0)[Mesh.ARRAY_VERTEX]
 			var depth := false
