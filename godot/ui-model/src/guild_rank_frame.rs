@@ -127,6 +127,7 @@ fn invitation_popup(session: &GuildRanksSession) -> Element {
         return vec![];
     };
     let mut children = translucent_chrome("GuildInviteFrame", (310.0, 188.0));
+    children.extend(invitation_tabard(invite.tabard));
     children.extend(label(
         "GuildInviteFrameInviterName".into(),
         &invite.inviter_name,
@@ -162,6 +163,35 @@ fn invitation_popup(session: &GuildRanksSession) -> Element {
     rsx! { r#frame { name: {DynName("GuildInviteFrame".into())}, width: 310.0, height: 188.0,
     left: "50%", top: "50%", translate_x: "-50%", translate_y: "-50%", pos_type: "absolute",
     mouse_enabled: true, strata: FrameStrata::Dialog, {children} } }
+}
+
+/// GuildInviteFrame.xml12–83 and GuildUtil.lua115–127,180–202.
+fn invitation_tabard(design: Option<shared::guild_creation::GuildTabardDesign>) -> Element {
+    let art = crate::guild_tabards::load_portrait_art(design)
+        .expect("load authoritative invitation tabard art");
+    let emblem_left = 154.0 - art.width / 2.0;
+    rsx! {
+        texture { name: "GuildInviteFrameBackground", texture_fdid: 446203,
+            tex_coords: "0.00195313,0.56250000,0.00781250,0.91406250",
+            left: 11.5, top: 12.0, width: 287.0, height: 116.0,
+            pos_type: "absolute", draw_layer: "BACKGROUND" }
+        texture { name: "GuildInviteFrameTabardBackground", texture_fdid: 410251,
+            tex_coords: "0.63183594,0.69238281,0.61914063,0.74023438",
+            vertex_color: {art.background.as_str()}, left: 123.0, top: 70.0,
+            width: 62.0, height: 62.0, pos_type: "absolute", draw_layer: "BORDER" }
+        texture { name: "GuildInviteFrameTabardEmblem", texture_fdid: {art.fdid},
+            tex_coords: {art.uv.as_str()}, vertex_color: {art.emblem.as_str()},
+            left: emblem_left, top: 69.0, width: {art.width}, height: 64.0,
+            pos_type: "absolute", draw_layer: "ARTWORK" }
+        texture { name: "GuildInviteFrameTabardBorder", texture_fdid: 410251,
+            tex_coords: "0.63183594,0.69238281,0.74414063,0.86523438",
+            vertex_color: {art.border.as_str()}, left: 124.0, top: 71.0,
+            width: 61.0, height: 60.0, pos_type: "absolute", draw_layer: "ARTWORK" }
+        texture { name: "GuildInviteFrameTabardRing", texture_fdid: 446203,
+            tex_coords: "0.56640625,0.79687500,0.00781250,0.60156250",
+            left: 96.0, top: 64.0, width: 118.0, height: 76.0,
+            pos_type: "absolute", draw_layer: "OVERLAY" }
+    }
 }
 
 fn title(name: &str, text: &str, x: f32, y: f32, width: f32) -> Element {
