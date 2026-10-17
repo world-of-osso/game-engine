@@ -1,9 +1,16 @@
 ## 2026-10-16 — Product-row cart toggle implementation
 
 [Row toggle](systems/trading-post.md#product-row-cart-toggle--implementation-october16): source36px hovered-row control carries its own vendor identity, authored add/minus art, cart indicator and left tooltip. Existing cart eligibility/default wearable selection shared without resetting current choices. Model missing-action3 and actual native missing-button RED precede implementation. Modern behavior passed but paint acceptance was rejected: hover replaced the base glyph with highlight art (native center contrast ratio0.167). Base-plus-highlight correction9bbc554ad passes both-skin real-pixel/behavior proof (contrast ratio0.732, independent IDs, unchanged Tender/frozen slots and open-cart choices);10 inspected full-HD originals+2 contacts+2 crops published. Stale private world data is refreshed from the already-published canonical source, preserving account redb.
+## 2026-10-16 — Same-species damage projection
+
+[Dragon's Call2283](systems/battle-pets.md#same-species-effect-projection--2026-10-16): both actual skins, legal level2 trio and physical85/77 damage, HP/cooldown3; four inspected fullHD originals.91 pre-cast rectangles match,97 post-cast common rectangles differ only HP fills and two timed Forever floats. Actual snapshots and canonical3-mesh loader report ExtractedOnly/tripwire0. Adopted70448 assets published; mechanics70391, exact artifact/fixture sources explicit. No new widget/client rule/full Retail timing/VFX claim; owned processes stopped.
+
 ## 2026-10-16 — Bench resurrection HUD projection
 
 [Shared2347 projection](systems/battle-pets.md#bench-resurrection-projection--2026-10-16): both actual skins physically revive two persisted-dead reserves to78/1563, pointer swap, retain incoming damage and win through the revived pet's147-damage Metal Fist. Eight fullHD originals inspected;92/98/131/98 geometry differs only in timed float. Canonical78-asset closure and explicit strict loader readback pass; world-native mode, exact runtime heads and pre-auth recovery are documented. No UI change/full Retail timing/VFX claim; owned processes stopped.
+## 2026-10-16 — Supported Mount Up native effect proof
+
+[Guild effects](systems/guilds.md#perk-native-authority-and-effect-boundary-2026-10-16): real invitation/removal and Golden Gryphon input produce14→15.4→14 ground and22.4→24.64→22.4 flight, with seven coherent samples per skin. Fourteen full-HD originals inspected; ten mounted ground/flight/removal frames selected, four occluded ground/unmounted frames rejected. Earlier flat retries were actual CasterDead after a cliff trial; fixture recovery uses existing private `.revive`, not speed/perk injection. Controlled-NPC210 remains blocked. Hasty core charge2309 controls pass3/3; native item proof remains separate.
 
 ## 2026-10-16 — Two-way pet-wall HUD projection
 
