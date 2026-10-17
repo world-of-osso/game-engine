@@ -50,6 +50,55 @@ fn rect(registry: &FrameRegistry, name: &str) -> [f32; 4] {
 }
 
 #[test]
+fn adventure_section_flash_real_paralyze_uses_source_glow_regions_without_hover_blending() {
+    let catalog = catalog();
+    let section = &catalog.sections[&2410];
+    assert_eq!(section.title, "Paralyze");
+    for skin in [ActiveSkin::Modern, ActiveSkin::Forever] {
+        let registry = render(section, skin);
+        let glow = registry
+            .get(registry.get_by_name("JournalSection2410Glow").unwrap())
+            .unwrap();
+        assert_eq!(glow.alpha, 0.0);
+        assert_eq!(
+            rect(&registry, "JournalSection2410Glow"),
+            [0., 0., 319., 24.]
+        );
+        for (suffix, bounds) in [
+            ("HighlightLeft", [-1., -1.5, 64., 29.]),
+            ("HighlightMid", [31., -1.5, 259., 29.]),
+            ("HighlightRight", [258., -1.5, 64., 29.]),
+        ] {
+            let name = format!("JournalSection2410Glow{suffix}");
+            assert_eq!(rect(&registry, &name), bounds);
+            let Some(WidgetData::Texture(texture)) = &registry
+                .get(registry.get_by_name(&name).unwrap())
+                .unwrap()
+                .widget_data
+            else {
+                panic!("Glow region must paint source texture");
+            };
+            assert_eq!(
+                texture.blend_mode,
+                ui_toolkit::widgets::texture::BlendMode::AlphaKey
+            );
+            let hover = format!("JournalSection2410{suffix}");
+            let Some(WidgetData::Texture(texture)) = &registry
+                .get(registry.get_by_name(&hover).unwrap())
+                .unwrap()
+                .widget_data
+            else {
+                panic!("Hover control must retain texture");
+            };
+            assert_eq!(
+                texture.blend_mode,
+                ui_toolkit::widgets::texture::BlendMode::Additive
+            );
+        }
+    }
+}
+
+#[test]
 fn adventure_guide_flags_real_burning_flames_reserves_title_and_renders_three_flags() {
     let catalog = catalog();
     let section = &catalog.sections[&827];
