@@ -126,7 +126,7 @@ func walk_to_cornerstone(destination: Vector3, stop_radius: float = 3.5) -> bool
 		var state: Dictionary = client.account_state()
 		var position: Vector3 = state.local_player_position
 		var to := destination - position
-		walk_samples.append({"position":position,"server":state.local_server_position,"remaining":to.length(),"replicated_speed":state.local_server_speed})
+		walk_samples.append({"position":position,"server":state.local_server_position,"remaining":to.length(),"replicated_speed":state.local_server_speed,"destination":destination})
 		if Vector2(to.x, to.z).length() < stop_radius:
 			push_key(KEY_W, false)
 			await process_frame
@@ -148,12 +148,40 @@ func walk_to_cornerstone(destination: Vector3, stop_radius: float = 3.5) -> bool
 			print("HOUSING_WORLD_WALK ",walk_samples.back())
 			if not await capture_housing("walk-world-%03d" % walk_samples.size()): return false
 		if stalled >= 8:
+			if not record_floor_probe("blocked"): return false
+			if not record_blocked_walk(destination): return false
 			await capture_housing("walk-world-blocked")
 			fail("Native walk blocked on authored world geometry at " + str(position))
 			return false
 	push_key(KEY_W, false)
 	fail("Native walk exceeded4min; last=" + str(last_position))
 	return false
+
+func record_blocked_walk(destination: Vector3) -> bool:
+	var state: Dictionary = client.account_state()
+	var feet: Vector3 = state.local_player_position
+	var direction := Vector3(destination.x - feet.x, 0.0, destination.z - feet.z).normalized()
+	var rays: Array[Dictionary] = []
+	for layer in [2, 8]:
+		for height in [0.3, 0.9, 1.6]:
+			var origin := feet + Vector3.UP * float(height)
+			var query := PhysicsRayQueryParameters3D.create(origin, origin + direction * 3.0)
+			query.collision_mask = layer
+			var hit: Dictionary = client.get_world_3d().direct_space_state.intersect_ray(query)
+			var collider := hit.get("collider") as Node
+			rays.append({"layer":layer,"height":height,"hit":hit.get("position"),"collider":str(collider.get_path()) if collider != null else ""})
+	var file := FileAccess.open(shots.path_join("walk-obstacle-probes.json"), FileAccess.WRITE)
+	if file == null:
+		fail("Cannot save blocked walk probes")
+		return false
+	file.store_string(JSON.stringify({"feet":feet,"target":destination,"facing":state.local_player_facing,"rays":rays,"walk":walk_samples,"turn":turn_samples}, "\t"))
+	file.flush()
+	var error := file.get_error()
+	file.close()
+	if error != OK:
+		fail("Cannot flush blocked walk probes")
+		return false
+	return true
 
 func face_walk_direction(target: float) -> bool:
 	for attempt in range(60):
