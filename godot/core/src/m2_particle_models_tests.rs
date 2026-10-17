@@ -223,7 +223,8 @@ fn p5_plain_billboard_does_not_decompose_a_hidden_bone_frame() {
     sim.update(
         &e,
         0.015,
-        Mat4::from_scale(Vec3::ZERO),
+        // from_scale rejects all-zero scale when the combined build enables glam_assert.
+        Mat4::from_cols(Vec4::ZERO, Vec4::ZERO, Vec4::ZERO, Vec4::W),
         Mat3::IDENTITY,
         1.0,
         &mut |_, _| None,
