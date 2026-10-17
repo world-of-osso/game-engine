@@ -67,6 +67,8 @@ func verify_section_selection() -> bool:
 	var effect := Rect2(header.get_global_rect().position+Vector2(-1,-1.5),Vector2(header.size.x+4,29)).grow(1)
 	var inside := 0
 	var outside := 0
+	var outside_min := Vector2i(100000,100000)
+	var outside_max := Vector2i.ZERO
 	var interior := journal.grow(-12)
 	for y in range(ceili(interior.position.y),floori(interior.end.y)):
 		for x in range(ceili(interior.position.x),floori(interior.end.x)):
@@ -78,13 +80,17 @@ func verify_section_selection() -> bool:
 				inside += 1
 			else:
 				outside += 1
-	print("SECTION_FLASH_PIXELS inside=%s outside=%s peak=%s" % [inside,outside,flash_peak_alpha])
-	if inside < 20 or outside != 0:
-		stop("Focus flash pixel boundary differs inside=%s outside=%s" % [inside,outside])
-		return false
+				outside_min.x = mini(outside_min.x,x)
+				outside_min.y = mini(outside_min.y,y)
+				outside_max.x = maxi(outside_max.x,x)
+				outside_max.y = maxi(outside_max.y,y)
+	print("SECTION_FLASH_PIXELS inside=%s outside=%s peak=%s effect=%s outside_min=%s outside_max=%s" % [inside,outside,flash_peak_alpha,effect,outside_min,outside_max])
 	var prefix: String = client.account_state().ui_skin.to_lower()
 	if flash_peak.save_png(shots.path_join(prefix+"-section-flash-peak.png")) != OK or settled.save_png(shots.path_join(prefix+"-section-flash-settled.png")) != OK:
 		stop("Cannot persist focus flash frames")
+		return false
+	if inside < 20 or outside != 0:
+		stop("Focus flash pixel boundary differs inside=%s outside=%s" % [inside,outside])
 		return false
 	await create_timer(0.4).timeout
 	if glow.modulate.a > 0.01:
