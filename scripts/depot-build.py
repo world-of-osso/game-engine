@@ -435,11 +435,13 @@ def build(root, fixture=None, cli=False, release=False, host=None):
     lock, cache, checkout_key = locked_checkout(root)
     with lock:
         target = root / "target"
+        profile_target = target / ("release" if release else "debug")
+        fixture_destination = profile_target / "examples" / fixture if fixture else None
         if (
             target.is_symlink()
             or (target / "debug").is_symlink()
             or (target / "release").is_symlink()
-            or (fixture and (target / "debug" / "examples").is_symlink())
+            or (fixture_destination and fixture_destination.parent.is_symlink())
         ):
             raise ValueError(
                 f"target symlink cannot guarantee checkout-local artifact: {target}"
@@ -462,11 +464,8 @@ def build(root, fixture=None, cli=False, release=False, host=None):
                 command.extend(["--build-arg", "RELEASE=1"])
             execute(context, output, checkout_key, "artifact", command, host)
             phase(f"{host} build", start)
-            destination = (
-                root / "target" / ("release" if release else "debug") / ARTIFACT
-            )
+            destination = profile_target / ARTIFACT
             if fixture:
-                fixture_destination = root / "target" / "debug" / "examples" / fixture
                 install_artifact(
                     output / (fixture + ".gz"), fixture_destination, executable=True
                 )
@@ -554,7 +553,7 @@ def main():
         help="save default host and exit without building",
     )
     mode = parser.add_mutually_exclusive_group()
-    mode.add_argument(
+    parser.add_argument(
         "--fixture",
         help=f"also export one {FIXTURE_DIR} executable, named by file stem",
     )
@@ -564,7 +563,7 @@ def main():
     mode.add_argument(
         "--release",
         action="store_true",
-        help=f"build only the optimized library into target/release/{ARTIFACT}",
+        help=f"build the optimized library and optional fixture into target/release/ ({ARTIFACT})",
     )
     mode.add_argument(
         "--test",
@@ -575,6 +574,8 @@ def main():
     # argparse drops `--`, which cargo needs to separate test-binary arguments.
     split = argv.index("--test") + 1 if "--test" in argv else len(argv)
     args = parser.parse_args(argv[:split])
+    if args.fixture and args.test:
+        parser.error("argument --fixture: not allowed with argument --test")
     if args.cli and (args.test or args.release):
         parser.error(
             f"argument --cli: not allowed with argument {'--test' if args.test else '--release'}"

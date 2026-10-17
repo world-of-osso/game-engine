@@ -38,13 +38,15 @@ python3 scripts/depot-build.py --root "$PWD" --build-host local
 python3 scripts/depot-build.py --root "$PWD"
 # Build the extension and one owned UDP fixture executable (any godot/network/examples/*.rs stem):
 python3 scripts/depot-build.py --root "$PWD" --fixture native_input_fixture
-# Optimized library only, into target/release/ (used by ./deploy.sh; not combinable with --fixture/--cli/--test):
+# Optimized library, into target/release/ (used by ./deploy.sh; not combinable with --cli/--test):
 python3 scripts/depot-build.py --root "$PWD" --release
+# Same release profile for extension and support peer, into target/release/examples/:
+python3 scripts/depot-build.py --root "$PWD" --release --fixture native_battleground_peers --build-host local
 # Also export the IPC client to target/debug/game-engine-cli (with or without --fixture):
 python3 scripts/depot-build.py --root "$PWD" --cli
 ```
 
-`--fixture` accepts every top-level `godot/network/examples/*.rs` file stem (`native_input_fixture`, `native_npc_visual_fixture`, `native_reconnect_fixture`, `native_transfer_fixture`, and any new one); the helper validates the name and the Dockerfile builds it. Fixtures locate their checkout from the installed `target/debug/examples/<name>` path. `native_input_fixture` and `native_npc_visual_fixture` stage authored root CSVs while preserving generated fixture catalogs; SQL setup and WAL-safe listfile snapshots use bundled rusqlite, not a host `sqlite3` executable. Their private data trees live under canonical `data/`.
+`--fixture` accepts every top-level `godot/network/examples/*.rs` file stem (`native_input_fixture`, `native_npc_visual_fixture`, `native_reconnect_fixture`, `native_transfer_fixture`, and any new one); the helper validates the name and the Dockerfile builds it. Debug fixtures install under `target/debug/examples/<name>`; `--release --fixture` builds and exports both the extension and named example in the release profile under `target/release/`, without replacing debug artifacts. Fixtures locate their checkout relative to their installed examples path. `native_input_fixture` and `native_npc_visual_fixture` stage authored root CSVs while preserving generated fixture catalogs; SQL setup and WAL-safe listfile snapshots use bundled rusqlite, not a host `sqlite3` executable. Their private data trees live under canonical `data/`.
 
 `--fixture`, `--cli`, `--release`, and `--test` retain their arguments and source/assets behavior on both hosts. For CPU tests, use `python3 scripts/depot-build.py --root "$PWD" --build-host desktop --test -p game-engine-core` (substitute `local` as needed). Host selection does not make GDScript or GPU tests part of `--test`.
 
