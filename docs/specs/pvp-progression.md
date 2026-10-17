@@ -46,7 +46,9 @@ Lead-authorized World of Osso policy [HONOR_WALLET_MIRRORS_HONOR_XP](../../../ga
 
 `RANDOM_BG_WIN_REWARD_PROFILE` remains unresolved. Pinned TC a352b1fa compiled defaults and shipped assignments are first/repeat win27000/13500 and loss4500/3500, passed as kill equivalents rather than flat Honor. Daily reset defaults to06:00 server-local time; neither amounts nor reset authority is adopted by this project. No first-win/daily state or Random completion grant is authorized.
 
-Random32 admission uses parent map566's source bracket (first20–29), parent minimum5/team, capacity10/team and maximum party5. Queued members and parent matchmaking retain original32. This prerequisite does not create a concrete instance: current Retail leveling/map-selection research is pending, and Random32 stays queued on the server. The configured pool's missing Deepwind2245 template is recorded, not bypassed. Later selection must preserve original32 separately from the concrete map. Do not copy TC RangeIndex across incompatible ranges or change existing payouts before the Retail decision.
+**`RANDOM_BG_LEVEL_ELIGIBLE_MAPS` — project policy based on Retail level-banded Random BG behavior, not a TC port.** Admission uses parent map566's bracket (first20–29), parent minimum5/team, capacity10/team and party≤5. Each player's original queue32 survives selection, transfer and reconnect separately from the concrete map.
+
+Select only configured BML32 maps with their own PVPDifficulty bracket containing all queued player levels and satisfying their admission bounds. Use existing configured weights; Retail weighting is undocumented. Missing Deepwind2245 template excludes it; level25 excludes Deephaul2656, while level80 can select it. An ineligible-only level range is refused explicitly. Retain the selected level-matching bracket, not a copied TC RangeIndex. Existing map payouts and concrete-map start minimums stay unchanged. UI map exclusions are a later slice.
 
 ## Eye holiday authority — 70448 read-only
 
