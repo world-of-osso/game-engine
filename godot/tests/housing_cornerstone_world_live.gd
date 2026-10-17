@@ -25,8 +25,8 @@ func run_test() -> void:
 		await click_control(close, MOUSE_BUTTON_LEFT)
 	# GameObjects527261 actual authored position, NOT NeighborhoodPlot's marker.
 	var destination := Vector3(3641.85669, 104.272713, -258.151031) if housing_skin == "Modern" else Vector3(3569.20312, 102.340424, -265.888885)
-	# Leave the entrance platform south of its observed boulder before heading west.
-	for waypoint in [Vector3(3807.76, 192.53, 185.0), Vector3(3730.0, 180.0, 185.0), destination]:
+	# Keep the gate's centreline between its observed north/south collision pillars.
+	for waypoint in [Vector3(3750.0, 180.0, 160.427), destination]:
 		if not await walk_to_cornerstone(waypoint): return
 	if not await capture_housing("walk-arrived-world"): return
 	if not await purchase_property(): return
@@ -80,6 +80,7 @@ func walk_to_cornerstone(destination: Vector3) -> bool:
 			await frames(30)
 			return true
 		if not await face_walk_direction(atan2(to.x, to.z)): return false
+		client.set_camera_orbit(float(client.account_state().local_player_facing) - PI, -0.4, 20.0)
 		push_key(KEY_W, true)
 		await create_timer(0.6).timeout
 		push_key(KEY_W, false)
