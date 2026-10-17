@@ -1,6 +1,10 @@
 ## 2026-10-17 — Native release20 Arathi lifecycle
 
 [Bounded release proof](systems/battlegrounds.md#native-release20-arathi--bounded-proof2026-10-17): landed-master bookworm extension/server/19peers, actual loaded release hash; normal four5-player parties→one20/10v10 match, five banner assaults, natural1500–0, winning wallet/XP671 and losing61 across20, all origin-map returns. Four inspected both-skin1920×1080 scoreboard/end originals shared. First cold10.5686s frame/peer12 timeout retained; same-code/privateDB bounded retry passes, not a cold-stall fix. Numeric wallet pixels6... remain diagnostic-only; raw log order/timestamp limits/import errors explicit. Owned scope stopped,5941free/window cleared13:44:45.
+## 2026-10-17 — ReadyCheck title shadow
+
+[Title shadow](systems/group-frames.md#readycheck-title-shadow--implementation-2026-10-17): XML53→GameFontNormal→Roman SystemFont_Shadow_Med1 black(+1,−1). Genuine RED3pass/1fail precedes only two production shadow attributes; existing title colour/layout and every other production field retained. Integrated b7363593c both-skin GREEN4/4 (45.4s helper), engine/network check89.0s/no warnings, scoped format/diff/readability pass; exact receipts in local ledger. Native proof pending lead gate; title colour/layout/full-popup/lifecycle remain gaps.
+
 ## 2026-10-17 — PitchAdjust source gate
 
 [UI_SOUND_PITCH_ADJUST_RATE](systems/sound.md#ui_sound_pitch_adjust_rate):3647 cached Retail Lua/XML files, the full Sound API definition and active70391 SoundKit-family fields/pertinent rows do not establish a rate equation. Exact sources/search bound by hashes; supplementary DBD gives only a float declaration. No semitone/linear/log2 guess, code, asset extraction or runtime change; hide/show218236/218237 remains deferred, selection callbacks separate. Frozen ordinary-row exclusion is proposed independently, not folded into audio work.
