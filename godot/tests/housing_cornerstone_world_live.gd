@@ -164,15 +164,19 @@ func tap_turn_key(key: Key, seconds: float) -> void:
 	var before: float = client.account_state().local_player_facing
 	var started := Time.get_ticks_msec()
 	push_key(key, true)
-	await create_timer(seconds).timeout
+	var processed := 0.0
+	while processed < seconds:
+		await RenderingServer.frame_post_draw
+		processed += client.get_process_delta_time()
 	push_key(key, false)
 	var elapsed := float(Time.get_ticks_msec() - started) / 1000.0
+	# Camera input integrates process delta, including time before this frame's key event.
 	# Native facing accumulates radians; wrapping a multi-frame calibration can invert its sign.
 	var turned := float(client.account_state().local_player_facing) - before
-	if elapsed > 0.0 and not is_zero_approx(turned):
-		turn_rate = absf(turned) / elapsed
+	if processed > 0.0 and not is_zero_approx(turned):
+		turn_rate = absf(turned) / processed
 		right_turn_sign = signf(turned) if key == KEY_RIGHT else -signf(turned)
-	turn_samples.append({"key":key,"seconds":elapsed,"radians":turned,"rate":turn_rate})
+	turn_samples.append({"key":key,"wall_seconds":elapsed,"process_seconds":processed,"radians":turned,"rate":turn_rate})
 
 func record_floor_probe(label: String) -> bool:
 	var state: Dictionary = client.account_state()
