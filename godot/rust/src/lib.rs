@@ -1301,6 +1301,22 @@ impl GameClient {
         self.spells_snapshot()
     }
 
+    /// Sample the same native LOS ray a cast uses; server visibility remains final.
+    #[func]
+    fn target_visibility_state(&mut self, target: i64) -> VarDictionary {
+        let mut state = VarDictionary::new();
+        state.set("target", target);
+        if target <= 0 {
+            state.set("error", "Visibility requires a positive target entity");
+            return state;
+        }
+        match self.cast_witness(Some(target as u64)) {
+            Ok(ray) => state.set("visible", ray.is_some()),
+            Err(error) => state.set("error", error),
+        }
+        state
+    }
+
     /// Read native usability and cast metadata without selecting or casting at the unit.
     #[func]
     fn spell_priority_state(&self, target: i64, spells: PackedInt32Array) -> VarDictionary {
