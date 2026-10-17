@@ -197,6 +197,11 @@ class PlayerController:
             yaw = math.degrees(math.atan2(dx, dz))
             self.invoke("movement", "forward", "--seconds", str(seconds), "--yaw-degrees", str(yaw))
             return False
+        # Detour returns the walkable surface, not the requested NPC/model height.
+        endpoint = corners[-1]
+        goal_gap = math.hypot(endpoint[0] - goal[0], endpoint[2] - goal[2])
+        if goal_gap < .5 and math.dist(here, endpoint) < .5:
+            return True
         raise ValueError("Sourced route exhausted before goal; no direct-line fallback")
 
     def walk_route(self, goals, position, observe, timeout):
@@ -217,7 +222,8 @@ class PlayerController:
                     time.sleep(.1)
                     continue
                 before = position()
-                self.step_toward(before, goal, "authored-leg")
+                if self.step_toward(before, goal, "authored-leg"):
+                    break
                 time.sleep(.7)
                 after = position()
                 progressed = math.hypot(after[0] - before[0], after[2] - before[2]) >= .15
