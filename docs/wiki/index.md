@@ -31,6 +31,8 @@
 - [Clean-room M2 particles](systems/godot-conversion.md#native-m2-particles) — native tails/follow/cubic controls, authored sorting and map-collision births; inherited-scale provenance and explicit lighting, timer/reset, spline-density, target-mask and model-recursion oracle gaps.
 # Wiki Index
 
+- [Vanish selection withdrawal](systems/bot-harness.md#vanish-selection-withdrawal--2026-10-17) — real run23 no-selection abort; bounded next-cycle native tank assist preserves pending ACK/fact failures, native recovery pending.
+
 - [Eye7 holiday authority](investigations/eye-holiday-authority.md) — authenticated70448 holiday492 has fixed2007 date,72/1776-hour durations andLooping0; TC interval evaluation is sourced, but effective game_event schedule is not. Namedgap HOLIDAY492_EFFECTIVE_EVENT_AUTHORITY; no payout/default calendar policy adopted.
 
 - [Ordinary party queue and late arrivals](systems/battlegrounds.md#ordinary-party-queue-and-late-arrivals--2026-10-17) — channel8/check/fmt; [native release20 Arathi](systems/battlegrounds.md#native-release20-arathi--bounded-proof2026-10-17) passes normal four-party20/10v10, five banners, natural end/wallet-XP671/61 and both-skin full-HD scoreboard/end captures; cold first-attempt stall remains unfixed.
