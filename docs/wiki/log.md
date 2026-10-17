@@ -21,6 +21,10 @@
 ## 2026-10-16 — Native range/cast pose coherence
 
 [Local pose](systems/bot-harness.md#local-rangecast-pose--2026-10-16): real one-second input moves the local client7yd while the loopback host keeps its owner Position frozen; RED shows native Slam range still true at the old replica. Range and cast origin now share the current local pose. Focused fixture also receives the ordinary cast origin; full dev-IPC bag-catalog readiness and fresh release-server Stockade acceptance remain separate.
+## 2026-10-16 — Refuge family-filtered shield projection
+
+[Refuge1344](systems/battle-pets.md#refuge-shield-projection--2026-10-16): both-skin physical cast/block caller→swap/block Critter→swap/damage non-Critter. Rat892 remains full twice, Squirrel978→950/952, Rabbit147 conserved; eight fullHD originals inspected,92/99/99/final99 source geometry differs only timed float. Actual strict snapshots and canonical one-mesh/4-asset closure pass; no new asset/publication/widget/rule. Owned processes stopped, full Retail timing/VFX unproved.
+
 ## 2026-10-16 — Same-species damage projection
 
 [Dragon's Call2283](systems/battle-pets.md#same-species-effect-projection--2026-10-16): both actual skins, legal level2 trio and physical85/77 damage, HP/cooldown3; four inspected fullHD originals.91 pre-cast rectangles match,97 post-cast common rectangles differ only HP fills and two timed Forever floats. Actual snapshots and canonical3-mesh loader report ExtractedOnly/tripwire0. Adopted70448 assets published; mechanics70391, exact artifact/fixture sources explicit. No new widget/client rule/full Retail timing/VFX claim; owned processes stopped.
