@@ -60,6 +60,15 @@ fn indexed(frame: &Frame, prefix: &str) -> Option<usize> {
     name_of(frame)?.strip_prefix(prefix)?.parse().ok()
 }
 
+fn parse_trading_post_vendor_id(frame: &Frame) -> Option<u32> {
+    frame
+        .onclick
+        .as_deref()?
+        .strip_prefix("perks:select:")?
+        .parse()
+        .ok()
+}
+
 enum HousingTooltipTarget {
     EditorControl(game_engine_core::input_bindings_data::InputAction),
     Decor(u32),
@@ -246,14 +255,7 @@ impl GameClient {
     fn trading_post_refund_tooltip(&mut self, hit: &HoveredFrame) -> Option<HoveredTooltip> {
         let ui = hit.ui.bind();
         let registry = ui.registry()?;
-        let (row, vendor_id) = named_ancestor(registry, hit.frame, |frame| {
-            frame
-                .onclick
-                .as_deref()?
-                .strip_prefix("perks:select:")?
-                .parse::<u32>()
-                .ok()
-        })?;
+        let (row, vendor_id) = named_ancestor(registry, hit.frame, parse_trading_post_vendor_id)?;
         let prefix = if name_of(registry.get(row)?)? == "PerksProgramFrozenSlot" {
             "PerksProgramFrozen"
         } else {
@@ -279,14 +281,8 @@ impl GameClient {
     /// Elements.lua306–314, including its inherited frozen-product template.
     fn trading_post_tooltip(&mut self, hit: &HoveredFrame) -> Option<HoveredTooltip> {
         let ui = hit.ui.bind();
-        let (owner, product_id) = named_ancestor(ui.registry()?, hit.frame, |frame| {
-            frame
-                .onclick
-                .as_deref()?
-                .strip_prefix("perks:select:")?
-                .parse::<u32>()
-                .ok()
-        })?;
+        let (owner, product_id) =
+            named_ancestor(ui.registry()?, hit.frame, parse_trading_post_vendor_id)?;
         drop(ui);
         let snapshot = self.trading_post.view.snapshot.as_ref()?;
         let product = snapshot.items.iter().find(|row| row.id == product_id)?;
