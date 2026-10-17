@@ -11,6 +11,8 @@
 - [Clean-room M2 particles](systems/godot-conversion.md#native-m2-particles) — native tails/follow/cubic controls, authored sorting and map-collision births; inherited-scale provenance and explicit lighting, timer/reset, spline-density, target-mask and model-recursion oracle gaps.
 # Wiki Index
 
+- [MirrorTimer label shadow](systems/swimming.md#mirrortimer-label-shadow--2026-10-16) — inherited Roman black(+1,−1), RED→5GREEN and six both-skin native label cases;731 darkened pixels/skin, zero outside changes, exact transparent-shadow control; cadence/full-timer parity excluded.
+
 - [Portrait-inclusive HUD clearance](systems/launcher.md#portrait-inclusive-hud-clearance--2026-10-16) — approved321×79 player mount retained; exact HUD bounds and strict panel/metal clearance,31+9 tests and both-skin native1080p proof; Modern identical, no Forever changes outside launcher paint.
 
 - [Product-row cart toggle](systems/trading-post.md#product-row-cart-toggle--implementation-october16) — source36px row-owned Add/Remove control, independent identity/tooltip and preserved cart preview choices; native omission/paint RED→both-skin painted glyph GREEN.
