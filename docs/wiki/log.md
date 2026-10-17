@@ -1,3 +1,7 @@
+## 2026-10-17 — Current Arathi resource Honor
+
+[Resources](systems/battlegrounds.md#current-arathi-resource-honor--2026-10-17): real threshold/final unclamped-tick RED0vs30 and122vs183→GREEN9. Source1018 threshold160, both-team remainders/contest/defense, full winner330/other30, external-score exclusion, final resource61+completion122=183, replay/reopen and Gilneas0/0. Server/native/shared checks/fmt3 pass; no new clock, calendar alias, node winner redesign or rendered/UDP claim.
+
 ## 2026-10-17 — Modern Warsong end Honor
 
 [Modern WSG](systems/battlegrounds.md#modern-warsong-end-honor--2026-10-17): actual third-capture RED177vs286→GREEN11, both factions286/118, empty timeout draw59/59, replay/persistence/origin return. Exact1014/1018→HOLIDAY_NONE→false source trace resolves modern WSG/AB branches without a calendar or legacy alias; AB160 callback remains pending, Eye7 holiday authority remains a gap. BG kills do not mint Honor XP in pinned HandleKillPlayer/KillRewarder; no fabricated award added.
