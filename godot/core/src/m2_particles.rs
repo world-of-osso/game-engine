@@ -442,6 +442,7 @@ pub struct EmitterSim {
     particles: Vec<Particle>,
     capacity: usize,
     emitter_to_world: Mat4,
+    previous_emitter_to_world: Mat4,
     /// Generator values at the model's playing sequence time.
     props: GeneratorProps,
     /// `enabledIn` at that time.
@@ -529,6 +530,7 @@ impl EmitterSim {
             particles: Vec::with_capacity(capacity),
             capacity,
             emitter_to_world: Mat4::IDENTITY,
+            previous_emitter_to_world: Mat4::IDENTITY,
             props: GeneratorProps::authored(emitter),
             enabled: true,
             spline: spline::Spline::new(&emitter.spline_points),
@@ -580,6 +582,7 @@ impl EmitterSim {
             return;
         }
         let previous = self.emitter_to_world.w_axis.truncate();
+        self.previous_emitter_to_world = self.emitter_to_world;
         self.emitter_to_world = emitter_to_world;
         let displacement = emitter_to_world.w_axis.truncate() - previous;
         let follow = follow_displacement(emitter, displacement, dt);
@@ -625,17 +628,30 @@ impl EmitterSim {
         if !(dt > 0.0) {
             return;
         }
-        self.age_particles(emitter, dt);
+        self.age_particles(emitter, dt, self.particles.len());
         self.emit(emitter, dt, density, wow_to_world * Vec3::Z, ground, None);
         self.move_particles(emitter, dt, wow_to_world, follow);
         self.step_children(emitter, dt, wow_to_world, density, ground);
+        self.previous_emitter_to_world = self.emitter_to_world;
     }
 
-    fn age_particles(&mut self, emitter: &ParticleEmitter, dt: f32) {
+    fn age_particles(&mut self, emitter: &ParticleEmitter, dt: f32, existing_count: usize) {
         let lifespan = self.props.lifespan;
+        let has_model_reference = emitter.particle_model_filename.is_some()
+            || emitter.child_emitters_model_filename.is_some();
+        let p5_lifecycle = has_model_reference || self.recursive_world || !self.children.is_empty();
+        let mut index = 0;
         self.particles.retain_mut(|particle| {
-            particle.age += dt;
-            particle.age < particle_lifespan(emitter, lifespan, particle.seed).max(MIN_LIFESPAN)
+            if index < existing_count {
+                particle.age += dt;
+            }
+            index += 1;
+            let limit = particle_lifespan(emitter, lifespan, particle.seed).max(MIN_LIFESPAN);
+            if p5_lifecycle {
+                particle.age < limit
+            } else {
+                particle.age <= limit
+            }
         });
     }
 
@@ -717,7 +733,9 @@ impl EmitterSim {
     ) {
         let model_space = self.model_space(emitter);
         let frame = self.emitter_to_world;
+        let previous_frame = self.previous_emitter_to_world;
         for child in &mut self.children {
+            let existing_count = child.sim.particles.len();
             child.sim.recursive_world = true;
             let child_density = if child.emitter.flags & FLAG_NO_GLOBAL_SCALE != 0 {
                 1.0
@@ -725,8 +743,12 @@ impl EmitterSim {
                 density
             };
             for particle in &self.particles {
-                let motion =
-                    parent_motion(particle, model_space, frame, child.interpolate_position);
+                let motion = parent_motion(
+                    particle,
+                    model_space,
+                    (previous_frame, frame),
+                    child.interpolate_position,
+                );
                 child.sim.emitter_to_world =
                     Mat4::from_rotation_translation(motion.orientation, motion.position)
                         * Mat4::from_translation(wow_to_world * Vec3::from(child.emitter.position));
@@ -739,7 +761,8 @@ impl EmitterSim {
                     Some(motion),
                 );
             }
-            child.sim.age_particles(&child.emitter, dt);
+            // Births already carry the generator's substep age, like ordinary births.
+            child.sim.age_particles(&child.emitter, dt, existing_count);
             child
                 .sim
                 .move_particles(&child.emitter, dt, wow_to_world, Vec3::ZERO);
@@ -837,34 +860,41 @@ impl EmitterSim {
         if emitter.particle_model_filename.is_none() {
             return;
         }
-        for particle in &self.particles {
-            let Some(twinkle) = twinkle_scale(emitter, particle.age, particle.seed) else {
-                continue;
-            };
-            let look = appearance(emitter, self.props.lifespan, particle.age, particle.seed);
-            let scale = look.scale * twinkle;
-            let local = Mat4::from_scale_rotation_translation(
-                Vec3::new(scale.x, scale.y, scale.x),
-                particle.orientation * Quat::from_rotation_z(spin_angle(emitter, particle)),
-                particle.position,
-            );
-            let transform = if self.model_space(emitter) {
-                self.emitter_to_world * local
-            } else if emitter.flags & FLAG_INHERIT_SCALE != 0 {
-                let inherited = self.emitter_to_world.x_axis.truncate().length();
-                Mat4::from_scale_rotation_translation(
-                    Vec3::new(scale.x, scale.y, scale.x) * inherited,
-                    particle.orientation * Quat::from_rotation_z(spin_angle(emitter, particle)),
-                    particle.position,
-                )
-            } else {
-                local
-            };
-            out.push(ModelParticle {
-                transform,
-                color: look.color.extend(look.alpha),
-            });
-        }
+        out.extend(
+            self.particles
+                .iter()
+                .filter_map(|particle| self.model_particle(emitter, particle)),
+        );
+    }
+
+    fn model_particle(
+        &self,
+        emitter: &ParticleEmitter,
+        particle: &Particle,
+    ) -> Option<ModelParticle> {
+        let twinkle = twinkle_scale(emitter, particle.age, particle.seed)?;
+        let look = appearance(emitter, self.props.lifespan, particle.age, particle.seed);
+        let size = look.scale * twinkle;
+        let model_space = self.model_space(emitter);
+        let inherited = if !model_space && emitter.flags & FLAG_INHERIT_SCALE != 0 {
+            self.emitter_to_world.x_axis.truncate().length()
+        } else {
+            1.0
+        };
+        let local = Mat4::from_scale_rotation_translation(
+            Vec3::new(size.x, size.y, size.x) * inherited,
+            particle.orientation * Quat::from_rotation_z(spin_angle(emitter, particle)),
+            particle.position,
+        );
+        let transform = if model_space {
+            self.emitter_to_world * local
+        } else {
+            local
+        };
+        Some(ModelParticle {
+            transform,
+            color: look.color.extend(look.alpha),
+        })
     }
 
     /// Maximum drawable quads, independent head and tail styles sharing a particle.
@@ -993,12 +1023,13 @@ impl EmitterSim {
 fn parent_motion(
     particle: &Particle,
     model_space: bool,
-    frame: Mat4,
+    frames: (Mat4, Mat4),
     interpolate: bool,
 ) -> ParentMotion {
+    let (previous_frame, frame) = frames;
     let (previous_position, position, velocity, orientation) = if model_space {
         (
-            frame.transform_point3(particle.previous_position),
+            previous_frame.transform_point3(particle.previous_position),
             frame.transform_point3(particle.position),
             frame.transform_vector3(particle.velocity),
             frame.to_scale_rotation_translation().1 * particle.orientation,
