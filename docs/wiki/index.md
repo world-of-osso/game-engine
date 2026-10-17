@@ -14,7 +14,7 @@
 # Wiki Index
 
 - [Product-row refund icon tooltip](systems/trading-post.md#product-row-refund-icon-tooltip--implementation-october16) — source texture-owned refund time; native generic-item-tooltip RED→both-skin painted right-anchor/parent-click/hovered-owner teardown GREEN, genuine purchase/refund conservation.
-- [Earned-wallet source boundary](systems/battlegrounds.md#earned-wallet-source-continuation--2026-10-16) — explicit Honor mirror, actual both-skin world-kill wallet proof; [source match brackets](systems/battlegrounds.md#source-match-brackets--2026-10-16) now retained at admission, BG callbacks next; Conquest unmapped.
+- [Earned-wallet source boundary](systems/battlegrounds.md#earned-wallet-source-continuation--2026-10-16) — explicit Honor mirror, actual both-skin world-kill wallet proof; [source match brackets](systems/battlegrounds.md#source-match-brackets--2026-10-16) retained at admission; [Arathi completion](systems/battlegrounds.md#arathi-completion-honor--2026-10-16) has terminal-tick/persistence proof under explicit once-per-match policy; other BG callbacks/Conquest open.
 
 - [Product-row cart toggle](systems/trading-post.md#product-row-cart-toggle--implementation-october16) — source36px row-owned Add/Remove control, independent identity/tooltip and preserved cart preview choices; native omission/paint RED→both-skin painted glyph GREEN.
 - [Portrait-inclusive HUD clearance](systems/launcher.md#portrait-inclusive-hud-clearance--2026-10-16) — approved321×79 player mount retained; exact HUD bounds and strict panel/metal clearance,31+9 tests and both-skin native1080p proof; Modern identical, no Forever changes outside launcher paint.
