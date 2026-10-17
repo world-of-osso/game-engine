@@ -1193,7 +1193,7 @@ func product_hover_sound_proof() -> void:
 	file.store_string(JSON.stringify(proof,"\t"))
 	file.close()
 	print("TP_PRODUCT_HOVER_SOUND ", JSON.stringify(proof))
-	if not errors.is_empty(): fail("Retail product enter kit218934 decoded playback/lifecycle missing: %s" % errors); return
+	if not errors.is_empty(): fail("Retail product enter kit218934 decoded playback/lifecycle missing: %s" % [errors]); return
 	print("TRADING_POST_LIVE PASS skin=", skin, " phase=product-hover-sound")
 	client.free()
 	quit(0)
