@@ -142,10 +142,10 @@ Retail SharedXML calls native `CalculateMountScale`; its formula remains unestab
 ## Tests asserting this spec
 
 - `scripts/tests/test_trading_post_import.py`: authentic category/price/UI group round-trip and mismatched-layout rejection.
-- `godot/ui-model/tests/trading_post.rs`: both-skin XML geometry/dropdown, Tender/price/frozen/refund controls, modal confirmation/no local debit/pending state, freeze/replace/drag-off requests and second-page/category clipping.
+- `godot/ui-model/tests/trading_post.rs`: both-skin XML geometry/dropdown, Tender/price/frozen/refund controls, modal confirmation/no local debit/pending state, freeze/replace/drag-off requests, second-page/category clipping and refund-icon row identity/time-unit/color/expiry/closed suppression.
 - `godot/network/src/trading_post_wire_tests.rs`: real UDP snapshot/request round-trip.
 - `scripts/tests/test_trading_post_asset_seeds.py`: server preview rules (mount/pet/transmog/set) and whole-chain receipt verdicts.
-- `godot/tests/trading_post_live.gd`: private 127.0.0.1:5791 fb_* native-input proof — Log Tender line, authentic NPC gossip, HUD hidden/restored, category dropdown, player transmog/set and creature mount/pet previews, drag rotation, ToyOverlay, unavailable row, drag-to-freeze, unaffordable gating and frozen slot after relog.
+- `godot/tests/trading_post_live.gd`: private 127.0.0.1:5791 fb_* native-input proof — Log Tender line, authentic NPC gossip, HUD hidden/restored, category dropdown, player transmog/set and creature mount/pet previews, drag rotation, ToyOverlay, unavailable row, drag-to-freeze, unaffordable gating and frozen slot after relog. Phase `refund-icon-tooltip` proves ordinary-row owner/parent-click/hovered-owner teardown and authoritative purchase/refund conservation.
 
 ## Known gaps (current cycle)
 
