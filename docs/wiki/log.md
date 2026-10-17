@@ -3,6 +3,15 @@
 [Bounded277](systems/battle-pets.md#life-exchange-projection--2026-10-17): both actual strict skins/private5961 physical shared98/108, subsequent Scratch28/30 and retained owned70→78HP, CD5. Four inspected fullHD originals/all saved phases two framed models, geometry91/97 only HP fills. Existing canonical Sprite6294 closure6/6/loader2meshes; no new Sprite publication or UI code. Earlier TormentedSpirit66620 loads12meshes but authentic scale1.0 clips fixed viewport; rejected before cast/capture, no camera/scale workaround. Native1068/f8 and shared-helper drift/source boundaries recorded; final CPU gates pending.
 
 ## 2026-10-17 — Launch Rocket setup/launch projection
+## 2026-10-17 — Modern Warsong end Honor
+
+[Modern WSG](systems/battlegrounds.md#modern-warsong-end-honor--2026-10-17): actual third-capture RED177vs286→GREEN11, both factions286/118, empty timeout draw59/59, replay/persistence/origin return. Exact1014/1018→HOLIDAY_NONE→false source trace resolves modern WSG/AB branches without a calendar or legacy alias; AB160 callback remains pending, Eye7 holiday authority remains a gap. BG kills do not mint Honor XP in pinned HandleKillPlayer/KillRewarder; no fabricated award added.
+
+## 2026-10-17 — Flag capture Honor
+
+[Flag captures](systems/battlegrounds.md#flag-capture-honor--2026-10-17): real channel RED0vs59→GREEN19, source WSG10–19 grants59/Twin30–39 grants121 per two-kill capture to both assigned rosters, final capture/replay/persistence/origin return. Existing flag/reconnect/achievement and prior13 callback controls retained. Conditional resource/WSG-end branches explicitly require unresolved BG_WEEKEND_AUTHORITY; no calendar default or native acceptance claim.
+
+## 2026-10-17 — Alterac survivor Honor
 
 [Bounded75](systems/battle-pets.md#launch-rocket-projection--2026-10-17): both actual strict skins/private5961 physically set up294 without enemy damage, then launch/expire294 and win at enemy0. Authored Lil' Bling20; retained owned injury1205→1180→1153, six inspected fullHD originals/two framed models, unchanged shared HUD geometry except fills/timed floats. Canonical194 assets reused with53 hash checks; actual native server6b44/engine8c/shared6b and source scope recorded, no new UI code or full timing/VFX claim.
 
@@ -20,6 +29,10 @@
 ## 2026-10-17 — Ordinary StaticPopup body shadow
 
 [PARTY_INVITE body](systems/group-frames.md#ordinary-staticpopup-body-shadow--bounded-proof-2026-10-17): inherited Roman black(+1,−1) only;14px/white/geometry/actions preserved. Genuine model RED→both-skin GREEN; native source4bae444b1 darkens855 pixels/skin, zero outside the1225-pixel diagnostic shadow mask, exact alpha-off/source restoration. Initial rectangle oracle's one-pixel overhang failure retained with actual raster receipts. Effective user-font scaling/full-popup/server lifecycle remain unqualified.
+## 2026-10-17 — Alterac survivor Honor
+
+[Survivors](systems/battlegrounds.md#alterac-survivor-honor--2026-10-17): actual mixed-objective/general-end RED858vs1838→both-faction GREEN, controlled/contested/destroyed towers and living/dead captains, whole-team rounding, NPC/player/tower terminal paths, replay and persistence.13 distinct tests green across prior12 and corrected corpse-replay fixture. Depletion fixtures use explicit75/1 pre-terminal baselines, not full-match histories; no UDP/rendered/reputation claim.
+
 ## 2026-10-17 — Alterac tower Honor
 
 [Tower destruction](systems/battlegrounds.md#alterac-tower-honor--2026-10-17): actual channel RED0vs368→both-faction GREEN, two separately rounded events736, canceled/defended/duplicate/graveyard exclusions and persistence/origin return. Prior10 controls retained; source Tower Point spawn-condition mismatch recorded, not changed. Survivor OnEnd and external UDP/rendered proof remain open.
