@@ -259,6 +259,12 @@ impl GameClient {
             .get_viewport()
             .ok_or("Trading Post viewport missing")?
             .get_mouse_position();
+        self.trading_post.view.product_hover = ui.bind().hovered_button().and_then(|(name, _)| {
+            name.strip_prefix("PerksProgramProduct")
+                .or_else(|| name.strip_prefix("PerksProgramCartToggle"))?
+                .parse()
+                .ok()
+        });
         self.trading_post.view.cart_hover =
             self.trading_post.view.cart_items().iter().find_map(|row| {
                 let template = if row.category_id == 8 { "Set" } else { "Item" };
