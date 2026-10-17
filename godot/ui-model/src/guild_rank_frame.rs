@@ -131,21 +131,20 @@ fn invitation_popup(session: &GuildRanksSession) -> Element {
     children.extend(label(
         "GuildInviteFrameInviterName".into(),
         &invite.inviter_name,
-        (40.0, 28.0, 230.0, 16.0),
-        (12.0, "1,1,1,1", "CENTER"),
+        (40.0, 28.0, 230.0, 10.0),
+        (10.0, "1,1,1,1", "CENTER"),
     ));
     children.extend(label(
         "GuildInviteFrameInviteText".into(),
         "invites you to join the guild:",
-        (40.0, 48.0, 230.0, 16.0),
-        (12.0, "1,1,1,1", "CENTER"),
+        (40.0, 38.0, 230.0, 10.0),
+        (10.0, "1,1,1,1", "CENTER"),
     ));
-    children.extend(label(
-        "GuildInviteFrameGuildName".into(),
-        &invite.guild_name,
-        (24.0, 70.0, 262.0, 28.0),
-        (14.0, NORMAL_FONT_COLOR, "CENTER"),
-    ));
+    // TOP anchors are relative to TOP. GuildName has intrinsic size in the XML.
+    children.extend(rsx! { fontstring { name: "GuildInviteFrameGuildName",
+    text: {invite.guild_name.as_str()}, font_size: 12.0, font_color: NORMAL_FONT_COLOR,
+    shadow_color: "0,0,0,1", shadow_offset: "1,-1", justify_h: "CENTER",
+    left: "50%", top: 50.0, translate_x: "-50%", pos_type: "absolute" } });
     children.extend(panel_button(
         "GuildInviteFrameJoinButton".into(),
         "Join Guild",
