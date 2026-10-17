@@ -25,6 +25,10 @@ impl GameClient {
         let json = serde_json::to_string(&serde_json::json!({
             // Installed Hearthstone8690 uses charge category2309.
             "hearth_charges": self.account.spells.charges(2309).map(|charges| charges.snapshot()),
+            "mobile_cooldown": self.account.spells.button_cooldown(83958, false).map(|clock| serde_json::json!({
+                "duration": clock.duration,
+                "remaining": clock.remaining,
+            })),
             "health": health.map(|health| health.current),
             "movement_speed": speed.map(|speed| speed.0),
             "position": position.map(|position| [position.x, position.y, position.z]),
