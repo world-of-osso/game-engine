@@ -1,3 +1,4 @@
+- [Fury source boundary](investigations/cooldown-assist-data.md#fury-distancenearby-count-source-boundary--2026-10-17) — actual tree-bound talent Apply/persistence exposes distance3/count12 gaps; pinned APL alone does not establish spatial semantics; run21 FPS/death accounting retained.
 - [Idle boss-goal progression](systems/bot-harness.md#idle-boss-goal-progression--2026-10-17) — explicit empty Tab permits one strict native source-goal step; combat/recovery interrupts, boss arrival stops movement; synthetic RED, live proof pending.
 - [Native-tree-bound starter talents](systems/bot-harness.md#sourced-rotations-and-talents) — received Fury tree850 selects installed915, not cross-tree954/880; unavailable authority stops prep.
 - [Projected walking endpoint](systems/bot-harness.md#projected-walking-endpoint--2026-10-16) — use the completed source nav-surface endpoint, not raw NPC height; unchanged arrival tolerance and partial/floor refusal controls.
