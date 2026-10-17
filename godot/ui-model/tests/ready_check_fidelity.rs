@@ -14,7 +14,7 @@ fn screen(shared: &SharedContext) -> Element {
 }
 
 #[test]
-fn ready_check_message_inherits_black_shadow_both_skins() {
+fn ready_check_message_inherits_roman_color_and_shadow_both_skins() {
     use ui_toolkit::widgets::font_string::GameFont;
 
     game_engine_ui_model::paths::set_data_root(
@@ -39,8 +39,8 @@ fn ready_check_message_inherits_black_shadow_both_skins() {
         assert_eq!(frame.height.value(), 28.0);
         assert_eq!(text.font, GameFont::FrizQuadrata);
         assert_eq!(text.font_size, 12.0);
-        // Existing white is a control, not certification of source NORMAL_FONT_COLOR.
-        assert_eq!(text.color, [1.0; 4]);
+        // GlobalColor row1 NORMAL_FONT_COLOR = ARGB0xFFFFD200, not white.
+        assert_eq!(text.color, [1.0, 210.0 / 255.0, 0.0, 1.0], "{skin:?}");
         assert_eq!(text.shadow_color, Some([0.0, 0.0, 0.0, 1.0]), "{skin:?}");
         assert_eq!(text.shadow_offset, [1.0, -1.0]);
     }
