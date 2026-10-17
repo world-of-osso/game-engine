@@ -77,6 +77,11 @@ func verify_full_results() -> bool:
 	if shown("EncounterJournalSearchPreview") or not shown("EncounterJournalSearchResults"):
 		stop("Enter on Show All did not replace preview with full results")
 		return false
+	var title := label_text("EncounterJournalSearchResultsTitle")
+	print("SEARCH_NATIVE_TITLE ", title)
+	if not title.begins_with("Search Results for \"flame\"(") or title.contains("\\"):
+		stop("Localized popup title leaked transport escapes: " + title)
+		return false
 	var popup := control("EncounterJournalSearchResults").get_global_rect()
 	var journal := control("EncounterJournal").get_global_rect()
 	if popup.size.distance_to(Vector2(600,400)) > 1.0 or popup.position.distance_to(journal.position+Vector2(100,89)) > 1.0:
@@ -166,7 +171,9 @@ func run() -> void:
 		return
 	var identity: Dictionary = client.account_state()
 	print("SEARCH_ACCOUNT " + JSON.stringify({"character":identity.selected_character_name,"character_id":identity.selected_character_id,"skin":identity.ui_skin}))
+	print("SEARCH_OPEN_BEFORE focus=%s state=%s" % [root.gui_get_focus_owner(),client.adventure_guide_state()])
 	await journal_key()
+	print("SEARCH_OPEN_AFTER focus=%s state=%s" % [root.gui_get_focus_owner(),client.adventure_guide_state()])
 	deadline = Time.get_ticks_msec()+90000
 	while not client.adventure_guide_state().loaded and Time.get_ticks_msec()<deadline:
 		await process_frame
