@@ -13,12 +13,14 @@ M2 `ParticleSystem2` emitters on placed doodads (ADT MDDF and WMO MODD), creatur
 - [x] Spawn per WWV plane (1), sphere (2) and cubic Bézier spline (3) generators; spline controls must form complete 3n+1 finite points. Types beyond these are not simulated.
 - [x] Accumulate emission at (rate + variation) × particle density, capped by the pool; `particleDensity` scales the rate except for flag 0x02000000. Each placement captures the current density at registration. An Options density change updates only the default: existing placements retain their captured rate and future registrations use the new default, without recreating pools.
 - [x] Advance ballistically with drag, gravity and wind (while age < windTime). Model-space emitters (0x10) simulate in the emitter frame; others in world axes, with WoW gravity converted.
-- [x] Replay long gaps in 0.1 s steps, at most one lifespan of them.
+- [x] Replay long gaps in 0.1 s steps, bounded by one authored lifespan for ordinary emitters; a P5 tree adds its longest descendant lifespan path to that history budget.
+- [x] Explicitly resolved recursive definitions receive births from each surviving parent's moved position, eligible parent-particle velocity and previous position for interpolation. Retire parents at their lifespan before child births; advance existing children once per positive substep, without root-origin births. Descendants drain independently; zero-duration updates do not age or emit.
 - [x] Retire a particle after its seed-varied lifespan; sample the lifetime ramps at age / maximum lifespan; apply seed-based size variation, random atlas cell (0x10000), twinkle, spin and inherited scale (0x20).
 - [x] Size each emitter's pool to ceil((rate + variation) × (lifespan + variation) × 1.15), capped at 500.
 - [x] Build independent head (0x20000) and tail (0x40000) quads. Heads are camera-facing, emitter-plane (0x1000) or velocity-streak (0x4). Tails extend opposite velocity for tailLength seconds, use tail atlas keys, and clamp duration to age for 0x400. Near-view-parallel tails use the finite tiny-quad policy from WebWowViewerCpp buildVertex2.
 
 ### Rendering
+- [x] Explicitly resolved geometry resources draw actual model mesh batches with per-particle lifetime position, birth orientation/spin, scale, RGB and opacity, separately from recursive emitter definitions. Geometry references never substitute billboard quads. This consumer is proved synthetically; Retail reference resolution remains a named gap.
 - [x] Authored0x2 sorts live particles far-to-near within each emitter/placement in the current camera before expanding head/tail pairs; unflagged emitters retain live order. No cross-emitter/placement sort is claimed.
 - [x] Map particle blend types 0-7 to the M2 GL factors (Opaque, AlphaKey, Alpha, NoAlphaAdd, Add, Mod, Mod2x, BlendAdd); only 0/1 write depth; alpha test -1 / 0.502 / 1/255.
 - [x] Multiply colour into the texel in authored space; combine multitexture layers (Particle_Mod, 2Color_3Alpha, 3Color_3Alpha).
@@ -43,7 +45,9 @@ M2 `ParticleSystem2` emitters on placed doodads (ADT MDDF and WMO MODD), creatur
 - `godot/core/src/asset/m2_particle_defaults.rs` — emitter defaults.
 - `godot/core/src/m2.rs` — `Model::particle_emitters`.
 - `godot/core/src/m2_particles.rs` — random stream, spawn, update, lifetime appearance, quads, pool sizing, blend depth/alpha-test rules.
-- `godot/rust/src/particles.rs` — pools, materials, emitter frames from bones, `WowParticleProbe`.
+- `godot/rust/src/particles.rs` — pools, explicit model-reference resources, emitter frames from bones, `WowParticleProbe`.
+- `godot/rust/src/particle_models.rs` — geometry mesh/material resources, instance lifetime RGBA and placement-owned geometry nodes.
+- `godot/rust/src/particle_models_probe.rs` — synthetic model/child acceptance through native placement and uploads.
 - `godot/shaders/particle.gdshader` — particle fragment combiners and blend/fade output.
 - `godot/rust/src/terrain/objects.rs` — per-doodad emitters and `update_particles`.
 - `godot/rust/src/lib.rs` — graphics settings and the per-frame update.
@@ -62,7 +66,7 @@ M2 `ParticleSystem2` emitters on placed doodads (ADT MDDF and WMO MODD), creatur
 ## Known gaps (current cycle)
 
 - [ ] Animated emitter tracks: `set_animation` keys emission rate, speed and `enabledIn` per sequence, but skips global-sequence tracks and tracks with at most one key per sequence; the other tracks use their first key.
-- [ ] Clean-room unresolved dependencies: **P3-timer-reset** (birth-velocity timer/reset), **P4-density** (spline rate per unit), **S1-polarity-oracle** (target lit/unlit polarity and coefficients), **P5-product-resolution / P5-recursive-timing** (real model/child assets and clocks). Details below; none are claimed as implemented. Randomized atlas mask (0x8000), TXAC UV variants, refraction pass and alpha-cutoff discard also remain open. **P7-surface-mask**: exact target collision-mask equivalence is unqualified; native projection uses existing terrain/WMO/doodad/active-game-object collision layers.
+- [ ] Clean-room unresolved dependencies: **P3-timer-reset** (birth-velocity timer/reset), **P4-density** (spline rate per unit), **S1-polarity-oracle** (target lit/unlit polarity and coefficients), **P5-product-resolution** (real model/child asset mappings), **P5-recursive-clock** (recursive model animation-parameter time). Details below; none are claimed as implemented. Randomized atlas mask (0x8000), TXAC UV variants, refraction pass and alpha-cutoff discard also remain open. **P7-surface-mask**: exact target collision-mask equivalence is unqualified; native projection uses existing terrain/WMO/doodad/active-game-object collision layers.
 - [ ] Emitters of attached item models (weapons, held torches, enchants) and player models; display state spell kits (the HD kobold candle flame is not a model emitter).
 
 ## Out of scope
@@ -101,7 +105,30 @@ The modern scale is established: allowed WWV `M2ParticleOld::BurstMultiplier` is
 
 **Named gap P5-product-resolution:** bounded local-cache census (83,123 parseable unqualified M2 files; not a current-build publication audit) found no nonempty geometry/recursion filenames after stripping NUL terminators. Nonzero M2Array counts frequently describe a single NUL, not a referenced asset. Allowed WWV retains the two legacy filenames but has no implemented per-particle geometry/child-emitter consumer establishing Retail product-qualified FDID resolution. Pinned wow.export M2Loader skips particle emitters. Legacy listfile-name guessing is not a valid substitute for [product-isolated model assets](product-isolated-model-assets.md).
 
-**Named gap P5-recursive-timing:** supplied spec identifies lifetime ownership/orientation and retirement requirements, but not the child-emission clock, loop/recursion termination policy, or target asset resolution. No authentic uniquely identifiable geometry/child fixture can presently exercise those boundaries. Actual model-instance, child-emission, natural-retirement and owner-teardown acceptance therefore remain open; no colored-quads substitute, synthetic asset receipt, or attachment-path reuse was added.
+The October 17 approved P5 packet supersedes the old **P5-recursive-timing** blocker: per positive replay substep, age/retire parents at lifespan before births, move survivors, request child births at each survivor's resulting position (previous position retained for explicitly interpolated births), then advance child state once. Descendants retain independent live state and drain while their owner receives updates. Root-origin child emission is not part of that advance. Native resolved geometry is distinct from child-emitter definitions; unresolved references fail placement explicitly, never draw replacement quads. Controlled synthetic CPU/native fixtures pass (continuation below); no current Retail asset acceptance is claimed.
+
+**Named gaps retained:** **P5-recursive-clock** (recursive model's own animated generator-parameter clock), no recursion depth limit, no cycle detection or cyclic-asset termination claim. Up to four emitter definitions from a recursive model is not a generation limit. The explicit resolved-resource boundary supplies interpolation policy; no modern authored-bit mapping is guessed. Ordinary root inherited-velocity timer/reset remains P3-timer-reset, separate from a recursive birth's known parent-particle velocity.
+
+### P5 approved continuation (2026-10-17)
+
+Approved behavioral input: `/home/osso/.worktrees/logs/m2-p5-s1-mat-source-assistance-2026-10-17.md`, SHA256 `b16ad486bd0e706d2369679f91ef24569959e7b5709ca4d29503701482edb204` (P5 section only). W/C labels are provenance, not accessible implementation sources. Geometry references suppress billboard output; geometry instance state carries independent lifetime position, birth orientation/spin, scale, RGB and opacity. Synthetic geometry uses the existing two scale channels (X/Z share X); no untouched Retail geometry parity is asserted. Birth-orientation decomposition is limited to geometry/recursive consumers: ordinary billboard births can use legitimate zero-scaled hidden bone frames without introducing an unused NaN quaternion. This P5 regression control is separate from the existing Godot zero-Basis diagnostics seen in the master-only FPS run.
+
+Selected DB2 directory resolves to Retail `12.1.5.70448`. A bounded extracted-cache census finds no nonempty geometry or recursive filenames in 83,133 legacy-cache M2s and three product-qualified wow caches (28,040 / 28,211 / 28,213 M2s); receipt `/home/osso/.worktrees/logs/m2-p5-reference-census.json`. This is not a complete current-publication census. **P5-product-resolution** remains open; no legacy-name guessing or unrelated models substituted. Native proof must therefore be explicitly synthetic.
+
+#### P5 acceptance proof
+
+REDs observed before the corresponding implementation: geometry references emitted replacement quads (`m2-p5-red.log`); native geometry/recursion consumer absent (`m2-p5-native-red-history-receipt.log`). The hidden-bone ordinary-billboard regression additionally reproduced an unused NaN orientation before its correction (`m2-p5-billboard-frame-red.log`). First native setup then hit the current strict asset-loader boundary: the old synthetic template had no primary SFID. The fixture now supplies only explicit SFID910006 and its numeric skin file; no neighboring-name lookup was added.
+
+| Capability | Proof |
+|---|---|
+| One/two moved parents; one tagged-child age increment; no root-origin births; inherited velocity/interpolation | CPU controls and native one/two-parent buffer assertions pass. Native outputs:1/2 actual six-vertex3D geometry instances and6/11 child quads (including the pre-existing tagged child). |
+| Parent exactly at lifespan; finite parent/child/grandchild draining; zero update;0.1s replay | Ten internal P5 controls pass; two external boundary controls pass. Three-generation draining is CPU proof. Native two-generation drained geometry/child uploads both report0 visible instances; owner teardown destroys both nodes. |
+| Independent geometry lifetime transform/RGBA and actual tinted raster | CPU numeric scale/orientation/RGBA controls plus native per-instance deltas and red-tinted raster pixels pass. Both1920×1080 PNGs were inspected; no replacement quad model was used. |
+| Current product assets / recursive parameter animation / cyclic policy | Not proved or implemented: **P5-product-resolution**, **P5-recursive-clock**, no depth limit and no cycle detection remain. |
+
+Scoped regression:33 ordinary particle tests plus12 P5 controls pass (45 total; the available-capacity descendant fixture has a later focused pass). Native library at `d7b4d366c` builds without compiler warnings; subsequent changes are fixtures only. Logs `/home/osso/.worktrees/logs/m2-p5-{particle-regression,core-current,drain-current,native-current-build,native-green}.log`; original PNGs, hashes and synthetic-only receipt in `/home/osso/.worktrees/logs/m2-p5-native-proof/`. No full suite or untouched-Retail pixel parity is claimed.
+
+Post-master integration `30ca371e2` includes the material-transition changes. Native rebuild (173.8s), helper-driven `cargo check`, formatter and both synthetic native cases pass; no compiler warnings. CPU particle sources/tests are unchanged from the45-control proof above, so that proof was retained rather than rerun. Revision-stamped logs: `/home/osso/.worktrees/logs/m2-p5-integration-{build,check,fmt}.log`; fresh PNGs, hashes and native output: `m2-p5-integration-proof/` beside them. Independent read-only artifact verification passed within these synthetic limits. Hidden-bone geometry, recursive implode/emitter-plane/inherited-scale combinations and pool-exhaustion fairness are not covered by this acceptance; no additional parity claim is made.
 
 ### Integrated proof
 
