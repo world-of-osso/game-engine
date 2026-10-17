@@ -2,6 +2,15 @@
 
 [Haymaker762 / Gift989](systems/battle-pets.md#miss-only-self-outcome-projection--2026-10-16): actual pointer self-stun and59/68 healing in both skins, successful-hit controls and ten inspected fullHD originals. Strict canonical model readback passes; no shared layout/client combat change or full timing/VFX claim.
 
+## 2026-10-16 — Journeys track texture mask
+
+[Track mask](systems/adventure-guide.md#journeys-track-texture-mask--2026-10-16): authenticated70448 FDID3894493/source1024×128 centered on570×72 clip, per-layout texture-only alpha. Actual159-pixel opaque RED→both-skin edge attenuation/unchanged center/opaque caption and physical wheel5→6 GREEN; inherited search also passes. Twelve full-HD originals inspected. Caption-reference canvas mistake retained as a separate oracle failure, not a product defect. Merged extension check and package fmt pass; independent lead targeted-test/source gate pending.
+
+## 2026-10-16 — Journal search physical acceptance and localized title quotes
+
+[Search](systems/adventure-guide.md#search-preview-and-full-results--implementation-2026-10-16) native8 passes both skins on productf2c8a410a: continued typing, actual preview/full popup, wheel/close/query retention and authored section selection. Eight full-HD originals inspected. Pixel inspection found exported quote spelling leaking through localization; actual RED→four focused tests GREEN and current clean title assertion/paint pass. Native7 first-J failure remains separate; no readiness patch. Current quote-fix check pending; C API/data gaps unchanged.
+
+## 2026-10-16 — Journal search implementation; native acceptance pending (historical2344 checkpoint)
 ## 2026-10-16 — Product-row refund icon tooltip implementation
 ## 2026-10-16 — Journal search implementation; native acceptance pending
 
@@ -102,6 +111,10 @@
 ## 2026-10-16 — Two-way pet-wall HUD projection
 
 [Ice Barrier479](systems/battle-pets.md#two-way-wall-projection--2026-10-16): actual private5961 pointer casts in both explicit skins preserve incoming-block HP, show shared pad/cooldown, then outgoing Claw consumes the second block and the next Scratch damages. Six fullHD originals inspected;94/101/104 named geometry differs only by HP fill and timed float position. Both models framed, retained injury visible, all owned PIDs stopped. No new widgets/simulation; all-wall native casts,3D VFX and full Retail timing remain separate.
+## 2026-10-16 — Housing world redirect
+
+[World slices](systems/housing.md#world-redirect--active2026-10-16): both-skin real Founder terrain/entry photographs, named plot→persistedHouse policy, actual native walking fixture and private current-ground authentication. Exterior/room assembly choices remain explicit source gaps. The70448 archive mismatch resolved externally;630/630 private ground payloads now match active content keys. Existing16-tile baker/query produces connected routes to both stones; Modern actual keyboard walk/claim10M→House3/plot444/relog passed on70448, with seven inspected `w2-modern-*` WORLD originals; Forever paid claim10M→House4/plot424/relog also passed via the proven444 corridor and retained baked444→424 query;14 inspected full-HD `w2-*` originals. The failed west-bank WMO69.856° contact remains a counterexample, not a repaired navigation claim. No geometry/physics/M2-floor mutation. The current70448 export comparison preserves seven partially unreadable source-table qualifications and the70391 runtime-catalog identity. Existing paid-owner house-list WORLD proof passed in both skins across actual relogs on2735, with eight inspected untouched full-HD `w5-*` captures; newclaim/exterior/interior proof remains separate. No old-build pin, position override or chrome fallback.
+
 ## 2026-10-16 — Full-HD storage capture boundary
 
 [F21](systems/housing.md#full-hd-storage-captures--verified2026-10-16): current merged helper builds, both-skin five-phase physical Filter/Sort/disabled/Dyeable/reset proof and ten inspected untouched1920×1080 originals. Private snapshot Z-schema drift refreshed from authentic current table; no product fix/full-image-parity claim. All owned processes stopped.
