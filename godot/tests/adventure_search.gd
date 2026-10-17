@@ -126,7 +126,7 @@ func verify_section_selection() -> bool:
 	var header := control("JournalSection2410")
 	var viewport := control("EncounterJournalContent")
 	if state.encounter != 112 or state.difficulty != 2 or header == null or not viewport.get_global_rect().encloses(header.get_global_rect()):
-		stop("Real section search did not select Heroic Ozruk and reveal2410: " + str(state))
+		stop("Real section search did not select Heroic Ozruk/reveal2410: encounter=%s instance=%s difficulty=%s header=%s" % [state.encounter,state.instance,state.difficulty,header != null])
 		return false
 	if label_text("EncounterJournalSearchBox") != "Paralyze":
 		stop("Search selection incorrectly cleared retained source query")
