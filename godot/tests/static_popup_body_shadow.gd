@@ -39,11 +39,11 @@ func run_body_shadow() -> void:
 			assert(shadow.a == 0 and offset == Vector2i.ZERO, "Genuine missing inherited shadow")
 		var buttons: Array[Dictionary] = []
 		for suffix in ["Button1", "Button2"]:
-			var button := ui.find_child("StaticPopup1" + suffix, true, false) as Button
-			assert(button != null and not button.disabled)
-			assert(button.text == ("Accept" if suffix == "Button1" else "Decline"))
-			assert(button.size == Vector2(128, 26))
-			buttons.append({"name": suffix, "position": [button.global_position.x, button.global_position.y], "size": [button.size.x, button.size.y], "text": button.text})
+			var button := ui.find_child("StaticPopup1" + suffix, true, false) as Control
+			assert(button != null and button.size == Vector2(128, 26))
+			var caption := button.find_child("Text", true, false) as Label
+			assert(caption != null and caption.text == ("Accept" if suffix == "Button1" else "Decline"))
+			buttons.append({"name": suffix, "position": [button.global_position.x, button.global_position.y], "size": [button.size.x, button.size.y], "text": caption.text})
 		observations.append({"case": skin, "name": "StaticPopup1Text", "position": [label.global_position.x, label.global_position.y], "size": [label.size.x, label.size.y], "panel_position": [panel.global_position.x, panel.global_position.y], "panel_size": [panel.size.x, panel.size.y], "buttons": buttons, "shadow": str(shadow), "offset": str(offset)})
 		var image := root.get_texture().get_image()
 		assert(image.get_size() == Vector2i(1920, 1080))
