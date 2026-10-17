@@ -1347,15 +1347,17 @@ func product_hover_sound_proof() -> void:
 	var frozen := int(client.trading_post_state().frozen)
 	var other_id := await select_other_cartable([frozen])
 	if other_id <= 0: return
+	var primary_id := await select_other_cartable([frozen, other_id])
+	if primary_id <= 0: return
 	await motion(control("PerksProgramLeaveButton").get_global_rect().get_center(), false)
 	await wait_frames(60)
 	# Selection setup precedes the measured pointer lifecycle; retain its kit count.
 	hover_kit_baseline = menu_sound_count(218934)
 	hover_audio_events.clear()
 	var before: Dictionary = client.trading_post_state().duplicate(true)
-	var row := control("PerksProgramProduct%d" % frozen)
+	var row := control("PerksProgramProduct%d" % primary_id)
 	var slot := control("PerksProgramFrozenSlot")
-	if row == null or slot == null: fail("Hover fixture needs visible ordinary/frozen owners for the same reserved product"); return
+	if row == null or slot == null: fail("Hover fixture needs separate ordinary and committed frozen owners"); return
 	var other := control("PerksProgramProduct%d" % other_id)
 	if other == null: fail("Hover fixture needs another visible cartable product"); return
 	var scale := control("PerksProgramLeaveButton").get_global_rect().size.x / 180.0
@@ -1367,7 +1369,7 @@ func product_hover_sound_proof() -> void:
 	await capture("ordinary-enter")
 	await hover_sound_checkpoint("ordinary-hold-refresh", 1)
 	await motion(slot.get_global_rect().get_center(), false)
-	await hover_sound_checkpoint("inherited-same-product-owner-change", 2)
+	await hover_sound_checkpoint("inherited-owner-change", 2)
 	await capture("inherited-enter")
 	await hover_sound_checkpoint("inherited-hold-refresh", 2)
 	await motion(other_point, false)
@@ -1389,7 +1391,7 @@ func product_hover_sound_proof() -> void:
 	await motion(Vector2(1800,1000), false)
 	if not await open_vendor(): return
 	if not await choose_category(1): return
-	row = control("PerksProgramProduct%d" % frozen)
+	row = control("PerksProgramProduct%d" % primary_id)
 	if row == null: fail("Reopened hover owner missing"); return
 	await motion(row.get_global_rect().position + Vector2(96,24)*scale, false)
 	await hover_sound_checkpoint("reopened-reentry", 5)
