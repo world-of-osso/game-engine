@@ -500,6 +500,7 @@ mod tests {
             guild_id: 7,
             guild_name: "Raid Team".into(),
             inviter_name: "Alice".into(),
+            tabard: None,
         };
         let mut guild = GuildRanks::default();
         guild.session.invitation = Some(invitation.clone());

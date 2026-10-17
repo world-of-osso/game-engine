@@ -64,6 +64,7 @@ fn guild_native_popup_projects_visible_registered_art() {
         guild_id: 7,
         guild_name: "Raid Team".into(),
         inviter_name: "Alice".into(),
+        tabard: None,
     });
     let mut shared = SharedContext::new();
     shared.insert(session);
