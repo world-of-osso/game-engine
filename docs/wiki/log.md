@@ -1,6 +1,9 @@
 ## 2026-10-17 — Lock-On target charge projection
 
 [Bounded77](systems/battle-pets.md#lock-on-projection--2026-10-17): both actual strict skins/private5961 physical first enemy lock/no damage/1round, then145/143 blast/removal/Rabbit2,4; retained own334→305→277→249→224. Six inspected fullHD originals/all saved phases two framed models, geometry91/99/100 only fills/timed floats. Canonical4files+fragment hashes/actual3mesh loader pass; no UI code. Native5c98/da304/e9; local lib132/wild29/check1m02/no warnings/bothfmt pass with charge regressions5 and unchanged UI12 retained. Full cross-caster/timing/VFX unproved.
+## 2026-10-17 — Trading Post product-enter sound
+
+[Product-enter sound](systems/trading-post.md#product-enter-sound--october17): missing-kit registry RED and actual native zero-playback RED precede minimal218934 registration/owner dispatch through existing UiKits. Source70391 metadata versus authenticated70448 asset build retained; same-product ordinary/frozen owners differ, nested toggle remains parent, leave/teardown reset. Actual3a7/Sf426/Pe9b both-skin five decoded4906953 plays/12 lifecycle checkpoints, playing+finished/duration/gain and authority conservation GREEN; core3+TP52(+1DB2)/check/scoped Rustfmt3/readability pass. Twelve inspected PNGs published; exact binaries/receipts/six original memory boundaries retained. No selection218230, native empty-slot or hardware audibility claim.
 
 ## 2026-10-17 — Life Exchange HP projection
 
