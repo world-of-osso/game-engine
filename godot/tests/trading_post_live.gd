@@ -24,7 +24,7 @@ func run_fixture() -> void:
 		fail("Private compositor must expose 1920x1080 output")
 		return
 	var account := OS.get_environment("TP_ACCOUNT")
-	if server != "127.0.0.1:5791" or not account.begins_with("fb_") or shots.is_empty() or receipts.is_empty() or not phase in ["row-cart-toggle", "frozen-tooltip", "cart-tooltips", "pending-dialogs", "confirmations", "button-tooltips", "item-tooltips", "menu-sounds", "layout", "layout-proof", "browse", "relog", "purchase", "refund", "cart", "cart-lifetime", "rotate-controls", "mount-rider", "mount-rider-cancel", "freeze-workflow", "authored-camera", "frozen-slot-before", "frozen-slot-after"]:
+	if server != "127.0.0.1:5791" or not account.begins_with("fb_") or shots.is_empty() or receipts.is_empty() or not phase in ["refund-icon-tooltip", "row-cart-toggle", "frozen-tooltip", "cart-tooltips", "pending-dialogs", "confirmations", "button-tooltips", "item-tooltips", "menu-sounds", "layout", "layout-proof", "browse", "relog", "purchase", "refund", "cart", "cart-lifetime", "rotate-controls", "mount-rider", "mount-rider-cancel", "freeze-workflow", "authored-camera", "frozen-slot-before", "frozen-slot-after"]:
 		fail("Explicit private 127.0.0.1:5791, fb_* account, phase and evidence paths required")
 		return
 	for directory in [shots, receipts]:
@@ -48,7 +48,7 @@ func run_fixture() -> void:
 	if not await wait_until(func(): return float(client.account_state().local_player_health) > 0.0, "private character alive", 120000): return
 	client.set_world_minutes(720.0)
 	await wait_frames(120)
-	if not phase in ["row-cart-toggle", "frozen-tooltip", "cart-tooltips", "pending-dialogs", "confirmations", "button-tooltips", "item-tooltips", "menu-sounds", "layout", "layout-proof", "cart", "cart-lifetime", "rotate-controls", "mount-rider", "mount-rider-cancel", "freeze-workflow", "authored-camera", "frozen-slot-before", "frozen-slot-after"] and not await travelers_log(): return
+	if not phase in ["refund-icon-tooltip", "row-cart-toggle", "frozen-tooltip", "cart-tooltips", "pending-dialogs", "confirmations", "button-tooltips", "item-tooltips", "menu-sounds", "layout", "layout-proof", "cart", "cart-lifetime", "rotate-controls", "mount-rider", "mount-rider-cancel", "freeze-workflow", "authored-camera", "frozen-slot-before", "frozen-slot-after"] and not await travelers_log(): return
 	if phase == "menu-sounds" and not watch_menu_sound_players(): return
 	if not await open_vendor(): return
 	if phase in ["cart", "cart-lifetime"]:
@@ -89,12 +89,67 @@ func run_fixture() -> void:
 		"frozen-tooltip": await frozen_item_tooltip_proof()
 
 		"button-tooltips": await button_tooltip_proof()
+		"refund-icon-tooltip": await refund_icon_tooltip_proof()
 		"row-cart-toggle": await row_cart_toggle_proof()
 		"cart-tooltips": await cart_item_tooltip_proof()
 		"frozen-slot-before": await frozen_slot_geometry_proof(false)
 		"frozen-slot-after": await frozen_slot_geometry_proof(true)
 		"refund": await refund_after_relog()
 		_: await browse()
+
+func refund_icon_tooltip_proof() -> void:
+	var before: Dictionary = client.trading_post_state().duplicate(true)
+	if not await choose_category(1): return
+	var target := await select_other_cartable([])
+	if target <= 0: return
+	var product: Dictionary = client.trading_post_state().duplicate(true)
+	var price := int(product.price)
+	await click("PerksProgramPurchaseButton")
+	await click("PerksProgramConfirmButton")
+	if not await wait_until(func(): return client.trading_post_state().purchased and not client.trading_post_state().pending and int(client.trading_post_state().tender) == int(before.tender) - price, "refund tooltip genuine purchase", 120000): return
+	if int(client.trading_post_state().refund_seconds) <= 0:
+		fail("Refund tooltip needs explicit private refund window, not production policy"); return
+	var other := await select_other_cartable([target])
+	if other <= 0: return
+	var row := control("PerksProgramProduct%d" % target)
+	if row == null: fail("Purchased refund row not visible"); return
+	var scale := control("PerksProgramLeaveButton").get_global_rect().size.x / 180.0
+	var icon := Rect2(row.get_global_rect().position + Vector2(389, 13.5) * scale, Vector2(21, 21) * scale)
+	await motion(icon.get_center(), false)
+	await wait_frames(30)
+	var tooltip: Dictionary = client.tooltip_state().duplicate(true)
+	var prefix := "Time remaining to refund this item: "
+	var matched := str(tooltip.get("title", "")).begins_with(prefix)
+	await capture("refund-hover")
+	var anchor_ok := matched and absf(float(tooltip.rect[0]) - icon.end.x / scale) <= 1.5 and absf(float(tooltip.rect[1]) + float(tooltip.rect[3]) - icon.position.y / scale) <= 1.5
+	var state: Dictionary = client.trading_post_state()
+	var conserved := int(state.selected) == other and int(state.tender) == int(before.tender) - price and state.frozen == before.frozen and state.cart.is_empty()
+	await motion(row.get_global_rect().position + Vector2(96, 24) * scale, false)
+	if not await wait_until(func(): return client.tooltip_state().get("title", "") == str(product.selected_name), "refund icon leave restores product tooltip"): return
+	await motion(control("PerksProgramLeaveButton").get_global_rect().get_center(), false)
+	if not await wait_until(func(): return not client.tooltip_state().get("visible", false), "refund icon pointer leave"): return
+	await capture("refund-leave")
+	# Restore the genuine purchase even when the tooltip assertion is RED.
+	await click("PerksProgramLeaveButton")
+	if not await wait_until(func(): return not client.trading_post_state().open and not client.tooltip_state().get("visible", false), "refund tooltip vendor teardown"): return
+	if not await open_vendor(): return
+	if not await choose_category(1): return
+	await click("PerksProgramProduct%d" % target)
+	if not await wait_until(func(): return int(client.trading_post_state().selected) == target, "purchased product reselect"): return
+	if control("PerksProgramRefundButton") == null:
+		fail("Private refund expired before cleanup"); return
+	await click("PerksProgramRefundButton")
+	await click("PerksProgramConfirmButton")
+	if not await wait_until(func(): return not client.trading_post_state().purchased and not client.trading_post_state().pending and int(client.trading_post_state().tender) == int(before.tender), "refund tooltip restores authoritative Tender", 120000): return
+	if client.trading_post_state().frozen != before.frozen:
+		fail("Refund tooltip roundtrip changed frozen reservation"); return
+	await capture("refunded-restored")
+	print("TP_REFUND_ICON_TOOLTIP target=", target, " selected=", other, " tooltip=", tooltip, " matched=", matched, " anchor_ok=", anchor_ok, " conserved=", conserved)
+	if not matched:
+		fail("Retail row refund icon tooltip missing; genuine purchase refunded before assertion"); return
+	if not anchor_ok or not conserved:
+		fail("Refund icon tooltip lost source owner anchor or changed selection/authority"); return
+	await finish("refund-icon-tooltip")
 
 func row_cart_toggle_proof() -> void:
 	if not await choose_category(1): return
@@ -1525,7 +1580,7 @@ func motion(point: Vector2, down: bool, relative: Vector2 = Vector2.ZERO) -> voi
 	event.global_position = point
 	event.relative = relative
 	event.button_mask = MOUSE_BUTTON_MASK_LEFT if down else 0
-	if phase in ["cart-tooltips", "row-cart-toggle"]:
+	if phase in ["cart-tooltips", "row-cart-toggle", "refund-icon-tooltip"]:
 		Input.parse_input_event(event)
 	else:
 		root.push_input(event, true)
