@@ -47,6 +47,7 @@ mod hud_edit_preview;
 mod hud_edit_tests;
 mod icon_masks;
 pub(crate) mod input_queue;
+mod journeys_track_mask;
 mod launcher_preview;
 mod layout;
 #[cfg(debug_assertions)]
