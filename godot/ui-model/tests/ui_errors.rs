@@ -81,7 +81,7 @@ fn authored_overlay_keeps_geometry_text_color_and_fade_in_registry() {
         .get(model.registry.get_by_name("UIErrorsFrameLine3").unwrap())
         .unwrap();
     assert!(third.hidden);
-    model.tick(3.25);
+    model.tick(2.25);
     let first = model
         .registry
         .get(model.registry.get_by_name("UIErrorsFrameLine1").unwrap())

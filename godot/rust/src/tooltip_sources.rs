@@ -117,9 +117,11 @@ impl GameClient {
         const SOURCES: &[Source] = &[
             GameClient::trading_post_cart_tooltip,
             GameClient::guild_perk_tooltip,
+            GameClient::pvp_honor_tooltip,
             GameClient::guild_news_tooltip,
             GameClient::trading_post_button_tooltip,
             GameClient::trading_post_tooltip,
+            GameClient::journal_section_flag_tooltip,
             GameClient::journal_defeated_tooltip,
             GameClient::journal_creature_tooltip,
             GameClient::journal_monthly_tooltip,
@@ -203,6 +205,21 @@ impl GameClient {
         )))
     }
 
+    /// Mainline PVPUI.lua1975: lifetime honor, ANCHOR_RIGHT offsets-20,-20.
+    fn pvp_honor_tooltip(&mut self, hit: &HoveredFrame) -> Option<HoveredTooltip> {
+        let ui = hit.ui.bind();
+        let (owner, ()) = named_ancestor(ui.registry()?, hit.frame, |frame| {
+            (name_of(frame)? == "PVPUIHonorLevelDisplay").then_some(())
+        })?;
+        drop(ui);
+        let tooltip = self.battleground.view.honor_tooltip()?;
+        Some(HoveredTooltip::text(tooltip.owned_offset(
+            self.owner_rect(&hit.ui, owner)?,
+            OwnerSide::Right,
+            [-20.0, -20.0],
+        )))
+    }
+
     /// PerksProgram button ShowTooltip methods own ANCHOR_LEFT, including disabled controls.
     fn trading_post_button_tooltip(&mut self, hit: &HoveredFrame) -> Option<HoveredTooltip> {
         use ui_toolkit::{frame::WidgetData, widgets::button::ButtonState};
@@ -225,18 +242,20 @@ impl GameClient {
         )?))
     }
 
-    /// PerksProgramElements.lua306–314: hovered product GetItemByID, no SellPrice.
+    /// Elements.lua306–314, including its inherited frozen-product template.
     fn trading_post_tooltip(&mut self, hit: &HoveredFrame) -> Option<HoveredTooltip> {
         let ui = hit.ui.bind();
         let (owner, product_id) = named_ancestor(ui.registry()?, hit.frame, |frame| {
-            indexed(frame, "PerksProgramProduct")
+            frame
+                .onclick
+                .as_deref()?
+                .strip_prefix("perks:select:")?
+                .parse::<u32>()
+                .ok()
         })?;
         drop(ui);
         let snapshot = self.trading_post.view.snapshot.as_ref()?;
-        let product = snapshot
-            .items
-            .iter()
-            .find(|row| row.id as usize == product_id)?;
+        let product = snapshot.items.iter().find(|row| row.id == product_id)?;
         let item = named_item_for(
             shared::item_data::ItemDefinitionSource::Retail,
             product.item_id,
@@ -336,6 +355,19 @@ impl GameClient {
             },
             None,
         ))
+    }
+
+    fn journal_section_flag_tooltip(&mut self, hit: &HoveredFrame) -> Option<HoveredTooltip> {
+        let ui = hit.ui.bind();
+        let (owner, tooltip) = named_ancestor(ui.registry()?, hit.frame, |frame| {
+            game_engine_ui_model::adventure_section_flags::tooltip(
+                &self.adventure_guide.view,
+                frame.name.as_deref()?,
+            )
+        })?;
+        drop(ui);
+        let rect = self.owner_rect(&hit.ui, owner)?;
+        Some(HoveredTooltip::text(tooltip.owned(rect, OwnerSide::Right)))
     }
 
     fn journal_defeated_tooltip(&mut self, hit: &HoveredFrame) -> Option<HoveredTooltip> {
