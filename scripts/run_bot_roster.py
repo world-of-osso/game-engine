@@ -423,12 +423,27 @@ def prepare_native_pet(args, output, socket):
     return receipt
 
 
+def prepare_native_talents(args, output, bot):
+    deadline = time.monotonic() + 180
+    while time.monotonic() < deadline:
+        path = output / "native-state.json"
+        if path.exists():
+            state = json.loads(path.read_text())
+            config = state.get("trait_config", {})
+            if config.get("spec_id") == bot["spec"]:
+                plan = load_plan(
+                    args.engine / "data/db2/active", bot["spec"], native_tree=int(config.get("tree_id", 0))
+                )
+                publish(output / "talent-plan.json", plan)
+                return
+        time.sleep(0.1)
+    raise RuntimeError("Received native talent tree unavailable within180s")
+
+
 def run_bot(args, bot):
     output = args.output / str(bot["spec"])
     output.mkdir(mode=0o700)
     (output / "bot.json").write_text(json.dumps(bot, indent=2) + "\n")
-    talent_plan = load_plan(args.engine / "data/db2/active", bot["spec"])
-    (output / "talent-plan.json").write_text(json.dumps(talent_plan, indent=2) + "\n")
     gear_plan = load_gear_plan(args.world_db, args.engine / "data/db2/active", bot["spec"], bot["level"])
     (output / "gear-plan.json").write_text(json.dumps(gear_plan, indent=2) + "\n")
     form_plan = load_form_plan(args.engine / "data/db2/active", bot["spec"])
@@ -468,6 +483,7 @@ def run_bot(args, bot):
         reply = command(args.output, argv)
         pid = int(re.search(r"cage pid (\d+)", reply)[1])
         provision_native_gear(args, output, bot, gear_plan)
+        prepare_native_talents(args, output, bot)
         state = wait_native(args, output, bot)
         talent_receipt = json.loads((output / "native-talents.json").read_text())
         fixture = equipment_receipt(gear_plan, state["inventory"], talent_receipt["sheet_stats"])

@@ -1,4 +1,5 @@
 """Read sourced TraitTreeLoadout order without inventing talent choices."""
+
 import argparse
 import json
 from pathlib import Path
@@ -6,17 +7,26 @@ from pathlib import Path
 from bot_rotation import read_rows
 
 
-def select_loadout(directory, spec, loadout):
-    choices = [row for row in read_rows(directory, "TraitTreeLoadout")
-               if int(row["ChrSpecializationID"]) == spec]
+def select_loadout(directory, spec, loadout, *, native_tree=None):
+    if not isinstance(native_tree, int) or native_tree <= 0:
+        raise ValueError("Received native talent tree is unavailable")
+    choices = [
+        row
+        for row in read_rows(directory, "TraitTreeLoadout")
+        if int(row["ChrSpecializationID"]) == spec and int(row["TraitTreeID"]) == native_tree
+    ]
     if loadout is None:
         if not choices:
-            raise ValueError(f"No sourced talent loadout for specialization {spec}")
+            raise ValueError(
+                f"No sourced talent loadout for specialization {spec} in native tree {native_tree}"
+            )
         # Pinned TC TraitMgr::Load replaces each spec's loadout as stores iterate.
         return choices[-1]
     selected = next((row for row in choices if int(row["ID"]) == loadout), None)
     if selected is None:
-        raise ValueError(f"Loadout {loadout} does not belong to specialization {spec}")
+        raise ValueError(
+            f"Loadout {loadout} does not belong to specialization {spec} in native tree {native_tree}"
+        )
     return selected
 
 
@@ -35,10 +45,13 @@ def resolve_entry(row, links, entries):
     return selected
 
 
-def load_plan(directory, spec, loadout=None):
-    selected = select_loadout(directory, spec, loadout)
-    rows = [row for row in read_rows(directory, "TraitTreeLoadoutEntry")
-            if row["TraitTreeLoadoutID"] == selected["ID"]]
+def load_plan(directory, spec, loadout=None, *, native_tree=None):
+    selected = select_loadout(directory, spec, loadout, native_tree=native_tree)
+    rows = [
+        row
+        for row in read_rows(directory, "TraitTreeLoadoutEntry")
+        if row["TraitTreeLoadoutID"] == selected["ID"]
+    ]
     if not rows:
         raise ValueError(f"Loadout {selected['ID']} has no sourced entries")
     links = list(read_rows(directory, "TraitNodeXTraitNodeEntry"))
@@ -49,11 +62,24 @@ def load_plan(directory, spec, loadout=None):
         entry = resolve_entry(row, links, entries)
         node = int(row["SelectedTraitNodeID"])
         spell = int(definitions[int(entries[entry]["TraitDefinitionID"])]["SpellID"])
-        steps.append({"node": node, "entry": entry, "spell": spell,
-                      "rank": int(row["NumPoints"]), "order": int(row["OrderIndex"]),
-                      "frame": f"TalentNode{node}Entry{entry}Spell{spell}Button", "source": row})
-    return {"spec": spec, "loadout": int(selected["ID"]), "tree": int(selected["TraitTreeID"]),
-            "steps": steps, "source": "installed TraitTreeLoadout/Entry order; NumPoints is cumulative target rank"}
+        steps.append(
+            {
+                "node": node,
+                "entry": entry,
+                "spell": spell,
+                "rank": int(row["NumPoints"]),
+                "order": int(row["OrderIndex"]),
+                "frame": f"TalentNode{node}Entry{entry}Spell{spell}Button",
+                "source": row,
+            }
+        )
+    return {
+        "spec": spec,
+        "loadout": int(selected["ID"]),
+        "tree": int(selected["TraitTreeID"]),
+        "steps": steps,
+        "source": "installed TraitTreeLoadout/Entry order; NumPoints is cumulative target rank",
+    }
 
 
 def main():
@@ -62,8 +88,12 @@ def main():
     parser.add_argument("spec", type=int)
     parser.add_argument("output", type=Path)
     parser.add_argument("--loadout", type=int)
+    parser.add_argument("--native-tree", type=int, required=True)
     args = parser.parse_args()
-    args.output.write_text(json.dumps(load_plan(args.db2, args.spec, args.loadout), indent=2) + "\n")
+    args.output.write_text(
+        json.dumps(load_plan(args.db2, args.spec, args.loadout, native_tree=args.native_tree), indent=2)
+        + "\n"
+    )
 
 
 if __name__ == "__main__":

@@ -21,6 +21,10 @@ def publish(path, value):
     temporary.replace(path)
 
 
+class NoHostileTarget(ValueError):
+    """One native Tab produced no observed living hostile target."""
+
+
 class FileBridge:
     """One outstanding input per owned client; timeout never repeats input."""
 
@@ -244,8 +248,12 @@ class PlayerController:
         """One native Tab input; no raw entity-selection command or alternate key."""
         result = self.bridge.request("enemy-tab", {})
         target = result["after"].get("target")
-        if target is None or result.get("selected_hostile") is not True or result.get("selected_health", -1) <= 0:
-            raise ValueError("Native Tab did not observe an alive hostile target")
+        if (
+            target is None
+            or result.get("selected_hostile") is not True
+            or result.get("selected_health", -1) <= 0
+        ):
+            raise NoHostileTarget("Native Tab did not observe an alive hostile target")
         return int(target)
 
     def vote_loot(self):
