@@ -1,3 +1,7 @@
+## 2026-10-16 — Journeys track texture mask
+
+[Track mask](systems/adventure-guide.md#journeys-track-texture-mask--2026-10-16): authenticated70448 FDID3894493/source1024×128 centered on570×72 clip, per-layout texture-only alpha. Actual159-pixel opaque RED→both-skin edge attenuation/unchanged center/opaque caption and physical wheel5→6 GREEN; inherited search also passes. Twelve full-HD originals inspected. Caption-reference canvas mistake retained as a separate oracle failure, not a product defect. Final merged check/fmt and lead gate pending.
+
 ## 2026-10-16 — Journal search physical acceptance and localized title quotes
 
 [Search](systems/adventure-guide.md#search-preview-and-full-results--implementation-2026-10-16) native8 passes both skins on productf2c8a410a: continued typing, actual preview/full popup, wheel/close/query retention and authored section selection. Eight full-HD originals inspected. Pixel inspection found exported quote spelling leaking through localization; actual RED→four focused tests GREEN and current clean title assertion/paint pass. Native7 first-J failure remains separate; no readiness patch. Current quote-fix check pending; C API/data gaps unchanged.
