@@ -8,6 +8,140 @@ use ui_toolkit::{
     screen::{Screen, SharedContext},
 };
 
+#[test]
+fn trading_post_row_cart_toggle_changes_hovered_product_not_selected_preview() {
+    let mut data = snapshot();
+    let mut other = data.items[0].clone();
+    other.id = 5;
+    data.items.push(other);
+    let mut view = View {
+        visible: true,
+        selected: Some(4),
+        snapshot: Some(Arc::new(data)),
+        ..Default::default()
+    };
+    assert!(view.click("perks:cart:toggle:5").unwrap().is_none());
+    assert_eq!(view.cart, [5]);
+    let tooltip = view
+        .button_tooltip("PerksProgramCartToggle5", true)
+        .unwrap();
+    assert_eq!(tooltip.content.title, "Remove from Cart");
+    assert!(tooltip.content.lines.is_empty());
+    assert!(tooltip.record.is_none());
+    assert_eq!(view.selected, Some(4));
+    assert_eq!(view.snapshot.as_ref().unwrap().tender, 500);
+    assert!(!view.pending);
+    assert!(view.click("perks:cart:toggle:5").unwrap().is_none());
+    assert!(view.cart.is_empty());
+    assert_eq!(
+        view.button_tooltip("PerksProgramCartToggle5", true)
+            .unwrap()
+            .content
+            .title,
+        "Add to Cart"
+    );
+    assert!(
+        view.button_tooltip("PerksProgramCartToggle4", true)
+            .is_none()
+    );
+    assert_eq!(view.selected, Some(4));
+    assert_eq!(view.snapshot.as_ref().unwrap().frozen_item_id, Some(4));
+}
+
+#[test]
+fn trading_post_row_cart_toggle_rejects_ineligible_products() {
+    let mut data = snapshot();
+    for id in 5..=8 {
+        let mut row = data.items[0].clone();
+        row.id = id;
+        row.purchased = id == 5;
+        row.collected = id == 6;
+        row.refund_seconds = if id == 7 { 600 } else { 0 };
+        row.grant_unavailable = (id == 8).then(|| "Unbound grant".into());
+        data.items.push(row);
+    }
+    let mut view = View {
+        visible: true,
+        selected: Some(4),
+        snapshot: Some(Arc::new(data)),
+        ..Default::default()
+    };
+    for id in 4..=8 {
+        assert!(
+            view.click(&format!("perks:cart:toggle:{id}"))
+                .unwrap()
+                .is_none()
+        );
+        assert!(view.cart.is_empty());
+    }
+    assert_eq!(view.selected, Some(4));
+    assert_eq!(view.snapshot.as_ref().unwrap().tender, 500);
+}
+
+#[test]
+fn trading_post_row_cart_toggle_preserves_open_cart_preview_choices() {
+    let mut data = snapshot();
+    data.frozen_item_id = None;
+    let mut sword = data.items[0].clone();
+    sword.id = 5;
+    sword.item_id = 25;
+    sword.name = "Worn Shortsword".into();
+    sword.preview_item_ids = vec![25];
+    data.items.push(sword);
+    let mut view = View {
+        visible: true,
+        selected: Some(4),
+        snapshot: Some(Arc::new(data)),
+        cart: vec![4],
+        ..Default::default()
+    };
+    view.click("perks:cart:show").unwrap();
+    assert_eq!(view.cart_preview_item_ids(), [189869]);
+    view.click("perks:cart:item:189869").unwrap();
+    assert!(view.cart_preview_item_ids().is_empty());
+    view.click("perks:cart:toggle:5").unwrap();
+    assert_eq!(view.cart, [4, 5]);
+    assert_eq!(view.cart_preview_item_ids(), [25]);
+    assert_eq!(view.selected, Some(4));
+    assert!(view.cart_visible);
+    view.click("perks:cart:toggle:5").unwrap();
+    assert_eq!(view.cart, [4]);
+    assert!(view.cart_preview_item_ids().is_empty());
+}
+
+#[test]
+fn trading_post_row_cart_toggle_keeps_other_override_while_appending_wearables() {
+    let mut data = snapshot();
+    let mut other = data.items[0].clone();
+    other.id = 5;
+    other.category_id = 2;
+    other.item_id = 117;
+    other.preview_item_ids = vec![117];
+    let mut sword = data.items[0].clone();
+    sword.id = 6;
+    sword.item_id = 25;
+    sword.preview_item_ids = vec![25];
+    data.items.extend([other, sword]);
+    let mut view = View {
+        visible: true,
+        selected: Some(5),
+        snapshot: Some(Arc::new(data)),
+        cart: vec![5],
+        ..Default::default()
+    };
+    view.click("perks:cart:show").unwrap();
+    assert_eq!(view.preview_product().unwrap().item_id, 117);
+    view.click("perks:cart:toggle:6").unwrap();
+    assert_eq!(view.cart, [5, 6]);
+    assert_eq!(view.preview_product().unwrap().item_id, 117);
+    assert_eq!(view.cart_preview_item_ids(), [25]);
+    view.click("perks:cart:item:25").unwrap();
+    assert_eq!(view.preview_product().unwrap().item_id, 25);
+    assert_eq!(view.cart_preview_item_ids(), [25]);
+    assert_eq!(view.selected, Some(5));
+    assert_eq!(view.snapshot.as_ref().unwrap().tender, 500);
+}
+
 fn snapshot() -> TradingPostSnapshot {
     game_engine_ui_model::paths::set_data_root(
         std::path::PathBuf::from(env!("CARGO_MANIFEST_DIR")).join("../../data"),
@@ -1481,6 +1615,89 @@ fn trading_post_button_tooltips_keep_disabled_view_cart_but_hide_disabled_clear_
     );
     assert!(
         view.button_tooltip("PerksProgramLeaveButton", true)
+            .is_none()
+    );
+}
+
+#[test]
+fn trading_post_cart_tooltip_resolves_regular_and_ensemble_members_in_retail_namespace() {
+    use game_engine_ui_model::game_tooltip::TooltipRecord;
+    let mut data = snapshot();
+    data.items[0].category_id = 8;
+    data.items[0].preview_item_ids = vec![25, 876];
+    let mut regular = data.items[0].clone();
+    regular.id = 5;
+    regular.category_id = 1;
+    regular.item_id = 25;
+    regular.name = "Worn Shortsword".into();
+    regular.quality = 1;
+    regular.preview_item_ids = vec![25];
+    data.items.push(regular);
+    let view = View {
+        visible: true,
+        selected: Some(4),
+        cart: vec![5, 4],
+        cart_visible: true,
+        snapshot: Some(Arc::new(data)),
+        ..Default::default()
+    };
+    for skin in [ActiveSkin::Modern, ActiveSkin::Forever] {
+        set_thread_skin(skin);
+        for (owner, id, title) in [
+            ("PerksProgramCartItem5", 25, "Worn Shortsword"),
+            ("PerksProgramCartSubItem4_876", 876, "Worn Wooden Buckler"),
+        ] {
+            let tooltip = view.cart_item_tooltip(owner, Some(80)).unwrap().unwrap();
+            assert_eq!(tooltip.record, Some(TooltipRecord::Item(id)));
+            assert_eq!(tooltip.content.title, title);
+            assert!(
+                tooltip
+                    .content
+                    .lines
+                    .iter()
+                    .all(|line| line.money.is_none())
+            );
+            assert!(
+                tooltip.content.lines.len() >= 2,
+                "Real catalog item details remain present"
+            );
+        }
+    }
+    assert_eq!(view.cart, vec![5, 4]);
+    assert_eq!(view.selected, Some(4));
+    assert_eq!(view.snapshot.as_ref().unwrap().tender, 500);
+}
+
+#[test]
+fn trading_post_cart_tooltip_rejects_headers_other_vendor_members_and_removed_owners() {
+    let mut data = snapshot();
+    data.items[0].category_id = 8;
+    data.items[0].preview_item_ids = vec![25, 876];
+    let mut view = View {
+        visible: true,
+        selected: Some(4),
+        cart: vec![4],
+        cart_visible: true,
+        snapshot: Some(Arc::new(data)),
+        ..Default::default()
+    };
+    for owner in [
+        "PerksProgramCartSet4",
+        "PerksProgramCartSubItem5_876",
+        "PerksProgramCartSubItem4_12345",
+        "PerksProgramProduct4",
+    ] {
+        assert!(view.cart_item_tooltip(owner, Some(80)).unwrap().is_none());
+    }
+    assert!(
+        view.cart_item_tooltip("PerksProgramCartSubItem4_876", Some(80))
+            .unwrap()
+            .is_some()
+    );
+    view.click("perks:cart:remove:4").unwrap();
+    assert!(
+        view.cart_item_tooltip("PerksProgramCartSubItem4_876", Some(80))
+            .unwrap()
             .is_none()
     );
 }

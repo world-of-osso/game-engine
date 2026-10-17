@@ -14,7 +14,8 @@ pub struct Recipe {
     pub min_rank: u16,
     pub trivial_low: u16,
     pub trivial_high: u16,
-    pub output: (u32, u32),
+    /// Fixed CREATE_ITEM24 output only. Quality operation results remain unassigned.
+    pub output: Option<(u32, u32)>,
     pub reagents: Vec<(u32, u32)>,
 }
 
@@ -79,7 +80,11 @@ impl ProfessionBook {
     pub fn craftable_count(&self, bags: &InventoryState) -> u32 {
         // MinSkillLineRank gates automatic learning, not casts of a trainer-learned spell.
         // Recipe knowledge is authoritative (TrinityCore Player::LearnSkillRewardedSpells).
-        if self.selected_recipe().is_none() {
+        if self
+            .selected_recipe()
+            .and_then(|recipe| recipe.output)
+            .is_none()
+        {
             return 0;
         }
         self.reagent_counts(bags)
