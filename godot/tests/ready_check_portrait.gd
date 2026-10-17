@@ -1,6 +1,8 @@
 extends SceneTree
 # Post-gate real roster -> production selector/Portrait -> native pixels and cleanup.
 var fixture: Node
+# Production HUD UIParent: 768 UI units high (ui/ui_parent.rs), not preview scale1.
+const HUD_SCALE := 1080.0 / 768.0
 
 func _initialize() -> void:
 	call_deferred("run_portrait")
@@ -41,7 +43,6 @@ func run_portrait() -> void:
 		assert(fixture.apply_ready_check(false) == "")
 		var state := await wait_for_head()
 		assert(state.appearance == "player Ann race 1 items 0", "Actual initiator, not the viewer Bob")
-		assert(state.viewport_size == Vector2i(54, 54))
 		var panel := fixture.find_child("ReadyCheckFrame", true, false) as Control
 		var host := fixture.find_child("ReadyCheckPortrait", true, false) as Control
 		var title := fixture.find_child("ReadyCheckFrameTitle", true, false) as Label
@@ -49,11 +50,16 @@ func run_portrait() -> void:
 		var ring := fixture.find_child("ReadyCheckFramePortraitRing", true, false) as Control
 		assert(panel != null and host != null and title != null and message != null and ring != null)
 		assert(panel.size == Vector2(323, 100) and host.size == Vector2(54, 54))
-		assert(host.global_position - panel.global_position == Vector2(0, -3))
+		print("READY_PORTRAIT_METRICS ", skin, " scale=", HUD_SCALE, " viewport=", state.viewport_size, " host=", host.get_global_rect(), " panel=", panel.get_global_rect())
+		var physical_size := Vector2(54, 54) * HUD_SCALE
+		var physical_viewport := Vector2i(roundi(physical_size.x), roundi(physical_size.y))
+		assert(state.viewport_size == physical_viewport, "Viewport follows 54 UI units at the production HUD pixel scale")
+		assert(host.get_global_rect().size.is_equal_approx(physical_size))
+		assert(((host.global_position - panel.global_position) / HUD_SCALE).is_equal_approx(Vector2(0, -3)))
 		assert((state.rect as Rect2).is_equal_approx(host.get_global_rect()))
 		assert(title.text == "Ready Check" and title.size == Vector2(323, 20))
 		assert(message.text == "Ann has initiated a ready check." and message.size == Vector2(240, 28))
-		var anchor := message.global_position - panel.global_position
+		var anchor := (message.global_position - panel.global_position) / HUD_SCALE
 		assert(absf(anchor.x - 61.5) <= 0.5 and anchor.y == 37)
 		for label in [title, message]:
 			assert(label.get_theme_font_size("font_size") == 12)
@@ -70,7 +76,9 @@ func run_portrait() -> void:
 		var image := root.get_texture().get_image()
 		assert(image.get_size() == Vector2i(1920, 1080))
 		assert(image.save_png(output.path_join(skin + "-context.png")) == OK)
-		var crop := Rect2i(int(panel.global_position.x) - 16, int(panel.global_position.y) - 20, 360, 140)
+		var crop_origin := panel.global_position - Vector2(16, 20) * HUD_SCALE
+		var crop_size := Vector2(360, 140) * HUD_SCALE
+		var crop := Rect2i(floori(crop_origin.x), floori(crop_origin.y), ceili(crop_size.x), ceili(crop_size.y))
 		assert(image.get_region(crop).save_png(output.path_join(skin + "-panel-crop.png")) == OK)
 		assert((state.image as Image).save_png(output.path_join(skin + "-head-render.png")) == OK)
 		host.visible = false
@@ -79,7 +87,7 @@ func run_portrait() -> void:
 		host.visible = true
 		await settle()
 		assert(root.get_texture().get_image().get_data() == image.get_data(), "Restore actual head RGBA exactly")
-		observations.append({"case": skin, "panel": rect(panel), "portrait": rect(host), "ring": rect(ring), "title": rect(title), "message": rect(message), "buttons": buttons, "appearance": state.appearance, "viewport_size": [state.viewport_size.x, state.viewport_size.y], "mask_fdid": state.mask_fdid, "mask_loaded": state.mask_loaded, "pending": state.pending, "model_shown": state.model_shown})
+		observations.append({"case": skin, "hud_scale": HUD_SCALE, "logical_portrait_size": [54, 54], "logical_portrait_origin": [0, -3], "panel": rect(panel), "portrait": rect(host), "ring": rect(ring), "title": rect(title), "message": rect(message), "buttons": buttons, "appearance": state.appearance, "viewport_size": [state.viewport_size.x, state.viewport_size.y], "mask_fdid": state.mask_fdid, "mask_loaded": state.mask_loaded, "pending": state.pending, "model_shown": state.model_shown})
 		assert(fixture.apply_ready_check(true) == "")
 		await settle()
 		assert(fixture.find_child("ReadyCheckFrame", true, false) == null)
