@@ -100,7 +100,7 @@ func enter_neighborhood() -> bool:
 		return button != null and button.is_visible_in_tree(), "visible world Housing entry", 180000): return false
 	if not await click_exposed_control(housing_named_control("MicroMenuUI", "HousingMicroButton")): return false
 	print("WORLD_FINDER_OPEN housing=",client.housing_state()," dashboard=",client.get_node_or_null("HousingDashboardUI"))
-	if not await wait_housing(func(): return housing_control("HousingDashboardHouseFinderButton") != null, "new-account House Finder entry"): return false
+	if not await wait_housing(func(): return client.housing_state().get("confirmed", false) and housing_control("HousingDashboardHouseFinderButton") != null, "confirmed House Finder entry"): return false
 	if not await click_exposed_control(housing_control("HousingDashboardHouseFinderButton")): return false
 	if not await wait_housing(func():
 		var visit := housing_control("HouseFinderVisitButton") as BaseButton
