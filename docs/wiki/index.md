@@ -1,3 +1,5 @@
+- [ReadyCheck portrait-area audit](systems/group-frames.md#readycheck-portrait-area-source-audit--2026-10-17) — frame323×100/message+20 already match source; missing initiator54×54 portrait and wrong static-popup chrome identified, bounded portrait-area slice proposed only.
+- [ReadyCheck title colour](systems/group-frames.md#readycheck-title-colour--implementation-2026-10-17) — source NORMAL_FONT_COLOR RGB(255,210,0), only TITLE_COLOR; RED→GREEN4/check, post447e both-skin192 green-only changes/zero outside/exact restore; layout/full-popup/lifecycle remain gaps.
 - [ReadyCheck title shadow](systems/group-frames.md#readycheck-title-shadow--implementation-2026-10-17) — inherited Roman black(+1,−1), native y-down(+1,+1); RED→GREEN4/check, post436e both-skin462 dark pixels/zero outside/exact restore; title colour/layout remain gaps.
 - [Committed frozen-product list exclusion](systems/trading-post.md#committed-frozen-product-list-exclusion--october17) — source excludes only the committed ID; full-snapshot frozen selection/pending candidate retained; model RED→GREEN,54focused Rust/UI(+1DB2)/check/fmt pass; post443e both-skin seven-check native swap/restoration GREEN, originals never cleared.
 - [Trading Post accepted freeze-lock sound](systems/trading-post.md#accepted-freeze-lock-sound--october17) — sourced218229/four authenticated variants; registry/native RED→both-skin nine-checkpoint/two-play GREEN, genuine640/712 replacement/restoration, no reservation clearing.
@@ -29,6 +31,8 @@
 - [House Access dropdown](systems/housing.md#house-access-dropdown--2026-10-16) — source WowStyle2/MenuStyle1 caller replacement; RED→GREEN, both-skin physical states/draft selections,26 context comparisons confined to the House Access column.
 - [Clean-room M2 particles](systems/godot-conversion.md#native-m2-particles) — native tails/follow/cubic controls, authored sorting and map-collision births; inherited-scale provenance and explicit lighting, timer/reset, spline-density, target-mask and model-recursion oracle gaps.
 # Wiki Index
+
+- [Random32 level-eligible configured selection](systems/battlegrounds.md#random32-level-eligible-configured-selection--2026-10-17) — Retail-based project policy, actual-level selected bracket and original per-player32; no daily/reward grant, Deepwind template absent; BG_FILL_EXISTING_COPY remains an accepted Waiting/backfill gap.
 
 - [Eye7 holiday authority](investigations/eye-holiday-authority.md) — authenticated70448 holiday492 has fixed2007 date,72/1776-hour durations andLooping0; TC interval evaluation is sourced, but effective game_event schedule is not. Namedgap HOLIDAY492_EFFECTIVE_EVENT_AUTHORITY; no payout/default calendar policy adopted.
 
