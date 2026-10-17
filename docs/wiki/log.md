@@ -1,3 +1,7 @@
+## 2026-10-17 — Ordinary exit transfer/input race
+
+[Run20 preparation](systems/bot-harness.md#ordinary-exit-transferinput-race--2026-10-17): ordinary NewWorld precedes stale-state movement refusal; retain exact refusal and await actual InWorld destination within240s, never repeat movement or invent arrival. Captured boundary RED; successful continuation synthetic, fresh native proof pending.
+
 ## 2026-10-17 — Idle source-boss progression
 
 [Harness](systems/bot-harness.md#idle-boss-goal-progression--2026-10-17): explicit no-hostile Tab permits one existing strict-navmesh step toward first source-ordered NotStarted boss; fresh combat/health checks interrupt, boss arrival stops movement. RED preconditions are explicitly synthetic, with retained real source goals/native route corners; no historical cleared-area stall is claimed. No hazards, pack-size policy or rotation changes; live first-boss proof pending.
