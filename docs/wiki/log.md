@@ -5,6 +5,9 @@
 ## 2026-10-17 — Random32 level-eligible selection policy
 
 [Random32](systems/battlegrounds.md#random32-level-eligible-configured-selection--2026-10-17): explicit RANDOM_BG_LEVEL_ELIGIBLE_MAPS policy replaces cross-map TC RangeIndex copying. Parent566 admission20+/5–10 per team/party≤5; weighted configured maps must contain actual queued levels in their own bracket. Original queue32 is retained per player independently of the concrete map. No new payout/daily state. BG_FILL_EXISTING_COPY remains explicitly accepted: selected8/team maps may remain Waiting with parent5/team; no reduced start criterion. RANDOM_BG_WIN_REWARD_PROFILE remains unresolved. Targeted proof ledger is authoritative; no rendered/live completion claim.
+## 2026-10-17 — Authored achievement criterion presentation
+
+[Criteria source flags](systems/dungeon-achievements.md#authored-criterion-presentation--2026-10-17): protocol rawFlags/server named-column projection replaces client required>1 guessing. Actual1017Flag1/Amount1 and155Flag0/Amount100 give RED526ddbe500/2 before production, then UI-model GREENcb16f9b044/4/2.05s both skins. Source XML510–569 specifically changes only the bar to212×14; existing398-wide criteria allocation remains. Source completed checks/dash text, quantity-only centered caption,0/partial/complete/unknown and cursor controls; no seeded persisted/native progress or producer/policy change. Primary inherited fonts give separate12!=10 REDs before bar/checklist10pt/shadow fixes. Final bounded proof: wire5/5 (57157<64KiB), server29/0, consumer51/0 (Godot8/network2/UI41); P/S/E scoped all-target checks0/no warnings and independent ModeB/readability/follow-up PASS. Sourcebar/check positions and completed-parent shadow are asserted. Final heads/push receipts remain in the proof ledger; native both-skin proof follows landing as ordered.
 
 ## 2026-10-17 — Eye holiday492 read-only authority audit
 

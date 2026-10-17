@@ -4948,3 +4948,9 @@ models/299477800.skin
 textures/5747318.blp
 db2/active/ProfessionExpansion.csv
 db2/active/CurrencyTypes.csv
+
+# Achievement criteria presentation fixtures read current authored flags and amounts.
+db2/active/Achievement.csv
+db2/active/CriteriaTree.csv
+# Mainline AchievementCriteriaTemplate check, XML703–724; already locally extracted.
+textures/130653.blp

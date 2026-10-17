@@ -14,6 +14,8 @@ Native Retail Mainline AchievementUI and dungeon objectives, using authoritative
 
 ### Achievement presentation
 
+- [x] Use authored CriteriaTree.Flags, not quantity heuristics, for expanded criteria: ProgressBar0x1 from Mainline Constants.lua127 selects the XML510–569212×14 bar with centered authoritative current/required caption, even at required1. Unflagged rows use source completed checks or dash-prefixed text (AchievementUI.lua2009–2070), even at required100. Existing398-wide criteria allocation/row spacing remains unchanged; the source template specifically replaces only the old398×16 bar. Modern/Forever share behavior/geometry, with art/tint only differences. Unsupported progress remains explicitly Unevaluated without fake zero, completion or fill; pagination retains source flags. No new progression producer or comparison/toast/hidden/meta/tracker redesign. Native both-skin proof follows triple landing.
+
 - [x] Open Summary by default with full authoritative points/completion totals, latest three earned rows and authored summary-category bars. Never sum loaded pages as account totals.
 - [x] Use Retail Achievements, Guild and Statistics bottom tabs; Guild and Statistics roots never appear in the player achievement sidebar. Account/Character scope remains a query capability, not replacement tabs.
 - [x] Use the requested Mainline top-level set: Characters, Quests, Exploration, Delves, Player vs. Player, Dungeons & Raids, Professions, Reputation, World Events, Pet Battles, Collections, Expansion Features, Legacy, Feats of Strength. Source child names/IDs/parents/order from DB2 12.1.0.69933 Achievement_Category. Housing is outside this requested set; Classic remains an authentic dungeon child.
