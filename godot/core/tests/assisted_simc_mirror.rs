@@ -67,7 +67,7 @@ fn policy_does_not_enable_other_rule_ids_or_nonzero_unused_operands() {
 }
 
 #[test]
-fn captured_fury_order_selects_whirlwind_only_with_synthetic_qualified_spatial_readings() {
+fn captured_fury_order_replays_synthetic_spatial_readings_without_changing_later_steps() {
     let directory =
         Path::new(env!("CARGO_MANIFEST_DIR")).join("tests/fixtures/assisted_simc_mirror");
     let catalog = CooldownAssistCatalog::load(&directory).unwrap();
@@ -83,11 +83,9 @@ fn captured_fury_order_selects_whirlwind_only_with_synthetic_qualified_spatial_r
             .unwrap()
             .contains("1261")
     );
-    for (distance, count, expected) in [
-        (10.0, 4, Recommendation::Spell(190411)),
-        (10.001, 4, Recommendation::None),
-        (10.0, 3, Recommendation::None),
-    ] {
+    // Below the qualified AoE step, authored step18147 still offers Whirlwind.
+    // Rejecting that later spell would invent a rotation change.
+    for (distance, count) in [(10.0, Some(4)), (10.001, Some(4)), (10.0, Some(3))] {
         let mut reading = original["facts"].clone();
         reading["target_distance_yd"] = json!(distance);
         reading["player_combat_enemies_within_8yd"] = json!(count);
@@ -99,7 +97,20 @@ fn captured_fury_order_selects_whirlwind_only_with_synthetic_qualified_spatial_r
                 |id| is_spell_usable(id, &facts),
                 |rule| evaluate_rule(rule, &facts)
             ),
-            Ok(expected)
+            Ok(Recommendation::Spell(190411))
         );
     }
+    let mut reading = original["facts"].clone();
+    reading["target_distance_yd"] = json!(10.0);
+    let facts: AssistedFacts = serde_json::from_value(reading).unwrap();
+    let decision = catalog.recommend(
+        72,
+        |id| facts.known.contains(&id),
+        |id| is_spell_usable(id, &facts),
+        |rule| evaluate_rule(rule, &facts),
+    );
+    assert_eq!(
+        decision,
+        Err("rule 1268: player combat nearby count not received".into())
+    );
 }
