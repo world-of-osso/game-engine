@@ -26,7 +26,7 @@
 - [Clean-room M2 particles](systems/godot-conversion.md#native-m2-particles) — native tails/follow/cubic controls, authored sorting and map-collision births; inherited-scale provenance and explicit lighting, timer/reset, spline-density, target-mask and model-recursion oracle gaps.
 # Wiki Index
 
-- [Ordinary party queue and late arrivals](systems/battlegrounds.md#ordinary-party-queue-and-late-arrivals--2026-10-17) — four real five-player parties enter one Arathi20 match; sequential-ack scoreboard18→20 preserves prior objective scores; channel8/check/fmt pass, release/native proof pending.
+- [Ordinary party queue and late arrivals](systems/battlegrounds.md#ordinary-party-queue-and-late-arrivals--2026-10-17) — channel8/check/fmt; [native release20 Arathi](systems/battlegrounds.md#native-release20-arathi--bounded-proof2026-10-17) passes normal four-party20/10v10, five banners, natural end/wallet-XP671/61 and both-skin full-HD scoreboard/end captures; cold first-attempt stall remains unfixed.
 - [ReadyCheck message colour](systems/group-frames.md#readycheck-message-colour--implementation-2026-10-17) — inherited NORMAL_FONT_COLOR row1 RGB8(255,210,0), only TEXT_COLOR changes; genuine white-colour RED→3GREEN, native proof awaits lead landing/window; all other fields preserved.
 
 - [Plain LootFrame quality font](systems/loot-and-flight.md#plain-quality-caption-font--2026-10-17) — source Tiny2 has no shadow; unwanted-black RED→3GREEN, both-skin native Friz8/96×10 unchanged and232 lightened pixels/skin, exact black-control restoration; other loot label shadows retained.
