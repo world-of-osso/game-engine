@@ -1,4 +1,9 @@
 ## 2026-10-16 — Product-row refund icon tooltip implementation
+## 2026-10-16 — Journal search implementation; native acceptance pending
+
+[Search](systems/adventure-guide.md#search-preview-and-full-results--implementation-2026-10-16) now uses source preview/full results and authored target paths. Actual native REDs cover23px inactive-style minimum, focus retained but editing stopped after Enter, and a generic list-row focus marker deleting previews before mouse-up.2344 fixes the root widget/adapter boundaries;95 prior scoped controls and two current search tests pass, build/source verification pass. Both-skin companion/current pixel/check acceptance remains pending; no historical-prefix or native C API parity claim. Installed orphan-parent records are named in the contract.
+
+## 2026-10-16 — Encounter section flags
 
 [Refund icon](systems/trading-post.md#product-row-refund-icon-tooltip--implementation-october16): real old-binary pointer RED shows generic item tooltip over refundable642 while848 is selected; genuine purchase/refund restores Tender/frozen state before assertion. Passive projected texture bounds own right0/0 and the existing colored footer formatter without blocking parent clicks. Model3 and actualca0/4e9/Pb701 both-skin painted GREEN: independent IDs, white caption/red59m, parent click, hover leave, Escape destroys currently hovered owner/HUD, one real purchase/refund restores Tender/collected/frozen state. Eight full-HD originals+two contacts+two crops published; diagnostic manifest binds exact inputs. Integrated933892f79/source protocol604ea609 passes40 UI+12 native, engine check without compiler warnings and scoped five Rustfmt (four unchanged hashes+one foreign tooltip-source delta). Actual native remainsca0/4e9/b701, not the later merged sources. No production refund policy/provider changes.
 
