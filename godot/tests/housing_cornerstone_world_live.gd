@@ -4,6 +4,8 @@ extends "res://tests/housing_property_live.gd"
 var walk_samples: Array[Dictionary] = []
 var floor_probes: Array[Dictionary] = []
 var right_turn_sign := 0.0
+var turn_rate := 0.0
+var turn_samples: Array[Dictionary] = []
 
 func run_test() -> void:
 	root.size = Vector2i(1920, 1080)
@@ -56,7 +58,7 @@ func run_test() -> void:
 	if output == null:
 		fail("Cannot persist cornerstone world receipt")
 		return
-	output.store_string(JSON.stringify({"walk":walk_samples,"property":property_receipts,"final":state}, "\t"))
+	output.store_string(JSON.stringify({"walk":walk_samples,"turn":turn_samples,"property":property_receipts,"final":state}, "\t"))
 	output.flush()
 	var error := output.get_error()
 	output.close()
@@ -144,27 +146,33 @@ func walk_to_cornerstone(destination: Vector3, stop_radius: float = 3.5) -> bool
 	return false
 
 func face_walk_direction(target: float) -> bool:
-	for attempt in range(600):
+	for attempt in range(60):
 		var facing: float = client.account_state().local_player_facing
 		var error := angle_difference(facing, target)
-		if absf(error) < 0.04:
-			push_key(KEY_RIGHT, false)
-			push_key(KEY_LEFT, false)
+		var frame_turn := turn_rate * client.get_process_delta_time()
+		if absf(error) <= maxf(0.04, frame_turn):
 			return true
 		if right_turn_sign == 0.0:
-			push_key(KEY_RIGHT, true)
-			await frames(5)
-			push_key(KEY_RIGHT, false)
-			right_turn_sign = signf(angle_difference(facing, float(client.account_state().local_player_facing)))
+			await tap_turn_key(KEY_RIGHT, 0.05)
 			continue
-		var right := signf(error) == right_turn_sign
-		push_key(KEY_RIGHT, right)
-		push_key(KEY_LEFT, not right)
-		await process_frame
-		push_key(KEY_RIGHT, false)
-		push_key(KEY_LEFT, false)
-	fail("Native turning could not face cornerstone")
+		var key := KEY_RIGHT if signf(error) == right_turn_sign else KEY_LEFT
+		await tap_turn_key(key, minf(0.15, absf(error) / turn_rate))
+	fail("Native measured keyboard taps could not face cornerstone")
 	return false
+
+func tap_turn_key(key: Key, seconds: float) -> void:
+	var before: float = client.account_state().local_player_facing
+	var started := Time.get_ticks_msec()
+	push_key(key, true)
+	await create_timer(seconds).timeout
+	push_key(key, false)
+	var elapsed := float(Time.get_ticks_msec() - started) / 1000.0
+	# Native facing accumulates radians; wrapping a multi-frame calibration can invert its sign.
+	var turned := float(client.account_state().local_player_facing) - before
+	if elapsed > 0.0 and not is_zero_approx(turned):
+		turn_rate = absf(turned) / elapsed
+		right_turn_sign = signf(turned) if key == KEY_RIGHT else -signf(turned)
+	turn_samples.append({"key":key,"seconds":elapsed,"radians":turned,"rate":turn_rate})
 
 func record_floor_probe(label: String) -> bool:
 	var state: Dictionary = client.account_state()
