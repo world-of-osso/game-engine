@@ -27,8 +27,9 @@ class StockadeOpeningTests(unittest.TestCase):
         controller.record_credit = lambda: None
         controller.party = lambda: [{"health": 100, "max_health": 100}]
         controller.account = lambda: {"local_player_position": "(56,-19,0)"}
-        controller.snapshot = lambda target: {"at_ms": 1000, "assisted": {"in_combat": False},
-            "visibility": {"target": target, "visible": True}, "spells": {"known": [57755]},
+        controller.snapshot = lambda target: {"at_ms": 1000, "target": target,
+            "assisted": {"in_combat": False}, "visibility": {"target": target, "visible": True},
+            "spells": {"known": [57755], "target_health": 100},
             "facts": {"known": [57755], **{field: {"57755": {"Ok": True}}
                 for field in ("in_range", "ready", "affordable")}}}
         controller.move = lambda *args: self.fail("Moved before ranged opening")
@@ -52,9 +53,9 @@ class StockadeOpeningTests(unittest.TestCase):
         controller = StockadeRun.__new__(StockadeRun)
         states = []
         for ranged, ready in [(False, True), (True, False), (True, True)]:
-            state = {"at_ms": 1000, "assisted": {"in_combat": False},
+            state = {"at_ms": 1000, "target": 41, "assisted": {"in_combat": False},
                 "visibility": {"target": 41, "visible": True},
-                "spells": {"known": [57755]},
+                "spells": {"known": [57755], "target_health": 100},
                 "facts": {"known": [57755], **{field: {"57755": {"Ok": True}}
                     for field in ("in_range", "ready", "affordable")}}}
             state["facts"]["in_range"]["57755"] = {"Ok": ranged}
@@ -73,6 +74,40 @@ class StockadeOpeningTests(unittest.TestCase):
             with patch('run_stockade_bot.time.sleep'):
                 controller.approach_opening(41)
         self.assertEqual(moved, [([56, -19, 0], [93, -25, 0], "native-ranged-approach")])
+
+
+class StockadeDeadPreparationTests(unittest.TestCase):
+    def test_captured_alive_to_dead_preparation_abandons_before_corpse_movement(self):
+        from run_stockade_bot import StockadeRun
+        path = Path(__file__).parent / 'fixtures/bot_harness/native-stockade-prep-target-death.json'
+        fixture = json.loads(path.read_text())
+        state = fixture["alive"]
+        controller = StockadeRun.__new__(StockadeRun)
+        controller.args = SimpleNamespace(spec=72)
+        controller.run = {"openings": []}
+        controller.opening_target = None
+        controller.rotation = lambda: state
+        controller.party = lambda: []
+        controller.poll_combat = lambda: None
+        controller.account = lambda: {"local_player_position": "(108,-26,-12)"}
+        controller.player = SimpleNamespace(tab_to_enemy=lambda: 4294739425,
+            cast_opening=lambda *args: self.fail("Cast at dead preparation target"))
+        movements = []
+        def move(*args):
+            nonlocal state
+            self.assertGreater(state["spells"]["target_health"], 0, "Moved after confirmed target death")
+            movements.append(args)
+            state = fixture["dead"]
+        controller.move = move
+        with tempfile.TemporaryDirectory() as root:
+            controller.output = Path(root)
+            with patch('run_stockade_bot.time.sleep'):
+                controller.open_pull()
+            receipt = json.loads((Path(root) / 'opening-0001.json').read_text())
+            self.assertEqual(receipt["abandoned"], "received selected target health zero before cast")
+            self.assertNotIn("outcome", receipt)
+        self.assertEqual(len(movements), 1)
+        self.assertIsNone(controller.opening_target)
 
 
 class StockadeCombatOpeningTests(unittest.TestCase):
@@ -245,6 +280,7 @@ class StockadeVisibilityTests(unittest.TestCase):
         fixture = Path(__file__).parent / 'fixtures/bot_harness/native-stockade-poacher-blocked.json'
         state = json.loads(fixture.read_text())
         state["assisted"] = {"in_combat": False}
+        state["spells"]["target_health"] = 22527
         controller = StockadeRun.__new__(StockadeRun)
         controller.output = output
         controller.run = {"openings": []}
