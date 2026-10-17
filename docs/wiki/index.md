@@ -20,6 +20,8 @@
 # Wiki Index
 
 - [Product-row refund icon tooltip](systems/trading-post.md#product-row-refund-icon-tooltip--implementation-october16) — source texture-owned refund time; native generic-item-tooltip RED→both-skin painted right-anchor/parent-click/hovered-owner teardown GREEN, genuine purchase/refund conservation.
+- [ReadyCheck message shadow](systems/group-frames.md#readycheck-message-shadow--bounded-proof-2026-10-16) — inherited Roman black(+1,−1), RED→3GREEN and both-skin native1080p;1002 darkened pixels/skin, zero outside changes, exact shadow-off control; colors/full popup/lifecycle excluded.
+
 - [MirrorTimer label shadow](systems/swimming.md#mirrortimer-label-shadow--2026-10-16) — inherited Roman black(+1,−1), RED→5GREEN and six both-skin native label cases;731 darkened pixels/skin, zero outside changes, exact transparent-shadow control; cadence/full-timer parity excluded.
 
 - [Earned-wallet source boundary](systems/battlegrounds.md#earned-wallet-source-continuation--2026-10-16) — explicit HONOR_WALLET_MIRRORS_HONOR_XP policy binds TC-derived Honor to1792, XP stays separate; Conquest unmapped, native proof pending.

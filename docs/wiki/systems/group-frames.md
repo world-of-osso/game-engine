@@ -36,6 +36,16 @@ Model anchor RED→GREEN2 (including response-button controls); native both-skin
 
 Proof: local `data/diagnostics/ui-questlog-ready-message-2026-10-16/ready-message-proof-ledger.json`; PNGs `AgentShared/2026-10-16/ui-questlog-ready-message/`. Check9.11s/build44.8s/helper, scoped format/diff/manual Rust readability pass. No claim about intrinsic height/wrapping/shadows/source colors, instance difficulty text, portrait/border/title or server lifecycle.
 
+### ReadyCheck message shadow — bounded proof 2026-10-16
+
+`ReadyCheck.xml:35` message inherits `GameFontNormal` → `SystemFont_Shadow_Med1` (`FontStyles.xml:50–52`); Roman Friz12 has black(+1,−1) shadow (`Fonts.xml:275–285`). Complete `ReadyCheck.lua` only calls `ReadyCheckFrameText:SetFormattedText`; cache-wide Lua lookup finds no font/shadow override. The current white color is retained solely as a control: source `NORMAL_FONT_COLOR` is a separate unqualified contract, not certified as white here. Title/portrait/border, intrinsic height/wrapping, difficulty text and server lifecycle remain outside this message-shadow slice.
+
+The model regression reproduces `shadow_color=None`; only the message receives opaque black shadow attributes, with font12, current white,240×28 box, TOP(61.5,37), contents and response buttons unchanged. Existing verified extensionee1158b8e/`1012b8c2…` is reused for the native baseline after checking compiled-source equivalence and artifact hash; new Rust test/GDScript files do not require rebuilding that identical library. Both-skin1080p baseline confirms transparent shadow/zero offset.
+
+Verified: 2026-10-17. Genuine model RED `fd34f46d0` (2pass/1fail) → `ae6f7a239` GREEN3/3, including message geometry and response-button controls (113.0s helper). Engine/network check passes (30.34s cargo); extension build passes (346s cargo); scoped format/diff and changed-Rust readability pass. Both-skin native1920×1080 labels retain (860.5,537),240×28 while projecting black shadow at Godot(+1,+1), the source y-inverted equivalent. Each skin changes1002 RGB pixels, all darkening within the unchanged label/shadow union; disabling only shadow alpha restores every baseline RGB pixel. Both comparison panels and full-context views inspected. No Godot `ERROR:`/`SCRIPT ERROR:`; inherited cage XWayland/libdecor/Wayland warnings remain.
+
+Proof: local `data/diagnostics/ui-questlog-ready-shadow-2026-10-16/ready-shadow-proof-ledger.json`; PNGs `AgentShared/2026-10-16/ui-questlog-ready-shadow/{before-ready-shadow,after-ready-shadow,comparison-modern.png,comparison-forever.png}`. Final native binary is `ae6f7a239`; subsequent documentation does not change the proof scope. This supplied-state shadow proof does not certify source colors, title/portrait/border, full popup or server lifecycle; no unaffected physical-button replay.
+
 ### Data flow
 
 - **Server** (`game-server crates/server/src/group/`):
