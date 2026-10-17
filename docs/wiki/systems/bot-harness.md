@@ -39,9 +39,9 @@ While Fury distance3/count12 sourcing is blocked, `cooldown_assist_live_replay.r
 | Protection66 | No native-state capture; old `native-all-specs1/66` setup stopped at ambiguous source loadout row58942/node101927 before launch | Native tree/target facts remain unavailable; no model/live boundary claim |
 | Restoration105 | `native-retry-gear3/105`, positive health8536 | rule2305/type11 |
 | Elemental262 | `native-all-specs2/262`, positive health8880 | rule38525/type11 |
-| Fire63 | `native-all-specs2/63`, positive health8200 | rule33340/type67 |
+| Fire63 | `native-all-specs2/63`, positive health8200, original rule33340/type67 refusal retained | newly sourced zero-operand67 projection must select Fireball133; ordinary usability controls still apply |
 
-The actual serialized native facts are unchanged. No missing fact is filled, no unsupported rule is bypassed and no new predicate/provider is implemented. Each modeled result must equal the exact recorded named error, rather than accepting a lower-priority recommendation. The focused native-build helper replay passes all three retained cases in one parameterized test at1b0cef7d9; two unrelated manual skin cases were filtered, not executed or newly ignored. Fire's [type67 source audit](../investigations/cooldown-assist-data.md#fire-cast-overlap-modifier67--2026-10-17) identifies its upstream cast-overlap flag without claiming native support.
+The actual serialized native facts are unchanged. Resto/Elemental must retain their exact recorded errors; Fire's separate replay oracle follows the [explicitly approved zero-operand67 projection](../investigations/cooldown-assist-data.md#fire-cast-overlap-modifier67--2026-10-17), not a changed native recording or a lower-priority fallback. At1b0cef7d9 the earlier model replay matched all three original refusals; that historical proof is not a claim that Fire must keep refusing after source-backed recognition. New controls retain ordinary readiness/cost/range and reject every nonzero operand position. No new live execution, default unflagged anti-overlap behavior, kit or provider is implied.
 
 ## Run21 native talents and predicate boundary — 2026-10-17
 
