@@ -646,8 +646,10 @@ fn adventure_guide_item_sets_search_uses_global_results_without_filtering_the_se
         v.item_sets().iter().map(|set| set.id).collect::<Vec<_>>(),
         sets
     );
+    v.apply("journal:search-focus").unwrap();
     let r = render(&v, ActiveSkin::Modern);
-    assert!(r.get_by_name("EncounterJournalSearchResults").is_some());
+    assert!(r.get_by_name("EncounterJournalSearchPreview").is_some());
+    assert_eq!(text(&r, "JournalSearchPreview0Name"), "Lucifron");
 }
 
 #[test]
