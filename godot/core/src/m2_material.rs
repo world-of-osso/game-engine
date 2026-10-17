@@ -484,30 +484,7 @@ pub fn sample_material(
     binding: &BatchBinding,
     time: MaterialTime,
 ) -> MaterialSample {
-    let color = binding.color.map(|index| &tracks.colors[index]);
-    let weights = binding.texture_weights.map(|index| {
-        index
-            .and_then(|index| sample_fixed16(&tracks.weights[index], tracks, time))
-            .unwrap_or(1.0)
-    });
-    let mut opacity = color
-        .and_then(|color| sample_fixed16(&color.opacity, tracks, time))
-        .unwrap_or(1.0);
-    if binding.apply_weight {
-        opacity *= weights[0];
-    }
-    MaterialSample {
-        mesh_color: color
-            .and_then(|color| sample_vec3(&color.color, tracks, time))
-            .unwrap_or([1.0; 3]),
-        opacity: opacity.clamp(0.0, 1.0),
-        texture_weights: weights,
-        texture_matrices: binding.texture_transforms.map(|index| {
-            index.map_or(IDENTITY_MATRIX, |index| {
-                texture_matrix(&tracks.transforms[index], tracks, time)
-            })
-        }),
-    }
+    sample_material_transition(tracks, binding, time, None)
 }
 
 /// Some input changes with time or when the model switches sequence.
