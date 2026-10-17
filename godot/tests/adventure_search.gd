@@ -164,6 +164,8 @@ func run() -> void:
 	if client.account_state().ui_skin != OS.get_environment("ADVENTURE_GUIDE_EXPECTED_SKIN"):
 		stop("Actual skin differs from bound search profile")
 		return
+	var identity: Dictionary = client.account_state()
+	print("SEARCH_ACCOUNT " + JSON.stringify({"character":identity.selected_character_name,"character_id":identity.selected_character_id,"skin":identity.ui_skin}))
 	await journal_key()
 	deadline = Time.get_ticks_msec()+90000
 	while not client.adventure_guide_state().loaded and Time.get_ticks_msec()<deadline:
