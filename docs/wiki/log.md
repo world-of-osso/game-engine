@@ -1,3 +1,7 @@
+## 2026-10-17 — Committed frozen-product list exclusion
+
+[Ordinary-list contract](systems/trading-post.md#committed-frozen-product-list-exclusion--october17): two behavioral model REDs `[5,6,4]`vs`[5,6]` precede the minimal committed-ID predicate. Full snapshot/frozen selection/pending candidate stay intact; hover/lock fixture assumptions corrected without replaying historical audio proof. Focused GREEN/code gate pending; both-skin genuine640/712 replacement/restoration comes after the gate, never an empty-slot reset. Active SoundKit audit correction to70448 included; no pitch/audio/server changes.
+
 ## 2026-10-17 — PitchAdjust active-build correction
 
 [UI_SOUND_PITCH_ADJUST_RATE](systems/sound.md#ui_sound_pitch_adjust_rate): `data/db2/active` resolves70448/key88d5e8ef…, not70391. All five SoundKit-family field sets and pertinent rows reread/hash-bound from actual active files; hide/show still has−0.144405067 with no sourced rate equation. Original pinned70391 receipt retained as historical, not silently relabeled. No pitch code or asset/runtime change.
