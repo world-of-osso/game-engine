@@ -64,3 +64,7 @@ A subsequent private server restart and fresh clients use the fixture's read-onl
 
 - [[forever-preset]] — authenticated per-character skin selection.
 - [[cache-import-sources]] — pinned CSV provenance.
+
+## Concentration metadata boundary
+
+`shared::concentration::ConcentrationCatalog` joins active ProfessionExpansion and CurrencyTypes CSVs. The server answers learned-line owner queries on ProfessionChannel without writing currencies; the native client requests the selected line and ignores replies for a different line. The shared screen renders Mainline ProfessionsCurrencyTemplate in both skins. Its currency tooltip uses authored GlobalStrings and explicitly exposes [CRAFTING_CONCENTRATION_ORIGIN](../../sources/modern-crafting/gaps.md#crafting_concentration_origin). An absent wallet entry stays unknown; static cap/recharge metadata does not initialize or run a refill clock. Native acceptance is not yet recorded for this slice.

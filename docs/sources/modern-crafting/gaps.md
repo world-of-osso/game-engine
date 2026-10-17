@@ -13,3 +13,9 @@ Lead clarification explicitly confirms no permitted operation oracle. Authoritat
 ## Existing sourced behavior
 
 Specializations already reuse the server trait engine and authoritative currency spending. Public/guild/personal fixed-output orders already have server escrow, visibility/eligibility and mail delivery. Recraft UI already exposes an owned-item element with disabled submission. Existing proof is catalogued in `docs/wiki/systems/crafting-ui.md`; it is not evidence for quality/concentration/recraft outcomes or knowledge acquisition.
+
+## CRAFTING_CONCENTRATION_ORIGIN
+
+`ProfessionExpansion` maps Dragon Isles Leatherworking SkillLine2830 to CurrencyTypes3049. Its authored fields are MaxQty1000, RechargingAmountPerCycle1 and RechargingCycleDurationMS345600; these describe capacity and cycle units, not an initial wallet grant or a recharge epoch. No permitted source establishes when a character first receives this currency or its recharge origin. Missing wallet entries must remain unknown, not zero/full; no epoch, login-time origin, automatic grant or offline refill is assigned.
+
+Installed `ProfessionsCurrencyTemplate` is110×32, icon24×24 LEFT, label LEFT of icon RIGHT+6,y+2; CraftingPage anchors it TOPLEFT120,-35. Lua728–824 reads native currency info, refreshes per cycle duration/1000 and displays quantity/max. The native API does not expose its implementation here. Metadata/display support is not evidence for a live recharge authority, concentration cost, or crafting outcome. Source hashes are in local-db2.json and local-ui.json.
