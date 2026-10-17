@@ -68,6 +68,12 @@ func run_caption_shadow() -> void:
 					label.add_theme_color_override("font_shadow_color", Color.MAGENTA)
 				await settle()
 				assert(root.get_texture().get_image().save_png(output.path_join(case_name + "-magenta-shadow-control.png")) == OK)
+				# Magenta shares black's green0; RGB8 can hide a green-only darkening pixel.
+				for name in names:
+					var label := ui.find_child(name, true, false) as Label
+					label.add_theme_color_override("font_shadow_color", Color.WHITE)
+				await settle()
+				assert(root.get_texture().get_image().save_png(output.path_join(case_name + "-white-shadow-control.png")) == OK)
 				for name in names:
 					var label := ui.find_child(name, true, false) as Label
 					label.add_theme_color_override("font_shadow_color", Color.BLACK)
