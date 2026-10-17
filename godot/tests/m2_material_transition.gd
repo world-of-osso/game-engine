@@ -88,6 +88,13 @@ func run_fixture() -> void:
 		player.advance_time_ms(75.0)
 		materials.sample_materials()
 		var halfway := parameters()
+		var weights: Vector3 = halfway[0].weights
+		var incoming := 8192.0 / 32767.0
+		var outgoing := float(int(-2620.0 + 10812.0 * 208.0 / 367.0)) / 32767.0
+		var expected := (incoming + outgoing) * 0.5 if phase == "after" else incoming
+		if absf(weights.x - expected) > 0.00001:
+			fail_fixture("authored half transition weight: expected %f got %f" % [expected, weights.x])
+			return
 		evidence[skin + "_half"] = halfway
 		if not await capture("%s-%s-half-165644" % [phase, skin]): return
 		# Real Hold tint control after the transition has ended.
@@ -112,7 +119,8 @@ func run_fixture() -> void:
 		evidence[skin + "_interrupted_after"] = after
 		if phase == "after":
 			for index in before.size():
-				if not (before[index].weights as Vector3).is_equal_approx(after[index].weights):
+				var before_weights: Vector3 = before[index].weights
+				if not before_weights.is_equal_approx(after[index].weights):
 					fail_fixture("midblend material pop: %s -> %s" % [before, after])
 					return
 	var file := FileAccess.open(output.path_join(phase + "-parameters.json"), FileAccess.WRITE)
