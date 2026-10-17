@@ -200,6 +200,12 @@ Proof so far: ordinary mode2 returned0 instead of0.25 (RED); no-blend baseline f
 
 Native proof at20a220fa7: batch0 half-transition opacity changes0.5500046→0.43086034, with incoming75ms/outgoing208ms and weight0.5. Interrupted opacity0.53276777 is exactly retained at zero elapsed instead of dropping to0. Gold stays[0.86666673,0.7372549,0.38823533]. All eight original PNGs are1920×1080: half-blend pixels change50,391/56,262 (Modern/Forever), while both Hold controls are pixel-identical before/after. Originals, parameter readbacks, binary hashes and pixel counts live in `data/diagnostics/m2-material-2026-10-17/`. Baseline extension is c9d72c77c (current-only bridge), not a disabled branch in the new executable; both binaries use the same final capture fixture. No Retail cubic-material or multi-value-global timeline selection oracle is claimed.
 
+### Independent global timestamp/value selection — 2026-10-17
+
+Follow-up to the independent review: the sampler previously selected one paired `(timestamps, values)` entry for globals. `animate` now selects timestamp timeline0 at the wrapped global clock, but selects values by playing sequence with independent out-of-range zero selection. Local selection and empty-channel defaults are unchanged; global values never enter local sequence/snapshot crossfades. No per-frame allocation or parser representation change.
+
+Synthetic fixtures deliberately use timeline0 timestamps0/1000, different/empty timestamps in timeline1, ascending timeline0 values and descending timeline1 values. Playing1 at local990/global1250 must produce0.75 rather than0.25; playing2 empty values defaults, playing9 selects values0. Step and zero-duration global controls retain selected values. RED3 reproduced the coupled selection before the fix; existing16 controls passed. Real165644/356426/125854 tints remain controls. Bounded local inspection of165644,356426,125854,166338,2368645 found no global track with multiple value timelines; a real multi-value fixture and target-client multi-value oracle remain explicit evidence gaps. Unequal outer timestamp/value table counts remain outside this sampler-only change.
+
 ## Sources
 
 - User-supplied clean-room M2-MAT section (approved2026-10-17), `/home/osso/.worktrees/logs/m2-p5-s1-mat-source-assistance-2026-10-17.md`, SHA256 `b16ad486bd0e706d2369679f91ef24569959e7b5709ca4d29503701482edb204`. W/C labels are provenance only; no underlying source accessed.

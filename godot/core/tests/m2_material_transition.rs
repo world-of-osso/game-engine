@@ -243,3 +243,98 @@ fn material_sampling_and_repeated_snapshot_capture_allocate_nothing_after_load()
         "material frame sampling and interrupted transitions must not allocate"
     );
 }
+
+// Synthetic multi-value global fixture: the five bounded real-asset controls have
+// only single-table globals. This establishes the approved selection rule, not a
+// measured target-client multi-value oracle.
+fn global_value_fixture() -> (MaterialTracks, BatchBinding) {
+    let (mut tracks, binding) = transition_fixture();
+    tracks.colors[0].color.global_sequence = 0;
+    tracks.colors[0].color.sequences = vec![
+        (vec![0, 1000], vec![[0.0; 3], [1.0; 3]]),
+        (vec![100, 2100], vec![[1.0; 3], [0.0; 3]]),
+        (vec![0, 1000], vec![]),
+    ];
+    tracks.weights[0].global_sequence = 0;
+    tracks.weights[0].sequences = vec![
+        (vec![0, 1000], vec![0, 32767]),
+        (vec![], vec![32767, 0]),
+        (vec![0, 1000], vec![]),
+    ];
+    (tracks, binding)
+}
+
+#[test]
+fn global_material_timestamps_and_values_select_independently() {
+    let (tracks, binding) = global_value_fixture();
+    for (sequence, expected) in [(1, 0.75), (2, 1.0), (9, 0.25)] {
+        let sample = m2_material::sample_material(
+            &tracks,
+            &binding,
+            MaterialTime {
+                sequence,
+                time_ms: 990,
+                global_ms: 1250,
+            },
+        );
+        assert_eq!(sample.mesh_color, [expected; 3], "sequence {sequence}");
+        assert!(
+            (sample.texture_weights[0] - expected).abs() < 1.0 / 32767.0,
+            "sequence {sequence}: {:?}",
+            sample.texture_weights
+        );
+    }
+}
+
+#[test]
+fn multi_value_globals_ignore_sequence_and_snapshot_transition_sources() {
+    use m2_material::{MaterialSnapshot, MaterialSource, MaterialTransition};
+    let (tracks, binding) = global_value_fixture();
+    let snapshot = MaterialSnapshot::new(&tracks);
+    let current = MaterialTime {
+        sequence: 1,
+        time_ms: 990,
+        global_ms: 1250,
+    };
+    let outgoing = MaterialTime {
+        sequence: 0,
+        time_ms: 500,
+        global_ms: 1250,
+    };
+    for source in [
+        MaterialSource::Sequence(outgoing),
+        MaterialSource::Snapshot(&snapshot),
+    ] {
+        let sample = m2_material::sample_material_transition(
+            &tracks,
+            &binding,
+            current,
+            Some(MaterialTransition {
+                source,
+                weight: 0.5,
+            }),
+        );
+        assert_eq!(sample.mesh_color, [0.75; 3]);
+        assert!((sample.texture_weights[0] - 0.75).abs() < 1.0 / 32767.0);
+    }
+}
+
+#[test]
+fn global_step_and_zero_duration_clock_keep_selected_value_timeline() {
+    let (mut tracks, binding) = global_value_fixture();
+    let time = MaterialTime {
+        sequence: 1,
+        time_ms: 990,
+        global_ms: 1250,
+    };
+    tracks.weights[0].interpolation_type = 0;
+    assert_eq!(
+        m2_material::sample_material(&tracks, &binding, time).texture_weights[0],
+        1.0
+    );
+    tracks.global_sequences[0] = 0;
+    tracks.weights[0].interpolation_type = 1;
+    let sample = m2_material::sample_material(&tracks, &binding, time);
+    assert_eq!(sample.texture_weights[0], 1.0);
+    assert_eq!(sample.mesh_color, [1.0; 3]);
+}
