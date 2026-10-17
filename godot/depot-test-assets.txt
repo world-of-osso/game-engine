@@ -171,6 +171,8 @@ models/5646085.m2
 models/564608500.skin
 models/143187.m2
 models/14318700.skin
+# Extracted-only cold-start fixture: 143187.m2's authored primary SFID.
+models/490465.skin
 models/143490.m2
 models/14349000.skin
 models/3512290.m2
