@@ -83,6 +83,13 @@ pub fn evaluate_rule(rule: &AssistedRule, facts: &AssistedFacts) -> Result<bool,
         7 | 8 | 68 | 69 => evaluate_health(rule, facts),
         65 | 66 => evaluate_cooldown(rule, facts),
         63 | 64 => evaluate_charges(rule, facts),
+        // SimC's step option permits cast overlap; it adds no Boolean predicate.
+        // Ordinary native usability and the caller's input gates still apply.
+        67 if rule.values == [0, 0, 0] => Ok(true),
+        67 => Err(format!(
+            "rule {}: cast-overlap modifier operands are unverified",
+            rule.id
+        )),
         _ => Err(format!(
             "AssistedCombatRule {}: condition {} has unverified numeric/predictive semantics",
             rule.id, rule.condition_type
