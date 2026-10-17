@@ -656,6 +656,7 @@ fn achievements_ui_summary_recent_criteria_continuation_merges_into_selected_row
             description: description.into(),
             order_index,
             criteria_id,
+            flags: 0,
             current: 0,
             required: 0,
             completed: false,
@@ -840,6 +841,7 @@ fn criterion(tree_id: u32) -> AchievementCriterionLine {
         order_index: tree_id as i32,
         criteria_id: 3666,
         description: "Hogger defeated".into(),
+        flags: 0,
         current: 1,
         required: 1,
         completed: true,
@@ -1283,14 +1285,17 @@ fn dungeonclient_launcher_requests_categories_and_catalog_pages_render_both_skin
             text(&registry, "Achievement633Date"),
             "Earned 2026-10-06 (UTC)"
         );
-        assert_eq!(
-            text(&registry, "Achievement633Criterion1"),
-            "[Complete] Hogger defeated — 1/1"
-        );
-        assert_eq!(
-            text(&registry, "Achievement633Criterion2"),
-            "[Complete] Hogger defeated — 1/1"
-        );
+        for tree in [1, 2] {
+            assert_eq!(
+                text(&registry, &format!("Achievement633Criterion{tree}")),
+                "Hogger defeated"
+            );
+            assert!(
+                registry
+                    .get_by_name(&format!("Achievement633Criterion{tree}Check"))
+                    .is_some()
+            );
+        }
         assert_eq!(text(&registry, "AchievementFrameHeaderPoints"), "10");
         let points = registry
             .get(
@@ -1427,5 +1432,109 @@ fn achievements_presentation_unflagged_hundred_quantity_uses_checklist_both_skin
             text(&registry, "Achievement155Criterion4716"),
             format!("- {description}")
         );
+    }
+}
+
+#[test]
+fn achievements_presentation_quantity_fill_and_unknown_progress_both_skins() {
+    for skin in [ActiveSkin::Modern, ActiveSkin::Forever] {
+        for quantity in [0, 3, 10] {
+            let mut entry = source_presentation_entry(2141, 10645);
+            assert_eq!(entry.criteria[0].required, 10);
+            entry.criteria[0].current = quantity;
+            entry.criteria[0].completed = quantity == 10;
+            let registry = source_presentation_registry(entry, skin);
+            assert_eq!(
+                text(&registry, "Achievement2141Criterion10645"),
+                format!("{quantity}/10")
+            );
+            let fill = registry
+                .get(
+                    registry
+                        .get_by_name("Achievement2141Criterion10645Fill")
+                        .unwrap(),
+                )
+                .unwrap();
+            assert!((fill.width.value() - 212.0 * quantity as f32 / 10.0).abs() < 0.001);
+            assert!(
+                registry
+                    .get_by_name("Achievement2141Criterion10645Check")
+                    .is_none()
+            );
+        }
+        let mut entry = source_presentation_entry(2141, 10645);
+        entry.criteria[0].progress_supported = false;
+        let description = entry.criteria[0].description.clone();
+        let registry = source_presentation_registry(entry, skin);
+        assert!(
+            registry
+                .get_by_name("Achievement2141Criterion10645Bar")
+                .is_none()
+        );
+        assert_eq!(
+            text(&registry, "Achievement2141Criterion10645"),
+            format!("[Unevaluated] {description}")
+        );
+        assert!(
+            registry
+                .get_by_name("Achievement2141Criterion10645Check")
+                .is_none()
+        );
+    }
+}
+
+#[test]
+fn achievements_presentation_check_completion_and_cursor_flags_both_skins() {
+    for skin in [ActiveSkin::Modern, ActiveSkin::Forever] {
+        let mut entry = source_presentation_entry(155, 4716);
+        entry.criteria[0].current = 100;
+        entry.criteria[0].completed = true;
+        let description = entry.criteria[0].description.clone();
+        let registry = source_presentation_registry(entry, skin);
+        assert_eq!(text(&registry, "Achievement155Criterion4716"), description);
+        let check = registry
+            .get(
+                registry
+                    .get_by_name("Achievement155Criterion4716Check")
+                    .unwrap(),
+            )
+            .unwrap();
+        assert_eq!((check.width.value(), check.height.value()), (20.0, 16.0));
+        assert!(
+            registry
+                .get_by_name("Achievement155Criterion4716Bar")
+                .is_none()
+        );
+        let mut entry = source_presentation_entry(155, 4716);
+        entry.next_criteria_id = Some(4716);
+        let mut window = AchievementWindow::default();
+        window.action("achievement:open:155");
+        window.apply(AchievementCatalogPage::Achievement {
+            achievement_id: 155,
+            entry: Some(entry),
+        });
+        assert_eq!(
+            window.action("achievement:more_criteria"),
+            vec![QueryAchievementCatalog::Criteria {
+                achievement_id: 155,
+                after_id: 4716
+            }]
+        );
+        let continued = source_presentation_entry(155, 79890).criteria;
+        window.apply(AchievementCatalogPage::Criteria {
+            achievement_id: 155,
+            criteria: continued,
+            next_id: None,
+        });
+        let registry = achievement_registry(&window, skin);
+        for tree in [4716, 79890] {
+            assert!(
+                registry
+                    .get_by_name(&format!("Achievement155Criterion{tree}Bar"))
+                    .is_none()
+            );
+            assert!(text(&registry, &format!("Achievement155Criterion{tree}")).starts_with("- "));
+        }
+        assert!(window.action("achievement:more_criteria").is_empty());
     }
 }

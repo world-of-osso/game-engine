@@ -74,6 +74,7 @@ pub(super) fn window() -> AchievementWindow {
                 order_index: 0,
                 criteria_id: 18527,
                 description: "Hogger".into(),
+                flags: 0,
                 current: 1,
                 required: 1,
                 completed: true,

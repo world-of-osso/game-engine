@@ -243,6 +243,7 @@ fn dungeonclient_account_catalog_continuations_and_live_toast_reach_host() {
                         order_index: 0,
                         criteria_id: 3666,
                         description: "Hogger defeated".into(),
+                        flags: 0,
                         current: 0,
                         required: 1,
                         completed: false,
