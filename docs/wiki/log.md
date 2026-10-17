@@ -1,4 +1,12 @@
+## 2026-10-17 — Life Exchange HP projection
+
+[Bounded277](systems/battle-pets.md#life-exchange-projection--2026-10-17): both actual strict skins/private5961 physical shared98/108, subsequent Scratch28/30 and retained owned70→78HP, CD5. Four inspected fullHD originals/all saved phases two framed models, geometry91/97 only HP fills. Existing canonical Sprite6294 closure6/6/loader2meshes; no new Sprite publication or UI code. Earlier TormentedSpirit66620 loads12meshes but authentic scale1.0 clips fixed viewport; rejected before cast/capture, no camera/scale workaround. Native1068/f8 and shared-helper drift/source boundaries recorded; final lib126/check1m25/no warnings/bothfmt pass, unaffected wild-PvP27 + replacement Sprite1 and unchanged UI12 proof retained.
+
 ## 2026-10-17 — Launch Rocket setup/launch projection
+## 2026-10-17 — Current Arathi resource Honor
+
+[Resources](systems/battlegrounds.md#current-arathi-resource-honor--2026-10-17): real threshold/final unclamped-tick RED0vs30 and122vs183→GREEN9. Source1018 threshold160, both-team remainders/contest/defense, full winner330/other30, external-score exclusion, final resource61+completion122=183, replay/reopen and Gilneas0/0. Server/native/shared checks/fmt3 pass; no new clock, calendar alias, node winner redesign or rendered/UDP claim.
+
 ## 2026-10-17 — Modern Warsong end Honor
 
 [Modern WSG](systems/battlegrounds.md#modern-warsong-end-honor--2026-10-17): actual third-capture RED177vs286→GREEN11, both factions286/118, empty timeout draw59/59, replay/persistence/origin return. Exact1014/1018→HOLIDAY_NONE→false source trace resolves modern WSG/AB branches without a calendar or legacy alias; AB160 callback remains pending, Eye7 holiday authority remains a gap. BG kills do not mint Honor XP in pinned HandleKillPlayer/KillRewarder; no fabricated award added.
@@ -11,6 +19,13 @@
 
 [Bounded75](systems/battle-pets.md#launch-rocket-projection--2026-10-17): both actual strict skins/private5961 physically set up294 without enemy damage, then launch/expire294 and win at enemy0. Authored Lil' Bling20; retained owned injury1205→1180→1153, six inspected fullHD originals/two framed models, unchanged shared HUD geometry except fills/timed floats. Canonical194 assets reused with53 hash checks; actual native server6b44/engine8c/shared6b and source scope recorded, no new UI code or full timing/VFX claim.
 
+## 2026-10-17 — P5 material-transition integration proof
+
+[Native M2 particles](systems/godot-conversion.md#p5-geometry-and-recursive-ownership--2026-10-17): forward merge30ca371e2, warning-free native build/check, fmt and both synthetic native lifecycle/raster cases pass. Existing45 CPU controls retained on unchanged particle source/test hashes. Independent artifact verifier accepts bounded synthetic claims; unsupported child-mode, hidden-bone and capacity-exhaustion cases explicitly excluded from proof. Retail resolution/recursive clock/depth-cycle gaps remain.
+
+## 2026-10-17 — P5 geometry/recursive lifecycle implementation
+
+[Native M2 particles](systems/godot-conversion.md#p5-geometry-and-recursive-ownership--2026-10-17): independent geometry lifetime instances and child-state consumers; approved parent-age/retirement/move/birth/one-child-advance ordering, descendant draining and previous-frame interpolation. Billboard/native missing-consumer REDs observed;45 scoped CPU controls and2 synthetic native cases now pass. Native1/2 geometry +6/11 child quads, independent lifetime transform/RGBA, tinted raster, drained native visibility0/0 and owner teardown; three-generation draining CPU-only. Explicit synthetic SFID910006 fixes a fixture setup failure without a legacy resolver path. Current extracted-cache census finds no nonempty references; P5-product-resolution, P5-recursive-clock and depth/cycle-policy gaps retained. No S1/S3 changes.
 ## 2026-10-17 — Armageddon sacrifice projection
 ## 2026-10-17 — Explicit recraft refusal
 
@@ -22,6 +37,10 @@
 ## 2026-10-17 — Section focus flash
 
 [Focus pulse](systems/adventure-guide.md#section-focus-flash--2026-10-17): independent source Glow/four phases on the existing section-focus path. Missing-effect RED→timing/art controls and Modern2/Forever5 rendered pulses/zero/conservation;12 full-HD originals inspected. Native3's324 outside pixels stay unattributed/not reproduced, with unchanged strict native4/5 passing controls and paint-owner receipts. Merged extension check and scoped fmt pass; independent lead gate remains separate. Prior Journeys mask landed via374e.
+## 2026-10-17 — Item-confirmation caption shadow
+
+[Separate presenter captions](systems/trading-post.md#item-confirmation-caption-shadow--bounded-proof-october17): only inherited black(+1,−1), current12px/template colors/geometry/actions preserved. Genuine RED→GREEN1;12 native captions across both skins normal/delay/pending pass.535/524/479 darkened pixels per skin, none outside caption unions/white diagnostic masks; exact baseline/source restoration. Initial omitted-post-sync disabled-color and magenta RGB8 green-channel oracle failures retained and resolved without production color/geometry edits. Effective scaling/full-popup/purchase lifetime remain unqualified.
+
 ## 2026-10-17 — Ordinary StaticPopup body shadow
 
 [PARTY_INVITE body](systems/group-frames.md#ordinary-staticpopup-body-shadow--bounded-proof-2026-10-17): inherited Roman black(+1,−1) only;14px/white/geometry/actions preserved. Genuine model RED→both-skin GREEN; native source4bae444b1 darkens855 pixels/skin, zero outside the1225-pixel diagnostic shadow mask, exact alpha-off/source restoration. Initial rectangle oracle's one-pixel overhang failure retained with actual raster receipts. Effective user-font scaling/full-popup/server lifecycle remain unqualified.
@@ -4487,6 +4506,9 @@ Source Item ownership replaces row-press actions; inset-aware native Button pick
 [Swimming](systems/swimming.md#mirrortimer-label-shadow--2026-10-16) records complete XML/Lua/font inheritance and the two-attribute black(+1,−1) repair. Genuine missing-shadow RED→5modelGREEN, six both-skin1920×1080 native cases retain geometry;731pixels/skin darken only inside labels/shadows and transparent-shadow controls restorebaselineRGBexactly. Check/build/scopedfmt pass; source census remains incomplete. No cadence/server, other-alphabet or full-timer art certification.
 
 - 2026-10-17: M2-MAT clean-room scope, existing short-table controls, ordinary nonzero interpolation, local raw-channel crossfade/snapshot sampler and explicit cubic gap; RED evidence recorded, native proof pending.
+## 2026-10-17 — Achievement delta and Guide clock consumers
+
+[Dungeon achievements](systems/dungeon-achievements.md#state-and-rendering) and [Adventure Guide](systems/adventure-guide.md) record the engine consumers for protocol `AchievementDelta` and `AdventureGuideClock`: ordered bridge relays, per-connection full-snapshot baselines, state-equivalent reduction and explicit missing-baseline errors. Targeted dispatch/wire RED→GREEN only; server producers, integration and live proof belong to the lead.
 ## 2026-10-17 — ReadyCheck inherited message shadow
 
 [Message shadow](systems/group-frames.md#readycheck-message-shadow--bounded-proof-2026-10-16): exactly two attributes restore Roman black(+1,−1). RED→3GREEN and both-skin1920×1080 native proof retain font/currentcolor/text/240×28 box;1002 darkened pixels per skin, zero outside label/shadow union, shadow-off RGB exactly baseline. Check/build/scoped format/readability pass. Sourcecolor/full-popup/server lifecycle remain unqualified.
