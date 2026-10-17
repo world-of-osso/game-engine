@@ -1,4 +1,9 @@
 ## 2026-10-17 — Armageddon sacrifice projection
+## 2026-10-17 — Explicit recraft refusal
+
+[Recraft boundary](systems/crafting-ui.md#recraft-refusal--verified2026-10-17): sourced297/389195 refuses an actual owned GUID with named operation gap and unchanged inventory/profession/wallet. Both full-HD native skins retain three existing mailed items after physical clicks on disabled input/submission; four current post-master-runtime originals inspected. Scoped integration and serialized database invariants pass. No outcome/lineage/eligibility or acquisition claim.
+
+## 2026-10-17 — Public/Guild/Personal orders and mailbox settlement
 
 [Bounded1025](systems/battle-pets.md#armageddon-sacrifice-projection--2026-10-17): both actual skins/private5961 physical61/58 damage, caller321→0 without revival, forced reserve and actual attack. Eight inspected fullHD originals, two framed models/all snapshots strict/tripwire0, canonical adopted70448 loader pass. Native one-enemy and three-enemy server-test scopes remain distinct; no new UI layout/simulation or full timing/VFX claim.
 ## 2026-10-17 — Section focus flash

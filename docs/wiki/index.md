@@ -228,7 +228,7 @@
 - [Toy input/source rendering](systems/toy-box.md#toy-effects14-witnessed-input-and-source-rendering-2026-10-11) — actual both-skin ground/target/PCM, source BC5 upload, all four source-scaled identities and two authored CDI state kits/natural expiry; retained per-toy boundaries.
 
 - [Mount Journal](systems/mounts.md#mount-journal) — native account catalog, real-item learning, rotating preview and filters; [staged model closure](systems/mounts.md#mount-asset-closure-staging--2026-10-12) adds authenticated chains for all1,971 mount IDs, with publication and native census boundaries explicit.
-- [Crafting UI](systems/crafting-ui.md) — both-skin private knowledge spending and cross-character public order/cast/result/commission-mail proof; Retail source art, full committed-rank configurations and explicit disabled recraft boundary.
+- [Crafting UI](systems/crafting-ui.md) — both-skin private knowledge spending and cross-character Public/Guild/Personal order/cast/result/commission-mail proof; Retail source art, full committed-rank configurations and owned-GUID server refusal plus native disabled recraft.
 - [Retail achievement categories and filters](systems/dungeon-achievements.md#retail-categories-and-filters--verified-2026-10-11) — requested14 player roots, real DB2 children, separate Guild/Statistics trees, native completion dropdown and both-skin private5899 proof; Guild progress authority remains unavailable.
 
 - [Whole-world NPC appearance coverage](investigations/npc-appearance-coverage.md) — source census, strict world-root imports, ordinary geoset/source-asset recovery, selected server scale and private both-skin named-actor proof; canonical cache publication remains lead-owned.
@@ -253,7 +253,7 @@
 - [Native guilds](systems/guilds.md) — authoritative lifecycle/profile/vault and Retail charters; tabard persistence and receipted torso compositing; [member-detail/public-officer note implementation](systems/guilds.md#member-details-and-notes), with current native/private-relog acceptance pending.
 - [GO and item-spell live quest objectives](systems/quest-ui.md#go-and-item-spell-live-objectives--verified2026-10-11) — both-skin26446/28175 native turn-ins; chest-loot proof remains blocked by hosting/difficulty and typed-invisibility boundaries.
 - [Native Achievement UI](systems/dungeon-achievements.md#achievement-ui-continuation--verified-2026-10-11) — authoritative Summary/scopes, criteria, tracking, Statistics, full search and earned/chat links; both-skin private proof, authored art/foreground fixes and explicit unsupported-data/comparison boundary.
-- [Native professions crafting](systems/native-professions-crafting.md) — authored category ordering and crafting-tier glyphs; trainer-learned recipe gate RED→GREEN, both-skin private Leatherworking casts/results/rank16 and explicit quality-operation gaps.
+- [Native professions crafting](systems/native-professions-crafting.md) — authored category ordering and crafting-tier glyphs; trainer-learned recipe gate RED→GREEN, both-skin private Leatherworking casts/results/rank16, read-only concentration metadata and explicit quality/origin gaps.
 
 - [No-install receipt recovery](systems/offline-asset-closure.md#no-install-receipt-recovery--verified-2026-10-10) — authenticated legacy publication, pinned display-cache rebuild and bounded sandbox recheck; newly exposed skin/receipt gaps keep certification open.
 
