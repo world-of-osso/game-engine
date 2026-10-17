@@ -1,3 +1,7 @@
+## 2026-10-17 — PitchAdjust source gate
+
+[UI_SOUND_PITCH_ADJUST_RATE](systems/sound.md#ui_sound_pitch_adjust_rate):3647 cached Retail Lua/XML files, the full Sound API definition and active70391 SoundKit-family fields/pertinent rows do not establish a rate equation. Exact sources/search bound by hashes; supplementary DBD gives only a float declaration. No semitone/linear/log2 guess, code, asset extraction or runtime change; hide/show218236/218237 remains deferred, selection callbacks separate. Frozen ordinary-row exclusion is proposed independently, not folded into audio work.
+
 ## 2026-10-17 — Ordinary party battleground queue
 
 [Party admission and late arrivals](systems/battlegrounds.md#ordinary-party-queue-and-late-arrivals--2026-10-17): normal invitation/accept four5-player parties→oneArathi20/10v10. QueueRED0vs20; sequentialWorldPortAck scoreboardRED18vs20→final8GREEN/check/fmt, no warnings. One zeroed accepted late-arrival row preserves real prior banner-assault scores. Native release20 and diagnostic19-peer live proof remain pending.
@@ -4542,3 +4546,5 @@ Source Item ownership replaces row-press actions; inset-aware native Button pick
 
 - 2026-10-17: M2-MAT native85GREEN; both-skin1656441920×1080 half-blend before/after, exactly retained interrupted weights and pixel-identical Hold controls. Same final fixture across hashed old/new binaries; cubic/global-multivalue oracle limits retained.
 - 2026-10-17: [Cooldown-assist](investigations/cooldown-assist-data.md#assisted_combat_simc_mirror): user-approved bounded Fury spatial mirror; native Retail authority remains unknown.
+
+- 2026-10-17: [Run22 native policy partial](investigations/cooldown-assist-data.md#native-policy-observation--run22): prior Fury predicate refusal passed; tank death before first boss leaves clear acceptance open.
