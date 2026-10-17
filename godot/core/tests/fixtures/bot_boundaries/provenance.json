@@ -1,5 +1,11 @@
 {
   "scope": "current70448 source rows plus retained positive-health native facts; model replay,not fresh native execution or class-balance evidence",
+  "fire67_projection": {
+    "authorization": "explicit lead approval: exactly zero operands add no Boolean restriction; other operands refuse; unflagged overlap policy separate",
+    "commit": "515f4a3fe9d1f35e1dbaf253745b6105fba906fb",
+    "sources": ["ActionPriorityLists/assisted_combat/mage_fire.simc:27", "engine/player/player.cpp:3703-3710,3752-3753,4109-4112", "engine/action/action.cpp:2613-2618"],
+    "native_recording": "unchanged original Err33340 payload; expected_replay is a separate sourced oracle, not a rewritten native result"
+  },
   "source_directory": "/home/osso/Projects/world-of-osso/game-engine/data/db2/12.1.5.70448",
   "sources": {
     "AssistedCombat": {
