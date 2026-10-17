@@ -42,6 +42,15 @@ Lead-authorized World of Osso policy [HONOR_WALLET_MIRRORS_HONOR_XP](../../../ga
 
 `scripts/export_db2_csv.py` accepts exact pinned layouts for CurrencyTypes1095531, PvpTalent1302853, PvpTalentCategory1891534, PvpTalentSlotUnlock1950197 and PrestigeLevelInfo1275869. Exported fields describe source records, not runtime implementation guarantees. TrinityCore DB2Structure.h locally preserved in `data/diagnostics/scrap-2026-10-10/` supplies field semantics; CASC supplies values.
 
+## Eye holiday authority — 70448 read-only
+
+`HOLIDAY492_EFFECTIVE_EVENT_AUTHORITY` remains unresolved. Do not infer a77-day recurrence or treat missing calendar authority as inactive. Existing Eye completion Honor is unchanged; resource-Honor selection remains blocked.
+
+- [ ] Establish the sourced effective holiday492 event/stage/schedule and active-state authority before choosing Eye7 resource thresholds260/160.
+- [ ] Prove real active/inactive interval boundaries before implementing that conditional payout; do not manufacture dates or adopt an unsupported calendar policy.
+
+The [70448 read-only audit](../wiki/investigations/eye-holiday-authority.md) records the concrete DB2 arrays, pinned TC evaluator semantics and the missing effective-event input.
+
 ## Current source boundary
 
 Honor cap15000 is authored. Conquest has MaxQtyWorldStateID31270 and AwardConditionID146857; static0 does not prove an uncapped season. Slot masks1/2/4/8 unlock at10/20/30/40. PrestigeLevelInfo contains honor-achievement reward identities (e.g. level5/achievement12893); these alone do not define an XP curve. The extracted `gametables/honorlevel.txt` contains old Prestige0..32 curves and is not certified as Mainline lifetime-honor progression. Honor per win/loss, conquest per result, season cap/reset authority and the lifetime XP curve remain gaps until locally derived. No manufactured rewards.
