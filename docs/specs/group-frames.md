@@ -38,6 +38,10 @@ References (under `~/.cache/wow-ui-sim/blizzard-ui/retail/AddOns/`):
   - This also fixes stale invites: accepting one can no longer join a group the inviter does not lead.
 - [x] Server rejections use Retail `ERR_*` text, shown as system chat lines: BadPlayerName, InviteSelf, AlreadyInGroup, InvitePartyBusy, NotLeader, GroupFull, NotInGroup, TargetNotInGroup, NotInRaid, ReadyCheckInProgress.
 
+### Ordinary PARTY_INVITE body shadow (bounded slice)
+- [ ] Ordinary StaticPopup body inherits black shadow at source (+1,−1), projected native (+1,+1), in both skins. Preserve current 14px FrizQuadrata, white text, geometry, Accept/Decline actions and timeout.
+- [ ] Effective user-font scaling and full-popup reference parity remain unqualified; supplied-state shadow proof does not qualify server/lifecycle behavior.
+
 ### Party frame (raid-style `CompactPartyFrame`)
 - [x] Raid-style party frames are the project default. This is a user decision: Retail's own default is `UseRaidStylePartyFrames = 0` (EMP:276), whose classic frame needs a portrait.
 - [x] Placement: `CompactPartyFrame`, 98 × (14 + 5×44), at the Retail Modern preset: TOPLEFT on `CompactRaidFrameManager`'s TOPRIGHT at (0, −7) (EMP:290-295). The 222 × 140 manager starts collapsed at UIParent TOPLEFT (−200, −140) (Blizzard_CompactRaidFrameManager.xml:113, .lua:93, :335), so the frame's top-left is (22, −147) from UIParent's top-left and it grows downward.
