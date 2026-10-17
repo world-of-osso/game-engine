@@ -1058,6 +1058,8 @@ mod follower_wire_tests;
 mod guild_rank_wire_tests;
 #[cfg(test)]
 mod merchant_wire_tests;
+#[cfg(test)]
+mod netdelta_wire_tests;
 
 #[cfg(test)]
 mod pet_wire_tests;

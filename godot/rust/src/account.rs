@@ -2659,6 +2659,9 @@ mod mythic_mentor_tests;
 #[path = "account_dungeonclient_tests.rs"]
 mod dungeonclient_tests;
 #[cfg(test)]
+#[path = "account_netdelta_tests.rs"]
+mod netdelta_tests;
+#[cfg(test)]
 #[path = "account_guild_charter_tests.rs"]
 mod guild_charter_tests;
 #[cfg(test)]
