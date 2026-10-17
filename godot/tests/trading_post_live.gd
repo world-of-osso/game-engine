@@ -150,8 +150,9 @@ func refund_icon_tooltip_proof() -> void:
 	await click("PerksProgramRefundButton")
 	await click("PerksProgramConfirmButton")
 	if not await wait_until(func(): return not client.trading_post_state().purchased and not client.trading_post_state().pending and int(client.trading_post_state().tender) == int(before.tender), "refund tooltip restores authoritative Tender", 120000): return
-	if client.trading_post_state().frozen != before.frozen:
-		fail("Refund tooltip roundtrip changed frozen reservation"); return
+	var restored: Dictionary = client.trading_post_state()
+	if restored.frozen != before.frozen or restored.collected != product.collected or not restored.cart.is_empty():
+		fail("Refund tooltip roundtrip changed frozen reservation, collection or cart"); return
 	await capture("refunded-restored")
 	print("TP_REFUND_ICON_TOOLTIP target=", target, " selected=", other, " tooltip=", tooltip, " matched=", matched, " anchor_ok=", anchor_ok, " conserved=", conserved, " click_selected=", click_selected)
 	if not matched:
