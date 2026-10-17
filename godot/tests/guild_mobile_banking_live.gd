@@ -129,7 +129,7 @@ func prove_chest_cycle() -> bool:
 	# artificial0.1s tolerance on the locally interpolated float32 UI estimate.
 	write_json(role + "-two-hour-ready.json", {"at_ms": Time.get_ticks_msec(), "cast_at_ms": cast_at, "owner": perk_observation()})
 	await capture("two-hour-ready")
-	print("MOBILE_TWO_HOUR_PASS role=", role, " actual_elapsed_ms=", Time.get_ticks_msec() - cast_at)
+	print("MOBILE_TWO_HOUR_ELAPSED role=", role, " actual_elapsed_ms=", Time.get_ticks_msec() - cast_at)
 	return true
 
 func invalid_target_error() -> bool:
