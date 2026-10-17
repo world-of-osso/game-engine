@@ -6,8 +6,10 @@ use game_engine_ui_model::objective_tracker_component::{
 use shared::protocol::*;
 use ui_toolkit::atlas::{ActiveSkin, set_thread_skin};
 use ui_toolkit::frame::WidgetData;
+use ui_toolkit::layout_values::Val;
 use ui_toolkit::registry::FrameRegistry;
 use ui_toolkit::screen::{Screen, SharedContext};
+use ui_toolkit::widgets::font_string::{JustifyH, JustifyV};
 
 fn retail_categories() -> Vec<AchievementCategoryEntry> {
     let records = game_engine_core::csv_util::parse_csv_records(include_str!(
@@ -1411,6 +1413,28 @@ fn achievements_presentation_authored_single_quantity_flag_requires_bar_both_ski
             .expect("authored ProgressBar1 must render a bar even when required quantity is1");
         let bar = registry.get(bar).unwrap();
         assert_eq!((bar.width.value(), bar.height.value()), (212.0, 14.0));
+        assert_eq!(
+            (bar.position.left, bar.position.top),
+            (Val::Px(177.0), Val::Px(88.0))
+        );
+        let caption = registry
+            .get(
+                registry
+                    .get_by_name("Achievement1017Criterion22151")
+                    .unwrap(),
+            )
+            .unwrap();
+        let Some(WidgetData::FontString(font)) = &caption.widget_data else {
+            panic!("quantity caption");
+        };
+        // GameFontHighlightSmall -> GameFontNormalSmall -> SystemFont_Shadow_Small.
+        assert_eq!(font.font_size, 10.0);
+        assert_eq!(
+            (font.justify_h, font.justify_v),
+            (JustifyH::Center, JustifyV::Middle)
+        );
+        assert_eq!(font.shadow_color, Some([0.0, 0.0, 0.0, 1.0]));
+        assert_eq!(font.shadow_offset, [1.0, -1.0]);
         assert_eq!(text(&registry, "Achievement1017Criterion22151"), "0/1");
     }
 }
@@ -1500,6 +1524,10 @@ fn achievements_presentation_check_completion_and_cursor_flags_both_skins() {
             )
             .unwrap();
         assert_eq!((check.width.value(), check.height.value()), (20.0, 16.0));
+        assert_eq!(
+            (check.position.left, check.position.top),
+            (Val::Px(18.0), Val::Px(2.5))
+        );
         assert!(
             registry
                 .get_by_name("Achievement155Criterion4716Bar")
