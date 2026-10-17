@@ -77,6 +77,11 @@ func verify_full_results() -> bool:
 	if shown("EncounterJournalSearchPreview") or not shown("EncounterJournalSearchResults"):
 		stop("Enter on Show All did not replace preview with full results")
 		return false
+	var title := label_text("EncounterJournalSearchResultsTitle")
+	print("SEARCH_NATIVE_TITLE ", title)
+	if not title.begins_with("Search Results for \"flame\"(") or title.contains("\\"):
+		stop("Localized popup title leaked transport escapes: " + title)
+		return false
 	var popup := control("EncounterJournalSearchResults").get_global_rect()
 	var journal := control("EncounterJournal").get_global_rect()
 	if popup.size.distance_to(Vector2(600,400)) > 1.0 or popup.position.distance_to(journal.position+Vector2(100,89)) > 1.0:
