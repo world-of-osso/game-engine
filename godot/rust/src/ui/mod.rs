@@ -47,6 +47,7 @@ mod hud_edit_preview;
 mod hud_edit_tests;
 mod icon_masks;
 pub(crate) mod input_queue;
+mod journal_section_flash;
 mod journeys_track_mask;
 mod launcher_preview;
 mod layout;
@@ -162,6 +163,7 @@ pub struct RegistryUi {
     ui_parent: bool,
     ui_scale: Option<f32>,
     scroll_stepper: Option<scroll_lists::StepperHold>,
+    section_flash: Option<(u32, std::time::Instant)>,
 }
 
 /// Raw authored-slider input; the host applies its own policy and passes back a view.
@@ -986,6 +988,7 @@ impl ICanvasLayer for RegistryUi {
         }
         projection.advance_assisted_highlights(delta, &model.registry);
         projection.advance_housing_glows(&model.registry);
+        self.advance_journal_section_flash();
     }
 
     fn input(&mut self, event: Gd<godot::classes::InputEvent>) {
@@ -1048,6 +1051,7 @@ impl ICanvasLayer for RegistryUi {
             ui_parent: false,
             ui_scale: None,
             scroll_stepper: None,
+            section_flash: None,
         }
     }
 }
@@ -2826,7 +2830,8 @@ impl RegistryUi {
         if section.kind == 3 {
             return Ok(());
         }
-        let name = format!("JournalSection{}", section.id);
+        let section_id = section.id;
+        let name = format!("JournalSection{section_id}");
         let target = model
             .registry
             .get_by_name(&name)
@@ -2848,7 +2853,8 @@ impl RegistryUi {
             .first_row;
         let offset = (current as f32 + target.y - bounds.y - bounds.height / 2.).max(0.) as usize;
         model.registry.scroll_lists.scroll_to(list, offset);
-        self.sync_model()
+        self.sync_model()?;
+        self.start_journal_section_flash(section_id)
     }
 
     /// Name and screen rect `[x, y, w, h]` of the button under the pointer.
