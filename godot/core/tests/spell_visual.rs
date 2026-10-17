@@ -94,17 +94,12 @@ fn toyfx72_croak_crock_resolves_two_source_caster_sound_kits() {
 }
 
 #[test]
-fn toyfx73_witch_display_resolves_held_source_dance_and_ground_model() {
+fn toyfx73_witch_display_resolves_ground_model_without_inventing_animation() {
     let kit = catalog().display_state_kit(86194).unwrap();
     assert_eq!(kit.kit_id, 51522);
     assert_eq!(kit.end, VisualEvent::DisplayEnd);
-    assert_eq!(
-        kit.animation,
-        Some(KitAnimation {
-            anim_id: 141,
-            looping: true,
-        })
-    );
+    // EffectType7/Effect165 references ShadowyEffect, not SpellVisualAnim165.
+    assert_eq!(kit.animation, None);
     assert_eq!(kit.models.len(), 1);
     assert_eq!(kit.models[0].model_fdid, 1249985);
     assert_eq!(kit.models[0].attachment, Some(19));
