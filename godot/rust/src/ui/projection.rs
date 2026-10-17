@@ -536,7 +536,16 @@ impl UiProjection {
         // Parts draw behind the frame's own control content (label/edit text) and children.
         parts.set_draw_behind_parent(true);
         node.add_child(&parts);
-        if game_engine_ui_model::selection_list::is_selection_row(registry, frame) {
+        let search_preview = frame
+            .name
+            .as_deref()
+            .and_then(game_engine_ui_model::adventure_search::preview_index)
+            .is_some();
+        // SearchBoxListMixin's previews keep the edit's sticky focus. Generic row
+        // focus would hide/delete the preview on mouse-down before its Click.
+        if game_engine_ui_model::selection_list::is_selection_row(registry, frame)
+            && !search_preview
+        {
             node.set_focus_mode(godot::classes::control::FocusMode::ALL);
             node.connect(
                 "focus_entered",
@@ -1404,6 +1413,10 @@ fn connect_edit_box(pending: &PendingInputs, frame: &Frame, node: &mut Gd<Contro
             // Journal SearchBoxListMixin keeps focus on short/no-result Enter.
             // Its successful selection/Show All action owns Close() instead.
             let release_on_submit = frame.name.as_deref() != Some("EncounterJournalSearchBox");
+            if !release_on_submit {
+                let mut search = node.clone().cast::<LineEdit>();
+                search.set_keep_editing_on_text_submit(true);
+            }
             node.connect(
                 "text_submitted",
                 &Callable::from_fn("registry-search-submit", move |_| {

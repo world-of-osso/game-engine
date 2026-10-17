@@ -13,6 +13,15 @@ const GENERIC_CREATURE: u32 = 533888;
 pub const PREVIEW_LIMIT: usize = 5;
 const MIN_SEARCH_BYTES: usize = 3;
 
+/// Preview keyboard selection belongs to the search edit, not a focused list row.
+pub fn preview_index(name: &str) -> Option<usize> {
+    if name == "JournalSearchAll" {
+        Some(PREVIEW_LIMIT)
+    } else {
+        name.strip_prefix("JournalSearchPreview")?.parse().ok()
+    }
+}
+
 #[derive(Clone, Copy, Debug, Default, PartialEq, Eq)]
 pub enum SearchMode {
     #[default]

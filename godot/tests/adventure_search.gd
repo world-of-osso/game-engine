@@ -111,6 +111,13 @@ func verify_section_selection() -> bool:
 	if not shown("EncounterJournalSearchPreview"):
 		stop("Refocus did not restore source preview")
 		return false
+	if not await click("JournalSearchAll"):
+		return false
+	if not shown("EncounterJournalSearchResults"):
+		stop("Physical Show All lost edit focus before its completed click")
+		return false
+	if not await click("EncounterJournalSearchResultsClose") or not await click("EncounterJournalSearchBox"):
+		return false
 	await press_key(KEY_ESCAPE)
 	if shown("EncounterJournalSearchPreview") or label_text("EncounterJournalSearchBox") != "flame":
 		stop("Physical blur did not hide preview and retain query")
@@ -176,5 +183,5 @@ func run() -> void:
 		return
 	if not await type_word("flame", [KEY_F,KEY_L,KEY_A,KEY_M,KEY_E]) or not await verify_preview() or not await verify_full_results() or not await verify_section_selection():
 		return
-	print("JOURNAL_SEARCH_PASS skin=%s actualcatalog preview/arrowwrap/Enter/fullpopup/close/sectionfocus" % client.account_state().ui_skin)
+	print("JOURNAL_SEARCH_PASS skin=%s actualcatalog preview/arrowwrap/Enter/pointerAll/fullpopup/close/sectionfocus" % client.account_state().ui_skin)
 	quit(0)
