@@ -36,7 +36,7 @@ Authority: local Mainline CharacterFrame.xml159–184, Blizzard_TokenUI.xml/.lua
 
 ## Earned-wallet continuation — 70391
 
-Kills and BG/arena completion still require an authored event-to-wallet binding; lifetime honor XP must not be relabeled spendable1792. The [server contract](../../../game-server/docs/specs/pvp-progression.md#earned-wallet-award-binding-audit--70391) owns the fresh source audit and named binding/season/eligibility gaps. Known award-spell quantities alone are not match payout policy. The independently sourced zero-weekly-cap counter rule is described [there](../../../game-server/docs/specs/pvp-progression.md#sourced-weekly-counters--70391); it does not create a new award or native earned-balance claim. Currency native proof above remains presentation-only until a real producer is sourced and exercised.
+Lead-authorized World of Osso policy [HONOR_WALLET_MIRRORS_HONOR_XP](../../../game-server/docs/specs/pvp-progression.md#world-of-osso-policy-honor_wallet_mirrors_honor_xp) explicitly mirrors implemented TC-derived Honor awards into1792 while preserving separate lifetime XP. This is our event binding, not a TC wallet-mutation claim. Currency/PvP views must show received wallet amounts after real kills, keep the authored holding cap and zero-weekly behavior, and leave honor level unknown. Arena/Conquest1602 quantities remain unmapped under ARENA_COMPLETION_WALLET_BINDING; Korrak1166 is excluded. The [source audit](../../../game-server/docs/specs/pvp-progression.md#earned-wallet-award-binding-audit--70391) preserves provenance and remaining season/eligibility gaps. Native acceptance of the new mirror remains pending; prior Currency screenshots above are presentation-only.
 
 ## Local source export
 
