@@ -42,10 +42,8 @@ func run_test() -> void:
 		if not valid_received_design(receipt.tabard):
 			fail("Wrong optional registered invitation design: " + str(receipt))
 			return
-		for name in ["Background", "TabardBackground", "TabardEmblem", "TabardBorder", "TabardRing"]:
-			if not shown("GuildInviteFrame" + name):
-				fail("Missing source invitation texture " + name)
-				return
+		if not prove_source_rectangles():
+			return
 		write_json(role + "-received.json", receipt)
 		await capture("pending")
 		await press("GuildInviteFrameDeclineButton")
@@ -59,6 +57,31 @@ func run_test() -> void:
 	print("PASS GUILD_INVITATION_TABARD_NATIVE mode=", invitation_mode, " both_skins=true real_invites=2 physical_declines=2")
 	client.free()
 	quit(0)
+
+func prove_source_rectangles() -> bool:
+	var emblem_width := 64.0 if invitation_mode == "no-design" else 56.0
+	var popup := control("GuildInviteFrame").get_global_rect()
+	if not popup.is_equal_approx(Rect2(805, 446, 310, 188)):
+		return fail("Wrong source invitation root rectangle: " + str(popup))
+	var source := {
+		"Background": Rect2(11.5, 12, 287, 116),
+		"TabardBackground": Rect2(123, 70, 62, 62),
+		"TabardEmblem": Rect2(154 - emblem_width / 2, 69, emblem_width, 64),
+		"TabardBorder": Rect2(124, 71, 61, 60),
+		"TabardRing": Rect2(96, 64, 118, 76),
+	}
+	var actual := {}
+	for name in source:
+		if not shown("GuildInviteFrame" + name):
+			return fail("Missing source invitation texture " + name)
+		var rectangle := control("GuildInviteFrame" + name).get_global_rect()
+		var expected: Rect2 = source[name]
+		expected.position += popup.position
+		if not rectangle.is_equal_approx(expected):
+			return fail("Wrong source rectangle " + name + ": " + str(rectangle))
+		actual[name] = [rectangle.position.x, rectangle.position.y, rectangle.size.x, rectangle.size.y]
+	write_json(role + "-rectangles.json", actual)
+	return true
 
 func invitation_receipt() -> Variant:
 	return JSON.parse_string(str(client.call("guild_invitation_observation")))
