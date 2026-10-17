@@ -4901,6 +4901,8 @@ cache/adventure_guide.sqlite
 # Mainline RaidBossEmote warning kit12197 (SoundKitEntry15068).
 sounds/ui/567394.ogg
 sounds/ui/6838456.ogg
+# Hover kit218934:70391 SoundKit metadata, authenticated installed70448 bytes.
+sounds/ui/4906953.ogg
 # Trading Post menu kits218932/218933, exact local70391 SoundKitEntry variants.
 sounds/ui/4956048.ogg
 sounds/ui/4956050.ogg
