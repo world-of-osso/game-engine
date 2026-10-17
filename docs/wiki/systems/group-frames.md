@@ -46,6 +46,20 @@ Verified: 2026-10-17. Genuine model RED `fd34f46d0` (2pass/1fail) → `ae6f7a239
 
 Proof: local `data/diagnostics/ui-questlog-ready-shadow-2026-10-16/ready-shadow-proof-ledger.json`; PNGs `AgentShared/2026-10-16/ui-questlog-ready-shadow/{before-ready-shadow,after-ready-shadow,comparison-modern.png,comparison-forever.png}`. Final native binary is `ae6f7a239`; subsequent documentation does not change the proof scope. This supplied-state shadow proof does not certify source colors, title/portrait/border, full popup or server lifecycle; no unaffected physical-button replay.
 
+### Ordinary StaticPopup body shadow — bounded proof 2026-10-17
+
+Verified: 2026-10-17.
+
+`GameDialog.xml:94` body inherits `UserScaledFontGameHighlight` → `GameFontHighlight` → `GameFontNormal` → Roman `SystemFont_Shadow_Med1` (`FontStyles.xml:446,62,50`; `Fonts.xml:275–285`): black shadow at source(+1,−1). Complete GameDialog/StaticPopup Lua and accessibility font machinery, plus PARTY_INVITE descriptor/decline-lock helper, supply no shadow override. Effective font height depends on user font scaling: current14px is preserved, not certified against the raw12px base.
+
+`static_popup_component.rs::popup_text` receives only `shadow_color` and `shadow_offset`. Debug-only native fixture reuses the production PARTY_INVITE spec and ordinary `show_static_popups` host. Genuine model RED(None versus black) → GREEN1 covers both skins, current text/white/14px/290×18 box and128×26 buttons/actions. Native4bae444b1 retains body(815,151),290×18 and dialog(800,135),320×88; black(+1,+1) is the source y-inverted offset. Both-skin1920×1080 source/control captures pass; both comparison panels/full contexts inspected.
+
+Each skin darkens855 RGB pixels; none lighten. Disabling only shadow alpha restores the entire baseline RGB image exactly; restoring black reproduces the source image exactly. Magenta intervention exposes1225 shadow-mask pixels, with zero source changes outside that exact mask or dialog. The initial authored-rectangle-plus-offset oracle failed at(1016,170): one source/four magenta pixels extend below its assumed y<170 bound. That failure is retained, not reported as zero. Hidden-label control and raster receipts establish actual paint bounds; acceptance uses the causal shadow mask rather than arbitrarily padding the rectangle. No production geometry or clipping change.
+
+Baseline binary08c2bc5af/`4fb2d7c4…`; source binary4bae444b1/`4c14594d…`. Later master integration1263031fb leaves the popup/spec/fixture bytes unchanged; it is not relabeled as the captured binary. Local ledger: `data/diagnostics/ui-questlog-static-popup-shadow-2026-10-17/static-popup-shadow-proof-ledger.json`; PNGs: `AgentShared/2026-10-17/ui-questlog-static-popup-shadow/`. Godot reports no `ERROR:`/`SCRIPT ERROR:`; inherited cage XWayland/libdecor/Wayland warnings are bounded separately.
+
+Effective font scaling, intrinsic wrapping, full-popup reference/raster parity and server/invite lifecycle remain gaps. This supplied-state slice does not qualify other popup descriptors or the separate item-confirmation presenter; no gameplay authority or action reducer changed.
+
 ### Data flow
 
 - **Server** (`game-server crates/server/src/group/`):

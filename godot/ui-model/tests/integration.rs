@@ -112,6 +112,7 @@ mod spell_power_text;
 mod spellbook_frame;
 mod spellbook_preview;
 mod stack_split_fidelity;
+mod static_popup_shadow;
 mod status_text_bars;
 mod talent_centering;
 mod talent_footer;
