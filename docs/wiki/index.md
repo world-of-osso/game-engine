@@ -24,7 +24,7 @@
 - [Clean-room M2 particles](systems/godot-conversion.md#native-m2-particles) — native tails/follow/cubic controls, authored sorting and map-collision births; inherited-scale provenance and explicit lighting, timer/reset, spline-density, target-mask and model-recursion oracle gaps.
 # Wiki Index
 
-- [P5 geometry and recursive ownership](systems/godot-conversion.md#p5-geometry-and-recursive-ownership--2026-10-17) — approved substep lifecycle and explicit geometry resources; synthetic proof pending, Retail resolution and recursive animation clock remain gaps.
+- [P5 geometry and recursive ownership](systems/godot-conversion.md#p5-geometry-and-recursive-ownership--2026-10-17) — approved substep lifecycle and explicit geometry resources;45 scoped CPU controls and2 synthetic native cases pass; Retail resolution and recursive animation clock remain gaps.
 
 - [Journeys track texture mask](systems/adventure-guide.md#journeys-track-texture-mask--2026-10-16) — authenticated70448 centered atlas, texture-only alpha, unchanged captions and moving-track controls; both-skin native pixels and12 inspected full-HD captures.
 
