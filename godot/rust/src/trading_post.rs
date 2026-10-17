@@ -6,7 +6,9 @@ use crate::{
     ui::RegistryUi,
     world_models::UnitAppearance,
 };
-use game_engine_core::ui_sound_kits::{TRADING_POST_UI_MENU_CLOSE, TRADING_POST_UI_MENU_OPEN};
+use game_engine_core::ui_sound_kits::{
+    TRADING_POST_UI_ITEM_HOVER, TRADING_POST_UI_MENU_CLOSE, TRADING_POST_UI_MENU_OPEN,
+};
 use game_engine_session::SessionScreen;
 use game_engine_ui_model::trading_post::{Action, FilterSubmenu, HEIGHT, MODEL, View, WIDTH};
 use godot::classes::CanvasLayer;
@@ -33,6 +35,7 @@ pub(crate) struct TradingPost {
     pub view: View,
     ui: Option<Gd<RegistryUi>>,
     menu_was_shown: bool,
+    product_sound_owner: Option<String>,
     scene: Option<Scene>,
     pending: Option<(u64, UnitAppearance)>,
     shown: Option<UnitAppearance>,
@@ -100,6 +103,7 @@ impl GameClient {
         }
         self.trading_post.rotating = false;
         self.trading_post.dragged = None;
+        self.trading_post.product_sound_owner = None;
         visible
     }
     pub(super) fn close_trading_post_window(&mut self) -> Result<bool, FrameError> {
@@ -191,6 +195,33 @@ impl GameClient {
         })
     }
 
+    /// OnEnter belongs to the product button, not the selected item or its child toggle.
+    fn play_trading_post_product_hover_sound(
+        &mut self,
+        hovered: Option<(String, [f32; 4])>,
+    ) -> Result<(), String> {
+        let owner = hovered.and_then(|(name, _)| {
+            if name == "PerksProgramFrozenSlot" {
+                return Some(name);
+            }
+            let id: u32 = name
+                .strip_prefix("PerksProgramProduct")
+                .or_else(|| name.strip_prefix("PerksProgramCartToggle"))?
+                .parse()
+                .ok()?;
+            Some(format!("PerksProgramProduct{id}"))
+        });
+        if owner == self.trading_post.product_sound_owner {
+            return Ok(());
+        }
+        let entering = owner.is_some();
+        self.trading_post.product_sound_owner = owner;
+        if entering {
+            self.play_ui_sound_kit(TRADING_POST_UI_ITEM_HOVER)?;
+        }
+        Ok(())
+    }
+
     /// A failed preview must not leave the previous selection's model on screen; the
     /// next successful one restores the server's own error text.
     fn record_trading_preview(&mut self, preview: Result<(), String>) {
@@ -259,6 +290,7 @@ impl GameClient {
             .get_viewport()
             .ok_or("Trading Post viewport missing")?
             .get_mouse_position();
+        self.play_trading_post_product_hover_sound(ui.bind().hovered_button())?;
         self.trading_post.view.product_hover = ui.bind().hovered_button().and_then(|(name, _)| {
             name.strip_prefix("PerksProgramProduct")
                 .or_else(|| name.strip_prefix("PerksProgramCartToggle"))?

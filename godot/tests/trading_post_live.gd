@@ -9,6 +9,9 @@ var skin := OS.get_environment("TP_SKIN")
 var phase := OS.get_environment("TP_PHASE")
 var server := OS.get_environment("TP_SERVER")
 var menu_audio_events := []
+var hover_audio_events := []
+var hover_sound_checks := []
+var hover_kit_baseline := 0
 var paused_private_server := 0
 # Retail70391 SoundKitEntry rows for218932/218933.
 const MENU_OPEN_FILES := [4956048,4956050,4956052,4956054,4956056]
@@ -24,7 +27,7 @@ func run_fixture() -> void:
 		fail("Private compositor must expose 1920x1080 output")
 		return
 	var account := OS.get_environment("TP_ACCOUNT")
-	if server != "127.0.0.1:5791" or not account.begins_with("fb_") or shots.is_empty() or receipts.is_empty() or not phase in ["refund-icon-blend", "refund-icon-tooltip", "row-cart-toggle", "frozen-tooltip", "cart-tooltips", "pending-dialogs", "confirmations", "button-tooltips", "item-tooltips", "menu-sounds", "layout", "layout-proof", "browse", "relog", "purchase", "refund", "cart", "cart-lifetime", "rotate-controls", "mount-rider", "mount-rider-cancel", "freeze-workflow", "authored-camera", "frozen-slot-before", "frozen-slot-after"]:
+	if server != "127.0.0.1:5791" or not account.begins_with("fb_") or shots.is_empty() or receipts.is_empty() or not phase in ["product-hover-sound", "refund-icon-blend", "refund-icon-tooltip", "row-cart-toggle", "frozen-tooltip", "cart-tooltips", "pending-dialogs", "confirmations", "button-tooltips", "item-tooltips", "menu-sounds", "layout", "layout-proof", "browse", "relog", "purchase", "refund", "cart", "cart-lifetime", "rotate-controls", "mount-rider", "mount-rider-cancel", "freeze-workflow", "authored-camera", "frozen-slot-before", "frozen-slot-after"]:
 		fail("Explicit private 127.0.0.1:5791, fb_* account, phase and evidence paths required")
 		return
 	for directory in [shots, receipts]:
@@ -48,8 +51,8 @@ func run_fixture() -> void:
 	if not await wait_until(func(): return float(client.account_state().local_player_health) > 0.0, "private character alive", 120000): return
 	client.set_world_minutes(720.0)
 	await wait_frames(120)
-	if not phase in ["refund-icon-blend", "refund-icon-tooltip", "row-cart-toggle", "frozen-tooltip", "cart-tooltips", "pending-dialogs", "confirmations", "button-tooltips", "item-tooltips", "menu-sounds", "layout", "layout-proof", "cart", "cart-lifetime", "rotate-controls", "mount-rider", "mount-rider-cancel", "freeze-workflow", "authored-camera", "frozen-slot-before", "frozen-slot-after"] and not await travelers_log(): return
-	if phase == "menu-sounds" and not watch_menu_sound_players(): return
+	if not phase in ["product-hover-sound", "refund-icon-blend", "refund-icon-tooltip", "row-cart-toggle", "frozen-tooltip", "cart-tooltips", "pending-dialogs", "confirmations", "button-tooltips", "item-tooltips", "menu-sounds", "layout", "layout-proof", "cart", "cart-lifetime", "rotate-controls", "mount-rider", "mount-rider-cancel", "freeze-workflow", "authored-camera", "frozen-slot-before", "frozen-slot-after"] and not await travelers_log(): return
+	if phase in ["menu-sounds", "product-hover-sound"] and not watch_menu_sound_players(): return
 	if not await open_vendor(): return
 	if phase in ["cart", "cart-lifetime"]:
 		# Collection UI owners may replace a hidden CanvasLayer while this vendor is open.
@@ -83,6 +86,7 @@ func run_fixture() -> void:
 		"freeze-workflow": await freeze_workflow_proof()
 		"authored-camera": await authored_camera_proof()
 		"menu-sounds": await menu_sound_proof()
+		"product-hover-sound": await product_hover_sound_proof()
 		"item-tooltips": await item_tooltip_proof()
 		"confirmations": await confirmation_escape_proof()
 		"pending-dialogs": await pending_dialog_proof()
@@ -1206,6 +1210,12 @@ func observe_menu_sound_player(node: Node) -> void:
 	var stream: AudioStream = player.stream
 	if stream == null: return
 	var fdid := int(stream.resource_name)
+	if phase == "product-hover-sound" and fdid == 4906953:
+		var hover_event := {"fdid":fdid,"length":stream.get_length(),"gain":player.volume_linear,"pitch_scale":player.pitch_scale,"playing_observed":false,"finished":false}
+		hover_audio_events.append(hover_event)
+		player.finished.connect(func(): hover_event.finished = true)
+		call_deferred("observe_menu_sound_playback", player, hover_event)
+		return
 	var kind := "open" if fdid in MENU_OPEN_FILES else "close" if fdid in MENU_CLOSE_FILES else ""
 	if kind.is_empty(): return
 	var event := {"kind":kind,"fdid":fdid,"length":stream.get_length(),"gain":player.volume_linear,"pitch_scale":player.pitch_scale,"playing_observed":false,"finished":false}
@@ -1247,6 +1257,89 @@ func assert_menu_sound_state(kind: String, expected: int) -> bool:
 		fail("Menu %s kit%d played%d times, expected%d" % [kind,kit,menu_sound_count(kit),expected])
 		return false
 	return assert_menu_audio_count(kind, expected)
+
+func hover_sound_checkpoint(label: String, expected: int) -> void:
+	await wait_frames(60)
+	hover_sound_checks.append({"label":label,"expected":expected,"decoded_count":hover_audio_events.size(),"kit_count":menu_sound_count(218934)-hover_kit_baseline})
+
+func product_hover_sound_proof() -> void:
+	if not await choose_category(1): return
+	var frozen := int(client.trading_post_state().frozen)
+	var other_id := await select_other_cartable([frozen])
+	if other_id <= 0: return
+	await motion(control("PerksProgramLeaveButton").get_global_rect().get_center(), false)
+	await wait_frames(60)
+	# Selection setup precedes the measured pointer lifecycle; retain its kit count.
+	hover_kit_baseline = menu_sound_count(218934)
+	hover_audio_events.clear()
+	var before: Dictionary = client.trading_post_state().duplicate(true)
+	var row := control("PerksProgramProduct%d" % frozen)
+	var slot := control("PerksProgramFrozenSlot")
+	if row == null or slot == null: fail("Hover fixture needs visible ordinary/frozen owners for the same reserved product"); return
+	var other := control("PerksProgramProduct%d" % other_id)
+	if other == null: fail("Hover fixture needs another visible cartable product"); return
+	var scale := control("PerksProgramLeaveButton").get_global_rect().size.x / 180.0
+	var row_point := row.get_global_rect().position + Vector2(96,24)*scale
+	var other_point := other.get_global_rect().position + Vector2(96,24)*scale
+	await hover_sound_checkpoint("outside", 0)
+	await motion(row_point, false)
+	await hover_sound_checkpoint("ordinary-enter", 1)
+	await capture("ordinary-enter")
+	await hover_sound_checkpoint("ordinary-hold-refresh", 1)
+	await motion(slot.get_global_rect().get_center(), false)
+	await hover_sound_checkpoint("inherited-same-product-owner-change", 2)
+	await capture("inherited-enter")
+	await hover_sound_checkpoint("inherited-hold-refresh", 2)
+	await motion(other_point, false)
+	await hover_sound_checkpoint("different-product-enter", 3)
+	# Frozen products deliberately have no cart toggle; use the eligible other row.
+	var child := control("PerksProgramCartToggle%d" % other_id)
+	if child == null: fail("Hover fixture needs the eligible row's nested cart toggle"); return
+	await motion(child.get_global_rect().get_center(), false)
+	await hover_sound_checkpoint("nested-cart-same-owner", 3)
+	await motion(control("PerksProgramLeaveButton").get_global_rect().get_center(), false)
+	await hover_sound_checkpoint("leave", 3)
+	await motion(other_point, false)
+	await hover_sound_checkpoint("reentry", 4)
+	await capture("reentry")
+	await tap(KEY_ESCAPE)
+	if not await wait_until(func(): return not client.trading_post_state().open, "hovered owner teardown"): return
+	await hover_sound_checkpoint("closed-hovered-owner", 4)
+	await capture("owner-teardown")
+	await motion(Vector2(1800,1000), false)
+	if not await open_vendor(): return
+	if not await choose_category(1): return
+	row = control("PerksProgramProduct%d" % frozen)
+	if row == null: fail("Reopened hover owner missing"); return
+	await motion(row.get_global_rect().position + Vector2(96,24)*scale, false)
+	await hover_sound_checkpoint("reopened-reentry", 5)
+	await capture("reopened-reentry")
+	var after: Dictionary = client.trading_post_state().duplicate(true)
+	var conserved: bool = after.tender == before.tender and after.frozen == before.frozen and after.selected == before.selected and after.collected == before.collected and after.cart == before.cart and not after.pending
+	await tap(KEY_ESCAPE)
+	if not await wait_until(func(): return not client.trading_post_state().open, "hover proof closes vendor"): return
+	await hover_sound_checkpoint("closed-again", 5)
+	var settings_gain := -1.0
+	for event in menu_audio_events:
+		if event.kind == "open": settings_gain = float(event.gain)/0.562341332; break
+	var errors := []
+	for check in hover_sound_checks:
+		if check.decoded_count != check.expected or check.kit_count != check.expected: errors.append(check.label)
+	for event in hover_audio_events:
+		if absf(float(event.gain)-0.891250908*settings_gain) > 0.00001 or not is_equal_approx(float(event.pitch_scale),1.0): errors.append("source gain/settings/pitch")
+		if absf(float(event.length)-0.378646) > 0.001 or not event.playing_observed or not event.finished: errors.append("actual decoded playback/finished")
+	if settings_gain < 0.0: errors.append("missing settings gain observation")
+	if not conserved: errors.append("selection/Tender/frozen/collection/cart changed")
+	var proof := {"setup_kit_count":hover_kit_baseline,"checks":hover_sound_checks,"audio":hover_audio_events,"settings_gain":settings_gain,"conserved":conserved,"before":before,"after":after,"errors":errors}
+	var file := FileAccess.open(receipts.path_join(skin+"-product-hover-sound-audio.json"), FileAccess.WRITE)
+	if file == null: fail("Cannot write native hover audio receipt"); return
+	file.store_string(JSON.stringify(proof,"\t"))
+	file.close()
+	print("TP_PRODUCT_HOVER_SOUND ", JSON.stringify(proof))
+	if not errors.is_empty(): fail("Retail product enter kit218934 decoded playback/lifecycle missing: %s" % [errors]); return
+	print("TRADING_POST_LIVE PASS skin=", skin, " phase=product-hover-sound")
+	client.free()
+	quit(0)
 
 func menu_sound_proof() -> void:
 	if menu_sound_count(218932) != 1: fail("Retail menu open kit218932 did not play once on actual show"); return
@@ -1733,7 +1826,7 @@ func motion(point: Vector2, down: bool, relative: Vector2 = Vector2.ZERO) -> voi
 	event.global_position = point
 	event.relative = relative
 	event.button_mask = MOUSE_BUTTON_MASK_LEFT if down else 0
-	if phase in ["cart-tooltips", "row-cart-toggle", "refund-icon-tooltip", "refund-icon-blend"]:
+	if phase in ["product-hover-sound", "refund-icon-blend", "cart-tooltips", "row-cart-toggle", "refund-icon-tooltip"]:
 		Input.parse_input_event(event)
 	else:
 		root.push_input(event, true)
