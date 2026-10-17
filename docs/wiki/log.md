@@ -1,6 +1,9 @@
 ## 2026-10-17 — Armageddon sacrifice projection
 
 [Bounded1025](systems/battle-pets.md#armageddon-sacrifice-projection--2026-10-17): both actual skins/private5961 physical61/58 damage, caller321→0 without revival, forced reserve and actual attack. Eight inspected fullHD originals, two framed models/all snapshots strict/tripwire0, canonical adopted70448 loader pass. Native one-enemy and three-enemy server-test scopes remain distinct; no new UI layout/simulation or full timing/VFX claim.
+## 2026-10-17 — Ordinary StaticPopup body shadow
+
+[PARTY_INVITE body](systems/group-frames.md#ordinary-staticpopup-body-shadow--bounded-proof-2026-10-17): inherited Roman black(+1,−1) only;14px/white/geometry/actions preserved. Genuine model RED→both-skin GREEN; native source4bae444b1 darkens855 pixels/skin, zero outside the1225-pixel diagnostic shadow mask, exact alpha-off/source restoration. Initial rectangle oracle's one-pixel overhang failure retained with actual raster receipts. Effective user-font scaling/full-popup/server lifecycle remain unqualified.
 
 ## 2026-10-17 — Product-row refund glyph ADD implementation
 
