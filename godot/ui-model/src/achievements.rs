@@ -7,8 +7,8 @@ mod artwork;
 mod comparison_view;
 use crate::ui::strata::FrameStrata;
 use shared::protocol::{
-    ACHIEVEMENT_SEARCH_MAX_CHARS, AchievementCatalogEntry, AchievementCatalogPage,
-    AchievementCategoryEntry, AchievementCriterionLine, AchievementDelta,
+    ACHIEVEMENT_CRITERION_FLAG_PROGRESS_BAR, ACHIEVEMENT_SEARCH_MAX_CHARS, AchievementCatalogEntry,
+    AchievementCatalogPage, AchievementCategoryEntry, AchievementCriterionLine, AchievementDelta,
     AchievementProgressSnapshot, AchievementScope, AchievementSnapshot, AchievementStateUpdate,
     AchievementSummary, QueryAchievementCatalog,
 };
@@ -1641,6 +1641,89 @@ fn empty_message(window: &AchievementWindow) -> &'static str {
     }
 }
 
+fn criterion_presentation(
+    entry: &AchievementCatalogEntry,
+    line: &AchievementCriterionLine,
+    y: f32,
+) -> Element {
+    let name = format!(
+        "Achievement{}Criterion{}",
+        entry.achievement_id, line.tree_id
+    );
+    if line.progress_supported && line.flags & ACHIEVEMENT_CRITERION_FLAG_PROGRESS_BAR != 0 {
+        criterion_bar(&name, line, y)
+    } else {
+        criterion_checklist(&name, line, entry.earned, y)
+    }
+}
+
+fn criterion_bar(name: &str, line: &AchievementCriterionLine, y: f32) -> Element {
+    // Mainline XML510–569 is212×14, not the old398×16 heuristic bar.
+    // Lua2015 centers it with x+4; retain the existing398-wide criteria area.
+    let width = 212.0;
+    let height = 14.0;
+    let left = 80.0 + (398.0 - width) * 0.5 + 4.0;
+    let fraction = if line.required == 0 {
+        0.0
+    } else {
+        line.current.min(line.required) as f32 / line.required as f32
+    };
+    let text = format!("{}/{}", line.current, line.required);
+    let caption = rsx! { fontstring {name:{DynName(name.to_owned())},width,height,
+        text:text.as_str(),font:GameFont::FrizQuadrata,font_size:12.0,font_color:WHITE,
+        justify_h:"CENTER",justify_v:"TOP",left:0.0,top:0.0,pos_type:"absolute",
+    }};
+    artwork::criterion_progress(name, fraction, (left, y, width, height), caption)
+}
+
+fn criterion_checklist_text(
+    line: &AchievementCriterionLine,
+    earned: bool,
+) -> (String, &'static str) {
+    if !line.progress_supported {
+        return (format!("[Unevaluated] {}", line.description), GREY);
+    }
+    if !line.completed {
+        return (format!("- {}", line.description), "0.6,0.6,0.6,1");
+    }
+    let color = if earned && thread_skin() == ActiveSkin::Modern {
+        "0,0,0,1"
+    } else {
+        "0,1,0,1"
+    };
+    (line.description.clone(), color)
+}
+
+fn criterion_checklist(
+    name: &str,
+    line: &AchievementCriterionLine,
+    earned: bool,
+    y: f32,
+) -> Element {
+    let completed = line.progress_supported && line.completed;
+    let text_left = if completed { 38.0 } else { 25.0 };
+    let (text, color) = criterion_checklist_text(line, earned);
+    let mut content = label(
+        name.into(),
+        &text,
+        (text_left, 1.0, 398.0 - text_left, 15.0),
+        color,
+        "",
+    );
+    if completed {
+        // Mainline XML703–724/Lua2058–2060: authored20×16 check, cropped to0.625.
+        content.extend(artwork::texture(
+            &format!("{name}Check"),
+            130653,
+            "0,0.625,0,1",
+            (18.0, 2.5, 20.0, 16.0),
+        ));
+    }
+    rsx! { r#frame {name:{DynName(format!("{name}Line"))},width:398.0,height:18.0,
+        left:80.0,top:y,pos_type:"absolute",{content}
+    }}
+}
+
 fn criteria_panel(window: &AchievementWindow) -> Element {
     let mut content = Vec::new();
     if let Some(entry) = window.selected().filter(|entry| entry.flags & 1 == 0) {
@@ -1651,46 +1734,11 @@ fn criteria_panel(window: &AchievementWindow) -> Element {
             .take(CRITERIA)
             .enumerate()
         {
-            let status = if !line.progress_supported {
-                "Unevaluated"
-            } else if line.completed {
-                "Complete"
-            } else {
-                "In progress"
-            };
-            let text = if line.progress_supported {
-                format!(
-                    "[{status}] {} — {}/{}",
-                    line.description, line.current, line.required
-                )
-            } else {
-                format!("[{status}] {}", line.description)
-            };
-            let name = format!(
-                "Achievement{}Criterion{}",
-                entry.achievement_id, line.tree_id
-            );
-            let y = 88.0 + index as f32 * 18.0;
-            let progress_bar = line.progress_supported && line.required > 1;
-            let color = if progress_bar || thread_skin() == ActiveSkin::Forever {
-                WHITE
-            } else {
-                "0.1,0.08,0.05,1"
-            };
-            let caption = label(name.clone(), &text, (4.0, 0.0, 396.0, 18.0), color, "");
-            if progress_bar {
-                let fraction = line.current.min(line.required) as f32 / line.required as f32;
-                content.extend(artwork::criterion_progress(
-                    &name,
-                    fraction,
-                    (80.0, y, 398.0, 16.0),
-                    caption,
-                ));
-            } else {
-                content.extend(rsx! { r#frame { name:{DynName(format!("{name}Line"))},
-                    width:398.0,height:18.0,left:80.0,top:y,pos_type:"absolute", {caption}
-                } });
-            }
+            content.extend(criterion_presentation(
+                entry,
+                line,
+                88.0 + index as f32 * 18.0,
+            ));
         }
         let tracked = window
             .tracked
