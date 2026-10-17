@@ -79,6 +79,8 @@ mod sidebarbinds_preview;
 mod spellbook_preview;
 #[cfg(debug_assertions)]
 mod stack_split_preview;
+#[cfg(debug_assertions)]
+mod static_popup_shadow_preview;
 mod target_cast_preview;
 mod toy_cooldown;
 mod toybox_preview;
