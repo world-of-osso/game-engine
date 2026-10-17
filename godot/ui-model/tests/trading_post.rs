@@ -8,6 +8,97 @@ use ui_toolkit::{
     screen::{Screen, SharedContext},
 };
 
+fn purchase_price_view() -> View {
+    let mut data = snapshot();
+    let template = data.items[0].clone();
+    for (id, name, price, purchased, refund_seconds, priority) in [
+        (10, "Zeta Purchased", 900, true, 0, 1000),
+        (11, "Alpha Purchased", 800, true, 0, 1000),
+        (12, "Zeta Refundable", 700, true, 60, 1000),
+        (13, "Alpha Refundable", 600, true, 60, 1000),
+        (14, "Cheap Unowned", 10, false, 0, 1000),
+        (15, "Costly Unowned", 20, false, 0, 1000),
+        (16, "Higher Group Purchased", 1, true, 0, 2000),
+    ] {
+        data.items.push(TradingPostItem {
+            id,
+            name: name.into(),
+            price,
+            purchased,
+            collected: purchased,
+            refund_seconds,
+            ui_group_priority: priority,
+            ..template.clone()
+        });
+    }
+    View {
+        visible: true,
+        snapshot: Some(Arc::new(data)),
+        selected: Some(4),
+        cart: vec![14],
+        ..Default::default()
+    }
+}
+
+#[test]
+fn trading_post_purchase_price_sort_orders_owned_buckets_in_both_directions() {
+    let mut view = purchase_price_view();
+    for (ascending, expected) in [
+        (false, vec![16, 15, 14, 13, 12, 11, 10]),
+        (true, vec![16, 11, 10, 13, 12, 14, 15]),
+    ] {
+        view.click("perks:sort:price").unwrap();
+        assert_eq!(view.ascending, ascending);
+        assert_eq!(
+            view.rows().iter().map(|row| row.id).collect::<Vec<_>>(),
+            expected
+        );
+    }
+    assert_eq!(view.selected, Some(4));
+    assert_eq!(view.snapshot.as_ref().unwrap().frozen_item_id, Some(4));
+    assert_eq!(view.snapshot.as_ref().unwrap().tender, 500);
+    assert_eq!(view.cart, [14]);
+}
+
+#[test]
+fn trading_post_purchase_price_sort_uses_elapsed_refund_boundary_not_selection() {
+    let mut view = purchase_price_view();
+    view.click("perks:sort:price").unwrap();
+    for (elapsed, descending, ascending) in [
+        (
+            59,
+            vec![16, 15, 14, 13, 12, 11, 10],
+            vec![16, 11, 10, 13, 12, 14, 15],
+        ),
+        (
+            60,
+            vec![16, 15, 14, 11, 13, 10, 12],
+            vec![16, 11, 13, 10, 12, 14, 15],
+        ),
+        (
+            61,
+            vec![16, 15, 14, 11, 13, 10, 12],
+            vec![16, 11, 13, 10, 12, 14, 15],
+        ),
+    ] {
+        view.refund_elapsed = elapsed;
+        for (direction, expected) in [(false, descending), (true, ascending)] {
+            view.ascending = direction;
+            assert_eq!(
+                view.rows().iter().map(|row| row.id).collect::<Vec<_>>(),
+                expected,
+                "elapsed={elapsed}, ascending={direction}"
+            );
+        }
+    }
+    assert_eq!(
+        view.selected,
+        Some(4),
+        "refund lookup is per row, not selected"
+    );
+    assert_eq!(view.snapshot.as_ref().unwrap().items[3].refund_seconds, 60);
+}
+
 #[test]
 fn trading_post_frozen_row_exclusion_keeps_frozen_details_selectable_in_both_skins() {
     for skin in [ActiveSkin::Modern, ActiveSkin::Forever] {
