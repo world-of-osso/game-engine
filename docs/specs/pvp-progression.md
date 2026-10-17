@@ -46,7 +46,7 @@ Lead-authorized World of Osso policy [HONOR_WALLET_MIRRORS_HONOR_XP](../../../ga
 
 `RANDOM_BG_WIN_REWARD_PROFILE` remains unresolved. Pinned TC a352b1fa compiled defaults and shipped assignments are first/repeat win27000/13500 and loss4500/3500, passed as kill equivalents rather than flat Honor. Daily reset defaults to06:00 server-local time; neither amounts nor reset authority is adopted by this project. No first-win/daily state or Random completion grant is authorized.
 
-Random32 admission uses parent map566's source bracket (first20–29), parent minimum5/team, capacity10/team and maximum party5. Configured templates are weighted; Deepwind2245 is excluded because its concrete template is absent. Each player's original queue32 must survive selection separately from the concrete map. Cross-range selection policy is pending: the same RangeIndex can label20–29 on566,10–19 on2107, and80 on2656. Existing payouts must not change before that decision.
+Random32 admission uses parent map566's source bracket (first20–29), parent minimum5/team, capacity10/team and maximum party5. Queued members and parent matchmaking retain original32. This prerequisite does not create a concrete instance: current Retail leveling/map-selection research is pending, and Random32 stays queued on the server. The configured pool's missing Deepwind2245 template is recorded, not bypassed. Later selection must preserve original32 separately from the concrete map. Do not copy TC RangeIndex across incompatible ranges or change existing payouts before the Retail decision.
 
 ## Eye holiday authority — 70448 read-only
 
