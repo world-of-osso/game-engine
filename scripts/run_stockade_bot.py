@@ -14,7 +14,7 @@ from collections import Counter
 from contextlib import closing
 from pathlib import Path
 
-from bot_controller import native_usable, publish
+from bot_controller import native_usable, opening_abandonment, owner_in_combat, publish
 from bot_dungeon import summarize_dungeon
 from bot_gear import equipment_receipt, load_plan
 from bot_harness import parse_combat, poll_has_gap, routed_player
@@ -229,7 +229,7 @@ class StockadeRun:
 
     def move(self, here, goal, label):
         if self.player.step_toward(here, goal, label):
-            return
+            return True
         time.sleep(.7)
         after = position(self.account())
         progressed = math.hypot(after[0] - here[0], after[2] - here[2]) >= .15
@@ -237,6 +237,7 @@ class StockadeRun:
         # Preserve the maintained walk_route eight-step native failure boundary.
         if self.blocked_steps >= 8:
             raise RuntimeError(f"Native route blocked after eight steps at {after}; goal {goal}")
+        return False
 
     def approach_opening(self, target):
         deadline = time.monotonic() + 60
@@ -246,6 +247,9 @@ class StockadeRun:
             self.party()
             self.poll_combat()
             state = self.snapshot(target)
+            abandoned = opening_abandonment(state, target)
+            if abandoned is not None:
+                return abandoned
             here = position(self.account())
             if previous is not None:
                 traveled += math.dist(previous, here)
@@ -260,20 +264,27 @@ class StockadeRun:
                     "facts": state["facts"], "in_range": ranged, "visibility": state["visibility"],
                     "traveled_yards": traveled}) + "\n")
             if visible and usable:
-                return
+                return None
             if not ranged or not visible:
                 self.move(here, state["target_position"], "native-ranged-approach")
             time.sleep(.1)
         raise TimeoutError("Native opening visibility/range/usability not reached in60s; no cast or alternate")
 
     def open_pull(self):
+        if owner_in_combat(self.rotation()):
+            return
         target = self.player.tab_to_enemy()
         receipt = {"at_ms": int(time.time() * 1000), "target": target, "spell": 57755,
                    "source": "approved native Heroic Throw prep; server validates range/usability"}
         self.run["openings"].append(receipt)
         try:
-            self.approach_opening(target)
-            receipt["outcome"] = self.player.cast_opening(target, 57755)
+            outcome = self.approach_opening(target)
+            if outcome is None:
+                outcome = self.player.cast_opening(target, 57755)
+            if "abandoned" in outcome:
+                receipt.update(outcome)
+                return
+            receipt["outcome"] = outcome
             self.opening_target = target
         except Exception as error:
             receipt["error"] = str(error)
@@ -283,6 +294,8 @@ class StockadeRun:
 
     def step(self):
         self.poll_combat()
+        if not self.player.observe_cast_outcome(self.rotation()):
+            return False
         self.record_credit()
         if self.run["clear_elapsed_ms"] is not None:
             return True
@@ -304,9 +317,10 @@ class StockadeRun:
             if gap > 2.5:
                 endpoint = [goal[0] + (here[0] - goal[0]) * 2.5 / gap, goal[1],
                             goal[2] + (here[2] - goal[2]) * 2.5 / gap]
-                self.move(here, endpoint, "native-melee-approach")
-            else:
-                self.player.cast_next(target, authored_priority)
+                if not self.move(here, endpoint, "native-melee-approach"):
+                    time.sleep(.2)
+                    return False
+            self.player.cast_next(target, authored_priority)
         elif all(row["health"] >= row["max_health"] for row in party):
             self.open_pull()
         time.sleep(.2)

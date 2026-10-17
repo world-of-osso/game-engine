@@ -4,6 +4,37 @@ use crate::game_tooltip::GameTooltip;
 use crate::tooltip_presentation::{TOOLTIP_DESCRIPTION_COLOR, TOOLTIP_WHITE, TooltipPresentation};
 
 impl View {
+    /// Elements.lua123–137: refund time belongs to the hovered row, not the preview.
+    pub fn refund_icon_tooltip(&self, vendor_id: u32) -> Option<GameTooltip> {
+        if !self.visible {
+            return None;
+        }
+        let row = self
+            .snapshot
+            .as_ref()?
+            .items
+            .iter()
+            .find(|row| row.id == vendor_id)?;
+        let seconds = row.refund_seconds.saturating_sub(self.refund_elapsed);
+        if seconds == 0 {
+            return None;
+        }
+        let time_color = if seconds > 3600 {
+            TOOLTIP_WHITE
+        } else {
+            [1.0, 0.1, 0.1, 1.0]
+        };
+        Some(GameTooltip::new(
+            TooltipPresentation {
+                title: "Time remaining to refund this item: ".into(),
+                title_color: TOOLTIP_WHITE,
+                title_suffix: Some((super::history::format_time_left(seconds), time_color)),
+                ..TooltipPresentation::hidden()
+            },
+            None,
+        ))
+    }
+
     /// Actual expanded cart owner, not the product selected in the model scene.
     pub fn cart_item_tooltip(
         &self,

@@ -28,7 +28,9 @@ fn load_retail_strings() -> HashMap<String, String> {
         .expect("GlobalStrings TagText_lang column");
     table
         .records()
-        .map(|row| (row[tag].to_string(), row[value].to_string()))
+        // GlobalStrings stores quotation marks as backslash-quote; these are
+        // display quotes, not literal backslashes in localized UI text.
+        .map(|row| (row[tag].to_string(), row[value].replace("\\\"", "\"")))
         .collect()
 }
 

@@ -9,6 +9,84 @@ use ui_toolkit::{
 };
 
 #[test]
+fn trading_post_refund_icon_tooltip_uses_hovered_row_time_not_selected_product() {
+    let mut data = snapshot();
+    let mut refundable = data.items[0].clone();
+    refundable.id = 5;
+    refundable.refund_seconds = 3661;
+    refundable.purchased = true;
+    data.items.push(refundable);
+    let view = View {
+        visible: true,
+        selected: Some(4),
+        snapshot: Some(Arc::new(data)),
+        refund_elapsed: 60,
+        ..Default::default()
+    };
+    let tooltip = view.refund_icon_tooltip(5).unwrap();
+    assert_eq!(
+        tooltip.content.title_text(),
+        "Time remaining to refund this item: 1h"
+    );
+    assert_eq!(
+        tooltip.content.title_suffix,
+        Some(("1h".into(), [1., 1., 1., 1.]))
+    );
+    assert!(tooltip.content.lines.is_empty());
+    assert!(tooltip.record.is_none());
+    assert!(view.refund_icon_tooltip(4).is_none());
+    assert!(view.refund_icon_tooltip(999).is_none());
+    assert_eq!(view.selected, Some(4));
+    assert_eq!(view.snapshot.as_ref().unwrap().tender, 500);
+    assert_eq!(view.snapshot.as_ref().unwrap().frozen_item_id, Some(4));
+}
+
+#[test]
+fn trading_post_refund_icon_tooltip_truncates_minutes_and_colors_time_at_one_hour() {
+    for (seconds, text, color) in [
+        (90061, "1d 1h", [1., 1., 1., 1.]),
+        (3661, "1h 1m", [1., 1., 1., 1.]),
+        (3600, "1h", [1., 0.1, 0.1, 1.]),
+        (3599, "59m", [1., 0.1, 0.1, 1.]),
+        (59, "0m", [1., 0.1, 0.1, 1.]),
+    ] {
+        let mut data = snapshot();
+        data.items[0].refund_seconds = seconds;
+        let view = View {
+            visible: true,
+            snapshot: Some(Arc::new(data)),
+            ..Default::default()
+        };
+        let tooltip = view.refund_icon_tooltip(4).unwrap();
+        assert_eq!(
+            tooltip.content.title,
+            "Time remaining to refund this item: "
+        );
+        assert_eq!(tooltip.content.title_suffix, Some((text.into(), color)));
+    }
+}
+
+#[test]
+fn trading_post_refund_icon_tooltip_hides_at_expiry_and_vendor_teardown() {
+    let mut data = snapshot();
+    data.items[0].refund_seconds = 60;
+    let mut view = View {
+        visible: true,
+        snapshot: Some(Arc::new(data)),
+        refund_elapsed: 59,
+        ..Default::default()
+    };
+    assert!(view.refund_icon_tooltip(4).is_some());
+    view.refund_elapsed = 60;
+    assert!(view.refund_icon_tooltip(4).is_none());
+    view.refund_elapsed = 61;
+    assert!(view.refund_icon_tooltip(4).is_none());
+    view.refund_elapsed = 0;
+    view.visible = false;
+    assert!(view.refund_icon_tooltip(4).is_none());
+}
+
+#[test]
 fn trading_post_row_cart_toggle_changes_hovered_product_not_selected_preview() {
     let mut data = snapshot();
     let mut other = data.items[0].clone();
