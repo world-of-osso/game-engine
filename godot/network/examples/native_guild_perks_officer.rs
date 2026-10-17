@@ -109,7 +109,8 @@ impl Officer {
     }
 
     fn drive(&mut self) -> Result<(), String> {
-        let deadline = Instant::now() + Duration::from_secs(1200);
+        // Mobile Banking native proof observes the real two-hour policy deadline.
+        let deadline = Instant::now() + Duration::from_secs(8400);
         loop {
             for event in self.bridge.drain_events()? {
                 match event {

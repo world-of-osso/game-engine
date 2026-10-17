@@ -1,6 +1,7 @@
-- [ReadyCheck title colour](systems/group-frames.md#readycheck-title-colour--implementation-2026-10-17) — source NORMAL_FONT_COLOR RGB(255,210,0), only TITLE_COLOR; genuine approximate-green RED→GREEN4/check, native pending gate.
+- [ReadyCheck portrait-area audit](systems/group-frames.md#readycheck-portrait-area-source-audit--2026-10-17) — frame323×100/message+20 already match source; approved initiator54×54/PortraitFrameTemplate restoration, missing-host RED→model5/roster8/check; canonical initiator roster/renderer, native pending gate.
+- [ReadyCheck title colour](systems/group-frames.md#readycheck-title-colour--implementation-2026-10-17) — source NORMAL_FONT_COLOR RGB(255,210,0), only TITLE_COLOR; RED→GREEN4/check, post447e both-skin192 green-only changes/zero outside/exact restore; layout/full-popup/lifecycle remain gaps.
 - [ReadyCheck title shadow](systems/group-frames.md#readycheck-title-shadow--implementation-2026-10-17) — inherited Roman black(+1,−1), native y-down(+1,+1); RED→GREEN4/check, post436e both-skin462 dark pixels/zero outside/exact restore; title colour/layout remain gaps.
-- [Committed frozen-product list exclusion](systems/trading-post.md#committed-frozen-product-list-exclusion--october17) — source excludes only the committed ID; full-snapshot frozen selection/pending candidate retained; model RED→GREEN,54focused Rust/UI(+1DB2)/check/fmt pass, post-gate native pending.
+- [Committed frozen-product list exclusion](systems/trading-post.md#committed-frozen-product-list-exclusion--october17) — source excludes only the committed ID; full-snapshot frozen selection/pending candidate retained; model RED→GREEN,54focused Rust/UI(+1DB2)/check/fmt pass; post443e both-skin seven-check native swap/restoration GREEN, originals never cleared.
 - [Trading Post accepted freeze-lock sound](systems/trading-post.md#accepted-freeze-lock-sound--october17) — sourced218229/four authenticated variants; registry/native RED→both-skin nine-checkpoint/two-play GREEN, genuine640/712 replacement/restoration, no reservation clearing.
 - [UI_SOUND_PITCH_ADJUST_RATE](systems/sound.md#ui_sound_pitch_adjust_rate) — Retail UI/data inspected, playback-rate equation unestablished; hide/show remains deferred with no code.
 - [Trading Post product-enter sound](systems/trading-post.md#product-enter-sound--october17) — sourced218934, ordinary/inherited owner lifecycle, authenticated70448 Ogg; registry/native missing-playback RED→both-skin five decoded plays/12 lifecycle checkpoints, conserved authority.
@@ -32,6 +33,8 @@
 # Wiki Index
 
 - [Vanish selection withdrawal](systems/bot-harness.md#vanish-selection-withdrawal--2026-10-17) — real run23 no-selection abort; bounded next-cycle native tank assist preserves pending ACK/fact failures, native recovery pending.
+- [Whole-party existing-copy backfill](systems/battlegrounds.md#whole-party-existing-copy-backfill--2026-10-17) — real Waiting/running party RED→GREEN22, same map/reservation ownership and old60s capture preserved; decline/leave/offline-expiry refill, named smaller-team/match-order policies; no timer/minimum/reward changes.
+- [Random32 level-eligible configured selection](systems/battlegrounds.md#random32-level-eligible-configured-selection--2026-10-17) — Retail-based project policy, actual-level selected bracket and original per-player32; no daily/reward grant, Deepwind template absent; event-driven backfill handles existing copies.
 
 - [Eye7 holiday authority](investigations/eye-holiday-authority.md) — authenticated70448 holiday492 has fixed2007 date,72/1776-hour durations andLooping0; TC interval evaluation is sourced, but effective game_event schedule is not. Namedgap HOLIDAY492_EFFECTIVE_EVENT_AUTHORITY; no payout/default calendar policy adopted.
 

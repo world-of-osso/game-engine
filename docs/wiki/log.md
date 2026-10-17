@@ -1,13 +1,20 @@
 ## 2026-10-17 — Vanish selection withdrawal
 
 [Harness boundary](systems/bot-harness.md#vanish-selection-withdrawal--2026-10-17): real run23 Vanish55964 withdraws selected living Moloch and its return does not reselect him. Retained-frame RED reaches original ten-second fact deadline. Approved recovery ends only fresh living/InWorld/in-combat no-selection steps with no pending cast, then leaves ordinary next-cycle Garrick assist and fresh cast gates intact. Synthetic continuation controls distinguished; live recovery/clear still pending.
+## 2026-10-17 — Existing-copy whole-party backfill
+
+[Backfill](systems/battlegrounds.md#whole-party-existing-copy-backfill--2026-10-17): real Waiting/running ordinary-party RED2 match2vs1→targeted GREEN22. Random5v5 Waiting reaches same20-player map/natural source minimum; running direct20 gains Random10 with mixed origins/old score/source60s capture clock preserved. Decline/leave and actual disconnect/existing300s expiry trigger refill without new requests. Atomic reservation ownership, outstanding capacity, match order/nonfit/range/Ended/arena controls pass. Explicit project policies replace TC faction/parity/push-front decisions; no timer/minimum/reward changes. Final scoped/integration evidence lives in the backfill proof ledger; no external UDP/rendered claim.
+
+## 2026-10-17 — Random32 level-eligible selection policy
+
+[Random32](systems/battlegrounds.md#random32-level-eligible-configured-selection--2026-10-17): explicit RANDOM_BG_LEVEL_ELIGIBLE_MAPS policy replaces cross-map TC RangeIndex copying. Parent566 admission20+/5–10 per team/party≤5; weighted configured maps must contain actual queued levels in their own bracket. Original queue32 is retained per player independently of the concrete map. No new payout/daily state. BG_FILL_EXISTING_COPY remains explicitly accepted: selected8/team maps may remain Waiting with parent5/team; no reduced start criterion. RANDOM_BG_WIN_REWARD_PROFILE remains unresolved. Targeted proof ledger is authoritative; no rendered/live completion claim.
 
 ## 2026-10-17 — Eye holiday492 read-only authority audit
 
 [70448 source finding](investigations/eye-holiday-authority.md): verified installed build/config/schema/CSV receipts, BML7→map566/PVPDifficulty links,811 readable Holidays rows. Holiday492 Date0 decodes2007-11-27UTC; durations72/1776h,Looping0/filter2 do not authorize77-day recurrence. Pinned TC evaluator/constructor sampling sourced, but effective game_event row/stage/schedule missing; HOLIDAY492_EFFECTIVE_EVENT_AUTHORITY remains open. Finding sent before code; no RED/runtime implementation/calendar default.
 ## 2026-10-17 — Committed frozen-product list exclusion
 
-[Ordinary-list contract](systems/trading-post.md#committed-frozen-product-list-exclusion--october17): two behavioral model REDs `[5,6,4]`vs`[5,6]` precede the minimal committed-ID predicate. Full snapshot/frozen selection/pending candidate stay intact; hover/lock fixture assumptions corrected without replaying historical audio proof. Targeted GREEN2 and current7f source42UI+12native Rust(+1DB2)/helper check35.07s/noWarnings/scoped Rustfmt2/readability pass. Both-skin genuine640/712 replacement/restoration remains pending after the gate, never an empty-slot reset. Active SoundKit audit correction to70448 included; no pitch/audio/server changes.
+[Ordinary-list contract](systems/trading-post.md#committed-frozen-product-list-exclusion--october17): two behavioral model REDs `[5,6,4]`vs`[5,6]` precede the minimal committed-ID predicate. Full snapshot/frozen selection/pending candidate stay intact; hover/lock fixture assumptions corrected without replaying historical audio proof. Targeted GREEN2 and current7f source42UI+12native Rust(+1DB2)/helper check35.07s/noWarnings/scoped Rustfmt2/readability pass. After443e, freshc123/S7f0/P7a both-skin seven-check native GREEN: committed row absent/slot present, filtered full-snapshot selection, pending/cancel stability, accepted row swap and genuine640→642→640/712→734→712 restored before verdict. Tender/appearance collections/cart/catalog1382/order conserved; twelve inspected PNGs published, exact binaries/receipts/six original memory edges retained. Startup readiness probe only expired while the same server PID progressed; no client/transaction before ready, no restart or reservation clearing. Active SoundKit audit correction to70448 included; no pitch/audio/server changes.
 
 ## 2026-10-17 — PitchAdjust active-build correction
 
@@ -16,9 +23,13 @@
 ## 2026-10-17 — Native release20 Arathi lifecycle
 
 [Bounded release proof](systems/battlegrounds.md#native-release20-arathi--bounded-proof2026-10-17): landed-master bookworm extension/server/19peers, actual loaded release hash; normal four5-player parties→one20/10v10 match, five banner assaults, natural1500–0, winning wallet/XP671 and losing61 across20, all origin-map returns. Four inspected both-skin1920×1080 scoreboard/end originals shared. First cold10.5686s frame/peer12 timeout retained; same-code/privateDB bounded retry passes, not a cold-stall fix. Numeric wallet pixels6... remain diagnostic-only; raw log order/timestamp limits/import errors explicit. Owned scope stopped,5941free/window cleared13:44:45.
+## 2026-10-17 — ReadyCheck portrait-area audit
+
+[Source comparison](systems/group-frames.md#readycheck-portrait-area-source-audit--2026-10-17): source323×100/CENTER(0,−10), width240/TOP(+20,−37) exactly explain right-offset message; no recentering fix. XML23/63–74 and Lua30 instead expose omitted initiator54×54 portrait at Godot(0,−3) and wrong static-popup rather than PortraitFrameTemplate chrome. Portrait-area-only restoration subsequently approved: missing-host RED4pass1fail precedes sourced host/metal chrome and actual initiator roster/renderer binding; no protocol/stand-in/fallback. Model5/roster8 GREEN/check23.39s/scopedfmt/diff/readability pass; initial E0425 missing import retained/fixed, not behavioral RED. Native head/cleanup proof waits for gate/landing. Title layout/difficulty/mask-camera/full-popup/lifecycle remain gaps.
+
 ## 2026-10-17 — ReadyCheck title colour
 
-[Title colour](systems/group-frames.md#readycheck-title-colour--implementation-2026-10-17): XML53→GameFontNormal→FontStyles50→GlobalColor1 NORMAL_FONT_COLOR−11776/0xFFFFD200. Genuine RED3pass1fail green0.82vs0.8235294,295.3s helper; only TITLE_COLOR repaired, shadow/font/geometry/body/buttons/actions conserved. Existing fixture colour controls reconciled; old captures retain binary scope. Committed eadfaf973 GREEN4/4 (19.6s helper), engine/network check185.8s wall/no warnings; scoped format/diff/readability pass. Exact receipts in local ledger; native pending lead gate, title layout/global palette/full-popup/lifecycle remain gaps.
+[Title colour](systems/group-frames.md#readycheck-title-colour--implementation-2026-10-17): XML53→GameFontNormal→FontStyles50→GlobalColor1 NORMAL_FONT_COLOR−11776/0xFFFFD200. Genuine RED3pass1fail green0.82vs0.8235294,295.3s helper; only TITLE_COLOR repaired, shadow/font/geometry/body/buttons/actions conserved. Existing fixture colour controls reconciled; old captures retain binary scope. Committed eadfaf973 GREEN4/4 (19.6s helper), engine/network check185.8s wall/no warnings; scoped format/diff/readability pass. Post447e landed43e3 native bothskins1920 exactRGBA8/192green-onlylightenedpixels/zero outside-redblue-darkening/sourceRGBArestoreexact;12opaque changedpixels targetRGB255,210,0. Binary8c337c56/284.1s build versus fixture-onlyfdea invocation recorded separately; panels/fullviews inspected, window cleared/slice stopped. Exact receipts in local ledger; title layout/global palette/full-popup/lifecycle remain gaps.
 
 ## 2026-10-17 — ReadyCheck title shadow
 
@@ -4578,3 +4589,15 @@ Source Item ownership replaces row-press actions; inset-aware native Button pick
 - 2026-10-17: [Cooldown-assist](investigations/cooldown-assist-data.md#assisted_combat_simc_mirror): user-approved bounded Fury spatial mirror; native Retail authority remains unknown.
 
 - 2026-10-17: [Run22 native policy partial](investigations/cooldown-assist-data.md#native-policy-observation--run22): prior Fury predicate refusal passed; tank death before first boss leaves clear acceptance open.
+
+## 2026-10-17 — Resurrection guild perk excluded by user
+
+User clarification: World of Osso has no resurrection guild perk. Removed Quick/Dead from pending effect coverage; historical installed-data/native receipts are not project requirements. Mobile Banking remains active with the separately specified2h policy.
+
+## 2026-10-17 — Mobile Banking user policy implemented
+
+User decision specifies MOBILE_BANKING_COOLDOWN_2H7200000ms over installed3600000ms. Installed faction children/type34/lifetime and Friendly1168 chest-user gate; no Friendly cast gate. Real server5/5 and tooltip1/1 GREEN; midcast loss checked before consumption. Native actual5min/2h both-skin proof pending. Resurrection perk excluded by user, not a gap.
+
+## 2026-10-17 — Mobile native clock oracle
+
+[Guild perks](systems/guilds.md#perk-native-authority-and-effect-boundary-2026-10-16): production/Modern proof complete, real7311223ms accepted-recast gap saved; independent425/425b passed. Native measurement now uses the received server CastSuccess timestamp, not float32 countdown interpolation. Retry only remaining Forever case on unchanged artifacts; no overall completion claim yet.

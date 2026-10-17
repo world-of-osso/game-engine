@@ -93,9 +93,12 @@ Actual UDP invitations/acceptance, online officer removal, rejoin and ordinary q
 |---|---|---|
 | Mount Up78633 | Aura172/211/210,10% | Supported172/211 and map suppression landed. Real Golden Gryphon/Crusader/map controls pass; actual both-skin invitation/removal produces run14→15.4→14 and flight22.4→24.64→22.4. Controlled-NPC flight210 remains explicitly blocked. |
 | Hasty Hearth83944 | Aura453,−900000ms, misc2309 | Isolated8690 casts produce30/15/30-minute charge2309 recovery; actual Human458619 adds a second charge/-5min. Four Hasty controls preserve consumed clocks and mixed25/10/25-minute queued uses; ten rate and three snapshot controls also pass. Identical-binary actual Human item6948 scenarios pass both skins: four physical8690 casts, current1→0/max2,25/10-minute recovery, four actual invitation/removal cycles and exact114 non-guild IDs retained. |
-| Mobile Banking83958 | Script effect77; description references88306,5min | No83958/88306 script or guild-chest reputation authority established. Effect77 is not a generic summon-object effect. |
-| The Quick and the Dead83950 | Aura340,+50%; second dummy effect10% | Resurrection-health, ghost-speed and combat/PvP exclusion not implemented/proven by this slice. |
+| Mobile Banking83958 | Script77 dispatches installed88304/88306 → Alliance206602/Horde206603,type34,300000ms | User decision2026-10-17: MOBILE_BANKING_COOLDOWN_2H overrides DB2 recovery3600000ms. Guild members may cast without Friendly; chest users require current membership and Friendly1168. Server6/6 and tooltip1/1 GREEN; independent425/425b gates passed. Modern actual300s despawn, member bank/nonmember refusal and server-accepted7311223ms recast are proven; remaining Forever real-clock proof pending. |
 | Guild Mail83951 | Source dummy aura; mail send checks actual same guild | Existing `mail::send` sets attached-mail delay to zero for same-guild members; retain separate behavioral control. |
+
+Native Mobile timing uses the actual received server CastSuccess Unix timestamp correlated with observer clocks on the same host. The locally interpolated float32 UI countdown is not a lifetime/deadline oracle. Officer peers authenticate only during membership actions, not during long timer observations. Friendly3000 is an explicit private fixture prerequisite, not an earned-reputation claim.
+
+User clarification2026-10-17: World of Osso has no resurrection guild perk;83950 is not a pending effect gap. Earlier five-ID native receipts describe installed catalog data, not a resurrection-effect requirement.
 
 Authority: installed active Spell/SpellEffect CSVs; server `auras/stat_mods.rs`, `auras/handlers.rs`, `spell_cast/effects.rs`, `mail.rs`; pinned TC Guild.cpp2322/3002. Missing effect behavior is an explicit gap, not a fabricated buff or chest.
 

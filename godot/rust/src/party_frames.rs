@@ -324,6 +324,7 @@ impl GameClient {
     pub(super) fn update_group_frames(&mut self, delta: f32) -> Result<(), FrameError> {
         if self.account.session.screen != SessionScreen::InWorld {
             self.clear_party_portraits();
+            self.clear_ready_check_portrait();
             self.group_frames.close();
             return Ok(());
         }
@@ -368,6 +369,7 @@ impl GameClient {
         let frames = self.group_frames_view();
         self.show_group_ui(frames, popups)?;
         self.sync_party_portraits()?;
+        self.sync_ready_check_portrait()?;
         Ok(())
     }
 
