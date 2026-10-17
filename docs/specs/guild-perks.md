@@ -42,10 +42,21 @@ Retail Mainline Benefits perks in Modern and Forever. Definitions: installed `db
 - [x] Source Benefits names/order/tab visibility pass against the actual installed five-definition catalog in both skins.
 - [x] Real native spell tooltips, physical Shift-click draft/server echo and fresh-process owner knowledge pass both skins.
 - [x] Physical ordinary clicks on all five rows send no spells in either skin. Actual modified insertion at an existing caret survives the next model sync and server echo.
-- [ ] Independent lead landing gate remains separate.
-- [ ] Mount Up, Hasty Hearth, Mobile Banking and The Quick and the Dead effects are not established; [effect matrix](../wiki/systems/guilds.md#perk-native-authority-and-effect-boundary-2026-10-16).
+- [x] Bounded catalog/membership/UI and caret follow-up landed; individual effect gates remain separate.
+- [x] Supported Mount Up172/211 and map suppression landed; both-skin actual movement/removal proof and ten inspected mounted originals pass. Controlled-NPC flight210 remains explicitly blocked.
+- [ ] Hasty Hearth, Mobile Banking and The Quick and the Dead remain separately qualified; [effect matrix](../wiki/systems/guilds.md#perk-native-authority-and-effect-boundary-2026-10-16).
 - [x] Actual UDP invitation/forced removal/rejoin/quit, fresh-process native owner/tooltip readback and inspected1920×1080 both-skin captures.
 
 ## Out of scope
 
 Guild rewards require their separate runtime import and reputation/achievement eligibility; existing62 TDB rows are not a working reward system. Invitation tabards follow this slice. Unimplemented perk effects remain named gaps rather than fabricated functionality.
+
+## Hasty Hearth native effect proof (active)
+
+- [x] Physical backpack use of real6948 completes8690 and reports charge2309. Actual Human458619 remains known: two charges,25-minute nonmember and10-minute guild recovery (isolated base without racial is30/15 minutes).
+- [x] Actual invitation acceptance/removal does not retime an already-consumed Hearthstone charge. Modern/Forever observe the same owner authority.
+- [x] Fresh server/client scenarios establish both baseline and member consumption without injecting or shortening charge clocks. `guild_hasty_hearth_live.gd` reads actual charge timers and cast-success receipts. Each scenario physically consumes one of the Human's two charges in each skin. Twelve inspected full-HD originals show backpack/item/cast context; numeric recovery comes from actual owner receipts, not a rendered timer label. Pending-clock persistence across restart is not claimed.
+
+## Mount Up native effect proof
+
+`guild_mount_up_live.gd` observes the local player's actual replicated MovementSpeed/Mounted/PlayerMotion. One rendered ordinary member and a real UDP officer perform invitation acceptance and forced removal, while real Golden Gryphon casts and physical forward/takeoff input exercise mounted ground/flight speed in both skins. Admin fixture setup teaches only the authored riding/mount spells and selects steady flight; no speed or perk/aura is injected. Expected source baseline→guild→removed is14→15.4→14 run and22.4→24.64→22.4 flight. Authored210's flying-vehicle context remains a separately named decision/proof gap, never folded into the normal player multiplier.

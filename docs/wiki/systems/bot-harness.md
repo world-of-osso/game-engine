@@ -50,6 +50,18 @@ The1280 input/result PNGs were inspected and published as `follower-dungeons/nat
 
 `bot_simc_arcane.ArcaneSimcProvider` carries the approved diagnostic projection into the maintained interface with caller-provided receipt/APL/captured-kit/DB2/native-preflight/fight context. Receipt URL/commit and actual APL bytes must match SimC515f4a3fe9d1; the [fixture provenance](../../../scripts/tests/fixtures/bot_harness/simc_arcane32/provenance.json) retains exact source paths/hashes and native row slices. The generic controller contains no Mage IDs or priority. Provider calls are read-only against frozen kit/traits; the [bounded source contract](../../specs/bot-harness.md#approved-pinned-arcane-provider) retains APL24/36/64,2700s iteration timing and explicit unsupported cases. Selection must be explicit; no provider is auto-selected after a native evaluator error.
 
+### LOS-aware pull preparation — 2026-10-16
+
+Release Stockade12b reaches three acknowledged openings, then stops after225.631s on Riverpaw Poacher46250: native range is true but no client cast ray exists and authoritative server visibility is false. A post-run sampled caster-eye→target-feet ray is blocked in the canonical Map34 bake; this sample does not establish exact receipt-time geometry for every aim point. No bosses started, no deaths occurred, and per-boss DPS stays unavailable.
+
+The observer now records target-bound `target_visibility_state`, using the same native ray search as casting. Prepull navigation follows existing strict navmesh corners while either range or visibility is false; it stops moving once both hold, waits for ordinary usability, then sends one cast. Preparation stops at60s or60yd of observed travel, checked between bounded steps. Missing/stale/error visibility blocks; no target cycling, cast retries, LOS tolerance changes or server admission changes. The captured Riverpaw replay supplies the behavioral RED; native runtime acceptance remains separate. See [contract](../../specs/bot-harness.md#native-stockade-runs).
+
+### Local range/cast pose — 2026-10-16
+
+`read_assisted_facts` and `cast_witness` share `local_cast_feet`, sampled from the current locally controlled node. The previous range reader used the replicated owner Position, which trails physical input. Native dev-IPC regression moves the real client7yd through ordinary input while its loopback host keeps the replica frozen: localx−8941.995 versus replicax−8949, yet old Slam1464 `in_range` remained true. The fixture also receives the ordinary cast and checks its origin against that local pose. `GODOT_TEST_LOCAL_RANGE_ONLY=1 native_input_fixture dev-ipc` selects this boundary without unrelated bag-catalog readiness; it is not a gameplay provider or full dev-IPC pass.
+
+Server target LOS independently uses authoritative receipt-time positions ([contract](../../../../game-server/docs/specs/line-of-sight.md#player-casts-authoritative-target-visibility)); it does not trust an endpoint that ages while an NPC moves. Neither fix changes range values, LOS tolerances, class kits or priority predicates. Fresh release-server Stockade credit remains separate.
+
 ## Capture and detection
 
 `run_dummy_bots.py` requires an explicit socket/state/DB2 directory/dummy. It saves every IPC reply, native samples, run manifest and raw combat. Overlapping ring polls preserve true event multiplicity without recounting overlap; sequence gaps use the observed200-event retention, not the requested1024 lines.
@@ -207,3 +219,25 @@ The conditional default-state investigation did **not** establish a server bug. 
 - [CharmInfo.cpp](https://raw.githubusercontent.com/TrinityCore/TrinityCore/a352b1fa/src/server/game/Entities/Unit/CharmInfo.cpp) — constructor lines26–38 sets Passive; SHA-256 `7549627bcbf51a03239e7a4cd66d2079484c23fa9f8b81b655ffcbd323d9e5a3`.
 - [Pet.cpp](https://raw.githubusercontent.com/TrinityCore/TrinityCore/a352b1fa/src/server/game/Entities/Pet/Pet.cpp) — constructor lines46–60; LoadPetFromDB line325 restores saved state; SHA-256 `05af4075958289caee8df47df991ae3b720f2a99affe6d6182c723b52282f6b2`.
 - [Unit.cpp](https://raw.githubusercontent.com/TrinityCore/TrinityCore/a352b1fa/src/server/game/Entities/Unit/Unit.cpp) — InitCharmInfo lines10445–10450; tame initialization lines11138–11215; SHA-256 `5aee33e5fad0132bb1905ea6d1c330806374457b15f918d89e0ce5d60353f981`.
+
+## Instrumented BM comparison — 2026-10-16
+
+`native-bm-simc2-debug` uses built engine2408e0399/server4bf33018/protocol44e6bed, the explicit pinned BM projection and the same persisted native pet. A preceding real PetActionButton8 click changed received stance0→3; this fresh process restored Assist without another click.
+
+| Native measurement | Full window | DPS | Owned pet damage/share |
+| --- | --- | --- | --- |
+| Earlier native priority, tame1/run1 | 60s | 52.87 | 444 /14.00% |
+| Earlier native priority, tame1/run2 | 60s | 67.45 | 518 /12.80% |
+| Explicit SimC, debug/run1 | 60s | 157.45 | 608 /6.44% |
+| Explicit SimC, debug/run2 | 60s | 168.50 | 482 /4.77% |
+| Historical Fury readiness mean | 2×60s | 180.30 | Not BM pet evidence |
+
+The new BM mean is162.975DPS, aggregate owned-pet share1090/19557=5.5735%. All28 submissions have server DEBUG receive records and retained owner CastSuccess; no native cast failures/charge denials. This is a cross-revision/provider/stance comparison, not isolated causal attribution, all40 acceptance or a balance verdict. Native75 produces one hit for one start per window; repeating ranged Auto Shot and complete SimC actor parity are **not** proved. The source KC conjunction stays unchanged for max1/noHowl.
+
+A preceding `native-bm-simc1` first window qualified148.12DPS; its second stopped on an unacknowledged Cobra193455. The target remained alive and received combat sequence241 froze while power observations advanced. Its INFO-only server log cannot establish whether that request reached the receiver. The instrumented repeat did not reproduce this gap; no server root-fix or fabricated RED test is claimed. The controller withheld further requests and the failed report keeps DPSnull. A local admission wrapper had discarded roster.main's nonzero return; it now propagates that exit, while the original exit0/raw failed report remain untouched.
+
+The corrected owned stack driver captures real frames with `eu-stack -p PID -n 64` under its process-only ptracer permission. At4.9ticks/s it retained stack, per-system timings and host load46.80/40.55/35.82; the main stack sample is in `interest::update_interest`, not proof of a universal stall cause. A previous startup stack attempt used an invalid option/exit64 and supplies **no** stack proof. Diagnostic system-timings overhead is explicit. Rendering receipt137353/sound567630 gaps remain separate from cast-delivery observations; no visual completeness claim.
+
+`navigation::open_navigation` reads `ground_data_dir()/navmesh`; GAME_SERVER_NAV_DIR is not a supported override. Both BM runs still used an incomplete engine nav alias. After them, only this owned slot's data/navmesh symlink was pointed at the already-published server map0/34 bakes, with its prior target retained in `owned-native-nav-view.json`. No canonical data, bake, coordinates or stats were changed. Stockade keeps its prepared authenticated ground root.
+
+Evidence under the durable harness root: `bm-simc-comparison.json`, `native-bm-simc{1,2-debug}/`, `server-bm-simc2-debug.log`, `stall-1792172015169-{receipt.json,stack.txt}`. Owned runtimes stopped and both timing windows cleared. Native Tab target preparation is process-correlated and alive/hostile gated; actual ranged opening and Stockade clear remain unproved.

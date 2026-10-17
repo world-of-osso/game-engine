@@ -45,6 +45,15 @@ def target_observation_ready(state, target):
     return bool(encoded) and json.loads(encoded)["target"] == int(target)
 
 
+def native_visibility(state, target):
+    visibility = state.get("visibility", {})
+    if visibility.get("error"):
+        raise ValueError(f"Native opening visibility unavailable: {visibility['error']}")
+    if visibility.get("target") != int(target) or not isinstance(visibility.get("visible"), bool):
+        raise ValueError("Native opening visibility missing or belongs to another target")
+    return visibility["visible"]
+
+
 def authored_priority(state, target):
     if state.get("target") == int(target) and state.get("spells", {}).get("target_health") == 0:
         return None

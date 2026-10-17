@@ -8,6 +8,7 @@ var last_metrics_ms := 0
 var last_assisted_target: Variant = null
 var clicking_loot := false
 var handled_loot_request := ""
+var handled_enemy_tab_request := ""
 var directory: String
 var spell_ids := PackedInt32Array()
 
@@ -79,6 +80,7 @@ func sample() -> void:
         "assisted": client.assisted_combat_state(), "inventory": client.merchant_state(),
         "pet": client.pet_bar_state()}
     if account.get("gameplay_input_allowed", false) and selected.get("target") != null:
+        rotation["visibility"] = client.call("target_visibility_state", int(selected["target"]))
         var query: Dictionary = client.call("spell_priority_state", int(selected["target"]),
             spell_ids)
         if query.has("error"):
@@ -112,6 +114,13 @@ func sample() -> void:
             handled_request = str(request["request_id"])
             assisting = true
             assist_target(request)
+    var enemy_path := directory + "/native-enemy-tab-request.json"
+    if not assisting and not clicking_loot and FileAccess.file_exists(enemy_path):
+        var request: Variant = JSON.parse_string(FileAccess.get_file_as_string(enemy_path))
+        if request is Dictionary and str(request.get("request_id", "")) != handled_enemy_tab_request:
+            handled_enemy_tab_request = str(request["request_id"])
+            assisting = true
+            tab_to_enemy(request)
     var loot_path := directory + "/native-loot-click-request.json"
     if not assisting and not clicking_loot and FileAccess.file_exists(loot_path):
         var request: Variant = JSON.parse_string(FileAccess.get_file_as_string(loot_path))
@@ -156,6 +165,53 @@ func click_loot(request: Dictionary) -> void:
     finish_loot_click(request, {"name": name, "x": point.x, "y": point.y,
         "input": "native viewport mouse motion + left press/release", "screenshot": path})
 
+func press_release_key(code: Key) -> void:
+    for pressed in [true, false]:
+        var event := InputEventKey.new()
+        event.keycode = code
+        event.physical_keycode = code
+        event.pressed = pressed
+        root.push_input(event)
+        await process_frame
+        await process_frame
+
+func finish_enemy_tab(request: Dictionary, result: Dictionary) -> void:
+    result["request_id"] = request["request_id"]
+    publish("native-enemy-tab-" + handled_enemy_tab_request + ".json", result)
+    publish("native-enemy-tab-result.json", result)
+    assisting = false
+
+func tab_to_enemy(request: Dictionary) -> void:
+    var before: Dictionary = client.target_state()
+    await press_release_key(KEY_TAB)
+    var after: Dictionary = client.target_state()
+    if after.get("target") == null:
+        finish_enemy_tab(request, {"error": "Native Tab found no target", "before": before, "after": after})
+        return
+    var deadline := Time.get_ticks_msec() + 8000
+    var observation := {"error": "Target-bound native hostility not observed"}
+    while Time.get_ticks_msec() < deadline:
+        var assisted: Dictionary = client.assisted_combat_state()
+        observation = enemy_observation(int(after["target"]),
+            str(assisted.get("evaluation_json", "")),
+            float(client.spells_state().get("target_health", -1.0)))
+        if not observation.has("error"):
+            break
+        await process_frame
+    observation.merge({"before": before, "after": client.target_state(),
+        "input": "one native KEY_TAB press/release; target-bound authored native hostility"})
+    finish_enemy_tab(request, observation)
+
+static func enemy_observation(target: int, encoded: String, health: float) -> Dictionary:
+    var evaluation: Variant = JSON.parse_string(encoded)
+    if not evaluation is Dictionary or evaluation.get("target") != target:
+        return {"error": "Native hostility evaluation belongs to another or missing target"}
+    var facts: Variant = evaluation.get("facts")
+    if not facts is Dictionary or facts.get("target_hostile") != true or health <= 0.0:
+        return {"error": "Native selected target lacks alive hostile observation"}
+    return {"selected_hostile": true, "selected_health": health,
+        "hostility_evaluation": evaluation}
+
 func finish_assist(request: Dictionary, result: Dictionary) -> void:
     result["request_id"] = request["request_id"]
     publish("native-assist-" + handled_request + ".json", result)
@@ -168,14 +224,7 @@ func assist_target(request: Dictionary) -> void:
     if str(request.get("leader_name", "")).is_empty() or before.get("target_name", "") != request["leader_name"]:
         finish_assist(request, {"error": "Native assist must start on requested leader", "before": before})
         return
-    for pressed in [true, false]:
-        var event := InputEventKey.new()
-        event.keycode = KEY_F
-        event.physical_keycode = KEY_F
-        event.pressed = pressed
-        root.push_input(event)
-        await process_frame
-        await process_frame
+    await press_release_key(KEY_F)
     var after: Dictionary = client.target_state()
     var input_done_us := Time.get_ticks_usec()
     var path := ""

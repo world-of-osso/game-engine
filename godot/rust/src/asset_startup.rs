@@ -235,7 +235,7 @@ mod tests {
     const FIXTURES: &[(&str, u32)] = &[
         ("textures/896467.blp", 896467),
         ("models/143187.m2", 143187),
-        ("models/14318700.skin", 143187),
+        ("models/490465.skin", 490465), // 143187.m2's authored primary SFID.
         ("models/108121.wmo", 108121),
         ("models/108122.wmo", 108122),
         ("terrain/7199999.adt", 7199999),
