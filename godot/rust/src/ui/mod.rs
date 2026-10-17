@@ -36,6 +36,7 @@ mod hit_button;
 #[cfg(test)]
 mod housing_drag_input_tests;
 mod housing_glow;
+mod journeys_track_mask;
 #[cfg(test)]
 mod housing_placed_list_input_tests;
 #[cfg(debug_assertions)]
