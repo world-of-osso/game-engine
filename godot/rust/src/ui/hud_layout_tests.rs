@@ -186,6 +186,8 @@ fn set_data_root() {
 }
 
 fn sync(hud: &mut [RegistryModel], skin: ActiveSkin) {
+    // Production switches the atlas/chrome skin before mirroring it into each canvas.
+    ui_toolkit::atlas::set_thread_skin(skin);
     for model in hud {
         model.sync_skin(skin);
     }
