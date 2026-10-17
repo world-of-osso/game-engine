@@ -1,3 +1,7 @@
+## 2026-10-17 — PitchAdjust source gate
+
+[UI_SOUND_PITCH_ADJUST_RATE](systems/sound.md#ui_sound_pitch_adjust_rate):3647 cached Retail Lua/XML files, the full Sound API definition and active70391 SoundKit-family fields/pertinent rows do not establish a rate equation. Exact sources/search bound by hashes; supplementary DBD gives only a float declaration. No semitone/linear/log2 guess, code, asset extraction or runtime change; hide/show218236/218237 remains deferred, selection callbacks separate. Frozen ordinary-row exclusion is proposed independently, not folded into audio work.
+
 ## 2026-10-17 — Ordinary party battleground queue
 
 [Party admission and late arrivals](systems/battlegrounds.md#ordinary-party-queue-and-late-arrivals--2026-10-17): normal invitation/accept four5-player parties→oneArathi20/10v10. QueueRED0vs20; sequentialWorldPortAck scoreboardRED18vs20→final8GREEN/check/fmt, no warnings. One zeroed accepted late-arrival row preserves real prior banner-assault scores. Native release20 and diagnostic19-peer live proof remain pending.
