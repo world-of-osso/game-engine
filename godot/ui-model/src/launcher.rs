@@ -8,7 +8,10 @@ use ui_toolkit::rsx;
 use ui_toolkit::screen::SharedContext;
 use ui_toolkit::widget_def::Element;
 
+use crate::inworld_unit_frames_component::PLAYER_PORTRAIT;
+use crate::inworld_unit_frames_component::inworld_unit_frames_flare::FLARE_PLAYER;
 use crate::micro_menu::{ACTION_PREFIX, MICRO_BUTTONS};
+use crate::panel_style_data::MetalTopLeft;
 use crate::quest_art::launcher_panel_chrome;
 use crate::ui::strata::FrameStrata;
 
@@ -274,10 +277,18 @@ fn launcher_panel(view: &LauncherView, skin: ActiveSkin) -> Element {
     let visible = view.filtered_entries();
     let height = panel_height(visible.len());
     let entries = entry_buttons(&visible, view.selected, skin);
+    // Preserve the pre-portrait default HUD clearance, including the painted metal edge.
+    let margin_top = if skin == ActiveSkin::Forever {
+        let portrait_bottom = PLAYER_PORTRAIT.rect.1 + PLAYER_PORTRAIT.rect.3;
+        let added_height = (portrait_bottom - FLARE_PLAYER.size.1).max(0.0);
+        -added_height / 2.0 - MetalTopLeft::Plain.outset()[3]
+    } else {
+        0.0
+    };
     rsx! {
         r#frame {
             name: "LauncherPanel", width: PANEL_W, height,
-            pos_type: "absolute", left: "50%", top: "50%", translate_x: "-50%", translate_y: "-50%",
+            pos_type: "absolute", left: "50%", top: "50%", translate_x: "-50%", translate_y: "-50%", margin_top,
             {launcher_panel_chrome((PANEL_W, height), HEADER_HEIGHT)}
             {search_box(&view.query, &icon_path(skin, "magnifier"))}
             {entries}

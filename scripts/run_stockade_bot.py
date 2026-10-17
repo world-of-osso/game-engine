@@ -19,7 +19,7 @@ from bot_dungeon import summarize_dungeon
 from bot_gear import equipment_receipt, load_plan
 from bot_harness import parse_combat, poll_has_gap, routed_player
 from bot_health import require_living_player
-from bot_stockade import admitted_copy, authored_priority, encounter_states, inside_exit_trigger, parse_npc, parse_party, stockade_exit_plan, stockade_plan, target_observation_ready
+from bot_stockade import admitted_copy, authored_priority, encounter_states, inside_exit_trigger, native_visibility, parse_npc, parse_party, stockade_exit_plan, stockade_plan, target_observation_ready
 from run_dummy_bots import observed_pet_owner
 
 
@@ -240,20 +240,31 @@ class StockadeRun:
 
     def approach_opening(self, target):
         deadline = time.monotonic() + 60
+        previous = None
+        traveled = 0
         while time.monotonic() < deadline:
             self.party()
             self.poll_combat()
             state = self.snapshot(target)
-            if native_usable(state, 57755):
-                return
+            here = position(self.account())
+            if previous is not None:
+                traveled += math.dist(previous, here)
+            previous = here
+            if traveled >= 60:
+                raise RuntimeError("Native opening path limit60yd reached without visibility/usability; no cast")
+            visible = native_visibility(state, target)
+            usable = native_usable(state, 57755)
             ranged = state["facts"]["in_range"]["57755"]["Ok"]
             with (self.output / "opening-approach.jsonl").open("a") as stream:
                 stream.write(json.dumps({"at_ms": state["at_ms"], "target": target,
-                    "facts": state["facts"], "in_range": ranged}) + "\n")
-            if not ranged:
-                self.move(position(self.account()), state["target_position"], "native-ranged-approach")
+                    "facts": state["facts"], "in_range": ranged, "visibility": state["visibility"],
+                    "traveled_yards": traveled}) + "\n")
+            if visible and usable:
+                return
+            if not ranged or not visible:
+                self.move(here, state["target_position"], "native-ranged-approach")
             time.sleep(.1)
-        raise TimeoutError("Native opening range/usability not reached in60s; no cast or alternate")
+        raise TimeoutError("Native opening visibility/range/usability not reached in60s; no cast or alternate")
 
     def open_pull(self):
         target = self.player.tab_to_enemy()

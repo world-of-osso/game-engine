@@ -44,6 +44,7 @@ pub(crate) struct CharacterFrame {
     /// The shown subframe.
     tab: CharacterTab,
     selected_reputation: Option<u32>,
+    currency_collapsed: bool,
     ui: Option<Gd<RegistryUi>>,
     micro_ui: Option<Gd<RegistryUi>>,
     /// Left button went down on the model scene and has not been released.
@@ -61,6 +62,7 @@ impl CharacterFrame {
         self.open = false;
         self.tab = CharacterTab::PaperDoll;
         self.selected_reputation = None;
+        self.currency_collapsed = false;
         self.rotating = false;
     }
 
@@ -135,6 +137,15 @@ impl GameClient {
     /// `CharacterFrame:ShowSubFrame` (CharacterFrame.lua:75-88) for a tab click: hiding
     /// the PaperDollFrame drops its model scene.
     fn show_character_tab(&mut self, tab: CharacterTab) {
+        if tab == CharacterTab::Currency
+            && !self
+                .account
+                .currencies
+                .as_ref()
+                .is_some_and(|wallet| !wallet.entries.is_empty())
+        {
+            return; // CharacterFrame.lua: ToggleTokenFrame refuses an undiscovered wallet.
+        }
         if self.character_frame.tab == tab {
             return;
         }
@@ -191,6 +202,11 @@ impl GameClient {
             }
             let target = CursorTarget::Location(location);
             return self.send_cursor_click(target);
+        }
+        if action == game_engine_ui_model::character_frame::ACTION_CURRENCY_COLLAPSE && !click.right
+        {
+            self.character_frame.currency_collapsed = !self.character_frame.currency_collapsed;
+            return Ok(());
         }
         if let Some(tab) = CharacterTab::from_action(action) {
             self.show_character_tab(tab);
@@ -417,11 +433,34 @@ impl GameClient {
                 self.drawable_fdid(fdid);
             }
         }
+        let has_currencies = self
+            .account
+            .currencies
+            .as_ref()
+            .is_some_and(|wallet| !wallet.entries.is_empty());
+        let currencies = if tab == CharacterTab::Currency {
+            game_engine_ui_model::character_frame::currency_rows(
+                &self
+                    .account
+                    .currencies
+                    .as_ref()
+                    .ok_or("Currency wallet has not arrived")?
+                    .entries,
+            )?
+        } else {
+            Vec::new()
+        };
+        for row in &currencies {
+            self.drawable_fdid(row.icon);
+        }
         Ok(CharacterFrameView {
             visible: true,
             tab,
             reputation,
             selected_reputation: self.character_frame.selected_reputation,
+            has_currencies,
+            currencies,
+            currency_collapsed: self.character_frame.currency_collapsed,
             title,
             level: self.character_level_line(level, class_id),
             slots,
@@ -471,14 +510,17 @@ impl GameClient {
         }
     }
 
-    /// Reputation uses the same Retail ScrollBar input as Options and QuestFrame.
-    pub(super) fn character_reputation_pointer(
+    /// Character lists use the same Retail ScrollBar input as Options and QuestFrame.
+    pub(super) fn character_lists_pointer(
         &mut self,
         event: &Gd<godot::classes::InputEvent>,
     ) -> bool {
-        let reputation_open =
-            self.character_frame.open && self.character_frame.tab == CharacterTab::Reputation;
-        if self.game_menu_ui.is_some() || !reputation_open {
+        let list_open = self.character_frame.open
+            && matches!(
+                self.character_frame.tab,
+                CharacterTab::Reputation | CharacterTab::Currency
+            );
+        if self.game_menu_ui.is_some() || !list_open {
             return false;
         }
         let Some(ui) = self.character_frame.ui.as_mut() else {
@@ -494,7 +536,7 @@ impl GameClient {
                 true
             }
             Err(error) => {
-                godot_error!("Reputation scroll: {error}");
+                godot_error!("Character list scroll: {error}");
                 true
             }
         }
