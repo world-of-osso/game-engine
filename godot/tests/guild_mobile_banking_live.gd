@@ -110,6 +110,9 @@ func prove_chest_cycle() -> bool:
 		return false
 	await capture("expired")
 	print("MOBILE_FIVE_MINUTE_PASS role=", role, " actual_elapsed_ms=", Time.get_ticks_msec() - cast_at)
+	if role.begins_with("forever"):
+		# No officer actions remain while the final real cooldown elapses.
+		mark_officer("done.go")
 	# Both skins observe one hour and the two-hour boundary using actual elapsed
 	# server time. Reduce render load while no interaction is due; never time_scale.
 	if not await wait_until_elapsed(3600000) or not await refuse_recast("one-hour-refused"):
