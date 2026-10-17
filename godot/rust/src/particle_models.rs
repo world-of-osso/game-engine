@@ -72,11 +72,7 @@ fn geometry_material(authored: &Gd<ShaderMaterial>) -> Result<Gd<ShaderMaterial>
     } else {
         return Err("particle geometry material is not an M2 model shader".into());
     };
-    let mut material = authored
-        .duplicate()
-        .ok_or("cannot duplicate particle geometry material")?
-        .try_cast::<ShaderMaterial>()
-        .map_err(|_| "particle geometry duplicate has wrong type")?;
+    let mut material = authored.duplicate_resource();
     material.set_shader(&shared_shader(&source));
     Ok(material)
 }
