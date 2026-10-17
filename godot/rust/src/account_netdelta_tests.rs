@@ -285,3 +285,30 @@ fn netdelta_guide_clock_without_full_guide_fails_without_inventing_one() {
     assert!(error.contains("before a full Adventure Guide"), "{error}");
     assert_eq!(account.adventure_guide, None);
 }
+
+#[test]
+fn netdelta_empty_delta_preserves_full_snapshot_statistics_refresh() {
+    let mut by_full = account();
+    let mut by_delta = account();
+    for account in [&mut by_full, &mut by_delta] {
+        dispatch(account, full(before()), &mut Vec::new()).unwrap();
+        account.achievement_requests.clear();
+    }
+    dispatch(&mut by_full, full(before()), &mut Vec::new()).unwrap();
+    dispatch(
+        &mut by_delta,
+        AchievementDelta {
+            earned_ids: None,
+            progress_upserts: Vec::new(),
+            removed_progress_ids: Vec::new(),
+        },
+        &mut Vec::new(),
+    )
+    .unwrap();
+    assert!(by_delta.achievements == by_full.achievements);
+    assert_eq!(by_delta.achievement_requests, by_full.achievement_requests);
+    assert!(
+        !by_delta.achievement_requests.is_empty(),
+        "unchanged grant snapshot still refreshes paginated statistics"
+    );
+}

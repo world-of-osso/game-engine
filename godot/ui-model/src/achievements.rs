@@ -790,7 +790,7 @@ impl AchievementWindow {
     pub fn snapshot(&self) -> Option<&AchievementSnapshot> {
         self.baseline.as_ref()
     }
-    /// A full snapshot (initial or query) replaces the delta baseline; an earned alert
+    /// A full snapshot (initial login or reconnect) replaces the baseline; an earned alert
     /// carries none and keeps it. Either invalidates the cached pages.
     pub fn refresh(&mut self, update: &AchievementStateUpdate) -> Vec<QueryAchievementCatalog> {
         if let Some(snapshot) = &update.snapshot {
