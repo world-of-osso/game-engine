@@ -1130,11 +1130,11 @@ func product_hover_sound_proof() -> void:
 	var other: Control
 	for value in before.rows:
 		var id := int(str(value).split("|")[0])
-		if id != frozen and control("PerksProgramProduct%d" % id) != null:
+		if id != frozen and str(value).split("|")[1] == "1" and control("PerksProgramProduct%d" % id) != null:
 			other = control("PerksProgramProduct%d" % id)
 			break
 	if other == null: fail("Hover fixture needs another visible product"); return
-	var scale := row.get_global_rect().size.x / 527.0
+	var scale := control("PerksProgramLeaveButton").get_global_rect().size.x / 180.0
 	var row_point := row.get_global_rect().position + Vector2(96,24)*scale
 	var other_point := other.get_global_rect().position + Vector2(96,24)*scale
 	await hover_sound_checkpoint("outside", 0)
@@ -1142,16 +1142,17 @@ func product_hover_sound_proof() -> void:
 	await hover_sound_checkpoint("ordinary-enter", 1)
 	await capture("ordinary-enter")
 	await hover_sound_checkpoint("ordinary-hold-refresh", 1)
-	var child := control("PerksProgramCartToggle%d" % frozen)
-	if child == null: fail("Hover fixture needs the nested cart toggle"); return
-	await motion(child.get_global_rect().get_center(), false)
-	await hover_sound_checkpoint("nested-cart-same-owner", 1)
 	await motion(slot.get_global_rect().get_center(), false)
 	await hover_sound_checkpoint("inherited-same-product-owner-change", 2)
 	await capture("inherited-enter")
 	await hover_sound_checkpoint("inherited-hold-refresh", 2)
 	await motion(other_point, false)
 	await hover_sound_checkpoint("different-product-enter", 3)
+	# Frozen products deliberately have no cart toggle; use the eligible other row.
+	var child := control(str(other.name).replace("PerksProgramProduct", "PerksProgramCartToggle"))
+	if child == null: fail("Hover fixture needs the eligible row's nested cart toggle"); return
+	await motion(child.get_global_rect().get_center(), false)
+	await hover_sound_checkpoint("nested-cart-same-owner", 3)
 	await motion(control("PerksProgramLeaveButton").get_global_rect().get_center(), false)
 	await hover_sound_checkpoint("leave", 3)
 	await motion(other_point, false)
