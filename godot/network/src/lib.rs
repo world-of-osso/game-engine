@@ -190,13 +190,20 @@ impl BridgeConfig {
         self
     }
 
-    /// Catalog pages and earned alerts retain their shared AchievementChannel order.
     /// Preserve lifecycle order across all four types on EncounterChannel.
     pub fn receive_encounters(mut self) -> Self {
         self.relays.push(install_encounter_relay);
         self
     }
 
+    /// Full Guides and clock-only updates in their InstanceChannel send order.
+    pub fn receive_adventure_guide(mut self) -> Self {
+        self.relays.push(install_adventure_guide_relay);
+        self
+    }
+
+    /// Catalog pages, full snapshots, earned alerts and deltas retain their shared
+    /// AchievementChannel order.
     pub fn receive_achievements(mut self) -> Self {
         self.relays.push(install_achievement_relay);
         self
@@ -250,7 +257,7 @@ impl NetworkBridge {
             .receive::<InstanceInfo>()
             .receive::<protocol::DungeonProgress>()
             .receive::<protocol::ChallengeSnapshot>()
-            .receive::<protocol::AdventureGuideSnapshot>()
+            .receive_adventure_guide()
             .receive::<protocol::RenownSnapshot>()
             .receive::<protocol::TradingPostSnapshot>()
             .receive::<protocol::PartyKeystoneSnapshot>()
@@ -703,23 +710,71 @@ fn install_achievement_relay(app: &mut App, events: Sender<Event>) {
     app.add_systems(
         Update,
         (move |mut pages: Query<&mut MessageReceiver<protocol::AchievementCatalogPage>>,
-               mut updates: Query<&mut MessageReceiver<protocol::AchievementStateUpdate>>| {
+               mut updates: Query<&mut MessageReceiver<protocol::AchievementStateUpdate>>,
+               mut deltas: Query<&mut MessageReceiver<protocol::AchievementDelta>>| {
             let mut received = Vec::new();
             for mut receiver in &mut pages {
-                received.extend(receiver.receive_with_tick().map(|message| {
-                    (message.message_id, ProtocolMessage(Box::new(message.data)))
-                }));
+                received.extend(
+                    receiver.receive_with_tick().map(|message| {
+                        (message.message_id, ProtocolMessage(Box::new(message.data)))
+                    }),
+                );
             }
             for mut receiver in &mut updates {
-                received.extend(receiver.receive_with_tick().map(|message| {
-                    (message.message_id, ProtocolMessage(Box::new(message.data)))
-                }));
+                received.extend(
+                    receiver.receive_with_tick().map(|message| {
+                        (message.message_id, ProtocolMessage(Box::new(message.data)))
+                    }),
+                );
+            }
+            for mut receiver in &mut deltas {
+                received.extend(
+                    receiver.receive_with_tick().map(|message| {
+                        (message.message_id, ProtocolMessage(Box::new(message.data)))
+                    }),
+                );
             }
             received.sort_by_key(|(id, _)| *id);
             for (_, message) in received {
-                events.send(Event::Message(message)).expect("host event receiver closed");
+                events
+                    .send(Event::Message(message))
+                    .expect("host event receiver closed");
             }
-        }).run_if(protocol_not_rejected),
+        })
+        .run_if(protocol_not_rejected),
+    );
+}
+
+/// A full Guide and its clock-only updates in `InstanceChannel` send order: a clock
+/// overtaking the snapshot sent before it would be overwritten by the older time.
+fn install_adventure_guide_relay(app: &mut App, events: Sender<Event>) {
+    app.add_systems(
+        Update,
+        (move |mut snapshots: Query<&mut MessageReceiver<protocol::AdventureGuideSnapshot>>,
+               mut clocks: Query<&mut MessageReceiver<protocol::AdventureGuideClock>>| {
+            let mut received = Vec::new();
+            for mut receiver in &mut snapshots {
+                received.extend(
+                    receiver.receive_with_tick().map(|message| {
+                        (message.message_id, ProtocolMessage(Box::new(message.data)))
+                    }),
+                );
+            }
+            for mut receiver in &mut clocks {
+                received.extend(
+                    receiver.receive_with_tick().map(|message| {
+                        (message.message_id, ProtocolMessage(Box::new(message.data)))
+                    }),
+                );
+            }
+            received.sort_by_key(|(id, _)| *id);
+            for (_, message) in received {
+                events
+                    .send(Event::Message(message))
+                    .expect("host event receiver closed");
+            }
+        })
+        .run_if(protocol_not_rejected),
     );
 }
 
@@ -1059,6 +1114,8 @@ mod follower_wire_tests;
 mod guild_rank_wire_tests;
 #[cfg(test)]
 mod merchant_wire_tests;
+#[cfg(test)]
+mod netdelta_wire_tests;
 
 #[cfg(test)]
 mod pet_wire_tests;
