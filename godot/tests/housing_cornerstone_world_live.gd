@@ -2,6 +2,7 @@ extends "res://tests/housing_property_live.gd"
 
 # New private account; no admin teleport/house/decor grants. Walk from authored entry.
 var walk_samples: Array[Dictionary] = []
+var floor_probes: Array[Dictionary] = []
 var right_turn_sign := 0.0
 
 func run_test() -> void:
@@ -23,11 +24,13 @@ func run_test() -> void:
 	var close := housing_control("HousingDashboardFrameCloseButton")
 	if close != null and close.is_visible_in_tree():
 		await click_control(close, MOUSE_BUTTON_LEFT)
+	if not record_floor_probe("entry"): return
 	# GameObjects527261 actual authored position, NOT NeighborhoodPlot's marker.
 	var destination := Vector3(3641.85669, 104.272713, -258.151031) if housing_skin == "Modern" else Vector3(3569.20312, 102.340424, -265.888885)
 	# The authored spawn is inside the entrance fountain's raised stone ring.
 	# Approach its observed west wall, then use ordinary W+Space to clear it.
 	if not await walk_to_cornerstone(Vector3(3785.0, 192.0, 160.427), 0.6): return
+	if not record_floor_probe("wall-approach"): return
 	push_key(KEY_W, true)
 	push_key(KEY_SPACE, true)
 	await frames(2)
@@ -35,6 +38,7 @@ func run_test() -> void:
 	await create_timer(1.5).timeout
 	push_key(KEY_W, false)
 	await frames(20)
+	if not record_floor_probe("after-jump"): return
 	if not await capture_housing("fountain-wall-jump-world"): return
 	for waypoint in [Vector3(3750.0, 180.0, 160.427), destination]:
 		if not await walk_to_cornerstone(waypoint): return
@@ -131,6 +135,31 @@ func face_walk_direction(target: float) -> bool:
 		push_key(KEY_LEFT, false)
 	fail("Native turning could not face cornerstone")
 	return false
+
+func record_floor_probe(label: String) -> bool:
+	var state: Dictionary = client.account_state()
+	var feet: Vector3 = state.local_player_position
+	var sample: Dictionary = {"phase":label,"feet":feet,"server":state.local_server_position,"terrain_height":client.terrain_height_at(feet.x, feet.z)}
+	for layer in [2, 8]:
+		var query := PhysicsRayQueryParameters3D.create(feet + Vector3.UP * 20.0, feet - Vector3.UP * 5.0)
+		query.collision_mask = layer
+		var hit: Dictionary = client.get_world_3d().direct_space_state.intersect_ray(query)
+		var collider := hit.get("collider") as Node
+		sample[str(layer)] = {"hit":hit.get("position"),"collider":str(collider.get_path()) if collider != null else ""}
+	floor_probes.append(sample)
+	print("WORLD_FLOOR_PROBE ",sample)
+	var file := FileAccess.open(shots.path_join("floor-probes.json"), FileAccess.WRITE)
+	if file == null:
+		fail("Cannot save world floor probe")
+		return false
+	file.store_string(JSON.stringify(floor_probes,"\t"))
+	file.flush()
+	var error := file.get_error()
+	file.close()
+	if error != OK:
+		fail("Cannot flush world floor probe")
+		return false
+	return true
 
 func fail(message: String) -> void:
 	push_key(KEY_W, false)
