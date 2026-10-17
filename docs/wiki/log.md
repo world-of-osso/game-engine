@@ -47,6 +47,10 @@
 ## 2026-10-17 — Section focus flash
 
 [Focus pulse](systems/adventure-guide.md#section-focus-flash--2026-10-17): independent source Glow/four phases on the existing section-focus path. Missing-effect RED→timing/art controls and Modern2/Forever5 rendered pulses/zero/conservation;12 full-HD originals inspected. Native3's324 outside pixels stay unattributed/not reproduced, with unchanged strict native4/5 passing controls and paint-owner receipts. Merged extension check and scoped fmt pass; independent lead gate remains separate. Prior Journeys mask landed via374e.
+## 2026-10-17 — ReadyCheck message colour native acceptance
+
+[Post-422e proof](systems/group-frames.md#readycheck-message-colour--implementation-2026-10-17): landed-master bd3f266a1/95fec2ca native both skins1920×1080, exactRGBA8(255,210,0,255), unchanged font/shadow/geometry/title/buttons.1040 green/blue pixels darken per skin versus old-white field counterfactual,0red/outside changes;69 pixels exactlyRGB(255,210,0). Gold restoration reproduces entire source image exactly. Both panels/contexts inspected; lead accepted Modern. Captured only in granted ui-questlog window with matching owner/agent-run, cleared/stopped immediately. No production change or broader popup/lifecycle claim; docs-only follow-up.
+
 ## 2026-10-17 — ReadyCheck message NORMAL_FONT_COLOR implementation
 
 [Body colour](systems/group-frames.md#readycheck-message-colour--implementation-2026-10-17): active GlobalColor1−11776/0xFFFFD200 sources exactRGB8(255,210,0), not white. Only TEXT_COLOR changes; font/shadow/geometry/text/buttons/title retained. Genuine RED2pass/1fail→GREEN3 and engine/network check pass; native both-skin1920×1080 deliberately waits for lead landing/window. Historical shadow-test colour oracle reconciled; unrelated landed CSV CRLF warnings retained separately, no out-of-scope edits.

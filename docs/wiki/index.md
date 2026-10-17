@@ -27,7 +27,7 @@
 # Wiki Index
 
 - [Ordinary party queue and late arrivals](systems/battlegrounds.md#ordinary-party-queue-and-late-arrivals--2026-10-17) — four real five-player parties enter one Arathi20 match; sequential-ack scoreboard18→20 preserves prior objective scores; channel8/check/fmt pass, release/native proof pending.
-- [ReadyCheck message colour](systems/group-frames.md#readycheck-message-colour--implementation-2026-10-17) — inherited NORMAL_FONT_COLOR row1 RGB8(255,210,0), only TEXT_COLOR changes; genuine white-colour RED→3GREEN, native proof awaits lead landing/window; all other fields preserved.
+- [ReadyCheck message colour](systems/group-frames.md#readycheck-message-colour--implementation-2026-10-17) — only TEXT_COLOR to row1 RGB8(255,210,0); RED→3GREEN and post-gate both-skin native1920 proof,1040 changed green/blue pixels with zero outside message,69 exact target-colour samples, exact source restoration; window released.
 
 - [Plain LootFrame quality font](systems/loot-and-flight.md#plain-quality-caption-font--2026-10-17) — source Tiny2 has no shadow; unwanted-black RED→3GREEN, both-skin native Friz8/96×10 unchanged and232 lightened pixels/skin, exact black-control restoration; other loot label shadows retained.
 
