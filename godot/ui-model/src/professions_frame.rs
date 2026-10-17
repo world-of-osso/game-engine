@@ -10,6 +10,8 @@ use ui_toolkit::{rsx, screen::SharedContext, widget_def::Element};
 
 #[path = "professions_frame_art.rs"]
 mod art;
+#[path = "professions_frame_concentration.rs"]
+pub mod concentration;
 #[path = "professions_frame_orders.rs"]
 pub mod orders;
 #[path = "professions_frame_quality.rs"]
@@ -48,6 +50,7 @@ pub enum ProfessionPage {
 #[derive(Clone, Debug, Default, PartialEq, Eq)]
 pub struct ProfessionView {
     pub page: ProfessionPage,
+    pub concentration: Option<shared::concentration::ConcentrationSnapshot>,
     pub specializations: crate::professions_specializations::SpecializationDraft,
     pub orders: crate::professions_orders::CraftingOrders,
     pub order_recipes: Vec<shared::protocol::CraftingOrderRecipeSnapshot>,
@@ -110,6 +113,7 @@ pub fn professions_screen(ctx: &SharedContext) -> Element {
     ));
     if matches!(view.page, ProfessionPage::Recipes | ProfessionPage::Recraft) {
         children.extend(skill_bar(view));
+        children.extend(concentration::display(view));
     } else if view.page == ProfessionPage::Specializations {
         children.extend(specializations::page(view));
     }
