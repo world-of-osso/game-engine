@@ -4531,3 +4531,7 @@ User decision specifies MOBILE_BANKING_COOLDOWN_2H7200000ms over installed360000
 ## 2026-10-17 — Mobile native clock oracle
 
 [Guild perks](systems/guilds.md#perk-native-authority-and-effect-boundary-2026-10-16): production/Modern proof complete, real7311223ms accepted-recast gap saved; independent425/425b passed. Native measurement now uses the received server CastSuccess timestamp, not float32 countdown interpolation. Retry only remaining Forever case on unchanged artifacts; no overall completion claim yet.
+
+## Mobile Banking native acceptance boundary reconciled
+
+All code landed425/425b/455e. Both-skin cast/chest/use/refusal/despawn and Modern7311223ms accepted recast are proven. AccurateForever301649ms despawn and1h refusal stand; its finalreal2hacceptedcast remains missing after transport loss. Docs keep that single remaining acceptance explicit; no new runtime/product changes or completed-proof publication.
