@@ -220,7 +220,8 @@ fn dialog_button(
             width:BUTTON_WIDTH,height:BUTTON_HEIGHT,pos_type:"absolute",left:0.0,top:0.0,
             tex_coords:"0,1,0,0.71875",blend_mode:"ADD",draw_layer:"HIGHLIGHT" }
         fontstring { name:{DynName(format!("{name}DialogButtonText"))},text,font_size:12.0,
-            font_color:"1,0.82,0,1",justify_h:"CENTER",width:BUTTON_WIDTH,height:BUTTON_HEIGHT,
+            font_color:"1,0.82,0,1",shadow_color:"0,0,0,1",shadow_offset:"1,-1",
+            justify_h:"CENTER",width:BUTTON_WIDTH,height:BUTTON_HEIGHT,
             pos_type:"absolute",left:0.0,top:-1.0 }
     };
     rsx! { button { name:{DynName(name.into())},width:BUTTON_WIDTH,height:BUTTON_HEIGHT,
