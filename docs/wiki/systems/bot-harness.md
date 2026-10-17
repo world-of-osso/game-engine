@@ -50,13 +50,21 @@ The1280 input/result PNGs were inspected and published as `follower-dungeons/nat
 
 `bot_simc_arcane.ArcaneSimcProvider` carries the approved diagnostic projection into the maintained interface with caller-provided receipt/APL/captured-kit/DB2/native-preflight/fight context. Receipt URL/commit and actual APL bytes must match SimC515f4a3fe9d1; the [fixture provenance](../../../scripts/tests/fixtures/bot_harness/simc_arcane32/provenance.json) retains exact source paths/hashes and native row slices. The generic controller contains no Mage IDs or priority. Provider calls are read-only against frozen kit/traits; the [bounded source contract](../../specs/bot-harness.md#approved-pinned-arcane-provider) retains APL24/36/64,2700s iteration timing and explicit unsupported cases. Selection must be explicit; no provider is auto-selected after a native evaluator error.
 
+### Combat-channel delivery boundary — 2026-10-16
+
+Release16 stops after296.560s when Execute5308 receives no owner outcome within the existing10s bound. The request at1792212843246 reaches server validation764ms later with authoritative LOS true. This is not an isolated missing Execute event: native `combat_log_seq` stays2079 after event1792212841872 through the deadline, while target health continues replicating and server follower casts complete. No new request or stop replaces that cast, and a frozen ring cannot evict a success. Server enqueue, ordered transport and client ingestion remain unlocalized; no gameplay fix is established.
+
+CastSuccess combat events, CastFailed and SpellGo share `CombatChannel`, registered OrderedReliable. `capture_complete` in the harness checks local ring polling/overrun, not server-to-client delivery; it cannot certify wire completeness. Run16's per-spec values are observed damage rates only, not qualified DPS or balance evidence. Bosses remain NotStarted, boss DPS unavailable, and no party deaths were observed.
+
+Release ticks fall to5.5/s (median14.6). Host CPU PSI reaches73% with four other-user1001 Python workers consuming about18cores; those processes are not ours to stop. Netcode/UDP send systems dominate wall-time samples, which is not proof of CPU cost or library root cause. Preserve the pressure/process/cgroup receipts and instrument enqueue/receipt boundaries before proposing a fix. The original BM Cobra outcome gap remains separate and unlocalized.
+
 ### Combat admission for opening preparation — 2026-10-16
 
 Release15b reaches six acknowledged openings without death, then spends60s preparing Heroic Throw against Vicious Thug4294739427 at0.364yd, below its authored8yd minimum (SpellMisc38799→SpellRange288). The tank had already hit that enemy with Avenger's Shield3.764s before the seventh opening; the received owner `CombatStatus` was true in the first prep sample. Full health plus an empty assist observation incorrectly classified an active fight as idle.
 
 New openings now require received owner `CombatStatus` false before Tab selection, at each prep observation, and in the fresh frame used for actual cast submission. If combat starts before the request, record an abandoned opening and return to ordinary assist/authored combat without forcing a target. A requested cast still awaits its real receipt even when combat becomes true. Missing/invalid combat state stops explicitly. No alternate spell, withdrawal, retry, range/LOS tolerance, stat or kit changes; genuinely out-of-combat minimum-range failures retain the existing bounded refusal.
 
-The captured seventh-pull frame supplies RED controls for already-engaged and fresh-submission admission; a modeled transition covers combat beginning during movement. Runtime full-clear acceptance remains separate.
+The captured seventh-pull frame supplies RED controls for already-engaged and fresh-submission admission; a modeled transition covers combat beginning during movement. Release16 supplies scoped native GREEN: three opening ACKs, one uncast opening abandoned on combat, then ordinary authored casts continue. It later stops at the separate [combat-channel delivery boundary](#combat-channel-delivery-boundary--2026-10-16); full-clear acceptance remains separate.
 
 ### Melee endpoint completion stall — 2026-10-16
 
