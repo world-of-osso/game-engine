@@ -1,3 +1,7 @@
+## 2026-10-18 — Show Offline roster preference
+
+[Contract/policy](systems/guilds.md#show-offline-roster-preference): missing authoritative Retail CVar default blocked implementation until explicit project COMMUNITIES_SHOW_OFFLINE_DEFAULT_ON=true. Classic2.5.6 issue883 is indirect only. Public load/save and missing-control RED precede persisted checkbox/filter wiring; existing sort/rank targets and unknown-presence exclusion conserved. Native acceptance separate.
+
 ## 2026-10-18 — Invitation dismissal native acceptance
 
 [Invitation dismissal](systems/guilds.md#invitation-dismissal): gate503e15+68/fmt, landed master helper build; both-skin physical Escape/natural timeout/actual Join-removal/explicit Decline across8real invites and identical-binary fresh-server/client no-pending/no-membership readback pass. Eight inspected original1920×1080 PNGs published. Exact60/60.001 boundary is model proof; native observation begins after receipt. Earlier incompatible frozen server attempt remains unclaimed. Owned runtime/window cleaned.
