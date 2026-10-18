@@ -56,20 +56,29 @@ func check_case(forever: bool, kind: String) -> bool:
 	error = ui.call("achievement_search_selection_preview_dispatch", action)
 	if not error.is_empty():
 		failures.append(error)
+		ui.free()
+		return false
 	await frames(4)
 	edit = ui.find_child("AchievementSearchBox", true, false) as LineEdit
 	var committed := kind in ["full", "open"]
 	var expected_focus := not committed
 	var expected_query := "" if kind == "open" else "Level"
-	var expected_body := "Achievement6Name" if committed else "Achievement633Name"
-	var body := ui.find_child(expected_body, true, false) as Label
+	var body_name := "Achievement633Name"
+	var expected_body_text := "Stormwind Stockade"
+	if kind == "full":
+		body_name = "Achievement6Name"
+		expected_body_text = "Level 10"
+	elif kind == "open":
+		body_name = "AchievementEmpty"
+		expected_body_text = "Loading achievement..."
+	var body := ui.find_child(body_name, true, false) as Label
 	var record := {"skin": "Forever" if forever else "Modern", "case": kind, "action": action,
 		"actual_native_focus": edit.has_focus(), "expected_native_focus": expected_focus,
 		"query": edit.text, "body": body.text if body != null else "MISSING"}
 	print("ACHIEVEMENT_SELECTION_NATIVE_FOCUS ", JSON.stringify(record))
 	if edit.has_focus() != expected_focus:
 		failures.append(JSON.stringify(record))
-	if edit.text != expected_query or body == null:
+	if edit.text != expected_query or body == null or body.text != expected_body_text:
 		failures.append(kind + " query/body selection changed")
 	ui.free()
 	await process_frame
