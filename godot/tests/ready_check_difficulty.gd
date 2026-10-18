@@ -58,8 +58,13 @@ func capture_clearance(fixture: Node, message: Label, reference: Image, output: 
 	assert(yes != null and no != null and yes.visible and no.visible)
 	var button_top := minf(yes.global_position.y, no.global_position.y)
 	var line_heights: Array = []
+	var measured_text_height := 0
 	for line in range(message.get_line_count()):
-		line_heights.append(message.get_line_height(line))
+		var line_height := message.get_line_height(line)
+		line_heights.append(line_height)
+		measured_text_height += line_height
+	assert(message.get_theme_constant("line_spacing") == 0, "Retail source spacing is zero")
+	assert(is_equal_approx(message.size.y, float(measured_text_height)), "Measured intrinsic height and rendered zero-spacing line heights agree")
 	var panel := fixture.find_child("ReadyCheckFrame", true, false) as Control
 	assert(panel != null)
 	# Scan the source panel/body union, not an assumed label-to-shadow margin.

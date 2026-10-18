@@ -113,6 +113,8 @@ pub fn ready_check_frame(state: &ReadyCheckFrameState) -> Element {
                 font: GameFont::FrizQuadrata,
                 font_size: 12.0,
                 font_color: TEXT_COLOR,
+                // UI.xsd:762 default spacing=0; both native measurement and drawing use it.
+                line_spacing: 0,
                 justify_v: "MIDDLE",
                 shadow_color: "0,0,0,1",
                 shadow_offset: "1,-1",
