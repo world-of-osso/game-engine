@@ -338,6 +338,10 @@ impl UiProjection {
     }
 
     pub fn sync(&mut self, registry: &mut FrameRegistry) -> Result<(), String> {
+        // Reserve the existing absolute highlight plane; duplicate frame layers share a rank.
+        let layers =
+            super::projection_order::rank_layers(registry.frames_iter(), OVERLAY_Z as usize)
+                .inspect_err(|error| crate::frame_error::report_once(error))?;
         if self.pixels_per_ui != registry.ui_scale {
             self.pixels_per_ui = registry.ui_scale;
             self.visuals.clear();
@@ -387,6 +391,10 @@ impl UiProjection {
                 created.set(created.get() + 1);
             }
             self.update_node(frame, rect, &bounds, registry)?;
+            self.nodes
+                .get_mut(&frame.id)
+                .expect("projected frame")
+                .set_z_index(super::projection_order::native_z(&layers, frame));
             registry
                 .set_computed_layout(frame.id, rect.clone())
                 .map_err(str::to_owned)?;
@@ -741,11 +749,6 @@ impl UiProjection {
         }));
         node.set_modulate(Color::from_rgba(1.0, 1.0, 1.0, frame.alpha));
         node.set_z_as_relative(false);
-        node.set_z_index(
-            i32::from(frame.strata as u8) * 100
-                + frame.frame_level
-                + i32::from(frame.draw_layer as u8),
-        );
         let mut visual = FrameVisual {
             images: parts::project_images(frame, rect.width, rect.height),
             text: parts::project_button_text(frame),

@@ -10,6 +10,14 @@ Atlas names resolve under active skin; source file regions remain source files i
 
 RegistryUi synchronizes child normal/pressed regions and dropdown atlas states after screen sync and pointer input. `menu_template_art` sets authored ADD/tile flags unavailable as RSX attributes and applies Retail `C_Texture.GetAtlasInfo` slices: backdrop16/13/16/19, text holder16/0/19/0, Filter8/0/18/0, Style2 12/0/12/0. Whole-member stretching shifts the backdrop metal edge into labels; the native fixture checks source edge pixels. The real world-map consumer and standalone shared-menu capture use the same code paths.
 
+## Native menu order (2026-10-18)
+
+Direct member-rank native capture exposed menu rows behind the card's Last Online and notes. The shared menu used Dialog/level60, while the detail card used level1000; Godot painted `strata*100 + level + draw-layer`, allowing a lower stratum's high level to overtake menus and even tooltips. Native regression records actual menu z563 below Last Online1503; functional clicks alone missed this because pointer selection already sorts strata before level.
+
+Shared menu builders now use Mainline `Menu.lua:2080–2094` / `UIDropDownMenu.xml:3` FULLSCREEN_DIALOG. Projection ranks distinct `(strata, frame-level, raise-order, draw-layer)` layers in registry order at z0–3999, reserving the existing absolute highlight plane4000. Repeated frames share a rank; more than4000 distinct layers returns an explicit error through the existing once-only error reporter, without clamping or changing hit testing, ownership, layout or registry dumps. Source layers remain authoritative; native ranks are transient. Trading Post retains its existing source owner+500+menu-depth override. Tooltip-owner menu promotion is not added: no current shared-menu caller owns a tooltip frame.
+
+The 18 consumer files/24 calls cover guild detail/control/roster/news, group/unit frames, adventure guide/journeys, follower selection, PvP bonus, Options, housing settings/storage, pet/mount/toy journals, Trading Post and AH duration. Only Trading Post overrides order; AH overrides fonts only. Native effect-order and other-caller controls precede the focused gate; rendered refresh and original PNG publication remain subsequent acceptance, not implied by this implementation.
+
 ## WowStyle1 caption centering (2026-10-15)
 
 The AH Duration `1 Week` caption and shared open/closed WowStyle1 captions rendered3px low in both skins. `Mainline/MenuTemplates.xml:20-25` authors a10px FontString at TOPLEFT8,-8, extending horizontally to Arrow.LEFT. Copying that height to a native Godot Label did not keep its drawn bounds: both packaged12px font faces had15px minimum height, expanding downward from the copied top8. `ui/projection.rs::update_label` deliberately avoids clipping single-line glyphs to undersized authored heights.
