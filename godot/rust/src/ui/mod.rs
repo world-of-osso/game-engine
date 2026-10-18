@@ -20,6 +20,7 @@ mod dungeon_preview;
 mod error_hold_preview;
 mod flight_map_preview;
 mod follower_layout_preview;
+mod font_lines;
 mod forevergaps_preview;
 mod gameplay_panels_input_fixture;
 mod gameplay_panels_preview;

@@ -1,3 +1,4 @@
+- 2026-10-18: Historical raster FontString contract/adapter; toolkit7GREEN/native concrete RED, no positive-spacing consumers; [limits/proof](systems/ui-system.md#historical-raster-fontstring-allocation--2026-10-18).
 ## 2026-10-18 — Read-only Godot FontString height provenance
 
 [Pipeline audit](systems/group-frames.md#font-line-height-parity-read-only-pipeline-audit--2026-10-18): approved headless/no-UDP/no-rebuild query of actual projected FontFile confirms nominal12→ascent12/descent3/height15, lines15+15/minimum30, interline0 and no fallback. Exact font bytes have965/−250/0 at1000em:14.58 design line box, with0.42 upward rounded difference to15. Cached loader/no overrides, nominal size forwarding, native intrinsic measurement and pinned Godot/FreeType source locations retained alongside FontFile settings. No metric fix or Retail-baseline conclusion; clean-room packet pending/both gaps remain open. Probe exit0/Godot errors0/slice stopped0.
