@@ -303,6 +303,106 @@ fn dungeonclient_account_catalog_continuations_and_live_toast_reach_host() {
 }
 
 #[test]
+fn ready_check_server_defaults_project_one_line_and_never_select_legacy_difficulty() {
+    use shared::protocol::{DungeonDifficultySet, RaidDifficultySet, WorldServerInfo};
+    use ui_toolkit::atlas::{ActiveSkin, set_thread_skin};
+    let data = PathBuf::from(env!("CARGO_MANIFEST_DIR")).join("../../data");
+    game_engine_ui_model::paths::set_data_root(data.clone()).unwrap();
+    let catalog = game_engine_ui_model::ready_check_difficulty::ReadyCheckDifficulties::load(
+        &data.join("db2/active"),
+    )
+    .unwrap();
+    let ordinary = "Ann has initiated a ready check.";
+    let legacy_selected = "Ann has initiated a ready check.\nRaid Difficulty: 10 Player";
+    // Server maps/raid.rs:21–26 defaults14/3; maps/difficulty.rs:38–41 +store.rs:185 default1.
+    for skin in [ActiveSkin::Modern, ActiveSkin::Forever] {
+        set_thread_skin(skin);
+        for (raid, current, primary, legacy, expected) in [
+            (true, None, 14, 3, ordinary),
+            (true, Some(0), 14, 3, ordinary),
+            (false, None, 14, 3, ordinary),
+            (false, Some(0), 14, 3, ordinary),
+            (true, None, 14, 6, ordinary), // Changing onlylegacy never chooses it.
+            (true, None, 3, 14, legacy_selected), // Positivecontrol: primary3 really qualifies.
+        ] {
+            let mut account = account();
+            let mut output = Vec::new();
+            account
+                .dispatch_message(
+                    ProtocolMessage::for_tests(RaidDifficultySet {
+                        difficulty_id: primary,
+                        legacy_difficulty_id: legacy,
+                    }),
+                    &mut output,
+                )
+                .unwrap();
+            account
+                .dispatch_message(
+                    ProtocolMessage::for_tests(DungeonDifficultySet { difficulty_id: 1 }),
+                    &mut output,
+                )
+                .unwrap();
+            if let Some(difficulty_id) = current {
+                account
+                    .dispatch_message(
+                        ProtocolMessage::for_tests(WorldServerInfo {
+                            map_id: 0,
+                            difficulty_id,
+                        }),
+                        &mut output,
+                    )
+                    .unwrap();
+            }
+            account.group.is_raid = raid;
+            assert_eq!(
+                account.raid_difficulty,
+                Some(RaidDifficultySet {
+                    difficulty_id: primary,
+                    legacy_difficulty_id: legacy
+                })
+            );
+            assert_eq!(account.dungeon_difficulty, Some(1));
+            let body = ready_check_body_from_account(&account, &catalog);
+            assert_eq!(
+                body, expected,
+                "skin={skin:?} raid={raid} current={current:?} primary={primary} legacy={legacy}"
+            );
+            assert_eq!(body.lines().count(), expected.lines().count());
+        }
+    }
+}
+
+fn ready_check_body_from_account(
+    account: &Account,
+    catalog: &game_engine_ui_model::ready_check_difficulty::ReadyCheckDifficulties,
+) -> String {
+    use game_engine_ui_model::ready_check_frame_component::{
+        ReadyCheckFrameState, ready_check_frame,
+    };
+    use ui_toolkit::{
+        frame::WidgetData,
+        registry::FrameRegistry,
+        screen::{Screen, SharedContext},
+    };
+    let mut shared = SharedContext::new();
+    shared.insert(ReadyCheckFrameState {
+        visible: true,
+        initiator: "Ann".into(),
+        difficulty_name: account.ready_check_difficulty_name(catalog).unwrap(),
+    });
+    let mut registry = FrameRegistry::new(1920.0, 1080.0);
+    Screen::new(|ctx| ready_check_frame(ctx.get::<ReadyCheckFrameState>().unwrap()))
+        .sync(&shared, &mut registry);
+    let frame = registry
+        .get(registry.get_by_name("ReadyCheckFrameText").unwrap())
+        .unwrap();
+    let Some(WidgetData::FontString(body)) = &frame.widget_data else {
+        panic!("ReadyCheck body must be a FontString")
+    };
+    body.text.clone()
+}
+
+#[test]
 fn ready_check_difficulty_accepts_authoritative_instance_and_continent_updates() {
     let mut account = account();
     let catalog = game_engine_ui_model::ready_check_difficulty::ReadyCheckDifficulties::load(
