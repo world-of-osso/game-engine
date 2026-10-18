@@ -1,3 +1,7 @@
+## 2026-10-18 — Cart and product selection ownership
+
+[Bounded cart state](systems/trading-post.md#cart-and-product-selection-ownership--october18): requested E55e/S748/Pa2 bases merged first. Ignored CPU RED593/ce pushed before production; explicit eight-case run gives five genuine retained-owner/art/cart-visible/membership failures plus three controls. Model now remembers a vendor ID, clears product ownership for cart preview, hides cart before new product selection and restores current member/first ordinary only on cart return. Independent cart preview/modals/authority and source silence remain; old manual restoration-sound increment removed in favor of actual selection callback. Unignored GREEN/check/format pending; no server/protocol edits or native process. Later native requires strict completion/count/exit/both-stream boundary, not historical PASS-only promotion.
+
 ## 2026-10-17 — Suggested secondary truncation hover implementation
 
 [Source mapping and proof boundary](systems/adventure-guide.md#suggested-secondary-text-hover--implementation-2026-10-17): literal EJ3311 second-pass owners; native drawn-label truncation gates full white wrapped right-anchored tooltips. Both-skin model RED recorded; native hover/leave acceptance waits for lead gate/window. No provider/reward/action authority added.
