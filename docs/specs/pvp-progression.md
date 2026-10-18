@@ -77,7 +77,7 @@ Honor cap15000 is authored. Conquest has MaxQtyWorldStateID31270 and AwardCondit
 
 ## Ready-dialog placement
 
-The standalone ready dialog anchors TOP-center to the fullscreen UI,135 UI units down, in both art skins and viewport sizes. Its Dialog stratum must keep the whole dialog and physical accept/decline targets above the still-visible ordinary queue frame (Medium); showing an invitation does not auto-close the queue. Preserve existing dialog size/art/internal layout, match/phase/pending authority and other HUD/scoreboard roots. Source: Retail cache PVPHelper.xml254, PVPHelper.lua340–418, StaticPopup.lua866–924 and PVPUI.lua158–168. Source multi-popup stacking/fullscreen overrides are not claimed implemented by this standalone slice.
+The standalone ready dialog anchors TOP-center to the fullscreen UI,135 UI units down, in both art skins and viewport sizes. Its Dialog stratum must keep the whole dialog and physical accept/decline targets above the still-visible ordinary queue frame (Medium); showing an invitation does not auto-close the queue. Preserve existing dialog size/art/internal layout, match/phase/pending authority and other HUD/scoreboard roots. Source: Retail cache PVPHelper.xml254, PVPHelper.lua340–418, StaticPopup.lua866–924 and PVPUI.lua158–168. Source multi-popup stacking/fullscreen overrides are not claimed implemented by this standalone slice. HonorInset and its HonorLevelDisplay inherit the ordinary queue strata rather than independently promoting to Dialog (Retail PVPUI.xml1682/1718); the dialog body must remain above the sidebar wherever they overlap, not only at action-button centers.
 
 ## Native talent controls
 

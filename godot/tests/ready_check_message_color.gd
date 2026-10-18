@@ -30,7 +30,7 @@ func run_message_color() -> void:
 		var message := ui.find_child("ReadyCheckFrameText", true, false) as Label
 		var title := ui.find_child("ReadyCheckFrameTitle", true, false) as Label
 		assert(panel != null and message != null and title != null)
-		assert(panel.size == Vector2(323, 100) and message.size == Vector2(240, 28))
+		assert(panel.size == Vector2(323, 100) and message.size.x == 240 and message.size.y > 0)
 		assert(message.is_visible_in_tree() and message.text == "Raidleader has initiated a ready check.")
 		assert(message.get_theme_font_size("font_size") == 12)
 		var source_color := message.get_theme_color("font_color")

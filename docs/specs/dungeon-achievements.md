@@ -36,6 +36,8 @@ Native Retail Mainline AchievementUI and dungeon objectives, using authoritative
 - [x] Persist character-scoped watch IDs under authenticated account/realm preferences; restore rows from the server, not serialized progress.
 - Tracking follows Retail's ten-achievement cap and refuses completed achievements.
 
+- [x] AchievementSearchBox uses source TextInsets left16/right20/top0/bottom0 (InputBoxTemplates.xml245), allowing the authored107×30 native rectangle without changing its16pt font, position, art or filter behavior. Native geometry proof covers both skins × ordinary/comparison; real-peer physical click retention is a separate post-landing gate.
+
 ### Statistics and search
 
 - [x] Browse authentic statistic rows and raw, unclamped supported counters; unsupported quantities remain explicitly unevaluated.
@@ -60,6 +62,7 @@ Native Retail Mainline AchievementUI and dungeon objectives, using authoritative
 
 - `godot/ui-model/tests/dungeonclient.rs` — concrete both-skin Summary/scopes, criteria continuation, search/statistics, tracking, links and authored art regions.
 - `godot/rust/src/account_dungeonclient_tests.rs` — actual account dispatch/continuations/live updates.
+- `godot/tests/achievement_search_geometry.gd` — actual offline production RegistryUi/LineEdit four-mode107×30, L16/R20/T0/B0 margins, unchanged16pt font/search/filter geometry; no received-comparison or pointer proof claim.
 - `godot/rust/src/ui/layout.rs::tests::achievement_header_search_*` — both skins × ordinary/comparison source bounds and translated search art/clear, through actual native host layout; post-landing native pointer proof is separate.
 - `godot/rust/src/achievements.rs::tracking_tests` — persisted IDs and corrupt preference rejection.
 - `godot/network/src/dungeonclient_wire_tests.rs` — ephemeral UDP AchievementChannel ordering.

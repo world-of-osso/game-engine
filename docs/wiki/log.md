@@ -13,6 +13,13 @@
 ## 2026-10-18 — Show Offline roster preference
 
 [Contract/policy](systems/guilds.md#show-offline-roster-preference): missing authoritative Retail CVar default blocked implementation until explicit project COMMUNITIES_SHOW_OFFLINE_DEFAULT_ON=true. Classic2.5.6 issue883 is indirect only. Public load/save and missing-control RED precede persisted checkbox/filter wiring; existing sort/rank targets and unknown-presence exclusion conserved. Native acceptance separate.
+## 2026-10-18 — ReadyCheck source intrinsic body height
+
+[Intrinsic correction](systems/group-frames.md#readycheck-intrinsic-body-correction--2026-10-18): approved240×0/MIDDLE/Friz12/shadow at existing TOP20,−37 replaces fixed28. Frame100/bottom buttons y60/content/audio/authority unchanged. Genuine host-height RED28vs14 precedes native8/UI8 GREEN/check40.02s/no warnings/Cargo fmt. Supplied14/29px unit intrinsics are not Retail raster metrics. Maintained native fixture isolates unoccluded glyph/visible-shadow/combined ink, line heights/row bands and signed physical-pixel clearance with complete cropped evidence and exact frame restoration; execution after landing/window, no numbers invented. Existing named collision gap stays open; no frame growth/button move/font shrink/spacing adjustment.
+
+## 2026-10-18 — ReadyCheck native text; body/button collision remains open
+
+[Named layout gap/source audit](systems/group-frames.md#readycheck-native-difficulty-text--layout-gap-2026-10-18): both skins11 native supplied-context text/rectangle/restoration assertions pass on binary73417437, but lead inspection finds the second line colliding with response-button tops. **Not final layout acceptance.** Retail fixes323×100, intrinsic message240×0/TOP(+20,−37)/MIDDLE and bottom-anchored119×24 buttons; complete Lua/cache search finds no growth or reanchor. Propose source intrinsic body metrics rather than preserving arbitrary28; exact raster fit remains unproven, no layout code changed. Native exit0/Godot errors0/window+slice released;22 originals retained. Authenticated transport/head/audio unqualified; offline Pillow analysis did not run.
 
 ## 2026-10-18 — Invitation dismissal native acceptance
 
@@ -30,6 +37,10 @@
 ## 2026-10-18 — READY_CHECK decoded-dispatch acceptance
 
 [Bounded native proof](systems/group-frames.md#readycheck-listener-show-sound--implementation-2026-10-17): lead accepted both-skin ten-checkpoint/two-start proof on debug binary/invocation3b70f4b5d, production333b83b26. Real UiKits Ogg567478 players report5.020385265s/gain1/pitch1/playing; refresh and hidden-role phases add none, natural completion and zero-player teardown pass. Exit0/zero Godot errors; inherited display notices retained, window/slice released. Dummy audio: decoded dispatch only, not hardware or authenticated GameClient/server proof. Initial fixture Array-borrow compiler failure remains recorded. No production behavior changed or completed checks replayed.
+## 2026-10-18 — Achievement search text insets
+
+[Inset-only correction](systems/dungeon-achievements.md#search-text-inset-correction--2026-10-18): Retail InputBoxTemplates.xml245 L16/R20/T0/B0 replaces misplaced native top20; font/art/x/y/filter/actions unchanged. Actual offline RegistryUi four-mode RED f78af15d2 shows107×40/minimum16×40 instead of authored107×30. Production changes one literal; integrated fe364a174 actual native GREEN4/4 gives107×30/min36×20/source margins, unchanged16pt font/x/y/filter, extension build0/108s. Four-consumer all-target helper check0/95s/no Rust warnings, format/diff/readability pass. Post-landing real-peer click retention remains pending; no historical broad gate replay. Two earlier harness errors are excluded from RED evidence.
+
 ## 2026-10-18 — Native achievement header acceptance
 
 [Post-landing proof](systems/dungeon-achievements.md#post-landing-header-proof--2026-10-18): E333b83b26/P019cd75b/S241776a2d exact artifacts; both skins normal/actual online Hdrpeer comparison exit0. Physical search/clear/Completed/Incomplete/All pass, x511/631 and7px control gap retained. Twelve inspected1920×1080 PNGs published under `/syncthing/AgentShared/2026-10-18/achievements/search-filter-overlap/`. Named ACHIEVEMENT_SEARCH_NATIVE_HEIGHT remains: authored30/native40, actual16pt font20px + misplaced20px top inset; Retail L16/R20/T0/B0 differs from native L16/R0/T20/B0. No inset/font change or full parity claim. Owned PIDs gone, slice stopped/private5898 free; no repeated historical gates.
