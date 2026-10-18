@@ -44,6 +44,8 @@ Native Retail Mainline AchievementUI and dungeon objectives, using authoritative
 
 - [x] AchievementSearchBox has a noninteractive gray Search instruction label iff query is empty, independent of focus; typing hides it and clear restores it. Source InputBoxTemplates.xml186–191/206–209 and Lua131–132/191–201, delegated by AchievementUI.lua3447–3448: RomanFriz10, RGB0.35, left/middle, local black(+1,−1) shadow,71×30 at searchleft+16/y25. Preserve accepted typed text/white-caret coupling, font/insets/geometry/art/actions/filter behavior; no global/template/focus-tint/clear-policy changes or Retail caret parity claim. Post-landing repaired both-skin ordinary/actual-online-comparison physical initial-hint/click-through/type-hide/clear-restore/three-filter retention passes with strict2/2 completion per skin, zero stream errors and exactly sixteen full-HD captures (2026-10-18); the first stale-worktree-data run remains failed.
 
+- [x] A selected category whose page has not loaded shows no invented Loading achievements... label. Pending remains unknown, not a known-empty result or an error; loaded-empty/loaded-rows/error behavior stays distinct. Keep existing search/inspect indicators and all cursor/network behavior. Retail cache Lua146/161/759–774 builds categories via GetCategoryList without this generic row; real async search uses its separate0.3s progress path (3345–3399). No Retail latency claim, prefetch, tree or portrait change.
+
 ### Statistics and search
 
 - [x] Browse authentic statistic rows and raw, unclamped supported counters; unsupported quantities remain explicitly unevaluated.

@@ -1045,6 +1045,166 @@ fn guild_communities_roster_uses_profile_metadata_without_exposing_officer_notes
     assert!(reg.get_by_name("GuildMember0Class").is_some());
 }
 
+fn member_rank_assignment_session(own_rank: u8, rights: u32, target_rank: u8) -> GuildRanksSession {
+    let mut session = GuildRanksSession::default();
+    session.open();
+    let mut ranks = state(own_rank);
+    ranks.ranks[usize::from(own_rank)].rights = rights;
+    ranks.members = vec![
+        GuildRankMember {
+            character_name: "Cara".into(),
+            rank: target_rank,
+        },
+        GuildRankMember {
+            character_name: "Dora".into(),
+            rank: 2,
+        },
+    ];
+    session.apply(ranks);
+    session.click("guild:member:Cara", &Default::default());
+    session
+}
+
+#[test]
+fn guild_member_rank_assignment_source_dropdown_sends_one_captured_zero_based_request_both_skins() {
+    let _lock = SKIN.lock().unwrap_or_else(|p| p.into_inner());
+    for skin in [ActiveSkin::Modern, ActiveSkin::Forever] {
+        set_thread_skin(skin);
+        let mut session = member_rank_assignment_session(0, 0, 3);
+        let before = session.state().cloned();
+        let reg = mounted(&session);
+        assert_eq!(text(&reg, "GuildMemberDetailRankDropdownText"), "Initiate");
+        let label = reg
+            .get(reg.get_by_name("GuildMemberDetailRankLabel").unwrap())
+            .unwrap();
+        let dropdown = reg
+            .get(reg.get_by_name("GuildMemberDetailRankDropdown").unwrap())
+            .unwrap();
+        assert_eq!(label.height.value(), 20.0);
+        assert_eq!(
+            (dropdown.width.value(), dropdown.height.value()),
+            (169.0 - label.width.value(), 25.0)
+        );
+        assert_eq!(
+            dropdown.position.left,
+            ui_toolkit::layout_values::Val::Px(17.0 + label.width.value() + 10.0)
+        );
+        assert_eq!(
+            dropdown.position.top,
+            ui_toolkit::layout_values::Val::Px(68.5)
+        );
+        assert_eq!(
+            reg.get(
+                reg.get_by_name("CommunitiesGuildMemberDetailFrame")
+                    .unwrap()
+            )
+            .unwrap()
+            .height
+            .value(),
+            260.0
+        );
+        session.click(
+            &action(&reg, "GuildMemberDetailRankDropdown"),
+            &Default::default(),
+        );
+        let menu = mounted(&session);
+        assert!(menu.get_by_name("GuildMemberDetailRankChoice0").is_none());
+        let current = action(&menu, "GuildMemberDetailRankChoice3");
+        assert!(session.click(&current, &Default::default()).is_none());
+        assert!(!session.awaiting_state);
+        session.click("guild:detail_rank_menu", &Default::default());
+        let choice = action(&mounted(&session), "GuildMemberDetailRankChoice1");
+        session.click("guild:member:Dora", &Default::default());
+        let request = session
+            .click(&choice, &Default::default())
+            .expect("one direct rank request");
+        assert_eq!(
+            serde_json::to_value(request).unwrap(),
+            serde_json::json!({"SetMemberRank":{"character_name":"Cara","rank":1}})
+        );
+        assert_eq!(
+            session.state(),
+            before.as_ref(),
+            "Never optimistically change authoritative ranks"
+        );
+        assert_eq!(session.member_detail.as_deref(), Some("Dora"));
+        assert!(session.awaiting_state);
+        assert!(session.click(&choice, &Default::default()).is_none());
+        let mut acknowledged = before.unwrap();
+        acknowledged.members[0].rank = 1;
+        session.apply(acknowledged.clone());
+        assert!(!session.awaiting_state);
+        assert_eq!(session.state(), Some(&acknowledged));
+    }
+}
+
+#[test]
+fn guild_member_rank_assignment_ranges_require_direction_rights_and_strict_hierarchy() {
+    let _lock = SKIN.lock().unwrap_or_else(|p| p.into_inner());
+    for (rights, current, selected) in [(GUILD_RIGHT_PROMOTE, 3, 2), (GUILD_RIGHT_DEMOTE, 2, 3)] {
+        let mut session = member_rank_assignment_session(1, rights, current);
+        session.click("guild:detail_rank_menu", &Default::default());
+        let reg = mounted(&session);
+        assert!(reg.get_by_name("GuildMemberDetailRankChoice0").is_none());
+        assert!(reg.get_by_name("GuildMemberDetailRankChoice1").is_none());
+        assert!(!action(&reg, "GuildMemberDetailRankChoice2").is_empty());
+        assert!(!action(&reg, "GuildMemberDetailRankChoice3").is_empty());
+        let request = session
+            .click(
+                &action(&reg, &format!("GuildMemberDetailRankChoice{selected}")),
+                &Default::default(),
+            )
+            .unwrap();
+        assert_eq!(
+            serde_json::to_value(request).unwrap(),
+            serde_json::json!({"SetMemberRank":{"character_name":"Cara","rank":selected}})
+        );
+    }
+    for (own, rights, target) in [
+        (1, 0, 3),
+        (1, GUILD_RIGHT_PROMOTE, 2),
+        (1, GUILD_RIGHT_DEMOTE, 3),
+        (1, GUILD_RIGHT_PROMOTE | GUILD_RIGHT_DEMOTE, 1),
+        (0, 0, 0),
+    ] {
+        let mut session = member_rank_assignment_session(own, rights, target);
+        let reg = mounted(&session);
+        assert!(reg.get_by_name("GuildMemberDetailRankDropdown").is_none());
+        assert!(reg.get_by_name("GuildMemberDetailRank").is_some());
+        assert!(
+            session
+                .click("guild:detail_rank:Cara:0", &Default::default())
+                .is_none()
+        );
+        assert!(
+            session
+                .click("guild:detail_rank:Cara:255", &Default::default())
+                .is_none()
+        );
+    }
+}
+
+#[test]
+fn guild_member_rank_assignment_escape_closes_menu_without_a_write() {
+    let _lock = SKIN.lock().unwrap_or_else(|p| p.into_inner());
+    let mut session = member_rank_assignment_session(0, 0, 3);
+    session.click("guild:detail_rank_menu", &Default::default());
+    assert!(
+        mounted(&session)
+            .get_by_name("GuildMemberDetailRankMenu")
+            .is_some()
+    );
+    assert!(session.dismiss_subdialog());
+    assert!(
+        mounted(&session)
+            .get_by_name("GuildMemberDetailRankMenu")
+            .is_none()
+    );
+    assert_eq!(session.member_detail.as_deref(), Some("Cara"));
+    assert!(session.commands.is_empty());
+    assert!(!session.awaiting_state);
+}
+
 fn note_sort_session() -> GuildRanksSession {
     let mut session = GuildRanksSession::default();
     session.open();
@@ -2472,6 +2632,7 @@ fn guild_member_detail_opens_from_roster_both_skins() {
         session.click("guild:member:Cara", &Default::default());
         let reg = mounted(&session);
         assert_eq!(text(&reg, "GuildMemberDetailName"), "Cara");
-        assert_eq!(text(&reg, "GuildMemberDetailRank"), "Member");
+        // GuildRoster.lua:16–56 uses the rank dropdown for an editable member.
+        assert_eq!(text(&reg, "GuildMemberDetailRankDropdownText"), "Member");
     }
 }

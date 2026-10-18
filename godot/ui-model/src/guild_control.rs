@@ -100,7 +100,7 @@ pub fn settings(
     rsx! { r#frame { name:"GuildControlUI",width:338.0,height:444.0,left:440.0,top:130.0,pos_type:"absolute",mouse_enabled:true,strata:FrameStrata::Dialog,{children} } }
 }
 
-fn dropdown(
+pub(crate) fn dropdown(
     name: &str,
     text: &str,
     (x, y, width): (f32, f32, f32),
@@ -132,7 +132,7 @@ fn dropdown(
     )
 }
 
-fn menu_width<'a>(labels: impl Iterator<Item = &'a str>, minimum: f32) -> f32 {
+pub(crate) fn menu_width<'a>(labels: impl Iterator<Item = &'a str>, minimum: f32) -> f32 {
     // DropdownButton.lua:190-192: button minimum; MenuVariants radio16 + padding8 each side.
     labels
         .map(|text| {
