@@ -4,7 +4,7 @@ How the client picks items up onto the cursor, drops them, splits stacks and sho
 
 ## Ownership cap error CPU dispatch (2026-10-18)
 
-`account::npc_message` routes the appended `InventoryErrorReason::ItemMaxCount` through the existing `NpcMessage::Error` surface; shared `message()` owns the wording. [Contract/source key](../../specs/cursor-item.md#what-it-must-do): local GlobalStrings10918 `ERR_ITEM_MAX_COUNT`. `account::tests::inventory_max_count_error_dispatches_retail_ui_message` passes1/0 atd73fa72e6 with protocol2a5307c, including real typed dispatch and exact source text. This is CPU message proof only, not error pixels or server enforcement; coordinated three-repo integration/landing remains lead-owned.
+`account::npc_message` routes the appended `InventoryErrorReason::ItemMaxCount` through the existing `NpcMessage::Error` surface; shared `message()` owns the wording. [Contract/source key](../../specs/cursor-item.md#what-it-must-do): local GlobalStrings10918 `ERR_ITEM_MAX_COUNT`. `account::tests::inventory_max_count_error_dispatches_retail_ui_message` passes1/0 at6c00abbf4 with protocola2b07a6 after merging landed guild masterf26cc691e, including real typed dispatch and exact source text. The original d73fa72e6 test remains unchanged; protocol verification pins both appended variants without renumbering prior tags. This is CPU message proof only, not error pixels or server enforcement; coordinated three-repo integration/landing remains lead-owned.
 
 ## Pieces
 
