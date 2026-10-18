@@ -72,7 +72,12 @@ mod tests {
 
     #[test]
     fn projection_order_many_frames_share_layers_and_capacity_is_explicit() {
-        let repeated = vec![frame(FrameStrata::Dialog, 1000, 0); 10000];
+        let repeated: Vec<_> = (0..10000)
+            .map(|id| Frame {
+                id,
+                ..frame(FrameStrata::Dialog, 1000, 0)
+            })
+            .collect();
         let layers = rank_layers(repeated.iter(), 1).unwrap();
         assert_eq!(layers.len(), 1);
         assert_eq!(native_z(&layers, &repeated[9999]), 0);
