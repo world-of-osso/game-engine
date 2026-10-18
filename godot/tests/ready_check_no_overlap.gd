@@ -39,16 +39,19 @@ func run_difficulty() -> bool:
 			if not completion.require(not ink.is_empty(), "Strict ink scan incomplete"):
 				return false
 			var extra: float = maxf(body.get_line_count() - 1, 0) * ink.resolved_line_height_ui
-			var geometry_ok := absf(panel.size.y - (100.0 + extra)) < 0.00001
-			geometry_ok = geometry_ok and absf((body.global_position.y - panel.global_position.y) / HUD_SCALE - 37.0) < 0.00001
-			geometry_ok = geometry_ok and absf((yes.global_position.y - panel.global_position.y) / HUD_SCALE - (60.0 + extra)) < 0.00001
-			geometry_ok = geometry_ok and absf((no.global_position.y - panel.global_position.y) / HUD_SCALE - (60.0 + extra)) < 0.00001
+			# Float32 transform arithmetic tolerance, not an ink-clearance allowance.
+			var geometry_ok := absf(panel.size.y - (100.0 + extra)) < 0.0001
+			geometry_ok = geometry_ok and absf((body.global_position.y - panel.global_position.y) / HUD_SCALE - 37.0) < 0.0001
+			geometry_ok = geometry_ok and absf((yes.global_position.y - panel.global_position.y) / HUD_SCALE - (60.0 + extra)) < 0.0001
+			geometry_ok = geometry_ok and absf((no.global_position.y - panel.global_position.y) / HUD_SCALE - (60.0 + extra)) < 0.0001
+			var allocated_gap: float = (yes.global_position.y - body.global_position.y) / HUD_SCALE - body.size.y
+			geometry_ok = geometry_ok and absf(allocated_gap - (23.0 - ink.resolved_line_height_ui)) < 0.0001
 			var yes_label := yes.get_node("Parts/Text") as Label
 			var no_label := no.get_node("Parts/Text") as Label
 			geometry_ok = geometry_ok and yes_label.text == "Ready" and no_label.text == "Not Ready"
-			var clear: bool = ink.glyph.clearance_to_button_top_px >= 0 and ink.shadow.clearance_to_button_top_px >= 0 and ink.combined.clearance_to_button_top_px >= 0
+			var clear: bool = ink.glyph.clearance_to_button_top_px > 0 and ink.shadow.clearance_to_button_top_px > 0 and ink.combined.clearance_to_button_top_px > 0
 			all_clear = all_clear and clear and geometry_ok
-			observations.append({"skin": skin, "case": case[0], "text": body.text, "line_count": body.get_line_count(), "expected_extra_ui": extra, "controls": controls(fixture), "clearance": ink, "geometry_ok": geometry_ok, "ink_clear": clear})
+			observations.append({"skin": skin, "case": case[0], "text": body.text, "line_count": body.get_line_count(), "expected_extra_ui": extra, "allocated_block_gap_ui": allocated_gap, "controls": controls(fixture), "clearance": ink, "geometry_ok": geometry_ok, "ink_clear": clear})
 			print("READY_NO_OVERLAP ", JSON.stringify(observations[-1]))
 			if not completion.case_done():
 				return false
