@@ -20,14 +20,15 @@ No decompiled or leaked source inspected. No files under `data/` changed. No gam
 | Engine `76d301bec` | helper `--test -p game-engine-godot --no-fail-fast -- m2 wmo adt` | 54 passed / 0 failed / 0 ignored |
 | Engine `76d301bec` | helper `--test -p game-engine-godot --no-fail-fast -- assets:: animation:: terrain:: ground:: --skip m2 --skip wmo --skip adt` | 188 passed / 0 failed / 1 pre-existing ignored |
 | Engine `76d301bec` | `cd godot && cargo fmt --check` | Pass |
+| Engine `bdf1c8636` (documentation-only changes since `76d301bec`) | build helper's `locked_checkout` / `native_slot` / `native_cargo(..., 'check', ['-p', 'game-engine-core', '-p', 'game-engine-godot'])`, via `agent-run wow_formats` | Pass, no warnings |
 
 All builds/tests run through `agent-run wow_formats`, with `CAPACITY_OWNER=wow_formats` and capacity admission; engine tests use `DEPOT_SIBLING_SHARED_PROTOCOL=/home/osso/.worktrees/shared-protocol python3 scripts/depot-build.py --root /home/osso/.worktrees/game-engine-s13 ...`. Standalone Cargo is permitted in the new repository.
 
-**Test conservation:** the 259 original format-module tests split into225 synthetic standalone tests +34 retained authored-asset fixtures. Combined after totals equal baseline1063/1/4. Comparing the full1068-name multiset (including failed/ignored), independent of changed module prefixes: zero lost and zero added tests. The242 passing Godot consumer/adapter tests are disjoint filter sets; one additional ignored test remains ignored.
+**Test conservation:** the 259 original format-module tests split into225 synthetic standalone tests +34 retained authored-asset fixtures. Combined after totals equal baseline1063/1/4. Comparing the full1068-name multiset (including failed/ignored), independent of changed module prefixes: zero lost and zero added tests. All259 original format test bodies also match after normalizing namespace paths, whitespace and optional trailing argument commas. The242 passing Godot consumer/adapter tests are disjoint filter sets; one additional ignored test remains ignored.
 
 **Unchanged baseline failure:** `blp::tests::guild_tabard_palette_keeps_authored_red_and_separate_alpha` cannot find `data/textures/180071.blp`. Lead accepted this missing-data issue before extraction; no test waived or altered.
 
-Durable full output and name evidence: `/home/osso/.worktrees/logs/wow_formats-baseline-all-core-full.log`, `wow_formats-workspace-test-2.log`, `wow_formats-workspace-no-default.log`, `wow_formats-engine-core-after-1-full.log`, `wow_formats-engine-godot-consumers-full.log`, `wow_formats-engine-godot-adapters-full.log`.
+Durable full output and name evidence: `/home/osso/.worktrees/logs/wow_formats-baseline-all-core-full.log`, `wow_formats-workspace-test-2.log`, `wow_formats-workspace-no-default.log`, `wow_formats-engine-core-after-1-full.log`, `wow_formats-engine-godot-consumers-full.log`, `wow_formats-engine-godot-adapters-full.log`, `wow_formats-engine-check.log`, `wow_formats-test-body-conservation.json`.
 
 ## Lead gate
 
