@@ -71,6 +71,7 @@ mod professions_preview;
 mod projection;
 #[cfg(debug_assertions)]
 mod pvp_bonus_preview;
+mod ready_check_layout_policy;
 #[cfg(debug_assertions)]
 mod ready_check_preview;
 mod registration_preview;
