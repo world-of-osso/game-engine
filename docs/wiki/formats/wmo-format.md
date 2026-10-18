@@ -13,7 +13,7 @@ A WMO consists of a root file and one or more group files:
 
 A placement draws the MODD doodads its groups reference through MODR that lie in doodad set 0 (`Set_$DefaultGlobal`, always active) or in the MODF `doodadSet` (WebWowViewerCpp `wmoObject.h` constructor `m_activeDoodadSets.set(0)`, `wmoObject.cpp` `setLoadingParam` and `getDoodad`). A doodad referenced by several groups is placed once. MODD position and quaternion `(x, y, z, w)` are WMO-local; the doodad matrix is `wmoPlacement * translate(position) * quat * scale` (`m2Object.cpp` `createPlacementMatrix(SMODoodadDef)`). Godot: `godot/core` `wmo::placed_doodads` over the active set list.
 
-**MODF flag `0x80` (MWDS).** The ADT `_obj0` carries MWDR (per entry a `[first, last]` pair of u32 MWDS indices) and MWDS (u16 doodad set indices). A placement with MODF flag `0x80` uses its `doodadSet` as an MWDR index, and the MWDS sets of that range replace the active sets, `$DefaultGlobal` included (WebWowViewerCpp `wmoObject.cpp:622-642` `setActiveDoodadFromMWDR` resets the set bitmap). MWDR `last` is inclusive: in all seven local ADTs with MWDS the last range ends at the last MWDS entry (azeroth_31_48: `[0,1]` over 2 entries; 2847_31_37: `[0,2] [3,4] [5,7] [8,9]` over 10). The reference loop stops before `last` and sizes MWDS by `sizeof(MWDR)`; both are reference bugs and not ported. Stormwind example: `azeroth_31_48` places `9sw_warriordistrict_house2` (3389421, uniqueId 5478984, flags `0x8C`, set 0), so MWDR 0 = sets 1 and 2 ("Training Hall", MODD 1..=253), and `$DefaultGlobal`'s only doodad (a candelabra) is not placed. The active sets also select the MAVG interior ambient. Godot: `AdtObjData::wmo_active_doodad_sets` (`src/asset/adt_format/adt_obj.rs`).
+**MODF flag `0x80` (MWDS).** The ADT `_obj0` carries MWDR (per entry a `[first, last]` pair of u32 MWDS indices) and MWDS (u16 doodad set indices). A placement with MODF flag `0x80` uses its `doodadSet` as an MWDR index, and the MWDS sets of that range replace the active sets, `$DefaultGlobal` included (WebWowViewerCpp `wmoObject.cpp:622-642` `setActiveDoodadFromMWDR` resets the set bitmap). MWDR `last` is inclusive: in all seven local ADTs with MWDS the last range ends at the last MWDS entry (azeroth_31_48: `[0,1]` over 2 entries; 2847_31_37: `[0,2] [3,4] [5,7] [8,9]` over 10). The reference loop stops before `last` and sizes MWDS by `sizeof(MWDR)`; both are reference bugs and not ported. Stormwind example: `azeroth_31_48` places `9sw_warriordistrict_house2` (3389421, uniqueId 5478984, flags `0x8C`, set 0), so MWDR 0 = sets 1 and 2 ("Training Hall", MODD 1..=253), and `$DefaultGlobal`'s only doodad (a candelabra) is not placed. The active sets also select the MAVG interior ambient. Godot: `AdtObjData::wmo_active_doodad_sets` (`wow-adt/src/adt_obj.rs` in wow-formats).
 
 **MDDI.** One f32 per MODD entry; a doodad with MODD flag `0x10` scales its colour by it (at least 1) as interior direct light. Parsed into `WmoRootData::doodad_intensities`; the light rule is in [[wmo-retail-lighting]], WMO doodad light.
 
@@ -62,13 +62,13 @@ MOGP `EXTERIOR` (0x8) splits groups into exterior and interior. From outside, ev
 
 ## Parser Location
 
-Pure parser (no Bevy dependencies): `src/asset/wmo_format/`
+Pure parser: `world-of-osso/wow-formats/wow-wmo/src/`; client namespaces remain direct re-exports. See [shared format ownership and features](../systems/wow-formats.md).
 
 The WMO parser is less complete than the M2 or ADT parsers. Rendering of WMO interiors and full material handling is ongoing work.
 
 ## Sources
 
-- AGENTS.md (`asset/wmo_format/` entry) — module structure
+- [Shared format readers](../systems/wow-formats.md) — parser location, crate boundaries and features
 - [docs/world-object-rotation-investigation-2026-03-22.md](../world-object-rotation-investigation-2026-03-22.md) — MODF rotation mapping, verified against campsite WMOs
 - [docs/casc-architecture.md](../casc-architecture.md) — GFID/MODI FDID chunk description
 - `../../data/diagnostics/npc-motion-20260909/wmo-basis-proof.json` — seven corrected MOHD→MODF extent comparisons
