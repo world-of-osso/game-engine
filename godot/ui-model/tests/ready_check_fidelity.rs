@@ -14,7 +14,107 @@ fn screen(shared: &SharedContext) -> Element {
 }
 
 #[test]
-fn ready_check_message_inherits_black_shadow_both_skins() {
+fn ready_check_portrait_keeps_source_slot_and_metal_ring_both_skins() {
+    use ui_toolkit::atlas::{AtlasSource, resolve_region};
+    use ui_toolkit::layout_values::Val;
+
+    game_engine_ui_model::paths::set_data_root(
+        std::path::PathBuf::from(env!("CARGO_MANIFEST_DIR")).join("../../data"),
+    )
+    .unwrap();
+    for skin in [ActiveSkin::Modern, ActiveSkin::Forever] {
+        set_thread_skin(skin);
+        let mut shared = SharedContext::new();
+        shared.insert(ReadyCheckFrameState {
+            visible: true,
+            initiator: "Raidleader".into(),
+        });
+        let mut registry = FrameRegistry::new(1920.0, 1080.0);
+        Screen::new(screen).sync(&shared, &mut registry);
+        let portrait = registry
+            .get(
+                registry
+                    .get_by_name("ReadyCheckPortrait")
+                    .expect("missing initiator portrait host"),
+            )
+            .unwrap();
+        assert_eq!(
+            (portrait.width.value(), portrait.height.value()),
+            (54.0, 54.0)
+        );
+        assert_eq!(
+            (portrait.position.left, portrait.position.top),
+            (Val::Px(0.0), Val::Px(-3.0))
+        );
+        let ring = registry
+            .get(
+                registry
+                    .get_by_name("ReadyCheckFramePortraitRing")
+                    .expect("missing portrait metal ring"),
+            )
+            .unwrap();
+        assert_eq!(
+            (ring.position.left, ring.position.top),
+            (Val::Px(-13.0), Val::Px(-16.0))
+        );
+        let region = resolve_region("UI-Frame-PortraitMetal-CornerTopLeft", skin).unwrap();
+        assert_eq!(
+            (ring.width.value(), ring.height.value()),
+            (region.width / 2.0, region.height / 2.0)
+        );
+        let AtlasSource::FileDataId(fdid) = region.source else {
+            panic!("source portrait ring must resolve to file art");
+        };
+        let Some(WidgetData::Texture(texture)) = &ring.widget_data else {
+            panic!("portrait metal ring must draw source art");
+        };
+        assert_eq!(texture.source, TextureSource::FileDataId(fdid));
+    }
+}
+
+#[test]
+fn ready_check_title_keeps_source_bounds_color_and_shadow_both_skins() {
+    use ui_toolkit::{layout_values::Val, widgets::font_string::GameFont};
+
+    game_engine_ui_model::paths::set_data_root(
+        std::path::PathBuf::from(env!("CARGO_MANIFEST_DIR")).join("../../data"),
+    )
+    .unwrap();
+    for skin in [ActiveSkin::Modern, ActiveSkin::Forever] {
+        set_thread_skin(skin);
+        let mut shared = SharedContext::new();
+        shared.insert(ReadyCheckFrameState {
+            visible: true,
+            initiator: "Raidleader".into(),
+        });
+        let mut registry = FrameRegistry::new(1920.0, 1080.0);
+        Screen::new(screen).sync(&shared, &mut registry);
+        let frame = registry
+            .get(registry.get_by_name("ReadyCheckFrameTitle").unwrap())
+            .unwrap();
+        let Some(WidgetData::FontString(title)) = &frame.widget_data else {
+            panic!("ReadyCheck title must be text");
+        };
+        // ReadyCheck.xml:45–58: 58 left/24 right, container top1 + title top5.
+        // Current 20px height is conserved, not qualified as intrinsic title height.
+        assert_eq!((frame.width.value(), frame.height.value()), (241.0, 20.0));
+        assert_eq!(
+            (frame.position.left, frame.position.top),
+            (Val::Px(58.0), Val::Px(6.0))
+        );
+        assert_eq!(title.text, "Ready Check");
+        assert_eq!(title.font, GameFont::FrizQuadrata);
+        assert_eq!(title.font_size, 12.0);
+        // GameFontNormal colour: GlobalColor row1 ARGB0xFFFFD200.
+        assert_eq!(title.color, [1.0, 210.0 / 255.0, 0.0, 1.0], "{skin:?}");
+        // ReadyCheck.xml:53 → GameFontNormal → Roman SystemFont_Shadow_Med1.
+        assert_eq!(title.shadow_color, Some([0.0, 0.0, 0.0, 1.0]), "{skin:?}");
+        assert_eq!(title.shadow_offset, [1.0, -1.0], "{skin:?}");
+    }
+}
+
+#[test]
+fn ready_check_message_inherits_roman_color_and_shadow_both_skins() {
     use ui_toolkit::widgets::font_string::GameFont;
 
     game_engine_ui_model::paths::set_data_root(
@@ -39,8 +139,8 @@ fn ready_check_message_inherits_black_shadow_both_skins() {
         assert_eq!(frame.height.value(), 28.0);
         assert_eq!(text.font, GameFont::FrizQuadrata);
         assert_eq!(text.font_size, 12.0);
-        // Existing white is a control, not certification of source NORMAL_FONT_COLOR.
-        assert_eq!(text.color, [1.0; 4]);
+        // GlobalColor row1 NORMAL_FONT_COLOR = ARGB0xFFFFD200, not white.
+        assert_eq!(text.color, [1.0, 210.0 / 255.0, 0.0, 1.0], "{skin:?}");
         assert_eq!(text.shadow_color, Some([0.0, 0.0, 0.0, 1.0]), "{skin:?}");
         assert_eq!(text.shadow_offset, [1.0, -1.0]);
     }

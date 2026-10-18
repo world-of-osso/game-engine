@@ -14,6 +14,8 @@ pub const IG_MAINMENU_OPTION_CHECKBOX_OFF: u32 = 857;
 pub const ITEM_REPAIR: u32 = 7994;
 /// Cached Mainline SoundKitConstants.lua RAID_BOSS_EMOTE_WARNING.
 pub const RAID_BOSS_EMOTE_WARNING: u32 = 12197;
+/// Retail ReadyCheckListenerFrame OnShow / SoundKitConstants.lua:84.
+pub const READY_CHECK: u32 = 8960;
 /// Retail SoundKitConstants.lua PlayerCountdown kits.
 pub const UI_COUNTDOWN_TIMER: u32 = 158565;
 pub const UI_COUNTDOWN_FINISHED: u32 = 158566;
@@ -26,6 +28,10 @@ pub const HOUSING_EXPERTMODE_SUB_MENU_BUTTON_TOGGLE_SHORTCUT: u32 = 304887;
 /// Retail PerksProgram.OnShow/OnHide, active70391 SoundKitConstants.lua.
 pub const TRADING_POST_UI_MENU_OPEN: u32 = 218932;
 pub const TRADING_POST_UI_MENU_CLOSE: u32 = 218933;
+/// Retail product OnEnter, including the inherited frozen product template.
+pub const TRADING_POST_UI_ITEM_HOVER: u32 = 218934;
+/// Retail FreezeDraggedItem after accepting the actual dragged product.
+pub const TRADING_POST_UI_ITEM_LOCKING: u32 = 218229;
 
 #[derive(Clone, Copy, Debug, PartialEq)]
 pub struct UiSoundKit {
@@ -117,6 +123,21 @@ const KITS: &[UiSoundKit] = &[
         volume: 0.69,
         // sound/spells/tradeskills/mininghit{a..}.ogg
         files: &[569_801, 569_811, 569_792, 569_794, 569_821],
+    },
+    UiSoundKit {
+        id: TRADING_POST_UI_ITEM_HOVER,
+        volume: 0.891_250_9,
+        files: &[4_906_953],
+    },
+    UiSoundKit {
+        id: TRADING_POST_UI_ITEM_LOCKING,
+        volume: 0.707_945_76,
+        files: &[4_908_453, 4_908_455, 4_908_457, 4_908_459],
+    },
+    UiSoundKit {
+        id: READY_CHECK,
+        volume: 1.0,
+        files: &[567_478],
     },
 ];
 

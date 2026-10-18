@@ -8,6 +8,386 @@ use ui_toolkit::{
     screen::{Screen, SharedContext},
 };
 
+fn keyboard_view() -> View {
+    let mut data = snapshot();
+    let template = data.items[0].clone();
+    for (id, name, price, category_id) in [
+        (10, "Cobalt", 30, 1),
+        (11, "Amber", 10, 1),
+        (12, "Bronze", 20, 2),
+        (13, "Dusk", 40, 1),
+        (14, "Ember", 5, 1),
+    ] {
+        data.items.push(TradingPostItem {
+            id,
+            name: name.into(),
+            price,
+            category_id,
+            ..template.clone()
+        });
+    }
+    View {
+        visible: true,
+        snapshot: Some(Arc::new(data)),
+        selected: Some(11),
+        sort: game_engine_ui_model::trading_post::Sort::Name,
+        ascending: true,
+        ..Default::default()
+    }
+}
+
+#[test]
+fn trading_post_keyboard_down_selects_next_ordinary_product_without_wrapping() {
+    let mut view = keyboard_view();
+    let original = view.snapshot.clone();
+    for expected in [12, 10, 13, 14, 14] {
+        assert_eq!(view.click("perks:select-next").unwrap(), None);
+        assert_eq!(view.selected, Some(expected));
+    }
+    assert_eq!(
+        view.snapshot, original,
+        "navigation cannot mutate authority"
+    );
+    assert!(view.cart.is_empty());
+}
+
+#[test]
+fn trading_post_keyboard_up_selects_previous_ordinary_product_without_wrapping() {
+    let mut view = keyboard_view();
+    view.selected = Some(13);
+    for expected in [10, 12, 11, 11] {
+        assert_eq!(view.click("perks:select-previous").unwrap(), None);
+        assert_eq!(view.selected, Some(expected));
+    }
+    assert_eq!(view.snapshot.as_ref().unwrap().frozen_item_id, Some(4));
+    assert_eq!(view.snapshot.as_ref().unwrap().tender, 500);
+}
+
+#[test]
+fn trading_post_keyboard_uses_current_filter_and_price_direction() {
+    let mut view = keyboard_view();
+    view.click("perks:type:2").unwrap();
+    view.click("perks:select-next").unwrap();
+    assert_eq!(view.selected, Some(10), "filtered Bronze is skipped");
+    view.click("perks:sort:price").unwrap();
+    view.click("perks:select-next").unwrap();
+    assert_eq!(view.selected, Some(11), "descending30 to10");
+    view.click("perks:select-previous").unwrap();
+    assert_eq!(view.selected, Some(10));
+    view.click("perks:sort:price").unwrap();
+    view.click("perks:select-previous").unwrap();
+    assert_eq!(view.selected, Some(11), "ascending30 to10");
+}
+
+#[test]
+fn trading_post_keyboard_frozen_cart_and_modal_keep_their_selection_owner() {
+    for action in ["perks:select-next", "perks:select-previous"] {
+        let mut frozen = keyboard_view();
+        frozen.selected = Some(4);
+        let mut cart = keyboard_view();
+        cart.cart.push(10);
+        cart.click("perks:cart:show").unwrap();
+        let mut modal = keyboard_view();
+        modal.click("perks:purchase").unwrap();
+        assert_eq!(modal.confirm.as_deref(), Some("purchase"));
+        for mut view in [frozen, cart, modal] {
+            let before = view.clone();
+            assert_eq!(view.click(action).unwrap(), None);
+            assert_eq!(view, before, "{action} must not disturb its input owner");
+        }
+    }
+}
+
+#[test]
+fn trading_post_keyboard_nil_selection_never_guesses_first_product() {
+    let mut view = keyboard_view();
+    view.selected = None;
+    for action in ["perks:select-next", "perks:select-previous"] {
+        assert!(view.click(action).is_err());
+        assert_eq!(view.selected, None);
+    }
+}
+
+fn keyboard_page_view() -> View {
+    let mut view = keyboard_view();
+    let mut data = view.snapshot.as_ref().unwrap().as_ref().clone();
+    let template = data.items[0].clone();
+    data.items.truncate(1);
+    data.items.extend((0..20).map(|index| TradingPostItem {
+        id: 100 + index,
+        name: format!("Product{index:02}"),
+        ..template.clone()
+    }));
+    view.snapshot = Some(Arc::new(data));
+    view.selected = Some(100);
+    view
+}
+
+#[test]
+fn trading_post_keyboard_nearest_scroll_reveals_edges_without_centering() {
+    let mut view = keyboard_page_view();
+    for (index, current, expected) in [
+        (10, 0, 0),
+        (11, 0, 3),
+        (12, 3, 51),
+        (1, 51, 48),
+        (0, 48, 0),
+        (8, 213, 213),
+        (19, 0, 387),
+    ] {
+        view.selected = Some(100 + index);
+        assert_eq!(
+            view.calculate_selected_scroll_offset(current).unwrap(),
+            expected,
+            "selected index{index}, current offset{current}"
+        );
+    }
+}
+
+#[test]
+fn trading_post_keyboard_crosses_a_real_page_then_returns_in_both_skins() {
+    use game_engine_ui_model::trading_post::LIST;
+    for skin in [ActiveSkin::Modern, ActiveSkin::Forever] {
+        set_thread_skin(skin);
+        let mut view = keyboard_page_view();
+        let mut shared = SharedContext::new();
+        shared.insert(skin);
+        shared.insert(view.clone());
+        let mut registry = FrameRegistry::new(1920., 1080.);
+        let mut screen = Screen::new(trading_post_screen);
+        screen.sync(&shared, &mut registry);
+        assert!(registry.get_by_name("PerksProgramProduct100").is_some());
+        assert!(registry.get_by_name("PerksProgramProduct112").is_none());
+        for action in ["perks:select-next", "perks:select-previous"] {
+            for _ in 0..12 {
+                view.click(action).unwrap();
+                let current = registry.scroll_lists.get(LIST).unwrap().first_row;
+                let offset = view.calculate_selected_scroll_offset(current).unwrap();
+                registry.scroll_lists.scroll_to(LIST, offset);
+                shared.insert(view.clone());
+                screen.sync(&shared, &mut registry);
+            }
+            if action == "perks:select-next" {
+                assert_eq!(view.selected, Some(112));
+                assert_eq!(registry.scroll_lists.get(LIST).unwrap().first_row, 51);
+                assert!(registry.get_by_name("PerksProgramProduct100").is_none());
+                assert!(registry.get_by_name("PerksProgramProduct112").is_some());
+            } else {
+                assert_eq!(view.selected, Some(100));
+                assert_eq!(registry.scroll_lists.get(LIST).unwrap().first_row, 0);
+                assert!(registry.get_by_name("PerksProgramProduct100").is_some());
+                assert!(registry.get_by_name("PerksProgramProduct112").is_none());
+            }
+        }
+        assert_eq!(view.snapshot.as_ref().unwrap().frozen_item_id, Some(4));
+        assert_eq!(view.snapshot.as_ref().unwrap().tender, 500);
+        assert!(view.cart.is_empty());
+    }
+}
+
+fn purchase_price_view() -> View {
+    let mut data = snapshot();
+    let template = data.items[0].clone();
+    for (id, name, price, purchased, refund_seconds, priority) in [
+        (10, "Zeta Purchased", 900, true, 0, 1000),
+        (11, "Alpha Purchased", 800, true, 0, 1000),
+        (12, "Zeta Refundable", 700, true, 60, 1000),
+        (13, "Alpha Refundable", 600, true, 60, 1000),
+        (14, "Cheap Unowned", 10, false, 0, 1000),
+        (15, "Costly Unowned", 20, false, 0, 1000),
+        (16, "Higher Group Purchased", 1, true, 0, 2000),
+    ] {
+        data.items.push(TradingPostItem {
+            id,
+            name: name.into(),
+            price,
+            purchased,
+            collected: purchased,
+            refund_seconds,
+            ui_group_priority: priority,
+            ..template.clone()
+        });
+    }
+    View {
+        visible: true,
+        snapshot: Some(Arc::new(data)),
+        selected: Some(4),
+        cart: vec![14],
+        sort: game_engine_ui_model::trading_post::Sort::Name,
+        ..Default::default()
+    }
+}
+
+#[test]
+fn trading_post_purchase_price_sort_orders_owned_buckets_in_both_directions() {
+    let mut view = purchase_price_view();
+    for (ascending, expected) in [
+        (false, vec![16, 15, 14, 13, 12, 11, 10]),
+        (true, vec![16, 11, 10, 13, 12, 14, 15]),
+    ] {
+        view.click("perks:sort:price").unwrap();
+        assert_eq!(view.ascending, ascending);
+        assert_eq!(
+            view.rows().iter().map(|row| row.id).collect::<Vec<_>>(),
+            expected
+        );
+    }
+    assert_eq!(view.selected, Some(4));
+    assert_eq!(view.snapshot.as_ref().unwrap().frozen_item_id, Some(4));
+    assert_eq!(view.snapshot.as_ref().unwrap().tender, 500);
+    assert_eq!(view.cart, [14]);
+}
+
+#[test]
+fn trading_post_purchase_price_sort_uses_elapsed_refund_boundary_not_selection() {
+    let mut view = purchase_price_view();
+    view.click("perks:sort:price").unwrap();
+    for (elapsed, descending, ascending) in [
+        (
+            59,
+            vec![16, 15, 14, 13, 12, 11, 10],
+            vec![16, 11, 10, 13, 12, 14, 15],
+        ),
+        (
+            60,
+            vec![16, 15, 14, 11, 13, 10, 12],
+            vec![16, 11, 13, 10, 12, 14, 15],
+        ),
+        (
+            61,
+            vec![16, 15, 14, 11, 13, 10, 12],
+            vec![16, 11, 13, 10, 12, 14, 15],
+        ),
+    ] {
+        view.refund_elapsed = elapsed;
+        for (direction, expected) in [(false, descending), (true, ascending)] {
+            view.ascending = direction;
+            assert_eq!(
+                view.rows().iter().map(|row| row.id).collect::<Vec<_>>(),
+                expected,
+                "elapsed={elapsed}, ascending={direction}"
+            );
+        }
+    }
+    assert_eq!(
+        view.selected,
+        Some(4),
+        "refund lookup is per row, not selected"
+    );
+    assert_eq!(view.snapshot.as_ref().unwrap().items[3].refund_seconds, 60);
+}
+
+#[test]
+fn trading_post_frozen_row_exclusion_keeps_frozen_details_selectable_in_both_skins() {
+    for skin in [ActiveSkin::Modern, ActiveSkin::Forever] {
+        let mut view = freeze_view();
+        view.cart.clear();
+        assert_eq!(
+            view.rows().iter().map(|row| row.id).collect::<Vec<_>>(),
+            [5, 6]
+        );
+        let registry = render(skin, view.clone());
+        assert!(registry.get_by_name("PerksProgramProduct4").is_none());
+        assert!(registry.get_by_name("PerksProgramProduct5").is_some());
+        assert!(registry.get_by_name("PerksProgramProduct6").is_some());
+        assert!(registry.get_by_name("PerksProgramFrozenSlot").is_some());
+        assert_eq!(
+            text(&registry, "PerksProgramFrozenLabel"),
+            "Distinguished Warcloak"
+        );
+        assert_eq!(view.selected_item().unwrap().id, 4);
+        assert_eq!(view.snapshot.as_ref().unwrap().items.len(), 3);
+
+        view.click("perks:type:1").unwrap();
+        assert!(view.rows().is_empty());
+        assert_eq!(view.selected, Some(4));
+        assert_eq!(view.selected_item().unwrap().id, 4);
+        let filtered = render(skin, view.clone());
+        assert!(filtered.get_by_name("PerksProgramFrozenSlot").is_some());
+        assert_eq!(
+            text(&filtered, "PerksProgramFrozenLabel"),
+            "Distinguished Warcloak"
+        );
+        view.click("perks:select:4").unwrap();
+        assert_eq!(view.selected, Some(4));
+        view.click("perks:filters:reset").unwrap();
+        assert_eq!(
+            view.rows().iter().map(|row| row.id).collect::<Vec<_>>(),
+            [5, 6]
+        );
+        assert_eq!(view.snapshot.as_ref().unwrap().tender, 500);
+        assert_eq!(view.snapshot.as_ref().unwrap().frozen_item_id, Some(4));
+        assert!(view.cart.is_empty());
+    }
+}
+
+#[test]
+fn trading_post_frozen_row_exclusion_follows_committed_not_pending_replacement() {
+    use game_engine_ui_model::trading_post::Action;
+    for skin in [ActiveSkin::Modern, ActiveSkin::Forever] {
+        let mut view = freeze_view();
+        view.cart.clear();
+        assert_eq!(view.drop_item(5, false, true), None);
+        assert_eq!(view.freeze_candidate, Some(5));
+        assert_eq!(view.snapshot.as_ref().unwrap().frozen_item_id, Some(4));
+        assert_eq!(
+            view.rows().iter().map(|row| row.id).collect::<Vec<_>>(),
+            [5, 6]
+        );
+        let pending = render(skin, view.clone());
+        assert!(pending.get_by_name("PerksProgramProduct4").is_none());
+        assert!(pending.get_by_name("PerksProgramProduct5").is_some());
+        assert_eq!(text(&pending, "PerksProgramFrozenLabel"), "Arcanofire Wrap");
+        view.click("perks:cancel").unwrap();
+        assert_eq!(
+            view.rows().iter().map(|row| row.id).collect::<Vec<_>>(),
+            [5, 6]
+        );
+
+        for (id, ordinary, frozen_name) in [
+            (5, vec![6, 4], "Arcanofire Wrap"),
+            (4, vec![5, 6], "Distinguished Warcloak"),
+        ] {
+            assert_eq!(view.drop_item(id, false, true), None);
+            view.update_freeze_confirmation(5.0);
+            assert_eq!(
+                view.click("perks:confirm").unwrap(),
+                Some(Action::Request(TradingPostRequest::Freeze {
+                    vendor_item_id: Some(id)
+                }))
+            );
+            let prior = view.snapshot.as_ref().unwrap().frozen_item_id.unwrap();
+            assert!(!view.rows().iter().any(|row| row.id == prior));
+            assert!(view.rows().iter().any(|row| row.id == id));
+            let mut reply = view.snapshot.as_ref().unwrap().as_ref().clone();
+            reply.frozen_item_id = Some(id);
+            view.receive(Arc::new(reply));
+            assert_eq!(
+                view.rows().iter().map(|row| row.id).collect::<Vec<_>>(),
+                ordinary
+            );
+            assert_eq!(view.selected, Some(id));
+            assert_eq!(view.selected_item().unwrap().id, id);
+            let accepted = render(skin, view.clone());
+            assert!(
+                accepted
+                    .get_by_name(&format!("PerksProgramProduct{id}"))
+                    .is_none()
+            );
+            assert!(
+                accepted
+                    .get_by_name(&format!("PerksProgramProduct{prior}"))
+                    .is_some()
+            );
+            assert_eq!(text(&accepted, "PerksProgramFrozenLabel"), frozen_name);
+        }
+        assert_eq!(view.snapshot.as_ref().unwrap().frozen_item_id, Some(4));
+        assert_eq!(view.snapshot.as_ref().unwrap().tender, 500);
+        assert_eq!(view.snapshot.as_ref().unwrap().items.len(), 3);
+        assert!(view.cart.is_empty());
+    }
+}
+
 #[test]
 fn trading_post_refund_icon_tooltip_uses_hovered_row_time_not_selected_product() {
     let mut data = snapshot();
@@ -1178,7 +1558,10 @@ fn trading_post_dropdown_selection_and_sort_headers_order_real_rows() {
     row.id = 5;
     row.name = "Arcanofire Wrap".into();
     row.price = 75;
-    data.items.push(row);
+    let mut second_ordinary = data.items[0].clone();
+    second_ordinary.id = 6;
+    second_ordinary.name = "Azure Warcloak".into();
+    data.items.extend([row, second_ordinary]);
     let mut view = View {
         visible: true,
         snapshot: Some(Arc::new(data)),
@@ -1188,12 +1571,12 @@ fn trading_post_dropdown_selection_and_sort_headers_order_real_rows() {
     view.click("perks:sort:price").unwrap();
     assert_eq!(
         view.rows().iter().map(|r| r.id).collect::<Vec<_>>(),
-        vec![5, 4]
+        vec![5, 6]
     );
     view.click("perks:sort:price").unwrap();
     assert_eq!(
         view.rows().iter().map(|r| r.id).collect::<Vec<_>>(),
-        vec![4, 5]
+        vec![6, 5]
     );
     view.click("perks:filter").unwrap();
     let registry = render(ActiveSkin::Forever, view.clone());
@@ -1226,11 +1609,15 @@ fn trading_post_retail_xml_geometry_and_dropdown_in_both_skins() {
     // Blizzard_PerksProgram.xml: LEFT+46, vertical center+22; WoW Y is upwards.
     // Elements.xml base extent 176x48; list stretches width to 527-24.
     for skin in [ActiveSkin::Modern, ActiveSkin::Forever] {
+        let mut data = snapshot();
+        let mut ordinary = data.items[0].clone();
+        ordinary.id = 5;
+        data.items.push(ordinary);
         let registry = render(
             skin,
             View {
                 visible: true,
-                snapshot: Some(Arc::new(snapshot())),
+                snapshot: Some(Arc::new(data)),
                 selected: Some(4),
                 ..Default::default()
             },
@@ -1243,8 +1630,8 @@ fn trading_post_retail_xml_geometry_and_dropdown_in_both_skins() {
             rect(&registry, "PerksProgramScrollBox"),
             [0., 58., 503., 573.]
         );
-        assert_eq!(rect(&registry, "PerksProgramProduct4"), [0., 0., 503., 48.]);
-        assert_eq!(rect(&registry, "PerksProgramIcon4"), [32., 8., 32., 32.]);
+        assert_eq!(rect(&registry, "PerksProgramProduct5"), [0., 0., 503., 48.]);
+        assert_eq!(rect(&registry, "PerksProgramIcon5"), [32., 8., 32., 32.]);
         assert_eq!(
             rect(&registry, "PerksProgramFilter"),
             [55., 95.5, 145., 25.]
@@ -1300,7 +1687,7 @@ fn trading_post_both_skins_show_real_tender_price_frozen_item_and_disabled_refun
             },
         );
         assert_eq!(text(&registry, "PerksProgramCurrencyAmount"), "500");
-        assert_eq!(text(&registry, "PerksProgramPrice4"), "100");
+        assert_eq!(text(&registry, "PerksProgramFrozenPrice4"), "100");
         assert_eq!(
             text(&registry, "PerksProgramFrozenLabel"),
             "Distinguished Warcloak"
@@ -1416,6 +1803,7 @@ fn trading_post_empty_freeze_slot_and_leave_use_sourced_text_and_arrow() {
 #[test]
 fn trading_post_retail_filter_checks_ownership_usability_and_multiple_types() {
     let mut source = snapshot();
+    source.frozen_item_id = None;
     let mut owned = source.items[0].clone();
     owned.id = 5;
     owned.purchased = true;

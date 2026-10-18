@@ -14,6 +14,22 @@ Retail Mainline Blizzard_PerksProgram and the local C_PerksProgram/PerksActiviti
 - [x] Traveler's Log displays authoritative monthly Tender earned/cap/balance. No invented mail awards. Retail XML defines visible controls; remove unsourced vendor SearchBox, Log/Collections and Freeze/Unfreeze buttons (lead clarification October13).
 - [x] Targeted behavioural tests and inspected private UDP5731 fb_* account PNG proof in Modern and Forever.
 
+## Ordinary-product keyboard navigation
+
+- [x] Model: with an existing ordinary selection, Down/Up selects the next/previous ordinary row in current filtered/sorted order, without wrapping at either end. Frozen selection, visible cart and confirmation keyboard owners do not navigate. Nil selection never guesses the first row.
+- [x] Model/registry: reveal the nearest out-of-view edge of a newly selected row; leave already-visible rows at the current scroll offset. Twenty ordinary rows cross the real573px viewport in both skins and return to the start. Header entries are not selectable products; this slice does not create missing headers/group IDs.
+- [ ] Consume owned Up/Down presses/releases before world movement, preserving higher modal keyboard ownership. Navigation sends no vendor transaction and cannot change Tender, cart or frozen reservation.
+- [x] Code gate: four genuine missing-action model REDs (nil control already passed) →51 focused UI tests including seven new navigation/page cases; engine/UI/network helper check38.35s without warnings, scoped format/readability of five Rust files pass. Both-skin real-key/world-position/conservation acceptance remains pending until after landing.
+
+Selection sounds, screenshot binding, new key-repeat policy, empty-provider parity, calendar/provider work and Rank3 framing remain excluded. [Implementation/proof](../wiki/systems/trading-post.md#ordinary-product-keyboard-navigation--october17).
+
+## Purchase-aware Price sorting
+
+- [x] Ordinary Price sorting uses Retail Products.lua402–485 effective values: refundable−2, purchased/nonrefundable−3, otherwise the actual unsigned price. Determine refundability from each row's remaining refund time, not the selected item. Preserve higher-group precedence, ascending name ties in either direction, committed frozen exclusion, selection and cart.
+- [x] Two concrete model RED→GREEN tests cover both directions, sentinel-name ties, elapsed59/60/61 refund expiry and a higher-group control; all44 focused Trading Post UI tests pass.
+- [x] After468e landing, both-skin nativee800/Sffc/P2a with fixturecf353cadf verifies real header/menu sorting and one ordinary purchase/refund each: Modern642 Tender19040→18740→19040, appearance83540 acquired/revoked; Forever734 Tender19670→19370→19670, appearance83097 acquired/revoked. Exact starting appearance-ID sets and empty cart restored before verdict; original640/712 never changed and no Freeze request was sent. First12 observed row prefixes move on purchase and return after refund; no full-tail/paging claim. Eighteen inspected full-HD PNGs+two contacts: `/syncthing/AgentShared/2026-10-17/trading-post-purchase-price-sort/`. Existing private3600-second refund policy only; production policy unchanged.
+- [ ] `TP_SORT_PER_PRODUCT_PENDING`: Retail's per-product pending−1 branch lacks a supplied per-product flag. Never infer it from the view-global request flag. Time/calendar, group-header identity and production refund policy remain separate.
+
 ## Shared item-confirmation caption shadow
 
 - [x] The separate item-confirmation presenter's Confirm/Cancel captions inherit opaque black shadow at source(+1,−1), native(+1,+1), in both skins. Preserve current12px, colours, caption/button geometry, actions and pending/accept-delay behavior. [Bounded supplied-state proof](../wiki/systems/trading-post.md#item-confirmation-caption-shadow--bounded-proof-october17).
@@ -78,13 +94,38 @@ Retail Mainline Blizzard_PerksProgram and the local C_PerksProgram/PerksActiviti
 - Retail PerksProgramElements.lua306–314 uses `GetItemByID`, excludes `SellPrice`, and owns the tooltip at `ANCHOR_RIGHT` with X−16/Y0. Preserve the shared screen clamp; hide on pointer leave or vendor teardown. Hover must not change selection, Tender or server state.
 - [x] Native missing-tooltip RED→both-skin GREEN at engine569419cb7/servera820dfda/protocoldc30250. Fixture `godot/tests/trading_post_live.gd`, phase `item-tooltips`, verifies two hovered item identities/details/right−16 positions without sell price, unchanged selected row/Tender, pointer leave and Escape/vendor teardown/reopen/HUD restoration. Eight inspected full-HD originals+two contacts: `/syncthing/AgentShared/2026-10-16/trading-post-item-tooltips/`; diagnostic `item-tooltips-proof-manifest.json` pins actual artifact hashes and receipts. Product-row coverage does not certify frozen/cart/detail-row or footer-button tooltips, item spell-effect formatting, or framing.
 
+## Committed frozen-product list exclusion
+
+Source: Retail `Blizzard_PerksProgramProducts.lua:530–534` omits the committed frozen vendor ID from the ordinary product provider. [Implementation/proof](../wiki/systems/trading-post.md#committed-frozen-product-list-exclusion--october17).
+
+- Exclude only `snapshot.frozen_item_id` from ordinary rows; keep every item in the authoritative snapshot and retain frozen-slot contents/details/selectability across ordinary filters. Preserve ordinary ordering and paging.
+- A pending replacement candidate stays in the ordinary list until authoritative acceptance. Cancel retains the original exclusion; acceptance removes the newly frozen ordinary row and returns the previous frozen product to the ordinary list. Genuine restoration reverses that swap without clearing the reservation or changing Tender/collections/cart.
+- [x] Model missing-exclusion RED2→GREEN2; current source7f737c021 passes42UI+12native Rust(+1DB2), helper check35.07s/no compiler warnings, scoped Rustfmt2/readability. Active SoundKit-family audit corrected to70448/key88d5e8ef…, original70391 receipt retained separately.
+- [x] After443e landed, actualc123d6104/S7f0b2491/P7a3f9c0 both-skin native passes seven provider checks each: committed ordinary row absent/frozen slot present, filtered frozen selection/details, pending candidate visible, cancel unchanged, accepted row swap, genuine640→642→640 and712→734→712 restored before verdict, reopen/order/Tender/appearance collections/cart/catalog1382 conserved. No reservation clearing. Ten inspected full-HD originals+two contacts: `/syncthing/AgentShared/2026-10-17/trading-post-frozen-row-exclusion/`. Earlier audio-only duplicate-row baselines remain historical, not current provider parity.
+
+## Accepted freeze-lock sound
+
+Source: Retail `Blizzard_PerksProgramElements.lua:577–580,657–670` plays218229 only when accepting a genuinely dragged different product, not on cancel, query, same-item drop or a server snapshot update. [Implementation/proof](../wiki/systems/trading-post.md#accepted-freeze-lock-sound--october17).
+
+- Use existing UiKits with70391 source gain0.707945764 and equally weighted files4908453/4908455/4908457/4908459; no pitch/variation or Advanced interpretation. Actual installed70448 assets retain separate provenance.
+- Confirmed occupied-slot replacement and direct accepted freeze use the same sound dispatch before sending the request. Unfreeze requests do not play this kit. Repeated updates/reopen/cancel/disabled confirmation do not replay it; do not infer sound from authoritative frozen-ID changes.
+- [x] Registry/native missing-lock RED→actualc3b62df05/Sf4260bea/Pe9b80b8 both-skin GREEN: nine checkpoints and two measured decoded plays each, actual playing/finished/gain0.566356599/pitch1; early-disabled confirmation, cancel, duplicate drop, hold and reopen stay silent. Genuine640→642→640 and712→734→712 restore originals before verdict; Tender19040/19670, collections/cart and original selection conserved, no reservation cleared. Native observes4908453/4908457 only; core metadata/selector and full ffmpeg decode cover all four. Ten inspected full-HD originals+two contacts: `/syncthing/AgentShared/2026-10-17/trading-post-freeze-lock-sound/`.
+
+## Product-enter sound
+
+Source: Retail `Blizzard_PerksProgramElements.lua:291–304` unconditionally plays `TRADING_POST_UI_ITEM_HOVER`218934 on product OnEnter; frozen `Elements.xml:383` inherits that handler. SoundKit/Entry metadata is12.1.5.70391; file4906953 is authenticated installed12.1.5.70448 Ogg, not relabeled70391. [Implementation and proof](../wiki/systems/trading-post.md#product-enter-sound--october17).
+
+- Ordinary and frozen buttons are distinct hover owners, not selected-model identities; the [committed frozen-product exclusion](#committed-frozen-product-list-exclusion) prevents a simultaneous ordinary copy of the reserved product. Nested cart-toggle hover retains the parent product owner. Hold/refresh does not replay; leave and teardown permit reentry/reopen. Empty-slot enter follows the item-independent source handler, without requiring selection or item data.
+- Reuse existing UiKits decoding/settings: file4906953, source gain0.891250908 × master × effects, no pitch adjustment/variation. Do not change selected product, cart, Tender, frozen reservation or collections. Selection218230 and other action sounds remain excluded.
+- [x] Native missing-enter RED→actual3a7bed652/serverf4260beaf/protocole9b80b8 both-skin GREEN:12 lifecycle checkpoints and5 measured decoded4906953 plays per skin, all playing/finished,0.378645837s, source×settings gain0.713000715 and pitch1; same-product ordinary/frozen owners differ and child/hold do not replay. Tender19040/19670, frozen640/712, selected642/734, collections/cart conserved. Core3+TP52(+1DB2)/check/scoped Rustfmt3/readability pass; native empty-slot and hardware output remain unclaimed. Ten inspected full-HD originals+two contacts: `/syncthing/AgentShared/2026-10-17/trading-post-product-hover-sound/`.
+
 ## Menu lifecycle sounds
 
 Source: Retail PerksProgram.lua226/253 and SoundKitConstants.lua, with SoundKit/SoundKitEntry12.1.5.70391. [Implementation/proof inventory](../wiki/systems/trading-post.md#menu-lifecycle-sounds--bounded-proof-october15); behavioral tests: `godot/core/tests/trading_post_menu_sound.rs`, `godot/tests/trading_post_live.gd` (`menu-sounds`).
 
 - [x] Actual menu show/hide plays OPEN218932/CLOSE218933 once per visibility edge via the existing UI SoundKit player; repeated updates/closed state do not replay either kit. A menu never projected must not emit a close sound.
 - [x] Use the five authored open files at gain0.562341332 and ten authored close files at gain0.01, preserving existing master/effects/mute settings and explicit asset/decode failures. Native proof must observe real decoded AudioStreamPlayer playback, not only requested kit IDs.
-- [ ] NAMED GAP — close kit218933 pitch adjustment/variation is unsupported by the existing UI kit player. Lead October15 authorizes lifecycle/files/gain only; do not add a pitch path or claim complete acoustic parity in this slice. Hover/selection/purchase/refund/rotation sounds remain outside it.
+- [ ] NAMED GAP — close kit218933 pitch adjustment/variation is unsupported by the existing UI kit player. The nonzero-adjustment rate equation is separately unestablished: [UI_SOUND_PITCH_ADJUST_RATE](../wiki/systems/sound.md#ui_sound_pitch_adjust_rate); hide/show218236/218237 remains deferred, with no guessed mapping. Lead October15 authorizes lifecycle/files/gain only; do not add a pitch path or claim complete acoustic parity in this slice. Hover/selection/purchase/refund/rotation sounds remain outside it.
 
 ## Named gap — native pet framing
 

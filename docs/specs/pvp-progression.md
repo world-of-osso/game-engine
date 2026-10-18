@@ -42,6 +42,35 @@ Lead-authorized World of Osso policy [HONOR_WALLET_MIRRORS_HONOR_XP](../../../ga
 
 `scripts/export_db2_csv.py` accepts exact pinned layouts for CurrencyTypes1095531, PvpTalent1302853, PvpTalentCategory1891534, PvpTalentSlotUnlock1950197 and PrestigeLevelInfo1275869. Exported fields describe source records, not runtime implementation guarantees. TrinityCore DB2Structure.h locally preserved in `data/diagnostics/scrap-2026-10-10/` supplies field semantics; CASC supplies values.
 
+## Random Battleground reward profile — 70448
+
+`RANDOM_BG_WIN_REWARD_PROFILE` remains unresolved. Pinned TC a352b1fa compiled defaults and shipped assignments are first/repeat win27000/13500 and loss4500/3500, passed as kill equivalents rather than flat Honor. Daily reset defaults to06:00 server-local time; neither amounts nor reset authority is adopted by this project. No first-win/daily state or Random completion grant is authorized.
+
+**`RANDOM_BG_LEVEL_ELIGIBLE_MAPS` — project policy based on Retail level-banded Random BG behavior, not a TC port.** Admission uses parent map566's bracket (first20–29), parent minimum5/team, capacity10/team and party≤5. Each player's original queue32 survives selection, transfer and reconnect separately from the concrete map.
+
+Select only configured BML32 maps with their own PVPDifficulty bracket containing all queued player levels and satisfying their admission bounds. Use existing configured weights; Retail weighting is undocumented. Missing Deepwind2245 template excludes it; level25 excludes Deephaul2656, while level80 can select it. An ineligible-only level range is refused explicitly. Retain the selected level-matching bracket, not a copied TC RangeIndex. Existing map payouts and concrete-map start minimums stay unchanged. UI map exclusions are a later slice.
+
+## Fill existing battleground copies
+
+Fill compatible Waiting/InProgress copies before creating a new one: concrete map and selected player-level range must match; rated/arena and Ended copies are excluded. Random32 eligibility is unchanged, with no redraw. Keep every character's original direct/random queue ID, including mixed-origin copies. Outstanding invitations/offline reservations consume concrete-map capacity.
+
+**`BG_BACKFILL_WHOLE_PARTY_SMALLER_TEAM` — project policy:** whole parties join the smaller team only if they fit its remaining capacity; never split or drop a nonfit. This replaces TC's one-player-at-parity limiter. **`BG_BACKFILL_MATCH_ORDER` — project policy:** deterministic ascending existing match-ID order, not TC push-front order.
+
+Preserve existing copy, phase, score, clock and objective state. New characters receive normal invitations and reservation ownership, then ordinary acceptance/WorldPortAck entry; existing accepted players are not re-invited. Use landed late-arrival score-row insertion. Refill on queue/capacity-release events only; no timer, reward or minimum changes. Arathi5v5 Waiting must reach its unchanged8/team criterion naturally through later parties.
+
+### Native pending invitation
+
+An unaccepted Waiting entry or an unaccepted InProgress ordinary BG entry displays the existing ready dialog and permits one match-owned accept/decline request until authority responds. Accepted entries and Ended matches are not pending; running-arena behavior remains unchanged. Preserve existing dialog art/layout and response handling. Source: Retail `PVPHelper.lua`321–329 opens on queue status `confirm`;427 handles the pending port action independently of the destination match phase.
+
+## Eye holiday authority — 70448 read-only
+
+`HOLIDAY492_EFFECTIVE_EVENT_AUTHORITY` remains unresolved. Do not infer a77-day recurrence or treat missing calendar authority as inactive. Existing Eye completion Honor is unchanged; resource-Honor selection remains blocked.
+
+- [ ] Establish the sourced effective holiday492 event/stage/schedule and active-state authority before choosing Eye7 resource thresholds260/160.
+- [ ] Prove real active/inactive interval boundaries before implementing that conditional payout; do not manufacture dates or adopt an unsupported calendar policy.
+
+The [70448 read-only audit](../wiki/investigations/eye-holiday-authority.md) records the concrete DB2 arrays, pinned TC evaluator semantics and the missing effective-event input.
+
 ## Current source boundary
 
 Honor cap15000 is authored. Conquest has MaxQtyWorldStateID31270 and AwardConditionID146857; static0 does not prove an uncapped season. Slot masks1/2/4/8 unlock at10/20/30/40. PrestigeLevelInfo contains honor-achievement reward identities (e.g. level5/achievement12893); these alone do not define an XP curve. The extracted `gametables/honorlevel.txt` contains old Prestige0..32 curves and is not certified as Mainline lifetime-honor progression. Honor per win/loss, conquest per result, season cap/reset authority and the lifetime XP curve remain gaps until locally derived. No manufactured rewards.

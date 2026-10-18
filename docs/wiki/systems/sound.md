@@ -38,6 +38,22 @@ At `741344ca`, native `NativeSound` consumes those catalogs: two owned Godot pla
 
 `ce2a8c92` adds a real authenticated `GameClient` fixture. The retained run reaches MCNK area 9 → root zone 12, observes Music player track `53492`, confirms no zone-12 ambient track, then drives the authored Options Sound controls and observes native player volume/mute/music-enable state. The fixture log is [native-sound-client-final.log](../../../data/diagnostics/native-sound-client-final.log). This is volume/player-state proof only: no audible-output, full audio parity, or independent-verifier claim follows; verifier817 is pending. Unexpected fixture markers are ordering/discovery sentinels, not production REDs, and mutation assertions are harness-sensitivity checks only. Its verbose exit reports 16 leaked stream/playback/Ogg-packet objects but no native sound/player nodes; see [[native-audio-shutdown-leaks]]. Godot 4.7.2 remains pinned; the documented engine-level shutdown-timing issue is not being patched now, and client work continues without a full-parity waiver.
 
+## Trading Post accepted freeze-lock kit
+
+[Freeze-lock lifecycle/proof](trading-post.md#accepted-freeze-lock-sound--october17) registers218229 with four authored variants/gain0.707945764. Both native acceptance paths reuse UiKits; zero pitch/variation requires no player change. Metadata70391 and local installed70448 audio remain separately qualified. Hide/show218236/218237 needs nonzero PitchAdjust support in a future slice; selection218230 needs its own selection/silence callbacks, neither is implemented here.
+
+## UI_SOUND_PITCH_ADJUST_RATE
+
+Verified2026-10-17: the mapping from Retail `SoundKit.PitchAdjust` to player playback rate is **not established** by the inspected sources. Current `data/db2/active` resolves to12.1.5.70448 (installed build key88d5e8ef05ec5a8446cdec93d142d7c6); reread kits218236/218237 contain `PitchAdjust=-0.144405067`, but the value/type declaration supplies neither units nor an equation. Retail `SoundDocumentation.lua:52–89,125–135` exposes kit/subtype/duplicate/finish/priority/volume options, not a pitch conversion.
+
+A recorded search of3647 cached Retail Lua/XML files found no explicit PitchAdjust/rate mapping. The cached tree has no Git identity; pertinent source/data hashes and exact search scope are retained in the [source audit](../../../data/diagnostics/trading-post-ui-2026-10-13/pitch-adjust-rate-source-audit.json). SoundKit/Advanced/Entry/Child/Fallback schema fields and the supplementary `float PitchAdjust` DBD declaration do not establish semantics. The first audit read pinned70391 and incorrectly called it active; its original receipt is retained separately, while the current audit binds actual70448 SoundKit-family bytes/fields/rows. This is a scoped negative result, not proof that the native Retail engine has no mapping.
+
+Do not guess semitones, a linear multiplier or log2 from suggestive floats or clip durations. Hide/show218236/218237 stays deferred with no registration, dispatch or player change. The [menu close-kit gap](../../specs/trading-post.md#menu-lifecycle-sounds) still includes unsupported pitch variation; zero-adjust playback proofs establish no nonzero Retail rate semantics. Selection218230 remains a separate real-callback/silence lifecycle task.
+
+## Trading Post product-enter kit
+
+[Product-enter contract/proof](trading-post.md#product-enter-sound--october17) registers218934/file4906953/source gain0.891250908 through existing UiKits. Zero pitch/volume variation and adjustment require no new player path. Metadata70391 and authenticated installed70448 asset provenance remain distinct; selection218230 is excluded.
+
 ## Trading Post UI kit lifecycle
 
 Source menu visibility dispatch and its bounded file/gain proof live in [Trading Post menu sounds](trading-post.md#menu-lifecycle-sounds--bounded-proof-october15); it reuses the existing UiKits player and leaves close-kit pitch as a named gap.
@@ -77,6 +93,8 @@ Before the fix, the strict-Empty PID `2402583` profile sampled PipeWire audio co
 Post-fix PID `2468254` remained focused, `InWorld`, and connected with one link/player; it retained FPS text and zero world content. Its thread inventory contained no `data-loop.0`, `cpal_alsa_out`, or ALSA/PipeWire thread, and its profile contained no PipeWire/CPAL/ALSA symbol. Twelve passive windows after a 30-second warm-up measured **9.61% mean**, **9.55% median**, and **10.60% maximum** CPU; **8/12** met `<=10.0%`. The audio boundary is verified and materially lowers the measured mean, but the strict all-window CPU gate and Character advancement remain blocked.
 
 ## Sources
+
+- [PitchAdjust source audit](../../../data/diagnostics/trading-post-ui-2026-10-13/pitch-adjust-rate-source-audit.json) — exact Retail API/data hashes, search scope, named rate-mapping gap; no speculative implementation
 
 - AGENTS.md — `src/sound/` structure listing
 - [app setup](../../../src/app_setup.rs) — stage and audio-plugin registration

@@ -23,6 +23,16 @@ Private real player characters exercise the native controller path and measure c
 - [x] Behavioral detection tests feed actual native combat records and a known missing request; distinguish zero damage from no cast and consume each server success once. Own private Ret32 fixture retains actual submitted20271 request1792056099829 without a success, three real successes and899 damage.
 - [x] Merge overlapping combat polls without double counting or collapsing real duplicate events; identify overflow using observed ring retention.
 
+## Rain of Fire avoidance
+
+- [x] Observe actual86636 dynamic objects through ordinary client replication, with actual caster, spell, resolved3D centre/radius and received despawn; use active70448 SpellEffect/SpellRadius authority only. Missing geometry/faction/snapshot is unavailable, never an empty safe set. Preserve integer server identities in serialized native JSON.
+- [x] Apply named `HARNESS_RAIN_OF_FIRE_ESCAPE`, explicitly a harness policy, not Retail AI: after outstanding cast ACK and party/life checks, preempt target work while inside a received hostile86636 sphere. Choose deepest containing sphere (ID breaks ties), query eight radial XZ headings at45degree offsets from centre→player (+X when coincident), nominal reach radius+existing0.5yd navigation arrival contract.
+- [x] Select the shortest complete strict-nav route (heading order ties); validate actual source-projected endpoint and every3D segment against all inclusive spheres, allow only non-increasing penetration until leaving initially containing spheres, and never reenter. The projected arrival neighborhood must also stay outside every area. Reobserve between existing bounded physical steps; do not force targets or interrupt/reset casts.
+- [x] Reject ordinary movement routes entering a received area. Exact native unreachable-corridor/no-polygon refusals may reject a candidate; malformed output, transport or other query errors still stop. No safe candidate fails explicitly, without direct-line or timer fallback.
+- [x] Keep Overheat86633 unit damage, other spells, other-copy objects and explicit friendly areas outside this policy. No stat/kit/follower changes.
+
+These boxes have CPU/real-UDP behavioral proof; they do not certify a fresh full-client escape or Stockade clear. Outside an area, an unsafe ordinary route explicitly refuses under the approved policy rather than guessing a wait timer or changing targets.
+
 ## Native Stockade runs
 
 - Run Fury72 first, adding specs only after current dummy predicates qualify; preserve the same native/IPC player path and equal-budget equipment, without stat/kit overrides.
@@ -31,6 +41,7 @@ Private real player characters exercise the native controller path and measure c
 - Idle full-health pulls use native Tab selection and ordinary strict-route movement toward that same target until native range, visibility and usability allow one explicitly approved Heroic Throw57755. Native `target_visibility_state(target)` samples the cast ray without selecting or casting; unavailable/error or mismatched-target observations stop preparation. While in range but occluded, keep following existing navmesh corners and recheck visibility after each bounded input step; once visible and in range, wait in place for cooldown/resource usability. Stop with a named refusal after sixty seconds, sixty yards of observed route travel (checked between bounded steps), or an unreachable path. Never cycle targets to bypass LOS. Server spell validation remains final; require real owner CastSuccess before melee approach/authored combat. CastFailed or missing outcome stops that attempt without repeat/alternate. Retain target, visibility, route travel and request/outcome receipts; do not replace authored combat predicates.
 - Reaching the existing melee navigation endpoint must release the ordinary authored/native usability gate even if target-centre distance remains slightly above the approach radius. A physical movement step requires a fresh observation before casting; waypoint completion alone never bypasses native spell range/readiness/affordability.
 - Consume an outstanding owner's success/failure receipt from every fresh native step before target-switch movement, idle healing waits or new pull preparation. Missing receipts wait and then fail at the existing outcome deadline; never reset pending state because the target changed/died or because the party is idle.
+- On a fresh explicit native selection `None` while living, `InWorld` and in combat, with no cast awaiting its authoritative outcome, end the current combat step and clear stale `opening_target`. The next normal cycle may use only the existing native tank assist; require new matching authored facts and native usability before any cast. No target-ID forcing, Tab cycling or guessed Vanish timer. Selected-but-missing/mismatched facts retain their ten-second failure; stale samples, death, disconnect and transport errors are not recovery signals.
 - A dead assisted or uncast preparation target needs no authored recommendation and receives no cast or further movement. On received selected-target health zero, record an uncast abandonment with the death reason and resume ordinary assist observation rather than waiting for an evaluation that intentionally omits dead targets or for corpse despawn to break selection. Check the same native death gate in the fresh submission frame; missing target health blocks explicitly. Already-submitted casts still require their actual outcome.
 - Before repeating a persisted in-instance owner, walk the authored area-trigger exit through strict native navigation and confirm its living `InWorld` destination map. If a queued movement is specifically refused because the ordinary transfer already left `InWorld`, retain that refusal and await destination confirmation within the existing exit bound without repeating movement. Other command errors still fail; Loading alone is not arrival. No admin reposition or persistent-position rewrite.
 - Use existing approved Normal Stockade entry through authored WorldSafeLoc3599 and ordinary MapTransfer/WorldPortAck, with source-profile party attachment. Do not mutate the follower205 catalog or describe this diagnostic entry as native LFG205 UI proof.
@@ -86,6 +97,9 @@ Portable captured [fixtures and provenance](../../scripts/tests/fixtures/bot_har
 
 ## Implementation inventory
 
+- `godot/rust/src/rainfire.rs` / `rainfire_tests.rs`: read-only received geometry/faction qualification and serialized integer IDs.
+- `godot/network/src/replica/codec.rs` / `tests.rs`: ordinary dynamic-object decoding and real UDP geometry/visibility/despawn boundary.
+- `scripts/bot_hazards.py` / `test_bot_hazards.py` / `test_bot_hazard_controller.py`: named eight-heading policy, full-route/arrival validation and pending-ACK orchestration controls.
 - `godot/rust/src/ipc/combat.rs`: preserve received crit/glancing/periodic, school mask, overflow and absorbed/resisted/blocked values in combat-log/recap output; never infer historical missing fields.
 - `scripts/run_stockade_bot.py`: one already-admitted owned native player, equal-budget/role/copy preflight, maintained F-assist/IPC casts/strict native movement, raw events and per-boss reports; caller owns processes and single capacity admission.
 - `scripts/bot_stockade.py`: read-only encounter/template/spawn/entrance plan, exact native party facts and explicit authored native priority provider; no Mage cycle or direct-line route.
@@ -103,6 +117,8 @@ Portable captured [fixtures and provenance](../../scripts/tests/fixtures/bot_har
 
 ## Tests asserting this spec
 
+- `godot/rust/src/rainfire_tests.rs` and `godot/network/src/replica/tests.rs`: native typed projection and actual UDP lifecycle, not fresh rendered gameplay proof.
+- `scripts/tests/test_bot_hazards.py` / `test_bot_hazard_controller.py`: explicitly synthetic geometry/controller controls.
 - `scripts/tests/test_bot_harness.py`
 - `scripts/tests/test_bot_rotation.py`
 - `scripts/tests/test_bot_controller.py` (generic-spec action boundary, strict route, native-input file correlation; not gameplay acceptance)
