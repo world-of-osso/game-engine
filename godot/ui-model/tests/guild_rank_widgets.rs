@@ -1190,35 +1190,97 @@ fn guild_note_sort_filtered_rows_keep_action_identity_and_header_geometry() {
 }
 
 #[test]
-fn guild_note_sort_non_ascii_pending_project_policy_not_retail_collation() {
+fn guild_note_sort_storm_historical_policy_packet_not_verified_retail_collation() {
     let _lock = SKIN.lock().unwrap_or_else(|p| p.into_inner());
-    let mut session = note_sort_session();
-    let profile = session.profile.as_mut().unwrap();
-    profile
-        .members
-        .retain(|member| ["Ada", "Bea", "Cid"].contains(&member.character_name.as_str()));
-    for member in &mut profile.members {
-        member.public_note = match member.character_name.as_str() {
-            "Ada" => "ä",
-            "Bea" => "Ä",
-            _ => "z",
+    // GUILD_NOTE_COMPARE_STORM_HISTORICAL: concrete clean-room prose cases.
+    // Equal mapped notes retain Ada/Bea/Cid base order in BOTH directions.
+    for (notes, descending, ascending) in [
+        (
+            ["raid", "RAID", "zulu"],
+            ["Cid", "Ada", "Bea"],
+            ["Ada", "Bea", "Cid"],
+        ),
+        (
+            ["é", "É", "ÿ"],
+            ["Cid", "Ada", "Bea"],
+            ["Ada", "Bea", "Cid"],
+        ),
+        (
+            ["ÿ", "Ā", "Ÿ"],
+            ["Cid", "Bea", "Ada"],
+            ["Ada", "Bea", "Cid"],
+        ),
+        (
+            ["Е", "Ё", "Ж"],
+            ["Cid", "Bea", "Ada"],
+            ["Ada", "Bea", "Cid"],
+        ),
+        (
+            ["е", "ё", "ж"],
+            ["Cid", "Bea", "Ada"],
+            ["Ada", "Bea", "Cid"],
+        ),
+        (
+            ["А", "Џ", "Б"],
+            ["Cid", "Ada", "Bea"],
+            ["Ada", "Bea", "Cid"],
+        ),
+        (
+            ["÷", "×", "œ"],
+            ["Cid", "Ada", "Bea"],
+            ["Ada", "Bea", "Cid"],
+        ),
+        (
+            ["œ", "Œ", "Z"],
+            ["Ada", "Bea", "Cid"],
+            ["Cid", "Ada", "Bea"],
+        ),
+        (
+            ["😀", "🚀", "�"],
+            ["Ada", "Bea", "Cid"],
+            ["Ada", "Bea", "Cid"],
+        ),
+        (
+            ["é", "éclair", "e"],
+            ["Bea", "Ada", "Cid"],
+            ["Cid", "Ada", "Bea"],
+        ),
+        (
+            ["α", "Α", "β"],
+            ["Cid", "Ada", "Bea"],
+            ["Bea", "Ada", "Cid"],
+        ),
+        (
+            ["ß", "SS", "ST"],
+            ["Ada", "Cid", "Bea"],
+            ["Bea", "Cid", "Ada"],
+        ),
+    ] {
+        let mut session = note_sort_session();
+        let profile = session.profile.as_mut().unwrap();
+        profile
+            .members
+            .retain(|member| ["Ada", "Bea", "Cid"].contains(&member.character_name.as_str()));
+        for member in &mut profile.members {
+            let index = match member.character_name.as_str() {
+                "Ada" => 0,
+                "Bea" => 1,
+                _ => 2,
+            };
+            member.public_note = notes[index].into();
         }
-        .into();
+        session.click("guild:show_offline", &Default::default());
+        let toggle = action(&mounted(&session), "CommunitiesRosterColumn5");
+        assert!(!toggle.is_empty());
+        for expected in [descending, ascending] {
+            session.click(&toggle, &Default::default());
+            assert_eq!(
+                rendered_guild_names(&mounted(&session)),
+                expected,
+                "historical policy for {notes:?}"
+            );
+        }
     }
-    session.click("guild:show_offline", &Default::default());
-    let toggle = action(&mounted(&session), "CommunitiesRosterColumn5");
-    assert!(!toggle.is_empty());
-    session.click(&toggle, &Default::default());
-    // GUILD_NOTE_COMPARE_UTF8I_PENDING: non-ASCII case is deliberately NOT folded.
-    assert_eq!(
-        rendered_guild_names(&mounted(&session)),
-        ["Ada", "Bea", "Cid"]
-    );
-    session.click(&toggle, &Default::default());
-    assert_eq!(
-        rendered_guild_names(&mounted(&session)),
-        ["Cid", "Bea", "Ada"]
-    );
 }
 
 #[test]
