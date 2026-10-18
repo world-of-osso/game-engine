@@ -57,7 +57,9 @@ func probe(forever: bool, size: Vector2i, phase: String) -> void:
 	check(queue.is_visible_in_tree(), label + " queue remains visible")
 	check(queue.get_global_rect() == Rect2(100, 84, 788, 428), label + " unchanged queue geometry")
 	for action in ["pvp:accept", "pvp:decline"]:
-		var button := ui.control_for_action(action) as Control
+		# Close and Leave Queue both dispatch decline; select the exact source action button.
+		var name := "PVPReadyDialogEnterBattleButton" if action == "pvp:accept" else "PVPReadyDialogLeaveQueueButton"
+		var button := ui.find_child(name, true, false) as Control
 		assert(button != null)
 		var x := 31.0 if action == "pvp:accept" else 160.0
 		var point := expected + Vector2(x + 57.5, 174.0)
@@ -68,7 +70,7 @@ func probe(forever: bool, size: Vector2i, phase: String) -> void:
 		await click(point)
 		var actions := collect_actions(ui)
 		check(actions == [action], label + " physical action " + action + ": " + str(actions))
-		receipts.append({"case": label, "action": action, "dialog": str(dialog.get_global_rect()), "queue": str(queue.get_global_rect()), "point": str(point), "top_action": top_action, "actual_button_top": actual_button_top, "physical_actions": actions})
+		receipts.append({"case": label, "action": action, "dialog": str(dialog.get_global_rect()), "queue": str(queue.get_global_rect()), "point": str(point), "top_action": top_action, "actual_button_top": actual_button_top, "actual_control": str(button.get_path()), "physical_actions": actions})
 	ui.free()
 	await settle()
 
