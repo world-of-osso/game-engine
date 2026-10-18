@@ -270,7 +270,7 @@ impl RegistryUi {
         else {
             return GString::from("Achievement search selection preview not mounted");
         };
-        crate::achievements::apply_achievement_ui_action(&mut view, &action.to_string());
+        crate::achievements::apply_achievement_ui_action(&mut view, self, &action.to_string());
         let result = self.set_achievement_window(view);
         GString::from(result.err().unwrap_or_default().as_str())
     }
