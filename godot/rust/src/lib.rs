@@ -96,6 +96,7 @@ mod profile;
 mod quests;
 mod raid_info;
 mod raid_targets;
+mod rainfire;
 mod replicated;
 mod reputation_status_bar;
 mod ribbons;
@@ -1300,6 +1301,12 @@ impl GameClient {
     #[func]
     fn spells_state(&self) -> VarDictionary {
         self.spells_snapshot()
+    }
+
+    /// Actual received persistent-area geometry; no target or server-state mutation.
+    #[func]
+    fn ground_areas_state(&mut self) -> VarDictionary {
+        self.ground_areas_snapshot()
     }
 
     /// Sample the same native LOS ray a cast uses; server visibility remains final.
