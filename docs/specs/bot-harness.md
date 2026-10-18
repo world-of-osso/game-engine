@@ -33,6 +33,12 @@ Private real player characters exercise the native controller path and measure c
 
 These boxes have CPU/real-UDP behavioral proof; they do not certify a fresh full-client escape or Stockade clear. Outside an area, an unsafe ordinary route explicitly refuses under the approved policy rather than guessing a wait timer or changing targets.
 
+## Pull corridor admission
+
+- Apply named harness policy `HARNESS_PULL_CORRIDOR_REFUSAL` before each new out-of-combat Heroic Throw: refuse when any complete strict native tank-to-target route segment enters another living idle hostile's sourced3D aggro sphere. Preserve pending cast ACK and fresh target-bound usability; never default to14.5, change targets or command follower AI.
+- `HARNESS_PULL_COVERAGE_KNOWN_VISIBLE v2` treats observed hostiles as complete only after a full replication update since entry/teleport; the corridor padded by the largest sourced candidate aggro radius must lie within ordinary100yd interest from the current tank (`game-server interest.rs INTEREST_RADIUS`). Every hideable hostile template in the source map population must be currently observed or observed dying since entry; unseen/withdrawn templates make coverage UNKNOWN and refuse. This is a harness policy, not Retail/server completeness authority.
+- Use a narrow ordinary-client projection of existing replicated identity/position/life/combat/faction/level/model/scale/auras. No new protocol or live admin oracle. Unknown source inputs, unsupported hiding semantics, stale observation or changing tank/target/entry during the nav query refuse. Record source policy, corridor, guard spheres and refusal. Safe synthetic fixtures are not native clear/escape evidence.
+
 ## Native Stockade runs
 
 - Run Fury72 first, adding specs only after current dummy predicates qualify; preserve the same native/IPC player path and equal-budget equipment, without stat/kit overrides.
