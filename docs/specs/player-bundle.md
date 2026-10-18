@@ -8,6 +8,7 @@ Linux and Windows players share one staged project/data bundle. Publisher: `depl
 - [x] Generate the download manifest by hashing staged files, not live source files.
 - [x] Before uploading any bundle bytes, compare every manifest member's staged size and SHA256 with the generated manifest. Missing or changed files abort publication with path-specific errors.
 - [x] Preserve the runtime allowlist, product receipt selection and credential/extraction-state exclusions.
+- [x] `model-asset-index*.json` entries must stay within `products/<product>/<build_key>/`. UI audio ships directly through `sounds/` (including `sounds/ui/`); keep its verification receipts outside the model-index filename family. Do not produce model-asset-index fragments for flat UI sound paths.
 
 ## How it works
 
