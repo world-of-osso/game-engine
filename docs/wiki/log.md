@@ -1,3 +1,7 @@
+## 2026-10-18 — Invitation dismissal native acceptance
+
+[Invitation dismissal](systems/guilds.md#invitation-dismissal): gate503e15+68/fmt, landed master helper build; both-skin physical Escape/natural timeout/actual Join-removal/explicit Decline across8real invites and identical-binary fresh-server/client no-pending/no-membership readback pass. Eight inspected original1920×1080 PNGs published. Exact60/60.001 boundary is model proof; native observation begins after receipt. Earlier incompatible frozen server attempt remains unclaimed. Owned runtime/window cleaned.
+
 ## 2026-10-17 — Invitation dismissal lifecycle
 
 [Invitation dismissal](systems/guilds.md#invitation-dismissal): installed Mainline elapsed>60/OnHide and special-popup Escape authority; actual60.001s model RED before timeout/Escape wiring, no protocol/server changes. Loading retention and pending acceptance conserved. Post-landing native proof pending.
