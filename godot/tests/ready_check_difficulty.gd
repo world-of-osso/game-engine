@@ -64,7 +64,7 @@ func run_difficulty() -> void:
 			assert(current == conserved, "All existing control bounds conserved")
 			var image := root.get_texture().get_image()
 			assert(image.get_size() == Vector2i(1920, 1080))
-			var filename := skin + "-" + str(index) + "-" + phase[0] + ".png"
+			var filename: String = skin + "-" + str(index) + "-" + phase[0] + ".png"
 			assert(image.save_png(output.path_join(filename)) == OK)
 			if index == 1:
 				first_actual = image.get_data()
