@@ -12,6 +12,8 @@ References (under `~/.cache/wow-ui-sim/blizzard-ui/retail/AddOns/`):
 
 ## What it must do
 
+- [x] Ownership-cap `InventoryErrorReason::ItemMaxCount` reaches the native account/NPC error surface with Retail GlobalStrings10918 `ERR_ITEM_MAX_COUNT`: "You can't carry any more of those items." Do not substitute inventory-full or equipped-only wording. CPU dispatch coverage does not certify native error pixels or server cap enforcement; protocol/server/client land together.
+
 - [x] Left-clicking a bag slot or paperdoll slot with an empty cursor picks its item up (`PickupContainerItem` / `PickupInventoryItem`); the icon follows the pointer above every frame and the source slot's icon is dimmed (`SetItemButtonDesaturated`).
 - [x] Clicking another bag or paperdoll slot drops it: `SwapItem { from, to }`. The server merges same-item stacks, swaps, equips (wrong slot → `ERR_WRONG_SLOT` in UIErrorsFrame) or unequips into the bag slot. Clicking the source slot puts it back.
 - [x] A press that picks up and is released over another target after moving drops there too (`OnDragStart` / `OnReceiveDrag`).

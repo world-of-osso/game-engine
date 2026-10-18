@@ -14,6 +14,12 @@ Native Warsong queue, invitation, objective HUD, scoreboard/results and origin r
 
 The initial `BG_FILL_EXISTING_COPY` gap is addressed by [event-driven whole-party backfill](#whole-party-existing-copy-backfill--2026-10-17); source start minima stay unchanged. `RANDOM_BG_WIN_REWARD_PROFILE` remains separate: pinned TC27000/13500/4500/3500 kill equivalents and06:00 server-local reset are not adopted Retail policy. Source/evidence: `data/diagnostics/pvp-random-bg-source-2026-10-17/`; proof is targeted in-process channel/selection testing, not UDP/rendered proof.
 
+## Random32 native queue lifecycle — 2026-10-18
+
+Both-skin real-UDP actions are accepted: native Bonus selection records server queue32 before19 ordinary support accounts queue in parties, then normal dequeue/requeue, concrete-map invitation, decline/accept, natural20-player InProgress and20 origin returns. Modern product attempt3 used a designated ptrace collector; two earlier timeout failures and a separate pre-accept collector-budget abort remain distinct. This resolves the actions blocker, not server-stall attribution, full Retail availability/default parity or rewards.
+
+The [native proof ledger](../../handoffs/pvp-random32-native-proof-ledger.md) is the single detailed source for frozen hashes, per-attempt outcomes, actual map/PNG qualification, pressure/timing limits, cleanup and read-only TC10–19 parent-bracket divergence. The project-admission projection is deferred; no admission fix follows from static BML32 bounds.
+
 ## Whole-party existing-copy backfill — 2026-10-17
 
 [`BG_BACKFILL_WHOLE_PARTY_SMALLER_TEAM` and `BG_BACKFILL_MATCH_ORDER`](../../specs/pvp-progression.md#fill-existing-battleground-copies) are explicit project policies, not TC's per-faction one-player-at-parity limiter or free-slot push-front order. Shared queue selection fills whole groups into the smaller team only if they fit its concrete-map capacity; nonfits remain queued while smaller later groups may fit. Source levels must match the existing concrete instance's own bracket. The server tries ascending existing match IDs before new creation; no Random32 redraw, rated/arena fill or Ended-copy fill.
