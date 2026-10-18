@@ -287,7 +287,7 @@ pub(super) fn search_box(text: &str, left: f32) -> Element {
     }
     content.extend(
         rsx! { editbox { name:"AchievementSearchBox",text,width:super::HEADER_SEARCH_WIDTH,height:30.0,
-            left,top:25.0,pos_type:"absolute",text_insets:"16,0,20,0",
+            left,top:25.0,pos_type:"absolute",text_insets:"16,20,0,0",
             max_letters:super::ACHIEVEMENT_SEARCH_MAX_CHARS,auto_focus:false,
         } },
     );
