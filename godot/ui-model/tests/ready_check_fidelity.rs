@@ -146,6 +146,8 @@ fn ready_check_message_inherits_roman_color_and_shadow_both_skins() {
         );
         assert_eq!(text.font, GameFont::FrizQuadrata);
         assert_eq!(text.font_size, 12.0);
+        assert_eq!(text.line_spacing, Some(0));
+        assert_eq!(text.max_lines, None);
         // GlobalColor row1 NORMAL_FONT_COLOR = ARGB0xFFFFD200, not white.
         assert_eq!(text.color, [1.0, 210.0 / 255.0, 0.0, 1.0], "{skin:?}");
         assert_eq!(text.shadow_color, Some([0.0, 0.0, 0.0, 1.0]), "{skin:?}");
