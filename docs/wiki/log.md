@@ -5,6 +5,9 @@
 ## 2026-10-17 — Invitation dismissal lifecycle
 
 [Invitation dismissal](systems/guilds.md#invitation-dismissal): installed Mainline elapsed>60/OnHide and special-popup Escape authority; actual60.001s model RED before timeout/Escape wiring, no protocol/server changes. Loading retention and pending acceptance conserved. Post-landing native proof pending.
+## 2026-10-18 — READY_CHECK decoded-dispatch acceptance
+
+[Bounded native proof](systems/group-frames.md#readycheck-listener-show-sound--implementation-2026-10-17): lead accepted both-skin ten-checkpoint/two-start proof on debug binary/invocation3b70f4b5d, production333b83b26. Real UiKits Ogg567478 players report5.020385265s/gain1/pitch1/playing; refresh and hidden-role phases add none, natural completion and zero-player teardown pass. Exit0/zero Godot errors; inherited display notices retained, window/slice released. Dummy audio: decoded dispatch only, not hardware or authenticated GameClient/server proof. Initial fixture Array-borrow compiler failure remains recorded. No production behavior changed or completed checks replayed.
 
 ## 2026-10-17 — Rain of Fire escape policy
 
