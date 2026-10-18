@@ -44,13 +44,52 @@ pub fn apply_postsetup(
     }
 }
 
-/// Retail EJ Lua3311–3357: content for a truncated secondary text hover.
+/// Retail EJ Lua3311–3357 visits physical Suggestion2/3, not the primary pane.
+/// Returned record1 is physical3, so the lower pane needs all three records.
+pub fn hover_text<'a>(snapshot: &'a AdventureGuideSnapshot, owner: &str) -> Option<&'a str> {
+    let target = owner.strip_prefix("JournalSuggestion")?;
+    let (id, title) = if let Some(id) = target.strip_suffix("TitleFrame") {
+        (id, true)
+    } else {
+        (target.strip_suffix("DescriptionFrame")?, false)
+    };
+    let id: u32 = id.parse().ok()?;
+    let (index, suggestion) = snapshot
+        .suggestions
+        .iter()
+        .take(2)
+        .enumerate()
+        .find(|(_, suggestion)| suggestion.id == id)?;
+    let visited = snapshot.suggestions.len() >= 3 || index == 1;
+    visited.then_some(if title {
+        suggestion.name.as_str()
+    } else {
+        suggestion.description.as_str()
+    })
+}
+
+/// The native host supplies truncation from the drawn Label, not estimated text length.
 pub fn text_tooltip(
-    _snapshot: &AdventureGuideSnapshot,
-    _owner: &str,
-    _rendered_truncated: bool,
+    snapshot: &AdventureGuideSnapshot,
+    owner: &str,
+    rendered_truncated: bool,
 ) -> Option<crate::game_tooltip::GameTooltip> {
-    None
+    use crate::tooltip_presentation::{TOOLTIP_WHITE, TooltipPresentation, description_lines};
+    if !rendered_truncated {
+        return None;
+    }
+    let text = hover_text(snapshot, owner)?;
+    let mut lines = description_lines(text, TOOLTIP_WHITE).into_iter();
+    let title = lines.next()?.left_text;
+    Some(crate::game_tooltip::GameTooltip::new(
+        TooltipPresentation {
+            title,
+            title_color: TOOLTIP_WHITE,
+            lines: lines.collect(),
+            ..Default::default()
+        },
+        None,
+    ))
 }
 
 pub fn suggested(ctx: &SharedContext, snapshot: Option<&AdventureGuideSnapshot>) -> Element {
