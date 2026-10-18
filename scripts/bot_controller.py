@@ -164,7 +164,7 @@ class PlayerController:
                         "failure_seq": state["spells"]["cast_failure_seq"], "deadline": time.monotonic() + 10}
         return self.invoke("spell", "cast", "--spell", str(spell), "--target", str(target))
 
-    def cast_opening(self, target, spell):
+    def cast_opening(self, target, spell, admission=None):
         """One prepull outcome or uncast abandonment; submitted casts still need ACK."""
         if self.pending is not None:
             raise RuntimeError("Opening cannot replace an outstanding cast")
@@ -172,8 +172,15 @@ class PlayerController:
         abandoned = opening_abandonment(state, target)
         if abandoned is not None:
             return abandoned
+        if admission is not None:
+            state = admission(state, target)
+            abandoned = opening_abandonment(state, target)
+            if abandoned is not None:
+                return abandoned
         if spell not in state["spells"]["known"]:
             raise ValueError("Opening requires a learned spell")
+        if not native_usable(state, spell):
+            raise ValueError("Opening requires fresh native readiness, affordability and range")
         self.submit_cast(state, target, spell)
         while not self.observe_cast_outcome(self.snapshot(target)):
             time.sleep(.05)

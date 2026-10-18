@@ -20,6 +20,8 @@ from bot_gear import equipment_receipt, load_plan
 from bot_harness import parse_combat, poll_has_gap, routed_player
 from bot_health import require_living_player
 from bot_hazards import escape_goal, read_areas, route_is_safe
+from bot_pull_corridor import OBSERVATION_MAX_AGE_MS, require_safe_corridor, require_snapshot
+from bot_pull_sources import PullSources
 from bot_stockade import admitted_copy, authored_priority, encounter_states, inside_exit_trigger, native_visibility, parse_npc, parse_party, stockade_exit_plan, stockade_plan, target_observation_ready
 from run_dummy_bots import observed_pet_owner
 
@@ -333,6 +335,45 @@ class StockadeRun:
         with (self.output / "boss-progression.jsonl").open("a") as stream:
             stream.write(json.dumps(receipt) + "\n")
 
+    def read_pull_snapshot(self, state):
+        age = int(time.time() * 1000) - state["at_ms"]
+        if age < 0 or age > OBSERVATION_MAX_AGE_MS:
+            raise ValueError("Pull coverage UNKNOWN: stale ordinary-client observation")
+        observation = state["pull_units"]
+        if "error" in observation:
+            raise ValueError(f"Pull coverage UNKNOWN: {observation['error']}")
+        snapshot = json.loads(observation["state_json"])
+        require_snapshot(snapshot)
+        return snapshot
+
+    def admit_pull(self, state, target):
+        before = self.read_pull_snapshot(state)
+        tank_id = int(self.party_actor_ids[self.tank])
+        units = require_snapshot(before)
+        if tank_id not in units or target not in units:
+            raise ValueError("Pull coverage UNKNOWN: tank/target not received")
+        start, goal = units[tank_id]["position"], units[target]["position"]
+        corners = self.query_route(start, goal, "native-pull-corridor")
+        fresh = self.snapshot(target)
+        if opening_abandonment(fresh, target) is not None:
+            return fresh
+        after = self.read_pull_snapshot(fresh)
+        current = require_snapshot(after)
+        if (after["epoch"] != before["epoch"] or tank_id not in current or target not in current
+                or current[tank_id]["position"] != start or current[target]["position"] != goal):
+            raise ValueError("Pull coverage UNKNOWN: tank/target/entry changed during route query")
+        if not hasattr(self, "pull_sources"):
+            self.pull_sources = PullSources(self.args.world_db, self.args.engine / "data/db2/active")
+        receipt = {"at_ms": fresh["at_ms"], "target": target, "route": corners}
+        try:
+            receipt.update(require_safe_corridor(after, tank_id, target, corners, self.pull_sources))
+        except Exception as error:
+            receipt["refusal"] = str(error)
+            raise
+        finally:
+            publish(self.output / f"pull-admission-{len(self.run['openings']):04d}.json", receipt)
+        return fresh
+
     def open_pull(self):
         if owner_in_combat(self.rotation()):
             return True
@@ -350,7 +391,7 @@ class StockadeRun:
         try:
             outcome = self.approach_opening(target)
             if outcome is None:
-                outcome = self.player.cast_opening(target, 57755)
+                outcome = self.player.cast_opening(target, 57755, self.admit_pull)
             if "abandoned" in outcome:
                 receipt.update(outcome)
                 return True
