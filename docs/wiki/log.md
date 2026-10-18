@@ -1,3 +1,7 @@
+## 2026-10-18 — Post-guild ownership-cap codec/dispatch target proof
+
+[Current consumer proof](systems/cursor-item.md#ownership-cap-error-cpu-dispatch-2026-10-18): landedf26cc691e merged with MaxCount as6c00abbf4; sole wiki-index conflict preserves both sides. Account dispatch target1/0 with protocola2b07a6; combined protocol tests preserve old tags and round-trip new ItemMaxCount21/SetMemberRank13. Source wording/error renderer unchanged; coordinated broad gate/landing remains lead-owned, no native-pixel claim.
+
 ## 2026-10-18 — Ownership-cap error CPU dispatch
 
 [Exact consumer proof/limits](systems/cursor-item.md#ownership-cap-error-cpu-dispatch-2026-10-18):d73fa72e6 with protocol2a5307c forwards typed ItemMaxCount through native account/NPC error dispatch, target1/0 using Retail GlobalStrings10918 ERR_ITEM_MAX_COUNT. Shared message owns text; no renderer change, native pixels or server enforcement claim. Coordinated three-repo gate/landing remains lead-owned.
