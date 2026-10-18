@@ -8,8 +8,8 @@ func _initialize() -> void:
 	call_deferred("live_run")
 func live_run() -> void:
 	var endpoint := OS.get_environment("BG_ENDPOINT")
-	if not endpoint.begins_with("127.0.0.1:") or not endpoint.get_slice(":", 1) in ["5710", "5711", "5712"]:
-		fail("Battleground proof requires private UDP5710–5712")
+	if not endpoint.begins_with("127.0.0.1:") or not endpoint.get_slice(":", 1) in ["5710", "5711", "5712", "5941"]:
+		fail("Battleground proof requires private UDP5710–5712 or5941")
 		return
 	directory = OS.get_environment("BG_DIRECTORY")
 	root.size = Vector2i(1920, 1080)

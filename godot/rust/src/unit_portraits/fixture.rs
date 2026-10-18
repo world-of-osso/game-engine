@@ -30,6 +30,7 @@ struct PartyPortraitFixture {
     ui: Option<Gd<RegistryUi>>,
     world: WorldUnits,
     portraits: PartyPortraits,
+    ready_check_portrait: super::Portrait,
     group: GroupState,
     compact: bool,
     layout: LayoutOptionsView,
@@ -45,6 +46,7 @@ impl INode for PartyPortraitFixture {
             ui: None,
             world: WorldUnits::new(PathBuf::from(path.to_string())),
             portraits: Default::default(),
+            ready_check_portrait: super::Portrait::new(super::READY_CHECK_PORTRAIT),
             group: Default::default(),
             compact: true,
             layout: LayoutOptionsView {
@@ -65,6 +67,7 @@ impl INode for PartyPortraitFixture {
 
     fn exit_tree(&mut self) {
         self.portraits.clear(&mut self.world);
+        self.ready_check_portrait.clear(&mut self.world);
         self.world.reset();
     }
 }
@@ -209,6 +212,11 @@ impl PartyPortraitFixture {
     }
 
     #[func]
+    fn ready_check_portrait_state(&self) -> VarDictionary {
+        self.ready_check_portrait.snapshot()
+    }
+
+    #[func]
     fn set_head(&mut self, name: GString, equipped: bool) -> GString {
         let Some(member) = self
             .group
@@ -322,10 +330,18 @@ impl PartyPortraitFixture {
             self.layout.settings.party.sort.unwrap_or_default(),
         );
         let appearances = party::roster_appearances(&self.group);
-        self.portraits
+        let party_result = self
+            .portraits
             .sync(&mut self.world, Some(ui), bindings, |name| {
                 appearances.get(name).cloned()
-            })
+            });
+        let ready_result = super::sync_ready_check_portrait(
+            &mut self.ready_check_portrait,
+            &mut self.world,
+            Some(ui),
+            &self.group,
+        );
+        party_result.and(ready_result)
     }
 }
 

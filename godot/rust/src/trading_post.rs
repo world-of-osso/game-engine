@@ -6,7 +6,10 @@ use crate::{
     ui::RegistryUi,
     world_models::UnitAppearance,
 };
-use game_engine_core::ui_sound_kits::{TRADING_POST_UI_MENU_CLOSE, TRADING_POST_UI_MENU_OPEN};
+use game_engine_core::ui_sound_kits::{
+    TRADING_POST_UI_ITEM_HOVER, TRADING_POST_UI_ITEM_LOCKING, TRADING_POST_UI_MENU_CLOSE,
+    TRADING_POST_UI_MENU_OPEN,
+};
 use game_engine_session::SessionScreen;
 use game_engine_ui_model::trading_post::{Action, FilterSubmenu, HEIGHT, MODEL, View, WIDTH};
 use godot::classes::CanvasLayer;
@@ -33,6 +36,7 @@ pub(crate) struct TradingPost {
     pub view: View,
     ui: Option<Gd<RegistryUi>>,
     menu_was_shown: bool,
+    product_sound_owner: Option<String>,
     scene: Option<Scene>,
     pending: Option<(u64, UnitAppearance)>,
     shown: Option<UnitAppearance>,
@@ -100,6 +104,7 @@ impl GameClient {
         }
         self.trading_post.rotating = false;
         self.trading_post.dragged = None;
+        self.trading_post.product_sound_owner = None;
         visible
     }
     pub(super) fn close_trading_post_window(&mut self) -> Result<bool, FrameError> {
@@ -191,6 +196,33 @@ impl GameClient {
         })
     }
 
+    /// OnEnter belongs to the product button, not the selected item or its child toggle.
+    fn play_trading_post_product_hover_sound(
+        &mut self,
+        hovered: Option<(String, [f32; 4])>,
+    ) -> Result<(), String> {
+        let owner = hovered.and_then(|(name, _)| {
+            if name == "PerksProgramFrozenSlot" {
+                return Some(name);
+            }
+            let id: u32 = name
+                .strip_prefix("PerksProgramProduct")
+                .or_else(|| name.strip_prefix("PerksProgramCartToggle"))?
+                .parse()
+                .ok()?;
+            Some(format!("PerksProgramProduct{id}"))
+        });
+        if owner == self.trading_post.product_sound_owner {
+            return Ok(());
+        }
+        let entering = owner.is_some();
+        self.trading_post.product_sound_owner = owner;
+        if entering {
+            self.play_ui_sound_kit(TRADING_POST_UI_ITEM_HOVER)?;
+        }
+        Ok(())
+    }
+
     /// A failed preview must not leave the previous selection's model on screen; the
     /// next successful one restores the server's own error text.
     fn record_trading_preview(&mut self, preview: Result<(), String>) {
@@ -259,6 +291,7 @@ impl GameClient {
             .get_viewport()
             .ok_or("Trading Post viewport missing")?
             .get_mouse_position();
+        self.play_trading_post_product_hover_sound(ui.bind().hovered_button())?;
         self.trading_post.view.product_hover = ui.bind().hovered_button().and_then(|(name, _)| {
             name.strip_prefix("PerksProgramProduct")
                 .or_else(|| name.strip_prefix("PerksProgramCartToggle"))?
@@ -312,9 +345,9 @@ impl GameClient {
     fn apply_trading_action(&mut self, action: Option<Action>) -> Result<(), String> {
         match action {
             Some(Action::Request(request)) => {
-                if let Err(error) = self.account.send_trading_post(request) {
+                if let Err(error) = self.send_trading_post_vendor_request(request) {
                     self.trading_post.view.pending = false;
-                    return Err(error.to_string());
+                    return Err(error);
                 }
             }
             Some(Action::Close) => {
@@ -325,6 +358,24 @@ impl GameClient {
         }
         Ok(())
     }
+    /// FreezeDraggedItem plays on acceptance, before requesting authoritative state.
+    fn send_trading_post_vendor_request(
+        &mut self,
+        request: TradingPostRequest,
+    ) -> Result<(), String> {
+        if matches!(
+            request,
+            TradingPostRequest::Freeze {
+                vendor_item_id: Some(_)
+            }
+        ) {
+            self.play_ui_sound_kit(TRADING_POST_UI_ITEM_LOCKING)?;
+        }
+        self.account
+            .send_trading_post(request)
+            .map_err(|error| error.to_string())
+    }
+
     fn animate_trading_spinner(&mut self) {
         let pending_dialog = matches!(
             self.trading_post.view.confirm.as_deref(),
@@ -755,6 +806,39 @@ impl GameClient {
         // scope retains the authored player-rider scale1; no guessed compensation.
         mount_preview::attach_rider(&model, rider.clone(), &mount.actors["player-rider"])
     }
+    pub(super) fn trading_post_key(
+        &mut self,
+        event: &Gd<godot::classes::InputEvent>,
+    ) -> Result<bool, String> {
+        if !self.trading_post.view.visible {
+            return Ok(false);
+        }
+        let Ok(key) = event.clone().try_cast::<godot::classes::InputEventKey>() else {
+            return Ok(false);
+        };
+        let action = match key.get_keycode() {
+            godot::global::Key::DOWN => "perks:select-next",
+            godot::global::Key::UP => "perks:select-previous",
+            _ => return Ok(false),
+        };
+        if key.is_pressed() && !self.group_frames.popups.is_open() {
+            let selected = self.trading_post.view.selected;
+            self.trading_post.view.click(action)?;
+            if self.trading_post.view.selected != selected {
+                self.sync_trading_ui()?;
+                let view = self.trading_post.view.clone();
+                self.trading_post
+                    .ui
+                    .as_mut()
+                    .ok_or("Trading Post keyboard selection has no registry UI")?
+                    .bind_mut()
+                    .reveal_trading_post_selection(&view)?;
+            }
+        }
+        // Releases also belong to this keyboard owner, never to world movement.
+        Ok(true)
+    }
+
     pub(super) fn trading_post_pointer(&mut self, event: &Gd<godot::classes::InputEvent>) -> bool {
         if !self.trading_post.view.visible {
             return false;
@@ -903,9 +987,9 @@ impl GameClient {
                 .view
                 .drop_item(drag.id, drag.from_frozen, dropped)
         {
-            if let Err(error) = self.account.send_trading_post(request) {
+            if let Err(error) = self.send_trading_post_vendor_request(request) {
                 self.trading_post.view.pending = false;
-                self.trading_post.view.error = error.to_string();
+                self.trading_post.view.error = error;
             }
         }
         if self.trading_post.view.confirm.as_deref() == Some("freeze") {

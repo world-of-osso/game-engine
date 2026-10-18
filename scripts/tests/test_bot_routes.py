@@ -9,6 +9,7 @@ from unittest.mock import patch
 sys.path.insert(0, str(Path(__file__).resolve().parents[1]))
 from bot_controller import PlayerController
 from bot_routes import NavmeshRoute
+from bot_hazards import UnreachableRoute
 
 
 class RouteQueryTests(unittest.TestCase):
@@ -25,6 +26,19 @@ class RouteQueryTests(unittest.TestCase):
                 query([0, 0, 0], [21, 0, 0], 'party-approach')
             receipts = [json.loads(p.read_text()) for p in output.glob('route-*.json')]
             self.assertEqual(sorted(r['exit'] for r in receipts), [0, 4])
+
+    def test_actual_no_polygon_refusal_is_typed_but_transport_errors_are_not(self):
+        fixture = json.loads((Path(__file__).parent / 'fixtures/bot_harness/native-nav-no-polygon.json').read_text())
+        with tempfile.TemporaryDirectory() as directory:
+            for text, expected in [(fixture['stderr'], UnreachableRoute),
+                    ('Error: "unreachable target (incomplete corridor)"', UnreachableRoute),
+                    ('Error: "Detour allocation failed"', RuntimeError)]:
+                query = NavmeshRoute([sys.executable, '-c',
+                    f'import sys;sys.stderr.write({text!r});sys.exit(1)'], Path(directory), Path(directory))
+                with self.assertRaises(expected) as caught:
+                    query([106.25, -26.33802, 3.645833], [106.25, 10000, 3.645833], 'candidate')
+                if expected is RuntimeError:
+                    self.assertNotIsInstance(caught.exception, UnreachableRoute)
 
     def test_empty_or_malformed_query_output_blocks(self):
         with tempfile.TemporaryDirectory() as directory:

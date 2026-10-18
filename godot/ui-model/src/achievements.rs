@@ -7,8 +7,8 @@ mod artwork;
 mod comparison_view;
 use crate::ui::strata::FrameStrata;
 use shared::protocol::{
-    ACHIEVEMENT_SEARCH_MAX_CHARS, AchievementCatalogEntry, AchievementCatalogPage,
-    AchievementCategoryEntry, AchievementCriterionLine, AchievementDelta,
+    ACHIEVEMENT_CRITERION_FLAG_PROGRESS_BAR, ACHIEVEMENT_SEARCH_MAX_CHARS, AchievementCatalogEntry,
+    AchievementCatalogPage, AchievementCategoryEntry, AchievementCriterionLine, AchievementDelta,
     AchievementProgressSnapshot, AchievementScope, AchievementSnapshot, AchievementStateUpdate,
     AchievementSummary, QueryAchievementCatalog,
 };
@@ -42,6 +42,14 @@ const ALERT_NO_POINTS: AtlasArt = AtlasArt {
     ..ALERT_BACKGROUND
 };
 const STATISTIC_ROW_HEIGHT: f32 = 24.0;
+const CRITERIA_AREA_LEFT: f32 = 80.0;
+const CRITERIA_AREA_WIDTH: f32 = 398.0;
+// Mainline AchievementProgressBarTemplate, XML510–569.
+const CRITERIA_BAR_WIDTH: f32 = 212.0;
+const CRITERIA_BAR_HEIGHT: f32 = 14.0;
+// Mainline XML1693–1713: right-to-left Filters layout, SearchBox107×30.
+const HEADER_FILTER_SPACING: f32 = 7.0;
+const HEADER_SEARCH_WIDTH: f32 = 107.0;
 const CRITERIA: usize = 6;
 /// Local Retail art: UI-Achievement-Category-Background, AchievementBackground, Shield.
 pub const ART: &[u32] = &[
@@ -1285,6 +1293,14 @@ fn summary_category_counts(window: &AchievementWindow, summary: &AchievementSumm
     content
 }
 
+fn header_filter_left(window: &AchievementWindow) -> f32 {
+    if window.comparison.is_some() {
+        745.0
+    } else {
+        625.0
+    }
+}
+
 fn filter_controls(window: &AchievementWindow, summary: bool) -> Element {
     if summary || window.statistics || matches!(window.selected_category, Some(81 | 15093)) {
         return Vec::new();
@@ -1296,11 +1312,7 @@ fn filter_controls(window: &AchievementWindow, summary: bool) -> Element {
     };
     use crate::menu_primitives::*;
     // HeaderDetails right -23; Filters TOPRIGHT -8,-6; dropdown topPadding 6.
-    let left = if window.comparison.is_some() {
-        745.0
-    } else {
-        625.0
-    };
+    let left = header_filter_left(window);
     let mut content = dropdown_button_with_state(
         DropdownButton {
             frame_name: "AchievementFilterDropdown",
@@ -1460,7 +1472,8 @@ fn browse_controls(window: &AchievementWindow) -> Element {
         210.0,
         115.0,
     ));
-    content.extend(artwork::search_box(&window.search_text));
+    let search_left = header_filter_left(window) - HEADER_FILTER_SPACING - HEADER_SEARCH_WIDTH;
+    content.extend(artwork::search_box(&window.search_text, search_left));
     content
 }
 
@@ -1641,6 +1654,91 @@ fn empty_message(window: &AchievementWindow) -> &'static str {
     }
 }
 
+fn criterion_presentation(
+    entry: &AchievementCatalogEntry,
+    line: &AchievementCriterionLine,
+    y: f32,
+) -> Element {
+    let name = format!(
+        "Achievement{}Criterion{}",
+        entry.achievement_id, line.tree_id
+    );
+    if line.progress_supported && line.flags & ACHIEVEMENT_CRITERION_FLAG_PROGRESS_BAR != 0 {
+        criterion_bar(&name, line, y)
+    } else {
+        criterion_checklist(&name, line, entry.earned, y)
+    }
+}
+
+fn criterion_bar(name: &str, line: &AchievementCriterionLine, y: f32) -> Element {
+    // Mainline XML510–569 is212×14, not the old398×16 heuristic bar.
+    // Lua2015 supplies x+4; retain the approved criteria-area width and row y.
+    let width = CRITERIA_BAR_WIDTH;
+    let height = CRITERIA_BAR_HEIGHT;
+    let left = CRITERIA_AREA_LEFT + (CRITERIA_AREA_WIDTH - width) * 0.5 + 4.0;
+    let fraction = if line.required == 0 {
+        0.0
+    } else {
+        line.current.min(line.required) as f32 / line.required as f32
+    };
+    let text = format!("{}/{}", line.current, line.required);
+    let caption = rsx! { fontstring {name:{DynName(name.to_owned())},width,height,
+        text:text.as_str(),font:GameFont::FrizQuadrata,font_size:10.0,font_color:WHITE,
+        justify_h:"CENTER",justify_v:"MIDDLE",shadow_color:"0,0,0,1",shadow_offset:"1,-1",
+        left:0.0,top:0.0,pos_type:"absolute",
+    }};
+    artwork::criterion_progress(name, fraction, (left, y, width, height), caption)
+}
+
+fn criterion_checklist_text(
+    line: &AchievementCriterionLine,
+    earned: bool,
+) -> (String, &'static str) {
+    if !line.progress_supported {
+        return (format!("[Unevaluated] {}", line.description), GREY);
+    }
+    if !line.completed {
+        return (format!("- {}", line.description), "0.6,0.6,0.6,1");
+    }
+    let color = if earned && thread_skin() == ActiveSkin::Modern {
+        "0,0,0,1"
+    } else {
+        "0,1,0,1"
+    };
+    (line.description.clone(), color)
+}
+
+fn criterion_checklist(
+    name: &str,
+    line: &AchievementCriterionLine,
+    earned: bool,
+    y: f32,
+) -> Element {
+    let completed = line.progress_supported && line.completed;
+    let text_left = if completed { 38.0 } else { 25.0 };
+    let (text, color) = criterion_checklist_text(line, earned);
+    let text_width = CRITERIA_AREA_WIDTH - text_left;
+    let shadow_offset = if earned && completed { "0,0" } else { "1,-1" };
+    // AchievementCriteriaFont inherits Roman SystemFont_Small10 (GameFontStyles168).
+    let mut content = rsx! {fontstring {name:{DynName(name.to_owned())},text:text.as_str(),
+        width:text_width,height:15.0,left:text_left,top:1.0,pos_type:"absolute",
+        font:GameFont::FrizQuadrata,font_size:10.0,font_color:color,
+        justify_h:"LEFT",justify_v:"MIDDLE",shadow_color:"0,0,0,1",shadow_offset,
+    }};
+    if completed {
+        // Mainline XML703–724/Lua2058–2060: authored20×16 check, cropped to0.625.
+        content.extend(artwork::texture(
+            &format!("{name}Check"),
+            130653,
+            "0,0.625,0,1",
+            (18.0, 2.5, 20.0, 16.0),
+        ));
+    }
+    rsx! { r#frame {name:{DynName(format!("{name}Line"))},width:CRITERIA_AREA_WIDTH,height:18.0,
+        left:CRITERIA_AREA_LEFT,top:y,pos_type:"absolute",{content}
+    }}
+}
+
 fn criteria_panel(window: &AchievementWindow) -> Element {
     let mut content = Vec::new();
     if let Some(entry) = window.selected().filter(|entry| entry.flags & 1 == 0) {
@@ -1651,46 +1749,11 @@ fn criteria_panel(window: &AchievementWindow) -> Element {
             .take(CRITERIA)
             .enumerate()
         {
-            let status = if !line.progress_supported {
-                "Unevaluated"
-            } else if line.completed {
-                "Complete"
-            } else {
-                "In progress"
-            };
-            let text = if line.progress_supported {
-                format!(
-                    "[{status}] {} — {}/{}",
-                    line.description, line.current, line.required
-                )
-            } else {
-                format!("[{status}] {}", line.description)
-            };
-            let name = format!(
-                "Achievement{}Criterion{}",
-                entry.achievement_id, line.tree_id
-            );
-            let y = 88.0 + index as f32 * 18.0;
-            let progress_bar = line.progress_supported && line.required > 1;
-            let color = if progress_bar || thread_skin() == ActiveSkin::Forever {
-                WHITE
-            } else {
-                "0.1,0.08,0.05,1"
-            };
-            let caption = label(name.clone(), &text, (4.0, 0.0, 396.0, 18.0), color, "");
-            if progress_bar {
-                let fraction = line.current.min(line.required) as f32 / line.required as f32;
-                content.extend(artwork::criterion_progress(
-                    &name,
-                    fraction,
-                    (80.0, y, 398.0, 16.0),
-                    caption,
-                ));
-            } else {
-                content.extend(rsx! { r#frame { name:{DynName(format!("{name}Line"))},
-                    width:398.0,height:18.0,left:80.0,top:y,pos_type:"absolute", {caption}
-                } });
-            }
+            content.extend(criterion_presentation(
+                entry,
+                line,
+                88.0 + index as f32 * 18.0,
+            ));
         }
         let tracked = window
             .tracked

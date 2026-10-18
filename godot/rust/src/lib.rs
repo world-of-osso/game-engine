@@ -96,6 +96,7 @@ mod profile;
 mod quests;
 mod raid_info;
 mod raid_targets;
+mod rainfire;
 mod replicated;
 mod reputation_status_bar;
 mod ribbons;
@@ -1302,6 +1303,12 @@ impl GameClient {
         self.spells_snapshot()
     }
 
+    /// Actual received persistent-area geometry; no target or server-state mutation.
+    #[func]
+    fn ground_areas_state(&mut self) -> VarDictionary {
+        self.ground_areas_snapshot()
+    }
+
     /// Sample the same native LOS ray a cast uses; server visibility remains final.
     #[func]
     fn target_visibility_state(&mut self, target: i64) -> VarDictionary {
@@ -1473,6 +1480,14 @@ impl GameClient {
             return true;
         }
         if self.static_popup_key(event) {
+            self.mark_viewport_input_handled();
+            return true;
+        }
+        let trading_key_used = self.trading_post_key(event).unwrap_or_else(|error| {
+            self.handle_frame_error("Trading Post keyboard", error.into());
+            true
+        });
+        if trading_key_used {
             self.mark_viewport_input_handled();
             return true;
         }

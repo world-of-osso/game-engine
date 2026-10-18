@@ -458,8 +458,27 @@ class DepotBuildTests(unittest.TestCase):
         self.assertEqual(provenance["status"], "incomplete")
         self.assertEqual(provenance["missing_fdids"], [135875])
 
-    def test_release_is_not_allowed_with_fixture_test_or_cli(self):
-        for extra in (["--fixture", "native_input_fixture"], ["--test"], ["--cli"]):
+    def test_release_fixture_installs_executable_under_release_without_replacing_debug(self):
+        self.prepare_release_icon_fixture()
+        name = "native_input_fixture"
+        debug = self.root / f"target/debug/examples/{name}"
+        self._put(self.root, f"target/debug/examples/{name}", "old debug fixture")
+        result = subprocess.run(
+            ["python3", str(SCRIPT), "--root", str(self.root), "--release", "--fixture", name],
+            env={**self.env, "DEPOT_FIXTURE": "release fixture"},
+            text=True, capture_output=True, check=False,
+        )
+        self.assertEqual(result.returncode, 0, result.stderr)
+        executable = self.root / f"target/release/examples/{name}"
+        self.assertEqual(executable.read_bytes(), b"release fixture")
+        self.assertTrue(os.access(executable, os.X_OK))
+        self.assertIn(str(executable), result.stdout)
+        self.assertEqual(debug.read_bytes(), b"old debug fixture")
+        self.assertTrue((self.root / "target/release/libgame_engine_godot.so").is_file())
+        self.assertFalse((self.root / "target/debug/libgame_engine_godot.so").exists())
+
+    def test_release_is_not_allowed_with_test_or_cli(self):
+        for extra in (["--test"], ["--cli"]):
             command = [
                 "python3",
                 str(SCRIPT),

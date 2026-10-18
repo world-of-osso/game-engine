@@ -29,8 +29,8 @@ RUN --mount=type=cache,id=godot-ktx-bookworm,target=/root/.cache/game-engine/ktx
     case "$FIXTURE" in \
       "") ;; \
       *) \
-        cargo build --locked --manifest-path godot/Cargo.toml -p game-engine-network --example "$FIXTURE" -j "$JOBS" && \
-        gzip -1 -c "target/debug/examples/$FIXTURE" > "/out/$FIXTURE.gz" ;; \
+        cargo build --locked --manifest-path godot/Cargo.toml -p game-engine-network --example "$FIXTURE" -j "$JOBS" ${RELEASE:+--release} && \
+        gzip -1 -c "target/$profile/examples/$FIXTURE" > "/out/$FIXTURE.gz" ;; \
     esac && \
     if [ -n "$CLI" ]; then \
         cargo build --locked --manifest-path godot/Cargo.toml -p game-engine-cli --bin game-engine-cli -j "$JOBS" && \

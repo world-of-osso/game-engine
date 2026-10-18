@@ -54,6 +54,7 @@ fn scenarios_wire_receives_copy_entry_and_completion_on_instance_channel() {
                 order_index: 0,
                 criteria_id: 18529,
                 description: "Mekgineer Thermaplugg defeated".into(),
+                flags: 0,
                 current: 0,
                 required: 1,
                 completed: false,
