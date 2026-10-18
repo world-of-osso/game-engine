@@ -13,6 +13,10 @@
 ## 2026-10-18 — Show Offline roster preference
 
 [Contract/policy](systems/guilds.md#show-offline-roster-preference): missing authoritative Retail CVar default blocked implementation until explicit project COMMUNITIES_SHOW_OFFLINE_DEFAULT_ON=true. Classic2.5.6 issue883 is indirect only. Public load/save and missing-control RED precede persisted checkbox/filter wiring; existing sort/rank targets and unknown-presence exclusion conserved. Native acceptance separate.
+## 2026-10-18 — ReadyCheck explicit zero line spacing
+
+[Source spacing](systems/group-frames.md#readycheck-explicit-source-line-spacing--2026-10-18): UI.xsd762–769 default0/no font-chain override replaces native theme inheritance for ReadyCheck only, measured and drawn through the same Label path. Optional toolkit input leaves unspecified frames unchanged. Missing-attribute RED→core3/Godot8/UI8 GREEN/check27.56s/no warnings/Cargo fmt. Source panel/body scan union retains strict boundary validation. `FONT_LINE_HEIGHT_PARITY` (two15 UI lines vs23 available) and `READY_CHECK_MULTILINE_BODY_BUTTON_COLLISION` stay open; no invented font/spacing/anchor change. Native proof after landing/window, no new rendered verdict claimed.
+
 ## 2026-10-18 — ReadyCheck source intrinsic body height
 
 [Intrinsic correction](systems/group-frames.md#readycheck-intrinsic-body-correction--2026-10-18): approved240×0/MIDDLE/Friz12/shadow at existing TOP20,−37 replaces fixed28. Frame100/bottom buttons y60/content/audio/authority unchanged. Genuine host-height RED28vs14 precedes native8/UI8 GREEN/check40.02s/no warnings/Cargo fmt. Supplied14/29px unit intrinsics are not Retail raster metrics. Maintained native fixture isolates unoccluded glyph/visible-shadow/combined ink, line heights/row bands and signed physical-pixel clearance with complete cropped evidence and exact frame restoration; execution after landing/window, no numbers invented. Existing named collision gap stays open; no frame growth/button move/font shrink/spacing adjustment.
