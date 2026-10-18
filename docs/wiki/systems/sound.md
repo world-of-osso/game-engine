@@ -40,7 +40,7 @@ At `741344ca`, native `NativeSound` consumes those catalogs: two owned Godot pla
 
 ## Trading Post accepted freeze-lock kit
 
-[Freeze-lock lifecycle/proof](trading-post.md#accepted-freeze-lock-sound--october17) registers218229 with four authored variants/gain0.707945764. Both native acceptance paths reuse UiKits; zero pitch/variation requires no player change. Metadata70391 and local installed70448 audio remain separately qualified. Hide/show218236/218237 needs nonzero PitchAdjust support in a future slice; selection218230 needs its own selection/silence callbacks, neither is implemented here.
+[Freeze-lock lifecycle/proof](trading-post.md#accepted-freeze-lock-sound--october17) registers218229 with four authored variants/gain0.707945764. Both native acceptance paths reuse UiKits; zero pitch/variation requires no player change. Metadata70391 and local installed70448 audio remain separately qualified. Hide/show218236/218237 needs nonzero PitchAdjust support in a future slice; [selection218230 callbacks](trading-post.md#product-selection-sound--october18) are a separate bounded slice; neither path belongs to freeze-lock acoustic parity.
 
 ## UI_SOUND_PITCH_ADJUST_RATE
 
