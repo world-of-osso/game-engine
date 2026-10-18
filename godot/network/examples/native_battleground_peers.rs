@@ -443,6 +443,15 @@ fn private_support_count(address: std::net::SocketAddr, minimum: u8) -> Result<u
     }
 }
 
+fn support_count_for_queue(
+    address: std::net::SocketAddr,
+    battleground_id: u32,
+) -> Result<usize, String> {
+    let template = shared::battleground::template_by_id(battleground_id)
+        .ok_or("Unknown source battleground")?;
+    private_support_count(address, template.min_players_per_team)
+}
+
 fn run() -> Result<(), String> {
     let directory = PathBuf::from(std::env::var("BG_DIRECTORY").map_err(|e| e.to_string())?);
     let address = std::env::var("BG_ENDPOINT")
@@ -453,13 +462,11 @@ fn run() -> Result<(), String> {
         .map_err(|e| e.to_string())?
         .parse()
         .map_err(|e: std::num::ParseIntError| e.to_string())?;
-    let template = shared::battleground::template_by_id(battleground_id)
-        .ok_or("Unknown source battleground")?;
+    let count = support_count_for_queue(address, battleground_id)?;
     let prefix = std::env::var("BG_ACCOUNT_PREFIX").map_err(|e| e.to_string())?;
     if !prefix.starts_with("fb_") {
         return Err("Only private fb_* accounts are allowed".into());
     }
-    let count = private_support_count(address, template.min_players_per_team)?;
     let mut peers = Vec::new();
     let clock = SystemTime::now()
         .duration_since(UNIX_EPOCH)
@@ -656,6 +663,37 @@ fn parse_source_attack(action: &str) -> Result<(u32, BgTeam), String> {
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    #[test]
+    fn random32_fixture_bootstrap_accepts_only_owned5941_without_a_fake_template() {
+        assert_eq!(
+            support_count_for_queue("127.0.0.1:5941".parse().unwrap(), 32),
+            Ok(19)
+        );
+    }
+
+    #[test]
+    fn random32_fixture_bootstrap_preserves_private_guards_and_concrete_counts() {
+        for address in [
+            "127.0.0.1:5710",
+            "127.0.0.1:5711",
+            "127.0.0.1:5712",
+            "127.0.0.1:5000",
+            "192.0.2.1:5941",
+            "127.0.0.1:5942",
+        ] {
+            assert!(support_count_for_queue(address.parse().unwrap(), 32).is_err());
+        }
+        assert_eq!(
+            support_count_for_queue("127.0.0.1:5941".parse().unwrap(), 1018),
+            Ok(19)
+        );
+        assert_eq!(
+            support_count_for_queue("127.0.0.1:5712".parse().unwrap(), 1018),
+            Ok(15)
+        );
+        assert!(support_count_for_queue("127.0.0.1:5941".parse().unwrap(), u32::MAX).is_err());
+    }
 
     #[test]
     fn release_twenty_proof_uses_nineteen_real_support_accounts_on_private5941() {
