@@ -1,0 +1,6 @@
+{
+  "stderr": "Error: \"no walkable polygon near Vec3(106.25, 10000.0, 3.645833)\"\n",
+  "exit": 1,
+  "provenance": "Actual maintained map34 follower_route query with deliberately unreachable Y10000 endpoint; not a live player run. Full argv/receipt in bot-harness-2026-10-15/hazard-native-no-polygon.json.",
+  "binary_sha256": "c3ff3e4d1cb474e211cda77e1f86d2a58c05d8aa3e6cd30bcce5c51e07ae6b85"
+}

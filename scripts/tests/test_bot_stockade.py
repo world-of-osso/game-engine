@@ -25,6 +25,7 @@ class StockadeOpeningTests(unittest.TestCase):
         controller.tank = "Captain Garrick"
         controller.poll_combat = lambda: None
         controller.record_credit = lambda: None
+        controller.rainfire_areas = lambda: []  # Explicit synthetic empty-area control.
         controller.party = lambda: [{"health": 100, "max_health": 100}]
         controller.account = lambda: {"local_player_position": "(56,-19,0)"}
         controller.snapshot = lambda target: {"at_ms": 1000, "target": target,
@@ -181,6 +182,7 @@ class StockadeMeleeEndpointTests(unittest.TestCase):
         controller.blocked_steps = 0
         controller.poll_combat = lambda: None
         controller.record_credit = lambda: None
+        controller.rainfire_areas = lambda: []  # Historical fixture predates area observations.
         controller.party = lambda: [{"health": 80, "max_health": 100}]
         controller.rotation = lambda: fixture["rotation"]
         controller.snapshot = lambda target: fixture["rotation"]
@@ -230,6 +232,7 @@ class StockadeReceiptLifecycleTests(unittest.TestCase):
         controller.tank = "Captain Garrick"
         controller.poll_combat = lambda: None
         controller.record_credit = lambda: None
+        controller.rainfire_areas = lambda: []  # Historical fixture predates area observations.
         controller.party = lambda: [{"health": 80, "max_health": 100}]
         controller.rotation = lambda: fixture["after"]
         controller.snapshot = lambda target: fixture["after"]
