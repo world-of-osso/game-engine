@@ -1,6 +1,9 @@
 ## 2026-10-18 — Received achievement search previews
 
 [Implementation/proof](systems/dungeon-achievements.md#received-search-previews--2026-10-18): source206×27 popup/up-to5 received rows; conditional count-free Show All and explicit achievement open, retained category body while typing. Both-skin clear/blur/late-other-query/empty/cursor controls: four genuine behavioral REDs→31 UI-model passes;9 native-host tests/four-consumer check pass. No0.3s progress path, invented totals/percentages, server/protocol edits or physical native-popup claim.
+## 2026-10-18 — ReadyCheck allocation-based non-overlap policy
+
+Explicit user instruction authorizes frame growth, not a discovered Retail mechanism. Strict rendered RED both skins: ordinary+13.125px combined, toggle−5.875px, long-name−21.875px; all18 scans/exact restoration valid. Native bounds now consume actual extra measured allocation, preserve CENTER/bodyTOP37/font12 and button bottom16; one-line unchanged, no ink-aware padding. GREEN native clearance remains pending gate/window. [Policy](systems/group-frames.md#readycheck-body-no-overlap-project-policy--2026-10-18). The supplied one-line Retail crop is only bounded relative evidence; separate gap-ratio audit remains named.
 
 ## 2026-10-18 — Post-guild ownership-cap codec/dispatch target proof
 
