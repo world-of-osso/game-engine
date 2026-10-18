@@ -1,3 +1,6 @@
+## 2026-10-17 — Invitation dismissal lifecycle
+
+[Invitation dismissal](systems/guilds.md#invitation-dismissal): installed Mainline elapsed>60/OnHide and special-popup Escape authority; actual60.001s model RED before timeout/Escape wiring, no protocol/server changes. Loading retention and pending acceptance conserved. Post-landing native proof pending.
 ## 2026-10-18 — READY_CHECK decoded-dispatch acceptance
 
 [Bounded native proof](systems/group-frames.md#readycheck-listener-show-sound--implementation-2026-10-17): lead accepted both-skin ten-checkpoint/two-start proof on debug binary/invocation3b70f4b5d, production333b83b26. Real UiKits Ogg567478 players report5.020385265s/gain1/pitch1/playing; refresh and hidden-role phases add none, natural completion and zero-player teardown pass. Exit0/zero Godot errors; inherited display notices retained, window/slice released. Dummy audio: decoded dispatch only, not hardware or authenticated GameClient/server proof. Initial fixture Array-borrow compiler failure remains recorded. No production behavior changed or completed checks replayed.
@@ -14,7 +17,7 @@
 [Source header placement](systems/dungeon-achievements.md#searchfilter-header-placement--2026-10-17): accepted native proof exposed x633 search overlapping625 filter. XML1675–1713 rightToLeft/spacing7/index1 dropdown/index2 search107×30 gives511 normal/631 comparison. Tests-only79bd66ced gives genuine four-case native-host layout RED0/4 (633!=511/631), before template-only x translation of search/control/art/clear. Current y/sizes/dropdown/all other UI/progression retained. At2df86e411, focused achievement GREEN34/0 (nativeGodot9 incl4newcases/UIunit3/UIintegration22), helper60.7s; scoped four-consumer alltarget check0/noWarnings, then integrated8.80s check0 after actual TP Rust merge. Format/scoped readability/spec pass; no unchanged achievement rerun. Native pointer proof only after landing. Initial pet-credit hypothesis was falsified by real both-skin completion; no producer change.
 ## 2026-10-17 — Ordinary-product Up/Down navigation
 
-[Keyboard scope](systems/trading-post.md#ordinary-product-keyboard-navigation--october17): four genuine missing-action model REDs precede adjacent ordinary selection/nearest-edge reveal. Current sorted/filtered rows, nonwrapping endpoints, frozen/cart/modal ownership and explicit missing selection are retained; native press/release routing precedes world capture. Focused51UI tests (seven new,20-row both-skin true page crossing)/helper check38.35s/noWarnings/fmt5/readability pass. Native real-key/focus/world-position acceptance remains explicitly pending until after landing; no process/cohort/parse run for this keyboard slice. Only engine lease reacquired; no server/provider/audio or Rank3 work.
+[Keyboard scope](systems/trading-post.md#ordinary-product-keyboard-navigation--october17): four genuine missing-action model REDs precede adjacent ordinary selection/nearest-edge reveal. Current sorted/filtered rows, nonwrapping endpoints, frozen/cart/modal ownership and explicit missing selection are retained; native press/release routing precedes world capture. Focused51UI tests (seven new,20-row both-skin true page crossing)/helper check38.35s/noWarnings/fmt5/readability pass. Post480e actualC444/S16ede/P a566 with fixture4e7 passes21 native checks per skin: real press/releases, first12/thirteenth row/nearest scroll51→0, frozen/cart/confirmation no-op and complete purchased4/2 subset endpoints. Sampled XYZdelta0; Tender19040/19670/exact appearance sets12/10/cart/640712 conserved, two Query requests only/no transactions or policy setup. Eighteen inspected full-HD PNGs+two ffmpeg contacts published; four actual binary hashes/22 receipts/six original memory boundaries retained. Runtime/slice stopped/window cleared; later integrated source checks remain separate, no whole-tail/CI claim or proof replay.
 
 ## 2026-10-17 — Purchase-aware Trading Post Price key
 
@@ -4630,3 +4633,11 @@ User decision specifies MOBILE_BANKING_COOLDOWN_2H7200000ms over installed360000
 ## 2026-10-17 — Mobile native clock oracle
 
 [Guild perks](systems/guilds.md#perk-native-authority-and-effect-boundary-2026-10-16): production/Modern proof complete, real7311223ms accepted-recast gap saved; independent425/425b passed. Native measurement now uses the received server CastSuccess timestamp, not float32 countdown interpolation. Retry only remaining Forever case on unchanged artifacts; no overall completion claim yet.
+
+## Mobile Banking native acceptance boundary reconciled
+
+[Native Mobile proof](systems/guilds.md#native-mobile-banking-proof): code gates landed; both-skin body controls and Modern real2h recast are proven. Final Forever accepted recast remains unobserved after transport loss, not an effect failure. No completed-proof claim.
+
+## Native Mobile Banking acceptance complete
+
+[Native proof](systems/guilds.md#native-mobile-banking-proof): both-skin cast/bank/nonmember refusal/despawn and actual post2h accepted casts pass on identical artifacts. Forever7242700ms complements the retained Modern-origin7311223ms interval. Fifteen inspected unchanged full-HD originals published; owned runtimes stopped and owner-checked window cleared. Earlier interrupted overall results remain intact; countdown labels are not timing oracles.

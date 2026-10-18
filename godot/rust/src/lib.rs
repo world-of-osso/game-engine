@@ -694,6 +694,17 @@ impl INode3D for GameClient {
             return;
         }
         if key.get_keycode() == godot::global::Key::ESCAPE {
+            match self.dismiss_guild_invitation() {
+                Ok(true) => {
+                    self.mark_viewport_input_handled();
+                    return;
+                }
+                Ok(false) => {}
+                Err(error) => {
+                    self.handle_frame_error("Guild invitation dismissal", error);
+                    return;
+                }
+            }
             match self.close_all_windows() {
                 Ok(true) => {
                     if let Some(mut viewport) = self.base().get_viewport() {
@@ -2203,7 +2214,9 @@ impl GameClient {
             ("Trade", |c, _| c.update_trade()),
             ("Banks", |c, _| c.update_banks()),
             ("CombatPetStable", |c, _| c.update_combat_stable()),
-            ("Guild ranks", |c, _| c.update_guild_ranks()),
+            ("Guild ranks", |c, delta| {
+                c.update_guild_ranks(f64::from(delta))
+            }),
             ("Guild charters", |c, _| c.update_guild_charters()),
             ("Guild tabards", |c, delta| c.update_guild_tabards(delta)),
             ("Achievements", |c, d| c.update_achievements(d)),

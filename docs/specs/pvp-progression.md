@@ -58,6 +58,10 @@ Fill compatible Waiting/InProgress copies before creating a new one: concrete ma
 
 Preserve existing copy, phase, score, clock and objective state. New characters receive normal invitations and reservation ownership, then ordinary acceptance/WorldPortAck entry; existing accepted players are not re-invited. Use landed late-arrival score-row insertion. Refill on queue/capacity-release events only; no timer, reward or minimum changes. Arathi5v5 Waiting must reach its unchanged8/team criterion naturally through later parties.
 
+### Native pending invitation
+
+An unaccepted Waiting entry or an unaccepted InProgress ordinary BG entry displays the existing ready dialog and permits one match-owned accept/decline request until authority responds. Accepted entries and Ended matches are not pending; running-arena behavior remains unchanged. Preserve existing dialog art/layout and response handling. Source: Retail `PVPHelper.lua`321–329 opens on queue status `confirm`;427 handles the pending port action independently of the destination match phase.
+
 ## Eye holiday authority — 70448 read-only
 
 `HOLIDAY492_EFFECTIVE_EVENT_AUTHORITY` remains unresolved. Do not infer a77-day recurrence or treat missing calendar authority as inactive. Existing Eye completion Honor is unchanged; resource-Honor selection remains blocked.

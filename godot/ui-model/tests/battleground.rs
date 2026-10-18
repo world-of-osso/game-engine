@@ -847,6 +847,100 @@ fn node_battleground_selection_preserves_queue_identity() {
 }
 
 #[test]
+fn battleground_running_copy_invite_both_skins_renders_and_sends_owned_accept_or_decline() {
+    game_engine_ui_model::paths::set_data_root(
+        std::path::PathBuf::from(env!("CARGO_MANIFEST_DIR")).join("../../data"),
+    )
+    .unwrap();
+    for skin in [ActiveSkin::Modern, ActiveSkin::Forever] {
+        set_thread_skin(skin);
+        for (action, accepted) in [("pvp:accept", true), ("pvp:decline", false)] {
+            let mut view = PvpView::default();
+            receive(&mut view, snapshot(BgPhase::InProgress, false));
+            let mut context = SharedContext::new();
+            context.insert(skin);
+            context.insert(view.clone());
+            let mut registry = FrameRegistry::new(1280.0, 720.0);
+            let mut screen = Screen::new(pvp_screen);
+            screen.sync(&context, &mut registry);
+            assert!(
+                registry.get_by_name("PVPReadyDialog").is_some(),
+                "unaccepted running-copy invite must show the existing ready dialog in {skin:?}"
+            );
+            assert_size(&registry, "PVPReadyDialog", 306.0, 210.0);
+            assert!(
+                registry
+                    .get_by_name("PVPReadyDialogEnterBattleButton")
+                    .is_some()
+            );
+            assert!(
+                registry
+                    .get_by_name("PVPReadyDialogLeaveQueueButton")
+                    .is_some()
+            );
+            assert_eq!(
+                view.action(action),
+                Some(PvpAction::Respond {
+                    match_id: 71,
+                    accepted
+                })
+            );
+            assert_eq!(
+                view.action("pvp:accept"),
+                None,
+                "one pending request until authority responds"
+            );
+            assert_eq!(view.action("pvp:decline"), None);
+            let mut acknowledged = snapshot(BgPhase::InProgress, true);
+            if !accepted {
+                acknowledged.battleground = None;
+            }
+            receive(&mut view, acknowledged);
+            context.insert(view);
+            screen.sync(&context, &mut registry);
+            assert!(registry.get_by_name("PVPReadyDialog").is_none());
+        }
+    }
+    set_thread_skin(ActiveSkin::Modern);
+}
+
+#[test]
+fn battleground_invitation_phase_guards_keep_accepted_ended_and_running_arena_unactionable() {
+    for (phase, accepted, arena, responds) in [
+        (BgPhase::Waiting, false, true, true),
+        (BgPhase::InProgress, false, true, false),
+        (BgPhase::InProgress, true, false, false),
+        (BgPhase::Ended, false, false, false),
+        (BgPhase::Ended, false, true, false),
+    ] {
+        for action in ["pvp:accept", "pvp:decline"] {
+            let mut state = snapshot(phase, accepted);
+            if arena {
+                state.battleground.as_mut().unwrap().arena = Some(ArenaMatchSnapshot {
+                    mode: ArenaQueueMode::Skirmish2v2,
+                    preparation_remaining_secs: None,
+                    shadow_sight_available: false,
+                    units: Vec::new(),
+                    rating_changes: Vec::new(),
+                    shuffle: None,
+                });
+            }
+            let mut view = PvpView::default();
+            receive(&mut view, state);
+            let expected = responds.then_some(PvpAction::Respond {
+                match_id: 71,
+                accepted: action == "pvp:accept",
+            });
+            assert_eq!(
+                view.action(action),
+                expected,
+                "{phase:?} accepted={accepted} arena={arena}"
+            );
+        }
+    }
+}
+
+#[test]
 fn battleground_requests_wait_for_authority_and_echo_match_identity() {
     let mut view = PvpView::default();
     assert_eq!(view.action("pvp:queue"), Some(PvpAction::Queue(1014)));
