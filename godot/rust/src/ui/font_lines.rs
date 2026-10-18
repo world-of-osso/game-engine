@@ -74,5 +74,8 @@ fn read_face_metrics(bytes: &[u8], font: GameFont) -> Result<(f32, f32), String>
     let hhea = face
         .hhea()
         .map_err(|error| format!("Cannot read FontString ascender {font:?}: {error}"))?;
-    Ok((f32::from(hhea.ascender()), f32::from(hhea.descender())))
+    Ok((
+        f32::from(hhea.ascender().to_i16()),
+        f32::from(hhea.descender().to_i16()),
+    ))
 }
