@@ -2744,6 +2744,26 @@ mod tests {
     use super::*;
 
     #[test]
+    fn inventory_max_count_error_dispatches_retail_ui_message() {
+        let mut account = Account::new(PathBuf::from("/unused-inventory-data"));
+        let mut events = Vec::new();
+        account
+            .dispatch_message(
+                ProtocolMessage::for_tests(InventoryError {
+                    reason: shared::protocol::InventoryErrorReason::ItemMaxCount,
+                    detail: Some("ownership cap includes personal bank".into()),
+                }),
+                &mut events,
+            )
+            .unwrap();
+        let [AccountEvent::Npc(NpcMessage::Error(message))] = events.as_slice() else {
+            panic!("inventory cap rejection must reach the client error surface");
+        };
+        // Retail GlobalStrings10918, ERR_ITEM_MAX_COUNT; no native-pixel claim.
+        assert_eq!(message, "You can't carry any more of those items.");
+    }
+
+    #[test]
     fn deathstate_account_dispatches_snapshot_and_error() {
         use shared::protocol::{DeathSnapshot, DeathStateSnapshot, DeathStateUpdate};
         let mut account = Account::new(PathBuf::from("/unused-death-data"));
