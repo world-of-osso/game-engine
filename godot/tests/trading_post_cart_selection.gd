@@ -168,6 +168,7 @@ func restore_and_leave() -> bool:
 	if not gate.require(chat != null and not chat.visible and int(now.hidden_layers) > 0,"fullscreen HUD owner"): return false
 	if not await click_checked("PerksProgramLeaveButton"): return false
 	if not await until(func(): return not client.trading_post_state().open and chat.visible and control("MinimapLauncherButton") != null,"Leave restores HUD"): return false
+	if not gate.require(audio.size() == sound_count(),"every selection callback has one decoded play"): return false
 	for event in audio:
 		if not gate.require(float(event.length) > 0. and (event.playing or event.finished),"decoded selection audio playback"): return false
 	return write_receipt("result",{"skin":skin,"baseline":baseline,"appearances":appearances,"checkpoints":checkpoints,"audio":audio,"final":client.trading_post_state(),"cases":EXPECTED_CASES})
@@ -192,7 +193,7 @@ func checkpoint(label: String, expected: int) -> bool:
 	var position: Vector3 = client.account_state().local_player_position
 	if not gate.require(position.distance_to(origin) < 0.0001,"native input must not move world"): return false
 	if not gate.require(sound_count() == expected,"selection sound count at " + label): return false
-	checkpoints.append({"label":label,"sound_count":sound_count(),"state":client.trading_post_state(),"position":[position.x,position.y,position.z],"world_delta":position.distance_to(origin)})
+	checkpoints.append({"label":label,"sound_count":sound_count(),"state":client.trading_post_state(),"position":[position.x,position.y,position.z],"world_delta":position.distance_to(origin),"art_areas":{"primary":selected_area("PerksProgramSelected%d" % primary),"neighbor":selected_area("PerksProgramSelected%d" % neighbor),"frozen":selected_area("PerksProgramFrozenSelected")}})
 	await RenderingServer.frame_post_draw
 	var image_path := shots.path_join(skin+"-cart-selection-"+label+".png")
 	if not gate.require(root.get_texture().get_image().save_png(image_path) == OK,"save full-HD PNG"): return false
