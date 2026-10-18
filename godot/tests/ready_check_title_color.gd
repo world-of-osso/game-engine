@@ -32,7 +32,7 @@ func run_title_color() -> void:
 		assert(panel != null and title != null and message != null)
 		assert(panel.size == Vector2(323, 100))
 		assert(title.is_visible_in_tree() and title.text == "Ready Check")
-		assert(title.size == Vector2(323, 20) and title.global_position - panel.global_position == Vector2(0, 4))
+		assert(title.size == Vector2(241, 20) and title.global_position - panel.global_position == Vector2(58, 6))
 		assert(title.get_theme_font_size("font_size") == 12)
 		var source := title.get_theme_color("font_color")
 		assert(source.is_equal_approx(TITLE_COLOR))

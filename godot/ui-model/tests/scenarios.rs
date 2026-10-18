@@ -32,6 +32,7 @@ fn progress(completed: bool) -> ScenarioProgress {
                     order_index: 0,
                     criteria_id: 18529,
                     description: "Mekgineer Thermaplugg defeated".into(),
+                    flags: 0,
                     current: 0,
                     required: 1,
                     completed: false,
