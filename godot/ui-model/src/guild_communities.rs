@@ -237,6 +237,16 @@ fn sorted_members(session: &GuildRanksSession) -> Vec<&GuildRankMember> {
         })
         .collect();
     match session.roster_sort {
+        Some(GuildRosterSort::Note) => {
+            members.sort_by(|lhs, rhs| {
+                crate::guild_note_sort::compare(
+                    (lhs, profiles.get(lhs.character_name.as_str()).copied()),
+                    (rhs, profiles.get(rhs.character_name.as_str()).copied()),
+                    session.roster_sort_descending,
+                )
+            });
+            return members;
+        }
         Some(GuildRosterSort::Name) => {
             members.sort_by(|a, b| a.character_name.cmp(&b.character_name))
         }
@@ -378,7 +388,7 @@ fn columns() -> Element {
         ("Name", 100.0, "guild:roster-sort:name"),
         ("Zone", 100.0, ""),
         ("Rank", 85.0, "guild:roster-sort:rank"),
-        ("Note", 227.0, ""),
+        ("Note", 227.0, "guild:roster-sort:note"),
     ]
     .into_iter()
     .enumerate()
