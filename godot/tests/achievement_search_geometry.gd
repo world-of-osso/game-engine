@@ -40,12 +40,24 @@ func run_geometry() -> void:
 			var style := search.get_theme_stylebox("normal")
 			var margins := Vector4(style.get_content_margin(SIDE_LEFT), style.get_content_margin(SIDE_RIGHT), style.get_content_margin(SIDE_TOP), style.get_content_margin(SIDE_BOTTOM))
 			var native_font := search.get_theme_font("font") as FontFile
-			var actual := {"forever": forever, "comparison": comparison, "search": str(search.get_global_rect()), "margins_lrtb": str(margins), "font_size": search.get_theme_font_size("font_size"), "font_height": search.get_theme_font("font").get_height(search.get_theme_font_size("font_size")), "minimum": str(search.get_combined_minimum_size())}
+			var font_color := search.get_theme_color("font_color")
+			var caret_color := search.get_theme_color("caret_color")
+			var actual := {
+				"forever": forever, "comparison": comparison,
+				"search": str(search.get_global_rect()), "margins_lrtb": str(margins),
+				"font_size": search.get_theme_font_size("font_size"),
+				"font_height": search.get_theme_font("font").get_height(search.get_theme_font_size("font_size")),
+				"font_color_rgba": [font_color.r, font_color.g, font_color.b, font_color.a],
+				"caret_color_rgba": [caret_color.r, caret_color.g, caret_color.b, caret_color.a],
+				"minimum": str(search.get_combined_minimum_size())}
 			print("ACHIEVEMENT_SEARCH_NATIVE_BOUNDS ", JSON.stringify(actual))
 			if search.size != Vector2(107, 30) or margins != Vector4(16, 20, 0, 0):
 				failures.append("Source107x30/L16R20T0B0 mismatch: " + JSON.stringify(actual))
 			if search.get_theme_font_size("font_size") != 10:
 				failures.append("Source Roman height10 mismatch: " + JSON.stringify(actual))
+			# White caret is the accepted existing projection coupling, not Retail parity.
+			if font_color != Color.WHITE or caret_color != Color.WHITE:
+				failures.append("Source white text/accepted coupled caret mismatch: " + JSON.stringify(actual))
 			if native_font == null or native_font.data != expected_font:
 				failures.append("Source FRIZQT__.TTF bytes changed: " + JSON.stringify(actual))
 			if search.get_global_rect().position - origin != Vector2(expected_x, 25):
