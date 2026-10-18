@@ -2,6 +2,8 @@
 
 ADT files are WoW's terrain tile format. Each map tile is a 533.3×533.3 unit square divided into a 16×16 grid of MCNK chunks. Modern WoW splits the tile into three companion files that must all be loaded together.
 
+Parser ownership/features: [shared wow-formats crates](../systems/wow-formats.md). ADT/WDT metadata is in `wow-adt`; client terrain assembly remains in core.
+
 ## Split Files
 
 | File | Suffix | Content |
@@ -58,10 +60,10 @@ For character-select scenes, the primary tile must be loaded first; sorting the 
 ## Sources
 
 - [docs/adventurers-rest-mountain-brief.md](../adventurers-rest-mountain-brief.md) — tile selection bug and mountain visual revalidation context
-- `src/asset/adt_format/adt.rs`, `src/asset/adt.rs`, `src/rendering/terrain/terrain_heightmap.rs` — client parser, mesh, and sampler
+- `world-of-osso/wow-formats/wow-adt/src/adt.rs` — raw parser; [client terrain adapter](../../../godot/core/src/adt.rs)
 - `../../../game-server/crates/server/src/terrain_height.rs` — matching server sampler
 - [docs/world-object-rotation-investigation-2026-03-22.md](../world-object-rotation-investigation-2026-03-22.md) — MDDF/MODF rotation mapping derivation
-- AGENTS.md (ADT Terrain section + `asset/adt_format/`) — split file structure, parser modules
+- [Shared format readers](../systems/wow-formats.md) — split-file parser ownership and client re-exports
 
 ## See Also
 
