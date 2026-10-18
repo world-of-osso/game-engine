@@ -406,7 +406,6 @@ fn queue(context: &SharedContext, view: &PvpView) -> Element {
         ));
     }
 
-    children.extend(bonus_ui::type_selector(view));
     if view.honor_bonus {
         children.extend(bonus_ui::bonus_panel(view));
     } else {
@@ -445,6 +444,8 @@ fn queue(context: &SharedContext, view: &PvpView) -> Element {
         !view.pending && view.battleground().is_none(),
         (363.0, 404.0, 116.0, 22.0),
     ));
+    // Keep the dropdown/menu after the list in native GUI sibling order as well as strata.
+    children.extend(bonus_ui::type_selector(view));
     queue_frame(width, children)
 }
 pub const SPECIFIC_LIST: &str = "HonorFrameSpecificScrollBox";
