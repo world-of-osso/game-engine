@@ -1,3 +1,7 @@
+## 2026-10-18 — Shared native menu order
+
+[Source and bounded projection](systems/menu-primitives.md#native-menu-order-2026-10-18): actual guild-menu z563 below Last Online1503 reproduces additive-strata ordering failure. Shared menus use FULLSCREEN_DIALOG; native layers rank densely below the existing highlight plane, with explicit once-reported capacity errors and unchanged pointer policy. Native regression/caller inventory accompany implementation; focused gate and refreshed pixels remain pending.
+
 ## 2026-10-18 — Post-guild ownership-cap codec/dispatch target proof
 
 [Current consumer proof](systems/cursor-item.md#ownership-cap-error-cpu-dispatch-2026-10-18): landedf26cc691e merged with MaxCount as6c00abbf4; sole wiki-index conflict preserves both sides. Account dispatch target1/0 with protocola2b07a6; combined protocol tests preserve old tags and round-trip new ItemMaxCount21/SetMemberRank13. Source wording/error renderer unchanged; coordinated broad gate/landing remains lead-owned, no native-pixel claim.
