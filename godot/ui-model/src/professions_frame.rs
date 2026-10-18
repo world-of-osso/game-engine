@@ -20,6 +20,7 @@ mod quality;
 mod recraft;
 #[path = "professions_frame_slots.rs"]
 mod slots;
+pub use slots::recipe_source_tooltip;
 #[path = "professions_frame_specializations.rs"]
 mod specializations;
 #[path = "professions_frame_tree.rs"]
