@@ -1,3 +1,4 @@
+- [Show Offline roster preference](systems/guilds.md#show-offline-roster-preference) — sourced expanded checkbox/filter/persistence; named project default-on policy, Retail CVar default still unverified; native pending.
 - [Invitation dismissal](systems/guilds.md#invitation-dismissal) — strict60/60.001 model boundary, gate503e15+68, both-skin native Escape/timeout/Join/Decline and identical-binary fresh-process no-pending readback; eight inspected originals.
 - [ReadyCheck listener show sound](systems/group-frames.md#readycheck-listener-show-sound--implementation-2026-10-17) — source kit8960/file567478/gain1, missing-kit RED→catalog1/edge2/check; actual listener show edge only, authenticated70448 Ogg independently published by lead; native playback pending.
 - [Invitation dismissal](systems/guilds.md#invitation-dismissal) — strict displayed60s timeout and Escape send existing decline; Loading/Join conserved; native proof after landing.

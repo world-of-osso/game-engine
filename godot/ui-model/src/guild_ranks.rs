@@ -68,6 +68,8 @@ pub struct GuildRanksSession {
     pub communities_tab: CommunitiesTab,
     pub roster_sort: Option<GuildRosterSort>,
     pub roster_sort_descending: bool,
+    /// Presentation-only inverse of persisted communitiesShowOffline.
+    pub roster_online_only: bool,
     pub invite_open: bool,
     pub profile_editor: Option<GuildProfileField>,
     pub profile_waiting: bool,
@@ -353,6 +355,10 @@ impl GuildRanksSession {
                         GuildCommand::DeclineInvite
                     });
                 }
+                None
+            }
+            "guild:show_offline" if self.communities_tab == CommunitiesTab::Roster => {
+                self.roster_online_only = !self.roster_online_only;
                 None
             }
             "guild:close" => {
