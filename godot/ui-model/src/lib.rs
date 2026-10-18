@@ -291,6 +291,7 @@ pub mod guild_control;
 mod guild_control_art;
 pub mod guild_event_log;
 pub mod guild_member_detail;
+mod guild_member_rank;
 pub mod guild_news;
 pub mod guild_news_state;
 mod guild_note_sort;

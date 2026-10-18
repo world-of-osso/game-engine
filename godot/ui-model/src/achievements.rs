@@ -1650,7 +1650,8 @@ fn empty_message(window: &AchievementWindow) -> &'static str {
     if window.pages.get(&category).is_some_and(|page| page.loaded) {
         "No achievements in this category"
     } else {
-        "Loading achievements..."
+        // Retail has no category-loading label; pending is not known-empty.
+        ""
     }
 }
 

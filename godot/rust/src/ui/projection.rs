@@ -164,6 +164,8 @@ pub struct UiProjection {
     slider_capture: Rc<RefCell<Option<SliderCapture>>>,
     /// Loaded fonts; `None` caches a font file that failed to load.
     fonts: HashMap<GameFont, Option<Gd<godot::classes::FontFile>>>,
+    font_lines: super::font_lines::FontLineCache,
+    pixels_per_ui: f32,
     /// Loaded art and atlas regions; `None` caches art that failed to load.
     textures: HashMap<String, Option<(Gd<Texture2D>, [f32; 4])>>,
     /// Frames drawn without art whose file still loads, redrawn when files arrive.
@@ -187,6 +189,8 @@ impl UiProjection {
             pending: PendingInputs::default(),
             slider_capture: Rc::new(RefCell::new(None)),
             fonts: HashMap::new(),
+            font_lines: super::font_lines::FontLineCache::default(),
+            pixels_per_ui: 1.0,
             textures: HashMap::new(),
             waiting: HashSet::new(),
             arrived: 0,
@@ -334,6 +338,10 @@ impl UiProjection {
     }
 
     pub fn sync(&mut self, registry: &mut FrameRegistry) -> Result<(), String> {
+        if self.pixels_per_ui != registry.ui_scale {
+            self.pixels_per_ui = registry.ui_scale;
+            self.visuals.clear();
+        }
         let known = self.nodes.len();
         let _span = crate::profile::span(|| format!("projection.sync {known} frames"));
         // Atlas names keep their name across a skin switch; redraw every frame's art.
@@ -426,21 +434,7 @@ impl UiProjection {
                 continue;
             }
             let size = match &frame.widget_data {
-                Some(WidgetData::FontString(data))
-                    if matches!(frame.width, Dimension::Fixed(_)) =>
-                {
-                    self.measure_wrapped_label(frame, data)?
-                }
-                Some(WidgetData::FontString(data)) => {
-                    let Some(font) = self.font(data.font) else {
-                        continue;
-                    };
-                    let measured = font
-                        .get_string_size_ex(&data.text)
-                        .font_size(data.font_size as i32)
-                        .done();
-                    (measured.x, measured.y)
-                }
+                Some(WidgetData::FontString(data)) => self.measure_font_string(frame, data)?,
                 Some(WidgetData::Texture(data)) => match self.source(&data.source, registry) {
                     Art::Ready((image, region)) => {
                         let texture = assets::sub_texture(&image, region);
@@ -461,13 +455,14 @@ impl UiProjection {
     }
 
     /// Measure with the same native shaping, wrapping and theme as the drawn Label.
-    fn measure_wrapped_label(
+    fn measure_font_string(
         &mut self,
         frame: &Frame,
         data: &ui_toolkit::widgets::font_string::FontStringData,
     ) -> Result<(f32, f32), String> {
-        let Dimension::Fixed(width) = frame.width else {
-            unreachable!()
+        let width = match frame.width {
+            Dimension::Fixed(width) => width,
+            _ => 0.0,
         };
         let label = Label::new_alloc();
         // Out-of-tree Labels have not shaped their paragraphs: get_minimum_size can
@@ -482,9 +477,18 @@ impl UiProjection {
         };
         let result = self
             .update_label(label.clone(), data, frame, &rect)
-            .map(|()| {
+            .and_then(|()| {
                 let size = label.get_minimum_size();
-                (size.x, size.y)
+                let line_count = if data.text.is_empty() {
+                    0
+                } else {
+                    label.get_line_count() as usize
+                };
+                let line_count = data
+                    .max_lines
+                    .map_or(line_count, |limit| line_count.min(limit as usize));
+                let (_, metrics) = self.resolve_font_string(data, frame, line_count)?;
+                Ok((size.x, metrics.block_height_ui.max(1.0)))
             });
         self.root.remove_child(&label);
         label.free();
@@ -957,6 +961,29 @@ impl UiProjection {
         Ok(())
     }
 
+    fn resolve_font_string(
+        &mut self,
+        data: &ui_toolkit::widgets::font_string::FontStringData,
+        frame: &Frame,
+        line_count: usize,
+    ) -> Result<
+        (
+            Gd<godot::classes::FontFile>,
+            ui_toolkit::font_line_metrics::FontLineMetrics,
+        ),
+        String,
+    > {
+        let font = self
+            .font(data.font)
+            .ok_or_else(|| format!("Cannot load FontString font {:?}", data.font))?;
+        self.font_lines.resolve(
+            &font,
+            data,
+            self.pixels_per_ui * frame.effective_scale,
+            line_count,
+        )
+    }
+
     fn update_label(
         &mut self,
         mut node: Gd<Label>,
@@ -973,12 +1000,11 @@ impl UiProjection {
         let fixed_rectangle = frame.width != Dimension::Auto && frame.height != Dimension::Auto;
         let bounded_wrapping = data.word_wrap && data.max_lines.is_some_and(|lines| lines > 1);
         let fit_multiline = fixed_rectangle && data.text.contains('\n');
-        // A height cap hides single-line captions whose font metrics exceed their
-        // authored height; only cap lines whose spacing we fit into that height.
+        // Preserve single-line captions whose allocation exceeds authored height;
+        // multiline rectangles select lines without clipping glyphs to that rectangle.
         let maximum_height = if fit_multiline { rect.height } else { -1.0 };
         node.set_custom_maximum_size(Vector2::new(maximum_width, maximum_height));
-        // Clear our previous fit before reading the original themed spacing.
-        node.remove_theme_constant_override("line_spacing");
+        let (font, metrics) = self.resolve_font_string(data, frame, 0)?;
         let text = TextPart {
             content: data.text.clone(),
             font: data.font,
@@ -990,9 +1016,10 @@ impl UiProjection {
             shadow: data.shadow_color.map(|color| (color, data.shadow_offset)),
         };
         self.style_label(&mut node, &text)?;
-        if let Some(spacing) = data.line_spacing {
-            node.add_theme_constant_override("line_spacing", spacing);
-        }
+        node.add_theme_font_override("font", &font);
+        // FONT_POSITIVE_SPACING_GAP_TRUNCATION: integer native theme loses fractional
+        // positive gaps; toolkit intrinsic allocation remains exact. Current census:0.
+        node.add_theme_constant_override("line_spacing", metrics.spacing_ui as i32);
         // A fixed FontString whose height holds no second line stays on one line and cuts
         // the rest with an ellipsis, as WoW does: Retail's 32×10 action button `HotKey`
         // (`ActionButtonTemplate.xml:85-91`) draws "Middle Mouse" on one truncated line
@@ -1005,6 +1032,8 @@ impl UiProjection {
         let one_line = (short_rectangle || explicit_single_line) && !multiline;
         let (wrap, overrun) = if one_line {
             (AutowrapMode::OFF, OverrunBehavior::TRIM_ELLIPSIS_FORCE)
+        } else if frame.width == Dimension::Auto {
+            (AutowrapMode::OFF, OverrunBehavior::NO_TRIMMING)
         } else {
             (AutowrapMode::WORD, OverrunBehavior::NO_TRIMMING)
         };
@@ -1015,40 +1044,13 @@ impl UiProjection {
         if fit_multiline || fit_wrapped {
             // WoW's bounded FontString keeps its authored height, also after automatic wrapping.
             node.set_custom_maximum_size(Vector2::new(maximum_width, rect.height));
-            fit_multiline_label_spacing(&mut node, data, rect.height)?;
+            // Select visible lines using the authored height; never squeeze their gaps.
         }
         // Styling can raise Control's minimum size before tighter spacing lowers it.
         // Restore layout bounds, never the already-clamped native Control size.
         node.set_size(Vector2::new(rect.width, rect.height));
         Ok(())
     }
-}
-
-fn fit_multiline_label_spacing(
-    node: &mut Gd<Label>,
-    data: &ui_toolkit::widgets::font_string::FontStringData,
-    height: f32,
-) -> Result<(), String> {
-    let font = node
-        .get_theme_font("font")
-        .ok_or_else(|| "Cannot fit multiline FontString: native font is missing".to_owned())?;
-    let font_size = node.get_theme_font_size("font_size");
-    let font_height = font.get_height_ex().font_size(font_size).done() as f32;
-    let shadow_y = if data.shadow_color.is_some() {
-        (-data.shadow_offset[1]).round()
-    } else {
-        0.0
-    };
-    let available_height = height - shadow_reserved_height(data.justify_v, shadow_y);
-    let themed_spacing = node.get_theme_constant("line_spacing");
-    let line_count = node.get_line_count();
-    let visible_lines = data
-        .max_lines
-        .map_or(line_count, |limit| line_count.min(limit as i32));
-    let spacing =
-        multiline_line_spacing(available_height, font_height, visible_lines, themed_spacing);
-    node.add_theme_constant_override("line_spacing", spacing);
-    Ok(())
 }
 
 /// Whether `at` falls outside an ancestor of `node` that clips its children: the clipped
@@ -1065,30 +1067,6 @@ fn clipped_out(node: &Gd<Control>, at: Vector2) -> bool {
         parent = next.get_parent();
     }
     false
-}
-
-fn shadow_reserved_height(justify: JustifyV, native_shadow_y: f32) -> f32 {
-    // Centering splits spare height equally above/below the text; reserve both halves.
-    // Spacing alone cannot move a top-aligned upward or bottom-aligned downward shadow.
-    match justify {
-        JustifyV::Top => native_shadow_y.max(0.0),
-        JustifyV::Middle => 2.0 * native_shadow_y.abs(),
-        JustifyV::Bottom => (-native_shadow_y).max(0.0),
-    }
-}
-
-fn multiline_line_spacing(
-    available_height: f32,
-    font_height: f32,
-    line_count: i32,
-    themed_spacing: i32,
-) -> i32 {
-    if line_count <= 1 {
-        return themed_spacing;
-    }
-    let gaps = (line_count - 1) as f32;
-    let fitting_spacing = ((available_height - line_count as f32 * font_height) / gaps).floor();
-    themed_spacing.min(fitting_spacing as i32)
 }
 
 #[cfg(test)]
