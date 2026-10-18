@@ -6,6 +6,7 @@ mod adventure_guide_wire_tests;
 #[path = "ui/automation_data.rs"]
 pub mod automation_data;
 mod battleground_trace;
+pub mod fixture_completion;
 #[path = "game/state/game_state_enum.rs"]
 pub mod game_state_enum;
 #[cfg(test)]

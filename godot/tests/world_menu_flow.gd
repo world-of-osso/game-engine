@@ -1,5 +1,7 @@
 extends SceneTree
 
+var completion: RefCounted
+
 const NAME := "Input Fixture"
 const WORLD_WAIT_MS := 90000
 const MENU_WAIT_MS := 5000
@@ -10,6 +12,7 @@ func _initialize() -> void:
 	call_deferred("run_test")
 
 func run_test() -> void:
+	completion = preload("res://tests/completion.gd").new(self, 8)
 	root.size = Vector2i(1280, 720)
 	var server := OS.get_environment("GODOT_TEST_SERVER")
 	if not server.begins_with("127.0.0.1:") or server.ends_with(":0"):
@@ -72,6 +75,8 @@ func run_test() -> void:
 		fail("Roster navigation did not return to original selection")
 		return
 	print("FIXTURE MENU_CHARSELECT_DONE")
+	if not completion.case_done():
+		return
 	var enter = ui.find_child("EnterWorld", true, false)
 	if not enter is Button:
 		fail("Native Enter World button missing")
@@ -80,6 +85,8 @@ func run_test() -> void:
 	if not await wait_screen(client, "Loading", 15000):
 		return
 	print("FIXTURE MENU_LOADING")
+	if not completion.case_done():
+		return
 	if not await wait_world(client):
 		return
 	var player := client.get_node_or_null("WorldUnits/" + NAME) as Node3D
@@ -116,6 +123,8 @@ func run_test() -> void:
 		fail("InWorld Escape did not open authored menu")
 		return
 	print("FIXTURE MENU_WORLD_OPEN")
+	if not completion.case_done():
+		return
 	var start := player.position
 	var facing := player.rotation.y
 	var orbit := camera.global_transform.basis.z
@@ -137,6 +146,8 @@ func run_test() -> void:
 	push_key(KEY_SPACE, false)
 	push_key(KEY_W, false)
 	print("FIXTURE MENU_BLOCK_QUIET_START")
+	if not completion.case_done():
+		return
 	for frame in range(QUIET_FRAMES):
 		await process_frame
 	if player.position.distance_to(start) > 0.05 or absf(player.rotation.y - facing) > 0.01 or camera.global_transform.basis.z.distance_to(orbit) > 0.01 or animation.animation.current_animation_id() != 0:
@@ -151,6 +162,8 @@ func run_test() -> void:
 			fail("Could not capture authored game menu: " + str(error))
 			return
 	print("FIXTURE MENU_BLOCK_DONE")
+	if not completion.case_done():
+		return
 	await click_menu_action(client, "MenuBtnResume")
 	if not await wait_menu_closed(client, null):
 		return
@@ -164,6 +177,8 @@ func run_test() -> void:
 		advanced = advanced or player.position.distance_to(start) > 0.1
 	push_key(KEY_W, false)
 	print("FIXTURE MENU_W_RELEASED")
+	if not completion.case_done():
+		return
 	if not advanced:
 		fail("W after Return did not move native player")
 		return
@@ -173,6 +188,8 @@ func run_test() -> void:
 		fail("Released W did not restore Stand 0")
 		return
 	print("FIXTURE MENU_FINAL_QUIET")
+	if not completion.case_done():
+		return
 	push_key(KEY_ESCAPE, true)
 	await process_frame
 	push_key(KEY_ESCAPE, false)
@@ -180,6 +197,9 @@ func run_test() -> void:
 		fail("Final Escape did not reopen authored menu")
 		return
 	print("FIXTURE MENU_EXIT_READY")
+	if not completion.case_done():
+		return
+	completion.finish(true, false)
 	await click_menu_action(client, "MenuBtnExit")
 	# Exit must terminate the real client; the Rust runner requires this child to exit 0.
 	var deadline := Time.get_ticks_msec() + MENU_WAIT_MS
