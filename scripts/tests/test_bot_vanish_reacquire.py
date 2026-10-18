@@ -63,6 +63,7 @@ class VanishReacquisitionTests(unittest.TestCase):
             run.poll_combat = lambda: None
             run.record_credit = lambda: None
             run.rainfire_areas = lambda: []  # Run23 never observed ground objects; synthetic control.
+            run.query_route = lambda *args: self.fail("Escape queried a route without areas")
             run.party = lambda: fixture["party_full_health_control"]
             run.invoke = invoke
             run.player = PlayerController(invoke, run.snapshot, lambda *args: self.fail("No movement expected"),
