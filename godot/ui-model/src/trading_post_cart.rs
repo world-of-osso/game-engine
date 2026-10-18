@@ -245,7 +245,11 @@ impl View {
             }
             "perks:cart:show" => {
                 self.initialize_cart_selection()?;
-                self.cart_visible = !self.cart.is_empty();
+                let show_cart = !self.cart.is_empty();
+                if show_cart && !self.cart_visible {
+                    self.pre_cart_selected = self.selected.take();
+                }
+                self.cart_visible = show_cart;
             }
             "perks:cart:close" => self.close_cart(),
             "perks:cart:clear" if !self.cart.is_empty() => self.confirm = Some("clear-cart".into()),
@@ -277,11 +281,24 @@ impl View {
     }
 
     fn close_cart(&mut self) {
-        // Retail restores product selection here even when our retained ID is unchanged.
-        if self.cart_visible && self.visible && self.selected_item().is_some() {
-            self.selection_sounds += 1;
-        }
+        let was_shown = self.cart_visible;
         self.cart_visible = false;
+        let previous = self.pre_cart_selected.take();
+        if !was_shown || self.selected.is_some() {
+            return;
+        }
+        // TrySelectProduct, then SelectFirstProduct: this belongs only to cart return.
+        let restored = previous
+            .filter(|id| self.has_selectable_product(*id))
+            .or_else(|| self.rows().first().map(|row| row.id));
+        let Some(id) = restored else {
+            return;
+        };
+        if self.visible {
+            self.select_product(id);
+        } else {
+            self.set_product_selection(id);
+        }
     }
 
     pub fn clear_cart(&mut self) {

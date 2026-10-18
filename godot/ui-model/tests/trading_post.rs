@@ -21,15 +21,14 @@ fn visible_selection_art_area(registry: &FrameRegistry, name: &str) -> f32 {
         return 0.;
     };
     let frame = registry.get(id).unwrap();
-    if frame.visible && !frame.hidden && frame.effective_alpha > 0. {
-        frame.resolved_width() * frame.resolved_height()
-    } else {
-        0.
+    let visible = frame.visible && frame.effective_alpha > 0.;
+    if frame.hidden || !visible {
+        return 0.;
     }
+    frame.resolved_width() * frame.resolved_height()
 }
 
 #[test]
-#[ignore = "CPU RED for TP_CART_OPEN_SELECTION_CLEAR; run explicitly"]
 fn trading_post_cart_selection_open_clears_product_owner_but_keeps_cart_preview() {
     for owner in [11, 4] {
         let mut view = cart_selection_view(owner);
@@ -49,7 +48,6 @@ fn trading_post_cart_selection_open_clears_product_owner_but_keeps_cart_preview(
 }
 
 #[test]
-#[ignore = "CPU RED for TP_CART_OPEN_SELECTION_CLEAR; run explicitly"]
 fn trading_post_cart_selection_registry_deselects_product_art_in_both_skins() {
     for skin in [ActiveSkin::Modern, ActiveSkin::Forever] {
         for (owner, name) in [
@@ -77,7 +75,6 @@ fn trading_post_cart_selection_registry_deselects_product_art_in_both_skins() {
 }
 
 #[test]
-#[ignore = "CPU RED for TP_CART_OPEN_SELECTION_CLEAR; run explicitly"]
 fn trading_post_cart_selection_return_restores_ordinary_or_frozen_once() {
     for owner in [11, 4] {
         let mut view = cart_selection_view(owner);
@@ -95,7 +92,6 @@ fn trading_post_cart_selection_return_restores_ordinary_or_frozen_once() {
 }
 
 #[test]
-#[ignore = "CPU RED for TP_CART_OPEN_SELECTION_CLEAR; run explicitly"]
 fn trading_post_cart_selection_explicit_product_hides_cart_without_double_restore() {
     for target in [11, 10, 4] {
         let mut view = cart_selection_view(11);
@@ -121,7 +117,6 @@ fn trading_post_cart_selection_explicit_product_hides_cart_without_double_restor
 }
 
 #[test]
-#[ignore = "CPU RED for TP_CART_OPEN_SELECTION_CLEAR; run explicitly"]
 fn trading_post_cart_selection_last_removal_and_clear_restore_without_requests() {
     for action in ["perks:cart:remove:11", "perks:cart:clear"] {
         let mut view = cart_selection_view(11);
@@ -149,7 +144,6 @@ fn trading_post_cart_selection_last_removal_and_clear_restore_without_requests()
 }
 
 #[test]
-#[ignore = "CPU RED for TP_CART_OPEN_SELECTION_CLEAR; run explicitly"]
 fn trading_post_cart_selection_return_validates_current_membership() {
     for (owner, expected) in [(11, 12), (4, 4)] {
         let mut view = cart_selection_view(owner);
@@ -170,7 +164,6 @@ fn trading_post_cart_selection_return_validates_current_membership() {
 }
 
 #[test]
-#[ignore = "CPU RED for TP_CART_OPEN_SELECTION_CLEAR; run explicitly"]
 fn trading_post_cart_selection_provider_reselection_hides_cart_silently() {
     let mut view = cart_selection_view(11);
     view.click("perks:cart:show").unwrap();
@@ -198,7 +191,6 @@ fn trading_post_cart_selection_provider_reselection_hides_cart_silently() {
 }
 
 #[test]
-#[ignore = "CPU RED for TP_CART_OPEN_SELECTION_CLEAR; run explicitly"]
 fn trading_post_cart_selection_empty_provider_does_not_guess_frozen_or_keyboard_row() {
     let mut view = cart_selection_view(11);
     view.click("perks:cart:show").unwrap();
@@ -298,7 +290,7 @@ fn trading_post_selection_sound_provider_reselection_and_initialization_stay_sil
 }
 
 #[test]
-fn trading_post_selection_sound_cart_return_uses_visibility_not_retained_id() {
+fn trading_post_selection_sound_cart_return_reselects_remembered_id_once() {
     let mut view = keyboard_view();
     for closing in [
         "perks:cart:close",
@@ -308,9 +300,8 @@ fn trading_post_selection_sound_cart_return_uses_visibility_not_retained_id() {
         view.click("perks:cart:add").unwrap();
         view.click("perks:cart:show").unwrap();
         assert_eq!(
-            view.selected,
-            Some(11),
-            "cart-open clearing remains a named gap"
+            view.selected, None,
+            "cart owns preview until remembered product is restored"
         );
         assert_eq!(view.take_selection_sounds(), 0);
         view.click(closing).unwrap();
@@ -902,7 +893,7 @@ fn trading_post_row_cart_toggle_preserves_open_cart_preview_choices() {
     view.click("perks:cart:toggle:5").unwrap();
     assert_eq!(view.cart, [4, 5]);
     assert_eq!(view.cart_preview_item_ids(), [25]);
-    assert_eq!(view.selected, Some(4));
+    assert_eq!(view.selected, None);
     assert!(view.cart_visible);
     view.click("perks:cart:toggle:5").unwrap();
     assert_eq!(view.cart, [4]);
