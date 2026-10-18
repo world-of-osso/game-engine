@@ -23,6 +23,7 @@ decisions; `guild_rank_frame.rs` renders the native roster/settings canvas and
 - [x] Selecting current rank sends nothing. Changed selection captures the original target name in the action and emits one `SetMemberRank`, never chained Promote/Demote commands. Displayed rank remains authoritative until reply; pending controls cannot submit another mutation. Escape closes only the menu, without a write.
 - Named exclusions: `GUILD_RANK_ASSIGNMENT_AUTHENTICATOR_GAP` (no authenticator-backed eligibility/provider), `GUILD_RANK_ASSIGNMENT_LEADERSHIP_GAP` (no transfer/disband), `GUILD_RANK_ASSIGNMENT_CONFIG_EXCLUDED` (existing rank create/reorder controls stay unchanged). No eligibility flags are fabricated.
 - Protocol/server/client land together. Backend chooses the direction right from requested/current rank and rechecks membership, self and strict hierarchy; direct TC rank updates do not append step lifecycle events. Model, real UDP and persistent backend proof precede the gate; native proof follows landing.
+- [x] Post-landing private-realm acceptance proves both skins' actual4→1 assignment, current-selection/Escape/self controls, source menu above covered card labels, close/reopen and fresh server/client Officer readback. Eight inspected unchanged1920×1080 originals are published; [artifact provenance, exit qualifications and proof limits](../wiki/systems/guilds.md#native-acceptance-2026-10-18). Named exclusions above remain unchanged.
 
 ### Public Note sorting
 
