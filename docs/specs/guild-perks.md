@@ -52,7 +52,7 @@ User clarification2026-10-17: World of Osso has no resurrection guild perk. The 
 
 ## Out of scope
 
-Guild rewards require their separate runtime import and reputation/achievement eligibility; existing62 TDB rows are not a working reward system. Invitation tabards follow this slice. Unimplemented perk effects remain named gaps rather than fabricated functionality.
+Guild rewards require their separate runtime import and reputation/achievement eligibility; existing62 TDB rows are not a working reward system. Invitation tabards have their own [native proof](../wiki/systems/guilds.md#native-invitation-tabards). Unimplemented perk effects remain named gaps rather than fabricated functionality.
 
 ## Hasty Hearth native effect proof
 
