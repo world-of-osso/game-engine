@@ -355,9 +355,11 @@ impl UiProjection {
         }
         let span = crate::profile::span(|| "projection.intrinsics".to_owned());
         let intrinsics = self.measure_intrinsics(registry)?;
+        let ready_check_extra = self.ready_check_extra_height(registry, &intrinsics)?;
         drop(span);
         let span = crate::profile::span(|| "projection.layout".to_owned());
         let mut bounds = layout::compute_layout_with_intrinsics(registry, &intrinsics)?;
+        super::ready_check_layout_policy::apply(registry, &mut bounds, ready_check_extra)?;
         super::hud_edit_layout::apply_active_placements(registry, &mut bounds);
         drop(span);
         let created = std::cell::Cell::new(0);
@@ -463,6 +465,26 @@ impl UiProjection {
             sizes.insert(frame.id, size);
         }
         Ok(sizes)
+    }
+
+    /// Project policy, not Retail resizing: preserve the one-line allocated gap.
+    fn ready_check_extra_height(
+        &mut self,
+        registry: &FrameRegistry,
+        intrinsics: &HashMap<u64, (f32, f32)>,
+    ) -> Result<f32, String> {
+        let Some(id) = registry.get_by_name("ReadyCheckFrameText") else {
+            return Ok(0.0);
+        };
+        let frame = registry.get(id).ok_or("ReadyCheck body frame is absent")?;
+        let Some(WidgetData::FontString(data)) = &frame.widget_data else {
+            return Err("ReadyCheck body is not a FontString".into());
+        };
+        let (_, height) = intrinsics
+            .get(&id)
+            .ok_or("ReadyCheck body intrinsic height is absent")?;
+        let (_, line) = self.resolve_font_string(data, frame, 1)?;
+        Ok((height - line.block_height_ui).max(0.0))
     }
 
     /// Measure with the same native shaping, wrapping and theme as the drawn Label.

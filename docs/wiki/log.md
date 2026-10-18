@@ -1,6 +1,9 @@
 ## 2026-10-18 — Shared native menu order
 
 [Source and bounded projection](systems/menu-primitives.md#native-menu-order-2026-10-18): actual guild-menu z563 below Last Online1503 reproduces additive-strata ordering failure. Shared menus use FULLSCREEN_DIALOG; native layers rank densely below the existing highlight plane, with explicit once-reported capacity errors and unchanged pointer policy. Native regression/caller inventory accompany implementation; focused gate and refreshed pixels remain pending.
+## 2026-10-18 — ReadyCheck allocation-based non-overlap policy
+
+Explicit user instruction authorizes frame growth, not a discovered Retail mechanism. Strict rendered RED both skins: ordinary+13.125px combined, toggle−5.875px, long-name−21.875px; all18 scans/exact restoration valid. Native bounds now consume actual extra measured allocation, preserve CENTER/bodyTOP37/font12 and button bottom16; one-line unchanged, no ink-aware padding. GREEN native clearance remains pending gate/window. [Policy](systems/group-frames.md#readycheck-body-no-overlap-project-policy--2026-10-18). The supplied one-line Retail crop is only bounded relative evidence; separate gap-ratio audit remains named.
 
 ## 2026-10-18 — Post-guild ownership-cap codec/dispatch target proof
 
