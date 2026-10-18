@@ -31,6 +31,16 @@ func check_order() -> bool:
 			failures.append(str(pair[0]) + " render/pointer order mismatch")
 		elif not completion.case_done():
 			return false
+	# Reordering reused siblings must not change the registry's existing ID tiebreak.
+	if not completion.require(ui.call("projection_order_preview_reverse_siblings") == ""):
+		return false
+	var later := ui.find_child("OrderLater", true, false) as Control
+	var earlier := ui.find_child("OrderEarlier", true, false) as Control
+	var reused_point := later.get_global_rect().get_center()
+	var reused_hit: String = ui.call("projection_order_preview_hit", float(reused_point.x), float(reused_point.y))
+	print("PROJECTION_ORDER_REUSED_IDS later_index=", later.get_index(), " earlier_index=", earlier.get_index(), " pointer=", reused_hit)
+	if reused_hit != "OrderLater" or later.get_index() <= earlier.get_index():
+		failures.append("reused sibling ID render/pointer order mismatch")
 	if not completion.require(failures.is_empty(), "; ".join(failures)):
 		return false
 	ui.free()
