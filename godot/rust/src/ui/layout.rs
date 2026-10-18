@@ -437,6 +437,98 @@ mod tests {
         set_thread_skin(ActiveSkin::Modern);
     }
 
+    fn assert_achievement_header_search(
+        skin: ui_toolkit::atlas::ActiveSkin,
+        open_action: &str,
+        expected_search_left: f32,
+    ) {
+        use game_engine_ui_model::achievements::{AchievementWindow, achievement_screen};
+        use ui_toolkit::screen::{Screen, SharedContext};
+
+        game_engine_ui_model::paths::set_data_root(
+            std::path::PathBuf::from(env!("CARGO_MANIFEST_DIR")).join("../../data"),
+        )
+        .unwrap();
+        ui_toolkit::atlas::set_thread_skin(skin);
+        let mut window = AchievementWindow::default();
+        window.action(open_action);
+        window.action("achievement:search:bear");
+        let mut shared = SharedContext::new();
+        shared.insert(skin);
+        shared.insert(window);
+        let mut registry = FrameRegistry::new(1920.0, 1080.0);
+        Screen::new(achievement_screen).sync(&shared, &mut registry);
+        let bounds = compute_layout_with_intrinsics(&registry, &HashMap::new()).unwrap();
+        let rect = |name: &str| bounds[&registry.get_by_name(name).expect(name)].clone();
+        let root = rect("AchievementFrame");
+        let search = rect("AchievementSearchBox");
+        let filter = rect("AchievementFilterDropdown");
+        assert_eq!(
+            search.x - root.x,
+            expected_search_left,
+            "{skin:?} {open_action}: source right-to-left search placement"
+        );
+        assert_eq!(
+            (search.y - root.y, search.width, search.height),
+            (25.0, 107.0, 30.0)
+        );
+        assert_eq!(
+            (filter.y - root.y, filter.width, filter.height),
+            (31.0, 112.0, 22.0)
+        );
+        assert_eq!(filter.x - (search.x + search.width), 7.0);
+        for (name, offset, width, height) in [
+            ("AchievementSearchLeft", -5.0, 8.0, 20.0),
+            ("AchievementSearchMiddle", 3.0, 96.0, 20.0),
+            ("AchievementSearchRight", 99.0, 8.0, 20.0),
+            ("AchievementSearchIcon", 1.0, 10.0, 10.0),
+            ("AchievementSearchClearButton", 87.0, 17.0, 17.0),
+        ] {
+            let piece = rect(name);
+            assert_eq!(
+                (piece.x - search.x, piece.width, piece.height),
+                (offset, width, height),
+                "{skin:?} {name}"
+            );
+        }
+    }
+
+    #[test]
+    fn achievement_header_search_modern_normal() {
+        assert_achievement_header_search(
+            ui_toolkit::atlas::ActiveSkin::Modern,
+            "micro:AchievementMicroButton",
+            511.0,
+        );
+    }
+
+    #[test]
+    fn achievement_header_search_forever_normal() {
+        assert_achievement_header_search(
+            ui_toolkit::atlas::ActiveSkin::Forever,
+            "micro:AchievementMicroButton",
+            511.0,
+        );
+    }
+
+    #[test]
+    fn achievement_header_search_modern_comparison() {
+        assert_achievement_header_search(
+            ui_toolkit::atlas::ActiveSkin::Modern,
+            "achievement:compare:42",
+            631.0,
+        );
+    }
+
+    #[test]
+    fn achievement_header_search_forever_comparison() {
+        assert_achievement_header_search(
+            ui_toolkit::atlas::ActiveSkin::Forever,
+            "achievement:compare:42",
+            631.0,
+        );
+    }
+
     #[test]
     fn character_select_root_and_enter_world_follow_original_viewport_bounds() {
         use game_engine_ui_model::CharacterSelectModel;

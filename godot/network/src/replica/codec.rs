@@ -107,6 +107,7 @@ fn shared_codecs() -> Vec<Codec> {
         Codec::of::<UnitVignette>(),
         Codec::of::<UnitSummonedBy>(),
         Codec::of::<UnitIsPet>(),
+        Codec::of::<shared::components::DynamicObjectInfo>(),
     ]
 }
 

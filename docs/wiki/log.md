@@ -1,3 +1,13 @@
+## 2026-10-17 — Rain of Fire escape policy
+
+[Bounded harness policy](systems/bot-harness.md#rain-of-fire-escape-policy--2026-10-17): synthetic eight-heading planner controls, actual map34 no-polygon refusal, and maintained-controller projected-arrival RED preserve source5yd radius with no damage/kit/stat changes. Pending ACK precedes escape; every source route segment and projected arrival neighborhood must be safe. Actual server lifecycle GREEN2 and protocol wire GREEN1 precede native real-UDP missing-decoder RED. Received geometry/faction projection and untouched observer JSON now implement the native data boundary; postmerge native UDP/replica21+projection4 GREEN142.6s, engine/network check16.42s/fmt/0warnings pass; Python125/observer parse remain valid on unchanged relevant files. Joint gate and fresh private escape/full-clear acceptance remain pending.
+
+## 2026-10-17 — Vanish selection withdrawal
+
+[Harness boundary](systems/bot-harness.md#vanish-selection-withdrawal--2026-10-17): real run23 Vanish55964 withdraws selected living Moloch and its return does not reselect him. Retained-frame RED reaches original ten-second fact deadline. Approved recovery ends only fresh living/InWorld/in-combat no-selection steps with no pending cast, then leaves ordinary next-cycle Garrick assist and fresh cast gates intact. Synthetic continuation controls distinguished; live recovery/clear still pending.
+## 2026-10-17 — Achievement header search/filter overlap
+
+[Source header placement](systems/dungeon-achievements.md#searchfilter-header-placement--2026-10-17): accepted native proof exposed x633 search overlapping625 filter. XML1675–1713 rightToLeft/spacing7/index1 dropdown/index2 search107×30 gives511 normal/631 comparison. Tests-only79bd66ced gives genuine four-case native-host layout RED0/4 (633!=511/631), before template-only x translation of search/control/art/clear. Current y/sizes/dropdown/all other UI/progression retained. At2df86e411, focused achievement GREEN34/0 (nativeGodot9 incl4newcases/UIunit3/UIintegration22), helper60.7s; scoped four-consumer alltarget check0/noWarnings, then integrated8.80s check0 after actual TP Rust merge. Format/scoped readability/spec pass; no unchanged achievement rerun. Native pointer proof only after landing. Initial pet-credit hypothesis was falsified by real both-skin completion; no producer change.
 ## 2026-10-17 — Ordinary-product Up/Down navigation
 
 [Keyboard scope](systems/trading-post.md#ordinary-product-keyboard-navigation--october17): four genuine missing-action model REDs precede adjacent ordinary selection/nearest-edge reveal. Current sorted/filtered rows, nonwrapping endpoints, frozen/cart/modal ownership and explicit missing selection are retained; native press/release routing precedes world capture. Focused51UI tests (seven new,20-row both-skin true page crossing)/helper check38.35s/noWarnings/fmt5/readability pass. Native real-key/focus/world-position acceptance remains explicitly pending until after landing; no process/cohort/parse run for this keyboard slice. Only engine lease reacquired; no server/provider/audio or Rank3 work.
@@ -30,6 +40,10 @@
 ## 2026-10-17 — Native release20 Arathi lifecycle
 
 [Bounded release proof](systems/battlegrounds.md#native-release20-arathi--bounded-proof2026-10-17): landed-master bookworm extension/server/19peers, actual loaded release hash; normal four5-player parties→one20/10v10 match, five banner assaults, natural1500–0, winning wallet/XP671 and losing61 across20, all origin-map returns. Four inspected both-skin1920×1080 scoreboard/end originals shared. First cold10.5686s frame/peer12 timeout retained; same-code/privateDB bounded retry passes, not a cold-stall fix. Numeric wallet pixels6... remain diagnostic-only; raw log order/timestamp limits/import errors explicit. Owned scope stopped,5941free/window cleared13:44:45.
+## 2026-10-17 — ReadyCheck listener show sound
+
+[Listener OnShow](systems/group-frames.md#readycheck-listener-show-sound--implementation-2026-10-17): XML107–111/constant84 source8960, active70448 kit gain1/zero pitch+variation/Entry9401file567478. Missing-kit RED1(216.1s) precedes catalog/actual-visible edge dispatch viaUiKits, no refresh/initiator/hidden play. Privately authenticated one60724-byte44.1kHzstereo5.020385s Ogg/SHA1153339e/MD5rootmatch/full decode; Ogg independently re-extracted/published by lead/no clobber; initial flat-path model-index fragment broke bundle namespace validation and was withdrawn by lead, not the Ogg. UI sounds ship through sounds/ directly; verification receipts must not use model-index names. Agent canonical writes zero. Catalog1/edge2 GREEN/check25.86s/scopedfmt/diff/readability pass; depot asset declared, private/lead-published size+SHA match. Native/hardware playback acceptance remains separate.
+
 ## 2026-10-17 — ReadyCheck title origin/width
 
 [Title bounds](systems/group-frames.md#readycheck-title-originwidth--implementation-2026-10-17): source RC45–58 left58/right24/top1+childtop5→241px@(58,6); current20px height conserved/not intrinsic parity. Genuine RED4pass1fail323vs241,206.7s helper; only three production title geometry fields repaired, every other field preserved. Existing native fixture controls reconciled; historical captures retain original geometry scope. Committed c823bdd45 GREEN5/5bothskins18.8s helper/check111.1swall/no warnings; scopedfmt/diff/readability pass, exact receipts in local ledger. Post474e landed299/proto a566/binary05bb native bothskins1920 source241x20@(58,6)/HUDscale1.40625/controls/exactRGBArestore, lead acceptedForever. Samebinary intended323width stayed241: offline assertion caught/qualified origin-only, harnessd008 corrected. Fullwidth proof reuses hash-verified actual61ef/ba80 old323 captures:1899/1914changes,0outside title-shadowunion, panels/fullviewsinspected. No recapture/productchange; windowcleared/slicestopped. Intrinsicheight/wrap/framelevel/fullreference/liveauthority remain gaps.
@@ -4612,3 +4626,11 @@ User decision specifies MOBILE_BANKING_COOLDOWN_2H7200000ms over installed360000
 ## 2026-10-17 — Mobile native clock oracle
 
 [Guild perks](systems/guilds.md#perk-native-authority-and-effect-boundary-2026-10-16): production/Modern proof complete, real7311223ms accepted-recast gap saved; independent425/425b passed. Native measurement now uses the received server CastSuccess timestamp, not float32 countdown interpolation. Retry only remaining Forever case on unchanged artifacts; no overall completion claim yet.
+
+## Mobile Banking native acceptance boundary reconciled
+
+[Native Mobile proof](systems/guilds.md#native-mobile-banking-proof): code gates landed; both-skin body controls and Modern real2h recast are proven. Final Forever accepted recast remains unobserved after transport loss, not an effect failure. No completed-proof claim.
+
+## Native Mobile Banking acceptance complete
+
+[Native proof](systems/guilds.md#native-mobile-banking-proof): both-skin cast/bank/nonmember refusal/despawn and actual post2h accepted casts pass on identical artifacts. Forever7242700ms complements the retained Modern-origin7311223ms interval. Fifteen inspected unchanged full-HD originals published; owned runtimes stopped and owner-checked window cleared. Earlier interrupted overall results remain intact; countdown labels are not timing oracles.

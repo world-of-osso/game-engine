@@ -255,28 +255,28 @@ pub(super) fn tab(
 }
 
 /// Shared InputBoxTemplates.xml SearchBoxTemplate: three border pieces, magnifier and clear.
-pub(super) fn search_box(text: &str) -> Element {
+pub(super) fn search_box(text: &str, left: f32) -> Element {
     let mut content = Vec::new();
     for (name, atlas, rect) in [
         (
             "Left",
             "common-search-border-left",
-            (628.0, 30.0, 8.0, 20.0),
+            (left - 5.0, 30.0, 8.0, 20.0),
         ),
         (
             "Middle",
             "common-search-border-middle",
-            (636.0, 30.0, 96.0, 20.0),
+            (left + 3.0, 30.0, 96.0, 20.0),
         ),
         (
             "Right",
             "common-search-border-right",
-            (732.0, 30.0, 8.0, 20.0),
+            (left + 99.0, 30.0, 8.0, 20.0),
         ),
         (
             "Icon",
             "common-search-magnifyingglass",
-            (634.0, 36.0, 10.0, 10.0),
+            (left + 1.0, 36.0, 10.0, 10.0),
         ),
     ] {
         content.extend(named_atlas_texture(
@@ -286,8 +286,8 @@ pub(super) fn search_box(text: &str) -> Element {
         ));
     }
     content.extend(
-        rsx! { editbox { name:"AchievementSearchBox",text,width:107.0,height:30.0,
-            left:633.0,top:25.0,pos_type:"absolute",text_insets:"16,0,20,0",
+        rsx! { editbox { name:"AchievementSearchBox",text,width:super::HEADER_SEARCH_WIDTH,height:30.0,
+            left,top:25.0,pos_type:"absolute",text_insets:"16,0,20,0",
             max_letters:super::ACHIEVEMENT_SEARCH_MAX_CHARS,auto_focus:false,
         } },
     );
@@ -297,8 +297,9 @@ pub(super) fn search_box(text: &str) -> Element {
             "common-search-clearbutton",
             (3.0, 3.0, 10.0, 10.0),
         );
+        let clear_left = left + 87.0;
         content.extend(rsx! {button {name:"AchievementSearchClearButton",width:17.0,height:17.0,
-            left:720.0,top:31.5,pos_type:"absolute",onclick:"achievement:search:",button_default_skin:false, {icon}
+            left:clear_left,top:31.5,pos_type:"absolute",onclick:"achievement:search:",button_default_skin:false, {icon}
         }});
     }
     content
