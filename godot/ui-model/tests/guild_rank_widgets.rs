@@ -1046,6 +1046,73 @@ fn guild_communities_roster_uses_profile_metadata_without_exposing_officer_notes
 }
 
 #[test]
+fn guild_show_offline_filters_only_expanded_roster_and_preserves_authority_both_skins() {
+    let _lock = SKIN.lock().unwrap_or_else(|p| p.into_inner());
+    for skin in [ActiveSkin::Modern, ActiveSkin::Forever] {
+        set_thread_skin(skin);
+        let mut session = GuildRanksSession::default();
+        session.open();
+        let mut ranks = state(0);
+        ranks.members = ["Offline", "Online", "Unknown"]
+            .into_iter()
+            .map(|name| GuildRankMember {
+                character_name: name.into(),
+                rank: 2,
+            })
+            .collect();
+        session.apply(ranks.clone());
+        session.profile = Some(GuildSnapshot {
+            guild_id: 7,
+            guild_name: "Raid Team".into(),
+            created_at: None,
+            tabard: None,
+            motd: String::new(),
+            info_text: String::new(),
+            members: [("Offline", false), ("Online", true)]
+                .into_iter()
+                .map(|(name, online)| GuildMemberSnapshot {
+                    character_name: name.into(),
+                    level: 80,
+                    class_name: "Paladin".into(),
+                    rank_name: "Member".into(),
+                    is_online: online,
+                    officer_note: String::new(),
+                    public_note: String::new(),
+                    is_self: false,
+                    last_online: String::new(),
+                })
+                .collect(),
+        });
+        let profile = session.profile.clone();
+        let all = mounted(&session);
+        assert_eq!(text(&all, "GuildMember0Name"), "Offline");
+        assert_eq!(text(&all, "GuildMember2Name"), "Unknown");
+        let toggle = action(&all, "CommunitiesMemberListShowOfflineButton");
+        assert_eq!(toggle, "guild:show_offline");
+        session.click(&toggle, &Default::default());
+        let online = mounted(&session);
+        assert_eq!(text(&online, "GuildMember0Name"), "Online");
+        assert!(online.get_by_name("GuildMember1Name").is_none());
+        assert_eq!(
+            session.promote("Online"),
+            Some(GuildRankRequest::Promote {
+                character_name: "Online".into()
+            })
+        );
+        assert_eq!(session.state(), Some(&ranks));
+        assert_eq!(session.profile, profile);
+        session.click(&toggle, &Default::default());
+        assert_eq!(text(&mounted(&session), "GuildMember0Name"), "Offline");
+        session.communities_tab = game_engine_ui_model::guild_ranks::CommunitiesTab::Chat;
+        assert!(
+            mounted(&session)
+                .get_by_name("CommunitiesMemberListShowOfflineButton")
+                .is_none()
+        );
+    }
+}
+
+#[test]
 fn guild_communities_no_design_portrait_matches_retail_both_skins() {
     use ui_toolkit::layout_values::Val;
     use ui_toolkit::widgets::texture::TextureSource;

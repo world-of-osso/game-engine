@@ -3,6 +3,36 @@ use crate::input_bindings_data::{BindingKey, InputAction, InputBinding};
 use crate::realm_preset_data::RealmPreset;
 
 #[test]
+fn guild_show_offline_preference_persists_false_and_defaults_on() {
+    use crate::client_options_data::{load_options_file_from_path, save_options_file_to_path};
+    #[derive(serde::Deserialize)]
+    struct Preference {
+        #[serde(default = "project_default", rename = "communitiesShowOffline")]
+        show_offline: bool,
+    }
+    fn project_default() -> bool {
+        true
+    }
+    let directory = tempfile::tempdir().unwrap();
+    let path = directory.path().join("options.ron");
+    for (input, expected) in [
+        ("(accepted_eula:true)", true),
+        ("(accepted_eula:true,communitiesShowOffline:false)", false),
+        ("(accepted_eula:true,communitiesShowOffline:true)", true),
+    ] {
+        std::fs::write(&path, input).unwrap();
+        let file = load_options_file_from_path(&path);
+        save_options_file_to_path(&path, &file).unwrap();
+        let restored: Preference = ron::from_str(&std::fs::read_to_string(&path).unwrap()).unwrap();
+        assert_eq!(
+            restored.show_offline, expected,
+            "saved preference for {input}"
+        );
+        assert!(load_options_file_from_path(&path).accepted_eula);
+    }
+}
+
+#[test]
 fn full_options_round_trip_keeps_custom_values() {
     let mut file = ClientOptionsFile::default();
     file.accepted_eula = true;
