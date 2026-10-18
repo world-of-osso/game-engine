@@ -164,6 +164,38 @@ fn trading_post_cart_selection_return_validates_current_membership() {
 }
 
 #[test]
+#[ignore = "CPU RED for cart snapshot ownership regression; run explicitly"]
+fn trading_post_cart_selection_snapshot_refresh_preserves_owner_until_explicit_return() {
+    let mut view = cart_selection_view(11);
+    view.click("perks:cart:show").unwrap();
+    let mut updated = view.snapshot.as_ref().unwrap().as_ref().clone();
+    updated.tender = 700;
+    view.receive(Arc::new(updated.clone()));
+    assert!(
+        view.cart_visible,
+        "a Tender snapshot is not the filter's UpdateProducts callback"
+    );
+    assert_eq!(view.selected, None);
+    assert_eq!(view.cart, [11]);
+    assert_eq!(view.preview_product().unwrap().id, 11);
+    assert_eq!(view.cart_preview_item_ids(), [189869]);
+    assert_eq!(view.take_selection_sounds(), 0);
+    updated.items.retain(|row| row.id != 11);
+    view.receive(Arc::new(updated));
+    assert!(view.cart_visible);
+    assert_eq!(view.selected, None);
+    view.click("perks:cart:close").unwrap();
+    assert_eq!(
+        view.selected,
+        Some(12),
+        "missing remembered member uses current first ordinary item"
+    );
+    assert_eq!(view.take_selection_sounds(), 1);
+    assert_eq!(view.snapshot.as_ref().unwrap().tender, 700);
+    assert_eq!(view.cart, [11]);
+}
+
+#[test]
 fn trading_post_cart_selection_provider_reselection_hides_cart_silently() {
     let mut view = cart_selection_view(11);
     view.click("perks:cart:show").unwrap();
@@ -290,7 +322,7 @@ fn trading_post_selection_sound_provider_reselection_and_initialization_stay_sil
 }
 
 #[test]
-fn trading_post_selection_sound_cart_return_reselects_remembered_id_once() {
+fn trading_post_selection_sound_cart_return_uses_visibility_not_retained_id() {
     let mut view = keyboard_view();
     for closing in [
         "perks:cart:close",
@@ -299,6 +331,7 @@ fn trading_post_selection_sound_cart_return_reselects_remembered_id_once() {
     ] {
         view.click("perks:cart:add").unwrap();
         view.click("perks:cart:show").unwrap();
+        // Products.lua486–504 clears product selection while the cart owns preview.
         assert_eq!(
             view.selected, None,
             "cart owns preview until remembered product is restored"
@@ -893,6 +926,7 @@ fn trading_post_row_cart_toggle_preserves_open_cart_preview_choices() {
     view.click("perks:cart:toggle:5").unwrap();
     assert_eq!(view.cart, [4, 5]);
     assert_eq!(view.cart_preview_item_ids(), [25]);
+    // Products.lua486–504 clears product selection while the cart owns preview.
     assert_eq!(view.selected, None);
     assert!(view.cart_visible);
     view.click("perks:cart:toggle:5").unwrap();
@@ -929,7 +963,8 @@ fn trading_post_row_cart_toggle_keeps_other_override_while_appending_wearables()
     view.click("perks:cart:item:25").unwrap();
     assert_eq!(view.preview_product().unwrap().item_id, 25);
     assert_eq!(view.cart_preview_item_ids(), [25]);
-    assert_eq!(view.selected, Some(5));
+    // Products.lua486–504 clears product selection while the cart owns preview.
+    assert_eq!(view.selected, None);
     assert_eq!(view.snapshot.as_ref().unwrap().tender, 500);
 }
 
