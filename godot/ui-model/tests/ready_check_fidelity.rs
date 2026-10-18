@@ -73,7 +73,7 @@ fn ready_check_portrait_keeps_source_slot_and_metal_ring_both_skins() {
 }
 
 #[test]
-fn ready_check_title_inherits_roman_color_and_shadow_both_skins() {
+fn ready_check_title_keeps_source_bounds_color_and_shadow_both_skins() {
     use ui_toolkit::{layout_values::Val, widgets::font_string::GameFont};
 
     game_engine_ui_model::paths::set_data_root(
@@ -95,11 +95,12 @@ fn ready_check_title_inherits_roman_color_and_shadow_both_skins() {
         let Some(WidgetData::FontString(title)) = &frame.widget_data else {
             panic!("ReadyCheck title must be text");
         };
-        // Preserve current geometry; layout remains a separate source gap.
-        assert_eq!((frame.width.value(), frame.height.value()), (323.0, 20.0));
+        // ReadyCheck.xml:45–58: 58 left/24 right, container top1 + title top5.
+        // Current 20px height is conserved, not qualified as intrinsic title height.
+        assert_eq!((frame.width.value(), frame.height.value()), (241.0, 20.0));
         assert_eq!(
             (frame.position.left, frame.position.top),
-            (Val::Px(0.0), Val::Px(4.0))
+            (Val::Px(58.0), Val::Px(6.0))
         );
         assert_eq!(title.text, "Ready Check");
         assert_eq!(title.font, GameFont::FrizQuadrata);
