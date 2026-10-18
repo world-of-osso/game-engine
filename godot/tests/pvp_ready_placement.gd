@@ -15,7 +15,6 @@ func check(condition: bool, description: String) -> void:
 		failures.append(description)
 
 func click(point: Vector2) -> void:
-	root.notify_mouse_entered()
 	var motion := InputEventMouseMotion.new()
 	motion.position = point
 	motion.global_position = point
@@ -75,6 +74,7 @@ func probe(forever: bool, size: Vector2i, phase: String) -> void:
 
 func run_placement() -> void:
 	root.content_scale_size = Vector2i.ZERO
+	root.notify_mouse_entered()
 	for forever in [false, true]:
 		for size in [Vector2i(1280, 720), Vector2i(1920, 1080)]:
 			for phase in ["waiting", "running"]:
