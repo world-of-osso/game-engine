@@ -7,8 +7,8 @@ use crate::{
     world_models::UnitAppearance,
 };
 use game_engine_core::ui_sound_kits::{
-    TRADING_POST_UI_ITEM_HOVER, TRADING_POST_UI_ITEM_LOCKING, TRADING_POST_UI_MENU_CLOSE,
-    TRADING_POST_UI_MENU_OPEN,
+    TRADING_POST_UI_ITEM_HOVER, TRADING_POST_UI_ITEM_LOCKING, TRADING_POST_UI_ITEM_SELECT,
+    TRADING_POST_UI_MENU_CLOSE, TRADING_POST_UI_MENU_OPEN,
 };
 use game_engine_session::SessionScreen;
 use game_engine_ui_model::trading_post::{Action, FilterSubmenu, HEIGHT, MODEL, View, WIDTH};
@@ -105,6 +105,7 @@ impl GameClient {
         self.trading_post.rotating = false;
         self.trading_post.dragged = None;
         self.trading_post.product_sound_owner = None;
+        self.trading_post.view.take_selection_sounds();
         visible
     }
     pub(super) fn close_trading_post_window(&mut self) -> Result<bool, FrameError> {
@@ -164,6 +165,7 @@ impl GameClient {
         self.trading_post.view.horde = self.player_is_horde();
         self.update_trading_freeze_delay();
         self.poll_trading_inputs()?;
+        self.play_trading_post_selection_sounds()?;
         if self.trading_post.view.visible {
             self.hide_ui_parent();
             // Release the detached scene while its old UI host is still alive.
@@ -179,6 +181,13 @@ impl GameClient {
             }
         }
         self.play_trading_post_menu_sound()?;
+        Ok(())
+    }
+
+    fn play_trading_post_selection_sounds(&mut self) -> Result<(), String> {
+        for _ in 0..self.trading_post.view.take_selection_sounds() {
+            self.play_ui_sound_kit(TRADING_POST_UI_ITEM_SELECT)?;
+        }
         Ok(())
     }
 

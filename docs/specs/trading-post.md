@@ -111,6 +111,16 @@ Source: Retail `Blizzard_PerksProgramElements.lua:577–580,657–670` plays2182
 - Confirmed occupied-slot replacement and direct accepted freeze use the same sound dispatch before sending the request. Unfreeze requests do not play this kit. Repeated updates/reopen/cancel/disabled confirmation do not replay it; do not infer sound from authoritative frozen-ID changes.
 - [x] Registry/native missing-lock RED→actualc3b62df05/Sf4260bea/Pe9b80b8 both-skin GREEN: nine checkpoints and two measured decoded plays each, actual playing/finished/gain0.566356599/pitch1; early-disabled confirmation, cancel, duplicate drop, hold and reopen stay silent. Genuine640→642→640 and712→734→712 restore originals before verdict; Tender19040/19670, collections/cart and original selection conserved, no reservation cleared. Native observes4908453/4908457 only; core metadata/selector and full ffmpeg decode cover all four. Ten inspected full-HD originals+two contacts: `/syncthing/AgentShared/2026-10-17/trading-post-freeze-lock-sound/`.
 
+## Product-selection sound
+
+Source: Products.lua104–133/190–205,588–592 and ScrollUtil.lua476–484/591–618. [Lifecycle/proof](../wiki/systems/trading-post.md#product-selection-sound--october18).
+
+- [ ] Emit kit218230 once for each actual ordinary/frozen/keyboard selection on existing input paths; repeated selection, endpoint/no-op, modal ownership and silent provider rebuild/reopen initialization do not emit it. Existing drop-selection events are included without changing their timing.
+- [ ] Cart return emits selection audio even when the native selected ID is retained. Explicit close, last-item removal and clear-on-accept follow the existing visibility transitions; repeated closed state and vendor teardown stay silent. Preserve selection/cart/modal/server state.
+- [ ] Use existing UiKits settings/decoding with active70448 gain0.790000021/file4906955, no pitch adjustment/variation. Authenticated local70448/88d5e8ef Ogg15267 bytes/SHA2567feb7eb55bab04acc3b042d9b608cd6dfd408689d5903d8fe6041b6ed806d917; lead independently verifies/publishes under sounds/ui, no model-asset index.
+- [ ] Post-landing both-skin native decoded playback/count/gain and silent-control acceptance remains pending; metadata/model tests cannot establish the input/audio process boundary or heard output.
+- [ ] `TP_DRAG_SELECTION_RELEASE_TIMING`: Products.lua183–187 selects at drag-start; native still selects on drop release. `TP_CART_OPEN_SELECTION_CLEAR`: Products.lua486–504 clears selection on cart-open; native retains its selected ID. Lead October18 excludes both state/timing adjustments from this audio slice. Advanced180702/full acoustic semantics and other action sounds remain excluded.
+
 ## Product-enter sound
 
 Source: Retail `Blizzard_PerksProgramElements.lua:291–304` unconditionally plays `TRADING_POST_UI_ITEM_HOVER`218934 on product OnEnter; frozen `Elements.xml:383` inherits that handler. SoundKit/Entry metadata is12.1.5.70391; file4906953 is authenticated installed12.1.5.70448 Ogg, not relabeled70391. [Implementation and proof](../wiki/systems/trading-post.md#product-enter-sound--october17).
