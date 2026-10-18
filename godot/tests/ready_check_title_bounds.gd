@@ -74,11 +74,13 @@ func run_title_bounds() -> void:
 		var crop_size := Vector2(360, 140) * HUD_SCALE
 		var crop := Rect2i(floori(crop_origin.x), floori(crop_origin.y), ceili(crop_size.x), ceili(crop_size.y))
 		assert(image.get_region(crop).save_png(output.path_join(skin + "-panel-crop.png")) == OK)
-		# Previous fields in this same binary; not a separately compiled pre-fix capture.
-		title.size = Vector2(323, 20)
+		# Origin-only diagnostic: projection retains the current241px span.
+		# The actual old323px span is covered by the retained61ef compiled captures.
+		title.size = Vector2(241, 20)
 		title.global_position = panel.global_position + Vector2(0, 4) * HUD_SCALE
 		await settle()
 		var previous_rect := rect(title)
+		assert(title.size == Vector2(241, 20), "Origin-only control retains current width")
 		var previous := root.get_texture().get_image()
 		assert(previous.save_png(output.path_join(skin + "-previous-bounds-control.png")) == OK)
 		assert(previous.get_region(crop).save_png(output.path_join(skin + "-previous-bounds-panel.png")) == OK)
