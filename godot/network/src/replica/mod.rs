@@ -73,6 +73,8 @@ pub struct Replica {
     next_slot: usize,
     /// Newest update message tick (replicon's `ServerUpdateTick`).
     update_tick: RepliconTick,
+    /// Successfully decoded full update messages, not mutation packets or publication frames.
+    completed_updates: u64,
     /// Sorted by message tick, newest first.
     buffered: Vec<BufferedMutate>,
     changes: Vec<UnitChange>,
@@ -118,10 +120,16 @@ impl Replica {
             free_slots: Vec::new(),
             next_slot: 0,
             update_tick: RepliconTick::default(),
+            completed_updates: 0,
             buffered: Vec::new(),
             changes: Vec::new(),
             dirty: Vec::new(),
         }
+    }
+
+    /// Local decoder progress only; does not certify server interest completeness.
+    pub fn completed_updates(&self) -> u64 {
+        self.completed_updates
     }
 
     pub fn unit(&self, server_id: u64) -> Option<Unit<'_>> {
@@ -165,6 +173,7 @@ impl Replica {
             self.despawn(id);
         }
         self.update_tick = RepliconTick::default();
+        self.completed_updates = 0;
         self.buffered.clear();
     }
 
@@ -231,6 +240,7 @@ impl Replica {
                 index += 1;
             }
         }
+        self.completed_updates += 1;
         Ok(())
     }
 

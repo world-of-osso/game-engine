@@ -74,11 +74,18 @@ func sample() -> void:
         var transform: Variant = client.unit_transform(int(selected["target"]))
         if transform is Transform3D:
             target_position.assign([transform.origin.x, transform.origin.y, transform.origin.z])
+    var pull_units := {"error": "Pull tank identity not bound"}
+    var tank_path := directory + "/native-pull-tank.json"
+    if FileAccess.file_exists(tank_path):
+        var tank: Variant = JSON.parse_string(FileAccess.get_file_as_string(tank_path))
+        if tank is Dictionary and int(tank.get("id", 0)) > 0:
+            pull_units = client.call("pull_units_state", int(tank["id"]))
     var rotation := {"at_ms": now_ms, "spells": spells,
         "target": selected.get("target"), "target_state": selected,
         "target_position": target_position, "facts": null,
         "assisted": client.assisted_combat_state(), "inventory": client.merchant_state(),
-        "pet": client.pet_bar_state(), "ground_areas": client.call("ground_areas_state")}
+        "pet": client.pet_bar_state(), "ground_areas": client.call("ground_areas_state"),
+        "pull_units": pull_units}
     # Keep state_json untouched: parsing/stringifying in GDScript loses integer ID types.
     if account.get("gameplay_input_allowed", false) and selected.get("target") != null:
         rotation["visibility"] = client.call("target_visibility_state", int(selected["target"]))
