@@ -43,6 +43,15 @@ fn professions_bridge_receives_snapshot_and_sends_craft() {
             max_rank: 300,
         }],
         spells: vec![3908, 264616, 3275],
+        recipe_sources: vec![shared::protocol::ProfessionTrainerSource {
+            trainer_id: 56,
+            spell_id: 2153,
+            cost: 50,
+            req_skill_line: 2532,
+            req_skill_rank: 15,
+            req_abilities: vec![],
+            req_level: 0,
+        }],
     };
     {
         let world = server.world_mut();
