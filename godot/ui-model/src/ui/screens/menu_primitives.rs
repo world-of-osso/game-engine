@@ -462,7 +462,8 @@ pub fn context_menu_description(
         ));
         top += row_height;
     }
-    rsx! { r#frame { name:{DynName(name.into())},width,height,left:x,top:y,pos_type:"absolute",strata:FrameStrata::Dialog,frame_level:60.0,{contents} } }
+    // Menu.lua:2080–2094: ordinary menu proxies use FULLSCREEN_DIALOG.
+    rsx! { r#frame { name:{DynName(name.into())},width,height,left:x,top:y,pos_type:"absolute",strata:FrameStrata::FullscreenDialog,frame_level:60.0,{contents} } }
 }
 
 pub fn menu_height_for_items(item_count: usize) -> f32 {
@@ -528,7 +529,8 @@ pub fn context_menu_with_rows(props: ContextMenu<'_>, rows: Element) -> Element 
     contents.extend(rows);
     rsx! { r#frame {
         name: {DynName(props.frame_name.into())}, width: {props.width}, height, hidden: props.hidden,
-        strata: FrameStrata::Dialog, frame_level: 60.0, pos_type: "absolute", left: {props.x}, top: {props.y}, {contents}
+        // Mainline Menu.lua:2080–2094 / UIDropDownMenu.xml:3.
+        strata: FrameStrata::FullscreenDialog, frame_level: 60.0, pos_type: "absolute", left: {props.x}, top: {props.y}, {contents}
     } }
 }
 

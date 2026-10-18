@@ -91,6 +91,22 @@ pub(super) fn tooltip_view() -> GameTooltipView {
 /// Hash of every frame's name, layout rect, visibility, alpha, colours, art and widget data.
 fn canvas_hash(model: &RegistryModel) -> u64 {
     let registry = &model.registry;
+    let layers: std::collections::BTreeSet<_> = registry
+        .frames_iter()
+        .map(|frame| {
+            (
+                frame.strata,
+                frame.frame_level,
+                frame.raise_order,
+                frame.draw_layer,
+            )
+        })
+        .collect();
+    eprintln!(
+        "GOLDEN_LAYER_CENSUS scene=ModernChatMeterTooltip frames={} layers={}",
+        registry.frame_count(),
+        layers.len()
+    );
     let rects = compute_layout_with_intrinsics(registry, &HashMap::new()).unwrap();
     let mut frames: Vec<_> = registry.frames_iter().collect();
     frames.sort_by_key(|frame| frame.id);

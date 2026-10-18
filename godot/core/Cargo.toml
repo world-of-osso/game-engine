@@ -5,6 +5,11 @@ edition.workspace = true
 rust-version.workspace = true
 
 [dependencies]
+# Shared clean-room readers; defaults preserve the client's complete render-data parsing.
+wow-chunk = { git = "https://github.com/world-of-osso/wow-formats.git", rev = "7dd561c88f92945befb12b2f1203fadf95ca7ae7" }
+wow-m2 = { git = "https://github.com/world-of-osso/wow-formats.git", rev = "7dd561c88f92945befb12b2f1203fadf95ca7ae7" }
+wow-wmo = { git = "https://github.com/world-of-osso/wow-formats.git", rev = "7dd561c88f92945befb12b2f1203fadf95ca7ae7" }
+wow-adt = { git = "https://github.com/world-of-osso/wow-formats.git", rev = "7dd561c88f92945befb12b2f1203fadf95ca7ae7" }
 binrw = "0.15.1"
 image-blp = "1"
 # BC1 decode of 1-bit-alpha DXT1 mip chains; the same decoder image-blp uses.
