@@ -1,3 +1,7 @@
+## 2026-10-18 — ReadyCheck native text; body/button collision remains open
+
+[Named layout gap/source audit](systems/group-frames.md#readycheck-native-difficulty-text--layout-gap-2026-10-18): both skins11 native supplied-context text/rectangle/restoration assertions pass on binary73417437, but lead inspection finds the second line colliding with response-button tops. **Not final layout acceptance.** Retail fixes323×100, intrinsic message240×0/TOP(+20,−37)/MIDDLE and bottom-anchored119×24 buttons; complete Lua/cache search finds no growth or reanchor. Propose source intrinsic body metrics rather than preserving arbitrary28; exact raster fit remains unproven, no layout code changed. Native exit0/Godot errors0/window+slice released;22 originals retained. Authenticated transport/head/audio unqualified; offline Pillow analysis did not run.
+
 ## 2026-10-18 — Invitation dismissal native acceptance
 
 [Invitation dismissal](systems/guilds.md#invitation-dismissal): gate503e15+68/fmt, landed master helper build; both-skin physical Escape/natural timeout/actual Join-removal/explicit Decline across8real invites and identical-binary fresh-server/client no-pending/no-membership readback pass. Eight inspected original1920×1080 PNGs published. Exact60/60.001 boundary is model proof; native observation begins after receipt. Earlier incompatible frozen server attempt remains unclaimed. Owned runtime/window cleaned.
