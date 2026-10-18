@@ -159,6 +159,29 @@ class PullCorridorTests(unittest.TestCase):
                 run.open_pull()
             self.assertEqual(casts, [])
 
+    def test_admission_reobservation_preserves_combat_and_native_usability_gates(self):
+        for field in ['in_combat', 'ready', 'affordable', 'in_range']:
+            with self.subTest(field=field):
+                from scripts.tests.test_bot_controller import snapshot
+                state = snapshot(spec=72, spell=57755)
+                state['assisted'] = {'in_combat': False}
+                commands = []
+                player = PlayerController(lambda *args: commands.append(args), lambda target: state, None, None)
+                def admission(observed, target):
+                    fresh = copy.deepcopy(observed)
+                    if field == 'in_combat':
+                        fresh['assisted']['in_combat'] = True
+                    else:
+                        fresh['facts'][field]['57755'] = {'Ok': False}
+                    return fresh
+                if field == 'in_combat':
+                    self.assertIn('abandoned', player.cast_opening(41, 57755, admission))
+                else:
+                    with self.assertRaisesRegex(ValueError, 'native readiness'):
+                        player.cast_opening(41, 57755, admission)
+                self.assertEqual(commands, [])
+                self.assertIsNone(player.pending)
+
     def test_pending_ack_prevents_admission_or_cast(self):
         calls = []
         player = PlayerController(lambda *args: calls.append(args), lambda target: self.fail('snapshot before ACK'),
