@@ -150,6 +150,27 @@ fn trading_post_cart_selection_last_removal_and_clear_restore_without_requests()
 
 #[test]
 #[ignore = "CPU RED for TP_CART_OPEN_SELECTION_CLEAR; run explicitly"]
+fn trading_post_cart_selection_return_validates_current_membership() {
+    for (owner, expected) in [(11, 12), (4, 4)] {
+        let mut view = cart_selection_view(owner);
+        let authority = view.snapshot.clone();
+        view.click("perks:cart:show").unwrap();
+        // Pure current-provider input control, not a full UpdateProducts callback.
+        view.filters.excluded_types.insert(1);
+        view.click("perks:cart:close").unwrap();
+        assert_eq!(
+            view.selected,
+            Some(expected),
+            "ordinary membership is filtered; frozen membership is independent"
+        );
+        assert_eq!(view.take_selection_sounds(), 1);
+        assert_eq!(view.snapshot, authority);
+        assert_eq!(view.cart, [11]);
+    }
+}
+
+#[test]
+#[ignore = "CPU RED for TP_CART_OPEN_SELECTION_CLEAR; run explicitly"]
 fn trading_post_cart_selection_provider_reselection_hides_cart_silently() {
     let mut view = cart_selection_view(11);
     view.click("perks:cart:show").unwrap();
