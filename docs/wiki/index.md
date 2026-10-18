@@ -40,6 +40,8 @@
 
 # Wiki Index
 
+- [Rain of Fire escape](systems/bot-harness.md#rain-of-fire-escape-policy--2026-10-17) — approved eight-heading strict-nav policy over received86636 objects; pending ACK/freshness and full-segment/arrival safety, joint/native proof pending.
+- [Vanish selection withdrawal](systems/bot-harness.md#vanish-selection-withdrawal--2026-10-17) — real run23 no-selection abort; bounded next-cycle native tank assist preserves pending ACK/fact failures, native recovery pending.
 - [Whole-party existing-copy backfill](systems/battlegrounds.md#whole-party-existing-copy-backfill--2026-10-17) — real Waiting/running party RED→GREEN22, same map/reservation ownership and old60s capture preserved; decline/leave/offline-expiry refill, named smaller-team/match-order policies; no timer/minimum/reward changes.
 - [Random32 level-eligible configured selection](systems/battlegrounds.md#random32-level-eligible-configured-selection--2026-10-17) — Retail-based project policy, actual-level selected bracket and original per-player32; no daily/reward grant, Deepwind template absent; event-driven backfill handles existing copies.
 
