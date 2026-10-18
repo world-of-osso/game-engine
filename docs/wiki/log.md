@@ -1,3 +1,7 @@
+## 2026-10-18 — Public Note native acceptance
+
+[Note sort](systems/guilds.md#public-note-roster-sorting): gate529e/a9dbb35d7, both-skin actual public writes alpha/Zulu→RAID/raid→é/É, physical direction/reset/filter/identity and fixed original tie precedence pass. Identical-binary fresh server/client accented-note readback passes; eight inspected full-HD originals published. Historical/Lua-Retail qualification and native2members vs model12mapping/other tie keys retained. Owned runtime/window cleaned.
+
 ## 2026-10-18 — Qualified public Note sort
 
 [Contract/policies](systems/guilds.md#public-note-roster-sorting): Mainline memberNote/override/nil/direction source qualified before RED. Approved historical Storm clean-room prose replaces never-shipped ASCII placeholder; Lua binding/70448 parity unverified. One mapping function, public field only, represented-field fixed-direction ties and unchanged authoritative action identities; no protocol widening. Actual3missing-header RED before implementation; native acceptance separate.
