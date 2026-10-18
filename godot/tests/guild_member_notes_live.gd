@@ -6,7 +6,7 @@ var completion = preload("res://tests/completion.gd").new(self, 1)
 ## real guild member. GUILD_NOTE_MODE=master|self|readback, GUILD_NOTE_SKIN=Modern|Forever.
 ## Master writes both actual notes; self writes own public note without elevated rights;
 ## readback after server restart checks persisted public/officer data without a write.
-func run_test() -> bool:
+func run_notes_checked() -> bool:
 	root.size = Vector2i(1920, 1080)
 	Engine.max_fps = 30
 	shots = OS.get_environment("BANK_SHOTS")
@@ -24,12 +24,12 @@ func run_test() -> bool:
 	if not await select_skin(OS.get_environment("GUILD_NOTE_SKIN")):
 		return false
 	if shown("GuildMicroButton"):
-		if not completion.step(await press("GuildMicroButton"), "press"):
+		if not completion.step(await press_checked("GuildMicroButton"), "press"):
 			return false
 	else:
-		if not completion.step(await press("MinimapLauncherButton"), "press"):
+		if not completion.step(await press_checked("MinimapLauncherButton"), "press"):
 			return false
-		if not completion.step(await press("LauncherEntryGuildMicroButton"), "press"):
+		if not completion.step(await press_checked("LauncherEntryGuildMicroButton"), "press"):
 			return false
 	if not await wait_until(func(): return shown("GuildMember0"), "authoritative guild roster"):
 		return false
@@ -41,7 +41,7 @@ func run_test() -> bool:
 	if row < 0:
 		fail("Real target missing from authoritative roster")
 		return false
-	if not completion.step(await press("GuildMember%d" % row), "press"):
+	if not completion.step(await press_checked("GuildMember%d" % row), "press"):
 		return false
 	if not await wait_until(func(): return shown("GuildMemberDetailName"), "left-click member detail"):
 		return false
@@ -72,7 +72,7 @@ func run_test() -> bool:
 	else:
 		fail("Unknown note proof mode")
 		return false
-	if not completion.step(await capture("member-detail"), "capture"):
+	if not completion.step(await capture_checked("member-detail"), "capture"):
 		return false
 	print("PASS GUILD_MEMBER_NOTES_LIVE mode=", mode, " skin=", client.account_state().ui_skin, " public=", text("GuildMemberDetailNoteText"), " officer=", text("GuildMemberDetailOfficerNoteText"))
 	if not completion.case_done():
@@ -133,7 +133,7 @@ func entry_diagnostic(stage: String) -> bool:
 
 	return true
 
-func capture(name: String) -> bool:
+func capture_checked(name: String) -> bool:
 	await RenderingServer.frame_post_draw
 	var image := root.get_texture().get_image()
 	if not completion.require(image.get_size() == Vector2i(1920, 1080), "Full-HD guild acceptance requires actual1920x1080 pixels"):
@@ -144,7 +144,7 @@ func capture(name: String) -> bool:
 	return true
 
 func write_note(officer: bool, value: String) -> bool:
-	if not completion.step(await press("GuildMemberDetailOfficerNote" if officer else "GuildMemberDetailNote"), "press"):
+	if not completion.step(await press_checked("GuildMemberDetailOfficerNote" if officer else "GuildMemberDetailNote"), "press"):
 		return false
 	if not await wait_until(func(): return shown("GuildMemberNoteEditBox"), "note popup"):
 		return false
@@ -156,7 +156,7 @@ func write_note(officer: bool, value: String) -> bool:
 	await type_text(value)
 	if editor.text != value or editor.caret_column != value.length():
 		return fail("Physical note input/caret mismatch")
-	if not completion.step(await capture("officer-editor" if officer else "public-editor"), "capture"):
+	if not completion.step(await capture_checked("officer-editor" if officer else "public-editor"), "capture"):
 		return false
 	await tap(KEY_ENTER)
 	var target := "GuildMemberDetailOfficerNoteText" if officer else "GuildMemberDetailNoteText"
@@ -164,7 +164,7 @@ func write_note(officer: bool, value: String) -> bool:
 	return await wait_until(func(): return text(target) == value and not shown("GuildMemberNoteEditBox") and shown(note_button) and not (control(note_button) as BaseButton).disabled, "authoritative note reply and edit re-enable")
 
 func cancel_member_popups(public_note: String) -> bool:
-	if not completion.step(await press("GuildMemberDetailNote"), "press"):
+	if not completion.step(await press_checked("GuildMemberDetailNote"), "press"):
 		return false
 	if not await wait_until(func(): return shown("GuildMemberNoteEditBox"), "cancelable note popup"):
 		return false
@@ -177,19 +177,19 @@ func cancel_member_popups(public_note: String) -> bool:
 		return false
 	if text("GuildMemberDetailNoteText") != public_note:
 		return fail("Escape committed an unwanted note")
-	if not completion.step(await press("GuildMemberDetailRemove"), "press"):
+	if not completion.step(await press_checked("GuildMemberDetailRemove"), "press"):
 		return false
 	if not await wait_until(func(): return shown("GuildMemberRemovePopupText"), "member removal confirmation"):
 		return false
 	if text("GuildMemberRemovePopupText") != "Are you sure you want to remove %s from the guild?" % OS.get_environment("GUILD_NOTE_TARGET"):
 		return fail("Wrong member removal confirmation target")
-	if not completion.step(await capture("remove-confirmation"), "capture"):
+	if not completion.step(await capture_checked("remove-confirmation"), "capture"):
 		return false
-	if not completion.step(await press("GuildMemberRemoveNo"), "press"):
+	if not completion.step(await press_checked("GuildMemberRemoveNo"), "press"):
 		return false
 	if not await wait_until(func(): return not shown("GuildMemberRemovePopupText") and shown("GuildMemberDetailName"), "No keeps member detail"):
 		return false
-	if not completion.step(await press("GuildMemberDetailRemove"), "press"):
+	if not completion.step(await press_checked("GuildMemberDetailRemove"), "press"):
 		return false
 	if not await wait_until(func(): return shown("GuildMemberRemovePopupText"), "reopened removal confirmation"):
 		return false
@@ -199,26 +199,26 @@ func cancel_member_popups(public_note: String) -> bool:
 func select_skin(skin: String) -> bool:
 	if str(client.account_state().ui_skin) == skin:
 		return true
-	if not completion.step(await press("MinimapLauncherButton"), "press"):
+	if not completion.step(await press_checked("MinimapLauncherButton"), "press"):
 		return false
-	if not completion.step(await press("LauncherEntryMainMenuMicroButton"), "press"):
+	if not completion.step(await press_checked("LauncherEntryMainMenuMicroButton"), "press"):
 		return false
-	if not completion.step(await press("MenuBtnOptions"), "press"):
+	if not completion.step(await press_checked("MenuBtnOptions"), "press"):
 		return false
-	if not completion.step(await press("OptionsTabhud"), "press"):
+	if not completion.step(await press_checked("OptionsTabhud"), "press"):
 		return false
-	if not completion.step(await press("Choiceui_layout"), "press"):
+	if not completion.step(await press_checked("Choiceui_layout"), "press"):
 		return false
-	if not completion.step(await press("Choiceui_layout0Hit" if skin == "Modern" else "Choiceui_layout1Hit"), "press"):
+	if not completion.step(await press_checked("Choiceui_layout0Hit" if skin == "Modern" else "Choiceui_layout1Hit"), "press"):
 		return false
-	if not completion.step(await press("OptionsCloseButton"), "press"):
+	if not completion.step(await press_checked("OptionsCloseButton"), "press"):
 		return false
 	if shown("MenuBtnResume"):
-		if not completion.step(await press("MenuBtnResume"), "press"):
+		if not completion.step(await press_checked("MenuBtnResume"), "press"):
 			return false
 	return await wait_until(func(): return str(client.account_state().ui_skin) == skin, "skin switch")
 
-func press(name: String) -> bool:
+func press_checked(name: String) -> bool:
 	if not await wait_until(func(): return shown(name), "visible control " + name):
 		if not completion.step(await entry_diagnostic("missing-" + name), "entry_diagnostic"):
 			return false
@@ -230,7 +230,7 @@ func _initialize() -> void:
 	call_deferred("run_completion")
 
 func run_completion() -> void:
-	completion.finish(await run_test())
+	completion.finish(await run_notes_checked())
 
 func fail(message: String) -> bool:
 	return completion.fail(message)

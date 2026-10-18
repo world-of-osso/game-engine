@@ -9,7 +9,7 @@
 
 ## Scope
 
-The migration covers campsite selected hover, Communities fidelity, dropdown caption centering, guild control, guild member notes, guild tabard, House Access, HUD edit controls, loot hit area, minimap zoom, PvP ready placement, ReadyCheck difficulty/portrait/title bounds, and registration. Random Bonus migration follows its landing on master. The shared native-input menu/sound runners also enforce this contract; other legacy fixtures are not silently reclassified.
+The migration covers campsite selected hover, Communities fidelity, dropdown caption centering, guild control, guild member notes, guild tabard, House Access, HUD edit controls, loot hit area, minimap zoom, PvP ready placement, ReadyCheck difficulty/portrait/title bounds, and registration. Random Bonus is included after its master landing, preserving32 physical-action receipts and4 completed cases. The shared native-input menu/sound runners also enforce this contract; other legacy fixtures are not silently reclassified.
 
 ## Proof
 

@@ -96,6 +96,7 @@ mod tests {
         let tests = std::path::Path::new(env!("CARGO_MANIFEST_DIR")).join("../tests");
         std::os::unix::fs::symlink(tests, directory.join("tests")).unwrap();
         let godot = std::env::var_os("GODOT_BIN").expect("GODOT_BIN required for parser proof");
+        let mut failures = Vec::new();
         for fixture in [
             "campsite_selected_hover",
             "communities_fidelity",
@@ -108,6 +109,7 @@ mod tests {
             "loot_item_hitarea",
             "minimap_zoom_fidelity",
             "pvp_ready_placement",
+            "pvp_random_bonus",
             "ready_check_difficulty",
             "ready_check_portrait",
             "ready_check_title_bounds",
@@ -126,12 +128,12 @@ mod tests {
                 .output()
                 .unwrap();
             let stderr = String::from_utf8_lossy(&output.stderr);
-            assert!(
-                output.status.success() && !stderr.contains("ERROR:"),
-                "{fixture}: {stderr}"
-            );
+            if !output.status.success() || stderr.contains("ERROR:") {
+                failures.push(format!("{fixture}: {stderr}"));
+            }
         }
         fs::remove_dir_all(directory).unwrap();
+        assert!(failures.is_empty(), "{}", failures.join("\n"));
     }
 
     #[test]
