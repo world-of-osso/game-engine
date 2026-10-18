@@ -16,8 +16,8 @@ Retail Mainline Blizzard_PerksProgram and the local C_PerksProgram/PerksActiviti
 
 ## Ordinary-product keyboard navigation
 
-- [ ] With an existing ordinary selection, Down/Up selects the next/previous ordinary row in current filtered/sorted order, without wrapping at either end. Frozen selection, visible cart and confirmation keyboard owners do not navigate. Nil selection never guesses the first row.
-- [ ] Reveal the nearest out-of-view edge of a newly selected row; leave already-visible rows at the current scroll offset. Header entries are not selectable products; this slice does not create missing headers/group IDs.
+- [x] Model: with an existing ordinary selection, Down/Up selects the next/previous ordinary row in current filtered/sorted order, without wrapping at either end. Frozen selection, visible cart and confirmation keyboard owners do not navigate. Nil selection never guesses the first row.
+- [x] Model/registry: reveal the nearest out-of-view edge of a newly selected row; leave already-visible rows at the current scroll offset. Twenty ordinary rows cross the real573px viewport in both skins and return to the start. Header entries are not selectable products; this slice does not create missing headers/group IDs.
 - [ ] Consume owned Up/Down presses/releases before world movement, preserving higher modal keyboard ownership. Navigation sends no vendor transaction and cannot change Tender, cart or frozen reservation.
 - [ ] Concrete model RED→GREEN, real page-boundary rendering, helper check and scoped format precede a code gate. Both-skin real-key/world-position/conservation proof follows landing; no native acceptance yet.
 
