@@ -47,6 +47,9 @@ const CRITERIA_AREA_WIDTH: f32 = 398.0;
 // Mainline AchievementProgressBarTemplate, XML510–569.
 const CRITERIA_BAR_WIDTH: f32 = 212.0;
 const CRITERIA_BAR_HEIGHT: f32 = 14.0;
+// Mainline XML1693–1713: right-to-left Filters layout, SearchBox107×30.
+const HEADER_FILTER_SPACING: f32 = 7.0;
+const HEADER_SEARCH_WIDTH: f32 = 107.0;
 const CRITERIA: usize = 6;
 /// Local Retail art: UI-Achievement-Category-Background, AchievementBackground, Shield.
 pub const ART: &[u32] = &[
@@ -1290,6 +1293,14 @@ fn summary_category_counts(window: &AchievementWindow, summary: &AchievementSumm
     content
 }
 
+fn header_filter_left(window: &AchievementWindow) -> f32 {
+    if window.comparison.is_some() {
+        745.0
+    } else {
+        625.0
+    }
+}
+
 fn filter_controls(window: &AchievementWindow, summary: bool) -> Element {
     if summary || window.statistics || matches!(window.selected_category, Some(81 | 15093)) {
         return Vec::new();
@@ -1301,11 +1312,7 @@ fn filter_controls(window: &AchievementWindow, summary: bool) -> Element {
     };
     use crate::menu_primitives::*;
     // HeaderDetails right -23; Filters TOPRIGHT -8,-6; dropdown topPadding 6.
-    let left = if window.comparison.is_some() {
-        745.0
-    } else {
-        625.0
-    };
+    let left = header_filter_left(window);
     let mut content = dropdown_button_with_state(
         DropdownButton {
             frame_name: "AchievementFilterDropdown",
@@ -1465,7 +1472,8 @@ fn browse_controls(window: &AchievementWindow) -> Element {
         210.0,
         115.0,
     ));
-    content.extend(artwork::search_box(&window.search_text));
+    let search_left = header_filter_left(window) - HEADER_FILTER_SPACING - HEADER_SEARCH_WIDTH;
+    content.extend(artwork::search_box(&window.search_text, search_left));
     content
 }
 
