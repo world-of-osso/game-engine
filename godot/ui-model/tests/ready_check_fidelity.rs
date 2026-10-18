@@ -28,6 +28,7 @@ fn ready_check_portrait_keeps_source_slot_and_metal_ring_both_skins() {
         shared.insert(ReadyCheckFrameState {
             visible: true,
             initiator: "Raidleader".into(),
+            difficulty_name: None,
         });
         let mut registry = FrameRegistry::new(1920.0, 1080.0);
         Screen::new(screen).sync(&shared, &mut registry);
@@ -86,6 +87,7 @@ fn ready_check_title_keeps_source_bounds_color_and_shadow_both_skins() {
         shared.insert(ReadyCheckFrameState {
             visible: true,
             initiator: "Raidleader".into(),
+            difficulty_name: None,
         });
         let mut registry = FrameRegistry::new(1920.0, 1080.0);
         Screen::new(screen).sync(&shared, &mut registry);
@@ -127,6 +129,7 @@ fn ready_check_message_inherits_roman_color_and_shadow_both_skins() {
         shared.insert(ReadyCheckFrameState {
             visible: true,
             initiator: "Raidleader".into(),
+            difficulty_name: None,
         });
         let mut registry = FrameRegistry::new(1920.0, 1080.0);
         Screen::new(screen).sync(&shared, &mut registry);
@@ -158,6 +161,7 @@ fn ready_check_message_keeps_source_top_anchor_both_skins() {
         shared.insert(ReadyCheckFrameState {
             visible: true,
             initiator: "Raidleader".into(),
+            difficulty_name: None,
         });
         let mut registry = FrameRegistry::new(1920., 1080.);
         Screen::new(screen).sync(&shared, &mut registry);
@@ -189,6 +193,7 @@ fn ready_check_response_buttons_keep_source_anchors_and_art_both_skins() {
         shared.insert(ReadyCheckFrameState {
             visible: true,
             initiator: "Raidleader".into(),
+            difficulty_name: None,
         });
         let mut registry = FrameRegistry::new(1920., 1080.);
         Screen::new(screen).sync(&shared, &mut registry);

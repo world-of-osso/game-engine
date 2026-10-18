@@ -93,6 +93,64 @@ fn scenarios_wire_receives_copy_entry_and_completion_on_instance_channel() {
     assert_eq!(snapshots, vec![entry, complete]);
 }
 
+#[test]
+fn ready_check_difficulty_wire_preserves_instance_then_continent_updates() {
+    let (mut server, address) = crate::wire_tests::start_fixture_server_with(|_| {});
+    let mut bridge = NetworkBridge::connect(address, 6313506).unwrap();
+    let deadline = Instant::now() + Duration::from_secs(10);
+    loop {
+        assert!(Instant::now() < deadline, "difficulty connection timeout");
+        server.update();
+        if bridge
+            .drain_events()
+            .unwrap()
+            .iter()
+            .any(|event| matches!(event, Event::Connected))
+        {
+            break;
+        }
+        thread::sleep(Duration::from_millis(5));
+    }
+    let updates = vec![
+        WorldServerInfo {
+            map_id: 631,
+            difficulty_id: 3,
+        },
+        WorldServerInfo {
+            map_id: 0,
+            difficulty_id: 0,
+        },
+        WorldServerInfo {
+            map_id: 631,
+            difficulty_id: 5,
+        },
+    ];
+    {
+        let world = server.world_mut();
+        let mut sender = world
+            .query::<&mut MessageSender<WorldServerInfo>>()
+            .single_mut(world)
+            .unwrap();
+        for update in &updates {
+            sender.send::<InstanceChannel>(*update);
+        }
+    }
+    let mut received = Vec::new();
+    let deadline = Instant::now() + Duration::from_secs(3);
+    while received.len() < updates.len() && Instant::now() < deadline {
+        server.update();
+        for event in bridge.drain_events().unwrap() {
+            if let Event::Message(message) = event
+                && message.is::<WorldServerInfo>()
+            {
+                received.push(message.downcast::<WorldServerInfo>().ok().unwrap());
+            }
+        }
+        thread::sleep(Duration::from_millis(5));
+    }
+    assert_eq!(received, updates);
+}
+
 fn flush_server(server: &mut App) {
     for _ in 0..8 {
         server.update();
