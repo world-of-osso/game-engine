@@ -46,6 +46,12 @@ All twelve before-validation native bounds receipts now show107×30 and L16/R20/
 
 Evidence `/home/osso/.worktrees/logs/achievements-criteria-2026-10-12/native-height/`: `artifacts.json`, `final-native-proof.json`, `runtime-receipt.json`, skin logs, per-stage bounds/metadata and explicit owned-IPC trees. Recorded Godot PIDs420401/424399 and every recorded owned PID are gone; private5898 free, own slice stop0/windowclear0. Previous accepted40px/x-only evidence remains untouched in native-header. No counters/definitions/vendor positions or shared services changed; no historical criteria/B/67/113 gates replayed.
 
+### Search Roman font size — 2026-10-18
+
+AchievementUI.xml1709 inherits SearchBoxTemplate→InputBoxTemplates.xml206/202 GameFontHighlightSmall→FontStyles.xml92/56 SystemFont_Shadow_Small→Fonts.xml39–44 Roman FRIZQT__.TTF height10. The accepted criterion1017/tree22151 caption already uses literal Friz10: both native-presentation skin flagged-one-zero receipts record font10/212×14 source-sized control. Projection.rs897–900/933–936 applies Label/LineEdit sizes directly to the same resolved font; RegistryUi mod.rs2746–2763/2960–2987 applies a common root scale once, not a widget-specific font conversion. Therefore literal10 is appropriate; nominal font height is distinct from the font's ascent+descent metric.
+
+Size-only scope adds font_size10 to AchievementSearchBox, previously implicit16. No global defaults/family/color/shadow/empty instruction label/insets/geometry/art/actions change. Source white text/shadow/empty hint remain separate gaps, not a full-font parity claim. Tests-only458821d54 gives genuine four-mode actual-native RED: nominal16/font metric20 instead of10, while107×30/source margins/position/filter and exact FRIZQT__.TTF bytes pass. Maintained offline RegistryUi test now records font metric separately; no native comparison authority is fabricated. GREEN/check and post-landing physical retention pending; evidence `search-font-size-*` under the existing achievement diagnostics.
+
 ## State and rendering
 
 `godot/network/src/lib.rs` subscribes to DungeonProgress on InstanceChannel and catalog/live state on AchievementChannel. `account.rs` dispatches decoded messages into `DungeonObjectives` and `AchievementWindow`, and queues page continuations. The frame tick sends requests through NetworkBridge on AchievementChannel.
