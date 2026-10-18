@@ -1,3 +1,7 @@
+## 2026-10-18 — Suggested text font-key boundary
+
+[Proof and fixture limits](systems/adventure-guide.md#suggested-secondary-text-hover--implementation-2026-10-17): genuine881/852 both-skin native fitting negatives accepted at55e1, four inspected originals. Product font key misread default16 versus painted18; actual native process RED records241/214 widths inside227.5 allocation. Minimal font_size correction and approved source642row-fed positive fixture await separate gate/window; no realm eligibility/authority claim.
+
 ## 2026-10-17 — Suggested secondary truncation hover implementation
 
 [Source mapping and proof boundary](systems/adventure-guide.md#suggested-secondary-text-hover--implementation-2026-10-17): literal EJ3311 second-pass owners; native drawn-label truncation gates full white wrapped right-anchored tooltips. Both-skin model RED recorded; native hover/leave acceptance waits for lead gate/window. No provider/reward/action authority added.
