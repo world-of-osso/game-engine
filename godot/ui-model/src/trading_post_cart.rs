@@ -247,7 +247,7 @@ impl View {
                 self.initialize_cart_selection()?;
                 self.cart_visible = !self.cart.is_empty();
             }
-            "perks:cart:close" => self.cart_visible = false,
+            "perks:cart:close" => self.close_cart(),
             "perks:cart:clear" if !self.cart.is_empty() => self.confirm = Some("clear-cart".into()),
             "perks:cart:clear" => {}
             "perks:cart:checkout" if self.can_checkout() => {
@@ -272,14 +272,22 @@ impl View {
         self.cart_selected.retain(|_, item| !removed.contains(item));
         self.cart.retain(|item| *item != id);
         if self.cart.is_empty() {
-            self.cart_visible = false;
+            self.close_cart();
         }
+    }
+
+    fn close_cart(&mut self) {
+        // Retail restores product selection here even when our retained ID is unchanged.
+        if self.cart_visible && self.visible && self.selected_item().is_some() {
+            self.selection_sounds += 1;
+        }
+        self.cart_visible = false;
     }
 
     pub fn clear_cart(&mut self) {
         self.cart.clear();
         self.cart_selected.clear();
-        self.cart_visible = false;
+        self.close_cart();
         self.cart_hover = None;
         self.cart_item_hover = None;
     }

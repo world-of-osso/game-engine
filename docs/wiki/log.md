@@ -5,6 +5,12 @@
 ## 2026-10-18 — Invitation dismissal native acceptance
 
 [Invitation dismissal](systems/guilds.md#invitation-dismissal): gate503e15+68/fmt, landed master helper build; both-skin physical Escape/natural timeout/actual Join-removal/explicit Decline across8real invites and identical-binary fresh-server/client no-pending/no-membership readback pass. Eight inspected original1920×1080 PNGs published. Exact60/60.001 boundary is model proof; native observation begins after receipt. Earlier incompatible frozen server attempt remains unclaimed. Owned runtime/window cleaned.
+## 2026-10-18 — ReadyCheck difficulty-qualified body
+
+[Exact source rule](systems/group-frames.md#readycheck-difficulty-qualified-body--implementation-2026-10-18): actual copy difficulty, else server-selected raid/dungeon ID; local DB2 positive toggle gates CURRENT-name suffix. Existing WorldServerInfo wire only, no server/protocol change. Account unhandled-message and owned-UDP empty-receipt REDs precede cc6abf340 account1/wire1/UI8 GREEN, including map-context reset, primary-versus-legacy and both-skin ordinary-text/style controls. Engine/network check65s/no warnings, affected-package Cargo fmt/scoped diff/readability pass. Landed master6b1c79222 included; geometry/audio/answers/authority conserved. Native rendered/live-server acceptance pending; no runtime launched or completed proof replayed.
+## 2026-10-18 — Trading Post selection callbacks
+
+[Selection audio](systems/trading-post.md#product-selection-sound--october18): active70448 kit218230/file4906955/gain0.79, authenticated private Ogg independently re-extracted/published by lead. Actual missing-kit RED then observation-only callback counter yields four lifecycle REDs and one silent-provider control PASS before event dispatch implementation. Existing selection/cart/modal state and release-time drag behavior retained; TP_DRAG_SELECTION_RELEASE_TIMING and TP_CART_OPEN_SELECTION_CLEAR remain explicit gaps. Registry1+focused56UI GREEN, engine/UI/network helper check1m47s/noWarnings/scoped6Rustfmt+changed-line readability pass. Exact source/commands/full RED+GREEN logs retained; post-landing native decoded playback remains pending. No asset-index fragment, CI claim or prior proof replay.
 
 ## 2026-10-17 — Invitation dismissal lifecycle
 
@@ -12,6 +18,9 @@
 ## 2026-10-18 — READY_CHECK decoded-dispatch acceptance
 
 [Bounded native proof](systems/group-frames.md#readycheck-listener-show-sound--implementation-2026-10-17): lead accepted both-skin ten-checkpoint/two-start proof on debug binary/invocation3b70f4b5d, production333b83b26. Real UiKits Ogg567478 players report5.020385265s/gain1/pitch1/playing; refresh and hidden-role phases add none, natural completion and zero-player teardown pass. Exit0/zero Godot errors; inherited display notices retained, window/slice released. Dummy audio: decoded dispatch only, not hardware or authenticated GameClient/server proof. Initial fixture Array-borrow compiler failure remains recorded. No production behavior changed or completed checks replayed.
+## 2026-10-18 — Native achievement header acceptance
+
+[Post-landing proof](systems/dungeon-achievements.md#post-landing-header-proof--2026-10-18): E333b83b26/P019cd75b/S241776a2d exact artifacts; both skins normal/actual online Hdrpeer comparison exit0. Physical search/clear/Completed/Incomplete/All pass, x511/631 and7px control gap retained. Twelve inspected1920×1080 PNGs published under `/syncthing/AgentShared/2026-10-18/achievements/search-filter-overlap/`. Named ACHIEVEMENT_SEARCH_NATIVE_HEIGHT remains: authored30/native40, actual16pt font20px + misplaced20px top inset; Retail L16/R20/T0/B0 differs from native L16/R0/T20/B0. No inset/font change or full parity claim. Owned PIDs gone, slice stopped/private5898 free; no repeated historical gates.
 
 ## 2026-10-17 — Rain of Fire escape policy
 

@@ -99,6 +99,7 @@ mod pvp_progression;
 mod quest_flow;
 mod quest_poi_hover;
 mod raid_entry;
+mod ready_check_difficulty;
 mod ready_check_fidelity;
 mod readycheck_afk;
 mod reputation_status_bar;
