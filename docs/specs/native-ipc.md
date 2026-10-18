@@ -32,6 +32,8 @@ Windows uses a local-only named pipe `\\\\.\\pipe\\game-engine-<pid>` instead of
 
 ### Passive fixture state
 
+`GameClient.ground_areas_state()` passively exposes ordinary received86636 DynamicObjects as `state_json` (`areas`: identity, caster, spell, centre, radius, hostile). Received entity disappearance owns removal. Missing/invalid position, radius or actual caster/viewer faction is an explicit `error`, never a fabricated empty area list. The observer retains the JSON string unchanged so server IDs remain integers; querying neither selects/casts nor sends a server request. The [harness contract](bot-harness.md#rain-of-fire-avoidance) defines the separate named escape policy.
+
 `GameClient.account_state()` exposes `pvp_snapshot_json` as the latest received nullable `PvpSnapshot`, without sending a query. It also exposes `local_player_epoch` (adopted) and `local_server_epoch` (received), with absent epochs reported as null. Battleground wait loops use this passive state rather than repeatedly requesting full server snapshots through `pvp status`; the public CLI's existing refresh behavior remains unchanged.
 
 `BG_NETWORK_TRACE` enables private Lightyear UDP/message metadata traces (including serialized wire byte counts), post-UDP-read batch timestamps before Netcode decoding, post-decode worker relay timestamps, and native PvP apply timestamps. It changes no protocol fields, channel policy, or deadlines. `tracing-subscriber` is a direct dependency only to expose these existing transport diagnostics; already present transitively.

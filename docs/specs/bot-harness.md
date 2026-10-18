@@ -95,6 +95,9 @@ Portable captured [fixtures and provenance](../../scripts/tests/fixtures/bot_har
 
 ## Implementation inventory
 
+- `godot/rust/src/rainfire.rs` / `rainfire_tests.rs`: read-only received geometry/faction qualification and serialized integer IDs.
+- `godot/network/src/replica/codec.rs` / `tests.rs`: ordinary dynamic-object decoding and real UDP geometry/visibility/despawn boundary.
+- `scripts/bot_hazards.py` / `test_bot_hazards.py` / `test_bot_hazard_controller.py`: named eight-heading policy, full-route/arrival validation and pending-ACK orchestration controls.
 - `godot/rust/src/ipc/combat.rs`: preserve received crit/glancing/periodic, school mask, overflow and absorbed/resisted/blocked values in combat-log/recap output; never infer historical missing fields.
 - `scripts/run_stockade_bot.py`: one already-admitted owned native player, equal-budget/role/copy preflight, maintained F-assist/IPC casts/strict native movement, raw events and per-boss reports; caller owns processes and single capacity admission.
 - `scripts/bot_stockade.py`: read-only encounter/template/spawn/entrance plan, exact native party facts and explicit authored native priority provider; no Mage cycle or direct-line route.
@@ -112,6 +115,8 @@ Portable captured [fixtures and provenance](../../scripts/tests/fixtures/bot_har
 
 ## Tests asserting this spec
 
+- `godot/rust/src/rainfire_tests.rs` and `godot/network/src/replica/tests.rs`: native typed projection and actual UDP lifecycle, not fresh rendered gameplay proof.
+- `scripts/tests/test_bot_hazards.py` / `test_bot_hazard_controller.py`: explicitly synthetic geometry/controller controls.
 - `scripts/tests/test_bot_harness.py`
 - `scripts/tests/test_bot_rotation.py`
 - `scripts/tests/test_bot_controller.py` (generic-spec action boundary, strict route, native-input file correlation; not gameplay acceptance)
