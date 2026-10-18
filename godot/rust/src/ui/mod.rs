@@ -74,6 +74,7 @@ mod projection_order;
 mod projection_order_preview;
 #[cfg(debug_assertions)]
 mod pvp_bonus_preview;
+mod ready_check_layout_policy;
 #[cfg(debug_assertions)]
 mod ready_check_preview;
 mod registration_preview;
