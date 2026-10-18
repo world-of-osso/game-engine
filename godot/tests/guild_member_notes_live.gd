@@ -82,7 +82,6 @@ func run_notes_checked() -> bool:
 
 # Record the actual native input boundary; bank_live's older helper has no
 # selection/readiness receipt and can time out after a no-op card click.
-	return true
 
 func enter_world(character: String) -> bool:
 	var deadline := Time.get_ticks_msec() + 120000

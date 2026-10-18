@@ -167,7 +167,6 @@ func run_hit_area() -> bool:
 		await process_frame
 	print("PASS loot-hit both-skin money/item supplied-state probes; verified=", verify)
 	return true
-	return true
 
 func run_completion() -> void:
 	completion.finish(await run_hit_area())

@@ -203,7 +203,6 @@ func run_difficulty() -> bool:
 	receipt.close()
 	print("OBSERVED ready-check-difficulty both-skin source intrinsic body; glyph/line/shadow clearance and named gaps recorded, not layout acceptance")
 	return true
-	return true
 
 func run_completion() -> void:
 	completion.finish(await run_difficulty())

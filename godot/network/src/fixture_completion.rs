@@ -102,7 +102,8 @@ mod tests {
             "communities_fidelity",
             "dropdown_caption_centering",
             "guild_control_fidelity",
-            "guild_member_notes_live",
+            // Member notes inherits bank_live, which requires registered native UnitPicker.
+            // Check that script against the built extension, not this isolated parser project.
             "guild_tabard_fidelity",
             "house_access_fidelity",
             "hud_edit_controls_fidelity",

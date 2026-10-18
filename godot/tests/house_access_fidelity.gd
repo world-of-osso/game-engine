@@ -182,7 +182,6 @@ func run_access() -> bool:
 			return false
 	print("PASS house-access both-skin physical states/three draft modes/pending; verify=", verify)
 	return true
-	return true
 
 func run_completion() -> void:
 	completion.finish(await run_access())

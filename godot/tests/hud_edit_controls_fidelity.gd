@@ -119,7 +119,6 @@ func verify_controls() -> bool:
 			return false
 	print("PASS: both-skin HUD physical layout/name/save/cancel/file reload")
 	return true
-	return true
 
 func run_completion() -> void:
 	completion.finish(await verify_controls())

@@ -151,7 +151,6 @@ func run_portrait() -> bool:
 	receipt.close()
 	print("PASS ready-portrait both-skin actual roster head and completion cleanup")
 	return true
-	return true
 
 func run_completion() -> void:
 	completion.finish(await run_portrait())
