@@ -1,6 +1,6 @@
 ## 2026-10-17 — Ordinary-product Up/Down navigation
 
-[Keyboard scope](systems/trading-post.md#ordinary-product-keyboard-navigation--october17): four genuine missing-action model REDs precede adjacent ordinary selection/nearest-edge reveal. Current sorted/filtered rows, nonwrapping endpoints, frozen/cart/modal ownership and explicit missing selection are retained; native press/release routing precedes world capture. Focused51UI tests (seven new,20-row both-skin true page crossing)/fmt5/readability pass; helper check and post-landing native acceptance pending. Only engine lease reacquired; no server/provider/audio or Rank3 work.
+[Keyboard scope](systems/trading-post.md#ordinary-product-keyboard-navigation--october17): four genuine missing-action model REDs precede adjacent ordinary selection/nearest-edge reveal. Current sorted/filtered rows, nonwrapping endpoints, frozen/cart/modal ownership and explicit missing selection are retained; native press/release routing precedes world capture. Focused51UI tests (seven new,20-row both-skin true page crossing)/helper check38.35s/noWarnings/fmt5/readability pass. Native real-key/focus/world-position acceptance remains explicitly pending until after landing; no process/cohort/parse run for this keyboard slice. Only engine lease reacquired; no server/provider/audio or Rank3 work.
 
 ## 2026-10-17 — Purchase-aware Trading Post Price key
 
