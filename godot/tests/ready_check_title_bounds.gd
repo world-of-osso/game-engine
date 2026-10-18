@@ -48,7 +48,7 @@ func run_title_bounds() -> void:
 		assert(panel.size == Vector2(323, 100) and title.size == Vector2(241, 20))
 		assert(((title.global_position - panel.global_position) / HUD_SCALE).is_equal_approx(Vector2(58, 6)))
 		assert(title.text == "Ready Check")
-		assert(message.text == "Ann has initiated a ready check." and message.size == Vector2(240, 28))
+		assert(message.text == "Ann has initiated a ready check." and message.size.x == 240 and message.size.y > 0)
 		var message_anchor := (message.global_position - panel.global_position) / HUD_SCALE
 		assert(absf(message_anchor.x - 61.5) <= 0.5 and message_anchor.y == 37)
 		assert(portrait.size == Vector2(54, 54))

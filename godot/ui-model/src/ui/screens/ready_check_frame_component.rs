@@ -108,11 +108,12 @@ pub fn ready_check_frame(state: &ReadyCheckFrameState) -> Element {
             fontstring {
                 name: {DynName(format!("{READY_CHECK_FRAME}Text"))},
                 width: TEXT_W,
-                height: 28.0,
+                height: "auto",
                 text: text.as_str(),
                 font: GameFont::FrizQuadrata,
                 font_size: 12.0,
                 font_color: TEXT_COLOR,
+                justify_v: "MIDDLE",
                 shadow_color: "0,0,0,1",
                 shadow_offset: "1,-1",
                 justify_h: "CENTER",

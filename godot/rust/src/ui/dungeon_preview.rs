@@ -143,6 +143,28 @@ impl RegistryUi {
         self.show_dungeon_capture(ui_toolkit::atlas::ActiveSkin::Forever, true)
     }
 
+    /// Offline geometry only; comparison action does not fabricate a server reply.
+    #[func]
+    pub fn show_achievement_header_preview(&mut self, forever: bool, comparison: bool) -> GString {
+        let skin = if forever {
+            ui_toolkit::atlas::ActiveSkin::Forever
+        } else {
+            ui_toolkit::atlas::ActiveSkin::Modern
+        };
+        let result = self.prepare_dungeon_capture(skin).and_then(|()| {
+            let mut window = AchievementWindow::default();
+            let action = if comparison {
+                "achievement:compare:42"
+            } else {
+                game_engine_ui_model::achievements::OPEN_ACTION
+            };
+            window.action(action);
+            window.action("achievement:search:bear");
+            self.show_achievement_window(window)
+        });
+        GString::from(result.err().unwrap_or_default().as_str())
+    }
+
     #[func]
     pub fn show_achievement_toast_preview(&mut self) -> GString {
         let result = self
