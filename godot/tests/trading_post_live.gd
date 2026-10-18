@@ -9,6 +9,8 @@ var skin := OS.get_environment("TP_SKIN")
 var phase := OS.get_environment("TP_PHASE")
 var server := OS.get_environment("TP_SERVER")
 var menu_audio_events := []
+var selection_audio_events := []
+var selection_sound_checks := []
 var hover_audio_events := []
 var hover_sound_checks := []
 var hover_kit_baseline := 0
@@ -32,7 +34,7 @@ func run_fixture() -> void:
 		fail("Private compositor must expose 1920x1080 output")
 		return
 	var account := OS.get_environment("TP_ACCOUNT")
-	if server != "127.0.0.1:5791" or not account.begins_with("fb_") or shots.is_empty() or receipts.is_empty() or not phase in ["keyboard-navigation", "purchase-price-sort", "frozen-row-exclusion", "freeze-lock-sound", "product-hover-sound", "refund-icon-blend", "refund-icon-tooltip", "row-cart-toggle", "frozen-tooltip", "cart-tooltips", "pending-dialogs", "confirmations", "button-tooltips", "item-tooltips", "menu-sounds", "layout", "layout-proof", "browse", "relog", "purchase", "refund", "cart", "cart-lifetime", "rotate-controls", "mount-rider", "mount-rider-cancel", "freeze-workflow", "authored-camera", "frozen-slot-before", "frozen-slot-after"]:
+	if server != "127.0.0.1:5791" or not account.begins_with("fb_") or shots.is_empty() or receipts.is_empty() or not phase in ["product-selection-sound", "keyboard-navigation", "purchase-price-sort", "frozen-row-exclusion", "freeze-lock-sound", "product-hover-sound", "refund-icon-blend", "refund-icon-tooltip", "row-cart-toggle", "frozen-tooltip", "cart-tooltips", "pending-dialogs", "confirmations", "button-tooltips", "item-tooltips", "menu-sounds", "layout", "layout-proof", "browse", "relog", "purchase", "refund", "cart", "cart-lifetime", "rotate-controls", "mount-rider", "mount-rider-cancel", "freeze-workflow", "authored-camera", "frozen-slot-before", "frozen-slot-after"]:
 		fail("Explicit private 127.0.0.1:5791, fb_* account, phase and evidence paths required")
 		return
 	for directory in [shots, receipts]:
@@ -56,8 +58,8 @@ func run_fixture() -> void:
 	if not await wait_until(func(): return float(client.account_state().local_player_health) > 0.0, "private character alive", 120000): return
 	client.set_world_minutes(720.0)
 	await wait_frames(120)
-	if not phase in ["keyboard-navigation", "purchase-price-sort", "frozen-row-exclusion", "freeze-lock-sound", "product-hover-sound", "refund-icon-blend", "refund-icon-tooltip", "row-cart-toggle", "frozen-tooltip", "cart-tooltips", "pending-dialogs", "confirmations", "button-tooltips", "item-tooltips", "menu-sounds", "layout", "layout-proof", "cart", "cart-lifetime", "rotate-controls", "mount-rider", "mount-rider-cancel", "freeze-workflow", "authored-camera", "frozen-slot-before", "frozen-slot-after"] and not await travelers_log(): return
-	if phase in ["menu-sounds", "product-hover-sound", "freeze-lock-sound"] and not watch_menu_sound_players(): return
+	if not phase in ["product-selection-sound", "keyboard-navigation", "purchase-price-sort", "frozen-row-exclusion", "freeze-lock-sound", "product-hover-sound", "refund-icon-blend", "refund-icon-tooltip", "row-cart-toggle", "frozen-tooltip", "cart-tooltips", "pending-dialogs", "confirmations", "button-tooltips", "item-tooltips", "menu-sounds", "layout", "layout-proof", "cart", "cart-lifetime", "rotate-controls", "mount-rider", "mount-rider-cancel", "freeze-workflow", "authored-camera", "frozen-slot-before", "frozen-slot-after"] and not await travelers_log(): return
+	if phase in ["product-selection-sound", "menu-sounds", "product-hover-sound", "freeze-lock-sound"] and not watch_menu_sound_players(): return
 	if not await open_vendor(): return
 	if phase in ["cart", "cart-lifetime"]:
 		# Collection UI owners may replace a hidden CanvasLayer while this vendor is open.
@@ -92,6 +94,7 @@ func run_fixture() -> void:
 		"authored-camera": await authored_camera_proof()
 		"menu-sounds": await menu_sound_proof()
 		"product-hover-sound": await product_hover_sound_proof()
+		"product-selection-sound": await product_selection_sound_proof()
 		"keyboard-navigation": await keyboard_navigation_proof()
 		"purchase-price-sort": await purchase_price_sort_proof()
 		"frozen-row-exclusion": await frozen_row_exclusion_proof()
@@ -1211,6 +1214,7 @@ func watch_menu_sound_players() -> bool:
 	var kits := client.find_child("UiSoundKits", true, false)
 	if kits == null: fail("Native UI sound player is unavailable; not a menu sound RED"); return false
 	kits.child_entered_tree.connect(observe_menu_sound_player)
+	if phase == "product-selection-sound": kits.child_entered_tree.connect(observe_selection_sound_player)
 	return true
 
 func observe_menu_sound_player(node: Node) -> void:
@@ -1664,6 +1668,179 @@ func freeze_lock_sound_proof() -> void:
 	print("TP_FREEZE_LOCK_SOUND ", JSON.stringify(proof))
 	if not errors.is_empty(): fail("Retail accepted freeze-lock kit218229 missing; original restored before assertion: %s" % [errors]); return
 	print("TRADING_POST_LIVE PASS skin=", skin, " phase=freeze-lock-sound")
+	client.free()
+	quit(0)
+
+# Native selection audio on existing paths only; no vendor transactions.
+func observe_selection_sound_player(node: Node) -> void:
+	var player := node as AudioStreamPlayer
+	if player == null or player.stream == null: return
+	var stream: AudioStream = player.stream
+	if int(stream.resource_name) != 4906955: return
+	var event := {"fdid":4906955,"length":stream.get_length(),"gain":player.volume_linear,"pitch_scale":player.pitch_scale,"playing_observed":false,"finished":false}
+	selection_audio_events.append(event)
+	player.finished.connect(func(): event.finished = true)
+	call_deferred("observe_menu_sound_playback", player, event)
+
+func selection_sound_checkpoint(label: String, expected: int, origin: Vector3) -> void:
+	await wait_frames(60)
+	var state: Dictionary = client.trading_post_state().duplicate(true)
+	var position: Vector3 = client.account_state().local_player_position
+	selection_sound_checks.append({"label":label,"expected":expected,"decoded_count":selection_audio_events.size(),"kit_count":menu_sound_count(218230),"state":state,"position":[position.x,position.y,position.z],"world_delta":position.distance_to(origin)})
+
+func selection_sound_drag(product: int, before_count: int, after_count: int, label: String, origin: Vector3) -> bool:
+	var row := control("PerksProgramProduct%d" % product)
+	var slot := control("PerksProgramFrozenSlot")
+	if row == null or slot == null: fail("Selection sound drag needs existing row and occupied frozen slot"); return false
+	var from := row.get_global_rect().get_center()
+	var to := slot.get_global_rect().get_center()
+	await motion(from, false)
+	await button_event(from, MOUSE_BUTTON_LEFT, true)
+	await motion(from+Vector2(12,0), true, Vector2(12,0))
+	await selection_sound_checkpoint(label+"-threshold-unchanged", before_count, origin)
+	await motion(to, true, to-from)
+	await button_event(to, MOUSE_BUTTON_LEFT, false)
+	if not await wait_until(func(): return control("PerksProgramConfirmDialog") != null, "selection-only replacement popup"): return false
+	await selection_sound_checkpoint(label+"-release", after_count, origin)
+	if label == "changed-drop":
+		await capture("drop-release-popup")
+		for key in [KEY_UP,KEY_DOWN]: await tap(key)
+		await selection_sound_checkpoint("drop-modal-key-owner", after_count, origin)
+	await click("PerksProgramConfirmCancelButton")
+	if not await wait_until(func(): return control("PerksProgramConfirmDialog") == null, "selection drag cancellation"): return false
+	await selection_sound_checkpoint(label+"-cancel", after_count, origin)
+	return true
+
+func product_selection_sound_proof() -> void:
+	if not await choose_category(1): return
+	var before: Dictionary = client.trading_post_state().duplicate(true)
+	var original := int(before.frozen)
+	var prefix := keyboard_row_ids(before)
+	if original != (640 if skin == "modern" else 712) or not before.cart.is_empty() or prefix.size() < 3: fail("Selection audio needs genuine640/712, empty cart and three observed rows"); return
+	var first := int(prefix[0])
+	var primary := int(prefix[1])
+	var other := int(prefix[2])
+	if int(before.selected) != first: fail("Initial auto-selection must be the observed first row, not a guessed setup click"); return
+	var before_appearances: Array = Array(client.tooltip_state().appearance_collection)
+	before_appearances.sort()
+	await wait_frames(90)
+	var origin: Vector3 = client.account_state().local_player_position
+	await wait_frames(30)
+	if origin.distance_to(client.account_state().local_player_position) > 0.0001: fail("Selection proof world position not stationary before input"); return
+	await selection_sound_checkpoint("initial-provider-silent",0,origin)
+	await capture("initial-provider-silent")
+	await click("PerksProgramProduct%d" % first)
+	await tap(KEY_UP)
+	await selection_sound_checkpoint("first-repeat-and-endpoint-silent",0,origin)
+	await click("PerksProgramProduct%d" % primary)
+	await selection_sound_checkpoint("ordinary-explicit",1,origin)
+	await capture("ordinary-explicit")
+	await click("PerksProgramProduct%d" % primary)
+	await selection_sound_checkpoint("ordinary-repeat-silent",1,origin)
+	await tap(KEY_DOWN)
+	await selection_sound_checkpoint("keyboard-next",2,origin)
+	await capture("keyboard-next")
+	for key in [KEY_UP,KEY_DOWN]:
+		var release := InputEventKey.new()
+		release.keycode = key
+		release.physical_keycode = key
+		release.pressed = false
+		root.push_input(release,true)
+		await process_frame
+	await selection_sound_checkpoint("key-releases-silent",2,origin)
+	await tap(KEY_UP)
+	await selection_sound_checkpoint("keyboard-previous",3,origin)
+	await click("PerksProgramFrozenSlot")
+	await selection_sound_checkpoint("frozen-explicit",4,origin)
+	await capture("frozen-explicit")
+	await click("PerksProgramFrozenSlot")
+	for key in [KEY_UP,KEY_DOWN]: await tap(key)
+	await selection_sound_checkpoint("frozen-repeat-and-keys-silent",4,origin)
+	await click("PerksProgramProduct%d" % primary)
+	await selection_sound_checkpoint("ordinary-from-frozen",5,origin)
+	if control("PerksProgramAddToCartButton") == null or bool(control("PerksProgramAddToCartButton").get("disabled")): fail("Observed primary row is not eligible for local cart controls"); return
+	await click("PerksProgramAddToCartButton")
+	await click("PerksProgramViewCartButton")
+	if not await wait_until(func(): return client.trading_post_state().cart_visible,"selection cart owner"): return
+	await selection_sound_checkpoint("cart-show-retains-id-silent",5,origin)
+	await capture("cart-visible")
+	for key in [KEY_UP,KEY_DOWN]: await tap(key)
+	await selection_sound_checkpoint("cart-key-owner-silent",5,origin)
+	await click("PerksProgramCartCloseButton")
+	await selection_sound_checkpoint("cart-return-same-id",6,origin)
+	await capture("cart-return-same-id")
+	await selection_sound_checkpoint("closed-cart-hold-silent",6,origin)
+	await click("PerksProgramRemoveFromCartButton")
+	await selection_sound_checkpoint("hidden-cart-remove-silent",6,origin)
+	await click("PerksProgramAddToCartButton")
+	await click("PerksProgramViewCartButton")
+	await click("PerksProgramCartToggle%d" % primary)
+	if not await wait_until(func(): return not client.trading_post_state().cart_visible and client.trading_post_state().cart.is_empty(),"visible last-item cart removal"): return
+	await selection_sound_checkpoint("last-visible-cart-item-return",7,origin)
+	await click("PerksProgramAddToCartButton")
+	await click("PerksProgramViewCartButton")
+	await click("PerksProgramCartClearButton")
+	if not await wait_until(func(): return control("PerksProgramConfirmDialog") != null,"local clear modal"): return
+	for key in [KEY_UP,KEY_DOWN]: await tap(key)
+	await selection_sound_checkpoint("clear-modal-owner-silent",7,origin)
+	await click("PerksProgramConfirmCancelButton")
+	await selection_sound_checkpoint("clear-cancel-silent",7,origin)
+	await click("PerksProgramCartClearButton")
+	await click("PerksProgramConfirmButton")
+	if not await wait_until(func(): return not client.trading_post_state().cart_visible and client.trading_post_state().cart.is_empty(),"local clear restoration"): return
+	await selection_sound_checkpoint("clear-cart-return-same-id",8,origin)
+	await capture("clear-cart-return")
+	if not await choose_category(2): return
+	if not await choose_category(1): return
+	await selection_sound_checkpoint("category-provider-rebuild-silent",8,origin)
+	await click("PerksProgramProduct%d" % primary)
+	await selection_sound_checkpoint("drag-baseline-selection",9,origin)
+	if not await selection_sound_drag(other,9,10,"changed-drop",origin): return
+	if not await selection_sound_drag(other,10,10,"repeated-drop",origin): return
+	await click("PerksProgramProduct%d" % first)
+	await selection_sound_checkpoint("restored-before-reopen",11,origin)
+	await capture("restored-before-reopen")
+	await click("PerksProgramLeaveButton")
+	if not await wait_until(func(): return not client.trading_post_state().open,"selection owner teardown"): return
+	await selection_sound_checkpoint("closed-owner-silent",11,origin)
+	if not await open_vendor(): return
+	if not await choose_category(1): return
+	await selection_sound_checkpoint("reopen-initialization-silent",11,origin)
+	await click("PerksProgramProduct%d" % primary)
+	await selection_sound_checkpoint("reopened-explicit",12,origin)
+	await capture("reopened-explicit")
+	await click("PerksProgramProduct%d" % first)
+	await selection_sound_checkpoint("original-selection-restored",13,origin)
+	var after: Dictionary = client.trading_post_state().duplicate(true)
+	var after_appearances: Array = Array(client.tooltip_state().appearance_collection)
+	after_appearances.sort()
+	await click("PerksProgramLeaveButton")
+	if not await wait_until(func(): return not client.trading_post_state().open,"final selection teardown"): return
+	await selection_sound_checkpoint("final-closed-silent",13,origin)
+	var settings_gain := -1.0
+	for event in menu_audio_events:
+		if event.kind == "open": settings_gain = float(event.gain)/0.562341332; break
+	var errors := []
+	for check in selection_sound_checks:
+		if int(check.decoded_count) != int(check.expected) or int(check.kit_count) != int(check.expected): errors.append(check.label)
+		if int(check.state.frozen) != original or int(check.state.tender) != int(before.tender): errors.append("authority at "+str(check.label))
+		if float(check.world_delta) > 0.0001: errors.append("world movement at "+str(check.label))
+	for event in selection_audio_events:
+		if absf(float(event.gain)-0.790000021*settings_gain) > 0.00001 or not is_equal_approx(float(event.pitch_scale),1.0): errors.append("source gain/settings/pitch")
+		if absf(float(event.length)-0.550958) > 0.001 or not event.playing_observed or not event.finished: errors.append("decoded playing/finished")
+	if settings_gain < 0.0: errors.append("missing menu gain/settings observation")
+	for key in ["tender","frozen","selected","cart","items","rows","ascending","sort","types"]:
+		if after[key] != before[key]: errors.append("not restored "+str(key))
+	if before_appearances != after_appearances: errors.append("exact appearance-ID set changed")
+	if selection_audio_events.size() != 13: errors.append("expected13decoded selection plays")
+	var proof := {"before":before,"after":after,"checks":selection_sound_checks,"audio":selection_audio_events,"settings_gain":settings_gain,"before_appearances":before_appearances,"after_appearances":after_appearances,"restored_before_verdict":true,"errors":errors,"scope":"Existing selection paths only, drop still selects on release and cart-open retains selected ID; no Advanced/hardware acoustic parity"}
+	var file := FileAccess.open(receipts.path_join(skin+"-product-selection-sound-audio.json"),FileAccess.WRITE)
+	if file == null: fail("Cannot write restored native selection audio receipt"); return
+	file.store_string(JSON.stringify(proof,"\t"))
+	file.close()
+	print("TP_PRODUCT_SELECTION_SOUND ",JSON.stringify(proof))
+	if not errors.is_empty(): fail("Native selection audio after state restoration: %s" % [errors]); return
+	print("TRADING_POST_LIVE PASS skin=",skin," phase=product-selection-sound")
 	client.free()
 	quit(0)
 
@@ -2237,7 +2414,7 @@ func motion(point: Vector2, down: bool, relative: Vector2 = Vector2.ZERO) -> voi
 	event.global_position = point
 	event.relative = relative
 	event.button_mask = MOUSE_BUTTON_MASK_LEFT if down else 0
-	if phase in ["frozen-row-exclusion", "freeze-lock-sound", "product-hover-sound", "refund-icon-blend", "cart-tooltips", "row-cart-toggle", "refund-icon-tooltip"]:
+	if phase in ["product-selection-sound", "frozen-row-exclusion", "freeze-lock-sound", "product-hover-sound", "refund-icon-blend", "cart-tooltips", "row-cart-toggle", "refund-icon-tooltip"]:
 		Input.parse_input_event(event)
 	else:
 		root.push_input(event, true)
