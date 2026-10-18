@@ -135,8 +135,6 @@ func capture() -> bool:
 	return true
 
 # Source CheckedTexture/HighlightTexture are ADD: selected glow must not erase icon pixels.
-	return true
-
 func assert_selected_icon_retains_pixels(ui: Node, name: String, before: Image) -> bool:
 	var rect := control(ui, name).get_global_rect()
 	var after := root.get_texture().get_image()
