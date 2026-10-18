@@ -975,6 +975,7 @@ fn achievements_ui_browse_statistics_and_correlated_full_search_both_skins() {
         assert_eq!(text(&statistics, "Achievement1068Statistic"), "7");
         assert!(statistics.get_by_name("AchievementCriteriaTitle").is_none());
         assert!(statistics.get_by_name("AchievementTrack").is_none());
+        window.action("achievement:search_focus");
         assert_eq!(
             window.action("achievement:search:stockade"),
             vec![QueryAchievementCatalog::Search {
@@ -997,10 +998,13 @@ fn achievements_ui_browse_statistics_and_correlated_full_search_both_skins() {
             next_id: None,
         });
         assert_eq!(
-            text(&achievement_registry(&window, skin), "Achievement633Name"),
+            text(
+                &achievement_registry(&window, skin),
+                "AchievementSearchPreview1Name"
+            ),
             "Stormwind Stockade"
         );
-        assert!(window.action("achievement:row:633").contains(
+        assert!(window.action("achievement:preview:633").contains(
             &QueryAchievementCatalog::Achievement {
                 achievement_id: 633
             }
