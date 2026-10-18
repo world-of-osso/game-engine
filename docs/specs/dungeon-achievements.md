@@ -23,6 +23,7 @@ Native Retail Mainline AchievementUI and dungeon objectives, using authoritative
 - [x] Browse category ancestry/order, icons/names/descriptions/points/earned dates and criterion progress, including continuation pages.
 - [x] Show bare thousands-separated earned points beside the Retail shield in both skins.
 - [x] Use Retail's 768×500 AchievementFrame, styled collapsible category tree with native wheel/thumb scrolling, header shield/search/clear art and authored bottom tabs. Forever changes art only.
+- [x] Keep the107×30 search template immediately left of the header filter with7px between control bounds, in ordinary and comparison views. Retail XML1675–1713 right-to-left/index1/index2 layout gives search x511/x631; preserve current y, sizes, filter behavior and every other UI element.
 - [x] Achievement row buttons expand criteria in place, pushing following rows down; include icon frames, point shields, centered titles/descriptions, completion dates and authentic progress-bar art. Native row scrolling fetches further cursor pages at the bottom without collapsing selection; category/filter changes start at the top. Statistics use Retail striped rows. Summary uses carved category status-bar art; fills must not cover captions.
 
 ### Earned links and tracking
@@ -59,6 +60,7 @@ Native Retail Mainline AchievementUI and dungeon objectives, using authoritative
 
 - `godot/ui-model/tests/dungeonclient.rs` — concrete both-skin Summary/scopes, criteria continuation, search/statistics, tracking, links and authored art regions.
 - `godot/rust/src/account_dungeonclient_tests.rs` — actual account dispatch/continuations/live updates.
+- `godot/rust/src/ui/layout.rs::tests::achievement_header_search_*` — both skins × ordinary/comparison source bounds and translated search art/clear, through actual native host layout; post-landing native pointer proof is separate.
 - `godot/rust/src/achievements.rs::tracking_tests` — persisted IDs and corrupt preference rejection.
 - `godot/network/src/dungeonclient_wire_tests.rs` — ephemeral UDP AchievementChannel ordering.
 - `godot/rust/src/account_netdelta_tests.rs` — full-vs-delta state, invalidation and toast-order equivalence; earned replacement/removal, progress add/update/remove; full-snapshot replacement/reconnect baseline reset; missing-baseline failure.
