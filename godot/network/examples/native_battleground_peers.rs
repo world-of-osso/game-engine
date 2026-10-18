@@ -12,6 +12,8 @@ use std::{
     thread,
     time::{Duration, Instant, SystemTime, UNIX_EPOCH},
 };
+const PRIVATE_PROOF_SUPPORT_COUNT: usize = 19;
+
 struct Peer {
     index: usize,
     username: String,
@@ -437,7 +439,7 @@ fn private_support_count(address: std::net::SocketAddr, minimum: u8) -> Result<u
         return Err("Private loopback battleground endpoints only".into());
     }
     match address.port() {
-        5941 => Ok(19),
+        5941 => Ok(PRIVATE_PROOF_SUPPORT_COUNT),
         5710..=5712 => Ok(usize::from(minimum) * 2 - 1),
         _ => Err("Private UDP5710–5712 or5941 only".into()),
     }
@@ -447,6 +449,13 @@ fn support_count_for_queue(
     address: std::net::SocketAddr,
     battleground_id: u32,
 ) -> Result<usize, String> {
+    if battleground_id == shared::battleground::RANDOM_BATTLEGROUND_ID {
+        return if address.ip().is_loopback() && address.port() == 5941 {
+            Ok(PRIVATE_PROOF_SUPPORT_COUNT)
+        } else {
+            Err("Random queue fixture requires private loopback UDP5941".into())
+        };
+    }
     let template = shared::battleground::template_by_id(battleground_id)
         .ok_or("Unknown source battleground")?;
     private_support_count(address, template.min_players_per_team)
