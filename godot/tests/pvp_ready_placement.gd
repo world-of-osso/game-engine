@@ -2,6 +2,7 @@ extends SceneTree
 # Supplied owner snapshots only. Real projection/picking/input; no UDP acceptance claim.
 var failures: Array[String] = []
 var receipts: Array[Dictionary] = []
+var overlaps: Array[Dictionary] = []
 
 func _initialize() -> void:
 	call_deferred("run_placement")
@@ -56,6 +57,14 @@ func probe(forever: bool, size: Vector2i, phase: String) -> void:
 	check(dialog.get_global_rect() == Rect2(expected, Vector2(306, 210)), label + " root anchor")
 	check(queue.is_visible_in_tree(), label + " queue remains visible")
 	check(queue.get_global_rect() == Rect2(100, 84, 788, 428), label + " unchanged queue geometry")
+	var sidebar := ui.find_child("PVPUIHonorInset", true, false) as Control
+	assert(sidebar != null)
+	var overlap := dialog.get_global_rect().intersection(sidebar.get_global_rect())
+	assert(overlap.has_area())
+	var body_point := Vector2(overlap.get_center().x, expected.y + 40.0)
+	var body_top: String = ui.pvp_ready_pointer_frame(body_point)
+	check(body_top == "PVPReadyDialog", label + " dialog body/sidebar top hit: " + body_top)
+	overlaps.append({"case": label, "point": str(body_point), "overlap": str(overlap), "top_frame": body_top})
 	for action in ["pvp:accept", "pvp:decline"]:
 		# Close and Leave Queue both dispatch decline; select the exact source action button.
 		var name := "PVPReadyDialogEnterBattleButton" if action == "pvp:accept" else "PVPReadyDialogLeaveQueueButton"
@@ -85,7 +94,7 @@ func run_placement() -> void:
 	assert(not path.is_empty())
 	var output := FileAccess.open(path, FileAccess.WRITE)
 	assert(output != null)
-	output.store_string(JSON.stringify({"cases": receipts, "failures": failures}, "\t"))
+	output.store_string(JSON.stringify({"cases": receipts, "overlaps": overlaps, "failures": failures}, "\t"))
 	output.close()
 	print("PVP_READY_PLACEMENT cases=", receipts.size(), " failures=", failures)
 	quit(0 if failures.is_empty() else 1)
