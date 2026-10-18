@@ -104,8 +104,14 @@ impl PvpView {
         self.snapshot.as_ref()?.battleground.as_ref()
     }
     pub fn invitation(&self) -> bool {
-        self.battleground()
-            .is_some_and(|b| b.phase == BgPhase::Waiting && !b.accepted)
+        self.battleground().is_some_and(|bg| {
+            !bg.accepted
+                && match bg.phase {
+                    BgPhase::Waiting => true,
+                    BgPhase::InProgress => bg.arena.is_none(),
+                    BgPhase::Ended => false,
+                }
+        })
     }
     pub fn action(&mut self, action: &str) -> Option<PvpAction> {
         if let Some(id) = action
