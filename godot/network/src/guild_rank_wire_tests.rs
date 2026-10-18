@@ -33,6 +33,25 @@ fn connect(server: &mut App, bridge: &mut NetworkBridge) {
     }
 }
 #[test]
+fn guild_member_rank_assignment_target_and_zero_based_destination_cross_real_udp() {
+    let (mut server, address) = crate::wire_tests::start_fixture_server_with(install);
+    let mut bridge = NetworkBridge::connect(address, 8277).unwrap();
+    connect(&mut server, &mut bridge);
+    let request = GuildRankRequest::SetMemberRank {
+        character_name: "Cara".into(),
+        rank: 1,
+    };
+    bridge.send::<_, GuildChannel>(request.clone()).unwrap();
+    let deadline = Instant::now() + Duration::from_secs(3);
+    while server.world().resource::<Requests>().0.is_empty() && Instant::now() < deadline {
+        server.update();
+        thread::sleep(Duration::from_millis(5));
+    }
+    bridge.stop().unwrap();
+    assert_eq!(server.world().resource::<Requests>().0, vec![request]);
+}
+
+#[test]
 fn guild_charter_registrar_crosses_real_udp() {
     let (mut server, address) = crate::wire_tests::start_fixture_server_with(|_| {});
     let mut bridge = NetworkBridge::connect(address, 8264).unwrap();

@@ -1,6 +1,9 @@
 //! Retail Mainline GuildRoster.xml detail panel and GameDialogDefs.lua 31-letter notes.
 use crate::bank_art::label;
 use crate::guild_ranks::GuildRanksSession;
+use crate::menu_primitives::{
+    ContextMenu, ContextMenuItem, MenuElementKind, context_menu_with_rows, menu_element,
+};
 use crate::quest_art::{DynName, panel_button};
 use crate::ui::strata::FrameStrata;
 use shared::protocol::*;
@@ -30,9 +33,12 @@ pub fn detail(session: &GuildRanksSession) -> Element {
     let member = session.detail_member();
     let officer = session.can(GUILD_RIGHT_VIEW_OFFICER_NOTE);
     // GuildRoster.lua:175/228 + GameFontNormal12 + natural GameFontNormalSmall10.
-    // SetHeight(0) restores natural FontString height, not a collapsed row
-    // (ObjectiveTrackerBlock.lua:SetStringText). Direct-rank dropdown remains separate.
-    let height = if officer { 250.0 } else { 197.0 };
+    // SetHeight(0) restores natural FontString height, not a collapsed row.
+    // Source RankLabel is20px when the direct-assignment dropdown is shown.
+    let assignable = session.member_rank_range(name).is_some();
+    let rank_shift = if assignable { 10.0 } else { 0.0 };
+    let base_height = if officer { 250.0 } else { 197.0 };
+    let height = base_height + rank_shift;
     let border =
         crate::game_menu_main::dialog_border("GuildMemberDetailBorder", 214.0, height - 1.0);
     let mut children = rsx! { r#frame { name: "GuildMemberDetailBorder", width: 214.0, height: {height-1.0}, left: 4.0, top: 0.0, frame_level: DETAIL_FRAME_LEVEL, pos_type: "absolute", {border} }
@@ -67,7 +73,7 @@ pub fn detail(session: &GuildRanksSession) -> Element {
             "Online",
             "Last Online:",
             member.map(|m| m.last_online.as_str()).unwrap_or(""),
-            89.0,
+            89.0 + rank_shift,
         ),
     ] {
         let heading_width = ui_toolkit::text_measure::measure_text(
@@ -83,22 +89,36 @@ pub fn detail(session: &GuildRanksSession) -> Element {
         } else {
             195.0 - value_left
         };
+        let heading_height = if id == "Rank" && assignable {
+            20.0
+        } else {
+            10.0
+        };
         children.extend(label(
             format!("GuildMemberDetail{id}Label"),
             heading,
-            (17.0, y, heading_width, 10.0),
+            (17.0, y, heading_width, heading_height),
             (10.0, "1,0.82,0,1", "LEFT"),
         ));
-        children.extend(label(
-            format!("GuildMemberDetail{id}"),
-            value,
-            (value_left, y - 1.0, value_width, 12.0),
-            (12.0, "1,1,1,1", "LEFT"),
-        ));
+        if id == "Rank" && assignable {
+            let rect = (
+                17.0 + heading_width + 10.0,
+                y + (20.0 - 25.0) / 2.0,
+                169.0 - heading_width,
+            );
+            children.extend(rank_dropdown(session, name, rank, rect));
+        } else {
+            children.extend(label(
+                format!("GuildMemberDetail{id}"),
+                value,
+                (value_left, y - 1.0, value_width, 12.0),
+                (12.0, "1,1,1,1", "LEFT"),
+            ));
+        }
     }
-    children.extend(note(session, false, 107.0));
+    children.extend(note(session, false, 107.0 + rank_shift));
     if officer {
-        children.extend(note(session, true, 160.0));
+        children.extend(note(session, true, 160.0 + rank_shift));
     }
     // Source buttons are 96x22 at x16 and113, bottom12; use existing hierarchy action.
     children.extend(panel_button(
@@ -117,6 +137,109 @@ pub fn detail(session: &GuildRanksSession) -> Element {
     ));
     rsx! { r#frame { name: "CommunitiesGuildMemberDetailFrame", width: 212.0, height, left: 806.0, top: 76.0,
     pos_type: "absolute", frame_level: DETAIL_FRAME_LEVEL, mouse_enabled: true, {children} } }
+}
+
+type RankChoice<'a> = (u8, String, &'a str, String);
+
+fn rank_dropdown(
+    session: &GuildRanksSession,
+    name: &str,
+    rank: &str,
+    rect: (f32, f32, f32),
+) -> Element {
+    let enabled = !session.awaiting_state && !session.profile_waiting;
+    let mut out = crate::guild_control::dropdown(
+        "GuildMemberDetailRankDropdown",
+        rank,
+        rect,
+        "guild:detail_rank_menu",
+        session.member_rank_menu_open,
+        enabled,
+    );
+    if session.member_rank_menu_open {
+        out.extend(rank_menu(session, name, (rect.0, rect.1 + 25.0, rect.2)));
+    }
+    out
+}
+
+fn rank_choices<'a>(
+    session: &'a GuildRanksSession,
+    name: &str,
+) -> Option<(u8, Vec<RankChoice<'a>>)> {
+    let state = session.state()?;
+    let range = session.member_rank_range(name)?;
+    let selected = state
+        .members
+        .iter()
+        .find(|member| member.character_name == name)?
+        .rank;
+    let choices = range
+        .map(|rank| {
+            (
+                rank,
+                format!("GuildMemberDetailRankChoice{rank}"),
+                state.ranks[usize::from(rank)].name.as_str(),
+                format!("guild:detail_rank:{name}:{rank}"),
+            )
+        })
+        .collect();
+    Some((selected, choices))
+}
+
+fn rank_menu(session: &GuildRanksSession, name: &str, (x, y, minimum): (f32, f32, f32)) -> Element {
+    let Some((selected, choices)) = rank_choices(session, name) else {
+        return vec![];
+    };
+    let items: Vec<_> = choices
+        .iter()
+        .map(|(_, name, label, action)| ContextMenuItem {
+            name,
+            label,
+            action,
+        })
+        .collect();
+    let width =
+        crate::guild_control::menu_width(choices.iter().map(|(_, _, label, _)| *label), minimum);
+    let enabled = !session.awaiting_state && !session.profile_waiting;
+    let rows = rank_menu_rows(&items, &choices, selected, width, enabled);
+    context_menu_with_rows(
+        ContextMenu {
+            frame_name: "GuildMemberDetailRankMenu",
+            title_name: "GuildMemberDetailRankMenuTitle",
+            divider_name: "GuildMemberDetailRankMenuDivider",
+            hidden: false,
+            title: "",
+            width,
+            x,
+            y,
+            items: &items,
+        },
+        rows,
+    )
+}
+
+fn rank_menu_rows(
+    items: &[ContextMenuItem<'_>],
+    choices: &[RankChoice<'_>],
+    selected: u8,
+    width: f32,
+    enabled: bool,
+) -> Element {
+    items
+        .iter()
+        .zip(choices)
+        .enumerate()
+        .flat_map(|(row, (item, (rank, _, _, _)))| {
+            menu_element(
+                *item,
+                MenuElementKind::Radio {
+                    checked: *rank == selected,
+                },
+                enabled,
+                (8.0, 8.0 + row as f32 * 20.0, width - 16.0, 20.0),
+            )
+        })
+        .collect()
 }
 
 fn note(session: &GuildRanksSession, officer: bool, y: f32) -> Element {
