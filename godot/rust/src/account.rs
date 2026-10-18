@@ -154,6 +154,8 @@ pub struct Account {
     pub quests: QuestRuntime,
     /// `GetDungeonDifficultyID`, from `DungeonDifficultySet` (login and every change).
     pub dungeon_difficulty: Option<u32>,
+    /// Actual map-copy difficulty from the server; independent of saved selections.
+    pub world_server_info: Option<shared::protocol::WorldServerInfo>,
     pub lfg: Option<shared::protocol::LfgStateUpdate>,
     pub raid_difficulty: Option<shared::protocol::RaidDifficultySet>,
     pub dungeon_objectives: game_engine_ui_model::dungeon_progress::DungeonObjectives,
@@ -398,6 +400,7 @@ impl Account {
             pending_layout_username: None,
             quests: QuestRuntime::default(),
             dungeon_difficulty: None,
+            world_server_info: None,
             lfg: None,
             raid_difficulty: None,
             dungeon_objectives: Default::default(),
@@ -465,6 +468,7 @@ impl Account {
         self.layout_username = None;
         self.pending_layout_username = None;
         self.dungeon_difficulty = None;
+        self.world_server_info = None;
         self.lfg = None;
         self.raid_difficulty = None;
         self.dungeon_objectives = Default::default();
@@ -670,6 +674,20 @@ impl Account {
         self.bridge()?
             .send::<_, CombatChannel>(shared::protocol::ExitVehicle)
             .map_err(SessionError)
+    }
+
+    pub(crate) fn ready_check_difficulty_name(
+        &self,
+        catalog: &game_engine_ui_model::ready_check_difficulty::ReadyCheckDifficulties,
+    ) -> Result<Option<String>, String> {
+        let current = self.world_server_info.map(|info| info.difficulty_id);
+        let selected = if self.group.is_raid {
+            self.raid_difficulty
+                .map(|selection| selection.difficulty_id)
+        } else {
+            self.dungeon_difficulty
+        };
+        catalog.listener_name(current, selected)
     }
 
     /// `SetDungeonDifficultyID`; the server validates it and answers `DungeonDifficultySet`.
@@ -1888,6 +1906,7 @@ impl Account {
             || message.is::<QuestLogUpdate>()
             || message.is::<QuestGiverStatusMultiple>()
             || message.is::<DungeonDifficultySet>()
+            || message.is::<shared::protocol::WorldServerInfo>()
             || message.is::<shared::protocol::RaidDifficultySet>()
             || message.is::<InstanceInfo>()
             || message.is::<shared::protocol::DungeonProgress>()
@@ -2048,6 +2067,10 @@ impl Account {
         }
         if message.is::<DamageMeterSnapshot>() {
             self.damage_meter = Some(decode(message)?);
+            return Ok(());
+        }
+        if message.is::<shared::protocol::WorldServerInfo>() {
+            self.world_server_info = Some(decode(message)?);
             return Ok(());
         }
         if message.is::<shared::protocol::RaidDifficultySet>() {
@@ -2277,6 +2300,7 @@ impl Account {
         }
         if message.is::<NewWorld>() {
             let new_world: NewWorld = decode(message)?;
+            self.world_server_info = None;
             self.dungeon_objectives.begin_map(new_world.map_id);
             self.challenge = Default::default();
             self.scenario_objectives.begin_map(new_world.map_id);

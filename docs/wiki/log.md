@@ -1,6 +1,9 @@
 ## 2026-10-18 — Invitation dismissal native acceptance
 
 [Invitation dismissal](systems/guilds.md#invitation-dismissal): gate503e15+68/fmt, landed master helper build; both-skin physical Escape/natural timeout/actual Join-removal/explicit Decline across8real invites and identical-binary fresh-server/client no-pending/no-membership readback pass. Eight inspected original1920×1080 PNGs published. Exact60/60.001 boundary is model proof; native observation begins after receipt. Earlier incompatible frozen server attempt remains unclaimed. Owned runtime/window cleaned.
+## 2026-10-18 — ReadyCheck difficulty-qualified body
+
+[Exact source rule](systems/group-frames.md#readycheck-difficulty-qualified-body--implementation-2026-10-18): actual copy difficulty, else server-selected raid/dungeon ID; local DB2 positive toggle gates CURRENT-name suffix. Existing WorldServerInfo wire only, no server/protocol change. Account unhandled-message and owned-UDP empty-receipt REDs precede cc6abf340 account1/wire1/UI8 GREEN, including map-context reset, primary-versus-legacy and both-skin ordinary-text/style controls. Engine/network check65s/no warnings, affected-package Cargo fmt/scoped diff/readability pass. Landed master6b1c79222 included; geometry/audio/answers/authority conserved. Native rendered/live-server acceptance pending; no runtime launched or completed proof replayed.
 
 ## 2026-10-17 — Invitation dismissal lifecycle
 
