@@ -210,6 +210,7 @@ class StockadeRun:
         self.run["party_actors"] = [row["entity"] for row in actors]
         self.party_actor_ids = {row["name"]: row["entity"] for row in actors}
         self.party_actor_ids[self.args.character] = str(account["local_player_id"])
+        publish(self.output / "native-pull-tank.json", {"id": int(self.party_actor_ids[self.tank])})
         for boss in self.run["bosses"]:
             native = parse_npc(self.admin("npc-info", 34, self.instance, boss["entry"]), boss["entry"])
             if native["health"] <= 0 or native["difficulty"] != 1:

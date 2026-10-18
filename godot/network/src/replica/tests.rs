@@ -369,6 +369,42 @@ impl Session {
     }
 }
 
+#[test]
+fn pull_completed_update_counter_follows_actual_wire_and_clear() {
+    let mut session = Session::start(9116);
+    assert_eq!(session.replica.completed_updates(), 0);
+    let npc = session.spawn((
+        Npc {
+            template_id: 46382,
+            name: "Petty Criminal".into(),
+        },
+        position(1.0),
+    ));
+    session.until("pull NPC initial full update", npc, has::<Npc>);
+    let applied = session.replica.completed_updates();
+    assert!(applied > 0);
+    session
+        .replica
+        .apply(ReplicationBatch {
+            updates: vec![],
+            mutations: vec![],
+        })
+        .unwrap();
+    assert_eq!(session.replica.completed_updates(), applied);
+    assert!(
+        session
+            .replica
+            .apply(ReplicationBatch {
+                updates: vec![Bytes::from_static(&[0])],
+                mutations: vec![]
+            })
+            .is_err()
+    );
+    assert_eq!(session.replica.completed_updates(), applied);
+    session.replica.clear();
+    assert_eq!(session.replica.completed_updates(), 0);
+}
+
 fn has<C: 'static>(unit: Option<Unit>) -> bool {
     unit.is_some_and(|unit| unit.has::<C>())
 }

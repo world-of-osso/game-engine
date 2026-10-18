@@ -93,6 +93,9 @@ mod player_spells;
 mod process_memory_status;
 mod professions;
 mod profile;
+mod pull_units;
+#[cfg(test)]
+mod pull_units_tests;
 mod quests;
 mod raid_info;
 mod raid_targets;
@@ -286,6 +289,7 @@ pub struct GameClient {
     sound_data: Option<background_load::BackgroundLoad<sound_client::SoundData>>,
     /// Every replicated entity of the connection, the client's only copy.
     replica: Replica,
+    pull_units: pull_units::PullUnits,
     world: world::WorldUnits,
     spell_effects: spell_effects::SpellEffects,
     terrain: terrain::streaming::StreamedTerrain,
@@ -516,6 +520,7 @@ impl INode3D for GameClient {
             ipc: None,
             last_process_ms: 0.0,
             replica: Replica::default(),
+            pull_units: Default::default(),
             spell_effects: spell_effects::SpellEffects::new(data_root.clone()),
             world,
             server_hostname: if cfg!(debug_assertions) {
@@ -1301,6 +1306,12 @@ impl GameClient {
     #[func]
     fn spells_state(&self) -> VarDictionary {
         self.spells_snapshot()
+    }
+
+    /// Passive received units for the named harness pull-coverage policy; never selects/casts.
+    #[func]
+    fn pull_units_state(&mut self, tank: i64) -> VarDictionary {
+        self.pull_units_snapshot(tank as u64)
     }
 
     /// Actual received persistent-area geometry; no target or server-state mutation.
@@ -2475,6 +2486,7 @@ impl GameClient {
             AccountEvent::ReplicationStarted(schema) => self.start_replication(schema)?,
             AccountEvent::Replication(batch) => self.apply_replication(batch)?,
             AccountEvent::ReplicationEnded => {
+                self.pull_units = Default::default();
                 self.encounter.clear();
                 self.replica.clear();
                 self.project_replication()?;
@@ -2560,14 +2572,23 @@ impl GameClient {
         self.replica.clear();
         self.project_replication()?;
         self.replica = Replica::new(schema);
+        self.pull_units = Default::default();
         Ok(())
     }
 
     fn apply_replication(&mut self, batch: ReplicationBatch) -> Result<(), String> {
-        self.replica
-            .apply(batch)
-            .map_err(|error| format!("Replication: {error}"))?;
-        self.project_replication()
+        if let Err(error) = self.replica.apply(batch) {
+            self.pull_units = Default::default();
+            return Err(format!("Replication: {error}"));
+        }
+        self.project_replication()?;
+        self.pull_units.observe(
+            &self.replica,
+            self.world.local_player_id(),
+            self.world_map_id,
+            self.replica.completed_updates(),
+        );
+        Ok(())
     }
 
     /// Update the world node of each changed player or creature, and the node of each
@@ -3001,6 +3022,7 @@ impl GameClient {
         self.wmo_collision.reset();
         self.spell_effects.reset();
         self.world.reset();
+        self.pull_units = Default::default();
         self.replica.clear();
         self.replica.drain_changes();
         self.auras.reset();
