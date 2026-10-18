@@ -1,6 +1,6 @@
 ## 2026-10-17 — Rain of Fire escape policy
 
-[Bounded harness policy](systems/bot-harness.md#rain-of-fire-escape-policy--2026-10-17): synthetic eight-heading planner controls, actual map34 no-polygon refusal, and maintained-controller projected-arrival RED preserve source5yd radius with no damage/kit/stat changes. Pending ACK precedes escape; every source route segment and projected arrival neighborhood must be safe. Actual server lifecycle GREEN2 and protocol wire GREEN1 precede native real-UDP missing-decoder RED. Received geometry/faction projection and untouched observer JSON now implement the native data boundary; targeted native GREEN, joint gate and fresh private acceptance remain pending.
+[Bounded harness policy](systems/bot-harness.md#rain-of-fire-escape-policy--2026-10-17): synthetic eight-heading planner controls, actual map34 no-polygon refusal, and maintained-controller projected-arrival RED preserve source5yd radius with no damage/kit/stat changes. Pending ACK precedes escape; every source route segment and projected arrival neighborhood must be safe. Actual server lifecycle GREEN2 and protocol wire GREEN1 precede native real-UDP missing-decoder RED. Received geometry/faction projection and untouched observer JSON now implement the native data boundary; postmerge native UDP/replica21+projection4 GREEN142.6s, engine/network check16.42s/fmt/0warnings pass; Python125/observer parse remain valid on unchanged relevant files. Joint gate and fresh private escape/full-clear acceptance remain pending.
 
 ## 2026-10-17 — Vanish selection withdrawal
 
