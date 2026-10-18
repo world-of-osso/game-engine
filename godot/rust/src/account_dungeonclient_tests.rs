@@ -313,17 +313,17 @@ fn ready_check_server_defaults_project_one_line_and_never_select_legacy_difficul
     )
     .unwrap();
     let ordinary = "Ann has initiated a ready check.";
-    let legacy_selected = "Ann has initiated a ready check.\nRaid Difficulty: 10 Player";
+    let legacy_instance = "Ann has initiated a ready check.\nRaid Difficulty: 10 Player";
     // Server maps/raid.rs:21–26 defaults14/3; maps/difficulty.rs:38–41 +store.rs:185 default1.
     for skin in [ActiveSkin::Modern, ActiveSkin::Forever] {
         set_thread_skin(skin);
         for (raid, current, primary, legacy, expected) in [
             (true, None, 14, 3, ordinary),
-            (true, Some(0), 14, 3, ordinary),
+            (true, Some((0, 0)), 14, 3, ordinary),
             (false, None, 14, 3, ordinary),
-            (false, Some(0), 14, 3, ordinary),
+            (false, Some((0, 0)), 14, 3, ordinary),
             (true, None, 14, 6, ordinary), // Changing onlylegacy never chooses it.
-            (true, None, 3, 14, legacy_selected), // Positivecontrol: primary3 really qualifies.
+            (true, Some((631, 3)), 14, 3, legacy_instance), // Actual legacy instance qualifies.
         ] {
             let mut account = account();
             let mut output = Vec::new();
@@ -342,11 +342,11 @@ fn ready_check_server_defaults_project_one_line_and_never_select_legacy_difficul
                     &mut output,
                 )
                 .unwrap();
-            if let Some(difficulty_id) = current {
+            if let Some((map_id, difficulty_id)) = current {
                 account
                     .dispatch_message(
                         ProtocolMessage::for_tests(WorldServerInfo {
-                            map_id: 0,
+                            map_id,
                             difficulty_id,
                         }),
                         &mut output,
@@ -362,6 +362,12 @@ fn ready_check_server_defaults_project_one_line_and_never_select_legacy_difficul
                 })
             );
             assert_eq!(account.dungeon_difficulty, Some(1));
+            assert_eq!(
+                account
+                    .world_server_info
+                    .map(|info| (info.map_id, info.difficulty_id)),
+                current
+            );
             let body = ready_check_body_from_account(&account, &catalog);
             assert_eq!(
                 body, expected,
