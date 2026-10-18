@@ -5,6 +5,13 @@
 ## 2026-10-18 — Show Offline roster preference
 
 [Contract/policy](systems/guilds.md#show-offline-roster-preference): missing authoritative Retail CVar default blocked implementation until explicit project COMMUNITIES_SHOW_OFFLINE_DEFAULT_ON=true. Classic2.5.6 issue883 is indirect only. Public load/save and missing-control RED precede persisted checkbox/filter wiring; existing sort/rank targets and unknown-presence exclusion conserved. Native acceptance separate.
+## 2026-10-18 — ReadyCheck source intrinsic body height
+
+[Intrinsic correction](systems/group-frames.md#readycheck-intrinsic-body-correction--2026-10-18): approved240×0/MIDDLE/Friz12/shadow at existing TOP20,−37 replaces fixed28. Frame100/bottom buttons y60/content/audio/authority unchanged. Genuine host-height RED28vs14 precedes native8/UI8 GREEN/check40.02s/no warnings/Cargo fmt. Supplied14/29px unit intrinsics are not Retail raster metrics. Maintained native fixture isolates unoccluded glyph/visible-shadow/combined ink, line heights/row bands and signed physical-pixel clearance with complete cropped evidence and exact frame restoration; execution after landing/window, no numbers invented. Existing named collision gap stays open; no frame growth/button move/font shrink/spacing adjustment.
+
+## 2026-10-18 — ReadyCheck native text; body/button collision remains open
+
+[Named layout gap/source audit](systems/group-frames.md#readycheck-native-difficulty-text--layout-gap-2026-10-18): both skins11 native supplied-context text/rectangle/restoration assertions pass on binary73417437, but lead inspection finds the second line colliding with response-button tops. **Not final layout acceptance.** Retail fixes323×100, intrinsic message240×0/TOP(+20,−37)/MIDDLE and bottom-anchored119×24 buttons; complete Lua/cache search finds no growth or reanchor. Propose source intrinsic body metrics rather than preserving arbitrary28; exact raster fit remains unproven, no layout code changed. Native exit0/Godot errors0/window+slice released;22 originals retained. Authenticated transport/head/audio unqualified; offline Pillow analysis did not run.
 
 ## 2026-10-18 — Invitation dismissal native acceptance
 

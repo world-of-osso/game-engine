@@ -23,7 +23,7 @@ func run_ready_shadow() -> void:
 		var panel := ui.find_child("ReadyCheckFrame", true, false) as Control
 		assert(label != null and panel != null and label.is_visible_in_tree())
 		assert(label.text == "Raidleader has initiated a ready check.")
-		assert(label.size == Vector2(240, 28))
+		assert(label.size.x == 240 and label.size.y > 0)
 		assert(label.get_theme_font_size("font_size") == 12)
 		assert(label.get_theme_color("font_color").is_equal_approx(Color(1, 210.0 / 255.0, 0)))
 		var anchor := label.global_position - panel.global_position

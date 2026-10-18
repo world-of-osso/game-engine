@@ -139,7 +139,11 @@ fn ready_check_message_inherits_roman_color_and_shadow_both_skins() {
         let Some(WidgetData::FontString(text)) = &frame.widget_data else {
             panic!("ReadyCheck message must be text");
         };
-        assert_eq!(frame.height.value(), 28.0);
+        // Body height follows host text metrics; native layout regression covers it.
+        assert_eq!(
+            text.justify_v,
+            ui_toolkit::widgets::font_string::JustifyV::Middle
+        );
         assert_eq!(text.font, GameFont::FrizQuadrata);
         assert_eq!(text.font_size, 12.0);
         // GlobalColor row1 NORMAL_FONT_COLOR = ARGB0xFFFFD200, not white.

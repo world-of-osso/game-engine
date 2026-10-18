@@ -389,6 +389,60 @@ mod tests {
     }
 
     #[test]
+    fn ready_check_intrinsic_body_uses_host_text_height_without_moving_frame_or_buttons() {
+        use game_engine_ui_model::ready_check_frame_component::{
+            ReadyCheckFrameState, ready_check_frame,
+        };
+        use ui_toolkit::{
+            atlas::{ActiveSkin, set_thread_skin},
+            screen::{Screen, SharedContext},
+        };
+        game_engine_ui_model::paths::set_data_root(
+            std::path::PathBuf::from(env!("CARGO_MANIFEST_DIR")).join("../../data"),
+        )
+        .unwrap();
+        for skin in [ActiveSkin::Modern, ActiveSkin::Forever] {
+            set_thread_skin(skin);
+            for (name, host_height) in [(None, 14.0), (Some("10 Player"), 29.0)] {
+                let mut shared = SharedContext::new();
+                shared.insert(ReadyCheckFrameState {
+                    visible: true,
+                    initiator: "Ann".into(),
+                    difficulty_name: name.map(str::to_owned),
+                });
+                let mut registry = FrameRegistry::new(1920.0, 1080.0);
+                Screen::new(|shared| {
+                    ready_check_frame(shared.get::<ReadyCheckFrameState>().unwrap())
+                })
+                .sync(&shared, &mut registry);
+                let body = registry.get_by_name("ReadyCheckFrameText").unwrap();
+                let panel = registry.get_by_name("ReadyCheckFrame").unwrap();
+                // Supplied host measurements test layout behavior, not Retail raster metrics.
+                let sizes = HashMap::from([(body, (240.0, host_height))]);
+                let bounds = compute_layout_with_intrinsics(&registry, &sizes).unwrap();
+                assert_eq!(
+                    (bounds[&body].width, bounds[&body].height),
+                    (240.0, host_height),
+                    "{skin:?}"
+                );
+                assert_eq!(
+                    (bounds[&panel].width, bounds[&panel].height),
+                    (323.0, 100.0)
+                );
+                assert_eq!(bounds[&body].y - bounds[&panel].y, 37.0);
+                assert!(((bounds[&body].x - bounds[&panel].x) - 61.5).abs() <= 0.5);
+                for suffix in ["Yes", "No"] {
+                    let id = registry
+                        .get_by_name(&format!("ReadyCheckFrame{suffix}Button"))
+                        .unwrap();
+                    assert_eq!((bounds[&id].width, bounds[&id].height), (119.0, 24.0));
+                    assert_eq!(bounds[&id].y - bounds[&panel].y, 60.0);
+                }
+            }
+        }
+    }
+
+    #[test]
     fn uifixes_quest_counter_flows_below_measured_wine_ticket_paragraph() {
         use game_engine_ui_model::quest_log_frame_component::{
             QuestLogDetails, QuestLogFrameState, QuestLogObjectiveLine,
