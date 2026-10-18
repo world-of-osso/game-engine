@@ -46,6 +46,8 @@ pub struct View {
     pub selected: Option<u32>,
     pub cart: Vec<u32>,
     pub cart_visible: bool,
+    /// Vendor ID remembered while the cart, rather than a product, owns the preview.
+    pub pre_cart_selected: Option<u32>,
     pub product_hover: Option<u32>,
     pub cart_hover: Option<u32>,
     pub cart_item_hover: Option<u32>,
@@ -142,10 +144,23 @@ impl View {
     }
 
     fn select_product(&mut self, id: u32) {
-        if self.selected != Some(id) {
-            self.selected = Some(id);
+        let changed = self.selected != Some(id);
+        self.set_product_selection(id);
+        if changed {
             self.selection_sounds += 1;
         }
+    }
+
+    fn set_product_selection(&mut self, id: u32) {
+        // Products.lua ProductSelected hides the cart before selection callbacks.
+        self.cart_visible = false;
+        self.pre_cart_selected = None;
+        self.selected = Some(id);
+    }
+
+    fn has_selectable_product(&self, id: u32) -> bool {
+        let frozen = self.snapshot.as_ref().and_then(|data| data.frozen_item_id);
+        frozen == Some(id) || self.rows().iter().any(|row| row.id == id)
     }
 
     pub fn receive(&mut self, snapshot: Arc<TradingPostSnapshot>) {
@@ -155,7 +170,10 @@ impl View {
         self.refund_elapsed = 0;
         self.cancel_confirmation();
         self.cart_confirmation = None;
-        self.reselect();
+        // Currency/authority snapshots do not transfer preview ownership to a product.
+        if !self.cart_visible {
+            self.reselect();
+        }
     }
     pub fn rows(&self) -> Vec<&TradingPostItem> {
         let committed_frozen = self
@@ -252,7 +270,12 @@ impl View {
         }
         let rows = self.rows();
         if !rows.iter().any(|row| Some(row.id) == self.selected) {
-            self.selected = rows.first().map(|row| row.id);
+            let first = rows.first().map(|row| row.id);
+            if let Some(id) = first {
+                self.set_product_selection(id);
+            } else {
+                self.selected = None;
+            }
         }
     }
     pub fn can_purchase(&self) -> bool {
@@ -400,11 +423,7 @@ impl View {
         }
         if let Some(id) = action.strip_prefix("perks:select:") {
             let id = id.parse().map_err(|_| "Invalid Trading Post item")?;
-            let frozen = self
-                .snapshot
-                .as_ref()
-                .and_then(|snapshot| snapshot.frozen_item_id);
-            if self.rows().iter().any(|row| row.id == id) || frozen == Some(id) {
+            if self.has_selectable_product(id) {
                 self.select_product(id);
             }
             return Ok(());

@@ -260,20 +260,7 @@ pub fn track_is_constant<T: PartialEq>(track: &AnimTrack<T>) -> bool {
 /// (WebWowViewerCpp animate.h `animateTrack`, animationManager.cpp global clock).
 /// A zero-length global sequence holds time 0. `None` for a track on the playing
 /// sequence's own timeline. The track's global sequence must exist in `global_sequences`.
-pub fn global_track_time<T>(
-    track: &AnimTrack<T>,
-    global_sequences: &[u32],
-    global_ms: f64,
-) -> Option<(usize, u32)> {
-    let global = usize::try_from(track.global_sequence).ok()?;
-    let duration = f64::from(global_sequences[global]);
-    let time = if duration == 0.0 {
-        0
-    } else {
-        (global_ms % duration) as u32
-    };
-    Some((0, time))
-}
+pub use m2_anim::global_track_time;
 
 /// A model's animation position: the playing sequence and its time, and the global
 /// clock its global-sequence tracks run on.
