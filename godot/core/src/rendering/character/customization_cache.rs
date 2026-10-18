@@ -858,6 +858,8 @@ mod signed_geoset_tests {
         assert_eq!(raw.skinned_models[&497].geoset_id as i64, -1);
         assert_eq!(raw.skinned_models[&614].geoset_id as i64, -1);
         let db = crate::customization_data::CustomizationDb::from_raw(&raw);
+        let repeated = crate::customization_data::CustomizationDb::from_raw(&raw);
+        assert_eq!(db.unresolved_geoset_rows, repeated.unresolved_geoset_rows);
         assert!(
             db.unresolved_geoset_rows
                 .iter()
