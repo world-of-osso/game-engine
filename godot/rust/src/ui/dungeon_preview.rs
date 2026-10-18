@@ -159,6 +159,7 @@ impl RegistryUi {
                 game_engine_ui_model::achievements::OPEN_ACTION
             };
             window.action(action);
+            window.action("achievement:search:bear");
             self.show_achievement_window(window)
         });
         GString::from(result.err().unwrap_or_default().as_str())
