@@ -2,6 +2,14 @@ extends SceneTree
 # Supplied owner state, actual picking and viewport input; no live queue/server claim.
 var receipts: Array[Dictionary] = []
 var completed_cases := 0
+var failed := false
+
+# Random-local until gd-completion-contract migrates this new fixture to the shared helper.
+func require(condition: bool, message: String = "Random Bonus fixture check failed") -> void:
+	if not condition:
+		failed = true
+		push_error(message)
+		quit(1)
 
 func _initialize() -> void:
 	call_deferred("run_bonus")
@@ -31,24 +39,24 @@ func press(point: Vector2, down: bool) -> void:
 
 func activate(ui: Node, name: String, action: String, label: String) -> Dictionary:
 	var button := ui.find_child(name, true, false) as BaseButton
-	assert(button != null and button.is_visible_in_tree())
+	require(button != null and button.is_visible_in_tree())
 	var point := button.get_global_rect().get_center()
-	assert(ui.pvp_ready_pointer_action(point) == action, label + " real top hit")
+	require(ui.pvp_ready_pointer_action(point) == action, label + " real top hit")
 	var motion := InputEventMouseMotion.new()
 	motion.position = point
 	motion.global_position = point
 	root.push_input(motion, true)
 	await settle()
 	print("RANDOM_HOVER ", label, " point=", point, " expected=", button.get_path(), " hovered=", button.is_hovered(), " gui=", root.gui_get_hovered_control())
-	assert(button.is_hovered(), label + " native hover")
+	require(button.is_hovered(), label + " native hover")
 	await press(point, true)
-	assert(button.is_pressed(), label + " native pressed state")
+	require(button.is_pressed(), label + " native pressed state")
 	await press(point, false)
 	var observed := actions(ui)
-	assert(observed == [action], label + " physical release: " + str(observed))
+	require(observed == [action], label + " physical release: " + str(observed))
 	var result: Dictionary = ui.apply_pvp_bonus_preview_action(observed[0])
-	assert(result.error == "", result.error)
-	assert(result.specific_id == 1018, label + " Specific identity preserved")
+	require(result.error == "", result.error)
+	require(result.specific_id == 1018, label + " Specific identity preserved")
 	receipts.append({"label": label, "target": name, "action": action, "point": str(point), "request": result})
 	await settle()
 	return result
@@ -63,34 +71,34 @@ func probe(forever: bool, size: Vector2i) -> void:
 	var ui = ClassDB.instantiate("RegistryUi")
 	root.add_child(ui)
 	var error: String = ui.show_pvp_bonus_preview(forever)
-	assert(error.is_empty(), error)
+	require(error.is_empty(), error)
 	await settle()
 	var label := ("forever" if forever else "modern") + "/" + str(size)
 	var dropdown := ui.find_child("HonorFrameTypeDropdown", true, false) as Control
-	assert(dropdown.get_global_rect() == Rect2(531, 162, 180, 25))
-	assert(ui.find_child("HonorFrameSpecificScrollBox", true, false) != null)
+	require(dropdown.get_global_rect() == Rect2(531, 162, 180, 25))
+	require(ui.find_child("HonorFrameSpecificScrollBox", true, false) != null)
 	await select_mode(ui, true, label)
-	assert(ui.find_child("HonorFrameSpecificScrollBox", true, false) == null)
+	require(ui.find_child("HonorFrameSpecificScrollBox", true, false) == null)
 	var random := ui.find_child("HonorFrameBonusFrameRandomBGButton", true, false) as Control
-	assert(random != null and random.get_global_rect() == Rect2(338, 200, 365, 54))
+	require(random != null and random.get_global_rect() == Rect2(338, 200, 365, 54))
 	var selected := ui.find_child("HonorFrameBonusFrameRandomBGButtonRowSelected", true, false) as Control
-	assert(selected != null and selected.is_visible_in_tree())
+	require(selected != null and selected.is_visible_in_tree())
 	for omitted in ["HonorFrameBonusFrameRandomEpicBGButton", "HonorFrameBonusFrameBrawlButton", "HonorFrameBonusFrameRandomBGButtonReward"]:
-		assert(ui.find_child(omitted, true, false) == null)
+		require(ui.find_child(omitted, true, false) == null)
 	await activate(ui, "HonorFrameBonusFrameRandomBGButton", "pvp:bonus:random", label + " selected Random")
 	await select_mode(ui, false, label + " roundtrip")
-	assert(ui.find_child("HonorFrameSpecificScrollBox", true, false) != null)
-	assert(ui.find_child("HonorFrameBonusFrame", true, false) == null)
+	require(ui.find_child("HonorFrameSpecificScrollBox", true, false) != null)
+	require(ui.find_child("HonorFrameBonusFrame", true, false) == null)
 	await select_mode(ui, true, label + " restore Bonus")
 	var request := await activate(ui, "HonorFrameQueueButton", "pvp:queue", label + " Join")
-	assert(request.queue_id == 32 and request.pending)
+	require(request.queue_id == 32 and request.pending)
 	var join := ui.find_child("HonorFrameQueueButton", true, false) as BaseButton
-	assert(join.is_disabled())
+	require(join.is_disabled())
 	var pending_dropdown := ui.find_child("HonorFrameTypeDropdown", true, false) as BaseButton
-	assert(pending_dropdown.is_disabled())
+	require(pending_dropdown.is_disabled())
 	await press(join.get_global_rect().get_center(), true)
 	await press(join.get_global_rect().get_center(), false)
-	assert(actions(ui).is_empty(), label + " duplicate pending request suppressed")
+	require(actions(ui).is_empty(), label + " duplicate pending request suppressed")
 	ui.free()
 	await settle()
 	completed_cases += 1
@@ -101,15 +109,15 @@ func run_bonus() -> void:
 	for forever in [false, true]:
 		for size in [Vector2i(1280, 720), Vector2i(1920, 1080)]:
 			await probe(forever, size)
-	if receipts.size() != 32 or completed_cases != 4:
+	if failed or receipts.size() != 32 or completed_cases != 4:
 		push_error("Random Bonus fixture incomplete: expected32 physical actions, got" + str(receipts.size()))
 		quit(1)
 		return
 	var path := OS.get_environment("PVP_RANDOM_BONUS_RECEIPT")
-	assert(not path.is_empty())
+	require(not path.is_empty())
 	var output := FileAccess.open(path, FileAccess.WRITE)
-	assert(output != null)
+	require(output != null)
 	output.store_string(JSON.stringify(receipts, "\t"))
 	output.close()
 	print("PASS Random32 Bonus native input cases=", receipts.size(), " both skins/sizes; no UDP claim")
-	quit(0)
+	quit(1 if failed else 0)
