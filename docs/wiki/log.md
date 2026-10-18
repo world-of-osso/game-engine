@@ -1,3 +1,4 @@
+- 2026-10-18: Rename ReadyCheck residual to `READY_CHECK_MULTILINE_BODY_BUTTON_COLLISION_SOURCE_EQUIVALENT`; source geometry itself allocates1.65625px into buttons, actual17px runtime advance passes4/4; no geometry fix, real Retail70448 same-case ink capture remains required. [Audit](systems/group-frames.md#readycheck-source-equivalent-multiline-overlap--2026-10-18).
 - 2026-10-18: Historical raster FontString pair landedrl564; actualbothskin1920 native22/22/strictscans/exactrestoration; two-line glyph−3.875px/shadow+combined−5.875px, collisionstillOPEN; [limits/proof](systems/ui-system.md#historical-raster-fontstring-allocation--2026-10-18).
 ## 2026-10-18 — Read-only Godot FontString height provenance
 
@@ -24,7 +25,7 @@
 [Contract/policy](systems/guilds.md#show-offline-roster-preference): missing authoritative Retail CVar default blocked implementation until explicit project COMMUNITIES_SHOW_OFFLINE_DEFAULT_ON=true. Classic2.5.6 issue883 is indirect only. Public load/save and missing-control RED precede persisted checkbox/filter wiring; existing sort/rank targets and unknown-presence exclusion conserved. Native acceptance separate.
 ## 2026-10-18 — ReadyCheck explicit zero line spacing
 
-[Source spacing](systems/group-frames.md#readycheck-explicit-source-line-spacing--2026-10-18): UI.xsd762–769 default0/no font-chain override replaces native theme inheritance for ReadyCheck only, measured and drawn through the same Label path. Optional toolkit input leaves unspecified frames unchanged. Missing-attribute RED→core3/Godot8/UI8 GREEN/check27.56s/no warnings/Cargo fmt. Source panel/body scan union retains strict boundary validation. `FONT_LINE_HEIGHT_PARITY` (two15 UI lines vs23 available) and `READY_CHECK_MULTILINE_BODY_BUTTON_COLLISION` stay open; no invented font/spacing/anchor change. Native proof after landing/window, no new rendered verdict claimed.
+[Source spacing](systems/group-frames.md#readycheck-explicit-source-line-spacing--2026-10-18): UI.xsd762–769 default0/no font-chain override replaces native theme inheritance for ReadyCheck only, measured and drawn through the same Label path. Optional toolkit input leaves unspecified frames unchanged. Missing-attribute RED→core3/Godot8/UI8 GREEN/check27.56s/no warnings/Cargo fmt. Source panel/body scan union retains strict boundary validation. `FONT_LINE_HEIGHT_PARITY` (two15 UI lines vs23 available) and `READY_CHECK_MULTILINE_BODY_BUTTON_COLLISION_SOURCE_EQUIVALENT` stay open; no invented font/spacing/anchor change. Native proof after landing/window, no new rendered verdict claimed.
 
 ## 2026-10-18 — ReadyCheck source intrinsic body height
 
