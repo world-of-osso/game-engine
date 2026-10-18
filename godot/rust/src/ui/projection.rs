@@ -990,6 +990,9 @@ impl UiProjection {
             shadow: data.shadow_color.map(|color| (color, data.shadow_offset)),
         };
         self.style_label(&mut node, &text)?;
+        if let Some(spacing) = data.line_spacing {
+            node.add_theme_constant_override("line_spacing", spacing);
+        }
         // A fixed FontString whose height holds no second line stays on one line and cuts
         // the rest with an ellipsis, as WoW does: Retail's 32×10 action button `HotKey`
         // (`ActionButtonTemplate.xml:85-91`) draws "Middle Mouse" on one truncated line

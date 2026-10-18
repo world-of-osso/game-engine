@@ -2,7 +2,6 @@ extends SceneTree
 # Supplied account context through production name selection and native HUD projection.
 # Not authenticated transport, actual roster-head rendering, or sound acceptance.
 const HUD_SCALE := 1080.0 / 768.0
-const INK_OVERSCAN_PX := 4
 
 func _initialize() -> void:
 	call_deferred("run_difficulty")
@@ -49,6 +48,7 @@ func scan_ink_bounds(text_image: Image, blank: Image, region: Rect2i) -> Diction
 	if band_start >= 0:
 		bands.append([band_start, region.end.y])
 	assert(count > 0, "Text measurement must observe actual raster pixels")
+	print("READY_INK_SCAN region=", region, " bounds=", [left, top, right, bottom], " pixels=", count, " row_bands=", bands)
 	assert(left > region.position.x and top > region.position.y and right < region.end.x and bottom < region.end.y, "Ink must not touch the scan boundary; clipped metrics are invalid")
 	return {"bounds": [left, top, right, bottom], "bottom_exclusive": bottom, "pixels": count, "row_bands": bands}
 
@@ -58,9 +58,17 @@ func capture_clearance(fixture: Node, message: Label, reference: Image, output: 
 	assert(yes != null and no != null and yes.visible and no.visible)
 	var button_top := minf(yes.global_position.y, no.global_position.y)
 	var line_heights: Array = []
+	var measured_text_height := 0
 	for line in range(message.get_line_count()):
-		line_heights.append(message.get_line_height(line))
-	var region := Rect2i(message.get_global_rect().grow(INK_OVERSCAN_PX)).intersection(Rect2i(Vector2i.ZERO, reference.get_size()))
+		var line_height := message.get_line_height(line)
+		line_heights.append(line_height)
+		measured_text_height += line_height
+	assert(message.get_theme_constant("line_spacing") == 0, "Retail source spacing is zero")
+	assert(is_equal_approx(message.size.y, float(measured_text_height)), "Measured intrinsic height and rendered zero-spacing line heights agree")
+	var panel := fixture.find_child("ReadyCheckFrame", true, false) as Control
+	assert(panel != null)
+	# Scan the source panel/body union, not an assumed label-to-shadow margin.
+	var region := Rect2i(panel.get_global_rect().merge(message.get_global_rect())).intersection(Rect2i(Vector2i.ZERO, reference.get_size()))
 	# Isolate complete text, including pixels otherwise occluded by the response buttons.
 	yes.hide()
 	no.hide()
@@ -79,14 +87,16 @@ func capture_clearance(fixture: Node, message: Label, reference: Image, output: 
 	no.show()
 	await settle()
 	assert(root.get_texture().get_image().get_data() == reference.get_data(), "Raster isolation must restore exact source frame")
+	# Persist isolation frames before validation so a failed scan stays diagnosable.
+	assert(shadowed.get_region(region).save_png(output.path_join(stem + "-unoccluded.png")) == OK)
+	assert(glyphs.get_region(region).save_png(output.path_join(stem + "-glyphs.png")) == OK)
+	assert(blank.get_region(region).save_png(output.path_join(stem + "-blank.png")) == OK)
+	print("READY_INTRINSIC_CONTEXT ", stem, " body=", message.get_global_rect(), " lines=", line_heights, " line_spacing=", message.get_theme_constant("line_spacing"), " button_top=", button_top)
 	var glyph := scan_ink_bounds(glyphs, blank, region)
 	var shadow := scan_ink_bounds(shadowed, glyphs, region)
 	var combined := scan_ink_bounds(shadowed, blank, region)
 	for ink in [glyph, shadow, combined]:
 		ink["clearance_to_button_top_px"] = button_top - ink.bottom_exclusive
-	assert(shadowed.get_region(region).save_png(output.path_join(stem + "-unoccluded.png")) == OK)
-	assert(glyphs.get_region(region).save_png(output.path_join(stem + "-glyphs.png")) == OK)
-	assert(blank.get_region(region).save_png(output.path_join(stem + "-blank.png")) == OK)
 	return {"scan_region_px": [region.position.x, region.position.y, region.size.x, region.size.y], "button_top_px": button_top, "line_count": message.get_line_count(), "line_heights_ui": line_heights, "line_spacing_ui": message.get_theme_constant("line_spacing"), "hud_scale": HUD_SCALE, "glyph": glyph, "shadow": shadow, "combined": combined, "layout_gap": "READY_CHECK_MULTILINE_BODY_BUTTON_COLLISION" if combined.clearance_to_button_top_px <= 0 else ""}
 
 func run_difficulty() -> void:
