@@ -14,8 +14,10 @@ fn screen(_: &SharedContext) -> Element {
         r#frame { name:"OrderHigh",width:40.0,height:40.0,left:70.0,top:10.0,pos_type:"absolute",strata:"HIGH",frame_level:0.0,mouse_enabled:true }
         r#frame { name:"OrderRaised",width:40.0,height:40.0,left:130.0,top:10.0,pos_type:"absolute",strata:"DIALOG",frame_level:20.0,mouse_enabled:true }
         r#frame { name:"OrderUnraised",width:40.0,height:40.0,left:130.0,top:10.0,pos_type:"absolute",strata:"DIALOG",frame_level:20.0,mouse_enabled:true }
-        r#frame { name:"OrderEarlier",width:40.0,height:40.0,left:190.0,top:10.0,pos_type:"absolute",strata:"DIALOG",frame_level:20.0,mouse_enabled:true }
-        r#frame { name:"OrderLater",width:40.0,height:40.0,left:190.0,top:10.0,pos_type:"absolute",strata:"DIALOG",frame_level:20.0,mouse_enabled:true }
+        r#frame { name:"OrderIdParent",width:40.0,height:40.0,left:190.0,top:10.0,pos_type:"absolute",strata:"DIALOG",frame_level:19.0,
+            r#frame { name:"OrderEarlier",width:40.0,height:40.0,left:0.0,top:0.0,pos_type:"absolute",frame_level:20.0,mouse_enabled:true }
+            r#frame { name:"OrderLater",width:40.0,height:40.0,left:0.0,top:0.0,pos_type:"absolute",frame_level:20.0,mouse_enabled:true }
+        }
     }
 }
 
@@ -40,6 +42,28 @@ impl RegistryUi {
                 .expect("mounted projection")
                 .sync(&mut model.registry)
         });
+        GString::from(result.err().unwrap_or_default().as_str())
+    }
+
+    #[func]
+    fn projection_order_preview_reverse_siblings(&mut self) -> GString {
+        let model = self.model.as_mut().expect("mounted order fixture");
+        let parent = model
+            .registry
+            .get_by_name("OrderIdParent")
+            .expect("id parent");
+        model
+            .registry
+            .get_mut(parent)
+            .expect("id parent")
+            .children
+            .reverse();
+        model.registry.child_order_dirty.insert(parent);
+        let result = self
+            .projection
+            .as_mut()
+            .expect("mounted projection")
+            .sync(&mut model.registry);
         GString::from(result.err().unwrap_or_default().as_str())
     }
 
