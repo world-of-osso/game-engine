@@ -81,10 +81,22 @@ pub enum AntiAliasMode {
     Taa,
 }
 
+/// Project policy; the Retail communitiesShowOffline CVar default is unverified.
+pub const COMMUNITIES_SHOW_OFFLINE_DEFAULT_ON: bool = true;
+
+fn default_communities_show_offline() -> bool {
+    COMMUNITIES_SHOW_OFFLINE_DEFAULT_ON
+}
+
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct ClientOptionsFile {
     #[serde(default)]
     pub accepted_eula: bool,
+    #[serde(
+        default = "default_communities_show_offline",
+        rename = "communitiesShowOffline"
+    )]
+    pub communities_show_offline: bool,
     #[serde(default = "default_realm_preset", rename = "preferredRealm")]
     pub preferred_realm: RealmPreset,
     #[serde(default)]
@@ -108,6 +120,7 @@ impl Default for ClientOptionsFile {
     fn default() -> Self {
         Self {
             accepted_eula: false,
+            communities_show_offline: COMMUNITIES_SHOW_OFFLINE_DEFAULT_ON,
             preferred_realm: default_realm_preset(),
             sound: SoundOptionsFile::default(),
             camera: CameraOptionsFile::default(),
