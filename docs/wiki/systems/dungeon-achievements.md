@@ -60,6 +60,12 @@ All twelve captures report nominal10/font metric13/minimum36×13 and retained107
 
 PNGs: `/syncthing/AgentShared/2026-10-18/achievements/search-font-size/{modern,forever}-{normal,comparison}-{search,clear,completed}.png` (all twelve combinations). Diagnostics `/home/osso/.worktrees/logs/achievements-criteria-2026-10-12/native-font/` retains `final-native-proof.json`, exact artifacts/runtime receipts, logs and per-stage native bounds/metadata/owned-IPC trees. Recorded Godot PIDs953228/957605 and all owned recorded PIDs are gone; private5898 free, own slice stop0/windowclear0. Earlier accepted height/criteria evidence remains untouched; no seeded progress or historical broad-gate replay.
 
+### Search text color — 2026-10-18
+
+AchievementUI.xml1709 inherits SearchBoxTemplate→InputBoxTemplates.xml206/202 GameFontHighlightSmall→FontStyles.xml92–94 WHITE_FONT_COLOR. Search previously omitted font_color and inherited EditBoxData's yellow[1,0.8,0.2,1]. Projection.rs935–938 applies that data to both font_color and caret_color: the one-widget explicit WHITE attribute also makes the caret white, an explicitly accepted coupling, not Retail caret parity. No global defaults/projection changes or caret width/blink/font/art/geometry/actions changes; shadow/empty instruction hint remain separate gaps.
+
+Tests-only44aeda344's maintained actual-native RegistryUi fixture logs both numeric colors before asserting. Genuine four-mode RED gives font/caret[1,0.8000000119,0.2000000030,1] vs white[1,1,1,1], while font10/metric13/FRIZQT__.TTF bytes/107×30/source insets/x/y/filter/gap pass. RED uses retained landed e2ec artifact: only the later unrelated FontString line-spacing delta exists at source base3edf12687, not an EditBox change. No retrospective numeric-color claim was made for prior native receipts. GREEN/check/postlanding physical proof pending; evidence `search-text-color-*` in the existing achievement diagnostic ledger.
+
 ## State and rendering
 
 `godot/network/src/lib.rs` subscribes to DungeonProgress on InstanceChannel and catalog/live state on AchievementChannel. `account.rs` dispatches decoded messages into `DungeonObjectives` and `AchievementWindow`, and queues page continuations. The frame tick sends requests through NetworkBridge on AchievementChannel.
