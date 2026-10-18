@@ -39,6 +39,8 @@ game-engine-ui-model = { path = "../ui-model" }
 ui-toolkit = { package = "ui-toolkit-core", path = "../../../ui-toolkit/core" }
 # Preserve the authored registry layout semantics and local rounding fix.
 taffy = "0.10.1"
+# Read unrounded hhea ascender/descent for the raster FontString baseline (already locked).
+skrifa = "0.44.0"
 # Decode the existing authored KTX2 UI assets without converting their source files.
 ktx2-rw = "0.2.4"
 # Own-PID IPC listener and response delivery; Godot objects stay on the main thread.
