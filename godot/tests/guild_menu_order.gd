@@ -2,6 +2,7 @@ extends "res://tests/guild_control_fidelity.gd"
 
 # Actual projected CanvasItem order, not a declaration/enum assertion.
 func capture() -> bool:
+	root.size = Vector2i(1920, 1080)
 	for forever in [false, true]:
 		var ui: Node = ClassDB.instantiate("RegistryUi")
 		root.add_child(ui)
@@ -44,6 +45,12 @@ func capture() -> bool:
 			return false
 		ui.free()
 	print("PASS GUILD_MENU_ORDER both_skins=true guild_rank_above_notes=true navigation_control=true")
+	return true
+
+# Headless order checks need projected controls, not a rendered-frame signal.
+func settle() -> bool:
+	for frame in range(4):
+		await process_frame
 	return true
 
 func menu_draws_above(ui: Node, background: String, covered_names: Array) -> bool:
