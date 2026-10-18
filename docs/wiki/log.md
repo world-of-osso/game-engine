@@ -1,3 +1,7 @@
+## 2026-10-18 — Random32 native actions accepted
+
+[Bounded queue/lifecycle proof](systems/battlegrounds.md#random32-native-queue-lifecycle--2026-10-18): both skins record real queue32 before supports, normal dequeue/requeue, server-selected invitation, physical decline/requeue/accept and20 normal returns. Modern instrumented product attempt3 passes after two preserved higher-pressure timeout failures; separate early collector-budget abort publishes no support queue/accept. Exact frozen hashes, PNG qualification,14.75s logged interval versus earlier38s, post-cleanup-only PSI and cleanup are in the linked proof ledger. Stall attribution remains separately owned. Read-only TC a352 parent566 lookup also rejects10–19 with local rows; named authored-bound divergence recorded, no admission fix; availability projection deferred, rewards parked.
+
 ## 2026-10-18 — Direct member-rank assignment
 
 [Source contract](systems/guilds.md#direct-member-rank-assignment): XML/Lua1-based versus wire0-based, source25px dropdown/20px RankLabel and10px following-row shift qualified before UI3/3missing-control/protocol unknown-variant RED. One captured authenticated target-rank request, current-value no-write and pending authority; direct TC no-step-log path retained, leadership/authenticator/rank-configuration exclusions explicit. Backend fixture import failure is not a behavioral RED; remaining authority/transport/gates/native unclaimed.
