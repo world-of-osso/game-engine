@@ -1115,10 +1115,36 @@ fn guild_show_offline_filters_only_expanded_roster_and_preserves_authority_both_
         let all = mounted(&session);
         assert_eq!(text(&all, "GuildMember0Name"), "Offline");
         assert_eq!(text(&all, "GuildMember2Name"), "Unknown");
+        let checkbox = all
+            .get(
+                all.get_by_name("CommunitiesMemberListShowOfflineButton")
+                    .unwrap(),
+            )
+            .unwrap();
+        assert_eq!(
+            (checkbox.width.value(), checkbox.height.value()),
+            (32.0, 32.0)
+        );
+        assert_eq!(
+            (checkbox.position.left, checkbox.position.top),
+            (
+                ui_toolkit::layout_values::Val::Px(196.0),
+                ui_toolkit::layout_values::Val::Px(25.0)
+            )
+        );
+        assert!(
+            all.get_by_name("CommunitiesMemberListShowOfflineButtonCheck")
+                .is_some()
+        );
         let toggle = action(&all, "CommunitiesMemberListShowOfflineButton");
         assert_eq!(toggle, "guild:show_offline");
         session.click(&toggle, &Default::default());
         let online = mounted(&session);
+        assert!(
+            online
+                .get_by_name("CommunitiesMemberListShowOfflineButtonCheck")
+                .is_none()
+        );
         assert_eq!(text(&online, "GuildMember0Name"), "Online");
         assert!(online.get_by_name("GuildMember1Name").is_none());
         assert_eq!(
@@ -1138,6 +1164,80 @@ fn guild_show_offline_filters_only_expanded_roster_and_preserves_authority_both_
                 .is_none()
         );
     }
+}
+
+#[test]
+fn guild_show_offline_keeps_filtered_sort_targets_and_clamps_real_overflow() {
+    let _lock = SKIN.lock().unwrap_or_else(|p| p.into_inner());
+    let mut session = GuildRanksSession::default();
+    session.open();
+    let mut ranks = state(0);
+    ranks.members = (0..40)
+        .map(|i| GuildRankMember {
+            character_name: format!("Member{i:02}"),
+            rank: 2,
+        })
+        .collect();
+    session.profile = Some(GuildSnapshot {
+        guild_id: 7,
+        guild_name: "Raid Team".into(),
+        created_at: None,
+        tabard: None,
+        motd: String::new(),
+        info_text: String::new(),
+        members: ranks
+            .members
+            .iter()
+            .enumerate()
+            .map(|(i, member)| GuildMemberSnapshot {
+                character_name: member.character_name.clone(),
+                level: 80,
+                class_name: "Paladin".into(),
+                rank_name: "Member".into(),
+                is_online: i < 20,
+                officer_note: String::new(),
+                public_note: String::new(),
+                is_self: false,
+                last_online: String::new(),
+            })
+            .collect(),
+    });
+    session.apply(ranks.clone());
+    let mut registry = mounted(&session);
+    registry
+        .scroll_lists
+        .scroll_to("CommunitiesMemberListScrollBox", 10000);
+    let mut shared = SharedContext::new();
+    shared.insert(session.clone());
+    let mut screen = Screen::new(guild_screen);
+    screen.sync(&shared, &mut registry);
+    assert_eq!(
+        registry
+            .scroll_lists
+            .get("CommunitiesMemberListScrollBox")
+            .unwrap()
+            .first_row,
+        485
+    );
+    session.click("guild:show_offline", &Default::default());
+    session.roster_sort = Some(game_engine_ui_model::guild_ranks::GuildRosterSort::Name);
+    session.roster_sort_descending = true;
+    shared.insert(session.clone());
+    screen.sync(&shared, &mut registry);
+    assert_eq!(
+        registry
+            .scroll_lists
+            .get("CommunitiesMemberListScrollBox")
+            .unwrap()
+            .first_row,
+        85
+    );
+    assert_eq!(text(&registry, "GuildMember0Name"), "Member19");
+    assert_eq!(text(&registry, "GuildMember19Name"), "Member00");
+    let target_action = action(&registry, "GuildMember19");
+    session.click(&target_action, &Default::default());
+    assert_eq!(session.member_detail.as_deref(), Some("Member00"));
+    assert_eq!(session.state(), Some(&ranks));
 }
 
 #[test]

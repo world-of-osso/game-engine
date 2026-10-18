@@ -170,6 +170,7 @@ fn roster(session: &GuildRanksSession, shared: &SharedContext) -> Element {
         .collect();
     let config = scroll_list_attr(&geometry);
     let mut out = columns();
+    out.extend(show_offline_checkbox(!session.roster_online_only));
     out.extend(rsx! { r#frame { name: {DynName(SCROLL_BOX.into())}, width: {LIST.2}, height: {LIST.3}, left: {LIST.0}, top: {LIST.1}, pos_type: "absolute", mouse_enabled: true, scroll_list: config,
         r#frame { name: "CommunitiesMemberListScrollChild", width: {LIST.2}, height: {members.len() as f32 * ROW_HEIGHT}, left: 0.0, top: {-(offset as f32)}, pos_type: "absolute", {rows} }
     } });
@@ -188,17 +189,52 @@ fn roster(session: &GuildRanksSession, shared: &SharedContext) -> Element {
     out
 }
 
+/// CommunitiesMemberList.xml282 + CheckButtonTemplates.xml50:32px, label RIGHT−2.
+fn show_offline_checkbox(checked: bool) -> Element {
+    let name = "CommunitiesMemberListShowOfflineButton";
+    let mut art = vec![];
+    if checked {
+        art.extend(rsx! { texture { name: "CommunitiesMemberListShowOfflineButtonCheck",
+            texture_fdid: 130751, width: 32.0, height: 32.0, left: 0.0, top: 0.0, pos_type: "absolute" } });
+    }
+    let (width, height) = ui_toolkit::text_measure::measure_text(
+        "Show Offline Members",
+        ui_toolkit::widgets::font_string::GameFont::FrizQuadrata,
+        10.0,
+    )
+    .expect("UICheckButtonTemplate GameFontNormalSmall");
+    art.extend(label(
+        format!("{name}Text"),
+        "Show Offline Members",
+        (30.0, (32.0 - height) / 2.0, width, height),
+        (10.0, "1,0.82,0,1", "LEFT"),
+    ));
+    // Lua RefreshLayout: MemberList is60px below CommunitiesList's23px top.
+    // XML puts the checkbox bottom26px above that top (y-up).
+    let top = LIST.1 - 26.0 - 32.0;
+    rsx! { button { name: {DynName(name.into())}, width: 32.0, height: 32.0,
+    left: {LIST.0}, top, pos_type: "absolute", button_default_skin: false,
+    onclick: "guild:show_offline", button_fdid_up: 130755_u32,
+    button_fdid_pressed: 130752_u32, button_fdid_highlight: 130753_u32, {art} } }
+}
+
 fn sorted_members(session: &GuildRanksSession) -> Vec<&GuildRankMember> {
-    let mut members: Vec<_> = session
-        .state()
-        .into_iter()
-        .flat_map(|s| &s.members)
-        .collect();
     let profiles: HashMap<_, _> = session
         .profile
         .iter()
         .flat_map(|profile| &profile.members)
         .map(|member| (member.character_name.as_str(), member))
+        .collect();
+    let mut members: Vec<_> = session
+        .state()
+        .into_iter()
+        .flat_map(|state| &state.members)
+        .filter(|member| {
+            !session.roster_online_only
+                || profiles
+                    .get(member.character_name.as_str())
+                    .is_some_and(|profile| profile.is_online)
+        })
         .collect();
     match session.roster_sort {
         Some(GuildRosterSort::Name) => {
