@@ -5,6 +5,10 @@
 //! root client's `scenes/group_frames` does. Accept on the popup sends
 //! `RespondGroupInvite { accept: true }`; Decline and the 60 s timeout decline.
 
+#[cfg(debug_assertions)]
+#[path = "party_frames_ready_sound_fixture.rs"]
+mod ready_sound_fixture;
+
 use std::time::Duration;
 
 use game_engine_session::SessionScreen;
