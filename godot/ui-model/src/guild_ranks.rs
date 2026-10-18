@@ -57,6 +57,7 @@ pub struct GuildRanksSession {
     pub rank_menu_open: bool,
     pub member_menu: Option<String>,
     pub member_detail: Option<String>,
+    pub member_rank_menu_open: bool,
     pub removal_target: Option<String>,
     /// StaticPopup data captures the target identity independently of roster selection.
     pub note_editor: Option<(String, bool)>,
@@ -125,6 +126,7 @@ impl GuildRanksSession {
         self.profile_editor = None;
         self.member_menu = None;
         self.member_detail = None;
+        self.member_rank_menu_open = false;
         self.note_editor = None;
         self.removal_target = None;
         self.log_open = false;
@@ -134,6 +136,10 @@ impl GuildRanksSession {
     }
 
     pub fn dismiss_subdialog(&mut self) -> bool {
+        if self.member_rank_menu_open {
+            self.member_rank_menu_open = false;
+            return true;
+        }
         if self.removal_target.take().is_some() {
             return true;
         }
@@ -411,8 +417,21 @@ impl GuildRanksSession {
                 self.removal_target = None;
                 None
             }
+            "guild:detail_rank_menu" => {
+                let eligible = self
+                    .member_detail
+                    .as_deref()
+                    .is_some_and(|name| self.member_rank_range(name).is_some());
+                let waiting = self.awaiting_state || self.profile_waiting;
+                if eligible && !waiting {
+                    self.member_rank_menu_open = !self.member_rank_menu_open;
+                    self.member_menu = None;
+                }
+                None
+            }
             "guild:detail_close" => {
                 self.member_detail = None;
+                self.member_rank_menu_open = false;
                 self.note_editor = None;
                 None
             }
@@ -508,12 +527,21 @@ impl GuildRanksSession {
         action: &str,
         texts: &crate::bank::InputTexts,
     ) -> Option<GuildRankRequest> {
+        if let Some(value) = action.strip_prefix("guild:detail_rank:") {
+            let (name, rank) = value.rsplit_once(':')?;
+            let rank = rank.parse().ok()?;
+            let request = self.build_member_rank_assignment(name, rank);
+            self.member_rank_menu_open = false;
+            return request;
+        }
         if let Some(name) = action.strip_prefix("guild:member:") {
+            self.member_rank_menu_open = false;
             self.member_detail = Some(name.to_owned());
             self.member_menu = None;
             return None;
         }
         if let Some(name) = action.strip_prefix("guild:member-menu:") {
+            self.member_rank_menu_open = false;
             self.member_menu = Some(name.to_owned());
             self.member_detail = None;
             return None;

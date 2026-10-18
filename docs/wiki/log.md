@@ -1,3 +1,7 @@
+## 2026-10-18 — Direct member-rank assignment
+
+[Source contract](systems/guilds.md#direct-member-rank-assignment): XML/Lua1-based versus wire0-based, source25px dropdown/20px RankLabel and10px following-row shift qualified before UI3/3missing-control/protocol unknown-variant RED. One captured authenticated target-rank request, current-value no-write and pending authority; direct TC no-step-log path retained, leadership/authenticator/rank-configuration exclusions explicit. Backend fixture import failure is not a behavioral RED; remaining authority/transport/gates/native unclaimed.
+
 ## 2026-10-18 — ReadyCheck spacing native measurement; layout gaps remain
 
 [Accepted measurement](systems/group-frames.md#readycheck-explicit-source-line-spacing--2026-10-18): landed engine5d055/toolkitdbbf, binary4c7b6c05, both skins11 phases verify source spacing0/body15 or30 UI/frame+button conservation/exact restoration. Ordinary glyph/shadow gaps+10.125/+9.125 physical px; two-line glyph−10.875/shadow−12.875 px at button top568.125. Full-panel scan retains strict no-touch validation. Glyph overlap improves4px from−14.875, not resolved. Both named collision and FONT_LINE_HEIGHT_PARITY gaps stay open; font metrics untouched pending Retail packet. Exit0/Godot errors0/window+slice released;22 originals+66 isolation crops retained, four1280 views inspected. Measurement acceptance is not layout, authenticated transport/head/audio or globally clean toolkit-workspace proof.
