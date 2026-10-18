@@ -21,7 +21,7 @@ Clean-room extraction from engine revision `55e1f8687`: no decompiled or leaked 
 
 Original format modules contained **259 tests**: **225 synthetic parser tests** move to the new repository; **34 authored-asset fixtures** remain in engine integration tests. Other existing core integration fixtures stay in place. A before/after name multiset tracks conservation independently of test-module paths. No assets are copied or published.
 
-Baseline helper `--test -p game-engine-core --no-fail-fast` at `55e1f8687`: **1063 passed, 1 failed, 4 ignored**. The existing BLP palette fixture cannot find `data/textures/180071.blp`; extraction does not alter that unrelated failure. Standalone full-feature tests pass225 and geometry-only tests pass149; every individual M2 optional feature compiles.
+Baseline helper `--test -p game-engine-core --no-fail-fast` at `55e1f8687`: **1063 passed, 1 failed, 4 ignored**. The existing BLP palette fixture cannot find `data/textures/180071.blp`; extraction does not alter that unrelated failure. Standalone full-feature tests pass225 and geometry-only tests pass149; every individual M2 optional feature compiles. After extraction, core passes838 with the same1 failure/4 ignored; adding the225 moved tests exactly reproduces baseline1063/1/4, including an identical1068-name multiset. Godot consumers/adapters pass242 tests in two disjoint filter sets (one additional pre-existing ignored test). See the [proof ledger and exact gate filters](../../handoffs/wow-formats-extraction.md).
 
 Phase 2 (game-server reader replacement and byte-identical LOS/nav bake) requires separate lead approval and has not started.
 
