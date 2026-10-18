@@ -8,6 +8,131 @@ use ui_toolkit::{
     screen::{Screen, SharedContext},
 };
 
+#[test]
+fn trading_post_selection_sound_explicit_changes_once_and_preserves_authority() {
+    let mut view = keyboard_view();
+    let original = view.snapshot.clone();
+    assert_eq!(view.take_selection_sounds(), 0);
+    for action in [
+        "perks:select:10",
+        "perks:select:10",
+        "perks:select:999",
+        "perks:select:4",
+        "perks:select:4",
+    ] {
+        assert_eq!(view.click(action).unwrap(), None);
+    }
+    assert_eq!(view.selected, Some(4));
+    assert_eq!(view.take_selection_sounds(), 2);
+    assert_eq!(
+        view.take_selection_sounds(),
+        0,
+        "a consumed callback never replays"
+    );
+    assert_eq!(view.snapshot, original);
+    assert!(view.cart.is_empty());
+}
+
+#[test]
+fn trading_post_selection_sound_keyboard_changes_but_not_endpoints_or_other_owners() {
+    let mut view = keyboard_view();
+    for expected in [1, 1, 1, 1, 0] {
+        view.click("perks:select-next").unwrap();
+        assert_eq!(view.take_selection_sounds(), expected);
+    }
+    view.click("perks:select-previous").unwrap();
+    assert_eq!(view.take_selection_sounds(), 1);
+    view.selected = Some(4);
+    view.click("perks:select-next").unwrap();
+    assert_eq!(view.take_selection_sounds(), 0);
+    view.selected = Some(11);
+    view.click("perks:cart:add").unwrap();
+    view.click("perks:cart:show").unwrap();
+    view.click("perks:select-next").unwrap();
+    assert_eq!(view.take_selection_sounds(), 0);
+    view.click("perks:cart:close").unwrap();
+    assert_eq!(view.take_selection_sounds(), 1);
+    view.click("perks:purchase").unwrap();
+    view.click("perks:select-next").unwrap();
+    view.click("perks:cancel").unwrap();
+    assert_eq!(view.take_selection_sounds(), 0);
+}
+
+#[test]
+fn trading_post_selection_sound_provider_reselection_and_initialization_stay_silent() {
+    let mut view = keyboard_view();
+    view.selected = None;
+    view.receive(view.snapshot.clone().unwrap());
+    assert!(view.selected.is_some());
+    view.click("perks:type:1").unwrap();
+    assert_eq!(
+        view.selected,
+        Some(12),
+        "filter rebuild actually changes selection"
+    );
+    view.click("perks:filters:reset").unwrap();
+    view.click("perks:sort:price").unwrap();
+    view.receive(view.snapshot.clone().unwrap());
+    view.visible = false;
+    view.clear_cart();
+    view.visible = true;
+    view.reselect();
+    assert_eq!(view.take_selection_sounds(), 0);
+}
+
+#[test]
+fn trading_post_selection_sound_cart_return_uses_visibility_not_retained_id() {
+    let mut view = keyboard_view();
+    for closing in [
+        "perks:cart:close",
+        "perks:cart:remove:11",
+        "perks:cart:clear",
+    ] {
+        view.click("perks:cart:add").unwrap();
+        view.click("perks:cart:show").unwrap();
+        assert_eq!(
+            view.selected,
+            Some(11),
+            "cart-open clearing remains a named gap"
+        );
+        assert_eq!(view.take_selection_sounds(), 0);
+        view.click(closing).unwrap();
+        if closing == "perks:cart:clear" {
+            view.click("perks:confirm").unwrap();
+        }
+        assert!(!view.cart_visible);
+        assert_eq!(view.selected, Some(11));
+        assert_eq!(view.take_selection_sounds(), 1, "{closing}");
+        view.click("perks:cart:close").unwrap();
+        assert_eq!(view.take_selection_sounds(), 0);
+        view.clear_cart();
+    }
+}
+
+#[test]
+fn trading_post_selection_sound_existing_drop_selection_keeps_release_timing() {
+    let mut view = keyboard_view();
+    let original = view.snapshot.clone();
+    assert_eq!(view.selected, Some(11));
+    assert_eq!(
+        view.take_selection_sounds(),
+        0,
+        "no new threshold selection path"
+    );
+    assert_eq!(view.drop_item(10, false, true), None);
+    assert_eq!(view.selected, Some(10));
+    assert_eq!(view.confirm.as_deref(), Some("freeze"));
+    assert_eq!(view.take_selection_sounds(), 1);
+    view.click("perks:cancel").unwrap();
+    view.drop_item(10, false, true);
+    assert_eq!(
+        view.take_selection_sounds(),
+        0,
+        "same candidate/cancel is not selection"
+    );
+    assert_eq!(view.snapshot, original);
+}
+
 fn keyboard_view() -> View {
     let mut data = snapshot();
     let template = data.items[0].clone();

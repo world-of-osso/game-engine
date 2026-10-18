@@ -4910,6 +4910,8 @@ sounds/ui/4908457.ogg
 sounds/ui/4908459.ogg
 # Hover kit218934:70391 SoundKit metadata, authenticated installed70448 bytes.
 sounds/ui/4906953.ogg
+# Selection kit218230:active70448 metadata and authenticated installed Ogg.
+sounds/ui/4906955.ogg
 # Trading Post menu kits218932/218933, exact local70391 SoundKitEntry variants.
 sounds/ui/4956048.ogg
 sounds/ui/4956050.ogg
