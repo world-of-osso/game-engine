@@ -32,7 +32,7 @@ func run_fixture() -> void:
 		fail("Private compositor must expose 1920x1080 output")
 		return
 	var account := OS.get_environment("TP_ACCOUNT")
-	if server != "127.0.0.1:5791" or not account.begins_with("fb_") or shots.is_empty() or receipts.is_empty() or not phase in ["purchase-price-sort", "frozen-row-exclusion", "freeze-lock-sound", "product-hover-sound", "refund-icon-blend", "refund-icon-tooltip", "row-cart-toggle", "frozen-tooltip", "cart-tooltips", "pending-dialogs", "confirmations", "button-tooltips", "item-tooltips", "menu-sounds", "layout", "layout-proof", "browse", "relog", "purchase", "refund", "cart", "cart-lifetime", "rotate-controls", "mount-rider", "mount-rider-cancel", "freeze-workflow", "authored-camera", "frozen-slot-before", "frozen-slot-after"]:
+	if server != "127.0.0.1:5791" or not account.begins_with("fb_") or shots.is_empty() or receipts.is_empty() or not phase in ["keyboard-navigation", "purchase-price-sort", "frozen-row-exclusion", "freeze-lock-sound", "product-hover-sound", "refund-icon-blend", "refund-icon-tooltip", "row-cart-toggle", "frozen-tooltip", "cart-tooltips", "pending-dialogs", "confirmations", "button-tooltips", "item-tooltips", "menu-sounds", "layout", "layout-proof", "browse", "relog", "purchase", "refund", "cart", "cart-lifetime", "rotate-controls", "mount-rider", "mount-rider-cancel", "freeze-workflow", "authored-camera", "frozen-slot-before", "frozen-slot-after"]:
 		fail("Explicit private 127.0.0.1:5791, fb_* account, phase and evidence paths required")
 		return
 	for directory in [shots, receipts]:
@@ -56,7 +56,7 @@ func run_fixture() -> void:
 	if not await wait_until(func(): return float(client.account_state().local_player_health) > 0.0, "private character alive", 120000): return
 	client.set_world_minutes(720.0)
 	await wait_frames(120)
-	if not phase in ["purchase-price-sort", "frozen-row-exclusion", "freeze-lock-sound", "product-hover-sound", "refund-icon-blend", "refund-icon-tooltip", "row-cart-toggle", "frozen-tooltip", "cart-tooltips", "pending-dialogs", "confirmations", "button-tooltips", "item-tooltips", "menu-sounds", "layout", "layout-proof", "cart", "cart-lifetime", "rotate-controls", "mount-rider", "mount-rider-cancel", "freeze-workflow", "authored-camera", "frozen-slot-before", "frozen-slot-after"] and not await travelers_log(): return
+	if not phase in ["keyboard-navigation", "purchase-price-sort", "frozen-row-exclusion", "freeze-lock-sound", "product-hover-sound", "refund-icon-blend", "refund-icon-tooltip", "row-cart-toggle", "frozen-tooltip", "cart-tooltips", "pending-dialogs", "confirmations", "button-tooltips", "item-tooltips", "menu-sounds", "layout", "layout-proof", "cart", "cart-lifetime", "rotate-controls", "mount-rider", "mount-rider-cancel", "freeze-workflow", "authored-camera", "frozen-slot-before", "frozen-slot-after"] and not await travelers_log(): return
 	if phase in ["menu-sounds", "product-hover-sound", "freeze-lock-sound"] and not watch_menu_sound_players(): return
 	if not await open_vendor(): return
 	if phase in ["cart", "cart-lifetime"]:
@@ -92,6 +92,7 @@ func run_fixture() -> void:
 		"authored-camera": await authored_camera_proof()
 		"menu-sounds": await menu_sound_proof()
 		"product-hover-sound": await product_hover_sound_proof()
+		"keyboard-navigation": await keyboard_navigation_proof()
 		"purchase-price-sort": await purchase_price_sort_proof()
 		"frozen-row-exclusion": await frozen_row_exclusion_proof()
 		"freeze-lock-sound": await freeze_lock_sound_proof()
@@ -1271,6 +1272,144 @@ func assert_menu_sound_state(kind: String, expected: int) -> bool:
 		fail("Menu %s kit%d played%d times, expected%d" % [kind,kit,menu_sound_count(kit),expected])
 		return false
 	return assert_menu_audio_count(kind, expected)
+
+# Real native key events and read-only observations. No vendor transactions.
+func keyboard_row_ids(state: Dictionary) -> Array:
+	var ids := []
+	for row in state.rows: ids.append(int(str(row).split("|")[0]))
+	return ids
+
+func record_keyboard_check(checks: Array, label: String, origin: Vector3) -> void:
+	await wait_frames(5)
+	var state: Dictionary = client.trading_post_state().duplicate(true)
+	var position: Vector3 = client.account_state().local_player_position
+	var row := control("PerksProgramProduct%d" % int(state.selected))
+	var list := control("PerksProgramScrollBox")
+	var child := control("PerksProgramScrollChild")
+	var visible := false
+	var bottom_gap := 0.0
+	var top_gap := 0.0
+	if row != null and list != null:
+		var item_rect: Rect2 = row.get_global_rect()
+		var list_rect: Rect2 = list.get_global_rect()
+		top_gap = item_rect.position.y - list_rect.position.y
+		bottom_gap = list_rect.end.y - item_rect.end.y
+		visible = top_gap >= -0.51 and bottom_gap >= -0.51
+	checks.append({"label":label,"state":state,"position":[position.x,position.y,position.z],"world_delta":position.distance_to(origin),"selected_row_visible":visible,"top_gap":top_gap,"bottom_gap":bottom_gap,"scroll_child_y":null if child == null else child.position.y})
+
+func keyboard_navigation_proof() -> void:
+	if not await choose_category(1): return
+	var before: Dictionary = client.trading_post_state().duplicate(true)
+	var original := int(before.frozen)
+	if original != (640 if skin == "modern" else 712) or not before.cart.is_empty(): fail("Keyboard fixture needs preserved640/712 and empty cart"); return
+	var prefix := keyboard_row_ids(before)
+	if prefix.size() != 12: fail("Keyboard page proof needs the complete existing12-row observation prefix"); return
+	var first := int(prefix[0])
+	await click("PerksProgramProduct%d" % first)
+	if not await wait_until(func(): return int(client.trading_post_state().selected) == first, "keyboard first ordinary owner"): return
+	before = client.trading_post_state().duplicate(true)
+	var list := control("PerksProgramScrollBox")
+	var child := control("PerksProgramScrollChild")
+	var row := control("PerksProgramProduct%d" % first)
+	if list == null or child == null or row == null or child.size.y <= list.size.y+row.size.y: fail("Actual provider has too few rows for a genuine second page"); return
+	await wait_frames(120)
+	var idle_position: Vector3 = client.account_state().local_player_position
+	await wait_frames(30)
+	var origin: Vector3 = client.account_state().local_player_position
+	if origin.distance_to(idle_position) > 0.0001: fail("World position was not stationary before keyboard input"); return
+	var before_appearances: Array = Array(client.tooltip_state().appearance_collection)
+	before_appearances.sort()
+	var checks := []
+	var errors := []
+	await record_keyboard_check(checks,"initial-first",origin)
+	await capture("keyboard-first")
+	await tap(KEY_UP)
+	if int(client.trading_post_state().selected) != first: errors.append("Up wrapped from the first ordinary product")
+	await record_keyboard_check(checks,"first-up-no-wrap",origin)
+	for index in range(1,12):
+		await tap(KEY_DOWN)
+		if int(client.trading_post_state().selected) != int(prefix[index]): errors.append("Down prefix neighbor%d" % index)
+		await record_keyboard_check(checks,"down-prefix-%d" % index,origin)
+		if index <= 10 and absf(float(checks[-1].scroll_child_y)-float(checks[0].scroll_child_y)) > 0.0001: errors.append("Already-visible row%d unnecessarily scrolled" % index)
+	await tap(KEY_DOWN)
+	var second_page: Dictionary = client.trading_post_state().duplicate(true)
+	if int(second_page.selected) in prefix: errors.append("Down failed to cross the original12-row prefix")
+	await record_keyboard_check(checks,"down-second-page",origin)
+	var page_check: Dictionary = checks[-1]
+	if not page_check.selected_row_visible or absf(float(page_check.bottom_gap)) > 0.51: errors.append("Second-page selected row not revealed at nearest bottom edge")
+	await capture("keyboard-second-page")
+	for _step in range(12): await tap(KEY_UP)
+	if int(client.trading_post_state().selected) != first: errors.append("Twelve Up steps failed to return to first product")
+	await record_keyboard_check(checks,"up-original-first",origin)
+	var returned: Dictionary = checks[-1]
+	if not returned.selected_row_visible or absf(float(returned.top_gap)) > 0.51: errors.append("Returned first row not revealed at nearest top edge")
+	await capture("keyboard-returned-first")
+	await click("PerksProgramFrozenSlot")
+	if not await wait_until(func(): return int(client.trading_post_state().selected) == original, "keyboard frozen selection"): return
+	for key in [KEY_UP,KEY_DOWN]: await tap(key)
+	if int(client.trading_post_state().selected) != original: errors.append("Frozen owner navigated")
+	await record_keyboard_check(checks,"frozen-no-op",origin)
+	await capture("keyboard-frozen-no-op")
+	# A genuine small purchased subset permits real first/last endpoint proof.
+	await click("PerksProgramFilter")
+	await click("PerksProgramFilterUncollected")
+	await click("PerksProgramFilter")
+	var owned := keyboard_row_ids(client.trading_post_state())
+	if owned.size() < 2 or owned.size() >= 12: fail("Endpoint proof needs an observed complete2–11-row purchased subset, not guessed limits"); return
+	await click("PerksProgramProduct%d" % int(owned[0]))
+	for _step in range(owned.size()+1): await tap(KEY_DOWN)
+	if int(client.trading_post_state().selected) != int(owned[-1]): errors.append("Down wrapped at purchased subset's last product")
+	await record_keyboard_check(checks,"filtered-last-no-wrap",origin)
+	await capture("keyboard-filtered-last")
+	for _step in range(owned.size()+1): await tap(KEY_UP)
+	if int(client.trading_post_state().selected) != int(owned[0]): errors.append("Up wrapped at purchased subset's first product")
+	await record_keyboard_check(checks,"filtered-first-no-wrap",origin)
+	await capture("keyboard-filtered-first")
+	await click("PerksProgramFilterResetButton")
+	if not await choose_category(1): return
+	if not await select_price_candidate(): return
+	var candidate := int(client.trading_post_state().selected)
+	await click("PerksProgramAddToCartButton")
+	await click("PerksProgramViewCartButton")
+	if not await wait_until(func(): return client.trading_post_state().cart_visible, "keyboard cart owner"): return
+	var cart_owner: Dictionary = client.trading_post_state().duplicate(true)
+	for key in [KEY_UP,KEY_DOWN]: await tap(key)
+	var cart_after: Dictionary = client.trading_post_state().duplicate(true)
+	if cart_after.selected != cart_owner.selected or cart_after.cart != cart_owner.cart or not cart_after.cart_visible: errors.append("Cart keyboard owner changed")
+	await record_keyboard_check(checks,"cart-no-op",origin)
+	await capture("keyboard-cart-no-op")
+	await click("PerksProgramCartCloseButton")
+	await click("PerksProgramRemoveFromCartButton")
+	if not await wait_until(func(): return client.trading_post_state().cart.is_empty(), "keyboard local cart restoration"): return
+	await click("PerksProgramPurchaseButton")
+	if not await wait_until(func(): return control("PerksProgramConfirmDialog") != null, "keyboard modal owner"): return
+	var modal_owner := int(client.trading_post_state().selected)
+	for key in [KEY_UP,KEY_DOWN]: await tap(key)
+	if control("PerksProgramConfirmDialog") == null or int(client.trading_post_state().selected) != modal_owner: errors.append("Confirmation keyboard owner changed")
+	await record_keyboard_check(checks,"modal-no-op",origin)
+	await capture("keyboard-modal-no-op")
+	# Cancel only: no Purchase/Refund/Freeze request is permitted in this fixture.
+	await click("PerksProgramConfirmCancelButton")
+	await click("PerksProgramProduct%d" % first)
+	if not await wait_until(func(): return int(client.trading_post_state().selected) == first, "keyboard original selection restoration"): return
+	await record_keyboard_check(checks,"restored",origin)
+	await capture("keyboard-restored")
+	var after: Dictionary = client.trading_post_state().duplicate(true)
+	var after_appearances: Array = Array(client.tooltip_state().appearance_collection)
+	after_appearances.sort()
+	for check in checks:
+		if float(check.world_delta) > 0.0001: errors.append("World position moved at "+str(check.label))
+		if int(check.state.frozen) != original or int(check.state.tender) != int(before.tender): errors.append("Authority changed at "+str(check.label))
+	if after.cart != before.cart or after_appearances != before_appearances: errors.append("Cart or exact appearance set not restored")
+	var proof := {"before":before,"after":after,"initial_prefix":prefix,"purchased_subset":owned,"checks":checks,"before_appearances":before_appearances,"after_appearances":after_appearances,"second_page":second_page,"original_frozen":original,"restored_before_verdict":true,"errors":errors,"observation_boundary":"Full first12 prefix; selected row rectangles and returned selection beyond it; complete2–11 purchased subset for endpoints, not whole-tail order"}
+	var file := FileAccess.open(receipts.path_join(skin+"-keyboard-navigation-proof.json"), FileAccess.WRITE)
+	if file == null: fail("Cannot write restored keyboard proof receipt"); return
+	file.store_string(JSON.stringify(proof,"\t"))
+	file.close()
+	print("TP_KEYBOARD_NAVIGATION ",JSON.stringify(proof))
+	if not errors.is_empty(): fail("Keyboard proof after local state restoration: %s" % [errors]); return
+	await finish("keyboard-navigation")
+
 
 func price_sort_prefix(state: Dictionary) -> Array:
 	var ids := []

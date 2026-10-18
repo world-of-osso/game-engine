@@ -62,6 +62,7 @@ pub struct GuildRanksSession {
     pub error: Option<String>,
     pub invitation: Option<GuildInvitation>,
     pub invitation_waiting: bool,
+    invitation_elapsed: f64,
     pub profile: Option<GuildSnapshot>,
     pub commands: Vec<GuildCommand>,
     pub communities_tab: CommunitiesTab,
@@ -79,6 +80,34 @@ pub struct GuildRanksSession {
 }
 
 impl GuildRanksSession {
+    pub fn receive_invitation(&mut self, invitation: GuildInvitation) {
+        self.invitation = Some(invitation);
+        self.invitation_waiting = false;
+        self.invitation_elapsed = 0.0;
+    }
+
+    /// GuildInviteFrame.xml OnUpdate hides strictly after 60 displayed seconds.
+    pub fn advance_invitation(&mut self, delta: f64) -> Option<GuildCommand> {
+        if self.invitation.is_none() || self.invitation_waiting {
+            return None;
+        }
+        self.invitation_elapsed += delta;
+        const INVITATION_TIMEOUT_SECONDS: f64 = 60.0;
+        if self.invitation_elapsed > INVITATION_TIMEOUT_SECONDS {
+            return self.dismiss_invitation();
+        }
+        None
+    }
+
+    /// GuildInviteFrame OnHide declines unless Join has already sent acceptance.
+    pub fn dismiss_invitation(&mut self) -> Option<GuildCommand> {
+        if self.invitation_waiting {
+            return None;
+        }
+        self.invitation.take()?;
+        Some(GuildCommand::DeclineInvite)
+    }
+
     pub fn open(&mut self) -> GuildRankRequest {
         self.visible = true;
         self.awaiting_state = true;
