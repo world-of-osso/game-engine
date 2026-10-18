@@ -3,6 +3,7 @@ use super::{DynName, Element, GOLD, WHITE, label};
 use crate::quest_art::named_atlas_texture;
 use ui_toolkit::atlas::{ActiveSkin, thread_skin};
 use ui_toolkit::rsx;
+use ui_toolkit::widgets::font_string::GameFont;
 
 pub(super) fn texture(name: &str, fdid: u32, uv: &str, rect: (f32, f32, f32, f32)) -> Element {
     let (x, y, width, height) = rect;
@@ -291,7 +292,9 @@ pub(super) fn search_box(text: &str, left: f32) -> Element {
             max_letters:super::ACHIEVEMENT_SEARCH_MAX_CHARS,auto_focus:false,
         } },
     );
-    if !text.is_empty() {
+    if text.is_empty() {
+        content.extend(search_instructions(left));
+    } else {
         let icon = named_atlas_texture(
             "AchievementSearchClearIcon".into(),
             "common-search-clearbutton",
@@ -303,6 +306,16 @@ pub(super) fn search_box(text: &str, left: f32) -> Element {
         }});
     }
     content
+}
+
+/// InputBoxInstructionsTemplate XML186–191: source inset extent and inherited font/shadow.
+fn search_instructions(left: f32) -> Element {
+    rsx! { fontstring { name:"AchievementSearchInstructions",text:"Search",
+        width:{super::HEADER_SEARCH_WIDTH - 16.0 - 20.0},height:30.0,
+        left:{left + 16.0},top:25.0,pos_type:"absolute",mouse_enabled:false,
+        font:GameFont::FrizQuadrata,font_size:10.0,font_color:"0.35,0.35,0.35,1",
+        justify_h:"LEFT",justify_v:"MIDDLE",shadow_color:"0,0,0,1",shadow_offset:"1,-1",
+    } }
 }
 
 /// XML:220-244 and AchievementTemplate.Tracked: 15px checkbox at (12,66).
