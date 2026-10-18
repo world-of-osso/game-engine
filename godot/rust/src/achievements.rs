@@ -41,6 +41,14 @@ fn free(ui: &mut Option<Gd<RegistryUi>>) {
         ui.free();
     }
 }
+/// Shared native action boundary; offline fixtures use the same reducer dispatch.
+pub(crate) fn apply_achievement_ui_action(
+    window: &mut model::AchievementWindow,
+    action: &str,
+) -> Vec<QueryAchievementCatalog> {
+    window.action(action)
+}
+
 impl GameClient {
     /// AchievementUI's ScrollBoxes use the same host-routed wheel/thumb/stepper input as QuestFrame.
     pub(super) fn achievement_pointer(&mut self, event: &Gd<godot::classes::InputEvent>) -> bool {
@@ -131,7 +139,7 @@ impl GameClient {
                 if action.is_empty() {
                     break;
                 }
-                let requests = self.account.achievements.action(&action);
+                let requests = apply_achievement_ui_action(&mut self.account.achievements, &action);
                 self.send_achievement_requests(requests)?;
             }
             self.apply_achievement_shift_clicks(&mut ui)?;
