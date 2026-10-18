@@ -29,6 +29,10 @@ const FRAME_H: f32 = 100.0;
 const CENTER_Y: f32 = 10.0;
 /// `UI-DialogBox-Background-Dark`, inset (3, -23 / -3, 3) under the title bar.
 const BACKGROUND_FDID: u32 = 6_839_810;
+// ReadyCheck.xml:45–58: left58/right24; container top1 + TitleText top5.
+const TITLE_W: f32 = 241.0;
+const TITLE_LEFT: f32 = 58.0;
+const TITLE_TOP: f32 = 6.0;
 const TITLE_H: f32 = 20.0;
 const TEXT_W: f32 = 240.0;
 const TEXT_CENTER_X: f32 = 20.0;
@@ -81,7 +85,7 @@ pub fn ready_check_frame(state: &ReadyCheckFrameState) -> Element {
             {quest_art::window_portrait(&PORTRAIT)}
             fontstring {
                 name: {DynName(format!("{READY_CHECK_FRAME}Title"))},
-                width: FRAME_W,
+                width: TITLE_W,
                 height: TITLE_H,
                 text: "Ready Check",
                 font: GameFont::FrizQuadrata,
@@ -93,8 +97,8 @@ pub fn ready_check_frame(state: &ReadyCheckFrameState) -> Element {
                 strata: FrameStrata::Dialog,
                 frame_level: 6.0,
                 pos_type: "absolute",
-                pos_x: 0.0,
-                pos_y: 4.0,
+                pos_x: TITLE_LEFT,
+                pos_y: TITLE_TOP,
             }
             fontstring {
                 name: {DynName(format!("{READY_CHECK_FRAME}Text"))},
