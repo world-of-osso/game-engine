@@ -52,7 +52,7 @@ impl RegistryUi {
 
     /// Apply only the actual observed native action through the production reducer.
     #[func]
-    fn apply_pvp_bonus_preview_action(&mut self, action: GString) -> Dictionary {
+    fn apply_pvp_bonus_preview_action(&mut self, action: GString) -> VarDictionary {
         let result = (|| {
             let mut view = self
                 .model
@@ -63,9 +63,9 @@ impl RegistryUi {
                 .ok_or("Bonus preview view missing")?
                 .clone();
             let request = view.action(&action.to_string());
-            let mut receipt = Dictionary::new();
+            let mut receipt = VarDictionary::new();
             receipt.set("error", "");
-            receipt.set("queue_id", Variant::nil());
+            receipt.set("queue_id", &Variant::nil());
             receipt.set("specific_id", view.selected_battleground);
             receipt.set("bonus", view.honor_bonus);
             receipt.set("pending", view.pending);
@@ -78,7 +78,7 @@ impl RegistryUi {
         match result {
             Ok(receipt) => receipt,
             Err(error) => {
-                let mut receipt = Dictionary::new();
+                let mut receipt = VarDictionary::new();
                 receipt.set("error", error.as_str());
                 receipt
             }
