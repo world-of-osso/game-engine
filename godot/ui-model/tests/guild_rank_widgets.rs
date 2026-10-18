@@ -1045,6 +1045,182 @@ fn guild_communities_roster_uses_profile_metadata_without_exposing_officer_notes
     assert!(reg.get_by_name("GuildMember0Class").is_some());
 }
 
+fn note_sort_session() -> GuildRanksSession {
+    let mut session = GuildRanksSession::default();
+    session.open();
+    let mut ranks = state(0);
+    let values = [
+        ("Dara", 1, "alpha", false, 80),
+        ("Cid", 1, "ALPHA", true, 20),
+        ("Zed", 1, "Alpha", true, 80),
+        ("Missing", 2, "", false, 0),
+        ("Empty", 2, "", true, 80),
+        ("Zulu", 1, "Zulu", false, 80),
+        ("Bea", 2, "alpha", true, 80),
+        ("Ada", 1, "ALPHA", true, 80),
+    ];
+    ranks.members = values
+        .iter()
+        .map(|(name, rank, _, _, _)| GuildRankMember {
+            character_name: (*name).into(),
+            rank: *rank,
+        })
+        .collect();
+    session.apply(ranks);
+    session.profile = Some(GuildSnapshot {
+        guild_id: 7,
+        guild_name: "Raid Team".into(),
+        created_at: None,
+        tabard: None,
+        motd: String::new(),
+        info_text: String::new(),
+        members: values
+            .iter()
+            .filter(|(name, ..)| *name != "Missing")
+            .map(|(name, _, note, online, level)| GuildMemberSnapshot {
+                character_name: (*name).into(),
+                level: *level,
+                class_name: "Paladin".into(),
+                rank_name: "Member".into(),
+                is_online: *online,
+                // Opposite order must never affect the public Note comparison.
+                officer_note: format!("private-{name}"),
+                public_note: (*note).into(),
+                is_self: false,
+                last_online: String::new(),
+            })
+            .collect(),
+    });
+    session
+}
+
+fn rendered_guild_names(registry: &FrameRegistry) -> Vec<String> {
+    (0..40)
+        .map(|index| format!("GuildMember{index}Name"))
+        .take_while(|name| registry.get_by_name(name).is_some())
+        .map(|name| text(registry, &name))
+        .collect()
+}
+
+#[test]
+fn guild_note_sort_source_direction_missing_and_original_ties_both_skins() {
+    let _lock = SKIN.lock().unwrap_or_else(|p| p.into_inner());
+    for skin in [ActiveSkin::Modern, ActiveSkin::Forever] {
+        set_thread_skin(skin);
+        let mut session = note_sort_session();
+        let ranks = session.state().cloned();
+        let profile = session.profile.clone();
+        let toggle = action(&mounted(&session), "CommunitiesRosterColumn5");
+        assert_eq!(toggle, "guild:roster-sort:note");
+        for expected in [
+            vec![
+                "Missing", "Zulu", "Ada", "Zed", "Bea", "Cid", "Dara", "Empty",
+            ],
+            vec![
+                "Empty", "Ada", "Zed", "Bea", "Cid", "Dara", "Zulu", "Missing",
+            ],
+        ] {
+            session.click(&toggle, &Default::default());
+            assert_eq!(rendered_guild_names(&mounted(&session)), expected);
+            assert_eq!(session.state(), ranks.as_ref());
+            assert_eq!(session.profile, profile);
+        }
+        // Changing columns resets Note to its sourced first-click descending order.
+        session.click("guild:roster-sort:name", &Default::default());
+        session.click(&toggle, &Default::default());
+        assert_eq!(
+            rendered_guild_names(&mounted(&session)),
+            [
+                "Missing", "Zulu", "Ada", "Zed", "Bea", "Cid", "Dara", "Empty"
+            ]
+        );
+    }
+}
+
+#[test]
+fn guild_note_sort_filtered_rows_keep_action_identity_and_header_geometry() {
+    let _lock = SKIN.lock().unwrap_or_else(|p| p.into_inner());
+    let mut session = note_sort_session();
+    let ranks = session.state().cloned();
+    session.click("guild:show_offline", &Default::default());
+    let original = mounted(&session);
+    let header = original
+        .get(original.get_by_name("CommunitiesRosterColumn5").unwrap())
+        .unwrap();
+    let rect = (
+        header.position.left,
+        header.position.top,
+        header.width.value(),
+        header.height.value(),
+    );
+    let toggle = action(&original, "CommunitiesRosterColumn5");
+    assert!(!toggle.is_empty());
+    session.click(&toggle, &Default::default());
+    let filtered = mounted(&session);
+    assert_eq!(
+        rendered_guild_names(&filtered),
+        ["Ada", "Zed", "Bea", "Cid", "Empty"]
+    );
+    let header = filtered
+        .get(filtered.get_by_name("CommunitiesRosterColumn5").unwrap())
+        .unwrap();
+    assert_eq!(
+        (
+            header.position.left,
+            header.position.top,
+            header.width.value(),
+            header.height.value()
+        ),
+        rect
+    );
+    session.click(&action(&filtered, "GuildMember2"), &Default::default());
+    assert_eq!(session.member_detail.as_deref(), Some("Bea"));
+    assert_eq!(
+        session.promote("Bea"),
+        Some(GuildRankRequest::Promote {
+            character_name: "Bea".into()
+        })
+    );
+    session.click(&toggle, &Default::default());
+    assert_eq!(
+        rendered_guild_names(&mounted(&session)),
+        ["Empty", "Ada", "Zed", "Bea", "Cid"]
+    );
+    assert_eq!(session.state(), ranks.as_ref());
+}
+
+#[test]
+fn guild_note_sort_non_ascii_pending_project_policy_not_retail_collation() {
+    let _lock = SKIN.lock().unwrap_or_else(|p| p.into_inner());
+    let mut session = note_sort_session();
+    let profile = session.profile.as_mut().unwrap();
+    profile
+        .members
+        .retain(|member| ["Ada", "Bea", "Cid"].contains(&member.character_name.as_str()));
+    for member in &mut profile.members {
+        member.public_note = match member.character_name.as_str() {
+            "Ada" => "ä",
+            "Bea" => "Ä",
+            _ => "z",
+        }
+        .into();
+    }
+    session.click("guild:show_offline", &Default::default());
+    let toggle = action(&mounted(&session), "CommunitiesRosterColumn5");
+    assert!(!toggle.is_empty());
+    session.click(&toggle, &Default::default());
+    // GUILD_NOTE_COMPARE_UTF8I_PENDING: non-ASCII case is deliberately NOT folded.
+    assert_eq!(
+        rendered_guild_names(&mounted(&session)),
+        ["Ada", "Bea", "Cid"]
+    );
+    session.click(&toggle, &Default::default());
+    assert_eq!(
+        rendered_guild_names(&mounted(&session)),
+        ["Cid", "Bea", "Ada"]
+    );
+}
+
 #[test]
 fn guild_show_offline_preference_persists_false_and_defaults_on() {
     use game_engine_core::client_options_data::{
