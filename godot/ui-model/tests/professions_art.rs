@@ -94,6 +94,26 @@ fn text(registry: &FrameRegistry, name: &str) -> (String, [f32; 4]) {
     }
 }
 #[test]
+fn professions_unlearned_schematic_and_learned_transition_in_both_skins() {
+    for skin in [ActiveSkin::Modern, ActiveSkin::Forever] {
+        let mut view = view(15);
+        view.book.snapshot.spells.clear();
+        let registry = render(skin, view.clone());
+        assert!(registry.get_by_name("ProfessionRecipe3275").is_some());
+        assert_eq!(text(&registry, "ProfessionsUnlearnedLabel").0, "Unlearned");
+        assert_eq!(text(&registry, "ProfessionsOutputName").0, "Linen Bandage");
+        for name in ["ProfessionsCreate", "ProfessionsCreateAll"] {
+            assert!(matches!(frame(&registry, name).widget_data,
+                Some(WidgetData::Button(ref button)) if button.state == ui_toolkit::widgets::button::ButtonState::Disabled));
+        }
+        view.book.snapshot.spells.push(3275);
+        let registry = render(skin, view);
+        assert!(registry.get_by_name("ProfessionRecipe3275").is_some());
+        assert!(registry.get_by_name("ProfessionsUnlearnedLabel").is_none());
+    }
+}
+
+#[test]
 fn professions_quality_recipe_is_visible_without_assigning_an_output() {
     use game_engine_ui_model::professions_catalog::RecipeCatalog;
     let dir = std::path::PathBuf::from(env!("CARGO_MANIFEST_DIR")).join("../../data/db2/active");
