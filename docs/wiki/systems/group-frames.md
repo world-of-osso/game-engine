@@ -8,7 +8,26 @@ Native party and raid play share `GroupState` in `godot/ui-model/src/game/group_
 
 `READY_CHECK_BODY_NO_OVERLAP_POLICY` implements the explicit user instruction: “in all cases retail does not overlap so make it not overlap”. Re-reading ReadyCheck.lua:40–49 and XML:35–39,79–110 finds no automatic resize/reanchor/different difficulty font; this is deliberately a **project policy**, not a source-derived Retail mechanism. Native intrinsic measurement supplies the actual wrapped body height; subtract one toolkit-resolved line allocation. The native bounds pass adds exactly that extra height to the frame/background/nine-slice, preserves the centered window, translates children with their parent, and keeps both buttons16UI from its bottom. Text TOP37/font12/content/width240 and all ordinary one-line geometry remain unchanged. No ink-aware padding, font shrink or upward text offset.
 
-At1080 the allocated block gap remains23−17/1.40625UI for every line count. Combined ink must clear by **more than0**, not the same exact13.125px: different final glyphs and subpixel snapping change ink overhang. RED892b56782/binary0eb053ab, six cases/both skins, strictly measures ordinary glyph+15.125/shadow+combined+13.125px; toggle(2lines)−3.875/−5.875px; supplied long-name(3wrappedlines)−20.875/−21.875px. All18 scans and six exact restorations pass; policy assertion fails as required. Its unrelated label oracle read Button.text rather than the rendered Parts/Text Label; test-only correction3defa3a81 preserves the retained ink RED. GREEN native proof and measured positive clearances remain pending after lead gate/window. Evidence: `data/diagnostics/ui-questlog-ready-no-overlap-2026-10-18/` and `AgentShared/2026-10-18/ui-questlog-ready-no-overlap/policy-red/`.
+At1080 the allocated block gap remains23−17/1.40625UI for every line count. Combined ink must clear by **more than0**, not the same exact13.125px: different final glyphs and subpixel snapping change ink overhang. RED892b56782/binary0eb053ab, six cases/both skins, strictly measures ordinary glyph+15.125/shadow+combined+13.125px; toggle(2lines)−3.875/−5.875px; supplied long-name(3wrappedlines)−20.875/−21.875px. All18 scans and six exact restorations pass; policy assertion fails as required. Its unrelated label oracle read Button.text rather than the rendered Parts/Text Label; test-only correction3defa3a81 preserves the retained ink RED. Gate rc576 passed32 tests/fmt0 and landed631540cf0. The actual native proof below is accepted. Evidence: `data/diagnostics/ui-questlog-ready-no-overlap-2026-10-18/` and `AgentShared/2026-10-18/ui-questlog-ready-no-overlap/policy-red/`.
+
+#### Accepted native policy proof
+
+Exact631540cf0/toolkitc2f3629/protocola2b07a6, binary SHA256 `f7f1057f92dd2d7989e895d9c28eb3cd84a35c2560c397d736fe11c8d053d87f`, renders both skins at1920×1080. Primary six cases plus the requested two-line long-name supplement complete6/6+2/2, both exit0/no Godot errors; all24 strict scans/eight exact RGBA restorations pass.
+
+| Case (identical values in both skins) | Shaped lines | Glyph clearance | Shadow/combined clearance |
+|---|---:|---:|---:|
+| OrdinaryAnn | 1 | +15.125px | +13.125px |
+| ToggleAnn | 2 | +13.625px | +11.625px |
+| Long-nameAlexandria | 2 | +13.625px | +11.625px |
+| Long-nameAlexandriana-MoonGuard stress | 3 | +13.125px | +11.125px |
+
+Allocated block gap is≈10.91111UI in all cases (spread<0.000003UI from float32 transforms). Frame height is100/≈112.0889/≈124.1778UI. Ordinary control rectangles and **full decoded RGBA** are byte-identical to the retained RED in both skins; this is stronger than unchanged nominal dimensions. Different measured ink margins reflect glyph overhang/subpixel phase, not added padding. The ui_questlog window and own slice were released immediately after the two runs. Supplied account context, not authenticated Retail or hardware audio.
+
+Receipts/commands/logs/hash summary/release: `data/diagnostics/ui-questlog-ready-no-overlap-2026-10-18/native-green-*`. Eight originals/24 isolation crops: `/syncthing/AgentShared/2026-10-18/ui-questlog-ready-no-overlap/native-green/{modern,forever}-{ordinary,toggle,long-name}.png`; two-line supplement in sibling `native-green-long-two/{modern,forever}-long-name-two-line.png`. Both skin toggle and three-line panels were inspected.
+
+### Two-line limit remains unsourced
+
+`READY_CHECK_TWO_LINE_LIMIT_UNSOURCED`: the user's real-Retail observation “never wraps over2lines” is the **only positive evidence** for a two-line cap. ReadyCheck.xml:35–39 has240×0/intrinsic height and no maxLines; UI.xsd:762–769 defaults wordwraptrue/maxLines0(unlimited). Complete ReadyCheck.lua uses only SetFormattedText on the body (:48), with explicit difficulty newline(:45), no SetMaxLines/height constraint/truncation; listener OnShow(:107–110) only plays sound/flashes. The font inheritance adds no cap. No source mechanism was found; do not invent a line limit, finite height or ellipsis. Keep the three-line supplied stress case. Source hashes/decision: local `two-line-limit-readonly.json` in the policy diagnostics. This observation does not undo the separately requested project no-overlap policy.
 
 ### One-line Retail screenshot — bounded relative evidence
 
