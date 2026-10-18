@@ -367,7 +367,8 @@ class PullSources:
         missing = [key for key in ("level", "scale", "faction", "auras") if tank.get(key) is None]
         if missing:
             raise ValueError(f"tank is missing replicated {missing}")
-        return int(tank["level"]), f32(PLAYER_COMBAT_REACH * float(tank["scale"]))
+        reach = self._reach(int(tank["display"])) if tank["entry"] else PLAYER_COMBAT_REACH
+        return int(tank["level"]), f32(reach * float(tank["scale"]))
 
     def population(self, tank: dict) -> dict:
         tank_level, tank_reach = self._tank(tank)

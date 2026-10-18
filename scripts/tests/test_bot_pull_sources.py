@@ -146,6 +146,10 @@ class RadiusTests(SourceFixture):
         tank32 = {**TANK, "level": 32}
         self.assertEqual(self.sources().radius(creature(entry=700, display=507, level=33), tank32), 14.5)
 
+    def test_npc_tank_uses_its_received_display_reach_not_player_reach(self):
+        tank = {**TANK, "entry": 46383, "display": 501, "level": 32}
+        self.assertEqual(self.sources().radius(creature(level=30), tank), 15.0)
+
     def test_tank_scale_widens_target_reach(self):
         self.assertEqual(self.sources().radius(creature(level=32), {**TANK, "level": 32, "scale": 2.0}), 18.0)
 
