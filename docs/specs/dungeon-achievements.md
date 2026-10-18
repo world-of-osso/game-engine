@@ -36,7 +36,7 @@ Native Retail Mainline AchievementUI and dungeon objectives, using authoritative
 - [x] Persist character-scoped watch IDs under authenticated account/realm preferences; restore rows from the server, not serialized progress.
 - Tracking follows Retail's ten-achievement cap and refuses completed achievements.
 
-- [x] AchievementSearchBox uses source TextInsets left16/right20/top0/bottom0 (InputBoxTemplates.xml245), allowing the authored107×30 native rectangle without changing its16pt font, position, art or filter behavior. Native geometry proof covers both skins × ordinary/comparison; real-peer physical click retention is a separate post-landing gate.
+- [x] AchievementSearchBox uses source TextInsets left16/right20/top0/bottom0 (InputBoxTemplates.xml245), allowing the authored107×30 native rectangle without changing its16pt font, position, art or filter behavior. Native geometry proof covers both skins × ordinary/comparison; separate post-landing real-peer physical search/clear/completion-filter retention passes in all four modes (2026-10-18).
 
 ### Statistics and search
 
