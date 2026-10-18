@@ -6,6 +6,8 @@ use godot::prelude::*;
 use shared::protocol::AdventureGuideSnapshot;
 use ui_toolkit::registry::FrameRegistry;
 
+#[cfg(debug_assertions)]
+use super::RegistryUi;
 use super::projection::UiProjection;
 
 impl UiProjection {
@@ -48,6 +50,16 @@ impl UiProjection {
     }
 }
 
+/// Read-only native fixture probe; shares the product detector without replacing it.
+#[cfg(debug_assertions)]
+#[godot_api(secondary)]
+impl RegistryUi {
+    #[func]
+    fn journal_suggestion_font_truncated(&self, label: Gd<Label>) -> bool {
+        label_is_truncated(&label)
+    }
+}
+
 fn label_is_truncated(label: &Gd<Label>) -> bool {
     if label.get_line_count() > label.get_visible_line_count() {
         return true;
@@ -62,7 +74,7 @@ fn label_is_truncated(label: &Gd<Label>) -> bool {
         .expect("Projected Label has a font");
     let width = font
         .get_string_size_ex(&label.get_text())
-        .font_size(label.get_theme_font_size("font"))
+        .font_size(label.get_theme_font_size("font_size"))
         .done()
         .x;
     width > label.get_size().x
