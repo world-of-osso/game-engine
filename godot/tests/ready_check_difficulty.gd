@@ -23,7 +23,7 @@ func controls(fixture: Node) -> Dictionary:
 		result[name] = rect(node)
 	return result
 
-func ink_bounds(text_image: Image, blank: Image, region: Rect2i) -> Dictionary:
+func scan_ink_bounds(text_image: Image, blank: Image, region: Rect2i) -> Dictionary:
 	var left := region.end.x
 	var top := region.end.y
 	var right := region.position.x
@@ -52,7 +52,7 @@ func ink_bounds(text_image: Image, blank: Image, region: Rect2i) -> Dictionary:
 	assert(left > region.position.x and top > region.position.y and right < region.end.x and bottom < region.end.y, "Ink must not touch the scan boundary; clipped metrics are invalid")
 	return {"bounds": [left, top, right, bottom], "bottom_exclusive": bottom, "pixels": count, "row_bands": bands}
 
-func measure_clearance(fixture: Node, message: Label, reference: Image, output: String, stem: String) -> Dictionary:
+func capture_clearance(fixture: Node, message: Label, reference: Image, output: String, stem: String) -> Dictionary:
 	var yes := fixture.find_child("ReadyCheckFrameYesButton", true, false) as Button
 	var no := fixture.find_child("ReadyCheckFrameNoButton", true, false) as Button
 	assert(yes != null and no != null and yes.visible and no.visible)
@@ -79,9 +79,9 @@ func measure_clearance(fixture: Node, message: Label, reference: Image, output: 
 	no.show()
 	await settle()
 	assert(root.get_texture().get_image().get_data() == reference.get_data(), "Raster isolation must restore exact source frame")
-	var glyph := ink_bounds(glyphs, blank, region)
-	var shadow := ink_bounds(shadowed, glyphs, region)
-	var combined := ink_bounds(shadowed, blank, region)
+	var glyph := scan_ink_bounds(glyphs, blank, region)
+	var shadow := scan_ink_bounds(shadowed, glyphs, region)
+	var combined := scan_ink_bounds(shadowed, blank, region)
 	for ink in [glyph, shadow, combined]:
 		ink["clearance_to_button_top_px"] = button_top - ink.bottom_exclusive
 	assert(shadowed.get_region(region).save_png(output.path_join(stem + "-unoccluded.png")) == OK)
@@ -139,7 +139,7 @@ func run_difficulty() -> void:
 				first_actual = image.get_data()
 			if index == phases.size() - 1:
 				assert(image.get_data() == first_actual, "Reopened actual3 restores exact RGBA")
-			var clearance: Dictionary = await measure_clearance(fixture, message, image, output, filename.trim_suffix(".png"))
+			var clearance: Dictionary = await capture_clearance(fixture, message, image, output, filename.trim_suffix(".png"))
 			assert(clearance.line_count == (1 if phase[1].is_empty() else 2))
 			observations.append({"skin": skin, "index": index, "phase": phase[0], "text": message.text, "controls": current, "image": filename, "clearance": clearance, "message_pixel_rect": {"x": message.global_position.x, "y": message.global_position.y, "width": message.size.x * HUD_SCALE, "height": message.size.y * HUD_SCALE}})
 		fixture.free()
