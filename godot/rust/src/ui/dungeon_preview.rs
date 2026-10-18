@@ -145,7 +145,12 @@ impl RegistryUi {
 
     /// Offline geometry only; comparison action does not fabricate a server reply.
     #[func]
-    pub fn show_achievement_header_preview(&mut self, forever: bool, comparison: bool) -> GString {
+    pub fn show_achievement_header_preview(
+        &mut self,
+        forever: bool,
+        comparison: bool,
+        query: GString,
+    ) -> GString {
         let skin = if forever {
             ui_toolkit::atlas::ActiveSkin::Forever
         } else {
@@ -159,7 +164,11 @@ impl RegistryUi {
                 game_engine_ui_model::achievements::OPEN_ACTION
             };
             window.action(action);
-            window.action("achievement:search:bear");
+            window.action(&format!("achievement:search:{query}"));
+            if query.is_empty() {
+                // Offline browse selection only; no received category metadata or progress.
+                window.selected_category = Some(92);
+            }
             self.show_achievement_window(window)
         });
         GString::from(result.err().unwrap_or_default().as_str())
