@@ -78,7 +78,8 @@ func sample() -> void:
         "target": selected.get("target"), "target_state": selected,
         "target_position": target_position, "facts": null,
         "assisted": client.assisted_combat_state(), "inventory": client.merchant_state(),
-        "pet": client.pet_bar_state()}
+        "pet": client.pet_bar_state(), "ground_areas": client.call("ground_areas_state")}
+    # Keep state_json untouched: parsing/stringifying in GDScript loses integer ID types.
     if account.get("gameplay_input_allowed", false) and selected.get("target") != null:
         rotation["visibility"] = client.call("target_visibility_state", int(selected["target"]))
         var query: Dictionary = client.call("spell_priority_state", int(selected["target"]),

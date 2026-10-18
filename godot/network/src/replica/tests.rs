@@ -422,6 +422,35 @@ fn run_scenario(session: &mut Session, despawn_hero: bool) -> (Entity, Entity) {
 }
 
 #[test]
+fn rainfire_dynamic_object_geometry_and_removal_replicate_over_udp() {
+    use shared::components::{DynamicObjectInfo, RAIN_OF_FIRE_SPELL_ID};
+    let mut session = Session::start(9183);
+    let area = DynamicObjectInfo {
+        caster: 4_294_739_329,
+        spell_id: RAIN_OF_FIRE_SPELL_ID,
+        radius: 5.0,
+    };
+    let object = session.spawn((position(12.0), area));
+    session.until("Rain of Fire spawn", object, |unit| {
+        unit.and_then(|unit| unit.get::<DynamicObjectInfo>().copied()) == Some(area)
+            && x_of(unit) == Some(12.0)
+    });
+    session.edit(object, |object| {
+        object.insert(position(14.0));
+    });
+    session.until("actual area position", object, |unit| {
+        x_of(unit) == Some(14.0)
+    });
+    let link = session.link;
+    session.server.world_mut().lose_visibility(object, link);
+    session.until("area visibility loss", object, |unit| unit.is_none());
+    session.server.world_mut().gain_visibility(object, link);
+    session.until("area visibility return", object, has::<DynamicObjectInfo>);
+    session.server.world_mut().despawn(object);
+    session.until("area expiry despawn", object, |unit| unit.is_none());
+}
+
+#[test]
 fn toyfx2_scale_state_replicates_and_reverts_over_udp() {
     use shared::components::UnitScale;
     let mut session = Session::start(9152);

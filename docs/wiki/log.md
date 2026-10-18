@@ -1,3 +1,10 @@
+## 2026-10-17 — Rain of Fire escape policy
+
+[Bounded harness policy](systems/bot-harness.md#rain-of-fire-escape-policy--2026-10-17): synthetic eight-heading planner controls, actual map34 no-polygon refusal, and maintained-controller projected-arrival RED preserve source5yd radius with no damage/kit/stat changes. Pending ACK precedes escape; every source route segment and projected arrival neighborhood must be safe. Actual server lifecycle GREEN2 and protocol wire GREEN1 precede native real-UDP missing-decoder RED. Received geometry/faction projection and untouched observer JSON now implement the native data boundary; postmerge native UDP/replica21+projection4 GREEN142.6s, engine/network check16.42s/fmt/0warnings pass; Python125/observer parse remain valid on unchanged relevant files. Joint gate and fresh private escape/full-clear acceptance remain pending.
+
+## 2026-10-17 — Vanish selection withdrawal
+
+[Harness boundary](systems/bot-harness.md#vanish-selection-withdrawal--2026-10-17): real run23 Vanish55964 withdraws selected living Moloch and its return does not reselect him. Retained-frame RED reaches original ten-second fact deadline. Approved recovery ends only fresh living/InWorld/in-combat no-selection steps with no pending cast, then leaves ordinary next-cycle Garrick assist and fresh cast gates intact. Synthetic continuation controls distinguished; live recovery/clear still pending.
 ## 2026-10-17 — Ordinary-product Up/Down navigation
 
 [Keyboard scope](systems/trading-post.md#ordinary-product-keyboard-navigation--october17): four genuine missing-action model REDs precede adjacent ordinary selection/nearest-edge reveal. Current sorted/filtered rows, nonwrapping endpoints, frozen/cart/modal ownership and explicit missing selection are retained; native press/release routing precedes world capture. Focused51UI tests (seven new,20-row both-skin true page crossing)/helper check38.35s/noWarnings/fmt5/readability pass. Native real-key/focus/world-position acceptance remains explicitly pending until after landing; no process/cohort/parse run for this keyboard slice. Only engine lease reacquired; no server/provider/audio or Rank3 work.
