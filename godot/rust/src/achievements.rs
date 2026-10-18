@@ -215,6 +215,14 @@ impl GameClient {
     }
 
     fn apply_achievement_search_input(&mut self, ui: &Gd<RegistryUi>) -> Result<(), FrameError> {
+        let focused = ui.bind().is_frame_focused("AchievementSearchBox");
+        if focused != self.account.achievements.search_focused {
+            self.account.achievements.action(if focused {
+                "achievement:search_focus"
+            } else {
+                "achievement:search_blur"
+            });
+        }
         let search = {
             let host = ui.bind();
             host.registry().and_then(|registry| {
@@ -268,7 +276,11 @@ impl GameClient {
             return Ok(());
         }
         let state = self.account.achievements.clone();
-        for entry in state.entries() {
+        for entry in state
+            .entries()
+            .iter()
+            .chain(state.search_results.entries.iter().take(5))
+        {
             self.drawable_fdid(entry.icon_fdid);
         }
         if let Some(ui) = &mut self.achievements.ui {
