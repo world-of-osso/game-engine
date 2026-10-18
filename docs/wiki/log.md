@@ -1,6 +1,9 @@
 ## 2026-10-17 — Suggested secondary truncation hover implementation
 
 [Source mapping and proof boundary](systems/adventure-guide.md#suggested-secondary-text-hover--implementation-2026-10-17): literal EJ3311 second-pass owners; native drawn-label truncation gates full white wrapped right-anchored tooltips. Both-skin model RED recorded; native hover/leave acceptance waits for lead gate/window. No provider/reward/action authority added.
+## 2026-10-18 — ReadyCheck allocation-based non-overlap policy
+
+Explicit user instruction authorizes frame growth, not a discovered Retail mechanism. Strict rendered RED both skins: ordinary+13.125px combined, toggle−5.875px, long-name−21.875px; all18 scans/exact restoration valid. Native bounds now consume actual extra measured allocation, preserve CENTER/bodyTOP37/font12 and button bottom16; one-line unchanged, no ink-aware padding. GREEN native clearance remains pending gate/window. [Policy](systems/group-frames.md#readycheck-body-no-overlap-project-policy--2026-10-18). The supplied one-line Retail crop is only bounded relative evidence; separate gap-ratio audit remains named.
 
 ## 2026-10-18 — Post-guild ownership-cap codec/dispatch target proof
 
