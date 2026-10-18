@@ -164,7 +164,6 @@ fn trading_post_cart_selection_return_validates_current_membership() {
 }
 
 #[test]
-#[ignore = "CPU RED for cart snapshot ownership regression; run explicitly"]
 fn trading_post_cart_selection_snapshot_refresh_preserves_owner_until_explicit_return() {
     let mut view = cart_selection_view(11);
     view.click("perks:cart:show").unwrap();
@@ -199,9 +198,8 @@ fn trading_post_cart_selection_snapshot_refresh_preserves_owner_until_explicit_r
 fn trading_post_cart_selection_provider_reselection_hides_cart_silently() {
     let mut view = cart_selection_view(11);
     view.click("perks:cart:show").unwrap();
-    let mut data = view.snapshot.as_ref().unwrap().as_ref().clone();
-    data.items.retain(|row| row.id != 11);
-    view.receive(Arc::new(data));
+    // Products.lua599–601 rebuilds the provider on a filter action, not currency refresh.
+    view.click("perks:type:1").unwrap();
     assert_eq!(
         view.selected,
         Some(12),

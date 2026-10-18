@@ -170,7 +170,10 @@ impl View {
         self.refund_elapsed = 0;
         self.cancel_confirmation();
         self.cart_confirmation = None;
-        self.reselect();
+        // Currency/authority snapshots do not transfer preview ownership to a product.
+        if !self.cart_visible {
+            self.reselect();
+        }
     }
     pub fn rows(&self) -> Vec<&TradingPostItem> {
         let committed_frozen = self
