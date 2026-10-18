@@ -44,6 +44,15 @@ pub fn apply_postsetup(
     }
 }
 
+/// Retail EJ Lua3311–3357: content for a truncated secondary text hover.
+pub fn text_tooltip(
+    _snapshot: &AdventureGuideSnapshot,
+    _owner: &str,
+    _rendered_truncated: bool,
+) -> Option<crate::game_tooltip::GameTooltip> {
+    None
+}
+
 pub fn suggested(ctx: &SharedContext, snapshot: Option<&AdventureGuideSnapshot>) -> Element {
     let _ = ctx.get::<ActiveSkin>();
     let Some(snapshot) = snapshot else {
