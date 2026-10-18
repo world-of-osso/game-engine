@@ -1,3 +1,7 @@
+## 2026-10-18 — ReadyCheck difficulty-qualified body
+
+[Exact source rule](systems/group-frames.md#readycheck-difficulty-qualified-body--implementation-2026-10-18): actual copy difficulty, else server-selected raid/dungeon ID; local DB2 positive toggle gates CURRENT-name suffix. Existing WorldServerInfo wire only, no server/protocol change. Account unhandled-message and owned-UDP empty-receipt REDs precede cc6abf340 account1/wire1/UI8 GREEN, including map-context reset, primary-versus-legacy and both-skin ordinary-text/style controls. Engine/network check65s/no warnings, affected-package Cargo fmt/scoped diff/readability pass. Landed master6b1c79222 included; geometry/audio/answers/authority conserved. Native rendered/live-server acceptance pending; no runtime launched or completed proof replayed.
+
 ## 2026-10-17 — Invitation dismissal lifecycle
 
 [Invitation dismissal](systems/guilds.md#invitation-dismissal): installed Mainline elapsed>60/OnHide and special-popup Escape authority; actual60.001s model RED before timeout/Escape wiring, no protocol/server changes. Loading retention and pending acceptance conserved. Post-landing native proof pending.
