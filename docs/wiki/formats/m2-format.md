@@ -2,6 +2,8 @@
 
 M2 is Blizzard's model format for characters, creatures, doodads, and spell effects. Each model consists of a root `.m2` file (the MD21 chunk container), one or more `.skin` files for render batches, and optionally an external `.skel` file for HD models.
 
+Parser ownership/features: [shared wow-formats crates](../systems/wow-formats.md). Client Model assembly and simulation remain in core; authored-data fixtures remain in game-engine.
+
 ## File Structure
 
 The root `.m2` file is a chunked binary. The primary chunk is `MD21` (magic `MD20` at offset 0), which contains the main header. Subsequent top-level chunks are identified by 4-byte tags:
@@ -130,11 +132,11 @@ Particle emitter data lives in the MD21 header at offset `0x128` (Cata+ layout, 
 - WebWowViewerCpp `1a8cccb`: `wowViewerLib/src/engine/objects/m2/m2Object.cpp`, `m2Helpers/M2MeshBufferUpdater.cpp`, `managers/animationManager.cpp`, `shaders/slang/common/commonM2Material.slang`, `bindless/m2/m2shader_text.slang`
 
 - [wowlib M2 camera records](https://skarndev.github.io/wowlib/python/m2/records/) — versioned camera fields and spline/FOV interpretation
-- [M2 camera parser](../../../src/asset/m2_format/m2_camera.rs) — MD20 layout, bounds checks, and cached creation-model fixtures
+- `world-of-osso/wow-formats/wow-m2/src/m2_camera.rs` — MD20 camera layout/bounds; [client camera fixtures](../../../godot/core/tests/m2_camera_format_fixtures.rs)
 - [docs/particle-system.md](../particle-system.md) — M2 particle parser layout, field list, renderer architecture
 - [docs/geosets.md](../geosets.md) — geoset groups, bone indices, texture types, HD geoset observations
 - [docs/hd-skeleton-status.md](../hd-skeleton-status.md) — external .skel loading, skin index overflow fix, render flags, bone remap
-- AGENTS.md (`asset/m2_format/` section) — module structure and chunk overview
+- [Shared format readers](../systems/wow-formats.md) — crate ownership and preserved client namespaces
 
 ## See Also
 
