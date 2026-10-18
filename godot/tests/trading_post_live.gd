@@ -9,6 +9,17 @@ var skin := OS.get_environment("TP_SKIN")
 var phase := OS.get_environment("TP_PHASE")
 var server := OS.get_environment("TP_SERVER")
 var menu_audio_events := []
+var selection_audio_events := []
+var selection_sound_checks := []
+var hover_audio_events := []
+var hover_sound_checks := []
+var hover_kit_baseline := 0
+var row_exclusion_checks := []
+var lock_audio_events := []
+var lock_sound_checks := []
+const FREEZE_LOCK_FILES := [4908453,4908455,4908457,4908459]
+const FREEZE_LOCK_LENGTHS := {4908453:3.349813,4908455:3.418396,4908457:3.782833,4908459:3.621125}
+var paused_private_server := 0
 # Retail70391 SoundKitEntry rows for218932/218933.
 const MENU_OPEN_FILES := [4956048,4956050,4956052,4956054,4956056]
 const MENU_CLOSE_FILES := [4555731,4555733,4555735,4555737,4555739,4555741,4555743,4555745,4555747,4555749]
@@ -23,7 +34,7 @@ func run_fixture() -> void:
 		fail("Private compositor must expose 1920x1080 output")
 		return
 	var account := OS.get_environment("TP_ACCOUNT")
-	if server != "127.0.0.1:5791" or not account.begins_with("fb_") or shots.is_empty() or receipts.is_empty() or not phase in ["menu-sounds", "layout", "layout-proof", "browse", "relog", "purchase", "refund", "cart", "cart-lifetime", "rotate-controls", "mount-rider", "mount-rider-cancel", "freeze-workflow", "authored-camera", "frozen-slot-before", "frozen-slot-after"]:
+	if server != "127.0.0.1:5791" or not account.begins_with("fb_") or shots.is_empty() or receipts.is_empty() or not phase in ["product-selection-sound", "keyboard-navigation", "purchase-price-sort", "frozen-row-exclusion", "freeze-lock-sound", "product-hover-sound", "refund-icon-blend", "refund-icon-tooltip", "row-cart-toggle", "frozen-tooltip", "cart-tooltips", "pending-dialogs", "confirmations", "button-tooltips", "item-tooltips", "menu-sounds", "layout", "layout-proof", "browse", "relog", "purchase", "refund", "cart", "cart-lifetime", "rotate-controls", "mount-rider", "mount-rider-cancel", "freeze-workflow", "authored-camera", "frozen-slot-before", "frozen-slot-after"]:
 		fail("Explicit private 127.0.0.1:5791, fb_* account, phase and evidence paths required")
 		return
 	for directory in [shots, receipts]:
@@ -47,8 +58,8 @@ func run_fixture() -> void:
 	if not await wait_until(func(): return float(client.account_state().local_player_health) > 0.0, "private character alive", 120000): return
 	client.set_world_minutes(720.0)
 	await wait_frames(120)
-	if not phase in ["menu-sounds", "layout", "layout-proof", "cart", "cart-lifetime", "rotate-controls", "mount-rider", "mount-rider-cancel", "freeze-workflow", "authored-camera", "frozen-slot-before", "frozen-slot-after"] and not await travelers_log(): return
-	if phase == "menu-sounds" and not watch_menu_sound_players(): return
+	if not phase in ["product-selection-sound", "keyboard-navigation", "purchase-price-sort", "frozen-row-exclusion", "freeze-lock-sound", "product-hover-sound", "refund-icon-blend", "refund-icon-tooltip", "row-cart-toggle", "frozen-tooltip", "cart-tooltips", "pending-dialogs", "confirmations", "button-tooltips", "item-tooltips", "menu-sounds", "layout", "layout-proof", "cart", "cart-lifetime", "rotate-controls", "mount-rider", "mount-rider-cancel", "freeze-workflow", "authored-camera", "frozen-slot-before", "frozen-slot-after"] and not await travelers_log(): return
+	if phase in ["product-selection-sound", "menu-sounds", "product-hover-sound", "freeze-lock-sound"] and not watch_menu_sound_players(): return
 	if not await open_vendor(): return
 	if phase in ["cart", "cart-lifetime"]:
 		# Collection UI owners may replace a hidden CanvasLayer while this vendor is open.
@@ -82,10 +93,679 @@ func run_fixture() -> void:
 		"freeze-workflow": await freeze_workflow_proof()
 		"authored-camera": await authored_camera_proof()
 		"menu-sounds": await menu_sound_proof()
+		"product-hover-sound": await product_hover_sound_proof()
+		"product-selection-sound": await product_selection_sound_proof()
+		"keyboard-navigation": await keyboard_navigation_proof()
+		"purchase-price-sort": await purchase_price_sort_proof()
+		"frozen-row-exclusion": await frozen_row_exclusion_proof()
+		"freeze-lock-sound": await freeze_lock_sound_proof()
+		"item-tooltips": await item_tooltip_proof()
+		"confirmations": await confirmation_escape_proof()
+		"pending-dialogs": await pending_dialog_proof()
+		"frozen-tooltip": await frozen_item_tooltip_proof()
+
+		"button-tooltips": await button_tooltip_proof()
+		"refund-icon-blend": await refund_icon_blend_proof()
+		"refund-icon-tooltip": await refund_icon_tooltip_proof()
+		"row-cart-toggle": await row_cart_toggle_proof()
+		"cart-tooltips": await cart_item_tooltip_proof()
 		"frozen-slot-before": await frozen_slot_geometry_proof(false)
 		"frozen-slot-after": await frozen_slot_geometry_proof(true)
 		"refund": await refund_after_relog()
 		_: await browse()
+
+func refund_icon_blend_proof() -> void:
+	var before: Dictionary = client.trading_post_state().duplicate(true)
+	if not await choose_category(1): return
+	var target := int(before.frozen)
+	if target <= 0 or control("PerksProgramProduct%d" % target) == null:
+		fail("Blend probe needs the preserved real frozen product and its visible ordinary row"); return
+	await click("PerksProgramFrozenSlot")
+	if not await wait_until(func(): return int(client.trading_post_state().selected) == target, "preserved frozen selection"): return
+	if control("PerksProgramPurchaseButton") == null or not control_enabled("PerksProgramPurchaseButton"):
+		fail("Preserved frozen product is not purchase-eligible; no reservation reset allowed"); return
+	var product: Dictionary = client.trading_post_state().duplicate(true)
+	var price := int(product.price)
+	await click("PerksProgramPurchaseButton")
+	await click("PerksProgramConfirmButton")
+	if not await wait_until(func(): return client.trading_post_state().purchased and not client.trading_post_state().pending and int(client.trading_post_state().tender) == int(before.tender) - price, "blend probe genuine purchase", 120000): return
+	if int(client.trading_post_state().refund_seconds) <= 0:
+		fail("Blend probe requires explicit private refund window, not a production change"); return
+	await wait_frames(30)
+	var row_owner := "PerksProgramRefundIcon%d" % target
+	var frozen_owner := "PerksProgramFrozenRefundIcon%d" % target
+	var previous_process_mode: Node.ProcessMode = client.process_mode
+	client.process_mode = Node.PROCESS_MODE_DISABLED
+	var row_add: Dictionary = await capture_blend_reference(row_owner, CanvasItemMaterial.BLEND_MODE_ADD, "row-add")
+	var row_mix: Dictionary = await capture_blend_reference(row_owner, CanvasItemMaterial.BLEND_MODE_MIX, "row-mix")
+	var frozen_add: Dictionary = await capture_blend_reference(frozen_owner, CanvasItemMaterial.BLEND_MODE_ADD, "frozen-add")
+	var frozen_mix: Dictionary = await capture_blend_reference(frozen_owner, CanvasItemMaterial.BLEND_MODE_MIX, "frozen-mix")
+	var footer_mix: Dictionary = await capture_blend_reference("PerksProgramHistoryRefundIcon", CanvasItemMaterial.BLEND_MODE_MIX, "footer-normal")
+	var footer_add: Dictionary = await capture_blend_reference("PerksProgramHistoryRefundIcon", CanvasItemMaterial.BLEND_MODE_ADD, "footer-add-control")
+	client.process_mode = previous_process_mode
+	var samples := [row_add, row_mix, frozen_add, frozen_mix, footer_mix, footer_add]
+	var errors: Array[String] = []
+	for result in samples:
+		if result.has("error"): errors.append(str(result.error))
+	var row_sensitive := false
+	var frozen_sensitive := false
+	var footer_sensitive := false
+	if errors.is_empty():
+		row_sensitive = count_different_bytes(row_add.reference_data, row_mix.reference_data) > 0
+		frozen_sensitive = count_different_bytes(frozen_add.reference_data, frozen_mix.reference_data) > 0
+		footer_sensitive = count_different_bytes(footer_mix.reference_data, footer_add.reference_data) > 0
+	var sensitive: bool = row_sensitive and frozen_sensitive and footer_sensitive
+	for result in samples:
+		if not result.has("error") and int(result.restore_differences) != 0:
+			errors.append("Unstable render/restore for " + str(result.owner))
+		result.erase("reference_data")
+	var other := await select_other_cartable([target])
+	if other <= 0: return
+	var icon := control(row_owner)
+	var click_selected := false
+	if icon != null:
+		var point := icon.get_global_rect().get_center()
+		await motion(point, false)
+		await button_event(point, MOUSE_BUTTON_LEFT, true)
+		await button_event(point, MOUSE_BUTTON_LEFT, false)
+		await wait_frames(5)
+		click_selected = int(client.trading_post_state().selected) == target
+	# Select the ordinary row for cleanup independently of the icon-click verdict.
+	await click("PerksProgramProduct%d" % target)
+	await click("PerksProgramRefundButton")
+	await click("PerksProgramConfirmButton")
+	if not await wait_until(func(): return not client.trading_post_state().purchased and not client.trading_post_state().pending and int(client.trading_post_state().tender) == int(before.tender), "blend probe restores authoritative Tender", 120000): return
+	var restored: Dictionary = client.trading_post_state()
+	var conserved: bool = restored.frozen == before.frozen and restored.collected == product.collected and restored.cart.is_empty()
+	var observations: Dictionary = {
+		"probe": "refund-icon-blend",
+		"target": target,
+		"row_add": row_add,
+		"row_mix": row_mix,
+		"frozen_add": frozen_add,
+		"frozen_mix": frozen_mix,
+		"footer_mix": footer_mix,
+		"footer_add": footer_add,
+		"sensitive": sensitive,
+		"row_sensitive": row_sensitive,
+		"frozen_sensitive": frozen_sensitive,
+		"footer_sensitive": footer_sensitive,
+		"click_selected": click_selected,
+		"conserved": conserved,
+		"errors": errors,
+		"before_tender": before.tender,
+		"after_tender": restored.tender,
+		"before_frozen": before.frozen,
+		"after_frozen": restored.frozen,
+	}
+	var file := FileAccess.open(receipts.path_join(skin + "-refund-icon-blend-measurements.json"), FileAccess.WRITE)
+	if file == null: fail("Cannot write blend observations"); return
+	file.store_string(JSON.stringify(observations, "\t"))
+	file.close()
+	await capture("blend-refunded-restored")
+	print("TP_REFUND_ICON_BLEND ", observations)
+	if not errors.is_empty(): fail("Blend probe harness invalid: " + str(errors)); return
+	if not sensitive: fail("Blend probe has no ADD/MIX paint sensitivity; not a feature RED"); return
+	if not conserved or not click_selected: fail("Blend probe changed authority or parent-row click"); return
+	if int(footer_mix.differences) != 0: fail("Footer32 normal-blend control changed; excluded from row ADD"); return
+	if int(row_add.differences) != 0 or int(frozen_add.differences) != 0:
+		fail("Ordinary/inherited21 refund glyph does not match explicit source ADD; genuine purchase refunded before assertion"); return
+	if int(row_mix.differences) == 0 or int(frozen_mix.differences) == 0:
+		fail("Ordinary/inherited21 source ADD paint has no MIX counterfactual difference"); return
+	await finish("refund-icon-blend")
+
+func capture_blend_reference(owner_name: String, mode: CanvasItemMaterial.BlendMode, label: String) -> Dictionary:
+	var owner := control(owner_name)
+	if owner == null: return {"owner":owner_name,"error":"Missing visible blend owner " + owner_name}
+	var parts := owner.find_children("*", "TextureRect", true, false)
+	if parts.size() != 1: return {"owner":owner_name,"error":"Expected one decoded texture part for " + owner_name}
+	var part: TextureRect = parts[0] as TextureRect
+	if part.texture == null: return {"owner":owner_name,"error":"Undecoded blend texture " + owner_name}
+	var region := Rect2i(owner.get_global_rect())
+	if region.size.x <= 0 or region.size.y <= 0 or not Rect2i(Vector2i.ZERO, root.size).encloses(region):
+		return {"owner":owner_name,"error":"Blend owner outside native framebuffer " + owner_name}
+	var actual: Image = await capture_rgba_region(region)
+	if actual.save_png(shots.path_join(skin + "-" + label + "-actual-crop.png")) != OK:
+		return {"owner":owner_name,"error":"Cannot save actual blend crop"}
+	await capture(label + "-actual")
+	if not is_instance_valid(part): return {"owner":owner_name,"error":"Texture part replaced before counterfactual"}
+	var original: Material = part.material
+	var reference := CanvasItemMaterial.new()
+	reference.blend_mode = mode
+	part.material = reference
+	var expected: Image = await capture_rgba_region(region)
+	var save_error := expected.save_png(shots.path_join(skin + "-" + label + "-reference-crop.png"))
+	await capture(label + "-reference")
+	if not is_instance_valid(part): return {"owner":owner_name,"error":"Texture part replaced during frozen probe"}
+	part.material = original
+	var after_restore: Image = await capture_rgba_region(region)
+	if save_error != OK: return {"owner":owner_name,"error":"Cannot save blend reference crop"}
+	return {"owner":owner_name,"rect":[region.position.x,region.position.y,region.size.x,region.size.y],"differences":count_different_bytes(actual.get_data(), expected.get_data()),"restore_differences":count_different_bytes(actual.get_data(), after_restore.get_data()),"reference_data":expected.get_data()}
+
+func capture_rgba_region(region: Rect2i) -> Image:
+	await wait_frames(3)
+	await RenderingServer.frame_post_draw
+	var image: Image = root.get_texture().get_image().get_region(region)
+	image.convert(Image.FORMAT_RGBA8)
+	return image
+
+func count_different_bytes(actual: PackedByteArray, reference: PackedByteArray) -> int:
+	if actual.size() != reference.size(): return maxi(actual.size(), reference.size())
+	var count := 0
+	for index in range(actual.size()):
+		if actual[index] != reference[index]: count += 1
+	return count
+
+func refund_icon_tooltip_proof() -> void:
+	var before: Dictionary = client.trading_post_state().duplicate(true)
+	if not await choose_category(1): return
+	var target := await select_other_cartable([])
+	if target <= 0: return
+	var product: Dictionary = client.trading_post_state().duplicate(true)
+	var price := int(product.price)
+	await click("PerksProgramPurchaseButton")
+	await click("PerksProgramConfirmButton")
+	if not await wait_until(func(): return client.trading_post_state().purchased and not client.trading_post_state().pending and int(client.trading_post_state().tender) == int(before.tender) - price, "refund tooltip genuine purchase", 120000): return
+	if int(client.trading_post_state().refund_seconds) <= 0:
+		fail("Refund tooltip needs explicit private refund window, not production policy"); return
+	var other := await select_other_cartable([target])
+	if other <= 0: return
+	var row := control("PerksProgramProduct%d" % target)
+	if row == null: fail("Purchased refund row not visible"); return
+	var scale := control("PerksProgramLeaveButton").get_global_rect().size.x / 180.0
+	var icon := Rect2(row.get_global_rect().position + Vector2(389, 13.5) * scale, Vector2(21, 21) * scale)
+	await motion(icon.get_center(), false)
+	await wait_frames(30)
+	var tooltip: Dictionary = client.tooltip_state().duplicate(true)
+	var prefix := "Time remaining to refund this item: "
+	var matched := str(tooltip.get("title", "")).begins_with(prefix)
+	await capture("refund-hover")
+	var anchor_ok := matched and absf(float(tooltip.rect[0]) - icon.end.x / scale) <= 1.5 and absf(float(tooltip.rect[1]) + float(tooltip.rect[3]) - icon.position.y / scale) <= 1.5
+	var state: Dictionary = client.trading_post_state()
+	var conserved: bool = int(state.selected) == other and int(state.tender) == int(before.tender) - price and state.frozen == before.frozen and state.cart.is_empty()
+	await button_event(icon.get_center(), MOUSE_BUTTON_LEFT, true)
+	await button_event(icon.get_center(), MOUSE_BUTTON_LEFT, false)
+	await wait_frames(5)
+	var click_selected := int(client.trading_post_state().selected) == target
+	await click("PerksProgramProduct%d" % other)
+	await motion(row.get_global_rect().position + Vector2(96, 24) * scale, false)
+	if not await wait_until(func(): return client.tooltip_state().get("title", "") == str(product.selected_name), "refund icon leave restores product tooltip"): return
+	await motion(control("PerksProgramLeaveButton").get_global_rect().get_center(), false)
+	if not await wait_until(func(): return not client.tooltip_state().get("visible", false), "refund icon pointer leave"): return
+	await capture("refund-leave")
+	# Destroy the hovered owner without moving off it, then restore the genuine
+	# purchase even when the tooltip assertion is RED.
+	await motion(icon.get_center(), false)
+	await wait_frames(5)
+	await tap(KEY_ESCAPE)
+	if not await wait_until(func(): return not client.trading_post_state().open and not client.tooltip_state().get("visible", false), "refund tooltip hovered-owner teardown"): return
+	await capture("refund-owner-teardown")
+	if not await open_vendor(): return
+	if not await choose_category(1): return
+	await click("PerksProgramProduct%d" % target)
+	if not await wait_until(func(): return int(client.trading_post_state().selected) == target, "purchased product reselect"): return
+	if control("PerksProgramRefundButton") == null:
+		fail("Private refund expired before cleanup"); return
+	await click("PerksProgramRefundButton")
+	await click("PerksProgramConfirmButton")
+	if not await wait_until(func(): return not client.trading_post_state().purchased and not client.trading_post_state().pending and int(client.trading_post_state().tender) == int(before.tender), "refund tooltip restores authoritative Tender", 120000): return
+	var restored: Dictionary = client.trading_post_state()
+	if restored.frozen != before.frozen or restored.collected != product.collected or not restored.cart.is_empty():
+		fail("Refund tooltip roundtrip changed frozen reservation, collection or cart"); return
+	await capture("refunded-restored")
+	print("TP_REFUND_ICON_TOOLTIP target=", target, " selected=", other, " tooltip=", tooltip, " matched=", matched, " anchor_ok=", anchor_ok, " conserved=", conserved, " click_selected=", click_selected)
+	if not matched:
+		fail("Retail row refund icon tooltip missing; genuine purchase refunded before assertion"); return
+	if not anchor_ok or not conserved or not click_selected:
+		fail("Refund icon tooltip lost source owner anchor, parent click or selection/authority"); return
+	await finish("refund-icon-tooltip")
+
+func row_cart_toggle_proof() -> void:
+	if not await choose_category(1): return
+	var target := await select_other_cartable([])
+	if target <= 0: return
+	var target_name: String = client.trading_post_state().selected_name
+	var target_item := int(client.trading_post_state().item_id)
+	var other := await select_other_cartable([target])
+	if other <= 0: return
+	var initial: Dictionary = client.trading_post_state().duplicate(true)
+	var owner := "PerksProgramCartToggle%d" % target
+	var row := "PerksProgramProduct%d" % target
+	var scale := control("PerksProgramLeaveButton").get_global_rect().size.x / 180.0
+	await motion(control("PerksProgramLeaveButton").get_global_rect().get_center(), false)
+	if control(owner) != null: fail("Row cart toggle visible without row hover"); return
+	await motion(control(row).get_global_rect().position + Vector2(96, 24) * scale, false)
+	if not await wait_until(func(): return control(owner) != null, "Retail row cart toggle on eligible product hover", 10000): return
+	var rect := control(owner).get_global_rect()
+	var expected := control(row).get_global_rect().position + Vector2(443, 6) * scale
+	if rect.position.distance_to(expected) > 1.5 or rect.size.distance_to(Vector2(36, 36) * scale) > 1.5:
+		fail("Row cart toggle lacks source36x36/TimeRemaining center anchor"); return
+	await wait_frames(3)
+	await RenderingServer.frame_post_draw
+	var glyph_rect := Rect2i(Vector2i(rect.position + Vector2(8, 8) * scale), Vector2i(Vector2(20, 20) * scale))
+	var normal_contrast := cart_glyph_contrast(root.get_texture().get_image().get_region(glyph_rect))
+	await motion(rect.get_center(), false)
+	if not await wait_until(func(): return client.tooltip_state().get("title", "") == "Add to Cart", "row cart Add tooltip"): return
+	await wait_frames(3)
+	await RenderingServer.frame_post_draw
+	var hover_contrast := cart_glyph_contrast(root.get_texture().get_image().get_region(glyph_rect))
+	print("TP_ROW_CART_GLYPH_CONTRAST normal=", normal_contrast, " hover=", hover_contrast)
+	if normal_contrast <= 0.0 or hover_contrast < normal_contrast * 0.25:
+		fail("Hovered row cart glyph lost base contrast under highlight"); return
+	var tooltip: Dictionary = client.tooltip_state()
+	if absf(float(tooltip.rect[0]) + float(tooltip.rect[2]) - rect.position.x / scale) > 1.5 or absf(float(tooltip.rect[1]) + float(tooltip.rect[3]) - rect.position.y / scale) > 1.5:
+		fail("Row cart tooltip lacks source ANCHOR_LEFT0/0"); return
+	await capture("add-hover")
+	await button_event(rect.get_center(), MOUSE_BUTTON_LEFT, true)
+	await capture("pressed")
+	await button_event(rect.get_center(), MOUSE_BUTTON_LEFT, false)
+	if not await wait_until(func(): return target in client.trading_post_state().cart, "row Add toggles hovered item"): return
+	if not await wait_until(func(): return client.tooltip_state().get("title", "") == "Remove from Cart", "row tooltip tracks cart membership"): return
+	var added: Dictionary = client.trading_post_state()
+	if int(added.selected) != other or int(added.tender) != int(initial.tender) or int(added.frozen) != int(initial.frozen) or added.pending:
+		fail("Row cart toggle changed selected preview/Tender/frozen authority"); return
+	await capture("remove-hover")
+	await click(owner)
+	if not await wait_until(func(): return client.trading_post_state().cart == initial.cart, "row Remove restores initial cart"): return
+	await motion(control(row).get_global_rect().position + Vector2(96, 24) * scale, false)
+	if not await wait_until(func(): return client.tooltip_state().get("title", "") == target_name, "leaving cart toggle restores product tooltip"): return
+	await capture("row-tooltip-restored")
+	await motion(control("PerksProgramLeaveButton").get_global_rect().get_center(), false)
+	if not await wait_until(func(): return control(owner) == null and not client.tooltip_state().get("visible", false), "row leave hides toggle and tooltip"): return
+	if not await hover_row_cart_toggle(target, "Add to Cart"): return
+	await click(owner)
+	await click("PerksProgramViewCartButton")
+	if not await wait_until(func(): return client.trading_post_state().cart_visible, "open row-added cart"): return
+	if not target_item in client.trading_post_state().cart_preview_items:
+		fail("Row-added item not initially selected in open cart"); return
+	await click("PerksProgramCartItem%d" % target)
+	if not await wait_until(func(): return not target_item in client.trading_post_state().cart_preview_items, "disable existing cart preview before append"): return
+	if not await hover_row_cart_toggle(other, "Add to Cart"): return
+	await click("PerksProgramCartToggle%d" % other)
+	if not await wait_until(func(): return other in client.trading_post_state().cart and int(initial.item_id) in client.trading_post_state().cart_preview_items, "append open-cart wearable default"): return
+	if target_item in client.trading_post_state().cart_preview_items:
+		fail("Open-cart row add reset disabled preview choice"); return
+	await capture("open-cart-added")
+	await click("PerksProgramCartToggle%d" % other)
+	if not await hover_row_cart_toggle(target, "Remove from Cart"): return
+	await click(owner)
+	if not await wait_until(func(): return client.trading_post_state().cart == initial.cart and not client.trading_post_state().cart_visible, "row remove closes emptied cart"): return
+	var final: Dictionary = client.trading_post_state()
+	if int(final.selected) != other or int(final.tender) != int(initial.tender) or int(final.frozen) != int(initial.frozen) or final.pending:
+		fail("Row toggle roundtrip changed model/Tender/frozen authority"); return
+	print("TP_ROW_CART_TOGGLE target=", target, " selected=", other, " tender=", final.tender, " frozen=", final.frozen)
+	await finish("row-cart-toggle")
+
+# Pixel structure, not node/texture existence: highlighted cart glyph remains painted.
+func cart_glyph_contrast(image: Image) -> float:
+	var total := 0.0
+	var squares := 0.0
+	var count := image.get_width() * image.get_height()
+	for y in image.get_height():
+		for x in image.get_width():
+			var pixel := image.get_pixel(x, y)
+			var brightness := (pixel.r + pixel.g + pixel.b) / 3.0
+			total += brightness
+			squares += brightness * brightness
+	return sqrt(maxf(0.0, squares / count - pow(total / count, 2.0)))
+
+func hover_row_cart_toggle(vendor: int, title: String) -> bool:
+	var scale := control("PerksProgramLeaveButton").get_global_rect().size.x / 180.0
+	var owner := "PerksProgramCartToggle%d" % vendor
+	await motion(control("PerksProgramProduct%d" % vendor).get_global_rect().position + Vector2(96, 24) * scale, false)
+	if not await wait_until(func(): return control(owner) != null, "row toggle visible on hover"): return false
+	await motion(control(owner).get_global_rect().get_center(), false)
+	return await wait_until(func(): return client.tooltip_state().get("title", "") == title, "row toggle tooltip " + title)
+
+func frozen_item_tooltip_proof() -> void:
+	var initial: Dictionary = client.trading_post_state().duplicate(true)
+	if int(initial.frozen) < 0:
+		await motion(control("PerksProgramFrozenSlot").get_global_rect().get_center(), false)
+		if not await wait_until(func(): return not client.tooltip_state().get("visible", false), "empty frozen slot has no item tooltip"): return
+		if not await choose_category(1): return
+		if not await select_first_available(int(initial.tender)): return
+		var candidate := int(client.trading_post_state().selected)
+		if not await drag_to_frozen("PerksProgramProduct%d" % candidate): return
+		if not await wait_until(func(): return int(client.trading_post_state().frozen) == candidate and not client.trading_post_state().pending, "real private frozen-item setup", 120000): return
+	else:
+		await click("PerksProgramFrozenSlot")
+		if not await wait_until(func(): return int(client.trading_post_state().selected) == int(initial.frozen), "select actual occupied frozen product"): return
+	var frozen: Dictionary = client.trading_post_state().duplicate(true)
+	print("TP_FROZEN_TOOLTIP_SETUP initial=", initial.frozen, " used=", frozen.frozen, " item=", frozen.item_id, " tender=", frozen.tender)
+	if int(frozen.category) != 1 and not await choose_category(1): return
+	var other := await select_other_cartable([int(frozen.frozen)])
+	if other <= 0: return
+	await motion(control("PerksProgramFrozenSlot").get_global_rect().get_center(), false)
+	if not await wait_until(func(): return client.tooltip_state().get("visible", false) and client.tooltip_state().get("title", "") == frozen.selected_name, "Retail inherited frozen product item tooltip", 10000): return
+	var tooltip: Dictionary = client.tooltip_state()
+	var lines := str(tooltip.get("lines", []))
+	if not lines.contains("Item ID: %d" % int(frozen.item_id)) or lines.contains("Sell Price"):
+		fail("Frozen tooltip lost displayed item identity or included SellPrice"); return
+	var rect := control("PerksProgramFrozenSlot").get_global_rect()
+	var scale := control("PerksProgramLeaveButton").get_global_rect().size.x / 180.0
+	if absf(float(tooltip.rect[0]) - (rect.end.x / scale - 16.0)) > 1.5 or absf(float(tooltip.rect[1]) + float(tooltip.rect[3]) - rect.position.y / scale) > 1.5:
+		fail("Frozen tooltip lacks inherited source Right−16/Y0 owner anchor"); return
+	var state: Dictionary = client.trading_post_state()
+	if int(state.selected) != other or int(state.frozen) != int(frozen.frozen) or int(state.tender) != int(initial.tender) or state.pending:
+		fail("Frozen tooltip hover changed selected model/frozen authority/Tender"); return
+	await capture("settled-frozen-hover")
+	await motion(control("PerksProgramLeaveButton").get_global_rect().get_center(), false)
+	if not await wait_until(func(): return not client.tooltip_state().get("visible", false), "frozen item leave clears tooltip"): return
+	await capture("leave-hidden")
+	# Keep genuine private setup state. Retail explicitly removes OnDragStart
+	# from frozen products; do not use the engine's drag-off path as a source oracle.
+	await finish("frozen-tooltip")
+
+func pause_private_reply() -> bool:
+	var pid := int(OS.get_environment("TP_SERVER_PID"))
+	if server != "127.0.0.1:5791" or pid <= 1:
+		fail("Pending proof requires host-verified owned private server PID"); return false
+	var output := []
+	if OS.execute("/usr/bin/kill", ["-STOP", str(pid)], output, true) != 0:
+		fail("Cannot pause own private server: " + str(output)); return false
+	paused_private_server = pid
+	return true
+
+func resume_private_reply() -> void:
+	if paused_private_server > 1:
+		var output := []
+		var result := OS.execute("/usr/bin/kill", ["-CONT", str(paused_private_server)], output, true)
+		print("TP_PRIVATE_SERVER_CONT pid=", paused_private_server, " code=", result)
+		paused_private_server = 0
+
+func assert_pending_painted() -> bool:
+	var dialog := control("PerksProgramConfirmDialog")
+	var spinner := control("PerksProgramConfirmSpinner")
+	var overlay := control("PerksProgramConfirmDarkOverlay")
+	var scale := dialog.get_global_rect().size.x / 320.0
+	var expected := dialog.get_global_rect().grow(-11.0 * scale)
+	if not overlay.get_global_rect().is_equal_approx(expected):
+		fail("Pending dark overlay lacks source 11px inset"); return false
+	# Counterfactual image controls, not forged UI state: freeze the host update
+	# briefly so native visibility toggles survive until each actual frame draws.
+	client.set_process(false)
+	var center := dialog.get_global_rect().get_center()
+	var rect := Rect2i(center - Vector2(30, 30) * scale, Vector2(60, 60) * scale)
+	await RenderingServer.frame_post_draw
+	var painted := root.get_texture().get_image().get_region(rect).get_data()
+	spinner.hide()
+	await process_frame
+	await RenderingServer.frame_post_draw
+	var without_spinner := root.get_texture().get_image().get_region(rect).get_data()
+	overlay.hide()
+	await process_frame
+	await RenderingServer.frame_post_draw
+	var without_overlay := root.get_texture().get_image().get_region(rect).get_data()
+	overlay.show()
+	spinner.show()
+	client.set_process(true)
+	if painted == without_spinner:
+		fail("Pending spinner node rotates but paints no pixels above dialog"); return false
+	if without_spinner == without_overlay:
+		fail("Pending dark overlay paints no pixels above dialog"); return false
+	print("TP_PENDING_PAINT spinner_diff=true overlay_diff=true inset=", overlay.get_global_rect())
+	return true
+
+func accepted_dialog_waits(label: String, tender: int, purchased: bool) -> bool:
+	if not await pause_private_reply(): return false
+	await click("PerksProgramConfirmButton")
+	if not await wait_until(func(): return client.trading_post_state().pending, "accepted transaction pending", 3000): return false
+	if control("PerksProgramConfirmDialog") == null:
+		fail("Retail pending " + label + " dialog disappeared before server reply"); return false
+	if control_enabled("PerksProgramConfirmButton") or control_enabled("PerksProgramConfirmCancelButton"):
+		fail("Pending transaction left a dialog button enabled"); return false
+	if not await wait_until(func(): return texture_ready("PerksProgramConfirmSpinnerRing") and texture_ready("PerksProgramConfirmSpinnerSparks"), "real decoded pending spinner", 3000): return false
+	if control("PerksProgramConfirmDarkOverlay") == null:
+		fail("Pending transaction has no source dark overlay"); return false
+	var spinner := control("PerksProgramConfirmSpinner")
+	var initial_rotation := spinner.rotation
+	await wait_frames(3)
+	if is_equal_approx(spinner.rotation, initial_rotation):
+		fail("Pending " + label + " spinner is static despite source rotation"); return false
+	print("TP_PENDING_SPINNER_ROTATION kind=", label, " before=", initial_rotation, " after=", spinner.rotation)
+	if not await assert_pending_painted(): return false
+	await button_event(control("PerksProgramConfirmButton").get_global_rect().get_center(), MOUSE_BUTTON_LEFT, true)
+	await button_event(control("PerksProgramConfirmButton").get_global_rect().get_center(), MOUSE_BUTTON_LEFT, false)
+	await tap(KEY_ESCAPE)
+	var state: Dictionary = client.trading_post_state()
+	if not state.pending or int(state.tender) != tender or bool(state.purchased) != purchased or control("PerksProgramConfirmDialog") == null:
+		fail("Pending input mutated authoritative state or dismissed dialog"); return false
+	if label == "purchase" and int(state.selected) in state.cart:
+		fail("Accepted single purchase did not remove its product from cart"); return false
+	await capture(label + "-pending-before-reply")
+	resume_private_reply()
+	return true
+
+func pending_dialog_proof() -> void:
+	var tender := int(client.trading_post_state().tender)
+	if not await choose_category(1): return
+	if not await select_first_available(tender): return
+	var price := int(client.trading_post_state().price)
+	await click("PerksProgramAddToCartButton")
+	await click("PerksProgramPurchaseButton")
+	if not await accepted_dialog_waits("purchase", tender, false): return
+	if not await wait_until(func(): return not client.trading_post_state().pending and client.trading_post_state().purchased and control("PerksProgramConfirmDialog") == null and int(client.trading_post_state().tender) == tender - price, "purchase reply closes pending dialog", 120000): return
+	await capture("purchase-reply-completed")
+	if int(client.trading_post_state().refund_seconds) <= 0:
+		fail("Pending proof requires existing explicit private refund policy"); return
+	await click("PerksProgramRefundButton")
+	if not await accepted_dialog_waits("refund", tender - price, true): return
+	if not await wait_until(func(): return not client.trading_post_state().pending and not client.trading_post_state().purchased and control("PerksProgramConfirmDialog") == null and int(client.trading_post_state().tender) == tender, "refund reply closes pending dialog", 120000): return
+	await capture("refund-reply-completed")
+	await finish("pending-dialogs")
+
+func preserve_confirmation_on_escape(label: String, item_frame: bool) -> bool:
+	if not await wait_until(func(): return control("PerksProgramConfirmDialog") != null, label + " confirmation"): return false
+	if item_frame:
+		if not await wait_until(func(): return texture_ready("PerksProgramConfirmItem") and texture_ready("PerksProgramConfirmButtonNormalArt") and texture_ready("PerksProgramConfirmBorder"), "decoded confirmation art"): return false
+		if not assert_dialog_rects_and_art(): return false
+	var before: Dictionary = client.trading_post_state()
+	await tap(KEY_ESCAPE)
+	if control("PerksProgramConfirmDialog") == null:
+		fail("Retail " + label + " confirmation consumed no hideOnEscape but native dismissed it"); return false
+	var after: Dictionary = client.trading_post_state()
+	if after.pending or before.tender != after.tender or before.cart != after.cart or before.selected != after.selected or before.purchased != after.purchased:
+		fail("Escape mutated confirmation authority/cart state"); return false
+	await capture(label + "-escape-preserved")
+	return true
+
+func cancel_confirmation_and_check(tender: int) -> bool:
+	await click("PerksProgramConfirmCancelButton")
+	if not await wait_until(func(): return control("PerksProgramConfirmDialog") == null, "explicit Cancel dismisses confirmation"): return false
+	if int(client.trading_post_state().tender) != tender or client.trading_post_state().pending:
+		fail("Cancel changed Tender or issued a request"); return false
+	return true
+
+func confirmation_escape_proof() -> void:
+	var tender := int(client.trading_post_state().tender)
+	if not await choose_category(1): return
+	if not await select_first_available(tender): return
+	var selected := int(client.trading_post_state().selected)
+	var price := int(client.trading_post_state().price)
+	await click("PerksProgramPurchaseButton")
+	if not await preserve_confirmation_on_escape("purchase", true): return
+	if not await cancel_confirmation_and_check(tender): return
+	await click("PerksProgramAddToCartButton")
+	await click("PerksProgramViewCartButton")
+	await click("PerksProgramCartPurchaseButton")
+	if not await preserve_confirmation_on_escape("cart-purchase", false): return
+	if not await cancel_confirmation_and_check(tender): return
+	await click("PerksProgramCartClearButton")
+	if not await preserve_confirmation_on_escape("clear-cart", false): return
+	if not await cancel_confirmation_and_check(tender): return
+	if not selected in client.trading_post_state().cart:
+		fail("Cancel removed the cart item"); return
+	await click("PerksProgramCartCloseButton")
+	await click("PerksProgramPurchaseButton")
+	await click("PerksProgramConfirmButton")
+	if not await wait_until(func(): return client.trading_post_state().purchased and not client.trading_post_state().pending and int(client.trading_post_state().tender) == tender - price, "one confirmed authoritative purchase", 120000): return
+	if int(client.trading_post_state().refund_seconds) <= 0:
+		fail("Confirmation proof needs explicit private refund policy, never production policy change"); return
+	await click("PerksProgramRefundButton")
+	if not await preserve_confirmation_on_escape("refund", true): return
+	if not await cancel_confirmation_and_check(tender - price): return
+	if not client.trading_post_state().purchased:
+		fail("Refund Cancel revoked purchase"); return
+	await click("PerksProgramRefundButton")
+	await click("PerksProgramConfirmButton")
+	if not await wait_until(func(): return not client.trading_post_state().purchased and not client.trading_post_state().pending and int(client.trading_post_state().tender) == tender, "one confirmed authoritative refund", 120000): return
+	await capture("refunded-tender-restored")
+	await finish("confirmations")
+
+func expect_cart_item_tooltip(owner_name: String, title: String, item_id: int, label: String, before: Dictionary) -> bool:
+	var owner := control(owner_name)
+	if owner == null:
+		fail("Missing real cart tooltip owner " + owner_name); return false
+	print("TP_CART_CURSOR_BEFORE raw=", root.get_mouse_position(), " target=", owner.get_global_rect().get_center())
+	await motion(owner.get_global_rect().get_center(), false)
+	print("TP_CART_CURSOR_AFTER raw=", root.get_mouse_position(), " hovered=", root.gui_get_hovered_control())
+	if not await wait_until(func(): return client.tooltip_state().get("visible", false) and client.tooltip_state().get("title", "") == title, "Retail cart hovered item tooltip", 10000): return false
+	var tooltip: Dictionary = client.tooltip_state()
+	var lines := str(tooltip.get("lines", []))
+	if not lines.contains("Item ID: %d" % item_id) or lines.contains("Sell Price"):
+		fail("Cart tooltip lost hovered item ID or included SellPrice: " + str(tooltip)); return false
+	var rect := owner.get_global_rect()
+	var scale := control("PerksProgramLeaveButton").get_global_rect().size.x / 180.0
+	if absf(float(tooltip.rect[0]) + float(tooltip.rect[2]) - (rect.position.x / scale - 8.0)) > 1.5 or absf(float(tooltip.rect[1]) + float(tooltip.rect[3]) - (rect.position.y / scale + 20.0)) > 1.5:
+		fail("Cart tooltip lacks source left(-8,-20) owner offset: " + str(tooltip)); return false
+	var state: Dictionary = client.trading_post_state()
+	if state.selected != before.selected or state.tender != before.tender or state.cart != before.cart or state.cart_preview_items != before.cart_preview_items:
+		fail("Cart tooltip hover changed selected preview/cart/Tender"); return false
+	await capture(label)
+	return true
+
+func cart_item_tooltip_proof() -> void:
+	var tender := int(client.trading_post_state().tender)
+	if not await choose_category(1): return
+	if not await select_first_available(tender): return
+	var regular: Dictionary = client.trading_post_state().duplicate(true)
+	await click("PerksProgramAddToCartButton")
+	if not await choose_category(8): return
+	if not await select_first_available(tender): return
+	var ensemble: Dictionary = client.trading_post_state().duplicate(true)
+	var members: PackedInt64Array = ensemble.preview_item_ids
+	if members.size() < 2:
+		fail("Cart tooltip proof needs genuine ensemble member identities"); return
+	await click("PerksProgramAddToCartButton")
+	await click("PerksProgramViewCartButton")
+	var regular_name := "PerksProgramCartItem%d" % int(regular.selected)
+	if not await wait_until(func(): return control(regular_name) != null and control("PerksProgramCartSet%d" % int(ensemble.selected)) != null, "real regular and ensemble cart rows"): return
+	var before: Dictionary = client.trading_post_state().duplicate(true)
+	if not await expect_cart_item_tooltip(regular_name, str(regular.selected_name), int(regular.item_id), "regular-item", before): return
+	for index in range(2):
+		var item_id := int(members[index])
+		var owner_name := "PerksProgramCartSubItem%d_%d" % [int(ensemble.selected), item_id]
+		if control(owner_name + "Name") == null:
+			fail("Missing real ensemble member name " + owner_name); return
+		var title: String = control(owner_name + "Name").text
+		if not await expect_cart_item_tooltip(owner_name, title, item_id, "ensemble-member-%d" % index, before): return
+	await motion(control("PerksProgramCartTitle").get_global_rect().get_center(), false)
+	if not await wait_until(func(): return not client.tooltip_state().get("visible", false), "cart row leave clears item tooltip"): return
+	if not await expect_cart_item_tooltip(regular_name, str(regular.selected_name), int(regular.item_id), "regular-before-remove", before): return
+	await click(regular_name + "Remove")
+	if not await wait_until(func(): return control(regular_name) == null and not client.tooltip_state().get("visible", false), "removed cart row clears owned tooltip"): return
+	await capture("removed-owner-hidden")
+	await click("PerksProgramCartCloseButton")
+	if not await wait_until(func(): return control("PerksProgramShoppingCartFrame") == null and not client.tooltip_state().get("visible", false), "cart panel close clears tooltip"): return
+	if int(client.trading_post_state().tender) != tender:
+		fail("Tooltip-only proof changed authoritative Tender"); return
+	await finish("cart-tooltips")
+
+func expect_button_tooltip(owner_name: String, title: String, label: String) -> bool:
+	var owner := control(owner_name)
+	if owner == null:
+		fail("Missing tooltip owner " + owner_name); return false
+	await motion(owner.get_global_rect().get_center(), false)
+	if not await wait_until(func(): return client.tooltip_state().get("visible", false) and client.tooltip_state().get("title", "") == title, "Retail button tooltip " + title, 10000): return false
+	var tooltip: Dictionary = client.tooltip_state()
+	var scale := control("PerksProgramLeaveButton").get_global_rect().size.x / 180.0
+	var rect := owner.get_global_rect()
+	if absf(float(tooltip.rect[0]) + float(tooltip.rect[2]) - rect.position.x / scale) > 1.5 or absf(float(tooltip.rect[1]) + float(tooltip.rect[3]) - rect.position.y / scale) > 1.5:
+		fail("Button tooltip lacks source ANCHOR_LEFT zero offset: " + str(tooltip)); return false
+	await capture(label)
+	return true
+
+func button_tooltip_proof() -> void:
+	var tender := int(client.trading_post_state().tender)
+	if not client.trading_post_state().cart.is_empty():
+		fail("Button tooltip proof requires preserved empty local cart on open"); return
+	if control_enabled("PerksProgramViewCartButton"):
+		fail("Empty View Cart unexpectedly enabled"); return
+	if not await expect_button_tooltip("PerksProgramViewCartButton", "View Cart", "disabled-view-cart"): return
+	if not await choose_category(1): return
+	if not await select_first_available(tender): return
+	var selected := int(client.trading_post_state().selected)
+	if not await expect_button_tooltip("PerksProgramPurchaseButton", "Purchase", "purchase"): return
+	await motion(control("PerksProgramLeaveButton").get_global_rect().get_center(), false)
+	if not await wait_until(func(): return not client.tooltip_state().get("visible", false), "button leave hides tooltip"): return
+	await click("PerksProgramAddToCartButton")
+	if not await expect_button_tooltip("PerksProgramViewCartButton", "View Cart", "enabled-view-cart"): return
+	await click("PerksProgramViewCartButton")
+	if not await expect_button_tooltip("PerksProgramCartPurchaseButton", "Purchase Cart", "checkout"): return
+	if not await expect_button_tooltip("PerksProgramCartClearButton", "Clear Cart", "clear-cart"): return
+	await click("PerksProgramCartClearButton")
+	if not await wait_until(func(): return control("PerksProgramConfirmDialog") != null, "clear confirmation blocks tooltip owner"): return
+	if not await wait_until(func(): return not client.tooltip_state().get("visible", false), "modal blocks underlying button tooltip"): return
+	await click("PerksProgramConfirmButton")
+	if not await wait_until(func(): return client.trading_post_state().cart.is_empty(), "confirmed local cart clear"): return
+	# Existing clear-cart lifecycle hides the panel; do not force an unreachable
+	# empty panel just to manufacture disabled Clear/Checkout native states.
+	if not await wait_until(func(): return control("PerksProgramShoppingCartFrame") == null and not client.tooltip_state().get("visible", false), "cart teardown clears tooltip owner"): return
+	await capture("clear-panel-hidden")
+	if not await expect_button_tooltip("PerksProgramViewCartButton", "View Cart", "cleared-view-cart"): return
+	if int(client.trading_post_state().tender) != tender or int(client.trading_post_state().selected) != selected:
+		fail("Button tooltip/cart-clear proof changed Tender or selected row"); return
+	await finish("button-tooltips")
+
+# Product OnEnter (Elements.lua306-314): hovered item, not selected preview;
+# ANCHOR_RIGHT -16, no SellPrice. Native hit testing must own the lifecycle.
+func item_tooltip_proof() -> void:
+	if not await choose_category(1): return
+	var products := []
+	# Lower visible rows leave room above ANCHOR_RIGHT without screen clamping.
+	var rows: PackedStringArray = client.trading_post_state().rows
+	rows.reverse()
+	for row in rows:
+		var id := int(str(row).split("|")[0])
+		var name := "PerksProgramProduct%d" % id
+		if control(name) == null: continue
+		await click(name)
+		if not await wait_until(func(): return int(client.trading_post_state().selected) == id, "tooltip fixture selection"): return
+		products.append(client.trading_post_state().duplicate(true))
+		if products.size() == 2: break
+	if products.size() != 2:
+		fail("Tooltip fixture needs two distinct visible transmog rows"); return
+	var selected := int(products[1].selected)
+	var tender := int(client.trading_post_state().tender)
+	for product in products:
+		var name := "PerksProgramProduct%d" % int(product.selected)
+		await motion(control(name).get_global_rect().get_center(), false)
+		await wait_frames(30)
+		print("TP_TOOLTIP_PROBE owner=", name, " expected=", product.selected_name, " rect=", control(name).get_global_rect(), " hovered=", root.gui_get_hovered_control(), " tooltip=", client.tooltip_state())
+		await capture("hover-probe-%d" % int(product.selected))
+		if not await wait_until(func(): return client.tooltip_state().get("visible", false) and client.tooltip_state().get("title", "") == product.selected_name, "Retail hovered product item tooltip", 10000): return
+		var tooltip: Dictionary = client.tooltip_state()
+		var lines := str(tooltip.get("lines", []))
+		if not lines.contains("Item ID: %d" % int(product.item_id)) or not lines.contains("Item Level ") or lines.contains("Sell Price"):
+			fail("Product tooltip lost item detail/identity or included SellPrice: " + str(tooltip)); return
+		var scale := control("PerksProgramLeaveButton").get_global_rect().size.x / 180.0
+		var owner := control(name).get_global_rect()
+		if absf(float(tooltip.rect[0]) - (owner.end.x / scale - 16.0)) > 1.5 or absf(float(tooltip.rect[1]) + float(tooltip.rect[3]) - owner.position.y / scale) > 1.5:
+			fail("Product tooltip lacks source ANCHOR_RIGHT -16: " + str(tooltip)); return
+		if int(client.trading_post_state().selected) != selected or int(client.trading_post_state().tender) != tender:
+			fail("Hover changed selection or Tender"); return
+		await capture("product-%d" % int(product.selected))
+	await motion(control("PerksProgramLeaveButton").get_global_rect().get_center(), false)
+	if not await wait_until(func(): return not client.tooltip_state().get("visible", false), "product leave hides tooltip"): return
+	await capture("leave-hidden")
+	var last_name := "PerksProgramProduct%d" % selected
+	await motion(control(last_name).get_global_rect().get_center(), false)
+	if not await wait_until(func(): return client.tooltip_state().get("visible", false), "product tooltip re-enter"): return
+	await tap(KEY_ESCAPE)
+	if not await wait_until(func(): return not client.trading_post_state().open and not client.tooltip_state().get("visible", false), "vendor close hides owned tooltip"): return
+	await capture("closed-hidden")
+	if not await open_vendor(): return
+	await finish("item-tooltips")
 
 func layout_proof() -> void:
 	print("TP_LAYOUT_INITIAL footer=", control("PerksProgramFooterFrame").get_global_rect(), " purchase=", control("PerksProgramPurchaseButton").get_global_rect(), " filter=", control("PerksProgramFilter").get_global_rect())
@@ -133,7 +813,10 @@ func layout_proof() -> void:
 	if not assert_dialog_rects_and_art(): return
 	await capture("purchase-confirm")
 	await tap(KEY_ESCAPE)
-	if not await wait_until(func(): return control("PerksProgramConfirmDialog") == null and client.trading_post_state().open, "Escape cancels popup without leaving vendor"): return
+	if control("PerksProgramConfirmDialog") == null or not client.trading_post_state().open:
+		fail("Source confirmation cover failed to consume Escape"); return
+	await click("PerksProgramConfirmCancelButton")
+	if not await wait_until(func(): return control("PerksProgramConfirmDialog") == null, "Cancel dismisses purchase popup"): return
 	if int(client.trading_post_state().tender) != tender: fail("cancel changed Tender"); return
 	await click("PerksProgramPurchaseButton")
 	await click("PerksProgramConfirmButton")
@@ -531,6 +1214,7 @@ func watch_menu_sound_players() -> bool:
 	var kits := client.find_child("UiSoundKits", true, false)
 	if kits == null: fail("Native UI sound player is unavailable; not a menu sound RED"); return false
 	kits.child_entered_tree.connect(observe_menu_sound_player)
+	if phase == "product-selection-sound": kits.child_entered_tree.connect(observe_selection_sound_player)
 	return true
 
 func observe_menu_sound_player(node: Node) -> void:
@@ -539,6 +1223,18 @@ func observe_menu_sound_player(node: Node) -> void:
 	var stream: AudioStream = player.stream
 	if stream == null: return
 	var fdid := int(stream.resource_name)
+	if phase == "freeze-lock-sound" and fdid in FREEZE_LOCK_FILES:
+		var lock_event := {"fdid":fdid,"length":stream.get_length(),"gain":player.volume_linear,"pitch_scale":player.pitch_scale,"playing_observed":false,"finished":false}
+		lock_audio_events.append(lock_event)
+		player.finished.connect(func(): lock_event.finished = true)
+		call_deferred("observe_menu_sound_playback", player, lock_event)
+		return
+	if phase == "product-hover-sound" and fdid == 4906953:
+		var hover_event := {"fdid":fdid,"length":stream.get_length(),"gain":player.volume_linear,"pitch_scale":player.pitch_scale,"playing_observed":false,"finished":false}
+		hover_audio_events.append(hover_event)
+		player.finished.connect(func(): hover_event.finished = true)
+		call_deferred("observe_menu_sound_playback", player, hover_event)
+		return
 	var kind := "open" if fdid in MENU_OPEN_FILES else "close" if fdid in MENU_CLOSE_FILES else ""
 	if kind.is_empty(): return
 	var event := {"kind":kind,"fdid":fdid,"length":stream.get_length(),"gain":player.volume_linear,"pitch_scale":player.pitch_scale,"playing_observed":false,"finished":false}
@@ -580,6 +1276,662 @@ func assert_menu_sound_state(kind: String, expected: int) -> bool:
 		fail("Menu %s kit%d played%d times, expected%d" % [kind,kit,menu_sound_count(kit),expected])
 		return false
 	return assert_menu_audio_count(kind, expected)
+
+# Real native key events and read-only observations. No vendor transactions.
+func keyboard_row_ids(state: Dictionary) -> Array:
+	var ids := []
+	for row in state.rows: ids.append(int(str(row).split("|")[0]))
+	return ids
+
+func record_keyboard_check(checks: Array, label: String, origin: Vector3) -> void:
+	await wait_frames(5)
+	var state: Dictionary = client.trading_post_state().duplicate(true)
+	var position: Vector3 = client.account_state().local_player_position
+	var row := control("PerksProgramProduct%d" % int(state.selected))
+	var list := control("PerksProgramScrollBox")
+	var child := control("PerksProgramScrollChild")
+	var visible := false
+	var bottom_gap := 0.0
+	var top_gap := 0.0
+	if row != null and list != null:
+		var item_rect: Rect2 = row.get_global_rect()
+		var list_rect: Rect2 = list.get_global_rect()
+		top_gap = item_rect.position.y - list_rect.position.y
+		bottom_gap = list_rect.end.y - item_rect.end.y
+		visible = top_gap >= -0.51 and bottom_gap >= -0.51
+	checks.append({"label":label,"state":state,"position":[position.x,position.y,position.z],"world_delta":position.distance_to(origin),"selected_row_visible":visible,"top_gap":top_gap,"bottom_gap":bottom_gap,"scroll_child_y":null if child == null else child.position.y})
+
+func keyboard_navigation_proof() -> void:
+	if not await choose_category(1): return
+	var before: Dictionary = client.trading_post_state().duplicate(true)
+	var original := int(before.frozen)
+	if original != (640 if skin == "modern" else 712) or not before.cart.is_empty(): fail("Keyboard fixture needs preserved640/712 and empty cart"); return
+	var prefix := keyboard_row_ids(before)
+	if prefix.size() != 12: fail("Keyboard page proof needs the complete existing12-row observation prefix"); return
+	var first := int(prefix[0])
+	await click("PerksProgramProduct%d" % first)
+	if not await wait_until(func(): return int(client.trading_post_state().selected) == first, "keyboard first ordinary owner"): return
+	before = client.trading_post_state().duplicate(true)
+	var list := control("PerksProgramScrollBox")
+	var child := control("PerksProgramScrollChild")
+	var row := control("PerksProgramProduct%d" % first)
+	if list == null or child == null or row == null or child.size.y <= list.size.y+row.size.y: fail("Actual provider has too few rows for a genuine second page"); return
+	await wait_frames(120)
+	var idle_position: Vector3 = client.account_state().local_player_position
+	await wait_frames(30)
+	var origin: Vector3 = client.account_state().local_player_position
+	if origin.distance_to(idle_position) > 0.0001: fail("World position was not stationary before keyboard input"); return
+	var before_appearances: Array = Array(client.tooltip_state().appearance_collection)
+	before_appearances.sort()
+	var checks := []
+	var errors := []
+	await record_keyboard_check(checks,"initial-first",origin)
+	await capture("keyboard-first")
+	await tap(KEY_UP)
+	if int(client.trading_post_state().selected) != first: errors.append("Up wrapped from the first ordinary product")
+	await record_keyboard_check(checks,"first-up-no-wrap",origin)
+	for index in range(1,12):
+		await tap(KEY_DOWN)
+		if int(client.trading_post_state().selected) != int(prefix[index]): errors.append("Down prefix neighbor%d" % index)
+		await record_keyboard_check(checks,"down-prefix-%d" % index,origin)
+		if index <= 10 and absf(float(checks[-1].scroll_child_y)-float(checks[0].scroll_child_y)) > 0.0001: errors.append("Already-visible row%d unnecessarily scrolled" % index)
+	await tap(KEY_DOWN)
+	var second_page: Dictionary = client.trading_post_state().duplicate(true)
+	if int(second_page.selected) in prefix: errors.append("Down failed to cross the original12-row prefix")
+	await record_keyboard_check(checks,"down-second-page",origin)
+	var page_check: Dictionary = checks[-1]
+	if not page_check.selected_row_visible or absf(float(page_check.bottom_gap)) > 0.51: errors.append("Second-page selected row not revealed at nearest bottom edge")
+	await capture("keyboard-second-page")
+	for _step in range(12): await tap(KEY_UP)
+	if int(client.trading_post_state().selected) != first: errors.append("Twelve Up steps failed to return to first product")
+	await record_keyboard_check(checks,"up-original-first",origin)
+	var returned: Dictionary = checks[-1]
+	if not returned.selected_row_visible or absf(float(returned.top_gap)) > 0.51: errors.append("Returned first row not revealed at nearest top edge")
+	await capture("keyboard-returned-first")
+	await click("PerksProgramFrozenSlot")
+	if not await wait_until(func(): return int(client.trading_post_state().selected) == original, "keyboard frozen selection"): return
+	for key in [KEY_UP,KEY_DOWN]: await tap(key)
+	if int(client.trading_post_state().selected) != original: errors.append("Frozen owner navigated")
+	await record_keyboard_check(checks,"frozen-no-op",origin)
+	await capture("keyboard-frozen-no-op")
+	# A genuine small purchased subset permits real first/last endpoint proof.
+	await click("PerksProgramFilter")
+	await click("PerksProgramFilterUncollected")
+	await click("PerksProgramFilter")
+	var owned := keyboard_row_ids(client.trading_post_state())
+	if owned.size() < 2 or owned.size() >= 12: fail("Endpoint proof needs an observed complete2–11-row purchased subset, not guessed limits"); return
+	await click("PerksProgramProduct%d" % int(owned[0]))
+	for _step in range(owned.size()+1): await tap(KEY_DOWN)
+	if int(client.trading_post_state().selected) != int(owned[-1]): errors.append("Down wrapped at purchased subset's last product")
+	await record_keyboard_check(checks,"filtered-last-no-wrap",origin)
+	await capture("keyboard-filtered-last")
+	for _step in range(owned.size()+1): await tap(KEY_UP)
+	if int(client.trading_post_state().selected) != int(owned[0]): errors.append("Up wrapped at purchased subset's first product")
+	await record_keyboard_check(checks,"filtered-first-no-wrap",origin)
+	await capture("keyboard-filtered-first")
+	await click("PerksProgramFilterResetButton")
+	if not await choose_category(1): return
+	if not await select_price_candidate(): return
+	var candidate := int(client.trading_post_state().selected)
+	await click("PerksProgramAddToCartButton")
+	await click("PerksProgramViewCartButton")
+	if not await wait_until(func(): return client.trading_post_state().cart_visible, "keyboard cart owner"): return
+	var cart_owner: Dictionary = client.trading_post_state().duplicate(true)
+	for key in [KEY_UP,KEY_DOWN]: await tap(key)
+	var cart_after: Dictionary = client.trading_post_state().duplicate(true)
+	if cart_after.selected != cart_owner.selected or cart_after.cart != cart_owner.cart or not cart_after.cart_visible: errors.append("Cart keyboard owner changed")
+	await record_keyboard_check(checks,"cart-no-op",origin)
+	await capture("keyboard-cart-no-op")
+	await click("PerksProgramCartCloseButton")
+	await click("PerksProgramRemoveFromCartButton")
+	if not await wait_until(func(): return client.trading_post_state().cart.is_empty(), "keyboard local cart restoration"): return
+	await click("PerksProgramPurchaseButton")
+	if not await wait_until(func(): return control("PerksProgramConfirmDialog") != null, "keyboard modal owner"): return
+	var modal_owner := int(client.trading_post_state().selected)
+	for key in [KEY_UP,KEY_DOWN]: await tap(key)
+	if control("PerksProgramConfirmDialog") == null or int(client.trading_post_state().selected) != modal_owner: errors.append("Confirmation keyboard owner changed")
+	await record_keyboard_check(checks,"modal-no-op",origin)
+	await capture("keyboard-modal-no-op")
+	# Cancel only: no Purchase/Refund/Freeze request is permitted in this fixture.
+	await click("PerksProgramConfirmCancelButton")
+	await click("PerksProgramProduct%d" % first)
+	if not await wait_until(func(): return int(client.trading_post_state().selected) == first, "keyboard original selection restoration"): return
+	await record_keyboard_check(checks,"restored",origin)
+	await capture("keyboard-restored")
+	var after: Dictionary = client.trading_post_state().duplicate(true)
+	var after_appearances: Array = Array(client.tooltip_state().appearance_collection)
+	after_appearances.sort()
+	for check in checks:
+		if float(check.world_delta) > 0.0001: errors.append("World position moved at "+str(check.label))
+		if int(check.state.frozen) != original or int(check.state.tender) != int(before.tender): errors.append("Authority changed at "+str(check.label))
+	if after.cart != before.cart or after_appearances != before_appearances: errors.append("Cart or exact appearance set not restored")
+	var proof := {"before":before,"after":after,"initial_prefix":prefix,"purchased_subset":owned,"checks":checks,"before_appearances":before_appearances,"after_appearances":after_appearances,"second_page":second_page,"original_frozen":original,"restored_before_verdict":true,"errors":errors,"observation_boundary":"Full first12 prefix; selected row rectangles and returned selection beyond it; complete2–11 purchased subset for endpoints, not whole-tail order"}
+	var file := FileAccess.open(receipts.path_join(skin+"-keyboard-navigation-proof.json"), FileAccess.WRITE)
+	if file == null: fail("Cannot write restored keyboard proof receipt"); return
+	file.store_string(JSON.stringify(proof,"\t"))
+	file.close()
+	print("TP_KEYBOARD_NAVIGATION ",JSON.stringify(proof))
+	if not errors.is_empty(): fail("Keyboard proof after local state restoration: %s" % [errors]); return
+	await finish("keyboard-navigation")
+
+
+func price_sort_prefix(state: Dictionary) -> Array:
+	var ids := []
+	for row in state.rows: ids.append(int(str(row).split("|")[0]))
+	return ids
+
+func set_price_sort(ascending: bool, menu: bool = false) -> bool:
+	if menu:
+		await click("PerksProgramFilter")
+		await motion(control("PerksProgramFilterSort").get_global_rect().get_center(), false)
+		if not await wait_until(func(): return control("PerksProgramSortMenu") != null, "price submenu"): return false
+		await click("PerksProgramFilterSortPrice")
+		if bool(client.trading_post_state().ascending) != ascending:
+			await click("PerksProgramFilterAscending")
+		await capture("price-sort-menu")
+		await click("PerksProgramFilter")
+	else:
+		if client.trading_post_state().sort != "price": await click("PerksProgramPriceSortButton")
+		if bool(client.trading_post_state().ascending) != ascending: await click("PerksProgramPriceSortButton")
+	return await wait_until(func(): return client.trading_post_state().sort == "price" and bool(client.trading_post_state().ascending) == ascending, "native price direction")
+
+func select_price_candidate() -> bool:
+	var state: Dictionary = client.trading_post_state()
+	for row in state.rows:
+		var parts: PackedStringArray = str(row).split("|")
+		var vendor := int(parts[0])
+		if vendor in [640,712] or parts[1] != "1" or control("PerksProgramProduct%d" % vendor) == null: continue
+		await click("PerksProgramProduct%d" % vendor)
+		if not await wait_until(func(): return int(client.trading_post_state().selected) == vendor, "ordinary price candidate"): return false
+		var selected: Dictionary = client.trading_post_state()
+		if not selected.purchased and not selected.collected and int(selected.price) <= int(state.tender) and control_enabled("PerksProgramPurchaseButton"): return true
+	fail("No visible affordable ordinary non-reservation price candidate")
+	return false
+
+func purchase_price_sort_proof() -> void:
+	if not await choose_category(1): return
+	var original := int(client.trading_post_state().frozen)
+	if original != (640 if skin == "modern" else 712): fail("Price fixture needs untouched original640/712"); return
+	if not await set_price_sort(false): return
+	if not await select_price_candidate(): return
+	var before: Dictionary = client.trading_post_state().duplicate(true)
+	var candidate := int(before.selected)
+	if candidate in [640,712] or not before.cart.is_empty(): fail("Price fixture must buy an ordinary non-reservation with empty cart"); return
+	var before_appearances: Array = Array(client.tooltip_state().appearance_collection)
+	before_appearances.sort()
+	await capture("baseline-unowned-descending")
+	if not await set_price_sort(true): return
+	var unowned_ascending: Dictionary = client.trading_post_state().duplicate(true)
+	await capture("baseline-unowned-ascending")
+	if not await set_price_sort(false): return
+	await click("PerksProgramPurchaseButton")
+	if not await wait_until(func(): return control("PerksProgramConfirmDialog") != null, "ordinary price purchase confirmation"): return
+	await capture("purchase-confirm")
+	await click("PerksProgramConfirmButton")
+	if not await wait_until(func(): return not client.trading_post_state().pending and client.trading_post_state().purchased and client.trading_post_state().collected and int(client.trading_post_state().tender) == int(before.tender)-int(before.price), "price authoritative purchase", 120000): return
+	var bought_descending: Dictionary = client.trading_post_state().duplicate(true)
+	await capture("purchased-descending")
+	var bought_appearances: Array = Array(client.tooltip_state().appearance_collection)
+	bought_appearances.sort()
+	if not await set_price_sort(true, true): return
+	var bought_ascending: Dictionary = client.trading_post_state().duplicate(true)
+	await capture("purchased-ascending")
+	# Finish the genuine refund before evaluating comparator assertions.
+	await click("PerksProgramRefundButton")
+	if not await wait_until(func(): return control("PerksProgramConfirmDialog") != null, "ordinary price refund confirmation"): return
+	await capture("refund-confirm")
+	await click("PerksProgramConfirmButton")
+	if not await wait_until(func(): return not client.trading_post_state().pending and not client.trading_post_state().purchased and not client.trading_post_state().collected and int(client.trading_post_state().tender) == int(before.tender), "price authoritative refund restoration", 120000): return
+	if not await set_price_sort(false): return
+	var restored: Dictionary = client.trading_post_state().duplicate(true)
+	await capture("refunded-original-order")
+	var restored_appearances: Array = Array(client.tooltip_state().appearance_collection)
+	restored_appearances.sort()
+	var errors := []
+	var before_ids := price_sort_prefix(before)
+	var bought_desc_ids := price_sort_prefix(bought_descending)
+	var bought_asc_ids := price_sort_prefix(bought_ascending)
+	if not candidate in before_ids: errors.append("candidate not in observed original descending prefix")
+	if candidate in bought_desc_ids: errors.append("refundable candidate stayed in descending first12; do not claim unobserved tail ordering")
+	if not candidate in bought_asc_ids: errors.append("refundable candidate absent from ascending first12")
+	if price_sort_prefix(unowned_ascending) == bought_asc_ids: errors.append("purchase did not change ascending observed prefix")
+	if bought_appearances.size() <= before_appearances.size(): errors.append("no received appearance acquisition")
+	if restored_appearances != before_appearances: errors.append("appearance collection not restored")
+	if price_sort_prefix(restored) != before_ids: errors.append("refund did not restore original descending prefix")
+	for state in [unowned_ascending,bought_descending,bought_ascending,restored]:
+		if int(state.frozen) != original or state.cart != before.cart or int(state.selected) != candidate: errors.append("reservation/cart/selection mutation")
+	var proof := {"candidate":candidate,"original":original,"before":before,"unowned_ascending":unowned_ascending,"bought_descending":bought_descending,"bought_ascending":bought_ascending,"restored":restored,"before_appearances":before_appearances,"bought_appearances":bought_appearances,"restored_appearances":restored_appearances,"observed_prefix_limit":12,"refund_completed_before_verdict":true,"errors":errors}
+	var file := FileAccess.open(receipts.path_join(skin+"-purchase-price-sort-proof.json"), FileAccess.WRITE)
+	if file == null: fail("Cannot write price receipt after refund restoration"); return
+	file.store_string(JSON.stringify(proof,"\t"))
+	file.close()
+	print("TP_PURCHASE_PRICE_SORT ", JSON.stringify(proof))
+	if not errors.is_empty(): fail("Price proof after refund restoration: %s" % [errors]); return
+	await finish("purchase-price-sort")
+
+func record_row_exclusion(label: String, committed: int, ordinary: int) -> void:
+	await wait_frames(5)
+	var state: Dictionary = client.trading_post_state().duplicate(true)
+	var ids := []
+	for row in state.rows: ids.append(int(str(row).split("|")[0]))
+	row_exclusion_checks.append({"label":label,"expected_frozen":committed,"frozen":int(state.frozen),"ordinary_ids":ids,"committed_absent":not committed in ids and control("PerksProgramProduct%d" % committed) == null,"ordinary_present":ordinary < 0 or (ordinary in ids and control("PerksProgramProduct%d" % ordinary) != null),"slot_present":control("PerksProgramFrozenSlot") != null,"selected":int(state.selected),"item_id":int(state.item_id),"pending":state.pending})
+
+func open_row_exclusion_confirmation(candidate: int) -> bool:
+	if not await drag_to_frozen("PerksProgramProduct%d" % candidate): return false
+	return await wait_until(func(): return control("PerksProgramConfirmDialog") != null, "occupied-slot provider replacement confirmation")
+
+func accept_row_exclusion_confirmation(candidate: int) -> bool:
+	if not await wait_until(func(): return control_enabled("PerksProgramConfirmButton"), "provider replacement delay", 15000): return false
+	await click("PerksProgramConfirmButton")
+	return await wait_until(func(): return int(client.trading_post_state().frozen) == candidate and not client.trading_post_state().pending, "authoritative provider freeze %d" % candidate, 120000)
+
+func frozen_row_exclusion_proof() -> void:
+	if not await choose_category(1): return
+	var original := int(client.trading_post_state().frozen)
+	if original != (640 if skin == "modern" else 712): fail("Provider fixture must preserve genuine original640/712"); return
+	var candidate := await select_other_cartable([original])
+	if candidate <= 0: return
+	await click("PerksProgramFrozenSlot")
+	if not await wait_until(func(): return int(client.trading_post_state().selected) == original, "frozen selection from full snapshot"): return
+	var before: Dictionary = client.trading_post_state().duplicate(true)
+	if not before.cart.is_empty(): fail("Provider fixture needs untouched empty cart"); return
+	await record_row_exclusion("baseline-exclusive", original, candidate)
+	await capture("baseline-exclusive")
+	if not await choose_category(2): return
+	await record_row_exclusion("filtered-frozen-selection", original, -1)
+	var filtered: Dictionary = client.trading_post_state().duplicate(true)
+	if not await choose_category(1): return
+	if not await open_row_exclusion_confirmation(candidate): return
+	await record_row_exclusion("pending-candidate-visible", original, candidate)
+	var pending: Dictionary = client.trading_post_state().duplicate(true)
+	await capture("pending-candidate-visible")
+	await click("PerksProgramConfirmCancelButton")
+	if not await wait_until(func(): return control("PerksProgramConfirmDialog") == null, "provider cancel retains committed reservation"): return
+	await record_row_exclusion("cancel-original-retained", original, candidate)
+	var cancelled: Dictionary = client.trading_post_state().duplicate(true)
+	if not await open_row_exclusion_confirmation(candidate): return
+	if not await accept_row_exclusion_confirmation(candidate): return
+	await record_row_exclusion("accepted-replacement", candidate, original)
+	await capture("accepted-replacement")
+	# Restore the original through the now-returned ordinary row before assertions.
+	if not await open_row_exclusion_confirmation(original): return
+	if not await accept_row_exclusion_confirmation(original): return
+	await record_row_exclusion("accepted-original-restored", original, candidate)
+	await capture("accepted-original-restored")
+	var restored: Dictionary = client.trading_post_state().duplicate(true)
+	await tap(KEY_ESCAPE)
+	if not await wait_until(func(): return not client.trading_post_state().open, "provider closes after original restoration"): return
+	if not await open_vendor(): return
+	await record_row_exclusion("reopened-original-retained", original, candidate)
+	await capture("reopened-original-retained")
+	var after: Dictionary = client.trading_post_state().duplicate(true)
+	await tap(KEY_ESCAPE)
+	if not await wait_until(func(): return not client.trading_post_state().open, "provider proof final close"): return
+	var errors := []
+	for check in row_exclusion_checks:
+		if check.frozen != check.expected_frozen or not check.committed_absent or not check.ordinary_present or not check.slot_present: errors.append(check.label)
+	var selection_preserved: bool = filtered.selected == before.selected and filtered.item_id == before.item_id and restored.selected == before.selected and restored.item_id == before.item_id and after.selected == before.selected and after.item_id == before.item_id
+	var row_order_preserved: bool = pending.rows == before.rows and cancelled.rows == before.rows and restored.rows == before.rows and after.rows == before.rows
+	var conserved: bool = pending.frozen == before.frozen and cancelled.frozen == before.frozen and restored.frozen == before.frozen and after.frozen == before.frozen and restored.tender == before.tender and after.tender == before.tender and restored.collected == before.collected and after.collected == before.collected and restored.cart == before.cart and after.cart == before.cart
+	if not selection_preserved: errors.append("full-snapshot frozen selection/details")
+	if not row_order_preserved: errors.append("pending/cancel/restoration ordinary ordering")
+	if not conserved: errors.append("original/Tender/collection/cart conservation")
+	var proof := {"original":original,"candidate":candidate,"checks":row_exclusion_checks,"selection_preserved":selection_preserved,"row_order_preserved":row_order_preserved,"conserved":conserved,"before":before,"filtered":filtered,"pending":pending,"cancelled":cancelled,"restored":restored,"after":after,"errors":errors}
+	var file := FileAccess.open(receipts.path_join(skin+"-frozen-row-exclusion-proof.json"), FileAccess.WRITE)
+	if file == null: fail("Cannot write provider receipt after restoration"); return
+	file.store_string(JSON.stringify(proof,"\t"))
+	file.close()
+	print("TP_FROZEN_ROW_EXCLUSION ", JSON.stringify(proof))
+	if not errors.is_empty(): fail("Frozen ordinary-row exclusion failed after original restored: %s" % [errors]); return
+	print("TRADING_POST_LIVE PASS skin=", skin, " phase=frozen-row-exclusion")
+	client.free()
+	quit(0)
+
+func lock_sound_checkpoint(label: String, expected: int, expected_frozen: int) -> void:
+	await wait_frames(5)
+	var state: Dictionary = client.trading_post_state()
+	lock_sound_checks.append({"label":label,"expected":expected,"decoded_count":lock_audio_events.size(),"kit_count":menu_sound_count(218229),"expected_frozen":expected_frozen,"frozen":int(state.frozen),"pending":state.pending})
+
+func open_lock_confirmation(candidate: int) -> bool:
+	if not await drag_to_frozen("PerksProgramProduct%d" % candidate): return false
+	return await wait_until(func(): return control("PerksProgramConfirmDialog") != null, "genuine occupied-slot replacement confirmation")
+
+func accept_lock_confirmation(candidate: int) -> bool:
+	if not await wait_until(func(): return control_enabled("PerksProgramConfirmButton"), "source replacement delay", 15000): return false
+	await click("PerksProgramConfirmButton")
+	return await wait_until(func(): return int(client.trading_post_state().frozen) == candidate and not client.trading_post_state().pending, "authoritative accepted freeze %d" % candidate, 120000)
+
+func freeze_lock_sound_proof() -> void:
+	if not await choose_category(1): return
+	var original := int(client.trading_post_state().frozen)
+	var expected_original := 640 if skin == "modern" else 712
+	if original != expected_original: fail("Lock sound fixture must preserve the genuine original reservation"); return
+	var candidate := await select_other_cartable([original])
+	if candidate <= 0: return
+	await click("PerksProgramFrozenSlot")
+	var before: Dictionary = client.trading_post_state().duplicate(true)
+	if not before.cart.is_empty(): fail("Lock fixture requires untouched empty cart"); return
+	await lock_sound_checkpoint("opened-query", 0, original)
+	# Retail excludes the committed item from ordinary rows; its slot cannot supply
+	# the old fixture's artificial same-item ordinary drag source.
+	await motion(control("PerksProgramFrozenSlot").get_global_rect().get_center(), false)
+	await lock_sound_checkpoint("frozen-owner-hold-no-accept", 0, original)
+	if not await open_lock_confirmation(candidate): return
+	var early_disabled := not control_enabled("PerksProgramConfirmButton")
+	if early_disabled: await click("PerksProgramConfirmButton")
+	await lock_sound_checkpoint("unaccepted-confirmation", 0, original)
+	await capture("pending-not-accepted")
+	await click("PerksProgramConfirmCancelButton")
+	if not await wait_until(func(): return control("PerksProgramConfirmDialog") == null, "cancel keeps original reservation"): return
+	await lock_sound_checkpoint("cancel", 0, original)
+	await capture("cancel-original-retained")
+	if not await open_lock_confirmation(candidate): return
+	if not await accept_lock_confirmation(candidate): return
+	await capture("accepted-replacement")
+	await create_timer(4.25).timeout
+	await lock_sound_checkpoint("accepted-replacement", 1, candidate)
+	await lock_sound_checkpoint("replacement-hold-refresh", 1, candidate)
+	# Always restore through genuine drag/confirmation before evaluating sound RED.
+	if not await open_lock_confirmation(original): return
+	if not await accept_lock_confirmation(original): return
+	await capture("accepted-original-restored")
+	await create_timer(4.25).timeout
+	await lock_sound_checkpoint("accepted-original-restored", 2, original)
+	var restored: Dictionary = client.trading_post_state().duplicate(true)
+	await tap(KEY_ESCAPE)
+	if not await wait_until(func(): return not client.trading_post_state().open, "lock vendor closes with original restored"): return
+	await lock_sound_checkpoint("closed", 2, original)
+	if not await open_vendor(): return
+	if not await wait_until(func(): return int(client.trading_post_state().frozen) == original and not client.trading_post_state().pending, "new query retains genuine original"): return
+	await lock_sound_checkpoint("reopened-query-no-lock", 2, original)
+	await capture("reopened-original-retained")
+	var after: Dictionary = client.trading_post_state().duplicate(true)
+	await tap(KEY_ESCAPE)
+	if not await wait_until(func(): return not client.trading_post_state().open, "lock proof final close"): return
+	var conserved: bool = restored.frozen == before.frozen and after.frozen == before.frozen and restored.tender == before.tender and after.tender == before.tender and restored.collected == before.collected and after.collected == before.collected and restored.cart == before.cart and after.cart == before.cart and restored.selected == before.selected and after.selected == before.selected
+	var settings_gain := -1.0
+	for event in menu_audio_events:
+		if event.kind == "open": settings_gain = float(event.gain)/0.562341332; break
+	var errors := []
+	for check in lock_sound_checks:
+		if check.decoded_count != check.expected or check.kit_count != check.expected or check.frozen != check.expected_frozen: errors.append(check.label)
+	for event in lock_audio_events:
+		if absf(float(event.gain)-0.707945764*settings_gain) > 0.00001 or not is_equal_approx(float(event.pitch_scale),1.0): errors.append("source gain/settings/pitch")
+		if absf(float(event.length)-float(FREEZE_LOCK_LENGTHS[event.fdid])) > 0.001 or not event.playing_observed or not event.finished: errors.append("actual decoded variant playback/finished")
+	if settings_gain < 0.0: errors.append("missing settings observation")
+	if not conserved: errors.append("original reservation/Tender/collection/cart/selection not restored")
+	var proof := {"original":original,"candidate":candidate,"early_disabled_observed":early_disabled,"checks":lock_sound_checks,"audio":lock_audio_events,"settings_gain":settings_gain,"conserved":conserved,"before":before,"restored":restored,"after":after,"errors":errors}
+	var file := FileAccess.open(receipts.path_join(skin+"-freeze-lock-sound-audio.json"), FileAccess.WRITE)
+	if file == null: fail("Cannot write lock audio receipt after original restoration"); return
+	file.store_string(JSON.stringify(proof,"\t"))
+	file.close()
+	print("TP_FREEZE_LOCK_SOUND ", JSON.stringify(proof))
+	if not errors.is_empty(): fail("Retail accepted freeze-lock kit218229 missing; original restored before assertion: %s" % [errors]); return
+	print("TRADING_POST_LIVE PASS skin=", skin, " phase=freeze-lock-sound")
+	client.free()
+	quit(0)
+
+# Native selection audio on existing paths only; no vendor transactions.
+func observe_selection_sound_player(node: Node) -> void:
+	var player := node as AudioStreamPlayer
+	if player == null or player.stream == null: return
+	var stream: AudioStream = player.stream
+	if int(stream.resource_name) != 4906955: return
+	var event := {"fdid":4906955,"length":stream.get_length(),"gain":player.volume_linear,"pitch_scale":player.pitch_scale,"playing_observed":false,"finished":false}
+	selection_audio_events.append(event)
+	player.finished.connect(func(): event.finished = true)
+	call_deferred("observe_menu_sound_playback", player, event)
+
+func selection_sound_checkpoint(label: String, expected: int, origin: Vector3) -> void:
+	await wait_frames(60)
+	var state: Dictionary = client.trading_post_state().duplicate(true)
+	var position: Vector3 = client.account_state().local_player_position
+	selection_sound_checks.append({"label":label,"expected":expected,"decoded_count":selection_audio_events.size(),"kit_count":menu_sound_count(218230),"state":state,"position":[position.x,position.y,position.z],"world_delta":position.distance_to(origin)})
+
+func selection_sound_drag(product: int, before_count: int, after_count: int, label: String, origin: Vector3) -> bool:
+	var row := control("PerksProgramProduct%d" % product)
+	var slot := control("PerksProgramFrozenSlot")
+	if row == null or slot == null: fail("Selection sound drag needs existing row and occupied frozen slot"); return false
+	var from := row.get_global_rect().get_center()
+	var to := slot.get_global_rect().get_center()
+	await motion(from, false)
+	await button_event(from, MOUSE_BUTTON_LEFT, true)
+	await motion(from+Vector2(12,0), true, Vector2(12,0))
+	await selection_sound_checkpoint(label+"-threshold-unchanged", before_count, origin)
+	await motion(to, true, to-from)
+	await button_event(to, MOUSE_BUTTON_LEFT, false)
+	if not await wait_until(func(): return control("PerksProgramConfirmDialog") != null, "selection-only replacement popup"): return false
+	await selection_sound_checkpoint(label+"-release", after_count, origin)
+	if label == "changed-drop":
+		await capture("drop-release-popup")
+		for key in [KEY_UP,KEY_DOWN]: await tap(key)
+		await selection_sound_checkpoint("drop-modal-key-owner", after_count, origin)
+	await click("PerksProgramConfirmCancelButton")
+	if not await wait_until(func(): return control("PerksProgramConfirmDialog") == null, "selection drag cancellation"): return false
+	await selection_sound_checkpoint(label+"-cancel", after_count, origin)
+	return true
+
+func product_selection_sound_proof() -> void:
+	if not await choose_category(1): return
+	var before: Dictionary = client.trading_post_state().duplicate(true)
+	var original := int(before.frozen)
+	var prefix := keyboard_row_ids(before)
+	if original != (640 if skin == "modern" else 712) or not before.cart.is_empty() or prefix.size() < 3: fail("Selection audio needs genuine640/712, empty cart and three observed rows"); return
+	var first := int(prefix[0])
+	var primary := int(prefix[1])
+	var other := int(prefix[2])
+	if int(before.selected) != first: fail("Initial auto-selection must be the observed first row, not a guessed setup click"); return
+	var before_appearances: Array = Array(client.tooltip_state().appearance_collection)
+	before_appearances.sort()
+	await wait_frames(90)
+	var origin: Vector3 = client.account_state().local_player_position
+	await wait_frames(30)
+	if origin.distance_to(client.account_state().local_player_position) > 0.0001: fail("Selection proof world position not stationary before input"); return
+	await selection_sound_checkpoint("initial-provider-silent",0,origin)
+	await capture("initial-provider-silent")
+	await click("PerksProgramProduct%d" % first)
+	await tap(KEY_UP)
+	await selection_sound_checkpoint("first-repeat-and-endpoint-silent",0,origin)
+	await click("PerksProgramProduct%d" % primary)
+	await selection_sound_checkpoint("ordinary-explicit",1,origin)
+	await capture("ordinary-explicit")
+	await click("PerksProgramProduct%d" % primary)
+	await selection_sound_checkpoint("ordinary-repeat-silent",1,origin)
+	await tap(KEY_DOWN)
+	await selection_sound_checkpoint("keyboard-next",2,origin)
+	await capture("keyboard-next")
+	for key in [KEY_UP,KEY_DOWN]:
+		var release := InputEventKey.new()
+		release.keycode = key
+		release.physical_keycode = key
+		release.pressed = false
+		root.push_input(release,true)
+		await process_frame
+	await selection_sound_checkpoint("key-releases-silent",2,origin)
+	await tap(KEY_UP)
+	await selection_sound_checkpoint("keyboard-previous",3,origin)
+	await click("PerksProgramFrozenSlot")
+	await selection_sound_checkpoint("frozen-explicit",4,origin)
+	await capture("frozen-explicit")
+	await click("PerksProgramFrozenSlot")
+	for key in [KEY_UP,KEY_DOWN]: await tap(key)
+	await selection_sound_checkpoint("frozen-repeat-and-keys-silent",4,origin)
+	await click("PerksProgramProduct%d" % primary)
+	await selection_sound_checkpoint("ordinary-from-frozen",5,origin)
+	if control("PerksProgramAddToCartButton") == null or bool(control("PerksProgramAddToCartButton").get("disabled")): fail("Observed primary row is not eligible for local cart controls"); return
+	await click("PerksProgramAddToCartButton")
+	await click("PerksProgramViewCartButton")
+	if not await wait_until(func(): return client.trading_post_state().cart_visible,"selection cart owner"): return
+	await selection_sound_checkpoint("cart-show-retains-id-silent",5,origin)
+	await capture("cart-visible")
+	for key in [KEY_UP,KEY_DOWN]: await tap(key)
+	await selection_sound_checkpoint("cart-key-owner-silent",5,origin)
+	await click("PerksProgramCartCloseButton")
+	await selection_sound_checkpoint("cart-return-same-id",6,origin)
+	await capture("cart-return-same-id")
+	await selection_sound_checkpoint("closed-cart-hold-silent",6,origin)
+	await click("PerksProgramRemoveFromCartButton")
+	await selection_sound_checkpoint("hidden-cart-remove-silent",6,origin)
+	await click("PerksProgramAddToCartButton")
+	await click("PerksProgramViewCartButton")
+	var cart_row := control("PerksProgramCartItem%d" % primary)
+	if cart_row == null: fail("Visible primary cart row missing"); return
+	await motion(cart_row.get_global_rect().get_center(),false)
+	await wait_frames(5)
+	await click("PerksProgramCartItem%dRemove" % primary)
+	if not await wait_until(func(): return not client.trading_post_state().cart_visible and client.trading_post_state().cart.is_empty(),"visible last-item cart removal"): return
+	await selection_sound_checkpoint("last-visible-cart-item-return",7,origin)
+	await click("PerksProgramAddToCartButton")
+	await click("PerksProgramViewCartButton")
+	await click("PerksProgramCartClearButton")
+	if not await wait_until(func(): return control("PerksProgramConfirmDialog") != null,"local clear modal"): return
+	for key in [KEY_UP,KEY_DOWN]: await tap(key)
+	await selection_sound_checkpoint("clear-modal-owner-silent",7,origin)
+	await click("PerksProgramConfirmCancelButton")
+	await selection_sound_checkpoint("clear-cancel-silent",7,origin)
+	await click("PerksProgramCartClearButton")
+	await click("PerksProgramConfirmButton")
+	if not await wait_until(func(): return not client.trading_post_state().cart_visible and client.trading_post_state().cart.is_empty(),"local clear restoration"): return
+	await selection_sound_checkpoint("clear-cart-return-same-id",8,origin)
+	await capture("clear-cart-return")
+	if not await choose_category(2): return
+	if not await choose_category(1): return
+	await selection_sound_checkpoint("category-provider-rebuild-silent",8,origin)
+	await click("PerksProgramProduct%d" % primary)
+	await selection_sound_checkpoint("drag-baseline-selection",9,origin)
+	if not await selection_sound_drag(other,9,10,"changed-drop",origin): return
+	if not await selection_sound_drag(other,10,10,"repeated-drop",origin): return
+	await click("PerksProgramProduct%d" % first)
+	await selection_sound_checkpoint("restored-before-reopen",11,origin)
+	await capture("restored-before-reopen")
+	await click("PerksProgramLeaveButton")
+	if not await wait_until(func(): return not client.trading_post_state().open,"selection owner teardown"): return
+	await selection_sound_checkpoint("closed-owner-silent",11,origin)
+	if not await open_vendor(): return
+	if not await choose_category(1): return
+	await selection_sound_checkpoint("reopen-initialization-silent",11,origin)
+	await click("PerksProgramProduct%d" % primary)
+	await selection_sound_checkpoint("reopened-explicit",12,origin)
+	await capture("reopened-explicit")
+	await click("PerksProgramProduct%d" % first)
+	await selection_sound_checkpoint("original-selection-restored",13,origin)
+	var after: Dictionary = client.trading_post_state().duplicate(true)
+	var after_appearances: Array = Array(client.tooltip_state().appearance_collection)
+	after_appearances.sort()
+	await click("PerksProgramLeaveButton")
+	if not await wait_until(func(): return not client.trading_post_state().open,"final selection teardown"): return
+	await selection_sound_checkpoint("final-closed-silent",13,origin)
+	var settings_gain := -1.0
+	for event in menu_audio_events:
+		if event.kind == "open": settings_gain = float(event.gain)/0.562341332; break
+	var errors := []
+	for check in selection_sound_checks:
+		if int(check.decoded_count) != int(check.expected) or int(check.kit_count) != int(check.expected): errors.append(check.label)
+		if int(check.state.frozen) != original or int(check.state.tender) != int(before.tender): errors.append("authority at "+str(check.label))
+		if float(check.world_delta) > 0.0001: errors.append("world movement at "+str(check.label))
+	for event in selection_audio_events:
+		if absf(float(event.gain)-0.790000021*settings_gain) > 0.00001 or not is_equal_approx(float(event.pitch_scale),1.0): errors.append("source gain/settings/pitch")
+		if absf(float(event.length)-0.550958) > 0.001 or not event.playing_observed or not event.finished: errors.append("decoded playing/finished")
+	if settings_gain < 0.0: errors.append("missing menu gain/settings observation")
+	for key in ["tender","frozen","selected","cart","items","rows","ascending","sort","types"]:
+		if after[key] != before[key]: errors.append("not restored "+str(key))
+	if before_appearances != after_appearances: errors.append("exact appearance-ID set changed")
+	if selection_audio_events.size() != 13: errors.append("expected13decoded selection plays")
+	var proof := {"before":before,"after":after,"checks":selection_sound_checks,"audio":selection_audio_events,"settings_gain":settings_gain,"before_appearances":before_appearances,"after_appearances":after_appearances,"restored_before_verdict":true,"errors":errors,"scope":"Existing selection paths only, drop still selects on release and cart-open retains selected ID; no Advanced/hardware acoustic parity"}
+	var file := FileAccess.open(receipts.path_join(skin+"-product-selection-sound-audio.json"),FileAccess.WRITE)
+	if file == null: fail("Cannot write restored native selection audio receipt"); return
+	file.store_string(JSON.stringify(proof,"\t"))
+	file.close()
+	print("TP_PRODUCT_SELECTION_SOUND ",JSON.stringify(proof))
+	if not errors.is_empty(): fail("Native selection audio after state restoration: %s" % [errors]); return
+	print("TRADING_POST_LIVE PASS skin=",skin," phase=product-selection-sound")
+	client.free()
+	quit(0)
+
+func hover_sound_checkpoint(label: String, expected: int) -> void:
+	await wait_frames(60)
+	hover_sound_checks.append({"label":label,"expected":expected,"decoded_count":hover_audio_events.size(),"kit_count":menu_sound_count(218934)-hover_kit_baseline})
+
+func product_hover_sound_proof() -> void:
+	if not await choose_category(1): return
+	var frozen := int(client.trading_post_state().frozen)
+	var other_id := await select_other_cartable([frozen])
+	if other_id <= 0: return
+	var primary_id := await select_other_cartable([frozen, other_id])
+	if primary_id <= 0: return
+	await motion(control("PerksProgramLeaveButton").get_global_rect().get_center(), false)
+	await wait_frames(60)
+	# Selection setup precedes the measured pointer lifecycle; retain its kit count.
+	hover_kit_baseline = menu_sound_count(218934)
+	hover_audio_events.clear()
+	var before: Dictionary = client.trading_post_state().duplicate(true)
+	var row := control("PerksProgramProduct%d" % primary_id)
+	var slot := control("PerksProgramFrozenSlot")
+	if row == null or slot == null: fail("Hover fixture needs separate ordinary and committed frozen owners"); return
+	var other := control("PerksProgramProduct%d" % other_id)
+	if other == null: fail("Hover fixture needs another visible cartable product"); return
+	var scale := control("PerksProgramLeaveButton").get_global_rect().size.x / 180.0
+	var row_point := row.get_global_rect().position + Vector2(96,24)*scale
+	var other_point := other.get_global_rect().position + Vector2(96,24)*scale
+	await hover_sound_checkpoint("outside", 0)
+	await motion(row_point, false)
+	await hover_sound_checkpoint("ordinary-enter", 1)
+	await capture("ordinary-enter")
+	await hover_sound_checkpoint("ordinary-hold-refresh", 1)
+	await motion(slot.get_global_rect().get_center(), false)
+	await hover_sound_checkpoint("inherited-owner-change", 2)
+	await capture("inherited-enter")
+	await hover_sound_checkpoint("inherited-hold-refresh", 2)
+	await motion(other_point, false)
+	await hover_sound_checkpoint("different-product-enter", 3)
+	# Frozen products deliberately have no cart toggle; use the eligible other row.
+	var child := control("PerksProgramCartToggle%d" % other_id)
+	if child == null: fail("Hover fixture needs the eligible row's nested cart toggle"); return
+	await motion(child.get_global_rect().get_center(), false)
+	await hover_sound_checkpoint("nested-cart-same-owner", 3)
+	await motion(control("PerksProgramLeaveButton").get_global_rect().get_center(), false)
+	await hover_sound_checkpoint("leave", 3)
+	await motion(other_point, false)
+	await hover_sound_checkpoint("reentry", 4)
+	await capture("reentry")
+	await tap(KEY_ESCAPE)
+	if not await wait_until(func(): return not client.trading_post_state().open, "hovered owner teardown"): return
+	await hover_sound_checkpoint("closed-hovered-owner", 4)
+	await capture("owner-teardown")
+	await motion(Vector2(1800,1000), false)
+	if not await open_vendor(): return
+	if not await choose_category(1): return
+	row = control("PerksProgramProduct%d" % primary_id)
+	if row == null: fail("Reopened hover owner missing"); return
+	await motion(row.get_global_rect().position + Vector2(96,24)*scale, false)
+	await hover_sound_checkpoint("reopened-reentry", 5)
+	await capture("reopened-reentry")
+	var after: Dictionary = client.trading_post_state().duplicate(true)
+	var conserved: bool = after.tender == before.tender and after.frozen == before.frozen and after.selected == before.selected and after.collected == before.collected and after.cart == before.cart and not after.pending
+	await tap(KEY_ESCAPE)
+	if not await wait_until(func(): return not client.trading_post_state().open, "hover proof closes vendor"): return
+	await hover_sound_checkpoint("closed-again", 5)
+	var settings_gain := -1.0
+	for event in menu_audio_events:
+		if event.kind == "open": settings_gain = float(event.gain)/0.562341332; break
+	var errors := []
+	for check in hover_sound_checks:
+		if check.decoded_count != check.expected or check.kit_count != check.expected: errors.append(check.label)
+	for event in hover_audio_events:
+		if absf(float(event.gain)-0.891250908*settings_gain) > 0.00001 or not is_equal_approx(float(event.pitch_scale),1.0): errors.append("source gain/settings/pitch")
+		if absf(float(event.length)-0.378646) > 0.001 or not event.playing_observed or not event.finished: errors.append("actual decoded playback/finished")
+	if settings_gain < 0.0: errors.append("missing settings gain observation")
+	if not conserved: errors.append("selection/Tender/frozen/collection/cart changed")
+	var proof := {"setup_kit_count":hover_kit_baseline,"checks":hover_sound_checks,"audio":hover_audio_events,"settings_gain":settings_gain,"conserved":conserved,"before":before,"after":after,"errors":errors}
+	var file := FileAccess.open(receipts.path_join(skin+"-product-hover-sound-audio.json"), FileAccess.WRITE)
+	if file == null: fail("Cannot write native hover audio receipt"); return
+	file.store_string(JSON.stringify(proof,"\t"))
+	file.close()
+	print("TP_PRODUCT_HOVER_SOUND ", JSON.stringify(proof))
+	if not errors.is_empty(): fail("Retail product enter kit218934 decoded playback/lifecycle missing: %s" % [errors]); return
+	print("TRADING_POST_LIVE PASS skin=", skin, " phase=product-hover-sound")
+	client.free()
+	quit(0)
 
 func menu_sound_proof() -> void:
 	if menu_sound_count(218932) != 1: fail("Retail menu open kit218932 did not play once on actual show"); return
@@ -1066,7 +2418,10 @@ func motion(point: Vector2, down: bool, relative: Vector2 = Vector2.ZERO) -> voi
 	event.global_position = point
 	event.relative = relative
 	event.button_mask = MOUSE_BUTTON_MASK_LEFT if down else 0
-	root.push_input(event, true)
+	if phase in ["product-selection-sound", "frozen-row-exclusion", "freeze-lock-sound", "product-hover-sound", "refund-icon-blend", "cart-tooltips", "row-cart-toggle", "refund-icon-tooltip"]:
+		Input.parse_input_event(event)
+	else:
+		root.push_input(event, true)
 	await process_frame
 
 func button_event(point: Vector2, button: int, down: bool) -> void:
@@ -1101,7 +2456,7 @@ func capture(label: String) -> void:
 	if file == null:
 		fail("Cannot save Trading Post evidence receipt: " + stem)
 		return
-	file.store_string(JSON.stringify({"trading_post": client.trading_post_state(), "journal": client.adventure_guide_state(), "account": client.account_state()}, "\t"))
+	file.store_string(JSON.stringify({"trading_post": client.trading_post_state(), "tooltip": client.tooltip_state(), "journal": client.adventure_guide_state(), "account": client.account_state()}, "\t"))
 	file.close()
 	print("TP_CAPTURE ", stem)
 
@@ -1109,9 +2464,10 @@ func wait_frames(count: int) -> void:
 	for frame in range(count): await process_frame
 
 func fail(message: String) -> void:
+	resume_private_reply()
 	if client != null and not receipts.is_empty():
 		var file := FileAccess.open(receipts.path_join(skin + "-" + phase + "-failure.json"), FileAccess.WRITE)
-		file.store_string(JSON.stringify({"failure": message, "trading_post": client.trading_post_state(), "journal": client.adventure_guide_state(), "account": client.account_state()}, "\t"))
+		file.store_string(JSON.stringify({"failure": message, "tooltip": client.tooltip_state(), "trading_post": client.trading_post_state(), "journal": client.adventure_guide_state(), "account": client.account_state()}, "\t"))
 		file.close()
 	push_error("Trading Post live: " + message)
 	quit(1)

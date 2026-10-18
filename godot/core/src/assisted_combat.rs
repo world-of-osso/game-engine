@@ -2,7 +2,20 @@
 //! Numeric outcomes are enabled only where strict/inclusive interpretations agree.
 //! Equality, undocumented encodings and prediction remain explicit source gaps.
 use crate::cooldown_assist::AssistedRule;
+use crate::spell_catalog::CatalogSpell;
 use std::collections::{BTreeMap, BTreeSet};
+
+/// SpellRange1 is authored "Self Only", not a zero-yard enemy range.
+const SELF_ONLY_RANGE_ID: u32 = 1;
+
+/// TC Spell.cpp:621–650/7277–7321 checks the actual cast target, not selection.
+/// Self/caster-area spells use the caster; targeted spells keep their hostile bounds.
+pub fn is_assisted_spell_in_range(spell: &CatalogSpell, distance: f32) -> bool {
+    if spell.range_id == SELF_ONLY_RANGE_ID {
+        return true;
+    }
+    distance >= spell.range.min_yd[0] && distance <= spell.range.max_yd[0]
+}
 
 /// SpellName/SpellMisc/SpellEffect of the local Retail built-in, not a new spell.
 pub const SINGLE_BUTTON_ASSISTANT: u32 = 1_229_376;
@@ -16,12 +29,20 @@ pub struct AssistedFacts {
     pub player_auras: BTreeSet<u32>,
     pub target_auras: BTreeSet<u32>,
     pub target_hostile: Option<bool>,
+    /// Owner-controlled pet presence; None means no authoritative reading.
+    pub has_pet: Option<bool>,
     /// Same raw DB2 power units as SpellPower/UnitPowers, not display values.
     pub powers: BTreeMap<u8, f64>,
     pub charges: BTreeMap<u32, u8>,
     pub cooldowns_ms: BTreeMap<u32, f64>,
     pub player_health_pct: Option<f64>,
     pub target_health_pct: Option<f64>,
+    /// ASSISTED_COMBAT_SIMC_MIRROR: current target centre distance; absent target is None.
+    #[serde(default)]
+    pub target_distance_yd: Option<f64>,
+    /// Alive hostile replicas with the local player in their threat list, within 8yd.
+    #[serde(default)]
+    pub player_combat_enemies_within_8yd: Option<u32>,
 }
 
 /// Condition numbers/names from SimulationCraft data_enums.hh; spell0 means this step.
@@ -47,6 +68,23 @@ pub fn evaluate_rule(rule: &AssistedRule, facts: &AssistedFacts) -> Result<bool,
         0 => Ok(facts.known.contains(&spell)),
         1 => read_boolean(&facts.ready, spell, "cooldown readiness").map(|ready| !ready),
         2 => read_boolean(&facts.ready, spell, "cooldown readiness"),
+        3 if rule.id == 1261 && rule.step_spell == 190411 => {
+            require_zero_tail(rule)?;
+            match facts.target_distance_yd {
+                None => Ok(false),
+                Some(distance) if distance.is_finite() && distance >= 0.0 => {
+                    Ok(distance <= f64::from(rule.values[0]))
+                }
+                Some(_) => Err(format!("rule {}: invalid target distance", rule.id)),
+            }
+        }
+        12 if rule.id == 1268 && rule.step_spell == 190411 => {
+            require_zero_tail(rule)?;
+            facts
+                .player_combat_enemies_within_8yd
+                .map(|count| count > rule.values[0])
+                .ok_or_else(|| format!("rule {}: player combat nearby count not received", rule.id))
+        }
         5 => facts
             .target_hostile
             .ok_or_else(|| "target hostility unavailable".into()),
@@ -64,14 +102,32 @@ pub fn evaluate_rule(rule: &AssistedRule, facts: &AssistedFacts) -> Result<bool,
         15 => Ok(!facts.target_auras.contains(&rule.values[0])),
         16 => Ok(!facts.player_auras.contains(&rule.values[0])),
         56 => read_boolean(&facts.in_range, spell, "spell range"),
+        57 | 58 => evaluate_pet(rule, facts),
         7 | 8 | 68 | 69 => evaluate_health(rule, facts),
         65 | 66 => evaluate_cooldown(rule, facts),
         63 | 64 => evaluate_charges(rule, facts),
+        // SimC's step option permits cast overlap; it adds no Boolean predicate.
+        // Ordinary native usability and the caller's input gates still apply.
+        67 if rule.values == [0, 0, 0] => Ok(true),
+        67 => Err(format!(
+            "rule {}: cast-overlap modifier operands are unverified",
+            rule.id
+        )),
         _ => Err(format!(
             "AssistedCombatRule {}: condition {} has unverified numeric/predictive semantics",
             rule.id, rule.condition_type
         )),
     }
+}
+
+fn evaluate_pet(rule: &AssistedRule, facts: &AssistedFacts) -> Result<bool, String> {
+    if rule.values != [0, 0, 0] {
+        return Err(format!("rule {}: pet operands are unverified", rule.id));
+    }
+    let present = facts
+        .has_pet
+        .ok_or_else(|| format!("rule {}: owner pet presence not received", rule.id))?;
+    Ok(present == (rule.condition_type == 57))
 }
 
 fn evaluate_health(rule: &AssistedRule, facts: &AssistedFacts) -> Result<bool, String> {

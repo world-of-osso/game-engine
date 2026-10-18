@@ -13,6 +13,8 @@ mod filter_menu;
 mod history;
 #[path = "trading_post_outfit.rs"]
 mod outfit;
+#[path = "trading_post_tooltip.rs"]
+mod tooltip;
 use crate::{
     bank_art::{WHITE, label, texture},
     minimal_scroll_bar::{MinimalScrollBar, Unscrollable, pixel_geometry, scroll_list_attr},
@@ -44,6 +46,7 @@ pub struct View {
     pub selected: Option<u32>,
     pub cart: Vec<u32>,
     pub cart_visible: bool,
+    pub product_hover: Option<u32>,
     pub cart_hover: Option<u32>,
     pub cart_item_hover: Option<u32>,
     /// Retail selectedItems keyed by ConvertInvTypeToSelectionKey; 0 is OTHER.
@@ -66,6 +69,8 @@ pub struct View {
     /// Captured price/count survive source clear-on-accept cart lifecycle.
     pub cart_confirmation: Option<(u64, usize)>,
     pub error: String,
+    /// Undrained product-selection callbacks; provider reselection is silent.
+    pub selection_sounds: usize,
 }
 #[derive(Clone, Debug, PartialEq, Eq)]
 pub struct Filters {
@@ -117,7 +122,32 @@ pub enum Sort {
     #[default]
     Price,
 }
+
+fn price_sort_value(row: &TradingPostItem, refund_elapsed: u32) -> i64 {
+    // Products.lua GetSortValue; per-product pending is not supplied by the snapshot.
+    const REFUNDABLE: i64 = -2;
+    const PURCHASED: i64 = -3;
+    if row.refund_seconds.saturating_sub(refund_elapsed) > 0 {
+        REFUNDABLE
+    } else if row.purchased {
+        PURCHASED
+    } else {
+        i64::from(row.price)
+    }
+}
+
 impl View {
+    pub fn take_selection_sounds(&mut self) -> usize {
+        std::mem::take(&mut self.selection_sounds)
+    }
+
+    fn select_product(&mut self, id: u32) {
+        if self.selected != Some(id) {
+            self.selected = Some(id);
+            self.selection_sounds += 1;
+        }
+    }
+
     pub fn receive(&mut self, snapshot: Arc<TradingPostSnapshot>) {
         self.error = snapshot.error.clone().unwrap_or_default();
         self.snapshot = Some(snapshot);
@@ -128,16 +158,21 @@ impl View {
         self.reselect();
     }
     pub fn rows(&self) -> Vec<&TradingPostItem> {
+        let committed_frozen = self
+            .snapshot
+            .as_ref()
+            .and_then(|snapshot| snapshot.frozen_item_id);
         let mut rows: Vec<_> = self
             .snapshot
             .iter()
             .flat_map(|snapshot| &snapshot.items)
-            .filter(|row| self.filters.includes(row))
+            .filter(|row| Some(row.id) != committed_frozen && self.filters.includes(row))
             .collect();
         rows.sort_by(|a, b| {
             let order = match self.sort {
                 Sort::Name => a.name.cmp(&b.name),
-                Sort::Price => a.price.cmp(&b.price),
+                Sort::Price => price_sort_value(a, self.refund_elapsed)
+                    .cmp(&price_sort_value(b, self.refund_elapsed)),
                 // No per-row remaining duration in the snapshot; stable name tie-break.
                 Sort::Time => std::cmp::Ordering::Equal,
             };
@@ -154,6 +189,52 @@ impl View {
         });
         rows
     }
+    fn select_adjacent_product(&mut self, forward: bool) -> Result<(), String> {
+        if self.cart_visible || self.confirm.is_some() {
+            return Ok(());
+        }
+        let frozen = self.snapshot.as_ref().and_then(|data| data.frozen_item_id);
+        if self.selected.is_some() && self.selected == frozen {
+            return Ok(());
+        }
+        let rows = self.rows();
+        let index = rows
+            .iter()
+            .position(|row| Some(row.id) == self.selected)
+            .ok_or("Trading Post navigation requires an existing ordinary selection")?;
+        let adjacent = if forward {
+            index.checked_add(1)
+        } else {
+            index.checked_sub(1)
+        };
+        let adjacent_id = adjacent.and_then(|index| rows.get(index)).map(|row| row.id);
+        if let Some(id) = adjacent_id {
+            self.select_product(id);
+        }
+        Ok(())
+    }
+
+    /// ScrollBox.lua AlignNearest: reveal the nearest edge, not the row's center.
+    pub fn calculate_selected_scroll_offset(&self, first_row: usize) -> Result<usize, String> {
+        let rows = self.rows();
+        let index = rows
+            .iter()
+            .position(|row| Some(row.id) == self.selected)
+            .ok_or("Trading Post scrolling requires an existing ordinary selection")?;
+        let max_offset = (rows.len() as f32 * ROW_HEIGHT - LIST_HEIGHT).max(0.);
+        let offset = (first_row as f32).min(max_offset);
+        let top = index as f32 * ROW_HEIGHT;
+        let bottom = top + ROW_HEIGHT;
+        let target = if bottom > offset + LIST_HEIGHT {
+            bottom - LIST_HEIGHT
+        } else if top < offset {
+            top
+        } else {
+            offset
+        };
+        Ok(target as usize)
+    }
+
     pub fn selected_item(&self) -> Option<&TradingPostItem> {
         self.snapshot
             .as_ref()?
@@ -234,6 +315,8 @@ impl View {
                 self.filters.usable_only = !self.filters.usable_only;
                 self.reselect();
             }
+            "perks:select-next" => self.select_adjacent_product(true)?,
+            "perks:select-previous" => self.select_adjacent_product(false)?,
             "perks:sort:ascending" => self.ascending = !self.ascending,
             "perks:cancel" => self.cancel_confirmation(),
             "perks:purchase" if self.can_purchase() => self.confirm = Some("purchase".into()),
@@ -266,7 +349,7 @@ impl View {
         };
         if on_frozen {
             let replacing = snapshot.frozen_item_id.is_some();
-            self.selected = Some(id);
+            self.select_product(id);
             self.freeze_candidate = Some(id);
             if replacing {
                 self.confirm = Some("freeze".into());
@@ -322,7 +405,7 @@ impl View {
                 .as_ref()
                 .and_then(|snapshot| snapshot.frozen_item_id);
             if self.rows().iter().any(|row| row.id == id) || frozen == Some(id) {
-                self.selected = Some(id);
+                self.select_product(id);
             }
             return Ok(());
         }
@@ -373,8 +456,11 @@ impl View {
             }
             _ => return Ok(None),
         };
+        if matches!(request, TradingPostRequest::Purchase { .. }) {
+            self.remove_from_cart(id);
+        }
+        // StaticPopup_OnAcceptWithSpinner retains the owner until the reply.
         self.pending = true;
-        self.confirm = None;
         Ok(Some(Action::Request(request)))
     }
 }
@@ -451,6 +537,7 @@ fn catalog_controls(ctx: &SharedContext, view: &View, snapshot: &TradingPostSnap
         })
         .flat_map(|(index, row)| {
             product_row(
+                view,
                 row,
                 index as f32 * ROW_HEIGHT,
                 view.selected == Some(row.id),
@@ -611,7 +698,7 @@ fn sort_header(sort: Sort, view: &View, (x, y, width, height): (f32, f32, f32, f
     rsx! {button{name:{DynName(format!("PerksProgram{kind}SortButton"))},left:x,top:y,width,height,pos_type:"absolute",button_default_skin:false,disabled,onclick:action,{art}}}
 }
 
-fn product_row(row: &TradingPostItem, top: f32, selected: bool) -> Element {
+fn product_row(view: &View, row: &TradingPostItem, top: f32, selected: bool) -> Element {
     let mut children = if selected {
         named_atlas_texture(
             format!("PerksProgramSelected{}", row.id),
@@ -621,12 +708,7 @@ fn product_row(row: &TradingPostItem, top: f32, selected: bool) -> Element {
     } else {
         vec![]
     };
-    children.extend(texture(
-        format!("PerksProgramIcon{}", row.id),
-        row.icon_fdid,
-        (32., 8., 32., 32.),
-        WHITE,
-    ));
+    children.extend(row_item_icon(view, row));
     children.extend(label(
         format!("PerksProgramName{}", row.id),
         &row.name,
@@ -634,14 +716,74 @@ fn product_row(row: &TradingPostItem, top: f32, selected: bool) -> Element {
         (16., WHITE, "LEFT"),
     ));
     children.extend(row_price("PerksProgram", row, ROW_HEIGHT / 2.));
+    children.extend(row_cart_toggle(view, row.id));
     let action = format!("perks:select:{}", row.id);
     rsx! {button{name:{DynName(format!("PerksProgramProduct{}",row.id))},left:0.0,top,width:LIST_WIDTH,height:ROW_HEIGHT,pos_type:"absolute",button_default_skin:false,onclick:action.as_str(),button_atlas_highlight:"perks-list-hover",{children}}}
+}
+
+fn row_item_icon(view: &View, row: &TradingPostItem) -> Element {
+    if view.cart.contains(&row.id) {
+        named_atlas_texture(
+            format!("PerksProgramCartIcon{}", row.id),
+            "perks-shoppingcart",
+            (32., 8., 32., 32.),
+        )
+    } else {
+        texture(
+            format!("PerksProgramIcon{}", row.id),
+            row.icon_fdid,
+            (32., 8., 32., 32.),
+            WHITE,
+        )
+    }
+}
+
+fn row_cart_toggle(view: &View, id: u32) -> Element {
+    if view.product_hover != Some(id) || !view.can_cart_product(id) {
+        return vec![];
+    }
+    let atlas = if view.cart.contains(&id) {
+        "128-redbutton-cart-minus"
+    } else {
+        "128-redbutton-cart-add"
+    };
+    // TimeRemaining is LEFT of PriceIcon.RIGHT+30,42x38; button36 centers there.
+    cart_ui::cart_icon_button(
+        &format!("PerksProgramCartToggle{id}"),
+        atlas,
+        &format!("perks:cart:toggle:{id}"),
+        true,
+        (443., (ROW_HEIGHT - 36.) / 2., 36., 36.),
+    )
+}
+
+/// Elements.xml325: ordinary and inherited21px undo textures use ADD.
+/// The separate32px PurchasedHistoryFrame icon has no such source override.
+pub fn apply_refund_icon_blend(registry: &mut ui_toolkit::registry::FrameRegistry) {
+    use ui_toolkit::{frame::WidgetData, widgets::texture::BlendMode};
+    let icons: Vec<_> = registry
+        .frames_iter()
+        .filter(|frame| {
+            frame.name.as_deref().is_some_and(|name| {
+                name.starts_with("PerksProgramRefundIcon")
+                    || name.starts_with("PerksProgramFrozenRefundIcon")
+            })
+        })
+        .map(|frame| frame.id)
+        .collect();
+    for id in icons {
+        let frame = registry.get_mut(id).expect("registered row refund icon");
+        let Some(WidgetData::Texture(texture)) = &mut frame.widget_data else {
+            panic!("PerksProgram row refund icon must be a texture");
+        };
+        texture.blend_mode = BlendMode::Additive;
+    }
 }
 
 fn row_price(prefix: &str, row: &TradingPostItem, center_y: f32) -> Element {
     if row.refund_seconds > 0 {
         return named_atlas_texture(
-            format!("{prefix}Owned{}", row.id),
+            format!("{prefix}RefundIcon{}", row.id),
             "common-icon-undo",
             (389., center_y - 21. / 2., 21., 21.),
         );
@@ -1190,7 +1332,7 @@ fn confirm_popup(view: &View, kind: &str) -> Element {
     };
     item_confirmation(ItemConfirmation {
         name: "PerksProgramConfirm",
-        pending: false,
+        pending: view.pending,
         accept_enabled: true,
         prompt: (
             &before,

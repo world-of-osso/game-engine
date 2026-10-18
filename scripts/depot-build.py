@@ -7,6 +7,7 @@ import contextlib
 import fcntl
 import gzip
 import hashlib
+import json
 import os
 import shlex
 import shutil
@@ -73,6 +74,14 @@ def allowed(repo_name, path, tracked):
         return False
     if repo_name == ROOT_NAME and parts[0] not in ROOT_PATHS:
         return False
+    # Shared battleground brackets embed tracked reference CSVs at compile time.
+    if (
+        tracked
+        and repo_name == "shared-protocol"
+        and parts[:2] == ("scripts", "reference")
+        and path.suffix == ".csv"
+    ):
+        return True
     if path.suffix in SOURCE_SUFFIXES or path.name in {"Cargo.toml", "Cargo.lock"}:
         return True
     # material.rs embeds the ribbon shader with include_str!.
@@ -167,13 +176,37 @@ def install_artifact(compressed, destination, executable=False):
             temporary.unlink(missing_ok=True)
 
 
+def read_model_asset_paths(root):
+    cache = root / "data/cache"
+    indexes = [cache / "model-asset-index.json", *sorted(cache.glob("model-asset-index-*.json"))]
+    paths = {}
+    for index in indexes:
+        document = json.loads(index.read_text())
+        if document["version"] != 1:
+            raise ValueError(f"Unsupported model asset index version: {index}")
+        for row in document["assets"]:
+            selector = f'model:{row["product"]}:{row["fdid"]}:{row["kind"]}'
+            if selector in paths:
+                raise ValueError(f"Duplicate model asset receipt for {selector}")
+            paths[selector] = Path(row["path"])
+    return paths
+
+
 def read_asset_manifest(root):
     entries = []
+    model_paths = None
     for line in (root / TEST_ASSETS).read_text().splitlines():
         entry = line.split("#", 1)[0].strip()
         if not entry:
             continue
-        relative = Path(entry)
+        if entry.startswith("model:"):
+            if model_paths is None:
+                model_paths = read_model_asset_paths(root)
+            if entry not in model_paths:
+                raise ValueError(f"No model asset receipt for {entry}")
+            relative = model_paths[entry]
+        else:
+            relative = Path(entry)
         if relative.is_absolute() or ".." in relative.parts:
             raise ValueError(
                 f"{TEST_ASSETS}: asset path must stay inside data/: {entry}"
@@ -402,11 +435,13 @@ def build(root, fixture=None, cli=False, release=False, host=None):
     lock, cache, checkout_key = locked_checkout(root)
     with lock:
         target = root / "target"
+        profile_target = target / ("release" if release else "debug")
+        fixture_destination = profile_target / "examples" / fixture if fixture else None
         if (
             target.is_symlink()
             or (target / "debug").is_symlink()
             or (target / "release").is_symlink()
-            or (fixture and (target / "debug" / "examples").is_symlink())
+            or (fixture_destination and fixture_destination.parent.is_symlink())
         ):
             raise ValueError(
                 f"target symlink cannot guarantee checkout-local artifact: {target}"
@@ -429,11 +464,8 @@ def build(root, fixture=None, cli=False, release=False, host=None):
                 command.extend(["--build-arg", "RELEASE=1"])
             execute(context, output, checkout_key, "artifact", command, host)
             phase(f"{host} build", start)
-            destination = (
-                root / "target" / ("release" if release else "debug") / ARTIFACT
-            )
+            destination = profile_target / ARTIFACT
             if fixture:
-                fixture_destination = root / "target" / "debug" / "examples" / fixture
                 install_artifact(
                     output / (fixture + ".gz"), fixture_destination, executable=True
                 )
@@ -521,7 +553,7 @@ def main():
         help="save default host and exit without building",
     )
     mode = parser.add_mutually_exclusive_group()
-    mode.add_argument(
+    parser.add_argument(
         "--fixture",
         help=f"also export one {FIXTURE_DIR} executable, named by file stem",
     )
@@ -531,7 +563,7 @@ def main():
     mode.add_argument(
         "--release",
         action="store_true",
-        help=f"build only the optimized library into target/release/{ARTIFACT}",
+        help=f"build the optimized library and optional fixture into target/release/ ({ARTIFACT})",
     )
     mode.add_argument(
         "--test",
@@ -542,6 +574,8 @@ def main():
     # argparse drops `--`, which cargo needs to separate test-binary arguments.
     split = argv.index("--test") + 1 if "--test" in argv else len(argv)
     args = parser.parse_args(argv[:split])
+    if args.fixture and args.test:
+        parser.error("argument --fixture: not allowed with argument --test")
     if args.cli and (args.test or args.release):
         parser.error(
             f"argument --cli: not allowed with argument {'--test' if args.test else '--release'}"

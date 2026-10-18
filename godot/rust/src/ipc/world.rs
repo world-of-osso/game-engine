@@ -5,7 +5,9 @@
 //! `group roster|status|invite|uninvite`, `emote`, `spell cast|stop`
 //! (src/ipc/plugin/combat.rs, src/ipc/format.rs). The native client has no client-side
 //! entity IDs: `map target` reports the target's server entity.
+use game_engine_core::spell_catalog::SpellCatalogData;
 use game_engine_network::ipc_wire::{Request, Response};
+use game_engine_session::SessionScreen;
 use game_engine_ui_model::{
     group_state::GroupCommand,
     ipc_format::{format_group_roster, format_group_status, resolve_spell_identifier},
@@ -13,7 +15,7 @@ use game_engine_ui_model::{
 };
 use shared::{
     components::{Health, Npc, Player},
-    protocol::{EmoteIntent, GAMEOBJECT_TYPE_MAILBOX, GameObjectInfo, SpellCastIntent},
+    protocol::{EmoteIntent, GAMEOBJECT_TYPE_MAILBOX, GameObjectInfo},
 };
 
 impl crate::GameClient {
@@ -21,6 +23,9 @@ impl crate::GameClient {
     pub(crate) fn world_request(&mut self, request: Request) -> Result<Response, Request> {
         let answer = match request {
             Request::DeathStatus => format_death_snapshot(self.death_flow.snapshot.as_ref()),
+            Request::CurrenciesStatus => {
+                serde_json::to_string(&self.account.currencies).map_err(|error| error.to_string())
+            }
             Request::PvpStatus => self
                 .account
                 .send_pvp(game_engine_ui_model::battleground::PvpAction::Query)
@@ -317,29 +322,25 @@ impl crate::GameClient {
         if !self.connected() {
             return Err("spell cast is unavailable: not connected".into());
         }
+        if self.account.session.screen != SessionScreen::InWorld
+            || !self.account.session.gameplay_input_allowed()
+        {
+            return Err("spell cast is unavailable: gameplay input is not allowed".into());
+        }
         let target_entity = resolve_spell_target(target, self.targeting_target())?;
         let (spell_id, spell) = resolve_spell_identifier(spell)?;
         let target_text = target_entity.map_or_else(|| "-".into(), |id| id.to_string());
-        let witness = self.cast_witness(target_entity)?;
-        let witness_text = witness.map_or_else(
-            || "-".into(),
-            |ray| format!("{:?}->{:?}", ray.start, ray.end),
-        );
-        self.account
-            .send_spell_intent(SpellCastIntent {
-                target_item_guid: None,
-                spell_id,
-                destination: None,
-                spell: spell.clone(),
-                target_entity,
-                witness,
-            })
-            .map(|()| {
-                format!(
-                    "spell cast submitted spell={spell} target={target_text} witness={witness_text}"
-                )
-            })
-            .map_err(|_| "spell cast is unavailable: not connected".into())
+        let native_id = resolve_native_spell_id(
+            spell_id,
+            &spell,
+            self.account.spells.known(),
+            self.spells.catalog(),
+        )?;
+        self.cast_spell_on_target(native_id, target_entity)
+            .map_err(|error| error.to_string())?;
+        Ok(format!(
+            "spell cast submitted spell={spell} target={target_text}"
+        ))
     }
 
     fn spell_stop_ipc(&self) -> Result<String, String> {
@@ -350,6 +351,90 @@ impl crate::GameClient {
             .send_stop_cast()
             .map(|()| "spell stop submitted".into())
             .map_err(|_| "spell stop is unavailable: not connected".into())
+    }
+}
+
+fn resolve_native_spell_id(
+    explicit_id: Option<u32>,
+    token: &str,
+    known: &[u32],
+    catalog: Option<&SpellCatalogData>,
+) -> Result<u32, String> {
+    if let Some(id) = explicit_id {
+        return Ok(id);
+    }
+    let catalog = catalog.ok_or("Native spell catalog is unavailable for a named cast")?;
+    let mut matches = known
+        .iter()
+        .filter_map(|id| catalog.get(*id))
+        .filter(|spell| spell.name.eq_ignore_ascii_case(token))
+        .map(|spell| spell.id);
+    let id = matches
+        .next()
+        .ok_or_else(|| format!("No natively known spell named {token:?}"))?;
+    if matches.next().is_some() {
+        return Err(format!(
+            "Ambiguous native spell name {token:?}; use an explicit SpellID"
+        ));
+    }
+    Ok(id)
+}
+
+#[cfg(test)]
+mod native_cast_tests {
+    use super::resolve_native_spell_id;
+    use game_engine_core::spell_catalog::{CatalogSpell, SpellCatalogData};
+
+    #[test]
+    fn native_cast_ipc_resolves_explicit_ids_and_unambiguous_known_names() {
+        let catalog = SpellCatalogData::from_parts(
+            vec![
+                CatalogSpell {
+                    id: 1464,
+                    name: "Slam".into(),
+                    ..Default::default()
+                },
+                CatalogSpell {
+                    id: 133,
+                    name: "Fireball".into(),
+                    ..Default::default()
+                },
+            ],
+            Default::default(),
+        );
+        assert_eq!(
+            resolve_native_spell_id(Some(1464), "1464", &[], None),
+            Ok(1464)
+        );
+        assert_eq!(
+            resolve_native_spell_id(None, "sLaM", &[1464], Some(&catalog)),
+            Ok(1464)
+        );
+        assert!(resolve_native_spell_id(None, "Fireball", &[1464], Some(&catalog)).is_err());
+        assert!(resolve_native_spell_id(None, "Slam", &[1464], None).is_err());
+    }
+
+    #[test]
+    fn native_cast_ipc_refuses_ambiguous_known_names() {
+        let catalog = SpellCatalogData::from_parts(
+            vec![
+                CatalogSpell {
+                    id: 133,
+                    name: "Shared fixture name".into(),
+                    ..Default::default()
+                },
+                CatalogSpell {
+                    id: 1464,
+                    name: "Shared fixture name".into(),
+                    ..Default::default()
+                },
+            ],
+            Default::default(),
+        );
+        assert!(
+            matches!(resolve_native_spell_id(None, "Shared fixture name", &[133, 1464], Some(&catalog)),
+                         Err(error) if error.contains("Ambiguous"))
+        );
     }
 }
 

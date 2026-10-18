@@ -301,6 +301,11 @@ mod tests {
         };
         use ui_toolkit::screen::{Screen, SharedContext};
 
+        game_engine_ui_model::paths::set_data_root(
+            std::path::PathBuf::from(env!("CARGO_MANIFEST_DIR")).join("../../data"),
+        )
+        .unwrap();
+
         // BOTTOMRIGHT to an owner's TOPRIGHT at the left/top edge; opposite
         // anchors at right/bottom. Native coordinates already resolve SetPoint.
         for scale in [1.0, 2.0 / 3.0] {
@@ -384,6 +389,60 @@ mod tests {
     }
 
     #[test]
+    fn ready_check_intrinsic_body_uses_host_text_height_without_moving_frame_or_buttons() {
+        use game_engine_ui_model::ready_check_frame_component::{
+            ReadyCheckFrameState, ready_check_frame,
+        };
+        use ui_toolkit::{
+            atlas::{ActiveSkin, set_thread_skin},
+            screen::{Screen, SharedContext},
+        };
+        game_engine_ui_model::paths::set_data_root(
+            std::path::PathBuf::from(env!("CARGO_MANIFEST_DIR")).join("../../data"),
+        )
+        .unwrap();
+        for skin in [ActiveSkin::Modern, ActiveSkin::Forever] {
+            set_thread_skin(skin);
+            for (name, host_height) in [(None, 14.0), (Some("10 Player"), 29.0)] {
+                let mut shared = SharedContext::new();
+                shared.insert(ReadyCheckFrameState {
+                    visible: true,
+                    initiator: "Ann".into(),
+                    difficulty_name: name.map(str::to_owned),
+                });
+                let mut registry = FrameRegistry::new(1920.0, 1080.0);
+                Screen::new(|shared| {
+                    ready_check_frame(shared.get::<ReadyCheckFrameState>().unwrap())
+                })
+                .sync(&shared, &mut registry);
+                let body = registry.get_by_name("ReadyCheckFrameText").unwrap();
+                let panel = registry.get_by_name("ReadyCheckFrame").unwrap();
+                // Supplied host measurements test layout behavior, not Retail raster metrics.
+                let sizes = HashMap::from([(body, (240.0, host_height))]);
+                let bounds = compute_layout_with_intrinsics(&registry, &sizes).unwrap();
+                assert_eq!(
+                    (bounds[&body].width, bounds[&body].height),
+                    (240.0, host_height),
+                    "{skin:?}"
+                );
+                assert_eq!(
+                    (bounds[&panel].width, bounds[&panel].height),
+                    (323.0, 100.0)
+                );
+                assert_eq!(bounds[&body].y - bounds[&panel].y, 37.0);
+                assert!(((bounds[&body].x - bounds[&panel].x) - 61.5).abs() <= 0.5);
+                for suffix in ["Yes", "No"] {
+                    let id = registry
+                        .get_by_name(&format!("ReadyCheckFrame{suffix}Button"))
+                        .unwrap();
+                    assert_eq!((bounds[&id].width, bounds[&id].height), (119.0, 24.0));
+                    assert_eq!(bounds[&id].y - bounds[&panel].y, 60.0);
+                }
+            }
+        }
+    }
+
+    #[test]
     fn uifixes_quest_counter_flows_below_measured_wine_ticket_paragraph() {
         use game_engine_ui_model::quest_log_frame_component::{
             QuestLogDetails, QuestLogFrameState, QuestLogObjectiveLine,
@@ -430,6 +489,98 @@ mod tests {
             );
         }
         set_thread_skin(ActiveSkin::Modern);
+    }
+
+    fn assert_achievement_header_search(
+        skin: ui_toolkit::atlas::ActiveSkin,
+        open_action: &str,
+        expected_search_left: f32,
+    ) {
+        use game_engine_ui_model::achievements::{AchievementWindow, achievement_screen};
+        use ui_toolkit::screen::{Screen, SharedContext};
+
+        game_engine_ui_model::paths::set_data_root(
+            std::path::PathBuf::from(env!("CARGO_MANIFEST_DIR")).join("../../data"),
+        )
+        .unwrap();
+        ui_toolkit::atlas::set_thread_skin(skin);
+        let mut window = AchievementWindow::default();
+        window.action(open_action);
+        window.action("achievement:search:bear");
+        let mut shared = SharedContext::new();
+        shared.insert(skin);
+        shared.insert(window);
+        let mut registry = FrameRegistry::new(1920.0, 1080.0);
+        Screen::new(achievement_screen).sync(&shared, &mut registry);
+        let bounds = compute_layout_with_intrinsics(&registry, &HashMap::new()).unwrap();
+        let rect = |name: &str| bounds[&registry.get_by_name(name).expect(name)].clone();
+        let root = rect("AchievementFrame");
+        let search = rect("AchievementSearchBox");
+        let filter = rect("AchievementFilterDropdown");
+        assert_eq!(
+            search.x - root.x,
+            expected_search_left,
+            "{skin:?} {open_action}: source right-to-left search placement"
+        );
+        assert_eq!(
+            (search.y - root.y, search.width, search.height),
+            (25.0, 107.0, 30.0)
+        );
+        assert_eq!(
+            (filter.y - root.y, filter.width, filter.height),
+            (31.0, 112.0, 22.0)
+        );
+        assert_eq!(filter.x - (search.x + search.width), 7.0);
+        for (name, offset, width, height) in [
+            ("AchievementSearchLeft", -5.0, 8.0, 20.0),
+            ("AchievementSearchMiddle", 3.0, 96.0, 20.0),
+            ("AchievementSearchRight", 99.0, 8.0, 20.0),
+            ("AchievementSearchIcon", 1.0, 10.0, 10.0),
+            ("AchievementSearchClearButton", 87.0, 17.0, 17.0),
+        ] {
+            let piece = rect(name);
+            assert_eq!(
+                (piece.x - search.x, piece.width, piece.height),
+                (offset, width, height),
+                "{skin:?} {name}"
+            );
+        }
+    }
+
+    #[test]
+    fn achievement_header_search_modern_normal() {
+        assert_achievement_header_search(
+            ui_toolkit::atlas::ActiveSkin::Modern,
+            "micro:AchievementMicroButton",
+            511.0,
+        );
+    }
+
+    #[test]
+    fn achievement_header_search_forever_normal() {
+        assert_achievement_header_search(
+            ui_toolkit::atlas::ActiveSkin::Forever,
+            "micro:AchievementMicroButton",
+            511.0,
+        );
+    }
+
+    #[test]
+    fn achievement_header_search_modern_comparison() {
+        assert_achievement_header_search(
+            ui_toolkit::atlas::ActiveSkin::Modern,
+            "achievement:compare:42",
+            631.0,
+        );
+    }
+
+    #[test]
+    fn achievement_header_search_forever_comparison() {
+        assert_achievement_header_search(
+            ui_toolkit::atlas::ActiveSkin::Forever,
+            "achievement:compare:42",
+            631.0,
+        );
     }
 
     #[test]

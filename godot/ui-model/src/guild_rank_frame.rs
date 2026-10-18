@@ -66,6 +66,7 @@ pub fn guild_screen(shared: &SharedContext) -> Element {
         children.extend(crate::guild_member_detail::editor(session));
         children.extend(crate::guild_member_detail::removal_confirmation(session));
         children.extend(crate::guild_event_log::frame(session, shared));
+        children.extend(crate::guild_news::filters(session));
     }
     children
 }
@@ -126,24 +127,24 @@ fn invitation_popup(session: &GuildRanksSession) -> Element {
         return vec![];
     };
     let mut children = translucent_chrome("GuildInviteFrame", (310.0, 188.0));
+    children.extend(invitation_tabard(invite.tabard));
     children.extend(label(
         "GuildInviteFrameInviterName".into(),
         &invite.inviter_name,
-        (40.0, 28.0, 230.0, 16.0),
-        (12.0, "1,1,1,1", "CENTER"),
+        (40.0, 28.0, 230.0, 10.0),
+        (10.0, "1,1,1,1", "CENTER"),
     ));
     children.extend(label(
         "GuildInviteFrameInviteText".into(),
         "invites you to join the guild:",
-        (40.0, 48.0, 230.0, 16.0),
-        (12.0, "1,1,1,1", "CENTER"),
+        (40.0, 38.0, 230.0, 10.0),
+        (10.0, "1,1,1,1", "CENTER"),
     ));
-    children.extend(label(
-        "GuildInviteFrameGuildName".into(),
-        &invite.guild_name,
-        (24.0, 70.0, 262.0, 28.0),
-        (14.0, NORMAL_FONT_COLOR, "CENTER"),
-    ));
+    // TOP anchors are relative to TOP. GuildName has intrinsic size in the XML.
+    children.extend(rsx! { fontstring { name: "GuildInviteFrameGuildName",
+    text: {invite.guild_name.as_str()}, font_size: 12.0, font_color: NORMAL_FONT_COLOR,
+    shadow_color: "0,0,0,1", shadow_offset: "1,-1", justify_h: "CENTER",
+    left: "50%", top: 50.0, translate_x: "-50%", pos_type: "absolute" } });
     children.extend(panel_button(
         "GuildInviteFrameJoinButton".into(),
         "Join Guild",
@@ -163,6 +164,35 @@ fn invitation_popup(session: &GuildRanksSession) -> Element {
     mouse_enabled: true, strata: FrameStrata::Dialog, {children} } }
 }
 
+/// GuildInviteFrame.xml12–83 and GuildUtil.lua115–127,180–202.
+fn invitation_tabard(design: Option<shared::guild_creation::GuildTabardDesign>) -> Element {
+    let art = crate::guild_tabards::load_portrait_art(design)
+        .expect("load authoritative invitation tabard art");
+    let emblem_left = 154.0 - art.width / 2.0;
+    rsx! {
+        texture { name: "GuildInviteFrameBackground", texture_fdid: 446203,
+            tex_coords: "0.00195313,0.56250000,0.00781250,0.91406250",
+            left: 11.5, top: 12.0, width: 287.0, height: 116.0,
+            pos_type: "absolute", draw_layer: "BACKGROUND" }
+        texture { name: "GuildInviteFrameTabardBackground", texture_fdid: 410251,
+            tex_coords: "0.63183594,0.69238281,0.61914063,0.74023438",
+            vertex_color: {art.background.as_str()}, left: 123.0, top: 70.0,
+            width: 62.0, height: 62.0, pos_type: "absolute", draw_layer: "BORDER" }
+        texture { name: "GuildInviteFrameTabardEmblem", texture_fdid: {art.fdid},
+            tex_coords: {art.uv.as_str()}, vertex_color: {art.emblem.as_str()},
+            left: emblem_left, top: 69.0, width: {art.width}, height: 64.0,
+            pos_type: "absolute", draw_layer: "ARTWORK" }
+        texture { name: "GuildInviteFrameTabardBorder", texture_fdid: 410251,
+            tex_coords: "0.63183594,0.69238281,0.74414063,0.86523438",
+            vertex_color: {art.border.as_str()}, left: 124.0, top: 71.0,
+            width: 61.0, height: 60.0, pos_type: "absolute", draw_layer: "ARTWORK" }
+        texture { name: "GuildInviteFrameTabardRing", texture_fdid: 446203,
+            tex_coords: "0.56640625,0.79687500,0.00781250,0.60156250",
+            left: 96.0, top: 64.0, width: 118.0, height: 76.0,
+            pos_type: "absolute", draw_layer: "OVERLAY" }
+    }
+}
+
 fn title(name: &str, text: &str, x: f32, y: f32, width: f32) -> Element {
     label(
         name.to_owned(),
@@ -174,6 +204,7 @@ fn title(name: &str, text: &str, x: f32, y: f32, width: f32) -> Element {
 fn roster(session: &GuildRanksSession, shared: &SharedContext) -> Element {
     let mut children = crate::guild_communities::shell(session, shared);
     children.extend(guild_profile(session));
+    children.extend(crate::guild_news::frame(session, shared));
     children.extend(member_menu(session));
     children.extend(crate::guild_member_detail::detail(session));
     rsx! { r#frame { name: {DynName("CommunitiesFrame".into())}, width: 814.0, height: 426.0,

@@ -83,3 +83,12 @@ At current-master merge `1887c7a6f`, before footer edits, HUD-only30 tests and t
 
 - [[menu-primitives]] — shared dropdown/menu art.
 - [[godot-conversion]] — native UI projection.
+
+
+## Campsite selected-hover branch — 2026-10-15
+
+`WarbandSceneGlueEntryMixin:SetSelectedState` (`GlueWarbandSceneCollection.lua:13–19`) changes HighlightTexture to `campcollection-frame-selected-hover` while checked; ordinary hover remains `campcollection-frame-hover`. The card emitted only the latter, so pointer entry changed a selected gold border to blue. The card now chooses its hover member from the existing `selected` argument. Pinned slice elements29572/29531 require18/17px margins respectively; source224×183 bounds and(-4,+5) anchor are unchanged. No selection/account, paging, ownership, preview-image or overall composition behavior changed.
+
+Genuine atlas-branch RED→GREEN7 character-select controls covers both skins and selection1→2→1, including hover leave. `godot/tests/campsite_selected_hover.gd` drives native pointer entry/leave and physical selection dispatch, then supplies the next offline selection state. Native AtlasTexture regions confirm selected `(865,176,18,18)` versus ordinary `(865,65,17,17)` after every reselection, in both skins. Actual account persistence remains unproved.
+
+Both before/after comparison sheets and selected-card crops were inspected under `AgentShared/2026-10-15/ui-questlog-campsite-hover/`. Twelve idle crops, six unselected-hover crops and all six fullHD contexts are byte-identical; only six selected-hover crops change. Blank preview entries are deliberate supplied fixtures, not a campsite catalog/preview-art acceptance claim. Exact code/binary/source/PNG hashes and commands: `data/diagnostics/ui-questlog-campsite-hover-2026-10-15/campsite-hover-proof-ledger.json`. [Contract](../../specs/glue-menu-fidelity.md).

@@ -426,7 +426,7 @@ fn housing_storage_filters_render_independent_choices_and_reset_in_both_skins() 
         let mut screen = Screen::new(housing_screen);
         context.insert(view.clone());
         screen.sync(&context, &mut registry);
-        assert!(registry.get_by_name("HouseEditorStorageFilters").is_some());
+        assert_storage_filter_header(&registry, false, false);
         assert!(
             registry
                 .get_by_name("HouseEditorStorageFilterMenu")
@@ -440,6 +440,8 @@ fn housing_storage_filters_render_independent_choices_and_reset_in_both_skins() 
             .unwrap();
         context.insert(view.clone());
         screen.sync(&context, &mut registry);
+        assert_storage_filter_header(&registry, true, false);
+        assert_storage_filter_popup(&registry);
         let date = registry
             .get(
                 registry
@@ -463,8 +465,17 @@ fn housing_storage_filters_render_independent_choices_and_reset_in_both_skins() 
         view.model
             .storage_filter_action("housing:storage:sort:alphabetical")
             .unwrap();
+        assert!(!view.model.storage_filters_open && !view.model.storage_sort_open);
+        view.model
+            .storage_filter_action("housing:storage:filters")
+            .unwrap();
         view.model
             .storage_filter_action("housing:storage:filter:dyeable")
+            .unwrap();
+        // Checkbox Refresh keeps the root; reopen Sort to inspect retained radio state.
+        assert!(view.model.storage_filters_open && !view.model.storage_sort_open);
+        view.model
+            .storage_filter_action("housing:storage:sort")
             .unwrap();
         context.insert(view.clone());
         screen.sync(&context, &mut registry);
@@ -480,6 +491,7 @@ fn housing_storage_filters_render_independent_choices_and_reset_in_both_skins() 
         );
         assert!(registry.get_by_name("HouseEditorStored1693").is_none());
         assert!(registry.get_by_name("HouseEditorStorageEmpty").is_some());
+        assert_storage_filter_header(&registry, true, true);
         view.model
             .storage_filter_action("housing:storage:filter:reset")
             .unwrap();
@@ -497,7 +509,69 @@ fn housing_storage_filters_render_independent_choices_and_reset_in_both_skins() 
         );
         assert!(registry.get_by_name("HouseEditorStored1693").is_some());
         assert!(!view.model.filters_open);
+        assert_storage_filter_header(&registry, true, false);
     }
+}
+
+fn assert_storage_filter_popup(registry: &FrameRegistry) {
+    let frame = |name| registry.get(registry.get_by_name(name).unwrap()).unwrap();
+    let root = frame("HouseEditorStorageFilterMenu");
+    assert_eq!(root.width, Dimension::Fixed(125.0));
+    assert_eq!(root.height, Dimension::Fixed(109.0));
+    assert_eq!(
+        frame("HouseEditorStorageSortMenu").height,
+        Dimension::Fixed(63.0)
+    );
+    for (name, expected) in [
+        ("HouseEditorStorageSortText", "Sort By"),
+        ("HouseEditorStorageLocationUnavailableText", "Placeable"),
+        ("HouseEditorStorageSortDateAddedText", "Date Added"),
+        ("HouseEditorStorageSortAlphabeticalText", "Alphabetical"),
+    ] {
+        assert!(
+            matches!(&frame(name).widget_data, Some(WidgetData::FontString(text)) if text.text == expected)
+        );
+    }
+    assert!(
+        registry
+            .get_by_name("HouseEditorStorageSortSubmenuArrow")
+            .is_some()
+    );
+    assert!(
+        registry
+            .get_by_name("HouseEditorStorageFilterDivider")
+            .is_some()
+    );
+    assert!(
+        matches!(&frame("HouseEditorStorageLocationUnavailable").widget_data,
+        Some(WidgetData::Button(button)) if button.state == ui_toolkit::widgets::button::ButtonState::Disabled)
+    );
+}
+
+fn assert_storage_filter_header(registry: &FrameRegistry, open: bool, reset_visible: bool) {
+    use ui_toolkit::widgets::texture::TextureSource;
+    let frame = |name| registry.get(registry.get_by_name(name).unwrap()).unwrap();
+    let filter = frame("HouseEditorStorageFilters");
+    assert_eq!(filter.width, Dimension::Fixed(125.0));
+    assert_eq!(filter.height, Dimension::Fixed(20.0));
+    let expected = if open {
+        "common-dropdown-b-button-open"
+    } else {
+        "common-dropdown-b-button"
+    };
+    let background = frame("HouseEditorStorageFiltersBackground");
+    assert!(
+        matches!(&background.widget_data, Some(WidgetData::Button(button))
+        if button.normal_texture == Some(TextureSource::Atlas(expected.into())))
+    );
+    let reset = frame("HouseEditorStorageFiltersResetButton");
+    assert_eq!(reset.visible, reset_visible);
+    assert_eq!(reset.width, Dimension::Fixed(23.0));
+    assert_eq!(reset.height, Dimension::Fixed(23.0));
+    assert!(
+        matches!(&reset.widget_data, Some(WidgetData::Button(button))
+        if button.normal_texture == Some(TextureSource::Atlas("auctionhouse-ui-filter-redx".into())))
+    );
 }
 
 #[test]

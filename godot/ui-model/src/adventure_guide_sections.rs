@@ -12,6 +12,10 @@ use ui_toolkit::{
 };
 const TILE: u32 = 522973;
 
+#[cfg(test)]
+#[path = "adventure_guide_sections_tests.rs"]
+mod tests;
+
 pub fn overview_header(top: f32) -> Element {
     let mut out = cropped(
         "JournalOverviewHeader".into(),
@@ -67,6 +71,8 @@ pub fn section_header(
 ) -> Element {
     let name = format!("JournalSection{}", section.id);
     let (left, top, width, height) = rect;
+    let (flags, title_right) =
+        crate::adventure_section_flags::header_flags(section, (width, height));
     let mut contents = paper_regions(&name, width, collapsed, false);
     contents.extend(label(
         format!("{name}ExpandedIcon"),
@@ -82,12 +88,16 @@ pub fn section_header(
             "1,1,1,1",
         ));
     }
+    contents.extend(flags);
     contents.extend(label(
         format!("{name}Name"),
         title,
-        (45., 8., width - 50., 10.),
+        (45., 8., title_right - 45., 10.),
         (12., GOLD, "LEFT"),
     ));
+    let glow_name = format!("{name}Glow");
+    let glow = paper_highlight(&glow_name, width, true);
+    contents.extend(rsx! {r#frame {name:{DynName(glow_name)},left:0.0,top:0.0,width,height,pos_type:"absolute",alpha:0.0,{glow}}});
     let action = format!("journal:section:{}", section.id);
     rsx! {button {name:{DynName(name)},left,top,width,height,pos_type:"absolute",onclick:{action.as_str()},button_default_skin:false,{contents}}}
 }
@@ -131,6 +141,13 @@ fn paper_regions(name: &str, width: f32, collapsed: bool, pushed: bool) -> Eleme
     ] {
         out.extend(cropped(format!("{name}{suffix}"), fdid, uv, rect));
     }
+    out.extend(paper_highlight(name, width, false));
+    out
+}
+
+fn paper_highlight(name: &str, width: f32, flash: bool) -> Element {
+    let layer = if flash { "OVERLAY" } else { "HIGHLIGHT" };
+    let mut out = Vec::new();
     for (suffix, fdid, uv, rect) in [
         (
             "HighlightMid",
@@ -152,7 +169,7 @@ fn paper_regions(name: &str, width: f32, collapsed: bool, pushed: bool) -> Eleme
         ),
     ] {
         let (left, top, width, height) = rect;
-        out.extend(rsx! {texture {name:{DynName(format!("{name}{suffix}"))},texture_fdid:fdid,tex_coords:uv,left,top,width,height,pos_type:"absolute",draw_layer:"HIGHLIGHT",blend_mode:"ADD"}});
+        out.extend(rsx! {texture {name:{DynName(format!("{name}{suffix}"))},texture_fdid:fdid,tex_coords:uv,left,top,width,height,pos_type:"absolute",draw_layer:{layer}}});
     }
     out
 }

@@ -190,13 +190,20 @@ impl BridgeConfig {
         self
     }
 
-    /// Catalog pages and earned alerts retain their shared AchievementChannel order.
     /// Preserve lifecycle order across all four types on EncounterChannel.
     pub fn receive_encounters(mut self) -> Self {
         self.relays.push(install_encounter_relay);
         self
     }
 
+    /// Full Guides and clock-only updates in their InstanceChannel send order.
+    pub fn receive_adventure_guide(mut self) -> Self {
+        self.relays.push(install_adventure_guide_relay);
+        self
+    }
+
+    /// Catalog pages, full snapshots, earned alerts and deltas retain their shared
+    /// AchievementChannel order.
     pub fn receive_achievements(mut self) -> Self {
         self.relays.push(install_achievement_relay);
         self
@@ -246,11 +253,12 @@ impl NetworkBridge {
             .receive::<protocol::QuestPushResult>()
             // Dungeon difficulty and saved instances for the entrance difficulty bar.
             .receive::<DungeonDifficultySet>()
+            .receive::<shared::protocol::WorldServerInfo>()
             .receive::<shared::protocol::RaidDifficultySet>()
             .receive::<InstanceInfo>()
             .receive::<protocol::DungeonProgress>()
             .receive::<protocol::ChallengeSnapshot>()
-            .receive::<protocol::AdventureGuideSnapshot>()
+            .receive_adventure_guide()
             .receive::<protocol::RenownSnapshot>()
             .receive::<protocol::TradingPostSnapshot>()
             .receive::<protocol::PartyKeystoneSnapshot>()
@@ -270,6 +278,8 @@ impl NetworkBridge {
             .receive::<protocol::ResurrectionOffer>()
             .receive::<protocol::SummonRequest>()
             .receive::<protocol::ProfessionSnapshot>()
+            .receive::<protocol::CraftingOperationStateUpdate>()
+            .receive::<protocol::ProfessionConcentrationUpdate>()
             .receive::<protocol::ProfessionSpecializationStateUpdate>()
             .receive::<protocol::CraftingOrderStateUpdate>()
             .receive::<protocol::CollectionStateUpdate>()
@@ -277,12 +287,10 @@ impl NetworkBridge {
             .receive::<protocol::WildPetBattleUpdate>()
             .receive::<protocol::PetBattleQueueUpdate>()
             .receive::<protocol::PvpStateUpdate>()
+            .receive::<protocol::CurrencyStateUpdate>()
             .receive::<protocol::TrainerList>()
             .receive::<protocol::TrainerBuyFailed>()
             // Spellbook, action bar and casting.
-            .receive::<KnownSpellsSnapshot>()
-            .receive::<SpellsLearned>()
-            .receive::<SpellsUnlearned>()
             .receive_talents()
             .receive::<ActionBarSnapshot>()
             .receive::<SpellCooldownUpdate>()
@@ -347,6 +355,7 @@ impl NetworkBridge {
             .receive::<protocol::GuildBankFailed>()
             .receive::<protocol::GuildRanksState>()
             .receive::<protocol::GuildEventLog>()
+            .receive::<protocol::GuildNewsState>()
             .receive::<protocol::GuildInvitation>()
             .receive::<protocol::GuildInviteResponse>()
             .receive::<protocol::GuildAcceptInviteResponse>()
@@ -663,7 +672,10 @@ fn install_talent_relay(app: &mut App, events: Sender<Event>) {
     use protocol::{TraitCommitResult, TraitConfigSnapshot, TraitLoadoutsSnapshot};
     app.add_systems(
         Update,
-        (move |mut specs: Query<&mut MessageReceiver<SpecializationChanged>>,
+        (move |mut known: Query<&mut MessageReceiver<KnownSpellsSnapshot>>,
+               mut learned: Query<&mut MessageReceiver<SpellsLearned>>,
+               mut unlearned: Query<&mut MessageReceiver<SpellsUnlearned>>,
+               mut specs: Query<&mut MessageReceiver<SpecializationChanged>>,
                mut snapshots: Query<&mut MessageReceiver<TraitConfigSnapshot>>,
                mut results: Query<&mut MessageReceiver<TraitCommitResult>>,
                mut loadouts: Query<&mut MessageReceiver<TraitLoadoutsSnapshot>>| {
@@ -677,6 +689,9 @@ fn install_talent_relay(app: &mut App, events: Sender<Event>) {
                     }
                 };
             }
+            drain!(known);
+            drain!(learned);
+            drain!(unlearned);
             drain!(specs);
             drain!(snapshots);
             drain!(results);
@@ -696,23 +711,71 @@ fn install_achievement_relay(app: &mut App, events: Sender<Event>) {
     app.add_systems(
         Update,
         (move |mut pages: Query<&mut MessageReceiver<protocol::AchievementCatalogPage>>,
-               mut updates: Query<&mut MessageReceiver<protocol::AchievementStateUpdate>>| {
+               mut updates: Query<&mut MessageReceiver<protocol::AchievementStateUpdate>>,
+               mut deltas: Query<&mut MessageReceiver<protocol::AchievementDelta>>| {
             let mut received = Vec::new();
             for mut receiver in &mut pages {
-                received.extend(receiver.receive_with_tick().map(|message| {
-                    (message.message_id, ProtocolMessage(Box::new(message.data)))
-                }));
+                received.extend(
+                    receiver.receive_with_tick().map(|message| {
+                        (message.message_id, ProtocolMessage(Box::new(message.data)))
+                    }),
+                );
             }
             for mut receiver in &mut updates {
-                received.extend(receiver.receive_with_tick().map(|message| {
-                    (message.message_id, ProtocolMessage(Box::new(message.data)))
-                }));
+                received.extend(
+                    receiver.receive_with_tick().map(|message| {
+                        (message.message_id, ProtocolMessage(Box::new(message.data)))
+                    }),
+                );
+            }
+            for mut receiver in &mut deltas {
+                received.extend(
+                    receiver.receive_with_tick().map(|message| {
+                        (message.message_id, ProtocolMessage(Box::new(message.data)))
+                    }),
+                );
             }
             received.sort_by_key(|(id, _)| *id);
             for (_, message) in received {
-                events.send(Event::Message(message)).expect("host event receiver closed");
+                events
+                    .send(Event::Message(message))
+                    .expect("host event receiver closed");
             }
-        }).run_if(protocol_not_rejected),
+        })
+        .run_if(protocol_not_rejected),
+    );
+}
+
+/// A full Guide and its clock-only updates in `InstanceChannel` send order: a clock
+/// overtaking the snapshot sent before it would be overwritten by the older time.
+fn install_adventure_guide_relay(app: &mut App, events: Sender<Event>) {
+    app.add_systems(
+        Update,
+        (move |mut snapshots: Query<&mut MessageReceiver<protocol::AdventureGuideSnapshot>>,
+               mut clocks: Query<&mut MessageReceiver<protocol::AdventureGuideClock>>| {
+            let mut received = Vec::new();
+            for mut receiver in &mut snapshots {
+                received.extend(
+                    receiver.receive_with_tick().map(|message| {
+                        (message.message_id, ProtocolMessage(Box::new(message.data)))
+                    }),
+                );
+            }
+            for mut receiver in &mut clocks {
+                received.extend(
+                    receiver.receive_with_tick().map(|message| {
+                        (message.message_id, ProtocolMessage(Box::new(message.data)))
+                    }),
+                );
+            }
+            received.sort_by_key(|(id, _)| *id);
+            for (_, message) in received {
+                events
+                    .send(Event::Message(message))
+                    .expect("host event receiver closed");
+            }
+        })
+        .run_if(protocol_not_rejected),
     );
 }
 
@@ -1043,6 +1106,8 @@ pub mod deathstate_fixture;
 mod wire_tests;
 
 #[cfg(test)]
+mod currency_wire_tests;
+#[cfg(test)]
 mod dungeonclient_wire_tests;
 #[cfg(test)]
 mod follower_wire_tests;
@@ -1050,6 +1115,8 @@ mod follower_wire_tests;
 mod guild_rank_wire_tests;
 #[cfg(test)]
 mod merchant_wire_tests;
+#[cfg(test)]
+mod netdelta_wire_tests;
 
 #[cfg(test)]
 mod pet_wire_tests;

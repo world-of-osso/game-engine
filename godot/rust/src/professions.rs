@@ -1,7 +1,6 @@
 //! Native owner professions, with DB2 catalogs and the existing ProfessionChannel.
 use crate::{GameClient, frame_error::FrameError, ui::RegistryUi};
 use game_engine_core::input_bindings_data::InputAction;
-use game_engine_core::spell_catalog::SPELL_DB2_BUILD;
 use game_engine_session::SessionScreen;
 use game_engine_ui_model::item_catalog::item_catalog;
 use game_engine_ui_model::professions::ProfessionBook;
@@ -15,6 +14,9 @@ use shared::protocol::ProfessionSnapshot;
 use std::collections::{BTreeMap, BTreeSet};
 use std::sync::mpsc::{self, Receiver, TryRecvError};
 
+#[path = "professions_reagents.rs"]
+mod reagents;
+
 #[derive(Default)]
 pub(crate) struct Professions {
     pub(crate) book: ProfessionBook,
@@ -23,6 +25,8 @@ pub(crate) struct Professions {
     started: bool,
     pub(crate) ui: Option<Gd<RegistryUi>>,
     pub(crate) error: String,
+    pub(crate) reagent_selection:
+        game_engine_ui_model::professions_reagent_selection::ReagentSelection,
     collapsed: BTreeSet<String>,
     page: ProfessionPage,
     pub(crate) specializations:
@@ -30,6 +34,8 @@ pub(crate) struct Professions {
     pub(crate) orders: game_engine_ui_model::professions_orders::CraftingOrders,
     order_search: String,
     order_form_initialized: bool,
+    pub(crate) concentration: Option<shared::concentration::ConcentrationSnapshot>,
+    concentration_skill: Option<u32>,
 }
 impl Professions {
     pub(crate) fn recipe(
@@ -72,7 +78,7 @@ impl Professions {
     fn poll_catalog(&mut self, data_root: &std::path::Path) -> Result<(), String> {
         if !self.started {
             self.started = true;
-            let path = data_root.join("db2").join(SPELL_DB2_BUILD);
+            let path = data_root.join("db2/active");
             let (sender, receiver) = mpsc::channel();
             game_engine_core::worker_shutdown::track(std::thread::spawn(move || {
                 let _ = sender.send(RecipeCatalog::load(&path));
@@ -101,9 +107,43 @@ impl GameClient {
     pub(super) fn receive_professions(&mut self, snapshot: ProfessionSnapshot) {
         self.professions.book.snapshot = snapshot;
     }
+    pub(super) fn receive_profession_concentration(
+        &mut self,
+        update: shared::protocol::ProfessionConcentrationUpdate,
+    ) {
+        if self.professions.concentration_skill != Some(update.skill_line) {
+            return;
+        }
+        self.professions.concentration = update.snapshot;
+        if let Some(error) = update.error {
+            self.professions.error = error;
+        }
+    }
+
+    fn query_profession_concentration(&mut self) -> Result<(), FrameError> {
+        let skill = self
+            .professions
+            .book
+            .selected_recipe()
+            .map(|recipe| recipe.skill_line);
+        if skill == self.professions.concentration_skill {
+            return Ok(());
+        }
+        self.professions.concentration = None;
+        if let Some(skill_line) = skill {
+            self.account.send_profession_concentration(
+                shared::protocol::ProfessionConcentrationRequest { skill_line },
+            )?;
+        }
+        self.professions.concentration_skill = skill;
+        Ok(())
+    }
+
     pub(super) fn close_professions(&mut self) -> bool {
         let visible = self.professions.book.visible;
         self.professions.book.visible = false;
+        self.professions.concentration = None;
+        self.professions.concentration_skill = None;
         self.professions.page = ProfessionPage::Recipes;
         self.professions.order_form_initialized = false;
         self.professions.orders.menu = None;
@@ -167,6 +207,7 @@ impl GameClient {
         }
         self.poll_profession_inputs()?;
         if self.professions.book.visible {
+            self.query_profession_concentration()?;
             self.sync_professions()?;
         }
         Ok(())
@@ -238,6 +279,7 @@ impl GameClient {
                 .unwrap_or(0);
         }
         self.read_order_form(&mut ui)?;
+        self.read_quality_quantities(&mut ui, false)?;
         loop {
             let action = ui.bind_mut().pop_action().to_string();
             if action.is_empty() {
@@ -262,6 +304,8 @@ impl GameClient {
                 }
             } else if let Some(action) = action.strip_prefix("profession:order:") {
                 self.apply_crafting_order_action(action)?;
+            } else if let Some(action) = action.strip_prefix("profession:quality:") {
+                self.apply_quality_reagent_action(action)?;
             } else if action == "profession:recraft" {
                 self.professions.page = ProfessionPage::Recraft;
             } else if let Some(action) = action.strip_prefix("profession:spec:") {
@@ -378,7 +422,11 @@ impl GameClient {
             .local_player_id()
             .and_then(|id| self.replica.unit(id))
             .is_some_and(|unit| unit.has::<CastState>());
-        let items = profession_items(&book);
+        self.professions
+            .reagent_selection
+            .select_recipe(book.selected);
+        let reagent_slots = self.selected_quality_slots();
+        let items = profession_items(&book, &reagent_slots);
         let crafting_quality = items
             .keys()
             .filter_map(|item| {
@@ -395,6 +443,7 @@ impl GameClient {
             page: self.professions.page,
             now_unix: godot::classes::Time::singleton().get_unix_time_from_system() as u64,
             specializations: self.professions.specializations.clone(),
+            concentration: self.professions.concentration.clone(),
             crafting_quality,
             can_create: !casting && book.craft_request(inventory, false).is_some(),
             can_all: !casting && book.craft_request(inventory, true).is_some(),
@@ -410,7 +459,10 @@ impl GameClient {
                 .as_ref()
                 .map(|catalog| catalog.child_skills.clone())
                 .unwrap_or_default(),
-            status: self.professions.error.clone(),
+            status: self.quality_operation_status(),
+            bag_counts: self.profession_reagent_counts(),
+            reagent_selection: self.professions.reagent_selection.clone(),
+            reagent_slots,
             recipe_craftable: recipe_craftable_counts(&book, inventory),
             collapsed: self.professions.collapsed.clone(),
             book,
@@ -448,6 +500,9 @@ impl GameClient {
                 }
             }
         }
+        if let Some(snapshot) = &mut view.concentration {
+            snapshot.currency.icon = self.drawable_fdid(snapshot.currency.icon);
+        }
         for item in view.items.values_mut() {
             item.icon_fdid = self.drawable_fdid(item.icon_fdid);
         }
@@ -459,9 +514,10 @@ impl GameClient {
             view.clone(),
             professions_screen,
         ));
-        if let Some(ui) = &mut self.professions.ui {
+        if let Some(mut ui) = self.professions.ui.clone() {
             ui.bind_mut().set_ui_scale(scale)?;
             ui.bind_mut().set_state(view)?;
+            self.write_quality_quantities(&mut ui, false)?;
             return self.initialize_order_form();
         }
         let mut ui = RegistryUi::new_alloc();
@@ -501,15 +557,26 @@ fn recipe_craftable_counts(
         .collect()
 }
 
-fn profession_items(book: &ProfessionBook) -> BTreeMap<u32, ItemDisplay> {
+fn profession_items(
+    book: &ProfessionBook,
+    slots: &[shared::crafting_reagents::ReagentSlot],
+) -> BTreeMap<u32, ItemDisplay> {
     let Some(catalog) = item_catalog() else {
         return BTreeMap::new();
     };
     let Some(recipe) = book.selected_recipe() else {
         return BTreeMap::new();
     };
-    std::iter::once(recipe.output.0)
+    recipe
+        .output
+        .into_iter()
+        .map(|(item, _)| item)
         .chain(recipe.reagents.iter().map(|&(item, _)| item))
+        .chain(
+            slots
+                .iter()
+                .flat_map(|slot| slot.choices.iter().map(|choice| choice.item_id)),
+        )
         .filter_map(|id| {
             let item = catalog.get(id)?;
             Some((

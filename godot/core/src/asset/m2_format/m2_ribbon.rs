@@ -49,7 +49,8 @@ pub struct M2RibbonEmitter {
 }
 
 pub fn parse_ribbon_emitters(md20: &[u8]) -> Result<Vec<M2RibbonEmitter>, String> {
-    let (count, offset) = read_m2_array_header(md20, HEADER_OFFSET)?;
+    let count = read_u32(md20, HEADER_OFFSET)? as usize;
+    let offset = read_u32(md20, HEADER_OFFSET + 4)? as usize;
     let end = count
         .checked_mul(ENTRY_STRIDE)
         .and_then(|size| offset.checked_add(size))
@@ -118,7 +119,12 @@ mod tests {
 
     #[test]
     fn absent_header_is_reported() {
-        assert!(parse_ribbon_emitters(&[0; 16]).is_err());
+        for length in 0..HEADER_OFFSET + 8 {
+            assert!(
+                parse_ribbon_emitters(&vec![0; length]).is_err(),
+                "accepted a ribbon header truncated to {length} bytes"
+            );
+        }
     }
 
     #[test]

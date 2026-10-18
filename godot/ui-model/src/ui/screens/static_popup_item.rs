@@ -22,6 +22,8 @@ pub struct ItemConfirmation<'a> {
 }
 
 const WIDTH: f32 = 320.;
+const DIALOG_LEVEL: f32 = 2002.;
+const PENDING_INSET: f32 = 11.;
 const TEXT_SIZE: f32 = 12.;
 const ITEM_WIDTH: f32 = 37. + 10. + 103. - 4.;
 const ITEM_HEIGHT: f32 = 38.;
@@ -37,10 +39,10 @@ pub fn item_confirmation(props: ItemConfirmation<'_>) -> Element {
     rsx! {
         r#frame { name:{DynName(format!("{prefix}Cover"))}, left:0.0, top:0.0,
             width:screen_width,height:screen_height,pos_type:"absolute",mouse_enabled:true,
-            background_color:"0,0,0,0.5",strata:FrameStrata::FullscreenDialog,frame_level:2001.0 }
+            background_color:"0,0,0,0.5",strata:FrameStrata::FullscreenDialog,frame_level:{DIALOG_LEVEL-1.} }
         r#frame { name:{DynName(format!("{prefix}Dialog"))},left:{(screen_width-WIDTH)/2.},top:135.0,
             width:WIDTH,height,pos_type:"absolute",mouse_enabled:true,
-            strata:FrameStrata::FullscreenDialog,frame_level:2002.0,{contents} }
+            strata:FrameStrata::FullscreenDialog,frame_level:DIALOG_LEVEL,{contents} }
     }
 }
 
@@ -74,8 +76,9 @@ fn confirmation_contents(props: &ItemConfirmation<'_>) -> (Element, f32) {
             (0., 0., 60., 60.),
         );
         contents.extend(rsx! {
-            r#frame{name:{DynName(format!("{prefix}DarkOverlay"))},left:0.0,top:0.0,width:WIDTH,height,pos_type:"absolute",frame_level:999.0,mouse_enabled:true,background_color:"0,0,0,0.8"}
-            r#frame{name:{DynName(format!("{prefix}Spinner"))},left:{(WIDTH-60.)/2.},top:{(height-60.)/2.},width:60.0,height:60.0,pos_type:"absolute",frame_level:1000.0,{ring}{sparks}}
+            // GameDialog.xml296–320: source500/1000 priorities above dialog content.
+            r#frame{name:{DynName(format!("{prefix}DarkOverlay"))},left:PENDING_INSET,top:PENDING_INSET,width:{WIDTH-2.*PENDING_INSET},height:{height-2.*PENDING_INSET},pos_type:"absolute",frame_level:{DIALOG_LEVEL+500.},mouse_enabled:true,background_color:"0,0,0,0.8"}
+            r#frame{name:{DynName(format!("{prefix}Spinner"))},left:{(WIDTH-60.)/2.},top:{(height-60.)/2.},width:60.0,height:60.0,pos_type:"absolute",frame_level:{DIALOG_LEVEL+1000.},{ring}{sparks}}
         });
     }
     (contents, height)
@@ -217,7 +220,8 @@ fn dialog_button(
             width:BUTTON_WIDTH,height:BUTTON_HEIGHT,pos_type:"absolute",left:0.0,top:0.0,
             tex_coords:"0,1,0,0.71875",blend_mode:"ADD",draw_layer:"HIGHLIGHT" }
         fontstring { name:{DynName(format!("{name}DialogButtonText"))},text,font_size:12.0,
-            font_color:"1,0.82,0,1",justify_h:"CENTER",width:BUTTON_WIDTH,height:BUTTON_HEIGHT,
+            font_color:"1,0.82,0,1",shadow_color:"0,0,0,1",shadow_offset:"1,-1",
+            justify_h:"CENTER",width:BUTTON_WIDTH,height:BUTTON_HEIGHT,
             pos_type:"absolute",left:0.0,top:-1.0 }
     };
     rsx! { button { name:{DynName(name.into())},width:BUTTON_WIDTH,height:BUTTON_HEIGHT,

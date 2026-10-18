@@ -17,7 +17,9 @@ from pathlib import Path
 from types import SimpleNamespace
 
 from bot_roster import build_roster
-from bot_harness import balance
+from bot_harness import balance, routed_player
+from bot_controller import FileBridge, native_usable, publish, requested_snapshot
+from bot_pets import TAME_BEAST, owned_pet, tame_plan, verified_tame_target, assist_plan, verified_assist
 from bot_health import qualify_report_health, require_living_player
 from bot_forms import form_is_observed, load_plan as load_form_plan
 from bot_gear import equipment_receipt, load_plan as load_gear_plan, required_grants
@@ -37,14 +39,17 @@ def command(output, argv, env=None):
 
 def record_inputs(args):
     files = [args.engine / "scripts" / f"{name}.py" for name in
-             ("bot_harness", "bot_rotation", "bot_roster", "bot_talents", "bot_gear", "bot_health", "bot_forms", "run_dummy_bots", "run_bot_roster")]
-    files += [args.engine / "godot/tests" / f"{name}.gd" for name in ("bot_harness_observer", "bot_harness_talents", "bot_harness_gear")]
+             ("bot_harness", "bot_rotation", "bot_controller", "bot_routes", "bot_roster", "bot_talents", "bot_gear", "bot_health", "bot_forms", "bot_pets", "run_dummy_bots", "run_bot_roster")]
+    files += [args.engine / "godot/tests" / f"{name}.gd" for name in ("bot_harness_observer", "bot_harness_talents", "bot_harness_gear", "bot_harness_pets")]
     files.append(args.world_db)
     tables = ("ChrSpecialization", "ChrRaces", "ChrClasses", "CharBaseInfo", "SpellEffect", "SpellMisc",
               "SpellPower", "SpellCooldowns", "SpellCastTimes", "AssistedCombat", "AssistedCombatStep",
               "AssistedCombatRule", "TraitTreeLoadout", "TraitTreeLoadoutEntry", "TraitNodeXTraitNodeEntry",
-              "TraitNodeEntry", "TraitDefinition", "SpellShapeshiftForm")
+              "TraitNodeEntry", "TraitDefinition", "SpellShapeshiftForm", "CreatureFamily")
     files += [args.engine / "data/db2/active" / f"{table}.csv" for table in tables]
+    if getattr(args, "priority_provider", "native") == "simc-bm":
+        files += [args.engine / "scripts/bot_simc_bm.py", args.simc_receipt, args.simc_apl,
+                  args.engine / "data/db2/active/SpellName.csv"]
     files += [args.engine / "target/debug/libgame_engine_godot.so",
               args.engine / "target/debug/game-engine-cli", args.server / "target/debug/game-server"]
     hashes = {}
@@ -166,12 +171,16 @@ def verified_dummy_target(state, npc_info):
 
 
 def dummy_fixture(npc_info, target):
-    pattern = r"Training Dummy \(entity (\d+)\) level (\d+) health [\d.]+/([\d.]+) difficulty (\d+)"
+    pattern = r"Training Dummy \(entity (\d+)\) level (\d+) health [\d.]+/([\d.]+) difficulty (\d+) combat=(\{.*\})"
     for line in npc_info.splitlines():
         match = re.fullmatch(pattern, line)
         if match and int(match[1]) == target:
+            combat = json.loads(match[5])
+            if "creature_armor" not in combat:
+                raise ValueError("Native dummy combat metadata omits creature_armor")
             return {"entry": 44548, "level": int(match[2]),
-                    "max_health": float(match[3]), "difficulty": int(match[4])}
+                    "max_health": float(match[3]), "difficulty": int(match[4]),
+                    "creature_armor": combat["creature_armor"]}
     raise ValueError(f"Live dummy fixture for entity {target} was not observed")
 
 
@@ -288,12 +297,153 @@ def prepare_native_form(args, output, socket, plan):
     raise RuntimeError(f"Native source form spell {plan['spell']} aura not confirmed; no repeat/toggle or alternate form")
 
 
+def grant_missing_native_gear(args, output, bot, plan, state):
+    (output / "inventory-before-grants.json").write_text(json.dumps(state, indent=2) + "\n")
+    equipment = admin(args, "list-equipment", bot["name"])
+    (output / "equipment-before-grants.txt").write_text(equipment)
+    grants = required_grants(plan, equipment, state["inventory"]["bags"])
+    for item, count in grants.items():
+        admin(args, "grant-item", bot["name"], str(item), str(count))
+    deadline = time.monotonic() + 10
+    while time.monotonic() < deadline:
+        state = read_state(output / "native-state.json")
+        if not required_grants(plan, equipment, state["inventory"]["bags"]):
+            (output / "inventory-after-grants.json").write_text(json.dumps(state, indent=2) + "\n")
+            receipt = {"grants": grants, "proof": "authenticated owned bags confirmed before ordinary gear input"}
+            (output / "gear-provisioned.json").write_text(json.dumps(receipt, indent=2) + "\n")
+            return
+        time.sleep(.1)
+    raise RuntimeError("Granted source items not confirmed in native owned bags within10s")
+
+
+def native_inventory_ready(state, bot):
+    account, inventory = state["account"], state["inventory"]
+    if account.get("selected_character_name") != bot["name"] or account.get("screen") != "InWorld":
+        return False
+    if not account.get("gameplay_input_allowed") or account.get("local_player_health") is None:
+        return False
+    if not inventory["equipment"] or not inventory["item_catalog_loaded"]:
+        return False
+    require_living_player(account)
+    return True
+
+
+def provision_native_gear(args, output, bot, gear_plan):
+    deadline = time.monotonic() + 180
+    while time.monotonic() < deadline:
+        path = output / "native-state.json"
+        if path.exists():
+            state = json.loads(path.read_text())
+            if native_inventory_ready(state, bot):
+                grant_missing_native_gear(args, output, bot, gear_plan, state)
+                return
+        time.sleep(.25)
+    raise RuntimeError("Authenticated owned inventory not observed before gear provisioning within180s")
+
+
+def wait_native_tame_target(args, output, socket, plan):
+    def invoke(*words):
+        return command(args.output, [args.engine / 'target/debug/game-engine-cli', '--socket', socket, *words])
+    player = routed_player(invoke, lambda target: requested_snapshot(read_state(output / 'native-state.json'), target),
+        [str(args.engine / 'scripts/agent/agent-run'), 'bot-harness', str(args.server / 'target/debug/examples/follower_route')],
+        args.world_db.parent / 'ground/navmesh' / str(plan['map']), output)
+    invoke('quest', 'interact', '--npc', plan['name'])
+    deadline = time.monotonic() + 60
+    while time.monotonic() < deadline:
+        state = read_state(output / 'native-state.json')
+        target = state['target']
+        if target.get('target_name') != plan['name'] or state['spells']['casting'] or state['spells']['gcd_ms'] > 0:
+            time.sleep(.2)
+            continue
+        native = verified_tame_target(state, admin(args, 'npc-info', plan['map'], 0, plan['entry']), plan)
+        snapshot = requested_snapshot(state, native['entity'])
+        if native_usable(snapshot, TAME_BEAST):
+            publish(output / 'tame-before.json', {'source': plan, 'native': native, 'state': state})
+            return native['entity']
+        if snapshot['facts']['in_range'][str(TAME_BEAST)] == {'Ok': False}:
+            here = [float(value) for value in state['account']['local_player_position'].strip('()').split(',')]
+            player.step_toward(here, state['target_position'], 'sourced-tame-approach')
+            time.sleep(.7)
+        else:
+            time.sleep(.2)
+    raise RuntimeError('Native sourced tame target not usable within60s; no alternate creature or cast')
+
+
+def wait_replicated_owned_pet(output, previous_errors):
+    deadline = time.monotonic() + 60
+    while time.monotonic() < deadline:
+        state = read_state(output / 'native-state.json')
+        pet = owned_pet(state)
+        if pet is not None:
+            return {'entity': pet, 'state': state, 'basis': 'matching received PetSpells and replicated UnitIsPet/UnitSummonedBy'}
+        if state['spells']['errors'] != previous_errors:
+            raise RuntimeError(f"Native Tame Beast failed: {state['spells']['errors']}")
+        time.sleep(.2)
+    raise RuntimeError('Tame Beast did not produce a replicated owned pet within60s; input not retried')
+
+
+def prepare_native_pet_assist(output):
+    state = read_state(output / 'native-state.json')
+    pet = owned_pet(state)
+    plan = assist_plan(state)
+    if plan is None:
+        receipt = {'before': state['pet'], 'after': state['pet'], 'input': 'native Assist already received'}
+    else:
+        receipt = FileBridge(output).request('pet-assist', plan)
+    verified_assist(receipt, pet)
+    publish(output / 'native-pet-assist.json', receipt)
+    return receipt
+
+
+def prepare_native_pet(args, output, socket):
+    state = read_state(output / 'native-state.json')
+    existing = owned_pet(state)
+    if existing is not None:
+        receipt = {'reused': True, 'entity': existing, 'state': state}
+        publish(output / 'native-pet.json', receipt)
+        return receipt
+    point = [float(value) for value in state['account']['local_player_position'].strip('()').split(',')]
+    plan = tame_plan(args.world_db, args.engine / 'data/db2/active/CreatureFamily.csv',
+        state['account']['world_map_id'], state['spells']['level'], point, state['spells']['known'])
+    publish(output / 'source-tame-plan.json', plan)
+    marker = output / 'native-target-preparation.json'
+    publish(marker, {'stage': 'explicit BM gameplay tame preparation'})
+    try:
+        target = wait_native_tame_target(args, output, socket, plan)
+        errors = read_state(output / 'native-state.json')['spells']['errors']
+        response = command(args.output, [args.engine / 'target/debug/game-engine-cli', '--socket', socket,
+                                       'spell', 'cast', '--spell', TAME_BEAST, '--target', target])
+        publish(output / 'tame-request.json', {'spell': TAME_BEAST, 'target': target, 'response': response})
+        receipt = {'reused': False, 'source': plan, **wait_replicated_owned_pet(output, errors)}
+        publish(output / 'native-pet.json', receipt)
+    finally:
+        marker.unlink(missing_ok=True)
+    command(args.output, [args.engine / 'target/debug/game-engine-cli', '--socket', socket,
+                          'quest', 'interact', '--npc', 'Training Dummy'])
+    return receipt
+
+
+def prepare_native_talents(args, output, bot):
+    deadline = time.monotonic() + 180
+    while time.monotonic() < deadline:
+        path = output / "native-state.json"
+        if path.exists():
+            state = json.loads(path.read_text())
+            config = state.get("trait_config", {})
+            if config.get("spec_id") == bot["spec"]:
+                plan = load_plan(
+                    args.engine / "data/db2/active", bot["spec"], native_tree=int(config.get("tree_id", 0))
+                )
+                publish(output / "talent-plan.json", plan)
+                return
+        time.sleep(0.1)
+    raise RuntimeError("Received native talent tree unavailable within180s")
+
+
 def run_bot(args, bot):
     output = args.output / str(bot["spec"])
     output.mkdir(mode=0o700)
     (output / "bot.json").write_text(json.dumps(bot, indent=2) + "\n")
-    talent_plan = load_plan(args.engine / "data/db2/active", bot["spec"])
-    (output / "talent-plan.json").write_text(json.dumps(talent_plan, indent=2) + "\n")
     gear_plan = load_gear_plan(args.world_db, args.engine / "data/db2/active", bot["spec"], bot["level"])
     (output / "gear-plan.json").write_text(json.dumps(gear_plan, indent=2) + "\n")
     form_plan = load_form_plan(args.engine / "data/db2/active", bot["spec"])
@@ -301,8 +451,6 @@ def run_bot(args, bot):
     provision(args, bot)
     equipment = admin(args, "list-equipment", bot["name"])
     (output / "equipment-before.txt").write_text(equipment)
-    for item, count in required_grants(gear_plan, equipment).items():
-        admin(args, "grant-item", bot["name"], str(item), str(count))
     token = args.engine / "data/auth_token.127.0.0.1_5871"
     if token.is_symlink():
         raise RuntimeError("Private token unexpectedly links outside the owned data root")
@@ -334,25 +482,33 @@ def run_bot(args, bot):
                 "--screen", "inworld", "--char", bot["name"]]
         reply = command(args.output, argv)
         pid = int(re.search(r"cage pid (\d+)", reply)[1])
+        provision_native_gear(args, output, bot, gear_plan)
+        prepare_native_talents(args, output, bot)
         state = wait_native(args, output, bot)
         talent_receipt = json.loads((output / "native-talents.json").read_text())
         fixture = equipment_receipt(gear_plan, state["inventory"], talent_receipt["sheet_stats"])
         (output / "fixture-receipt.json").write_text(json.dumps(fixture, indent=2) + "\n")
-        npcs = admin(args, "npc-info", "0", "0", "44548")
-        (output / "dummy-identity.txt").write_text(npcs)
-        target = verified_dummy_target(state, npcs)
         children = process_children(pid)
         sockets = [Path(f"/tmp/game-engine-{child}.sock") for child in children]
         sockets = [path for path in sockets if path.exists()]
         if len(sockets) != 1:
             raise RuntimeError(f"Expected one owned native IPC socket, found {sockets}")
+        if bot['spec'] == 253:
+            fixture['combat_pet'] = prepare_native_pet(args, output, sockets[0])
+            fixture['combat_pet_assist'] = prepare_native_pet_assist(output)
+            state = wait_native(args, output, bot)
+        npcs = admin(args, 'npc-info', '0', '0', '44548')
+        (output / 'dummy-identity.txt').write_text(npcs)
+        target = verified_dummy_target(state, npcs)
         fixture["precombat_form"] = prepare_native_form(args, output, sockets[0], form_plan)
         fixture["native_stats_phase"] = "after native talents; before precombat form"
         (output / "fixture-receipt.json").write_text(json.dumps(fixture, indent=2) + "\n")
         approach_dummy(args, output, sockets[0], target)
         options = SimpleNamespace(cli=args.engine / "target/debug/game-engine-cli", socket=sockets[0],
                                   state=output / "native-state.json", db2=args.engine / "data/db2/active",
-                                  target=target, duration=args.duration, comparison=None, server_log=args.server_log)
+                                  target=target, duration=args.duration, comparison=None, server_log=args.server_log,
+                                  priority_provider=args.priority_provider,
+                                  simc_receipt=args.simc_receipt, simc_apl=args.simc_apl)
         stats = command(args.output, [options.cli, "--socket", sockets[0], "status", "character-stats"])
         (output / "character-stats.txt").write_text(stats)
         native_level = re.search(r"(?m)^level: (\d+)$", stats)
@@ -385,7 +541,13 @@ def main():
     parser.add_argument("--level", type=int, default=32)
     parser.add_argument("--duration", type=float, default=60)
     parser.add_argument("--repeat", type=int, default=2)
+    parser.add_argument("--priority-provider", choices=("native", "simc-bm"), default="native")
+    parser.add_argument("--simc-receipt", type=Path)
+    parser.add_argument("--simc-apl", type=Path)
     args = parser.parse_args()
+    if args.priority_provider == "simc-bm" and (args.specs != [253] or args.all_specs
+            or not args.simc_receipt or not args.simc_apl):
+        parser.error("SimC BM requires explicit --specs 253, --simc-receipt and --simc-apl")
     if args.duration <= 0 or args.repeat < 1:
         parser.error("Positive duration and repeat required")
     args.output.mkdir(mode=0o700, parents=True, exist_ok=False)

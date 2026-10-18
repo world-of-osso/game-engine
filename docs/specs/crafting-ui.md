@@ -13,13 +13,14 @@ Rust ui-model screens and the native Godot extension extend [ProfessionsFrame](p
 
 ### Fixed-output orders
 - [x] Customer NPC lifecycle opens a separate Retail customer view; crafter orders open from the profession tab.
-- [x] Customer Browse/My Orders use PanelTabButtonTemplate, recipient/duration use WowStyle1DropdownTemplate with source anchors and reducer-owned enabled/open state; Forever changes art only.
-- [x] Public/guild/personal filters and customer/crafter views preserve server-scoped visibility and eligibility (scoped behavior tests; public orders additionally proved live).
+- [x] Customer Browse/My Orders use PanelTabButtonTemplate, recipient/duration use WowStyle1DropdownTemplate with source anchors and reducer-owned enabled/open state; Forever changes art only. The selected customer tab follows the visible page, not an owned-order query flag, so My Orders remains clickable while the placement form is visible.
+- [x] Public/guild/personal filters and customer/crafter views preserve server-scoped visibility and eligibility (scoped behavior tests and current private UDP5951 native Public, Guild and Personal order/mail proof in both skins).
 - [x] Customer form sends exact authored reagent quantities/customer contributions, recipient, commission, duration and note. Server owns escrow and validation.
 - [x] Claim/release/fulfill/cancel operate on selected authoritative order IDs; completion is observed through server order/mail/inventory state, never fabricated locally.
 
 ### Recraft
 - [x] Expose the Retail owned-item input/output element; submission stays disabled while source operation/lineage is unavailable. Never substitute CREATE_ITEM24 for recrafting.
+- [x] Verify effect297/389195 refusal through the existing owned-item spell intent without inventory/instance, profession or currency mutation; physically click disabled input/submission in both native skins without consuming existing items. This certifies refusal only, not item eligibility or a recraft outcome.
 
 ### Integration
 - [x] Behavioral tests and private UDP5871 fb_* native proof cover both skins, followed by origin/master integration, targeted tests, native build and fmt.
@@ -41,9 +42,11 @@ Rust ui-model screens and the native Godot extension extend [ProfessionsFrame](p
 - `godot/ui-model/tests/professions_art.rs`
 - `godot/ui-model/tests/professions_specializations.rs`
 - `godot/tests/crafting_ui_live.gd` — private both-skin specialization, public order and receiving-mail phases.
+- `godot/tests/modern_crafting_orders_live.gd` — current Public/Guild/Personal cast and mailbox settlement in both skins.
+- `godot/tests/modern_crafting_recraft_live.gd` — existing owned bag items retained after physical clicks on disabled recraft input/submission; no eligibility or operation claim.
 
 ## Known gaps (current cycle)
-- [x] Both-skin private public-order/knowledge/mail proof complete; skills, knowledge and achievement were explicitly fixture-primed, not acquisition proof.
+- [x] Both-skin private public/guild/personal order/mail and knowledge proof complete; skills, knowledge, guild membership and acceptance reagents were explicitly fixture-primed, not acquisition proof.
 - [ ] Recraft evaluator/owned-item lineage unsupported by current server contract; no submission message exists.
 
 ## Out of scope

@@ -10,8 +10,12 @@ use ui_toolkit::{rsx, screen::SharedContext, widget_def::Element};
 
 #[path = "professions_frame_art.rs"]
 mod art;
+#[path = "professions_frame_concentration.rs"]
+pub mod concentration;
 #[path = "professions_frame_orders.rs"]
 pub mod orders;
+#[path = "professions_frame_quality.rs"]
+mod quality;
 #[path = "professions_frame_recraft.rs"]
 mod recraft;
 #[path = "professions_frame_slots.rs"]
@@ -46,6 +50,7 @@ pub enum ProfessionPage {
 #[derive(Clone, Debug, Default, PartialEq, Eq)]
 pub struct ProfessionView {
     pub page: ProfessionPage,
+    pub concentration: Option<shared::concentration::ConcentrationSnapshot>,
     pub specializations: crate::professions_specializations::SpecializationDraft,
     pub orders: crate::professions_orders::CraftingOrders,
     pub order_recipes: Vec<shared::protocol::CraftingOrderRecipeSnapshot>,
@@ -62,10 +67,20 @@ pub struct ProfessionView {
     pub recipe_craftable: BTreeMap<u32, u32>,
     pub collapsed: BTreeSet<String>,
     pub reagents: Vec<(u32, u32, u32)>,
+    pub reagent_slots: Vec<shared::crafting_reagents::ReagentSlot>,
+    pub reagent_selection: crate::professions_reagent_selection::ReagentSelection,
     pub can_create: bool,
     pub can_all: bool,
     pub craftable: u32,
     pub status: String,
+}
+
+/// QualityDialog.lua Setup desaturates unowned tiers and disables their numeric input.
+pub fn apply_professions_art(
+    view: &ProfessionView,
+    registry: &mut ui_toolkit::registry::FrameRegistry,
+) {
+    quality::apply_dialog_art(view, registry);
 }
 
 pub fn professions_screen(ctx: &SharedContext) -> Element {
@@ -98,6 +113,7 @@ pub fn professions_screen(ctx: &SharedContext) -> Element {
     ));
     if matches!(view.page, ProfessionPage::Recipes | ProfessionPage::Recraft) {
         children.extend(skill_bar(view));
+        children.extend(concentration::display(view));
     } else if view.page == ProfessionPage::Specializations {
         children.extend(specializations::page(view));
     }
@@ -114,6 +130,7 @@ pub fn professions_screen(ctx: &SharedContext) -> Element {
         ProfessionPage::Specializations => {}
     }
     children.extend(page_tabs(view.page));
+    children.extend(quality::dialog(view));
     rsx! { r#frame { name: "ProfessionsFrame", width, height: HEIGHT,
         left: 24.0, top: 94.0, pos_type: "absolute", mouse_enabled: true,
         strata: FrameStrata::Dialog, {children}

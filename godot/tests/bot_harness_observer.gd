@@ -9,6 +9,8 @@ var target_attempts := 0
 var talent_status := "pending"
 var gear_status := "pending"
 var setup_started := false
+var pet_assist_in_progress := false
+var handled_pet_assist := ""
 
 func _initialize() -> void:
     output = OS.get_environment("BOT_HARNESS_OUTPUT")
@@ -32,11 +34,13 @@ func sample() -> void:
     if not spec_requested and spells.get("catalog_ready", false) and spells.get("spec", 0) != 0 and account.get("gameplay_input_allowed", false):
         error = client.set_specialization(int(OS.get_environment("BOT_HARNESS_SPEC")))
         spec_requested = true
-    if not setup_started and spells.get("spec", 0) == int(OS.get_environment("BOT_HARNESS_SPEC")) and spells.get("catalog_ready", false) and account.get("gameplay_input_allowed", false):
+    var gear_provisioned := FileAccess.file_exists(output.path_join("gear-provisioned.json"))
+    if gear_provisioned and not setup_started and spells.get("spec", 0) == int(OS.get_environment("BOT_HARNESS_SPEC")) and spells.get("catalog_ready", false) and account.get("gameplay_input_allowed", false):
         setup_started = true
         prepare_player()
     var target: Dictionary = client.target_state()
-    if talent_status == "observed" and target_attempts < 32 and target.get("target_name", "") != "Training Dummy" and spells.get("spec", 0) == int(OS.get_environment("BOT_HARNESS_SPEC")) and account.get("gameplay_input_allowed", false):
+    var preparation_owns_target := FileAccess.file_exists(output.path_join("native-target-preparation.json"))
+    if not preparation_owns_target and talent_status == "observed" and target_attempts < 32 and target.get("target_name", "") != "Training Dummy" and spells.get("spec", 0) == int(OS.get_environment("BOT_HARNESS_SPEC")) and account.get("gameplay_input_allowed", false):
         target_attempts += 1
         select_nearest()
     var target_position: Array[float] = []
@@ -47,8 +51,10 @@ func sample() -> void:
     var snapshot := {"at_ms": int(Time.get_unix_time_from_system() * 1000.0),
         "account": account, "spells": spells, "spec_request_error": error,
         "target": target, "target_position": target_position,
+        "priority": requested_priority(target, spells),
         "target_attempts": target_attempts, "spec_requested": spec_requested,
         "talent_status": talent_status, "gear_status": gear_status,
+        "trait_config": load("res://tests/bot_harness_talents.gd").new().observe_config(client),
         "inventory": client.merchant_state(), "auras": client.aura_state(),
         "pet": client.pet_bar_state(),
         "assisted": client.assisted_combat_state(), "cooldowns": client.cooldown_viewer_state()}
@@ -66,7 +72,49 @@ func sample() -> void:
         push_error("Cannot publish bot observation: " + str(renamed))
         quit(2)
         return
+    service_pet_assist()
     create_timer(0.2).timeout.connect(sample, CONNECT_ONE_SHOT)
+
+func service_pet_assist() -> void:
+    var path := output.path_join("native-pet-assist-request.json")
+    if pet_assist_in_progress or talent_status != "observed" or not FileAccess.file_exists(path):
+        return
+    var request: Variant = JSON.parse_string(FileAccess.get_file_as_string(path))
+    if not request is Dictionary or str(request.get("request_id", "")).is_empty():
+        push_error("Invalid native pet Assist request")
+        quit(2)
+        return
+    if str(request["request_id"]) == handled_pet_assist:
+        return
+    handled_pet_assist = str(request["request_id"])
+    pet_assist_in_progress = true
+    apply_pet_assist(request)
+
+func apply_pet_assist(request: Dictionary) -> void:
+    var controller = load("res://tests/bot_harness_pets.gd").new()
+    var receipt: Dictionary = await controller.apply_assist(self, client, request)
+    receipt["request_id"] = request["request_id"]
+    var name := "native-pet-assist-result.json"
+    if publish_receipt(name + ".writing", receipt):
+        var result := DirAccess.rename_absolute(output.path_join(name + ".writing"), output.path_join(name))
+        if result != OK:
+            push_error("Cannot publish native pet Assist response: " + str(result))
+            quit(2)
+    pet_assist_in_progress = false
+
+func requested_priority(target: Dictionary, spells: Dictionary) -> Dictionary:
+    if target.get("target") == null or spells.get("known", []).is_empty():
+        return {"error": "Native priority query awaiting target and learned spells"}
+    var requested := PackedInt32Array()
+    for identity in spells["known"]:
+        requested.append(int(identity))
+    var result: Dictionary = client.call("spell_priority_state", int(target["target"]), requested)
+    if result.has("error"):
+        return result
+    var parsed: Variant = JSON.parse_string(result["state_json"])
+    if not parsed is Dictionary:
+        return {"error": "Native priority query returned invalid JSON"}
+    return parsed
 
 func publish_receipt(filename: String, receipt: Dictionary) -> bool:
     var file := FileAccess.open(output.path_join(filename), FileAccess.WRITE)
@@ -94,6 +142,13 @@ func prepare_player() -> void:
 
 func apply_talents() -> void:
     var path := OS.get_environment("BOT_HARNESS_TALENTS")
+    var deadline := Time.get_ticks_msec() + 180000
+    while not FileAccess.file_exists(path) and Time.get_ticks_msec() < deadline:
+        await create_timer(0.1).timeout
+    if not FileAccess.file_exists(path):
+        talent_status = "blocked"
+        publish_receipt("native-talents.json", {"error": "Native-tree-bound talent plan unavailable within180s"})
+        return
     var plan: Variant = JSON.parse_string(FileAccess.get_file_as_string(path))
     if not plan is Dictionary:
         talent_status = "blocked"
@@ -101,7 +156,7 @@ func apply_talents() -> void:
         return
     talent_status = "applying"
     var controller = load("res://tests/bot_harness_talents.gd").new()
-    var receipt: Dictionary = await controller.apply_plan(self, plan)
+    var receipt: Dictionary = await controller.apply_plan(self, client, plan)
     var written := publish_receipt("native-talents.json", receipt)
     talent_status = "blocked" if not written or receipt.has("error") else "observed"
 

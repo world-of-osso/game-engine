@@ -172,6 +172,13 @@ fn guild_communities_invite_and_profile_controls_send_authoritative_actions_both
         assert_eq!(session.commands, vec![GuildCommand::Invite("Cara".into())]);
         session.commands.clear();
         session.click("guild:info_open", &Default::default());
+        // GuildNews.lua:42–51 queries news when the Info news pane is shown.
+        assert_eq!(
+            std::mem::take(&mut session.commands),
+            vec![GuildCommand::News(
+                shared::protocol::GuildNewsRequest::Query
+            )]
+        );
         let registry = mounted(&session);
         assert_eq!(text(&registry, "GuildMOTDText"), "Meeting tonight");
         assert_eq!(text(&registry, "GuildInfoText"), "Raid Tuesdays");
@@ -254,6 +261,174 @@ fn guild_info_editor_preserves_multiline_text_limits_and_authoritative_pacing() 
 }
 
 #[test]
+fn guild_invitation_source_text_top_anchors_and_fonts_stay_above_tabard_both_skins() {
+    use ui_toolkit::layout_values::Val;
+    let _lock = SKIN.lock().unwrap_or_else(|poison| poison.into_inner());
+    for skin in [ActiveSkin::Modern, ActiveSkin::Forever] {
+        set_thread_skin(skin);
+        let mut session = GuildRanksSession::default();
+        session.invitation = Some(GuildInvitation {
+            guild_id: 7,
+            guild_name: "Guild Perks".into(),
+            inviter_name: "Gcperkslead".into(),
+            tabard: None,
+        });
+        let registry = mounted(&session);
+        // GuildInviteFrame.xml: TOP relative to TOP, not to the prior text's bottom.
+        // FontStyles.xml50/56/92 + Fonts.xml39/275: Roman Small10 and Normal12.
+        for (suffix, top, font_size) in [
+            ("InviterName", 28.0, 10.0),
+            ("InviteText", 38.0, 10.0),
+            ("GuildName", 50.0, 12.0),
+        ] {
+            let name = format!("GuildInviteFrame{suffix}");
+            let frame = registry.get(registry.get_by_name(&name).unwrap()).unwrap();
+            assert_eq!(frame.position.top, Val::Px(top), "{name} source TOP anchor");
+            let Some(WidgetData::FontString(label)) = &frame.widget_data else {
+                panic!("{name} must display source text");
+            };
+            assert_eq!(label.font_size, font_size, "{name} inherited source font");
+        }
+        for suffix in ["InviterName", "InviteText"] {
+            let name = format!("GuildInviteFrame{suffix}");
+            let frame = registry.get(registry.get_by_name(&name).unwrap()).unwrap();
+            assert_eq!((frame.width.value(), frame.height.value()), (230.0, 10.0));
+        }
+        assert_eq!(text(&registry, "GuildInviteFrameGuildName"), "Guild Perks");
+    }
+}
+
+#[test]
+fn guild_invitation_no_design_renders_source_tabard_layers_both_skins() {
+    use ui_toolkit::layout_values::Val;
+    use ui_toolkit::widgets::texture::TextureSource;
+    let _lock = SKIN.lock().unwrap_or_else(|poison| poison.into_inner());
+    for skin in [ActiveSkin::Modern, ActiveSkin::Forever] {
+        set_thread_skin(skin);
+        let mut session = GuildRanksSession::default();
+        session.invitation = Some(GuildInvitation {
+            guild_id: 7,
+            guild_name: "Raid Team".into(),
+            inviter_name: "Alice".into(),
+            tabard: None,
+        });
+        let registry = mounted(&session);
+        // GuildInviteFrame.xml layers; GuildUtil.lua180–202 no-design branch.
+        for (name, fdid, rect, uv, color) in [
+            (
+                "Background",
+                446203,
+                (11.5, 12.0, 287.0, 116.0),
+                [0.00195313, 0.56250000, 0.00781250, 0.91406250],
+                [1.0; 4],
+            ),
+            (
+                "TabardBackground",
+                410251,
+                (123.0, 70.0, 62.0, 62.0),
+                [0.63183594, 0.69238281, 0.61914063, 0.74023438],
+                [0.2245, 0.2088, 0.1794, 1.0],
+            ),
+            (
+                "TabardEmblem",
+                460904,
+                (122.0, 69.0, 64.0, 64.0),
+                [0.0, 1.0, 0.0, 1.0],
+                [1.0; 4],
+            ),
+            (
+                "TabardBorder",
+                410251,
+                (124.0, 71.0, 61.0, 60.0),
+                [0.63183594, 0.69238281, 0.74414063, 0.86523438],
+                [0.2, 0.2, 0.2, 1.0],
+            ),
+            (
+                "TabardRing",
+                446203,
+                (96.0, 64.0, 118.0, 76.0),
+                [0.56640625, 0.79687500, 0.00781250, 0.60156250],
+                [1.0; 4],
+            ),
+        ] {
+            let name = format!("GuildInviteFrame{name}");
+            let frame = registry
+                .get(registry.get_by_name(&name).expect(&name))
+                .unwrap();
+            assert_eq!(
+                (frame.position.left, frame.position.top),
+                (Val::Px(rect.0), Val::Px(rect.1))
+            );
+            assert_eq!(
+                (frame.width.value(), frame.height.value()),
+                (rect.2, rect.3)
+            );
+            let Some(WidgetData::Texture(texture)) = &frame.widget_data else {
+                panic!("{name} must render texture");
+            };
+            assert_eq!(texture.source, TextureSource::FileDataId(fdid));
+            assert_eq!(texture.tex_coords, uv);
+            assert_eq!(texture.vertex_color, color);
+        }
+        assert_eq!(text(&registry, "GuildInviteFrameInviterName"), "Alice");
+        assert_eq!(text(&registry, "GuildInviteFrameGuildName"), "Raid Team");
+    }
+}
+
+#[test]
+fn guild_invitation_registered_tabard_uses_received_sheet_palette_both_skins() {
+    use ui_toolkit::widgets::texture::TextureSource;
+    let _lock = SKIN.lock().unwrap_or_else(|poison| poison.into_inner());
+    for skin in [ActiveSkin::Modern, ActiveSkin::Forever] {
+        set_thread_skin(skin);
+        let mut session = GuildRanksSession::default();
+        // Decode the received contract, not the player's current guild profile.
+        session.invitation = Some(
+            serde_json::from_value(serde_json::json!({
+                "guild_id": 7, "guild_name": "Raid Team", "inviter_name": "Alice",
+                "tabard": { "icon": 1, "icon_color": 2, "border": 3,
+                    "border_color": 4, "background_color": 5 }
+            }))
+            .unwrap(),
+        );
+        let registry = mounted(&session);
+        let emblem = registry
+            .get(
+                registry
+                    .get_by_name("GuildInviteFrameTabardEmblem")
+                    .expect("received invitation emblem"),
+            )
+            .unwrap();
+        assert_eq!((emblem.width.value(), emblem.height.value()), (56.0, 64.0));
+        let Some(WidgetData::Texture(texture)) = &emblem.widget_data else {
+            panic!("invitation emblem texture");
+        };
+        assert_eq!(texture.source, TextureSource::FileDataId(459023));
+        assert_eq!(texture.tex_coords, [0.0625, 0.125, 0.0, 0.0625]);
+        assert_eq!(
+            texture.vertex_color,
+            [103.0 / 255.0, 69.0 / 255.0, 0.0, 1.0]
+        );
+        for (name, color) in [
+            (
+                "GuildInviteFrameTabardBackground",
+                [177.0 / 255.0, 0.0, 46.0 / 255.0, 1.0],
+            ),
+            (
+                "GuildInviteFrameTabardBorder",
+                [99.0 / 255.0, 148.0 / 255.0, 0.0, 1.0],
+            ),
+        ] {
+            let frame = registry.get(registry.get_by_name(name).unwrap()).unwrap();
+            let Some(WidgetData::Texture(texture)) = &frame.widget_data else {
+                panic!("invitation palette texture");
+            };
+            assert_eq!(texture.vertex_color, color);
+        }
+    }
+}
+
+#[test]
 fn guild_invitation_decline_keeps_source_size_right_and_bottom_anchors() {
     use ui_toolkit::layout_values::Val;
     let _lock = SKIN.lock().unwrap_or_else(|poison| poison.into_inner());
@@ -264,6 +439,7 @@ fn guild_invitation_decline_keeps_source_size_right_and_bottom_anchors() {
             guild_id: 7,
             guild_name: "Raid Team".into(),
             inviter_name: "Alice".into(),
+            tabard: None,
         });
         let registry = mounted(&session);
         let decline = registry
@@ -306,6 +482,7 @@ fn guild_invitation_uses_source_translucent_dialog_chrome_in_both_skins() {
             guild_id: 7,
             guild_name: "Raid Team".into(),
             inviter_name: "Alice".into(),
+            tabard: None,
         });
         let registry = mounted(&session);
         // TranslucentFrameTemplate:10px black0.9 inset and32px quadrant corners.
@@ -387,6 +564,7 @@ fn guild_invitation_popup_works_without_open_roster_in_both_skins() {
             guild_id: 7,
             guild_name: "Raid Team".into(),
             inviter_name: "Alice".into(),
+            tabard: None,
         });
         let registry = mounted(&session);
         assert_eq!(text(&registry, "GuildInviteFrameInviterName"), "Alice");
@@ -413,6 +591,92 @@ fn guild_invitation_popup_works_without_open_roster_in_both_skins() {
             vec![game_engine_ui_model::guild_ranks::GuildCommand::DeclineInvite]
         );
     }
+}
+
+#[test]
+fn guild_invitation_elapsed_boundary_declines_once_without_membership_change() {
+    use game_engine_ui_model::guild_ranks::GuildCommand;
+    let mut session = GuildRanksSession::default();
+    session.invitation = Some(GuildInvitation {
+        guild_id: 7,
+        guild_name: "Raid Team".into(),
+        inviter_name: "Alice".into(),
+        tabard: None,
+    });
+    // GuildInviteFrame.xml: elapsed > 60, not >= 60.
+    assert_eq!(session.advance_invitation(59.0), None);
+    assert!(session.invitation.is_some());
+    assert_eq!(session.advance_invitation(1.0), None);
+    assert!(session.invitation.is_some());
+    assert_eq!(
+        session.advance_invitation(0.001),
+        Some(GuildCommand::DeclineInvite)
+    );
+    assert!(session.invitation.is_none());
+    assert_eq!(session.advance_invitation(120.0), None);
+    assert!(session.state().is_none());
+    assert!(!session.visible);
+}
+
+fn pending_dismissal_invitation() -> GuildInvitation {
+    GuildInvitation {
+        guild_id: 7,
+        guild_name: "Raid Team".into(),
+        inviter_name: "Alice".into(),
+        tabard: None,
+    }
+}
+
+#[test]
+fn guild_invitation_escape_declines_once_without_closing_communities() {
+    use game_engine_ui_model::guild_ranks::GuildCommand;
+    for visible in [false, true] {
+        let mut session = GuildRanksSession::default();
+        session.visible = visible;
+        session.receive_invitation(pending_dismissal_invitation());
+        assert_eq!(
+            session.dismiss_invitation(),
+            Some(GuildCommand::DeclineInvite)
+        );
+        assert!(session.invitation.is_none());
+        assert_eq!(session.visible, visible);
+        assert_eq!(session.dismiss_invitation(), None);
+        assert!(session.commands.is_empty());
+    }
+}
+
+#[test]
+fn guild_invitation_loading_close_preserves_time_and_new_delivery_resets_it() {
+    use game_engine_ui_model::guild_ranks::GuildCommand;
+    let mut session = GuildRanksSession::default();
+    let invite = pending_dismissal_invitation();
+    session.receive_invitation(invite.clone());
+    assert_eq!(session.advance_invitation(59.0), None);
+    session.close(); // Native Loading teardown must not decline or reset the timer.
+    assert_eq!(session.invitation, Some(invite.clone()));
+    assert_eq!(session.advance_invitation(1.0), None);
+    session.receive_invitation(invite.clone());
+    assert_eq!(session.advance_invitation(60.0), None);
+    assert_eq!(session.invitation, Some(invite));
+    assert_eq!(
+        session.advance_invitation(0.001),
+        Some(GuildCommand::DeclineInvite)
+    );
+}
+
+#[test]
+fn guild_invitation_acceptance_pending_never_sends_decline_on_timeout_or_escape() {
+    use game_engine_ui_model::guild_ranks::GuildCommand;
+    let mut session = GuildRanksSession::default();
+    let invite = pending_dismissal_invitation();
+    session.receive_invitation(invite.clone());
+    assert_eq!(session.advance_invitation(59.0), None);
+    session.click("guild:accept_invite", &Default::default());
+    assert_eq!(session.commands, vec![GuildCommand::AcceptInvite]);
+    assert_eq!(session.advance_invitation(120.0), None);
+    assert_eq!(session.dismiss_invitation(), None);
+    assert_eq!(session.invitation, Some(invite));
+    assert_eq!(session.commands, vec![GuildCommand::AcceptInvite]);
 }
 
 #[test]
@@ -779,6 +1043,439 @@ fn guild_communities_roster_uses_profile_metadata_without_exposing_officer_notes
     assert_eq!(text(&reg, "GuildMember0Note"), "");
     assert_eq!(text(&reg, "GuildMember0Name"), "Cara");
     assert!(reg.get_by_name("GuildMember0Class").is_some());
+}
+
+fn note_sort_session() -> GuildRanksSession {
+    let mut session = GuildRanksSession::default();
+    session.open();
+    let mut ranks = state(0);
+    let values = [
+        ("Dara", 1, "alpha", false, 80),
+        ("Cid", 1, "ALPHA", true, 20),
+        ("Zed", 1, "Alpha", true, 80),
+        ("Missing", 2, "", false, 0),
+        ("Empty", 2, "", true, 80),
+        ("Zulu", 1, "Zulu", false, 80),
+        ("Bea", 2, "alpha", true, 80),
+        ("Ada", 1, "ALPHA", true, 80),
+    ];
+    ranks.members = values
+        .iter()
+        .map(|(name, rank, _, _, _)| GuildRankMember {
+            character_name: (*name).into(),
+            rank: *rank,
+        })
+        .collect();
+    session.apply(ranks);
+    session.profile = Some(GuildSnapshot {
+        guild_id: 7,
+        guild_name: "Raid Team".into(),
+        created_at: None,
+        tabard: None,
+        motd: String::new(),
+        info_text: String::new(),
+        members: values
+            .iter()
+            .filter(|(name, ..)| *name != "Missing")
+            .map(|(name, _, note, online, level)| GuildMemberSnapshot {
+                character_name: (*name).into(),
+                level: *level,
+                class_name: "Paladin".into(),
+                rank_name: "Member".into(),
+                is_online: *online,
+                // Opposite order must never affect the public Note comparison.
+                officer_note: format!("private-{name}"),
+                public_note: (*note).into(),
+                is_self: false,
+                last_online: String::new(),
+            })
+            .collect(),
+    });
+    session
+}
+
+fn rendered_guild_names(registry: &FrameRegistry) -> Vec<String> {
+    (0..40)
+        .map(|index| format!("GuildMember{index}Name"))
+        .take_while(|name| registry.get_by_name(name).is_some())
+        .map(|name| text(registry, &name))
+        .collect()
+}
+
+#[test]
+fn guild_note_sort_source_direction_missing_and_original_ties_both_skins() {
+    let _lock = SKIN.lock().unwrap_or_else(|p| p.into_inner());
+    for skin in [ActiveSkin::Modern, ActiveSkin::Forever] {
+        set_thread_skin(skin);
+        let mut session = note_sort_session();
+        let ranks = session.state().cloned();
+        let profile = session.profile.clone();
+        let toggle = action(&mounted(&session), "CommunitiesRosterColumn5");
+        assert_eq!(toggle, "guild:roster-sort:note");
+        for expected in [
+            vec![
+                "Missing", "Zulu", "Ada", "Zed", "Bea", "Cid", "Dara", "Empty",
+            ],
+            vec![
+                "Empty", "Ada", "Zed", "Bea", "Cid", "Dara", "Zulu", "Missing",
+            ],
+        ] {
+            session.click(&toggle, &Default::default());
+            assert_eq!(rendered_guild_names(&mounted(&session)), expected);
+            assert_eq!(session.state(), ranks.as_ref());
+            assert_eq!(session.profile, profile);
+        }
+        // Changing columns resets Note to its sourced first-click descending order.
+        session.click("guild:roster-sort:name", &Default::default());
+        session.click(&toggle, &Default::default());
+        assert_eq!(
+            rendered_guild_names(&mounted(&session)),
+            [
+                "Missing", "Zulu", "Ada", "Zed", "Bea", "Cid", "Dara", "Empty"
+            ]
+        );
+    }
+}
+
+#[test]
+fn guild_note_sort_filtered_rows_keep_action_identity_and_header_geometry() {
+    let _lock = SKIN.lock().unwrap_or_else(|p| p.into_inner());
+    let mut session = note_sort_session();
+    let ranks = session.state().cloned();
+    session.click("guild:show_offline", &Default::default());
+    let original = mounted(&session);
+    let header = original
+        .get(original.get_by_name("CommunitiesRosterColumn5").unwrap())
+        .unwrap();
+    let rect = (
+        header.position.left,
+        header.position.top,
+        header.width.value(),
+        header.height.value(),
+    );
+    let toggle = action(&original, "CommunitiesRosterColumn5");
+    assert!(!toggle.is_empty());
+    session.click(&toggle, &Default::default());
+    let filtered = mounted(&session);
+    assert_eq!(
+        rendered_guild_names(&filtered),
+        ["Ada", "Zed", "Bea", "Cid", "Empty"]
+    );
+    let header = filtered
+        .get(filtered.get_by_name("CommunitiesRosterColumn5").unwrap())
+        .unwrap();
+    assert_eq!(
+        (
+            header.position.left,
+            header.position.top,
+            header.width.value(),
+            header.height.value()
+        ),
+        rect
+    );
+    session.click(&action(&filtered, "GuildMember2"), &Default::default());
+    assert_eq!(session.member_detail.as_deref(), Some("Bea"));
+    assert_eq!(
+        session.promote("Bea"),
+        Some(GuildRankRequest::Promote {
+            character_name: "Bea".into()
+        })
+    );
+    session.click(&toggle, &Default::default());
+    assert_eq!(
+        rendered_guild_names(&mounted(&session)),
+        ["Empty", "Ada", "Zed", "Bea", "Cid"]
+    );
+    assert_eq!(session.state(), ranks.as_ref());
+}
+
+#[test]
+fn guild_note_sort_storm_historical_policy_packet_not_verified_retail_collation() {
+    let _lock = SKIN.lock().unwrap_or_else(|p| p.into_inner());
+    // GUILD_NOTE_COMPARE_STORM_HISTORICAL: concrete clean-room prose cases.
+    // Equal mapped notes retain Ada/Bea/Cid base order in BOTH directions.
+    for (notes, descending, ascending) in [
+        (
+            ["raid", "RAID", "zulu"],
+            ["Cid", "Ada", "Bea"],
+            ["Ada", "Bea", "Cid"],
+        ),
+        (
+            ["é", "É", "ÿ"],
+            ["Cid", "Ada", "Bea"],
+            ["Ada", "Bea", "Cid"],
+        ),
+        (
+            ["ÿ", "Ā", "Ÿ"],
+            ["Cid", "Bea", "Ada"],
+            ["Ada", "Bea", "Cid"],
+        ),
+        (
+            ["Е", "Ё", "Ж"],
+            ["Cid", "Bea", "Ada"],
+            ["Ada", "Bea", "Cid"],
+        ),
+        (
+            ["е", "ё", "ж"],
+            ["Cid", "Bea", "Ada"],
+            ["Ada", "Bea", "Cid"],
+        ),
+        (
+            ["А", "Џ", "Б"],
+            ["Cid", "Ada", "Bea"],
+            ["Ada", "Bea", "Cid"],
+        ),
+        (
+            ["÷", "×", "œ"],
+            ["Cid", "Ada", "Bea"],
+            ["Ada", "Bea", "Cid"],
+        ),
+        (
+            ["œ", "Œ", "Z"],
+            ["Ada", "Bea", "Cid"],
+            ["Cid", "Ada", "Bea"],
+        ),
+        (
+            ["😀", "🚀", "�"],
+            ["Ada", "Bea", "Cid"],
+            ["Ada", "Bea", "Cid"],
+        ),
+        (
+            ["é", "éclair", "e"],
+            ["Bea", "Ada", "Cid"],
+            ["Cid", "Ada", "Bea"],
+        ),
+        (
+            ["α", "Α", "β"],
+            ["Cid", "Ada", "Bea"],
+            ["Bea", "Ada", "Cid"],
+        ),
+        (
+            ["ß", "SS", "ST"],
+            ["Ada", "Cid", "Bea"],
+            ["Bea", "Cid", "Ada"],
+        ),
+    ] {
+        let mut session = note_sort_session();
+        let profile = session.profile.as_mut().unwrap();
+        profile
+            .members
+            .retain(|member| ["Ada", "Bea", "Cid"].contains(&member.character_name.as_str()));
+        for member in &mut profile.members {
+            let index = match member.character_name.as_str() {
+                "Ada" => 0,
+                "Bea" => 1,
+                _ => 2,
+            };
+            member.public_note = notes[index].into();
+        }
+        session.click("guild:show_offline", &Default::default());
+        let toggle = action(&mounted(&session), "CommunitiesRosterColumn5");
+        assert!(!toggle.is_empty());
+        for expected in [descending, ascending] {
+            session.click(&toggle, &Default::default());
+            assert_eq!(
+                rendered_guild_names(&mounted(&session)),
+                expected,
+                "historical policy for {notes:?}"
+            );
+        }
+    }
+}
+
+#[test]
+fn guild_show_offline_preference_persists_false_and_defaults_on() {
+    use game_engine_core::client_options_data::{
+        load_options_file_from_path, save_options_file_to_path,
+    };
+    let path = std::env::temp_dir().join(format!(
+        "guild-show-offline-options-{}.ron",
+        std::process::id()
+    ));
+    for (input, expected) in [
+        ("(accepted_eula:true)", true),
+        ("(accepted_eula:true,communitiesShowOffline:false)", false),
+        ("(accepted_eula:true,communitiesShowOffline:true)", true),
+    ] {
+        std::fs::write(&path, input).unwrap();
+        let file = load_options_file_from_path(&path);
+        save_options_file_to_path(&path, &file).unwrap();
+        let restored = load_options_file_from_path(&path);
+        assert!(restored.accepted_eula);
+        assert_eq!(
+            serde_json::to_value(restored).unwrap()["communitiesShowOffline"].as_bool(),
+            Some(expected),
+            "persisted value for {input}"
+        );
+    }
+    std::fs::remove_file(path).unwrap();
+}
+
+#[test]
+fn guild_show_offline_filters_only_expanded_roster_and_preserves_authority_both_skins() {
+    let _lock = SKIN.lock().unwrap_or_else(|p| p.into_inner());
+    for skin in [ActiveSkin::Modern, ActiveSkin::Forever] {
+        set_thread_skin(skin);
+        let mut session = GuildRanksSession::default();
+        session.open();
+        let mut ranks = state(0);
+        ranks.members = ["Offline", "Online", "Unknown"]
+            .into_iter()
+            .map(|name| GuildRankMember {
+                character_name: name.into(),
+                rank: 2,
+            })
+            .collect();
+        session.apply(ranks.clone());
+        session.profile = Some(GuildSnapshot {
+            guild_id: 7,
+            guild_name: "Raid Team".into(),
+            created_at: None,
+            tabard: None,
+            motd: String::new(),
+            info_text: String::new(),
+            members: [("Offline", false), ("Online", true)]
+                .into_iter()
+                .map(|(name, online)| GuildMemberSnapshot {
+                    character_name: name.into(),
+                    level: 80,
+                    class_name: "Paladin".into(),
+                    rank_name: "Member".into(),
+                    is_online: online,
+                    officer_note: String::new(),
+                    public_note: String::new(),
+                    is_self: false,
+                    last_online: String::new(),
+                })
+                .collect(),
+        });
+        let profile = session.profile.clone();
+        let all = mounted(&session);
+        assert_eq!(text(&all, "GuildMember0Name"), "Offline");
+        assert_eq!(text(&all, "GuildMember2Name"), "Unknown");
+        let checkbox = all
+            .get(
+                all.get_by_name("CommunitiesMemberListShowOfflineButton")
+                    .unwrap(),
+            )
+            .unwrap();
+        assert_eq!(
+            (checkbox.width.value(), checkbox.height.value()),
+            (32.0, 32.0)
+        );
+        assert_eq!(
+            (checkbox.position.left, checkbox.position.top),
+            (
+                ui_toolkit::layout_values::Val::Px(196.0),
+                ui_toolkit::layout_values::Val::Px(25.0)
+            )
+        );
+        assert!(
+            all.get_by_name("CommunitiesMemberListShowOfflineButtonCheck")
+                .is_some()
+        );
+        let toggle = action(&all, "CommunitiesMemberListShowOfflineButton");
+        assert_eq!(toggle, "guild:show_offline");
+        session.click(&toggle, &Default::default());
+        let online = mounted(&session);
+        assert!(
+            online
+                .get_by_name("CommunitiesMemberListShowOfflineButtonCheck")
+                .is_none()
+        );
+        assert_eq!(text(&online, "GuildMember0Name"), "Online");
+        assert!(online.get_by_name("GuildMember1Name").is_none());
+        assert_eq!(
+            session.promote("Online"),
+            Some(GuildRankRequest::Promote {
+                character_name: "Online".into()
+            })
+        );
+        assert_eq!(session.state(), Some(&ranks));
+        assert_eq!(session.profile, profile);
+        session.click(&toggle, &Default::default());
+        assert_eq!(text(&mounted(&session), "GuildMember0Name"), "Offline");
+        session.communities_tab = game_engine_ui_model::guild_ranks::CommunitiesTab::Chat;
+        assert!(
+            mounted(&session)
+                .get_by_name("CommunitiesMemberListShowOfflineButton")
+                .is_none()
+        );
+    }
+}
+
+#[test]
+fn guild_show_offline_keeps_filtered_sort_targets_and_clamps_real_overflow() {
+    let _lock = SKIN.lock().unwrap_or_else(|p| p.into_inner());
+    let mut session = GuildRanksSession::default();
+    session.open();
+    let mut ranks = state(0);
+    ranks.members = (0..40)
+        .map(|i| GuildRankMember {
+            character_name: format!("Member{i:02}"),
+            rank: 2,
+        })
+        .collect();
+    session.profile = Some(GuildSnapshot {
+        guild_id: 7,
+        guild_name: "Raid Team".into(),
+        created_at: None,
+        tabard: None,
+        motd: String::new(),
+        info_text: String::new(),
+        members: ranks
+            .members
+            .iter()
+            .enumerate()
+            .map(|(i, member)| GuildMemberSnapshot {
+                character_name: member.character_name.clone(),
+                level: 80,
+                class_name: "Paladin".into(),
+                rank_name: "Member".into(),
+                is_online: i < 20,
+                officer_note: String::new(),
+                public_note: String::new(),
+                is_self: false,
+                last_online: String::new(),
+            })
+            .collect(),
+    });
+    session.apply(ranks.clone());
+    let mut registry = mounted(&session);
+    registry
+        .scroll_lists
+        .scroll_to("CommunitiesMemberListScrollBox", 10000);
+    let mut shared = SharedContext::new();
+    shared.insert(session.clone());
+    let mut screen = Screen::new(guild_screen);
+    screen.sync(&shared, &mut registry);
+    assert_eq!(
+        registry
+            .scroll_lists
+            .get("CommunitiesMemberListScrollBox")
+            .unwrap()
+            .first_row,
+        485
+    );
+    session.click("guild:show_offline", &Default::default());
+    session.roster_sort = Some(game_engine_ui_model::guild_ranks::GuildRosterSort::Name);
+    session.roster_sort_descending = true;
+    shared.insert(session.clone());
+    screen.sync(&shared, &mut registry);
+    assert_eq!(
+        registry
+            .scroll_lists
+            .get("CommunitiesMemberListScrollBox")
+            .unwrap()
+            .first_row,
+        85
+    );
+    assert_eq!(text(&registry, "GuildMember0Name"), "Member19");
+    assert_eq!(text(&registry, "GuildMember19Name"), "Member00");
+    let target_action = action(&registry, "GuildMember19");
+    session.click(&target_action, &Default::default());
+    assert_eq!(session.member_detail.as_deref(), Some("Member00"));
+    assert_eq!(session.state(), Some(&ranks));
 }
 
 #[test]
@@ -1293,6 +1990,209 @@ fn guild_member_note_popup_keeps_original_target_when_roster_selection_changes()
 }
 
 #[test]
+fn guild_news_info_renders_source_controls_and_only_real_motd_both_skins() {
+    let _lock = SKIN.lock().unwrap_or_else(|p| p.into_inner());
+    for skin in [ActiveSkin::Modern, ActiveSkin::Forever] {
+        set_thread_skin(skin);
+        let mut session = GuildRanksSession::default();
+        session.open();
+        session.apply(state(2));
+        session.profile = Some(GuildSnapshot {
+            guild_id: 7,
+            guild_name: "Guild Testers".into(),
+            tabard: None,
+            created_at: None,
+            motd: "Raid at seven".into(),
+            info_text: String::new(),
+            members: vec![],
+        });
+        assert!(
+            mounted(&session)
+                .get_by_name("CommunitiesGuildNewsHeaderText")
+                .is_none()
+        );
+        session.click("guild:info_open", &Default::default());
+        let registry = mounted(&session);
+        assert_eq!(
+            text(&registry, "CommunitiesGuildNewsHeaderText"),
+            "Guild News"
+        );
+        assert_eq!(
+            text(&registry, "CommunitiesGuildNewsSetFiltersText"),
+            "[Click to set news filters]"
+        );
+        assert_eq!(
+            text(&registry, "CommunitiesGuildNewsMOTDText"),
+            "MotD: Raid at seven"
+        );
+        assert!(
+            registry.get_by_name("CommunitiesGuildNewsEntry0").is_none(),
+            "No invented news from present roster"
+        );
+        assert!(
+            registry.get_by_name("CommunitiesGuildNewsNoNews").is_none(),
+            "Actual MOTD is a source news row"
+        );
+        session.profile.as_mut().unwrap().motd.clear();
+        assert_eq!(
+            text(&mounted(&session), "CommunitiesGuildNewsNoNews"),
+            "No Guild News"
+        );
+    }
+}
+
+#[test]
+fn guild_news_info_queries_once_and_opens_source_filter_dialog_both_skins() {
+    let _lock = SKIN.lock().unwrap_or_else(|p| p.into_inner());
+    for skin in [ActiveSkin::Modern, ActiveSkin::Forever] {
+        set_thread_skin(skin);
+        let mut session = GuildRanksSession::default();
+        session.open();
+        session.apply(state(0));
+        session.profile = Some(GuildSnapshot {
+            guild_id: 7,
+            guild_name: "Guild Testers".into(),
+            tabard: None,
+            created_at: None,
+            motd: String::new(),
+            info_text: String::new(),
+            members: vec![],
+        });
+        session.click("guild:info_open", &Default::default());
+        assert_eq!(
+            session.commands.len(),
+            1,
+            "opening Info must query real news"
+        );
+        session.click("guild:info_open", &Default::default());
+        assert_eq!(
+            session.commands.len(),
+            1,
+            "pending query is independent and deduplicated"
+        );
+        session.click("guild:news_filters", &Default::default());
+        let registry = mounted(&session);
+        assert_eq!(
+            text(&registry, "GuildNewsFiltersFrameTitle"),
+            "Guild News Filters"
+        );
+        let dialog = registry
+            .get(registry.get_by_name("GuildNewsFiltersFrame").unwrap())
+            .unwrap();
+        assert_eq!(
+            (dialog.width.value(), dialog.height.value()),
+            (264.0, 230.0)
+        );
+        session.click("guild:news_filters_close", &Default::default());
+        assert!(
+            mounted(&session)
+                .get_by_name("GuildNewsFiltersFrame")
+                .is_none()
+        );
+    }
+}
+
+#[test]
+fn guild_news_real_entries_filter_sticky_and_late_push_keep_independent_authority_both_skins() {
+    let _lock = SKIN.lock().unwrap_or_else(|p| p.into_inner());
+    for skin in [ActiveSkin::Modern, ActiveSkin::Forever] {
+        set_thread_skin(skin);
+        let mut session = GuildRanksSession::default();
+        session.open();
+        session.apply(state(0));
+        session.profile = Some(GuildSnapshot {
+            guild_id: 7,
+            guild_name: "Guild Testers".into(),
+            tabard: None,
+            created_at: None,
+            motd: String::new(),
+            info_text: String::new(),
+            members: vec![],
+        });
+        session.click("guild:info_open", &Default::default());
+        let news = GuildNewsState {
+            server_time: 1792100000,
+            error: None,
+            entries: vec![
+                GuildNewsEntry {
+                    id: 1,
+                    timestamp: 1792090000,
+                    sticky: false,
+                    kind: GuildNewsKind::PlayerAchievement {
+                        member: "Cara".into(),
+                        achievement_id: 14782,
+                        name: "Level 50".into(),
+                        description: "Reach level 50.".into(),
+                    },
+                },
+                GuildNewsEntry {
+                    id: 2,
+                    timestamp: 1792100000,
+                    sticky: false,
+                    kind: GuildNewsKind::PlayerAchievement {
+                        member: "Lena".into(),
+                        achievement_id: 14783,
+                        name: "Level 60".into(),
+                        description: "Reach level 60.".into(),
+                    },
+                },
+            ],
+        };
+        session.news.apply(news.clone());
+        assert_eq!(
+            text(&mounted(&session), "CommunitiesGuildNewsEntry2Text"),
+            "Lena earned the achievement "
+        );
+        assert_eq!(
+            text(&mounted(&session), "CommunitiesGuildNewsEntry2Subject"),
+            "[Level 60]"
+        );
+        session.click("guild:news_filter:2", &Default::default());
+        assert!(
+            mounted(&session)
+                .get_by_name("CommunitiesGuildNewsEntry2Text")
+                .is_none()
+        );
+        session.click("guild:news_filter:2", &Default::default());
+        session.click("guild:news_menu:1", &Default::default());
+        assert_eq!(
+            text(&mounted(&session), "GuildNewsMenuTitle"),
+            "[Level 50]",
+            "source menu title contains only the actual subject"
+        );
+        assert_eq!(
+            text(&mounted(&session), "GuildNewsMakeStickyText"),
+            "Make Sticky"
+        );
+        session.click("guild:news_sticky", &Default::default());
+        assert_eq!(session.news.pending_sticky, Some((1, true)));
+        session.news.apply(news.clone());
+        assert_eq!(
+            session.news.pending_sticky,
+            Some((1, true)),
+            "old queued push is not sticky ACK"
+        );
+        let mut confirmed = news;
+        confirmed.entries[0].sticky = true;
+        session.news.apply(confirmed);
+        assert_eq!(session.news.pending_sticky, None);
+        assert_eq!(session.news.entries()[0].id, 1);
+        session.click("guild:news_filter:2", &Default::default());
+        assert!(
+            mounted(&session)
+                .get_by_name("CommunitiesGuildNewsEntry1Text")
+                .is_some(),
+            "source sticky ignores category filters"
+        );
+        let mut departed = state(0);
+        departed.ranks.clear();
+        session.apply(departed);
+        assert!(session.news.state.is_none());
+        assert!(session.news.pending_sticky.is_none());
+    }
+}
+
+#[test]
 fn guild_event_log_opens_from_info_and_closes_independently_both_skins() {
     let _lock = SKIN.lock().unwrap_or_else(|p| p.into_inner());
     for skin in [ActiveSkin::Modern, ActiveSkin::Forever] {
@@ -1517,6 +2417,47 @@ fn guild_member_remove_requires_yes_and_keeps_original_target_both_skins() {
                 "Removal waits for authoritative roster"
             );
         }
+    }
+}
+
+#[test]
+fn guild_perks_benefits_lists_the_five_installed_perk_spells_both_skins() {
+    let _lock = SKIN.lock().unwrap_or_else(|p| p.into_inner());
+    for skin in [ActiveSkin::Modern, ActiveSkin::Forever] {
+        set_thread_skin(skin);
+        let mut session = GuildRanksSession::default();
+        session.open();
+        session.apply(state(0));
+        session.profile = Some(GuildSnapshot {
+            guild_id: 7,
+            guild_name: "Guild Testers".into(),
+            tabard: None,
+            created_at: None,
+            motd: String::new(),
+            info_text: String::new(),
+            members: vec![],
+        });
+        session.click("guild:benefits_open", &Default::default());
+        let registry = mounted(&session);
+        assert_eq!(text(&registry, "CommunitiesGuildPerksTitle"), "Guild Perks");
+        for (spell, name) in [
+            (78633, "Mount Up"),
+            (83944, "Hasty Hearth"),
+            (83958, "Mobile Banking"),
+            (83950, "The Quick and the Dead"),
+            (83951, "Guild Mail"),
+        ] {
+            assert_eq!(
+                text(&registry, &format!("CommunitiesGuildPerk{spell}Name")),
+                name
+            );
+        }
+        session.click("guild:info_open", &Default::default());
+        assert!(
+            mounted(&session)
+                .get_by_name("CommunitiesGuildPerksTitle")
+                .is_none()
+        );
     }
 }
 

@@ -52,6 +52,7 @@ mod housing_mouse;
 mod housing_placed_list;
 mod housing_preview;
 mod housing_storage;
+mod housing_storage_menu;
 mod hud_edit;
 mod input;
 mod input_keys;
@@ -81,6 +82,7 @@ mod nameplates;
 pub mod npc_gear_data;
 mod objective_tracker;
 mod particle_debug;
+mod particle_models;
 mod particles;
 mod party_frames;
 mod pet_bar;
@@ -94,6 +96,7 @@ mod profile;
 mod quests;
 mod raid_info;
 mod raid_targets;
+mod rainfire;
 mod replicated;
 mod reputation_status_bar;
 mod ribbons;
@@ -572,7 +575,7 @@ impl INode3D for GameClient {
             || self.follower_dungeon_pointer(&event)
             || self.adventure_guide_pointer(&event)
             || self.trading_post_pointer(&event)
-            || self.character_reputation_pointer(&event)
+            || self.character_lists_pointer(&event)
             || self.mailbox_pointer(&event)
             || self.pet_bar_pointer(&event)
             || self.boss_frame_pointer(&event)
@@ -691,6 +694,17 @@ impl INode3D for GameClient {
             return;
         }
         if key.get_keycode() == godot::global::Key::ESCAPE {
+            match self.dismiss_guild_invitation() {
+                Ok(true) => {
+                    self.mark_viewport_input_handled();
+                    return;
+                }
+                Ok(false) => {}
+                Err(error) => {
+                    self.handle_frame_error("Guild invitation dismissal", error);
+                    return;
+                }
+            }
             match self.close_all_windows() {
                 Ok(true) => {
                     if let Some(mut viewport) = self.base().get_viewport() {
@@ -1300,6 +1314,28 @@ impl GameClient {
         self.spells_snapshot()
     }
 
+    /// Actual received persistent-area geometry; no target or server-state mutation.
+    #[func]
+    fn ground_areas_state(&mut self) -> VarDictionary {
+        self.ground_areas_snapshot()
+    }
+
+    /// Sample the same native LOS ray a cast uses; server visibility remains final.
+    #[func]
+    fn target_visibility_state(&mut self, target: i64) -> VarDictionary {
+        let mut state = VarDictionary::new();
+        state.set("target", target);
+        if target <= 0 {
+            state.set("error", "Visibility requires a positive target entity");
+            return state;
+        }
+        match self.cast_witness(Some(target as u64)) {
+            Ok(ray) => state.set("visible", ray.is_some()),
+            Err(error) => state.set("error", error),
+        }
+        state
+    }
+
     /// Read native usability and cast metadata without selecting or casting at the unit.
     #[func]
     fn spell_priority_state(&self, target: i64, spells: PackedInt32Array) -> VarDictionary {
@@ -1455,6 +1491,18 @@ impl GameClient {
             return true;
         }
         if self.static_popup_key(event) {
+            self.mark_viewport_input_handled();
+            return true;
+        }
+        let trading_key_used = self.trading_post_key(event).unwrap_or_else(|error| {
+            self.handle_frame_error("Trading Post keyboard", error.into());
+            true
+        });
+        if trading_key_used {
+            self.mark_viewport_input_handled();
+            return true;
+        }
+        if self.housing_storage_menu_input(event) {
             self.mark_viewport_input_handled();
             return true;
         }
@@ -2166,7 +2214,9 @@ impl GameClient {
             ("Trade", |c, _| c.update_trade()),
             ("Banks", |c, _| c.update_banks()),
             ("CombatPetStable", |c, _| c.update_combat_stable()),
-            ("Guild ranks", |c, _| c.update_guild_ranks()),
+            ("Guild ranks", |c, delta| {
+                c.update_guild_ranks(f64::from(delta))
+            }),
             ("Guild charters", |c, _| c.update_guild_charters()),
             ("Guild tabards", |c, delta| c.update_guild_tabards(delta)),
             ("Achievements", |c, d| c.update_achievements(d)),
@@ -2229,7 +2279,6 @@ impl GameClient {
             }),
             ("Nameplates", |c, d| Ok(c.update_nameplates(d)?)),
             ("Soft interact icon", |c, _| c.sync_soft_interact_icon()),
-            ("Tooltips", |c, _| c.update_tooltips()),
             ("Culling", |c, _| {
                 c.cull_world_objects();
                 Ok(())
@@ -2237,6 +2286,8 @@ impl GameClient {
             ("UI scale after updates", |c, _| {
                 Ok(c.sync_registry_ui_scale()?)
             }),
+            // Tooltip ownership must use the final projected owner bounds.
+            ("Tooltips", |c, _| c.update_tooltips()),
             ("Pet battle HUD isolation", |c, _| {
                 c.sync_wild_battle_ui_visibility();
                 Ok(())
@@ -2348,6 +2399,17 @@ impl GameClient {
                     self.add_world_error(&error)?;
                 }
             }
+            AccountEvent::Currency(update) => {
+                if let Some(message) = update.message {
+                    game_engine_ui_model::chat_frame::add_system_line(
+                        &mut self.chat.model.log,
+                        &message,
+                    );
+                }
+                if let Some(error) = update.error {
+                    self.add_world_error(&error)?;
+                }
+            }
             AccountEvent::GameTime(time) => {
                 self.world_clock = Some((time.second_of_day(), time.new_speed, Instant::now()));
             }
@@ -2363,6 +2425,12 @@ impl GameClient {
             AccountEvent::Resurrection(offer) => self.death_flow.receive_offer(offer),
             AccountEvent::Summon(request) => self.receive_summon(request),
             AccountEvent::Professions(snapshot) => self.receive_professions(snapshot),
+            AccountEvent::ProfessionConcentration(update) => {
+                self.receive_profession_concentration(update);
+            }
+            AccountEvent::CraftingOperation(update) => {
+                self.professions.reagent_selection.receive(update);
+            }
             AccountEvent::ProfessionSpecializations(update) => {
                 self.professions.specializations.receive(update)
             }
@@ -2409,6 +2477,7 @@ impl GameClient {
             AccountEvent::Stable(message) => self.receive_stable(message)?,
             AccountEvent::GuildRanks(state) => self.receive_guild_ranks(state)?,
             AccountEvent::GuildEventLog(log) => self.receive_guild_event_log(log)?,
+            AccountEvent::GuildNews(news) => self.receive_guild_news(news)?,
             AccountEvent::GuildInvitation(invite) => self.receive_guild_invitation(invite),
             AccountEvent::GuildInviteResult(result) => self.receive_guild_invite_result(result)?,
             AccountEvent::GuildAccepted(result) => self.receive_guild_accepted(result)?,

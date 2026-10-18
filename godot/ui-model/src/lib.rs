@@ -46,12 +46,18 @@ pub mod ui {
 
 // In-world chat frame (docs/specs/chat-frame.md).
 pub mod adventure_activities;
+pub mod adventure_creatures;
+pub mod adventure_defeated;
 pub mod adventure_guide;
 pub mod adventure_guide_art;
 mod adventure_guide_menus;
 mod adventure_guide_sections;
 pub mod adventure_guide_tooltip;
 pub mod adventure_journeys;
+mod adventure_loot;
+pub mod adventure_search;
+pub mod adventure_section_flags;
+mod adventure_sets;
 pub mod adventure_suggestions;
 mod adventure_tutorials;
 pub mod assisted_highlight;
@@ -101,6 +107,7 @@ mod housing_placed_list_tests;
 pub mod housing_settings;
 pub mod housing_settings_component;
 mod housing_storage;
+pub use housing_storage::StorageMenuTarget;
 mod housing_storage_component;
 mod housing_storage_tiles;
 #[cfg(test)]
@@ -119,6 +126,7 @@ pub mod professions_catalog;
 pub mod professions_frame;
 pub mod professions_orders;
 pub mod professions_quality;
+pub mod professions_reagent_selection;
 pub mod professions_specializations;
 pub mod raid_manager_component;
 pub mod raid_warning;
@@ -147,6 +155,7 @@ pub mod group_frames_component;
 pub use inworld_unit_frames_component::portrait_party_frame_component;
 #[path = "ui/popup.rs"]
 pub mod popup;
+pub mod ready_check_difficulty;
 #[path = "ui/screens/ready_check_frame_component.rs"]
 pub mod ready_check_frame_component;
 #[path = "ui/screens/static_popup_component.rs"]
@@ -282,6 +291,10 @@ pub mod guild_control;
 mod guild_control_art;
 pub mod guild_event_log;
 pub mod guild_member_detail;
+pub mod guild_news;
+pub mod guild_news_state;
+mod guild_note_sort;
+pub mod guild_perks;
 pub mod guild_rank_frame;
 pub mod guild_ranks;
 #[path = "ipc/format_shared.rs"]

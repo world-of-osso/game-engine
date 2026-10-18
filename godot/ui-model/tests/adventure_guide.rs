@@ -187,16 +187,14 @@ fn item_sets_render_retail_rows_and_filter_paladin_specialization() {
     game_engine_ui_model::item_catalog::wait_for_item_catalog();
     let mut view = journal();
     view.visible = true;
-    view.apply("journal:class:2").unwrap();
-    assert_eq!(view.spec, 0);
+    view.player_spec = Some(70);
     view.apply("journal:tab:sets").unwrap();
-    assert_ne!(
-        view.spec, 0,
-        "Entering Item Sets must choose a specific class specialization"
-    );
+    assert_eq!(view.class_spec_filters(), (2, 70));
     view.apply("journal:class:2").unwrap();
     view.apply("journal:spec:70").unwrap();
-    view.search = "Lightsworn Battlegear".into();
+    let mut catalog = (*view.catalog).clone();
+    catalog.sets.retain(|set| set.id == 900);
+    view.catalog = Arc::new(catalog);
     let mut context = SharedContext::new();
     context.insert(ActiveSkin::Modern);
     context.insert(view.clone());
@@ -243,7 +241,9 @@ fn set_name_takes_quality_of_last_sorted_member_like_retail_configure_order() {
     view.apply("journal:tab:sets").unwrap();
     view.apply("journal:class:3").unwrap();
     view.apply("journal:spec:253").unwrap();
-    view.search = "The Defiler's Determination".into();
+    let mut catalog = (*view.catalog).clone();
+    catalog.sets.retain(|set| set.id == 483);
+    view.catalog = Arc::new(catalog);
     let mut context = SharedContext::new();
     context.insert(ActiveSkin::Modern);
     context.insert(view);
@@ -404,8 +404,9 @@ fn authentic_dungeon_sections_and_loot_are_selectable() {
     view.apply("journal:encounter:112").unwrap();
     assert_eq!(view.tab, Tab::Dungeons);
     assert_eq!(view.catalog.encounter(112).unwrap().name, "Ozruk");
-    view.apply("journal:page:abilities").unwrap();
-    assert_eq!(view.page, Page::Abilities);
+    // No type3 overview root: Retail maps the first tab to ability details.
+    view.apply("journal:page:overview").unwrap();
+    assert_eq!(view.page, Page::Overview);
     let sections = view.sections().unwrap();
     assert!(!sections.is_empty());
     assert!(sections.iter().any(|(s, _)| s.title.contains("Shatter")));
@@ -441,12 +442,13 @@ fn both_skins_render_authored_ability_loot_and_raid_text() {
         set_thread_skin(skin);
         let mut view = journal();
         view.select_encounter(112).unwrap();
-        view.page = Page::Abilities;
+        assert_eq!(view.page, Page::Overview); // Stonecore's first tab contains details.
         let mut context = SharedContext::new();
         context.insert(skin);
         context.insert(view.clone());
         let mut registry = FrameRegistry::new(1280., 720.);
-        Screen::new(adventure_guide_screen).sync(&context, &mut registry);
+        let mut screen = Screen::new(adventure_guide_screen);
+        screen.sync(&context, &mut registry);
         let root = registry
             .get(registry.get_by_name("EncounterJournal").unwrap())
             .unwrap();
@@ -472,21 +474,18 @@ fn both_skins_render_authored_ability_loot_and_raid_text() {
         view.page = Page::Loot;
         let loot_id = view.loot()[0].id;
         context.insert(view.clone());
-        Screen::new(adventure_guide_screen).sync(&context, &mut registry);
+        screen.sync(&context, &mut registry);
         assert!(
             registry
                 .get_by_name(&format!("JournalLoot{loot_id}Name"))
                 .is_some()
         );
         view.select_encounter(1519).unwrap();
+        assert_eq!(view.page, Page::Loot); // Preserve Loot; root0 has no Overview.
         context.insert(view);
-        Screen::new(adventure_guide_screen).sync(&context, &mut registry);
+        screen.sync(&context, &mut registry);
         let title = registry
-            .get(
-                registry
-                    .get_by_name("EncounterJournalEncounterTitle")
-                    .unwrap(),
-            )
+            .get(registry.get_by_name("JournalBoss1519Name").unwrap())
             .unwrap();
         match &title.widget_data {
             Some(WidgetData::FontString(font)) => assert_eq!(font.text, "Lucifron"),

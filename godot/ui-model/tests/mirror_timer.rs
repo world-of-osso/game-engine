@@ -17,6 +17,52 @@ const BREATH: MirrorTimerStart = MirrorTimerStart {
     paused: false,
 };
 
+/// MirrorTimer Text inherits GameFontHighlightSmall → SystemFont_Shadow_Small.
+#[test]
+fn mirror_labels_inherit_black_shadow_both_skins() {
+    use ui_toolkit::atlas::{ActiveSkin, set_thread_skin};
+    use ui_toolkit::widgets::font_string::{GameFont, JustifyH, JustifyV};
+
+    for skin in [ActiveSkin::Modern, ActiveSkin::Forever] {
+        set_thread_skin(skin);
+        let mut data = MirrorTimersData::default();
+        for kind in [
+            MirrorTimerKind::Breath,
+            MirrorTimerKind::Exhaustion,
+            MirrorTimerKind::FeignDeath,
+        ] {
+            data.start(MirrorTimerStart { kind, ..BREATH });
+        }
+        let registry = build(data);
+        for (index, label) in ["Breath", "Fatigue", "Feign Death"].into_iter().enumerate() {
+            let name = format!("MirrorTimer{}Text", index + 1);
+            let frame = frame(&registry, &name);
+            assert_eq!((frame.width.value(), frame.height.value()), (195.0, 12.0));
+            assert_eq!(
+                (frame.position.left, frame.position.top),
+                (Val::Px(0.0), Val::Px(13.0))
+            );
+            let Some(WidgetData::FontString(text)) = &frame.widget_data else {
+                panic!("{name} must be a FontString");
+            };
+            assert_eq!(text.text, label);
+            assert_eq!(text.font, GameFont::FrizQuadrata);
+            assert_eq!(text.font_size, 10.0);
+            assert_eq!(text.color, [1.0; 4]);
+            assert_eq!(
+                (text.justify_h, text.justify_v),
+                (JustifyH::Center, JustifyV::Middle)
+            );
+            assert_eq!(
+                text.shadow_color,
+                Some([0.0, 0.0, 0.0, 1.0]),
+                "{skin:?} {name}"
+            );
+            assert_eq!(text.shadow_offset, [1.0, -1.0]);
+        }
+    }
+}
+
 fn build(data: MirrorTimersData) -> FrameRegistry {
     let mut registry = FrameRegistry::new(1920.0, 1080.0);
     let mut shared = SharedContext::new();
