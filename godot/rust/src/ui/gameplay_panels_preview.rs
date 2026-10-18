@@ -212,6 +212,15 @@ impl RegistryUi {
             .into()
     }
 
+    /// Name the production top hit at body/sidebar overlap, independent of button actions.
+    #[func]
+    fn pvp_ready_pointer_frame(&self, at: Vector2) -> GString {
+        self.pointer_frame_at(at)
+            .and_then(|id| self.model.as_ref()?.registry.get(id)?.name.as_deref())
+            .unwrap_or_default()
+            .into()
+    }
+
     #[func]
     pub fn show_gameplay_panels_preview(&mut self, forever: bool, page: GString) -> GString {
         let page = page.to_string();
