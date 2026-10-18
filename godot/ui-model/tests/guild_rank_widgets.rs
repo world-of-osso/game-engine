@@ -1046,6 +1046,34 @@ fn guild_communities_roster_uses_profile_metadata_without_exposing_officer_notes
 }
 
 #[test]
+fn guild_show_offline_preference_persists_false_and_defaults_on() {
+    use game_engine_core::client_options_data::{
+        load_options_file_from_path, save_options_file_to_path,
+    };
+    let path = std::env::temp_dir().join(format!(
+        "guild-show-offline-options-{}.ron",
+        std::process::id()
+    ));
+    for (input, expected) in [
+        ("(accepted_eula:true)", true),
+        ("(accepted_eula:true,communitiesShowOffline:false)", false),
+        ("(accepted_eula:true,communitiesShowOffline:true)", true),
+    ] {
+        std::fs::write(&path, input).unwrap();
+        let file = load_options_file_from_path(&path);
+        save_options_file_to_path(&path, &file).unwrap();
+        let restored = load_options_file_from_path(&path);
+        assert!(restored.accepted_eula);
+        assert_eq!(
+            serde_json::to_value(restored).unwrap()["communitiesShowOffline"].as_bool(),
+            Some(expected),
+            "persisted value for {input}"
+        );
+    }
+    std::fs::remove_file(path).unwrap();
+}
+
+#[test]
 fn guild_show_offline_filters_only_expanded_roster_and_preserves_authority_both_skins() {
     let _lock = SKIN.lock().unwrap_or_else(|p| p.into_inner());
     for skin in [ActiveSkin::Modern, ActiveSkin::Forever] {
