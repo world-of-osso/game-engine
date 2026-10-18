@@ -2,6 +2,7 @@ extends SceneTree
 # Supplied account context through production name selection and native HUD projection.
 # Not authenticated transport, actual roster-head rendering, or sound acceptance.
 const HUD_SCALE := 1080.0 / 768.0
+const INK_OVERSCAN_PX := 4
 
 func _initialize() -> void:
 	call_deferred("run_difficulty")
@@ -48,6 +49,7 @@ func ink_bounds(text_image: Image, blank: Image, region: Rect2i) -> Dictionary:
 	if band_start >= 0:
 		bands.append([band_start, region.end.y])
 	assert(count > 0, "Text measurement must observe actual raster pixels")
+	assert(left > region.position.x and top > region.position.y and right < region.end.x and bottom < region.end.y, "Ink must not touch the scan boundary; clipped metrics are invalid")
 	return {"bounds": [left, top, right, bottom], "bottom_exclusive": bottom, "pixels": count, "row_bands": bands}
 
 func measure_clearance(fixture: Node, message: Label, reference: Image, output: String, stem: String) -> Dictionary:
@@ -58,7 +60,7 @@ func measure_clearance(fixture: Node, message: Label, reference: Image, output: 
 	var line_heights: Array = []
 	for line in range(message.get_line_count()):
 		line_heights.append(message.get_line_height(line))
-	var region := Rect2i(message.get_global_rect().grow(4)).intersection(Rect2i(Vector2i.ZERO, reference.get_size()))
+	var region := Rect2i(message.get_global_rect().grow(INK_OVERSCAN_PX)).intersection(Rect2i(Vector2i.ZERO, reference.get_size()))
 	# Isolate complete text, including pixels otherwise occluded by the response buttons.
 	yes.hide()
 	no.hide()
@@ -83,7 +85,9 @@ func measure_clearance(fixture: Node, message: Label, reference: Image, output: 
 	for ink in [glyph, shadow, combined]:
 		ink["clearance_to_button_top_px"] = button_top - ink.bottom_exclusive
 	assert(shadowed.get_region(region).save_png(output.path_join(stem + "-unoccluded.png")) == OK)
-	return {"button_top_px": button_top, "line_count": message.get_line_count(), "line_heights_ui": line_heights, "line_spacing_ui": message.get_theme_constant("line_spacing"), "hud_scale": HUD_SCALE, "glyph": glyph, "shadow": shadow, "combined": combined, "layout_gap": "READY_CHECK_MULTILINE_BODY_BUTTON_COLLISION" if combined.clearance_to_button_top_px <= 0 else ""}
+	assert(glyphs.get_region(region).save_png(output.path_join(stem + "-glyphs.png")) == OK)
+	assert(blank.get_region(region).save_png(output.path_join(stem + "-blank.png")) == OK)
+	return {"scan_region_px": [region.position.x, region.position.y, region.size.x, region.size.y], "button_top_px": button_top, "line_count": message.get_line_count(), "line_heights_ui": line_heights, "line_spacing_ui": message.get_theme_constant("line_spacing"), "hud_scale": HUD_SCALE, "glyph": glyph, "shadow": shadow, "combined": combined, "layout_gap": "READY_CHECK_MULTILINE_BODY_BUTTON_COLLISION" if combined.clearance_to_button_top_px <= 0 else ""}
 
 func run_difficulty() -> void:
 	root.content_scale_size = Vector2i.ZERO
