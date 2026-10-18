@@ -1,5 +1,9 @@
 //! Concrete overlapping native controls for projection-order regression fixtures.
 use super::{RegistryUi, ScreenPostsetup, party_preview};
+use game_engine_ui_model::inworld_unit_frames_component::{
+    DifficultyMenuEntry, DifficultyMenuState, InWorldUnitFramesState, UnitFrameMenuState,
+    UnitFrameState, inworld_unit_frames_screen,
+};
 use godot::prelude::*;
 use ui_toolkit::{rsx, screen::SharedContext, widget_def::Element};
 
@@ -21,8 +25,66 @@ fn screen(_: &SharedContext) -> Element {
     }
 }
 
+fn difficulty_menu(raid: bool) -> DifficultyMenuState {
+    DifficultyMenuState {
+        x: 140.0,
+        y: 10.0,
+        entries: vec![DifficultyMenuEntry {
+            difficulty_id: if raid { 14 } else { 1 },
+            label: "Normal".into(),
+            checked: true,
+            enabled: true,
+        }],
+    }
+}
+
+fn submenu_state(raid: bool) -> InWorldUnitFramesState {
+    let mut menu = UnitFrameMenuState {
+        visible: true,
+        title: "Player".into(),
+        x: 10.0,
+        y: 10.0,
+        ..Default::default()
+    };
+    if raid {
+        menu.raid_difficulty_menu = Some(difficulty_menu(true));
+    } else {
+        menu.difficulty_menu = Some(difficulty_menu(false));
+    }
+    InWorldUnitFramesState {
+        show_player_frame: false,
+        show_target_frame: false,
+        target_cast: None,
+        player: UnitFrameState::named("Player"),
+        target: None,
+        target_of_target: None,
+        focus: None,
+        pet: None,
+        bosses: vec![],
+        menu,
+        personal_resource: None,
+    }
+}
+
 #[godot_api(secondary)]
 impl RegistryUi {
+    #[func]
+    fn show_projection_unit_menu_preview(&mut self, forever: bool, raid: bool) -> GString {
+        let result = party_preview::load_data_root().and_then(|()| {
+            ui_toolkit::atlas::set_thread_skin(if forever {
+                ui_toolkit::atlas::ActiveSkin::Forever
+            } else {
+                ui_toolkit::atlas::ActiveSkin::Modern
+            });
+            self.show_viewport_screen(
+                submenu_state(raid),
+                inworld_unit_frames_screen,
+                ScreenPostsetup::None,
+            )
+        });
+        GString::from(result.err().unwrap_or_default().as_str())
+    }
+
     #[func]
     fn show_projection_order_preview(&mut self) -> GString {
         let result = party_preview::load_data_root().and_then(|()| {
