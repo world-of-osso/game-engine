@@ -67,8 +67,7 @@ impl GameClient {
         &mut self,
         invitation: shared::protocol::GuildInvitation,
     ) {
-        self.guild_ranks.session.invitation = Some(invitation);
-        self.guild_ranks.session.invitation_waiting = false;
+        self.guild_ranks.session.receive_invitation(invitation);
     }
     pub(super) fn receive_guild_invite_result(
         &mut self,
@@ -275,6 +274,14 @@ impl GameClient {
         Ok(())
     }
 
+    pub(super) fn dismiss_guild_invitation(&mut self) -> Result<bool, FrameError> {
+        let Some(command) = self.guild_ranks.session.dismiss_invitation() else {
+            return Ok(false);
+        };
+        self.send_guild_command(command)?;
+        Ok(true)
+    }
+
     pub(super) fn close_guild_ranks(&mut self) -> bool {
         let visible = self.guild_ranks.session.close();
         self.guild_ranks.free_ui();
@@ -293,12 +300,15 @@ impl GameClient {
         }
         Ok(())
     }
-    pub(super) fn update_guild_ranks(&mut self) -> Result<(), FrameError> {
+    pub(super) fn update_guild_ranks(&mut self, delta: f64) -> Result<(), FrameError> {
         if self.account.session.screen != SessionScreen::InWorld {
             self.close_guild_ranks();
             self.guild_ranks
                 .synchronize_session_screen(self.account.session.screen);
             return Ok(());
+        }
+        if let Some(command) = self.guild_ranks.session.advance_invitation(delta) {
+            self.send_guild_command(command)?;
         }
         if !self.guild_ranks.session.visible && self.guild_ranks.session.invitation.is_none() {
             self.guild_ranks.free_ui();

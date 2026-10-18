@@ -618,6 +618,67 @@ fn guild_invitation_elapsed_boundary_declines_once_without_membership_change() {
     assert!(!session.visible);
 }
 
+fn pending_dismissal_invitation() -> GuildInvitation {
+    GuildInvitation {
+        guild_id: 7,
+        guild_name: "Raid Team".into(),
+        inviter_name: "Alice".into(),
+        tabard: None,
+    }
+}
+
+#[test]
+fn guild_invitation_escape_declines_once_without_closing_communities() {
+    use game_engine_ui_model::guild_ranks::GuildCommand;
+    for visible in [false, true] {
+        let mut session = GuildRanksSession::default();
+        session.visible = visible;
+        session.receive_invitation(pending_dismissal_invitation());
+        assert_eq!(
+            session.dismiss_invitation(),
+            Some(GuildCommand::DeclineInvite)
+        );
+        assert!(session.invitation.is_none());
+        assert_eq!(session.visible, visible);
+        assert_eq!(session.dismiss_invitation(), None);
+        assert!(session.commands.is_empty());
+    }
+}
+
+#[test]
+fn guild_invitation_loading_close_preserves_time_and_new_delivery_resets_it() {
+    use game_engine_ui_model::guild_ranks::GuildCommand;
+    let mut session = GuildRanksSession::default();
+    let invite = pending_dismissal_invitation();
+    session.receive_invitation(invite.clone());
+    assert_eq!(session.advance_invitation(59.0), None);
+    session.close(); // Native Loading teardown must not decline or reset the timer.
+    assert_eq!(session.invitation, Some(invite.clone()));
+    assert_eq!(session.advance_invitation(1.0), None);
+    session.receive_invitation(invite.clone());
+    assert_eq!(session.advance_invitation(60.0), None);
+    assert_eq!(session.invitation, Some(invite));
+    assert_eq!(
+        session.advance_invitation(0.001),
+        Some(GuildCommand::DeclineInvite)
+    );
+}
+
+#[test]
+fn guild_invitation_acceptance_pending_never_sends_decline_on_timeout_or_escape() {
+    use game_engine_ui_model::guild_ranks::GuildCommand;
+    let mut session = GuildRanksSession::default();
+    let invite = pending_dismissal_invitation();
+    session.receive_invitation(invite.clone());
+    assert_eq!(session.advance_invitation(59.0), None);
+    session.click("guild:accept_invite", &Default::default());
+    assert_eq!(session.commands, vec![GuildCommand::AcceptInvite]);
+    assert_eq!(session.advance_invitation(120.0), None);
+    assert_eq!(session.dismiss_invitation(), None);
+    assert_eq!(session.invitation, Some(invite));
+    assert_eq!(session.commands, vec![GuildCommand::AcceptInvite]);
+}
+
 #[test]
 fn guild_rank_widgets_render_only_purchased_bank_tabs() {
     let _lock = SKIN.lock().unwrap_or_else(|p| p.into_inner());
