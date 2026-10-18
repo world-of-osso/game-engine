@@ -1,3 +1,7 @@
+## 2026-10-18 — ReadyCheck spacing native measurement; layout gaps remain
+
+[Accepted measurement](systems/group-frames.md#readycheck-explicit-source-line-spacing--2026-10-18): landed engine5d055/toolkitdbbf, binary4c7b6c05, both skins11 phases verify source spacing0/body15 or30 UI/frame+button conservation/exact restoration. Ordinary glyph/shadow gaps+10.125/+9.125 physical px; two-line glyph−10.875/shadow−12.875 px at button top568.125. Full-panel scan retains strict no-touch validation. Glyph overlap improves4px from−14.875, not resolved. Both named collision and FONT_LINE_HEIGHT_PARITY gaps stay open; font metrics untouched pending Retail packet. Exit0/Godot errors0/window+slice released;22 originals+66 isolation crops retained, four1280 views inspected. Measurement acceptance is not layout, authenticated transport/head/audio or globally clean toolkit-workspace proof.
+
 ## 2026-10-18 — Public Note native acceptance
 
 [Note sort](systems/guilds.md#public-note-roster-sorting): gate529e/a9dbb35d7, both-skin actual public writes alpha/Zulu→RAID/raid→é/É, physical direction/reset/filter/identity and fixed original tie precedence pass. Identical-binary fresh server/client accented-note readback passes; eight inspected full-HD originals published. Historical/Lua-Retail qualification and native2members vs model12mapping/other tie keys retained. Owned runtime/window cleaned.
