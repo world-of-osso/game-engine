@@ -4763,3 +4763,5 @@ User decision specifies MOBILE_BANKING_COOLDOWN_2H7200000ms over installed360000
 - 2026-10-18: Signed-geoset report is now once per process on first catalog projection; per-load unresolved vectors and signed render-semantic gap retained. Runtime-model loads explain prior repeated reports; see [DB2 signed selections](formats/db2-format.md#installed-csv-column-order-and-signed-selections).
 
 - 2026-10-18 — Extract M2/skin, WMO, ADT/WDT parsing into public wow-formats; document ownership/features, unchanged core assembly and conserved 259 tests (225 moved/34 authored fixtures retained). [Shared readers](systems/wow-formats.md).
+
+- 2026-10-18 — Bump wow-formats pin for independent materials/static-attachments features and raw geometry metadata; default client features unchanged. [Shared readers](systems/wow-formats.md).
