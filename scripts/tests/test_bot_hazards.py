@@ -250,6 +250,20 @@ class EscapeGoalTests(unittest.TestCase):
         goal = escape_goal([1, 0, 0], [sphere(radius=4)], routes)
         self.assertEqual(goal, routes.calls[7][1])
 
+    def test_inward_projection_cannot_allow_native_arrival_inside_the_area(self):
+        # Concrete maintained PlayerController boundary: a projected4.1yd endpoint
+        # releases arrival at3.9yd, still inside the source4yd sphere.
+        from bot_controller import PlayerController
+        commands = []
+        controller = PlayerController(lambda *argv: commands.append(argv), None,
+            lambda start, goal, label: [start, [4.1, 0, 0]], None)
+        self.assertTrue(controller.step_toward([3.9, 0, 0], [4.5, 0, 0], "projection-control"))
+        self.assertEqual(commands, [])
+        def inward(start, goal):
+            return [start, [goal[0] * 4.1 / 4.5, goal[1], goal[2] * 4.1 / 4.5]]
+        with self.assertRaisesRegex(ValueError, "safe"):
+            escape_goal([0, 0, 0], [sphere(radius=4)], FakeRoutes(default=inward))
+
     def test_projection_within_arrival_tolerance_is_accepted(self):
         def nudged(start, goal):
             return [list(start), [goal[0] + 0.4, goal[1] + 0.3, goal[2]]]

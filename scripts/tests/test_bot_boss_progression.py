@@ -27,6 +27,7 @@ class BossProgressionTests(unittest.TestCase):
         controller.run = {"clear_elapsed_ms": None, "bosses": fixture["bosses"], "openings": []}
         controller.poll_combat = lambda: None
         controller.record_credit = lambda: None
+        controller.rainfire_areas = lambda: []  # Explicit synthetic empty-area control.
         controller.party = lambda: [{"health": 100, "max_health": 100}]
         controller.account = lambda: {"local_player_position": str(tuple(fixture["here"]))}
         controller.rotation = lambda: fixture["rotation"]

@@ -146,6 +146,10 @@ def escape_goal(here, areas, query_route):
         if math.hypot(end[0] - goal[0], end[2] - goal[2]) > ARRIVAL_TOLERANCE:
             rejected.append(f"{degrees}: route ends {end}, not at goal {goal}")
             continue
+        if any(math.dist(end, area["center"]) < area["radius"] + ARRIVAL_TOLERANCE
+               for area in areas):
+            rejected.append(f"{degrees}: native arrival could stop inside a hazard")
+            continue
         length = _path_length([here, *map(list, corners)])
         if best is None or length < best[0]:
             best = (length, goal)

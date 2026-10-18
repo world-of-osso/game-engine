@@ -19,6 +19,7 @@ from bot_dungeon import summarize_dungeon
 from bot_gear import equipment_receipt, load_plan
 from bot_harness import parse_combat, poll_has_gap, routed_player
 from bot_health import require_living_player
+from bot_hazards import escape_goal, read_areas, route_is_safe
 from bot_stockade import admitted_copy, authored_priority, encounter_states, inside_exit_trigger, native_visibility, parse_npc, parse_party, stockade_exit_plan, stockade_plan, target_observation_ready
 from run_dummy_bots import observed_pet_owner
 
@@ -62,6 +63,8 @@ class StockadeRun:
                                    [str(args.engine / "scripts/agent/agent-run"), "bot-harness",
                                     str(args.server / "target/debug/examples/follower_route")],
                                    args.navmesh, self.output)
+        self.query_route = self.player.route
+        self.player.route = self.safe_route
         publish(self.output / "source-plan.json", self.plan)
 
     def call(self, program, words, environment=None):
@@ -243,6 +246,31 @@ class StockadeRun:
             raise RuntimeError("Native party death/disconnect; no stat reset or replacement")
         return party
 
+    def rainfire_areas(self):
+        observation = self.rotation()["ground_areas"]
+        if "error" in observation:
+            raise ValueError(f"Native ground areas unavailable: {observation['error']}")
+        return read_areas(json.loads(observation["state_json"]))
+
+    def safe_route(self, here, goal, label):
+        corners = self.query_route(here, goal, label)
+        if not route_is_safe(here, corners, self.rainfire_areas()):
+            raise ValueError("Native route enters or fails to escape Rain of Fire; no direct-line fallback")
+        return corners
+
+    def escape_hazard(self):
+        areas = self.rainfire_areas()
+        here = position(self.account())
+        goal = escape_goal(here, areas, self.query_route)
+        if goal is None:
+            return False
+        reached = self.move(here, goal, "native-rain-of-fire-escape")
+        with (self.output / "hazard-escape.jsonl").open("a") as stream:
+            stream.write(json.dumps({"at_ms": int(time.time() * 1000), "here": here,
+                "goal": goal, "areas": areas, "reached": reached,
+                "policy": "HARNESS_RAIN_OF_FIRE_ESCAPE"}) + "\n")
+        return True
+
     def move(self, here, goal, label):
         if self.player.step_toward(here, goal, label):
             return True
@@ -343,6 +371,9 @@ class StockadeRun:
         if self.run["clear_elapsed_ms"] is not None:
             return True
         party = self.party()
+        if self.escape_hazard():
+            time.sleep(0.2)
+            return False
         target = self.opening_target or self.player.assist(self.tank)
         here = position(self.account())
         if target is not None:
