@@ -2,6 +2,23 @@
 
 [Native professions](systems/native-professions-crafting.md#unlearned-recipe-discovery) separates preview selection from learned-only crafting and consumes trainer-only source metadata in the existing owner snapshot. Both skins share grouping and source widgets; native acceptance waits for the lead gate/window.
 
+## 2026-10-18 — Search-preview native lifecycle
+
+[Exact proof and preserved failures](systems/dungeon-achievements.md#post-landing-search-preview-native-proof--2026-10-18): Edf3/Saf5/Pa2b/Tc2f, both-skin normal/real Hdrpeer comparison; source five206×27 rows, physical focus/blur/refocus/clear/Show All/open. Both drained streams exit0/unique2/2/zeroerrors/exact8PNGs; sixteen inspected1920 originals published, ownedPIDs gone/slice0/5898free/windowcleared. Native rapidclear is not delayedreply/latency proof; model ordering remains distinct. Earlier protocol/socket/focus-helper failures stay failed and preserved, no product fallback/change.
+
+## 2026-10-18 — Shared native menu order
+
+[Source and bounded projection](systems/menu-primitives.md#native-menu-order-2026-10-18): actual guild-menu z563 below Last Online1503 reproduces additive-strata ordering failure. Shared menus use FULLSCREEN_DIALOG; native layers rank densely below the existing highlight plane, with explicit once-reported capacity errors and unchanged pointer policy. Native guild/navigation, tooltip/strata/raise/reused-ID and both dungeon/raid companion controls pass; pointer comparator remains unchanged. Golden census measures50 actual roots, maximum16 layers (GameMenuRoot193frames) versus4000 capacity; Modern golden/hash targets47 pass, with only21 source-qualified menu stratum fields changed. Focused gate and refreshed game-world pixels remain pending.
+## 2026-10-18 — Suggested text font-key boundary
+
+[Proof and fixture limits](systems/adventure-guide.md#suggested-secondary-text-hover--implementation-2026-10-17): genuine881/852 both-skin native fitting negatives accepted at55e1, four inspected originals. Product font key misread default16 versus painted18; actual native process RED records241/214 widths inside227.5 allocation. Minimal font_size correction and approved source642row-fed positive fixture await separate gate/window; no realm eligibility/authority claim.
+
+## 2026-10-17 — Suggested secondary truncation hover implementation
+
+[Source mapping and proof boundary](systems/adventure-guide.md#suggested-secondary-text-hover--implementation-2026-10-17): literal EJ3311 second-pass owners; native drawn-label truncation gates full white wrapped right-anchored tooltips. Both-skin model RED recorded; native hover/leave acceptance waits for lead gate/window. No provider/reward/action authority added.
+## 2026-10-18 — Received achievement search previews
+
+[Implementation/proof](systems/dungeon-achievements.md#received-search-previews--2026-10-18): source206×27 popup/up-to5 received rows; conditional count-free Show All and explicit achievement open, retained category body while typing. Both-skin clear/blur/late-other-query/empty/cursor controls: four genuine behavioral REDs→31 UI-model passes;9 native-host tests/four-consumer check pass. No0.3s progress path, invented totals/percentages, server/protocol edits or physical native-popup claim.
 ## 2026-10-18 — ReadyCheck allocation-based non-overlap policy
 
 Explicit user instruction authorizes frame growth, not a discovered Retail mechanism. Strict rendered RED both skins: ordinary+13.125px combined, toggle−5.875px, long-name−21.875px; all18 scans/exact restoration valid. Native bounds now consume actual extra measured allocation, preserve CENTER/bodyTOP37/font12 and button bottom16; one-line unchanged, no ink-aware padding. GREEN native clearance remains pending gate/window. [Policy](systems/group-frames.md#readycheck-body-no-overlap-project-policy--2026-10-18). The supplied one-line Retail crop is only bounded relative evidence; separate gap-ratio audit remains named.

@@ -4896,8 +4896,9 @@ textures/4638369.blp
 textures/4641164.blp
 textures/5179179.blp
 textures/7323575.blp
-# Adventure Guide cache from pinned local Retail Journal DB2s.
+# Adventure Guide cache and installed source-row642 native fixture.
 cache/adventure_guide.sqlite
+db2/active/AdventureJournal.csv
 # Mainline RaidBossEmote warning kit12197 (SoundKitEntry15068).
 sounds/ui/567394.ogg
 # ReadyCheck OnShow kit8960, authenticated local70448 Ogg (SoundKitEntry9401).

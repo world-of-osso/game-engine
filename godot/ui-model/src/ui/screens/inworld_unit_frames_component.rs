@@ -1005,7 +1005,7 @@ fn render_difficulty_menu(state: Option<&DifficultyMenuState>, raid: bool) -> El
             width,
             height: {height},
             hidden: hidden,
-            strata: FrameStrata::Dialog,
+            strata: FrameStrata::FullscreenDialog,
             frame_level: 61.0,
             pos_type: "absolute",
             left: {x},
