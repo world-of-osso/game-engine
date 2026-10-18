@@ -971,9 +971,12 @@ fn report_unresolved_geoset_rows(raw: &RawData) -> Vec<String> {
         .filter(|(_, _, value)| u16::try_from(*value).is_err())
         .map(|(model, kind, value)| format!("CharHairGeosets model {model}, GeosetType={kind}: GeosetID={value}; unresolved signed geoset projection (not remapped)")));
     gaps.sort();
-    for gap in &gaps {
-        eprintln!("{gap}");
-    }
+    static REPORT: std::sync::Once = std::sync::Once::new();
+    REPORT.call_once(|| {
+        for gap in &gaps {
+            eprintln!("{gap}");
+        }
+    });
     gaps
 }
 
