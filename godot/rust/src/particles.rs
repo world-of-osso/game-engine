@@ -21,6 +21,10 @@ use godot::{
 use crate::animation::WowAnimationPlayer;
 use crate::assets::material::{shared_shader, shared_texture};
 use crate::lighting::TerrainLight;
+use crate::particle_models::{GeometryParticles, ResolvedParticleModels};
+
+#[path = "particle_models_probe.rs"]
+mod models_probe;
 
 const SHADER_PATH: &str = "res://shaders/particle.gdshader";
 const RENDER_MODE: &str =
@@ -308,6 +312,7 @@ pub(crate) struct ModelParticles {
     /// Bone pivots in Godot model axes.
     pivots: Vec<Vector3>,
     global_sequences: Vec<u32>,
+    pub(crate) resolved_models: HashMap<usize, ResolvedParticleModels>,
 }
 
 impl ModelParticles {
@@ -337,6 +342,7 @@ impl ModelParticles {
             emitters,
             pivots,
             global_sequences: model.global_sequences.clone(),
+            resolved_models: HashMap::new(),
         }))
     }
 
@@ -360,6 +366,7 @@ impl ModelParticles {
                 emitters,
                 pivots: self.pivots.clone(),
                 global_sequences: self.global_sequences.clone(),
+                resolved_models: self.resolved_models.clone(),
             })
         })
     }
@@ -443,8 +450,40 @@ fn mat4(transform: Transform3D) -> Mat4 {
 struct PlacedEmitter {
     /// Index into [`ModelParticles::emitters`].
     emitter: usize,
-    pool: usize,
+    output: ParticleOutput,
     sim: EmitterSim,
+}
+
+struct ParticleOutput {
+    pool: Option<usize>,
+    geometry: Option<GeometryParticles>,
+    children: Vec<ParticleOutput>,
+}
+
+impl ParticleOutput {
+    fn draw(
+        &mut self,
+        sim: &EmitterSim,
+        emitter: &ParticleEmitter,
+        view: &ViewBasis,
+        fade: f32,
+        pools: &mut ParticlePools,
+    ) -> usize {
+        let mut drawn = 0;
+        if let Some(geometry) = &mut self.geometry {
+            drawn += geometry.draw(sim, emitter, fade);
+        }
+        if let Some(pool) = self.pool {
+            pools.quads.clear();
+            sim.quads(emitter, view, &mut pools.quads);
+            drawn += pools.quads.len();
+            pools.pools[pool].push(&pools.quads, fade);
+        }
+        for (output, child) in self.children.iter_mut().zip(&sim.children) {
+            drawn += output.draw(&child.sim, &child.emitter, view, fade, pools);
+        }
+        drawn
+    }
 }
 
 /// The emitters of one placed model and the time owed since they last updated.
@@ -524,12 +563,7 @@ impl PlacedParticles {
                 density,
                 &mut |from, to| intersect_ground(root, from, to),
             );
-            pools.quads.clear();
-            placed.sim.quads(emitter, view, &mut pools.quads);
-            let quads = std::mem::take(&mut pools.quads);
-            self.drawn += quads.len();
-            pools.pools[placed.pool].push(&quads, fade);
-            pools.quads = quads;
+            self.drawn += placed.output.draw(&placed.sim, emitter, view, fade, pools);
         }
     }
 
@@ -613,14 +647,17 @@ impl ParticlePools {
         let mut errors = Vec::new();
         let mut emitters = Vec::new();
         for (slot, (index, emitter)) in model.emitters.iter().enumerate() {
-            match self.pool_for(model.fdid, *index, emitter, texture_dir) {
-                Ok(pool) => {
-                    let sim =
-                        EmitterSim::new(emitter, seed.wrapping_mul(31).wrapping_add(slot as u32));
-                    self.pools[pool].reserve(sim.quad_capacity(emitter));
+            match self.place_emitter(
+                model,
+                *index,
+                emitter,
+                seed.wrapping_mul(31).wrapping_add(slot as u32),
+                texture_dir,
+            ) {
+                Ok((sim, output)) => {
                     emitters.push(PlacedEmitter {
                         emitter: slot,
-                        pool,
+                        output,
                         sim,
                     });
                 }
@@ -641,6 +678,70 @@ impl ParticlePools {
             drawn: 0,
         };
         (placed, errors)
+    }
+
+    fn place_emitter(
+        &mut self,
+        model: &ModelParticles,
+        index: usize,
+        emitter: &ParticleEmitter,
+        seed: u32,
+        texture_dir: &Path,
+    ) -> Result<(EmitterSim, ParticleOutput), String> {
+        let resolved = model
+            .resolved_models
+            .get(&index)
+            .cloned()
+            .unwrap_or_default();
+        if emitter.particle_model_filename.is_some() && resolved.geometry.is_none() {
+            return Err(
+                "P5-product-resolution: geometry reference has no product-qualified asset".into(),
+            );
+        }
+        if emitter.child_emitters_model_filename.is_some() && resolved.recursive.is_empty() {
+            return Err(
+                "P5-product-resolution: recursive reference has no product-qualified asset".into(),
+            );
+        }
+        let mut sim = EmitterSim::new(emitter, seed);
+        let (pool, geometry) = if let Some(asset) = &resolved.geometry {
+            let root = self
+                .root
+                .as_mut()
+                .ok_or("particle pools are not attached")?;
+            (None, Some(GeometryParticles::new(asset, root)))
+        } else {
+            let pool = self.pool_for(model.fdid, index, emitter, texture_dir)?;
+            self.pools[pool].reserve(sim.quad_capacity(emitter));
+            (Some(pool), None)
+        };
+        let mut children = Vec::new();
+        for (child_model, interpolate_position) in &resolved.recursive {
+            // Supplied P5 selects up to four emitter definitions, not four generations.
+            for (child_index, child_emitter) in child_model.emitters.iter().take(4) {
+                let (child_sim, output) = self.place_emitter(
+                    child_model,
+                    *child_index,
+                    child_emitter,
+                    seed.wrapping_add(*child_index as u32 + 1),
+                    texture_dir,
+                )?;
+                sim.children.push(m2_particles::RecursiveEmitter {
+                    emitter: child_emitter.clone(),
+                    sim: child_sim,
+                    interpolate_position: *interpolate_position,
+                });
+                children.push(output);
+            }
+        }
+        Ok((
+            sim,
+            ParticleOutput {
+                pool,
+                geometry,
+                children,
+            },
+        ))
     }
 
     fn pool_for(
@@ -736,6 +837,21 @@ impl IRefCounted for WowParticleProbe {
 
 #[godot_api]
 impl WowParticleProbe {
+    /// Synthetic P5 acceptance; explicit geometry and recursive assets, no Retail mapping.
+    #[func]
+    fn model_recursion_node(
+        &self,
+        world_root: Gd<Node3D>,
+        fixture_path: GString,
+        parents: i32,
+        elapsed: f32,
+    ) -> Variant {
+        match models_probe::place(world_root, fixture_path, parents, elapsed) {
+            Ok(node) => node.to_variant(),
+            Err(error) => error.to_variant(),
+        }
+    }
+
     /// Actual type3 admission/place/update path with controlled cubic controls.
     #[func]
     fn spline_node(

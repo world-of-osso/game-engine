@@ -1,0 +1,73 @@
+[
+  {
+    "path": "/syncthing/World of Warcraft/_retail_/BlizzardInterfaceCode/Interface/AddOns/Blizzard_ProfessionsTemplates/Blizzard_ProfessionsQualityDialog.xml",
+    "sha256": "226abca2e03733d9f18accedc7e0396854f3c36573761dc2e986abdfde17eff0"
+  },
+  {
+    "path": "/syncthing/World of Warcraft/_retail_/BlizzardInterfaceCode/Interface/AddOns/Blizzard_ProfessionsTemplates/Blizzard_ProfessionsQualityDialog.lua",
+    "sha256": "f6f910a746aeae895688f09aa86ec9f1b363055ab5afefd5f3072c045d4571cc"
+  },
+  {
+    "path": "/syncthing/World of Warcraft/_retail_/BlizzardInterfaceCode/Interface/AddOns/Blizzard_ProfessionsTemplates/Blizzard_ProfessionsRecipeSchematicForm.lua",
+    "sha256": "bd9e67f388df613171cf56fa6939c43fc3cee4abd0e00f53bc5b905bd614e587"
+  },
+  {
+    "path": "/syncthing/World of Warcraft/_retail_/BlizzardInterfaceCode/Interface/AddOns/Blizzard_ProfessionsTemplates/Blizzard_ProfessionsRecipeSchematicForm.xml",
+    "sha256": "a8758050cb656ae45e1071a1345e55a5440a715ff4870dd9ce472227947b38af"
+  },
+  {
+    "path": "/syncthing/World of Warcraft/_retail_/BlizzardInterfaceCode/Interface/AddOns/Blizzard_ProfessionsTemplates/Blizzard_ProfessionsRecipeReagentSlot.lua",
+    "sha256": "142e2a2a048ece5a9b9e9f7f51b7badd1f9493f484f4edffa964a55722eaaf1d"
+  },
+  {
+    "path": "/syncthing/World of Warcraft/_retail_/BlizzardInterfaceCode/Interface/AddOns/Blizzard_SharedXML/Shared/InputBox/InputBoxTemplates.xml",
+    "sha256": "88dd3f9f05a1a172fa0b98ffecc60ef064910ed5e028d32bfdbb9934f8cf7fc3"
+  },
+  {
+    "path": "/syncthing/World of Warcraft/_retail_/BlizzardInterfaceCode/Interface/AddOns/Blizzard_APIDocumentationGenerated/ProfessionConstantsDocumentation.lua",
+    "sha256": "65360762616ac3e18c8af4061176163a1a29aba010f4cd7cbc766e345d292557"
+  },
+  {
+    "path": "/syncthing/World of Warcraft/_retail_/BlizzardInterfaceCode/Interface/AddOns/Blizzard_ProfessionsTemplates/Blizzard_Professions.lua",
+    "sha256": "789a9176dcc605d7838eb443c35ecab6b3eccf3975c658c08b1efe4f3445b686"
+  },
+  {
+    "path": "/syncthing/World of Warcraft/_retail_/BlizzardInterfaceCode/Interface/AddOns/Blizzard_Fonts_Shared/Shared/FontStyles.xml",
+    "sha256": "786cba95197d92cece5904cc6f7bb2791ebaa6664d040d060352f5264e3b1469"
+  },
+  {
+    "path": "/syncthing/World of Warcraft/_retail_/BlizzardInterfaceCode/Interface/AddOns/Blizzard_Fonts_Shared/Mainline/Fonts.xml",
+    "sha256": "7c51f4b105a0615d5124bff02e2d855b7a96bcdba1abde9657fd6f4c6dbcfb44"
+  },
+  {
+    "path": "/syncthing/World of Warcraft/_retail_/BlizzardInterfaceCode/Interface/AddOns/Blizzard_Fonts_Shared/Shared/Fonts.xml",
+    "sha256": "8f851b55c564e95df44091c3aa2a13ee08682f60bacddb0ec68885ede85c1302"
+  },
+  {
+    "path": "/syncthing/World of Warcraft/_retail_/BlizzardInterfaceCode/Interface/AddOns/Blizzard_ItemButton/Mainline/ItemButtonTemplate.lua",
+    "sha256": "c54c26460c9e61b36fe6c194411175d912aadfb97cda72dfaab08b0976f0080b"
+  },
+  {
+    "path": "/syncthing/World of Warcraft/_retail_/BlizzardInterfaceCode/Interface/AddOns/Blizzard_SharedXML/SecureUIPanelTemplates.xml",
+    "sha256": "9e24dc240956fb06ec09a4a36df27850c61f2cf115f9f0146a2db9e38a9df3ce"
+  },
+  {
+    "path": "/syncthing/World of Warcraft/_retail_/BlizzardInterfaceCode/Interface/AddOns/Blizzard_ProfessionsTemplates/Blizzard_ProfessionsRecipeReagentSlotBase.xml",
+    "sha256": "5065e6b80e0ad844816a5ce9e1d5952639c81267d7ee4d53ccc325176d8b3a8b"
+  },
+  {
+    "path": "/syncthing/World of Warcraft/_retail_/BlizzardInterfaceCode/Interface/AddOns/Blizzard_ProfessionsTemplates/Blizzard_ProfessionsTemplates.xml",
+    "resolved": "/syncthing/World of Warcraft/_retail_/BlizzardInterfaceCode/Interface/AddOns/Blizzard_ProfessionsTemplates/Blizzard_ProfessionsTemplates.xml",
+    "sha256": "4b2a66e3b501887317b9a1966706f310ba47c30c68b66feacc789011c2882fdd"
+  },
+  {
+    "path": "/syncthing/World of Warcraft/_retail_/BlizzardInterfaceCode/Interface/AddOns/Blizzard_ProfessionsTemplates/Blizzard_ProfessionsTemplates.lua",
+    "resolved": "/syncthing/World of Warcraft/_retail_/BlizzardInterfaceCode/Interface/AddOns/Blizzard_ProfessionsTemplates/Blizzard_ProfessionsTemplates.lua",
+    "sha256": "e4c1a3de059130892f3322d9163a0913b21082372547b8c05bf51b73fb55a70c"
+  },
+  {
+    "path": "/syncthing/World of Warcraft/_retail_/BlizzardInterfaceCode/Interface/AddOns/Blizzard_Professions/Blizzard_ProfessionsCrafting.xml",
+    "resolved": "/syncthing/World of Warcraft/_retail_/BlizzardInterfaceCode/Interface/AddOns/Blizzard_Professions/Blizzard_ProfessionsCrafting.xml",
+    "sha256": "31bdc8a4aed37e71f760b0860cb2d1e1ae00235e46cb65e06e92b0ecdd5053ba"
+  }
+]

@@ -12,6 +12,7 @@ const OBSERVE_MS := 300000
 # looks along, Quat::from_euler(YXZ, yaw, pitch, 0) * -Z (camera_follow_data.rs).
 const CAMERA_YAW := deg_to_rad(90.0)
 const CAMERA_PITCH := deg_to_rad(-20.0)
+var local_range_handled := false
 
 func run_test() -> void:
 	root.size = Vector2i(1280, 720)
@@ -28,21 +29,25 @@ func run_test() -> void:
 	if tiles < 0:
 		return
 	print("FIXTURE DEV_IPC_READY tiles=%d" % tiles)
-	if not await observe(client, "hover tooltip", func(): return tooltip_title(client) == VENDOR):
-		return
-	print("FIXTURE DEV_IPC_HOVER_NPC " + VENDOR)
-	if not await observe(client, "hover leaving the vendor", func(): return tooltip_title(client) == ""):
-		return
-	print("FIXTURE DEV_IPC_HOVER_POINT")
-	var expected := Vector3(-sin(CAMERA_YAW) * cos(CAMERA_PITCH), sin(CAMERA_PITCH), -cos(CAMERA_YAW) * cos(CAMERA_PITCH))
-	if not await observe(client, "camera direction", func(): return camera_forward().dot(expected) > 0.999):
-		return
-	# The camera eases into place; the parent's next request reads where it settles.
-	if not await camera_settled():
-		return
-	print("FIXTURE DEV_IPC_CAMERA forward=%s" % camera_forward())
-	if not await check_export(client):
-		return
+	if OS.get_environment("GODOT_TEST_LOCAL_RANGE_ONLY") == "1":
+		if not await observe(client, "local range pose", func(): return local_range_handled):
+			return
+	else:
+		if not await observe(client, "hover tooltip", func(): return tooltip_title(client) == VENDOR):
+			return
+		print("FIXTURE DEV_IPC_HOVER_NPC " + VENDOR)
+		if not await observe(client, "hover leaving the vendor", func(): return tooltip_title(client) == ""):
+			return
+		print("FIXTURE DEV_IPC_HOVER_POINT")
+		var expected := Vector3(-sin(CAMERA_YAW) * cos(CAMERA_PITCH), sin(CAMERA_PITCH), -cos(CAMERA_YAW) * cos(CAMERA_PITCH))
+		if not await observe(client, "camera direction", func(): return camera_forward().dot(expected) > 0.999):
+			return
+		# The camera eases into place; the parent's next request reads where it settles.
+		if not await camera_settled():
+			return
+		print("FIXTURE DEV_IPC_CAMERA forward=%s" % camera_forward())
+		if not await check_export(client):
+			return
 	if not await observe(client, "vendor removal", func(): return client.get_node_or_null("WorldUnits/" + VENDOR) == null):
 		return
 	print("FIXTURE DEV_IPC_DONE")
@@ -65,10 +70,31 @@ func observe(client: Node, what: String, predicate: Callable) -> bool:
 	var deadline := Time.get_ticks_msec() + OBSERVE_MS
 	while Time.get_ticks_msec() < deadline:
 		await process_frame
+		if not local_range_handled:
+			local_range_handled = observe_local_range(client)
 		if predicate.call():
 			return true
 	fail("Timed out observing %s: tooltip %s" % [what, client.tooltip_state()])
 	return false
+
+func observe_local_range(client: Node) -> bool:
+	var directory := ProjectSettings.globalize_path("res://").path_join("../data/diagnostics/dev-ipc-%d" % OS.get_process_id()).simplify_path()
+	var request_path := directory.path_join("local-range-request.json")
+	if not FileAccess.file_exists(request_path):
+		return false
+	var request: Dictionary = JSON.parse_string(FileAccess.get_file_as_string(request_path))
+	var reply: Dictionary = client.call("spell_priority_state", int(request.target), PackedInt32Array([1464]))
+	if reply.has("error"):
+		return false
+	var state: Dictionary = JSON.parse_string(reply.state_json)
+	var local := client.get_node("WorldUnits/" + NAME) as Node3D
+	var file := FileAccess.open(directory.path_join("local-range-result.json"), FileAccess.WRITE)
+	file.store_string(JSON.stringify({"in_range": state.facts.in_range["1464"],
+		"local_position": [local.position.x, local.position.y, local.position.z],
+		"server_position": client.account_state().get("local_server_position")}))
+	file.close()
+	print("FIXTURE DEV_IPC_LOCAL_RANGE")
+	return true
 
 func tooltip_title(client: Node) -> String:
 	var tooltip: Dictionary = client.tooltip_state()

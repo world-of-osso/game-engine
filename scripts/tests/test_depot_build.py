@@ -265,6 +265,20 @@ class DepotBuildTests(unittest.TestCase):
         self.assertIn("--build-host", result.stderr)
         self.assertEqual(self.records(), [])
 
+    def test_shared_reference_csv_is_staged_but_untracked_csv_is_not(self):
+        shared = self.base / "shared-protocol"
+        relative = "scripts/reference/pvp-12.1.5.70391/PVPDifficulty.csv"
+        rows = "ID,MapID,MinLevel,MaxLevel\n1,489,10,19\n"
+        self._put(shared, relative, rows)
+        self._git(shared, "add", relative)
+        self._git(shared, "commit", "-qm", "add embedded bracket source")
+        self._put(shared, "scripts/reference/private.csv", "untracked input")
+        result = self.build()
+        self.assertEqual(result.returncode, 0, result.stderr)
+        files = self.records()[0]["files"]
+        self.assertEqual(files.get("shared-protocol/" + relative), rows)
+        self.assertNotIn("shared-protocol/scripts/reference/private.csv", files)
+
     def test_source_snapshot_and_originating_install(self):
         result = self.build(DEPOT_PROJECT_ID="custom-id")
         self.assertEqual(result.returncode, 0, result.stderr)
@@ -444,8 +458,27 @@ class DepotBuildTests(unittest.TestCase):
         self.assertEqual(provenance["status"], "incomplete")
         self.assertEqual(provenance["missing_fdids"], [135875])
 
-    def test_release_is_not_allowed_with_fixture_test_or_cli(self):
-        for extra in (["--fixture", "native_input_fixture"], ["--test"], ["--cli"]):
+    def test_release_fixture_installs_executable_under_release_without_replacing_debug(self):
+        self.prepare_release_icon_fixture()
+        name = "native_input_fixture"
+        debug = self.root / f"target/debug/examples/{name}"
+        self._put(self.root, f"target/debug/examples/{name}", "old debug fixture")
+        result = subprocess.run(
+            ["python3", str(SCRIPT), "--root", str(self.root), "--release", "--fixture", name],
+            env={**self.env, "DEPOT_FIXTURE": "release fixture"},
+            text=True, capture_output=True, check=False,
+        )
+        self.assertEqual(result.returncode, 0, result.stderr)
+        executable = self.root / f"target/release/examples/{name}"
+        self.assertEqual(executable.read_bytes(), b"release fixture")
+        self.assertTrue(os.access(executable, os.X_OK))
+        self.assertIn(str(executable), result.stdout)
+        self.assertEqual(debug.read_bytes(), b"old debug fixture")
+        self.assertTrue((self.root / "target/release/libgame_engine_godot.so").is_file())
+        self.assertFalse((self.root / "target/debug/libgame_engine_godot.so").exists())
+
+    def test_release_is_not_allowed_with_test_or_cli(self):
+        for extra in (["--test"], ["--cli"]):
             command = [
                 "python3",
                 str(SCRIPT),
@@ -468,6 +501,31 @@ class DepotBuildTests(unittest.TestCase):
         )
         self.assertNotEqual(result.returncode, 0)
         self.assertIn("not allowed", result.stderr)
+        self.assertEqual(self.records(), [])
+
+    def test_model_asset_selector_stages_current_receipt_without_historical_namespace(self):
+        selector = "model:wow:42:blp\n"
+        self._put(self.root, "godot/depot-test-assets.txt", selector)
+        for key in ("1" * 32, "2" * 32):
+            path = f"products/wow/{key}/textures/42.blp"
+            self._put(self.root, f"data/{path}", "unchanged texture")
+            document = {
+                "version": 1,
+                "assets": [{"product": "wow", "build_key": key,
+                            "fdid": 42, "kind": "blp", "path": path}],
+            }
+            self._put(self.root, "data/cache/model-asset-index.json", json.dumps(document))
+            result = self.run_test_mode()
+            self.assertEqual(result.returncode, 0, result.stderr)
+            self.assertEqual(self.records()[-1]["assets"], {path: "unchanged texture"})
+
+    def test_model_asset_selector_refuses_missing_receipt_even_with_old_file(self):
+        self._put(self.root, "godot/depot-test-assets.txt", "model:wow:42:blp\n")
+        self._put(self.root, "data/products/wow/old/textures/42.blp", "historical")
+        self._put(self.root, "data/cache/model-asset-index.json", '{"version":1,"assets":[]}')
+        result = self.run_test_mode()
+        self.assertNotEqual(result.returncode, 0)
+        self.assertIn("No model asset receipt for model:wow:42:blp", result.stderr)
         self.assertEqual(self.records(), [])
 
     def test_test_mode_forwards_cargo_args_stages_listed_assets_and_prints_log(self):

@@ -16,6 +16,8 @@ mod castbar_preview;
 #[cfg(debug_assertions)]
 mod db2_atlas_preview;
 mod dungeon_preview;
+#[cfg(debug_assertions)]
+mod error_hold_preview;
 mod flight_map_preview;
 mod follower_layout_preview;
 mod forevergaps_preview;
@@ -25,14 +27,19 @@ mod gameplay_panels_preview;
 mod guild_event_log_preview;
 #[cfg(debug_assertions)]
 mod guild_invite_preview;
+#[cfg(debug_assertions)]
+mod guild_news_preview;
 mod guild_preview;
 #[cfg(test)]
 mod guild_tests;
+mod hit_button;
 #[cfg(test)]
 mod housing_drag_input_tests;
 mod housing_glow;
 #[cfg(test)]
 mod housing_placed_list_input_tests;
+#[cfg(debug_assertions)]
+mod housing_settings_preview;
 mod hud_edit_controls_fixture;
 pub(crate) mod hud_edit_layout;
 mod hud_edit_preview;
@@ -40,12 +47,20 @@ mod hud_edit_preview;
 mod hud_edit_tests;
 mod icon_masks;
 pub(crate) mod input_queue;
+#[cfg(debug_assertions)]
+mod item_confirmation_shadow_preview;
+mod journal_section_flash;
+mod journeys_track_mask;
 mod launcher_preview;
 mod layout;
+#[cfg(debug_assertions)]
+mod loot_hit_preview;
 mod mentor_host;
 mod menu_primitives_preview;
 mod meter_preview;
 mod minimap_preview;
+#[cfg(debug_assertions)]
+mod mirror_timer_shadow_preview;
 mod mount_journal_host;
 mod options_dropdown;
 mod options_keybindings;
@@ -53,6 +68,10 @@ mod parts;
 mod party_preview;
 mod professions_preview;
 mod projection;
+#[cfg(debug_assertions)]
+mod pvp_bonus_preview;
+#[cfg(debug_assertions)]
+mod ready_check_preview;
 mod registration_preview;
 mod rosterfix_preview;
 #[cfg(test)]
@@ -62,6 +81,10 @@ mod scroll_lists;
 mod selection_list_tests;
 mod sidebarbinds_preview;
 mod spellbook_preview;
+#[cfg(debug_assertions)]
+mod stack_split_preview;
+#[cfg(debug_assertions)]
+mod static_popup_shadow_preview;
 mod target_cast_preview;
 mod toy_cooldown;
 mod toybox_preview;
@@ -146,6 +169,7 @@ pub struct RegistryUi {
     ui_parent: bool,
     ui_scale: Option<f32>,
     scroll_stepper: Option<scroll_lists::StepperHold>,
+    section_flash: Option<(u32, std::time::Instant)>,
 }
 
 /// Raw authored-slider input; the host applies its own policy and passes back a view.
@@ -317,6 +341,7 @@ impl RegistryModel {
             .get::<game_engine_ui_model::trading_post::View>()
         {
             game_engine_ui_model::trading_post::apply_cart_art(view, &mut self.registry);
+            game_engine_ui_model::trading_post::apply_refund_icon_blend(&mut self.registry);
             game_engine_ui_model::trading_post::apply_rotation_icon_positions(&mut self.registry);
         }
         if let Some(view) = self
@@ -486,6 +511,15 @@ impl RegistryModel {
                     );
                 }
             }
+        }
+        if let Some(view) = self
+            .shared
+            .get::<game_engine_ui_model::professions_frame::ProfessionView>()
+        {
+            game_engine_ui_model::professions_frame::apply_professions_art(
+                view,
+                &mut self.registry,
+            );
         }
         if let Some(view) = self
             .shared
@@ -753,6 +787,23 @@ impl RegistryModel {
 
     /// Original Enter in an edit box: login submits unless in flight; deletion confirms.
     fn submit(&self, actions: &mut VecDeque<String>) {
+        let profession_quantity = self
+            .shared
+            .get::<game_engine_ui_model::professions_frame::ProfessionView>()
+            .is_some()
+            && self
+                .registry
+                .focused_frame
+                .and_then(|id| self.registry.get(id))
+                .is_some_and(|frame| {
+                    frame.name.as_deref().is_some_and(|name| {
+                        name.starts_with("ProfessionQuality") && name.ends_with("Quantity")
+                    })
+                });
+        if profession_quantity {
+            actions.push_back("profession:quality:submit".into());
+            return;
+        }
         let connecting = self
             .shared
             .get::<login::SharedConnecting>()
@@ -826,6 +877,18 @@ impl RegistryModel {
             // Original: Enter confirms a pending deletion once its gate is ready.
             ScreenPostsetup::CharacterSelect => {
                 actions.push_back(CharSelectAction::ConfirmDeleteChar.to_string());
+            }
+            _ if self
+                .shared
+                .get::<game_engine_ui_model::adventure_guide::View>()
+                .is_some()
+                && self.registry.focused_frame.is_some()
+                && self.registry.focused_frame
+                    == self
+                        .registry
+                        .get_by_name(game_engine_ui_model::adventure_guide::SEARCH) =>
+            {
+                actions.push_back("journal:search-submit".into());
             }
             _ => {}
         }
@@ -931,6 +994,7 @@ impl ICanvasLayer for RegistryUi {
         }
         projection.advance_assisted_highlights(delta, &model.registry);
         projection.advance_housing_glows(&model.registry);
+        self.advance_journal_section_flash();
     }
 
     fn input(&mut self, event: Gd<godot::classes::InputEvent>) {
@@ -993,6 +1057,7 @@ impl ICanvasLayer for RegistryUi {
             ui_parent: false,
             ui_scale: None,
             scroll_stepper: None,
+            section_flash: None,
         }
     }
 }
@@ -2090,6 +2155,10 @@ impl RegistryUi {
             &mut registry,
             game_engine_ui_model::panel_style_data::MetalTopLeft::Portrait,
         )?;
+        register_metal_frame_style(
+            &mut registry,
+            game_engine_ui_model::panel_style_data::MetalTopLeft::Plain,
+        )?;
         self.show_viewport_screen_in(
             state,
             game_engine_ui_model::professions_frame::professions_screen,
@@ -2316,10 +2385,26 @@ impl RegistryUi {
         &mut self,
         state: game_engine_ui_model::group_frames_component::GroupFramesState,
     ) -> Result<(), String> {
-        self.show_viewport_screen(
+        if self.model.is_some() {
+            return Err("RegistryUi already has a screen".into());
+        }
+        let parent = self.hud_parent()?;
+        let mut registry = parent.registry();
+        register_flare_bronze_style(&mut registry, |fdid| {
+            let image = assets::decode_blp(&format!("data/textures/{fdid}.blp"))?;
+            Ok((image.pixels, image.width))
+        })?;
+        register_auction_popup_style(&mut registry);
+        register_metal_frame_style(
+            &mut registry,
+            game_engine_ui_model::panel_style_data::MetalTopLeft::Portrait,
+        )?;
+        self.show_viewport_screen_in(
             state,
             game_engine_ui_model::group_frames_component::group_frames_screen,
             ScreenPostsetup::PortraitParty,
+            registry,
+            parent,
         )
     }
 
@@ -2469,6 +2554,38 @@ impl RegistryUi {
             .as_mut()
             .ok_or("Native projection not initialized")?
             .sync(&mut model.registry)
+    }
+
+    /// Source SetEnabled for a numeric LineEdit; keep disabled tiers out of keyboard focus.
+    pub fn set_line_edit_enabled(&mut self, name: &str, enabled: bool) -> Result<(), String> {
+        let model = self
+            .model
+            .as_ref()
+            .ok_or("Registry model not initialized")?;
+        let id = model
+            .registry
+            .get_by_name(name)
+            .ok_or_else(|| format!("Missing frame {name}"))?;
+        let node = self
+            .projection
+            .as_ref()
+            .ok_or("Native projection not initialized")?
+            .node(id)
+            .ok_or_else(|| format!("Missing native frame {name}"))?;
+        let mut edit = node
+            .try_cast::<godot::classes::LineEdit>()
+            .map_err(|_| format!("{name} is not a LineEdit"))?;
+        edit.set_editable(enabled);
+        let focus = if enabled {
+            godot::classes::control::FocusMode::ALL
+        } else {
+            godot::classes::control::FocusMode::NONE
+        };
+        edit.set_focus_mode(focus);
+        if !enabled && edit.has_focus() {
+            edit.release_focus();
+        }
+        Ok(())
     }
 
     /// Set a frame's alpha without rebuilding the screen (animated art).
@@ -2716,6 +2833,50 @@ impl RegistryUi {
         }
         model.shared.insert(state);
         self.sync_model()
+    }
+
+    /// Retail FocusSectionCallback centers the authored section after layout.
+    pub fn focus_journal_section(&mut self, section: u32) -> Result<(), String> {
+        let model = self.model.as_mut().ok_or("Journal model missing")?;
+        let view = model
+            .shared
+            .get::<game_engine_ui_model::adventure_guide::View>()
+            .ok_or("Journal state missing")?;
+        let section = view
+            .catalog
+            .sections
+            .get(&section)
+            .ok_or("Journal section missing")?;
+        // The overview root is body text rather than a header. Retail's
+        // FocusSection returns without scrolling/flashing overview sections.
+        if section.kind == 3 {
+            return Ok(());
+        }
+        let section_id = section.id;
+        let name = format!("JournalSection{section_id}");
+        let target = model
+            .registry
+            .get_by_name(&name)
+            .and_then(|id| model.registry.get(id))
+            .and_then(|frame| frame.layout_rect.as_ref())
+            .ok_or_else(|| format!("Journal search target {name} has no layout"))?;
+        let list = game_engine_ui_model::adventure_guide::LIST;
+        let bounds = model
+            .registry
+            .get_by_name(list)
+            .and_then(|id| model.registry.get(id))
+            .and_then(|frame| frame.layout_rect.as_ref())
+            .ok_or("Journal viewport has no layout")?;
+        let current = model
+            .registry
+            .scroll_lists
+            .get(list)
+            .ok_or("Journal scroll state missing")?
+            .first_row;
+        let offset = (current as f32 + target.y - bounds.y - bounds.height / 2.).max(0.) as usize;
+        model.registry.scroll_lists.scroll_to(list, offset);
+        self.sync_model()?;
+        self.start_journal_section_flash(section_id)
     }
 
     /// Name and screen rect `[x, y, w, h]` of the button under the pointer.
@@ -3085,12 +3246,64 @@ impl RegistryUi {
                 }
                 model.update_input_widgets(UiInput::Blur(id), &mut self.slider_events);
             }
+            UiInput::Focus(id) | UiInput::Blur(id)
+                if model
+                    .shared
+                    .get::<game_engine_ui_model::adventure_guide::View>()
+                    .is_some()
+                    && model
+                        .registry
+                        .get_by_name(game_engine_ui_model::adventure_guide::SEARCH)
+                        == Some(id) =>
+            {
+                let focused = matches!(event, UiInput::Focus(_));
+                self.actions.push_back(
+                    if focused {
+                        "journal:search-focus"
+                    } else {
+                        "journal:search-blur"
+                    }
+                    .into(),
+                );
+                model.update_input_widgets(event, &mut self.slider_events);
+            }
             UiInput::Submit => model.submit(&mut self.actions),
             UiInput::SearchPreviewStep(step) => {
-                self.actions.push_back(format!("talent:search_move:{step}"))
+                let action = if model
+                    .shared
+                    .get::<game_engine_ui_model::adventure_guide::View>()
+                    .is_some()
+                {
+                    format!("journal:search-move:{step}")
+                } else {
+                    format!("talent:search_move:{step}")
+                };
+                self.actions.push_back(action);
             }
             UiInput::Hover(id, entered) => {
                 model.update_input_widgets(UiInput::Hover(id, entered), &mut self.slider_events);
+                if entered
+                    && model
+                        .shared
+                        .get::<game_engine_ui_model::adventure_guide::View>()
+                        .is_some()
+                {
+                    let name = model
+                        .registry
+                        .get(id)
+                        .and_then(|frame| frame.name.as_deref())
+                        .unwrap_or("");
+                    let index = if name == "JournalSearchAll" {
+                        Some(game_engine_ui_model::adventure_search::PREVIEW_LIMIT)
+                    } else {
+                        name.strip_prefix("JournalSearchPreview")
+                            .and_then(|value| value.parse::<usize>().ok())
+                    };
+                    if let Some(index) = index {
+                        self.actions
+                            .push_back(format!("journal:search-hover:{index}"));
+                    }
+                }
                 if entered && matches!(model.postsetup, ScreenPostsetup::Spellbook) {
                     let name = model
                         .registry

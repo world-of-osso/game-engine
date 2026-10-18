@@ -1,5 +1,7 @@
 use game_engine_ui_model::loot_data::LootState;
-use game_engine_ui_model::loot_frame_component::{FRAME_NAME, loot_frame_screen};
+use game_engine_ui_model::loot_frame_component::{
+    FRAME_NAME, LootFrameRow, LootFrameState, loot_frame_screen,
+};
 use game_engine_ui_model::loot_frame_data::{LootFrameAction, build_state, request_for_action};
 use shared::protocol::{LootContent, LootResponse, LootSlot};
 use ui_toolkit::frame::WidgetData;
@@ -12,6 +14,170 @@ fn text(registry: &FrameRegistry, name: &str) -> String {
         WidgetData::FontString(font) => font.text.clone(),
         _ => panic!("{name} must be a font string"),
     }
+}
+
+#[test]
+fn loot_quality_label_inherits_plain_tiny_font_both_skins() {
+    use ui_toolkit::atlas::{ActiveSkin, set_thread_skin};
+    use ui_toolkit::layout_values::Val;
+    use ui_toolkit::widgets::font_string::GameFont;
+
+    game_engine_ui_model::paths::set_data_root(
+        std::path::PathBuf::from(env!("CARGO_MANIFEST_DIR")).join("../../data"),
+    )
+    .unwrap();
+    for skin in [ActiveSkin::Modern, ActiveSkin::Forever] {
+        set_thread_skin(skin);
+        let mut shared = SharedContext::new();
+        shared.insert(LootFrameState {
+            visible: true,
+            left: 850.0,
+            top: 430.0,
+            rows: vec![
+                LootFrameRow {
+                    slot: 5,
+                    icon_fdid: 133788,
+                    name: "3 Copper".into(),
+                    color: "1,1,1,1",
+                    count: 1,
+                    quality_text: None,
+                },
+                LootFrameRow {
+                    slot: 9,
+                    icon_fdid: 132350,
+                    name: "Sharp Shortsword".into(),
+                    color: "0.12,1,0,1",
+                    count: 2,
+                    quality_text: Some("Uncommon"),
+                },
+            ],
+        });
+        let mut registry = FrameRegistry::new(1920.0, 1080.0);
+        Screen::new(loot_frame_screen).sync(&shared, &mut registry);
+        assert!(
+            registry
+                .get_by_name("LootFrameElement1QualityText")
+                .is_none()
+        );
+        for name in [
+            "LootFrameTitleText",
+            "LootFrameElement1Text",
+            "LootFrameElement2Text",
+            "LootFrameElement2ItemCount",
+        ] {
+            let frame = registry.get(registry.get_by_name(name).unwrap()).unwrap();
+            let Some(WidgetData::FontString(label)) = &frame.widget_data else {
+                panic!("{name} must remain text");
+            };
+            assert_eq!(label.shadow_color, Some([0.0, 0.0, 0.0, 1.0]), "{name}");
+            assert_eq!(label.shadow_offset, [1.0, -1.0]);
+        }
+        for (name, action) in [
+            ("LootFrameElement1Item", "loot_slot:5"),
+            ("LootFrameElement2Item", "loot_slot:9"),
+            ("LootFrameCloseButton", "loot_close"),
+        ] {
+            let frame = registry.get(registry.get_by_name(name).unwrap()).unwrap();
+            assert_eq!(frame.onclick.as_deref(), Some(action));
+        }
+        let frame = registry
+            .get(
+                registry
+                    .get_by_name("LootFrameElement2QualityText")
+                    .unwrap(),
+            )
+            .unwrap();
+        assert_eq!((frame.width.value(), frame.height.value()), (96.0, 10.0));
+        assert_eq!(
+            (frame.position.left, frame.position.top),
+            (Val::Px(98.0), Val::Px(2.0))
+        );
+        let Some(WidgetData::FontString(label)) = &frame.widget_data else {
+            panic!("QualityText must remain text");
+        };
+        assert_eq!(label.text, "Uncommon");
+        assert_eq!(label.font, GameFont::FrizQuadrata);
+        assert_eq!(label.font_size, 8.0);
+        assert_eq!(label.color, [1.0; 4]);
+        assert_eq!(
+            label.shadow_color, None,
+            "{skin:?}: SystemFont_Tiny2 has no Shadow"
+        );
+        assert_eq!(label.shadow_offset, [0.0, 0.0]);
+    }
+}
+
+#[test]
+fn loot_item_hit_area_preserves_source_geometry_and_slot_actions_both_skins() {
+    use ui_toolkit::atlas::{ActiveSkin, set_thread_skin};
+    use ui_toolkit::layout_values::Val;
+
+    game_engine_ui_model::paths::set_data_root(
+        std::path::PathBuf::from(env!("CARGO_MANIFEST_DIR")).join("../../data"),
+    )
+    .unwrap();
+    for skin in [ActiveSkin::Modern, ActiveSkin::Forever] {
+        set_thread_skin(skin);
+        let mut shared = SharedContext::new();
+        shared.insert(LootFrameState {
+            visible: true,
+            rows: vec![
+                LootFrameRow {
+                    slot: 5,
+                    icon_fdid: 133788,
+                    name: "3 Copper".into(),
+                    color: "1,1,1,1",
+                    count: 1,
+                    quality_text: None,
+                },
+                LootFrameRow {
+                    slot: 9,
+                    icon_fdid: 132350,
+                    name: "Sharp Shortsword".into(),
+                    color: "0.12,1,0,1",
+                    count: 2,
+                    quality_text: Some("Uncommon"),
+                },
+            ],
+            left: 400.,
+            top: 300.,
+        });
+        let mut registry = FrameRegistry::new(1920., 1080.);
+        Screen::new(loot_frame_screen).sync(&shared, &mut registry);
+        for (index, slot) in [(1, 5), (2, 9)] {
+            let row_name = format!("LootFrameElement{index}");
+            let row = registry
+                .get(registry.get_by_name(&row_name).unwrap())
+                .unwrap();
+            assert_eq!(row.onclick, None, "{skin:?}: row gutters cannot loot");
+            assert!(!row.mouse_enabled);
+            let item_name = format!("{row_name}Item");
+            let item = registry
+                .get(registry.get_by_name(&item_name).unwrap())
+                .unwrap();
+            assert_eq!((item.width.value(), item.height.value()), (37., 37.));
+            assert_eq!(
+                (item.position.left, item.position.top),
+                (Val::Px(5.), Val::Px(4.))
+            );
+            assert_eq!(item.hit_rect_insets, [0., -157., 0., 0.]);
+            assert!(item.mouse_enabled);
+            assert_eq!(
+                request_for_action(item.onclick.as_deref().unwrap()),
+                Some(LootFrameAction::Take { slot })
+            );
+            let Some(WidgetData::Button(button)) = &item.widget_data else {
+                panic!("{item_name} must dispatch on release, not row press");
+            };
+            assert!(
+                !button.use_default_skin,
+                "Input must not add replacement paint"
+            );
+            assert!(button.normal_texture.is_none() && button.pushed_texture.is_none());
+            assert!(button.highlight_texture.is_none() && button.disabled_texture.is_none());
+        }
+    }
+    set_thread_skin(ActiveSkin::Modern);
 }
 
 #[test]
@@ -63,7 +229,7 @@ fn server_removal_rebinds_the_remaining_card_and_closure_hides_the_frame() {
     );
     assert!(registry.get_by_name("LootFrameElement2").is_none());
     let remaining = registry
-        .get(registry.get_by_name("LootFrameElement1").unwrap())
+        .get(registry.get_by_name("LootFrameElement1Item").unwrap())
         .unwrap();
     assert_eq!(
         request_for_action(remaining.onclick.as_deref().unwrap()),

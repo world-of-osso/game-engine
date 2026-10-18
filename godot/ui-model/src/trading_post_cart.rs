@@ -66,23 +66,30 @@ impl View {
                 }
             })
             .collect();
-        let mut all_other = true;
-        for id in &item_ids {
+        self.select_default_cart_items(&item_ids)?;
+        if self.cart_selected.is_empty()
+            && let Some(id) = item_ids.first()
+        {
+            self.select_cart_item(*id)?;
+        }
+        Ok(())
+    }
+
+    /// AddItemToDataProvider defaults only unoccupied wearable slots, retaining OTHER.
+    fn select_default_cart_items(&mut self, item_ids: &[u32]) -> Result<(), String> {
+        for id in item_ids {
             let key = selection_key(self.cart_inventory_type(*id)?);
-            if key == 0 {
-                continue;
-            }
-            all_other = false;
             let occupied = self.cart_selected.contains_key(&key)
                 || key == 17
                     && (self.cart_selected.contains_key(&21)
                         || self.cart_selected.contains_key(&22));
-            if !occupied {
-                self.select_cart_item(*id)?;
+            if key == 0 || occupied {
+                continue;
             }
-        }
-        if all_other && let Some(id) = item_ids.first() {
-            self.select_cart_item(*id)?;
+            if matches!(key, 21 | 22) {
+                self.cart_selected.remove(&17);
+            }
+            self.cart_selected.insert(key, *id);
         }
         Ok(())
     }
@@ -142,21 +149,60 @@ impl View {
     }
 
     pub fn can_add_to_cart(&self) -> bool {
-        let frozen = self
-            .snapshot
-            .as_ref()
-            .and_then(|snapshot| snapshot.frozen_item_id);
-        self.selected_item().is_some_and(|row| {
-            !self.pending
-                && !row.purchased
-                && !row.collected
-                && row.refund_seconds == 0
-                && frozen != Some(row.id)
-                && row.grant_unavailable.is_none()
-        })
+        self.selected.is_some_and(|id| self.can_cart_product(id))
+    }
+
+    /// Shared footer/row eligibility; hover must never substitute selected product identity.
+    pub fn can_cart_product(&self, id: u32) -> bool {
+        let Some(snapshot) = &self.snapshot else {
+            return false;
+        };
+        snapshot
+            .items
+            .iter()
+            .find(|row| row.id == id)
+            .is_some_and(|row| {
+                !self.pending
+                    && !row.purchased
+                    && !row.collected
+                    && row.refund_seconds == 0
+                    && snapshot.frozen_item_id != Some(id)
+                    && row.grant_unavailable.is_none()
+            })
+    }
+
+    fn toggle_product_cart(&mut self, id: u32) -> Result<(), String> {
+        if !self.can_cart_product(id) {
+            return Ok(());
+        }
+        if self.cart.contains(&id) {
+            self.remove_from_cart(id);
+        } else {
+            self.cart.push(id);
+            if self.cart_visible {
+                let row = self
+                    .cart_items()
+                    .into_iter()
+                    .find(|row| row.id == id)
+                    .expect("cartable product");
+                let items = if row.category_id == 8 {
+                    row.preview_item_ids.clone()
+                } else {
+                    vec![row.item_id]
+                };
+                self.select_default_cart_items(&items)?;
+            }
+        }
+        Ok(())
     }
 
     pub(super) fn click_cart(&mut self, action: &str) -> Result<(), String> {
+        if let Some(id) = action.strip_prefix("perks:cart:toggle:") {
+            return self.toggle_product_cart(
+                id.parse()
+                    .map_err(|_| "Invalid Trading Post cart product")?,
+            );
+        }
         if let Some(id) = action.strip_prefix("perks:cart:item:") {
             let id = id.parse().map_err(|_| "Invalid Trading Post cart item")?;
             let present = self
@@ -201,7 +247,7 @@ impl View {
                 self.initialize_cart_selection()?;
                 self.cart_visible = !self.cart.is_empty();
             }
-            "perks:cart:close" => self.cart_visible = false,
+            "perks:cart:close" => self.close_cart(),
             "perks:cart:clear" if !self.cart.is_empty() => self.confirm = Some("clear-cart".into()),
             "perks:cart:clear" => {}
             "perks:cart:checkout" if self.can_checkout() => {
@@ -226,14 +272,22 @@ impl View {
         self.cart_selected.retain(|_, item| !removed.contains(item));
         self.cart.retain(|item| *item != id);
         if self.cart.is_empty() {
-            self.cart_visible = false;
+            self.close_cart();
         }
+    }
+
+    fn close_cart(&mut self) {
+        // Retail restores product selection here even when our retained ID is unchanged.
+        if self.cart_visible && self.visible && self.selected_item().is_some() {
+            self.selection_sounds += 1;
+        }
+        self.cart_visible = false;
     }
 
     pub fn clear_cart(&mut self) {
         self.cart.clear();
         self.cart_selected.clear();
-        self.cart_visible = false;
+        self.close_cart();
         self.cart_hover = None;
         self.cart_item_hover = None;
     }

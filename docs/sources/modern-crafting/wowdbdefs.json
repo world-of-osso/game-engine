@@ -1,0 +1,46 @@
+[
+  {
+    "url": "https://raw.githubusercontent.com/wowdev/WoWDBDefs/d6f50d4f351193e84226aa62a36faa0f58528afa/definitions/ModifiedCraftingSpellSlot.dbd",
+    "sha256": "0f56af2e4f9472622e5dd100abcdf0f91dbe4d0bf75fcaa1a4a5f0ec843a2b1a"
+  },
+  {
+    "url": "https://raw.githubusercontent.com/wowdev/WoWDBDefs/d6f50d4f351193e84226aa62a36faa0f58528afa/definitions/ModifiedCraftingReagentSlot.dbd",
+    "sha256": "6ee32faaeb3eea840ec7ece1988a0749bcfd4c1343d250a8e879dfa6d94e0c12"
+  },
+  {
+    "url": "https://raw.githubusercontent.com/wowdev/WoWDBDefs/d6f50d4f351193e84226aa62a36faa0f58528afa/definitions/MCRSlotXMCRCategory.dbd",
+    "sha256": "3486a5e9a9087400b11a60168ded61a6350c235d7cfa77b462da64166054ea94"
+  },
+  {
+    "url": "https://raw.githubusercontent.com/wowdev/WoWDBDefs/d6f50d4f351193e84226aa62a36faa0f58528afa/definitions/ModifiedCraftingCategory.dbd",
+    "sha256": "b874d099d3241d12df4984b4be93127f4c61e711ecf832cdf16845d264214e86"
+  },
+  {
+    "url": "https://raw.githubusercontent.com/wowdev/WoWDBDefs/d6f50d4f351193e84226aa62a36faa0f58528afa/definitions/CraftingReagentQuality.dbd",
+    "sha256": "6a4b60e3db89fb33b814043232ebf2ef8caf004d15270545c3d2f83af3ba8084"
+  },
+  {
+    "url": "https://raw.githubusercontent.com/wowdev/WoWDBDefs/d6f50d4f351193e84226aa62a36faa0f58528afa/definitions/ModifiedCraftingItem.dbd",
+    "sha256": "1ccc6670976bf9de0f2a36f014aabff06d62426eaaf4abf18ed7f10261a885bb"
+  },
+  {
+    "url": "https://raw.githubusercontent.com/wowdev/WoWDBDefs/d6f50d4f351193e84226aa62a36faa0f58528afa/definitions/ProfessionExpansion.dbd",
+    "sha256": "bd5808ea571485c4a9d23ad1de6f40a2d19a17113062c8e681cd8e01cbec4d36"
+  },
+  {
+    "url": "https://raw.githubusercontent.com/wowdev/WoWDBDefs/d6f50d4f351193e84226aa62a36faa0f58528afa/definitions/CurrencyTypes.dbd",
+    "sha256": "d7017c5654d03b2fe9631e469924748be6e310143709a9550c99f2fe630334a2"
+  },
+  {
+    "url": "https://raw.githubusercontent.com/wowdev/WoWDBDefs/d6f50d4f351193e84226aa62a36faa0f58528afa/definitions/CraftingDifficultyQuality.dbd",
+    "sha256": "0aedd9f59b5572daef63bc2052c13ce00748ac1b82b13524128f1f7037b19bb0"
+  },
+  {
+    "url": "https://raw.githubusercontent.com/wowdev/WoWDBDefs/d6f50d4f351193e84226aa62a36faa0f58528afa/definitions/CraftingData.dbd",
+    "sha256": "d73b9963fc5d70ddd15da19df9a5ece886e8740f3721b8cb2751a12bff212a27"
+  },
+  {
+    "url": "https://raw.githubusercontent.com/wowdev/WoWDBDefs/d6f50d4f351193e84226aa62a36faa0f58528afa/definitions/ProfessionEffect.dbd",
+    "sha256": "a2b3c527002b64a9ad0b4188a332f20dd95492d9dfc28713e701892ff4dc29f0"
+  }
+]

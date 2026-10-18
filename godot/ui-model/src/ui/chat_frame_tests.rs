@@ -64,6 +64,32 @@ fn toyfx14_dice_received_item_markup_renders_authored_label_colour_and_unsplit_t
 }
 
 #[test]
+fn guild_perks_received_spell_link_renders_authored_label_and_real_tooltip_identity() {
+    let mut received = message(ChatChannelType::Emote, "Alice", "");
+    received.text = "shares |cff71d5ff|Hspell:78633|h[Mount Up]|h|r.".into();
+    let line = chat_message_line(&received);
+    assert_eq!(
+        line.plain_text(|_| "not the authored label".into()),
+        "Alice shares [Mount Up]."
+    );
+    let rows = wrap_chat_line(
+        &line,
+        |_| "not the authored label".into(),
+        30.0,
+        |value| value.chars().count() as f32,
+    );
+    let links: Vec<_> = rows
+        .iter()
+        .flat_map(|row| &row.runs)
+        .filter(|run| run.spell_id.is_some())
+        .collect();
+    assert_eq!(links.len(), 1);
+    assert_eq!(links[0].spell_id, Some(78633));
+    assert_eq!(links[0].text, "[Mount Up]");
+    assert_eq!(links[0].color, [113.0 / 255.0, 213.0 / 255.0, 1.0, 1.0]);
+}
+
+#[test]
 fn plain_text_is_said_and_channel_commands_pick_their_channel() {
     assert_eq!(parse_chat_input("hello there", None), say("hello there"));
     assert_eq!(parse_chat_input("/s hi", None), say("hi"));
@@ -102,6 +128,17 @@ fn whisper_and_reply_target_the_named_player() {
     );
     assert_eq!(parse_chat_input("/r thanks", None), ChatCommand::None);
     assert_eq!(parse_chat_input("/w Bob", None), ChatCommand::None);
+}
+
+#[test]
+fn hug247_slash_uses_the_targeted_emote_action() {
+    for text in ["/hug", "/HUG"] {
+        assert_eq!(
+            parse_chat_input(text, None),
+            ChatCommand::Emote(EmoteKind::Hug),
+            "{text}"
+        );
+    }
 }
 
 #[test]

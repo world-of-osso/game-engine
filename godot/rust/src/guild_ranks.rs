@@ -7,6 +7,17 @@ use game_engine_ui_model::guild_ranks::{GuildCommand, GuildRanksSession};
 use godot::prelude::*;
 use shared::protocol::{GuildRankRequest, GuildRanksState};
 
+#[godot_api(secondary)]
+impl GameClient {
+    /// Read only the real received invitation; never manufactures a tabard or membership.
+    #[func]
+    pub fn guild_invitation_observation(&self) -> GString {
+        let json = serde_json::to_string(&self.guild_ranks.session.invitation)
+            .expect("serialize received guild invitation");
+        GString::from(json.as_str())
+    }
+}
+
 #[derive(Default)]
 pub(crate) struct GuildRanks {
     session: GuildRanksSession,
@@ -56,8 +67,7 @@ impl GameClient {
         &mut self,
         invitation: shared::protocol::GuildInvitation,
     ) {
-        self.guild_ranks.session.invitation = Some(invitation);
-        self.guild_ranks.session.invitation_waiting = false;
+        self.guild_ranks.session.receive_invitation(invitation);
     }
     pub(super) fn receive_guild_invite_result(
         &mut self,
@@ -134,6 +144,81 @@ impl GameClient {
         Ok(())
     }
 
+    pub(super) fn receive_guild_news(
+        &mut self,
+        news: shared::protocol::GuildNewsState,
+    ) -> Result<(), FrameError> {
+        if self
+            .guild_ranks
+            .session
+            .state()
+            .is_none_or(|state| state.ranks.is_empty())
+        {
+            return Ok(());
+        }
+        if let Some(error) = news.error {
+            let message = match error {
+                shared::protocol::GuildNewsError::NotInGuild => "You are not in a guild.",
+                shared::protocol::GuildNewsError::Permissions => {
+                    "You don't have permission to do that."
+                }
+                shared::protocol::GuildNewsError::EntryNotFound => {
+                    "That guild news entry is no longer available."
+                }
+            };
+            self.guild_notice(message, true)?;
+        }
+        self.guild_ranks.session.news.apply(news);
+        Ok(())
+    }
+
+    pub(crate) fn guild_news_tooltip(
+        &mut self,
+        hit: &crate::tooltips::HoveredFrame,
+    ) -> Option<crate::tooltips::HoveredTooltip> {
+        use game_engine_ui_model::game_tooltip::{GameTooltip, OwnerSide};
+        use game_engine_ui_model::tooltip_presentation::{TooltipPresentation, description_lines};
+        let ui = hit.ui.bind();
+        let (owner, id) = crate::tooltips::named_ancestor(ui.registry()?, hit.frame, |frame| {
+            frame
+                .name
+                .as_deref()?
+                .strip_prefix("CommunitiesGuildNewsEntry")?
+                .parse::<u64>()
+                .ok()
+        })?;
+        drop(ui);
+        let entry = self.guild_ranks.session.news.entry(id)?;
+        let tooltip = match &entry.kind {
+            shared::protocol::GuildNewsKind::PlayerAchievement {
+                name, description, ..
+            } => GameTooltip::new(
+                TooltipPresentation {
+                    title: name.clone(),
+                    lines: description_lines(description, [1.0; 4]),
+                    ..Default::default()
+                },
+                None,
+            ),
+            shared::protocol::GuildNewsKind::ItemLooted { item_id, .. }
+            | shared::protocol::GuildNewsKind::ItemCrafted { item_id, .. }
+            | shared::protocol::GuildNewsKind::ItemPurchased { item_id, .. } => {
+                let item = game_engine_ui_model::item_catalog::item_catalog_entry(*item_id)?;
+                let slot = game_engine_ui_model::game_tooltip::item::named_item(
+                    *item_id,
+                    &item.name,
+                    item.quality,
+                    1,
+                );
+                game_engine_ui_model::game_tooltip::item::item_game_tooltip(&slot, None)
+            }
+        };
+        let rect = self.owner_rect(&hit.ui, owner)?;
+        Some(crate::tooltips::HoveredTooltip::text(
+            tooltip.owned(rect, OwnerSide::Right),
+        ))
+    }
+
     fn guild_notice(&mut self, text: &str, error: bool) -> Result<(), FrameError> {
         game_engine_ui_model::chat_frame::add_system_line(&mut self.chat.model.log, text);
         if error {
@@ -189,6 +274,14 @@ impl GameClient {
         Ok(())
     }
 
+    pub(super) fn dismiss_guild_invitation(&mut self) -> Result<bool, FrameError> {
+        let Some(command) = self.guild_ranks.session.dismiss_invitation() else {
+            return Ok(false);
+        };
+        self.send_guild_command(command)?;
+        Ok(true)
+    }
+
     pub(super) fn close_guild_ranks(&mut self) -> bool {
         let visible = self.guild_ranks.session.close();
         self.guild_ranks.free_ui();
@@ -207,12 +300,16 @@ impl GameClient {
         }
         Ok(())
     }
-    pub(super) fn update_guild_ranks(&mut self) -> Result<(), FrameError> {
+    pub(super) fn update_guild_ranks(&mut self, delta: f64) -> Result<(), FrameError> {
         if self.account.session.screen != SessionScreen::InWorld {
             self.close_guild_ranks();
             self.guild_ranks
                 .synchronize_session_screen(self.account.session.screen);
             return Ok(());
+        }
+        self.guild_ranks.session.roster_online_only = !self.client_options.communities_show_offline;
+        if let Some(command) = self.guild_ranks.session.advance_invitation(delta) {
+            self.send_guild_command(command)?;
         }
         if !self.guild_ranks.session.visible && self.guild_ranks.session.invitation.is_none() {
             self.guild_ranks.free_ui();
@@ -231,10 +328,18 @@ impl GameClient {
             if action.is_empty() {
                 break;
             }
+            if action == "guild:news_view" {
+                self.open_guild_news_subject()?;
+                continue;
+            }
+            let previous_online_only = self.guild_ranks.session.roster_online_only;
             let previous_editor = self.guild_ranks.session.note_editor.clone();
             let texts = read_inputs(&mut ui, &self.guild_ranks.session);
             if let Some(request) = self.guild_ranks.session.click(&action, &texts) {
                 self.send_guild_rank_request(request)?;
+            }
+            if previous_online_only != self.guild_ranks.session.roster_online_only {
+                self.save_guild_show_offline()?;
             }
             if previous_editor != self.guild_ranks.session.note_editor
                 && self.guild_ranks.session.note_editor.is_some()
@@ -254,7 +359,20 @@ impl GameClient {
                 return Err(error);
             }
         }
-        while let Some((action, right, _)) = ui.bind_mut().pop_alt_click() {
+        while let Some((action, right, shift)) = ui.bind_mut().pop_alt_click() {
+            if shift && !right && action.starts_with("guild:perk:") {
+                let id = action
+                    .trim_start_matches("guild:perk:")
+                    .parse::<u32>()
+                    .map_err(|error| format!("Guild perk spell ID: {error}"))?;
+                self.insert_guild_perk_chat_link(id)?;
+            }
+            if right && action.starts_with("guild:news_entry:") {
+                self.guild_ranks.session.click(
+                    &action.replacen("guild:news_entry:", "guild:news_menu:", 1),
+                    &InputTexts::default(),
+                );
+            }
             if right && action.starts_with("guild:member:") {
                 self.guild_ranks.session.click(
                     &action.replacen("guild:member:", "guild:member-menu:", 1),
@@ -264,7 +382,53 @@ impl GameClient {
         }
         Ok(())
     }
+    fn open_guild_news_subject(&mut self) -> Result<(), FrameError> {
+        let entry = self
+            .guild_ranks
+            .session
+            .news
+            .menu
+            .and_then(|id| self.guild_ranks.session.news.entry(id))
+            .cloned();
+        self.guild_ranks.session.news.menu = None;
+        match entry.map(|entry| entry.kind) {
+            Some(shared::protocol::GuildNewsKind::PlayerAchievement { achievement_id, .. }) => {
+                let requests = self
+                    .account
+                    .achievements
+                    .action(&format!("achievement:open:{achievement_id}"));
+                self.send_achievement_requests(requests)?;
+            }
+            Some(
+                shared::protocol::GuildNewsKind::ItemLooted { item_id, .. }
+                | shared::protocol::GuildNewsKind::ItemCrafted { item_id, .. }
+                | shared::protocol::GuildNewsKind::ItemPurchased { item_id, .. },
+            ) => {
+                self.insert_guild_news_item_link(item_id)?;
+            }
+            None => {}
+        }
+        Ok(())
+    }
+
+    fn save_guild_show_offline(&mut self) -> Result<(), String> {
+        use game_engine_core::client_options_data::{
+            load_options_file_with_legacy, options_path, save_options_file_to_path,
+        };
+        let legacy_path = self.data_root.join("ui/options_settings.ron");
+        let mut file = load_options_file_with_legacy(&legacy_path);
+        file.communities_show_offline = !self.guild_ranks.session.roster_online_only;
+        save_options_file_to_path(&options_path(), &file)?;
+        self.client_options = file;
+        Ok(())
+    }
+
     fn sync_guild_ranks(&mut self) -> Result<(), String> {
+        if self.guild_ranks.session.communities_tab
+            == game_engine_ui_model::guild_ranks::CommunitiesTab::Benefits
+        {
+            game_engine_ui_model::guild_perks::load_catalog()?;
+        }
         let scale = self.effective_ui_scale();
         let state = self.guild_ranks.session.clone();
         if self.guild_ranks.ui.is_none() {
@@ -374,6 +538,7 @@ mod tests {
             guild_id: 7,
             guild_name: "Raid Team".into(),
             inviter_name: "Alice".into(),
+            tabard: None,
         };
         let mut guild = GuildRanks::default();
         guild.session.invitation = Some(invitation.clone());

@@ -12,6 +12,8 @@ use std::{
     thread,
     time::{Duration, Instant, SystemTime, UNIX_EPOCH},
 };
+const PRIVATE_PROOF_SUPPORT_COUNT: usize = 19;
+
 struct Peer {
     index: usize,
     username: String,
@@ -22,6 +24,9 @@ struct Peer {
     entered: bool,
     map: Option<u32>,
     snapshot: Option<PvpSnapshot>,
+    group_roster: Option<GroupRosterSnapshot>,
+    group_invite: Option<GroupInvitePrompt>,
+    group_notice: Option<GroupCommandResponse>,
     replica: Replica,
     inventory: Option<InventorySnapshot>,
     equipment: Option<EquipmentSnapshot>,
@@ -33,6 +38,13 @@ struct Peer {
 }
 impl Peer {
     fn receive(&mut self, message: ProtocolMessage) -> Result<(), String> {
+        if message.is::<GroupRosterSnapshot>()
+            || message.is::<GroupInvitePrompt>()
+            || message.is::<GroupCommandResponse>()
+            || message.is::<GroupInviteCancelled>()
+        {
+            return self.receive_group(message);
+        }
         let inventory_receipt = message.is::<InventorySnapshot>()
             || message.is::<EquipmentSnapshot>()
             || message.is::<InventoryDelta>()
@@ -176,6 +188,34 @@ impl Peer {
         Ok(())
     }
 
+    fn receive_group(&mut self, message: ProtocolMessage) -> Result<(), String> {
+        if message.is::<GroupRosterSnapshot>() {
+            self.group_roster = Some(
+                message
+                    .downcast::<GroupRosterSnapshot>()
+                    .map_err(|_| "group roster type")?,
+            );
+        } else if message.is::<GroupInvitePrompt>() {
+            self.group_invite = Some(
+                message
+                    .downcast::<GroupInvitePrompt>()
+                    .map_err(|_| "group invitation type")?,
+            );
+        } else if message.is::<GroupCommandResponse>() {
+            self.group_notice = Some(
+                message
+                    .downcast::<GroupCommandResponse>()
+                    .map_err(|_| "group notice type")?,
+            );
+        } else {
+            message
+                .downcast::<GroupInviteCancelled>()
+                .map_err(|_| "group cancellation type")?;
+            self.group_invite = None;
+        }
+        Ok(())
+    }
+
     fn receive_inventory(&mut self, message: ProtocolMessage) -> Result<(), String> {
         if message.is::<InventorySnapshot>() {
             self.inventory = Some(
@@ -216,6 +256,23 @@ impl Peer {
 
     fn send_action(&self, action: &str) -> Result<(), String> {
         match action {
+            "group-accept" => {
+                self.group_invite
+                    .as_ref()
+                    .ok_or("no received group invitation")?;
+                self.bridge
+                    .send::<_, GroupChannel>(RespondGroupInvite { accept: true })
+            }
+            _ if action.starts_with("group-invite:") => {
+                let name = action
+                    .strip_prefix("group-invite:")
+                    .expect("matched command");
+                if name.is_empty() {
+                    return Err("group invite requires a character name".into());
+                }
+                self.bridge
+                    .send::<_, GroupChannel>(GroupInviteIntent { name: name.into() })
+            }
             "queue" => self.bridge.send::<_, PvpChannel>(QueueForBattleground {
                 battleground_id: self.battleground_id,
             }),
@@ -358,6 +415,8 @@ impl Peer {
     fn write_state(&self, directory: &Path) -> Result<(), String> {
         let value = serde_json::json!({"entered": self.entered,"map":self.map,
             "snapshot":self.snapshot,"npcs":self.observed_npcs(),
+            "character_name":self.character_name,"group_roster":self.group_roster,
+            "group_invite":self.group_invite,"group_notice":self.group_notice,
             "players":self.observed_players(),"inventory":self.inventory,
             "equipment":self.equipment,"inventory_delta":self.inventory_delta,
             "traits":self.traits,"trait_result":self.trait_result,"known_spells":self.known_spells,
@@ -375,26 +434,48 @@ fn write_peer_snapshot(path: &Path, value: &serde_json::Value) -> Result<(), Str
         .map_err(|error| format!("Publish peer snapshot {}: {error}", path.display()))
 }
 
+fn private_support_count(address: std::net::SocketAddr, minimum: u8) -> Result<usize, String> {
+    if !address.ip().is_loopback() {
+        return Err("Private loopback battleground endpoints only".into());
+    }
+    match address.port() {
+        5941 => Ok(PRIVATE_PROOF_SUPPORT_COUNT),
+        5710..=5712 => Ok(usize::from(minimum) * 2 - 1),
+        _ => Err("Private UDP5710–5712 or5941 only".into()),
+    }
+}
+
+fn support_count_for_queue(
+    address: std::net::SocketAddr,
+    battleground_id: u32,
+) -> Result<usize, String> {
+    if battleground_id == shared::battleground::RANDOM_BATTLEGROUND_ID {
+        return if address.ip().is_loopback() && address.port() == 5941 {
+            Ok(PRIVATE_PROOF_SUPPORT_COUNT)
+        } else {
+            Err("Random queue fixture requires private loopback UDP5941".into())
+        };
+    }
+    let template = shared::battleground::template_by_id(battleground_id)
+        .ok_or("Unknown source battleground")?;
+    private_support_count(address, template.min_players_per_team)
+}
+
 fn run() -> Result<(), String> {
     let directory = PathBuf::from(std::env::var("BG_DIRECTORY").map_err(|e| e.to_string())?);
     let address = std::env::var("BG_ENDPOINT")
         .map_err(|e| e.to_string())?
         .parse::<std::net::SocketAddr>()
         .map_err(|e| e.to_string())?;
-    if !address.ip().is_loopback() || !(5710..=5712).contains(&address.port()) {
-        return Err("Private UDP5710–5712 only".into());
-    }
     let battleground_id = std::env::var("BG_BATTLEGROUND_ID")
         .map_err(|e| e.to_string())?
         .parse()
         .map_err(|e: std::num::ParseIntError| e.to_string())?;
-    let template = shared::battleground::template_by_id(battleground_id)
-        .ok_or("Unknown source battleground")?;
+    let count = support_count_for_queue(address, battleground_id)?;
     let prefix = std::env::var("BG_ACCOUNT_PREFIX").map_err(|e| e.to_string())?;
     if !prefix.starts_with("fb_") {
         return Err("Only private fb_* accounts are allowed".into());
     }
-    let count = usize::from(template.min_players_per_team) * 2 - 1;
     let mut peers = Vec::new();
     let clock = SystemTime::now()
         .duration_since(UNIX_EPOCH)
@@ -406,6 +487,10 @@ fn run() -> Result<(), String> {
             .receive::<EnterWorldResponse>()
             .receive::<NewWorld>()
             .receive::<PvpStateUpdate>()
+            .receive::<GroupRosterSnapshot>()
+            .receive::<GroupInvitePrompt>()
+            .receive::<GroupCommandResponse>()
+            .receive::<GroupInviteCancelled>()
             .receive::<AttackStart>()
             .receive::<AttackStopped>()
             .receive::<CastFailed>()
@@ -435,6 +520,9 @@ fn run() -> Result<(), String> {
             entered: false,
             map: None,
             snapshot: None,
+            group_roster: None,
+            group_invite: None,
+            group_notice: None,
             replica: Replica::default(),
             inventory: None,
             equipment: None,
@@ -584,6 +672,52 @@ fn parse_source_attack(action: &str) -> Result<(u32, BgTeam), String> {
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    #[test]
+    fn random32_fixture_bootstrap_accepts_only_owned5941_without_a_fake_template() {
+        assert_eq!(
+            support_count_for_queue("127.0.0.1:5941".parse().unwrap(), 32),
+            Ok(19)
+        );
+    }
+
+    #[test]
+    fn random32_fixture_bootstrap_preserves_private_guards_and_concrete_counts() {
+        for address in [
+            "127.0.0.1:5710",
+            "127.0.0.1:5711",
+            "127.0.0.1:5712",
+            "127.0.0.1:5000",
+            "192.0.2.1:5941",
+            "127.0.0.1:5942",
+        ] {
+            assert!(support_count_for_queue(address.parse().unwrap(), 32).is_err());
+        }
+        assert_eq!(
+            support_count_for_queue("127.0.0.1:5941".parse().unwrap(), 1018),
+            Ok(19)
+        );
+        assert_eq!(
+            support_count_for_queue("127.0.0.1:5712".parse().unwrap(), 1018),
+            Ok(15)
+        );
+        assert!(support_count_for_queue("127.0.0.1:5941".parse().unwrap(), u32::MAX).is_err());
+    }
+
+    #[test]
+    fn release_twenty_proof_uses_nineteen_real_support_accounts_on_private5941() {
+        assert_eq!(
+            private_support_count("127.0.0.1:5941".parse().unwrap(), 8),
+            Ok(19)
+        );
+        assert_eq!(
+            private_support_count("127.0.0.1:5712".parse().unwrap(), 8),
+            Ok(15)
+        );
+        for address in ["127.0.0.1:5000", "192.0.2.1:5941", "127.0.0.1:5942"] {
+            assert!(private_support_count(address.parse().unwrap(), 8).is_err());
+        }
+    }
 
     #[test]
     fn peer_snapshot_readers_always_observe_complete_json_during_publication() {

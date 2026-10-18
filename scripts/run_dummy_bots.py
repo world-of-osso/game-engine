@@ -12,6 +12,7 @@ from pathlib import Path
 
 from bot_harness import analyze, merge_polls, poll_has_gap, write_report
 from bot_health import require_living_player
+from bot_controller import PlayerController, requested_snapshot
 from bot_rotation import authored_next, authored_order, choose, load_spells, read_rows
 
 
@@ -52,12 +53,27 @@ def server_errors(path, offset):
         return [line.strip() for line in source if re.search(r"\bERROR\b|panicked at", line)]
 
 
+def load_priority_provider(args, state, target):
+    provider = getattr(args, "priority_provider", "native")
+    if provider == "native":
+        return None
+    if provider != "simc-bm":
+        raise ValueError(f"Unknown explicitly selected priority provider: {provider}")
+    from bot_simc_bm import BeastMasterySimcProvider
+    if not args.simc_receipt or not args.simc_apl:
+        raise ValueError("Explicit SimC BM receipt and APL paths required")
+    return BeastMasterySimcProvider(json.loads(args.simc_receipt.read_text()), args.simc_apl,
+        state["spells"], args.db2, requested_snapshot(state, target),
+        {"active_enemies": 1, "potion": False, "external_buffs": [], "on_use_items": []})
+
+
 def collect(args, output):
     output.mkdir(parents=True, exist_ok=False)
     state = read_state(args.state)
     spells = state["spells"]
     order = authored_order(args.db2, spells["spec"])
     metadata = load_spells(args.db2, spells["known"], direct_only=False)
+    provider = load_priority_provider(args, state, args.target)
     candidates = [spell for spell in metadata if spell["id"] in order] if order else load_spells(args.db2, spells["known"])
     if not candidates:
         raise RuntimeError("No sourced rotation abilities for this observed kit")
@@ -80,6 +96,10 @@ def collect(args, output):
         "owner_snapshot": [],
         "known_not_in_rotation": sorted(set(spells["known"]) - {s["id"] for s in candidates}),
     }
+    if provider is not None:
+        run["rotation_rule"] = "explicit pinned SimC BM single-target projection; native clocks and server outcomes"
+        run["rotation_exclusions"] = "unsupported talents/contexts/observability block; native Auto Shot repetition requires separate proof"
+        run["priority_source"] = provider.context
     if args.comparison:
         run["comparison"] = json.loads(args.comparison.read_text())
     offset = args.server_log.stat().st_size if args.server_log else 0
@@ -92,6 +112,15 @@ def collect(args, output):
     capture_complete = True
     failure = None
     sequence = 0
+    def checked_command(*argv):
+        nonlocal sequence
+        # Record only actual submissions, including IPC failures, not rejected choices.
+        run["attempts"].append(attempt)
+        sequence += 1
+        return invoke(args.cli, args.socket, output, sequence, *argv)
+    controller = PlayerController(checked_command, lambda target: requested_snapshot(state, target),
+                                  None, None)  # Dummy collection does not move or use party input.
+    run["server_outcomes"] = controller.outcomes
     try:
         while int(time.time() * 1000) < run["end_ms"]:
             state = read_state(args.state)
@@ -114,9 +143,16 @@ def collect(args, output):
             with (output / "native-samples.jsonl").open("a") as samples:
                 samples.write(json.dumps(state) + "\n")
             now = int(time.time() * 1000)
-            ready = now >= next_cast and not current["casting"] and current["gcd_ms"] == 0
+            ready = (provider is not None or now >= next_cast) and not current["casting"] and current["gcd_ms"] == 0
             selected = None
-            if ready and order:
+            recommendation = None
+            if ready and provider is not None:
+                recommendation = provider(requested_snapshot(state, args.target), args.target)
+                if recommendation is not None:
+                    selected = next((spell for spell in metadata if spell["id"] == recommendation["spell"]), None)
+                    if selected is None:
+                        raise ValueError(f"SimC selection lacks native metadata: {recommendation}")
+            elif ready and order:
                 identity = authored_next(state["assisted"])
                 if identity is not None:
                     selected = next((spell for spell in metadata if spell["id"] == identity), None)
@@ -127,12 +163,16 @@ def collect(args, output):
             if selected and now + max(selected["cast_ms"], selected["gcd_ms"]) + 1000 < run["end_ms"]:
                 attempt = {"spell": selected["id"], "at_ms": now,
                            "deadline_ms": min(run["end_ms"] - 1, now + max(selected["cast_ms"], 1500) + 2000)}
-                run["attempts"].append(attempt)
-                sequence += 1
-                response = invoke(args.cli, args.socket, output, sequence, "spell", "cast", "--spell", str(selected["id"]), "--target", str(args.target))
-                attempt["response"] = response
-                next_cast = now + max(selected["cast_ms"], selected["gcd_ms"], 100)
-                unavailable[selected["id"]] = now + selected["cooldown_ms"]
+                if recommendation is not None:
+                    attempt.update(recommendation)
+                action = controller.cast_next(args.target, lambda native, target: recommendation or {"spell": selected["id"]})
+                if action is None:
+                    time.sleep(.2)
+                    continue
+                attempt["response"] = action["response"]
+                if provider is None:
+                    next_cast = now + max(selected["cast_ms"], selected["gcd_ms"], 100)
+                    unavailable[selected["id"]] = now + selected["cooldown_ms"]
             time.sleep(.2)
         sequence += 1
         polls.append(invoke(args.cli, args.socket, output, sequence, "combat", "log", "--lines", "1024"))
@@ -169,6 +209,9 @@ def main():
     parser.add_argument("--output", type=Path, required=True)
     parser.add_argument("--server-log", type=Path)
     parser.add_argument("--comparison", type=Path, help="Explicit common fixture receipt; omitted means no balance comparison")
+    parser.add_argument("--priority-provider", choices=("native", "simc-bm"), default="native")
+    parser.add_argument("--simc-receipt", type=Path)
+    parser.add_argument("--simc-apl", type=Path)
     args = parser.parse_args()
     if args.duration <= 0 or args.repeat < 1:
         parser.error("Positive duration and repeat required")

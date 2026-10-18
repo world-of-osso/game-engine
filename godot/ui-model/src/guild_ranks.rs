@@ -16,6 +16,7 @@ pub enum GuildRosterSort {
     Rank,
     Level,
     Class,
+    Note,
 }
 
 pub fn guild_creation_notice(created_at: Option<u64>) -> String {
@@ -37,6 +38,7 @@ pub enum GuildCommand {
     SetInfo(String),
     Query,
     QueryEventLog,
+    News(GuildNewsRequest),
 }
 
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
@@ -61,22 +63,54 @@ pub struct GuildRanksSession {
     pub error: Option<String>,
     pub invitation: Option<GuildInvitation>,
     pub invitation_waiting: bool,
+    invitation_elapsed: f64,
     pub profile: Option<GuildSnapshot>,
     pub commands: Vec<GuildCommand>,
     pub communities_tab: CommunitiesTab,
     pub roster_sort: Option<GuildRosterSort>,
     pub roster_sort_descending: bool,
+    /// Presentation-only inverse of persisted communitiesShowOffline.
+    pub roster_online_only: bool,
     pub invite_open: bool,
     pub profile_editor: Option<GuildProfileField>,
     pub profile_waiting: bool,
     pub log_open: bool,
     pub log_waiting: bool,
     pub event_log: Option<GuildEventLog>,
+    pub news: crate::guild_news_state::GuildNewsSession,
     state: Option<GuildRanksState>,
     selected_rank: usize,
 }
 
 impl GuildRanksSession {
+    pub fn receive_invitation(&mut self, invitation: GuildInvitation) {
+        self.invitation = Some(invitation);
+        self.invitation_waiting = false;
+        self.invitation_elapsed = 0.0;
+    }
+
+    /// GuildInviteFrame.xml OnUpdate hides strictly after 60 displayed seconds.
+    pub fn advance_invitation(&mut self, delta: f64) -> Option<GuildCommand> {
+        if self.invitation.is_none() || self.invitation_waiting {
+            return None;
+        }
+        self.invitation_elapsed += delta;
+        const INVITATION_TIMEOUT_SECONDS: f64 = 60.0;
+        if self.invitation_elapsed > INVITATION_TIMEOUT_SECONDS {
+            return self.dismiss_invitation();
+        }
+        None
+    }
+
+    /// GuildInviteFrame OnHide declines unless Join has already sent acceptance.
+    pub fn dismiss_invitation(&mut self) -> Option<GuildCommand> {
+        if self.invitation_waiting {
+            return None;
+        }
+        self.invitation.take()?;
+        Some(GuildCommand::DeclineInvite)
+    }
+
     pub fn open(&mut self) -> GuildRankRequest {
         self.visible = true;
         self.awaiting_state = true;
@@ -94,6 +128,8 @@ impl GuildRanksSession {
         self.note_editor = None;
         self.removal_target = None;
         self.log_open = false;
+        self.news.filters_open = false;
+        self.news.menu = None;
         visible
     }
 
@@ -102,6 +138,13 @@ impl GuildRanksSession {
             return true;
         }
         if self.note_editor.take().is_some() {
+            return true;
+        }
+        if self.news.menu.take().is_some() {
+            return true;
+        }
+        if self.news.filters_open {
+            self.news.filters_open = false;
             return true;
         }
         let log_open = self.log_open;
@@ -123,6 +166,7 @@ impl GuildRanksSession {
             self.log_open = false;
             self.log_waiting = false;
             self.event_log = None;
+            self.news = Default::default();
         }
         if state.error.is_some() {
             self.profile_waiting = false;
@@ -152,7 +196,37 @@ impl GuildRanksSession {
     }
     fn click_profile(&mut self, action: &str, texts: &crate::bank::InputTexts) {
         match action {
-            "guild:info_open" => self.communities_tab = CommunitiesTab::Info,
+            "guild:info_open" => {
+                self.communities_tab = CommunitiesTab::Info;
+                if let Some(request) = self.news.query() {
+                    self.commands.push(GuildCommand::News(request));
+                }
+            }
+            "guild:news_filters" => self.news.filters_open = true,
+            "guild:news_filters_close" => self.news.filters_open = false,
+            "guild:news_sticky" => {
+                let can_edit = self.can(GUILD_RIGHT_EDIT_MOTD);
+                if let Some(request) = self.news.sticky(can_edit) {
+                    self.commands.push(GuildCommand::News(request));
+                }
+            }
+            _ if action.starts_with("guild:news_filter:") => {
+                if let Ok(id) = action
+                    .trim_start_matches("guild:news_filter:")
+                    .parse::<usize>()
+                {
+                    if let Some(filter) = self.news.filters.get_mut(id) {
+                        *filter = !*filter;
+                    }
+                }
+            }
+            _ if action.starts_with("guild:news_menu:") => {
+                self.news.menu = action
+                    .trim_start_matches("guild:news_menu:")
+                    .parse::<u64>()
+                    .ok()
+                    .filter(|&id| self.news.entry(id).is_some());
+            }
             "guild:log_open" => {
                 self.log_open = true;
                 if !self.log_waiting {
@@ -168,6 +242,7 @@ impl GuildRanksSession {
             "guild:roster-sort:rank" => self.sort_roster(GuildRosterSort::Rank),
             "guild:roster-sort:level" => self.sort_roster(GuildRosterSort::Level),
             "guild:roster-sort:class" => self.sort_roster(GuildRosterSort::Class),
+            "guild:roster-sort:note" => self.sort_roster(GuildRosterSort::Note),
             "guild:invite_open" if self.can(GUILD_RIGHT_INVITE) => self.invite_open = true,
             "guild:invite_close" => self.invite_open = false,
             "guild:invite_send" if self.invite_open && self.can(GUILD_RIGHT_INVITE) => {
@@ -227,8 +302,12 @@ impl GuildRanksSession {
     }
 
     fn sort_roster(&mut self, column: GuildRosterSort) {
-        self.roster_sort_descending =
-            self.roster_sort == Some(column) && !self.roster_sort_descending;
+        self.roster_sort_descending = if self.roster_sort == Some(column) {
+            !self.roster_sort_descending
+        } else {
+            // Mainline's first string-attribute click swaps comparator arguments.
+            column == GuildRosterSort::Note
+        };
         self.roster_sort = Some(column);
         self.member_menu = None;
     }
@@ -282,6 +361,10 @@ impl GuildRanksSession {
                         GuildCommand::DeclineInvite
                     });
                 }
+                None
+            }
+            "guild:show_offline" if self.communities_tab == CommunitiesTab::Roster => {
+                self.roster_online_only = !self.roster_online_only;
                 None
             }
             "guild:close" => {

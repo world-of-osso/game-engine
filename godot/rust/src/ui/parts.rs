@@ -64,6 +64,7 @@ pub fn project_images(frame: &Frame, width: f32, height: f32) -> Vec<ImagePart> 
     if project_shared_red_button(frame, width, height, &mut parts)
         || project_panel_button(frame, width, height, &mut parts)
         || project_perks_rotate_button(frame, width, height, &mut parts)
+        || project_minimap_zoom_button(frame, width, height, &mut parts)
     {
         return parts;
     }
@@ -90,6 +91,41 @@ pub fn project_images(frame: &Frame, width: f32, height: f32) -> Vec<ImagePart> 
     project_border(frame, width, height, &mut parts);
     project_highlight(frame, width, height, &mut parts);
     parts
+}
+
+/// Minimap.xml:190-219: full-opacity base, disabled desaturation and ADD highlight.
+fn project_minimap_zoom_button(
+    frame: &Frame,
+    width: f32,
+    height: f32,
+    parts: &mut Vec<ImagePart>,
+) -> bool {
+    let Some(WidgetData::Button(button)) = &frame.widget_data else {
+        return false;
+    };
+    let Some(TextureSource::Atlas(normal)) = &button.normal_texture else {
+        return false;
+    };
+    if !matches!(
+        normal.as_str(),
+        "ui-hud-minimap-zoom-in" | "ui-hud-minimap-zoom-out"
+    ) {
+        return false;
+    }
+    let source = select_button_base_texture_source(button).expect("minimap defines all state art");
+    let mut base = textured([0., 0., width, height], source.clone(), Crop::Full, WHITE);
+    base.desaturated = button.state == ButtonState::Disabled;
+    parts.push(base);
+    if button.hovered && button.state != ButtonState::Disabled {
+        let source = button
+            .highlight_texture
+            .as_ref()
+            .expect("minimap defines highlight art");
+        let mut highlight = textured([0., 0., width, height], source.clone(), Crop::Full, WHITE);
+        highlight.additive = true;
+        parts.push(highlight);
+    }
+    true
 }
 
 /// PerksModelSceneControlButtonTemplate: offset pressed art and additive0.6 hover.
@@ -497,7 +533,8 @@ fn project_highlight(frame: &Frame, width: f32, height: f32, parts: &mut Vec<Ima
         "transmog-itemcard-default" | "transmog-setcard-default" | "transmog-setcard-incomplete"
         | "transmog-gearslot-default" | "transmog-gearslot-transmogrified" | "transmog-gearslot-pending"
         | "transmog-gearslot-default-small" | "transmog-gearslot-transmogrified-small"
-        | "house-chest-open-drawer-button" | "house-chest-close-drawer-button"));
+        | "house-chest-open-drawer-button" | "house-chest-close-drawer-button"
+        | "RedButton-Highlight"));
     parts.push(part);
 }
 
@@ -506,11 +543,13 @@ fn button_skin(frame: &Frame) -> Option<TextureSource> {
     let Some(WidgetData::Button(button)) = &frame.widget_data else {
         return None;
     };
-    // TabardFrame.xml authored arrows keep Normal/Pushed art under a separate ADD highlight.
+    // These explicit state textures retain base art beneath a separate highlight.
     if matches!(
         button.normal_texture,
         Some(TextureSource::FileDataId(130869 | 130866 | 130845 | 130847))
-    ) {
+    ) || matches!(&button.normal_texture, Some(TextureSource::Atlas(name)) if matches!(name.as_str(),
+        "RedButton-Exit" | "128-redbutton-cart-add" | "128-redbutton-cart-minus"))
+    {
         return None;
     }
     if !button.use_default_skin

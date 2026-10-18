@@ -18,6 +18,7 @@ use ui_toolkit::widgets::font_string::{GameFont, JustifyH, JustifyV, Outline};
 use ui_toolkit::widgets::texture::TextureSource;
 
 use super::assets;
+use super::hit_button::RegistryButton;
 use super::input_queue::PendingInputs;
 use super::layout;
 use super::parts::{self, ImagePart, TextPart};
@@ -562,6 +563,8 @@ impl UiProjection {
                 if frame.onclick.as_deref().is_some_and(|action| {
                     action.starts_with("bank_slot:")
                         || action.starts_with("guild:member:")
+                        || action.starts_with("guild:news_entry:")
+                        || action.starts_with("guild:perk:")
                         || action.starts_with("mount:select:")
                         || action.starts_with("journal:activity:")
                         || action.starts_with("transmog:outfit:")
@@ -764,9 +767,15 @@ impl UiProjection {
             }
             self.visuals.insert(frame.id, visual);
         }
+        // The track mask stays fixed while scrolling moves unchanged level art.
+        if super::journeys_track_mask::apply(&node, frame, rect, registry)? {
+            self.waiting.insert(frame.id);
+        }
         match &frame.widget_data {
             Some(WidgetData::Button(button)) => {
-                let mut button_node = node.cast::<Button>();
+                let mut hit_button = node.cast::<RegistryButton>();
+                hit_button.bind_mut().hit_rect_insets = frame.hit_rect_insets;
+                let mut button_node = hit_button.upcast::<Button>();
                 button_node.set_disabled(!button.enabled || button.state == ButtonState::Disabled);
             }
             Some(WidgetData::EditBox(edit)) => self.update_editbox(node, edit, rect)?,
@@ -937,8 +946,11 @@ impl UiProjection {
         ] {
             style.set_content_margin(side, inset);
         }
-        node.add_theme_stylebox_override("normal", &style);
-        node.add_theme_stylebox_override("focus", &style);
+        // LineEdit::get_minimum_size takes max(normal, read_only) even while
+        // editable. Leaving read_only themed inflated the journal's20px box to23px.
+        for state in ["normal", "focus", "read_only"] {
+            node.add_theme_stylebox_override(state, &style);
+        }
         // Apply authored bounds after the font/border theme, not the default theme's minimum.
         // Labels use the same ordering; otherwise small copper inputs retain their creation size.
         node.set_size(Vector2::new(rect.width, rect.height));
@@ -978,6 +990,9 @@ impl UiProjection {
             shadow: data.shadow_color.map(|color| (color, data.shadow_offset)),
         };
         self.style_label(&mut node, &text)?;
+        if let Some(spacing) = data.line_spacing {
+            node.add_theme_constant_override("line_spacing", spacing);
+        }
         // A fixed FontString whose height holds no second line stays on one line and cuts
         // the rest with an ellipsis, as WoW does: Retail's 32×10 action button `HotKey`
         // (`ActionButtonTemplate.xml:85-91`) draws "Middle Mouse" on one truncated line
@@ -1082,7 +1097,7 @@ mod spacing_tests;
 
 /// Input-only native button: registry parts draw every visual state.
 fn flat_button() -> Gd<Button> {
-    let mut button = Button::new_alloc();
+    let mut button = RegistryButton::new_alloc().upcast::<Button>();
     button.set_focus_mode(godot::classes::control::FocusMode::NONE);
     let empty = StyleBoxEmpty::new_gd();
     for state in [
@@ -1374,6 +1389,8 @@ fn connect_button(pending: &PendingInputs, id: u64, node: &mut Gd<Control>) {
 
 fn connect_edit_box(pending: &PendingInputs, frame: &Frame, node: &mut Gd<Control>) {
     let id = frame.id;
+    let journal_search =
+        frame.name.as_deref() == Some(game_engine_ui_model::adventure_guide::SEARCH);
     let text_pending = pending.clone();
     let Some(WidgetData::EditBox(data)) = &frame.widget_data else {
         return;
@@ -1396,14 +1413,26 @@ fn connect_edit_box(pending: &PendingInputs, frame: &Frame, node: &mut Gd<Contro
         ) {
             let submit_pending = pending.clone();
             let mut edit = node.clone();
+            // Journal SearchBoxListMixin keeps focus on short/no-result Enter.
+            // Its successful selection/Show All action owns Close() instead.
+            let release_on_submit = !journal_search;
+            if !release_on_submit {
+                let mut search = node.clone().cast::<LineEdit>();
+                search.set_keep_editing_on_text_submit(true);
+            }
             node.connect(
                 "text_submitted",
-                &Callable::from_fn("talent-search-submit", move |_| {
+                &Callable::from_fn("registry-search-submit", move |_| {
                     submit_pending.push(UiInput::Submit);
-                    edit.release_focus();
+                    if release_on_submit {
+                        edit.release_focus();
+                    }
                 }),
             );
-            if frame.name.as_deref() == Some("TalentSearchBox") {
+            if matches!(
+                frame.name.as_deref(),
+                Some("TalentSearchBox" | "EncounterJournalSearchBox")
+            ) {
                 let keys = search_preview_keys(pending.clone(), node.clone());
                 node.connect("gui_input", &keys);
             }
@@ -1429,7 +1458,7 @@ fn connect_edit_box(pending: &PendingInputs, frame: &Frame, node: &mut Gd<Contro
     } else if is_housing_search_field(frame.name.as_deref()) {
         release_housing_search_focus(node.clone())
     } else {
-        release_focus_on_escape(node.clone())
+        release_focus_on_escape(node.clone(), journal_search)
     };
     node.connect("gui_input", &keys);
 }
@@ -1500,7 +1529,7 @@ fn talent_import_keys(pending: PendingInputs, mut edit: Gd<Control>) -> Callable
 }
 
 fn search_preview_keys(pending: PendingInputs, mut edit: Gd<Control>) -> Callable {
-    Callable::from_fn("talent-search-preview-keys", move |args| {
+    Callable::from_fn("registry-search-preview-keys", move |args| {
         let Some(key) = args
             .first()
             .and_then(|event| event.try_to::<Gd<godot::classes::InputEventKey>>().ok())
@@ -1566,7 +1595,7 @@ fn release_guild_field_focus(mut edit: Gd<Control>, pending: PendingInputs, id: 
     })
 }
 
-fn release_focus_on_escape(mut edit: Gd<Control>) -> Callable {
+fn release_focus_on_escape(mut edit: Gd<Control>, consume_escape: bool) -> Callable {
     Callable::from_fn("registry-editbox-escape", move |args| {
         let escaped = args
             .first()
@@ -1574,6 +1603,10 @@ fn release_focus_on_escape(mut edit: Gd<Control>) -> Callable {
             .is_some_and(|key| key.is_pressed() && key.get_keycode() == godot::global::Key::ESCAPE);
         if escaped {
             edit.release_focus();
+            // Journal search owns its Escape; other edit widgets retain their bindings.
+            if consume_escape {
+                edit.accept_event();
+            }
         }
     })
 }

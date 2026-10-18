@@ -98,7 +98,7 @@ fn prefix_layout(text: &str) -> (usize, f32, f32) {
 }
 
 /// TimeLeftFooterFormatter: two nonzero units, minimum minutes, floor, lowercase.
-fn format_time_left(mut seconds: u32) -> String {
+pub(super) fn format_time_left(mut seconds: u32) -> String {
     let mut units = Vec::new();
     for (duration, suffix) in [(86400, "d"), (3600, "h"), (60, "m")] {
         let quantity = seconds / duration;

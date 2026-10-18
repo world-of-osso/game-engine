@@ -130,6 +130,8 @@ fn scoreboard_view() -> game_engine_ui_model::battleground::PvpView {
         scoreboard: true,
         viewport: [1920.0, 1080.0],
         snapshot: Some(PvpSnapshot {
+            lifetime_honor_xp: 0,
+            honor_level: None,
             honor: 0,
             honor_max: 0,
             conquest: 0,
@@ -174,8 +176,51 @@ fn scoreboard_view() -> game_engine_ui_model::battleground::PvpView {
     }
 }
 
+fn ready_dialog_view(
+    waiting: bool,
+    viewport: [f32; 2],
+) -> game_engine_ui_model::battleground::PvpView {
+    let mut view = scoreboard_view();
+    view.viewport = viewport;
+    view.visible = true;
+    view.scoreboard = false;
+    let bg = view
+        .snapshot
+        .as_mut()
+        .unwrap()
+        .battleground
+        .as_mut()
+        .unwrap();
+    bg.accepted = false;
+    bg.phase = if waiting {
+        shared::battleground::BgPhase::Waiting
+    } else {
+        shared::battleground::BgPhase::InProgress
+    };
+    view
+}
+
 #[godot_api(secondary)]
 impl RegistryUi {
+    /// Read the production top-hit/action resolver; never synthesize a click.
+    #[func]
+    fn pvp_ready_pointer_action(&self, at: Vector2) -> GString {
+        self.pointer_frame_at(at)
+            .and_then(|id| self.frame_click_action(id))
+            .unwrap_or_default()
+            .as_str()
+            .into()
+    }
+
+    /// Name the production top hit at body/sidebar overlap, independent of button actions.
+    #[func]
+    fn pvp_ready_pointer_frame(&self, at: Vector2) -> GString {
+        self.pointer_frame_at(at)
+            .and_then(|id| self.model.as_ref()?.registry.get(id)?.name.as_deref())
+            .unwrap_or_default()
+            .into()
+    }
+
     #[func]
     pub fn show_gameplay_panels_preview(&mut self, forever: bool, page: GString) -> GString {
         let page = page.to_string();
@@ -186,6 +231,8 @@ impl RegistryUi {
             "difficulty",
             "raid",
             "scoreboard",
+            "pvp-ready-waiting",
+            "pvp-ready-running",
             "arena-quick",
             "arena-rated",
             "talent-menu",
@@ -209,6 +256,18 @@ impl RegistryUi {
             }
             if page == "scoreboard" {
                 return self.show_pvp(scoreboard_view());
+            }
+            if page.starts_with("pvp-ready-") {
+                let size = self
+                    .base()
+                    .get_viewport()
+                    .ok_or("Preview has no viewport")?
+                    .get_visible_rect()
+                    .size;
+                return self.show_pvp(ready_dialog_view(
+                    page == "pvp-ready-waiting",
+                    [size.x, size.y],
+                ));
             }
             if page.starts_with("arena-") {
                 let mut view = scoreboard_view();

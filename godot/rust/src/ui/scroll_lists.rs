@@ -73,6 +73,10 @@ fn scroll_steps(model: &RegistryModel, list: &str) -> (usize, usize) {
         let pan = game_engine_ui_model::guild_communities::ROW_HEIGHT as usize;
         return (pan * 2, pan);
     }
+    if list == game_engine_ui_model::guild_news::SCROLL_BOX {
+        // CommunitiesGuildNewsButtonTemplate18px; ScrollBoxListView wheel=two extents.
+        return (36, 18);
+    }
     if list == "GuildControlBankScrollBox" {
         // GuildControlUI_BankFrame_OnLoad sets ScrollFrame.stepSize=8 (Lua:606).
         return (8, 8);
@@ -87,6 +91,10 @@ fn scroll_steps(model: &RegistryModel, list: &str) -> (usize, usize) {
     }
     if list == REPUTATION_DESCRIPTION_SCROLL {
         let pan = reputation_description_pan_extent();
+        return (pan * 2, pan);
+    }
+    if list == game_engine_ui_model::character_frame::TOKEN_SCROLL {
+        let pan = game_engine_ui_model::character_frame::token_pan_extent();
         return (pan * 2, pan);
     }
     if list == REPUTATION_SCROLL {
@@ -312,6 +320,27 @@ pub(super) fn release_thumbs(registry: &mut FrameRegistry) -> bool {
 }
 
 impl RegistryUi {
+    pub(crate) fn reveal_trading_post_selection(
+        &mut self,
+        view: &game_engine_ui_model::trading_post::View,
+    ) -> Result<(), String> {
+        use game_engine_ui_model::trading_post::LIST;
+        let model = self
+            .model
+            .as_mut()
+            .ok_or("Trading Post scroll model missing")?;
+        let scroll = model
+            .registry
+            .scroll_lists
+            .get(LIST)
+            .ok_or("Trading Post product scroll list missing")?;
+        let offset = view.calculate_selected_scroll_offset(scroll.first_row)?;
+        if model.registry.scroll_lists.scroll_to(LIST, offset) {
+            self.sync_model()?;
+        }
+        Ok(())
+    }
+
     pub(crate) fn reset_journal_set_scroll(&mut self) {
         if let Some(model) = self.model.as_mut() {
             model

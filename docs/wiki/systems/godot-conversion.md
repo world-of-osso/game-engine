@@ -730,6 +730,18 @@ M2 particles: see [Native M2 particles](#native-m2-particles).
 
 ## Native M2 particles
 
+### P5 geometry and recursive ownership — 2026-10-17
+
+The [P5 contract](../../specs/m2-particles.md#p5-approved-continuation-2026-10-17) now has an approved positive-substep timing rule. `EmitterSim::children` holds each referenced emitter's persistent simulation separately from a geometry asset. Surviving parent particles supply birth requests at their moved positions, with previous world positions and eligible parent-particle velocity; a child state advances once after those requests, without an extra root-origin emission. Already-live descendants remain after parent retirement and drain on their own lifetimes. Newborns keep the generator's substep age; zero-duration updates do nothing. Replay retains 0.1-second slices, with descendant lifetime history included.
+
+`GeometryModel` extracts real mesh/material resources from an independently loaded M2 node. `GeometryParticles` uploads lifetime transforms and instance RGBA rather than quad axes. The M2 material variant multiplies lifetime RGBA without replacing the model's own combiner or lighting. Geometry nodes are owned by the placement and freed when it drops; recursive quads use the existing scene pools. Explicit `resolved_models` resources are a consumer boundary, not a Retail name resolver; an unresolved authored reference fails placement instead of drawing a billboard or unrelated model.
+
+No resolvable references were found in the bounded extracted-cache census, including the current wow cache with DB2 `12.1.5.70448`; this is not a full publication audit. Therefore fixtures use a clearly synthetic asymmetric six-vertex arrow and a distinct synthetic child emitter. Billboard-substitution and native missing-consumer REDs precede implementation. Twelve P5 CPU controls and33 ordinary particle regressions pass; the drain fixture retains positive pool capacity after disabling births. Native one/two-parent cases pass with1/2 geometry instances and6/11 child quads, one tagged-child age delta, parent-relative birth origins, lifetime transform/RGBA changes, tinted raster, drained native upload counts0/0 and owner teardown. Three-generation draining is CPU-only proof. Both1920×1080 PNGs were inspected; original images/hashes are in `/home/osso/.worktrees/logs/m2-p5-native-proof/`. The fixture supplies explicit primary SFID910006; the initial missing-SFID setup failure was not worked around by restoring a legacy filename path.
+
+Post-master integration `30ca371e2` rebuilds against the landed material transitions: native build/check/fmt and both synthetic native cases pass; revised images and revision-stamped receipts live in `/home/osso/.worktrees/logs/m2-p5-integration-proof/`. Independent artifact verification passed within the [documented acceptance limits](../../specs/m2-particles.md#p5-acceptance-proof); CPU particle sources/tests did not change, so their existing45-control proof was retained.
+
+**P5-product-resolution** remains. **P5-recursive-clock**, no depth limit, and no cycle detection remain explicit gaps; the four-emitter selection is not a four-generation limit. This is synthetic native acceptance, not an untouched-Retail geometry or cyclic-asset claim. S1/S3 are unchanged.
+
 ### P4 native continuation
 
 Forward-integrated continuation: origin/master merged54731f9c2; implementation85932e156 builds, test-onlydcf850fe8 passes13 focused CPU controls, native sorting8/8/collision6/6/bent curves2/2 pass. Format check passes. Exact logs and unresolved provenance are in the [contract](../../specs/m2-particles.md#continuation-integration-proof).
@@ -754,7 +766,8 @@ Allowed provenance is the supplied clean-room spec, local assets, WebWowViewerCp
 | P2 follow | Clamped authored speed/scale carry, post-age eligibility and proportional replay; two RED→GREEN controls. | Modern asset applicability and combined model-space/follow target semantics unqualified. |
 | P4 splines | Actual6316199 establishes float3 M2Array at0x1C0. Parser preserves complete cubic controls; native predicate admits type3. Two RED→GREEN curve/change and width-range controls. | P4-density rate-per-unit oracle; controlled native bent-curve pixels now pass (continuation above). |
 | P3 inheritance | Actual2994778 emitter3 scale3.0 decoded from0x170 (WWV ivelScale), one RED→GREEN control. | P3-timer-reset runtime contribution and trajectory tests. |
-| S1 lighting / P5 model particles | No guessed polarity, generic PBR, replacement quads or legacy-name asset fallback added. | S1-polarity-oracle; P5-product-resolution/P5-recursive-timing. |
+| S1 lighting | No guessed polarity or generic PBR added. | S1-polarity-oracle. |
+| P5 model particles | Explicit resolved geometry/child consumers and approved timing;12 P5 CPU controls +33 ordinary regressions and2 synthetic native cases pass (continuation above). No legacy-name guessing or quad substitution. | P5-product-resolution; P5-recursive-clock; no depth/cycle policy. |
 
 Merged-source `edc9c82be`: eight focused controls, native build and fmt check pass. Native fixture `33cb46507` additionally freezes bone/material descendants and requires two byte-identical PNGs before hiding only the tail pool; the initial inherited brightness threshold was not a valid tail visibility criterion. See the contract's proof ledger; no full-suite, S1-lighting or P5-lifecycle acceptance claim.
 

@@ -31,6 +31,9 @@ mod creature_sound_tests {
 }
 
 #[cfg(test)]
+#[path = "currency_account_tests.rs"]
+mod currency_snapshot_tests;
+#[cfg(test)]
 #[path = "professions_account_tests.rs"]
 mod profession_snapshot_tests;
 #[cfg(test)]
@@ -151,6 +154,8 @@ pub struct Account {
     pub quests: QuestRuntime,
     /// `GetDungeonDifficultyID`, from `DungeonDifficultySet` (login and every change).
     pub dungeon_difficulty: Option<u32>,
+    /// Actual map-copy difficulty from the server; independent of saved selections.
+    pub world_server_info: Option<shared::protocol::WorldServerInfo>,
     pub lfg: Option<shared::protocol::LfgStateUpdate>,
     pub raid_difficulty: Option<shared::protocol::RaidDifficultySet>,
     pub dungeon_objectives: game_engine_ui_model::dungeon_progress::DungeonObjectives,
@@ -158,6 +163,8 @@ pub struct Account {
     pub adventure_guide: Option<std::sync::Arc<shared::protocol::AdventureGuideSnapshot>>,
     pub trading_post: Option<std::sync::Arc<shared::protocol::TradingPostSnapshot>>,
     pub renown: Option<std::sync::Arc<shared::protocol::RenownSnapshot>>,
+    /// Owner wallet from CurrencyStateUpdate; None until the realm sends it.
+    pub currencies: Option<shared::protocol::CurrencySnapshot>,
     pub party_keystones: shared::protocol::PartyKeystoneSnapshot,
     pub scenario_objectives: game_engine_ui_model::scenario_progress::ScenarioObjectives,
     pub achievements: game_engine_ui_model::achievements::AchievementWindow,
@@ -172,6 +179,9 @@ pub struct Account {
     pub combat_log: std::collections::VecDeque<CombatLogEvent>,
     /// Count of `CombatLogEvent`s received this connection.
     pub combat_log_seq: u64,
+    /// Exact owner cast failures, retained independently of transient UI error text.
+    pub cast_failures: std::collections::VecDeque<CastFailed>,
+    pub cast_failure_seq: u64,
     /// The server's newest damage meter sessions.
     pub damage_meter: Option<DamageMeterSnapshot>,
     /// Threat changes awaiting the HUD; drained each frame, not historical sessions.
@@ -202,6 +212,7 @@ pub enum AccountEvent {
     RestState(RestStateUpdate),
     /// `ReputationStateUpdate`: faction standings (`UPDATE_FACTION`) or a refusal.
     Reputation(shared::protocol::ReputationStateUpdate),
+    Currency(shared::protocol::CurrencyStateUpdate),
     /// The realm's game time (`SMSG_LOGIN_SET_TIME_SPEED`).
     GameTime(shared::protocol::LoginSetTimeSpeed),
     LoadTerrain(LoadTerrain),
@@ -238,6 +249,8 @@ pub enum AccountEvent {
     Summon(shared::protocol::SummonRequest),
     Professions(shared::protocol::ProfessionSnapshot),
     ProfessionSpecializations(shared::protocol::ProfessionSpecializationStateUpdate),
+    CraftingOperation(shared::protocol::CraftingOperationStateUpdate),
+    ProfessionConcentration(shared::protocol::ProfessionConcentrationUpdate),
     CraftingOrders(shared::protocol::CraftingOrderStateUpdate),
     Collections(shared::protocol::CollectionStateUpdate),
     WildPetBattle(shared::protocol::WildPetBattleUpdate),
@@ -256,6 +269,7 @@ pub enum AccountEvent {
     Stable(StableMessage),
     GuildRanks(shared::protocol::GuildRanksState),
     GuildEventLog(shared::protocol::GuildEventLog),
+    GuildNews(shared::protocol::GuildNewsState),
     GuildInvitation(shared::protocol::GuildInvitation),
     GuildInviteResult(shared::protocol::GuildInviteResponse),
     GuildAccepted(shared::protocol::GuildAcceptInviteResponse),
@@ -386,6 +400,7 @@ impl Account {
             pending_layout_username: None,
             quests: QuestRuntime::default(),
             dungeon_difficulty: None,
+            world_server_info: None,
             lfg: None,
             raid_difficulty: None,
             dungeon_objectives: Default::default(),
@@ -393,6 +408,7 @@ impl Account {
             adventure_guide: None,
             trading_post: None,
             renown: None,
+            currencies: None,
             party_keystones: Default::default(),
             scenario_objectives: Default::default(),
             achievements: Default::default(),
@@ -403,6 +419,8 @@ impl Account {
             talents: Default::default(),
             combat_log: std::collections::VecDeque::new(),
             combat_log_seq: 0,
+            cast_failures: std::collections::VecDeque::new(),
+            cast_failure_seq: 0,
             damage_meter: None,
             threat_updates: Vec::new(),
             xp: None,
@@ -450,6 +468,7 @@ impl Account {
         self.layout_username = None;
         self.pending_layout_username = None;
         self.dungeon_difficulty = None;
+        self.world_server_info = None;
         self.lfg = None;
         self.raid_difficulty = None;
         self.dungeon_objectives = Default::default();
@@ -457,6 +476,7 @@ impl Account {
         self.adventure_guide = None;
         self.trading_post = None;
         self.renown = None;
+        self.currencies = None;
         self.achievements = Default::default();
         self.achievement_requests.clear();
         self.instance_locks.clear();
@@ -610,7 +630,7 @@ impl Account {
             .map_err(SessionError)
     }
 
-    /// IPC `spell cast`: the intent as given, by spell ID or name token.
+    /// Explicit ground/item-target intent; the server validates cast admission.
     pub fn send_spell_intent(&self, intent: SpellCastIntent) -> Result<(), SessionError> {
         self.bridge()?
             .send::<_, CombatChannel>(intent)
@@ -654,6 +674,20 @@ impl Account {
         self.bridge()?
             .send::<_, CombatChannel>(shared::protocol::ExitVehicle)
             .map_err(SessionError)
+    }
+
+    pub(crate) fn ready_check_difficulty_name(
+        &self,
+        catalog: &game_engine_ui_model::ready_check_difficulty::ReadyCheckDifficulties,
+    ) -> Result<Option<String>, String> {
+        let current = self.world_server_info.map(|info| info.difficulty_id);
+        let selected = if self.group.is_raid {
+            self.raid_difficulty
+                .map(|selection| selection.difficulty_id)
+        } else {
+            self.dungeon_difficulty
+        };
+        catalog.listener_name(current, selected)
     }
 
     /// `SetDungeonDifficultyID`; the server validates it and answers `DungeonDifficultySet`.
@@ -949,6 +983,24 @@ impl Account {
             .map_err(SessionError)
     }
 
+    pub fn send_profession_concentration(
+        &self,
+        request: shared::protocol::ProfessionConcentrationRequest,
+    ) -> Result<(), SessionError> {
+        self.bridge()?
+            .send::<_, shared::protocol::ProfessionChannel>(request)
+            .map_err(SessionError)
+    }
+
+    pub fn send_crafting_operation(
+        &self,
+        request: shared::protocol::CraftingOperationRequest,
+    ) -> Result<(), SessionError> {
+        self.bridge()?
+            .send::<_, shared::protocol::ProfessionChannel>(request)
+            .map_err(SessionError)
+    }
+
     pub fn send_profession_specialization(
         &self,
         request: shared::protocol::ProfessionSpecializationRequest,
@@ -1164,6 +1216,7 @@ impl Account {
             GuildCommand::QueryEventLog => {
                 bridge.send::<_, GuildChannel>(GuildRankRequest::QueryEventLog)
             }
+            GuildCommand::News(request) => bridge.send::<_, GuildChannel>(request),
         }
         .map_err(SessionError)
     }
@@ -1599,6 +1652,7 @@ impl Account {
                     self.adventure_guide = None;
                     self.trading_post = None;
                     self.renown = None;
+                    self.currencies = None;
                     self.dungeon_objectives = Default::default();
                     self.scenario_objectives = Default::default();
                     self.achievements = Default::default();
@@ -1685,6 +1739,14 @@ impl Account {
             output.push(AccountEvent::TrainerFailed(decode(message)?));
             return Ok(());
         }
+        if message.is::<shared::protocol::CurrencyStateUpdate>() {
+            let update: shared::protocol::CurrencyStateUpdate = decode(message)?;
+            if let Some(snapshot) = &update.snapshot {
+                self.currencies = Some(snapshot.clone());
+            }
+            output.push(AccountEvent::Currency(update));
+            return Ok(());
+        }
         if message.is::<shared::protocol::PvpStateUpdate>() {
             output.push(AccountEvent::Pvp(decode(message)?));
             return Ok(());
@@ -1703,6 +1765,14 @@ impl Account {
         }
         if message.is::<shared::protocol::CollectionStateUpdate>() {
             output.push(AccountEvent::Collections(decode(message)?));
+            return Ok(());
+        }
+        if message.is::<shared::protocol::ProfessionConcentrationUpdate>() {
+            output.push(AccountEvent::ProfessionConcentration(decode(message)?));
+            return Ok(());
+        }
+        if message.is::<shared::protocol::CraftingOperationStateUpdate>() {
+            output.push(AccountEvent::CraftingOperation(decode(message)?));
             return Ok(());
         }
         if message.is::<shared::protocol::ProfessionSpecializationStateUpdate>() {
@@ -1836,17 +1906,20 @@ impl Account {
             || message.is::<QuestLogUpdate>()
             || message.is::<QuestGiverStatusMultiple>()
             || message.is::<DungeonDifficultySet>()
+            || message.is::<shared::protocol::WorldServerInfo>()
             || message.is::<shared::protocol::RaidDifficultySet>()
             || message.is::<InstanceInfo>()
             || message.is::<shared::protocol::DungeonProgress>()
             || message.is::<shared::protocol::ChallengeSnapshot>()
             || message.is::<shared::protocol::AdventureGuideSnapshot>()
+            || message.is::<shared::protocol::AdventureGuideClock>()
             || message.is::<shared::protocol::TradingPostSnapshot>()
             || message.is::<shared::protocol::RenownSnapshot>()
             || message.is::<shared::protocol::PartyKeystoneSnapshot>()
             || message.is::<shared::protocol::ScenarioProgress>()
             || message.is::<shared::protocol::AchievementCatalogPage>()
             || message.is::<shared::protocol::AchievementStateUpdate>()
+            || message.is::<shared::protocol::AchievementDelta>()
             || message.is::<DamageMeterSnapshot>()
             || message.is::<shared::protocol::ThreatUpdate>()
             || message.is::<shared::protocol::PlayerXpUpdate>()
@@ -1867,6 +1940,20 @@ impl Account {
             ));
         }
         self.renown = Some(std::sync::Arc::new(reply));
+    }
+
+    /// Clock-only Guide update: the full Guide with only its realm time replaced.
+    fn receive_adventure_guide_clock(
+        &mut self,
+        clock: shared::protocol::AdventureGuideClock,
+    ) -> Result<(), String> {
+        let guide = self
+            .adventure_guide
+            .as_mut()
+            .ok_or("Adventure Guide clock before a full Adventure Guide on this connection")?;
+        // Copy-on-write: a Guide the view still shows is replaced, never mutated in place.
+        std::sync::Arc::make_mut(guide).month.now_unix = clock.now_unix;
+        Ok(())
     }
 
     fn dispatch_account_state_message(
@@ -1892,6 +1979,9 @@ impl Account {
         if message.is::<shared::protocol::AdventureGuideSnapshot>() {
             self.adventure_guide = Some(std::sync::Arc::new(decode(message)?));
             return Ok(());
+        }
+        if message.is::<shared::protocol::AdventureGuideClock>() {
+            return self.receive_adventure_guide_clock(decode(message)?);
         }
         if message.is::<shared::protocol::RenownSnapshot>() {
             self.receive_renown_reply(decode(message)?, output);
@@ -1929,6 +2019,12 @@ impl Account {
             self.achievement_requests
                 .extend(self.achievements.refresh(&update));
             output.push(AccountEvent::Achievement(update));
+            return Ok(());
+        }
+        if message.is::<shared::protocol::AchievementDelta>() {
+            let delta: shared::protocol::AchievementDelta = decode(message)?;
+            let requests = self.achievements.apply_delta(&delta)?;
+            self.achievement_requests.extend(requests);
             return Ok(());
         }
         if message.is::<shared::protocol::WorldQuestAvailability>() {
@@ -1971,6 +2067,10 @@ impl Account {
         }
         if message.is::<DamageMeterSnapshot>() {
             self.damage_meter = Some(decode(message)?);
+            return Ok(());
+        }
+        if message.is::<shared::protocol::WorldServerInfo>() {
+            self.world_server_info = Some(decode(message)?);
             return Ok(());
         }
         if message.is::<shared::protocol::RaidDifficultySet>() {
@@ -2143,6 +2243,10 @@ impl Account {
             output.push(AccountEvent::GuildRanks(decode(message)?));
             return Ok(());
         }
+        if message.is::<shared::protocol::GuildNewsState>() {
+            output.push(AccountEvent::GuildNews(decode(message)?));
+            return Ok(());
+        }
         if message.is::<shared::protocol::GuildEventLog>() {
             output.push(AccountEvent::GuildEventLog(decode(message)?));
             return Ok(());
@@ -2196,6 +2300,7 @@ impl Account {
         }
         if message.is::<NewWorld>() {
             let new_world: NewWorld = decode(message)?;
+            self.world_server_info = None;
             self.dungeon_objectives.begin_map(new_world.map_id);
             self.challenge = Default::default();
             self.scenario_objectives.begin_map(new_world.map_id);
@@ -2305,7 +2410,13 @@ impl Account {
         } else if message.is::<shared::protocol::SpellCostSnapshot>() {
             spells.apply_costs(decode(message)?);
         } else if message.is::<CastFailed>() {
-            output.push(AccountEvent::CastFailed(decode(message)?));
+            let failed: CastFailed = decode(message)?;
+            if self.cast_failures.len() == COMBAT_LOG_KEEP {
+                self.cast_failures.pop_front();
+            }
+            self.cast_failures.push_back(failed.clone());
+            self.cast_failure_seq += 1;
+            output.push(AccountEvent::CastFailed(failed));
         } else if message.is::<SpellGo>() {
             output.push(AccountEvent::Combat(CombatMessage::SpellGo(decode(
                 message,
@@ -2381,6 +2492,7 @@ impl Account {
                     self.adventure_guide = None;
                     self.trading_post = None;
                     self.renown = None;
+                    self.currencies = None;
                     self.dungeon_objectives = Default::default();
                     self.scenario_objectives = Default::default();
                     self.achievements = Default::default();
@@ -2615,6 +2727,9 @@ mod guild_charter_tests;
 #[cfg(test)]
 #[path = "account_guild_tabard_tests.rs"]
 mod guild_tabard_tests;
+#[cfg(test)]
+#[path = "account_netdelta_tests.rs"]
+mod netdelta_tests;
 
 #[cfg(test)]
 #[path = "account_deathstate_tests.rs"]
@@ -2878,6 +2993,28 @@ mod tests {
             assert!(!window.rows()[0].is_local_player);
         }
         assert!(account.combat_log.is_empty());
+    }
+
+    #[test]
+    fn bot_bm_identical_cast_failures_keep_distinct_owner_receipts() {
+        let mut account = Account::new(PathBuf::new());
+        let mut output = Vec::new();
+        let failed = CastFailed {
+            spell_id: 217200,
+            reason: shared::spell_data::CastFailReason::NoChargesRemain,
+            detail: None,
+        };
+        for _ in 0..2 {
+            account
+                .dispatch_message(ProtocolMessage::for_tests(failed.clone()), &mut output)
+                .unwrap();
+        }
+        assert_eq!(account.cast_failure_seq, 2);
+        assert_eq!(
+            account.cast_failures,
+            std::collections::VecDeque::from([failed.clone(), failed])
+        );
+        assert_eq!(output.len(), 2);
     }
 
     #[test]

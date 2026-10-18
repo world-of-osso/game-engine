@@ -1,0 +1,38 @@
+{
+  "policy": "ASSISTED_COMBAT_SIMC_MIRROR",
+  "retail_verified": false,
+  "scope_rule_ids": [
+    1261,
+    1268
+  ],
+  "source_directory": "/home/osso/Projects/world-of-osso/game-engine/data/db2/12.1.5.70448",
+  "packet": "/syncthing/AgentShared/2026-10-17/laptop-requests/assisted-combat-types-3-12-ANSWER.md",
+  "packet_sha256": "eab706331035349dca755d95d6d29b217bcfee78eca75df5565a7e1bcbe22b09",
+  "simc_commit": "1860cd1d5763db68095823d4cb15731987652bd8",
+  "simc_lines": [
+    "engine/player/player.cpp:3578-3583",
+    "engine/player/player.cpp:3635-3642"
+  ],
+  "radius_yd": {
+    "value": 8,
+    "authority": "explicit user project policy; not SimC"
+  },
+  "whirlwind_radius_reference": {
+    "build": "70448",
+    "effect": 279027,
+    "radius_index": 14,
+    "radius": 8,
+    "radius_max": 8,
+    "radius_per_level": 0
+  },
+  "source_hashes": {
+    "AssistedCombat": "0a98f8b95939649a0cf40aea99975060378d3794205f4bfdf2778ed9d789b5cd",
+    "AssistedCombatStep": "0ec2f45a7f5d544a5b46aee7e19de949e3fa51446579bf0e82371770a3a1c9ab",
+    "AssistedCombatRule": "d5e2d9a6fd368ca74669d3bea0041731777e1d596308c99bc90b07cb25874a46",
+    "CooldownSet": "3331ce54defa934c7ac66689cb1727129faca3e3736f9f062e7506a792ada381",
+    "CooldownSetSpell": "8a98f96be744a317cf275ecfaf443f24d89ebe1ec817611102711bc95779a4eb",
+    "CooldownSetLinkedSpell": "f329a5c1017a96fea975e83b5d96734eb1293a4f729841ffcc3d43c173a91e23",
+    "SpellCategories": "4b38384bfa1478e28e8bdd56336a5a27b256f5aa6e632e7a1913dbbad1903386"
+  },
+  "fixture_scope": "only Fury rotation rows; unused cooldown tables retain actual headers only; new spatial observations are synthetic test inputs"
+}
