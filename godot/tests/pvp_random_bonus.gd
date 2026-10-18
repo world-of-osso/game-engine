@@ -1,6 +1,7 @@
 extends SceneTree
 # Supplied owner state, actual picking and viewport input; no live queue/server claim.
 var receipts: Array[Dictionary] = []
+var completed_cases := 0
 
 func _initialize() -> void:
 	call_deferred("run_bonus")
@@ -38,6 +39,7 @@ func activate(ui: Node, name: String, action: String, label: String) -> Dictiona
 	motion.global_position = point
 	root.push_input(motion, true)
 	await settle()
+	print("RANDOM_HOVER ", label, " point=", point, " expected=", button.get_path(), " hovered=", button.is_hovered(), " gui=", root.gui_get_hovered_control())
 	assert(button.is_hovered(), label + " native hover")
 	await press(point, true)
 	assert(button.is_pressed(), label + " native pressed state")
@@ -91,6 +93,7 @@ func probe(forever: bool, size: Vector2i) -> void:
 	assert(actions(ui).is_empty(), label + " duplicate pending request suppressed")
 	ui.free()
 	await settle()
+	completed_cases += 1
 
 func run_bonus() -> void:
 	root.content_scale_size = Vector2i.ZERO
@@ -98,6 +101,10 @@ func run_bonus() -> void:
 	for forever in [false, true]:
 		for size in [Vector2i(1280, 720), Vector2i(1920, 1080)]:
 			await probe(forever, size)
+	if receipts.size() != 32 or completed_cases != 4:
+		push_error("Random Bonus fixture incomplete: expected32 physical actions, got" + str(receipts.size()))
+		quit(1)
+		return
 	var path := OS.get_environment("PVP_RANDOM_BONUS_RECEIPT")
 	assert(not path.is_empty())
 	var output := FileAccess.open(path, FileAccess.WRITE)
