@@ -1,3 +1,7 @@
+## 2026-10-18 — Ownership-cap error CPU dispatch
+
+[Exact consumer proof/limits](systems/cursor-item.md#ownership-cap-error-cpu-dispatch-2026-10-18):d73fa72e6 with protocol2a5307c forwards typed ItemMaxCount through native account/NPC error dispatch, target1/0 using Retail GlobalStrings10918 ERR_ITEM_MAX_COUNT. Shared message owns text; no renderer change, native pixels or server enforcement claim. Coordinated three-repo gate/landing remains lead-owned.
+
 ## 2026-10-18 — Read-only Godot FontString height provenance
 
 [Pipeline audit](systems/group-frames.md#font-line-height-parity-read-only-pipeline-audit--2026-10-18): approved headless/no-UDP/no-rebuild query of actual projected FontFile confirms nominal12→ascent12/descent3/height15, lines15+15/minimum30, interline0 and no fallback. Exact font bytes have965/−250/0 at1000em:14.58 design line box, with0.42 upward rounded difference to15. Cached loader/no overrides, nominal size forwarding, native intrinsic measurement and pinned Godot/FreeType source locations retained alongside FontFile settings. No metric fix or Retail-baseline conclusion; clean-room packet pending/both gaps remain open. Probe exit0/Godot errors0/slice stopped0.
