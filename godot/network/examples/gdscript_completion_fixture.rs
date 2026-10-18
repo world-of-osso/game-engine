@@ -18,6 +18,7 @@ const FIXTURES: &[(&str, usize)] = &[
     ("loot_item_hitarea", 2),
     ("minimap_zoom_fidelity", 6),
     ("pvp_ready_placement", 8),
+    ("pvp_random_bonus", 4),
     ("ready_check_difficulty", 22),
     ("ready_check_portrait", 2),
     ("ready_check_title_bounds", 2),
