@@ -307,6 +307,7 @@ impl GameClient {
                 .synchronize_session_screen(self.account.session.screen);
             return Ok(());
         }
+        self.guild_ranks.session.roster_online_only = !self.client_options.communities_show_offline;
         if let Some(command) = self.guild_ranks.session.advance_invitation(delta) {
             self.send_guild_command(command)?;
         }
@@ -331,10 +332,14 @@ impl GameClient {
                 self.open_guild_news_subject()?;
                 continue;
             }
+            let previous_online_only = self.guild_ranks.session.roster_online_only;
             let previous_editor = self.guild_ranks.session.note_editor.clone();
             let texts = read_inputs(&mut ui, &self.guild_ranks.session);
             if let Some(request) = self.guild_ranks.session.click(&action, &texts) {
                 self.send_guild_rank_request(request)?;
+            }
+            if previous_online_only != self.guild_ranks.session.roster_online_only {
+                self.save_guild_show_offline()?;
             }
             if previous_editor != self.guild_ranks.session.note_editor
                 && self.guild_ranks.session.note_editor.is_some()
@@ -403,6 +408,18 @@ impl GameClient {
             }
             None => {}
         }
+        Ok(())
+    }
+
+    fn save_guild_show_offline(&mut self) -> Result<(), String> {
+        use game_engine_core::client_options_data::{
+            load_options_file_with_legacy, options_path, save_options_file_to_path,
+        };
+        let legacy_path = self.data_root.join("ui/options_settings.ron");
+        let mut file = load_options_file_with_legacy(&legacy_path);
+        file.communities_show_offline = !self.guild_ranks.session.roster_online_only;
+        save_options_file_to_path(&options_path(), &file)?;
+        self.client_options = file;
         Ok(())
     }
 
