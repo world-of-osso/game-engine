@@ -35,4 +35,23 @@ Evidence root: `data/diagnostics/pvp-native-running-invite-2026-10-17/` (directo
 
 ## Limits
 
-Direct1018 only: no Random selector, full-match outcome, new reward or20-rendered-client claim. Historical scoreboard rows are not a count of currently attached players. The PvP frame partly overlaps the ready dialog's top-left; both actions remain readable and functional. Placement/stacking parity requires a separate sourced proposal, not an inference from this lifecycle proof. Broader [PvP authority gaps](../specs/pvp-progression.md) remain parked.
+Direct1018 only: no Random selector, full-match outcome, new reward or20-rendered-client claim. Historical scoreboard rows are not a count of currently attached players. At this frozen revision the PvP frame partly overlaps the ready dialog's top-left; both actions remain readable and functional. This historical placement gap is superseded by the [rendered stacking follow-up](#rendered-stacking-follow-up--2026-10-18), not by the original lifecycle proof. Broader [PvP authority gaps](../specs/pvp-progression.md) remain parked.
+
+## Rendered stacking follow-up — 2026-10-18
+
+**PASS, accepted by Lead.** The earlier root-only native placement attempt remains **VISUAL FAIL**, now superseded by this follow-up. Its ledger and `/syncthing/AgentShared/pvp-ready-2026-10-18-{forever,modern}-occluded-FAILED.png` remain intact and labeled; they are not passing evidence.
+
+The root-only change correctly placed the standalone ready dialog at fullscreen TOP-center/down135 and changed the ordinary queue root to Medium. However, `pvp_honor_ui.rs` still built HonorInset and HonorLevelDisplay with the shared Dialog-forcing helper. These deeper Dialog descendants covered the ready body's sidebar overlap. Action-center picker GREEN missed that region. Retail PVPUI.xml1682/1718 instead leaves these children in the queue's strata. The narrow follow-up uses local RSX for those two frames, preserving rects/art and the shared helper/projection.
+
+Actual native body-overlap regression: eight RED probes selected HonorLevelDisplay; eight GREEN probes select PVPReadyDialog in both skins at1280×720 and1920×1080, Waiting/InProgress. All16 prior picker/physical action cases and22 scoped UI cases remain green; consumer check/fmt pass. This is not, by itself, drawn-order proof.
+
+The separate real-UDP run used DEBUG frozen master engine`003e35233b71da016638d33b6855864bde540771` (contains landed`3b7d6af5b`), server`ce0fec81c1caeaa20ff8d47b572cde1e49afbd65`, protocol`11a058cfb818947e63f0e3f9ce0e99513a563609`. Actual loaded library mappings/hash matched `ead5aadff192ae61fd25730312af998dca07b4fa61b7da305bef74ff47b992f4`.
+
+Nineteen ordinary5/5/5/4 supports naturally started10v9 Arathi match1. The late solo native received real InProgress/unaccepted invitations. Each skin's first pending original1920×1080 PNG was personally inspected **before its invite actions**: the entire dialog body/border/text draws above the Honor sidebar, with the queue still visible and unchanged. Dialog rect807/135/306/210; queue100/84/788/428. Both skins then physically declined, requeued, accepted the same running copy and returned normally. All19 supports also returned. No admin commands, startup retries or injected queue/roster/phase/score/timer/reward. Owned slice stopped, UDP5941 free and window cleared05:42:02 CDT.
+
+Accepted placement originals:
+- `/syncthing/AgentShared/pvp-ready-2026-10-18-forever-unobscured.png`
+- `/syncthing/AgentShared/pvp-ready-2026-10-18-modern-unobscured.png`
+
+Source/caller audit and RED/GREEN receipts: `data/diagnostics/pvp-honor-inset-strata-2026-10-18/`. Rendered states, all10 raw captures, hashes, inspection order and cleanup: `data/diagnostics/pvp-honor-inset-native-2026-10-18/proof-ledger.json`. Prior failed runtime: `data/diagnostics/pvp-ready-dialog-native-2026-10-18/`. Editor import still reports ShaderFile/dialog-parent errors and9 ObjectDB exit instances; do not call it warning-free. Scope remains one rendered client plus19 UDP peers, direct1018, not full-scene/Retail pixel parity, general popup stacking, Random selection or rewards.
+
