@@ -40,6 +40,8 @@ Native Retail Mainline AchievementUI and dungeon objectives, using authoritative
 
 - [x] AchievementSearchBox Roman font size is10, not the generic EditBox16 default. Source: AchievementUI.xml1709→InputBoxTemplates.xml206/202→FontStyles.xml92/56→Fonts.xml39–44 (SearchBoxTemplate→GameFontHighlightSmall→SystemFont_Shadow_Small/FRIZQT__.TTF height10). Use the same nominal10 as accepted criterion captions; the shared projection-root UI scale applies once, with no additional font conversion. This size-only change preserves family/color/shadow/insets/107×30/positions/art/filter/actions; separate post-landing both-skin normal/actual-online-comparison physical search/clear/three-filter retention passes (2026-10-18). Full font/template or cross-run pixel invariance is not claimed.
 
+- [x] AchievementSearchBox typed text uses WHITE_FONT_COLOR (AchievementUI.xml1709→InputBoxTemplates.xml206/202→FontStyles.xml92–94). Only this widget's font_color is explicit; global defaults stay unchanged. Existing native projection also colors its caret white: accepted coupled side effect, not a claim of Retail caret parity. Font family/size10,107×30/insets/x/y/art/actions/filter/caret width/blink stay unchanged; shadow and empty instruction hint remain outside this slice.
+
 ### Statistics and search
 
 - [x] Browse authentic statistic rows and raw, unclamped supported counters; unsupported quantities remain explicitly unevaluated.
