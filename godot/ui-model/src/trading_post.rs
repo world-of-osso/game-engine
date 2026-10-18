@@ -69,6 +69,8 @@ pub struct View {
     /// Captured price/count survive source clear-on-accept cart lifecycle.
     pub cart_confirmation: Option<(u64, usize)>,
     pub error: String,
+    /// Undrained product-selection callbacks; provider reselection is silent.
+    pub selection_sounds: usize,
 }
 #[derive(Clone, Debug, PartialEq, Eq)]
 pub struct Filters {
@@ -135,6 +137,10 @@ fn price_sort_value(row: &TradingPostItem, refund_elapsed: u32) -> i64 {
 }
 
 impl View {
+    pub fn take_selection_sounds(&mut self) -> usize {
+        std::mem::take(&mut self.selection_sounds)
+    }
+
     pub fn receive(&mut self, snapshot: Arc<TradingPostSnapshot>) {
         self.error = snapshot.error.clone().unwrap_or_default();
         self.snapshot = Some(snapshot);
