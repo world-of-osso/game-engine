@@ -141,6 +141,13 @@ impl View {
         std::mem::take(&mut self.selection_sounds)
     }
 
+    fn select_product(&mut self, id: u32) {
+        if self.selected != Some(id) {
+            self.selected = Some(id);
+            self.selection_sounds += 1;
+        }
+    }
+
     pub fn receive(&mut self, snapshot: Arc<TradingPostSnapshot>) {
         self.error = snapshot.error.clone().unwrap_or_default();
         self.snapshot = Some(snapshot);
@@ -200,8 +207,9 @@ impl View {
         } else {
             index.checked_sub(1)
         };
-        if let Some(row) = adjacent.and_then(|index| rows.get(index)) {
-            self.selected = Some(row.id);
+        let adjacent_id = adjacent.and_then(|index| rows.get(index)).map(|row| row.id);
+        if let Some(id) = adjacent_id {
+            self.select_product(id);
         }
         Ok(())
     }
@@ -341,7 +349,7 @@ impl View {
         };
         if on_frozen {
             let replacing = snapshot.frozen_item_id.is_some();
-            self.selected = Some(id);
+            self.select_product(id);
             self.freeze_candidate = Some(id);
             if replacing {
                 self.confirm = Some("freeze".into());
@@ -397,7 +405,7 @@ impl View {
                 .as_ref()
                 .and_then(|snapshot| snapshot.frozen_item_id);
             if self.rows().iter().any(|row| row.id == id) || frozen == Some(id) {
-                self.selected = Some(id);
+                self.select_product(id);
             }
             return Ok(());
         }

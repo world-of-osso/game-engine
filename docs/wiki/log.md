@@ -1,3 +1,7 @@
+## 2026-10-18 — Trading Post selection callbacks
+
+[Selection audio](systems/trading-post.md#product-selection-sound--october18): active70448 kit218230/file4906955/gain0.79, authenticated private Ogg independently re-extracted/published by lead. Actual missing-kit RED then observation-only callback counter yields four lifecycle REDs and one silent-provider control PASS before event dispatch implementation. Existing selection/cart/modal state and release-time drag behavior retained; TP_DRAG_SELECTION_RELEASE_TIMING and TP_CART_OPEN_SELECTION_CLEAR remain explicit gaps. Focused GREEN/check/fmt and post-landing native decoded playback remain pending; no asset-index fragment or prior proof replay.
+
 ## 2026-10-17 — Invitation dismissal lifecycle
 
 [Invitation dismissal](systems/guilds.md#invitation-dismissal): installed Mainline elapsed>60/OnHide and special-popup Escape authority; actual60.001s model RED before timeout/Escape wiring, no protocol/server changes. Loading retention and pending acceptance conserved. Post-landing native proof pending.
