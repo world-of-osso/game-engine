@@ -177,10 +177,10 @@ class PlayerController:
             abandoned = opening_abandonment(state, target)
             if abandoned is not None:
                 return abandoned
+            if not native_usable(state, spell):
+                raise ValueError("Opening requires fresh native readiness, affordability and range")
         if spell not in state["spells"]["known"]:
             raise ValueError("Opening requires a learned spell")
-        if not native_usable(state, spell):
-            raise ValueError("Opening requires fresh native readiness, affordability and range")
         self.submit_cast(state, target, spell)
         while not self.observe_cast_outcome(self.snapshot(target)):
             time.sleep(.05)
