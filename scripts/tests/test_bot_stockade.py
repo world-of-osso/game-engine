@@ -39,7 +39,7 @@ class StockadeOpeningTests(unittest.TestCase):
         controller.player = SimpleNamespace(
             observe_cast_outcome=lambda state: True,
             assist=lambda tank: None, tab_to_enemy=lambda: 41,
-            cast_opening=lambda target, spell: calls.append((target, spell)) or {"success": True})
+            cast_opening=lambda target, spell, _admission: calls.append((target, spell)) or {"success": True})
         with tempfile.TemporaryDirectory() as root:
             controller.output = Path(root)
             with patch('run_stockade_bot.time.sleep'):
@@ -306,7 +306,8 @@ class StockadeVisibilityTests(unittest.TestCase):
             def move(here, goal, label):
                 inputs.append(("move", here, goal))
                 state["visibility"]["visible"] = True
-            def cast(target, spell):
+            # This fixture isolates LOS sequencing; corridor admission has its own native inputs/tests.
+            def cast(target, spell, _admission):
                 inputs.append(("cast", target, spell))
                 return {"success": True}
             controller.move = move
