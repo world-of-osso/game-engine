@@ -12,6 +12,7 @@ from unittest.mock import patch
 sys.path.insert(0, str(Path(__file__).resolve().parents[1]))
 from run_stockade_bot import StockadeRun
 from bot_controller import PlayerController
+from bot_pull_corridor import require_safe_corridor
 
 FIXTURE = Path(__file__).parent / 'fixtures/bot_harness/native-stockade-pull-corridor.json'
 
@@ -126,6 +127,37 @@ class PullCorridorTests(unittest.TestCase):
                 publish()
                 run.open_pull()
                 self.assertEqual(len(casts), 1)
+
+    def test_segment_crossing_strict_boundary_and_vertical_distance(self):
+        snapshot = {'epoch': [34, 1, 1], 'full_update_after_entry': True,
+                    'observed_dying_entries': [46383], 'units': [
+                        unit(1, 209057, [0, 0, 0], hostile=False),
+                        unit(2, 46382, [40, 0, 0]),
+                        unit(3, 46382, [20, 0, 0], radius=5)]}
+        path = [[0, 0, 0], [40, 0, 0]]
+        with self.assertRaisesRegex(ValueError, 'corridor.*hostile'):
+            require_safe_corridor(snapshot, 1, 2, path, SourceControl())
+        snapshot['units'][2]['position'] = [20, 5, 0]
+        require_safe_corridor(snapshot, 1, 2, path, SourceControl())  # strict distance < radius
+        snapshot['units'][2]['position'] = [20, 4.99, 0]
+        with self.assertRaises(ValueError):
+            require_safe_corridor(snapshot, 1, 2, path, SourceControl())
+        snapshot['units'][2]['position'] = [20, 8, 0]
+        require_safe_corridor(snapshot, 1, 2, path, SourceControl())
+
+    def test_changed_tank_or_target_during_nav_query_refuses(self):
+        with tempfile.TemporaryDirectory() as directory:
+            run, native, state, publish, queries, casts = self.controller(directory)
+            original = run.query_route
+            def move_tank(*args):
+                corners = original(*args)
+                native['units'][0]['position'] = [110, -25.6, 3]
+                publish()
+                return corners
+            run.query_route = move_tank
+            with self.assertRaisesRegex(ValueError, 'changed'):
+                run.open_pull()
+            self.assertEqual(casts, [])
 
     def test_pending_ack_prevents_admission_or_cast(self):
         calls = []
