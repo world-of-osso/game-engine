@@ -6,6 +6,10 @@ Guild state is server-authoritative. Contracts: [ranks/lifecycle](../../specs/gu
 
 `GuildRanksSession` holds roster/permissions, profile, pending invitation and reply pacing. The native `guild_ranks.rs` canvas forwards exact requests; profile updates replace display state. Loading preserves early replies; logout clears them. Modified member clicks reach the native action consumer and on-screen hierarchy-filtered menu. Native LineEdit limits are applied only when changed, before synchronizing text: resetting the same limit resets Godot's caret and reverses typing.
 
+## Invitation dismissal
+
+Mainline `GuildInviteFrame.xml:140–158` hides at `elapsed > 60`; its OnHide sends DeclineGuild unless accepted. `StaticPopup.lua:781–795` routes Escape through the same special-popup hide. `GuildRanksSession` accumulates displayed elapsed time and returns the existing DeclineInvite command on timeout or dismissal, removing the pending display once. Native update advances it only InWorld; Loading's ordinary Communities teardown is not a decline. Receipt resets the timer. Pending Join is unchanged and cannot send a competing decline. The native Escape path handles invitations independently of Communities visibility. Boundary RED at60.001s reproduced missing decline; post-landing actual server/native both-skin acceptance remains pending. Contract: [invitation lifecycle](../../specs/guild-ranks.md#invitation-and-guild-profile).
+
 ## Charter flow
 
 `guild_charters.rs` forwards authenticated petitioner-role openings to Registrar requests. The registrar replaces its gossip greeting, and its NPC portrait uses the common M2 portrait renderer. Purchase replies close the window; using actual bag item5863 opens PetitionFrame. Owners offer to the selected player's name or rename; recipients render server can_sign. Signature rows and button pacing use the authoritative quota/state. Registration is an NPC service, not a shortcut in Communities.
