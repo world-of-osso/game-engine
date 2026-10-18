@@ -6,7 +6,7 @@ use godot::prelude::*;
 use shared::protocol::AdventureGuideSnapshot;
 use ui_toolkit::registry::FrameRegistry;
 
-use super::projection::UiProjection;
+use super::{RegistryUi, projection::UiProjection};
 
 impl UiProjection {
     pub(super) fn sync_journal_suggestion_hovers(
@@ -44,6 +44,16 @@ impl UiProjection {
         let Some(label) = self.node(id).and_then(|node| node.try_cast::<Label>().ok()) else {
             return false;
         };
+        label_is_truncated(&label)
+    }
+}
+
+/// Read-only native fixture probe; shares the product detector without replacing it.
+#[cfg(debug_assertions)]
+#[godot_api(secondary)]
+impl RegistryUi {
+    #[func]
+    fn journal_suggestion_font_truncated(&self, label: Gd<Label>) -> bool {
         label_is_truncated(&label)
     }
 }
