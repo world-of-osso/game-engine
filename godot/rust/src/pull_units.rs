@@ -112,6 +112,33 @@ where
         .ok_or_else(|| format!("Pull unit {} missing {name}", unit.server_id))
 }
 
+fn project_geometry(unit: Unit<'_>) -> Result<([f32; 3], f32, f32), String> {
+    let position = require_component::<Position>(unit, "position")?;
+    let position = [position.x, position.y, position.z];
+    let health = require_component::<Health>(unit, "health")?.current;
+    let scale = require_component::<UnitScale>(unit, "scale")?.0;
+    let valid_scale = scale.is_finite() && scale > 0.0;
+    let valid_position = position.iter().all(|v| v.is_finite());
+    if !health.is_finite() || !valid_scale || !valid_position {
+        return Err(format!(
+            "Pull unit {} non-finite position/life/scale",
+            unit.server_id
+        ));
+    }
+    Ok((position, health, scale))
+}
+
+fn project_auras(unit: Unit<'_>) -> Result<Vec<PullAura>, String> {
+    Ok(require_component::<UnitAuras>(unit, "auras")?
+        .auras
+        .into_iter()
+        .map(|aura| PullAura {
+            spell_id: aura.spell_id,
+            stacks: aura.stacks,
+        })
+        .collect())
+}
+
 fn project_unit(
     unit: Unit<'_>,
     tank: &FactionTemplateEntry,
@@ -121,28 +148,7 @@ fn project_unit(
     let template = templates
         .get(&faction)
         .ok_or_else(|| format!("Pull faction {faction} unavailable"))?;
-    let position = require_component::<Position>(unit, "position")?;
-    let position = [position.x, position.y, position.z];
-    let health = require_component::<Health>(unit, "health")?.current;
-    let scale = require_component::<UnitScale>(unit, "scale")?.0;
-    if !health.is_finite()
-        || !scale.is_finite()
-        || scale <= 0.0
-        || position.iter().any(|v| !v.is_finite())
-    {
-        return Err(format!(
-            "Pull unit {} non-finite position/life/scale",
-            unit.server_id
-        ));
-    }
-    let auras = require_component::<UnitAuras>(unit, "auras")?
-        .auras
-        .into_iter()
-        .map(|aura| PullAura {
-            spell_id: aura.spell_id,
-            stacks: aura.stacks,
-        })
-        .collect();
+    let (position, health, scale) = project_geometry(unit)?;
     Ok(PullUnit {
         id: unit.server_id,
         entry: require_component::<Npc>(unit, "NPC")?.template_id,
@@ -155,7 +161,7 @@ fn project_unit(
         level: require_component::<UnitLevel>(unit, "level")?.0,
         display: require_component::<ModelDisplay>(unit, "display")?.display_id,
         scaling: unit.get::<LevelScaling>().copied(),
-        auras,
+        auras: project_auras(unit)?,
     })
 }
 
