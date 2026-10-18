@@ -1,6 +1,10 @@
 ## 2026-10-18 — Shared native menu order
 
 [Source and bounded projection](systems/menu-primitives.md#native-menu-order-2026-10-18): actual guild-menu z563 below Last Online1503 reproduces additive-strata ordering failure. Shared menus use FULLSCREEN_DIALOG; native layers rank densely below the existing highlight plane, with explicit once-reported capacity errors and unchanged pointer policy. Native guild/navigation, tooltip/strata/raise/reused-ID and both dungeon/raid companion controls pass; pointer comparator remains unchanged. Golden census measures50 actual roots, maximum16 layers (GameMenuRoot193frames) versus4000 capacity; Modern golden/hash targets47 pass, with only21 source-qualified menu stratum fields changed. Focused gate and refreshed game-world pixels remain pending.
+## 2026-10-18 — Suggested text font-key boundary
+
+[Proof and fixture limits](systems/adventure-guide.md#suggested-secondary-text-hover--implementation-2026-10-17): genuine881/852 both-skin native fitting negatives accepted at55e1, four inspected originals. Product font key misread default16 versus painted18; actual native process RED records241/214 widths inside227.5 allocation. Minimal font_size correction and approved source642row-fed positive fixture await separate gate/window; no realm eligibility/authority claim.
+
 ## 2026-10-17 — Suggested secondary truncation hover implementation
 
 [Source mapping and proof boundary](systems/adventure-guide.md#suggested-secondary-text-hover--implementation-2026-10-17): literal EJ3311 second-pass owners; native drawn-label truncation gates full white wrapped right-anchored tooltips. Both-skin model RED recorded; native hover/leave acceptance waits for lead gate/window. No provider/reward/action authority added.
