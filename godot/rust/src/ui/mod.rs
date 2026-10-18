@@ -51,6 +51,7 @@ pub(crate) mod input_queue;
 #[cfg(debug_assertions)]
 mod item_confirmation_shadow_preview;
 mod journal_section_flash;
+mod journal_suggestion_hover;
 mod journeys_track_mask;
 mod launcher_preview;
 mod layout;
@@ -69,6 +70,9 @@ mod parts;
 mod party_preview;
 mod professions_preview;
 mod projection;
+mod projection_order;
+#[cfg(debug_assertions)]
+mod projection_order_preview;
 #[cfg(debug_assertions)]
 mod pvp_bonus_preview;
 mod ready_check_layout_policy;
@@ -296,7 +300,18 @@ impl RegistryModel {
             self.sync();
             projection.sync(&mut self.registry)?;
         }
+        self.sync_journal_suggestion_hovers(projection);
         Ok(())
+    }
+
+    fn sync_journal_suggestion_hovers(&mut self, projection: &UiProjection) {
+        if let Some(snapshot) = self
+            .shared
+            .get::<game_engine_ui_model::adventure_guide::View>()
+            .and_then(|view| view.activities.as_deref())
+        {
+            projection.sync_journal_suggestion_hovers(&mut self.registry, snapshot);
+        }
     }
 
     /// Mirror the active layout's settings, then its skin: a change of either rebuilds the
@@ -2987,7 +3002,9 @@ impl RegistryUi {
         };
         projection.root.set_scale(Vector2::splat(scale));
         projection.root.set_size(logical);
-        projection.sync(&mut model.registry)
+        projection.sync(&mut model.registry)?;
+        model.sync_journal_suggestion_hovers(projection);
+        Ok(())
     }
 
     /// Redraw this canvas under the active skin; a canvas without a screen has nothing drawn.

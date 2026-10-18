@@ -80,6 +80,14 @@ Native Retail Mainline AchievementUI and dungeon objectives, using authoritative
 - Server `achievement_window_tests.rs` — real catalog totals, faction/scope, hidden-copy exclusion, raw statistic counters, multi-page search, Unicode correlation and authored earned icon.
 - Native private proof and inspected Modern/Forever PNGs are indexed in the linked wiki.
 
+## Search preview
+
+- Typing preserves the category/Summary body and its selection. With search focus and at least three characters, display up to five real received search results in the Retail206×27 icon/name rows beneath the SearchBox (popup offset−4,+3 from its bottom-left).
+- Show All Results appears only when more than five received rows or a continuation cursor proves additional results. It explicitly opens the full received result list; native bottom scrolling continues existing cursors. Do not invent a result total.
+- Clicking a preview opens that achievement. Clear/short query hides the popup; focus loss hides it without replacing the body. Replies for another query/scope cannot populate it; replies after blur cannot reopen it. Both skins share behavior/source geometry.
+- Exclude Retail's separate0.3s search-progress path and invented percentages. Source: cached Mainline AchievementUI.xml14–60,1724–1852; Lua3401–3459,3533–3542.
+- [x] Both-skin normal/real online comparison native proof covers physical focus/type/five received rows/blur/refocus/clear/Show All/achievement open on exact landeddf3. Sixteen inspected full-HD originals, strict exit0/unique2/2/zero-error drained streams and owned cleanup are [recorded in the wiki](../wiki/systems/dungeon-achievements.md#post-landing-search-preview-native-proof--2026-10-18). Native rapid-clear is not a latency/guaranteed delayed-reply claim.
+
 ## Known gaps (current cycle)
 
 - [ ] Server-unevaluated criterion/statistic types have no trustworthy quantity to display; do not invent zero/completion.

@@ -2,6 +2,18 @@
 
 Verified: 2026-10-17 for section-focus flash; earlier receipts retain their recorded revisions. The [contract](../../specs/adventure-guide.md) owns Retail Mainline behavior; Forever only changes the shared screen's art.
 
+## Suggested secondary text hover — implementation 2026-10-17
+
+The [contract](../../specs/adventure-guide.md#suggested-source-presentation) scopes EJ Lua3311–3357's second pass to physical Suggestion2/3. Returned record1 occupies physical3 and therefore joins only with three records; record2 occupies physical2 and joins with two or three. Primary-title hover in the earlier independent branch is not included. `adventure_suggestions::hover_text` preserves this source mapping; `text_tooltip` supplies full white wrapped text without reward/activation metadata.
+
+Native `ui/journal_suggestion_hover.rs` reads the drawn Label after projection: hidden wrapped lines use native total/visible line counts; unwrapped titles compare full native-font advance against the actual label width. It enables only that text owner when truncated, and refreshes after model sync or viewport layout. Existing central tooltip ownership places ANCHOR_RIGHT and removes the tooltip on leave/frame removal. No text-length guess, alternate provider, reward, action or paging authority is added.
+
+Both-skin behavioral content tests first failed at84a6afbf5 (2 failures, missing tooltip); lead ag580 landed55e1f8687 after182/0 and merged196/0 with fmt0. At exact55e1/server748a5ad78, genuine received881/852 fitting-title physical hovers pass2/2 in each skin, with four inspected full-HD originals. None of those secondary labels truncates, so they cannot certify the positive boundary.
+
+Native diagnostics exposed a product font-theme-key bug: `font` returns default16 rather than painted `font_size`18/12. The ignored process test `adventure_suggestion_painted_font_size_truncation` explicitly runs Godot and the same product detector; actual RED6fd32 records real642 title width241 at18 versus214 at16, actual Label width227.5, and false truncation. The correction reads `font_size`; a scoped source search found no other wrong-key painted-text occurrence. Test remains explicitly ignored in ordinary CPU-only runs because it requires built debug GDExtension and GODOT_BIN; run it with `--ignored`.
+
+The debug-only `install_adventure_suggestion_642_fixture` reads installed AdventureJournal642 and substitutes only the first received pane input; production screen, truncation, tooltip and pointer paths remain unchanged. `adventure_suggestion_hover.gd` labels this **source-record-fed fixture, no realm eligibility or authority claim**. Positive hover/full text/leave acceptance remains pending the separate font-fix gate and new lead-granted window; genuine fitting negatives retain their exact earlier55e1 revision.
+
 ## Section focus flash — 2026-10-17
 
 The [contract](../../specs/adventure-guide.md#section-focus-flash) follows EJ XML764–768/888–914 and Lua2126–2139. [`adventure_guide_sections`](../../../godot/ui-model/src/adventure_guide_sections.rs) adds an independent zero-alpha Glow frame using the source header's left/mid/right highlight regions; the hover layer stays separate. [`journal_section_flash`](../../../godot/rust/src/ui/journal_section_flash.rs) stores one `Option<(u32, Instant)>` on the existing RegistryUi, starts from the existing post-layout section-focus path, and advances source alpha0→1→0→1→0 over0.6/0.6/0.6/0.9seconds. Completion restores zero; another target clears the prior glow, and removing its header/canvas ends its lifetime. No new domain/input authority or generic animation framework is introduced.

@@ -114,6 +114,8 @@ fn category_pending_window(comparison: bool, phase: &str) -> Result<AchievementW
         "empty" => view.pages.entry(14808).or_default().loaded = true,
         "search" => {
             view.action("achievement:search:bear");
+            // Explicit full-list pending-state fixture, not typing-to-navigate behavior.
+            view.full_search = true;
         }
         "error" => {
             view.selected_category = None;
@@ -191,10 +193,8 @@ impl RegistryUi {
             };
             window.action(action);
             window.action(&format!("achievement:search:{query}"));
-            if query.is_empty() {
-                // Offline browse selection only; no received category metadata or progress.
-                window.selected_category = Some(92);
-            }
+            // Offline browse selection only; typing no longer replaces the category body.
+            window.selected_category = Some(92);
             self.show_achievement_window(window)
         });
         GString::from(result.err().unwrap_or_default().as_str())
