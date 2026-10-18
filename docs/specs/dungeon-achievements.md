@@ -38,7 +38,7 @@ Native Retail Mainline AchievementUI and dungeon objectives, using authoritative
 
 - [x] AchievementSearchBox uses source TextInsets left16/right20/top0/bottom0 (InputBoxTemplates.xml245), allowing the authored107×30 native rectangle with its font family, position, art and filter behavior retained. Native geometry proof covers both skins × ordinary/comparison; separate post-landing real-peer physical search/clear/completion-filter retention passes in all four modes (2026-10-18).
 
-- [x] AchievementSearchBox Roman font size is10, not the generic EditBox16 default. Source: AchievementUI.xml1709→InputBoxTemplates.xml206/202→FontStyles.xml92/56→Fonts.xml39–44 (SearchBoxTemplate→GameFontHighlightSmall→SystemFont_Shadow_Small/FRIZQT__.TTF height10). Use the same nominal10 as accepted criterion captions; the shared projection-root UI scale applies once, with no additional font conversion. This size-only change preserves family/color/shadow/insets/107×30/positions/art/filter/actions; full font/template parity is not claimed.
+- [x] AchievementSearchBox Roman font size is10, not the generic EditBox16 default. Source: AchievementUI.xml1709→InputBoxTemplates.xml206/202→FontStyles.xml92/56→Fonts.xml39–44 (SearchBoxTemplate→GameFontHighlightSmall→SystemFont_Shadow_Small/FRIZQT__.TTF height10). Use the same nominal10 as accepted criterion captions; the shared projection-root UI scale applies once, with no additional font conversion. This size-only change preserves family/color/shadow/insets/107×30/positions/art/filter/actions; separate post-landing both-skin normal/actual-online-comparison physical search/clear/three-filter retention passes (2026-10-18). Full font/template or cross-run pixel invariance is not claimed.
 
 ### Statistics and search
 
