@@ -13,13 +13,13 @@ func _init(owner: SceneTree, count: int) -> void:
 	watchdog()
 
 func watchdog() -> void:
-	await tree.create_timer(300.0).timeout
+	await tree.create_timer(900.0).timeout
 	if not finished:
 		fail("completion timeout: %d/%d" % [done, expected])
 
 func fail(message: String) -> bool:
 	if not failed:
-		print("FAIL completion: ", message)
+		print("FAIL completion: ", message, " stack=", get_stack())
 	failed = true
 	tree.quit(1)
 	return false

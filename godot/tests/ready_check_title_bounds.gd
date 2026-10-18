@@ -138,7 +138,6 @@ func run_title_bounds() -> bool:
 	receipt.close()
 	print("PASS ready-title-bounds both-skin source origin/width and conservation")
 	return true
-	return true
 
 func run_completion() -> void:
 	completion.finish(await run_title_bounds())

@@ -130,7 +130,6 @@ func run_cards() -> bool:
 		await process_frame
 	print("PASS Campsite both-skin pointer/selection source-state fixture")
 	return true
-	return true
 
 func run_completion() -> void:
 	completion.finish(await run_cards())

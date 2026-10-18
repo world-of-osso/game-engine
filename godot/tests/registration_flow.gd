@@ -153,7 +153,6 @@ func run() -> bool:
 	client.queue_free()
 	await process_frame
 	return true
-	return true
 
 func run_completion() -> void:
 	completion.finish(await run())

@@ -18,8 +18,7 @@ func settle() -> bool:
 func check(condition: bool, description: String) -> bool:
 	if not condition:
 		failures.append(description)
-
-	return true
+	return completion.require(condition, description)
 
 func click(point: Vector2) -> bool:
 	var motion := InputEventMouseMotion.new()
@@ -38,6 +37,7 @@ func click(point: Vector2) -> bool:
 		await process_frame
 	if not completion.step(await settle(), "settle"):
 		return false
+	return true
 
 func collect_actions(ui: Node) -> Array[String]:
 	var actions: Array[String] = []
@@ -47,8 +47,6 @@ func collect_actions(ui: Node) -> Array[String]:
 			break
 		actions.append(action)
 	return actions
-
-	return true
 
 func probe(forever: bool, size: Vector2i, phase: String) -> bool:
 	root.size = size
