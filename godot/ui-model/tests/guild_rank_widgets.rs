@@ -2632,6 +2632,7 @@ fn guild_member_detail_opens_from_roster_both_skins() {
         session.click("guild:member:Cara", &Default::default());
         let reg = mounted(&session);
         assert_eq!(text(&reg, "GuildMemberDetailName"), "Cara");
-        assert_eq!(text(&reg, "GuildMemberDetailRank"), "Member");
+        // GuildRoster.lua:16–56 uses the rank dropdown for an editable member.
+        assert_eq!(text(&reg, "GuildMemberDetailRankDropdownText"), "Member");
     }
 }
