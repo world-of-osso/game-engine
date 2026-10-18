@@ -14,6 +14,15 @@ Retail Mainline Blizzard_PerksProgram and the local C_PerksProgram/PerksActiviti
 - [x] Traveler's Log displays authoritative monthly Tender earned/cap/balance. No invented mail awards. Retail XML defines visible controls; remove unsourced vendor SearchBox, Log/Collections and Freeze/Unfreeze buttons (lead clarification October13).
 - [x] Targeted behavioural tests and inspected private UDP5731 fb_* account PNG proof in Modern and Forever.
 
+## Ordinary-product keyboard navigation
+
+- [ ] With an existing ordinary selection, Down/Up selects the next/previous ordinary row in current filtered/sorted order, without wrapping at either end. Frozen selection, visible cart and confirmation keyboard owners do not navigate. Nil selection never guesses the first row.
+- [ ] Reveal the nearest out-of-view edge of a newly selected row; leave already-visible rows at the current scroll offset. Header entries are not selectable products; this slice does not create missing headers/group IDs.
+- [ ] Consume owned Up/Down presses/releases before world movement, preserving higher modal keyboard ownership. Navigation sends no vendor transaction and cannot change Tender, cart or frozen reservation.
+- [ ] Concrete model RED→GREEN, real page-boundary rendering, helper check and scoped format precede a code gate. Both-skin real-key/world-position/conservation proof follows landing; no native acceptance yet.
+
+Selection sounds, screenshot binding, new key-repeat policy, empty-provider parity, calendar/provider work and Rank3 framing remain excluded. [Implementation/proof](../wiki/systems/trading-post.md#ordinary-product-keyboard-navigation--october17).
+
 ## Purchase-aware Price sorting
 
 - [x] Ordinary Price sorting uses Retail Products.lua402–485 effective values: refundable−2, purchased/nonrefundable−3, otherwise the actual unsigned price. Determine refundability from each row's remaining refund time, not the selected item. Preserve higher-group precedence, ascending name ties in either direction, committed frozen exclusion, selection and cart.
