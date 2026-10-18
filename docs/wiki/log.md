@@ -1,3 +1,7 @@
+## 2026-10-18 — Search selection native focus
+
+[Source/proof](systems/dungeon-achievements.md#search-selection-focus-release--2026-10-18): cachedLua3594–3604/3669–3676 ClearFocus after successful Show All/received-preview open only. Pushed RED first gives four actualtrue/expectedfalse cases; unchanged eight invalid/no-op controls. Native-only release then strict12/12GREEN, query/body preserved; common runner expected12. Earlier fixture screen-init error remains separate, no realm/progress/keyboard-nav/server change.
+
 ## 2026-10-18 — Search-preview native lifecycle
 
 [Exact proof and preserved failures](systems/dungeon-achievements.md#post-landing-search-preview-native-proof--2026-10-18): Edf3/Saf5/Pa2b/Tc2f, both-skin normal/real Hdrpeer comparison; source five206×27 rows, physical focus/blur/refocus/clear/Show All/open. Both drained streams exit0/unique2/2/zeroerrors/exact8PNGs; sixteen inspected1920 originals published, ownedPIDs gone/slice0/5898free/windowcleared. Native rapidclear is not delayedreply/latency proof; model ordering remains distinct. Earlier protocol/socket/focus-helper failures stay failed and preserved, no product fallback/change.
