@@ -10,7 +10,11 @@ func run_geometry() -> void:
 	var failures: Array[String] = []
 	for forever in [false, true]:
 		for comparison in [false, true]:
-			var ui := ClassDB.instantiate("RegistryUi") as Control
+			var ui := ClassDB.instantiate("RegistryUi") as CanvasLayer
+			if ui == null:
+				push_error("Native RegistryUi unavailable")
+				quit(1)
+				return
 			root.add_child(ui)
 			var error: String = ui.call("show_achievement_header_preview", forever, comparison)
 			if not error.is_empty():
