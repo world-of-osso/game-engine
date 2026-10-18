@@ -96,6 +96,7 @@ fn crop(texture: &TextureData, skin: ActiveSkin) -> (u32, [f32; 4]) {
 }
 
 fn dump_frame(registry: &FrameRegistry, id: u64, skin: ActiveSkin, out: &mut String) {
+    super::golden_layer_census::record(registry, id);
     let f = registry.get(id).unwrap();
     let data = match f.widget_data.as_ref() {
         Some(WidgetData::Texture(t)) if t.source != TextureSource::None => format!(

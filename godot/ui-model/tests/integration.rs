@@ -49,6 +49,7 @@ mod forever_quest_windows;
 mod forever_small_windows;
 mod forever_unit_reference;
 mod game_menu;
+mod golden_layer_census;
 mod group_countdown;
 mod guild_charters;
 mod guild_rank_widgets;
