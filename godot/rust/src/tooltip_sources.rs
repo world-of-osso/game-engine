@@ -132,6 +132,7 @@ impl GameClient {
             GameClient::trading_post_button_tooltip,
             GameClient::trading_post_refund_tooltip,
             GameClient::trading_post_tooltip,
+            GameClient::journal_suggestion_text_tooltip,
             GameClient::journal_section_flag_tooltip,
             GameClient::journal_defeated_tooltip,
             GameClient::journal_creature_tooltip,
@@ -412,6 +413,21 @@ impl GameClient {
             },
             None,
         ))
+    }
+
+    fn journal_suggestion_text_tooltip(&mut self, hit: &HoveredFrame) -> Option<HoveredTooltip> {
+        let snapshot = self.adventure_guide.view.activities.as_deref()?;
+        let ui = hit.ui.bind();
+        let (owner, tooltip) = named_ancestor(ui.registry()?, hit.frame, |frame| {
+            game_engine_ui_model::adventure_suggestions::text_tooltip(
+                snapshot,
+                frame.name.as_deref()?,
+                frame.mouse_enabled,
+            )
+        })?;
+        drop(ui);
+        let rect = self.owner_rect(&hit.ui, owner)?;
+        Some(HoveredTooltip::text(tooltip.owned(rect, OwnerSide::Right)))
     }
 
     fn journal_section_flag_tooltip(&mut self, hit: &HoveredFrame) -> Option<HoveredTooltip> {

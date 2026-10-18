@@ -5,6 +5,8 @@ use crate::quest_art::{DynName, panel_button};
 mod artwork;
 #[path = "achievement_comparison.rs"]
 mod comparison_view;
+#[path = "achievement_search.rs"]
+mod search_view;
 use crate::ui::strata::FrameStrata;
 use shared::protocol::{
     ACHIEVEMENT_CRITERION_FLAG_PROGRESS_BAR, ACHIEVEMENT_SEARCH_MAX_CHARS, AchievementCatalogEntry,
@@ -139,6 +141,8 @@ pub struct AchievementWindow {
     pub filter_menu: bool,
     pub search_text: String,
     pub search_results: CategoryPage,
+    pub search_focused: bool,
+    pub full_search: bool,
     categories_loaded: bool,
     pending: Vec<QueryAchievementCatalog>,
     /// The connection's last full snapshot with every later delta applied.
@@ -154,12 +158,25 @@ impl AchievementWindow {
             }
             "achievement:close" => {
                 self.visible = false;
+                self.search_focused = false;
                 self.comparison = None;
             }
             "achievement:stop_compare" => self.comparison = None,
             "achievement:statistics" => self.change_statistics(true),
             "achievement:achievements" => self.change_tab(false, false),
             "achievement:guild" => self.change_tab(false, true),
+            "achievement:search_focus" => self.search_focused = true,
+            "achievement:search_blur" => self.search_focused = false,
+            "achievement:search_all" => {
+                if self.search_results.entries.len() > 5 || self.search_results.next.is_some() {
+                    self.full_search = true;
+                    self.search_focused = false;
+                    self.selected_achievement = None;
+                    self.expanded_achievement = None;
+                    self.detail = None;
+                    self.select_first();
+                }
+            }
             "achievement:filter_menu" => self.filter_menu = !self.filter_menu,
             "achievement:filter:all" => self.change_filter(AchievementFilter::All),
             "achievement:filter:completed" => self.change_filter(AchievementFilter::Completed),
@@ -167,7 +184,7 @@ impl AchievementWindow {
             "achievement:summary" => {
                 self.selected_category = None;
                 self.selected_achievement = None;
-                self.search_text.clear();
+                self.clear_search();
                 self.statistics = false;
                 self.criterion_offset = 0;
                 self.expanded_achievement = None;
@@ -215,7 +232,7 @@ impl AchievementWindow {
         self.selected_category = None;
         self.selected_achievement = None;
         self.detail = None;
-        self.search_text.clear();
+        self.clear_search();
         self.expanded_achievement = None;
     }
 
@@ -233,13 +250,17 @@ impl AchievementWindow {
         }
     }
 
+    fn clear_search(&mut self) {
+        self.search_text.clear();
+        self.search_results = CategoryPage::default();
+        self.full_search = false;
+        self.search_focused = false;
+    }
+
     fn search(&mut self, text: &str, requests: &mut Vec<QueryAchievementCatalog>) {
         self.search_text = text.chars().take(ACHIEVEMENT_SEARCH_MAX_CHARS).collect();
         self.search_results = CategoryPage::default();
-        self.selected_category = None;
-        self.selected_achievement = None;
-        self.detail = None;
-        self.expanded_achievement = None;
+        self.full_search = false;
         if self.search_text.trim().chars().count() >= 3 {
             requests.push(QueryAchievementCatalog::Search {
                 text: self.search_text.trim().into(),
@@ -298,6 +319,19 @@ impl AchievementWindow {
         } else if let Some(text) = action.strip_prefix("achievement:search:") {
             self.search(text, requests);
         } else if let Some(id) = action
+            .strip_prefix("achievement:preview:")
+            .and_then(|id| id.parse().ok())
+        {
+            if self
+                .search_results
+                .entries
+                .iter()
+                .take(5)
+                .any(|entry| entry.achievement_id == id)
+            {
+                self.open_achievement(id, requests);
+            }
+        } else if let Some(id) = action
             .strip_prefix("achievement:restore:")
             .and_then(|id| id.parse().ok())
         {
@@ -342,7 +376,7 @@ impl AchievementWindow {
             }
             self.selected_category = Some(id);
             self.expanded_achievement = None;
-            self.search_text.clear();
+            self.clear_search();
             self.detail = None;
             self.selected_achievement = None;
             self.criterion_offset = 0;
@@ -364,7 +398,7 @@ impl AchievementWindow {
                 .iter()
                 .any(|entry| entry.achievement_id == id)
             {
-                if self.search_text.trim().chars().count() >= 3 {
+                if self.full_search {
                     self.open_achievement(id, requests);
                 } else {
                     self.selected_achievement = Some(id);
@@ -411,7 +445,7 @@ impl AchievementWindow {
         self.selected_achievement = Some(id);
         self.expanded_achievement = Some(id);
         self.detail = None;
-        self.search_text.clear();
+        self.clear_search();
         self.criterion_offset = 0;
         if self.scope != AchievementScope::All {
             self.scope = AchievementScope::All;
@@ -428,7 +462,7 @@ impl AchievementWindow {
 
     /// The native ScrollBox requests the next cursor at its bottom, never a local row slice.
     fn advance_rows(&mut self, requests: &mut Vec<QueryAchievementCatalog>) {
-        if self.search_text.trim().chars().count() >= 3 {
+        if self.full_search {
             if let Some(after_id) = self.search_results.next {
                 requests.push(QueryAchievementCatalog::Search {
                     text: self.search_text.trim().into(),
@@ -466,7 +500,7 @@ impl AchievementWindow {
         self.selected_category = None;
         self.selected_achievement = None;
         self.expanded_achievement = None;
-        self.search_text.clear();
+        self.clear_search();
         self.statistics = false;
         self.pending
             .retain(|request| !matches!(request, QueryAchievementCatalog::Comparison { .. }));
@@ -497,6 +531,7 @@ impl AchievementWindow {
         other.statistics = self.statistics;
         other.scope = self.scope;
         other.search_text = self.search_text.clone();
+        other.full_search = self.full_search;
         let queries = requests
             .iter()
             .filter(|request| {
@@ -569,7 +604,9 @@ impl AchievementWindow {
                     }
                     self.search_results.next = next_id;
                     self.search_results.loaded = true;
-                    self.select_first();
+                    if self.full_search {
+                        self.select_first();
+                    }
                 }
                 Vec::new()
             }
@@ -868,7 +905,7 @@ impl AchievementWindow {
         self.criterion_offset = 0;
     }
     pub fn entries(&self) -> &[AchievementCatalogEntry] {
-        if self.search_text.trim().chars().count() >= 3 {
+        if self.full_search {
             return &self.search_results.entries;
         }
         if self.selected_category.is_none() {
@@ -1101,7 +1138,7 @@ pub fn achievement_screen(ctx: &SharedContext) -> Element {
     let hide = !window.visible;
     let show_summary = window.selected_category.is_none()
         && window.selected_achievement.is_none()
-        && window.search_text.trim().chars().count() < 3
+        && !window.full_search
         && !window.statistics;
     let mut content = artwork::chrome(show_summary);
     content.extend(points_header(
@@ -1123,6 +1160,7 @@ pub fn achievement_screen(ctx: &SharedContext) -> Element {
     // Godot Control input follows scene order, not CanvasItem z_index. Mount
     // dropdown controls after the rows they overlap, matching their visual order.
     content.extend(filter_controls(window, show_summary));
+    content.extend(search_view::preview(window));
     let width = if window.comparison.is_some() {
         888.0
     } else {
@@ -1618,7 +1656,7 @@ fn achievement_rows(ctx: &SharedContext, window: &AchievementWindow) -> Element 
 }
 
 fn empty_message(window: &AchievementWindow) -> &'static str {
-    if window.search_text.trim().chars().count() >= 3 {
+    if window.full_search {
         return if window.search_results.loaded {
             "No results"
         } else {
