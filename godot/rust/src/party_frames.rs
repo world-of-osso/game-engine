@@ -44,6 +44,8 @@ pub(crate) struct GroupFramesHud {
     popups_ui: Option<Gd<RegistryUi>>,
     popups_shown: bool,
     ready_check_shown: bool,
+    ready_difficulties:
+        Option<game_engine_ui_model::ready_check_difficulty::ReadyCheckDifficulties>,
     pub(crate) popups: PopupStack,
     manager_expanded: bool,
 }
@@ -114,6 +116,7 @@ pub(crate) fn group_frames_state(
                 .ready_check
                 .as_ref()
                 .map_or_else(String::new, |check| check.update.initiator_name.clone()),
+            difficulty_name: None,
         },
         ..Default::default()
     };
@@ -384,7 +387,8 @@ impl GameClient {
         let popups = StaticPopupState {
             popups: self.group_frames.popups.visible(),
         };
-        let frames = self.group_frames_view();
+        let mut frames = self.group_frames_view();
+        self.populate_ready_check_difficulty(&mut frames.ready_check)?;
         self.show_group_ui(frames, popups)?;
         let shown = self.group_frames.listener_is_shown();
         let was_shown = std::mem::replace(&mut self.group_frames.ready_check_shown, shown);
@@ -393,6 +397,29 @@ impl GameClient {
         }
         self.sync_party_portraits()?;
         self.sync_ready_check_portrait()?;
+        Ok(())
+    }
+
+    fn populate_ready_check_difficulty(
+        &mut self,
+        state: &mut ReadyCheckFrameState,
+    ) -> Result<(), String> {
+        if !state.visible {
+            return Ok(());
+        }
+        let catalog = &mut self.group_frames.ready_difficulties;
+        if catalog.is_none() {
+            *catalog = Some(
+                game_engine_ui_model::ready_check_difficulty::ReadyCheckDifficulties::load(
+                    &self.data_root.join("db2/active"),
+                )?,
+            );
+        }
+        state.difficulty_name = self.account.ready_check_difficulty_name(
+            catalog
+                .as_ref()
+                .expect("ReadyCheck difficulty catalog loaded"),
+        )?;
         Ok(())
     }
 

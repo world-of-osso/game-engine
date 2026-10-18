@@ -37,6 +37,7 @@ impl RegistryUi {
                 ReadyCheckFrameState {
                     visible: true,
                     initiator: "Raidleader".into(),
+                    difficulty_name: None,
                 },
                 ready_check_screen,
                 ScreenPostsetup::None,
