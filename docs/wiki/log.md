@@ -1,3 +1,10 @@
+## 2026-10-18 — Post-guild ownership-cap codec/dispatch target proof
+
+[Current consumer proof](systems/cursor-item.md#ownership-cap-error-cpu-dispatch-2026-10-18): landedf26cc691e merged with MaxCount as6c00abbf4; sole wiki-index conflict preserves both sides. Account dispatch target1/0 with protocola2b07a6; combined protocol tests preserve old tags and round-trip new ItemMaxCount21/SetMemberRank13. Source wording/error renderer unchanged; coordinated broad gate/landing remains lead-owned, no native-pixel claim.
+
+## 2026-10-18 — Ownership-cap error CPU dispatch
+
+[Exact consumer proof/limits](systems/cursor-item.md#ownership-cap-error-cpu-dispatch-2026-10-18):d73fa72e6 with protocol2a5307c forwards typed ItemMaxCount through native account/NPC error dispatch, target1/0 using Retail GlobalStrings10918 ERR_ITEM_MAX_COUNT. Shared message owns text; no renderer change, native pixels or server enforcement claim. Coordinated three-repo gate/landing remains lead-owned.
 - 2026-10-18: Rename ReadyCheck residual to `READY_CHECK_MULTILINE_BODY_BUTTON_COLLISION_SOURCE_EQUIVALENT`; source geometry itself allocates1.65625px into buttons, actual17px runtime advance passes4/4; no geometry fix, real Retail70448 same-case ink capture remains required. [Audit](systems/group-frames.md#readycheck-source-equivalent-multiline-overlap--2026-10-18).
 - 2026-10-18: Historical raster FontString pair landedrl564; actualbothskin1920 native22/22/strictscans/exactrestoration; two-line glyph−3.875px/shadow+combined−5.875px, collisionstillOPEN; [limits/proof](systems/ui-system.md#historical-raster-fontstring-allocation--2026-10-18).
 ## 2026-10-18 — Random32 native actions accepted
