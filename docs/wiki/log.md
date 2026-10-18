@@ -4,6 +4,9 @@
 ## 2026-10-18 — ReadyCheck difficulty-qualified body
 
 [Exact source rule](systems/group-frames.md#readycheck-difficulty-qualified-body--implementation-2026-10-18): actual copy difficulty, else server-selected raid/dungeon ID; local DB2 positive toggle gates CURRENT-name suffix. Existing WorldServerInfo wire only, no server/protocol change. Account unhandled-message and owned-UDP empty-receipt REDs precede cc6abf340 account1/wire1/UI8 GREEN, including map-context reset, primary-versus-legacy and both-skin ordinary-text/style controls. Engine/network check65s/no warnings, affected-package Cargo fmt/scoped diff/readability pass. Landed master6b1c79222 included; geometry/audio/answers/authority conserved. Native rendered/live-server acceptance pending; no runtime launched or completed proof replayed.
+## 2026-10-18 — Trading Post selection callbacks
+
+[Selection audio](systems/trading-post.md#product-selection-sound--october18): active70448 kit218230/file4906955/gain0.79, authenticated private Ogg independently re-extracted/published by lead. Actual missing-kit RED then observation-only callback counter yields four lifecycle REDs and one silent-provider control PASS before event dispatch implementation. Existing selection/cart/modal state and release-time drag behavior retained; TP_DRAG_SELECTION_RELEASE_TIMING and TP_CART_OPEN_SELECTION_CLEAR remain explicit gaps. Registry1+focused56UI GREEN, engine/UI/network helper check1m47s/noWarnings/scoped6Rustfmt+changed-line readability pass. Exact source/commands/full RED+GREEN logs retained; post-landing native decoded playback remains pending. No asset-index fragment, CI claim or prior proof replay.
 
 ## 2026-10-17 — Invitation dismissal lifecycle
 
