@@ -38,8 +38,8 @@ func run_contract() -> void:
 				close(font.get_height(12), LINE_HEIGHT, phase + " font allocation"),
 				close(font.get_ascent(12), BASELINE, phase + " baseline"),
 				close((label.global_position.y - panel.global_position.y) / PIXELS_PER_UI, 37.0, "body top"),
-				close((button.global_position.y - panel.global_position.y) / PIXELS_PER_UI, 60.0, "button top"),
-				close(panel.size.y, 100.0, "panel height"),
+				close((button.global_position.y - panel.global_position.y) / PIXELS_PER_UI, 60.0 + (lines - 1) * LINE_HEIGHT, "bottom-anchored policy button top"),
+				close(panel.size.y, 100.0 + (lines - 1) * LINE_HEIGHT, "allocation-grown policy panel height"),
 				close(label.get_theme_font_size("font_size"), 12.0, "nominal request"),
 			]
 			if lines == 2:

@@ -27,6 +27,19 @@ func controls(fixture: Node) -> Dictionary:
 		result[name] = rect(node)
 	return result
 
+func policy_controls_match(current: Dictionary, ordinary: Dictionary, extra: float) -> bool:
+	var expected := ordinary.duplicate(true)
+	expected.ReadyCheckFrame.size[1] += extra
+	for name in expected:
+		expected[name].position[1] -= extra * HUD_SCALE / 2.0
+		if name == "ReadyCheckFrameYesButton" or name == "ReadyCheckFrameNoButton":
+			expected[name].position[1] += extra * HUD_SCALE
+		for field in ["position", "size"]:
+			for axis in [0, 1]:
+				if absf(current[name][field][axis] - expected[name][field][axis]) > 0.0001:
+					return false
+	return true
+
 func scan_ink_bounds(text_image: Image, blank: Image, region: Rect2i) -> Dictionary:
 	var left := region.end.x
 	var top := region.end.y
@@ -121,7 +134,7 @@ func capture_clearance(fixture: Node, message: Label, reference: Image, output: 
 	var combined := scan_ink_bounds(shadowed, blank, region)
 	for ink in [glyph, shadow, combined]:
 		ink["clearance_to_button_top_px"] = button_top - ink.bottom_exclusive
-	return {"scan_region_px": [region.position.x, region.position.y, region.size.x, region.size.y], "button_top_px": button_top, "line_count": message.get_line_count(), "line_heights_ui": line_heights, "line_spacing_ui": message.get_theme_constant("line_spacing"), "resolved_line_height_ui": resolved_line_height, "resolved_baseline_ui": font.get_ascent(12), "hud_scale": HUD_SCALE, "glyph": glyph, "shadow": shadow, "combined": combined, "layout_gap": "READY_CHECK_MULTILINE_BODY_BUTTON_COLLISION" if combined.clearance_to_button_top_px <= 0 else ""}
+	return {"scan_region_px": [region.position.x, region.position.y, region.size.x, region.size.y], "button_top_px": button_top, "line_count": message.get_line_count(), "line_heights_ui": line_heights, "line_spacing_ui": message.get_theme_constant("line_spacing"), "resolved_line_height_ui": resolved_line_height, "resolved_baseline_ui": font.get_ascent(12), "hud_scale": HUD_SCALE, "glyph": glyph, "shadow": shadow, "combined": combined, "layout_gap": "READY_CHECK_BODY_NO_OVERLAP_POLICY" if combined.clearance_to_button_top_px <= 0 else ""}
 
 func run_difficulty() -> bool:
 	root.content_scale_size = Vector2i.ZERO
@@ -156,7 +169,8 @@ func run_difficulty() -> bool:
 				expected += "\nRaid Difficulty: " + phase[1]
 			if not completion.require(message.text == expected, phase[0] + " source current-name rule"):
 				return false
-			if not completion.require(message.size.x == 240 and message.size.y > 0 and panel.size == Vector2(323, 100)):
+			var extra: float = maxf(message.get_line_count() - 1, 0) * (17.0 / HUD_SCALE)
+			if not completion.require(message.size.x == 240 and message.size.y > 0 and panel.size.x == 323 and absf(panel.size.y - 100.0 - extra) < 0.0001):
 				return false
 			var anchor := (message.global_position - panel.global_position) / HUD_SCALE
 			if not completion.require(absf(anchor.x - 61.5) <= 0.5 and anchor.y == 37):
@@ -177,7 +191,7 @@ func run_difficulty() -> bool:
 			fixed_controls.erase("ReadyCheckFrameText")
 			if index == 0:
 				conserved = fixed_controls
-			if not completion.require(fixed_controls == conserved, "Frame/title/portrait/buttons remain unchanged"):
+			if not completion.require(policy_controls_match(fixed_controls, conserved, extra), "Only allocated-growth policy changes frame/child positions; single-line geometry is unchanged"):
 				return false
 			var image := root.get_texture().get_image()
 			if not completion.require(image.get_size() == Vector2i(1920, 1080)):
