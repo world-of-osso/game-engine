@@ -38,7 +38,7 @@
 - [Clean-room M2 particles](systems/godot-conversion.md#native-m2-particles) — native tails/follow/cubic controls, authored sorting and map-collision births; inherited-scale provenance and explicit lighting, timer/reset, spline-density, target-mask and model-recursion oracle gaps.
 - [Purchase-aware Trading Post Price sorting](systems/trading-post.md#purchase-aware-price-sorting--october17) — sourced refund/purchased key after two genuine model REDs;44focused UI tests/helper check/format/readability pass; post468e both-skin real header/menu sort and ordinary purchase/refund conserve Tender/appearance sets/cart with640/712 untouched; TP_SORT_PER_PRODUCT_PENDING remains unsupplied.
 
-- [Ordinary-product keyboard navigation](systems/trading-post.md#ordinary-product-keyboard-navigation--october17) — Up/Down/no-wrap/frozen-cart-modal ownership/nearest reveal after four missing-action model REDs;51UI/helper check38.35s/noWarnings/fmt5/readability pass; native real-key/position proof pending after landing.
+- [Ordinary-product keyboard navigation](systems/trading-post.md#ordinary-product-keyboard-navigation--october17) — Up/Down/no-wrap/frozen-cart-modal ownership/nearest reveal after four missing-action model REDs;51UI/helper check38.35s/noWarnings/fmt5/readability pass; post480e both-skin21-check native real-key/page51→0/owned-subset endpoints/XYZ0/conservation PASS,18 inspected full-HD PNGs+two contacts; no transactions or whole-tail claim.
 
 # Wiki Index
 
