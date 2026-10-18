@@ -506,6 +506,7 @@ mod tests {
         ui_toolkit::atlas::set_thread_skin(skin);
         let mut window = AchievementWindow::default();
         window.action(open_action);
+        window.selected_category = Some(92);
         window.action("achievement:search:bear");
         let mut shared = SharedContext::new();
         shared.insert(skin);
