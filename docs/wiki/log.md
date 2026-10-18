@@ -1,6 +1,9 @@
 ## 2026-10-18 — Invitation dismissal native acceptance
 
 [Invitation dismissal](systems/guilds.md#invitation-dismissal): gate503e15+68/fmt, landed master helper build; both-skin physical Escape/natural timeout/actual Join-removal/explicit Decline across8real invites and identical-binary fresh-server/client no-pending/no-membership readback pass. Eight inspected original1920×1080 PNGs published. Exact60/60.001 boundary is model proof; native observation begins after receipt. Earlier incompatible frozen server attempt remains unclaimed. Owned runtime/window cleaned.
+## 2026-10-18 — Trading Post selection callbacks
+
+[Selection audio](systems/trading-post.md#product-selection-sound--october18): active70448 kit218230/file4906955/gain0.79, authenticated private Ogg independently re-extracted/published by lead. Actual missing-kit RED then observation-only callback counter yields four lifecycle REDs and one silent-provider control PASS before event dispatch implementation. Existing selection/cart/modal state and release-time drag behavior retained; TP_DRAG_SELECTION_RELEASE_TIMING and TP_CART_OPEN_SELECTION_CLEAR remain explicit gaps. Registry1+focused56UI GREEN, engine/UI/network helper check1m47s/noWarnings/scoped6Rustfmt+changed-line readability pass. Exact source/commands/full RED+GREEN logs retained; post-landing native decoded playback remains pending. No asset-index fragment, CI claim or prior proof replay.
 
 ## 2026-10-17 — Invitation dismissal lifecycle
 
