@@ -8,6 +8,202 @@ use ui_toolkit::{
     screen::{Screen, SharedContext},
 };
 
+fn cart_selection_view(owner: u32) -> View {
+    let mut view = keyboard_view();
+    view.click("perks:cart:add").unwrap();
+    view.click(&format!("perks:select:{owner}")).unwrap();
+    view.take_selection_sounds();
+    view
+}
+
+fn visible_selection_art_area(registry: &FrameRegistry, name: &str) -> f32 {
+    let Some(id) = registry.get_by_name(name) else {
+        return 0.;
+    };
+    let frame = registry.get(id).unwrap();
+    if frame.visible && !frame.hidden && frame.effective_alpha > 0. {
+        frame.resolved_width() * frame.resolved_height()
+    } else {
+        0.
+    }
+}
+
+#[test]
+#[ignore = "CPU RED for TP_CART_OPEN_SELECTION_CLEAR; run explicitly"]
+fn trading_post_cart_selection_open_clears_product_owner_but_keeps_cart_preview() {
+    for owner in [11, 4] {
+        let mut view = cart_selection_view(owner);
+        let authority = view.snapshot.clone();
+        assert_eq!(view.click("perks:cart:show").unwrap(), None);
+        assert!(view.cart_visible);
+        assert_eq!(
+            view.selected, None,
+            "cart owns preview, previous product{owner}"
+        );
+        assert_eq!(view.cart, [11]);
+        assert_eq!(view.preview_product().unwrap().id, 11);
+        assert_eq!(view.cart_preview_item_ids(), [189869]);
+        assert_eq!(view.take_selection_sounds(), 0);
+        assert_eq!(view.snapshot, authority);
+    }
+}
+
+#[test]
+#[ignore = "CPU RED for TP_CART_OPEN_SELECTION_CLEAR; run explicitly"]
+fn trading_post_cart_selection_registry_deselects_product_art_in_both_skins() {
+    for skin in [ActiveSkin::Modern, ActiveSkin::Forever] {
+        for (owner, name) in [
+            (11, "PerksProgramSelected11"),
+            (4, "PerksProgramFrozenSelected"),
+        ] {
+            let mut view = cart_selection_view(owner);
+            let before = render(skin, view.clone());
+            assert!(visible_selection_art_area(&before, name) > 0.);
+            view.click("perks:cart:show").unwrap();
+            let cart = render(skin, view.clone());
+            assert_eq!(
+                visible_selection_art_area(&cart, name),
+                0.,
+                "{skin:?} owner{owner}"
+            );
+            view.click("perks:cart:close").unwrap();
+            let restored = render(skin, view);
+            assert_eq!(
+                visible_selection_art_area(&restored, name),
+                visible_selection_art_area(&before, name)
+            );
+        }
+    }
+}
+
+#[test]
+#[ignore = "CPU RED for TP_CART_OPEN_SELECTION_CLEAR; run explicitly"]
+fn trading_post_cart_selection_return_restores_ordinary_or_frozen_once() {
+    for owner in [11, 4] {
+        let mut view = cart_selection_view(owner);
+        let authority = view.snapshot.clone();
+        view.click("perks:cart:show").unwrap();
+        view.click("perks:cart:close").unwrap();
+        assert!(!view.cart_visible);
+        assert_eq!(view.selected, Some(owner));
+        assert_eq!(view.cart, [11]);
+        assert_eq!(view.take_selection_sounds(), 1);
+        view.click("perks:cart:close").unwrap();
+        assert_eq!(view.take_selection_sounds(), 0);
+        assert_eq!(view.snapshot, authority);
+    }
+}
+
+#[test]
+#[ignore = "CPU RED for TP_CART_OPEN_SELECTION_CLEAR; run explicitly"]
+fn trading_post_cart_selection_explicit_product_hides_cart_without_double_restore() {
+    for target in [11, 10, 4] {
+        let mut view = cart_selection_view(11);
+        let authority = view.snapshot.clone();
+        view.click("perks:cart:show").unwrap();
+        view.click(&format!("perks:select:{target}")).unwrap();
+        assert!(
+            !view.cart_visible,
+            "select product{target} must hide cart first"
+        );
+        assert_eq!(view.selected, Some(target));
+        assert_eq!(view.cart, [11]);
+        assert_eq!(
+            view.take_selection_sounds(),
+            1,
+            "only the requested product is selected"
+        );
+        view.click("perks:cart:close").unwrap();
+        assert_eq!(view.selected, Some(target));
+        assert_eq!(view.take_selection_sounds(), 0);
+        assert_eq!(view.snapshot, authority);
+    }
+}
+
+#[test]
+#[ignore = "CPU RED for TP_CART_OPEN_SELECTION_CLEAR; run explicitly"]
+fn trading_post_cart_selection_last_removal_and_clear_restore_without_requests() {
+    for action in ["perks:cart:remove:11", "perks:cart:clear"] {
+        let mut view = cart_selection_view(11);
+        let authority = view.snapshot.clone();
+        view.click("perks:cart:show").unwrap();
+        if action == "perks:cart:clear" {
+            view.click(action).unwrap();
+            let covered = view.clone();
+            view.click("perks:select-next").unwrap();
+            assert_eq!(view, covered, "confirmation retains its keyboard owner");
+            view.click("perks:cancel").unwrap();
+            assert!(view.cart_visible && view.cart == [11]);
+            assert_eq!(view.take_selection_sounds(), 0);
+            view.click(action).unwrap();
+            assert_eq!(view.click("perks:confirm").unwrap(), None);
+        } else {
+            assert_eq!(view.click(action).unwrap(), None);
+        }
+        assert!(!view.cart_visible);
+        assert!(view.cart.is_empty());
+        assert_eq!(view.selected, Some(11));
+        assert_eq!(view.take_selection_sounds(), 1);
+        assert_eq!(view.snapshot, authority);
+    }
+}
+
+#[test]
+#[ignore = "CPU RED for TP_CART_OPEN_SELECTION_CLEAR; run explicitly"]
+fn trading_post_cart_selection_provider_reselection_hides_cart_silently() {
+    let mut view = cart_selection_view(11);
+    view.click("perks:cart:show").unwrap();
+    let mut data = view.snapshot.as_ref().unwrap().as_ref().clone();
+    data.items.retain(|row| row.id != 11);
+    view.receive(Arc::new(data));
+    assert_eq!(
+        view.selected,
+        Some(12),
+        "first current ordinary row is Bronze"
+    );
+    assert!(
+        !view.cart_visible,
+        "UpdateProducts selection hides the cart even when silenced"
+    );
+    assert_eq!(
+        view.cart,
+        [11],
+        "provider refresh does not invent local cart edits"
+    );
+    assert_eq!(view.take_selection_sounds(), 0);
+    view.click("perks:cart:close").unwrap();
+    assert_eq!(view.selected, Some(12));
+    assert_eq!(view.take_selection_sounds(), 0);
+}
+
+#[test]
+#[ignore = "CPU RED for TP_CART_OPEN_SELECTION_CLEAR; run explicitly"]
+fn trading_post_cart_selection_empty_provider_does_not_guess_frozen_or_keyboard_row() {
+    let mut view = cart_selection_view(11);
+    view.click("perks:cart:show").unwrap();
+    let mut data = view.snapshot.as_ref().unwrap().as_ref().clone();
+    data.items.retain(|row| row.id == 4);
+    view.receive(Arc::new(data));
+    assert_eq!(view.selected, None);
+    assert!(
+        view.cart_visible,
+        "no actual product was selected by empty provider"
+    );
+    view.click("perks:cart:close").unwrap();
+    assert!(!view.cart_visible);
+    assert_eq!(
+        view.selected, None,
+        "frozen reservation is not the first ordinary product"
+    );
+    assert_eq!(view.take_selection_sounds(), 0);
+    assert_eq!(view.snapshot.as_ref().unwrap().frozen_item_id, Some(4));
+    assert!(
+        view.click("perks:select-next").is_err(),
+        "cart return adds no generic keyboard nil recovery"
+    );
+    assert_eq!(view.selected, None);
+}
+
 #[test]
 fn trading_post_selection_sound_explicit_changes_once_and_preserves_authority() {
     let mut view = keyboard_view();
