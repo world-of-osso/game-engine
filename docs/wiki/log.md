@@ -1,6 +1,9 @@
 ## 2026-10-18 — Direct member-rank native acceptance
 
 [Bounded real-realm proof and provenance](systems/guilds.md#native-acceptance-2026-10-18): refreshed both-skin4→1/current/Escape/self, covered-label menu ordering, close/reopen and identical-artifact fresh server/client Officer readback pass. Eight inspected unchanged full-HD originals published; pre-/post-rewrite server tree equivalence and exact exit-diagnostic qualifications retained. Named feature exclusions remain unchanged.
+## 2026-10-18 — Search-preview native lifecycle
+
+[Exact proof and preserved failures](systems/dungeon-achievements.md#post-landing-search-preview-native-proof--2026-10-18): Edf3/Saf5/Pa2b/Tc2f, both-skin normal/real Hdrpeer comparison; source five206×27 rows, physical focus/blur/refocus/clear/Show All/open. Both drained streams exit0/unique2/2/zeroerrors/exact8PNGs; sixteen inspected1920 originals published, ownedPIDs gone/slice0/5898free/windowcleared. Native rapidclear is not delayedreply/latency proof; model ordering remains distinct. Earlier protocol/socket/focus-helper failures stay failed and preserved, no product fallback/change.
 
 ## 2026-10-18 — Shared native menu order
 
@@ -4751,3 +4754,5 @@ User decision specifies MOBILE_BANKING_COOLDOWN_2H7200000ms over installed360000
 - 2026-10-18: Added [awaited GDScript completion](investigations/gdscript-awaited-completion.md); documented observed nested-coroutine false-success mechanism, shared fail-closed contract, scoped migration, process-level regression and historical evidence limits.
 
 - 2026-10-18: Signed-geoset report is now once per process on first catalog projection; per-load unresolved vectors and signed render-semantic gap retained. Runtime-model loads explain prior repeated reports; see [DB2 signed selections](formats/db2-format.md#installed-csv-column-order-and-signed-selections).
+
+- 2026-10-18 — Extract M2/skin, WMO, ADT/WDT parsing into public wow-formats; document ownership/features, unchanged core assembly and conserved 259 tests (225 moved/34 authored fixtures retained). [Shared readers](systems/wow-formats.md).
