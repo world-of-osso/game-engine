@@ -4,7 +4,9 @@ use super::*;
 #[test]
 fn guild_perks_wire_preserves_login_quit_and_rejoin_spell_order() {
     use shared::protocol::{KnownSpellsSnapshot, SpellsLearned, SpellsUnlearned, TalentChannel};
-    let address: SocketAddr = "127.0.0.1:5891".parse().unwrap();
+    let reservation = std::net::UdpSocket::bind("127.0.0.1:0").unwrap();
+    let address = reservation.local_addr().unwrap();
+    drop(reservation);
     let mut server = create_fixture_server(|_| {});
     let entity = server
         .world_mut()
