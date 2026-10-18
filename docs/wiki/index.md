@@ -33,7 +33,7 @@
 - [Pet ready-dialog button art](systems/battle-pets.md#queue-ready-button-art--2026-10-16) — source UIPanel sheets/fixed12px caps; RED→GREEN and both-skin physical state/pending proof, four contexts unchanged outside buttons.
 - [House Access dropdown](systems/housing.md#house-access-dropdown--2026-10-16) — source WowStyle2/MenuStyle1 caller replacement; RED→GREEN, both-skin physical states/draft selections,26 context comparisons confined to the House Access column.
 - [Clean-room M2 particles](systems/godot-conversion.md#native-m2-particles) — native tails/follow/cubic controls, authored sorting and map-collision births; inherited-scale provenance and explicit lighting, timer/reset, spline-density, target-mask and model-recursion oracle gaps.
-- [Purchase-aware Trading Post Price sorting](systems/trading-post.md#purchase-aware-price-sorting--october17) — sourced refund/purchased key after two genuine model REDs;44focused UI tests/helper check/format/readability pass; native pending after landing, TP_SORT_PER_PRODUCT_PENDING remains unsupplied.
+- [Purchase-aware Trading Post Price sorting](systems/trading-post.md#purchase-aware-price-sorting--october17) — sourced refund/purchased key after two genuine model REDs;44focused UI tests/helper check/format/readability pass; post468e both-skin real header/menu sort and ordinary purchase/refund conserve Tender/appearance sets/cart with640/712 untouched; TP_SORT_PER_PRODUCT_PENDING remains unsupplied.
 
 # Wiki Index
 
