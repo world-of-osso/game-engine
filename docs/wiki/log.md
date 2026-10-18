@@ -4705,3 +4705,5 @@ User decision specifies MOBILE_BANKING_COOLDOWN_2H7200000ms over installed360000
 ## Native Mobile Banking acceptance complete
 
 [Native proof](systems/guilds.md#native-mobile-banking-proof): both-skin cast/bank/nonmember refusal/despawn and actual post2h accepted casts pass on identical artifacts. Forever7242700ms complements the retained Modern-origin7311223ms interval. Fifteen inspected unchanged full-HD originals published; owned runtimes stopped and owner-checked window cleared. Earlier interrupted overall results remain intact; countdown labels are not timing oracles.
+
+- 2026-10-18: Added [awaited GDScript completion](investigations/gdscript-awaited-completion.md); documented observed nested-coroutine false-success mechanism, shared fail-closed contract, scoped migration, process-level regression and historical evidence limits.
