@@ -14,6 +14,9 @@
 ## 2026-10-18 — READY_CHECK decoded-dispatch acceptance
 
 [Bounded native proof](systems/group-frames.md#readycheck-listener-show-sound--implementation-2026-10-17): lead accepted both-skin ten-checkpoint/two-start proof on debug binary/invocation3b70f4b5d, production333b83b26. Real UiKits Ogg567478 players report5.020385265s/gain1/pitch1/playing; refresh and hidden-role phases add none, natural completion and zero-player teardown pass. Exit0/zero Godot errors; inherited display notices retained, window/slice released. Dummy audio: decoded dispatch only, not hardware or authenticated GameClient/server proof. Initial fixture Array-borrow compiler failure remains recorded. No production behavior changed or completed checks replayed.
+## 2026-10-18 — Native achievement header acceptance
+
+[Post-landing proof](systems/dungeon-achievements.md#post-landing-header-proof--2026-10-18): E333b83b26/P019cd75b/S241776a2d exact artifacts; both skins normal/actual online Hdrpeer comparison exit0. Physical search/clear/Completed/Incomplete/All pass, x511/631 and7px control gap retained. Twelve inspected1920×1080 PNGs published under `/syncthing/AgentShared/2026-10-18/achievements/search-filter-overlap/`. Named ACHIEVEMENT_SEARCH_NATIVE_HEIGHT remains: authored30/native40, actual16pt font20px + misplaced20px top inset; Retail L16/R20/T0/B0 differs from native L16/R0/T20/B0. No inset/font change or full parity claim. Owned PIDs gone, slice stopped/private5898 free; no repeated historical gates.
 
 ## 2026-10-17 — Rain of Fire escape policy
 
