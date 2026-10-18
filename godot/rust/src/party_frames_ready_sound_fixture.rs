@@ -114,7 +114,7 @@ impl ReadyCheckSoundFixture {
         result.set("shown", self.hud.listener_is_shown());
         result.set(
             "played",
-            Array::<i64>::from_iter(self.kits.played.iter().map(|kit| i64::from(*kit))),
+            &Array::<i64>::from_iter(self.kits.played.iter().map(|kit| i64::from(*kit))),
         );
         result
     }
