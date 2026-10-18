@@ -5,6 +5,9 @@
 ## 2026-10-18 — Ownership-cap error CPU dispatch
 
 [Exact consumer proof/limits](systems/cursor-item.md#ownership-cap-error-cpu-dispatch-2026-10-18):d73fa72e6 with protocol2a5307c forwards typed ItemMaxCount through native account/NPC error dispatch, target1/0 using Retail GlobalStrings10918 ERR_ITEM_MAX_COUNT. Shared message owns text; no renderer change, native pixels or server enforcement claim. Coordinated three-repo gate/landing remains lead-owned.
+## 2026-10-18 — Random32 native actions accepted
+
+[Bounded queue/lifecycle proof](systems/battlegrounds.md#random32-native-queue-lifecycle--2026-10-18): both skins record real queue32 before supports, normal dequeue/requeue, server-selected invitation, physical decline/requeue/accept and20 normal returns. Modern instrumented product attempt3 passes after two preserved higher-pressure timeout failures; separate early collector-budget abort publishes no support queue/accept. Exact frozen hashes, PNG qualification,14.75s logged interval versus earlier38s, post-cleanup-only PSI and cleanup are in the linked proof ledger. Stall attribution remains separately owned. Read-only TC a352 parent566 lookup also rejects10–19 with local rows; named authored-bound divergence recorded, no admission fix; availability projection deferred, rewards parked.
 
 ## 2026-10-18 — Direct member-rank assignment
 
