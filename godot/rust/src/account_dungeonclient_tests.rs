@@ -303,6 +303,24 @@ fn dungeonclient_account_catalog_continuations_and_live_toast_reach_host() {
 }
 
 #[test]
+fn ready_check_difficulty_accepts_authoritative_instance_and_continent_updates() {
+    let mut account = account();
+    for (map_id, difficulty_id) in [(631, 3), (0, 0), (631, 5)] {
+        let result = account.dispatch_message(
+            ProtocolMessage::for_tests(shared::protocol::WorldServerInfo {
+                map_id,
+                difficulty_id,
+            }),
+            &mut Vec::new(),
+        );
+        assert!(
+            result.is_ok(),
+            "authoritative copy difficulty rejected: {result:?}"
+        );
+    }
+}
+
+#[test]
 fn raid_entry_account_accepts_primary_and_legacy_selection_from_server() {
     let mut account = account();
     let result = account.dispatch_message(
