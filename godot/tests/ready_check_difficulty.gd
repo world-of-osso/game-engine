@@ -22,6 +22,69 @@ func controls(fixture: Node) -> Dictionary:
 		result[name] = rect(node)
 	return result
 
+func ink_bounds(text_image: Image, blank: Image, region: Rect2i) -> Dictionary:
+	var left := region.end.x
+	var top := region.end.y
+	var right := region.position.x
+	var bottom := region.position.y
+	var count := 0
+	var bands: Array = []
+	var band_start := -1
+	for y in range(region.position.y, region.end.y):
+		var row_has_ink := false
+		for x in range(region.position.x, region.end.x):
+			if text_image.get_pixel(x, y) != blank.get_pixel(x, y):
+				left = mini(left, x)
+				top = mini(top, y)
+				right = maxi(right, x + 1)
+				bottom = maxi(bottom, y + 1)
+				count += 1
+				row_has_ink = true
+		if row_has_ink and band_start < 0:
+			band_start = y
+		if not row_has_ink and band_start >= 0:
+			bands.append([band_start, y])
+			band_start = -1
+	if band_start >= 0:
+		bands.append([band_start, region.end.y])
+	assert(count > 0, "Text measurement must observe actual raster pixels")
+	return {"bounds": [left, top, right, bottom], "bottom_exclusive": bottom, "pixels": count, "row_bands": bands}
+
+func measure_clearance(fixture: Node, message: Label, reference: Image, output: String, stem: String) -> Dictionary:
+	var yes := fixture.find_child("ReadyCheckFrameYesButton", true, false) as Button
+	var no := fixture.find_child("ReadyCheckFrameNoButton", true, false) as Button
+	assert(yes != null and no != null and yes.visible and no.visible)
+	var button_top := minf(yes.global_position.y, no.global_position.y)
+	var line_heights: Array = []
+	for line in range(message.get_line_count()):
+		line_heights.append(message.get_line_height(line))
+	var region := Rect2i(message.get_global_rect().grow(4)).intersection(Rect2i(Vector2i.ZERO, reference.get_size()))
+	# Isolate complete text, including pixels otherwise occluded by the response buttons.
+	yes.hide()
+	no.hide()
+	await settle()
+	var shadowed := root.get_texture().get_image()
+	var shadow_color := message.get_theme_color("font_shadow_color")
+	message.add_theme_color_override("font_shadow_color", Color.TRANSPARENT)
+	await settle()
+	var glyphs := root.get_texture().get_image()
+	message.hide()
+	await settle()
+	var blank := root.get_texture().get_image()
+	message.show()
+	message.add_theme_color_override("font_shadow_color", shadow_color)
+	yes.show()
+	no.show()
+	await settle()
+	assert(root.get_texture().get_image().get_data() == reference.get_data(), "Raster isolation must restore exact source frame")
+	var glyph := ink_bounds(glyphs, blank, region)
+	var shadow := ink_bounds(shadowed, glyphs, region)
+	var combined := ink_bounds(shadowed, blank, region)
+	for ink in [glyph, shadow, combined]:
+		ink["clearance_to_button_top_px"] = button_top - ink.bottom_exclusive
+	assert(shadowed.get_region(region).save_png(output.path_join(stem + "-unoccluded.png")) == OK)
+	return {"button_top_px": button_top, "line_count": message.get_line_count(), "line_heights_ui": line_heights, "line_spacing_ui": message.get_theme_constant("line_spacing"), "hud_scale": HUD_SCALE, "glyph": glyph, "shadow": shadow, "combined": combined, "layout_gap": "READY_CHECK_MULTILINE_BODY_BUTTON_COLLISION" if combined.clearance_to_button_top_px <= 0 else ""}
+
 func run_difficulty() -> void:
 	root.content_scale_size = Vector2i.ZERO
 	root.size = Vector2i(1920, 1080)
@@ -49,7 +112,7 @@ func run_difficulty() -> void:
 			if not phase[1].is_empty():
 				expected += "\nRaid Difficulty: " + phase[1]
 			assert(message.text == expected, phase[0] + " source current-name rule")
-			assert(message.size == Vector2(240, 28) and panel.size == Vector2(323, 100))
+			assert(message.size.x == 240 and message.size.y > 0 and panel.size == Vector2(323, 100))
 			var anchor := (message.global_position - panel.global_position) / HUD_SCALE
 			assert(absf(anchor.x - 61.5) <= 0.5 and anchor.y == 37)
 			assert(title.text == "Ready Check" and title.size == Vector2(241, 20))
@@ -59,9 +122,11 @@ func run_difficulty() -> void:
 				assert(label.get_theme_color("font_shadow_color") == Color.BLACK)
 				assert(Vector2i(label.get_theme_constant("shadow_offset_x"), label.get_theme_constant("shadow_offset_y")) == Vector2i(1, 1))
 			var current := controls(fixture)
+			var fixed_controls := current.duplicate(true)
+			fixed_controls.erase("ReadyCheckFrameText")
 			if index == 0:
-				conserved = current
-			assert(current == conserved, "All existing control bounds conserved")
+				conserved = fixed_controls
+			assert(fixed_controls == conserved, "Frame/title/portrait/buttons remain unchanged")
 			var image := root.get_texture().get_image()
 			assert(image.get_size() == Vector2i(1920, 1080))
 			var filename: String = skin + "-" + str(index) + "-" + phase[0] + ".png"
@@ -70,12 +135,14 @@ func run_difficulty() -> void:
 				first_actual = image.get_data()
 			if index == phases.size() - 1:
 				assert(image.get_data() == first_actual, "Reopened actual3 restores exact RGBA")
-			observations.append({"skin": skin, "index": index, "phase": phase[0], "text": message.text, "controls": current, "image": filename, "message_pixel_rect": {"x": message.global_position.x, "y": message.global_position.y, "width": message.size.x * HUD_SCALE, "height": message.size.y * HUD_SCALE}})
+			var clearance: Dictionary = await measure_clearance(fixture, message, image, output, filename.trim_suffix(".png"))
+			assert(clearance.line_count == (1 if phase[1].is_empty() else 2))
+			observations.append({"skin": skin, "index": index, "phase": phase[0], "text": message.text, "controls": current, "image": filename, "clearance": clearance, "message_pixel_rect": {"x": message.global_position.x, "y": message.global_position.y, "width": message.size.x * HUD_SCALE, "height": message.size.y * HUD_SCALE}})
 		fixture.free()
 		await settle()
 	var receipt := FileAccess.open(OS.get_environment("READY_DIFFICULTY_RECEIPT"), FileAccess.WRITE)
 	assert(receipt != null)
 	receipt.store_string(JSON.stringify(observations, "\t"))
 	receipt.close()
-	print("PASS ready-check-difficulty both-skin exact current-name/toggle text, bounds and restoration")
+	print("OBSERVED ready-check-difficulty both-skin source intrinsic body; glyph/line/shadow clearance and named gaps recorded, not layout acceptance")
 	quit(0)

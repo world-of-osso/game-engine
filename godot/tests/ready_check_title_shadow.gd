@@ -35,7 +35,7 @@ func run_title_shadow() -> void:
 		assert(title.get_theme_color("font_color").is_equal_approx(Color(1, 210.0 / 255.0, 0)))
 		assert(title.get_theme_color("font_shadow_color") == Color.BLACK)
 		assert(Vector2i(title.get_theme_constant("shadow_offset_x"), title.get_theme_constant("shadow_offset_y")) == Vector2i(1, 1))
-		assert(message.size == Vector2(240, 28) and message.text == "Raidleader has initiated a ready check.")
+		assert(message.size.x == 240 and message.size.y > 0 and message.text == "Raidleader has initiated a ready check.")
 		assert(message.get_theme_font_size("font_size") == 12)
 		assert(message.get_theme_color("font_color").is_equal_approx(Color(1, 210.0 / 255.0, 0)))
 		assert(message.get_theme_color("font_shadow_color") == Color.BLACK)

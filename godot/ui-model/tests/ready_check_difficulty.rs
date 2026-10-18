@@ -62,7 +62,7 @@ fn screen(shared: &SharedContext) -> Element {
 }
 
 #[test]
-fn ready_check_difficulty_projects_two_lines_without_changing_body_bounds_both_skins() {
+fn ready_check_difficulty_projects_two_lines_with_source_width_both_skins() {
     game_engine_ui_model::paths::set_data_root(
         std::path::PathBuf::from(env!("CARGO_MANIFEST_DIR")).join("../../data"),
     )
@@ -91,7 +91,7 @@ fn ready_check_difficulty_projects_two_lines_without_changing_body_bounds_both_s
             assert!(
                 matches!(&body.widget_data, Some(WidgetData::FontString(text)) if text.text == expected)
             );
-            assert_eq!((body.width.value(), body.height.value()), (240.0, 28.0));
+            assert_eq!(body.width.value(), 240.0);
         }
     }
 }

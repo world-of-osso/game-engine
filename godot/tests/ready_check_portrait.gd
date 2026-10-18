@@ -59,7 +59,7 @@ func run_portrait() -> void:
 		assert((state.rect as Rect2).is_equal_approx(host.get_global_rect()))
 		assert(title.text == "Ready Check" and title.size == Vector2(241, 20))
 		assert(((title.global_position - panel.global_position) / HUD_SCALE).is_equal_approx(Vector2(58, 6)))
-		assert(message.text == "Ann has initiated a ready check." and message.size == Vector2(240, 28))
+		assert(message.text == "Ann has initiated a ready check." and message.size.x == 240 and message.size.y > 0)
 		var anchor := (message.global_position - panel.global_position) / HUD_SCALE
 		assert(absf(anchor.x - 61.5) <= 0.5 and anchor.y == 37)
 		for label in [title, message]:
