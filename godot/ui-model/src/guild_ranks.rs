@@ -16,6 +16,7 @@ pub enum GuildRosterSort {
     Rank,
     Level,
     Class,
+    Note,
 }
 
 pub fn guild_creation_notice(created_at: Option<u64>) -> String {
@@ -241,6 +242,7 @@ impl GuildRanksSession {
             "guild:roster-sort:rank" => self.sort_roster(GuildRosterSort::Rank),
             "guild:roster-sort:level" => self.sort_roster(GuildRosterSort::Level),
             "guild:roster-sort:class" => self.sort_roster(GuildRosterSort::Class),
+            "guild:roster-sort:note" => self.sort_roster(GuildRosterSort::Note),
             "guild:invite_open" if self.can(GUILD_RIGHT_INVITE) => self.invite_open = true,
             "guild:invite_close" => self.invite_open = false,
             "guild:invite_send" if self.invite_open && self.can(GUILD_RIGHT_INVITE) => {
@@ -300,8 +302,12 @@ impl GuildRanksSession {
     }
 
     fn sort_roster(&mut self, column: GuildRosterSort) {
-        self.roster_sort_descending =
-            self.roster_sort == Some(column) && !self.roster_sort_descending;
+        self.roster_sort_descending = if self.roster_sort == Some(column) {
+            !self.roster_sort_descending
+        } else {
+            // Mainline's first string-attribute click swaps comparator arguments.
+            column == GuildRosterSort::Note
+        };
         self.roster_sort = Some(column);
         self.member_menu = None;
     }
