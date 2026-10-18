@@ -1,3 +1,7 @@
+## 2026-10-18 — Pull corridor refusal
+
+[Named pull policy](systems/bot-harness.md#pull-corridor-refusal--2026-10-18) refuses a new OOC Heroic Throw when its strict tank-to-target route intersects another idle hostile's sourced sphere. KNOWN_VISIBLEv2 uses ordinary full-update/interest/hideable-template observations, never a server completeness claim. Retained run24 geometry RED, typed projection/wire progress and synthetic controller controls distinguish coverage from native acceptance. NPC-tank reach reproduced and corrected. No protocol/server behavior/stat/kit/runtime changes; early unseen Moloch may still refuse, and full clear remains open.
+
 ## 2026-10-17 — Rain of Fire escape policy
 
 [Bounded harness policy](systems/bot-harness.md#rain-of-fire-escape-policy--2026-10-17): synthetic eight-heading planner controls, actual map34 no-polygon refusal, and maintained-controller projected-arrival RED preserve source5yd radius with no damage/kit/stat changes. Pending ACK precedes escape; every source route segment and projected arrival neighborhood must be safe. Actual server lifecycle GREEN2 and protocol wire GREEN1 precede native real-UDP missing-decoder RED. Received geometry/faction projection and untouched observer JSON now implement the native data boundary; postmerge native UDP/replica21+projection4 GREEN142.6s, engine/network check16.42s/fmt/0warnings pass; Python125/observer parse remain valid on unchanged relevant files. Joint gate and fresh private escape/full-clear acceptance remain pending.
