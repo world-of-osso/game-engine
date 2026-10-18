@@ -2,7 +2,6 @@ extends SceneTree
 # Supplied account context through production name selection and native HUD projection.
 # Not authenticated transport, actual roster-head rendering, or sound acceptance.
 const HUD_SCALE := 1080.0 / 768.0
-const INK_OVERSCAN_PX := 4
 
 func _initialize() -> void:
 	call_deferred("run_difficulty")
@@ -61,7 +60,10 @@ func capture_clearance(fixture: Node, message: Label, reference: Image, output: 
 	var line_heights: Array = []
 	for line in range(message.get_line_count()):
 		line_heights.append(message.get_line_height(line))
-	var region := Rect2i(message.get_global_rect().grow(INK_OVERSCAN_PX)).intersection(Rect2i(Vector2i.ZERO, reference.get_size()))
+	var panel := fixture.find_child("ReadyCheckFrame", true, false) as Control
+	assert(panel != null)
+	# Scan the source panel/body union, not an assumed label-to-shadow margin.
+	var region := Rect2i(panel.get_global_rect().merge(message.get_global_rect())).intersection(Rect2i(Vector2i.ZERO, reference.get_size()))
 	# Isolate complete text, including pixels otherwise occluded by the response buttons.
 	yes.hide()
 	no.hide()
@@ -84,7 +86,7 @@ func capture_clearance(fixture: Node, message: Label, reference: Image, output: 
 	assert(shadowed.get_region(region).save_png(output.path_join(stem + "-unoccluded.png")) == OK)
 	assert(glyphs.get_region(region).save_png(output.path_join(stem + "-glyphs.png")) == OK)
 	assert(blank.get_region(region).save_png(output.path_join(stem + "-blank.png")) == OK)
-	print("READY_INTRINSIC_CONTEXT ", stem, " body=", message.get_global_rect(), " lines=", line_heights, " button_top=", button_top)
+	print("READY_INTRINSIC_CONTEXT ", stem, " body=", message.get_global_rect(), " lines=", line_heights, " line_spacing=", message.get_theme_constant("line_spacing"), " button_top=", button_top)
 	var glyph := scan_ink_bounds(glyphs, blank, region)
 	var shadow := scan_ink_bounds(shadowed, glyphs, region)
 	var combined := scan_ink_bounds(shadowed, blank, region)
