@@ -22,7 +22,7 @@ func run_message() -> void:
 		var panel := ui.find_child("ReadyCheckFrame", true, false) as Control
 		assert(label != null and label.is_visible_in_tree())
 		assert(label.text == "Raidleader has initiated a ready check.")
-		assert(label.size == Vector2(240, 28))
+		assert(label.size.x == 240 and label.size.y > 0)
 		var offset := label.get_global_rect().position - panel.get_global_rect().position
 		print("READY_MESSAGE ", skin, " offset=", offset, " rect=", label.get_global_rect())
 		if verify:

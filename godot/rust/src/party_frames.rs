@@ -6,6 +6,9 @@
 //! `RespondGroupInvite { accept: true }`; Decline and the 60 s timeout decline.
 
 #[cfg(debug_assertions)]
+#[path = "party_frames_ready_difficulty_fixture.rs"]
+mod ready_difficulty_fixture;
+#[cfg(debug_assertions)]
 #[path = "party_frames_ready_sound_fixture.rs"]
 mod ready_sound_fixture;
 
