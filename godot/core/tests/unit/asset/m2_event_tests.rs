@@ -1,5 +1,5 @@
-use super::*;
-use crate::asset::m2_format::parser::{parse_chunks, parse_skel_data_with_anims};
+use game_engine_core::asset::m2_format::m2_event::*;
+use game_engine_core::asset::m2_format::parser::{parse_chunks, parse_skel_data_with_anims};
 
 /// `data/models/<name>` of the repository, from the root or a nested crate.
 fn model_file(name: &str) -> Vec<u8> {
