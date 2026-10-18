@@ -1008,6 +1008,190 @@ fn achievements_ui_browse_statistics_and_correlated_full_search_both_skins() {
     }
 }
 
+fn search_preview_window() -> AchievementWindow {
+    let mut window = AchievementWindow::default();
+    window.action("micro:AchievementMicroButton");
+    window.apply(AchievementCatalogPage::Categories {
+        categories: vec![category()],
+        next_id: None,
+    });
+    window.action("achievement:category:14808");
+    window.apply(AchievementCatalogPage::Category {
+        category_id: 14808,
+        achievements: vec![achievement()],
+        next_id: None,
+    });
+    window.action("achievement:search_focus");
+    window
+}
+
+fn preview_results(window: &mut AchievementWindow, term: &str, count: u32, next_id: Option<u32>) {
+    window.apply(AchievementCatalogPage::Search {
+        text: term.into(),
+        scope: AchievementScope::All,
+        achievements: (0..count)
+            .map(|index| AchievementCatalogEntry {
+                achievement_id: 6 + index,
+                name: format!("Level {}", (index + 1) * 10),
+                ..achievement()
+            })
+            .collect(),
+        next_id,
+    });
+}
+
+#[test]
+fn achievements_search_preview_preserves_category_and_caps_received_rows_both_skins() {
+    for skin in [ActiveSkin::Modern, ActiveSkin::Forever] {
+        assets(skin);
+        let mut window = search_preview_window();
+        window.action("achievement:search:level");
+        assert_eq!(
+            window.selected_category,
+            Some(14808),
+            "typing preserves category"
+        );
+        assert_eq!(window.entries()[0].achievement_id, 633);
+        preview_results(&mut window, "level", 6, None);
+        let registry = achievement_registry(&window, skin);
+        assert_eq!(text(&registry, "Achievement633Name"), "Stormwind Stockade");
+        let popup = registry
+            .get(
+                registry
+                    .get_by_name("AchievementSearchPreviewContainer")
+                    .unwrap(),
+            )
+            .unwrap();
+        assert_eq!(popup.width.value(), 206.0);
+        for index in 1..=5 {
+            let row = registry
+                .get(
+                    registry
+                        .get_by_name(&format!("AchievementSearchPreview{index}"))
+                        .unwrap(),
+                )
+                .unwrap();
+            assert_eq!((row.width.value(), row.height.value()), (206.0, 27.0));
+            assert_eq!(
+                text(&registry, &format!("AchievementSearchPreview{index}Name")),
+                format!("Level {}", index * 10)
+            );
+        }
+        assert!(registry.get_by_name("AchievementSearchPreview6").is_none());
+        assert!(
+            registry
+                .get_by_name("AchievementShowAllSearchResults")
+                .is_some()
+        );
+    }
+}
+
+#[test]
+fn achievements_search_preview_show_all_requires_more_than_five_and_opens_list_both_skins() {
+    for skin in [ActiveSkin::Modern, ActiveSkin::Forever] {
+        assets(skin);
+        for (count, next, show_all) in [
+            (1, None, false),
+            (5, None, false),
+            (5, Some(10), true),
+            (6, None, true),
+        ] {
+            let mut window = search_preview_window();
+            window.action("achievement:search:level");
+            preview_results(&mut window, "level", count, next);
+            let registry = achievement_registry(&window, skin);
+            assert_eq!(
+                registry
+                    .get_by_name("AchievementShowAllSearchResults")
+                    .is_some(),
+                show_all
+            );
+            if show_all {
+                let button = registry
+                    .get(
+                        registry
+                            .get_by_name("AchievementShowAllSearchResults")
+                            .unwrap(),
+                    )
+                    .unwrap();
+                window.action(button.onclick.as_deref().unwrap());
+                let full = achievement_registry(&window, skin);
+                assert!(
+                    full.get_by_name("AchievementSearchPreviewContainer")
+                        .is_none()
+                );
+                assert_eq!(text(&full, "Achievement6Name"), "Level 10");
+                assert!(full.get_by_name("Achievement633Name").is_none());
+                assert_eq!(window.entries().len(), count as usize);
+            }
+        }
+    }
+}
+
+#[test]
+fn achievements_search_preview_row_opens_received_achievement_both_skins() {
+    for skin in [ActiveSkin::Modern, ActiveSkin::Forever] {
+        assets(skin);
+        let mut window = search_preview_window();
+        window.action("achievement:search:level");
+        preview_results(&mut window, "level", 1, None);
+        let registry = achievement_registry(&window, skin);
+        let button = registry
+            .get(registry.get_by_name("AchievementSearchPreview1").unwrap())
+            .unwrap();
+        let requests = window.action(button.onclick.as_deref().unwrap());
+        assert!(requests.contains(&QueryAchievementCatalog::Achievement { achievement_id: 6 }));
+        assert_eq!(window.selected_achievement, Some(6));
+        assert!(window.search_text.is_empty());
+        assert!(
+            achievement_registry(&window, skin)
+                .get_by_name("AchievementSearchPreviewContainer")
+                .is_none()
+        );
+    }
+}
+
+#[test]
+fn achievements_search_preview_clear_blur_and_late_replies_both_skins() {
+    for skin in [ActiveSkin::Modern, ActiveSkin::Forever] {
+        assets(skin);
+        let mut window = search_preview_window();
+        window.action("achievement:search:level");
+        window.action("achievement:search_blur");
+        preview_results(&mut window, "level", 2, None);
+        assert!(
+            achievement_registry(&window, skin)
+                .get_by_name("AchievementSearchPreviewContainer")
+                .is_none()
+        );
+        assert_eq!(window.entries()[0].achievement_id, 633);
+        window.action("achievement:search_focus");
+        assert!(
+            achievement_registry(&window, skin)
+                .get_by_name("AchievementSearchPreviewContainer")
+                .is_some()
+        );
+        window.action("achievement:search:");
+        preview_results(&mut window, "level", 5, None);
+        assert!(window.search_results.entries.is_empty());
+        assert!(
+            achievement_registry(&window, skin)
+                .get_by_name("AchievementSearchPreviewContainer")
+                .is_none()
+        );
+        window.action("achievement:search:stock");
+        preview_results(&mut window, "level", 5, None);
+        assert!(window.search_results.entries.is_empty());
+        preview_results(&mut window, "stock", 0, None);
+        assert!(
+            achievement_registry(&window, skin)
+                .get_by_name("AchievementSearchPreviewContainer")
+                .is_none()
+        );
+        assert_eq!(window.selected_category, Some(14808));
+    }
+}
+
 fn achievement_registry(window: &AchievementWindow, skin: ActiveSkin) -> FrameRegistry {
     let mut shared = SharedContext::new();
     shared.insert(skin);
