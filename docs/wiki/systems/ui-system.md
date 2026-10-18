@@ -330,3 +330,12 @@ Commit `8cac2b03` first disabled only the FPS frame-time graph at startup in str
 - [[npc-motion-validation]] — revision-pinned world-picking and `--no-ui` policy evidence
 - [UI layout invalidation spec](../../specs/ui-layout-invalidation.md) — explicit geometry invalidation contract
 - [[quest-ui]] — native quest windows and low-FPS input/capture diagnostics
+
+
+## Historical raster FontString allocation — 2026-10-18
+
+FontStrings use the toolkit's pure `resolve_font_lines` for intrinsic height and native baseline/advance. It rounds nominal height times physical pixels/UI once (half up,2–32px), converts back, adds ceil-rounded nonnegative spacing between lines only, and derives the baseline from unrounded face ascender/descent. `font_lines.rs` reads hhea via already-locked skrifa and caches private FontFile resources per font/request/scale; cache ascent/descent changes do not mutate shared button/edit fonts. Canvas-scale changes invalidate projected text. FontString source spacing defaults0, not Godot's themed3. Native positive gaps truncate to an integer: `FONT_POSITIVE_SPACING_GAP_TRUNCATION` remains named (spacing1 at1080 loses0.422222UI/gap), with no per-line drawable. Current census:9 projection dumps/635 unspecified fields, no authored positive source value; ReadyCheck explicitly0.
+
+At1080,p=1.40625, nominal12 allocates17px/12.088889UI, baseline14px/9.955556UI. ReadyCheck two lines allocate24.177778UI from source y37; buttons stay y60 and frame100. Allocation still exceeds the23UI source space; `READY_CHECK_MULTILINE_BODY_BUTTON_COLLISION` stays open until new ink/shadow proof. Old arbitrary negative-gap squeezing and shadow-height reservation are removed; finite rectangles select lines, not clip glyph pixels. Existing integer `Label.get_line_height` is diagnostic only; actual font cache/character bounds and toolkit allocation are fractional.
+
+Historical Cataclysm/Wrath behavioural prose is the approved clean-room contract; cited historical sources were not opened/reconstructed. Retail70448 remains unverified (`FONT_LINE_HEIGHT_PARITY`). Toolkit RED0233f66 (six genuine failures)→GREENc2f3629 (seven pass); native process RED e3ec8cd2a observes15UI/12UIbaseline rather than12.088889/9.955556. Consumer GREEN and both-skin1920 ink acceptance are pending, not implied by the mechanism probe's3.3e−7px precision. [ReadyCheck state](group-frames.md#font-line-height-parity-read-only-pipeline-audit--2026-10-18).
