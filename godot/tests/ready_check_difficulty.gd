@@ -66,14 +66,19 @@ func capture_clearance(fixture: Node, message: Label, reference: Image, output: 
 		return {}
 	var button_top := minf(yes.global_position.y, no.global_position.y)
 	var line_heights: Array = []
-	var measured_text_height := 0
+	var measured_text_height := 0.0
+	var font := message.get_theme_font("font")
+	var resolved_line_height := 17.0 / HUD_SCALE
+	if not completion.require(absf(font.get_height(12) - resolved_line_height) < 0.00001, "Historical raster allocation: nominal12 selects17px"):
+		return {}
 	for line in range(message.get_line_count()):
 		var line_height := message.get_line_height(line)
 		line_heights.append(line_height)
-		measured_text_height += line_height
+		# get_line_height returns an integer, but shaping uses the fractional cache metric.
+		measured_text_height += resolved_line_height
 	if not completion.require(message.get_theme_constant("line_spacing") == 0, "Retail source spacing is zero"):
 		return {}
-	if not completion.require(is_equal_approx(message.size.y, float(measured_text_height)), "Measured intrinsic height and rendered zero-spacing line heights agree"):
+	if not completion.require(is_equal_approx(message.size.y, float(measured_text_height)), "Measured intrinsic height and fractional zero-spacing allocation agree"):
 		return {}
 	var panel := fixture.find_child("ReadyCheckFrame", true, false) as Control
 	if not completion.require(panel != null):
@@ -116,7 +121,7 @@ func capture_clearance(fixture: Node, message: Label, reference: Image, output: 
 	var combined := scan_ink_bounds(shadowed, blank, region)
 	for ink in [glyph, shadow, combined]:
 		ink["clearance_to_button_top_px"] = button_top - ink.bottom_exclusive
-	return {"scan_region_px": [region.position.x, region.position.y, region.size.x, region.size.y], "button_top_px": button_top, "line_count": message.get_line_count(), "line_heights_ui": line_heights, "line_spacing_ui": message.get_theme_constant("line_spacing"), "hud_scale": HUD_SCALE, "glyph": glyph, "shadow": shadow, "combined": combined, "layout_gap": "READY_CHECK_MULTILINE_BODY_BUTTON_COLLISION" if combined.clearance_to_button_top_px <= 0 else ""}
+	return {"scan_region_px": [region.position.x, region.position.y, region.size.x, region.size.y], "button_top_px": button_top, "line_count": message.get_line_count(), "line_heights_ui": line_heights, "line_spacing_ui": message.get_theme_constant("line_spacing"), "resolved_line_height_ui": resolved_line_height, "resolved_baseline_ui": font.get_ascent(12), "hud_scale": HUD_SCALE, "glyph": glyph, "shadow": shadow, "combined": combined, "layout_gap": "READY_CHECK_MULTILINE_BODY_BUTTON_COLLISION" if combined.clearance_to_button_top_px <= 0 else ""}
 
 func run_difficulty() -> bool:
 	root.content_scale_size = Vector2i.ZERO

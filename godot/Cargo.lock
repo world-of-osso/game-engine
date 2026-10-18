@@ -3189,6 +3189,7 @@ dependencies = [
  "serde",
  "serde_json",
  "shared",
+ "skrifa 0.44.0",
  "taffy",
  "tokio",
  "ui-toolkit-core",
