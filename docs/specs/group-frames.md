@@ -251,3 +251,8 @@ The native process regression first failed on `79fe67663` with the live `Unconve
     - `PARTY_INVITE` accept, timeout and cancel.
   - `src/rendering/ui/unit_frames.rs`: the target frame Invite entry and the player frame Leave / Convert entries.
   - `godot/ui-model/src/ui/chat_frame_tests.rs`: slash commands.
+
+
+### Historical raster allocation contract (2026-10-18)
+
+ReadyCheck and other native FontStrings consume one toolkit raster resolver for intrinsic height and placement. Preserve nominal requests, source region/button geometry and whole-block justification. At1080,p=1080/768, nominal12 resolves to17px per line,34px/two lines and a14px face-derived baseline. Source spacing0 is not natural ascent+descent or Godot theme spacing. No arbitrary negative-gap squeezing or own-rectangle glyph clipping. `FONT_POSITIVE_SPACING_GAP_TRUNCATION` is a named future-value gap; no current authored positive multiline source spacing was found. Historical reference only: Retail70448 and actual ReadyCheck ink/button clearance remain open. [Implementation and proof boundary](../wiki/systems/ui-system.md#historical-raster-fontstring-allocation--2026-10-18).
