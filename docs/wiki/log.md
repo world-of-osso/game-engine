@@ -1,3 +1,7 @@
+## 2026-10-18 — Search-preview native lifecycle
+
+[Exact proof and preserved failures](systems/dungeon-achievements.md#post-landing-search-preview-native-proof--2026-10-18): Edf3/Saf5/Pa2b/Tc2f, both-skin normal/real Hdrpeer comparison; source five206×27 rows, physical focus/blur/refocus/clear/Show All/open. Both drained streams exit0/unique2/2/zeroerrors/exact8PNGs; sixteen inspected1920 originals published, ownedPIDs gone/slice0/5898free/windowcleared. Native rapidclear is not delayedreply/latency proof; model ordering remains distinct. Earlier protocol/socket/focus-helper failures stay failed and preserved, no product fallback/change.
+
 ## 2026-10-18 — Shared native menu order
 
 [Source and bounded projection](systems/menu-primitives.md#native-menu-order-2026-10-18): actual guild-menu z563 below Last Online1503 reproduces additive-strata ordering failure. Shared menus use FULLSCREEN_DIALOG; native layers rank densely below the existing highlight plane, with explicit once-reported capacity errors and unchanged pointer policy. Native guild/navigation, tooltip/strata/raise/reused-ID and both dungeon/raid companion controls pass; pointer comparator remains unchanged. Golden census measures50 actual roots, maximum16 layers (GameMenuRoot193frames) versus4000 capacity; Modern golden/hash targets47 pass, with only21 source-qualified menu stratum fields changed. Focused gate and refreshed game-world pixels remain pending.
