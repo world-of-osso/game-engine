@@ -1483,6 +1483,14 @@ impl GameClient {
             self.mark_viewport_input_handled();
             return true;
         }
+        let trading_key_used = self.trading_post_key(event).unwrap_or_else(|error| {
+            self.handle_frame_error("Trading Post keyboard", error.into());
+            true
+        });
+        if trading_key_used {
+            self.mark_viewport_input_handled();
+            return true;
+        }
         if self.housing_storage_menu_input(event) {
             self.mark_viewport_input_handled();
             return true;

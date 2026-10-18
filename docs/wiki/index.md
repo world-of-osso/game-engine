@@ -35,6 +35,8 @@
 - [Clean-room M2 particles](systems/godot-conversion.md#native-m2-particles) — native tails/follow/cubic controls, authored sorting and map-collision births; inherited-scale provenance and explicit lighting, timer/reset, spline-density, target-mask and model-recursion oracle gaps.
 - [Purchase-aware Trading Post Price sorting](systems/trading-post.md#purchase-aware-price-sorting--october17) — sourced refund/purchased key after two genuine model REDs;44focused UI tests/helper check/format/readability pass; post468e both-skin real header/menu sort and ordinary purchase/refund conserve Tender/appearance sets/cart with640/712 untouched; TP_SORT_PER_PRODUCT_PENDING remains unsupplied.
 
+- [Ordinary-product keyboard navigation](systems/trading-post.md#ordinary-product-keyboard-navigation--october17) — Up/Down/no-wrap/frozen-cart-modal ownership/nearest reveal after four missing-action model REDs;51UI/helper check38.35s/noWarnings/fmt5/readability pass; native real-key/position proof pending after landing.
+
 # Wiki Index
 
 - [Rain of Fire escape](systems/bot-harness.md#rain-of-fire-escape-policy--2026-10-17) — approved eight-heading strict-nav policy over received86636 objects; pending ACK/freshness and full-segment/arrival safety, joint/native proof pending.
