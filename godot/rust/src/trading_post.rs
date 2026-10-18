@@ -806,6 +806,39 @@ impl GameClient {
         // scope retains the authored player-rider scale1; no guessed compensation.
         mount_preview::attach_rider(&model, rider.clone(), &mount.actors["player-rider"])
     }
+    pub(super) fn trading_post_key(
+        &mut self,
+        event: &Gd<godot::classes::InputEvent>,
+    ) -> Result<bool, String> {
+        if !self.trading_post.view.visible {
+            return Ok(false);
+        }
+        let Ok(key) = event.clone().try_cast::<godot::classes::InputEventKey>() else {
+            return Ok(false);
+        };
+        let action = match key.get_keycode() {
+            godot::global::Key::DOWN => "perks:select-next",
+            godot::global::Key::UP => "perks:select-previous",
+            _ => return Ok(false),
+        };
+        if key.is_pressed() && !self.group_frames.popups.is_open() {
+            let selected = self.trading_post.view.selected;
+            self.trading_post.view.click(action)?;
+            if self.trading_post.view.selected != selected {
+                self.sync_trading_ui()?;
+                let view = self.trading_post.view.clone();
+                self.trading_post
+                    .ui
+                    .as_mut()
+                    .ok_or("Trading Post keyboard selection has no registry UI")?
+                    .bind_mut()
+                    .reveal_trading_post_selection(&view)?;
+            }
+        }
+        // Releases also belong to this keyboard owner, never to world movement.
+        Ok(true)
+    }
+
     pub(super) fn trading_post_pointer(&mut self, event: &Gd<godot::classes::InputEvent>) -> bool {
         if !self.trading_post.view.visible {
             return false;

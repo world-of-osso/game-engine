@@ -108,6 +108,83 @@ fn trading_post_keyboard_nil_selection_never_guesses_first_product() {
     }
 }
 
+fn keyboard_page_view() -> View {
+    let mut view = keyboard_view();
+    let mut data = view.snapshot.as_ref().unwrap().as_ref().clone();
+    let template = data.items[0].clone();
+    data.items.truncate(1);
+    data.items.extend((0..20).map(|index| TradingPostItem {
+        id: 100 + index,
+        name: format!("Product{index:02}"),
+        ..template.clone()
+    }));
+    view.snapshot = Some(Arc::new(data));
+    view.selected = Some(100);
+    view
+}
+
+#[test]
+fn trading_post_keyboard_nearest_scroll_reveals_edges_without_centering() {
+    let mut view = keyboard_page_view();
+    for (index, current, expected) in [
+        (10, 0, 0),
+        (11, 0, 3),
+        (12, 3, 51),
+        (1, 51, 48),
+        (0, 48, 0),
+        (8, 213, 213),
+        (19, 0, 387),
+    ] {
+        view.selected = Some(100 + index);
+        assert_eq!(
+            view.calculate_selected_scroll_offset(current).unwrap(),
+            expected,
+            "selected index{index}, current offset{current}"
+        );
+    }
+}
+
+#[test]
+fn trading_post_keyboard_crosses_a_real_page_then_returns_in_both_skins() {
+    use game_engine_ui_model::trading_post::LIST;
+    for skin in [ActiveSkin::Modern, ActiveSkin::Forever] {
+        set_thread_skin(skin);
+        let mut view = keyboard_page_view();
+        let mut shared = SharedContext::new();
+        shared.insert(skin);
+        shared.insert(view.clone());
+        let mut registry = FrameRegistry::new(1920., 1080.);
+        let mut screen = Screen::new(trading_post_screen);
+        screen.sync(&shared, &mut registry);
+        assert!(registry.get_by_name("PerksProgramProduct100").is_some());
+        assert!(registry.get_by_name("PerksProgramProduct112").is_none());
+        for action in ["perks:select-next", "perks:select-previous"] {
+            for _ in 0..12 {
+                view.click(action).unwrap();
+                let current = registry.scroll_lists.get(LIST).unwrap().first_row;
+                let offset = view.calculate_selected_scroll_offset(current).unwrap();
+                registry.scroll_lists.scroll_to(LIST, offset);
+                shared.insert(view.clone());
+                screen.sync(&shared, &mut registry);
+            }
+            if action == "perks:select-next" {
+                assert_eq!(view.selected, Some(112));
+                assert_eq!(registry.scroll_lists.get(LIST).unwrap().first_row, 51);
+                assert!(registry.get_by_name("PerksProgramProduct100").is_none());
+                assert!(registry.get_by_name("PerksProgramProduct112").is_some());
+            } else {
+                assert_eq!(view.selected, Some(100));
+                assert_eq!(registry.scroll_lists.get(LIST).unwrap().first_row, 0);
+                assert!(registry.get_by_name("PerksProgramProduct100").is_some());
+                assert!(registry.get_by_name("PerksProgramProduct112").is_none());
+            }
+        }
+        assert_eq!(view.snapshot.as_ref().unwrap().frozen_item_id, Some(4));
+        assert_eq!(view.snapshot.as_ref().unwrap().tender, 500);
+        assert!(view.cart.is_empty());
+    }
+}
+
 fn purchase_price_view() -> View {
     let mut data = snapshot();
     let template = data.items[0].clone();
