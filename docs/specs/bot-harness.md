@@ -25,11 +25,13 @@ Private real player characters exercise the native controller path and measure c
 
 ## Rain of Fire avoidance
 
-- [ ] Observe actual86636 dynamic objects through ordinary client replication, with actual caster, spell, resolved3D centre/radius and received despawn; use active70448 SpellEffect/SpellRadius authority only. Missing geometry/faction/snapshot is unavailable, never an empty safe set. Preserve integer server identities in serialized native JSON.
-- [ ] Apply named `HARNESS_RAIN_OF_FIRE_ESCAPE`, explicitly a harness policy, not Retail AI: after outstanding cast ACK and party/life checks, preempt target work while inside a received hostile86636 sphere. Choose deepest containing sphere (ID breaks ties), query eight radial XZ headings at45degree offsets from centre→player (+X when coincident), nominal reach radius+existing0.5yd navigation arrival contract.
-- [ ] Select the shortest complete strict-nav route (heading order ties); validate actual source-projected endpoint and every3D segment against all inclusive spheres, allow only non-increasing penetration until leaving initially containing spheres, and never reenter. The projected arrival neighborhood must also stay outside every area. Reobserve between existing bounded physical steps; do not force targets or interrupt/reset casts.
-- [ ] Reject ordinary movement routes entering a received area. Exact native unreachable-corridor/no-polygon refusals may reject a candidate; malformed output, transport or other query errors still stop. No safe candidate fails explicitly, without direct-line or timer fallback.
-- [ ] Keep Overheat86633 unit damage, other spells, other-copy objects and explicit friendly areas outside this policy. No stat/kit/follower changes.
+- [x] Observe actual86636 dynamic objects through ordinary client replication, with actual caster, spell, resolved3D centre/radius and received despawn; use active70448 SpellEffect/SpellRadius authority only. Missing geometry/faction/snapshot is unavailable, never an empty safe set. Preserve integer server identities in serialized native JSON.
+- [x] Apply named `HARNESS_RAIN_OF_FIRE_ESCAPE`, explicitly a harness policy, not Retail AI: after outstanding cast ACK and party/life checks, preempt target work while inside a received hostile86636 sphere. Choose deepest containing sphere (ID breaks ties), query eight radial XZ headings at45degree offsets from centre→player (+X when coincident), nominal reach radius+existing0.5yd navigation arrival contract.
+- [x] Select the shortest complete strict-nav route (heading order ties); validate actual source-projected endpoint and every3D segment against all inclusive spheres, allow only non-increasing penetration until leaving initially containing spheres, and never reenter. The projected arrival neighborhood must also stay outside every area. Reobserve between existing bounded physical steps; do not force targets or interrupt/reset casts.
+- [x] Reject ordinary movement routes entering a received area. Exact native unreachable-corridor/no-polygon refusals may reject a candidate; malformed output, transport or other query errors still stop. No safe candidate fails explicitly, without direct-line or timer fallback.
+- [x] Keep Overheat86633 unit damage, other spells, other-copy objects and explicit friendly areas outside this policy. No stat/kit/follower changes.
+
+These boxes have CPU/real-UDP behavioral proof; they do not certify a fresh full-client escape or Stockade clear. Outside an area, an unsafe ordinary route explicitly refuses under the approved policy rather than guessing a wait timer or changing targets.
 
 ## Native Stockade runs
 
