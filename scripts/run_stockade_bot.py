@@ -348,6 +348,8 @@ class StockadeRun:
         return snapshot
 
     def admit_pull(self, state, target):
+        if not hasattr(self, "pull_sources"):
+            self.pull_sources = PullSources(self.args.world_db, self.args.engine / "data/db2/active")
         before = self.read_pull_snapshot(state)
         tank_id = int(self.party_actor_ids[self.tank])
         units = require_snapshot(before)
@@ -363,8 +365,6 @@ class StockadeRun:
         if (after["epoch"] != before["epoch"] or tank_id not in current or target not in current
                 or current[tank_id]["position"] != start or current[target]["position"] != goal):
             raise ValueError("Pull coverage UNKNOWN: tank/target/entry changed during route query")
-        if not hasattr(self, "pull_sources"):
-            self.pull_sources = PullSources(self.args.world_db, self.args.engine / "data/db2/active")
         receipt = {"at_ms": fresh["at_ms"], "target": target, "route": corners}
         try:
             receipt.update(require_safe_corridor(after, tank_id, target, corners, self.pull_sources))
