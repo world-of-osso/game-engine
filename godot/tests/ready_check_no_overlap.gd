@@ -43,7 +43,9 @@ func run_difficulty() -> bool:
 			geometry_ok = geometry_ok and absf((body.global_position.y - panel.global_position.y) / HUD_SCALE - 37.0) < 0.00001
 			geometry_ok = geometry_ok and absf((yes.global_position.y - panel.global_position.y) / HUD_SCALE - (60.0 + extra)) < 0.00001
 			geometry_ok = geometry_ok and absf((no.global_position.y - panel.global_position.y) / HUD_SCALE - (60.0 + extra)) < 0.00001
-			geometry_ok = geometry_ok and yes.text == "Ready" and no.text == "Not Ready"
+			var yes_label := yes.get_node("Parts/Text") as Label
+			var no_label := no.get_node("Parts/Text") as Label
+			geometry_ok = geometry_ok and yes_label.text == "Ready" and no_label.text == "Not Ready"
 			var clear: bool = ink.glyph.clearance_to_button_top_px >= 0 and ink.shadow.clearance_to_button_top_px >= 0 and ink.combined.clearance_to_button_top_px >= 0
 			all_clear = all_clear and clear and geometry_ok
 			observations.append({"skin": skin, "case": case[0], "text": body.text, "line_count": body.get_line_count(), "expected_extra_ui": extra, "controls": controls(fixture), "clearance": ink, "geometry_ok": geometry_ok, "ink_clear": clear})
