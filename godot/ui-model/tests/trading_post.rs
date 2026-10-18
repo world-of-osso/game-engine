@@ -8,6 +8,183 @@ use ui_toolkit::{
     screen::{Screen, SharedContext},
 };
 
+fn keyboard_view() -> View {
+    let mut data = snapshot();
+    let template = data.items[0].clone();
+    for (id, name, price, category_id) in [
+        (10, "Cobalt", 30, 1),
+        (11, "Amber", 10, 1),
+        (12, "Bronze", 20, 2),
+        (13, "Dusk", 40, 1),
+        (14, "Ember", 5, 1),
+    ] {
+        data.items.push(TradingPostItem {
+            id,
+            name: name.into(),
+            price,
+            category_id,
+            ..template.clone()
+        });
+    }
+    View {
+        visible: true,
+        snapshot: Some(Arc::new(data)),
+        selected: Some(11),
+        sort: game_engine_ui_model::trading_post::Sort::Name,
+        ascending: true,
+        ..Default::default()
+    }
+}
+
+#[test]
+fn trading_post_keyboard_down_selects_next_ordinary_product_without_wrapping() {
+    let mut view = keyboard_view();
+    let original = view.snapshot.clone();
+    for expected in [12, 10, 13, 14, 14] {
+        assert_eq!(view.click("perks:select-next").unwrap(), None);
+        assert_eq!(view.selected, Some(expected));
+    }
+    assert_eq!(
+        view.snapshot, original,
+        "navigation cannot mutate authority"
+    );
+    assert!(view.cart.is_empty());
+}
+
+#[test]
+fn trading_post_keyboard_up_selects_previous_ordinary_product_without_wrapping() {
+    let mut view = keyboard_view();
+    view.selected = Some(13);
+    for expected in [10, 12, 11, 11] {
+        assert_eq!(view.click("perks:select-previous").unwrap(), None);
+        assert_eq!(view.selected, Some(expected));
+    }
+    assert_eq!(view.snapshot.as_ref().unwrap().frozen_item_id, Some(4));
+    assert_eq!(view.snapshot.as_ref().unwrap().tender, 500);
+}
+
+#[test]
+fn trading_post_keyboard_uses_current_filter_and_price_direction() {
+    let mut view = keyboard_view();
+    view.click("perks:type:2").unwrap();
+    view.click("perks:select-next").unwrap();
+    assert_eq!(view.selected, Some(10), "filtered Bronze is skipped");
+    view.click("perks:sort:price").unwrap();
+    view.click("perks:select-next").unwrap();
+    assert_eq!(view.selected, Some(11), "descending30 to10");
+    view.click("perks:select-previous").unwrap();
+    assert_eq!(view.selected, Some(10));
+    view.click("perks:sort:price").unwrap();
+    view.click("perks:select-previous").unwrap();
+    assert_eq!(view.selected, Some(11), "ascending30 to10");
+}
+
+#[test]
+fn trading_post_keyboard_frozen_cart_and_modal_keep_their_selection_owner() {
+    for action in ["perks:select-next", "perks:select-previous"] {
+        let mut frozen = keyboard_view();
+        frozen.selected = Some(4);
+        let mut cart = keyboard_view();
+        cart.cart.push(10);
+        cart.click("perks:cart:show").unwrap();
+        let mut modal = keyboard_view();
+        modal.click("perks:purchase").unwrap();
+        assert_eq!(modal.confirm.as_deref(), Some("purchase"));
+        for mut view in [frozen, cart, modal] {
+            let before = view.clone();
+            assert_eq!(view.click(action).unwrap(), None);
+            assert_eq!(view, before, "{action} must not disturb its input owner");
+        }
+    }
+}
+
+#[test]
+fn trading_post_keyboard_nil_selection_never_guesses_first_product() {
+    let mut view = keyboard_view();
+    view.selected = None;
+    for action in ["perks:select-next", "perks:select-previous"] {
+        assert!(view.click(action).is_err());
+        assert_eq!(view.selected, None);
+    }
+}
+
+fn keyboard_page_view() -> View {
+    let mut view = keyboard_view();
+    let mut data = view.snapshot.as_ref().unwrap().as_ref().clone();
+    let template = data.items[0].clone();
+    data.items.truncate(1);
+    data.items.extend((0..20).map(|index| TradingPostItem {
+        id: 100 + index,
+        name: format!("Product{index:02}"),
+        ..template.clone()
+    }));
+    view.snapshot = Some(Arc::new(data));
+    view.selected = Some(100);
+    view
+}
+
+#[test]
+fn trading_post_keyboard_nearest_scroll_reveals_edges_without_centering() {
+    let mut view = keyboard_page_view();
+    for (index, current, expected) in [
+        (10, 0, 0),
+        (11, 0, 3),
+        (12, 3, 51),
+        (1, 51, 48),
+        (0, 48, 0),
+        (8, 213, 213),
+        (19, 0, 387),
+    ] {
+        view.selected = Some(100 + index);
+        assert_eq!(
+            view.calculate_selected_scroll_offset(current).unwrap(),
+            expected,
+            "selected index{index}, current offset{current}"
+        );
+    }
+}
+
+#[test]
+fn trading_post_keyboard_crosses_a_real_page_then_returns_in_both_skins() {
+    use game_engine_ui_model::trading_post::LIST;
+    for skin in [ActiveSkin::Modern, ActiveSkin::Forever] {
+        set_thread_skin(skin);
+        let mut view = keyboard_page_view();
+        let mut shared = SharedContext::new();
+        shared.insert(skin);
+        shared.insert(view.clone());
+        let mut registry = FrameRegistry::new(1920., 1080.);
+        let mut screen = Screen::new(trading_post_screen);
+        screen.sync(&shared, &mut registry);
+        assert!(registry.get_by_name("PerksProgramProduct100").is_some());
+        assert!(registry.get_by_name("PerksProgramProduct112").is_none());
+        for action in ["perks:select-next", "perks:select-previous"] {
+            for _ in 0..12 {
+                view.click(action).unwrap();
+                let current = registry.scroll_lists.get(LIST).unwrap().first_row;
+                let offset = view.calculate_selected_scroll_offset(current).unwrap();
+                registry.scroll_lists.scroll_to(LIST, offset);
+                shared.insert(view.clone());
+                screen.sync(&shared, &mut registry);
+            }
+            if action == "perks:select-next" {
+                assert_eq!(view.selected, Some(112));
+                assert_eq!(registry.scroll_lists.get(LIST).unwrap().first_row, 51);
+                assert!(registry.get_by_name("PerksProgramProduct100").is_none());
+                assert!(registry.get_by_name("PerksProgramProduct112").is_some());
+            } else {
+                assert_eq!(view.selected, Some(100));
+                assert_eq!(registry.scroll_lists.get(LIST).unwrap().first_row, 0);
+                assert!(registry.get_by_name("PerksProgramProduct100").is_some());
+                assert!(registry.get_by_name("PerksProgramProduct112").is_none());
+            }
+        }
+        assert_eq!(view.snapshot.as_ref().unwrap().frozen_item_id, Some(4));
+        assert_eq!(view.snapshot.as_ref().unwrap().tender, 500);
+        assert!(view.cart.is_empty());
+    }
+}
+
 fn purchase_price_view() -> View {
     let mut data = snapshot();
     let template = data.items[0].clone();
