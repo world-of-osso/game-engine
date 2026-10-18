@@ -305,7 +305,31 @@ fn dungeonclient_account_catalog_continuations_and_live_toast_reach_host() {
 #[test]
 fn ready_check_difficulty_accepts_authoritative_instance_and_continent_updates() {
     let mut account = account();
-    for (map_id, difficulty_id) in [(631, 3), (0, 0), (631, 5)] {
+    let catalog = game_engine_ui_model::ready_check_difficulty::ReadyCheckDifficulties::load(
+        &std::path::PathBuf::from(env!("CARGO_MANIFEST_DIR")).join("../../data/db2/active"),
+    )
+    .unwrap();
+    account.group.is_raid = true;
+    account
+        .dispatch_message(
+            ProtocolMessage::for_tests(shared::protocol::RaidDifficultySet {
+                difficulty_id: 14,
+                legacy_difficulty_id: 6,
+            }),
+            &mut Vec::new(),
+        )
+        .unwrap();
+    account
+        .dispatch_message(
+            ProtocolMessage::for_tests(shared::protocol::DungeonDifficultySet { difficulty_id: 1 }),
+            &mut Vec::new(),
+        )
+        .unwrap();
+    for (map_id, difficulty_id, expected) in [
+        (631, 3, Some("10 Player")),
+        (0, 0, None),
+        (631, 5, Some("10 Player (Heroic)")),
+    ] {
         let result = account.dispatch_message(
             ProtocolMessage::for_tests(shared::protocol::WorldServerInfo {
                 map_id,
@@ -317,7 +341,57 @@ fn ready_check_difficulty_accepts_authoritative_instance_and_continent_updates()
             result.is_ok(),
             "authoritative copy difficulty rejected: {result:?}"
         );
+        assert_eq!(
+            account.world_server_info,
+            Some(shared::protocol::WorldServerInfo {
+                map_id,
+                difficulty_id
+            })
+        );
+        assert_eq!(
+            account
+                .ready_check_difficulty_name(&catalog)
+                .unwrap()
+                .as_deref(),
+            expected
+        );
     }
+    account
+        .dispatch_message(
+            ProtocolMessage::for_tests(shared::protocol::NewWorld {
+                map_id: 0,
+                map_directory: "azeroth".into(),
+                position: [0.0; 3],
+                facing: 0.0,
+            }),
+            &mut Vec::new(),
+        )
+        .unwrap();
+    assert_eq!(
+        account.world_server_info, None,
+        "transfer must discard previous copy difficulty"
+    );
+    assert_eq!(account.ready_check_difficulty_name(&catalog).unwrap(), None);
+    // Out of instance: primary raid selection, never the legacy selection.
+    account.group.is_raid = false;
+    assert_eq!(account.ready_check_difficulty_name(&catalog).unwrap(), None);
+    account.group.is_raid = true;
+    account
+        .dispatch_message(
+            ProtocolMessage::for_tests(shared::protocol::RaidDifficultySet {
+                difficulty_id: 4,
+                legacy_difficulty_id: 6,
+            }),
+            &mut Vec::new(),
+        )
+        .unwrap();
+    assert_eq!(
+        account
+            .ready_check_difficulty_name(&catalog)
+            .unwrap()
+            .as_deref(),
+        Some("25 Player")
+    );
 }
 
 #[test]

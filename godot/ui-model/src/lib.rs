@@ -155,6 +155,7 @@ pub mod group_frames_component;
 pub use inworld_unit_frames_component::portrait_party_frame_component;
 #[path = "ui/popup.rs"]
 pub mod popup;
+pub mod ready_check_difficulty;
 #[path = "ui/screens/ready_check_frame_component.rs"]
 pub mod ready_check_frame_component;
 #[path = "ui/screens/static_popup_component.rs"]
