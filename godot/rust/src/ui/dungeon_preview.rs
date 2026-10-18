@@ -98,6 +98,32 @@ pub(super) fn window() -> AchievementWindow {
     }));
     window
 }
+fn category_pending_window(comparison: bool, phase: &str) -> Result<AchievementWindow, String> {
+    let mut view = if phase == "rows" {
+        window()
+    } else {
+        AchievementWindow::default()
+    };
+    view.visible = true;
+    if comparison {
+        view.action("achievement:compare:42");
+    }
+    view.selected_category = Some(14808);
+    match phase {
+        "pending" | "rows" => {}
+        "empty" => view.pages.entry(14808).or_default().loaded = true,
+        "search" => {
+            view.action("achievement:search:bear");
+        }
+        "error" => {
+            view.selected_category = None;
+            view.selected_achievement = Some(633);
+        }
+        _ => return Err(format!("Unknown category presentation phase: {phase}")),
+    }
+    Ok(view)
+}
+
 pub(super) fn cache_art() -> Result<(), String> {
     use godot::obj::Singleton;
     let data = godot::classes::ProjectSettings::singleton().globalize_path("res://../data");
@@ -170,6 +196,25 @@ impl RegistryUi {
                 window.selected_category = Some(92);
             }
             self.show_achievement_window(window)
+        });
+        GString::from(result.err().unwrap_or_default().as_str())
+    }
+
+    /// Offline cache-state controls; the existing Stockade fixture supplies loaded rows.
+    #[func]
+    pub fn show_achievement_category_pending_preview(
+        &mut self,
+        forever: bool,
+        comparison: bool,
+        phase: GString,
+    ) -> GString {
+        let skin = if forever {
+            ui_toolkit::atlas::ActiveSkin::Forever
+        } else {
+            ui_toolkit::atlas::ActiveSkin::Modern
+        };
+        let result = self.prepare_dungeon_capture(skin).and_then(|()| {
+            self.show_achievement_window(category_pending_window(comparison, &phase.to_string())?)
         });
         GString::from(result.err().unwrap_or_default().as_str())
     }
