@@ -4900,6 +4900,8 @@ textures/7323575.blp
 cache/adventure_guide.sqlite
 # Mainline RaidBossEmote warning kit12197 (SoundKitEntry15068).
 sounds/ui/567394.ogg
+# ReadyCheck OnShow kit8960, authenticated local70448 Ogg (SoundKitEntry9401).
+sounds/ui/567478.ogg
 sounds/ui/6838456.ogg
 # Accepted freeze-lock218229:70391 metadata, authenticated installed70448 variants.
 sounds/ui/4908453.ogg
