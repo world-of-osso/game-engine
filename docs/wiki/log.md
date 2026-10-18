@@ -1,3 +1,7 @@
+## 2026-10-18 — Qualified public Note sort
+
+[Contract/policies](systems/guilds.md#public-note-roster-sorting): Mainline memberNote/override/nil/direction source qualified before RED. Approved historical Storm clean-room prose replaces never-shipped ASCII placeholder; Lua binding/70448 parity unverified. One mapping function, public field only, represented-field fixed-direction ties and unchanged authoritative action identities; no protocol widening. Actual3missing-header RED before implementation; native acceptance separate.
+
 ## 2026-10-18 — Show Offline native acceptance
 
 [Show Offline](systems/guilds.md#show-offline-roster-preference): gate518e/master8b4c56e65; real invite/Join then disconnected member, both-skin physical checkbox/filter/source rectangle/filtered-row identity and identical-binary fresh server/client saved-false readback pass. Six inspected unchanged full-HD originals published. Named project default-on remains explicitly non-Retail authority; native2members vs model40→20overflow/unknown metadata boundaries retained. Owned runtime/window cleaned.
