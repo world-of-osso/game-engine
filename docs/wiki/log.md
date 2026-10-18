@@ -1,3 +1,7 @@
+## 2026-10-18 — Received achievement search previews
+
+[Implementation/proof](systems/dungeon-achievements.md#received-search-previews--2026-10-18): source206×27 popup/up-to5 received rows; conditional count-free Show All and explicit achievement open, retained category body while typing. Both-skin clear/blur/late-other-query/empty/cursor controls: four genuine behavioral REDs→31 UI-model passes;9 native-host tests/four-consumer check pass. No0.3s progress path, invented totals/percentages, server/protocol edits or physical native-popup claim.
+
 ## 2026-10-18 — Post-guild ownership-cap codec/dispatch target proof
 
 [Current consumer proof](systems/cursor-item.md#ownership-cap-error-cpu-dispatch-2026-10-18): landedf26cc691e merged with MaxCount as6c00abbf4; sole wiki-index conflict preserves both sides. Account dispatch target1/0 with protocola2b07a6; combined protocol tests preserve old tags and round-trip new ItemMaxCount21/SetMemberRank13. Source wording/error renderer unchanged; coordinated broad gate/landing remains lead-owned, no native-pixel claim.
