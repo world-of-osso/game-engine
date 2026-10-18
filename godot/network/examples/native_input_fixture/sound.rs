@@ -11,6 +11,7 @@ pub(super) fn run(
     let mut remote = None;
     let mut stage = 0;
     let deadline = Instant::now() + TIMEOUT;
+    let mut completion = game_engine_network::fixture_completion::Completion::new(3);
     let mut readers = Some(readers);
     while Instant::now() < deadline {
         app.update();
@@ -23,6 +24,7 @@ pub(super) fn run(
             }
         }
         for line in lines.after_selection(selected.is_some()) {
+            completion.observe(&line)?;
             let line = line.trim();
             if line.starts_with("GODOT_STDERR: ERROR:")
                 || line.starts_with("GODOT_STDERR: SCRIPT ERROR:")
@@ -54,6 +56,7 @@ pub(super) fn run(
             }
         }
         if let Some(status) = status {
+            completion.finish(status)?;
             if status.success() && stage == 3 && selected.is_some() {
                 println!(
                     "PASS: GameClient authenticated/loaded MCNK 9 -> zone 12 -> music 53492; options changed native player volume/mute/music-enable; ambient has no zone 12 track"

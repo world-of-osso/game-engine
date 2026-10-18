@@ -1,10 +1,12 @@
 extends "res://tests/bank_live.gd"
 
+var completion = preload("res://tests/completion.gd").new(self, 1)
+
 ## Fresh private realm only. Account/character via BANK_*; GUILD_NOTE_TARGET is a
 ## real guild member. GUILD_NOTE_MODE=master|self|readback, GUILD_NOTE_SKIN=Modern|Forever.
 ## Master writes both actual notes; self writes own public note without elevated rights;
 ## readback after server restart checks persisted public/officer data without a write.
-func run_test() -> void:
+func run_test() -> bool:
 	root.size = Vector2i(1920, 1080)
 	Engine.max_fps = 30
 	shots = OS.get_environment("BANK_SHOTS")
@@ -16,18 +18,21 @@ func run_test() -> void:
 	var error: String = client.connect_account(OS.get_environment("GODOT_TEST_SERVER"), OS.get_environment("BANK_ACCOUNT"), PASSWORD, false)
 	if error != "":
 		fail(error)
-		return
+		return false
 	if not await enter_world(OS.get_environment("BANK_CHARACTER")):
-		return
+		return false
 	if not await select_skin(OS.get_environment("GUILD_NOTE_SKIN")):
-		return
+		return false
 	if shown("GuildMicroButton"):
-		await press("GuildMicroButton")
+		if not completion.step(await press("GuildMicroButton"), "press"):
+			return false
 	else:
-		await press("MinimapLauncherButton")
-		await press("LauncherEntryGuildMicroButton")
+		if not completion.step(await press("MinimapLauncherButton"), "press"):
+			return false
+		if not completion.step(await press("LauncherEntryGuildMicroButton"), "press"):
+			return false
 	if not await wait_until(func(): return shown("GuildMember0"), "authoritative guild roster"):
-		return
+		return false
 	var row := -1
 	for index in range(50):
 		if text("GuildMember%dName" % index) == OS.get_environment("GUILD_NOTE_TARGET"):
@@ -35,43 +40,50 @@ func run_test() -> void:
 			break
 	if row < 0:
 		fail("Real target missing from authoritative roster")
-		return
-	await press("GuildMember%d" % row)
+		return false
+	if not completion.step(await press("GuildMember%d" % row), "press"):
+		return false
 	if not await wait_until(func(): return shown("GuildMemberDetailName"), "left-click member detail"):
-		return
+		return false
 	if text("GuildMemberDetailName") != OS.get_environment("GUILD_NOTE_TARGET"):
 		fail("Wrong roster target")
-		return
+		return false
 	var mode := OS.get_environment("GUILD_NOTE_MODE")
 	var skin := OS.get_environment("GUILD_NOTE_SKIN")
 	var build := OS.get_environment("GUILD_NOTE_BUILD")
-	assert(build.length() == 6, "Artifact-bound note fixture tag required")
+	if not completion.require(build.length() == 6, "Artifact-bound note fixture tag required"):
+		return false
 	var prefix := skin + " " + build
 	if mode == "master":
 		if not await write_note(false, prefix + " alchemy") or not await write_note(true, prefix + " officer"):
-			return
+			return false
 		if not await cancel_member_popups(prefix + " alchemy"):
-			return
+			return false
 	elif mode == "self":
 		if shown("GuildMemberDetailOfficerNoteText"):
 			fail("Private officer note exposed to ordinary member")
-			return
+			return false
 		if not await write_note(false, prefix + " cooking"):
-			return
+			return false
 	elif mode == "readback":
 		if text("GuildMemberDetailNoteText") != prefix + " cooking" or text("GuildMemberDetailOfficerNoteText") != prefix + " officer":
 			fail("Restart/relog did not preserve both distinct notes")
-			return
+			return false
 	else:
 		fail("Unknown note proof mode")
-		return
-	await capture("member-detail")
+		return false
+	if not completion.step(await capture("member-detail"), "capture"):
+		return false
 	print("PASS GUILD_MEMBER_NOTES_LIVE mode=", mode, " skin=", client.account_state().ui_skin, " public=", text("GuildMemberDetailNoteText"), " officer=", text("GuildMemberDetailOfficerNoteText"))
+	if not completion.case_done():
+		return false
 	client.free()
-	quit(0)
+	return true
 
 # Record the actual native input boundary; bank_live's older helper has no
 # selection/readiness receipt and can time out after a no-op card click.
+	return true
+
 func enter_world(character: String) -> bool:
 	var deadline := Time.get_ticks_msec() + 120000
 	while Time.get_ticks_msec() < deadline:
@@ -82,15 +94,19 @@ func enter_world(character: String) -> bool:
 			break
 	var ui = client.get_node_or_null("CharacterSelectUI")
 	if ui == null or not shown("CharCard_0") or not shown("EnterWorld"):
-		await entry_diagnostic("not-interactive")
+		if not completion.step(await entry_diagnostic("not-interactive"), "entry_diagnostic"):
+			return false
 		return fail("Character select controls not interactive: " + str(client.account_state()))
-	await entry_diagnostic("before-card")
+	if not completion.step(await entry_diagnostic("before-card"), "entry_diagnostic"):
+		return false
 	await click(ui.find_child("CharCard_0", true, false))
-	await entry_diagnostic("after-card")
+	if not completion.step(await entry_diagnostic("after-card"), "entry_diagnostic"):
+		return false
 	if ui.find_child("CharSelectCharacterName", true, false).text != character:
 		return fail("Card 0 is not " + character)
 	await click(ui.find_child("EnterWorld", true, false))
-	await entry_diagnostic("after-enter")
+	if not completion.step(await entry_diagnostic("after-enter"), "entry_diagnostic"):
+		return false
 	deadline = Time.get_ticks_msec() + 180000
 	while Time.get_ticks_msec() < deadline:
 		await process_frame
@@ -100,7 +116,7 @@ func enter_world(character: String) -> bool:
 			return true
 	return fail("Timed out entering the world: " + str(client.account_state()))
 
-func entry_diagnostic(stage: String) -> void:
+func entry_diagnostic(stage: String) -> bool:
 	await RenderingServer.frame_post_draw
 	var receipt := {"stage": stage, "window": str(root.size), "viewport": str(root.get_visible_rect()), "state": client.account_state(), "hover": str(root.gui_get_hovered_control()), "pointer": str(root.get_mouse_position())}
 	for name in ["CharCard_0", "EnterWorld"]:
@@ -108,20 +124,28 @@ func entry_diagnostic(stage: String) -> void:
 		if node != null:
 			receipt[name] = {"class": node.get_class(), "mouse_filter": node.mouse_filter, "rect": str(node.get_global_rect()), "canvas_transform": str(node.get_global_transform_with_canvas()), "visible": node.is_visible_in_tree(), "disabled": node.disabled if node is BaseButton else false}
 	var directory := OS.get_environment("GUILD_NOTE_DIAGNOSTICS")
-	assert(not directory.is_empty(), "Owned diagnostic directory required")
+	if not completion.require(not directory.is_empty(), "Owned diagnostic directory required"):
+		return false
 	var prefix := directory.path_join(role + "-" + stage + "-" + str(Time.get_unix_time_from_system()))
 	FileAccess.open(prefix + ".json", FileAccess.WRITE).store_string(JSON.stringify(receipt, "\t"))
 	root.get_texture().get_image().save_png(prefix + ".png")
 	print("GUILD_ENTRY_DIAGNOSTIC ", prefix, " ", JSON.stringify(receipt))
 
-func capture(name: String) -> void:
+	return true
+
+func capture(name: String) -> bool:
 	await RenderingServer.frame_post_draw
 	var image := root.get_texture().get_image()
-	assert(image.get_size() == Vector2i(1920, 1080), "Full-HD guild acceptance requires actual1920x1080 pixels")
-	assert(image.save_png("%s/%s-%s.png" % [shots, role, name]) == OK)
+	if not completion.require(image.get_size() == Vector2i(1920, 1080), "Full-HD guild acceptance requires actual1920x1080 pixels"):
+		return false
+	if not completion.require(image.save_png("%s/%s-%s.png" % [shots, role, name]) == OK):
+		return false
+
+	return true
 
 func write_note(officer: bool, value: String) -> bool:
-	await press("GuildMemberDetailOfficerNote" if officer else "GuildMemberDetailNote")
+	if not completion.step(await press("GuildMemberDetailOfficerNote" if officer else "GuildMemberDetailNote"), "press"):
+		return false
 	if not await wait_until(func(): return shown("GuildMemberNoteEditBox"), "note popup"):
 		return false
 	var editor := control("GuildMemberNoteEditBox") as LineEdit
@@ -132,14 +156,16 @@ func write_note(officer: bool, value: String) -> bool:
 	await type_text(value)
 	if editor.text != value or editor.caret_column != value.length():
 		return fail("Physical note input/caret mismatch")
-	await capture("officer-editor" if officer else "public-editor")
+	if not completion.step(await capture("officer-editor" if officer else "public-editor"), "capture"):
+		return false
 	await tap(KEY_ENTER)
 	var target := "GuildMemberDetailOfficerNoteText" if officer else "GuildMemberDetailNoteText"
 	var note_button := "GuildMemberDetailOfficerNote" if officer else "GuildMemberDetailNote"
 	return await wait_until(func(): return text(target) == value and not shown("GuildMemberNoteEditBox") and shown(note_button) and not (control(note_button) as BaseButton).disabled, "authoritative note reply and edit re-enable")
 
 func cancel_member_popups(public_note: String) -> bool:
-	await press("GuildMemberDetailNote")
+	if not completion.step(await press("GuildMemberDetailNote"), "press"):
+		return false
 	if not await wait_until(func(): return shown("GuildMemberNoteEditBox"), "cancelable note popup"):
 		return false
 	var editor := control("GuildMemberNoteEditBox") as LineEdit
@@ -151,16 +177,20 @@ func cancel_member_popups(public_note: String) -> bool:
 		return false
 	if text("GuildMemberDetailNoteText") != public_note:
 		return fail("Escape committed an unwanted note")
-	await press("GuildMemberDetailRemove")
+	if not completion.step(await press("GuildMemberDetailRemove"), "press"):
+		return false
 	if not await wait_until(func(): return shown("GuildMemberRemovePopupText"), "member removal confirmation"):
 		return false
 	if text("GuildMemberRemovePopupText") != "Are you sure you want to remove %s from the guild?" % OS.get_environment("GUILD_NOTE_TARGET"):
 		return fail("Wrong member removal confirmation target")
-	await capture("remove-confirmation")
-	await press("GuildMemberRemoveNo")
+	if not completion.step(await capture("remove-confirmation"), "capture"):
+		return false
+	if not completion.step(await press("GuildMemberRemoveNo"), "press"):
+		return false
 	if not await wait_until(func(): return not shown("GuildMemberRemovePopupText") and shown("GuildMemberDetailName"), "No keeps member detail"):
 		return false
-	await press("GuildMemberDetailRemove")
+	if not completion.step(await press("GuildMemberDetailRemove"), "press"):
+		return false
 	if not await wait_until(func(): return shown("GuildMemberRemovePopupText"), "reopened removal confirmation"):
 		return false
 	await tap(KEY_ESCAPE)
@@ -169,19 +199,38 @@ func cancel_member_popups(public_note: String) -> bool:
 func select_skin(skin: String) -> bool:
 	if str(client.account_state().ui_skin) == skin:
 		return true
-	await press("MinimapLauncherButton")
-	await press("LauncherEntryMainMenuMicroButton")
-	await press("MenuBtnOptions")
-	await press("OptionsTabhud")
-	await press("Choiceui_layout")
-	await press("Choiceui_layout0Hit" if skin == "Modern" else "Choiceui_layout1Hit")
-	await press("OptionsCloseButton")
+	if not completion.step(await press("MinimapLauncherButton"), "press"):
+		return false
+	if not completion.step(await press("LauncherEntryMainMenuMicroButton"), "press"):
+		return false
+	if not completion.step(await press("MenuBtnOptions"), "press"):
+		return false
+	if not completion.step(await press("OptionsTabhud"), "press"):
+		return false
+	if not completion.step(await press("Choiceui_layout"), "press"):
+		return false
+	if not completion.step(await press("Choiceui_layout0Hit" if skin == "Modern" else "Choiceui_layout1Hit"), "press"):
+		return false
+	if not completion.step(await press("OptionsCloseButton"), "press"):
+		return false
 	if shown("MenuBtnResume"):
-		await press("MenuBtnResume")
+		if not completion.step(await press("MenuBtnResume"), "press"):
+			return false
 	return await wait_until(func(): return str(client.account_state().ui_skin) == skin, "skin switch")
 
-func press(name: String) -> void:
+func press(name: String) -> bool:
 	if not await wait_until(func(): return shown(name), "visible control " + name):
-		await entry_diagnostic("missing-" + name)
-		return
+		if not completion.step(await entry_diagnostic("missing-" + name), "entry_diagnostic"):
+			return false
+		return false
 	await click(control(name))
+	return true
+
+func _initialize() -> void:
+	call_deferred("run_completion")
+
+func run_completion() -> void:
+	completion.finish(await run_test())
+
+func fail(message: String) -> bool:
+	return completion.fail(message)
