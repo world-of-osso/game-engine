@@ -6,7 +6,9 @@ use godot::prelude::*;
 use shared::protocol::AdventureGuideSnapshot;
 use ui_toolkit::registry::FrameRegistry;
 
-use super::{RegistryUi, projection::UiProjection};
+#[cfg(debug_assertions)]
+use super::RegistryUi;
+use super::projection::UiProjection;
 
 impl UiProjection {
     pub(super) fn sync_journal_suggestion_hovers(
@@ -72,7 +74,7 @@ fn label_is_truncated(label: &Gd<Label>) -> bool {
         .expect("Projected Label has a font");
     let width = font
         .get_string_size_ex(&label.get_text())
-        .font_size(label.get_theme_font_size("font"))
+        .font_size(label.get_theme_font_size("font_size"))
         .done()
         .x;
     width > label.get_size().x
