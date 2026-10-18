@@ -31,38 +31,46 @@ const TYPE_ITEMS: &[ContextMenuItem<'_>] = &[
 ];
 
 pub(super) fn type_selector(view: &PvpView) -> Element {
-    let [left, top, width, height] = TYPE_RECT;
+    let mut elements = render_type_button(view);
+    if view.honor_type_menu_open {
+        elements.extend(type_menu(view));
+    }
+    elements
+}
+
+fn render_type_button(view: &PvpView) -> Element {
     let text = if view.honor_bonus {
         "Bonus Battlegrounds"
     } else {
         "Specific Battlegrounds"
     };
-    let mut elements = dropdown_button_with_state(
-        DropdownButton {
-            frame_name: "HonorFrameTypeDropdown",
-            label_name: "HonorFrameTypeDropdownText",
-            arrow_name: "HonorFrameTypeDropdownArrow",
-            text,
-            width,
-            height,
-            x: left,
-            y: -top,
-            background_color: "",
-            text_color: "1,1,1,1",
-            arrow_color: "",
-            onclick: Some("pvp:type:toggle"),
-        },
+    dropdown_button_with_state(
+        build_type_button_props(text),
         DropdownState {
             resize_to_text: false,
             open: view.honor_type_menu_open,
             enabled: !view.pending && view.battleground().is_none(),
             ..Default::default()
         },
-    );
-    if view.honor_type_menu_open {
-        elements.extend(type_menu(view));
+    )
+}
+
+fn build_type_button_props(text: &str) -> DropdownButton<'_> {
+    let [left, top, width, height] = TYPE_RECT;
+    DropdownButton {
+        frame_name: "HonorFrameTypeDropdown",
+        label_name: "HonorFrameTypeDropdownText",
+        arrow_name: "HonorFrameTypeDropdownArrow",
+        text,
+        width,
+        height,
+        x: left,
+        y: -top,
+        background_color: "",
+        text_color: "1,1,1,1",
+        arrow_color: "",
+        onclick: Some("pvp:type:toggle"),
     }
-    elements
 }
 
 fn type_menu(view: &PvpView) -> Element {
@@ -71,20 +79,6 @@ fn type_menu(view: &PvpView) -> Element {
     } else {
         "pvp:type:specific"
     };
-    let rows = TYPE_ITEMS
-        .iter()
-        .enumerate()
-        .flat_map(|(index, item)| {
-            menu_element(
-                *item,
-                MenuElementKind::Radio {
-                    checked: item.action == selected,
-                },
-                true,
-                (8.0, 8.0 + index as f32 * 20.0, TYPE_RECT[2] - 16.0, 20.0),
-            )
-        })
-        .collect();
     context_menu_with_rows(
         ContextMenu {
             frame_name: "HonorFrameTypeMenu",
@@ -97,8 +91,25 @@ fn type_menu(view: &PvpView) -> Element {
             y: TYPE_RECT[1] + TYPE_RECT[3],
             items: TYPE_ITEMS,
         },
-        rows,
+        render_type_rows(selected),
     )
+}
+
+fn render_type_rows(selected: &str) -> Element {
+    TYPE_ITEMS
+        .iter()
+        .enumerate()
+        .flat_map(|(index, item)| {
+            menu_element(
+                *item,
+                MenuElementKind::Radio {
+                    checked: item.action == selected,
+                },
+                true,
+                (8.0, 8.0 + index as f32 * 20.0, TYPE_RECT[2] - 16.0, 20.0),
+            )
+        })
+        .collect()
 }
 
 pub(super) fn bonus_panel(view: &PvpView) -> Element {
@@ -145,6 +156,11 @@ fn random_button(view: &PvpView) -> Element {
         (&crate::selection_list::PVP_CASUAL_ACTIVITY, true),
         contents,
     );
+    apply_random_button_art(&mut row);
+    row
+}
+
+fn apply_random_button_art(row: &mut Element) {
     let WidgetChild::Widget(button) = &mut row[0] else {
         unreachable!("Random activity is a button")
     };
@@ -155,5 +171,4 @@ fn random_button(view: &PvpView) -> Element {
     ] {
         button.attrs.push(Attr::new_dynamic(key, atlas.into()));
     }
-    row
 }
