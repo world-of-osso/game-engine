@@ -1774,7 +1774,11 @@ func product_selection_sound_proof() -> void:
 	await selection_sound_checkpoint("hidden-cart-remove-silent",6,origin)
 	await click("PerksProgramAddToCartButton")
 	await click("PerksProgramViewCartButton")
-	await click("PerksProgramCartToggle%d" % primary)
+	var cart_row := control("PerksProgramCartItem%d" % primary)
+	if cart_row == null: fail("Visible primary cart row missing"); return
+	await motion(cart_row.get_global_rect().get_center(),false)
+	await wait_frames(5)
+	await click("PerksProgramCartItem%dRemove" % primary)
 	if not await wait_until(func(): return not client.trading_post_state().cart_visible and client.trading_post_state().cart.is_empty(),"visible last-item cart removal"): return
 	await selection_sound_checkpoint("last-visible-cart-item-return",7,origin)
 	await click("PerksProgramAddToCartButton")
