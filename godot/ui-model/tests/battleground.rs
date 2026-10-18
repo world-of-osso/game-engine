@@ -904,6 +904,68 @@ fn battleground_running_copy_invite_both_skins_renders_and_sends_owned_accept_or
     set_thread_skin(ActiveSkin::Modern);
 }
 
+fn assert_ready_dialog_top_anchor(skin: ActiveSkin, viewport: [f32; 2]) {
+    use ui_toolkit::layout_values::Val;
+
+    game_engine_ui_model::paths::set_data_root(
+        std::path::PathBuf::from(env!("CARGO_MANIFEST_DIR")).join("../../data"),
+    )
+    .unwrap();
+    set_thread_skin(skin);
+    for phase in [BgPhase::Waiting, BgPhase::InProgress] {
+        let mut view = PvpView {
+            visible: true,
+            viewport,
+            ..Default::default()
+        };
+        receive(&mut view, snapshot(phase, false));
+        let mut context = SharedContext::new();
+        context.insert(skin);
+        context.insert(view.clone());
+        let mut registry = FrameRegistry::new(viewport[0], viewport[1]);
+        let mut screen = Screen::new(pvp_screen);
+        screen.sync(&context, &mut registry);
+        let dialog = registry
+            .get(registry.get_by_name("PVPReadyDialog").unwrap())
+            .unwrap();
+        assert_eq!(
+            (dialog.position.left, dialog.position.top),
+            (Val::Px((viewport[0] - 306.0) / 2.0), Val::Px(135.0)),
+            "Retail first popup anchors TOP-center/down135, {skin:?}/{viewport:?}/{phase:?}"
+        );
+        assert_size(&registry, "PVPUIFrame", 788.0, 428.0);
+        view.visible = false;
+        context.insert(view);
+        screen.sync(&context, &mut registry);
+        assert!(registry.get_by_name("PVPUIFrame").is_none());
+        let dialog = registry
+            .get(registry.get_by_name("PVPReadyDialog").unwrap())
+            .unwrap();
+        assert_eq!(dialog.position.top, Val::Px(135.0));
+    }
+    set_thread_skin(ActiveSkin::Modern);
+}
+
+#[test]
+fn battleground_ready_placement_modern_1280() {
+    assert_ready_dialog_top_anchor(ActiveSkin::Modern, [1280.0, 720.0]);
+}
+
+#[test]
+fn battleground_ready_placement_modern_1920() {
+    assert_ready_dialog_top_anchor(ActiveSkin::Modern, [1920.0, 1080.0]);
+}
+
+#[test]
+fn battleground_ready_placement_forever_1280() {
+    assert_ready_dialog_top_anchor(ActiveSkin::Forever, [1280.0, 720.0]);
+}
+
+#[test]
+fn battleground_ready_placement_forever_1920() {
+    assert_ready_dialog_top_anchor(ActiveSkin::Forever, [1920.0, 1080.0]);
+}
+
 #[test]
 fn battleground_invitation_phase_guards_keep_accepted_ended_and_running_arena_unactionable() {
     for (phase, accepted, arena, responds) in [
