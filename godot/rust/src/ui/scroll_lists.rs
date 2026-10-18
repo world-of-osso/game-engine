@@ -320,6 +320,27 @@ pub(super) fn release_thumbs(registry: &mut FrameRegistry) -> bool {
 }
 
 impl RegistryUi {
+    pub(crate) fn reveal_trading_post_selection(
+        &mut self,
+        view: &game_engine_ui_model::trading_post::View,
+    ) -> Result<(), String> {
+        use game_engine_ui_model::trading_post::LIST;
+        let model = self
+            .model
+            .as_mut()
+            .ok_or("Trading Post scroll model missing")?;
+        let scroll = model
+            .registry
+            .scroll_lists
+            .get(LIST)
+            .ok_or("Trading Post product scroll list missing")?;
+        let offset = view.calculate_selected_scroll_offset(scroll.first_row)?;
+        if model.registry.scroll_lists.scroll_to(LIST, offset) {
+            self.sync_model()?;
+        }
+        Ok(())
+    }
+
     pub(crate) fn reset_journal_set_scroll(&mut self) {
         if let Some(model) = self.model.as_mut() {
             model

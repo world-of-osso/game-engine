@@ -176,6 +176,51 @@ impl View {
         });
         rows
     }
+    fn select_adjacent_product(&mut self, forward: bool) -> Result<(), String> {
+        if self.cart_visible || self.confirm.is_some() {
+            return Ok(());
+        }
+        let frozen = self.snapshot.as_ref().and_then(|data| data.frozen_item_id);
+        if self.selected.is_some() && self.selected == frozen {
+            return Ok(());
+        }
+        let rows = self.rows();
+        let index = rows
+            .iter()
+            .position(|row| Some(row.id) == self.selected)
+            .ok_or("Trading Post navigation requires an existing ordinary selection")?;
+        let adjacent = if forward {
+            index.checked_add(1)
+        } else {
+            index.checked_sub(1)
+        };
+        if let Some(row) = adjacent.and_then(|index| rows.get(index)) {
+            self.selected = Some(row.id);
+        }
+        Ok(())
+    }
+
+    /// ScrollBox.lua AlignNearest: reveal the nearest edge, not the row's center.
+    pub fn calculate_selected_scroll_offset(&self, first_row: usize) -> Result<usize, String> {
+        let rows = self.rows();
+        let index = rows
+            .iter()
+            .position(|row| Some(row.id) == self.selected)
+            .ok_or("Trading Post scrolling requires an existing ordinary selection")?;
+        let max_offset = (rows.len() as f32 * ROW_HEIGHT - LIST_HEIGHT).max(0.);
+        let offset = (first_row as f32).min(max_offset);
+        let top = index as f32 * ROW_HEIGHT;
+        let bottom = top + ROW_HEIGHT;
+        let target = if bottom > offset + LIST_HEIGHT {
+            bottom - LIST_HEIGHT
+        } else if top < offset {
+            top
+        } else {
+            offset
+        };
+        Ok(target as usize)
+    }
+
     pub fn selected_item(&self) -> Option<&TradingPostItem> {
         self.snapshot
             .as_ref()?
@@ -256,6 +301,8 @@ impl View {
                 self.filters.usable_only = !self.filters.usable_only;
                 self.reselect();
             }
+            "perks:select-next" => self.select_adjacent_product(true)?,
+            "perks:select-previous" => self.select_adjacent_product(false)?,
             "perks:sort:ascending" => self.ascending = !self.ascending,
             "perks:cancel" => self.cancel_confirmation(),
             "perks:purchase" if self.can_purchase() => self.confirm = Some("purchase".into()),
