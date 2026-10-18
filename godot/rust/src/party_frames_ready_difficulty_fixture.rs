@@ -71,6 +71,22 @@ impl ReadyCheckDifficultyFixture {
         error_string(result)
     }
 
+    /// Supplied long-name stress case; uses the same production account/UI projection.
+    #[func]
+    fn set_initiator_name(&mut self, name: GString) -> GString {
+        let result = (|| {
+            let ready = self
+                .account
+                .group
+                .ready_check
+                .as_mut()
+                .ok_or("Ready check is absent")?;
+            ready.update.initiator_name = name.to_string();
+            self.sync_context()
+        })();
+        error_string(result)
+    }
+
     #[func]
     fn step(&mut self, phase: GString) -> GString {
         let result = self.apply_phase(&phase.to_string());
