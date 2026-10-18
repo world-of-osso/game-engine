@@ -1,3 +1,7 @@
+## 2026-10-18 — Show Offline native acceptance
+
+[Show Offline](systems/guilds.md#show-offline-roster-preference): gate518e/master8b4c56e65; real invite/Join then disconnected member, both-skin physical checkbox/filter/source rectangle/filtered-row identity and identical-binary fresh server/client saved-false readback pass. Six inspected unchanged full-HD originals published. Named project default-on remains explicitly non-Retail authority; native2members vs model40→20overflow/unknown metadata boundaries retained. Owned runtime/window cleaned.
+
 ## 2026-10-18 — Show Offline roster preference
 
 [Contract/policy](systems/guilds.md#show-offline-roster-preference): missing authoritative Retail CVar default blocked implementation until explicit project COMMUNITIES_SHOW_OFFLINE_DEFAULT_ON=true. Classic2.5.6 issue883 is indirect only. Public load/save and missing-control RED precede persisted checkbox/filter wiring; existing sort/rank targets and unknown-presence exclusion conserved. Native acceptance separate.
