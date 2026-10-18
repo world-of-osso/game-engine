@@ -1,122 +1,207 @@
 extends SceneTree
 
-func _initialize() -> void:
-	call_deferred("capture")
+var completion = preload("res://tests/completion.gd").new(self, 2)
 
-func capture() -> void:
+func _initialize() -> void:
+	call_deferred("run_completion")
+
+func capture() -> bool:
 	var directory := OS.get_environment("GUILD_CAPTURES")
-	assert(not directory.is_empty())
+	if not completion.require(not directory.is_empty()):
+		return false
 	for skin in ["modern", "forever"]:
 		var ui: Node = ClassDB.instantiate("RegistryUi")
 		root.add_child(ui)
 		var error: String = ui.call("show_guild_ranks_preview" if skin == "modern" else "show_forever_guild_ranks_preview")
-		assert(error == "", error)
-		await settle()
-		assert_rect(ui, "GuildControlUI", Rect2(440, 130, 338, 444))
-		await assert_dropdown_member_image(ui, "GuildControlUINavigationDropdownBackground")
-		assert_rect(ui, "GuildControlUIRankOrderFrame", Rect2(454, 190, 312, 372))
-		assert_rect(ui, "GuildRankOrderName2", Rect2(536, 258, 132, 32))
-		assert_rect(ui, "GuildControlUIRankOrderFrameRank3ShiftUpButton", Rect2(669, 261, 26, 26))
+		if not completion.require(error == "", error):
+			return false
+		if not completion.step(await settle(), "settle"):
+			return false
+		if not completion.step(assert_rect(ui, "GuildControlUI", Rect2(440, 130, 338, 444)), "assert_rect"):
+			return false
+		if not completion.step(await assert_dropdown_member_image(ui, "GuildControlUINavigationDropdownBackground"), "assert_dropdown_member_image"):
+			return false
+		if not completion.step(assert_rect(ui, "GuildControlUIRankOrderFrame", Rect2(454, 190, 312, 372)), "assert_rect"):
+			return false
+		if not completion.step(assert_rect(ui, "GuildRankOrderName2", Rect2(536, 258, 132, 32)), "assert_rect"):
+			return false
+		if not completion.step(assert_rect(ui, "GuildControlUIRankOrderFrameRank3ShiftUpButton", Rect2(669, 261, 26, 26)), "assert_rect"):
+			return false
 		var backdrop: Color = root.get_texture().get_image().get_pixel(457, 530)
 		if backdrop.r >= 0.1 or backdrop.g >= 0.1 or backdrop.b >= 0.1:
 			push_error("TranslucentFrameTemplate black0.9 background missing: " + str(backdrop))
-			quit(1)
-		assert(backdrop.r < 0.1 and backdrop.g < 0.1 and backdrop.b < 0.1)
-		capture_png(directory, skin + "-guild-control.png")
-		await type_text(ui, "GuildRankOrderName2", "Pathfinder")
+			completion.fail("guild_control_fidelity: capture failed")
+		if not completion.require(backdrop.r < 0.1 and backdrop.g < 0.1 and backdrop.b < 0.1):
+			return false
+		if not completion.step(capture_png(directory, skin + "-guild-control.png"), "capture_png"):
+			return false
+		if not completion.step(await type_text(ui, "GuildRankOrderName2", "Pathfinder"), "type_text"):
+			return false
 		var request: String = ui.call("guild_control_preview_dispatch")
-		assert(request.contains("Rename") and request.contains("Pathfinder"), request)
-		assert(ui.call("guild_control_preview_waiting"))
-		assert(ui.call("guild_control_preview_reply") == "")
-		await settle()
-		assert(ui.call("frame_text", "GuildRankOrderName2") == "Pathfinder")
-		await type_text(ui, "GuildRankOrderName2", "Discarded", false)
+		if not completion.require(request.contains("Rename") and request.contains("Pathfinder"), request):
+			return false
+		if not completion.require(ui.call("guild_control_preview_waiting")):
+			return false
+		if not completion.require(ui.call("guild_control_preview_reply") == ""):
+			return false
+		if not completion.step(await settle(), "settle"):
+			return false
+		if not completion.require(ui.call("frame_text", "GuildRankOrderName2") == "Pathfinder"):
+			return false
+		if not completion.step(await type_text(ui, "GuildRankOrderName2", "Discarded", false), "type_text"):
+			return false
 		var edit := control(ui, "GuildRankOrderName2") as LineEdit
 		if edit.get_theme_color("font_color") != Color(0, 1, 0, 1):
 			push_error("Source changed-name text must be green: " + str(edit.get_theme_color("font_color")))
-			quit(1)
-		assert(edit.get_theme_color("font_color") == Color(0, 1, 0, 1))
-		await key(KEY_ESCAPE)
-		await settle()
+			completion.fail("guild_control_fidelity: capture failed")
+		if not completion.require(edit.get_theme_color("font_color") == Color(0, 1, 0, 1)):
+			return false
+		if not completion.step(await key(KEY_ESCAPE), "key"):
+			return false
+		if not completion.step(await settle(), "settle"):
+			return false
 		var escaped: String = ui.call("guild_control_preview_dispatch")
 		if escaped != "":
 			push_error("Escape must restore authoritative text without a rename request: " + escaped)
-			quit(1)
-		assert(escaped == "")
-		assert(ui.call("frame_text", "GuildRankOrderName2") == "Pathfinder")
-		await click(ui, "GuildControlUINavigationDropdown")
-		assert(ui.call("guild_control_preview_dispatch") == "")
-		await settle()
-		capture_png(directory, skin + "-guild-navigation-menu.png")
-		await click(ui, "GuildControlPage1")
-		assert(ui.call("guild_control_preview_dispatch") == "")
-		await settle()
-		assert_rect(ui, "GuildControlUIRankSettingsFrameRankDropdown", Rect2(574, 196, 180, 25))
-		await assert_dropdown_member_image(ui, "GuildControlUIRankSettingsFrameRankDropdownBackground")
-		assert_rect(ui, "GuildControlUIRankSettingsFrameOfficerBg", Rect2(465, 248, 290, 160))
-		assert_rect(ui, "GuildControlUIRankSettingsFrameOfficerCheckbox", Rect2(465, 251, 20, 20))
-		assert_rect(ui, "GuildRankGold", Rect2(612, 522, 60, 28))
+			completion.fail("guild_control_fidelity: capture failed")
+		if not completion.require(escaped == ""):
+			return false
+		if not completion.require(ui.call("frame_text", "GuildRankOrderName2") == "Pathfinder"):
+			return false
+		if not completion.step(await click(ui, "GuildControlUINavigationDropdown"), "click"):
+			return false
+		if not completion.require(ui.call("guild_control_preview_dispatch") == ""):
+			return false
+		if not completion.step(await settle(), "settle"):
+			return false
+		if not completion.step(capture_png(directory, skin + "-guild-navigation-menu.png"), "capture_png"):
+			return false
+		if not completion.step(await click(ui, "GuildControlPage1"), "click"):
+			return false
+		if not completion.require(ui.call("guild_control_preview_dispatch") == ""):
+			return false
+		if not completion.step(await settle(), "settle"):
+			return false
+		if not completion.step(assert_rect(ui, "GuildControlUIRankSettingsFrameRankDropdown", Rect2(574, 196, 180, 25)), "assert_rect"):
+			return false
+		if not completion.step(await assert_dropdown_member_image(ui, "GuildControlUIRankSettingsFrameRankDropdownBackground"), "assert_dropdown_member_image"):
+			return false
+		if not completion.step(assert_rect(ui, "GuildControlUIRankSettingsFrameOfficerBg", Rect2(465, 248, 290, 160)), "assert_rect"):
+			return false
+		if not completion.step(assert_rect(ui, "GuildControlUIRankSettingsFrameOfficerCheckbox", Rect2(465, 251, 20, 20)), "assert_rect"):
+			return false
+		if not completion.step(assert_rect(ui, "GuildRankGold", Rect2(612, 522, 60, 28)), "assert_rect"):
+			return false
 		for id in [9, 11, 12, 13]:
-			assert(ui.find_child("GuildControlUIRankSettingsFrameCheckbox" + str(id), true, false) == null, "Mainline has no such control")
+			if not completion.require(ui.find_child("GuildControlUIRankSettingsFrameCheckbox" + str(id), true, false) == null, "Mainline has no such control"):
+				return false
 		var officer := "GuildControlUIRankSettingsFrameOfficerCheckbox"
 		var old_rights: int = ui.call("guild_control_preview_rights")
-		assert((old_rights & 12) == 4, "Fixture deliberately preserves a mixed officer mask")
-		assert(ui.find_child(officer + "Check", true, false) != null)
-		await click(ui, officer)
+		if not completion.require((old_rights & 12) == 4, "Fixture deliberately preserves a mixed officer mask"):
+			return false
+		if not completion.require(ui.find_child(officer + "Check", true, false) != null):
+			return false
+		if not completion.step(await click(ui, officer), "click"):
+			return false
 		request = ui.call("guild_control_preview_dispatch")
-		assert(request.contains("SetPermissions") and request.contains("rights: " + str(old_rights & ~12)), request)
-		assert(ui.call("guild_control_preview_rights") == old_rights, "No optimistic authoritative mask mutation")
-		assert(ui.call("guild_control_preview_waiting"))
-		await settle()
-		await click(ui, "GuildControlUIRankSettingsFrameCheckbox7")
-		assert(ui.call("guild_control_preview_dispatch") == "", "Pending writes disable further mutations")
-		assert(ui.call("guild_control_preview_reply") == "")
-		await settle()
-		assert(ui.find_child(officer + "Check", true, false) == null)
-		await click(ui, officer)
+		if not completion.require(request.contains("SetPermissions") and request.contains("rights: " + str(old_rights & ~12)), request):
+			return false
+		if not completion.require(ui.call("guild_control_preview_rights") == old_rights, "No optimistic authoritative mask mutation"):
+			return false
+		if not completion.require(ui.call("guild_control_preview_waiting")):
+			return false
+		if not completion.step(await settle(), "settle"):
+			return false
+		if not completion.step(await click(ui, "GuildControlUIRankSettingsFrameCheckbox7"), "click"):
+			return false
+		if not completion.require(ui.call("guild_control_preview_dispatch") == "", "Pending writes disable further mutations"):
+			return false
+		if not completion.require(ui.call("guild_control_preview_reply") == ""):
+			return false
+		if not completion.step(await settle(), "settle"):
+			return false
+		if not completion.require(ui.find_child(officer + "Check", true, false) == null):
+			return false
+		if not completion.step(await click(ui, officer), "click"):
+			return false
 		request = ui.call("guild_control_preview_dispatch")
-		assert(request.contains("rights: " + str(old_rights | 12)), request)
-		assert(ui.call("guild_control_preview_reply") == "")
-		await settle()
-		assert(ui.call("guild_control_preview_rights") == (old_rights | 12))
-		await type_text(ui, "GuildRankGold", "7x")
+		if not completion.require(request.contains("rights: " + str(old_rights | 12)), request):
+			return false
+		if not completion.require(ui.call("guild_control_preview_reply") == ""):
+			return false
+		if not completion.step(await settle(), "settle"):
+			return false
+		if not completion.require(ui.call("guild_control_preview_rights") == (old_rights | 12)):
+			return false
+		if not completion.step(await type_text(ui, "GuildRankGold", "7x"), "type_text"):
+			return false
 		request = ui.call("guild_control_preview_dispatch")
 		if not request.contains("gold_per_day: 70000"):
 			push_error("Source numeric GoldBox must reject x while preserving digit7: " + request)
-			quit(1)
-		assert(request.contains("gold_per_day: 70000"), request)
-		assert(ui.call("guild_control_preview_reply") == "")
-		await settle()
-		assert(ui.call("frame_text", "GuildRankGold") == "7")
-		capture_png(directory, skin + "-guild-permissions.png")
-		await click(ui, "GuildControlUIRankSettingsFrameRankDropdown")
-		assert(ui.call("guild_control_preview_dispatch") == "")
-		await settle()
-		assert(ui.find_child("GuildControlRankChoice0", true, false) == null)
-		capture_png(directory, skin + "-guild-rank-menu.png")
-		await click(ui, "GuildControlRankChoice2")
-		assert(ui.call("guild_control_preview_dispatch") == "")
-		await click(ui, "GuildControlUINavigationDropdown")
-		assert(ui.call("guild_control_preview_dispatch") == "")
-		await click(ui, "GuildControlPage2")
-		assert(ui.call("guild_control_preview_dispatch") == "")
-		await settle()
-		assert_rect(ui, "GuildControlBankScrollBox", Rect2(473, 243, 254, 294))
-		assert_rect(ui, "GuildControlBankTab2", Rect2(473, 321, 254, 74))
-		assert_rect(ui, "GuildTabLimitLabel0", Rect2(488, 269, 150, 24))
-		await click(ui, "GuildTabDeposit0")
+			completion.fail("guild_control_fidelity: capture failed")
+		if not completion.require(request.contains("gold_per_day: 70000"), request):
+			return false
+		if not completion.require(ui.call("guild_control_preview_reply") == ""):
+			return false
+		if not completion.step(await settle(), "settle"):
+			return false
+		if not completion.require(ui.call("frame_text", "GuildRankGold") == "7"):
+			return false
+		if not completion.step(capture_png(directory, skin + "-guild-permissions.png"), "capture_png"):
+			return false
+		if not completion.step(await click(ui, "GuildControlUIRankSettingsFrameRankDropdown"), "click"):
+			return false
+		if not completion.require(ui.call("guild_control_preview_dispatch") == ""):
+			return false
+		if not completion.step(await settle(), "settle"):
+			return false
+		if not completion.require(ui.find_child("GuildControlRankChoice0", true, false) == null):
+			return false
+		if not completion.step(capture_png(directory, skin + "-guild-rank-menu.png"), "capture_png"):
+			return false
+		if not completion.step(await click(ui, "GuildControlRankChoice2"), "click"):
+			return false
+		if not completion.require(ui.call("guild_control_preview_dispatch") == ""):
+			return false
+		if not completion.step(await click(ui, "GuildControlUINavigationDropdown"), "click"):
+			return false
+		if not completion.require(ui.call("guild_control_preview_dispatch") == ""):
+			return false
+		if not completion.step(await click(ui, "GuildControlPage2"), "click"):
+			return false
+		if not completion.require(ui.call("guild_control_preview_dispatch") == ""):
+			return false
+		if not completion.step(await settle(), "settle"):
+			return false
+		if not completion.step(assert_rect(ui, "GuildControlBankScrollBox", Rect2(473, 243, 254, 294)), "assert_rect"):
+			return false
+		if not completion.step(assert_rect(ui, "GuildControlBankTab2", Rect2(473, 321, 254, 74)), "assert_rect"):
+			return false
+		if not completion.step(assert_rect(ui, "GuildTabLimitLabel0", Rect2(488, 269, 150, 24)), "assert_rect"):
+			return false
+		if not completion.step(await click(ui, "GuildTabDeposit0"), "click"):
+			return false
 		request = ui.call("guild_control_preview_dispatch")
-		assert(request.contains("SetTab") and request.contains("deposit: false"), request)
-		assert(ui.call("guild_control_preview_reply") == "")
-		await type_text(ui, "GuildTabItems0", "9x")
+		if not completion.require(request.contains("SetTab") and request.contains("deposit: false"), request):
+			return false
+		if not completion.require(ui.call("guild_control_preview_reply") == ""):
+			return false
+		if not completion.step(await type_text(ui, "GuildTabItems0", "9x"), "type_text"):
+			return false
 		request = ui.call("guild_control_preview_dispatch")
-		assert(request.contains("withdrawals_per_day: 9"), request)
-		assert(ui.call("guild_control_preview_reply") == "")
-		await settle()
-		capture_png(directory, skin + "-guild-bank-permissions.png")
-		assert(ui.call("guild_control_preview_overflow") == "")
+		if not completion.require(request.contains("withdrawals_per_day: 9"), request):
+			return false
+		if not completion.require(ui.call("guild_control_preview_reply") == ""):
+			return false
+		if not completion.step(await settle(), "settle"):
+			return false
+		if not completion.step(capture_png(directory, skin + "-guild-bank-permissions.png"), "capture_png"):
+			return false
+		if not completion.require(ui.call("guild_control_preview_overflow") == ""):
+			return false
 		ui.call("enable_gameplay_preview_scroll_input")
-		await settle()
+		if not completion.step(await settle(), "settle"):
+			return false
 		var list := control(ui, "GuildControlBankScrollBox")
 		for step in range(48):
 			for pressed in [true, false]:
@@ -127,30 +212,39 @@ func capture() -> void:
 				wheel.pressed = pressed
 				Input.parse_input_event(wheel)
 				await process_frame
-		await settle()
+		if not completion.step(await settle(), "settle"):
+			return false
 		var last := control(ui, "GuildControlBankTab8")
-		assert(list.get_global_rect().encloses(last.get_global_rect()), "Wheel must expose eighth purchased tab: " + str(last.get_global_rect()))
-		capture_png(directory, skin + "-guild-bank-scrolled.png")
+		if not completion.require(list.get_global_rect().encloses(last.get_global_rect()), "Wheel must expose eighth purchased tab: " + str(last.get_global_rect())):
+			return false
+		if not completion.step(capture_png(directory, skin + "-guild-bank-scrolled.png"), "capture_png"):
+			return false
+		if not completion.case_done():
+			return false
 		ui.queue_free()
 		await process_frame
 	print("PASS: both-skin GuildControlUI source rectangles, physical navigation/rename/Officer/gold/bank edits, pacing, replies and overflow; 1920x1080 captures")
-	quit(0)
+	return true
 
 func control(ui: Node, name: String) -> Control:
 	var node := ui.find_child(name, true, false) as Control
-	assert(node != null, "Missing native control " + name)
+	if not completion.require(node != null, "Missing native control " + name):
+		return null
 	return node
 
-func assert_rect(ui: Node, name: String, expected: Rect2) -> void:
+func assert_rect(ui: Node, name: String, expected: Rect2) -> bool:
 	var actual := control(ui, name).get_global_rect()
 	if not actual.is_equal_approx(expected):
 		push_error(name + " actual=" + str(actual) + " expected=" + str(expected))
-		quit(1)
-	assert(actual.is_equal_approx(expected), name + " actual=" + str(actual) + " expected=" + str(expected))
+		completion.fail("guild_control_fidelity: assert_rect failed")
+	if not completion.require(actual.is_equal_approx(expected), name + " actual=" + str(actual) + " expected=" + str(expected)):
+		return false
 
 # The decoded textholder art is41px tall; the native renderer may use any number of slices.
 # Validate sampled bitmap rows and full painted coverage, not one TextureRect/crop construction.
-func assert_dropdown_member_image(ui: Node, name: String) -> void:
+	return true
+
+func assert_dropdown_member_image(ui: Node, name: String) -> bool:
 	var target := control(ui, name).get_global_rect()
 	for frame in range(120):
 		var painted_width := 0.0
@@ -162,27 +256,35 @@ func assert_dropdown_member_image(ui: Node, name: String) -> void:
 				var image: Image = part.texture.get_image()
 				if image.get_height() != 41:
 					push_error("Dropdown samples unrelated button-sheet rows: " + name + " image=" + str(image.get_size()))
-					quit(1)
-				assert(image.get_height() == 41)
+					completion.fail("guild_control_fidelity: assert_dropdown_member_image failed")
+				if not completion.require(image.get_height() == 41):
+					return false
 				painted_width += rect.size.x
 		if is_equal_approx(painted_width, target.size.x):
-			return
+			return true
 		await process_frame
 		await RenderingServer.frame_post_draw
 	push_error("Dropdown backdrop coverage missing after bounded asset wait: " + name)
-	quit(1)
+	completion.fail("guild_control_fidelity: assert_dropdown_member_image failed")
 
-func capture_png(directory: String, filename: String) -> void:
+	return false
+func capture_png(directory: String, filename: String) -> bool:
 	var image := root.get_texture().get_image()
-	assert(image.get_size() == Vector2i(1920, 1080))
-	assert(image.save_png(directory.path_join(filename)) == OK)
+	if not completion.require(image.get_size() == Vector2i(1920, 1080)):
+		return false
+	if not completion.require(image.save_png(directory.path_join(filename)) == OK):
+		return false
 
-func settle() -> void:
+	return true
+
+func settle() -> bool:
 	for frame in range(4):
 		await process_frame
 		await RenderingServer.frame_post_draw
 
-func click(ui: Node, name: String) -> void:
+	return true
+
+func click(ui: Node, name: String) -> bool:
 	var point := control(ui, name).get_global_rect().get_center()
 	var motion := InputEventMouseMotion.new()
 	motion.position = point
@@ -197,9 +299,12 @@ func click(ui: Node, name: String) -> void:
 		mouse.pressed = pressed
 		Input.parse_input_event(mouse)
 		await process_frame
-	await settle()
+	if not completion.step(await settle(), "settle"):
+		return false
 
-func key(code: int, unicode: int = 0, ctrl: bool = false) -> void:
+	return true
+
+func key(code: int, unicode: int = 0, ctrl: bool = false) -> bool:
 	for pressed in [true, false]:
 		var event := InputEventKey.new()
 		event.keycode = code
@@ -209,12 +314,24 @@ func key(code: int, unicode: int = 0, ctrl: bool = false) -> void:
 		Input.parse_input_event(event)
 		await process_frame
 
-func type_text(ui: Node, name: String, text: String, submit: bool = true) -> void:
-	await click(ui, name)
-	await key(KEY_A, 0, true)
+	return true
+
+func type_text(ui: Node, name: String, text: String, submit: bool = true) -> bool:
+	if not completion.step(await click(ui, name), "click"):
+		return false
+	if not completion.step(await key(KEY_A, 0, true), "key"):
+		return false
 	for character in text:
-		await key(character.unicode_at(0), character.unicode_at(0))
-		assert(ui.call("sync_input") == "", "Mirror production host input polling before observing paint")
+		if not completion.step(await key(character.unicode_at(0), character.unicode_at(0)), "key"):
+			return false
+		if not completion.require(ui.call("sync_input") == "", "Mirror production host input polling before observing paint"):
+			return false
 	if submit:
-		await key(KEY_ENTER)
-	await settle()
+		if not completion.step(await key(KEY_ENTER), "key"):
+			return false
+	if not completion.step(await settle(), "settle"):
+		return false
+	return true
+
+func run_completion() -> void:
+	completion.finish(await capture())
