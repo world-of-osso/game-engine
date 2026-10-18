@@ -594,6 +594,31 @@ fn guild_invitation_popup_works_without_open_roster_in_both_skins() {
 }
 
 #[test]
+fn guild_invitation_elapsed_boundary_declines_once_without_membership_change() {
+    use game_engine_ui_model::guild_ranks::GuildCommand;
+    let mut session = GuildRanksSession::default();
+    session.invitation = Some(GuildInvitation {
+        guild_id: 7,
+        guild_name: "Raid Team".into(),
+        inviter_name: "Alice".into(),
+        tabard: None,
+    });
+    // GuildInviteFrame.xml: elapsed > 60, not >= 60.
+    assert_eq!(session.advance_invitation(59.0), None);
+    assert!(session.invitation.is_some());
+    assert_eq!(session.advance_invitation(1.0), None);
+    assert!(session.invitation.is_some());
+    assert_eq!(
+        session.advance_invitation(0.001),
+        Some(GuildCommand::DeclineInvite)
+    );
+    assert!(session.invitation.is_none());
+    assert_eq!(session.advance_invitation(120.0), None);
+    assert!(session.state().is_none());
+    assert!(!session.visible);
+}
+
+#[test]
 fn guild_rank_widgets_render_only_purchased_bank_tabs() {
     let _lock = SKIN.lock().unwrap_or_else(|p| p.into_inner());
     for skin in [ActiveSkin::Modern, ActiveSkin::Forever] {
