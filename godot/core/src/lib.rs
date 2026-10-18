@@ -100,8 +100,7 @@ pub mod m2_material;
 mod m2_material_transition;
 pub mod m2_particles;
 pub mod m2_ribbons;
-#[path = "asset/m2_texture_composite_data.rs"]
-pub mod m2_texture_composite_data;
+pub use wow_m2::m2_texture_composite_data;
 pub mod map_catalog;
 pub mod minimap_data;
 pub mod model_asset_index;
