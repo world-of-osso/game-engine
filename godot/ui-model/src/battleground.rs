@@ -308,6 +308,10 @@ fn frame(name: &str, size: (f32, f32), position: (f32, f32), children: Element) 
     rsx! { r#frame { name: {DynName(name.into())}, width, height, left, top,
     pos_type: "absolute", strata: FrameStrata::Dialog, mouse_enabled: true, {children} } }
 }
+fn queue_frame(width: f32, children: Element) -> Element {
+    rsx! { r#frame { name: "PVPUIFrame", width, height: 428.0, left: 100.0, top: 84.0,
+    pos_type: "absolute", strata: FrameStrata::Medium, mouse_enabled: true, {children} } }
+}
 fn specific_choices() -> Vec<shared::battleground::BgTemplate> {
     shared::battleground::all_templates()
         .into_iter()
@@ -361,7 +365,7 @@ fn queue(context: &SharedContext, view: &PvpView) -> Element {
     }
     if view.category != PvpCategory::QuickMatch {
         children.extend(category_panel(view));
-        return frame("PVPUIFrame", (width, 428.0), (100.0, 84.0), children);
+        return queue_frame(width, children);
     }
     if let Some(wallet) = &view.snapshot {
         children.extend(text(
@@ -403,7 +407,7 @@ fn queue(context: &SharedContext, view: &PvpView) -> Element {
         !view.pending && view.battleground().is_none(),
         (363.0, 404.0, 116.0, 22.0),
     ));
-    frame("PVPUIFrame", (width, 428.0), (100.0, 84.0), children)
+    queue_frame(width, children)
 }
 pub const SPECIFIC_LIST: &str = "HonorFrameSpecificScrollBox";
 const SPECIFIC_ROW_H: f32 = 40.0;
@@ -536,13 +540,12 @@ fn invite(view: &PvpView) -> Element {
             (x, 163.0, 115.0, 22.0),
         ));
     }
+    // StaticPopup.lua: first standalone popup TOP at fullscreen TOP -135.
+    const READY_DIALOG_TOP: f32 = 135.0;
     frame(
         "PVPReadyDialog",
         (306.0, 210.0),
-        (
-            (view.viewport[0] - 306.0) / 2.0,
-            (view.viewport[1] - 210.0) / 2.0,
-        ),
+        ((view.viewport[0] - 306.0) / 2.0, READY_DIALOG_TOP),
         children,
     )
 }
