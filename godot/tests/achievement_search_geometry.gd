@@ -8,6 +8,11 @@ func run_geometry() -> void:
 	root.size = Vector2i(1920, 1080)
 	root.content_scale_size = Vector2i.ZERO
 	var failures: Array[String] = []
+	var expected_font := FileAccess.get_file_as_bytes("res://../data/fonts/FRIZQT__.TTF")
+	if expected_font.is_empty():
+		push_error("Source Roman font unavailable")
+		quit(1)
+		return
 	for forever in [false, true]:
 		for comparison in [false, true]:
 			var ui := ClassDB.instantiate("RegistryUi") as CanvasLayer
@@ -34,12 +39,17 @@ func run_geometry() -> void:
 			var expected_x := 631.0 if comparison else 511.0
 			var style := search.get_theme_stylebox("normal")
 			var margins := Vector4(style.get_content_margin(SIDE_LEFT), style.get_content_margin(SIDE_RIGHT), style.get_content_margin(SIDE_TOP), style.get_content_margin(SIDE_BOTTOM))
-			var actual := {"forever": forever, "comparison": comparison, "search": str(search.get_global_rect()), "margins_lrtb": str(margins), "font_size": search.get_theme_font_size("font_size"), "minimum": str(search.get_combined_minimum_size())}
+			var native_font := search.get_theme_font("font") as FontFile
+			var actual := {"forever": forever, "comparison": comparison, "search": str(search.get_global_rect()), "margins_lrtb": str(margins), "font_size": search.get_theme_font_size("font_size"), "font_height": search.get_theme_font("font").get_height(search.get_theme_font_size("font_size")), "minimum": str(search.get_combined_minimum_size())}
 			print("ACHIEVEMENT_SEARCH_NATIVE_BOUNDS ", JSON.stringify(actual))
 			if search.size != Vector2(107, 30) or margins != Vector4(16, 20, 0, 0):
 				failures.append("Source107x30/L16R20T0B0 mismatch: " + JSON.stringify(actual))
-			if search.get_global_rect().position - origin != Vector2(expected_x, 25) or search.get_theme_font_size("font_size") != 16:
-				failures.append("Search position/font changed: " + JSON.stringify(actual))
+			if search.get_theme_font_size("font_size") != 10:
+				failures.append("Source Roman height10 mismatch: " + JSON.stringify(actual))
+			if native_font == null or native_font.data != expected_font:
+				failures.append("Source FRIZQT__.TTF bytes changed: " + JSON.stringify(actual))
+			if search.get_global_rect().position - origin != Vector2(expected_x, 25):
+				failures.append("Search position changed: " + JSON.stringify(actual))
 			if filter.get_global_rect().position - origin != Vector2(expected_x + 114, 31) or filter.size != Vector2(112, 22):
 				failures.append("Filter geometry changed: " + JSON.stringify(actual))
 			ui.free()
