@@ -1,3 +1,7 @@
+## 2026-10-17 — Suggested secondary truncation hover implementation
+
+[Source mapping and proof boundary](systems/adventure-guide.md#suggested-secondary-text-hover--implementation-2026-10-17): literal EJ3311 second-pass owners; native drawn-label truncation gates full white wrapped right-anchored tooltips. Both-skin model RED recorded; native hover/leave acceptance waits for lead gate/window. No provider/reward/action authority added.
+
 ## 2026-10-18 — Post-guild ownership-cap codec/dispatch target proof
 
 [Current consumer proof](systems/cursor-item.md#ownership-cap-error-cpu-dispatch-2026-10-18): landedf26cc691e merged with MaxCount as6c00abbf4; sole wiki-index conflict preserves both sides. Account dispatch target1/0 with protocola2b07a6; combined protocol tests preserve old tags and round-trip new ItemMaxCount21/SetMemberRank13. Source wording/error renderer unchanged; coordinated broad gate/landing remains lead-owned, no native-pixel claim.
