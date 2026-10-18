@@ -70,6 +70,9 @@ mod parts;
 mod party_preview;
 mod professions_preview;
 mod projection;
+mod projection_order;
+#[cfg(debug_assertions)]
+mod projection_order_preview;
 #[cfg(debug_assertions)]
 mod pvp_bonus_preview;
 mod ready_check_layout_policy;

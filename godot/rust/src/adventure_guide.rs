@@ -46,10 +46,73 @@ impl AdventureGuide {
         Ok(())
     }
 }
+/// Debug-only input-row fixture: no realm eligibility, priority or activation claim.
+#[cfg(debug_assertions)]
+#[godot_api(secondary)]
+impl GameClient {
+    #[func]
+    fn install_adventure_suggestion_642_fixture(&mut self) -> GString {
+        let result = (|| {
+            let row = read_suggestion_642_fixture(&self.data_root)?;
+            let current = self
+                .adventure_guide
+                .view
+                .activities
+                .as_deref()
+                .ok_or("Source-row fixture needs a received activity snapshot")?;
+            if current.suggestions.len() != 3 {
+                return Err("Source-row fixture needs the existing three-pane input".into());
+            }
+            let mut snapshot = current.clone();
+            snapshot.suggestions[0] = row;
+            self.adventure_guide.view.activities = Some(Arc::new(snapshot));
+            self.sync_adventure_guide()
+        })();
+        result.err().unwrap_or_default().as_str().into()
+    }
+}
+
+#[cfg(debug_assertions)]
+fn read_suggestion_642_fixture(
+    root: &std::path::Path,
+) -> Result<shared::protocol::AdventureSuggestion, String> {
+    let mut source = None;
+    game_engine_core::csv_util::read_db2_rows(
+        &root.join("db2/active/AdventureJournal.csv"),
+        |row| {
+            if row.parse::<u32>("ID")? == 642 {
+                source = Some(shared::protocol::AdventureSuggestion {
+                    id: 642,
+                    name: row.field("Name_lang")?.into(),
+                    description: row.field("Description_lang")?.into(),
+                    reward_description: row.field("RewardDescription_lang")?.into(),
+                    texture_fdid: row.parse("TextureFileDataID")?,
+                    button_text: row.field("ButtonText_lang")?.into(),
+                });
+            }
+            Ok(())
+        },
+    )?;
+    source.ok_or_else(|| "Installed AdventureJournal has no source642 fixture row".into())
+}
+
 #[cfg(test)]
 mod tests {
     use super::AdventureGuide;
     use shared::protocol::EncounterStart;
+
+    #[test]
+    fn suggestion_fixture_reads_installed_record_642_without_action_authority() {
+        let root = std::path::Path::new(env!("CARGO_MANIFEST_DIR")).join("../../data");
+        let row = super::read_suggestion_642_fixture(&root).unwrap();
+        assert_eq!(row.id, 642);
+        assert_eq!(row.name, "Trading Post, Open for Business");
+        assert!(row.description.contains("Visit Stormwind or Orgrimmar"));
+        assert!(row.description.contains("Traveler's Log"));
+        assert_eq!(row.texture_fdid, 4696085);
+        assert!(row.button_text.is_empty());
+        assert!(row.reward_description.is_empty());
+    }
 
     #[test]
     fn encounter_start_tracks_visible_guide_without_opening_closed_guide() {

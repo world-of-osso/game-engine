@@ -1,4 +1,5 @@
-use super::*;
+use game_engine_core::asset::m2_format::m2_particle::*;
+use game_engine_core::asset::read_bytes::read_u32;
 
 const MIST_FDID: u32 = 1028937;
 const PARTICLE_ARRAY_OFFSET: usize = 0x128;
