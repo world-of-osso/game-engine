@@ -52,6 +52,139 @@ fn snapshot(phase: BgPhase, accepted: bool) -> PvpSnapshot {
         }),
     }
 }
+fn assert_random32_bonus_render(skin: ActiveSkin) {
+    use ui_toolkit::layout_values::Val;
+
+    game_engine_ui_model::paths::set_data_root(
+        std::path::PathBuf::from(env!("CARGO_MANIFEST_DIR")).join("../../data"),
+    )
+    .unwrap();
+    set_thread_skin(skin);
+    let mut view = PvpView {
+        visible: true,
+        ..Default::default()
+    };
+    let mut owner = snapshot(BgPhase::Waiting, false);
+    owner.battleground = None;
+    receive(&mut view, owner);
+    let mut context = SharedContext::new();
+    context.insert(skin);
+    context.insert(view.clone());
+    let mut registry = FrameRegistry::new(1280.0, 720.0);
+    let mut screen = Screen::new(pvp_screen);
+    screen.sync(&context, &mut registry);
+    assert_size(&registry, "HonorFrameTypeDropdown", 180.0, 25.0);
+    assert!(
+        registry
+            .get_by_name("HonorFrameSpecificScrollBox")
+            .is_some()
+    );
+    view.action("pvp:type:toggle");
+    context.insert(view.clone());
+    screen.sync(&context, &mut registry);
+    assert!(registry.get_by_name("HonorFrameTypeMenuBonus").is_some());
+    assert!(registry.get_by_name("HonorFrameTypeMenuSpecific").is_some());
+    view.action("pvp:type:bonus");
+    context.insert(view.clone());
+    screen.sync(&context, &mut registry);
+    assert!(
+        registry
+            .get_by_name("HonorFrameSpecificScrollBox")
+            .is_none()
+    );
+    assert_size(&registry, "HonorFrameBonusFrame", 393.0, 296.0);
+    assert_size(&registry, "HonorFrameBonusFrameRandomBGButton", 365.0, 54.0);
+    let random = registry
+        .get(
+            registry
+                .get_by_name("HonorFrameBonusFrameRandomBGButton")
+                .unwrap(),
+        )
+        .unwrap();
+    assert_eq!(
+        (random.position.left, random.position.top),
+        (Val::Px(14.0), Val::Px(9.0))
+    );
+    for absent in [
+        "HonorFrameBonusFrameRandomEpicBGButton",
+        "HonorFrameBonusFrameBrawlButton",
+        "HonorFrameBonusFrameRandomBGButtonReward",
+    ] {
+        assert!(
+            registry.get_by_name(absent).is_none(),
+            "unsupported activity/reward must not be fabricated"
+        );
+    }
+    view.action("pvp:type:specific");
+    context.insert(view);
+    screen.sync(&context, &mut registry);
+    assert!(
+        registry
+            .get_by_name("HonorFrameSpecificScrollBox")
+            .is_some()
+    );
+    assert!(registry.get_by_name("HonorFrameBonusFrame").is_none());
+    set_thread_skin(ActiveSkin::Modern);
+}
+
+#[test]
+fn random32_bonus_modern_renders_source_modes_and_row_without_fake_rewards() {
+    assert_random32_bonus_render(ActiveSkin::Modern);
+}
+
+#[test]
+fn random32_bonus_forever_renders_source_modes_and_row_without_fake_rewards() {
+    assert_random32_bonus_render(ActiveSkin::Forever);
+}
+
+#[test]
+fn random32_bonus_routes_existing_queue_and_preserves_specific_and_arena_choices() {
+    let mut view = PvpView::default();
+    assert_eq!(view.action("pvp:select:1018"), None);
+    assert_eq!(view.action("pvp:activity:2v2"), None);
+    view.action("pvp:type:bonus");
+    view.action("pvp:bonus:random");
+    assert_eq!(view.selected_battleground, 1018);
+    assert_eq!(view.selected_arena, Some(ArenaQueueMode::Skirmish2v2));
+    assert_eq!(view.action("pvp:queue"), Some(PvpAction::Queue(32)));
+    assert_eq!(view.action("pvp:queue"), None, "one pending request only");
+    view.receive(PvpStateUpdate {
+        snapshot: None,
+        message: None,
+        error: Some("Party member outside bracket".into()),
+    });
+    assert_eq!(view.error, "Party member outside bracket");
+    assert_eq!(view.action("pvp:queue"), Some(PvpAction::Queue(32)));
+    let mut owner = snapshot(BgPhase::Waiting, false);
+    owner.battleground = None;
+    owner.queue = Some(PvpQueueSnapshot {
+        kind: PvpQueueKindSnapshot::Battleground {
+            battleground_id: 32,
+            name: "Random Battleground".into(),
+        },
+    });
+    receive(&mut view, owner);
+    assert_eq!(
+        view.action("pvp:queue"),
+        None,
+        "received queue blocks another join"
+    );
+    assert_eq!(view.action("pvp:dequeue"), Some(PvpAction::Dequeue));
+    let mut clear = snapshot(BgPhase::Waiting, false);
+    clear.battleground = None;
+    receive(&mut view, clear);
+    view.action("pvp:type:specific");
+    assert_eq!(
+        view.action("pvp:queue"),
+        Some(PvpAction::Arena(ArenaQueueMode::Skirmish2v2))
+    );
+    let mut clear = snapshot(BgPhase::Waiting, false);
+    clear.battleground = None;
+    receive(&mut view, clear);
+    view.action("pvp:select:1018");
+    assert_eq!(view.action("pvp:queue"), Some(PvpAction::Queue(1018)));
+}
+
 #[test]
 fn node_battleground_both_skin_hud_columns_and_results() {
     game_engine_ui_model::paths::set_data_root(
