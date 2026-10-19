@@ -176,12 +176,4 @@ impl GameClient {
         dialog.allocate(&slot, item, requested, &owned);
         Ok(())
     }
-
-    pub(super) fn quality_operation_status(&self) -> String {
-        game_engine_ui_model::professions_reagent_selection::craft_status(
-            &self.professions.error,
-            &self.professions.reagent_selection,
-            self.professions.book.selected_recipe(),
-        )
-    }
 }

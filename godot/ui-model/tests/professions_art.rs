@@ -376,7 +376,6 @@ fn professions_search_magnifier_geometry_and_four_focus_query_tints_match_source
 }
 
 #[test]
-#[ignore = "RED: passive CraftStatus exposes the typed operation gap"]
 fn professions_passive_operation_status_omits_gap_and_preserves_pending_and_errors() {
     use game_engine_ui_model::professions_reagent_selection::{ReagentSelection, craft_status};
     use shared::profession::CraftingOperationGap;
@@ -422,7 +421,7 @@ fn professions_passive_operation_status_omits_gap_and_preserves_pending_and_erro
             };
             let before = selection.clone();
             view.reagent_selection = selection.clone();
-            view.status = craft_status(error, &selection, view.book.selected_recipe());
+            view.status = craft_status(error, &selection);
             let registry = render(skin, view.clone());
             assert_eq!(
                 text(&registry, "ProfessionsCraftStatus").0,
@@ -442,11 +441,7 @@ fn professions_passive_operation_status_omits_gap_and_preserves_pending_and_erro
         }
         view.book.recipes[0].output = Some((1251, 1));
         assert_eq!(
-            craft_status(
-                "",
-                &ReagentSelection::default(),
-                view.book.selected_recipe()
-            ),
+            craft_status("", &ReagentSelection::default()),
             "",
             "fixed-output status unchanged"
         );
