@@ -57,7 +57,7 @@ func run() -> void:
 	completion = load("res://tests/completion.gd").new(self, 1)
 	if not completion.require(FileAccess.get_sha256(MODEL) == MODEL_SHA256, "Pinned authentic3049899 bytes differ"):
 		return
-	var loader := ClassDB.instantiate("WowAssetLoader")
+	var loader: Object = ClassDB.instantiate("WowAssetLoader")
 	var loaded: Dictionary = loader.load_m2(MODEL)
 	if not completion.require(not loaded.has("error"), "Model load failed: " + str(loaded.get("error", ""))):
 		return
