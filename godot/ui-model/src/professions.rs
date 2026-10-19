@@ -54,8 +54,9 @@ impl ProfessionBook {
             .map(|((_, category), recipes)| (category, recipes))
             .collect();
         if search.is_empty() {
+            let favorite_ids: std::collections::HashSet<_> = self.snapshot.favorites.iter().copied().collect();
             let mut favorites: Vec<_> = self.recipes.iter().filter(|recipe| {
-                known.contains(&recipe.spell_id) && self.snapshot.favorites.contains(&recipe.spell_id)
+                known.contains(&recipe.spell_id) && favorite_ids.contains(&recipe.spell_id)
             }).collect();
             favorites.sort_by(|left, right| left.name.cmp(&right.name));
             if !favorites.is_empty() {
