@@ -4878,3 +4878,5 @@ Explicit admitted unit_transform sampling replaces incomplete UnitPick traversal
 - Journal source239Animation25: actualVakan0vs25 nativeRED before correction; source-gated Journal attach-only existingplayer/crossfade implementation, no per-sync restart or kits/variants/speed/effects scope expansion. NativeGREEN pending.
 
 - Journal plain25 extensioncec5 native2: Vakan/Gholna2/2eachskin, current25/sameplayer progressingclock/rawpose/centralpaint; four originalfullHD captures inspected. Existingcrossfadeimplementationunchanged, curveparityunclaimed; kits/variants/speed/effects and priornamedgaps remainexcluded.
+
+- Journal remainingplainclips: ignored174afixture beforeproduct, genuineAtrigan0vs27nativeRED. Rename25helpertoonesourcepath25/26/27/213, preserve25controls andallkit/variant/speed/effectexclusions; fullnativeproofpending.
