@@ -1,3 +1,7 @@
+## 2026-10-17 — Learned/unlearned recipe filter implementation
+
+[Contract and implementation](systems/native-professions-crafting.md#learnedunlearned-recipe-filters): source Mainline two default-on checkboxes, shared Filter template/right anchor/search gap; snapshot-only classification and learned-filter-aware Favorites. Pushed ignored screen RED failed at the absent dropdown before implementation. All four visibility combinations, search/empty controls, checkbox art and unchanged ownership are targeted; native acceptance awaits the lead gate/window. No persistence, other filter semantics or wire changes.
+
 ## 2026-10-17 — Recipe Favorites native reopen accepted
 
 [Bounded proof and provenance](systems/native-professions-crafting.md#accepted-reopen-proof--2026-10-17): landed E339c94be6/S9a8fd3951/Pf9a9175, six fresh native clients in both skins1920×1080 and three distinct private server generations prove Set/search/ordinary duplicate, restoration without re-favoriting, Remove and persisted absence. Bags/copper/skill conserved; fourteen inspected originals published, owned processes/window cleared. Native input RED exposed missing Button frame-click prefixes; minimal fix landed before GREEN. Synthetic cursor anchoring and warning-free renderer teardown remain unproven; fixture knowledge is not acquisition evidence.

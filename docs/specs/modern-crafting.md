@@ -22,7 +22,15 @@ Local world.db has only627 of1,286 distinct Leatherworking effect24 outputs join
 - The learned recipe's right-click menu uses shared Retail menu primitives and offers Set Favorite / Remove Favorite from the owner snapshot. A request does not optimistically mutate that snapshot or select the right-clicked recipe.
 - Outside search, Favorites appears before the learned/unlearned categories and retains the ordinary learned recipe entry. Favorite/ordinary instances have distinct widget identities and selection art. During search, the Favorites group is absent; normal matching recipes remain visible.
 - Favorite/unfavorite changes must survive an actual server and client reopen without leaking to another character on the same account. Only the existing trainer purchase teaches2153; preferences never craft or change acquisition authority.
-- Sources: cached `Blizzard_ProfessionsRecipeList.lua:60–78`, `Blizzard_Professions.lua:832–859,917–920`; TC a352b1fa `Player::SetSpellFavorite:3389–3398`, `_LoadSpells:19930–19947`, `_SaveSpells:21529–21541`. `world.db` trainer56/2153/cost50/rank15 supplies the concrete acquisition fixture. Reopen/native acceptance is pending the coordinated consumer gate.
+- Sources: cached `Blizzard_ProfessionsRecipeList.lua:60–78`, `Blizzard_Professions.lua:832–859,917–920`; TC a352b1fa `Player::SetSpellFavorite:3389–3398`, `_LoadSpells:19930–19947`, `_SaveSpells:21529–21541`. `world.db` trainer56/2153/cost50/rank15 supplies the concrete acquisition fixture. [Accepted reopen proof and remaining cursor boundary](../wiki/systems/native-professions-crafting.md#accepted-reopen-proof--2026-10-17) are recorded separately.
+
+## Learned/unlearned recipe filters
+
+- The shared Retail filter dropdown exposes independent Show Learned and Show Unlearned checkboxes. Both default to checked; all four combinations are allowed. The authored dropdown owns the recipe list's top-right anchor and the search box ends4px before it.
+- Visibility follows the owner's known-spell snapshot, never acquisition-rank inference. Hiding learned recipes also hides Favorites; hiding unlearned recipes removes their rows/divider. Search still omits Favorites and filters the remaining ordinary recipes.
+- Filters change presentation only: no favorite/knowledge, inventory, copper, skill or currency mutation and no new server request. Closing the profession window discards these filters; no account/character/disk persistence is added.
+- Makeable, skill-up, first-craft, source, category and expansion filters remain excluded from this slice.
+- Sources: cached Mainline `Blizzard_Professions.lua:1256–1263,1140–1141`, `Blizzard_ProfessionsRecipeList.xml:34–45`, and inherited `Blizzard_Menu/Mainline/MenuTemplates.xml:66–75` (Filter dropdown18px high, text-fit padding60, menu BOTTOMLEFT/+6/+2).
 
 ## Unlearned recipe discovery
 

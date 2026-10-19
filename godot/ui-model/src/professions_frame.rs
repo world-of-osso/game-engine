@@ -14,6 +14,8 @@ mod art;
 pub mod concentration;
 #[path = "professions_frame_favorites.rs"]
 mod favorites;
+#[path = "professions_frame_filters.rs"]
+mod filters;
 #[path = "professions_frame_orders.rs"]
 pub mod orders;
 #[path = "professions_frame_quality.rs"]
@@ -55,6 +57,7 @@ pub struct ProfessionView {
     pub page: ProfessionPage,
     pub favorite_menu: Option<(u32, [f32; 2])>,
     pub selected_favorite: bool,
+    pub filter_open: bool,
     pub concentration: Option<shared::concentration::ConcentrationSnapshot>,
     pub specializations: crate::professions_specializations::SpecializationDraft,
     pub orders: crate::professions_orders::CraftingOrders,
