@@ -4861,3 +4861,5 @@ User decision specifies MOBILE_BANKING_COOLDOWN_2H7200000ms over installed360000
 - Lead accepts primary-hover proof limitation as AG_PRIMARY_TITLE_HOVER_UNEXERCISED_NO_TRUNCATING_SOURCE_ROW; retain only cfg(debug_assertions) primary-index2 source input, no hover correction.
 
 - Journal source239Animation25: actualVakan0vs25 nativeRED before correction; source-gated Journal attach-only existingplayer/crossfade implementation, no per-sync restart or kits/variants/speed/effects scope expansion. NativeGREEN pending.
+
+- Journal plain25 extensioncec5 native2: Vakan/Gholna2/2eachskin, current25/sameplayer progressingclock/rawpose/centralpaint; four originalfullHD captures inspected. Existingcrossfadeimplementationunchanged, curveparityunclaimed; kits/variants/speed/effects and priornamedgaps remainexcluded.
