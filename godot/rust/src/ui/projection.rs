@@ -603,6 +603,8 @@ impl UiProjection {
                         || action.starts_with("guild:news_entry:")
                         || action.starts_with("guild:perk:")
                         || action.starts_with("mount:select:")
+                        || action.starts_with("profession:select:")
+                        || action.starts_with("profession:favorite-select:")
                         || action.starts_with("journal:activity:")
                         || action.starts_with("transmog:outfit:")
                         || action.starts_with(game_engine_ui_model::toybox::USE_PREFIX)

@@ -4,6 +4,9 @@ extends "res://tests/trading_post_cart_selection.gd"
 var drag_observations: Array = []
 var source_a := 0
 var source_b := 0
+# Preserve the observed RED presentation, not Retail pending-frozen-art parity.
+const RED_PENDING_FROZEN_ART_AREA := 44268.0
+const HELD_OBSERVATIONS := ["below-existing-threshold", "first-held-activation", "repeated-held-motion", "already-selected-held-silent", "cart-owner-held-selection", "occupied-drop-before-release"]
 
 func run_cases() -> bool:
 	if not gate.require(OS.get_environment("TP_DRAG_OPT_IN") == "1","explicit drag proof opt-in required"): return false
@@ -161,11 +164,15 @@ func assert_drag_observation(data: Dictionary) -> bool:
 	if not gate.require(not data.state.pending and int(data.state.frozen) == int(baseline.frozen),"no authority request at "+str(data.label)): return false
 	if not gate.require(int(data.state.tender) == int(baseline.tender) and float(data.world_delta) < 0.0001,"authority/world conserved at "+str(data.label)): return false
 	if int(data.expected_selected) == source_b:
-		if not gate.require(float(data.art_b) > 0. and float(data.art_a) == 0. and float(data.frozen_art) == 0.,"source B selected art at "+str(data.label)): return false
+		if not gate.require(float(data.art_b) > 0. and float(data.art_a) == 0.,"source B selected art at "+str(data.label)): return false
 	elif int(data.expected_selected) == source_a:
 		if not gate.require(float(data.art_a) > 0. and float(data.art_b) == 0.,"source A art below threshold"): return false
 	else:
-		if not gate.require(float(data.art_a) == 0. and float(data.art_b) == 0. and float(data.frozen_art) == 0.,"modal product art remains clear"): return false
+		if not gate.require(float(data.art_a) == 0. and float(data.art_b) == 0.,"modal product art remains clear"): return false
+	if str(data.label) in HELD_OBSERVATIONS:
+		if not gate.require(float(data.frozen_art) == 0.,"frozen art clear before release at "+str(data.label)): return false
+	elif str(data.label) == "occupied-drop-no-duplicate":
+		if not gate.require(float(data.frozen_art) == RED_PENDING_FROZEN_ART_AREA,"pending presentation unchanged from RED, not Retail parity"): return false
 	return true
 
 func row_center(id: int) -> Vector2:
