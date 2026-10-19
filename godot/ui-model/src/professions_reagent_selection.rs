@@ -70,11 +70,7 @@ impl ReagentSelection {
 }
 
 /// Passive native profession status, independent of Godot scene ownership.
-pub fn craft_status(
-    error: &str,
-    selection: &ReagentSelection,
-    recipe: Option<&crate::professions::Recipe>,
-) -> String {
+pub fn craft_status(error: &str, selection: &ReagentSelection) -> String {
     if !error.is_empty() {
         return error.into();
     }
@@ -85,19 +81,8 @@ pub fn craft_status(
         if let Some(error) = &response.validation_error {
             return error.clone();
         }
-        return response
-            .quality
-            .as_ref()
-            .err()
-            .map(ToString::to_string)
-            .unwrap_or_default();
     }
-    if recipe.is_some_and(|recipe| recipe.output.is_none()) {
-        return shared::profession::evaluate_crafted_quality()
-            .err()
-            .expect("missing authored evaluator")
-            .to_string();
-    }
+    // Missing operation composition is a diagnostic, not a passive player status.
     String::new()
 }
 
