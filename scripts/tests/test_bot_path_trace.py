@@ -36,6 +36,24 @@ class BotPathTraceTests(unittest.TestCase):
         self.assertEqual(trace[0]["run_id"], "small-stockade")
         self.assertEqual(trace[-1]["event"], "run_end")
 
+    @unittest.skipUnless(os.environ.get("BOT_PATH_TEST_RED"), "behavioral RED: roster wipe capture not implemented")
+    def test_wipe_requires_every_observed_party_member_dead_not_target_changes(self):
+        run = {"run_id": "wipe-fixture", "revision": "abc123", "actor": "101",
+               "party_names": {"101": "Tank", "102": "Healer"},
+               "start_ms": 1000, "end_ms": 1300,
+               "party_observations": [
+                   {"at_ms": 1100, "monotonic_ns": 100, "members": [
+                       {"name": "Tank", "health": 0, "death": "Corpse", "position": [1, 2, 3]},
+                       {"name": "Healer", "health": 50, "death": "Alive", "position": [2, 2, 3]}]},
+                   {"at_ms": 1200, "monotonic_ns": 200, "members": [
+                       {"name": "Tank", "health": 0, "death": "Corpse", "position": [1, 2, 3]},
+                       {"name": "Healer", "health": 0, "death": "Corpse", "position": [2, 2, 3]}]}]}
+        trace = compile_trace([], [], run)
+        wipes = [row for row in trace if row["event"] == "wipe"]
+        self.assertEqual([row["at_ms"] for row in wipes], [1200])
+        self.assertEqual(wipes[0]["monotonic_clock"], "python_host_monotonic")
+        self.assertFalse(any(row["event"] == "overlap_pull" for row in trace))
+
 
 if __name__ == "__main__":
     unittest.main()
