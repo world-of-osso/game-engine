@@ -2061,7 +2061,7 @@ func freeze_workflow_proof() -> void:
 	await click("PerksProgramConfirmCancelButton")
 	if not await wait_until(func(): return control("PerksProgramConfirmDialog") == null, "Cancel dismisses frozen replacement"): return
 	if int(client.trading_post_state().frozen) != original or client.trading_post_state().cart.size() != 2: fail("Cancel changed frozen authority/cart"); return
-	if str(control("PerksProgramFrozenLabel").text) != original_name: fail("Cancel did not restore old frozen slot"); return
+	if str(control("PerksProgramFrozenLabel").text) != "Freezing:\n"+original_name: fail("Cancel did not restore committed frozen caption"); return
 	await capture("cancel-restores-old")
 	if not await open_freeze_replacement(original, candidate, other): return
 	await tap(KEY_ESCAPE)
