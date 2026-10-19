@@ -1293,7 +1293,7 @@ fn achievements_full_search_presents_received_page_two_and_ignores_late_query_bo
         assert_eq!(text(&registry, "Achievement11Name"), "Level 60");
         assert_eq!(
             text(&registry, "AchievementFullSearchResult11Path"),
-            "Characters"
+            "Legacy > Character"
         );
         assert_eq!(
             text(&registry, "AchievementFullSearchResult11ResultType"),
