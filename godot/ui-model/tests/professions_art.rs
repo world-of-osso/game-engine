@@ -339,7 +339,6 @@ fn professions_search_clear_visibility_follows_focus_or_query_without_owner_chan
 }
 
 #[test]
-#[ignore = "RED: profession search magnifier is12px and lacks source focus tint"]
 fn professions_search_magnifier_geometry_and_four_focus_query_tints_match_source() {
     for skin in [ActiveSkin::Modern, ActiveSkin::Forever] {
         for (focused, query, tint) in [
