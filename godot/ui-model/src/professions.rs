@@ -78,6 +78,12 @@ impl ProfessionBook {
         groups
     }
 
+    /// Professions.SetDefaultFilters restores both Show checkboxes without clearing search.
+    pub fn reset_visibility_filters(&mut self) {
+        self.hide_learned = false;
+        self.hide_unlearned = false;
+    }
+
     pub fn favorite_request(&self, spell_id: u32, favorite: bool) -> Option<SetRecipeFavorite> {
         self.snapshot
             .spells

@@ -38,6 +38,20 @@ Resolved rectangles are identical in both skins: Filter `(208,175,87,18)`, searc
 
 Evidence SSOT: canonical `data/diagnostics/recipe-visibility-filters-2026-10-17/native-visibility-proof.json` binds source/binary receipts, fresh read-only world snapshot, both process results, actual geometry, eighteen PNG hashes and cleanup. Four favorite-menu setup/cleanup captures stay private. Fourteen inspected filter-state originals: `/syncthing/AgentShared/2026-10-17/recipe-visibility-filters/{Modern,Forever}-{1..7}-*.png`. Owned server/client processes stop,5951 is unbound and the crafting window is cleared. Filter persistence and the other named filters remain excluded; the separate favorite physical-cursor anchoring boundary above is unchanged.
 
+### Recipe filter Reset
+
+The [contract](../../specs/modern-crafting.md#learnedunlearned-recipe-filters) exposes the existing shared `UIResetButtonTemplate` only when either visibility flag is nondefault. `ProfessionBook.reset_visibility_filters()` clears those two inverted flags; native Reset and window close share that operation. Search, selected recipe/instance, authoritative Favorites and other owner state are untouched. Search alone does not expose Reset. No additional filter family, persistence, server request or audio-engine change is included.
+
+Three ignored screen REDs were pushed and failed before implementation: learned hidden, unlearned hidden and both hidden. Five targeted tests pass, including default/search visibility and complete view-state conservation after Reset. Lead gate rr647 passes205/0 plus fmt0; Reset lands at engine2535a4f17.
+
+#### Native Reset proof — 2026-10-17
+
+`godot/tests/modern_crafting_filter_reset_live.gd` passes both skins1920×1080 on engine `2535a4f17`, server `93d357ce3`, protocol `f9a9175`. Default flags plus active search keep Reset hidden; each of three nondefault combinations exposes it. Three actual coordinate Reset clicks per skin restore both flags and hide Reset while retaining the exact search text, selected recipe/favorite instance and owner Favorites. Clearing search reveals the still-selected favorite instance. Cleanup restores the original unfavorited preference; bags/copper/skill stay unchanged and no cast starts.
+
+Resolved Reset bounds are `(281,164,23,23)` against Filter `(208,175,87,18)` in both skins, matching CENTER/TOPRIGHT−3,0 within native pixel rounding. Each drained native client exits0, emits exactly one completion marker and ten unique captures, with zero `ERROR`/`SCRIPT ERROR` lines. Existing signed-geoset/QuestPOI/MSAA warnings remain; no audio-engine or general renderer-cleanliness claim.
+
+Evidence SSOT: canonical `data/diagnostics/recipe-filter-reset-2026-10-17/native-reset-proof.json` binds exact cohort/binary receipts, fresh read-only world snapshot, two clients/six Reset clicks, twenty PNG hashes and cleanup. Sixteen inspected state originals: `/syncthing/AgentShared/2026-10-17/recipe-filter-reset/{Modern,Forever}-{1..8}-*.png`; four favorite-menu preparation/cleanup captures stay private. All owned runtime stops,5951 is unbound and the window is cleared. Other filters/persistence and the separate physical favorite-cursor boundary remain excluded.
+
 ## Unlearned recipe discovery
 
 The list uses separate learned/unlearned category groups; selection is independent of spell knowledge, while craft requests still require the authoritative known-spell snapshot. Native catalog projection includes unlearned recipes only from owned skill lines. `ProfessionSnapshot.recipe_sources` supplies read-only trainer rows for the source tooltip, without a new message or local acquisition inference. The [contract](../../specs/modern-crafting.md#unlearned-recipe-discovery) owns behavior and sources. Native both-skin acceptance remains pending the lead's granted5951 window.

@@ -1,6 +1,28 @@
+## 2026-10-19 — Ordinary name settled-colour CPU RED
+
+[Source/root](systems/trading-post.md#ordinary-product-name-settled-colours): Elements291–340/Products116–126, GlobalColor NORMAL255/210/0 versus WHITE/HIGHLIGHT. Ignored95e test/spec pushed first gives five genuine WHITE-versus-NORMAL failures/two passing WHITE controls; renderer-only selected/current-hover expression implemented, seven tests unignored. Diagnostic retains18 observations/seven groups and adds six actual native RGBA settled checkpoints without transactions. Targeted GREEN/gate/fresh native pending. `TP_NAME_COLOR_SAME_HOVER_DESELECT_ORDER_UNIMPLEMENTED` remains explicit; no callback/state machinery or frozen-caption/font/layout/authority expansion.
+
+## 2026-10-19 — Achievement full-search result template
+
+[Source/presentation/data](systems/dungeon-achievements.md#full-search-result-presentation): separate600×382/575×49 full-search rows, static installed70448 ancestry, received completion/existing ID-open only. Ignored nativeRED observed18 missing-feature assertions; initial native8/focus12 pass. Page-two modelRED exposed preview-only callback cap5; full rows now use existing direct-open action, model34/catalog1 pass at162a64426. Strengthened sixth-row physical native8 pending central gate. No category-card, wire/server, paging, preview, focus/Escape, totals or progress policy changes.
+
+## 2026-10-19 — Frozen-source drag retirement CPU RED
+## 2026-10-19 — Committed frozen caption visible-text CPU RED
+## 2026-10-19 — Committed frozen caption native GREEN
+
+[Source/root and fresh native proof](systems/trading-post.md#committed-frozen-item-caption): Elements535–555/639–655 plus GlobalStrings48943 white Freezing/newline only for committed ID. Initial93aa raw-oracle proof retained; lead-approved resolved visible-text9ad ignored tests pushed first give four genuine REDs/four controls, renderer-onlyb84 GREEN8/tc650200/0+parse/fmt0 landsd873. FreshEd873/S94/Pf9 both skins strict natural7/7/clean complete streams, unchanged18 observations with actual Label.text/WHITE/no literal markup, committed caption/plain candidate/cancel restoration,13 decoded plays each. Exact authority/local/HUD restored before verdict, XYZ0, two Query only. Forty inspected originals+two contacts published under AgentShared/2026-10-19/trading-post-frozen-item-caption; manifest binds five binaries/nine sources/42receipts/fullstreams/original six memory edges/42PNG hashes. Runtime/window cleared07:06:04;1673 unrelated server errors and parent live-fixture lookup mistake qualified. No flag/parser/font-policy/domain/authority change or historical relabeling; accepted/immediate remains CPU-qualified.
+
 ## 2026-10-19 — Frozen-source drag retirement native GREEN
 
 [Source/root and fresh native proof](systems/trading-post.md#frozen-products-are-not-drag-sources): Elements495–508 disables frozen pickup; replacement510–521/577–670 already exists. No cached UI caller for ClearFrozenPerksVendorItem; right-click cancels confirmation only. IgnoredCPU0a8 pushed first gives genuine selected/unselected outside Freeze(None)-versus-None REDs plus five controls; root068 removal passes7/7 and tf637 TESTEXIT/PARSE/FMT0/landing. FreshE068/S2e4/Pf9 both skins strict natural7/7/no error markers/full streams,18 observations including six frozen attempts and all ordinary/cart/modal/occupied-cancel controls,13 decoded plays each. Exact authority/local/HUD restored before verdict, XYZ0, two Query only. Forty inspected originals+two contacts published under AgentShared/2026-10-19/trading-post-frozen-source-no-drag; manifest binds five binaries/source/streams/42receipts/original six memory edges/42PNG hashes. Runtime/window cleared04:17:35;1675 unrelated server errors qualified. Server/protocol clear support stays; historical October13 proof qualified, not erased/relabelled; accepted/immediate transactions retain CPU proof.
+
+## 2026-10-17 — Recipe filter Reset native proof
+
+[Bounded proof](systems/native-professions-crafting.md#native-reset-proof--2026-10-17): rr647205/0/fmt0, runtime E2535a4f17/S93d357ce3/Pf9a9175; both skins1920×1080 pass three single-click resets, default/search-only hidden, retained search/favorite-instance selection/Favorites and gameplay conservation. Native23×23/TOPRIGHT−3 geometry matches within pixel rounding. Each drained process exits0/one marker/ten unique captures/zero error lines; sixteen inspected state originals published, four favorite-menu setup/cleanup private. Preference/runtime/window restored; other filters/persistence/audio-engine expansion excluded.
+
+## 2026-10-17 — Recipe filter Reset implementation
+
+[Contract and source](systems/native-professions-crafting.md#recipe-filter-reset): existing shared Reset appears only for nondefault visibility; default/search-only stays hidden. Three ignored screen regressions were pushed and observed failing before implementation. Reset/window close share the two-flag default operation; search, selection/instance and owner Favorites stay unchanged. No other filters, persistence, wire or audio-engine expansion. Native single-click/geometry acceptance pending its separate gate/window.
 
 ## 2026-10-17 — Learned/unlearned native filter proof
 
@@ -4836,3 +4858,11 @@ Concrete pose/combat/wipe/boss fixtures3GREEN plus35 default-disabled harness/re
 ## 2026-10-19 — Real five-bot path map
 
 Explicit admitted unit_transform sampling replaces incomplete UnitPick traversal. Actual52.365s failed Stockade capture has all5pose/facing tracks; real143spawns/nav34 SVG+PNG inspected/published with FAILED/no-boss title. Original63s gap/failure record preserved. No clear/retry/server-panic fix claimed; owned5981 cold/windows cleared; independent lead gate pending.
+- 2026-10-18: Pin existing MH2O raw-record projections without changing client bitmap/vertex/material interpretation. See [shared formats](systems/wow-formats.md).
+- Journal display0: genuine Bandit/native and default-source core REDs; Journal-private source-default reader implemented; shared reader/Scene unchanged, native GREEN pending.
+
+- Journal display0 native4: all3 raw states/defaults pass in both skins; Bandit+VoidPulsar base-M2 painted, Raszageth source-exact pose viewport0, full fixtures remain FAIL. Six observed originals inspected; no FOV/effect change or hidden scope reduction.
+
+- Raszageth read-only native70ef/extension2a49: actual perspective30deg KEEP_HEIGHT/aspect390:423, geometry and custom bounds TOP-only rejected, paint0. Diagnostic1/1 captures evidence, not a product fix; preserve named gap and stop camera/transform changes.
+
+- Journal projection reference packet: permitted cached Lua/XML/XSD inheritance, source pose and bounded setter search supply no numeric projection/clip default or corrective camera rule. Native semantics unknown; Raszageth TOP/paint0 and VoidPulsar kit gaps retained, no product/runtime change.
