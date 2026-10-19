@@ -145,6 +145,14 @@ Hasty native trials `typed-human-baseline-1792203539` and `typed-human-member-17
 
 Native existing-caret follow-up: `before  after` + real Shift-click at caret7 initially reverted to the old text. The shared chat insertion path wrote only Godot LineEdit, while the next chat update read RegistryUi's unchanged EditBox state and removed the link from the draft. The insertion now uses RegistryUi::set_editbox_text, then restores the returned caret; this keeps model/native text synchronized. This is a separate actual native RED, not inferred from the earlier empty-draft proof.
 
+## Voluntary leadership transfer
+
+[Contract](../../specs/guild-leadership-transfer.md): `/gleader <member>` enters the existing chat parser, producing one target-only `GuildRankRequest::TransferLeadership`. Native chat submission and the account bridge already carry generic guild-rank requests; replies replace authoritative session state and request the existing full profile. No local rank promotion, new button/layout or extra leader field is introduced. The server owns current-master/same-guild validation and atomic old/new ranks; direct member-rank assignment still cannot assign rank0.
+
+Mainline SlashCommands.lua793–799 forwards text to C_GuildInfo.SetLeader. The available API documentation is a signature, not native implementation. Context-menu self hiding does not establish native slash behavior. The separately approved server policy `GUILD_SELF_LEADER_TRANSFER_REFUSED_UNSOURCED` rejects self without changes; it is not claimed Retail parity. Full permitted-source qualification is recorded in server `docs/wiki/systems/guild-lifecycle.md#voluntary-leadership-transfer` and `/home/osso/.worktrees/logs/guild-leadership-transfer-2026-10-19/self-transfer-qualification.md`.
+
+Ignored wire/slash/server regressions were pushed first. The actual slash RED emits generic help for `/gleader Cara`; server authority RED was separately established after the wire declaration, before transfer mutations. Focused slash GREEN1/1 passes after the actual generic-help RED; the proven test is enabled. Coordinated gate and actual two-member/both-skin native fresh-authority proof remain pending. No dedicated Retail Club/NewLeader notification behavior is claimed by the existing rank/profile refresh.
+
 ## Online member zone
 
 The existing roster/detail labels read only `GuildMemberSnapshot.online_zone` for online members; absent values stay empty. Offline roster Last Online text and blank offline detail Zone remain unchanged. Source geometry, both skins, member actions and disabled Zone sorting are retained. The producer reads actual map/position through GroundMap and the existing immediate-parent AreaTable resolver. Real names load with AreaTable in world-data startup; GuildPlugin performs no extra database open. See [contract/source pins](../../specs/guild-ranks.md#online-member-zone).
