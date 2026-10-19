@@ -1055,6 +1055,31 @@ impl WowAnimationPlayer {
         Ok(())
     }
 
+    /// Plain ModelScene clips use the first existing authored fallback, including0.
+    /// Keep the gameplay/action resolver's distinct Stand-is-no-action rule intact.
+    pub(crate) fn play_plain_clip(
+        &mut self,
+        requested: u16,
+        looping: bool,
+        fallbacks: &std::collections::HashMap<u16, u16>,
+    ) -> Result<u16, String> {
+        let animation = self
+            .animation
+            .as_ref()
+            .ok_or("M2 animation has no bound model")?;
+        let available = animation
+            .sequences
+            .iter()
+            .filter(|sequence| sequence.variation_id == 0)
+            .map(|sequence| sequence.id)
+            .collect();
+        let resolved = game_engine_core::adventure_guide::resolve_plain_animation_clip(
+            requested, &available, fallbacks,
+        )?;
+        self.play_clip(resolved, looping)?;
+        Ok(resolved)
+    }
+
     /// `id`, or the first clip of its `AnimationData.Fallback` chain the model has.
     pub(crate) fn resolve_clip(
         &self,
@@ -1221,6 +1246,23 @@ impl WowAnimationPlayer {
         self.footstep_phase()
             .map(|(_, id, _, _)| i32::from(id))
             .unwrap_or(-1)
+    }
+
+    /// Read-only base-variation inventory for source-qualified native fixtures.
+    #[cfg(debug_assertions)]
+    #[func]
+    fn base_animation_ids(&self) -> PackedInt32Array {
+        self.animation
+            .as_ref()
+            .map(|animation| {
+                animation
+                    .sequences
+                    .iter()
+                    .filter(|sequence| sequence.variation_id == 0)
+                    .map(|sequence| i32::from(sequence.id))
+                    .collect()
+            })
+            .unwrap_or_default()
     }
 
     /// The combat/spell clip layered over locomotion, or -1.

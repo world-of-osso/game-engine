@@ -4,7 +4,7 @@ mod encounter_locks;
 mod model_scene;
 mod presentation;
 pub use encounter_locks::DungeonEncounter;
-pub use model_scene::{read_model_scene, read_plain_animation_25};
+pub use model_scene::{read_model_scene, read_plain_animation, resolve_plain_animation_clip};
 pub use presentation::{JourneyPresentation, read_journey_presentation};
 use rusqlite::{Connection, OpenFlags, Row};
 use std::{collections::BTreeMap, path::Path};
