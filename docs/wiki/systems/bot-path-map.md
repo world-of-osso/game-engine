@@ -25,3 +25,5 @@ Already-read party rosters are appended only when enabled to `bot-path-party.jso
 Known authored boss `spawn_guid`↔native entity mappings already held by the harness produce `spawn_state(alive=false)` only when that exact entity has an actual combat-log death. Missing deaths or unmapped trash remain UNKNOWN. No end-state ALIVE is inferred from the initial boss snapshot.
 
 Private runs select the matching admin socket with `run_stockade_bot.py --server-port 5981`; default5871 preserves the existing owner workflow when no override is supplied. Server must itself bind the corresponding private socket.
+
+Fresh preparation reuses `run_bot_roster.py --server-port 5981`: admin callbacks, private placement, token filename and native observer address all follow the same explicit port. Default5871 remains unchanged. Existing source gear/talent/native preparation is reused without stat or kit overrides; Stockade diagnostic attachment is a subsequent explicit server phase.
