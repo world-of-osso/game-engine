@@ -149,6 +149,31 @@ fn search_selection_window(many_results: bool) -> AchievementWindow {
     view
 }
 
+fn keyboard_preview_window(phase: &str) -> Result<AchievementWindow, String> {
+    let mut view = search_selection_window(true);
+    match phase {
+        "many" => {}
+        "two" => view.search_results.entries.truncate(2),
+        "short" => {
+            view.action("achievement:search:Le");
+        }
+        "pending" => {
+            view.action("achievement:search:Level");
+        }
+        "empty" => {
+            view.action("achievement:search:Level");
+            view.apply(AchievementCatalogPage::Search {
+                text: "Level".into(),
+                scope: AchievementScope::All,
+                achievements: Vec::new(),
+                next_id: None,
+            });
+        }
+        _ => return Err(format!("Unknown search keyboard preview phase: {phase}")),
+    }
+    Ok(view)
+}
+
 pub(super) fn cache_art() -> Result<(), String> {
     use godot::obj::Singleton;
     let data = godot::classes::ProjectSettings::singleton().globalize_path("res://../data");
@@ -273,6 +298,54 @@ impl RegistryUi {
         crate::achievements::apply_achievement_ui_action(&mut view, self, &action.to_string());
         let result = self.set_achievement_window(view);
         GString::from(result.err().unwrap_or_default().as_str())
+    }
+
+    /// Offline metadata controls; native key/pointer events feed the production dispatcher.
+    #[func]
+    pub fn show_achievement_search_keyboard_preview(
+        &mut self,
+        forever: bool,
+        phase: GString,
+    ) -> GString {
+        let skin = if forever {
+            ui_toolkit::atlas::ActiveSkin::Forever
+        } else {
+            ui_toolkit::atlas::ActiveSkin::Modern
+        };
+        let result = self.prepare_dungeon_capture(skin).and_then(|()| {
+            self.show_achievement_window(keyboard_preview_window(&phase.to_string())?)
+        });
+        GString::from(result.err().unwrap_or_default().as_str())
+    }
+
+    /// Return actual outgoing catalog requests, without starting a transport or fabricating replies.
+    #[func]
+    pub fn achievement_search_keyboard_preview_dispatch(&mut self) -> GString {
+        let Some(mut view) = self
+            .model
+            .as_ref()
+            .and_then(|model| model.shared.get::<AchievementWindow>())
+            .cloned()
+        else {
+            return GString::from("Achievement keyboard preview not mounted");
+        };
+        let mut requests = Vec::new();
+        loop {
+            let action = self.pop_action().to_string();
+            if action.is_empty() {
+                break;
+            }
+            requests.extend(crate::achievements::apply_achievement_ui_action(
+                &mut view, self, &action,
+            ));
+        }
+        if let Err(error) = self.set_achievement_window(view) {
+            return GString::from(error.as_str());
+        }
+        match serde_json::to_string(&requests) {
+            Ok(json) => GString::from(json.as_str()),
+            Err(error) => GString::from(format!("Serialize keyboard requests: {error}").as_str()),
+        }
     }
 
     #[func]
