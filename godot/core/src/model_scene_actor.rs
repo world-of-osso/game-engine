@@ -17,7 +17,11 @@ pub struct ModelSceneActor {
 
 impl ModelSceneActor {
     pub fn actor_scale(&self, size: Vec3) -> f32 {
-        normalized_actor_scale(self.scale, self.normalized_scale, size)
+        self.normalized_scale_of(self.scale, size)
+    }
+    /// This actor's normalization applied to another requested scale.
+    pub fn normalized_scale_of(&self, requested: f32, size: Vec3) -> f32 {
+        normalized_actor_scale(requested, self.normalized_scale, size)
     }
     pub fn actor_rotation(&self) -> Quat {
         engine_rotation(self.orientation)

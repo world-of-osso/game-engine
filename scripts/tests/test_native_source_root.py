@@ -51,12 +51,22 @@ class NativeSourceRootTests(unittest.TestCase):
             (self.root.parent / "shared-protocol").resolve(),
         )
 
-    def test_override_change_relinks_the_sibling(self):
-        self.source_root({"DEPOT_SIBLING_ASSET_RESOLVER": str(self.override)})
-        second = self.override.parent / "asset-resolver-other"
-        second.mkdir()
-        source = self.source_root({"DEPOT_SIBLING_ASSET_RESOLVER": str(second)})
-        self.assertEqual((source.parent / "asset-resolver").resolve(), second.resolve())
+    def test_override_change_moves_the_source_root(self):
+        # Cargo keeps a path dependency's build while its package path is unchanged and
+        # its files are no newer than the last build, so retargeting one link would
+        # reuse artifacts compiled from the previous sibling.
+        first = self.source_root({"DEPOT_SIBLING_ASSET_RESOLVER": str(self.override)})
+        second_override = self.override.parent / "asset-resolver-other"
+        second_override.mkdir()
+        second = self.source_root({"DEPOT_SIBLING_ASSET_RESOLVER": str(second_override)})
+        self.assertNotEqual(second, first)
+        self.assertEqual((second.parent / "asset-resolver").resolve(), second_override.resolve())
+        self.assertEqual((first.parent / "asset-resolver").resolve(), self.override.resolve())
+
+    def test_same_override_keeps_the_source_root(self):
+        first = self.source_root({"DEPOT_SIBLING_ASSET_RESOLVER": str(self.override)})
+        second = self.source_root({"DEPOT_SIBLING_ASSET_RESOLVER": str(self.override)})
+        self.assertEqual(second, first)
 
 
 if __name__ == "__main__":

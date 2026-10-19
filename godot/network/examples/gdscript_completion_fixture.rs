@@ -10,6 +10,7 @@ const FIXTURES: &[(&str, usize)] = &[
     ("trading_post_cart_selection", 7),
     ("trading_post_drag_selection", 7),
     ("trading_post_hover_add", 7),
+    ("trading_post_selected_add", 10),
     ("campsite_selected_hover", 2),
     ("communities_fidelity", 2),
     ("dropdown_caption_centering", 4),
@@ -30,6 +31,7 @@ const FIXTURES: &[(&str, usize)] = &[
     ("achievement_search_preview_keyboard", 24),
     ("achievement_search_full_results", 8),
     ("achievement_search_full_close", 6),
+    ("achievement_card_title_font", 6),
 ];
 
 struct Invocation {
