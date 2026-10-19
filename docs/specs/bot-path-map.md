@@ -4,8 +4,8 @@ Manual Stockade (map 34) observation for the game-server `bot-map` SVG tool. Cap
 
 ## What it must do
 
-- [ ] Default records nothing; explicit `BOT_PATH_MAP_TRACE=1` enables JSONL without changing harness decisions or fixtures.
-- [ ] Record admitted bot positions/facing at the existing client sample cadence and observed combat start/end/death events, retaining source clocks and unknowns.
+- [x] Default records nothing; explicit `BOT_PATH_MAP_TRACE=1` enables JSONL without changing harness decisions or fixtures.
+- [x] Record admitted bot positions/facing at the existing client sample cadence and observed combat start/end/death events, retaining source clocks and unknowns.
 - [ ] Feed one manually invoked top-down SVG with baked walkability, source formation packs, observed end-state, paths/time ticks, combat markers and run/revision/duration legend.
 - [ ] Produce and inspect a real Stockade SVG/PNG.
 
