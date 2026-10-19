@@ -1,6 +1,9 @@
 ## 2026-10-18 — BLP qualification, no extraction
 
 [Boundary and before-only ledger](systems/wow-formats.md#blp-qualification-not-extraction): independent CPU/GPU/icon receipts preserve different normalization, BC5 refusals and malformed-input outcomes. No fifth crate or production/pin/asset change; recommend retaining the existing shared image-blp parser and local consumer policies. Authored180071 remains absent.
+## 2026-10-19 — Online guild zones accepted
+
+[Authority and native provenance](systems/guilds.md#online-member-zone): coordinated gz689 landed P b3a34fe/S e3f3f86c6/E d802433d9; retained server140/0/3ignored. Actual authenticated members prove both skins' Elwynn Forest/Westfall roster/detail, real-position refresh and normal disconnect/offline blank Zone. Six hash-verified unchanged originals published; owned runtimes/window cleared and original historical redb unchanged. Missing authority/privacy remain automated proof. Initial missing Godot class-cache fixture failure and startup warning qualifications retained.
 
 ## 2026-10-19 — Achievement full-search close button
 
@@ -35,6 +38,10 @@
 ## 2026-10-19 — Frozen-source drag retirement native GREEN
 
 [Source/root and fresh native proof](systems/trading-post.md#frozen-products-are-not-drag-sources): Elements495–508 disables frozen pickup; replacement510–521/577–670 already exists. No cached UI caller for ClearFrozenPerksVendorItem; right-click cancels confirmation only. IgnoredCPU0a8 pushed first gives genuine selected/unselected outside Freeze(None)-versus-None REDs plus five controls; root068 removal passes7/7 and tf637 TESTEXIT/PARSE/FMT0/landing. FreshE068/S2e4/Pf9 both skins strict natural7/7/no error markers/full streams,18 observations including six frozen attempts and all ordinary/cart/modal/occupied-cancel controls,13 decoded plays each. Exact authority/local/HUD restored before verdict, XYZ0, two Query only. Forty inspected originals+two contacts published under AgentShared/2026-10-19/trading-post-frozen-source-no-drag; manifest binds five binaries/source/streams/42receipts/original six memory edges/42PNG hashes. Runtime/window cleared04:17:35;1675 unrelated server errors qualified. Server/protocol clear support stays; historical October13 proof qualified, not erased/relabelled; accepted/immediate transactions retain CPU proof.
+
+## 2026-10-17 — Native profession search Clear accepted
+
+[Bounded proof](systems/native-professions-crafting.md#native-search-clear-proof--2026-10-17): Ec62691ee2/S40252e6f1/Pb3a34fe binaries, fixture991c1372d; both skins1920 pass four focus/query states, two coordinate clears each,17px/RIGHT−3 geometry and preserved selection/Favorites/filter/gameplay. Native quantity-EditBox focus transfer replaces failed Filter-blur assumption; Modern explicitly resumes existing favorite. Natural exits0/unique markers/zero errors; twelve inspected state originals published, three setup/cleanup private. Failed/interrupted attempts retained, cancelled old-protocol queue produced no binaries; compatible consumers rebuilt. Runtime/window cleared; other-search/persistence/audio-engine scope unchanged.
 
 ## 2026-10-17 — Profession search clear control implementation
 

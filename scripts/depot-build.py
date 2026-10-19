@@ -341,13 +341,18 @@ def stable_context(cache, mode, checkout_key):
 
 def native_source_root(root, project_name="game-engine", siblings=SIBLINGS):
     """The checkout path Cargo should read. Without DEPOT_SIBLING_* overrides it is `root`;
-    with any, a per-checkout directory of symlinks places `root` beside the overridden
-    siblings, since Cargo resolves the relative path dependencies through it as written."""
+    with any, a directory of symlinks places `root` beside the overridden siblings, since
+    Cargo resolves the relative path dependencies through it as written. The directory is
+    keyed by the sibling targets too: Cargo reuses a path dependency's build while its
+    package path is unchanged and its files are no newer than that build, so retargeting
+    a link in place would keep artifacts compiled from the previous sibling."""
     overrides = {name: sibling_repo(root, name) for name in siblings}
     if all(path == root.parent / name for name, path in overrides.items()):
         return root
     _, checkout_key = prepare_checkout_cache(root)
-    tree = Path.home() / ".cache" / "game-engine" / "native-roots" / checkout_key
+    targets = "\0".join(f"{name}={path.resolve()}" for name, path in sorted(overrides.items()))
+    target_key = hashlib.sha256(os.fsencode(targets)).hexdigest()[:12]
+    tree = Path.home() / ".cache" / "game-engine" / "native-roots" / f"{checkout_key}-{target_key}"
     tree.mkdir(parents=True, exist_ok=True)
     for name, target in {project_name: root, **overrides}.items():
         link = tree / name
