@@ -4828,3 +4828,7 @@ User decision specifies MOBILE_BANKING_COOLDOWN_2H7200000ms over installed360000
 ## 2026-10-19 — Stockade path capture
 
 Added explicit native100ms path trace contract; no server simulation clock claim. Renderer, source-pack dependency and real proof pending.
+
+## 2026-10-19 — Path trace fixture proof
+
+Concrete pose/combat/wipe/boss fixtures3GREEN plus35 default-disabled harness/report controls. Actual Godot opt-in initialization: disabled creates no file, enabled captures exact Vector3 position and two actor facings. Test-only integer-vs-float JSON assertion corrected; no product change. Private admin subprocess actual RED5871→GREEN5981. Real Stockade proof pending.

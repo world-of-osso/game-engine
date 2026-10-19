@@ -1,5 +1,4 @@
 """Admin subprocess receives the private Stockade server port's socket."""
-import os
 from pathlib import Path
 import sys
 import tempfile
@@ -11,7 +10,6 @@ from run_stockade_bot import StockadeRun
 
 
 class StockadeAdminSocketTests(unittest.TestCase):
-    @unittest.skipUnless(os.environ.get("BOT_ADMIN_RED"), "behavioral RED: private server port not wired")
     def test_admin_subprocess_socket_follows_explicit_server_port(self):
         with tempfile.TemporaryDirectory() as directory:
             root = Path(directory)
