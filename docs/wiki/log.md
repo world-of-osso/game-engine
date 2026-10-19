@@ -22,6 +22,10 @@
 ## 2026-10-18 — Shared native menu order
 
 [Source and bounded projection](systems/menu-primitives.md#native-menu-order-2026-10-18): actual guild-menu z563 below Last Online1503 reproduces additive-strata ordering failure. Shared menus use FULLSCREEN_DIALOG; native layers rank densely below the existing highlight plane, with explicit once-reported capacity errors and unchanged pointer policy. Native guild/navigation, tooltip/strata/raise/reused-ID and both dungeon/raid companion controls pass; pointer comparator remains unchanged. Golden census measures50 actual roots, maximum16 layers (GameMenuRoot193frames) versus4000 capacity; Modern golden/hash targets47 pass, with only21 source-qualified menu stratum fields changed. Gatemo592 landed; [refreshed real guild pixels and reopen](systems/guilds.md#native-acceptance-2026-10-18) pass, with caller-wide rendered parity and engine exit cleanup explicitly unclaimed.
+## 2026-10-18 — Source642 fixture presentation lifetime
+
+[Fixture-only boundary](systems/adventure-guide.md#suggested-secondary-text-hover--implementation-2026-10-17): full received vectors exceed three painted panes; one-shot substitution is overwritten by the normal next snapshot copy. Debug-only optional row reapplies to cloned presentation input, preserving authority and tail rows. Actual guard/lifetime REDs retained; no product/truncation change or positive physical claim.
+
 ## 2026-10-18 — Suggested text font-key boundary
 
 [Proof and fixture limits](systems/adventure-guide.md#suggested-secondary-text-hover--implementation-2026-10-17): genuine881/852 both-skin native fitting negatives accepted at55e1, four inspected originals. Product font key misread default16 versus painted18; actual native process RED records241/214 widths inside227.5 allocation. Minimal font_size correction and approved source642row-fed positive fixture await separate gate/window; no realm eligibility/authority claim.
