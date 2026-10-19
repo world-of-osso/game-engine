@@ -108,7 +108,7 @@ fn result_row(entry: &AchievementCatalogEntry, top: f32) -> Element {
         "0.66796875,0.51171875,0.3359375,1",
         "RIGHT",
     ));
-    let action = format!("achievement:preview:{}", entry.achievement_id);
+    let action = format!("achievement:open:{}", entry.achievement_id);
     rsx! {button {name:{DynName(prefix)},width:ROW_WIDTH,height:ROW_HEIGHT,
         left:0.0,top,pos_type:"absolute",onclick:action.as_str(),button_default_skin:false,
         button_atlas_highlight:"search-highlight-large",{children}
