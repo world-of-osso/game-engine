@@ -12,6 +12,10 @@ Authored M2 bone-parent selection and attachment participation follow the user-s
 - [ ] Apply low-bit selection before local animation and billboards, without changing crossfade state or losing affine shear in native skinning.
 - [x] Render an authentic low-bit model before/after at1920×1080 in m2debug.
 
+### Camera-less billboard poses
+- [ ] Without an active camera-facing operation, billboard-only bones retain their sampled position, quaternion and scale, including authored zero scale, without Basis quaternion errors.
+- [ ] Parent-first inheritance, ordinary descendants and the A6 affine/shear contract remain unchanged; no scale/epsilon predicate or skipped authored bone.
+
 ### A7
 - [x] Retain MD20 and SKA1 attachment byte tracks, defaulting missing samples to active1.
 - [x] Sample current parent sequence/local or global timeline; preserve attachment lookup identity and ownership.
@@ -51,6 +55,7 @@ Clean-room user-supplied M2-MAT requirements; W/C labels are provenance only.
 - `godot/rust/src/animation/action_tests.rs` — actual HumanMaleHD `$SCD` marker delivery/consumption while active/inactive.
 - `godot/tests/m2_attachment_activation.gd`, `scripts/agent/m2-anim-fixtures.py` — private solar-spell track fixture with actual equipped item25, child pose writes, callback eligibility, shadows, identity, sequence/control tracks and existing native clock/color-state measurements.
 - `godot/tests/m2_inheritance_pixels.gd` — authentic125913 bone67 flags4/parent12; same-clock ordinary-hierarchy baseline versus restored affine override, native1920×1080.
+- `godot/network/tests/journal_chooser_zero_scale.rs`, `godot/tests/journal_chooser_zero_scale.gd` — ignored CPU-only real Skeleton3D boundary, authentic3049899 idle0/t0; source quaternion/zero-scale retention and zero basis errors.
 
 M2-MAT fixtures:
 - `godot/core/tests/m2_material.rs`, `m2_material_transition.rs` — authentic tint/clock/selection controls, ordinary nonzero interpolation, all local channels/defaults, quaternion composition, interrupted snapshots and thread-scoped allocation counts.
@@ -58,6 +63,8 @@ M2-MAT fixtures:
 - `godot/tests/m2_material_transition.gd` — both skins, same-camera/fixed-clock full-HD before/after and165644 Hold tint control.
 
 ## Known gaps (current cycle)
+
+- [ ] `BILLBOARD_CAMERA_PRESENT_ZERO_SCALE_OVERRIDE_DECOMPOSES`: in-world camera-present billboards with authored zero scale can still reach Godot's decomposing interpolate; excluded from the bounded camera-less correction.
 
 - [ ] A6 runtime-added flags/modern contracts: no allowed-source evidence established. Only authored low bits are implemented.
 - [ ] A6 nonuniform/sheared native palette fixture remains unmeasured. Parent-selection CPU3 and native root/descendant1 pass. Authentic125913 same-clock m2debug native run passes; PNGs inspected at `/syncthing/AgentShared/2026-10-15/m2-anim/a6-125913-{before,after}.png`. Baseline clears affine overrides in the same binary; it is not an old-revision executable. Bone67 keeps its transformed pivot while its inherited tilted basis becomes identity.
