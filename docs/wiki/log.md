@@ -2,8 +2,9 @@
 
 [Contract and implementation](systems/native-professions-crafting.md#learnedunlearned-recipe-filters): source Mainline two default-on checkboxes, shared Filter template/right anchor/search gap; snapshot-only classification and learned-filter-aware Favorites. Pushed ignored screen RED failed at the absent dropdown before implementation. All four visibility combinations, search/empty controls, checkbox art and unchanged ownership are targeted; native acceptance awaits the lead gate/window. No persistence, other filter semantics or wire changes.
 ## 2026-10-19 — Unaccepted freeze selected-texture CPU RED
+## 2026-10-19 — Unaccepted freeze selected texture accepted
 
-[Source/root](systems/trading-post.md#unaccepted-freeze-preview-selected-texture): ignoredc519 tests pushed first, actual Modern/Forever44268-versus0 failures with five phase controls passing. Minimal renderer-only selected-vendor argument correction leaves View/authority untouched and keeps accepted/immediate selection. Tests unignored; current drag diagnostic expects pending0 and explicitly reselects the original frozen product after cancel (12 samples/seven groups). CPU GREEN and parent gate precede fresh native proof; historical169 remains immutable, no server/protocol/audio/label/glow/frozen-policy expansion.
+[Source/root and fresh native proof](systems/trading-post.md#unaccepted-freeze-preview-selected-texture): ignoredc519 pushed first gives actual Modern/Forever44268-versus0 RED plus five phase controls; renderer-only4cd correction passes7/7 and parent pf624 landsd153. FreshEd153/S72ee/Pf9 both skins strict natural7/7/clean complete streams,12 samples/seven groups, ordinary24144/pending0/committed44268 after cancel, nine decoded plays each. Exact authority/local/HUD restored before verdict, XYZ0, two Query only. Twenty-eight inspected originals+two contacts published under AgentShared/2026-10-19/trading-post-pending-freeze; manifest binds five binaries/sources/streams/receipts/original six memory edges. Runtime/window cleared02:20:49. Accepted/immediate remains CPU-qualified; historical169 unchanged; editor-import/unrelated server warnings qualified separately. No server/protocol/audio/label/glow/frozen-policy expansion.
 
 ## 2026-10-17 — Recipe Favorites native reopen accepted
 
@@ -4809,4 +4810,9 @@ User decision specifies MOBILE_BANKING_COOLDOWN_2H7200000ms over installed360000
 
 - 2026-10-18 — Pin projected runtime-ground metadata APIs in wow-formats; preserve selected-field/FDID/error policy and frozen metadata/bake receipt boundaries. [Shared readers](systems/wow-formats.md).
 
+- Journal authored model scenes: cached source/raw camera and actor math implementation; exact native4e612 Ozruk camera RED, GREEN pending.
+
+- Journal capture-isolation: direct viewport paints while owner+1 background covers actor; centre0 native RED, four Journal texture owner-level alignment implemented.
 - 2026-10-18: Pin shared MCNK height-header/MCVT projection; existing full-render parser semantics retained. See [shared formats](systems/wow-formats.md).
+
+- Journal ae3cd native5: genuine Ozruk/Anraphet raw pose and visible central subjects2/2 per skin, four observed originals inspected; retained30deg cropping/FOV and actor0/effect gaps explicitly excluded.
