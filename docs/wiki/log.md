@@ -4826,3 +4826,5 @@ User decision specifies MOBILE_BANKING_COOLDOWN_2H7200000ms over installed360000
 - Journal ae3cd native5: genuine Ozruk/Anraphet raw pose and visible central subjects2/2 per skin, four observed originals inspected; retained30deg cropping/FOV and actor0/effect gaps explicitly excluded.
 
 - Journal display0: genuine Bandit/native and default-source core REDs; Journal-private source-default reader implemented; shared reader/Scene unchanged, native GREEN pending.
+
+- Journal display0 native4: all3 raw states/defaults pass in both skins; Bandit+VoidPulsar base-M2 painted, Raszageth source-exact pose viewport0, full fixtures remain FAIL. Six observed originals inspected; no FOV/effect change or hidden scope reduction.
