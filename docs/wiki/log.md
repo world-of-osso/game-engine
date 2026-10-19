@@ -1,3 +1,7 @@
+## 2026-10-19 — Anomalus fixture-only framing diagnostic
+
+[Scope/source boundary](systems/battle-pets.md#anomalus-indexed-framing-diagnostic--2026-10-19): AABB overflow confirmed; indexed/material-visible clipping unresolved. Pinned70448 scenes33/60 are card/loadout, not battle-camera authority. Owned5971 fixture records same-frame indexed triangle extrema, material/shader/cull/alpha state and camera/viewport/edge crops; original guard/scales/pads/product untouched. Unit absent-triangle RED retained; unit/build/window proof pending, no native acceptance.
+
 ## 2026-10-19 — Ordinary name settled-colour CPU RED
 
 [Source/root](systems/trading-post.md#ordinary-product-name-settled-colours): Elements291–340/Products116–126, GlobalColor NORMAL255/210/0 versus WHITE/HIGHLIGHT. Ignored95e test/spec pushed first gives five genuine WHITE-versus-NORMAL failures/two passing WHITE controls; renderer-only selected/current-hover expression implemented, seven tests unignored. Diagnostic retains18 observations/seven groups and adds six actual native RGBA settled checkpoints without transactions. Targeted GREEN/gate/fresh native pending. `TP_NAME_COLOR_SAME_HOVER_DESELECT_ORDER_UNIMPLEMENTED` remains explicit; no callback/state machinery or frozen-caption/font/layout/authority expansion.
