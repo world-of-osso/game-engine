@@ -1,9 +1,9 @@
 extends "res://tests/adventure_model_scenes.gd"
 # Real installed Journal joins; no injected actors, scenes, defaults or assets.
 const CASES := [
-	[514, 1296, 2644, 5771, 122886, "One-Armed Bandit", 978, 2418, 960],
-	[505, 1319, 2870, 6132, 141206, "Void Pulsar", 1380, 4131, 1361],
-	[503, 1200, 2499, 5385, 103255, "Raszageth the Storm-Eater", 609, 1696, 595],
+	[514, 1296, 2644, 5771, 122886, "One-Armed Bandit", 978, 2418, 960, "EncounterJournalRaidTab"],
+	[505, 1319, 2870, 6132, 141206, "Void Pulsar", 1380, 4131, 1361, "EncounterJournalDungeonTab"],
+	[503, 1200, 2499, 5385, 103255, "Raszageth the Storm-Eater", 609, 1696, 595, "EncounterJournalRaidTab"],
 ]
 
 func run() -> void:
@@ -30,7 +30,7 @@ func select_zero_actor(row: Array) -> bool:
 	if control("EncounterJournalBack") != null and client.adventure_guide_state().instance > 0:
 		if not completion.step(await click("EncounterJournalBack"), "physical Journal Home"):
 			return false
-	if not completion.step(await click("EncounterJournalRaidTab"), "physical raid catalog") or not completion.step(await click("EncounterJournalTierDropdown"), "physical tier menu") or not completion.step(await click("EncounterJournalTier%s" % row[0]), "physical source tier"):
+	if not completion.step(await click(row[9]), "physical source instance-type catalog") or not completion.step(await click("EncounterJournalTierDropdown"), "physical tier menu") or not completion.step(await click("EncounterJournalTier%s" % row[0]), "physical source tier"):
 		return false
 	var name := "JournalInstance%s" % row[1]
 	if not completion.step(await reveal_instance(name), "source instance visible") or not completion.step(await click(name), "physical source instance"):
