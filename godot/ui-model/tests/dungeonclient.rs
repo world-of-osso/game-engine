@@ -1324,6 +1324,71 @@ fn achievements_full_search_presents_received_page_two_and_ignores_late_query_bo
     }
 }
 
+#[test]
+fn achievements_full_search_close_conserves_state_reopens_and_continues_cursor_both_skins() {
+    for skin in [ActiveSkin::Modern, ActiveSkin::Forever] {
+        assets(skin);
+        let mut window = search_preview_window();
+        window.action("achievement:search:level");
+        preview_results(&mut window, "level", 5, Some(10));
+        window.action("achievement:search_all");
+        let before = window.clone();
+        let registry = achievement_registry(&window, skin);
+        let button = registry
+            .get(
+                registry
+                    .get_by_name("AchievementFullSearchClose")
+                    .expect("source full-search close button"),
+            )
+            .unwrap();
+        assert!(window.action(button.onclick.as_deref().unwrap()).is_empty());
+        let mut expected = before.clone();
+        expected.full_search = false;
+        assert_eq!(
+            window, expected,
+            "dismiss changes only full-search presentation"
+        );
+        let dismissed = achievement_registry(&window, skin);
+        assert!(
+            dismissed
+                .get_by_name("AchievementFullSearchResults")
+                .is_none()
+        );
+        assert_eq!(text(&dismissed, "Achievement633Name"), "Stormwind Stockade");
+        assert!(window.action("achievement:search_all").is_empty());
+        assert_eq!(
+            window, before,
+            "reopen conserves exact query/cache/category/cursor state"
+        );
+        assert_eq!(
+            window.action("achievement:more_rows"),
+            vec![QueryAchievementCatalog::Search {
+                text: "level".into(),
+                scope: AchievementScope::All,
+                after_id: 10,
+            }]
+        );
+        window.apply(AchievementCatalogPage::Search {
+            text: "level".into(),
+            scope: AchievementScope::All,
+            achievements: vec![AchievementCatalogEntry {
+                achievement_id: 11,
+                name: "Level 60".into(),
+                ..achievement()
+            }],
+            next_id: None,
+        });
+        assert_eq!(
+            window
+                .entries()
+                .iter()
+                .map(|entry| entry.achievement_id)
+                .collect::<Vec<_>>(),
+            vec![6, 7, 8, 9, 10, 11]
+        );
+    }
+}
+
 fn achievement_registry(window: &AchievementWindow, skin: ActiveSkin) -> FrameRegistry {
     let mut shared = SharedContext::new();
     shared.insert(skin);
