@@ -14,6 +14,14 @@ Retail Mainline Blizzard_PerksProgram and the local C_PerksProgram/PerksActiviti
 - [x] Traveler's Log displays authoritative monthly Tender earned/cap/balance. No invented mail awards. Retail XML defines visible controls; remove unsourced vendor SearchBox, Log/Collections and Freeze/Unfreeze buttons (lead clarification October13).
 - [x] Targeted behavioural tests and inspected private UDP5731 fb_* account PNG proof in Modern and Forever.
 
+## Ordinary product-name settled colours
+
+Retail Elements.lua291–340 uses HIGHLIGHT on enter, NORMAL on unselected leave, and WHITE/NORMAL for SetSelected(true/false); Products.lua116–126 invokes that selection callback. Installed12.1.5.70391 GlobalColor IDs1/2/3 supply NORMAL RGB255/210/0 and WHITE/HIGHLIGHT RGB255/255/255. Preserve callback NORMAL's210/255 green, not the rounded GameFontNormalMed3 template0.82.
+
+- [ ] Settled selected ordinary names stay WHITE, unselected non-hovered names use NORMAL gold, hover uses HIGHLIGHT and leave restores the settled colour. Cart ownership clears ordinary selection/idle labels; return restores existing selection/white label. Preserve text/font/shadow/265×38 geometry, selected art, other row art, selection/audio/cart and authority.
+- [ ] Push seven ignored CPU render tests first; execute genuine current-WHITE-versus-NORMAL RED before production edits with both-skin idle/hover-leave/selection-transfer/cart-return cases and selected-white/frozen-caption-white controls. Then minimal existing selected/product_hover expression, unignored targeted GREEN/scoped format/readability and parent gate before fresh strict both-skin no-transaction native proof/inspected PNGs.
+- [ ] `TP_NAME_COLOR_SAME_HOVER_DESELECT_ORDER_UNIMPLEMENTED`: source SetSelected(false) can set gold even while the pointer remains over that row. This slice qualifies settled states only; native current hover is not the last colour-setting callback. Do not claim that event-order parity or add event/state machinery. Frozen captions/empty instructions stay WHITE; no new flag/type/fallback, font/layout/glow/framing/parser/provider/server/protocol/audio-player or transaction-policy changes. Historical white-name screenshots retain their original scope.
+
 ## Committed frozen-item caption
 
 Retail Elements.lua535–555 compares the displayed vendor ID with the authoritative frozen ID: base SetItemInfo supplies a plain name, then only a committed match receives `format(PERKS_PROGRAM_FROZEN_ITEM_SET, name)`. Cancellation639–655 restores the original item through SetItemInfo. Installed12.1.5.70391 GlobalStrings ID48943 supplies exactly `|cffffffffFreezing:|r\n%s` (active table identical): resolve its white span through the existing WHITE label colour and emit visible `Freezing:\n<name>`, not an invented “Frozen:” string. Native FontString projects to an ordinary Godot Label without a WoW-markup parser, so do not paint literal `|c`/`|r` controls or add a generic parser.

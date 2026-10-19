@@ -8,6 +8,181 @@ use ui_toolkit::{
     screen::{Screen, SharedContext},
 };
 
+fn font_color(registry: &FrameRegistry, name: &str) -> [f32; 4] {
+    let id = registry.get_by_name(name).unwrap();
+    let Some(WidgetData::FontString(font)) = &registry.get(id).unwrap().widget_data else {
+        panic!("Expected font string {name}");
+    };
+    font.color
+}
+
+fn assert_ordinary_idle_name_gold(skin: ActiveSkin) {
+    let mut view = freeze_view();
+    assert_eq!(view.click("perks:select:5").unwrap(), None);
+    assert_eq!(view.take_selection_sounds(), 1);
+    let authority = view.snapshot.clone();
+    let registry = render(skin, view.clone());
+    assert_eq!(text(&registry, "PerksProgramName6"), "Azure Warcloak");
+    assert_eq!(rect(&registry, "PerksProgramName6")[2..], [265., 38.]);
+    assert_eq!(
+        visible_selection_art_area(&registry, "PerksProgramSelected5"),
+        24144.
+    );
+    assert_eq!(font_color(&registry, "PerksProgramName5"), [1., 1., 1., 1.]);
+    assert_eq!(
+        font_color(&registry, "PerksProgramName6"),
+        [1., 210. / 255., 0., 1.],
+        "settled unselected name uses NORMAL_FONT_COLOR: {skin:?}"
+    );
+    assert_eq!(view.snapshot, authority);
+    assert_eq!(view.selected, Some(5));
+    assert_eq!(view.cart, [5, 6]);
+    assert_eq!(view.take_selection_sounds(), 0);
+}
+
+#[test]
+#[ignore = "CPU-first ordinary name-colour regression; execute before renderer changes"]
+fn trading_post_ordinary_name_color_modern_idle_is_normal_gold() {
+    assert_ordinary_idle_name_gold(ActiveSkin::Modern);
+}
+
+#[test]
+#[ignore = "CPU-first ordinary name-colour regression; execute before renderer changes"]
+fn trading_post_ordinary_name_color_forever_idle_is_normal_gold() {
+    assert_ordinary_idle_name_gold(ActiveSkin::Forever);
+}
+
+#[test]
+#[ignore = "CPU-first ordinary name-colour regression; execute before renderer changes"]
+fn trading_post_ordinary_name_color_hover_leave_restores_unselected_gold() {
+    for skin in [ActiveSkin::Modern, ActiveSkin::Forever] {
+        let mut view = freeze_view();
+        view.click("perks:select:5").unwrap();
+        assert_eq!(view.take_selection_sounds(), 1);
+        let authority = view.snapshot.clone();
+        view.product_hover = Some(6);
+        let hovered = render(skin, view.clone());
+        assert_eq!(font_color(&hovered, "PerksProgramName6"), [1., 1., 1., 1.]);
+        assert_eq!(view.selected, Some(5));
+        view.product_hover = None;
+        let left = render(skin, view.clone());
+        assert_eq!(
+            font_color(&left, "PerksProgramName6"),
+            [1., 210. / 255., 0., 1.]
+        );
+        assert_eq!(font_color(&left, "PerksProgramName5"), [1., 1., 1., 1.]);
+        assert_eq!(view.snapshot, authority);
+        assert_eq!(view.cart, [5, 6]);
+        assert_eq!(view.take_selection_sounds(), 0);
+    }
+}
+
+#[test]
+#[ignore = "CPU-first ordinary name-colour regression; execute before renderer changes"]
+fn trading_post_ordinary_name_color_selection_transfer_settles_previous_name_gold() {
+    for skin in [ActiveSkin::Modern, ActiveSkin::Forever] {
+        let mut view = freeze_view();
+        view.click("perks:select:5").unwrap();
+        assert_eq!(view.take_selection_sounds(), 1);
+        let authority = view.snapshot.clone();
+        view.click("perks:select:6").unwrap();
+        assert_eq!(view.take_selection_sounds(), 1);
+        assert_eq!(view.product_hover, None);
+        let registry = render(skin, view.clone());
+        assert_eq!(font_color(&registry, "PerksProgramName6"), [1., 1., 1., 1.]);
+        assert_eq!(
+            font_color(&registry, "PerksProgramName5"),
+            [1., 210. / 255., 0., 1.]
+        );
+        assert_eq!(
+            visible_selection_art_area(&registry, "PerksProgramSelected5"),
+            0.
+        );
+        assert_eq!(
+            visible_selection_art_area(&registry, "PerksProgramSelected6"),
+            24144.
+        );
+        assert_eq!(view.snapshot, authority);
+    }
+}
+
+#[test]
+#[ignore = "CPU-first ordinary name-colour regression; execute before renderer changes"]
+fn trading_post_ordinary_name_color_cart_owner_clears_and_return_restores_white() {
+    for skin in [ActiveSkin::Modern, ActiveSkin::Forever] {
+        let mut view = freeze_view();
+        view.click("perks:select:5").unwrap();
+        assert_eq!(view.take_selection_sounds(), 1);
+        let authority = view.snapshot.clone();
+        view.click("perks:cart:show").unwrap();
+        assert!(view.cart_visible);
+        assert_eq!(view.selected, None);
+        let cart = render(skin, view.clone());
+        assert_eq!(
+            font_color(&cart, "PerksProgramName5"),
+            [1., 210. / 255., 0., 1.]
+        );
+        assert_eq!(
+            font_color(&cart, "PerksProgramName6"),
+            [1., 210. / 255., 0., 1.]
+        );
+        view.click("perks:cart:close").unwrap();
+        assert_eq!(view.selected, Some(5));
+        assert_eq!(view.take_selection_sounds(), 1);
+        let returned = render(skin, view.clone());
+        assert_eq!(font_color(&returned, "PerksProgramName5"), [1., 1., 1., 1.]);
+        assert_eq!(
+            font_color(&returned, "PerksProgramName6"),
+            [1., 210. / 255., 0., 1.]
+        );
+        assert_eq!(view.snapshot, authority);
+        assert_eq!(view.cart, [5, 6]);
+    }
+}
+
+#[test]
+#[ignore = "CPU-first ordinary name-colour control; execute before renderer changes"]
+fn trading_post_ordinary_name_color_selected_hover_and_leave_remain_white() {
+    for skin in [ActiveSkin::Modern, ActiveSkin::Forever] {
+        let mut view = freeze_view();
+        view.click("perks:select:5").unwrap();
+        assert_eq!(view.take_selection_sounds(), 1);
+        for hover in [Some(5), None] {
+            view.product_hover = hover;
+            let registry = render(skin, view.clone());
+            assert_eq!(font_color(&registry, "PerksProgramName5"), [1., 1., 1., 1.]);
+            assert_eq!(
+                visible_selection_art_area(&registry, "PerksProgramSelected5"),
+                24144.
+            );
+            assert_eq!(view.selected, Some(5));
+            assert_eq!(view.take_selection_sounds(), 0);
+        }
+    }
+}
+
+#[test]
+#[ignore = "CPU-first ordinary name-colour control; execute before renderer changes"]
+fn trading_post_ordinary_name_color_frozen_caption_stays_white() {
+    for skin in [ActiveSkin::Modern, ActiveSkin::Forever] {
+        let view = freeze_view();
+        let registry = render(skin, view);
+        assert_eq!(
+            font_color(&registry, "PerksProgramFrozenLabel"),
+            [1., 1., 1., 1.]
+        );
+        assert_eq!(
+            text(&registry, "PerksProgramFrozenLabel"),
+            "Freezing:\nDistinguished Warcloak"
+        );
+        assert_eq!(rect(&registry, "PerksProgramFrozenLabel")[2..], [233., 45.]);
+        assert_eq!(
+            visible_selection_art_area(&registry, "PerksProgramFrozenSelected"),
+            44268.
+        );
+    }
+}
+
 fn assert_frozen_caption_geometry(registry: &FrameRegistry) {
     assert_eq!(rect(registry, "PerksProgramFrozenLabel")[2..], [233., 45.]);
     let label = registry.get_by_name("PerksProgramFrozenLabel").unwrap();
