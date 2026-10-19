@@ -84,6 +84,10 @@ func run_tests() -> void:
 		return
 	if not require(frame.models[0].display_id == 95171, "frame records actual display identity"):
 		return
+	var journal_size: Array = frame.models[0].journal_card_bounds.size
+	var receipt_yaw_size := Vector3(journal_size[0], journal_size[1], journal_size[2])
+	if not require(frame.models[0].journal_card_bounds.meshes == 1 and (receipt_yaw_size - Vector3(0, 1001, 1001)).length() < 0.001, "journal bounds mirror get_aabb (all vertices) under receipt yaw"):
+		return
 	if not require(camera.global_transform == original_camera and mesh.global_transform == original_mesh, "diagnostic never moves camera or mesh"):
 		return
 	if not require(shader_material.get_shader_parameter("transparency") == 0.375, "diagnostic leaves material alpha unchanged"):

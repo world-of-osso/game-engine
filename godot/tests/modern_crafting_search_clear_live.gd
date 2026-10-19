@@ -35,14 +35,20 @@ func run_test() -> void:
 	if not await open_recipe_book():
 		return
 	var before := gameplay_state()
-	if shown(FAVORITE) or shown(CLEAR) or control(SEARCH_FIELD).has_focus():
-		fail("Initial state must be unfavorited with empty unfocused search and hidden Clear")
+	if shown(CLEAR) or control(SEARCH_FIELD).has_focus():
+		fail("Initial search must be empty/unfocused with hidden Clear")
 		return
-	if not await open_favorite_menu(RECIPE, "Set Favorite", "0-prepare-owner-favorite-menu"):
-		return
-	await press(MENU)
-	if not await wait_until(func(): return shown(FAVORITE), "owner Favorite before search-clear controls"):
-		return
+	if shown(FAVORITE):
+		if role != "Modern" or OS.get_environment("SEARCH_CLEAR_RESUME_FAVORITE") != "1":
+			fail("Existing favorite requires explicit Modern resume after the retained interrupted fixture")
+			return
+		print("SEARCH_CLEAR RESUME existing owner favorite; no repeated favorite request")
+	else:
+		if not await open_favorite_menu(RECIPE, "Set Favorite", "0-prepare-owner-favorite-menu"):
+			return
+		await press(MENU)
+		if not await wait_until(func(): return shown(FAVORITE), "owner Favorite before search-clear controls"):
+			return
 	await press(FAVORITE)
 	await press(FILTER)
 	await press(UNLEARNED)
@@ -62,10 +68,9 @@ func run_test() -> void:
 	if not await wait_until(func(): return shown(RECIPE) and not shown(FAVORITE) and shown(CLEAR) and control(SEARCH_FIELD).has_focus(), "typed query shows Clear while omitting Favorites"):
 		return
 	await capture("4-typed-focused-clear-visible")
-	await press(FILTER)
-	if not await wait_until(func(): return not control(SEARCH_FIELD).has_focus() and shown(CLEAR), "nonempty unfocused search retains Clear"):
+	await press("ProfessionsQuantity")
+	if not await wait_until(func(): return control("ProfessionsQuantity").has_focus() and not control(SEARCH_FIELD).has_focus() and shown(CLEAR), "native EditBox focus transfer retains nonempty search Clear"):
 		return
-	await press(FILTER)
 	await capture("5-typed-unfocused-clear-visible")
 	await press(CLEAR)
 	if not await cleared():
