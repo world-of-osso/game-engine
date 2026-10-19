@@ -15,7 +15,7 @@ Mainline `Blizzard_ChatFrameBase/Shared/SlashCommands.lua:793–799` forwards th
 
 ## Implementation inventory
 
-- `godot/ui-model/src/ui/chat_frame.rs`: existing chat command parser; transfer pending.
+- `godot/ui-model/src/ui/chat_frame.rs`: typed `/gleader` route in the existing chat command parser.
 - `godot/rust/src/chat.rs`, `account.rs`, `guild_ranks.rs`: existing input/request/reply boundary.
 - `godot/ui-model/tests/native_guild_ranks.rs`: ignored slash regression.
 
