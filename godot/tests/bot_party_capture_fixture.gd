@@ -8,10 +8,6 @@ class NativeTransforms extends RefCounted:
         return Transform3D(Basis(Vector3.UP, 0.25), Vector3(identity, 2, identity + 10))
 
 func _initialize() -> void:
-    if OS.get_environment("BOT_PARTY_CAPTURE_RED") != "1":
-        print("IGNORED behavioral RED: all-five native transform capture not implemented")
-        quit(0)
-        return
     var capture = load("res://tests/bot_path_capture.gd").new()
     var result: Dictionary = capture.sample_party_actors(NativeTransforms.new(), ["101", "102", "103", "104", "105"])
     if result["actors"].size() != 5:
