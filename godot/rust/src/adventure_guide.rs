@@ -933,7 +933,12 @@ impl GameClient {
                     .ok_or("Journal plain authored animation owner missing")?;
                 // Apply once when this detached model attaches; play_clip retains
                 // the existing crossfade path. Normal UI sync never restarts it.
-                player.bind_mut().play_clip(animation, true)?;
+                let fallbacks = game_engine_core::spell_visual::read_animation_fallbacks(
+                    &self.data_root.join("db2/active"),
+                )?;
+                player
+                    .bind_mut()
+                    .play_plain_clip(animation, true, &fallbacks)?;
             }
             model.set_rotation(Vector3::ZERO);
             let bounds = pet_actor_bounds(&model)?;
