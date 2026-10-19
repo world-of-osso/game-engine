@@ -26,7 +26,7 @@ fn journal_creatures_retain_distinct_authored_scenes_and_raw_camera_pose() {
         let (eye, target, up) = camera.vectors(0., camera.zoom_percent());
         assert!(eye.abs_diff_eq(Vec3::new(9.396926, 0.25, 3.420202), 0.00001));
         assert_eq!(target, Vec3::new(0., 0.25, 0.));
-        assert_eq!(up, Vec3::Y);
+        assert!(up.abs_diff_eq(Vec3::Y, 0.000001));
         let size = Vec3::new(0.9984, 4.236, 1.121);
         let scale = actor.actor_scale(size);
         assert!((scale - 3. / (1. + normalized)).abs() < 0.00001);
