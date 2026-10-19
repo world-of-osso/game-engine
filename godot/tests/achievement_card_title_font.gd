@@ -41,7 +41,7 @@ func check_title_case(forever: bool, kind: String) -> bool:
 		var expected_size := 16 if full else 14
 		if title.get_theme_font_size("font_size") != expected_size:
 			failures.append(kind + " font=" + str(title.get_theme_font_size("font_size")) + " expected=" + str(expected_size))
-		check_vector(title.size, Vector2(400, 12) if full else Vector2(320, 20), kind + " allocation")
+		check_vector(title.size, Vector2(400, 16) if full else Vector2(320, 20), kind + " allocation")
 		if not full:
 			if title.get_theme_color("font_color") != Color.WHITE:
 				failures.append("ordinary title white color changed")
