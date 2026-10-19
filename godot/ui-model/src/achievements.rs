@@ -1970,7 +1970,8 @@ fn achievement_row(
     ));
     content.extend(rsx! {fontstring {name:{DynName(format!("{prefix}Name"))},text:entry.name.as_str(),
         width:320.0,height:20.0,left:90.0,top:{y+6.0},pos_type:"absolute",justify_h:"CENTER",
-        font:GameFont::FrizQuadrata,font_size:12.0,font_color:title_color,onclick:action.as_str(),
+        font:GameFont::FrizQuadrata,font_size:14.0,font_color:title_color,onclick:action.as_str(),
+        shadow_color:"0,0,0,1",shadow_offset:"1,-1",
     }});
     content.extend(rsx! {fontstring {name:{DynName(format!("{prefix}Description"))},text:entry.description.as_str(),
         width:330.0,height:34.0,left:85.0,top:{y+30.0},pos_type:"absolute",justify_h:"CENTER",
