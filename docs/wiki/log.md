@@ -1,3 +1,7 @@
+## 2026-10-19 — Achievement full-search close button
+
+[Source/implementation](systems/dungeon-achievements.md#full-search-close-button):24×24 explicit581,0 close with source exit art; onlyfull_search=false, exact retained state/reopen/cursor controls. Ignored both-skin nativeRED published first and observed6 missing-button assertions; GREEN pending. Whole-frame/Escape/focus/server/totals/progress unchanged.
+
 ## 2026-10-19 — Achievement full-search result template
 
 [Source/presentation/data](systems/dungeon-achievements.md#full-search-result-presentation): separate600×382/575×49 full-search rows, static installed70448 ancestry, received completion/existing ID-open only. Ignored nativeRED observed18 missing-feature assertions; initial native8/focus12 pass. Page-two modelRED exposed preview-only callback cap5; full rows now use existing direct-open action, model34/catalog1 pass at162a64426. Strengthened sixth-row physical native8 pending central gate. No category-card, wire/server, paging, preview, focus/Escape, totals or progress policy changes.
