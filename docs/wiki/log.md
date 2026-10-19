@@ -21,6 +21,10 @@
 [Source/root and exact evidence](systems/trading-post.md#ordinary-product-hover-add-compositing): Elements.xml225–236 ADD overlay; existing native highlight atlas omitted from blend list. Opt-in6be diagnostic pushed first, fixture-only6f3 fixes draw-boundary ownership after separately retained parse/freed-node harness errors. Actual6be/S0406/Pf9 both skins reproduce11802 wrong actual-versus-ADD pixels/zero actual-versus-MIX,11802 ADD/MIX distinction, exact original material restore and stable backdrop/leave. Authority/local/HUD restored before intended exit1, XYZ0/two Query/noTx; runtime/window cleared09:39:22. Single-atlas classification correction and subsequent gate/fresh GREEN are recorded above; this entry retains the original RED cohort. No field/source RED or historical relabeling/frozen-hover/selected-art/event-state expansion.
 
 ## 2026-10-19 — Ordinary name settled-colour native GREEN
+## 2026-10-19 — Journal-card battle pad normalization
+
+[Policy/proof](systems/battle-pets.md#journal-card-pad-normalization--2026-10-19): user decision PET_BATTLE_PAD_USES_JOURNAL_CARD_NORMALIZATION. Pads reuse the journal's pet_actor_bounds and the scene 33 card actor normalization on PetInstanceScale; no cap, pads/camera unchanged. RED Forever 132 left-edge pixels/pads 1.0 → GREEN both skins: Anomalus 0.30712, Rabbit 1.15685, pad = card/7, zero edge pixels. Visibility regression updated to the normalized value, not re-run natively.
+
 ## 2026-10-19 — Anomalus fixture-only framing diagnostic
 
 [Scope/source boundary](systems/battle-pets.md#anomalus-indexed-framing-diagnostic--2026-10-19): fixture unit RED→GREEN and matched builds; Forever native frame7444 confirms actual left-edge clipping, not solely AABB conservatism:879 indexed ally triangles/190 outside,134 alpha-positive left-border pixels. Bottom-overflow batch alpha0/no bottom-border pixels; Rabbit1124 triangles contained. Original guard/scales/pads/camera unchanged, no product fix. Initial slot-local asset-receipt failure resolved by approved preserve-and-link cache/products staging, not product fallback. Native skin-registration error absent; runtime stopped/5971free. Card/loadout scenes33/60 remain no battle-camera authority.
@@ -42,6 +46,10 @@
 ## 2026-10-19 — Frozen-source drag retirement native GREEN
 
 [Source/root and fresh native proof](systems/trading-post.md#frozen-products-are-not-drag-sources): Elements495–508 disables frozen pickup; replacement510–521/577–670 already exists. No cached UI caller for ClearFrozenPerksVendorItem; right-click cancels confirmation only. IgnoredCPU0a8 pushed first gives genuine selected/unselected outside Freeze(None)-versus-None REDs plus five controls; root068 removal passes7/7 and tf637 TESTEXIT/PARSE/FMT0/landing. FreshE068/S2e4/Pf9 both skins strict natural7/7/no error markers/full streams,18 observations including six frozen attempts and all ordinary/cart/modal/occupied-cancel controls,13 decoded plays each. Exact authority/local/HUD restored before verdict, XYZ0, two Query only. Forty inspected originals+two contacts published under AgentShared/2026-10-19/trading-post-frozen-source-no-drag; manifest binds five binaries/source/streams/42receipts/original six memory edges/42PNG hashes. Runtime/window cleared04:17:35;1675 unrelated server errors qualified. Server/protocol clear support stays; historical October13 proof qualified, not erased/relabelled; accepted/immediate transactions retain CPU proof.
+
+## 2026-10-17 — Native profession search Clear accepted
+
+[Bounded proof](systems/native-professions-crafting.md#native-search-clear-proof--2026-10-17): Ec62691ee2/S40252e6f1/Pb3a34fe binaries, fixture991c1372d; both skins1920 pass four focus/query states, two coordinate clears each,17px/RIGHT−3 geometry and preserved selection/Favorites/filter/gameplay. Native quantity-EditBox focus transfer replaces failed Filter-blur assumption; Modern explicitly resumes existing favorite. Natural exits0/unique markers/zero errors; twelve inspected state originals published, three setup/cleanup private. Failed/interrupted attempts retained, cancelled old-protocol queue produced no binaries; compatible consumers rebuilt. Runtime/window cleared; other-search/persistence/audio-engine scope unchanged.
 
 ## 2026-10-17 — Profession search clear control implementation
 

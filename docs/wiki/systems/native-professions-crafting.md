@@ -14,7 +14,15 @@ Verified: 2026-10-11. Engine behavioral source31c2bba12, overlay geometryac11dd7
 
 The [clear contract](../../specs/modern-crafting.md#recipe-search-clear-control) adds the missing profession-specific SearchBoxTemplate control without replacing other search screens. `ProfessionView.search_focused` reads actual native registry focus; the screen shows the authored clear control for focus or nonempty query. The existing `search_for_clear_action`/edit/blur path consumes its action locally, clears registry text and releases native focus. The ordinary profession poll observes the new text; selection, filters and authoritative Favorites are not reset.
 
-Ignored both-skin RED was pushed and failed on the missing clear control before implementation. Tests cover source geometry, all four focus/query combinations and the actual registry click→clear/blur boundary with owner conservation. Native focus/type/single-clear acceptance is pending the lead gate/window; no audio-engine or persistence behavior is introduced.
+Ignored both-skin RED was pushed and failed on the missing clear control before implementation. Two screen tests and one production registry click→clear/blur test pass; pc694 gates and lands the implementation.
+
+### Native search-clear proof — 2026-10-17
+
+Engine binary `c62691ee2`, server `40252e6f1`, protocol `b3a34fe`: both native skins at1920×1080 pass all four focus/query states and two coordinate Clear clicks each (empty-focused and nonempty-unfocused). Clear empties the query, releases search focus and hides itself; selected recipe/favorite instance, owner Favorites and hidden-unlearned filter survive. Final cleanup restores the original unfavorited preference and default visibility; bags/copper/skill remain unchanged and no cast starts. Bounds are Clear `(184,176,17,17)` against search `(42,174,162,20)`, matching source RIGHT−3/vertical centering within native pixel rounding.
+
+Fixture-only `991c1372d` corrects a failed stimulus assumption: clicking Filter does not take native edit focus, so the positive focus-transfer case clicks the existing quantity EditBox. Modern explicitly resumes its already-authoritative favorite instead of repeating the request; Forever prepares its favorite normally. No production code changed after the gate. Both drained clients exit0 with exactly one completion marker, seven/eight unique captures respectively and zero `ERROR`/`SCRIPT ERROR` lines; existing geoset/QuestPOI/MSAA warnings remain.
+
+Evidence SSOT: canonical `data/diagnostics/profession-search-clear-2026-10-17/native-search-clear-proof.json` binds binary/fixture identities, fifteen current PNG hashes, explicit resume, preserved failed/interrupted attempts and cleanup. Twelve inspected state originals: `/syncthing/AgentShared/2026-10-17/profession-search-clear/{Modern,Forever}-{1..6}-*.png`; three current preparation/cleanup captures stay private. Owned processes stop,5951 is unbound and the window is cleared. The initial queued f9 protocol cohort was cancelled before building after the guild online-zone wire change; both real consumers were built againstb3a34fe. No audio-engine, persistence, unrelated search-screen or general renderer-cleanliness claim.
 
 ## Recipe search scroll position
 
