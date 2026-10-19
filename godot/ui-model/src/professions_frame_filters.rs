@@ -25,6 +25,8 @@ pub(super) fn dropdown(view: &ProfessionView, (left, top, width): (f32, f32, f32
         DropdownState {
             style: DropdownStyle::Filter,
             open: view.filter_open,
+            reset_action: (view.book.hide_learned || view.book.hide_unlearned)
+                .then_some("profession:filter:reset"),
             ..Default::default()
         },
     );
