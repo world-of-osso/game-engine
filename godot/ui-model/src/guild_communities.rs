@@ -300,10 +300,13 @@ fn member_row(session: &GuildRanksSession, index: usize, member: &GuildRankMembe
         "1,1,1,1".into()
     };
     let level = profile.map(|m| m.level.to_string()).unwrap_or_default();
-    let zone = profile
-        .filter(|m| !m.is_online)
-        .map(|m| m.last_online.as_str())
-        .unwrap_or("");
+    let zone = profile.map_or("", |member| {
+        if member.is_online {
+            member.online_zone.as_deref().unwrap_or("")
+        } else {
+            member.last_online.as_str()
+        }
+    });
     // Public notes are independent of the server-filtered officer notes.
     let columns = [
         (
