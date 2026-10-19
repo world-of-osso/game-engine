@@ -177,6 +177,7 @@ fn guild_member_note_profile_fields_cross_real_udp() {
                     officer_note: String::new(),
                     is_self,
                     last_online: "Online".into(),
+                    online_zone: None,
                 })
                 .collect(),
         }),

@@ -4896,6 +4896,13 @@ Explicit admitted unit_transform sampling replaces incomplete UnitPick traversal
 
 - Lead accepts primary-hover proof limitation as AG_PRIMARY_TITLE_HOVER_UNEXERCISED_NO_TRUNCATING_SOURCE_ROW; retain only cfg(debug_assertions) primary-index2 source input, no hover correction.
 
+## 2026-10-19 — Online guild zone consumer
+
+Existing online roster/detail labels now consume optional server zone text; offline text/geometry/sorting unchanged. RED proved the empty field; coordinated protocol/server gate and native proof pending.
+
+## 2026-10-19 — Online guild zone targeted GREEN
+
+Actual protocol1, both-skin UI1 and native HostClient server1 pass after their observed REDs. Tests enabled; production area authority/label semantics unchanged by fixture repairs. Coordinated integration gate and native proof next.
 - Journal source239Animation25: actualVakan0vs25 nativeRED before correction; source-gated Journal attach-only existingplayer/crossfade implementation, no per-sync restart or kits/variants/speed/effects scope expansion. NativeGREEN pending.
 
 - Journal plain25 extensioncec5 native2: Vakan/Gholna2/2eachskin, current25/sameplayer progressingclock/rawpose/centralpaint; four originalfullHD captures inspected. Existingcrossfadeimplementationunchanged, curveparityunclaimed; kits/variants/speed/effects and priornamedgaps remainexcluded.
