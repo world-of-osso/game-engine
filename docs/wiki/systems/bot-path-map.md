@@ -23,3 +23,5 @@ Every row has `at_ms` Unix milliseconds, `simulation_s` (null: not exposed by th
 Already-read party rosters are appended only when enabled to `bot-path-party.jsonl`; final trace emits `party_sample` and `wipe` only when a complete observed admitted-party roster is simultaneously dead. Partial deaths, missing members and target changes never imply a wipe. Host monotonic timestamps are explicitly `python_host_monotonic`, not comparable with Godot process ticks.
 
 Known authored boss `spawn_guid`↔native entity mappings already held by the harness produce `spawn_state(alive=false)` only when that exact entity has an actual combat-log death. Missing deaths or unmapped trash remain UNKNOWN. No end-state ALIVE is inferred from the initial boss snapshot.
+
+Private runs select the matching admin socket with `run_stockade_bot.py --server-port 5981`; default5871 preserves the existing owner workflow when no override is supplied. Server must itself bind the corresponding private socket.

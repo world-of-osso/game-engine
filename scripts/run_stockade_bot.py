@@ -92,7 +92,8 @@ class StockadeRun:
                          ["--socket", self.args.socket, *words])
 
     def admin(self, *words):
-        environment = dict(os.environ, GAME_SERVER_ADMIN_SOCKET="/tmp/game-server-admin-5871.sock")
+        environment = dict(os.environ, GAME_SERVER_ADMIN_SOCKET=
+                           f"/tmp/game-server-admin-{self.args.server_port}.sock")
         return self.call(self.args.server / "target/debug/game-server-admin", words, environment)
 
     def account(self):
@@ -541,10 +542,14 @@ def main():
     for name in ("engine", "server", "world-db", "navmesh", "output", "socket", "server-log"):
         parser.add_argument("--" + name, type=Path, required=True)
     parser.add_argument("--character", required=True)
+    parser.add_argument("--server-port", type=int, default=5871,
+                        help="Private server port; selects /tmp/game-server-admin-PORT.sock")
     parser.add_argument("--spec", type=int, default=72)
     parser.add_argument("--exit-only", action="store_true", help="Walk a persisted owner through the authored exit before a fresh run")
     parser.add_argument("--timeout", type=float, default=7200)
     args = parser.parse_args()
+    if not 1 <= args.server_port <= 65535:
+        parser.error("Server port must be in1..65535")
     if args.timeout <= 0 or (args.output / "run.json").exists():
         parser.error("Positive time bound and unused output required")
     controller = StockadeRun(args)
