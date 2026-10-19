@@ -2,6 +2,16 @@
 
 Verified: 2026-10-17 for section-focus flash; earlier receipts retain their recorded revisions. The [contract](../../specs/adventure-guide.md) owns Retail Mainline behavior; Forever only changes the shared screen's art.
 
+## Raszageth projection diagnostic
+
+`JOURNAL_RASZAGETH_ZOOM05_Z5_PAINTS_ZERO` remains unfixed. A [read-only native fixture](../../../godot/tests/adventure_raszageth_frustum.gd), based on accepted actor0 headc299, captures the existing extension2a49 without changing camera/actor/projection/culling/material state. It preserves source-default and raw-pose assertions and checks before/after root transforms. Its diagnostic1/1 exit0 certifies measurements, not successful creature painting.
+
+Actual Modern viewport390×423 uses perspective mode0, KEEP_HEIGHT1, verticalFOV30°, aspect.9219858156, near.050000000745/far100. Actual transformed geometry spansY4.817181–5.182819 while cameraY=.05. Native TOP plane alone rejects all8 geometry corners, with signed distances4.279771–4.994938; the custom/cull bound is also rejected by TOP alone (3.864888–5.528493). NEAR/FAR do not exclude the whole box. Projection columns, raw/effective camera transforms, mesh/custom bounds, margins, all six planes and projected corners are retained in private `adventure-guide11-proof/modern-raszageth-frustum.json`. Direct viewport pixels remain0; the original1920×1080 observed frame and390×423 transparent viewport PNG were individually inspected.
+
+The subsequent [Retail-cache projection reference packet](../reference/journal-modelscene-projection-packet.md) traces the exact XML/template/OrbitCamera chain and schema: no numeric Journal projection/clip default or corrective pose semantic is supplied; native defaults and position-scale composition remain explicitly unknown. This agrees with the prior analytical TOP rejection rather than a near/far limit issue. No source-to-engine pose mismatch was demonstrated; native Retail default projection/actor-position semantics remain unsourced. Stop corrective changes here: no guessed camera, FOV, clip override, actor repositioning or culling toggle. A matching engine pose is not proof of opaque Retail C API semantics. Full actor0 painted fixtures remain failed at Raszageth in the [actor0 coverage](#journal-actor-display-id0-defaults--implementation); VoidPulsar's independent visual-kit appearance gap remains unchanged.
+
+Sources: accepted source rows and native4 receipt; [`diagnostic fixture`](../../../godot/tests/adventure_raszageth_frustum.gd); cached Retail EJ Lua1463–1467, ModelSceneMixin429–438, OrbitCameraMixin; documented Camera3D.get_frustum plane order (linked in fixture).
+
 ## Journal actor display-ID0 defaults — implementation
 
 The [contract](../../specs/adventure-guide.md#encounter-model-creatures) follows cached Retail ModelSceneActorMixin ApplyFromModelSceneActorInfo's explicit no-display arm: requestedScale1, alpha1, animation0. Journal-local `read_creature_actor` reads those defaults only when its source `creature` actor has UiModelSceneActorDisplayID0, preserving every authored transform field and the existing camera path. Nonzero displays still use the existing shared reader; that reader, shared Scene, projection and effect behavior remain unchanged.
