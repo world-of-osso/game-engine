@@ -1,9 +1,14 @@
+## 2026-10-18 — Trading Post held drag timing accepted
+
+[Native proof](systems/trading-post.md#fresh-native-drag-green): fixture-first785 actual both-skin RED→D7 extension/production9a/fixture169 fresh7/7 each, same11 observations/seven groups, B/art/+1 before release/no duplicate/repeat/outside/cart/modal/occupied-cancel. Exact authority/local/HUD restoration, XYZ0, two Query only; eight decoded plays each. td613 lands source01beef after full family/fixture/gdscript/fmt gate. Twenty-six inspected originals plus two contacts published under AgentShared/2026-10-18/trading-post-drag-selection; proof manifest binds sources/binaries/streams/original six success edges. Window/runtime cleared23:13:53. Approved fixture-only pending-art44268 conservation is not Retail parity; rejected server-only/over-broad-oracle attempts remain retained.
+
 ## 2026-10-18 — Trading Post held drag timing RED
 
 [Source/root/proof](systems/trading-post.md#drag-start-selection-timing--native-red): fixture785 pushed before production; actual both-skin first-held activation stays A642/734 with A-art24144/B-art0 and sound delta0 instead of B848/640/+1. Eleven observations/seven groups collected and exact state restored before genuine assertion exit1; clean native error streams, XYZ0, two Query only. Window/runtime cleared22:00:25. Correction selects through existing product ownership/callbacks on first activation and removes release selection; focused model controls/fresh native GREEN pending. No server/protocol/provider/frozen-drag/audio-player expansion.
 ## 2026-10-17 — Character-owned recipe Favorites
 
 [Native professions](systems/native-professions-crafting.md#recipe-favorites) consumes authoritative favorite IDs, source right-click menus and separate favorite/ordinary instances. Search omits only the Favorites group; pending requests do not mutate ownership. Server/client reopen and native acceptance remain pending the atomic consumer gate.
+[Source/root/proof](systems/trading-post.md#drag-start-selection-timing): fixture785 pushed before production; actual both-skin first-held activation stays A642/734 with A-art24144/B-art0 and sound delta0 instead of B848/640/+1. Eleven observations/seven groups collected and exact state restored before genuine assertion exit1; clean native error streams, XYZ0, two Query only. Window/runtime cleared22:00:25. Correction selects through existing product ownership/callbacks on first activation and removes release selection; focused model controls/fresh native GREEN pending. No server/protocol/provider/frozen-drag/audio-player expansion.
 
 ## 2026-10-18 — Search selection native focus
 
