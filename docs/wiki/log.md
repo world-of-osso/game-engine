@@ -1,3 +1,6 @@
+## 2026-10-18 — Trading Post held drag timing RED
+
+[Source/root/proof](systems/trading-post.md#drag-start-selection-timing--native-red): fixture785 pushed before production; actual both-skin first-held activation stays A642/734 with A-art24144/B-art0 and sound delta0 instead of B848/640/+1. Eleven observations/seven groups collected and exact state restored before genuine assertion exit1; clean native error streams, XYZ0, two Query only. Window/runtime cleared22:00:25. Correction selects through existing product ownership/callbacks on first activation and removes release selection; focused model controls/fresh native GREEN pending. No server/protocol/provider/frozen-drag/audio-player expansion.
 ## 2026-10-17 — Character-owned recipe Favorites
 
 [Native professions](systems/native-professions-crafting.md#recipe-favorites) consumes authoritative favorite IDs, source right-click menus and separate favorite/ordinary instances. Search omits only the Favorites group; pending requests do not mutate ownership. Server/client reopen and native acceptance remain pending the atomic consumer gate.
@@ -26,6 +29,14 @@
 ## 2026-10-18 — Shared native menu order
 
 [Source and bounded projection](systems/menu-primitives.md#native-menu-order-2026-10-18): actual guild-menu z563 below Last Online1503 reproduces additive-strata ordering failure. Shared menus use FULLSCREEN_DIALOG; native layers rank densely below the existing highlight plane, with explicit once-reported capacity errors and unchanged pointer policy. Native guild/navigation, tooltip/strata/raise/reused-ID and both dungeon/raid companion controls pass; pointer comparator remains unchanged. Golden census measures50 actual roots, maximum16 layers (GameMenuRoot193frames) versus4000 capacity; Modern golden/hash targets47 pass, with only21 source-qualified menu stratum fields changed. Gatemo592 landed; [refreshed real guild pixels and reopen](systems/guilds.md#native-acceptance-2026-10-18) pass, with caller-wide rendered parity and engine exit cleanup explicitly unclaimed.
+## 2026-10-18 — Source642 bounded native hover proof
+
+[Exact revisions and limits](systems/adventure-guide.md#suggested-secondary-text-hover--implementation-2026-10-17): native6both-skin3/3, actual642description5lines/4visible, fullwhitewrappedRighttooltip/leavehidden/fittingtitle-negative. Six full-HD originals individually inspected; extension39d4393bd and fixtureb2a629cb3 receipts remain distinct. Source-record-fed fixture only, no realm eligibility/authority claim; genuine881/852negatives remain separate55e1 evidence. Failed fixture attempts retained, independent gate lead-owned.
+
+## 2026-10-18 — Source642 fixture presentation lifetime
+
+[Fixture-only boundary](systems/adventure-guide.md#suggested-secondary-text-hover--implementation-2026-10-17): full received vectors exceed three painted panes; one-shot substitution is overwritten by the normal next snapshot copy. Debug-only optional row reapplies to cloned presentation input, preserving authority and tail rows. Actual guard/lifetime REDs retained; no product/truncation change or positive physical claim.
+
 ## 2026-10-18 — Suggested text font-key boundary
 
 [Proof and fixture limits](systems/adventure-guide.md#suggested-secondary-text-hover--implementation-2026-10-17): genuine881/852 both-skin native fitting negatives accepted at55e1, four inspected originals. Product font key misread default16 versus painted18; actual native process RED records241/214 widths inside227.5 allocation. Minimal font_size correction and approved source642row-fed positive fixture await separate gate/window; no realm eligibility/authority claim.
@@ -4776,3 +4787,5 @@ User decision specifies MOBILE_BANKING_COOLDOWN_2H7200000ms over installed360000
 - 2026-10-18 — Extract M2/skin, WMO, ADT/WDT parsing into public wow-formats; document ownership/features, unchanged core assembly and conserved 259 tests (225 moved/34 authored fixtures retained). [Shared readers](systems/wow-formats.md).
 
 - 2026-10-18 — Bump wow-formats pin for independent materials/static-attachments features and raw geometry metadata; default client features unchanged. [Shared readers](systems/wow-formats.md).
+
+- 2026-10-18 — Pin projected runtime-ground metadata APIs in wow-formats; preserve selected-field/FDID/error policy and frozen metadata/bake receipt boundaries. [Shared readers](systems/wow-formats.md).
