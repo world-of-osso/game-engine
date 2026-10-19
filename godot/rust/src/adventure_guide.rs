@@ -60,16 +60,25 @@ impl GameClient {
                 .activities
                 .as_deref()
                 .ok_or("Source-row fixture needs a received activity snapshot")?;
-            if current.suggestions.len() != 3 {
-                return Err("Source-row fixture needs the existing three-pane input".into());
-            }
             let mut snapshot = current.clone();
-            snapshot.suggestions[0] = row;
+            replace_suggestion_642_fixture(&mut snapshot.suggestions, row)?;
             self.adventure_guide.view.activities = Some(Arc::new(snapshot));
             self.sync_adventure_guide()
         })();
         result.err().unwrap_or_default().as_str().into()
     }
+}
+
+#[cfg(debug_assertions)]
+fn replace_suggestion_642_fixture(
+    received: &mut [shared::protocol::AdventureSuggestion],
+    source: shared::protocol::AdventureSuggestion,
+) -> Result<(), String> {
+    if received.len() != 3 {
+        return Err("Source-row fixture needs the existing three-pane input".into());
+    }
+    received[0] = source;
+    Ok(())
 }
 
 #[cfg(debug_assertions)]
@@ -100,6 +109,33 @@ fn read_suggestion_642_fixture(
 mod tests {
     use super::AdventureGuide;
     use shared::protocol::EncounterStart;
+
+    #[test]
+    fn suggestion_fixture_preserves_received_rows_beyond_the_three_painted_panes() {
+        let root = std::path::Path::new(env!("CARGO_MANIFEST_DIR")).join("../../data");
+        let source = super::read_suggestion_642_fixture(&root).unwrap();
+        for count in [0, 2, 3, 5] {
+            let mut received: Vec<_> = (0..count)
+                .map(|index| {
+                    let mut row = source.clone();
+                    row.id = 881 + index;
+                    row.name = format!("Received row {index}");
+                    row
+                })
+                .collect();
+            let before = received.clone();
+            let result = super::replace_suggestion_642_fixture(&mut received, source.clone());
+            if count < 3 {
+                assert!(result.is_err());
+                assert_eq!(received, before);
+            } else {
+                result.expect("a complete eligible vector can contain more than three rows");
+                assert_eq!(received[0], source);
+                assert_eq!(received[1..], before[1..]);
+                assert_eq!(received.len(), before.len());
+            }
+        }
+    }
 
     #[test]
     fn suggestion_fixture_reads_installed_record_642_without_action_authority() {
