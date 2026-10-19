@@ -1,3 +1,7 @@
+## 2026-10-18 — BLP qualification, no extraction
+
+[Boundary and before-only ledger](systems/wow-formats.md#blp-qualification-not-extraction): independent CPU/GPU/icon receipts preserve different normalization, BC5 refusals and malformed-input outcomes. No fifth crate or production/pin/asset change; recommend retaining the existing shared image-blp parser and local consumer policies. Authored180071 remains absent.
+
 ## 2026-10-19 — Achievement full-search close button
 
 [Source/implementation](systems/dungeon-achievements.md#full-search-close-button):24×24 explicit581,0 close with source exit art; onlyfull_search=false, exact retained state/reopen/cursor controls. Ignored nativeRED first/6 missing-button assertions→strict both-skin native6/6; model35/35 exact window equality/reopen/cursor continuation at11550ddf3. No duplicate native replay; central acceptance pending. Whole-frame/Escape/focus/server/totals/progress unchanged.
