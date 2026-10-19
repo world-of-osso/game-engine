@@ -4789,3 +4789,5 @@ User decision specifies MOBILE_BANKING_COOLDOWN_2H7200000ms over installed360000
 - 2026-10-18 — Bump wow-formats pin for independent materials/static-attachments features and raw geometry metadata; default client features unchanged. [Shared readers](systems/wow-formats.md).
 
 - 2026-10-18 — Pin projected runtime-ground metadata APIs in wow-formats; preserve selected-field/FDID/error policy and frozen metadata/bake receipt boundaries. [Shared readers](systems/wow-formats.md).
+
+- 2026-10-18: Pin shared MCNK height-header/MCVT projection; existing full-render parser semantics retained. See [shared formats](systems/wow-formats.md).
