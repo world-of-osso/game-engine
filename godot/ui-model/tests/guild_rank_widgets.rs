@@ -1045,6 +1045,49 @@ fn guild_communities_roster_uses_profile_metadata_without_exposing_officer_notes
     assert!(reg.get_by_name("GuildMember0Class").is_some());
 }
 
+#[test]
+#[ignore = "behavioral RED: existing roster and detail zone fields are blank"]
+fn guild_online_zone_roster_and_detail_follow_authority_both_skins() {
+    let _lock = SKIN.lock().unwrap_or_else(|poison| poison.into_inner());
+    let profile = |online: bool, zone: Option<&str>| -> GuildSnapshot {
+        serde_json::from_value(serde_json::json!({
+            "guild_id": 7, "guild_name": "Raid Team", "tabard": null, "created_at": null,
+            "motd": "", "info_text": "", "members": [
+                {"character_name":"Cara", "level":32, "class_name":"Paladin", "rank_name":"Initiate",
+                 "is_online":online, "officer_note":"private", "public_note":"healer", "is_self":false,
+                 "last_online": if online {"Online"} else {"Yesterday"}, "online_zone":zone},
+                {"character_name":"Dora", "level":32, "class_name":"Mage", "rank_name":"Member",
+                 "is_online":true, "officer_note":"", "public_note":"", "is_self":false,
+                 "last_online":"Online", "online_zone":"Westfall"}
+            ]
+        })).unwrap()
+    };
+    for skin in [ActiveSkin::Modern, ActiveSkin::Forever] {
+        set_thread_skin(skin);
+        let mut session = member_rank_assignment_session(0, 0, 3);
+        session.profile = Some(profile(true, Some("Elwynn Forest")));
+        let reg = mounted(&session);
+        assert_eq!(text(&reg, "GuildMember0Zone"), "Elwynn Forest");
+        assert_eq!(text(&reg, "GuildMember1Zone"), "Westfall");
+        assert_eq!(text(&reg, "GuildMemberDetailZone"), "Elwynn Forest");
+        assert_eq!(action(&reg, "GuildMember0"), "guild:member:Cara");
+        assert_eq!(text(&reg, "GuildMember0Note"), "healer");
+        session.profile = Some(profile(true, Some("Westfall")));
+        assert_eq!(
+            text(&mounted(&session), "GuildMemberDetailZone"),
+            "Westfall"
+        );
+        session.profile = Some(profile(true, None));
+        let unknown = mounted(&session);
+        assert_eq!(text(&unknown, "GuildMember0Zone"), "");
+        assert_eq!(text(&unknown, "GuildMemberDetailZone"), "");
+        session.profile = Some(profile(false, None));
+        let offline = mounted(&session);
+        assert_eq!(text(&offline, "GuildMember0Zone"), "Yesterday");
+        assert_eq!(text(&offline, "GuildMemberDetailZone"), "");
+    }
+}
+
 fn member_rank_assignment_session(own_rank: u8, rights: u32, target_rank: u8) -> GuildRanksSession {
     let mut session = GuildRanksSession::default();
     session.open();
