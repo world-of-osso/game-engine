@@ -14,6 +14,14 @@ Retail Mainline Blizzard_PerksProgram and the local C_PerksProgram/PerksActiviti
 - [x] Traveler's Log displays authoritative monthly Tender earned/cap/balance. No invented mail awards. Retail XML defines visible controls; remove unsourced vendor SearchBox, Log/Collections and Freeze/Unfreeze buttons (lead clarification October13).
 - [x] Targeted behavioural tests and inspected private UDP5731 fb_* account PNG proof in Modern and Forever.
 
+## Ordinary product-hover ADD compositing
+
+Retail Elements.xml225–236 declares full-row HighlightTexture `perks-list-hover` with ADD; Elements.lua291–304 shows it on enter and315–328 hides it on leave. This slice owns only the existing ordinary hover overlay's blend classification, not frozen hover activation or the separate selected texture.
+
+- [ ] Push an explicit-opt-in pixel diagnostic before production edits. `trading_post_hover_add.gd` uses the real ordinary row/atlas/input, an opaque diagnostic backdrop, actual material versus forced native ADD/MIX references, source PNG, lossless frame comparisons and leave/restore controls. Restore material/backdrop/authority/local/HUD before verdict, including RED. Require a genuine rendered difference; if authored pixels do not distinguish ADD/MIX, report that evidence instead of inventing RED. Source/field/compile/missing-asset assertions are not behavioral RED.
+- [ ] After genuine RED, change only the existing atlas's additive classification; commit before targeted GREEN/format/readability, parent gate and fresh strict both-skin native proof with known seven checked-await cases/natural exit/unique marker/clean complete streams. No transactions; exact Tender/reservation/collection/cart/selection/HUD/XYZ conservation, inspected PNGs and source/binary/pixel provenance required.
+- [ ] Preserve texture/tint/alpha/bounds/z/lifetime, selected art, settled name colours/frozen caption, tooltip/cart/audio and authority. No generic blend architecture/new widget/state/type/flag/fallback, frozen-hover/selected-art/font/framing/provider/server/protocol/policy expansion. `TP_NAME_COLOR_SAME_HOVER_DESELECT_ORDER_UNIMPLEMENTED` remains open; historical hover screenshots are not relabeled as blend proof.
+
 ## Ordinary product-name settled colours
 
 Retail Elements.lua291–340 uses HIGHLIGHT on enter, NORMAL on unselected leave, and WHITE/NORMAL for SetSelected(true/false); Products.lua116–126 invokes that selection callback. Installed12.1.5.70391 GlobalColor IDs1/2/3 supply NORMAL RGB255/210/0 and WHITE/HIGHLIGHT RGB255/255/255. Preserve callback NORMAL's210/255 green, not the rounded GameFontNormalMed3 template0.82.
