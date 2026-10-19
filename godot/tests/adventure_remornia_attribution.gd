@@ -5,6 +5,7 @@ class PhaseErrors extends Logger:
 	var mutex := Mutex.new()
 	var phase := "startup"
 	var events: Array[Dictionary] = []
+	var basis_error_total := 0
 
 	func tag(value: String) -> void:
 		mutex.lock()
@@ -16,8 +17,16 @@ class PhaseErrors extends Logger:
 		for trace in script_backtraces:
 			traces.append(str(trace))
 		mutex.lock()
+		if function == "get_quaternion" and file.ends_with("basis.cpp"):
+			basis_error_total += 1
 		events.append({"phase":phase,"ticks_usec":Time.get_ticks_usec(),"frame":Engine.get_process_frames(),"function":function,"file":file,"line":line,"code":code,"rationale":rationale,"error_type":error_type,"script_backtraces":traces})
 		mutex.unlock()
+
+	func count_basis_errors() -> int:
+		mutex.lock()
+		var result := basis_error_total
+		mutex.unlock()
+		return result
 
 	func drain() -> Array[Dictionary]:
 		mutex.lock()
