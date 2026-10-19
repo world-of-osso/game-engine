@@ -1196,6 +1196,71 @@ fn achievements_search_preview_clear_blur_and_late_replies_both_skins() {
     }
 }
 
+#[test]
+fn achievements_search_keyboard_cursor_show_all_continues_received_pages_both_skins() {
+    for skin in [ActiveSkin::Modern, ActiveSkin::Forever] {
+        assets(skin);
+        let mut window = search_preview_window();
+        window.action("achievement:search:level");
+        preview_results(&mut window, "level", 5, Some(10));
+        window.action("achievement:search_move:-1");
+        window.action("achievement:search_submit");
+        assert!(window.full_search);
+        assert_eq!(window.search_text, "level");
+        assert_eq!(
+            text(&achievement_registry(&window, skin), "Achievement6Name"),
+            "Level 10"
+        );
+        assert_eq!(
+            window.action("achievement:more_rows"),
+            vec![QueryAchievementCatalog::Search {
+                text: "level".into(),
+                scope: AchievementScope::All,
+                after_id: 10,
+            }]
+        );
+        window.apply(AchievementCatalogPage::Search {
+            text: "level".into(),
+            scope: AchievementScope::All,
+            achievements: vec![AchievementCatalogEntry {
+                achievement_id: 11,
+                name: "Level 60".into(),
+                ..achievement()
+            }],
+            next_id: None,
+        });
+        assert_eq!(
+            window
+                .entries()
+                .iter()
+                .map(|entry| entry.achievement_id)
+                .collect::<Vec<_>>(),
+            vec![6, 7, 8, 9, 10, 11]
+        );
+        assert_eq!(window.selected_achievement, Some(6));
+    }
+}
+
+#[test]
+fn achievements_search_keyboard_late_other_query_preserves_selected_received_id_both_skins() {
+    for skin in [ActiveSkin::Modern, ActiveSkin::Forever] {
+        assets(skin);
+        let mut window = search_preview_window();
+        window.action("achievement:search:level");
+        preview_results(&mut window, "level", 6, None);
+        window.action("achievement:search_select:2");
+        preview_results(&mut window, "obsolete", 1, None);
+        let requests = window.action("achievement:search_submit");
+        assert!(requests.contains(&QueryAchievementCatalog::Achievement { achievement_id: 8 }));
+        assert_eq!(window.selected_achievement, Some(8));
+        assert!(window.search_text.is_empty());
+        assert_eq!(
+            text(&achievement_registry(&window, skin), "AchievementEmpty"),
+            "Loading achievement..."
+        );
+    }
+}
+
 fn achievement_registry(window: &AchievementWindow, skin: ActiveSkin) -> FrameRegistry {
     let mut shared = SharedContext::new();
     shared.insert(skin);
