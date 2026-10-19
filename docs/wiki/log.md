@@ -5,6 +5,10 @@
 
 [Native professions](systems/native-professions-crafting.md#recipe-favorites) consumes authoritative favorite IDs, source right-click menus and separate favorite/ordinary instances. Search omits only the Favorites group; pending requests do not mutate ownership. Server/client reopen and native acceptance remain pending the atomic consumer gate.
 
+## 2026-10-18 — Achievement preview keyboard
+
+[Source and proof scopes](systems/dungeon-achievements.md#search-preview-keyboard-selection--2026-10-18): ignored native RED pushed first,24 cases/46 expected assertions; source shared index/selected overlay/arrows/hover/Enter then strict headless24/24 +retainedfocus12/12. Actual selected requests6/8/7 per skin include batched Down+Enter; short/pending/empty continue typing. Explicit UI metadata, no transport/progress/totals or painted-raster claim. Moving-dependency compile prerequisite kept separate; resource-bearing Rust wrapper and model/type scopes distinct.
+
 ## 2026-10-18 — Search selection native focus
 
 [Source/proof](systems/dungeon-achievements.md#search-selection-focus-release--2026-10-18): cachedLua3594–3604/3669–3676 ClearFocus after successful Show All/received-preview open only. Pushed RED first gives four actualtrue/expectedfalse cases; unchanged eight invalid/no-op controls. Native-only release then strict12/12GREEN, query/body preserved; common runner expected12. Earlier fixture screen-init error remains separate, no realm/progress/keyboard-nav/server change.
