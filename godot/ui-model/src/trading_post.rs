@@ -599,7 +599,17 @@ fn catalog_controls(ctx: &SharedContext, view: &View, snapshot: &TradingPostSnap
         (30., 51., 527. - 60., 3.),
     ));
     inner.extend(sort_headers(view));
-    inner.extend(frozen_row(snapshot, view.selected, view.freeze_candidate));
+    // SetItemInfo previews a replacement; only FreezeDraggedItem selects it.
+    let frozen_selection = if view.confirm.as_deref() == Some("freeze") {
+        None
+    } else {
+        view.selected
+    };
+    inner.extend(frozen_row(
+        snapshot,
+        frozen_selection,
+        view.freeze_candidate,
+    ));
     let mut out = rsx! {r#frame{name:"PerksProgramProductsScrollBoxContainer",left:CONTAINER_X,top:CONTAINER_Y,width:527.0,height:751.0,pos_type:"absolute",frame_level:1000.0,{inner}}};
     out.extend(retail_filter(view));
     if view.dropdown {

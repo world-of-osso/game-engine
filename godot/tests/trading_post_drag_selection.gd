@@ -4,8 +4,7 @@ extends "res://tests/trading_post_cart_selection.gd"
 var drag_observations: Array = []
 var source_a := 0
 var source_b := 0
-# Preserve the observed RED presentation, not Retail pending-frozen-art parity.
-const RED_PENDING_FROZEN_ART_AREA := 44268.0
+# Historical169 conserved44268; the selected-texture slice now requires0 before accept.
 const HELD_OBSERVATIONS := ["below-existing-threshold", "first-held-activation", "repeated-held-motion", "already-selected-held-silent", "cart-owner-held-selection", "occupied-drop-before-release"]
 
 func run_cases() -> bool:
@@ -127,7 +126,9 @@ func occupied_drop_case() -> bool:
 	if not await until(func(): return control("PerksProgramConfirmDialog") != null,"unaccepted freeze replacement dialog"): return false
 	if not await observe_drag(7,"occupied-drop-no-duplicate",source_b,count+1,false,true): return false
 	if not await click_checked("PerksProgramConfirmCancelButton"): return false
-	return gate.require(not client.trading_post_state().pending and int(client.trading_post_state().frozen) == int(baseline.frozen),"cancel never changes authority")
+	if not gate.require(not client.trading_post_state().pending and int(client.trading_post_state().frozen) == int(baseline.frozen),"cancel never changes authority"): return false
+	if not await click_checked("PerksProgramFrozenSlot"): return false
+	return await observe_drag(7,"committed-frozen-after-cancel",int(baseline.frozen),count+2,false,false)
 
 func restore_drag_state() -> bool:
 	if not await only_type(0): return false
@@ -168,11 +169,13 @@ func assert_drag_observation(data: Dictionary) -> bool:
 	elif int(data.expected_selected) == source_a:
 		if not gate.require(float(data.art_a) > 0. and float(data.art_b) == 0.,"source A art below threshold"): return false
 	else:
-		if not gate.require(float(data.art_a) == 0. and float(data.art_b) == 0.,"modal product art remains clear"): return false
+		if not gate.require(float(data.art_a) == 0. and float(data.art_b) == 0.,"ordinary product art remains clear"): return false
 	if str(data.label) in HELD_OBSERVATIONS:
 		if not gate.require(float(data.frozen_art) == 0.,"frozen art clear before release at "+str(data.label)): return false
 	elif str(data.label) == "occupied-drop-no-duplicate":
-		if not gate.require(float(data.frozen_art) == RED_PENDING_FROZEN_ART_AREA,"pending presentation unchanged from RED, not Retail parity"): return false
+		if not gate.require(float(data.frozen_art) == 0.,"unaccepted pending preview is not a frozen selection"): return false
+	elif str(data.label) == "committed-frozen-after-cancel":
+		if not gate.require(float(data.frozen_art) > 0.,"explicit committed selection remains visible after cancel"): return false
 	return true
 
 func row_center(id: int) -> Vector2:

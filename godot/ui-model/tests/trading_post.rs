@@ -63,23 +63,20 @@ fn assert_unaccepted_texture_hidden(skin: ActiveSkin) {
 }
 
 #[test]
-#[ignore = "CPU RED pending frozen selected texture; run explicitly before production edits"]
 fn trading_post_pending_freeze_selected_texture_modern_unaccepted_is_clear() {
     assert_unaccepted_texture_hidden(ActiveSkin::Modern);
 }
 
 #[test]
-#[ignore = "CPU RED pending frozen selected texture; run explicitly before production edits"]
 fn trading_post_pending_freeze_selected_texture_forever_unaccepted_is_clear() {
     assert_unaccepted_texture_hidden(ActiveSkin::Forever);
 }
 
 #[test]
-#[ignore = "CPU RED positive committed selection control; run explicitly"]
 fn trading_post_pending_freeze_selected_texture_committed_selection_remains_active() {
     for skin in [ActiveSkin::Modern, ActiveSkin::Forever] {
-        let view = freeze_view();
-        let registry = render(skin, view);
+        let mut view = freeze_view();
+        let registry = render(skin, view.clone());
         assert_eq!(
             visible_selection_art_area(&registry, "PerksProgramFrozenSelected"),
             44268.
@@ -89,11 +86,20 @@ fn trading_post_pending_freeze_selected_texture_committed_selection_remains_acti
             "Distinguished Warcloak"
         );
         assert_eq!(rect(&registry, "PerksProgramFrozenIcon")[2..], [64., 64.]);
+        assert_eq!(view.click("perks:purchase").unwrap(), None);
+        assert_eq!(view.confirm.as_deref(), Some("purchase"));
+        assert!(!view.pending);
+        assert_eq!(view.take_selection_sounds(), 0);
+        let purchase_modal = render(skin, view);
+        assert_eq!(
+            visible_selection_art_area(&purchase_modal, "PerksProgramFrozenSelected"),
+            44268.,
+            "an unrelated purchase modal must not clear committed selection"
+        );
     }
 }
 
 #[test]
-#[ignore = "CPU RED positive cancel control; run explicitly"]
 fn trading_post_pending_freeze_selected_texture_cancel_restores_content_not_selection() {
     for skin in [ActiveSkin::Modern, ActiveSkin::Forever] {
         let mut view = open_unaccepted_texture_preview();
@@ -127,7 +133,6 @@ fn trading_post_pending_freeze_selected_texture_cancel_restores_content_not_sele
 }
 
 #[test]
-#[ignore = "CPU RED positive accepted-waiting control; run explicitly"]
 fn trading_post_pending_freeze_selected_texture_accepted_waiting_is_not_blanket_hidden() {
     for skin in [ActiveSkin::Modern, ActiveSkin::Forever] {
         let mut view = create_accepted_texture_preview();
@@ -149,7 +154,6 @@ fn trading_post_pending_freeze_selected_texture_accepted_waiting_is_not_blanket_
 }
 
 #[test]
-#[ignore = "CPU RED positive authority reply control; run explicitly"]
 fn trading_post_pending_freeze_selected_texture_reply_keeps_committed_selection() {
     for skin in [ActiveSkin::Modern, ActiveSkin::Forever] {
         let mut view = create_accepted_texture_preview();
@@ -184,7 +188,6 @@ fn trading_post_pending_freeze_selected_texture_reply_keeps_committed_selection(
 }
 
 #[test]
-#[ignore = "CPU RED positive immediate empty-slot control; run explicitly"]
 fn trading_post_pending_freeze_selected_texture_empty_immediate_remains_active() {
     use game_engine_ui_model::trading_post::Action;
     for skin in [ActiveSkin::Modern, ActiveSkin::Forever] {
