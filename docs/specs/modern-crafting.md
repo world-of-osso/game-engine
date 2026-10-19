@@ -16,6 +16,12 @@ Pinned Retail 12.1.0.69933 `SkillLineAbility`/`SpellEffect`/`SpellReagents` cens
 
 Local world.db has only627 of1,286 distinct Leatherworking effect24 outputs joined to `content_item`; pinned CSV presence does not imply server runtime readiness. Existing Classic Leatherworking is the first end-to-end acceptance slice, not a claim of complete Midnight support.
 
+## Recipe search magnifier
+
+- Both skins use the Mainline SearchBoxTemplate magnifier:10×10 `common-search-magnifyingglass`, LEFT(+1,−1) relative to the search editbox. RGB is0.6 only when empty and unfocused, otherwise1; alpha remains1.
+- Existing search focus/query state drives presentation only; query, selection, filters, Favorites, clear control and gameplay remain unchanged.
+- Sources: Mainline `Blizzard_SharedXML/Shared/InputBox/InputBoxTemplates.xml:211–217`, `InputBoxTemplates.lua:175–200`. Authored screen assertions and rendered native proof are separate acceptance evidence.
+
 ## Recipe search clear control
 
 - Recipe search inherits the authored SearchBoxTemplate clear control:17×17, RIGHT−3 centered vertically, with10×10 `common-search-clearbutton` art inset3px. It is visible while the editbox is focused or its query is nonempty, hidden only when empty and unfocused.
