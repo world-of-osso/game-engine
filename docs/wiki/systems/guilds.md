@@ -148,3 +148,5 @@ Native existing-caret follow-up: `before  after` + real Shift-click at caret7 in
 ## Online member zone
 
 The existing roster/detail labels read only `GuildMemberSnapshot.online_zone` for online members; absent values stay empty. Offline roster Last Online text is unchanged and offline detail Zone remains empty. Source geometry, both skins, actions and disabled Zone sort remain unchanged. The server producer owns GroundMap→AreaTable/name authority; no map-name substitute is computed by the engine. Behavioral integration RED reproduced the prior empty visible field; GREEN, coordinated gate and native proof remain pending. See [contract](../../specs/guild-ranks.md#online-member-zone).
+
+Targeted GREEN: protocol wire1/1, both-skin field/refresh/unknown/offline/action1/1 and server actual HostClient parent-area/refresh/privacy/unavailable-position1/1. Server note-privacy fixture now supplies explicit zone resources and uses mutable SystemState access; this is test adaptation to actual authority, not a read-only shim. Proven tests enabled after GREEN. Joint retained/check gate and native proof remain pending.

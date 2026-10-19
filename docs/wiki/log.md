@@ -4878,3 +4878,7 @@ Explicit admitted unit_transform sampling replaces incomplete UnitPick traversal
 ## 2026-10-19 — Online guild zone consumer
 
 Existing online roster/detail labels now consume optional server zone text; offline text/geometry/sorting unchanged. RED proved the empty field; coordinated protocol/server gate and native proof pending.
+
+## 2026-10-19 — Online guild zone targeted GREEN
+
+Actual protocol1, both-skin UI1 and native HostClient server1 pass after their observed REDs. Tests enabled; production area authority/label semantics unchanged by fixture repairs. Coordinated integration gate and native proof next.
