@@ -42,7 +42,15 @@ Evidence SSOT: canonical `data/diagnostics/recipe-visibility-filters-2026-10-17/
 
 The [contract](../../specs/modern-crafting.md#learnedunlearned-recipe-filters) exposes the existing shared `UIResetButtonTemplate` only when either visibility flag is nondefault. `ProfessionBook.reset_visibility_filters()` clears those two inverted flags; native Reset and window close share that operation. Search, selected recipe/instance, authoritative Favorites and other owner state are untouched. Search alone does not expose Reset. No additional filter family, persistence, server request or audio-engine change is included.
 
-Three ignored screen REDs were pushed and failed before implementation: learned hidden, unlearned hidden and both hidden. Targeted controls cover default/search visibility and complete view-state conservation after Reset. `godot/tests/modern_crafting_filter_reset_live.gd` prepares three native nondefault states, single Reset clicks, source23px/TOPRIGHT−3 geometry, retained search/favorite-instance selection and gameplay conservation; that proof remains pending its own lead gate/window. The accepted earlier filter proof above does not certify Reset.
+Three ignored screen REDs were pushed and failed before implementation: learned hidden, unlearned hidden and both hidden. Five targeted tests pass, including default/search visibility and complete view-state conservation after Reset. Lead gate rr647 passes205/0 plus fmt0; Reset lands at engine2535a4f17.
+
+#### Native Reset proof — 2026-10-17
+
+`godot/tests/modern_crafting_filter_reset_live.gd` passes both skins1920×1080 on engine `2535a4f17`, server `93d357ce3`, protocol `f9a9175`. Default flags plus active search keep Reset hidden; each of three nondefault combinations exposes it. Three actual coordinate Reset clicks per skin restore both flags and hide Reset while retaining the exact search text, selected recipe/favorite instance and owner Favorites. Clearing search reveals the still-selected favorite instance. Cleanup restores the original unfavorited preference; bags/copper/skill stay unchanged and no cast starts.
+
+Resolved Reset bounds are `(281,164,23,23)` against Filter `(208,175,87,18)` in both skins, matching CENTER/TOPRIGHT−3,0 within native pixel rounding. Each drained native client exits0, emits exactly one completion marker and ten unique captures, with zero `ERROR`/`SCRIPT ERROR` lines. Existing signed-geoset/QuestPOI/MSAA warnings remain; no audio-engine or general renderer-cleanliness claim.
+
+Evidence SSOT: canonical `data/diagnostics/recipe-filter-reset-2026-10-17/native-reset-proof.json` binds exact cohort/binary receipts, fresh read-only world snapshot, two clients/six Reset clicks, twenty PNG hashes and cleanup. Sixteen inspected state originals: `/syncthing/AgentShared/2026-10-17/recipe-filter-reset/{Modern,Forever}-{1..8}-*.png`; four favorite-menu preparation/cleanup captures stay private. All owned runtime stops,5951 is unbound and the window is cleared. Other filters/persistence and the separate physical favorite-cursor boundary remain excluded.
 
 ## Unlearned recipe discovery
 
