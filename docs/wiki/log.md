@@ -4803,3 +4803,5 @@ User decision specifies MOBILE_BANKING_COOLDOWN_2H7200000ms over installed360000
 - 2026-10-18 — Pin projected runtime-ground metadata APIs in wow-formats; preserve selected-field/FDID/error policy and frozen metadata/bake receipt boundaries. [Shared readers](systems/wow-formats.md).
 
 - Journal authored model scenes: cached source/raw camera and actor math implementation; exact native4e612 Ozruk camera RED, GREEN pending.
+
+- Journal capture-isolation: direct viewport paints while owner+1 background covers actor; centre0 native RED, four Journal texture owner-level alignment implemented.
