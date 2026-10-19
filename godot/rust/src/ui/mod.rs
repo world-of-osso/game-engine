@@ -69,6 +69,8 @@ mod options_keybindings;
 mod parts;
 mod party_preview;
 mod professions_preview;
+#[cfg(test)]
+mod professions_search_scroll_tests;
 mod projection;
 mod projection_order;
 #[cfg(debug_assertions)]
@@ -312,6 +314,49 @@ impl RegistryModel {
         {
             projection.sync_journal_suggestion_hovers(&mut self.registry, snapshot);
         }
+    }
+
+    /// Replace reactive data and apply its existing scroll-transition policy.
+    fn replace_state<T: PartialEq + 'static>(&mut self, state: T) -> bool {
+        if self.shared.get::<T>() == Some(&state) {
+            return false;
+        }
+        if let Some(next) = (&state as &dyn std::any::Any)
+            .downcast_ref::<game_engine_ui_model::world_map_frame_component::WorldMapFrameState>(
+        ) {
+            use game_engine_ui_model::quest_log_frame_component::QUEST_LOG_DETAILS_SCROLL;
+            use game_engine_ui_model::world_map_frame_component::WorldMapFrameState;
+            let previous = self
+                .shared
+                .get::<WorldMapFrameState>()
+                .and_then(|state| state.quest_panel.as_ref())
+                .and_then(|panel| panel.log.details.as_ref())
+                .map(|details| details.quest_id);
+            let selected = next
+                .quest_panel
+                .as_ref()
+                .and_then(|panel| panel.log.details.as_ref())
+                .map(|details| details.quest_id);
+            if previous != selected {
+                self.registry
+                    .scroll_lists
+                    .scroll_to(QUEST_LOG_DETAILS_SCROLL, 0);
+            }
+        }
+        if let Some(next) = (&state as &dyn std::any::Any)
+            .downcast_ref::<game_engine_ui_model::adventure_guide::View>()
+            && let Some(previous) = self
+                .shared
+                .get::<game_engine_ui_model::adventure_guide::View>()
+        {
+            game_engine_ui_model::adventure_guide_art::reset_changed_scrolls(
+                previous,
+                next,
+                &mut self.registry,
+            );
+        }
+        self.shared.insert(state);
+        true
     }
 
     /// Mirror the active layout's settings, then its skin: a change of either rebuilds the
@@ -2835,45 +2880,9 @@ impl RegistryUi {
             .model
             .as_mut()
             .ok_or("Registry model not initialized")?;
-        if model.shared.get::<T>() == Some(&state) {
+        if !model.replace_state(state) {
             return Ok(());
         }
-        if let Some(next) = (&state as &dyn std::any::Any)
-            .downcast_ref::<game_engine_ui_model::world_map_frame_component::WorldMapFrameState>(
-        ) {
-            use game_engine_ui_model::quest_log_frame_component::QUEST_LOG_DETAILS_SCROLL;
-            use game_engine_ui_model::world_map_frame_component::WorldMapFrameState;
-            let previous = model
-                .shared
-                .get::<WorldMapFrameState>()
-                .and_then(|state| state.quest_panel.as_ref())
-                .and_then(|panel| panel.log.details.as_ref())
-                .map(|details| details.quest_id);
-            let selected = next
-                .quest_panel
-                .as_ref()
-                .and_then(|panel| panel.log.details.as_ref())
-                .map(|details| details.quest_id);
-            if previous != selected {
-                model
-                    .registry
-                    .scroll_lists
-                    .scroll_to(QUEST_LOG_DETAILS_SCROLL, 0);
-            }
-        }
-        if let Some(next) = (&state as &dyn std::any::Any)
-            .downcast_ref::<game_engine_ui_model::adventure_guide::View>()
-            && let Some(previous) = model
-                .shared
-                .get::<game_engine_ui_model::adventure_guide::View>()
-        {
-            game_engine_ui_model::adventure_guide_art::reset_changed_scrolls(
-                previous,
-                next,
-                &mut model.registry,
-            );
-        }
-        model.shared.insert(state);
         self.sync_model()
     }
 
