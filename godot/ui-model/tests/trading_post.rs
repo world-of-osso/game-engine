@@ -8,6 +8,155 @@ use ui_toolkit::{
     screen::{Screen, SharedContext},
 };
 
+fn assert_frozen_source_drop_preserves_view(view: &mut View, on_frozen: bool) {
+    let before = view.clone();
+    let frozen = view.snapshot.as_ref().unwrap().frozen_item_id.unwrap();
+    assert_eq!(
+        view.drop_item(frozen, true, on_frozen),
+        None,
+        "a frozen product is not a drag source, even when released outside"
+    );
+    assert_eq!(view.snapshot, before.snapshot);
+    assert_eq!(view.selected, before.selected);
+    assert_eq!(view.pending, before.pending);
+    assert_eq!(view.confirm, before.confirm);
+    assert_eq!(view.freeze_candidate, before.freeze_candidate);
+    assert_eq!(view.freeze_delay, before.freeze_delay);
+    assert_eq!(view.cart, before.cart);
+    assert_eq!(view.take_selection_sounds(), 0);
+}
+
+#[test]
+#[ignore = "CPU-first frozen-source regression; execute explicitly before production changes"]
+fn trading_post_frozen_source_no_drag_selected_outside_keeps_reservation() {
+    for skin in [ActiveSkin::Modern, ActiveSkin::Forever] {
+        let mut view = freeze_view();
+        assert_frozen_source_drop_preserves_view(&mut view, false);
+        let registry = render(skin, view);
+        assert_eq!(
+            visible_selection_art_area(&registry, "PerksProgramFrozenSelected"),
+            44268.
+        );
+        assert_eq!(
+            text(&registry, "PerksProgramFrozenLabel"),
+            "Distinguished Warcloak"
+        );
+    }
+}
+
+#[test]
+#[ignore = "CPU-first frozen-source regression; execute explicitly before production changes"]
+fn trading_post_frozen_source_no_drag_unselected_outside_keeps_ordinary_selection() {
+    for skin in [ActiveSkin::Modern, ActiveSkin::Forever] {
+        let mut view = freeze_view();
+        assert!(view.select_dragged_product(5));
+        assert_eq!(view.take_selection_sounds(), 1);
+        assert_frozen_source_drop_preserves_view(&mut view, false);
+        let registry = render(skin, view);
+        assert_eq!(
+            visible_selection_art_area(&registry, "PerksProgramSelected5"),
+            24144.
+        );
+        assert_eq!(
+            visible_selection_art_area(&registry, "PerksProgramFrozenSelected"),
+            0.
+        );
+    }
+}
+
+#[test]
+#[ignore = "CPU-first frozen-source control; execute explicitly before production changes"]
+fn trading_post_frozen_source_no_drag_same_slot_remains_unchanged() {
+    let mut view = freeze_view();
+    assert_frozen_source_drop_preserves_view(&mut view, true);
+}
+
+#[test]
+#[ignore = "CPU-first frozen-source control; execute explicitly before production changes"]
+fn trading_post_frozen_source_no_drag_modal_and_pending_remain_unchanged() {
+    let mut modal = freeze_view();
+    assert_eq!(modal.click("perks:purchase").unwrap(), None);
+    assert_eq!(modal.confirm.as_deref(), Some("purchase"));
+    assert_frozen_source_drop_preserves_view(&mut modal, false);
+    let mut pending = create_accepted_texture_preview();
+    assert!(pending.pending);
+    assert_eq!(pending.take_selection_sounds(), 1);
+    assert_frozen_source_drop_preserves_view(&mut pending, false);
+}
+
+#[test]
+#[ignore = "CPU-first frozen-source control; execute explicitly before production changes"]
+fn trading_post_frozen_source_no_drag_ordinary_outside_keeps_held_selection() {
+    let mut view = freeze_view();
+    let authority = view.snapshot.clone();
+    assert!(view.select_dragged_product(5));
+    assert_eq!(view.take_selection_sounds(), 1);
+    assert_eq!(view.drop_item(5, false, false), None);
+    assert_eq!(view.selected, Some(5));
+    assert_eq!(view.snapshot, authority);
+    assert!(!view.pending);
+    assert_eq!(view.confirm, None);
+    assert_eq!(view.freeze_candidate, None);
+    assert_eq!(view.cart, [5, 6]);
+    assert_eq!(view.take_selection_sounds(), 0);
+}
+
+#[test]
+#[ignore = "CPU-first frozen-source control; execute explicitly before production changes"]
+fn trading_post_frozen_source_no_drag_ordinary_replacement_cancel_and_accept_remain() {
+    use game_engine_ui_model::trading_post::Action;
+    let mut view = freeze_view();
+    let authority = view.snapshot.clone();
+    assert!(view.select_dragged_product(5));
+    assert_eq!(view.take_selection_sounds(), 1);
+    assert_eq!(view.drop_item(5, false, true), None);
+    assert_eq!(view.confirm.as_deref(), Some("freeze"));
+    assert_eq!(view.freeze_delay, 5);
+    assert_eq!(view.click("perks:confirm").unwrap(), None);
+    assert_eq!(view.cart, [5, 6]);
+    assert_eq!(view.click("perks:cancel").unwrap(), None);
+    assert_eq!(view.snapshot, authority);
+    assert_eq!(view.freeze_candidate, None);
+    assert_eq!(view.drop_item(5, false, true), None);
+    view.update_freeze_confirmation(5.0);
+    assert_eq!(
+        view.click("perks:confirm").unwrap(),
+        Some(Action::Request(TradingPostRequest::Freeze {
+            vendor_item_id: Some(5)
+        }))
+    );
+    assert!(view.pending);
+    assert_eq!(view.snapshot, authority);
+    assert_eq!(view.cart, [6]);
+    assert_eq!(view.take_selection_sounds(), 0);
+}
+
+#[test]
+#[ignore = "CPU-first frozen-source control; execute explicitly before production changes"]
+fn trading_post_frozen_source_no_drag_ordinary_empty_slot_remains_immediate() {
+    use game_engine_ui_model::trading_post::Action;
+    let mut view = freeze_view();
+    let mut snapshot = view.snapshot.as_ref().unwrap().as_ref().clone();
+    snapshot.frozen_item_id = None;
+    view.receive(Arc::new(snapshot));
+    let authority = view.snapshot.clone();
+    assert!(view.select_dragged_product(5));
+    assert_eq!(view.take_selection_sounds(), 1);
+    assert_eq!(
+        view.drop_item(5, false, true),
+        Some(Action::Request(TradingPostRequest::Freeze {
+            vendor_item_id: Some(5)
+        }))
+    );
+    assert!(view.pending);
+    assert_eq!(view.confirm, None);
+    assert_eq!(view.freeze_candidate, Some(5));
+    assert_eq!(view.selected, Some(5));
+    assert_eq!(view.snapshot, authority);
+    assert_eq!(view.cart, [6]);
+    assert_eq!(view.take_selection_sounds(), 0);
+}
+
 fn open_unaccepted_texture_preview() -> View {
     let mut view = freeze_view();
     assert!(view.select_dragged_product(5));
