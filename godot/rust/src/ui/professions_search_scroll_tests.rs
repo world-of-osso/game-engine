@@ -146,3 +146,55 @@ fn professions_search_scroll_normal_refresh_retains_offset() {
         );
     }
 }
+
+/// Shared-handler coverage only; GameClient dispatch is exercised by the native fixture.
+#[test]
+fn professions_search_scroll_shared_wheel_and_thumb_move_the_real_list() {
+    use super::scroll_lists::{drag_thumbs, press_thumb, release_thumbs, wheel};
+    use ui_toolkit::widgets::scroll_list::{thumb_name, track_name};
+    for skin in [ActiveSkin::Modern, ActiveSkin::Forever] {
+        let mut model = multipage_model(skin);
+        assert!(wheel(&mut model, LIST, false));
+        rebuild(&mut model);
+        let after_wheel = model.registry.scroll_lists.get(LIST).unwrap().first_row;
+        assert!(after_wheel > 630);
+        let bounds =
+            super::layout::compute_layout_with_intrinsics(&model.registry, &Default::default())
+                .unwrap();
+        for (id, rect) in bounds {
+            model.registry.set_computed_layout(id, rect).unwrap();
+        }
+        let thumb = model.registry.get_by_name(&thumb_name(LIST)).unwrap();
+        let thumb_rect = model
+            .registry
+            .get(thumb)
+            .unwrap()
+            .layout_rect
+            .clone()
+            .unwrap();
+        let track = model.registry.get_by_name(&track_name(LIST)).unwrap();
+        let track_rect = model
+            .registry
+            .get(track)
+            .unwrap()
+            .layout_rect
+            .clone()
+            .unwrap();
+        assert!(press_thumb(&mut model.registry, thumb, thumb_rect.y + 2.0));
+        assert!(drag_thumbs(
+            &mut model.registry,
+            track_rect.y + track_rect.height - 2.0
+        ));
+        assert!(model.registry.scroll_lists.get(LIST).unwrap().first_row > after_wheel);
+        assert!(release_thumbs(&mut model.registry));
+        assert!(
+            model
+                .registry
+                .scroll_lists
+                .get(LIST)
+                .unwrap()
+                .drag_grab
+                .is_none()
+        );
+    }
+}
