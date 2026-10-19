@@ -12,10 +12,10 @@ use ui_toolkit::{rsx, screen::SharedContext, widget_def::Element};
 mod art;
 #[path = "professions_frame_concentration.rs"]
 pub mod concentration;
-#[path = "professions_frame_orders.rs"]
-pub mod orders;
 #[path = "professions_frame_favorites.rs"]
 mod favorites;
+#[path = "professions_frame_orders.rs"]
+pub mod orders;
 #[path = "professions_frame_quality.rs"]
 mod quality;
 #[path = "professions_frame_recraft.rs"]

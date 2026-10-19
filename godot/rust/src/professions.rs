@@ -14,10 +14,10 @@ use shared::protocol::ProfessionSnapshot;
 use std::collections::{BTreeMap, BTreeSet};
 use std::sync::mpsc::{self, Receiver, TryRecvError};
 
-#[path = "professions_reagents.rs"]
-mod reagents;
 #[path = "professions_favorites.rs"]
 mod favorites;
+#[path = "professions_reagents.rs"]
+mod reagents;
 
 #[derive(Default)]
 pub(crate) struct Professions {
@@ -109,7 +109,12 @@ impl Professions {
 
 impl GameClient {
     pub(super) fn receive_professions(&mut self, snapshot: ProfessionSnapshot) {
-        if self.professions.book.selected.is_some_and(|spell| !snapshot.favorites.contains(&spell)) {
+        if self
+            .professions
+            .book
+            .selected
+            .is_some_and(|spell| !snapshot.favorites.contains(&spell))
+        {
             self.professions.selected_favorite = false;
         }
         self.professions.book.snapshot = snapshot;
