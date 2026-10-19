@@ -93,6 +93,13 @@ Native Retail Mainline AchievementUI and dungeon objectives, using authoritative
 - A successful Show All or received-preview open releases the native SearchBox keyboard focus, preserving the existing query/body/selection transition. Unknown or malformed preview IDs, Show All without additional results, and unrelated actions do not release it. Source: cached Mainline AchievementUI.lua3594–3604/3669–3676.
 - Native-process fixture: `godot/tests/achievement_search_selection_focus.gd` covers both skins and the successful/invalid/no-op boundaries; no server changes or keyboard-navigation extension.
 
+### Keyboard preview selection
+
+- Ready received previews default to the first row; hover and cyclic Up/Down share one selected item across up to five visible rows and the conditional Show All row. Render the source selected highlight, not a second independent mouse-only highlight.
+- Enter executes the selected existing preview/open or Show All action, including ordered Down+Enter input in one frame. Existing successful-selection focus release, query/body/selection transitions and cursor continuation stay intact.
+- Short-query, pending and zero-result Enter are no-ops: retain native focus, continued typing and the underlying category body. Do not add search progress, totals, server messages or an Escape-policy change.
+- Source: cached Mainline AchievementUI.lua3401–3413/3507–3531/3544–3585/3665–3680; XML14–25/1803–1844. Native process test is `network/tests/achievement_search_preview_keyboard_selection.rs` (explicit `#[ignore]`, pinned Godot/debug extension required), using `tests/achievement_search_preview_keyboard.gd` with24 both-skin physical-input cases.
+
 ## Known gaps (current cycle)
 
 - [ ] Server-unevaluated criterion/statistic types have no trustworthy quantity to display; do not invent zero/completion.
