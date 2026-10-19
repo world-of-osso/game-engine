@@ -1,3 +1,7 @@
+## 2026-10-19 — Sourced voluntary leadership input
+
+[Source/request boundary](systems/guilds.md#voluntary-leadership-transfer): ignored slash regression reproduces `/gleader Cara` falling through to generic help before implementation; target-only route now uses existing native chat/GuildChannel and authoritative reply state. Self is the explicitly approved unsourced-refusal project policy, not a native Retail claim. Server actual authority RED follows a separately qualified missing-wire baseline. No new UI/geometry or leader mirror; focused GREEN/gate/two-member native proof pending.
+
 ## 2026-10-18 — BLP qualification, no extraction
 
 [Boundary and before-only ledger](systems/wow-formats.md#blp-qualification-not-extraction): independent CPU/GPU/icon receipts preserve different normalization, BC5 refusals and malformed-input outcomes. No fifth crate or production/pin/asset change; recommend retaining the existing shared image-blp parser and local consumer policies. Authored180071 remains absent.
