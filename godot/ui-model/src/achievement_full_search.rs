@@ -38,7 +38,7 @@ pub(super) fn content(ctx: &SharedContext, window: &AchievementWindow) -> Elemen
     };
     let mut children = chrome();
     children.extend(
-        rsx! {r#frame {name:ROWS_SCROLLBOX,width:579.0,height:VIEW_HEIGHT,
+        rsx! {r#frame {name:{DynName(ROWS_SCROLLBOX.into())},width:579.0,height:VIEW_HEIGHT,
             left:1.0,top:28.0,pos_type:"absolute",mouse_enabled:true,scroll_list:config,
             r#frame {name:"AchievementFullSearchContent",width:579.0,height:content_height,
                 left:0.0,top:{-(offset as f32)},pos_type:"absolute",{rows}
