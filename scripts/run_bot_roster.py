@@ -1,4 +1,4 @@
-"""Provision/run owned native dummy bots against an already-running private :5871.
+"""Provision/run owned native dummy bots against an already-running private server.
 
 The caller owns server lifetime. This driver owns at most one Cage/Godot client,
 uses an isolated XDG directory per bot, and preserves each private login token.
@@ -77,8 +77,12 @@ def wait_capacity(args, gpu=False):
         time.sleep(60)
 
 
+def admin_environment(args):
+    return dict(os.environ, GAME_SERVER_ADMIN_SOCKET=f"/tmp/game-server-admin-{args.server_port}.sock")
+
+
 def admin(args, *words):
-    env = dict(os.environ, GAME_SERVER_ADMIN_SOCKET="/tmp/game-server-admin-5871.sock")
+    env = admin_environment(args)
     return command(args.output, [args.server / "target/debug/game-server-admin", *words], env)
 
 
@@ -94,7 +98,7 @@ def provision(args, bot):
         raise RuntimeError("Character ownership differs from the private roster")
     admin(args, "set-level", bot["name"], str(bot["level"]))
     # Existing regression-tested Retail terrain destination; no NPC legacy Z.
-    env = dict(os.environ, GAME_SERVER_ADMIN_SOCKET="/tmp/game-server-admin-5871.sock")
+    env = admin_environment(args)
     command(args.output, ["python3", args.server / "scripts/place-private-character.py", "cooldown-assist", bot["account"], bot["name"], "--admin", args.server / "target/debug/game-server-admin"], env)
 
 
@@ -451,7 +455,7 @@ def run_bot(args, bot):
     provision(args, bot)
     equipment = admin(args, "list-equipment", bot["name"])
     (output / "equipment-before.txt").write_text(equipment)
-    token = args.engine / "data/auth_token.127.0.0.1_5871"
+    token = args.engine / f"data/auth_token.127.0.0.1_{args.server_port}"
     if token.is_symlink():
         raise RuntimeError("Private token unexpectedly links outside the owned data root")
     if token.exists():
@@ -478,7 +482,7 @@ def run_bot(args, bot):
                 *[f"{key}={value}" for key, value in env.items()],
                 args.engine / "scripts/agent/headless-client.sh", "start-godot", args.engine,
                 output / "config", "--audio-driver", "Dummy", "--resolution", "1280x720",
-                "--script", "res://tests/bot_harness_observer.gd", "--", "--server", "127.0.0.1:5871",
+                "--script", "res://tests/bot_harness_observer.gd", "--", "--server", f"127.0.0.1:{args.server_port}",
                 "--screen", "inworld", "--char", bot["name"]]
         reply = command(args.output, argv)
         pid = int(re.search(r"cage pid (\d+)", reply)[1])
@@ -539,12 +543,16 @@ def main():
     parser.add_argument("--specs", type=int, nargs="+", default=[62, 63, 64])
     parser.add_argument("--all-specs", action="store_true")
     parser.add_argument("--level", type=int, default=32)
+    parser.add_argument("--server-port", type=int, default=5871,
+                        help="Private server UDP/admin port (default5871)")
     parser.add_argument("--duration", type=float, default=60)
     parser.add_argument("--repeat", type=int, default=2)
     parser.add_argument("--priority-provider", choices=("native", "simc-bm"), default="native")
     parser.add_argument("--simc-receipt", type=Path)
     parser.add_argument("--simc-apl", type=Path)
     args = parser.parse_args()
+    if not 1 <= args.server_port <= 65535:
+        parser.error("Server port must be in1..65535")
     if args.priority_provider == "simc-bm" and (args.specs != [253] or args.all_specs
             or not args.simc_receipt or not args.simc_apl):
         parser.error("SimC BM requires explicit --specs 253, --simc-receipt and --simc-apl")

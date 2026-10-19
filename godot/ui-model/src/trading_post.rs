@@ -749,11 +749,18 @@ fn product_row(view: &View, row: &TradingPostItem, top: f32, selected: bool) -> 
         vec![]
     };
     children.extend(row_item_icon(view, row));
+    // Settled states only; same-hover deselection callback ordering remains unimplemented.
+    let name_color = if selected || view.product_hover == Some(row.id) {
+        WHITE
+    } else {
+        // GlobalColor1 NORMAL_FONT_COLOR: RGB255/210/0, not template-rounded0.82.
+        "1.0,0.8235294,0.0,1.0"
+    };
     children.extend(label(
         format!("PerksProgramName{}", row.id),
         &row.name,
         (72., 5., 265., 38.),
-        (16., WHITE, "LEFT"),
+        (16., name_color, "LEFT"),
     ));
     children.extend(row_price("PerksProgram", row, ROW_HEIGHT / 2.));
     children.extend(row_cart_toggle(view, row.id));
