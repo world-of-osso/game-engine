@@ -155,8 +155,7 @@ impl GameClient {
     pub(super) fn close_professions(&mut self) -> bool {
         let visible = self.professions.book.visible;
         self.professions.book.visible = false;
-        self.professions.book.hide_learned = false;
-        self.professions.book.hide_unlearned = false;
+        self.professions.book.reset_visibility_filters();
         self.professions.filter_open = false;
         self.professions.concentration = None;
         self.professions.concentration_skill = None;
@@ -322,6 +321,7 @@ impl GameClient {
                 self.professions.favorite_menu = None;
                 match filter {
                     "menu" => self.professions.filter_open = !self.professions.filter_open,
+                    "reset" => self.professions.book.reset_visibility_filters(),
                     "learned" => {
                         self.professions.book.hide_learned = !self.professions.book.hide_learned
                     }

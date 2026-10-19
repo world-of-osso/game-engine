@@ -10,10 +10,51 @@ pub fn read_model_scene(
     root: &Path,
     scene_id: u32,
 ) -> Result<(ModelSceneActor, ModelSceneCamera), String> {
-    let actor = read_scene_actors(root, scene_id)?
+    Ok((
+        read_creature_actor(root, scene_id)?,
+        read_camera(root, scene_id)?,
+    ))
+}
+
+fn read_creature_actor(root: &Path, scene_id: u32) -> Result<ModelSceneActor, String> {
+    let mut default_actor = None;
+    read_db2_rows(&root.join("db2/active/UiModelSceneActor.csv"), |row| {
+        if row.parse::<u32>("UiModelSceneID")? != scene_id || row.field("ScriptTag")? != "creature"
+        {
+            return Ok(());
+        }
+        if row.parse::<u32>("UiModelSceneActorDisplayID")? != 0 {
+            return Ok(());
+        }
+        // ModelSceneActorMixin ApplyFromModelSceneActorInfo's no-display arm:
+        // requestedScale1, alpha1, animation0; authored actor transform survives.
+        // This Journal-only branch leaves read_scene_actors behavior unchanged.
+        default_actor = Some(ModelSceneActor {
+            id: row.parse("ID")?,
+            flags: row.parse("Flags")?,
+            position: [
+                row.parse("Position_0")?,
+                row.parse("Position_1")?,
+                row.parse("Position_2")?,
+            ],
+            orientation: [
+                row.parse("OrientationYaw")?,
+                row.parse("OrientationPitch")?,
+                row.parse("OrientationRoll")?,
+            ],
+            normalized_scale: row.parse("NormalizedScale")?,
+            scale: 1.,
+            alpha: 1.,
+            animation: 0,
+        });
+        Ok(())
+    })?;
+    if let Some(actor) = default_actor {
+        return Ok(actor);
+    }
+    read_scene_actors(root, scene_id)?
         .remove("creature")
-        .ok_or_else(|| format!("Journal UiModelScene {scene_id} has no creature actor"))?;
-    Ok((actor, read_camera(root, scene_id)?))
+        .ok_or_else(|| format!("Journal UiModelScene {scene_id} has no creature actor"))
 }
 
 fn read_camera(root: &Path, scene_id: u32) -> Result<ModelSceneCamera, String> {
