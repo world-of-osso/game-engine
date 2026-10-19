@@ -4859,3 +4859,5 @@ User decision specifies MOBILE_BANKING_COOLDOWN_2H7200000ms over installed360000
 - Primary-title approved source-fit native668dfa: row823 actualfont24/264×50/2total2visible, not truncated. Fixture correctly stops before hoverRED; standaloneLabelcensus invalid as production proof. No primary-hover correction or forced title/font/geometry; gap retained.
 
 - Lead accepts primary-hover proof limitation as AG_PRIMARY_TITLE_HOVER_UNEXERCISED_NO_TRUNCATING_SOURCE_ROW; retain only cfg(debug_assertions) primary-index2 source input, no hover correction.
+
+- Journal source239Animation25: actualVakan0vs25 nativeRED before correction; source-gated Journal attach-only existingplayer/crossfade implementation, no per-sync restart or kits/variants/speed/effects scope expansion. NativeGREEN pending.

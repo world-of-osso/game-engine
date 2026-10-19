@@ -34,6 +34,14 @@ A later numeric-only9aae native pass did not qualify as visual GREEN: its direct
 
 Sources: cached Retail Blizzard_EncounterJournal.lua1455–1470; ModelSceneActorMixin.lua; Shared/ModelSceneCameras/OrbitCameraMixin.lua; Blizzard_SharedXMLBase/MathUtil.lua49–54; installed UiModelSceneActor/Display/Camera rows. Code: [`model_scene.rs`](../../../godot/core/src/adventure_guide/model_scene.rs), [`native host`](../../../godot/rust/src/adventure_guide.rs).
 
+## Journal plain authored AnimationID25 — implementation
+
+The [contract](../../specs/adventure-guide.md#plain-authored-actor-animation25) follows cached ModelSceneActorMixin15–20's SetAnimation arm when no animation kit owns the actor. Installed display239 requests Animation25/variation0/speed1/alpha1/SpellVisualKit0 for scenes673/674, actors1848/1849, Vakan5481 and Gholna5482. `read_plain_animation_25` reads those source metadata fields without modifying the shared actor reader; it does not extend kits, variants, speed, effects or other AnimationIDs. Source Fyrakk actor1959 also contains Animation25 but has AnimKit9789, so this plain-clip path must not apply there.
+
+The native host selects the supported clip through the existing WowAnimationPlayer on detached-model attachment, inside the existing ownership/error boundary. `play_clip` uses the existing crossfade implementation; ordinary UI sync does not reselect/reset it. Source scale/origin/orientation/camera code remains unchanged. Actual baseline668dfa/fixtureed67 Vakan selection reproduced currentAnimation0, expected25, after genuine model load and a saved full-HD frame. Gholna was not reached because the first assertion stopped the RED. Both-skin GREEN remains pending.
+
+Sources: cached Retail Blizzard_SharedXML/ModelSceneActorMixin.lua15–20; installed UiModelSceneActor1848/1849 and UiModelSceneActorDisplay239; [`Journal reader`](../../../godot/core/src/adventure_guide/model_scene.rs), [`host attach`](../../../godot/rust/src/adventure_guide.rs), [`native fixture`](../../../godot/tests/adventure_plain_actor_animation.gd).
+
 ## Suggested primary-title source-fit boundary
 
 Cached EJ.lua3238–3247 conditionally installs only the primary title hover; Lua3353–3357 supplies full white wrapped ANCHOR_RIGHT text. `AG_PRIMARY_TITLE_HOVER_UNEXERCISED_NO_TRUNCATING_SOURCE_ROW` remains open; hover product behavior is unimplemented. A debug-only source-record input at primary presentation index2 was added solely to evaluate authentic row823 (`The Ghosts of K'aresh: A Shadowy Invitation`) in the unchanged production primary pane; ordinary received authority, other rows and non-debug builds retain their behavior. Fixture persistence reapplies only that cloned presentation row after normal snapshot updates. A two-update regression preserves the original authoritative snapshot and every other row. This is not realm primary-offset/eligibility/rotation authority.
