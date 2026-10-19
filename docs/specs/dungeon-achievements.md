@@ -115,8 +115,8 @@ Native Retail Mainline AchievementUI and dungeon objectives, using authoritative
 
 ### Ordinary card title font
 
-- [ ] Ordinary AchievementTemplate titles use RomanFriz14 and black(+1,−1) shadow, preserving their320×20 allocation, white color, origin and click actions. Do not alter Summary/comparison/full-search titles, card art, description/criteria or the global font pipeline.
-- Source: AchievementUI.xml838–843→FontStyles260→Fonts435–443. Ignored native process wrapper `network/tests/achievement_card_title_font.rs` and six-case `tests/achievement_card_title_font.gd` cover both-skin collapsed/expanded titles and retained full-search16 control; [proof scope](../wiki/systems/dungeon-achievements.md#ordinary-card-title-font).
+- [x] Ordinary AchievementTemplate titles use RomanFriz14 and black(+1,−1) shadow, preserving their320×20 allocation, white color, origin and click actions. Do not alter Summary/comparison/full-search titles, card art, description/criteria or the global font pipeline.
+- Source: AchievementUI.xml838–843→FontStyles260→Fonts435–443. Ignored native process wrapper `network/tests/achievement_card_title_font.rs` and six-case `tests/achievement_card_title_font.gd` cover both-skin collapsed/expanded titles and retained full-search16 control. Strict native6/6 and affected model35/35 pass; [proof scope](../wiki/systems/dungeon-achievements.md#ordinary-card-title-font).
 
 ## Known gaps (current cycle)
 
