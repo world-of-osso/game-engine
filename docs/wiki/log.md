@@ -1,6 +1,6 @@
-## 2026-10-19 — Ordinary name settled-colour CPU RED
+## 2026-10-19 — Ordinary name settled-colour native GREEN
 
-[Source/root](systems/trading-post.md#ordinary-product-name-settled-colours): Elements291–340/Products116–126, GlobalColor NORMAL255/210/0 versus WHITE/HIGHLIGHT. Ignored95e test/spec pushed first gives five genuine WHITE-versus-NORMAL failures/two passing WHITE controls; renderer-only selected/current-hover expression implemented, seven tests unignored. Diagnostic retains18 observations/seven groups and adds six actual native RGBA settled checkpoints without transactions. Targeted GREEN/gate/fresh native pending. `TP_NAME_COLOR_SAME_HOVER_DESELECT_ORDER_UNIMPLEMENTED` remains explicit; no callback/state machinery or frozen-caption/font/layout/authority expansion.
+[Source/root and native proof](systems/trading-post.md#ordinary-product-name-settled-colours): Elements291–340/Products116–126, GlobalColor NORMAL255/210/0. Ignored95e pushed first gives genuine RED5/WHITEcontrols2; renderer-onlyfce GREEN7/nm660 TESTEXIT/parse/fmt0 landsd320. FreshEd320/Sa24/Pf9 both skins strict natural7/7/clean full streams,18 prior observations+six settled RGBA samples, WHITE/gold hover-leave/select/cart-return painted pixels391/337 and308/270,16 decoded plays each. Exact authority/local/HUD restored before verdict, XYZ0, two Query/noTx. Fifty-two inspected originals+two contacts published under AgentShared/2026-10-19/trading-post-product-name-color; manifest binds five binaries/eight sources/54receipts/full streams/original six memory edges/pixel proof/54PNG hashes. Window extended after disk HOLD, runtime cleared08:34:26 before08:49;9204 unrelated server errors qualified. `TP_NAME_COLOR_SAME_HOVER_DESELECT_ORDER_UNIMPLEMENTED` remains explicit; no callback/state machinery or frozen-caption/font/layout/authority expansion.
 
 ## 2026-10-19 — Achievement full-search result template
 
@@ -4874,3 +4874,7 @@ Explicit admitted unit_transform sampling replaces incomplete UnitPick traversal
 - Primary-title approved source-fit native668dfa: row823 actualfont24/264×50/2total2visible, not truncated. Fixture correctly stops before hoverRED; standaloneLabelcensus invalid as production proof. No primary-hover correction or forced title/font/geometry; gap retained.
 
 - Lead accepts primary-hover proof limitation as AG_PRIMARY_TITLE_HOVER_UNEXERCISED_NO_TRUNCATING_SOURCE_ROW; retain only cfg(debug_assertions) primary-index2 source input, no hover correction.
+
+- Journal source239Animation25: actualVakan0vs25 nativeRED before correction; source-gated Journal attach-only existingplayer/crossfade implementation, no per-sync restart or kits/variants/speed/effects scope expansion. NativeGREEN pending.
+
+- Journal plain25 extensioncec5 native2: Vakan/Gholna2/2eachskin, current25/sameplayer progressingclock/rawpose/centralpaint; four originalfullHD captures inspected. Existingcrossfadeimplementationunchanged, curveparityunclaimed; kits/variants/speed/effects and priornamedgaps remainexcluded.
