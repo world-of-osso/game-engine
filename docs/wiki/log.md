@@ -1,4 +1,13 @@
+## 2026-10-19 — Ordinary hover ADD genuine pixel RED
+
+[Source/root and exact evidence](systems/trading-post.md#ordinary-product-hover-add-compositing): Elements.xml225–236 ADD overlay; existing native highlight atlas omitted from blend list. Opt-in6be diagnostic pushed first, fixture-only6f3 fixes draw-boundary ownership after separately retained parse/freed-node harness errors. Actual6be/S0406/Pf9 both skins reproduce11802 wrong actual-versus-ADD pixels/zero actual-versus-MIX,11802 ADD/MIX distinction, exact original material restore and stable backdrop/leave. Authority/local/HUD restored before intended exit1, XYZ0/two Query/noTx; runtime/window cleared09:39:22. Single-atlas classification correction implemented; focused tests/parent gate/fresh strict native GREEN pending. No field/source RED or historical relabeling/frozen-hover/selected-art/event-state expansion.
+
 ## 2026-10-19 — Ordinary name settled-colour native GREEN
+## 2026-10-19 — Anomalus fixture-only framing diagnostic
+
+[Scope/source boundary](systems/battle-pets.md#anomalus-indexed-framing-diagnostic--2026-10-19): fixture unit RED→GREEN and matched builds; Forever native frame7444 confirms actual left-edge clipping, not solely AABB conservatism:879 indexed ally triangles/190 outside,134 alpha-positive left-border pixels. Bottom-overflow batch alpha0/no bottom-border pixels; Rabbit1124 triangles contained. Original guard/scales/pads/camera unchanged, no product fix. Initial slot-local asset-receipt failure resolved by approved preserve-and-link cache/products staging, not product fallback. Native skin-registration error absent; runtime stopped/5971free. Card/loadout scenes33/60 remain no battle-camera authority.
+
+## 2026-10-19 — Ordinary name settled-colour CPU RED
 
 [Source/root and native proof](systems/trading-post.md#ordinary-product-name-settled-colours): Elements291–340/Products116–126, GlobalColor NORMAL255/210/0. Ignored95e pushed first gives genuine RED5/WHITEcontrols2; renderer-onlyfce GREEN7/nm660 TESTEXIT/parse/fmt0 landsd320. FreshEd320/Sa24/Pf9 both skins strict natural7/7/clean full streams,18 prior observations+six settled RGBA samples, WHITE/gold hover-leave/select/cart-return painted pixels391/337 and308/270,16 decoded plays each. Exact authority/local/HUD restored before verdict, XYZ0, two Query/noTx. Fifty-two inspected originals+two contacts published under AgentShared/2026-10-19/trading-post-product-name-color; manifest binds five binaries/eight sources/54receipts/full streams/original six memory edges/pixel proof/54PNG hashes. Window extended after disk HOLD, runtime cleared08:34:26 before08:49;9204 unrelated server errors qualified. `TP_NAME_COLOR_SAME_HOVER_DESELECT_ORDER_UNIMPLEMENTED` remains explicit; no callback/state machinery or frozen-caption/font/layout/authority expansion.
 
@@ -4867,6 +4876,7 @@ Explicit admitted unit_transform sampling replaces incomplete UnitPick traversal
 
 - Journal display0 native4: all3 raw states/defaults pass in both skins; Bandit+VoidPulsar base-M2 painted, Raszageth source-exact pose viewport0, full fixtures remain FAIL. Six observed originals inspected; no FOV/effect change or hidden scope reduction.
 
+- 2026-10-18: Pin common MFBO signed-grid decoder; preserve full-client size guard and last-record selection. See [shared formats](systems/wow-formats.md).
 - Raszageth read-only native70ef/extension2a49: actual perspective30deg KEEP_HEIGHT/aspect390:423, geometry and custom bounds TOP-only rejected, paint0. Diagnostic1/1 captures evidence, not a product fix; preserve named gap and stop camera/transform changes.
 
 - Journal projection reference packet: permitted cached Lua/XML/XSD inheritance, source pose and bounded setter search supply no numeric projection/clip default or corrective camera rule. Native semantics unknown; Raszageth TOP/paint0 and VoidPulsar kit gaps retained, no product/runtime change.
