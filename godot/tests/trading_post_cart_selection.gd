@@ -122,6 +122,7 @@ func filter_case() -> bool:
 	var rows: PackedStringArray = client.trading_post_state().rows
 	if not gate.require(not rows.is_empty(),"type2 provider has ordinary members"): return false
 	var first := int(str(rows[0]).split("|")[0])
+	if not write_receipt("filter-provider-before-assert",{"state":client.trading_post_state(),"expected_first":first,"sound_count":sound_count()}): return false
 	if not await assert_product(first,"filter-hides-cart-silent",count): return false
 	if not gate.require(client.trading_post_state().cart == PackedInt64Array([primary]),"filter retains local cart"): return false
 	return await only_type(1)
@@ -245,6 +246,8 @@ func until(predicate: Callable, label: String, timeout: int = 30000) -> bool:
 		if gate.failed: return false
 		if predicate.call(): return true
 		await process_frame
+	if client != null:
+		if not write_receipt("timeout",{"label":label,"state":client.trading_post_state(),"sound_count":sound_count()}): return false
 	return gate.fail("timeout: "+label)
 
 func click_checked(name: String) -> bool:
