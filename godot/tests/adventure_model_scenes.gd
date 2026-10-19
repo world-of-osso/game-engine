@@ -76,13 +76,17 @@ func verify_rendered_model(host: Control, model: Node3D) -> bool:
 	await settle()
 	var rect := view.get_global_rect()
 	var changed := 0
+	var changed_center := 0
+	var center_region := Rect2(rect.position + rect.size * 0.375, rect.size * 0.25)
 	for y in range(maxi(0, int(rect.position.y)), mini(shown.get_height(), int(rect.end.y))):
 		for x in range(maxi(0, int(rect.position.x)), mini(shown.get_width(), int(rect.end.x))):
 			var delta := shown.get_pixel(x, y) - hidden.get_pixel(x, y)
 			if Vector3(delta.r, delta.g, delta.b).length() > 0.04:
 				changed += 1
-	print("JOURNAL_RENDER_COMPOSITE changed=", changed)
-	return completion.require(changed > 20, "Journal viewport creature is covered in the final framebuffer")
+				if center_region.has_point(Vector2(x, y)):
+					changed_center += 1
+	print("JOURNAL_RENDER_COMPOSITE changed=%s center=%s" % [changed, changed_center])
+	return completion.require(changed_center > 20, "Journal model centre is covered in the final framebuffer")
 
 func verify_scene(creature_id: int, scene_id: int, actor_id: int, camera_id: int) -> bool:
 	var creature := source_row("JournalEncounterCreature", creature_id)
