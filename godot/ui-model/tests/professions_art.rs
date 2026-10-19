@@ -283,6 +283,27 @@ fn professions_filter_reset_restores_defaults_without_other_view_mutation() {
 }
 
 #[test]
+#[ignore = "RED: profession SearchBoxTemplate has no clear control"]
+fn professions_search_clear_nonempty_query_has_source_control_in_both_skins() {
+    for skin in [ActiveSkin::Modern, ActiveSkin::Forever] {
+        let mut view = view(15);
+        view.book.search = "linen".into();
+        let registry = render(skin, view);
+        let clear = frame(&registry, "ProfessionsSearchBoxClearButton");
+        assert!(
+            !clear.hidden,
+            "nonempty search must expose its clear button"
+        );
+        let rect = authored_rect(&registry, "ProfessionsSearchBoxClearButton");
+        let search = authored_rect(&registry, "ProfessionsSearchBox");
+        assert_eq!((rect[2], rect[3]), (17.0, 17.0));
+        assert!((rect[0] + rect[2] - (search[0] + search[2] - 3.0)).abs() < 0.01);
+        assert!((rect[1] + rect[3] / 2.0 - (search[1] + search[3] / 2.0)).abs() < 0.01);
+        assert_eq!(clear.onclick.as_deref(), Some("profession:search-clear"));
+    }
+}
+
+#[test]
 fn professions_unlearned_schematic_and_learned_transition_in_both_skins() {
     for skin in [ActiveSkin::Modern, ActiveSkin::Forever] {
         let mut view = view(15);
