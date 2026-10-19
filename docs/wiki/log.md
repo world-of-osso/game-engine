@@ -2,6 +2,10 @@
 
 [Source/root](systems/trading-post.md#frozen-products-are-not-drag-sources): Elements495–508 disables frozen pickup; replacement510–521/577–670 already exists. No cached UI caller for ClearFrozenPerksVendorItem; right-click cancels confirmation only. IgnoredCPU0a8 pushed first gives two genuine selected/unselected outside Freeze(None)-versus-None REDs with five controls passing. Native/model frozen-source branch/field/parameter removed; seven tests unignored and six new native input observations retain seven groups/18 total observations. Targeted GREEN/parent gate/fresh no-transaction native remain pending. Server/protocol clear support stays; historical October13 proof qualified, not erased/relabelled.
 
+## 2026-10-17 — Learned/unlearned native filter proof
+
+[Bounded proof and provenance](systems/native-professions-crafting.md#native-filter-proof--2026-10-17): rv633/landed Ecc4858b97/S58c0844b3/Pf9a9175; both skins1920×1080 cover four combinations, Favorites/search, resolved Filter87×18/right8/top9/searchgap4, close/reopen defaults and gameplay conservation. Each drained client exits0/unique marker1/nine unique captures/zero error lines. Fourteen inspected state originals published; four favorite-menu setup/cleanup captures private. Original preference restored, owned runtime/window cleared; other filters/persistence and favorite hardware-cursor anchoring remain excluded.
+
 ## 2026-10-17 — Learned/unlearned recipe filter implementation
 
 [Contract and implementation](systems/native-professions-crafting.md#learnedunlearned-recipe-filters): source Mainline two default-on checkboxes, shared Filter template/right anchor/search gap; snapshot-only classification and learned-filter-aware Favorites. Pushed ignored screen RED failed at the absent dropdown before implementation. All four visibility combinations, search/empty controls, checkbox art and unchanged ownership are targeted; native acceptance awaits the lead gate/window. No persistence, other filter semantics or wire changes.
