@@ -4851,6 +4851,17 @@ User decision specifies MOBILE_BANKING_COOLDOWN_2H7200000ms over installed360000
 
 - Journal ae3cd native5: genuine Ozruk/Anraphet raw pose and visible central subjects2/2 per skin, four observed originals inspected; retained30deg cropping/FOV and actor0/effect gaps explicitly excluded.
 
+## 2026-10-19 — Stockade path capture
+
+Added explicit native100ms path trace contract; no server simulation clock claim. Renderer, source-pack dependency and real proof pending.
+
+## 2026-10-19 — Path trace fixture proof
+
+Concrete pose/combat/wipe/boss fixtures3GREEN plus35 default-disabled harness/report controls. Actual Godot opt-in initialization: disabled creates no file, enabled captures exact Vector3 position and two actor facings. Test-only integer-vs-float JSON assertion corrected; no product change. Private admin subprocess actual RED5871→GREEN5981. Real Stockade proof pending.
+
+## 2026-10-19 — Real five-bot path map
+
+Explicit admitted unit_transform sampling replaces incomplete UnitPick traversal. Actual52.365s failed Stockade capture has all5pose/facing tracks; real143spawns/nav34 SVG+PNG inspected/published with FAILED/no-boss title. Original63s gap/failure record preserved. No clear/retry/server-panic fix claimed; owned5981 cold/windows cleared; independent lead gate pending.
 - 2026-10-18: Pin existing MH2O raw-record projections without changing client bitmap/vertex/material interpretation. See [shared formats](systems/wow-formats.md).
 - Journal display0: genuine Bandit/native and default-source core REDs; Journal-private source-default reader implemented; shared reader/Scene unchanged, native GREEN pending.
 
