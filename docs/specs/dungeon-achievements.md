@@ -88,6 +88,11 @@ Native Retail Mainline AchievementUI and dungeon objectives, using authoritative
 - Exclude Retail's separate0.3s search-progress path and invented percentages. Source: cached Mainline AchievementUI.xml14–60,1724–1852; Lua3401–3459,3533–3542.
 - [x] Both-skin normal/real online comparison native proof covers physical focus/type/five received rows/blur/refocus/clear/Show All/achievement open on exact landeddf3. Sixteen inspected full-HD originals, strict exit0/unique2/2/zero-error drained streams and owned cleanup are [recorded in the wiki](../wiki/systems/dungeon-achievements.md#post-landing-search-preview-native-proof--2026-10-18). Native rapid-clear is not a latency/guaranteed delayed-reply claim.
 
+### Selection focus
+
+- A successful Show All or received-preview open releases the native SearchBox keyboard focus, preserving the existing query/body/selection transition. Unknown or malformed preview IDs, Show All without additional results, and unrelated actions do not release it. Source: cached Mainline AchievementUI.lua3594–3604/3669–3676.
+- Native-process fixture: `godot/tests/achievement_search_selection_focus.gd` covers both skins and the successful/invalid/no-op boundaries; no server changes or keyboard-navigation extension.
+
 ## Known gaps (current cycle)
 
 - [ ] Server-unevaluated criterion/statistic types have no trustworthy quantity to display; do not invent zero/completion.
