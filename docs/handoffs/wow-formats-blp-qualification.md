@@ -24,4 +24,18 @@ Use normal capacity ADD and the existing protocol sibling. Before-only corpus/re
 
 Server `site_snapshot_catalog::icon` currently loads/converts BLP directly through image-blp1.2, then encodes PNG using image0.24.9. It does not apply the engine's normalization. PNG preference, missing-file returns, cached bundles, icon-prefixed errors and complete encoded output are separate server policy. Its observer invokes that exact function; qualification does not migrate it.
 
-Results and split proposal are pending capture. No compatibility or cross-consumer equality is assumed.
+## Captured before-only evidence
+
+Frozen202 inputs comprise9 existing authored files and193 synthetic cases. Engine observer1/0:CPU33 success/162 error/7 panic; GPU34 success/162 error/6 panic. All9 authored inputs succeed. Complete engine inventory:68 files22,476,152B. Server observer1/0 captures207 icon cases including five source-selection edges:32 success/166 error/7 panic/2 None, with7 authored successes and2 authored BC5 refusals. Complete icon inventory:64 files4,123,240B. All202 input hashes and5 decoder/lockfile hashes remain unchanged.
+
+`/home/osso/.worktrees/logs/wow_formats-phase7/before-receipt.json` records full filenames/counts/sizes/SHA-256 and exact independent outcomes. `wow_formats-phase7-audit.py` rechecks all inputs, production sources/lockfiles and complete receipt inventories without decoding again. This is a before-only oracle, not old/new equivalence.
+
+Sixteen CPU/icon divergences include real464043 (65,536 alpha bytes), real1022933 (965,880 channel bytes), both realBC5 refusals, zero-alpha synthetic DXT3/5 and palette0/1/4/8 plus syntheticBLP1. Six truncated DXT block cases panic on all paths;8x8header/4x4payload additionally panics on CPU/icon while GPU returns4x4compressed. Those outcomes are retained, not fixed. Full error and panic strings live in each outcomes.json.
+
+Retained engine `blp::tests::`:11 pass/1 fail, the already absent180071 fixture,0 ignored. The authored boar+invalid-byte integration passes1/0. No authoredBLP0/BLP1/JPEG coverage is claimed; a bounded4096-entry header scan found an authoredDXT3 but noBLP1. Synthetic cases do not substitute for missing authored proof. Qualification is not an all-green release claim.
+
+## Smallest boundary proposal
+
+Recommend **no fifth crate and no consumer migration now**. The common raw parser is already image-blp1.2.0, used by both consumers. Keep engine CPU palette/alpha/mip normalization and BC5 support local; keep all Godot upload policy local; keep server source selection/direct conversion/errors/PNG bytes unchanged. A facade merely re-exporting image-blp would not remove a duplicate decoder. Exporting the entire engine wrapper would turn consumer policy into shared format behavior and change icons.
+
+If a separate portability/reuse goal later justifies a custom public decoder, the narrow candidate is BC5 validation/decode only. It currently has one consumer, so it is not recommended as another consolidation step. It requires explicit approval and replay against each consumer's own receipts, including unchanged icon refusals. No extraction follows this qualification without approval.
