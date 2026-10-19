@@ -42,7 +42,7 @@ Evidence SSOT: canonical `data/diagnostics/recipe-visibility-filters-2026-10-17/
 
 The [contract](../../specs/modern-crafting.md#learnedunlearned-recipe-filters) exposes the existing shared `UIResetButtonTemplate` only when either visibility flag is nondefault. `ProfessionBook.reset_visibility_filters()` clears those two inverted flags; native Reset and window close share that operation. Search, selected recipe/instance, authoritative Favorites and other owner state are untouched. Search alone does not expose Reset. No additional filter family, persistence, server request or audio-engine change is included.
 
-Three ignored screen REDs were pushed and failed before implementation: learned hidden, unlearned hidden and both hidden. Targeted controls cover default/search visibility and complete view-state conservation after Reset; the native single-click and authored Reset geometry proof remains pending its own lead gate/window. The accepted earlier filter proof above does not certify Reset.
+Three ignored screen REDs were pushed and failed before implementation: learned hidden, unlearned hidden and both hidden. Targeted controls cover default/search visibility and complete view-state conservation after Reset. `godot/tests/modern_crafting_filter_reset_live.gd` prepares three native nondefault states, single Reset clicks, source23px/TOPRIGHT−3 geometry, retained search/favorite-instance selection and gameplay conservation; that proof remains pending its own lead gate/window. The accepted earlier filter proof above does not certify Reset.
 
 ## Unlearned recipe discovery
 
