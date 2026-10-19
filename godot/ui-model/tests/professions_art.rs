@@ -339,6 +339,43 @@ fn professions_search_clear_visibility_follows_focus_or_query_without_owner_chan
 }
 
 #[test]
+fn professions_search_magnifier_geometry_and_four_focus_query_tints_match_source() {
+    for skin in [ActiveSkin::Modern, ActiveSkin::Forever] {
+        for (focused, query, tint) in [
+            (false, "", 0.6),
+            (true, "", 1.0),
+            (false, "linen", 1.0),
+            (true, "linen", 1.0),
+        ] {
+            let mut view = view(15);
+            view.search_focused = focused;
+            view.book.search = query.into();
+            let registry = render(skin, view);
+            let icon = authored_rect(&registry, "ProfessionsSearchBoxIcon");
+            let search = authored_rect(&registry, "ProfessionsSearchBox");
+            assert_eq!(
+                (icon[2], icon[3]),
+                (10.0, 10.0),
+                "source SearchBoxTemplate magnifier dimensions"
+            );
+            assert!((icon[0] - search[0] - 1.0).abs() < 0.01);
+            assert!((icon[1] + icon[3] / 2.0 - (search[1] + search[3] / 2.0 + 1.0)).abs() < 0.01);
+            let Some(WidgetData::Texture(texture)) = frame(&registry, "ProfessionsSearchBoxIcon")
+                .widget_data
+                .as_ref()
+            else {
+                panic!("magnifier texture missing")
+            };
+            assert_eq!(
+                texture.vertex_color,
+                [tint, tint, tint, 1.0],
+                "source focus/query tint"
+            );
+        }
+    }
+}
+
+#[test]
 fn professions_unlearned_schematic_and_learned_transition_in_both_skins() {
     for skin in [ActiveSkin::Modern, ActiveSkin::Forever] {
         let mut view = view(15);
