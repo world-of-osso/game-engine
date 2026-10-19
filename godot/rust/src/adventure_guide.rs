@@ -925,16 +925,20 @@ impl GameClient {
                 .ok_or("Journal source missing")?;
             let (actor, camera) =
                 game_engine_core::adventure_guide::read_model_scene(&self.data_root, scene_id)?;
-            if let Some(animation) = game_engine_core::adventure_guide::read_plain_animation_25(
-                &self.data_root,
-                actor.id,
-            )? {
+            if let Some(animation) =
+                game_engine_core::adventure_guide::read_plain_animation(&self.data_root, actor.id)?
+            {
                 let mut player = model
                     .try_get_node_as::<crate::animation::WowAnimationPlayer>("NpcModel/M2Animation")
                     .ok_or("Journal plain authored animation owner missing")?;
                 // Apply once when this detached model attaches; play_clip retains
                 // the existing crossfade path. Normal UI sync never restarts it.
-                player.bind_mut().play_clip(animation, true)?;
+                let fallbacks = game_engine_core::spell_visual::read_animation_fallbacks(
+                    &self.data_root.join("db2/active"),
+                )?;
+                player
+                    .bind_mut()
+                    .play_plain_clip(animation, true, &fallbacks)?;
             }
             model.set_rotation(Vector3::ZERO);
             let bounds = pet_actor_bounds(&model)?;
