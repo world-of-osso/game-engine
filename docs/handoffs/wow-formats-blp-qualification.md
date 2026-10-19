@@ -32,7 +32,7 @@ Frozen202 inputs comprise9 existing authored files and193 synthetic cases. Engin
 
 Sixteen CPU/icon divergences include real464043 (65,536 alpha bytes), real1022933 (965,880 channel bytes), both realBC5 refusals, zero-alpha synthetic DXT3/5 and palette0/1/4/8 plus syntheticBLP1. Six truncated DXT block cases panic on all paths;8x8header/4x4payload additionally panics on CPU/icon while GPU returns4x4compressed. Those outcomes are retained, not fixed. Full error and panic strings live in each outcomes.json.
 
-Retained engine `blp::tests::`:11 pass/1 fail, the already absent180071 fixture,0 ignored. The authored boar+invalid-byte integration passes1/0. No authoredBLP0/BLP1/JPEG coverage is claimed; a bounded4096-entry header scan found an authoredDXT3 but noBLP1. Synthetic cases do not substitute for missing authored proof. Qualification is not an all-green release claim.
+Retained engine `blp::tests::`:11 pass/1 fail, the already absent180071 fixture,0 ignored. The authored boar+invalid-byte integration passes1/0. No authoredBLP0/BLP1/JPEG coverage is claimed; a bounded4096-entry header scan found an authoredDXT3 but noBLP1. Synthetic cases do not substitute for missing authored proof. Qualification is not an all-green release claim. Scoped helper core check and workspace fmt check both exit0; manual changed-line readability audit found no warning suppressions or production changes. Decoder/lockfile hashes still match the capture source after merging master (only unrelated GDScript/docs changed). No receipt test is rerun for docs-only commits.
 
 ## Smallest boundary proposal
 
