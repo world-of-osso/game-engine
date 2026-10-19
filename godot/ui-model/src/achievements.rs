@@ -52,6 +52,7 @@ const CRITERIA_BAR_HEIGHT: f32 = 14.0;
 // Mainline XML1693–1713: right-to-left Filters layout, SearchBox107×30.
 const HEADER_FILTER_SPACING: f32 = 7.0;
 const HEADER_SEARCH_WIDTH: f32 = 107.0;
+const SEARCH_PREVIEW_LIMIT: usize = 5;
 const CRITERIA: usize = 6;
 /// Local Retail art: UI-Achievement-Category-Background, AchievementBackground, Shield.
 pub const ART: &[u32] = &[
@@ -143,6 +144,8 @@ pub struct AchievementWindow {
     pub search_results: CategoryPage,
     pub search_focused: bool,
     pub full_search: bool,
+    /// Zero-based visible preview index; Show All follows the received rows.
+    pub search_preview_selected: usize,
     categories_loaded: bool,
     pending: Vec<QueryAchievementCatalog>,
     /// The connection's last full snapshot with every later delta applied.
@@ -165,10 +168,18 @@ impl AchievementWindow {
             "achievement:statistics" => self.change_statistics(true),
             "achievement:achievements" => self.change_tab(false, false),
             "achievement:guild" => self.change_tab(false, true),
-            "achievement:search_focus" => self.search_focused = true,
+            "achievement:search_focus" => {
+                self.search_focused = true;
+                self.search_preview_selected = 0;
+            }
             "achievement:search_blur" => self.search_focused = false,
+            "achievement:search_submit" => {
+                if let Some(selected) = self.search_preview_action() {
+                    return self.action(&selected);
+                }
+            }
             "achievement:search_all" => {
-                if self.search_results.entries.len() > 5 || self.search_results.next.is_some() {
+                if self.has_more_search_results() {
                     self.full_search = true;
                     self.search_focused = false;
                     self.selected_achievement = None;
@@ -250,17 +261,64 @@ impl AchievementWindow {
         }
     }
 
+    fn has_more_search_results(&self) -> bool {
+        self.search_results.entries.len() > SEARCH_PREVIEW_LIMIT
+            || self.search_results.next.is_some()
+    }
+
+    /// Mainline Lua3552–3585: wrap only among visible, ready preview items.
+    pub fn search_preview_count(&self) -> usize {
+        if !self.search_focused
+            || self.full_search
+            || !self.search_results.loaded
+            || self.search_text.trim().chars().count() < 3
+        {
+            return 0;
+        }
+        let rows = self.search_results.entries.len().min(SEARCH_PREVIEW_LIMIT);
+        if rows == 0 {
+            return 0;
+        }
+        rows + usize::from(self.has_more_search_results())
+    }
+
+    fn move_search_preview(&mut self, step: i32) {
+        let count = self.search_preview_count() as i64;
+        if count == 0 {
+            return;
+        }
+        let next = (self.search_preview_selected as i64 + i64::from(step)).rem_euclid(count);
+        self.search_preview_selected = next as usize;
+    }
+
+    fn search_preview_action(&self) -> Option<String> {
+        if self.search_preview_count() == 0 {
+            return None;
+        }
+        let rows = self.search_results.entries.len().min(SEARCH_PREVIEW_LIMIT);
+        if self.search_preview_selected < rows {
+            let id = self.search_results.entries[self.search_preview_selected].achievement_id;
+            Some(format!("achievement:preview:{id}"))
+        } else if self.search_preview_selected == rows && self.has_more_search_results() {
+            Some("achievement:search_all".into())
+        } else {
+            None
+        }
+    }
+
     fn clear_search(&mut self) {
         self.search_text.clear();
         self.search_results = CategoryPage::default();
         self.full_search = false;
         self.search_focused = false;
+        self.search_preview_selected = 0;
     }
 
     fn search(&mut self, text: &str, requests: &mut Vec<QueryAchievementCatalog>) {
         self.search_text = text.chars().take(ACHIEVEMENT_SEARCH_MAX_CHARS).collect();
         self.search_results = CategoryPage::default();
         self.full_search = false;
+        self.search_preview_selected = 0;
         if self.search_text.trim().chars().count() >= 3 {
             requests.push(QueryAchievementCatalog::Search {
                 text: self.search_text.trim().into(),
@@ -318,6 +376,18 @@ impl AchievementWindow {
             self.start_comparison(target, requests);
         } else if let Some(text) = action.strip_prefix("achievement:search:") {
             self.search(text, requests);
+        } else if let Some(step) = action
+            .strip_prefix("achievement:search_move:")
+            .and_then(|value| value.parse::<i32>().ok())
+        {
+            self.move_search_preview(step);
+        } else if let Some(index) = action
+            .strip_prefix("achievement:search_select:")
+            .and_then(|value| value.parse::<usize>().ok())
+        {
+            if index < self.search_preview_count() {
+                self.search_preview_selected = index;
+            }
         } else if let Some(id) = action
             .strip_prefix("achievement:preview:")
             .and_then(|id| id.parse().ok())
@@ -604,6 +674,9 @@ impl AchievementWindow {
                     }
                     self.search_results.next = next_id;
                     self.search_results.loaded = true;
+                    if !self.full_search {
+                        self.search_preview_selected = 0;
+                    }
                     if self.full_search {
                         self.select_first();
                     }

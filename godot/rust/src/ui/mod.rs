@@ -802,8 +802,33 @@ impl RegistryModel {
         });
     }
 
+    fn achievement_search_hover_action(&self, id: u64) -> Option<String> {
+        let window = self
+            .shared
+            .get::<game_engine_ui_model::achievements::AchievementWindow>()?;
+        let name = self.registry.get(id)?.name.as_deref()?;
+        let index = if name == "AchievementShowAllSearchResults" {
+            window.search_preview_count().checked_sub(1)
+        } else {
+            name.strip_prefix("AchievementSearchPreview")
+                .and_then(|index| index.parse::<usize>().ok())
+                .and_then(|index| index.checked_sub(1))
+        }?;
+        Some(format!("achievement:search_select:{index}"))
+    }
+
     /// Original Enter in an edit box: login submits unless in flight; deletion confirms.
     fn submit(&self, actions: &mut VecDeque<String>) {
+        if self.registry.focused_frame.is_some()
+            && self.registry.focused_frame == self.registry.get_by_name("AchievementSearchBox")
+            && self
+                .shared
+                .get::<game_engine_ui_model::achievements::AchievementWindow>()
+                .is_some()
+        {
+            actions.push_back("achievement:search_submit".into());
+            return;
+        }
         let profession_quantity = self
             .shared
             .get::<game_engine_ui_model::professions_frame::ProfessionView>()
@@ -3294,6 +3319,12 @@ impl RegistryUi {
                     .is_some()
                 {
                     format!("journal:search-move:{step}")
+                } else if model
+                    .shared
+                    .get::<game_engine_ui_model::achievements::AchievementWindow>()
+                    .is_some()
+                {
+                    format!("achievement:search_move:{step}")
                 } else {
                     format!("talent:search_move:{step}")
                 };
@@ -3301,6 +3332,9 @@ impl RegistryUi {
             }
             UiInput::Hover(id, entered) => {
                 model.update_input_widgets(UiInput::Hover(id, entered), &mut self.slider_events);
+                if entered && let Some(action) = model.achievement_search_hover_action(id) {
+                    self.actions.push_back(action);
+                }
                 if entered
                     && model
                         .shared
