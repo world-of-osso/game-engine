@@ -7,7 +7,7 @@ Verified: 2026-10-18. Client M2/skin, WMO, ADT/WDT binary readers moved from `go
 | Crate | Moved code | Optional rendering data/helpers |
 | --- | --- | --- |
 | `wow-chunk` | `read_bytes.rs` and the original ADT `ChunkIter` | None |
-| `wow-m2` | `m2_format/`, particle defaults, batch/texture/composite code and `rgba_blit` | `animation`, `particles`, `ribbons`, `lights`, `cameras`, `events`, `textures`; default `render` enables all |
+| `wow-m2` | `m2_format/`, particle defaults, batch/texture/composite code and `rgba_blit` | `animation`, `attachments`, `materials`, `particles`, `ribbons`, `lights`, `cameras`, `events`, `textures`; default `render` enables all |
 | `wow-wmo` | `wmo_format/` | Default `render`, `fog`, `portals` |
 | `wow-adt` | `adt_format/` and `asset/wdt.rs` | Default `geometry` mesh helpers; raw chunk metadata is always available |
 
@@ -23,7 +23,13 @@ Original format modules contained **259 tests**: **225 synthetic parser tests** 
 
 Baseline helper `--test -p game-engine-core --no-fail-fast` at `55e1f8687`: **1063 passed, 1 failed, 4 ignored**. The existing BLP palette fixture cannot find `data/textures/180071.blp`; extraction does not alter that unrelated failure. Standalone full-feature tests pass225 and geometry-only tests pass149; every individual M2 optional feature compiles. After extraction, core passes838 with the same1 failure/4 ignored; adding the225 moved tests exactly reproduces baseline1063/1/4, including an identical1068-name multiset. Godot consumers/adapters pass242 tests in two disjoint filter sets (one additional pre-existing ignored test). See the [proof ledger and exact gate filters](../../handoffs/wow-formats-extraction.md).
 
-Phase 2 (game-server reader replacement and byte-identical LOS/nav bake) requires separate lead approval and has not started.
+## Geometry-consumer API split
+
+The separately approved server migration uses `materials` for raw skin batches/materials and `attachments` for static seat lookup; neither requires animation. The full default `render` feature still includes all original client parsing modules. Eye/head posing can enable `animation` independently of emitters, lights, cameras, events and texture composition.
+
+Raw geometry APIs preserve consumer policies: skin sections expose authored high-bit `raw_triangle_start` alongside the unchanged cumulative `triangle_start`; first-bone-key reading keeps external/global sources distinct; static attachment lookup ignores activation tracks; M2 normals retain authored face signs; WDT exposes all MAID slots separately from MAIN-active tiles; ADT's height-only view retains file-axis origins/holes without requiring normals or companion shadows. WMO exposes its existing raw vector/index array readers for server selection without enabling presentation helpers.
+
+Server phase 2 is approved; its Stockade byte-identity and LOS gates are tracked in the server's shared-format wiki page. Client pin changes still require the engine consumer gate.
 
 ## Sources
 
