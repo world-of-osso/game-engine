@@ -198,3 +198,45 @@ fn professions_search_scroll_shared_wheel_and_thumb_move_the_real_list() {
         );
     }
 }
+
+#[test]
+fn professions_search_clear_click_clears_editbox_and_focus_without_owner_mutation() {
+    use game_engine_ui_model::professions_frame::SEARCH;
+    use std::collections::VecDeque;
+    use ui_toolkit::frame::WidgetData;
+    for skin in [ActiveSkin::Modern, ActiveSkin::Forever] {
+        let mut model = multipage_model(skin);
+        let mut view = model.shared.get::<ProfessionView>().unwrap().clone();
+        view.book.search = "linen".into();
+        view.book.hide_unlearned = true;
+        view.search_focused = true;
+        view.selected_favorite = true;
+        model.replace_state(view.clone());
+        rebuild(&mut model);
+        let search = model.registry.get_by_name(SEARCH).unwrap();
+        model.edit_text(search, "linen".into());
+        model.focus_frame(search);
+        let clear = model
+            .registry
+            .get_by_name("ProfessionsSearchBoxClearButton")
+            .unwrap();
+        let mut actions = VecDeque::new();
+        model.queue_click_action(&mut actions, clear);
+        assert!(
+            actions.is_empty(),
+            "clear is consumed locally, not forwarded as a gameplay action"
+        );
+        assert!(model.registry.focused_frame.is_none());
+        let Some(WidgetData::EditBox(edit)) =
+            model.registry.get(search).unwrap().widget_data.as_ref()
+        else {
+            panic!("search EditBox missing")
+        };
+        assert!(edit.text.is_empty());
+        assert_eq!(
+            model.shared.get::<ProfessionView>(),
+            Some(&view),
+            "clear input leaves owner snapshot, selection and filter flags untouched until the normal input poll reads the editbox"
+        );
+    }
+}
