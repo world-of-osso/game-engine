@@ -22,6 +22,7 @@ fn view(rank: u16) -> ProfessionView {
                     max_rank: 300,
                 }],
                 spells: vec![3275],
+                recipe_sources: vec![],
             },
             recipes: vec![Recipe {
                 spell_id: 3275,
@@ -93,6 +94,86 @@ fn text(registry: &FrameRegistry, name: &str) -> (String, [f32; 4]) {
         other => panic!("Expected label {name}, got {other:?}"),
     }
 }
+#[test]
+fn professions_unlearned_schematic_and_learned_transition_in_both_skins() {
+    for skin in [ActiveSkin::Modern, ActiveSkin::Forever] {
+        let mut view = view(15);
+        view.book.snapshot.spells.clear();
+        view.can_create = true;
+        view.can_all = true;
+        let registry = render(skin, view.clone());
+        assert!(registry.get_by_name("ProfessionRecipe3275").is_some());
+        assert_eq!(text(&registry, "ProfessionsUnlearnedLabel").0, "Unlearned");
+        assert_eq!(text(&registry, "ProfessionsOutputName").0, "Linen Bandage");
+        for name in ["ProfessionsCreate", "ProfessionsCreateAll"] {
+            assert!(matches!(frame(&registry, name).widget_data,
+                Some(WidgetData::Button(ref button)) if button.state == ui_toolkit::widgets::button::ButtonState::Disabled));
+        }
+        view.book.snapshot.spells.push(3275);
+        let registry = render(skin, view);
+        assert!(registry.get_by_name("ProfessionRecipe3275").is_some());
+        assert!(registry.get_by_name("ProfessionsUnlearnedLabel").is_none());
+    }
+}
+
+#[test]
+fn professions_unlearned_source_header_requires_a_sourced_trainer_row() {
+    use game_engine_ui_model::professions_frame::recipe_source_tooltip;
+    for skin in [ActiveSkin::Modern, ActiveSkin::Forever] {
+        let mut view = view(15);
+        let catalog = game_engine_ui_model::professions_catalog::RecipeCatalog::load(
+            &std::path::PathBuf::from(env!("CARGO_MANIFEST_DIR")).join("../../data/db2/active"),
+        )
+        .unwrap();
+        view.book.recipes = vec![catalog.get(2153).unwrap().clone()];
+        view.book.selected = Some(2153);
+        view.book.snapshot.spells = vec![2108];
+        view.skill_names
+            .insert(2532, "Classic Leatherworking".into());
+        assert!(
+            render(skin, view.clone())
+                .get_by_name("ProfessionsRecipeSourceButton")
+                .is_none()
+        );
+        assert!(recipe_source_tooltip(&view.book, &view.skill_names).is_none());
+        view.book.snapshot.recipe_sources = vec![shared::protocol::ProfessionTrainerSource {
+            trainer_id: 56,
+            spell_id: 2153,
+            cost: 50,
+            req_skill_line: 2532,
+            req_skill_rank: 15,
+            req_abilities: vec![],
+            req_level: 0,
+        }];
+        let registry = render(skin, view.clone());
+        assert_eq!(
+            text(&registry, "ProfessionsRecipeSourceLabel").0,
+            "Unlearned Recipe"
+        );
+        let tooltip = recipe_source_tooltip(&view.book, &view.skill_names).unwrap();
+        let lines: Vec<_> = tooltip
+            .content
+            .lines
+            .iter()
+            .map(|line| line.left_text.as_str())
+            .collect();
+        assert_eq!(
+            lines,
+            [
+                "Trainer 56: 50 Copper",
+                "Requires Classic Leatherworking (15)"
+            ]
+        );
+        view.book.snapshot.spells.push(2153);
+        assert!(
+            render(skin, view.clone())
+                .get_by_name("ProfessionsRecipeSourceButton")
+                .is_none()
+        );
+        assert!(recipe_source_tooltip(&view.book, &view.skill_names).is_none());
+    }
+}
+
 #[test]
 fn professions_quality_recipe_is_visible_without_assigning_an_output() {
     use game_engine_ui_model::professions_catalog::RecipeCatalog;
