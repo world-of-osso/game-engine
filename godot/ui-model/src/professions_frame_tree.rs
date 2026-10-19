@@ -147,6 +147,14 @@ fn search_box(view: &ProfessionView) -> Element {
         pos_type: "absolute", font: GameFont::ArialNarrow, font_size: 14.0,
         font_color: HIGHLIGHT_FONT_COLOR, text_insets: "16,20,0,0" } },
     );
+    let hide_clear = !view.search_focused && view.book.search.is_empty();
+    out.extend(rsx! { button {
+        name: "ProfessionsSearchBoxClearButton", width: 17.0, height: 17.0,
+        left: {18.0 + search_width - 3.0 - 17.0}, top: 81.5, pos_type: "absolute",
+        hidden: hide_clear, button_default_skin: false, onclick: "profession:search-clear",
+        texture { name: "ProfessionsSearchBoxClearIcon", texture_atlas: "common-search-clearbutton",
+            width: 10.0, height: 10.0, left: 3.0, top: 3.0, pos_type: "absolute", alpha: 0.5 }
+    } });
     if view.book.search.is_empty() {
         out.extend(label(
             "ProfessionsSearchPlaceholder".into(),

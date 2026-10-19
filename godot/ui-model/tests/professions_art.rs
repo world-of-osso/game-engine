@@ -283,6 +283,62 @@ fn professions_filter_reset_restores_defaults_without_other_view_mutation() {
 }
 
 #[test]
+fn professions_search_clear_nonempty_query_has_source_control_in_both_skins() {
+    for skin in [ActiveSkin::Modern, ActiveSkin::Forever] {
+        let mut view = view(15);
+        view.book.search = "linen".into();
+        let registry = render(skin, view);
+        let clear = frame(&registry, "ProfessionsSearchBoxClearButton");
+        assert!(
+            !clear.hidden,
+            "nonempty search must expose its clear button"
+        );
+        let rect = authored_rect(&registry, "ProfessionsSearchBoxClearButton");
+        let search = authored_rect(&registry, "ProfessionsSearchBox");
+        assert_eq!((rect[2], rect[3]), (17.0, 17.0));
+        assert!((rect[0] + rect[2] - (search[0] + search[2] - 3.0)).abs() < 0.01);
+        assert!((rect[1] + rect[3] / 2.0 - (search[1] + search[3] / 2.0)).abs() < 0.01);
+        assert_eq!(clear.onclick.as_deref(), Some("profession:search-clear"));
+    }
+}
+
+#[test]
+fn professions_search_clear_visibility_follows_focus_or_query_without_owner_changes() {
+    for skin in [ActiveSkin::Modern, ActiveSkin::Forever] {
+        for (focused, query, visible) in [
+            (false, "", false),
+            (true, "", true),
+            (false, "linen", true),
+            (true, "linen", true),
+        ] {
+            let mut view = view(15);
+            view.search_focused = focused;
+            view.book.search = query.into();
+            view.book.hide_unlearned = true;
+            view.book.snapshot.favorites = vec![3275];
+            view.selected_favorite = true;
+            let before = view.clone();
+            let registry = render(skin, view.clone());
+            assert_eq!(
+                !frame(&registry, "ProfessionsSearchBoxClearButton").hidden,
+                visible
+            );
+            assert_eq!(
+                view, before,
+                "clear presentation must not mutate filters/selection/authority"
+            );
+            assert_eq!(text(&registry, "ProfessionsOutputName").0, "Linen Bandage");
+            assert_eq!(
+                registry
+                    .get_by_name("ProfessionFavoriteRecipe3275")
+                    .is_some(),
+                query.is_empty()
+            );
+        }
+    }
+}
+
+#[test]
 fn professions_unlearned_schematic_and_learned_transition_in_both_skins() {
     for skin in [ActiveSkin::Modern, ActiveSkin::Forever] {
         let mut view = view(15);

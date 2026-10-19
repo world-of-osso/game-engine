@@ -16,6 +16,13 @@ Pinned Retail 12.1.0.69933 `SkillLineAbility`/`SpellEffect`/`SpellReagents` cens
 
 Local world.db has only627 of1,286 distinct Leatherworking effect24 outputs joined to `content_item`; pinned CSV presence does not imply server runtime readiness. Existing Classic Leatherworking is the first end-to-end acceptance slice, not a claim of complete Midnight support.
 
+## Recipe search clear control
+
+- Recipe search inherits the authored SearchBoxTemplate clear control:17×17, RIGHT−3 centered vertically, with10×10 `common-search-clearbutton` art inset3px. It is visible while the editbox is focused or its query is nonempty, hidden only when empty and unfocused.
+- Clicking ClearText empties the query and releases search focus through existing local search-input handling. Recipe/instance selection, learned/unlearned flags, Favorites and owner/gameplay data remain unchanged; empty-query Favorites behavior remains intact.
+- No query persistence, other search-box redesign, filter/wire/server change or audio-engine expansion is included.
+- Sources: Mainline `Blizzard_ProfessionsRecipeList.xml:40–45`; `Blizzard_SharedXML/Shared/InputBox/InputBoxTemplates.xml:221–253`, `InputBoxTemplates.lua:180–205`.
+
 ## Recipe search scroll position
 
 - Changing the recipe search to a nonempty query starts the filtered result list at its top, even when the matching result set still spans multiple pages. A normal refresh with unchanged query retains the current scroll position, so matching results remain scrollable.

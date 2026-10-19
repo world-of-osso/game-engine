@@ -10,6 +10,12 @@ Verified: 2026-10-11. Engine behavioral source31c2bba12, overlay geometryac11dd7
 
 `professions_quality.rs` joins `Item.CraftingQualityID` → `CraftingQuality` → `CraftingQualityAtlasSet.IconInv` → `UiTextureAtlasElement.Name`. The stored tier is distinct from item rarity. `professions.rs` in the native extension supplies quality records only for displayed items; reagent slots draw the inventory overlay at its authored atlas size. Local-CASC export/layout/source receipts and absent outcome formulas are recorded in the [contract](../../specs/modern-crafting.md#quality-source-receipt), not inferred from item IDs.
 
+## Recipe search clear control
+
+The [clear contract](../../specs/modern-crafting.md#recipe-search-clear-control) adds the missing profession-specific SearchBoxTemplate control without replacing other search screens. `ProfessionView.search_focused` reads actual native registry focus; the screen shows the authored clear control for focus or nonempty query. The existing `search_for_clear_action`/edit/blur path consumes its action locally, clears registry text and releases native focus. The ordinary profession poll observes the new text; selection, filters and authoritative Favorites are not reset.
+
+Ignored both-skin RED was pushed and failed on the missing clear control before implementation. Tests cover source geometry, all four focus/query combinations and the actual registry click→clear/blur boundary with owner conservation. Native focus/type/single-clear acceptance is pending the lead gate/window; no audio-engine or persistence behavior is introduced.
+
 ## Recipe search scroll position
 
 The [contract](../../specs/modern-crafting.md#recipe-search-scroll-position) discards the recipe list offset on a changed nonempty query and retains it for ordinary refreshes. Existing `RegistryUi.set_state` typed scroll-transition/data replacement is extracted into `RegistryModel.replace_state`, preserving journal/map policies and exposing that actual production boundary to CPU tests. Profession view replacement compares the old/new query and resets only the recipe list registry offset; it does not mutate the view or selection.
