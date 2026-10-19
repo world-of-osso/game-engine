@@ -7,6 +7,7 @@ use std::{
 };
 
 const FIXTURES: &[(&str, usize)] = &[
+    ("trading_post_cart_selection", 7),
     ("campsite_selected_hover", 2),
     ("communities_fidelity", 2),
     ("dropdown_caption_centering", 4),
@@ -23,6 +24,7 @@ const FIXTURES: &[(&str, usize)] = &[
     ("ready_check_portrait", 2),
     ("ready_check_title_bounds", 2),
     ("registration_flow", 2),
+    ("achievement_search_selection_focus", 12),
 ];
 
 struct Invocation {
