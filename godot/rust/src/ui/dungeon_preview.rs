@@ -126,6 +126,29 @@ fn category_pending_window(comparison: bool, phase: &str) -> Result<AchievementW
     Ok(view)
 }
 
+/// Explicit received-payload UI controls only; no network or persisted gameplay facts.
+fn search_selection_window(many_results: bool) -> AchievementWindow {
+    let mut view = window();
+    let template = view.entries()[0].clone();
+    view.action("achievement:search_focus");
+    view.action("achievement:search:Level");
+    let count = if many_results { 6 } else { 1 };
+    view.apply(AchievementCatalogPage::Search {
+        text: "Level".into(),
+        scope: AchievementScope::All,
+        achievements: (0..count)
+            .map(|index| AchievementCatalogEntry {
+                achievement_id: 6 + index,
+                name: format!("Level {}", (index + 1) * 10),
+                criteria: Vec::new(),
+                ..template.clone()
+            })
+            .collect(),
+        next_id: None,
+    });
+    view
+}
+
 pub(super) fn cache_art() -> Result<(), String> {
     use godot::obj::Singleton;
     let data = godot::classes::ProjectSettings::singleton().globalize_path("res://../data");
@@ -216,6 +239,39 @@ impl RegistryUi {
         let result = self.prepare_dungeon_capture(skin).and_then(|()| {
             self.show_achievement_window(category_pending_window(comparison, &phase.to_string())?)
         });
+        GString::from(result.err().unwrap_or_default().as_str())
+    }
+
+    /// Offline native focus controls use the production achievement action dispatcher.
+    #[func]
+    pub fn show_achievement_search_selection_preview(
+        &mut self,
+        forever: bool,
+        many_results: bool,
+    ) -> GString {
+        let skin = if forever {
+            ui_toolkit::atlas::ActiveSkin::Forever
+        } else {
+            ui_toolkit::atlas::ActiveSkin::Modern
+        };
+        let result = self
+            .prepare_dungeon_capture(skin)
+            .and_then(|()| self.show_achievement_window(search_selection_window(many_results)));
+        GString::from(result.err().unwrap_or_default().as_str())
+    }
+
+    #[func]
+    pub fn achievement_search_selection_preview_dispatch(&mut self, action: GString) -> GString {
+        let Some(mut view) = self
+            .model
+            .as_ref()
+            .and_then(|model| model.shared.get::<AchievementWindow>())
+            .cloned()
+        else {
+            return GString::from("Achievement search selection preview not mounted");
+        };
+        crate::achievements::apply_achievement_ui_action(&mut view, self, &action.to_string());
+        let result = self.set_achievement_window(view);
         GString::from(result.err().unwrap_or_default().as_str())
     }
 
