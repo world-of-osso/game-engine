@@ -4878,3 +4878,7 @@ Explicit admitted unit_transform sampling replaces incomplete UnitPick traversal
 - Primary-title approved source-fit native668dfa: row823 actualfont24/264×50/2total2visible, not truncated. Fixture correctly stops before hoverRED; standaloneLabelcensus invalid as production proof. No primary-hover correction or forced title/font/geometry; gap retained.
 
 - Lead accepts primary-hover proof limitation as AG_PRIMARY_TITLE_HOVER_UNEXERCISED_NO_TRUNCATING_SOURCE_ROW; retain only cfg(debug_assertions) primary-index2 source input, no hover correction.
+
+- Journal source239Animation25: actualVakan0vs25 nativeRED before correction; source-gated Journal attach-only existingplayer/crossfade implementation, no per-sync restart or kits/variants/speed/effects scope expansion. NativeGREEN pending.
+
+- Journal plain25 extensioncec5 native2: Vakan/Gholna2/2eachskin, current25/sameplayer progressingclock/rawpose/centralpaint; four originalfullHD captures inspected. Existingcrossfadeimplementationunchanged, curveparityunclaimed; kits/variants/speed/effects and priornamedgaps remainexcluded.
