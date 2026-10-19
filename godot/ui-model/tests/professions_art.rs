@@ -23,6 +23,7 @@ fn view(rank: u16) -> ProfessionView {
                 }],
                 spells: vec![3275],
                 recipe_sources: vec![],
+                favorites: vec![],
             },
             recipes: vec![Recipe {
                 spell_id: 3275,
