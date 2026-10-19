@@ -2,6 +2,16 @@
 
 Verified: 2026-10-17 for section-focus flash; earlier receipts retain their recorded revisions. The [contract](../../specs/adventure-guide.md) owns Retail Mainline behavior; Forever only changes the shared screen's art.
 
+## Journal actor display-ID0 defaults — implementation
+
+The [contract](../../specs/adventure-guide.md#encounter-model-creatures) follows cached Retail ModelSceneActorMixin ApplyFromModelSceneActorInfo's explicit no-display arm: requestedScale1, alpha1, animation0. Journal-local `read_creature_actor` reads those defaults only when its source `creature` actor has UiModelSceneActorDisplayID0, preserving every authored transform field and the existing camera path. Nonzero displays still use the existing shared reader; that reader, shared Scene, projection and effect behavior remain unchanged.
+
+Exact installed joins: Raszageth5385→scene609/actor1696; One-ArmedBandit5771→978/2418; VoidPulsar6132→1380/4131. Their root M2s exist in the authenticated88d5 product package; absence from unqualified data/models is not an asset gap. Genuine Bandit native RED805758/fixturee153 reached Model and failed with `UiModelSceneActorDisplay 0 missing`; the first attempt was a rejected clipped-row navigation failure. Source defaults test4c66 also fails on the same refusal, while the non-Journal refusal control passes. Native GREEN remains pending.
+
+Raszageth's raw ZoomDistance0/min=max.5 resolves to.5, not0; its actorPositionZ5/normalized1 is retained. Do not adjust its camera, actor position or FOV to fill a screenshot. If this source pose cannot paint with retained projection, preserve that explicit gap while proving the other authentic cases.
+
+Sources: cached Blizzard_SharedXML/ModelSceneActorMixin.lua15–32; installed JournalEncounterCreature, UiModelSceneActor, UiModelSceneCamera and CreatureDisplayInfo rows; [`Journal reader`](../../../godot/core/src/adventure_guide/model_scene.rs).
+
 ## Authored creature model scenes — implementation
 
 The [contract](../../specs/adventure-guide.md#encounter-model-creatures) follows EJ Lua1455–1470: SetFromModelSceneID, GetActorByTag("creature"), SetModelByCreatureDisplayID. The catalog now preserves the cached UiModelSceneID; native pending/shown selection identity includes creature/display/scene rather than display alone. The raw initial OrbitCamera reader is Journal-local, leaving Trading Post rounding unchanged. ModelSceneActorMixin normalization/origin/orientation uses the existing shared actor math and loaded M2 bounds including intrinsic display scale. The native host installs the unframed model, then its authored camera; shared Scene projection/FOV remains unchanged.
