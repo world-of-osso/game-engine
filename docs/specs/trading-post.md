@@ -14,6 +14,15 @@ Retail Mainline Blizzard_PerksProgram and the local C_PerksProgram/PerksActiviti
 - [x] Traveler's Log displays authoritative monthly Tender earned/cap/balance. No invented mail awards. Retail XML defines visible controls; remove unsourced vendor SearchBox, Log/Collections and Freeze/Unfreeze buttons (lead clarification October13).
 - [x] Targeted behavioural tests and inspected private UDP5731 fb_* account PNG proof in Modern and Forever.
 
+## Same-hover ordinary deselection diagnostic (step 1 only)
+
+Retail Elements.lua291–304 OnEnter writes WHITE,335–340 SetSelected(false) writes NORMAL gold regardless hover. Program332–338/Products612–620/ScrollUtil591–617 supply native Down: deselect visible A before selecting adjacent visible B; ScrollBox821–850 does not scroll already-visible B. Current ordinary label derives WHITE from selected-or-hover, so source predicts an ordering gap; native/client dispatch and actual glyph behaviour still require proof. `TP_NAME_COLOR_SAME_HOVER_DESELECT_ORDER_UNIMPLEMENTED` remains open.
+
+- [ ] Push explicit-opt-in `trading_post_same_hover` diagnostic/nine-case registration before execution; production state/model/render/input unchanged. Use observed available adjacent A642/B848 fully visible, real native Down while pointer stays on A outside child toggle, unchanged row/scroll and existing hover-art owner. Measure actual Label RGBA and save actual full frames/glyph crops; no state/colour injection.
+- [ ] Collect initial selected A WHITE/B gold, same-hover deselected A expected gold/B selected WHITE, real leave gold/re-enter WHITE, native Up reselection A WHITE/B gold and selected leave WHITE. Restore exact original authority/local/HUD/XYZ before verdict; no transactions. No source/field/compile/data/harness failure counts as native RED; if it does not reproduce, keep gap/no production fix.
+- [ ] Fresh helper-built engine/server/protocol cohort/hashes, proven isolated offline asset-backed startup, registered parse and explicit owned TP5791 window for genuine both-skin diagnostic evidence, strict natural known nine checked-await cases/unique marker/complete streams. Preserve original memory/provenance and shutdown failure qualification; clear runtime/window promptly.
+- [ ] **Implementation requires separate approval after genuine RED.** No frozen labels/hover/blends, font/layout/audio/provider/cart redesign/API/event-bus, metadata or shutdown fixes; do not replay/relabel closed blend proof.
+
 ## Committed frozen selected-texture ADD compositing
 
 Retail Elements.xml383 inherits ordinary SelectedTexture223–230 `perks-list-active` ADD; Frozen SetSelected Lua523–532 delegates to ordinary335–340. Scope only the existing selected texture of a genuinely committed reservation, not candidate/pending visibility rules or frozen hover activation.
