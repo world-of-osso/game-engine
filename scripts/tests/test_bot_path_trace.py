@@ -54,6 +54,17 @@ class BotPathTraceTests(unittest.TestCase):
         self.assertEqual(wipes[0]["monotonic_clock"], "python_host_monotonic")
         self.assertFalse(any(row["event"] == "overlap_pull" for row in trace))
 
+    @unittest.skipUnless(os.environ.get("BOT_PATH_TEST_RED"), "behavioral RED: exact boss identity mapping not implemented")
+    def test_only_known_boss_entity_death_marks_its_source_spawn_dead(self):
+        run = {"run_id": "boss-fixture", "revision": "abc123", "actor": "101",
+               "party_names": {"101": "Tank"}, "start_ms": 1000, "end_ms": 1300,
+               "bosses": [{"spawn_guid": 900, "entity": "201"}, {"spawn_guid": 901, "entity": "202"}]}
+        trace = compile_trace([], [{"kind": "death", "dst": "201", "at_ms": 1200},
+                                   {"kind": "death", "dst": "999", "at_ms": 1250}], run)
+        states = [row for row in trace if row["event"] == "spawn_state"]
+        self.assertEqual([(row["spawn_guid"], row["alive"]) for row in states], [(900, False)])
+        self.assertEqual(states[0]["at_ms"], 1200)
+
 
 if __name__ == "__main__":
     unittest.main()
