@@ -32,6 +32,15 @@ impl AdventureGuide {
         authority: Option<Arc<shared::protocol::AdventureGuideSnapshot>>,
     ) -> Result<(), String> {
         self.view.activities = authority;
+        #[cfg(debug_assertions)]
+        if let Some(row) = &self.fixture_suggestion {
+            let snapshot = self
+                .view
+                .activities
+                .as_mut()
+                .ok_or("Source-row fixture lost its received activity snapshot")?;
+            replace_suggestion_642_fixture(&mut Arc::make_mut(snapshot).suggestions, row.clone())?;
+        }
         Ok(())
     }
 
