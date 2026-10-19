@@ -1306,9 +1306,16 @@ fn achievements_full_search_presents_received_page_two_and_ignores_late_query_bo
         );
         assert_eq!(window.entries().len(), 6);
         assert_eq!(window.selected_achievement, Some(6));
+        let button = registry
+            .get(
+                registry
+                    .get_by_name("AchievementFullSearchResult11")
+                    .unwrap(),
+            )
+            .unwrap();
         assert!(
             window
-                .action("achievement:preview:11")
+                .action(button.onclick.as_deref().unwrap())
                 .contains(&QueryAchievementCatalog::Achievement { achievement_id: 11 })
         );
         assert_eq!(window.selected_achievement, Some(11));
