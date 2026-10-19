@@ -53,6 +53,11 @@ func check_full_case(forever: bool, kind: String) -> bool:
 			if row == null:
 				failures.append("received full-search row633 missing")
 			else:
+				var first := ui.find_child("AchievementFullSearchResult6", true, false) as Control
+				if first == null:
+					failures.append("first full-search row missing before sixth-row click")
+				else:
+					check_vector(row.global_position - first.global_position, Vector2(0, 245), "sixth-row displacement")
 				await click(row.get_global_rect().get_center())
 				var raw: String = ui.call("achievement_search_keyboard_preview_dispatch")
 				var requests = JSON.parse_string(raw)
