@@ -6,10 +6,10 @@ rust-version.workspace = true
 
 [dependencies]
 # Shared clean-room readers; defaults preserve the client's complete render-data parsing.
-wow-chunk = { git = "https://github.com/world-of-osso/wow-formats.git", rev = "bb989f276669e5f900e97e985542cc440dcc00a8" }
-wow-m2 = { git = "https://github.com/world-of-osso/wow-formats.git", rev = "bb989f276669e5f900e97e985542cc440dcc00a8" }
-wow-wmo = { git = "https://github.com/world-of-osso/wow-formats.git", rev = "bb989f276669e5f900e97e985542cc440dcc00a8" }
-wow-adt = { git = "https://github.com/world-of-osso/wow-formats.git", rev = "bb989f276669e5f900e97e985542cc440dcc00a8" }
+wow-chunk = { git = "https://github.com/world-of-osso/wow-formats.git", rev = "ed180cecd7228471944dcdf1d427468e5cc6e7b5" }
+wow-m2 = { git = "https://github.com/world-of-osso/wow-formats.git", rev = "ed180cecd7228471944dcdf1d427468e5cc6e7b5" }
+wow-wmo = { git = "https://github.com/world-of-osso/wow-formats.git", rev = "ed180cecd7228471944dcdf1d427468e5cc6e7b5" }
+wow-adt = { git = "https://github.com/world-of-osso/wow-formats.git", rev = "ed180cecd7228471944dcdf1d427468e5cc6e7b5" }
 binrw = "0.15.1"
 image-blp = "1"
 # BC1 decode of 1-bit-alpha DXT1 mip chains; the same decoder image-blp uses.
