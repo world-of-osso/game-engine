@@ -1,9 +1,17 @@
+## 2026-10-18 — BLP qualification, no extraction
+
+[Boundary and before-only ledger](systems/wow-formats.md#blp-qualification-not-extraction): independent CPU/GPU/icon receipts preserve different normalization, BC5 refusals and malformed-input outcomes. No fifth crate or production/pin/asset change; recommend retaining the existing shared image-blp parser and local consumer policies. Authored180071 remains absent.
+
 ## 2026-10-19 — Achievement full-search close button
 
 [Source/implementation](systems/dungeon-achievements.md#full-search-close-button):24×24 explicit581,0 close with source exit art; onlyfull_search=false, exact retained state/reopen/cursor controls. Ignored nativeRED first/6 missing-button assertions→strict both-skin native6/6; model35/35 exact window equality/reopen/cursor continuation at11550ddf3. No duplicate native replay; central acceptance pending. Whole-frame/Escape/focus/server/totals/progress unchanged.
+## 2026-10-19 — Ordinary hover ADD same-oracle native GREEN
+
+[Source/root, distinct cohorts and proof limits](systems/trading-post.md#ordinary-product-hover-add-compositing): pushed-first diagnostic reproduces genuine both-skin11802 actual-versus-ADD RED/zero versus MIX; d44 single-atlas classification correction passed parent ha675/landed67d. Fresh actual E38f73/Sfe734/Pf9 with unchanged fixture hash passes both skins naturalexit0/unique7/7/clean full streams: actual-versus-ADD0/versus-MIX11802/exact restore0, source/backdrop/leave controls and exact authority/local/HUD/XYZ conservation, two Query/noTx. Runtime/window cleared12:49:30. Fourteen inspected full-HD GREEN originals+two contacts published; final diagnostic manifest binds binaries/source/streams/pixels/six original memory edges/PNG hashes. Initial harness failures remain separate; this is diagnostic blend proof, not whole-frame layout acceptance. Frozen hover/selected ADD and named same-hover deselection-order gap remain outside scope.
+
 ## 2026-10-19 — Ordinary hover ADD genuine pixel RED
 
-[Source/root and exact evidence](systems/trading-post.md#ordinary-product-hover-add-compositing): Elements.xml225–236 ADD overlay; existing native highlight atlas omitted from blend list. Opt-in6be diagnostic pushed first, fixture-only6f3 fixes draw-boundary ownership after separately retained parse/freed-node harness errors. Actual6be/S0406/Pf9 both skins reproduce11802 wrong actual-versus-ADD pixels/zero actual-versus-MIX,11802 ADD/MIX distinction, exact original material restore and stable backdrop/leave. Authority/local/HUD restored before intended exit1, XYZ0/two Query/noTx; runtime/window cleared09:39:22. Single-atlas classification correction implemented; focused tests/parent gate/fresh strict native GREEN pending. No field/source RED or historical relabeling/frozen-hover/selected-art/event-state expansion.
+[Source/root and exact evidence](systems/trading-post.md#ordinary-product-hover-add-compositing): Elements.xml225–236 ADD overlay; existing native highlight atlas omitted from blend list. Opt-in6be diagnostic pushed first, fixture-only6f3 fixes draw-boundary ownership after separately retained parse/freed-node harness errors. Actual6be/S0406/Pf9 both skins reproduce11802 wrong actual-versus-ADD pixels/zero actual-versus-MIX,11802 ADD/MIX distinction, exact original material restore and stable backdrop/leave. Authority/local/HUD restored before intended exit1, XYZ0/two Query/noTx; runtime/window cleared09:39:22. Single-atlas classification correction and subsequent gate/fresh GREEN are recorded above; this entry retains the original RED cohort. No field/source RED or historical relabeling/frozen-hover/selected-art/event-state expansion.
 
 ## 2026-10-19 — Ordinary name settled-colour native GREEN
 ## 2026-10-19 — Anomalus fixture-only framing diagnostic
@@ -27,6 +35,10 @@
 ## 2026-10-19 — Frozen-source drag retirement native GREEN
 
 [Source/root and fresh native proof](systems/trading-post.md#frozen-products-are-not-drag-sources): Elements495–508 disables frozen pickup; replacement510–521/577–670 already exists. No cached UI caller for ClearFrozenPerksVendorItem; right-click cancels confirmation only. IgnoredCPU0a8 pushed first gives genuine selected/unselected outside Freeze(None)-versus-None REDs plus five controls; root068 removal passes7/7 and tf637 TESTEXIT/PARSE/FMT0/landing. FreshE068/S2e4/Pf9 both skins strict natural7/7/no error markers/full streams,18 observations including six frozen attempts and all ordinary/cart/modal/occupied-cancel controls,13 decoded plays each. Exact authority/local/HUD restored before verdict, XYZ0, two Query only. Forty inspected originals+two contacts published under AgentShared/2026-10-19/trading-post-frozen-source-no-drag; manifest binds five binaries/source/streams/42receipts/original six memory edges/42PNG hashes. Runtime/window cleared04:17:35;1675 unrelated server errors qualified. Server/protocol clear support stays; historical October13 proof qualified, not erased/relabelled; accepted/immediate transactions retain CPU proof.
+
+## 2026-10-17 — Profession search clear control implementation
+
+[Source and boundary](systems/native-professions-crafting.md#recipe-search-clear-control): inherited SearchBoxTemplate17×17/RIGHT−3 control, visible focused or nonempty, local ClearText/blur. Pushed ignored missing-control RED precedes implementation; geometry/four focus-query combinations/production edit-clear-focus tests preserve owner selection/Favorites/filters. Native coordinate acceptance pending lead gate/window; no other search redesign/persistence/wire/audio-engine expansion.
 
 ## 2026-10-17 — Native recipe search-scroll retry
 

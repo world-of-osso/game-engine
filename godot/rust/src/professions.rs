@@ -507,6 +507,11 @@ impl GameClient {
             favorite_menu: self.professions.favorite_menu,
             selected_favorite: self.professions.selected_favorite,
             filter_open: self.professions.filter_open,
+            search_focused: self
+                .professions
+                .ui
+                .as_ref()
+                .is_some_and(|ui| ui.bind().is_frame_focused(SEARCH)),
             now_unix: godot::classes::Time::singleton().get_unix_time_from_system() as u64,
             specializations: self.professions.specializations.clone(),
             concentration: self.professions.concentration.clone(),
