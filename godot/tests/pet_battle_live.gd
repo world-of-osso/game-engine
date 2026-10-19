@@ -38,6 +38,8 @@ func live_run() -> void:
 		match command.action:
 			"snapshot":
 				result.account = client.account_state()
+				var root_size := root.get_visible_rect().size
+				result.viewport_size = [root_size.x, root_size.y]
 				result.asset_runtime = WowAssetLoader.new().asset_runtime_status()
 				result.input_enabled = client.is_processing_input()
 				result.unhandled_enabled = client.is_processing_unhandled_input()

@@ -61,7 +61,10 @@ class PetBattleModelVisibility(unittest.TestCase):
                     # Fixed pads and authentic data, not equal projected heights.
                     x, y, width, height = model["posed_projected_px"]
                     center_x = x + width / 2
-                    pad_x = (230, 520) if model["name"] == "AllyPet" else (760, 1050)
+                    # Pad bands authored on a 1280-wide viewport, scaled to the real one.
+                    band = (230, 520) if model["name"] == "AllyPet" else (760, 1050)
+                    viewport_width = response["viewport_size"][0]
+                    pad_x = tuple(edge / 1280 * viewport_width for edge in band)
                     self.assertGreaterEqual(center_x, pad_x[0], model)
                     self.assertLessEqual(center_x, pad_x[1], model)
                     self.assertGreater(height, 0, model)
