@@ -355,6 +355,18 @@ impl RegistryModel {
                 &mut self.registry,
             );
         }
+        if let Some(next) = (&state as &dyn std::any::Any)
+            .downcast_ref::<game_engine_ui_model::professions_frame::ProfessionView>(
+        ) && let Some(previous) =
+            self.shared
+                .get::<game_engine_ui_model::professions_frame::ProfessionView>()
+            && !next.book.search.is_empty()
+            && previous.book.search != next.book.search
+        {
+            self.registry
+                .scroll_lists
+                .scroll_to(game_engine_ui_model::professions_frame::LIST, 0);
+        }
         self.shared.insert(state);
         true
     }
