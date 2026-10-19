@@ -51,12 +51,13 @@ func collect_hover_pixels() -> bool:
 	backdrop = ColorRect.new()
 	backdrop.name = "HoverAddDiagnosticBackdrop"
 	backdrop.color = Color(0.2,0.3,0.4,1.)
-	backdrop.position = row_rect.position
 	backdrop.size = row_rect.size
 	backdrop.mouse_filter = Control.MOUSE_FILTER_IGNORE
 	backdrop.z_as_relative = false
 	backdrop.z_index = 3999
-	root.add_child(backdrop)
+	# Share the row's canvas layer; a viewport-root Control would remain behind its UI.
+	row.get_parent().add_child(backdrop)
+	backdrop.global_position = row_rect.position
 	var off := await capture_blend("backdrop-off")
 	await motion(row_rect.get_center())
 	await frames(20)
