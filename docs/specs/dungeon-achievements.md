@@ -102,10 +102,10 @@ Native Retail Mainline AchievementUI and dungeon objectives, using authoritative
 
 ### Full-search result presentation
 
-- [ ] Full search uses Retail's separate600×382 bottom-centered result container and575×49 rows, not expandable category cards. Display received name/icon/completion and the sourced root-to-leaf category breadcrumb; unknown local ancestry is an explicit data error, never inferred from the viewed category.
-- [ ] Resolve static ancestry from the installed Achievement.csv and Achievement_Category.csv only; earned/progress values remain received. Row clicks use the existing received-ID open action. Category cards, cursor paging/query correlation, preview, focus/Escape policy, totals and progress remain unchanged; no invented result-count title.
+- [x] Full search uses Retail's separate600×382 bottom-centered result container and575×49 rows, not expandable category cards. Display received name/icon/completion and the sourced root-to-leaf category breadcrumb; unknown local ancestry is an explicit data error, never inferred from the viewed category.
+- [x] Resolve static ancestry from the installed Achievement.csv and Achievement_Category.csv only; earned/progress values remain received. Row clicks use the existing received-ID open action. Category cards, cursor paging/query correlation, preview, focus/Escape policy, totals and progress remain unchanged; no invented result-count title.
 - Source: Mainline AchievementUI.xml62–111/2582–2703, Lua3467–3493; [implementation/data provenance](../wiki/systems/dungeon-achievements.md#full-search-result-presentation).
-- Native process fixture `godot/tests/achievement_search_full_results.gd` (eight both-skin cases), ignored wrapper `network/tests/achievement_search_full_results_template.rs`; supplied UI metadata, not realm/progress/search-semantic proof.
+- Native process fixture `godot/tests/achievement_search_full_results.gd` (eight both-skin cases), ignored wrapper `network/tests/achievement_search_full_results_template.rs`; supplied UI metadata, not realm/progress/search-semantic proof. Initial native geometry/metadata/category and third-row open8/8 plus retained focus12/12 passed; model34/catalog1 pass on the direct-open fix. Strengthened sixth-row physical/outgoing-ID native8 is pending the central gate, not claimed from the earlier third-row run.
 
 ## Known gaps (current cycle)
 
