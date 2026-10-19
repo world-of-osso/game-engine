@@ -105,7 +105,8 @@ func sample() -> void:
                 return
             rotation.merge(evaluation, true)
     if path_capture != null:
-        path_capture.append_sample(account, rotation, origins, facings)
+        var party: Dictionary = path_capture.sample_admitted_party(client, directory, account.get("local_player_id"))
+        path_capture.append_sample(account, rotation, origins, facings, party)
     publish("native-rotation-state.json", rotation)
     if now_ms - last_metrics_ms >= 1000:
         last_metrics_ms = now_ms
