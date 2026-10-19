@@ -69,6 +69,38 @@ impl ReagentSelection {
     }
 }
 
+/// Passive native profession status, independent of Godot scene ownership.
+pub fn craft_status(
+    error: &str,
+    selection: &ReagentSelection,
+    recipe: Option<&crate::professions::Recipe>,
+) -> String {
+    if !error.is_empty() {
+        return error.into();
+    }
+    if selection.pending {
+        return "Validating reagents...".into();
+    }
+    if let Some(response) = &selection.response {
+        if let Some(error) = &response.validation_error {
+            return error.clone();
+        }
+        return response
+            .quality
+            .as_ref()
+            .err()
+            .map(ToString::to_string)
+            .unwrap_or_default();
+    }
+    if recipe.is_some_and(|recipe| recipe.output.is_none()) {
+        return shared::profession::evaluate_crafted_quality()
+            .err()
+            .expect("missing authored evaluator")
+            .to_string();
+    }
+    String::new()
+}
+
 pub fn selectable(slot: &ReagentSlot) -> bool {
     let basic_unconditional = slot.reagent_type == 1 && slot.player_condition == 0;
     // Professions.lua745-752: one basic reagent is Fixed, not Quality input mode.
