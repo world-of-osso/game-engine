@@ -138,6 +138,7 @@ fn preview_view() -> ProfessionView {
                     max_rank: 300,
                 }],
                 spells,
+                recipe_sources: vec![],
             },
             recipes,
             visible: true,

@@ -10,6 +10,10 @@ Verified: 2026-10-11. Engine behavioral source31c2bba12, overlay geometryac11dd7
 
 `professions_quality.rs` joins `Item.CraftingQualityID` → `CraftingQuality` → `CraftingQualityAtlasSet.IconInv` → `UiTextureAtlasElement.Name`. The stored tier is distinct from item rarity. `professions.rs` in the native extension supplies quality records only for displayed items; reagent slots draw the inventory overlay at its authored atlas size. Local-CASC export/layout/source receipts and absent outcome formulas are recorded in the [contract](../../specs/modern-crafting.md#quality-source-receipt), not inferred from item IDs.
 
+## Unlearned recipe discovery
+
+The list uses separate learned/unlearned category groups; selection is independent of spell knowledge, while craft requests still require the authoritative known-spell snapshot. Native catalog projection includes unlearned recipes only from owned skill lines. `ProfessionSnapshot.recipe_sources` supplies read-only trainer rows for the source tooltip, without a new message or local acquisition inference. The [contract](../../specs/modern-crafting.md#unlearned-recipe-discovery) owns behavior and sources. Native both-skin acceptance remains pending the lead's granted5951 window.
+
 ## Trainer-learned recipe boundary
 
 The private flow exposed a client-only craft block after a legitimate trainer purchase: Handstitched Leather Pants2153 was known at rank15, while the pinned automatic-learning threshold is30. The client reported zero crafts despite sufficient bags. Removing the invented acquisition-rank check restores authoritative knowledge/reagent decisions. TrinityCore and Retail source grounding lives in the [contract](../../specs/modern-crafting.md#learned-recipe-boundary). Unknown recipes still cannot produce a craft request.
