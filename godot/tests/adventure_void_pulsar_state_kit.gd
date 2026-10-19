@@ -33,6 +33,13 @@ func require_effects() -> Dictionary:
 		var parent_path := str(node.get_parent().get_path())
 		if not completion.require(parent_path.ends_with("AttachmentBone34/Attachment34"), "Source effect not attached to authored34: " + parent_path):
 			return {}
+		var attach := source_row("SpellVisualKitModelAttach", 604059 if fdid == 4861458 else 604104)
+		var effect := source_row("SpellVisualEffectName", int(attach.SpellVisualEffectNameID))
+		var position := Vector3(float(attach.Offset_0),float(attach.Offset_2),-float(attach.Offset_1))
+		var scale := float(attach.Scale) * float(effect.Scale)
+		var basis := Basis.from_euler(Vector3(float(attach.Pitch),float(attach.Yaw),float(attach.Roll))).scaled(Vector3.ONE * scale)
+		if not completion.require(node.position.is_equal_approx(position) and node.basis.is_equal_approx(basis), "Source effect%s offset/yaw/scale changed" % fdid):
+			return {}
 		var player: Node = node.find_child("M2Animation", true, false)
 		if not completion.require(player != null and player.current_animation_id() == 158, "Source effect%s did not play158" % fdid):
 			return {}
@@ -90,11 +97,17 @@ func run_state_kit() -> bool:
 	if completion.failed or not await check_clock_and_identity(found):
 		return false
 	var old_model := selected_model().get_instance_id()
+	var old_effects := []
+	for node in found.values():
+		old_effects.append(node.get_instance_id())
 	if not completion.step(await click("JournalCreature6127"), "physical switch away from Pulsar"):
 		return false
 	await settle()
 	if not completion.require(not is_instance_id_valid(old_model), "Switched-away detached visual remains alive"):
 		return false
+	for identity in old_effects:
+		if not completion.require(not is_instance_id_valid(identity), "Switch retained old state-effect node"):
+			return false
 	if not completion.step(await click("JournalCreature6132"), "physical return to Pulsar") or not completion.step(await expect_model(6132,141206,"Void Pulsar"), "Pulsar reload"):
 		return false
 	if (await require_effects()).size() != 2:
