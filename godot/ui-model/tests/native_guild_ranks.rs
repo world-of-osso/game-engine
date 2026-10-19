@@ -2,7 +2,6 @@ use game_engine_ui_model::guild_ranks::GuildRanksSession;
 use shared::protocol::*;
 
 #[test]
-#[ignore = "guild leadership transfer RED before implementation"]
 fn guild_leadership_transfer_slash_preserves_the_typed_target_without_help_or_chat() {
     use game_engine_ui_model::chat_frame::{ChatCommand, parse_chat_input};
     for (line, name) in [
