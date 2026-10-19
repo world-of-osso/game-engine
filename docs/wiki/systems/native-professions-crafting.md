@@ -10,6 +10,12 @@ Verified: 2026-10-11. Engine behavioral source31c2bba12, overlay geometryac11dd7
 
 `professions_quality.rs` joins `Item.CraftingQualityID` → `CraftingQuality` → `CraftingQualityAtlasSet.IconInv` → `UiTextureAtlasElement.Name`. The stored tier is distinct from item rarity. `professions.rs` in the native extension supplies quality records only for displayed items; reagent slots draw the inventory overlay at its authored atlas size. Local-CASC export/layout/source receipts and absent outcome formulas are recorded in the [contract](../../specs/modern-crafting.md#quality-source-receipt), not inferred from item IDs.
 
+## Recipe search scroll position
+
+The [contract](../../specs/modern-crafting.md#recipe-search-scroll-position) discards the recipe list offset on a changed nonempty query and retains it for ordinary refreshes. Existing `RegistryUi.set_state` typed scroll-transition/data replacement is extracted into `RegistryModel.replace_state`, preserving journal/map policies and exposing that actual production boundary to CPU tests. Profession view replacement compares the old/new query and resets only the recipe list registry offset; it does not mutate the view or selection.
+
+Ignored RED was pushed first:80 concrete matching recipes remain over two pages, but a new query retains630px instead of0. Controls cover a second nonempty query after scrolling, unchanged-query refresh/no-op retention, owner/selection conservation and search's Favorites omission. Native coordinate input acceptance remains pending the lead gate/window; profession switching is not included.
+
 ## Recipe Favorites
 
 `ProfessionSnapshot.favorites` supplies character-owned favorite spell IDs; the client never promotes a pending preference request into authoritative state. Favorites uses a pseudo-category before ordinary categories only outside search, with separate favorite/ordinary row identities and selection. The right-click menu reuses the shared Retail menu primitive and preserves recipe selection. The [contract](../../specs/modern-crafting.md#recipe-favorites) owns sources/requirements.

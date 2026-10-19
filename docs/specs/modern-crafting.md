@@ -16,6 +16,12 @@ Pinned Retail 12.1.0.69933 `SkillLineAbility`/`SpellEffect`/`SpellReagents` cens
 
 Local world.db has only627 of1,286 distinct Leatherworking effect24 outputs joined to `content_item`; pinned CSV presence does not imply server runtime readiness. Existing Classic Leatherworking is the first end-to-end acceptance slice, not a claim of complete Midnight support.
 
+## Recipe search scroll position
+
+- Changing the recipe search to a nonempty query starts the filtered result list at its top, even when the matching result set still spans multiple pages. A normal refresh with unchanged query retains the current scroll position, so matching results remain scrollable.
+- Scroll changes do not change recipe/instance selection, authored collapse state, learned/unlearned filters, Favorites or owner data. Search continues to omit Favorites. Profession switching is excluded.
+- Source: cached Mainline `Blizzard_ProfessionsCrafting.lua:826–833` uses `DiscardScrollPosition` for searching and `RetainScrollPosition` for ordinary refreshes. Concrete regression fixtures must retain enough matching rows for a second page; automatic clamping is not reset proof.
+
 ## Recipe Favorites
 
 - Favorites belong to the character and only authoritatively known spells may be favorited. Unlearned2153 requests must leave favorite state, inventory, copper, skill/knowledge and currencies unchanged.
