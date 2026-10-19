@@ -64,6 +64,7 @@ fn professions_account_dispatches_loading_snapshot_and_skill_refresh() {
             max_rank: 300,
         }],
         spells: vec![3908, 264616, 3275],
+        favorites: vec![3275],
         recipe_sources: vec![],
     };
     for rank in [1, 2] {
