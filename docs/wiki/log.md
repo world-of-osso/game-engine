@@ -1,3 +1,7 @@
+## 2026-10-19 — Unaccepted freeze selected-texture CPU RED
+
+[Source/root](systems/trading-post.md#unaccepted-freeze-preview-selected-texture): ignoredc519 tests pushed first, actual Modern/Forever44268-versus0 failures with five phase controls passing. Minimal renderer-only selected-vendor argument correction leaves View/authority untouched and keeps accepted/immediate selection. Tests unignored; current drag diagnostic expects pending0 and explicitly reselects the original frozen product after cancel (12 samples/seven groups). CPU GREEN and parent gate precede fresh native proof; historical169 remains immutable, no server/protocol/audio/label/glow/frozen-policy expansion.
+
 ## 2026-10-18 — Trading Post held drag timing accepted
 
 [Native proof](systems/trading-post.md#fresh-native-drag-green): fixture-first785 actual both-skin RED→D7 extension/production9a/fixture169 fresh7/7 each, same11 observations/seven groups, B/art/+1 before release/no duplicate/repeat/outside/cart/modal/occupied-cancel. Exact authority/local/HUD restoration, XYZ0, two Query only; eight decoded plays each. td613 lands source01beef after full family/fixture/gdscript/fmt gate. Twenty-six inspected originals plus two contacts published under AgentShared/2026-10-18/trading-post-drag-selection; proof manifest binds sources/binaries/streams/original six success edges. Window/runtime cleared23:13:53. Approved fixture-only pending-art44268 conservation is not Retail parity; rejected server-only/over-broad-oracle attempts remain retained.
