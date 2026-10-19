@@ -22,6 +22,10 @@
 ## 2026-10-18 — Shared native menu order
 
 [Source and bounded projection](systems/menu-primitives.md#native-menu-order-2026-10-18): actual guild-menu z563 below Last Online1503 reproduces additive-strata ordering failure. Shared menus use FULLSCREEN_DIALOG; native layers rank densely below the existing highlight plane, with explicit once-reported capacity errors and unchanged pointer policy. Native guild/navigation, tooltip/strata/raise/reused-ID and both dungeon/raid companion controls pass; pointer comparator remains unchanged. Golden census measures50 actual roots, maximum16 layers (GameMenuRoot193frames) versus4000 capacity; Modern golden/hash targets47 pass, with only21 source-qualified menu stratum fields changed. Gatemo592 landed; [refreshed real guild pixels and reopen](systems/guilds.md#native-acceptance-2026-10-18) pass, with caller-wide rendered parity and engine exit cleanup explicitly unclaimed.
+## 2026-10-18 — Source642 bounded native hover proof
+
+[Exact revisions and limits](systems/adventure-guide.md#suggested-secondary-text-hover--implementation-2026-10-17): native6both-skin3/3, actual642description5lines/4visible, fullwhitewrappedRighttooltip/leavehidden/fittingtitle-negative. Six full-HD originals individually inspected; extension39d4393bd and fixtureb2a629cb3 receipts remain distinct. Source-record-fed fixture only, no realm eligibility/authority claim; genuine881/852negatives remain separate55e1 evidence. Failed fixture attempts retained, independent gate lead-owned.
+
 ## 2026-10-18 — Source642 fixture presentation lifetime
 
 [Fixture-only boundary](systems/adventure-guide.md#suggested-secondary-text-hover--implementation-2026-10-17): full received vectors exceed three painted panes; one-shot substitution is overwritten by the normal next snapshot copy. Debug-only optional row reapplies to cloned presentation input, preserving authority and tail rows. Actual guard/lifetime REDs retained; no product/truncation change or positive physical claim.
