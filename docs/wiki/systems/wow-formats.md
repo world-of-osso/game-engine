@@ -43,7 +43,7 @@ Pinned revision2a91b224 exposes the existing12B directory,24B instance and16B at
 
 ## MFBO signed-grid projection
 
-Pinned revision882b2fc adds the minimum-grid projection used by runtime ground. The existing client full-bound decoder reuses its signed-grid reader after the same36-byte guard; last-MFBO selection and all geometry/render-facing fields remain unchanged. Runtime first-selection, error mapping/order, plane arithmetic, defaults and falling stay local. No new feature or dependency. The [MFBO ledger](../../../../game-server/docs/handoffs/wow-formats-mfbo-records.md) describes frozen before/after record, query and failure-order proof; consumer gates remain pending.
+Pinned revision882b2fc adds the minimum-grid projection used by runtime ground. The existing client full-bound decoder reuses its signed-grid reader after the same36-byte guard; last-MFBO selection and all geometry/render-facing fields remain unchanged. Runtime first-selection, error mapping/order, plane arithmetic, defaults and falling stay local. No new feature or dependency. The [MFBO ledger](../../../../game-server/docs/handoffs/wow-formats-mfbo-records.md) proves376/376 files50,037,281B byte-identical,120 receipt-source hashes and Map34lookup unchanged. Engine sourcec0b9adaef/protocolf9a91753 passes helper authored/fullADT5, direct positive-MFBO Zephras1 and water-height4, native terrain45/ground18, helper check/fmt0. Subsequent changes are docs-only; independent lead integration remains pending.
 
 ## Sources
 
