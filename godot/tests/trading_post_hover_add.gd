@@ -139,7 +139,7 @@ func restore_original_state() -> bool:
 	var state: Dictionary = client.trading_post_state()
 	var final_appearances := Array(client.tooltip_state().appearance_collection)
 	final_appearances.sort()
-	var same := int(state.tender) == int(baseline.tender) and int(state.frozen) == int(baseline.frozen) and state.cart == baseline.cart and int(state.selected) == int(baseline.selected) and int(state.items) == int(baseline.items) and final_appearances == appearances
+	var same: bool = int(state.tender) == int(baseline.tender) and int(state.frozen) == int(baseline.frozen) and state.cart == baseline.cart and int(state.selected) == int(baseline.selected) and int(state.items) == int(baseline.items) and final_appearances == appearances
 	var delta: float = client.account_state().local_player_position.distance_to(origin)
 	var chat := client.get_node_or_null("ChatFrameUI") as CanvasLayer
 	if not gate.require(chat != null and not chat.visible,"fullscreen HUD owner before Leave"): return false
