@@ -71,7 +71,6 @@ fn rebuild(model: &mut RegistryModel) {
 }
 
 #[test]
-#[ignore = "RED: a nonempty recipe search retains the old multi-page scroll offset"]
 fn professions_search_scroll_new_query_discards_offset_without_owner_or_selection_mutation() {
     for skin in [ActiveSkin::Modern, ActiveSkin::Forever] {
         let mut model = multipage_model(skin);
@@ -103,6 +102,32 @@ fn professions_search_scroll_new_query_discards_offset_without_owner_or_selectio
                 .registry
                 .get_by_name("ProfessionFavoriteRecipe900000")
                 .is_none()
+        );
+        assert!(model.registry.scroll_lists.scroll_to(LIST, 630));
+        rebuild(&mut model);
+        next.book.search = "pattern".into();
+        assert!(model.replace_state(next.clone()));
+        rebuild(&mut model);
+        assert_eq!(
+            model.registry.scroll_lists.get(LIST).unwrap().first_row,
+            0,
+            "second nonempty query discards a user-scrolled search offset"
+        );
+        assert!(model.registry.scroll_lists.scroll_to(LIST, 630));
+        rebuild(&mut model);
+        next.status = "Updated owner inventory".into();
+        assert!(model.replace_state(next.clone()));
+        rebuild(&mut model);
+        assert_eq!(
+            model.registry.scroll_lists.get(LIST).unwrap().first_row,
+            630,
+            "unchanged query refresh must not prevent scrolling search results"
+        );
+        assert!(!model.replace_state(next));
+        rebuild(&mut model);
+        assert_eq!(
+            model.registry.scroll_lists.get(LIST).unwrap().first_row,
+            630
         );
     }
 }
