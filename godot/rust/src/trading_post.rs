@@ -63,6 +63,30 @@ pub(crate) struct TradingPost {
 /// The tooltip stays usable over the vendor, like Retail's own PerksProgramTooltip.
 const KEPT_LAYERS: [&str; 2] = ["PerksProgramUI", "GameTooltipUI"];
 impl TradingPost {
+    fn activate_product_drag(&mut self, position: Vector2) -> bool {
+        let Some(drag) = &mut self.dragged else {
+            return false;
+        };
+        if drag.active {
+            return true;
+        }
+        let crosses_threshold = drag.origin.distance_squared_to(position) > 16.;
+        if !crosses_threshold {
+            return false;
+        }
+        let activation_allowed = if drag.from_frozen {
+            true
+        } else {
+            self.view.select_dragged_product(drag.id)
+        };
+        if !activation_allowed {
+            self.dragged = None;
+            return false;
+        }
+        drag.active = true;
+        true
+    }
+
     pub(crate) fn visit_uis(
         &mut self,
         visit: &mut impl FnMut(&mut Gd<RegistryUi>) -> Result<(), String>,
@@ -925,11 +949,9 @@ impl GameClient {
             .clone()
             .try_cast::<godot::classes::InputEventMouseMotion>()
         {
-            if let Some(drag) = &mut self.trading_post.dragged {
-                drag.active |= drag.origin.distance_squared_to(motion.get_position()) > 16.;
-                return drag.active;
-            }
-            return false;
+            return self
+                .trading_post
+                .activate_product_drag(motion.get_position());
         }
         let Ok(button) = event
             .clone()

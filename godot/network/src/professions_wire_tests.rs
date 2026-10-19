@@ -43,6 +43,7 @@ fn professions_bridge_receives_snapshot_and_sends_craft() {
             max_rank: 300,
         }],
         spells: vec![3908, 264616, 3275],
+        favorites: vec![3275],
         recipe_sources: vec![shared::protocol::ProfessionTrainerSource {
             trainer_id: 56,
             spell_id: 2153,
