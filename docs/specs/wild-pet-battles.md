@@ -2,6 +2,13 @@
 
 Wild PvE encounters use server-authoritative snapshots and actions, rendered through `godot/ui-model/src/wild_pet_battle.rs` and the native host. Retail Mainline `Blizzard_PetBattleUI/Shared/Blizzard_PetBattleUI.xml`, `.lua` and `Blizzard_PetBattleUIPatchwerks.xml` define the controls and layout; Forever changes art only.
 
+## Anomalus framing diagnostic (fixture only)
+
+- [ ] Owned private5971 fixture records all indexed posed triangles' projected vertices/extrema in the same frame as active material/alpha/cull/shader state, camera/projection/viewport and viewport-edge crops.
+- [ ] Preserve original framing guard, authored scales, fixed pads, camera and product behavior. Card/loadout DB2 scenes are not a sourced battle-camera replacement.
+
+This is diagnostic evidence for `PET_BATTLE_ANOMALUS_NATIVE_FRAMING`, not a camera/scale fix or pixel-visibility certificate. Alpha/culling/shader displacement remain distinguishable from geometric projection. Owner `anomalus-framing` uses only its fresh private5971 storage; never petbattle5961 or another owner's redb. Native run requires explicit lead window after matching build receipts.
+
 ## What it must do
 - [x] Right-click a wild battle-pet creature to request a battle with the journal's first three ordered combat slots.
 - [x] Journal slots equip distinct owned instances and send an authoritative loadout request.
