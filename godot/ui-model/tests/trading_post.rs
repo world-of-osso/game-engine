@@ -8,10 +8,152 @@ use ui_toolkit::{
     screen::{Screen, SharedContext},
 };
 
+fn assert_frozen_source_drop_preserves_view(view: &mut View, on_frozen: bool) {
+    let before = view.clone();
+    let frozen = view.snapshot.as_ref().unwrap().frozen_item_id.unwrap();
+    assert_eq!(
+        view.drop_item(frozen, on_frozen),
+        None,
+        "a frozen product is not a drag source, even when released outside"
+    );
+    assert_eq!(view.snapshot, before.snapshot);
+    assert_eq!(view.selected, before.selected);
+    assert_eq!(view.pending, before.pending);
+    assert_eq!(view.confirm, before.confirm);
+    assert_eq!(view.freeze_candidate, before.freeze_candidate);
+    assert_eq!(view.freeze_delay, before.freeze_delay);
+    assert_eq!(view.cart, before.cart);
+    assert_eq!(view.take_selection_sounds(), 0);
+}
+
+#[test]
+fn trading_post_frozen_source_no_drag_selected_outside_keeps_reservation() {
+    for skin in [ActiveSkin::Modern, ActiveSkin::Forever] {
+        let mut view = freeze_view();
+        assert_frozen_source_drop_preserves_view(&mut view, false);
+        let registry = render(skin, view);
+        assert_eq!(
+            visible_selection_art_area(&registry, "PerksProgramFrozenSelected"),
+            44268.
+        );
+        assert_eq!(
+            text(&registry, "PerksProgramFrozenLabel"),
+            "Distinguished Warcloak"
+        );
+    }
+}
+
+#[test]
+fn trading_post_frozen_source_no_drag_unselected_outside_keeps_ordinary_selection() {
+    for skin in [ActiveSkin::Modern, ActiveSkin::Forever] {
+        let mut view = freeze_view();
+        assert!(view.select_dragged_product(5));
+        assert_eq!(view.take_selection_sounds(), 1);
+        assert_frozen_source_drop_preserves_view(&mut view, false);
+        let registry = render(skin, view);
+        assert_eq!(
+            visible_selection_art_area(&registry, "PerksProgramSelected5"),
+            24144.
+        );
+        assert_eq!(
+            visible_selection_art_area(&registry, "PerksProgramFrozenSelected"),
+            0.
+        );
+    }
+}
+
+#[test]
+fn trading_post_frozen_source_no_drag_same_slot_remains_unchanged() {
+    let mut view = freeze_view();
+    assert_frozen_source_drop_preserves_view(&mut view, true);
+}
+
+#[test]
+fn trading_post_frozen_source_no_drag_modal_and_pending_remain_unchanged() {
+    let mut modal = freeze_view();
+    assert_eq!(modal.click("perks:purchase").unwrap(), None);
+    assert_eq!(modal.confirm.as_deref(), Some("purchase"));
+    assert_frozen_source_drop_preserves_view(&mut modal, false);
+    let mut pending = create_accepted_texture_preview();
+    assert!(pending.pending);
+    assert_eq!(pending.take_selection_sounds(), 1);
+    assert_frozen_source_drop_preserves_view(&mut pending, false);
+}
+
+#[test]
+fn trading_post_frozen_source_no_drag_ordinary_outside_keeps_held_selection() {
+    let mut view = freeze_view();
+    let authority = view.snapshot.clone();
+    assert!(view.select_dragged_product(5));
+    assert_eq!(view.take_selection_sounds(), 1);
+    assert_eq!(view.drop_item(5, false), None);
+    assert_eq!(view.selected, Some(5));
+    assert_eq!(view.snapshot, authority);
+    assert!(!view.pending);
+    assert_eq!(view.confirm, None);
+    assert_eq!(view.freeze_candidate, None);
+    assert_eq!(view.cart, [5, 6]);
+    assert_eq!(view.take_selection_sounds(), 0);
+}
+
+#[test]
+fn trading_post_frozen_source_no_drag_ordinary_replacement_cancel_and_accept_remain() {
+    use game_engine_ui_model::trading_post::Action;
+    let mut view = freeze_view();
+    let authority = view.snapshot.clone();
+    assert!(view.select_dragged_product(5));
+    assert_eq!(view.take_selection_sounds(), 1);
+    assert_eq!(view.drop_item(5, true), None);
+    assert_eq!(view.confirm.as_deref(), Some("freeze"));
+    assert_eq!(view.freeze_delay, 5);
+    assert_eq!(view.click("perks:confirm").unwrap(), None);
+    assert_eq!(view.cart, [5, 6]);
+    assert_eq!(view.click("perks:cancel").unwrap(), None);
+    assert_eq!(view.snapshot, authority);
+    assert_eq!(view.freeze_candidate, None);
+    assert_eq!(view.drop_item(5, true), None);
+    view.update_freeze_confirmation(5.0);
+    assert_eq!(
+        view.click("perks:confirm").unwrap(),
+        Some(Action::Request(TradingPostRequest::Freeze {
+            vendor_item_id: Some(5)
+        }))
+    );
+    assert!(view.pending);
+    assert_eq!(view.snapshot, authority);
+    assert_eq!(view.cart, [6]);
+    assert_eq!(view.take_selection_sounds(), 0);
+}
+
+#[test]
+fn trading_post_frozen_source_no_drag_ordinary_empty_slot_remains_immediate() {
+    use game_engine_ui_model::trading_post::Action;
+    let mut view = freeze_view();
+    let mut snapshot = view.snapshot.as_ref().unwrap().as_ref().clone();
+    snapshot.frozen_item_id = None;
+    view.receive(Arc::new(snapshot));
+    let authority = view.snapshot.clone();
+    assert!(view.select_dragged_product(5));
+    assert_eq!(view.take_selection_sounds(), 1);
+    assert_eq!(
+        view.drop_item(5, true),
+        Some(Action::Request(TradingPostRequest::Freeze {
+            vendor_item_id: Some(5)
+        }))
+    );
+    assert!(view.pending);
+    assert_eq!(view.confirm, None);
+    assert_eq!(view.freeze_candidate, Some(5));
+    assert_eq!(view.selected, Some(5));
+    assert_eq!(view.snapshot, authority);
+    assert_eq!(view.cart, [6]);
+    assert_eq!(view.take_selection_sounds(), 0);
+}
+
 fn open_unaccepted_texture_preview() -> View {
     let mut view = freeze_view();
     assert!(view.select_dragged_product(5));
-    assert_eq!(view.drop_item(5, false, true), None);
+    assert_eq!(view.drop_item(5, true), None);
     view
 }
 
@@ -197,7 +339,7 @@ fn trading_post_pending_freeze_selected_texture_empty_immediate_remains_active()
         view.receive(Arc::new(data));
         assert!(view.select_dragged_product(5));
         assert_eq!(
-            view.drop_item(5, false, true),
+            view.drop_item(5, true),
             Some(Action::Request(TradingPostRequest::Freeze {
                 vendor_item_id: Some(5)
             }))
@@ -233,7 +375,7 @@ fn trading_post_drag_selection_activation_closes_cart_and_outside_release_retain
     assert_eq!(view.take_selection_sounds(), 1);
     assert_eq!(view.cart, cart);
     assert_eq!(view.cart_preview_item_ids(), preview);
-    assert_eq!(view.drop_item(5, false, false), None);
+    assert_eq!(view.drop_item(5, false), None);
     assert_eq!(view.selected, Some(5));
     assert_eq!(view.take_selection_sounds(), 0);
     assert_eq!(view.snapshot, authority);
@@ -247,7 +389,7 @@ fn trading_post_drag_selection_repeat_and_occupied_drop_never_duplicate_activati
     assert_eq!(view.take_selection_sounds(), 1);
     assert!(view.select_dragged_product(5));
     assert_eq!(view.take_selection_sounds(), 0);
-    assert_eq!(view.drop_item(5, false, true), None);
+    assert_eq!(view.drop_item(5, true), None);
     assert_eq!(view.confirm.as_deref(), Some("freeze"));
     assert_eq!(view.selected, Some(5));
     assert_eq!(view.take_selection_sounds(), 0);
@@ -264,7 +406,7 @@ fn trading_post_drag_selection_repeat_and_occupied_drop_never_duplicate_activati
 fn trading_post_drag_selection_drop_does_not_supply_a_release_selection_fallback() {
     let mut view = freeze_view();
     let authority = view.snapshot.clone();
-    assert_eq!(view.drop_item(5, false, true), None);
+    assert_eq!(view.drop_item(5, true), None);
     assert_eq!(view.selected, Some(4));
     assert_eq!(view.take_selection_sounds(), 0);
     assert_eq!(view.confirm.as_deref(), Some("freeze"));
@@ -666,13 +808,13 @@ fn trading_post_selection_sound_drag_activation_precedes_drop_without_replay() {
     );
     assert!(view.select_dragged_product(10));
     assert_eq!(view.take_selection_sounds(), 1);
-    assert_eq!(view.drop_item(10, false, true), None);
+    assert_eq!(view.drop_item(10, true), None);
     assert_eq!(view.selected, Some(10));
     assert_eq!(view.confirm.as_deref(), Some("freeze"));
     assert_eq!(view.take_selection_sounds(), 0);
     view.click("perks:cancel").unwrap();
     assert!(view.select_dragged_product(10));
-    view.drop_item(10, false, true);
+    view.drop_item(10, true);
     assert_eq!(
         view.take_selection_sounds(),
         0,
@@ -1001,7 +1143,7 @@ fn trading_post_frozen_row_exclusion_follows_committed_not_pending_replacement()
         let mut view = freeze_view();
         view.cart.clear();
         assert!(view.select_dragged_product(5));
-        assert_eq!(view.drop_item(5, false, true), None);
+        assert_eq!(view.drop_item(5, true), None);
         assert_eq!(view.freeze_candidate, Some(5));
         assert_eq!(view.snapshot.as_ref().unwrap().frozen_item_id, Some(4));
         assert_eq!(
@@ -1023,7 +1165,7 @@ fn trading_post_frozen_row_exclusion_follows_committed_not_pending_replacement()
             (4, vec![5, 6], "Distinguished Warcloak"),
         ] {
             assert!(view.select_dragged_product(id));
-            assert_eq!(view.drop_item(id, false, true), None);
+            assert_eq!(view.drop_item(id, true), None);
             view.update_freeze_confirmation(5.0);
             assert_eq!(
                 view.click("perks:confirm").unwrap(),
@@ -2159,7 +2301,7 @@ fn trading_post_virtualized_list_reaches_second_page_then_empty_category_clamps_
 }
 
 #[test]
-fn trading_post_drag_freeze_replace_and_drag_off_wait_for_authority() {
+fn trading_post_drag_freeze_and_replace_wait_for_authority() {
     use game_engine_ui_model::trading_post::Action;
     let mut data = snapshot();
     let mut replacement = data.items[0].clone();
@@ -2175,12 +2317,12 @@ fn trading_post_drag_freeze_replace_and_drag_off_wait_for_authority() {
     assert!(view.select_dragged_product(5));
     assert_eq!(view.selected, Some(5), "drag selects before any release");
     assert_eq!(
-        view.drop_item(5, false, false),
+        view.drop_item(5, false),
         None,
         "outside release sends no authority request"
     );
     assert_eq!(
-        view.drop_item(5, false, true),
+        view.drop_item(5, true),
         None,
         "occupied slot waits for confirmation"
     );
@@ -2203,31 +2345,27 @@ fn trading_post_drag_freeze_replace_and_drag_off_wait_for_authority() {
         "no optimistic frozen replacement"
     );
     assert_eq!(
-        view.drop_item(4, true, false),
+        view.drop_item(4, false),
         None,
         "pending request blocks drag-off"
     );
     data.frozen_item_id = Some(5);
     view.receive(Arc::new(data.clone()));
     assert_eq!(
-        view.drop_item(5, true, true),
+        view.drop_item(5, true),
         None,
         "drop on same slot retains item"
     );
     assert_eq!(
-        view.drop_item(5, true, false),
-        Some(Action::Request(TradingPostRequest::Freeze {
-            vendor_item_id: None
-        }))
+        view.drop_item(5, false),
+        None,
+        "frozen-source drag-off never requests unfreeze"
     );
+    assert!(!view.pending);
     assert_eq!(view.snapshot.as_ref().unwrap().frozen_item_id, Some(5));
     view.receive(Arc::new(data));
     view.click("perks:purchase").unwrap();
-    assert_eq!(
-        view.drop_item(5, true, false),
-        None,
-        "confirmation is modal"
-    );
+    assert_eq!(view.drop_item(5, false), None, "confirmation is modal");
 }
 
 #[test]
@@ -2560,7 +2698,7 @@ fn trading_post_freeze_replacement_previews_candidate_and_cancel_preserves_autho
     for skin in [ActiveSkin::Modern, ActiveSkin::Forever] {
         let mut view = freeze_view();
         assert_eq!(
-            view.drop_item(5, false, true),
+            view.drop_item(5, true),
             None,
             "replacement waits for consent"
         );
@@ -2594,7 +2732,7 @@ fn trading_post_freeze_empty_slot_is_immediate_and_removes_only_frozen_cart_memb
     data.frozen_item_id = None;
     view.receive(Arc::new(data));
     assert_eq!(
-        view.drop_item(5, false, true),
+        view.drop_item(5, true),
         Some(Action::Request(TradingPostRequest::Freeze {
             vendor_item_id: Some(5)
         }))
@@ -2610,7 +2748,7 @@ fn trading_post_freeze_empty_slot_is_immediate_and_removes_only_frozen_cart_memb
 fn trading_post_freeze_replacement_accepts_after_five_seconds_and_waits_for_authority() {
     use game_engine_ui_model::trading_post::Action;
     let mut view = freeze_view();
-    assert_eq!(view.drop_item(5, false, true), None);
+    assert_eq!(view.drop_item(5, true), None);
     view.update_freeze_confirmation(4.999);
     assert_eq!(view.click("perks:confirm").unwrap(), None);
     assert_eq!(view.cart, vec![5, 6]);
@@ -2645,7 +2783,7 @@ fn trading_post_freeze_replacement_accepts_after_five_seconds_and_waits_for_auth
 fn trading_post_freeze_replacement_initial_accept_delay_disables_only_confirm() {
     for skin in [ActiveSkin::Modern, ActiveSkin::Forever] {
         let mut view = freeze_view();
-        assert_eq!(view.drop_item(5, false, true), None);
+        assert_eq!(view.drop_item(5, true), None);
         assert_eq!(
             view.click("perks:confirm").unwrap(),
             None,
