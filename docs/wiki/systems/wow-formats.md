@@ -29,7 +29,7 @@ The separately approved server migration uses `materials` for raw skin batches/m
 
 Raw geometry APIs preserve consumer policies: skin sections expose authored high-bit `raw_triangle_start` alongside the unchanged cumulative `triangle_start`; first-bone-key reading keeps external/global sources distinct; static attachment lookup ignores activation tracks; M2 normals retain authored face signs; WDT exposes all MAID slots separately from MAIN-active tiles; ADT's height-only view retains file-axis origins/holes without requiring normals or companion shadows. WMO exposes its existing raw vector/index array readers for server selection without enabling presentation helpers.
 
-Server phase 2 is approved; its Stockade byte-identity and LOS gates are tracked in the server's shared-format wiki page. Client pin changes still require the engine consumer gate.
+Server phase 2 landed with identical Stockade LOS/nav binaries. Runtime ground's subsequent metadata-only consolidation uses projected MPHD/MAID/MODF/MOHD/GFID views, preserving first-match/mandatory/FDID-only policy and not validating unrelated renderer fields. Its server ledger compares complete ordered metadata bytes plus fresh Stockade bakes. Client pin changes retain the same default features and require the engine consumer gate.
 
 ## Sources
 
