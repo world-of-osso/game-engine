@@ -26,6 +26,8 @@ pub(crate) struct AdventureGuide {
     portraits: BTreeMap<u32, Portrait>,
     #[cfg(debug_assertions)]
     fixture_suggestion: Option<shared::protocol::AdventureSuggestion>,
+    #[cfg(debug_assertions)]
+    fixture_primary_title: Option<shared::protocol::AdventureSuggestion>,
 }
 impl AdventureGuide {
     fn copy_activity_presentation(
@@ -41,6 +43,15 @@ impl AdventureGuide {
                 .as_mut()
                 .ok_or("Source-row fixture lost its received activity snapshot")?;
             replace_suggestion_642_fixture(&mut Arc::make_mut(snapshot).suggestions, row.clone())?;
+        }
+        #[cfg(debug_assertions)]
+        if let Some(row) = &self.fixture_primary_title {
+            let snapshot = self
+                .view
+                .activities
+                .as_mut()
+                .ok_or("Primary-title fixture lost its received activity snapshot")?;
+            replace_primary_title_fixture(&mut Arc::make_mut(snapshot).suggestions, row.clone())?;
         }
         Ok(())
     }
@@ -70,6 +81,25 @@ impl AdventureGuide {
 #[cfg(debug_assertions)]
 #[godot_api(secondary)]
 impl GameClient {
+    #[func]
+    fn install_adventure_primary_title_fixture(&mut self, source_id: u32) -> GString {
+        let result = (|| {
+            let row = read_suggestion_fixture(&self.data_root, source_id)?;
+            let current = self
+                .adventure_guide
+                .view
+                .activities
+                .as_deref()
+                .ok_or("Primary-title fixture needs a received activity snapshot")?;
+            let mut snapshot = current.clone();
+            replace_primary_title_fixture(&mut snapshot.suggestions, row.clone())?;
+            self.adventure_guide.fixture_primary_title = Some(row);
+            self.adventure_guide.view.activities = Some(Arc::new(snapshot));
+            self.sync_adventure_guide()
+        })();
+        result.err().unwrap_or_default().as_str().into()
+    }
+
     #[func]
     fn install_adventure_suggestion_642_fixture(&mut self) -> GString {
         let result = (|| {
@@ -103,16 +133,36 @@ fn replace_suggestion_642_fixture(
 }
 
 #[cfg(debug_assertions)]
+fn replace_primary_title_fixture(
+    received: &mut [shared::protocol::AdventureSuggestion],
+    source: shared::protocol::AdventureSuggestion,
+) -> Result<(), String> {
+    let primary = received
+        .get_mut(2)
+        .ok_or("Primary-title fixture needs at least three received suggestions")?;
+    *primary = source;
+    Ok(())
+}
+
+#[cfg(debug_assertions)]
 fn read_suggestion_642_fixture(
     root: &std::path::Path,
+) -> Result<shared::protocol::AdventureSuggestion, String> {
+    read_suggestion_fixture(root, 642)
+}
+
+#[cfg(debug_assertions)]
+fn read_suggestion_fixture(
+    root: &std::path::Path,
+    source_id: u32,
 ) -> Result<shared::protocol::AdventureSuggestion, String> {
     let mut source = None;
     game_engine_core::csv_util::read_db2_rows(
         &root.join("db2/active/AdventureJournal.csv"),
         |row| {
-            if row.parse::<u32>("ID")? == 642 {
+            if row.parse::<u32>("ID")? == source_id {
                 source = Some(shared::protocol::AdventureSuggestion {
-                    id: 642,
+                    id: source_id,
                     name: row.field("Name_lang")?.into(),
                     description: row.field("Description_lang")?.into(),
                     reward_description: row.field("RewardDescription_lang")?.into(),
@@ -123,7 +173,7 @@ fn read_suggestion_642_fixture(
             Ok(())
         },
     )?;
-    source.ok_or_else(|| "Installed AdventureJournal has no source642 fixture row".into())
+    source.ok_or_else(|| format!("Installed AdventureJournal has no source{source_id} fixture row"))
 }
 
 #[cfg(test)]
@@ -132,6 +182,58 @@ mod tests {
     use shared::protocol::EncounterStart;
     #[cfg(debug_assertions)]
     use std::sync::Arc;
+
+    #[cfg(debug_assertions)]
+    #[test]
+    fn primary_title_fixture_preserves_received_rows_and_authority_across_updates() {
+        use shared::protocol::{AdventureGuideSnapshot, JournalMonth};
+        let root = std::path::Path::new(env!("CARGO_MANIFEST_DIR")).join("../../data");
+        let source = super::read_suggestion_fixture(&root, 823).unwrap();
+        let mut authority = AdventureGuideSnapshot {
+            month: JournalMonth {
+                year: 2026,
+                month: 10,
+                name: "October".into(),
+                start_unix: 0,
+                end_unix: 1,
+                now_unix: 0,
+                tracking_since: 0,
+            },
+            activities: vec![],
+            tags: vec![],
+            suggestions: vec![source.clone(); 4],
+            suggestion_census: Default::default(),
+            points: 0,
+            activity_scope_notice: None,
+            source_error: None,
+        };
+        for (index, row) in authority.suggestions.iter_mut().enumerate() {
+            row.id = 1000 + index as u32;
+        }
+        let mut guide = AdventureGuide {
+            fixture_primary_title: Some(source.clone()),
+            ..Default::default()
+        };
+        for update in [1, 2] {
+            authority.points = update;
+            authority.suggestions[0].description = format!("Received update{update}");
+            let received = Arc::new(authority.clone());
+            guide
+                .copy_activity_presentation(Some(received.clone()))
+                .unwrap();
+            let shown = guide.view.activities.as_deref().unwrap();
+            assert_eq!(shown.suggestions[2], source);
+            assert_eq!(shown.suggestions[..2], authority.suggestions[..2]);
+            assert_eq!(shown.suggestions[3..], authority.suggestions[3..]);
+            assert_eq!(shown.points, update);
+            assert_eq!(*received, authority);
+        }
+        let mut ordinary = AdventureGuide::default();
+        ordinary
+            .copy_activity_presentation(Some(Arc::new(authority.clone())))
+            .unwrap();
+        assert_eq!(*ordinary.view.activities.as_deref().unwrap(), authority);
+    }
 
     #[cfg(debug_assertions)]
     #[test]
@@ -823,6 +925,17 @@ impl GameClient {
                 .ok_or("Journal source missing")?;
             let (actor, camera) =
                 game_engine_core::adventure_guide::read_model_scene(&self.data_root, scene_id)?;
+            if let Some(animation) = game_engine_core::adventure_guide::read_plain_animation_25(
+                &self.data_root,
+                actor.id,
+            )? {
+                let mut player = model
+                    .try_get_node_as::<crate::animation::WowAnimationPlayer>("NpcModel/M2Animation")
+                    .ok_or("Journal plain authored animation owner missing")?;
+                // Apply once when this detached model attaches; play_clip retains
+                // the existing crossfade path. Normal UI sync never restarts it.
+                player.bind_mut().play_clip(animation, true)?;
+            }
             model.set_rotation(Vector3::ZERO);
             let bounds = pet_actor_bounds(&model)?;
             let size = bounds.size;
