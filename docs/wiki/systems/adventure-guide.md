@@ -34,6 +34,16 @@ A later numeric-only9aae native pass did not qualify as visual GREEN: its direct
 
 Sources: cached Retail Blizzard_EncounterJournal.lua1455–1470; ModelSceneActorMixin.lua; Shared/ModelSceneCameras/OrbitCameraMixin.lua; Blizzard_SharedXMLBase/MathUtil.lua49–54; installed UiModelSceneActor/Display/Camera rows. Code: [`model_scene.rs`](../../../godot/core/src/adventure_guide/model_scene.rs), [`native host`](../../../godot/rust/src/adventure_guide.rs).
 
+## Suggested primary-title source-fit boundary
+
+Cached EJ.lua3238–3247 conditionally installs only the primary title hover; Lua3353–3357 supplies full white wrapped ANCHOR_RIGHT text. The hover product behavior remains unimplemented. A debug-only source-record input at primary presentation index2 was added solely to evaluate authentic row823 (`The Ghosts of K’aresh: A Shadowy Invitation`) in the unchanged production primary pane; ordinary received authority, other rows and non-debug builds retain their behavior. Fixture persistence reapplies only that cloned presentation row after normal snapshot updates. A two-update regression preserves the original authoritative snapshot and every other row. This is not realm primary-offset/eligibility/rotation authority.
+
+Actual Modern native668dfa observes font24,264×50, total2/visible2 lines, native truncated=false. The original1920×1080 source-fit PNG was individually inspected: the full title fits. `adventure_primary_title_hover.gd` correctly exits1 with `Authentic primary row823 fits production title; positive hover proof unexercised` before requesting a tooltip. No missing-hover RED, positive hover, leave/fitting negative or both-skin completion is claimed. Per instruction, stop at this proof limitation: no fabricated text, narrower frame, changed font or layout to manufacture truncation; no primary-hover product correction was written.
+
+The preliminary standalone FontFile/Label census read702 installed titles and shaped row823 as4/3/2 lines at32/30/24. Its default Label typography reported only1visible line in the configured box; this differs from the production Label’s2visible lines and is **not valid production truncation evidence**. Product-native observation takes precedence.
+
+Sources: cached Retail `Blizzard_EncounterJournal/Mainline/Blizzard_EncounterJournal.lua:3238–3247,3353–3357`; installed AdventureJournal823; [`source-fit fixture`](../../../godot/tests/adventure_primary_title_hover.gd), [`debug source input`](../../../godot/rust/src/adventure_guide.rs). Exact prelaunch receipt, source font/table hashes and native failure log remain private under adventure-guide13-proof.
+
 ## Suggested secondary text hover — implementation 2026-10-17
 
 The [contract](../../specs/adventure-guide.md#suggested-source-presentation) scopes EJ Lua3311–3357's second pass to physical Suggestion2/3. Returned record1 occupies physical3 and therefore joins only with three records; record2 occupies physical2 and joins with two or three. Primary-title hover in the earlier independent branch is not included. `adventure_suggestions::hover_text` preserves this source mapping; `text_tooltip` supplies full white wrapped text without reward/activation metadata.

@@ -4845,3 +4845,5 @@ User decision specifies MOBILE_BANKING_COOLDOWN_2H7200000ms over installed360000
 - Raszageth read-only native70ef/extension2a49: actual perspective30deg KEEP_HEIGHT/aspect390:423, geometry and custom bounds TOP-only rejected, paint0. Diagnostic1/1 captures evidence, not a product fix; preserve named gap and stop camera/transform changes.
 
 - Journal projection reference packet: permitted cached Lua/XML/XSD inheritance, source pose and bounded setter search supply no numeric projection/clip default or corrective camera rule. Native semantics unknown; Raszageth TOP/paint0 and VoidPulsar kit gaps retained, no product/runtime change.
+
+- Primary-title approved source-fit native668dfa: row823 actualfont24/264×50/2total2visible, not truncated. Fixture correctly stops before hoverRED; standaloneLabelcensus invalid as production proof. No primary-hover correction or forced title/font/geometry; gap retained.
