@@ -1,3 +1,7 @@
+## 2026-10-19 — Profession search magnifier accepted
+
+[Source, implementation and native proof](systems/native-professions-crafting.md#recipe-search-magnifier): ignored screen RED12×12→source10×10, focused/query tint RGB0.6/1; targeted GREEN3/3 and pm700 landed00afe30a7. Exact E00afe/S46d5/Pb3 both-skin1920 native fourstates+Clear passes numeric anchors, painted brightening/exact restore and selection/Favorites/filter/gameplay conservation. Ten inspected PNG originals published; native error streams empty, known warnings and separate editor-import errors retained. Lead inspected Modern-2/Forever-5 and accepted. Owned runtime/window cleared; operation/concentration-origin/recraft gaps unchanged.
+
 ## 2026-10-19 — Ordinary selected-row ADD genuine pixel RED
 
 [Source/root, distinct receipts and proof limits](systems/trading-post.md#ordinary-selected-row-add-compositing):130bee opt-in diagnostic/ten registration/spec pushed first. Actual E130bee/S525/P035 both-skin genuine actual-versus-ADD18662/18738/18747 pixels versus0 against MIX; ADD/MIX distinct, original restore0, stable source/backdrop and second-selection/cart-owner controls. Authority/local/HUD/XYZ restored before intentional pixel-assertion naturalexit1; complete streams otherwise clean/two Query/noTx. Runtime/window cleared14:24:21. Minimal ordinary-selected texture classification correction; frozen owner/hover, state, layout/font/audio/API/server/protocol and named gaps unchanged. Parent gate/fresh strict same-oracle ten-case GREEN pending; no field/source RED or historical relabeling.
