@@ -4816,3 +4816,5 @@ User decision specifies MOBILE_BANKING_COOLDOWN_2H7200000ms over installed360000
 - 2026-10-18: Pin shared MCNK height-header/MCVT projection; existing full-render parser semantics retained. See [shared formats](systems/wow-formats.md).
 
 - Journal ae3cd native5: genuine Ozruk/Anraphet raw pose and visible central subjects2/2 per skin, four observed originals inspected; retained30deg cropping/FOV and actor0/effect gaps explicitly excluded.
+
+- 2026-10-18: Pin existing MH2O raw-record projections without changing client bitmap/vertex/material interpretation. See [shared formats](systems/wow-formats.md).
