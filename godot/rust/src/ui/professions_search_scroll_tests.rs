@@ -165,9 +165,21 @@ fn professions_search_scroll_shared_wheel_and_thumb_move_the_real_list() {
             model.registry.set_computed_layout(id, rect).unwrap();
         }
         let thumb = model.registry.get_by_name(&thumb_name(LIST)).unwrap();
-        let thumb_rect = model.registry.get(thumb).unwrap().layout_rect.unwrap();
+        let thumb_rect = model
+            .registry
+            .get(thumb)
+            .unwrap()
+            .layout_rect
+            .clone()
+            .unwrap();
         let track = model.registry.get_by_name(&track_name(LIST)).unwrap();
-        let track_rect = model.registry.get(track).unwrap().layout_rect.unwrap();
+        let track_rect = model
+            .registry
+            .get(track)
+            .unwrap()
+            .layout_rect
+            .clone()
+            .unwrap();
         assert!(press_thumb(&mut model.registry, thumb, thumb_rect.y + 2.0));
         assert!(drag_thumbs(
             &mut model.registry,
