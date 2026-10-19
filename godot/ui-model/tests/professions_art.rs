@@ -175,6 +175,45 @@ fn professions_unlearned_source_header_requires_a_sourced_trainer_row() {
 }
 
 #[test]
+#[ignore = "recipe Favorites RED; run explicitly until the atomic consumers implement it"]
+fn professions_favorites_owner_snapshot_groups_known_recipe_except_while_searching() {
+    let catalog = game_engine_ui_model::professions_catalog::RecipeCatalog::load(
+        &std::path::PathBuf::from(env!("CARGO_MANIFEST_DIR")).join("../../data/db2/active"),
+    ).unwrap();
+    for skin in [ActiveSkin::Modern, ActiveSkin::Forever] {
+        let mut view = view(15);
+        let mut recipe = catalog.get(2153).unwrap().clone();
+        recipe.name = "Handstitched Leather Pants".into();
+        view.book.recipes = vec![recipe];
+        view.book.selected = Some(2153);
+        // The owner snapshot is the external wire contract, not a local preference injection.
+        view.book.snapshot = serde_json::from_value(serde_json::json!({
+            "lines": [{"skill_line":2532,"step":1,"rank":15,"max_rank":300}],
+            "spells": [2153], "recipe_sources": [], "favorites": [2153]
+        })).unwrap();
+        let groups = view.book.groups();
+        assert_eq!(groups[0].0, "Favorites", "known owner favorite must precede normal learned categories");
+        assert_eq!(groups.len(), 2);
+        assert_eq!(groups[0].1[0].spell_id, 2153);
+        assert_eq!(groups[1].1[0].spell_id, 2153, "normal learned entry is retained");
+        let registry = render(skin, view.clone());
+        assert_eq!(text(&registry, "ProfessionsFavoritesLabel").0, "Favorites");
+        assert!(registry.get_by_name("ProfessionFavoriteRecipe2153").is_some());
+        assert!(registry.get_by_name("ProfessionRecipe2153").is_some());
+        view.book.search = "pants".into();
+        assert_eq!(view.book.groups().len(), 1);
+        assert_ne!(view.book.groups()[0].0, "Favorites");
+        let registry = render(skin, view.clone());
+        assert!(registry.get_by_name("ProfessionsFavoritesLabel").is_none());
+        assert!(registry.get_by_name("ProfessionRecipe2153").is_some());
+        view.book.search.clear();
+        view.book.snapshot.spells.clear();
+        assert!(view.book.groups().iter().all(|(category, _)| category != "Favorites"));
+        assert!(view.book.craft_request(&Default::default(), false).is_none());
+    }
+}
+
+#[test]
 fn professions_quality_recipe_is_visible_without_assigning_an_output() {
     use game_engine_ui_model::professions_catalog::RecipeCatalog;
     let dir = std::path::PathBuf::from(env!("CARGO_MANIFEST_DIR")).join("../../data/db2/active");
