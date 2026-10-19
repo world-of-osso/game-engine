@@ -45,6 +45,10 @@ Pinned revision2a91b224 exposes the existing12B directory,24B instance and16B at
 
 Pinned revision882b2fc adds the minimum-grid projection used by runtime ground. The existing client full-bound decoder reuses its signed-grid reader after the same36-byte guard; last-MFBO selection and all geometry/render-facing fields remain unchanged. Runtime first-selection, error mapping/order, plane arithmetic, defaults and falling stay local. No new feature or dependency. The [MFBO ledger](../../../../game-server/docs/handoffs/wow-formats-mfbo-records.md) proves376/376 files50,037,281B byte-identical,120 receipt-source hashes and Map34lookup unchanged. Engine sourcec0b9adaef/protocolf9a91753 passes helper authored/fullADT5, direct positive-MFBO Zephras1 and water-height4, native terrain45/ground18, helper check/fmt0. Subsequent changes are docs-only; independent lead integration remains pending.
 
+## BLP qualification, not extraction
+
+The [before-only BLP ledger](../../handoffs/wow-formats-blp-qualification.md) records CPU/GPU/icon outcomes and the proposed boundary. Both consumers already share image-blp; engine normalization/BC5/Godot upload behavior differs from server icons. A fifth crate and consumer migration remain unapproved. Qualification recommends retaining those local policies rather than exporting the engine decoder as a common default.
+
 ## Sources
 
 - [Core dependencies](../../../godot/core/Cargo.toml) — authoritative pinned revisions

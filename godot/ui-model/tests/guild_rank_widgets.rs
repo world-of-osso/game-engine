@@ -1035,6 +1035,7 @@ fn guild_communities_roster_uses_profile_metadata_without_exposing_officer_notes
             public_note: String::new(),
             is_self: false,
             last_online: "Yesterday".into(),
+            online_zone: None,
         }],
     });
     let reg = mounted(&session);
@@ -1043,6 +1044,48 @@ fn guild_communities_roster_uses_profile_metadata_without_exposing_officer_notes
     assert_eq!(text(&reg, "GuildMember0Note"), "");
     assert_eq!(text(&reg, "GuildMember0Name"), "Cara");
     assert!(reg.get_by_name("GuildMember0Class").is_some());
+}
+
+#[test]
+fn guild_online_zone_roster_and_detail_follow_authority_both_skins() {
+    let _lock = SKIN.lock().unwrap_or_else(|poison| poison.into_inner());
+    let profile = |online: bool, zone: Option<&str>| -> GuildSnapshot {
+        serde_json::from_value(serde_json::json!({
+            "guild_id": 7, "guild_name": "Raid Team", "tabard": null, "created_at": null,
+            "motd": "", "info_text": "", "members": [
+                {"character_name":"Cara", "level":32, "class_name":"Paladin", "rank_name":"Initiate",
+                 "is_online":online, "officer_note":"private", "public_note":"healer", "is_self":false,
+                 "last_online": if online {"Online"} else {"Yesterday"}, "online_zone":zone},
+                {"character_name":"Dora", "level":32, "class_name":"Mage", "rank_name":"Member",
+                 "is_online":true, "officer_note":"", "public_note":"", "is_self":false,
+                 "last_online":"Online", "online_zone":"Westfall"}
+            ]
+        })).unwrap()
+    };
+    for skin in [ActiveSkin::Modern, ActiveSkin::Forever] {
+        set_thread_skin(skin);
+        let mut session = member_rank_assignment_session(0, 0, 3);
+        session.profile = Some(profile(true, Some("Elwynn Forest")));
+        let reg = mounted(&session);
+        assert_eq!(text(&reg, "GuildMember0Zone"), "Elwynn Forest");
+        assert_eq!(text(&reg, "GuildMember1Zone"), "Westfall");
+        assert_eq!(text(&reg, "GuildMemberDetailZone"), "Elwynn Forest");
+        assert_eq!(action(&reg, "GuildMember0"), "guild:member:Cara");
+        assert_eq!(text(&reg, "GuildMember0Note"), "healer");
+        session.profile = Some(profile(true, Some("Westfall")));
+        assert_eq!(
+            text(&mounted(&session), "GuildMemberDetailZone"),
+            "Westfall"
+        );
+        session.profile = Some(profile(true, None));
+        let unknown = mounted(&session);
+        assert_eq!(text(&unknown, "GuildMember0Zone"), "");
+        assert_eq!(text(&unknown, "GuildMemberDetailZone"), "");
+        session.profile = Some(profile(false, None));
+        let offline = mounted(&session);
+        assert_eq!(text(&offline, "GuildMember0Zone"), "Yesterday");
+        assert_eq!(text(&offline, "GuildMemberDetailZone"), "");
+    }
 }
 
 fn member_rank_assignment_session(own_rank: u8, rights: u32, target_rank: u8) -> GuildRanksSession {
@@ -1248,6 +1291,7 @@ fn note_sort_session() -> GuildRanksSession {
                 public_note: (*note).into(),
                 is_self: false,
                 last_online: String::new(),
+                online_zone: None,
             })
             .collect(),
     });
@@ -1506,6 +1550,7 @@ fn guild_show_offline_filters_only_expanded_roster_and_preserves_authority_both_
                     public_note: String::new(),
                     is_self: false,
                     last_online: String::new(),
+                    online_zone: None,
                 })
                 .collect(),
         });
@@ -1597,6 +1642,7 @@ fn guild_show_offline_keeps_filtered_sort_targets_and_clamps_real_overflow() {
                 public_note: String::new(),
                 is_self: false,
                 last_online: String::new(),
+                online_zone: None,
             })
             .collect(),
     });
@@ -1831,6 +1877,7 @@ fn guild_communities_metadata_columns_sort_numeric_values_and_preserve_member_id
                 public_note: String::new(),
                 is_self: false,
                 last_online: String::new(),
+                online_zone: None,
             })
             .collect(),
         });
@@ -2034,6 +2081,7 @@ fn guild_member_notes_gate_self_public_officer_visibility_and_wait_for_authority
                 public_note: "Alchemy".into(),
                 is_self: true,
                 last_online: "Online".into(),
+                online_zone: None,
             }],
         });
         session.click("guild:member:Cara", &Default::default());
@@ -2122,6 +2170,7 @@ fn guild_member_note_popup_keeps_original_target_when_roster_selection_changes()
         officer_note: String::new(),
         is_self: false,
         last_online: "Online".into(),
+        online_zone: None,
     };
     session.profile = Some(GuildSnapshot {
         guild_id: 7,

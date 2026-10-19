@@ -58,6 +58,7 @@ pub struct ProfessionView {
     pub favorite_menu: Option<(u32, [f32; 2])>,
     pub selected_favorite: bool,
     pub filter_open: bool,
+    pub search_focused: bool,
     pub concentration: Option<shared::concentration::ConcentrationSnapshot>,
     pub specializations: crate::professions_specializations::SpecializationDraft,
     pub orders: crate::professions_orders::CraftingOrders,
