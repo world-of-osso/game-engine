@@ -1,6 +1,8 @@
 //! Owner profession book and crafting decisions; server snapshots remain authoritative.
 use crate::bag_data::InventoryState;
-use shared::protocol::{CraftRecipe, ProfessionSnapshot};
+use shared::protocol::{CraftRecipe, ProfessionSnapshot, SetRecipeFavorite};
+
+pub const FAVORITES_GROUP: &str = "Favorites";
 
 #[derive(Clone, Debug, PartialEq, Eq)]
 pub struct Recipe {
@@ -47,10 +49,33 @@ impl ProfessionBook {
         }
         let mut groups: Vec<_> = groups.into_iter().collect();
         groups.sort_by_key(|((unlearned, _), recipes)| (*unlearned, recipes[0].category_order));
-        groups
+        let mut groups: Vec<_> = groups
             .into_iter()
             .map(|((_, category), recipes)| (category, recipes))
-            .collect()
+            .collect();
+        if search.is_empty() {
+            let favorite_ids: std::collections::HashSet<_> =
+                self.snapshot.favorites.iter().copied().collect();
+            let mut favorites: Vec<_> = self
+                .recipes
+                .iter()
+                .filter(|recipe| {
+                    known.contains(&recipe.spell_id) && favorite_ids.contains(&recipe.spell_id)
+                })
+                .collect();
+            favorites.sort_by(|left, right| left.name.cmp(&right.name));
+            if !favorites.is_empty() {
+                groups.insert(0, (FAVORITES_GROUP.into(), favorites));
+            }
+        }
+        groups
+    }
+
+    pub fn favorite_request(&self, spell_id: u32, favorite: bool) -> Option<SetRecipeFavorite> {
+        self.snapshot
+            .spells
+            .contains(&spell_id)
+            .then_some(SetRecipeFavorite { spell_id, favorite })
     }
 
     pub fn selected_recipe(&self) -> Option<&Recipe> {

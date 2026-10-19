@@ -14,6 +14,8 @@ use shared::protocol::ProfessionSnapshot;
 use std::collections::{BTreeMap, BTreeSet};
 use std::sync::mpsc::{self, Receiver, TryRecvError};
 
+#[path = "professions_favorites.rs"]
+mod favorites;
 #[path = "professions_reagents.rs"]
 mod reagents;
 
@@ -29,6 +31,8 @@ pub(crate) struct Professions {
         game_engine_ui_model::professions_reagent_selection::ReagentSelection,
     collapsed: BTreeSet<String>,
     page: ProfessionPage,
+    favorite_menu: Option<(u32, [f32; 2])>,
+    selected_favorite: bool,
     pub(crate) specializations:
         game_engine_ui_model::professions_specializations::SpecializationDraft,
     pub(crate) orders: game_engine_ui_model::professions_orders::CraftingOrders,
@@ -105,6 +109,14 @@ impl Professions {
 
 impl GameClient {
     pub(super) fn receive_professions(&mut self, snapshot: ProfessionSnapshot) {
+        if self
+            .professions
+            .book
+            .selected
+            .is_some_and(|spell| !snapshot.favorites.contains(&spell))
+        {
+            self.professions.selected_favorite = false;
+        }
         self.professions.book.snapshot = snapshot;
     }
     pub(super) fn receive_profession_concentration(
@@ -145,6 +157,7 @@ impl GameClient {
         self.professions.concentration = None;
         self.professions.concentration_skill = None;
         self.professions.page = ProfessionPage::Recipes;
+        self.professions.favorite_menu = None;
         self.professions.order_form_initialized = false;
         self.professions.orders.menu = None;
         self.professions.orders.npc = None;
@@ -286,6 +299,7 @@ impl GameClient {
                 .parse()
                 .unwrap_or(0);
         }
+        self.poll_profession_favorite_clicks(&mut ui)?;
         self.read_order_form(&mut ui)?;
         self.read_quality_quantities(&mut ui, false)?;
         loop {
@@ -298,6 +312,7 @@ impl GameClient {
                 break;
             }
             if let Some(tab) = action.strip_prefix("profession:tab:") {
+                self.professions.favorite_menu = None;
                 self.professions.page = match tab {
                     "recipes" => ProfessionPage::Recipes,
                     "specializations" => ProfessionPage::Specializations,
@@ -318,13 +333,12 @@ impl GameClient {
                 self.professions.page = ProfessionPage::Recraft;
             } else if let Some(action) = action.strip_prefix("profession:spec:") {
                 self.apply_specialization_action(action)?;
+            } else if let Some(raw) = action.strip_prefix("profession:favorite:") {
+                self.send_profession_favorite(raw)?;
+            } else if let Some(raw) = action.strip_prefix("profession:favorite-select:") {
+                self.select_profession_recipe(raw, true)?;
             } else if let Some(raw) = action.strip_prefix("profession:select:") {
-                self.professions.page = ProfessionPage::Recipes;
-                self.professions.book.selected = Some(
-                    raw.parse()
-                        .map_err(|_| format!("Invalid recipe selection: {action}"))?,
-                );
-                self.professions.error.clear();
+                self.select_profession_recipe(raw, false)?;
             } else if let Some(category) = action.strip_prefix("profession:category:") {
                 if !self.professions.collapsed.remove(category) {
                     self.professions.collapsed.insert(category.into());
@@ -450,6 +464,8 @@ impl GameClient {
             .collect();
         let mut view = ProfessionView {
             page: self.professions.page,
+            favorite_menu: self.professions.favorite_menu,
+            selected_favorite: self.professions.selected_favorite,
             now_unix: godot::classes::Time::singleton().get_unix_time_from_system() as u64,
             specializations: self.professions.specializations.clone(),
             concentration: self.professions.concentration.clone(),

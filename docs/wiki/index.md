@@ -70,7 +70,7 @@
 
 # Wiki Index
 
-- [Suggested secondary text hover](systems/adventure-guide.md#suggested-secondary-text-hover--implementation-2026-10-17) — literal second-pass eligibility and native truncation-gated owners; both-skin model RED recorded, native acceptance pending lead gate/window.
+- [Suggested secondary text hover](systems/adventure-guide.md#suggested-secondary-text-hover--implementation-2026-10-17) — source-scoped truncation hover, font-key RED→GREEN and both-skin source642physical hover/leave proof; no realm eligibility/authority claim.
 
 - [Rain of Fire escape](systems/bot-harness.md#rain-of-fire-escape-policy--2026-10-17) — approved eight-heading strict-nav policy over received86636 objects; pending ACK/freshness and full-segment/arrival safety, joint/native proof pending.
 - [Vanish selection withdrawal](systems/bot-harness.md#vanish-selection-withdrawal--2026-10-17) — real run23 no-selection abort; bounded next-cycle native tank assist preserves pending ACK/fact failures, native recovery pending.
