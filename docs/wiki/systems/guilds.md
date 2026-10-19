@@ -151,7 +151,7 @@ Native existing-caret follow-up: `before  after` + real Shift-click at caret7 in
 
 Mainline SlashCommands.lua793–799 forwards text to C_GuildInfo.SetLeader. The available API documentation is a signature, not native implementation. Context-menu self hiding does not establish native slash behavior. The separately approved server policy `GUILD_SELF_LEADER_TRANSFER_REFUSED_UNSOURCED` rejects self without changes; it is not claimed Retail parity. Full permitted-source qualification is recorded in server `docs/wiki/systems/guild-lifecycle.md#voluntary-leadership-transfer` and `/home/osso/.worktrees/logs/guild-leadership-transfer-2026-10-19/self-transfer-qualification.md`.
 
-Ignored wire/slash/server regressions were pushed first. The actual slash RED emits generic help for `/gleader Cara`; server authority RED was separately established after the wire declaration, before transfer mutations. Focused GREEN, coordinated gate and actual two-member/both-skin native fresh-authority proof remain pending. No dedicated Retail Club/NewLeader notification behavior is claimed by the existing rank/profile refresh.
+Ignored wire/slash/server regressions were pushed first. The actual slash RED emits generic help for `/gleader Cara`; server authority RED was separately established after the wire declaration, before transfer mutations. Focused slash GREEN1/1 passes after the actual generic-help RED; the proven test is enabled. Coordinated gate and actual two-member/both-skin native fresh-authority proof remain pending. No dedicated Retail Club/NewLeader notification behavior is claimed by the existing rank/profile refresh.
 
 ## Online member zone
 
