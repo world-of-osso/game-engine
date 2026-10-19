@@ -603,6 +603,8 @@ impl UiProjection {
                         || action.starts_with("guild:news_entry:")
                         || action.starts_with("guild:perk:")
                         || action.starts_with("mount:select:")
+                        || action.starts_with("profession:select:")
+                        || action.starts_with("profession:favorite-select:")
                         || action.starts_with("journal:activity:")
                         || action.starts_with("transmog:outfit:")
                         || action.starts_with(game_engine_ui_model::toybox::USE_PREFIX)
@@ -1397,6 +1399,7 @@ fn connect_edit_box(pending: &PendingInputs, frame: &Frame, node: &mut Gd<Contro
     let id = frame.id;
     let journal_search =
         frame.name.as_deref() == Some(game_engine_ui_model::adventure_guide::SEARCH);
+    let achievement_search = frame.name.as_deref() == Some("AchievementSearchBox");
     let text_pending = pending.clone();
     let Some(WidgetData::EditBox(data)) = &frame.widget_data else {
         return;
@@ -1413,15 +1416,17 @@ fn connect_edit_box(pending: &PendingInputs, frame: &Frame, node: &mut Gd<Contro
             text_pending.push(UiInput::Text(id, text));
         })
     } else {
-        if matches!(
-            frame.name.as_deref(),
-            Some("TalentSearchBox" | "TalentLoadoutNameInput" | "EncounterJournalSearchBox")
-        ) {
+        if achievement_search
+            || matches!(
+                frame.name.as_deref(),
+                Some("TalentSearchBox" | "TalentLoadoutNameInput" | "EncounterJournalSearchBox")
+            )
+        {
             let submit_pending = pending.clone();
             let mut edit = node.clone();
-            // Journal SearchBoxListMixin keeps focus on short/no-result Enter.
-            // Its successful selection/Show All action owns Close() instead.
-            let release_on_submit = !journal_search;
+            // Journal/Achievement searches keep editing on no-op Enter;
+            // only a committed selection owns native focus release.
+            let release_on_submit = !(journal_search || achievement_search);
             if !release_on_submit {
                 let mut search = node.clone().cast::<LineEdit>();
                 search.set_keep_editing_on_text_submit(true);
@@ -1435,10 +1440,12 @@ fn connect_edit_box(pending: &PendingInputs, frame: &Frame, node: &mut Gd<Contro
                     }
                 }),
             );
-            if matches!(
-                frame.name.as_deref(),
-                Some("TalentSearchBox" | "EncounterJournalSearchBox")
-            ) {
+            if achievement_search
+                || matches!(
+                    frame.name.as_deref(),
+                    Some("TalentSearchBox" | "EncounterJournalSearchBox")
+                )
+            {
                 let keys = search_preview_keys(pending.clone(), node.clone());
                 node.connect("gui_input", &keys);
             }
