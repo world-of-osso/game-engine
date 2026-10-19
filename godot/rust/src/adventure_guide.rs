@@ -74,8 +74,8 @@ fn replace_suggestion_642_fixture(
     received: &mut [shared::protocol::AdventureSuggestion],
     source: shared::protocol::AdventureSuggestion,
 ) -> Result<(), String> {
-    if received.len() != 3 {
-        return Err("Source-row fixture needs the existing three-pane input".into());
+    if received.len() < 3 {
+        return Err("Source-row fixture needs at least three received suggestions".into());
     }
     received[0] = source;
     Ok(())

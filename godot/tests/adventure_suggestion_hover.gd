@@ -55,6 +55,7 @@ func run_hover_proof() -> bool:
 		return false
 	if not completion.step(await click("EncounterJournalSuggestTab"), "physical Suggested Content tab"):
 		return false
+	print("SOURCE_FIXTURE_RECEIVED_VECTOR count=%s" % client.adventure_guide_state().suggestion_count)
 	var fixture_error: String = client.install_adventure_suggestion_642_fixture()
 	if not completion.require(fixture_error.is_empty(), fixture_error):
 		return false
