@@ -1,3 +1,4 @@
+- [Journal authored model scenes](systems/adventure-guide.md#authored-creature-model-scenes--implementation) — raw initial camera/zoom offsets and actor transforms; actual Ozruk framing RED, both-skin GREEN pending; FOV/actor0/effects gaps retained.
 - [ReadyCheck body no-overlap policy](systems/group-frames.md#readycheck-body-no-overlap-project-policy--2026-10-18) — explicit user policy: extra real line allocation grows centered chrome/button bottom anchors, single-line unchanged; strict six-case native RED retained, GREEN ink proof pending. [One-line Retail ratio gap](systems/group-frames.md#one-line-retail-screenshot--bounded-relative-evidence) remains separate.
 - [Ownership-cap error CPU dispatch](systems/cursor-item.md#ownership-cap-error-cpu-dispatch-2026-10-18) —post-guild6c00abbf4/protocola2b07a6 typed ItemMaxCount→existing error surface1/0; combined enum tags verified, Retail10918/ERR_ITEM_MAX_COUNT; no native pixels or coordinated landing claim.
 

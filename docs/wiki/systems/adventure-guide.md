@@ -2,6 +2,16 @@
 
 Verified: 2026-10-17 for section-focus flash; earlier receipts retain their recorded revisions. The [contract](../../specs/adventure-guide.md) owns Retail Mainline behavior; Forever only changes the shared screen's art.
 
+## Authored creature model scenes — implementation
+
+The [contract](../../specs/adventure-guide.md#encounter-model-creatures) follows EJ Lua1455–1470: SetFromModelSceneID, GetActorByTag("creature"), SetModelByCreatureDisplayID. The catalog now preserves the cached UiModelSceneID; native pending/shown selection identity includes creature/display/scene rather than display alone. The raw initial OrbitCamera reader is Journal-local, leaving Trading Post rounding unchanged. ModelSceneActorMixin normalization/origin/orientation uses the existing shared actor math and loaded M2 bounds including intrinsic display scale. The native host installs the unframed model, then its authored camera; shared Scene projection/FOV remains unchanged.
+
+OrbitCameraMixin GetDerivedTarget/Orientation evaluates two-point zoom-offset splines at1−zoomPercent. Shared MathUtil PercentageBetween returns0 when min=max, so fixed scenes268/1399 use the nonzero offset endpoint, not zero. No interactive Journal camera controls or opaque FOV is invented. Shared actor display0 rejection is retained; those installed Journal cases and authored animation/alpha/spell-visual behavior remain explicit gaps.
+
+Actual native baseline4e612364f reproduced Ozruk382/scene9 eye(48.7869,8.363785,.041137) versus raw authored(9.396926,.25,3.420202), with origin0/scale1 rather thanY−4.171557/scale.505004. Exact camera assertion failed after genuine selection and a saved1920×1080 frame; Anraphet was not reached because the fixture stops on failure. Source-bound manifest/logs are private under adventure-guide9-proof; both-skin GREEN remains pending.
+
+Sources: cached Retail Blizzard_EncounterJournal.lua1455–1470; ModelSceneActorMixin.lua; Shared/ModelSceneCameras/OrbitCameraMixin.lua; Blizzard_SharedXMLBase/MathUtil.lua49–54; installed UiModelSceneActor/Display/Camera rows. Code: [`model_scene.rs`](../../../godot/core/src/adventure_guide/model_scene.rs), [`native host`](../../../godot/rust/src/adventure_guide.rs).
+
 ## Suggested secondary text hover — implementation 2026-10-17
 
 The [contract](../../specs/adventure-guide.md#suggested-source-presentation) scopes EJ Lua3311–3357's second pass to physical Suggestion2/3. Returned record1 occupies physical3 and therefore joins only with three records; record2 occupies physical2 and joins with two or three. Primary-title hover in the earlier independent branch is not included. `adventure_suggestions::hover_text` preserves this source mapping; `text_tooltip` supplies full white wrapped text without reward/activation metadata.
