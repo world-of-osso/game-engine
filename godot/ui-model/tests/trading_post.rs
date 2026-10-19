@@ -33,7 +33,7 @@ fn assert_committed_frozen_caption(skin: ActiveSkin) {
         let registry = render(skin, view);
         assert_eq!(
             text(&registry, "PerksProgramFrozenLabel"),
-            "|cffffffffFreezing:|r\nDistinguished Warcloak",
+            "Freezing:\nDistinguished Warcloak",
             "the committed caption is independent of selection: {skin:?}"
         );
         assert_frozen_caption_geometry(&registry);
@@ -69,7 +69,7 @@ fn trading_post_frozen_item_caption_cancel_restores_authoritative_caption() {
         let registry = render(skin, view);
         assert_eq!(
             text(&registry, "PerksProgramFrozenLabel"),
-            "|cffffffffFreezing:|r\nDistinguished Warcloak"
+            "Freezing:\nDistinguished Warcloak"
         );
         assert_frozen_caption_geometry(&registry);
         assert_eq!(
@@ -101,7 +101,7 @@ fn trading_post_frozen_item_caption_reply_captions_new_committed_item() {
         let registry = render(skin, view);
         assert_eq!(
             text(&registry, "PerksProgramFrozenLabel"),
-            "|cffffffffFreezing:|r\nArcanofire Wrap"
+            "Freezing:\nArcanofire Wrap"
         );
         assert_frozen_caption_geometry(&registry);
         assert_eq!(
