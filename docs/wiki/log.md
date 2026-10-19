@@ -1,6 +1,6 @@
 ## 2026-10-19 — Anomalus fixture-only framing diagnostic
 
-[Scope/source boundary](systems/battle-pets.md#anomalus-indexed-framing-diagnostic--2026-10-19): AABB overflow confirmed; indexed/material-visible clipping unresolved. Pinned70448 scenes33/60 are card/loadout, not battle-camera authority. Owned5971 fixture records same-frame indexed triangle extrema, material/shader/cull/alpha state and camera/viewport/edge crops; original guard/scales/pads/product untouched. Unit absent-triangle RED→indexed/material/full-frame/unchanged-state GREEN; build/window proof pending, no native acceptance.
+[Scope/source boundary](systems/battle-pets.md#anomalus-indexed-framing-diagnostic--2026-10-19): fixture unit RED→GREEN and matched builds; Forever native frame7444 confirms actual left-edge clipping, not solely AABB conservatism:879 indexed ally triangles/190 outside,134 alpha-positive left-border pixels. Bottom-overflow batch alpha0/no bottom-border pixels; Rabbit1124 triangles contained. Original guard/scales/pads/camera unchanged, no product fix. Initial slot-local asset-receipt failure resolved by approved preserve-and-link cache/products staging, not product fallback. Native skin-registration error absent; runtime stopped/5971free. Card/loadout scenes33/60 remain no battle-camera authority.
 
 ## 2026-10-19 — Ordinary name settled-colour CPU RED
 

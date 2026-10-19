@@ -4,10 +4,10 @@ Wild PvE encounters use server-authoritative snapshots and actions, rendered thr
 
 ## Anomalus framing diagnostic (fixture only)
 
-- [ ] Owned private5971 fixture records all indexed posed triangles' projected vertices/extrema in the same frame as active material/alpha/cull/shader state, camera/projection/viewport and viewport-edge crops.
-- [ ] Preserve original framing guard, authored scales, fixed pads, camera and product behavior. Card/loadout DB2 scenes are not a sourced battle-camera replacement.
+- [x] Owned private5971 fixture records all indexed posed triangles' projected vertices/extrema in the same frame as active material/alpha/cull/shader state, camera/projection/viewport and viewport-edge crops.
+- [x] Preserve original framing guard, authored scales, fixed pads, camera and product behavior. Card/loadout DB2 scenes are not a sourced battle-camera replacement.
 
-This is diagnostic evidence for `PET_BATTLE_ANOMALUS_NATIVE_FRAMING`, not a camera/scale fix or pixel-visibility certificate. Alpha/culling/shader displacement remain distinguishable from geometric projection. Owner `anomalus-framing` uses only its fresh private5971 storage; never petbattle5961 or another owner's redb. Native run requires explicit lead window after matching build receipts.
+This is diagnostic evidence for `PET_BATTLE_ANOMALUS_NATIVE_FRAMING`, not a camera/scale fix or pixel-visibility certificate. Alpha/culling/shader displacement remain distinguishable from geometric projection. Owner `anomalus-framing` uses only its fresh private5971 storage; never petbattle5961 or another owner's redb. Native run requires explicit lead window after matching build receipts. Forever frame7444 on 2026-10-19 confirms actual left-edge clipping: 879 indexed ally triangles, 190 outside (160 in nonzero-material-alpha batches), and 134 alpha-positive pixels on the leftmost viewport column. Rabbit1124 triangles remain inside. Bottom-overflow geometry belongs to an alpha0 batch in this frame; bottom/top/right border pixels are transparent. This classifies one pre-cast frame, not both skins, every animation, or a corrected camera. [Evidence and staging incident](../wiki/systems/battle-pets.md#anomalus-indexed-framing-diagnostic--2026-10-19).
 
 ## What it must do
 - [x] Right-click a wild battle-pet creature to request a battle with the journal's first three ordered combat slots.
@@ -17,7 +17,7 @@ This is diagnostic evidence for `PET_BATTLE_ANOMALUS_NATIVE_FRAMING`, not a came
 - [x] Wild PvE uses the untimed Retail timer mode, not an invented timeout.
 - [x] The camera frames both active 3D pet models on their corresponding health-frame sides, facing each other; swapping updates models.
 - [x] Both active pets retain the ordinary creature render path's CreatureDisplayInfo.CreatureModelScale × CreatureModelData.ModelScale, multiplied by CreatureDisplayInfo.PetInstanceScale for battle instances. Never normalize size or position from model/animation bounds.
-- [x] Both active pets stay on fixed separate left/right battlefield pads, unclipped by a fixed presentational camera independent of the pair's bounds. Battle presentation repeats the base idle; ordinary world idle variations remain unchanged.
+- [ ] Both active pets stay on fixed separate left/right battlefield pads, unclipped by a fixed presentational camera independent of the pair's bounds. Battle presentation repeats the base idle; ordinary world idle variations remain unchanged. Fixed pads/idle are implemented, but Anomalus95171 has confirmed left-edge raster clipping; no correction is accepted yet.
 - [x] Each ready pet renders independently; a missing asset on one side reports that display's error without suppressing the other pet or retrying the consumed completion.
 - [x] End displays outcome/XP/capture and disables further actions. Journal updates remain authoritative.
 - [x] Modern and Forever retain identical geometry and controls.

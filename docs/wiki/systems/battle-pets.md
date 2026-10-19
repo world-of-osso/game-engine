@@ -1,8 +1,16 @@
-# Battle pets
+# Battle pets: data and companion journal
 
 ## Anomalus indexed framing diagnostic — 2026-10-19
 
-[Fixture contract](../../specs/wild-pet-battles.md#anomalus-framing-diagnostic-fixture-only): original posed-AABB failure does not classify actual primitive clipping. Fresh pinned70448 camera/actor rows identify Anomalus scenes33/60 as card/loadout, not battlefield camera. Fixture-only `framing_diagnostic` on owned5971 records every indexed posed triangle's projection, active material/shader alpha/cull state and same-frame camera/viewport/edge images, without changing the original guard or actor/camera state. Headless absent-triangle RED→unit GREEN covers exact indexed projection/unindexed outlier exclusion, material/shader alpha/cull, same-frame AABB-versus-indexed containment and unchanged camera/mesh/material. Matching build receipts/native window remain pending. No product fix or native acceptance yet.: data and companion journal
+[Fixture contract](../../specs/wild-pet-battles.md#anomalus-framing-diagnostic-fixture-only): the original posed-AABB observation alone did not classify clipping. Fresh pinned70448 scenes33/60 remain card/loadout, not battlefield-camera authority. Fixture unit RED→GREEN covers indexed projection/unindexed outlier exclusion, material/shader state, AABB false-positive control and unchanged transforms.
+
+**Forever native frame7444 confirms actual left-edge raster clipping**, not solely a conservative AABB. Anomalus95171/level4 has879 indexed posed triangles across six meshes;190 cross viewport bounds,160 in nonzero-material-alpha batches. Batch1 is alpha1/cull-disabled with minX−542.05835; Batch2 alpha1/cull-back reaches−244.54462. The original leftmost pixel column contains134 alpha-positive pixels at y290–423, max255; inspected viewport/left crops show the cut silhouette. Rabbit328/level1 has1124 indexed triangles, all contained. Bottom-extending Batch3 reaches y592.00732 but has material alpha0; bottom/top/right border pixels are transparent in this frame. Individual outside triangles are not all claimed raster-visible.
+
+Camera orthographic3, eye(10,0.72,0), pads±2.2 and scales1 remain unchanged. No native skin-registration error occurred after assets were staged; the headless skin probe failed and is not represented as passing. One pre-cast Forever frame does not establish both-skin/all-animation coverage, Retail camera parity or a corrected product.
+
+Initial native attempt stopped before Anomalus posing: preflight checked canonical assets while s12 used stale local cache/products. Preserve those two local directories privately, then link only them to canonical after approval; verify receipts2966427/2966454/2966455 and body hashes through the **actual runtime data root**. Do not run whole-tree repair over private research/redb/config directories, because it merges untracked content into canonical.
+
+Runtime source: engine`ff562ed60` on approved`d32076603`, server`17c35e32a`, protocol`f9a91753`. Original seven files: `/syncthing/AgentShared/2026-10-19/anomalus-framing/frame7444/`. Exact build hashes, frame summary/raster counts and stopped-PID/5971-free proof: `/home/osso/.worktrees/logs/anomalus-framing-2026-10-19/`. No1954 combat action, product correction or weakened guard.
 
 The account journal supports companion collection and bounded wild PvE battles. Phase1 acceptance lives in the [client contract](../../specs/battle-pets.md) and [server contract](../../../../game-server/docs/specs/battle-pets.md); [wild acceptance](../../specs/wild-pet-battles.md#acceptance--2026-10-10) owns battle proof and exclusions.
 
