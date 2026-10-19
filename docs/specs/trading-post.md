@@ -14,6 +14,15 @@ Retail Mainline Blizzard_PerksProgram and the local C_PerksProgram/PerksActiviti
 - [x] Traveler's Log displays authoritative monthly Tender earned/cap/balance. No invented mail awards. Retail XML defines visible controls; remove unsourced vendor SearchBox, Log/Collections and Freeze/Unfreeze buttons (lead clarification October13).
 - [x] Targeted behavioural tests and inspected private UDP5731 fb_* account PNG proof in Modern and Forever.
 
+## Committed frozen selected-texture ADD compositing
+
+Retail Elements.xml383 inherits ordinary SelectedTexture223–230 `perks-list-active` ADD; Frozen SetSelected Lua523–532 delegates to ordinary335–340. Scope only the existing selected texture of a genuinely committed reservation, not candidate/pending visibility rules or frozen hover activation.
+
+- [ ] Push explicit-opt-in `trading_post_frozen_selected_add` diagnostic/nine-case registration before production edits. Actual same-atlas ADD/MIX pixels must prove genuine both-skin RED before a correction; never infer RED from source/fields/compile/data/harness failures. If ADD already matches or references cannot distinguish, report no RED and leave production unchanged.
+- [ ] Use a genuine existing reservation with pointer off slot, stable counterfactual and exact original material restore. Preserve ordinary/frozen/ordinary and cart-cleared/returned selected-owner controls. Restore all local/authority/HUD/XYZ state before verdict; no freeze acceptance/clear, purchase/refund or fabricated reservation. Require strict known nine checked-await cases, natural completion, unique marker and complete clean streams.
+- [ ] Only after genuine RED, minimally classify the existing committed FrozenSelected owner through the current blend path, commit and pass parent gate; fresh exact-same-oracle both-skin native GREEN in an explicitly owned5791 window. Publish inspected labeled diagnostic crops and normal companions with distinct source/binary/pixel provenance.
+- [ ] No candidate/pending selection rules, frozen hover/drag, caption/name order, visibility/timing/cart semantics, layout/font/audio/provider/API/server/protocol or missing-data recovery. Preserve `ITEM_235674_SPARSE_ABSENT_FROM_70448_AND_LOCAL_HOTFIX_CACHE` and `TP_NAME_COLOR_SAME_HOVER_DESELECT_ORDER_UNIMPLEMENTED`; closed ordinary-selected/hover proof is not replayed or relabeled.
+
 ## Ordinary selected-row ADD compositing
 
 Retail Elements.xml223–230 declares SelectedTexture `perks-list-active` with ADD; Elements.lua335–340 toggles it independently of hover. Scope only the existing ordinary selected texture's blend, using metadata-bearing available products, not unavailable1076.
