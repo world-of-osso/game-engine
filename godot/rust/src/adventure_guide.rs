@@ -833,7 +833,8 @@ impl GameClient {
             let rotation = Basis::from_quaternion(Quaternion::new(
                 rotation.x, rotation.y, rotation.z, rotation.w,
             ));
-            model.set_basis(rotation * model.get_basis().scaled(Vector3::ONE * scale));
+            let basis = rotation * model.get_basis().scaled(Vector3::ONE * scale);
+            model.set_basis(basis);
             model.set_position(Vector3::new(origin.x, origin.y, origin.z));
             Ok::<_, String>(camera)
         })();
