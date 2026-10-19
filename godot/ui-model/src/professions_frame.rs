@@ -12,6 +12,8 @@ use ui_toolkit::{rsx, screen::SharedContext, widget_def::Element};
 mod art;
 #[path = "professions_frame_concentration.rs"]
 pub mod concentration;
+#[path = "professions_frame_favorites.rs"]
+mod favorites;
 #[path = "professions_frame_orders.rs"]
 pub mod orders;
 #[path = "professions_frame_quality.rs"]
@@ -48,9 +50,11 @@ pub enum ProfessionPage {
     Recraft,
 }
 
-#[derive(Clone, Debug, Default, PartialEq, Eq)]
+#[derive(Clone, Debug, Default, PartialEq)]
 pub struct ProfessionView {
     pub page: ProfessionPage,
+    pub favorite_menu: Option<(u32, [f32; 2])>,
+    pub selected_favorite: bool,
     pub concentration: Option<shared::concentration::ConcentrationSnapshot>,
     pub specializations: crate::professions_specializations::SpecializationDraft,
     pub orders: crate::professions_orders::CraftingOrders,
@@ -132,6 +136,7 @@ pub fn professions_screen(ctx: &SharedContext) -> Element {
     }
     children.extend(page_tabs(view.page));
     children.extend(quality::dialog(view));
+    children.extend(favorites::favorite_menu(view));
     rsx! { r#frame { name: "ProfessionsFrame", width, height: HEIGHT,
         left: 24.0, top: 94.0, pos_type: "absolute", mouse_enabled: true,
         strata: FrameStrata::Dialog, {children}

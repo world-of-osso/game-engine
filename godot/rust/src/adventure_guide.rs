@@ -23,8 +23,27 @@ pub(crate) struct AdventureGuide {
     pending: Option<(u64, u32)>,
     shown: Option<u32>,
     portraits: BTreeMap<u32, Portrait>,
+    #[cfg(debug_assertions)]
+    fixture_suggestion: Option<shared::protocol::AdventureSuggestion>,
 }
 impl AdventureGuide {
+    fn copy_activity_presentation(
+        &mut self,
+        authority: Option<Arc<shared::protocol::AdventureGuideSnapshot>>,
+    ) -> Result<(), String> {
+        self.view.activities = authority;
+        #[cfg(debug_assertions)]
+        if let Some(row) = &self.fixture_suggestion {
+            let snapshot = self
+                .view
+                .activities
+                .as_mut()
+                .ok_or("Source-row fixture lost its received activity snapshot")?;
+            replace_suggestion_642_fixture(&mut Arc::make_mut(snapshot).suggestions, row.clone())?;
+        }
+        Ok(())
+    }
+
     pub(crate) fn creature_portrait_state(&self, id: u32) -> VarDictionary {
         self.portraits
             .get(&id)
@@ -60,16 +79,26 @@ impl GameClient {
                 .activities
                 .as_deref()
                 .ok_or("Source-row fixture needs a received activity snapshot")?;
-            if current.suggestions.len() != 3 {
-                return Err("Source-row fixture needs the existing three-pane input".into());
-            }
             let mut snapshot = current.clone();
-            snapshot.suggestions[0] = row;
+            replace_suggestion_642_fixture(&mut snapshot.suggestions, row.clone())?;
+            self.adventure_guide.fixture_suggestion = Some(row);
             self.adventure_guide.view.activities = Some(Arc::new(snapshot));
             self.sync_adventure_guide()
         })();
         result.err().unwrap_or_default().as_str().into()
     }
+}
+
+#[cfg(debug_assertions)]
+fn replace_suggestion_642_fixture(
+    received: &mut [shared::protocol::AdventureSuggestion],
+    source: shared::protocol::AdventureSuggestion,
+) -> Result<(), String> {
+    if received.len() < 3 {
+        return Err("Source-row fixture needs at least three received suggestions".into());
+    }
+    received[0] = source;
+    Ok(())
 }
 
 #[cfg(debug_assertions)]
@@ -100,7 +129,93 @@ fn read_suggestion_642_fixture(
 mod tests {
     use super::AdventureGuide;
     use shared::protocol::EncounterStart;
+    #[cfg(debug_assertions)]
+    use std::sync::Arc;
 
+    #[cfg(debug_assertions)]
+    #[test]
+    fn suggestion_fixture_survives_two_authoritative_presentation_updates() {
+        use shared::protocol::{AdventureGuideSnapshot, JournalMonth};
+        let root = std::path::Path::new(env!("CARGO_MANIFEST_DIR")).join("../../data");
+        let source = super::read_suggestion_642_fixture(&root).unwrap();
+        let mut rows = vec![source.clone(); 4];
+        rows[0].id = 881;
+        rows[0].name = "Player Housing".into();
+        rows[1].id = 852;
+        let mut authority = AdventureGuideSnapshot {
+            month: JournalMonth {
+                year: 2026,
+                month: 10,
+                name: "October".into(),
+                start_unix: 0,
+                end_unix: 1,
+                now_unix: 0,
+                tracking_since: 0,
+            },
+            activities: vec![],
+            tags: vec![],
+            suggestions: rows,
+            suggestion_census: Default::default(),
+            points: 0,
+            activity_scope_notice: None,
+            source_error: None,
+        };
+        let mut guide = AdventureGuide {
+            fixture_suggestion: Some(source.clone()),
+            ..Default::default()
+        };
+        for update in [1, 2] {
+            authority.points = update;
+            authority.suggestions[1].description = format!("Received update {update}");
+            let received = Arc::new(authority.clone());
+            guide
+                .copy_activity_presentation(Some(received.clone()))
+                .unwrap();
+            let shown = guide.view.activities.as_deref().unwrap();
+            assert_eq!(
+                shown.suggestions[0], source,
+                "fixture lost on update{update}"
+            );
+            assert_eq!(shown.suggestions[1..], authority.suggestions[1..]);
+            assert_eq!(shown.points, update);
+            assert_eq!(*received, authority, "fixture changed authoritative input");
+        }
+        let mut ordinary = AdventureGuide::default();
+        ordinary
+            .copy_activity_presentation(Some(Arc::new(authority.clone())))
+            .unwrap();
+        assert_eq!(ordinary.view.activities.as_deref(), Some(&authority));
+    }
+
+    #[cfg(debug_assertions)]
+    #[test]
+    fn suggestion_fixture_preserves_received_rows_beyond_the_three_painted_panes() {
+        let root = std::path::Path::new(env!("CARGO_MANIFEST_DIR")).join("../../data");
+        let source = super::read_suggestion_642_fixture(&root).unwrap();
+        for count in [0, 2, 3, 5] {
+            let mut received: Vec<_> = (0..count)
+                .map(|index| {
+                    let mut row = source.clone();
+                    row.id = 881 + index;
+                    row.name = format!("Received row {index}");
+                    row
+                })
+                .collect();
+            let before = received.clone();
+            let result = super::replace_suggestion_642_fixture(&mut received, source.clone());
+            if count < 3 {
+                assert!(result.is_err());
+                assert_eq!(received, before);
+            } else {
+                result.expect("a complete eligible vector can contain more than three rows");
+                assert_eq!(received[0], source);
+                assert_eq!(received[1..], before[1..]);
+                assert_eq!(received.len(), before.len());
+            }
+        }
+    }
+
+    #[cfg(debug_assertions)]
     #[test]
     fn suggestion_fixture_reads_installed_record_642_without_action_authority() {
         let root = std::path::Path::new(env!("CARGO_MANIFEST_DIR")).join("../../data");
@@ -287,7 +402,8 @@ impl GameClient {
                 role => panic!("Unknown ChrSpecialization role {role}"),
             });
         self.select_queued_journal_encounter()?;
-        self.adventure_guide.view.activities = self.account.adventure_guide.clone();
+        self.adventure_guide
+            .copy_activity_presentation(self.account.adventure_guide.clone())?;
         self.adventure_guide.view.trading_post = self.account.trading_post.clone();
         self.adventure_guide.view.renown = self.account.renown.clone();
         self.update_journey_hover()?;
