@@ -148,6 +148,7 @@ impl GameClient {
             GameClient::action_button_tooltip,
             GameClient::mentor_teleport_tooltip,
             GameClient::talent_gate_tooltip,
+            GameClient::profession_recipe_source_tooltip,
             GameClient::profession_concentration_tooltip,
             GameClient::profession_reagent_quality_tooltip,
             GameClient::profession_specialization_tooltip,
@@ -862,6 +863,24 @@ impl GameClient {
         })?;
         drop(ui);
         let tooltip = self.toy_game_tooltip(item_id)?;
+        Some(HoveredTooltip::text(self.owned_by(
+            hit,
+            owner,
+            OwnerSide::Right,
+            tooltip,
+        )?))
+    }
+
+    fn profession_recipe_source_tooltip(&mut self, hit: &HoveredFrame) -> Option<HoveredTooltip> {
+        let ui = hit.ui.bind();
+        let (owner, ()) = named_ancestor(ui.registry()?, hit.frame, |frame| {
+            (name_of(frame)? == "ProfessionsRecipeSourceButton").then_some(())
+        })?;
+        drop(ui);
+        let tooltip = game_engine_ui_model::professions_frame::recipe_source_tooltip(
+            &self.professions.book,
+            &self.professions.skill_names(),
+        )?;
         Some(HoveredTooltip::text(self.owned_by(
             hit,
             owner,

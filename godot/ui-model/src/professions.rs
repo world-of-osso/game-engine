@@ -33,11 +33,11 @@ impl ProfessionBook {
     pub fn groups(&self) -> Vec<(String, Vec<&Recipe>)> {
         let known: std::collections::HashSet<_> = self.snapshot.spells.iter().copied().collect();
         let search = self.search.trim().to_lowercase();
-        let mut groups = std::collections::BTreeMap::<String, Vec<&Recipe>>::new();
+        let mut groups = std::collections::BTreeMap::<(bool, String), Vec<&Recipe>>::new();
         for recipe in &self.recipes {
-            if known.contains(&recipe.spell_id) && recipe.name.to_lowercase().contains(&search) {
+            if recipe.name.to_lowercase().contains(&search) {
                 groups
-                    .entry(recipe.category.clone())
+                    .entry((!known.contains(&recipe.spell_id), recipe.category.clone()))
                     .or_default()
                     .push(recipe);
             }
@@ -46,15 +46,21 @@ impl ProfessionBook {
             recipes.sort_by(|left, right| left.name.cmp(&right.name));
         }
         let mut groups: Vec<_> = groups.into_iter().collect();
-        groups.sort_by_key(|(_, recipes)| recipes[0].category_order);
+        groups.sort_by_key(|((unlearned, _), recipes)| (*unlearned, recipes[0].category_order));
         groups
+            .into_iter()
+            .map(|((_, category), recipes)| (category, recipes))
+            .collect()
     }
 
     pub fn selected_recipe(&self) -> Option<&Recipe> {
         let spell = self.selected?;
-        self.recipes
-            .iter()
-            .find(|recipe| recipe.spell_id == spell && self.snapshot.spells.contains(&spell))
+        self.recipes.iter().find(|recipe| recipe.spell_id == spell)
+    }
+
+    pub fn selected_is_learned(&self) -> bool {
+        self.selected
+            .is_some_and(|spell| self.snapshot.spells.contains(&spell))
     }
 
     /// `(item ID, owned across bags, needed per cast)`; equipment is never consumed.
@@ -80,10 +86,11 @@ impl ProfessionBook {
     pub fn craftable_count(&self, bags: &InventoryState) -> u32 {
         // MinSkillLineRank gates automatic learning, not casts of a trainer-learned spell.
         // Recipe knowledge is authoritative (TrinityCore Player::LearnSkillRewardedSpells).
-        if self
-            .selected_recipe()
-            .and_then(|recipe| recipe.output)
-            .is_none()
+        if !self.selected_is_learned()
+            || self
+                .selected_recipe()
+                .and_then(|recipe| recipe.output)
+                .is_none()
         {
             return 0;
         }
