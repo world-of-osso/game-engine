@@ -8,6 +8,186 @@ use ui_toolkit::{
     screen::{Screen, SharedContext},
 };
 
+fn assert_frozen_caption_geometry(registry: &FrameRegistry) {
+    assert_eq!(rect(registry, "PerksProgramFrozenLabel")[2..], [233., 45.]);
+    let label = registry.get_by_name("PerksProgramFrozenLabel").unwrap();
+    let Some(WidgetData::FontString(font)) = &registry.get(label).unwrap().widget_data else {
+        panic!("frozen caption must remain a font string");
+    };
+    assert_eq!(font.color, [1., 1., 1., 1.]);
+}
+
+fn assert_committed_frozen_caption(skin: ActiveSkin) {
+    for selected in [4, 5] {
+        let mut view = freeze_view();
+        if selected == 5 {
+            assert_eq!(view.click("perks:select:5").unwrap(), None);
+        }
+        assert_eq!(view.selected, Some(selected));
+        let expected_sounds = if selected == 5 { 1 } else { 0 };
+        assert_eq!(view.take_selection_sounds(), expected_sounds);
+        assert_eq!(view.snapshot.as_ref().unwrap().frozen_item_id, Some(4));
+        assert_eq!(view.snapshot.as_ref().unwrap().tender, 500);
+        assert_eq!(view.cart, [5, 6]);
+        assert_eq!(view.freeze_candidate, None);
+        let registry = render(skin, view);
+        assert_eq!(
+            text(&registry, "PerksProgramFrozenLabel"),
+            "|cffffffffFreezing:|r\nDistinguished Warcloak",
+            "the committed caption is independent of selection: {skin:?}"
+        );
+        assert_frozen_caption_geometry(&registry);
+        assert_eq!(text(&registry, "PerksProgramName5"), "Arcanofire Wrap");
+    }
+}
+
+#[test]
+#[ignore = "CPU-first committed caption regression; execute explicitly before renderer changes"]
+fn trading_post_frozen_item_caption_modern_committed_has_authored_prefix() {
+    assert_committed_frozen_caption(ActiveSkin::Modern);
+}
+
+#[test]
+#[ignore = "CPU-first committed caption regression; execute explicitly before renderer changes"]
+fn trading_post_frozen_item_caption_forever_committed_has_authored_prefix() {
+    assert_committed_frozen_caption(ActiveSkin::Forever);
+}
+
+#[test]
+#[ignore = "CPU-first committed caption regression; execute explicitly before renderer changes"]
+fn trading_post_frozen_item_caption_cancel_restores_authoritative_caption() {
+    for skin in [ActiveSkin::Modern, ActiveSkin::Forever] {
+        let mut view = open_unaccepted_texture_preview();
+        let authority = view.snapshot.clone();
+        assert_eq!(view.take_selection_sounds(), 1);
+        assert_eq!(view.click("perks:cancel").unwrap(), None);
+        assert_eq!(view.snapshot, authority);
+        assert_eq!(view.freeze_candidate, None);
+        assert_eq!(view.selected, Some(5));
+        assert_eq!(view.cart, [5, 6]);
+        assert_eq!(view.take_selection_sounds(), 0);
+        let registry = render(skin, view);
+        assert_eq!(
+            text(&registry, "PerksProgramFrozenLabel"),
+            "|cffffffffFreezing:|r\nDistinguished Warcloak"
+        );
+        assert_frozen_caption_geometry(&registry);
+        assert_eq!(
+            visible_selection_art_area(&registry, "PerksProgramFrozenSelected"),
+            0.
+        );
+        assert_eq!(
+            visible_selection_art_area(&registry, "PerksProgramSelected5"),
+            24144.
+        );
+    }
+}
+
+#[test]
+#[ignore = "CPU-first committed caption regression; execute explicitly before renderer changes"]
+fn trading_post_frozen_item_caption_reply_captions_new_committed_item() {
+    for skin in [ActiveSkin::Modern, ActiveSkin::Forever] {
+        let mut view = create_accepted_texture_preview();
+        assert_eq!(view.take_selection_sounds(), 1);
+        let mut reply = view.snapshot.as_ref().unwrap().as_ref().clone();
+        reply.frozen_item_id = Some(5);
+        view.receive(Arc::new(reply));
+        assert!(!view.pending);
+        assert_eq!(view.freeze_candidate, None);
+        assert_eq!(view.selected, Some(5));
+        assert_eq!(view.cart, [6]);
+        assert_eq!(view.snapshot.as_ref().unwrap().tender, 500);
+        assert_eq!(view.take_selection_sounds(), 0);
+        let registry = render(skin, view);
+        assert_eq!(
+            text(&registry, "PerksProgramFrozenLabel"),
+            "|cffffffffFreezing:|r\nArcanofire Wrap"
+        );
+        assert_frozen_caption_geometry(&registry);
+        assert_eq!(
+            visible_selection_art_area(&registry, "PerksProgramFrozenSelected"),
+            44268.
+        );
+    }
+}
+
+#[test]
+#[ignore = "CPU-first committed caption control; execute explicitly before renderer changes"]
+fn trading_post_frozen_item_caption_unaccepted_candidate_stays_plain() {
+    for skin in [ActiveSkin::Modern, ActiveSkin::Forever] {
+        let view = open_unaccepted_texture_preview();
+        assert_eq!(view.confirm.as_deref(), Some("freeze"));
+        assert_eq!(view.snapshot.as_ref().unwrap().frozen_item_id, Some(4));
+        let registry = render(skin, view);
+        assert_pending_texture_content(&registry);
+        assert_frozen_caption_geometry(&registry);
+        assert_eq!(
+            visible_selection_art_area(&registry, "PerksProgramFrozenSelected"),
+            0.
+        );
+    }
+}
+
+#[test]
+#[ignore = "CPU-first committed caption control; execute explicitly before renderer changes"]
+fn trading_post_frozen_item_caption_accepted_waiting_candidate_stays_plain() {
+    for skin in [ActiveSkin::Modern, ActiveSkin::Forever] {
+        let view = create_accepted_texture_preview();
+        assert!(view.pending);
+        assert_eq!(view.snapshot.as_ref().unwrap().frozen_item_id, Some(4));
+        assert_eq!(view.freeze_candidate, Some(5));
+        let registry = render(skin, view);
+        assert_pending_texture_content(&registry);
+        assert_frozen_caption_geometry(&registry);
+        assert_eq!(
+            visible_selection_art_area(&registry, "PerksProgramFrozenSelected"),
+            44268.
+        );
+    }
+}
+
+#[test]
+#[ignore = "CPU-first committed caption control; execute explicitly before renderer changes"]
+fn trading_post_frozen_item_caption_empty_immediate_candidate_stays_plain() {
+    use game_engine_ui_model::trading_post::Action;
+    for skin in [ActiveSkin::Modern, ActiveSkin::Forever] {
+        let mut view = freeze_view();
+        let mut data = view.snapshot.as_ref().unwrap().as_ref().clone();
+        data.frozen_item_id = None;
+        view.receive(Arc::new(data));
+        assert!(view.select_dragged_product(5));
+        assert_eq!(
+            view.drop_item(5, true),
+            Some(Action::Request(TradingPostRequest::Freeze {
+                vendor_item_id: Some(5)
+            }))
+        );
+        assert!(view.pending);
+        assert_eq!(view.snapshot.as_ref().unwrap().frozen_item_id, None);
+        let registry = render(skin, view);
+        assert_pending_texture_content(&registry);
+        assert_frozen_caption_geometry(&registry);
+    }
+}
+
+#[test]
+#[ignore = "CPU-first committed caption control; execute explicitly before renderer changes"]
+fn trading_post_frozen_item_caption_empty_instruction_and_ordinary_name_stay_plain() {
+    for skin in [ActiveSkin::Modern, ActiveSkin::Forever] {
+        let mut view = freeze_view();
+        let mut data = view.snapshot.as_ref().unwrap().as_ref().clone();
+        data.frozen_item_id = None;
+        view.receive(Arc::new(data));
+        let registry = render(skin, view);
+        assert_eq!(
+            text(&registry, "PerksProgramFrozenLabel"),
+            "Drag an item here to freeze it and prevent it from expiring"
+        );
+        assert_eq!(rect(&registry, "PerksProgramFrozenLabel")[2..], [270., 45.]);
+        assert_eq!(text(&registry, "PerksProgramName5"), "Arcanofire Wrap");
+    }
+}
+
 fn assert_frozen_source_drop_preserves_view(view: &mut View, on_frozen: bool) {
     let before = view.clone();
     let frozen = view.snapshot.as_ref().unwrap().frozen_item_id.unwrap();
