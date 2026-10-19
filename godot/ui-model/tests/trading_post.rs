@@ -1,3 +1,5 @@
+#[path = "trading_post/monthly_clock.rs"]
+mod monthly_clock;
 use game_engine_ui_model::trading_post::{View, trading_post_screen};
 use shared::protocol::*;
 use std::sync::Arc;
