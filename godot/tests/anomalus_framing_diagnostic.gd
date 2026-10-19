@@ -84,6 +84,23 @@ static func posed_aabb_state(mesh: MeshInstance3D, posed: Mesh, camera: Camera3D
 		corners.append({"projected": [point.x, point.y], "behind": behind, "inside": inside})
 	return {"framed": framed, "world_position": vector_values(box.position), "world_size": vector_values(box.size), "corners": corners}
 
+# Oracle for preview.rs pet_actor_bounds at visual receipt, the size the Pet Journal
+# normalizes: unposed mesh AABBs under NpcVisualRoot's receipt scale and -PI/2 yaw
+# (world_models.rs), before pad staging re-orients the visual.
+static func journal_card_bounds(visual: Node3D) -> Dictionary:
+	var receipt := Transform3D(Basis.from_euler(Vector3(0, -PI / 2, 0)).scaled(visual.scale), Vector3.ZERO)
+	var bounds := AABB()
+	var meshes := 0
+	for node in visual.find_children("*", "MeshInstance3D", true, false):
+		var mesh := node as MeshInstance3D
+		if not mesh.is_visible_in_tree():
+			continue
+		var relative := visual.global_transform.affine_inverse() * mesh.global_transform
+		var box: AABB = receipt * relative * mesh.get_aabb()
+		bounds = box if meshes == 0 else bounds.merge(box)
+		meshes += 1
+	return {"size": vector_values(bounds.size), "meshes": meshes}
+
 static func collect(scene: Node3D) -> Dictionary:
 	var viewport := scene.get_viewport()
 	var camera := viewport.get_camera_3d()
@@ -105,7 +122,7 @@ static func collect(scene: Node3D) -> Dictionary:
 					state.surfaces.append(sample_surface(mesh, surface, camera, rect, posed))
 			meshes.append(state)
 		var visual: Node3D = model.get_child(0)
-		models.append({"name": str(model.name), "original_guard": original_guard, "transform": transform_values(model.global_transform), "visual_transform": transform_values(visual.transform), "display_id": visual.get_meta("creature_display_id"), "pet_instance_scale": visual.get_meta("pet_instance_scale"), "meshes": meshes})
+		models.append({"name": str(model.name), "original_guard": original_guard, "transform": transform_values(model.global_transform), "visual_transform": transform_values(visual.transform), "display_id": visual.get_meta("creature_display_id"), "pet_instance_scale": visual.get_meta("pet_instance_scale"), "journal_card_bounds": journal_card_bounds(visual), "meshes": meshes})
 	var projection := camera.get_camera_projection()
 	return {"schema": 1, "process_frame": Engine.get_process_frames(), "draw_frame": Engine.get_frames_drawn(), "camera": {"path": str(camera.get_path()), "transform": transform_values(camera.global_transform), "projection_type": camera.projection, "size": camera.size, "fov": camera.fov, "near": camera.near, "far": camera.far, "keep_aspect": camera.keep_aspect, "projection": [str(projection.x), str(projection.y), str(projection.z), str(projection.w)]}, "viewport": rect_values(rect), "models": models, "limits": "All indexed posed triangles, not proof that every projected fragment survives alpha/culling/shader displacement. Original framing guard unchanged."}
 
