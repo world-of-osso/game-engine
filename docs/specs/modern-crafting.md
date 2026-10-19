@@ -29,8 +29,9 @@ Local world.db has only627 of1,286 distinct Leatherworking effect24 outputs join
 - The shared Retail filter dropdown exposes independent Show Learned and Show Unlearned checkboxes. Both default to checked; all four combinations are allowed. The authored dropdown owns the recipe list's top-right anchor and the search box ends4px before it.
 - Visibility follows the owner's known-spell snapshot, never acquisition-rank inference. Hiding learned recipes also hides Favorites; hiding unlearned recipes removes their rows/divider. Search still omits Favorites and filters the remaining ordinary recipes.
 - Filters change presentation only: no favorite/knowledge, inventory, copper, skill or currency mutation and no new server request. Closing the profession window discards these filters; no account/character/disk persistence is added.
+- The inherited Reset button is visible exactly when either supported visibility flag differs from its default; active search alone does not expose it. One click restores both Show checkboxes without changing search text, recipe/instance selection, Favorites or other owner state. Reuse the authored UIResetButtonTemplate; no new filter families or audio-engine behavior are introduced.
 - Makeable, skill-up, first-craft, source, category and expansion filters remain excluded from this slice.
-- Sources: cached Mainline `Blizzard_Professions.lua:1256–1263,1140–1141`, `Blizzard_ProfessionsRecipeList.xml:34–45`, and inherited `Blizzard_Menu/Mainline/MenuTemplates.xml:66–75` (Filter dropdown18px high, text-fit padding60, menu BOTTOMLEFT/+6/+2).
+- Sources: cached Mainline `Blizzard_Professions.lua:1256–1263,1140–1141`, `Blizzard_ProfessionsRecipeList.xml:34–45`, and inherited `Blizzard_Menu/Mainline/MenuTemplates.xml:66–86` (Filter dropdown18px high, text-fit padding60, menu BOTTOMLEFT/+6/+2, Reset TOPRIGHT−3). Reset callbacks/defaults: `Blizzard_Professions.lua:1211–1224,1140–1141`, `Blizzard_Menu/MenuTemplates.lua:859–908`; `Blizzard_ProfessionsCrafting.lua:36` supplies no extra onDefault callback.
 
 ## Unlearned recipe discovery
 
