@@ -109,9 +109,9 @@ Native Retail Mainline AchievementUI and dungeon objectives, using authoritative
 
 ### Full-search close button
 
-- [ ] The source24×24 full-results close button dismisses only the results pane. Preserve the exact query, received cache/cursor, selected category/achievement, native focus and whole AchievementFrame visibility; reopening reuses the retained rows and continues the existing cursor.
-- [ ] Use the explicit Retail TOPRIGHT anchor relative to the results top-right corner(+1,−4), local(581,0), with UIPanelCloseButton exit art. Both skins share this geometry. No whole-frame close, Escape, server, totals or progress changes.
-- Source: Mainline AchievementUI.xml2678–2687, SharedUIPanelTemplates134–151; [implementation](../wiki/systems/dungeon-achievements.md#full-search-close-button). Ignored native wrapper `network/tests/achievement_search_full_results_close.rs` / six-case `tests/achievement_search_full_close.gd`; received UI fixtures, not realm proof.
+- [x] The source24×24 full-results close button dismisses only the results pane. Preserve the exact query, received cache/cursor, selected category/achievement, native focus and whole AchievementFrame visibility; reopening reuses the retained rows and continues the existing cursor.
+- [x] Use the explicit Retail TOPRIGHT anchor relative to the results top-right corner(+1,−4), local(581,0), with UIPanelCloseButton exit art. Both skins share this geometry. No whole-frame close, Escape, server, totals or progress changes.
+- Source: Mainline AchievementUI.xml2678–2687, SharedUIPanelTemplates134–151; [implementation](../wiki/systems/dungeon-achievements.md#full-search-close-button). Ignored native wrapper `network/tests/achievement_search_full_results_close.rs` / six-case `tests/achievement_search_full_close.gd`; received UI fixtures, not realm proof. Both-skin native6/6 and affected model35/35 pass: physical dismissal/geometry/reopen plus exact whole-window equality except presentation and subsequent cursor-page2 continuation.
 
 ## Known gaps (current cycle)
 
