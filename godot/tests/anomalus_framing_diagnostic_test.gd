@@ -80,6 +80,8 @@ func run_tests() -> void:
 	var frame: Dictionary = DIAGNOSTIC.collect(scene)
 	if not require(frame.models.size() == 1 and frame.models[0].meshes[0].surfaces[0].triangle_count == 1, "full frame includes all indexed surfaces"):
 		return
+	if not require(not frame.models[0].original_guard and frame.models[0].meshes[0].surfaces[0].triangles[0].outside_vertices == 0, "same-frame AABB false positive distinguished from indexed triangle containment"):
+		return
 	if not require(frame.models[0].display_id == 95171, "frame records actual display identity"):
 		return
 	if not require(camera.global_transform == original_camera and mesh.global_transform == original_mesh, "diagnostic never moves camera or mesh"):

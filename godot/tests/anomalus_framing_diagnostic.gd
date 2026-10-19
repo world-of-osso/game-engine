@@ -71,6 +71,19 @@ static func material_state(material: Material) -> Dictionary:
 	result.next_pass = material_state(material.next_pass) if material.next_pass != null else {}
 	return result
 
+static func posed_aabb_state(mesh: MeshInstance3D, posed: Mesh, camera: Camera3D, viewport: Rect2) -> Dictionary:
+	var box: AABB = mesh.global_transform * posed.get_aabb()
+	var framed := true
+	var corners: Array = []
+	for corner in range(8):
+		var world := box.get_endpoint(corner)
+		var point := camera.unproject_position(world)
+		var behind := camera.is_position_behind(world)
+		var inside := viewport.has_point(point)
+		framed = framed and not behind and inside
+		corners.append({"projected": [point.x, point.y], "behind": behind, "inside": inside})
+	return {"framed": framed, "world_position": vector_values(box.position), "world_size": vector_values(box.size), "corners": corners}
+
 static func collect(scene: Node3D) -> Dictionary:
 	var viewport := scene.get_viewport()
 	var camera := viewport.get_camera_3d()
@@ -79,17 +92,20 @@ static func collect(scene: Node3D) -> Dictionary:
 	var models: Array[Dictionary] = []
 	for model in scene.get_children():
 		var meshes: Array[Dictionary] = []
+		var original_guard := true
 		for node in model.find_children("*", "MeshInstance3D", true, false):
 			var mesh := node as MeshInstance3D
 			var state := {"path": str(mesh.get_path()), "visible": mesh.is_visible_in_tree(), "transform": transform_values(mesh.global_transform), "transparency": mesh.transparency, "cast_shadow": mesh.cast_shadow, "skin": serializable(mesh.skin), "skeleton_path": str(mesh.skeleton), "surfaces": []}
 			if mesh.mesh != null and mesh.is_visible_in_tree():
 				var posed: Mesh = mesh.bake_mesh_from_current_skeleton_pose() if mesh.skin != null else mesh.mesh
+				state.posed_aabb_guard = posed_aabb_state(mesh, posed, camera, rect)
+				original_guard = original_guard and state.posed_aabb_guard.framed
 				for surface in range(posed.get_surface_count()):
 					assert(posed.surface_get_primitive_type(surface) == Mesh.PRIMITIVE_TRIANGLES, "diagnostic only accepts triangle surfaces")
 					state.surfaces.append(sample_surface(mesh, surface, camera, rect, posed))
 			meshes.append(state)
 		var visual: Node3D = model.get_child(0)
-		models.append({"name": str(model.name), "transform": transform_values(model.global_transform), "visual_transform": transform_values(visual.transform), "display_id": visual.get_meta("creature_display_id"), "pet_instance_scale": visual.get_meta("pet_instance_scale"), "meshes": meshes})
+		models.append({"name": str(model.name), "original_guard": original_guard, "transform": transform_values(model.global_transform), "visual_transform": transform_values(visual.transform), "display_id": visual.get_meta("creature_display_id"), "pet_instance_scale": visual.get_meta("pet_instance_scale"), "meshes": meshes})
 	var projection := camera.get_camera_projection()
 	return {"schema": 1, "process_frame": Engine.get_process_frames(), "draw_frame": Engine.get_frames_drawn(), "camera": {"path": str(camera.get_path()), "transform": transform_values(camera.global_transform), "projection_type": camera.projection, "size": camera.size, "fov": camera.fov, "near": camera.near, "far": camera.far, "keep_aspect": camera.keep_aspect, "projection": [str(projection.x), str(projection.y), str(projection.z), str(projection.w)]}, "viewport": rect_values(rect), "models": models, "limits": "All indexed posed triangles, not proof that every projected fragment survives alpha/culling/shader displacement. Original framing guard unchanged."}
 
