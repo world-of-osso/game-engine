@@ -1,4 +1,9 @@
 ## 2026-10-19 — Ordinary name settled-colour native GREEN
+## 2026-10-19 — Anomalus fixture-only framing diagnostic
+
+[Scope/source boundary](systems/battle-pets.md#anomalus-indexed-framing-diagnostic--2026-10-19): fixture unit RED→GREEN and matched builds; Forever native frame7444 confirms actual left-edge clipping, not solely AABB conservatism:879 indexed ally triangles/190 outside,134 alpha-positive left-border pixels. Bottom-overflow batch alpha0/no bottom-border pixels; Rabbit1124 triangles contained. Original guard/scales/pads/camera unchanged, no product fix. Initial slot-local asset-receipt failure resolved by approved preserve-and-link cache/products staging, not product fallback. Native skin-registration error absent; runtime stopped/5971free. Card/loadout scenes33/60 remain no battle-camera authority.
+
+## 2026-10-19 — Ordinary name settled-colour CPU RED
 
 [Source/root and native proof](systems/trading-post.md#ordinary-product-name-settled-colours): Elements291–340/Products116–126, GlobalColor NORMAL255/210/0. Ignored95e pushed first gives genuine RED5/WHITEcontrols2; renderer-onlyfce GREEN7/nm660 TESTEXIT/parse/fmt0 landsd320. FreshEd320/Sa24/Pf9 both skins strict natural7/7/clean full streams,18 prior observations+six settled RGBA samples, WHITE/gold hover-leave/select/cart-return painted pixels391/337 and308/270,16 decoded plays each. Exact authority/local/HUD restored before verdict, XYZ0, two Query/noTx. Fifty-two inspected originals+two contacts published under AgentShared/2026-10-19/trading-post-product-name-color; manifest binds five binaries/eight sources/54receipts/full streams/original six memory edges/pixel proof/54PNG hashes. Window extended after disk HOLD, runtime cleared08:34:26 before08:49;9204 unrelated server errors qualified. `TP_NAME_COLOR_SAME_HOVER_DESELECT_ORDER_UNIMPLEMENTED` remains explicit; no callback/state machinery or frozen-caption/font/layout/authority expansion.
 
