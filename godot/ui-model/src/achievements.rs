@@ -180,6 +180,7 @@ impl AchievementWindow {
                 self.search_preview_selected = 0;
             }
             "achievement:search_blur" => self.search_focused = false,
+            "achievement:search_dismiss" => self.full_search = false,
             "achievement:search_submit" => {
                 if let Some(selected) = self.search_preview_action() {
                     return self.action(&selected);
