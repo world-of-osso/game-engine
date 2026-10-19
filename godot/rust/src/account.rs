@@ -983,6 +983,15 @@ impl Account {
             .map_err(SessionError)
     }
 
+    pub fn send_recipe_favorite(
+        &self,
+        request: shared::protocol::SetRecipeFavorite,
+    ) -> Result<(), SessionError> {
+        self.bridge()?
+            .send::<_, shared::protocol::ProfessionChannel>(request)
+            .map_err(SessionError)
+    }
+
     pub fn send_profession_concentration(
         &self,
         request: shared::protocol::ProfessionConcentrationRequest,
