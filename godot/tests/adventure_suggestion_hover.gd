@@ -85,10 +85,13 @@ func run_hover_proof() -> bool:
 	var state: Dictionary = client.tooltip_state()
 	if not completion.require(tooltip_text(state) == positive.text, "Full text mismatch: %s != %s" % [tooltip_text(state), positive.text]):
 		return false
-	for label in client.find_children("GameTooltip*", "Label", true, false):
+	var tooltip_labels := client.find_children("Tooltip*", "Label", true, false)
+	if not completion.require(not tooltip_labels.is_empty(), "native Tooltip labels absent"):
+		return false
+	for label in tooltip_labels:
 		if not completion.require(label.get_theme_color("font_color").is_equal_approx(Color.WHITE), "tooltip text is not white"):
 			return false
-	var tooltip := control("GameTooltipFrame")
+	var tooltip := control("TooltipFrame")
 	var owner := control(positive_owner)
 	if not completion.require(tooltip != null and tooltip.is_visible_in_tree(), "painted GameTooltip absent"):
 		return false
