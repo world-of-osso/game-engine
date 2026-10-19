@@ -55,6 +55,7 @@ func run_hover_proof() -> bool:
 		return false
 	if not completion.step(await click("EncounterJournalSuggestTab"), "physical Suggested Content tab"):
 		return false
+	print("SOURCE_FIXTURE_RECEIVED_VECTOR count=%s" % client.adventure_guide_state().suggestion_count)
 	var fixture_error: String = client.install_adventure_suggestion_642_fixture()
 	if not completion.require(fixture_error.is_empty(), fixture_error):
 		return false
@@ -84,10 +85,17 @@ func run_hover_proof() -> bool:
 	var state: Dictionary = client.tooltip_state()
 	if not completion.require(tooltip_text(state) == positive.text, "Full text mismatch: %s != %s" % [tooltip_text(state), positive.text]):
 		return false
-	for label in client.find_children("GameTooltip*", "Label", true, false):
+	var tooltip_labels: Array[Label] = []
+	for label in client.find_children("Tooltip*", "Label", true, false):
+		if not label.text.is_empty():
+			tooltip_labels.append(label)
+	if not completion.require(not tooltip_labels.is_empty(), "native Tooltip text labels absent"):
+		return false
+	for label in tooltip_labels:
+		print("TOOLTIP_NATIVE_LABEL name=%s visible=%s color=%s path=%s" % [label.name, label.is_visible_in_tree(), label.get_theme_color("font_color"), label.get_path()])
 		if not completion.require(label.get_theme_color("font_color").is_equal_approx(Color.WHITE), "tooltip text is not white"):
 			return false
-	var tooltip := control("GameTooltipFrame")
+	var tooltip := control("TooltipFrame")
 	var owner := control(positive_owner)
 	if not completion.require(tooltip != null and tooltip.is_visible_in_tree(), "painted GameTooltip absent"):
 		return false
