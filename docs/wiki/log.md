@@ -1,6 +1,9 @@
 ## 2026-10-18 — Trading Post held drag timing RED
 
 [Source/root/proof](systems/trading-post.md#drag-start-selection-timing--native-red): fixture785 pushed before production; actual both-skin first-held activation stays A642/734 with A-art24144/B-art0 and sound delta0 instead of B848/640/+1. Eleven observations/seven groups collected and exact state restored before genuine assertion exit1; clean native error streams, XYZ0, two Query only. Window/runtime cleared22:00:25. Correction selects through existing product ownership/callbacks on first activation and removes release selection; focused model controls/fresh native GREEN pending. No server/protocol/provider/frozen-drag/audio-player expansion.
+## 2026-10-17 — Character-owned recipe Favorites
+
+[Native professions](systems/native-professions-crafting.md#recipe-favorites) consumes authoritative favorite IDs, source right-click menus and separate favorite/ordinary instances. Search omits only the Favorites group; pending requests do not mutate ownership. Server/client reopen and native acceptance remain pending the atomic consumer gate.
 
 ## 2026-10-18 — Search selection native focus
 

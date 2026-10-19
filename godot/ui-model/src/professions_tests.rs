@@ -12,6 +12,7 @@ fn book() -> ProfessionBook {
                 max_rank: 75,
             }],
             spells: vec![3908, 3275, 3276],
+            favorites: vec![],
             recipe_sources: vec![],
         },
         recipes: vec![
@@ -159,6 +160,7 @@ fn professions_trainer_learned_leather_pants_use_recipe_knowledge_not_auto_learn
                 max_rank: 300,
             }],
             spells: vec![2108, 2153],
+            favorites: vec![],
             recipe_sources: vec![],
         },
         selected: Some(2153),
