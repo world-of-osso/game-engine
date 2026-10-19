@@ -8,6 +8,346 @@ use ui_toolkit::{
     screen::{Screen, SharedContext},
 };
 
+fn font_color(registry: &FrameRegistry, name: &str) -> [f32; 4] {
+    let id = registry.get_by_name(name).unwrap();
+    let Some(WidgetData::FontString(font)) = &registry.get(id).unwrap().widget_data else {
+        panic!("Expected font string {name}");
+    };
+    font.color
+}
+
+fn assert_ordinary_idle_name_gold(skin: ActiveSkin) {
+    let mut view = freeze_view();
+    assert_eq!(view.click("perks:select:5").unwrap(), None);
+    assert_eq!(view.take_selection_sounds(), 1);
+    let authority = view.snapshot.clone();
+    let registry = render(skin, view.clone());
+    assert_eq!(text(&registry, "PerksProgramName6"), "Azure Warcloak");
+    assert_eq!(rect(&registry, "PerksProgramName6")[2..], [265., 38.]);
+    assert_eq!(
+        visible_selection_art_area(&registry, "PerksProgramSelected5"),
+        24144.
+    );
+    assert_eq!(font_color(&registry, "PerksProgramName5"), [1., 1., 1., 1.]);
+    assert_eq!(
+        font_color(&registry, "PerksProgramName6"),
+        [1., 210. / 255., 0., 1.],
+        "settled unselected name uses NORMAL_FONT_COLOR: {skin:?}"
+    );
+    assert_eq!(view.snapshot, authority);
+    assert_eq!(view.selected, Some(5));
+    assert_eq!(view.cart, [5, 6]);
+    assert_eq!(view.take_selection_sounds(), 0);
+}
+
+#[test]
+fn trading_post_ordinary_name_color_modern_idle_is_normal_gold() {
+    assert_ordinary_idle_name_gold(ActiveSkin::Modern);
+}
+
+#[test]
+fn trading_post_ordinary_name_color_forever_idle_is_normal_gold() {
+    assert_ordinary_idle_name_gold(ActiveSkin::Forever);
+}
+
+#[test]
+fn trading_post_ordinary_name_color_hover_leave_restores_unselected_gold() {
+    for skin in [ActiveSkin::Modern, ActiveSkin::Forever] {
+        let mut view = freeze_view();
+        view.click("perks:select:5").unwrap();
+        assert_eq!(view.take_selection_sounds(), 1);
+        let authority = view.snapshot.clone();
+        view.product_hover = Some(6);
+        let hovered = render(skin, view.clone());
+        assert_eq!(font_color(&hovered, "PerksProgramName6"), [1., 1., 1., 1.]);
+        assert_eq!(view.selected, Some(5));
+        view.product_hover = None;
+        let left = render(skin, view.clone());
+        assert_eq!(
+            font_color(&left, "PerksProgramName6"),
+            [1., 210. / 255., 0., 1.]
+        );
+        assert_eq!(font_color(&left, "PerksProgramName5"), [1., 1., 1., 1.]);
+        assert_eq!(view.snapshot, authority);
+        assert_eq!(view.cart, [5, 6]);
+        assert_eq!(view.take_selection_sounds(), 0);
+    }
+}
+
+#[test]
+fn trading_post_ordinary_name_color_selection_transfer_settles_previous_name_gold() {
+    for skin in [ActiveSkin::Modern, ActiveSkin::Forever] {
+        let mut view = freeze_view();
+        view.click("perks:select:5").unwrap();
+        assert_eq!(view.take_selection_sounds(), 1);
+        let authority = view.snapshot.clone();
+        view.click("perks:select:6").unwrap();
+        assert_eq!(view.take_selection_sounds(), 1);
+        assert_eq!(view.product_hover, None);
+        let registry = render(skin, view.clone());
+        assert_eq!(font_color(&registry, "PerksProgramName6"), [1., 1., 1., 1.]);
+        assert_eq!(
+            font_color(&registry, "PerksProgramName5"),
+            [1., 210. / 255., 0., 1.]
+        );
+        assert_eq!(
+            visible_selection_art_area(&registry, "PerksProgramSelected5"),
+            0.
+        );
+        assert_eq!(
+            visible_selection_art_area(&registry, "PerksProgramSelected6"),
+            24144.
+        );
+        assert_eq!(view.snapshot, authority);
+    }
+}
+
+#[test]
+fn trading_post_ordinary_name_color_cart_owner_clears_and_return_restores_white() {
+    for skin in [ActiveSkin::Modern, ActiveSkin::Forever] {
+        let mut view = freeze_view();
+        view.click("perks:select:5").unwrap();
+        assert_eq!(view.take_selection_sounds(), 1);
+        let authority = view.snapshot.clone();
+        view.click("perks:cart:show").unwrap();
+        assert!(view.cart_visible);
+        assert_eq!(view.selected, None);
+        let cart = render(skin, view.clone());
+        assert_eq!(
+            font_color(&cart, "PerksProgramName5"),
+            [1., 210. / 255., 0., 1.]
+        );
+        assert_eq!(
+            font_color(&cart, "PerksProgramName6"),
+            [1., 210. / 255., 0., 1.]
+        );
+        view.click("perks:cart:close").unwrap();
+        assert_eq!(view.selected, Some(5));
+        assert_eq!(view.take_selection_sounds(), 1);
+        let returned = render(skin, view.clone());
+        assert_eq!(font_color(&returned, "PerksProgramName5"), [1., 1., 1., 1.]);
+        assert_eq!(
+            font_color(&returned, "PerksProgramName6"),
+            [1., 210. / 255., 0., 1.]
+        );
+        assert_eq!(view.snapshot, authority);
+        assert_eq!(view.cart, [5, 6]);
+    }
+}
+
+#[test]
+fn trading_post_ordinary_name_color_selected_hover_and_leave_remain_white() {
+    for skin in [ActiveSkin::Modern, ActiveSkin::Forever] {
+        let mut view = freeze_view();
+        view.click("perks:select:5").unwrap();
+        assert_eq!(view.take_selection_sounds(), 1);
+        for hover in [Some(5), None] {
+            view.product_hover = hover;
+            let registry = render(skin, view.clone());
+            assert_eq!(font_color(&registry, "PerksProgramName5"), [1., 1., 1., 1.]);
+            assert_eq!(
+                visible_selection_art_area(&registry, "PerksProgramSelected5"),
+                24144.
+            );
+            assert_eq!(view.selected, Some(5));
+            assert_eq!(view.take_selection_sounds(), 0);
+        }
+    }
+}
+
+#[test]
+fn trading_post_ordinary_name_color_frozen_caption_stays_white() {
+    for skin in [ActiveSkin::Modern, ActiveSkin::Forever] {
+        let view = freeze_view();
+        let registry = render(skin, view);
+        assert_eq!(
+            font_color(&registry, "PerksProgramFrozenLabel"),
+            [1., 1., 1., 1.]
+        );
+        assert_eq!(
+            text(&registry, "PerksProgramFrozenLabel"),
+            "Freezing:\nDistinguished Warcloak"
+        );
+        assert_eq!(rect(&registry, "PerksProgramFrozenLabel")[2..], [233., 45.]);
+        assert_eq!(
+            visible_selection_art_area(&registry, "PerksProgramFrozenSelected"),
+            44268.
+        );
+    }
+}
+
+fn assert_frozen_caption_geometry(registry: &FrameRegistry) {
+    assert_eq!(rect(registry, "PerksProgramFrozenLabel")[2..], [233., 45.]);
+    let label = registry.get_by_name("PerksProgramFrozenLabel").unwrap();
+    let Some(WidgetData::FontString(font)) = &registry.get(label).unwrap().widget_data else {
+        panic!("frozen caption must remain a font string");
+    };
+    assert_eq!(font.color, [1., 1., 1., 1.]);
+}
+
+fn assert_committed_frozen_caption(skin: ActiveSkin) {
+    for selected in [4, 5] {
+        let mut view = freeze_view();
+        if selected == 5 {
+            assert_eq!(view.click("perks:select:5").unwrap(), None);
+        }
+        assert_eq!(view.selected, Some(selected));
+        let expected_sounds = if selected == 5 { 1 } else { 0 };
+        assert_eq!(view.take_selection_sounds(), expected_sounds);
+        assert_eq!(view.snapshot.as_ref().unwrap().frozen_item_id, Some(4));
+        assert_eq!(view.snapshot.as_ref().unwrap().tender, 500);
+        assert_eq!(view.cart, [5, 6]);
+        assert_eq!(view.freeze_candidate, None);
+        let registry = render(skin, view);
+        assert_eq!(
+            text(&registry, "PerksProgramFrozenLabel"),
+            "Freezing:\nDistinguished Warcloak",
+            "the committed caption is independent of selection: {skin:?}"
+        );
+        assert_frozen_caption_geometry(&registry);
+        assert_eq!(text(&registry, "PerksProgramName5"), "Arcanofire Wrap");
+    }
+}
+
+#[test]
+fn trading_post_frozen_item_caption_modern_committed_has_authored_prefix() {
+    assert_committed_frozen_caption(ActiveSkin::Modern);
+}
+
+#[test]
+fn trading_post_frozen_item_caption_forever_committed_has_authored_prefix() {
+    assert_committed_frozen_caption(ActiveSkin::Forever);
+}
+
+#[test]
+fn trading_post_frozen_item_caption_cancel_restores_authoritative_caption() {
+    for skin in [ActiveSkin::Modern, ActiveSkin::Forever] {
+        let mut view = open_unaccepted_texture_preview();
+        let authority = view.snapshot.clone();
+        assert_eq!(view.take_selection_sounds(), 1);
+        assert_eq!(view.click("perks:cancel").unwrap(), None);
+        assert_eq!(view.snapshot, authority);
+        assert_eq!(view.freeze_candidate, None);
+        assert_eq!(view.selected, Some(5));
+        assert_eq!(view.cart, [5, 6]);
+        assert_eq!(view.take_selection_sounds(), 0);
+        let registry = render(skin, view);
+        assert_eq!(
+            text(&registry, "PerksProgramFrozenLabel"),
+            "Freezing:\nDistinguished Warcloak"
+        );
+        assert_frozen_caption_geometry(&registry);
+        assert_eq!(
+            visible_selection_art_area(&registry, "PerksProgramFrozenSelected"),
+            0.
+        );
+        assert_eq!(
+            visible_selection_art_area(&registry, "PerksProgramSelected5"),
+            24144.
+        );
+    }
+}
+
+#[test]
+fn trading_post_frozen_item_caption_reply_captions_new_committed_item() {
+    for skin in [ActiveSkin::Modern, ActiveSkin::Forever] {
+        let mut view = create_accepted_texture_preview();
+        assert_eq!(view.take_selection_sounds(), 1);
+        let mut reply = view.snapshot.as_ref().unwrap().as_ref().clone();
+        reply.frozen_item_id = Some(5);
+        view.receive(Arc::new(reply));
+        assert!(!view.pending);
+        assert_eq!(view.freeze_candidate, None);
+        assert_eq!(view.selected, Some(5));
+        assert_eq!(view.cart, [6]);
+        assert_eq!(view.snapshot.as_ref().unwrap().tender, 500);
+        assert_eq!(view.take_selection_sounds(), 0);
+        let registry = render(skin, view);
+        assert_eq!(
+            text(&registry, "PerksProgramFrozenLabel"),
+            "Freezing:\nArcanofire Wrap"
+        );
+        assert_frozen_caption_geometry(&registry);
+        assert_eq!(
+            visible_selection_art_area(&registry, "PerksProgramFrozenSelected"),
+            44268.
+        );
+    }
+}
+
+#[test]
+fn trading_post_frozen_item_caption_unaccepted_candidate_stays_plain() {
+    for skin in [ActiveSkin::Modern, ActiveSkin::Forever] {
+        let view = open_unaccepted_texture_preview();
+        assert_eq!(view.confirm.as_deref(), Some("freeze"));
+        assert_eq!(view.snapshot.as_ref().unwrap().frozen_item_id, Some(4));
+        let registry = render(skin, view);
+        assert_pending_texture_content(&registry);
+        assert_frozen_caption_geometry(&registry);
+        assert_eq!(
+            visible_selection_art_area(&registry, "PerksProgramFrozenSelected"),
+            0.
+        );
+    }
+}
+
+#[test]
+fn trading_post_frozen_item_caption_accepted_waiting_candidate_stays_plain() {
+    for skin in [ActiveSkin::Modern, ActiveSkin::Forever] {
+        let view = create_accepted_texture_preview();
+        assert!(view.pending);
+        assert_eq!(view.snapshot.as_ref().unwrap().frozen_item_id, Some(4));
+        assert_eq!(view.freeze_candidate, Some(5));
+        let registry = render(skin, view);
+        assert_pending_texture_content(&registry);
+        assert_frozen_caption_geometry(&registry);
+        assert_eq!(
+            visible_selection_art_area(&registry, "PerksProgramFrozenSelected"),
+            44268.
+        );
+    }
+}
+
+#[test]
+fn trading_post_frozen_item_caption_empty_immediate_candidate_stays_plain() {
+    use game_engine_ui_model::trading_post::Action;
+    for skin in [ActiveSkin::Modern, ActiveSkin::Forever] {
+        let mut view = freeze_view();
+        let mut data = view.snapshot.as_ref().unwrap().as_ref().clone();
+        data.frozen_item_id = None;
+        view.receive(Arc::new(data));
+        assert!(view.select_dragged_product(5));
+        assert_eq!(
+            view.drop_item(5, true),
+            Some(Action::Request(TradingPostRequest::Freeze {
+                vendor_item_id: Some(5)
+            }))
+        );
+        assert!(view.pending);
+        assert_eq!(view.snapshot.as_ref().unwrap().frozen_item_id, None);
+        let registry = render(skin, view);
+        assert_pending_texture_content(&registry);
+        assert_frozen_caption_geometry(&registry);
+    }
+}
+
+#[test]
+fn trading_post_frozen_item_caption_empty_instruction_and_ordinary_name_stay_plain() {
+    for skin in [ActiveSkin::Modern, ActiveSkin::Forever] {
+        let mut view = freeze_view();
+        let mut data = view.snapshot.as_ref().unwrap().as_ref().clone();
+        data.frozen_item_id = None;
+        view.receive(Arc::new(data));
+        let registry = render(skin, view);
+        assert_eq!(
+            text(&registry, "PerksProgramFrozenLabel"),
+            "Drag an item here to freeze it and prevent it from expiring"
+        );
+        assert_eq!(rect(&registry, "PerksProgramFrozenLabel")[2..], [270., 45.]);
+        assert_eq!(text(&registry, "PerksProgramName5"), "Arcanofire Wrap");
+    }
+}
+
 fn assert_frozen_source_drop_preserves_view(view: &mut View, on_frozen: bool) {
     let before = view.clone();
     let frozen = view.snapshot.as_ref().unwrap().frozen_item_id.unwrap();
@@ -38,7 +378,7 @@ fn trading_post_frozen_source_no_drag_selected_outside_keeps_reservation() {
         );
         assert_eq!(
             text(&registry, "PerksProgramFrozenLabel"),
-            "Distinguished Warcloak"
+            "Freezing:\nDistinguished Warcloak"
         );
     }
 }
@@ -225,7 +565,7 @@ fn trading_post_pending_freeze_selected_texture_committed_selection_remains_acti
         );
         assert_eq!(
             text(&registry, "PerksProgramFrozenLabel"),
-            "Distinguished Warcloak"
+            "Freezing:\nDistinguished Warcloak"
         );
         assert_eq!(rect(&registry, "PerksProgramFrozenIcon")[2..], [64., 64.]);
         assert_eq!(view.click("perks:purchase").unwrap(), None);
@@ -257,7 +597,7 @@ fn trading_post_pending_freeze_selected_texture_cancel_restores_content_not_sele
         let registry = render(skin, view);
         assert_eq!(
             text(&registry, "PerksProgramFrozenLabel"),
-            "Distinguished Warcloak"
+            "Freezing:\nDistinguished Warcloak"
         );
         assert_eq!(
             visible_selection_art_area(&registry, "PerksProgramFrozenSelected"),
@@ -320,7 +660,7 @@ fn trading_post_pending_freeze_selected_texture_reply_keeps_committed_selection(
         );
         assert_eq!(
             text(&registry, "PerksProgramFrozenLabel"),
-            "Arcanofire Wrap"
+            "Freezing:\nArcanofire Wrap"
         );
         assert_eq!(
             visible_selection_art_area(&registry, "PerksProgramFrozenItemGlow"),
@@ -1108,7 +1448,7 @@ fn trading_post_frozen_row_exclusion_keeps_frozen_details_selectable_in_both_ski
         assert!(registry.get_by_name("PerksProgramFrozenSlot").is_some());
         assert_eq!(
             text(&registry, "PerksProgramFrozenLabel"),
-            "Distinguished Warcloak"
+            "Freezing:\nDistinguished Warcloak"
         );
         assert_eq!(view.selected_item().unwrap().id, 4);
         assert_eq!(view.snapshot.as_ref().unwrap().items.len(), 3);
@@ -1121,7 +1461,7 @@ fn trading_post_frozen_row_exclusion_keeps_frozen_details_selectable_in_both_ski
         assert!(filtered.get_by_name("PerksProgramFrozenSlot").is_some());
         assert_eq!(
             text(&filtered, "PerksProgramFrozenLabel"),
-            "Distinguished Warcloak"
+            "Freezing:\nDistinguished Warcloak"
         );
         view.click("perks:select:4").unwrap();
         assert_eq!(view.selected, Some(4));
@@ -1160,9 +1500,9 @@ fn trading_post_frozen_row_exclusion_follows_committed_not_pending_replacement()
             [5, 6]
         );
 
-        for (id, ordinary, frozen_name) in [
-            (5, vec![6, 4], "Arcanofire Wrap"),
-            (4, vec![5, 6], "Distinguished Warcloak"),
+        for (id, ordinary, frozen_caption) in [
+            (5, vec![6, 4], "Freezing:\nArcanofire Wrap"),
+            (4, vec![5, 6], "Freezing:\nDistinguished Warcloak"),
         ] {
             assert!(view.select_dragged_product(id));
             assert_eq!(view.drop_item(id, true), None);
@@ -1196,7 +1536,7 @@ fn trading_post_frozen_row_exclusion_follows_committed_not_pending_replacement()
                     .get_by_name(&format!("PerksProgramProduct{prior}"))
                     .is_some()
             );
-            assert_eq!(text(&accepted, "PerksProgramFrozenLabel"), frozen_name);
+            assert_eq!(text(&accepted, "PerksProgramFrozenLabel"), frozen_caption);
         }
         assert_eq!(view.snapshot.as_ref().unwrap().frozen_item_id, Some(4));
         assert_eq!(view.snapshot.as_ref().unwrap().tender, 500);
@@ -2507,7 +2847,7 @@ fn trading_post_both_skins_show_real_tender_price_frozen_item_and_disabled_refun
         assert_eq!(text(&registry, "PerksProgramFrozenPrice4"), "100");
         assert_eq!(
             text(&registry, "PerksProgramFrozenLabel"),
-            "Distinguished Warcloak"
+            "Freezing:\nDistinguished Warcloak"
         );
         assert!(
             registry.get_by_name("PerksProgramRefundButton").is_none(),
@@ -2719,7 +3059,7 @@ fn trading_post_freeze_replacement_previews_candidate_and_cancel_preserves_autho
         assert!(cancelled.get_by_name("PerksProgramConfirmDialog").is_none());
         assert_eq!(
             text(&cancelled, "PerksProgramFrozenLabel"),
-            "Distinguished Warcloak"
+            "Freezing:\nDistinguished Warcloak"
         );
     }
 }
@@ -2775,7 +3115,7 @@ fn trading_post_freeze_replacement_accepts_after_five_seconds_and_waits_for_auth
     assert!(!view.pending);
     assert_eq!(
         text(&render(ActiveSkin::Modern, view), "PerksProgramFrozenLabel"),
-        "Arcanofire Wrap"
+        "Freezing:\nArcanofire Wrap"
     );
 }
 

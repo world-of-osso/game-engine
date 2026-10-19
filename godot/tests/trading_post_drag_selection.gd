@@ -4,6 +4,8 @@ extends "res://tests/trading_post_cart_selection.gd"
 var drag_observations: Array = []
 var source_a := 0
 var source_b := 0
+var committed_frozen_name := ""
+var name_color_samples: Array = []
 # Historical169 conserved44268; the selected-texture slice now requires0 before accept.
 const HELD_OBSERVATIONS := ["below-existing-threshold", "first-held-activation", "repeated-held-motion", "already-selected-held-silent", "cart-owner-held-selection", "occupied-drop-before-release"]
 
@@ -28,10 +30,11 @@ func run_cases() -> bool:
 	if not gate.step(await cart_activation_case(),"cart-owner collection"): return false
 	if not gate.step(await modal_guard_case(),"modal collection"): return false
 	if not gate.step(await frozen_source_cases(),"frozen source inert input collection"): return false
+	if not gate.step(await settled_name_color_cases(),"settled ordinary name colour collection"): return false
 	if not gate.step(await occupied_drop_case(),"occupied-slot cancellation collection"): return false
 	# Restore authority/local state before judging timing observations, including RED.
 	if not gate.step(await restore_drag_state(),"restore before verdict"): return false
-	if not write_receipt("result",{"skin":skin,"baseline":baseline,"appearances":appearances,"observations":drag_observations,"audio":audio,"final":client.trading_post_state(),"cases":7}): return false
+	if not write_receipt("result",{"skin":skin,"baseline":baseline,"appearances":appearances,"observations":drag_observations,"name_color_samples":name_color_samples,"audio":audio,"final":client.trading_post_state(),"cases":7}): return false
 	for case_id in range(1,8):
 		var found := false
 		for observation in drag_observations:
@@ -39,6 +42,7 @@ func run_cases() -> bool:
 			found = true
 			if not assert_drag_observation(observation): return false
 		if not gate.require(found,"missing independent drag case%d" % case_id): return false
+		if case_id == 7 and not assert_name_color_samples(): return false
 		if not gate.case_done(): return false
 	return true
 
@@ -115,6 +119,8 @@ func modal_guard_case() -> bool:
 func frozen_source_cases() -> bool:
 	# Retail removes frozen OnDragStart; these are pointer attempts, never transactions.
 	if not await click_checked("PerksProgramFrozenSlot"): return false
+	committed_frozen_name = str(client.trading_post_state().selected_name)
+	if not gate.require(not committed_frozen_name.is_empty(),"authoritative frozen selection supplies caption name"): return false
 	var count := sound_count()
 	var slot := control("PerksProgramFrozenSlot")
 	if not gate.require(slot != null,"committed frozen source exists"): return false
@@ -142,6 +148,53 @@ func frozen_source_cases() -> bool:
 	if not await observe_drag(7,"frozen-source-repeated-held",int(baseline.frozen),count,false,false): return false
 	await release_product(start+Vector2(18,0))
 	return await observe_drag(7,"frozen-source-same-slot-release",int(baseline.frozen),count,false,false)
+
+func settled_name_color_cases() -> bool:
+	# Only settled/leave transitions: TP_NAME_COLOR_SAME_HOVER_DESELECT_ORDER_UNIMPLEMENTED.
+	if not await click_checked("PerksProgramProduct%d" % source_a): return false
+	await motion(Vector2(1850,80))
+	if not await record_name_colors("name-color-selected-a-idle",true,false): return false
+	await motion(row_center(source_b))
+	if not await record_name_colors("name-color-unselected-b-hover",true,true): return false
+	await motion(Vector2(1850,80))
+	if not await record_name_colors("name-color-unselected-b-leave",true,false): return false
+	if not await click_checked("PerksProgramProduct%d" % source_b): return false
+	await motion(Vector2(1850,80))
+	if not await record_name_colors("name-color-selected-b-idle",false,true): return false
+	if not await click_checked("PerksProgramAddToCartButton"): return false
+	if not await click_checked("PerksProgramViewCartButton"): return false
+	await motion(Vector2(1850,80))
+	if not await record_name_colors("name-color-cart-owner-idle",false,false): return false
+	if not await click_checked("PerksProgramCartCloseButton"): return false
+	await motion(Vector2(1850,80))
+	if not await record_name_colors("name-color-cart-return-idle",false,true): return false
+	if not await click_checked("PerksProgramRemoveFromCartButton"): return false
+	return gate.require(client.trading_post_state().cart.is_empty(),"local colour proof cart cleanup")
+
+func read_name_rgba(name: String) -> Array:
+	var value: Color = control(name).get_theme_color("font_color")
+	return [value.r,value.g,value.b,value.a]
+
+func record_name_colors(label: String, a_white: bool, b_white: bool) -> bool:
+	await frames(30)
+	var a := control("PerksProgramName%d" % source_a)
+	var b := control("PerksProgramName%d" % source_b)
+	if not gate.require(a != null and b != null,"two ordinary native colour owners"): return false
+	var data := {"label":label,"a_white":a_white,"b_white":b_white,"a_rgba":read_name_rgba(a.name),"b_rgba":read_name_rgba(b.name),"frozen_rgba":read_name_rgba("PerksProgramFrozenLabel"),"state":client.trading_post_state().duplicate(true),"world_delta":client.account_state().local_player_position.distance_to(origin)}
+	name_color_samples.append(data)
+	return await capture_drag(label,data)
+
+func assert_name_color_samples() -> bool:
+	if not gate.require(name_color_samples.size() == 6,"six settled colour checkpoints"): return false
+	for data in name_color_samples:
+		for source in ["a","b"]:
+			var expected := [1.,1.,1.,1.] if bool(data[source+"_white"]) else [1.,210./255.,0.,1.]
+			var actual: Array = data[source+"_rgba"]
+			for channel in range(4):
+				if not gate.require(absf(float(actual[channel])-float(expected[channel])) < 0.000001,"settled name colour "+str(data.label)+source): return false
+		if not gate.require(data.frozen_rgba == [1.,1.,1.,1.],"frozen caption stays white"): return false
+		if not gate.require(not data.state.pending and int(data.state.frozen) == int(baseline.frozen) and int(data.state.tender) == int(baseline.tender) and float(data.world_delta) < 0.0001,"settled colour authority/world conserved"): return false
+	return true
 
 func occupied_drop_case() -> bool:
 	if not await click_checked("PerksProgramProduct%d" % source_a): return false
@@ -184,11 +237,17 @@ func restore_drag_state() -> bool:
 func observe_drag(case_id: int, label: String, selected: int, count: int, cart_visible: bool, dialog: bool) -> bool:
 	await frames(12)
 	var position: Vector3 = client.account_state().local_player_position
-	var data := {"case_id":case_id,"label":label,"expected_selected":selected,"expected_sound_count":count,"expected_cart_visible":cart_visible,"expected_dialog":dialog,"state":client.trading_post_state().duplicate(true),"sound_count":sound_count(),"source_a":source_a,"source_b":source_b,"art_a":selected_area("PerksProgramSelected%d" % source_a),"art_b":selected_area("PerksProgramSelected%d" % source_b),"frozen_art":selected_area("PerksProgramFrozenSelected"),"dialog":control("PerksProgramConfirmDialog") != null,"world_delta":position.distance_to(origin)}
+	var caption := control("PerksProgramFrozenLabel")
+	if not gate.require(caption != null,"visible frozen caption owner"): return false
+	var data := {"frozen_caption":str(caption.get("text")),"frozen_caption_white":caption.get_theme_color("font_color").is_equal_approx(Color.WHITE),"case_id":case_id,"label":label,"expected_selected":selected,"expected_sound_count":count,"expected_cart_visible":cart_visible,"expected_dialog":dialog,"state":client.trading_post_state().duplicate(true),"sound_count":sound_count(),"source_a":source_a,"source_b":source_b,"art_a":selected_area("PerksProgramSelected%d" % source_a),"art_b":selected_area("PerksProgramSelected%d" % source_b),"frozen_art":selected_area("PerksProgramFrozenSelected"),"dialog":control("PerksProgramConfirmDialog") != null,"world_delta":position.distance_to(origin)}
 	drag_observations.append(data)
 	return await capture_drag(label,data)
 
 func assert_drag_observation(data: Dictionary) -> bool:
+	var expected_caption := "Freezing:\n"+committed_frozen_name
+	if str(data.label) == "occupied-drop-no-duplicate": expected_caption = str(data.state.selected_name)
+	if not gate.require(str(data.frozen_caption) == expected_caption,"committed caption versus plain candidate at "+str(data.label)): return false
+	if not gate.require(bool(data.frozen_caption_white),"existing white caption colour at "+str(data.label)): return false
 	var message := "%s expected selected%d/sounds%d, actual%d/%d" % [data.label,data.expected_selected,data.expected_sound_count,data.state.selected,data.sound_count]
 	if not gate.require(int(data.state.selected) == int(data.expected_selected),message): return false
 	if not gate.require(int(data.sound_count) == int(data.expected_sound_count),message): return false
