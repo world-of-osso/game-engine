@@ -14,6 +14,15 @@ Retail Mainline Blizzard_PerksProgram and the local C_PerksProgram/PerksActiviti
 - [x] Traveler's Log displays authoritative monthly Tender earned/cap/balance. No invented mail awards. Retail XML defines visible controls; remove unsourced vendor SearchBox, Log/Collections and Freeze/Unfreeze buttons (lead clarification October13).
 - [x] Targeted behavioural tests and inspected private UDP5731 fb_* account PNG proof in Modern and Forever.
 
+## Ordinary selected-row ADD compositing
+
+Retail Elements.xml223–230 declares SelectedTexture `perks-list-active` with ADD; Elements.lua335–340 toggles it independently of hover. Scope only the existing ordinary selected texture's blend, using metadata-bearing available products, not unavailable1076.
+
+- [x] Pushed-first130bee diagnostic/ten-case registration/spec before any production edit. Actual E130bee/S525c42cd9/P03580cc genuine both-skin pixel RED: Modern642/848 actual-versus-ADD18662/18738; Forever734/640 each18747. Actual-versus-MIX0, ADD/MIX distinguishable, exact original restore0; source/backdrop/second-selection/cart/authority/HUD/XYZ controls pass before natural intended pixel-assertion exit1. Complete client streams otherwise clean; two Query/no transactions. [Exact proof and limits](../wiki/systems/trading-post.md#ordinary-selected-row-add-compositing). No source/field/compile/data/harness failure substitutes for RED.
+- [ ] Pointer off row; sample two ordinary selected products with stable diagnostic backdrops, same-atlas native ADD/MIX references and exact original-material restoration. Preserve second-selection and cart-cleared/restored-owner controls. Restore all counterfactual/local/authority/HUD/XYZ state before verdict; no transactions. Gate exact ten checked-await cases, natural completion, unique marker and complete clean stdout/stderr.
+- [ ] Only after real RED, correct existing ordinary selected-texture additive classification, commit and pass scoped proof/parent gate; fresh same-oracle both-skin native GREEN in an owned5791 window. Publish inspected labeled diagnostic crops with normal-restored companions and distinct source/binary/pixel provenance.
+- [ ] No frozen selected/hover activation, selected visibility/timing/cart semantics, hover blend, name-colour ordering, font/layout/audio/provider/API/server/protocol or missing-data recovery. Preserve `ITEM_235674_SPARSE_ABSENT_FROM_70448_AND_LOCAL_HOTFIX_CACHE` and `TP_NAME_COLOR_SAME_HOVER_DESELECT_ORDER_UNIMPLEMENTED`.
+
 ## Ordinary product-hover ADD compositing
 
 Retail Elements.xml225–236 declares full-row HighlightTexture `perks-list-hover` with ADD; Elements.lua291–304 shows it on enter and315–328 hides it on leave. This slice owns only the existing ordinary hover overlay's blend classification, not frozen hover activation or the separate selected texture.
