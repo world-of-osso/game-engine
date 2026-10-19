@@ -36,6 +36,7 @@ def compile_trace(samples, combat, run):
             previous_combat = engaged
     rows.extend(combat_rows(combat))
     rows.extend(party_rows(run))
+    rows.extend(boss_death_rows(combat, run))
     rows.sort(key=lambda row: row["at_ms"])
     start = {"event": "run_start", "schema": "stockade_path_map_v1", "map_id": 34,
              "run_id": run["run_id"], "revision": run["revision"],
@@ -45,6 +46,14 @@ def compile_trace(samples, combat, run):
              **stamp(run["start_ms"])}
     end = {"event": "run_end", "failure": run.get("failure"), **stamp(run["end_ms"])}
     return [start, *rows, end]
+
+
+def boss_death_rows(combat, run):
+    known = {str(boss["entity"]): boss["spawn_guid"] for boss in run.get("bosses", []) if "entity" in boss}
+    return [{"event": "spawn_state", "spawn_guid": known[str(row["dst"])], "alive": False,
+             "actor": str(row["dst"]), "source": "known boss identity and actual combat death",
+             **stamp(row["at_ms"])} for row in combat
+            if row["kind"] == "death" and str(row["dst"]) in known]
 
 
 def party_rows(run):
