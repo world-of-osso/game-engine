@@ -199,6 +199,45 @@ fn professions_visibility_filters_preserve_owner_state_and_favorite_search_rules
     }
 }
 
+fn assert_filter_reset_visibility(hide_learned: bool, hide_unlearned: bool, visible: bool) {
+    for skin in [ActiveSkin::Modern, ActiveSkin::Forever] {
+        let mut view = view(15);
+        view.book.hide_learned = hide_learned;
+        view.book.hide_unlearned = hide_unlearned;
+        view.book.search = "linen".into();
+        view.book.snapshot.favorites = vec![3275];
+        let registry = render(skin, view);
+        assert_eq!(
+            !frame(&registry, "ProfessionsRecipeFilterDropdownResetButton").hidden,
+            visible,
+            "{skin:?}: learned-hidden={hide_learned}, unlearned-hidden={hide_unlearned}"
+        );
+    }
+}
+
+#[test]
+fn professions_filter_reset_stays_hidden_for_default_flags_despite_search() {
+    assert_filter_reset_visibility(false, false, false);
+}
+
+#[test]
+#[ignore = "RED: recipe visibility filters never expose their authored Reset button"]
+fn professions_filter_reset_shows_when_learned_hidden() {
+    assert_filter_reset_visibility(true, false, true);
+}
+
+#[test]
+#[ignore = "RED: recipe visibility filters never expose their authored Reset button"]
+fn professions_filter_reset_shows_when_unlearned_hidden() {
+    assert_filter_reset_visibility(false, true, true);
+}
+
+#[test]
+#[ignore = "RED: recipe visibility filters never expose their authored Reset button"]
+fn professions_filter_reset_shows_when_both_hidden() {
+    assert_filter_reset_visibility(true, true, true);
+}
+
 #[test]
 fn professions_unlearned_schematic_and_learned_transition_in_both_skins() {
     for skin in [ActiveSkin::Modern, ActiveSkin::Forever] {
