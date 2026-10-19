@@ -42,19 +42,16 @@ fn assert_committed_frozen_caption(skin: ActiveSkin) {
 }
 
 #[test]
-#[ignore = "CPU-first committed caption regression; execute explicitly before renderer changes"]
 fn trading_post_frozen_item_caption_modern_committed_has_authored_prefix() {
     assert_committed_frozen_caption(ActiveSkin::Modern);
 }
 
 #[test]
-#[ignore = "CPU-first committed caption regression; execute explicitly before renderer changes"]
 fn trading_post_frozen_item_caption_forever_committed_has_authored_prefix() {
     assert_committed_frozen_caption(ActiveSkin::Forever);
 }
 
 #[test]
-#[ignore = "CPU-first committed caption regression; execute explicitly before renderer changes"]
 fn trading_post_frozen_item_caption_cancel_restores_authoritative_caption() {
     for skin in [ActiveSkin::Modern, ActiveSkin::Forever] {
         let mut view = open_unaccepted_texture_preview();
@@ -84,7 +81,6 @@ fn trading_post_frozen_item_caption_cancel_restores_authoritative_caption() {
 }
 
 #[test]
-#[ignore = "CPU-first committed caption regression; execute explicitly before renderer changes"]
 fn trading_post_frozen_item_caption_reply_captions_new_committed_item() {
     for skin in [ActiveSkin::Modern, ActiveSkin::Forever] {
         let mut view = create_accepted_texture_preview();
@@ -112,7 +108,6 @@ fn trading_post_frozen_item_caption_reply_captions_new_committed_item() {
 }
 
 #[test]
-#[ignore = "CPU-first committed caption control; execute explicitly before renderer changes"]
 fn trading_post_frozen_item_caption_unaccepted_candidate_stays_plain() {
     for skin in [ActiveSkin::Modern, ActiveSkin::Forever] {
         let view = open_unaccepted_texture_preview();
@@ -129,7 +124,6 @@ fn trading_post_frozen_item_caption_unaccepted_candidate_stays_plain() {
 }
 
 #[test]
-#[ignore = "CPU-first committed caption control; execute explicitly before renderer changes"]
 fn trading_post_frozen_item_caption_accepted_waiting_candidate_stays_plain() {
     for skin in [ActiveSkin::Modern, ActiveSkin::Forever] {
         let view = create_accepted_texture_preview();
@@ -147,7 +141,6 @@ fn trading_post_frozen_item_caption_accepted_waiting_candidate_stays_plain() {
 }
 
 #[test]
-#[ignore = "CPU-first committed caption control; execute explicitly before renderer changes"]
 fn trading_post_frozen_item_caption_empty_immediate_candidate_stays_plain() {
     use game_engine_ui_model::trading_post::Action;
     for skin in [ActiveSkin::Modern, ActiveSkin::Forever] {
@@ -171,7 +164,6 @@ fn trading_post_frozen_item_caption_empty_immediate_candidate_stays_plain() {
 }
 
 #[test]
-#[ignore = "CPU-first committed caption control; execute explicitly before renderer changes"]
 fn trading_post_frozen_item_caption_empty_instruction_and_ordinary_name_stay_plain() {
     for skin in [ActiveSkin::Modern, ActiveSkin::Forever] {
         let mut view = freeze_view();
@@ -218,7 +210,7 @@ fn trading_post_frozen_source_no_drag_selected_outside_keeps_reservation() {
         );
         assert_eq!(
             text(&registry, "PerksProgramFrozenLabel"),
-            "Distinguished Warcloak"
+            "Freezing:\nDistinguished Warcloak"
         );
     }
 }
@@ -405,7 +397,7 @@ fn trading_post_pending_freeze_selected_texture_committed_selection_remains_acti
         );
         assert_eq!(
             text(&registry, "PerksProgramFrozenLabel"),
-            "Distinguished Warcloak"
+            "Freezing:\nDistinguished Warcloak"
         );
         assert_eq!(rect(&registry, "PerksProgramFrozenIcon")[2..], [64., 64.]);
         assert_eq!(view.click("perks:purchase").unwrap(), None);
@@ -437,7 +429,7 @@ fn trading_post_pending_freeze_selected_texture_cancel_restores_content_not_sele
         let registry = render(skin, view);
         assert_eq!(
             text(&registry, "PerksProgramFrozenLabel"),
-            "Distinguished Warcloak"
+            "Freezing:\nDistinguished Warcloak"
         );
         assert_eq!(
             visible_selection_art_area(&registry, "PerksProgramFrozenSelected"),
@@ -500,7 +492,7 @@ fn trading_post_pending_freeze_selected_texture_reply_keeps_committed_selection(
         );
         assert_eq!(
             text(&registry, "PerksProgramFrozenLabel"),
-            "Arcanofire Wrap"
+            "Freezing:\nArcanofire Wrap"
         );
         assert_eq!(
             visible_selection_art_area(&registry, "PerksProgramFrozenItemGlow"),
@@ -1288,7 +1280,7 @@ fn trading_post_frozen_row_exclusion_keeps_frozen_details_selectable_in_both_ski
         assert!(registry.get_by_name("PerksProgramFrozenSlot").is_some());
         assert_eq!(
             text(&registry, "PerksProgramFrozenLabel"),
-            "Distinguished Warcloak"
+            "Freezing:\nDistinguished Warcloak"
         );
         assert_eq!(view.selected_item().unwrap().id, 4);
         assert_eq!(view.snapshot.as_ref().unwrap().items.len(), 3);
@@ -1301,7 +1293,7 @@ fn trading_post_frozen_row_exclusion_keeps_frozen_details_selectable_in_both_ski
         assert!(filtered.get_by_name("PerksProgramFrozenSlot").is_some());
         assert_eq!(
             text(&filtered, "PerksProgramFrozenLabel"),
-            "Distinguished Warcloak"
+            "Freezing:\nDistinguished Warcloak"
         );
         view.click("perks:select:4").unwrap();
         assert_eq!(view.selected, Some(4));
@@ -1340,9 +1332,9 @@ fn trading_post_frozen_row_exclusion_follows_committed_not_pending_replacement()
             [5, 6]
         );
 
-        for (id, ordinary, frozen_name) in [
-            (5, vec![6, 4], "Arcanofire Wrap"),
-            (4, vec![5, 6], "Distinguished Warcloak"),
+        for (id, ordinary, frozen_caption) in [
+            (5, vec![6, 4], "Freezing:\nArcanofire Wrap"),
+            (4, vec![5, 6], "Freezing:\nDistinguished Warcloak"),
         ] {
             assert!(view.select_dragged_product(id));
             assert_eq!(view.drop_item(id, true), None);
@@ -1376,7 +1368,7 @@ fn trading_post_frozen_row_exclusion_follows_committed_not_pending_replacement()
                     .get_by_name(&format!("PerksProgramProduct{prior}"))
                     .is_some()
             );
-            assert_eq!(text(&accepted, "PerksProgramFrozenLabel"), frozen_name);
+            assert_eq!(text(&accepted, "PerksProgramFrozenLabel"), frozen_caption);
         }
         assert_eq!(view.snapshot.as_ref().unwrap().frozen_item_id, Some(4));
         assert_eq!(view.snapshot.as_ref().unwrap().tender, 500);
@@ -2687,7 +2679,7 @@ fn trading_post_both_skins_show_real_tender_price_frozen_item_and_disabled_refun
         assert_eq!(text(&registry, "PerksProgramFrozenPrice4"), "100");
         assert_eq!(
             text(&registry, "PerksProgramFrozenLabel"),
-            "Distinguished Warcloak"
+            "Freezing:\nDistinguished Warcloak"
         );
         assert!(
             registry.get_by_name("PerksProgramRefundButton").is_none(),
@@ -2899,7 +2891,7 @@ fn trading_post_freeze_replacement_previews_candidate_and_cancel_preserves_autho
         assert!(cancelled.get_by_name("PerksProgramConfirmDialog").is_none());
         assert_eq!(
             text(&cancelled, "PerksProgramFrozenLabel"),
-            "Distinguished Warcloak"
+            "Freezing:\nDistinguished Warcloak"
         );
     }
 }
@@ -2955,7 +2947,7 @@ fn trading_post_freeze_replacement_accepts_after_five_seconds_and_waits_for_auth
     assert!(!view.pending);
     assert_eq!(
         text(&render(ActiveSkin::Modern, view), "PerksProgramFrozenLabel"),
-        "Arcanofire Wrap"
+        "Freezing:\nArcanofire Wrap"
     );
 }
 

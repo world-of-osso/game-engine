@@ -4,6 +4,7 @@ extends "res://tests/trading_post_cart_selection.gd"
 var drag_observations: Array = []
 var source_a := 0
 var source_b := 0
+var committed_frozen_name := ""
 # Historical169 conserved44268; the selected-texture slice now requires0 before accept.
 const HELD_OBSERVATIONS := ["below-existing-threshold", "first-held-activation", "repeated-held-motion", "already-selected-held-silent", "cart-owner-held-selection", "occupied-drop-before-release"]
 
@@ -115,6 +116,8 @@ func modal_guard_case() -> bool:
 func frozen_source_cases() -> bool:
 	# Retail removes frozen OnDragStart; these are pointer attempts, never transactions.
 	if not await click_checked("PerksProgramFrozenSlot"): return false
+	committed_frozen_name = str(client.trading_post_state().selected_name)
+	if not gate.require(not committed_frozen_name.is_empty(),"authoritative frozen selection supplies caption name"): return false
 	var count := sound_count()
 	var slot := control("PerksProgramFrozenSlot")
 	if not gate.require(slot != null,"committed frozen source exists"): return false
@@ -184,11 +187,17 @@ func restore_drag_state() -> bool:
 func observe_drag(case_id: int, label: String, selected: int, count: int, cart_visible: bool, dialog: bool) -> bool:
 	await frames(12)
 	var position: Vector3 = client.account_state().local_player_position
-	var data := {"case_id":case_id,"label":label,"expected_selected":selected,"expected_sound_count":count,"expected_cart_visible":cart_visible,"expected_dialog":dialog,"state":client.trading_post_state().duplicate(true),"sound_count":sound_count(),"source_a":source_a,"source_b":source_b,"art_a":selected_area("PerksProgramSelected%d" % source_a),"art_b":selected_area("PerksProgramSelected%d" % source_b),"frozen_art":selected_area("PerksProgramFrozenSelected"),"dialog":control("PerksProgramConfirmDialog") != null,"world_delta":position.distance_to(origin)}
+	var caption := control("PerksProgramFrozenLabel")
+	if not gate.require(caption != null,"visible frozen caption owner"): return false
+	var data := {"frozen_caption":str(caption.get("text")),"frozen_caption_white":caption.get_theme_color("font_color").is_equal_approx(Color.WHITE),"case_id":case_id,"label":label,"expected_selected":selected,"expected_sound_count":count,"expected_cart_visible":cart_visible,"expected_dialog":dialog,"state":client.trading_post_state().duplicate(true),"sound_count":sound_count(),"source_a":source_a,"source_b":source_b,"art_a":selected_area("PerksProgramSelected%d" % source_a),"art_b":selected_area("PerksProgramSelected%d" % source_b),"frozen_art":selected_area("PerksProgramFrozenSelected"),"dialog":control("PerksProgramConfirmDialog") != null,"world_delta":position.distance_to(origin)}
 	drag_observations.append(data)
 	return await capture_drag(label,data)
 
 func assert_drag_observation(data: Dictionary) -> bool:
+	var expected_caption := "Freezing:\n"+committed_frozen_name
+	if str(data.label) == "occupied-drop-no-duplicate": expected_caption = str(data.state.selected_name)
+	if not gate.require(str(data.frozen_caption) == expected_caption,"committed caption versus plain candidate at "+str(data.label)): return false
+	if not gate.require(bool(data.frozen_caption_white),"existing white caption colour at "+str(data.label)): return false
 	var message := "%s expected selected%d/sounds%d, actual%d/%d" % [data.label,data.expected_selected,data.expected_sound_count,data.state.selected,data.sound_count]
 	if not gate.require(int(data.state.selected) == int(data.expected_selected),message): return false
 	if not gate.require(int(data.sound_count) == int(data.expected_sound_count),message): return false

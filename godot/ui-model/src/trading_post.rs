@@ -868,13 +868,18 @@ fn frozen_row(
     // FrozenProductContainer.OnLoad overrides the ordinary product template:
     // icon64 at LEFT+32, mask95, label233x45 at icon.RIGHT+8.
     let label_width = if frozen.is_some() { 233. } else { 270. };
+    // GlobalStrings48943's white span is resolved by the existing WHITE label colour.
+    let label_text = match frozen {
+        Some(row) if snapshot.frozen_item_id == Some(row.id) => {
+            format!("Freezing:\n{}", row.name)
+        }
+        Some(row) => row.name.clone(),
+        None => "Drag an item here to freeze it and prevent it from expiring".into(),
+    };
     let mut children = Vec::new();
     children.extend(label(
         "PerksProgramFrozenLabel".into(),
-        frozen.map_or(
-            "Drag an item here to freeze it and prevent it from expiring",
-            |row| row.name.as_str(),
-        ),
+        &label_text,
         (104., (84. - 45.) / 2., label_width, 45.),
         (16., WHITE, "LEFT"),
     ));
