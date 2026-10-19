@@ -24,7 +24,7 @@ func check_capture() -> void:
         {"at_ms": 1000, "assisted": {"in_combat": true}},
         {"102": [11, 2, 21]}, {"102": 0.75})
     var row: Dictionary = JSON.parse_string(FileAccess.get_file_as_string(path))
-    assert(row["actors"]["101"]["position"] == [10, 2, 20])
+    assert(row["actors"]["101"]["position"] == [10.0, 2.0, 20.0])
     assert(row["actors"]["101"]["facing"] == 0.5)
     assert(row["actors"]["102"]["facing"] == 0.75)
     assert(row["simulation_s"] == null and row["monotonic_ns"] > 0)
