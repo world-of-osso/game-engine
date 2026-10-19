@@ -71,6 +71,8 @@ enum Lifetime {
     UntilAuraEnds { unit: u64, instance: u32 },
     /// Until this display visual is replaced or its unit despawns.
     UntilDisplayEnds { unit: u64, visual: u64 },
+    /// Until the detached ModelScene visual is replaced or closed.
+    UntilDetachedEnds { visual: InstanceId },
 }
 
 /// What a held kit (one with an end event) lasts for.
@@ -129,11 +131,17 @@ enum Phase {
     Tail(f32),
 }
 
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+enum EffectOwner {
+    Unit(u64),
+    Detached(InstanceId),
+}
+
 struct ActiveEffect {
     node: Gd<Node3D>,
     particles: Option<PlacedParticles>,
     ribbons: Option<PlacedRibbons>,
-    owner: u64,
+    owner: EffectOwner,
     spell_id: u32,
     kit_id: u32,
     model_fdid: u32,
@@ -147,7 +155,7 @@ struct ActiveEffect {
 struct PendingModel {
     /// Effects clock at which it is due.
     due_at: f32,
-    unit: u64,
+    owner: EffectOwner,
     spell_id: u32,
     kit_id: u32,
     model: KitModel,
@@ -396,13 +404,11 @@ impl SpellEffects {
     pub fn active_models(&self) -> Vec<(u64, u32, u32, u32)> {
         self.active
             .iter()
-            .map(|effect| {
-                (
-                    effect.owner,
-                    effect.spell_id,
-                    effect.kit_id,
-                    effect.model_fdid,
-                )
+            .filter_map(|effect| match effect.owner {
+                EffectOwner::Unit(unit) => {
+                    Some((unit, effect.spell_id, effect.kit_id, effect.model_fdid))
+                }
+                EffectOwner::Detached(_) => None,
             })
             .collect()
     }
