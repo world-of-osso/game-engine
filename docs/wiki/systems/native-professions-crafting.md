@@ -38,6 +38,12 @@ Resolved rectangles are identical in both skins: Filter `(208,175,87,18)`, searc
 
 Evidence SSOT: canonical `data/diagnostics/recipe-visibility-filters-2026-10-17/native-visibility-proof.json` binds source/binary receipts, fresh read-only world snapshot, both process results, actual geometry, eighteen PNG hashes and cleanup. Four favorite-menu setup/cleanup captures stay private. Fourteen inspected filter-state originals: `/syncthing/AgentShared/2026-10-17/recipe-visibility-filters/{Modern,Forever}-{1..7}-*.png`. Owned server/client processes stop,5951 is unbound and the crafting window is cleared. Filter persistence and the other named filters remain excluded; the separate favorite physical-cursor anchoring boundary above is unchanged.
 
+### Recipe filter Reset
+
+The [contract](../../specs/modern-crafting.md#learnedunlearned-recipe-filters) exposes the existing shared `UIResetButtonTemplate` only when either visibility flag is nondefault. `ProfessionBook.reset_visibility_filters()` clears those two inverted flags; native Reset and window close share that operation. Search, selected recipe/instance, authoritative Favorites and other owner state are untouched. Search alone does not expose Reset. No additional filter family, persistence, server request or audio-engine change is included.
+
+Three ignored screen REDs were pushed and failed before implementation: learned hidden, unlearned hidden and both hidden. Targeted controls cover default/search visibility and complete view-state conservation after Reset; the native single-click and authored Reset geometry proof remains pending its own lead gate/window. The accepted earlier filter proof above does not certify Reset.
+
 ## Unlearned recipe discovery
 
 The list uses separate learned/unlearned category groups; selection is independent of spell knowledge, while craft requests still require the authoritative known-spell snapshot. Native catalog projection includes unlearned recipes only from owned skill lines. `ProfessionSnapshot.recipe_sources` supplies read-only trainer rows for the source tooltip, without a new message or local acquisition inference. The [contract](../../specs/modern-crafting.md#unlearned-recipe-discovery) owns behavior and sources. Native both-skin acceptance remains pending the lead's granted5951 window.

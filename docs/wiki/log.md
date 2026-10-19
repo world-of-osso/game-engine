@@ -2,6 +2,10 @@
 
 [Source/root](systems/trading-post.md#frozen-products-are-not-drag-sources): Elements495–508 disables frozen pickup; replacement510–521/577–670 already exists. No cached UI caller for ClearFrozenPerksVendorItem; right-click cancels confirmation only. IgnoredCPU0a8 pushed first gives two genuine selected/unselected outside Freeze(None)-versus-None REDs with five controls passing. Native/model frozen-source branch/field/parameter removed; seven tests unignored and six new native input observations retain seven groups/18 total observations. Targeted GREEN/parent gate/fresh no-transaction native remain pending. Server/protocol clear support stays; historical October13 proof qualified, not erased/relabelled.
 
+## 2026-10-17 — Recipe filter Reset implementation
+
+[Contract and source](systems/native-professions-crafting.md#recipe-filter-reset): existing shared Reset appears only for nondefault visibility; default/search-only stays hidden. Three ignored screen regressions were pushed and observed failing before implementation. Reset/window close share the two-flag default operation; search, selection/instance and owner Favorites stay unchanged. No other filters, persistence, wire or audio-engine expansion. Native single-click/geometry acceptance pending its separate gate/window.
+
 ## 2026-10-17 — Learned/unlearned native filter proof
 
 [Bounded proof and provenance](systems/native-professions-crafting.md#native-filter-proof--2026-10-17): rv633/landed Ecc4858b97/S58c0844b3/Pf9a9175; both skins1920×1080 cover four combinations, Favorites/search, resolved Filter87×18/right8/top9/searchgap4, close/reopen defaults and gameplay conservation. Each drained client exits0/unique marker1/nine unique captures/zero error lines. Fourteen inspected state originals published; four favorite-menu setup/cleanup captures private. Original preference restored, owned runtime/window cleared; other filters/persistence and favorite hardware-cursor anchoring remain excluded.
