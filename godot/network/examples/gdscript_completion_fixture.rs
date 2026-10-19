@@ -8,6 +8,7 @@ use std::{
 
 const FIXTURES: &[(&str, usize)] = &[
     ("trading_post_cart_selection", 7),
+    ("trading_post_drag_selection", 7),
     ("campsite_selected_hover", 2),
     ("communities_fidelity", 2),
     ("dropdown_caption_centering", 4),
