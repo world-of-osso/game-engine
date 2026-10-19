@@ -134,11 +134,6 @@ fn search_box(view: &ProfessionView) -> Element {
             "common-search-border-right",
             (18.0 + search_width - 5.0, 80.0, 8.0, 20.0),
         ),
-        (
-            "Icon",
-            "common-search-magnifyingglass",
-            (19.0, 84.0, 12.0, 12.0),
-        ),
     ] {
         out.extend(art::atlas(&format!("{SEARCH}{suffix}"), atlas, rect));
     }
@@ -148,6 +143,18 @@ fn search_box(view: &ProfessionView) -> Element {
         font_color: HIGHLIGHT_FONT_COLOR, text_insets: "16,20,0,0" } },
     );
     let hide_clear = !view.search_focused && view.book.search.is_empty();
+    // SearchBoxTemplate: 10px LEFT(+1,-1); empty unfocused searches use RGB0.6.
+    let icon_color = if hide_clear {
+        "0.6,0.6,0.6,1"
+    } else {
+        "1,1,1,1"
+    };
+    out.extend(art::tinted(
+        "ProfessionsSearchBoxIcon",
+        "common-search-magnifyingglass",
+        (19.0, 86.0, 10.0, 10.0),
+        icon_color,
+    ));
     out.extend(rsx! { button {
         name: "ProfessionsSearchBoxClearButton", width: 17.0, height: 17.0,
         left: {18.0 + search_width - 3.0 - 17.0}, top: 81.5, pos_type: "absolute",
