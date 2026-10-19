@@ -39,7 +39,7 @@ Server before/after raw height/query/negative receipts and fresh Stockade guards
 
 ## MH2O raw-record projection
 
-The next pinned revision exposes the existing12B directory,24B instance and16B attribute readers without changing their bodies or client high-level parsing. The server consumes these projections while retaining its different bitmap/vertex interpretation and validation/error order; neither parser switches modes or attempts reconciliation. Client UV/depth/raw-object arrays and material-deferred LiquidObject decoding remain unchanged. Independent per-consumer before/after receipts are described in the server [MH2O ledger](../../../../game-server/docs/handoffs/wow-formats-mh2o-records.md).
+Pinned revision2a91b224 exposes the existing12B directory,24B instance and16B attribute readers without changing their bodies or client high-level parsing. The server consumes these projections while retaining its different bitmap/vertex interpretation and validation/error order; neither parser switches modes or attempts reconciliation. Client UV/depth/raw-object arrays and material-deferred LiquidObject decoding remain unchanged. Independent per-consumer before/after receipts are described in the server [MH2O ledger](../../../../game-server/docs/handoffs/wow-formats-mh2o-records.md):180 files28,034,481B match exactly and116 source hashes remain unchanged. On engine sourcef141dc100/protocolf9a91753, helper water integrations20/0 (liquid_water13,terrain_water_height4,adt_water_geometry3), native terrain45/0 and ground18/0, helper check/fmt0. Subsequent changes are docs-only; independent lead integration remains pending.
 
 ## Sources
 
