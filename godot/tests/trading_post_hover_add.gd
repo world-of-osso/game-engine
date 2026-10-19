@@ -78,13 +78,10 @@ func collect_hover_pixels() -> bool:
 	var actual := await capture_blend("actual-hover")
 	var add := CanvasItemMaterial.new()
 	add.blend_mode = CanvasItemMaterial.BLEND_MODE_ADD
-	overlay.material = add
-	var reference := await capture_blend("reference-add")
+	var reference := await capture_blend("reference-add",add)
 	var alpha := CanvasItemMaterial.new()
 	alpha.blend_mode = CanvasItemMaterial.BLEND_MODE_MIX
-	overlay.material = alpha
-	var alpha_image := await capture_blend("reference-alpha")
-	overlay.material = original_material
+	var alpha_image := await capture_blend("reference-alpha",alpha)
 	var restored := await capture_blend("actual-restored")
 	proof.actual_add_different_pixels = count_pixel_differences(actual,reference)
 	proof.add_alpha_different_pixels = count_pixel_differences(reference,alpha_image)
@@ -94,7 +91,7 @@ func collect_hover_pixels() -> bool:
 	await frames(20)
 	var off_again := await capture_blend("backdrop-leave")
 	proof.backdrop_stable = count_pixel_differences(off,off_again) == 0
-	proof.leave_overlay_absent = parts.get_child_count() == 0
+	proof.leave_overlay_absent = control("PerksProgramProduct%d" % product).get_node("Parts").get_child_count() == 0
 	restore_counterfactual()
 	await frames(20)
 	await capture_blend("normal-restored")
@@ -116,10 +113,19 @@ func count_pixel_differences(a: Image, b: Image) -> int:
 			if maxf(absf(p.r-q.r),maxf(absf(p.g-q.g),absf(p.b-q.b))) > 1.5/255.: count += 1
 	return count
 
-func capture_blend(label: String) -> Image:
+func capture_blend(label: String, reference_material: Material = null) -> Image:
 	await frames(4)
+	await RenderingServer.frame_pre_draw
+	# Projection may replace Part nodes during process; acquire only after that boundary.
+	var current: TextureRect
+	var saved: Material
+	if reference_material != null:
+		current = control("PerksProgramProduct%d" % product).get_node("Parts/Part0") as TextureRect
+		saved = current.material
+		current.material = reference_material
 	await RenderingServer.frame_post_draw
 	var image := root.get_texture().get_image()
+	if reference_material != null: current.material = saved
 	var path := shots.path_join(skin+"-hover-add-"+label+".png")
 	gate.require(image.save_png(path) == OK,"save native hover blend PNG")
 	# Inset avoids viewport fractional edges; the backdrop blocks animated world/text below.
