@@ -1,8 +1,9 @@
 //! Native wild PvE battle HUD and a single camera framing the two active pet models.
 use crate::animation::WowAnimationPlayer;
-use crate::character_frame::preview::{Scene, bind_sheet_light};
+use crate::character_frame::preview::{Scene, bind_sheet_light, pet_actor_bounds};
 use crate::world_models::UnitAppearance;
 use crate::{GameClient, frame_error::FrameError, ui::RegistryUi};
+use game_engine_core::model_scene_actor::{ModelSceneActor, read_scene_actors};
 use game_engine_session::SessionScreen;
 use game_engine_ui_model::wild_pet_battle::{MODEL_SCENE, WildBattleView, wild_battle_screen};
 use godot::classes::{CanvasLayer, Node3D};
@@ -12,12 +13,18 @@ use shared::protocol::WildPetBattleUpdate;
 use std::collections::{BTreeMap, BTreeSet};
 
 const BATTLE_PAD_OFFSET: f32 = 2.2;
+/// PET_BATTLE_PAD_USES_JOURNAL_CARD_NORMALIZATION (project policy): the battlefield has no
+/// sourced camera or actor scale, so each pad normalizes like the Pet Journal card actor
+/// (BattlePetSpecies.CardUIModelSceneID 33, `unwrapped`) over the journal's own bounds.
+const JOURNAL_CARD_SCENE: u32 = 33;
+const JOURNAL_CARD_ACTOR: &str = "unwrapped";
 
 #[derive(Default)]
 pub(crate) struct WildBattleHud {
     pub(crate) view: WildBattleView,
     ui: Option<Gd<RegistryUi>>,
     wild_creatures: Option<BTreeSet<u32>>,
+    journal_card: Option<ModelSceneActor>,
     scene: Option<Scene>,
     pending: Option<([Option<u64>; 2], [u32; 2])>,
     shown: [u32; 2],
@@ -250,6 +257,14 @@ impl GameClient {
                     continue;
                 }
             };
+            let pad_scale = match self.journal_card_pad_scale(&model) {
+                Ok(scale) => scale,
+                Err(error) => {
+                    model.free();
+                    godot_error!("Pet battle team {team} display {}: {error}", displays[team]);
+                    continue;
+                }
+            };
             stage_battle_pet(
                 self.wild_pet_battle
                     .scene
@@ -257,6 +272,7 @@ impl GameClient {
                     .expect("battle scene created with requests"),
                 model,
                 team,
+                pad_scale,
             )?;
         }
         if ids.iter().all(Option::is_none) {
@@ -266,6 +282,28 @@ impl GameClient {
             self.wild_pet_battle.pending = Some((ids, displays));
         }
         Ok(())
+    }
+
+    /// PetInstanceScale normalized by the journal card actor over the received visual's
+    /// journal bounds, measured before pad staging re-orients it.
+    fn journal_card_pad_scale(&mut self, model: &Gd<Node3D>) -> Result<f32, String> {
+        if self.wild_pet_battle.journal_card.is_none() {
+            let card = read_scene_actors(&self.data_root, JOURNAL_CARD_SCENE)?
+                .remove(JOURNAL_CARD_ACTOR)
+                .ok_or_else(|| {
+                    format!("UiModelScene {JOURNAL_CARD_SCENE} has no {JOURNAL_CARD_ACTOR} actor")
+                })?;
+            self.wild_pet_battle.journal_card = Some(card);
+        }
+        let bounds = pet_actor_bounds(model)?;
+        let size = glam::Vec3::new(bounds.size.x, bounds.size.y, bounds.size.z);
+        let pet_instance_scale = model.get_meta("pet_instance_scale").to::<f32>();
+        let card = self
+            .wild_pet_battle
+            .journal_card
+            .as_ref()
+            .expect("journal card loaded");
+        Ok(card.normalized_scale_of(pet_instance_scale, size))
     }
 }
 
@@ -283,7 +321,12 @@ fn repeat_battle_idle(model: &Gd<Node3D>) -> Result<(), String> {
     Ok(())
 }
 
-fn stage_battle_pet(scene: &mut Scene, mut model: Gd<Node3D>, team: usize) -> Result<(), String> {
+fn stage_battle_pet(
+    scene: &mut Scene,
+    mut model: Gd<Node3D>,
+    team: usize,
+    pad_scale: f32,
+) -> Result<(), String> {
     if let Err(error) = repeat_battle_idle(&model) {
         model.free();
         return Err(format!("Battle team {team} idle: {error}"));
@@ -302,8 +345,7 @@ fn stage_battle_pet(scene: &mut Scene, mut model: Gd<Node3D>, team: usize) -> Re
     pad.set_name(if team == 0 { "AllyPet" } else { "EnemyPet" });
     pad.add_child(&model);
     scene.add_model_child(&pad);
-    let pet_instance_scale = model.get_meta("pet_instance_scale").to::<f32>();
-    pad.set_scale(Vector3::ONE * pet_instance_scale);
+    pad.set_scale(Vector3::ONE * pad_scale);
     let side = if team == 0 { 1.0 } else { -1.0 };
     pad.set_position(Vector3::new(0.0, 0.0, side * BATTLE_PAD_OFFSET));
     Ok(())
