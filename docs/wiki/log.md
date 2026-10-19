@@ -4857,3 +4857,5 @@ User decision specifies MOBILE_BANKING_COOLDOWN_2H7200000ms over installed360000
 - Journal projection reference packet: permitted cached Lua/XML/XSD inheritance, source pose and bounded setter search supply no numeric projection/clip default or corrective camera rule. Native semantics unknown; Raszageth TOP/paint0 and VoidPulsar kit gaps retained, no product/runtime change.
 
 - Primary-title approved source-fit native668dfa: row823 actualfont24/264×50/2total2visible, not truncated. Fixture correctly stops before hoverRED; standaloneLabelcensus invalid as production proof. No primary-hover correction or forced title/font/geometry; gap retained.
+
+- Lead accepts primary-hover proof limitation as AG_PRIMARY_TITLE_HOVER_UNEXERCISED_NO_TRUNCATING_SOURCE_ROW; retain only cfg(debug_assertions) primary-index2 source input, no hover correction.
