@@ -33,6 +33,7 @@ pub(crate) struct Professions {
     page: ProfessionPage,
     favorite_menu: Option<(u32, [f32; 2])>,
     selected_favorite: bool,
+    filter_open: bool,
     pub(crate) specializations:
         game_engine_ui_model::professions_specializations::SpecializationDraft,
     pub(crate) orders: game_engine_ui_model::professions_orders::CraftingOrders,
@@ -154,6 +155,9 @@ impl GameClient {
     pub(super) fn close_professions(&mut self) -> bool {
         let visible = self.professions.book.visible;
         self.professions.book.visible = false;
+        self.professions.book.hide_learned = false;
+        self.professions.book.hide_unlearned = false;
+        self.professions.filter_open = false;
         self.professions.concentration = None;
         self.professions.concentration_skill = None;
         self.professions.page = ProfessionPage::Recipes;
@@ -311,7 +315,22 @@ impl GameClient {
                 self.close_professions_window()?;
                 break;
             }
-            if let Some(tab) = action.strip_prefix("profession:tab:") {
+            if !action.starts_with("profession:filter:") {
+                self.professions.filter_open = false;
+            }
+            if let Some(filter) = action.strip_prefix("profession:filter:") {
+                self.professions.favorite_menu = None;
+                match filter {
+                    "menu" => self.professions.filter_open = !self.professions.filter_open,
+                    "learned" => {
+                        self.professions.book.hide_learned = !self.professions.book.hide_learned
+                    }
+                    "unlearned" => {
+                        self.professions.book.hide_unlearned = !self.professions.book.hide_unlearned
+                    }
+                    _ => return Err(format!("Unknown recipe visibility filter: {filter}").into()),
+                }
+            } else if let Some(tab) = action.strip_prefix("profession:tab:") {
                 self.professions.favorite_menu = None;
                 self.professions.page = match tab {
                     "recipes" => ProfessionPage::Recipes,
@@ -466,6 +485,7 @@ impl GameClient {
             page: self.professions.page,
             favorite_menu: self.professions.favorite_menu,
             selected_favorite: self.professions.selected_favorite,
+            filter_open: self.professions.filter_open,
             now_unix: godot::classes::Time::singleton().get_unix_time_from_system() as u64,
             specializations: self.professions.specializations.clone(),
             concentration: self.professions.concentration.clone(),

@@ -369,35 +369,32 @@ impl View {
         true
     }
 
-    pub fn drop_item(&mut self, id: u32, from_frozen: bool, on_frozen: bool) -> Option<Action> {
+    pub fn drop_item(&mut self, id: u32, on_frozen: bool) -> Option<Action> {
+        if !on_frozen {
+            return None;
+        }
         if self.pending || self.confirm.is_some() {
             return None;
         }
         let snapshot = self.snapshot.as_ref()?;
-        let vendor_item_id = if from_frozen && !on_frozen && snapshot.frozen_item_id == Some(id) {
-            None
-        } else if on_frozen && snapshot.frozen_item_id != Some(id) {
-            let row = snapshot.items.iter().find(|row| row.id == id)?;
-            if row.grant_unavailable.is_some() {
-                return None;
-            }
-            Some(id)
-        } else {
+        if snapshot.frozen_item_id == Some(id) {
             return None;
-        };
-        if on_frozen {
-            let replacing = snapshot.frozen_item_id.is_some();
-            self.freeze_candidate = Some(id);
-            if replacing {
-                self.confirm = Some("freeze".into());
-                self.freeze_delay = 5;
-                return None;
-            }
-            self.remove_from_cart(id);
         }
+        let row = snapshot.items.iter().find(|row| row.id == id)?;
+        if row.grant_unavailable.is_some() {
+            return None;
+        }
+        let replacing = snapshot.frozen_item_id.is_some();
+        self.freeze_candidate = Some(id);
+        if replacing {
+            self.confirm = Some("freeze".into());
+            self.freeze_delay = 5;
+            return None;
+        }
+        self.remove_from_cart(id);
         self.pending = true;
         Some(Action::Request(TradingPostRequest::Freeze {
-            vendor_item_id,
+            vendor_item_id: Some(id),
         }))
     }
     pub fn cancel_confirmation(&mut self) {
@@ -599,7 +596,17 @@ fn catalog_controls(ctx: &SharedContext, view: &View, snapshot: &TradingPostSnap
         (30., 51., 527. - 60., 3.),
     ));
     inner.extend(sort_headers(view));
-    inner.extend(frozen_row(snapshot, view.selected, view.freeze_candidate));
+    // SetItemInfo previews a replacement; only FreezeDraggedItem selects it.
+    let frozen_selection = if view.confirm.as_deref() == Some("freeze") {
+        None
+    } else {
+        view.selected
+    };
+    inner.extend(frozen_row(
+        snapshot,
+        frozen_selection,
+        view.freeze_candidate,
+    ));
     let mut out = rsx! {r#frame{name:"PerksProgramProductsScrollBoxContainer",left:CONTAINER_X,top:CONTAINER_Y,width:527.0,height:751.0,pos_type:"absolute",frame_level:1000.0,{inner}}};
     out.extend(retail_filter(view));
     if view.dropdown {

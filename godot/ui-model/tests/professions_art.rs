@@ -95,6 +95,110 @@ fn text(registry: &FrameRegistry, name: &str) -> (String, [f32; 4]) {
         other => panic!("Expected label {name}, got {other:?}"),
     }
 }
+fn authored_rect(registry: &FrameRegistry, name: &str) -> [f32; 4] {
+    use ui_toolkit::{frame::Dimension, layout_values::Val};
+    let value = frame(registry, name);
+    let (Val::Px(x), Val::Px(y), Dimension::Fixed(width), Dimension::Fixed(height)) = (
+        value.position.left,
+        value.position.top,
+        value.width,
+        value.height,
+    ) else {
+        panic!("Expected authored pixel rectangle for {name}");
+    };
+    [x, y, width, height]
+}
+
+#[test]
+fn professions_visibility_filters_have_authored_dropdown_and_search_geometry_in_both_skins() {
+    for skin in [ActiveSkin::Modern, ActiveSkin::Forever] {
+        let registry = render(skin, view(15));
+        let filter = authored_rect(&registry, "ProfessionsRecipeFilterDropdown");
+        let background = authored_rect(&registry, "ProfessionsRecipeListBackground");
+        let search = authored_rect(&registry, "ProfessionsSearchBox");
+        assert_eq!(text(&registry, "ProfessionsRecipeFilterText").0, "Filter");
+        assert!((filter[0] + filter[2] - (background[0] + background[2] - 8.0)).abs() < 0.01);
+        assert!((filter[1] - (background[1] + 9.0)).abs() < 0.01);
+        assert_eq!(filter[3], 18.0);
+        assert!((search[0] + search[2] - (filter[0] - 4.0)).abs() < 0.01);
+        assert!((search[1] - (background[1] + 8.0)).abs() < 0.01);
+    }
+}
+
+#[test]
+fn professions_visibility_filters_preserve_owner_state_and_favorite_search_rules() {
+    for skin in [ActiveSkin::Modern, ActiveSkin::Forever] {
+        let mut original = view(15);
+        assert!(!original.book.hide_learned && !original.book.hide_unlearned);
+        let mut unlearned = original.book.recipes[0].clone();
+        unlearned.spell_id = 3276;
+        unlearned.name = "Heavy Linen Bandage".into();
+        original.book.recipes.push(unlearned);
+        original.book.snapshot.favorites = vec![3275, 3276];
+        original.filter_open = true;
+        let owner = original.book.snapshot.clone();
+        for (show_learned, show_unlearned) in
+            [(true, true), (true, false), (false, true), (false, false)]
+        {
+            for search in ["", "linen", "no matching recipe"] {
+                let mut view = original.clone();
+                view.book.hide_learned = !show_learned;
+                view.book.hide_unlearned = !show_unlearned;
+                view.book.search = search.into();
+                let registry = render(skin, view.clone());
+                let matches = search != "no matching recipe";
+                assert_eq!(
+                    registry.get_by_name("ProfessionRecipe3275").is_some(),
+                    show_learned && matches
+                );
+                assert_eq!(
+                    registry.get_by_name("ProfessionRecipe3276").is_some(),
+                    show_unlearned && matches
+                );
+                assert_eq!(
+                    registry.get_by_name("ProfessionsUnlearnedLabel").is_some(),
+                    show_unlearned && matches
+                );
+                assert_eq!(
+                    registry
+                        .get_by_name("ProfessionFavoriteRecipe3275")
+                        .is_some(),
+                    show_learned && search.is_empty()
+                );
+                assert!(
+                    registry
+                        .get_by_name("ProfessionFavoriteRecipe3276")
+                        .is_none()
+                );
+                assert_eq!(
+                    text(&registry, "ProfessionsFilterLearnedText").0,
+                    "Show Learned"
+                );
+                assert_eq!(
+                    text(&registry, "ProfessionsFilterUnlearnedText").0,
+                    "Show Unlearned"
+                );
+                assert_eq!(
+                    registry
+                        .get_by_name("ProfessionsFilterLearnedTick")
+                        .is_some(),
+                    show_learned
+                );
+                assert_eq!(
+                    registry
+                        .get_by_name("ProfessionsFilterUnlearnedTick")
+                        .is_some(),
+                    show_unlearned
+                );
+                assert_eq!(
+                    view.book.snapshot, owner,
+                    "visibility filters cannot teach or favorite recipes"
+                );
+            }
+        }
+    }
+}
+
 #[test]
 fn professions_unlearned_schematic_and_learned_transition_in_both_skins() {
     for skin in [ActiveSkin::Modern, ActiveSkin::Forever] {
