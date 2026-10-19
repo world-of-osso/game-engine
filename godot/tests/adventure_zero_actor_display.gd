@@ -44,6 +44,11 @@ func select_zero_actor(row: Array) -> bool:
 		return false
 	if not completion.require(client.adventure_guide_state().page == "Model", "Physical Model tab did not activate"):
 		return false
+	if client.adventure_guide_state().creature != row[3]:
+		if not completion.step(await click("JournalCreature%s" % row[3]), "physical source creature selector"):
+			return false
+	if not completion.require(client.adventure_guide_state().creature == row[3], "Physical source creature selection did not activate"):
+		return false
 	var deadline := Time.get_ticks_msec() + 90000
 	while client.adventure_guide_state().model_display != row[4] and Time.get_ticks_msec() < deadline:
 		await process_frame
