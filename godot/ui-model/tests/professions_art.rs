@@ -95,27 +95,33 @@ fn text(registry: &FrameRegistry, name: &str) -> (String, [f32; 4]) {
         other => panic!("Expected label {name}, got {other:?}"),
     }
 }
+fn authored_rect(registry: &FrameRegistry, name: &str) -> [f32; 4] {
+    use ui_toolkit::{frame::Dimension, layout_values::Val};
+    let value = frame(registry, name);
+    let (Val::Px(x), Val::Px(y), Dimension::Fixed(width), Dimension::Fixed(height)) = (
+        value.position.left,
+        value.position.top,
+        value.width,
+        value.height,
+    ) else {
+        panic!("Expected authored pixel rectangle for {name}");
+    };
+    [x, y, width, height]
+}
+
 #[test]
 fn professions_visibility_filters_have_authored_dropdown_and_search_geometry_in_both_skins() {
     for skin in [ActiveSkin::Modern, ActiveSkin::Forever] {
         let registry = render(skin, view(15));
-        let filter = frame(&registry, "ProfessionsRecipeFilterDropdown")
-            .layout_rect
-            .as_ref()
-            .unwrap();
-        let background = frame(&registry, "ProfessionsRecipeListBackground")
-            .layout_rect
-            .as_ref()
-            .unwrap();
-        let search = frame(&registry, "ProfessionsSearchBox")
-            .layout_rect
-            .as_ref()
-            .unwrap();
+        let filter = authored_rect(&registry, "ProfessionsRecipeFilterDropdown");
+        let background = authored_rect(&registry, "ProfessionsRecipeListBackground");
+        let search = authored_rect(&registry, "ProfessionsSearchBox");
         assert_eq!(text(&registry, "ProfessionsRecipeFilterText").0, "Filter");
-        assert!((filter.x + filter.width - (background.x + background.width - 8.0)).abs() < 0.01);
-        assert!((filter.y - (background.y + 9.0)).abs() < 0.01);
-        assert!((search.x + search.width - (filter.x - 4.0)).abs() < 0.01);
-        assert!((search.y - (background.y + 8.0)).abs() < 0.01);
+        assert!((filter[0] + filter[2] - (background[0] + background[2] - 8.0)).abs() < 0.01);
+        assert!((filter[1] - (background[1] + 9.0)).abs() < 0.01);
+        assert_eq!(filter[3], 18.0);
+        assert!((search[0] + search[2] - (filter[0] - 4.0)).abs() < 0.01);
+        assert!((search[1] - (background[1] + 8.0)).abs() < 0.01);
     }
 }
 
