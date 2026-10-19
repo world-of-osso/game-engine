@@ -74,8 +74,14 @@ func run() -> bool:
 	output = OS.get_environment("REGISTRATION_ARTIFACTS")
 	var server := OS.get_environment("GODOT_TEST_SERVER")
 	var account := OS.get_environment("GODOT_TEST_ACCOUNT")
-	if output.is_empty() or server != "127.0.0.1:5300" or account != "fb_regtest1":
-		fail("Private registration fixture requires owned artifacts and fb_regtest1 on UDP 5300")
+	var port := OS.get_environment("REGISTRATION_FLOW_PORT")
+	if port.is_empty():
+		port = "5300"
+	if not port.is_valid_int() or int(port) < 1 or int(port) > 65535:
+		fail("REGISTRATION_FLOW_PORT must be an integer in 1..65535")
+		return false
+	if output.is_empty() or server != "127.0.0.1:" + str(int(port)) or account != "fb_regtest1":
+		fail("Private registration fixture requires owned artifacts and fb_regtest1 on loopback UDP " + str(int(port)))
 		return false
 	root.size = Vector2i(1280, 720)
 	client = load("res://scenes/client.tscn").instantiate()
