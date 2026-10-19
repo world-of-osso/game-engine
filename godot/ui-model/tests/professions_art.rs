@@ -176,7 +176,6 @@ fn professions_unlearned_source_header_requires_a_sourced_trainer_row() {
 }
 
 #[test]
-#[ignore = "recipe Favorites RED; run explicitly until the atomic consumers implement it"]
 fn professions_favorites_owner_snapshot_groups_known_recipe_except_while_searching() {
     let catalog = game_engine_ui_model::professions_catalog::RecipeCatalog::load(
         &std::path::PathBuf::from(env!("CARGO_MANIFEST_DIR")).join("../../data/db2/active"),
@@ -211,6 +210,39 @@ fn professions_favorites_owner_snapshot_groups_known_recipe_except_while_searchi
         view.book.snapshot.spells.clear();
         assert!(view.book.groups().iter().all(|(category, _)| category != "Favorites"));
         assert!(view.book.craft_request(&Default::default(), false).is_none());
+    }
+}
+
+#[test]
+fn professions_favorites_menu_and_instance_selection_follow_owner_state_in_both_skins() {
+    for skin in [ActiveSkin::Modern, ActiveSkin::Forever] {
+        let mut view = view(15);
+        view.book.snapshot.favorites = vec![3275];
+        view.selected_favorite = true;
+        view.favorite_menu = Some((3275, [410.0, 220.0]));
+        let before = view.book.snapshot.clone();
+        let request = view.book.favorite_request(3275, false).unwrap();
+        assert_eq!((request.spell_id, request.favorite), (3275, false));
+        assert_eq!(view.book.snapshot, before, "requests cannot optimistically mutate owner state");
+        let registry = render(skin, view.clone());
+        assert_eq!(text(&registry, "ProfessionsRecipeFavoriteToggleText").0, "Remove Favorite");
+        assert!(registry.get_by_name("ProfessionFavoriteRecipe3275Selected").is_some());
+        assert!(registry.get_by_name("ProfessionRecipe3275Selected").is_none());
+        view.book.search = "linen".into();
+        let registry = render(skin, view.clone());
+        assert!(registry.get_by_name("ProfessionFavoriteRecipe3275").is_none());
+        assert!(registry.get_by_name("ProfessionRecipe3275Selected").is_some());
+        view.book.search.clear();
+        view.book.snapshot.favorites.clear();
+        view.selected_favorite = false;
+        let registry = render(skin, view.clone());
+        assert_eq!(text(&registry, "ProfessionsRecipeFavoriteToggleText").0, "Set Favorite");
+        assert!(registry.get_by_name("ProfessionsFavoritesLabel").is_none());
+        view.book.snapshot.spells.clear();
+        let before = view.book.snapshot.clone();
+        assert!(view.book.favorite_request(3275, true).is_none());
+        assert_eq!(view.book.snapshot, before);
+        assert!(render(skin, view).get_by_name("ProfessionsRecipeContextMenu").is_none());
     }
 }
 

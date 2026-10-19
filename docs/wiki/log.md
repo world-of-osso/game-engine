@@ -1,3 +1,7 @@
+## 2026-10-17 — Character-owned recipe Favorites
+
+[Native professions](systems/native-professions-crafting.md#recipe-favorites) consumes authoritative favorite IDs, source right-click menus and separate favorite/ordinary instances. Search omits only the Favorites group; pending requests do not mutate ownership. Server/client reopen and native acceptance remain pending the atomic consumer gate.
+
 ## 2026-10-17 — Unlearned profession recipe discovery
 
 [Native professions](systems/native-professions-crafting.md#unlearned-recipe-discovery) separates preview selection from learned-only crafting and consumes trainer-only source metadata in the existing owner snapshot. Both skins share grouping and source widgets; native acceptance waits for the lead gate/window.
