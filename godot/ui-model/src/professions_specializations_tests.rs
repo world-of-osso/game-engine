@@ -70,6 +70,7 @@ fn specialization_query_uses_learned_specialization_tier_not_selected_classic_re
             reagents: vec![(2318, 4), (2320, 1)],
         }],
         snapshot: ProfessionSnapshot {
+            recipe_sources: vec![],
             spells: vec![2153],
             lines: vec![
                 ProfessionSkillLine {
