@@ -1,6 +1,10 @@
 ## 2026-10-19 — Sourced voluntary leadership input
 
 [Source/request boundary](systems/guilds.md#voluntary-leadership-transfer): ignored slash regression reproduces `/gleader Cara` falling through to generic help before implementation; target-only route now uses existing native chat/GuildChannel and authoritative reply state. Self is the explicitly approved unsourced-refusal project policy, not a native Retail claim. Server actual authority RED follows a separately qualified missing-wire baseline. No new UI/geometry or leader mirror; focused GREEN/gate/two-member native proof pending.
+## 2026-10-19 — Committed frozen selected ADD genuine pixel RED
+
+[Inherited source/root and proof limits](systems/trading-post.md#committed-frozen-selected-texture-add-compositing):dbc79 opt-in diagnostic/nine registration/spec pushed before production. Genuine existing640/712 at actual Edbc79/S7cd/P035 yield31637/31684 actual-versus-ADD differing pixels,0 versus MIX/exact original restore0. Source520×48 matches prior authenticated active atlas; stable counterfactual/ordinary-frozen-ordinary/cart clear-return and exact authority/HUD/XYZ restoration precede intended pixel-assertion naturalexit1; complete streams otherwise clean/two Query/no transactions or fabricated reservation. Runtime/window cleared16:43:07. Minimal existing FrozenSelected owner classification only; parent gate/fresh strict same-oracle nine-case GREEN pending. Candidate/pending/hover/drag/caption/state/API and both named gaps unchanged; closed proof is not replayed or relabeled.
+
 ## 2026-10-19 — Ordinary achievement card title font
 
 [Source/proof](systems/dungeon-achievements.md#ordinary-card-title-font): title-onlyRomanFriz14/black(+1,−1) correction,320×20/WHITE/origin/actions retained. IgnorednativeRED first; corrected full-search native-height control leaves12 expected title assertions across bothskin collapsed/expanded. Strict nativeGREEN6/6 and model35/35 pass; first integratedmodel compile-only guildonline_zone prerequisite resolved via frozen03580cc, no consumerpatch. Central gate pending; no other title/globalpipeline/server change.
