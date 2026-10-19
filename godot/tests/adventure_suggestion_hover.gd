@@ -88,7 +88,10 @@ func run_hover_proof() -> bool:
 	var tooltip_labels := client.find_children("Tooltip*", "Label", true, false)
 	if not completion.require(not tooltip_labels.is_empty(), "native Tooltip labels absent"):
 		return false
+	if not completion.step(await shot("diagnostic-white-hover"), "diagnostic hover capture"):
+		return false
 	for label in tooltip_labels:
+		print("TOOLTIP_NATIVE_LABEL name=%s visible=%s color=%s path=%s" % [label.name, label.is_visible_in_tree(), label.get_theme_color("font_color"), label.get_path()])
 		if not completion.require(label.get_theme_color("font_color").is_equal_approx(Color.WHITE), "tooltip text is not white"):
 			return false
 	var tooltip := control("TooltipFrame")
