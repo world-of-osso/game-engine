@@ -1,3 +1,7 @@
+## 2026-10-19 — Frozen-source drag retirement CPU RED
+
+[Source/root](systems/trading-post.md#frozen-products-are-not-drag-sources): Elements495–508 disables frozen pickup; replacement510–521/577–670 already exists. No cached UI caller for ClearFrozenPerksVendorItem; right-click cancels confirmation only. IgnoredCPU0a8 pushed first gives two genuine selected/unselected outside Freeze(None)-versus-None REDs with five controls passing. Native/model frozen-source branch/field/parameter removed; seven tests unignored and six new native input observations retain seven groups/18 total observations. Targeted GREEN/parent gate/fresh no-transaction native remain pending. Server/protocol clear support stays; historical October13 proof qualified, not erased/relabelled.
+
 ## 2026-10-17 — Learned/unlearned recipe filter implementation
 
 [Contract and implementation](systems/native-professions-crafting.md#learnedunlearned-recipe-filters): source Mainline two default-on checkboxes, shared Filter template/right anchor/search gap; snapshot-only classification and learned-filter-aware Favorites. Pushed ignored screen RED failed at the absent dropdown before implementation. All four visibility combinations, search/empty controls, checkbox art and unchanged ownership are targeted; native acceptance awaits the lead gate/window. No persistence, other filter semantics or wire changes.
