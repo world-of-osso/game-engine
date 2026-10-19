@@ -46,6 +46,13 @@ pub(super) fn content(ctx: &SharedContext, window: &AchievementWindow) -> Elemen
         }},
     );
     children.extend(bar.element());
+    // XML2678–2687: explicit TOPRIGHT from TopRightCorner(+1,-4), not skin default anchors.
+    children.extend(rsx! {button {name:"AchievementFullSearchClose",width:24.0,height:24.0,
+        left:581.0,top:0.0,pos_type:"absolute",frame_level:510.0,
+        onclick:"achievement:search_dismiss",button_default_skin:false,
+        button_atlas_up:"RedButton-Exit",button_atlas_pressed:"RedButton-exit-pressed",
+        button_atlas_highlight:"RedButton-Highlight",button_atlas_disabled:"RedButton-Exit-Disabled",
+    }});
     let left = if window.comparison.is_some() {
         144.0
     } else {

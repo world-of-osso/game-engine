@@ -1,3 +1,6 @@
+## 2026-10-19 — Achievement full-search close button
+
+[Source/implementation](systems/dungeon-achievements.md#full-search-close-button):24×24 explicit581,0 close with source exit art; onlyfull_search=false, exact retained state/reopen/cursor controls. Ignored nativeRED first/6 missing-button assertions→strict both-skin native6/6; model35/35 exact window equality/reopen/cursor continuation at11550ddf3. No duplicate native replay; central acceptance pending. Whole-frame/Escape/focus/server/totals/progress unchanged.
 ## 2026-10-19 — Ordinary hover ADD genuine pixel RED
 
 [Source/root and exact evidence](systems/trading-post.md#ordinary-product-hover-add-compositing): Elements.xml225–236 ADD overlay; existing native highlight atlas omitted from blend list. Opt-in6be diagnostic pushed first, fixture-only6f3 fixes draw-boundary ownership after separately retained parse/freed-node harness errors. Actual6be/S0406/Pf9 both skins reproduce11802 wrong actual-versus-ADD pixels/zero actual-versus-MIX,11802 ADD/MIX distinction, exact original material restore and stable backdrop/leave. Authority/local/HUD restored before intended exit1, XYZ0/two Query/noTx; runtime/window cleared09:39:22. Single-atlas classification correction implemented; focused tests/parent gate/fresh strict native GREEN pending. No field/source RED or historical relabeling/frozen-hover/selected-art/event-state expansion.
@@ -24,6 +27,10 @@
 ## 2026-10-19 — Frozen-source drag retirement native GREEN
 
 [Source/root and fresh native proof](systems/trading-post.md#frozen-products-are-not-drag-sources): Elements495–508 disables frozen pickup; replacement510–521/577–670 already exists. No cached UI caller for ClearFrozenPerksVendorItem; right-click cancels confirmation only. IgnoredCPU0a8 pushed first gives genuine selected/unselected outside Freeze(None)-versus-None REDs plus five controls; root068 removal passes7/7 and tf637 TESTEXIT/PARSE/FMT0/landing. FreshE068/S2e4/Pf9 both skins strict natural7/7/no error markers/full streams,18 observations including six frozen attempts and all ordinary/cart/modal/occupied-cancel controls,13 decoded plays each. Exact authority/local/HUD restored before verdict, XYZ0, two Query only. Forty inspected originals+two contacts published under AgentShared/2026-10-19/trading-post-frozen-source-no-drag; manifest binds five binaries/source/streams/42receipts/original six memory edges/42PNG hashes. Runtime/window cleared04:17:35;1675 unrelated server errors qualified. Server/protocol clear support stays; historical October13 proof qualified, not erased/relabelled; accepted/immediate transactions retain CPU proof.
+
+## 2026-10-17 — Native recipe search-scroll retry
+
+[Bounded proof](systems/native-professions-crafting.md#native-search-scroll-proof--2026-10-17): ss667/pr676, unchanged fixture on Ef5f65878b/S0406fb041/Pf9a9175 passes both skins1920. Missing profession wheel route first failed against5522px real content; minimal route lets coordinate wheel establish deep scroll. Broad a/e searches reset top while4625/5008px results remain>8pages; user-scroll retention, selection/gameplay conservation pass. Two naturalexit0/unique markers/ten inspected PNGs/zero error lines, runtime/window cleared. Thumb drag remains CPU shared-handler proof only; original failed native artifacts retained, server reuse hash-verified rather than relabeled rebuilt.
 
 ## 2026-10-17 — Recipe search scroll transition
 
