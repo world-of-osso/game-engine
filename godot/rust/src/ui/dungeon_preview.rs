@@ -375,6 +375,28 @@ impl RegistryUi {
         GString::from(result.err().unwrap_or_default().as_str())
     }
 
+    /// Inspect the supplied offline UI fixture's conservation boundary, not realm state.
+    #[func]
+    pub fn achievement_full_search_preview_state(&self) -> GString {
+        let Some(view) = self
+            .model
+            .as_ref()
+            .and_then(|model| model.shared.get::<AchievementWindow>())
+        else {
+            return GString::from("Achievement full-search preview not mounted");
+        };
+        GString::from(serde_json::json!({
+            "visible": view.visible,
+            "query": view.search_text,
+            "category": view.selected_category,
+            "selected": view.selected_achievement,
+            "focused": view.search_focused,
+            "ids": view.search_results.entries.iter().map(|entry| entry.achievement_id).collect::<Vec<_>>(),
+            "next": view.search_results.next,
+            "loaded": view.search_results.loaded,
+        }).to_string().as_str())
+    }
+
     /// Return actual outgoing catalog requests, without starting a transport or fabricating replies.
     #[func]
     pub fn achievement_search_keyboard_preview_dispatch(&mut self) -> GString {
