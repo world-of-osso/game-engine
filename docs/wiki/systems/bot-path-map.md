@@ -19,3 +19,5 @@ Every row has `at_ms` Unix milliseconds, `simulation_s` (null: not exposed by th
 ## See Also
 
 - [Bot harness contract](../../specs/bot-harness.md).
+
+Already-read party rosters are appended only when enabled to `bot-path-party.jsonl`; final trace emits `party_sample` and `wipe` only when a complete observed admitted-party roster is simultaneously dead. Partial deaths, missing members and target changes never imply a wipe. Host monotonic timestamps are explicitly `python_host_monotonic`, not comparable with Godot process ticks.
