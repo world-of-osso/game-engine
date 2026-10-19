@@ -42,6 +42,42 @@ func untransformed_bounds(model: Node3D) -> AABB:
 	completion.require(not first, "Loaded Journal creature has no visible source geometry")
 	return result
 
+func verify_rendered_model(host: Control, model: Node3D) -> bool:
+	var viewport := host.find_child("CharacterModelViewport", true, false) as SubViewport
+	var view := host.find_child("CharacterModelView", true, false) as TextureRect
+	if not completion.require(viewport != null and view != null, "Journal render host missing"):
+		return false
+	await RenderingServer.frame_post_draw
+	var image := viewport.get_texture().get_image()
+	var painted := 0
+	for y in image.get_height():
+		for x in image.get_width():
+			var pixel := image.get_pixel(x, y)
+			if pixel.a > 0.5 and maxf(pixel.r, maxf(pixel.g, pixel.b)) > 0.08:
+				painted += 1
+	var mesh_info := []
+	for mesh in model.find_children("*", "MeshInstance3D", true, false):
+		mesh_info.append({"name":str(mesh.get_path()),"visible":mesh.is_visible_in_tree(),"layers":mesh.layers,"position":str(mesh.global_position)})
+	print("JOURNAL_RENDER_OBSERVED ", JSON.stringify({"viewport_size":str(viewport.size),"camera":str(viewport.get_camera_3d()),"view_rect":str(view.get_global_rect()),"view_visible":view.is_visible_in_tree(),"z_index":view.z_index,"painted":painted,"meshes":mesh_info}))
+	if not completion.require(painted > 20, "Journal loaded creature does not paint its viewport"):
+		return false
+	var shown := root.get_texture().get_image()
+	view.hide()
+	await settle()
+	await RenderingServer.frame_post_draw
+	var hidden := root.get_texture().get_image()
+	view.show()
+	await settle()
+	var rect := view.get_global_rect()
+	var changed := 0
+	for y in range(maxi(0, int(rect.position.y)), mini(shown.get_height(), int(rect.end.y))):
+		for x in range(maxi(0, int(rect.position.x)), mini(shown.get_width(), int(rect.end.x))):
+			var delta := shown.get_pixel(x, y) - hidden.get_pixel(x, y)
+			if Vector3(delta.r, delta.g, delta.b).length() > 0.04:
+				changed += 1
+	print("JOURNAL_RENDER_COMPOSITE changed=", changed)
+	return completion.require(changed > 20, "Journal viewport creature is covered in the final framebuffer")
+
 func verify_scene(creature_id: int, scene_id: int, actor_id: int, camera_id: int) -> bool:
 	var creature := source_row("JournalEncounterCreature", creature_id)
 	var actor := source_row("UiModelSceneActor", actor_id)
@@ -93,6 +129,8 @@ func verify_scene(creature_id: int, scene_id: int, actor_id: int, camera_id: int
 	if not completion.require(model.global_position.distance_to(position) < 0.003 and model.global_basis.get_scale().distance_to(scale) < 0.003, "Journal actor normalization/origin differs from authored source"):
 		return false
 	if not completion.require(model.global_basis.orthonormalized().is_equal_approx(rotation), "Journal actor orientation differs from authored source"):
+		return false
+	if not await verify_rendered_model(host, model):
 		return false
 	return completion.case_done()
 
