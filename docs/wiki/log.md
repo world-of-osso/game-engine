@@ -1,3 +1,7 @@
+## 2026-10-18 — Trading Post held drag timing RED
+
+[Source/root/proof](systems/trading-post.md#drag-start-selection-timing--native-red): fixture785 pushed before production; actual both-skin first-held activation stays A642/734 with A-art24144/B-art0 and sound delta0 instead of B848/640/+1. Eleven observations/seven groups collected and exact state restored before genuine assertion exit1; clean native error streams, XYZ0, two Query only. Window/runtime cleared22:00:25. Correction selects through existing product ownership/callbacks on first activation and removes release selection; focused model controls/fresh native GREEN pending. No server/protocol/provider/frozen-drag/audio-player expansion.
+
 ## 2026-10-18 — Search selection native focus
 
 [Source/proof](systems/dungeon-achievements.md#search-selection-focus-release--2026-10-18): cachedLua3594–3604/3669–3676 ClearFocus after successful Show All/received-preview open only. Pushed RED first gives four actualtrue/expectedfalse cases; unchanged eight invalid/no-op controls. Native-only release then strict12/12GREEN, query/body preserved; common runner expected12. Earlier fixture screen-init error remains separate, no realm/progress/keyboard-nav/server change.

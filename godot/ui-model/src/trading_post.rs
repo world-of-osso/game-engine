@@ -354,6 +354,21 @@ impl View {
         }
         Ok(None)
     }
+    /// Products.lua183–187 selects an ordinary unpurchased product before pickup.
+    pub fn select_dragged_product(&mut self, id: u32) -> bool {
+        if self.pending || self.confirm.is_some() {
+            return false;
+        }
+        let Some(row) = self.rows().into_iter().find(|row| row.id == id) else {
+            return false;
+        };
+        if row.purchased || row.grant_unavailable.is_some() {
+            return false;
+        }
+        self.select_product(id);
+        true
+    }
+
     pub fn drop_item(&mut self, id: u32, from_frozen: bool, on_frozen: bool) -> Option<Action> {
         if self.pending || self.confirm.is_some() {
             return None;
@@ -372,7 +387,6 @@ impl View {
         };
         if on_frozen {
             let replacing = snapshot.frozen_item_id.is_some();
-            self.select_product(id);
             self.freeze_candidate = Some(id);
             if replacing {
                 self.confirm = Some("freeze".into());
