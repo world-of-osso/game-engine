@@ -109,7 +109,7 @@ static func capture(root: Window, scene: Node3D, prefix: String) -> Dictionary:
 	var height := mini(64, size.y)
 	var crops := {"left": Rect2i(0, 0, width, size.y), "right": Rect2i(size.x - width, 0, width, size.y), "top": Rect2i(0, 0, size.x, height), "bottom": Rect2i(0, size.y - height, size.x, height)}
 	for edge in crops:
-		var path := prefix + "-" + edge + ".png"
+		var path: String = prefix + "-" + str(edge) + ".png"
 		var error := image.get_region(crops[edge]).save_png(path)
 		assert(error == OK, "failed diagnostic edge image: " + path)
 		report.images.append({"edge": edge, "rect": rect_values(Rect2(crops[edge])), "path": path})
