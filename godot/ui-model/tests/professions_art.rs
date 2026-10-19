@@ -96,6 +96,31 @@ fn text(registry: &FrameRegistry, name: &str) -> (String, [f32; 4]) {
     }
 }
 #[test]
+#[ignore = "RED: Retail learned/unlearned recipe filter dropdown is not implemented"]
+fn professions_visibility_filters_have_authored_dropdown_and_search_geometry_in_both_skins() {
+    for skin in [ActiveSkin::Modern, ActiveSkin::Forever] {
+        let registry = render(skin, view(15));
+        let filter = frame(&registry, "ProfessionsRecipeFilterDropdown")
+            .layout_rect
+            .as_ref()
+            .unwrap();
+        let background = frame(&registry, "ProfessionsRecipeListBackground")
+            .layout_rect
+            .as_ref()
+            .unwrap();
+        let search = frame(&registry, "ProfessionsSearchBox")
+            .layout_rect
+            .as_ref()
+            .unwrap();
+        assert_eq!(text(&registry, "ProfessionsRecipeFilterText").0, "Filter");
+        assert!((filter.x + filter.width - (background.x + background.width - 8.0)).abs() < 0.01);
+        assert!((filter.y - (background.y + 9.0)).abs() < 0.01);
+        assert!((search.x + search.width - (filter.x - 4.0)).abs() < 0.01);
+        assert!((search.y - (background.y + 8.0)).abs() < 0.01);
+    }
+}
+
+#[test]
 fn professions_unlearned_schematic_and_learned_transition_in_both_skins() {
     for skin in [ActiveSkin::Modern, ActiveSkin::Forever] {
         let mut view = view(15);
