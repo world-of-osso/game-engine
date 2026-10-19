@@ -8,6 +8,101 @@ use ui_toolkit::{
     screen::{Screen, SharedContext},
 };
 
+#[test]
+fn trading_post_drag_selection_activation_closes_cart_and_outside_release_retains_source() {
+    let mut view = freeze_view();
+    let authority = view.snapshot.clone();
+    view.click("perks:cart:show").unwrap();
+    let cart = view.cart.clone();
+    let preview = view.cart_preview_item_ids();
+    assert_eq!(view.selected, None);
+    assert!(view.select_dragged_product(5));
+    assert_eq!(view.selected, Some(5));
+    assert!(!view.cart_visible);
+    assert_eq!(view.take_selection_sounds(), 1);
+    assert_eq!(view.cart, cart);
+    assert_eq!(view.cart_preview_item_ids(), preview);
+    assert_eq!(view.drop_item(5, false, false), None);
+    assert_eq!(view.selected, Some(5));
+    assert_eq!(view.take_selection_sounds(), 0);
+    assert_eq!(view.snapshot, authority);
+}
+
+#[test]
+fn trading_post_drag_selection_repeat_and_occupied_drop_never_duplicate_activation_sound() {
+    let mut view = freeze_view();
+    let authority = view.snapshot.clone();
+    assert!(view.select_dragged_product(5));
+    assert_eq!(view.take_selection_sounds(), 1);
+    assert!(view.select_dragged_product(5));
+    assert_eq!(view.take_selection_sounds(), 0);
+    assert_eq!(view.drop_item(5, false, true), None);
+    assert_eq!(view.confirm.as_deref(), Some("freeze"));
+    assert_eq!(view.selected, Some(5));
+    assert_eq!(view.take_selection_sounds(), 0);
+    assert_eq!(view.click("perks:confirm").unwrap(), None);
+    assert!(!view.pending);
+    view.click("perks:cancel").unwrap();
+    assert_eq!(view.selected, Some(5));
+    assert_eq!(view.take_selection_sounds(), 0);
+    assert_eq!(view.cart, [5, 6]);
+    assert_eq!(view.snapshot, authority);
+}
+
+#[test]
+fn trading_post_drag_selection_drop_does_not_supply_a_release_selection_fallback() {
+    let mut view = freeze_view();
+    let authority = view.snapshot.clone();
+    assert_eq!(view.drop_item(5, false, true), None);
+    assert_eq!(view.selected, Some(4));
+    assert_eq!(view.take_selection_sounds(), 0);
+    assert_eq!(view.confirm.as_deref(), Some("freeze"));
+    assert_eq!(view.snapshot, authority);
+}
+
+#[test]
+fn trading_post_drag_selection_requires_current_unpurchased_bound_ordinary_product() {
+    for case in ["purchased", "unavailable", "filtered", "frozen", "missing"] {
+        let mut view = freeze_view();
+        let mut data = view.snapshot.as_ref().unwrap().as_ref().clone();
+        let candidate = data.items.iter_mut().find(|row| row.id == 5).unwrap();
+        match case {
+            "purchased" => candidate.purchased = true,
+            "unavailable" => candidate.grant_unavailable = Some("unbound source grant".into()),
+            "filtered" => {
+                view.filters.excluded_types.insert(1);
+            }
+            _ => {}
+        }
+        view.snapshot = Some(Arc::new(data));
+        let id = match case {
+            "frozen" => 4,
+            "missing" => 999,
+            _ => 5,
+        };
+        let before = view.clone();
+        assert!(!view.select_dragged_product(id), "{case}");
+        assert_eq!(
+            view, before,
+            "{case} cannot change selection/cart/sound/authority"
+        );
+    }
+}
+
+#[test]
+fn trading_post_drag_selection_preserves_pending_and_modal_owners() {
+    for pending in [true, false] {
+        let mut view = freeze_view();
+        view.pending = pending;
+        if !pending {
+            view.confirm = Some("clear-cart".into());
+        }
+        let before = view.clone();
+        assert!(!view.select_dragged_product(5));
+        assert_eq!(view, before);
+    }
+}
+
 fn cart_selection_view(owner: u32) -> View {
     let mut view = keyboard_view();
     view.click("perks:cart:add").unwrap();
@@ -349,20 +444,23 @@ fn trading_post_selection_sound_cart_return_uses_visibility_not_retained_id() {
 }
 
 #[test]
-fn trading_post_selection_sound_existing_drop_selection_keeps_release_timing() {
+fn trading_post_selection_sound_drag_activation_precedes_drop_without_replay() {
     let mut view = keyboard_view();
     let original = view.snapshot.clone();
     assert_eq!(view.selected, Some(11));
     assert_eq!(
         view.take_selection_sounds(),
         0,
-        "no new threshold selection path"
+        "no selection before drag activation"
     );
+    assert!(view.select_dragged_product(10));
+    assert_eq!(view.take_selection_sounds(), 1);
     assert_eq!(view.drop_item(10, false, true), None);
     assert_eq!(view.selected, Some(10));
     assert_eq!(view.confirm.as_deref(), Some("freeze"));
-    assert_eq!(view.take_selection_sounds(), 1);
+    assert_eq!(view.take_selection_sounds(), 0);
     view.click("perks:cancel").unwrap();
+    assert!(view.select_dragged_product(10));
     view.drop_item(10, false, true);
     assert_eq!(
         view.take_selection_sounds(),
@@ -1861,10 +1959,12 @@ fn trading_post_drag_freeze_replace_and_drag_off_wait_for_authority() {
         selected: Some(4),
         ..Default::default()
     };
+    assert!(view.select_dragged_product(5));
+    assert_eq!(view.selected, Some(5), "drag selects before any release");
     assert_eq!(
         view.drop_item(5, false, false),
         None,
-        "abandoned drag does nothing"
+        "outside release sends no authority request"
     );
     assert_eq!(
         view.drop_item(5, false, true),
