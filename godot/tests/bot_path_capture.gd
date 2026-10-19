@@ -3,6 +3,9 @@ extends RefCounted
 
 var stream: FileAccess
 
+func sample_party_actors(_client: Object, _identities: Array) -> Dictionary:
+    return {"actors": {}, "missing": []}
+
 func open_capture(directory: String) -> Error:
     var path := directory + "/bot-path-samples.jsonl"
     if FileAccess.file_exists(path):
