@@ -19,7 +19,7 @@ from bot_dungeon import summarize_dungeon
 from bot_gear import equipment_receipt, load_plan
 from bot_harness import parse_combat, poll_has_gap, routed_player
 from bot_health import require_living_player
-from bot_path_trace import write_trace
+from bot_path_trace import append_party, write_trace
 from bot_hazards import escape_goal, read_areas, route_is_safe
 from bot_stockade import admitted_copy, authored_priority, encounter_states, inside_exit_trigger, native_visibility, parse_npc, parse_party, stockade_exit_plan, stockade_plan, target_observation_ready
 from run_dummy_bots import observed_pet_owner
@@ -238,6 +238,8 @@ class StockadeRun:
         if account.get("world_map_id") != 34:
             raise RuntimeError("Native player left the Stockade map")
         party = parse_party(self.invoke("group", "roster"))
+        if os.environ.get("BOT_PATH_MAP_TRACE") == "1":
+            append_party(self.output, party)
         observations = self.run.setdefault("party_death_observations", [])
         for member in party:
             if member["death"] == "Alive":
