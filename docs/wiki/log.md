@@ -1,6 +1,9 @@
 ## 2026-10-18 — BLP qualification, no extraction
 
 [Boundary and before-only ledger](systems/wow-formats.md#blp-qualification-not-extraction): independent CPU/GPU/icon receipts preserve different normalization, BC5 refusals and malformed-input outcomes. No fifth crate or production/pin/asset change; recommend retaining the existing shared image-blp parser and local consumer policies. Authored180071 remains absent.
+## 2026-10-19 — Online guild zones accepted
+
+[Authority and native provenance](systems/guilds.md#online-member-zone): coordinated gz689 landed P b3a34fe/S e3f3f86c6/E d802433d9; retained server140/0/3ignored. Actual authenticated members prove both skins' Elwynn Forest/Westfall roster/detail, real-position refresh and normal disconnect/offline blank Zone. Six hash-verified unchanged originals published; owned runtimes/window cleared and original historical redb unchanged. Missing authority/privacy remain automated proof. Initial missing Godot class-cache fixture failure and startup warning qualifications retained.
 
 ## 2026-10-19 — Achievement full-search close button
 
