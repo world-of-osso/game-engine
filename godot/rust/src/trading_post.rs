@@ -28,7 +28,6 @@ struct ProductDrag {
     id: u32,
     origin: Vector2,
     active: bool,
-    from_frozen: bool,
 }
 
 #[derive(Default)]
@@ -74,11 +73,7 @@ impl TradingPost {
         if !crosses_threshold {
             return false;
         }
-        let activation_allowed = if drag.from_frozen {
-            true
-        } else {
-            self.view.select_dragged_product(drag.id)
-        };
+        let activation_allowed = self.view.select_dragged_product(drag.id);
         if !activation_allowed {
             self.dragged = None;
             return false;
@@ -966,25 +961,6 @@ impl GameClient {
             return false;
         };
         if button.is_pressed() {
-            if let Some(id) = self
-                .trading_post
-                .view
-                .snapshot
-                .as_ref()
-                .and_then(|snapshot| snapshot.frozen_item_id)
-                && ui
-                    .bind()
-                    .frame_viewport_rect("PerksProgramFrozenSlot")
-                    .is_some_and(|rect| contains_pointer(rect, button.get_position()))
-            {
-                self.trading_post.dragged = Some(ProductDrag {
-                    id,
-                    origin: button.get_position(),
-                    active: false,
-                    from_frozen: true,
-                });
-                return false;
-            }
             for row in self.trading_post.view.rows() {
                 if row.grant_unavailable.is_none()
                     && ui
@@ -996,7 +972,6 @@ impl GameClient {
                         id: row.id,
                         origin: button.get_position(),
                         active: false,
-                        from_frozen: false,
                     });
                     break;
                 }
@@ -1013,11 +988,7 @@ impl GameClient {
             .bind()
             .frame_viewport_rect("PerksProgramFrozenSlot")
             .is_some_and(|rect| contains_pointer(rect, button.get_position()));
-        if let Some(Action::Request(request)) =
-            self.trading_post
-                .view
-                .drop_item(drag.id, drag.from_frozen, dropped)
-        {
+        if let Some(Action::Request(request)) = self.trading_post.view.drop_item(drag.id, dropped) {
             if let Err(error) = self.send_trading_post_vendor_request(request) {
                 self.trading_post.view.pending = false;
                 self.trading_post.view.error = error;
