@@ -16,6 +16,14 @@ Pinned Retail 12.1.0.69933 `SkillLineAbility`/`SpellEffect`/`SpellReagents` cens
 
 Local world.db has only627 of1,286 distinct Leatherworking effect24 outputs joined to `content_item`; pinned CSV presence does not imply server runtime readiness. Existing Classic Leatherworking is the first end-to-end acceptance slice, not a claim of complete Midnight support.
 
+## Recipe Favorites
+
+- Favorites belong to the character and only authoritatively known spells may be favorited. Unlearned2153 requests must leave favorite state, inventory, copper, skill/knowledge and currencies unchanged.
+- The learned recipe's right-click menu uses shared Retail menu primitives and offers Set Favorite / Remove Favorite from the owner snapshot. A request does not optimistically mutate that snapshot or select the right-clicked recipe.
+- Outside search, Favorites appears before the learned/unlearned categories and retains the ordinary learned recipe entry. Favorite/ordinary instances have distinct widget identities and selection art. During search, the Favorites group is absent; normal matching recipes remain visible.
+- Favorite/unfavorite changes must survive an actual server and client reopen without leaking to another character on the same account. Only the existing trainer purchase teaches2153; preferences never craft or change acquisition authority.
+- Sources: cached `Blizzard_ProfessionsRecipeList.lua:60–78`, `Blizzard_Professions.lua:832–859,917–920`; TC a352b1fa `Player::SetSpellFavorite:3389–3398`, `_LoadSpells:19930–19947`, `_SaveSpells:21529–21541`. `world.db` trainer56/2153/cost50/rank15 supplies the concrete acquisition fixture. Reopen/native acceptance is pending the coordinated consumer gate.
+
 ## Unlearned recipe discovery
 
 - The shared Retail list shows learned categories first, then an Unlearned divider and unlearned categories, with independent collapse state and disabled-colour unlearned rows. Search covers both groups.

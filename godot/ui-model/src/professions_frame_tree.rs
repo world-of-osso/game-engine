@@ -61,6 +61,7 @@ fn tree_rows(view: &ProfessionView) -> (Element, f32) {
     }
     let mut unlearned_divider = false;
     for (index, (category, recipes)) in view.book.groups().iter().enumerate() {
+        let favorite = category == crate::professions::FAVORITES_GROUP;
         let learned = view.book.snapshot.spells.contains(&recipes[0].spell_id);
         if !learned && !unlearned_divider {
             let height = if index == 0 { 30.0 } else { 70.0 };
@@ -68,10 +69,14 @@ fn tree_rows(view: &ProfessionView) -> (Element, f32) {
             y += height;
             unlearned_divider = true;
         }
-        let key = format!(
-            "{}:{category}",
-            if learned { "learned" } else { "unlearned" }
-        );
+        let key = if favorite {
+            "favorites".into()
+        } else {
+            format!(
+                "{}:{category}",
+                if learned { "learned" } else { "unlearned" }
+            )
+        };
         let collapsed = view.collapsed.contains(&key);
         content.extend(category_row(index, category, &key, y, collapsed, learned));
         y += CATEGORY_HEIGHT + 1.0;
@@ -79,7 +84,7 @@ fn tree_rows(view: &ProfessionView) -> (Element, f32) {
             continue;
         }
         for recipe in recipes {
-            content.extend(recipe_row(view, recipe, y));
+            content.extend(recipe_row(view, recipe, y, favorite));
             y += ROW_HEIGHT + 1.0;
         }
     }
@@ -156,7 +161,11 @@ fn category_row(
     collapsed: bool,
     learned: bool,
 ) -> Element {
-    let prefix = format!("ProfessionCategory{index}");
+    let prefix = if key == "favorites" {
+        "ProfessionsFavorites".into()
+    } else {
+        format!("ProfessionCategory{index}")
+    };
     let mut children = Vec::new();
     for (suffix, atlas, rect) in [
         (
@@ -225,8 +234,12 @@ fn difficulty(view: &ProfessionView, recipe: &Recipe) -> RecipeDifficulty {
     recipe_difficulty(line.rank, recipe.trivial_low, recipe.trivial_high)
 }
 
-fn recipe_row(view: &ProfessionView, recipe: &Recipe, y: f32) -> Element {
-    let prefix = format!("ProfessionRecipe{}", recipe.spell_id);
+fn recipe_row(view: &ProfessionView, recipe: &Recipe, y: f32, favorite: bool) -> Element {
+    let prefix = if favorite {
+        format!("ProfessionFavoriteRecipe{}", recipe.spell_id)
+    } else {
+        format!("ProfessionRecipe{}", recipe.spell_id)
+    };
     let learned = view.book.snapshot.spells.contains(&recipe.spell_id);
     let icon = match difficulty(view, recipe) {
         RecipeDifficulty::Optimal => Some("Professions-Icon-Skill-High"),
@@ -234,7 +247,7 @@ fn recipe_row(view: &ProfessionView, recipe: &Recipe, y: f32) -> Element {
         RecipeDifficulty::Easy => Some("Professions-Icon-Skill-Low"),
         RecipeDifficulty::Trivial => None,
     };
-    let mut children = recipe_row_art(view, recipe, &prefix, icon.filter(|_| learned));
+    let mut children = recipe_row_art(view, recipe, &prefix, icon.filter(|_| learned), favorite);
     let color = if learned {
         PROFESSION_RECIPE_COLOR
     } else {
@@ -259,15 +272,28 @@ fn recipe_row(view: &ProfessionView, recipe: &Recipe, y: f32) -> Element {
             (12.0, PROFESSION_RECIPE_COLOR, "RIGHT"),
         ));
     }
-    let action = format!("profession:select:{}", recipe.spell_id);
+    let action = format!(
+        "profession:{}:{}",
+        if favorite {
+            "favorite-select"
+        } else {
+            "select"
+        },
+        recipe.spell_id
+    );
     crate::selection_list::row(
         prefix,
         &action,
         true,
         (10.0, y, ROW_WIDTH - 10.0, ROW_HEIGHT),
-        (recipe_template(view, recipe), false),
+        (recipe_template(view, recipe, favorite), false),
         children,
     )
+}
+
+fn recipe_is_selected(view: &ProfessionView, recipe: &Recipe, favorite: bool) -> bool {
+    let favorite_instance = view.selected_favorite && view.book.search.trim().is_empty();
+    view.book.selected == Some(recipe.spell_id) && favorite_instance == favorite
 }
 
 /// Blizzard_ProfessionsRecipeList.lua:375-376: the hover overlay shows only while the
@@ -275,8 +301,9 @@ fn recipe_row(view: &ProfessionView, recipe: &Recipe, y: f32) -> Element {
 fn recipe_template(
     view: &ProfessionView,
     recipe: &Recipe,
+    favorite: bool,
 ) -> &'static crate::selection_list::RowTemplate {
-    if view.book.selected == Some(recipe.spell_id) {
+    if recipe_is_selected(view, recipe, favorite) {
         &crate::selection_list::AUTHORED
     } else {
         &crate::selection_list::PROFESSION_RECIPE
@@ -288,9 +315,10 @@ fn recipe_row_art(
     recipe: &Recipe,
     prefix: &str,
     icon: Option<&str>,
+    favorite: bool,
 ) -> Element {
     let mut out = Vec::new();
-    if view.book.selected == Some(recipe.spell_id) {
+    if recipe_is_selected(view, recipe, favorite) {
         out.extend(art::atlas(
             &format!("{prefix}Selected"),
             "Professions_Recipe_Active",

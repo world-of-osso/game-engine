@@ -10,6 +10,10 @@ Verified: 2026-10-11. Engine behavioral source31c2bba12, overlay geometryac11dd7
 
 `professions_quality.rs` joins `Item.CraftingQualityID` → `CraftingQuality` → `CraftingQualityAtlasSet.IconInv` → `UiTextureAtlasElement.Name`. The stored tier is distinct from item rarity. `professions.rs` in the native extension supplies quality records only for displayed items; reagent slots draw the inventory overlay at its authored atlas size. Local-CASC export/layout/source receipts and absent outcome formulas are recorded in the [contract](../../specs/modern-crafting.md#quality-source-receipt), not inferred from item IDs.
 
+## Recipe Favorites
+
+`ProfessionSnapshot.favorites` supplies character-owned favorite spell IDs; the client never promotes a pending preference request into authoritative state. Favorites uses a pseudo-category before ordinary categories only outside search, with separate favorite/ordinary row identities and selection. The right-click menu reuses the shared Retail menu primitive and preserves recipe selection. The [contract](../../specs/modern-crafting.md#recipe-favorites) owns sources/requirements; coordinated server/client reopen and native acceptance are pending.
+
 ## Unlearned recipe discovery
 
 The list uses separate learned/unlearned category groups; selection is independent of spell knowledge, while craft requests still require the authoritative known-spell snapshot. Native catalog projection includes unlearned recipes only from owned skill lines. `ProfessionSnapshot.recipe_sources` supplies read-only trainer rows for the source tooltip, without a new message or local acquisition inference. The [contract](../../specs/modern-crafting.md#unlearned-recipe-discovery) owns behavior and sources. Native both-skin acceptance remains pending the lead's granted5951 window.
