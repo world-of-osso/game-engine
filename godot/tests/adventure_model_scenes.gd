@@ -62,10 +62,16 @@ func verify_rendered_model(host: Control, model: Node3D) -> bool:
 	if not completion.require(painted > 20, "Journal loaded creature does not paint its viewport"):
 		return false
 	var shown := root.get_texture().get_image()
+	var display := int(model.get_meta("creature_display_id"))
+	var prefix := shots.path_join("%s-render-display%s" % [str(client.account_state().ui_skin).to_lower(), display])
+	if not completion.require(image.save_png(prefix + "-viewport.png") == OK and shown.save_png(prefix + "-shown.png") == OK, "Diagnostic rendered images save failed"):
+		return false
 	view.hide()
 	await settle()
 	await RenderingServer.frame_post_draw
 	var hidden := root.get_texture().get_image()
+	if not completion.require(hidden.save_png(prefix + "-hidden.png") == OK, "Diagnostic hidden image save failed"):
+		return false
 	view.show()
 	await settle()
 	var rect := view.get_global_rect()
