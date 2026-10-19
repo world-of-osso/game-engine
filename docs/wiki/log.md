@@ -4874,3 +4874,7 @@ Explicit admitted unit_transform sampling replaces incomplete UnitPick traversal
 - Primary-title approved source-fit native668dfa: row823 actualfont24/264×50/2total2visible, not truncated. Fixture correctly stops before hoverRED; standaloneLabelcensus invalid as production proof. No primary-hover correction or forced title/font/geometry; gap retained.
 
 - Lead accepts primary-hover proof limitation as AG_PRIMARY_TITLE_HOVER_UNEXERCISED_NO_TRUNCATING_SOURCE_ROW; retain only cfg(debug_assertions) primary-index2 source input, no hover correction.
+
+## 2026-10-19 — Online guild zone consumer
+
+Existing online roster/detail labels now consume optional server zone text; offline text/geometry/sorting unchanged. RED proved the empty field; coordinated protocol/server gate and native proof pending.

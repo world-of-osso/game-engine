@@ -1,3 +1,4 @@
+- [Online guild zone](systems/guilds.md#online-member-zone) — existing roster/detail fields consume optional authoritative online labels; RED proven, GREEN/native pending.
 - [Stockade path map](systems/bot-path-map.md#real-stockade-proof--2026-10-19) — opt-in five-bot poses/facing, shared formation groups and real baked floor; inspected52s failed-run SVG/PNG, no bosses/clear; retained gate pending.
 - [Suggested primary-title source fit](systems/adventure-guide.md#suggested-primary-title-source-fit-boundary) — authentic823 fits production264×50/Morpheus24/two lines; positive hover unexercised, no manufactured RED or product hover correction.
 - [Journal Retail-cache projection reference](reference/journal-modelscene-projection-packet.md) — fifteen hash-pinned Lua/XML/schema sources; explicit zoom/pose versus unknown native projection/clip/position semantics; no corrective camera value found.

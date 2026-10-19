@@ -1035,6 +1035,7 @@ fn guild_communities_roster_uses_profile_metadata_without_exposing_officer_notes
             public_note: String::new(),
             is_self: false,
             last_online: "Yesterday".into(),
+            online_zone: None,
         }],
     });
     let reg = mounted(&session);
@@ -1291,6 +1292,7 @@ fn note_sort_session() -> GuildRanksSession {
                 public_note: (*note).into(),
                 is_self: false,
                 last_online: String::new(),
+                online_zone: None,
             })
             .collect(),
     });
@@ -1549,6 +1551,7 @@ fn guild_show_offline_filters_only_expanded_roster_and_preserves_authority_both_
                     public_note: String::new(),
                     is_self: false,
                     last_online: String::new(),
+                    online_zone: None,
                 })
                 .collect(),
         });
@@ -1640,6 +1643,7 @@ fn guild_show_offline_keeps_filtered_sort_targets_and_clamps_real_overflow() {
                 public_note: String::new(),
                 is_self: false,
                 last_online: String::new(),
+                online_zone: None,
             })
             .collect(),
     });
@@ -1874,6 +1878,7 @@ fn guild_communities_metadata_columns_sort_numeric_values_and_preserve_member_id
                 public_note: String::new(),
                 is_self: false,
                 last_online: String::new(),
+                online_zone: None,
             })
             .collect(),
         });
@@ -2077,6 +2082,7 @@ fn guild_member_notes_gate_self_public_officer_visibility_and_wait_for_authority
                 public_note: "Alchemy".into(),
                 is_self: true,
                 last_online: "Online".into(),
+                online_zone: None,
             }],
         });
         session.click("guild:member:Cara", &Default::default());
@@ -2165,6 +2171,7 @@ fn guild_member_note_popup_keeps_original_target_when_roster_selection_changes()
         officer_note: String::new(),
         is_self: false,
         last_online: "Online".into(),
+        online_zone: None,
     };
     session.profile = Some(GuildSnapshot {
         guild_id: 7,
