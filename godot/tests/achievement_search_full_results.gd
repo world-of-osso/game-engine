@@ -54,19 +54,22 @@ func check_full_case(forever: bool, kind: String) -> bool:
 				failures.append("received full-search row633 missing")
 			else:
 				await click(row.get_global_rect().get_center())
-				var action: String = ui.call("pop_action")
-				if action != "achievement:preview:633":
-					failures.append("received row action mismatch: " + action)
-				else:
-					error = ui.call("achievement_search_selection_preview_dispatch", action)
-					if not error.is_empty():
-						failures.append(error)
-					await frames(3)
-					var edit := ui.find_child("AchievementSearchBox", true, false) as LineEdit
-					if edit == null or not edit.text.is_empty():
-						failures.append("existing received-ID open did not clear query")
-					if ui.find_child("AchievementFullSearchResults", true, false) != null:
-						failures.append("full-search presentation remained after received-ID open")
+				var raw: String = ui.call("achievement_search_keyboard_preview_dispatch")
+				var requests = JSON.parse_string(raw)
+				var requested := false
+				if requests is Array:
+					for request in requests:
+						if request is Dictionary and request.has("Achievement") and int(request.Achievement.achievement_id) == 633:
+							requested = true
+				print("ACHIEVEMENT_FULL_SEARCH_REQUESTS ", raw)
+				if not requested:
+					failures.append("sixth received row did not request achievement633: " + raw)
+				await frames(3)
+				var edit := ui.find_child("AchievementSearchBox", true, false) as LineEdit
+				if edit == null or not edit.text.is_empty():
+					failures.append("existing received-ID open did not clear query")
+				if ui.find_child("AchievementFullSearchResults", true, false) != null:
+					failures.append("full-search presentation remained after received-ID open")
 		"category":
 			check_text(ui, "Achievement633Name", "Stormwind Stockade")
 			if ui.find_child("AchievementFullSearchResults", true, false) != null:

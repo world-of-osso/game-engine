@@ -172,6 +172,9 @@ fn full_results_preview_window(full: bool) -> AchievementWindow {
         achievements: [
             (6, "Level 10", true),
             (7, "Level 20", false),
+            (8, "Level 30", false),
+            (9, "Level 40", false),
+            (10, "Level 50", false),
             (633, "Stormwind Stockade", true),
         ]
         .into_iter()
