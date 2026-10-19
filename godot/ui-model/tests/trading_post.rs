@@ -41,19 +41,16 @@ fn assert_ordinary_idle_name_gold(skin: ActiveSkin) {
 }
 
 #[test]
-#[ignore = "CPU-first ordinary name-colour regression; execute before renderer changes"]
 fn trading_post_ordinary_name_color_modern_idle_is_normal_gold() {
     assert_ordinary_idle_name_gold(ActiveSkin::Modern);
 }
 
 #[test]
-#[ignore = "CPU-first ordinary name-colour regression; execute before renderer changes"]
 fn trading_post_ordinary_name_color_forever_idle_is_normal_gold() {
     assert_ordinary_idle_name_gold(ActiveSkin::Forever);
 }
 
 #[test]
-#[ignore = "CPU-first ordinary name-colour regression; execute before renderer changes"]
 fn trading_post_ordinary_name_color_hover_leave_restores_unselected_gold() {
     for skin in [ActiveSkin::Modern, ActiveSkin::Forever] {
         let mut view = freeze_view();
@@ -78,7 +75,6 @@ fn trading_post_ordinary_name_color_hover_leave_restores_unselected_gold() {
 }
 
 #[test]
-#[ignore = "CPU-first ordinary name-colour regression; execute before renderer changes"]
 fn trading_post_ordinary_name_color_selection_transfer_settles_previous_name_gold() {
     for skin in [ActiveSkin::Modern, ActiveSkin::Forever] {
         let mut view = freeze_view();
@@ -107,7 +103,6 @@ fn trading_post_ordinary_name_color_selection_transfer_settles_previous_name_gol
 }
 
 #[test]
-#[ignore = "CPU-first ordinary name-colour regression; execute before renderer changes"]
 fn trading_post_ordinary_name_color_cart_owner_clears_and_return_restores_white() {
     for skin in [ActiveSkin::Modern, ActiveSkin::Forever] {
         let mut view = freeze_view();
@@ -141,7 +136,6 @@ fn trading_post_ordinary_name_color_cart_owner_clears_and_return_restores_white(
 }
 
 #[test]
-#[ignore = "CPU-first ordinary name-colour control; execute before renderer changes"]
 fn trading_post_ordinary_name_color_selected_hover_and_leave_remain_white() {
     for skin in [ActiveSkin::Modern, ActiveSkin::Forever] {
         let mut view = freeze_view();
@@ -162,7 +156,6 @@ fn trading_post_ordinary_name_color_selected_hover_and_leave_remain_white() {
 }
 
 #[test]
-#[ignore = "CPU-first ordinary name-colour control; execute before renderer changes"]
 fn trading_post_ordinary_name_color_frozen_caption_stays_white() {
     for skin in [ActiveSkin::Modern, ActiveSkin::Forever] {
         let view = freeze_view();
