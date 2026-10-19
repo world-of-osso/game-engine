@@ -4905,3 +4905,5 @@ Explicit admitted unit_transform sampling replaces incomplete UnitPick traversal
 - Remainingplainclips explicitmissing27/nativeblank leads to approvedsource AnimationData.Fallback traversal, including0; reusecatalogreader, purecycle/no-matchrefusal, per-modelplainentry beforeunchangedcrossfade. Atrigan27→25sourceavailabilitypinned; isolatedall3×bothskinproofpending.
 
 - Journal fallback native33389: all3×bothskins isolated1/1 each, Atrigan27→25actual25, exact213/26preferred, clocks/rawpose/paintpass;12fullHDframesinspected. Six zero-Basis errors perRemorniaprocess retainedasnamedunattributedgap, no clean-runtime/fullframing/effectparity claim.
+
+- [Remornia-process phase attribution](systems/adventure-guide.md#remornia-process-zero-basis-error-phase-attribution): fixtureffcd43976/unchanged33389 extension, oneModern1/1. Six errorsframe7264 before selectorframe7301; CrimsonCabalist5198 portrait has same-frame zero-scale roots3–6, exact owner/C++caller stillUNATTRIBUTED. No product fix/guard/suppression; window/slice/5771 cleared.
