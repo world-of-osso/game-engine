@@ -8,6 +8,217 @@ use ui_toolkit::{
     screen::{Screen, SharedContext},
 };
 
+fn open_unaccepted_texture_preview() -> View {
+    let mut view = freeze_view();
+    assert!(view.select_dragged_product(5));
+    assert_eq!(view.drop_item(5, false, true), None);
+    view
+}
+
+fn create_accepted_texture_preview() -> View {
+    use game_engine_ui_model::trading_post::Action;
+    let mut view = open_unaccepted_texture_preview();
+    view.update_freeze_confirmation(5.0);
+    assert_eq!(
+        view.click("perks:confirm").unwrap(),
+        Some(Action::Request(TradingPostRequest::Freeze {
+            vendor_item_id: Some(5)
+        }))
+    );
+    view
+}
+
+fn assert_pending_texture_content(registry: &FrameRegistry) {
+    assert_eq!(text(registry, "PerksProgramFrozenLabel"), "Arcanofire Wrap");
+    assert_eq!(rect(registry, "PerksProgramFrozenSlot")[2..], [527., 84.]);
+    assert_eq!(rect(registry, "PerksProgramFrozenIcon")[2..], [64., 64.]);
+    assert_eq!(
+        visible_selection_art_area(registry, "PerksProgramFrozenItemGlow"),
+        88. * 88.
+    );
+}
+
+fn assert_unaccepted_texture_hidden(skin: ActiveSkin) {
+    let mut view = open_unaccepted_texture_preview();
+    assert_eq!(view.selected, Some(5));
+    assert_eq!(view.freeze_candidate, Some(5));
+    assert_eq!(view.confirm.as_deref(), Some("freeze"));
+    assert_eq!(view.freeze_delay, 5);
+    assert!(!view.pending);
+    assert_eq!(view.cart, [5, 6]);
+    assert_eq!(view.snapshot.as_ref().unwrap().frozen_item_id, Some(4));
+    assert_eq!(view.snapshot.as_ref().unwrap().tender, 500);
+    assert_eq!(view.take_selection_sounds(), 1);
+    let registry = render(skin, view);
+    assert_pending_texture_content(&registry);
+    assert_eq!(
+        visible_selection_art_area(&registry, "PerksProgramSelected5"),
+        24144.
+    );
+    assert_eq!(
+        visible_selection_art_area(&registry, "PerksProgramFrozenSelected"),
+        0.,
+        "unaccepted candidate is preview content, not a frozen selection: {skin:?}"
+    );
+}
+
+#[test]
+fn trading_post_pending_freeze_selected_texture_modern_unaccepted_is_clear() {
+    assert_unaccepted_texture_hidden(ActiveSkin::Modern);
+}
+
+#[test]
+fn trading_post_pending_freeze_selected_texture_forever_unaccepted_is_clear() {
+    assert_unaccepted_texture_hidden(ActiveSkin::Forever);
+}
+
+#[test]
+fn trading_post_pending_freeze_selected_texture_committed_selection_remains_active() {
+    for skin in [ActiveSkin::Modern, ActiveSkin::Forever] {
+        let mut view = freeze_view();
+        let registry = render(skin, view.clone());
+        assert_eq!(
+            visible_selection_art_area(&registry, "PerksProgramFrozenSelected"),
+            44268.
+        );
+        assert_eq!(
+            text(&registry, "PerksProgramFrozenLabel"),
+            "Distinguished Warcloak"
+        );
+        assert_eq!(rect(&registry, "PerksProgramFrozenIcon")[2..], [64., 64.]);
+        assert_eq!(view.click("perks:purchase").unwrap(), None);
+        assert_eq!(view.confirm.as_deref(), Some("purchase"));
+        assert!(!view.pending);
+        assert_eq!(view.take_selection_sounds(), 0);
+        let purchase_modal = render(skin, view);
+        assert_eq!(
+            visible_selection_art_area(&purchase_modal, "PerksProgramFrozenSelected"),
+            44268.,
+            "an unrelated purchase modal must not clear committed selection"
+        );
+    }
+}
+
+#[test]
+fn trading_post_pending_freeze_selected_texture_cancel_restores_content_not_selection() {
+    for skin in [ActiveSkin::Modern, ActiveSkin::Forever] {
+        let mut view = open_unaccepted_texture_preview();
+        let authority = view.snapshot.clone();
+        assert_eq!(view.take_selection_sounds(), 1);
+        assert_eq!(view.click("perks:cancel").unwrap(), None);
+        assert_eq!(view.selected, Some(5));
+        assert_eq!(view.freeze_candidate, None);
+        assert_eq!(view.confirm, None);
+        assert_eq!(view.cart, [5, 6]);
+        assert_eq!(view.take_selection_sounds(), 0);
+        assert_eq!(view.snapshot, authority);
+        let registry = render(skin, view);
+        assert_eq!(
+            text(&registry, "PerksProgramFrozenLabel"),
+            "Distinguished Warcloak"
+        );
+        assert_eq!(
+            visible_selection_art_area(&registry, "PerksProgramFrozenSelected"),
+            0.
+        );
+        assert_eq!(
+            visible_selection_art_area(&registry, "PerksProgramSelected5"),
+            24144.
+        );
+        assert_eq!(
+            visible_selection_art_area(&registry, "PerksProgramFrozenItemGlow"),
+            0.
+        );
+    }
+}
+
+#[test]
+fn trading_post_pending_freeze_selected_texture_accepted_waiting_is_not_blanket_hidden() {
+    for skin in [ActiveSkin::Modern, ActiveSkin::Forever] {
+        let mut view = create_accepted_texture_preview();
+        assert!(view.pending);
+        assert_eq!(view.confirm, None);
+        assert_eq!(view.freeze_candidate, Some(5));
+        assert_eq!(view.selected, Some(5));
+        assert_eq!(view.cart, [6], "existing accept removes only its candidate");
+        assert_eq!(view.snapshot.as_ref().unwrap().frozen_item_id, Some(4));
+        assert_eq!(view.snapshot.as_ref().unwrap().tender, 500);
+        assert_eq!(view.take_selection_sounds(), 1);
+        let registry = render(skin, view);
+        assert_pending_texture_content(&registry);
+        assert_eq!(
+            visible_selection_art_area(&registry, "PerksProgramFrozenSelected"),
+            44268.
+        );
+    }
+}
+
+#[test]
+fn trading_post_pending_freeze_selected_texture_reply_keeps_committed_selection() {
+    for skin in [ActiveSkin::Modern, ActiveSkin::Forever] {
+        let mut view = create_accepted_texture_preview();
+        assert_eq!(view.take_selection_sounds(), 1);
+        let mut reply = view.snapshot.as_ref().unwrap().as_ref().clone();
+        reply.frozen_item_id = Some(5);
+        view.receive(Arc::new(reply));
+        assert!(!view.pending);
+        assert_eq!(view.freeze_candidate, None);
+        assert_eq!(view.selected, Some(5));
+        assert_eq!(view.cart, [6]);
+        assert_eq!(view.snapshot.as_ref().unwrap().tender, 500);
+        assert_eq!(view.take_selection_sounds(), 0);
+        let registry = render(skin, view);
+        assert_eq!(
+            visible_selection_art_area(&registry, "PerksProgramFrozenSelected"),
+            44268.
+        );
+        assert_eq!(
+            visible_selection_art_area(&registry, "PerksProgramSelected5"),
+            0.
+        );
+        assert_eq!(
+            text(&registry, "PerksProgramFrozenLabel"),
+            "Arcanofire Wrap"
+        );
+        assert_eq!(
+            visible_selection_art_area(&registry, "PerksProgramFrozenItemGlow"),
+            0.
+        );
+    }
+}
+
+#[test]
+fn trading_post_pending_freeze_selected_texture_empty_immediate_remains_active() {
+    use game_engine_ui_model::trading_post::Action;
+    for skin in [ActiveSkin::Modern, ActiveSkin::Forever] {
+        let mut view = freeze_view();
+        let mut data = view.snapshot.as_ref().unwrap().as_ref().clone();
+        data.frozen_item_id = None;
+        view.receive(Arc::new(data));
+        assert!(view.select_dragged_product(5));
+        assert_eq!(
+            view.drop_item(5, false, true),
+            Some(Action::Request(TradingPostRequest::Freeze {
+                vendor_item_id: Some(5)
+            }))
+        );
+        assert!(view.pending);
+        assert_eq!(view.confirm, None);
+        assert_eq!(view.freeze_candidate, Some(5));
+        assert_eq!(view.selected, Some(5));
+        assert_eq!(view.cart, [6]);
+        assert_eq!(view.snapshot.as_ref().unwrap().frozen_item_id, None);
+        assert_eq!(view.snapshot.as_ref().unwrap().tender, 500);
+        assert_eq!(view.take_selection_sounds(), 1);
+        let registry = render(skin, view);
+        assert_pending_texture_content(&registry);
+        assert_eq!(
+            visible_selection_art_area(&registry, "PerksProgramFrozenSelected"),
+            44268.
+        );
+    }
+}
+
 #[test]
 fn trading_post_drag_selection_activation_closes_cart_and_outside_release_retains_source() {
     let mut view = freeze_view();
