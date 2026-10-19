@@ -28,7 +28,7 @@ The first rendered attempt found a real input-boundary bug: default native Butto
 
 The [filter contract](../../specs/modern-crafting.md#learnedunlearned-recipe-filters) adds only the two sourced learned-state checkboxes. `ProfessionBook.hide_learned`/`hide_unlearned` default false, so both Show checkboxes start checked. `groups()` applies owner-snapshot knowledge before search/category grouping; Favorites additionally obey learned visibility. The shared Retail Filter dropdown reuses one content-width calculation for its right anchor and the neighboring search field. No other filter semantics or persistence are supplied.
 
-Native input toggles presentation flags without sending a server request; window close resets them. Filter and favorite menus are mutually exclusive. Ignored screen RED was pushed first and failed on the missing dropdown. Four visibility combinations, checked-state art, search and authoritative favorite/knowledge conservation have targeted tests; native both-skin acceptance is pending the lead gate/window.
+Native input toggles presentation flags without sending a server request; window close resets them. Filter and favorite menus are mutually exclusive. Ignored screen RED was pushed first and failed on the missing dropdown. Four visibility combinations, checked-state art, search and authoritative favorite/knowledge conservation have targeted tests. `godot/tests/modern_crafting_visibility_filters_live.gd` additionally checks resolved dropdown/search geometry, physical toggles, search, window-reopen defaults and gameplay conservation; native both-skin acceptance is pending the lead gate/window.
 
 ## Unlearned recipe discovery
 
