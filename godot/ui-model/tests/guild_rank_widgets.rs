@@ -1047,7 +1047,6 @@ fn guild_communities_roster_uses_profile_metadata_without_exposing_officer_notes
 }
 
 #[test]
-#[ignore = "behavioral RED: existing roster and detail zone fields are blank"]
 fn guild_online_zone_roster_and_detail_follow_authority_both_skins() {
     let _lock = SKIN.lock().unwrap_or_else(|poison| poison.into_inner());
     let profile = |online: bool, zone: Option<&str>| -> GuildSnapshot {
