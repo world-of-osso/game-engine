@@ -1,5 +1,4 @@
 """Concrete native observation -> path-map trace behavior."""
-import os
 from pathlib import Path
 import sys
 import unittest
@@ -9,7 +8,6 @@ from bot_path_trace import compile_trace
 
 
 class BotPathTraceTests(unittest.TestCase):
-    @unittest.skipUnless(os.environ.get("BOT_PATH_TEST_RED"), "behavioral RED: trace capture not implemented")
     def test_native_poses_combat_edges_and_death_keep_observed_identity_and_clocks(self):
         samples = [
             {"at_ms": 1000, "monotonic_ns": 10, "map_id": 34,
@@ -36,7 +34,6 @@ class BotPathTraceTests(unittest.TestCase):
         self.assertEqual(trace[0]["run_id"], "small-stockade")
         self.assertEqual(trace[-1]["event"], "run_end")
 
-    @unittest.skipUnless(os.environ.get("BOT_PATH_TEST_RED"), "behavioral RED: roster wipe capture not implemented")
     def test_wipe_requires_every_observed_party_member_dead_not_target_changes(self):
         run = {"run_id": "wipe-fixture", "revision": "abc123", "actor": "101",
                "party_names": {"101": "Tank", "102": "Healer"},
@@ -54,7 +51,6 @@ class BotPathTraceTests(unittest.TestCase):
         self.assertEqual(wipes[0]["monotonic_clock"], "python_host_monotonic")
         self.assertFalse(any(row["event"] == "overlap_pull" for row in trace))
 
-    @unittest.skipUnless(os.environ.get("BOT_PATH_TEST_RED"), "behavioral RED: exact boss identity mapping not implemented")
     def test_only_known_boss_entity_death_marks_its_source_spawn_dead(self):
         run = {"run_id": "boss-fixture", "revision": "abc123", "actor": "101",
                "party_names": {"101": "Tank"}, "start_ms": 1000, "end_ms": 1300,
