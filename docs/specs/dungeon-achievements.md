@@ -107,6 +107,12 @@ Native Retail Mainline AchievementUI and dungeon objectives, using authoritative
 - Source: Mainline AchievementUI.xml62–111/2582–2703, Lua3467–3493; [implementation/data provenance](../wiki/systems/dungeon-achievements.md#full-search-result-presentation).
 - Native process fixture `godot/tests/achievement_search_full_results.gd` (eight both-skin cases), ignored wrapper `network/tests/achievement_search_full_results_template.rs`; supplied UI metadata, not realm/progress/search-semantic proof. Initial native geometry/metadata/category and third-row open8/8 plus retained focus12/12 passed; model34/catalog1 pass on the direct-open fix. Strengthened sixth-row physical/outgoing-ID native8 is pending the central gate, not claimed from the earlier third-row run.
 
+### Full-search close button
+
+- [x] The source24×24 full-results close button dismisses only the results pane. Preserve the exact query, received cache/cursor, selected category/achievement, native focus and whole AchievementFrame visibility; reopening reuses the retained rows and continues the existing cursor.
+- [x] Use the explicit Retail TOPRIGHT anchor relative to the results top-right corner(+1,−4), local(581,0), with UIPanelCloseButton exit art. Both skins share this geometry. No whole-frame close, Escape, server, totals or progress changes.
+- Source: Mainline AchievementUI.xml2678–2687, SharedUIPanelTemplates134–151; [implementation](../wiki/systems/dungeon-achievements.md#full-search-close-button). Ignored native wrapper `network/tests/achievement_search_full_results_close.rs` / six-case `tests/achievement_search_full_close.gd`; received UI fixtures, not realm proof. Both-skin native6/6 and affected model35/35 pass: physical dismissal/geometry/reopen plus exact whole-window equality except presentation and subsequent cursor-page2 continuation.
+
 ## Known gaps (current cycle)
 
 - [ ] Server-unevaluated criterion/statistic types have no trustworthy quantity to display; do not invent zero/completion.
