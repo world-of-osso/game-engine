@@ -1,3 +1,7 @@
+## 2026-10-19 — Ordinary selected-row ADD genuine pixel RED
+
+[Source/root, distinct receipts and proof limits](systems/trading-post.md#ordinary-selected-row-add-compositing):130bee opt-in diagnostic/ten registration/spec pushed first. Actual E130bee/S525/P035 both-skin genuine actual-versus-ADD18662/18738/18747 pixels versus0 against MIX; ADD/MIX distinct, original restore0, stable source/backdrop and second-selection/cart-owner controls. Authority/local/HUD/XYZ restored before intentional pixel-assertion naturalexit1; complete streams otherwise clean/two Query/noTx. Runtime/window cleared14:24:21. Minimal ordinary-selected texture classification correction; frozen owner/hover, state, layout/font/audio/API/server/protocol and named gaps unchanged. Parent gate/fresh strict same-oracle ten-case GREEN pending; no field/source RED or historical relabeling.
+
 ## 2026-10-18 — BLP qualification, no extraction
 
 [Boundary and before-only ledger](systems/wow-formats.md#blp-qualification-not-extraction): independent CPU/GPU/icon receipts preserve different normalization, BC5 refusals and malformed-input outcomes. No fifth crate or production/pin/asset change; recommend retaining the existing shared image-blp parser and local consumer policies. Authored180071 remains absent.

@@ -344,7 +344,14 @@ fn base_image(frame: &Frame, width: f32, height: f32) -> Option<ImagePart> {
             let mut part = textured(rect, texture.source.clone(), crop, [r, g, b, a]);
             part.desaturated = texture.desaturated;
             part.rotation = texture.rotation;
+            // PerksProgramElements.xml223: ordinary SelectedTexture uses ADD.
+            // FrozenSelected is a separate owner, not part of this classification.
+            let perks_product_selection = frame
+                .name
+                .as_deref()
+                .is_some_and(|name| name.starts_with("PerksProgramSelected"));
             part.additive = texture.blend_mode == BlendMode::Additive
+                || perks_product_selection
                 || game_engine_ui_model::selection_list::is_additive_row_art(frame, texture);
             part.tiling = [texture.horiz_tile, texture.vert_tile];
             Some(part)
