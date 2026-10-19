@@ -1,3 +1,7 @@
+## 2026-10-19 — Unaccepted freeze selected-texture CPU RED
+
+[Source/root](systems/trading-post.md#unaccepted-freeze-preview-selected-texture): ignoredc519 tests pushed first, actual Modern/Forever44268-versus0 failures with five phase controls passing. Minimal renderer-only selected-vendor argument correction leaves View/authority untouched and keeps accepted/immediate selection. Tests unignored; current drag diagnostic expects pending0 and explicitly reselects the original frozen product after cancel (12 samples/seven groups). CPU GREEN and parent gate precede fresh native proof; historical169 remains immutable, no server/protocol/audio/label/glow/frozen-policy expansion.
+
 ## 2026-10-17 — Recipe Favorites native reopen accepted
 
 [Bounded proof and provenance](systems/native-professions-crafting.md#accepted-reopen-proof--2026-10-17): landed E339c94be6/S9a8fd3951/Pf9a9175, six fresh native clients in both skins1920×1080 and three distinct private server generations prove Set/search/ordinary duplicate, restoration without re-favoriting, Remove and persisted absence. Bags/copper/skill conserved; fourteen inspected originals published, owned processes/window cleared. Native input RED exposed missing Button frame-click prefixes; minimal fix landed before GREEN. Synthetic cursor anchoring and warning-free renderer teardown remain unproven; fixture knowledge is not acquisition evidence.
@@ -4805,3 +4809,4 @@ User decision specifies MOBILE_BANKING_COOLDOWN_2H7200000ms over installed360000
 - Journal authored model scenes: cached source/raw camera and actor math implementation; exact native4e612 Ozruk camera RED, GREEN pending.
 
 - Journal capture-isolation: direct viewport paints while owner+1 background covers actor; centre0 native RED, four Journal texture owner-level alignment implemented.
+- 2026-10-18: Pin shared MCNK height-header/MCVT projection; existing full-render parser semantics retained. See [shared formats](systems/wow-formats.md).
