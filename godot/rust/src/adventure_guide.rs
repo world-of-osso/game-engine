@@ -1,7 +1,7 @@
 //! Native Adventure Guide host and the existing detached creature renderer.
 use crate::{
     GameClient,
-    character_frame::preview::{Scene, bind_sheet_light},
+    character_frame::preview::{Scene, bind_sheet_light, pet_actor_bounds},
     frame_error::FrameError,
     ui::RegistryUi,
     unit_portraits::Portrait,
@@ -22,6 +22,7 @@ pub(crate) struct AdventureGuide {
     scene: Option<Scene>,
     pending: Option<(u64, u32)>,
     shown: Option<u32>,
+    model_source: Option<(u32, u32, u32)>,
     portraits: BTreeMap<u32, Portrait>,
     #[cfg(debug_assertions)]
     fixture_suggestion: Option<shared::protocol::AdventureSuggestion>,
@@ -760,25 +761,22 @@ impl GameClient {
             scene.free();
         }
         self.adventure_guide.shown = None;
+        self.adventure_guide.model_source = None;
     }
     fn sync_journal_model(&mut self) -> Result<(), String> {
         if self.adventure_guide.view.page != Page::Model {
             self.clear_journal_model();
             return Ok(());
         }
-        let display = self
+        let source = self
             .adventure_guide
             .view
             .model_creature()
-            .map(|creature| creature.display);
-        let current = self
-            .adventure_guide
-            .pending
-            .map(|(_, display)| display)
-            .or(self.adventure_guide.shown);
-        if display != current {
+            .map(|creature| (creature.id, creature.display, creature.scene));
+        if source != self.adventure_guide.model_source {
             self.clear_journal_model();
-            if let Some(display_id) = display {
+            if let Some((_, display_id, _)) = source {
+                self.adventure_guide.model_source = source;
                 let appearance = UnitAppearance::Creature {
                     display_id,
                     items: Default::default(),
@@ -787,7 +785,7 @@ impl GameClient {
                 self.adventure_guide.pending = Some((id, display_id));
             }
         }
-        if display.is_none() {
+        if source.is_none() {
             return Ok(());
         }
         if self.adventure_guide.scene.is_none() {
@@ -818,13 +816,43 @@ impl GameClient {
         };
         self.adventure_guide.pending = None;
         let mut model = loaded?;
-        model.set_rotation(Vector3::ZERO);
+        let prepared = (|| {
+            let (_, _, scene_id) = self
+                .adventure_guide
+                .model_source
+                .ok_or("Journal source missing")?;
+            let (actor, camera) =
+                game_engine_core::adventure_guide::read_model_scene(&self.data_root, scene_id)?;
+            model.set_rotation(Vector3::ZERO);
+            let bounds = pet_actor_bounds(&model)?;
+            let size = bounds.size;
+            let center = bounds.center();
+            let scale = actor.actor_scale(glam::Vec3::new(size.x, size.y, size.z));
+            let origin = actor.actor_origin(glam::Vec3::new(center.x, center.y, center.z), scale);
+            let rotation = actor.actor_rotation();
+            let rotation = Basis::from_quaternion(Quaternion::new(
+                rotation.x, rotation.y, rotation.z, rotation.w,
+            ));
+            let basis = rotation * model.get_basis().scaled(Vector3::ONE * scale);
+            model.set_basis(basis);
+            model.set_position(Vector3::new(origin.x, origin.y, origin.z));
+            Ok::<_, String>(camera)
+        })();
+        let camera = match prepared {
+            Ok(camera) => camera,
+            Err(error) => {
+                model.free();
+                return Err(error);
+            }
+        };
         bind_sheet_light(&model);
-        self.adventure_guide
+        let scene = self
+            .adventure_guide
             .scene
             .as_mut()
-            .ok_or("Journal scene missing")?
-            .replace_model(model);
+            .ok_or("Journal scene missing")?;
+        scene.replace_unframed_model(model);
+        scene.set_authored_camera(&camera, 0., camera.zoom_percent());
         self.adventure_guide.shown = Some(display);
         Ok(())
     }

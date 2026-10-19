@@ -10,6 +10,7 @@ use ui_toolkit::{rsx, screen::SharedContext, widget_def::Element, widgets::font_
 const CATEGORY_HEIGHT: f32 = 25.0;
 const LIST_HEIGHT: f32 = 546.0;
 const ROW_WIDTH: f32 = 241.0;
+const LIST_BACKGROUND: (f32, f32, f32, f32) = (5.0, 72.0, 274.0, 581.0);
 // Retail GetLabelColor (RecipeList.lua:232-234), GlobalColor PROFESSION_RECIPE_COLOR #e2dcd6.
 const PROFESSION_RECIPE_COLOR: &str = "0.8862745,0.8627451,0.8392157,1";
 
@@ -30,7 +31,7 @@ pub(super) fn recipe_list(ctx: &SharedContext, view: &ProfessionView) -> Element
     let mut out = art::atlas(
         "ProfessionsRecipeListBackground",
         "Professions-background-summarylist",
-        (5.0, 72.0, 274.0, 581.0),
+        LIST_BACKGROUND,
     );
     out.extend(search_box(view));
     out.extend(
@@ -116,18 +117,22 @@ fn unlearned_heading(y: f32, height: f32) -> Element {
 }
 
 fn search_box(view: &ProfessionView) -> Element {
-    let mut out = Vec::new();
+    let filter_width = crate::menu_primitives::filter_dropdown_width("Filter");
+    let filter_left = LIST_BACKGROUND.0 + LIST_BACKGROUND.2 - 8.0 - filter_width;
+    let search_width = filter_left - 4.0 - 18.0;
+    let mut out =
+        super::filters::dropdown(view, (filter_left, LIST_BACKGROUND.1 + 9.0, filter_width));
     for (suffix, atlas, rect) in [
         ("Left", "common-search-border-left", (13.0, 80.0, 8.0, 20.0)),
         (
             "Middle",
             "common-search-border-middle",
-            (21.0, 80.0, 237.0, 20.0),
+            (21.0, 80.0, search_width - 8.0, 20.0),
         ),
         (
             "Right",
             "common-search-border-right",
-            (258.0, 80.0, 8.0, 20.0),
+            (18.0 + search_width - 5.0, 80.0, 8.0, 20.0),
         ),
         (
             "Icon",
@@ -138,7 +143,7 @@ fn search_box(view: &ProfessionView) -> Element {
         out.extend(art::atlas(&format!("{SEARCH}{suffix}"), atlas, rect));
     }
     out.extend(
-        rsx! { editbox { name: {DynName(SEARCH.into())}, width: 245.0, height: 20.0, left: 18.0, top: 80.0,
+        rsx! { editbox { name: {DynName(SEARCH.into())}, width: search_width, height: 20.0, left: 18.0, top: 80.0,
         pos_type: "absolute", font: GameFont::ArialNarrow, font_size: 14.0,
         font_color: HIGHLIGHT_FONT_COLOR, text_insets: "16,20,0,0" } },
     );
@@ -146,7 +151,7 @@ fn search_box(view: &ProfessionView) -> Element {
         out.extend(label(
             "ProfessionsSearchPlaceholder".into(),
             "Search",
-            (34.0, 80.0, 180.0, 20.0),
+            (34.0, 80.0, search_width - 16.0, 20.0),
             (12.0, "0.5,0.5,0.5,1", "LEFT"),
         ));
     }

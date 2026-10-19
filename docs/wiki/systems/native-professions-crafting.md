@@ -12,7 +12,31 @@ Verified: 2026-10-11. Engine behavioral source31c2bba12, overlay geometryac11dd7
 
 ## Recipe Favorites
 
-`ProfessionSnapshot.favorites` supplies character-owned favorite spell IDs; the client never promotes a pending preference request into authoritative state. Favorites uses a pseudo-category before ordinary categories only outside search, with separate favorite/ordinary row identities and selection. The right-click menu reuses the shared Retail menu primitive and preserves recipe selection. The [contract](../../specs/modern-crafting.md#recipe-favorites) owns sources/requirements; coordinated server/client reopen and native acceptance are pending.
+`ProfessionSnapshot.favorites` supplies character-owned favorite spell IDs; the client never promotes a pending preference request into authoritative state. Favorites uses a pseudo-category before ordinary categories only outside search, with separate favorite/ordinary row identities and selection. The right-click menu reuses the shared Retail menu primitive and preserves recipe selection. The [contract](../../specs/modern-crafting.md#recipe-favorites) owns sources/requirements.
+
+### Accepted reopen proof — 2026-10-17
+
+Engine `339c94be6`, server `9a8fd3951`, protocol `f9a9175`: six fresh native clients pass at1920×1080, sequentially in Modern and Forever. Set Favorite produces the authoritative duplicate while retaining ordinary selection; category collapse and search omission pass. Restarting the actual private UDP5951 server and reopening each client restores the favorite **without re-favoriting**. Remove Favorite retains the ordinary recipe; a second server/client restart keeps the favorite absent. Bags, copper and profession skill remain unchanged throughout. Three distinct server PIDs are recorded; all processes stop,5951 is unbound and the window is cleared.
+
+Evidence SSOT: canonical `data/diagnostics/crafting-favorites-2026-10-17/native-reopen-proof.json` binds the binary hashes, fresh read-only world snapshot, three server generations, six client results, fourteen PNG hashes and cleanup. Inspected original PNGs only: `/syncthing/AgentShared/2026-10-17/recipe-favorites/{set,readback-remove,readback-empty}/{Modern,Forever}-*.png`. Existing known375188 is fixture knowledge, not acquisition evidence; unknown2153 rejection and same-account character isolation have separate server behavioral proof.
+
+The first rendered attempt found a real input-boundary bug: default native Button input does not emit `AltClick`. Recipe actions must join `ui/projection.rs`'s frame-click prefixes (`profession:select:` and `profession:favorite-select:`). The physical-input RED precedes the two-prefix fix; unchanged-baseline GREEN follows its landing. A separate stale private world snapshot lacked `tdb_jump_charge_params`; a new read-only SQLite backup fixes the test environment without changing production data, code or the retained redb.
+
+**Boundary:** synthetic `root.push_input` captures show menus near the viewport origin. Physical-device cursor anchoring/layout fidelity remains unproven, explicitly outside the accepted reopen result. Existing signed-geoset, QuestPOI and renderer/resource teardown diagnostics remain in the logs; no warning-free runtime claim.
+
+## Learned/unlearned recipe filters
+
+The [filter contract](../../specs/modern-crafting.md#learnedunlearned-recipe-filters) adds only the two sourced learned-state checkboxes. `ProfessionBook.hide_learned`/`hide_unlearned` default false, so both Show checkboxes start checked. `groups()` applies owner-snapshot knowledge before search/category grouping; Favorites additionally obey learned visibility. The shared Retail Filter dropdown reuses one content-width calculation for its right anchor and the neighboring search field. No other filter semantics or persistence are supplied.
+
+Native input toggles presentation flags without sending a server request; window close resets them. Filter and favorite menus are mutually exclusive. Ignored screen RED was pushed first and failed on the missing dropdown. Two targeted screen tests pass: all four visibility combinations, checked-state art, search/empty controls, unchanged ownership and emitted source geometry. The first geometry harness incorrectly read native-only `layout_rect` before native layout; its corrected authored-output test and the later resolved native measurements remain separate proof levels.
+
+### Native filter proof — 2026-10-17
+
+Landed engine `cc4858b97`, server `58c0844b3`, protocol `f9a9175`: `godot/tests/modern_crafting_visibility_filters_live.gd` passes in both Modern and Forever at1920×1080 through actual Godot coordinate/key input. Each run covers all four checkbox combinations, learned-filter-aware Favorites, search's ordinary match without Favorites, close/reopen default-on state, unchanged bags/copper/skill and no cast. Authoritatively favoriting existing known375188 prepares the check; cleanup removes it again. The owner-projected unlearned row is293135; neither fixture knowledge nor browsing proves acquisition.
+
+Resolved rectangles are identical in both skins: Filter `(208,175,87,18)`, search `(42,174,162,20)`, list background `(29,166,274,581)`. Thus the dropdown's right8/top9 anchor,18px height and4px search gap match the authored source. Each complete drained client process exits0 with exactly one completion marker, nine unique captures and zero `ERROR`/`SCRIPT ERROR` lines. Existing signed-geoset, QuestPOI and MSAA warnings remain; this is not a general warning-free renderer claim.
+
+Evidence SSOT: canonical `data/diagnostics/recipe-visibility-filters-2026-10-17/native-visibility-proof.json` binds source/binary receipts, fresh read-only world snapshot, both process results, actual geometry, eighteen PNG hashes and cleanup. Four favorite-menu setup/cleanup captures stay private. Fourteen inspected filter-state originals: `/syncthing/AgentShared/2026-10-17/recipe-visibility-filters/{Modern,Forever}-{1..7}-*.png`. Owned server/client processes stop,5951 is unbound and the crafting window is cleared. Filter persistence and the other named filters remain excluded; the separate favorite physical-cursor anchoring boundary above is unchanged.
 
 ## Unlearned recipe discovery
 

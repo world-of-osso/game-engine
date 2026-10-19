@@ -105,16 +105,18 @@ fn resize_filter_to_text<'a>(
     if state.style != DropdownStyle::Filter || !state.resize_to_text {
         return props;
     }
-    let (text_width, _) = ui_toolkit::text_measure::measure_text(
-        props.text,
-        ui_toolkit::widgets::font_string::GameFont::FrizQuadrata,
-        12.0,
-    )
-    .expect("Filter template font loaded");
     DropdownButton {
-        width: text_width + 60.0,
+        width: filter_dropdown_width(props.text),
         ..props
     }
+}
+
+/// The authored content width, also used by right-anchored filter owners.
+pub fn filter_dropdown_width(text: &str) -> f32 {
+    ui_toolkit::text_measure::measure_text(text, GameFont::FrizQuadrata, 12.0)
+        .expect("Filter template font loaded")
+        .0
+        + 60.0
 }
 
 fn dropdown_art(props: DropdownButton<'_>, state: DropdownState<'_>) -> Element {

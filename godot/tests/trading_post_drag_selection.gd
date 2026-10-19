@@ -4,8 +4,7 @@ extends "res://tests/trading_post_cart_selection.gd"
 var drag_observations: Array = []
 var source_a := 0
 var source_b := 0
-# Preserve the observed RED presentation, not Retail pending-frozen-art parity.
-const RED_PENDING_FROZEN_ART_AREA := 44268.0
+# Historical169 conserved44268; the selected-texture slice now requires0 before accept.
 const HELD_OBSERVATIONS := ["below-existing-threshold", "first-held-activation", "repeated-held-motion", "already-selected-held-silent", "cart-owner-held-selection", "occupied-drop-before-release"]
 
 func run_cases() -> bool:
@@ -28,6 +27,7 @@ func run_cases() -> bool:
 	if not gate.step(await already_selected_case(),"already-selected collection"): return false
 	if not gate.step(await cart_activation_case(),"cart-owner collection"): return false
 	if not gate.step(await modal_guard_case(),"modal collection"): return false
+	if not gate.step(await frozen_source_cases(),"frozen source inert input collection"): return false
 	if not gate.step(await occupied_drop_case(),"occupied-slot cancellation collection"): return false
 	# Restore authority/local state before judging timing observations, including RED.
 	if not gate.step(await restore_drag_state(),"restore before verdict"): return false
@@ -112,6 +112,37 @@ func modal_guard_case() -> bool:
 	if not await click_checked("PerksProgramRemoveFromCartButton"): return false
 	return gate.require(client.trading_post_state().cart.is_empty(),"local cart cleanup without Clear acceptance")
 
+func frozen_source_cases() -> bool:
+	# Retail removes frozen OnDragStart; these are pointer attempts, never transactions.
+	if not await click_checked("PerksProgramFrozenSlot"): return false
+	var count := sound_count()
+	var slot := control("PerksProgramFrozenSlot")
+	if not gate.require(slot != null,"committed frozen source exists"): return false
+	var start := slot.get_global_rect().get_center()
+	var outside := Vector2(1850,80)
+	if not await press_product(start): return false
+	await drag_motion(start+Vector2(12,0),Vector2(12,0))
+	if not await observe_drag(7,"frozen-source-selected-held",int(baseline.frozen),count,false,false): return false
+	await drag_motion(outside,outside-start)
+	await release_product(outside)
+	if not await observe_drag(7,"frozen-source-selected-outside",int(baseline.frozen),count,false,false): return false
+	if not await click_checked("PerksProgramProduct%d" % source_b): return false
+	count = sound_count()
+	if not await press_product(start): return false
+	await drag_motion(start+Vector2(12,0),Vector2(12,0))
+	if not await observe_drag(7,"frozen-source-unselected-held",source_b,count,false,false): return false
+	await drag_motion(outside,outside-start)
+	await release_product(outside)
+	if not await observe_drag(7,"frozen-source-unselected-outside",source_b,count,false,false): return false
+	if not await click_checked("PerksProgramFrozenSlot"): return false
+	count = sound_count()
+	if not await press_product(start): return false
+	await drag_motion(start+Vector2(12,0),Vector2(12,0))
+	await drag_motion(start+Vector2(18,0),Vector2(6,0))
+	if not await observe_drag(7,"frozen-source-repeated-held",int(baseline.frozen),count,false,false): return false
+	await release_product(start+Vector2(18,0))
+	return await observe_drag(7,"frozen-source-same-slot-release",int(baseline.frozen),count,false,false)
+
 func occupied_drop_case() -> bool:
 	if not await click_checked("PerksProgramProduct%d" % source_a): return false
 	var count := sound_count()
@@ -127,7 +158,9 @@ func occupied_drop_case() -> bool:
 	if not await until(func(): return control("PerksProgramConfirmDialog") != null,"unaccepted freeze replacement dialog"): return false
 	if not await observe_drag(7,"occupied-drop-no-duplicate",source_b,count+1,false,true): return false
 	if not await click_checked("PerksProgramConfirmCancelButton"): return false
-	return gate.require(not client.trading_post_state().pending and int(client.trading_post_state().frozen) == int(baseline.frozen),"cancel never changes authority")
+	if not gate.require(not client.trading_post_state().pending and int(client.trading_post_state().frozen) == int(baseline.frozen),"cancel never changes authority"): return false
+	if not await click_checked("PerksProgramFrozenSlot"): return false
+	return await observe_drag(7,"committed-frozen-after-cancel",int(baseline.frozen),count+2,false,false)
 
 func restore_drag_state() -> bool:
 	if not await only_type(0): return false
@@ -168,11 +201,16 @@ func assert_drag_observation(data: Dictionary) -> bool:
 	elif int(data.expected_selected) == source_a:
 		if not gate.require(float(data.art_a) > 0. and float(data.art_b) == 0.,"source A art below threshold"): return false
 	else:
-		if not gate.require(float(data.art_a) == 0. and float(data.art_b) == 0.,"modal product art remains clear"): return false
+		if not gate.require(float(data.art_a) == 0. and float(data.art_b) == 0.,"ordinary product art remains clear"): return false
 	if str(data.label) in HELD_OBSERVATIONS:
 		if not gate.require(float(data.frozen_art) == 0.,"frozen art clear before release at "+str(data.label)): return false
 	elif str(data.label) == "occupied-drop-no-duplicate":
-		if not gate.require(float(data.frozen_art) == RED_PENDING_FROZEN_ART_AREA,"pending presentation unchanged from RED, not Retail parity"): return false
+		if not gate.require(float(data.frozen_art) == 0.,"unaccepted pending preview is not a frozen selection"): return false
+	elif str(data.label) == "committed-frozen-after-cancel":
+		if not gate.require(float(data.frozen_art) > 0.,"explicit committed selection remains visible after cancel"): return false
+	elif str(data.label).begins_with("frozen-source-"):
+		var expected_art := 44268. if int(data.expected_selected) == int(baseline.frozen) else 0.
+		if not gate.require(float(data.frozen_art) == expected_art,"frozen pointer attempt preserves selected art"): return false
 	return true
 
 func row_center(id: int) -> Vector2:

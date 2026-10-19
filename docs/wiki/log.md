@@ -2,6 +2,25 @@
 
 [Source/presentation/data](systems/dungeon-achievements.md#full-search-result-presentation): separate600×382/575×49 full-search rows, static installed70448 ancestry, received completion/existing ID-open only. Ignored both-skin nativeRED published/observed18 missing-feature assertions, category controls intact; GREEN pending. No category-card, wire/server, paging, preview, focus/Escape, totals or progress policy changes.
 
+## 2026-10-19 — Frozen-source drag retirement CPU RED
+
+[Source/root](systems/trading-post.md#frozen-products-are-not-drag-sources): Elements495–508 disables frozen pickup; replacement510–521/577–670 already exists. No cached UI caller for ClearFrozenPerksVendorItem; right-click cancels confirmation only. IgnoredCPU0a8 pushed first gives two genuine selected/unselected outside Freeze(None)-versus-None REDs with five controls passing. Native/model frozen-source branch/field/parameter removed; seven tests unignored and six new native input observations retain seven groups/18 total observations. Targeted GREEN/parent gate/fresh no-transaction native remain pending. Server/protocol clear support stays; historical October13 proof qualified, not erased/relabelled.
+
+## 2026-10-17 — Learned/unlearned native filter proof
+
+[Bounded proof and provenance](systems/native-professions-crafting.md#native-filter-proof--2026-10-17): rv633/landed Ecc4858b97/S58c0844b3/Pf9a9175; both skins1920×1080 cover four combinations, Favorites/search, resolved Filter87×18/right8/top9/searchgap4, close/reopen defaults and gameplay conservation. Each drained client exits0/unique marker1/nine unique captures/zero error lines. Fourteen inspected state originals published; four favorite-menu setup/cleanup captures private. Original preference restored, owned runtime/window cleared; other filters/persistence and favorite hardware-cursor anchoring remain excluded.
+
+## 2026-10-17 — Learned/unlearned recipe filter implementation
+
+[Contract and implementation](systems/native-professions-crafting.md#learnedunlearned-recipe-filters): source Mainline two default-on checkboxes, shared Filter template/right anchor/search gap; snapshot-only classification and learned-filter-aware Favorites. Pushed ignored screen RED failed at the absent dropdown before implementation. All four visibility combinations, search/empty controls, checkbox art and unchanged ownership are targeted; native acceptance awaits the lead gate/window. No persistence, other filter semantics or wire changes.
+## 2026-10-19 — Unaccepted freeze selected-texture CPU RED
+## 2026-10-19 — Unaccepted freeze selected texture accepted
+
+[Source/root and fresh native proof](systems/trading-post.md#unaccepted-freeze-preview-selected-texture): ignoredc519 pushed first gives actual Modern/Forever44268-versus0 RED plus five phase controls; renderer-only4cd correction passes7/7 and parent pf624 landsd153. FreshEd153/S72ee/Pf9 both skins strict natural7/7/clean complete streams,12 samples/seven groups, ordinary24144/pending0/committed44268 after cancel, nine decoded plays each. Exact authority/local/HUD restored before verdict, XYZ0, two Query only. Twenty-eight inspected originals+two contacts published under AgentShared/2026-10-19/trading-post-pending-freeze; manifest binds five binaries/sources/streams/receipts/original six memory edges. Runtime/window cleared02:20:49. Accepted/immediate remains CPU-qualified; historical169 unchanged; editor-import/unrelated server warnings qualified separately. No server/protocol/audio/label/glow/frozen-policy expansion.
+
+## 2026-10-17 — Recipe Favorites native reopen accepted
+
+[Bounded proof and provenance](systems/native-professions-crafting.md#accepted-reopen-proof--2026-10-17): landed E339c94be6/S9a8fd3951/Pf9a9175, six fresh native clients in both skins1920×1080 and three distinct private server generations prove Set/search/ordinary duplicate, restoration without re-favoriting, Remove and persisted absence. Bags/copper/skill conserved; fourteen inspected originals published, owned processes/window cleared. Native input RED exposed missing Button frame-click prefixes; minimal fix landed before GREEN. Synthetic cursor anchoring and warning-free renderer teardown remain unproven; fixture knowledge is not acquisition evidence.
 ## 2026-10-18 — Trading Post held drag timing accepted
 
 [Native proof](systems/trading-post.md#fresh-native-drag-green): fixture-first785 actual both-skin RED→D7 extension/production9a/fixture169 fresh7/7 each, same11 observations/seven groups, B/art/+1 before release/no duplicate/repeat/outside/cart/modal/occupied-cancel. Exact authority/local/HUD restoration, XYZ0, two Query only; eight decoded plays each. td613 lands source01beef after full family/fixture/gdscript/fmt gate. Twenty-six inspected originals plus two contacts published under AgentShared/2026-10-18/trading-post-drag-selection; proof manifest binds sources/binaries/streams/original six success edges. Window/runtime cleared23:13:53. Approved fixture-only pending-art44268 conservation is not Retail parity; rejected server-only/over-broad-oracle attempts remain retained.
@@ -4802,3 +4821,10 @@ User decision specifies MOBILE_BANKING_COOLDOWN_2H7200000ms over installed360000
 - 2026-10-18 — Bump wow-formats pin for independent materials/static-attachments features and raw geometry metadata; default client features unchanged. [Shared readers](systems/wow-formats.md).
 
 - 2026-10-18 — Pin projected runtime-ground metadata APIs in wow-formats; preserve selected-field/FDID/error policy and frozen metadata/bake receipt boundaries. [Shared readers](systems/wow-formats.md).
+
+- Journal authored model scenes: cached source/raw camera and actor math implementation; exact native4e612 Ozruk camera RED, GREEN pending.
+
+- Journal capture-isolation: direct viewport paints while owner+1 background covers actor; centre0 native RED, four Journal texture owner-level alignment implemented.
+- 2026-10-18: Pin shared MCNK height-header/MCVT projection; existing full-render parser semantics retained. See [shared formats](systems/wow-formats.md).
+
+- Journal ae3cd native5: genuine Ozruk/Anraphet raw pose and visible central subjects2/2 per skin, four observed originals inspected; retained30deg cropping/FOV and actor0/effect gaps explicitly excluded.
