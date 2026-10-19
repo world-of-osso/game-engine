@@ -139,6 +139,7 @@ fn preview_view() -> ProfessionView {
                 }],
                 spells,
                 recipe_sources: vec![],
+                favorites: vec![],
             },
             recipes,
             visible: true,
