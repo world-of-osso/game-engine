@@ -29,6 +29,9 @@ func source_row(table: String, id: int) -> Dictionary:
 	completion.fail("Missing source %s row%s" % [table, id])
 	return {}
 
+func source_actor_display(actor: Dictionary) -> Dictionary:
+	return source_row("UiModelSceneActorDisplay", int(actor.get("UiModelSceneActorDisplayID", "0")))
+
 func untransformed_bounds(model: Node3D) -> AABB:
 	var inverse := model.global_transform.affine_inverse()
 	var result := AABB()
@@ -91,7 +94,7 @@ func verify_rendered_model(host: Control, model: Node3D) -> bool:
 func verify_scene(creature_id: int, scene_id: int, actor_id: int, camera_id: int) -> bool:
 	var creature := source_row("JournalEncounterCreature", creature_id)
 	var actor := source_row("UiModelSceneActor", actor_id)
-	var display := source_row("UiModelSceneActorDisplay", int(actor.get("UiModelSceneActorDisplayID", "0")))
+	var display := source_actor_display(actor)
 	var camera_info := source_row("UiModelSceneCamera", camera_id)
 	if completion.failed:
 		return false
@@ -111,7 +114,8 @@ func verify_scene(creature_id: int, scene_id: int, actor_id: int, camera_id: int
 	var yaw := float(camera_info.Yaw)
 	var forward := Vector3(cos(yaw), 0, -sin(yaw))
 	var target := Vector3(float(camera_info.Target_0), float(camera_info.Target_2), -float(camera_info.Target_1))
-	var eye := target - forward * float(camera_info.ZoomDistance)
+	var distance := clampf(float(camera_info.ZoomDistance), float(camera_info.MinZoomDistance), float(camera_info.MaxZoomDistance))
+	var eye := target - forward * distance
 	var creature_display := source_row("CreatureDisplayInfo", int(creature.CreatureDisplayInfoID))
 	var model_data := source_row("CreatureModelData", int(creature_display.get("ModelID", "0")))
 	if completion.failed:

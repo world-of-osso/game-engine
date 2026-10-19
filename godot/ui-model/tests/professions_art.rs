@@ -199,6 +199,89 @@ fn professions_visibility_filters_preserve_owner_state_and_favorite_search_rules
     }
 }
 
+fn assert_filter_reset_visibility(hide_learned: bool, hide_unlearned: bool, visible: bool) {
+    for skin in [ActiveSkin::Modern, ActiveSkin::Forever] {
+        let mut view = view(15);
+        view.book.hide_learned = hide_learned;
+        view.book.hide_unlearned = hide_unlearned;
+        view.book.search = "linen".into();
+        view.book.snapshot.favorites = vec![3275];
+        let registry = render(skin, view);
+        assert_eq!(
+            !frame(&registry, "ProfessionsRecipeFilterDropdownResetButton").hidden,
+            visible,
+            "{skin:?}: learned-hidden={hide_learned}, unlearned-hidden={hide_unlearned}"
+        );
+    }
+}
+
+#[test]
+fn professions_filter_reset_stays_hidden_for_default_flags_despite_search() {
+    assert_filter_reset_visibility(false, false, false);
+}
+
+#[test]
+fn professions_filter_reset_shows_when_learned_hidden() {
+    assert_filter_reset_visibility(true, false, true);
+}
+
+#[test]
+fn professions_filter_reset_shows_when_unlearned_hidden() {
+    assert_filter_reset_visibility(false, true, true);
+}
+
+#[test]
+fn professions_filter_reset_shows_when_both_hidden() {
+    assert_filter_reset_visibility(true, true, true);
+}
+
+#[test]
+fn professions_filter_reset_restores_defaults_without_other_view_mutation() {
+    for skin in [ActiveSkin::Modern, ActiveSkin::Forever] {
+        let mut original = view(15);
+        original.book.search = "linen".into();
+        original.book.snapshot.favorites = vec![3275];
+        original.selected_favorite = true;
+        original.filter_open = true;
+        for (hide_learned, hide_unlearned) in
+            [(false, false), (true, false), (false, true), (true, true)]
+        {
+            let mut changed = original.clone();
+            changed.book.hide_learned = hide_learned;
+            changed.book.hide_unlearned = hide_unlearned;
+            changed.book.reset_visibility_filters();
+            assert_eq!(
+                changed, original,
+                "Reset must change only the two visibility flags"
+            );
+            let registry = render(skin, changed);
+            assert!(frame(&registry, "ProfessionsRecipeFilterDropdownResetButton").hidden);
+            assert!(
+                registry
+                    .get_by_name("ProfessionsFilterLearnedTick")
+                    .is_some()
+            );
+            assert!(
+                registry
+                    .get_by_name("ProfessionsFilterUnlearnedTick")
+                    .is_some()
+            );
+            assert_eq!(text(&registry, "ProfessionsOutputName").0, "Linen Bandage");
+            assert!(
+                registry
+                    .get_by_name("ProfessionRecipe3275Selected")
+                    .is_some()
+            );
+            assert!(
+                registry
+                    .get_by_name("ProfessionFavoriteRecipe3275")
+                    .is_none(),
+                "search still omits Favorites after Reset"
+            );
+        }
+    }
+}
+
 #[test]
 fn professions_unlearned_schematic_and_learned_transition_in_both_skins() {
     for skin in [ActiveSkin::Modern, ActiveSkin::Forever] {
