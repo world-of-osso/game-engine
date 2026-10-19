@@ -2,6 +2,9 @@
 
 [Source/proof](systems/dungeon-achievements.md#search-selection-focus-release--2026-10-18): cachedLua3594–3604/3669–3676 ClearFocus after successful Show All/received-preview open only. Pushed RED first gives four actualtrue/expectedfalse cases; unchanged eight invalid/no-op controls. Native-only release then strict12/12GREEN, query/body preserved; common runner expected12. Earlier fixture screen-init error remains separate, no realm/progress/keyboard-nav/server change.
 
+## 2026-10-18 — Cart selection native ownership accepted
+
+[Bounded native proof](systems/trading-post.md#post-landing-native-cart-proof): post-tp595 production86dae/runner137032/serverac365/protocola2, fixture1824 passes7/7 per skin through natural-exit/unique-marker/full-two-stream validation. Twelve checkpoints/nine decoded plays each, product art clear/restore, silent filter and local modal/removal/Clear, exact authority/HUD conservation and XYZ0. Runtime/window cleared19:56:32. Twenty-four inspected full-HD PNGs plus two contacts published under AgentShared/2026-10-18/trading-post-cart-selection; diagnostic proof manifest binds five binaries, original six success memory edges and full streams. Failed ALSA/multi-toggle-oracle attempts and resource-held server-only attempt remain rejected/historical; CPU-only cases stay qualified. Separate fixture branch carries the test-only Rust runner registry addition; documentation is not runtime identity.
 ## 2026-10-17 — Unlearned profession recipe discovery
 
 [Native professions](systems/native-professions-crafting.md#unlearned-recipe-discovery) separates preview selection from learned-only crafting and consumes trainer-only source metadata in the existing owner snapshot. Both skins share grouping and source widgets; native acceptance waits for the lead gate/window.
