@@ -67,7 +67,15 @@ pub fn detail(session: &GuildRanksSession) -> Element {
         (10.0, "1,1,1,1", "LEFT"),
     ));
     for (id, heading, value, y) in [
-        ("Zone", "Zone:", "", 53.0),
+        (
+            "Zone",
+            "Zone:",
+            member
+                .filter(|member| member.is_online)
+                .and_then(|member| member.online_zone.as_deref())
+                .unwrap_or(""),
+            53.0,
+        ),
         ("Rank", "Rank:", rank, 71.0),
         (
             "Online",
