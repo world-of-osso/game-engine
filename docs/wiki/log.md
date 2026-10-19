@@ -4899,3 +4899,11 @@ Explicit admitted unit_transform sampling replaces incomplete UnitPick traversal
 - Journal source239Animation25: actualVakan0vs25 nativeRED before correction; source-gated Journal attach-only existingplayer/crossfade implementation, no per-sync restart or kits/variants/speed/effects scope expansion. NativeGREEN pending.
 
 - Journal plain25 extensioncec5 native2: Vakan/Gholna2/2eachskin, current25/sameplayer progressingclock/rawpose/centralpaint; four originalfullHD captures inspected. Existingcrossfadeimplementationunchanged, curveparityunclaimed; kits/variants/speed/effects and priornamedgaps remainexcluded.
+
+- Journal remainingplainclips: ignored174afixture beforeproduct, genuineAtrigan0vs27nativeRED. Rename25helpertoonesourcepath25/26/27/213, preserve25controls andallkit/variant/speed/effectexclusions; fullnativeproofpending.
+
+- Remainingplainclips explicitmissing27/nativeblank leads to approvedsource AnimationData.Fallback traversal, including0; reusecatalogreader, purecycle/no-matchrefusal, per-modelplainentry beforeunchangedcrossfade. Atrigan27→25sourceavailabilitypinned; isolatedall3×bothskinproofpending.
+
+- Journal fallback native33389: all3×bothskins isolated1/1 each, Atrigan27→25actual25, exact213/26preferred, clocks/rawpose/paintpass;12fullHDframesinspected. Six zero-Basis errors perRemorniaprocess retainedasnamedunattributedgap, no clean-runtime/fullframing/effectparity claim.
+
+- [Remornia-process phase attribution](systems/adventure-guide.md#remornia-process-zero-basis-error-phase-attribution): fixtureffcd43976/unchanged33389 extension, oneModern1/1. Six errorsframe7264 before selectorframe7301; CrimsonCabalist5198 portrait has same-frame zero-scale roots3–6, exact owner/C++caller stillUNATTRIBUTED. No product fix/guard/suppression; window/slice/5771 cleared.

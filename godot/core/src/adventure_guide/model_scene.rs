@@ -4,7 +4,10 @@ use crate::{
     model_scene_actor::{ModelSceneActor, read_scene_actors},
     model_scene_camera::ModelSceneCamera,
 };
-use std::path::Path;
+use std::{
+    collections::{HashMap, HashSet},
+    path::Path,
+};
 
 pub fn read_model_scene(
     root: &Path,
@@ -16,9 +19,9 @@ pub fn read_model_scene(
     ))
 }
 
-/// Bounded Journal support: source Animation25 with no kit, variation, speed or effect override.
+/// Bounded Journal support: plain source clips25/26/27/213 without override metadata.
 /// Other authored animation configurations retain their existing explicit coverage gaps.
-pub fn read_plain_animation_25(root: &Path, actor_id: u32) -> Result<Option<u16>, String> {
+pub fn read_plain_animation(root: &Path, actor_id: u32) -> Result<Option<u16>, String> {
     let db2 = root.join("db2/active");
     let mut display_id = None;
     read_db2_rows(&db2.join("UiModelSceneActor.csv"), |row| {
@@ -35,7 +38,7 @@ pub fn read_plain_animation_25(root: &Path, actor_id: u32) -> Result<Option<u16>
     read_db2_rows(&db2.join("UiModelSceneActorDisplay.csv"), |row| {
         if row.parse::<u32>("ID")? == display_id {
             let clip = row.parse::<u16>("AnimationID")?;
-            let plain = clip == 25
+            let plain = matches!(clip, 25 | 26 | 27 | 213)
                 && row.parse::<u32>("AnimKitID")? == 0
                 && row.parse::<u32>("SequenceVariation")? == 0
                 && row.parse::<f32>("AnimSpeed")? == 1.
@@ -45,6 +48,28 @@ pub fn read_plain_animation_25(root: &Path, actor_id: u32) -> Result<Option<u16>
         Ok(())
     })?;
     animation.ok_or_else(|| format!("Journal actor display {display_id} missing"))
+}
+
+/// ModelScene plain clips may fall through Stand0: unlike action clips, zero is
+/// a real candidate, and its authored Fallback147 must be visited if zero is absent.
+pub fn resolve_plain_animation_clip(
+    requested: u16,
+    available: &HashSet<u16>,
+    fallbacks: &HashMap<u16, u16>,
+) -> Result<u16, String> {
+    let mut clip = requested;
+    let mut visited = HashSet::new();
+    while visited.insert(clip) {
+        if available.contains(&clip) {
+            return Ok(clip);
+        }
+        clip = *fallbacks.get(&clip).ok_or_else(|| format!(
+            "M2 animation ID {requested} has no base variation on AnimationData.Fallback chain; row {clip} missing"
+        ))?;
+    }
+    Err(format!(
+        "M2 animation ID {requested} has no base variation on AnimationData.Fallback chain; cycle at {clip}"
+    ))
 }
 
 fn read_creature_actor(root: &Path, scene_id: u32) -> Result<ModelSceneActor, String> {
