@@ -1,6 +1,16 @@
-## 2026-10-19 — Committed frozen caption visible-text CPU RED
+## 2026-10-19 — Ordinary name settled-colour CPU RED
 
-[Source/root](systems/trading-post.md#committed-frozen-item-caption): Elements535–555/639–655 plus GlobalStrings48943 `|cffffffffFreezing:|r\n%s` require only the committed caption. Initial93aa raw-markup oracle/output retained; native Label has no parser, so lead approved visible Freezing/newline with existing WHITE. Corrected9ad ignored tests/spec pushed before production yield four genuine committed/cancel/reply REDs and four plain/empty controls. Renderer-only ID match implemented, eight tests unignored/legacy committed text expectations updated;18-observation/seven-group diagnostic adds actual caption/white measurements without new actions/API. Targeted GREEN/parent gate/fresh native pending; no flag/parser/font-policy/domain/authority change or historical relabeling.
+[Source/root](systems/trading-post.md#ordinary-product-name-settled-colours): Elements291–340/Products116–126, GlobalColor NORMAL255/210/0 versus WHITE/HIGHLIGHT. Ignored95e test/spec pushed first gives five genuine WHITE-versus-NORMAL failures/two passing WHITE controls; renderer-only selected/current-hover expression implemented, seven tests unignored. Diagnostic retains18 observations/seven groups and adds six actual native RGBA settled checkpoints without transactions. Targeted GREEN/gate/fresh native pending. `TP_NAME_COLOR_SAME_HOVER_DESELECT_ORDER_UNIMPLEMENTED` remains explicit; no callback/state machinery or frozen-caption/font/layout/authority expansion.
+
+## 2026-10-19 — Achievement full-search result template
+
+[Source/presentation/data](systems/dungeon-achievements.md#full-search-result-presentation): separate600×382/575×49 full-search rows, static installed70448 ancestry, received completion/existing ID-open only. Ignored nativeRED observed18 missing-feature assertions; initial native8/focus12 pass. Page-two modelRED exposed preview-only callback cap5; full rows now use existing direct-open action, model34/catalog1 pass at162a64426. Strengthened sixth-row physical native8 pending central gate. No category-card, wire/server, paging, preview, focus/Escape, totals or progress policy changes.
+
+## 2026-10-19 — Frozen-source drag retirement CPU RED
+## 2026-10-19 — Committed frozen caption visible-text CPU RED
+## 2026-10-19 — Committed frozen caption native GREEN
+
+[Source/root and fresh native proof](systems/trading-post.md#committed-frozen-item-caption): Elements535–555/639–655 plus GlobalStrings48943 white Freezing/newline only for committed ID. Initial93aa raw-oracle proof retained; lead-approved resolved visible-text9ad ignored tests pushed first give four genuine REDs/four controls, renderer-onlyb84 GREEN8/tc650200/0+parse/fmt0 landsd873. FreshEd873/S94/Pf9 both skins strict natural7/7/clean complete streams, unchanged18 observations with actual Label.text/WHITE/no literal markup, committed caption/plain candidate/cancel restoration,13 decoded plays each. Exact authority/local/HUD restored before verdict, XYZ0, two Query only. Forty inspected originals+two contacts published under AgentShared/2026-10-19/trading-post-frozen-item-caption; manifest binds five binaries/nine sources/42receipts/fullstreams/original six memory edges/42PNG hashes. Runtime/window cleared07:06:04;1673 unrelated server errors and parent live-fixture lookup mistake qualified. No flag/parser/font-policy/domain/authority change or historical relabeling; accepted/immediate remains CPU-qualified.
 
 ## 2026-10-19 — Frozen-source drag retirement native GREEN
 
@@ -4847,3 +4857,5 @@ User decision specifies MOBILE_BANKING_COOLDOWN_2H7200000ms over installed360000
 - Journal display0 native4: all3 raw states/defaults pass in both skins; Bandit+VoidPulsar base-M2 painted, Raszageth source-exact pose viewport0, full fixtures remain FAIL. Six observed originals inspected; no FOV/effect change or hidden scope reduction.
 
 - Raszageth read-only native70ef/extension2a49: actual perspective30deg KEEP_HEIGHT/aspect390:423, geometry and custom bounds TOP-only rejected, paint0. Diagnostic1/1 captures evidence, not a product fix; preserve named gap and stop camera/transform changes.
+
+- Journal projection reference packet: permitted cached Lua/XML/XSD inheritance, source pose and bounded setter search supply no numeric projection/clip default or corrective camera rule. Native semantics unknown; Raszageth TOP/paint0 and VoidPulsar kit gaps retained, no product/runtime change.
