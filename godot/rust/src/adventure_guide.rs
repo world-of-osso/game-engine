@@ -23,8 +23,18 @@ pub(crate) struct AdventureGuide {
     pending: Option<(u64, u32)>,
     shown: Option<u32>,
     portraits: BTreeMap<u32, Portrait>,
+    #[cfg(debug_assertions)]
+    fixture_suggestion: Option<shared::protocol::AdventureSuggestion>,
 }
 impl AdventureGuide {
+    fn copy_activity_presentation(
+        &mut self,
+        authority: Option<Arc<shared::protocol::AdventureGuideSnapshot>>,
+    ) -> Result<(), String> {
+        self.view.activities = authority;
+        Ok(())
+    }
+
     pub(crate) fn creature_portrait_state(&self, id: u32) -> VarDictionary {
         self.portraits
             .get(&id)
@@ -61,7 +71,8 @@ impl GameClient {
                 .as_deref()
                 .ok_or("Source-row fixture needs a received activity snapshot")?;
             let mut snapshot = current.clone();
-            replace_suggestion_642_fixture(&mut snapshot.suggestions, row)?;
+            replace_suggestion_642_fixture(&mut snapshot.suggestions, row.clone())?;
+            self.adventure_guide.fixture_suggestion = Some(row);
             self.adventure_guide.view.activities = Some(Arc::new(snapshot));
             self.sync_adventure_guide()
         })();
@@ -109,7 +120,65 @@ fn read_suggestion_642_fixture(
 mod tests {
     use super::AdventureGuide;
     use shared::protocol::EncounterStart;
+    #[cfg(debug_assertions)]
+    use std::sync::Arc;
 
+    #[cfg(debug_assertions)]
+    #[test]
+    fn suggestion_fixture_survives_two_authoritative_presentation_updates() {
+        use shared::protocol::{AdventureGuideSnapshot, JournalMonth};
+        let root = std::path::Path::new(env!("CARGO_MANIFEST_DIR")).join("../../data");
+        let source = super::read_suggestion_642_fixture(&root).unwrap();
+        let mut rows = vec![source.clone(); 4];
+        rows[0].id = 881;
+        rows[0].name = "Player Housing".into();
+        rows[1].id = 852;
+        let mut authority = AdventureGuideSnapshot {
+            month: JournalMonth {
+                year: 2026,
+                month: 10,
+                name: "October".into(),
+                start_unix: 0,
+                end_unix: 1,
+                now_unix: 0,
+                tracking_since: 0,
+            },
+            activities: vec![],
+            tags: vec![],
+            suggestions: rows,
+            suggestion_census: Default::default(),
+            points: 0,
+            activity_scope_notice: None,
+            source_error: None,
+        };
+        let mut guide = AdventureGuide {
+            fixture_suggestion: Some(source.clone()),
+            ..Default::default()
+        };
+        for update in [1, 2] {
+            authority.points = update;
+            authority.suggestions[1].description = format!("Received update {update}");
+            let received = Arc::new(authority.clone());
+            guide
+                .copy_activity_presentation(Some(received.clone()))
+                .unwrap();
+            let shown = guide.view.activities.as_deref().unwrap();
+            assert_eq!(
+                shown.suggestions[0], source,
+                "fixture lost on update{update}"
+            );
+            assert_eq!(shown.suggestions[1..], authority.suggestions[1..]);
+            assert_eq!(shown.points, update);
+            assert_eq!(*received, authority, "fixture changed authoritative input");
+        }
+        let mut ordinary = AdventureGuide::default();
+        ordinary
+            .copy_activity_presentation(Some(Arc::new(authority.clone())))
+            .unwrap();
+        assert_eq!(ordinary.view.activities.as_deref(), Some(&authority));
+    }
+
+    #[cfg(debug_assertions)]
     #[test]
     fn suggestion_fixture_preserves_received_rows_beyond_the_three_painted_panes() {
         let root = std::path::Path::new(env!("CARGO_MANIFEST_DIR")).join("../../data");
@@ -137,6 +206,7 @@ mod tests {
         }
     }
 
+    #[cfg(debug_assertions)]
     #[test]
     fn suggestion_fixture_reads_installed_record_642_without_action_authority() {
         let root = std::path::Path::new(env!("CARGO_MANIFEST_DIR")).join("../../data");
@@ -323,7 +393,8 @@ impl GameClient {
                 role => panic!("Unknown ChrSpecialization role {role}"),
             });
         self.select_queued_journal_encounter()?;
-        self.adventure_guide.view.activities = self.account.adventure_guide.clone();
+        self.adventure_guide
+            .copy_activity_presentation(self.account.adventure_guide.clone())?;
         self.adventure_guide.view.trading_post = self.account.trading_post.clone();
         self.adventure_guide.view.renown = self.account.renown.clone();
         self.update_journey_hover()?;
