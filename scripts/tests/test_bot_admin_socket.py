@@ -1,6 +1,5 @@
 """Admin subprocess receives the private Stockade server port's socket."""
 import json
-import os
 from pathlib import Path
 import sys
 import tempfile
@@ -27,7 +26,6 @@ class StockadeAdminSocketTests(unittest.TestCase):
 
 
 class RosterProvisionSocketTests(unittest.TestCase):
-    @unittest.skipUnless(os.environ.get("BOT_ADMIN_RED"), "behavioral RED: roster provisioning still uses5871")
     def test_all_fresh_provision_subprocesses_receive_the_configured_socket(self):
         from run_bot_roster import provision
         with tempfile.TemporaryDirectory() as directory:
