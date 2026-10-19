@@ -1,6 +1,6 @@
-## 2026-10-19 — Ordinary name settled-colour CPU RED
+## 2026-10-19 — Ordinary name settled-colour native GREEN
 
-[Source/root](systems/trading-post.md#ordinary-product-name-settled-colours): Elements291–340/Products116–126, GlobalColor NORMAL255/210/0 versus WHITE/HIGHLIGHT. Ignored95e test/spec pushed first gives five genuine WHITE-versus-NORMAL failures/two passing WHITE controls; renderer-only selected/current-hover expression implemented, seven tests unignored. Diagnostic retains18 observations/seven groups and adds six actual native RGBA settled checkpoints without transactions. Targeted GREEN/gate/fresh native pending. `TP_NAME_COLOR_SAME_HOVER_DESELECT_ORDER_UNIMPLEMENTED` remains explicit; no callback/state machinery or frozen-caption/font/layout/authority expansion.
+[Source/root and native proof](systems/trading-post.md#ordinary-product-name-settled-colours): Elements291–340/Products116–126, GlobalColor NORMAL255/210/0. Ignored95e pushed first gives genuine RED5/WHITEcontrols2; renderer-onlyfce GREEN7/nm660 TESTEXIT/parse/fmt0 landsd320. FreshEd320/Sa24/Pf9 both skins strict natural7/7/clean full streams,18 prior observations+six settled RGBA samples, WHITE/gold hover-leave/select/cart-return painted pixels391/337 and308/270,16 decoded plays each. Exact authority/local/HUD restored before verdict, XYZ0, two Query/noTx. Fifty-two inspected originals+two contacts published under AgentShared/2026-10-19/trading-post-product-name-color; manifest binds five binaries/eight sources/54receipts/full streams/original six memory edges/pixel proof/54PNG hashes. Window extended after disk HOLD, runtime cleared08:34:26 before08:49;9204 unrelated server errors qualified. `TP_NAME_COLOR_SAME_HOVER_DESELECT_ORDER_UNIMPLEMENTED` remains explicit; no callback/state machinery or frozen-caption/font/layout/authority expansion.
 
 ## 2026-10-19 — Achievement full-search result template
 
@@ -15,6 +15,10 @@
 ## 2026-10-19 — Frozen-source drag retirement native GREEN
 
 [Source/root and fresh native proof](systems/trading-post.md#frozen-products-are-not-drag-sources): Elements495–508 disables frozen pickup; replacement510–521/577–670 already exists. No cached UI caller for ClearFrozenPerksVendorItem; right-click cancels confirmation only. IgnoredCPU0a8 pushed first gives genuine selected/unselected outside Freeze(None)-versus-None REDs plus five controls; root068 removal passes7/7 and tf637 TESTEXIT/PARSE/FMT0/landing. FreshE068/S2e4/Pf9 both skins strict natural7/7/no error markers/full streams,18 observations including six frozen attempts and all ordinary/cart/modal/occupied-cancel controls,13 decoded plays each. Exact authority/local/HUD restored before verdict, XYZ0, two Query only. Forty inspected originals+two contacts published under AgentShared/2026-10-19/trading-post-frozen-source-no-drag; manifest binds five binaries/source/streams/42receipts/original six memory edges/42PNG hashes. Runtime/window cleared04:17:35;1675 unrelated server errors qualified. Server/protocol clear support stays; historical October13 proof qualified, not erased/relabelled; accepted/immediate transactions retain CPU proof.
+
+## 2026-10-17 — Recipe search scroll transition
+
+[Source and boundary](systems/native-professions-crafting.md#recipe-search-scroll-position): Mainline Crafting.lua826–833 search discards position, ordinary refresh retains. Pushed ignored RED observes630px instead of0 with80 concrete matching recipes still over two pages. Minimal typed profession transition resets only a changed nonempty query; normal/no-op refresh stays scrollable, view/selection/owner state unchanged. Existing map/journal transition code moved without behavior changes to the tested production model boundary. Native acceptance pending lead gate/window; profession switching excluded.
 
 ## 2026-10-17 — Recipe filter Reset native proof
 
@@ -4847,6 +4851,17 @@ User decision specifies MOBILE_BANKING_COOLDOWN_2H7200000ms over installed360000
 
 - Journal ae3cd native5: genuine Ozruk/Anraphet raw pose and visible central subjects2/2 per skin, four observed originals inspected; retained30deg cropping/FOV and actor0/effect gaps explicitly excluded.
 
+## 2026-10-19 — Stockade path capture
+
+Added explicit native100ms path trace contract; no server simulation clock claim. Renderer, source-pack dependency and real proof pending.
+
+## 2026-10-19 — Path trace fixture proof
+
+Concrete pose/combat/wipe/boss fixtures3GREEN plus35 default-disabled harness/report controls. Actual Godot opt-in initialization: disabled creates no file, enabled captures exact Vector3 position and two actor facings. Test-only integer-vs-float JSON assertion corrected; no product change. Private admin subprocess actual RED5871→GREEN5981. Real Stockade proof pending.
+
+## 2026-10-19 — Real five-bot path map
+
+Explicit admitted unit_transform sampling replaces incomplete UnitPick traversal. Actual52.365s failed Stockade capture has all5pose/facing tracks; real143spawns/nav34 SVG+PNG inspected/published with FAILED/no-boss title. Original63s gap/failure record preserved. No clear/retry/server-panic fix claimed; owned5981 cold/windows cleared; independent lead gate pending.
 - 2026-10-18: Pin existing MH2O raw-record projections without changing client bitmap/vertex/material interpretation. See [shared formats](systems/wow-formats.md).
 - Journal display0: genuine Bandit/native and default-source core REDs; Journal-private source-default reader implemented; shared reader/Scene unchanged, native GREEN pending.
 
