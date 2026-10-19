@@ -1,3 +1,7 @@
+## 2026-10-19 — Ordinary achievement card title font
+
+[Source/proof](systems/dungeon-achievements.md#ordinary-card-title-font): title-onlyRomanFriz14/black(+1,−1) correction,320×20/WHITE/origin/actions retained. IgnorednativeRED first; corrected full-search native-height control leaves12 expected title assertions across bothskin collapsed/expanded. GREEN pending; no other title/globalpipeline/server change.
+
 ## 2026-10-19 — Achievement full-search close button
 
 [Source/implementation](systems/dungeon-achievements.md#full-search-close-button):24×24 explicit581,0 close with source exit art; onlyfull_search=false, exact retained state/reopen/cursor controls. Ignored nativeRED first/6 missing-button assertions→strict both-skin native6/6; model35/35 exact window equality/reopen/cursor continuation at11550ddf3. No duplicate native replay; central acceptance pending. Whole-frame/Escape/focus/server/totals/progress unchanged.

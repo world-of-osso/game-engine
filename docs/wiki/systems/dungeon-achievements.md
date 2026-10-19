@@ -2,6 +2,12 @@
 
 Native client consumes copy snapshots and on-demand catalog pages; the server remains authoritative. [Feature contract](../../specs/dungeon-achievements.md).
 
+## Ordinary card title font
+
+Only `achievement_row`'s title Label changes from nominalFriz12/no shadow to14/black(+1,−1), matching AchievementUI.xml838–843→GameFontHighlightMedium/FontStyles260→SystemFont_Shadow_Med3/Fonts435–443. Nativeprojection converts source y−1 to Godot+1. Keep320×20, WHITE, origin90,6, card art/description/criteria and click dispatch; Summary/comparison/full-search titles and the global font pipeline are unchanged. [Contract](../../specs/dungeon-achievements.md#ordinary-card-title-font).
+
+Ignored both-skin nativeREDfc13a31ac published before production. Tests-only correctedcontrol5ad8381ae observes12 expected assertions (ordinary12!=14, absent black shadow and offset0,0) across collapsed/expanded Modern/Forever; both full-search controls and click/geometry/color controls pass. The first fixture incorrectly expected native full-search400×12 but Godot's existing16pt minimum gives400×16; that unrelated oracle was corrected without changing full-search production and the failed attempt remains separate. Cold-j2build0/32m10; one-timeimport0 has separatepreexistingeditordiagnostics, not behavior proof. GREEN still pending; no realm/ink/pixel equality claim. Evidence `card-title-font-*` under the existing achievement proof root.
+
 ## Full-search close button
 
 `achievement:search_dismiss` changes only `full_search=false`; retained cache/query/cursor/category/selection remain in the same window. `achievement_full_search.rs` mounts the24×24 source UIPanelCloseButton with exit atlas states at local581,0, frame level510. This is an explicit anchor from results.TopRightCorner(+1,−4), not the skin-dependent DefaultAnchors helper. Ordinary category presentation returns; Show All reuses the cached rows. Whole-frame close, Escape/focus/server/totals/progress policies are unchanged. Source: cached Mainline AchievementUI.xml2678–2687 and SharedUIPanelTemplates134–151; [contract](../../specs/dungeon-achievements.md#full-search-close-button).
