@@ -69,8 +69,13 @@ fn tree_rows(view: &ProfessionView) -> (Element, f32) {
             y += height;
             unlearned_divider = true;
         }
-        let key = if favorite { "favorites".into() } else {
-            format!("{}:{category}", if learned { "learned" } else { "unlearned" })
+        let key = if favorite {
+            "favorites".into()
+        } else {
+            format!(
+                "{}:{category}",
+                if learned { "learned" } else { "unlearned" }
+            )
         };
         let collapsed = view.collapsed.contains(&key);
         content.extend(category_row(index, category, &key, y, collapsed, learned));
@@ -156,7 +161,11 @@ fn category_row(
     collapsed: bool,
     learned: bool,
 ) -> Element {
-    let prefix = if key == "favorites" { "ProfessionsFavorites".into() } else { format!("ProfessionCategory{index}") };
+    let prefix = if key == "favorites" {
+        "ProfessionsFavorites".into()
+    } else {
+        format!("ProfessionCategory{index}")
+    };
     let mut children = Vec::new();
     for (suffix, atlas, rect) in [
         (
@@ -226,7 +235,11 @@ fn difficulty(view: &ProfessionView, recipe: &Recipe) -> RecipeDifficulty {
 }
 
 fn recipe_row(view: &ProfessionView, recipe: &Recipe, y: f32, favorite: bool) -> Element {
-    let prefix = if favorite { format!("ProfessionFavoriteRecipe{}", recipe.spell_id) } else { format!("ProfessionRecipe{}", recipe.spell_id) };
+    let prefix = if favorite {
+        format!("ProfessionFavoriteRecipe{}", recipe.spell_id)
+    } else {
+        format!("ProfessionRecipe{}", recipe.spell_id)
+    };
     let learned = view.book.snapshot.spells.contains(&recipe.spell_id);
     let icon = match difficulty(view, recipe) {
         RecipeDifficulty::Optimal => Some("Professions-Icon-Skill-High"),
@@ -259,7 +272,15 @@ fn recipe_row(view: &ProfessionView, recipe: &Recipe, y: f32, favorite: bool) ->
             (12.0, PROFESSION_RECIPE_COLOR, "RIGHT"),
         ));
     }
-    let action = format!("profession:{}:{}", if favorite { "favorite-select" } else { "select" }, recipe.spell_id);
+    let action = format!(
+        "profession:{}:{}",
+        if favorite {
+            "favorite-select"
+        } else {
+            "select"
+        },
+        recipe.spell_id
+    );
     crate::selection_list::row(
         prefix,
         &action,
