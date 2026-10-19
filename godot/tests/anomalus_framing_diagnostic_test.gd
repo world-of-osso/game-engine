@@ -64,7 +64,29 @@ func run_tests() -> void:
 		return
 	if not require(shaded.material.shader_code.contains("cull_disabled"), "active shader cull source recorded"):
 		return
-	print("PASS anomalus framing diagnostic: indexed extrema, unindexed exclusion, global projection, material alpha/cull, shader state")
+	var scene := Node3D.new()
+	world.add_child(scene)
+	var pad := Node3D.new()
+	pad.name = "AllyPet"
+	scene.add_child(pad)
+	var visual := Node3D.new()
+	visual.set_meta("creature_display_id", 95171)
+	visual.set_meta("pet_instance_scale", 1.0)
+	pad.add_child(visual)
+	world.remove_child(mesh)
+	visual.add_child(mesh)
+	var original_camera := camera.global_transform
+	var original_mesh := mesh.global_transform
+	var frame: Dictionary = DIAGNOSTIC.collect(scene)
+	if not require(frame.models.size() == 1 and frame.models[0].meshes[0].surfaces[0].triangle_count == 1, "full frame includes all indexed surfaces"):
+		return
+	if not require(frame.models[0].display_id == 95171, "frame records actual display identity"):
+		return
+	if not require(camera.global_transform == original_camera and mesh.global_transform == original_mesh, "diagnostic never moves camera or mesh"):
+		return
+	if not require(shader_material.get_shader_parameter("transparency") == 0.375, "diagnostic leaves material alpha unchanged"):
+		return
+	print("PASS anomalus framing diagnostic: indexed extrema, unindexed exclusion, global projection, material alpha/cull, shader state, complete frame and unchanged transforms/material")
 	world.queue_free()
 	quit(0)
 
