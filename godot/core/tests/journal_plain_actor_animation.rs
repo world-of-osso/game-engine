@@ -1,4 +1,8 @@
-use game_engine_core::adventure_guide::{read_model_scene, read_plain_animation};
+use game_engine_core::adventure_guide::{
+    read_model_scene, read_plain_animation, resolve_plain_animation_clip,
+};
+use game_engine_core::spell_visual::read_animation_fallbacks;
+use std::collections::{HashMap, HashSet};
 use std::path::PathBuf;
 
 fn data_root() -> PathBuf {
@@ -40,6 +44,41 @@ fn journal_remaining_plain_clips_keep_their_authored_actor_camera_rows() {
             Some(clip)
         );
     }
+}
+
+#[test]
+fn journal_plain_clip_walks_real_animationdata_rows_including_zero() {
+    let fallbacks = read_animation_fallbacks(&data_root().join("db2/12.1.5.70448")).unwrap();
+    for (source, next) in [(27, 25), (26, 25), (213, 0), (0, 147)] {
+        assert_eq!(fallbacks.get(&source), Some(&next));
+    }
+    for (requested, available, expected) in [
+        (27, vec![0, 25], 25),
+        (27, vec![25, 27], 27),
+        (26, vec![0, 25], 25),
+        (213, vec![0, 147], 0),
+        (213, vec![147], 147),
+        (0, vec![147], 147),
+        (213, vec![213, 0], 213),
+        (25, vec![25], 25),
+    ] {
+        let available: HashSet<u16> = available.into_iter().collect();
+        assert_eq!(
+            resolve_plain_animation_clip(requested, &available, &fallbacks).unwrap(),
+            expected
+        );
+    }
+    let absent = HashSet::from([999]);
+    assert!(
+        resolve_plain_animation_clip(27, &absent, &fallbacks)
+            .unwrap_err()
+            .contains("no base variation")
+    );
+    let missing = resolve_plain_animation_clip(65535, &absent, &fallbacks).unwrap_err();
+    assert!(missing.contains("row 65535 missing"), "{missing}");
+    let cycle = HashMap::from([(27, 25), (25, 27)]);
+    let error = resolve_plain_animation_clip(27, &absent, &cycle).unwrap_err();
+    assert!(error.contains("cycle at 27"), "{error}");
 }
 
 #[test]

@@ -4,7 +4,10 @@ use crate::{
     model_scene_actor::{ModelSceneActor, read_scene_actors},
     model_scene_camera::ModelSceneCamera,
 };
-use std::path::Path;
+use std::{
+    collections::{HashMap, HashSet},
+    path::Path,
+};
 
 pub fn read_model_scene(
     root: &Path,
@@ -45,6 +48,28 @@ pub fn read_plain_animation(root: &Path, actor_id: u32) -> Result<Option<u16>, S
         Ok(())
     })?;
     animation.ok_or_else(|| format!("Journal actor display {display_id} missing"))
+}
+
+/// ModelScene plain clips may fall through Stand0: unlike action clips, zero is
+/// a real candidate, and its authored Fallback147 must be visited if zero is absent.
+pub fn resolve_plain_animation_clip(
+    requested: u16,
+    available: &HashSet<u16>,
+    fallbacks: &HashMap<u16, u16>,
+) -> Result<u16, String> {
+    let mut clip = requested;
+    let mut visited = HashSet::new();
+    while visited.insert(clip) {
+        if available.contains(&clip) {
+            return Ok(clip);
+        }
+        clip = *fallbacks.get(&clip).ok_or_else(|| format!(
+            "M2 animation ID {requested} has no base variation on AnimationData.Fallback chain; row {clip} missing"
+        ))?;
+    }
+    Err(format!(
+        "M2 animation ID {requested} has no base variation on AnimationData.Fallback chain; cycle at {clip}"
+    ))
 }
 
 fn read_creature_actor(root: &Path, scene_id: u32) -> Result<ModelSceneActor, String> {

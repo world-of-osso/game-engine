@@ -4880,3 +4880,5 @@ Explicit admitted unit_transform sampling replaces incomplete UnitPick traversal
 - Journal plain25 extensioncec5 native2: Vakan/Gholna2/2eachskin, current25/sameplayer progressingclock/rawpose/centralpaint; four originalfullHD captures inspected. Existingcrossfadeimplementationunchanged, curveparityunclaimed; kits/variants/speed/effects and priornamedgaps remainexcluded.
 
 - Journal remainingplainclips: ignored174afixture beforeproduct, genuineAtrigan0vs27nativeRED. Rename25helpertoonesourcepath25/26/27/213, preserve25controls andallkit/variant/speed/effectexclusions; fullnativeproofpending.
+
+- Remainingplainclips explicitmissing27/nativeblank leads to approvedsource AnimationData.Fallback traversal, including0; reusecatalogreader, purecycle/no-matchrefusal, per-modelplainentry beforeunchangedcrossfade. Atrigan27→25sourceavailabilitypinned; isolatedall3×bothskinproofpending.

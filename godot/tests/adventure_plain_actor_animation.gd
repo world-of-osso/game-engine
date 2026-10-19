@@ -10,7 +10,26 @@ func animated_cases() -> Array:
 
 func run() -> void:
 	completion = load("res://tests/completion.gd").new(self, animated_cases().size())
+	if not completion.require(not animated_cases().is_empty(), "No requested source animation case exists"):
+		return
 	completion.finish(await run_plain_animation())
+
+func resolve_source_plain_clip(player: Node, requested: int) -> Dictionary:
+	var available: PackedInt32Array = player.base_animation_ids()
+	var visited := {}
+	var chain := []
+	var clip := requested
+	while not visited.has(clip):
+		visited[clip] = true
+		chain.append(clip)
+		if available.has(clip):
+			return {"resolved":clip,"chain":chain,"available_base_ids":available}
+		var row := source_row("AnimationData", clip)
+		if completion.failed:
+			return {}
+		clip = int(row.Fallback)
+	completion.fail("Source AnimationData.Fallback cycle has no model base clip: " + str(chain))
+	return {}
 
 func check_authored_animation(row: Array) -> bool:
 	var actor := source_row("UiModelSceneActor", row[4])
@@ -24,11 +43,15 @@ func check_authored_animation(row: Array) -> bool:
 	var player := model.find_child("M2Animation", true, false) if model != null else null
 	if not completion.require(player != null, "Journal loaded per-model animation player missing"):
 		return false
+	var selection := resolve_source_plain_clip(player, int(display.AnimationID))
+	if completion.failed:
+		return false
+	var expected := int(selection.resolved)
 	var phase: Dictionary = player.animation_phase()
-	print("JOURNAL_PLAIN_ANIMATION_OBSERVED ", JSON.stringify({"creature":row[0],"scene":row[3],"actor":row[4],"expected_animation":int(display.AnimationID),"actual_animation":player.current_animation_id(),"phase":phase}))
+	print("JOURNAL_PLAIN_ANIMATION_OBSERVED ", JSON.stringify({"creature":row[0],"scene":row[3],"actor":row[4],"requested_animation":int(display.AnimationID),"expected_animation":expected,"fallback_chain":selection.chain,"available_base_ids":selection.available_base_ids,"actual_animation":player.current_animation_id(),"phase":phase}))
 	if not completion.step(await move_to("EncounterJournalModelTitle"), "move away from selector") or not completion.step(await shot("plain-animation-scene%s-before-assertion" % row[3]), "source animation capture"):
 		return false
-	if not completion.require(player.current_animation_id() == int(display.AnimationID), "Journal plain authored animation mismatch: expected%s actual%s" % [row[7],player.current_animation_id()]):
+	if not completion.require(player.current_animation_id() == expected, "Journal plain authored animation mismatch: source%s resolved%s actual%s" % [row[7],expected,player.current_animation_id()]):
 		return false
 	var identity := player.get_instance_id()
 	phase = player.animation_phase()
@@ -41,7 +64,7 @@ func check_authored_animation(row: Array) -> bool:
 	var later: Dictionary = player.animation_phase()
 	var phase_advance := fposmod(float(later.get("time_ms", initial_time)) - initial_time, duration)
 	print("JOURNAL_PLAIN_ANIMATION_CLOCK ", JSON.stringify({"creature":row[0],"initial_ms":initial_time,"later_ms":later.get("time_ms"),"duration_ms":duration,"modulo_advance_ms":phase_advance,"same_player":player.get_instance_id()==identity}))
-	if not completion.require(player.get_instance_id() == identity and player.current_animation_id() == row[7] and phase_advance > 5.0, "Journal authored clip reset or failed to advance across normal sync frames"):
+	if not completion.require(player.get_instance_id() == identity and player.current_animation_id() == expected and phase_advance > 5.0, "Journal authored clip reset or failed to advance across normal sync frames"):
 		return false
 	return true
 
