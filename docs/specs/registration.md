@@ -30,7 +30,7 @@ The native login screen offers a username/password registration form using the a
 - `godot/ui-model/tests/login.rs` — visible entry, form switching, preserved inputs, disabled buttons and connecting/pending gold → refusal-red feedback.
 - `godot/session/tests/session.rs::capturepolish_registration_feedback_severity_follows_reply_not_text` — pending severity for either success flag and subsequent refusal/login-failure reset.
 - `godot/session/tests/session.rs` — validation, emitted request, pending/success/refusal transitions.
-- `godot/tests/registration_flow.gd` — rendered real-input registration, private pending reply, approval and password login.
+- `godot/tests/registration_flow.gd` — rendered real-input registration, private pending reply, approval and password login. `REGISTRATION_FLOW_PORT` selects the owned loopback UDP port (default5300); the fixture still requires the exact `127.0.0.1:<port>` endpoint, `fb_regtest1`, and an artifact directory.
 
 ## Known gaps (current cycle)
 
