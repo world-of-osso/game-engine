@@ -1,3 +1,7 @@
+## 2026-10-19 — Achievement full-search result template
+
+[Source/presentation/data](systems/dungeon-achievements.md#full-search-result-presentation): separate600×382/575×49 full-search rows, static installed70448 ancestry, received completion/existing ID-open only. Ignored both-skin nativeRED published/observed18 missing-feature assertions, category controls intact; GREEN pending. No category-card, wire/server, paging, preview, focus/Escape, totals or progress policy changes.
+
 ## 2026-10-18 — Trading Post held drag timing accepted
 
 [Native proof](systems/trading-post.md#fresh-native-drag-green): fixture-first785 actual both-skin RED→D7 extension/production9a/fixture169 fresh7/7 each, same11 observations/seven groups, B/art/+1 before release/no duplicate/repeat/outside/cart/modal/occupied-cancel. Exact authority/local/HUD restoration, XYZ0, two Query only; eight decoded plays each. td613 lands source01beef after full family/fixture/gdscript/fmt gate. Twenty-six inspected originals plus two contacts published under AgentShared/2026-10-18/trading-post-drag-selection; proof manifest binds sources/binaries/streams/original six success edges. Window/runtime cleared23:13:53. Approved fixture-only pending-art44268 conservation is not Retail parity; rejected server-only/over-broad-oracle attempts remain retained.
