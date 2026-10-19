@@ -49,6 +49,14 @@ func check_case(forever: bool, kind: String) -> bool:
 		var button := ui.find_child(button_name, true, false) as Control
 		await click(button.get_global_rect().get_center())
 		var actual_action: String = ui.call("pop_action")
+		# Pointer entry now updates the shared preview selection before its click.
+		while actual_action.begins_with("achievement:search_select:"):
+			error = ui.call("achievement_search_selection_preview_dispatch", actual_action)
+			if not error.is_empty():
+				failures.append(error)
+				ui.free()
+				return false
+			actual_action = ui.call("pop_action")
 		if actual_action != action:
 			failures.append(kind + " physical action mismatch: " + actual_action)
 			ui.free()
