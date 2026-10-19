@@ -789,6 +789,7 @@ fn trading_post_frozen_row_exclusion_follows_committed_not_pending_replacement()
     for skin in [ActiveSkin::Modern, ActiveSkin::Forever] {
         let mut view = freeze_view();
         view.cart.clear();
+        assert!(view.select_dragged_product(5));
         assert_eq!(view.drop_item(5, false, true), None);
         assert_eq!(view.freeze_candidate, Some(5));
         assert_eq!(view.snapshot.as_ref().unwrap().frozen_item_id, Some(4));
@@ -810,6 +811,7 @@ fn trading_post_frozen_row_exclusion_follows_committed_not_pending_replacement()
             (5, vec![6, 4], "Arcanofire Wrap"),
             (4, vec![5, 6], "Distinguished Warcloak"),
         ] {
+            assert!(view.select_dragged_product(id));
             assert_eq!(view.drop_item(id, false, true), None);
             view.update_freeze_confirmation(5.0);
             assert_eq!(
