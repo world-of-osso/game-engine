@@ -16,6 +16,16 @@ func source_actor_display(actor: Dictionary) -> Dictionary:
 	# ModelSceneActorMixin ApplyFromModelSceneActorInfo's explicit no-display arm.
 	return {"Scale":"1", "Alpha":"1", "AnimationID":"0"}
 
+func reveal_source_boss(name: String) -> bool:
+	for attempt in 20:
+		var boss := control(name)
+		var list := control("EncounterJournalBosses")
+		if boss != null and list != null and list.get_global_rect().has_point(boss.get_global_rect().get_center()):
+			return true
+		if not completion.step(await wheel("EncounterJournalBosses", MOUSE_BUTTON_WHEEL_DOWN), "physical boss-list scroll"):
+			return false
+	return completion.fail("Source boss was not revealed: " + name)
+
 func select_zero_actor(row: Array) -> bool:
 	if control("EncounterJournalBack") != null and client.adventure_guide_state().instance > 0:
 		if not completion.step(await click("EncounterJournalBack"), "physical Journal Home"):
@@ -25,13 +35,20 @@ func select_zero_actor(row: Array) -> bool:
 	var name := "JournalInstance%s" % row[1]
 	if not completion.step(await reveal_instance(name), "source instance visible") or not completion.step(await click(name), "physical source instance"):
 		return false
-	if not completion.step(await click("JournalBoss%s" % row[2]), "physical source encounter") or not completion.step(await click("EncounterJournalPage3"), "physical Model tab"):
+	var boss := "JournalBoss%s" % row[2]
+	if not await reveal_source_boss(boss) or not completion.step(await click(boss), "physical source encounter"):
+		return false
+	if not completion.require(client.adventure_guide_state().encounter == row[2], "Physical encounter selection did not activate the source encounter"):
+		return false
+	if not completion.step(await click("EncounterJournalPage3"), "physical Model tab"):
+		return false
+	if not completion.require(client.adventure_guide_state().page == "Model", "Physical Model tab did not activate"):
 		return false
 	var deadline := Time.get_ticks_msec() + 90000
 	while client.adventure_guide_state().model_display != row[4] and Time.get_ticks_msec() < deadline:
 		await process_frame
 	var state: Dictionary = client.adventure_guide_state()
-	if not completion.require(state.creature == row[3] and state.model_display == row[4] and label_text("EncounterJournalModelTitle") == row[5], "Journal zero-display source actor was refused: " + str(state)):
+	if not completion.require(state.creature == row[3] and state.model_display == row[4] and label_text("EncounterJournalModelTitle") == row[5], "Journal zero-display source actor was refused: creature=%s display=%s page=%s" % [state.creature, state.model_display, state.page]):
 		return false
 	await settle()
 	var host := control("EncounterJournalModelScene")
