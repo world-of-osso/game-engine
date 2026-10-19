@@ -84,6 +84,7 @@ impl RegistryUi {
                     public_note: String::new(),
                     is_self: false,
                     last_online: "Yesterday".into(),
+                    online_zone: None,
                 })
                 .collect(),
         });
