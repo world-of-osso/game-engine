@@ -2,6 +2,27 @@ use game_engine_ui_model::guild_ranks::GuildRanksSession;
 use shared::protocol::*;
 
 #[test]
+fn guild_leadership_transfer_slash_preserves_the_typed_target_without_help_or_chat() {
+    use game_engine_ui_model::chat_frame::{ChatCommand, parse_chat_input};
+    for (line, name) in [
+        ("/gleader Cara", "Cara"),
+        (" /GLEADER Dora ", "Dora"),
+        ("/gleader", ""),
+    ] {
+        let command = parse_chat_input(line, Some("SomeoneElse"));
+        let ChatCommand::GuildRank(request) = command else {
+            panic!(
+                "{line} must request guild leadership transfer, not help or ordinary chat: {command:?}"
+            );
+        };
+        assert_eq!(
+            serde_json::to_value(request).unwrap(),
+            serde_json::json!({"TransferLeadership": {"character_name": name}})
+        );
+    }
+}
+
+#[test]
 fn guild_rank_slashes_do_not_fall_through_to_help() {
     use game_engine_ui_model::chat_frame::{ChatCommand, parse_chat_input};
     for (line, expected) in [
