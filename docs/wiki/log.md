@@ -4,12 +4,17 @@
 
 ## 2026-10-19 — Frozen-source drag retirement CPU RED
 ## 2026-10-19 — Committed frozen caption visible-text CPU RED
+## 2026-10-19 — Committed frozen caption native GREEN
 
-[Source/root](systems/trading-post.md#committed-frozen-item-caption): Elements535–555/639–655 plus GlobalStrings48943 `|cffffffffFreezing:|r\n%s` require only the committed caption. Initial93aa raw-markup oracle/output retained; native Label has no parser, so lead approved visible Freezing/newline with existing WHITE. Corrected9ad ignored tests/spec pushed before production yield four genuine committed/cancel/reply REDs and four plain/empty controls. Renderer-only ID match implemented, eight tests unignored/legacy committed text expectations updated;18-observation/seven-group diagnostic adds actual caption/white measurements without new actions/API. Targeted GREEN/parent gate/fresh native pending; no flag/parser/font-policy/domain/authority change or historical relabeling.
+[Source/root and fresh native proof](systems/trading-post.md#committed-frozen-item-caption): Elements535–555/639–655 plus GlobalStrings48943 white Freezing/newline only for committed ID. Initial93aa raw-oracle proof retained; lead-approved resolved visible-text9ad ignored tests pushed first give four genuine REDs/four controls, renderer-onlyb84 GREEN8/tc650200/0+parse/fmt0 landsd873. FreshEd873/S94/Pf9 both skins strict natural7/7/clean complete streams, unchanged18 observations with actual Label.text/WHITE/no literal markup, committed caption/plain candidate/cancel restoration,13 decoded plays each. Exact authority/local/HUD restored before verdict, XYZ0, two Query only. Forty inspected originals+two contacts published under AgentShared/2026-10-19/trading-post-frozen-item-caption; manifest binds five binaries/nine sources/42receipts/fullstreams/original six memory edges/42PNG hashes. Runtime/window cleared07:06:04;1673 unrelated server errors and parent live-fixture lookup mistake qualified. No flag/parser/font-policy/domain/authority change or historical relabeling; accepted/immediate remains CPU-qualified.
 
 ## 2026-10-19 — Frozen-source drag retirement native GREEN
 
 [Source/root and fresh native proof](systems/trading-post.md#frozen-products-are-not-drag-sources): Elements495–508 disables frozen pickup; replacement510–521/577–670 already exists. No cached UI caller for ClearFrozenPerksVendorItem; right-click cancels confirmation only. IgnoredCPU0a8 pushed first gives genuine selected/unselected outside Freeze(None)-versus-None REDs plus five controls; root068 removal passes7/7 and tf637 TESTEXIT/PARSE/FMT0/landing. FreshE068/S2e4/Pf9 both skins strict natural7/7/no error markers/full streams,18 observations including six frozen attempts and all ordinary/cart/modal/occupied-cancel controls,13 decoded plays each. Exact authority/local/HUD restored before verdict, XYZ0, two Query only. Forty inspected originals+two contacts published under AgentShared/2026-10-19/trading-post-frozen-source-no-drag; manifest binds five binaries/source/streams/42receipts/original six memory edges/42PNG hashes. Runtime/window cleared04:17:35;1675 unrelated server errors qualified. Server/protocol clear support stays; historical October13 proof qualified, not erased/relabelled; accepted/immediate transactions retain CPU proof.
+
+## 2026-10-17 — Recipe filter Reset native proof
+
+[Bounded proof](systems/native-professions-crafting.md#native-reset-proof--2026-10-17): rr647205/0/fmt0, runtime E2535a4f17/S93d357ce3/Pf9a9175; both skins1920×1080 pass three single-click resets, default/search-only hidden, retained search/favorite-instance selection/Favorites and gameplay conservation. Native23×23/TOPRIGHT−3 geometry matches within pixel rounding. Each drained process exits0/one marker/ten unique captures/zero error lines; sixteen inspected state originals published, four favorite-menu setup/cleanup private. Preference/runtime/window restored; other filters/persistence/audio-engine expansion excluded.
 
 ## 2026-10-17 — Recipe filter Reset implementation
 
@@ -4842,3 +4847,7 @@ User decision specifies MOBILE_BANKING_COOLDOWN_2H7200000ms over installed360000
 - Journal display0: genuine Bandit/native and default-source core REDs; Journal-private source-default reader implemented; shared reader/Scene unchanged, native GREEN pending.
 
 - Journal display0 native4: all3 raw states/defaults pass in both skins; Bandit+VoidPulsar base-M2 painted, Raszageth source-exact pose viewport0, full fixtures remain FAIL. Six observed originals inspected; no FOV/effect change or hidden scope reduction.
+
+- Raszageth read-only native70ef/extension2a49: actual perspective30deg KEEP_HEIGHT/aspect390:423, geometry and custom bounds TOP-only rejected, paint0. Diagnostic1/1 captures evidence, not a product fix; preserve named gap and stop camera/transform changes.
+
+- Journal projection reference packet: permitted cached Lua/XML/XSD inheritance, source pose and bounded setter search supply no numeric projection/clip default or corrective camera rule. Native semantics unknown; Raszageth TOP/paint0 and VoidPulsar kit gaps retained, no product/runtime change.
