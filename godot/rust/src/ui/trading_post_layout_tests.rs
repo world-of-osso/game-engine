@@ -150,7 +150,7 @@ fn trading_post_frozen_slot_uses_effective_container_icon_and_frost_geometry() {
             "frost frame escapes row"
         );
         let mut pending = view;
-        pending.drop_item(5, false, true);
+        pending.drop_item(5, true);
         let (registry, bounds) = render(pending);
         assert_rect(
             &registry,

@@ -27,6 +27,7 @@ func run_cases() -> bool:
 	if not gate.step(await already_selected_case(),"already-selected collection"): return false
 	if not gate.step(await cart_activation_case(),"cart-owner collection"): return false
 	if not gate.step(await modal_guard_case(),"modal collection"): return false
+	if not gate.step(await frozen_source_cases(),"frozen source inert input collection"): return false
 	if not gate.step(await occupied_drop_case(),"occupied-slot cancellation collection"): return false
 	# Restore authority/local state before judging timing observations, including RED.
 	if not gate.step(await restore_drag_state(),"restore before verdict"): return false
@@ -111,6 +112,37 @@ func modal_guard_case() -> bool:
 	if not await click_checked("PerksProgramRemoveFromCartButton"): return false
 	return gate.require(client.trading_post_state().cart.is_empty(),"local cart cleanup without Clear acceptance")
 
+func frozen_source_cases() -> bool:
+	# Retail removes frozen OnDragStart; these are pointer attempts, never transactions.
+	if not await click_checked("PerksProgramFrozenSlot"): return false
+	var count := sound_count()
+	var slot := control("PerksProgramFrozenSlot")
+	if not gate.require(slot != null,"committed frozen source exists"): return false
+	var start := slot.get_global_rect().get_center()
+	var outside := Vector2(1850,80)
+	if not await press_product(start): return false
+	await drag_motion(start+Vector2(12,0),Vector2(12,0))
+	if not await observe_drag(7,"frozen-source-selected-held",int(baseline.frozen),count,false,false): return false
+	await drag_motion(outside,outside-start)
+	await release_product(outside)
+	if not await observe_drag(7,"frozen-source-selected-outside",int(baseline.frozen),count,false,false): return false
+	if not await click_checked("PerksProgramProduct%d" % source_b): return false
+	count = sound_count()
+	if not await press_product(start): return false
+	await drag_motion(start+Vector2(12,0),Vector2(12,0))
+	if not await observe_drag(7,"frozen-source-unselected-held",source_b,count,false,false): return false
+	await drag_motion(outside,outside-start)
+	await release_product(outside)
+	if not await observe_drag(7,"frozen-source-unselected-outside",source_b,count,false,false): return false
+	if not await click_checked("PerksProgramFrozenSlot"): return false
+	count = sound_count()
+	if not await press_product(start): return false
+	await drag_motion(start+Vector2(12,0),Vector2(12,0))
+	await drag_motion(start+Vector2(18,0),Vector2(6,0))
+	if not await observe_drag(7,"frozen-source-repeated-held",int(baseline.frozen),count,false,false): return false
+	await release_product(start+Vector2(18,0))
+	return await observe_drag(7,"frozen-source-same-slot-release",int(baseline.frozen),count,false,false)
+
 func occupied_drop_case() -> bool:
 	if not await click_checked("PerksProgramProduct%d" % source_a): return false
 	var count := sound_count()
@@ -176,6 +208,9 @@ func assert_drag_observation(data: Dictionary) -> bool:
 		if not gate.require(float(data.frozen_art) == 0.,"unaccepted pending preview is not a frozen selection"): return false
 	elif str(data.label) == "committed-frozen-after-cancel":
 		if not gate.require(float(data.frozen_art) > 0.,"explicit committed selection remains visible after cancel"): return false
+	elif str(data.label).begins_with("frozen-source-"):
+		var expected_art := 44268. if int(data.expected_selected) == int(baseline.frozen) else 0.
+		if not gate.require(float(data.frozen_art) == expected_art,"frozen pointer attempt preserves selected art"): return false
 	return true
 
 func row_center(id: int) -> Vector2:
