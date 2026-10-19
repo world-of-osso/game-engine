@@ -26,7 +26,7 @@ func require_effects() -> Dictionary:
 		await process_frame
 		found = source_effects(selected_model())
 	print("JOURNAL_STATE_KIT_CHILDREN ", JSON.stringify({"display":141206,"kit":253973,"model_identity":selected_model().get_instance_id(),"found":found.keys()}))
-	if not completion.require(found.size() == 2, "Journal detached CDI253973 children missing: expected4861458/7455384 actual%s" % found.keys()):
+	if not completion.require(found.size() == 2, "Journal detached CDI253973 children missing: expected4861458/7455384 actual" + str(found.keys())):
 		return {}
 	for fdid in EFFECTS:
 		var node: Node3D = found[fdid]
