@@ -28,6 +28,9 @@ pub struct ProfessionBook {
     pub visible: bool,
     pub selected: Option<u32>,
     pub search: String,
+    /// Inverted storage keeps both Retail Show checkboxes enabled by default.
+    pub hide_learned: bool,
+    pub hide_unlearned: bool,
     pub quantity: u32,
 }
 
@@ -37,9 +40,13 @@ impl ProfessionBook {
         let search = self.search.trim().to_lowercase();
         let mut groups = std::collections::BTreeMap::<(bool, String), Vec<&Recipe>>::new();
         for recipe in &self.recipes {
+            let learned = known.contains(&recipe.spell_id);
+            if (learned && self.hide_learned) || (!learned && self.hide_unlearned) {
+                continue;
+            }
             if recipe.name.to_lowercase().contains(&search) {
                 groups
-                    .entry((!known.contains(&recipe.spell_id), recipe.category.clone()))
+                    .entry((!learned, recipe.category.clone()))
                     .or_default()
                     .push(recipe);
             }
@@ -53,7 +60,7 @@ impl ProfessionBook {
             .into_iter()
             .map(|((_, category), recipes)| (category, recipes))
             .collect();
-        if search.is_empty() {
+        if search.is_empty() && !self.hide_learned {
             let favorite_ids: std::collections::HashSet<_> =
                 self.snapshot.favorites.iter().copied().collect();
             let mut favorites: Vec<_> = self

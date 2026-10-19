@@ -29,6 +29,7 @@ impl GameClient {
                 let at = ui
                     .bind()
                     .read_cursor_relative_to_frame("ProfessionsFrame")?;
+                self.professions.filter_open = false;
                 self.professions.favorite_menu = Some((spell, at));
             }
         }
