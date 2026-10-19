@@ -149,6 +149,49 @@ fn search_selection_window(many_results: bool) -> AchievementWindow {
     view
 }
 
+/// Explicit supplied search-page metadata, not semantic search or realm progress.
+fn full_results_preview_window(full: bool) -> AchievementWindow {
+    let mut view = window();
+    if !full {
+        return view;
+    }
+    view.categories.insert(
+        92,
+        AchievementCategoryEntry {
+            category_id: 92,
+            parent_id: -1,
+            order_index: 1,
+            name: "Characters".into(),
+        },
+    );
+    let template = view.entries()[0].clone();
+    view.action("achievement:search:fixture");
+    view.apply(AchievementCatalogPage::Search {
+        text: "fixture".into(),
+        scope: AchievementScope::All,
+        achievements: [
+            (6, "Level 10", true),
+            (7, "Level 20", false),
+            (8, "Level 30", false),
+            (9, "Level 40", false),
+            (10, "Level 50", false),
+            (633, "Stormwind Stockade", true),
+        ]
+        .into_iter()
+        .map(|(achievement_id, name, earned)| AchievementCatalogEntry {
+            achievement_id,
+            name: name.into(),
+            earned,
+            criteria: Vec::new(),
+            ..template.clone()
+        })
+        .collect(),
+        next_id: Some(633),
+    });
+    view.action("achievement:search_all");
+    view
+}
+
 fn keyboard_preview_window(phase: &str) -> Result<AchievementWindow, String> {
     let mut view = search_selection_window(true);
     match phase {
@@ -315,6 +358,20 @@ impl RegistryUi {
         let result = self.prepare_dungeon_capture(skin).and_then(|()| {
             self.show_achievement_window(keyboard_preview_window(&phase.to_string())?)
         });
+        GString::from(result.err().unwrap_or_default().as_str())
+    }
+
+    /// Full-search row presentation controls; all progress values are supplied UI fixtures.
+    #[func]
+    pub fn show_achievement_full_results_preview(&mut self, forever: bool, full: bool) -> GString {
+        let skin = if forever {
+            ui_toolkit::atlas::ActiveSkin::Forever
+        } else {
+            ui_toolkit::atlas::ActiveSkin::Modern
+        };
+        let result = self
+            .prepare_dungeon_capture(skin)
+            .and_then(|()| self.show_achievement_window(full_results_preview_window(full)));
         GString::from(result.err().unwrap_or_default().as_str())
     }
 

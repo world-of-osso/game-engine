@@ -5,6 +5,10 @@ use crate::quest_art::{DynName, panel_button};
 mod artwork;
 #[path = "achievement_comparison.rs"]
 mod comparison_view;
+#[path = "achievement_full_search.rs"]
+mod full_search_view;
+#[path = "achievement_search_catalog.rs"]
+mod search_catalog;
 #[path = "achievement_search.rs"]
 mod search_view;
 use crate::ui::strata::FrameStrata;
@@ -80,6 +84,9 @@ pub const ART: &[u32] = &[
     235411,
     235412,
     452109,
+    522973,
+    374155,
+    374157,
     HEADER_SHIELD_FDID,
     235401,
 ];
@@ -1223,7 +1230,9 @@ pub fn achievement_screen(ctx: &SharedContext) -> Element {
     ));
     content.extend(category_panel(ctx, window));
     content.extend(browse_controls(window));
-    if window.comparison.is_some() {
+    if window.full_search {
+        content.extend(full_search_view::content(ctx, window));
+    } else if window.comparison.is_some() {
         content.extend(comparison_view::content(ctx, window, show_summary));
     } else if show_summary {
         content.extend(summary_panel(window));

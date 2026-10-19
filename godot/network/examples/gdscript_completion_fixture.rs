@@ -27,6 +27,7 @@ const FIXTURES: &[(&str, usize)] = &[
     ("registration_flow", 2),
     ("achievement_search_selection_focus", 12),
     ("achievement_search_preview_keyboard", 24),
+    ("achievement_search_full_results", 8),
 ];
 
 struct Invocation {

@@ -4959,3 +4959,7 @@ db2/active/Achievement.csv
 db2/active/CriteriaTree.csv
 # Mainline AchievementCriteriaTemplate check, XML703–724; already locally extracted.
 textures/130653.blp
+# Static full-search category ancestry and source row/container file textures.
+db2/active/Achievement_Category.csv
+textures/522973.blp
+textures/374155.blp
