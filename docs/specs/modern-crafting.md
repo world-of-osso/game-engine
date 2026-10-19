@@ -16,6 +16,14 @@ Pinned Retail 12.1.0.69933 `SkillLineAbility`/`SpellEffect`/`SpellReagents` cens
 
 Local world.db has only627 of1,286 distinct Leatherworking effect24 outputs joined to `content_item`; pinned CSV presence does not imply server runtime readiness. Existing Classic Leatherworking is the first end-to-end acceptance slice, not a claim of complete Midnight support.
 
+## Unlearned recipe discovery
+
+- The shared Retail list shows learned categories first, then an Unlearned divider and unlearned categories, with independent collapse state and disabled-colour unlearned rows. Search covers both groups.
+- An unlearned recipe in an owned skill line remains selectable and shows its output/reagents. Neither Create nor Create All can emit a craft request before authoritative learning, even with enough materials.
+- `ProfessionSnapshot.recipe_sources` contains static `tdb_trainer_spell` rows filtered to the owner's learned skill lines. An unlearned schematic shows the Retail source header/tooltip only for matching rows; missing sources remain undisplayed, never inferred from automatic-learning rank. Trainer IDs, copper, skill, level and required-ability fields are source facts, not current purchase availability.
+- Only the existing server trainer purchase teaches a recipe. A successful purchase updates the owner snapshot and moves the selected recipe into the learned group without resetting its selection. Required proof uses Handstitched Leather Pants2153, trainer56, rank15 and50 copper; pre-learning inventory/professions remain unchanged.
+- Sources: Retail `Blizzard_Professions.lua:832–889,973–992`, `Blizzard_ProfessionsRecipeList.lua:233–241`, `Blizzard_ProfessionsRecipeList.xml:66–96`, `Blizzard_ProfessionsRecipeSchematicForm.lua:351–352,627–649` and its XML128–160; TC a352b1fa `Trainer::TeachSpell` retains learning authority. This section does not claim native acceptance before its separate both-skin gate.
+
 ## Learned-recipe boundary
 
 Private Modern proof learned Handstitched Leather Pants2153 from Simon Tanner at authored trainer rank15/cost50. Bags held14 Light Leather and1 Coarse Thread. Client incorrectly showed Create All[0]: pinned `SkillLineAbility.MinSkillLineRank` is30. TrinityCore a352b1fa `Player.cpp:25450` uses that field to remove **AutomaticSkillRank** abilities below their threshold; `Spell.cpp:CheckItems` does not impose it on manually learned spells. Retail `ProfessionsCrafting.lua:631-637` requires a learned recipe, and `ValidateCraftRequirements:569-623` delegates actual requirements/reagents. The client must not invent an additional automatic-learning gate for a recipe the authoritative trainer taught.

@@ -30,6 +30,7 @@ pub(super) fn schematic(view: &ProfessionView) -> Element {
             (16.0, quality_color(item.quality), "LEFT"),
         ));
     }
+    out.extend(recipe_source_button(view));
     out.extend(text(
         "ProfessionsReagentsHeading",
         "Reagents:",
@@ -61,6 +62,84 @@ pub(super) fn schematic(view: &ProfessionView) -> Element {
     }
     out.extend(craft_controls(view));
     out
+}
+
+/// RecipeSchematicForm.lua627–649: unlearned source header owns an ANCHOR_RIGHT tooltip.
+pub fn recipe_source_tooltip(
+    book: &crate::professions::ProfessionBook,
+    skills: &std::collections::BTreeMap<u32, String>,
+) -> Option<crate::game_tooltip::GameTooltip> {
+    let recipe = book.selected_recipe()?;
+    if book.selected_is_learned() {
+        return None;
+    }
+    let lines: Vec<_> = book
+        .snapshot
+        .recipe_sources
+        .iter()
+        .filter(|source| source.spell_id == recipe.spell_id)
+        .flat_map(|source| trainer_source_lines(source, skills))
+        .collect();
+    if lines.is_empty() {
+        return None;
+    }
+    Some(crate::game_tooltip::GameTooltip::new(
+        crate::tooltip_presentation::TooltipPresentation {
+            title: "Unlearned Recipe".into(),
+            title_color: [1.0; 4],
+            lines,
+            ..Default::default()
+        },
+        None,
+    ))
+}
+
+fn trainer_source_lines(
+    source: &shared::protocol::ProfessionTrainerSource,
+    skills: &std::collections::BTreeMap<u32, String>,
+) -> Vec<crate::tooltip_presentation::TooltipLineState> {
+    let skill = skills
+        .get(&source.req_skill_line)
+        .cloned()
+        .unwrap_or_else(|| format!("SkillLine {}", source.req_skill_line));
+    let mut lines = vec![
+        format!("Trainer {}: {} Copper", source.trainer_id, source.cost),
+        format!("Requires {skill} ({})", source.req_skill_rank),
+    ];
+    if source.req_level > 0 {
+        lines.push(format!("Requires Level {}", source.req_level));
+    }
+    lines.extend(
+        source
+            .req_abilities
+            .iter()
+            .map(|spell| format!("Requires Spell {spell}")),
+    );
+    lines
+        .into_iter()
+        .map(|text| crate::tooltip_presentation::TooltipLineState::colored(text, [1.0; 4]))
+        .collect()
+}
+
+fn recipe_source_button(view: &ProfessionView) -> Element {
+    if recipe_source_tooltip(&view.book, &view.skill_names).is_none() {
+        return vec![];
+    }
+    // OutputIcon BOTTOMLEFT(-1,-12), then RecipeSourceButton XML150x16.
+    let mut children = texture(
+        "ProfessionsRecipeSourceIcon".into(),
+        616343,
+        (-6.0, -7.0, 30.0, 30.0),
+        "1,1,1,1",
+    );
+    children.extend(label(
+        "ProfessionsRecipeSourceLabel".into(),
+        "Unlearned Recipe",
+        (23.0, 0.0, 127.0, 16.0),
+        (12.0, crate::quest_art::NORMAL_FONT_COLOR, "LEFT"),
+    ));
+    rsx! { button { name: "ProfessionsRecipeSourceButton", width: 150.0, height: 16.0,
+    left: 308.0, top: 171.0, pos_type: "absolute", button_default_skin: false, {children} } }
 }
 
 fn quality_reagent_cells(view: &ProfessionView) -> Element {
@@ -221,7 +300,7 @@ fn craft_controls(view: &ProfessionView) -> Element {
         "ProfessionsCreateAll".into(),
         &create_all_text,
         "profession:all",
-        view.can_all,
+        view.can_all && view.book.selected_is_learned(),
         (762.0 - create_all_width, y, create_all_width, 22.0),
     ));
     out.extend(edit_box(QUANTITY, (792.0, y + 1.0, 31.0, 20.0)));
@@ -243,7 +322,7 @@ fn craft_controls(view: &ProfessionView) -> Element {
         "ProfessionsCreate".into(),
         "Create",
         "profession:create",
-        view.can_create,
+        view.can_create && view.book.selected_is_learned(),
         (853.0, y, 80.0, 22.0),
     ));
     out

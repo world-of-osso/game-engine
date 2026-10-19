@@ -59,9 +59,21 @@ fn tree_rows(view: &ProfessionView) -> (Element, f32) {
         } });
         y += ROW_HEIGHT + 1.0;
     }
+    let mut unlearned_divider = false;
     for (index, (category, recipes)) in view.book.groups().iter().enumerate() {
-        let collapsed = view.collapsed.contains(category);
-        content.extend(category_row(index, category, y, collapsed));
+        let learned = view.book.snapshot.spells.contains(&recipes[0].spell_id);
+        if !learned && !unlearned_divider {
+            let height = if index == 0 { 30.0 } else { 70.0 };
+            content.extend(unlearned_heading(y, height));
+            y += height;
+            unlearned_divider = true;
+        }
+        let key = format!(
+            "{}:{category}",
+            if learned { "learned" } else { "unlearned" }
+        );
+        let collapsed = view.collapsed.contains(&key);
+        content.extend(category_row(index, category, &key, y, collapsed, learned));
         y += CATEGORY_HEIGHT + 1.0;
         if collapsed {
             continue;
@@ -74,11 +86,28 @@ fn tree_rows(view: &ProfessionView) -> (Element, f32) {
     if content.is_empty() {
         content.extend(text(
             "ProfessionsEmpty",
-            "No matching learned recipes",
+            "No matching recipes",
             (2.0, 0.0, ROW_WIDTH, 36.0),
         ));
     }
     (content, (y + 10.0).max(36.0))
+}
+
+// RecipeListDividerTemplate: bottom-left label10,10; divider250x2 at5,5.
+fn unlearned_heading(y: f32, height: f32) -> Element {
+    let mut out = label(
+        "ProfessionsUnlearnedLabel".into(),
+        "Unlearned",
+        (10.0, y + height - 23.0, ROW_WIDTH - 10.0, 13.0),
+        (12.0, crate::quest_art::NORMAL_FONT_COLOR, "LEFT"),
+    );
+    out.extend(art::tinted(
+        "ProfessionsUnlearnedDivider",
+        "Options_HorizontalDivider",
+        (5.0, y + height - 7.0, 250.0, 2.0),
+        crate::quest_art::NORMAL_FONT_COLOR,
+    ));
+    out
 }
 
 fn search_box(view: &ProfessionView) -> Element {
@@ -119,7 +148,14 @@ fn search_box(view: &ProfessionView) -> Element {
     out
 }
 
-fn category_row(index: usize, category: &str, y: f32, collapsed: bool) -> Element {
+fn category_row(
+    index: usize,
+    category: &str,
+    key: &str,
+    y: f32,
+    collapsed: bool,
+    learned: bool,
+) -> Element {
     let prefix = format!("ProfessionCategory{index}");
     let mut children = Vec::new();
     for (suffix, atlas, rect) in [
@@ -151,12 +187,18 @@ fn category_row(index: usize, category: &str, y: f32, collapsed: bool) -> Elemen
         icon,
         (ROW_WIDTH - 21.0, 6.0, 11.0, 8.0),
     ));
-    children.extend(text(
-        &format!("{prefix}Label"),
+    let color = if learned {
+        crate::quest_art::NORMAL_FONT_COLOR
+    } else {
+        "0.5,0.5,0.5,1"
+    };
+    children.extend(label(
+        format!("{prefix}Label"),
         category,
         (10.0, 0.0, ROW_WIDTH - 35.0, CATEGORY_HEIGHT),
+        (12.0, color, "LEFT"),
     ));
-    let action = format!("profession:category:{category}");
+    let action = format!("profession:category:{key}");
     crate::selection_list::row(
         prefix,
         &action,
@@ -185,25 +227,31 @@ fn difficulty(view: &ProfessionView, recipe: &Recipe) -> RecipeDifficulty {
 
 fn recipe_row(view: &ProfessionView, recipe: &Recipe, y: f32) -> Element {
     let prefix = format!("ProfessionRecipe{}", recipe.spell_id);
+    let learned = view.book.snapshot.spells.contains(&recipe.spell_id);
     let icon = match difficulty(view, recipe) {
         RecipeDifficulty::Optimal => Some("Professions-Icon-Skill-High"),
         RecipeDifficulty::Medium => Some("Professions-Icon-Skill-Medium"),
         RecipeDifficulty::Easy => Some("Professions-Icon-Skill-Low"),
         RecipeDifficulty::Trivial => None,
     };
-    let mut children = recipe_row_art(view, recipe, &prefix, icon);
+    let mut children = recipe_row_art(view, recipe, &prefix, icon.filter(|_| learned));
+    let color = if learned {
+        PROFESSION_RECIPE_COLOR
+    } else {
+        "0.5,0.5,0.5,1"
+    };
     children.extend(label(
         format!("{prefix}Label"),
         &recipe.name,
         (17.0, 0.0, ROW_WIDTH - 48.0, ROW_HEIGHT),
-        (12.0, PROFESSION_RECIPE_COLOR, "LEFT"),
+        (12.0, color, "LEFT"),
     ));
     let count = view
         .recipe_craftable
         .get(&recipe.spell_id)
         .copied()
         .unwrap_or(0);
-    if count > 0 {
+    if learned && count > 0 {
         children.extend(label(
             format!("{prefix}Count"),
             &format!("[{count}]"),

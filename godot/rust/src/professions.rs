@@ -223,13 +223,13 @@ impl GameClient {
             .recipes
             .iter()
             .filter_map(|recipe| {
-                if !self
-                    .professions
-                    .book
-                    .snapshot
-                    .spells
-                    .contains(&recipe.spell_id)
-                {
+                let snapshot = &self.professions.book.snapshot;
+                let learned = snapshot.spells.contains(&recipe.spell_id);
+                let owns_line = snapshot
+                    .lines
+                    .iter()
+                    .any(|line| line.rank > 0 && line.skill_line == recipe.skill_line);
+                if !learned && !owns_line {
                     return None;
                 }
                 let mut recipe = recipe.clone();
@@ -242,7 +242,15 @@ impl GameClient {
                 .professions
                 .book
                 .recipes
-                .first()
+                .iter()
+                .min_by_key(|recipe| {
+                    !self
+                        .professions
+                        .book
+                        .snapshot
+                        .spells
+                        .contains(&recipe.spell_id)
+                })
                 .map(|recipe| recipe.spell_id);
         }
     }
@@ -311,6 +319,7 @@ impl GameClient {
             } else if let Some(action) = action.strip_prefix("profession:spec:") {
                 self.apply_specialization_action(action)?;
             } else if let Some(raw) = action.strip_prefix("profession:select:") {
+                self.professions.page = ProfessionPage::Recipes;
                 self.professions.book.selected = Some(
                     raw.parse()
                         .map_err(|_| format!("Invalid recipe selection: {action}"))?,
