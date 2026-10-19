@@ -232,6 +232,7 @@ fn search_for_clear_action(action: &str) -> Option<&'static str> {
             Some(game_engine_ui_model::bag_frame_component::SEARCH_BOX)
         }
         "journal:search-clear" => Some(game_engine_ui_model::adventure_guide::SEARCH),
+        "profession:search-clear" => Some(game_engine_ui_model::professions_frame::SEARCH),
         _ => None,
     }
 }
