@@ -31,6 +31,12 @@ Raw geometry APIs preserve consumer policies: skin sections expose authored high
 
 Server phase 2 landed with identical Stockade LOS/nav binaries. Runtime ground's subsequent metadata-only consolidation uses projected MPHD/MAID/MODF/MOHD/GFID views, preserving first-match/mandatory/FDID-only policy and not validating unrelated renderer fields. Its server ledger compares complete ordered metadata bytes plus fresh Stockade bakes. Client pin changes retain the same default features and require the engine consumer gate. The runtime-heights revision adds separate raw MCNK header (origin/area/hole masks) and MCVT projections; the client's existing whole-tile parser uses the same header projection without changing its chunk-selection/error semantics. Server query/interpolation, MH2O and hole-widening policy remain outside the shared readers.
 
+## Runtime-height pin gate
+
+Library `ed180cecd7228471944dcdf1d427468e5cc6e7b5` adds four header/MCVT projection tests; default246 and no-default166 pass, check/fmt pass. Engine source `95a7f014ee888b688c5af33e8ca4841edbfa874e` (includes current master), protocol `f9a91753bbbc15ad7ff7392955b52c4da989d22e`: helper core `adt`9/0 and native Godot `terrain::`45/0, helper check and workspace fmt0. The terrain filter covers authored tile parsing and streamed area/surface queries. An initial `wmo::collision_tests` probe selected zero tests and is not evidence. No engine runtime behavior or features changed. Independent lead integration remains pending.
+
+Server before/after raw height/query/negative receipts and fresh Stockade guards are recorded in its [height ledger](../../../../game-server/docs/handoffs/wow-formats-runtime-heights.md); interpolation, hole widening and MH2O are not moved.
+
 ## Sources
 
 - [Core dependencies](../../../godot/core/Cargo.toml) — authoritative pinned revisions
