@@ -118,7 +118,15 @@ func explicit_product_case() -> bool:
 func filter_case() -> bool:
 	if not await click_checked("PerksProgramViewCartButton"): return false
 	var count := sound_count()
-	if not await only_type(2): return false
+	# One UpdateProducts callback: multiple toggles can retain a valid category7
+	# product absent from the checkbox categories and outside the observed prefix.
+	if not await click_checked("PerksProgramFilter"): return false
+	var types := control("PerksProgramFilterTypes")
+	if not gate.require(types != null,"type menu owner"): return false
+	await motion(types.get_global_rect().get_center())
+	if not await until(func(): return control("PerksProgramTypeMenu") != null,"type submenu"): return false
+	if not await click_checked("PerksProgramFilterType2"): return false
+	if not await click_checked("PerksProgramFilter"): return false
 	var rows: PackedStringArray = client.trading_post_state().rows
 	if not gate.require(not rows.is_empty(),"type2 provider has ordinary members"): return false
 	var first := int(str(rows[0]).split("|")[0])
