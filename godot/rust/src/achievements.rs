@@ -49,8 +49,10 @@ pub(crate) fn apply_achievement_ui_action(
 ) -> Vec<QueryAchievementCatalog> {
     let was_focused = window.search_focused;
     let requests = window.action(action);
-    let search_selection =
-        action == "achievement:search_all" || action.starts_with("achievement:preview:");
+    let search_selection = matches!(
+        action,
+        "achievement:search_all" | "achievement:search_submit"
+    ) || action.starts_with("achievement:preview:");
     // Mainline AchievementUI.lua3594–3604/3669–3676: only committed selections ClearFocus.
     if search_selection && was_focused && !window.search_focused {
         ui.release_focus_named("AchievementSearchBox");
