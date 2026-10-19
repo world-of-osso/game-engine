@@ -13,7 +13,7 @@ Authored M2 bone-parent selection and attachment participation follow the user-s
 - [x] Render an authentic low-bit model before/after at1920×1080 in m2debug.
 
 ### Camera-less billboard poses
-- [ ] Without an active camera-facing operation, billboard-only bones retain their sampled position, quaternion and scale, including authored zero scale, without Basis quaternion errors.
+- [x] Without an active camera-facing operation, billboard-only bones retain their sampled position, quaternion and scale, including authored zero scale, without Basis quaternion errors. Authentic3049899 CPU-engine regression passes1/1 after the preserved six-error RED.
 - [ ] Parent-first inheritance, ordinary descendants and the A6 affine/shear contract remain unchanged; no scale/epsilon predicate or skipped authored bone.
 
 ### A7
