@@ -1,3 +1,7 @@
+## 2026-10-19 — Online guild zones accepted
+
+[Authority and native provenance](systems/guilds.md#online-member-zone): coordinated gz689 landed P b3a34fe/S e3f3f86c6/E d802433d9; retained server140/0/3ignored. Actual authenticated members prove both skins' Elwynn Forest/Westfall roster/detail, real-position refresh and normal disconnect/offline blank Zone. Six hash-verified unchanged originals published; owned runtimes/window cleared and original historical redb unchanged. Missing authority/privacy remain automated proof. Initial missing Godot class-cache fixture failure and startup warning qualifications retained.
+
 ## 2026-10-19 — Achievement full-search close button
 
 [Source/implementation](systems/dungeon-achievements.md#full-search-close-button):24×24 explicit581,0 close with source exit art; onlyfull_search=false, exact retained state/reopen/cursor controls. Ignored nativeRED first/6 missing-button assertions→strict both-skin native6/6; model35/35 exact window equality/reopen/cursor continuation at11550ddf3. No duplicate native replay; central acceptance pending. Whole-frame/Escape/focus/server/totals/progress unchanged.
