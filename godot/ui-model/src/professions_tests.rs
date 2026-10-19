@@ -12,6 +12,7 @@ fn book() -> ProfessionBook {
                 max_rank: 75,
             }],
             spells: vec![3908, 3275, 3276],
+            recipe_sources: vec![],
         },
         recipes: vec![
             Recipe {
@@ -80,17 +81,34 @@ fn bags() -> InventoryState {
     }
 }
 #[test]
-fn professions_snapshot_groups_only_known_recipes() {
+fn professions_snapshot_groups_known_recipes_before_unlearned() {
     let book = book();
     let groups = book.groups();
-    assert_eq!(groups.len(), 1);
+    assert_eq!(groups.len(), 2);
     assert_eq!(groups[0].0, "Bandages");
+    assert_eq!(groups[1].0, "Cloth");
+    assert_eq!(groups[1].1[0].spell_id, 2963);
     assert_eq!(
         groups[0].1.iter().map(|r| r.spell_id).collect::<Vec<_>>(),
         [3276, 3275]
     );
     assert_eq!(book.snapshot.lines[0].rank, 1);
 }
+#[test]
+fn professions_unlearned_recipe_is_selectable_but_cannot_emit_a_craft() {
+    let mut book = book();
+    book.snapshot.spells.retain(|spell| *spell != 3276);
+    book.selected = Some(3276);
+    assert_eq!(book.selected_recipe().unwrap().spell_id, 3276);
+    assert_eq!(book.reagent_counts(&bags()), [(2589, 5, 2)]);
+    assert_eq!(book.craftable_count(&bags()), 0);
+    assert!(book.craft_request(&bags(), false).is_none());
+    assert!(book.craft_request(&bags(), true).is_none());
+    book.snapshot.spells.push(3276);
+    assert_eq!(book.craft_request(&bags(), false).unwrap().spell_id, 3276);
+    assert_eq!(book.groups()[0].1.len(), 2);
+}
+
 #[test]
 fn professions_search_filters_case_insensitively() {
     let mut book = book();
@@ -141,6 +159,7 @@ fn professions_trainer_learned_leather_pants_use_recipe_knowledge_not_auto_learn
                 max_rank: 300,
             }],
             spells: vec![2108, 2153],
+            recipe_sources: vec![],
         },
         selected: Some(2153),
         quantity: 1,
