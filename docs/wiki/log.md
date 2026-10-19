@@ -4787,3 +4787,5 @@ User decision specifies MOBILE_BANKING_COOLDOWN_2H7200000ms over installed360000
 - 2026-10-18 — Extract M2/skin, WMO, ADT/WDT parsing into public wow-formats; document ownership/features, unchanged core assembly and conserved 259 tests (225 moved/34 authored fixtures retained). [Shared readers](systems/wow-formats.md).
 
 - 2026-10-18 — Bump wow-formats pin for independent materials/static-attachments features and raw geometry metadata; default client features unchanged. [Shared readers](systems/wow-formats.md).
+
+- 2026-10-18 — Pin projected runtime-ground metadata APIs in wow-formats; preserve selected-field/FDID/error policy and frozen metadata/bake receipt boundaries. [Shared readers](systems/wow-formats.md).
