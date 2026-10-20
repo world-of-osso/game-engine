@@ -81,3 +81,58 @@ fn trading_post_monthly_clock_time_column_red_threshold_purchased_dash_and_hover
         );
     }
 }
+
+#[test]
+fn trading_post_monthly_clock_rollover_queries_once_then_uses_fresh_full_catalog() {
+    for skin in [ActiveSkin::Modern, ActiveSkin::Forever] {
+        let mut view = timed_view(2);
+        let authority = view.snapshot.clone();
+        assert_eq!(view.advance_server_clock(1), None);
+        assert_eq!(view.month_remaining_seconds(), Some(1));
+        assert_eq!(
+            view.advance_server_clock(2),
+            Some(TradingPostRequest::Query)
+        );
+        assert_eq!(view.advance_server_clock(3), None);
+        assert_eq!(view.snapshot, authority);
+        let expired = render(skin, view.clone());
+        assert_eq!(text(&expired, "PerksProgramTimeRemaining5"), "--");
+        let mut refreshed = (**view.snapshot.as_ref().unwrap()).clone();
+        refreshed.now_unix = refreshed.month_end_unix;
+        refreshed.month_end_unix += 60;
+        refreshed.items.retain(|row| row.id != 5);
+        view.receive(Arc::new(refreshed));
+        assert_eq!(view.advance_server_clock(0), None);
+        assert_eq!(view.month_remaining_seconds(), Some(60));
+        let next = render(skin, view.clone());
+        assert!(next.get_by_name("PerksProgramProduct5").is_none());
+        assert_eq!(text(&next, "PerksProgramTimeRemaining6"), "1m");
+        assert_eq!(
+            view.advance_server_clock(60),
+            Some(TradingPostRequest::Query)
+        );
+        assert_eq!(view.advance_server_clock(61), None);
+    }
+}
+
+#[test]
+fn trading_post_monthly_clock_same_boundary_reply_and_hidden_window_never_spam_queries() {
+    let mut view = timed_view(0);
+    view.visible = false;
+    assert_eq!(view.advance_server_clock(0), None);
+    view.visible = true;
+    assert_eq!(
+        view.advance_server_clock(0),
+        Some(TradingPostRequest::Query)
+    );
+    let same_boundary = view.snapshot.clone().unwrap();
+    view.receive(same_boundary);
+    assert_eq!(view.advance_server_clock(u32::MAX), None);
+    assert_eq!(view.month_remaining_seconds(), Some(0));
+    let mut no_snapshot = View {
+        visible: true,
+        ..Default::default()
+    };
+    assert_eq!(no_snapshot.advance_server_clock(100), None);
+    assert_eq!(no_snapshot.month_remaining_seconds(), None);
+}
