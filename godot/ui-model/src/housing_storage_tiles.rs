@@ -1,13 +1,13 @@
 //! Retail stored CatalogEntry tiles: source art/geometry, server-confirmed quantities.
 use crate::housing_component::HousingView;
-use crate::menu_template_art::additive_atlas_texture;
-use crate::quest_art::{DynName, named_atlas_texture};
+use crate::quest_art::{DynName, named_atlas_texture, named_atlas_texture_blend};
 use game_engine_core::housing::Decor;
 use ui_toolkit::frame::WidgetData;
 use ui_toolkit::registry::FrameRegistry;
 use ui_toolkit::text_measure::measure_text;
 use ui_toolkit::widgets::button::ButtonState;
 use ui_toolkit::widgets::font_string::GameFont;
+use ui_toolkit::widgets::texture::BlendMode;
 use ui_toolkit::widgets::texture::TextureSource;
 use ui_toolkit::{rsx, widget_def::Element};
 
@@ -45,10 +45,11 @@ fn stored_tile(decor: &Decor, quantity: u32, disabled: bool, [left, top]: [f32; 
         (0.0, 0.0, TILE_SIZE, TILE_SIZE),
     );
     // HousingCatalogEntry.xml51: HoverBackground is alphaMode="ADD"; Background keeps BLEND.
-    let hover = additive_atlas_texture(
+    let hover = named_atlas_texture_blend(
         format!("{prefix}HoverBackground"),
         DEFAULT,
         (0.0, 0.0, TILE_SIZE, TILE_SIZE),
+        BlendMode::Additive,
     );
     let text = quantity.to_string();
     let count_width = measure_text(&text, GameFont::FrizQuadrata, 16.0)

@@ -92,7 +92,7 @@ fn adventure_section_flash_real_paralyze_uses_source_glow_regions_and_retains_ho
             };
             assert_eq!(
                 texture.blend_mode,
-                // Baseline rsx blend_mode was ignored; preserve observed hover data.
+                // R EncounterJournal.xml28/142 inherited textures omit alphaMode; HIGHLIGHT is not a material mode.
                 ui_toolkit::widgets::texture::BlendMode::Blend
             );
             assert_eq!(
