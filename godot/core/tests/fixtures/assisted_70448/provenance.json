@@ -1,0 +1,23 @@
+{
+  "build": "12.1.5.70448",
+  "tables": {
+    "AssistedCombat": {
+      "sha256": "0a98f8b95939649a0cf40aea99975060378d3794205f4bfdf2778ed9d789b5cd",
+      "rows": 40
+    },
+    "AssistedCombatStep": {
+      "sha256": "0ec2f45a7f5d544a5b46aee7e19de949e3fa51446579bf0e82371770a3a1c9ab",
+      "rows": 693
+    },
+    "AssistedCombatRule": {
+      "sha256": "d5e2d9a6fd368ca74669d3bea0041731777e1d596308c99bc90b07cb25874a46",
+      "rows": 3116
+    }
+  },
+  "excluded": "Unrelated cooldown/category tables retain native headers only; all three AssistedCombat tables are complete byte-identical native70448 exports.",
+  "capture": {
+    "path": "/home/osso/Projects/world-of-osso/game-engine/data/diagnostics/follower-kits-2026-10-18/azure-follower205-integration-8ea8af5a3/run/priority-samples.jsonl",
+    "sha256": "768f2a1e516f09f19a7272286d3e73d16667094cc488c021c574be05c49a7efd",
+    "projection": "Last JSONL row: unchanged assisted.in_combat and decoded assisted.evaluation_json; no new facts."
+  }
+}
