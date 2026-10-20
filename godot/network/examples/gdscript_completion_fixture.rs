@@ -41,6 +41,7 @@ const FIXTURES: &[(&str, usize)] = &[
     ("achievement_card_description_alignment", 6),
     ("justify_v_options_capture", 2),
     ("achievement_bottom_tabs", 6),
+    ("achievement_header_title", 4),
 ];
 
 struct Invocation {

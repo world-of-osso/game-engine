@@ -15,7 +15,7 @@
 
 ## Current implementation
 
-`export_db2_csv.py TABLE INPUT OUTPUT --definitions PINNED_DEFINITIONS` selects the payload layout. Sparse tables use `--server-scripts GAME_SERVER/scripts`, the existing server WDC5 reader. Definition acquisition and source receipts belong to the refresh command.
+`export_db2_csv.py TABLE INPUT OUTPUT --definitions PINNED_DEFINITIONS` selects the payload layout. Fixed and sparse records both decode through the game-server checkout's `scripts/db2_casc.py` (`scripts/server_db2.py`: the engine's sibling `game-server`, or `DEPOT_SIBLING_GAME_SERVER`); a missing checkout fails explicitly, and the refresh command's `--server` must be that checkout. Definition acquisition and source receipts belong to the refresh command.
 
 ## Private refresh
 

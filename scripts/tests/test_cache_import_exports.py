@@ -41,7 +41,7 @@ def fixture(layout, values):
     struct.pack_into("<6I", raw, 136, 1, len(values), size, 0, 0, layout)
     inline_id = layout in (0x03FAB755, 0xDCC2A86E, 0x9559C358)
     ids = b"" if inline_id else struct.pack("<I", 1)
-    struct.pack_into("<HH7I", raw, 172, 0 if inline_id else 4, 0, len(values), 0, len(values) * 24, 0, 0, 0, 1)
+    struct.pack_into("<HH7I", raw, 172, 0 if inline_id else 4, 0, len(values), 0, 0, len(values) * 24, 0, 0, 1)
     relation = struct.pack("<5I", 1, 700, 700, 700, 0)
     struct.pack_into("<Q8I", raw, 204, 0, start, 1, 0, start + size, len(ids), len(relation), 0, 0)
     offset = 0
