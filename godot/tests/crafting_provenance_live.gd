@@ -50,6 +50,37 @@ func run_test() -> void:
 	client.free()
 	quit(0)
 
+## The client ignores a world right-click while any Control is hovered (merchant.rs
+## right_click_interact), so only click pick points Godot reports as unhovered.
+func click_pickable(matches: Callable, id_meta: String) -> bool:
+	for turn in range(48):
+		var camera := root.get_camera_3d()
+		if camera != null:
+			for node in nearest_first(client.find_children("*", "Node3D", true, false).filter(matches)):
+				var area: Node = node.find_child("UnitPick", true, false)
+				if area == null:
+					continue
+				var id: int = area.get_meta(id_meta) if area.has_meta(id_meta) else node.get_meta(id_meta)
+				var point := pick_mesh_point(node, camera, id)
+				if point != Vector2.INF and await point_unhovered(point):
+					await click_at(point, MOUSE_BUTTON_RIGHT)
+					return true
+		push_key(KEY_LEFT, 0, true)
+		await create_timer(0.2).timeout
+		push_key(KEY_LEFT, 0, false)
+		await create_timer(0.04).timeout
+	await capture("fail-pick")
+	return fail("No unhovered pickable source model point")
+
+func point_unhovered(point: Vector2) -> bool:
+	var motion := InputEventMouseMotion.new()
+	motion.position = point
+	motion.global_position = point
+	root.push_input(motion, true)
+	Input.warp_mouse(point)
+	await wait_frames(2)
+	return root.gui_get_hovered_control() == null
+
 func pants_entries() -> Array:
 	return client.merchant_state().bags.filter(func(entry): return entry.item_id == PANTS)
 
