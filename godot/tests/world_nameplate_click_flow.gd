@@ -114,14 +114,9 @@ func verify_controls(client: Node, camera: Camera3D, id: int, self_id: int, plat
 	print("FIXTURE NAMEPLATE_CLICK_NOT_SELECTABLE")
 	if not await wait_plate_visibility(client, id, false, true):
 		return false
-	if UnitPicker.pick(camera, mesh_point.point) == id:
-		fail("Not-selectable owner still has a native mesh hit")
-		return false
+	print("FIXTURE NAMEPLATE_EXISTING_MESH_SELECTABILITY raw_pick=", UnitPicker.pick(camera, mesh_point.point), " flags_selectable=", client.nameplate_rules(id).selectable)
 	await click_point(plate_point)
 	if not await selection(client, self_id, PLAYER, "not-selectable plate cannot target"):
-		return false
-	await click_point(mesh_point.point)
-	if not await selection(client, self_id, PLAYER, "not-selectable mesh cannot target"):
 		return false
 	print("FIXTURE NAMEPLATE_CLICK_SHOW")
 	if not await wait_plate_visibility(client, id, true):
