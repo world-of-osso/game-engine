@@ -47,6 +47,7 @@ fn vendor() -> TradingPostSnapshot {
         source_gaps: vec![],
         error: None,
         catalog_complete: true,
+        reply_kind: shared::protocol::TradingPostReplyKind::Query,
     }
 }
 
@@ -507,6 +508,7 @@ fn trading_post_projected_global_rects_follow_effective_retail_anchors_in_both_s
         assert!((child[1] - owner[1]).abs() <= 0.51);
         let (registry, bounds) = render(View {
             confirm: Some("purchase".into()),
+            confirmation_product: Some(vendor().items[0].clone()),
             ..view
         });
         let text_height = ui_toolkit::text_measure::measure_text(
