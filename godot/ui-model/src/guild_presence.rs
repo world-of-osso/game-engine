@@ -3,7 +3,7 @@
 //! build12.1.5.70448 (recency-string-source.json in the Last Online proof ledger).
 use shared::protocol::GuildMemberSnapshot;
 
-pub(crate) fn last_online_text(member: &GuildMemberSnapshot) -> String {
+pub(crate) fn read_current_last_online_text(member: &GuildMemberSnapshot) -> String {
     last_online_at(
         member.is_online,
         member.last_logout_unix_secs,
