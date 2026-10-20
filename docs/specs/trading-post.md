@@ -19,7 +19,7 @@ Retail Mainline Blizzard_PerksProgram and the local C_PerksProgram/PerksActiviti
 - [x] Ordinary rows show the remaining monthly duration from server `month_end_unix - now_unix`, minus monotonic time since receiving that snapshot. Retail `TimeLeftListFormatter` uses one abbreviated unit, floors values and stops at minutes; white above one hour, red at/below one hour. Purchased/zero-duration text is the sourced gray `--`; committed frozen rows do not show a countdown.
 - [x] Use existing Retail TimeRemaining geometry:42×38 at PriceIcon.RIGHT+30, centered, with the cart toggle taking its place on cartable hover. Do not alter product-name colours or cart/frozen ownership.
 - [x] At expiration, send one `TradingPostRequest::Query` per expired server month-end boundary, not every frame. Same-boundary replies do not re-arm it; a fresh full snapshot replaces expired rows and arms the next boundary. No local calendar, wall-clock dependence, wire change or client-invented monthly catalog.
-- [ ] Both-skin native countdown/open-window rollover proof follows landing; registry/model tests do not substitute for that proof.
+- [x] Both-skin native countdown/open-window rollover and fresh-server/client durable readback: four strict7/7 phases, natural exit0, exactly2 Query each; rollover1 Freeze each/readback no mutations. [Exact cohort, evidence and diagnostic qualifications](../wiki/systems/trading-post.md#post-landing-native-cohort). This proves the approved monthly BEST_GUESS policy, not Retail calendar parity.
 
 ## Same-hover ordinary deselection ordering
 
