@@ -2,6 +2,13 @@
 
 Native Retail Mainline AchievementUI and dungeon objectives, using authoritative server catalog/state and local extracted art. Forever changes art, not feature availability. [State and sources](../wiki/systems/dungeon-achievements.md).
 
+## Bottom tabs
+
+- Achievements, Guild and Statistics use Retail's authored AchievementFrameTabButtonTemplate, not boxed panel buttons or generic PanelTab art; share the existing tab builder via its Achievement variant.
+- Preserve Header-sheet strips, active59/inactive49 height,21/18px caps and inactive tint0.6; centered Friz10 captions, selected/inactive center offsets−5/−3.
+- Size tabs by PanelTemplates_TabResize30 (text width+20+30), first tab x17/y+3 below the frame; subsequent shared+3 spacing and Statistics−5 override. Preserve existing actions and both-skin feature parity.
+- Verify source geometry/art in the UI model and native captions across three selections in both skins; publish both-skin PNGs. [Source audit](../handoffs/achievement-bottom-tabs.md).
+
 ## What it must do
 
 ### Dungeon and window lifecycle
