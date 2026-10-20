@@ -517,7 +517,7 @@ fn project_highlight(frame: &Frame, width: f32, height: f32, parts: &mut Vec<Ima
     let Some(WidgetData::Button(button)) = &frame.widget_data else {
         return;
     };
-    let Some(texture) = button.highlight_texture.as_ref() else {
+    let Some(texture) = sourced_button_texture(button.highlight_texture.as_ref()) else {
         return;
     };
     if frame.nine_slice.is_some()
@@ -580,30 +580,30 @@ fn button_skin(frame: &Frame) -> Option<ButtonTexture> {
     )
 }
 
+/// A mode can be authored before its source; metadata alone is not drawable artwork.
+fn sourced_button_texture(texture: Option<&ButtonTexture>) -> Option<&ButtonTexture> {
+    texture.filter(|texture| !matches!(texture.source, TextureSource::None))
+}
+
 fn select_button_base_texture(button: &ButtonData) -> Option<&ButtonTexture> {
-    let texture = match button.state {
-        ButtonState::Normal => button.normal_texture.as_ref(),
-        ButtonState::Pushed => button
-            .pushed_texture
-            .as_ref()
-            .or(button.normal_texture.as_ref()),
-        ButtonState::Disabled => button
-            .disabled_texture
-            .as_ref()
-            .or(button.normal_texture.as_ref()),
-    }?;
-    (!matches!(texture.source, TextureSource::None)).then_some(texture)
+    let normal = sourced_button_texture(button.normal_texture.as_ref());
+    match button.state {
+        ButtonState::Normal => normal,
+        ButtonState::Pushed => sourced_button_texture(button.pushed_texture.as_ref()).or(normal),
+        ButtonState::Disabled => {
+            sourced_button_texture(button.disabled_texture.as_ref()).or(normal)
+        }
+    }
 }
 
 fn select_button_texture(button: &ButtonData) -> Option<&ButtonTexture> {
-    let texture = match button.state {
-        ButtonState::Normal if button.hovered => button
-            .highlight_texture
-            .as_ref()
-            .or(button.normal_texture.as_ref()),
-        _ => return select_button_base_texture(button),
-    }?;
-    (!matches!(texture.source, TextureSource::None)).then_some(texture)
+    match button.state {
+        ButtonState::Normal if button.hovered => {
+            sourced_button_texture(button.highlight_texture.as_ref())
+                .or_else(|| select_button_base_texture(button))
+        }
+        _ => select_button_base_texture(button),
+    }
 }
 
 fn default_button_texture(button: &ButtonData) -> ButtonTexture {
