@@ -56,6 +56,7 @@ pub(crate) struct TradingPost {
     preview_failed: bool,
     snapshot_observed_at: Option<std::time::Instant>,
     spinner_started_at: Option<std::time::Instant>,
+    purchase_started_at: Option<std::time::Instant>,
     freeze_started_at: Option<std::time::Instant>,
 }
 
@@ -107,6 +108,7 @@ impl GameClient {
         let visible = self.trading_post.view.visible;
         self.trading_post.view.visible = false;
         self.trading_post.view.cancel_confirmation();
+        self.trading_post.purchase_started_at = None;
         self.trading_post.freeze_started_at = None;
         self.trading_post.view.clear_cart();
         self.clear_trading_model();
@@ -128,6 +130,10 @@ impl GameClient {
         visible
     }
     pub(super) fn close_trading_post_window(&mut self) -> Result<bool, FrameError> {
+        if self.trading_post.view.dismiss_slow_purchase() {
+            self.trading_post.purchase_started_at = None;
+            return Ok(true);
+        }
         if self.trading_post.view.confirm.is_some() {
             // PerksProgram confirmation definitions omit hideOnEscape. The
             // GameDialog cover consumes Escape; only their Cancel button dismisses.
@@ -179,6 +185,7 @@ impl GameClient {
             }
         }
         self.trading_post.view.horde = self.player_is_horde();
+        self.update_trading_purchase_timeout();
         self.update_trading_freeze_delay();
         self.poll_trading_inputs()?;
         self.play_trading_post_selection_sounds()?;
@@ -280,6 +287,23 @@ impl GameClient {
             }
         }
     }
+    fn update_trading_purchase_timeout(&mut self) {
+        let purchase_confirmation = matches!(
+            self.trading_post.view.confirm.as_deref(),
+            Some("purchase" | "cart-checkout")
+        );
+        let waiting = self.trading_post.view.pending && purchase_confirmation;
+        if !waiting {
+            self.trading_post.purchase_started_at = None;
+            return;
+        }
+        if let Some(started) = self.trading_post.purchase_started_at {
+            self.trading_post
+                .view
+                .update_purchase_timeout(started.elapsed().as_secs_f64());
+        }
+    }
+
     fn update_trading_freeze_delay(&mut self) {
         if self.trading_post.view.confirm.as_deref() != Some("freeze") {
             self.trading_post.freeze_started_at = None;
@@ -400,9 +424,17 @@ impl GameClient {
         ) {
             self.play_ui_sound_kit(TRADING_POST_UI_ITEM_LOCKING)?;
         }
+        let purchase = matches!(
+            request,
+            TradingPostRequest::Purchase { .. } | TradingPostRequest::Checkout { .. }
+        );
         self.account
             .send_trading_post(request)
-            .map_err(|error| error.to_string())
+            .map_err(|error| error.to_string())?;
+        if purchase {
+            self.trading_post.purchase_started_at = Some(std::time::Instant::now());
+        }
+        Ok(())
     }
 
     fn animate_trading_spinner(&mut self) {
@@ -410,7 +442,9 @@ impl GameClient {
             self.trading_post.view.confirm.as_deref(),
             Some("cart-checkout" | "purchase" | "refund")
         );
-        if !self.trading_post.view.pending || !pending_dialog {
+        let pending_spinner = self.trading_post.view.pending && pending_dialog;
+        let show_spinner = pending_spinner && !self.trading_post.view.slow_purchase;
+        if !show_spinner {
             self.trading_post.spinner_started_at = None;
             return;
         }
