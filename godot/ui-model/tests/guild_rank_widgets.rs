@@ -1034,13 +1034,15 @@ fn guild_communities_roster_uses_profile_metadata_without_exposing_officer_notes
             officer_note: "Private strategy".into(),
             public_note: String::new(),
             is_self: false,
-            last_online: "Yesterday".into(),
+            last_logout_unix_secs: Some(
+                game_engine_ui_model::chat_data::now_timestamp() as u64 - 86400 - 120,
+            ),
             online_zone: None,
         }],
     });
     let reg = mounted(&session);
     assert_eq!(text(&reg, "GuildMember0Level"), "80");
-    assert_eq!(text(&reg, "GuildMember0Zone"), "Yesterday");
+    assert_eq!(text(&reg, "GuildMember0Zone"), "1 day");
     assert_eq!(text(&reg, "GuildMember0Note"), "");
     assert_eq!(text(&reg, "GuildMember0Name"), "Cara");
     assert!(reg.get_by_name("GuildMember0Class").is_some());
@@ -1055,10 +1057,10 @@ fn guild_online_zone_roster_and_detail_follow_authority_both_skins() {
             "motd": "", "info_text": "", "members": [
                 {"character_name":"Cara", "level":32, "class_name":"Paladin", "rank_name":"Initiate",
                  "is_online":online, "officer_note":"private", "public_note":"healer", "is_self":false,
-                 "last_online": if online {"Online"} else {"Yesterday"}, "online_zone":zone},
+                 "last_logout_unix_secs": if online {None} else {Some(game_engine_ui_model::chat_data::now_timestamp() as u64 - 2 * 86400 - 120)}, "online_zone":zone},
                 {"character_name":"Dora", "level":32, "class_name":"Mage", "rank_name":"Member",
                  "is_online":true, "officer_note":"", "public_note":"", "is_self":false,
-                 "last_online":"Online", "online_zone":"Westfall"}
+                 "last_logout_unix_secs":null, "online_zone":"Westfall"}
             ]
         })).unwrap()
     };
@@ -1083,7 +1085,7 @@ fn guild_online_zone_roster_and_detail_follow_authority_both_skins() {
         assert_eq!(text(&unknown, "GuildMemberDetailZone"), "");
         session.profile = Some(profile(false, None));
         let offline = mounted(&session);
-        assert_eq!(text(&offline, "GuildMember0Zone"), "Yesterday");
+        assert_eq!(text(&offline, "GuildMember0Zone"), "2 days");
         assert_eq!(text(&offline, "GuildMemberDetailZone"), "");
     }
 }
@@ -1290,7 +1292,7 @@ fn note_sort_session() -> GuildRanksSession {
                 officer_note: format!("private-{name}"),
                 public_note: (*note).into(),
                 is_self: false,
-                last_online: String::new(),
+                last_logout_unix_secs: None,
                 online_zone: None,
             })
             .collect(),
@@ -1549,7 +1551,7 @@ fn guild_show_offline_filters_only_expanded_roster_and_preserves_authority_both_
                     officer_note: String::new(),
                     public_note: String::new(),
                     is_self: false,
-                    last_online: String::new(),
+                    last_logout_unix_secs: None,
                     online_zone: None,
                 })
                 .collect(),
@@ -1641,7 +1643,7 @@ fn guild_show_offline_keeps_filtered_sort_targets_and_clamps_real_overflow() {
                 officer_note: String::new(),
                 public_note: String::new(),
                 is_self: false,
-                last_online: String::new(),
+                last_logout_unix_secs: None,
                 online_zone: None,
             })
             .collect(),
@@ -1876,7 +1878,7 @@ fn guild_communities_metadata_columns_sort_numeric_values_and_preserve_member_id
                 officer_note: "Private".into(),
                 public_note: String::new(),
                 is_self: false,
-                last_online: String::new(),
+                last_logout_unix_secs: None,
                 online_zone: None,
             })
             .collect(),
@@ -2080,7 +2082,7 @@ fn guild_member_notes_gate_self_public_officer_visibility_and_wait_for_authority
                 officer_note: String::new(),
                 public_note: "Alchemy".into(),
                 is_self: true,
-                last_online: "Online".into(),
+                last_logout_unix_secs: None,
                 online_zone: None,
             }],
         });
@@ -2169,7 +2171,7 @@ fn guild_member_note_popup_keeps_original_target_when_roster_selection_changes()
         public_note: String::new(),
         officer_note: String::new(),
         is_self: false,
-        last_online: "Online".into(),
+        last_logout_unix_secs: None,
         online_zone: None,
     };
     session.profile = Some(GuildSnapshot {
@@ -2683,5 +2685,58 @@ fn guild_member_detail_opens_from_roster_both_skins() {
         assert_eq!(text(&reg, "GuildMemberDetailName"), "Cara");
         // GuildRoster.lua:16–56 uses the rank dropdown for an editable member.
         assert_eq!(text(&reg, "GuildMemberDetailRankDropdownText"), "Member");
+    }
+}
+
+#[test]
+fn guild_last_online_elapsed_recency_and_unknown_online_fields_both_skins() {
+    let _lock = SKIN.lock().unwrap_or_else(|p| p.into_inner());
+    let now = std::time::SystemTime::now()
+        .duration_since(std::time::UNIX_EPOCH)
+        .unwrap()
+        .as_secs();
+    // TimeUtil.lua24–43; authenticated active local-CASC GlobalStrings10842/11461/11518–11520.
+    for skin in [ActiveSkin::Modern, ActiveSkin::Forever] {
+        set_thread_skin(skin);
+        for (age, online, expected, zone) in [
+            (Some(120), false, "< an hour", "< an hour"),
+            (Some(3 * 3600 + 120), false, "3 hours", "3 hours"),
+            (Some(2 * 86400 + 120), false, "2 days", "2 days"),
+            (Some(61 * 86400 + 120), false, "2 months", "2 months"),
+            (Some(731 * 86400 + 120), false, "2 years", "2 years"),
+            (None, false, "Offline", "Offline"),
+            (Some(2 * 86400 + 120), true, "Online", "Elwynn Forest"),
+        ] {
+            let mut session = GuildRanksSession::default();
+            session.open();
+            session.apply(state(0));
+            let member: GuildMemberSnapshot = serde_json::from_value(serde_json::json!({
+                "character_name": "Cara", "level": 32, "class_name": "Warrior", "rank_name": "Member",
+                "is_online": online, "officer_note": "", "public_note": "", "is_self": false,
+                "online_zone": if online { Some("Elwynn Forest") } else { None },
+                "last_logout_unix_secs": age.map(|age| now - age)
+            })).unwrap();
+            session.profile = Some(GuildSnapshot {
+                guild_id: 7,
+                guild_name: "Presence Guild".into(),
+                tabard: None,
+                created_at: None,
+                motd: String::new(),
+                info_text: String::new(),
+                members: vec![member],
+            });
+            session.click("guild:member:Cara", &Default::default());
+            let registry = mounted(&session);
+            assert_eq!(
+                text(&registry, "GuildMemberDetailOnline"),
+                expected,
+                "source detail elapsed recency"
+            );
+            assert_eq!(
+                text(&registry, "GuildMember0Zone"),
+                zone,
+                "same recency in the existing offline roster cell"
+            );
+        }
     }
 }
