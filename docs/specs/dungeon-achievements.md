@@ -2,6 +2,13 @@
 
 Native Retail Mainline AchievementUI and dungeon objectives, using authoritative server catalog/state and local extracted art. Forever changes art, not feature availability. [State and sources](../wiki/systems/dungeon-achievements.md).
 
+## Header title content and style
+
+- Player title resolves installed GlobalStrings `ACHIEVEMENT_TITLE` (Warband Achievement Points); guild title resolves `GUILD_ACHIEVEMENTS_TITLE` (Guild Achievements), following AchievementUI.lua380/398.
+- Use Roman Friz10 and local black(+1,−1) shadow from GameFontNormalSmall. Preserve150×20 at existing(334,−29), gold ink and horizontal CENTER; points/shield/actions and other labels stay unchanged.
+- `ACHIEVEMENT_HEADER_TITLE_AUTOSCALE_UNIMPLEMENTED`: Retail XML1956 maxLines2 and AutoScalingFontStringMixin(minLineHeight8) remain out of scope unless an actual Retail string overflows. Current installed player/guild strings measure138/95px at10pt in both skins, fitting150px; no autoscale or maxLines behavior added.
+- Model controls verify both strings, source font/shadow, allocation/anchor/ink and fit. Native `achievement_header_title`4 is reserved for the lead's post-landing window; model PASS does not establish native pixel/raster parity. [Implementation and sources](../wiki/systems/dungeon-achievements.md#header-title).
+
 ## Bottom tabs
 
 - Achievements, Guild and Statistics use Retail's authored AchievementFrameTabButtonTemplate, not boxed panel buttons or generic PanelTab art; share the existing tab builder via its Achievement variant.
