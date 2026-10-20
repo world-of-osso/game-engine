@@ -52,7 +52,6 @@ fn requeue_enabled(registry: &FrameRegistry) -> bool {
 }
 
 #[test]
-#[ignore = "RED: ended skirmish results render Leave only"]
 fn skirmish_requeue_both_skin_results_button_and_immediate_disable() {
     for skin in [ActiveSkin::Modern, ActiveSkin::Forever] {
         for mode in [ArenaQueueMode::Skirmish2v2, ArenaQueueMode::Skirmish3v3] {
@@ -82,7 +81,6 @@ fn skirmish_requeue_both_skin_results_button_and_immediate_disable() {
 }
 
 #[test]
-#[ignore = "RED: ended skirmish Queue Again has no action route"]
 fn skirmish_requeue_action_binds_ended_match_and_blocks_duplicates() {
     for mode in [ArenaQueueMode::Skirmish2v2, ArenaQueueMode::Skirmish3v3] {
         let mut view = PvpView::default();
