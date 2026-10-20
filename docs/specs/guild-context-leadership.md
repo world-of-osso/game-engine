@@ -1,6 +1,6 @@
 # Guild roster leadership context action
 
-Mainline UnitPopupSharedMenus.lua257–286 and UnitPopupSharedButtonMixins.lua883–900 expose GUILD_PROMOTE for a current Guild Leader's other guild member, online or offline. GameDialogDefs.lua872–882 captures that member for Accept/Cancel/Escape. Reuse the landed target-only TransferLeadership route; [guild system](../wiki/systems/guilds.md) owns implementation/proof details.
+Mainline `COMMUNITIES_GUILD_MEMBER` (CommunitiesMemberList.lua27–30,718–747; Standard/UnitPopupMenus.lua152–172) and UnitPopupSharedButtonMixins.lua883–900 expose GUILD_PROMOTE for a current Guild Leader's other guild member, online or offline. GameDialogDefs.lua872–882 captures that member for Accept/Cancel/Escape. Reuse the landed target-only TransferLeadership route; [guild system](../wiki/systems/guilds.md) owns implementation/proof details.
 
 ## What it must do
 

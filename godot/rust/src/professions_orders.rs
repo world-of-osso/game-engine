@@ -282,7 +282,7 @@ impl GameClient {
                 .validate_place(recipe, &self.merchant.session.inventory)
                 .is_ok();
             for reagent in &recipe.reagents {
-                view.bag_counts.insert(
+                view.owned_reagents.insert(
                     reagent.item_id,
                     owned_count(&self.merchant.session.inventory, reagent.item_id),
                 );
