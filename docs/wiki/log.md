@@ -1,3 +1,7 @@
+## 2026-10-20 — Recipe cooldown display
+
+[Contract](../specs/modern-crafting.md#recipe-cooldown): Create gated and Retail `COOLDOWN_REMAINING` red text from spell/category clocks; [server](../../../game-server/docs/specs/spell-cooldown-persistence.md) persists and replays cooldowns. ui-model RED (4 genuine assertion failures) → GREEN 28/28 professions; extension professions 8/8. Native both-skin proof pending.
+
 ## 2026-10-20 — Crafting origin native proof accepted
 
 [Both-skin craft → reopened-server readback](systems/native-professions-crafting.md#native-provenance-proof--2026-10-20): real trainer/cast/Create path records {1355, 2153, null} on new 2303 GUIDs only; a fresh server generation on the same DB and readback-only clients preserve it. Normal item tooltip plus owner-state readback; no lineage tooltip line. Stackable-output origin policy is the follow-up; unlearned fixture native gap named.
