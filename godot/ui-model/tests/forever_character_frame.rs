@@ -12,6 +12,7 @@ use ui_toolkit::registry::FrameRegistry;
 use ui_toolkit::screen::{Screen, SharedContext};
 
 fn dump_frame(registry: &FrameRegistry, id: u64, out: &mut String) {
+    super::golden_layer_census::record(registry, id);
     let f = registry.get(id).unwrap();
     // Freeze approved chrome, not the newly bound live portrait host. Its geometry is
     // covered separately by textfit_character_portrait_has_a_foreground_render_slot_in_both_skins.

@@ -20,6 +20,7 @@ mod dungeon_preview;
 mod error_hold_preview;
 mod flight_map_preview;
 mod follower_layout_preview;
+mod font_lines;
 mod forevergaps_preview;
 mod gameplay_panels_input_fixture;
 mod gameplay_panels_preview;
@@ -50,6 +51,7 @@ pub(crate) mod input_queue;
 #[cfg(debug_assertions)]
 mod item_confirmation_shadow_preview;
 mod journal_section_flash;
+mod journal_suggestion_hover;
 mod journeys_track_mask;
 mod launcher_preview;
 mod layout;
@@ -67,7 +69,15 @@ mod options_keybindings;
 mod parts;
 mod party_preview;
 mod professions_preview;
+#[cfg(test)]
+mod professions_search_scroll_tests;
 mod projection;
+mod projection_order;
+#[cfg(debug_assertions)]
+mod projection_order_preview;
+#[cfg(debug_assertions)]
+mod pvp_bonus_preview;
+mod ready_check_layout_policy;
 #[cfg(debug_assertions)]
 mod ready_check_preview;
 mod registration_preview;
@@ -222,6 +232,7 @@ fn search_for_clear_action(action: &str) -> Option<&'static str> {
             Some(game_engine_ui_model::bag_frame_component::SEARCH_BOX)
         }
         "journal:search-clear" => Some(game_engine_ui_model::adventure_guide::SEARCH),
+        "profession:search-clear" => Some(game_engine_ui_model::professions_frame::SEARCH),
         _ => None,
     }
 }
@@ -292,7 +303,73 @@ impl RegistryModel {
             self.sync();
             projection.sync(&mut self.registry)?;
         }
+        self.sync_journal_suggestion_hovers(projection);
         Ok(())
+    }
+
+    fn sync_journal_suggestion_hovers(&mut self, projection: &UiProjection) {
+        if let Some(snapshot) = self
+            .shared
+            .get::<game_engine_ui_model::adventure_guide::View>()
+            .and_then(|view| view.activities.as_deref())
+        {
+            projection.sync_journal_suggestion_hovers(&mut self.registry, snapshot);
+        }
+    }
+
+    /// Replace reactive data and apply its existing scroll-transition policy.
+    fn replace_state<T: PartialEq + 'static>(&mut self, state: T) -> bool {
+        if self.shared.get::<T>() == Some(&state) {
+            return false;
+        }
+        if let Some(next) = (&state as &dyn std::any::Any)
+            .downcast_ref::<game_engine_ui_model::world_map_frame_component::WorldMapFrameState>(
+        ) {
+            use game_engine_ui_model::quest_log_frame_component::QUEST_LOG_DETAILS_SCROLL;
+            use game_engine_ui_model::world_map_frame_component::WorldMapFrameState;
+            let previous = self
+                .shared
+                .get::<WorldMapFrameState>()
+                .and_then(|state| state.quest_panel.as_ref())
+                .and_then(|panel| panel.log.details.as_ref())
+                .map(|details| details.quest_id);
+            let selected = next
+                .quest_panel
+                .as_ref()
+                .and_then(|panel| panel.log.details.as_ref())
+                .map(|details| details.quest_id);
+            if previous != selected {
+                self.registry
+                    .scroll_lists
+                    .scroll_to(QUEST_LOG_DETAILS_SCROLL, 0);
+            }
+        }
+        if let Some(next) = (&state as &dyn std::any::Any)
+            .downcast_ref::<game_engine_ui_model::adventure_guide::View>()
+            && let Some(previous) = self
+                .shared
+                .get::<game_engine_ui_model::adventure_guide::View>()
+        {
+            game_engine_ui_model::adventure_guide_art::reset_changed_scrolls(
+                previous,
+                next,
+                &mut self.registry,
+            );
+        }
+        if let Some(next) = (&state as &dyn std::any::Any)
+            .downcast_ref::<game_engine_ui_model::professions_frame::ProfessionView>(
+        ) && let Some(previous) =
+            self.shared
+                .get::<game_engine_ui_model::professions_frame::ProfessionView>()
+            && !next.book.search.is_empty()
+            && previous.book.search != next.book.search
+        {
+            self.registry
+                .scroll_lists
+                .scroll_to(game_engine_ui_model::professions_frame::LIST, 0);
+        }
+        self.shared.insert(state);
+        true
     }
 
     /// Mirror the active layout's settings, then its skin: a change of either rebuilds the
@@ -783,8 +860,33 @@ impl RegistryModel {
         });
     }
 
+    fn achievement_search_hover_action(&self, id: u64) -> Option<String> {
+        let window = self
+            .shared
+            .get::<game_engine_ui_model::achievements::AchievementWindow>()?;
+        let name = self.registry.get(id)?.name.as_deref()?;
+        let index = if name == "AchievementShowAllSearchResults" {
+            window.search_preview_count().checked_sub(1)
+        } else {
+            name.strip_prefix("AchievementSearchPreview")
+                .and_then(|index| index.parse::<usize>().ok())
+                .and_then(|index| index.checked_sub(1))
+        }?;
+        Some(format!("achievement:search_select:{index}"))
+    }
+
     /// Original Enter in an edit box: login submits unless in flight; deletion confirms.
     fn submit(&self, actions: &mut VecDeque<String>) {
+        if self.registry.focused_frame.is_some()
+            && self.registry.focused_frame == self.registry.get_by_name("AchievementSearchBox")
+            && self
+                .shared
+                .get::<game_engine_ui_model::achievements::AchievementWindow>()
+                .is_some()
+        {
+            actions.push_back("achievement:search_submit".into());
+            return;
+        }
         let profession_quantity = self
             .shared
             .get::<game_engine_ui_model::professions_frame::ProfessionView>()
@@ -2791,45 +2893,9 @@ impl RegistryUi {
             .model
             .as_mut()
             .ok_or("Registry model not initialized")?;
-        if model.shared.get::<T>() == Some(&state) {
+        if !model.replace_state(state) {
             return Ok(());
         }
-        if let Some(next) = (&state as &dyn std::any::Any)
-            .downcast_ref::<game_engine_ui_model::world_map_frame_component::WorldMapFrameState>(
-        ) {
-            use game_engine_ui_model::quest_log_frame_component::QUEST_LOG_DETAILS_SCROLL;
-            use game_engine_ui_model::world_map_frame_component::WorldMapFrameState;
-            let previous = model
-                .shared
-                .get::<WorldMapFrameState>()
-                .and_then(|state| state.quest_panel.as_ref())
-                .and_then(|panel| panel.log.details.as_ref())
-                .map(|details| details.quest_id);
-            let selected = next
-                .quest_panel
-                .as_ref()
-                .and_then(|panel| panel.log.details.as_ref())
-                .map(|details| details.quest_id);
-            if previous != selected {
-                model
-                    .registry
-                    .scroll_lists
-                    .scroll_to(QUEST_LOG_DETAILS_SCROLL, 0);
-            }
-        }
-        if let Some(next) = (&state as &dyn std::any::Any)
-            .downcast_ref::<game_engine_ui_model::adventure_guide::View>()
-            && let Some(previous) = model
-                .shared
-                .get::<game_engine_ui_model::adventure_guide::View>()
-        {
-            game_engine_ui_model::adventure_guide_art::reset_changed_scrolls(
-                previous,
-                next,
-                &mut model.registry,
-            );
-        }
-        model.shared.insert(state);
         self.sync_model()
     }
 
@@ -2983,7 +3049,9 @@ impl RegistryUi {
         };
         projection.root.set_scale(Vector2::splat(scale));
         projection.root.set_size(logical);
-        projection.sync(&mut model.registry)
+        projection.sync(&mut model.registry)?;
+        model.sync_journal_suggestion_hovers(projection);
+        Ok(())
     }
 
     /// Redraw this canvas under the active skin; a canvas without a screen has nothing drawn.
@@ -3273,6 +3341,12 @@ impl RegistryUi {
                     .is_some()
                 {
                     format!("journal:search-move:{step}")
+                } else if model
+                    .shared
+                    .get::<game_engine_ui_model::achievements::AchievementWindow>()
+                    .is_some()
+                {
+                    format!("achievement:search_move:{step}")
                 } else {
                     format!("talent:search_move:{step}")
                 };
@@ -3280,6 +3354,9 @@ impl RegistryUi {
             }
             UiInput::Hover(id, entered) => {
                 model.update_input_widgets(UiInput::Hover(id, entered), &mut self.slider_events);
+                if entered && let Some(action) = model.achievement_search_hover_action(id) {
+                    self.actions.push_back(action);
+                }
                 if entered
                     && model
                         .shared

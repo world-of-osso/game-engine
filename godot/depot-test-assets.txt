@@ -4896,10 +4896,13 @@ textures/4638369.blp
 textures/4641164.blp
 textures/5179179.blp
 textures/7323575.blp
-# Adventure Guide cache from pinned local Retail Journal DB2s.
+# Adventure Guide cache and installed source-row642 native fixture.
 cache/adventure_guide.sqlite
+db2/active/AdventureJournal.csv
 # Mainline RaidBossEmote warning kit12197 (SoundKitEntry15068).
 sounds/ui/567394.ogg
+# ReadyCheck OnShow kit8960, authenticated local70448 Ogg (SoundKitEntry9401).
+sounds/ui/567478.ogg
 sounds/ui/6838456.ogg
 # Accepted freeze-lock218229:70391 metadata, authenticated installed70448 variants.
 sounds/ui/4908453.ogg
@@ -4908,6 +4911,8 @@ sounds/ui/4908457.ogg
 sounds/ui/4908459.ogg
 # Hover kit218934:70391 SoundKit metadata, authenticated installed70448 bytes.
 sounds/ui/4906953.ogg
+# Selection kit218230:active70448 metadata and authenticated installed Ogg.
+sounds/ui/4906955.ogg
 # Trading Post menu kits218932/218933, exact local70391 SoundKitEntry variants.
 sounds/ui/4956048.ogg
 sounds/ui/4956050.ogg
@@ -4954,3 +4959,7 @@ db2/active/Achievement.csv
 db2/active/CriteriaTree.csv
 # Mainline AchievementCriteriaTemplate check, XML703–724; already locally extracted.
 textures/130653.blp
+# Static full-search category ancestry and source row/container file textures.
+db2/active/Achievement_Category.csv
+textures/522973.blp
+textures/374155.blp

@@ -91,6 +91,22 @@ pub(super) fn tooltip_view() -> GameTooltipView {
 /// Hash of every frame's name, layout rect, visibility, alpha, colours, art and widget data.
 fn canvas_hash(model: &RegistryModel) -> u64 {
     let registry = &model.registry;
+    let layers: std::collections::BTreeSet<_> = registry
+        .frames_iter()
+        .map(|frame| {
+            (
+                frame.strata,
+                frame.frame_level,
+                frame.raise_order,
+                frame.draw_layer,
+            )
+        })
+        .collect();
+    eprintln!(
+        "GOLDEN_LAYER_CENSUS scene=ModernChatMeterTooltip frames={} layers={}",
+        registry.frame_count(),
+        layers.len()
+    );
     let rects = compute_layout_with_intrinsics(registry, &HashMap::new()).unwrap();
     let mut frames: Vec<_> = registry.frames_iter().collect();
     frames.sort_by_key(|frame| frame.id);
@@ -135,8 +151,11 @@ fn modern_chat_meter_and_tooltip_canvases_are_unchanged() {
 
 /// Captured from forever6 (0c9f5dff) with this test; the meter's again at meter2
 /// (9a8e9715), which adds the clickable `DamageMeterTypeDropdown` (was 9780770820284619226).
+/// Recaptured after ui-toolkit dbbfda7 added `FontStringData::line_spacing`: hashing with
+/// `, line_spacing: None` stripped reproduces the previous constants exactly, so only the
+/// widget Debug text changed, not the canvases.
 const MODERN_CANVAS_HASHES: [u64; 3] = [
-    16430831331836887543,
-    7363416174316962923,
-    17854536772600002908,
+    10955398444729447730,
+    10138633227594077484,
+    18211835941521366489,
 ];

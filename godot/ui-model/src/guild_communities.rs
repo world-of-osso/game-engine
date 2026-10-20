@@ -170,6 +170,7 @@ fn roster(session: &GuildRanksSession, shared: &SharedContext) -> Element {
         .collect();
     let config = scroll_list_attr(&geometry);
     let mut out = columns();
+    out.extend(show_offline_checkbox(!session.roster_online_only));
     out.extend(rsx! { r#frame { name: {DynName(SCROLL_BOX.into())}, width: {LIST.2}, height: {LIST.3}, left: {LIST.0}, top: {LIST.1}, pos_type: "absolute", mouse_enabled: true, scroll_list: config,
         r#frame { name: "CommunitiesMemberListScrollChild", width: {LIST.2}, height: {members.len() as f32 * ROW_HEIGHT}, left: 0.0, top: {-(offset as f32)}, pos_type: "absolute", {rows} }
     } });
@@ -188,39 +189,132 @@ fn roster(session: &GuildRanksSession, shared: &SharedContext) -> Element {
     out
 }
 
+/// CommunitiesMemberList.xml282 + CheckButtonTemplates.xml50:32px, label RIGHT−2.
+fn show_offline_checkbox(checked: bool) -> Element {
+    let name = "CommunitiesMemberListShowOfflineButton";
+    let mut art = vec![];
+    if checked {
+        art.extend(rsx! { texture { name: "CommunitiesMemberListShowOfflineButtonCheck",
+            texture_fdid: 130751, width: 32.0, height: 32.0, left: 0.0, top: 0.0, pos_type: "absolute" } });
+    }
+    let (width, height) = ui_toolkit::text_measure::measure_text(
+        "Show Offline Members",
+        ui_toolkit::widgets::font_string::GameFont::FrizQuadrata,
+        10.0,
+    )
+    .expect("UICheckButtonTemplate GameFontNormalSmall");
+    art.extend(label(
+        format!("{name}Text"),
+        "Show Offline Members",
+        (30.0, (32.0 - height) / 2.0, width, height),
+        (10.0, "1,0.82,0,1", "LEFT"),
+    ));
+    // Lua RefreshLayout: MemberList is60px below CommunitiesList's23px top.
+    // XML puts the checkbox bottom26px above that top (y-up).
+    let top = LIST.1 - 26.0 - 32.0;
+    rsx! { button { name: {DynName(name.into())}, width: 32.0, height: 32.0,
+    left: {LIST.0}, top, pos_type: "absolute", button_default_skin: false,
+    onclick: "guild:show_offline", button_fdid_up: 130755_u32,
+    button_fdid_pressed: 130752_u32, button_fdid_highlight: 130753_u32, {art} } }
+}
+
 fn sorted_members(session: &GuildRanksSession) -> Vec<&GuildRankMember> {
-    let mut members: Vec<_> = session
-        .state()
-        .into_iter()
-        .flat_map(|s| &s.members)
-        .collect();
     let profiles: HashMap<_, _> = session
         .profile
         .iter()
         .flat_map(|profile| &profile.members)
         .map(|member| (member.character_name.as_str(), member))
         .collect();
+    let mut members: Vec<_> = session
+        .state()
+        .into_iter()
+        .flat_map(|state| &state.members)
+        .filter(|member| {
+            !session.roster_online_only
+                || profiles
+                    .get(member.character_name.as_str())
+                    .is_some_and(|profile| profile.is_online)
+        })
+        .collect();
     match session.roster_sort {
+        Some(GuildRosterSort::Zone) => {
+            members.sort_by(|lhs, rhs| {
+                crate::guild_zone_sort::compare(
+                    (lhs, profiles.get(lhs.character_name.as_str()).copied()),
+                    (rhs, profiles.get(rhs.character_name.as_str()).copied()),
+                    session.roster_sort_descending,
+                )
+            });
+            return members;
+        }
+        Some(GuildRosterSort::Note) => {
+            members.sort_by(|lhs, rhs| {
+                crate::guild_note_sort::compare(
+                    (lhs, profiles.get(lhs.character_name.as_str()).copied()),
+                    (rhs, profiles.get(rhs.character_name.as_str()).copied()),
+                    session.roster_sort_descending,
+                )
+            });
+            return members;
+        }
         Some(GuildRosterSort::Name) => {
             members.sort_by(|a, b| a.character_name.cmp(&b.character_name))
         }
-        Some(GuildRosterSort::Rank) => members.sort_by_key(|m| m.rank),
-        Some(GuildRosterSort::Level) => members.sort_by_key(|member| {
-            profiles
-                .get(member.character_name.as_str())
-                .map(|profile| profile.level)
-        }),
-        Some(GuildRosterSort::Class) => members.sort_by_key(|member| {
-            profiles
-                .get(member.character_name.as_str())
-                .and_then(|profile| class_icon(&profile.class_name))
-                .map(|(id, _)| id)
-        }),
+        Some(GuildRosterSort::Rank) => {
+            return sort_numeric_members(
+                members,
+                &profiles,
+                session.roster_sort_descending,
+                |member, _| Some(u16::from(member.rank)),
+            );
+        }
+        Some(GuildRosterSort::Level) => {
+            return sort_numeric_members(
+                members,
+                &profiles,
+                session.roster_sort_descending,
+                |_, profile| profile.map(|profile| profile.level),
+            );
+        }
+        Some(GuildRosterSort::Class) => {
+            return sort_numeric_members(
+                members,
+                &profiles,
+                session.roster_sort_descending,
+                |_, profile| {
+                    profile
+                        .and_then(|profile| class_icon(&profile.class_name))
+                        .map(|(id, _)| u16::from(id))
+                },
+            );
+        }
         None => {}
     }
     if session.roster_sort_descending {
         members.reverse();
     }
+    members
+}
+
+fn sort_numeric_members<'a>(
+    mut members: Vec<&'a GuildRankMember>,
+    profiles: &HashMap<&str, &GuildMemberSnapshot>,
+    descending: bool,
+    key: impl Fn(&GuildRankMember, Option<&GuildMemberSnapshot>) -> Option<u16>,
+) -> Vec<&'a GuildRankMember> {
+    members.sort_by(|lhs, rhs| {
+        let lhs_profile = profiles.get(lhs.character_name.as_str()).copied();
+        let rhs_profile = profiles.get(rhs.character_name.as_str()).copied();
+        let primary = key(lhs, lhs_profile).cmp(&key(rhs, rhs_profile));
+        let primary = if descending {
+            primary.reverse()
+        } else {
+            primary
+        };
+        primary.then_with(|| {
+            crate::guild_note_sort::compare_base((lhs, lhs_profile), (rhs, rhs_profile))
+        })
+    });
     members
 }
 
@@ -254,10 +348,13 @@ fn member_row(session: &GuildRanksSession, index: usize, member: &GuildRankMembe
         "1,1,1,1".into()
     };
     let level = profile.map(|m| m.level.to_string()).unwrap_or_default();
-    let zone = profile
-        .filter(|m| !m.is_online)
-        .map(|m| m.last_online.as_str())
-        .unwrap_or("");
+    let zone = profile.map_or_else(String::new, |member| {
+        if member.is_online {
+            member.online_zone.clone().unwrap_or_default()
+        } else {
+            crate::guild_presence::read_current_last_online_text(member)
+        }
+    });
     // Public notes are independent of the server-filtered officer notes.
     let columns = [
         (
@@ -268,7 +365,7 @@ fn member_row(session: &GuildRanksSession, index: usize, member: &GuildRankMembe
             color.as_str(),
         ),
         ("Level", level.as_str(), 4.0, 40.0, "1,1,1,1"),
-        ("Zone", zone, zone_left, 90.0, "1,1,1,1"),
+        ("Zone", zone.as_str(), zone_left, 90.0, "1,1,1,1"),
         ("Rank", rank, rank_left, 75.0, "1,1,1,1"),
         (
             "Note",
@@ -340,9 +437,9 @@ fn columns() -> Element {
         ("Lvl", 40.0, "guild:roster-sort:level"),
         ("Class", 45.0, "guild:roster-sort:class"),
         ("Name", 100.0, "guild:roster-sort:name"),
-        ("Zone", 100.0, ""),
+        ("Zone", 100.0, "guild:roster-sort:zone"),
         ("Rank", 85.0, "guild:roster-sort:rank"),
-        ("Note", 227.0, ""),
+        ("Note", 227.0, "guild:roster-sort:note"),
     ]
     .into_iter()
     .enumerate()

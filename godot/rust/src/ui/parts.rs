@@ -344,7 +344,12 @@ fn base_image(frame: &Frame, width: f32, height: f32) -> Option<ImagePart> {
             let mut part = textured(rect, texture.source.clone(), crop, [r, g, b, a]);
             part.desaturated = texture.desaturated;
             part.rotation = texture.rotation;
+            // PerksProgramElements.xml223/383: ordinary and frozen SelectedTexture use ADD.
+            let perks_product_selection = frame.name.as_deref().is_some_and(|name| {
+                name.starts_with("PerksProgramSelected") || name == "PerksProgramFrozenSelected"
+            });
             part.additive = texture.blend_mode == BlendMode::Additive
+                || perks_product_selection
                 || game_engine_ui_model::selection_list::is_additive_row_art(frame, texture);
             part.tiling = [texture.horiz_tile, texture.vert_tile];
             Some(part)
@@ -534,7 +539,7 @@ fn project_highlight(frame: &Frame, width: f32, height: f32, parts: &mut Vec<Ima
         | "transmog-gearslot-default" | "transmog-gearslot-transmogrified" | "transmog-gearslot-pending"
         | "transmog-gearslot-default-small" | "transmog-gearslot-transmogrified-small"
         | "house-chest-open-drawer-button" | "house-chest-close-drawer-button"
-        | "RedButton-Highlight"));
+        | "RedButton-Highlight" | "perks-list-hover"));
     parts.push(part);
 }
 

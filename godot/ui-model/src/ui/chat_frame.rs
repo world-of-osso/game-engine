@@ -634,6 +634,12 @@ pub fn parse_chat_input(line: &str, reply_target: Option<&str>) -> ChatCommand {
             ChatCommand::Guild(crate::guild_ranks::GuildCommand::SetMotd(rest.to_owned()))
         }
         "ginfo" | "guildinfo" => ChatCommand::Guild(crate::guild_ranks::GuildCommand::Query),
+        // Mainline SlashCommands.lua793–799: C_GuildInfo.SetLeader receives the typed name.
+        "gleader" => {
+            ChatCommand::GuildRank(shared::protocol::GuildRankRequest::TransferLeadership {
+                character_name: rest.to_owned(),
+            })
+        }
         // Retail SlashCommands.lua: GUILD_PROMOTE / GUILD_DEMOTE.
         "gpromote" | "guildpromote" => {
             ChatCommand::GuildRank(shared::protocol::GuildRankRequest::Promote {

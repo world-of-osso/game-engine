@@ -48,7 +48,11 @@ impl SpellEffects {
     pub(super) fn spawn_due(&mut self, world: &WorldUnits) -> Result<(), String> {
         let mut errors = Vec::new();
         for pending in std::mem::take(&mut self.pending) {
-            if !pending.is_due(self.clock, world.unit_visual_loading(pending.unit)) {
+            let owner_loading = match pending.owner {
+                EffectOwner::Unit(unit) => world.unit_visual_loading(unit),
+                EffectOwner::Detached(_) => false,
+            };
+            if !pending.is_due(self.clock, owner_loading) {
                 self.pending.push(pending);
                 continue;
             }
@@ -106,18 +110,17 @@ impl SpellEffects {
         phase: Phase,
     ) -> Result<ActiveEffect, String> {
         let model = &pending.model;
-        if model.attachment.is_some() && world.unit_model_node(pending.unit).is_none() {
-            return Err(format!(
-                "Spell {} kit {}: unit {} owner visual unavailable after loading; cannot attach model {}",
-                pending.spell_id, pending.kit_id, pending.unit, model.model_fdid
-            ));
-        }
-        let Some(parent) = attachment_node(world, pending.unit, model.attachment) else {
-            return Err(format!(
-                "Spell {} kit {}: unit {} has no attachment {:?}",
-                pending.spell_id, pending.kit_id, pending.unit, model.attachment
-            ));
-        };
+        let parent =
+            effect_attachment_node(world, pending.owner, model.attachment).ok_or_else(|| {
+                format!(
+                    "Spell {} kit {}: owner {:?} has no attachment {:?} for model {}",
+                    pending.spell_id,
+                    pending.kit_id,
+                    pending.owner,
+                    model.attachment,
+                    model.model_fdid
+                )
+            })?;
         self.effects_root(world)?;
         let (mut node, particles) = self.build_effect(effect, model.model_fdid, &parent)?;
         node.set_transform(kit_model_transform(model));
@@ -134,7 +137,7 @@ impl SpellEffects {
             node,
             particles,
             ribbons,
-            owner: pending.unit,
+            owner: pending.owner,
             spell_id: pending.spell_id,
             kit_id: pending.kit_id,
             model_fdid: model.model_fdid,
@@ -307,6 +310,25 @@ pub(super) fn phase_at(
 /// M2 has no attachment table (Sealamp2358259, Spire1625030). No authored bone
 /// or alternate position is synthesized; other attachment IDs require their rig.
 const GROUND_ATTACHMENT: u8 = 19;
+
+fn effect_attachment_node(
+    world: &WorldUnits,
+    owner: EffectOwner,
+    attachment: Option<u8>,
+) -> Option<Gd<Node3D>> {
+    match owner {
+        EffectOwner::Unit(unit) => attachment_node(world, unit, attachment),
+        EffectOwner::Detached(visual) => {
+            let root = Gd::<Node3D>::try_from_instance_id(visual).ok()?;
+            match attachment {
+                None | Some(GROUND_ATTACHMENT) => Some(root),
+                Some(attachment) => root.try_get_node_as::<Node3D>(&format!(
+                    "NpcModel/Skeleton3D/AttachmentBone{attachment}/Attachment{attachment}"
+                )),
+            }
+        }
+    }
+}
 
 /// Authored rig attachment, or the unit ground origin for GROUND/no attachment.
 pub(super) fn attachment_node(

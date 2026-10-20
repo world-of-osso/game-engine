@@ -83,7 +83,8 @@ impl RegistryUi {
                     officer_note: "Officer-only fixture note".into(),
                     public_note: String::new(),
                     is_self: false,
-                    last_online: "Yesterday".into(),
+                    last_logout_unix_secs: None,
+                    online_zone: None,
                 })
                 .collect(),
         });

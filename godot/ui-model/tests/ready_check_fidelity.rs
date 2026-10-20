@@ -28,6 +28,7 @@ fn ready_check_portrait_keeps_source_slot_and_metal_ring_both_skins() {
         shared.insert(ReadyCheckFrameState {
             visible: true,
             initiator: "Raidleader".into(),
+            difficulty_name: None,
         });
         let mut registry = FrameRegistry::new(1920.0, 1080.0);
         Screen::new(screen).sync(&shared, &mut registry);
@@ -86,6 +87,7 @@ fn ready_check_title_keeps_source_bounds_color_and_shadow_both_skins() {
         shared.insert(ReadyCheckFrameState {
             visible: true,
             initiator: "Raidleader".into(),
+            difficulty_name: None,
         });
         let mut registry = FrameRegistry::new(1920.0, 1080.0);
         Screen::new(screen).sync(&shared, &mut registry);
@@ -127,6 +129,7 @@ fn ready_check_message_inherits_roman_color_and_shadow_both_skins() {
         shared.insert(ReadyCheckFrameState {
             visible: true,
             initiator: "Raidleader".into(),
+            difficulty_name: None,
         });
         let mut registry = FrameRegistry::new(1920.0, 1080.0);
         Screen::new(screen).sync(&shared, &mut registry);
@@ -136,9 +139,15 @@ fn ready_check_message_inherits_roman_color_and_shadow_both_skins() {
         let Some(WidgetData::FontString(text)) = &frame.widget_data else {
             panic!("ReadyCheck message must be text");
         };
-        assert_eq!(frame.height.value(), 28.0);
+        // Body height follows host text metrics; native layout regression covers it.
+        assert_eq!(
+            text.justify_v,
+            ui_toolkit::widgets::font_string::JustifyV::Middle
+        );
         assert_eq!(text.font, GameFont::FrizQuadrata);
         assert_eq!(text.font_size, 12.0);
+        assert_eq!(text.line_spacing, Some(0));
+        assert_eq!(text.max_lines, None);
         // GlobalColor row1 NORMAL_FONT_COLOR = ARGB0xFFFFD200, not white.
         assert_eq!(text.color, [1.0, 210.0 / 255.0, 0.0, 1.0], "{skin:?}");
         assert_eq!(text.shadow_color, Some([0.0, 0.0, 0.0, 1.0]), "{skin:?}");
@@ -158,6 +167,7 @@ fn ready_check_message_keeps_source_top_anchor_both_skins() {
         shared.insert(ReadyCheckFrameState {
             visible: true,
             initiator: "Raidleader".into(),
+            difficulty_name: None,
         });
         let mut registry = FrameRegistry::new(1920., 1080.);
         Screen::new(screen).sync(&shared, &mut registry);
@@ -189,6 +199,7 @@ fn ready_check_response_buttons_keep_source_anchors_and_art_both_skins() {
         shared.insert(ReadyCheckFrameState {
             visible: true,
             initiator: "Raidleader".into(),
+            difficulty_name: None,
         });
         let mut registry = FrameRegistry::new(1920., 1080.);
         Screen::new(screen).sync(&shared, &mut registry);

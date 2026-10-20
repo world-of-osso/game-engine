@@ -10,7 +10,7 @@ def string_fixture(encrypted=False):
     data = bytearray(400)
     data[:4] = b"WDC5"
     struct.pack_into("<6I", data, 136, 2, 1, 4, 5, 0, 123)
-    struct.pack_into("<HH7I", data, 172, 4, 0, 1, 0, 24, 0, 0, 0, 2)
+    struct.pack_into("<HH7I", data, 172, 4, 0, 1, 0, 0, 24, 0, 0, 2)
     struct.pack_into("<Q8I", data, 204, 0, 320, 1, 3, 324, 4, 0, 0, 0)
     struct.pack_into("<Q8I", data, 244, int(encrypted), 350, 1, 2, 354, 4, 0, 0, 0)
     struct.pack_into("<HH5I", data, 288, 0, 32, 0, 0, 0, 0, 0)
@@ -401,7 +401,7 @@ def light_data_fixture():
     raw = bytearray(start + record_size)
     raw[:4] = b"WDC5"
     struct.pack_into("<6I", raw, 136, 1, 63, record_size, 0, 0, 0x360DA016)
-    struct.pack_into("<HH7I", raw, 172, 0, 0, 63, 0, 63 * 24, 0, 0, 0, 1)
+    struct.pack_into("<HH7I", raw, 172, 0, 0, 63, 0, 0, 63 * 24, 0, 0, 1)
     struct.pack_into("<Q8I", raw, 204, 0, start, 1, 0, start + record_size, 0, 0, 0, 0)
     offset = 0
     for index, width in enumerate(widths):

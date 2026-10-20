@@ -9,6 +9,15 @@ use ui_toolkit::registry::FrameRegistry;
 use ui_toolkit::screen::{Screen, SharedContext};
 static SKIN: Mutex<()> = Mutex::new(());
 
+#[path = "guild_context_leadership_tests.rs"]
+mod guild_context_leadership_tests;
+#[path = "guild_context_whisper_tests.rs"]
+mod guild_context_whisper_tests;
+#[path = "guild_numeric_sort_tests.rs"]
+mod guild_numeric_sort_tests;
+#[path = "guild_zone_sort_tests.rs"]
+mod guild_zone_sort_tests;
+
 fn state(own_rank: u8) -> GuildRanksState {
     GuildRanksState {
         own_rank,
@@ -594,6 +603,92 @@ fn guild_invitation_popup_works_without_open_roster_in_both_skins() {
 }
 
 #[test]
+fn guild_invitation_elapsed_boundary_declines_once_without_membership_change() {
+    use game_engine_ui_model::guild_ranks::GuildCommand;
+    let mut session = GuildRanksSession::default();
+    session.invitation = Some(GuildInvitation {
+        guild_id: 7,
+        guild_name: "Raid Team".into(),
+        inviter_name: "Alice".into(),
+        tabard: None,
+    });
+    // GuildInviteFrame.xml: elapsed > 60, not >= 60.
+    assert_eq!(session.advance_invitation(59.0), None);
+    assert!(session.invitation.is_some());
+    assert_eq!(session.advance_invitation(1.0), None);
+    assert!(session.invitation.is_some());
+    assert_eq!(
+        session.advance_invitation(0.001),
+        Some(GuildCommand::DeclineInvite)
+    );
+    assert!(session.invitation.is_none());
+    assert_eq!(session.advance_invitation(120.0), None);
+    assert!(session.state().is_none());
+    assert!(!session.visible);
+}
+
+fn pending_dismissal_invitation() -> GuildInvitation {
+    GuildInvitation {
+        guild_id: 7,
+        guild_name: "Raid Team".into(),
+        inviter_name: "Alice".into(),
+        tabard: None,
+    }
+}
+
+#[test]
+fn guild_invitation_escape_declines_once_without_closing_communities() {
+    use game_engine_ui_model::guild_ranks::GuildCommand;
+    for visible in [false, true] {
+        let mut session = GuildRanksSession::default();
+        session.visible = visible;
+        session.receive_invitation(pending_dismissal_invitation());
+        assert_eq!(
+            session.dismiss_invitation(),
+            Some(GuildCommand::DeclineInvite)
+        );
+        assert!(session.invitation.is_none());
+        assert_eq!(session.visible, visible);
+        assert_eq!(session.dismiss_invitation(), None);
+        assert!(session.commands.is_empty());
+    }
+}
+
+#[test]
+fn guild_invitation_loading_close_preserves_time_and_new_delivery_resets_it() {
+    use game_engine_ui_model::guild_ranks::GuildCommand;
+    let mut session = GuildRanksSession::default();
+    let invite = pending_dismissal_invitation();
+    session.receive_invitation(invite.clone());
+    assert_eq!(session.advance_invitation(59.0), None);
+    session.close(); // Native Loading teardown must not decline or reset the timer.
+    assert_eq!(session.invitation, Some(invite.clone()));
+    assert_eq!(session.advance_invitation(1.0), None);
+    session.receive_invitation(invite.clone());
+    assert_eq!(session.advance_invitation(60.0), None);
+    assert_eq!(session.invitation, Some(invite));
+    assert_eq!(
+        session.advance_invitation(0.001),
+        Some(GuildCommand::DeclineInvite)
+    );
+}
+
+#[test]
+fn guild_invitation_acceptance_pending_never_sends_decline_on_timeout_or_escape() {
+    use game_engine_ui_model::guild_ranks::GuildCommand;
+    let mut session = GuildRanksSession::default();
+    let invite = pending_dismissal_invitation();
+    session.receive_invitation(invite.clone());
+    assert_eq!(session.advance_invitation(59.0), None);
+    session.click("guild:accept_invite", &Default::default());
+    assert_eq!(session.commands, vec![GuildCommand::AcceptInvite]);
+    assert_eq!(session.advance_invitation(120.0), None);
+    assert_eq!(session.dismiss_invitation(), None);
+    assert_eq!(session.invitation, Some(invite));
+    assert_eq!(session.commands, vec![GuildCommand::AcceptInvite]);
+}
+
+#[test]
 fn guild_rank_widgets_render_only_purchased_bank_tabs() {
     let _lock = SKIN.lock().unwrap_or_else(|p| p.into_inner());
     for skin in [ActiveSkin::Modern, ActiveSkin::Forever] {
@@ -948,15 +1043,656 @@ fn guild_communities_roster_uses_profile_metadata_without_exposing_officer_notes
             officer_note: "Private strategy".into(),
             public_note: String::new(),
             is_self: false,
-            last_online: "Yesterday".into(),
+            last_logout_unix_secs: Some(
+                game_engine_ui_model::chat_data::now_timestamp() as u64 - 86400 - 120,
+            ),
+            online_zone: None,
         }],
     });
     let reg = mounted(&session);
     assert_eq!(text(&reg, "GuildMember0Level"), "80");
-    assert_eq!(text(&reg, "GuildMember0Zone"), "Yesterday");
+    assert_eq!(text(&reg, "GuildMember0Zone"), "1 day");
     assert_eq!(text(&reg, "GuildMember0Note"), "");
     assert_eq!(text(&reg, "GuildMember0Name"), "Cara");
     assert!(reg.get_by_name("GuildMember0Class").is_some());
+}
+
+#[test]
+fn guild_online_zone_roster_and_detail_follow_authority_both_skins() {
+    let _lock = SKIN.lock().unwrap_or_else(|poison| poison.into_inner());
+    let profile = |online: bool, zone: Option<&str>| -> GuildSnapshot {
+        serde_json::from_value(serde_json::json!({
+            "guild_id": 7, "guild_name": "Raid Team", "tabard": null, "created_at": null,
+            "motd": "", "info_text": "", "members": [
+                {"character_name":"Cara", "level":32, "class_name":"Paladin", "rank_name":"Initiate",
+                 "is_online":online, "officer_note":"private", "public_note":"healer", "is_self":false,
+                 "last_logout_unix_secs": if online {None} else {Some(game_engine_ui_model::chat_data::now_timestamp() as u64 - 2 * 86400 - 120)}, "online_zone":zone},
+                {"character_name":"Dora", "level":32, "class_name":"Mage", "rank_name":"Member",
+                 "is_online":true, "officer_note":"", "public_note":"", "is_self":false,
+                 "last_logout_unix_secs":null, "online_zone":"Westfall"}
+            ]
+        })).unwrap()
+    };
+    for skin in [ActiveSkin::Modern, ActiveSkin::Forever] {
+        set_thread_skin(skin);
+        let mut session = member_rank_assignment_session(0, 0, 3);
+        session.profile = Some(profile(true, Some("Elwynn Forest")));
+        let reg = mounted(&session);
+        assert_eq!(text(&reg, "GuildMember0Zone"), "Elwynn Forest");
+        assert_eq!(text(&reg, "GuildMember1Zone"), "Westfall");
+        assert_eq!(text(&reg, "GuildMemberDetailZone"), "Elwynn Forest");
+        assert_eq!(action(&reg, "GuildMember0"), "guild:member:Cara");
+        assert_eq!(text(&reg, "GuildMember0Note"), "healer");
+        session.profile = Some(profile(true, Some("Westfall")));
+        assert_eq!(
+            text(&mounted(&session), "GuildMemberDetailZone"),
+            "Westfall"
+        );
+        session.profile = Some(profile(true, None));
+        let unknown = mounted(&session);
+        assert_eq!(text(&unknown, "GuildMember0Zone"), "");
+        assert_eq!(text(&unknown, "GuildMemberDetailZone"), "");
+        session.profile = Some(profile(false, None));
+        let offline = mounted(&session);
+        assert_eq!(text(&offline, "GuildMember0Zone"), "2 days");
+        assert_eq!(text(&offline, "GuildMemberDetailZone"), "");
+    }
+}
+
+fn member_rank_assignment_session(own_rank: u8, rights: u32, target_rank: u8) -> GuildRanksSession {
+    let mut session = GuildRanksSession::default();
+    session.open();
+    let mut ranks = state(own_rank);
+    ranks.ranks[usize::from(own_rank)].rights = rights;
+    ranks.members = vec![
+        GuildRankMember {
+            character_name: "Cara".into(),
+            rank: target_rank,
+        },
+        GuildRankMember {
+            character_name: "Dora".into(),
+            rank: 2,
+        },
+    ];
+    session.apply(ranks);
+    session.click("guild:member:Cara", &Default::default());
+    session
+}
+
+#[test]
+fn guild_member_rank_assignment_source_dropdown_sends_one_captured_zero_based_request_both_skins() {
+    let _lock = SKIN.lock().unwrap_or_else(|p| p.into_inner());
+    for skin in [ActiveSkin::Modern, ActiveSkin::Forever] {
+        set_thread_skin(skin);
+        let mut session = member_rank_assignment_session(0, 0, 3);
+        let before = session.state().cloned();
+        let reg = mounted(&session);
+        assert_eq!(text(&reg, "GuildMemberDetailRankDropdownText"), "Initiate");
+        let label = reg
+            .get(reg.get_by_name("GuildMemberDetailRankLabel").unwrap())
+            .unwrap();
+        let dropdown = reg
+            .get(reg.get_by_name("GuildMemberDetailRankDropdown").unwrap())
+            .unwrap();
+        assert_eq!(label.height.value(), 20.0);
+        assert_eq!(
+            (dropdown.width.value(), dropdown.height.value()),
+            (169.0 - label.width.value(), 25.0)
+        );
+        assert_eq!(
+            dropdown.position.left,
+            ui_toolkit::layout_values::Val::Px(17.0 + label.width.value() + 10.0)
+        );
+        assert_eq!(
+            dropdown.position.top,
+            ui_toolkit::layout_values::Val::Px(68.5)
+        );
+        assert_eq!(
+            reg.get(
+                reg.get_by_name("CommunitiesGuildMemberDetailFrame")
+                    .unwrap()
+            )
+            .unwrap()
+            .height
+            .value(),
+            260.0
+        );
+        session.click(
+            &action(&reg, "GuildMemberDetailRankDropdown"),
+            &Default::default(),
+        );
+        let menu = mounted(&session);
+        assert!(menu.get_by_name("GuildMemberDetailRankChoice0").is_none());
+        let current = action(&menu, "GuildMemberDetailRankChoice3");
+        assert!(session.click(&current, &Default::default()).is_none());
+        assert!(!session.awaiting_state);
+        session.click("guild:detail_rank_menu", &Default::default());
+        let choice = action(&mounted(&session), "GuildMemberDetailRankChoice1");
+        session.click("guild:member:Dora", &Default::default());
+        let request = session
+            .click(&choice, &Default::default())
+            .expect("one direct rank request");
+        assert_eq!(
+            serde_json::to_value(request).unwrap(),
+            serde_json::json!({"SetMemberRank":{"character_name":"Cara","rank":1}})
+        );
+        assert_eq!(
+            session.state(),
+            before.as_ref(),
+            "Never optimistically change authoritative ranks"
+        );
+        assert_eq!(session.member_detail.as_deref(), Some("Dora"));
+        assert!(session.awaiting_state);
+        assert!(session.click(&choice, &Default::default()).is_none());
+        let mut acknowledged = before.unwrap();
+        acknowledged.members[0].rank = 1;
+        session.apply(acknowledged.clone());
+        assert!(!session.awaiting_state);
+        assert_eq!(session.state(), Some(&acknowledged));
+    }
+}
+
+#[test]
+fn guild_member_rank_assignment_ranges_require_direction_rights_and_strict_hierarchy() {
+    let _lock = SKIN.lock().unwrap_or_else(|p| p.into_inner());
+    for (rights, current, selected) in [(GUILD_RIGHT_PROMOTE, 3, 2), (GUILD_RIGHT_DEMOTE, 2, 3)] {
+        let mut session = member_rank_assignment_session(1, rights, current);
+        session.click("guild:detail_rank_menu", &Default::default());
+        let reg = mounted(&session);
+        assert!(reg.get_by_name("GuildMemberDetailRankChoice0").is_none());
+        assert!(reg.get_by_name("GuildMemberDetailRankChoice1").is_none());
+        assert!(!action(&reg, "GuildMemberDetailRankChoice2").is_empty());
+        assert!(!action(&reg, "GuildMemberDetailRankChoice3").is_empty());
+        let request = session
+            .click(
+                &action(&reg, &format!("GuildMemberDetailRankChoice{selected}")),
+                &Default::default(),
+            )
+            .unwrap();
+        assert_eq!(
+            serde_json::to_value(request).unwrap(),
+            serde_json::json!({"SetMemberRank":{"character_name":"Cara","rank":selected}})
+        );
+    }
+    for (own, rights, target) in [
+        (1, 0, 3),
+        (1, GUILD_RIGHT_PROMOTE, 2),
+        (1, GUILD_RIGHT_DEMOTE, 3),
+        (1, GUILD_RIGHT_PROMOTE | GUILD_RIGHT_DEMOTE, 1),
+        (0, 0, 0),
+    ] {
+        let mut session = member_rank_assignment_session(own, rights, target);
+        let reg = mounted(&session);
+        assert!(reg.get_by_name("GuildMemberDetailRankDropdown").is_none());
+        assert!(reg.get_by_name("GuildMemberDetailRank").is_some());
+        assert!(
+            session
+                .click("guild:detail_rank:Cara:0", &Default::default())
+                .is_none()
+        );
+        assert!(
+            session
+                .click("guild:detail_rank:Cara:255", &Default::default())
+                .is_none()
+        );
+    }
+}
+
+#[test]
+fn guild_member_rank_assignment_escape_closes_menu_without_a_write() {
+    let _lock = SKIN.lock().unwrap_or_else(|p| p.into_inner());
+    let mut session = member_rank_assignment_session(0, 0, 3);
+    session.click("guild:detail_rank_menu", &Default::default());
+    assert!(
+        mounted(&session)
+            .get_by_name("GuildMemberDetailRankMenu")
+            .is_some()
+    );
+    assert!(session.dismiss_subdialog());
+    assert!(
+        mounted(&session)
+            .get_by_name("GuildMemberDetailRankMenu")
+            .is_none()
+    );
+    assert_eq!(session.member_detail.as_deref(), Some("Cara"));
+    assert!(session.commands.is_empty());
+    assert!(!session.awaiting_state);
+}
+
+fn note_sort_session() -> GuildRanksSession {
+    let mut session = GuildRanksSession::default();
+    session.open();
+    let mut ranks = state(0);
+    let values = [
+        ("Dara", 1, "alpha", false, 80),
+        ("Cid", 1, "ALPHA", true, 20),
+        ("Zed", 1, "Alpha", true, 80),
+        ("Missing", 2, "", false, 0),
+        ("Empty", 2, "", true, 80),
+        ("Zulu", 1, "Zulu", false, 80),
+        ("Bea", 2, "alpha", true, 80),
+        ("Ada", 1, "ALPHA", true, 80),
+    ];
+    ranks.members = values
+        .iter()
+        .map(|(name, rank, _, _, _)| GuildRankMember {
+            character_name: (*name).into(),
+            rank: *rank,
+        })
+        .collect();
+    session.apply(ranks);
+    session.profile = Some(GuildSnapshot {
+        guild_id: 7,
+        guild_name: "Raid Team".into(),
+        created_at: None,
+        tabard: None,
+        motd: String::new(),
+        info_text: String::new(),
+        members: values
+            .iter()
+            .filter(|(name, ..)| *name != "Missing")
+            .map(|(name, _, note, online, level)| GuildMemberSnapshot {
+                character_name: (*name).into(),
+                level: *level,
+                class_name: "Paladin".into(),
+                rank_name: "Member".into(),
+                is_online: *online,
+                // Opposite order must never affect the public Note comparison.
+                officer_note: format!("private-{name}"),
+                public_note: (*note).into(),
+                is_self: false,
+                last_logout_unix_secs: None,
+                online_zone: None,
+            })
+            .collect(),
+    });
+    session
+}
+
+fn rendered_guild_names(registry: &FrameRegistry) -> Vec<String> {
+    (0..40)
+        .map(|index| format!("GuildMember{index}Name"))
+        .take_while(|name| registry.get_by_name(name).is_some())
+        .map(|name| text(registry, &name))
+        .collect()
+}
+
+#[test]
+fn guild_note_sort_source_direction_missing_and_original_ties_both_skins() {
+    let _lock = SKIN.lock().unwrap_or_else(|p| p.into_inner());
+    for skin in [ActiveSkin::Modern, ActiveSkin::Forever] {
+        set_thread_skin(skin);
+        let mut session = note_sort_session();
+        let ranks = session.state().cloned();
+        let profile = session.profile.clone();
+        let toggle = action(&mounted(&session), "CommunitiesRosterColumn5");
+        assert_eq!(toggle, "guild:roster-sort:note");
+        for expected in [
+            vec![
+                "Missing", "Zulu", "Ada", "Zed", "Bea", "Cid", "Dara", "Empty",
+            ],
+            vec![
+                "Empty", "Ada", "Zed", "Bea", "Cid", "Dara", "Zulu", "Missing",
+            ],
+        ] {
+            session.click(&toggle, &Default::default());
+            assert_eq!(rendered_guild_names(&mounted(&session)), expected);
+            assert_eq!(session.state(), ranks.as_ref());
+            assert_eq!(session.profile, profile);
+        }
+        // Changing columns resets Note to its sourced first-click descending order.
+        session.click("guild:roster-sort:name", &Default::default());
+        session.click(&toggle, &Default::default());
+        assert_eq!(
+            rendered_guild_names(&mounted(&session)),
+            [
+                "Missing", "Zulu", "Ada", "Zed", "Bea", "Cid", "Dara", "Empty"
+            ]
+        );
+    }
+}
+
+#[test]
+fn guild_note_sort_filtered_rows_keep_action_identity_and_header_geometry() {
+    let _lock = SKIN.lock().unwrap_or_else(|p| p.into_inner());
+    let mut session = note_sort_session();
+    let ranks = session.state().cloned();
+    session.click("guild:show_offline", &Default::default());
+    let original = mounted(&session);
+    let header = original
+        .get(original.get_by_name("CommunitiesRosterColumn5").unwrap())
+        .unwrap();
+    let rect = (
+        header.position.left,
+        header.position.top,
+        header.width.value(),
+        header.height.value(),
+    );
+    let toggle = action(&original, "CommunitiesRosterColumn5");
+    assert!(!toggle.is_empty());
+    session.click(&toggle, &Default::default());
+    let filtered = mounted(&session);
+    assert_eq!(
+        rendered_guild_names(&filtered),
+        ["Ada", "Zed", "Bea", "Cid", "Empty"]
+    );
+    let header = filtered
+        .get(filtered.get_by_name("CommunitiesRosterColumn5").unwrap())
+        .unwrap();
+    assert_eq!(
+        (
+            header.position.left,
+            header.position.top,
+            header.width.value(),
+            header.height.value()
+        ),
+        rect
+    );
+    session.click(&action(&filtered, "GuildMember2"), &Default::default());
+    assert_eq!(session.member_detail.as_deref(), Some("Bea"));
+    assert_eq!(
+        session.promote("Bea"),
+        Some(GuildRankRequest::Promote {
+            character_name: "Bea".into()
+        })
+    );
+    session.click(&toggle, &Default::default());
+    assert_eq!(
+        rendered_guild_names(&mounted(&session)),
+        ["Empty", "Ada", "Zed", "Bea", "Cid"]
+    );
+    assert_eq!(session.state(), ranks.as_ref());
+}
+
+#[test]
+fn guild_note_sort_storm_historical_policy_packet_not_verified_retail_collation() {
+    let _lock = SKIN.lock().unwrap_or_else(|p| p.into_inner());
+    // GUILD_NOTE_COMPARE_STORM_HISTORICAL: concrete clean-room prose cases.
+    // Equal mapped notes retain Ada/Bea/Cid base order in BOTH directions.
+    for (notes, descending, ascending) in [
+        (
+            ["raid", "RAID", "zulu"],
+            ["Cid", "Ada", "Bea"],
+            ["Ada", "Bea", "Cid"],
+        ),
+        (
+            ["é", "É", "ÿ"],
+            ["Cid", "Ada", "Bea"],
+            ["Ada", "Bea", "Cid"],
+        ),
+        (
+            ["ÿ", "Ā", "Ÿ"],
+            ["Cid", "Bea", "Ada"],
+            ["Ada", "Bea", "Cid"],
+        ),
+        (
+            ["Е", "Ё", "Ж"],
+            ["Cid", "Bea", "Ada"],
+            ["Ada", "Bea", "Cid"],
+        ),
+        (
+            ["е", "ё", "ж"],
+            ["Cid", "Bea", "Ada"],
+            ["Ada", "Bea", "Cid"],
+        ),
+        (
+            ["А", "Џ", "Б"],
+            ["Cid", "Ada", "Bea"],
+            ["Ada", "Bea", "Cid"],
+        ),
+        (
+            ["÷", "×", "œ"],
+            ["Cid", "Ada", "Bea"],
+            ["Ada", "Bea", "Cid"],
+        ),
+        (
+            ["œ", "Œ", "Z"],
+            ["Ada", "Bea", "Cid"],
+            ["Cid", "Ada", "Bea"],
+        ),
+        (
+            ["😀", "🚀", "�"],
+            ["Ada", "Bea", "Cid"],
+            ["Ada", "Bea", "Cid"],
+        ),
+        (
+            ["é", "éclair", "e"],
+            ["Bea", "Ada", "Cid"],
+            ["Cid", "Ada", "Bea"],
+        ),
+        (
+            ["α", "Α", "β"],
+            ["Cid", "Ada", "Bea"],
+            ["Bea", "Ada", "Cid"],
+        ),
+        (
+            ["ß", "SS", "ST"],
+            ["Ada", "Cid", "Bea"],
+            ["Bea", "Cid", "Ada"],
+        ),
+    ] {
+        let mut session = note_sort_session();
+        let profile = session.profile.as_mut().unwrap();
+        profile
+            .members
+            .retain(|member| ["Ada", "Bea", "Cid"].contains(&member.character_name.as_str()));
+        for member in &mut profile.members {
+            let index = match member.character_name.as_str() {
+                "Ada" => 0,
+                "Bea" => 1,
+                _ => 2,
+            };
+            member.public_note = notes[index].into();
+        }
+        session.click("guild:show_offline", &Default::default());
+        let toggle = action(&mounted(&session), "CommunitiesRosterColumn5");
+        assert!(!toggle.is_empty());
+        for expected in [descending, ascending] {
+            session.click(&toggle, &Default::default());
+            assert_eq!(
+                rendered_guild_names(&mounted(&session)),
+                expected,
+                "historical policy for {notes:?}"
+            );
+        }
+    }
+}
+
+#[test]
+fn guild_show_offline_preference_persists_false_and_defaults_on() {
+    use game_engine_core::client_options_data::{
+        load_options_file_from_path, save_options_file_to_path,
+    };
+    let path = std::env::temp_dir().join(format!(
+        "guild-show-offline-options-{}.ron",
+        std::process::id()
+    ));
+    for (input, expected) in [
+        ("(accepted_eula:true)", true),
+        ("(accepted_eula:true,communitiesShowOffline:false)", false),
+        ("(accepted_eula:true,communitiesShowOffline:true)", true),
+    ] {
+        std::fs::write(&path, input).unwrap();
+        let file = load_options_file_from_path(&path);
+        save_options_file_to_path(&path, &file).unwrap();
+        let restored = load_options_file_from_path(&path);
+        assert!(restored.accepted_eula);
+        assert_eq!(
+            serde_json::to_value(restored).unwrap()["communitiesShowOffline"].as_bool(),
+            Some(expected),
+            "persisted value for {input}"
+        );
+    }
+    std::fs::remove_file(path).unwrap();
+}
+
+#[test]
+fn guild_show_offline_filters_only_expanded_roster_and_preserves_authority_both_skins() {
+    let _lock = SKIN.lock().unwrap_or_else(|p| p.into_inner());
+    for skin in [ActiveSkin::Modern, ActiveSkin::Forever] {
+        set_thread_skin(skin);
+        let mut session = GuildRanksSession::default();
+        session.open();
+        let mut ranks = state(0);
+        ranks.members = ["Offline", "Online", "Unknown"]
+            .into_iter()
+            .map(|name| GuildRankMember {
+                character_name: name.into(),
+                rank: 2,
+            })
+            .collect();
+        session.apply(ranks.clone());
+        session.profile = Some(GuildSnapshot {
+            guild_id: 7,
+            guild_name: "Raid Team".into(),
+            created_at: None,
+            tabard: None,
+            motd: String::new(),
+            info_text: String::new(),
+            members: [("Offline", false), ("Online", true)]
+                .into_iter()
+                .map(|(name, online)| GuildMemberSnapshot {
+                    character_name: name.into(),
+                    level: 80,
+                    class_name: "Paladin".into(),
+                    rank_name: "Member".into(),
+                    is_online: online,
+                    officer_note: String::new(),
+                    public_note: String::new(),
+                    is_self: false,
+                    last_logout_unix_secs: None,
+                    online_zone: None,
+                })
+                .collect(),
+        });
+        let profile = session.profile.clone();
+        let all = mounted(&session);
+        assert_eq!(text(&all, "GuildMember0Name"), "Offline");
+        assert_eq!(text(&all, "GuildMember2Name"), "Unknown");
+        let checkbox = all
+            .get(
+                all.get_by_name("CommunitiesMemberListShowOfflineButton")
+                    .unwrap(),
+            )
+            .unwrap();
+        assert_eq!(
+            (checkbox.width.value(), checkbox.height.value()),
+            (32.0, 32.0)
+        );
+        assert_eq!(
+            (checkbox.position.left, checkbox.position.top),
+            (
+                ui_toolkit::layout_values::Val::Px(196.0),
+                ui_toolkit::layout_values::Val::Px(25.0)
+            )
+        );
+        assert!(
+            all.get_by_name("CommunitiesMemberListShowOfflineButtonCheck")
+                .is_some()
+        );
+        let toggle = action(&all, "CommunitiesMemberListShowOfflineButton");
+        assert_eq!(toggle, "guild:show_offline");
+        session.click(&toggle, &Default::default());
+        let online = mounted(&session);
+        assert!(
+            online
+                .get_by_name("CommunitiesMemberListShowOfflineButtonCheck")
+                .is_none()
+        );
+        assert_eq!(text(&online, "GuildMember0Name"), "Online");
+        assert!(online.get_by_name("GuildMember1Name").is_none());
+        assert_eq!(
+            session.promote("Online"),
+            Some(GuildRankRequest::Promote {
+                character_name: "Online".into()
+            })
+        );
+        assert_eq!(session.state(), Some(&ranks));
+        assert_eq!(session.profile, profile);
+        session.click(&toggle, &Default::default());
+        assert_eq!(text(&mounted(&session), "GuildMember0Name"), "Offline");
+        session.communities_tab = game_engine_ui_model::guild_ranks::CommunitiesTab::Chat;
+        assert!(
+            mounted(&session)
+                .get_by_name("CommunitiesMemberListShowOfflineButton")
+                .is_none()
+        );
+    }
+}
+
+#[test]
+fn guild_show_offline_keeps_filtered_sort_targets_and_clamps_real_overflow() {
+    let _lock = SKIN.lock().unwrap_or_else(|p| p.into_inner());
+    let mut session = GuildRanksSession::default();
+    session.open();
+    let mut ranks = state(0);
+    ranks.members = (0..40)
+        .map(|i| GuildRankMember {
+            character_name: format!("Member{i:02}"),
+            rank: 2,
+        })
+        .collect();
+    session.profile = Some(GuildSnapshot {
+        guild_id: 7,
+        guild_name: "Raid Team".into(),
+        created_at: None,
+        tabard: None,
+        motd: String::new(),
+        info_text: String::new(),
+        members: ranks
+            .members
+            .iter()
+            .enumerate()
+            .map(|(i, member)| GuildMemberSnapshot {
+                character_name: member.character_name.clone(),
+                level: 80,
+                class_name: "Paladin".into(),
+                rank_name: "Member".into(),
+                is_online: i < 20,
+                officer_note: String::new(),
+                public_note: String::new(),
+                is_self: false,
+                last_logout_unix_secs: None,
+                online_zone: None,
+            })
+            .collect(),
+    });
+    session.apply(ranks.clone());
+    let mut registry = mounted(&session);
+    registry
+        .scroll_lists
+        .scroll_to("CommunitiesMemberListScrollBox", 10000);
+    let mut shared = SharedContext::new();
+    shared.insert(session.clone());
+    let mut screen = Screen::new(guild_screen);
+    screen.sync(&shared, &mut registry);
+    assert_eq!(
+        registry
+            .scroll_lists
+            .get("CommunitiesMemberListScrollBox")
+            .unwrap()
+            .first_row,
+        485
+    );
+    session.click("guild:show_offline", &Default::default());
+    session.roster_sort = Some(game_engine_ui_model::guild_ranks::GuildRosterSort::Name);
+    session.roster_sort_descending = true;
+    shared.insert(session.clone());
+    screen.sync(&shared, &mut registry);
+    assert_eq!(
+        registry
+            .scroll_lists
+            .get("CommunitiesMemberListScrollBox")
+            .unwrap()
+            .first_row,
+        85
+    );
+    assert_eq!(text(&registry, "GuildMember0Name"), "Member19");
+    assert_eq!(text(&registry, "GuildMember19Name"), "Member00");
+    let target_action = action(&registry, "GuildMember19");
+    session.click(&target_action, &Default::default());
+    assert_eq!(session.member_detail.as_deref(), Some("Member00"));
+    assert_eq!(session.state(), Some(&ranks));
 }
 
 #[test]
@@ -1151,7 +1887,8 @@ fn guild_communities_metadata_columns_sort_numeric_values_and_preserve_member_id
                 officer_note: "Private".into(),
                 public_note: String::new(),
                 is_self: false,
-                last_online: String::new(),
+                last_logout_unix_secs: None,
+                online_zone: None,
             })
             .collect(),
         });
@@ -1354,7 +2091,8 @@ fn guild_member_notes_gate_self_public_officer_visibility_and_wait_for_authority
                 officer_note: String::new(),
                 public_note: "Alchemy".into(),
                 is_self: true,
-                last_online: "Online".into(),
+                last_logout_unix_secs: None,
+                online_zone: None,
             }],
         });
         session.click("guild:member:Cara", &Default::default());
@@ -1442,7 +2180,8 @@ fn guild_member_note_popup_keeps_original_target_when_roster_selection_changes()
         public_note: String::new(),
         officer_note: String::new(),
         is_self: false,
-        last_online: "Online".into(),
+        last_logout_unix_secs: None,
+        online_zone: None,
     };
     session.profile = Some(GuildSnapshot {
         guild_id: 7,
@@ -1953,6 +2692,60 @@ fn guild_member_detail_opens_from_roster_both_skins() {
         session.click("guild:member:Cara", &Default::default());
         let reg = mounted(&session);
         assert_eq!(text(&reg, "GuildMemberDetailName"), "Cara");
-        assert_eq!(text(&reg, "GuildMemberDetailRank"), "Member");
+        // GuildRoster.lua:16–56 uses the rank dropdown for an editable member.
+        assert_eq!(text(&reg, "GuildMemberDetailRankDropdownText"), "Member");
+    }
+}
+
+#[test]
+fn guild_last_online_elapsed_recency_and_unknown_online_fields_both_skins() {
+    let _lock = SKIN.lock().unwrap_or_else(|p| p.into_inner());
+    let now = std::time::SystemTime::now()
+        .duration_since(std::time::UNIX_EPOCH)
+        .unwrap()
+        .as_secs();
+    // TimeUtil.lua24–43; authenticated active local-CASC GlobalStrings10842/11461/11518–11520.
+    for skin in [ActiveSkin::Modern, ActiveSkin::Forever] {
+        set_thread_skin(skin);
+        for (age, online, expected, zone) in [
+            (Some(120), false, "< an hour", "< an hour"),
+            (Some(3 * 3600 + 120), false, "3 hours", "3 hours"),
+            (Some(2 * 86400 + 120), false, "2 days", "2 days"),
+            (Some(61 * 86400 + 120), false, "2 months", "2 months"),
+            (Some(731 * 86400 + 120), false, "2 years", "2 years"),
+            (None, false, "Offline", "Offline"),
+            (Some(2 * 86400 + 120), true, "Online", "Elwynn Forest"),
+        ] {
+            let mut session = GuildRanksSession::default();
+            session.open();
+            session.apply(state(0));
+            let member: GuildMemberSnapshot = serde_json::from_value(serde_json::json!({
+                "character_name": "Cara", "level": 32, "class_name": "Warrior", "rank_name": "Member",
+                "is_online": online, "officer_note": "", "public_note": "", "is_self": false,
+                "online_zone": if online { Some("Elwynn Forest") } else { None },
+                "last_logout_unix_secs": age.map(|age| now - age)
+            })).unwrap();
+            session.profile = Some(GuildSnapshot {
+                guild_id: 7,
+                guild_name: "Presence Guild".into(),
+                tabard: None,
+                created_at: None,
+                motd: String::new(),
+                info_text: String::new(),
+                members: vec![member],
+            });
+            session.click("guild:member:Cara", &Default::default());
+            let registry = mounted(&session);
+            assert_eq!(
+                text(&registry, "GuildMemberDetailOnline"),
+                expected,
+                "source detail elapsed recency"
+            );
+            assert_eq!(
+                text(&registry, "GuildMember0Zone"),
+                zone,
+                "same recency in the existing offline roster cell"
+            );
+        }
     }
 }

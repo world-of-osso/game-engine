@@ -35,6 +35,7 @@ pub(super) fn run(
         quiet_at: None,
         saw_forward: false,
     };
+    let mut completion = game_engine_network::fixture_completion::Completion::new(8);
     let mut readers = Some(readers);
     let deadline = Instant::now() + TIMEOUT;
     while Instant::now() < deadline {
@@ -53,10 +54,12 @@ pub(super) fn run(
             }
         }
         for line in lines.after_selection(progress.selected.is_some()) {
+            completion.observe(&line)?;
             advance_marker(app, &mut progress, line.trim())?;
         }
         check_inputs(app, &mut progress)?;
         if let Some(status) = status {
+            completion.finish(status)?;
             if !status.success() || progress.stage != Stage::ExitRequested {
                 return Err(format!("Godot exited {status} at {:?}", progress.stage));
             }

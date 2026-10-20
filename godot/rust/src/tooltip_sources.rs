@@ -132,6 +132,7 @@ impl GameClient {
             GameClient::trading_post_button_tooltip,
             GameClient::trading_post_refund_tooltip,
             GameClient::trading_post_tooltip,
+            GameClient::journal_suggestion_text_tooltip,
             GameClient::journal_section_flag_tooltip,
             GameClient::journal_defeated_tooltip,
             GameClient::journal_creature_tooltip,
@@ -147,6 +148,7 @@ impl GameClient {
             GameClient::action_button_tooltip,
             GameClient::mentor_teleport_tooltip,
             GameClient::talent_gate_tooltip,
+            GameClient::profession_recipe_source_tooltip,
             GameClient::profession_concentration_tooltip,
             GameClient::profession_reagent_quality_tooltip,
             GameClient::profession_specialization_tooltip,
@@ -412,6 +414,21 @@ impl GameClient {
             },
             None,
         ))
+    }
+
+    fn journal_suggestion_text_tooltip(&mut self, hit: &HoveredFrame) -> Option<HoveredTooltip> {
+        let snapshot = self.adventure_guide.view.activities.as_deref()?;
+        let ui = hit.ui.bind();
+        let (owner, tooltip) = named_ancestor(ui.registry()?, hit.frame, |frame| {
+            game_engine_ui_model::adventure_suggestions::text_tooltip(
+                snapshot,
+                frame.name.as_deref()?,
+                frame.mouse_enabled,
+            )
+        })?;
+        drop(ui);
+        let rect = self.owner_rect(&hit.ui, owner)?;
+        Some(HoveredTooltip::text(tooltip.owned(rect, OwnerSide::Right)))
     }
 
     fn journal_section_flag_tooltip(&mut self, hit: &HoveredFrame) -> Option<HoveredTooltip> {
@@ -846,6 +863,24 @@ impl GameClient {
         })?;
         drop(ui);
         let tooltip = self.toy_game_tooltip(item_id)?;
+        Some(HoveredTooltip::text(self.owned_by(
+            hit,
+            owner,
+            OwnerSide::Right,
+            tooltip,
+        )?))
+    }
+
+    fn profession_recipe_source_tooltip(&mut self, hit: &HoveredFrame) -> Option<HoveredTooltip> {
+        let ui = hit.ui.bind();
+        let (owner, ()) = named_ancestor(ui.registry()?, hit.frame, |frame| {
+            (name_of(frame)? == "ProfessionsRecipeSourceButton").then_some(())
+        })?;
+        drop(ui);
+        let tooltip = game_engine_ui_model::professions_frame::recipe_source_tooltip(
+            &self.professions.book,
+            &self.professions.skill_names(),
+        )?;
         Some(HoveredTooltip::text(self.owned_by(
             hit,
             owner,
@@ -1536,6 +1571,7 @@ fn attachment_item(attachment: &MailAttachment) -> InventorySlot {
     InventorySlot {
         durability: stack.durability,
         soulbound: stack.soulbound,
+        crafting_origin: stack.crafting_origin,
         item_guid: stack.item_guid,
         ..named_item_for(
             stack.definition_source,

@@ -1,6 +1,337 @@
 ## 2026-10-18 — Pull corridor refusal
 
 [Named pull policy](systems/bot-harness.md#pull-corridor-refusal--2026-10-18) refuses a new OOC Heroic Throw when its strict tank-to-target route intersects another idle hostile's sourced sphere. KNOWN_VISIBLEv2 uses ordinary full-update/interest/hideable-template observations, never a server completeness claim. Retained run24 geometry RED, typed projection/wire progress and synthetic controller controls distinguish coverage from native acceptance. NPC-tank reach reproduced and corrected. No protocol/server behavior/stat/kit/runtime changes; early unseen Moloch may still refuse, and full clear remains open.
+## 2026-10-20 — Guild roster context Whisper
+
+[Contract](../specs/guild-context-whisper.md), [flow](systems/guilds.md#roster-context-whisper): sourced Whisper entry opens the existing chat input with `/w <name> `; named gap `CHAT_WHISPER_HEADER_ABSENT`. Actual RED → GREEN7/7. Context-leadership citation corrected to `COMMUNITIES_GUILD_MEMBER`. Gate/native pending.
+
+## 2026-10-19 — Trading Post slow-purchase timer implementation
+
+[Source and clock boundary](systems/trading-post.md#ten-second-slow-purchase-notice): pushed-first ignored Purchase/Checkout cases reached actual10s missing-notice assertions through the existing snapshot clock. Approved GREEN API switches to request-relative View elapsed driven by native request Instant, so Query cannot restart it. One authored Return/Escape notice, matching completion/hide cancellation, unchanged two-button confirmation geometry; model123/host-layout14 GREEN, integration/build gate pending. Native Escape consumes only the slow notice before background-window closure; source hook, not a measured input trace. No production delay or native runtime.
+## 2026-10-20 — Recipe cooldown display
+
+[Contract](../specs/modern-crafting.md#recipe-cooldown): Create gated and Retail `COOLDOWN_REMAINING` red text from spell/category clocks; [server](../../../game-server/docs/specs/spell-cooldown-persistence.md) persists and replays cooldowns. ui-model RED (4 genuine assertion failures) → GREEN 28/28 professions; extension professions 8/8. Native both-skin proof pending.
+
+## 2026-10-20 — Crafting origin native proof accepted
+
+[Both-skin craft → reopened-server readback](systems/native-professions-crafting.md#native-provenance-proof--2026-10-20): real trainer/cast/Create path records {1355, 2153, null} on new 2303 GUIDs only; a fresh server generation on the same DB and readback-only clients preserve it. Normal item tooltip plus owner-state readback; no lineage tooltip line. Stackable-output origin policy is the follow-up; unlearned fixture native gap named.
+
+## 2026-10-20 — Monthly Time sorting native proof
+
+[Exact cohort and qualifications](systems/trading-post.md#monthly-time-sorting): after ts754 landing, actual Ead3/S001/P566 both-skin7/7 naturalexit0/unique marker/approved-baseline full-stream VALID. Native header/menu/toggle/name-tie first12/provider reset/empty ordinary disabled with frozen kept; exact original local/authority/HUD and seven sampled positions restore. Each skin1 Query/0 mutations;14 inspected original PNGs published. Owned runtime/5899/window cleared. Quest519073 gap persists; owned sentinel/expiry variants remain CPU-qualified and monthly BEST_GUESS is not Retail calendar parity.
+
+## 2026-10-19 — Trading Post reply-kind correlation implementation
+
+[Flow and proof status](systems/trading-post.md#reply-kind-correlation): required server reply kind, host-poll kind drain and captured popup product preserve pending ownership across unrelated Query/catalog removal and Purchase→Query coalescing. Pushed-first regressions reached assertion RED before their corresponding changes, including the coalesced terminal-error control. Targeted107 model/13 host/3 UDP/5 protocol GREEN; tc756/tc765 coordinated gates pass and protocol600b755/server89a944309/engine7a2b53085 land together. Engine Time-sort merge preserves unconditional provider sort reset alongside guarded modal completion; tc762 missing-import compile error remains separately qualified. No timed/native/provider parity claim.
+## 2026-10-19 — Ordinary Description TOP alignment
+
+[Source/proof](systems/dungeon-achievements.md#ordinary-description-vertical-alignment): one explicitverticalTOP attribute; priorCENTERcontrolupdatedinown0ac8commit, ignoredREDpushedfirst/observedfourbothskin alignmentassertions. Font10/330×34/ink/shadow/horizontalCENTER/origin/actions conserved; GREEN pending, no otherpolicychange.
+## 2026-10-20 — Monthly Time sorting CPU proof
+
+[Source and proof boundary](systems/trading-post.md#monthly-time-sorting): pushed-first ignored6 genuine RED→unignored6 GREEN at3844d4233; existing header/menu/action use common server monthly duration, source1000/999 padding floored to minutes, ascending-name ties and provider Time→Price reset. No wire/per-item pending invention; selection/cart/authority preserved. Both-skin native pending; earlier rollover acceptance is not relabeled.
+## 2026-10-19 — Crafting origin vertical slice, targeted GREEN
+
+[Source, actual-craft persistence and consumer proof](systems/native-professions-crafting.md#server-recorded-crafting-origin): pushed ignored RED in all three repositories before implementation, then P1/S2/E1 targeted GREEN at separately recorded revisions. Real2153→new2303 GUID carries ability1355/joinedspell2153 after DB reopen; identical non-crafted item unknown. Actual2963 unknown-stack RED→compatible merging/split persistence controls; engine mirrors optional metadata on the same GUID. No fabricated quality/slots/watermark or recraft activation. Current masters merged; atomic lead gate/consumer integration pending, not a new rendered/process-reopen claim.
+## 2026-10-20 — Sourced guild leadership context confirmation
+
+[Source/capture boundary](systems/guilds.md#roster-leadership-context-confirmation): ignored menu/confirmation/dismissal/geometry tests pushed first; after separately retained fixture/schema setup corrections, actual behavior RED4 observed atcf4ccddb2. Only the source current-master/nonself menu, captured optional target string and ordinary dialog are added; Accept reuses existing TransferLeadership, Cancel/Escape no transfer, no optimistic ranks or new backend/wire. Authenticated70448 labels and no-fullScreenCover flag qualified before implementation. Implementation64458e9ce committed before focused GREEN4/4 at365eb32f6 (17.54s compile/0.12s tests/no warnings), then final assertions retained/enabled. Source GameDialog button primitive alignment07bc881b2 passes a second enabled focused4/4 (20.61s compile/0.14s tests/no warnings). Independent gate/native pending; ordinary rank actions, slash route and named self policy unchanged.
+
+## 2026-10-20 — Guild numeric-header equal-key fallback
+
+[Source and qualified policy](systems/guilds.md#numeric-header-equal-key-ordering): pushed ignored Rank/Level/Class reversed-input ties and24-row real registry regressions before actual behavior RED4. Only numeric primary direction now reverses; equal keys reuse the unchanged represented-field base comparison. Focused GREEN4/4 at6ef84509b (21.44s compile/0.19s tests/no warnings), then only proven ignore attributes removed. Existing primary/missing/reset behavior and Name/Note/Zone mechanics remain unchanged; gn758 passed tests/fmt/controls and landed3b8b57980; numeric branches cleaned, worktree retained for active context-leadership stack. Native equal-key proof unallocated/unrun; no new widgets/protocol/server work.
+
+## 2026-10-20 — Guild Zone sorting native accepted
+
+[Exact cohort, originals and limits](systems/guilds.md#native-zone-sort-acceptance-2026-10-20): gz746 tests/fmt passed and landed; exact E6874f287d/private Sb12089d1f/Pda007a6 builds and import/parse/login passed. Real two-member Modern/Forever physical Zone direction/reset, Elwynn/Westfall ordering, genuine peer disconnect/mixed recency, original detail identity and offline filter hide/restore pass strict1/1. Eight inspected original PNGs published; historical DB unchanged, actors/cage/slice stopped,5891 unbound/window cleared. Seconds/ties/Unicode/overflow remain automated; native binding/count limits stay unqualified. Setup PATH127, import ObjectDB leaks and live audio/Wayland/data diagnostics retained. Lead inspected two representative frames and accepted.
+
+## 2026-10-20 — Monthly clock native proof
+
+[Exact cohort and qualifications](systems/trading-post.md#post-landing-native-cohort): Modern/Forever rollover and fresh-server/client readback each strict7/7, naturalexit0, approved-baseline VALID. Natural1m→0m→month47 frozen-only, genuine retained1578; each phase2 Query, rollover1 Freeze, no paid/refund transactions. Twenty-eight inspected original PNGs published, SHA manifests retained. Failed timing/selector/startup attempts and named Quest519073 gap remain; approved news BEST_GUESS policy is not Retail calendar parity. Stale-summary replay guard refused before runtime; operator incident retained. Owned slice stopped/5899 unbound/window cleared.
+
+## 2026-10-19 — Monthly clock native cohort preparation
+
+[Post-landing native plan](systems/trading-post.md#post-landing-native-cohort): current-master cohort, owned5899/fresh accounts, strict7-case rollover/readback and1-case offline startup scripts registered before execution. Existing admin clock alignment precedes a real vendor Query; countdown/rollover is natural afterward, with native drag freeze and restart conservation. No live/native acceptance claimed from preparation.
+
+## 2026-10-19 — Cold-start catalog delivery bounded PASS measured in Forever
+
+[Exact cohort, clocks and exclusions](systems/trading-post.md#cold-start-catalog-delivery): fresh actual E2be669b9/Sd53e8f2b/P0399f8b, existing-code builds/asset-backed startup/four hashes then explicit TP5791 window. One normal production first Tawny Query returns current monthly43 rows/no transactions; interaction→visible row4.748663s and inspected frame5.534266s conservatively bound Query→visible below60s. Existing server-receive→typed699.654ms includes FIFO/scheduling/transport; internal host/commit/first-paint timestamps remain absent. Intended Modern was not configured: fresh preset defaults Forever; original intent receipts retained and lead accepts actual Forever single-skin proof, no retry/relabel. Guide completed before Query; no concurrent Guide/large-source-pool/Windows/global QoS claim. Original streams/memory/manifest/UI capture/skin correction/cleanup retained privately; runtime/slice stopped,5791 absent/window cleared22:59:42.868977-05:00. Historical private>60s spec line closed, RID finding remains open; no new instrumentation or production code.
+
+## 2026-10-19 — Ordinary achievement description font
+
+[Source/proof](systems/dungeon-achievements.md#ordinary-card-description-font): one nominalfont12→10 value only; ignorednativeREDfirst/four both-skin size assertions, all330×34/ink/shadow/alignment/origin/click/title controls conserved. Strict both-skin nativeGREEN6/6 and model35/35 pass at3bf83a1ec8/protocol0399f8b; required protocolFF preceded currentengine merge. Central gate pending; Lua-driven color/shadow policy and otherlabels/globalpipeline excluded.
+## 2026-10-19 — Server-driven Trading Post monthly clock
+
+[Clock/source boundary](systems/trading-post.md#server-driven-monthly-countdown): ignored both-skin registry REDs pushed first, then genuine missing Time label reproduced; server timestamps plus existing monotonic elapsed now feed the Retail one-unit Time column and one Query per expired boundary. Model/registry GREEN and native proof remain distinct; no name-colour edits, local calendar, wire field or client-owned membership.
+## 2026-10-19 — Passive profession operation status accepted
+
+[Source, RED/GREEN and exact native cohort](systems/native-professions-crafting.md#passive-operation-status): passive CraftStatus omits typed missing-operation diagnostics; existing native sink logs the named gap once at recipe-selection transition. Pending/concrete/action errors, disabled actions and internal/server refusals remain unchanged. Pushed-first screen RED→GREEN; ps713 tests/fmt and ps713b extension/parse pass. Fresh E2894/Scf1/P724 bothskins1920 show initial/validatedblank and concrete missing-sloterror, log375188exactly1 each, conserve bags/money/skill/nocast. Twelve inspected PNG originals published; lead inspected Modern-4 and accepted. Runtime/window cleared; named operation/origin/recraft gaps remain.
+
+## 2026-10-19 — Profession search magnifier accepted
+
+[Source, implementation and native proof](systems/native-professions-crafting.md#recipe-search-magnifier): ignored screen RED12×12→source10×10, focused/query tint RGB0.6/1; targeted GREEN3/3 and pm700 landed00afe30a7. Exact E00afe/S46d5/Pb3 both-skin1920 native fourstates+Clear passes numeric anchors, painted brightening/exact restore and selection/Favorites/filter/gameplay conservation. Ten inspected PNG originals published; native error streams empty, known warnings and separate editor-import errors retained. Lead inspected Modern-2/Forever-5 and accepted. Owned runtime/window cleared; operation/concentration-origin/recraft gaps unchanged.
+## 2026-10-19 — Sourced voluntary leadership input
+
+[Source/request boundary](systems/guilds.md#voluntary-leadership-transfer): ignored slash regression reproduces `/gleader Cara` falling through to generic help before implementation; target-only route now uses existing native chat/GuildChannel and authoritative reply state. Self is the explicitly approved unsourced-refusal project policy, not a native Retail claim. Server actual authority RED follows a separately qualified missing-wire baseline. No new UI/geometry or leader mirror; focused GREEN/gate/two-member native proof pending.
+## 2026-10-19 — Same-hover deselection accepted source-expectation parity
+
+[Source timeline, actual native evidence and limits](systems/trading-post.md#same-hover-ordinary-deselection-ordering): pushed-first741 opt-in native Down642→848 both skins preserves pointer[196,273]/row/hover/no-scroll but leaves A actualWHITE/202 paintedWHITE glyph pixels/0gold versus LuaSetSelected(false)NORMAL. Leave/re-enter/reselection controls and exact authority/local/HUD/XYZ restore before intended assertion naturalexit1; complete streams otherwise clean/two Query/noTx/window cleared19:11:35. Fourteen inspected frames/glyphs/contacts published; frozen source/binaries/full streams/six memory edges retained. Separate implementation approval then enabled36fa CPU RED2 before ONE optional ordinary-ID correction through existing selection/hover paths; no API/event-bus/provider/cart/frozen/audio/layout/blend changes. 65ae focused ordinary-name family GREEN9/9, original full output retained; proof-source hashes unchanged after current-master merge, no redundant rerun. Parent sh722 passes/lands07fbc; fresh actual E07fbc/S09cb/P039 engine/server/admin builds, real isolated asset-ready Login and registered parse pass. Explicit TP5791 grant runs unchanged oracle Modern then Forever once each/no retries: strict natural0/unique9/9/complete clean streams; same-hover gold194/196/0WHITE, real leave169/170gold/re-enter202WHITE and all selection/restoration/XYZ0 controls. Exactly two Query/noTx/zero shutdown leak lines. Runtime/slice stopped,5791 absent/window cleared21:29:26. Fourteen inspected GREEN frame/glyph/contact PNGs published separately from immutable RED; manifest binds five fresh binaries/nine sources/full streams/original memory/cleanup. Lead accepts and closes the named ordering gap as source-expectation parity only; Retail native dispatch remains unmeasured. Item235674 and unexplained earlier frozen Forever shutdown finding stay open; this cohort is not later monthly-clock master.
+
+## 2026-10-19 — Committed frozen selected ADD qualified native acceptance
+
+[Source/root, exact cohorts and rejected-attempt qualification](systems/trading-post.md#committed-frozen-selected-texture-add-compositing): genuine640/712 dbc79 pixel RED31637/31684→exact-owner7be/ts708→requested fresh E061/S398/Pb3 real offline startup+registered parse, unchanged pixel oracle. Modern green1 and sole approved Forever green2 retry each naturalexit0/one9/9/clean complete streams; ADD0/MIX31637,31684/restore0/all owner/cart/authority/HUD/XYZ controls. Three server Query total including rejected first Forever, no transactions/fabricated reservation. Runtime/window cleared18:08:08.22 inspected successful full-HD originals+two contacts+six labeled crops/normal companions published; final manifest binds distinct RED/GREEN binaries/source/startup/all attempts/full streams/receipts/original memory/30PNG hashes. First Forever green1 remains rejected:9/9 pixels/controls then eight shutdown RID/resource ERRORs; Modern and sole retry have zero leak lines. Leak root cause unexplained/not fixed; separate finding stays open, no suppression/relabeling/further retry. Existing exclusions and named gaps unchanged.
+
+## 2026-10-19 — Committed frozen selected ADD genuine pixel RED
+
+[Inherited source/root and proof limits](systems/trading-post.md#committed-frozen-selected-texture-add-compositing):dbc79 opt-in diagnostic/nine registration/spec pushed before production. Genuine existing640/712 at actual Edbc79/S7cd/P035 yield31637/31684 actual-versus-ADD differing pixels,0 versus MIX/exact original restore0. Source520×48 matches prior authenticated active atlas; stable counterfactual/ordinary-frozen-ordinary/cart clear-return and exact authority/HUD/XYZ restoration precede intended pixel-assertion naturalexit1; complete streams otherwise clean/two Query/no transactions or fabricated reservation. Runtime/window cleared16:43:07. Minimal existing FrozenSelected owner classification only; subsequent ts708 and qualified fresh native acceptance are recorded above, preserving this original RED cohort. Candidate/pending/hover/drag/caption/state/API and both named gaps unchanged; closed proof is not replayed or relabeled.
+
+## 2026-10-19 — Ordinary achievement card title font
+
+[Source/proof](systems/dungeon-achievements.md#ordinary-card-title-font): title-onlyRomanFriz14/black(+1,−1) correction,320×20/WHITE/origin/actions retained. IgnorednativeRED first; corrected full-search native-height control leaves12 expected title assertions across bothskin collapsed/expanded. Strict nativeGREEN6/6 and model35/35 pass; first integratedmodel compile-only guildonline_zone prerequisite resolved via frozen03580cc, no consumerpatch. Central gate pending; no other title/globalpipeline/server change.
+## 2026-10-19 — Ordinary selected-row ADD same-oracle native GREEN
+
+[Source/root, distinct cohorts and proof limits](systems/trading-post.md#ordinary-selected-row-add-compositing): pushed-first130bee genuine both-skin pixel RED18662/18738/18747→ordinary-only0d7/sa698→fresh actual Ea0df/S46d5/P035 with exact same fixture hash passes naturalexit0/unique10/10/complete clean streams in each skin. All four actual-versus-ADD0/original restore0; MIX distinction18662/18738/18747/18747. Source/backdrop/second-selection/cart-clear/return and exact authority/local/HUD/XYZ conservation; two Query/noTx. Runtime/window cleared15:53:40.28 inspected full-HD originals+two contacts+twelve labeled actual/ADD/MIX crops with normal-restored companions published; final diagnostic manifest binds binaries/source/full streams/receipts/six original memory edges/42PNG hashes. No RED relabeling/frozen-selected or whole-frame claim; both named gaps remain open.
+
+## 2026-10-19 — Ordinary selected-row ADD genuine pixel RED
+
+[Source/root, distinct receipts and proof limits](systems/trading-post.md#ordinary-selected-row-add-compositing):130bee opt-in diagnostic/ten registration/spec pushed first. Actual E130bee/S525/P035 both-skin genuine actual-versus-ADD18662/18738/18747 pixels versus0 against MIX; ADD/MIX distinct, original restore0, stable source/backdrop and second-selection/cart-owner controls. Authority/local/HUD/XYZ restored before intentional pixel-assertion naturalexit1; complete streams otherwise clean/two Query/noTx. Runtime/window cleared14:24:21. Minimal ordinary-selected texture classification correction; frozen owner/hover, state, layout/font/audio/API/server/protocol and named gaps unchanged. Subsequent sa698/fresh same-oracle GREEN is recorded above; this entry retains its original RED cohort, not field/source RED or historical relabeling.
+
+## 2026-10-18 — BLP qualification, no extraction
+
+[Boundary and before-only ledger](systems/wow-formats.md#blp-qualification-not-extraction): independent CPU/GPU/icon receipts preserve different normalization, BC5 refusals and malformed-input outcomes. No fifth crate or production/pin/asset change; recommend retaining the existing shared image-blp parser and local consumer policies. Authored180071 remains absent.
+## 2026-10-19 — Online guild zones accepted
+
+[Authority and native provenance](systems/guilds.md#online-member-zone): coordinated gz689 landed P b3a34fe/S e3f3f86c6/E d802433d9; retained server140/0/3ignored. Actual authenticated members prove both skins' Elwynn Forest/Westfall roster/detail, real-position refresh and normal disconnect/offline blank Zone. Six hash-verified unchanged originals published; owned runtimes/window cleared and original historical redb unchanged. Missing authority/privacy remain automated proof. Initial missing Godot class-cache fixture failure and startup warning qualifications retained.
+
+## 2026-10-19 — Achievement full-search close button
+
+[Source/implementation](systems/dungeon-achievements.md#full-search-close-button):24×24 explicit581,0 close with source exit art; onlyfull_search=false, exact retained state/reopen/cursor controls. Ignored nativeRED first/6 missing-button assertions→strict both-skin native6/6; model35/35 exact window equality/reopen/cursor continuation at11550ddf3. No duplicate native replay; central acceptance pending. Whole-frame/Escape/focus/server/totals/progress unchanged.
+## 2026-10-19 — Ordinary hover ADD same-oracle native GREEN
+
+[Source/root, distinct cohorts and proof limits](systems/trading-post.md#ordinary-product-hover-add-compositing): pushed-first diagnostic reproduces genuine both-skin11802 actual-versus-ADD RED/zero versus MIX; d44 single-atlas classification correction passed parent ha675/landed67d. Fresh actual E38f73/Sfe734/Pf9 with unchanged fixture hash passes both skins naturalexit0/unique7/7/clean full streams: actual-versus-ADD0/versus-MIX11802/exact restore0, source/backdrop/leave controls and exact authority/local/HUD/XYZ conservation, two Query/noTx. Runtime/window cleared12:49:30. Fourteen inspected full-HD GREEN originals+two contacts published; final diagnostic manifest binds binaries/source/streams/pixels/six original memory edges/PNG hashes. Initial harness failures remain separate; this is diagnostic blend proof, not whole-frame layout acceptance. Frozen hover/selected ADD and named same-hover deselection-order gap remain outside scope.
+
+## 2026-10-19 — Ordinary hover ADD genuine pixel RED
+
+[Source/root and exact evidence](systems/trading-post.md#ordinary-product-hover-add-compositing): Elements.xml225–236 ADD overlay; existing native highlight atlas omitted from blend list. Opt-in6be diagnostic pushed first, fixture-only6f3 fixes draw-boundary ownership after separately retained parse/freed-node harness errors. Actual6be/S0406/Pf9 both skins reproduce11802 wrong actual-versus-ADD pixels/zero actual-versus-MIX,11802 ADD/MIX distinction, exact original material restore and stable backdrop/leave. Authority/local/HUD restored before intended exit1, XYZ0/two Query/noTx; runtime/window cleared09:39:22. Single-atlas classification correction and subsequent gate/fresh GREEN are recorded above; this entry retains the original RED cohort. No field/source RED or historical relabeling/frozen-hover/selected-art/event-state expansion.
+
+## 2026-10-19 — Ordinary name settled-colour native GREEN
+## 2026-10-19 — Journal-card battle pad normalization
+
+[Policy/proof](systems/battle-pets.md#journal-card-pad-normalization--2026-10-19): user decision PET_BATTLE_PAD_USES_JOURNAL_CARD_NORMALIZATION. Pads reuse the journal's pet_actor_bounds and the scene 33 card actor normalization on PetInstanceScale; no cap, pads/camera unchanged. RED Forever 132 left-edge pixels/pads 1.0 → GREEN both skins: Anomalus 0.30712, Rabbit 1.15685, pad = card/7, zero edge pixels. Visibility regression updated to the normalized value, not re-run natively.
+
+## 2026-10-19 — Anomalus fixture-only framing diagnostic
+
+[Scope/source boundary](systems/battle-pets.md#anomalus-indexed-framing-diagnostic--2026-10-19): fixture unit RED→GREEN and matched builds; Forever native frame7444 confirms actual left-edge clipping, not solely AABB conservatism:879 indexed ally triangles/190 outside,134 alpha-positive left-border pixels. Bottom-overflow batch alpha0/no bottom-border pixels; Rabbit1124 triangles contained. Original guard/scales/pads/camera unchanged, no product fix. Initial slot-local asset-receipt failure resolved by approved preserve-and-link cache/products staging, not product fallback. Native skin-registration error absent; runtime stopped/5971free. Card/loadout scenes33/60 remain no battle-camera authority.
+
+## 2026-10-19 — Ordinary name settled-colour CPU RED
+
+[Source/root and native proof](systems/trading-post.md#ordinary-product-name-settled-colours): Elements291–340/Products116–126, GlobalColor NORMAL255/210/0. Ignored95e pushed first gives genuine RED5/WHITEcontrols2; renderer-onlyfce GREEN7/nm660 TESTEXIT/parse/fmt0 landsd320. FreshEd320/Sa24/Pf9 both skins strict natural7/7/clean full streams,18 prior observations+six settled RGBA samples, WHITE/gold hover-leave/select/cart-return painted pixels391/337 and308/270,16 decoded plays each. Exact authority/local/HUD restored before verdict, XYZ0, two Query/noTx. Fifty-two inspected originals+two contacts published under AgentShared/2026-10-19/trading-post-product-name-color; manifest binds five binaries/eight sources/54receipts/full streams/original six memory edges/pixel proof/54PNG hashes. Window extended after disk HOLD, runtime cleared08:34:26 before08:49;9204 unrelated server errors qualified. `TP_NAME_COLOR_SAME_HOVER_DESELECT_ORDER_UNIMPLEMENTED` remains explicit; no callback/state machinery or frozen-caption/font/layout/authority expansion.
+
+## 2026-10-19 — Achievement full-search result template
+
+[Source/presentation/data](systems/dungeon-achievements.md#full-search-result-presentation): separate600×382/575×49 full-search rows, static installed70448 ancestry, received completion/existing ID-open only. Ignored nativeRED observed18 missing-feature assertions; initial native8/focus12 pass. Page-two modelRED exposed preview-only callback cap5; full rows now use existing direct-open action, model34/catalog1 pass at162a64426. Strengthened sixth-row physical native8 pending central gate. No category-card, wire/server, paging, preview, focus/Escape, totals or progress policy changes.
+
+## 2026-10-19 — Frozen-source drag retirement CPU RED
+## 2026-10-19 — Committed frozen caption visible-text CPU RED
+## 2026-10-19 — Committed frozen caption native GREEN
+
+[Source/root and fresh native proof](systems/trading-post.md#committed-frozen-item-caption): Elements535–555/639–655 plus GlobalStrings48943 white Freezing/newline only for committed ID. Initial93aa raw-oracle proof retained; lead-approved resolved visible-text9ad ignored tests pushed first give four genuine REDs/four controls, renderer-onlyb84 GREEN8/tc650200/0+parse/fmt0 landsd873. FreshEd873/S94/Pf9 both skins strict natural7/7/clean complete streams, unchanged18 observations with actual Label.text/WHITE/no literal markup, committed caption/plain candidate/cancel restoration,13 decoded plays each. Exact authority/local/HUD restored before verdict, XYZ0, two Query only. Forty inspected originals+two contacts published under AgentShared/2026-10-19/trading-post-frozen-item-caption; manifest binds five binaries/nine sources/42receipts/fullstreams/original six memory edges/42PNG hashes. Runtime/window cleared07:06:04;1673 unrelated server errors and parent live-fixture lookup mistake qualified. No flag/parser/font-policy/domain/authority change or historical relabeling; accepted/immediate remains CPU-qualified.
+
+## 2026-10-19 — Frozen-source drag retirement native GREEN
+
+[Source/root and fresh native proof](systems/trading-post.md#frozen-products-are-not-drag-sources): Elements495–508 disables frozen pickup; replacement510–521/577–670 already exists. No cached UI caller for ClearFrozenPerksVendorItem; right-click cancels confirmation only. IgnoredCPU0a8 pushed first gives genuine selected/unselected outside Freeze(None)-versus-None REDs plus five controls; root068 removal passes7/7 and tf637 TESTEXIT/PARSE/FMT0/landing. FreshE068/S2e4/Pf9 both skins strict natural7/7/no error markers/full streams,18 observations including six frozen attempts and all ordinary/cart/modal/occupied-cancel controls,13 decoded plays each. Exact authority/local/HUD restored before verdict, XYZ0, two Query only. Forty inspected originals+two contacts published under AgentShared/2026-10-19/trading-post-frozen-source-no-drag; manifest binds five binaries/source/streams/42receipts/original six memory edges/42PNG hashes. Runtime/window cleared04:17:35;1675 unrelated server errors qualified. Server/protocol clear support stays; historical October13 proof qualified, not erased/relabelled; accepted/immediate transactions retain CPU proof.
+
+## 2026-10-17 — Native profession search Clear accepted
+
+[Bounded proof](systems/native-professions-crafting.md#native-search-clear-proof--2026-10-17): Ec62691ee2/S40252e6f1/Pb3a34fe binaries, fixture991c1372d; both skins1920 pass four focus/query states, two coordinate clears each,17px/RIGHT−3 geometry and preserved selection/Favorites/filter/gameplay. Native quantity-EditBox focus transfer replaces failed Filter-blur assumption; Modern explicitly resumes existing favorite. Natural exits0/unique markers/zero errors; twelve inspected state originals published, three setup/cleanup private. Failed/interrupted attempts retained, cancelled old-protocol queue produced no binaries; compatible consumers rebuilt. Runtime/window cleared; other-search/persistence/audio-engine scope unchanged.
+
+## 2026-10-17 — Profession search clear control implementation
+
+[Source and boundary](systems/native-professions-crafting.md#recipe-search-clear-control): inherited SearchBoxTemplate17×17/RIGHT−3 control, visible focused or nonempty, local ClearText/blur. Pushed ignored missing-control RED precedes implementation; geometry/four focus-query combinations/production edit-clear-focus tests preserve owner selection/Favorites/filters. Native coordinate acceptance pending lead gate/window; no other search redesign/persistence/wire/audio-engine expansion.
+
+## 2026-10-17 — Native recipe search-scroll retry
+
+[Bounded proof](systems/native-professions-crafting.md#native-search-scroll-proof--2026-10-17): ss667/pr676, unchanged fixture on Ef5f65878b/S0406fb041/Pf9a9175 passes both skins1920. Missing profession wheel route first failed against5522px real content; minimal route lets coordinate wheel establish deep scroll. Broad a/e searches reset top while4625/5008px results remain>8pages; user-scroll retention, selection/gameplay conservation pass. Two naturalexit0/unique markers/ten inspected PNGs/zero error lines, runtime/window cleared. Thumb drag remains CPU shared-handler proof only; original failed native artifacts retained, server reuse hash-verified rather than relabeled rebuilt.
+
+## 2026-10-17 — Recipe search scroll transition
+
+[Source and boundary](systems/native-professions-crafting.md#recipe-search-scroll-position): Mainline Crafting.lua826–833 search discards position, ordinary refresh retains. Pushed ignored RED observes630px instead of0 with80 concrete matching recipes still over two pages. Minimal typed profession transition resets only a changed nonempty query; normal/no-op refresh stays scrollable, view/selection/owner state unchanged. Existing map/journal transition code moved without behavior changes to the tested production model boundary. Native acceptance pending lead gate/window; profession switching excluded.
+
+## 2026-10-17 — Recipe filter Reset native proof
+
+[Bounded proof](systems/native-professions-crafting.md#native-reset-proof--2026-10-17): rr647205/0/fmt0, runtime E2535a4f17/S93d357ce3/Pf9a9175; both skins1920×1080 pass three single-click resets, default/search-only hidden, retained search/favorite-instance selection/Favorites and gameplay conservation. Native23×23/TOPRIGHT−3 geometry matches within pixel rounding. Each drained process exits0/one marker/ten unique captures/zero error lines; sixteen inspected state originals published, four favorite-menu setup/cleanup private. Preference/runtime/window restored; other filters/persistence/audio-engine expansion excluded.
+
+## 2026-10-17 — Recipe filter Reset implementation
+
+[Contract and source](systems/native-professions-crafting.md#recipe-filter-reset): existing shared Reset appears only for nondefault visibility; default/search-only stays hidden. Three ignored screen regressions were pushed and observed failing before implementation. Reset/window close share the two-flag default operation; search, selection/instance and owner Favorites stay unchanged. No other filters, persistence, wire or audio-engine expansion. Native single-click/geometry acceptance pending its separate gate/window.
+
+## 2026-10-17 — Learned/unlearned native filter proof
+
+[Bounded proof and provenance](systems/native-professions-crafting.md#native-filter-proof--2026-10-17): rv633/landed Ecc4858b97/S58c0844b3/Pf9a9175; both skins1920×1080 cover four combinations, Favorites/search, resolved Filter87×18/right8/top9/searchgap4, close/reopen defaults and gameplay conservation. Each drained client exits0/unique marker1/nine unique captures/zero error lines. Fourteen inspected state originals published; four favorite-menu setup/cleanup captures private. Original preference restored, owned runtime/window cleared; other filters/persistence and favorite hardware-cursor anchoring remain excluded.
+
+## 2026-10-17 — Learned/unlearned recipe filter implementation
+
+[Contract and implementation](systems/native-professions-crafting.md#learnedunlearned-recipe-filters): source Mainline two default-on checkboxes, shared Filter template/right anchor/search gap; snapshot-only classification and learned-filter-aware Favorites. Pushed ignored screen RED failed at the absent dropdown before implementation. All four visibility combinations, search/empty controls, checkbox art and unchanged ownership are targeted; native acceptance awaits the lead gate/window. No persistence, other filter semantics or wire changes.
+## 2026-10-19 — Unaccepted freeze selected-texture CPU RED
+## 2026-10-19 — Unaccepted freeze selected texture accepted
+
+[Source/root and fresh native proof](systems/trading-post.md#unaccepted-freeze-preview-selected-texture): ignoredc519 pushed first gives actual Modern/Forever44268-versus0 RED plus five phase controls; renderer-only4cd correction passes7/7 and parent pf624 landsd153. FreshEd153/S72ee/Pf9 both skins strict natural7/7/clean complete streams,12 samples/seven groups, ordinary24144/pending0/committed44268 after cancel, nine decoded plays each. Exact authority/local/HUD restored before verdict, XYZ0, two Query only. Twenty-eight inspected originals+two contacts published under AgentShared/2026-10-19/trading-post-pending-freeze; manifest binds five binaries/sources/streams/receipts/original six memory edges. Runtime/window cleared02:20:49. Accepted/immediate remains CPU-qualified; historical169 unchanged; editor-import/unrelated server warnings qualified separately. No server/protocol/audio/label/glow/frozen-policy expansion.
+
+## 2026-10-17 — Recipe Favorites native reopen accepted
+
+[Bounded proof and provenance](systems/native-professions-crafting.md#accepted-reopen-proof--2026-10-17): landed E339c94be6/S9a8fd3951/Pf9a9175, six fresh native clients in both skins1920×1080 and three distinct private server generations prove Set/search/ordinary duplicate, restoration without re-favoriting, Remove and persisted absence. Bags/copper/skill conserved; fourteen inspected originals published, owned processes/window cleared. Native input RED exposed missing Button frame-click prefixes; minimal fix landed before GREEN. Synthetic cursor anchoring and warning-free renderer teardown remain unproven; fixture knowledge is not acquisition evidence.
+## 2026-10-18 — Trading Post held drag timing accepted
+
+[Native proof](systems/trading-post.md#fresh-native-drag-green): fixture-first785 actual both-skin RED→D7 extension/production9a/fixture169 fresh7/7 each, same11 observations/seven groups, B/art/+1 before release/no duplicate/repeat/outside/cart/modal/occupied-cancel. Exact authority/local/HUD restoration, XYZ0, two Query only; eight decoded plays each. td613 lands source01beef after full family/fixture/gdscript/fmt gate. Twenty-six inspected originals plus two contacts published under AgentShared/2026-10-18/trading-post-drag-selection; proof manifest binds sources/binaries/streams/original six success edges. Window/runtime cleared23:13:53. Approved fixture-only pending-art44268 conservation is not Retail parity; rejected server-only/over-broad-oracle attempts remain retained.
+
+## 2026-10-18 — Trading Post held drag timing RED
+
+[Source/root/proof](systems/trading-post.md#drag-start-selection-timing--native-red): fixture785 pushed before production; actual both-skin first-held activation stays A642/734 with A-art24144/B-art0 and sound delta0 instead of B848/640/+1. Eleven observations/seven groups collected and exact state restored before genuine assertion exit1; clean native error streams, XYZ0, two Query only. Window/runtime cleared22:00:25. Correction selects through existing product ownership/callbacks on first activation and removes release selection; focused model controls/fresh native GREEN pending. No server/protocol/provider/frozen-drag/audio-player expansion.
+## 2026-10-17 — Character-owned recipe Favorites
+
+[Native professions](systems/native-professions-crafting.md#recipe-favorites) consumes authoritative favorite IDs, source right-click menus and separate favorite/ordinary instances. Search omits only the Favorites group; pending requests do not mutate ownership. Server/client reopen and native acceptance remain pending the atomic consumer gate.
+[Source/root/proof](systems/trading-post.md#drag-start-selection-timing): fixture785 pushed before production; actual both-skin first-held activation stays A642/734 with A-art24144/B-art0 and sound delta0 instead of B848/640/+1. Eleven observations/seven groups collected and exact state restored before genuine assertion exit1; clean native error streams, XYZ0, two Query only. Window/runtime cleared22:00:25. Correction selects through existing product ownership/callbacks on first activation and removes release selection; focused model controls/fresh native GREEN pending. No server/protocol/provider/frozen-drag/audio-player expansion.
+
+## 2026-10-18 — Achievement preview keyboard
+
+[Source and proof scopes](systems/dungeon-achievements.md#search-preview-keyboard-selection--2026-10-18): ignored native RED pushed first,24 cases/46 expected assertions; source shared index/selected overlay/arrows/hover/Enter then strict headless24/24 +retainedfocus12/12. Actual selected requests6/8/7 per skin include batched Down+Enter; short/pending/empty continue typing. Explicit UI metadata, no transport/progress/totals or painted-raster claim. Moving-dependency compile prerequisite kept separate; resource-bearing Rust wrapper and model/type scopes distinct.
+
+## 2026-10-18 — Search selection native focus
+
+[Source/proof](systems/dungeon-achievements.md#search-selection-focus-release--2026-10-18): cachedLua3594–3604/3669–3676 ClearFocus after successful Show All/received-preview open only. Pushed RED first gives four actualtrue/expectedfalse cases; unchanged eight invalid/no-op controls. Native-only release then strict12/12GREEN, query/body preserved; common runner expected12. Earlier fixture screen-init error remains separate, no realm/progress/keyboard-nav/server change.
+
+## 2026-10-18 — Cart selection native ownership accepted
+
+[Bounded native proof](systems/trading-post.md#post-landing-native-cart-proof): post-tp595 production86dae/runner137032/serverac365/protocola2, fixture1824 passes7/7 per skin through natural-exit/unique-marker/full-two-stream validation. Twelve checkpoints/nine decoded plays each, product art clear/restore, silent filter and local modal/removal/Clear, exact authority/HUD conservation and XYZ0. Runtime/window cleared19:56:32. Twenty-four inspected full-HD PNGs plus two contacts published under AgentShared/2026-10-18/trading-post-cart-selection; diagnostic proof manifest binds five binaries, original six success memory edges and full streams. Failed ALSA/multi-toggle-oracle attempts and resource-held server-only attempt remain rejected/historical; CPU-only cases stay qualified. Separate fixture branch carries the test-only Rust runner registry addition; documentation is not runtime identity.
+## 2026-10-17 — Unlearned profession recipe discovery
+
+[Native professions](systems/native-professions-crafting.md#unlearned-recipe-discovery) separates preview selection from learned-only crafting and consumes trainer-only source metadata in the existing owner snapshot. Both skins share grouping and source widgets; native acceptance waits for the lead gate/window.
+
+## 2026-10-18 — Cart and product selection ownership
+
+[Bounded cart state](systems/trading-post.md#cart-and-product-selection-ownership--october18): requested E55e/S748/Pa2 bases merged first. Ignored CPU RED593/ce pushed before production; explicit eight-case run gives five genuine retained-owner/art/cart-visible/membership failures plus three controls. Model now remembers a vendor ID, clears product ownership for cart preview, hides cart before new product selection and restores current member/first ordinary only on cart return. Independent cart preview/modals/authority and source silence remain; old manual restoration-sound increment removed in favor of actual selection callback. First implementation62/2 exposed a real receive/cart checkout regression. Ignored focused snapshot testdcf393708 failed before aa34f5e6f fixed ownership; provider stimulus corrected to actual filtering, not generic receive. Corrected65UI/check2m39s/no warnings/three-file scoped fmt/readability pass. No server/protocol edits or native process. Later native requires strict completion/count/exit/both-stream boundary, not historical PASS-only promotion.
+## 2026-10-18 — Direct member-rank native acceptance
+
+[Bounded real-realm proof and provenance](systems/guilds.md#native-acceptance-2026-10-18): refreshed both-skin4→1/current/Escape/self, covered-label menu ordering, close/reopen and identical-artifact fresh server/client Officer readback pass. Eight inspected unchanged full-HD originals published; pre-/post-rewrite server tree equivalence and exact exit-diagnostic qualifications retained. Named feature exclusions remain unchanged.
+## 2026-10-18 — Search-preview native lifecycle
+
+[Exact proof and preserved failures](systems/dungeon-achievements.md#post-landing-search-preview-native-proof--2026-10-18): Edf3/Saf5/Pa2b/Tc2f, both-skin normal/real Hdrpeer comparison; source five206×27 rows, physical focus/blur/refocus/clear/Show All/open. Both drained streams exit0/unique2/2/zeroerrors/exact8PNGs; sixteen inspected1920 originals published, ownedPIDs gone/slice0/5898free/windowcleared. Native rapidclear is not delayedreply/latency proof; model ordering remains distinct. Earlier protocol/socket/focus-helper failures stay failed and preserved, no product fallback/change.
+
+## 2026-10-18 — Shared native menu order
+
+[Source and bounded projection](systems/menu-primitives.md#native-menu-order-2026-10-18): actual guild-menu z563 below Last Online1503 reproduces additive-strata ordering failure. Shared menus use FULLSCREEN_DIALOG; native layers rank densely below the existing highlight plane, with explicit once-reported capacity errors and unchanged pointer policy. Native guild/navigation, tooltip/strata/raise/reused-ID and both dungeon/raid companion controls pass; pointer comparator remains unchanged. Golden census measures50 actual roots, maximum16 layers (GameMenuRoot193frames) versus4000 capacity; Modern golden/hash targets47 pass, with only21 source-qualified menu stratum fields changed. Gatemo592 landed; [refreshed real guild pixels and reopen](systems/guilds.md#native-acceptance-2026-10-18) pass, with caller-wide rendered parity and engine exit cleanup explicitly unclaimed.
+## 2026-10-18 — Source642 bounded native hover proof
+
+[Exact revisions and limits](systems/adventure-guide.md#suggested-secondary-text-hover--implementation-2026-10-17): native6both-skin3/3, actual642description5lines/4visible, fullwhitewrappedRighttooltip/leavehidden/fittingtitle-negative. Six full-HD originals individually inspected; extension39d4393bd and fixtureb2a629cb3 receipts remain distinct. Source-record-fed fixture only, no realm eligibility/authority claim; genuine881/852negatives remain separate55e1 evidence. Failed fixture attempts retained, independent gate lead-owned.
+
+## 2026-10-18 — Source642 fixture presentation lifetime
+
+[Fixture-only boundary](systems/adventure-guide.md#suggested-secondary-text-hover--implementation-2026-10-17): full received vectors exceed three painted panes; one-shot substitution is overwritten by the normal next snapshot copy. Debug-only optional row reapplies to cloned presentation input, preserving authority and tail rows. Actual guard/lifetime REDs retained; no product/truncation change or positive physical claim.
+
+## 2026-10-18 — Suggested text font-key boundary
+
+[Proof and fixture limits](systems/adventure-guide.md#suggested-secondary-text-hover--implementation-2026-10-17): genuine881/852 both-skin native fitting negatives accepted at55e1, four inspected originals. Product font key misread default16 versus painted18; actual native process RED records241/214 widths inside227.5 allocation. Minimal font_size correction and approved source642row-fed positive fixture await separate gate/window; no realm eligibility/authority claim.
+
+## 2026-10-17 — Suggested secondary truncation hover implementation
+
+[Source mapping and proof boundary](systems/adventure-guide.md#suggested-secondary-text-hover--implementation-2026-10-17): literal EJ3311 second-pass owners; native drawn-label truncation gates full white wrapped right-anchored tooltips. Both-skin model RED recorded; native hover/leave acceptance waits for lead gate/window. No provider/reward/action authority added.
+## 2026-10-18 — Received achievement search previews
+
+[Implementation/proof](systems/dungeon-achievements.md#received-search-previews--2026-10-18): source206×27 popup/up-to5 received rows; conditional count-free Show All and explicit achievement open, retained category body while typing. Both-skin clear/blur/late-other-query/empty/cursor controls: four genuine behavioral REDs→31 UI-model passes;9 native-host tests/four-consumer check pass. No0.3s progress path, invented totals/percentages, server/protocol edits or physical native-popup claim.
+## 2026-10-18 — ReadyCheck allocation-based non-overlap policy
+
+Explicit user instruction authorizes frame growth, not a discovered Retail mechanism. Strict rendered RED both skins: ordinary+13.125px combined, toggle−5.875px, long-name−21.875px; all18 scans/exact restoration valid. Native bounds now consume actual extra measured allocation, preserve CENTER/bodyTOP37/font12 and button bottom16; one-line unchanged, no ink-aware padding. GREEN native clearance remains pending gate/window. [Policy](systems/group-frames.md#readycheck-body-no-overlap-project-policy--2026-10-18). The supplied one-line Retail crop is only bounded relative evidence; separate gap-ratio audit remains named.
+
+## 2026-10-18 — Post-guild ownership-cap codec/dispatch target proof
+
+[Current consumer proof](systems/cursor-item.md#ownership-cap-error-cpu-dispatch-2026-10-18): landedf26cc691e merged with MaxCount as6c00abbf4; sole wiki-index conflict preserves both sides. Account dispatch target1/0 with protocola2b07a6; combined protocol tests preserve old tags and round-trip new ItemMaxCount21/SetMemberRank13. Source wording/error renderer unchanged; coordinated broad gate/landing remains lead-owned, no native-pixel claim.
+
+## 2026-10-18 — Ownership-cap error CPU dispatch
+
+[Exact consumer proof/limits](systems/cursor-item.md#ownership-cap-error-cpu-dispatch-2026-10-18):d73fa72e6 with protocol2a5307c forwards typed ItemMaxCount through native account/NPC error dispatch, target1/0 using Retail GlobalStrings10918 ERR_ITEM_MAX_COUNT. Shared message owns text; no renderer change, native pixels or server enforcement claim. Coordinated three-repo gate/landing remains lead-owned.
+- 2026-10-18: Rename ReadyCheck residual to `READY_CHECK_MULTILINE_BODY_BUTTON_COLLISION_SOURCE_EQUIVALENT`; source geometry itself allocates1.65625px into buttons, actual17px runtime advance passes4/4; no geometry fix, real Retail70448 same-case ink capture remains required. [Audit](systems/group-frames.md#readycheck-source-equivalent-multiline-overlap--2026-10-18).
+- 2026-10-18: Historical raster FontString pair landedrl564; actualbothskin1920 native22/22/strictscans/exactrestoration; two-line glyph−3.875px/shadow+combined−5.875px, collisionstillOPEN; [limits/proof](systems/ui-system.md#historical-raster-fontstring-allocation--2026-10-18).
+## 2026-10-18 — Random32 native actions accepted
+
+[Bounded queue/lifecycle proof](systems/battlegrounds.md#random32-native-queue-lifecycle--2026-10-18): both skins record real queue32 before supports, normal dequeue/requeue, server-selected invitation, physical decline/requeue/accept and20 normal returns. Modern instrumented product attempt3 passes after two preserved higher-pressure timeout failures; separate early collector-budget abort publishes no support queue/accept. Exact frozen hashes, PNG qualification,14.75s logged interval versus earlier38s, post-cleanup-only PSI and cleanup are in the linked proof ledger. Stall attribution remains separately owned. Read-only TC a352 parent566 lookup also rejects10–19 with local rows; named authored-bound divergence recorded, no admission fix; availability projection deferred, rewards parked.
+
+## 2026-10-18 — Direct member-rank assignment
+
+[Source contract](systems/guilds.md#direct-member-rank-assignment): XML/Lua1-based versus wire0-based, source25px dropdown/20px RankLabel and10px following-row shift qualified before UI3/3missing-control/protocol unknown-variant RED. One captured authenticated target-rank request, current-value no-write and pending authority; direct TC no-step-log path retained, leadership/authenticator/rank-configuration exclusions explicit. Backend fixture import failure is not a behavioral RED; remaining authority/transport/gates/native unclaimed.
+- 2026-10-18: Historical raster FontString contract/adapter; toolkit7GREEN/native concrete RED, no positive-spacing consumers; [limits/proof](systems/ui-system.md#historical-raster-fontstring-allocation--2026-10-18).
+## 2026-10-18 — Read-only Godot FontString height provenance
+
+[Pipeline audit](systems/group-frames.md#font-line-height-parity-read-only-pipeline-audit--2026-10-18): approved headless/no-UDP/no-rebuild query of actual projected FontFile confirms nominal12→ascent12/descent3/height15, lines15+15/minimum30, interline0 and no fallback. Exact font bytes have965/−250/0 at1000em:14.58 design line box, with0.42 upward rounded difference to15. Cached loader/no overrides, nominal size forwarding, native intrinsic measurement and pinned Godot/FreeType source locations retained alongside FontFile settings. No metric fix or Retail-baseline conclusion; clean-room packet pending/both gaps remain open. Probe exit0/Godot errors0/slice stopped0.
+
+## 2026-10-18 — ReadyCheck spacing native measurement; layout gaps remain
+
+[Accepted measurement](systems/group-frames.md#readycheck-explicit-source-line-spacing--2026-10-18): landed engine5d055/toolkitdbbf, binary4c7b6c05, both skins11 phases verify source spacing0/body15 or30 UI/frame+button conservation/exact restoration. Ordinary glyph/shadow gaps+10.125/+9.125 physical px; two-line glyph−10.875/shadow−12.875 px at button top568.125. Full-panel scan retains strict no-touch validation. Glyph overlap improves4px from−14.875, not resolved. Both named collision and FONT_LINE_HEIGHT_PARITY gaps stay open; font metrics untouched pending Retail packet. Exit0/Godot errors0/window+slice released;22 originals+66 isolation crops retained, four1280 views inspected. Measurement acceptance is not layout, authenticated transport/head/audio or globally clean toolkit-workspace proof.
+
+## 2026-10-18 — Public Note native acceptance
+
+[Note sort](systems/guilds.md#public-note-roster-sorting): gate529e/a9dbb35d7, both-skin actual public writes alpha/Zulu→RAID/raid→é/É, physical direction/reset/filter/identity and fixed original tie precedence pass. Identical-binary fresh server/client accented-note readback passes; eight inspected full-HD originals published. Historical/Lua-Retail qualification and native2members vs model12mapping/other tie keys retained. Owned runtime/window cleaned.
+
+## 2026-10-18 — Qualified public Note sort
+
+[Contract/policies](systems/guilds.md#public-note-roster-sorting): Mainline memberNote/override/nil/direction source qualified before RED. Approved historical Storm clean-room prose replaces never-shipped ASCII placeholder; Lua binding/70448 parity unverified. One mapping function, public field only, represented-field fixed-direction ties and unchanged authoritative action identities; no protocol widening. Actual3missing-header RED before implementation; native acceptance separate.
+
+## 2026-10-18 — Show Offline native acceptance
+
+[Show Offline](systems/guilds.md#show-offline-roster-preference): gate518e/master8b4c56e65; real invite/Join then disconnected member, both-skin physical checkbox/filter/source rectangle/filtered-row identity and identical-binary fresh server/client saved-false readback pass. Six inspected unchanged full-HD originals published. Named project default-on remains explicitly non-Retail authority; native2members vs model40→20overflow/unknown metadata boundaries retained. Owned runtime/window cleaned.
+
+## 2026-10-18 — Show Offline roster preference
+
+[Contract/policy](systems/guilds.md#show-offline-roster-preference): missing authoritative Retail CVar default blocked implementation until explicit project COMMUNITIES_SHOW_OFFLINE_DEFAULT_ON=true. Classic2.5.6 issue883 is indirect only. Public load/save and missing-control RED precede persisted checkbox/filter wiring; existing sort/rank targets and unknown-presence exclusion conserved. Native acceptance separate.
+## 2026-10-18 — ReadyCheck explicit zero line spacing
+
+[Source spacing](systems/group-frames.md#readycheck-explicit-source-line-spacing--2026-10-18): UI.xsd762–769 default0/no font-chain override replaces native theme inheritance for ReadyCheck only, measured and drawn through the same Label path. Optional toolkit input leaves unspecified frames unchanged. Missing-attribute RED→core3/Godot8/UI8 GREEN/check27.56s/no warnings/Cargo fmt. Source panel/body scan union retains strict boundary validation. `FONT_LINE_HEIGHT_PARITY` (two15 UI lines vs23 available) and `READY_CHECK_MULTILINE_BODY_BUTTON_COLLISION_SOURCE_EQUIVALENT` stay open; no invented font/spacing/anchor change. Native proof after landing/window, no new rendered verdict claimed.
+
+## 2026-10-18 — ReadyCheck source intrinsic body height
+
+[Intrinsic correction](systems/group-frames.md#readycheck-intrinsic-body-correction--2026-10-18): approved240×0/MIDDLE/Friz12/shadow at existing TOP20,−37 replaces fixed28. Frame100/bottom buttons y60/content/audio/authority unchanged. Genuine host-height RED28vs14 precedes native8/UI8 GREEN/check40.02s/no warnings/Cargo fmt. Supplied14/29px unit intrinsics are not Retail raster metrics. Maintained native fixture isolates unoccluded glyph/visible-shadow/combined ink, line heights/row bands and signed physical-pixel clearance with complete cropped evidence and exact frame restoration; execution after landing/window, no numbers invented. Existing named collision gap stays open; no frame growth/button move/font shrink/spacing adjustment.
+
+## 2026-10-18 — ReadyCheck native text; body/button collision remains open
+
+[Named layout gap/source audit](systems/group-frames.md#readycheck-native-difficulty-text--layout-gap-2026-10-18): both skins11 native supplied-context text/rectangle/restoration assertions pass on binary73417437, but lead inspection finds the second line colliding with response-button tops. **Not final layout acceptance.** Retail fixes323×100, intrinsic message240×0/TOP(+20,−37)/MIDDLE and bottom-anchored119×24 buttons; complete Lua/cache search finds no growth or reanchor. Propose source intrinsic body metrics rather than preserving arbitrary28; exact raster fit remains unproven, no layout code changed. Native exit0/Godot errors0/window+slice released;22 originals retained. Authenticated transport/head/audio unqualified; offline Pillow analysis did not run.
+
+## 2026-10-18 — Invitation dismissal native acceptance
+
+[Invitation dismissal](systems/guilds.md#invitation-dismissal): gate503e15+68/fmt, landed master helper build; both-skin physical Escape/natural timeout/actual Join-removal/explicit Decline across8real invites and identical-binary fresh-server/client no-pending/no-membership readback pass. Eight inspected original1920×1080 PNGs published. Exact60/60.001 boundary is model proof; native observation begins after receipt. Earlier incompatible frozen server attempt remains unclaimed. Owned runtime/window cleaned.
+## 2026-10-18 — ReadyCheck difficulty-qualified body
+
+[Exact source rule](systems/group-frames.md#readycheck-difficulty-qualified-body--implementation-2026-10-18): actual copy difficulty, else server-selected raid/dungeon ID; local DB2 positive toggle gates CURRENT-name suffix. Existing WorldServerInfo wire only, no server/protocol change. Account unhandled-message and owned-UDP empty-receipt REDs precede cc6abf340 account1/wire1/UI8 GREEN, including map-context reset, primary-versus-legacy and both-skin ordinary-text/style controls. Engine/network check65s/no warnings, affected-package Cargo fmt/scoped diff/readability pass. Landed master6b1c79222 included; geometry/audio/answers/authority conserved. Native rendered/live-server acceptance pending; no runtime launched or completed proof replayed.
+## 2026-10-18 — Trading Post selection callbacks
+
+[Selection audio](systems/trading-post.md#product-selection-sound--october18): active70448 kit218230/file4906955/gain0.79, authenticated private Ogg independently re-extracted/published by lead. Actual missing-kit RED then observation-only callback counter yields four lifecycle REDs and one silent-provider control PASS before event dispatch implementation. Existing selection/cart/modal state and release-time drag behavior retained; TP_DRAG_SELECTION_RELEASE_TIMING and TP_CART_OPEN_SELECTION_CLEAR remain explicit gaps. Registry1+focused56UI GREEN, engine/UI/network helper check1m47s/noWarnings/scoped6Rustfmt+changed-line readability pass. Post512e actualE6d/S5c/P11a with fixture7f passes34 native checkpoints/13 decoded plays per skin,0.550958335s/gain0.632000029/pitch1/playing+finished; sampled XYZ0 and exact Tender19040/19670/appearance sets12/10/cart/selection/640712 restored. Four Query requests only/no transactions/policy/grants. Initialaf55 missing-cart-toggle selector failure retained as harness error; source-hovered row Remove fixes only fixture. Twenty-four inspected full-HD PNGs+two contacts published; four binary hashes/26 receipts/six original accepted memory edges/logs retained. Runtime/slice stopped/window cleared02:44:25, early versus extension02:51. Later source/docs integration stays separate; no asset-index fragment, CI/hardware/full-parity claim or prior proof replay.
+
+## 2026-10-17 — Invitation dismissal lifecycle
+
+[Invitation dismissal](systems/guilds.md#invitation-dismissal): installed Mainline elapsed>60/OnHide and special-popup Escape authority; actual60.001s model RED before timeout/Escape wiring, no protocol/server changes. Loading retention and pending acceptance conserved. Post-landing native proof pending.
+## 2026-10-18 — READY_CHECK decoded-dispatch acceptance
+
+[Bounded native proof](systems/group-frames.md#readycheck-listener-show-sound--implementation-2026-10-17): lead accepted both-skin ten-checkpoint/two-start proof on debug binary/invocation3b70f4b5d, production333b83b26. Real UiKits Ogg567478 players report5.020385265s/gain1/pitch1/playing; refresh and hidden-role phases add none, natural completion and zero-player teardown pass. Exit0/zero Godot errors; inherited display notices retained, window/slice released. Dummy audio: decoded dispatch only, not hardware or authenticated GameClient/server proof. Initial fixture Array-borrow compiler failure remains recorded. No production behavior changed or completed checks replayed.
+## 2026-10-18 — Pending achievement category text
+
+[Pending presentation](systems/dungeon-achievements.md#pending-category-presentation--2026-10-18): cachedRetailGetCategoryList/provider has no genericLoadingachievements row; separate search0.3s progress/inspect-ready is retained, not a latency claim. Tests-only15d15e529 actual-native20cases gives RED4 pending-loadingtext vsblank, sixteen loadedempty/633rows/search/detailerror controls and hint/filter/inspect waits PASS. Only pending-category message returns empty text; labelwrapper/cacheflags/cursor/network/tree/portrait unchanged. Atintegrated59a32b186 strictactual-nativeGREEN20/20/exit0/zeroerrors, UIintegration27/0 inclcursor/compare, extensionbuild0/15.9s/scopedfourconsumercheck0/80s/noWarnings/fmt/diff/readability pass. Pending textblank remains distinct fromknownempty/row/search/error/inspect output. Postlandingloaded-row readiness proof separate.
+
+## 2026-10-18 — Empty achievement search instructions
+
+[Local Search hint](systems/dungeon-achievements.md#empty-search-instructions--2026-10-18): InputBoxInstructionsTemplate gray.35/Friz10/sourceblack(+1,−1)shadow/71×30 atsearchleft+16/y25; commontextchanged showsiffempty regardlessfocus. Tests-onlyb4506f87a actual-native8states gives genuine fourmissingemptylabel REDs; four nonempty and priorfontbytes/white/font10/geometry controls pass. Adds localnoninteractivehint only, no global/template/focus/clear-policy change. At4bf1b9be3 actual-nativeGREEN8 has exactSearch/Friz10/gray.35/sourceblackshadow/71×30/x527or647/y129/leftmiddle/ignoredmouse in emptycases, absentnonempty; priorcontrols retained. Authorizedhelperbuild0/159.2s inclpackagecachewait, scopedfourconsumercheck0/17.43s/noWarnings/fmt/diff/readability pass. 556e/actual74 helperbuild0/219s; first16PNG run fails bothstreams on stale slotdata136810 whilecanonicalassetexists. Authorizedidlelinkrepair0 resolvesit, preservingfailedrawproof. Samebinary repairedBOTHskin rerun strictEXIT0/uniqueALL_CASES_DONE2/2each/zeroerrors/exact8PNGseach proves initialhint/clickthrough/focusedempty/typehide/clearrestore/threefilters/realpeerCompare with priorconstraints retained. Sixteen inspected full-HD PNGs `/syncthing/AgentShared/2026-10-18/achievements/search-instructions/`; allPIDs gone/5898free/slicestop0/windowclear0. Modern-normal-empty is explicitly pre-load (Loading achievements…/reduced categories/blank portrait), accepted only for hint/input evidence, not fully ready content. No prioracceptedproof reclassification/fulltemplate/pixel/caretparity claim.
+
+## 2026-10-18 — Achievement search text color
+
+[Text color](systems/dungeon-achievements.md#search-text-color--2026-10-18): inheritedGameFontHighlightSmall sourceWHITE replaces one-widgetdefaultyellow. Tests-only44aeda344 actual-native four-mode RED records font/caret[1,.8,.2,1] vswhite; font10/sourcefontbytes/107×30/insets/x/y/filter retained. Existing projection couples caretcolor; whitecaret accepted explicitly, not Retailcaret parity. Adds only font_colorWHITE, globaldefaults/projection/shadow/hint/blink/width unchanged. At632e9c497 actual-native GREEN4 gives exactfont/caret[1,1,1,1] with all priorfontbytes/geometry retained; helperbuild0/40.6s/scopedfourconsumeralltargetcheck0/7.16s/noWarnings/fmt/diff/readability pass. 542e/landed359→actual3bb helperbuild0/4.0s, granted both-skin normal/real-Hdrpeer comparison physical search/clear/threefilters PASS. Twelve native receipts font/caret exactwhite with priorfont10/geometry/insets/gap retained; full-HD PNGs `/syncthing/AgentShared/2026-10-18/achievements/search-text-color/`. AllownedPIDs gone/5898free/slicestop0/windowclear0; caretwhite remains acceptedcoupling, not Retailcaretparity; shadow/hint/fulltemplate remain excluded.
+
+## 2026-10-18 — Achievement search Roman font size
+
+[Size-only slice](systems/dungeon-achievements.md#search-roman-font-size--2026-10-18): inherited source SearchBoxTemplate→GameFontHighlightSmall→SystemFont_Shadow_Small RomanFriz10; accepted1017 native caption10 proves shared font/root-scale convention, no extra conversion. Tests-only458821d54 actual-native four-mode RED nominal16!=10 with fontmetric20, retained107×30/source insets/x/y/filter/exactfontbytes. Adds only explicitfont_size10; color/shadow/emptyhint/globaldefaults unchanged. At4c0a1bf7c actual-native GREEN4 gives nominal10/metric13/min36×13 with exactfontbytes/107×30/insets/x/y/filter retained; helperbuild0/20.7s, scoped fourconsumer alltargetcheck0/39.11s/noWarnings, fmt/diff/readability pass. Gate536e/landede2ec→helperbuild0/0.9s; both-skin normal/real-Hdrpeer comparison physical search/clear/threefilters PASS with nominal10/metric13/107×30/sourceinsets/x/y/filter/gap retained. Twelve full-HD PNGs `/syncthing/AgentShared/2026-10-18/achievements/search-font-size/`; PIDs gone/private5898free/slicestop0/windowclear0. Metric13 is not a scale conversion; raw independent-run header differences preclude pixel-invariance claim; fullfont/template parity remains excluded.
+
+## 2026-10-18 — Achievement search text insets
+
+[Inset-only correction](systems/dungeon-achievements.md#search-text-inset-correction--2026-10-18): Retail InputBoxTemplates.xml245 L16/R20/T0/B0 replaces misplaced native top20; font/art/x/y/filter/actions unchanged. Actual offline RegistryUi four-mode RED f78af15d2 shows107×40/minimum16×40 instead of authored107×30. Production changes one literal; integrated fe364a174 actual native GREEN4/4 gives107×30/min36×20/source margins, unchanged16pt font/x/y/filter, extension build0/108s. Four-consumer all-target helper check0/95s/no Rust warnings, format/diff/readability pass. Landed3b7d6af5b→actual003e35233 helper build0/87.7s; lead-granted private5898 both-skin normal/real-Hdrpeer comparison physical search/clear/Completed/Incomplete/All PASS. All12 captures native107×30/L16R20T0B0/font16/x511or631/y25/filter/gap retained; named height gap resolved for widget. Twelve PNGs in `/syncthing/AgentShared/2026-10-18/achievements/search-native-height/`; PIDs gone/5898free/slice stop0/windowclear0. No full-font/frame-parity or historical broad gate replay claim. Two earlier harness errors are excluded from RED evidence.
+
+## 2026-10-18 — Native achievement header acceptance
+
+[Post-landing proof](systems/dungeon-achievements.md#post-landing-header-proof--2026-10-18): E333b83b26/P019cd75b/S241776a2d exact artifacts; both skins normal/actual online Hdrpeer comparison exit0. Physical search/clear/Completed/Incomplete/All pass, x511/631 and7px control gap retained. Twelve inspected1920×1080 PNGs published under `/syncthing/AgentShared/2026-10-18/achievements/search-filter-overlap/`. Named ACHIEVEMENT_SEARCH_NATIVE_HEIGHT remains: authored30/native40, actual16pt font20px + misplaced20px top inset; Retail L16/R20/T0/B0 differs from native L16/R0/T20/B0. No inset/font change or full parity claim. Owned PIDs gone, slice stopped/private5898 free; no repeated historical gates.
 
 ## 2026-10-17 — Rain of Fire escape policy
 
@@ -9,9 +340,12 @@
 ## 2026-10-17 — Vanish selection withdrawal
 
 [Harness boundary](systems/bot-harness.md#vanish-selection-withdrawal--2026-10-17): real run23 Vanish55964 withdraws selected living Moloch and its return does not reselect him. Retained-frame RED reaches original ten-second fact deadline. Approved recovery ends only fresh living/InWorld/in-combat no-selection steps with no pending cast, then leaves ordinary next-cycle Garrick assist and fresh cast gates intact. Synthetic continuation controls distinguished; live recovery/clear still pending.
+## 2026-10-17 — Achievement header search/filter overlap
+
+[Source header placement](systems/dungeon-achievements.md#searchfilter-header-placement--2026-10-17): accepted native proof exposed x633 search overlapping625 filter. XML1675–1713 rightToLeft/spacing7/index1 dropdown/index2 search107×30 gives511 normal/631 comparison. Tests-only79bd66ced gives genuine four-case native-host layout RED0/4 (633!=511/631), before template-only x translation of search/control/art/clear. Current y/sizes/dropdown/all other UI/progression retained. At2df86e411, focused achievement GREEN34/0 (nativeGodot9 incl4newcases/UIunit3/UIintegration22), helper60.7s; scoped four-consumer alltarget check0/noWarnings, then integrated8.80s check0 after actual TP Rust merge. Format/scoped readability/spec pass; no unchanged achievement rerun. Native pointer proof only after landing. Initial pet-credit hypothesis was falsified by real both-skin completion; no producer change.
 ## 2026-10-17 — Ordinary-product Up/Down navigation
 
-[Keyboard scope](systems/trading-post.md#ordinary-product-keyboard-navigation--october17): four genuine missing-action model REDs precede adjacent ordinary selection/nearest-edge reveal. Current sorted/filtered rows, nonwrapping endpoints, frozen/cart/modal ownership and explicit missing selection are retained; native press/release routing precedes world capture. Focused51UI tests (seven new,20-row both-skin true page crossing)/helper check38.35s/noWarnings/fmt5/readability pass. Native real-key/focus/world-position acceptance remains explicitly pending until after landing; no process/cohort/parse run for this keyboard slice. Only engine lease reacquired; no server/provider/audio or Rank3 work.
+[Keyboard scope](systems/trading-post.md#ordinary-product-keyboard-navigation--october17): four genuine missing-action model REDs precede adjacent ordinary selection/nearest-edge reveal. Current sorted/filtered rows, nonwrapping endpoints, frozen/cart/modal ownership and explicit missing selection are retained; native press/release routing precedes world capture. Focused51UI tests (seven new,20-row both-skin true page crossing)/helper check38.35s/noWarnings/fmt5/readability pass. Post480e actualC444/S16ede/P a566 with fixture4e7 passes21 native checks per skin: real press/releases, first12/thirteenth row/nearest scroll51→0, frozen/cart/confirmation no-op and complete purchased4/2 subset endpoints. Sampled XYZdelta0; Tender19040/19670/exact appearance sets12/10/cart/640712 conserved, two Query requests only/no transactions or policy setup. Eighteen inspected full-HD PNGs+two ffmpeg contacts published; four actual binary hashes/22 receipts/six original memory boundaries retained. Runtime/slice stopped/window cleared; later integrated source checks remain separate, no whole-tail/CI claim or proof replay.
 
 ## 2026-10-17 — Purchase-aware Trading Post Price key
 
@@ -41,6 +375,10 @@
 ## 2026-10-17 — Native release20 Arathi lifecycle
 
 [Bounded release proof](systems/battlegrounds.md#native-release20-arathi--bounded-proof2026-10-17): landed-master bookworm extension/server/19peers, actual loaded release hash; normal four5-player parties→one20/10v10 match, five banner assaults, natural1500–0, winning wallet/XP671 and losing61 across20, all origin-map returns. Four inspected both-skin1920×1080 scoreboard/end originals shared. First cold10.5686s frame/peer12 timeout retained; same-code/privateDB bounded retry passes, not a cold-stall fix. Numeric wallet pixels6... remain diagnostic-only; raw log order/timestamp limits/import errors explicit. Owned scope stopped,5941free/window cleared13:44:45.
+## 2026-10-17 — ReadyCheck listener show sound
+
+[Listener OnShow](systems/group-frames.md#readycheck-listener-show-sound--implementation-2026-10-17): XML107–111/constant84 source8960, active70448 kit gain1/zero pitch+variation/Entry9401file567478. Missing-kit RED1(216.1s) precedes catalog/actual-visible edge dispatch viaUiKits, no refresh/initiator/hidden play. Privately authenticated one60724-byte44.1kHzstereo5.020385s Ogg/SHA1153339e/MD5rootmatch/full decode; Ogg independently re-extracted/published by lead/no clobber; initial flat-path model-index fragment broke bundle namespace validation and was withdrawn by lead, not the Ogg. UI sounds ship through sounds/ directly; verification receipts must not use model-index names. Agent canonical writes zero. Catalog1/edge2 GREEN/check25.86s/scopedfmt/diff/readability pass; depot asset declared, private/lead-published size+SHA match. Native/hardware playback acceptance remains separate.
+
 ## 2026-10-17 — ReadyCheck title origin/width
 
 [Title bounds](systems/group-frames.md#readycheck-title-originwidth--implementation-2026-10-17): source RC45–58 left58/right24/top1+childtop5→241px@(58,6); current20px height conserved/not intrinsic parity. Genuine RED4pass1fail323vs241,206.7s helper; only three production title geometry fields repaired, every other field preserved. Existing native fixture controls reconciled; historical captures retain original geometry scope. Committed c823bdd45 GREEN5/5bothskins18.8s helper/check111.1swall/no warnings; scopedfmt/diff/readability pass, exact receipts in local ledger. Post474e landed299/proto a566/binary05bb native bothskins1920 source241x20@(58,6)/HUDscale1.40625/controls/exactRGBArestore, lead acceptedForever. Samebinary intended323width stayed241: offline assertion caught/qualified origin-only, harnessd008 corrected. Fullwidth proof reuses hash-verified actual61ef/ba80 old323 captures:1899/1914changes,0outside title-shadowunion, panels/fullviewsinspected. No recapture/productchange; windowcleared/slicestopped. Intrinsicheight/wrap/framelevel/fullreference/liveauthority remain gaps.
@@ -4623,3 +4961,105 @@ User decision specifies MOBILE_BANKING_COOLDOWN_2H7200000ms over installed360000
 ## 2026-10-17 — Mobile native clock oracle
 
 [Guild perks](systems/guilds.md#perk-native-authority-and-effect-boundary-2026-10-16): production/Modern proof complete, real7311223ms accepted-recast gap saved; independent425/425b passed. Native measurement now uses the received server CastSuccess timestamp, not float32 countdown interpolation. Retry only remaining Forever case on unchanged artifacts; no overall completion claim yet.
+
+## Mobile Banking native acceptance boundary reconciled
+
+[Native Mobile proof](systems/guilds.md#native-mobile-banking-proof): code gates landed; both-skin body controls and Modern real2h recast are proven. Final Forever accepted recast remains unobserved after transport loss, not an effect failure. No completed-proof claim.
+
+## Native Mobile Banking acceptance complete
+
+[Native proof](systems/guilds.md#native-mobile-banking-proof): both-skin cast/bank/nonmember refusal/despawn and actual post2h accepted casts pass on identical artifacts. Forever7242700ms complements the retained Modern-origin7311223ms interval. Fifteen inspected unchanged full-HD originals published; owned runtimes stopped and owner-checked window cleared. Earlier interrupted overall results remain intact; countdown labels are not timing oracles.
+
+- 2026-10-18: Added [awaited GDScript completion](investigations/gdscript-awaited-completion.md); documented observed nested-coroutine false-success mechanism, shared fail-closed contract, scoped migration, process-level regression and historical evidence limits.
+
+- 2026-10-18: Signed-geoset report is now once per process on first catalog projection; per-load unresolved vectors and signed render-semantic gap retained. Runtime-model loads explain prior repeated reports; see [DB2 signed selections](formats/db2-format.md#installed-csv-column-order-and-signed-selections).
+
+- 2026-10-18 — Extract M2/skin, WMO, ADT/WDT parsing into public wow-formats; document ownership/features, unchanged core assembly and conserved 259 tests (225 moved/34 authored fixtures retained). [Shared readers](systems/wow-formats.md).
+
+- 2026-10-18 — Bump wow-formats pin for independent materials/static-attachments features and raw geometry metadata; default client features unchanged. [Shared readers](systems/wow-formats.md).
+
+- 2026-10-18 — Pin projected runtime-ground metadata APIs in wow-formats; preserve selected-field/FDID/error policy and frozen metadata/bake receipt boundaries. [Shared readers](systems/wow-formats.md).
+
+- Journal authored model scenes: cached source/raw camera and actor math implementation; exact native4e612 Ozruk camera RED, GREEN pending.
+
+- Journal capture-isolation: direct viewport paints while owner+1 background covers actor; centre0 native RED, four Journal texture owner-level alignment implemented.
+- 2026-10-18: Pin shared MCNK height-header/MCVT projection; existing full-render parser semantics retained. See [shared formats](systems/wow-formats.md).
+
+- Journal ae3cd native5: genuine Ozruk/Anraphet raw pose and visible central subjects2/2 per skin, four observed originals inspected; retained30deg cropping/FOV and actor0/effect gaps explicitly excluded.
+
+## 2026-10-19 — Stockade path capture
+
+Added explicit native100ms path trace contract; no server simulation clock claim. Renderer, source-pack dependency and real proof pending.
+
+## 2026-10-19 — Path trace fixture proof
+
+Concrete pose/combat/wipe/boss fixtures3GREEN plus35 default-disabled harness/report controls. Actual Godot opt-in initialization: disabled creates no file, enabled captures exact Vector3 position and two actor facings. Test-only integer-vs-float JSON assertion corrected; no product change. Private admin subprocess actual RED5871→GREEN5981. Real Stockade proof pending.
+
+## 2026-10-19 — Real five-bot path map
+
+Explicit admitted unit_transform sampling replaces incomplete UnitPick traversal. Actual52.365s failed Stockade capture has all5pose/facing tracks; real143spawns/nav34 SVG+PNG inspected/published with FAILED/no-boss title. Original63s gap/failure record preserved. No clear/retry/server-panic fix claimed; owned5981 cold/windows cleared; independent lead gate pending.
+- 2026-10-18: Pin existing MH2O raw-record projections without changing client bitmap/vertex/material interpretation. See [shared formats](systems/wow-formats.md).
+- Journal display0: genuine Bandit/native and default-source core REDs; Journal-private source-default reader implemented; shared reader/Scene unchanged, native GREEN pending.
+
+- Journal display0 native4: all3 raw states/defaults pass in both skins; Bandit+VoidPulsar base-M2 painted, Raszageth source-exact pose viewport0, full fixtures remain FAIL. Six observed originals inspected; no FOV/effect change or hidden scope reduction.
+
+- 2026-10-18: Pin common MFBO signed-grid decoder; preserve full-client size guard and last-record selection. See [shared formats](systems/wow-formats.md).
+- Raszageth read-only native70ef/extension2a49: actual perspective30deg KEEP_HEIGHT/aspect390:423, geometry and custom bounds TOP-only rejected, paint0. Diagnostic1/1 captures evidence, not a product fix; preserve named gap and stop camera/transform changes.
+
+- Journal projection reference packet: permitted cached Lua/XML/XSD inheritance, source pose and bounded setter search supply no numeric projection/clip default or corrective camera rule. Native semantics unknown; Raszageth TOP/paint0 and VoidPulsar kit gaps retained, no product/runtime change.
+
+- Primary-title approved source-fit native668dfa: row823 actualfont24/264×50/2total2visible, not truncated. Fixture correctly stops before hoverRED; standaloneLabelcensus invalid as production proof. No primary-hover correction or forced title/font/geometry; gap retained.
+
+- Lead accepts primary-hover proof limitation as AG_PRIMARY_TITLE_HOVER_UNEXERCISED_NO_TRUNCATING_SOURCE_ROW; retain only cfg(debug_assertions) primary-index2 source input, no hover correction.
+
+## 2026-10-19 — Online guild zone consumer
+
+Existing online roster/detail labels now consume optional server zone text; offline text/geometry/sorting unchanged. RED proved the empty field; coordinated protocol/server gate and native proof pending.
+
+## 2026-10-19 — Online guild zone targeted GREEN
+
+Actual protocol1, both-skin UI1 and native HostClient server1 pass after their observed REDs. Tests enabled; production area authority/label semantics unchanged by fixture repairs. Coordinated integration gate and native proof next.
+- Journal source239Animation25: actualVakan0vs25 nativeRED before correction; source-gated Journal attach-only existingplayer/crossfade implementation, no per-sync restart or kits/variants/speed/effects scope expansion. NativeGREEN pending.
+
+- Journal plain25 extensioncec5 native2: Vakan/Gholna2/2eachskin, current25/sameplayer progressingclock/rawpose/centralpaint; four originalfullHD captures inspected. Existingcrossfadeimplementationunchanged, curveparityunclaimed; kits/variants/speed/effects and priornamedgaps remainexcluded.
+
+- Journal remainingplainclips: ignored174afixture beforeproduct, genuineAtrigan0vs27nativeRED. Rename25helpertoonesourcepath25/26/27/213, preserve25controls andallkit/variant/speed/effectexclusions; fullnativeproofpending.
+
+- Remainingplainclips explicitmissing27/nativeblank leads to approvedsource AnimationData.Fallback traversal, including0; reusecatalogreader, purecycle/no-matchrefusal, per-modelplainentry beforeunchangedcrossfade. Atrigan27→25sourceavailabilitypinned; isolatedall3×bothskinproofpending.
+
+- Journal fallback native33389: all3×bothskins isolated1/1 each, Atrigan27→25actual25, exact213/26preferred, clocks/rawpose/paintpass;12fullHDframesinspected. Six zero-Basis errors perRemorniaprocess retainedasnamedunattributedgap, no clean-runtime/fullframing/effectparity claim.
+
+- [Remornia-process phase attribution](systems/adventure-guide.md#remornia-process-zero-basis-error-phase-attribution): fixtureffcd43976/unchanged33389 extension, oneModern1/1. Six errorsframe7264 before selectorframe7301; CrimsonCabalist5198 portrait has zero-scale roots3–6 in firstsnapshotframe7265, one frame later (earlier same-frame prose corrected), exact owner/C++caller stillUNATTRIBUTED. No product fix/guard/suppression; window/slice/5771 cleared.
+- [Authored chooser zero-scale RED](systems/adventure-guide.md#authored-zero-scale-chooser-roots-and-real-boundary-red): source3049899 scale roots3–6 are literal zero at idle0/sequenceindex3/t0, global−1. Independent bytes/pinnedparser source/oldnative match. Ignored46165 CPU-engine actual6-error RED preserves sourcequaternion/scale;71992 parser failure retained as nonRED. Godot rawsource717 matchesruntime; bone6 emptyrotation supplement corrected separately, scaleproof unaffected. No product correction yet at that RED checkpoint.
+- [Camera-less billboard correction](systems/adventure-guide.md#camera-less-billboard-override-correction): approved bounded override selection matches actual view-dependent billboard work. SourceTRS/global traversal/A6 affine path unchanged; no scale/epsilon predicate or skippedbone. eae82eac5/extension120d9223 CPU1/1 GREEN after6-error RED, source pose preserved; billboard/A6 controls2+3+5 GREEN, no duplicate completed proof. Native helper sibling-freshness fixca81 merged, no clean/mtime workaround; lost helper exits explicitly qualified with original artifact/managed-log evidence. BILLBOARD_CAMERA_PRESENT_ZERO_SCALE_OVERRIDE_DECOMPOSES remains; subsequent bound Modern native proof below qualifies the Model-tab.
+- [Detached Journal state-kit ownership](systems/adventure-guide.md#detached-journal-cdi-state-kit-ownership): ignored18ec exactcatalog1/1 plus genuine6132/141206 no-children RED before product; diagnostic-format error/collector refusal retained, fixturetextfixfd2ea. Explicit detached owner queues existing kit253973 modelattachments/clock without fakeunitID; clear cancels/freesownedwork. Focused native spell_effects11/11 +core spell_visual20/20 +ignoredexactcatalog1/1 pass, currentfixtureparse0; historicalB3 TransferLeadership compile refusal retained, accepted724cohort resolvesit withoutcode/cacheworkaround. Genuine both-skin detachedattachment/clock/lifecycle GREEN deferred until the later post-landing receipt; material/particle/CAPI timing unclaimed.
+- Accepted [Void Pulsar state-kit native](systems/adventure-guide.md#detached-journal-cdi-state-kit-ownership): E7b8d/Ffbc29/Sa6f7/P0399, both actualskins0/1-of-1, threefreshvisuals/twoeffects each, source34/transform/158clock/nonreset/switchfree/close-reopen pass. Baseidle0 vs recursivekit158 confirms testownerbug; firstbothskinfailures retained, no productanimationchange. TwofullHDPNGs inspected, guardstaff portal visible; Orb6130/4737026 and Rift6133/5046037 no-camera blank chooser gaps stay open. Proof23 hash408846c4…; allownedruntimes/window/5771 cleared, no appearance/CAPItimingparityclaim.
+- Accepted [Model-tab zero-basis native](systems/adventure-guide.md#camera-less-billboard-override-correction): runtimeeae/fixture4c52/freshserver7cd+B3, one Modern0/1-of-1, basisbefore0/through0/delta0 with actual chooser5198/212bones/idle0t0/zero roots3–6. Remornia213 clock/rawpose/paintpass, two originalfullHDframesinspected; source/runtime identities not relabeledcurrentmaster. Named JOURNAL_REMORNIA_CHOOSER_PORTRAIT_NO_CAMERA_BLANK remains alongside camera-present zero-scale gap. Ownedruntime/window/5771 cleared; proof19 hash721096c6….
+- [Camera-less billboard correction](systems/adventure-guide.md#camera-less-billboard-override-correction): approved bounded override selection matches actual view-dependent billboard work. SourceTRS/global traversal/A6 affine path unchanged; no scale/epsilon predicate or skippedbone. eae82eac5/extension120d9223 CPU1/1 GREEN after6-error RED, source pose preserved; billboard/A6 controls2+3+5 GREEN, no duplicate completed proof. Native helper sibling-freshness fixca81 merged, no clean/mtime workaround; lost helper exits explicitly qualified with original artifact/managed-log evidence. BILLBOARD_CAMERA_PRESENT_ZERO_SCALE_OVERRIDE_DECOMPOSES remains, native Model-tab after landing.
+
+## 2026-10-19 — Leadership transfer native proof
+
+gz709 landed protocol724ec71/serverb15526d95/engine79b33ab93; two authenticated actors prove typed `/gleader`, immediate rank/permission refresh and same-private-DB fresh-server/client master settings in both skins. Six inspected original PNGs published; historical original unchanged, owned actors/slice stopped and window cleared. See the voluntary leadership transfer system section for exact evidence and proof exclusions.
+
+## 2026-10-19 — Last Online recency display
+
+After pushed ignored regression and actual Offline-vs-recency rendering RED, replaced opaque status text with optional logout authority and one source elapsed-unit formatter for roster/detail. Source English strings authenticated against active local-CASC receipt, not legacy CSV provenance. GREEN/coordinated gate/native pending; see guild Last Online section.
+
+## 2026-10-19 — Last Online native acceptance
+
+gl728 landed protocol50517c9/server1a2f13fd4/engine51f1af4f8. Real peer disconnect→both-skin roster/detail recency, genuine reconnect→Online/Elwynn Forest, second disconnect→fresh server/client persisted readback accepted; six inspected unchanged original PNGs published. Historical original unchanged, owned actors/slice stopped, UDP5891 unbound and window cleared. [Exact evidence and automated/native boundaries](systems/guilds.md#last-online-native-acceptance-2026-10-19); no fabricated history or audio/clean-exit repair claim.
+
+## 2026-10-19 — Zone header sort implementation
+
+After pushed ignored tests and actual3-case behavioral RED, activated the existing Zone header and pure presentation comparator. Allowed historical prose supplies valid-string mapping; GUILD_ZONE_SORT_OFFLINE_BY_LOGOUT_SECONDS explicitly uses most-recent seconds first ascending, with fixed existing name ties and no Retail counter/sub-hour claim. No wire/backend/layout changes or Note-mechanics changes. [Source, limits and current proof](systems/guilds.md#zone-header-sorting); focused GREEN/gate/native pending.
+
+## 2026-10-20 — Guild context confirmation native proof
+
+gc774 passed tests/fmt and landed engineb0b3d4b39; exact server842325bf3/protocol600b755. [Both-skin real-member proof and limits](systems/guilds.md#context-confirmation-native-proof-2026-10-20): physical self/nonleader hiding, Cancel/Escape, captured target across selection/sort, Accept/actual authority and fresh-server/client new-master settings pass. Fourteen inspected original PNGs published unchanged; actors/cage/slice stopped, UDP5891 unbound/window cleared, historical original/source/artifact hashes unchanged. First-import editor errors and unrelated shared-CSV fixture startup blocker retained; no source/data repair, exact native request counts or offline/benign-refresh native sampling claimed.
+
+## 2026-10-20 — Crafting reagents from banks
+
+[Professions reagent counts](systems/native-professions-crafting.md) now include the character and Warband banks from the last `BankContents` of each bank, which the server sends on world entry and after bank-reagent crafts. Retail-source only; `ProfessionView.bag_counts` renamed `owned_reagents`. Native proof pending.
+## 2026-10-20 — Gamma particle compositing
+
+[Root cause, fix and captures](investigations/godot-torch-rendering.md#gamma-compositing-2026-10-20): particles blended in linear light; WWV blends authored values in a UNORM target. A POST_TRANSPARENT CompositorEffect encodes the scene to sRGB, draws the pools with the GL factors against the resolved depth, and decodes. `particle_blend_pixels.gd` RED 12/16 fail → GREEN 16/16. Native both-skin 1920x1080 captures of 145304, 199823 and Frostbolt; composite 52-116 us GPU. Named gaps PARTICLES_COMPOSITE_AFTER_ALL_TRANSPARENT_GEOMETRY and PARTICLES_NO_DEPTH_WRITE.

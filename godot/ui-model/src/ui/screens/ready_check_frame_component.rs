@@ -49,6 +49,8 @@ const TEXT_COLOR: FontColor = FontColor::new(1.0, 210.0 / 255.0, 0.0, 1.0);
 pub struct ReadyCheckFrameState {
     pub visible: bool,
     pub initiator: String,
+    /// Current difficulty name, present only for DB2's toggle-qualified cases.
+    pub difficulty_name: Option<String>,
 }
 
 /// Built only while shown, like `StaticPopupN`, so automation can wait for its buttons.
@@ -57,7 +59,10 @@ pub fn ready_check_frame(state: &ReadyCheckFrameState) -> Element {
         return Element::default();
     }
     // Retail READY_CHECK_MESSAGE.
-    let text = format!("{} has initiated a ready check.", state.initiator);
+    let mut text = format!("{} has initiated a ready check.", state.initiator);
+    if let Some(name) = &state.difficulty_name {
+        text.push_str(&format!("\nRaid Difficulty: {name}"));
+    }
     rsx! {
         r#frame {
             name: {DynName(READY_CHECK_FRAME.to_string())},
@@ -103,11 +108,14 @@ pub fn ready_check_frame(state: &ReadyCheckFrameState) -> Element {
             fontstring {
                 name: {DynName(format!("{READY_CHECK_FRAME}Text"))},
                 width: TEXT_W,
-                height: 28.0,
+                height: "auto",
                 text: text.as_str(),
                 font: GameFont::FrizQuadrata,
                 font_size: 12.0,
                 font_color: TEXT_COLOR,
+                // UI.xsd:762 default spacing=0; both native measurement and drawing use it.
+                line_spacing: 0,
+                justify_v: "MIDDLE",
                 shadow_color: "0,0,0,1",
                 shadow_offset: "1,-1",
                 justify_h: "CENTER",

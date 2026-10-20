@@ -250,6 +250,7 @@ mod tests {
                     count: 1,
                     durability: None,
                     soulbound: true,
+                    crafting_origin: None,
                 },
             }],
         });

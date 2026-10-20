@@ -6,6 +6,7 @@ mod adventure_guide_wire_tests;
 #[path = "ui/automation_data.rs"]
 pub mod automation_data;
 mod battleground_trace;
+pub mod fixture_completion;
 #[path = "game/state/game_state_enum.rs"]
 pub mod game_state_enum;
 #[cfg(test)]
@@ -253,6 +254,7 @@ impl NetworkBridge {
             .receive::<protocol::QuestPushResult>()
             // Dungeon difficulty and saved instances for the entrance difficulty bar.
             .receive::<DungeonDifficultySet>()
+            .receive::<shared::protocol::WorldServerInfo>()
             .receive::<shared::protocol::RaidDifficultySet>()
             .receive::<InstanceInfo>()
             .receive::<protocol::DungeonProgress>()

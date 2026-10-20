@@ -99,6 +99,7 @@ fn stack(item_guid: u64, item_id: u32, count: u32) -> ItemStack {
         count,
         durability: None,
         soulbound: false,
+        crafting_origin: None,
     }
 }
 

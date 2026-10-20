@@ -245,9 +245,13 @@ impl View {
             }
             "perks:cart:show" => {
                 self.initialize_cart_selection()?;
-                self.cart_visible = !self.cart.is_empty();
+                let show_cart = !self.cart.is_empty();
+                if show_cart && !self.cart_visible {
+                    self.pre_cart_selected = self.selected.take();
+                }
+                self.cart_visible = show_cart;
             }
-            "perks:cart:close" => self.cart_visible = false,
+            "perks:cart:close" => self.close_cart(),
             "perks:cart:clear" if !self.cart.is_empty() => self.confirm = Some("clear-cart".into()),
             "perks:cart:clear" => {}
             "perks:cart:checkout" if self.can_checkout() => {
@@ -272,14 +276,35 @@ impl View {
         self.cart_selected.retain(|_, item| !removed.contains(item));
         self.cart.retain(|item| *item != id);
         if self.cart.is_empty() {
-            self.cart_visible = false;
+            self.close_cart();
+        }
+    }
+
+    fn close_cart(&mut self) {
+        let was_shown = self.cart_visible;
+        self.cart_visible = false;
+        let previous = self.pre_cart_selected.take();
+        if !was_shown || self.selected.is_some() {
+            return;
+        }
+        // TrySelectProduct, then SelectFirstProduct: this belongs only to cart return.
+        let restored = previous
+            .filter(|id| self.has_selectable_product(*id))
+            .or_else(|| self.rows().first().map(|row| row.id));
+        let Some(id) = restored else {
+            return;
+        };
+        if self.visible {
+            self.select_product(id);
+        } else {
+            self.set_product_selection(id);
         }
     }
 
     pub fn clear_cart(&mut self) {
         self.cart.clear();
         self.cart_selected.clear();
-        self.cart_visible = false;
+        self.close_cart();
         self.cart_hover = None;
         self.cart_item_hover = None;
     }

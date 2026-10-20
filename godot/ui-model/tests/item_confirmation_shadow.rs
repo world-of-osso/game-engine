@@ -20,7 +20,7 @@ fn confirmation_screen(ctx: &SharedContext) -> Element {
         currency_icon: None,
         item: Some(("Sharp Shortsword", 132350, 2)),
         accept: ("Confirm", "shadow_confirm:accept"),
-        cancel_action: "shadow_confirm:cancel",
+        cancel_action: Some("shadow_confirm:cancel"),
         screen: (1920.0, 1080.0),
     })
 }

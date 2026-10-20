@@ -105,16 +105,18 @@ fn resize_filter_to_text<'a>(
     if state.style != DropdownStyle::Filter || !state.resize_to_text {
         return props;
     }
-    let (text_width, _) = ui_toolkit::text_measure::measure_text(
-        props.text,
-        ui_toolkit::widgets::font_string::GameFont::FrizQuadrata,
-        12.0,
-    )
-    .expect("Filter template font loaded");
     DropdownButton {
-        width: text_width + 60.0,
+        width: filter_dropdown_width(props.text),
         ..props
     }
+}
+
+/// The authored content width, also used by right-anchored filter owners.
+pub fn filter_dropdown_width(text: &str) -> f32 {
+    ui_toolkit::text_measure::measure_text(text, GameFont::FrizQuadrata, 12.0)
+        .expect("Filter template font loaded")
+        .0
+        + 60.0
 }
 
 fn dropdown_art(props: DropdownButton<'_>, state: DropdownState<'_>) -> Element {
@@ -462,7 +464,8 @@ pub fn context_menu_description(
         ));
         top += row_height;
     }
-    rsx! { r#frame { name:{DynName(name.into())},width,height,left:x,top:y,pos_type:"absolute",strata:FrameStrata::Dialog,frame_level:60.0,{contents} } }
+    // Menu.lua:2080–2094: ordinary menu proxies use FULLSCREEN_DIALOG.
+    rsx! { r#frame { name:{DynName(name.into())},width,height,left:x,top:y,pos_type:"absolute",strata:FrameStrata::FullscreenDialog,frame_level:60.0,{contents} } }
 }
 
 pub fn menu_height_for_items(item_count: usize) -> f32 {
@@ -528,7 +531,8 @@ pub fn context_menu_with_rows(props: ContextMenu<'_>, rows: Element) -> Element 
     contents.extend(rows);
     rsx! { r#frame {
         name: {DynName(props.frame_name.into())}, width: {props.width}, height, hidden: props.hidden,
-        strata: FrameStrata::Dialog, frame_level: 60.0, pos_type: "absolute", left: {props.x}, top: {props.y}, {contents}
+        // Mainline Menu.lua:2080–2094 / UIDropDownMenu.xml:3.
+        strata: FrameStrata::FullscreenDialog, frame_level: 60.0, pos_type: "absolute", left: {props.x}, top: {props.y}, {contents}
     } }
 }
 

@@ -626,6 +626,10 @@ dependencies = [
  "serde",
  "serde_json",
  "texpresso",
+ "wow-adt",
+ "wow-chunk",
+ "wow-m2",
+ "wow-wmo",
 ]
 
 [[package]]
@@ -2424,6 +2428,40 @@ name = "wit-bindgen"
 version = "0.57.1"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "1ebf944e87a7c253233ad6766e082e3cd714b5d03812acc24c318f549614536e"
+
+[[package]]
+name = "wow-adt"
+version = "0.1.0"
+source = "git+https://github.com/world-of-osso/wow-formats.git?rev=882b2fc748c0365dad315375d0827e1f066f733f#882b2fc748c0365dad315375d0827e1f066f733f"
+dependencies = [
+ "binrw",
+ "wow-chunk",
+]
+
+[[package]]
+name = "wow-chunk"
+version = "0.1.0"
+source = "git+https://github.com/world-of-osso/wow-formats.git?rev=882b2fc748c0365dad315375d0827e1f066f733f#882b2fc748c0365dad315375d0827e1f066f733f"
+
+[[package]]
+name = "wow-m2"
+version = "0.1.0"
+source = "git+https://github.com/world-of-osso/wow-formats.git?rev=882b2fc748c0365dad315375d0827e1f066f733f#882b2fc748c0365dad315375d0827e1f066f733f"
+dependencies = [
+ "binrw",
+ "glam",
+ "wow-chunk",
+]
+
+[[package]]
+name = "wow-wmo"
+version = "0.1.0"
+source = "git+https://github.com/world-of-osso/wow-formats.git?rev=882b2fc748c0365dad315375d0827e1f066f733f#882b2fc748c0365dad315375d0827e1f066f733f"
+dependencies = [
+ "binrw",
+ "glam",
+ "wow-chunk",
+]
 
 [[package]]
 name = "writeable"

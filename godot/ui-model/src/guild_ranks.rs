@@ -16,6 +16,8 @@ pub enum GuildRosterSort {
     Rank,
     Level,
     Class,
+    Zone,
+    Note,
 }
 
 pub fn guild_creation_notice(created_at: Option<u64>) -> String {
@@ -56,17 +58,25 @@ pub struct GuildRanksSession {
     pub rank_menu_open: bool,
     pub member_menu: Option<String>,
     pub member_detail: Option<String>,
+    pub member_rank_menu_open: bool,
     pub removal_target: Option<String>,
+    /// CONFIRM_GUILD_PROMOTE data, independent of later roster selection.
+    pub leadership_target: Option<String>,
     /// StaticPopup data captures the target identity independently of roster selection.
     pub note_editor: Option<(String, bool)>,
     pub error: Option<String>,
     pub invitation: Option<GuildInvitation>,
     pub invitation_waiting: bool,
+    invitation_elapsed: f64,
     pub profile: Option<GuildSnapshot>,
     pub commands: Vec<GuildCommand>,
+    /// Chat edit-box prefill requested by roster Whisper; the host opens chat once.
+    pub chat_open: Option<String>,
     pub communities_tab: CommunitiesTab,
     pub roster_sort: Option<GuildRosterSort>,
     pub roster_sort_descending: bool,
+    /// Presentation-only inverse of persisted communitiesShowOffline.
+    pub roster_online_only: bool,
     pub invite_open: bool,
     pub profile_editor: Option<GuildProfileField>,
     pub profile_waiting: bool,
@@ -79,6 +89,34 @@ pub struct GuildRanksSession {
 }
 
 impl GuildRanksSession {
+    pub fn receive_invitation(&mut self, invitation: GuildInvitation) {
+        self.invitation = Some(invitation);
+        self.invitation_waiting = false;
+        self.invitation_elapsed = 0.0;
+    }
+
+    /// GuildInviteFrame.xml OnUpdate hides strictly after 60 displayed seconds.
+    pub fn advance_invitation(&mut self, delta: f64) -> Option<GuildCommand> {
+        if self.invitation.is_none() || self.invitation_waiting {
+            return None;
+        }
+        self.invitation_elapsed += delta;
+        const INVITATION_TIMEOUT_SECONDS: f64 = 60.0;
+        if self.invitation_elapsed > INVITATION_TIMEOUT_SECONDS {
+            return self.dismiss_invitation();
+        }
+        None
+    }
+
+    /// GuildInviteFrame OnHide declines unless Join has already sent acceptance.
+    pub fn dismiss_invitation(&mut self) -> Option<GuildCommand> {
+        if self.invitation_waiting {
+            return None;
+        }
+        self.invitation.take()?;
+        Some(GuildCommand::DeclineInvite)
+    }
+
     pub fn open(&mut self) -> GuildRankRequest {
         self.visible = true;
         self.awaiting_state = true;
@@ -93,8 +131,10 @@ impl GuildRanksSession {
         self.profile_editor = None;
         self.member_menu = None;
         self.member_detail = None;
+        self.member_rank_menu_open = false;
         self.note_editor = None;
         self.removal_target = None;
+        self.leadership_target = None;
         self.log_open = false;
         self.news.filters_open = false;
         self.news.menu = None;
@@ -102,6 +142,13 @@ impl GuildRanksSession {
     }
 
     pub fn dismiss_subdialog(&mut self) -> bool {
+        if self.leadership_target.take().is_some() {
+            return true;
+        }
+        if self.member_rank_menu_open {
+            self.member_rank_menu_open = false;
+            return true;
+        }
         if self.removal_target.take().is_some() {
             return true;
         }
@@ -210,6 +257,8 @@ impl GuildRanksSession {
             "guild:roster-sort:rank" => self.sort_roster(GuildRosterSort::Rank),
             "guild:roster-sort:level" => self.sort_roster(GuildRosterSort::Level),
             "guild:roster-sort:class" => self.sort_roster(GuildRosterSort::Class),
+            "guild:roster-sort:zone" => self.sort_roster(GuildRosterSort::Zone),
+            "guild:roster-sort:note" => self.sort_roster(GuildRosterSort::Note),
             "guild:invite_open" if self.can(GUILD_RIGHT_INVITE) => self.invite_open = true,
             "guild:invite_close" => self.invite_open = false,
             "guild:invite_send" if self.invite_open && self.can(GUILD_RIGHT_INVITE) => {
@@ -269,8 +318,12 @@ impl GuildRanksSession {
     }
 
     fn sort_roster(&mut self, column: GuildRosterSort) {
-        self.roster_sort_descending =
-            self.roster_sort == Some(column) && !self.roster_sort_descending;
+        self.roster_sort_descending = if self.roster_sort == Some(column) {
+            !self.roster_sort_descending
+        } else {
+            // Mainline's first string-attribute click swaps comparator arguments.
+            column == GuildRosterSort::Note
+        };
         self.roster_sort = Some(column);
         self.member_menu = None;
     }
@@ -326,6 +379,10 @@ impl GuildRanksSession {
                 }
                 None
             }
+            "guild:show_offline" if self.communities_tab == CommunitiesTab::Roster => {
+                self.roster_online_only = !self.roster_online_only;
+                None
+            }
             "guild:close" => {
                 self.close();
                 None
@@ -370,8 +427,21 @@ impl GuildRanksSession {
                 self.removal_target = None;
                 None
             }
+            "guild:detail_rank_menu" => {
+                let eligible = self
+                    .member_detail
+                    .as_deref()
+                    .is_some_and(|name| self.member_rank_range(name).is_some());
+                let waiting = self.awaiting_state || self.profile_waiting;
+                if eligible && !waiting {
+                    self.member_rank_menu_open = !self.member_rank_menu_open;
+                    self.member_menu = None;
+                }
+                None
+            }
             "guild:detail_close" => {
                 self.member_detail = None;
+                self.member_rank_menu_open = false;
                 self.note_editor = None;
                 None
             }
@@ -379,6 +449,7 @@ impl GuildRanksSession {
                 let officer = action == "guild:note_officer";
                 if self.can_edit_note(officer) && !self.awaiting_state && !self.profile_waiting {
                     self.removal_target = None;
+                    self.leadership_target = None;
                     self.note_editor = self.member_detail.clone().map(|name| (name, officer));
                 }
                 None
@@ -389,6 +460,31 @@ impl GuildRanksSession {
             }
             "guild:note_accept" => self.submit_note(input(crate::guild_member_detail::NOTE_BOX)),
             "guild:gold" => self.set_gold_limit(input(crate::guild_rank_frame::GOLD_BOX)),
+            "guild:transfer_leadership" => {
+                self.open_leadership_confirmation(self.member_menu.clone()?);
+                None
+            }
+            "guild:transfer_leadership_confirm" => {
+                if self.awaiting_state {
+                    return None;
+                }
+                self.leadership_target
+                    .take()
+                    .map(|character_name| GuildRankRequest::TransferLeadership { character_name })
+            }
+            "guild:transfer_leadership_cancel" => {
+                self.leadership_target = None;
+                None
+            }
+            "guild:whisper" => {
+                let name = self.member_menu.clone()?;
+                if self.can_whisper(&name) {
+                    // CHAT_WHISPER_HEADER_ABSENT: Retail /cw + ParseText header mode is not represented.
+                    self.chat_open = Some(format!("/w {name} "));
+                    self.member_menu = None;
+                }
+                None
+            }
             "guild:promote" => self.promote(self.member_menu.as_deref()?),
             "guild:demote" => self.demote(self.member_menu.as_deref()?),
             "guild:remove_member" => {
@@ -403,11 +499,22 @@ impl GuildRanksSession {
         request
     }
 
+    fn open_leadership_confirmation(&mut self, name: String) {
+        if self.can_transfer_leadership(&name) {
+            self.leadership_target = Some(name);
+            self.member_menu = None;
+            self.member_rank_menu_open = false;
+            self.note_editor = None;
+            self.removal_target = None;
+        }
+    }
+
     fn open_member_removal(&mut self, name: String) {
         if self.remove_member(&name).is_some() {
             self.removal_target = Some(name);
             self.member_menu = None;
             self.note_editor = None;
+            self.leadership_target = None;
         }
     }
 
@@ -467,12 +574,21 @@ impl GuildRanksSession {
         action: &str,
         texts: &crate::bank::InputTexts,
     ) -> Option<GuildRankRequest> {
+        if let Some(value) = action.strip_prefix("guild:detail_rank:") {
+            let (name, rank) = value.rsplit_once(':')?;
+            let rank = rank.parse().ok()?;
+            let request = self.build_member_rank_assignment(name, rank);
+            self.member_rank_menu_open = false;
+            return request;
+        }
         if let Some(name) = action.strip_prefix("guild:member:") {
+            self.member_rank_menu_open = false;
             self.member_detail = Some(name.to_owned());
             self.member_menu = None;
             return None;
         }
         if let Some(name) = action.strip_prefix("guild:member-menu:") {
+            self.member_rank_menu_open = false;
             self.member_menu = Some(name.to_owned());
             self.member_detail = None;
             return None;
@@ -640,6 +756,36 @@ impl GuildRanksSession {
             return None;
         }
         Some(GuildRankRequest::Move { rank, up })
+    }
+
+    /// Mainline Whisper CanShow: online, not the local player; independent of guild rights.
+    pub fn can_whisper(&self, name: &str) -> bool {
+        self.profile.as_ref().is_some_and(|profile| {
+            profile
+                .members
+                .iter()
+                .any(|member| member.character_name == name && member.is_online && !member.is_self)
+        })
+    }
+
+    pub fn can_transfer_leadership(&self, name: &str) -> bool {
+        if self.awaiting_state || self.profile_waiting {
+            return false;
+        }
+        let Some(state) = self.state.as_ref().filter(|state| state.own_rank == 0) else {
+            return false;
+        };
+        let known_member = state
+            .members
+            .iter()
+            .any(|member| member.character_name == name);
+        let other_member = self.profile.as_ref().is_some_and(|profile| {
+            profile
+                .members
+                .iter()
+                .any(|member| member.character_name == name && !member.is_self)
+        });
+        known_member && other_member
     }
 
     pub fn remove_member(&self, name: &str) -> Option<GuildRankRequest> {

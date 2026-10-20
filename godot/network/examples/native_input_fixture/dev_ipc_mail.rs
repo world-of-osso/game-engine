@@ -45,6 +45,7 @@ fn inbox(object: u64) -> MailboxContents {
                     count: 20,
                     durability: None,
                     soulbound: false,
+                    crafting_origin: None,
                 },
                 name: "Linen Cloth".into(),
                 quality: 1,

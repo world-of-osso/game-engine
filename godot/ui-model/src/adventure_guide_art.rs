@@ -56,6 +56,7 @@ pub fn apply_postsetup(view: &View, registry: &mut ui_toolkit::registry::FrameRe
 }
 /// XML layers keep the ModelScene viewport above its BACKGROUND and below paper OVERLAY.
 fn apply_pane_texture_layers(registry: &mut ui_toolkit::registry::FrameRegistry) {
+    align_model_texture_levels(registry);
     use ui_toolkit::strata::DrawLayer::{Background, Overlay};
     for (name, layer) in [
         ("EncounterJournalInstanceSelectBackground", Background),
@@ -69,6 +70,32 @@ fn apply_pane_texture_layers(registry: &mut ui_toolkit::registry::FrameRegistry)
     ] {
         if let Some(id) = registry.get_by_name(name) {
             registry.get_mut(id).unwrap().draw_layer = layer;
+        }
+    }
+}
+
+/// EJ XML1974–2005: these are texture layers of ModelScene, not child Frames.
+/// Registry insertion gives children owner+1; undo that only for these four layers
+/// so BACKGROUND stays below the native actor and OVERLAY stays above it.
+fn align_model_texture_levels(registry: &mut ui_toolkit::registry::FrameRegistry) {
+    let Some(owner) = registry.get_by_name("EncounterJournalModelScene") else {
+        return;
+    };
+    let level = registry
+        .get(owner)
+        .expect("named ModelScene exists")
+        .frame_level;
+    for name in [
+        "EncounterJournalInstanceBackground",
+        "EncounterJournalModelPaper",
+        "EncounterJournalModelTitleBG",
+        "EncounterJournalModelTitle",
+    ] {
+        if let Some(id) = registry.get_by_name(name) {
+            registry
+                .get_mut(id)
+                .expect("named model texture exists")
+                .frame_level = level;
         }
     }
 }

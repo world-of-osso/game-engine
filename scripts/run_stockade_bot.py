@@ -19,6 +19,7 @@ from bot_dungeon import summarize_dungeon
 from bot_gear import equipment_receipt, load_plan
 from bot_harness import parse_combat, poll_has_gap, routed_player
 from bot_health import require_living_player
+from bot_path_trace import append_party, write_trace
 from bot_hazards import escape_goal, read_areas, route_is_safe
 from bot_pull_corridor import OBSERVATION_MAX_AGE_MS, require_safe_corridor, require_snapshot
 from bot_pull_sources import PullSources
@@ -48,6 +49,10 @@ class StockadeRun:
     def __init__(self, args):
         self.args = args
         self.output = args.output
+        if os.environ.get("BOT_PATH_MAP_TRACE") == "1":
+            self.path_trace_revision = subprocess.run(
+                ["git", "-C", str(args.engine), "rev-parse", "HEAD"],
+                check=True, capture_output=True, text=True).stdout.strip()
         self.sequence = 0
         self.events = Counter()
         self.last_sequence = 0
@@ -89,7 +94,8 @@ class StockadeRun:
                          ["--socket", self.args.socket, *words])
 
     def admin(self, *words):
-        environment = dict(os.environ, GAME_SERVER_ADMIN_SOCKET="/tmp/game-server-admin-5871.sock")
+        environment = dict(os.environ, GAME_SERVER_ADMIN_SOCKET=
+                           f"/tmp/game-server-admin-{self.args.server_port}.sock")
         return self.call(self.args.server / "target/debug/game-server-admin", words, environment)
 
     def account(self):
@@ -236,6 +242,8 @@ class StockadeRun:
         if account.get("world_map_id") != 34:
             raise RuntimeError("Native player left the Stockade map")
         party = parse_party(self.invoke("group", "roster"))
+        if os.environ.get("BOT_PATH_MAP_TRACE") == "1":
+            append_party(self.output, party)
         observations = self.run.setdefault("party_death_observations", [])
         for member in party:
             if member["death"] == "Alive":
@@ -564,6 +572,11 @@ class StockadeRun:
                  f"Player deaths: {report['player_deaths']}; party deaths: {report['party_deaths']}"]
         lines += [f"{boss['name']}: damage={boss['damage']}; DPS={boss['dps']}; complete={boss['measurement_complete']}" for boss in report["bosses"]]
         (self.output / "summary.md").write_text("\n\n".join(lines) + "\n")
+        if os.environ.get("BOT_PATH_MAP_TRACE") == "1":
+            names = {actor: name for name, actor in getattr(self, "party_actor_ids", {}).items()}
+            write_trace(self.output, events, {**self.run,
+                "run_id": self.output.name, "revision": self.path_trace_revision,
+                "party_names": names})
 
 
 def main():
@@ -571,10 +584,14 @@ def main():
     for name in ("engine", "server", "world-db", "navmesh", "output", "socket", "server-log"):
         parser.add_argument("--" + name, type=Path, required=True)
     parser.add_argument("--character", required=True)
+    parser.add_argument("--server-port", type=int, default=5871,
+                        help="Private server port; selects /tmp/game-server-admin-PORT.sock")
     parser.add_argument("--spec", type=int, default=72)
     parser.add_argument("--exit-only", action="store_true", help="Walk a persisted owner through the authored exit before a fresh run")
     parser.add_argument("--timeout", type=float, default=7200)
     args = parser.parse_args()
+    if not 1 <= args.server_port <= 65535:
+        parser.error("Server port must be in1..65535")
     if args.timeout <= 0 or (args.output / "run.json").exists():
         parser.error("Positive time bound and unused output required")
     controller = StockadeRun(args)

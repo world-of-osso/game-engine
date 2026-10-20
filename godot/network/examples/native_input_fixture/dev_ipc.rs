@@ -479,6 +479,7 @@ fn seed_items_and_quests(app: &mut App) {
         count: 3,
         durability: None,
         soulbound: false,
+        crafting_origin: None,
     };
     send::<_, InventoryChannel>(
         app,
