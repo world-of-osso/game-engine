@@ -150,8 +150,14 @@ fn guild_context_leadership_accept_keeps_captured_member_after_sort_selection_an
             text(&registry, "GuildLeadershipTransferPopupText"),
             "Really promote Cara to Guildmaster?"
         );
-        assert_eq!(text(&registry, ACCEPT), "Accept");
-        assert_eq!(text(&registry, CANCEL), "Cancel");
+        assert_eq!(
+            text(&registry, "GuildLeadershipTransferAcceptDialogButtonText"),
+            "Accept"
+        );
+        assert_eq!(
+            text(&registry, "GuildLeadershipTransferCancelDialogButtonText"),
+            "Cancel"
+        );
         let accept = action(&registry, ACCEPT);
         assert!(!accept.is_empty());
         assert_eq!(
@@ -251,7 +257,7 @@ fn guild_context_leadership_popup_has_source_labels_and_bounded_dialog_geometry_
         for (name, caption) in [(ACCEPT, "Accept"), (CANCEL, "Cancel")] {
             let button = registry.get(registry.get_by_name(name).unwrap()).unwrap();
             assert_eq!((button.width.value(), button.height.value()), (128.0, 21.0));
-            assert_eq!(text(&registry, name), caption);
+            assert_eq!(text(&registry, &format!("{name}DialogButtonText")), caption);
             assert!(!action(&registry, name).is_empty());
         }
         assert_eq!(session.state().unwrap().members[0].rank, 2);

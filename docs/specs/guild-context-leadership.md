@@ -20,6 +20,7 @@ Mainline UnitPopupSharedMenus.lua257–286 and UnitPopupSharedButtonMixins.lua88
 
 - `godot/ui-model/src/guild_rank_frame.rs`: existing guild screen/context menu.
 - `godot/ui-model/src/guild_member_detail.rs`: existing source-style confirmations.
+- `godot/ui-model/src/ui/screens/static_popup_{component,item}.rs`: existing GameDialog button primitive, visibility-only reuse; no generic popup behavior change.
 - `godot/ui-model/src/guild_ranks.rs`: existing reducer/authoritative session and subdialog dismissal.
 - `godot/rust/src/guild_ranks.rs`: existing generic request dispatch and native Escape→dismiss_subdialog boundary, not a new backend.
 - `godot/ui-model/tests/guild_context_leadership_tests.rs`: observable menu/confirmation/request/cancellation/identity controls.
@@ -33,7 +34,7 @@ Mainline UnitPopupSharedMenus.lua257–286 and UnitPopupSharedButtonMixins.lua88
 
 ## Known gaps (current cycle)
 
-- [ ] Ignored tests/spec were pushed before actual behavior RED4 atcf4ccddb2 (40.92s compile/0.11s tests/no warnings): missing sourced menu, captured popup/text and Escape dismissal. Earlier dimension/Val fixture errors and stale pre-tc765 consumer compile failures are setup only, never behavior RED. Implementation64458e9ce preceded focused GREEN4/4 at365eb32f6 (17.54s compile/0.12s tests/no warnings), then only ignore attributes were removed. Negative responder/caption observations were corrected to the existing registry/Button APIs without changing the requested behavior. Independent gate remains pending.
+- [ ] Ignored tests/spec were pushed before actual behavior RED4 atcf4ccddb2 (40.92s compile/0.11s tests/no warnings): missing sourced menu, captured popup/text and Escape dismissal. Earlier dimension/Val fixture errors and stale pre-tc765 consumer compile failures are setup only, never behavior RED. Implementation64458e9ce preceded focused GREEN4/4 at365eb32f6 (17.54s compile/0.12s tests/no warnings), then only ignore attributes were removed. Negative responder/caption observations were corrected to the existing registry/Button APIs without changing the requested behavior. Source GameDialog button-art alignment after that first GREEN requires a focused refresh before the independent gate.
 - [ ] After gate/landing: exact-cohort/startup and granted private-copy/window, real authenticated two-member both-skin physical Cancel/Escape/Accept and authoritative refresh. Model snapshots are not native guild proof.
 
 ## Out of scope

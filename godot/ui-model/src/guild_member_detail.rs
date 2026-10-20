@@ -515,12 +515,12 @@ fn render_leadership_buttons(top: f32, awaiting: bool) -> Element {
     ]
     .into_iter()
     .flat_map(|(caption, action, x, enabled)| {
-        panel_button(
-            format!("GuildLeadershipTransfer{caption}"),
+        crate::static_popup_component::dialog_button(
+            &format!("GuildLeadershipTransfer{caption}"),
             caption,
             action,
-            enabled,
-            (x, top, 128.0, 21.0),
+            !enabled,
+            (x, top),
         )
     })
     .collect()
