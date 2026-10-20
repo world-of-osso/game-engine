@@ -24,7 +24,7 @@ Port recurring behavior once from the Retail R cache, then migrate every audited
 
 - [Existing UI system](../wiki/systems/ui-system.md).
 - Core stores authored properties; the native projection consumes them. Source-script semantics are not inferred from atlas names.
-- Button Normal/Pushed/Disabled/Highlight slots contain shared `ButtonTexture { source, blend_mode }` records. Source changes preserve their authored mode. Step 2 extends this record rather than adding a second state-art path.
+- Button Normal/Pushed/Disabled/Highlight slots contain shared `ButtonTexture { source, blend_mode }` records. Source changes preserve their authored mode. A mode-only record has no drawable artwork: it must not replace existing normal art or emit an empty highlight. Step 2 extends this record rather than adding a second state-art path.
 - Geometry-only routing remains until Step 4; all routed parts consume the chosen state's mode. Minimap highlights default BLEND. UIPanelCloseButton's `RedButton-Highlight` explicitly uses ADD (R SharedUIPanelTemplates.xml139/146); this is distinct from the SharedButton Lua setter's omitted blend argument.
 
 ## Implementation inventory
