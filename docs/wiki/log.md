@@ -1,3 +1,7 @@
+## 2026-10-19 — Passive profession operation status accepted
+
+[Source, RED/GREEN and exact native cohort](systems/native-professions-crafting.md#passive-operation-status): passive CraftStatus omits typed missing-operation diagnostics; existing native sink logs the named gap once at recipe-selection transition. Pending/concrete/action errors, disabled actions and internal/server refusals remain unchanged. Pushed-first screen RED→GREEN; ps713 tests/fmt and ps713b extension/parse pass. Fresh E2894/Scf1/P724 bothskins1920 show initial/validatedblank and concrete missing-sloterror, log375188exactly1 each, conserve bags/money/skill/nocast. Twelve inspected PNG originals published; lead inspected Modern-4 and accepted. Runtime/window cleared; named operation/origin/recraft gaps remain.
+
 ## 2026-10-19 — Profession search magnifier accepted
 
 [Source, implementation and native proof](systems/native-professions-crafting.md#recipe-search-magnifier): ignored screen RED12×12→source10×10, focused/query tint RGB0.6/1; targeted GREEN3/3 and pm700 landed00afe30a7. Exact E00afe/S46d5/Pb3 both-skin1920 native fourstates+Clear passes numeric anchors, painted brightening/exact restore and selection/Favorites/filter/gameplay conservation. Ten inspected PNG originals published; native error streams empty, known warnings and separate editor-import errors retained. Lead inspected Modern-2/Forever-5 and accepted. Owned runtime/window cleared; operation/concentration-origin/recraft gaps unchanged.
