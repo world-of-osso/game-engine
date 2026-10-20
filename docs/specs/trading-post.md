@@ -14,6 +14,15 @@ Retail Mainline Blizzard_PerksProgram and the local C_PerksProgram/PerksActiviti
 - [x] Traveler's Log displays authoritative monthly Tender earned/cap/balance. No invented mail awards. Retail XML defines visible controls; remove unsourced vendor SearchBox, Log/Collections and Freeze/Unfreeze buttons (lead clarification October13).
 - [x] Targeted behavioural tests and inspected private UDP5731 fb_* account PNG proof in Modern and Forever.
 
+## Committed frozen selected-texture ADD compositing
+
+Retail Elements.xml383 inherits ordinary SelectedTexture223–230 `perks-list-active` ADD; Frozen SetSelected Lua523–532 delegates to ordinary335–340. Scope only the existing selected texture of a genuinely committed reservation, not candidate/pending visibility rules or frozen hover activation.
+
+- [x] Pushed-firstdbc79 diagnostic/nine-case registration/spec before production edits. Actual Edbc79/S7cd9667a8/P03580cc genuine committed640/712 both-skin pixel RED:31637/31684 actual-versus-ADD differing pixels,0 versus MIX, exact original restore0; source/backdrop/owner/cart/authority/HUD/XYZ controls pass before intended assertion naturalexit1. Authored520×48 source PNGs match prior authenticated active-atlas bytes; not missing-asset/source/field/harness RED. Server exactly two Query/no transactions. [Source/root and proof limits](../wiki/systems/trading-post.md#committed-frozen-selected-texture-add-compositing).
+- [x] Genuine640/712/pointer-off/stable references/exact material/ordinary-frozen-ordinary/cart-owner/authority/HUD/XYZ controls pass before verdict; no transactions/fabricated reservation. Fresh E061/S398/Pb3 Modern green1 +sole Forever green2 retry each strict naturalexit0/unique9/9/complete clean streams. First Forever green1 remains rejected for shutdown ERRORs despite9/9 behavioural evidence; the separate leak finding remains open.
+- [x] After genuine RED, exact-owner7be correction passed ts708/landed061. Fresh requested E061/S398/Pb3 startup/parse then unchanged-oracle accepted Modern green1/Forever green2: ADD0/MIX31637/31684/original restore0. Window cleared18:08:08;22 inspected full-HD successful originals+two contacts+six labeled crops/normal companions published. [Distinct source/binary/pixel provenance and rejected-attempt qualification](../wiki/systems/trading-post.md#committed-frozen-selected-texture-add-compositing).
+- [x] No candidate/pending selection rules, frozen hover/drag, caption/name order, visibility/timing/cart semantics, layout/font/audio/provider/API/server/protocol or missing-data recovery. Preserve `ITEM_235674_SPARSE_ABSENT_FROM_70448_AND_LOCAL_HOTFIX_CACHE` and `TP_NAME_COLOR_SAME_HOVER_DESELECT_ORDER_UNIMPLEMENTED`; closed ordinary-selected/hover proof is not replayed or relabeled.
+
 ## Ordinary selected-row ADD compositing
 
 Retail Elements.xml223–230 declares SelectedTexture `perks-list-active` with ADD; Elements.lua335–340 toggles it independently of hover. Scope only the existing ordinary selected texture's blend, using metadata-bearing available products, not unavailable1076.
@@ -280,6 +289,8 @@ Retail SharedXML calls native `CalculateMountScale`; its formula remains unestab
 - `godot/tests/trading_post_live.gd`: private 127.0.0.1:5791 fb_* native-input proof — Log Tender line, authentic NPC gossip, HUD hidden/restored, category dropdown, player transmog/set and creature mount/pet previews, drag rotation, ToyOverlay, unavailable row, drag-to-freeze, unaffordable gating and frozen slot after relog. Phase `refund-icon-tooltip` proves ordinary-row owner/parent-click/hovered-owner teardown and authoritative purchase/refund conservation.
 
 ## Known gaps (current cycle)
+
+- [ ] Native shutdown RID/resource leaks: rejected first Forever frozen-selected-add-green1 attempt logs eight shutdown ERRORs after9/9 behavioural completion; accepted Modern green1 and sole Forever green2 retry have no leak lines. Root cause remains unexplained/not fixed; failed attempt stays rejected. [Exact qualification/provenance](../wiki/systems/trading-post.md#committed-frozen-selected-texture-add-compositing).
 
 - [ ] Monthly featured catalog/seasonal reward calendar binding; no verified epoch.
 - [ ] Refund duration; server-provided remaining time is documented but no duration sourced.

@@ -10,6 +10,18 @@ Verified: 2026-10-11. Engine behavioral source31c2bba12, overlay geometryac11dd7
 
 `professions_quality.rs` joins `Item.CraftingQualityID` → `CraftingQuality` → `CraftingQualityAtlasSet.IconInv` → `UiTextureAtlasElement.Name`. The stored tier is distinct from item rarity. `professions.rs` in the native extension supplies quality records only for displayed items; reagent slots draw the inventory overlay at its authored atlas size. Local-CASC export/layout/source receipts and absent outcome formulas are recorded in the [contract](../../specs/modern-crafting.md#quality-source-receipt), not inferred from item IDs.
 
+## Recipe search magnifier
+
+The [magnifier contract](../../specs/modern-crafting.md#recipe-search-magnifier) uses existing `ProfessionView.search_focused` and query state. The profession tree authors10×10 `common-search-magnifyingglass` at LEFT(+1,−1), tinting RGB0.6 only when empty and unfocused, otherwise1. No shared search template or query behavior changes. Source: cached Mainline `InputBoxTemplates.xml:211–217`, `InputBoxTemplates.lua:175–200`.
+
+Ignored RED `5e5d57d80` failed at actual screen dimensions12×12 versus10×10 before implementation `89539cb49`; targeted GREEN passes the magnifier's both-skin/four-state assertions and two existing Clear controls. Parent pm700 gates/lands `00afe30a7`, including native fixture `c1a2b7dc6` and direct parse.
+
+### Native magnifier proof — 2026-10-19
+
+Exact binary cohort engine `00afe30a7`, server `46d5aba82`, protocol `b3a34fe`: both1920×1080 native skins pass four focus/query states and Clear restoring dim. Icon bounds `(43,180,10,10)` relative to search `(42,174,162,20)` match source anchors; native TextureRect RGB changes0.6→1. Painted icon pixels brighten on focus and restore byte-identically after Clear. Selection, original Favorites presence, hidden-unlearned flag and bags/copper/skill remain unchanged; default filters are restored and no cast starts. Both clients exit0 with one completion marker and no error lines. Known geoset/MSAA/QuestPOI warnings remain; unrelated one-time editor-import thread/dialog errors are archived separately, not relabeled clean.
+
+Evidence SSOT: canonical `data/diagnostics/profession-search-magnifier-2026-10-19/native-magnifier-proof.json` binds binary hashes, exact source cohort, native state logs, ten inspected PNG hashes/resolutions and cleanup. PNG originals: `/syncthing/AgentShared/2026-10-19/profession-search-magnifier/{Modern,Forever}-{1..5}-*.png`. Owned server1410830 stops,5951 is unbound, crafting slice inactive and window cleared. This proves magnifier presentation/conservation only, not missing operation composition, concentration origin or successful recraft mechanics.
+
 ## Recipe search clear control
 
 The [clear contract](../../specs/modern-crafting.md#recipe-search-clear-control) adds the missing profession-specific SearchBoxTemplate control without replacing other search screens. `ProfessionView.search_focused` reads actual native registry focus; the screen shows the authored clear control for focus or nonempty query. The existing `search_for_clear_action`/edit/blur path consumes its action locally, clears registry text and releases native focus. The ordinary profession poll observes the new text; selection, filters and authoritative Favorites are not reset.

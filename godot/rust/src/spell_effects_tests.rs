@@ -33,7 +33,7 @@ fn spell_kit_attach_waits_for_owner_without_restarting_its_timeline() {
     assert_eq!((anchor.id, anchor.bone, anchor.position), (19, 4, [0.0; 3]));
     let pending = PendingModel {
         due_at: 8.86 + model.start_delay,
-        unit: 4294958353,
+        owner: super::EffectOwner::Unit(4294958353),
         spell_id: 10848,
         kit_id: 989,
         model: model.clone(),
