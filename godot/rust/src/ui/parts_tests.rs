@@ -694,7 +694,7 @@ fn forever_short_nine_slice_keeps_its_bottom_row_inside_the_frame() {
 }
 
 #[test]
-fn minimap_zoom_source_states_keep_full_opacity_and_disabled_grayscale() {
+fn ui_template_blend_minimap_zoom_source_states_keep_full_opacity_and_disabled_grayscale() {
     use game_engine_ui_model::minimap::{MinimapClusterState, minimap_cluster_screen};
     use ui_toolkit::{
         registry::FrameRegistry,
@@ -761,7 +761,8 @@ fn minimap_zoom_source_states_keep_full_opacity_and_disabled_grayscale() {
                         assert_eq!(parts.len(), if highlighted { 2 } else { 1 });
                         if highlighted {
                             assert_eq!(parts[1].source, atlas(&format!("{atlas_name}-mouseover")));
-                            assert!(parts[1].additive);
+                            // R Minimap.xml203/218 omit alphaMode; source highlights default BLEND.
+                            assert!(!parts[1].additive);
                         }
                     }
                 }
