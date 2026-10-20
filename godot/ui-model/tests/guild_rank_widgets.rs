@@ -11,6 +11,8 @@ static SKIN: Mutex<()> = Mutex::new(());
 
 #[path = "guild_context_leadership_tests.rs"]
 mod guild_context_leadership_tests;
+#[path = "guild_context_whisper_tests.rs"]
+mod guild_context_whisper_tests;
 #[path = "guild_numeric_sort_tests.rs"]
 mod guild_numeric_sort_tests;
 #[path = "guild_zone_sort_tests.rs"]
