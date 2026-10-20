@@ -14,8 +14,8 @@ use godot::{
 
 const EFFECT_PATH: &str = "res://rendering/particle_composite_effect.gd";
 const FLOATS_PER_INSTANCE: usize = 20;
-/// The push-constant block of `particle_composite.glsl.in`, padded to 16 bytes.
-const PARAMS_BYTES: usize = 48;
+/// The push-constant block of `particle_composite.glsl.in`: nine 4-byte members.
+const PARAMS_BYTES: usize = 36;
 
 /// One pool's latest upload; kept while the pool's node lives, so a frozen pool keeps
 /// drawing its last frame.
@@ -31,6 +31,8 @@ struct Published {
 struct Composite {
     pools: HashMap<InstanceId, Published>,
     effects: HashMap<InstanceId, (Gd<Camera3D>, Gd<Resource>)>,
+    /// The scene fog uniforms `lighting::set_scene_fog` last wrote, by name.
+    fog: HashMap<String, Variant>,
     hooked: bool,
 }
 
@@ -43,6 +45,14 @@ pub(crate) fn clear() {
     COMPOSITE.with_borrow_mut(|composite| {
         composite.pools.clear();
         composite.effects.clear();
+        composite.fog.clear();
+    });
+}
+
+/// Records the scene fog uniform `name` for the composite's fog block.
+pub(crate) fn record_fog(name: &str, value: &Variant) {
+    COMPOSITE.with_borrow_mut(|composite| {
+        composite.fog.insert(name.to_owned(), value.clone());
     });
 }
 
@@ -121,7 +131,7 @@ fn sync() {
                 .1
                 .push(&draw.to_variant());
         }
-        let fog = fog_block();
+        let fog = fog_block(&composite.fog);
         for (id, (camera, draws)) in by_camera.iter_mut() {
             if !composite.effects.contains_key(id) {
                 match new_effect() {
@@ -198,11 +208,12 @@ fn pool_draw(pool: &Published) -> Result<VarDictionary, String> {
     Ok(draw)
 }
 
-/// The scene fog of `retail_fog.gdshaderinc`'s global uniforms, in the order of the
-/// Scene block of `particle_composite.glsl.in`.
-fn fog_block() -> PackedFloat32Array {
-    let server = RenderingServer::singleton();
-    let global = |name: &str| server.global_shader_parameter_get(name);
+/// The recorded scene fog of `retail_fog.gdshaderinc`'s global uniforms, in the order
+/// of the Scene block of `particle_composite.glsl.in`; unset uniforms are zero, as
+/// Godot's global uniform defaults.
+fn fog_block(fog: &HashMap<String, Variant>) -> PackedFloat32Array {
+    let nil = Variant::nil();
+    let global = |name: &str| fog.get(name).unwrap_or(&nil).clone();
     let float = |name: &str| global(name).try_to::<f32>().unwrap_or(0.0);
     let vec3 = |name: &str| global(name).try_to::<Vector3>().unwrap_or(Vector3::ZERO);
     let vec2 = |name: &str| global(name).try_to::<Vector2>().unwrap_or(Vector2::ZERO);

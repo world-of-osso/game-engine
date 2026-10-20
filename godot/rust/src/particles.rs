@@ -13,7 +13,7 @@ use glam::{Mat3, Mat4, Vec3};
 use godot::{
     classes::{
         ImageTexture, MultiMesh, MultiMeshInstance3D, Node3D, PhysicsRayQueryParameters3D,
-        ShaderMaterial, Skeleton3D, geometry_instance_3d::ShadowCastingSetting,
+        RenderingServer, ShaderMaterial, Skeleton3D, geometry_instance_3d::ShadowCastingSetting,
         multi_mesh::TransformFormat,
     },
     prelude::*,
@@ -776,6 +776,16 @@ impl IRefCounted for WowParticleProbe {
 
 #[godot_api]
 impl WowParticleProbe {
+    /// Sets one scene fog uniform as `TerrainLight::bind_scene` does.
+    #[func]
+    fn set_scene_fog(&self, name: GString, value: Variant) {
+        crate::lighting::set_scene_fog(
+            &mut RenderingServer::singleton(),
+            &name.to_string(),
+            &value,
+        );
+    }
+
     /// Synthetic P5 acceptance; explicit geometry and recursive assets, no Retail mapping.
     #[func]
     fn model_recursion_node(
