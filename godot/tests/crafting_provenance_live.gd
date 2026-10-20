@@ -68,6 +68,33 @@ func open_simon() -> bool:
 	await press("ClassTrainerFilterDropdown")
 	return true
 
+## Resume after an interrupted run: 990 copper with untouched scraps means the real
+## trainer264578 purchase already committed, so only the casts remain.
+func prepare_classic_leatherworking() -> bool:
+	if bag_count(2934) != 42 or bag_count(2318) != 0 or bag_count(2320) != 1:
+		return fail("Preparation requires explicit fixture bags:42 scraps,0 leather,1 thread")
+	if money() == 1000:
+		if not await open_simon():
+			return false
+		if not await purchase_service(264578, 10):
+			return false
+		await tap(KEY_ESCAPE)
+	elif money() != 990:
+		return fail("Unexpected pre-cast copper %d" % money())
+	if not await open_recipe_book():
+		return false
+	await replace_field("ProfessionsSearchBox", "Light Leather")
+	if not await wait_until(func(): return shown("ProfessionRecipe2881"), "learned Light Leather"):
+		return false
+	await press("ProfessionRecipe2881")
+	if not await wait_until(func(): return not control("ProfessionsCreateAll").disabled, "fourteen available Light Leather casts"):
+		return false
+	await press("ProfessionsCreateAll")
+	if not await wait_until(func(): return bag_count(2934) == 0 and bag_count(2318) == 14 and text("ProfessionsSkillText").contains("15/300"), "actual14 casts consume42 scraps and raise rank1 to15"):
+		return false
+	print("PROVENANCE PREPARATION_DONE rank15 leather14")
+	return true
+
 ## The base-profession confirmation is trainer_frame.rs TrainerConfirmation, not StaticPopup1.
 func purchase_service(spell: int, cost: int) -> bool:
 	var name := "ClassTrainerService%d" % spell
