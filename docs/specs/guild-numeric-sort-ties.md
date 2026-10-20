@@ -4,9 +4,9 @@ Existing Rank, Level and Class headers retain their numeric primary order; equal
 
 ## What it must do
 
-- [ ] Rank, Level and Class equal keys use the existing `GUILD_ROSTER_CLUB_FIELDS_ABSENT` policy: online/offline/unknown profile, both-known level descending, guild rank ascending, raw character name ascending. Input snapshot order must not decide these ties.
-- [ ] Reverse only numeric primary ordering on a repeated click; equal-key base order stays fixed. Preserve current numeric primary values, missing-value placement and new-column direction reset.
-- [ ] Keep existing header geometry, filtering/scroll clamping, immutable snapshots and original member detail/context/action targets in both skins, including a real second viewport.
+- [x] Rank, Level and Class equal keys use the existing `GUILD_ROSTER_CLUB_FIELDS_ABSENT` policy: online/offline/unknown profile, both-known level descending, guild rank ascending, raw character name ascending. Input snapshot order must not decide these ties.
+- [x] Reverse only numeric primary ordering on a repeated click; equal-key base order stays fixed. Preserve current numeric primary values, missing-value placement and new-column direction reset.
+- [x] Keep existing header geometry, filtering/scroll clamping, immutable snapshots and original member detail/context/action targets in both skins, including a real second viewport.
 - [ ] Preserve Name, public Note and Zone behavior; sharing the existing base comparison must not alter those contracts.
 
 ## How it works
@@ -30,7 +30,7 @@ Existing Rank, Level and Class headers retain their numeric primary order; equal
 
 ## Known gaps (current cycle)
 
-- [ ] Ignored counterexamples/spec pushed first at4858919f1; actual behavior RED4 then observed (204s compile/0.08s tests/no warnings): all three headers retain reversed incoming ties; real overflowing registry shows Member23 instead of Member00. Production reuses the unchanged qualified base comparison; focused GREEN, enabled proven tests and independent gate remain pending.
+- [ ] Independent gate, including existing metadata/public Note/Zone controls, remains pending. Ignored tests/spec were pushed first at4858919f1; actual reversed-input/header/registry RED4 preceded implementation commit6ef84509b. Focused GREEN4/4 passes (21.44s compile/0.19s tests/no warnings); only ignore attributes were removed afterward, preserving every assertion.
 - [ ] Native equal-key proof remains separate from model/registry coverage and requires a new exact-cohort/private-copy/window allocation.
 - Full six-way Club presence, Club role/memberId and native name ordering remain absent/unqualified; this is the explicit represented-field policy, not universal Retail parity.
 

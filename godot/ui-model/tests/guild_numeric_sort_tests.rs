@@ -107,7 +107,6 @@ fn assert_header_directions(
 }
 
 #[test]
-#[ignore = "RED first: equal Rank keys must use approved represented-field base fallback"]
 fn guild_numeric_sort_rank_equal_keys_keep_base_order_both_skins() {
     let _lock = SKIN.lock().unwrap_or_else(|poison| poison.into_inner());
     for skin in [ActiveSkin::Modern, ActiveSkin::Forever] {
@@ -147,7 +146,6 @@ fn guild_numeric_sort_rank_equal_keys_keep_base_order_both_skins() {
 }
 
 #[test]
-#[ignore = "RED first: equal Level keys must use approved represented-field base fallback"]
 fn guild_numeric_sort_level_equal_keys_keep_base_order_both_skins() {
     let _lock = SKIN.lock().unwrap_or_else(|poison| poison.into_inner());
     for skin in [ActiveSkin::Modern, ActiveSkin::Forever] {
@@ -187,7 +185,6 @@ fn guild_numeric_sort_level_equal_keys_keep_base_order_both_skins() {
 }
 
 #[test]
-#[ignore = "RED first: equal Class keys must use approved represented-field base fallback"]
 fn guild_numeric_sort_class_equal_keys_keep_base_order_both_skins() {
     let _lock = SKIN.lock().unwrap_or_else(|poison| poison.into_inner());
     for skin in [ActiveSkin::Modern, ActiveSkin::Forever] {
@@ -237,7 +234,6 @@ fn guild_numeric_sort_class_equal_keys_keep_base_order_both_skins() {
 }
 
 #[test]
-#[ignore = "RED first: real overflowing numeric headers must keep base ties and original actions"]
 fn guild_numeric_sort_ties_preserve_registry_scroll_filter_and_original_targets() {
     let _lock = SKIN.lock().unwrap_or_else(|poison| poison.into_inner());
     game_engine_ui_model::paths::set_data_root(
