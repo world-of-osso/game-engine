@@ -70,6 +70,8 @@ pub struct GuildRanksSession {
     invitation_elapsed: f64,
     pub profile: Option<GuildSnapshot>,
     pub commands: Vec<GuildCommand>,
+    /// Chat edit-box prefill requested by roster Whisper; the host opens chat once.
+    pub chat_open: Option<String>,
     pub communities_tab: CommunitiesTab,
     pub roster_sort: Option<GuildRosterSort>,
     pub roster_sort_descending: bool,

@@ -6,7 +6,7 @@ const POPUP: &str = "GuildLeadershipTransferPopup";
 const ACCEPT: &str = "GuildLeadershipTransferAccept";
 const CANCEL: &str = "GuildLeadershipTransferCancel";
 
-fn session(own_rank: u8, target_self: bool, online: bool) -> GuildRanksSession {
+pub(super) fn session(own_rank: u8, target_self: bool, online: bool) -> GuildRanksSession {
     let mut session = GuildRanksSession::default();
     session.open();
     let mut roster = state(own_rank);
