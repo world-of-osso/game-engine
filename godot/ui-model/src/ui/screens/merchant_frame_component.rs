@@ -1022,9 +1022,13 @@ fn tabs(buyback_tab: bool) -> Element {
     }
 }
 
+#[path = "merchant_frame_component_achievement.rs"]
+mod achievement_tab;
+
 pub(crate) enum TabLabel<'a> {
     Panel(&'a str),
     Minimal(&'a str),
+    Achievement(&'a str),
 }
 impl<'a> From<&'a str> for TabLabel<'a> {
     fn from(label: &'a str) -> Self {
@@ -1035,6 +1039,7 @@ impl<'a> From<&'a str> for TabLabel<'a> {
 pub(crate) enum TabGeometry {
     Panel(f32, f32, f32),
     Minimal(f32, f32, f32),
+    Achievement(f32, f32, f32),
 }
 impl From<(f32, f32, f32)> for TabGeometry {
     fn from((x, y, width): (f32, f32, f32)) -> Self {
@@ -1045,6 +1050,14 @@ impl From<(f32, f32, f32)> for TabGeometry {
 pub(crate) fn tab_width<'a>(label: impl Into<TabLabel<'a>>) -> f32 {
     let label = match label.into() {
         TabLabel::Panel(label) => label,
+        TabLabel::Achievement(label) => {
+            // Achievement XML OnShow: TabResize(30), shared Lua adds side padding20.
+            return (measure_text(label, GameFont::FrizQuadrata, 10.0)
+                .expect("Achievement tabs require GameFontNormalSmall")
+                .0
+                + 50.0)
+                .max(39.0);
+        }
         // MinimalTabMixin:OnLoad: GameFontNormal string width +40.
         TabLabel::Minimal(label) => {
             return (measure_text(label, GameFont::FrizQuadrata, 12.0)
@@ -1137,6 +1150,9 @@ pub(crate) fn tab(
 ) -> Element {
     let (x, y, width) = match geometry.into() {
         TabGeometry::Panel(x, y, width) => (x, y, width),
+        TabGeometry::Achievement(x, y, width) => {
+            return achievement_tab::tab(name, label, (x, y, width), selected, action);
+        }
         TabGeometry::Minimal(x, y, width) => {
             return minimal_tab(name, label, (x, y, width), selected, action);
         }

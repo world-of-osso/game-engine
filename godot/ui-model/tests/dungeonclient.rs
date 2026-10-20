@@ -11,6 +11,93 @@ use ui_toolkit::registry::FrameRegistry;
 use ui_toolkit::screen::{Screen, SharedContext};
 use ui_toolkit::widgets::font_string::{JustifyH, JustifyV};
 
+// AchievementUI.xml246–342/2555 and SharedUIPanelTemplates.lua403–435/475:
+// custom Header strips, centered GameFontNormalSmall, text width +20+30.
+#[test]
+fn achievements_bottom_tabs_honor_retail_art_geometry_both_skins() {
+    use ui_toolkit::widgets::font_string::GameFont;
+    use ui_toolkit::widgets::texture::TextureSource;
+    for skin in [ActiveSkin::Modern, ActiveSkin::Forever] {
+        assets(skin);
+        for selected in 0..3 {
+            let mut window = AchievementWindow::default();
+            window.visible = true;
+            window.guild = selected == 1;
+            window.statistics = selected == 2;
+            let registry = achievement_registry(&window, skin);
+            let mut left = 17.0;
+            for (index, (name, title)) in [
+                ("AchievementTabAchievements", "Achievements"),
+                ("AchievementTabGuild", "Guild"),
+                ("AchievementTabStatistics", "Statistics"),
+            ]
+            .into_iter()
+            .enumerate()
+            {
+                let frame = registry.get(registry.get_by_name(name).unwrap()).unwrap();
+                let label = registry
+                    .get(registry.get_by_name(&format!("{name}Text")).unwrap())
+                    .unwrap();
+                let WidgetData::FontString(text) = label.widget_data.as_ref().unwrap() else {
+                    panic!("tab text")
+                };
+                assert_eq!(text.justify_h, JustifyH::Center, "{skin:?} {name}");
+                assert_eq!(text.font, GameFont::FrizQuadrata);
+                assert_eq!(text.font_size, 10.0);
+                let text_width =
+                    ui_toolkit::text_measure::measure_text(title, GameFont::FrizQuadrata, 10.0)
+                        .unwrap()
+                        .0;
+                let width = text_width + 50.0;
+                assert_eq!(
+                    frame.width,
+                    ui_toolkit::frame::Dimension::Fixed(width),
+                    "{name} TabResize30 width"
+                );
+                assert_eq!(frame.position.left, Val::Px(left));
+                assert_eq!(frame.position.top, Val::Px(497.0));
+                let active = selected == index;
+                for (part, x, part_width, uv) in [
+                    (
+                        "Left",
+                        -4.0,
+                        21.0,
+                        [0.47265625, 0.513671875, 0.76953125, 1.0],
+                    ),
+                    (
+                        "Middle",
+                        17.0,
+                        width - 31.0,
+                        [0.513671875, 0.685546875, 0.76953125, 1.0],
+                    ),
+                    (
+                        "Right",
+                        width - 14.0,
+                        18.0,
+                        [0.685546875, 0.720703125, 0.76953125, 1.0],
+                    ),
+                ] {
+                    let art = registry
+                        .get(registry.get_by_name(&format!("{name}{part}")).unwrap())
+                        .unwrap();
+                    let WidgetData::Texture(texture) = art.widget_data.as_ref().unwrap() else {
+                        panic!("tab art")
+                    };
+                    assert_eq!(texture.source, TextureSource::FileDataId(235402));
+                    assert_eq!(texture.tex_coords, uv);
+                    assert_eq!(art.position.left, Val::Px(x));
+                    assert_eq!(art.width, ui_toolkit::frame::Dimension::Fixed(part_width));
+                    assert_eq!(
+                        art.height,
+                        ui_toolkit::frame::Dimension::Fixed(if active { 59.0 } else { 49.0 })
+                    );
+                }
+                left += width + if index == 0 { 3.0 } else { -5.0 };
+            }
+        }
+    }
+}
+
 fn retail_categories() -> Vec<AchievementCategoryEntry> {
     let records = game_engine_core::csv_util::parse_csv_records(include_str!(
         "../../../data/db2/active/Achievement_Category.csv"
