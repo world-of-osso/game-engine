@@ -954,6 +954,9 @@ impl Account {
             PvpAction::Leave(match_id) => {
                 bridge.send::<_, PvpChannel>(LeaveBattleground { match_id })
             }
+            PvpAction::RequeueSkirmish(match_id) => {
+                bridge.send::<_, PvpChannel>(RequeueSkirmish { match_id })
+            }
         };
         result.map_err(SessionError)
     }
