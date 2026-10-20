@@ -151,7 +151,8 @@ func check_region(owner: Node, name: String, additive: bool, modes: Array) -> vo
 			failures.append(name + " unexpected shader; material mode unverified")
 		modes.append({"region": name, "material": "masked shader; inspect capture", "expected_add": additive})
 		return
-	var actual := material is CanvasItemMaterial and material.blend_mode == CanvasItemMaterial.BLEND_MODE_ADD
+	var canvas_material := material as CanvasItemMaterial
+	var actual: bool = canvas_material != null and canvas_material.blend_mode == CanvasItemMaterial.BLEND_MODE_ADD
 	modes.append({"region": name, "additive": actual})
 	if actual != additive:
 		failures.append(name + " additive=" + str(actual) + " expected=" + str(additive))
