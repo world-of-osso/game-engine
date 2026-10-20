@@ -8,6 +8,8 @@ Verified: 2026-10-11. Engine behavioral source31c2bba12, overlay geometryac11dd7
 
 `RecipeCatalog.cooldown_categories` maps recipe spells to their nonzero base `SpellCategories.Category`. `professions.rs::selected_recipe_cooldown` reads `account.spells` (fed by `SpellCooldownUpdate`, including the server's world-entry replay) and `professions_cooldown::remaining_secs` takes the longer clock in whole seconds; `ProfessionView.recipe_cooldown_secs` disables Create/Create All/quantity and renders `ProfessionsRecipeCooldown`. [Contract](../../specs/modern-crafting.md#recipe-cooldown). Native both-skin proof is pending.
 
+`InventoryState.known_banks` keeps the last `BankContents` per bank (the bank frame closing clears only the cursor projection `bank_slots`). `InventoryState::crafting_reagent_counts` sums Retail-source bag and bank stacks through `professions_reagent_counts::crafting_reagent_counts`; `ProfessionBook::reagent_counts` and `ProfessionView.owned_reagents` use it. [Contract](../../specs/modern-crafting.md#reagents-from-banks).
+
 ## Catalog and rendering
 
 `godot/ui-model/src/professions_catalog.rs` loads the active Retail CSV build; earlier proof below retains its original pinned inputs. Category order is the signed `TradeSkillCategory.OrderIndex` (the source includes−1), not alphabetical category names. Known recipes remain name-sorted within each category.

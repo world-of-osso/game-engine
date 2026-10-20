@@ -5049,3 +5049,7 @@ After pushed ignored tests and actual3-case behavioral RED, activated the existi
 ## 2026-10-20 — Guild context confirmation native proof
 
 gc774 passed tests/fmt and landed engineb0b3d4b39; exact server842325bf3/protocol600b755. [Both-skin real-member proof and limits](systems/guilds.md#context-confirmation-native-proof-2026-10-20): physical self/nonleader hiding, Cancel/Escape, captured target across selection/sort, Accept/actual authority and fresh-server/client new-master settings pass. Fourteen inspected original PNGs published unchanged; actors/cage/slice stopped, UDP5891 unbound/window cleared, historical original/source/artifact hashes unchanged. First-import editor errors and unrelated shared-CSV fixture startup blocker retained; no source/data repair, exact native request counts or offline/benign-refresh native sampling claimed.
+
+## 2026-10-20 — Crafting reagents from banks
+
+[Professions reagent counts](systems/native-professions-crafting.md) now include the character and Warband banks from the last `BankContents` of each bank, which the server sends on world entry and after bank-reagent crafts. Retail-source only; `ProfessionView.bag_counts` renamed `owned_reagents`. Native proof pending.
