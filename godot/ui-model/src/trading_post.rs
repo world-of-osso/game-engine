@@ -892,10 +892,11 @@ fn row_price(prefix: &str, row: &TradingPostItem, center_y: f32) -> Element {
     if row.refund_seconds > 0 {
         // Elements.xml325: RefundIcon is authored alphaMode="ADD"; the32px
         // PurchasedHistoryFrame icon has no such override.
-        return crate::menu_template_art::additive_atlas_texture(
+        return crate::quest_art::named_atlas_texture_blend(
             format!("{prefix}RefundIcon{}", row.id),
             "common-icon-undo",
             (389., center_y - 21. / 2., 21., 21.),
+            ui_toolkit::widgets::texture::BlendMode::Additive,
         );
     }
     if row.purchased {

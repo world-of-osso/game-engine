@@ -14,7 +14,6 @@ use ui_toolkit::{
     rsx,
     strata::DrawLayer,
     widget_def::Element,
-    widgets::texture::{TextureData, TextureSource},
 };
 
 /// Source texture of one row region.
@@ -298,28 +297,6 @@ pub const PET_BATTLE_SELECTION: RowTemplate = RowTemplate {
     }),
 };
 
-const TEMPLATES: [&RowTemplate; 19] = [
-    &SEARCH,
-    &RAID_INSTANCE,
-    &PVP_INSTANCE,
-    &PVP_CATEGORY,
-    &PVP_RATED_ACTIVITY,
-    &PVP_CASUAL_ACTIVITY,
-    &PET_BATTLE_SELECTION,
-    &MENU,
-    &AUCTION_ROW,
-    &AUCTION_CATEGORY,
-    &TRANSMOG_OUTFIT,
-    &GUILD_MEMBER,
-    &COMMUNITIES_TAB,
-    &COLUMN_HEADER,
-    &NEIGHBORHOOD,
-    &MOUNT,
-    &PET,
-    &ACHIEVEMENT_CATEGORY,
-    &PROFESSION_RECIPE,
-];
-
 /// Shared hit target with the template's art around `content`. The hover region is always
 /// present on the HIGHLIGHT layer, empty for [`AUTHORED`] rows: it is what marks the
 /// button as a list row for keyboard focus, independent of which art it draws.
@@ -458,13 +435,18 @@ fn art_region(
     let hidden = !shown;
     let alpha = art.map_or(1.0, |art| art.alpha);
     let draw_layer = layer.as_str();
+    let blend_mode = if art.is_some_and(|art| art.additive) {
+        "ADD"
+    } else {
+        "BLEND"
+    };
     match art.map(|art| art.art) {
         Some(Art::Atlas(atlas)) => rsx! { texture { name: {DynName(name)}, width, height,
-        left, top, pos_type: "absolute", hidden, alpha, draw_layer, texture_atlas: atlas } },
+        left, top, pos_type: "absolute", hidden, alpha, draw_layer, blend_mode, texture_atlas: atlas } },
         Some(Art::File(fdid, [l, r, t, b])) => {
             let coords = format!("{l},{r},{t},{b}");
             rsx! { texture { name: {DynName(name)}, width, height, left, top,
-            pos_type: "absolute", hidden, alpha, draw_layer, texture_fdid: fdid,
+            pos_type: "absolute", hidden, alpha, draw_layer, blend_mode, texture_fdid: fdid,
             tex_coords: {coords.as_str()} } }
         }
         None => rsx! { texture { name: {DynName(name)}, width, height, left, top,
@@ -499,32 +481,4 @@ pub fn highlight_layer_shown(registry: &FrameRegistry, frame: &Frame) -> bool {
     };
     let lit = button.hovered || button.highlight_locked;
     lit && button.state != ui_toolkit::widgets::button::ButtonState::Disabled
-}
-
-/// Template art authored with ADD blending (rsx textures cannot set a blend mode).
-/// Hover art is matched only on the HIGHLIGHT layer, other art elsewhere, so a template
-/// reusing one source for a BLEND card and an ADD highlight stays distinct.
-pub fn is_additive_row_art(frame: &Frame, texture: &TextureData) -> bool {
-    let hover = frame.draw_layer == DrawLayer::Highlight;
-    TEMPLATES
-        .iter()
-        .flat_map(|template| {
-            let arts = if hover {
-                [template.hover, None]
-            } else {
-                [template.normal, template.selected]
-            };
-            arts.into_iter().flatten()
-        })
-        .any(|art| art.additive && art_matches(art.art, texture))
-}
-
-fn art_matches(art: Art, texture: &TextureData) -> bool {
-    match (art, &texture.source) {
-        (Art::Atlas(name), TextureSource::Atlas(source)) => name == source,
-        (Art::File(fdid, coords), TextureSource::FileDataId(source)) => {
-            fdid == *source && coords == texture.tex_coords
-        }
-        _ => false,
-    }
 }

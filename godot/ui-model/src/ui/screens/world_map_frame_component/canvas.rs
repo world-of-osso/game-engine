@@ -113,6 +113,7 @@ fn highlight_texture(highlight: &MapHighlight, rect: [f32; 4]) -> Element {
             width,
             height,
             texture_fdid: {highlight.fdid},
+            blend_mode: "ADD",
             pos_type: "absolute",
             left: x,
             top: y,
@@ -134,10 +135,11 @@ fn map_pin(index: usize, pin: &MapPin, [w, h]: [f32; 2], highlighted: Option<u32
         ));
     }
     if pin.quest_id.is_some() && pin.quest_id == highlighted {
-        pin_frames.extend(crate::ui::screens::quest_art::atlas_texture(
+        pin_frames.extend(crate::ui::screens::quest_art::atlas_texture_blend(
             format!("WorldMapPin{index}Highlight"),
             &crate::ui::screens::quest_art::POI_INNER_GLOW,
             (pin.x * w - 16.0, pin.y * h - 16.0, 32.0, 32.0),
+            ui_toolkit::widgets::texture::BlendMode::Additive,
         ));
     }
     pin_frames

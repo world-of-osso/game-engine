@@ -94,6 +94,7 @@ mod stack_split_preview;
 #[cfg(debug_assertions)]
 mod static_popup_shadow_preview;
 mod target_cast_preview;
+mod template_blend_preview;
 mod toy_cooldown;
 mod toybox_preview;
 pub(crate) mod ui_parent;
@@ -222,7 +223,6 @@ enum ScreenPostsetup {
     /// Autocast Shines draw the host's composite.
     PetActionBar,
     PortraitParty,
-    CastingBar,
     FollowerDungeons,
 }
 
@@ -416,7 +416,6 @@ impl RegistryModel {
             .get::<game_engine_ui_model::trading_post::View>()
         {
             game_engine_ui_model::trading_post::apply_cart_art(view, &mut self.registry);
-            game_engine_ui_model::trading_post::apply_refund_icon_blend(&mut self.registry);
             game_engine_ui_model::trading_post::apply_rotation_icon_positions(&mut self.registry);
         }
         if let Some(view) = self
@@ -429,15 +428,6 @@ impl RegistryModel {
         game_engine_ui_model::collections_component::apply_collections_postsetup(
             &mut self.registry,
         );
-        if self
-            .shared
-            .get::<game_engine_ui_model::encounter_timeline_component::EncounterTimelineScreen>()
-            .is_some()
-        {
-            game_engine_ui_model::encounter_timeline_component::apply_timeline_bar_art(
-                &mut self.registry,
-            );
-        }
         if self.shared.get::<GameMenuViewModel>().is_some() {
             game_engine_ui_model::game_menu_main::sync_menu_button_art(&mut self.registry);
         }
@@ -456,13 +446,6 @@ impl RegistryModel {
                 view,
                 &mut self.registry,
             );
-        }
-        if self
-            .shared
-            .get::<game_engine_ui_model::achievements::AchievementWindow>()
-            .is_some()
-        {
-            game_engine_ui_model::achievements::apply_achievement_postsetup(&mut self.registry);
         }
         // StackSplitFrame.xml:3. Shared by standalone bag/bank and merchant canvases.
         if let Some(id) = self
@@ -490,9 +473,6 @@ impl RegistryModel {
             ScreenPostsetup::Auction => {
                 self.icon_masks.apply(&mut self.registry);
                 game_engine_ui_model::auction::apply_auction_paging_postsetup(&mut self.registry);
-            }
-            ScreenPostsetup::CastingBar => {
-                game_engine_ui_model::casting_bar_frame_component::apply_casting_bar_feedback_postsetup(&mut self.registry);
             }
             ScreenPostsetup::WorldMap(texture) => {
                 if let Some(state) = self.shared.get::<WorldMapFrameState>() {
@@ -1614,7 +1594,7 @@ impl RegistryUi {
 
     /// Initialize a dedicated RegistryUi instance for the player casting bar.
     pub fn show_casting_bar(&mut self, state: CastingBarState) -> Result<(), String> {
-        self.show_viewport_screen(state, casting_bar_frame_screen, ScreenPostsetup::CastingBar)
+        self.show_viewport_screen(state, casting_bar_frame_screen, ScreenPostsetup::None)
     }
 
     /// Initialize a dedicated RegistryUi instance for `GameTooltip` and its comparison tooltips.

@@ -1,51 +1,12 @@
 //! Synchronize authored child regions with their owning Retail template button state.
 use ui_toolkit::{
-    atlas::{AtlasSource, resolve_region, thread_skin},
     frame::{Frame, WidgetData},
     registry::FrameRegistry,
-    rsx,
-    widget_def::Element,
     widgets::{
         button::{ButtonData, ButtonState},
         texture::TextureSource,
     },
 };
-
-use crate::quest_art::DynName;
-use crate::ui::screens::inworld_unit_frames_component::inworld_unit_frames_art::AtlasArt;
-
-/// Active-skin atlas member as an FDID crop for a template region authored `alphaMode="ADD"`.
-pub(crate) fn additive_atlas_texture(
-    name: String,
-    atlas: &str,
-    (left, top, width, height): (f32, f32, f32, f32),
-) -> Element {
-    let skin = thread_skin();
-    let region = resolve_region(atlas, skin)
-        .unwrap_or_else(|| panic!("atlas {atlas} has no member under {skin:?}"));
-    let AtlasSource::FileDataId(fdid) = region.source else {
-        panic!("atlas {atlas} must resolve to a DB2 FileDataID under {skin:?}")
-    };
-    let art = AtlasArt {
-        fdid,
-        atlas: (1.0, 1.0),
-        rect: (region.left, region.right, region.top, region.bottom),
-    };
-    let coords = art.tex_coords(1.0);
-    rsx! {
-        texture {
-            name: {DynName(name)},
-            width,
-            height,
-            texture_fdid: fdid,
-            tex_coords: {coords.as_str()},
-            blend_mode: "ADD",
-            pos_type: "absolute",
-            left,
-            top,
-        }
-    }
-}
 
 struct RegionUpdate {
     id: u64,
