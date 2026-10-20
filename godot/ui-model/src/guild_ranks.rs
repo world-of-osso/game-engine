@@ -70,6 +70,8 @@ pub struct GuildRanksSession {
     invitation_elapsed: f64,
     pub profile: Option<GuildSnapshot>,
     pub commands: Vec<GuildCommand>,
+    /// Chat edit-box prefill requested by roster Whisper; the host opens chat once.
+    pub chat_open: Option<String>,
     pub communities_tab: CommunitiesTab,
     pub roster_sort: Option<GuildRosterSort>,
     pub roster_sort_descending: bool,
@@ -474,6 +476,15 @@ impl GuildRanksSession {
                 self.leadership_target = None;
                 None
             }
+            "guild:whisper" => {
+                let name = self.member_menu.clone()?;
+                if self.can_whisper(&name) {
+                    // CHAT_WHISPER_HEADER_ABSENT: Retail /cw + ParseText header mode is not represented.
+                    self.chat_open = Some(format!("/w {name} "));
+                    self.member_menu = None;
+                }
+                None
+            }
             "guild:promote" => self.promote(self.member_menu.as_deref()?),
             "guild:demote" => self.demote(self.member_menu.as_deref()?),
             "guild:remove_member" => {
@@ -745,6 +756,16 @@ impl GuildRanksSession {
             return None;
         }
         Some(GuildRankRequest::Move { rank, up })
+    }
+
+    /// Mainline Whisper CanShow: online, not the local player; independent of guild rights.
+    pub fn can_whisper(&self, name: &str) -> bool {
+        self.profile.as_ref().is_some_and(|profile| {
+            profile
+                .members
+                .iter()
+                .any(|member| member.character_name == name && member.is_online && !member.is_self)
+        })
     }
 
     pub fn can_transfer_leadership(&self, name: &str) -> bool {

@@ -238,16 +238,21 @@ func assert_group_cull(probe: Node, wmo: Node3D, portal: Node3D) -> bool:
 	print("group cull: portal hidden and still with Jail01 above the district, drawn and animating at the trigger")
 	return true
 
-# Drawn quads of each of the portal's six emitter pools (instanceportal.m2, 197007).
+# Drawn quads of each of the portal's forward emitter pools (instanceportal.m2, 197007);
+# emitter 5 (0x62921230, non-multitexture 0x100000) is Refraction and has no pool
+# until a refraction pass exists (m2-particles spec).
+const PORTAL_FORWARD_EMITTERS := 5
+const PORTAL_REFRACTION_EMITTER := 5
+
 func portal_particles(probe: Node) -> Array:
 	var drawn := []
-	for index in 6:
+	for index in PORTAL_FORWARD_EMITTERS:
 		var pool := probe.find_child("Particles197007_%d" % index, true, false) as MultiMeshInstance3D
 		drawn.append(-1 if pool == null else pool.multimesh.visible_instance_count)
 	return drawn
 
 # The portal's emitters update and draw only while it is drawn: nothing 20 yd above the
-# district with Jail01 portal-culled, all six emitting at the trigger facing it.
+# district with Jail01 portal-culled, all five forward emitters at the trigger facing it.
 func assert_portal_particles(probe: Node, portal: Node3D) -> bool:
 	var above := portal.global_position + Vector3(0.0, 20.0, 0.0)
 	for frame in 5:
@@ -259,8 +264,11 @@ func assert_portal_particles(probe: Node, portal: Node3D) -> bool:
 	var drawn := portal_particles(probe)
 	var state: Dictionary = probe.objects_state()
 	print("portal particles: culled=%s drawn=%s pools=%s" % [culled, drawn, state.get("particles")])
-	if culled != [0, 0, 0, 0, 0, 0] or drawn.any(func(count): return count <= 0):
-		fail("Portal emitters culled=%s drawn=%s; expected none above and all six at the trigger" % [culled, drawn])
+	if culled != [0, 0, 0, 0, 0] or drawn.any(func(count): return count <= 0):
+		fail("Portal emitters culled=%s drawn=%s; expected none above and all five at the trigger" % [culled, drawn])
+		return false
+	if probe.find_child("Particles197007_%d" % PORTAL_REFRACTION_EMITTER, true, false) != null:
+		fail("Refraction emitter %d has a forward pool" % PORTAL_REFRACTION_EMITTER)
 		return false
 	return true
 
