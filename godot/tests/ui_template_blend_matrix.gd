@@ -71,6 +71,18 @@ func check_panel(panel: Dictionary, forever: bool, output: String) -> bool:
 		failures.append(panel.name + ": " + error)
 	await frames(8)
 	var modes: Array = []
+	if panel.name == "AdventureGuide":
+		var creatures := owner.find_children("JournalCreature*", "Button", true, false)
+		if creatures.is_empty():
+			failures.append("AdventureGuide missing production creature selectors")
+		else:
+			var name := str(creatures[0].name)
+			hover_control(owner, name, true)
+			await frames(4)
+			await wait_for_art(owner, [[name + "ButtonHighlight", true]])
+			check_region(owner, name + "ButtonHighlight", true, modes)
+			hover_control(owner, name, false)
+			await frames(4)
 	if panel.name == "HousingStorageBasic":
 		hover_control(owner, "HouseEditorBasicDecorModeButton", true)
 		await frames(4)
