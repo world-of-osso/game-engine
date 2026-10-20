@@ -3,7 +3,8 @@
 
 Run inside OssoBuild: python3 desktop_server_smoke.py /root/data/game-engine-trial/server
 The staged root must contain bin/{game-server,game-server-admin,game-cli} and
-read-only data/world.db, data/gametables, and data/economy/config.json.
+read-only data/world.db, data/gametables, data/economy/config.json, and the tracked
+TP/quest runtime catalogs staged beside world.db.
 Never copies existing player storage.
 """
 import os
@@ -27,7 +28,8 @@ def run_checked(command, root, environment, timeout=20):
 
 def smoke(root):
     root = root.resolve()
-    for relative in ("data/world.db", "data/economy/config.json"):
+    for relative in ("data/world.db", "data/economy/config.json",
+                     "data/trading-post-monthly-catalog.json", "data/quest-reward-bonus.json"):
         if not (root / relative).is_file():
             raise FileNotFoundError(root / relative)
     owned = root / "data/smoke"
