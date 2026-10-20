@@ -18,9 +18,13 @@ func run_test() -> void:
 	var card := ui.find_child("CharCard_0", true, false) as Control
 	var enter := ui.find_child("EnterWorld", true, false) as Button
 	enter.pressed.connect(func(): print("FIXTURE NAMEPLATE_ENTER_PRESSED"))
-	print("FIXTURE NAMEPLATE_GUI disabled=", root.gui_disable_input, " viewport=", root.get_visible_rect(), " button_visible=", enter.is_visible_in_tree(), " filter=", enter.mouse_filter)
-	for frame in range(5):
+	var roster_deadline := Time.get_ticks_msec() + STARTUP_WAIT_MS
+	while not enter.is_visible_in_tree() and Time.get_ticks_msec() < roster_deadline:
 		await process_frame
+	if not enter.is_visible_in_tree():
+		fail("Character scene never revealed its roster controls")
+		return
+	print("FIXTURE NAMEPLATE_GUI disabled=", root.gui_disable_input, " viewport=", root.get_visible_rect(), " button_visible=", enter.is_visible_in_tree(), " filter=", enter.mouse_filter)
 	print("FIXTURE NAMEPLATE_ROSTER card=", card.get_global_rect(), " enter=", enter.get_global_rect(), " disabled=", enter.disabled)
 	await click_point(card.get_global_rect().get_center())
 	await click_point(enter.get_global_rect().get_center())
