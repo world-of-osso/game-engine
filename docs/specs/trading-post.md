@@ -99,7 +99,7 @@ Retail Products.lua402–485 uses the effective time value, then days/hours/minu
 - [x] Enable existing Time header/menu/action when filtered ordinary rows have positive approved server monthly duration; disable zero-duration/frozen-only providers without inventing per-item calendar fields.
 - [x] Preserve existing group precedence, committed frozen exclusion, selection/cart/authority; purchased/refundable minute ties and row-local refund expiry follow the sourced comparator. Per-item pending remains a named gap, never inferred from global request-pending.
 - [x] Ignored regressions pushed first atd6f66993f, genuine six-case behavioral RED at31c254d15/Pda007a6 then six unignored GREEN at3844d4233 (28.8s helper, zero warnings). Wrong test target and stale protocol compilation are retained harness/environment failures, not RED.
-- [ ] Fresh both-skin native header/menu/conservation proof follows code landing; model/registry GREEN is not native acceptance.
+- [ ] Fresh both-skin native header/menu/conservation proof follows code landing; model/registry GREEN is not native acceptance. Opt-in `trading_post_time_sort.gd` registers7 checked cases: Price/name baseline, Time ascending, repeated descending/name ties, actual submenu radio, filter reset, empty-ordinary/frozen-retained disabled controls, exact local/authority restoration and HUD/position conservation. Observed native ordering scope is the first12 exposed rows; ownership sentinel/refund-expiry variants remain CPU-qualified.
 - [x] Full snapshot/filter provider rebuild resets Time to Price descending, including cart-owned preview; month replacement must not retain expired rows.
 
 ## Purchase-aware Price sorting
