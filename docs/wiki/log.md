@@ -1,6 +1,9 @@
 ## 2026-10-19 — Crafting origin vertical slice, targeted GREEN
 
 [Source, actual-craft persistence and consumer proof](systems/native-professions-crafting.md#server-recorded-crafting-origin): pushed ignored RED in all three repositories before implementation, then P1/S2/E1 targeted GREEN at separately recorded revisions. Real2153→new2303 GUID carries ability1355/joinedspell2153 after DB reopen; identical non-crafted item unknown. Actual2963 unknown-stack RED→compatible merging/split persistence controls; engine mirrors optional metadata on the same GUID. No fabricated quality/slots/watermark or recraft activation. Current masters merged; atomic lead gate/consumer integration pending, not a new rendered/process-reopen claim.
+## 2026-10-20 — Skirmish Queue Again UI GREEN
+
+[Results button and one-request dispatch](systems/battlegrounds.md#skirmish-queue-again--2026-10-20): UI RED→GREEN3/3; server native lifecycle9/9 and protocol wire1/1 in their ledgers. Policy SKIRMISH_REQUEUE_LEAVE_THEN_QUEUE_SAME_MODE; gap SKIRMISH_REQUEUE_TRANSITION_UNQUALIFIED retained.
 ## 2026-10-20 — Guild Zone sorting native accepted
 
 [Exact cohort, originals and limits](systems/guilds.md#native-zone-sort-acceptance-2026-10-20): gz746 tests/fmt passed and landed; exact E6874f287d/private Sb12089d1f/Pda007a6 builds and import/parse/login passed. Real two-member Modern/Forever physical Zone direction/reset, Elwynn/Westfall ordering, genuine peer disconnect/mixed recency, original detail identity and offline filter hide/restore pass strict1/1. Eight inspected original PNGs published; historical DB unchanged, actors/cage/slice stopped,5891 unbound/window cleared. Seconds/ties/Unicode/overflow remain automated; native binding/count limits stay unqualified. Setup PATH127, import ObjectDB leaks and live audio/Wayland/data diagnostics retained. Lead inspected two representative frames and accepted.
