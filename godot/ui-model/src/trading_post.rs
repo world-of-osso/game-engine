@@ -188,6 +188,7 @@ impl View {
         self.refund_elapsed = 0;
         self.cancel_confirmation();
         self.cart_confirmation = None;
+        self.reset_time_sort();
         // Currency/authority snapshots do not transfer preview ownership to a product.
         if !self.cart_visible {
             self.reselect();
@@ -209,8 +210,7 @@ impl View {
                 Sort::Name => a.name.cmp(&b.name),
                 Sort::Price => price_sort_value(a, self.refund_elapsed)
                     .cmp(&price_sort_value(b, self.refund_elapsed)),
-                // No per-row remaining duration in the snapshot; stable name tie-break.
-                Sort::Time => std::cmp::Ordering::Equal,
+                Sort::Time => self.time_sort_minutes(a).cmp(&self.time_sort_minutes(b)),
             };
             let order = if self.ascending {
                 order
@@ -279,6 +279,7 @@ impl View {
             .find(|row| Some(row.id) == self.selected)
     }
     pub fn reselect(&mut self) {
+        self.reset_time_sort();
         let frozen = self
             .snapshot
             .as_ref()
@@ -365,7 +366,9 @@ impl View {
             "perks:confirm" => return self.confirm_request(),
             "perks:sort:name" => self.sort_by(Sort::Name),
             "perks:sort:time" => {
-                return Err("Per-item remaining time has no sourced calendar binding".into());
+                if self.can_sort_time() {
+                    self.sort_by(Sort::Time);
+                }
             }
             "perks:sort:price" => self.sort_by(Sort::Price),
             _ => self.select_action(action)?,
@@ -751,7 +754,7 @@ fn sort_header(sort: Sort, view: &View, (x, y, width, height): (f32, f32, f32, f
         let coords = format!("{},{},{},{}", region.left, region.right, top, bottom);
         art.extend(rsx! {texture{name:{DynName(format!("PerksProgram{kind}SortArrow"))},left:{width-5.0},top:{(height-10.0)/2.0},width:10.0,height:10.0,pos_type:"absolute",texture_atlas:"auctionhouse-ui-sortarrow",tex_coords:coords.as_str()}});
     }
-    let disabled = sort == Sort::Time;
+    let disabled = sort == Sort::Time && !view.can_sort_time();
     let action = if disabled { "" } else { action };
     rsx! {button{name:{DynName(format!("PerksProgram{kind}SortButton"))},left:x,top:y,width,height,pos_type:"absolute",button_default_skin:false,disabled,onclick:action,{art}}}
 }
