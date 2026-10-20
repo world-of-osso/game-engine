@@ -157,6 +157,59 @@ fn trading_post_ordinary_name_color_selected_hover_and_leave_remain_white() {
     }
 }
 
+fn assert_same_hover_deselection_keeps_gold_until_reselection(skin: ActiveSkin) {
+    let mut view = keyboard_view();
+    let authority = view.snapshot.clone();
+    view.product_hover = Some(11);
+    assert_eq!(
+        font_color(&render(skin, view.clone()), "PerksProgramName11"),
+        [1.; 4]
+    );
+
+    for (action, selected) in [
+        ("perks:select-next", 12),
+        ("perks:select-next", 10),
+        ("perks:select-previous", 12),
+    ] {
+        assert_eq!(view.click(action).unwrap(), None);
+        assert_eq!(view.selected, Some(selected));
+        assert_eq!(view.product_hover, Some(11));
+        let registry = render(skin, view.clone());
+        assert_eq!(
+            font_color(&registry, "PerksProgramName11"),
+            [1., 210. / 255., 0., 1.],
+            "SetSelected(false) overwrites continuous-hover WHITE: {skin:?}"
+        );
+        assert_eq!(
+            font_color(&registry, &format!("PerksProgramName{selected}")),
+            [1.; 4]
+        );
+        assert_eq!(view.take_selection_sounds(), 1);
+    }
+
+    view.click("perks:select-previous").unwrap();
+    assert_eq!(view.selected, Some(11));
+    let registry = render(skin, view.clone());
+    assert_eq!(font_color(&registry, "PerksProgramName11"), [1.; 4]);
+    assert_eq!(
+        font_color(&registry, "PerksProgramName12"),
+        [1., 210. / 255., 0., 1.]
+    );
+    assert_eq!(view.take_selection_sounds(), 1);
+    assert_eq!(view.snapshot, authority);
+    assert!(view.cart.is_empty());
+}
+
+#[test]
+fn trading_post_ordinary_name_color_same_hover_deselect_modern_keeps_gold_until_reselection() {
+    assert_same_hover_deselection_keeps_gold_until_reselection(ActiveSkin::Modern);
+}
+
+#[test]
+fn trading_post_ordinary_name_color_same_hover_deselect_forever_keeps_gold_until_reselection() {
+    assert_same_hover_deselection_keeps_gold_until_reselection(ActiveSkin::Forever);
+}
+
 #[test]
 fn trading_post_ordinary_name_color_frozen_caption_stays_white() {
     for skin in [ActiveSkin::Modern, ActiveSkin::Forever] {

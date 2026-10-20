@@ -322,12 +322,16 @@ impl GameClient {
             .ok_or("Trading Post viewport missing")?
             .get_mouse_position();
         self.play_trading_post_product_hover_sound(ui.bind().hovered_button())?;
-        self.trading_post.view.product_hover = ui.bind().hovered_button().and_then(|(name, _)| {
+        let product_hover = ui.bind().hovered_button().and_then(|(name, _)| {
             name.strip_prefix("PerksProgramProduct")
                 .or_else(|| name.strip_prefix("PerksProgramCartToggle"))?
                 .parse()
                 .ok()
         });
+        if self.trading_post.view.product_hover != product_hover {
+            self.trading_post.view.deselected_hover_name = None;
+        }
+        self.trading_post.view.product_hover = product_hover;
         self.trading_post.view.cart_hover =
             self.trading_post.view.cart_items().iter().find_map(|row| {
                 let template = if row.category_id == 8 { "Set" } else { "Item" };
