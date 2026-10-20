@@ -1,5 +1,7 @@
 #[path = "trading_post/monthly_clock.rs"]
 mod monthly_clock;
+#[path = "trading_post/slow_purchase.rs"]
+mod slow_purchase;
 #[path = "trading_post/time_sort.rs"]
 mod time_sort;
 use game_engine_ui_model::trading_post::{Sort, View, trading_post_screen};
