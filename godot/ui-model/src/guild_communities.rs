@@ -260,23 +260,61 @@ fn sorted_members(session: &GuildRanksSession) -> Vec<&GuildRankMember> {
         Some(GuildRosterSort::Name) => {
             members.sort_by(|a, b| a.character_name.cmp(&b.character_name))
         }
-        Some(GuildRosterSort::Rank) => members.sort_by_key(|m| m.rank),
-        Some(GuildRosterSort::Level) => members.sort_by_key(|member| {
-            profiles
-                .get(member.character_name.as_str())
-                .map(|profile| profile.level)
-        }),
-        Some(GuildRosterSort::Class) => members.sort_by_key(|member| {
-            profiles
-                .get(member.character_name.as_str())
-                .and_then(|profile| class_icon(&profile.class_name))
-                .map(|(id, _)| id)
-        }),
+        Some(GuildRosterSort::Rank) => {
+            return sort_numeric_members(
+                members,
+                &profiles,
+                session.roster_sort_descending,
+                |member, _| Some(u16::from(member.rank)),
+            );
+        }
+        Some(GuildRosterSort::Level) => {
+            return sort_numeric_members(
+                members,
+                &profiles,
+                session.roster_sort_descending,
+                |_, profile| profile.map(|profile| profile.level),
+            );
+        }
+        Some(GuildRosterSort::Class) => {
+            return sort_numeric_members(
+                members,
+                &profiles,
+                session.roster_sort_descending,
+                |_, profile| {
+                    profile
+                        .and_then(|profile| class_icon(&profile.class_name))
+                        .map(|(id, _)| u16::from(id))
+                },
+            );
+        }
         None => {}
     }
     if session.roster_sort_descending {
         members.reverse();
     }
+    members
+}
+
+fn sort_numeric_members<'a>(
+    mut members: Vec<&'a GuildRankMember>,
+    profiles: &HashMap<&str, &GuildMemberSnapshot>,
+    descending: bool,
+    key: impl Fn(&GuildRankMember, Option<&GuildMemberSnapshot>) -> Option<u16>,
+) -> Vec<&'a GuildRankMember> {
+    members.sort_by(|lhs, rhs| {
+        let lhs_profile = profiles.get(lhs.character_name.as_str()).copied();
+        let rhs_profile = profiles.get(rhs.character_name.as_str()).copied();
+        let primary = key(lhs, lhs_profile).cmp(&key(rhs, rhs_profile));
+        let primary = if descending {
+            primary.reverse()
+        } else {
+            primary
+        };
+        primary.then_with(|| {
+            crate::guild_note_sort::compare_base((lhs, lhs_profile), (rhs, rhs_profile))
+        })
+    });
     members
 }
 

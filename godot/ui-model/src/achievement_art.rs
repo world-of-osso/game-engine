@@ -211,50 +211,6 @@ pub(super) fn section_header(name: &str, title: &str, y: f32) -> Element {
     out
 }
 
-/// XML:246-338: active and inactive tabs share the Header sheet; inactive art is grey.
-pub(super) fn tab(
-    name: &str,
-    title: &str,
-    action: &str,
-    selected: bool,
-    x: f32,
-    width: f32,
-) -> Element {
-    let height = if selected { 59.0 } else { 49.0 };
-    let color = if selected { WHITE } else { "0.6,0.6,0.6,1" };
-    let parts = [
-        ("Left", "0.47265625,0.513671875,0.76953125,1", -4.0, 21.0),
-        (
-            "Middle",
-            "0.513671875,0.685546875,0.76953125,1",
-            17.0,
-            width - 31.0,
-        ),
-        (
-            "Right",
-            "0.685546875,0.720703125,0.76953125,1",
-            width - 14.0,
-            18.0,
-        ),
-    ];
-    let mut content = Vec::new();
-    for (part, uv, left, part_width) in parts {
-        content.extend(rsx! { texture { name: {DynName(format!("{name}{part}"))}, texture_fdid: 235402,
-            tex_coords: uv, vertex_color: color, left, top:0.0, width:part_width, height, pos_type:"absolute",
-        } });
-    }
-    content.extend(label(
-        format!("{name}Text"),
-        title,
-        (6.0, 3.0, width - 12.0, 24.0),
-        if selected { WHITE } else { GOLD },
-        action,
-    ));
-    rsx! { button { name: {DynName(name.into())}, onclick:action, button_default_skin:false, width, height:32.0,
-        left:x, top:497.0, pos_type:"absolute", {content}
-    } }
-}
-
 /// Shared InputBoxTemplates.xml SearchBoxTemplate: three border pieces, magnifier and clear.
 pub(super) fn search_box(text: &str, left: f32) -> Element {
     let mut content = Vec::new();
