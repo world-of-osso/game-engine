@@ -1,3 +1,18 @@
+## 2026-10-19 — Crafting origin vertical slice, targeted GREEN
+
+[Source, actual-craft persistence and consumer proof](systems/native-professions-crafting.md#server-recorded-crafting-origin): pushed ignored RED in all three repositories before implementation, then P1/S2/E1 targeted GREEN at separately recorded revisions. Real2153→new2303 GUID carries ability1355/joinedspell2153 after DB reopen; identical non-crafted item unknown. Actual2963 unknown-stack RED→compatible merging/split persistence controls; engine mirrors optional metadata on the same GUID. No fabricated quality/slots/watermark or recraft activation. Current masters merged; atomic lead gate/consumer integration pending, not a new rendered/process-reopen claim.
+## 2026-10-20 — Guild Zone sorting native accepted
+
+[Exact cohort, originals and limits](systems/guilds.md#native-zone-sort-acceptance-2026-10-20): gz746 tests/fmt passed and landed; exact E6874f287d/private Sb12089d1f/Pda007a6 builds and import/parse/login passed. Real two-member Modern/Forever physical Zone direction/reset, Elwynn/Westfall ordering, genuine peer disconnect/mixed recency, original detail identity and offline filter hide/restore pass strict1/1. Eight inspected original PNGs published; historical DB unchanged, actors/cage/slice stopped,5891 unbound/window cleared. Seconds/ties/Unicode/overflow remain automated; native binding/count limits stay unqualified. Setup PATH127, import ObjectDB leaks and live audio/Wayland/data diagnostics retained. Lead inspected two representative frames and accepted.
+
+## 2026-10-20 — Monthly clock native proof
+
+[Exact cohort and qualifications](systems/trading-post.md#post-landing-native-cohort): Modern/Forever rollover and fresh-server/client readback each strict7/7, naturalexit0, approved-baseline VALID. Natural1m→0m→month47 frozen-only, genuine retained1578; each phase2 Query, rollover1 Freeze, no paid/refund transactions. Twenty-eight inspected original PNGs published, SHA manifests retained. Failed timing/selector/startup attempts and named Quest519073 gap remain; approved news BEST_GUESS policy is not Retail calendar parity. Stale-summary replay guard refused before runtime; operator incident retained. Owned slice stopped/5899 unbound/window cleared.
+
+## 2026-10-19 — Monthly clock native cohort preparation
+
+[Post-landing native plan](systems/trading-post.md#post-landing-native-cohort): current-master cohort, owned5899/fresh accounts, strict7-case rollover/readback and1-case offline startup scripts registered before execution. Existing admin clock alignment precedes a real vendor Query; countdown/rollover is natural afterward, with native drag freeze and restart conservation. No live/native acceptance claimed from preparation.
+
 ## 2026-10-19 — Cold-start catalog delivery bounded PASS measured in Forever
 
 [Exact cohort, clocks and exclusions](systems/trading-post.md#cold-start-catalog-delivery): fresh actual E2be669b9/Sd53e8f2b/P0399f8b, existing-code builds/asset-backed startup/four hashes then explicit TP5791 window. One normal production first Tawny Query returns current monthly43 rows/no transactions; interaction→visible row4.748663s and inspected frame5.534266s conservatively bound Query→visible below60s. Existing server-receive→typed699.654ms includes FIFO/scheduling/transport; internal host/commit/first-paint timestamps remain absent. Intended Modern was not configured: fresh preset defaults Forever; original intent receipts retained and lead accepts actual Forever single-skin proof, no retry/relabel. Guide completed before Query; no concurrent Guide/large-source-pool/Windows/global QoS claim. Original streams/memory/manifest/UI capture/skin correction/cleanup retained privately; runtime/slice stopped,5791 absent/window cleared22:59:42.868977-05:00. Historical private>60s spec line closed, RID finding remains open; no new instrumentation or production code.
@@ -4994,3 +5009,7 @@ After pushed ignored regression and actual Offline-vs-recency rendering RED, rep
 ## 2026-10-19 — Last Online native acceptance
 
 gl728 landed protocol50517c9/server1a2f13fd4/engine51f1af4f8. Real peer disconnect→both-skin roster/detail recency, genuine reconnect→Online/Elwynn Forest, second disconnect→fresh server/client persisted readback accepted; six inspected unchanged original PNGs published. Historical original unchanged, owned actors/slice stopped, UDP5891 unbound and window cleared. [Exact evidence and automated/native boundaries](systems/guilds.md#last-online-native-acceptance-2026-10-19); no fabricated history or audio/clean-exit repair claim.
+
+## 2026-10-19 — Zone header sort implementation
+
+After pushed ignored tests and actual3-case behavioral RED, activated the existing Zone header and pure presentation comparator. Allowed historical prose supplies valid-string mapping; GUILD_ZONE_SORT_OFFLINE_BY_LOGOUT_SECONDS explicitly uses most-recent seconds first ascending, with fixed existing name ties and no Retail counter/sub-hour claim. No wire/backend/layout changes or Note-mechanics changes. [Source, limits and current proof](systems/guilds.md#zone-header-sorting); focused GREEN/gate/native pending.

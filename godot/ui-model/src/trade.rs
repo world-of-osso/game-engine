@@ -284,6 +284,7 @@ fn item_view(item: &TradeItemSnapshot) -> TradeItemView {
         count: item.stack_count,
         durability: None,
         soulbound: false,
+        crafting_origin: None,
     });
     TradeItemView {
         item: SlotItem {
