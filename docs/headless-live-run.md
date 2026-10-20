@@ -14,7 +14,7 @@ Set these variables to approved, existing inputs before executing examples. Use 
 | `RUN`, `RUNTIME`, `WAYLAND` | Owned evidence directory, `$W/target/<run>-runtime`, unique private socket basename |
 | `CONFIG`, `USERDATA`, `RESOLVER` | `$RUN/config`, `$RUN/userdata`, `$RUN/resolver-cache` |
 | `GODOT`, `CLI` | Pinned patched Godot executable and matching `$W/target/debug/game-engine-cli` |
-| `SERVER_SOURCE`, `ADMIN_SOURCE` | Protocol-compatible server and admin executables from approved staging |
+| `SERVER_SOURCE`, `ADMIN_SOURCE`, `SERVER_CONTENT` | Protocol-compatible server/admin executables and matching checkout's tracked `content/` directory from approved staging |
 | `REDB_SNAPSHOT`, `SERVER_DATA`, `GROUND` | Consistent offline player snapshot, complete immutable server data, ground bake |
 | `PORT`, `ACCOUNT`, `PASSWORD`, `CHARACTER` | Reserved private UDP port, disposable `fb_*` account, credentials and own character |
 | `RACE`, `CLASS`, `LEVEL`, `X`, `Y`, `Z` | Explicit scenario setup inputs for that character |
@@ -46,6 +46,9 @@ cp --reflink=auto "$SERVER_SOURCE" "$RUN/server/bin/game-server"
 cp --reflink=auto "$ADMIN_SOURCE" "$RUN/server/bin/game-server-admin"
 cp --reflink=auto "$REDB_SNAPSHOT" "$RUN/private.redb"
 cp -a --reflink=auto "$SERVER_DATA/." "$RUN/server/data/"
+for catalog in trading-post-monthly-catalog.json quest-reward-bonus.json; do
+  cp --reflink=auto "$SERVER_CONTENT/$catalog" "$RUN/server/data/$catalog"
+done
 chmod a-w "$RUN/server/data/world.db"
 ```
 
@@ -59,6 +62,7 @@ Run from `$RUN/server`, with logs retained:
   GAME_SERVER_DB_PATH="$RUN/private.redb" \
   GAME_SERVER_ADMIN_SOCKET="$RUNTIME/admin.sock" \
   GAME_SERVER_PORT="$PORT" \
+  GAME_SERVER_BIND_IP=127.0.0.1 \
   "$RUN/server/bin/game-server"
 ```
 
