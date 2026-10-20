@@ -204,6 +204,12 @@ func readback_only() -> bool:
 	if money() != 940 or bag_count(2934) != 0 or bag_count(2318) != 10 or bag_count(2320) != 0:
 		return fail("Reopened bags/copper differ: money=%d bags=%s" % [money(), client.merchant_state().bags])
 	await tap(KEY_K)
+	if not await wait_until(func(): return shown("ProfessionsSearchBox"), "profession book"):
+		return false
+	await replace_field("ProfessionsSearchBox", "Handstitched Leather Pants")
+	if not await wait_until(func(): return shown("ProfessionRecipe2153") and not shown("ProfessionsUnlearnedLabel"), "persisted known2153"):
+		return false
+	await press("ProfessionRecipe2153")
 	if not await wait_until(func(): return text("ProfessionsSkillText").contains("16/300"), "persisted rank16"):
 		return false
 	await tap(KEY_ESCAPE)
