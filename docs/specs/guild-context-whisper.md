@@ -4,10 +4,10 @@ The Communities guild roster opens Mainline `COMMUNITIES_GUILD_MEMBER` (`Blizzar
 
 ## What it must do
 
-- [ ] Both skins show `Whisper` (authenticated local-CASC70448 GlobalStrings13134) for an online roster member who is not the local player, before `Promote to Guildmaster` when both are present. Visibility follows Whisper CanShow (`Blizzard_UnitPopup/Standard/UnitPopupButtons.lua:404–433`, `UnitPopupSharedUtils.lua:100–110`) and does not depend on guild rank authority or pending guild replies.
-- [ ] Self, offline and unknown-profile members get no Whisper entry, and the action does nothing for them.
-- [ ] Activating Whisper closes the menu and requests one chat open for the captured member, with the existing `/w <name> ` prefill. It sends no guild or network request and makes no local roster change; any delivery uses the existing whisper route.
-- [ ] Existing Promote/Remove/Demote/Promote to Guildmaster entries and actions are unchanged.
+- [x] Both skins show `Whisper` (authenticated local-CASC70448 GlobalStrings13134) for an online roster member who is not the local player, before `Promote to Guildmaster` when both are present. Visibility follows Whisper CanShow (`Blizzard_UnitPopup/Standard/UnitPopupButtons.lua:404–433`, `UnitPopupSharedUtils.lua:100–110`) and does not depend on guild rank authority or pending guild replies.
+- [x] Self, offline and unknown-profile members get no Whisper entry, and the action does nothing for them.
+- [x] Activating Whisper closes the menu and requests one chat open for the captured member, with the existing `/w <name> ` prefill. It sends no guild or network request and makes no local roster change; any delivery uses the existing whisper route.
+- [x] Existing Promote/Remove/Demote/Promote to Guildmaster entries and actions are unchanged.
 
 ## How it works
 
@@ -30,7 +30,7 @@ The Communities guild roster opens Mainline `COMMUNITIES_GUILD_MEMBER` (`Blizzar
 ## Known gaps (current cycle)
 
 - [ ] `CHAT_WHISPER_HEADER_ABSENT`: Retail `ChatFrameUtil.SendTell` (`ChatFrameUtil.lua:367–386`) opens chat with `SLASH_WHISPER1` = `/cw` (GlobalStrings23451) and `ParseText(0)` switches to whisper mode with header `Tell %s: ` (9951). The engine has no `/cw` parsing or sticky header mode, so it uses the existing `/w <name> ` prefill (the same as R-key Reply). Header-mode parity is a separate chat slice.
-- [ ] Ignored tests/spec first, then actual RED → committed implementation → targeted GREEN, independent gate and native proof after landing.
+- [ ] Independent gate, landing and native both-skin proof. Ignored tests/spec f257afa5d → actual RED (2 assertion failures, negative control passing) → implementation 39964ffc9 → assertion-identical enabled tests e8ca7b04c → targeted GREEN 7/7 with context-leadership tests.
 
 ## Out of scope
 
