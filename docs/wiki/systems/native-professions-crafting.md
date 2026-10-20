@@ -10,6 +10,20 @@ Verified: 2026-10-11. Engine behavioral source31c2bba12, overlay geometryac11dd7
 
 `professions_quality.rs` joins `Item.CraftingQualityID` → `CraftingQuality` → `CraftingQualityAtlasSet.IconInv` → `UiTextureAtlasElement.Name`. The stored tier is distinct from item rarity. `professions.rs` in the native extension supplies quality records only for displayed items; reagent slots draw the inventory overlay at its authored atlas size. Local-CASC export/layout/source receipts and absent outcome formulas are recorded in the [contract](../../specs/modern-crafting.md#quality-source-receipt), not inferred from item IDs.
 
+## Passive operation status
+
+The [passive diagnostic contract](../../specs/modern-crafting.md#passive-operation-diagnostics) removes the typed missing-operation diagnostic from player-facing CraftStatus without inventing operation results or hiding Details. Native `profession_view` uses pure `professions_reagent_selection::craft_status`; pending validation and concrete validation/action errors retain priority. Existing native `godot_print` logs the named gap at the selected-recipe transition, using existing reagent-selection identity to avoid repeated per-frame logs. Internal typed response/refusals remain unchanged.
+
+Retail cache investigation: `RecipeSchematicForm.lua:273–302,1370–1443` skips operation requests/stats when metadata/results are absent; `RecipeCrafterDetails.lua:288–310,380–419` independently gates quality/concentration controls. No-quality/no-concentration does not imply hiding the whole Details pane. Engine fixed-output `Option<(item,count)>` is not Retail supportsQualities/supportsCraftingStats metadata; those capabilities were not inferred. Hash-pinned read-only evidence: canonical `data/diagnostics/profession-pane-gap-readonly-2026-10-19/evidence-matrix.md` and its source receipt.
+
+### Native passive-status proof — 2026-10-19
+
+Pushed ignored RED `00231cbb7` exposes the raw named gap in the actual screen; compatible protocol `724ec71` observes exit101 before GREEN `0d7294fc3`. An earlier `b3a34fe` compile mismatch lacks the newly landed guild leadership variant and is archived separately, not counted as behavioral RED. Both-skin/five-state screen regression passes; ps713 tests/fmt and ps713b built-extension parse pass. Initial cold gate parse failed only on missing extension registration, retained as harness evidence.
+
+Exact rebuilt cohort engine `2894ce9e3`, server `cf1fc7e36`, protocol `724ec71`: both native1920×1080 clients show blank passive status after120frames and after authoritative allocation validation; concrete missing-slot error remains visible. One raw named-gap diagnostic for375188 is logged per client across refreshes/dialogs/responses. Quality remains UNASSIGNED; no output/Create permission is fabricated, Create remains disabled, and bags/money/skill/no-cast conservation passes. Both clients exit0 with one completion marker and no error lines; known geoset/MSAA/QuestPOI warnings and separate editor-import errors remain qualified.
+
+SSOT: canonical `data/diagnostics/profession-passive-operation-status-2026-10-19/native-passive-status-proof.json` binds exact binary/source identities, diagnostic counts, twelve inspected PNG hashes/resolutions and cleanup. Originals: `/syncthing/AgentShared/2026-10-19/profession-passive-operation-status/{Modern,Forever}-{1..6}-*.png`. Owned server3284449 stops;5951 unbound, crafting slice inactive and window cleared. This is presentation/logging proof only; operation composition, concentration origin and successful recraft mechanics remain missing.
+
 ## Recipe search magnifier
 
 The [magnifier contract](../../specs/modern-crafting.md#recipe-search-magnifier) uses existing `ProfessionView.search_focused` and query state. The profession tree authors10×10 `common-search-magnifyingglass` at LEFT(+1,−1), tinting RGB0.6 only when empty and unfocused, otherwise1. No shared search template or query behavior changes. Source: cached Mainline `InputBoxTemplates.xml:211–217`, `InputBoxTemplates.lua:175–200`.
