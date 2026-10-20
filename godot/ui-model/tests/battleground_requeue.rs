@@ -88,9 +88,10 @@ fn skirmish_requeue_action_binds_ended_match_and_blocks_duplicates() {
             &mut view,
             requeue_snapshot(Some(mode), BgPhase::Ended, true),
         );
-        assert!(
-            view.action("pvp:requeue").is_some(),
-            "ended skirmish dispatches one request"
+        assert_eq!(
+            view.action("pvp:requeue"),
+            Some(PvpAction::RequeueSkirmish(71)),
+            "ended skirmish dispatches its match identity, not a client-selected mode"
         );
         assert!(view.pending);
         assert!(view.action("pvp:requeue").is_none());
