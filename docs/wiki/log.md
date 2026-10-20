@@ -1,3 +1,7 @@
+## 2026-10-20 — Guild Zone sorting native accepted
+
+[Exact cohort, originals and limits](systems/guilds.md#native-zone-sort-acceptance-2026-10-20): gz746 tests/fmt passed and landed; exact E6874f287d/private Sb12089d1f/Pda007a6 builds and import/parse/login passed. Real two-member Modern/Forever physical Zone direction/reset, Elwynn/Westfall ordering, genuine peer disconnect/mixed recency, original detail identity and offline filter hide/restore pass strict1/1. Eight inspected original PNGs published; historical DB unchanged, actors/cage/slice stopped,5891 unbound/window cleared. Seconds/ties/Unicode/overflow remain automated; native binding/count limits stay unqualified. Setup PATH127, import ObjectDB leaks and live audio/Wayland/data diagnostics retained. Lead inspected two representative frames and accepted.
+
 ## 2026-10-20 — Monthly clock native proof
 
 [Exact cohort and qualifications](systems/trading-post.md#post-landing-native-cohort): Modern/Forever rollover and fresh-server/client readback each strict7/7, naturalexit0, approved-baseline VALID. Natural1m→0m→month47 frozen-only, genuine retained1578; each phase2 Query, rollover1 Freeze, no paid/refund transactions. Twenty-eight inspected original PNGs published, SHA manifests retained. Failed timing/selector/startup attempts and named Quest519073 gap remain; approved news BEST_GUESS policy is not Retail calendar parity. Stale-summary replay guard refused before runtime; operator incident retained. Owned slice stopped/5899 unbound/window cleared.
