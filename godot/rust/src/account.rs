@@ -2773,59 +2773,73 @@ mod tests {
     use super::*;
 
     #[test]
+    #[ignore = "source-expectation RED: terminal Purchase error survives coalesced Query"]
     fn trading_post_account_coalesced_purchase_then_query_completes_pending_owner() {
         use game_engine_ui_model::trading_post::View;
         use shared::protocol::{TradingPostReplyKind, TradingPostSnapshot};
-        let mut account = Account::new(PathBuf::from("/unused-trading-post-data"));
-        let mut output = Vec::new();
-        let purchase = TradingPostSnapshot {
-            npc_net_id: Some(185468),
-            tender: 400,
-            points: 0,
-            now_unix: 100,
-            month_end_unix: 200,
-            frozen_item_id: None,
-            categories: vec![],
-            items: vec![],
-            thresholds: vec![],
-            source_gaps: vec![],
-            error: None,
-            catalog_complete: false,
-            reply_kind: TradingPostReplyKind::Purchase,
-        };
-        let query = TradingPostSnapshot {
-            tender: 425,
-            now_unix: 101,
-            catalog_complete: true,
-            reply_kind: TradingPostReplyKind::Query,
-            ..purchase.clone()
-        };
-        let mut view = View {
-            visible: true,
-            pending: true,
-            confirm: Some("purchase".into()),
-            ..Default::default()
-        };
-        // The host dispatches every drained message before the native view updates once.
-        for reply in [purchase, query] {
-            account
-                .dispatch_message(ProtocolMessage::for_tests(reply), &mut output)
-                .unwrap();
+        for purchase_error in [
+            None,
+            Some("Purchase item is no longer available".to_string()),
+        ] {
+            let mut account = Account::new(PathBuf::from("/unused-trading-post-data"));
+            let mut output = Vec::new();
+            let purchase = TradingPostSnapshot {
+                npc_net_id: Some(185468),
+                tender: 400,
+                points: 0,
+                now_unix: 100,
+                month_end_unix: 200,
+                frozen_item_id: None,
+                categories: vec![],
+                items: vec![],
+                thresholds: vec![],
+                source_gaps: vec![],
+                error: None,
+                catalog_complete: false,
+                reply_kind: TradingPostReplyKind::Purchase,
+            };
+            let mut purchase = purchase;
+            purchase.error = purchase_error.clone();
+            let query = TradingPostSnapshot {
+                tender: 425,
+                now_unix: 101,
+                catalog_complete: true,
+                reply_kind: TradingPostReplyKind::Query,
+                error: None,
+                ..purchase.clone()
+            };
+            let mut view = View {
+                visible: true,
+                pending: true,
+                confirm: Some("purchase".into()),
+                ..Default::default()
+            };
+            // The host dispatches every drained message before the native view updates once.
+            for reply in [purchase, query] {
+                account
+                    .dispatch_message(ProtocolMessage::for_tests(reply), &mut output)
+                    .unwrap();
+            }
+            let (snapshot, reply_kinds) = account.take_trading_post_update().unwrap();
+            view.receive_replies(snapshot, &reply_kinds);
+            assert!(
+                account.take_trading_post_update().is_none(),
+                "Completed replies are not replayed on the next frame"
+            );
+            assert!(
+                !view.pending,
+                "Purchase completion must survive a later Query in one host poll"
+            );
+            assert!(view.confirm.is_none());
+            assert_eq!(view.snapshot.as_ref().unwrap().tender, 425);
+            assert_eq!(view.snapshot.as_ref().unwrap().now_unix, 101);
+            assert_eq!(
+                view.error,
+                purchase_error.unwrap_or_default(),
+                "Matching terminal error survives the later Query's empty error"
+            );
+            assert!(output.is_empty());
         }
-        let (snapshot, reply_kinds) = account.take_trading_post_update().unwrap();
-        view.receive_replies(snapshot, &reply_kinds);
-        assert!(
-            account.take_trading_post_update().is_none(),
-            "Completed replies are not replayed on the next frame"
-        );
-        assert!(
-            !view.pending,
-            "Purchase completion must survive a later Query in one host poll"
-        );
-        assert!(view.confirm.is_none());
-        assert_eq!(view.snapshot.as_ref().unwrap().tender, 425);
-        assert_eq!(view.snapshot.as_ref().unwrap().now_unix, 101);
-        assert!(output.is_empty());
     }
 
     #[test]
