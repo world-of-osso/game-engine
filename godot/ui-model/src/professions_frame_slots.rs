@@ -149,11 +149,13 @@ fn recipe_cooldown(view: &ProfessionView) -> Element {
     let Some(secs) = view.recipe_cooldown_secs else {
         return vec![];
     };
+    // GlobalColor RED_FONT_COLOR (-57312 = 0xFFFF2020) overrides the font's own red.
+    let red = crate::tooltip_presentation::rgba_string(crate::item_tooltip::RED_FONT_COLOR);
     label(
         "ProfessionsRecipeCooldown".into(),
         &crate::professions_cooldown::remaining_text(secs),
         (308.0, 171.0, 400.0, 12.0),
-        (10.0, crate::item_tooltip::RED_FONT_COLOR, "LEFT"),
+        (10.0, &red, "LEFT"),
     )
 }
 
