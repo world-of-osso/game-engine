@@ -241,7 +241,10 @@ fn guild_context_leadership_popup_has_source_labels_and_bounded_dialog_geometry_
             .expect("source confirmation must render");
         let popup = registry.get(popup).unwrap();
         assert_eq!(popup.width.value(), 320.0);
-        assert_eq!(popup.position.top, 135.0);
+        assert_eq!(
+            popup.position.top,
+            ui_toolkit::layout_values::Val::Px(135.0)
+        );
         let message = registry
             .get(
                 registry
