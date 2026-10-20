@@ -843,8 +843,8 @@ func assert_filter_interactions() -> bool:
 	if not await wait_until(func(): return client.trading_post_state().filter_usable, "Useable Only checkbox"): return false
 	await motion(control("PerksProgramFilterSort").get_global_rect().get_center(), false)
 	if not await wait_until(func(): return control("PerksProgramSortMenu") != null, "Sort By hover submenu"): return false
-	if control_enabled("PerksProgramFilterSortTime"):
-		fail("Unsourced per-item remaining time became enabled"); return false
+	if not control_enabled("PerksProgramFilterSortTime"):
+		fail("Approved server-month Time sorting is unavailable for ordinary rows"); return false
 	await capture("filter-sort")
 	await click("PerksProgramFilterSortPrice")
 	if not await wait_until(func(): return client.trading_post_state().sort == "price" and not client.trading_post_state().ascending, "Price radio"): return false
