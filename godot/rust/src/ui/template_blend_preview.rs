@@ -1,6 +1,6 @@
 //! Supplied offline fixtures for the ADD-blend panel groups other previews do not reach.
 //! Each group feeds a minimal view through its production `show_*` host; nothing here
-//! sets art, blend, postsetup or authority. All names, ids and amounts are supplied
+//! overrides template artwork, blend, postsetup or authority. Names, ids and amounts are supplied
 //! fixture data, not server state.
 //!
 //! | panel | ADD regions | hover target |
@@ -11,7 +11,7 @@
 //! | CollectionsPetSpellSelect | `PetJournalSpellSelectSelected` | none (checked option) |
 //! | EntranceDifficulty | `EntranceDifficultyHighlight2` | `EntranceDifficultyButton2` |
 //! | HousingStorageBasic | `HouseEditorStored1693HoverBackground`, `HouseEditorBasicDecorModeButtonHover` | `HouseEditorStored1693`, `HouseEditorBasicDecorModeButton` |
-//! | WorldMap | `QuestLogTitle332Selected`, `WorldMapPin0Highlight` | none (selected row, supplied highlighted quest) |
+//! | WorldMap | `WorldMapHighlight`, `WorldMapPin0Highlight` (title selection stays BLEND) | none (supplied child/quest highlights) |
 use super::{RegistryUi, party_preview};
 use godot::prelude::*;
 use std::sync::Arc;
@@ -22,7 +22,7 @@ const PANELS: &str = "AdventureGuide, TradingPost, CharacterCurrency, \
 
 /// Cached Blackfathom/encounter112 opened through production instance, encounter and
 /// model-page actions; this reaches both side-tab and creature-ring ADD regions.
-fn adventure_guide(
+fn load_adventure_guide(
     viewport: [f32; 2],
 ) -> Result<game_engine_ui_model::adventure_guide::View, String> {
     use game_engine_core::adventure_guide::Catalog;
@@ -385,7 +385,7 @@ fn guild_tabard() -> Result<game_engine_ui_model::guild_tabards::GuildTabards, S
 }
 
 /// Map & Quest Log with one selected quest and its supplied highlighted POI pin.
-fn world_map(
+fn load_world_map(
     viewport: [f32; 2],
 ) -> Result<game_engine_ui_model::world_map_frame_component::WorldMapFrameState, String> {
     use game_engine_ui_model::quest_log_frame_component::{
@@ -473,13 +473,13 @@ impl RegistryUi {
                 .size;
             let viewport = [size.x, size.y];
             match panel.to_string().as_str() {
-                "AdventureGuide" => self.show_adventure_guide(adventure_guide(viewport)?),
+                "AdventureGuide" => self.show_adventure_guide(load_adventure_guide(viewport)?),
                 "TradingPost" => self.show_trading_post(trading_post()),
                 "CharacterCurrency" => self.show_character_frame(character_currency()?),
                 "CollectionsPetSpellSelect" => self.show_pet_journal(pet_spell_select(viewport)?),
                 "EntranceDifficulty" => self.show_entrance_bar(entrance_difficulty(size.x)?),
                 "HousingStorageBasic" => self.show_housing(housing_storage_basic(viewport)),
-                "WorldMap" => self.show_world_map(world_map(viewport)?),
+                "WorldMap" => self.show_world_map(load_world_map(viewport)?),
                 "GuildBank" => self.show_guild_bank(guild_bank()),
                 "GuildTabard" => self.show_guild_tabard(guild_tabard()?),
                 "AchievementStatistics" => self.show_achievement_window(achievement_statistics()),
