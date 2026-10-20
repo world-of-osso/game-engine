@@ -28,9 +28,15 @@ Nine-slice borders (`Common-Input-Border.blp`, 128×32, `edge_size: 12.0`) are s
 
 [`selection_list.rs`](../../../godot/ui-model/src/selection_list.rs) authors selectable hit targets without UIPanelButton chrome. Each list draws the hover and selected art of the Retail template it copies (generic search rows: `search-highlight`/`search-select`; specific battlegrounds: `PvPMegaQueue` crops; PvP categories: `bluemenu-main`; dropdowns: quest-title highlight with radio/checkbox ticks; journals, auction, transmog, guild and profession rows: their own source highlights); the [spec template table](../../specs/selection-lists.md#templates) is the source of truth. Hover art sits on the HIGHLIGHT layer. Specialized rows retain their authored icons, subtext and selected art. Atlas resolution chooses authored Forever members for the same names; structure stays Retail. [Audit and exclusions](../../specs/selection-lists.md) distinguish implemented rows from absent arena/rated/LFG lists and real action buttons.
 
-Godot projection opts these rows into native focus, Enter/Space activation and scroll-to-reveal. Focus/hover produce one highlight, not a second opaque base image. Selected artwork uses Retail's ADD blend so it cannot cover label ink; single-line labels stay within row bounds. Model tests cover skin-independent selection through scrolling/refresh, disabled activation and retained action chrome. Native-renderer tests cover idle/hover/focus drawing and revealing clipped rows.
+Godot projection opts these rows into native focus, Enter/Space activation and scroll-to-reveal. Focus/hover produce one highlight, not a second opaque base image. Each template declares its selected/hover blend independently; for example PvP rows use ADD while Mount/Pet highlights retain BLEND; single-line labels stay within row bounds. Model tests cover skin-independent selection through scrolling/refresh, disabled activation and retained action chrome. Native-renderer tests cover idle/hover/focus drawing and revealing clipped rows.
 
 `godot/tests/selection_lists_live.gd` passed with private UDP5933 in Modern and Forever at engine `c0deeb3bd` (per-template art, merged with master `1feccd63d`) and protocol `deb73ac`: pointer selection, Down/Enter activation, scroll retention, guild-rank and outfit keyboard selection, rendered label ink and boss-row bounds. Thirty inspected before/after PNGs (maximum1280px) are in `/syncthing/AgentShared/2026-10-12/selection-list-ui/`; native logs and targeted check/test proof are in `data/diagnostics/selection-list-ui-2026-10-12/`. This is representative native proof, not a rendered census of every migrated screen. Headless compositor/audio warnings and an observed service/outfit FileDataId0 request remain outside the row rendering assertions.
+
+## Authored blend metadata — Step 1 integration
+
+The [generic-template contract](../../specs/ui-template-generics.md) routes XML `alphaMode` through the core `blend_mode` dispatcher into `TextureData.blend_mode`. Button state slots contain `ButtonTexture { source, blend_mode }`; independent source/mode attribute writes preserve either ordering. Default BLEND and explicit ADD are supported, not MOD/DISABLE/ALPHAKEY. Shared row construction emits its template's declared mode; the native [`parts.rs`](../../../godot/rust/src/ui/parts.rs) projection no longer selects materials by frame name, FDID or atlas allowlist. Specialized geometry remains until the ordered named-art slice.
+
+R-cache distinctions matter: Minimap highlights omit alphaMode (BLEND); UIPanel close highlights explicitly declare ADD; QuestMap title selection is BLEND/default alpha1, not the former guessed ADD/0.4. Core4 and model16 targeted controls have passed on the integration branch. Projection/native acceptance and metadata-only state absence controls remain pending; this is not a landed/runtime-parity claim. Later per-state crop/tint/alpha/Checked metadata extends the same record.
 
 ## Godot native UI scale (bounded)
 
@@ -283,6 +289,9 @@ Commit `8cac2b03` first disabled only the FPS frame-time graph at startup in str
 
 ## Sources
 
+- [Authored template contract](../../specs/ui-template-generics.md) — ordered scope, supported modes and native proof boundary.
+- [Native image-part projection](../../../godot/rust/src/ui/parts.rs) — typed texture/button material selection.
+- [Shared row authoring](../../../godot/ui-model/src/selection_list.rs) — source templates and per-region mode declarations.
 - `../../data/diagnostics/npc-motion-20260909/target-camera-final.txt` — focused world-camera selection proof
 - [ui-addon-architecture.md](../../ui-addon-architecture.md) — widget types, layout system, addon WASM design, wow-ui-sim parity
 - [login-ui-porting.md](../../login-ui-porting.md) — nine-slice editboxes, anchor layout, y-offset convention
