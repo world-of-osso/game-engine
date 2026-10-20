@@ -60,8 +60,12 @@ func select_zero_actor(row: Array) -> bool:
 	var model := host.find_child("NpcVisualRoot", true, false) as Node3D
 	if not completion.require(model != null, "Journal zero-display loaded model missing"):
 		return false
-	var player := model.find_child("M2Animation", true, false)
-	if player != null and not completion.require(player.current_animation_id() == 0, "Journal no-display default idle animation differs from0"):
+	var recursive_player := model.find_child("M2Animation", true, false)
+	# State-kit attachment players are descendants too; observe the actor's owner,
+	# exactly as production attach_journal_model does, not the first child effect.
+	var player := model.get_node_or_null("NpcModel/M2Animation")
+	print("JOURNAL_BASE_ANIMATION_OWNER ", JSON.stringify({"creature":row[3],"base_path":str(player.get_path()) if player != null else "missing","base_clip":player.current_animation_id() if player != null else -1,"first_recursive_path":str(recursive_player.get_path()) if recursive_player != null else "missing","first_recursive_clip":recursive_player.current_animation_id() if recursive_player != null else -1}))
+	if not completion.require(player != null and player.current_animation_id() == 0, "Journal no-display default base-owner idle animation differs from0"):
 		return false
 	for mesh in model.find_children("*", "MeshInstance3D", true, false):
 		if not completion.require(mesh.transparency == 0.0, "Journal no-display default alpha differs from1"):
