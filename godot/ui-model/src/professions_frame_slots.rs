@@ -31,6 +31,7 @@ pub(super) fn schematic(view: &ProfessionView) -> Element {
         ));
     }
     out.extend(recipe_source_button(view));
+    out.extend(recipe_cooldown(view));
     out.extend(text(
         "ProfessionsReagentsHeading",
         "Reagents:",
@@ -140,6 +141,20 @@ fn recipe_source_button(view: &ProfessionView) -> Element {
     ));
     rsx! { button { name: "ProfessionsRecipeSourceButton", width: 150.0, height: 16.0,
     left: 308.0, top: 171.0, pos_type: "absolute", button_default_skin: false, {children} } }
+}
+
+/// RecipeSchematicForm.xml226 `Cooldown` (GameFontRedSmall, 400 wide) is the first
+/// organizer entry at OutputIcon BOTTOMLEFT(-1,-12); Lua564–581 sets its red text.
+fn recipe_cooldown(view: &ProfessionView) -> Element {
+    let Some(secs) = view.recipe_cooldown_secs else {
+        return vec![];
+    };
+    label(
+        "ProfessionsRecipeCooldown".into(),
+        &crate::professions_cooldown::remaining_text(secs),
+        (308.0, 171.0, 400.0, 12.0),
+        (10.0, crate::item_tooltip::RED_FONT_COLOR, "LEFT"),
+    )
 }
 
 fn quality_reagent_cells(view: &ProfessionView) -> Element {
@@ -294,13 +309,16 @@ fn craft_controls(view: &ProfessionView) -> Element {
     );
     // Retail ProfessionsCrafting.lua:698 calls SetTextToFit; .xml:219-224
     // anchors its RIGHT 30px left of the quantity input, so growth is leftward.
+    // ProfessionsCrafting.lua574/715–722: a recipe cooldown disables Create, Create All
+    // and the quantity input.
+    let ready = view.book.selected_is_learned() && view.recipe_cooldown_secs.is_none();
     let create_all_text = format!("Create All [{}]", view.craftable);
     let create_all_width = panel_button_fit_to_text_width(&create_all_text);
     out.extend(panel_button(
         "ProfessionsCreateAll".into(),
         &create_all_text,
         "profession:all",
-        view.can_all && view.book.selected_is_learned(),
+        view.can_all && ready,
         (762.0 - create_all_width, y, create_all_width, 22.0),
     ));
     out.extend(edit_box(QUANTITY, (792.0, y + 1.0, 31.0, 20.0)));
@@ -308,21 +326,21 @@ fn craft_controls(view: &ProfessionView) -> Element {
         "ProfessionsQuantityDecrease",
         "profession:decrease",
         763.0,
-        view.book.quantity > 1,
+        ready && view.book.quantity > 1,
         (130_869, 130_867),
     ));
     out.extend(spinner_arrow(
         "ProfessionsQuantityIncrease",
         "profession:increase",
         823.0,
-        view.book.quantity < view.craftable,
+        ready && view.book.quantity < view.craftable,
         (130_866, 130_864),
     ));
     out.extend(panel_button(
         "ProfessionsCreate".into(),
         "Create",
         "profession:create",
-        view.can_create && view.book.selected_is_learned(),
+        view.can_create && ready,
         (853.0, y, 80.0, 22.0),
     ));
     out

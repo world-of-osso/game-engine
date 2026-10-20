@@ -263,6 +263,7 @@ fn professions_db2_catalog_joins_classic_tailoring_recipe() {
             "ID,DisplayName_lang,SpellBookSpellID,CategoryID,ParentSkillLineID,ParentTierIndex\n197,Tailoring,3908,11,0,0\n2540,Classic Tailoring,0,11,197,0\n",
         ),
         ("SkillLineXTraitTree", "ID,SkillLineID,Variant\n"),
+        ("SpellCategories", "SpellID,DifficultyID,Category\n"),
         (
             "TradeSkillCategory",
             "ID,Name_lang,OrderIndex\n1089,Bandages,20\n1090,Weaving,10\n",
@@ -396,7 +397,6 @@ fn professions_both_skins_show_counts_and_disable_missing_reagent_create() {
 }
 
 #[test]
-#[ignore = "RED: RECIPE_COOLDOWN_DISPLAY"]
 fn professions_recipe_cooldown_category_comes_from_spell_categories() {
     let dir = std::path::PathBuf::from(env!("CARGO_MANIFEST_DIR")).join("../../data/db2/active");
     let catalog = crate::professions_catalog::RecipeCatalog::load(&dir).unwrap();
@@ -409,7 +409,6 @@ fn professions_recipe_cooldown_category_comes_from_spell_categories() {
 }
 
 #[test]
-#[ignore = "RED: RECIPE_COOLDOWN_DISPLAY"]
 fn professions_recipe_cooldown_is_the_longer_of_spell_and_category_clocks() {
     use crate::professions_cooldown::remaining_secs;
     assert_eq!(remaining_secs(None, None), None);
@@ -421,7 +420,6 @@ fn professions_recipe_cooldown_is_the_longer_of_spell_and_category_clocks() {
 }
 
 #[test]
-#[ignore = "RED: RECIPE_COOLDOWN_DISPLAY"]
 fn professions_recipe_cooldown_text_uses_two_retail_units() {
     crate::paths::set_data_root(
         std::path::PathBuf::from(env!("CARGO_MANIFEST_DIR")).join("../../data"),
@@ -442,7 +440,6 @@ fn professions_recipe_cooldown_text_uses_two_retail_units() {
 }
 
 #[test]
-#[ignore = "RED: RECIPE_COOLDOWN_DISPLAY"]
 fn professions_both_skins_cooldown_disables_create_and_shows_remaining() {
     use crate::professions_frame::{ProfessionView, professions_screen};
     use ui_toolkit::{

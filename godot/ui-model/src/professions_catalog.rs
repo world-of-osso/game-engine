@@ -105,6 +105,7 @@ impl RecipeCatalog {
         let reagents = load_reagents(dir)?;
         catalog.recipes =
             load_recipes(dir, &catalog.skill_names, &categories, &outputs, &reagents)?;
+        catalog.cooldown_categories = load_cooldown_categories(dir, &catalog.recipes)?;
         Ok(catalog)
     }
 }
@@ -143,6 +144,28 @@ fn load_categories(dir: &Path) -> Result<BTreeMap<u32, (String, i32)>, String> {
                 .parse::<i32>()
                 .map_err(|error| format!("category order: {error}"))?;
             categories.insert(number(row[0])?, (row[1].into(), order));
+            Ok(())
+        },
+    )?;
+    Ok(categories)
+}
+
+/// Base-difficulty `SpellCategories.Category` of recipe spells; zero means no shared clock.
+fn load_cooldown_categories(dir: &Path, recipes: &[Recipe]) -> Result<BTreeMap<u32, u32>, String> {
+    let mut categories = BTreeMap::new();
+    read_rows(
+        dir,
+        "SpellCategories",
+        &["SpellID", "DifficultyID", "Category"],
+        |row| {
+            let spell = number(row[0])?;
+            let category = number(row[2])?;
+            let recipe = recipes
+                .binary_search_by_key(&spell, |recipe| recipe.spell_id)
+                .is_ok();
+            if number(row[1])? == 0 && category != 0 && recipe {
+                categories.insert(spell, category);
+            }
             Ok(())
         },
     )?;
