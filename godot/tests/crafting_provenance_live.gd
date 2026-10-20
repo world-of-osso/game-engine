@@ -50,38 +50,42 @@ func run_test() -> void:
 	client.free()
 	quit(0)
 
-## The client ignores a world right-click while any Control is hovered (merchant.rs
-## right_click_interact), so only click pick points Godot reports as unhovered.
-func click_pickable(matches: Callable, id_meta: String) -> bool:
-	for turn in range(48):
-		var camera := root.get_camera_3d()
-		if camera != null:
-			for node in nearest_first(client.find_children("*", "Node3D", true, false).filter(matches)):
-				var area: Node = node.find_child("UnitPick", true, false)
-				if area == null:
-					continue
-				var id: int = area.get_meta(id_meta) if area.has_meta(id_meta) else node.get_meta(id_meta)
-				var point := pick_mesh_point(node, camera, id)
-				var central := Rect2(Vector2(root.size) * 0.25, Vector2(root.size) * 0.5)
-				if point != Vector2.INF and central.has_point(point) and await point_unhovered(point):
-					await click_at(point, MOUSE_BUTTON_RIGHT)
-					print("PROVENANCE PICK point=", point, " turns=", turn, " hovered=", root.gui_get_hovered_control())
-					return true
-		push_key(KEY_LEFT, 0, true)
-		await create_timer(0.2).timeout
-		push_key(KEY_LEFT, 0, false)
-		await create_timer(0.04).timeout
-	await capture("fail-pick")
-	return fail("No unhovered pickable source model point")
+## Setup sends the existing NPC interaction request (trading_post_live.gd open_vendor);
+## gossip choice, trainer purchase, casts and Create remain native input.
+func open_simon() -> bool:
+	if (await ipc(["quest", "interact", "--npc", "Simon Tanner"])).is_empty():
+		return false
+	if not await wait_until(func(): return shown("ClassTrainerFrame") or shown("AuctionGossipOption0") or shown("GossipOption0Text"), "Simon Tanner gossip or trainer"):
+		return false
+	if not shown("ClassTrainerFrame"):
+		await press("AuctionGossipOption0" if shown("AuctionGossipOption0") else "GossipOption0Text")
+	if not await wait_until(func(): return shown("ClassTrainerFrame"), "real trainer56 services"):
+		return false
+	await press("ClassTrainerFilterDropdown")
+	for index in [1, 2]:
+		if shown("ClassTrainerFilter%dCheck" % index):
+			await press("ClassTrainerFilter%d" % index)
+	await press("ClassTrainerFilterDropdown")
+	return true
 
-func point_unhovered(point: Vector2) -> bool:
-	var motion := InputEventMouseMotion.new()
-	motion.position = point
-	motion.global_position = point
-	root.push_input(motion, true)
-	Input.warp_mouse(point)
-	await wait_frames(2)
-	return root.gui_get_hovered_control() == null
+func ipc(arguments: Array) -> String:
+	var worker := Thread.new()
+	var argv := ["--signal=KILL", "15", OS.get_environment("GAME_ENGINE_CLI"), "--socket", "/tmp/game-engine-%d.sock" % OS.get_process_id()] + arguments
+	var error := worker.start(func():
+		var output := []
+		var code := OS.execute("/usr/bin/timeout", argv, output, true)
+		return {"code": code, "text": "\n".join(output)})
+	if error != OK:
+		fail("Cannot start IPC setup worker")
+		return ""
+	while worker.is_alive():
+		await process_frame
+	var result: Dictionary = worker.wait_to_finish()
+	print("PROVENANCE SETUP_IPC ", arguments, " code=", result.code, " text=", result.text)
+	if result.code != 0:
+		fail("Bounded NPC setup failed")
+		return ""
+	return result.text
 
 func pants_entries() -> Array:
 	return client.merchant_state().bags.filter(func(entry): return entry.item_id == PANTS)
