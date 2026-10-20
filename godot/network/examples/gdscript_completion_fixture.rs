@@ -36,6 +36,7 @@ const FIXTURES: &[(&str, usize)] = &[
     ("achievement_card_title_font", 6),
     ("achievement_card_description_font", 6),
     ("achievement_card_description_alignment", 6),
+    ("justify_v_options_capture", 2),
 ];
 
 struct Invocation {
