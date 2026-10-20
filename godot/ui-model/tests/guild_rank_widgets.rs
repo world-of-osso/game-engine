@@ -9,6 +9,9 @@ use ui_toolkit::registry::FrameRegistry;
 use ui_toolkit::screen::{Screen, SharedContext};
 static SKIN: Mutex<()> = Mutex::new(());
 
+#[path = "guild_zone_sort_tests.rs"]
+mod guild_zone_sort_tests;
+
 fn state(own_rank: u8) -> GuildRanksState {
     GuildRanksState {
         own_rank,
