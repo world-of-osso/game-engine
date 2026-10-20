@@ -33,6 +33,12 @@ Private real player characters exercise the native controller path and measure c
 
 These boxes have CPU/real-UDP behavioral proof; they do not certify a fresh full-client escape or Stockade clear. Outside an area, an unsafe ordinary route explicitly refuses under the approved policy rather than guessing a wait timer or changing targets.
 
+## Azure Follower205 integration diagnostics
+
+- `run_stockade_bot.py --source-plan <json>` accepts an explicitly DB-derived Azure map2515/difficulty205 boss plan. Native admission, NPC lookups, readiness and encounter credits must stay scoped to that map, difficulty and admitted copy; Stockade remains the default without an explicit plan.
+- This adapter changes test infrastructure only: existing native movement, authored player decisions, party checks and cast receipts remain unchanged. An unreachable floor/transition stops the attempt; no teleport connectors or gameplay fixes. Route subprocesses use the owned `followers` resource slice.
+- Use approved private ground with provenance recorded; report `AZURE_VAULT_GROUND_NOT_PUBLISHED` separately from live gameplay failures. A failed attempt is not a clear or encounter-parity proof.
+
 ## Native Stockade runs
 
 - Run Fury72 first, adding specs only after current dummy predicates qualify; preserve the same native/IPC player path and equal-budget equipment, without stat/kit overrides.
