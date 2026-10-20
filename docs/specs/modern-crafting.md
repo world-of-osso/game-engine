@@ -18,11 +18,11 @@ Local world.db has only627 of1,286 distinct Leatherworking effect24 outputs join
 
 ## Server-recorded crafting origin
 
-- [ ] A successful real2153 craft records SkillLineAbility1355 joined to recipe spell2153 on its final surviving itemGUID; fresh DB and owner ItemStack snapshots preserve it. An identical non-crafted2303 remains unknown.
-- [ ] Engine bag/equipment instance state mirrors the additive optional `crafting_origin`; UI/automation never infers it from templateID, rarity or ownership. Existing merchant-state bag/equipment projections expose the GUID and optional origin for observation.
+- [x] A successful real2153 craft records SkillLineAbility1355 joined to recipe spell2153 on its final surviving itemGUID; fresh DB and owner ItemStack snapshots preserve it. An identical non-crafted2303 remains unknown.
+- [x] Engine bag/equipment instance state mirrors the additive optional `crafting_origin`; UI/automation never infers it from templateID, rarity or ownership. Existing merchant-state bag/equipment projections expose the GUID and optional origin for observation.
 - [ ] Crafting quality is recorded only for actual known results; no default tier is assigned. Installed slots and watermark remain UNKNOWN/unwritten. Recraft input/submission remain disabled and the operation evaluator remains absent.
 - Shared wire semantics: [crafting origin](../../../shared-protocol/docs/specs/crafting-origin.md). TC a352b1fa `ItemDefines.h:264–283` modifier39 is a SkillLineAbilityID, not a SpellID; Retail `Professions.lua:378–388` resolves the original recipe from an itemGUID.
-- Tests: `godot/ui-model/tests/crafting_origin.rs`; server real-craft/reopen tests own persistence authority. Coordinate protocol/server/engine landing; an isolated protocol update is not an accepted rollout.
+- Tests: `godot/ui-model/tests/crafting_origin.rs`; server real-craft/reopen tests own persistence authority. Native: `godot/tests/crafting_provenance_live.gd` (craft, then readback-only on a reopened server). Coordinate protocol/server/engine landing; an isolated protocol update is not an accepted rollout.
 
 ## Passive operation diagnostics
 
