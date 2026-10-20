@@ -16,6 +16,7 @@ const FIXTURES: &[(&str, usize)] = &[
     ("trading_post_monthly_clock", 7),
     ("trading_post_monthly_startup", 1),
     ("trading_post_time_sort", 7),
+    ("trading_post_slow_purchase", 5),
     ("campsite_selected_hover", 2),
     ("communities_fidelity", 2),
     ("dropdown_caption_centering", 4),

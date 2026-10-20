@@ -568,7 +568,7 @@ impl GameClient {
                 &self.professions.error,
                 &self.professions.reagent_selection,
             ),
-            bag_counts: self.profession_reagent_counts(),
+            owned_reagents: self.profession_reagent_counts(),
             reagent_selection: self.professions.reagent_selection.clone(),
             reagent_slots,
             recipe_craftable: recipe_craftable_counts(&book, inventory),
