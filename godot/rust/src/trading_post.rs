@@ -158,13 +158,11 @@ impl GameClient {
             return Ok(());
         }
         // The vendor waits for a whole catalog; a Log balance alone has no rows.
-        if let Some((snapshot, reply_kinds)) = self.account.take_trading_post_update()
+        if let Some((snapshot, replies)) = self.account.take_trading_post_update()
             && snapshot.catalog_complete
         {
             let vendor_closed = snapshot.npc_net_id.is_none();
-            self.trading_post
-                .view
-                .receive_replies(snapshot, &reply_kinds);
+            self.trading_post.view.receive_replies(snapshot, &replies);
             self.trading_post.snapshot_observed_at = Some(std::time::Instant::now());
             if self.trading_post.view.visible && vendor_closed {
                 self.close_trading_post();
