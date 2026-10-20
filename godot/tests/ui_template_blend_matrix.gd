@@ -23,7 +23,7 @@ func cases(forever: bool) -> Array:
 	]:
 		result.append({"name": row[0], "method": "show_template_blend_preview", "args": [forever, row[0]], "hover": row[1], "regions": row[2]})
 	result.append({"name": "Merchant", "method": "show_buttonfit_service_preview", "args": ["merchant-repair", forever], "hover": "", "regions": [["MerchantRepairItemButtonHighlight", true]]})
-	result.append({"name": "Trainer", "method": "show_forever_trainer_preview" if forever else "show_trainer_preview", "args": [], "hover": "ClassTrainerService100", "regions": [["ClassTrainerService100Highlight", true]]})
+	result.append({"name": "Trainer", "method": "show_forever_trainer_preview" if forever else "show_trainer_preview", "args": [], "hover": "ClassTrainerService2963", "regions": [["ClassTrainerService2963Highlight", true]]})
 	result.append({"name": "Bank", "method": "show_forever_bank_preview" if forever else "show_bank_preview", "args": [], "hover": "BankFrameItem1", "regions": [["BankFrameTab1Selected", true], ["BankFrameItem1Highlight", true]]})
 	result.append({"name": "GuildControl", "method": "show_forever_guild_ranks_preview" if forever else "show_guild_ranks_preview", "args": [], "hover": "GuildControlUIRankOrderFrameRank3ShiftUpButton", "regions": [["GuildControlUIRankOrderFrameRank3ShiftUpButtonHighlight", true]]})
 	result.append({"name": "Follower", "method": "show_follower_layout_preview", "args": [forever, true], "hover": "GroupFinderFrameGroupButton1", "regions": [["GroupFinderFrameGroupButton1Highlight", true]]})
