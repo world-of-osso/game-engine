@@ -1,3 +1,7 @@
+## 2026-10-19 — Monthly clock native cohort preparation
+
+[Post-landing native plan](systems/trading-post.md#post-landing-native-cohort): current-master cohort, owned5899/fresh accounts, strict7-case rollover/readback and1-case offline startup scripts registered before execution. Existing admin clock alignment precedes a real vendor Query; countdown/rollover is natural afterward, with native drag freeze and restart conservation. No live/native acceptance claimed from preparation.
+
 ## 2026-10-19 — Server-driven Trading Post monthly clock
 
 [Clock/source boundary](systems/trading-post.md#server-driven-monthly-countdown): ignored both-skin registry REDs pushed first, then genuine missing Time label reproduced; server timestamps plus existing monotonic elapsed now feed the Retail one-unit Time column and one Query per expired boundary. Model/registry GREEN and native proof remain distinct; no name-colour edits, local calendar, wire field or client-owned membership.
