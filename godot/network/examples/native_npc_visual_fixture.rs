@@ -350,7 +350,7 @@ fn stage_npc_appearance(data: &Path) -> Result<(), String> {
     .map_err(|error| format!("Write fixture race-model CSV: {error}"))?;
     fs::write(
         retail.join("ChrRaces.csv"),
-        "ID,UnalteredVisualRaceID\n1,0\n2,0\n",
+        "ID,Name_lang,UnalteredVisualRaceID\n1,Human,0\n2,Orc,0\n",
     )
     .map_err(|error| format!("Write fixture races CSV: {error}"))?;
     // Every fixture option and choice is ungated (requirement 0).
