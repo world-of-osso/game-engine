@@ -4986,3 +4986,7 @@ gz709 landed protocol724ec71/serverb15526d95/engine79b33ab93; two authenticated 
 ## 2026-10-19 — Last Online recency display
 
 After pushed ignored regression and actual Offline-vs-recency rendering RED, replaced opaque status text with optional logout authority and one source elapsed-unit formatter for roster/detail. Source English strings authenticated against active local-CASC receipt, not legacy CSV provenance. GREEN/coordinated gate/native pending; see guild Last Online section.
+
+## 2026-10-19 — Last Online native acceptance
+
+gl728 landed protocol50517c9/server1a2f13fd4/engine51f1af4f8. Real peer disconnect→both-skin roster/detail recency, genuine reconnect→Online/Elwynn Forest, second disconnect→fresh server/client persisted readback accepted; six inspected unchanged original PNGs published. Historical original unchanged, owned actors/slice stopped, UDP5891 unbound and window cleared. [Exact evidence and automated/native boundaries](systems/guilds.md#last-online-native-acceptance-2026-10-19); no fabricated history or audio/clean-exit repair claim.

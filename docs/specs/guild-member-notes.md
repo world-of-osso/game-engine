@@ -35,7 +35,7 @@ Retail Mainline member details and public/officer notes in Modern and Forever. S
 
 - [x] Both-skin private5891 master/self/restart-readback: six physical native runs pass at engineaa77c226b, serverbd3a121e, protocol671fe2f; .so SHA256 prefixf06f87 is embedded in distinct skin-specific notes. Fourteen1920×1080 PNGs inspected in `/syncthing/AgentShared/2026-10-15/guild-completion/`: detail, public/officer input, removal confirmation, self privacy and restart readback in each skin. Note Escape and Remove No/Escape send nothing. Actual server process restarts preserve both note types.
 - [ ] Final merged-head checks. UI22/22 atbea14a77f covers notes/removal capture and cancellation; earlier actualUDP4 passes both note requests and public_note/is_self fields. Server guild11/11 at10c5d019 covers durable reopen/privacy/rank rights; later Guild Master migration fix has a separate targeted proof. Earlier --lib0-test invocation is not proof.
-- [ ] Source direct rank-assignment dropdown, online zone and elapsed-last-online metadata.
+- [x] Separately delivered contracts own [direct member-rank assignment](guild-ranks.md#direct-member-rank-assignment), [online zone](guild-ranks.md#online-member-zone) and [Last Online recency](guild-last-online.md); their proof boundaries are not inferred from the earlier note fixtures.
 
 ## Out of scope
 
