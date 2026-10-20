@@ -1,8 +1,9 @@
 //! M2 particle emitters drawn natively: one pooled `MultiMeshInstance3D` per identical
 //! emitter (model FDID, emitter index), simulated by the shared core
-//! `m2_particles` for every placement that is drawn and in view.
+//! `m2_particles` for every placement that is drawn and in view, and composited in
+//! authored (gamma) space by `particle_composite`.
 
-use std::{cell::RefCell, collections::HashMap, path::Path, rc::Rc, time::Duration};
+use std::{collections::HashMap, path::Path, rc::Rc, time::Duration};
 
 use game_engine_core::{
     m2::{self, ParticleEmitter},
@@ -11,87 +12,52 @@ use game_engine_core::{
 use glam::{Mat3, Mat4, Vec3};
 use godot::{
     classes::{
-        ArrayMesh, ImageTexture, MultiMesh, MultiMeshInstance3D, Node3D,
-        PhysicsRayQueryParameters3D, ResourceLoader, Shader, ShaderMaterial, Skeleton3D,
-        geometry_instance_3d::ShadowCastingSetting, mesh, multi_mesh::TransformFormat,
+        ImageTexture, MultiMesh, MultiMeshInstance3D, Node3D, PhysicsRayQueryParameters3D,
+        ShaderMaterial, Skeleton3D, geometry_instance_3d::ShadowCastingSetting,
+        multi_mesh::TransformFormat,
     },
     prelude::*,
 };
 
 use crate::animation::WowAnimationPlayer;
-use crate::assets::material::{shared_shader, shared_texture};
+use crate::assets::material::shared_texture;
 use crate::lighting::TerrainLight;
 use crate::particle_models::{GeometryParticles, ResolvedParticleModels};
 
 #[path = "particle_models_probe.rs"]
 mod models_probe;
 
-const SHADER_PATH: &str = "res://shaders/particle.gdshader";
-const RENDER_MODE: &str =
-    "render_mode unshaded, fog_disabled, cull_disabled, depth_draw_never, blend_add;";
-const ALPHA_OUTPUT: &str = "ALPHA = alpha;";
 /// Instances a pool may hold across all its placements; each costs 80 bytes of
 /// buffer, so a full pool is 320 KiB.
 pub(crate) const POOL_CAPACITY_CAP: usize = 4096;
 /// 12 transform + 4 colour + 4 custom floats per instance.
 const FLOATS_PER_INSTANCE: usize = 20;
 
-thread_local! {
-    static QUAD: RefCell<Option<Gd<ArrayMesh>>> = const { RefCell::new(None) };
-}
-
-/// Godot state of a particle blend type, after WebWowViewerCpp's
-/// `ParticleBlendingModeToEGxBlendEnum` (`particleEmitter.cpp:251-261`) and the same
-/// GL factors as M2 batches (`assets/material.rs`): the EGxBlend value and render mode.
-pub(crate) fn blend_state(blend_type: u8) -> (i32, &'static str) {
+/// The EGxBlend of a particle blend type, after WebWowViewerCpp's
+/// `ParticleBlendingModeToEGxBlendEnum` (`particleEmitter.cpp:251-261`); its GL
+/// factors are applied by `rendering/particle_composite_effect.gd`.
+pub(crate) fn gx_blend(blend_type: u8) -> i32 {
     match blend_type {
-        0 => (0, "blend_mix, depth_draw_opaque"),
-        1 => (1, "blend_mix, depth_draw_opaque"),
-        2 => (2, "blend_mix, depth_draw_never"),
-        3 => (10, "blend_add, depth_draw_never"),
-        4 => (3, "blend_add, depth_draw_never"),
-        5 => (4, "blend_mul, depth_draw_never"),
-        6 => (5, "blend_mul, depth_draw_never"),
-        7 => (13, "blend_premul_alpha, depth_draw_never"),
-        _ => (0, "blend_mix, depth_draw_opaque"),
+        1 => 1,
+        2 => 2,
+        3 => 10,
+        4 => 3,
+        5 => 4,
+        6 => 5,
+        7 => 13,
+        _ => 0,
     }
 }
 
-fn shader_variant(source: &str, blend_type: u8) -> Result<String, String> {
-    if source.matches(RENDER_MODE).count() != 1 || source.matches(ALPHA_OUTPUT).count() != 1 {
-        return Err("Expected one particle render_mode and alpha output".into());
-    }
-    let (_, blend) = blend_state(blend_type);
-    let variant = source.replace(
-        RENDER_MODE,
-        &format!("render_mode unshaded, fog_disabled, cull_disabled, {blend};"),
-    );
-    // Godot draws any material writing ALPHA in its transparent pass; opaque and
-    // alpha-key particles write depth and rely on the alpha test alone.
-    Ok(if m2_particles::writes_depth(blend_type) {
-        variant.replace(ALPHA_OUTPUT, "")
-    } else {
-        variant
-    })
-}
-
-/// The emitter's material: shader variant, textures and atlas/multitexture uniforms.
+/// The emitter's parameter set: textures and the atlas/multitexture/blend uniforms
+/// `particle_composite` hands to the compositor. A ShaderMaterial without a shader,
+/// so the scene fog binding (`TerrainLight::bind_scene_fog`) and fixtures address it
+/// as any material; Godot never draws it.
 pub(crate) fn particle_material(
     emitter: &ParticleEmitter,
     texture_dir: &Path,
 ) -> Result<Gd<ShaderMaterial>, String> {
-    let source = ResourceLoader::singleton()
-        .load(SHADER_PATH)
-        .ok_or_else(|| format!("Cannot load particle shader {SHADER_PATH}"))?
-        .try_cast::<Shader>()
-        .map_err(|_| format!("Particle shader {SHADER_PATH} has wrong resource type"))?
-        .get_code()
-        .to_string();
     let mut material = ShaderMaterial::new_gd();
-    material.set_shader(&shared_shader(&shader_variant(
-        &source,
-        emitter.blend_type,
-    )?));
     bind_textures(&mut material, emitter, texture_dir)?;
     bind_uniforms(&mut material, emitter)?;
     Ok(material)
@@ -126,7 +92,7 @@ fn bind_uniforms(
     material: &mut Gd<ShaderMaterial>,
     emitter: &ParticleEmitter,
 ) -> Result<(), String> {
-    let (gx_blend, _) = blend_state(emitter.blend_type);
+    let gx_blend = gx_blend(emitter.blend_type);
     let pixel_shader = match m2_particles::pixel_shader(emitter) {
         PixelShader::Mod => 0,
         PixelShader::TwoColorThreeAlpha => 1,
@@ -152,35 +118,6 @@ fn bind_uniforms(
         &m2_particles::alpha_test(emitter.blend_type).to_variant(),
     );
     Ok(())
-}
-
-pub(crate) fn clear_quad_mesh() {
-    QUAD.with_borrow_mut(Option::take);
-}
-
-/// The shared unit quad: corners (+-1, +-1) in the xy plane.
-fn quad_mesh() -> Gd<ArrayMesh> {
-    QUAD.with_borrow_mut(|quad| {
-        quad.get_or_insert_with(|| {
-            let mut arrays = VarArray::new();
-            arrays.resize(mesh::ArrayType::MAX.ord() as usize, &Variant::nil());
-            let corners = PackedVector3Array::from(
-                [(-1.0, 1.0), (-1.0, -1.0), (1.0, 1.0), (1.0, -1.0)]
-                    .map(|(x, y)| Vector3::new(x, y, 0.0))
-                    .as_slice(),
-            );
-            let indices = PackedInt32Array::from([0, 1, 2, 2, 1, 3].as_slice());
-            arrays.set(
-                mesh::ArrayType::VERTEX.ord() as usize,
-                &corners.to_variant(),
-            );
-            arrays.set(mesh::ArrayType::INDEX.ord() as usize, &indices.to_variant());
-            let mut mesh = ArrayMesh::new_gd();
-            mesh.add_surface_from_arrays(mesh::PrimitiveType::TRIANGLES, &arrays);
-            mesh
-        })
-        .clone()
-    })
 }
 
 /// Writes `quad` faded by `fade` as one instance of the MultiMesh buffer layout.
@@ -229,11 +166,12 @@ pub(crate) struct ParticlePool {
 
 impl ParticlePool {
     pub fn new(name: &str, material: &Gd<ShaderMaterial>) -> Self {
+        // No mesh: the instances are the compositor's input
+        // (`particle_composite`), never drawn by Godot.
         let mut multimesh = MultiMesh::new_gd();
         multimesh.set_transform_format(TransformFormat::TRANSFORM_3D);
         multimesh.set_use_colors(true);
         multimesh.set_use_custom_data(true);
-        multimesh.set_mesh(&quad_mesh());
         let mut node = MultiMeshInstance3D::new_alloc();
         node.set_name(name);
         node.set_multimesh(&multimesh);
@@ -301,6 +239,7 @@ impl ParticlePool {
             .set_buffer(&PackedFloat32Array::from(self.buffer.as_slice()));
         self.multimesh.set_visible_instance_count(self.count as i32);
         self.uploaded = self.count;
+        crate::particle_composite::publish(&self.node, &self.material, &self.buffer, self.count);
     }
 }
 

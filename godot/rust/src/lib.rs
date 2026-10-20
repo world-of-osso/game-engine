@@ -81,6 +81,7 @@ mod nameplates;
 #[path = "game/creatures/npc_gear_data.rs"]
 pub mod npc_gear_data;
 mod objective_tracker;
+mod particle_composite;
 mod particle_debug;
 mod particle_models;
 mod particles;
@@ -219,7 +220,7 @@ unsafe impl ExtensionLibrary for GameEngineExtension {
             shader_warmup::clear();
             assets::clear_shared_meshes();
             wmo::scene::clear_shaders();
-            particles::clear_quad_mesh();
+            particle_composite::clear();
         }
     }
 }
