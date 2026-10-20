@@ -70,18 +70,18 @@ func check_panel(panel: Dictionary, forever: bool, output: String) -> bool:
 	if not error.is_empty():
 		failures.append(panel.name + ": " + error)
 	await frames(8)
-	if not panel.hover.is_empty():
-		var target := owner.find_child(panel.hover, true, false) as Control
-		if target == null or not target.is_visible_in_tree():
-			failures.append(panel.name + " missing visible hover owner " + panel.hover)
-		else:
-			# Standard signal/input queue, never a registry or material override.
-			target.emit_signal("mouse_entered")
-			error = owner.call("sync_input")
-			if not error.is_empty():
-				failures.append(panel.name + " hover: " + error)
-	await frames(4)
 	var modes: Array = []
+	if panel.name == "HousingStorageBasic":
+		hover_control(owner, "HouseEditorBasicDecorModeButton", true)
+		await frames(4)
+		await wait_for_art(owner, [["HouseEditorBasicDecorModeButtonHover", true]])
+		check_region(owner, "HouseEditorBasicDecorModeButtonHover", true, modes)
+		hover_control(owner, "HouseEditorBasicDecorModeButton", false)
+		await frames(4)
+	if not panel.hover.is_empty():
+		hover_control(owner, panel.hover, true)
+	await frames(4)
+	await wait_for_art(owner, panel.regions)
 	for region in panel.regions:
 		check_region(owner, region[0], region[1], modes)
 	await RenderingServer.frame_post_draw
@@ -94,9 +94,34 @@ func check_panel(panel: Dictionary, forever: bool, output: String) -> bool:
 	await frames(2)
 	return failures.size() == before
 
+func hover_control(owner: Node, name: String, entering: bool) -> void:
+	var target := owner.find_child(name, true, false) as Control
+	if target == null or not target.is_visible_in_tree():
+		failures.append("missing visible hover owner " + name)
+		return
+	# Standard signal/input queue, never a registry or material override.
+	target.emit_signal("mouse_entered" if entering else "mouse_exited")
+	var error: String = owner.call("sync_input")
+	if not error.is_empty():
+		failures.append(name + " hover: " + error)
+
+func wait_for_art(owner: Node, regions: Array) -> void:
+	var deadline := Time.get_ticks_msec() + 30000
+	while Time.get_ticks_msec() < deadline:
+		var ready := true
+		for expected in regions:
+			var region: Node = owner.find_child(expected[0], true, false)
+			var parts: Node = region.get_node_or_null("Parts") if region != null else null
+			var last: Node = parts.get_child(parts.get_child_count() - 1) if parts != null and parts.get_child_count() > 0 else null
+			if not last is TextureRect or last.texture == null:
+				ready = false
+		if ready:
+			return
+		await process_frame
+
 func check_region(owner: Node, name: String, additive: bool, modes: Array) -> void:
 	var region := owner.find_child(name, true, false) as Control
-	if region == null or not region.is_visible_in_tree():
+	if region == null or not region.is_visible_in_tree() or region.modulate.a <= 0.0:
 		failures.append("missing visible region " + name)
 		return
 	var parts := region.get_node_or_null("Parts")
@@ -104,9 +129,14 @@ func check_region(owner: Node, name: String, additive: bool, modes: Array) -> vo
 		failures.append("missing projected art " + name)
 		return
 	var part := parts.get_child(parts.get_child_count() - 1) as CanvasItem
+	if not part is TextureRect or part.texture == null:
+		failures.append("unloaded projected artwork " + name)
+		return
 	var material := part.material
 	if material is ShaderMaterial:
-		# Masked cast FX require raster inspection; model/projection tests prove mode.
+		# Only these masked cast FX use model/projection mode proof plus raster inspection.
+		if name not in ["CastingBarFlash", "CastingBarEnergyGlow"]:
+			failures.append(name + " unexpected shader; material mode unverified")
 		modes.append({"region": name, "material": "masked shader; inspect capture", "expected_add": additive})
 		return
 	var actual := material is CanvasItemMaterial and material.blend_mode == CanvasItemMaterial.BLEND_MODE_ADD
