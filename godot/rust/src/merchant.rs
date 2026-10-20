@@ -822,7 +822,7 @@ fn crafting_origin_state(origin: Option<shared::protocol::CraftingOrigin>) -> Va
         .crafting_quality_id
         .map(|id| i64::from(id).to_variant())
         .unwrap_or_else(Variant::nil);
-    state.set("crafting_quality_id", quality);
+    state.set("crafting_quality_id", &quality);
     state.to_variant()
 }
 
@@ -838,7 +838,7 @@ fn equipment_items(inventory: &game_engine_ui_model::bag_data::InventoryState) -
             entry.set("item_guid", item.item_guid as i64);
             entry.set(
                 "crafting_origin",
-                crafting_origin_state(item.crafting_origin),
+                &crafting_origin_state(item.crafting_origin),
             );
             entry.set("count", i64::from(item.count));
             entry.set("name", item.name.as_str());
@@ -863,7 +863,7 @@ fn bag_items(inventory: &game_engine_ui_model::bag_data::InventoryState) -> VarA
             entry.set("item_guid", item.item_guid as i64);
             entry.set(
                 "crafting_origin",
-                crafting_origin_state(item.crafting_origin),
+                &crafting_origin_state(item.crafting_origin),
             );
             entry.set("item_id", i64::from(item.item_id));
             entry.set("name", item.name.as_str());
