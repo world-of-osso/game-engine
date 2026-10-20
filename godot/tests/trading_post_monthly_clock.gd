@@ -132,6 +132,8 @@ func readback_cases() -> bool:
 	if not completion.step(await open_vendor(), "reopen authentic vendor"): return false
 	if not completion.require(int(client.trading_post_state().items) == 1 and int(client.trading_post_state().frozen) == reserved, "reopen cannot reintroduce an expired ordinary list"): return false
 	if not completion.step(await capture_case("reopen-frozen-only"), "reopen membership"): return false
+	if not completion.step(await checked_click("PerksProgramFrozenSlot"), "select real retained frozen item"): return false
+	if not completion.step(await wait_until(func(): return int(client.trading_post_state().selected) == reserved, "retained frozen selection"), "frozen item exposes selected-item ownership"): return false
 	if not completion.require(int(client.trading_post_state().tender) == int(before.tender) and not client.trading_post_state().purchased, "read-only reopen preserves wallet and ownership"): return false
 	if not completion.step(await capture_case("reopen-conservation"), "reopen conservation"): return false
 	return await leave_case("final-leave-restores-hud")
