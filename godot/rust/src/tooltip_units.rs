@@ -109,7 +109,7 @@ impl GameClient {
 
     /// The unit of the nameplate under the pointer nearest the camera (Bevy
     /// `NameplatePicker`): plates come before the unit models behind them.
-    fn nameplate_at(&self, camera: &Gd<Camera3D>, pointer: Vector2) -> Option<u64> {
+    pub(crate) fn nameplate_at(&self, camera: &Gd<Camera3D>, pointer: Vector2) -> Option<u64> {
         let eye = camera.get_global_position();
         self.nameplates
             .plate_rects()

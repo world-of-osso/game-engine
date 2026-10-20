@@ -9,11 +9,11 @@ func _initialize() -> void:
 	call_deferred("live_run")
 func live_run() -> void:
 	var endpoint := OS.get_environment("ARENA_ENDPOINT")
-	if not endpoint.begins_with("127.0.0.1:") or endpoint.get_slice(":", 1) != "5786":
-		fail("Arena proof requires private UDP5786")
+	if not endpoint.begins_with("127.0.0.1:") or endpoint.get_slice(":", 1) != "5941":
+		fail("Arena proof requires private UDP5941")
 		return
 	directory = OS.get_environment("ARENA_DIRECTORY")
-	root.size = Vector2i(1280, 720)
+	root.size = Vector2i(1920, 1080)
 	client = load("res://scenes/client.tscn").instantiate()
 	root.add_child(client)
 	var last := ""

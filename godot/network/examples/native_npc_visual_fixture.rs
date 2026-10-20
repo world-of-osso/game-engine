@@ -25,7 +25,7 @@ use shared::{
     },
     protocol::{
         AuthChannel, CharacterListEntry, EnterWorldResponse, LoadTerrain, LoginRequest,
-        LoginResponse, SelectCharacter, TerrainChannel,
+        LoginResponse, SelectCharacter, SetTarget, TerrainChannel,
     },
 };
 
@@ -38,6 +38,8 @@ mod authored_textures;
 mod fixture_data;
 #[path = "native_npc_visual_fixture/nameplate_casts.rs"]
 mod nameplate_casts;
+#[path = "native_npc_visual_fixture/nameplate_clicks.rs"]
+mod nameplate_clicks;
 #[path = "native_npc_visual_fixture/skyborne_profiles.rs"]
 mod skyborne_profiles;
 
@@ -54,12 +56,14 @@ const TYPE19_EFFECT_NPC: &str = "Fixture Type19 Effect";
 struct Incoming {
     logins: Vec<(Entity, LoginRequest)>,
     selections: Vec<(Entity, SelectCharacter)>,
+    targets: Vec<(Entity, SetTarget)>,
     selected_link: Option<Entity>,
 }
 
 fn receive_requests(
     mut logins: Query<(Entity, &mut MessageReceiver<LoginRequest>)>,
     mut selections: Query<(Entity, &mut MessageReceiver<SelectCharacter>)>,
+    mut targets: Query<(Entity, &mut MessageReceiver<SetTarget>)>,
     mut incoming: ResMut<Incoming>,
 ) {
     for (link, mut receiver) in &mut logins {
@@ -70,6 +74,11 @@ fn receive_requests(
     for (link, mut receiver) in &mut selections {
         incoming
             .selections
+            .extend(receiver.receive().map(|request| (link, request)));
+    }
+    for (link, mut receiver) in &mut targets {
+        incoming
+            .targets
             .extend(receiver.receive().map(|request| (link, request)));
     }
 }
@@ -123,17 +132,25 @@ struct FixtureProject {
 }
 
 impl FixtureProject {
-    fn create(nameplates: bool) -> Result<Self, String> {
+    fn create(nameplates: bool, private_click: bool) -> Result<Self, String> {
         let checkout = fixture_support::checkout_root_from_executable("native_npc_visual_fixture")?;
         let repo = checkout.as_path();
         let source = repo.join("godot");
         // This subtree is untracked and disposable; res://../data is only this fixture's data.
         let authored_data = fs::canonicalize(repo.join("data/cache"))
             .map_err(|error| format!("Locate authored data cache: {error}"))?;
-        let root = authored_data
-            .parent()
-            .ok_or("Authored cache has no data parent")?
-            .join(format!("native-npc-fixture-{}", std::process::id()));
+        let root =
+            if private_click {
+                PathBuf::from(std::env::var_os("GODOT_NAMEPLATE_CLICK_PROOF").ok_or(
+                    "Click fixture requires an owned GODOT_NAMEPLATE_CLICK_PROOF directory",
+                )?)
+                .join(format!("runtime-{}", std::process::id()))
+            } else {
+                authored_data
+                    .parent()
+                    .ok_or("Authored cache has no data parent")?
+                    .join(format!("native-npc-fixture-{}", std::process::id()))
+            };
         let project = root.join("godot");
         let data = root.join("data");
         for folder in [
@@ -370,7 +387,7 @@ fn stage_npc_appearance(data: &Path) -> Result<(), String> {
     .map_err(|error| format!("Write fixture race-model CSV: {error}"))?;
     fs::write(
         retail.join("ChrRaces.csv"),
-        "ID,UnalteredVisualRaceID\n1,0\n2,0\n",
+        "ID,Name_lang,UnalteredVisualRaceID\n1,Human,0\n2,Orc,0\n",
     )
     .map_err(|error| format!("Write fixture races CSV: {error}"))?;
     // Every fixture option and choice is ungated (requirement 0).
@@ -550,6 +567,7 @@ enum Mode {
     AuthoredTextures,
     Nameplates,
     NameplateCasts,
+    NameplateClick { rendered: bool },
     Skyborne,
 }
 
@@ -560,7 +578,7 @@ fn launch_godot(
 ) -> (FixtureChild, Receiver<String>, Vec<thread::JoinHandle<()>>) {
     let binary = std::env::var("GODOT_BIN").expect("GODOT_BIN must name the fixture executable");
     let mut command = Command::new(binary);
-    if mode != Mode::Skyborne {
+    if mode != Mode::Skyborne && !matches!(mode, Mode::NameplateClick { rendered: true }) {
         command.arg("--headless");
     }
     let mut child = FixtureChild::spawn(
@@ -575,6 +593,7 @@ fn launch_godot(
                     Mode::Skyborne => "res://tests/world_skyborne_npc_profiles.gd",
                     Mode::Nameplates => "res://tests/world_nameplate_options_flow.gd",
                     Mode::NameplateCasts => "res://tests/world_nameplate_casts_flow.gd",
+                    Mode::NameplateClick { .. } => "res://tests/world_nameplate_click_flow.gd",
                 },
             ])
             .env("GODOT_TEST_SERVER", address.to_string())
@@ -1055,6 +1074,11 @@ fn read_nameplate_fixture_output(
             return Err(format!("Native nameplate fixture setup: {line}"));
         }
         if let (Some(player), Some(npc)) = (*player, npc)
+            && nameplate_clicks::apply_control(app, line.trim(), player, npc)?
+        {
+            continue;
+        }
+        if let (Some(player), Some(npc)) = (*player, npc)
             && nameplate_casts::step(app, line.trim(), player, npc)?
         {
             continue;
@@ -1087,6 +1111,12 @@ fn read_nameplate_fixture_output(
                     "PASS: server CastState, SpellFailure and SpellGo drive the enemy nameplate cast bar"
                 );
             }
+            "FIXTURE NAMEPLATE_CLICK_DONE" => {
+                *completed = true;
+                println!(
+                    "PASS: untargeted visible plate selects its owner through physical input and wire echo"
+                );
+            }
             "FIXTURE NAMEPLATE_OPTIONS_DONE" => {
                 *completed = true;
                 println!(
@@ -1100,6 +1130,7 @@ fn read_nameplate_fixture_output(
 }
 
 fn run_nameplate_fixture(
+    mode: Mode,
     app: &mut App,
     child: &mut Child,
     lines: Receiver<String>,
@@ -1117,7 +1148,15 @@ fn run_nameplate_fixture(
         respond_to_selection(app, &mut player, &mut npc)?;
         if !ready && let (Some(player), Some(npc)) = (player, npc) {
             populate_nameplate_units(app, player, npc);
+            if matches!(mode, Mode::NameplateClick { .. }) {
+                nameplate_clicks::prepare(app, player, npc);
+            }
             ready = true;
+        }
+        if matches!(mode, Mode::NameplateClick { .. })
+            && let Some(player) = player
+        {
+            nameplate_clicks::echo_targets(app, player)?;
         }
         let status = child.try_wait().map_err(|error| error.to_string())?;
         if status.is_some() {
@@ -1146,10 +1185,14 @@ fn main() {
         Some("authored-textures") => Mode::AuthoredTextures,
         Some("nameplates") => Mode::Nameplates,
         Some("nameplate-casts") => Mode::NameplateCasts,
+        Some("nameplate-click") => Mode::NameplateClick { rendered: false },
+        Some("nameplate-click-rendered") => Mode::NameplateClick { rendered: true },
         Some("skyborne") => Mode::Skyborne,
         Some(other) => panic!("Unknown fixture mode: {other}"),
     };
-    let project = FixtureProject::create(matches!(mode, Mode::Nameplates | Mode::NameplateCasts))
+    let click = matches!(mode, Mode::NameplateClick { .. });
+    let nameplates = click || matches!(mode, Mode::Nameplates | Mode::NameplateCasts);
+    let project = FixtureProject::create(nameplates, click)
         .expect("stage isolated fixture data and Godot project");
     if mode == Mode::AuthoredTextures {
         authored_textures::stage(&project).expect("stage real NPC texture oracle");
@@ -1160,12 +1203,15 @@ fn main() {
     }
     let (mut app, address) = start_server();
     println!("FIXTURE ENDPOINT {address}");
+    if click {
+        nameplate_clicks::seed_layout(&project, address).expect("seed owned click-fixture layout");
+    }
     let (mut child, lines, reader) = launch_godot(&project.project, address, mode);
     let result = match mode {
         Mode::Visual => run_fixture(&mut app, &mut child, lines, reader),
         Mode::AuthoredTextures => authored_textures::run(&mut app, &mut child, lines, reader),
         Mode::Skyborne => skyborne_profiles::run(&mut app, &mut child, lines, reader),
-        _ => run_nameplate_fixture(&mut app, &mut child, lines, reader),
+        _ => run_nameplate_fixture(mode, &mut app, &mut child, lines, reader),
     };
     if mode == Mode::AuthoredTextures {
         authored_textures::persist_artifacts(&project).expect("preserve authored texture captures");
