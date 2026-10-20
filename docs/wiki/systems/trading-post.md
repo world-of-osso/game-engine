@@ -5,9 +5,15 @@ Native Retail Mainline `Blizzard_PerksProgram` vendor and Traveler's Log Tender.
 ## Flow
 
 1. Authentic capital NPCs (Stormwind Tawny/Wilder Seabraid 185468/185467, Dornogal 219243/219244) carry the sourced NPCFlags2 Trading Post bit; their TDB gossip option `OptionNpc=47` opens `NpcRole::TradingPost`. `merchant.rs` routes that interaction to `open_trading_post`, which sends `TradingPostRequest::Query`.
-2. The server snapshot carries Tender, points, thresholds, the frozen item and all 1321 sourced vendor rows; rows with unreadable metadata or unbound grants have `grant_unavailable`.
+2. The server snapshot carries Tender, points, thresholds, the frozen item and the server-authorized current monthly list plus its frozen-item row; rows with unreadable metadata or unbound grants have `grant_unavailable`. Monthly membership is the explicit news BEST_GUESS policy in the [server spec](../../../../game-server/docs/specs/trading-post.md#monthly-inventory-source-policy-lead-decision-2026-10-19), not a verified Retail DB2 calendar relation.
 3. `godot/ui-model/src/trading_post.rs` renders the list, `PerksProgramFilter` dropdown, details, ToyOverlay (category 5), frozen slot and confirmation. `godot/rust/src/trading_post.rs` owns input, the detached preview and requests. Purchase, freeze and refund are server decisions; the client never debits locally.
 4. While open, every other client `CanvasLayer` except `GameTooltipUI` is hidden: Retail registers `PerksProgramFrame` with `UIPanelWindows` area `full`, and `UIParentPanelManager` hides UIParent for fullscreen panels. The world stays visible behind the gradients. Non-owning InstanceIds track hidden layers; Close resolves and restores only still-live owners. Collection UI may remove/recreate a layer during checkout. Caching Gd handles and comparing them in Vec::contains called instance_id on a destroyed CanvasLayer: controlled free→replace at the native process boundary reproduced that exact panic/backtrace (`cart-forever-layer-lifetime-red.log`). This is an identity/lifetime fix, not a guard over stale Gd references.
+
+## Server-driven monthly countdown
+
+`godot/ui-model/src/trading_post_clock.rs` subtracts `View.refund_elapsed` (monotonic seconds since snapshot receipt) from authoritative `month_end_unix - now_unix`. The existing native snapshot `Instant` drives the clock; no client wall clock or local calendar participates. `advance_server_clock` returns a Query once per expired month-end boundary, and the native Trading Post adapter sends it. Same-boundary partial replies cannot trigger frame-by-frame requery; a new full snapshot supplies the new item set and next boundary.
+
+The ordinary Time label uses Retail Elements.xml340–345's42×38 rectangle at PriceIcon.RIGHT+30. Elements.lua291–328 swaps it for the cart toggle on cartable hover,354–366 selects purchased/zero-duration text; PerksProgram.lua476–480/574–585 defines the red-one-hour threshold and one-unit/minimum-minute floor formatter. Installed GlobalStrings51514/51986 supply gray `--`. Frozen row rendering remains countdown-free. The [spec](../../specs/trading-post.md#server-driven-monthly-time-column) keeps both-skin native proof separate from CPU registry/model evidence; no product-name colours, wire fields, calendar policy or cart/preview ownership change.
 
 ## Committed frozen selected-texture ADD compositing
 

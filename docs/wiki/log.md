@@ -1,3 +1,7 @@
+## 2026-10-19 — Server-driven Trading Post monthly clock
+
+[Clock/source boundary](systems/trading-post.md#server-driven-monthly-countdown): ignored both-skin registry REDs pushed first, then genuine missing Time label reproduced; server timestamps plus existing monotonic elapsed now feed the Retail one-unit Time column and one Query per expired boundary. Model/registry GREEN and native proof remain distinct; no name-colour edits, local calendar, wire field or client-owned membership.
+
 ## 2026-10-19 — Profession search magnifier accepted
 
 [Source, implementation and native proof](systems/native-professions-crafting.md#recipe-search-magnifier): ignored screen RED12×12→source10×10, focused/query tint RGB0.6/1; targeted GREEN3/3 and pm700 landed00afe30a7. Exact E00afe/S46d5/Pb3 both-skin1920 native fourstates+Clear passes numeric anchors, painted brightening/exact restore and selection/Favorites/filter/gameplay conservation. Ten inspected PNG originals published; native error streams empty, known warnings and separate editor-import errors retained. Lead inspected Modern-2/Forever-5 and accepted. Owned runtime/window cleared; operation/concentration-origin/recraft gaps unchanged.

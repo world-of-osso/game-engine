@@ -1,18 +1,25 @@
 # Trading Post
 
-Retail Mainline Blizzard_PerksProgram and the local C_PerksProgram/PerksActivities API documentation define the vendor and Traveler's Log. Forever changes art only. All catalog rows derive from local CASC Retail 12.1.0.69933, with exact layout validation; no invented items, prices, availability or monthly rotations.
+Retail Mainline Blizzard_PerksProgram and the local C_PerksProgram/PerksActivities API documentation define the vendor and Traveler's Log. Forever changes art only. Authored catalog metadata follows the installed local CASC build. Monthly membership is the explicit server-owned `TP_MONTHLY_CATALOG_WOWHEAD_NEWS_BEST_GUESS` exception, not a verified DB2 calendar join or Retail-parity claim; see the [server source policy](../../../game-server/docs/specs/trading-post.md#monthly-inventory-source-policy-lead-decision-2026-10-19).
 
 ## What it must do
 
 - [x] Decode authored categories, vendor items/prices, preview/UI group metadata and interval relations; retain unreadable counts and schema/DB2 provenance. Prepare SQL without writing world.db.
 - [x] Track supported authored activity criteria through real gameplay events, account-wide, without historical login credit; retain unsupported criteria/conditions as named gaps.
 - [x] Reset the Log and monthly Tender award cap at 00:00 UTC on each calendar month's first day, using the injectable server clock. Earn each sourced default group1 threshold once per account/month (lead policy October12). Preserve earned Tender, collection ownership and a frozen item across rollover.
-- [x] Offer all sourced catalog rows unless an authored availability field can be verified; honor authored categories/UI groups. Unknown interval/calendar binding remains a named gap, not a fabricated rotation.
+- [x] Honor authored categories/UI groups and the server's complete current-month catalog replacement, including its frozen-item row. Monthly membership comes only from the approved server policy; unknown activity/calendar binding remains a named gap.
 - [x] Vendor requests require an authentic capital NPC interaction and server-authoritative Tender balance. Purchases grant existing account collections atomically and persist across relog; one frozen vendor item survives rollover.
 - [x] Refund requests are server-authoritative, policy-duration bounded and reverse only grants introduced by that purchase. Default policy duration is zero because no sourced duration exists (lead decision October12); Retail refund UI remains disabled.
 - [x] Shared native full-screen vendor, PerksProgramFilter category dropdown, scrollable authored item list, transmog/mount/pet3D MainModelScene and Retail ToyOverlayFrame icon/details, purchase confirmation, ordinary drag-to-freeze/replacement and server-time-controlled refund. Both skins share layout/behaviour. Lead clarified October12: Retail source takes precedence over PLAN's shorthand 'category tabs'/'3D toys'.
 - [x] Traveler's Log displays authoritative monthly Tender earned/cap/balance. No invented mail awards. Retail XML defines visible controls; remove unsourced vendor SearchBox, Log/Collections and Freeze/Unfreeze buttons (lead clarification October13).
 - [x] Targeted behavioural tests and inspected private UDP5731 fb_* account PNG proof in Modern and Forever.
+
+## Server-driven monthly Time column
+
+- [ ] Ordinary rows show the remaining monthly duration from server `month_end_unix - now_unix`, minus monotonic time since receiving that snapshot. Retail `TimeLeftListFormatter` uses one abbreviated unit, floors values and stops at minutes; white above one hour, red at/below one hour. Purchased/zero-duration text is the sourced gray `--`; committed frozen rows do not show a countdown.
+- [ ] Use existing Retail TimeRemaining geometry:42×38 at PriceIcon.RIGHT+30, centered, with the cart toggle taking its place on cartable hover. Do not alter product-name colours or cart/frozen ownership.
+- [ ] At expiration, send one `TradingPostRequest::Query` per expired server month-end boundary, not every frame. Same-boundary replies do not re-arm it; a fresh full snapshot replaces expired rows and arms the next boundary. No local calendar, wall-clock dependence, wire change or client-invented monthly catalog.
+- [ ] Both-skin native countdown/open-window rollover proof follows landing; registry/model tests do not substitute for that proof.
 
 ## Committed frozen selected-texture ADD compositing
 
