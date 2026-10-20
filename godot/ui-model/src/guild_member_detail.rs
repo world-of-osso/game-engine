@@ -459,6 +459,73 @@ pub fn removal_confirmation(session: &GuildRanksSession) -> Element {
     style: "static_popup", mouse_enabled: true, {children} } }
 }
 
+pub fn leadership_confirmation(session: &GuildRanksSession) -> Element {
+    let Some(name) = session.leadership_target.as_deref() else {
+        return vec![];
+    };
+    // GameDialog.lua: padding16, text→two buttons9, buttons128×21.
+    // CONFIRM_GUILD_PROMOTE has no fullScreenCover flag.
+    let (prompt, text_height) = render_leadership_prompt(name);
+    let button_top = 16.0 + text_height + 9.0;
+    let height = button_top + 21.0 + 16.0;
+    let mut children = rsx! { texture { name: "GuildLeadershipTransferBackground", texture_fdid: 6839810,
+    left: 7.0, top: 7.0, width: 306.0, height: {height - 14.0}, pos_type: "absolute", draw_layer: "BACKGROUND" } };
+    children.extend(prompt);
+    children.extend(render_leadership_buttons(
+        button_top,
+        session.awaiting_state,
+    ));
+    rsx! { r#frame { name: "GuildLeadershipTransferPopup", width: 320.0, height,
+    left: "50%", top: 135.0, translate_x: "-50%", pos_type: "absolute",
+    strata: FrameStrata::Dialog, frame_level: 1100.0,
+    style: "static_popup", mouse_enabled: true, {children} } }
+}
+
+fn render_leadership_prompt(name: &str) -> (Element, f32) {
+    const TEXT_WIDTH: f32 = 290.0;
+    const TEXT_SIZE: f32 = 12.0;
+    let prompt = format!("Really promote {name} to Guildmaster?");
+    let line_height = ui_toolkit::text_measure::measure_text(
+        &prompt,
+        crate::ui::widgets::font_string::GameFont::FrizQuadrata,
+        TEXT_SIZE,
+    )
+    .expect("Guild leadership dialog font is loaded")
+    .1;
+    let text_height =
+        crate::quest_art::wrapped_line_count(&prompt, TEXT_WIDTH, TEXT_SIZE) as f32 * line_height;
+    let contents = label(
+        "GuildLeadershipTransferPopupText".into(),
+        &prompt,
+        (15.0, 16.0, TEXT_WIDTH, text_height),
+        (TEXT_SIZE, "1,1,1,1", "CENTER"),
+    );
+    (contents, text_height)
+}
+
+fn render_leadership_buttons(top: f32, awaiting: bool) -> Element {
+    [
+        (
+            "Accept",
+            "guild:transfer_leadership_confirm",
+            27.0,
+            !awaiting,
+        ),
+        ("Cancel", "guild:transfer_leadership_cancel", 165.0, true),
+    ]
+    .into_iter()
+    .flat_map(|(caption, action, x, enabled)| {
+        panel_button(
+            format!("GuildLeadershipTransfer{caption}"),
+            caption,
+            action,
+            enabled,
+            (x, top, 128.0, 21.0),
+        )
+    })
+    .collect()
+}
+
 pub fn editor(session: &GuildRanksSession) -> Element {
     let Some((_, officer)) = session.note_editor.as_ref() else {
         return vec![];

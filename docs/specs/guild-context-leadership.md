@@ -33,7 +33,7 @@ Mainline UnitPopupSharedMenus.lua257–286 and UnitPopupSharedButtonMixins.lua88
 
 ## Known gaps (current cycle)
 
-- [ ] Ignored behavioral tests/spec pushed first, actual missing-menu/confirmation/dismissal RED before production, committed minimal GREEN, enabled proven tests and independent gate.
+- [ ] Ignored tests/spec were pushed before actual behavior RED4 atcf4ccddb2 (40.92s compile/0.11s tests/no warnings): missing sourced menu, captured popup/text and Escape dismissal. Earlier dimension/Val fixture errors and stale pre-tc765 consumer compile failures are setup only, never behavior RED. Minimal UI/reducer implementation now awaits committed focused GREEN, enabled proofs and independent gate.
 - [ ] After gate/landing: exact-cohort/startup and granted private-copy/window, real authenticated two-member both-skin physical Cancel/Escape/Accept and authoritative refresh. Model snapshots are not native guild proof.
 
 ## Out of scope
