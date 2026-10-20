@@ -109,7 +109,7 @@ func purchase_return_case() -> bool:
 	if not await until(func(): return control("PerksProgramSlowPurchaseDialog") == null and control("PerksProgramConfirmDialog") == null,"Return dismisses notice"): return false
 	if not gate.require(client.trading_post_state().open and not client.trading_post_state().pending,"Return keeps vendor and releases modal"): return false
 	if not gate.require(FileAccess.file_exists(hold.path_join("held")) and int(client.trading_post_state().tender) == tender,"Return does not cancel or commit server work"): return false
-	if not await checkpoint("purchase-returned-held"): return false
+	if not await checkpoint("purchase-returned-held",2): return false
 	if not await release_and_wait(): return false
 	if not await until(func(): return client.trading_post_state().purchased and int(client.trading_post_state().tender) == tender-price,"released purchase commits",30000): return false
 	if not await never_slow(0.5,"no notice after released purchase"): return false
@@ -135,7 +135,7 @@ func checkout_escape_case() -> bool:
 	if not gate.require(now.open and not now.pending and int(now.tender) == tender,"Escape keeps vendor without commit"): return false
 	if not gate.require(client.character_frame_state().open,"Escape does not close hidden character frame"): return false
 	if not gate.require(FileAccess.file_exists(hold.path_join("held")),"Escape does not cancel server checkout"): return false
-	if not await checkpoint("checkout-escaped-held"): return false
+	if not await checkpoint("checkout-escaped-held",2): return false
 	if not await release_and_wait(): return false
 	if not await until(func(): return int(client.trading_post_state().tender) == tender-total,"released checkout commits",30000): return false
 	if not await never_slow(0.5,"no notice after released checkout"): return false
@@ -250,7 +250,7 @@ func assert_slow_notice(label: String, request: Dictionary, tender: int, purchas
 	var now: Dictionary = client.trading_post_state()
 	if not gate.require(now.pending and int(now.tender) == tender and bool(now.purchased) == purchased and FileAccess.file_exists(hold.path_join("held")),label+" notice leaves authority held"): return false
 	if not write_receipt(label+"-timing",timing): return false
-	return await checkpoint(label)
+	return await checkpoint(label,2)
 
 func release_and_wait() -> bool:
 	var file := FileAccess.open(hold.path_join("release"),FileAccess.WRITE)
@@ -304,8 +304,9 @@ func sorted_appearances() -> Array:
 	values.sort()
 	return values
 
-func checkpoint(label: String) -> bool:
-	await frames(30)
+## Held-state captures settle briefly so release stays inside the server's 30s hold bound.
+func checkpoint(label: String, settle: int = 30) -> bool:
+	await frames(settle)
 	var position: Vector3 = client.account_state().local_player_position
 	if not gate.require(position.distance_to(origin) < 0.0001,"native input must not move world"): return false
 	checkpoints.append({"label":label,"at":Time.get_ticks_usec(),"state":client.trading_post_state(),"character_frame":client.character_frame_state().open,"hold":hold_markers(),"position":[position.x,position.y,position.z],"world_delta":position.distance_to(origin)})
