@@ -289,8 +289,20 @@ func kick_owned_account() -> bool:
 	return gate.require(int(reply.code) == 0,"bounded private owned-account kick")
 
 func select(id: int) -> bool:
-	if int(client.trading_post_state().selected) != id:
+	if int(client.trading_post_state().selected) == id: return true
+	if client.trading_post_state().cart_visible:
+		if not await click_checked("PerksProgramCartCloseButton"): return false
+		if not await until(func(): return not client.trading_post_state().cart_visible,"cart closed"): return false
+	if control("PerksProgramProduct%d" % id) != null:
 		if not await click_checked("PerksProgramProduct%d" % id): return false
+	else:
+		# Purchased rows can sit outside the virtualized page; real Up/Down reveals them.
+		for key in [KEY_DOWN,KEY_UP]:
+			for step in range(40):
+				var before := int(client.trading_post_state().selected)
+				if before == id: break
+				await tap(key,1)
+				if int(client.trading_post_state().selected) == before: break
 	return await until(func(): return int(client.trading_post_state().selected) == id,"select %d" % id)
 
 func hold_markers() -> PackedStringArray:
@@ -386,7 +398,7 @@ func motion(point: Vector2) -> void:
 	Input.parse_input_event(event)
 	await process_frame
 
-func tap(key: Key) -> void:
+func tap(key: Key, settle: int = 5) -> void:
 	for down in [true,false]:
 		var event := InputEventKey.new()
 		event.keycode = key
@@ -394,7 +406,7 @@ func tap(key: Key) -> void:
 		event.pressed = down
 		root.push_input(event,true)
 		await process_frame
-	await frames(5)
+	await frames(settle)
 
 func frames(count: int) -> void:
 	for frame in range(count): await process_frame
