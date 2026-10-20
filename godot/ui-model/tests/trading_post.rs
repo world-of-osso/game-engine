@@ -3422,7 +3422,7 @@ fn trading_post_query_reply_keeps_pending_purchase_owner_until_purchase_reply() 
         let frame = registry
             .get(registry.get_by_name("PerksProgramConfirmButton").unwrap())
             .unwrap();
-        let WidgetData::Button(button) = &frame.widget_data else {
+        let Some(WidgetData::Button(button)) = &frame.widget_data else {
             panic!("Purchase confirmation button");
         };
         assert_eq!(
