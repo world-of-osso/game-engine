@@ -169,11 +169,6 @@ func early_success_case() -> bool:
 	return await refund(primary, tender, "early-success", timing)
 
 func session_hide_case() -> bool:
-	# Escape preservation is proven in Checkout. Close the panel first so this case isolates
-	# vendor-hide timing from the separate open-CharacterFrame disconnect re-skin crash.
-	if client.character_frame_state().open:
-		await tap(KEY_C)
-		if not await until(func(): return not client.character_frame_state().open,"character frame closed by C before kick"): return false
 	if not await select(primary): return false
 	var tender := int(client.trading_post_state().tender)
 	var price := int(client.trading_post_state().price)
