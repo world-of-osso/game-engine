@@ -1,3 +1,6 @@
+## 2026-10-19 — Ordinary Description TOP alignment
+
+[Source/proof](systems/dungeon-achievements.md#ordinary-description-vertical-alignment): one explicitverticalTOP attribute; priorCENTERcontrolupdatedinown0ac8commit, ignoredREDpushedfirst/observedfourbothskin alignmentassertions. Font10/330×34/ink/shadow/horizontalCENTER/origin/actions conserved; GREEN pending, no otherpolicychange.
 ## 2026-10-20 — Monthly Time sorting CPU proof
 
 [Source and proof boundary](systems/trading-post.md#monthly-time-sorting): pushed-first ignored6 genuine RED→unignored6 GREEN at3844d4233; existing header/menu/action use common server monthly duration, source1000/999 padding floored to minutes, ascending-name ties and provider Time→Price reset. No wire/per-item pending invention; selection/cart/authority preserved. Both-skin native pending; earlier rollover acceptance is not relabeled.
