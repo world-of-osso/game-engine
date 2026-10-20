@@ -10,7 +10,9 @@ import sys
 import struct
 from pathlib import Path
 
-from server_db2 import db2_casc
+# Callers also load this module by path; resolve its sibling helper from here.
+sys.path.insert(0, str(Path(__file__).resolve().parent))
+from server_db2 import db2_casc  # noqa: E402
 
 # WoWDBDefs: only the three locally observed layouts, not a general DB2 reader.
 LAYOUTS = {

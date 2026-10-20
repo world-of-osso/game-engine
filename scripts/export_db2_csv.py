@@ -67,7 +67,9 @@ from pathlib import Path
 import struct
 import sys
 
-from server_db2 import db2_casc
+# Callers also load this module by path; resolve its sibling helper from here.
+sys.path.insert(0, str(Path(__file__).resolve().parent))
+from server_db2 import db2_casc  # noqa: E402
 
 # (layout hash, [(CSV column, source)]); source is "id", "parent", a field index,
 # ("string", field index) for an inline string field,
