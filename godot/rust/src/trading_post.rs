@@ -178,8 +178,10 @@ impl GameClient {
             return Ok(());
         }
         if let Some(observed_at) = self.trading_post.snapshot_observed_at {
-            self.trading_post.view.refund_elapsed =
-                observed_at.elapsed().as_secs().min(u64::from(u32::MAX)) as u32;
+            let elapsed = observed_at.elapsed().as_secs().min(u64::from(u32::MAX)) as u32;
+            if let Some(request) = self.trading_post.view.advance_server_clock(elapsed) {
+                self.send_trading_post_vendor_request(request)?;
+            }
         }
         self.trading_post.view.horde = self.player_is_horde();
         self.update_trading_freeze_delay();
