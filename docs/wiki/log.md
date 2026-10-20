@@ -1,3 +1,11 @@
+## 2026-10-20 — Monthly clock native proof
+
+[Exact cohort and qualifications](systems/trading-post.md#post-landing-native-cohort): Modern/Forever rollover and fresh-server/client readback each strict7/7, naturalexit0, approved-baseline VALID. Natural1m→0m→month47 frozen-only, genuine retained1578; each phase2 Query, rollover1 Freeze, no paid/refund transactions. Twenty-eight inspected original PNGs published, SHA manifests retained. Failed timing/selector/startup attempts and named Quest519073 gap remain; approved news BEST_GUESS policy is not Retail calendar parity. Stale-summary replay guard refused before runtime; operator incident retained. Owned slice stopped/5899 unbound/window cleared.
+
+## 2026-10-19 — Monthly clock native cohort preparation
+
+[Post-landing native plan](systems/trading-post.md#post-landing-native-cohort): current-master cohort, owned5899/fresh accounts, strict7-case rollover/readback and1-case offline startup scripts registered before execution. Existing admin clock alignment precedes a real vendor Query; countdown/rollover is natural afterward, with native drag freeze and restart conservation. No live/native acceptance claimed from preparation.
+
 ## 2026-10-19 — Cold-start catalog delivery bounded PASS measured in Forever
 
 [Exact cohort, clocks and exclusions](systems/trading-post.md#cold-start-catalog-delivery): fresh actual E2be669b9/Sd53e8f2b/P0399f8b, existing-code builds/asset-backed startup/four hashes then explicit TP5791 window. One normal production first Tawny Query returns current monthly43 rows/no transactions; interaction→visible row4.748663s and inspected frame5.534266s conservatively bound Query→visible below60s. Existing server-receive→typed699.654ms includes FIFO/scheduling/transport; internal host/commit/first-paint timestamps remain absent. Intended Modern was not configured: fresh preset defaults Forever; original intent receipts retained and lead accepts actual Forever single-skin proof, no retry/relabel. Guide completed before Query; no concurrent Guide/large-source-pool/Windows/global QoS claim. Original streams/memory/manifest/UI capture/skin correction/cleanup retained privately; runtime/slice stopped,5791 absent/window cleared22:59:42.868977-05:00. Historical private>60s spec line closed, RID finding remains open; no new instrumentation or production code.
