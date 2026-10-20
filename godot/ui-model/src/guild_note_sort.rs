@@ -26,7 +26,7 @@ pub(super) fn compare(lhs: Member<'_>, rhs: Member<'_>, descending: bool) -> Ord
 }
 
 /// GUILD_ROSTER_CLUB_FIELDS_ABSENT: use represented fields only, in source order.
-fn compare_base(lhs: Member<'_>, rhs: Member<'_>) -> Ordering {
+pub(super) fn compare_base(lhs: Member<'_>, rhs: Member<'_>) -> Ordering {
     presence_sort_key(lhs.1)
         .cmp(&presence_sort_key(rhs.1))
         .then_with(|| match (lhs.1, rhs.1) {
