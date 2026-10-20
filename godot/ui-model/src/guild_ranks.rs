@@ -16,6 +16,7 @@ pub enum GuildRosterSort {
     Rank,
     Level,
     Class,
+    Zone,
     Note,
 }
 
@@ -248,6 +249,7 @@ impl GuildRanksSession {
             "guild:roster-sort:rank" => self.sort_roster(GuildRosterSort::Rank),
             "guild:roster-sort:level" => self.sort_roster(GuildRosterSort::Level),
             "guild:roster-sort:class" => self.sort_roster(GuildRosterSort::Class),
+            "guild:roster-sort:zone" => self.sort_roster(GuildRosterSort::Zone),
             "guild:roster-sort:note" => self.sort_roster(GuildRosterSort::Note),
             "guild:invite_open" if self.can(GUILD_RIGHT_INVITE) => self.invite_open = true,
             "guild:invite_close" => self.invite_open = false,

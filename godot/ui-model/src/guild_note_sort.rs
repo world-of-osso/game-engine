@@ -45,7 +45,7 @@ fn presence_sort_key(profile: Option<&GuildMemberSnapshot>) -> u8 {
     }
 }
 
-fn compare_storm_historical(lhs: &str, rhs: &str) -> Ordering {
+pub(super) fn compare_storm_historical(lhs: &str, rhs: &str) -> Ordering {
     let map = |character: char| {
         let point = u32::from(character);
         let point = match point {
