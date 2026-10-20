@@ -67,6 +67,14 @@ Local world.db has only627 of1,286 distinct Leatherworking effect24 outputs join
 - Makeable, skill-up, first-craft, source, category and expansion filters remain excluded from this slice.
 - Sources: cached Mainline `Blizzard_Professions.lua:1256–1263,1140–1141`, `Blizzard_ProfessionsRecipeList.xml:34–45`, and inherited `Blizzard_Menu/Mainline/MenuTemplates.xml:66–86` (Filter dropdown18px high, text-fit padding60, menu BOTTOMLEFT/+6/+2, Reset TOPRIGHT−3). Reset callbacks/defaults: `Blizzard_Professions.lua:1211–1224,1140–1141`, `Blizzard_Menu/MenuTemplates.lua:859–908`; `Blizzard_ProfessionsCrafting.lua:36` supplies no extra onDefault callback.
 
+## Recipe cooldown
+
+- The selected recipe's remaining cooldown is the longer of its own spell clock and its base-difficulty `SpellCategories.Category` clock, both from the server's `SpellCooldownUpdate` (`C_TradeSkillUI.GetRecipeCooldown`). An uncast recipe sharing a running category (Void Sphere28028 after Prismatic Sphere28027, category1174) is on cooldown too.
+- While it runs, Create, Create All and the quantity input are disabled (ProfessionsCrafting.lua574/715–722), and the schematic shows `COOLDOWN_REMAINING` plus the two-unit SecondsFormatter text (RecipeSchematicForm.lua23–29/564–581) in GlobalColor `RED_FONT_COLOR`, GameFontRedSmall, at the organizer anchor OutputIcon BOTTOMLEFT(-1,-12).
+- The server persists the cooldown across relog/restart and replays it at world entry ([server spec](../../../game-server/docs/specs/spell-cooldown-persistence.md)); a fresh client therefore shows it without having seen the cast.
+- Named gaps: daily-reset categories (`COOLDOWN_EXPIRES_AT_MIDNIGHT`), recipe charges (`TRADESKILL_CHARGES_REMAINING`), the minimized-form cooldown and the disabled Create tooltip `PROFESSIONS_RECIPE_COOLDOWN` (no Create tooltip exists yet).
+- Tests: ui-model `professions_tests.rs` `professions_recipe_cooldown_*` and `professions_both_skins_cooldown_disables_create_and_shows_remaining`.
+
 ## Unlearned recipe discovery
 
 - The shared Retail list shows learned categories first, then an Unlearned divider and unlearned categories, with independent collapse state and disabled-colour unlearned rows. Search covers both groups.

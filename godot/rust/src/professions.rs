@@ -475,6 +475,28 @@ impl GameClient {
         }
         Ok(())
     }
+    /// `C_TradeSkillUI.GetRecipeCooldown`: the selected recipe's own clock and that of
+    /// its `SpellCategories` category, from the server's `SpellCooldownUpdate`s.
+    fn selected_recipe_cooldown(
+        &self,
+        book: &game_engine_ui_model::professions::ProfessionBook,
+    ) -> Option<u32> {
+        let spell = book.selected?;
+        let spells = &self.account.spells;
+        let category = self
+            .professions
+            .catalog
+            .as_ref()
+            .and_then(|catalog| catalog.cooldown_categories.get(&spell))
+            .and_then(|&category| spells.category_cooldown(category));
+        game_engine_ui_model::professions_cooldown::remaining_secs(
+            spells
+                .button_cooldown(spell, false)
+                .map(|clock| clock.remaining),
+            category.map(|clock| clock.remaining),
+        )
+    }
+
     fn profession_view(&mut self) -> ProfessionView {
         let book = self.professions.book.clone();
         let inventory = &self.merchant.session.inventory;
@@ -529,6 +551,7 @@ impl GameClient {
             crafting_quality,
             can_create: !casting && book.craft_request(inventory, false).is_some(),
             can_all: !casting && book.craft_request(inventory, true).is_some(),
+            recipe_cooldown_secs: self.selected_recipe_cooldown(&book),
             skill_names: self
                 .professions
                 .catalog
