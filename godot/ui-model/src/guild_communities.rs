@@ -304,7 +304,7 @@ fn member_row(session: &GuildRanksSession, index: usize, member: &GuildRankMembe
         if member.is_online {
             member.online_zone.clone().unwrap_or_default()
         } else {
-            crate::guild_presence::last_online_text(member)
+            crate::guild_presence::read_current_last_online_text(member)
         }
     });
     // Public notes are independent of the server-filtered officer notes.

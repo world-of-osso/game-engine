@@ -67,7 +67,7 @@ pub fn detail(session: &GuildRanksSession) -> Element {
         (10.0, "1,1,1,1", "LEFT"),
     ));
     let last_online = member
-        .map(crate::guild_presence::last_online_text)
+        .map(crate::guild_presence::read_current_last_online_text)
         .unwrap_or_default();
     for (id, heading, value, y) in [
         (
