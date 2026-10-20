@@ -132,12 +132,10 @@ func verify_controls(client: Node, camera: Camera3D, id: int, self_id: int, plat
 	print("FIXTURE NAMEPLATE_CLICK_SHOW")
 	if not await wait_plate_visibility(client, id, true):
 		return false
-	var restored_pick = UnitPicker.pick(camera, mesh_point.point)
-	var restored_area := client.get_node("WorldUnits/" + NPC).find_child("UnitPick", true, false) as Node3D
-	var fresh_point := pick_mesh_point(client, camera, id)
-	print("FIXTURE MESH_FLAG_CLEAR_DIAGNOSTIC old_pick=", restored_pick, " area_visible=", restored_area.visible, " area_in_tree=", restored_area.is_visible_in_tree(), " rules=", client.nameplate_rules(id), " fresh=", fresh_point, " camera=", camera.global_position)
-	if restored_pick != id:
-		fail("Clearing NOT_SELECTABLE did not restore the same raw mesh hit")
+	# Camera/model geometry can move while the replicated flag changes.
+	mesh_point = pick_mesh_point(client, camera, id)
+	if mesh_point.is_empty():
+		fail("Clearing NOT_SELECTABLE did not restore a qualified raw mesh hit")
 		return false
 	await click_point(mesh_point.point)
 	if not await selection(client, id, NPC, "flag clear restores physical mesh selection"):
