@@ -220,7 +220,7 @@ fn item_frame(prefix: &str, (name, icon, quality): (&str, u32, u8), top: f32) ->
     width:ITEM_WIDTH,height:ITEM_HEIGHT,pos_type:"absolute",{contents} } }
 }
 
-fn dialog_button(
+pub(crate) fn dialog_button(
     name: &str,
     text: &str,
     action: &str,

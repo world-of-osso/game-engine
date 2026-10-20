@@ -2,6 +2,12 @@
 
 Native client consumes copy snapshots and on-demand catalog pages; the server remains authoritative. [Feature contract](../../specs/dungeon-achievements.md).
 
+## Bottom-tab source template
+
+The three bottom tabs now use the shared Merchant tab builder's bounded Achievement variant. Mainline AchievementUI.xml246–342 is a distinct Header-sheet template, not generic PanelTab art. Reuse the existing strips while replacing the old generic LEFT/12pt label and fixed widths with source-centered Friz10, TabResize30 (text+50), and the shared +3/Statistics−5 anchors. Panel/Minimal consumers stay unchanged; other frames are audit-only. [Contract](../../specs/dungeon-achievements.md#bottom-tabs), [source and consumer audit](../../handoffs/achievement-bottom-tabs.md).
+
+Genuine model RED reproduces Left!=Center; GREEN covers all three selected states in both skins. Paired native fixture `achievement_bottom_tabs` completes6/6, then private NVIDIA/Vulkan captures are inspected in both skins. Header art remains its authored red/gold strip design; this is not a replacement with generic rounded Panel art. Captures: `/syncthing/AgentShared/2026-10-20/achievement-bottom-tabs/`. No realm/live-server parity claim; unrelated Cage XWayland/libdecor diagnostics are retained in native logs.
+
 ## Ordinary description vertical alignment
 
 `achievement_row` Description explicitly sets `justify_v:"TOP"`, from AchievementUI.xml850→AchievementDescriptionFont/GameFontStyles159. The previously omitted attribute inherited toolkitMiddle; the prior font-only slice preserved that behavior rather than authorizing a layout correction. This separately approved change preserves font10/330×34/ink/shadow/horizontalCENTER/origin85,30/text/actions and touches no other label/global font or Lua color/shadow policy. [Contract](../../specs/dungeon-achievements.md#ordinary-description-vertical-alignment).
