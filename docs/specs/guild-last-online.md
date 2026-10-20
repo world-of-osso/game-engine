@@ -1,0 +1,30 @@
+# Guild Last Online recency
+
+Existing roster offline Zone cells and member detail Last Online fields display actual elapsed recency. Retail GuildRoster.lua115–120, CommunitiesMemberList.lua1285–1297 and TimeUtil.lua24–43 define the behavior: elapsed years/months/days/hours, otherwise less than an hour, not a calendar date. Local GlobalStrings.csv rows10842/11461/11518–11520 supply English plural text.
+
+## What it must do
+
+- [ ] Render optional authoritative observed logout time as source recency in both existing fields, identically in both skins.
+- [ ] Unknown offline history displays Offline; online displays Online/current zone even if a stale offline timestamp was supplied.
+- [ ] Preserve source controls/layout, member identity and saved filtering; no synthetic timestamp from local receipt/query time.
+
+## How it works
+
+- [Guild system](../wiki/systems/guilds.md).
+
+## Implementation inventory
+
+- `godot/ui-model/src/guild_communities.rs`, `guild_member_detail.rs`: existing display fields.
+- `godot/ui-model/tests/guild_rank_widgets.rs`: both-skin elapsed units/unknown/online regression.
+
+## Tests asserting this spec
+
+- `guild_last_online_elapsed_recency_and_unknown_online_fields_both_skins` (ignored RED pushed first).
+
+## Known gaps (current cycle)
+
+- [ ] Actual rendering RED→GREEN, coordinated P/S/E landing and real two-member disconnect/fresh-server readback/reconnect proof pending. Large elapsed-time boundaries are deterministic automated proof, never backdated native actor state.
+
+## Out of scope
+
+Sorting, extra UI/geometry, mobile/BNet/remote chat, inactivity dethroning, professions and leadership/self-policy changes.

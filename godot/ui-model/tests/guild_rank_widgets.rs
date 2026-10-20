@@ -2685,3 +2685,58 @@ fn guild_member_detail_opens_from_roster_both_skins() {
         assert_eq!(text(&reg, "GuildMemberDetailRankDropdownText"), "Member");
     }
 }
+
+#[test]
+#[ignore = "RED first: actual logout authority must drive existing roster/detail recency"]
+fn guild_last_online_elapsed_recency_and_unknown_online_fields_both_skins() {
+    let _lock = SKIN.lock().unwrap_or_else(|p| p.into_inner());
+    let now = std::time::SystemTime::now()
+        .duration_since(std::time::UNIX_EPOCH)
+        .unwrap()
+        .as_secs();
+    // TimeUtil.lua24–43 chooses elapsed units; installed GlobalStrings rows10842/11461/11518–11520.
+    for skin in [ActiveSkin::Modern, ActiveSkin::Forever] {
+        set_thread_skin(skin);
+        for (age, online, expected, zone) in [
+            (Some(120), false, "< an hour", "< an hour"),
+            (Some(3 * 3600 + 120), false, "3 hours", "3 hours"),
+            (Some(2 * 86400 + 120), false, "2 days", "2 days"),
+            (Some(61 * 86400 + 120), false, "2 months", "2 months"),
+            (Some(731 * 86400 + 120), false, "2 years", "2 years"),
+            (None, false, "Offline", "Offline"),
+            (Some(2 * 86400 + 120), true, "Online", "Elwynn Forest"),
+        ] {
+            let mut session = GuildRanksSession::default();
+            session.open();
+            session.apply(state(0));
+            let member: GuildMemberSnapshot = serde_json::from_value(serde_json::json!({
+                "character_name": "Cara", "level": 32, "class_name": "Warrior", "rank_name": "Member",
+                "is_online": online, "officer_note": "", "public_note": "", "is_self": false,
+                "online_zone": if online { Some("Elwynn Forest") } else { None },
+                "last_online": if online { "Online" } else { "Offline" },
+                "last_logout_unix_secs": age.map(|age| now - age)
+            })).unwrap();
+            session.profile = Some(GuildSnapshot {
+                guild_id: 7,
+                guild_name: "Presence Guild".into(),
+                tabard: None,
+                created_at: None,
+                motd: String::new(),
+                info_text: String::new(),
+                members: vec![member],
+            });
+            session.click("guild:member:Cara", &Default::default());
+            let registry = mounted(&session);
+            assert_eq!(
+                text(&registry, "GuildMemberDetailOnline"),
+                expected,
+                "source detail elapsed recency"
+            );
+            assert_eq!(
+                text(&registry, "GuildMember0Zone"),
+                zone,
+                "same recency in the existing offline roster cell"
+            );
+        }
+    }
+}
