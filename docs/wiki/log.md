@@ -1,6 +1,6 @@
 ## 2026-10-20 — Generic assisted type3 distance
 
-[Policy and provenance](investigations/cooldown-assist-data.md#generic-type3-distance-policy--2026-10-20): exact Azure1252 in-combat refusal and native885 reproduce in pushed ignored4f84212ff (0PASS/2FAIL). Generic SimC76f8118 type3 policy replaces rule1261 allowlist; complete70448 fixtures,92 native distance rows and per-type gap sweep. Headless GREEN pending; no server/protocol/live changes or Retail certification.
+[Policy and provenance](investigations/cooldown-assist-data.md#generic-type3-distance-policy--2026-10-20): exact Azure1252 in-combat refusal and native885 reproduce in pushed ignored4f84212ff (0PASS/2FAIL). Generic SimC76f8118 type3 policy replaces rule1261 allowlist; complete70448 fixtures,92 native distance rows and per-type gap sweep. At6d1a2e21f seven targeted headless cases GREEN;92/92 type3 rows pass, diagnostic sweep2903/3116 evaluable with213 named gaps. Tests enabled after GREEN; no server/protocol/live changes or Retail certification.
 
 ## 2026-10-20 — Guild roster context Whisper
 

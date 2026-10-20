@@ -38,7 +38,6 @@ fn recommend(
 }
 
 #[test]
-#[ignore = "RED: native Azure combat refuses rule1252/type3 before generic distance policy"]
 fn assisted_70448_rule1252_replays_actual_in_combat_decision() {
     let capture: Capture =
         serde_json::from_str(include_str!("fixtures/assisted_70448/azure-fury.json")).unwrap();
@@ -97,7 +96,6 @@ fn native_rules() -> Vec<AssistedRule> {
 }
 
 #[test]
-#[ignore = "RED: only one of92 native type3 rules is enabled"]
 fn assisted_70448_all_type3_rules_share_distance_boundaries() {
     let rules = native_rules();
     let distance_rules: Vec<_> = rules
