@@ -520,7 +520,7 @@ fn render_leadership_buttons(top: f32, awaiting: bool) -> Element {
             caption,
             action,
             !enabled,
-            (x, top),
+            (x, top, 128.0),
         )
     })
     .collect()
