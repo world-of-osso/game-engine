@@ -237,6 +237,16 @@ fn sorted_members(session: &GuildRanksSession) -> Vec<&GuildRankMember> {
         })
         .collect();
     match session.roster_sort {
+        Some(GuildRosterSort::Zone) => {
+            members.sort_by(|lhs, rhs| {
+                crate::guild_zone_sort::compare(
+                    (lhs, profiles.get(lhs.character_name.as_str()).copied()),
+                    (rhs, profiles.get(rhs.character_name.as_str()).copied()),
+                    session.roster_sort_descending,
+                )
+            });
+            return members;
+        }
         Some(GuildRosterSort::Note) => {
             members.sort_by(|lhs, rhs| {
                 crate::guild_note_sort::compare(
@@ -300,11 +310,11 @@ fn member_row(session: &GuildRanksSession, index: usize, member: &GuildRankMembe
         "1,1,1,1".into()
     };
     let level = profile.map(|m| m.level.to_string()).unwrap_or_default();
-    let zone = profile.map_or("", |member| {
+    let zone = profile.map_or_else(String::new, |member| {
         if member.is_online {
-            member.online_zone.as_deref().unwrap_or("")
+            member.online_zone.clone().unwrap_or_default()
         } else {
-            member.last_online.as_str()
+            crate::guild_presence::read_current_last_online_text(member)
         }
     });
     // Public notes are independent of the server-filtered officer notes.
@@ -317,7 +327,7 @@ fn member_row(session: &GuildRanksSession, index: usize, member: &GuildRankMembe
             color.as_str(),
         ),
         ("Level", level.as_str(), 4.0, 40.0, "1,1,1,1"),
-        ("Zone", zone, zone_left, 90.0, "1,1,1,1"),
+        ("Zone", zone.as_str(), zone_left, 90.0, "1,1,1,1"),
         ("Rank", rank, rank_left, 75.0, "1,1,1,1"),
         (
             "Note",
@@ -389,7 +399,7 @@ fn columns() -> Element {
         ("Lvl", 40.0, "guild:roster-sort:level"),
         ("Class", 45.0, "guild:roster-sort:class"),
         ("Name", 100.0, "guild:roster-sort:name"),
-        ("Zone", 100.0, ""),
+        ("Zone", 100.0, "guild:roster-sort:zone"),
         ("Rank", 85.0, "guild:roster-sort:rank"),
         ("Note", 227.0, "guild:roster-sort:note"),
     ]

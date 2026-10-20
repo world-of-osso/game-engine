@@ -19,7 +19,7 @@ Retail Mainline Blizzard_PerksProgram and the local C_PerksProgram/PerksActiviti
 - [x] Ordinary rows show the remaining monthly duration from server `month_end_unix - now_unix`, minus monotonic time since receiving that snapshot. Retail `TimeLeftListFormatter` uses one abbreviated unit, floors values and stops at minutes; white above one hour, red at/below one hour. Purchased/zero-duration text is the sourced gray `--`; committed frozen rows do not show a countdown.
 - [x] Use existing Retail TimeRemaining geometry:42×38 at PriceIcon.RIGHT+30, centered, with the cart toggle taking its place on cartable hover. Do not alter product-name colours or cart/frozen ownership.
 - [x] At expiration, send one `TradingPostRequest::Query` per expired server month-end boundary, not every frame. Same-boundary replies do not re-arm it; a fresh full snapshot replaces expired rows and arms the next boundary. No local calendar, wall-clock dependence, wire change or client-invented monthly catalog.
-- [ ] Both-skin native countdown/open-window rollover proof follows landing; registry/model tests do not substitute for that proof.
+- [x] Both-skin native countdown/open-window rollover and fresh-server/client durable readback: four strict7/7 phases, natural exit0, exactly2 Query each; rollover1 Freeze each/readback no mutations. [Exact cohort, evidence and diagnostic qualifications](../wiki/systems/trading-post.md#post-landing-native-cohort). This proves the approved monthly BEST_GUESS policy, not Retail calendar parity.
 
 ## Same-hover ordinary deselection ordering
 
@@ -91,6 +91,16 @@ Earlier October13 drag-off-to-unfreeze captures and the corresponding legacy tes
 - [x] Code gate: four genuine missing-action model REDs (nil control already passed) →51 focused UI tests including seven new navigation/page cases; engine/UI/network helper check38.35s without warnings, scoped format/readability of five Rust files pass. Both-skin real-key/world-position/conservation acceptance completed after480e landing; later source/docs integration is not relabeled as the native binary revision.
 
 Selection sounds, screenshot binding, new key-repeat policy, empty-provider parity, calendar/provider work and Rank3 framing remain excluded. [Implementation/proof](../wiki/systems/trading-post.md#ordinary-product-keyboard-navigation--october17).
+
+## Monthly Time sorting
+
+Retail Products.lua402–485 uses the effective time value, then days/hours/minutes and ascending-name ties. Purchased/refundable values are pairwise maximum duration+1000/+999 before minute comparison, not unconditional ownership buckets; pending per-item state remains unsupplied. Program.lua55–75 defaults Time ascending and toggles repeated selection. Products.lua541/571–573 enables the header for expiring ordinary rows and resets Time to default Price on provider rebuild.
+
+- [x] Enable existing Time header/menu/action when filtered ordinary rows have positive approved server monthly duration; disable zero-duration/frozen-only providers without inventing per-item calendar fields.
+- [x] Preserve existing group precedence, committed frozen exclusion, selection/cart/authority; purchased/refundable minute ties and row-local refund expiry follow the sourced comparator. Per-item pending remains a named gap, never inferred from global request-pending.
+- [x] Ignored regressions pushed first atd6f66993f, genuine six-case behavioral RED at31c254d15/Pda007a6 then six unignored GREEN at3844d4233 (28.8s helper, zero warnings). Wrong test target and stale protocol compilation are retained harness/environment failures, not RED.
+- [ ] Fresh both-skin native header/menu/conservation proof follows code landing; model/registry GREEN is not native acceptance.
+- [x] Full snapshot/filter provider rebuild resets Time to Price descending, including cart-owned preview; month replacement must not retain expired rows.
 
 ## Purchase-aware Price sorting
 
@@ -257,7 +267,7 @@ Source: Retail PerksProgram.lua226/253 and SoundKitConstants.lua, with SoundKit/
 
 - [x] Both skins share ProductsScrollBoxContainer 527×751 at LEFT+46/CENTER+22, ScrollBox TOPLEFT(0,-58)/BOTTOMRIGHT(-24,120), stretched 176×48 product template rows with 32px icons at LEFT+48, and Filter LEFT+9/BOTTOM to container TOP+22. The 122×25 WowStyle2 template is overridden by PerksProgramProducts.lua to effective145×25 with fixed "Filter" text.
 - [x] Native price/name sort headers, action-bar icon mask, source-sized frozen/hold art, shared large-button state art and StaticPopup confirmation; no solid fill replacing authored art. No unsourced search control/API remains.
-- [ ] Time header: per-item remaining time has no sourced calendar binding; visible but disabled, not a fabricated duration.
+- [x] Time header: enabled from the approved server monthly duration under Monthly Time sorting above; no per-item Retail calendar binding is inferred.
 - [x] Authored action-bar mask FDID4626072, hold-edge atlas FDID4331660 and button atlas FDID6794983 extracted from installed12.1.5.70391 and published by the lead October13. Positive native decoded/masked-pixel assertions gate visible art; the ordinary32px Icon samples the central32px of its centred48px MaskTexture rather than squeezing the full mask. Both-skin alpha comparisons cover the complete sampled output, with separate missing-source tests that never count as fidelity proof.
 - [x] Before/after both-skin private UDP5791 PNG comparison against XML; 1920×1080 after captures and native freeze/replace/drag-off, purchase/refund, popup cancellation and Leave. Proof: `modern-after9.log`, `forever-after1.log` under engine `data/diagnostics/trading-post-ui-2026-10-13/`; PNGs under `/syncthing/AgentShared/2026-10-13/trading-post-layout/`. Refund proof uses explicit private policy3600s; production default stays zero.
 
@@ -267,7 +277,7 @@ Independent verification of `51f659ccd` failed D1–D6; earlier native gameplay 
 
 ## Retail continuation — October13
 
-- [ ] Resolve live catalog delivery under production startup/request ordering (isolated1321-row UDP round-trip passes; private delivery intermittently exceeds60s).
+- [x] Historical private delivery exceeding60s is superseded by one accepted cold-start bounded PASS **measured in Forever**: actual E2be669b9ac9af7dd995f1942f255448cbcf853cb/Sd53e8f2b897f6632dbbb7c75dcdbde8f911f965a/P0399f8b434f79355a849d810ffc3314104664038, current monthly43-row snapshot, one first Query/no transactions. Ordinary Tawny interaction→first visible row dump4.748663s; inspected captured frame within5.534266s, conservatively bounding Query→visible below60s. Existing trace measures server-receive→typed699.654ms; FIFO/host-merge/first-paint internal durations remain unmeasured. Original Modern intent is retained with explicit Forever default-preset correction; no retry. This is not1321/1382-row scale, concurrent unfinished Guide, both-skin, Windows or global QoS acceptance. [Exact proof and limits](../wiki/systems/trading-post.md#cold-start-catalog-delivery).
 - [x] Native multi-product cart and server-authoritative purchase/refund across protocol and persisted collections, sourced from Retail Lua; no invented policy. Modern and Forever checkout→new-client relog→individual refunds pass on one preserved private UDP5791 server/database; four receipts total6546 Tender, no panic/script-error markers. Proof: `cart-{modern,forever}-{identity-final,refund-identity-final}.log` in engine `data/diagnostics/trading-post-ui-2026-10-13/`, engine6b772c3a9/server4dcb1774/protocold9944f5.
 - [x] Native Hide Armor and selected-item purchase-history widgets. Installed70391 UiModelScene Autodress bit4 supplies the default; user override survives selections and resets on vendor open. Both-skin native captures prove dressed/hidden changes, ownership after relog and each authoritative refund.
 - [x] Retail footer rotation buttons:100×48 container BOTTOM(+140,+42),48×48 left/right buttons with26×25 sourced icons. Press holds camera rotation at sourced0.1 increment per model-scene update; release stops, including outside button bounds. Pushed art/icon offset is(+1,+1) in screen-down coordinates; hover art is additive at0.6 alpha. Toys/unavailable previews have no rotation controls. Both-skin process proof at engine3b1f5c2ea/serverbad076596/protocold9944f5: `rotate-registry-green-{modern,forever}.log` PASS, zero panic/script-error markers,8 PNGs each. Native registry-layout and decoded-icon gates pass separately; Hide Armor and drag rotation alone never certified this widget.
@@ -301,7 +311,8 @@ Retail SharedXML calls native `CalculateMountScale`; its formula remains unestab
 
 - `scripts/tests/test_trading_post_import.py`: authentic category/price/UI group round-trip and mismatched-layout rejection.
 - `godot/ui-model/tests/trading_post.rs`: both-skin XML geometry/dropdown, Tender/price/frozen/refund controls, modal confirmation/no local debit/pending state, freeze/replace/drag-off requests, second-page/category clipping and refund-icon row identity/time-unit/color/expiry/closed suppression.
-- `godot/ui-model/tests/trading_post/monthly_clock.rs`: both-skin Time text/geometry/red threshold/hover/owned rules, next-boundary/full-replacement and same-boundary/hidden-window requery controls; four clock cases pass within the103-case Trading Post model family. Native rollover proof remains post-landing.
+- `godot/ui-model/tests/trading_post/monthly_clock.rs`: both-skin Time text/geometry/red threshold/hover/owned rules, next-boundary/full-replacement and same-boundary/hidden-window requery controls; four clock cases pass within the103-case Trading Post model family. Separate both-skin native rollover/readback passed four strict7/7 phases; CPU evidence is not relabeled as native.
+- `godot/tests/trading_post_monthly_clock.gd`: opt-in owned5899 fresh-cohort7-case native rollover/readback phases; host aligns existing private server clock before Query, then natural countdown/full replacement and real drag-freeze/restart conservation. `trading_post_monthly_startup.gd` is a separate1-case offline LoginUI startup proof. Both use checked completion and registered exact counts; accepted native evidence and diagnostic qualifications are recorded in the post-landing cohort section.
 - `godot/network/src/trading_post_wire_tests.rs`: real UDP snapshot/request round-trip.
 - `scripts/tests/test_trading_post_asset_seeds.py`: server preview rules (mount/pet/transmog/set) and whole-chain receipt verdicts.
 - `godot/tests/trading_post_live.gd`: private 127.0.0.1:5791 fb_* native-input proof — Log Tender line, authentic NPC gossip, HUD hidden/restored, category dropdown, player transmog/set and creature mount/pet previews, drag rotation, ToyOverlay, unavailable row, drag-to-freeze, unaffordable gating and frozen slot after relog. Phase `refund-icon-tooltip` proves ordinary-row owner/parent-click/hovered-owner teardown and authoritative purchase/refund conservation.
@@ -310,7 +321,7 @@ Retail SharedXML calls native `CalculateMountScale`; its formula remains unestab
 
 - [ ] Native shutdown RID/resource leaks: rejected first Forever frozen-selected-add-green1 attempt logs eight shutdown ERRORs after9/9 behavioural completion; accepted Modern green1 and sole Forever green2 retry have no leak lines. Root cause remains unexplained/not fixed; failed attempt stays rejected. [Exact qualification/provenance](../wiki/systems/trading-post.md#committed-frozen-selected-texture-add-compositing).
 
-- [ ] Retail-authoritative monthly inventory and seasonal activity/reward binding remain unverified. Current membership/Jan2023 epoch uses the explicit server news BEST_GUESS policy, not a discovered DB2 join. Both-skin native countdown/open-window rollover proof remains post-landing.
+- [ ] Retail-authoritative monthly inventory and seasonal activity/reward binding remain unverified. Current membership/Jan2023 epoch uses the explicit server news BEST_GUESS policy, not a discovered DB2 join. Both-skin native countdown/open-window rollover and restart readback passed four strict7/7 phases; see the native cohort section. This does not verify Retail monthly membership.
 - [ ] Refund duration; server-provided remaining time is documented but no duration sourced.
 - [ ] Unknown PerksVendorItem fields and one unreadable vendor category; never infer semantics.
 - [x] Live purchase/collection/relog/refund proof in both skins; Tender comes from the server admin-socket test grant because no supported activity has reachable private-world content (lead decision October12).
