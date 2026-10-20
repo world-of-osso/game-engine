@@ -218,6 +218,7 @@ fn monthly_thresholds_use_received_points_not_claimed_currency_state() {
             source_gaps: vec![],
             error: None,
             catalog_complete: false,
+            reply_kind: shared::protocol::TradingPostReplyKind::Balance,
         };
         ctx.insert(game_engine_ui_model::adventure_guide::View {
             trading_post: Some(Arc::new(tender)),
