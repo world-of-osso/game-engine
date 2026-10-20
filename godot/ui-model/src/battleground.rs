@@ -27,6 +27,7 @@ pub enum PvpAction {
     Dequeue,
     Respond { match_id: u64, accepted: bool },
     Leave(u64),
+    RequeueSkirmish(u64),
 }
 #[derive(Clone, Copy, Debug, Default, PartialEq, Eq)]
 pub enum PvpCategory {
@@ -120,6 +121,20 @@ impl PvpView {
                     BgPhase::InProgress => bg.arena.is_none(),
                     BgPhase::Ended => false,
                 }
+        })
+    }
+    fn can_requeue_skirmish(&self) -> bool {
+        let Some(bg) = self
+            .battleground()
+            .filter(|bg| bg.accepted && bg.phase == BgPhase::Ended)
+        else {
+            return false;
+        };
+        bg.arena.as_ref().is_some_and(|arena| {
+            matches!(
+                arena.mode,
+                ArenaQueueMode::Skirmish2v2 | ArenaQueueMode::Skirmish3v3
+            )
         })
     }
     pub fn action(&mut self, action: &str) -> Option<PvpAction> {
@@ -320,6 +335,9 @@ impl PvpView {
                 match_id: self.battleground()?.match_id,
                 accepted: action == "pvp:accept",
             },
+            "pvp:requeue" if self.can_requeue_skirmish() => {
+                PvpAction::RequeueSkirmish(self.battleground()?.match_id)
+            }
             "pvp:leave" if self.battleground().is_some_and(|b| b.accepted) => {
                 PvpAction::Leave(self.battleground()?.match_id)
             }
@@ -914,6 +932,15 @@ fn scoreboard(context: &SharedContext, view: &PvpView) -> Element {
             action,
         ));
         tab_left += width + 3.0;
+    }
+    if view.can_requeue_skirmish() {
+        children.extend(panel_button(
+            "PVPMatchRequeueButton".into(),
+            "Queue Again",
+            "pvp:requeue",
+            !view.pending,
+            (584.0, height - 62.0, 190.0, 22.0),
+        ));
     }
     children.extend(panel_button(
         "PVPMatchLeaveButton".into(),

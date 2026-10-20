@@ -267,6 +267,14 @@ All23 new1920×1080 originals were individually inspected through1280px previews
 
 Attempts84–87 stopped at capacity admission before native startup, not gameplay/render failures. Lead-owned capacity admission now shares one reservation through inherited `CAPACITY_ID=bg-forever88`; no capacity gate, physical input, assertion or deadline changed. Lead fixed the separately assigned palette fixtures in9de485b3c; that item is no longer queued here. Vehicles/siege/victory remain the next IoC scope.
 
+## Skirmish Queue Again — 2026-10-20
+
+Ended accepted Skirmish2v2/3v3 results show `PVPMatchRequeueButton` ("Queue Again") beside Leave in both skins (Retail PVPMatchResults.lua152–159). A click sets `PvpView.pending` before any server reply (lua490–494), so the button renders `ButtonState::Disabled` with no action and repeated clicks dispatch nothing. The only request is `RequeueSkirmish { match_id }`; the client never sends Leave then QueueForArena. Ordinary BG, rated, Solo Shuffle, unaccepted and active copies show no button and refuse the action.
+
+The server ([contract](../../../../game-server/docs/specs/pvp-progression.md)) returns through the ordinary leave and queues the played mode only after the origin WorldPortAck: project policy `SKIRMISH_REQUEUE_LEAVE_THEN_QUEUE_SAME_MODE`; Retail native ordering remains `SKIRMISH_REQUEUE_TRANSITION_UNQUALIFIED`. A queue refusal at origin arrives as the normal PvP error.
+
+Proof (CPU, `data/diagnostics/pvp-skirmish-requeue-2026-10-19/`): UI RED e24d87672 2 failures+1 control; GREEN 253aad523 3/3 enabled. Two intermediate runs failed on a test helper reading `ButtonData.enabled`, which the `disabled` attribute does not drive; logs preserved. No rendered or live-client evidence.
+
 ## Sources
 
 - [Tracked release20 proof ledger](../../handoffs/pvp-release20-proof-ledger.md), [machine-readable receipts](../../../data/diagnostics/bg-release-20-2026-10-17/proof-ledger.json) and [raw event order](../../../data/diagnostics/bg-release-20-2026-10-17/raw-event-order-index.json) — frozen release hashes, normal20 lifecycle, scoped visual/timestamp limits and both attempts.
