@@ -1,3 +1,7 @@
+## 2026-10-20 — Monthly Time sorting CPU proof
+
+[Source and proof boundary](systems/trading-post.md#monthly-time-sorting): pushed-first ignored6 genuine RED→unignored6 GREEN at3844d4233; existing header/menu/action use common server monthly duration, source1000/999 padding floored to minutes, ascending-name ties and provider Time→Price reset. No wire/per-item pending invention; selection/cart/authority preserved. Both-skin native pending; earlier rollover acceptance is not relabeled.
+
 ## 2026-10-20 — Monthly clock native proof
 
 [Exact cohort and qualifications](systems/trading-post.md#post-landing-native-cohort): Modern/Forever rollover and fresh-server/client readback each strict7/7, naturalexit0, approved-baseline VALID. Natural1m→0m→month47 frozen-only, genuine retained1578; each phase2 Query, rollover1 Freeze, no paid/refund transactions. Twenty-eight inspected original PNGs published, SHA manifests retained. Failed timing/selector/startup attempts and named Quest519073 gap remain; approved news BEST_GUESS policy is not Retail calendar parity. Stale-summary replay guard refused before runtime; operator incident retained. Owned slice stopped/5899 unbound/window cleared.
