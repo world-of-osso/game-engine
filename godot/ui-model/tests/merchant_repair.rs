@@ -88,6 +88,7 @@ fn stack(
         count,
         durability,
         soulbound: false,
+        crafting_origin: None,
     }
 }
 

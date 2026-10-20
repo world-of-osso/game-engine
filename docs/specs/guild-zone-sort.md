@@ -27,9 +27,11 @@ Activate the existing Mainline100px Zone header using already-authoritative zone
 - `guild_zone_sort_allowed_prose_collation_and_fixed_name_ties_both_skins`.
 - `guild_zone_sort_real_header_dispatch_preserves_scroll_filter_and_member_identity`.
 
-## Known gaps (current cycle)
+## Proof
 
-- [ ] Ignored tests/spec were pushed first; actual RED3 observed (empty existing header action, unchanged mixed-presence order and unchanged raid/RAID order). Implementation committed before focused GREEN3/3 (30.48s compile,0.33s tests, no warnings); assertion-identical proven tests enabled. Gate and allocated real two-member both-skin native proof remain pending.
+Ignored tests/spec were pushed before actual RED3; implementation was committed before focused GREEN3/3, then assertion-identical proven tests enabled. gz746 passed tests/fmt and landed. Accepted actual two-member Modern/Forever native proof covers physical Zone direction/reset, real online zones, genuine disconnect/mixed ordering, original detail targets and Show Offline hide/restore. [Exact cohort, original PNGs, diagnostics and proof limits](../wiki/systems/guilds.md#native-zone-sort-acceptance-2026-10-20).
+
+## Known gaps (current cycle)
 - **GUILD_ZONE_SORT_NATIVE_BINDING_AND_LIMIT_UNQUALIFIED:** allowed historical prose does not establish native Lua binding/Retail70448 parity or a character-count limit. Invalid-UTF8 historical decoding is outside Rust String inputs. Do not invent those missing semantics or open decompiled source.
 
 ## Out of scope
