@@ -129,9 +129,16 @@ impl GameClient {
         self.trading_post.view.take_selection_sounds();
         visible
     }
+    pub(super) fn dismiss_trading_slow_purchase(&mut self) -> bool {
+        if !self.trading_post.view.dismiss_slow_purchase() {
+            return false;
+        }
+        self.trading_post.purchase_started_at = None;
+        true
+    }
+
     pub(super) fn close_trading_post_window(&mut self) -> Result<bool, FrameError> {
-        if self.trading_post.view.dismiss_slow_purchase() {
-            self.trading_post.purchase_started_at = None;
+        if self.dismiss_trading_slow_purchase() {
             return Ok(true);
         }
         if self.trading_post.view.confirm.is_some() {
