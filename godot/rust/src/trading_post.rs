@@ -288,12 +288,7 @@ impl GameClient {
         }
     }
     fn update_trading_purchase_timeout(&mut self) {
-        let purchase_confirmation = matches!(
-            self.trading_post.view.confirm.as_deref(),
-            Some("purchase" | "cart-checkout")
-        );
-        let waiting = self.trading_post.view.pending && purchase_confirmation;
-        if !waiting {
+        if !self.trading_post.view.has_pending_purchase_confirmation() {
             self.trading_post.purchase_started_at = None;
             return;
         }
