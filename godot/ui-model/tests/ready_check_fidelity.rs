@@ -221,19 +221,31 @@ fn ready_check_response_buttons_keep_source_anchors_and_art_both_skins() {
             };
             assert_eq!(button.text, caption);
             assert_eq!(
-                button.normal_texture,
+                button
+                    .normal_texture
+                    .as_ref()
+                    .map(|texture| texture.source.clone()),
                 Some(TextureSource::FileDataId(130828))
             );
             assert_eq!(
-                button.pushed_texture,
+                button
+                    .pushed_texture
+                    .as_ref()
+                    .map(|texture| texture.source.clone()),
                 Some(TextureSource::FileDataId(130825))
             );
             assert_eq!(
-                button.highlight_texture,
+                button
+                    .highlight_texture
+                    .as_ref()
+                    .map(|texture| texture.source.clone()),
                 Some(TextureSource::FileDataId(130826))
             );
             assert_eq!(
-                button.disabled_texture,
+                button
+                    .disabled_texture
+                    .as_ref()
+                    .map(|texture| texture.source.clone()),
                 Some(TextureSource::FileDataId(130824))
             );
         }

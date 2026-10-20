@@ -422,13 +422,19 @@ fn talent_tree3_hero_staging_keeps_dialog_apply_and_authored_close_control() {
             panic!("close button")
         };
         assert_eq!(
-            button.normal_texture,
+            button
+                .normal_texture
+                .as_ref()
+                .map(|texture| texture.source.clone()),
             Some(ui_toolkit::widgets::texture::TextureSource::Atlas(
                 "RedButton-Exit".into()
             ))
         );
         assert_eq!(
-            button.pushed_texture,
+            button
+                .pushed_texture
+                .as_ref()
+                .map(|texture| texture.source.clone()),
             Some(ui_toolkit::widgets::texture::TextureSource::Atlas(
                 "RedButton-Exit-Pressed".into()
             ))

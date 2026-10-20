@@ -315,7 +315,10 @@ fn orders_customer_labels_align_with_source_payment_and_recipient_fields() {
         };
         if skin == ActiveSkin::Modern {
             assert_eq!(
-                button.normal_texture,
+                button
+                    .normal_texture
+                    .as_ref()
+                    .map(|texture| texture.source.clone()),
                 Some(ui_toolkit::widgets::texture::TextureSource::FileDataId(
                     130828
                 ))

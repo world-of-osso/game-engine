@@ -322,7 +322,7 @@ fn housing_storage_drawer_collapse_expand_and_resize_reflow_keep_both_skins_equi
             )
             .unwrap();
         assert!(
-            matches!(&collapse.widget_data, Some(WidgetData::Button(button)) if button.highlight_texture == Some(ui_toolkit::widgets::texture::TextureSource::Atlas("house-chest-close-drawer-button".into())) && button.highlight_alpha == 0.5),
+            matches!(&collapse.widget_data, Some(WidgetData::Button(button)) if button.highlight_texture.as_ref().map(|texture| texture.source.clone()) == Some(ui_toolkit::widgets::texture::TextureSource::Atlas("house-chest-close-drawer-button".into())) && button.highlight_alpha == 0.5),
             "actual source collapse data: {:?}",
             collapse.widget_data
         );
@@ -370,7 +370,7 @@ fn housing_storage_drawer_collapse_expand_and_resize_reflow_keep_both_skins_equi
             )
             .unwrap();
         assert!(
-            matches!(&expand.widget_data, Some(WidgetData::Button(button)) if button.highlight_texture == Some(ui_toolkit::widgets::texture::TextureSource::Atlas("house-chest-open-drawer-button".into())) && button.highlight_alpha == 0.5)
+            matches!(&expand.widget_data, Some(WidgetData::Button(button)) if button.highlight_texture.as_ref().map(|texture| texture.source.clone()) == Some(ui_toolkit::widgets::texture::TextureSource::Atlas("house-chest-open-drawer-button".into())) && button.highlight_alpha == 0.5)
         );
         view.model
             .editor
@@ -562,7 +562,7 @@ fn assert_storage_filter_header(registry: &FrameRegistry, open: bool, reset_visi
     let background = frame("HouseEditorStorageFiltersBackground");
     assert!(
         matches!(&background.widget_data, Some(WidgetData::Button(button))
-        if button.normal_texture == Some(TextureSource::Atlas(expected.into())))
+        if button.normal_texture.as_ref().map(|texture| texture.source.clone()) == Some(TextureSource::Atlas(expected.into())))
     );
     let reset = frame("HouseEditorStorageFiltersResetButton");
     assert_eq!(reset.visible, reset_visible);
@@ -570,7 +570,7 @@ fn assert_storage_filter_header(registry: &FrameRegistry, open: bool, reset_visi
     assert_eq!(reset.height, Dimension::Fixed(23.0));
     assert!(
         matches!(&reset.widget_data, Some(WidgetData::Button(button))
-        if button.normal_texture == Some(TextureSource::Atlas("auctionhouse-ui-filter-redx".into())))
+        if button.normal_texture.as_ref().map(|texture| texture.source.clone()) == Some(TextureSource::Atlas("auctionhouse-ui-filter-redx".into())))
     );
 }
 

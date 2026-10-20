@@ -375,7 +375,10 @@ fn transmog_hover_borders_have_the_authored_model_card_sizes() {
             panic!("source card")
         };
         assert_eq!(
-            button.highlight_texture,
+            button
+                .highlight_texture
+                .as_ref()
+                .map(|texture| texture.source.clone()),
             Some(ui_toolkit::widgets::texture::TextureSource::Atlas(
                 "transmog-itemcard-default".into()
             ))
@@ -392,7 +395,10 @@ fn transmog_hover_borders_have_the_authored_model_card_sizes() {
         };
         assert_eq!(button.highlight_size, Some([194.0, 234.0]));
         assert_eq!(
-            button.highlight_texture,
+            button
+                .highlight_texture
+                .as_ref()
+                .map(|texture| texture.source.clone()),
             Some(ui_toolkit::widgets::texture::TextureSource::Atlas(
                 "transmog-itemcard-default".into()
             ))
