@@ -96,10 +96,11 @@ Selection sounds, screenshot binding, new key-repeat policy, empty-provider pari
 
 Retail Products.lua402–485 uses the effective time value, then days/hours/minutes and ascending-name ties. Purchased/refundable values are pairwise maximum duration+1000/+999 before minute comparison, not unconditional ownership buckets; pending per-item state remains unsupplied. Program.lua55–75 defaults Time ascending and toggles repeated selection. Products.lua541/571–573 enables the header for expiring ordinary rows and resets Time to default Price on provider rebuild.
 
-- [ ] Enable existing Time header/menu/action when filtered ordinary rows have positive approved server monthly duration; disable zero-duration/frozen-only providers without inventing per-item calendar fields.
-- [ ] Preserve existing group precedence, committed frozen exclusion, selection/cart/authority; purchased/refundable minute ties and row-local refund expiry follow the sourced comparator. Per-item pending remains a named gap, never inferred from global request-pending.
-- [ ] Pushed-first ignored behavioral tests must reproduce disabled header/rejected action and name-only ordering; targeted GREEN precedes fresh both-skin native header/menu/conservation proof.
-- [ ] Full snapshot/filter provider rebuild resets Time to Price descending, including cart-owned preview; month replacement must not retain expired rows.
+- [x] Enable existing Time header/menu/action when filtered ordinary rows have positive approved server monthly duration; disable zero-duration/frozen-only providers without inventing per-item calendar fields.
+- [x] Preserve existing group precedence, committed frozen exclusion, selection/cart/authority; purchased/refundable minute ties and row-local refund expiry follow the sourced comparator. Per-item pending remains a named gap, never inferred from global request-pending.
+- [x] Ignored regressions pushed first atd6f66993f, genuine six-case behavioral RED at31c254d15/Pda007a6 then six unignored GREEN at3844d4233 (28.8s helper, zero warnings). Wrong test target and stale protocol compilation are retained harness/environment failures, not RED.
+- [ ] Fresh both-skin native header/menu/conservation proof follows code landing; model/registry GREEN is not native acceptance.
+- [x] Full snapshot/filter provider rebuild resets Time to Price descending, including cart-owned preview; month replacement must not retain expired rows.
 
 ## Purchase-aware Price sorting
 
@@ -266,7 +267,7 @@ Source: Retail PerksProgram.lua226/253 and SoundKitConstants.lua, with SoundKit/
 
 - [x] Both skins share ProductsScrollBoxContainer 527×751 at LEFT+46/CENTER+22, ScrollBox TOPLEFT(0,-58)/BOTTOMRIGHT(-24,120), stretched 176×48 product template rows with 32px icons at LEFT+48, and Filter LEFT+9/BOTTOM to container TOP+22. The 122×25 WowStyle2 template is overridden by PerksProgramProducts.lua to effective145×25 with fixed "Filter" text.
 - [x] Native price/name sort headers, action-bar icon mask, source-sized frozen/hold art, shared large-button state art and StaticPopup confirmation; no solid fill replacing authored art. No unsourced search control/API remains.
-- [ ] Time header: enable from the approved server monthly duration under Monthly Time sorting above; no per-item Retail calendar binding is inferred.
+- [x] Time header: enabled from the approved server monthly duration under Monthly Time sorting above; no per-item Retail calendar binding is inferred.
 - [x] Authored action-bar mask FDID4626072, hold-edge atlas FDID4331660 and button atlas FDID6794983 extracted from installed12.1.5.70391 and published by the lead October13. Positive native decoded/masked-pixel assertions gate visible art; the ordinary32px Icon samples the central32px of its centred48px MaskTexture rather than squeezing the full mask. Both-skin alpha comparisons cover the complete sampled output, with separate missing-source tests that never count as fidelity proof.
 - [x] Before/after both-skin private UDP5791 PNG comparison against XML; 1920×1080 after captures and native freeze/replace/drag-off, purchase/refund, popup cancellation and Leave. Proof: `modern-after9.log`, `forever-after1.log` under engine `data/diagnostics/trading-post-ui-2026-10-13/`; PNGs under `/syncthing/AgentShared/2026-10-13/trading-post-layout/`. Refund proof uses explicit private policy3600s; production default stays zero.
 
