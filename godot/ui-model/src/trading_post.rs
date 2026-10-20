@@ -7,6 +7,8 @@ mod cart_rows;
 pub use cart_rows::apply_cart_art;
 #[path = "trading_post_cart_ui.rs"]
 mod cart_ui;
+#[path = "trading_post_clock.rs"]
+mod clock;
 #[path = "trading_post_filter.rs"]
 mod filter_menu;
 #[path = "trading_post_history.rs"]
@@ -66,6 +68,8 @@ pub struct View {
     pub pending: bool,
     /// Monotonic seconds since observing the current authoritative snapshot.
     pub refund_elapsed: u32,
+    /// Deduplicates rollover Query across frames and same-boundary partial replies.
+    pub clock_rollover_requested_for: Option<i64>,
     pub confirm: Option<String>,
     /// Slot previews the dragged product; snapshot remains authoritative until reply.
     pub freeze_candidate: Option<u32>,
@@ -778,6 +782,7 @@ fn product_row(view: &View, row: &TradingPostItem, top: f32, selected: bool) -> 
         (16., name_color, "LEFT"),
     ));
     children.extend(row_price("PerksProgram", row, ROW_HEIGHT / 2.));
+    children.extend(clock::row_time(view, row));
     children.extend(row_cart_toggle(view, row.id));
     let action = format!("perks:select:{}", row.id);
     rsx! {button{name:{DynName(format!("PerksProgramProduct{}",row.id))},left:0.0,top,width:LIST_WIDTH,height:ROW_HEIGHT,pos_type:"absolute",button_default_skin:false,onclick:action.as_str(),button_atlas_highlight:"perks-list-hover",{children}}}
