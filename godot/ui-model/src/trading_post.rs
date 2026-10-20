@@ -76,6 +76,8 @@ pub struct View {
     pub sort: Sort,
     pub ascending: bool,
     pub pending: bool,
+    /// The accepted Purchase/Checkout exceeded its independent ten-second deadline.
+    pub slow_purchase: bool,
     /// Monotonic seconds since observing the current authoritative snapshot.
     pub refund_elapsed: u32,
     /// Deduplicates rollover Query across frames and same-boundary partial replies.
@@ -354,6 +356,9 @@ impl View {
         !self.pending && self.remaining_refund_seconds() > 0
     }
     pub fn click(&mut self, action: &str) -> Result<Option<Action>, String> {
+        if action == "perks:cancel" && self.dismiss_slow_purchase() {
+            return Ok(None);
+        }
         if self.pending && self.confirm.is_some() {
             return Ok(None);
         }
@@ -462,7 +467,18 @@ impl View {
             vendor_item_id: Some(id),
         }))
     }
+    /// Return/Escape releases the modal, not the server operation or vendor.
+    pub fn dismiss_slow_purchase(&mut self) -> bool {
+        if !self.slow_purchase {
+            return false;
+        }
+        self.pending = false;
+        self.cancel_confirmation();
+        true
+    }
+
     pub fn cancel_confirmation(&mut self) {
+        self.slow_purchase = false;
         self.confirm = None;
         self.confirmation_product = None;
         self.freeze_candidate = None;
@@ -1376,8 +1392,30 @@ fn toy_overlay(row: &TradingPostItem) -> Element {
     out.extend(rsx! {r#frame{name:"PerksProgramToyDetails",left:{center_x-180.0},top:{icon_y+88.0+60.0},width:360.0,height:280.0,pos_type:"absolute",{details}}});
     out
 }
+fn slow_purchase_popup() -> Element {
+    use crate::static_popup_component::{ItemConfirmation, item_confirmation};
+    // Elements.lua60–67; local GlobalStrings51538/51539.
+    item_confirmation(ItemConfirmation {
+        name: "PerksProgramSlowPurchase",
+        pending: false,
+        accept_enabled: true,
+        prompt: (
+            "It's taking longer than usual to process your purchase. Processing will continue in the background.",
+            "",
+        ),
+        currency_icon: None,
+        item: None,
+        accept: ("Return to Trading Post", "perks:cancel"),
+        cancel_action: None,
+        screen: (WIDTH, HEIGHT),
+    })
+}
+
 fn confirm_popup(view: &View, kind: &str) -> Element {
     use crate::static_popup_component::{ItemConfirmation, item_confirmation};
+    if view.slow_purchase {
+        return slow_purchase_popup();
+    }
     if kind == "freeze" {
         let Some(row) = view.snapshot.as_ref().and_then(|snapshot| {
             snapshot
@@ -1403,7 +1441,7 @@ fn confirm_popup(view: &View, kind: &str) -> Element {
             currency_icon: None,
             item: Some((&row.name, row.icon_fdid, row.quality)),
             accept: (&accept, "perks:confirm"),
-            cancel_action: "perks:cancel",
+            cancel_action: Some("perks:cancel"),
             screen: (WIDTH, HEIGHT),
         });
     }
@@ -1420,7 +1458,7 @@ fn confirm_popup(view: &View, kind: &str) -> Element {
             currency_icon: Some(TENDER_ICON),
             item: None,
             accept: ("Purchase", "perks:confirm"),
-            cancel_action: "perks:cancel",
+            cancel_action: Some("perks:cancel"),
             screen: (WIDTH, HEIGHT),
         });
     }
@@ -1436,7 +1474,7 @@ fn confirm_popup(view: &View, kind: &str) -> Element {
             currency_icon: None,
             item: None,
             accept: ("Remove", "perks:confirm"),
-            cancel_action: "perks:cancel",
+            cancel_action: Some("perks:cancel"),
             screen: (WIDTH, HEIGHT),
         });
     }
@@ -1466,7 +1504,7 @@ fn confirm_popup(view: &View, kind: &str) -> Element {
         currency_icon: Some(TENDER_ICON),
         item: Some((&row.name, row.icon_fdid, row.quality)),
         accept: (if refund { "Refund" } else { "Purchase" }, "perks:confirm"),
-        cancel_action: "perks:cancel",
+        cancel_action: Some("perks:cancel"),
         screen: (WIDTH, HEIGHT),
     })
 }

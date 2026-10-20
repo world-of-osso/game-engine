@@ -1,3 +1,6 @@
+## 2026-10-19 — Trading Post slow-purchase timer implementation
+
+[Source and clock boundary](systems/trading-post.md#ten-second-slow-purchase-notice): pushed-first ignored Purchase/Checkout cases reached actual10s missing-notice assertions through the existing snapshot clock. Approved GREEN API switches to request-relative View elapsed driven by native request Instant, so Query cannot restart it. One authored Return/Escape notice, matching completion/hide cancellation, unchanged two-button confirmation geometry; model123/host-layout14 GREEN, integration/build gate pending. Native Escape consumes only the slow notice before background-window closure; source hook, not a measured input trace. No production delay or native runtime.
 ## 2026-10-20 — Recipe cooldown display
 
 [Contract](../specs/modern-crafting.md#recipe-cooldown): Create gated and Retail `COOLDOWN_REMAINING` red text from spell/category clocks; [server](../../../game-server/docs/specs/spell-cooldown-persistence.md) persists and replays cooldowns. ui-model RED (4 genuine assertion failures) → GREEN 28/28 professions; extension professions 8/8. Native both-skin proof pending.
@@ -12,7 +15,7 @@
 
 ## 2026-10-19 — Trading Post reply-kind correlation implementation
 
-[Flow and proof status](systems/trading-post.md#reply-kind-correlation): required server reply kind, host-poll kind drain and captured popup product preserve pending ownership across unrelated Query/catalog removal and Purchase→Query coalescing. Pushed-first regressions reached assertion RED before their corresponding changes, including the coalesced terminal-error control. Targeted107 model/13 host/3 UDP/5 protocol GREEN; coordinated gate pending. No timed/native/provider parity claim.
+[Flow and proof status](systems/trading-post.md#reply-kind-correlation): required server reply kind, host-poll kind drain and captured popup product preserve pending ownership across unrelated Query/catalog removal and Purchase→Query coalescing. Pushed-first regressions reached assertion RED before their corresponding changes, including the coalesced terminal-error control. Targeted107 model/13 host/3 UDP/5 protocol GREEN; tc756/tc765 coordinated gates pass and protocol600b755/server89a944309/engine7a2b53085 land together. Engine Time-sort merge preserves unconditional provider sort reset alongside guarded modal completion; tc762 missing-import compile error remains separately qualified. No timed/native/provider parity claim.
 ## 2026-10-19 — Ordinary Description TOP alignment
 
 [Source/proof](systems/dungeon-achievements.md#ordinary-description-vertical-alignment): one explicitverticalTOP attribute; priorCENTERcontrolupdatedinown0ac8commit, ignoredREDpushedfirst/observedfourbothskin alignmentassertions. Font10/330×34/ink/shadow/horizontalCENTER/origin/actions conserved; GREEN pending, no otherpolicychange.
