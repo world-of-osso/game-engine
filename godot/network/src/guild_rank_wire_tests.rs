@@ -176,7 +176,7 @@ fn guild_member_note_profile_fields_cross_real_udp() {
                     public_note: note.into(),
                     officer_note: String::new(),
                     is_self,
-                    last_online: "Online".into(),
+                    last_logout_unix_secs: None,
                     online_zone: None,
                 })
                 .collect(),
