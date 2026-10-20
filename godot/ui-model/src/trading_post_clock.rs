@@ -2,6 +2,20 @@
 use super::*;
 
 impl View {
+    pub fn has_pending_purchase_confirmation(&self) -> bool {
+        let purchase = matches!(self.confirm.as_deref(), Some("purchase" | "cart-checkout"));
+        self.pending && purchase
+    }
+
+    /// Retail Program.lua396–412: elapsed since request acceptance, not snapshot receipt.
+    pub fn update_purchase_timeout(&mut self, elapsed_seconds: f64) {
+        const SLOW_PURCHASE_SECONDS: f64 = 10.;
+        let waiting = self.visible && self.has_pending_purchase_confirmation();
+        if waiting && elapsed_seconds >= SLOW_PURCHASE_SECONDS {
+            self.slow_purchase = true;
+        }
+    }
+
     pub fn month_remaining_seconds(&self) -> Option<u64> {
         self.snapshot.as_ref().map(|snapshot| {
             snapshot
@@ -10,6 +24,39 @@ impl View {
                 .saturating_sub(i64::from(self.refund_elapsed))
                 .max(0) as u64
         })
+    }
+
+    pub(super) fn can_sort_time(&self) -> bool {
+        let month_active = self
+            .month_remaining_seconds()
+            .is_some_and(|seconds| seconds > 0);
+        month_active && !self.rows().is_empty()
+    }
+
+    pub(super) fn time_sort_minutes(&self, row: &TradingPostItem) -> u64 {
+        let remaining = self
+            .month_remaining_seconds()
+            .expect("Time sort rows require an authoritative snapshot");
+        // Products.lua437–465: all supplied ordinary rows share this monthly duration,
+        // so the pairwise maximum is remaining; compare owned sentinels only after flooring.
+        const OWNED_SORT_PADDING_SECONDS: u64 = 1000;
+        let owned = remaining + OWNED_SORT_PADDING_SECONDS;
+        let seconds = if row.refund_seconds.saturating_sub(self.refund_elapsed) > 0 {
+            owned - 1
+        } else if row.purchased {
+            owned
+        } else {
+            remaining
+        };
+        seconds / 60
+    }
+
+    pub(super) fn reset_time_sort(&mut self) {
+        // Products.lua572–573: provider replacement returns Time to default Price.
+        if self.sort == Sort::Time {
+            self.sort = Sort::Price;
+            self.ascending = false;
+        }
     }
 
     /// The native adapter sends the returned request once per expired month boundary.

@@ -2,6 +2,20 @@
 
 Native Retail Mainline AchievementUI and dungeon objectives, using authoritative server catalog/state and local extracted art. Forever changes art, not feature availability. [State and sources](../wiki/systems/dungeon-achievements.md).
 
+## Header title content and style
+
+- Player title resolves installed GlobalStrings `ACHIEVEMENT_TITLE` (Warband Achievement Points); guild title resolves `GUILD_ACHIEVEMENTS_TITLE` (Guild Achievements), following AchievementUI.lua380/398.
+- Use Roman Friz10 and local black(+1,−1) shadow from GameFontNormalSmall. Preserve150×20 at existing(334,−29), gold ink and horizontal CENTER; points/shield/actions and other labels stay unchanged.
+- `ACHIEVEMENT_HEADER_TITLE_AUTOSCALE_UNIMPLEMENTED`: Retail XML1956 maxLines2 and AutoScalingFontStringMixin(minLineHeight8) remain out of scope unless an actual Retail string overflows. Current installed player/guild strings measure138/95px at10pt in both skins, fitting150px; no autoscale or maxLines behavior added.
+- Model controls verify both strings, source font/shadow, allocation/anchor/ink and fit. Native `achievement_header_title`4 is reserved for the lead's post-landing window; model PASS does not establish native pixel/raster parity. [Implementation and sources](../wiki/systems/dungeon-achievements.md#header-title).
+
+## Bottom tabs
+
+- Achievements, Guild and Statistics use Retail's authored AchievementFrameTabButtonTemplate, not boxed panel buttons or generic PanelTab art; share the existing tab builder via its Achievement variant.
+- Preserve Header-sheet strips, active59/inactive49 height,21/18px caps and inactive tint0.6; centered Friz10 captions, selected/inactive center offsets−5/−3.
+- Size tabs by PanelTemplates_TabResize30 (text width+20+30), first tab x17/y+3 below the frame; subsequent shared+3 spacing and Statistics−5 override. Preserve existing actions and both-skin feature parity.
+- Verify source geometry/art in the UI model and native captions across three selections in both skins; publish both-skin PNGs. [Source audit](../handoffs/achievement-bottom-tabs.md).
+
 ## What it must do
 
 ### Dungeon and window lifecycle
@@ -122,6 +136,11 @@ Native Retail Mainline AchievementUI and dungeon objectives, using authoritative
 
 - [x] Ordinary card Description uses nominalRomanFriz10 only, preserving330×34 allocation, current ink/shadow/justification, origin85,30 and click actions. Exclude Lua-driven color/shadow policy and all other labels/global font behavior.
 - Source: AchievementUI.xml850→GameFontStyles159→Fonts133–135. Both-skin ignored native wrapper `network/tests/achievement_card_description_font.rs` / six-case `tests/achievement_card_description_font.gd` covers collapsed/expanded description and unchanged title14 control. Strict native6/6 and affected model35/35 pass; [implementation/proof](../wiki/systems/dungeon-achievements.md#ordinary-card-description-font).
+
+### Ordinary description vertical alignment
+
+- [ ] Ordinary Description uses Retail verticalTOP, preserving font10/330×34/ink/shadow/horizontalCENTER/origin85,30/text/actions. Other labels, Lua color/shadow policy and global font behavior remain unchanged.
+- Source: AchievementUI.xml850→GameFontStyles159. Prior native CENTER control is explicitly replaced in tests-only commit0ac8ec048; `tests/achievement_card_description_alignment.gd` reuses the maintained six-case description fixture through inheritance, wrapped by ignored `network/tests/achievement_card_description_alignment.rs`. [Proof scope](../wiki/systems/dungeon-achievements.md#ordinary-description-vertical-alignment).
 
 ## Known gaps (current cycle)
 

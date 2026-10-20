@@ -1221,7 +1221,7 @@ pub fn achievement_screen(ctx: &SharedContext) -> Element {
         && window.selected_achievement.is_none()
         && !window.full_search
         && !window.statistics;
-    let mut content = artwork::chrome(show_summary);
+    let mut content = artwork::chrome(show_summary, window.guild);
     content.extend(points_header(
         window
             .summary
@@ -1569,30 +1569,43 @@ fn summary_achievement_row(entry: &AchievementCatalogEntry, y: f32) -> Element {
 }
 
 fn browse_controls(window: &AchievementWindow) -> Element {
-    let mut content = artwork::tab(
-        "AchievementTabAchievements",
-        "Achievements",
-        "achievement:achievements",
-        !window.statistics && !window.guild,
-        17.0,
-        115.0,
-    );
-    content.extend(artwork::tab(
-        "AchievementTabGuild",
-        "Guild",
-        "achievement:guild",
-        window.guild,
-        136.0,
-        70.0,
-    ));
-    content.extend(artwork::tab(
-        "AchievementTabStatistics",
-        "Statistics",
-        "achievement:statistics",
-        window.statistics,
-        210.0,
-        115.0,
-    ));
+    use crate::merchant_frame_component::{TabGeometry, TabLabel, tab, tab_width};
+    let mut left = 17.0;
+    let mut content = Vec::new();
+    for (index, (name, title, action, selected)) in [
+        (
+            "AchievementTabAchievements",
+            "Achievements",
+            "achievement:achievements",
+            !window.statistics && !window.guild,
+        ),
+        (
+            "AchievementTabGuild",
+            "Guild",
+            "achievement:guild",
+            window.guild,
+        ),
+        (
+            "AchievementTabStatistics",
+            "Statistics",
+            "achievement:statistics",
+            window.statistics,
+        ),
+    ]
+    .into_iter()
+    .enumerate()
+    {
+        let width = tab_width(TabLabel::Achievement(title));
+        content.extend(tab(
+            name,
+            title,
+            TabGeometry::Achievement(left, 497.0, width),
+            selected,
+            action,
+        ));
+        // PanelTemplates_AnchorTabs +3; AchievementFrame_SetTabs overrides Statistics−5.
+        left += width + if index == 0 { 3.0 } else { -5.0 };
+    }
     let search_left = header_filter_left(window) - HEADER_FILTER_SPACING - HEADER_SEARCH_WIDTH;
     content.extend(artwork::search_box(&window.search_text, search_left));
     content
@@ -1974,7 +1987,7 @@ fn achievement_row(
         shadow_color:"0,0,0,1",shadow_offset:"1,-1",
     }});
     content.extend(rsx! {fontstring {name:{DynName(format!("{prefix}Description"))},text:entry.description.as_str(),
-        width:330.0,height:34.0,left:85.0,top:{y+30.0},pos_type:"absolute",justify_h:"CENTER",
+        width:330.0,height:34.0,left:85.0,top:{y+30.0},pos_type:"absolute",justify_h:"CENTER",justify_v:"TOP",
         font:GameFont::FrizQuadrata,font_size:10.0,font_color:ink,onclick:action.as_str(),
     }});
     content.extend(art(

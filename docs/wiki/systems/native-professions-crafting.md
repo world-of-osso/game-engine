@@ -4,6 +4,10 @@ The native client extends the existing ProfessionBook/ProfessionsFrame, trainer 
 
 Verified: 2026-10-11. Engine behavioral source31c2bba12, overlay geometryac11dd7d5, formatter orderd22ab6878; serverd76b0e3; matching leased protocolb4523221e28c84d845066a532fafb8f838d4bf69. No master merge, canonical code edits, world.db writes or UDP5000 use. Extracted CSV/DB2/texture assets persist in canonical data, outside tracked code.
 
+## Recipe cooldown
+
+`RecipeCatalog.cooldown_categories` maps recipe spells to their nonzero base `SpellCategories.Category`. `professions.rs::selected_recipe_cooldown` reads `account.spells` (fed by `SpellCooldownUpdate`, including the server's world-entry replay) and `professions_cooldown::remaining_secs` takes the longer clock in whole seconds; `ProfessionView.recipe_cooldown_secs` disables Create/Create All/quantity and renders `ProfessionsRecipeCooldown`. [Contract](../../specs/modern-crafting.md#recipe-cooldown). Native both-skin proof is pending.
+
 ## Catalog and rendering
 
 `godot/ui-model/src/professions_catalog.rs` loads the active Retail CSV build; earlier proof below retains its original pinned inputs. Category order is the signed `TradeSkillCategory.OrderIndex` (the source includes−1), not alphabetical category names. Known recipes remain name-sorted within each category.
@@ -16,13 +20,21 @@ Verified: 2026-10-11. Engine behavioral source31c2bba12, overlay geometryac11dd7
 
 The server retains the authored ability row ID, passes origin from real CREATE_ITEM completion into inventory storage and persists it in an additive GUID-keyed table in the inventory transaction. Existing ItemInstanceData/character encodings are not extended. Stack compatibility additionally checks origin; unique-equipped template identity remains separate. Unknown-origin stacks cannot be relabeled by merging craft output, same-origin outputs retain their surviving GUID, and split GUIDs copy origin. Owner item projections (including bag/equipment state mirrored by the engine) carry authoritative metadata; merchant-state observation exposes GUID/origin, not a new player-facing capability.
 
-### Targeted provenance proof — integration pending
+### Targeted provenance proof
 
 All three ignored REDs were pushed before implementation: protocol drops origin, actual2153 cast plus fresh DB/owner snapshot lacks origin, and engine same-GUID snapshot loses origin. First engine fixture lacked data-root initialization and emitted a secondary catalog panic; its corrected stable-catalog RED is retained separately. A further actual2963×2 RED exposed merging into an unknown2996 stack (count3 instead of1).
 
 Targeted GREEN: protocol `fcff8da`1 JSON/binary case; server `5ea22bf55`2 real-cast cases; engine `4b43d476a`1 actual owner-snapshot projection case. Server proof includes2153→new2303GUID, ability1355/recipe2153 after actual database close/reopen, identical non-crafted item unknown, and2963→ability2359 with compatible stacking, rejected unknown-origin merge and split persistence. Quality remains unknown; no operation result is invented. Post-test master merges are separate revisions; lead owns current atomic integration/check/fmt/readability gates. No new rendered native or real OS-process reopen proof is claimed by these CPU tests.
 
 SSOT: canonical `data/diagnostics/crafting-provenance-2026-10-19/` contains source refs, exact RED/GREEN command ledger, raw logs and fixture qualifications. Read-only source matrix: `data/diagnostics/crafting-lineage-readonly-2026-10-19/evidence-matrix.md` with TC/70448 schema hashes. [Server origin contract](../../../../game-server/docs/specs/crafting-origin.md) owns persistence requirements; [protocol contract](../../../../shared-protocol/docs/specs/crafting-origin.md) owns wire semantics. Protocol and consumers must land together; this is causal provenance, not a complete Retail recraft eligibility predicate.
+
+### Native provenance proof — 2026-10-20
+
+Landed P`5660814`/S`9683d56e8`/E`e95e6c31e` (cp749) plus fixture-only commits. Both skins at 1920×1080 on an isolated, prerequisite-only redb run `godot/tests/crafting_provenance_live.gd`: real trainer264578, fourteen2881 casts, trainer2153 and one Create. The new 2303 GUIDs (Modern 7475, Forever 7984) carry {1355, 2153, null}; the generic 2303 controls stay unknown; leather 14→10, thread 1→0, rank 15→16. After stopping that server, a fresh server generation reopens the same database and fresh readback-only clients observe the same GUIDs/origin, 940 copper and rank 16 without casting. Hovered crafted and control slots show the same normal item tooltip; origin is the `merchant_state` owner readback, not tooltip text. A post-stop DB assert agrees.
+
+NPC opening reuses the accepted IPC `quest interact` setup (`trading_post_live.gd`); trainer purchase, casts, Create and hovers are native input. The base-profession confirmation is `TrainerConfirmAccept`. `modern_crafting_unlearned_live.gd` remains natively broken (fixture right-click, `StaticPopup1Button1`, a stall in its disabled-click section) — named gap. SSOT: `data/diagnostics/crafting-provenance-2026-10-19/native/native-provenance-proof.json`; twelve inspected PNGs under `/syncthing/AgentShared/2026-10-20/crafting-provenance/`.
+
+The run also recorded origin on the crafted Light Leather stack (2881). Policy `CRAFTING_ORIGIN_NOT_RECORDED_ON_STACKABLE_ITEMS` (origin only on max-stack-1 items) is the follow-up; see the [server contract](../../../../game-server/docs/specs/crafting-origin.md).
 
 ## Passive operation status
 

@@ -18,11 +18,11 @@ Local world.db has only627 of1,286 distinct Leatherworking effect24 outputs join
 
 ## Server-recorded crafting origin
 
-- [ ] A successful real2153 craft records SkillLineAbility1355 joined to recipe spell2153 on its final surviving itemGUID; fresh DB and owner ItemStack snapshots preserve it. An identical non-crafted2303 remains unknown.
-- [ ] Engine bag/equipment instance state mirrors the additive optional `crafting_origin`; UI/automation never infers it from templateID, rarity or ownership. Existing merchant-state bag/equipment projections expose the GUID and optional origin for observation.
+- [x] A successful real2153 craft records SkillLineAbility1355 joined to recipe spell2153 on its final surviving itemGUID; fresh DB and owner ItemStack snapshots preserve it. An identical non-crafted2303 remains unknown.
+- [x] Engine bag/equipment instance state mirrors the additive optional `crafting_origin`; UI/automation never infers it from templateID, rarity or ownership. Existing merchant-state bag/equipment projections expose the GUID and optional origin for observation.
 - [ ] Crafting quality is recorded only for actual known results; no default tier is assigned. Installed slots and watermark remain UNKNOWN/unwritten. Recraft input/submission remain disabled and the operation evaluator remains absent.
 - Shared wire semantics: [crafting origin](../../../shared-protocol/docs/specs/crafting-origin.md). TC a352b1fa `ItemDefines.h:264–283` modifier39 is a SkillLineAbilityID, not a SpellID; Retail `Professions.lua:378–388` resolves the original recipe from an itemGUID.
-- Tests: `godot/ui-model/tests/crafting_origin.rs`; server real-craft/reopen tests own persistence authority. Coordinate protocol/server/engine landing; an isolated protocol update is not an accepted rollout.
+- Tests: `godot/ui-model/tests/crafting_origin.rs`; server real-craft/reopen tests own persistence authority. Native: `godot/tests/crafting_provenance_live.gd` (craft, then readback-only on a reopened server). Coordinate protocol/server/engine landing; an isolated protocol update is not an accepted rollout.
 
 ## Passive operation diagnostics
 
@@ -66,6 +66,14 @@ Local world.db has only627 of1,286 distinct Leatherworking effect24 outputs join
 - The inherited Reset button is visible exactly when either supported visibility flag differs from its default; active search alone does not expose it. One click restores both Show checkboxes without changing search text, recipe/instance selection, Favorites or other owner state. Reuse the authored UIResetButtonTemplate; no new filter families or audio-engine behavior are introduced.
 - Makeable, skill-up, first-craft, source, category and expansion filters remain excluded from this slice.
 - Sources: cached Mainline `Blizzard_Professions.lua:1256–1263,1140–1141`, `Blizzard_ProfessionsRecipeList.xml:34–45`, and inherited `Blizzard_Menu/Mainline/MenuTemplates.xml:66–86` (Filter dropdown18px high, text-fit padding60, menu BOTTOMLEFT/+6/+2, Reset TOPRIGHT−3). Reset callbacks/defaults: `Blizzard_Professions.lua:1211–1224,1140–1141`, `Blizzard_Menu/MenuTemplates.lua:859–908`; `Blizzard_ProfessionsCrafting.lua:36` supplies no extra onDefault callback.
+
+## Recipe cooldown
+
+- The selected recipe's remaining cooldown is the longer of its own spell clock and its base-difficulty `SpellCategories.Category` clock, both from the server's `SpellCooldownUpdate` (`C_TradeSkillUI.GetRecipeCooldown`). An uncast recipe sharing a running category (Void Sphere28028 after Prismatic Sphere28027, category1174) is on cooldown too.
+- While it runs, Create, Create All and the quantity input are disabled (ProfessionsCrafting.lua574/715–722), and the schematic shows `COOLDOWN_REMAINING` plus the two-unit SecondsFormatter text (RecipeSchematicForm.lua23–29/564–581) in GlobalColor `RED_FONT_COLOR`, GameFontRedSmall, at the organizer anchor OutputIcon BOTTOMLEFT(-1,-12).
+- The server persists the cooldown across relog/restart and replays it at world entry ([server spec](../../../game-server/docs/specs/spell-cooldown-persistence.md)); a fresh client therefore shows it without having seen the cast.
+- Named gaps: daily-reset categories (`COOLDOWN_EXPIRES_AT_MIDNIGHT`), recipe charges (`TRADESKILL_CHARGES_REMAINING`), the minimized-form cooldown and the disabled Create tooltip `PROFESSIONS_RECIPE_COOLDOWN` (no Create tooltip exists yet).
+- Tests: ui-model `professions_tests.rs` `professions_recipe_cooldown_*` and `professions_both_skins_cooldown_disables_create_and_shows_remaining`.
 
 ## Unlearned recipe discovery
 
