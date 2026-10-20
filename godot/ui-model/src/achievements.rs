@@ -1975,7 +1975,7 @@ fn achievement_row(
     }});
     content.extend(rsx! {fontstring {name:{DynName(format!("{prefix}Description"))},text:entry.description.as_str(),
         width:330.0,height:34.0,left:85.0,top:{y+30.0},pos_type:"absolute",justify_h:"CENTER",
-        font:GameFont::FrizQuadrata,font_size:12.0,font_color:ink,onclick:action.as_str(),
+        font:GameFont::FrizQuadrata,font_size:10.0,font_color:ink,onclick:action.as_str(),
     }});
     content.extend(art(
         format!("{prefix}Shield"),
