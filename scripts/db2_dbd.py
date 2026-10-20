@@ -1,7 +1,7 @@
 """Decode authenticated local DB2 payloads using their exact DBD layout.
 
-Fixed-record decoding uses the engine WDC5 reader. Sparse decoding uses the
-server's existing WDC5 reader, supplied explicitly by the refresh command.
+Both readers decode through the game-server checkout's db2_casc: fixed records via
+export_db2_csv's adapter, sparse records via db2_casc.decode.
 """
 import csv
 import re
@@ -107,7 +107,7 @@ def fixed_rows(data, fields, layout, reader):
 
 def sparse_rows(data, fields, reader):
     if reader is None:
-        raise ValueError('sparse DB2 requires --server-scripts (existing server WDC5 decoder)')
+        raise ValueError('sparse DB2 requires the server db2_casc sparse reader')
     inline = [f for f in fields if 'noninline' not in f[2]]
     noninline_id = any('noninline' in f[2] and 'id' in f[2] for f in fields)
     strings = {i + int(noninline_id) for i, f in enumerate(inline) if f[1] in ('string', 'locstring')}

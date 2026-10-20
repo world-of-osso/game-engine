@@ -20,6 +20,7 @@ from pathlib import Path
 from build_hosts import execute
 from prepare_ui_icons import prepare_ui_icons
 from native_cargo import native_slot
+from siblings import sibling_repo
 
 ROOT_NAME = "game-engine-godot-conversion"
 SIBLINGS = (
@@ -239,13 +240,6 @@ def link_or_copy(source, target):
         os.link(source, target)
     except OSError:
         shutil.copy2(source, target)
-
-
-def sibling_repo(root, name):
-    """`root`'s sibling checkout `name`, or `DEPOT_SIBLING_<NAME>` (for example
-    DEPOT_SIBLING_UI_TOOLKIT for a toolkit branch worktree)."""
-    override = os.environ.get("DEPOT_SIBLING_" + name.upper().replace("-", "_"))
-    return Path(override).resolve() if override else root.parent / name
 
 
 def snapshot(root, context):

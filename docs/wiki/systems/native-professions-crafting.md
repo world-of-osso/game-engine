@@ -4,6 +4,10 @@ The native client extends the existing ProfessionBook/ProfessionsFrame, trainer 
 
 Verified: 2026-10-11. Engine behavioral source31c2bba12, overlay geometryac11dd7d5, formatter orderd22ab6878; serverd76b0e3; matching leased protocolb4523221e28c84d845066a532fafb8f838d4bf69. No master merge, canonical code edits, world.db writes or UDP5000 use. Extracted CSV/DB2/texture assets persist in canonical data, outside tracked code.
 
+## Recipe cooldown
+
+`RecipeCatalog.cooldown_categories` maps recipe spells to their nonzero base `SpellCategories.Category`. `professions.rs::selected_recipe_cooldown` reads `account.spells` (fed by `SpellCooldownUpdate`, including the server's world-entry replay) and `professions_cooldown::remaining_secs` takes the longer clock in whole seconds; `ProfessionView.recipe_cooldown_secs` disables Create/Create All/quantity and renders `ProfessionsRecipeCooldown`. [Contract](../../specs/modern-crafting.md#recipe-cooldown). Native both-skin proof is pending.
+
 ## Catalog and rendering
 
 `godot/ui-model/src/professions_catalog.rs` loads the active Retail CSV build; earlier proof below retains its original pinned inputs. Category order is the signed `TradeSkillCategory.OrderIndex` (the source includes−1), not alphabetical category names. Known recipes remain name-sorted within each category.
