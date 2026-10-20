@@ -75,6 +75,8 @@ func plate_mesh_miss(client: Node, camera: Camera3D, id: int) -> Dictionary:
 	return {}
 
 func click_point(point: Vector2) -> void:
+	# Like battleground_live.gd: headless has no OS pointer-enter notification.
+	root.notify_mouse_entered()
 	var motion := InputEventMouseMotion.new()
 	motion.position = point
 	motion.global_position = point
@@ -85,6 +87,7 @@ func click_point(point: Vector2) -> void:
 		event.position = point
 		event.global_position = point
 		event.button_index = MOUSE_BUTTON_LEFT
+		event.button_mask = MOUSE_BUTTON_MASK_LEFT if pressed else 0
 		event.pressed = pressed
 		root.push_input(event, true)
 		await process_frame
