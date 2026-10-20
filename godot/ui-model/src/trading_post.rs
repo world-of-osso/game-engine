@@ -41,6 +41,14 @@ pub const WIDTH: f32 = 1920.;
 pub const HEIGHT: f32 = 1080.;
 const ROW_HEIGHT: f32 = 48.;
 const LIST_HEIGHT: f32 = 573.;
+
+/// Completion metadata retained independently of the host's final merged authority.
+#[derive(Clone, Debug, PartialEq, Eq)]
+pub struct Reply {
+    pub kind: TradingPostReplyKind,
+    pub error: Option<String>,
+}
+
 #[derive(Clone, Debug, Default, PartialEq)]
 pub struct View {
     pub visible: bool,
@@ -186,25 +194,28 @@ impl View {
     }
 
     pub fn receive(&mut self, snapshot: Arc<TradingPostSnapshot>) {
-        let kind = snapshot.reply_kind;
-        self.receive_replies(snapshot, &[kind]);
+        let reply = Reply {
+            kind: snapshot.reply_kind,
+            error: snapshot.error.clone(),
+        };
+        self.receive_replies(snapshot, &[reply]);
     }
 
-    /// Apply final authority after every reply kind drained by the host in this poll.
-    pub fn receive_replies(
-        &mut self,
-        snapshot: Arc<TradingPostSnapshot>,
-        reply_kinds: &[TradingPostReplyKind],
-    ) {
+    /// Apply final authority after every reply result drained by the host in this poll.
+    pub fn receive_replies(&mut self, snapshot: Arc<TradingPostSnapshot>, replies: &[Reply]) {
         let confirmation_kind = match self.confirm.as_deref() {
             Some("purchase") => Some(TradingPostReplyKind::Purchase),
             Some("cart-checkout") => Some(TradingPostReplyKind::Checkout),
             Some("refund") => Some(TradingPostReplyKind::Refund),
             _ => None,
         };
-        let keep_pending =
-            self.pending && confirmation_kind.is_some_and(|kind| !reply_kinds.contains(&kind));
-        self.error = snapshot.error.clone().unwrap_or_default();
+        let matching_reply = replies
+            .iter()
+            .rev()
+            .find(|reply| Some(reply.kind) == confirmation_kind);
+        let keep_pending = self.pending && confirmation_kind.is_some() && matching_reply.is_none();
+        let error = matching_reply.map_or(&snapshot.error, |reply| &reply.error);
+        self.error = error.clone().unwrap_or_default();
         self.snapshot = Some(snapshot);
         self.refund_elapsed = 0;
         if !keep_pending {
