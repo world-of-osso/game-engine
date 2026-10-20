@@ -1074,6 +1074,11 @@ fn read_nameplate_fixture_output(
             return Err(format!("Native nameplate fixture setup: {line}"));
         }
         if let (Some(player), Some(npc)) = (*player, npc)
+            && nameplate_clicks::apply_control(app, line.trim(), player, npc)?
+        {
+            continue;
+        }
+        if let (Some(player), Some(npc)) = (*player, npc)
             && nameplate_casts::step(app, line.trim(), player, npc)?
         {
             continue;
