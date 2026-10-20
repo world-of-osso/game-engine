@@ -60,7 +60,7 @@ def namegen_fixture():
         "<6I", raw, 136, count, field_count, record_size, len(strings), 0, layout
     )
     struct.pack_into(
-        "<HH7I", raw, 172, 4, 0, field_count, 0, field_count * 24, 0, 0, 0, 1
+        "<HH7I", raw, 172, 4, 0, field_count, 0, 0, field_count * 24, 0, 0, 1
     )
     struct.pack_into(
         "<Q8I", raw, 204, 0, record_start, count, len(strings),
