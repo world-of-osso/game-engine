@@ -37,6 +37,11 @@ func run_test() -> void:
 	if shown("ProfessionsOutputSlot") or not control("ProfessionsCreate").disabled:
 		fail("Missing operation must not assign a crafted item or enable Create")
 		return
+	var before := {"bags": client.merchant_state().bags.duplicate(true), "money": money(), "skill": text("ProfessionsSkillText")}
+	await wait_frames(120)
+	if not text("ProfessionsCraftStatus").is_empty():
+		fail("Passive unsupported recipe exposes an internal operation diagnostic")
+		return
 	await capture("1-quality-recipe-unassigned")
 	await press("ProfessionReagent1Slot")
 	if not await wait_until(func(): return shown("ProfessionsQualityDialog"), "source reagent-quality dialog"):
@@ -63,7 +68,7 @@ func run_test() -> void:
 	if not await wait_until(func(): return quantity(193222) == "2", "owned scaled hide allocation"):
 		return
 	await press("ProfessionsQualityAccept")
-	if not await wait_until(func(): return text("ProfessionsCraftStatus").contains("CRAFTING_OPERATION_COMPOSITION"), "server validates all slots but refuses quality assignment"):
+	if not await wait_until(func(): return text("ProfessionsCraftStatus").is_empty(), "validated allocation retains no passive internal diagnostic"):
 		return
 	if shown("ProfessionsOutputSlot") or not control("ProfessionsCreate").disabled:
 		fail("Validated reagents are not permission to invent a crafted output")
@@ -88,7 +93,11 @@ func run_test() -> void:
 	if text("ProfessionReagent0") != "2/2 Lustrous Scaled Hide" or text("ProfessionReagent1") != "10/10 Resilient Leather":
 		fail("Refused operation changed observed bags")
 		return
-	print("FIXTURE MODERN_CRAFTING_QUALITY_DONE skin=", role, " recipe=375188 selected=193222x2+193208x6+193210x4 quality=UNASSIGNED")
+	var after := {"bags": client.merchant_state().bags.duplicate(true), "money": money(), "skill": text("ProfessionsSkillText")}
+	if after != before or client.spells_state().casting != 0 or not text("ProfessionsCraftStatus").is_empty():
+		fail("Passive status projection changed gameplay or exposed an internal diagnostic")
+		return
+	print("FIXTURE MODERN_CRAFTING_QUALITY_DONE skin=", role, " recipe=375188 selected=193222x2+193208x6+193210x4 quality=UNASSIGNED passive_status=blank validation_error=preserved gameplay_state=unchanged")
 	client.free()
 	quit(0)
 
