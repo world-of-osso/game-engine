@@ -1,3 +1,7 @@
+## 2026-10-19 — Ordinary achievement description font
+
+[Source/proof](systems/dungeon-achievements.md#ordinary-card-description-font): one nominalfont12→10 value only; ignorednativeREDfirst/four both-skin size assertions, all330×34/ink/shadow/alignment/origin/click/title controls conserved. GREEN pending; Lua-driven color/shadow policy and otherlabels/globalpipeline excluded.
+
 ## 2026-10-19 — Ordinary achievement card title font
 
 [Source/proof](systems/dungeon-achievements.md#ordinary-card-title-font): title-onlyRomanFriz14/black(+1,−1) correction,320×20/WHITE/origin/actions retained. IgnorednativeRED first; corrected full-search native-height control leaves12 expected title assertions across bothskin collapsed/expanded. Strict nativeGREEN6/6 and model35/35 pass; first integratedmodel compile-only guildonline_zone prerequisite resolved via frozen03580cc, no consumerpatch. Central gate pending; no other title/globalpipeline/server change.
