@@ -141,6 +141,7 @@ impl BagStacks {
                         count: item.count,
                         durability: item.durability,
                         soulbound: item.soulbound,
+                        crafting_origin: item.crafting_origin,
                     },
                 );
             }

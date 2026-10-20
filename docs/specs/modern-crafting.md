@@ -16,6 +16,14 @@ Pinned Retail 12.1.0.69933 `SkillLineAbility`/`SpellEffect`/`SpellReagents` cens
 
 Local world.db has only627 of1,286 distinct Leatherworking effect24 outputs joined to `content_item`; pinned CSV presence does not imply server runtime readiness. Existing Classic Leatherworking is the first end-to-end acceptance slice, not a claim of complete Midnight support.
 
+## Server-recorded crafting origin
+
+- [ ] A successful real2153 craft records SkillLineAbility1355 joined to recipe spell2153 on its final surviving itemGUID; fresh DB and owner ItemStack snapshots preserve it. An identical non-crafted2303 remains unknown.
+- [ ] Engine bag/equipment instance state mirrors the additive optional `crafting_origin`; UI/automation never infers it from templateID, rarity or ownership. Existing merchant-state bag/equipment projections expose the GUID and optional origin for observation.
+- [ ] Crafting quality is recorded only for actual known results; no default tier is assigned. Installed slots and watermark remain UNKNOWN/unwritten. Recraft input/submission remain disabled and the operation evaluator remains absent.
+- Shared wire semantics: [crafting origin](../../../shared-protocol/docs/specs/crafting-origin.md). TC a352b1fa `ItemDefines.h:264–283` modifier39 is a SkillLineAbilityID, not a SpellID; Retail `Professions.lua:378–388` resolves the original recipe from an itemGUID.
+- Tests: `godot/ui-model/tests/crafting_origin.rs`; server real-craft/reopen tests own persistence authority. Coordinate protocol/server/engine landing; an isolated protocol update is not an accepted rollout.
+
 ## Passive operation diagnostics
 
 - Passive CraftStatus omits the typed missing-operation diagnostic, both on recipe selection and after non-consuming reagent validation. Pending validation and concrete validation/player-action errors remain visible.

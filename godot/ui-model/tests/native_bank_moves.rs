@@ -21,6 +21,7 @@ fn stack(guid: u64, count: u32) -> ItemStack {
         count,
         durability: None,
         soulbound: true,
+        crafting_origin: None,
     }
 }
 fn contents() -> BankContents {

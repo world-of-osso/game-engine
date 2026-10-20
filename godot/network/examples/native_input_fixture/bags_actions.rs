@@ -31,6 +31,7 @@ fn stack(slot: u8) -> ItemStack {
         count: 1,
         durability: None,
         soulbound: false,
+        crafting_origin: None,
     }
 }
 

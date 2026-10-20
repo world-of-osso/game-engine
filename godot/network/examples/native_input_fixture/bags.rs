@@ -34,6 +34,7 @@ fn send_inventory(app: &mut App) {
                                 count: 3,
                                 durability: None,
                                 soulbound: false,
+                                crafting_origin: None,
                             },
                         },
                         BagSlotItem {
@@ -45,6 +46,7 @@ fn send_inventory(app: &mut App) {
                                 count: 1,
                                 durability: None,
                                 soulbound: false,
+                                crafting_origin: None,
                             },
                         },
                     ],

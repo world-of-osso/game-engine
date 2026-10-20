@@ -1571,6 +1571,7 @@ fn attachment_item(attachment: &MailAttachment) -> InventorySlot {
     InventorySlot {
         durability: stack.durability,
         soulbound: stack.soulbound,
+        crafting_origin: stack.crafting_origin,
         item_guid: stack.item_guid,
         ..named_item_for(
             stack.definition_source,
