@@ -12,6 +12,14 @@ Contract: [bot-harness spec](../../specs/bot-harness.md). Verified evidence belo
 
 Ordinary bounded movement approaches the observed dummy model origin to2.5 horizontal yards before measurement. The existing ground-tested private destination is only initial placement. Missing position, changed target or a100-step approach failure blocks; there is no teleport/collision bypass during approach.
 
+## Azure Follower205 native attempt — 2026-10-20
+
+Pinned server8ea8af5a3, native LFG2498/map2515/difficulty205/copy1 admitted real Fury70 plus Garrick/Crenna/Shuja/Meredy. At20:49:45.588Z Heroic Throw57755 received actual success on Conjured Lasher; at20:49:53.155Z rule1252/type3 explicitly refused the player's next decision. All four bosses remained NotStarted; no full clear or follower-AI counterexample. Initial sequence294/retention200 invalidates complete death/DPS claims.
+
+Infrastructure-only adapterd77c98ddc accepts an explicit DB-derived map/difficulty plan; Azure3RED→GREEN and retainedStockade23PASS. Diagnostic orchestration awaits actual server ticks (UDP/admin socket precede public-spawn startup), uses a short private Wayland runtime path, and completes the controller's visible CharacterFrame capture before LFG transfer. Approved private2515 bake retains `AZURE_VAULT_GROUND_NOT_PUBLISHED`; existing canonical display76261 eye records were copied exactly into an owned private table, without changing old rows or geometry. No gameplay or class mechanics changed.
+
+[Ranked timestamped findings, exact artifacts and limits](../../../data/diagnostics/follower-kits-2026-10-18/azure-follower205-integration-8ea8af5a3/findings.md). Native rotation semantics remain owned by [[cooldown-assist-data]]; no alternate rotation/step skip was enabled. Shared report JSON's legacy `stockade` scenario label does not identify the actual admitted map.
+
 ## Sourced rotations and talents
 
 All40 installed specs have AssistedCombatStep order. When order exists, the collector consumes the existing [native assisted evaluator](../investigations/cooldown-assist-data.md); unknown/loading predicates stop collection. Only an absent authored order permits the approved, labeled highest-available DB2 coefficient rule. No source gap silently enables that generic rule.
