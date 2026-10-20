@@ -1,3 +1,10 @@
+## 2026-10-20 — Monthly Time sorting native proof
+
+[Exact cohort and qualifications](systems/trading-post.md#monthly-time-sorting): after ts754 landing, actual Ead3/S001/P566 both-skin7/7 naturalexit0/unique marker/approved-baseline full-stream VALID. Native header/menu/toggle/name-tie first12/provider reset/empty ordinary disabled with frozen kept; exact original local/authority/HUD and seven sampled positions restore. Each skin1 Query/0 mutations;14 inspected original PNGs published. Owned runtime/5899/window cleared. Quest519073 gap persists; owned sentinel/expiry variants remain CPU-qualified and monthly BEST_GUESS is not Retail calendar parity.
+
+## 2026-10-19 — Trading Post reply-kind correlation implementation
+
+[Flow and proof status](systems/trading-post.md#reply-kind-correlation): required server reply kind, host-poll kind drain and captured popup product preserve pending ownership across unrelated Query/catalog removal and Purchase→Query coalescing. Pushed-first regressions reached assertion RED before their corresponding changes, including the coalesced terminal-error control. Targeted107 model/13 host/3 UDP/5 protocol GREEN; coordinated gate pending. No timed/native/provider parity claim.
 ## 2026-10-19 — Ordinary Description TOP alignment
 
 [Source/proof](systems/dungeon-achievements.md#ordinary-description-vertical-alignment): one explicitverticalTOP attribute; priorCENTERcontrolupdatedinown0ac8commit, ignoredREDpushedfirst/observedfourbothskin alignmentassertions. Font10/330×34/ink/shadow/horizontalCENTER/origin/actions conserved; GREEN pending, no otherpolicychange.
