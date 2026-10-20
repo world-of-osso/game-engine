@@ -23,7 +23,7 @@ Existing roster offline Zone cells and member detail Last Online fields display 
 
 ## Known gaps (current cycle)
 
-- [ ] Actual rendering RED observed (Offline instead of source < an hour); implementation committed. Focused GREEN2/2 (deterministic source-unit boundaries plus both-skin fields) passes with no warnings; coordinated P/S/E landing and real two-member disconnect/fresh-server readback/reconnect proof remain pending. Large elapsed-time boundaries are deterministic automated proof, never backdated native actor state.
+None within the approved slice. gl728 landed protocol50517c9/server1a2f13fd4/engine51f1af4f8; actual two-member disconnect, both-skin recency, reconnect and fresh-server/client readback were accepted. See [native acceptance](../wiki/systems/guilds.md#last-online-native-acceptance-2026-10-19). Numeric epoch bounds, unknown-history provenance and large elapsed-unit boundaries retain automated proof, not backdated native actor state.
 
 ## Out of scope
 
