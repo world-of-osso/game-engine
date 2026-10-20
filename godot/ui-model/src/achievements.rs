@@ -1221,7 +1221,7 @@ pub fn achievement_screen(ctx: &SharedContext) -> Element {
         && window.selected_achievement.is_none()
         && !window.full_search
         && !window.statistics;
-    let mut content = artwork::chrome(show_summary);
+    let mut content = artwork::chrome(show_summary, window.guild);
     content.extend(points_header(
         window
             .summary
