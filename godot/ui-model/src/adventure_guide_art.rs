@@ -276,11 +276,6 @@ fn apply_button_state(
     };
     if let Some(id) = registry.get_by_name(&format!("{name}ButtonHighlight")) {
         registry.set_hidden(id, !hovered);
-        if let Some(WidgetData::Texture(texture)) =
-            registry.get_mut(id).and_then(|f| f.widget_data.as_mut())
-        {
-            texture.blend_mode = ui_toolkit::widgets::texture::BlendMode::Additive;
-        }
     }
     let Some(id) = registry.get_by_name(&format!("{name}ButtonArt")) else {
         return;
@@ -303,7 +298,7 @@ fn apply_button_state(
 pub const INFO: (f32, f32, f32, f32) = (7., 64., 785., 425.);
 pub const MODEL: (f32, f32, f32, f32) = (399., 65., 390., 423.);
 
-#[derive(Clone, Copy)]
+#[derive(Clone, Copy, Debug)]
 pub enum Art {
     BossUp,
     BossDown,
@@ -355,6 +350,15 @@ impl Art {
             Self::DungeonLootFrame => "0.00195313,0.72265625,0.52441406,0.58691406",
         }
     }
+    /// Blizzard_EncounterJournal.xml HighlightTexture alphaMode per button template:
+    /// dungeon :355 and boss :632 keep BLEND; creature :547 and side tab :657 are ADD.
+    fn highlight_blend_mode(self) -> &'static str {
+        match self {
+            Self::DungeonHighlight | Self::BossHighlight => "BLEND",
+            Self::InstanceRing | Self::TabHighlight => "ADD",
+            other => panic!("{other:?} is not an EncounterJournal HighlightTexture"),
+        }
+    }
 }
 pub fn art(name: String, kind: Art, rect: (f32, f32, f32, f32)) -> Element {
     cropped(name, SHEET, kind.uv(), rect)
@@ -362,7 +366,8 @@ pub fn art(name: String, kind: Art, rect: (f32, f32, f32, f32)) -> Element {
 pub fn highlight(name: String, kind: Art, rect: (f32, f32, f32, f32)) -> Element {
     let (left, top, width, height) = rect;
     let uv = kind.uv();
-    rsx! {texture {name:{DynName(name)},texture_fdid:SHEET,tex_coords:uv,left,top,width,height,pos_type:"absolute",hidden:true}}
+    let blend_mode = kind.highlight_blend_mode();
+    rsx! {texture {name:{DynName(name)},texture_fdid:SHEET,tex_coords:uv,blend_mode,left,top,width,height,pos_type:"absolute",hidden:true}}
 }
 
 pub fn search_box(value: &str) -> Element {

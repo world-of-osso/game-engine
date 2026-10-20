@@ -12,6 +12,11 @@ use ui_toolkit::{
 };
 
 fn render(skin: ActiveSkin, money: u64) -> FrameRegistry {
+    let (context, mut registry) = synced(skin, money);
+    apply_trainer_art(context.get::<TrainerView>().unwrap(), &mut registry);
+    registry
+}
+fn synced(skin: ActiveSkin, money: u64) -> (SharedContext, FrameRegistry) {
     game_engine_ui_model::paths::set_data_root(
         std::path::PathBuf::from(env!("CARGO_MANIFEST_DIR")).join("../../data"),
     )
@@ -66,8 +71,7 @@ fn render(skin: ActiveSkin, money: u64) -> FrameRegistry {
     });
     let mut registry = FrameRegistry::new(1920.0, 1080.0);
     Screen::new(trainer_screen).sync(&context, &mut registry);
-    apply_trainer_art(context.get::<TrainerView>().unwrap(), &mut registry);
-    registry
+    (context, registry)
 }
 fn frame<'a>(registry: &'a FrameRegistry, name: &str) -> &'a Frame {
     registry
@@ -146,8 +150,7 @@ fn trainer_art_costs_use_denomination_coins_and_red_only_when_unaffordable() {
     set_thread_skin(ActiveSkin::Modern);
 }
 #[test]
-fn trainer_art_unavailable_icons_desaturate_without_greying_known_icons_and_selection_adds() {
-    use ui_toolkit::widgets::texture::BlendMode;
+fn trainer_art_unavailable_icons_desaturate_without_greying_known_icons() {
     for skin in [ActiveSkin::Modern, ActiveSkin::Forever] {
         let registry = render(skin, 10000);
         for (id, desaturated) in [(100, false), (200, true), (300, false), (400, false)] {
@@ -156,10 +159,6 @@ fn trainer_art_unavailable_icons_desaturate_without_greying_known_icons_and_sele
                 matches!(&icon.widget_data, Some(WidgetData::Texture(texture)) if texture.desaturated == desaturated)
             );
         }
-        let selected = frame(&registry, "ClassTrainerService100Selected");
-        assert!(
-            matches!(&selected.widget_data, Some(WidgetData::Texture(texture)) if texture.blend_mode == BlendMode::Additive)
-        );
         assert!(
             registry
                 .get_by_name("ClassTrainerService200DisabledBG")
@@ -330,6 +329,42 @@ fn trainer_art_filter_labels_use_retail_state_colors() {
                     .get_by_name(&format!("ClassTrainerFilter{index}Check"))
                     .is_some()
             );
+        }
+    }
+    set_thread_skin(ActiveSkin::Modern);
+}
+
+// Blizzard_TrainerUI.xml:66 selectedTex and :90 $parentHighlight are ADD; the row
+// background and icon keep the default BLEND. Read straight from sync.
+#[test]
+fn trainer_rows_author_source_blend_modes_at_construction() {
+    use ui_toolkit::widgets::texture::{BlendMode, TextureSource};
+    for skin in [ActiveSkin::Modern, ActiveSkin::Forever] {
+        let (_, registry) = synced(skin, 10000);
+        for (name, fdid, expected) in [
+            (
+                "ClassTrainerService100Selected",
+                404984,
+                BlendMode::Additive,
+            ),
+            (
+                "ClassTrainerService100Highlight",
+                404984,
+                BlendMode::Additive,
+            ),
+            (
+                "ClassTrainerService200Highlight",
+                404984,
+                BlendMode::Additive,
+            ),
+            ("ClassTrainerService100Background", 404984, BlendMode::Blend),
+            ("ClassTrainerService100Icon", 132890, BlendMode::Blend),
+        ] {
+            let Some(WidgetData::Texture(texture)) = &frame(&registry, name).widget_data else {
+                panic!("{name} must be a texture");
+            };
+            assert_eq!(texture.blend_mode, expected, "{name}");
+            assert_eq!(texture.source, TextureSource::FileDataId(fdid), "{name}");
         }
     }
     set_thread_skin(ActiveSkin::Modern);

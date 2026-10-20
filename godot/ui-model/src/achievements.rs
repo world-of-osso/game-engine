@@ -1611,72 +1611,21 @@ fn browse_controls(window: &AchievementWindow) -> Element {
     content
 }
 
-/// Mainline AchievementStatTemplateMixin:Init uses additive half-alpha on every second row.
-pub fn apply_achievement_postsetup(registry: &mut ui_toolkit::registry::FrameRegistry) {
-    // AchievementCategoryTemplate HighlightTexture uses ADD, not an opaque green overlay.
-    // Selection can be outside the current category tree; style the emitted textures,
-    // not a second reconstruction of which categories the tree contains.
-    let highlights: Vec<_> = registry
-        .frames_iter()
-        .filter_map(|frame| frame.name.as_ref())
-        .filter(|name| name.starts_with("AchievementCategory") && name.ends_with("Highlight"))
-        .cloned()
-        .collect();
-    for name in highlights {
-        set_additive_texture(registry, &name, 1.0);
-    }
-    let alternate_stripes: Vec<_> = registry
-        .frames_iter()
-        .filter_map(|frame| {
-            let name = frame.name.as_ref()?;
-            let Some(ui_toolkit::frame::WidgetData::Texture(texture)) = frame.widget_data.as_ref()
-            else {
-                return None;
-            };
-            (name.starts_with("Achievement")
-                && name.ends_with("Stripe")
-                && texture.tex_coords[2] == 0.375)
-                .then(|| name.clone())
-        })
-        .collect();
-    for name in alternate_stripes {
-        set_additive_texture(registry, &name, 0.5);
-    }
-}
-
-fn set_additive_texture(
-    registry: &mut ui_toolkit::registry::FrameRegistry,
-    name: &str,
-    alpha: f32,
-) {
-    use ui_toolkit::frame::WidgetData;
-    use ui_toolkit::widgets::texture::BlendMode;
-    let id = registry
-        .get_by_name(name)
-        .expect("rendered achievement texture");
-    let frame = registry.get_mut(id).expect("achievement texture frame");
-    frame.alpha = alpha;
-    let Some(WidgetData::Texture(texture)) = frame.widget_data.as_mut() else {
-        panic!("achievement texture");
-    };
-    texture.blend_mode = BlendMode::Additive;
-}
-
 fn statistic_row(entry: &AchievementCatalogEntry, y: f32, index: usize) -> Element {
     let prefix = format!("Achievement{}", entry.achievement_id);
     let action = format!("achievement:row:{}", entry.achievement_id);
-    let stripe = index % 2;
-    let uv = if stripe == 0 {
-        "0,1,0.1875,0.3671875"
+    // Mainline Blizzard_AchievementUI.lua:2219-2228 (AchievementStatTemplateMixin:Init):
+    // every second row is ADD at alpha 0.5, the others BLEND at alpha 1.
+    let (uv, blend_mode, alpha) = if index % 2 == 0 {
+        ("0,1,0.1875,0.3671875", "BLEND", 1.0)
     } else {
-        "0,1,0.375,0.5390625"
+        ("0,1,0.375,0.5390625", "ADD", 0.5)
     };
-    let mut content = artwork::texture(
-        &format!("{prefix}Stripe"),
-        235411,
-        uv,
-        (0.0, y, 500.0, 24.0),
-    );
+    let tint = artwork::skin_tint(235411);
+    let mut content = rsx! { texture { name: {DynName(format!("{prefix}Stripe"))},
+        texture_fdid: 235411, tex_coords: uv, vertex_color: tint, blend_mode, alpha,
+        width: 500.0, height: 24.0, left: 0.0, top: y, pos_type: "absolute",
+    } };
     content.extend(label(
         format!("{prefix}Name"),
         &entry.name,
@@ -2099,5 +2048,100 @@ pub fn achievement_toast_screen(ctx: &SharedContext) -> Element {
                 width:38.0,height:16.0,pos_type:"absolute",left:243.0,top:41.0,
             }
         }
+    }
+}
+
+#[cfg(test)]
+mod blend_tests {
+    use super::*;
+    use ui_toolkit::frame::WidgetData;
+    use ui_toolkit::registry::FrameRegistry;
+    use ui_toolkit::screen::Screen;
+    use ui_toolkit::widgets::texture::{BlendMode, TextureSource};
+
+    fn statistic(achievement_id: u32) -> AchievementCatalogEntry {
+        AchievementCatalogEntry {
+            achievement_id,
+            name: format!("Statistic {achievement_id}"),
+            description: String::new(),
+            points: 0,
+            icon_fdid: 0,
+            flags: 1,
+            earned: false,
+            earned_at: None,
+            progress_supported: false,
+            criteria: vec![],
+            next_criteria_id: None,
+            statistic_value: Some(7),
+        }
+    }
+
+    fn texture(registry: &FrameRegistry, name: &str) -> (TextureSource, BlendMode, f32) {
+        let frame = registry
+            .get(
+                registry
+                    .get_by_name(name)
+                    .unwrap_or_else(|| panic!("{name} missing")),
+            )
+            .unwrap();
+        let Some(WidgetData::Texture(texture)) = &frame.widget_data else {
+            panic!("{name} must be a texture");
+        };
+        (texture.source.clone(), texture.blend_mode, frame.alpha)
+    }
+
+    // Read straight from sync: Blizzard_AchievementUI.xml:650 category HighlightTexture ADD;
+    // Mainline Blizzard_AchievementUI.lua:2219-2228 alternate statistic rows ADD at 0.5.
+    #[test]
+    fn statistics_rows_and_selected_category_author_source_blend_modes() {
+        crate::paths::set_data_root(
+            std::path::PathBuf::from(env!("CARGO_MANIFEST_DIR")).join("../../data"),
+        )
+        .unwrap();
+        for skin in [ActiveSkin::Modern, ActiveSkin::Forever] {
+            ui_toolkit::atlas::set_thread_skin(skin);
+            let mut window = AchievementWindow {
+                visible: true,
+                statistics: true,
+                selected_category: Some(14807),
+                ..Default::default()
+            };
+            window.categories.insert(
+                14807,
+                AchievementCategoryEntry {
+                    category_id: 14807,
+                    parent_id: 1,
+                    order_index: 1,
+                    name: "Dungeons & Raids".into(),
+                },
+            );
+            window.pages.insert(
+                14807,
+                CategoryPage {
+                    entries: vec![statistic(1068), statistic(1069)],
+                    next: None,
+                    loaded: true,
+                },
+            );
+            let mut shared = SharedContext::new();
+            shared.insert(skin);
+            shared.insert(window);
+            let mut registry = FrameRegistry::new(1920.0, 1080.0);
+            Screen::new(achievement_screen).sync(&shared, &mut registry);
+            let stripe = TextureSource::FileDataId(235411);
+            assert_eq!(
+                texture(&registry, "Achievement1068Stripe"),
+                (stripe.clone(), BlendMode::Blend, 1.0)
+            );
+            assert_eq!(
+                texture(&registry, "Achievement1069Stripe"),
+                (stripe, BlendMode::Additive, 0.5)
+            );
+            assert_eq!(
+                texture(&registry, "AchievementCategory14807Highlight"),
+                (TextureSource::FileDataId(235400), BlendMode::Additive, 1.0)
+            );
+        }
+        ui_toolkit::atlas::set_thread_skin(ActiveSkin::Modern);
     }
 }

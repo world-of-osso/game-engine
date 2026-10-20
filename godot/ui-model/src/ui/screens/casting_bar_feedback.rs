@@ -1,9 +1,6 @@
 //! Retail CastingBarFrame.xml feedback sampled on the cast reducer's clock.
-use ui_toolkit::frame::WidgetData;
-use ui_toolkit::registry::FrameRegistry;
 use ui_toolkit::rsx;
 use ui_toolkit::widget_def::Element;
-use ui_toolkit::widgets::texture::BlendMode;
 
 use super::{CastBarStyle, CastingBarState};
 
@@ -39,8 +36,12 @@ impl CastFeedback {
     }
 }
 
+/// `blend_mode` is the Mainline/CastingBarFrame.xml region alphaMode: ADD for
+/// InterruptGlow:206, EnergyGlow:226, Flakes:261-271, BaseGlow:276, WispGlow:281,
+/// Flash:306 and StandardGlow:347; BLEND (authored or default) for the rest.
 struct Sprite {
     name: &'static str,
+    blend_mode: &'static str,
     atlas: &'static str,
     rect: (f32, f32, f32, f32),
     alpha: f32,
@@ -52,7 +53,7 @@ fn sprite(style: &CastBarStyle, part: Sprite) -> Element {
     let hide = part.alpha <= 0.0;
     rsx! { texture {
         name: {style.name(part.name)}, texture_atlas: part.atlas,
-        width, height, alpha: {part.alpha}, hidden: hide,
+        width, height, alpha: {part.alpha}, hidden: hide, blend_mode: part.blend_mode,
         rotation: {part.rotation}, pos_type: "absolute", pos_x: x, pos_y: y,
     } }
 }
@@ -64,6 +65,7 @@ pub(super) fn feedback_art(style: &CastBarStyle, state: &CastingBarState) -> Ele
             style,
             Sprite {
                 name: "InterruptGlow",
+                blend_mode: "ADD",
                 atlas: "cast_interrupt_outerglow",
                 rect: (-5.0, (style.bar.1 - 25.0) / 2.0, style.bar.0 + 10.0, 25.0),
                 alpha: (1.0 - seconds).clamp(0.0, 1.0),
@@ -84,6 +86,7 @@ fn finish_art(style: &CastBarStyle, state: &CastingBarState, seconds: f32) -> El
         style,
         Sprite {
             name: "Flash",
+            blend_mode: "ADD",
             atlas,
             rect: (-1.0, -1.0, style.bar.0 + 2.0, style.bar.1 + 2.0),
             alpha: (seconds / 0.2).clamp(0.0, 1.0),
@@ -109,6 +112,7 @@ fn standard_finish(style: &CastBarStyle, seconds: f32) -> Element {
     [
         Sprite {
             name: "EnergyGlow",
+            blend_mode: "ADD",
             atlas: "cast_standard_glowline",
             rect: (
                 center - 123.165,
@@ -121,6 +125,7 @@ fn standard_finish(style: &CastBarStyle, seconds: f32) -> Element {
         },
         Sprite {
             name: "Flakes01",
+            blend_mode: "ADD",
             atlas: "cast_standard_flakes01",
             rect: (
                 center - 54.75,
@@ -133,6 +138,7 @@ fn standard_finish(style: &CastBarStyle, seconds: f32) -> Element {
         },
         Sprite {
             name: "Flakes02",
+            blend_mode: "ADD",
             atlas: "cast_standard_flakes02",
             rect: (
                 center - 64.0,
@@ -145,6 +151,7 @@ fn standard_finish(style: &CastBarStyle, seconds: f32) -> Element {
         },
         Sprite {
             name: "Flakes03",
+            blend_mode: "ADD",
             atlas: "cast_standard_flakes03",
             rect: (
                 center - 51.25,
@@ -175,6 +182,7 @@ fn channel_finish(style: &CastBarStyle, seconds: f32) -> Element {
     [
         Sprite {
             name: "BaseGlow",
+            blend_mode: "ADD",
             atlas: "channel_wispglow2",
             rect: (0.0, middle - 5.5, 21.0 * (1.0 + 3.0 * linear), 11.0),
             alpha: base_alpha,
@@ -182,6 +190,7 @@ fn channel_finish(style: &CastBarStyle, seconds: f32) -> Element {
         },
         Sprite {
             name: "WispMask",
+            blend_mode: "BLEND",
             atlas: "cast_channel_wispmask",
             rect: (-90.0 + 50.0 * linear, middle - 17.0, 54.5, 38.0),
             alpha: 0.0,
@@ -189,6 +198,7 @@ fn channel_finish(style: &CastBarStyle, seconds: f32) -> Element {
         },
         Sprite {
             name: "WispGlow",
+            blend_mode: "ADD",
             atlas: "cast_channel_wispglow",
             rect: (25.0, middle - 8.0, 52.0, 16.0),
             alpha,
@@ -196,6 +206,7 @@ fn channel_finish(style: &CastBarStyle, seconds: f32) -> Element {
         },
         Sprite {
             name: "Sparkles01",
+            blend_mode: "BLEND",
             atlas: "cast_channel_sparkles_01",
             rect: (40.0 * linear * linear, middle - 3.75, 24.0, 7.5),
             alpha,
@@ -203,6 +214,7 @@ fn channel_finish(style: &CastBarStyle, seconds: f32) -> Element {
         },
         Sprite {
             name: "Sparkles02",
+            blend_mode: "BLEND",
             atlas: "cast_channel_sparkles_02",
             rect: (20.0 * ease_in_out(late), middle - 4.25, 32.5, 8.5),
             alpha,
@@ -239,6 +251,7 @@ pub(super) fn player_spark(style: &CastBarStyle, state: &CastingBarState, fill_w
         style,
         Sprite {
             name: "Spark",
+            blend_mode: "BLEND",
             atlas,
             // Retail Mainline/CastingBarFrame.xml:326-330 authors an 8×20 pip.
             // Match the skin's fill height (Forever is 26); Modern stays 20.
@@ -254,6 +267,7 @@ pub(super) fn player_spark(style: &CastBarStyle, state: &CastingBarState, fill_w
             style,
             Sprite {
                 name: "ChannelShadow",
+                blend_mode: "BLEND",
                 atlas: "cast_channel_pipshadow",
                 rect: (fill_w - 14.0, (style.bar.1 - 11.0) / 2.0, 11.0, 11.0),
                 alpha: 1.0,
@@ -265,6 +279,7 @@ pub(super) fn player_spark(style: &CastBarStyle, state: &CastingBarState, fill_w
             style,
             Sprite {
                 name: "StandardGlow",
+                blend_mode: "ADD",
                 atlas: "cast_standard_pipglow",
                 rect: (fill_w - 39.0, (style.bar.1 - 12.0) / 2.0, 37.0, 12.0),
                 alpha: 1.0,
@@ -273,29 +288,4 @@ pub(super) fn player_spark(style: &CastBarStyle, state: &CastingBarState, fill_w
         )
     };
     pip.into_iter().chain(glow).collect()
-}
-
-/// Retail's ADD layers are properties, not RSX attributes.
-pub fn apply_casting_bar_feedback_postsetup(registry: &mut FrameRegistry) {
-    for suffix in [
-        "Flash",
-        "InterruptGlow",
-        "EnergyGlow",
-        "Flakes01",
-        "Flakes02",
-        "Flakes03",
-        "BaseGlow",
-        "WispGlow",
-        "StandardGlow",
-    ] {
-        let Some(id) = registry.get_by_name(&format!("CastingBar{suffix}")) else {
-            continue;
-        };
-        if let Some(WidgetData::Texture(texture)) = registry
-            .get_mut(id)
-            .and_then(|frame| frame.widget_data.as_mut())
-        {
-            texture.blend_mode = BlendMode::Additive;
-        }
-    }
 }

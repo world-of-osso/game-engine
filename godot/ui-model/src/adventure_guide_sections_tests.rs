@@ -80,7 +80,7 @@ fn adventure_section_flash_real_paralyze_uses_source_glow_regions_and_retains_ho
             };
             assert_eq!(
                 texture.blend_mode,
-                ui_toolkit::widgets::texture::BlendMode::AlphaKey
+                ui_toolkit::widgets::texture::BlendMode::Blend
             );
             let hover = format!("JournalSection2410{suffix}");
             let Some(WidgetData::Texture(texture)) = &registry
@@ -93,7 +93,7 @@ fn adventure_section_flash_real_paralyze_uses_source_glow_regions_and_retains_ho
             assert_eq!(
                 texture.blend_mode,
                 // Baseline rsx blend_mode was ignored; preserve observed hover data.
-                ui_toolkit::widgets::texture::BlendMode::AlphaKey
+                ui_toolkit::widgets::texture::BlendMode::Blend
             );
             assert_eq!(
                 registry

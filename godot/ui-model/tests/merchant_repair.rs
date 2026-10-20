@@ -109,6 +109,27 @@ fn registry(session: &MerchantSession) -> FrameRegistry {
     registry
 }
 
+// MerchantFrame.xml:316 repair-item HighlightTexture is ADD, straight from sync.
+#[test]
+fn repair_item_highlight_authors_source_additive_blend() {
+    use ui_toolkit::widgets::texture::{BlendMode, TextureSource};
+    let registry = registry(&session(true));
+    let frame = registry
+        .get(
+            registry
+                .get_by_name("MerchantRepairItemButtonHighlight")
+                .expect("repair item highlight"),
+        )
+        .unwrap();
+    let Some(ui_toolkit::frame::WidgetData::Texture(texture)) = &frame.widget_data else {
+        panic!("repair item highlight must be a texture");
+    };
+    assert_eq!(
+        (texture.source.clone(), texture.blend_mode),
+        (TextureSource::FileDataId(130718), BlendMode::Additive)
+    );
+}
+
 fn highlight_shown(session: &MerchantSession) -> bool {
     let registry = registry(session);
     let id = registry

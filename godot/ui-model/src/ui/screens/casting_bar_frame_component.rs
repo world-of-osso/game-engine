@@ -1,6 +1,6 @@
 #[path = "casting_bar_feedback.rs"]
 mod feedback;
-pub use feedback::{CastFeedback, apply_casting_bar_feedback_postsetup};
+pub use feedback::CastFeedback;
 
 use ui_toolkit::atlas::ActiveSkin;
 use ui_toolkit::rsx;

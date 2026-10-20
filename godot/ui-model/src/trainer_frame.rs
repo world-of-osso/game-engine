@@ -248,12 +248,7 @@ fn service_row(
         );
     }
     if selected {
-        children.extend(crate::bank_art::cropped(
-            format!("{prefix}Selected"),
-            art::TRAINER_SHEET,
-            "0.00195313,0.57421875,0.84960938,0.94140625",
-            (0.0, 0.0, 298.0, 47.0),
-        ));
+        children.extend(art::selected(&prefix));
     }
     children.extend(art::hover(&prefix));
     let action = format!("trainer:select:{}", row.spell_id);

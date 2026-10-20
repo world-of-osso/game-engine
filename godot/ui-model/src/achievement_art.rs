@@ -146,12 +146,14 @@ pub(super) fn category_row(
         tex_coords:"0,0.6640625,0,1",vertex_color:tint,width,height:32.0,left:0.0,top:0.0,pos_type:"absolute",
     }};
     if selected {
-        content.extend(texture(
-            &format!("{name}Highlight"),
-            235400,
-            "0,0.6640625,0,1",
-            (0.0, 0.0, width, 24.0),
-        ));
+        // Blizzard_AchievementUI.xml:650 HighlightTexture alphaMode="ADD", locked on selection.
+        let tint = skin_tint(235400);
+        content.extend(
+            rsx! {texture {name:{DynName(format!("{name}Highlight"))},texture_fdid:235400,
+                tex_coords:"0,0.6640625,0,1",vertex_color:tint,blend_mode:"ADD",width,height:24.0,
+                left:0.0,top:0.0,pos_type:"absolute",
+            }},
+        );
     }
     content.extend(label(
         name.into(),

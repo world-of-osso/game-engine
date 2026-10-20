@@ -10,7 +10,6 @@ use ui_toolkit::{
     registry::FrameRegistry,
     rsx,
     widget_def::Element,
-    widgets::texture::BlendMode,
 };
 
 pub(super) const TRAINER_SHEET: u32 = 404984;
@@ -108,13 +107,26 @@ pub(super) fn row_background(prefix: &str, unavailable: bool) -> Element {
     out
 }
 
-pub(super) fn hover(prefix: &str) -> Element {
-    cropped(
-        format!("{prefix}Highlight"),
-        TRAINER_SHEET,
-        "0.00195313,0.57421875,0.75390625,0.84570313",
-        (0.0, 0.0, 298.0, 47.0),
+/// Blizzard_TrainerUI.xml:66 `selectedTex` alphaMode="ADD".
+pub(super) fn selected(prefix: &str) -> Element {
+    additive_row(
+        format!("{prefix}Selected"),
+        "0.00195313,0.57421875,0.84960938,0.94140625",
     )
+}
+
+/// Blizzard_TrainerUI.xml:90 `$parentHighlight` alphaMode="ADD".
+pub(super) fn hover(prefix: &str) -> Element {
+    additive_row(
+        format!("{prefix}Highlight"),
+        "0.00195313,0.57421875,0.75390625,0.84570313",
+    )
+}
+
+fn additive_row(name: String, coords: &str) -> Element {
+    rsx! { texture { name: {DynName(name)}, width: 298.0, height: 47.0,
+    texture_fdid: TRAINER_SHEET, tex_coords: coords, blend_mode: "ADD",
+    pos_type: "absolute", left: 0.0, top: 0.0 } }
 }
 
 pub(super) fn rank_bar(rank: u16, max: u16) -> Element {
@@ -175,7 +187,7 @@ pub(super) fn wallet(copper: u64) -> Element {
     out
 }
 
-fn set_texture_effect(registry: &mut FrameRegistry, name: &str, desaturated: bool, additive: bool) {
+fn set_desaturated(registry: &mut FrameRegistry, name: &str, desaturated: bool) {
     let Some(id) = registry.get_by_name(name) else {
         return;
     };
@@ -183,11 +195,6 @@ fn set_texture_effect(registry: &mut FrameRegistry, name: &str, desaturated: boo
         && let Some(WidgetData::Texture(texture)) = &mut frame.widget_data
     {
         texture.desaturated = desaturated;
-        texture.blend_mode = if additive {
-            BlendMode::Additive
-        } else {
-            BlendMode::AlphaKey
-        };
     }
 }
 
@@ -196,9 +203,7 @@ pub(super) fn apply_rows(view: &TrainerView, registry: &mut FrameRegistry) {
     for service in view.book.visible_services() {
         let prefix = format!("ClassTrainerService{}", service.spell_id);
         let unavailable = service.state == TrainerServiceState::Unavailable;
-        set_texture_effect(registry, &format!("{prefix}Icon"), unavailable, false);
-        set_texture_effect(registry, &format!("{prefix}Selected"), false, true);
-        set_texture_effect(registry, &format!("{prefix}Highlight"), false, true);
+        set_desaturated(registry, &format!("{prefix}Icon"), unavailable);
         // Keyboard focus locks the same highlight pointer hover shows.
         let hovered = registry.get_by_name(&prefix).and_then(|id| registry.get(id)).is_some_and(|frame| matches!(&frame.widget_data, Some(WidgetData::Button(button)) if button.hovered || button.highlight_locked));
         if let Some(id) = registry.get_by_name(&format!("{prefix}Highlight")) {

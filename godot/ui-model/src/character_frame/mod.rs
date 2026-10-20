@@ -611,15 +611,6 @@ fn paperdoll_frame(view: &CharacterFrameView) -> Element {
 /// `NORMAL_FONT_COLOR`) and the desaturated race backdrop (`PaperDollBgDesaturate(true)`).
 pub fn apply_character_frame_postsetup(registry: &mut FrameRegistry, tab: CharacterTab) {
     apply_named_chrome(registry, tab);
-    if tab == CharacterTab::Currency {
-        for part in ["Left", "Middle", "Right"] {
-            if let Some(WidgetData::Texture(texture)) =
-                widget_mut(registry, &format!("TokenHeader2Highlight{part}"))
-            {
-                texture.blend_mode = ui_toolkit::widgets::texture::BlendMode::Additive;
-            }
-        }
-    }
     if tab != CharacterTab::PaperDoll {
         return;
     }

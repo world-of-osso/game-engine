@@ -153,7 +153,7 @@ fn header(width: f32, collapsed: bool, top: f32) -> Element {
         ),
         (width, HEADER_HEIGHT),
         sides,
-        ("BACKGROUND", 1.0, false),
+        ("BACKGROUND", 1.0, false, "BLEND"),
     );
     children.extend(three_slice(
         "TokenHeader2Highlight",
@@ -164,7 +164,8 @@ fn header(width: f32, collapsed: bool, top: f32) -> Element {
         ),
         (width, HEADER_HEIGHT),
         sides,
-        ("HIGHLIGHT", 0.4, false),
+        // ListTemplates.xml:84-94: HighlightLeft/Right/Middle alphaMode="ADD".
+        ("HIGHLIGHT", 0.4, false, "ADD"),
     ));
     children.extend(label(
         "TokenHeader2Name".into(),
@@ -206,7 +207,7 @@ fn entry(row: &CurrencyRow, (left, top, width): (f32, f32, f32)) -> Element {
         ),
         (width, ENTRY_HEIGHT),
         (6.0, 6.0),
-        ("HIGHLIGHT", 0.1, true),
+        ("HIGHLIGHT", 0.1, true, "BLEND"),
     );
     children.extend(crate::bank_art::texture(
         format!("{name}CurrencyIcon"),
@@ -243,12 +244,12 @@ fn three_slice(
     atlases: (&str, &str, &str),
     size: (f32, f32),
     sides: (f32, f32),
-    style: (&str, f32, bool),
+    style: (&str, f32, bool, &str),
 ) -> Element {
     use ui_toolkit::atlas::{AtlasSource, resolve_region, thread_skin};
     let (width, height) = size;
     let (left_span, right_span) = sides;
-    let (layer, alpha, mirror_right) = style;
+    let (layer, alpha, mirror_right, blend_mode) = style;
     [("Left", atlases.0, 0.0, left_span),
         ("Middle", atlases.1, left_span, width - left_span - right_span),
         ("Right", atlases.2, width - right_span, right_span)]
@@ -258,6 +259,6 @@ fn three_slice(
         let (u0, u1) = if part == "Right" && mirror_right { (region.right, region.left) } else { (region.left, region.right) };
         let coords = format!("{u0},{u1},{},{}", region.top, region.bottom);
         rsx! { texture { name: {DynName(format!("{name}{part}"))}, texture_fdid: fdid, width, height,
-            left, top: 0.0, pos_type: "absolute", alpha, draw_layer: layer, tex_coords: {coords.as_str()} } }
+            left, top: 0.0, pos_type: "absolute", alpha, draw_layer: layer, blend_mode, tex_coords: {coords.as_str()} } }
     }).collect()
 }

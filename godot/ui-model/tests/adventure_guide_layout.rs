@@ -10,7 +10,10 @@ use ui_toolkit::{
     layout_values::Val,
     registry::FrameRegistry,
     screen::{Screen, SharedContext},
-    widgets::{button::ButtonState, texture::TextureSource},
+    widgets::{
+        button::ButtonState,
+        texture::{BlendMode, TextureSource},
+    },
 };
 
 fn rect(registry: &FrameRegistry, name: &str) -> [f32; 4] {
@@ -49,14 +52,33 @@ fn assert_gold(registry: &FrameRegistry, name: &str) {
 }
 
 fn render(view: &View, skin: ActiveSkin) -> FrameRegistry {
+    let mut registry = synced(view, skin);
+    game_engine_ui_model::adventure_guide_art::apply_postsetup(view, &mut registry);
+    registry
+}
+
+fn synced(view: &View, skin: ActiveSkin) -> FrameRegistry {
     set_thread_skin(skin);
     let mut ctx = SharedContext::new();
     ctx.insert(skin);
     ctx.insert(view.clone());
     let mut registry = FrameRegistry::new(1280., 720.);
     Screen::new(adventure_guide_screen).sync(&ctx, &mut registry);
-    game_engine_ui_model::adventure_guide_art::apply_postsetup(view, &mut registry);
     registry
+}
+
+fn texture_blend(registry: &FrameRegistry, name: &str) -> (TextureSource, BlendMode) {
+    let frame = registry
+        .get(
+            registry
+                .get_by_name(name)
+                .unwrap_or_else(|| panic!("{name} missing")),
+        )
+        .unwrap();
+    let Some(WidgetData::Texture(texture)) = &frame.widget_data else {
+        panic!("{name} must be a texture");
+    };
+    (texture.source.clone(), texture.blend_mode)
 }
 
 #[test]
@@ -373,4 +395,54 @@ fn adventure_guide_tier_backgrounds_use_the_real_catalog_ordering_and_atlas_shee
             );
         }
     }
+}
+
+// Blizzard_EncounterJournal.xml HighlightTexture alphaMode, read straight from sync:
+// instance :355 and boss :632 inherit BLEND templates; creature :547 and tab :657 are ADD.
+#[test]
+fn adventure_guide_highlights_author_source_blend_modes_at_construction() {
+    let root = std::path::PathBuf::from(env!("CARGO_MANIFEST_DIR")).join("../../data");
+    game_engine_ui_model::paths::set_data_root(root.clone()).unwrap();
+    let catalog = Arc::new(Catalog::load(&root.join("cache/adventure_guide.sqlite")).unwrap());
+    let sheet = TextureSource::FileDataId(game_engine_ui_model::adventure_guide_art::SHEET);
+    for skin in [ActiveSkin::Modern, ActiveSkin::Forever] {
+        let mut view = View {
+            visible: true,
+            catalog: catalog.clone(),
+            ..Default::default()
+        };
+        let first = view.instances()[0].id;
+        assert_eq!(
+            texture_blend(
+                &synced(&view, skin),
+                &format!("JournalInstance{first}ButtonHighlight")
+            ),
+            (sheet.clone(), BlendMode::Blend)
+        );
+        view.apply("journal:instance:67").unwrap();
+        let instance = synced(&view, skin);
+        assert_eq!(
+            texture_blend(&instance, "JournalBoss112ButtonHighlight"),
+            (sheet.clone(), BlendMode::Blend)
+        );
+        assert_eq!(
+            texture_blend(&instance, "EncounterJournalPage0ButtonHighlight"),
+            (sheet.clone(), BlendMode::Additive)
+        );
+        view.apply("journal:encounter:112").unwrap();
+        view.apply("journal:page:model").unwrap();
+        let model = synced(&view, skin);
+        let creatures = view.model_creatures();
+        assert!(!creatures.is_empty(), "encounter 112 has model creatures");
+        for creature in creatures {
+            assert_eq!(
+                texture_blend(
+                    &model,
+                    &format!("JournalCreature{}ButtonHighlight", creature.id)
+                ),
+                (sheet.clone(), BlendMode::Additive)
+            );
+        }
+    }
+    set_thread_skin(ActiveSkin::Modern);
 }
