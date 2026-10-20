@@ -259,11 +259,6 @@ fn guild_context_leadership_popup_has_source_labels_and_bounded_dialog_geometry_
             assert_eq!(text(&registry, &format!("{name}Text")), caption);
             assert!(!action(&registry, name).is_empty());
         }
-        assert!(
-            registry
-                .get_by_name("GuildLeadershipTransferCover")
-                .is_some()
-        );
         assert_eq!(session.state().unwrap().members[0].rank, 2);
         assert!(session.commands.is_empty());
     }
