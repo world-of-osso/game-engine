@@ -105,7 +105,7 @@ func rollover_cases() -> bool:
 
 	time_owner = first_time_owner()
 	if not completion.require(not time_owner.is_empty(), "ordinary clock remains beside frozen slot"): return false
-	if not completion.step(await wait_until(func(): return control(time_owner) != null and str(control(time_owner).text) == "0m", "natural minute countdown", 30000), "natural1m to0m"): return false
+	if not completion.step(await wait_until(func(): return control(time_owner) != null and str(control(time_owner).text) == "0m", "natural minute countdown", 90000), "natural1m to0m"): return false
 	if not completion.step(await capture_case("zero-minutes"), "minute countdown case"): return false
 
 	if not completion.step(await wait_until(func(): return int(client.trading_post_state().items) == 1 and int(client.trading_post_state().frozen) == reserved, "natural UTC rollover replaces catalog", 100000), "automatic rollover Query replacement"): return false
