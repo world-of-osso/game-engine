@@ -289,6 +289,7 @@ fn send_vendor(app: &mut App, npc: u64) {
                         count: 2,
                         durability: None,
                         soulbound: false,
+                        crafting_origin: None,
                     },
                 }],
             }],
