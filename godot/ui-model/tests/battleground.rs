@@ -1,3 +1,6 @@
+#[path = "battleground_requeue.rs"]
+mod requeue;
+
 use game_engine_ui_model::battleground::{PvpAction, PvpView, pvp_screen};
 use shared::battleground::{BgOutcome, BgPhase, BgTeam, FlagObjective};
 use shared::protocol::*;
