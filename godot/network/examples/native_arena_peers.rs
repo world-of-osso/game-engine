@@ -237,8 +237,8 @@ fn run() -> Result<(), String> {
         .map_err(|e| e.to_string())?
         .parse::<std::net::SocketAddr>()
         .map_err(|e| e.to_string())?;
-    if !address.ip().is_loopback() || address.port() != 5786 {
-        return Err("Private UDP5786 only".into());
+    if !address.ip().is_loopback() || address.port() != 5941 {
+        return Err("Private UDP5941 only".into());
     }
     let (mode, team_size) = match std::env::var("ARENA_MODE").as_deref() {
         Ok("2v2") => (ArenaQueueMode::Skirmish2v2, 2),
