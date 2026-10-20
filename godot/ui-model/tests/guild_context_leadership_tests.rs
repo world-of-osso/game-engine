@@ -106,7 +106,12 @@ fn guild_context_leadership_menu_eligibility_and_ordinary_rank_controls_both_ski
                 _ => session.profile = None,
             }
             session.click("guild:member-menu:Cara", &Default::default());
-            assert!(action(&mounted(&session), ENTRY).is_empty());
+            let registry = mounted(&session);
+            let responder = registry
+                .get_by_name(ENTRY)
+                .and_then(|id| registry.get(id))
+                .and_then(|frame| frame.onclick.as_deref());
+            assert!(responder.is_none_or(str::is_empty));
             assert_eq!(
                 session.click("guild:transfer_leadership", &Default::default()),
                 None
@@ -147,14 +152,8 @@ fn guild_context_leadership_accept_keeps_captured_member_after_sort_selection_an
             text(&registry, "GuildLeadershipTransferPopupText"),
             "Really promote Cara to Guildmaster?"
         );
-        assert_eq!(
-            text(&registry, "GuildLeadershipTransferAcceptText"),
-            "Accept"
-        );
-        assert_eq!(
-            text(&registry, "GuildLeadershipTransferCancelText"),
-            "Cancel"
-        );
+        assert_eq!(text(&registry, ACCEPT), "Accept");
+        assert_eq!(text(&registry, CANCEL), "Cancel");
         let accept = action(&registry, ACCEPT);
         assert!(!accept.is_empty());
         assert_eq!(
@@ -256,7 +255,7 @@ fn guild_context_leadership_popup_has_source_labels_and_bounded_dialog_geometry_
         for (name, caption) in [(ACCEPT, "Accept"), (CANCEL, "Cancel")] {
             let button = registry.get(registry.get_by_name(name).unwrap()).unwrap();
             assert_eq!((button.width.value(), button.height.value()), (128.0, 21.0));
-            assert_eq!(text(&registry, &format!("{name}Text")), caption);
+            assert_eq!(text(&registry, name), caption);
             assert!(!action(&registry, name).is_empty());
         }
         assert_eq!(session.state().unwrap().members[0].rank, 2);
