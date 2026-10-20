@@ -81,6 +81,47 @@ pub(super) fn prepare(app: &mut App, player: Entity, npc: Entity) {
         ));
 }
 
+pub(super) fn apply_control(
+    app: &mut App,
+    line: &str,
+    player: Entity,
+    npc: Entity,
+) -> Result<bool, String> {
+    if let Some(json) = line.strip_prefix("FIXTURE NAMEPLATE_CLICK_OVERLAP ") {
+        let position: [f32; 3] = serde_json::from_str(json)
+            .map_err(|error| format!("Read far plate fixture position: {error}"))?;
+        spawn_far_plate(app, player, position);
+        return Ok(true);
+    }
+    let (combat, flags) = match line {
+        "FIXTURE NAMEPLATE_CLICK_HIDE" => (false, 0),
+        "FIXTURE NAMEPLATE_CLICK_NOT_SELECTABLE" => (true, 0x02000000),
+        "FIXTURE NAMEPLATE_CLICK_SHOW" => (true, 0),
+        _ => return Ok(false),
+    };
+    app.world_mut().entity_mut(npc).insert((
+        CombatStatus(combat),
+        UnitFlags(flags),
+        UnitTarget(combat.then_some(player.to_bits())),
+    ));
+    Ok(true)
+}
+
+fn spawn_far_plate(app: &mut App, player: Entity, [x, y, z]: [f32; 3]) {
+    let far = spawn_named_npc(app, 2079, "Fixture Far Plate");
+    app.world_mut().entity_mut(far).insert((
+        Position { x, y, z },
+        UnitFactionTemplate(14),
+        UnitFlags(0),
+        Health {
+            current: 10.0,
+            max: 10.0,
+        },
+        CombatStatus(true),
+        UnitTarget(Some(player.to_bits())),
+    ));
+}
+
 pub(super) fn echo_targets(app: &mut App, player: Entity) -> Result<(), String> {
     let selected = app.world().resource::<Incoming>().selected_link;
     let targets = std::mem::take(&mut app.world_mut().resource_mut::<Incoming>().targets);
