@@ -474,6 +474,7 @@ impl Peer {
                             count,
                             durability: None,
                             soulbound: false,
+                            crafting_origin: None,
                         }),
                     }],
                 },
