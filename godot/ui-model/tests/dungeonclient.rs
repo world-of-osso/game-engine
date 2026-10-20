@@ -566,7 +566,7 @@ fn achievements_art_rows_scroll_and_cursor_append_preserves_expansion_both_skins
 }
 
 #[test]
-fn achievements_art_postsetup_paints_only_rendered_category_highlights() {
+fn achievements_outside_statistics_category_does_not_invent_empty_text() {
     assets(ActiveSkin::Modern);
     let mut window = AchievementWindow::default();
     window.visible = true;
@@ -575,8 +575,7 @@ fn achievements_art_postsetup_paints_only_rendered_category_highlights() {
     let mut outside_statistics_tree = category();
     outside_statistics_tree.category_id = 14822;
     window.categories.insert(14822, outside_statistics_tree);
-    let mut registry = achievement_registry(&window, ActiveSkin::Modern);
-    game_engine_ui_model::achievements::apply_achievement_postsetup(&mut registry);
+    let registry = achievement_registry(&window, ActiveSkin::Modern);
     assert_eq!(text(&registry, "AchievementEmpty"), "");
 }
 

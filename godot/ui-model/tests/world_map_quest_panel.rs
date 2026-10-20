@@ -280,8 +280,9 @@ fn quest_map_geometry_and_selection_art_match_source_in_both_skins() {
         let Some(WidgetData::Texture(texture)) = &selected.widget_data else {
             panic!("selection art texture");
         };
-        assert_eq!(texture.blend_mode, BlendMode::Additive);
-        assert_eq!(texture.vertex_color[3], 0.4);
+        // R QuestMapFrame.xml219 is an ordinary Texture with no mode/alpha overrides.
+        assert_eq!(texture.blend_mode, BlendMode::Blend);
+        assert_eq!(texture.vertex_color[3], 1.0);
         let details = render(map_state(WorldMapDisplay {
             quest_details: true,
             ..Default::default()

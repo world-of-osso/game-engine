@@ -74,10 +74,11 @@ fn confirmation_contents(props: &ItemConfirmation<'_>) -> (Element, f32) {
             (0., 0., 60., 60.),
         );
         // SharedXML/Spinner.xml8: Sparks is authored alphaMode="ADD"; Ring keeps BLEND.
-        let sparks = crate::menu_template_art::additive_atlas_texture(
+        let sparks = crate::quest_art::named_atlas_texture_blend(
             format!("{prefix}SpinnerSparks"),
             "Spinner_Sparks",
             (0., 0., 60., 60.),
+            ui_toolkit::widgets::texture::BlendMode::Additive,
         );
         contents.extend(rsx! {
             // GameDialog.xml296–320: source500/1000 priorities above dialog content.

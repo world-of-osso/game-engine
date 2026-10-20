@@ -9,6 +9,7 @@ use ui_toolkit::rsx;
 use ui_toolkit::text_measure::measure_text;
 use ui_toolkit::widget_def::Element;
 use ui_toolkit::widgets::font_string::GameFont;
+use ui_toolkit::widgets::texture::BlendMode;
 
 use crate::panel_style_data::MetalTopLeft;
 use crate::ui::screens::inworld_unit_frames_component::inworld_unit_frames_art::AtlasArt;
@@ -93,6 +94,17 @@ pub const QUEST_SMALL_HEADER_COLOR: &str = "0.30,0.18,0.0,1.0";
 
 /// Absolutely positioned texture showing one atlas member.
 pub fn atlas_texture(name: String, art: &AtlasArt, rect: (f32, f32, f32, f32)) -> Element {
+    atlas_texture_blend(name, art, rect, BlendMode::Blend)
+}
+
+/// One region constructor; omission uses the authored BLEND default above.
+pub fn atlas_texture_blend(
+    name: String,
+    art: &AtlasArt,
+    rect: (f32, f32, f32, f32),
+    mode: BlendMode,
+) -> Element {
+    let blend_mode = mode.as_str();
     let coords = art.tex_coords(1.0);
     let (x, y, width, height) = rect;
     rsx! {
@@ -102,6 +114,7 @@ pub fn atlas_texture(name: String, art: &AtlasArt, rect: (f32, f32, f32, f32)) -
             height,
             texture_fdid: {art.fdid},
             tex_coords: {coords.as_str()},
+            blend_mode,
             pos_type: "absolute",
             left: x,
             top: y,
@@ -125,7 +138,16 @@ fn read_active_atlas_art(name: &str) -> AtlasArt {
 }
 
 pub fn named_atlas_texture(name: String, atlas: &str, rect: (f32, f32, f32, f32)) -> Element {
-    atlas_texture(name, &read_active_atlas_art(atlas), rect)
+    named_atlas_texture_blend(name, atlas, rect, BlendMode::Blend)
+}
+
+pub fn named_atlas_texture_blend(
+    name: String,
+    atlas: &str,
+    rect: (f32, f32, f32, f32),
+    mode: BlendMode,
+) -> Element {
+    atlas_texture_blend(name, &read_active_atlas_art(atlas), rect, mode)
 }
 
 /// Retail `ButtonFrameTemplate` chrome for a window of `width`×`height`: rock background,

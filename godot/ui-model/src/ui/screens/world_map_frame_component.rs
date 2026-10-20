@@ -12,7 +12,7 @@ use ui_toolkit::registry::FrameRegistry;
 use ui_toolkit::rsx;
 use ui_toolkit::screen::SharedContext;
 use ui_toolkit::widget_def::Element;
-use ui_toolkit::widgets::texture::{BlendMode, TextureData};
+use ui_toolkit::widgets::texture::TextureData;
 
 use crate::quest_scroll::{QuestScrollPane, quest_scroll_frame};
 use crate::ui::anchor::FrameName;
@@ -691,38 +691,12 @@ fn details_page(details: &QuestLogDetails, panel_x: f32, ctx: &SharedContext) ->
     elements
 }
 
-/// Registry fields `rsx!` has no attribute for: the player arrow's facing and the
-/// additive blend of the hovered map's highlight (`HighlightFileDataID` art is
-/// black where it adds nothing).
+/// Live player-arrow facing. Authored region blend modes are set by the builders.
 pub fn apply_world_map_postsetup(state: &WorldMapFrameState, registry: &mut FrameRegistry) {
-    let selected: Vec<_> = registry
-        .frames_iter()
-        .filter_map(|frame| frame.name.as_ref())
-        .filter(|name| name.starts_with("QuestLogTitle") && name.ends_with("Selected"))
-        .cloned()
-        .collect();
-    for name in selected {
-        edit_texture(registry, &name, |texture| {
-            texture.blend_mode = BlendMode::Additive;
-            texture.vertex_color[3] = 0.4;
-        });
-    }
     if let Some(player) = &state.player {
         edit_texture(registry, WORLD_MAP_PLAYER_ARROW, |texture| {
             texture.rotation = player.rotation;
         });
-    }
-    edit_texture(registry, WORLD_MAP_HIGHLIGHT, |texture| {
-        texture.blend_mode = BlendMode::Additive;
-    });
-    for index in 0..state.pins.len() {
-        edit_texture(
-            registry,
-            &format!("WorldMapPin{index}Highlight"),
-            |texture| {
-                texture.blend_mode = BlendMode::Additive;
-            },
-        );
     }
 }
 

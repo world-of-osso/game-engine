@@ -82,12 +82,6 @@ impl IconMasks {
     }
 
     fn apply_perks_template(&mut self, registry: &mut FrameRegistry) {
-        if let Some(id) = registry.get_by_name("PerksProgramConfirmSpinnerSparks")
-            && let Some(frame) = registry.get_mut(id)
-            && let Some(WidgetData::Texture(texture)) = &mut frame.widget_data
-        {
-            texture.blend_mode = ui_toolkit::widgets::texture::BlendMode::Additive;
-        }
         // Cart IconVignette is a black66% texture clipped by the same56px alpha mask.
         let vignettes: Vec<_> = registry
             .frames_iter()
