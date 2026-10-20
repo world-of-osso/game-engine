@@ -19,7 +19,7 @@ decisions; `guild_rank_frame.rs` renders the native roster/settings canvas and
 ### Online member zone
 
 - [x] Existing roster/detail Zone fields display only the server's optional `GuildMemberSnapshot.online_zone` for an online member; missing authority remains empty, not a map name or invented label. Both skins keep existing field geometry and member action identity.
-- [x] New authoritative snapshots replace displayed zone labels; offline roster Last Online text and empty offline detail Zone remain unchanged. Zone sorting, offline timestamps and Club/mobile presence are excluded.
+- [x] New authoritative snapshots replace displayed zone labels; offline detail Zone remains empty. The separate [Last Online contract](guild-last-online.md) owns offline recency, not this zone-only slice. Zone sorting and Club/mobile presence remain excluded.
 - Source: Mainline `CommunitiesMemberList.lua:115–120,1285–1297`, `GuildRoster.lua:115`; server uses existing GroundMap→AreaTable zone authority. Protocol/server/engine land together.
 - Test: `guild_online_zone_roster_and_detail_follow_authority_both_skins` (integration); behavioral RED observed before production change. Targeted GREEN and coordinated gz689 passed. Post-landing two authenticated members prove actual Elwynn Forest/Westfall fields, movement refresh and disconnected/offline fields in both skins; [native artifact provenance and proof limits](../wiki/systems/guilds.md#online-member-zone).
 

@@ -296,6 +296,7 @@ pub mod guild_news;
 pub mod guild_news_state;
 mod guild_note_sort;
 pub mod guild_perks;
+mod guild_presence;
 pub mod guild_rank_frame;
 pub mod guild_ranks;
 #[path = "ipc/format_shared.rs"]
