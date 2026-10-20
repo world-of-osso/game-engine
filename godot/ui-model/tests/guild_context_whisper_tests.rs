@@ -16,7 +16,6 @@ fn top(registry: &FrameRegistry, name: &str) -> f32 {
 }
 
 #[test]
-#[ignore = "RED: roster Whisper not implemented"]
 fn guild_context_whisper_shows_for_online_other_member_before_guildmaster_both_skins() {
     let _lock = SKIN.lock().unwrap_or_else(|poison| poison.into_inner());
     for skin in [ActiveSkin::Modern, ActiveSkin::Forever] {
@@ -53,7 +52,6 @@ fn guild_context_whisper_shows_for_online_other_member_before_guildmaster_both_s
 }
 
 #[test]
-#[ignore = "RED: roster Whisper not implemented"]
 fn guild_context_whisper_hidden_for_self_offline_and_unknown_profile_both_skins() {
     let _lock = SKIN.lock().unwrap_or_else(|poison| poison.into_inner());
     for skin in [ActiveSkin::Modern, ActiveSkin::Forever] {
@@ -85,7 +83,6 @@ fn guild_context_whisper_hidden_for_self_offline_and_unknown_profile_both_skins(
 }
 
 #[test]
-#[ignore = "RED: roster Whisper not implemented"]
 fn guild_context_whisper_opens_existing_chat_prefill_without_guild_request_both_skins() {
     let _lock = SKIN.lock().unwrap_or_else(|poison| poison.into_inner());
     for skin in [ActiveSkin::Modern, ActiveSkin::Forever] {
