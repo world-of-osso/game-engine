@@ -1,6 +1,12 @@
 ## 2026-10-20 — Monthly Time sorting CPU proof
 
 [Source and proof boundary](systems/trading-post.md#monthly-time-sorting): pushed-first ignored6 genuine RED→unignored6 GREEN at3844d4233; existing header/menu/action use common server monthly duration, source1000/999 padding floored to minutes, ascending-name ties and provider Time→Price reset. No wire/per-item pending invention; selection/cart/authority preserved. Both-skin native pending; earlier rollover acceptance is not relabeled.
+## 2026-10-19 — Crafting origin vertical slice, targeted GREEN
+
+[Source, actual-craft persistence and consumer proof](systems/native-professions-crafting.md#server-recorded-crafting-origin): pushed ignored RED in all three repositories before implementation, then P1/S2/E1 targeted GREEN at separately recorded revisions. Real2153→new2303 GUID carries ability1355/joinedspell2153 after DB reopen; identical non-crafted item unknown. Actual2963 unknown-stack RED→compatible merging/split persistence controls; engine mirrors optional metadata on the same GUID. No fabricated quality/slots/watermark or recraft activation. Current masters merged; atomic lead gate/consumer integration pending, not a new rendered/process-reopen claim.
+## 2026-10-20 — Guild Zone sorting native accepted
+
+[Exact cohort, originals and limits](systems/guilds.md#native-zone-sort-acceptance-2026-10-20): gz746 tests/fmt passed and landed; exact E6874f287d/private Sb12089d1f/Pda007a6 builds and import/parse/login passed. Real two-member Modern/Forever physical Zone direction/reset, Elwynn/Westfall ordering, genuine peer disconnect/mixed recency, original detail identity and offline filter hide/restore pass strict1/1. Eight inspected original PNGs published; historical DB unchanged, actors/cage/slice stopped,5891 unbound/window cleared. Seconds/ties/Unicode/overflow remain automated; native binding/count limits stay unqualified. Setup PATH127, import ObjectDB leaks and live audio/Wayland/data diagnostics retained. Lead inspected two representative frames and accepted.
 
 ## 2026-10-20 — Monthly clock native proof
 
@@ -5006,3 +5012,7 @@ After pushed ignored regression and actual Offline-vs-recency rendering RED, rep
 ## 2026-10-19 — Last Online native acceptance
 
 gl728 landed protocol50517c9/server1a2f13fd4/engine51f1af4f8. Real peer disconnect→both-skin roster/detail recency, genuine reconnect→Online/Elwynn Forest, second disconnect→fresh server/client persisted readback accepted; six inspected unchanged original PNGs published. Historical original unchanged, owned actors/slice stopped, UDP5891 unbound and window cleared. [Exact evidence and automated/native boundaries](systems/guilds.md#last-online-native-acceptance-2026-10-19); no fabricated history or audio/clean-exit repair claim.
+
+## 2026-10-19 — Zone header sort implementation
+
+After pushed ignored tests and actual3-case behavioral RED, activated the existing Zone header and pure presentation comparator. Allowed historical prose supplies valid-string mapping; GUILD_ZONE_SORT_OFFLINE_BY_LOGOUT_SECONDS explicitly uses most-recent seconds first ascending, with fixed existing name ties and no Retail counter/sub-hour claim. No wire/backend/layout changes or Note-mechanics changes. [Source, limits and current proof](systems/guilds.md#zone-header-sorting); focused GREEN/gate/native pending.

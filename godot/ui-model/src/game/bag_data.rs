@@ -105,6 +105,7 @@ pub struct InventorySlot {
     pub definition_source: ItemDefinitionSource,
     pub soulbound: bool,
     pub durability: Option<ItemDurability>,
+    pub crafting_origin: Option<shared::protocol::CraftingOrigin>,
 }
 
 impl Default for InventorySlot {
@@ -119,6 +120,7 @@ impl Default for InventorySlot {
             definition_source: ItemDefinitionSource::Retail,
             soulbound: false,
             durability: None,
+            crafting_origin: None,
         }
     }
 }
@@ -150,6 +152,7 @@ pub fn stack_slot_in_catalog(
             definition_source: stack.definition_source,
             soulbound: stack.soulbound,
             durability: stack.durability,
+            crafting_origin: stack.crafting_origin,
             ..Default::default()
         },
         catalog,

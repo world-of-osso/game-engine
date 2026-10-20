@@ -61,6 +61,7 @@ fn linen() -> ItemStack {
         count: 3,
         durability: None,
         soulbound: false,
+        crafting_origin: None,
     }
 }
 
