@@ -35,6 +35,50 @@ fn collect_display_visuals(
 }
 
 impl SpellEffects {
+    /// `false` only while the shared catalog is still loading. The host calls once
+    /// per visual after readiness; detached ownership is never a replicated unit ID.
+    pub(crate) fn begin_detached_display_kit(
+        &mut self,
+        display: u32,
+        visual: InstanceId,
+    ) -> Result<bool, String> {
+        let Some(catalog) = self.catalog()? else {
+            return Ok(false);
+        };
+        let Some(kit) = catalog.display_state_kit(display) else {
+            return Ok(true);
+        };
+        if kit.animation.is_some() || !kit.sounds.is_empty() || !kit.unit_sounds.is_empty() {
+            return Err(format!(
+                "Detached display {display} kit {} requires unsupported unit animation or sounds",
+                kit.kit_id
+            ));
+        }
+        self.queue_owned_models(
+            &kit,
+            EffectOwner::Detached(visual),
+            Lifetime::UntilDetachedEnds { visual },
+            0,
+        );
+        Ok(true)
+    }
+
+    /// Closing/replacing a detached scene destroys its children immediately and
+    /// cancels delayed loads; no decay or pending work may outlive that visual.
+    pub(crate) fn end_detached_display_kit(&mut self, visual: InstanceId) {
+        let lifetime = Lifetime::UntilDetachedEnds { visual };
+        self.pending.retain(|pending| pending.lifetime != lifetime);
+        self.active.retain_mut(|effect| {
+            if effect.lifetime != lifetime {
+                return true;
+            }
+            if effect.node.is_instance_valid() {
+                effect.node.clone().free();
+            }
+            false
+        });
+    }
+
     pub(super) fn sync_display_kits(
         &mut self,
         units: &Replica,

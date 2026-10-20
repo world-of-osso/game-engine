@@ -485,6 +485,17 @@ impl GameClient {
             .local_player_id()
             .and_then(|id| self.replica.unit(id))
             .is_some_and(|unit| unit.has::<CastState>());
+        if self.professions.reagent_selection.spell_id != book.selected
+            && let Some(recipe) = book
+                .selected_recipe()
+                .filter(|recipe| recipe.output.is_none())
+        {
+            godot_print!(
+                "Profession operation unavailable recipe={}: {}",
+                recipe.spell_id,
+                shared::profession::CraftingOperationGap::CraftingOperationComposition
+            );
+        }
         self.professions
             .reagent_selection
             .select_recipe(book.selected);
@@ -530,7 +541,10 @@ impl GameClient {
                 .as_ref()
                 .map(|catalog| catalog.child_skills.clone())
                 .unwrap_or_default(),
-            status: self.quality_operation_status(),
+            status: game_engine_ui_model::professions_reagent_selection::craft_status(
+                &self.professions.error,
+                &self.professions.reagent_selection,
+            ),
             bag_counts: self.profession_reagent_counts(),
             reagent_selection: self.professions.reagent_selection.clone(),
             reagent_slots,
