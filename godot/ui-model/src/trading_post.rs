@@ -29,7 +29,9 @@ use crate::{
     },
 };
 pub use outfit::{apply_rotation_icon_positions, load_scene_autodress};
-use shared::protocol::{TradingPostItem, TradingPostRequest, TradingPostSnapshot};
+use shared::protocol::{
+    TradingPostItem, TradingPostReplyKind, TradingPostRequest, TradingPostSnapshot,
+};
 use std::{collections::BTreeSet, sync::Arc};
 use ui_toolkit::{rsx, screen::SharedContext, widget_def::Element};
 
@@ -71,6 +73,8 @@ pub struct View {
     /// Deduplicates rollover Query across frames and same-boundary partial replies.
     pub clock_rollover_requested_for: Option<i64>,
     pub confirm: Option<String>,
+    /// The product shown by a purchase/refund popup, independent of refreshed catalog selection.
+    pub confirmation_product: Option<TradingPostItem>,
     /// Slot previews the dragged product; snapshot remains authoritative until reply.
     pub freeze_candidate: Option<u32>,
     pub freeze_delay: u8,
@@ -182,12 +186,22 @@ impl View {
     }
 
     pub fn receive(&mut self, snapshot: Arc<TradingPostSnapshot>) {
+        let confirmation_kind = match self.confirm.as_deref() {
+            Some("purchase") => Some(TradingPostReplyKind::Purchase),
+            Some("cart-checkout") => Some(TradingPostReplyKind::Checkout),
+            Some("refund") => Some(TradingPostReplyKind::Refund),
+            _ => None,
+        };
+        let keep_pending =
+            self.pending && confirmation_kind.is_some_and(|kind| kind != snapshot.reply_kind);
         self.error = snapshot.error.clone().unwrap_or_default();
         self.snapshot = Some(snapshot);
-        self.pending = false;
         self.refund_elapsed = 0;
-        self.cancel_confirmation();
-        self.cart_confirmation = None;
+        if !keep_pending {
+            self.pending = false;
+            self.cancel_confirmation();
+            self.cart_confirmation = None;
+        }
         // Currency/authority snapshots do not transfer preview ownership to a product.
         if !self.cart_visible {
             self.reselect();
@@ -360,8 +374,8 @@ impl View {
             "perks:select-previous" => self.select_adjacent_product(false)?,
             "perks:sort:ascending" => self.ascending = !self.ascending,
             "perks:cancel" => self.cancel_confirmation(),
-            "perks:purchase" if self.can_purchase() => self.confirm = Some("purchase".into()),
-            "perks:refund" if self.can_refund() => self.confirm = Some("refund".into()),
+            "perks:purchase" if self.can_purchase() => self.open_product_confirmation("purchase"),
+            "perks:refund" if self.can_refund() => self.open_product_confirmation("refund"),
             "perks:confirm" => return self.confirm_request(),
             "perks:sort:name" => self.sort_by(Sort::Name),
             "perks:sort:time" => {
@@ -372,6 +386,15 @@ impl View {
         }
         Ok(None)
     }
+    fn open_product_confirmation(&mut self, kind: &str) {
+        let product = self
+            .selected_item()
+            .expect("Confirmation eligibility checked a product")
+            .clone();
+        self.confirmation_product = Some(product);
+        self.confirm = Some(kind.into());
+    }
+
     /// Products.lua183–187 selects an ordinary unpurchased product before pickup.
     pub fn select_dragged_product(&mut self, id: u32) -> bool {
         if self.pending || self.confirm.is_some() {
@@ -417,6 +440,7 @@ impl View {
     }
     pub fn cancel_confirmation(&mut self) {
         self.confirm = None;
+        self.confirmation_product = None;
         self.freeze_candidate = None;
         self.freeze_delay = 0;
     }
@@ -1392,9 +1416,10 @@ fn confirm_popup(view: &View, kind: &str) -> Element {
             screen: (WIDTH, HEIGHT),
         });
     }
-    let Some(row) = view.selected_item() else {
-        return vec![];
-    };
+    let row = view
+        .confirmation_product
+        .as_ref()
+        .expect("Product confirmation captured its product");
     // GlobalStrings PERKS_PROGRAM_CONFIRM_PURCHASE / _REFUND; currency markup is a texture.
     let refund = kind == "refund";
     let before = if refund {

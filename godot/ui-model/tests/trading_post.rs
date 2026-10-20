@@ -1870,6 +1870,7 @@ fn snapshot() -> TradingPostSnapshot {
         source_gaps: vec!["Refund duration unsourced: disabled.".into()],
         error: None,
         catalog_complete: true,
+        reply_kind: shared::protocol::TradingPostReplyKind::Query,
     }
 }
 fn render(skin: ActiveSkin, view: View) -> FrameRegistry {
@@ -2425,6 +2426,7 @@ fn trading_post_cart_checkout_confirms_total_then_waits_for_authority_without_lo
             ),
             "0"
         );
+        data.reply_kind = shared::protocol::TradingPostReplyKind::Checkout;
         data.tender = 325;
         for row in &mut data.items {
             row.purchased = true;
@@ -2591,6 +2593,7 @@ fn trading_post_controls_wait_for_server_and_confirm_purchase_without_local_debi
     );
     assert_eq!(view.click("perks:purchase").unwrap(), None);
     let mut paid = snapshot();
+    paid.reply_kind = shared::protocol::TradingPostReplyKind::Purchase;
     paid.tender = 400;
     paid.items[0].purchased = true;
     paid.items[0].collected = true;
@@ -2922,6 +2925,7 @@ fn trading_post_confirmation_uses_sourced_prompt_item_and_dialog_geometry() {
                 snapshot: Some(Arc::new(snapshot())),
                 selected: Some(4),
                 confirm: Some("purchase".into()),
+                confirmation_product: Some(snapshot().items[0].clone()),
                 ..Default::default()
             },
         );
@@ -3381,7 +3385,6 @@ fn trading_post_cart_tooltip_rejects_headers_other_vendor_members_and_removed_ow
 }
 
 #[test]
-#[ignore = "source-expectation RED: catalog Query is not Purchase completion"]
 fn trading_post_query_reply_keeps_pending_purchase_owner_until_purchase_reply() {
     let mut data = snapshot();
     data.now_unix = data.month_end_unix - 1;
@@ -3432,6 +3435,7 @@ fn trading_post_query_reply_keeps_pending_purchase_owner_until_purchase_reply() 
     }
 
     let mut purchase_reply = query_reply;
+    purchase_reply.reply_kind = shared::protocol::TradingPostReplyKind::Purchase;
     purchase_reply.tender = 400;
     purchase_reply.items[0].purchased = true;
     view.receive(Arc::new(purchase_reply));
@@ -3446,7 +3450,6 @@ fn trading_post_query_reply_keeps_pending_purchase_owner_until_purchase_reply() 
 }
 
 #[test]
-#[ignore = "source-expectation RED: catalog removal cannot replace the pending item"]
 fn trading_post_query_reply_keeps_pending_purchase_product_after_catalog_removal() {
     let mut data = snapshot();
     data.now_unix = data.month_end_unix - 1;
@@ -3497,6 +3500,7 @@ fn trading_post_query_reply_keeps_pending_purchase_product_after_catalog_removal
         );
     }
 
+    query_reply.reply_kind = shared::protocol::TradingPostReplyKind::Purchase;
     query_reply.error = Some("Purchase item is no longer available".into());
     view.receive(Arc::new(query_reply));
     assert!(!view.pending);
@@ -3560,6 +3564,7 @@ fn trading_post_pending_dialog_purchase_waits_for_reply_and_prunes_only_accepted
             );
         }
     }
+    data.reply_kind = shared::protocol::TradingPostReplyKind::Purchase;
     data.tender = 400;
     data.items[0].purchased = true;
     view.receive(Arc::new(data));
@@ -3599,6 +3604,7 @@ fn trading_post_pending_dialog_refund_keeps_owner_until_authoritative_reply() {
     assert_eq!(view.snapshot.as_ref().unwrap().tender, 400);
     assert_eq!(view.click("perks:cancel").unwrap(), None);
     assert_eq!(view.click("perks:confirm").unwrap(), None);
+    data.reply_kind = shared::protocol::TradingPostReplyKind::Refund;
     data.tender = 500;
     data.items[0].purchased = false;
     data.items[0].refund_seconds = 0;

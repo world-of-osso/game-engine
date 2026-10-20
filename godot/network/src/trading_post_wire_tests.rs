@@ -48,6 +48,7 @@ fn trading_post_udp_bridge_round_trips_authoritative_balance_and_requests() {
         source_gaps: vec!["Refund duration unsourced".into()],
         error: None,
         catalog_complete: true,
+        reply_kind: shared::protocol::TradingPostReplyKind::Query,
     };
     let world = server.world_mut();
     world
