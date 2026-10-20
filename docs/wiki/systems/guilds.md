@@ -145,6 +145,14 @@ Hasty native trials `typed-human-baseline-1792203539` and `typed-human-member-17
 
 Native existing-caret follow-up: `before  after` + real Shift-click at caret7 initially reverted to the old text. The shared chat insertion path wrote only Godot LineEdit, while the next chat update read RegistryUi's unchanged EditBox state and removed the link from the draft. The insertion now uses RegistryUi::set_editbox_text, then restores the returned caret; this keeps model/native text synchronized. This is a separate actual native RED, not inferred from the earlier empty-draft proof.
 
+## Numeric header equal-key ordering
+
+[Contract](../../specs/guild-numeric-sort-ties.md). Existing Rank/Level/Class primary keys stay numeric, with the same missing-value placement and click/reset direction. Equal keys now reuse the unchanged `guild_note_sort::compare_base`: represented online/offline/unknown profile, both-known level descending, guild rank ascending, raw name ascending. Only the primary comparison reverses; base ties never depend on incoming snapshot order or a whole-vector reversal. Name/Note/Zone behavior, filtering, scroll state, layout and member authority remain separate and unchanged.
+
+Mainline CommunitiesMemberList.lua798–819/905–913 returns nil for equal primary attributes; FrameXMLUtil/CommunitiesUtil.lua53–78/172–182 then applies the non-reversed base comparison. This extends the existing explicitly approved **GUILD_ROSTER_CLUB_FIELDS_ABSENT** projection, not full six-way presence, Club role/memberId or native name-order parity. No new metadata or string/native-binding policy.
+
+Ignored header/registry regressions were pushed first at4858919f1. Actual RED4 observes reversed incoming ties for all three headers and Member23 instead of Member00 after a real24-row/second-viewport setup (204s compile/0.08s tests/no warnings). Minimal production shares one numeric comparison path and changes only base-helper visibility for reuse. Focused GREEN4/4 passes at6ef84509b (21.44s compile/0.19s tests/no warnings); assertion-identical tests then enabled. Independent gate, including existing metadata/Note/Zone controls, and any allocated native proof remain pending; no synthetic fixture is claimed as real native guild membership.
+
 ## Zone header sorting
 
 [Contract](../../specs/guild-zone-sort.md). The existing100px Zone header dispatches the local `GuildRosterSort::Zone`; no wire/server/persistence or layout change. `guild_zone_sort.rs` compares only existing authoritative profile fields and returns presentation order, preserving rank/member snapshots and original action names. Source structural priority and nil handling follow Mainline CommunitiesMemberList.lua798–819/822–838/871–896. Repeat click reverses the primary comparison; equal primary values retain the existing ascending character-name order. Filtering still precedes sorting; existing scroll state/geometry clamp is unchanged.
