@@ -3446,6 +3446,66 @@ fn trading_post_query_reply_keeps_pending_purchase_owner_until_purchase_reply() 
 }
 
 #[test]
+#[ignore = "source-expectation RED: catalog removal cannot replace the pending item"]
+fn trading_post_query_reply_keeps_pending_purchase_product_after_catalog_removal() {
+    let mut data = snapshot();
+    data.now_unix = data.month_end_unix - 1;
+    let mut accepted = data.items[0].clone();
+    accepted.id = 5;
+    accepted.name = "Accepted Warcloak".into();
+    data.items.push(accepted);
+    let mut view = View {
+        visible: true,
+        selected: Some(5),
+        snapshot: Some(Arc::new(data.clone())),
+        ..Default::default()
+    };
+    view.click("perks:purchase").unwrap();
+    assert_eq!(
+        view.advance_server_clock(1),
+        Some(TradingPostRequest::Query)
+    );
+    assert_eq!(
+        view.click("perks:confirm").unwrap(),
+        Some(game_engine_ui_model::trading_post::Action::Request(
+            TradingPostRequest::Purchase { vendor_item_id: 5 }
+        ))
+    );
+
+    let mut query_reply = data.clone();
+    query_reply.now_unix = data.month_end_unix;
+    query_reply.month_end_unix += 30 * 24 * 60 * 60;
+    query_reply.items.retain(|row| row.id != 5);
+    view.receive(Arc::new(query_reply.clone()));
+    assert!(view.pending, "Catalog refresh is not Purchase completion");
+    assert_eq!(view.confirm.as_deref(), Some("purchase"));
+    assert!(
+        view.snapshot
+            .as_ref()
+            .unwrap()
+            .items
+            .iter()
+            .all(|row| row.id != 5)
+    );
+    assert_eq!(view.snapshot.as_ref().unwrap().tender, 500);
+    for skin in [ActiveSkin::Modern, ActiveSkin::Forever] {
+        let registry = render(skin, view.clone());
+        assert!(registry.get_by_name("PerksProgramConfirmDialog").is_some());
+        assert_eq!(
+            text(&registry, "PerksProgramConfirmItemText"),
+            "Accepted Warcloak"
+        );
+    }
+
+    query_reply.error = Some("Purchase item is no longer available".into());
+    view.receive(Arc::new(query_reply));
+    assert!(!view.pending);
+    assert!(view.confirm.is_none());
+    assert_eq!(view.error, "Purchase item is no longer available");
+    assert_eq!(view.snapshot.as_ref().unwrap().tender, 500);
+}
+
+#[test]
 fn trading_post_pending_dialog_purchase_waits_for_reply_and_prunes_only_accepted_cart_item() {
     let mut data = snapshot();
     let mut other = data.items[0].clone();
