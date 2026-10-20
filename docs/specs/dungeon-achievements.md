@@ -123,6 +123,11 @@ Native Retail Mainline AchievementUI and dungeon objectives, using authoritative
 - [x] Ordinary card Description uses nominalRomanFriz10 only, preserving330×34 allocation, current ink/shadow/justification, origin85,30 and click actions. Exclude Lua-driven color/shadow policy and all other labels/global font behavior.
 - Source: AchievementUI.xml850→GameFontStyles159→Fonts133–135. Both-skin ignored native wrapper `network/tests/achievement_card_description_font.rs` / six-case `tests/achievement_card_description_font.gd` covers collapsed/expanded description and unchanged title14 control. Strict native6/6 and affected model35/35 pass; [implementation/proof](../wiki/systems/dungeon-achievements.md#ordinary-card-description-font).
 
+### Ordinary description vertical alignment
+
+- [ ] Ordinary Description uses Retail verticalTOP, preserving font10/330×34/ink/shadow/horizontalCENTER/origin85,30/text/actions. Other labels, Lua color/shadow policy and global font behavior remain unchanged.
+- Source: AchievementUI.xml850→GameFontStyles159. Prior native CENTER control is explicitly replaced in tests-only commit0ac8ec048; `tests/achievement_card_description_alignment.gd` reuses the maintained six-case description fixture through inheritance, wrapped by ignored `network/tests/achievement_card_description_alignment.rs`. [Proof scope](../wiki/systems/dungeon-achievements.md#ordinary-description-vertical-alignment).
+
 ## Known gaps (current cycle)
 
 - [ ] Server-unevaluated criterion/statistic types have no trustworthy quantity to display; do not invent zero/completion.
