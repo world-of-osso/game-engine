@@ -6,7 +6,6 @@ extends "res://tests/crafting_ui_live.gd"
 ## Create must count and consume them with the bank frame never opened.
 const BOLT_SPELL := 2963
 const BOLT_ITEM := 2996
-const LINEN := 2589
 
 func run_test() -> void:
 	root.size = Vector2i(1920, 1080)
