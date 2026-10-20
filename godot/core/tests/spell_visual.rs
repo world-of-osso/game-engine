@@ -257,6 +257,39 @@ fn toyfx19_gladiator_banner_conditions_resolve_complete_back_models() {
 }
 
 #[test]
+#[ignore = "Requires the exact active70448 Void Pulsar CDI state-kit source"]
+fn journal_void_pulsar_cdi_state_kit_has_two_authored_attachments() {
+    let kit = catalog().display_state_kit(141206).unwrap();
+    assert_eq!(kit.kit_id, 253973);
+    assert_eq!(kit.end, VisualEvent::DisplayEnd);
+    assert_eq!(kit.models.len(), 2);
+    for (model, fdid, offset, yaw, scale) in [
+        (&kit.models[0], 4861458, [2.0, 0.0, 0.0], 0.0, 1.0),
+        (
+            &kit.models[1],
+            7455384,
+            [0.0, 0.0, -0.25],
+            std::f32::consts::PI,
+            0.1,
+        ),
+    ] {
+        assert_eq!(model.model_fdid, fdid);
+        assert_eq!(model.attachment, Some(34));
+        assert_eq!(model.offset, offset);
+        assert_eq!(model.yaw, yaw);
+        assert_eq!(model.scale, scale);
+        assert_eq!(model.alpha, 1.0);
+        assert_eq!(model.start_delay, 0.0);
+        assert_eq!(
+            (model.start_anim_id, model.anim_id, model.end_anim_id),
+            (Some(158), Some(158), Some(158))
+        );
+    }
+    assert!(kit.animation.is_none());
+    assert!(kit.sounds.is_empty());
+}
+
+#[test]
 fn toyfx14_display_state_kits_resolve_authored_scenery_attachments() {
     for (display, kit_id, model, scale, alpha) in [
         (92605, 116424, 1398891, 0.5, 1.0),

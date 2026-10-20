@@ -178,8 +178,10 @@ impl GameClient {
             return Ok(());
         }
         if let Some(observed_at) = self.trading_post.snapshot_observed_at {
-            self.trading_post.view.refund_elapsed =
-                observed_at.elapsed().as_secs().min(u64::from(u32::MAX)) as u32;
+            let elapsed = observed_at.elapsed().as_secs().min(u64::from(u32::MAX)) as u32;
+            if let Some(request) = self.trading_post.view.advance_server_clock(elapsed) {
+                self.send_trading_post_vendor_request(request)?;
+            }
         }
         self.trading_post.view.horde = self.player_is_horde();
         self.update_trading_freeze_delay();
@@ -320,12 +322,16 @@ impl GameClient {
             .ok_or("Trading Post viewport missing")?
             .get_mouse_position();
         self.play_trading_post_product_hover_sound(ui.bind().hovered_button())?;
-        self.trading_post.view.product_hover = ui.bind().hovered_button().and_then(|(name, _)| {
+        let product_hover = ui.bind().hovered_button().and_then(|(name, _)| {
             name.strip_prefix("PerksProgramProduct")
                 .or_else(|| name.strip_prefix("PerksProgramCartToggle"))?
                 .parse()
                 .ok()
         });
+        if self.trading_post.view.product_hover != product_hover {
+            self.trading_post.view.deselected_hover_name = None;
+        }
+        self.trading_post.view.product_hover = product_hover;
         self.trading_post.view.cart_hover =
             self.trading_post.view.cart_items().iter().find_map(|row| {
                 let template = if row.category_id == 8 { "Set" } else { "Item" };

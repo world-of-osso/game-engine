@@ -137,12 +137,22 @@ impl SpellEffects {
             ..
         } = start;
         let lifetime = start.hold.map_or(Lifetime::OneShot, KitHold::lifetime);
+        self.queue_owned_models(kit, EffectOwner::Unit(unit), lifetime, spell_id);
+    }
+
+    pub(super) fn queue_owned_models(
+        &mut self,
+        kit: &VisualKit,
+        owner: EffectOwner,
+        lifetime: Lifetime,
+        spell_id: u32,
+    ) {
         for model in &kit.models {
             self.assets
                 .request(SpellAsset::Model(model.model_fdid), Priority::Now);
             self.pending.push(PendingModel {
                 due_at: self.clock + model.start_delay,
-                unit,
+                owner,
                 spell_id,
                 kit_id: kit.kit_id,
                 model: model.clone(),
