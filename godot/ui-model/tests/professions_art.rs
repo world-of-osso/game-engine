@@ -376,6 +376,79 @@ fn professions_search_magnifier_geometry_and_four_focus_query_tints_match_source
 }
 
 #[test]
+fn professions_passive_operation_status_omits_gap_and_preserves_pending_and_errors() {
+    use game_engine_ui_model::professions_reagent_selection::{ReagentSelection, craft_status};
+    use shared::profession::CraftingOperationGap;
+    use shared::protocol::CraftingOperationStateUpdate;
+
+    for skin in [ActiveSkin::Modern, ActiveSkin::Forever] {
+        let mut view = view(15);
+        view.book.recipes[0].output = None;
+        for state in [0, 1, 2, 3, 4] {
+            let mut selection = ReagentSelection {
+                spell_id: Some(3275),
+                ..Default::default()
+            };
+            let mut error = "";
+            let expected = match state {
+                0 => "",
+                1 => {
+                    selection.pending = true;
+                    "Validating reagents..."
+                }
+                2 => {
+                    selection.response = Some(CraftingOperationStateUpdate {
+                        spell_id: 3275,
+                        allocations: vec![],
+                        validation_error: None,
+                        quality: Err(CraftingOperationGap::CraftingOperationComposition),
+                    });
+                    ""
+                }
+                3 => {
+                    selection.response = Some(CraftingOperationStateUpdate {
+                        spell_id: 3275,
+                        allocations: vec![],
+                        validation_error: Some("Missing Linen Cloth: need3, have2".into()),
+                        quality: Err(CraftingOperationGap::CraftingOperationComposition),
+                    });
+                    "Missing Linen Cloth: need3, have2"
+                }
+                _ => {
+                    error = "Insufficient reagents";
+                    error
+                }
+            };
+            let before = selection.clone();
+            view.reagent_selection = selection.clone();
+            view.status = craft_status(error, &selection);
+            let registry = render(skin, view.clone());
+            assert_eq!(
+                text(&registry, "ProfessionsCraftStatus").0,
+                expected,
+                "passive status state{state} must not expose evaluator diagnostics"
+            );
+            assert_eq!(
+                selection, before,
+                "status must not mutate authoritative validation state"
+            );
+            for name in ["ProfessionsCreate", "ProfessionsCreateAll"] {
+                assert!(
+                    matches!(frame(&registry, name).widget_data, Some(WidgetData::Button(ref button)) if button.state == ui_toolkit::widgets::button::ButtonState::Disabled)
+                );
+            }
+            assert_eq!(text(&registry, "ProfessionsOutputName").0, "Linen Bandage");
+        }
+        view.book.recipes[0].output = Some((1251, 1));
+        assert_eq!(
+            craft_status("", &ReagentSelection::default()),
+            "",
+            "fixed-output status unchanged"
+        );
+    }
+}
+
+#[test]
 fn professions_unlearned_schematic_and_learned_transition_in_both_skins() {
     for skin in [ActiveSkin::Modern, ActiveSkin::Forever] {
         let mut view = view(15);
