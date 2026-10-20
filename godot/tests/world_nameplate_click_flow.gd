@@ -163,6 +163,7 @@ func verify_modal_guard(client: Node, plate_point: Vector2) -> bool:
 	if menu == null or hovered == null or not menu.is_ancestor_of(hovered):
 		fail("Modal control did not cover the qualified plate point with real registry UI")
 		return false
+	var registry_name := hovered.name
 	# Exercise the targeting press boundary without activating an unknown menu button.
 	await push_button(plate_point, true)
 	var state: Dictionary = client.target_state()
@@ -172,7 +173,7 @@ func verify_modal_guard(client: Node, plate_point: Vector2) -> bool:
 	await move_pointer(Vector2(2.0, 2.0))
 	await push_button(Vector2(2.0, 2.0), false)
 	await tap(KEY_ESCAPE)
-	print("FIXTURE NAMEPLATE_MODAL_CONTROL registry=", hovered.name, " target unchanged")
+	print("FIXTURE NAMEPLATE_MODAL_CONTROL registry=", registry_name, " target unchanged")
 	return true
 
 func cleared_selection(client: Node) -> bool:
