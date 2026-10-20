@@ -1,9 +1,41 @@
+## 2026-10-19 — Trading Post slow-purchase timer implementation
+
+[Source and clock boundary](systems/trading-post.md#ten-second-slow-purchase-notice): pushed-first ignored Purchase/Checkout cases reached actual10s missing-notice assertions through the existing snapshot clock. Approved GREEN API switches to request-relative View elapsed driven by native request Instant, so Query cannot restart it. One authored Return/Escape notice, matching completion/hide cancellation, unchanged two-button confirmation geometry; model123/host-layout14 GREEN, integration/build gate pending. Native Escape consumes only the slow notice before background-window closure; source hook, not a measured input trace. No production delay or native runtime.
+## 2026-10-20 — Recipe cooldown display
+
+[Contract](../specs/modern-crafting.md#recipe-cooldown): Create gated and Retail `COOLDOWN_REMAINING` red text from spell/category clocks; [server](../../../game-server/docs/specs/spell-cooldown-persistence.md) persists and replays cooldowns. ui-model RED (4 genuine assertion failures) → GREEN 28/28 professions; extension professions 8/8. Native both-skin proof pending.
+
+## 2026-10-20 — Crafting origin native proof accepted
+
+[Both-skin craft → reopened-server readback](systems/native-professions-crafting.md#native-provenance-proof--2026-10-20): real trainer/cast/Create path records {1355, 2153, null} on new 2303 GUIDs only; a fresh server generation on the same DB and readback-only clients preserve it. Normal item tooltip plus owner-state readback; no lineage tooltip line. Stackable-output origin policy is the follow-up; unlearned fixture native gap named.
+
+## 2026-10-20 — Monthly Time sorting native proof
+
+[Exact cohort and qualifications](systems/trading-post.md#monthly-time-sorting): after ts754 landing, actual Ead3/S001/P566 both-skin7/7 naturalexit0/unique marker/approved-baseline full-stream VALID. Native header/menu/toggle/name-tie first12/provider reset/empty ordinary disabled with frozen kept; exact original local/authority/HUD and seven sampled positions restore. Each skin1 Query/0 mutations;14 inspected original PNGs published. Owned runtime/5899/window cleared. Quest519073 gap persists; owned sentinel/expiry variants remain CPU-qualified and monthly BEST_GUESS is not Retail calendar parity.
+
+## 2026-10-19 — Trading Post reply-kind correlation implementation
+
+[Flow and proof status](systems/trading-post.md#reply-kind-correlation): required server reply kind, host-poll kind drain and captured popup product preserve pending ownership across unrelated Query/catalog removal and Purchase→Query coalescing. Pushed-first regressions reached assertion RED before their corresponding changes, including the coalesced terminal-error control. Targeted107 model/13 host/3 UDP/5 protocol GREEN; tc756/tc765 coordinated gates pass and protocol600b755/server89a944309/engine7a2b53085 land together. Engine Time-sort merge preserves unconditional provider sort reset alongside guarded modal completion; tc762 missing-import compile error remains separately qualified. No timed/native/provider parity claim.
+## 2026-10-19 — Ordinary Description TOP alignment
+
+[Source/proof](systems/dungeon-achievements.md#ordinary-description-vertical-alignment): one explicitverticalTOP attribute; priorCENTERcontrolupdatedinown0ac8commit, ignoredREDpushedfirst/observedfourbothskin alignmentassertions. Font10/330×34/ink/shadow/horizontalCENTER/origin/actions conserved; GREEN pending, no otherpolicychange.
+## 2026-10-20 — Monthly Time sorting CPU proof
+
+[Source and proof boundary](systems/trading-post.md#monthly-time-sorting): pushed-first ignored6 genuine RED→unignored6 GREEN at3844d4233; existing header/menu/action use common server monthly duration, source1000/999 padding floored to minutes, ascending-name ties and provider Time→Price reset. No wire/per-item pending invention; selection/cart/authority preserved. Both-skin native pending; earlier rollover acceptance is not relabeled.
 ## 2026-10-19 — Crafting origin vertical slice, targeted GREEN
 
 [Source, actual-craft persistence and consumer proof](systems/native-professions-crafting.md#server-recorded-crafting-origin): pushed ignored RED in all three repositories before implementation, then P1/S2/E1 targeted GREEN at separately recorded revisions. Real2153→new2303 GUID carries ability1355/joinedspell2153 after DB reopen; identical non-crafted item unknown. Actual2963 unknown-stack RED→compatible merging/split persistence controls; engine mirrors optional metadata on the same GUID. No fabricated quality/slots/watermark or recraft activation. Current masters merged; atomic lead gate/consumer integration pending, not a new rendered/process-reopen claim.
 ## 2026-10-20 — Skirmish Queue Again UI GREEN
 
 [Results button and one-request dispatch](systems/battlegrounds.md#skirmish-queue-again--2026-10-20): UI RED→GREEN3/3; server native lifecycle9/9 and protocol wire1/1 in their ledgers. Policy SKIRMISH_REQUEUE_LEAVE_THEN_QUEUE_SAME_MODE; gap SKIRMISH_REQUEUE_TRANSITION_UNQUALIFIED retained.
+## 2026-10-20 — Sourced guild leadership context confirmation
+
+[Source/capture boundary](systems/guilds.md#roster-leadership-context-confirmation): ignored menu/confirmation/dismissal/geometry tests pushed first; after separately retained fixture/schema setup corrections, actual behavior RED4 observed atcf4ccddb2. Only the source current-master/nonself menu, captured optional target string and ordinary dialog are added; Accept reuses existing TransferLeadership, Cancel/Escape no transfer, no optimistic ranks or new backend/wire. Authenticated70448 labels and no-fullScreenCover flag qualified before implementation. Implementation64458e9ce committed before focused GREEN4/4 at365eb32f6 (17.54s compile/0.12s tests/no warnings), then final assertions retained/enabled. Source GameDialog button primitive alignment07bc881b2 passes a second enabled focused4/4 (20.61s compile/0.14s tests/no warnings). Independent gate/native pending; ordinary rank actions, slash route and named self policy unchanged.
+
+## 2026-10-20 — Guild numeric-header equal-key fallback
+
+[Source and qualified policy](systems/guilds.md#numeric-header-equal-key-ordering): pushed ignored Rank/Level/Class reversed-input ties and24-row real registry regressions before actual behavior RED4. Only numeric primary direction now reverses; equal keys reuse the unchanged represented-field base comparison. Focused GREEN4/4 at6ef84509b (21.44s compile/0.19s tests/no warnings), then only proven ignore attributes removed. Existing primary/missing/reset behavior and Name/Note/Zone mechanics remain unchanged; gn758 passed tests/fmt/controls and landed3b8b57980; numeric branches cleaned, worktree retained for active context-leadership stack. Native equal-key proof unallocated/unrun; no new widgets/protocol/server work.
+
 ## 2026-10-20 — Guild Zone sorting native accepted
 
 [Exact cohort, originals and limits](systems/guilds.md#native-zone-sort-acceptance-2026-10-20): gz746 tests/fmt passed and landed; exact E6874f287d/private Sb12089d1f/Pda007a6 builds and import/parse/login passed. Real two-member Modern/Forever physical Zone direction/reset, Elwynn/Westfall ordering, genuine peer disconnect/mixed recency, original detail identity and offline filter hide/restore pass strict1/1. Eight inspected original PNGs published; historical DB unchanged, actors/cage/slice stopped,5891 unbound/window cleared. Seconds/ties/Unicode/overflow remain automated; native binding/count limits stay unqualified. Setup PATH127, import ObjectDB leaks and live audio/Wayland/data diagnostics retained. Lead inspected two representative frames and accepted.
@@ -5016,3 +5048,7 @@ gl728 landed protocol50517c9/server1a2f13fd4/engine51f1af4f8. Real peer disconne
 ## 2026-10-19 — Zone header sort implementation
 
 After pushed ignored tests and actual3-case behavioral RED, activated the existing Zone header and pure presentation comparator. Allowed historical prose supplies valid-string mapping; GUILD_ZONE_SORT_OFFLINE_BY_LOGOUT_SECONDS explicitly uses most-recent seconds first ascending, with fixed existing name ties and no Retail counter/sub-hour claim. No wire/backend/layout changes or Note-mechanics changes. [Source, limits and current proof](systems/guilds.md#zone-header-sorting); focused GREEN/gate/native pending.
+
+## 2026-10-20 — Guild context confirmation native proof
+
+gc774 passed tests/fmt and landed engineb0b3d4b39; exact server842325bf3/protocol600b755. [Both-skin real-member proof and limits](systems/guilds.md#context-confirmation-native-proof-2026-10-20): physical self/nonleader hiding, Cancel/Escape, captured target across selection/sort, Accept/actual authority and fresh-server/client new-master settings pass. Fourteen inspected original PNGs published unchanged; actors/cage/slice stopped, UDP5891 unbound/window cleared, historical original/source/artifact hashes unchanged. First-import editor errors and unrelated shared-CSV fixture startup blocker retained; no source/data repair, exact native request counts or offline/benign-refresh native sampling claimed.

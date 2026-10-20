@@ -123,6 +123,7 @@ pub mod pet_stable;
 pub mod pet_stable_component;
 pub mod professions;
 pub mod professions_catalog;
+pub mod professions_cooldown;
 pub mod professions_frame;
 pub mod professions_orders;
 pub mod professions_quality;

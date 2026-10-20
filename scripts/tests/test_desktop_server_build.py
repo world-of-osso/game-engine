@@ -51,6 +51,8 @@ class DesktopServerBuildTests(unittest.TestCase):
         self.put(self.root, "crates/server/src/ground_gaps.tsv", "0\tmissing_tile\n")
         self.put(self.root, "crates/server/src/encounter_compat.csv", "map,boss\n")
         self.put(self.root, "scripts/reference/catalog.json", '{"rows": []}')
+        self.put(self.root, "content/trading-post-monthly-catalog.json", '{"month": 46}')
+        self.put(self.root, "content/quest-reward-bonus.json", '[{"quest_id":62,"bonus_money":120}]')
         self.put(self.root, "vendor/bevy_replicon/src/lib.rs", "replicon patch")
         self.put(
             self.root, "vendor/lightyear_replication/src/lib.rs", "replication patch"
@@ -490,11 +492,16 @@ class DesktopServerBuildTests(unittest.TestCase):
         synced = sorted(str(p.relative_to(mirror)) for p in mirror.rglob("*") if p.is_file())
         self.assertEqual(
             synced,
-            ["game-engine/los/0/32_48.los", "game-engine/terrain/1.adt", "game-server/world.db"],
+            ["game-engine/los/0/32_48.los", "game-engine/terrain/1.adt",
+             "game-server/quest-reward-bonus.json", "game-server/trading-post-monthly-catalog.json",
+             "game-server/world.db"],
         )
         self.assertEqual(
             (self.root / "target/server-test.log").read_text(), "test result: ok. 2 passed\n"
         )
+        for name in ("trading-post-monthly-catalog.json", "quest-reward-bonus.json"):
+            self.assertEqual((mirror / "game-server" / name).read_bytes(),
+                             (self.root / "content" / name).read_bytes())
         (self.engine / "data/los/0/32_48.los").unlink()
         self.put(self.engine, "data/los/0/33_48.los", "new tile")
         self.put(self.root, "data/world.db", "reimported rows")
@@ -507,6 +514,12 @@ class DesktopServerBuildTests(unittest.TestCase):
     def test_test_mode_fails_on_missing_listed_data_before_the_host(self):
         module = self.load()
         (self.root / "data/world.db").unlink()
+        self.assertEqual(self.run_test_mode(module), 1)
+        self.assertFalse(self.capture.exists())
+
+    def test_test_mode_requires_tracked_bonus_before_transport(self):
+        module = self.load()
+        (self.root / "content/quest-reward-bonus.json").unlink()
         self.assertEqual(self.run_test_mode(module), 1)
         self.assertFalse(self.capture.exists())
 

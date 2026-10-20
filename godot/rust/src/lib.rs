@@ -706,6 +706,11 @@ impl INode3D for GameClient {
                     return;
                 }
             }
+            // The slow-purchase popup owns Escape without closing vendor or hidden panels.
+            if self.dismiss_trading_slow_purchase() {
+                self.mark_viewport_input_handled();
+                return;
+            }
             match self.close_all_windows() {
                 Ok(true) => {
                     if let Some(mut viewport) = self.base().get_viewport() {

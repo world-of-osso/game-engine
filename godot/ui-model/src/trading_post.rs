@@ -29,7 +29,9 @@ use crate::{
     },
 };
 pub use outfit::{apply_rotation_icon_positions, load_scene_autodress};
-use shared::protocol::{TradingPostItem, TradingPostRequest, TradingPostSnapshot};
+use shared::protocol::{
+    TradingPostItem, TradingPostReplyKind, TradingPostRequest, TradingPostSnapshot,
+};
 use std::{collections::BTreeSet, sync::Arc};
 use ui_toolkit::{rsx, screen::SharedContext, widget_def::Element};
 
@@ -39,6 +41,14 @@ pub const WIDTH: f32 = 1920.;
 pub const HEIGHT: f32 = 1080.;
 const ROW_HEIGHT: f32 = 48.;
 const LIST_HEIGHT: f32 = 573.;
+
+/// Completion metadata retained independently of the host's final merged authority.
+#[derive(Clone, Debug, PartialEq, Eq)]
+pub struct Reply {
+    pub kind: TradingPostReplyKind,
+    pub error: Option<String>,
+}
+
 #[derive(Clone, Debug, Default, PartialEq)]
 pub struct View {
     pub visible: bool,
@@ -66,11 +76,15 @@ pub struct View {
     pub sort: Sort,
     pub ascending: bool,
     pub pending: bool,
+    /// The accepted Purchase/Checkout exceeded its independent ten-second deadline.
+    pub slow_purchase: bool,
     /// Monotonic seconds since observing the current authoritative snapshot.
     pub refund_elapsed: u32,
     /// Deduplicates rollover Query across frames and same-boundary partial replies.
     pub clock_rollover_requested_for: Option<i64>,
     pub confirm: Option<String>,
+    /// The product shown by a purchase/refund popup, independent of refreshed catalog selection.
+    pub confirmation_product: Option<TradingPostItem>,
     /// Slot previews the dragged product; snapshot remains authoritative until reply.
     pub freeze_candidate: Option<u32>,
     pub freeze_delay: u8,
@@ -182,12 +196,36 @@ impl View {
     }
 
     pub fn receive(&mut self, snapshot: Arc<TradingPostSnapshot>) {
-        self.error = snapshot.error.clone().unwrap_or_default();
+        let reply = Reply {
+            kind: snapshot.reply_kind,
+            error: snapshot.error.clone(),
+        };
+        self.receive_replies(snapshot, &[reply]);
+    }
+
+    /// Apply final authority after every reply result drained by the host in this poll.
+    pub fn receive_replies(&mut self, snapshot: Arc<TradingPostSnapshot>, replies: &[Reply]) {
+        let confirmation_kind = match self.confirm.as_deref() {
+            Some("purchase") => Some(TradingPostReplyKind::Purchase),
+            Some("cart-checkout") => Some(TradingPostReplyKind::Checkout),
+            Some("refund") => Some(TradingPostReplyKind::Refund),
+            _ => None,
+        };
+        let matching_reply = replies
+            .iter()
+            .rev()
+            .find(|reply| Some(reply.kind) == confirmation_kind);
+        let keep_pending = self.pending && confirmation_kind.is_some() && matching_reply.is_none();
+        let error = matching_reply.map_or(&snapshot.error, |reply| &reply.error);
+        self.error = error.clone().unwrap_or_default();
         self.snapshot = Some(snapshot);
-        self.pending = false;
         self.refund_elapsed = 0;
-        self.cancel_confirmation();
-        self.cart_confirmation = None;
+        if !keep_pending {
+            self.pending = false;
+            self.cancel_confirmation();
+            self.cart_confirmation = None;
+        }
+        self.reset_time_sort();
         // Currency/authority snapshots do not transfer preview ownership to a product.
         if !self.cart_visible {
             self.reselect();
@@ -209,8 +247,7 @@ impl View {
                 Sort::Name => a.name.cmp(&b.name),
                 Sort::Price => price_sort_value(a, self.refund_elapsed)
                     .cmp(&price_sort_value(b, self.refund_elapsed)),
-                // No per-row remaining duration in the snapshot; stable name tie-break.
-                Sort::Time => std::cmp::Ordering::Equal,
+                Sort::Time => self.time_sort_minutes(a).cmp(&self.time_sort_minutes(b)),
             };
             let order = if self.ascending {
                 order
@@ -279,6 +316,7 @@ impl View {
             .find(|row| Some(row.id) == self.selected)
     }
     pub fn reselect(&mut self) {
+        self.reset_time_sort();
         let frozen = self
             .snapshot
             .as_ref()
@@ -318,6 +356,9 @@ impl View {
         !self.pending && self.remaining_refund_seconds() > 0
     }
     pub fn click(&mut self, action: &str) -> Result<Option<Action>, String> {
+        if action == "perks:cancel" && self.dismiss_slow_purchase() {
+            return Ok(None);
+        }
         if self.pending && self.confirm.is_some() {
             return Ok(None);
         }
@@ -360,18 +401,29 @@ impl View {
             "perks:select-previous" => self.select_adjacent_product(false)?,
             "perks:sort:ascending" => self.ascending = !self.ascending,
             "perks:cancel" => self.cancel_confirmation(),
-            "perks:purchase" if self.can_purchase() => self.confirm = Some("purchase".into()),
-            "perks:refund" if self.can_refund() => self.confirm = Some("refund".into()),
+            "perks:purchase" if self.can_purchase() => self.open_product_confirmation("purchase"),
+            "perks:refund" if self.can_refund() => self.open_product_confirmation("refund"),
             "perks:confirm" => return self.confirm_request(),
             "perks:sort:name" => self.sort_by(Sort::Name),
             "perks:sort:time" => {
-                return Err("Per-item remaining time has no sourced calendar binding".into());
+                if self.can_sort_time() {
+                    self.sort_by(Sort::Time);
+                }
             }
             "perks:sort:price" => self.sort_by(Sort::Price),
             _ => self.select_action(action)?,
         }
         Ok(None)
     }
+    fn open_product_confirmation(&mut self, kind: &str) {
+        let product = self
+            .selected_item()
+            .expect("Confirmation eligibility checked a product")
+            .clone();
+        self.confirmation_product = Some(product);
+        self.confirm = Some(kind.into());
+    }
+
     /// Products.lua183–187 selects an ordinary unpurchased product before pickup.
     pub fn select_dragged_product(&mut self, id: u32) -> bool {
         if self.pending || self.confirm.is_some() {
@@ -415,8 +467,20 @@ impl View {
             vendor_item_id: Some(id),
         }))
     }
+    /// Return/Escape releases the modal, not the server operation or vendor.
+    pub fn dismiss_slow_purchase(&mut self) -> bool {
+        if !self.slow_purchase {
+            return false;
+        }
+        self.pending = false;
+        self.cancel_confirmation();
+        true
+    }
+
     pub fn cancel_confirmation(&mut self) {
+        self.slow_purchase = false;
         self.confirm = None;
+        self.confirmation_product = None;
         self.freeze_candidate = None;
         self.freeze_delay = 0;
     }
@@ -751,7 +815,7 @@ fn sort_header(sort: Sort, view: &View, (x, y, width, height): (f32, f32, f32, f
         let coords = format!("{},{},{},{}", region.left, region.right, top, bottom);
         art.extend(rsx! {texture{name:{DynName(format!("PerksProgram{kind}SortArrow"))},left:{width-5.0},top:{(height-10.0)/2.0},width:10.0,height:10.0,pos_type:"absolute",texture_atlas:"auctionhouse-ui-sortarrow",tex_coords:coords.as_str()}});
     }
-    let disabled = sort == Sort::Time;
+    let disabled = sort == Sort::Time && !view.can_sort_time();
     let action = if disabled { "" } else { action };
     rsx! {button{name:{DynName(format!("PerksProgram{kind}SortButton"))},left:x,top:y,width,height,pos_type:"absolute",button_default_skin:false,disabled,onclick:action,{art}}}
 }
@@ -1328,8 +1392,30 @@ fn toy_overlay(row: &TradingPostItem) -> Element {
     out.extend(rsx! {r#frame{name:"PerksProgramToyDetails",left:{center_x-180.0},top:{icon_y+88.0+60.0},width:360.0,height:280.0,pos_type:"absolute",{details}}});
     out
 }
+fn slow_purchase_popup() -> Element {
+    use crate::static_popup_component::{ItemConfirmation, item_confirmation};
+    // Elements.lua60–67; local GlobalStrings51538/51539.
+    item_confirmation(ItemConfirmation {
+        name: "PerksProgramSlowPurchase",
+        pending: false,
+        accept_enabled: true,
+        prompt: (
+            "It's taking longer than usual to process your purchase. Processing will continue in the background.",
+            "",
+        ),
+        currency_icon: None,
+        item: None,
+        accept: ("Return to Trading Post", "perks:cancel"),
+        cancel_action: None,
+        screen: (WIDTH, HEIGHT),
+    })
+}
+
 fn confirm_popup(view: &View, kind: &str) -> Element {
     use crate::static_popup_component::{ItemConfirmation, item_confirmation};
+    if view.slow_purchase {
+        return slow_purchase_popup();
+    }
     if kind == "freeze" {
         let Some(row) = view.snapshot.as_ref().and_then(|snapshot| {
             snapshot
@@ -1355,7 +1441,7 @@ fn confirm_popup(view: &View, kind: &str) -> Element {
             currency_icon: None,
             item: Some((&row.name, row.icon_fdid, row.quality)),
             accept: (&accept, "perks:confirm"),
-            cancel_action: "perks:cancel",
+            cancel_action: Some("perks:cancel"),
             screen: (WIDTH, HEIGHT),
         });
     }
@@ -1372,7 +1458,7 @@ fn confirm_popup(view: &View, kind: &str) -> Element {
             currency_icon: Some(TENDER_ICON),
             item: None,
             accept: ("Purchase", "perks:confirm"),
-            cancel_action: "perks:cancel",
+            cancel_action: Some("perks:cancel"),
             screen: (WIDTH, HEIGHT),
         });
     }
@@ -1388,13 +1474,14 @@ fn confirm_popup(view: &View, kind: &str) -> Element {
             currency_icon: None,
             item: None,
             accept: ("Remove", "perks:confirm"),
-            cancel_action: "perks:cancel",
+            cancel_action: Some("perks:cancel"),
             screen: (WIDTH, HEIGHT),
         });
     }
-    let Some(row) = view.selected_item() else {
-        return vec![];
-    };
+    let row = view
+        .confirmation_product
+        .as_ref()
+        .expect("Product confirmation captured its product");
     // GlobalStrings PERKS_PROGRAM_CONFIRM_PURCHASE / _REFUND; currency markup is a texture.
     let refund = kind == "refund";
     let before = if refund {
@@ -1417,7 +1504,7 @@ fn confirm_popup(view: &View, kind: &str) -> Element {
         currency_icon: Some(TENDER_ICON),
         item: Some((&row.name, row.icon_fdid, row.quality)),
         accept: (if refund { "Refund" } else { "Purchase" }, "perks:confirm"),
-        cancel_action: "perks:cancel",
+        cancel_action: Some("perks:cancel"),
         screen: (WIDTH, HEIGHT),
     })
 }

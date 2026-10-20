@@ -47,6 +47,7 @@ fn vendor() -> TradingPostSnapshot {
         source_gaps: vec![],
         error: None,
         catalog_complete: true,
+        reply_kind: shared::protocol::TradingPostReplyKind::Query,
     }
 }
 
@@ -81,6 +82,63 @@ fn assert_rect(
         assert!(
             (actual - expected).abs() <= 0.51,
             "{name}: {actual} != {expected} (native pixel rounding)"
+        );
+    }
+}
+
+#[test]
+fn trading_post_slow_purchase_projects_one_caption_sized_return_button_in_both_skins() {
+    game_engine_ui_model::paths::set_data_root(
+        std::path::PathBuf::from(env!("CARGO_MANIFEST_DIR")).join("../../data"),
+    )
+    .unwrap();
+    for skin in [ActiveSkin::Modern, ActiveSkin::Forever] {
+        set_thread_skin(skin);
+        let mut view = View {
+            visible: true,
+            selected: Some(4),
+            snapshot: Some(Arc::new(vendor())),
+            ..Default::default()
+        };
+        view.click("perks:purchase").unwrap();
+        assert!(view.click("perks:confirm").unwrap().is_some());
+        view.update_purchase_timeout(10.0);
+        let (registry, bounds) = render(view);
+        let caption_width = ui_toolkit::text_measure::measure_text(
+            "Return to Trading Post",
+            ui_toolkit::widgets::font_string::GameFont::FrizQuadrata,
+            12.,
+        )
+        .unwrap()
+        .0;
+        let width = 120_f32.max(caption_width + 20.);
+        let text = rect(&registry, &bounds, "PerksProgramSlowPurchaseTextBefore");
+        assert_rect(
+            &registry,
+            &bounds,
+            "PerksProgramSlowPurchaseCover",
+            [0., 0., 1920., 1080.],
+        );
+        assert_rect(
+            &registry,
+            &bounds,
+            "PerksProgramSlowPurchaseButton",
+            [(1920. - width) / 2., text[1] + text[3] + 9., width, 21.],
+        );
+        assert!(
+            registry
+                .get_by_name("PerksProgramSlowPurchaseCancelButton")
+                .is_none()
+        );
+        assert!(registry.get_by_name("PerksProgramConfirmSpinner").is_none());
+        let caption = rect(
+            &registry,
+            &bounds,
+            "PerksProgramSlowPurchaseButtonDialogButtonText",
+        );
+        assert!(
+            caption[2] >= caption_width,
+            "The authored Return caption fits without clipping"
         );
     }
 }
@@ -507,6 +565,7 @@ fn trading_post_projected_global_rects_follow_effective_retail_anchors_in_both_s
         assert!((child[1] - owner[1]).abs() <= 0.51);
         let (registry, bounds) = render(View {
             confirm: Some("purchase".into()),
+            confirmation_product: Some(vendor().items[0].clone()),
             ..view
         });
         let text_height = ui_toolkit::text_measure::measure_text(
