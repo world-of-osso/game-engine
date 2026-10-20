@@ -2,6 +2,20 @@
 use super::*;
 
 impl View {
+    pub fn has_pending_purchase_confirmation(&self) -> bool {
+        let purchase = matches!(self.confirm.as_deref(), Some("purchase" | "cart-checkout"));
+        self.pending && purchase
+    }
+
+    /// Retail Program.lua396–412: elapsed since request acceptance, not snapshot receipt.
+    pub fn update_purchase_timeout(&mut self, elapsed_seconds: f64) {
+        const SLOW_PURCHASE_SECONDS: f64 = 10.;
+        let waiting = self.visible && self.has_pending_purchase_confirmation();
+        if waiting && elapsed_seconds >= SLOW_PURCHASE_SECONDS {
+            self.slow_purchase = true;
+        }
+    }
+
     pub fn month_remaining_seconds(&self) -> Option<u64> {
         self.snapshot.as_ref().map(|snapshot| {
             snapshot
