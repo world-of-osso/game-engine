@@ -1,6 +1,8 @@
 #[path = "trading_post/monthly_clock.rs"]
 mod monthly_clock;
-use game_engine_ui_model::trading_post::{View, trading_post_screen};
+#[path = "trading_post/time_sort.rs"]
+mod time_sort;
+use game_engine_ui_model::trading_post::{Sort, View, trading_post_screen};
 use shared::protocol::*;
 use std::sync::Arc;
 use ui_toolkit::{
@@ -1870,6 +1872,7 @@ fn snapshot() -> TradingPostSnapshot {
         source_gaps: vec!["Refund duration unsourced: disabled.".into()],
         error: None,
         catalog_complete: true,
+        reply_kind: shared::protocol::TradingPostReplyKind::Query,
     }
 }
 fn render(skin: ActiveSkin, view: View) -> FrameRegistry {
@@ -2425,6 +2428,7 @@ fn trading_post_cart_checkout_confirms_total_then_waits_for_authority_without_lo
             ),
             "0"
         );
+        data.reply_kind = shared::protocol::TradingPostReplyKind::Checkout;
         data.tender = 325;
         for row in &mut data.items {
             row.purchased = true;
@@ -2591,6 +2595,7 @@ fn trading_post_controls_wait_for_server_and_confirm_purchase_without_local_debi
     );
     assert_eq!(view.click("perks:purchase").unwrap(), None);
     let mut paid = snapshot();
+    paid.reply_kind = shared::protocol::TradingPostReplyKind::Purchase;
     paid.tender = 400;
     paid.items[0].purchased = true;
     paid.items[0].collected = true;
@@ -2922,6 +2927,7 @@ fn trading_post_confirmation_uses_sourced_prompt_item_and_dialog_geometry() {
                 snapshot: Some(Arc::new(snapshot())),
                 selected: Some(4),
                 confirm: Some("purchase".into()),
+                confirmation_product: Some(snapshot().items[0].clone()),
                 ..Default::default()
             },
         );
@@ -3381,6 +3387,135 @@ fn trading_post_cart_tooltip_rejects_headers_other_vendor_members_and_removed_ow
 }
 
 #[test]
+fn trading_post_query_reply_keeps_pending_purchase_owner_until_purchase_reply() {
+    let mut data = snapshot();
+    data.now_unix = data.month_end_unix - 1;
+    let mut view = View {
+        visible: true,
+        selected: Some(4),
+        snapshot: Some(Arc::new(data.clone())),
+        ..Default::default()
+    };
+    view.click("perks:purchase").unwrap();
+    assert_eq!(
+        view.advance_server_clock(1),
+        Some(TradingPostRequest::Query),
+        "Native clock polling enqueues rollover Query before confirmation input"
+    );
+    assert_eq!(
+        view.click("perks:confirm").unwrap(),
+        Some(game_engine_ui_model::trading_post::Action::Request(
+            TradingPostRequest::Purchase { vendor_item_id: 4 }
+        ))
+    );
+    assert!(view.pending);
+    // A provider refresh still resets Time sorting while the Purchase owner survives.
+    view.sort = Sort::Time;
+
+    let mut query_reply = data.clone();
+    query_reply.now_unix = data.month_end_unix;
+    query_reply.month_end_unix += 30 * 24 * 60 * 60;
+    view.receive(Arc::new(query_reply.clone()));
+    assert!(
+        view.pending,
+        "Unrelated catalog Query refresh is not the Purchase success event"
+    );
+    assert_eq!(view.confirm.as_deref(), Some("purchase"));
+    assert_eq!(view.sort, Sort::Price);
+    assert!(!view.ascending);
+    assert_eq!(view.snapshot.as_ref().unwrap().tender, 500);
+    assert!(!view.selected_item().unwrap().purchased);
+    for skin in [ActiveSkin::Modern, ActiveSkin::Forever] {
+        let registry = render(skin, view.clone());
+        assert!(registry.get_by_name("PerksProgramConfirmDialog").is_some());
+        let frame = registry
+            .get(registry.get_by_name("PerksProgramConfirmButton").unwrap())
+            .unwrap();
+        let Some(WidgetData::Button(button)) = &frame.widget_data else {
+            panic!("Purchase confirmation button");
+        };
+        assert_eq!(
+            button.state,
+            ui_toolkit::widgets::button::ButtonState::Disabled
+        );
+    }
+
+    let mut purchase_reply = query_reply;
+    purchase_reply.reply_kind = shared::protocol::TradingPostReplyKind::Purchase;
+    purchase_reply.tender = 400;
+    purchase_reply.items[0].purchased = true;
+    view.receive(Arc::new(purchase_reply));
+    assert!(!view.pending);
+    assert!(view.confirm.is_none());
+    assert_eq!(view.snapshot.as_ref().unwrap().tender, 400);
+    assert!(view.selected_item().unwrap().purchased);
+    for skin in [ActiveSkin::Modern, ActiveSkin::Forever] {
+        let registry = render(skin, view.clone());
+        assert!(registry.get_by_name("PerksProgramConfirmDialog").is_none());
+    }
+}
+
+#[test]
+fn trading_post_query_reply_keeps_pending_purchase_product_after_catalog_removal() {
+    let mut data = snapshot();
+    data.now_unix = data.month_end_unix - 1;
+    let mut accepted = data.items[0].clone();
+    accepted.id = 5;
+    accepted.name = "Accepted Warcloak".into();
+    data.items.push(accepted);
+    let mut view = View {
+        visible: true,
+        selected: Some(5),
+        snapshot: Some(Arc::new(data.clone())),
+        ..Default::default()
+    };
+    view.click("perks:purchase").unwrap();
+    assert_eq!(
+        view.advance_server_clock(1),
+        Some(TradingPostRequest::Query)
+    );
+    assert_eq!(
+        view.click("perks:confirm").unwrap(),
+        Some(game_engine_ui_model::trading_post::Action::Request(
+            TradingPostRequest::Purchase { vendor_item_id: 5 }
+        ))
+    );
+
+    let mut query_reply = data.clone();
+    query_reply.now_unix = data.month_end_unix;
+    query_reply.month_end_unix += 30 * 24 * 60 * 60;
+    query_reply.items.retain(|row| row.id != 5);
+    view.receive(Arc::new(query_reply.clone()));
+    assert!(view.pending, "Catalog refresh is not Purchase completion");
+    assert_eq!(view.confirm.as_deref(), Some("purchase"));
+    assert!(
+        view.snapshot
+            .as_ref()
+            .unwrap()
+            .items
+            .iter()
+            .all(|row| row.id != 5)
+    );
+    assert_eq!(view.snapshot.as_ref().unwrap().tender, 500);
+    for skin in [ActiveSkin::Modern, ActiveSkin::Forever] {
+        let registry = render(skin, view.clone());
+        assert!(registry.get_by_name("PerksProgramConfirmDialog").is_some());
+        assert_eq!(
+            text(&registry, "PerksProgramConfirmItemText"),
+            "Accepted Warcloak"
+        );
+    }
+
+    query_reply.reply_kind = shared::protocol::TradingPostReplyKind::Purchase;
+    query_reply.error = Some("Purchase item is no longer available".into());
+    view.receive(Arc::new(query_reply));
+    assert!(!view.pending);
+    assert!(view.confirm.is_none());
+    assert_eq!(view.error, "Purchase item is no longer available");
+    assert_eq!(view.snapshot.as_ref().unwrap().tender, 500);
+}
+
+#[test]
 fn trading_post_pending_dialog_purchase_waits_for_reply_and_prunes_only_accepted_cart_item() {
     let mut data = snapshot();
     let mut other = data.items[0].clone();
@@ -3435,6 +3570,7 @@ fn trading_post_pending_dialog_purchase_waits_for_reply_and_prunes_only_accepted
             );
         }
     }
+    data.reply_kind = shared::protocol::TradingPostReplyKind::Purchase;
     data.tender = 400;
     data.items[0].purchased = true;
     view.receive(Arc::new(data));
@@ -3474,6 +3610,7 @@ fn trading_post_pending_dialog_refund_keeps_owner_until_authoritative_reply() {
     assert_eq!(view.snapshot.as_ref().unwrap().tender, 400);
     assert_eq!(view.click("perks:cancel").unwrap(), None);
     assert_eq!(view.click("perks:confirm").unwrap(), None);
+    data.reply_kind = shared::protocol::TradingPostReplyKind::Refund;
     data.tender = 500;
     data.items[0].purchased = false;
     data.items[0].refund_seconds = 0;
