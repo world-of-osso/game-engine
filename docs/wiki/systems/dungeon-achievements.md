@@ -2,6 +2,12 @@
 
 Native client consumes copy snapshots and on-demand catalog pages; the server remains authoritative. [Feature contract](../../specs/dungeon-achievements.md).
 
+## Ordinary card description font
+
+Only `achievement_row` Description's nominal font changes12→10. Source AchievementUI.xml850 inherits AchievementDescriptionFont (GameFontStyles159), which inherits Roman SystemFont_Small/Friz10 (Fonts133–135). Preserve330×34, origin85,30, existing ink/shadow/center-middle justification/text/action. Lua1423–1424/1450–1451 has dynamic color/shadow branches; this approved font-size-only slice intentionally does not restore those or change other labels/global font rendering. [Contract](../../specs/dungeon-achievements.md#ordinary-card-description-font).
+
+Ignored nativeRED bd9ec4276 published before product code; observed four12!=10 assertions across both skins' collapsed/expanded descriptions, while330×34/origin/ink/transparent-shadow+zerooffset/justification/text/physicalclick and title14 controls pass. Native exit1/no ERROR or SCRIPT ERROR; cold-j2build0/29m08 and separate one-timeimport0/preexisting editor diagnostics retained. At integrated3bf83a1ec8/protocol0399f8b strict nativeGREEN6/6 exits0 with uniquecompletion/zeroerrorlines; bothskin nominal10/330×34/ink/shadow/alignment/origin/text/click/title controls pass. Affected model35/35 passes on the same source. Before merging current engine, lead required the owned protocol fast-forwardb3a34fe→0399f8b for upstream chat TransferLeadership; performed first without changing historical dependencies. No duplicate native replay. Central acceptance pending; no realm/ink/pixel parity claim. Evidence `card-description-font-*` under the existing proof root; matching0399f8b is frozen in the owned detached worktree.
+
 ## Ordinary card title font
 
 Only `achievement_row`'s title Label changes from nominalFriz12/no shadow to14/black(+1,−1), matching AchievementUI.xml838–843→GameFontHighlightMedium/FontStyles260→SystemFont_Shadow_Med3/Fonts435–443. Nativeprojection converts source y−1 to Godot+1. Keep320×20, WHITE, origin90,6, card art/description/criteria and click dispatch; Summary/comparison/full-search titles and the global font pipeline are unchanged. [Contract](../../specs/dungeon-achievements.md#ordinary-card-title-font).

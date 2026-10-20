@@ -66,6 +66,9 @@ pub fn detail(session: &GuildRanksSession) -> Element {
         (17.0, 32.0, 178.0, 10.0),
         (10.0, "1,1,1,1", "LEFT"),
     ));
+    let last_online = member
+        .map(crate::guild_presence::read_current_last_online_text)
+        .unwrap_or_default();
     for (id, heading, value, y) in [
         (
             "Zone",
@@ -80,7 +83,7 @@ pub fn detail(session: &GuildRanksSession) -> Element {
         (
             "Online",
             "Last Online:",
-            member.map(|m| m.last_online.as_str()).unwrap_or(""),
+            last_online.as_str(),
             89.0 + rank_shift,
         ),
     ] {
