@@ -3,6 +3,7 @@ use super::{DynName, Element, GOLD, WHITE, label};
 use crate::quest_art::named_atlas_texture;
 use ui_toolkit::atlas::{ActiveSkin, thread_skin};
 use ui_toolkit::rsx;
+use ui_toolkit::widgets::font_string::GameFont;
 
 pub(super) fn texture(name: &str, fdid: u32, uv: &str, rect: (f32, f32, f32, f32)) -> Element {
     let (x, y, width, height) = rect;
@@ -21,7 +22,7 @@ pub(super) fn skin_tint(fdid: u32) -> &'static str {
 }
 
 /// XML:1505-1660: 768x500 wood/metal frame, 175-wide categories, 504-wide content.
-pub(super) fn chrome(summary: bool) -> Element {
+pub(super) fn chrome(summary: bool, guild: bool) -> Element {
     let content_width = if summary { 523.0 } else { 498.0 };
     let mut out = named_atlas_texture(
         "AchievementFrameRock".into(),
@@ -104,9 +105,15 @@ pub(super) fn chrome(summary: bool) -> Element {
     ] {
         out.extend(texture(&format!("AchievementFrame{name}"), fdid, uv, rect));
     }
-    out.extend(rsx! {fontstring {name:"AchievementFrameTitle",text:"Achievements",width:150.0,height:20.0,
+    // AchievementUI.lua380/398; XML1956 inherits GameFontNormalSmall (RomanFriz10).
+    let title = crate::auction_mail::text(if guild {
+        "GUILD_ACHIEVEMENTS_TITLE"
+    } else {
+        "ACHIEVEMENT_TITLE"
+    });
+    out.extend(rsx! {fontstring {name:"AchievementFrameTitle",text:title,width:150.0,height:20.0,
         left:334.0,top:-29.0,pos_type:"absolute",font:ui_toolkit::widgets::font_string::GameFont::FrizQuadrata,
-        font_size:12.0,font_color:GOLD,justify_h:"CENTER",
+        font_size:10.0,font_color:GOLD,justify_h:"CENTER",shadow_color:"0,0,0,1",shadow_offset:"1,-1",
     }});
     let close = named_atlas_texture(
         "AchievementFrameCloseArt".into(),
@@ -210,73 +217,29 @@ pub(super) fn section_header(name: &str, title: &str, y: f32) -> Element {
     out
 }
 
-/// XML:246-338: active and inactive tabs share the Header sheet; inactive art is grey.
-pub(super) fn tab(
-    name: &str,
-    title: &str,
-    action: &str,
-    selected: bool,
-    x: f32,
-    width: f32,
-) -> Element {
-    let height = if selected { 59.0 } else { 49.0 };
-    let color = if selected { WHITE } else { "0.6,0.6,0.6,1" };
-    let parts = [
-        ("Left", "0.47265625,0.513671875,0.76953125,1", -4.0, 21.0),
-        (
-            "Middle",
-            "0.513671875,0.685546875,0.76953125,1",
-            17.0,
-            width - 31.0,
-        ),
-        (
-            "Right",
-            "0.685546875,0.720703125,0.76953125,1",
-            width - 14.0,
-            18.0,
-        ),
-    ];
-    let mut content = Vec::new();
-    for (part, uv, left, part_width) in parts {
-        content.extend(rsx! { texture { name: {DynName(format!("{name}{part}"))}, texture_fdid: 235402,
-            tex_coords: uv, vertex_color: color, left, top:0.0, width:part_width, height, pos_type:"absolute",
-        } });
-    }
-    content.extend(label(
-        format!("{name}Text"),
-        title,
-        (6.0, 3.0, width - 12.0, 24.0),
-        if selected { WHITE } else { GOLD },
-        action,
-    ));
-    rsx! { button { name: {DynName(name.into())}, onclick:action, button_default_skin:false, width, height:32.0,
-        left:x, top:497.0, pos_type:"absolute", {content}
-    } }
-}
-
 /// Shared InputBoxTemplates.xml SearchBoxTemplate: three border pieces, magnifier and clear.
-pub(super) fn search_box(text: &str) -> Element {
+pub(super) fn search_box(text: &str, left: f32) -> Element {
     let mut content = Vec::new();
     for (name, atlas, rect) in [
         (
             "Left",
             "common-search-border-left",
-            (628.0, 30.0, 8.0, 20.0),
+            (left - 5.0, 30.0, 8.0, 20.0),
         ),
         (
             "Middle",
             "common-search-border-middle",
-            (636.0, 30.0, 96.0, 20.0),
+            (left + 3.0, 30.0, 96.0, 20.0),
         ),
         (
             "Right",
             "common-search-border-right",
-            (732.0, 30.0, 8.0, 20.0),
+            (left + 99.0, 30.0, 8.0, 20.0),
         ),
         (
             "Icon",
             "common-search-magnifyingglass",
-            (634.0, 36.0, 10.0, 10.0),
+            (left + 1.0, 36.0, 10.0, 10.0),
         ),
     ] {
         content.extend(named_atlas_texture(
@@ -286,22 +249,35 @@ pub(super) fn search_box(text: &str) -> Element {
         ));
     }
     content.extend(
-        rsx! { editbox { name:"AchievementSearchBox",text,width:107.0,height:30.0,
-            left:633.0,top:25.0,pos_type:"absolute",text_insets:"16,0,20,0",
+        rsx! { editbox { name:"AchievementSearchBox",text,width:super::HEADER_SEARCH_WIDTH,height:30.0,
+            left,top:25.0,pos_type:"absolute",text_insets:"16,20,0,0",font_size:10.0,font_color:WHITE,
             max_letters:super::ACHIEVEMENT_SEARCH_MAX_CHARS,auto_focus:false,
         } },
     );
-    if !text.is_empty() {
+    if text.is_empty() {
+        content.extend(search_instructions(left));
+    } else {
         let icon = named_atlas_texture(
             "AchievementSearchClearIcon".into(),
             "common-search-clearbutton",
             (3.0, 3.0, 10.0, 10.0),
         );
+        let clear_left = left + 87.0;
         content.extend(rsx! {button {name:"AchievementSearchClearButton",width:17.0,height:17.0,
-            left:720.0,top:31.5,pos_type:"absolute",onclick:"achievement:search:",button_default_skin:false, {icon}
+            left:clear_left,top:31.5,pos_type:"absolute",onclick:"achievement:search:",button_default_skin:false, {icon}
         }});
     }
     content
+}
+
+/// InputBoxInstructionsTemplate XML186–191: source inset extent and inherited font/shadow.
+fn search_instructions(left: f32) -> Element {
+    rsx! { fontstring { name:"AchievementSearchInstructions",text:"Search",
+        width:{super::HEADER_SEARCH_WIDTH - 16.0 - 20.0},height:30.0,
+        left:{left + 16.0},top:25.0,pos_type:"absolute",mouse_enabled:false,
+        font:GameFont::FrizQuadrata,font_size:10.0,font_color:"0.35,0.35,0.35,1",
+        justify_h:"LEFT",justify_v:"MIDDLE",shadow_color:"0,0,0,1",shadow_offset:"1,-1",
+    } }
 }
 
 /// XML:220-244 and AchievementTemplate.Tracked: 15px checkbox at (12,66).

@@ -11,6 +11,136 @@ use ui_toolkit::registry::FrameRegistry;
 use ui_toolkit::screen::{Screen, SharedContext};
 use ui_toolkit::widgets::font_string::{JustifyH, JustifyV};
 
+// AchievementUI.xml246–342/2555 and SharedUIPanelTemplates.lua403–435/475:
+// custom Header strips, centered GameFontNormalSmall, text width +20+30.
+#[test]
+fn achievements_bottom_tabs_honor_retail_art_geometry_both_skins() {
+    use ui_toolkit::widgets::font_string::GameFont;
+    use ui_toolkit::widgets::texture::TextureSource;
+    for skin in [ActiveSkin::Modern, ActiveSkin::Forever] {
+        assets(skin);
+        for selected in 0..3 {
+            let mut window = AchievementWindow::default();
+            window.visible = true;
+            window.guild = selected == 1;
+            window.statistics = selected == 2;
+            let registry = achievement_registry(&window, skin);
+            let mut left = 17.0;
+            for (index, (name, title)) in [
+                ("AchievementTabAchievements", "Achievements"),
+                ("AchievementTabGuild", "Guild"),
+                ("AchievementTabStatistics", "Statistics"),
+            ]
+            .into_iter()
+            .enumerate()
+            {
+                let frame = registry.get(registry.get_by_name(name).unwrap()).unwrap();
+                let label = registry
+                    .get(registry.get_by_name(&format!("{name}Text")).unwrap())
+                    .unwrap();
+                let WidgetData::FontString(text) = label.widget_data.as_ref().unwrap() else {
+                    panic!("tab text")
+                };
+                assert_eq!(text.justify_h, JustifyH::Center, "{skin:?} {name}");
+                assert_eq!(text.font, GameFont::FrizQuadrata);
+                assert_eq!(text.font_size, 10.0);
+                let text_width =
+                    ui_toolkit::text_measure::measure_text(title, GameFont::FrizQuadrata, 10.0)
+                        .unwrap()
+                        .0;
+                let width = text_width + 50.0;
+                assert_eq!(
+                    frame.width,
+                    ui_toolkit::frame::Dimension::Fixed(width),
+                    "{name} TabResize30 width"
+                );
+                assert_eq!(frame.position.left, Val::Px(left));
+                assert_eq!(frame.position.top, Val::Px(497.0));
+                let active = selected == index;
+                for (part, x, part_width, uv) in [
+                    (
+                        "Left",
+                        -4.0,
+                        21.0,
+                        [0.47265625, 0.513671875, 0.76953125, 1.0],
+                    ),
+                    (
+                        "Middle",
+                        17.0,
+                        width - 31.0,
+                        [0.513671875, 0.685546875, 0.76953125, 1.0],
+                    ),
+                    (
+                        "Right",
+                        width - 14.0,
+                        18.0,
+                        [0.685546875, 0.720703125, 0.76953125, 1.0],
+                    ),
+                ] {
+                    let art = registry
+                        .get(registry.get_by_name(&format!("{name}{part}")).unwrap())
+                        .unwrap();
+                    let WidgetData::Texture(texture) = art.widget_data.as_ref().unwrap() else {
+                        panic!("tab art")
+                    };
+                    assert_eq!(texture.source, TextureSource::FileDataId(235402));
+                    assert_eq!(texture.tex_coords, uv);
+                    assert_eq!(art.position.left, Val::Px(x));
+                    assert_eq!(art.width, ui_toolkit::frame::Dimension::Fixed(part_width));
+                    assert_eq!(
+                        art.height,
+                        ui_toolkit::frame::Dimension::Fixed(if active { 59.0 } else { 49.0 })
+                    );
+                }
+                left += width + if index == 0 { 3.0 } else { -5.0 };
+            }
+        }
+    }
+}
+
+#[test]
+fn achievements_header_title_uses_retail_content_style_both_skins() {
+    use ui_toolkit::frame::Dimension;
+    use ui_toolkit::widgets::font_string::GameFont;
+    for skin in [ActiveSkin::Modern, ActiveSkin::Forever] {
+        assets(skin);
+        for (guild, expected) in [
+            (false, "Warband Achievement Points"),
+            (true, "Guild Achievements"),
+        ] {
+            let mut window = AchievementWindow::default();
+            window.visible = true;
+            window.guild = guild;
+            let registry = achievement_registry(&window, skin);
+            let frame = registry
+                .get(registry.get_by_name("AchievementFrameTitle").unwrap())
+                .unwrap();
+            let WidgetData::FontString(font) = frame.widget_data.as_ref().unwrap() else {
+                panic!("header title")
+            };
+            assert_eq!(font.text, expected, "{skin:?} guild={guild}");
+            assert_eq!(font.font, GameFont::FrizQuadrata);
+            assert_eq!(font.font_size, 10.0);
+            assert_eq!(font.shadow_color, Some([0.0, 0.0, 0.0, 1.0]));
+            assert_eq!(font.shadow_offset, [1.0, -1.0]);
+            assert_eq!(font.color, [1.0, 0.82, 0.0, 1.0]);
+            assert_eq!(font.justify_h, JustifyH::Center);
+            assert_eq!(frame.width, Dimension::Fixed(150.0));
+            assert_eq!(frame.height, Dimension::Fixed(20.0));
+            assert_eq!(frame.position.left, Val::Px(334.0));
+            assert_eq!(frame.position.top, Val::Px(-29.0));
+            let (width, _) =
+                ui_toolkit::text_measure::measure_text(expected, GameFont::FrizQuadrata, 10.0)
+                    .unwrap();
+            println!("ACHIEVEMENT_HEADER_TITLE_FIT {skin:?} guild={guild} width={width}/150");
+            assert!(
+                width <= 150.0,
+                "Retail title actually overflows: {expected} {width}"
+            );
+        }
+    }
+}
+
 fn retail_categories() -> Vec<AchievementCategoryEntry> {
     let records = game_engine_core::csv_util::parse_csv_records(include_str!(
         "../../../data/db2/active/Achievement_Category.csv"
@@ -447,10 +577,7 @@ fn achievements_art_postsetup_paints_only_rendered_category_highlights() {
     window.categories.insert(14822, outside_statistics_tree);
     let mut registry = achievement_registry(&window, ActiveSkin::Modern);
     game_engine_ui_model::achievements::apply_achievement_postsetup(&mut registry);
-    assert_eq!(
-        text(&registry, "AchievementEmpty"),
-        "Loading achievements..."
-    );
+    assert_eq!(text(&registry, "AchievementEmpty"), "");
 }
 
 fn assets(skin: ActiveSkin) {
@@ -978,6 +1105,7 @@ fn achievements_ui_browse_statistics_and_correlated_full_search_both_skins() {
         assert_eq!(text(&statistics, "Achievement1068Statistic"), "7");
         assert!(statistics.get_by_name("AchievementCriteriaTitle").is_none());
         assert!(statistics.get_by_name("AchievementTrack").is_none());
+        window.action("achievement:search_focus");
         assert_eq!(
             window.action("achievement:search:stockade"),
             vec![QueryAchievementCatalog::Search {
@@ -1000,14 +1128,394 @@ fn achievements_ui_browse_statistics_and_correlated_full_search_both_skins() {
             next_id: None,
         });
         assert_eq!(
-            text(&achievement_registry(&window, skin), "Achievement633Name"),
+            text(
+                &achievement_registry(&window, skin),
+                "AchievementSearchPreview1Name"
+            ),
             "Stormwind Stockade"
         );
-        assert!(window.action("achievement:row:633").contains(
+        assert!(window.action("achievement:preview:633").contains(
             &QueryAchievementCatalog::Achievement {
                 achievement_id: 633
             }
         ));
+    }
+}
+
+fn search_preview_window() -> AchievementWindow {
+    let mut window = AchievementWindow::default();
+    window.action("micro:AchievementMicroButton");
+    window.apply(AchievementCatalogPage::Categories {
+        categories: vec![category()],
+        next_id: None,
+    });
+    window.action("achievement:category:14808");
+    window.apply(AchievementCatalogPage::Category {
+        category_id: 14808,
+        achievements: vec![achievement()],
+        next_id: None,
+    });
+    window.action("achievement:search_focus");
+    window
+}
+
+fn preview_results(window: &mut AchievementWindow, term: &str, count: u32, next_id: Option<u32>) {
+    window.apply(AchievementCatalogPage::Search {
+        text: term.into(),
+        scope: AchievementScope::All,
+        achievements: (0..count)
+            .map(|index| AchievementCatalogEntry {
+                achievement_id: 6 + index,
+                name: format!("Level {}", (index + 1) * 10),
+                ..achievement()
+            })
+            .collect(),
+        next_id,
+    });
+}
+
+#[test]
+fn achievements_search_preview_preserves_category_and_caps_received_rows_both_skins() {
+    for skin in [ActiveSkin::Modern, ActiveSkin::Forever] {
+        assets(skin);
+        let mut window = search_preview_window();
+        window.action("achievement:search:level");
+        assert_eq!(
+            window.selected_category,
+            Some(14808),
+            "typing preserves category"
+        );
+        assert_eq!(window.entries()[0].achievement_id, 633);
+        preview_results(&mut window, "level", 6, None);
+        let registry = achievement_registry(&window, skin);
+        assert_eq!(text(&registry, "Achievement633Name"), "Stormwind Stockade");
+        let popup = registry
+            .get(
+                registry
+                    .get_by_name("AchievementSearchPreviewContainer")
+                    .unwrap(),
+            )
+            .unwrap();
+        assert_eq!(popup.width.value(), 206.0);
+        for index in 1..=5 {
+            let row = registry
+                .get(
+                    registry
+                        .get_by_name(&format!("AchievementSearchPreview{index}"))
+                        .unwrap(),
+                )
+                .unwrap();
+            assert_eq!((row.width.value(), row.height.value()), (206.0, 27.0));
+            assert_eq!(
+                text(&registry, &format!("AchievementSearchPreview{index}Name")),
+                format!("Level {}", index * 10)
+            );
+        }
+        assert!(registry.get_by_name("AchievementSearchPreview6").is_none());
+        assert!(
+            registry
+                .get_by_name("AchievementShowAllSearchResults")
+                .is_some()
+        );
+    }
+}
+
+#[test]
+fn achievements_search_preview_show_all_requires_more_than_five_and_opens_list_both_skins() {
+    for skin in [ActiveSkin::Modern, ActiveSkin::Forever] {
+        assets(skin);
+        for (count, next, show_all) in [
+            (1, None, false),
+            (5, None, false),
+            (5, Some(10), true),
+            (6, None, true),
+        ] {
+            let mut window = search_preview_window();
+            window.action("achievement:search:level");
+            preview_results(&mut window, "level", count, next);
+            let registry = achievement_registry(&window, skin);
+            assert_eq!(
+                registry
+                    .get_by_name("AchievementShowAllSearchResults")
+                    .is_some(),
+                show_all
+            );
+            if show_all {
+                let button = registry
+                    .get(
+                        registry
+                            .get_by_name("AchievementShowAllSearchResults")
+                            .unwrap(),
+                    )
+                    .unwrap();
+                window.action(button.onclick.as_deref().unwrap());
+                let full = achievement_registry(&window, skin);
+                assert!(
+                    full.get_by_name("AchievementSearchPreviewContainer")
+                        .is_none()
+                );
+                assert_eq!(text(&full, "Achievement6Name"), "Level 10");
+                assert!(full.get_by_name("Achievement633Name").is_none());
+                assert_eq!(window.entries().len(), count as usize);
+            }
+        }
+    }
+}
+
+#[test]
+fn achievements_search_preview_row_opens_received_achievement_both_skins() {
+    for skin in [ActiveSkin::Modern, ActiveSkin::Forever] {
+        assets(skin);
+        let mut window = search_preview_window();
+        window.action("achievement:search:level");
+        preview_results(&mut window, "level", 1, None);
+        let registry = achievement_registry(&window, skin);
+        let button = registry
+            .get(registry.get_by_name("AchievementSearchPreview1").unwrap())
+            .unwrap();
+        let requests = window.action(button.onclick.as_deref().unwrap());
+        assert!(requests.contains(&QueryAchievementCatalog::Achievement { achievement_id: 6 }));
+        assert_eq!(window.selected_achievement, Some(6));
+        assert!(window.search_text.is_empty());
+        assert!(
+            achievement_registry(&window, skin)
+                .get_by_name("AchievementSearchPreviewContainer")
+                .is_none()
+        );
+    }
+}
+
+#[test]
+fn achievements_search_preview_clear_blur_and_late_replies_both_skins() {
+    for skin in [ActiveSkin::Modern, ActiveSkin::Forever] {
+        assets(skin);
+        let mut window = search_preview_window();
+        window.action("achievement:search:level");
+        window.action("achievement:search_blur");
+        preview_results(&mut window, "level", 2, None);
+        assert!(
+            achievement_registry(&window, skin)
+                .get_by_name("AchievementSearchPreviewContainer")
+                .is_none()
+        );
+        assert_eq!(window.entries()[0].achievement_id, 633);
+        window.action("achievement:search_focus");
+        assert!(
+            achievement_registry(&window, skin)
+                .get_by_name("AchievementSearchPreviewContainer")
+                .is_some()
+        );
+        window.action("achievement:search:");
+        preview_results(&mut window, "level", 5, None);
+        assert!(window.search_results.entries.is_empty());
+        assert!(
+            achievement_registry(&window, skin)
+                .get_by_name("AchievementSearchPreviewContainer")
+                .is_none()
+        );
+        window.action("achievement:search:stock");
+        preview_results(&mut window, "level", 5, None);
+        assert!(window.search_results.entries.is_empty());
+        preview_results(&mut window, "stock", 0, None);
+        assert!(
+            achievement_registry(&window, skin)
+                .get_by_name("AchievementSearchPreviewContainer")
+                .is_none()
+        );
+        assert_eq!(window.selected_category, Some(14808));
+    }
+}
+
+#[test]
+fn achievements_search_keyboard_cursor_show_all_continues_received_pages_both_skins() {
+    for skin in [ActiveSkin::Modern, ActiveSkin::Forever] {
+        assets(skin);
+        let mut window = search_preview_window();
+        window.action("achievement:search:level");
+        preview_results(&mut window, "level", 5, Some(10));
+        window.action("achievement:search_move:-1");
+        window.action("achievement:search_submit");
+        assert!(window.full_search);
+        assert_eq!(window.search_text, "level");
+        assert_eq!(
+            text(&achievement_registry(&window, skin), "Achievement6Name"),
+            "Level 10"
+        );
+        assert_eq!(
+            window.action("achievement:more_rows"),
+            vec![QueryAchievementCatalog::Search {
+                text: "level".into(),
+                scope: AchievementScope::All,
+                after_id: 10,
+            }]
+        );
+        window.apply(AchievementCatalogPage::Search {
+            text: "level".into(),
+            scope: AchievementScope::All,
+            achievements: vec![AchievementCatalogEntry {
+                achievement_id: 11,
+                name: "Level 60".into(),
+                ..achievement()
+            }],
+            next_id: None,
+        });
+        assert_eq!(
+            window
+                .entries()
+                .iter()
+                .map(|entry| entry.achievement_id)
+                .collect::<Vec<_>>(),
+            vec![6, 7, 8, 9, 10, 11]
+        );
+        assert_eq!(window.selected_achievement, Some(6));
+    }
+}
+
+#[test]
+fn achievements_search_keyboard_late_other_query_preserves_selected_received_id_both_skins() {
+    for skin in [ActiveSkin::Modern, ActiveSkin::Forever] {
+        assets(skin);
+        let mut window = search_preview_window();
+        window.action("achievement:search:level");
+        preview_results(&mut window, "level", 6, None);
+        window.action("achievement:search_select:2");
+        preview_results(&mut window, "obsolete", 1, None);
+        let requests = window.action("achievement:search_submit");
+        assert!(requests.contains(&QueryAchievementCatalog::Achievement { achievement_id: 8 }));
+        assert_eq!(window.selected_achievement, Some(8));
+        assert!(window.search_text.is_empty());
+        assert_eq!(
+            text(&achievement_registry(&window, skin), "AchievementEmpty"),
+            "Loading achievement..."
+        );
+    }
+}
+
+#[test]
+fn achievements_full_search_presents_received_page_two_and_ignores_late_query_both_skins() {
+    for skin in [ActiveSkin::Modern, ActiveSkin::Forever] {
+        assets(skin);
+        let mut window = search_preview_window();
+        window.action("achievement:search:level");
+        preview_results(&mut window, "level", 5, Some(10));
+        window.action("achievement:search_all");
+        assert_eq!(
+            window.action("achievement:more_rows"),
+            vec![QueryAchievementCatalog::Search {
+                text: "level".into(),
+                scope: AchievementScope::All,
+                after_id: 10,
+            }]
+        );
+        window.apply(AchievementCatalogPage::Search {
+            text: "level".into(),
+            scope: AchievementScope::All,
+            achievements: vec![AchievementCatalogEntry {
+                achievement_id: 11,
+                name: "Level 60".into(),
+                earned: false,
+                ..achievement()
+            }],
+            next_id: None,
+        });
+        preview_results(&mut window, "obsolete", 1, None);
+        let registry = achievement_registry(&window, skin);
+        assert_eq!(text(&registry, "Achievement11Name"), "Level 60");
+        assert_eq!(
+            text(&registry, "AchievementFullSearchResult11Path"),
+            "Legacy > Character"
+        );
+        assert_eq!(
+            text(&registry, "AchievementFullSearchResult11ResultType"),
+            "Incomplete"
+        );
+        assert!(
+            registry
+                .get_by_name("AchievementFullSearchResult11")
+                .is_some()
+        );
+        assert_eq!(window.entries().len(), 6);
+        assert_eq!(window.selected_achievement, Some(6));
+        let button = registry
+            .get(
+                registry
+                    .get_by_name("AchievementFullSearchResult11")
+                    .unwrap(),
+            )
+            .unwrap();
+        assert!(
+            window
+                .action(button.onclick.as_deref().unwrap())
+                .contains(&QueryAchievementCatalog::Achievement { achievement_id: 11 })
+        );
+        assert_eq!(window.selected_achievement, Some(11));
+        assert!(!window.full_search);
+        assert!(window.search_text.is_empty());
+    }
+}
+
+#[test]
+fn achievements_full_search_close_conserves_state_reopens_and_continues_cursor_both_skins() {
+    for skin in [ActiveSkin::Modern, ActiveSkin::Forever] {
+        assets(skin);
+        let mut window = search_preview_window();
+        window.action("achievement:search:level");
+        preview_results(&mut window, "level", 5, Some(10));
+        window.action("achievement:search_all");
+        let before = window.clone();
+        let registry = achievement_registry(&window, skin);
+        let button = registry
+            .get(
+                registry
+                    .get_by_name("AchievementFullSearchClose")
+                    .expect("source full-search close button"),
+            )
+            .unwrap();
+        assert!(window.action(button.onclick.as_deref().unwrap()).is_empty());
+        let mut expected = before.clone();
+        expected.full_search = false;
+        assert_eq!(
+            window, expected,
+            "dismiss changes only full-search presentation"
+        );
+        let dismissed = achievement_registry(&window, skin);
+        assert!(
+            dismissed
+                .get_by_name("AchievementFullSearchResults")
+                .is_none()
+        );
+        assert_eq!(text(&dismissed, "Achievement633Name"), "Stormwind Stockade");
+        assert!(window.action("achievement:search_all").is_empty());
+        assert_eq!(
+            window, before,
+            "reopen conserves exact query/cache/category/cursor state"
+        );
+        assert_eq!(
+            window.action("achievement:more_rows"),
+            vec![QueryAchievementCatalog::Search {
+                text: "level".into(),
+                scope: AchievementScope::All,
+                after_id: 10,
+            }]
+        );
+        window.apply(AchievementCatalogPage::Search {
+            text: "level".into(),
+            scope: AchievementScope::All,
+            achievements: vec![AchievementCatalogEntry {
+                achievement_id: 11,
+                name: "Level 60".into(),
+                ..achievement()
+            }],
+            next_id: None,
+        });
+        assert_eq!(
+            window
+                .entries()
+                .iter()
+                .map(|entry| entry.achievement_id)
+                .collect::<Vec<_>>(),
+            vec![6, 7, 8, 9, 10, 11]
+        );
     }
 }
 

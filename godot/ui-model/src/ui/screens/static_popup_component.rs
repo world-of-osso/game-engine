@@ -1,5 +1,6 @@
 #[path = "static_popup_item.rs"]
 mod item_confirmation_template;
+pub(crate) use item_confirmation_template::dialog_button;
 pub use item_confirmation_template::{ItemConfirmation, item_confirmation};
 
 use ui_toolkit::rsx;

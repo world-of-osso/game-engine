@@ -58,6 +58,10 @@ Fill compatible Waiting/InProgress copies before creating a new one: concrete ma
 
 Preserve existing copy, phase, score, clock and objective state. New characters receive normal invitations and reservation ownership, then ordinary acceptance/WorldPortAck entry; existing accepted players are not re-invited. Use landed late-arrival score-row insertion. Refill on queue/capacity-release events only; no timer, reward or minimum changes. Arathi5v5 Waiting must reach its unchanged8/team criterion naturally through later parties.
 
+### Native pending invitation
+
+An unaccepted Waiting entry or an unaccepted InProgress ordinary BG entry displays the existing ready dialog and permits one match-owned accept/decline request until authority responds. Accepted entries and Ended matches are not pending; running-arena behavior remains unchanged. Preserve existing dialog art/layout and response handling. Source: Retail `PVPHelper.lua`321–329 opens on queue status `confirm`;427 handles the pending port action independently of the destination match phase.
+
 ## Eye holiday authority — 70448 read-only
 
 `HOLIDAY492_EFFECTIVE_EVENT_AUTHORITY` remains unresolved. Do not infer a77-day recurrence or treat missing calendar authority as inactive. Existing Eye completion Honor is unchanged; resource-Honor selection remains blocked.
@@ -70,6 +74,18 @@ The [70448 read-only audit](../wiki/investigations/eye-holiday-authority.md) rec
 ## Current source boundary
 
 Honor cap15000 is authored. Conquest has MaxQtyWorldStateID31270 and AwardConditionID146857; static0 does not prove an uncapped season. Slot masks1/2/4/8 unlock at10/20/30/40. PrestigeLevelInfo contains honor-achievement reward identities (e.g. level5/achievement12893); these alone do not define an XP curve. The extracted `gametables/honorlevel.txt` contains old Prestige0..32 curves and is not certified as Mainline lifetime-honor progression. Honor per win/loss, conquest per result, season cap/reset authority and the lifetime XP curve remain gaps until locally derived. No manufactured rewards.
+
+## Random32 native exposure
+
+Quick Match exposes the source HonorFrame TypeDropdown and supported Random Battleground BonusFrame row in both skins. Specific remains the startup mode; switching modes preserves its concrete selected_battleground and existing arena selection. Bonus Join requests existing queue32, never a fabricated concrete template. The authored first-slot365×54 row, selected/hover/pressed states and faction background are used; unsupported Bonus activities are omitted, not fake enabled buttons. Existing transport, server admission, level/map selection, arenas and rewards remain unchanged.
+
+`RANDOM_BG_ACTIVITY_AVAILABILITY_PROJECTION` is a named gap: no Retail canQueue/minLevel or level-dependent default-mode parity is claimed without its authoritative projection. This exposure is a request affordance with normal server refusal, not an invented eligibility prediction. `RANDOM_BG_WIN_REWARD_PROFILE`, first-win/daily/reset, Enlistment and role-shortage reward authority remain gaps; reward regions and numeric placeholders are omitted. Source: cached Retail PVPUI.xml645–695/1167–1232 and Lua620–645/691–710/838–855/1029–1045/1130–1156.
+
+Bounded both-skin real-UDP queue/lifecycle actions are accepted in the [Random32 native proof ledger](../handoffs/pvp-random32-native-proof-ledger.md): stable queue32 before supports, normal dequeue/requeue, server-selected concrete invitation, physical decline/accept and20 origin returns. Modern passed on product attempt3 with a ptrace-attached collector; the earlier two failures remain failed evidence. No admission/reward change, uninstrumented-repeat or universal clean-runtime claim. Read-only TC lower-level divergence and the deferred availability projection are recorded in that ledger.
+
+## Ready-dialog placement
+
+The standalone ready dialog anchors TOP-center to the fullscreen UI,135 UI units down, in both art skins and viewport sizes. Its Dialog stratum must keep the whole dialog and physical accept/decline targets above the still-visible ordinary queue frame (Medium); showing an invitation does not auto-close the queue. Preserve existing dialog size/art/internal layout, match/phase/pending authority and other HUD/scoreboard roots. Source: Retail cache PVPHelper.xml254, PVPHelper.lua340–418, StaticPopup.lua866–924 and PVPUI.lua158–168. Source multi-popup stacking/fullscreen overrides are not claimed implemented by this standalone slice. HonorInset and its HonorLevelDisplay inherit the ordinary queue strata rather than independently promoting to Dialog (Retail PVPUI.xml1682/1718); the dialog body must remain above the sidebar wherever they overlap, not only at action-button centers.
 
 ## Native talent controls
 

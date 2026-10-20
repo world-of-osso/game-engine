@@ -1,6 +1,7 @@
 extends "res://tests/world_menu_flow.gd"
 
 func run_test() -> void:
+	completion = preload("res://tests/completion.gd").new(self, 3)
 	root.size = Vector2i(1280, 720)
 	var endpoint := OS.get_environment("GODOT_TEST_SERVER")
 	var config := OS.get_environment("XDG_CONFIG_HOME")
@@ -15,6 +16,8 @@ func run_test() -> void:
 	if not await wait_screen(client, "Loading", 15000):
 		return
 	print("FIXTURE SOUND_LOADING")
+	if not completion.case_done():
+		return
 	if not await wait_world(client):
 		return
 	var state: Dictionary = client.account_state()
@@ -31,6 +34,8 @@ func run_test() -> void:
 		fail("Area 9 -> zone 12 unexpectedly has catalogued ambient")
 		return
 	print("FIXTURE SOUND_WORLD area=9 zone=12 music=53492 ambient=none")
+	if not completion.case_done():
+		return
 	push_key(KEY_ESCAPE, true)
 	await process_frame
 	push_key(KEY_ESCAPE, false)
@@ -65,6 +70,8 @@ func run_test() -> void:
 		fail("Sound UI did not persist music toggle/mute in isolated options: " + saved)
 		return
 	print("FIXTURE SOUND_OPTIONS")
+	if not completion.case_done():
+		return
 	await click_option(client, "OptionsCloseButton")
 	if client.get_node_or_null("GameMenuUI") == null:
 		push_key(KEY_ESCAPE, true)
@@ -72,6 +79,7 @@ func run_test() -> void:
 		push_key(KEY_ESCAPE, false)
 		if not await wait_menu(client):
 			return
+	completion.finish(true, false)
 	await click_menu_action(client, "MenuBtnExit")
 	var deadline := Time.get_ticks_msec() + MENU_WAIT_MS
 	while Time.get_ticks_msec() < deadline:

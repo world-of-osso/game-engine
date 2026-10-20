@@ -47,6 +47,7 @@ fn dump(registry: &FrameRegistry) -> String {
 }
 
 fn dump_frame(registry: &FrameRegistry, id: u64, depth: usize, out: &mut String) {
+    super::golden_layer_census::record(registry, id);
     let f = registry.get(id).unwrap();
     writeln!(
         out,

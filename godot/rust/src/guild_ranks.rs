@@ -67,8 +67,7 @@ impl GameClient {
         &mut self,
         invitation: shared::protocol::GuildInvitation,
     ) {
-        self.guild_ranks.session.invitation = Some(invitation);
-        self.guild_ranks.session.invitation_waiting = false;
+        self.guild_ranks.session.receive_invitation(invitation);
     }
     pub(super) fn receive_guild_invite_result(
         &mut self,
@@ -275,6 +274,14 @@ impl GameClient {
         Ok(())
     }
 
+    pub(super) fn dismiss_guild_invitation(&mut self) -> Result<bool, FrameError> {
+        let Some(command) = self.guild_ranks.session.dismiss_invitation() else {
+            return Ok(false);
+        };
+        self.send_guild_command(command)?;
+        Ok(true)
+    }
+
     pub(super) fn close_guild_ranks(&mut self) -> bool {
         let visible = self.guild_ranks.session.close();
         self.guild_ranks.free_ui();
@@ -293,12 +300,16 @@ impl GameClient {
         }
         Ok(())
     }
-    pub(super) fn update_guild_ranks(&mut self) -> Result<(), FrameError> {
+    pub(super) fn update_guild_ranks(&mut self, delta: f64) -> Result<(), FrameError> {
         if self.account.session.screen != SessionScreen::InWorld {
             self.close_guild_ranks();
             self.guild_ranks
                 .synchronize_session_screen(self.account.session.screen);
             return Ok(());
+        }
+        self.guild_ranks.session.roster_online_only = !self.client_options.communities_show_offline;
+        if let Some(command) = self.guild_ranks.session.advance_invitation(delta) {
+            self.send_guild_command(command)?;
         }
         if !self.guild_ranks.session.visible && self.guild_ranks.session.invitation.is_none() {
             self.guild_ranks.free_ui();
@@ -321,10 +332,14 @@ impl GameClient {
                 self.open_guild_news_subject()?;
                 continue;
             }
+            let previous_online_only = self.guild_ranks.session.roster_online_only;
             let previous_editor = self.guild_ranks.session.note_editor.clone();
             let texts = read_inputs(&mut ui, &self.guild_ranks.session);
             if let Some(request) = self.guild_ranks.session.click(&action, &texts) {
                 self.send_guild_rank_request(request)?;
+            }
+            if previous_online_only != self.guild_ranks.session.roster_online_only {
+                self.save_guild_show_offline()?;
             }
             if previous_editor != self.guild_ranks.session.note_editor
                 && self.guild_ranks.session.note_editor.is_some()
@@ -336,6 +351,9 @@ impl GameClient {
             if !self.guild_ranks.session.visible {
                 break;
             }
+        }
+        if let Some(prefill) = self.guild_ranks.session.chat_open.take() {
+            self.open_chat_input(&prefill)?;
         }
         let commands = std::mem::take(&mut self.guild_ranks.session.commands);
         for command in commands {
@@ -393,6 +411,18 @@ impl GameClient {
             }
             None => {}
         }
+        Ok(())
+    }
+
+    fn save_guild_show_offline(&mut self) -> Result<(), String> {
+        use game_engine_core::client_options_data::{
+            load_options_file_with_legacy, options_path, save_options_file_to_path,
+        };
+        let legacy_path = self.data_root.join("ui/options_settings.ron");
+        let mut file = load_options_file_with_legacy(&legacy_path);
+        file.communities_show_offline = !self.guild_ranks.session.roster_online_only;
+        save_options_file_to_path(&options_path(), &file)?;
+        self.client_options = file;
         Ok(())
     }
 

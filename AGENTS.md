@@ -12,13 +12,15 @@ tools/           # game-engine-tools: png_to_ktx2, *_cache_import (local, Bevy-f
 godot/           # Godot project + Rust workspace (built and tested through desktop/local Docker helpers)
 ├── project.godot, scenes/, shaders/, ui/
 ├── tests/       # GDScript fixtures
-├── core/        # game-engine-core: M2/ADT/WMO/BLP parsers, DB2/SQLite catalogs and cache importers, camera/movement/lighting data
+├── core/        # game-engine-core: pinned wow-formats M2/ADT/WMO readers, BLP parser, client model adapters, DB2/SQLite catalogs, camera/movement/lighting data
 ├── ui-model/    # game-engine-ui-model: rsx! screen components and UI state (ui-toolkit-core)
 ├── network/     # game-engine-network: headless lightyear transport, IPC wire schema, JS automation; examples/ = process fixtures
 ├── session/     # game-engine-session: account and character-session decisions
 ├── rust/        # game-engine-godot: the GDExtension (scenes, rendering, input, IPC server)
 └── cli/         # game-engine-cli: IPC client for a running client
 ```
+
+M2/skin, WMO, ADT/WDT parsers live in the public `world-of-osso/wow-formats` workspace (`wow-chunk`, `wow-m2`, `wow-wmo`, `wow-adt`), pinned by git revision in `godot/core/Cargo.toml`; old core format namespaces are plain re-exports. Keep engine model assembly, axis adapters and simulation in core; data-backed parser fixtures stay here. See [shared formats](docs/wiki/systems/wow-formats.md).
 
 ## Dev
 

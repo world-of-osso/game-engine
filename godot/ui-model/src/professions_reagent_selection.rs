@@ -69,6 +69,23 @@ impl ReagentSelection {
     }
 }
 
+/// Passive native profession status, independent of Godot scene ownership.
+pub fn craft_status(error: &str, selection: &ReagentSelection) -> String {
+    if !error.is_empty() {
+        return error.into();
+    }
+    if selection.pending {
+        return "Validating reagents...".into();
+    }
+    if let Some(response) = &selection.response {
+        if let Some(error) = &response.validation_error {
+            return error.clone();
+        }
+    }
+    // Missing operation composition is a diagnostic, not a passive player status.
+    String::new()
+}
+
 pub fn selectable(slot: &ReagentSlot) -> bool {
     let basic_unconditional = slot.reagent_type == 1 && slot.player_condition == 0;
     // Professions.lua745-752: one basic reagent is Fixed, not Quality input mode.

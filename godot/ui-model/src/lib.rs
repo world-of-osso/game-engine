@@ -123,9 +123,11 @@ pub mod pet_stable;
 pub mod pet_stable_component;
 pub mod professions;
 pub mod professions_catalog;
+pub mod professions_cooldown;
 pub mod professions_frame;
 pub mod professions_orders;
 pub mod professions_quality;
+pub mod professions_reagent_counts;
 pub mod professions_reagent_selection;
 pub mod professions_specializations;
 pub mod raid_manager_component;
@@ -155,6 +157,7 @@ pub mod group_frames_component;
 pub use inworld_unit_frames_component::portrait_party_frame_component;
 #[path = "ui/popup.rs"]
 pub mod popup;
+pub mod ready_check_difficulty;
 #[path = "ui/screens/ready_check_frame_component.rs"]
 pub mod ready_check_frame_component;
 #[path = "ui/screens/static_popup_component.rs"]
@@ -290,11 +293,15 @@ pub mod guild_control;
 mod guild_control_art;
 pub mod guild_event_log;
 pub mod guild_member_detail;
+mod guild_member_rank;
 pub mod guild_news;
 pub mod guild_news_state;
+mod guild_note_sort;
 pub mod guild_perks;
+mod guild_presence;
 pub mod guild_rank_frame;
 pub mod guild_ranks;
+mod guild_zone_sort;
 #[path = "ipc/format_shared.rs"]
 pub mod ipc_format;
 pub mod mail;

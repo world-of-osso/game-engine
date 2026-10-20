@@ -65,6 +65,7 @@ pub fn guild_screen(shared: &SharedContext) -> Element {
         children.extend(profile_editor(session));
         children.extend(crate::guild_member_detail::editor(session));
         children.extend(crate::guild_member_detail::removal_confirmation(session));
+        children.extend(crate::guild_member_detail::leadership_confirmation(session));
         children.extend(crate::guild_event_log::frame(session, shared));
         children.extend(crate::guild_news::filters(session));
     }
@@ -378,6 +379,19 @@ fn member_menu(session: &GuildRanksSession) -> Element {
             "GuildMemberDemote",
             "Demote",
             "guild:demote",
+        ),
+        // Mainline COMMUNITIES_GUILD_MEMBER: Whisper precedes Promote to Guildmaster.
+        (
+            session.can_whisper(name),
+            "GuildMemberWhisper",
+            "Whisper",
+            "guild:whisper",
+        ),
+        (
+            session.can_transfer_leadership(name),
+            "GuildMemberTransferLeadership",
+            "Promote to Guildmaster",
+            "guild:transfer_leadership",
         ),
     ]
     .into_iter()

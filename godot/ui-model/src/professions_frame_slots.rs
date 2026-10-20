@@ -30,6 +30,8 @@ pub(super) fn schematic(view: &ProfessionView) -> Element {
             (16.0, quality_color(item.quality), "LEFT"),
         ));
     }
+    out.extend(recipe_source_button(view));
+    out.extend(recipe_cooldown(view));
     out.extend(text(
         "ProfessionsReagentsHeading",
         "Reagents:",
@@ -63,6 +65,100 @@ pub(super) fn schematic(view: &ProfessionView) -> Element {
     out
 }
 
+/// RecipeSchematicForm.lua627–649: unlearned source header owns an ANCHOR_RIGHT tooltip.
+pub fn recipe_source_tooltip(
+    book: &crate::professions::ProfessionBook,
+    skills: &std::collections::BTreeMap<u32, String>,
+) -> Option<crate::game_tooltip::GameTooltip> {
+    let recipe = book.selected_recipe()?;
+    if book.selected_is_learned() {
+        return None;
+    }
+    let lines: Vec<_> = book
+        .snapshot
+        .recipe_sources
+        .iter()
+        .filter(|source| source.spell_id == recipe.spell_id)
+        .flat_map(|source| trainer_source_lines(source, skills))
+        .collect();
+    if lines.is_empty() {
+        return None;
+    }
+    Some(crate::game_tooltip::GameTooltip::new(
+        crate::tooltip_presentation::TooltipPresentation {
+            title: "Unlearned Recipe".into(),
+            title_color: [1.0; 4],
+            lines,
+            ..Default::default()
+        },
+        None,
+    ))
+}
+
+fn trainer_source_lines(
+    source: &shared::protocol::ProfessionTrainerSource,
+    skills: &std::collections::BTreeMap<u32, String>,
+) -> Vec<crate::tooltip_presentation::TooltipLineState> {
+    let skill = skills
+        .get(&source.req_skill_line)
+        .cloned()
+        .unwrap_or_else(|| format!("SkillLine {}", source.req_skill_line));
+    let mut lines = vec![
+        format!("Trainer {}: {} Copper", source.trainer_id, source.cost),
+        format!("Requires {skill} ({})", source.req_skill_rank),
+    ];
+    if source.req_level > 0 {
+        lines.push(format!("Requires Level {}", source.req_level));
+    }
+    lines.extend(
+        source
+            .req_abilities
+            .iter()
+            .map(|spell| format!("Requires Spell {spell}")),
+    );
+    lines
+        .into_iter()
+        .map(|text| crate::tooltip_presentation::TooltipLineState::colored(text, [1.0; 4]))
+        .collect()
+}
+
+fn recipe_source_button(view: &ProfessionView) -> Element {
+    if recipe_source_tooltip(&view.book, &view.skill_names).is_none() {
+        return vec![];
+    }
+    // OutputIcon BOTTOMLEFT(-1,-12), then RecipeSourceButton XML150x16.
+    let mut children = texture(
+        "ProfessionsRecipeSourceIcon".into(),
+        616343,
+        (-6.0, -7.0, 30.0, 30.0),
+        "1,1,1,1",
+    );
+    children.extend(label(
+        "ProfessionsRecipeSourceLabel".into(),
+        "Unlearned Recipe",
+        (23.0, 0.0, 127.0, 16.0),
+        (12.0, crate::quest_art::NORMAL_FONT_COLOR, "LEFT"),
+    ));
+    rsx! { button { name: "ProfessionsRecipeSourceButton", width: 150.0, height: 16.0,
+    left: 308.0, top: 171.0, pos_type: "absolute", button_default_skin: false, {children} } }
+}
+
+/// RecipeSchematicForm.xml226 `Cooldown` (GameFontRedSmall, 400 wide) is the first
+/// organizer entry at OutputIcon BOTTOMLEFT(-1,-12); Lua564–581 sets its red text.
+fn recipe_cooldown(view: &ProfessionView) -> Element {
+    let Some(secs) = view.recipe_cooldown_secs else {
+        return vec![];
+    };
+    // GlobalColor RED_FONT_COLOR (-57312 = 0xFFFF2020) overrides the font's own red.
+    let red = crate::tooltip_presentation::rgba_string(crate::item_tooltip::RED_FONT_COLOR);
+    label(
+        "ProfessionsRecipeCooldown".into(),
+        &crate::professions_cooldown::remaining_text(secs),
+        (308.0, 171.0, 400.0, 12.0),
+        (10.0, &red, "LEFT"),
+    )
+}
+
 fn quality_reagent_cells(view: &ProfessionView) -> Element {
     let mut out = vec![];
     for (index, slot) in view
@@ -77,7 +173,14 @@ fn quality_reagent_cells(view: &ProfessionView) -> Element {
         let owned = slot
             .choices
             .iter()
-            .map(|choice| u64::from(view.bag_counts.get(&choice.item_id).copied().unwrap_or(0)))
+            .map(|choice| {
+                u64::from(
+                    view.owned_reagents
+                        .get(&choice.item_id)
+                        .copied()
+                        .unwrap_or(0),
+                )
+            })
             .sum::<u64>()
             .min(u64::from(u32::MAX)) as u32;
         let action = if crate::professions_reagent_selection::selectable(slot) {
@@ -96,7 +199,7 @@ fn quality_reagent_cells(view: &ProfessionView) -> Element {
                 quality_atlas: crate::professions_reagent_selection::reagent_quality_atlas(
                     slot,
                     &view.reagent_selection.allocations,
-                    &view.bag_counts,
+                    &view.owned_reagents,
                     &view.crafting_quality,
                 ),
             },
@@ -215,13 +318,16 @@ fn craft_controls(view: &ProfessionView) -> Element {
     );
     // Retail ProfessionsCrafting.lua:698 calls SetTextToFit; .xml:219-224
     // anchors its RIGHT 30px left of the quantity input, so growth is leftward.
+    // ProfessionsCrafting.lua574/715–722: a recipe cooldown disables Create, Create All
+    // and the quantity input.
+    let ready = view.book.selected_is_learned() && view.recipe_cooldown_secs.is_none();
     let create_all_text = format!("Create All [{}]", view.craftable);
     let create_all_width = panel_button_fit_to_text_width(&create_all_text);
     out.extend(panel_button(
         "ProfessionsCreateAll".into(),
         &create_all_text,
         "profession:all",
-        view.can_all,
+        view.can_all && ready,
         (762.0 - create_all_width, y, create_all_width, 22.0),
     ));
     out.extend(edit_box(QUANTITY, (792.0, y + 1.0, 31.0, 20.0)));
@@ -229,21 +335,21 @@ fn craft_controls(view: &ProfessionView) -> Element {
         "ProfessionsQuantityDecrease",
         "profession:decrease",
         763.0,
-        view.book.quantity > 1,
+        ready && view.book.quantity > 1,
         (130_869, 130_867),
     ));
     out.extend(spinner_arrow(
         "ProfessionsQuantityIncrease",
         "profession:increase",
         823.0,
-        view.book.quantity < view.craftable,
+        ready && view.book.quantity < view.craftable,
         (130_866, 130_864),
     ));
     out.extend(panel_button(
         "ProfessionsCreate".into(),
         "Create",
         "profession:create",
-        view.can_create,
+        view.can_create && ready,
         (853.0, y, 80.0, 22.0),
     ));
     out

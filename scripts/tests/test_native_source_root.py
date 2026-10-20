@@ -51,12 +51,37 @@ class NativeSourceRootTests(unittest.TestCase):
             (self.root.parent / "shared-protocol").resolve(),
         )
 
-    def test_override_change_relinks_the_sibling(self):
-        self.source_root({"DEPOT_SIBLING_ASSET_RESOLVER": str(self.override)})
-        second = self.override.parent / "asset-resolver-other"
-        second.mkdir()
-        source = self.source_root({"DEPOT_SIBLING_ASSET_RESOLVER": str(second)})
-        self.assertEqual((source.parent / "asset-resolver").resolve(), second.resolve())
+    def test_server_override_keeps_required_catalogs_with_checkout_data(self):
+        content = self.root / "content"
+        data = self.root / "data"
+        content.mkdir()
+        data.mkdir()
+        for name in ("trading-post-monthly-catalog.json", "quest-reward-bonus.json"):
+            (content / name).write_text('{"source": "tracked"}')
+            (data / name).symlink_to(content / name)
+        with mock.patch.dict(os.environ, {"DEPOT_SIBLING_SHARED_PROTOCOL": str(self.override)}):
+            with mock.patch.object(Path, "home", return_value=self.home):
+                source = self.depot.native_source_root(self.root, "game-server", ("shared-protocol",))
+        for name in ("trading-post-monthly-catalog.json", "quest-reward-bonus.json"):
+            self.assertEqual((source / "data" / name).read_bytes(), (content / name).read_bytes())
+        self.assertEqual((source / "data").resolve(), data.resolve())
+
+    def test_override_change_moves_the_source_root(self):
+        # Cargo keeps a path dependency's build while its package path is unchanged and
+        # its files are no newer than the last build, so retargeting one link would
+        # reuse artifacts compiled from the previous sibling.
+        first = self.source_root({"DEPOT_SIBLING_ASSET_RESOLVER": str(self.override)})
+        second_override = self.override.parent / "asset-resolver-other"
+        second_override.mkdir()
+        second = self.source_root({"DEPOT_SIBLING_ASSET_RESOLVER": str(second_override)})
+        self.assertNotEqual(second, first)
+        self.assertEqual((second.parent / "asset-resolver").resolve(), second_override.resolve())
+        self.assertEqual((first.parent / "asset-resolver").resolve(), self.override.resolve())
+
+    def test_same_override_keeps_the_source_root(self):
+        first = self.source_root({"DEPOT_SIBLING_ASSET_RESOLVER": str(self.override)})
+        second = self.source_root({"DEPOT_SIBLING_ASSET_RESOLVER": str(self.override)})
+        self.assertEqual(second, first)
 
 
 if __name__ == "__main__":

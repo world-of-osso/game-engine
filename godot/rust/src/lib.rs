@@ -81,6 +81,7 @@ mod nameplates;
 #[path = "game/creatures/npc_gear_data.rs"]
 pub mod npc_gear_data;
 mod objective_tracker;
+mod particle_composite;
 mod particle_debug;
 mod particle_models;
 mod particles;
@@ -222,7 +223,7 @@ unsafe impl ExtensionLibrary for GameEngineExtension {
             shader_warmup::clear();
             assets::clear_shared_meshes();
             wmo::scene::clear_shaders();
-            particles::clear_quad_mesh();
+            particle_composite::clear();
         }
     }
 }
@@ -573,6 +574,7 @@ impl INode3D for GameClient {
             || self.guild_bank_pointer(&event)
             || self.guild_ranks_pointer(&event)
             || self.quest_frame_pointer(&event)
+            || self.profession_pointer(&event)
             || self.achievement_pointer(&event)
             || self.battleground_pointer(&event)
             || self.raid_info_pointer(&event)
@@ -699,6 +701,22 @@ impl INode3D for GameClient {
             return;
         }
         if key.get_keycode() == godot::global::Key::ESCAPE {
+            match self.dismiss_guild_invitation() {
+                Ok(true) => {
+                    self.mark_viewport_input_handled();
+                    return;
+                }
+                Ok(false) => {}
+                Err(error) => {
+                    self.handle_frame_error("Guild invitation dismissal", error);
+                    return;
+                }
+            }
+            // The slow-purchase popup owns Escape without closing vendor or hidden panels.
+            if self.dismiss_trading_slow_purchase() {
+                self.mark_viewport_input_handled();
+                return;
+            }
             match self.close_all_windows() {
                 Ok(true) => {
                     if let Some(mut viewport) = self.base().get_viewport() {
@@ -2214,7 +2232,9 @@ impl GameClient {
             ("Trade", |c, _| c.update_trade()),
             ("Banks", |c, _| c.update_banks()),
             ("CombatPetStable", |c, _| c.update_combat_stable()),
-            ("Guild ranks", |c, _| c.update_guild_ranks()),
+            ("Guild ranks", |c, delta| {
+                c.update_guild_ranks(f64::from(delta))
+            }),
             ("Guild charters", |c, _| c.update_guild_charters()),
             ("Guild tabards", |c, delta| c.update_guild_tabards(delta)),
             ("Achievements", |c, d| c.update_achievements(d)),

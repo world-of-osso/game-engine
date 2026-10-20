@@ -27,6 +27,7 @@ fn contents(object: u64) -> GuildBankContents {
                 count: 20,
                 durability: None,
                 soulbound: false,
+                crafting_origin: None,
             })],
         }],
     }
@@ -93,6 +94,7 @@ fn item_money_requests_leave_inventory_and_guild_money_authoritative() {
                     count: 3,
                     durability: None,
                     soulbound: false,
+                    crafting_origin: None,
                 },
             }],
         }],
@@ -249,6 +251,7 @@ fn authoritative_inventory_delta_and_tab_purchase_replace_only_server_state() {
                 count: 9,
                 durability: None,
                 soulbound: false,
+                crafting_origin: None,
             }),
         }],
     });

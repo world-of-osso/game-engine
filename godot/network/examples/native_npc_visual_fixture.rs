@@ -174,10 +174,11 @@ impl FixtureProject {
             std::os::unix::fs::symlink(entry.path(), data.join("textures").join(name))
                 .map_err(|error| format!("Link authored UI texture: {error}"))?;
         }
-        for folder in ["casc", "glues", "fonts", "ui", "db2"] {
+        for folder in ["casc", "glues", "fonts", "ui"] {
             std::os::unix::fs::symlink(repo.join("data").join(folder), data.join(folder))
                 .map_err(|error| format!("Link authored {folder} assets: {error}"))?;
         }
+        link_authored_db2(repo, &data)?;
         for name in [
             "AreaTable.csv",
             "music_zone_links.csv",
@@ -266,6 +267,42 @@ fn execute_fixture_sql(path: &Path, sql: &str) -> Result<(), String> {
     connection
         .execute_batch(sql)
         .map_err(|error| format!("Execute fixture SQL in {}: {error}", path.display()))
+}
+
+/// Retail CSVs this fixture replaces with its own rows in `db2/active`.
+const STAGED_RETAIL_CSVS: [&str; 4] = [
+    "ChrRaceXChrModel.csv",
+    "ChrRaces.csv",
+    "ChrCustomizationReq.csv",
+    "ChrCustomizationReqChoice.csv",
+];
+
+/// Links authored DB2 data file by file into a private `db2/active`, leaving the staged
+/// CSVs absent so fixture writes never follow a symlink into the canonical build.
+fn link_authored_db2(repo: &Path, data: &Path) -> Result<(), String> {
+    let authored = repo.join("data/db2");
+    let db2 = data.join("db2");
+    fs::create_dir_all(&db2).map_err(|error| format!("Create fixture db2: {error}"))?;
+    for entry in fs::read_dir(&authored).map_err(|error| format!("List authored db2: {error}"))? {
+        let entry = entry.map_err(|error| format!("Read authored db2 entry: {error}"))?;
+        if entry.file_name() != "active" {
+            std::os::unix::fs::symlink(entry.path(), db2.join(entry.file_name()))
+                .map_err(|error| format!("Link authored db2 entry: {error}"))?;
+        }
+    }
+    let active = db2.join("active");
+    fs::create_dir_all(&active).map_err(|error| format!("Create fixture db2/active: {error}"))?;
+    for entry in fs::read_dir(authored.join("active"))
+        .map_err(|error| format!("List authored db2/active: {error}"))?
+    {
+        let entry = entry.map_err(|error| format!("Read authored db2/active entry: {error}"))?;
+        let name = entry.file_name();
+        if !STAGED_RETAIL_CSVS.iter().any(|staged| name == *staged) {
+            std::os::unix::fs::symlink(entry.path(), active.join(&name))
+                .map_err(|error| format!("Link authored Retail DB2 file: {error}"))?;
+        }
+    }
+    Ok(())
 }
 
 fn stage_npc_appearance(data: &Path) -> Result<(), String> {

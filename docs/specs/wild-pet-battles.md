@@ -2,6 +2,13 @@
 
 Wild PvE encounters use server-authoritative snapshots and actions, rendered through `godot/ui-model/src/wild_pet_battle.rs` and the native host. Retail Mainline `Blizzard_PetBattleUI/Shared/Blizzard_PetBattleUI.xml`, `.lua` and `Blizzard_PetBattleUIPatchwerks.xml` define the controls and layout; Forever changes art only.
 
+## Anomalus framing diagnostic (fixture only)
+
+- [x] Owned private5971 fixture records all indexed posed triangles' projected vertices/extrema in the same frame as active material/alpha/cull/shader state, camera/projection/viewport and viewport-edge crops.
+- [x] Preserve original framing guard, authored scales, fixed pads, camera and product behavior. Card/loadout DB2 scenes are not a sourced battle-camera replacement.
+
+This is diagnostic evidence for `PET_BATTLE_ANOMALUS_NATIVE_FRAMING`, not a camera/scale fix or pixel-visibility certificate. Alpha/culling/shader displacement remain distinguishable from geometric projection. Owner `anomalus-framing` uses only its fresh private5971 storage; never petbattle5961 or another owner's redb. Native run requires explicit lead window after matching build receipts. Forever frame7444 on 2026-10-19 confirms actual left-edge clipping: 879 indexed ally triangles, 190 outside (160 in nonzero-material-alpha batches), and 134 alpha-positive pixels on the leftmost viewport column. Rabbit1124 triangles remain inside. Bottom-overflow geometry belongs to an alpha0 batch in this frame; bottom/top/right border pixels are transparent. This classifies one pre-cast frame, not both skins, every animation, or a corrected camera. [Evidence and staging incident](../wiki/systems/battle-pets.md#anomalus-indexed-framing-diagnostic--2026-10-19). The diagnostic also records each pet's journal bounds so the [pad normalization](#battle-pad-size-normalization) can be checked against the journal card.
+
 ## What it must do
 - [x] Right-click a wild battle-pet creature to request a battle with the journal's first three ordered combat slots.
 - [x] Journal slots equip distinct owned instances and send an authoritative loadout request.
@@ -9,7 +16,7 @@ Wild PvE encounters use server-authoritative snapshots and actions, rendered thr
 - [x] Swap, pass, confirmed forfeit and eligible trap actions carry server battle/round identity.
 - [x] Wild PvE uses the untimed Retail timer mode, not an invented timeout.
 - [x] The camera frames both active 3D pet models on their corresponding health-frame sides, facing each other; swapping updates models.
-- [x] Both active pets retain the ordinary creature render path's CreatureDisplayInfo.CreatureModelScale × CreatureModelData.ModelScale, multiplied by CreatureDisplayInfo.PetInstanceScale for battle instances. Never normalize size or position from model/animation bounds.
+- [x] Both active pets keep the ordinary creature render path's CreatureDisplayInfo.CreatureModelScale × CreatureModelData.ModelScale on the visual. Each pad scales CreatureDisplayInfo.PetInstanceScale by the [journal card normalization](#battle-pad-size-normalization); position is never derived from bounds.
 - [x] Both active pets stay on fixed separate left/right battlefield pads, unclipped by a fixed presentational camera independent of the pair's bounds. Battle presentation repeats the base idle; ordinary world idle variations remain unchanged.
 - [x] Each ready pet renders independently; a missing asset on one side reports that display's error without suppressing the other pet or retrying the consumed completion.
 - [x] End displays outcome/XP/capture and disables further actions. Journal updates remain authoritative.
@@ -19,6 +26,15 @@ Wild PvE encounters use server-authoritative snapshots and actions, rendered thr
 
 ## Model staging acceptance — 2026-10-10
 Runtime `a0608a009`: Soul, Tickbird, Mechanical Squirrel and Winter Reindeer versus Rabbit pass all eight Modern/Forever native cases. Tests observe both changing posed meshes, fixed pads, unclipped geometry and authentic CSV-derived scale ratios for eight seconds. Eight individually inspected `v3-*.png` captures live in `/syncthing/AgentShared/2026-10-10/petbattle-models/`; durable logs/fixtures/ledger are in `data/diagnostics/petbattle-models3-2026-10-10/`. Importer tests preserve PetInstanceScale0.7 independently of world scale and rebuild an old schema with unchanged CSV mtimes. These four species have PetInstanceScale1; no non-1 live instance or all-species/combat-animation coverage is claimed. [Implementation and historical rejected sizing](../wiki/systems/battle-pets.md#authentic-battlefield-scales--verified-2026-10-10).
+
+## Battle pad size normalization
+
+Project policy `PET_BATTLE_PAD_USES_JOURNAL_CARD_NORMALIZATION`, a user decision: the battlefield has no sourced camera or actor scale, so each pet is shown at the size the Pet Journal card shows it.
+- [x] A pad's scale is its PetInstanceScale normalized by the Pet Journal card actor (UiModelScene 33 `unwrapped`, NormalizedScale 0.5) using SharedXML `ModelSceneActorMixin:CalculateNormalizedScale`.
+- [x] The size input is the journal's own `pet_actor_bounds` of the received visual, so a pet's pad factor equals its card factor (pad ÷ PetInstanceScale = card scale ÷ 7).
+- [x] No cap: large pets shrink and small pets grow toward the same bounding size. Pad positions and the camera are unchanged.
+
+As a consequence, a pet whose bounds are dominated by a long appendage can render smaller than a compact one: Anomalus (long flat tail) draws smaller than Rabbit 328.
 
 ## Effect HUD state
 - Weather has a centered Retail frame with authored background, icon, name and remaining turns.
@@ -41,7 +57,9 @@ Runtime `a0608a009`: Soul, Tickbird, Mechanical Squirrel and Winter Reindeer ver
 ## Tests asserting this spec
 - `godot/ui-model/tests/wild_pet_battle.rs`: both-skin frames/timer/actions, round identity, cooldowns, swaps, forfeit/end.
 - `godot/ui-model/tests/pet_journal.rs`: owned loadout action and duplicate-slot clearing.
-- `scripts/tests/test_petbattle_model_visibility.py`: private native regression for a ready Rabbit opposite a receipt-gated ally; complete-pair checks assert both pets' fixed pad positions, authentic CSV-derived scale ratios, changing posed geometry, full posed-animation framing and actual skin over eight seconds.
+- `scripts/tests/test_petbattle_model_visibility.py`: private native regression for a ready Rabbit opposite a receipt-gated ally; complete-pair checks assert both pets' fixed pad positions, authentic CSV-derived visual scales, changing posed geometry, full posed-animation framing and actual skin over eight seconds.
+- `scripts/tests/test_petbattle_pad_normalization.py`: private native same-frame capture of Anomalus 95171 versus Rabbit 328; asserts journal-card pad scales from the journal bounds, pad = card/7, zero drawn pixels on all four viewport edges, and unchanged pads/camera.
+- `godot/core/tests/model_scene_actor.rs`: installed scene 33 card actor row and its normalization applied to another requested scale (shrink and grow).
 - `godot/tests/pet_battle_live.gd`: private real-pointer fixture; durable `data/diagnostics/pbwild-20261010/prove.py` asserts actual skin, two models, isolated HUD, defeated 0-HP win, capture and close restoration.
 
 ## Known gaps (current cycle)

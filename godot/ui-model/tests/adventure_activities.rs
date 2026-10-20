@@ -218,6 +218,7 @@ fn monthly_thresholds_use_received_points_not_claimed_currency_state() {
             source_gaps: vec![],
             error: None,
             catalog_complete: false,
+            reply_kind: shared::protocol::TradingPostReplyKind::Balance,
         };
         ctx.insert(game_engine_ui_model::adventure_guide::View {
             trading_post: Some(Arc::new(tender)),
@@ -545,6 +546,107 @@ fn monthly_virtualization_reaches_later_real_rows_and_clamps_after_filtering() {
         assert_eq!(registry.scroll_lists.get(list).unwrap().first_row, 0);
         assert!(registry.get_by_name("JournalActivity3Tracked").is_some());
     }
+}
+
+fn assert_suggestion_truncated_text_hover(skin: ActiveSkin) {
+    let _ctx = context(skin);
+    let mut data = snapshot();
+    data.suggestions = [642, 195, 227]
+        .into_iter()
+        .map(|id| AdventureSuggestion {
+            id,
+            name: "Trading Post, Open for Business".into(),
+            description: "Visit Stormwind or Orgrimmar to see a multitude of mystical, magical items that are available to purchase this month. Be sure to review your Traveler's Log to see this month's activities.".into(),
+            reward_description: String::new(),
+            texture_fdid: 4696085,
+            button_text: String::new(),
+        })
+        .collect();
+    for id in [642, 195] {
+        for (suffix, full_text) in [
+            ("TitleFrame", data.suggestions[0].name.as_str()),
+            ("DescriptionFrame", data.suggestions[0].description.as_str()),
+        ] {
+            let owner = format!("JournalSuggestion{id}{suffix}");
+            let tooltip =
+                game_engine_ui_model::adventure_suggestions::text_tooltip(&data, &owner, true)
+                    .expect("Retail truncated secondary text must show its full tooltip");
+            assert_eq!(tooltip.content.title_color, [1.; 4]);
+            assert!(
+                tooltip
+                    .content
+                    .lines
+                    .iter()
+                    .all(|line| line.left_color == [1.; 4])
+            );
+            let actual = std::iter::once(tooltip.content.title.as_str())
+                .chain(
+                    tooltip
+                        .content
+                        .lines
+                        .iter()
+                        .map(|line| line.left_text.as_str()),
+                )
+                .collect::<Vec<_>>()
+                .join(" ");
+            assert_eq!(actual, full_text);
+            assert_eq!(tooltip.record, None);
+            assert!(
+                game_engine_ui_model::adventure_suggestions::text_tooltip(&data, &owner, false,)
+                    .is_none(),
+                "untruncated text must not install hover"
+            );
+        }
+    }
+    // The scoped Lua3311 loop addresses physical Suggestion2/3, never primary1.
+    for suffix in ["TitleFrame", "DescriptionFrame"] {
+        assert!(
+            game_engine_ui_model::adventure_suggestions::text_tooltip(
+                &data,
+                &format!("JournalSuggestion227{suffix}"),
+                true,
+            )
+            .is_none()
+        );
+    }
+    data.suggestions.pop();
+    assert!(
+        game_engine_ui_model::adventure_suggestions::text_tooltip(
+            &data,
+            "JournalSuggestion642TitleFrame",
+            true,
+        )
+        .is_none(),
+        "two records never visit physical Suggestion3 in the second pass"
+    );
+    assert!(
+        game_engine_ui_model::adventure_suggestions::text_tooltip(
+            &data,
+            "JournalSuggestion195TitleFrame",
+            true,
+        )
+        .is_some()
+    );
+    data.suggestions.pop();
+    assert!(
+        game_engine_ui_model::adventure_suggestions::text_tooltip(
+            &data,
+            "JournalSuggestion642DescriptionFrame",
+            true,
+        )
+        .is_none(),
+        "one record never enters the second pass"
+    );
+}
+
+#[test]
+fn suggestions_truncated_text_hover_modern() {
+    assert_suggestion_truncated_text_hover(ActiveSkin::Modern);
+}
+
+#[test]
+fn suggestions_truncated_text_hover_forever() {
+    assert_suggestion_truncated_text_hover(ActiveSkin::Forever);
 }
 
 #[test]

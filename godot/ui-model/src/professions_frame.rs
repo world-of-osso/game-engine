@@ -12,6 +12,10 @@ use ui_toolkit::{rsx, screen::SharedContext, widget_def::Element};
 mod art;
 #[path = "professions_frame_concentration.rs"]
 pub mod concentration;
+#[path = "professions_frame_favorites.rs"]
+mod favorites;
+#[path = "professions_frame_filters.rs"]
+mod filters;
 #[path = "professions_frame_orders.rs"]
 pub mod orders;
 #[path = "professions_frame_quality.rs"]
@@ -20,6 +24,7 @@ mod quality;
 mod recraft;
 #[path = "professions_frame_slots.rs"]
 mod slots;
+pub use slots::recipe_source_tooltip;
 #[path = "professions_frame_specializations.rs"]
 mod specializations;
 #[path = "professions_frame_tree.rs"]
@@ -47,16 +52,20 @@ pub enum ProfessionPage {
     Recraft,
 }
 
-#[derive(Clone, Debug, Default, PartialEq, Eq)]
+#[derive(Clone, Debug, Default, PartialEq)]
 pub struct ProfessionView {
     pub page: ProfessionPage,
+    pub favorite_menu: Option<(u32, [f32; 2])>,
+    pub selected_favorite: bool,
+    pub filter_open: bool,
+    pub search_focused: bool,
     pub concentration: Option<shared::concentration::ConcentrationSnapshot>,
     pub specializations: crate::professions_specializations::SpecializationDraft,
     pub orders: crate::professions_orders::CraftingOrders,
     pub order_recipes: Vec<shared::protocol::CraftingOrderRecipeSnapshot>,
     pub order_can_place: bool,
     pub now_unix: u64,
-    pub bag_counts: BTreeMap<u32, u32>,
+    pub owned_reagents: BTreeMap<u32, u32>,
     pub book: ProfessionBook,
     pub skill_names: BTreeMap<u32, String>,
     pub child_skills: BTreeSet<u32>,
@@ -71,6 +80,8 @@ pub struct ProfessionView {
     pub reagent_selection: crate::professions_reagent_selection::ReagentSelection,
     pub can_create: bool,
     pub can_all: bool,
+    /// Seconds until the selected recipe's cooldown ends; Some disables crafting.
+    pub recipe_cooldown_secs: Option<u32>,
     pub craftable: u32,
     pub status: String,
 }
@@ -131,6 +142,7 @@ pub fn professions_screen(ctx: &SharedContext) -> Element {
     }
     children.extend(page_tabs(view.page));
     children.extend(quality::dialog(view));
+    children.extend(favorites::favorite_menu(view));
     rsx! { r#frame { name: "ProfessionsFrame", width, height: HEIGHT,
         left: 24.0, top: 94.0, pos_type: "absolute", mouse_enabled: true,
         strata: FrameStrata::Dialog, {children}

@@ -17,7 +17,7 @@ pub struct ItemConfirmation<'a> {
     /// GameDialog's hasItemFrame flag; cart/clear confirmations have no item frame.
     pub item: Option<(&'a str, u32, u8)>,
     pub accept: (&'a str, &'a str),
-    pub cancel_action: &'a str,
+    pub cancel_action: Option<&'a str>,
     pub screen: (f32, f32),
 }
 
@@ -30,6 +30,9 @@ const ITEM_HEIGHT: f32 = 38.;
 const BUTTON_WIDTH: f32 = 128.;
 const BUTTON_HEIGHT: f32 = 21.;
 const BUTTON_GAP: f32 = 10.;
+// GameDialog.lua561–584: the visible caption plus20px, at least120px.
+const SINGLE_BUTTON_MIN_WIDTH: f32 = 120.;
+const BUTTON_TEXT_MARGIN: f32 = 20.;
 
 pub fn item_confirmation(props: ItemConfirmation<'_>) -> Element {
     let (contents, height) = confirmation_contents(&props);
@@ -53,7 +56,7 @@ fn confirmation_contents(props: &ItemConfirmation<'_>) -> (Element, f32) {
     let buttons_y = if props.item.is_some() {
         item_y + ITEM_HEIGHT + 18.
     } else {
-        // GameDialog.lua GetSpacing_ButtonsAfterText: two buttons use9px.
+        // GameDialog.lua GetSpacing_ButtonsAfterText: one/two buttons use9px.
         16. + text_height + 9.
     };
     let height = buttons_y + BUTTON_HEIGHT + 16.;
@@ -157,6 +160,9 @@ fn plain_confirmation_prompt(props: &ItemConfirmation<'_>) -> (Element, f32) {
 }
 
 fn confirmation_buttons(props: &ItemConfirmation<'_>, top: f32) -> Element {
+    let Some(cancel_action) = props.cancel_action else {
+        return single_confirmation_button(props, top);
+    };
     let prefix = props.name;
     let button_x = (WIDTH - BUTTON_WIDTH * 2. - BUTTON_GAP) / 2.;
     let mut contents = dialog_button(
@@ -164,16 +170,31 @@ fn confirmation_buttons(props: &ItemConfirmation<'_>, top: f32) -> Element {
         props.accept.0,
         props.accept.1,
         props.pending || !props.accept_enabled,
-        (button_x, top),
+        (button_x, top, BUTTON_WIDTH),
     );
     contents.extend(dialog_button(
         &format!("{prefix}CancelButton"),
         "Cancel",
-        props.cancel_action,
+        cancel_action,
         props.pending,
-        (button_x + BUTTON_WIDTH + BUTTON_GAP, top),
+        (button_x + BUTTON_WIDTH + BUTTON_GAP, top, BUTTON_WIDTH),
     ));
     contents
+}
+
+fn single_confirmation_button(props: &ItemConfirmation<'_>, top: f32) -> Element {
+    use ui_toolkit::{text_measure::measure_text, widgets::font_string::GameFont};
+    let caption_width = measure_text(props.accept.0, GameFont::FrizQuadrata, TEXT_SIZE)
+        .expect("dialog font")
+        .0;
+    let width = SINGLE_BUTTON_MIN_WIDTH.max(caption_width + BUTTON_TEXT_MARGIN);
+    dialog_button(
+        &format!("{}Button", props.name),
+        props.accept.0,
+        props.accept.1,
+        props.pending || !props.accept_enabled,
+        ((WIDTH - width) / 2., top, width),
+    )
 }
 
 fn item_frame(prefix: &str, (name, icon, quality): (&str, u32, u8), top: f32) -> Element {
@@ -199,31 +220,31 @@ fn item_frame(prefix: &str, (name, icon, quality): (&str, u32, u8), top: f32) ->
     width:ITEM_WIDTH,height:ITEM_HEIGHT,pos_type:"absolute",{contents} } }
 }
 
-fn dialog_button(
+pub(crate) fn dialog_button(
     name: &str,
     text: &str,
     action: &str,
     disabled: bool,
-    (left, top): (f32, f32),
+    (left, top, width): (f32, f32, f32),
 ) -> Element {
     let contents = rsx! {
         texture { name:{DynName(format!("{name}NormalArt"))},texture_fdid:130763,
-            width:BUTTON_WIDTH,height:BUTTON_HEIGHT,pos_type:"absolute",left:0.0,top:0.0,
+            width,height:BUTTON_HEIGHT,pos_type:"absolute",left:0.0,top:0.0,
             tex_coords:"0,1,0,0.71875",draw_layer:"BACKGROUND" }
         texture { name:{DynName(format!("{name}PushedArt"))},texture_fdid:130761,
-            width:BUTTON_WIDTH,height:BUTTON_HEIGHT,pos_type:"absolute",left:0.0,top:0.0,
+            width,height:BUTTON_HEIGHT,pos_type:"absolute",left:0.0,top:0.0,
             tex_coords:"0,1,0,0.71875",hidden:true,draw_layer:"BACKGROUND" }
         texture { name:{DynName(format!("{name}DisabledArt"))},texture_fdid:130760,
-            width:BUTTON_WIDTH,height:BUTTON_HEIGHT,pos_type:"absolute",left:0.0,top:0.0,
+            width,height:BUTTON_HEIGHT,pos_type:"absolute",left:0.0,top:0.0,
             tex_coords:"0,1,0,0.71875",hidden:true,draw_layer:"BACKGROUND" }
         texture { name:{DynName(format!("{name}Highlight"))},texture_fdid:130762,
-            width:BUTTON_WIDTH,height:BUTTON_HEIGHT,pos_type:"absolute",left:0.0,top:0.0,
+            width,height:BUTTON_HEIGHT,pos_type:"absolute",left:0.0,top:0.0,
             tex_coords:"0,1,0,0.71875",blend_mode:"ADD",draw_layer:"HIGHLIGHT" }
         fontstring { name:{DynName(format!("{name}DialogButtonText"))},text,font_size:12.0,
             font_color:"1,0.82,0,1",shadow_color:"0,0,0,1",shadow_offset:"1,-1",
-            justify_h:"CENTER",width:BUTTON_WIDTH,height:BUTTON_HEIGHT,
+            justify_h:"CENTER",width,height:BUTTON_HEIGHT,
             pos_type:"absolute",left:0.0,top:-1.0 }
     };
-    rsx! { button { name:{DynName(name.into())},width:BUTTON_WIDTH,height:BUTTON_HEIGHT,
+    rsx! { button { name:{DynName(name.into())},width,height:BUTTON_HEIGHT,
     pos_type:"absolute",left,top,button_default_skin:false,onclick:action,disabled,{contents} } }
 }

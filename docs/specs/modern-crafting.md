@@ -16,6 +16,80 @@ Pinned Retail 12.1.0.69933 `SkillLineAbility`/`SpellEffect`/`SpellReagents` cens
 
 Local world.db has only627 of1,286 distinct Leatherworking effect24 outputs joined to `content_item`; pinned CSV presence does not imply server runtime readiness. Existing Classic Leatherworking is the first end-to-end acceptance slice, not a claim of complete Midnight support.
 
+## Server-recorded crafting origin
+
+- [x] A successful real2153 craft records SkillLineAbility1355 joined to recipe spell2153 on its final surviving itemGUID; fresh DB and owner ItemStack snapshots preserve it. An identical non-crafted2303 remains unknown.
+- [x] Engine bag/equipment instance state mirrors the additive optional `crafting_origin`; UI/automation never infers it from templateID, rarity or ownership. Existing merchant-state bag/equipment projections expose the GUID and optional origin for observation.
+- [ ] Crafting quality is recorded only for actual known results; no default tier is assigned. Installed slots and watermark remain UNKNOWN/unwritten. Recraft input/submission remain disabled and the operation evaluator remains absent.
+- Shared wire semantics: [crafting origin](../../../shared-protocol/docs/specs/crafting-origin.md). TC a352b1fa `ItemDefines.h:264–283` modifier39 is a SkillLineAbilityID, not a SpellID; Retail `Professions.lua:378–388` resolves the original recipe from an itemGUID.
+- Tests: `godot/ui-model/tests/crafting_origin.rs`; server real-craft/reopen tests own persistence authority. Native: `godot/tests/crafting_provenance_live.gd` (craft, then readback-only on a reopened server). Coordinate protocol/server/engine landing; an isolated protocol update is not an accepted rollout.
+
+## Passive operation diagnostics
+
+- Passive CraftStatus omits the typed missing-operation diagnostic, both on recipe selection and after non-consuming reagent validation. Pending validation and concrete validation/player-action errors remain visible.
+- The named operation gap remains diagnostic/internal state and is logged through the existing native sink once at the recipe-selection transition, not on every view refresh. No new sink is introduced.
+- Missing output never assigns a quality or enables actions. Server refusals, selection, reagents and gameplay remain unchanged. This does not hide the Details pane, infer Retail capability flags from fixed-output absence, or implement an operation evaluator.
+- Source: cached Mainline `Blizzard_ProfessionsRecipeSchematicForm.lua:273–302,1370–1443` and `Blizzard_ProfessionsRecipeCrafterDetails.lua:288–310,380–419` skip absent operation stats and independently gate quality/concentration regions; they do not author the engine's raw evaluator diagnostic as passive text.
+
+## Recipe search magnifier
+
+- Both skins use the Mainline SearchBoxTemplate magnifier:10×10 `common-search-magnifyingglass`, LEFT(+1,−1) relative to the search editbox. RGB is0.6 only when empty and unfocused, otherwise1; alpha remains1.
+- Existing search focus/query state drives presentation only; query, selection, filters, Favorites, clear control and gameplay remain unchanged.
+- Sources: Mainline `Blizzard_SharedXML/Shared/InputBox/InputBoxTemplates.xml:211–217`, `InputBoxTemplates.lua:175–200`. Authored screen assertions and rendered native proof are separate acceptance evidence.
+
+## Recipe search clear control
+
+- Recipe search inherits the authored SearchBoxTemplate clear control:17×17, RIGHT−3 centered vertically, with10×10 `common-search-clearbutton` art inset3px. It is visible while the editbox is focused or its query is nonempty, hidden only when empty and unfocused.
+- Clicking ClearText empties the query and releases search focus through existing local search-input handling. Recipe/instance selection, learned/unlearned flags, Favorites and owner/gameplay data remain unchanged; empty-query Favorites behavior remains intact.
+- No query persistence, other search-box redesign, filter/wire/server change or audio-engine expansion is included.
+- Sources: Mainline `Blizzard_ProfessionsRecipeList.xml:40–45`; `Blizzard_SharedXML/Shared/InputBox/InputBoxTemplates.xml:221–253`, `InputBoxTemplates.lua:180–205`.
+
+## Recipe search scroll position
+
+- Changing the recipe search to a nonempty query starts the filtered result list at its top, even when the matching result set still spans multiple pages. A normal refresh with unchanged query retains the current scroll position, so matching results remain scrollable.
+- Scroll changes do not change recipe/instance selection, authored collapse state, learned/unlearned filters, Favorites or owner data. Search continues to omit Favorites. Profession switching is excluded.
+- Source: cached Mainline `Blizzard_ProfessionsCrafting.lua:826–833` uses `DiscardScrollPosition` for searching and `RetainScrollPosition` for ordinary refreshes. Concrete regression fixtures must retain enough matching rows for a second page; automatic clamping is not reset proof.
+
+## Recipe Favorites
+
+- Favorites belong to the character and only authoritatively known spells may be favorited. Unlearned2153 requests must leave favorite state, inventory, copper, skill/knowledge and currencies unchanged.
+- The learned recipe's right-click menu uses shared Retail menu primitives and offers Set Favorite / Remove Favorite from the owner snapshot. A request does not optimistically mutate that snapshot or select the right-clicked recipe.
+- Outside search, Favorites appears before the learned/unlearned categories and retains the ordinary learned recipe entry. Favorite/ordinary instances have distinct widget identities and selection art. During search, the Favorites group is absent; normal matching recipes remain visible.
+- Favorite/unfavorite changes must survive an actual server and client reopen without leaking to another character on the same account. Only the existing trainer purchase teaches2153; preferences never craft or change acquisition authority.
+- Sources: cached `Blizzard_ProfessionsRecipeList.lua:60–78`, `Blizzard_Professions.lua:832–859,917–920`; TC a352b1fa `Player::SetSpellFavorite:3389–3398`, `_LoadSpells:19930–19947`, `_SaveSpells:21529–21541`. `world.db` trainer56/2153/cost50/rank15 supplies the concrete acquisition fixture. [Accepted reopen proof and remaining cursor boundary](../wiki/systems/native-professions-crafting.md#accepted-reopen-proof--2026-10-17) are recorded separately.
+
+## Learned/unlearned recipe filters
+
+- The shared Retail filter dropdown exposes independent Show Learned and Show Unlearned checkboxes. Both default to checked; all four combinations are allowed. The authored dropdown owns the recipe list's top-right anchor and the search box ends4px before it.
+- Visibility follows the owner's known-spell snapshot, never acquisition-rank inference. Hiding learned recipes also hides Favorites; hiding unlearned recipes removes their rows/divider. Search still omits Favorites and filters the remaining ordinary recipes.
+- Filters change presentation only: no favorite/knowledge, inventory, copper, skill or currency mutation and no new server request. Closing the profession window discards these filters; no account/character/disk persistence is added.
+- The inherited Reset button is visible exactly when either supported visibility flag differs from its default; active search alone does not expose it. One click restores both Show checkboxes without changing search text, recipe/instance selection, Favorites or other owner state. Reuse the authored UIResetButtonTemplate; no new filter families or audio-engine behavior are introduced.
+- Makeable, skill-up, first-craft, source, category and expansion filters remain excluded from this slice.
+- Sources: cached Mainline `Blizzard_Professions.lua:1256–1263,1140–1141`, `Blizzard_ProfessionsRecipeList.xml:34–45`, and inherited `Blizzard_Menu/Mainline/MenuTemplates.xml:66–86` (Filter dropdown18px high, text-fit padding60, menu BOTTOMLEFT/+6/+2, Reset TOPRIGHT−3). Reset callbacks/defaults: `Blizzard_Professions.lua:1211–1224,1140–1141`, `Blizzard_Menu/MenuTemplates.lua:859–908`; `Blizzard_ProfessionsCrafting.lua:36` supplies no extra onDefault callback.
+
+## Reagents from banks
+
+- Owned reagent counts (reagent lines, Create All[N], craftable counts, quality dialog clamps) include the character bank and the Warband bank, as Retail `ItemUtil.GetCraftingReagentCount` does (includeBank/includeReagentBank/includeAccountBank). The Mainline UI never calls `SetUseCharacterInventoryOnly`, so the Warband bank always counts. Only Retail-source stacks count, matching the server.
+- Counts come from the last `BankContents` of each bank. The server sends both on world entry and the changed banks after a craft took bank reagents ([server spec](../../../game-server/docs/specs/professions.md)), so counts hold with the bank frame closed.
+- The server takes reagents by project policy CRAFTING_REAGENT_CONSUMPTION_ORDER_RETAIL_ACCESSIBLE_BAGS (Retail `CraftingAccessibleBags` enumeration order); the client never chooses sources.
+- Tests: ui-model `professions_reagent_counts` and `professions_create_all_counts_banked_reagents_after_the_bank_frame_closes`. Native both-skin proof is pending.
+
+## Recipe cooldown
+
+- The selected recipe's remaining cooldown is the longer of its own spell clock and its base-difficulty `SpellCategories.Category` clock, both from the server's `SpellCooldownUpdate` (`C_TradeSkillUI.GetRecipeCooldown`). An uncast recipe sharing a running category (Void Sphere28028 after Prismatic Sphere28027, category1174) is on cooldown too.
+- While it runs, Create, Create All and the quantity input are disabled (ProfessionsCrafting.lua574/715–722), and the schematic shows `COOLDOWN_REMAINING` plus the two-unit SecondsFormatter text (RecipeSchematicForm.lua23–29/564–581) in GlobalColor `RED_FONT_COLOR`, GameFontRedSmall, at the organizer anchor OutputIcon BOTTOMLEFT(-1,-12).
+- The server persists the cooldown across relog/restart and replays it at world entry ([server spec](../../../game-server/docs/specs/spell-cooldown-persistence.md)); a fresh client therefore shows it without having seen the cast.
+- Named gaps: daily-reset categories (`COOLDOWN_EXPIRES_AT_MIDNIGHT`), recipe charges (`TRADESKILL_CHARGES_REMAINING`), the minimized-form cooldown and the disabled Create tooltip `PROFESSIONS_RECIPE_COOLDOWN` (no Create tooltip exists yet).
+- Tests: ui-model `professions_tests.rs` `professions_recipe_cooldown_*` and `professions_both_skins_cooldown_disables_create_and_shows_remaining`.
+
+## Unlearned recipe discovery
+
+- The shared Retail list shows learned categories first, then an Unlearned divider and unlearned categories, with independent collapse state and disabled-colour unlearned rows. Search covers both groups.
+- An unlearned recipe in an owned skill line remains selectable and shows its output/reagents. Neither Create nor Create All can emit a craft request before authoritative learning, even with enough materials.
+- `ProfessionSnapshot.recipe_sources` contains static `tdb_trainer_spell` rows filtered to the owner's learned skill lines. An unlearned schematic shows the Retail source header/tooltip only for matching rows; missing sources remain undisplayed, never inferred from automatic-learning rank. Trainer IDs, copper, skill, level and required-ability fields are source facts, not current purchase availability.
+- Only the existing server trainer purchase teaches a recipe. A successful purchase updates the owner snapshot and moves the selected recipe into the learned group without resetting its selection. Required proof uses Handstitched Leather Pants2153, trainer56, rank15 and50 copper; pre-learning inventory/professions remain unchanged.
+- Sources: Retail `Blizzard_Professions.lua:832–889,973–992`, `Blizzard_ProfessionsRecipeList.lua:233–241`, `Blizzard_ProfessionsRecipeList.xml:66–96`, `Blizzard_ProfessionsRecipeSchematicForm.lua:351–352,627–649` and its XML128–160; TC a352b1fa `Trainer::TeachSpell` retains learning authority. This section does not claim native acceptance before its separate both-skin gate.
+
 ## Learned-recipe boundary
 
 Private Modern proof learned Handstitched Leather Pants2153 from Simon Tanner at authored trainer rank15/cost50. Bags held14 Light Leather and1 Coarse Thread. Client incorrectly showed Create All[0]: pinned `SkillLineAbility.MinSkillLineRank` is30. TrinityCore a352b1fa `Player.cpp:25450` uses that field to remove **AutomaticSkillRank** abilities below their threshold; `Spell.cpp:CheckItems` does not impose it on manually learned spells. Retail `ProfessionsCrafting.lua:631-637` requires a learned recipe, and `ValidateCraftRequirements:569-623` delegates actual requirements/reagents. The client must not invent an additional automatic-learning gate for a recipe the authoritative trainer taught.

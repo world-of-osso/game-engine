@@ -146,6 +146,12 @@ def load_server_reader(root):
     reader = importlib.import_module("skyborne_data")
     if Path(reader.__file__).resolve() != scripts / "skyborne_data.py":
         raise ValueError("skyborne_data loaded from a different server root")
+    # The manifest records this root's db2_casc.py; it must be the decoder in use.
+    if Path(reader.db2_casc.__file__).resolve() != scripts / "db2_casc.py":
+        raise ValueError(
+            f"db2_casc loaded from {reader.db2_casc.__file__}, not {scripts}; "
+            "set DEPOT_SIBLING_GAME_SERVER to the server root"
+        )
     return reader
 
 

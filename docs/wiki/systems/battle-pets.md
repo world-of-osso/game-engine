@@ -1,5 +1,17 @@
 # Battle pets: data and companion journal
 
+## Anomalus indexed framing diagnostic — 2026-10-19
+
+[Fixture contract](../../specs/wild-pet-battles.md#anomalus-framing-diagnostic-fixture-only): the original posed-AABB observation alone did not classify clipping. Fresh pinned70448 scenes33/60 remain card/loadout, not battlefield-camera authority. Fixture unit RED→GREEN covers indexed projection/unindexed outlier exclusion, material/shader state, AABB false-positive control and unchanged transforms.
+
+**Forever native frame7444 confirms actual left-edge raster clipping**, not solely a conservative AABB. Anomalus95171/level4 has879 indexed posed triangles across six meshes;190 cross viewport bounds,160 in nonzero-material-alpha batches. Batch1 is alpha1/cull-disabled with minX−542.05835; Batch2 alpha1/cull-back reaches−244.54462. The original leftmost pixel column contains134 alpha-positive pixels at y290–423, max255; inspected viewport/left crops show the cut silhouette. Rabbit328/level1 has1124 indexed triangles, all contained. Bottom-extending Batch3 reaches y592.00732 but has material alpha0; bottom/top/right border pixels are transparent in this frame. Individual outside triangles are not all claimed raster-visible.
+
+Camera orthographic3, eye(10,0.72,0), pads±2.2 and scales1 remain unchanged. No native skin-registration error occurred after assets were staged; the headless skin probe failed and is not represented as passing. One pre-cast Forever frame does not establish both-skin/all-animation coverage, Retail camera parity or a corrected product.
+
+Initial native attempt stopped before Anomalus posing: preflight checked canonical assets while s12 used stale local cache/products. Preserve those two local directories privately, then link only them to canonical after approval; verify receipts2966427/2966454/2966455 and body hashes through the **actual runtime data root**. Do not run whole-tree repair over private research/redb/config directories, because it merges untracked content into canonical.
+
+Runtime source: engine`ff562ed60` on approved`d32076603`, server`17c35e32a`, protocol`f9a91753`. Original seven files: `/syncthing/AgentShared/2026-10-19/anomalus-framing/frame7444/`. Exact build hashes, frame summary/raster counts and stopped-PID/5971-free proof: `/home/osso/.worktrees/logs/anomalus-framing-2026-10-19/`. No1954 combat action, product correction or weakened guard.
+
 The account journal supports companion collection and bounded wild PvE battles. Phase1 acceptance lives in the [client contract](../../specs/battle-pets.md) and [server contract](../../../../game-server/docs/specs/battle-pets.md); [wild acceptance](../../specs/wild-pet-battles.md#acceptance--2026-10-10) owns battle proof and exclusions.
 
 ## Local data
@@ -96,7 +108,22 @@ On runtime`9b7bca75e`, six native8-second checks pass: Soul/Rabbit, Mechanical S
 
 Eight new1280×720 `v2-final-{modern,forever}-{soul,tickbird,squirrel,reindeer}-rabbit.png` captures under `/syncthing/AgentShared/2026-10-10/petbattle-models/` were individually inspected. Tickbird images are **rejected evidence**, not acceptance. `v2-modern-soul-rabbit.png` is an earlier, superseded sizing checkpoint; no PNG was overwritten. Diagnostics `petbattle-models2-2026-10-10` own RED/GREEN/failing logs, actual projected geometry, hashes and private fixtures. Native build/check and format pass; the failed two cases keep the staging contract open. Server master`fa319f8` binaries were used read-only on privateUDP5607 with an isolated copy of the prior fb_pbmodels redb; protocol source was pinned to44b2b0f. All owned runtime processes stopped.
 
+## Journal-card pad normalization — 2026-10-19
+
+Supersedes the no-normalization pad rule below. Project policy `PET_BATTLE_PAD_USES_JOURNAL_CARD_NORMALIZATION` (user decision, [contract](../../specs/wild-pet-battles.md#battle-pad-size-normalization)): the battlefield has no sourced camera or actor scale, so each pad shows the pet at its Pet Journal card size. [wild_pet_battle.rs](../../../godot/rust/src/wild_pet_battle.rs) reads the UiModelScene 33 `unwrapped` card actor (NormalizedScale 0.5, display Scale 7) once, measures the received visual with the journal's own [`pet_actor_bounds`](../../../godot/rust/src/character_frame/preview.rs), and sets the pad to `ModelSceneActor::normalized_scale_of(PetInstanceScale, bounds)`. That method reuses `normalized_actor_scale` (SharedXML `ModelSceneActorMixin:CalculateNormalizedScale`); nothing is copied. No cap: large pets shrink, small pets grow. Pads ±2.2, the orthographic camera and NpcVisualRoot world scale are unchanged.
+
+The size input is deliberately the journal's visible-mesh AABB, not CreatureModelData GeoBox, so pad factor = card factor (pad ÷ PetInstanceScale = card scale ÷ 7). The two differ: with journal bounds Anomalus's 6.18 long axis is depth (÷1.121), giving 0.30712; the GeoBox puts it on width, giving 0.278.
+
+Proof (engine `568273465`, f9a91753 cohort, private 5971):
+- RED, Forever frame 12012 on the pre-fix build: pads 1.0, 132 alpha-positive left-edge pixels.
+- GREEN, Forever frame 5035 and Modern frame 2287 at 1920×1080: Anomalus 95171 bounds (3.6779, 2.0513, 6.1791) → pad 0.30712, card 2.14983; Rabbit 328 bounds (0.4585, 0.5690, 0.8170) → pad 1.15685, card 8.09797. Zero drawn pixels on all four viewport edges. [Pixel test](../../../scripts/tests/test_petbattle_pad_normalization.py) 6/6 per skin; core `model_scene_actor` 3/0 and `pet_model_scene` 3/0.
+- Captures: `/syncthing/AgentShared/2026-10-19/anomalus-framing/{red-forever,green-forever,green-modern}/`; receipts in `/home/osso/.worktrees/logs/anomalus-framing-2026-10-19/pad-normalization/`.
+
+Visible consequence: Anomalus, whose bounds are dominated by its flat tail, now draws smaller than Rabbit. The updated [visibility regression](../../../scripts/tests/test_petbattle_model_visibility.py) asserts the normalized pad scale from snapshot journal bounds but has not been re-run natively. Only Anomalus/Rabbit is natively proven; other species are not.
+
 ## Authentic battlefield scales — verified 2026-10-10
+
+Pad sizing below is superseded by [journal-card pad normalization](#journal-card-pad-normalization--2026-10-19); world scale, pads and camera still hold.
 
 Runtime `a0608a009` removes pose sampling, bounds normalization and bounds-derived translations. The [world creature path](../../../godot/rust/src/world_models.rs) already applies the [display catalog](../../../godot/core/src/game/creatures/creature_display_cache.rs)'s CreatureDisplayInfo.CreatureModelScale × CreatureModelData.ModelScale on NpcVisualRoot. That root now carries PetInstanceScale metadata; only the battle pad applies it. The importer stores the new required column and invalidates older cache schemas even with unchanged source mtimes. Retail and Forever CSVs retain their metadata ownership.
 

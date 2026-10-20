@@ -10,6 +10,7 @@ use ui_toolkit::{rsx, screen::SharedContext, widget_def::Element, widgets::font_
 const CATEGORY_HEIGHT: f32 = 25.0;
 const LIST_HEIGHT: f32 = 546.0;
 const ROW_WIDTH: f32 = 241.0;
+const LIST_BACKGROUND: (f32, f32, f32, f32) = (5.0, 72.0, 274.0, 581.0);
 // Retail GetLabelColor (RecipeList.lua:232-234), GlobalColor PROFESSION_RECIPE_COLOR #e2dcd6.
 const PROFESSION_RECIPE_COLOR: &str = "0.8862745,0.8627451,0.8392157,1";
 
@@ -30,7 +31,7 @@ pub(super) fn recipe_list(ctx: &SharedContext, view: &ProfessionView) -> Element
     let mut out = art::atlas(
         "ProfessionsRecipeListBackground",
         "Professions-background-summarylist",
-        (5.0, 72.0, 274.0, 581.0),
+        LIST_BACKGROUND,
     );
     out.extend(search_box(view));
     out.extend(
@@ -59,68 +60,132 @@ fn tree_rows(view: &ProfessionView) -> (Element, f32) {
         } });
         y += ROW_HEIGHT + 1.0;
     }
+    let mut unlearned_divider = false;
     for (index, (category, recipes)) in view.book.groups().iter().enumerate() {
-        let collapsed = view.collapsed.contains(category);
-        content.extend(category_row(index, category, y, collapsed));
+        let favorite = category == crate::professions::FAVORITES_GROUP;
+        let learned = view.book.snapshot.spells.contains(&recipes[0].spell_id);
+        if !learned && !unlearned_divider {
+            let height = if index == 0 { 30.0 } else { 70.0 };
+            content.extend(unlearned_heading(y, height));
+            y += height;
+            unlearned_divider = true;
+        }
+        let key = if favorite {
+            "favorites".into()
+        } else {
+            format!(
+                "{}:{category}",
+                if learned { "learned" } else { "unlearned" }
+            )
+        };
+        let collapsed = view.collapsed.contains(&key);
+        content.extend(category_row(index, category, &key, y, collapsed, learned));
         y += CATEGORY_HEIGHT + 1.0;
         if collapsed {
             continue;
         }
         for recipe in recipes {
-            content.extend(recipe_row(view, recipe, y));
+            content.extend(recipe_row(view, recipe, y, favorite));
             y += ROW_HEIGHT + 1.0;
         }
     }
     if content.is_empty() {
         content.extend(text(
             "ProfessionsEmpty",
-            "No matching learned recipes",
+            "No matching recipes",
             (2.0, 0.0, ROW_WIDTH, 36.0),
         ));
     }
     (content, (y + 10.0).max(36.0))
 }
 
+// RecipeListDividerTemplate: bottom-left label10,10; divider250x2 at5,5.
+fn unlearned_heading(y: f32, height: f32) -> Element {
+    let mut out = label(
+        "ProfessionsUnlearnedLabel".into(),
+        "Unlearned",
+        (10.0, y + height - 23.0, ROW_WIDTH - 10.0, 13.0),
+        (12.0, crate::quest_art::NORMAL_FONT_COLOR, "LEFT"),
+    );
+    out.extend(art::tinted(
+        "ProfessionsUnlearnedDivider",
+        "Options_HorizontalDivider",
+        (5.0, y + height - 7.0, 250.0, 2.0),
+        crate::quest_art::NORMAL_FONT_COLOR,
+    ));
+    out
+}
+
 fn search_box(view: &ProfessionView) -> Element {
-    let mut out = Vec::new();
+    let filter_width = crate::menu_primitives::filter_dropdown_width("Filter");
+    let filter_left = LIST_BACKGROUND.0 + LIST_BACKGROUND.2 - 8.0 - filter_width;
+    let search_width = filter_left - 4.0 - 18.0;
+    let mut out =
+        super::filters::dropdown(view, (filter_left, LIST_BACKGROUND.1 + 9.0, filter_width));
     for (suffix, atlas, rect) in [
         ("Left", "common-search-border-left", (13.0, 80.0, 8.0, 20.0)),
         (
             "Middle",
             "common-search-border-middle",
-            (21.0, 80.0, 237.0, 20.0),
+            (21.0, 80.0, search_width - 8.0, 20.0),
         ),
         (
             "Right",
             "common-search-border-right",
-            (258.0, 80.0, 8.0, 20.0),
-        ),
-        (
-            "Icon",
-            "common-search-magnifyingglass",
-            (19.0, 84.0, 12.0, 12.0),
+            (18.0 + search_width - 5.0, 80.0, 8.0, 20.0),
         ),
     ] {
         out.extend(art::atlas(&format!("{SEARCH}{suffix}"), atlas, rect));
     }
     out.extend(
-        rsx! { editbox { name: {DynName(SEARCH.into())}, width: 245.0, height: 20.0, left: 18.0, top: 80.0,
+        rsx! { editbox { name: {DynName(SEARCH.into())}, width: search_width, height: 20.0, left: 18.0, top: 80.0,
         pos_type: "absolute", font: GameFont::ArialNarrow, font_size: 14.0,
         font_color: HIGHLIGHT_FONT_COLOR, text_insets: "16,20,0,0" } },
     );
+    let hide_clear = !view.search_focused && view.book.search.is_empty();
+    // SearchBoxTemplate: 10px LEFT(+1,-1); empty unfocused searches use RGB0.6.
+    let icon_color = if hide_clear {
+        "0.6,0.6,0.6,1"
+    } else {
+        "1,1,1,1"
+    };
+    out.extend(art::tinted(
+        "ProfessionsSearchBoxIcon",
+        "common-search-magnifyingglass",
+        (19.0, 86.0, 10.0, 10.0),
+        icon_color,
+    ));
+    out.extend(rsx! { button {
+        name: "ProfessionsSearchBoxClearButton", width: 17.0, height: 17.0,
+        left: {18.0 + search_width - 3.0 - 17.0}, top: 81.5, pos_type: "absolute",
+        hidden: hide_clear, button_default_skin: false, onclick: "profession:search-clear",
+        texture { name: "ProfessionsSearchBoxClearIcon", texture_atlas: "common-search-clearbutton",
+            width: 10.0, height: 10.0, left: 3.0, top: 3.0, pos_type: "absolute", alpha: 0.5 }
+    } });
     if view.book.search.is_empty() {
         out.extend(label(
             "ProfessionsSearchPlaceholder".into(),
             "Search",
-            (34.0, 80.0, 180.0, 20.0),
+            (34.0, 80.0, search_width - 16.0, 20.0),
             (12.0, "0.5,0.5,0.5,1", "LEFT"),
         ));
     }
     out
 }
 
-fn category_row(index: usize, category: &str, y: f32, collapsed: bool) -> Element {
-    let prefix = format!("ProfessionCategory{index}");
+fn category_row(
+    index: usize,
+    category: &str,
+    key: &str,
+    y: f32,
+    collapsed: bool,
+    learned: bool,
+) -> Element {
+    let prefix = if key == "favorites" {
+        "ProfessionsFavorites".into()
+    } else {
+        format!("ProfessionCategory{index}")
+    };
     let mut children = Vec::new();
     for (suffix, atlas, rect) in [
         (
@@ -151,12 +216,18 @@ fn category_row(index: usize, category: &str, y: f32, collapsed: bool) -> Elemen
         icon,
         (ROW_WIDTH - 21.0, 6.0, 11.0, 8.0),
     ));
-    children.extend(text(
-        &format!("{prefix}Label"),
+    let color = if learned {
+        crate::quest_art::NORMAL_FONT_COLOR
+    } else {
+        "0.5,0.5,0.5,1"
+    };
+    children.extend(label(
+        format!("{prefix}Label"),
         category,
         (10.0, 0.0, ROW_WIDTH - 35.0, CATEGORY_HEIGHT),
+        (12.0, color, "LEFT"),
     ));
-    let action = format!("profession:category:{category}");
+    let action = format!("profession:category:{key}");
     crate::selection_list::row(
         prefix,
         &action,
@@ -183,27 +254,37 @@ fn difficulty(view: &ProfessionView, recipe: &Recipe) -> RecipeDifficulty {
     recipe_difficulty(line.rank, recipe.trivial_low, recipe.trivial_high)
 }
 
-fn recipe_row(view: &ProfessionView, recipe: &Recipe, y: f32) -> Element {
-    let prefix = format!("ProfessionRecipe{}", recipe.spell_id);
+fn recipe_row(view: &ProfessionView, recipe: &Recipe, y: f32, favorite: bool) -> Element {
+    let prefix = if favorite {
+        format!("ProfessionFavoriteRecipe{}", recipe.spell_id)
+    } else {
+        format!("ProfessionRecipe{}", recipe.spell_id)
+    };
+    let learned = view.book.snapshot.spells.contains(&recipe.spell_id);
     let icon = match difficulty(view, recipe) {
         RecipeDifficulty::Optimal => Some("Professions-Icon-Skill-High"),
         RecipeDifficulty::Medium => Some("Professions-Icon-Skill-Medium"),
         RecipeDifficulty::Easy => Some("Professions-Icon-Skill-Low"),
         RecipeDifficulty::Trivial => None,
     };
-    let mut children = recipe_row_art(view, recipe, &prefix, icon);
+    let mut children = recipe_row_art(view, recipe, &prefix, icon.filter(|_| learned), favorite);
+    let color = if learned {
+        PROFESSION_RECIPE_COLOR
+    } else {
+        "0.5,0.5,0.5,1"
+    };
     children.extend(label(
         format!("{prefix}Label"),
         &recipe.name,
         (17.0, 0.0, ROW_WIDTH - 48.0, ROW_HEIGHT),
-        (12.0, PROFESSION_RECIPE_COLOR, "LEFT"),
+        (12.0, color, "LEFT"),
     ));
     let count = view
         .recipe_craftable
         .get(&recipe.spell_id)
         .copied()
         .unwrap_or(0);
-    if count > 0 {
+    if learned && count > 0 {
         children.extend(label(
             format!("{prefix}Count"),
             &format!("[{count}]"),
@@ -211,15 +292,28 @@ fn recipe_row(view: &ProfessionView, recipe: &Recipe, y: f32) -> Element {
             (12.0, PROFESSION_RECIPE_COLOR, "RIGHT"),
         ));
     }
-    let action = format!("profession:select:{}", recipe.spell_id);
+    let action = format!(
+        "profession:{}:{}",
+        if favorite {
+            "favorite-select"
+        } else {
+            "select"
+        },
+        recipe.spell_id
+    );
     crate::selection_list::row(
         prefix,
         &action,
         true,
         (10.0, y, ROW_WIDTH - 10.0, ROW_HEIGHT),
-        (recipe_template(view, recipe), false),
+        (recipe_template(view, recipe, favorite), false),
         children,
     )
+}
+
+fn recipe_is_selected(view: &ProfessionView, recipe: &Recipe, favorite: bool) -> bool {
+    let favorite_instance = view.selected_favorite && view.book.search.trim().is_empty();
+    view.book.selected == Some(recipe.spell_id) && favorite_instance == favorite
 }
 
 /// Blizzard_ProfessionsRecipeList.lua:375-376: the hover overlay shows only while the
@@ -227,8 +321,9 @@ fn recipe_row(view: &ProfessionView, recipe: &Recipe, y: f32) -> Element {
 fn recipe_template(
     view: &ProfessionView,
     recipe: &Recipe,
+    favorite: bool,
 ) -> &'static crate::selection_list::RowTemplate {
-    if view.book.selected == Some(recipe.spell_id) {
+    if recipe_is_selected(view, recipe, favorite) {
         &crate::selection_list::AUTHORED
     } else {
         &crate::selection_list::PROFESSION_RECIPE
@@ -240,9 +335,10 @@ fn recipe_row_art(
     recipe: &Recipe,
     prefix: &str,
     icon: Option<&str>,
+    favorite: bool,
 ) -> Element {
     let mut out = Vec::new();
-    if view.book.selected == Some(recipe.spell_id) {
+    if recipe_is_selected(view, recipe, favorite) {
         out.extend(art::atlas(
             &format!("{prefix}Selected"),
             "Professions_Recipe_Active",

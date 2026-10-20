@@ -154,12 +154,16 @@ pub struct Account {
     pub quests: QuestRuntime,
     /// `GetDungeonDifficultyID`, from `DungeonDifficultySet` (login and every change).
     pub dungeon_difficulty: Option<u32>,
+    /// Actual map-copy difficulty from the server; independent of saved selections.
+    pub world_server_info: Option<shared::protocol::WorldServerInfo>,
     pub lfg: Option<shared::protocol::LfgStateUpdate>,
     pub raid_difficulty: Option<shared::protocol::RaidDifficultySet>,
     pub dungeon_objectives: game_engine_ui_model::dungeon_progress::DungeonObjectives,
     pub challenge: shared::protocol::ChallengeSnapshot,
     pub adventure_guide: Option<std::sync::Arc<shared::protocol::AdventureGuideSnapshot>>,
     pub trading_post: Option<std::sync::Arc<shared::protocol::TradingPostSnapshot>>,
+    /// Actual completion results since the vendor view last drained an account update.
+    trading_post_replies: Vec<game_engine_ui_model::trading_post::Reply>,
     pub renown: Option<std::sync::Arc<shared::protocol::RenownSnapshot>>,
     /// Owner wallet from CurrencyStateUpdate; None until the realm sends it.
     pub currencies: Option<shared::protocol::CurrencySnapshot>,
@@ -398,12 +402,14 @@ impl Account {
             pending_layout_username: None,
             quests: QuestRuntime::default(),
             dungeon_difficulty: None,
+            world_server_info: None,
             lfg: None,
             raid_difficulty: None,
             dungeon_objectives: Default::default(),
             challenge: Default::default(),
             adventure_guide: None,
             trading_post: None,
+            trading_post_replies: Vec::new(),
             renown: None,
             currencies: None,
             party_keystones: Default::default(),
@@ -465,12 +471,14 @@ impl Account {
         self.layout_username = None;
         self.pending_layout_username = None;
         self.dungeon_difficulty = None;
+        self.world_server_info = None;
         self.lfg = None;
         self.raid_difficulty = None;
         self.dungeon_objectives = Default::default();
         self.scenario_objectives = Default::default();
         self.adventure_guide = None;
         self.trading_post = None;
+        self.trading_post_replies.clear();
         self.renown = None;
         self.currencies = None;
         self.achievements = Default::default();
@@ -672,6 +680,20 @@ impl Account {
             .map_err(SessionError)
     }
 
+    pub(crate) fn ready_check_difficulty_name(
+        &self,
+        catalog: &game_engine_ui_model::ready_check_difficulty::ReadyCheckDifficulties,
+    ) -> Result<Option<String>, String> {
+        let current = self.world_server_info.map(|info| info.difficulty_id);
+        let selected = if self.group.is_raid {
+            self.raid_difficulty
+                .map(|selection| selection.difficulty_id)
+        } else {
+            self.dungeon_difficulty
+        };
+        catalog.listener_name(current, selected)
+    }
+
     /// `SetDungeonDifficultyID`; the server validates it and answers `DungeonDifficultySet`.
     pub fn send_set_dungeon_difficulty(&self, difficulty_id: u32) -> Result<(), SessionError> {
         self.bridge()?
@@ -815,6 +837,19 @@ impl Account {
         self.bridge()?
             .send::<_, InstanceChannel>(request)
             .map_err(SessionError)
+    }
+
+    pub fn take_trading_post_update(
+        &mut self,
+    ) -> Option<(
+        std::sync::Arc<shared::protocol::TradingPostSnapshot>,
+        Vec<game_engine_ui_model::trading_post::Reply>,
+    )> {
+        if self.trading_post_replies.is_empty() {
+            return None;
+        }
+        let snapshot = self.trading_post.clone()?;
+        Some((snapshot, std::mem::take(&mut self.trading_post_replies)))
     }
 
     pub fn send_trading_post(
@@ -962,6 +997,15 @@ impl Account {
     ) -> Result<(), SessionError> {
         self.bridge()?
             .send::<_, shared::protocol::CollectionChannel>(request)
+            .map_err(SessionError)
+    }
+
+    pub fn send_recipe_favorite(
+        &self,
+        request: shared::protocol::SetRecipeFavorite,
+    ) -> Result<(), SessionError> {
+        self.bridge()?
+            .send::<_, shared::protocol::ProfessionChannel>(request)
             .map_err(SessionError)
     }
 
@@ -1633,6 +1677,7 @@ impl Account {
                 Event::Disconnected(reason) => {
                     self.adventure_guide = None;
                     self.trading_post = None;
+                    self.trading_post_replies.clear();
                     self.renown = None;
                     self.currencies = None;
                     self.dungeon_objectives = Default::default();
@@ -1888,6 +1933,7 @@ impl Account {
             || message.is::<QuestLogUpdate>()
             || message.is::<QuestGiverStatusMultiple>()
             || message.is::<DungeonDifficultySet>()
+            || message.is::<shared::protocol::WorldServerInfo>()
             || message.is::<shared::protocol::RaidDifficultySet>()
             || message.is::<InstanceInfo>()
             || message.is::<shared::protocol::DungeonProgress>()
@@ -1952,6 +1998,11 @@ impl Account {
                 update.frozen_item_id,
                 update.error
             );
+            self.trading_post_replies
+                .push(game_engine_ui_model::trading_post::Reply {
+                    kind: update.reply_kind,
+                    error: update.error.clone(),
+                });
             self.trading_post = Some(std::sync::Arc::new(
                 shared::protocol::TradingPostSnapshot::merge(self.trading_post.as_deref(), update),
             ));
@@ -2048,6 +2099,10 @@ impl Account {
         }
         if message.is::<DamageMeterSnapshot>() {
             self.damage_meter = Some(decode(message)?);
+            return Ok(());
+        }
+        if message.is::<shared::protocol::WorldServerInfo>() {
+            self.world_server_info = Some(decode(message)?);
             return Ok(());
         }
         if message.is::<shared::protocol::RaidDifficultySet>() {
@@ -2277,6 +2332,7 @@ impl Account {
         }
         if message.is::<NewWorld>() {
             let new_world: NewWorld = decode(message)?;
+            self.world_server_info = None;
             self.dungeon_objectives.begin_map(new_world.map_id);
             self.challenge = Default::default();
             self.scenario_objectives.begin_map(new_world.map_id);
@@ -2467,6 +2523,7 @@ impl Account {
                 SessionEffect::ResetNetworkWorld => {
                     self.adventure_guide = None;
                     self.trading_post = None;
+                    self.trading_post_replies.clear();
                     self.renown = None;
                     self.currencies = None;
                     self.dungeon_objectives = Default::default();
@@ -2718,6 +2775,95 @@ mod meetingstones_tests;
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    #[test]
+    fn trading_post_account_coalesced_purchase_then_query_completes_pending_owner() {
+        use game_engine_ui_model::trading_post::View;
+        use shared::protocol::{TradingPostReplyKind, TradingPostSnapshot};
+        for purchase_error in [
+            None,
+            Some("Purchase item is no longer available".to_string()),
+        ] {
+            let mut account = Account::new(PathBuf::from("/unused-trading-post-data"));
+            let mut output = Vec::new();
+            let purchase = TradingPostSnapshot {
+                npc_net_id: Some(185468),
+                tender: 400,
+                points: 0,
+                now_unix: 100,
+                month_end_unix: 200,
+                frozen_item_id: None,
+                categories: vec![],
+                items: vec![],
+                thresholds: vec![],
+                source_gaps: vec![],
+                error: None,
+                catalog_complete: false,
+                reply_kind: TradingPostReplyKind::Purchase,
+            };
+            let mut purchase = purchase;
+            purchase.error = purchase_error.clone();
+            let query = TradingPostSnapshot {
+                tender: 425,
+                now_unix: 101,
+                catalog_complete: true,
+                reply_kind: TradingPostReplyKind::Query,
+                error: None,
+                ..purchase.clone()
+            };
+            let mut view = View {
+                visible: true,
+                pending: true,
+                confirm: Some("purchase".into()),
+                ..Default::default()
+            };
+            // The host dispatches every drained message before the native view updates once.
+            for reply in [purchase, query] {
+                account
+                    .dispatch_message(ProtocolMessage::for_tests(reply), &mut output)
+                    .unwrap();
+            }
+            let (snapshot, replies) = account.take_trading_post_update().unwrap();
+            view.receive_replies(snapshot, &replies);
+            assert!(
+                account.take_trading_post_update().is_none(),
+                "Completed replies are not replayed on the next frame"
+            );
+            assert!(
+                !view.pending,
+                "Purchase completion must survive a later Query in one host poll"
+            );
+            assert!(view.confirm.is_none());
+            assert_eq!(view.snapshot.as_ref().unwrap().tender, 425);
+            assert_eq!(view.snapshot.as_ref().unwrap().now_unix, 101);
+            assert_eq!(
+                view.error,
+                purchase_error.unwrap_or_default(),
+                "Matching terminal error survives the later Query's empty error"
+            );
+            assert!(output.is_empty());
+        }
+    }
+
+    #[test]
+    fn inventory_max_count_error_dispatches_retail_ui_message() {
+        let mut account = Account::new(PathBuf::from("/unused-inventory-data"));
+        let mut events = Vec::new();
+        account
+            .dispatch_message(
+                ProtocolMessage::for_tests(InventoryError {
+                    reason: shared::protocol::InventoryErrorReason::ItemMaxCount,
+                    detail: Some("ownership cap includes personal bank".into()),
+                }),
+                &mut events,
+            )
+            .unwrap();
+        let [AccountEvent::Npc(NpcMessage::Error(message))] = events.as_slice() else {
+            panic!("inventory cap rejection must reach the client error surface");
+        };
+        // Retail GlobalStrings10918, ERR_ITEM_MAX_COUNT; no native-pixel claim.
+        assert_eq!(message, "You can't carry any more of those items.");
+    }
 
     #[test]
     fn deathstate_account_dispatches_snapshot_and_error() {

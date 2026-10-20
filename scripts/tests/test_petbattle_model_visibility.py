@@ -12,6 +12,8 @@ import time
 import unittest
 import uuid
 
+from scripts.tests.test_petbattle_pad_normalization import normalized, read_card_actor
+
 
 def snapshot(directory):
     request = {"id": str(uuid.uuid4()), "action": "snapshot"}
@@ -41,6 +43,7 @@ class PetBattleModelVisibility(unittest.TestCase):
             displays = {int(row["ID"]): row for row in csv.DictReader(source)}
         with (data / "CreatureModelData.csv").open() as source:
             model_scales = {int(row["ID"]): float(row["ModelScale"]) for row in csv.DictReader(source)}
+        aggressiveness, _ = read_card_actor(data / "db2/active")
         poses = {"AllyPet": set(), "EnemyPet": set()}
         deadline = time.monotonic() + 8
         while time.monotonic() < deadline:
@@ -58,15 +61,22 @@ class PetBattleModelVisibility(unittest.TestCase):
                     # Fixed pads and authentic data, not equal projected heights.
                     x, y, width, height = model["posed_projected_px"]
                     center_x = x + width / 2
-                    pad_x = (230, 520) if model["name"] == "AllyPet" else (760, 1050)
+                    # Pad bands authored on a 1280-wide viewport, scaled to the real one.
+                    band = (230, 520) if model["name"] == "AllyPet" else (760, 1050)
+                    viewport_width = response["viewport_size"][0]
+                    pad_x = tuple(edge / 1280 * viewport_width for edge in band)
                     self.assertGreaterEqual(center_x, pad_x[0], model)
                     self.assertLessEqual(center_x, pad_x[1], model)
                     self.assertGreater(height, 0, model)
+                    # PET_BATTLE_PAD_USES_JOURNAL_CARD_NORMALIZATION: PetInstanceScale
+                    # normalized like the journal card over the journal's own bounds.
                     display = displays[model["display_id"]]
                     instance_scale = float(display["PetInstanceScale"])
+                    journal_size = model["journal_card_bounds"]["size"]
+                    pad_scale = normalized(instance_scale, aggressiveness, journal_size)
                     world_scale = float(display["CreatureModelScale"]) * model_scales[int(display["ModelID"])]
                     for axis in range(3):
-                        self.assertAlmostEqual(model["scale"][axis], instance_scale, places=3, msg=str(model))
+                        self.assertAlmostEqual(model["scale"][axis], pad_scale, places=3, msg=str(model))
                         self.assertAlmostEqual(model["visual_scale"][axis], world_scale, places=3, msg=str(model))
                         self.assertAlmostEqual(model["visual_position"][axis], 0, places=4, msg=str(model))
                     expected_z = 2.2 if model["name"] == "AllyPet" else -2.2
@@ -80,7 +90,9 @@ class PetBattleModelVisibility(unittest.TestCase):
                 expected = []
                 for name in ("AllyPet", "EnemyPet"):
                     row = displays[pair[name]["display_id"]]
-                    expected.append(float(row["CreatureModelScale"]) * model_scales[int(row["ModelID"])] * float(row["PetInstanceScale"]))
+                    world = float(row["CreatureModelScale"]) * model_scales[int(row["ModelID"])]
+                    size = pair[name]["journal_card_bounds"]["size"]
+                    expected.append(world * normalized(float(row["PetInstanceScale"]), aggressiveness, size))
                 self.assertAlmostEqual(actual_ratio, expected[0] / expected[1], places=3)
             skin = os.environ.get("PETBATTLE_EXPECT_SKIN")
             if skin:

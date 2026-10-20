@@ -9,6 +9,8 @@ use shared::protocol::{
 };
 #[path = "arena_ui.rs"]
 mod arena_ui;
+#[path = "pvp_bonus_ui.rs"]
+mod bonus_ui;
 #[path = "pvp_honor_ui.rs"]
 mod honor_ui;
 use ui_toolkit::{rsx, screen::SharedContext, strata::FrameStrata, widget_def::Element};
@@ -48,6 +50,8 @@ pub struct PvpView {
     pub selected_arena: Option<ArenaQueueMode>,
     pub rated_bracket: PvpBracketSnapshot,
     pub selected_battleground: u32,
+    pub honor_bonus: bool,
+    pub honor_type_menu_open: bool,
     pub honor_faction: Option<crate::char_create_data::Faction>,
 }
 impl Default for PvpView {
@@ -66,6 +70,8 @@ impl Default for PvpView {
             selected_arena: None,
             rated_bracket: PvpBracketSnapshot::Arena2v2,
             selected_battleground: 1014,
+            honor_bonus: false,
+            honor_type_menu_open: false,
             honor_faction: None,
         }
     }
@@ -97,6 +103,9 @@ impl PvpView {
                 self.results_dismissed = false;
                 self.scoreboard = false;
             }
+            if snapshot.queue.is_some() || snapshot.battleground.is_some() {
+                self.honor_type_menu_open = false;
+            }
             self.snapshot = Some(snapshot);
         }
     }
@@ -104,8 +113,14 @@ impl PvpView {
         self.snapshot.as_ref()?.battleground.as_ref()
     }
     pub fn invitation(&self) -> bool {
-        self.battleground()
-            .is_some_and(|b| b.phase == BgPhase::Waiting && !b.accepted)
+        self.battleground().is_some_and(|bg| {
+            !bg.accepted
+                && match bg.phase {
+                    BgPhase::Waiting => true,
+                    BgPhase::InProgress => bg.arena.is_none(),
+                    BgPhase::Ended => false,
+                }
+        })
     }
     pub fn action(&mut self, action: &str) -> Option<PvpAction> {
         if let Some(id) = action
@@ -119,7 +134,23 @@ impl PvpView {
             return None;
         }
         match action {
+            "pvp:type:toggle" if !self.pending && self.battleground().is_none() => {
+                self.honor_type_menu_open = !self.honor_type_menu_open;
+                return None;
+            }
+            "pvp:type:bonus" | "pvp:type:specific"
+                if !self.pending && self.battleground().is_none() =>
+            {
+                self.honor_bonus = action == "pvp:type:bonus";
+                self.honor_type_menu_open = false;
+                return None;
+            }
+            "pvp:bonus:random" if !self.pending && self.battleground().is_none() => {
+                self.honor_bonus = true;
+                return None;
+            }
             "pvp:category:quick" | "pvp:category:rated" | "pvp:category:groups" => {
+                self.honor_type_menu_open = false;
                 self.category = match action {
                     "pvp:category:rated" => PvpCategory::Rated,
                     "pvp:category:groups" => PvpCategory::PremadeGroups,
@@ -129,6 +160,7 @@ impl PvpView {
             }
             "pvp:close" => {
                 self.visible = false;
+                self.honor_type_menu_open = false;
                 return None;
             }
             "pvp:scoreboard" => {
@@ -272,9 +304,13 @@ impl PvpView {
                 if self.battleground().is_none()
                     && self.snapshot.as_ref().is_none_or(|s| s.queue.is_none()) =>
             {
-                match self.selected_arena {
-                    Some(mode) => PvpAction::Arena(mode),
-                    None => PvpAction::Queue(self.selected_battleground),
+                if self.honor_bonus {
+                    PvpAction::Queue(shared::battleground::RANDOM_BATTLEGROUND_ID)
+                } else {
+                    match self.selected_arena {
+                        Some(mode) => PvpAction::Arena(mode),
+                        None => PvpAction::Queue(self.selected_battleground),
+                    }
                 }
             }
             "pvp:dequeue" if self.snapshot.as_ref().is_some_and(|s| s.queue.is_some()) => {
@@ -289,6 +325,7 @@ impl PvpView {
             }
             _ => return None,
         };
+        self.honor_type_menu_open = false;
         self.pending = true;
         Some(request)
     }
@@ -301,6 +338,10 @@ fn frame(name: &str, size: (f32, f32), position: (f32, f32), children: Element) 
     let (left, top) = position;
     rsx! { r#frame { name: {DynName(name.into())}, width, height, left, top,
     pos_type: "absolute", strata: FrameStrata::Dialog, mouse_enabled: true, {children} } }
+}
+fn queue_frame(width: f32, children: Element) -> Element {
+    rsx! { r#frame { name: "PVPUIFrame", width, height: 428.0, left: 100.0, top: 84.0,
+    pos_type: "absolute", strata: FrameStrata::Medium, mouse_enabled: true, {children} } }
 }
 fn specific_choices() -> Vec<shared::battleground::BgTemplate> {
     shared::battleground::all_templates()
@@ -355,7 +396,7 @@ fn queue(context: &SharedContext, view: &PvpView) -> Element {
     }
     if view.category != PvpCategory::QuickMatch {
         children.extend(category_panel(view));
-        return frame("PVPUIFrame", (width, 428.0), (100.0, 84.0), children);
+        return queue_frame(width, children);
     }
     if let Some(wallet) = &view.snapshot {
         children.extend(text(
@@ -365,7 +406,11 @@ fn queue(context: &SharedContext, view: &PvpView) -> Element {
         ));
     }
 
-    children.extend(specific_list(context, view));
+    if view.honor_bonus {
+        children.extend(bonus_ui::bonus_panel(view));
+    } else {
+        children.extend(specific_list(context, view));
+    }
     let queued = view.snapshot.as_ref().is_some_and(|s| s.queue.is_some());
     let status = if view.pending {
         "Waiting for server"
@@ -375,6 +420,8 @@ fn queue(context: &SharedContext, view: &PvpView) -> Element {
         "In battleground"
     } else if queued {
         "In queue"
+    } else if view.honor_bonus {
+        "Random Battleground"
     } else {
         "Specific Battlegrounds"
     };
@@ -397,7 +444,9 @@ fn queue(context: &SharedContext, view: &PvpView) -> Element {
         !view.pending && view.battleground().is_none(),
         (363.0, 404.0, 116.0, 22.0),
     ));
-    frame("PVPUIFrame", (width, 428.0), (100.0, 84.0), children)
+    // Keep the dropdown/menu after the list in native GUI sibling order as well as strata.
+    children.extend(bonus_ui::type_selector(view));
+    queue_frame(width, children)
 }
 pub const SPECIFIC_LIST: &str = "HonorFrameSpecificScrollBox";
 const SPECIFIC_ROW_H: f32 = 40.0;
@@ -530,13 +579,12 @@ fn invite(view: &PvpView) -> Element {
             (x, 163.0, 115.0, 22.0),
         ));
     }
+    // StaticPopup.lua: first standalone popup TOP at fullscreen TOP -135.
+    const READY_DIALOG_TOP: f32 = 135.0;
     frame(
         "PVPReadyDialog",
         (306.0, 210.0),
-        (
-            (view.viewport[0] - 306.0) / 2.0,
-            (view.viewport[1] - 210.0) / 2.0,
-        ),
+        ((view.viewport[0] - 306.0) / 2.0, READY_DIALOG_TOP),
         children,
     )
 }

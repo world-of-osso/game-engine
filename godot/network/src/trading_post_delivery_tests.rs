@@ -105,11 +105,13 @@ fn trading_post_catalog_then_freeze_delta_survive_slow_server_frames() {
         source_gaps: vec![],
         error: None,
         catalog_complete: true,
+        reply_kind: shared::protocol::TradingPostReplyKind::Query,
     };
     let delta = TradingPostSnapshot {
         frozen_item_id: Some(575),
         items: vec![],
         catalog_complete: false,
+        reply_kind: shared::protocol::TradingPostReplyKind::Freeze,
         ..catalog.clone()
     };
     let mut received = Vec::new();

@@ -15,14 +15,7 @@ impl GameClient {
     }
 
     pub(super) fn profession_reagent_counts(&self) -> BTreeMap<u32, u32> {
-        let mut counts = BTreeMap::<u32, u32>::new();
-        for item in self.merchant.session.inventory.slots.iter().flatten() {
-            if item.definition_source == shared::item_data::ItemDefinitionSource::Retail {
-                let count = counts.entry(item.item_id).or_default();
-                *count = count.saturating_add(item.count);
-            }
-        }
-        counts
+        self.merchant.session.inventory.crafting_reagent_counts()
     }
 
     fn open_quality_slot(&self) -> Option<ReagentSlot> {
@@ -175,38 +168,5 @@ impl GameClient {
         };
         dialog.allocate(&slot, item, requested, &owned);
         Ok(())
-    }
-
-    pub(super) fn quality_operation_status(&self) -> String {
-        if !self.professions.error.is_empty() {
-            return self.professions.error.clone();
-        }
-        let selection = &self.professions.reagent_selection;
-        if selection.pending {
-            return "Validating reagents...".into();
-        }
-        if let Some(response) = &selection.response {
-            if let Some(error) = &response.validation_error {
-                return error.clone();
-            }
-            return response
-                .quality
-                .as_ref()
-                .err()
-                .map(ToString::to_string)
-                .unwrap_or_default();
-        }
-        if self
-            .professions
-            .book
-            .selected_recipe()
-            .is_some_and(|recipe| recipe.output.is_none())
-        {
-            return shared::profession::evaluate_crafted_quality()
-                .err()
-                .expect("missing authored evaluator")
-                .to_string();
-        }
-        String::new()
     }
 }

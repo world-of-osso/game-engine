@@ -11,6 +11,7 @@ var handled_loot_request := ""
 var handled_enemy_tab_request := ""
 var directory: String
 var spell_ids := PackedInt32Array()
+var path_capture: RefCounted
 
 func _initialize() -> void:
     directory = OS.get_environment("BOT_CONTROLLER_OUTPUT")
@@ -25,6 +26,13 @@ func _initialize() -> void:
             quit(2)
             return
         spell_ids.append(int(identity))
+    if OS.get_environment("BOT_PATH_MAP_TRACE") == "1":
+        path_capture = load("res://tests/bot_path_capture.gd").new()
+        var error: Error = path_capture.open_capture(directory)
+        if error != OK:
+            push_error("Cannot open opted-in path capture: " + str(error))
+            quit(2)
+            return
     call_deferred("boot")
 
 func boot() -> void:
@@ -52,6 +60,7 @@ func sample() -> void:
     var account: Dictionary = client.account_state()
     var centers := {}
     var origins := {}
+    var facings := {}
     for node in root.find_children("UnitPick", "Area3D", true, false):
         if node.has_meta("unit_server_id") and node.get_child_count() > 0:
             var shape := node.get_child(0) as CollisionShape3D
@@ -63,6 +72,8 @@ func sample() -> void:
                 if visual != null:
                     var origin := visual.global_position
                     origins[str(node.get_meta("unit_server_id"))] = [origin.x, origin.y, origin.z]
+                    if path_capture != null:
+                        facings[str(node.get_meta("unit_server_id"))] = visual.global_rotation.y
     account["native_pick_centers"] = centers
     account["native_unit_origins"] = origins
     publish("native-account-state.json", account)
@@ -100,6 +111,9 @@ func sample() -> void:
                 quit(1)
                 return
             rotation.merge(evaluation, true)
+    if path_capture != null:
+        var party: Dictionary = path_capture.sample_admitted_party(client, directory, account.get("local_player_id"))
+        path_capture.append_sample(account, rotation, origins, facings, party)
     publish("native-rotation-state.json", rotation)
     if now_ms - last_metrics_ms >= 1000:
         last_metrics_ms = now_ms

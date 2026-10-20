@@ -30,8 +30,7 @@ use crate::equipment_appearance_data::{
     runtime_mesh_part_allowed, slot_attachment_id,
 };
 
-#[path = "../../../core/src/asset/m2_format/m2_bone_names.rs"]
-mod bone_names;
+use game_engine_core::asset::m2_format::m2_bone_names as bone_names;
 #[path = "../game/equipment/equipment_transform_data.rs"]
 mod transforms;
 

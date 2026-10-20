@@ -7,8 +7,8 @@ use crate::{
     world_models::UnitAppearance,
 };
 use game_engine_core::ui_sound_kits::{
-    TRADING_POST_UI_ITEM_HOVER, TRADING_POST_UI_ITEM_LOCKING, TRADING_POST_UI_MENU_CLOSE,
-    TRADING_POST_UI_MENU_OPEN,
+    TRADING_POST_UI_ITEM_HOVER, TRADING_POST_UI_ITEM_LOCKING, TRADING_POST_UI_ITEM_SELECT,
+    TRADING_POST_UI_MENU_CLOSE, TRADING_POST_UI_MENU_OPEN,
 };
 use game_engine_session::SessionScreen;
 use game_engine_ui_model::trading_post::{Action, FilterSubmenu, HEIGHT, MODEL, View, WIDTH};
@@ -28,7 +28,6 @@ struct ProductDrag {
     id: u32,
     origin: Vector2,
     active: bool,
-    from_frozen: bool,
 }
 
 #[derive(Default)]
@@ -57,12 +56,33 @@ pub(crate) struct TradingPost {
     preview_failed: bool,
     snapshot_observed_at: Option<std::time::Instant>,
     spinner_started_at: Option<std::time::Instant>,
+    purchase_started_at: Option<std::time::Instant>,
     freeze_started_at: Option<std::time::Instant>,
 }
 
 /// The tooltip stays usable over the vendor, like Retail's own PerksProgramTooltip.
 const KEPT_LAYERS: [&str; 2] = ["PerksProgramUI", "GameTooltipUI"];
 impl TradingPost {
+    fn activate_product_drag(&mut self, position: Vector2) -> bool {
+        let Some(drag) = &mut self.dragged else {
+            return false;
+        };
+        if drag.active {
+            return true;
+        }
+        let crosses_threshold = drag.origin.distance_squared_to(position) > 16.;
+        if !crosses_threshold {
+            return false;
+        }
+        let activation_allowed = self.view.select_dragged_product(drag.id);
+        if !activation_allowed {
+            self.dragged = None;
+            return false;
+        }
+        drag.active = true;
+        true
+    }
+
     pub(crate) fn visit_uis(
         &mut self,
         visit: &mut impl FnMut(&mut Gd<RegistryUi>) -> Result<(), String>,
@@ -88,6 +108,7 @@ impl GameClient {
         let visible = self.trading_post.view.visible;
         self.trading_post.view.visible = false;
         self.trading_post.view.cancel_confirmation();
+        self.trading_post.purchase_started_at = None;
         self.trading_post.freeze_started_at = None;
         self.trading_post.view.clear_cart();
         self.clear_trading_model();
@@ -105,9 +126,21 @@ impl GameClient {
         self.trading_post.rotating = false;
         self.trading_post.dragged = None;
         self.trading_post.product_sound_owner = None;
+        self.trading_post.view.take_selection_sounds();
         visible
     }
+    pub(super) fn dismiss_trading_slow_purchase(&mut self) -> bool {
+        if !self.trading_post.view.dismiss_slow_purchase() {
+            return false;
+        }
+        self.trading_post.purchase_started_at = None;
+        true
+    }
+
     pub(super) fn close_trading_post_window(&mut self) -> Result<bool, FrameError> {
+        if self.dismiss_trading_slow_purchase() {
+            return Ok(true);
+        }
         if self.trading_post.view.confirm.is_some() {
             // PerksProgram confirmation definitions omit hideOnEscape. The
             // GameDialog cover consumes Escape; only their Cancel button dismisses.
@@ -138,19 +171,14 @@ impl GameClient {
             return Ok(());
         }
         // The vendor waits for a whole catalog; a Log balance alone has no rows.
-        if let Some(snapshot) = self
-            .account
-            .trading_post
-            .as_ref()
-            .filter(|snapshot| snapshot.catalog_complete)
+        if let Some((snapshot, replies)) = self.account.take_trading_post_update()
+            && snapshot.catalog_complete
         {
-            let current = self.trading_post.view.snapshot.as_ref();
-            if !current.is_some_and(|current| std::sync::Arc::ptr_eq(current, snapshot)) {
-                self.trading_post.view.receive(snapshot.clone());
-                self.trading_post.snapshot_observed_at = Some(std::time::Instant::now());
-                if self.trading_post.view.visible && snapshot.npc_net_id.is_none() {
-                    self.close_trading_post();
-                }
+            let vendor_closed = snapshot.npc_net_id.is_none();
+            self.trading_post.view.receive_replies(snapshot, &replies);
+            self.trading_post.snapshot_observed_at = Some(std::time::Instant::now());
+            if self.trading_post.view.visible && vendor_closed {
+                self.close_trading_post();
             }
         }
         if !self.trading_post.view.visible {
@@ -158,12 +186,16 @@ impl GameClient {
             return Ok(());
         }
         if let Some(observed_at) = self.trading_post.snapshot_observed_at {
-            self.trading_post.view.refund_elapsed =
-                observed_at.elapsed().as_secs().min(u64::from(u32::MAX)) as u32;
+            let elapsed = observed_at.elapsed().as_secs().min(u64::from(u32::MAX)) as u32;
+            if let Some(request) = self.trading_post.view.advance_server_clock(elapsed) {
+                self.send_trading_post_vendor_request(request)?;
+            }
         }
         self.trading_post.view.horde = self.player_is_horde();
+        self.update_trading_purchase_timeout();
         self.update_trading_freeze_delay();
         self.poll_trading_inputs()?;
+        self.play_trading_post_selection_sounds()?;
         if self.trading_post.view.visible {
             self.hide_ui_parent();
             // Release the detached scene while its old UI host is still alive.
@@ -179,6 +211,13 @@ impl GameClient {
             }
         }
         self.play_trading_post_menu_sound()?;
+        Ok(())
+    }
+
+    fn play_trading_post_selection_sounds(&mut self) -> Result<(), String> {
+        for _ in 0..self.trading_post.view.take_selection_sounds() {
+            self.play_ui_sound_kit(TRADING_POST_UI_ITEM_SELECT)?;
+        }
         Ok(())
     }
 
@@ -255,6 +294,18 @@ impl GameClient {
             }
         }
     }
+    fn update_trading_purchase_timeout(&mut self) {
+        if !self.trading_post.view.has_pending_purchase_confirmation() {
+            self.trading_post.purchase_started_at = None;
+            return;
+        }
+        if let Some(started) = self.trading_post.purchase_started_at {
+            self.trading_post
+                .view
+                .update_purchase_timeout(started.elapsed().as_secs_f64());
+        }
+    }
+
     fn update_trading_freeze_delay(&mut self) {
         if self.trading_post.view.confirm.as_deref() != Some("freeze") {
             self.trading_post.freeze_started_at = None;
@@ -292,12 +343,16 @@ impl GameClient {
             .ok_or("Trading Post viewport missing")?
             .get_mouse_position();
         self.play_trading_post_product_hover_sound(ui.bind().hovered_button())?;
-        self.trading_post.view.product_hover = ui.bind().hovered_button().and_then(|(name, _)| {
+        let product_hover = ui.bind().hovered_button().and_then(|(name, _)| {
             name.strip_prefix("PerksProgramProduct")
                 .or_else(|| name.strip_prefix("PerksProgramCartToggle"))?
                 .parse()
                 .ok()
         });
+        if self.trading_post.view.product_hover != product_hover {
+            self.trading_post.view.deselected_hover_name = None;
+        }
+        self.trading_post.view.product_hover = product_hover;
         self.trading_post.view.cart_hover =
             self.trading_post.view.cart_items().iter().find_map(|row| {
                 let template = if row.category_id == 8 { "Set" } else { "Item" };
@@ -371,9 +426,17 @@ impl GameClient {
         ) {
             self.play_ui_sound_kit(TRADING_POST_UI_ITEM_LOCKING)?;
         }
+        let purchase = matches!(
+            request,
+            TradingPostRequest::Purchase { .. } | TradingPostRequest::Checkout { .. }
+        );
         self.account
             .send_trading_post(request)
-            .map_err(|error| error.to_string())
+            .map_err(|error| error.to_string())?;
+        if purchase {
+            self.trading_post.purchase_started_at = Some(std::time::Instant::now());
+        }
+        Ok(())
     }
 
     fn animate_trading_spinner(&mut self) {
@@ -381,7 +444,9 @@ impl GameClient {
             self.trading_post.view.confirm.as_deref(),
             Some("cart-checkout" | "purchase" | "refund")
         );
-        if !self.trading_post.view.pending || !pending_dialog {
+        let pending_spinner = self.trading_post.view.pending && pending_dialog;
+        let show_spinner = pending_spinner && !self.trading_post.view.slow_purchase;
+        if !show_spinner {
             self.trading_post.spinner_started_at = None;
             return;
         }
@@ -916,11 +981,9 @@ impl GameClient {
             .clone()
             .try_cast::<godot::classes::InputEventMouseMotion>()
         {
-            if let Some(drag) = &mut self.trading_post.dragged {
-                drag.active |= drag.origin.distance_squared_to(motion.get_position()) > 16.;
-                return drag.active;
-            }
-            return false;
+            return self
+                .trading_post
+                .activate_product_drag(motion.get_position());
         }
         let Ok(button) = event
             .clone()
@@ -935,25 +998,6 @@ impl GameClient {
             return false;
         };
         if button.is_pressed() {
-            if let Some(id) = self
-                .trading_post
-                .view
-                .snapshot
-                .as_ref()
-                .and_then(|snapshot| snapshot.frozen_item_id)
-                && ui
-                    .bind()
-                    .frame_viewport_rect("PerksProgramFrozenSlot")
-                    .is_some_and(|rect| contains_pointer(rect, button.get_position()))
-            {
-                self.trading_post.dragged = Some(ProductDrag {
-                    id,
-                    origin: button.get_position(),
-                    active: false,
-                    from_frozen: true,
-                });
-                return false;
-            }
             for row in self.trading_post.view.rows() {
                 if row.grant_unavailable.is_none()
                     && ui
@@ -965,7 +1009,6 @@ impl GameClient {
                         id: row.id,
                         origin: button.get_position(),
                         active: false,
-                        from_frozen: false,
                     });
                     break;
                 }
@@ -982,11 +1025,7 @@ impl GameClient {
             .bind()
             .frame_viewport_rect("PerksProgramFrozenSlot")
             .is_some_and(|rect| contains_pointer(rect, button.get_position()));
-        if let Some(Action::Request(request)) =
-            self.trading_post
-                .view
-                .drop_item(drag.id, drag.from_frozen, dropped)
-        {
+        if let Some(Action::Request(request)) = self.trading_post.view.drop_item(drag.id, dropped) {
             if let Err(error) = self.send_trading_post_vendor_request(request) {
                 self.trading_post.view.pending = false;
                 self.trading_post.view.error = error;

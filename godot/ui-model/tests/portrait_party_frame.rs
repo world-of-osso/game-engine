@@ -306,6 +306,7 @@ fn forever_party_draws_camelot_character_art_not_retail_party_art() {
 mod fixture;
 
 fn dump_tree(registry: &FrameRegistry, id: u64, depth: usize, out: &mut String) {
+    super::golden_layer_census::record(registry, id);
     use std::fmt::Write;
     let frame = registry.get(id).unwrap();
     writeln!(

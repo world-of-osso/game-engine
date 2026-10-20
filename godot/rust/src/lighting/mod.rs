@@ -502,8 +502,15 @@ pub(crate) fn apply_wmo_fog(fog: &FogResult, wmo: Option<&WmoFogBlend>) -> FogRe
     blended
 }
 
+/// Sets one `retail_fog.gdshaderinc` global uniform and hands it to the particle
+/// compositor, which cannot read global uniforms at runtime.
+pub(crate) fn set_scene_fog(server: &mut Gd<RenderingServer>, name: &str, value: &Variant) {
+    server.global_shader_parameter_set(name, value);
+    crate::particle_composite::record_fog(name, value);
+}
+
 fn bind_fog(server: &mut Gd<RenderingServer>, fog: &FogUniforms) {
-    let mut set = |name: &str, value: Variant| server.global_shader_parameter_set(name, &value);
+    let mut set = |name: &str, value: Variant| set_scene_fog(server, name, &value);
     for (name, value) in [
         ("fog_color", fog.color),
         ("fog_end_color", fog.end_color),

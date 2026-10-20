@@ -56,7 +56,7 @@ impl Billboards {
         let mut globals = vec![None; poses.len()];
         for index in 0..poses.len() {
             let global = self.global(index, &locals, &mut globals, model, view);
-            if self.adjusted(index) {
+            if self.adjusted(index, view.is_some()) {
                 skeleton
                     .set_bone_global_pose_override_ex(index as i32, godot_transform(global), 1.0)
                     .persistent(true)
@@ -65,8 +65,10 @@ impl Billboards {
         }
     }
 
-    fn adjusted(&self, index: usize) -> bool {
-        m2_billboard::is_billboard(self.flags[index])
+    fn adjusted(&self, index: usize, has_view: bool) -> bool {
+        // Without a camera, billboard-only bones already have their authored TRS;
+        // a redundant global override would decompose that possibly zero-scale pose.
+        (has_view && m2_billboard::is_billboard(self.flags[index]))
             || (self.parents[index] >= 0 && self.flags[index] & 7 != 0)
     }
 

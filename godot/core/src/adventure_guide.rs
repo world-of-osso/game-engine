@@ -1,8 +1,10 @@
 //! Retail Journal DB2 cache, imported from the pinned local CASC build.
 mod difficulty;
 mod encounter_locks;
+mod model_scene;
 mod presentation;
 pub use encounter_locks::DungeonEncounter;
+pub use model_scene::{read_model_scene, read_plain_animation, resolve_plain_animation_clip};
 pub use presentation::{JourneyPresentation, read_journey_presentation};
 use rusqlite::{Connection, OpenFlags, Row};
 use std::{collections::BTreeMap, path::Path};
@@ -42,6 +44,8 @@ pub struct Creature {
     pub description: String,
     pub encounter: u32,
     pub display: u32,
+    /// JournalEncounterCreature.UiModelSceneID, applied on each creature selection.
+    pub scene: u32,
     /// JournalEncounterCreature.FileDataID: the authored EncounterBossButton portrait.
     pub portrait: u32,
     pub order: u32,
@@ -209,7 +213,7 @@ impl Catalog {
         )?;
         let creatures = query(
             &db,
-            "SELECT ID,Name_lang,JournalEncounterID,CreatureDisplayInfoID,OrderIndex,FileDataID,Description_lang FROM JournalEncounterCreature ORDER BY OrderIndex,ID",
+            "SELECT ID,Name_lang,JournalEncounterID,CreatureDisplayInfoID,OrderIndex,FileDataID,Description_lang,UiModelSceneID FROM JournalEncounterCreature ORDER BY OrderIndex,ID",
             |r| {
                 Ok(Creature {
                     id: r.get(0)?,
@@ -219,6 +223,7 @@ impl Catalog {
                     display: r.get(3)?,
                     order: r.get(4)?,
                     portrait: r.get(5)?,
+                    scene: r.get(7)?,
                 })
             },
         )?;

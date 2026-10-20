@@ -1,7 +1,7 @@
 //! Native Adventure Guide host and the existing detached creature renderer.
 use crate::{
     GameClient,
-    character_frame::preview::{Scene, bind_sheet_light},
+    character_frame::preview::{Scene, bind_sheet_light, pet_actor_bounds},
     frame_error::FrameError,
     ui::RegistryUi,
     unit_portraits::Portrait,
@@ -22,9 +22,41 @@ pub(crate) struct AdventureGuide {
     scene: Option<Scene>,
     pending: Option<(u64, u32)>,
     shown: Option<u32>,
+    model_source: Option<(u32, u32, u32)>,
+    state_kit_visual: Option<InstanceId>,
     portraits: BTreeMap<u32, Portrait>,
+    #[cfg(debug_assertions)]
+    fixture_suggestion: Option<shared::protocol::AdventureSuggestion>,
+    #[cfg(debug_assertions)]
+    fixture_primary_title: Option<shared::protocol::AdventureSuggestion>,
 }
 impl AdventureGuide {
+    fn copy_activity_presentation(
+        &mut self,
+        authority: Option<Arc<shared::protocol::AdventureGuideSnapshot>>,
+    ) -> Result<(), String> {
+        self.view.activities = authority;
+        #[cfg(debug_assertions)]
+        if let Some(row) = &self.fixture_suggestion {
+            let snapshot = self
+                .view
+                .activities
+                .as_mut()
+                .ok_or("Source-row fixture lost its received activity snapshot")?;
+            replace_suggestion_642_fixture(&mut Arc::make_mut(snapshot).suggestions, row.clone())?;
+        }
+        #[cfg(debug_assertions)]
+        if let Some(row) = &self.fixture_primary_title {
+            let snapshot = self
+                .view
+                .activities
+                .as_mut()
+                .ok_or("Primary-title fixture lost its received activity snapshot")?;
+            replace_primary_title_fixture(&mut Arc::make_mut(snapshot).suggestions, row.clone())?;
+        }
+        Ok(())
+    }
+
     pub(crate) fn creature_portrait_state(&self, id: u32) -> VarDictionary {
         self.portraits
             .get(&id)
@@ -46,10 +78,260 @@ impl AdventureGuide {
         Ok(())
     }
 }
+/// Debug-only input-row fixture: no realm eligibility, priority or activation claim.
+#[cfg(debug_assertions)]
+#[godot_api(secondary)]
+impl GameClient {
+    #[func]
+    fn install_adventure_primary_title_fixture(&mut self, source_id: u32) -> GString {
+        let result = (|| {
+            let row = read_suggestion_fixture(&self.data_root, source_id)?;
+            let current = self
+                .adventure_guide
+                .view
+                .activities
+                .as_deref()
+                .ok_or("Primary-title fixture needs a received activity snapshot")?;
+            let mut snapshot = current.clone();
+            replace_primary_title_fixture(&mut snapshot.suggestions, row.clone())?;
+            self.adventure_guide.fixture_primary_title = Some(row);
+            self.adventure_guide.view.activities = Some(Arc::new(snapshot));
+            self.sync_adventure_guide()
+        })();
+        result.err().unwrap_or_default().as_str().into()
+    }
+
+    #[func]
+    fn install_adventure_suggestion_642_fixture(&mut self) -> GString {
+        let result = (|| {
+            let row = read_suggestion_642_fixture(&self.data_root)?;
+            let current = self
+                .adventure_guide
+                .view
+                .activities
+                .as_deref()
+                .ok_or("Source-row fixture needs a received activity snapshot")?;
+            let mut snapshot = current.clone();
+            replace_suggestion_642_fixture(&mut snapshot.suggestions, row.clone())?;
+            self.adventure_guide.fixture_suggestion = Some(row);
+            self.adventure_guide.view.activities = Some(Arc::new(snapshot));
+            self.sync_adventure_guide()
+        })();
+        result.err().unwrap_or_default().as_str().into()
+    }
+}
+
+#[cfg(debug_assertions)]
+fn replace_suggestion_642_fixture(
+    received: &mut [shared::protocol::AdventureSuggestion],
+    source: shared::protocol::AdventureSuggestion,
+) -> Result<(), String> {
+    if received.len() < 3 {
+        return Err("Source-row fixture needs at least three received suggestions".into());
+    }
+    received[0] = source;
+    Ok(())
+}
+
+#[cfg(debug_assertions)]
+fn replace_primary_title_fixture(
+    received: &mut [shared::protocol::AdventureSuggestion],
+    source: shared::protocol::AdventureSuggestion,
+) -> Result<(), String> {
+    let primary = received
+        .get_mut(2)
+        .ok_or("Primary-title fixture needs at least three received suggestions")?;
+    *primary = source;
+    Ok(())
+}
+
+#[cfg(debug_assertions)]
+fn read_suggestion_642_fixture(
+    root: &std::path::Path,
+) -> Result<shared::protocol::AdventureSuggestion, String> {
+    read_suggestion_fixture(root, 642)
+}
+
+#[cfg(debug_assertions)]
+fn read_suggestion_fixture(
+    root: &std::path::Path,
+    source_id: u32,
+) -> Result<shared::protocol::AdventureSuggestion, String> {
+    let mut source = None;
+    game_engine_core::csv_util::read_db2_rows(
+        &root.join("db2/active/AdventureJournal.csv"),
+        |row| {
+            if row.parse::<u32>("ID")? == source_id {
+                source = Some(shared::protocol::AdventureSuggestion {
+                    id: source_id,
+                    name: row.field("Name_lang")?.into(),
+                    description: row.field("Description_lang")?.into(),
+                    reward_description: row.field("RewardDescription_lang")?.into(),
+                    texture_fdid: row.parse("TextureFileDataID")?,
+                    button_text: row.field("ButtonText_lang")?.into(),
+                });
+            }
+            Ok(())
+        },
+    )?;
+    source.ok_or_else(|| format!("Installed AdventureJournal has no source{source_id} fixture row"))
+}
+
 #[cfg(test)]
 mod tests {
     use super::AdventureGuide;
     use shared::protocol::EncounterStart;
+    #[cfg(debug_assertions)]
+    use std::sync::Arc;
+
+    #[cfg(debug_assertions)]
+    #[test]
+    fn primary_title_fixture_preserves_received_rows_and_authority_across_updates() {
+        use shared::protocol::{AdventureGuideSnapshot, JournalMonth};
+        let root = std::path::Path::new(env!("CARGO_MANIFEST_DIR")).join("../../data");
+        let source = super::read_suggestion_fixture(&root, 823).unwrap();
+        let mut authority = AdventureGuideSnapshot {
+            month: JournalMonth {
+                year: 2026,
+                month: 10,
+                name: "October".into(),
+                start_unix: 0,
+                end_unix: 1,
+                now_unix: 0,
+                tracking_since: 0,
+            },
+            activities: vec![],
+            tags: vec![],
+            suggestions: vec![source.clone(); 4],
+            suggestion_census: Default::default(),
+            points: 0,
+            activity_scope_notice: None,
+            source_error: None,
+        };
+        for (index, row) in authority.suggestions.iter_mut().enumerate() {
+            row.id = 1000 + index as u32;
+        }
+        let mut guide = AdventureGuide {
+            fixture_primary_title: Some(source.clone()),
+            ..Default::default()
+        };
+        for update in [1, 2] {
+            authority.points = update;
+            authority.suggestions[0].description = format!("Received update{update}");
+            let received = Arc::new(authority.clone());
+            guide
+                .copy_activity_presentation(Some(received.clone()))
+                .unwrap();
+            let shown = guide.view.activities.as_deref().unwrap();
+            assert_eq!(shown.suggestions[2], source);
+            assert_eq!(shown.suggestions[..2], authority.suggestions[..2]);
+            assert_eq!(shown.suggestions[3..], authority.suggestions[3..]);
+            assert_eq!(shown.points, update);
+            assert_eq!(*received, authority);
+        }
+        let mut ordinary = AdventureGuide::default();
+        ordinary
+            .copy_activity_presentation(Some(Arc::new(authority.clone())))
+            .unwrap();
+        assert_eq!(*ordinary.view.activities.as_deref().unwrap(), authority);
+    }
+
+    #[cfg(debug_assertions)]
+    #[test]
+    fn suggestion_fixture_survives_two_authoritative_presentation_updates() {
+        use shared::protocol::{AdventureGuideSnapshot, JournalMonth};
+        let root = std::path::Path::new(env!("CARGO_MANIFEST_DIR")).join("../../data");
+        let source = super::read_suggestion_642_fixture(&root).unwrap();
+        let mut rows = vec![source.clone(); 4];
+        rows[0].id = 881;
+        rows[0].name = "Player Housing".into();
+        rows[1].id = 852;
+        let mut authority = AdventureGuideSnapshot {
+            month: JournalMonth {
+                year: 2026,
+                month: 10,
+                name: "October".into(),
+                start_unix: 0,
+                end_unix: 1,
+                now_unix: 0,
+                tracking_since: 0,
+            },
+            activities: vec![],
+            tags: vec![],
+            suggestions: rows,
+            suggestion_census: Default::default(),
+            points: 0,
+            activity_scope_notice: None,
+            source_error: None,
+        };
+        let mut guide = AdventureGuide {
+            fixture_suggestion: Some(source.clone()),
+            ..Default::default()
+        };
+        for update in [1, 2] {
+            authority.points = update;
+            authority.suggestions[1].description = format!("Received update {update}");
+            let received = Arc::new(authority.clone());
+            guide
+                .copy_activity_presentation(Some(received.clone()))
+                .unwrap();
+            let shown = guide.view.activities.as_deref().unwrap();
+            assert_eq!(
+                shown.suggestions[0], source,
+                "fixture lost on update{update}"
+            );
+            assert_eq!(shown.suggestions[1..], authority.suggestions[1..]);
+            assert_eq!(shown.points, update);
+            assert_eq!(*received, authority, "fixture changed authoritative input");
+        }
+        let mut ordinary = AdventureGuide::default();
+        ordinary
+            .copy_activity_presentation(Some(Arc::new(authority.clone())))
+            .unwrap();
+        assert_eq!(ordinary.view.activities.as_deref(), Some(&authority));
+    }
+
+    #[cfg(debug_assertions)]
+    #[test]
+    fn suggestion_fixture_preserves_received_rows_beyond_the_three_painted_panes() {
+        let root = std::path::Path::new(env!("CARGO_MANIFEST_DIR")).join("../../data");
+        let source = super::read_suggestion_642_fixture(&root).unwrap();
+        for count in [0, 2, 3, 5] {
+            let mut received: Vec<_> = (0..count)
+                .map(|index| {
+                    let mut row = source.clone();
+                    row.id = 881 + index;
+                    row.name = format!("Received row {index}");
+                    row
+                })
+                .collect();
+            let before = received.clone();
+            let result = super::replace_suggestion_642_fixture(&mut received, source.clone());
+            if count < 3 {
+                assert!(result.is_err());
+                assert_eq!(received, before);
+            } else {
+                result.expect("a complete eligible vector can contain more than three rows");
+                assert_eq!(received[0], source);
+                assert_eq!(received[1..], before[1..]);
+                assert_eq!(received.len(), before.len());
+            }
+        }
+    }
+
+    #[cfg(debug_assertions)]
+    #[test]
+    fn suggestion_fixture_reads_installed_record_642_without_action_authority() {
+        let root = std::path::Path::new(env!("CARGO_MANIFEST_DIR")).join("../../data");
+        let row = super::read_suggestion_642_fixture(&root).unwrap();
+        assert_eq!(row.id, 642);
+        assert_eq!(row.name, "Trading Post, Open for Business");
+        assert!(row.description.contains("Visit Stormwind or Orgrimmar"));
+        assert!(row.description.contains("Traveler's Log"));
+        assert_eq!(row.texture_fdid, 4696085);
+        assert!(row.button_text.is_empty());
+        assert!(row.reward_description.is_empty());
+    }
 
     #[test]
     fn encounter_start_tracks_visible_guide_without_opening_closed_guide() {
@@ -224,7 +506,8 @@ impl GameClient {
                 role => panic!("Unknown ChrSpecialization role {role}"),
             });
         self.select_queued_journal_encounter()?;
-        self.adventure_guide.view.activities = self.account.adventure_guide.clone();
+        self.adventure_guide
+            .copy_activity_presentation(self.account.adventure_guide.clone())?;
         self.adventure_guide.view.trading_post = self.account.trading_post.clone();
         self.adventure_guide.view.renown = self.account.renown.clone();
         self.update_journey_hover()?;
@@ -574,6 +857,9 @@ impl GameClient {
         )
     }
     fn clear_journal_model(&mut self) {
+        if let Some(visual) = self.adventure_guide.state_kit_visual.take() {
+            self.spell_effects.end_detached_display_kit(visual);
+        }
         if let Some((id, _)) = self.adventure_guide.pending.take() {
             self.world.cancel_detached_visual(id);
         }
@@ -581,25 +867,22 @@ impl GameClient {
             scene.free();
         }
         self.adventure_guide.shown = None;
+        self.adventure_guide.model_source = None;
     }
     fn sync_journal_model(&mut self) -> Result<(), String> {
         if self.adventure_guide.view.page != Page::Model {
             self.clear_journal_model();
             return Ok(());
         }
-        let display = self
+        let source = self
             .adventure_guide
             .view
             .model_creature()
-            .map(|creature| creature.display);
-        let current = self
-            .adventure_guide
-            .pending
-            .map(|(_, display)| display)
-            .or(self.adventure_guide.shown);
-        if display != current {
+            .map(|creature| (creature.id, creature.display, creature.scene));
+        if source != self.adventure_guide.model_source {
             self.clear_journal_model();
-            if let Some(display_id) = display {
+            if let Some((_, display_id, _)) = source {
+                self.adventure_guide.model_source = source;
                 let appearance = UnitAppearance::Creature {
                     display_id,
                     items: Default::default(),
@@ -608,7 +891,7 @@ impl GameClient {
                 self.adventure_guide.pending = Some((id, display_id));
             }
         }
-        if display.is_none() {
+        if source.is_none() {
             return Ok(());
         }
         if self.adventure_guide.scene.is_none() {
@@ -623,6 +906,7 @@ impl GameClient {
             self.adventure_guide.scene = Some(Scene::new(host));
         }
         self.attach_journal_model()?;
+        self.sync_journal_display_state_kit()?;
         self.adventure_guide
             .scene
             .as_mut()
@@ -630,6 +914,26 @@ impl GameClient {
             .fit_viewport();
         Ok(())
     }
+    fn sync_journal_display_state_kit(&mut self) -> Result<(), String> {
+        if self.adventure_guide.state_kit_visual.is_some() {
+            return Ok(());
+        }
+        let Some(display) = self.adventure_guide.shown else {
+            return Ok(());
+        };
+        let Some(model) = self.adventure_guide.scene.as_ref().and_then(Scene::model) else {
+            return Ok(());
+        };
+        let visual = model.instance_id();
+        if self
+            .spell_effects
+            .begin_detached_display_kit(display, visual)?
+        {
+            self.adventure_guide.state_kit_visual = Some(visual);
+        }
+        Ok(())
+    }
+
     fn attach_journal_model(&mut self) -> Result<(), String> {
         let Some((id, display)) = self.adventure_guide.pending else {
             return Ok(());
@@ -639,13 +943,58 @@ impl GameClient {
         };
         self.adventure_guide.pending = None;
         let mut model = loaded?;
-        model.set_rotation(Vector3::ZERO);
+        let prepared = (|| {
+            let (_, _, scene_id) = self
+                .adventure_guide
+                .model_source
+                .ok_or("Journal source missing")?;
+            let (actor, camera) =
+                game_engine_core::adventure_guide::read_model_scene(&self.data_root, scene_id)?;
+            if let Some(animation) =
+                game_engine_core::adventure_guide::read_plain_animation(&self.data_root, actor.id)?
+            {
+                let mut player = model
+                    .try_get_node_as::<crate::animation::WowAnimationPlayer>("NpcModel/M2Animation")
+                    .ok_or("Journal plain authored animation owner missing")?;
+                // Apply once when this detached model attaches; play_clip retains
+                // the existing crossfade path. Normal UI sync never restarts it.
+                let fallbacks = game_engine_core::spell_visual::read_animation_fallbacks(
+                    &self.data_root.join("db2/active"),
+                )?;
+                player
+                    .bind_mut()
+                    .play_plain_clip(animation, true, &fallbacks)?;
+            }
+            model.set_rotation(Vector3::ZERO);
+            let bounds = pet_actor_bounds(&model)?;
+            let size = bounds.size;
+            let center = bounds.center();
+            let scale = actor.actor_scale(glam::Vec3::new(size.x, size.y, size.z));
+            let origin = actor.actor_origin(glam::Vec3::new(center.x, center.y, center.z), scale);
+            let rotation = actor.actor_rotation();
+            let rotation = Basis::from_quaternion(Quaternion::new(
+                rotation.x, rotation.y, rotation.z, rotation.w,
+            ));
+            let basis = rotation * model.get_basis().scaled(Vector3::ONE * scale);
+            model.set_basis(basis);
+            model.set_position(Vector3::new(origin.x, origin.y, origin.z));
+            Ok::<_, String>(camera)
+        })();
+        let camera = match prepared {
+            Ok(camera) => camera,
+            Err(error) => {
+                model.free();
+                return Err(error);
+            }
+        };
         bind_sheet_light(&model);
-        self.adventure_guide
+        let scene = self
+            .adventure_guide
             .scene
             .as_mut()
-            .ok_or("Journal scene missing")?
-            .replace_model(model);
+            .ok_or("Journal scene missing")?;
+        scene.replace_unframed_model(model);
+        scene.set_authored_camera(&camera, 0., camera.zoom_percent());
         self.adventure_guide.shown = Some(display);
         Ok(())
     }

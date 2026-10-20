@@ -41,6 +41,25 @@ fn free(ui: &mut Option<Gd<RegistryUi>>) {
         ui.free();
     }
 }
+/// Shared native action boundary; offline fixtures use the same reducer dispatch.
+pub(crate) fn apply_achievement_ui_action(
+    window: &mut model::AchievementWindow,
+    ui: &mut RegistryUi,
+    action: &str,
+) -> Vec<QueryAchievementCatalog> {
+    let was_focused = window.search_focused;
+    let requests = window.action(action);
+    let search_selection = matches!(
+        action,
+        "achievement:search_all" | "achievement:search_submit"
+    ) || action.starts_with("achievement:preview:");
+    // Mainline AchievementUI.lua3594–3604/3669–3676: only committed selections ClearFocus.
+    if search_selection && was_focused && !window.search_focused {
+        ui.release_focus_named("AchievementSearchBox");
+    }
+    requests
+}
+
 impl GameClient {
     /// AchievementUI's ScrollBoxes use the same host-routed wheel/thumb/stepper input as QuestFrame.
     pub(super) fn achievement_pointer(&mut self, event: &Gd<godot::classes::InputEvent>) -> bool {
@@ -131,7 +150,11 @@ impl GameClient {
                 if action.is_empty() {
                     break;
                 }
-                let requests = self.account.achievements.action(&action);
+                let requests = apply_achievement_ui_action(
+                    &mut self.account.achievements,
+                    &mut ui.bind_mut(),
+                    &action,
+                );
                 self.send_achievement_requests(requests)?;
             }
             self.apply_achievement_shift_clicks(&mut ui)?;
@@ -215,6 +238,14 @@ impl GameClient {
     }
 
     fn apply_achievement_search_input(&mut self, ui: &Gd<RegistryUi>) -> Result<(), FrameError> {
+        let focused = ui.bind().is_frame_focused("AchievementSearchBox");
+        if focused != self.account.achievements.search_focused {
+            self.account.achievements.action(if focused {
+                "achievement:search_focus"
+            } else {
+                "achievement:search_blur"
+            });
+        }
         let search = {
             let host = ui.bind();
             host.registry().and_then(|registry| {
@@ -268,7 +299,11 @@ impl GameClient {
             return Ok(());
         }
         let state = self.account.achievements.clone();
-        for entry in state.entries() {
+        for entry in state
+            .entries()
+            .iter()
+            .chain(state.search_results.entries.iter().take(5))
+        {
             self.drawable_fdid(entry.icon_fdid);
         }
         if let Some(ui) = &mut self.achievements.ui {

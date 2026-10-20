@@ -18,6 +18,7 @@ use ui_toolkit::widget_def::Element;
 use ui_toolkit::widgets::texture::{DynamicTextureId, TextureSource};
 
 fn dump_frame(registry: &FrameRegistry, id: u64, out: &mut String) {
+    super::golden_layer_census::record(registry, id);
     let f = registry.get(id).unwrap();
     writeln!(out, "{:?} {:?} size={:?},{:?} pos={:?},{:?} anchor={:?} translate={:?} margin={:?} layout={:?} visibility={},{} alpha={},{} scale={},{} strata={:?} level={} raise={} layer={:?},{} input={},{},{:?} bg={:?} backdrop={:?} nine={:?} three={:?} border={:?} style={:?},{:?} behavior={},{},{} click={:?} flex={:?} data={:?}",
         f.name, f.widget_type, f.width, f.height, f.position, f.position_type, f.anchor,

@@ -14,6 +14,8 @@ use shared::protocol::ProfessionSnapshot;
 use std::collections::{BTreeMap, BTreeSet};
 use std::sync::mpsc::{self, Receiver, TryRecvError};
 
+#[path = "professions_favorites.rs"]
+mod favorites;
 #[path = "professions_reagents.rs"]
 mod reagents;
 
@@ -29,6 +31,9 @@ pub(crate) struct Professions {
         game_engine_ui_model::professions_reagent_selection::ReagentSelection,
     collapsed: BTreeSet<String>,
     page: ProfessionPage,
+    favorite_menu: Option<(u32, [f32; 2])>,
+    selected_favorite: bool,
+    filter_open: bool,
     pub(crate) specializations:
         game_engine_ui_model::professions_specializations::SpecializationDraft,
     pub(crate) orders: game_engine_ui_model::professions_orders::CraftingOrders,
@@ -105,6 +110,14 @@ impl Professions {
 
 impl GameClient {
     pub(super) fn receive_professions(&mut self, snapshot: ProfessionSnapshot) {
+        if self
+            .professions
+            .book
+            .selected
+            .is_some_and(|spell| !snapshot.favorites.contains(&spell))
+        {
+            self.professions.selected_favorite = false;
+        }
         self.professions.book.snapshot = snapshot;
     }
     pub(super) fn receive_profession_concentration(
@@ -139,12 +152,36 @@ impl GameClient {
         Ok(())
     }
 
+    pub(super) fn profession_pointer(&mut self, event: &Gd<godot::classes::InputEvent>) -> bool {
+        if self.game_menu_ui.is_some() {
+            return false;
+        }
+        let Some(ui) = self.professions.ui.as_mut() else {
+            return false;
+        };
+        let taken = ui.bind_mut().scroll_list_input(event);
+        match taken {
+            Ok(false) => false,
+            Ok(true) => {
+                self.mark_viewport_input_handled();
+                true
+            }
+            Err(error) => {
+                crate::frame_error::report_once(&format!("Profession scroll input: {error}"));
+                false
+            }
+        }
+    }
+
     pub(super) fn close_professions(&mut self) -> bool {
         let visible = self.professions.book.visible;
         self.professions.book.visible = false;
+        self.professions.book.reset_visibility_filters();
+        self.professions.filter_open = false;
         self.professions.concentration = None;
         self.professions.concentration_skill = None;
         self.professions.page = ProfessionPage::Recipes;
+        self.professions.favorite_menu = None;
         self.professions.order_form_initialized = false;
         self.professions.orders.menu = None;
         self.professions.orders.npc = None;
@@ -223,13 +260,13 @@ impl GameClient {
             .recipes
             .iter()
             .filter_map(|recipe| {
-                if !self
-                    .professions
-                    .book
-                    .snapshot
-                    .spells
-                    .contains(&recipe.spell_id)
-                {
+                let snapshot = &self.professions.book.snapshot;
+                let learned = snapshot.spells.contains(&recipe.spell_id);
+                let owns_line = snapshot
+                    .lines
+                    .iter()
+                    .any(|line| line.rank > 0 && line.skill_line == recipe.skill_line);
+                if !learned && !owns_line {
                     return None;
                 }
                 let mut recipe = recipe.clone();
@@ -242,7 +279,15 @@ impl GameClient {
                 .professions
                 .book
                 .recipes
-                .first()
+                .iter()
+                .min_by_key(|recipe| {
+                    !self
+                        .professions
+                        .book
+                        .snapshot
+                        .spells
+                        .contains(&recipe.spell_id)
+                })
                 .map(|recipe| recipe.spell_id);
         }
     }
@@ -278,6 +323,7 @@ impl GameClient {
                 .parse()
                 .unwrap_or(0);
         }
+        self.poll_profession_favorite_clicks(&mut ui)?;
         self.read_order_form(&mut ui)?;
         self.read_quality_quantities(&mut ui, false)?;
         loop {
@@ -289,7 +335,24 @@ impl GameClient {
                 self.close_professions_window()?;
                 break;
             }
-            if let Some(tab) = action.strip_prefix("profession:tab:") {
+            if !action.starts_with("profession:filter:") {
+                self.professions.filter_open = false;
+            }
+            if let Some(filter) = action.strip_prefix("profession:filter:") {
+                self.professions.favorite_menu = None;
+                match filter {
+                    "menu" => self.professions.filter_open = !self.professions.filter_open,
+                    "reset" => self.professions.book.reset_visibility_filters(),
+                    "learned" => {
+                        self.professions.book.hide_learned = !self.professions.book.hide_learned
+                    }
+                    "unlearned" => {
+                        self.professions.book.hide_unlearned = !self.professions.book.hide_unlearned
+                    }
+                    _ => return Err(format!("Unknown recipe visibility filter: {filter}").into()),
+                }
+            } else if let Some(tab) = action.strip_prefix("profession:tab:") {
+                self.professions.favorite_menu = None;
                 self.professions.page = match tab {
                     "recipes" => ProfessionPage::Recipes,
                     "specializations" => ProfessionPage::Specializations,
@@ -310,12 +373,12 @@ impl GameClient {
                 self.professions.page = ProfessionPage::Recraft;
             } else if let Some(action) = action.strip_prefix("profession:spec:") {
                 self.apply_specialization_action(action)?;
+            } else if let Some(raw) = action.strip_prefix("profession:favorite:") {
+                self.send_profession_favorite(raw)?;
+            } else if let Some(raw) = action.strip_prefix("profession:favorite-select:") {
+                self.select_profession_recipe(raw, true)?;
             } else if let Some(raw) = action.strip_prefix("profession:select:") {
-                self.professions.book.selected = Some(
-                    raw.parse()
-                        .map_err(|_| format!("Invalid recipe selection: {action}"))?,
-                );
-                self.professions.error.clear();
+                self.select_profession_recipe(raw, false)?;
             } else if let Some(category) = action.strip_prefix("profession:category:") {
                 if !self.professions.collapsed.remove(category) {
                     self.professions.collapsed.insert(category.into());
@@ -412,6 +475,28 @@ impl GameClient {
         }
         Ok(())
     }
+    /// `C_TradeSkillUI.GetRecipeCooldown`: the selected recipe's own clock and that of
+    /// its `SpellCategories` category, from the server's `SpellCooldownUpdate`s.
+    fn selected_recipe_cooldown(
+        &self,
+        book: &game_engine_ui_model::professions::ProfessionBook,
+    ) -> Option<u32> {
+        let spell = book.selected?;
+        let spells = &self.account.spells;
+        let category = self
+            .professions
+            .catalog
+            .as_ref()
+            .and_then(|catalog| catalog.cooldown_categories.get(&spell))
+            .and_then(|&category| spells.category_cooldown(category));
+        game_engine_ui_model::professions_cooldown::remaining_secs(
+            spells
+                .button_cooldown(spell, false)
+                .map(|clock| clock.remaining),
+            category.map(|clock| clock.remaining),
+        )
+    }
+
     fn profession_view(&mut self) -> ProfessionView {
         let book = self.professions.book.clone();
         let inventory = &self.merchant.session.inventory;
@@ -422,6 +507,17 @@ impl GameClient {
             .local_player_id()
             .and_then(|id| self.replica.unit(id))
             .is_some_and(|unit| unit.has::<CastState>());
+        if self.professions.reagent_selection.spell_id != book.selected
+            && let Some(recipe) = book
+                .selected_recipe()
+                .filter(|recipe| recipe.output.is_none())
+        {
+            godot_print!(
+                "Profession operation unavailable recipe={}: {}",
+                recipe.spell_id,
+                shared::profession::CraftingOperationGap::CraftingOperationComposition
+            );
+        }
         self.professions
             .reagent_selection
             .select_recipe(book.selected);
@@ -441,12 +537,21 @@ impl GameClient {
             .collect();
         let mut view = ProfessionView {
             page: self.professions.page,
+            favorite_menu: self.professions.favorite_menu,
+            selected_favorite: self.professions.selected_favorite,
+            filter_open: self.professions.filter_open,
+            search_focused: self
+                .professions
+                .ui
+                .as_ref()
+                .is_some_and(|ui| ui.bind().is_frame_focused(SEARCH)),
             now_unix: godot::classes::Time::singleton().get_unix_time_from_system() as u64,
             specializations: self.professions.specializations.clone(),
             concentration: self.professions.concentration.clone(),
             crafting_quality,
             can_create: !casting && book.craft_request(inventory, false).is_some(),
             can_all: !casting && book.craft_request(inventory, true).is_some(),
+            recipe_cooldown_secs: self.selected_recipe_cooldown(&book),
             skill_names: self
                 .professions
                 .catalog
@@ -459,8 +564,11 @@ impl GameClient {
                 .as_ref()
                 .map(|catalog| catalog.child_skills.clone())
                 .unwrap_or_default(),
-            status: self.quality_operation_status(),
-            bag_counts: self.profession_reagent_counts(),
+            status: game_engine_ui_model::professions_reagent_selection::craft_status(
+                &self.professions.error,
+                &self.professions.reagent_selection,
+            ),
+            owned_reagents: self.profession_reagent_counts(),
             reagent_selection: self.professions.reagent_selection.clone(),
             reagent_slots,
             recipe_craftable: recipe_craftable_counts(&book, inventory),

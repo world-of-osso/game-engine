@@ -1,11 +1,11 @@
 //! Retail Mainline PVPUI.xml804–861/1670–1728; Lua1904–1947/1975–1983.
 //! No ratio, badge level or next reward is invented while HONOR_LEVEL_XP_CURVE is open.
-use super::{PvpView, frame};
+use super::PvpView;
 use crate::bank_art::label;
 use crate::game_tooltip::GameTooltip;
 use crate::quest_art::{NORMAL_FONT_COLOR, named_atlas_texture};
 use crate::tooltip_presentation::{TooltipLineState, TooltipPresentation};
-use ui_toolkit::widget_def::Element;
+use ui_toolkit::{rsx, widget_def::Element};
 
 pub(super) fn honor_inset(view: &PvpView) -> Element {
     let Some(snapshot) = &view.snapshot else {
@@ -32,14 +32,16 @@ pub(super) fn honor_inset(view: &PvpView) -> Element {
         "pvpqueue-sidebar-background",
         (3.0, 3.0, 160.0, 375.0),
     );
-    children.extend(frame(
-        "PVPUIHonorLevelDisplay",
-        (128.0, 128.0),
-        (19.0, 25.0),
-        ring,
-    ));
+    children.extend(rsx! { r#frame {
+        name: "PVPUIHonorLevelDisplay", width: 128.0, height: 128.0,
+        left: 19.0, top: 25.0, pos_type: "absolute", mouse_enabled: true, {ring}
+    } });
+    // PVPUI.xml1682/1718: inherit the queue strata; neither child promotes to DIALOG.
     // PVPUIFrame563 + Lua225 extra width; XML inset RIGHT-6, width166, top22/bottom25.
-    frame("PVPUIHonorInset", (166.0, 381.0), (616.0, 22.0), children)
+    rsx! { r#frame {
+        name: "PVPUIHonorInset", width: 166.0, height: 381.0,
+        left: 616.0, top: 22.0, pos_type: "absolute", mouse_enabled: true, {children}
+    } }
 }
 
 fn faction_art(view: &PvpView) -> Element {

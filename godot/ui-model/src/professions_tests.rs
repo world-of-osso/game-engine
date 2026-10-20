@@ -12,6 +12,8 @@ fn book() -> ProfessionBook {
                 max_rank: 75,
             }],
             spells: vec![3908, 3275, 3276],
+            favorites: vec![],
+            recipe_sources: vec![],
         },
         recipes: vec![
             Recipe {
@@ -80,17 +82,34 @@ fn bags() -> InventoryState {
     }
 }
 #[test]
-fn professions_snapshot_groups_only_known_recipes() {
+fn professions_snapshot_groups_known_recipes_before_unlearned() {
     let book = book();
     let groups = book.groups();
-    assert_eq!(groups.len(), 1);
+    assert_eq!(groups.len(), 2);
     assert_eq!(groups[0].0, "Bandages");
+    assert_eq!(groups[1].0, "Cloth");
+    assert_eq!(groups[1].1[0].spell_id, 2963);
     assert_eq!(
         groups[0].1.iter().map(|r| r.spell_id).collect::<Vec<_>>(),
         [3276, 3275]
     );
     assert_eq!(book.snapshot.lines[0].rank, 1);
 }
+#[test]
+fn professions_unlearned_recipe_is_selectable_but_cannot_emit_a_craft() {
+    let mut book = book();
+    book.snapshot.spells.retain(|spell| *spell != 3276);
+    book.selected = Some(3276);
+    assert_eq!(book.selected_recipe().unwrap().spell_id, 3276);
+    assert_eq!(book.reagent_counts(&bags()), [(2589, 5, 2)]);
+    assert_eq!(book.craftable_count(&bags()), 0);
+    assert!(book.craft_request(&bags(), false).is_none());
+    assert!(book.craft_request(&bags(), true).is_none());
+    book.snapshot.spells.push(3276);
+    assert_eq!(book.craft_request(&bags(), false).unwrap().spell_id, 3276);
+    assert_eq!(book.groups()[0].1.len(), 2);
+}
+
 #[test]
 fn professions_search_filters_case_insensitively() {
     let mut book = book();
@@ -119,6 +138,40 @@ fn professions_schematic_sums_concrete_bag_stacks_not_equipment() {
     assert_eq!(book().reagent_counts(&bags), [(2589, 5, 1)]);
 }
 #[test]
+fn professions_create_all_counts_banked_reagents_after_the_bank_frame_closes() {
+    use shared::protocol::{BankContents, BankTabView, BankType, ItemStack};
+    let banked = |bank, count| BankContents {
+        bank,
+        tabs: vec![BankTabView {
+            name: "Tab 1".into(),
+            icon: 0,
+            deposit_flags: 0,
+            slots: vec![Some(ItemStack {
+                item_guid: 20 + count as u64,
+                item_id: 2589,
+                definition_source: shared::item_data::ItemDefinitionSource::Retail,
+                count,
+                durability: None,
+                soulbound: false,
+                crafting_origin: None,
+            })],
+        }],
+        next_tab_cost: None,
+        money: None,
+    };
+    let mut bags = bags();
+    bags.apply_bank_contents(&banked(BankType::Character, 4));
+    bags.apply_bank_contents(&banked(BankType::Account, 9));
+    // Closing the bank frame drops only the cursor projection.
+    bags.bank_slots.clear();
+    // A newer Warband snapshot replaces the old one.
+    bags.apply_bank_contents(&banked(BankType::Account, 3));
+    let mut book = book();
+    book.selected = Some(3276);
+    assert_eq!(book.reagent_counts(&bags), [(2589, 12, 2)]);
+    assert_eq!(book.craft_request(&bags, true).unwrap().casts, 6);
+}
+#[test]
 fn professions_create_emits_spell_id_and_cast_quantity() {
     let request = book().craft_request(&bags(), false).expect("can craft");
     assert_eq!(request.spell_id, 3275);
@@ -141,6 +194,8 @@ fn professions_trainer_learned_leather_pants_use_recipe_knowledge_not_auto_learn
                 max_rank: 300,
             }],
             spells: vec![2108, 2153],
+            favorites: vec![],
+            recipe_sources: vec![],
         },
         selected: Some(2153),
         quantity: 1,
@@ -242,6 +297,7 @@ fn professions_db2_catalog_joins_classic_tailoring_recipe() {
             "ID,DisplayName_lang,SpellBookSpellID,CategoryID,ParentSkillLineID,ParentTierIndex\n197,Tailoring,3908,11,0,0\n2540,Classic Tailoring,0,11,197,0\n",
         ),
         ("SkillLineXTraitTree", "ID,SkillLineID,Variant\n"),
+        ("SpellCategories", "SpellID,DifficultyID,Category\n"),
         (
             "TradeSkillCategory",
             "ID,Name_lang,OrderIndex\n1089,Bandages,20\n1090,Weaving,10\n",
@@ -369,6 +425,132 @@ fn professions_both_skins_show_counts_and_disable_missing_reagent_create() {
             .unwrap();
         assert!(
             matches!(reagent.widget_data.as_ref(), Some(WidgetData::FontString(text)) if text.text == "0/1 Linen Cloth")
+        );
+    }
+    set_thread_skin(ActiveSkin::Modern);
+}
+
+#[test]
+fn professions_recipe_cooldown_category_comes_from_spell_categories() {
+    let dir = std::path::PathBuf::from(env!("CARGO_MANIFEST_DIR")).join("../../data/db2/active");
+    let catalog = crate::professions_catalog::RecipeCatalog::load(&dir).unwrap();
+    // Prismatic Sphere and Void Sphere share the 48 h Enchanting category.
+    assert_eq!(catalog.cooldown_categories.get(&28027), Some(&1174));
+    assert_eq!(catalog.cooldown_categories.get(&28028), Some(&1174));
+    assert_eq!(catalog.cooldown_categories.get(&2153), None);
+    // Berserker Rage is a class spell, not a recipe.
+    assert!(!catalog.cooldown_categories.contains_key(&18499));
+}
+
+#[test]
+fn professions_recipe_cooldown_is_the_longer_of_spell_and_category_clocks() {
+    use crate::professions_cooldown::remaining_secs;
+    assert_eq!(remaining_secs(None, None), None);
+    assert_eq!(remaining_secs(Some(10.2), None), Some(11));
+    // An uncast recipe sharing the category of a cast one is on cooldown too.
+    assert_eq!(remaining_secs(None, Some(172_799.5)), Some(172_800));
+    assert_eq!(remaining_secs(Some(5.0), Some(60.0)), Some(60));
+    assert_eq!(remaining_secs(Some(0.0), None), None);
+}
+
+#[test]
+fn professions_recipe_cooldown_text_uses_two_retail_units() {
+    crate::paths::set_data_root(
+        std::path::PathBuf::from(env!("CARGO_MANIFEST_DIR")).join("../../data"),
+    )
+    .unwrap();
+    use crate::professions_cooldown::remaining_text;
+    assert_eq!(remaining_text(172_800), "Cooldown remaining: 2 Days");
+    assert_eq!(
+        remaining_text(172_799),
+        "Cooldown remaining: 1 Day 23 Hours"
+    );
+    assert_eq!(
+        remaining_text(3_605),
+        "Cooldown remaining: 1 Hour 5 Seconds"
+    );
+    assert_eq!(remaining_text(61), "Cooldown remaining: 1 Minute 1 Second");
+    assert_eq!(remaining_text(59), "Cooldown remaining: 59 Seconds");
+}
+
+#[test]
+fn professions_both_skins_cooldown_disables_create_and_shows_remaining() {
+    use crate::professions_frame::{ProfessionView, professions_screen};
+    use ui_toolkit::{
+        atlas::{ActiveSkin, set_thread_skin},
+        frame::WidgetData,
+        registry::FrameRegistry,
+        screen::{Screen, SharedContext},
+        widgets::button::ButtonState,
+    };
+    crate::paths::set_data_root(
+        std::path::PathBuf::from(env!("CARGO_MANIFEST_DIR")).join("../../data"),
+    )
+    .unwrap();
+    let button_state = |registry: &FrameRegistry, name: &str| match registry
+        .get(registry.get_by_name(name).unwrap())
+        .unwrap()
+        .widget_data
+        .as_ref()
+    {
+        Some(WidgetData::Button(button)) => button.state,
+        other => panic!("{name}: {other:?}"),
+    };
+    for skin in [ActiveSkin::Modern, ActiveSkin::Forever] {
+        set_thread_skin(skin);
+        let book = book();
+        let inventory = bags();
+        let mut view = ProfessionView {
+            reagents: book.reagent_counts(&inventory),
+            can_create: book.craft_request(&inventory, false).is_some(),
+            can_all: book.craft_request(&inventory, true).is_some(),
+            craftable: book.craftable_count(&inventory),
+            recipe_cooldown_secs: Some(172_799),
+            book,
+            ..Default::default()
+        };
+        assert!(
+            view.can_create && view.can_all,
+            "reagents alone allow crafting"
+        );
+        let mut shared = SharedContext::new();
+        shared.insert(skin);
+        shared.insert(view.clone());
+        let mut registry = FrameRegistry::new(1920.0, 1080.0);
+        let mut screen = Screen::new(professions_screen);
+        screen.sync(&shared, &mut registry);
+        let cooldown = registry
+            .get(
+                registry
+                    .get_by_name("ProfessionsRecipeCooldown")
+                    .expect("cooldown line"),
+            )
+            .unwrap();
+        let Some(WidgetData::FontString(text)) = cooldown.widget_data.as_ref() else {
+            panic!("{:?}", cooldown.widget_data)
+        };
+        assert_eq!(text.text, "Cooldown remaining: 1 Day 23 Hours");
+        assert_eq!(text.color, crate::item_tooltip::RED_FONT_COLOR);
+        assert_eq!(
+            button_state(&registry, "ProfessionsCreate"),
+            ButtonState::Disabled
+        );
+        assert_eq!(
+            button_state(&registry, "ProfessionsCreateAll"),
+            ButtonState::Disabled
+        );
+
+        view.recipe_cooldown_secs = None;
+        shared.insert(view);
+        screen.sync(&shared, &mut registry);
+        assert!(registry.get_by_name("ProfessionsRecipeCooldown").is_none());
+        assert_ne!(
+            button_state(&registry, "ProfessionsCreate"),
+            ButtonState::Disabled
+        );
+        assert_ne!(
+            button_state(&registry, "ProfessionsCreateAll"),
+            ButtonState::Disabled
         );
     }
     set_thread_skin(ActiveSkin::Modern);

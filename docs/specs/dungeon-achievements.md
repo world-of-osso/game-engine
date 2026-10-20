@@ -2,6 +2,20 @@
 
 Native Retail Mainline AchievementUI and dungeon objectives, using authoritative server catalog/state and local extracted art. Forever changes art, not feature availability. [State and sources](../wiki/systems/dungeon-achievements.md).
 
+## Header title content and style
+
+- Player title resolves installed GlobalStrings `ACHIEVEMENT_TITLE` (Warband Achievement Points); guild title resolves `GUILD_ACHIEVEMENTS_TITLE` (Guild Achievements), following AchievementUI.lua380/398.
+- Use Roman Friz10 and local black(+1,−1) shadow from GameFontNormalSmall. Preserve150×20 at existing(334,−29), gold ink and horizontal CENTER; points/shield/actions and other labels stay unchanged.
+- `ACHIEVEMENT_HEADER_TITLE_AUTOSCALE_UNIMPLEMENTED`: Retail XML1956 maxLines2 and AutoScalingFontStringMixin(minLineHeight8) remain out of scope unless an actual Retail string overflows. Current installed player/guild strings measure138/95px at10pt in both skins, fitting150px; no autoscale or maxLines behavior added.
+- Model controls verify both strings, source font/shadow, allocation/anchor/ink and fit. Native `achievement_header_title`4 is reserved for the lead's post-landing window; model PASS does not establish native pixel/raster parity. [Implementation and sources](../wiki/systems/dungeon-achievements.md#header-title).
+
+## Bottom tabs
+
+- Achievements, Guild and Statistics use Retail's authored AchievementFrameTabButtonTemplate, not boxed panel buttons or generic PanelTab art; share the existing tab builder via its Achievement variant.
+- Preserve Header-sheet strips, active59/inactive49 height,21/18px caps and inactive tint0.6; centered Friz10 captions, selected/inactive center offsets−5/−3.
+- Size tabs by PanelTemplates_TabResize30 (text width+20+30), first tab x17/y+3 below the frame; subsequent shared+3 spacing and Statistics−5 override. Preserve existing actions and both-skin feature parity.
+- Verify source geometry/art in the UI model and native captions across three selections in both skins; publish both-skin PNGs. [Source audit](../handoffs/achievement-bottom-tabs.md).
+
 ## What it must do
 
 ### Dungeon and window lifecycle
@@ -23,6 +37,7 @@ Native Retail Mainline AchievementUI and dungeon objectives, using authoritative
 - [x] Browse category ancestry/order, icons/names/descriptions/points/earned dates and criterion progress, including continuation pages.
 - [x] Show bare thousands-separated earned points beside the Retail shield in both skins.
 - [x] Use Retail's 768×500 AchievementFrame, styled collapsible category tree with native wheel/thumb scrolling, header shield/search/clear art and authored bottom tabs. Forever changes art only.
+- [x] Keep the107×30 search template immediately left of the header filter with7px between control bounds, in ordinary and comparison views. Retail XML1675–1713 right-to-left/index1/index2 layout gives search x511/x631; preserve current y, sizes, filter behavior and every other UI element.
 - [x] Achievement row buttons expand criteria in place, pushing following rows down; include icon frames, point shields, centered titles/descriptions, completion dates and authentic progress-bar art. Native row scrolling fetches further cursor pages at the bottom without collapsing selection; category/filter changes start at the top. Statistics use Retail striped rows. Summary uses carved category status-bar art; fills must not cover captions.
 
 ### Earned links and tracking
@@ -34,6 +49,16 @@ Native Retail Mainline AchievementUI and dungeon objectives, using authoritative
 - [x] Track unearned achievements in the existing objective tracker after quests. Refresh tracked rows while the window is closed; stop tracking earned rows.
 - [x] Persist character-scoped watch IDs under authenticated account/realm preferences; restore rows from the server, not serialized progress.
 - Tracking follows Retail's ten-achievement cap and refuses completed achievements.
+
+- [x] AchievementSearchBox uses source TextInsets left16/right20/top0/bottom0 (InputBoxTemplates.xml245), allowing the authored107×30 native rectangle with its font family, position, art and filter behavior retained. Native geometry proof covers both skins × ordinary/comparison; separate post-landing real-peer physical search/clear/completion-filter retention passes in all four modes (2026-10-18).
+
+- [x] AchievementSearchBox Roman font size is10, not the generic EditBox16 default. Source: AchievementUI.xml1709→InputBoxTemplates.xml206/202→FontStyles.xml92/56→Fonts.xml39–44 (SearchBoxTemplate→GameFontHighlightSmall→SystemFont_Shadow_Small/FRIZQT__.TTF height10). Use the same nominal10 as accepted criterion captions; the shared projection-root UI scale applies once, with no additional font conversion. This size-only change preserves family/color/shadow/insets/107×30/positions/art/filter/actions; separate post-landing both-skin normal/actual-online-comparison physical search/clear/three-filter retention passes (2026-10-18). Full font/template or cross-run pixel invariance is not claimed.
+
+- [x] AchievementSearchBox typed text uses WHITE_FONT_COLOR (AchievementUI.xml1709→InputBoxTemplates.xml206/202→FontStyles.xml92–94). Only this widget's font_color is explicit; global defaults stay unchanged. Existing native projection also colors its caret white: accepted coupled side effect, not a claim of Retail caret parity. Font family/size10,107×30/insets/x/y/art/actions/filter/caret width/blink stay unchanged; post-landing both-skin normal/actual-online-comparison numeric-white and physical search/clear/three-filter retention passes (2026-10-18). Shadow and empty instruction hint remain outside this slice.
+
+- [x] AchievementSearchBox has a noninteractive gray Search instruction label iff query is empty, independent of focus; typing hides it and clear restores it. Source InputBoxTemplates.xml186–191/206–209 and Lua131–132/191–201, delegated by AchievementUI.lua3447–3448: RomanFriz10, RGB0.35, left/middle, local black(+1,−1) shadow,71×30 at searchleft+16/y25. Preserve accepted typed text/white-caret coupling, font/insets/geometry/art/actions/filter behavior; no global/template/focus-tint/clear-policy changes or Retail caret parity claim. Post-landing repaired both-skin ordinary/actual-online-comparison physical initial-hint/click-through/type-hide/clear-restore/three-filter retention passes with strict2/2 completion per skin, zero stream errors and exactly sixteen full-HD captures (2026-10-18); the first stale-worktree-data run remains failed.
+
+- [x] A selected category whose page has not loaded shows no invented Loading achievements... label. Pending remains unknown, not a known-empty result or an error; loaded-empty/loaded-rows/error behavior stays distinct. Keep existing search/inspect indicators and all cursor/network behavior. Retail cache Lua146/161/759–774 builds categories via GetCategoryList without this generic row; real async search uses its separate0.3s progress path (3345–3399). No Retail latency claim, prefetch, tree or portrait change.
 
 ### Statistics and search
 
@@ -59,6 +84,8 @@ Native Retail Mainline AchievementUI and dungeon objectives, using authoritative
 
 - `godot/ui-model/tests/dungeonclient.rs` — concrete both-skin Summary/scopes, criteria continuation, search/statistics, tracking, links and authored art regions.
 - `godot/rust/src/account_dungeonclient_tests.rs` — actual account dispatch/continuations/live updates.
+- `godot/tests/achievement_search_geometry.gd` — actual offline production RegistryUi/LineEdit four-mode107×30, L16/R20/T0/B0 margins, unchanged16pt font/search/filter geometry; no received-comparison or pointer proof claim.
+- `godot/rust/src/ui/layout.rs::tests::achievement_header_search_*` — both skins × ordinary/comparison source bounds and translated search art/clear, through actual native host layout; post-landing native pointer proof is separate.
 - `godot/rust/src/achievements.rs::tracking_tests` — persisted IDs and corrupt preference rejection.
 - `godot/network/src/dungeonclient_wire_tests.rs` — ephemeral UDP AchievementChannel ordering.
 - `godot/rust/src/account_netdelta_tests.rs` — full-vs-delta state, invalidation and toast-order equivalence; earned replacement/removal, progress add/update/remove; full-snapshot replacement/reconnect baseline reset; missing-baseline failure.
@@ -66,6 +93,54 @@ Native Retail Mainline AchievementUI and dungeon objectives, using authoritative
 - `godot/tests/achievement_criteria_live.gd` with `native_achievements_criteria_peer` — private5898 physical paid purchase/item-use, current1→2 mount progress, three earned achievements and isolated online comparison, in either skin. Requires fresh fb_achcrit_* accounts, explicit level/gold/position fixture setup and relocated authentic vendors; never pre-seeded counters or known spells.
 - Server `achievement_window_tests.rs` — real catalog totals, faction/scope, hidden-copy exclusion, raw statistic counters, multi-page search, Unicode correlation and authored earned icon.
 - Native private proof and inspected Modern/Forever PNGs are indexed in the linked wiki.
+
+## Search preview
+
+- Typing preserves the category/Summary body and its selection. With search focus and at least three characters, display up to five real received search results in the Retail206×27 icon/name rows beneath the SearchBox (popup offset−4,+3 from its bottom-left).
+- Show All Results appears only when more than five received rows or a continuation cursor proves additional results. It explicitly opens the full received result list; native bottom scrolling continues existing cursors. Do not invent a result total.
+- Clicking a preview opens that achievement. Clear/short query hides the popup; focus loss hides it without replacing the body. Replies for another query/scope cannot populate it; replies after blur cannot reopen it. Both skins share behavior/source geometry.
+- Exclude Retail's separate0.3s search-progress path and invented percentages. Source: cached Mainline AchievementUI.xml14–60,1724–1852; Lua3401–3459,3533–3542.
+- [x] Both-skin normal/real online comparison native proof covers physical focus/type/five received rows/blur/refocus/clear/Show All/achievement open on exact landeddf3. Sixteen inspected full-HD originals, strict exit0/unique2/2/zero-error drained streams and owned cleanup are [recorded in the wiki](../wiki/systems/dungeon-achievements.md#post-landing-search-preview-native-proof--2026-10-18). Native rapid-clear is not a latency/guaranteed delayed-reply claim.
+
+### Selection focus
+
+- A successful Show All or received-preview open releases the native SearchBox keyboard focus, preserving the existing query/body/selection transition. Unknown or malformed preview IDs, Show All without additional results, and unrelated actions do not release it. Source: cached Mainline AchievementUI.lua3594–3604/3669–3676.
+- Native-process fixture: `godot/tests/achievement_search_selection_focus.gd` covers both skins and the successful/invalid/no-op boundaries; no server changes or keyboard-navigation extension.
+
+### Keyboard preview selection
+
+- Ready received previews default to the first row; hover and cyclic Up/Down share one selected item across up to five visible rows and the conditional Show All row. Render the source selected highlight, not a second independent mouse-only highlight.
+- Enter executes the selected existing preview/open or Show All action, including ordered Down+Enter input in one frame. Existing successful-selection focus release, query/body/selection transitions and cursor continuation stay intact.
+- Short-query, pending and zero-result Enter are no-ops: retain native focus, continued typing and the underlying category body. Do not add search progress, totals, server messages or an Escape-policy change.
+- Source: cached Mainline AchievementUI.lua3401–3413/3507–3531/3544–3585/3665–3680; XML14–25/1803–1844. Native process test is `network/tests/achievement_search_preview_keyboard_selection.rs` (explicit `#[ignore]`, pinned Godot/debug extension required), using `tests/achievement_search_preview_keyboard.gd` with24 both-skin physical-input cases.
+
+### Full-search result presentation
+
+- [x] Full search uses Retail's separate600×382 bottom-centered result container and575×49 rows, not expandable category cards. Display received name/icon/completion and the sourced root-to-leaf category breadcrumb; unknown local ancestry is an explicit data error, never inferred from the viewed category.
+- [x] Resolve static ancestry from the installed Achievement.csv and Achievement_Category.csv only; earned/progress values remain received. Row clicks use the existing received-ID open action. Category cards, cursor paging/query correlation, preview, focus/Escape policy, totals and progress remain unchanged; no invented result-count title.
+- Source: Mainline AchievementUI.xml62–111/2582–2703, Lua3467–3493; [implementation/data provenance](../wiki/systems/dungeon-achievements.md#full-search-result-presentation).
+- Native process fixture `godot/tests/achievement_search_full_results.gd` (eight both-skin cases), ignored wrapper `network/tests/achievement_search_full_results_template.rs`; supplied UI metadata, not realm/progress/search-semantic proof. Initial native geometry/metadata/category and third-row open8/8 plus retained focus12/12 passed; model34/catalog1 pass on the direct-open fix. Strengthened sixth-row physical/outgoing-ID native8 is pending the central gate, not claimed from the earlier third-row run.
+
+### Full-search close button
+
+- [x] The source24×24 full-results close button dismisses only the results pane. Preserve the exact query, received cache/cursor, selected category/achievement, native focus and whole AchievementFrame visibility; reopening reuses the retained rows and continues the existing cursor.
+- [x] Use the explicit Retail TOPRIGHT anchor relative to the results top-right corner(+1,−4), local(581,0), with UIPanelCloseButton exit art. Both skins share this geometry. No whole-frame close, Escape, server, totals or progress changes.
+- Source: Mainline AchievementUI.xml2678–2687, SharedUIPanelTemplates134–151; [implementation](../wiki/systems/dungeon-achievements.md#full-search-close-button). Ignored native wrapper `network/tests/achievement_search_full_results_close.rs` / six-case `tests/achievement_search_full_close.gd`; received UI fixtures, not realm proof. Both-skin native6/6 and affected model35/35 pass: physical dismissal/geometry/reopen plus exact whole-window equality except presentation and subsequent cursor-page2 continuation.
+
+### Ordinary card title font
+
+- [x] Ordinary AchievementTemplate titles use RomanFriz14 and black(+1,−1) shadow, preserving their320×20 allocation, white color, origin and click actions. Do not alter Summary/comparison/full-search titles, card art, description/criteria or the global font pipeline.
+- Source: AchievementUI.xml838–843→FontStyles260→Fonts435–443. Ignored native process wrapper `network/tests/achievement_card_title_font.rs` and six-case `tests/achievement_card_title_font.gd` cover both-skin collapsed/expanded titles and retained full-search16 control. Strict native6/6 and affected model35/35 pass; [proof scope](../wiki/systems/dungeon-achievements.md#ordinary-card-title-font).
+
+### Ordinary card description font
+
+- [x] Ordinary card Description uses nominalRomanFriz10 only, preserving330×34 allocation, current ink/shadow/justification, origin85,30 and click actions. Exclude Lua-driven color/shadow policy and all other labels/global font behavior.
+- Source: AchievementUI.xml850→GameFontStyles159→Fonts133–135. Both-skin ignored native wrapper `network/tests/achievement_card_description_font.rs` / six-case `tests/achievement_card_description_font.gd` covers collapsed/expanded description and unchanged title14 control. Strict native6/6 and affected model35/35 pass; [implementation/proof](../wiki/systems/dungeon-achievements.md#ordinary-card-description-font).
+
+### Ordinary description vertical alignment
+
+- [ ] Ordinary Description uses Retail verticalTOP, preserving font10/330×34/ink/shadow/horizontalCENTER/origin85,30/text/actions. Other labels, Lua color/shadow policy and global font behavior remain unchanged.
+- Source: AchievementUI.xml850→GameFontStyles159. Prior native CENTER control is explicitly replaced in tests-only commit0ac8ec048; `tests/achievement_card_description_alignment.gd` reuses the maintained six-case description fixture through inheritance, wrapped by ignored `network/tests/achievement_card_description_alignment.rs`. [Proof scope](../wiki/systems/dungeon-achievements.md#ordinary-description-vertical-alignment).
 
 ## Known gaps (current cycle)
 

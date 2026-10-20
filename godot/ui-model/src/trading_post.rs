@@ -7,6 +7,8 @@ mod cart_rows;
 pub use cart_rows::apply_cart_art;
 #[path = "trading_post_cart_ui.rs"]
 mod cart_ui;
+#[path = "trading_post_clock.rs"]
+mod clock;
 #[path = "trading_post_filter.rs"]
 mod filter_menu;
 #[path = "trading_post_history.rs"]
@@ -27,7 +29,9 @@ use crate::{
     },
 };
 pub use outfit::{apply_rotation_icon_positions, load_scene_autodress};
-use shared::protocol::{TradingPostItem, TradingPostRequest, TradingPostSnapshot};
+use shared::protocol::{
+    TradingPostItem, TradingPostReplyKind, TradingPostRequest, TradingPostSnapshot,
+};
 use std::{collections::BTreeSet, sync::Arc};
 use ui_toolkit::{rsx, screen::SharedContext, widget_def::Element};
 
@@ -37,6 +41,14 @@ pub const WIDTH: f32 = 1920.;
 pub const HEIGHT: f32 = 1080.;
 const ROW_HEIGHT: f32 = 48.;
 const LIST_HEIGHT: f32 = 573.;
+
+/// Completion metadata retained independently of the host's final merged authority.
+#[derive(Clone, Debug, PartialEq, Eq)]
+pub struct Reply {
+    pub kind: TradingPostReplyKind,
+    pub error: Option<String>,
+}
+
 #[derive(Clone, Debug, Default, PartialEq)]
 pub struct View {
     pub visible: bool,
@@ -46,7 +58,11 @@ pub struct View {
     pub selected: Option<u32>,
     pub cart: Vec<u32>,
     pub cart_visible: bool,
+    /// Vendor ID remembered while the cart, rather than a product, owns the preview.
+    pub pre_cart_selected: Option<u32>,
     pub product_hover: Option<u32>,
+    /// SetSelected(false) keeps this ordinary label NORMAL until hover changes or reselection.
+    pub deselected_hover_name: Option<u32>,
     pub cart_hover: Option<u32>,
     pub cart_item_hover: Option<u32>,
     /// Retail selectedItems keyed by ConvertInvTypeToSelectionKey; 0 is OTHER.
@@ -60,15 +76,23 @@ pub struct View {
     pub sort: Sort,
     pub ascending: bool,
     pub pending: bool,
+    /// The accepted Purchase/Checkout exceeded its independent ten-second deadline.
+    pub slow_purchase: bool,
     /// Monotonic seconds since observing the current authoritative snapshot.
     pub refund_elapsed: u32,
+    /// Deduplicates rollover Query across frames and same-boundary partial replies.
+    pub clock_rollover_requested_for: Option<i64>,
     pub confirm: Option<String>,
+    /// The product shown by a purchase/refund popup, independent of refreshed catalog selection.
+    pub confirmation_product: Option<TradingPostItem>,
     /// Slot previews the dragged product; snapshot remains authoritative until reply.
     pub freeze_candidate: Option<u32>,
     pub freeze_delay: u8,
     /// Captured price/count survive source clear-on-accept cart lifecycle.
     pub cart_confirmation: Option<(u64, usize)>,
     pub error: String,
+    /// Undrained product-selection callbacks; provider reselection is silent.
+    pub selection_sounds: usize,
 }
 #[derive(Clone, Debug, PartialEq, Eq)]
 pub struct Filters {
@@ -135,14 +159,77 @@ fn price_sort_value(row: &TradingPostItem, refund_elapsed: u32) -> i64 {
 }
 
 impl View {
+    pub fn take_selection_sounds(&mut self) -> usize {
+        std::mem::take(&mut self.selection_sounds)
+    }
+
+    fn select_product(&mut self, id: u32) {
+        let changed = self.selected != Some(id);
+        self.set_product_selection(id);
+        if changed {
+            self.selection_sounds += 1;
+        }
+    }
+
+    fn set_product_selection(&mut self, id: u32) {
+        let frozen = self.snapshot.as_ref().and_then(|data| data.frozen_item_id);
+        if let Some(previous) = self.selected
+            && previous != id
+            && self.product_hover == Some(previous)
+            && frozen != Some(previous)
+        {
+            // Elements.lua335–340: deselection writes NORMAL even without a mouse leave.
+            self.deselected_hover_name = Some(previous);
+        }
+        if self.deselected_hover_name == Some(id) {
+            self.deselected_hover_name = None;
+        }
+        // Products.lua ProductSelected hides the cart before selection callbacks.
+        self.cart_visible = false;
+        self.pre_cart_selected = None;
+        self.selected = Some(id);
+    }
+
+    fn has_selectable_product(&self, id: u32) -> bool {
+        let frozen = self.snapshot.as_ref().and_then(|data| data.frozen_item_id);
+        frozen == Some(id) || self.rows().iter().any(|row| row.id == id)
+    }
+
     pub fn receive(&mut self, snapshot: Arc<TradingPostSnapshot>) {
-        self.error = snapshot.error.clone().unwrap_or_default();
+        let reply = Reply {
+            kind: snapshot.reply_kind,
+            error: snapshot.error.clone(),
+        };
+        self.receive_replies(snapshot, &[reply]);
+    }
+
+    /// Apply final authority after every reply result drained by the host in this poll.
+    pub fn receive_replies(&mut self, snapshot: Arc<TradingPostSnapshot>, replies: &[Reply]) {
+        let confirmation_kind = match self.confirm.as_deref() {
+            Some("purchase") => Some(TradingPostReplyKind::Purchase),
+            Some("cart-checkout") => Some(TradingPostReplyKind::Checkout),
+            Some("refund") => Some(TradingPostReplyKind::Refund),
+            _ => None,
+        };
+        let matching_reply = replies
+            .iter()
+            .rev()
+            .find(|reply| Some(reply.kind) == confirmation_kind);
+        let keep_pending = self.pending && confirmation_kind.is_some() && matching_reply.is_none();
+        let error = matching_reply.map_or(&snapshot.error, |reply| &reply.error);
+        self.error = error.clone().unwrap_or_default();
         self.snapshot = Some(snapshot);
-        self.pending = false;
         self.refund_elapsed = 0;
-        self.cancel_confirmation();
-        self.cart_confirmation = None;
-        self.reselect();
+        if !keep_pending {
+            self.pending = false;
+            self.cancel_confirmation();
+            self.cart_confirmation = None;
+        }
+        self.reset_time_sort();
+        // Currency/authority snapshots do not transfer preview ownership to a product.
+        if !self.cart_visible {
+            self.reselect();
+        }
     }
     pub fn rows(&self) -> Vec<&TradingPostItem> {
         let committed_frozen = self
@@ -160,8 +247,7 @@ impl View {
                 Sort::Name => a.name.cmp(&b.name),
                 Sort::Price => price_sort_value(a, self.refund_elapsed)
                     .cmp(&price_sort_value(b, self.refund_elapsed)),
-                // No per-row remaining duration in the snapshot; stable name tie-break.
-                Sort::Time => std::cmp::Ordering::Equal,
+                Sort::Time => self.time_sort_minutes(a).cmp(&self.time_sort_minutes(b)),
             };
             let order = if self.ascending {
                 order
@@ -194,8 +280,9 @@ impl View {
         } else {
             index.checked_sub(1)
         };
-        if let Some(row) = adjacent.and_then(|index| rows.get(index)) {
-            self.selected = Some(row.id);
+        let adjacent_id = adjacent.and_then(|index| rows.get(index)).map(|row| row.id);
+        if let Some(id) = adjacent_id {
+            self.select_product(id);
         }
         Ok(())
     }
@@ -229,6 +316,7 @@ impl View {
             .find(|row| Some(row.id) == self.selected)
     }
     pub fn reselect(&mut self) {
+        self.reset_time_sort();
         let frozen = self
             .snapshot
             .as_ref()
@@ -238,7 +326,12 @@ impl View {
         }
         let rows = self.rows();
         if !rows.iter().any(|row| Some(row.id) == self.selected) {
-            self.selected = rows.first().map(|row| row.id);
+            let first = rows.first().map(|row| row.id);
+            if let Some(id) = first {
+                self.set_product_selection(id);
+            } else {
+                self.selected = None;
+            }
         }
     }
     pub fn can_purchase(&self) -> bool {
@@ -263,6 +356,9 @@ impl View {
         !self.pending && self.remaining_refund_seconds() > 0
     }
     pub fn click(&mut self, action: &str) -> Result<Option<Action>, String> {
+        if action == "perks:cancel" && self.dismiss_slow_purchase() {
+            return Ok(None);
+        }
         if self.pending && self.confirm.is_some() {
             return Ok(None);
         }
@@ -305,52 +401,86 @@ impl View {
             "perks:select-previous" => self.select_adjacent_product(false)?,
             "perks:sort:ascending" => self.ascending = !self.ascending,
             "perks:cancel" => self.cancel_confirmation(),
-            "perks:purchase" if self.can_purchase() => self.confirm = Some("purchase".into()),
-            "perks:refund" if self.can_refund() => self.confirm = Some("refund".into()),
+            "perks:purchase" if self.can_purchase() => self.open_product_confirmation("purchase"),
+            "perks:refund" if self.can_refund() => self.open_product_confirmation("refund"),
             "perks:confirm" => return self.confirm_request(),
             "perks:sort:name" => self.sort_by(Sort::Name),
             "perks:sort:time" => {
-                return Err("Per-item remaining time has no sourced calendar binding".into());
+                if self.can_sort_time() {
+                    self.sort_by(Sort::Time);
+                }
             }
             "perks:sort:price" => self.sort_by(Sort::Price),
             _ => self.select_action(action)?,
         }
         Ok(None)
     }
-    pub fn drop_item(&mut self, id: u32, from_frozen: bool, on_frozen: bool) -> Option<Action> {
+    fn open_product_confirmation(&mut self, kind: &str) {
+        let product = self
+            .selected_item()
+            .expect("Confirmation eligibility checked a product")
+            .clone();
+        self.confirmation_product = Some(product);
+        self.confirm = Some(kind.into());
+    }
+
+    /// Products.lua183–187 selects an ordinary unpurchased product before pickup.
+    pub fn select_dragged_product(&mut self, id: u32) -> bool {
+        if self.pending || self.confirm.is_some() {
+            return false;
+        }
+        let Some(row) = self.rows().into_iter().find(|row| row.id == id) else {
+            return false;
+        };
+        if row.purchased || row.grant_unavailable.is_some() {
+            return false;
+        }
+        self.select_product(id);
+        true
+    }
+
+    pub fn drop_item(&mut self, id: u32, on_frozen: bool) -> Option<Action> {
+        if !on_frozen {
+            return None;
+        }
         if self.pending || self.confirm.is_some() {
             return None;
         }
         let snapshot = self.snapshot.as_ref()?;
-        let vendor_item_id = if from_frozen && !on_frozen && snapshot.frozen_item_id == Some(id) {
-            None
-        } else if on_frozen && snapshot.frozen_item_id != Some(id) {
-            let row = snapshot.items.iter().find(|row| row.id == id)?;
-            if row.grant_unavailable.is_some() {
-                return None;
-            }
-            Some(id)
-        } else {
+        if snapshot.frozen_item_id == Some(id) {
             return None;
-        };
-        if on_frozen {
-            let replacing = snapshot.frozen_item_id.is_some();
-            self.selected = Some(id);
-            self.freeze_candidate = Some(id);
-            if replacing {
-                self.confirm = Some("freeze".into());
-                self.freeze_delay = 5;
-                return None;
-            }
-            self.remove_from_cart(id);
         }
+        let row = snapshot.items.iter().find(|row| row.id == id)?;
+        if row.grant_unavailable.is_some() {
+            return None;
+        }
+        let replacing = snapshot.frozen_item_id.is_some();
+        self.freeze_candidate = Some(id);
+        if replacing {
+            self.confirm = Some("freeze".into());
+            self.freeze_delay = 5;
+            return None;
+        }
+        self.remove_from_cart(id);
         self.pending = true;
         Some(Action::Request(TradingPostRequest::Freeze {
-            vendor_item_id,
+            vendor_item_id: Some(id),
         }))
     }
+    /// Return/Escape releases the modal, not the server operation or vendor.
+    pub fn dismiss_slow_purchase(&mut self) -> bool {
+        if !self.slow_purchase {
+            return false;
+        }
+        self.pending = false;
+        self.cancel_confirmation();
+        true
+    }
+
     pub fn cancel_confirmation(&mut self) {
+        self.slow_purchase = false;
         self.confirm = None;
+        self.confirmation_product = None;
         self.freeze_candidate = None;
         self.freeze_delay = 0;
     }
@@ -386,12 +516,8 @@ impl View {
         }
         if let Some(id) = action.strip_prefix("perks:select:") {
             let id = id.parse().map_err(|_| "Invalid Trading Post item")?;
-            let frozen = self
-                .snapshot
-                .as_ref()
-                .and_then(|snapshot| snapshot.frozen_item_id);
-            if self.rows().iter().any(|row| row.id == id) || frozen == Some(id) {
-                self.selected = Some(id);
+            if self.has_selectable_product(id) {
+                self.select_product(id);
             }
             return Ok(());
         }
@@ -552,7 +678,17 @@ fn catalog_controls(ctx: &SharedContext, view: &View, snapshot: &TradingPostSnap
         (30., 51., 527. - 60., 3.),
     ));
     inner.extend(sort_headers(view));
-    inner.extend(frozen_row(snapshot, view.selected, view.freeze_candidate));
+    // SetItemInfo previews a replacement; only FreezeDraggedItem selects it.
+    let frozen_selection = if view.confirm.as_deref() == Some("freeze") {
+        None
+    } else {
+        view.selected
+    };
+    inner.extend(frozen_row(
+        snapshot,
+        frozen_selection,
+        view.freeze_candidate,
+    ));
     let mut out = rsx! {r#frame{name:"PerksProgramProductsScrollBoxContainer",left:CONTAINER_X,top:CONTAINER_Y,width:527.0,height:751.0,pos_type:"absolute",frame_level:1000.0,{inner}}};
     out.extend(retail_filter(view));
     if view.dropdown {
@@ -679,7 +815,7 @@ fn sort_header(sort: Sort, view: &View, (x, y, width, height): (f32, f32, f32, f
         let coords = format!("{},{},{},{}", region.left, region.right, top, bottom);
         art.extend(rsx! {texture{name:{DynName(format!("PerksProgram{kind}SortArrow"))},left:{width-5.0},top:{(height-10.0)/2.0},width:10.0,height:10.0,pos_type:"absolute",texture_atlas:"auctionhouse-ui-sortarrow",tex_coords:coords.as_str()}});
     }
-    let disabled = sort == Sort::Time;
+    let disabled = sort == Sort::Time && !view.can_sort_time();
     let action = if disabled { "" } else { action };
     rsx! {button{name:{DynName(format!("PerksProgram{kind}SortButton"))},left:x,top:y,width,height,pos_type:"absolute",button_default_skin:false,disabled,onclick:action,{art}}}
 }
@@ -695,13 +831,22 @@ fn product_row(view: &View, row: &TradingPostItem, top: f32, selected: bool) -> 
         vec![]
     };
     children.extend(row_item_icon(view, row));
+    let hover_white =
+        view.product_hover == Some(row.id) && view.deselected_hover_name != Some(row.id);
+    let name_color = if selected || hover_white {
+        WHITE
+    } else {
+        // GlobalColor1 NORMAL_FONT_COLOR: RGB255/210/0, not template-rounded0.82.
+        "1.0,0.8235294,0.0,1.0"
+    };
     children.extend(label(
         format!("PerksProgramName{}", row.id),
         &row.name,
         (72., 5., 265., 38.),
-        (16., WHITE, "LEFT"),
+        (16., name_color, "LEFT"),
     ));
     children.extend(row_price("PerksProgram", row, ROW_HEIGHT / 2.));
+    children.extend(clock::row_time(view, row));
     children.extend(row_cart_toggle(view, row.id));
     let action = format!("perks:select:{}", row.id);
     rsx! {button{name:{DynName(format!("PerksProgramProduct{}",row.id))},left:0.0,top,width:LIST_WIDTH,height:ROW_HEIGHT,pos_type:"absolute",button_default_skin:false,onclick:action.as_str(),button_atlas_highlight:"perks-list-hover",{children}}}
@@ -814,13 +959,18 @@ fn frozen_row(
     // FrozenProductContainer.OnLoad overrides the ordinary product template:
     // icon64 at LEFT+32, mask95, label233x45 at icon.RIGHT+8.
     let label_width = if frozen.is_some() { 233. } else { 270. };
+    // GlobalStrings48943's white span is resolved by the existing WHITE label colour.
+    let label_text = match frozen {
+        Some(row) if snapshot.frozen_item_id == Some(row.id) => {
+            format!("Freezing:\n{}", row.name)
+        }
+        Some(row) => row.name.clone(),
+        None => "Drag an item here to freeze it and prevent it from expiring".into(),
+    };
     let mut children = Vec::new();
     children.extend(label(
         "PerksProgramFrozenLabel".into(),
-        frozen.map_or(
-            "Drag an item here to freeze it and prevent it from expiring",
-            |row| row.name.as_str(),
-        ),
+        &label_text,
         (104., (84. - 45.) / 2., label_width, 45.),
         (16., WHITE, "LEFT"),
     ));
@@ -1242,8 +1392,30 @@ fn toy_overlay(row: &TradingPostItem) -> Element {
     out.extend(rsx! {r#frame{name:"PerksProgramToyDetails",left:{center_x-180.0},top:{icon_y+88.0+60.0},width:360.0,height:280.0,pos_type:"absolute",{details}}});
     out
 }
+fn slow_purchase_popup() -> Element {
+    use crate::static_popup_component::{ItemConfirmation, item_confirmation};
+    // Elements.lua60–67; local GlobalStrings51538/51539.
+    item_confirmation(ItemConfirmation {
+        name: "PerksProgramSlowPurchase",
+        pending: false,
+        accept_enabled: true,
+        prompt: (
+            "It's taking longer than usual to process your purchase. Processing will continue in the background.",
+            "",
+        ),
+        currency_icon: None,
+        item: None,
+        accept: ("Return to Trading Post", "perks:cancel"),
+        cancel_action: None,
+        screen: (WIDTH, HEIGHT),
+    })
+}
+
 fn confirm_popup(view: &View, kind: &str) -> Element {
     use crate::static_popup_component::{ItemConfirmation, item_confirmation};
+    if view.slow_purchase {
+        return slow_purchase_popup();
+    }
     if kind == "freeze" {
         let Some(row) = view.snapshot.as_ref().and_then(|snapshot| {
             snapshot
@@ -1269,7 +1441,7 @@ fn confirm_popup(view: &View, kind: &str) -> Element {
             currency_icon: None,
             item: Some((&row.name, row.icon_fdid, row.quality)),
             accept: (&accept, "perks:confirm"),
-            cancel_action: "perks:cancel",
+            cancel_action: Some("perks:cancel"),
             screen: (WIDTH, HEIGHT),
         });
     }
@@ -1286,7 +1458,7 @@ fn confirm_popup(view: &View, kind: &str) -> Element {
             currency_icon: Some(TENDER_ICON),
             item: None,
             accept: ("Purchase", "perks:confirm"),
-            cancel_action: "perks:cancel",
+            cancel_action: Some("perks:cancel"),
             screen: (WIDTH, HEIGHT),
         });
     }
@@ -1302,13 +1474,14 @@ fn confirm_popup(view: &View, kind: &str) -> Element {
             currency_icon: None,
             item: None,
             accept: ("Remove", "perks:confirm"),
-            cancel_action: "perks:cancel",
+            cancel_action: Some("perks:cancel"),
             screen: (WIDTH, HEIGHT),
         });
     }
-    let Some(row) = view.selected_item() else {
-        return vec![];
-    };
+    let row = view
+        .confirmation_product
+        .as_ref()
+        .expect("Product confirmation captured its product");
     // GlobalStrings PERKS_PROGRAM_CONFIRM_PURCHASE / _REFUND; currency markup is a texture.
     let refund = kind == "refund";
     let before = if refund {
@@ -1331,7 +1504,7 @@ fn confirm_popup(view: &View, kind: &str) -> Element {
         currency_icon: Some(TENDER_ICON),
         item: Some((&row.name, row.icon_fdid, row.quality)),
         accept: (if refund { "Refund" } else { "Purchase" }, "perks:confirm"),
-        cancel_action: "perks:cancel",
+        cancel_action: Some("perks:cancel"),
         screen: (WIDTH, HEIGHT),
     })
 }

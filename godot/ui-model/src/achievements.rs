@@ -5,6 +5,12 @@ use crate::quest_art::{DynName, panel_button};
 mod artwork;
 #[path = "achievement_comparison.rs"]
 mod comparison_view;
+#[path = "achievement_full_search.rs"]
+mod full_search_view;
+#[path = "achievement_search_catalog.rs"]
+mod search_catalog;
+#[path = "achievement_search.rs"]
+mod search_view;
 use crate::ui::strata::FrameStrata;
 use shared::protocol::{
     ACHIEVEMENT_CRITERION_FLAG_PROGRESS_BAR, ACHIEVEMENT_SEARCH_MAX_CHARS, AchievementCatalogEntry,
@@ -47,6 +53,10 @@ const CRITERIA_AREA_WIDTH: f32 = 398.0;
 // Mainline AchievementProgressBarTemplate, XML510–569.
 const CRITERIA_BAR_WIDTH: f32 = 212.0;
 const CRITERIA_BAR_HEIGHT: f32 = 14.0;
+// Mainline XML1693–1713: right-to-left Filters layout, SearchBox107×30.
+const HEADER_FILTER_SPACING: f32 = 7.0;
+const HEADER_SEARCH_WIDTH: f32 = 107.0;
+const SEARCH_PREVIEW_LIMIT: usize = 5;
 const CRITERIA: usize = 6;
 /// Local Retail art: UI-Achievement-Category-Background, AchievementBackground, Shield.
 pub const ART: &[u32] = &[
@@ -74,6 +84,9 @@ pub const ART: &[u32] = &[
     235411,
     235412,
     452109,
+    522973,
+    374155,
+    374157,
     HEADER_SHIELD_FDID,
     235401,
 ];
@@ -136,6 +149,10 @@ pub struct AchievementWindow {
     pub filter_menu: bool,
     pub search_text: String,
     pub search_results: CategoryPage,
+    pub search_focused: bool,
+    pub full_search: bool,
+    /// Zero-based visible preview index; Show All follows the received rows.
+    pub search_preview_selected: usize,
     categories_loaded: bool,
     pending: Vec<QueryAchievementCatalog>,
     /// The connection's last full snapshot with every later delta applied.
@@ -151,12 +168,34 @@ impl AchievementWindow {
             }
             "achievement:close" => {
                 self.visible = false;
+                self.search_focused = false;
                 self.comparison = None;
             }
             "achievement:stop_compare" => self.comparison = None,
             "achievement:statistics" => self.change_statistics(true),
             "achievement:achievements" => self.change_tab(false, false),
             "achievement:guild" => self.change_tab(false, true),
+            "achievement:search_focus" => {
+                self.search_focused = true;
+                self.search_preview_selected = 0;
+            }
+            "achievement:search_blur" => self.search_focused = false,
+            "achievement:search_dismiss" => self.full_search = false,
+            "achievement:search_submit" => {
+                if let Some(selected) = self.search_preview_action() {
+                    return self.action(&selected);
+                }
+            }
+            "achievement:search_all" => {
+                if self.has_more_search_results() {
+                    self.full_search = true;
+                    self.search_focused = false;
+                    self.selected_achievement = None;
+                    self.expanded_achievement = None;
+                    self.detail = None;
+                    self.select_first();
+                }
+            }
             "achievement:filter_menu" => self.filter_menu = !self.filter_menu,
             "achievement:filter:all" => self.change_filter(AchievementFilter::All),
             "achievement:filter:completed" => self.change_filter(AchievementFilter::Completed),
@@ -164,7 +203,7 @@ impl AchievementWindow {
             "achievement:summary" => {
                 self.selected_category = None;
                 self.selected_achievement = None;
-                self.search_text.clear();
+                self.clear_search();
                 self.statistics = false;
                 self.criterion_offset = 0;
                 self.expanded_achievement = None;
@@ -212,7 +251,7 @@ impl AchievementWindow {
         self.selected_category = None;
         self.selected_achievement = None;
         self.detail = None;
-        self.search_text.clear();
+        self.clear_search();
         self.expanded_achievement = None;
     }
 
@@ -230,13 +269,64 @@ impl AchievementWindow {
         }
     }
 
+    fn has_more_search_results(&self) -> bool {
+        self.search_results.entries.len() > SEARCH_PREVIEW_LIMIT
+            || self.search_results.next.is_some()
+    }
+
+    /// Mainline Lua3552–3585: wrap only among visible, ready preview items.
+    pub fn search_preview_count(&self) -> usize {
+        if !self.search_focused
+            || self.full_search
+            || !self.search_results.loaded
+            || self.search_text.trim().chars().count() < 3
+        {
+            return 0;
+        }
+        let rows = self.search_results.entries.len().min(SEARCH_PREVIEW_LIMIT);
+        if rows == 0 {
+            return 0;
+        }
+        rows + usize::from(self.has_more_search_results())
+    }
+
+    fn move_search_preview(&mut self, step: i32) {
+        let count = self.search_preview_count() as i64;
+        if count == 0 {
+            return;
+        }
+        let next = (self.search_preview_selected as i64 + i64::from(step)).rem_euclid(count);
+        self.search_preview_selected = next as usize;
+    }
+
+    fn search_preview_action(&self) -> Option<String> {
+        if self.search_preview_count() == 0 {
+            return None;
+        }
+        let rows = self.search_results.entries.len().min(SEARCH_PREVIEW_LIMIT);
+        if self.search_preview_selected < rows {
+            let id = self.search_results.entries[self.search_preview_selected].achievement_id;
+            Some(format!("achievement:preview:{id}"))
+        } else if self.search_preview_selected == rows && self.has_more_search_results() {
+            Some("achievement:search_all".into())
+        } else {
+            None
+        }
+    }
+
+    fn clear_search(&mut self) {
+        self.search_text.clear();
+        self.search_results = CategoryPage::default();
+        self.full_search = false;
+        self.search_focused = false;
+        self.search_preview_selected = 0;
+    }
+
     fn search(&mut self, text: &str, requests: &mut Vec<QueryAchievementCatalog>) {
         self.search_text = text.chars().take(ACHIEVEMENT_SEARCH_MAX_CHARS).collect();
         self.search_results = CategoryPage::default();
-        self.selected_category = None;
-        self.selected_achievement = None;
-        self.detail = None;
-        self.expanded_achievement = None;
+        self.full_search = false;
+        self.search_preview_selected = 0;
         if self.search_text.trim().chars().count() >= 3 {
             requests.push(QueryAchievementCatalog::Search {
                 text: self.search_text.trim().into(),
@@ -294,6 +384,31 @@ impl AchievementWindow {
             self.start_comparison(target, requests);
         } else if let Some(text) = action.strip_prefix("achievement:search:") {
             self.search(text, requests);
+        } else if let Some(step) = action
+            .strip_prefix("achievement:search_move:")
+            .and_then(|value| value.parse::<i32>().ok())
+        {
+            self.move_search_preview(step);
+        } else if let Some(index) = action
+            .strip_prefix("achievement:search_select:")
+            .and_then(|value| value.parse::<usize>().ok())
+        {
+            if index < self.search_preview_count() {
+                self.search_preview_selected = index;
+            }
+        } else if let Some(id) = action
+            .strip_prefix("achievement:preview:")
+            .and_then(|id| id.parse().ok())
+        {
+            if self
+                .search_results
+                .entries
+                .iter()
+                .take(5)
+                .any(|entry| entry.achievement_id == id)
+            {
+                self.open_achievement(id, requests);
+            }
         } else if let Some(id) = action
             .strip_prefix("achievement:restore:")
             .and_then(|id| id.parse().ok())
@@ -339,7 +454,7 @@ impl AchievementWindow {
             }
             self.selected_category = Some(id);
             self.expanded_achievement = None;
-            self.search_text.clear();
+            self.clear_search();
             self.detail = None;
             self.selected_achievement = None;
             self.criterion_offset = 0;
@@ -361,7 +476,7 @@ impl AchievementWindow {
                 .iter()
                 .any(|entry| entry.achievement_id == id)
             {
-                if self.search_text.trim().chars().count() >= 3 {
+                if self.full_search {
                     self.open_achievement(id, requests);
                 } else {
                     self.selected_achievement = Some(id);
@@ -408,7 +523,7 @@ impl AchievementWindow {
         self.selected_achievement = Some(id);
         self.expanded_achievement = Some(id);
         self.detail = None;
-        self.search_text.clear();
+        self.clear_search();
         self.criterion_offset = 0;
         if self.scope != AchievementScope::All {
             self.scope = AchievementScope::All;
@@ -425,7 +540,7 @@ impl AchievementWindow {
 
     /// The native ScrollBox requests the next cursor at its bottom, never a local row slice.
     fn advance_rows(&mut self, requests: &mut Vec<QueryAchievementCatalog>) {
-        if self.search_text.trim().chars().count() >= 3 {
+        if self.full_search {
             if let Some(after_id) = self.search_results.next {
                 requests.push(QueryAchievementCatalog::Search {
                     text: self.search_text.trim().into(),
@@ -463,7 +578,7 @@ impl AchievementWindow {
         self.selected_category = None;
         self.selected_achievement = None;
         self.expanded_achievement = None;
-        self.search_text.clear();
+        self.clear_search();
         self.statistics = false;
         self.pending
             .retain(|request| !matches!(request, QueryAchievementCatalog::Comparison { .. }));
@@ -494,6 +609,7 @@ impl AchievementWindow {
         other.statistics = self.statistics;
         other.scope = self.scope;
         other.search_text = self.search_text.clone();
+        other.full_search = self.full_search;
         let queries = requests
             .iter()
             .filter(|request| {
@@ -566,7 +682,12 @@ impl AchievementWindow {
                     }
                     self.search_results.next = next_id;
                     self.search_results.loaded = true;
-                    self.select_first();
+                    if !self.full_search {
+                        self.search_preview_selected = 0;
+                    }
+                    if self.full_search {
+                        self.select_first();
+                    }
                 }
                 Vec::new()
             }
@@ -865,7 +986,7 @@ impl AchievementWindow {
         self.criterion_offset = 0;
     }
     pub fn entries(&self) -> &[AchievementCatalogEntry] {
-        if self.search_text.trim().chars().count() >= 3 {
+        if self.full_search {
             return &self.search_results.entries;
         }
         if self.selected_category.is_none() {
@@ -1098,9 +1219,9 @@ pub fn achievement_screen(ctx: &SharedContext) -> Element {
     let hide = !window.visible;
     let show_summary = window.selected_category.is_none()
         && window.selected_achievement.is_none()
-        && window.search_text.trim().chars().count() < 3
+        && !window.full_search
         && !window.statistics;
-    let mut content = artwork::chrome(show_summary);
+    let mut content = artwork::chrome(show_summary, window.guild);
     content.extend(points_header(
         window
             .summary
@@ -1110,7 +1231,9 @@ pub fn achievement_screen(ctx: &SharedContext) -> Element {
     ));
     content.extend(category_panel(ctx, window));
     content.extend(browse_controls(window));
-    if window.comparison.is_some() {
+    if window.full_search {
+        content.extend(full_search_view::content(ctx, window));
+    } else if window.comparison.is_some() {
         content.extend(comparison_view::content(ctx, window, show_summary));
     } else if show_summary {
         content.extend(summary_panel(window));
@@ -1120,6 +1243,7 @@ pub fn achievement_screen(ctx: &SharedContext) -> Element {
     // Godot Control input follows scene order, not CanvasItem z_index. Mount
     // dropdown controls after the rows they overlap, matching their visual order.
     content.extend(filter_controls(window, show_summary));
+    content.extend(search_view::preview(window));
     let width = if window.comparison.is_some() {
         888.0
     } else {
@@ -1290,6 +1414,14 @@ fn summary_category_counts(window: &AchievementWindow, summary: &AchievementSumm
     content
 }
 
+fn header_filter_left(window: &AchievementWindow) -> f32 {
+    if window.comparison.is_some() {
+        745.0
+    } else {
+        625.0
+    }
+}
+
 fn filter_controls(window: &AchievementWindow, summary: bool) -> Element {
     if summary || window.statistics || matches!(window.selected_category, Some(81 | 15093)) {
         return Vec::new();
@@ -1301,11 +1433,7 @@ fn filter_controls(window: &AchievementWindow, summary: bool) -> Element {
     };
     use crate::menu_primitives::*;
     // HeaderDetails right -23; Filters TOPRIGHT -8,-6; dropdown topPadding 6.
-    let left = if window.comparison.is_some() {
-        745.0
-    } else {
-        625.0
-    };
+    let left = header_filter_left(window);
     let mut content = dropdown_button_with_state(
         DropdownButton {
             frame_name: "AchievementFilterDropdown",
@@ -1441,31 +1569,45 @@ fn summary_achievement_row(entry: &AchievementCatalogEntry, y: f32) -> Element {
 }
 
 fn browse_controls(window: &AchievementWindow) -> Element {
-    let mut content = artwork::tab(
-        "AchievementTabAchievements",
-        "Achievements",
-        "achievement:achievements",
-        !window.statistics && !window.guild,
-        17.0,
-        115.0,
-    );
-    content.extend(artwork::tab(
-        "AchievementTabGuild",
-        "Guild",
-        "achievement:guild",
-        window.guild,
-        136.0,
-        70.0,
-    ));
-    content.extend(artwork::tab(
-        "AchievementTabStatistics",
-        "Statistics",
-        "achievement:statistics",
-        window.statistics,
-        210.0,
-        115.0,
-    ));
-    content.extend(artwork::search_box(&window.search_text));
+    use crate::merchant_frame_component::{TabGeometry, TabLabel, tab, tab_width};
+    let mut left = 17.0;
+    let mut content = Vec::new();
+    for (index, (name, title, action, selected)) in [
+        (
+            "AchievementTabAchievements",
+            "Achievements",
+            "achievement:achievements",
+            !window.statistics && !window.guild,
+        ),
+        (
+            "AchievementTabGuild",
+            "Guild",
+            "achievement:guild",
+            window.guild,
+        ),
+        (
+            "AchievementTabStatistics",
+            "Statistics",
+            "achievement:statistics",
+            window.statistics,
+        ),
+    ]
+    .into_iter()
+    .enumerate()
+    {
+        let width = tab_width(TabLabel::Achievement(title));
+        content.extend(tab(
+            name,
+            title,
+            TabGeometry::Achievement(left, 497.0, width),
+            selected,
+            action,
+        ));
+        // PanelTemplates_AnchorTabs +3; AchievementFrame_SetTabs overrides Statistics−5.
+        left += width + if index == 0 { 3.0 } else { -5.0 };
+    }
+    let search_left = header_filter_left(window) - HEADER_FILTER_SPACING - HEADER_SEARCH_WIDTH;
+    content.extend(artwork::search_box(&window.search_text, search_left));
     content
 }
 
@@ -1610,7 +1752,7 @@ fn achievement_rows(ctx: &SharedContext, window: &AchievementWindow) -> Element 
 }
 
 fn empty_message(window: &AchievementWindow) -> &'static str {
-    if window.search_text.trim().chars().count() >= 3 {
+    if window.full_search {
         return if window.search_results.loaded {
             "No results"
         } else {
@@ -1642,7 +1784,8 @@ fn empty_message(window: &AchievementWindow) -> &'static str {
     if window.pages.get(&category).is_some_and(|page| page.loaded) {
         "No achievements in this category"
     } else {
-        "Loading achievements..."
+        // Retail has no category-loading label; pending is not known-empty.
+        ""
     }
 }
 
@@ -1840,11 +1983,12 @@ fn achievement_row(
     ));
     content.extend(rsx! {fontstring {name:{DynName(format!("{prefix}Name"))},text:entry.name.as_str(),
         width:320.0,height:20.0,left:90.0,top:{y+6.0},pos_type:"absolute",justify_h:"CENTER",
-        font:GameFont::FrizQuadrata,font_size:12.0,font_color:title_color,onclick:action.as_str(),
+        font:GameFont::FrizQuadrata,font_size:14.0,font_color:title_color,onclick:action.as_str(),
+        shadow_color:"0,0,0,1",shadow_offset:"1,-1",
     }});
     content.extend(rsx! {fontstring {name:{DynName(format!("{prefix}Description"))},text:entry.description.as_str(),
-        width:330.0,height:34.0,left:85.0,top:{y+30.0},pos_type:"absolute",justify_h:"CENTER",
-        font:GameFont::FrizQuadrata,font_size:12.0,font_color:ink,onclick:action.as_str(),
+        width:330.0,height:34.0,left:85.0,top:{y+30.0},pos_type:"absolute",justify_h:"CENTER",justify_v:"TOP",
+        font:GameFont::FrizQuadrata,font_size:10.0,font_color:ink,onclick:action.as_str(),
     }});
     content.extend(art(
         format!("{prefix}Shield"),
