@@ -219,7 +219,10 @@ fn arms_spend_badges_and_disabled_apply_remain_legible() {
                 panic!("apply button")
             };
             assert_eq!(
-                button.disabled_texture,
+                button
+                    .disabled_texture
+                    .as_ref()
+                    .map(|texture| texture.source.clone()),
                 Some(ui_toolkit::widgets::texture::TextureSource::FileDataId(
                     130824
                 ))

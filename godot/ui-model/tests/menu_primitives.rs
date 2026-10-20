@@ -420,7 +420,10 @@ fn filter_reset_open_state_and_radio_checkbox_art_both_skins() {
             panic!("filter art")
         };
         assert_eq!(
-            button.normal_texture,
+            button
+                .normal_texture
+                .as_ref()
+                .map(|texture| texture.source.clone()),
             Some(TextureSource::Atlas("common-dropdown-b-button-open".into()))
         );
         assert_eq!(frame(&reg, "RadioBox").width.value(), 18.0);

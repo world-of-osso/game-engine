@@ -190,7 +190,10 @@ fn adventure_guide_fidelity_tier_and_difficulty_show_open_arrow_state() {
         v.apply("journal:tier-menu").unwrap();
         let r = render(&v, skin);
         assert_eq!(
-            button(&r, "EncounterJournalTierDropdownArrow").normal_texture,
+            button(&r, "EncounterJournalTierDropdownArrow")
+                .normal_texture
+                .as_ref()
+                .map(|texture| texture.source.clone()),
             Some(TextureSource::Atlas("common-dropdown-a-button-open".into()))
         );
         assert!(r.get_by_name("EncounterJournalTierMenu").is_some());
@@ -204,7 +207,10 @@ fn adventure_guide_fidelity_tier_and_difficulty_show_open_arrow_state() {
         v.apply("journal:difficulty-menu").unwrap();
         let r = render(&v, skin);
         assert_eq!(
-            button(&r, "JournalDifficultyDropdownArrow").normal_texture,
+            button(&r, "JournalDifficultyDropdownArrow")
+                .normal_texture
+                .as_ref()
+                .map(|texture| texture.source.clone()),
             Some(TextureSource::Atlas("common-dropdown-a-button-open".into()))
         );
     }

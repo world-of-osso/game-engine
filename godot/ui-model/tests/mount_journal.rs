@@ -116,7 +116,7 @@ fn mount_display_follows_retail_inset_allpoints_in_both_skins() {
 
 #[test]
 fn uncollected_mount_selection_keeps_source_alpha_blend_and_enabled_row() {
-    use game_engine_ui_model::{mount_journal::mount_journal_screen, selection_list};
+    use game_engine_ui_model::mount_journal::mount_journal_screen;
     use ui_toolkit::{
         atlas::{ActiveSkin, set_thread_skin},
         frame::WidgetData,
@@ -160,7 +160,7 @@ fn uncollected_mount_selection_keeps_source_alpha_blend_and_enabled_row() {
                 panic!("mount row art");
             };
             assert!(
-                !selection_list::is_additive_row_art(frame, texture),
+                texture.blend_mode == ui_toolkit::widgets::texture::BlendMode::Blend,
                 "MountListButtonTemplate selectedTexture and HighlightTexture use alpha blending: {name}"
             );
         }

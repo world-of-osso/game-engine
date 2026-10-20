@@ -545,6 +545,10 @@ mod blend_tests {
 
     #[test]
     fn ui_template_blend_entrance_hover_authors_custom_art_mode_before_postsetup() {
+        crate::paths::set_data_root(
+            std::path::PathBuf::from(env!("CARGO_MANIFEST_DIR")).join("../../data"),
+        )
+        .unwrap();
         for skin in [ActiveSkin::Modern, ActiveSkin::Forever] {
             set_thread_skin(skin);
             let state = EntranceBarState {

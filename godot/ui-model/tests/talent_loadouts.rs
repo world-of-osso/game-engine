@@ -201,7 +201,11 @@ fn talent_loadouts_both_skins_render_three_server_rows_and_selected_caption() {
             ui_toolkit::widgets::button::ButtonState::Disabled
         );
         assert_eq!(
-            button.normal_texture, None,
+            button
+                .normal_texture
+                .as_ref()
+                .map(|texture| texture.source.clone()),
+            None,
             "Retail dropdown sentinels draw flat menu text, not panel button art"
         );
         assert!(registry.get_by_name("TalentStarterBuild").is_none());
@@ -326,19 +330,28 @@ fn talent_loadouts_modern_dialog_draws_the_mainline_panel_button_sheets() {
             panic!("dialog button")
         };
         assert_eq!(
-            button.normal_texture,
+            button
+                .normal_texture
+                .as_ref()
+                .map(|texture| texture.source.clone()),
             Some(ui_toolkit::widgets::texture::TextureSource::FileDataId(
                 130828
             ))
         );
         assert_eq!(
-            button.pushed_texture,
+            button
+                .pushed_texture
+                .as_ref()
+                .map(|texture| texture.source.clone()),
             Some(ui_toolkit::widgets::texture::TextureSource::FileDataId(
                 130825
             ))
         );
         assert_eq!(
-            button.disabled_texture,
+            button
+                .disabled_texture
+                .as_ref()
+                .map(|texture| texture.source.clone()),
             Some(ui_toolkit::widgets::texture::TextureSource::FileDataId(
                 130824
             ))

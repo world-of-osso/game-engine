@@ -122,13 +122,35 @@ fn stack_split_arrows_keep_source_states_geometry_and_actions_both_skins() {
                             ButtonState::Disabled
                         }
                     );
-                    assert_eq!(button.normal_texture, Some(TextureSource::FileDataId(up)));
-                    assert_eq!(button.pushed_texture, Some(TextureSource::FileDataId(down)));
                     assert_eq!(
-                        button.disabled_texture,
+                        button
+                            .normal_texture
+                            .as_ref()
+                            .map(|texture| texture.source.clone()),
+                        Some(TextureSource::FileDataId(up))
+                    );
+                    assert_eq!(
+                        button
+                            .pushed_texture
+                            .as_ref()
+                            .map(|texture| texture.source.clone()),
+                        Some(TextureSource::FileDataId(down))
+                    );
+                    assert_eq!(
+                        button
+                            .disabled_texture
+                            .as_ref()
+                            .map(|texture| texture.source.clone()),
                         Some(TextureSource::FileDataId(disabled))
                     );
-                    assert_eq!(button.highlight_texture, None, "XML has no hover overlay");
+                    assert_eq!(
+                        button
+                            .highlight_texture
+                            .as_ref()
+                            .map(|texture| texture.source.clone()),
+                        None,
+                        "XML has no hover overlay"
+                    );
                 }
             }
         }
