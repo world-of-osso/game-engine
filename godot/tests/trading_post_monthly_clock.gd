@@ -92,7 +92,7 @@ func rollover_cases() -> bool:
 	if not completion.step(await capture_case("october42"), "October inventory case"): return false
 	time_owner = first_time_owner()
 	if not completion.require(not time_owner.is_empty(), "ordinary Time column is visible"): return false
-	if not completion.require(str(control(time_owner).text) == "1m", "near-rollover Time starts at one minute"): return false
+	if not completion.step(await wait_until(func(): return control(time_owner) != null and str(control(time_owner).text) == "1m", "natural one-minute threshold", 180000), "server countdown reaches one minute"): return false
 	if not completion.require(control(time_owner).get_global_rect().size == Vector2(42, 38), "source Time rectangle42x38"): return false
 	if not completion.require(control(time_owner).get_theme_color("font_color").is_equal_approx(Color(1, 0.1, 0.1, 1)), "under-hour Time is red"): return false
 	if not completion.step(await capture_case("one-minute"), "one-minute Time case"): return false
