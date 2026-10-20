@@ -1,3 +1,7 @@
+## 2026-10-20 — Guild roster context Whisper
+
+[Contract](../specs/guild-context-whisper.md), [flow](systems/guilds.md#roster-context-whisper): sourced Whisper entry opens the existing chat input with `/w <name> `; named gap `CHAT_WHISPER_HEADER_ABSENT`. Actual RED → GREEN7/7. Context-leadership citation corrected to `COMMUNITIES_GUILD_MEMBER`. Gate/native pending.
+
 ## 2026-10-20 — Recipe cooldown display
 
 [Contract](../specs/modern-crafting.md#recipe-cooldown): Create gated and Retail `COOLDOWN_REMAINING` red text from spell/category clocks; [server](../../../game-server/docs/specs/spell-cooldown-persistence.md) persists and replays cooldowns. ui-model RED (4 genuine assertion failures) → GREEN 28/28 professions; extension professions 8/8. Native both-skin proof pending.
