@@ -50,6 +50,60 @@ fn portrait_fdid(model: &RegistryModel) -> u32 {
     fdid
 }
 
+/// Production order: `apply_ui_layout` sets the thread skin, then resyncs every canvas.
+fn apply_layout_skin(model: &mut RegistryModel, skin: ActiveSkin) {
+    ui_toolkit::atlas::set_thread_skin(skin);
+    model.sync_skin(skin);
+}
+
+/// A Forever CharacterFrame canvas survives into a glue screen, which draws Modern
+/// (forced disconnect to Login): the frame must rebuild before Modern chrome postsetup.
+#[test]
+fn character_frame_rebuilds_modern_chrome_after_forever_layout_switch() {
+    use game_engine_ui_model::character_frame::{CharacterFrameView, character_frame_screen};
+    game_engine_ui_model::paths::set_data_root(
+        PathBuf::from(env!("CARGO_MANIFEST_DIR")).join("../../data"),
+    )
+    .unwrap();
+    let mut shared = SharedContext::new();
+    shared.insert(CharacterFrameView {
+        visible: true,
+        ..CharacterFrameView::default()
+    });
+    let mut model = RegistryModel {
+        screen: Screen::new(character_frame_screen),
+        shared,
+        registry: FrameRegistry::new(1920.0, 1080.0),
+        icon_masks: Default::default(),
+        postsetup: ScreenPostsetup::CharacterFrame,
+    };
+    apply_layout_skin(&mut model, ActiveSkin::Forever);
+    assert!(
+        model
+            .registry
+            .get_by_name("CharacterFrameTopTileStreaks")
+            .is_none(),
+        "Forever uses the portrait border, not Modern window chrome"
+    );
+
+    apply_layout_skin(&mut model, ActiveSkin::Modern);
+    let id = model
+        .registry
+        .get_by_name("CharacterFrameTopTileStreaks")
+        .expect("Modern layout rebuilds CharacterFrame window chrome");
+    let Some(WidgetData::Texture(texture)) = &model.registry.get(id).unwrap().widget_data else {
+        panic!("CharacterFrameTopTileStreaks is a texture");
+    };
+    let AtlasSource::FileDataId(streaks) =
+        resolve_region("_UI-Frame-TopTileStreaks", ActiveSkin::Modern)
+            .unwrap()
+            .source
+    else {
+        panic!("_UI-Frame-TopTileStreaks is DB2 art");
+    };
+    assert_eq!(texture.source, TextureSource::FileDataId(streaks));
+}
+
 #[test]
 fn switching_skin_rebuilds_screens_that_read_it_with_forever_art() {
     game_engine_ui_model::paths::set_data_root(
