@@ -17,7 +17,7 @@ This spec defines the requested WoW-reference overhead health and spell bars. Re
 - [x] Existing UI-disabled, scene-stage, nameplate, health-bar, and distance controls remain effective.
 - [ ] A `LocalPlayer` owner has no projected name, health, or cast visual, including when the marker is added after those visuals already exist; removing the marker restores the remote plate.
 - [ ] Name, health, and cast visuals share the health-body distance anchor and fade/hide boundary. `HudOptions.nameplate_distance` remains the configured policy; no native retail cap is asserted.
-- [ ] Clicking a visible non-local plate targets its owner before mesh raycasting. Registry UI under the cursor retains input precedence.
+- [x] Clicking a visible non-local plate targets its owner before mesh raycasting. Registry UI under the cursor retains input precedence. Godot click and hover routing share the existing shown-plate rectangles and nearest-camera owner lookup; this does not claim Retail hit-padding or opaque overlap-arbitration parity.
 - [x] A unit whose replicated `UnitFlags` carry `UNIT_FLAG_NOT_SELECTABLE` (0x02000000; triggers such as the Summon Enabler Stalker) has no projected name, health or cast visual, and cannot be clicked, hovered, cursor-highlighted or tab-targeted (Retail). Clearing the flag restores the plate and selection. `sync_not_selectable` keeps the `NotSelectable` marker in step with `UnitFlags`.
 
 ### Tap-denied health (Godot client)
