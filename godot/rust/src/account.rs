@@ -162,6 +162,8 @@ pub struct Account {
     pub challenge: shared::protocol::ChallengeSnapshot,
     pub adventure_guide: Option<std::sync::Arc<shared::protocol::AdventureGuideSnapshot>>,
     pub trading_post: Option<std::sync::Arc<shared::protocol::TradingPostSnapshot>>,
+    /// Actual completion results since the vendor view last drained an account update.
+    trading_post_replies: Vec<game_engine_ui_model::trading_post::Reply>,
     pub renown: Option<std::sync::Arc<shared::protocol::RenownSnapshot>>,
     /// Owner wallet from CurrencyStateUpdate; None until the realm sends it.
     pub currencies: Option<shared::protocol::CurrencySnapshot>,
@@ -407,6 +409,7 @@ impl Account {
             challenge: Default::default(),
             adventure_guide: None,
             trading_post: None,
+            trading_post_replies: Vec::new(),
             renown: None,
             currencies: None,
             party_keystones: Default::default(),
@@ -475,6 +478,7 @@ impl Account {
         self.scenario_objectives = Default::default();
         self.adventure_guide = None;
         self.trading_post = None;
+        self.trading_post_replies.clear();
         self.renown = None;
         self.currencies = None;
         self.achievements = Default::default();
@@ -833,6 +837,19 @@ impl Account {
         self.bridge()?
             .send::<_, InstanceChannel>(request)
             .map_err(SessionError)
+    }
+
+    pub fn take_trading_post_update(
+        &mut self,
+    ) -> Option<(
+        std::sync::Arc<shared::protocol::TradingPostSnapshot>,
+        Vec<game_engine_ui_model::trading_post::Reply>,
+    )> {
+        if self.trading_post_replies.is_empty() {
+            return None;
+        }
+        let snapshot = self.trading_post.clone()?;
+        Some((snapshot, std::mem::take(&mut self.trading_post_replies)))
     }
 
     pub fn send_trading_post(
@@ -1660,6 +1677,7 @@ impl Account {
                 Event::Disconnected(reason) => {
                     self.adventure_guide = None;
                     self.trading_post = None;
+                    self.trading_post_replies.clear();
                     self.renown = None;
                     self.currencies = None;
                     self.dungeon_objectives = Default::default();
@@ -1980,6 +1998,11 @@ impl Account {
                 update.frozen_item_id,
                 update.error
             );
+            self.trading_post_replies
+                .push(game_engine_ui_model::trading_post::Reply {
+                    kind: update.reply_kind,
+                    error: update.error.clone(),
+                });
             self.trading_post = Some(std::sync::Arc::new(
                 shared::protocol::TradingPostSnapshot::merge(self.trading_post.as_deref(), update),
             ));
@@ -2500,6 +2523,7 @@ impl Account {
                 SessionEffect::ResetNetworkWorld => {
                     self.adventure_guide = None;
                     self.trading_post = None;
+                    self.trading_post_replies.clear();
                     self.renown = None;
                     self.currencies = None;
                     self.dungeon_objectives = Default::default();
@@ -2751,6 +2775,75 @@ mod meetingstones_tests;
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    #[test]
+    fn trading_post_account_coalesced_purchase_then_query_completes_pending_owner() {
+        use game_engine_ui_model::trading_post::View;
+        use shared::protocol::{TradingPostReplyKind, TradingPostSnapshot};
+        for purchase_error in [
+            None,
+            Some("Purchase item is no longer available".to_string()),
+        ] {
+            let mut account = Account::new(PathBuf::from("/unused-trading-post-data"));
+            let mut output = Vec::new();
+            let purchase = TradingPostSnapshot {
+                npc_net_id: Some(185468),
+                tender: 400,
+                points: 0,
+                now_unix: 100,
+                month_end_unix: 200,
+                frozen_item_id: None,
+                categories: vec![],
+                items: vec![],
+                thresholds: vec![],
+                source_gaps: vec![],
+                error: None,
+                catalog_complete: false,
+                reply_kind: TradingPostReplyKind::Purchase,
+            };
+            let mut purchase = purchase;
+            purchase.error = purchase_error.clone();
+            let query = TradingPostSnapshot {
+                tender: 425,
+                now_unix: 101,
+                catalog_complete: true,
+                reply_kind: TradingPostReplyKind::Query,
+                error: None,
+                ..purchase.clone()
+            };
+            let mut view = View {
+                visible: true,
+                pending: true,
+                confirm: Some("purchase".into()),
+                ..Default::default()
+            };
+            // The host dispatches every drained message before the native view updates once.
+            for reply in [purchase, query] {
+                account
+                    .dispatch_message(ProtocolMessage::for_tests(reply), &mut output)
+                    .unwrap();
+            }
+            let (snapshot, replies) = account.take_trading_post_update().unwrap();
+            view.receive_replies(snapshot, &replies);
+            assert!(
+                account.take_trading_post_update().is_none(),
+                "Completed replies are not replayed on the next frame"
+            );
+            assert!(
+                !view.pending,
+                "Purchase completion must survive a later Query in one host poll"
+            );
+            assert!(view.confirm.is_none());
+            assert_eq!(view.snapshot.as_ref().unwrap().tender, 425);
+            assert_eq!(view.snapshot.as_ref().unwrap().now_unix, 101);
+            assert_eq!(
+                view.error,
+                purchase_error.unwrap_or_default(),
+                "Matching terminal error survives the later Query's empty error"
+            );
+            assert!(output.is_empty());
+        }
+    }
 
     #[test]
     fn inventory_max_count_error_dispatches_retail_ui_message() {

@@ -9,6 +9,8 @@ use ui_toolkit::registry::FrameRegistry;
 use ui_toolkit::screen::{Screen, SharedContext};
 static SKIN: Mutex<()> = Mutex::new(());
 
+#[path = "guild_numeric_sort_tests.rs"]
+mod guild_numeric_sort_tests;
 #[path = "guild_zone_sort_tests.rs"]
 mod guild_zone_sort_tests;
 
