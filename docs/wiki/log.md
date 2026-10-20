@@ -5049,3 +5049,7 @@ After pushed ignored tests and actual3-case behavioral RED, activated the existi
 ## 2026-10-20 — Guild context confirmation native proof
 
 gc774 passed tests/fmt and landed engineb0b3d4b39; exact server842325bf3/protocol600b755. [Both-skin real-member proof and limits](systems/guilds.md#context-confirmation-native-proof-2026-10-20): physical self/nonleader hiding, Cancel/Escape, captured target across selection/sort, Accept/actual authority and fresh-server/client new-master settings pass. Fourteen inspected original PNGs published unchanged; actors/cage/slice stopped, UDP5891 unbound/window cleared, historical original/source/artifact hashes unchanged. First-import editor errors and unrelated shared-CSV fixture startup blocker retained; no source/data repair, exact native request counts or offline/benign-refresh native sampling claimed.
+
+## 2026-10-20 — Azure Follower205 integration blocked
+
+[Native Azure attempt](systems/bot-harness.md#azure-follower205-native-attempt--2026-10-20): server8ea, real Fury70/fourfollowers, LFG2498/copy1, actual Heroic Throw ACK; rule1252/type3 stops player decisions38.821s after entry. All four bosses NotStarted; incomplete initial ring retention prevents complete death/DPS claims. Test-infrastructure adapterd77, Azure3/retained23PASS; approved private ground/exact eye-row supplement and startup/UI ordering fixes documented, no gameplay changes. Ranked UTC findings and raw evidence retained; owned processes/window stopped.
