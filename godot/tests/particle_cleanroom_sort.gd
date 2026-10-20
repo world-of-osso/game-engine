@@ -65,12 +65,13 @@ func check_case(blend: int, sorted: bool, reverse: bool) -> bool:
 	if image.get_size() != Vector2i(1920, 1080) or image.save_png(output + "/" + label + ".png") != OK:
 		push_error(label + " capture failed")
 		return false
-	# Two alpha=.5 heads over black: last contributes .5, first .25.
+	# Two alpha=.5 heads over black: last contributes .5, first .25. Particles blend
+	# authored (gamma) values (particle_composite_effect.gd), so these are the
+	# displayed values.
 	var blue_last := sorted and not reverse
-	var expected_linear := Color(0.25, 0.0, 0.5) if blue_last else Color(0.5, 0.0, 0.25)
+	var expected := Color(0.25, 0.0, 0.5) if blue_last else Color(0.5, 0.0, 0.25)
 	if blend == 4:
-		expected_linear = Color(0.5, 0.0, 0.5)
-	var expected := expected_linear.linear_to_srgb()
+		expected = Color(0.5, 0.0, 0.5)
 	var actual := image.get_pixel(960, 540)
 	var passed := absf(actual.r-expected.r) <= TOLERANCE and absf(actual.g-expected.g) <= TOLERANCE and absf(actual.b-expected.b) <= TOLERANCE
 	print(label, " expected=", expected, " actual=", actual, " passed=", passed)
