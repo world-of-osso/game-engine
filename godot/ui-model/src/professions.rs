@@ -101,23 +101,17 @@ impl ProfessionBook {
             .is_some_and(|spell| self.snapshot.spells.contains(&spell))
     }
 
-    /// `(item ID, owned across bags, needed per cast)`; equipment is never consumed.
+    /// `(item ID, owned across bags and known banks, needed per cast)`; equipment
+    /// is never consumed.
     pub fn reagent_counts(&self, bags: &InventoryState) -> Vec<(u32, u32, u32)> {
         let Some(recipe) = self.selected_recipe() else {
             return Vec::new();
         };
+        let owned = bags.crafting_reagent_counts();
         recipe
             .reagents
             .iter()
-            .map(|&(item, needed)| {
-                let owned = bags
-                    .slots
-                    .iter()
-                    .flatten()
-                    .filter(|slot| slot.item_id == item)
-                    .fold(0u32, |count, slot| count.saturating_add(slot.count));
-                (item, owned, needed)
-            })
+            .map(|&(item, needed)| (item, owned.get(&item).copied().unwrap_or(0), needed))
             .collect()
     }
 

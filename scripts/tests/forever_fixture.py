@@ -69,7 +69,7 @@ def csv_wdc5(content, float_columns=(), string_columns=(), row_ids=None):
     struct.pack_into("<6I", raw, 136, len(rows), len(fields), record_size,
                      len(strings), 0, FIXTURE_LAYOUT)
     struct.pack_into("<HH7I", raw, 172, 4, 0, len(fields), 0,
-                     len(fields) * 24, 0, 0, 0, 1)
+                     0, len(fields) * 24, 0, 0, 1)
     struct.pack_into("<Q8I", raw, 204, 0, record_start, len(rows), len(strings),
                      record_start + len(records), len(ids), 0, 0, 0)
     bit_offset = 0

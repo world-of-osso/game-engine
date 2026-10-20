@@ -10,6 +10,10 @@ import sys
 import struct
 from pathlib import Path
 
+# Callers also load this module by path; resolve its sibling helper from here.
+sys.path.insert(0, str(Path(__file__).resolve().parent))
+from server_db2 import db2_casc
+
 # WoWDBDefs: only the three locally observed layouts, not a general DB2 reader.
 LAYOUTS = {
     "extra": (0x4D9FE25C, 7, False),
@@ -31,73 +35,56 @@ def block(data, offset, size):
     return data[offset : offset + size]
 
 
-def read_fields(data, count, sections, record_size, palette_size, common_size):
+def validate_storage(data, count, sections, record_size, palette_size, common_size):
+    """Reject storage this importer does not accept; return the end of field metadata.
+
+    Values are decoded by db2_casc; these checks only refuse unsupported or
+    inconsistent descriptors (pallet arrays, wide or out-of-record fields, odd or
+    duplicate common entries, storage sizes that do not add up)."""
     start = 204 + sections * 40 + count * 4
     palette_start = start + count * 24
-    palette = block(data, palette_start, palette_size)
+    block(data, palette_start, palette_size)
     common = block(data, palette_start + palette_size, common_size)
-    fields = []
     pc = cc = 0
     for index in range(count):
-        offset, width, additional, storage, a, b, c = unpack(
-            data, "HH5I", start + index * 24
-        )
+        offset, width, additional, storage, *_ = unpack(data, "HH5I", start + index * 24)
         if storage not in (0, 1, 2, 3, 5):
             raise ValueError(f"unsupported storage {storage} in field {index}")
         if storage != 2 and (width > 32 or offset + width > record_size * 8):
             raise ValueError(f"unsupported storage width/offset in field {index}")
-        values = None
         if storage == 3:
             if additional % 4:
                 raise ValueError("invalid palette storage size")
-            values = [
-                v[0] for v in struct.iter_unpack("<I", block(palette, pc, additional))
-            ]
             pc += additional
         elif storage == 2:
             if additional % 8:
                 raise ValueError("invalid common storage size")
             pairs = list(struct.iter_unpack("<II", block(common, cc, additional)))
-            values = dict(pairs)
-            if len(values) != len(pairs):
+            if len(dict(pairs)) != len(pairs):
                 raise ValueError("duplicate common storage ID")
             cc += additional
         elif additional:
             raise ValueError("unexpected additional storage data")
-        fields.append((offset, width, storage, a, values))
     if pc != palette_size or cc != common_size:
         raise ValueError("inconsistent additional storage sizes")
-    return fields, palette_start + palette_size + common_size
+    return palette_start + palette_size + common_size
 
 
-def decode_field(raw, field, row_id):
-    offset, width, storage, default, values = field
-    if storage == 2:
-        return values.get(row_id, default)
-    value = (raw >> offset) & ((1 << width) - 1)
-    if storage == 3:
-        if value >= len(values):
-            raise ValueError(f"palette storage index {value} out of bounds")
-        return values[value]
-    if storage == 5 and width and value & (1 << (width - 1)):
-        value -= 1 << width
-    return value
-
-
-def read_relations(data, offset, size, count):
-    relation = {}
+def validate_relations(data, offset, size, count):
+    """Record indexes of a relationship map whose entries are in range and unique."""
+    indexes = set()
     if not size:
-        return relation
+        return indexes
     entries, low, high = unpack(data, "3I", offset)
     if size != 12 + entries * 8:
         raise ValueError("invalid relationship block size")
     for parent, index in struct.iter_unpack(
         "<II", block(data, offset + 12, entries * 8)
     ):
-        if index >= count or index in relation or not low <= parent <= high:
+        if index >= count or index in indexes or not low <= parent <= high:
             raise ValueError("invalid relationship record index or parent")
-        relation[index] = parent
-    return relation
+        indexes.add(index)
+    return indexes
 
 
 def read_skipped_sections(data, metadata_end, sections, record_size, noninline):
@@ -135,6 +122,8 @@ def read_skipped_sections(data, metadata_end, sections, record_size, noninline):
 
 
 def read_wdc5(data, kind, *, skipped=None):
+    """{record id: (field values, parent)} decoded by db2_casc.read_fixed after strict
+    shape checks. Copy rows resolve common-storage fields by their own ID."""
     layout, count, noninline = LAYOUTS[kind]
     if block(data, 0, 4) != b"WDC5" or unpack(data, "I", 4)[0] != 5:
         raise ValueError("expected WDC5 version 5")
@@ -175,14 +164,12 @@ def read_wdc5(data, kind, *, skipped=None):
         or (not noninline and id_index != 0)
     ):
         raise ValueError("unsupported WDC5 header/storage shape")
-    fields, metadata_end = read_fields(
+    metadata_end = validate_storage(
         data, count, sections, record_size, palette_size, common_size
     )
     omitted = read_skipped_sections(data, metadata_end, sections, record_size, noninline)
-    if not noninline and fields[0][2] == 2:
+    if not noninline and unpack(data, "HH5I", 204 + sections * 40 + count * 4)[3] == 2:
         raise ValueError("unsupported common storage for inline ID")
-    raw_rows = {}
-    copies = []
     seen_records = 0
     for section in range(sections):
         (
@@ -200,43 +187,43 @@ def read_wdc5(data, kind, *, skipped=None):
             raise ValueError("unsupported sparse section storage")
         if n and (start < metadata_end or start >= len(data)):
             raise ValueError(f"missing {'encrypted ' if key else ''}section {section}")
-        payload = block(data, start, n * record_size)
+        block(data, start, n * record_size)
+        seen_records += n
         if section in omitted:
-            seen_records += n
             continue
         if id_size != (n * 4 if noninline else 0):
             raise ValueError("invalid section ID list size")
         id_start = start + n * record_size + string_size
         copy_start = id_start + id_size
-        relation_start = copy_start + copy_count * 8
         block(
             data,
             start,
             n * record_size + string_size + id_size + copy_count * 8 + relation_size,
         )
-        relations = read_relations(data, relation_start, relation_size, n)
-        if noninline and len(relations) != n:
+        related = validate_relations(data, copy_start + copy_count * 8, relation_size, n)
+        if noninline and len(related) != n:
             raise ValueError("missing relationship for noninline record")
-        if not noninline and relations:
+        if not noninline and related:
             raise ValueError("unexpected relationship for Extra")
-        for i in range(n):
-            raw = int.from_bytes(
-                payload[i * record_size : (i + 1) * record_size], "little"
-            )
-            rid = (
-                unpack(data, "I", id_start + i * 4)[0]
-                if noninline
-                else decode_field(raw, fields[0], 0)
-            )
-            if rid <= 0 or rid in raw_rows:
-                raise ValueError(f"invalid or duplicate record ID {rid}")
-            raw_rows[rid] = (raw, relations.get(i))
-        copies.extend(
-            struct.iter_unpack("<II", block(data, copy_start, copy_count * 8))
-        )
-        seen_records += n
     if seen_records != records:
         raise ValueError("header/section record count mismatch")
+    try:
+        header, infos, table_sections = db2_casc.read_fixed(data)
+        _, commons = db2_casc.read_field_storage(
+            data, header, infos, metadata_end - palette_size - common_size
+        )
+    except struct.error as error:
+        raise ValueError(f"corrupt WDC5 storage: {error}") from error
+    raw_rows = {}
+    copies = []
+    for section in table_sections:
+        if section.records is None:
+            continue
+        for record in section.records:
+            if record.id <= 0 or record.id in raw_rows:
+                raise ValueError(f"invalid or duplicate record ID {record.id}")
+            raw_rows[record.id] = (record.values, record.parent)
+        copies.extend(section.copies)
     pending = dict(copies)
     if len(pending) != len(copies):
         raise ValueError("duplicate copy ID")
@@ -247,10 +234,14 @@ def read_wdc5(data, kind, *, skipped=None):
         for rid in resolved:
             if rid <= 0 or rid in raw_rows:
                 raise ValueError(f"duplicate or invalid copy ID {rid}")
-            raw_rows[rid] = raw_rows[pending.pop(rid)]
+            values, parent = raw_rows[pending.pop(rid)]
+            values = list(values)
+            for field, common in commons.items():
+                values[field] = common.get(rid, infos[field][4])
+            raw_rows[rid] = (values, parent)
     rows = {}
-    for rid, (raw, parent) in raw_rows.items():
-        values = [decode_field(raw, field, rid) for field in fields]
+    for rid, (values, parent) in raw_rows.items():
+        values = list(values)
         if not noninline:
             values[0] = rid
         rows[rid] = (tuple(values), parent)

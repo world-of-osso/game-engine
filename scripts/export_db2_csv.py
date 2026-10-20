@@ -67,6 +67,10 @@ from pathlib import Path
 import struct
 import sys
 
+# Callers also load this module by path; resolve its sibling helper from here.
+sys.path.insert(0, str(Path(__file__).resolve().parent))
+from server_db2 import db2_casc
+
 # (layout hash, [(CSV column, source)]); source is "id", "parent", a field index,
 # ("string", field index) for an inline string field,
 # ("float", field index, element) for 32-bit element `element` of a float field, or
@@ -1163,71 +1167,15 @@ INLINE_ID_FIELD = {
 }
 
 
-def read_fields(data, field_count, sections):
-    start = 204 + sections * 40 + field_count * 4
-    fields = [
-        struct.unpack_from("<HH5I", data, start + i * 24) for i in range(field_count)
-    ]
-    # Scalar pallets precede array pallets, each in field order. PlayerCondition
-    # 1D743D99 interleaves storage 4 before storage 3 in its field descriptors.
-    offsets = {3: 0, 4: sum(field[2] for field in fields if field[3] == 3)}
-    palette_offsets = []
-    for field in fields:
-        storage = field[3]
-        palette_offsets.append(offsets.get(storage, 0))
-        if storage in offsets:
-            offsets[storage] += field[2]
-    return fields, palette_offsets, start + field_count * 24
-
-
-def read_common(data, fields, common_start):
-    """Per field, the {record id: value} of a common-data (storage 2) field; other fields None."""
-    common, offset = [], common_start
-    for field in fields:
-        if field[3] != 2:
-            common.append(None)
-            continue
-        common.append(dict(struct.iter_unpack("<II", data[offset : offset + field[2]])))
-        offset += field[2]
-    return common
-
-
-def decode_field(raw, field, palette, palette_offset):
-    bit_offset, width, _, storage, _, _, array_count = field
-    value = (raw >> bit_offset) & ((1 << width) - 1)
-    if storage == 3:
-        return struct.unpack_from("<I", palette, palette_offset + value * 4)[0]
-    if storage == 4:
-        return struct.unpack_from(
-            f"<{array_count}I", palette, palette_offset + value * 4 * array_count
-        )
-    if storage == 5 and width and value & (1 << (width - 1)):
-        return value - (1 << width)
-    if storage == 2:
-        return None  # resolved per record id from the common block
-    if storage not in (0, 1, 5):
-        raise ValueError(f"unsupported field storage {storage}")
-    return value
-
-
-def read_relations(data, offset, size):
-    if not size:
-        return {}
-    entries = struct.unpack_from("<I", data, offset)[0]
-    return {
-        index: parent
-        for parent, index in struct.iter_unpack(
-            "<II", data[offset + 12 : offset + 12 + entries * 8]
-        )
-    }
-
-
 def read_wdc5(data, layout, id_field=0):
+    """({id: (field values, parent or None, record offset)}, dropped, field infos, sections).
+
+    Decoding is the server's db2_casc.read_fixed; this keeps the exporter's checks
+    (pinned layout, fixed records only, common block size) and copies alias their
+    source row."""
     if data[:4] != b"WDC5":
         raise ValueError("not a WDC5 file")
-    record_count, field_count, record_size, _, _, actual_layout = struct.unpack_from(
-        "<6I", data, 136
-    )
+    record_count, field_count, _, _, _, actual_layout = struct.unpack_from("<6I", data, 136)
     flags, _, _, _, _, _, common_size, palette_size, sections = struct.unpack_from(
         "<HH7I", data, 172
     )
@@ -1247,75 +1195,22 @@ def read_wdc5(data, layout, id_field=0):
         and len(data) == 204 + field_count * 4
     ):
         return {}, 0, [], 0
-    fields, palette_offsets, palette_start = read_fields(data, field_count, sections)
-    palette = data[palette_start : palette_start + palette_size]
-    common = read_common(data, fields, palette_start + palette_size)
+    _, fields, table_sections = db2_casc.read_fixed(data, id_field)
     if sum(f[2] for f in fields if f[3] == 2) != common_size:
         raise ValueError("common data size mismatch")
     rows, dropped = {}, 0
-    for section in range(sections):
-        key, start, count, string_size, _, id_size, relation_size, _, copies = (
-            struct.unpack_from("<Q8I", data, 204 + section * 40)
-        )
-        payload = data[start : start + count * record_size]
-        if key and count and not any(payload):
-            dropped += count
+    for section in table_sections:
+        if section.records is None:
+            dropped += section.count
             continue
-        id_start = start + count * record_size + string_size
-        copy_start = id_start + id_size
-        relations = read_relations(data, copy_start + copies * 8, relation_size)
-        for i in range(count):
-            raw = int.from_bytes(
-                payload[i * record_size : (i + 1) * record_size], "little"
-            )
-            values = [
-                decode_field(raw, f, palette, o)
-                for f, o in zip(fields, palette_offsets)
-            ]
-            row_id = (
-                struct.unpack_from("<I", data, id_start + i * 4)[0]
-                if id_size
-                else values[id_field]
-            )
-            for index, defaults in enumerate(common):
-                if defaults is not None:
-                    values[index] = defaults.get(row_id, fields[index][4])
-            rows[row_id] = (values, relations.get(i), start + i * record_size)
-        for new_id, source in struct.iter_unpack(
-            "<II", data[copy_start : copy_start + copies * 8]
-        ):
+        for record in section.records:
+            rows[record.id] = (record.values, record.parent, record.offset)
+        for new_id, source in section.copies:
             rows[new_id] = rows[source]
     return rows, dropped, fields, sections
 
 
-def read_string(data, record_offset, field, value):
-    """Resolve offsets in the global record/string sequence, not physical file offsets."""
-    if value == 0:
-        return ""
-    total, _, record_size = struct.unpack_from("<3I", data, 136)
-    sections = struct.unpack_from("<I", data, 200)[0]
-    headers = [struct.unpack_from("<Q8I", data, 204 + i * 40) for i in range(sections)]
-    preceding = 0
-    for _, start, count, *_ in headers:
-        if start <= record_offset < start + count * record_size:
-            index = preceding + (record_offset - start) // record_size
-            break
-        preceding += count
-    else:
-        raise ValueError(f"string record offset {record_offset} outside all sections")
-    logical = (index - total) * record_size + field[0] // 8 + value
-    for key, start, count, size, *_ in headers:
-        if 0 <= logical < size:
-            section_payload = data[start : start + count * record_size + size]
-            if key and not any(section_payload):
-                raise ValueError(
-                    f"string offset lands in unreadable encrypted section {key:016X}"
-                )
-            offset = start + count * record_size + logical
-            end = data.index(b"\0", offset, start + count * record_size + size)
-            return data[offset:end].decode("utf-8")
-        logical -= size
-    raise ValueError("string offset outside concatenated section string blocks")
+read_string = db2_casc.read_string
 
 
 def main():
@@ -1327,16 +1222,10 @@ def main():
     parser.add_argument('db2_path', type=Path)
     parser.add_argument('out_path', type=Path)
     parser.add_argument('--definitions', type=Path, required=True)
-    parser.add_argument('--server-scripts', type=Path)
     args = parser.parse_args()
-    sparse_reader = None
-    if args.server_scripts:
-        sys.path.insert(0, str(args.server_scripts))
-        import db2_casc
-        sparse_reader = db2_casc
     result = db2_dbd.export(args.db2_path.read_bytes(),
                             args.definitions / f'{args.table}.dbd', args.out_path,
-                            sys.modules[__name__], sparse_reader)
+                            sys.modules[__name__], db2_casc)
     print(f'{args.table}: {result}', file=sys.stderr)
 
 

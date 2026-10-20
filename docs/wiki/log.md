@@ -2,6 +2,9 @@
 
 [Contract](../specs/guild-context-whisper.md), [flow](systems/guilds.md#roster-context-whisper): sourced Whisper entry opens the existing chat input with `/w <name> `; named gap `CHAT_WHISPER_HEADER_ABSENT`. Actual RED → GREEN7/7. Context-leadership citation corrected to `COMMUNITIES_GUILD_MEMBER`. Gate/native pending.
 
+## 2026-10-19 — Trading Post slow-purchase timer implementation
+
+[Source and clock boundary](systems/trading-post.md#ten-second-slow-purchase-notice): pushed-first ignored Purchase/Checkout cases reached actual10s missing-notice assertions through the existing snapshot clock. Approved GREEN API switches to request-relative View elapsed driven by native request Instant, so Query cannot restart it. One authored Return/Escape notice, matching completion/hide cancellation, unchanged two-button confirmation geometry; model123/host-layout14 GREEN, integration/build gate pending. Native Escape consumes only the slow notice before background-window closure; source hook, not a measured input trace. No production delay or native runtime.
 ## 2026-10-20 — Recipe cooldown display
 
 [Contract](../specs/modern-crafting.md#recipe-cooldown): Create gated and Retail `COOLDOWN_REMAINING` red text from spell/category clocks; [server](../../../game-server/docs/specs/spell-cooldown-persistence.md) persists and replays cooldowns. ui-model RED (4 genuine assertion failures) → GREEN 28/28 professions; extension professions 8/8. Native both-skin proof pending.
@@ -16,7 +19,7 @@
 
 ## 2026-10-19 — Trading Post reply-kind correlation implementation
 
-[Flow and proof status](systems/trading-post.md#reply-kind-correlation): required server reply kind, host-poll kind drain and captured popup product preserve pending ownership across unrelated Query/catalog removal and Purchase→Query coalescing. Pushed-first regressions reached assertion RED before their corresponding changes, including the coalesced terminal-error control. Targeted107 model/13 host/3 UDP/5 protocol GREEN; coordinated gate pending. No timed/native/provider parity claim.
+[Flow and proof status](systems/trading-post.md#reply-kind-correlation): required server reply kind, host-poll kind drain and captured popup product preserve pending ownership across unrelated Query/catalog removal and Purchase→Query coalescing. Pushed-first regressions reached assertion RED before their corresponding changes, including the coalesced terminal-error control. Targeted107 model/13 host/3 UDP/5 protocol GREEN; tc756/tc765 coordinated gates pass and protocol600b755/server89a944309/engine7a2b53085 land together. Engine Time-sort merge preserves unconditional provider sort reset alongside guarded modal completion; tc762 missing-import compile error remains separately qualified. No timed/native/provider parity claim.
 ## 2026-10-19 — Ordinary Description TOP alignment
 
 [Source/proof](systems/dungeon-achievements.md#ordinary-description-vertical-alignment): one explicitverticalTOP attribute; priorCENTERcontrolupdatedinown0ac8commit, ignoredREDpushedfirst/observedfourbothskin alignmentassertions. Font10/330×34/ink/shadow/horizontalCENTER/origin/actions conserved; GREEN pending, no otherpolicychange.
@@ -5050,3 +5053,10 @@ After pushed ignored tests and actual3-case behavioral RED, activated the existi
 ## 2026-10-20 — Guild context confirmation native proof
 
 gc774 passed tests/fmt and landed engineb0b3d4b39; exact server842325bf3/protocol600b755. [Both-skin real-member proof and limits](systems/guilds.md#context-confirmation-native-proof-2026-10-20): physical self/nonleader hiding, Cancel/Escape, captured target across selection/sort, Accept/actual authority and fresh-server/client new-master settings pass. Fourteen inspected original PNGs published unchanged; actors/cage/slice stopped, UDP5891 unbound/window cleared, historical original/source/artifact hashes unchanged. First-import editor errors and unrelated shared-CSV fixture startup blocker retained; no source/data repair, exact native request counts or offline/benign-refresh native sampling claimed.
+
+## 2026-10-20 — Crafting reagents from banks
+
+[Professions reagent counts](systems/native-professions-crafting.md) now include the character and Warband banks from the last `BankContents` of each bank, which the server sends on world entry and after bank-reagent crafts. Retail-source only; `ProfessionView.bag_counts` renamed `owned_reagents`. Native proof pending.
+## 2026-10-20 — Gamma particle compositing
+
+[Root cause, fix and captures](investigations/godot-torch-rendering.md#gamma-compositing-2026-10-20): particles blended in linear light; WWV blends authored values in a UNORM target. A POST_TRANSPARENT CompositorEffect encodes the scene to sRGB, draws the pools with the GL factors against the resolved depth, and decodes. `particle_blend_pixels.gd` RED 12/16 fail → GREEN 16/16. Native both-skin 1920x1080 captures of 145304, 199823 and Frostbolt; composite 52-116 us GPU. Named gaps PARTICLES_COMPOSITE_AFTER_ALL_TRANSPARENT_GEOMETRY and PARTICLES_NO_DEPTH_WRITE.
