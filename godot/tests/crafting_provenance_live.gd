@@ -101,7 +101,9 @@ func prepare_classic_leatherworking() -> bool:
 ## In-scope acquisition only: the real trainer56 2153 purchase, then select the known recipe.
 ## The unlearned-preview conservation checks belong to modern_crafting_unlearned_live.gd.
 func discover_and_learn_pants() -> bool:
-	await tap(KEY_ESCAPE)
+	# Escape with no window open would raise the Game Menu over the gossip.
+	if shown("ProfessionsSearchBox"):
+		await tap(KEY_ESCAPE)
 	var bags: Array = client.merchant_state().bags.duplicate(true)
 	if money() != 990:
 		return fail("Pre-2153 copper must be 990, got %d" % money())
