@@ -4966,3 +4966,7 @@ Actual protocol1, both-skin UI1 and native HostClient server1 pass after their o
 ## 2026-10-19 — Leadership transfer native proof
 
 gz709 landed protocol724ec71/serverb15526d95/engine79b33ab93; two authenticated actors prove typed `/gleader`, immediate rank/permission refresh and same-private-DB fresh-server/client master settings in both skins. Six inspected original PNGs published; historical original unchanged, owned actors/slice stopped and window cleared. See the voluntary leadership transfer system section for exact evidence and proof exclusions.
+
+## 2026-10-19 — Last Online recency display
+
+After pushed ignored regression and actual Offline-vs-recency rendering RED, replaced opaque status text with optional logout authority and one source elapsed-unit formatter for roster/detail. Source English strings authenticated against active local-CASC receipt, not legacy CSV provenance. GREEN/coordinated gate/native pending; see guild Last Online section.
