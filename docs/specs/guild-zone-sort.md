@@ -18,6 +18,7 @@ Activate the existing Mainline100px Zone header using already-authoritative zone
 
 - `godot/ui-model/src/guild_communities.rs`: existing header and presentation list.
 - `godot/ui-model/src/guild_ranks.rs`: existing sort-click decisions.
+- `godot/ui-model/src/guild_zone_sort.rs`: pure field ordering; historical text helper reused without Note-mechanics changes.
 - `godot/ui-model/tests/guild_zone_sort_tests.rs`: rendered policy/packet/header/overflow/filter/identity regressions, registered under guild_rank_widgets.
 
 ## Tests asserting this spec
@@ -28,7 +29,7 @@ Activate the existing Mainline100px Zone header using already-authoritative zone
 
 ## Known gaps (current cycle)
 
-- [ ] Ignored tests/spec were pushed first; actual RED3 observed (empty existing header action, unchanged mixed-presence order and unchanged raid/RAID order). Implementation committed before focused GREEN; gate and allocated real two-member both-skin native proof remain pending.
+- [ ] Ignored tests/spec were pushed first; actual RED3 observed (empty existing header action, unchanged mixed-presence order and unchanged raid/RAID order). Implementation committed before focused GREEN3/3 (30.48s compile,0.33s tests, no warnings); assertion-identical proven tests enabled. Gate and allocated real two-member both-skin native proof remain pending.
 - **GUILD_ZONE_SORT_NATIVE_BINDING_AND_LIMIT_UNQUALIFIED:** allowed historical prose does not establish native Lua binding/Retail70448 parity or a character-count limit. Invalid-UTF8 historical decoding is outside Rust String inputs. Do not invent those missing semantics or open decompiled source.
 
 ## Out of scope

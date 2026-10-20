@@ -50,7 +50,6 @@ fn session(members: Vec<GuildMemberSnapshot>, missing: &[&str]) -> GuildRanksSes
 }
 
 #[test]
-#[ignore = "RED first: existing Zone header must order represented authority by approved policy"]
 fn guild_zone_sort_offline_seconds_direction_reset_and_name_ties_both_skins() {
     let _lock = SKIN.lock().unwrap_or_else(|p| p.into_inner());
     // GUILD_ZONE_SORT_OFFLINE_BY_LOGOUT_SECONDS: a one-second difference is deliberate.
@@ -118,7 +117,6 @@ fn guild_zone_sort_offline_seconds_direction_reset_and_name_ties_both_skins() {
 }
 
 #[test]
-#[ignore = "RED first: Zone string ordering must use the explicitly allowed historical prose cases"]
 fn guild_zone_sort_allowed_prose_collation_and_fixed_name_ties_both_skins() {
     let _lock = SKIN.lock().unwrap_or_else(|p| p.into_inner());
     // Allowed aso prose only, not a native Lua binding or Retail70448 parity claim.
@@ -204,7 +202,6 @@ fn guild_zone_sort_allowed_prose_collation_and_fixed_name_ties_both_skins() {
 }
 
 #[test]
-#[ignore = "RED first: physical Zone action must preserve overflow/filtering/geometry/member targets"]
 fn guild_zone_sort_real_header_dispatch_preserves_scroll_filter_and_member_identity() {
     let _lock = SKIN.lock().unwrap_or_else(|p| p.into_inner());
     game_engine_ui_model::paths::set_data_root(
