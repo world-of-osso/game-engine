@@ -2,6 +2,15 @@
 
 Retail Mainline Blizzard_EncounterJournal defines structure and behavior. Modern and Forever display the same controls; Forever changes art only. Authored Morpheus labels use the published `data/fonts/MORPHEUS.TTF` (FDID615962), not a substitute typeface; shared `GameFont` owns font filenames for native loading and text measurement.
 
+## Detached Journal CDI state kits
+
+- [ ] A Journal detached model applies its displayed CreatureDisplayInfo.StateSpellVisualKit model attachments through the existing kit catalog and model-attachment path, with a detached visual owner rather than a fabricated Replica/server ID.
+- [ ] Void Pulsar display141206 resolves kit253973: effect models4861458/7455384 attach to authored34, retain source offsets/yaw/scale/alpha and clip158 clocks once per visual. Actor4131 display0's explicit nil actor kit and idle0 defaults remain separate.
+- [ ] Normal Journal synchronization retains the same effect instances and progressing clocks. Creature switch/close cancels delayed work and destroys owned effects; reopening uses a fresh model/effects.
+- [ ] Genuine detached-child absence RED precedes correction; both-skin native acceptance follows landing. Catalog tests alone do not prove attachment/lifecycle.
+
+Particle/material appearance, opaque CAPI timing and generalized detached unit-animation/sound-kit support are not claimed by this bounded model-attachment slice. [Implementation](../wiki/systems/adventure-guide.md#detached-journal-cdi-state-kit-ownership).
+
 ## Search presentation and navigation
 
 Retail EncounterSearchSM/LG, SearchBoxListMixin and BottomPopupScrollBoxTemplate define the shared two-skin search controls. The native search edit retains the authored210×20 bounds in both skins; an inactive Godot read-only style must not enlarge its minimum. Focused valid text (at least3 UTF-8 bytes) shows up to five210px preview rows (first24px, following27px), followed by24px Show All only when more results exist. Arrows wrap through visible rows/Show All; Enter activates the selection. Enter on short/no-result text retains edit focus and immediately accepts further typing without a click. Preview result/Show All pointer activation retains field-owned keyboard focus until the completed click selects it; successful selection/Show All closes and blurs it. Blur hides preview; Escape from the edit clears focus/preview without also closing the journal; unrelated edit widgets retain their existing key bindings. Refocus hides full results and resets selection. Full results use the600×400 bottom-anchored popup,575×49 rows with authored icon/name/type/path, independent scrolling and a close button that retains the query. Clear/journal hide resets search. Choosing a search result closes/blurs the results UI but retains query text (EJ Lua2506–2522/2215); external encounter links keep their existing clear-search contract. Instance rows have no breadcrumb; encounter/section rows retain their authored instance/path. ItemSets search remains global, not a set-list filter.
