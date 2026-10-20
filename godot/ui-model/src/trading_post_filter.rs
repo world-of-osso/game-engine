@@ -148,17 +148,16 @@ fn sort_menu(view: &View, anchor: (f32, f32)) -> Element {
                 checked: view.sort == Sort::Price,
             },
         ),
-        // No sourced item calendar interval; retain the real disabled description entry.
         (
             ContextMenuItem {
                 name: "PerksProgramFilterSortTime",
                 label: "Time Remaining",
-                action: "",
+                action: "perks:sort:time",
             },
             Radio {
                 checked: view.sort == Sort::Time,
             },
-            false,
+            view.can_sort_time(),
         ),
     ];
     menu_layer(
