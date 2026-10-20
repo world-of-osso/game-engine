@@ -79,22 +79,34 @@ fn shared_panel_art_real_windows_emit_source_state_art_in_both_skins() {
                 panic!("{name} must be a button");
             };
             assert_eq!(
-                button.normal_texture,
+                button
+                    .normal_texture
+                    .as_ref()
+                    .map(|texture| texture.source.clone()),
                 Some(TextureSource::FileDataId(130828)),
                 "{skin:?} {name}"
             );
             assert_eq!(
-                button.pushed_texture,
+                button
+                    .pushed_texture
+                    .as_ref()
+                    .map(|texture| texture.source.clone()),
                 Some(TextureSource::FileDataId(130825)),
                 "{skin:?} {name}"
             );
             assert_eq!(
-                button.disabled_texture,
+                button
+                    .disabled_texture
+                    .as_ref()
+                    .map(|texture| texture.source.clone()),
                 Some(TextureSource::FileDataId(130824)),
                 "{skin:?} {name}"
             );
             assert_eq!(
-                button.highlight_texture,
+                button
+                    .highlight_texture
+                    .as_ref()
+                    .map(|texture| texture.source.clone()),
                 Some(TextureSource::FileDataId(130826)),
                 "{skin:?} {name}"
             );

@@ -367,7 +367,7 @@ fn item_card(
     let disabled = book.busy();
     rsx! { button { name: {DynName(prefix)}, width: MODEL_WIDTH, height: MODEL_HEIGHT,
     left: x, top: y, pos_type: "absolute", disabled, button_default_skin: false,
-    button_atlas_highlight: "transmog-itemcard-default", onclick: {action.as_str()}, {children} } }
+    button_atlas_highlight: "transmog-itemcard-default", button_highlight_blend_mode:"ADD", onclick: {action.as_str()}, {children} } }
 }
 
 fn source_card(book: &TransmogBook, source: &TransmogSource, index: usize) -> Element {
@@ -509,7 +509,7 @@ fn set_base_card(
     children.extend(rsx! { fontstring { name: {DynName(format!("{prefix}Status"))}, text: {status.as_str()}, hidden: true } });
     rsx! { button { name: {DynName(prefix)}, width: SET_WIDTH, height: SET_HEIGHT, left: x, top: y,
     pos_type: "absolute", disabled: busy, button_default_skin: false,
-    button_atlas_highlight: "transmog-itemcard-default", onclick: {action.as_str()}, {children} } }
+    button_atlas_highlight: "transmog-itemcard-default", button_highlight_blend_mode:"ADD", onclick: {action.as_str()}, {children} } }
 }
 
 fn set_card(
@@ -731,9 +731,13 @@ fn apply_paging_art(registry: &mut ui_toolkit::registry::FrameRegistry) {
         let Some(WidgetData::Button(button)) = &mut frame.widget_data else {
             panic!("{name} is not a button")
         };
-        button.normal_texture = Some(TextureSource::FileDataId(normal));
-        button.pushed_texture = Some(TextureSource::FileDataId(pressed));
-        button.disabled_texture = Some(TextureSource::FileDataId(disabled));
-        button.highlight_texture = Some(TextureSource::FileDataId(130757));
+        use ui_toolkit::widgets::{button::ButtonTexture, texture::BlendMode};
+        button.normal_texture = Some(ButtonTexture::new(TextureSource::FileDataId(normal)));
+        button.pushed_texture = Some(ButtonTexture::new(TextureSource::FileDataId(pressed)));
+        button.disabled_texture = Some(ButtonTexture::new(TextureSource::FileDataId(disabled)));
+        button.highlight_texture = Some(ButtonTexture {
+            source: TextureSource::FileDataId(130757),
+            blend_mode: BlendMode::Additive,
+        });
     }
 }

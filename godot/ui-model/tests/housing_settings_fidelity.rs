@@ -228,10 +228,34 @@ fn house_settings_source_close_button_both_skins() {
             assert!(button.enabled);
             assert_eq!(button.state, ButtonState::Normal);
             for (actual, atlas) in [
-                (&button.normal_texture, "RedButton-Exit"),
-                (&button.pushed_texture, "RedButton-exit-pressed"),
-                (&button.disabled_texture, "RedButton-Exit-Disabled"),
-                (&button.highlight_texture, "RedButton-Highlight"),
+                (
+                    &button
+                        .normal_texture
+                        .as_ref()
+                        .map(|texture| texture.source.clone()),
+                    "RedButton-Exit",
+                ),
+                (
+                    &button
+                        .pushed_texture
+                        .as_ref()
+                        .map(|texture| texture.source.clone()),
+                    "RedButton-exit-pressed",
+                ),
+                (
+                    &button
+                        .disabled_texture
+                        .as_ref()
+                        .map(|texture| texture.source.clone()),
+                    "RedButton-Exit-Disabled",
+                ),
+                (
+                    &button
+                        .highlight_texture
+                        .as_ref()
+                        .map(|texture| texture.source.clone()),
+                    "RedButton-Highlight",
+                ),
             ] {
                 assert_eq!(*actual, Some(TextureSource::Atlas(atlas.into())));
             }
@@ -305,10 +329,34 @@ fn house_settings_action_button_art_both_skins() {
                     }
                 );
                 for (actual, fdid) in [
-                    (&button.normal_texture, 130828),
-                    (&button.pushed_texture, 130825),
-                    (&button.disabled_texture, 130824),
-                    (&button.highlight_texture, 130826),
+                    (
+                        &button
+                            .normal_texture
+                            .as_ref()
+                            .map(|texture| texture.source.clone()),
+                        130828,
+                    ),
+                    (
+                        &button
+                            .pushed_texture
+                            .as_ref()
+                            .map(|texture| texture.source.clone()),
+                        130825,
+                    ),
+                    (
+                        &button
+                            .disabled_texture
+                            .as_ref()
+                            .map(|texture| texture.source.clone()),
+                        130824,
+                    ),
+                    (
+                        &button
+                            .highlight_texture
+                            .as_ref()
+                            .map(|texture| texture.source.clone()),
+                        130826,
+                    ),
                 ] {
                     assert_eq!(*actual, Some(TextureSource::FileDataId(fdid)), "{name}");
                 }

@@ -530,7 +530,7 @@ fn queue_popup(view: &PetJournalView) -> Element {
         strata: FrameStrata::Dialog, frame_level: 10.0,
         button_fdid_up: 130828_u32,
         button_fdid_pressed: 130825_u32,
-        button_fdid_highlight: 130826_u32,
+        button_fdid_highlight: 130826_u32, button_highlight_blend_mode:"ADD",
         button_fdid_disabled: 130824_u32 } });
     }
     rsx! { r#frame { name: "PetBattleQueueReadyFrame", width: 320.0, height: 200.0,

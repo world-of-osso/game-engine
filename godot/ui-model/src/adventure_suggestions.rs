@@ -197,10 +197,14 @@ fn apply_paging_art(registry: &mut ui_toolkit::registry::FrameRegistry) {
         else {
             continue;
         };
-        button.normal_texture = Some(TextureSource::FileDataId(normal));
-        button.pushed_texture = Some(TextureSource::FileDataId(pressed));
-        button.disabled_texture = Some(TextureSource::FileDataId(disabled));
-        button.highlight_texture = Some(TextureSource::FileDataId(130757));
+        use ui_toolkit::widgets::{button::ButtonTexture, texture::BlendMode};
+        button.normal_texture = Some(ButtonTexture::new(TextureSource::FileDataId(normal)));
+        button.pushed_texture = Some(ButtonTexture::new(TextureSource::FileDataId(pressed)));
+        button.disabled_texture = Some(ButtonTexture::new(TextureSource::FileDataId(disabled)));
+        button.highlight_texture = Some(ButtonTexture {
+            source: TextureSource::FileDataId(130757),
+            blend_mode: BlendMode::Additive,
+        });
     }
 }
 

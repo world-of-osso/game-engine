@@ -144,7 +144,7 @@ fn ready_button(suffix: &str, text: &str, onclick: &str, x: f32) -> Element {
             frame_level: 10.0,
             button_fdid_up: 130828_u32,
             button_fdid_pressed: 130825_u32,
-            button_fdid_highlight: 130826_u32,
+            button_fdid_highlight: 130826_u32, button_highlight_blend_mode:"ADD",
             button_fdid_disabled: 130824_u32,
             pos_type: "absolute",
             pos_x: x,

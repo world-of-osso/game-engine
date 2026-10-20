@@ -344,11 +344,18 @@ pub fn apply_postsetup(registry: &mut ui_toolkit::registry::FrameRegistry) {
 }
 
 fn install_source_button_art(button: &mut ui_toolkit::widgets::button::ButtonData, name: &str) {
-    use ui_toolkit::widgets::texture::TextureSource;
+    use ui_toolkit::widgets::{
+        button::ButtonTexture,
+        texture::{BlendMode, TextureSource},
+    };
     if let Some((normal, pushed, disabled, highlight)) = source_arrow_textures(name) {
-        button.normal_texture = Some(TextureSource::FileDataId(normal));
-        button.pushed_texture = Some(TextureSource::FileDataId(pushed));
-        button.disabled_texture = disabled.map(TextureSource::FileDataId);
-        button.highlight_texture = Some(TextureSource::FileDataId(highlight));
+        button.normal_texture = Some(ButtonTexture::new(TextureSource::FileDataId(normal)));
+        button.pushed_texture = Some(ButtonTexture::new(TextureSource::FileDataId(pushed)));
+        button.disabled_texture =
+            disabled.map(|fdid| ButtonTexture::new(TextureSource::FileDataId(fdid)));
+        button.highlight_texture = Some(ButtonTexture {
+            source: TextureSource::FileDataId(highlight),
+            blend_mode: BlendMode::Additive,
+        });
     }
 }

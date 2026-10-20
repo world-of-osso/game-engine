@@ -12,6 +12,78 @@ fn atlas(name: &str) -> Option<TextureSource> {
     Some(TextureSource::Atlas(name.into()))
 }
 
+fn button_atlas(name: &str) -> Option<ButtonTexture> {
+    Some(ButtonTexture::new(TextureSource::Atlas(name.into())))
+}
+
+#[test]
+fn ui_template_blend_button_material_depends_on_authored_mode_not_source_or_geometry_router() {
+    for source in [
+        TextureSource::Atlas("transmog-itemcard-default".into()),
+        TextureSource::Atlas("house-chest-open-drawer-button".into()),
+        TextureSource::Atlas("perks-button-up".into()),
+        TextureSource::Atlas("ui-hud-minimap-zoom-in".into()),
+        TextureSource::Atlas("128-redbutton-left".into()),
+        TextureSource::FileDataId(130828),
+    ] {
+        for blend_mode in [BlendMode::Blend, BlendMode::Additive] {
+            for state in [
+                ButtonState::Normal,
+                ButtonState::Pushed,
+                ButtonState::Disabled,
+            ] {
+                let art = Some(ButtonTexture {
+                    source: source.clone(),
+                    blend_mode,
+                });
+                let frame = button(ButtonData {
+                    normal_texture: art.clone(),
+                    pushed_texture: art.clone(),
+                    disabled_texture: art.clone(),
+                    highlight_texture: art,
+                    hovered: true,
+                    state,
+                    use_default_skin: false,
+                    ..Default::default()
+                });
+                let parts = project_images(&frame, 164.0, 48.0);
+                assert!(!parts.is_empty(), "{source:?} {state:?}");
+                assert!(
+                    parts
+                        .iter()
+                        .all(|part| part.additive == (blend_mode == BlendMode::Additive)),
+                    "{source:?} {state:?} {blend_mode:?}: {parts:?}"
+                );
+            }
+        }
+    }
+}
+
+#[test]
+fn ui_template_blend_texture_names_do_not_select_materials() {
+    for name in [
+        "PerksProgramSelected4",
+        "PerksProgramFrozenSelected",
+        "UnrelatedRegion",
+    ] {
+        for blend_mode in [BlendMode::Blend, BlendMode::Additive] {
+            let mut frame = Frame::new(1, Some(name.into()), WidgetType::Texture);
+            frame.widget_data = Some(WidgetData::Texture(TextureData {
+                source: TextureSource::Atlas("perks-list-selected".into()),
+                blend_mode,
+                ..Default::default()
+            }));
+            let parts = project_images(&frame, 40.0, 40.0);
+            assert_eq!(parts.len(), 1);
+            assert_eq!(
+                parts[0].additive,
+                blend_mode == BlendMode::Additive,
+                "{name}"
+            );
+        }
+    }
+}
+
 #[test]
 fn guild_tabard_arrow_hover_keeps_source_base_under_additive_highlight() {
     use game_engine_ui_model::{guild_tabard_frame, guild_tabards::GuildTabards};
@@ -147,9 +219,9 @@ fn retail_panel_button_preserves_12px_caps_and_crops_unused_sheet_area() {
     ] {
         let frame = button(ButtonData {
             state,
-            normal_texture: Some(TextureSource::FileDataId(130828)),
-            pushed_texture: Some(TextureSource::FileDataId(130825)),
-            disabled_texture: Some(TextureSource::FileDataId(130824)),
+            normal_texture: Some(ButtonTexture::new(TextureSource::FileDataId(130828))),
+            pushed_texture: Some(ButtonTexture::new(TextureSource::FileDataId(130825))),
+            disabled_texture: Some(ButtonTexture::new(TextureSource::FileDataId(130824))),
             ..Default::default()
         });
         let images = project_images(&frame, 164.0, 22.0);
@@ -174,7 +246,7 @@ fn retail_panel_button_preserves_12px_caps_and_crops_unused_sheet_area() {
 fn shared_panel_art_keeps_xml_12px_caps_when_callers_change_height() {
     for height in [21.0, 24.0, 30.0] {
         let frame = button(ButtonData {
-            normal_texture: Some(TextureSource::FileDataId(130828)),
+            normal_texture: Some(ButtonTexture::new(TextureSource::FileDataId(130828))),
             ..Default::default()
         });
         let images = project_images(&frame, 245.0, height);
@@ -266,7 +338,7 @@ fn retail_shared_red_button_preserves_authored_caps_in_each_state() {
         (ButtonState::Disabled, "-disabled"),
     ] {
         let frame = button(ButtonData {
-            normal_texture: atlas("128-redbutton-left"),
+            normal_texture: button_atlas("128-redbutton-left"),
             state,
             use_default_skin: false,
             ..Default::default()
@@ -295,9 +367,12 @@ fn retail_shared_red_button_preserves_authored_caps_in_each_state() {
 fn trading_post_rotate_button_projects_additive_hover_and_offset_pressed_art() {
     for state in [ButtonState::Normal, ButtonState::Pushed] {
         let frame = button(ButtonData {
-            normal_texture: atlas("perks-button-up"),
-            pushed_texture: atlas("perks-button-down"),
-            highlight_texture: atlas("perks-button-up"),
+            normal_texture: button_atlas("perks-button-up"),
+            pushed_texture: button_atlas("perks-button-down"),
+            highlight_texture: Some(ButtonTexture {
+                source: TextureSource::Atlas("perks-button-up".into()),
+                blend_mode: BlendMode::Additive,
+            }),
             highlight_alpha: 0.6,
             hovered: true,
             state,
@@ -329,8 +404,8 @@ fn trading_post_rotate_button_projects_additive_hover_and_offset_pressed_art() {
 #[test]
 fn authored_button_textures_replace_the_default_skin() {
     let data = ButtonData {
-        normal_texture: atlas("128-redbutton-up"),
-        pushed_texture: atlas("128-redbutton-pressed"),
+        normal_texture: button_atlas("128-redbutton-up"),
+        pushed_texture: button_atlas("128-redbutton-pressed"),
         state: ButtonState::Pushed,
         ..Default::default()
     };
@@ -362,7 +437,10 @@ fn transmog_hover_borders_add_light_without_covering_the_preview() {
     ] {
         let frame = button(ButtonData {
             use_default_skin: false,
-            highlight_texture: Some(TextureSource::Atlas(atlas.into())),
+            highlight_texture: Some(ButtonTexture {
+                source: TextureSource::Atlas(atlas.into()),
+                blend_mode: BlendMode::Additive,
+            }),
             hovered: true,
             highlight_size: Some(size),
             ..Default::default()
@@ -382,7 +460,10 @@ fn housing_storage_hover_overlays_add_half_alpha_with_source_handle_alignment() 
     ] {
         let mut frame = button(ButtonData {
             use_default_skin: false,
-            highlight_texture: Some(TextureSource::Atlas(atlas.into())),
+            highlight_texture: Some(ButtonTexture {
+                source: TextureSource::Atlas(atlas.into()),
+                blend_mode: BlendMode::Additive,
+            }),
             highlight_alpha: 0.5,
             hovered: true,
             ..Default::default()
@@ -407,7 +488,7 @@ fn unskinned_button_with_authored_slice_overlays_its_highlight() {
     let glow = TextureSource::File("data/ui/glow.ktx2".into());
     let mut frame = button(ButtonData {
         use_default_skin: false,
-        highlight_texture: Some(glow.clone()),
+        highlight_texture: Some(ButtonTexture::new(glow.clone())),
         highlight_alpha: 0.7,
         hovered: true,
         highlight_size: Some([100.0, 100.0]),

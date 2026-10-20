@@ -645,19 +645,31 @@ fn pet_ready_buttons_project_source_panel_sheets_without_changing_input_or_geome
                     panic!("ready action button missing")
                 };
                 assert_eq!(
-                    button.normal_texture,
+                    button
+                        .normal_texture
+                        .as_ref()
+                        .map(|texture| texture.source.clone()),
                     Some(TextureSource::FileDataId(130828))
                 );
                 assert_eq!(
-                    button.pushed_texture,
+                    button
+                        .pushed_texture
+                        .as_ref()
+                        .map(|texture| texture.source.clone()),
                     Some(TextureSource::FileDataId(130825))
                 );
                 assert_eq!(
-                    button.highlight_texture,
+                    button
+                        .highlight_texture
+                        .as_ref()
+                        .map(|texture| texture.source.clone()),
                     Some(TextureSource::FileDataId(130826))
                 );
                 assert_eq!(
-                    button.disabled_texture,
+                    button
+                        .disabled_texture
+                        .as_ref()
+                        .map(|texture| texture.source.clone()),
                     Some(TextureSource::FileDataId(130824))
                 );
                 assert_eq!(button.state == ButtonState::Disabled, pending);
