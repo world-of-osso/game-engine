@@ -50,6 +50,12 @@ func run_test() -> void:
 	client.free()
 	quit(0)
 
+## Keep the last rendered frame of any failure for diagnosis.
+func fail(message: String) -> bool:
+	if shots != "":
+		root.get_texture().get_image().save_png("%s/%s-fail.png" % [shots, role])
+	return super.fail(message)
+
 func select_sphere() -> bool:
 	await tap(KEY_K)
 	if not await wait_until(func(): return shown("ProfessionsSearchBox"), "profession book"):
