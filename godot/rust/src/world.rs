@@ -30,13 +30,13 @@ use game_engine_network::replica::{Replica, Unit};
 use glam::{Affine3A, Vec3};
 use godot::{
     builtin::{Transform3D, Vector3},
-    classes::{Engine as GodotEngine, Node3D, Time},
+    classes::{Area3D, Engine as GodotEngine, Node3D, Time},
     prelude::*,
 };
 use shared::components::{
     CombatStatus, CreatureMotion, EquipmentAppearance, Health, ModelDisplay, Mounted,
     MovementControl, MovementSpeed, Npc, Player, PlayerMotion, PlayerStandState, Position,
-    Rotation, SheathState, StandState, UnitPose,
+    Rotation, SheathState, StandState, UnitFlags, UnitPose,
 };
 use shared::death::DeathState;
 use shared::protocol::EmoteKind;
@@ -623,6 +623,21 @@ fn attach_unit_visual(
             unit.visual_player_model = None;
             godot_error!("{}: {error}", appearance.describe_unit(server_id));
         }
+    }
+}
+
+/// The pick-only Area follows UnitFlags; the unit's visual remains drawn.
+fn sync_unit_pick_selectability(unit: &UnitNode, snapshot: Unit) {
+    let Some(shape) = crate::targeting::unit_pick_shape(&unit.node) else {
+        return;
+    };
+    let mut area = shape
+        .get_parent()
+        .expect("UnitPick shape must belong to its Area3D")
+        .cast::<Area3D>();
+    let selectable = UnitFlags(snapshot.unit_flags().unwrap_or_default()).is_selectable();
+    if area.is_visible() != selectable {
+        area.set_visible(selectable);
     }
 }
 
@@ -1242,6 +1257,7 @@ impl WorldUnits {
         }
         let fallbacks = combat::load_fallbacks(&mut self.anim_fallbacks, &self.data_root);
         sync_unit_animation(unit, snapshot, fallbacks);
+        sync_unit_pick_selectability(unit, snapshot);
         unit.motion.forced_facing = snapshot.get::<shared::components::ForcedFacing>().copied();
         let control = snapshot.get::<MovementControl>().copied();
         if self.local_player_id == Some(snapshot.server_id)
@@ -1326,6 +1342,7 @@ impl WorldUnits {
             );
             log_visual_result(unit, id, request, existing_visual, prepared_result_ok);
             if let Some(snapshot) = replica.unit(id) {
+                sync_unit_pick_selectability(unit, snapshot);
                 // Every visual load read the gear rows, so the weapon and pose resolve now.
                 if let Some(class) = combat::unit_weapon_class(unit, &self.models) {
                     (unit.weapon, unit.main_hand_subclass) = class;
