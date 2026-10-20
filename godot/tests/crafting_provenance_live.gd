@@ -68,6 +68,23 @@ func open_simon() -> bool:
 	await press("ClassTrainerFilterDropdown")
 	return true
 
+## The base-profession confirmation is trainer_frame.rs TrainerConfirmation, not StaticPopup1.
+func purchase_service(spell: int, cost: int) -> bool:
+	var name := "ClassTrainerService%d" % spell
+	if not await wait_until(func(): return shown(name), "authored trainer service " + str(spell)):
+		return false
+	await press(name)
+	if not await wait_until(func(): return not control("ClassTrainerTrainButton").disabled, "available real trainer service"):
+		return false
+	var before := money()
+	await press("ClassTrainerTrainButton")
+	if spell == 264578:
+		if not await wait_until(func(): return money() == before - cost or shown("TrainerConfirmAccept"), "base-profession confirmation or payment"):
+			return false
+		if shown("TrainerConfirmAccept"):
+			await press("TrainerConfirmAccept")
+	return await wait_until(func(): return money() == before - cost, "authoritative trainer payment " + str(cost))
+
 func ipc(arguments: Array) -> String:
 	var worker := Thread.new()
 	var argv := ["--signal=KILL", "15", OS.get_environment("GAME_ENGINE_CLI"), "--socket", "/tmp/game-engine-%d.sock" % OS.get_process_id()] + arguments
