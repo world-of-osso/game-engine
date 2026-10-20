@@ -195,7 +195,7 @@ func craft_once() -> bool:
 func readback_only() -> bool:
 	var crafted_guid := int(OS.get_environment("PROVENANCE_CRAFTED_GUID"))
 	var control_guid := int(OS.get_environment("PROVENANCE_CONTROL_GUID"))
-	var successes: Array = client.spells_state().cast_success.duplicate(true)
+	var successes = client.spells_state().cast_success.duplicate()
 	var failure_seq: int = client.spells_state().cast_failure_seq
 	var crafted := pants_entries().filter(func(entry): return entry.item_guid == crafted_guid)
 	var control := pants_entries().filter(func(entry): return entry.item_guid == control_guid)
