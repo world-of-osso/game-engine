@@ -4,11 +4,11 @@ Mainline UnitPopupSharedMenus.lua257–286 and UnitPopupSharedButtonMixins.lua88
 
 ## What it must do
 
-- [ ] Both skins expose `Promote to Guildmaster` for an authoritative current-master/nonself roster target, including offline members. Nonleader/self/missing-authority/waiting contexts must not dispatch the action. Existing ordinary Promote/Demote/Remove stay unchanged.
-- [ ] Opening the entry only captures the original target and shows `Really promote %s to Guildmaster?`; selection, sort and benign roster/profile refresh must not retarget acceptance. Authenticated local-CASC70448 GlobalStrings15965/15967 supplies the exact English strings.
-- [ ] Accept dispatches exactly one existing target-only TransferLeadership request. Existing server reply/profile owns actual leader/rank changes; no optimistic mutation or new backend authority.
-- [ ] Cancel and the existing native Escape dismissal boundary send no transfer, close only the confirmation and preserve the guild window. Closing/reopening must not resurrect a stale confirmation.
-- [ ] Use source ordinary popup/menu primitives, labels and geometry in both skins, with no generic popup redesign. CONFIRM_GUILD_PROMOTE does not request fullScreenCover; do not add an unrelated full-screen cover. Native physical input/rendering remains a separately granted acceptance boundary.
+- [x] Both skins expose `Promote to Guildmaster` for an authoritative current-master/nonself roster target, including offline members. Nonleader/self/missing-authority/waiting contexts must not dispatch the action. Existing ordinary Promote/Demote/Remove stay unchanged.
+- [x] Opening the entry only captures the original target and shows `Really promote %s to Guildmaster?`; selection, sort and benign roster/profile refresh must not retarget acceptance. Authenticated local-CASC70448 GlobalStrings15965/15967 supplies the exact English strings.
+- [x] Accept dispatches exactly one existing target-only TransferLeadership request. Existing server reply/profile owns actual leader/rank changes; no optimistic mutation or new backend authority.
+- [x] Cancel and the existing native Escape dismissal boundary send no transfer, close only the confirmation and preserve the guild window. Closing/reopening must not resurrect a stale confirmation.
+- [x] Use source ordinary popup/menu primitives, labels and geometry in both skins, with no generic popup redesign. CONFIRM_GUILD_PROMOTE does not request fullScreenCover; do not add an unrelated full-screen cover. Native physical input/rendering remains a separately granted acceptance boundary.
 
 ## How it works
 
@@ -33,7 +33,7 @@ Mainline UnitPopupSharedMenus.lua257–286 and UnitPopupSharedButtonMixins.lua88
 
 ## Known gaps (current cycle)
 
-- [ ] Ignored tests/spec were pushed before actual behavior RED4 atcf4ccddb2 (40.92s compile/0.11s tests/no warnings): missing sourced menu, captured popup/text and Escape dismissal. Earlier dimension/Val fixture errors and stale pre-tc765 consumer compile failures are setup only, never behavior RED. Minimal UI/reducer implementation now awaits committed focused GREEN, enabled proofs and independent gate.
+- [ ] Ignored tests/spec were pushed before actual behavior RED4 atcf4ccddb2 (40.92s compile/0.11s tests/no warnings): missing sourced menu, captured popup/text and Escape dismissal. Earlier dimension/Val fixture errors and stale pre-tc765 consumer compile failures are setup only, never behavior RED. Implementation64458e9ce preceded focused GREEN4/4 at365eb32f6 (17.54s compile/0.12s tests/no warnings), then only ignore attributes were removed. Negative responder/caption observations were corrected to the existing registry/Button APIs without changing the requested behavior. Independent gate remains pending.
 - [ ] After gate/landing: exact-cohort/startup and granted private-copy/window, real authenticated two-member both-skin physical Cancel/Escape/Accept and authoritative refresh. Model snapshots are not native guild proof.
 
 ## Out of scope

@@ -57,7 +57,6 @@ fn open_direct(session: &mut GuildRanksSession) {
 }
 
 #[test]
-#[ignore = "RED first: sourced current-master/nonself context entry is absent"]
 fn guild_context_leadership_menu_eligibility_and_ordinary_rank_controls_both_skins() {
     let _lock = SKIN.lock().unwrap_or_else(|poison| poison.into_inner());
     for skin in [ActiveSkin::Modern, ActiveSkin::Forever] {
@@ -122,7 +121,6 @@ fn guild_context_leadership_menu_eligibility_and_ordinary_rank_controls_both_ski
 }
 
 #[test]
-#[ignore = "RED first: captured-target confirmation and typed Accept are absent"]
 fn guild_context_leadership_accept_keeps_captured_member_after_sort_selection_and_refresh() {
     let _lock = SKIN.lock().unwrap_or_else(|poison| poison.into_inner());
     for skin in [ActiveSkin::Modern, ActiveSkin::Forever] {
@@ -180,7 +178,6 @@ fn guild_context_leadership_accept_keeps_captured_member_after_sort_selection_an
 }
 
 #[test]
-#[ignore = "RED first: new captured popup must dismiss on Cancel/Escape and close"]
 fn guild_context_leadership_cancel_escape_and_reopen_never_send_transfer_both_skins() {
     let _lock = SKIN.lock().unwrap_or_else(|poison| poison.into_inner());
     for skin in [ActiveSkin::Modern, ActiveSkin::Forever] {
@@ -227,7 +224,6 @@ fn guild_context_leadership_cancel_escape_and_reopen_never_send_transfer_both_sk
 }
 
 #[test]
-#[ignore = "RED first: source leadership popup labels and shared dialog geometry are absent"]
 fn guild_context_leadership_popup_has_source_labels_and_bounded_dialog_geometry_both_skins() {
     let _lock = SKIN.lock().unwrap_or_else(|poison| poison.into_inner());
     for skin in [ActiveSkin::Modern, ActiveSkin::Forever] {
