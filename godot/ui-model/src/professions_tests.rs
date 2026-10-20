@@ -394,3 +394,133 @@ fn professions_both_skins_show_counts_and_disable_missing_reagent_create() {
     }
     set_thread_skin(ActiveSkin::Modern);
 }
+
+#[test]
+#[ignore = "RED: RECIPE_COOLDOWN_DISPLAY"]
+fn professions_recipe_cooldown_category_comes_from_spell_categories() {
+    let dir = std::path::PathBuf::from(env!("CARGO_MANIFEST_DIR")).join("../../data/db2/active");
+    let catalog = crate::professions_catalog::RecipeCatalog::load(&dir).unwrap();
+    // Prismatic Sphere and Void Sphere share the 48 h Enchanting category.
+    assert_eq!(catalog.cooldown_categories.get(&28027), Some(&1174));
+    assert_eq!(catalog.cooldown_categories.get(&28028), Some(&1174));
+    assert_eq!(catalog.cooldown_categories.get(&2153), None);
+    // Berserker Rage is a class spell, not a recipe.
+    assert!(!catalog.cooldown_categories.contains_key(&18499));
+}
+
+#[test]
+#[ignore = "RED: RECIPE_COOLDOWN_DISPLAY"]
+fn professions_recipe_cooldown_is_the_longer_of_spell_and_category_clocks() {
+    use crate::professions_cooldown::remaining_secs;
+    assert_eq!(remaining_secs(None, None), None);
+    assert_eq!(remaining_secs(Some(10.2), None), Some(11));
+    // An uncast recipe sharing the category of a cast one is on cooldown too.
+    assert_eq!(remaining_secs(None, Some(172_799.5)), Some(172_800));
+    assert_eq!(remaining_secs(Some(5.0), Some(60.0)), Some(60));
+    assert_eq!(remaining_secs(Some(0.0), None), None);
+}
+
+#[test]
+#[ignore = "RED: RECIPE_COOLDOWN_DISPLAY"]
+fn professions_recipe_cooldown_text_uses_two_retail_units() {
+    crate::paths::set_data_root(
+        std::path::PathBuf::from(env!("CARGO_MANIFEST_DIR")).join("../../data"),
+    )
+    .unwrap();
+    use crate::professions_cooldown::remaining_text;
+    assert_eq!(remaining_text(172_800), "Cooldown remaining: 2 Days");
+    assert_eq!(
+        remaining_text(172_799),
+        "Cooldown remaining: 1 Day 23 Hours"
+    );
+    assert_eq!(
+        remaining_text(3_605),
+        "Cooldown remaining: 1 Hour 5 Seconds"
+    );
+    assert_eq!(remaining_text(61), "Cooldown remaining: 1 Minute 1 Second");
+    assert_eq!(remaining_text(59), "Cooldown remaining: 59 Seconds");
+}
+
+#[test]
+#[ignore = "RED: RECIPE_COOLDOWN_DISPLAY"]
+fn professions_both_skins_cooldown_disables_create_and_shows_remaining() {
+    use crate::professions_frame::{ProfessionView, professions_screen};
+    use ui_toolkit::{
+        atlas::{ActiveSkin, set_thread_skin},
+        frame::WidgetData,
+        registry::FrameRegistry,
+        screen::{Screen, SharedContext},
+        widgets::button::ButtonState,
+    };
+    crate::paths::set_data_root(
+        std::path::PathBuf::from(env!("CARGO_MANIFEST_DIR")).join("../../data"),
+    )
+    .unwrap();
+    let button_state = |registry: &FrameRegistry, name: &str| match registry
+        .get(registry.get_by_name(name).unwrap())
+        .unwrap()
+        .widget_data
+        .as_ref()
+    {
+        Some(WidgetData::Button(button)) => button.state,
+        other => panic!("{name}: {other:?}"),
+    };
+    for skin in [ActiveSkin::Modern, ActiveSkin::Forever] {
+        set_thread_skin(skin);
+        let book = book();
+        let inventory = bags();
+        let mut view = ProfessionView {
+            reagents: book.reagent_counts(&inventory),
+            can_create: book.craft_request(&inventory, false).is_some(),
+            can_all: book.craft_request(&inventory, true).is_some(),
+            craftable: book.craftable_count(&inventory),
+            recipe_cooldown_secs: Some(172_799),
+            book,
+            ..Default::default()
+        };
+        assert!(
+            view.can_create && view.can_all,
+            "reagents alone allow crafting"
+        );
+        let mut shared = SharedContext::new();
+        shared.insert(skin);
+        shared.insert(view.clone());
+        let mut registry = FrameRegistry::new(1920.0, 1080.0);
+        let mut screen = Screen::new(professions_screen);
+        screen.sync(&shared, &mut registry);
+        let cooldown = registry
+            .get(
+                registry
+                    .get_by_name("ProfessionsRecipeCooldown")
+                    .expect("cooldown line"),
+            )
+            .unwrap();
+        let Some(WidgetData::FontString(text)) = cooldown.widget_data.as_ref() else {
+            panic!("{:?}", cooldown.widget_data)
+        };
+        assert_eq!(text.text, "Cooldown remaining: 1 Day 23 Hours");
+        assert_eq!(text.color, crate::item_tooltip::RED_FONT_COLOR);
+        assert_eq!(
+            button_state(&registry, "ProfessionsCreate"),
+            ButtonState::Disabled
+        );
+        assert_eq!(
+            button_state(&registry, "ProfessionsCreateAll"),
+            ButtonState::Disabled
+        );
+
+        view.recipe_cooldown_secs = None;
+        shared.insert(view);
+        screen.sync(&shared, &mut registry);
+        assert!(registry.get_by_name("ProfessionsRecipeCooldown").is_none());
+        assert_ne!(
+            button_state(&registry, "ProfessionsCreate"),
+            ButtonState::Disabled
+        );
+        assert_ne!(
+            button_state(&registry, "ProfessionsCreateAll"),
+            ButtonState::Disabled
+        );
+    }
+    set_thread_skin(ActiveSkin::Modern);
+}

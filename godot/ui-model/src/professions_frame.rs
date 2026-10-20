@@ -80,6 +80,8 @@ pub struct ProfessionView {
     pub reagent_selection: crate::professions_reagent_selection::ReagentSelection,
     pub can_create: bool,
     pub can_all: bool,
+    /// Seconds until the selected recipe's cooldown ends; Some disables crafting.
+    pub recipe_cooldown_secs: Option<u32>,
     pub craftable: u32,
     pub status: String,
 }

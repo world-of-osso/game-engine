@@ -20,6 +20,8 @@ pub struct RecipeCatalog {
     pub reagent_slots: BTreeMap<u32, Vec<shared::crafting_reagents::ReagentSlot>>,
     /// SkillLine ID -> (ParentSkillLineID, ParentTierIndex), for nonzero trait-tree variants.
     pub specialization_lines: BTreeMap<u32, (u32, i32)>,
+    /// Recipe spell -> its nonzero `SpellCategories.Category` cooldown category.
+    pub cooldown_categories: BTreeMap<u32, u32>,
 }
 
 impl RecipeCatalog {
