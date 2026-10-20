@@ -20,6 +20,7 @@ fn linen(guid: u64, count: u32) -> ItemStack {
         count,
         durability: None,
         soulbound: false,
+        crafting_origin: None,
     }
 }
 

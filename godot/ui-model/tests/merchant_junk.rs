@@ -57,6 +57,7 @@ fn stack(slot: u8, item_id: u32, count: u32) -> BagSlotItem {
             count,
             durability: None,
             soulbound: false,
+            crafting_origin: None,
         },
     }
 }
