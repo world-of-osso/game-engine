@@ -1,3 +1,6 @@
+## 2026-10-20 — Monthly Time sorting CPU proof
+
+[Source and proof boundary](systems/trading-post.md#monthly-time-sorting): pushed-first ignored6 genuine RED→unignored6 GREEN at3844d4233; existing header/menu/action use common server monthly duration, source1000/999 padding floored to minutes, ascending-name ties and provider Time→Price reset. No wire/per-item pending invention; selection/cart/authority preserved. Both-skin native pending; earlier rollover acceptance is not relabeled.
 ## 2026-10-19 — Crafting origin vertical slice, targeted GREEN
 
 [Source, actual-craft persistence and consumer proof](systems/native-professions-crafting.md#server-recorded-crafting-origin): pushed ignored RED in all three repositories before implementation, then P1/S2/E1 targeted GREEN at separately recorded revisions. Real2153→new2303 GUID carries ability1355/joinedspell2153 after DB reopen; identical non-crafted item unknown. Actual2963 unknown-stack RED→compatible merging/split persistence controls; engine mirrors optional metadata on the same GUID. No fabricated quality/slots/watermark or recraft activation. Current masters merged; atomic lead gate/consumer integration pending, not a new rendered/process-reopen claim.
