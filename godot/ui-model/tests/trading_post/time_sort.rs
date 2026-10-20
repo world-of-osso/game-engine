@@ -23,7 +23,6 @@ fn assert_button_enabled(registry: &FrameRegistry, name: &str, enabled: bool) {
 }
 
 #[test]
-#[ignore = "pushed-first Time sort RED"]
 fn trading_post_time_sort_header_and_menu_enable_from_monthly_clock() {
     for skin in [ActiveSkin::Modern, ActiveSkin::Forever] {
         let mut view = time_view(3600);
@@ -41,7 +40,6 @@ fn trading_post_time_sort_header_and_menu_enable_from_monthly_clock() {
 }
 
 #[test]
-#[ignore = "pushed-first Time sort RED"]
 fn trading_post_time_sort_rounds_owned_sentinels_before_name_ties() {
     for (remaining, ascending, descending) in [
         (
@@ -76,7 +74,6 @@ fn trading_post_time_sort_rounds_owned_sentinels_before_name_ties() {
 }
 
 #[test]
-#[ignore = "pushed-first Time sort RED"]
 fn trading_post_time_sort_refund_expiry_uses_each_row_not_selection() {
     // Remaining20 mod60 keeps purchased and refundable in separate displayed minutes.
     let mut view = time_view(80);
@@ -101,7 +98,6 @@ fn trading_post_time_sort_refund_expiry_uses_each_row_not_selection() {
 }
 
 #[test]
-#[ignore = "pushed-first Time sort RED"]
 fn trading_post_time_sort_disables_without_live_ordinary_rows() {
     for skin in [ActiveSkin::Modern, ActiveSkin::Forever] {
         for remaining in [0, -1, 60] {
@@ -124,7 +120,6 @@ fn trading_post_time_sort_disables_without_live_ordinary_rows() {
 }
 
 #[test]
-#[ignore = "pushed-first Time sort RED"]
 fn trading_post_time_sort_provider_rebuild_resets_price_without_cart_transfer() {
     let mut view = time_view(3600);
     view.click("perks:sort:time").unwrap();
@@ -147,7 +142,6 @@ fn trading_post_time_sort_provider_rebuild_resets_price_without_cart_transfer() 
 }
 
 #[test]
-#[ignore = "pushed-first Time sort RED"]
 fn trading_post_time_sort_full_month_replacement_removes_expired_rows() {
     let mut view = time_view(1);
     view.click("perks:sort:time").unwrap();
