@@ -4,7 +4,7 @@ Mainline `Blizzard_ChatFrameBase/Shared/SlashCommands.lua:793–799` forwards th
 
 ## What it must do
 
-- [x] `/gleader <member>` produces one target-only TransferLeadership request, not help or ordinary chat. Existing command case/whitespace handling is retained; no invented buttons or dialogs.
+- [x] `/gleader <member>` produces one target-only TransferLeadership request, not help or ordinary chat. Existing command case/whitespace handling is retained. The separately approved [roster context confirmation](guild-context-leadership.md) owns its sourced menu/dialog, not this slash slice.
 - [x] Existing authoritative guild replies refresh displayed member ranks and permission controls. Successful transfer is not fabricated from local input.
 - [x] Both skins share the same sourced slash route and unchanged guild geometry.
 - [x] Self-target refusal follows the named server project policy GUILD_SELF_LEADER_TRANSFER_REFUSED_UNSOURCED; no Retail-native self semantics are claimed.
@@ -30,4 +30,4 @@ None within this slice. gz709 landed the coordinated cohort; two real authentica
 
 ## Out of scope
 
-Disband, inactivity dethroning, authenticator rules, rank reordering, extra guild UI and unrelated chat features. The permitted Retail cache exposes the C API signature but not native implementation; self behavior is explicitly unqualified.
+Disband, inactivity dethroning, authenticator rules, rank reordering and unrelated chat features. The [sourced context UI](guild-context-leadership.md) is a separate bounded contract. The permitted Retail cache exposes the C API signature but not native implementation; self behavior is explicitly unqualified.
