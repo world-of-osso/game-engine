@@ -17,6 +17,55 @@ fn button_atlas(name: &str) -> Option<ButtonTexture> {
 }
 
 #[test]
+fn ui_template_blend_metadata_only_states_do_not_replace_existing_normal_art() {
+    use ui_toolkit::{attrs::apply_attribute, registry::FrameRegistry};
+    for (state, mode_attribute) in [
+        (ButtonState::Normal, "button_highlight_blend_mode"),
+        (ButtonState::Pushed, "button_pushed_blend_mode"),
+        (ButtonState::Disabled, "button_disabled_blend_mode"),
+    ] {
+        let mut registry = FrameRegistry::new(800.0, 600.0);
+        let id = registry.create_frame("PanelControl", None);
+        registry.get_mut(id).unwrap().widget_data = Some(WidgetData::Button(Default::default()));
+        apply_attribute(&mut registry, id, "button_fdid_up", "132152");
+        apply_attribute(&mut registry, id, mode_attribute, "ADD");
+        let frame = registry.get_mut(id).unwrap();
+        let Some(WidgetData::Button(button)) = &mut frame.widget_data else {
+            unreachable!();
+        };
+        button.state = state;
+        button.hovered = true;
+        let parts = project_images(frame, 48.0, 48.0);
+        assert_eq!(parts.len(), 1);
+        assert_eq!(
+            parts[0].source,
+            Some(TextureSource::FileDataId(132152)),
+            "{state:?}"
+        );
+        assert!(
+            !parts[0].additive,
+            "source-less state mode must not change normal art"
+        );
+    }
+}
+
+#[test]
+fn ui_template_blend_metadata_only_highlight_does_not_draw_an_absent_source() {
+    use ui_toolkit::{attrs::apply_attribute, registry::FrameRegistry};
+    let mut registry = FrameRegistry::new(800.0, 600.0);
+    let id = registry.create_frame("UntexturedControl", None);
+    registry.get_mut(id).unwrap().widget_data = Some(WidgetData::Button(Default::default()));
+    apply_attribute(&mut registry, id, "button_default_skin", "false");
+    apply_attribute(&mut registry, id, "button_highlight_blend_mode", "ADD");
+    let frame = registry.get_mut(id).unwrap();
+    let Some(WidgetData::Button(button)) = &mut frame.widget_data else {
+        unreachable!();
+    };
+    button.hovered = true;
+    assert!(project_images(frame, 48.0, 48.0).is_empty());
+}
+
+#[test]
 fn ui_template_blend_button_material_depends_on_authored_mode_not_source_or_geometry_router() {
     for source in [
         TextureSource::Atlas("transmog-itemcard-default".into()),
