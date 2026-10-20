@@ -36,7 +36,7 @@ Port recurring behavior once from the Retail R cache, then migrate every audited
 ## Tests asserting this spec
 
 - Toolkit `core/src/attrs_layout_tests.rs` — source-identical normal/additive regions and unsupported-mode rejection.
-- Engine model/projection migration controls and one native matrix are being integrated; no unexecuted proof is marked passed.
+- Engine model/projection `ui_template_blend` controls and `godot/tests/ui_template_blend_matrix.gd` cover authored panel data and its native projection. The matrix visits 21 panel/control groups in both skins; masked casting FX require raster inspection alongside model/projection mode controls. Unexecuted fixtures are not acceptance.
 
 ## Known gaps (current cycle)
 

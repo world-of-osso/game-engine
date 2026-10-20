@@ -18,7 +18,7 @@ use std::sync::Arc;
 use ui_toolkit::atlas::{ActiveSkin, set_thread_skin};
 
 const PANELS: &str = "AdventureGuide, TradingPost, CharacterCurrency, \
-    CollectionsPetSpellSelect, EntranceDifficulty, HousingStorageBasic, WorldMap";
+    CollectionsPetSpellSelect, EntranceDifficulty, HousingStorageBasic, WorldMap, GuildBank, GuildTabard, AchievementStatistics, Transmog";
 
 /// Cached Blackfathom/encounter112 opened through production instance, encounter and
 /// model-page actions; this reaches both side-tab and creature-ring ADD regions.
@@ -280,6 +280,110 @@ fn housing_storage_basic(
     }
 }
 
+fn achievement_statistics() -> game_engine_ui_model::achievements::AchievementWindow {
+    use game_engine_ui_model::achievements::{AchievementWindow, CategoryPage};
+    use shared::protocol::{AchievementCatalogEntry, AchievementCategoryEntry};
+    let mut window = AchievementWindow {
+        visible: true,
+        statistics: true,
+        selected_category: Some(14807),
+        ..Default::default()
+    };
+    window.categories.insert(
+        14807,
+        AchievementCategoryEntry {
+            category_id: 14807,
+            parent_id: 1,
+            order_index: 1,
+            name: "Dungeons & Raids".into(),
+        },
+    );
+    let entries = [1068, 1069]
+        .into_iter()
+        .map(|achievement_id| AchievementCatalogEntry {
+            achievement_id,
+            name: format!("Statistic {achievement_id}"),
+            description: String::new(),
+            points: 0,
+            icon_fdid: 0,
+            flags: 1,
+            earned: false,
+            earned_at: None,
+            progress_supported: false,
+            criteria: vec![],
+            next_criteria_id: None,
+            statistic_value: Some(7),
+        })
+        .collect();
+    window.pages.insert(
+        14807,
+        CategoryPage {
+            entries,
+            next: None,
+            loaded: true,
+        },
+    );
+    window
+}
+
+fn transmog() -> game_engine_ui_model::transmog_frame::TransmogView {
+    use shared::{
+        item_data::ItemDefinitionSource,
+        protocol::{EquipmentSlot, TransmogChoice, TransmogSlot, TransmogState},
+    };
+    let mut book = game_engine_ui_model::transmog::TransmogBook::default();
+    book.state = Some(TransmogState {
+        npc: 54442,
+        slots: vec![TransmogSlot {
+            slot: EquipmentSlot::MainHand,
+            item_guid: 91001,
+            item_id: 2850,
+            definition_source: ItemDefinitionSource::Retail,
+            inventory_type: 13,
+            applied: TransmogChoice::Original,
+            cost: Some(1500),
+            can_hide: false,
+            sources: vec![],
+        }],
+        ..Default::default()
+    });
+    game_engine_ui_model::transmog_frame::TransmogView {
+        book,
+        viewport_width: 1920.0,
+        ..Default::default()
+    }
+}
+
+fn guild_bank() -> game_engine_ui_model::guild_bank::NativeGuildBankView {
+    use game_engine_ui_model::guild_bank_frame_component::{GuildBankFrameState, GuildSideTab};
+    game_engine_ui_model::guild_bank::NativeGuildBankView {
+        frame: GuildBankFrameState {
+            visible: true,
+            title: "Guild Vault".into(),
+            tabs: vec![GuildSideTab {
+                icon_fdid: 132074,
+                selected: true,
+            }],
+            ..Default::default()
+        },
+        bags: Default::default(),
+    }
+}
+
+fn guild_tabard() -> Result<game_engine_ui_model::guild_tabards::GuildTabards, String> {
+    use shared::protocol::{GuildTabardReply, GuildTabardVendorSnapshot};
+    let mut view = game_engine_ui_model::guild_tabards::GuildTabards::default();
+    view.begin_open(701);
+    view.receive(GuildTabardReply::Vendor(GuildTabardVendorSnapshot {
+        npc: 701,
+        npc_name: "Jondor Steelbrow".into(),
+        own_rank: Some(0),
+        design: None,
+        cost: 100000,
+    }))?;
+    Ok(view)
+}
+
 /// Map & Quest Log with one selected quest and its supplied highlighted POI pin.
 fn world_map(
     viewport: [f32; 2],
@@ -376,6 +480,10 @@ impl RegistryUi {
                 "EntranceDifficulty" => self.show_entrance_bar(entrance_difficulty(size.x)?),
                 "HousingStorageBasic" => self.show_housing(housing_storage_basic(viewport)),
                 "WorldMap" => self.show_world_map(world_map(viewport)?),
+                "GuildBank" => self.show_guild_bank(guild_bank()),
+                "GuildTabard" => self.show_guild_tabard(guild_tabard()?),
+                "AchievementStatistics" => self.show_achievement_window(achievement_statistics()),
+                "Transmog" => self.show_transmog(transmog()),
                 other => Err(format!(
                     "Unknown template blend panel {other}; expected one of {PANELS}"
                 )),
