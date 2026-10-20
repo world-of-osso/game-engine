@@ -65,7 +65,7 @@ pub struct ProfessionView {
     pub order_recipes: Vec<shared::protocol::CraftingOrderRecipeSnapshot>,
     pub order_can_place: bool,
     pub now_unix: u64,
-    pub bag_counts: BTreeMap<u32, u32>,
+    pub owned_reagents: BTreeMap<u32, u32>,
     pub book: ProfessionBook,
     pub skill_names: BTreeMap<u32, String>,
     pub child_skills: BTreeSet<u32>,
