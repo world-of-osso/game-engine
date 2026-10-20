@@ -22,6 +22,7 @@ func fail(message: String) -> void:
 	completion.fail("Trading Post monthly clock: " + message)
 
 func initialize_monthly_client() -> bool:
+	print("TP_MONTHLY_NATIVE_PID ", OS.get_process_id())
 	root.size = Vector2i(1920, 1080)
 	if not completion.require(DisplayServer.screen_get_size() == Vector2i(1920, 1080), "private1920x1080 compositor required"): return false
 	if not completion.require(server == "127.0.0.1:5899" and not shots.is_empty() and not receipts.is_empty(), "explicit private5899 and evidence paths required"): return false
