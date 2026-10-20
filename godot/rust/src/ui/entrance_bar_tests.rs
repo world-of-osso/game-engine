@@ -249,6 +249,28 @@ fn a_selection_change_keeps_the_button_frames() {
 }
 
 #[test]
+fn synced_glow_is_authored_additive_while_bar_art_keeps_blend() {
+    let state = stockade(Some(1));
+    let mut registry = FrameRegistry::new(state.screen_width, 720.0);
+    let mut shared = SharedContext::new();
+    shared.insert(state);
+    Screen::new(entrance_difficulty_screen).sync(&shared, &mut registry);
+    // DifficultySelector.lua541: only ButtonHighlight uses SetBlendMode("ADD").
+    for (name, expected) in [
+        ("EntranceDifficultyHighlight1", BlendMode::Additive),
+        ("EntranceDifficultyBoxCenter", BlendMode::Blend),
+    ] {
+        let id = registry.get_by_name(name).expect(name);
+        match &registry.get(id).unwrap().widget_data {
+            Some(WidgetData::Texture(texture)) => {
+                assert_eq!(texture.blend_mode, expected, "{name}")
+            }
+            other => panic!("{name} is {other:?}"),
+        }
+    }
+}
+
+#[test]
 fn hovering_a_button_whitens_it_and_shows_its_additive_glow() {
     let mut state = stockade(Some(2));
     state.choices = vec![choice(1, "(5) Normal", 70.0), choice(2, "(5) Heroic", 66.0)];

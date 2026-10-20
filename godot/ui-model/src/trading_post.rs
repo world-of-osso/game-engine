@@ -888,32 +888,11 @@ fn row_cart_toggle(view: &View, id: u32) -> Element {
     )
 }
 
-/// Elements.xml325: ordinary and inherited21px undo textures use ADD.
-/// The separate32px PurchasedHistoryFrame icon has no such source override.
-pub fn apply_refund_icon_blend(registry: &mut ui_toolkit::registry::FrameRegistry) {
-    use ui_toolkit::{frame::WidgetData, widgets::texture::BlendMode};
-    let icons: Vec<_> = registry
-        .frames_iter()
-        .filter(|frame| {
-            frame.name.as_deref().is_some_and(|name| {
-                name.starts_with("PerksProgramRefundIcon")
-                    || name.starts_with("PerksProgramFrozenRefundIcon")
-            })
-        })
-        .map(|frame| frame.id)
-        .collect();
-    for id in icons {
-        let frame = registry.get_mut(id).expect("registered row refund icon");
-        let Some(WidgetData::Texture(texture)) = &mut frame.widget_data else {
-            panic!("PerksProgram row refund icon must be a texture");
-        };
-        texture.blend_mode = BlendMode::Additive;
-    }
-}
-
 fn row_price(prefix: &str, row: &TradingPostItem, center_y: f32) -> Element {
     if row.refund_seconds > 0 {
-        return named_atlas_texture(
+        // Elements.xml325: RefundIcon is authored alphaMode="ADD"; the32px
+        // PurchasedHistoryFrame icon has no such override.
+        return crate::menu_template_art::additive_atlas_texture(
             format!("{prefix}RefundIcon{}", row.id),
             "common-icon-undo",
             (389., center_y - 21. / 2., 21., 21.),

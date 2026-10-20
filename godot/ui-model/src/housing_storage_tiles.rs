@@ -1,5 +1,6 @@
 //! Retail stored CatalogEntry tiles: source art/geometry, server-confirmed quantities.
 use crate::housing_component::HousingView;
+use crate::menu_template_art::additive_atlas_texture;
 use crate::quest_art::{DynName, named_atlas_texture};
 use game_engine_core::housing::Decor;
 use ui_toolkit::frame::WidgetData;
@@ -7,7 +8,7 @@ use ui_toolkit::registry::FrameRegistry;
 use ui_toolkit::text_measure::measure_text;
 use ui_toolkit::widgets::button::ButtonState;
 use ui_toolkit::widgets::font_string::GameFont;
-use ui_toolkit::widgets::texture::{BlendMode, TextureSource};
+use ui_toolkit::widgets::texture::TextureSource;
 use ui_toolkit::{rsx, widget_def::Element};
 
 const TILE_SIZE: f32 = 97.0;
@@ -43,7 +44,8 @@ fn stored_tile(decor: &Decor, quantity: u32, disabled: bool, [left, top]: [f32; 
         DEFAULT,
         (0.0, 0.0, TILE_SIZE, TILE_SIZE),
     );
-    let hover = named_atlas_texture(
+    // HousingCatalogEntry.xml51: HoverBackground is alphaMode="ADD"; Background keeps BLEND.
+    let hover = additive_atlas_texture(
         format!("{prefix}HoverBackground"),
         DEFAULT,
         (0.0, 0.0, TILE_SIZE, TILE_SIZE),
@@ -93,7 +95,6 @@ pub(crate) fn apply_stored_tiles_postsetup(view: &HousingView, registry: &mut Fr
             &format!("{prefix}Background"),
             atlas,
             1.0,
-            false,
             disabled,
         );
         update_tile_art(
@@ -101,7 +102,6 @@ pub(crate) fn apply_stored_tiles_postsetup(view: &HousingView, registry: &mut Fr
             &format!("{prefix}HoverBackground"),
             atlas,
             if hovered { 0.75 } else { 0.0 },
-            true,
             false,
         );
         let icon = registry
@@ -134,7 +134,6 @@ fn update_tile_art(
     name: &str,
     atlas: &str,
     alpha: f32,
-    additive: bool,
     desaturated: bool,
 ) {
     let id = registry
@@ -150,10 +149,5 @@ fn update_tile_art(
     texture.source = TextureSource::Atlas(atlas.into());
     // Atlas coordinates are member-local; the FDID helper's sheet UVs no longer apply.
     texture.tex_coords = [0.0, 1.0, 0.0, 1.0];
-    texture.blend_mode = if additive {
-        BlendMode::Additive
-    } else {
-        BlendMode::AlphaKey
-    };
     texture.desaturated = desaturated;
 }

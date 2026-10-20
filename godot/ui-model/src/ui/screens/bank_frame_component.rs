@@ -291,16 +291,33 @@ fn slots(state: &BankFrameState, skin: ActiveSkin) -> Element {
             );
             if let Some(ui_toolkit::widget_def::WidgetChild::Widget(def)) = slot.first_mut() {
                 def.tag = "Button";
-                def.children.extend(texture(
+                // Mainline ItemButtonTemplate.xml136: ButtonHilight-Square, alphaMode="ADD".
+                def.children.extend(additive_overlay(
                     format!("{prefix}Highlight"),
-                    130_718, // ItemButtonTemplate:79, ButtonHilight-Square.
-                    (0.0, 0.0, ITEM_BUTTON, ITEM_BUTTON),
-                    WHITE,
+                    130_718,
+                    ITEM_BUTTON,
                 ));
             }
             slot
         })
         .collect()
+}
+
+/// Square white texture at the parent's origin, authored with ADD blending.
+fn additive_overlay(name: String, fdid: u32, size: f32) -> Element {
+    rsx! {
+        texture {
+            name: {DynName(name)},
+            width: size,
+            height: size,
+            texture_fdid: fdid,
+            vertex_color: WHITE,
+            blend_mode: "ADD",
+            pos_type: "absolute",
+            left: 0.0,
+            top: 0.0,
+        }
+    }
 }
 
 /// `BankPanelTabTemplate` 32×32: SkillLineTab border 64×64 at -3,11, the icon, and
@@ -366,12 +383,8 @@ fn side_tab(
         ),
     });
     if selected {
-        children.extend(texture(
-            format!("{name}Selected"),
-            130_724, // Interface/Buttons/CheckButtonHilight, BF.xml:369.
-            (0.0, 0.0, 32.0, 32.0),
-            WHITE,
-        ));
+        // BF.xml369: SelectedTexture CheckButtonHilight, alphaMode="ADD".
+        children.extend(additive_overlay(format!("{name}Selected"), 130_724, 32.0));
     }
     rsx! {
         r#frame {
@@ -757,7 +770,7 @@ fn apply_bank_highlight_visibility(registry: &mut ui_toolkit::registry::FrameReg
     registry.set_hidden(id, !button.hovered);
 }
 
-/// RSX has no TextureData tiling/blend or ButtonData hover attributes.
+/// RSX has no TextureData tiling or ButtonData hover attributes.
 /// Apply after each screen sync, before native projection (same pattern as the spellbook).
 pub fn apply_bank_postsetup(registry: &mut ui_toolkit::registry::FrameRegistry) {
     let ids: Vec<_> = registry
@@ -784,7 +797,6 @@ pub fn apply_bank_postsetup(registry: &mut ui_toolkit::registry::FrameRegistry) 
                     "BankFrameBackground" | "BankFrameShadowLeft" | "BankFrameShadowRight"
                 );
                 if name.ends_with("Selected") || name.ends_with("Highlight") {
-                    t.blend_mode = ui_toolkit::widgets::texture::BlendMode::Additive;
                     frame.draw_layer = DrawLayer::Overlay;
                 }
             }

@@ -3622,3 +3622,35 @@ fn trading_post_pending_dialog_refund_keeps_owner_until_authoritative_reply() {
     assert!(!view.selected_item().unwrap().purchased);
     assert_eq!(view.snapshot.as_ref().unwrap().tender, 500);
 }
+
+#[test]
+fn trading_post_refund_icon_is_authored_additive_from_sync_both_skins() {
+    use ui_toolkit::widgets::texture::BlendMode;
+    let mut data = snapshot();
+    let mut refundable = data.items[0].clone();
+    refundable.id = 5;
+    refundable.refund_seconds = 3661;
+    refundable.purchased = true;
+    data.items.push(refundable);
+    let data = Arc::new(data);
+    for skin in [ActiveSkin::Modern, ActiveSkin::Forever] {
+        let registry = render(
+            skin,
+            View {
+                visible: true,
+                selected: Some(4),
+                snapshot: Some(data.clone()),
+                refund_elapsed: 60,
+                ..Default::default()
+            },
+        );
+        let icon = registry
+            .get(registry.get_by_name("PerksProgramRefundIcon5").unwrap())
+            .unwrap();
+        // Elements.xml325: RefundIcon alphaMode="ADD".
+        assert!(
+            matches!(&icon.widget_data, Some(WidgetData::Texture(texture)) if texture.blend_mode == BlendMode::Additive),
+            "{skin:?}"
+        );
+    }
+}

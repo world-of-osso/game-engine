@@ -1,14 +1,11 @@
 //! Retail BasicDecor XML instructions and mode/submode controls. Unsupported modes stay disabled.
 use crate::housing_component::HousingView;
+use crate::menu_template_art::additive_atlas_texture;
 use crate::quest_art::{DynName, named_atlas_texture};
 use crate::ui::strata::FrameStrata;
 use game_engine_core::input_bindings_data::InputAction;
 use ui_toolkit::text_measure::measure_text;
-use ui_toolkit::widgets::{
-    button::ButtonState,
-    font_string::GameFont,
-    texture::{BlendMode, TextureSource},
-};
+use ui_toolkit::widgets::{button::ButtonState, font_string::GameFont, texture::TextureSource};
 use ui_toolkit::{frame::WidgetData, registry::FrameRegistry, rsx, widget_def::Element};
 
 // Installed70391 GlobalColor43 DARKGRAY_COLOR (0xFF666666), used by editor mode buttons.
@@ -306,7 +303,9 @@ pub(super) fn icon_control(
     let state = if active { "active" } else { "default" };
     let atlas = format!("decor-ability-{atlas}-{state}");
     let icon = named_atlas_texture(format!("{prefix}Icon"), &atlas, (0.0, 0.0, BUTTON, BUTTON));
-    let hover = named_atlas_texture(format!("{prefix}Hover"), &atlas, (0.0, 0.0, BUTTON, BUTTON));
+    // HouseEditorModeButtons.xml33 / HousingControlButton.xml15: HoverIcon alphaMode="ADD".
+    let hover =
+        additive_atlas_texture(format!("{prefix}Hover"), &atlas, (0.0, 0.0, BUTTON, BUTTON));
     let (left, top) = position;
     rsx! {button {name:{DynName(prefix.into())},width:64.0,height:64.0,left,top,pos_type:"absolute",onclick:action,disabled,button_default_skin:false,{icon}{control_text}{hover}}}
 }
@@ -387,11 +386,6 @@ pub(super) fn update_icon_control(
             DISABLED_ICON_COLOR
         } else {
             [1.0; 4]
-        };
-        texture.blend_mode = if hover {
-            BlendMode::Additive
-        } else {
-            BlendMode::AlphaKey
         };
     }
 }

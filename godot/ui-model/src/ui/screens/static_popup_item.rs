@@ -73,7 +73,8 @@ fn confirmation_contents(props: &ItemConfirmation<'_>) -> (Element, f32) {
             "Spinner_Ring",
             (0., 0., 60., 60.),
         );
-        let sparks = crate::quest_art::named_atlas_texture(
+        // SharedXML/Spinner.xml8: Sparks is authored alphaMode="ADD"; Ring keeps BLEND.
+        let sparks = crate::menu_template_art::additive_atlas_texture(
             format!("{prefix}SpinnerSparks"),
             "Spinner_Sparks",
             (0., 0., 60., 60.),

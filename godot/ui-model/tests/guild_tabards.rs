@@ -181,3 +181,31 @@ fn guild_tabard_frame_and_five_variation_buttons_follow_retail_xml() {
         }
     }
 }
+
+#[test]
+fn guild_tabard_emblem_quarters_are_authored_additive_from_sync() {
+    use ui_toolkit::widgets::texture::BlendMode;
+    let mut shared = SharedContext::new();
+    shared.insert(open(Some(0)));
+    let mut registry = FrameRegistry::new(1920.0, 1080.0);
+    Screen::new(game_engine_ui_model::guild_tabard_frame::tabard_screen)
+        .sync(&shared, &mut registry);
+    let art = |name: &str| {
+        let frame = registry
+            .get(registry.get_by_name(name).expect(name))
+            .unwrap();
+        let Some(WidgetData::Texture(texture)) = &frame.widget_data else {
+            panic!("{name} must be a Texture");
+        };
+        (frame.alpha, texture.blend_mode)
+    };
+    // TabardFrame.xml152-173: each emblem quarter is alphaMode="ADD".
+    for quarter in ["TopRight", "TopLeft", "BottomRight", "BottomLeft"] {
+        assert_eq!(
+            art(&format!("TabardFrameEmblem{quarter}")),
+            (0.4, BlendMode::Additive),
+            "{quarter}"
+        );
+    }
+    assert_eq!(art("TabardFrameCustomizationBorder").1, BlendMode::Blend);
+}
