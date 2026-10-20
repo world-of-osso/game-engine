@@ -2,6 +2,12 @@
 
 Native client consumes copy snapshots and on-demand catalog pages; the server remains authoritative. [Feature contract](../../specs/dungeon-achievements.md).
 
+## Ordinary card description font
+
+Only `achievement_row` Description's nominal font changes12→10. Source AchievementUI.xml850 inherits AchievementDescriptionFont (GameFontStyles159), which inherits Roman SystemFont_Small/Friz10 (Fonts133–135). Preserve330×34, origin85,30, existing ink/shadow/center-middle justification/text/action. Lua1423–1424/1450–1451 has dynamic color/shadow branches; this approved font-size-only slice intentionally does not restore those or change other labels/global font rendering. [Contract](../../specs/dungeon-achievements.md#ordinary-card-description-font).
+
+Ignored nativeRED bd9ec4276 published before product code; observed four12!=10 assertions across both skins' collapsed/expanded descriptions, while330×34/origin/ink/transparent-shadow+zerooffset/justification/text/physicalclick and title14 controls pass. Native exit1/no ERROR or SCRIPT ERROR; cold-j2build0/29m08 and separate one-timeimport0/preexisting editor diagnostics retained. GREEN pending; no realm/ink/pixel parity claim. Evidence `card-description-font-*` under the existing proof root; protocolb3a34fe is frozen in an owned detached worktree.
+
 ## Ordinary card title font
 
 Only `achievement_row`'s title Label changes from nominalFriz12/no shadow to14/black(+1,−1), matching AchievementUI.xml838–843→GameFontHighlightMedium/FontStyles260→SystemFont_Shadow_Med3/Fonts435–443. Nativeprojection converts source y−1 to Godot+1. Keep320×20, WHITE, origin90,6, card art/description/criteria and click dispatch; Summary/comparison/full-search titles and the global font pipeline are unchanged. [Contract](../../specs/dungeon-achievements.md#ordinary-card-title-font).
