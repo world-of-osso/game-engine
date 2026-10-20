@@ -20,36 +20,25 @@ use ui_toolkit::atlas::{ActiveSkin, set_thread_skin};
 const PANELS: &str = "AdventureGuide, TradingPost, CharacterCurrency, \
     CollectionsPetSpellSelect, EntranceDifficulty, HousingStorageBasic, WorldMap";
 
-/// Supplied Deadmines opened through the production instance action: its encounter page
-/// carries the EncounterJournal side tabs (`TabHighlight`, XML:657 ADD).
+/// Cached Blackfathom/encounter112 opened through production instance, encounter and
+/// model-page actions; this reaches both side-tab and creature-ring ADD regions.
 fn adventure_guide(
     viewport: [f32; 2],
 ) -> Result<game_engine_ui_model::adventure_guide::View, String> {
-    use game_engine_core::adventure_guide::{Catalog, Instance};
+    use game_engine_core::adventure_guide::Catalog;
     use game_engine_ui_model::adventure_guide::View;
-    let defaults = View::default();
-    let catalog = Catalog {
-        instances: vec![Instance {
-            id: 63,
-            name: "Deadmines".into(),
-            description: String::new(),
-            map: 36,
-            background: 522336,
-            button: 522352,
-            lore: 526404,
-            dungeon: true,
-            tiers: vec![defaults.tier],
-        }],
-        map_difficulties: [(36, vec![1, 2])].into(),
-        ..Default::default()
-    };
+    let catalog = Catalog::load(&game_engine_ui_model::paths::resolve_data_path(
+        "cache/adventure_guide.sqlite",
+    ))?;
     let mut view = View {
         visible: true,
         viewport,
         catalog: Arc::new(catalog),
-        ..defaults
+        ..Default::default()
     };
-    view.apply("journal:instance:63")?;
+    view.apply("journal:instance:67")?;
+    view.apply("journal:encounter:112")?;
+    view.apply("journal:page:model")?;
     Ok(view)
 }
 
@@ -294,11 +283,27 @@ fn housing_storage_basic(
 /// Map & Quest Log with one selected quest and its supplied highlighted POI pin.
 fn world_map(
     viewport: [f32; 2],
-) -> game_engine_ui_model::world_map_frame_component::WorldMapFrameState {
+) -> Result<game_engine_ui_model::world_map_frame_component::WorldMapFrameState, String> {
     use game_engine_ui_model::quest_log_frame_component::{
         QuestDifficulty, QuestLogFrameState, QuestLogGroup, QuestLogRow,
     };
-    use game_engine_ui_model::world_map_frame_component::{MapPin, MapPinType, WorldMapFrameState};
+    use game_engine_ui_model::world_map_frame_component::{
+        MapHighlight, MapPin, MapPinType, MapTile, WorldMapFrameState,
+    };
+    let catalog = game_engine_ui_model::ui_map_data::UiMapCatalog::load(
+        &game_engine_ui_model::paths::resolve_data_path("db2/active"),
+    )?;
+    let art = catalog.art(37).ok_or("Elwynn map art missing")?;
+    let continent = catalog.art(13).ok_or("Eastern Kingdoms map art missing")?;
+    let tiles = continent
+        .placed_tiles()
+        .into_iter()
+        .map(|tile| MapTile {
+            fdid: tile.fdid,
+            rect: tile.rect,
+            tex_coords: tile.tex_coords,
+        })
+        .collect();
     let log = QuestLogFrameState {
         visible: true,
         quest_count: 1,
@@ -319,8 +324,17 @@ fn world_map(
         }],
         details: None,
     };
-    WorldMapFrameState {
+    Ok(WorldMapFrameState {
         viewport,
+        map_id: 13,
+        map_name: "Eastern Kingdoms".into(),
+        tiles,
+        highlight: Some(MapHighlight {
+            map_id: 37,
+            name: "Elwynn Forest".into(),
+            fdid: art.highlight_fdid,
+            rect: [0.4184, 0.7322, 0.0834, 0.0834],
+        }),
         pins: vec![MapPin {
             pin_type: MapPinType::QuestObjective,
             quest_id: Some(332),
@@ -332,7 +346,7 @@ fn world_map(
         highlighted_quest: Some(332),
         ..Default::default()
     }
-    .with_quest_panel(log, false)
+    .with_quest_panel(log, false))
 }
 
 #[godot_api(secondary)]
@@ -361,7 +375,7 @@ impl RegistryUi {
                 "CollectionsPetSpellSelect" => self.show_pet_journal(pet_spell_select(viewport)?),
                 "EntranceDifficulty" => self.show_entrance_bar(entrance_difficulty(size.x)?),
                 "HousingStorageBasic" => self.show_housing(housing_storage_basic(viewport)),
-                "WorldMap" => self.show_world_map(world_map(viewport)),
+                "WorldMap" => self.show_world_map(world_map(viewport)?),
                 other => Err(format!(
                     "Unknown template blend panel {other}; expected one of {PANELS}"
                 )),

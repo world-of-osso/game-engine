@@ -46,7 +46,7 @@ mod tests {
     use shared::protocol::{EncounterTimelineEvent, EncounterTimer};
     use ui_toolkit::{frame::WidgetData, registry::FrameRegistry, screen::Screen};
     #[test]
-    fn timer_bars_project_source_art_and_remaining_fraction_in_both_skins() {
+    fn ui_template_blend_timer_bars_project_source_art_and_remaining_fraction_in_both_skins() {
         use ui_toolkit::{
             frame::Dimension,
             layout_values::Val,

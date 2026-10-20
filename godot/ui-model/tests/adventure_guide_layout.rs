@@ -400,7 +400,7 @@ fn adventure_guide_tier_backgrounds_use_the_real_catalog_ordering_and_atlas_shee
 // Blizzard_EncounterJournal.xml HighlightTexture alphaMode, read straight from sync:
 // instance :355 and boss :632 inherit BLEND templates; creature :547 and tab :657 are ADD.
 #[test]
-fn adventure_guide_highlights_author_source_blend_modes_at_construction() {
+fn ui_template_blend_adventure_guide_highlights_author_source_blend_modes_at_construction() {
     let root = std::path::PathBuf::from(env!("CARGO_MANIFEST_DIR")).join("../../data");
     game_engine_ui_model::paths::set_data_root(root.clone()).unwrap();
     let catalog = Arc::new(Catalog::load(&root.join("cache/adventure_guide.sqlite")).unwrap());

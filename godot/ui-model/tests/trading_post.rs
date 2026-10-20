@@ -3624,7 +3624,7 @@ fn trading_post_pending_dialog_refund_keeps_owner_until_authoritative_reply() {
 }
 
 #[test]
-fn trading_post_refund_icon_is_authored_additive_from_sync_both_skins() {
+fn ui_template_blend_trading_post_refund_icon_is_authored_additive_from_sync_both_skins() {
     use ui_toolkit::widgets::texture::BlendMode;
     let mut data = snapshot();
     let mut refundable = data.items[0].clone();

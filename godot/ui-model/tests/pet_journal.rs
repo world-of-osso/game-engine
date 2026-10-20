@@ -782,7 +782,7 @@ fn journal_waits_for_loadout_ack_before_opening_an_owned_ability_selector() {
 }
 
 #[test]
-fn journal_owned_stats_and_locked_ability_flyout_render_in_both_skins() {
+fn ui_template_blend_journal_owned_stats_and_locked_ability_flyout_render_in_both_skins() {
     game_engine_ui_model::paths::set_data_root(
         std::path::PathBuf::from(env!("CARGO_MANIFEST_DIR")).join("../../data"),
     )

@@ -533,3 +533,57 @@ fn edit_texture(registry: &mut FrameRegistry, name: &str, edit: impl FnOnce(&mut
         edit(texture);
     }
 }
+
+#[cfg(test)]
+mod blend_tests {
+    use super::*;
+    use ui_toolkit::{
+        atlas::{ActiveSkin, set_thread_skin},
+        screen::Screen,
+        widgets::texture::{BlendMode, TextureSource},
+    };
+
+    #[test]
+    fn ui_template_blend_entrance_hover_authors_custom_art_mode_before_postsetup() {
+        for skin in [ActiveSkin::Modern, ActiveSkin::Forever] {
+            set_thread_skin(skin);
+            let state = EntranceBarState {
+                title: "The Stockade".into(),
+                choices: vec![EntranceBarChoice {
+                    choice: DifficultyChoice {
+                        difficulty_id: 1,
+                        label: "(5) Normal".into(),
+                        killed: 0,
+                        total: 3,
+                    },
+                    label_width: 70.0,
+                    progress_width: 30.0,
+                }],
+                selected: Some(1),
+                screen_width: 1920.0,
+                frame_alpha: 1.0,
+                bar_alpha: 1.0,
+                box_left: None,
+                spinner: None,
+            };
+            let mut shared = SharedContext::new();
+            shared.insert(state);
+            let mut registry = FrameRegistry::new(1920.0, 1080.0);
+            Screen::new(entrance_difficulty_screen).sync(&shared, &mut registry);
+            let frame = registry
+                .get(
+                    registry
+                        .get_by_name("EntranceDifficultyHighlight1")
+                        .unwrap(),
+                )
+                .unwrap();
+            let Some(WidgetData::Texture(texture)) = &frame.widget_data else {
+                panic!("custom entrance hover must be a texture");
+            };
+            assert_eq!(texture.source, TextureSource::File(ART.into()));
+            assert_eq!(texture.blend_mode, BlendMode::Additive);
+            assert_eq!(frame.alpha, HIGHLIGHT_ALPHA);
+        }
+        set_thread_skin(ActiveSkin::Modern);
+    }
+}
