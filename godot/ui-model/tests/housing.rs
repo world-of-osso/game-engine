@@ -2230,7 +2230,8 @@ fn housing_finder_draws_source_sale_and_real_friend_pins_not_strangers_or_self_b
 }
 
 #[test]
-fn housing_storage_tiles_match_source_geometry_counts_and_background_states_both_skins() {
+fn ui_template_blend_housing_storage_tiles_match_source_geometry_counts_and_background_states_both_skins()
+ {
     use game_engine_ui_model::housing::{HousingAuthority, HousingSurface};
     use game_engine_ui_model::housing_component::apply_housing_postsetup;
     use shared::protocol::{HouseLayout, HousingState, StoredDecor};
@@ -2570,7 +2571,7 @@ fn housing_expert_source_instruction_states_and_assigned_controls_both_skins() {
 }
 
 #[test]
-fn housing_basic_source_controls_and_unbound_instruction_rows_both_skins() {
+fn ui_template_blend_housing_basic_source_controls_and_unbound_instruction_rows_both_skins() {
     use game_engine_ui_model::housing::HousingSurface;
     game_engine_ui_model::paths::set_data_root(
         std::path::PathBuf::from(env!("CARGO_MANIFEST_DIR")).join("../../data"),

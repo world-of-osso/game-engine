@@ -111,7 +111,7 @@ fn registry(session: &MerchantSession) -> FrameRegistry {
 
 // MerchantFrame.xml:316 repair-item HighlightTexture is ADD, straight from sync.
 #[test]
-fn repair_item_highlight_authors_source_additive_blend() {
+fn ui_template_blend_repair_item_highlight_authors_source_additive_blend() {
     use ui_toolkit::widgets::texture::{BlendMode, TextureSource};
     let registry = registry(&session(true));
     let frame = registry

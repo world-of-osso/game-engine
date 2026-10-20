@@ -183,7 +183,7 @@ fn guild_tabard_frame_and_five_variation_buttons_follow_retail_xml() {
 }
 
 #[test]
-fn guild_tabard_emblem_quarters_are_authored_additive_from_sync() {
+fn ui_template_blend_guild_tabard_emblem_quarters_are_authored_additive_from_sync() {
     use ui_toolkit::widgets::texture::BlendMode;
     let mut shared = SharedContext::new();
     shared.insert(open(Some(0)));

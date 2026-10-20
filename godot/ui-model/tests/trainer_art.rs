@@ -337,7 +337,7 @@ fn trainer_art_filter_labels_use_retail_state_colors() {
 // Blizzard_TrainerUI.xml:66 selectedTex and :90 $parentHighlight are ADD; the row
 // background and icon keep the default BLEND. Read straight from sync.
 #[test]
-fn trainer_rows_author_source_blend_modes_at_construction() {
+fn ui_template_blend_trainer_rows_author_source_blend_modes_at_construction() {
     use ui_toolkit::widgets::texture::{BlendMode, TextureSource};
     for skin in [ActiveSkin::Modern, ActiveSkin::Forever] {
         let (_, registry) = synced(skin, 10000);

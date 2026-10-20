@@ -92,7 +92,7 @@ fn synced_feedback(feedback: CastFeedback, is_channel: bool) -> FrameRegistry {
 // Flash:306, StandardGlow:347; BLEND at WispMask:286, Sparkles:294/299, Spark:326,
 // ChannelShadow:359.
 #[test]
-fn player_cast_feedback_authors_source_blend_modes_at_construction() {
+fn ui_template_blend_player_cast_feedback_authors_source_blend_modes_at_construction() {
     use ui_toolkit::frame::WidgetData;
     use ui_toolkit::widgets::texture::{BlendMode, TextureSource};
     let cases: [(CastFeedback, bool, &[(&str, &str, BlendMode)]); 5] = [

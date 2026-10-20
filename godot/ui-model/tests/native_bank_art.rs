@@ -99,7 +99,7 @@ fn bankart_selected_tab_is_retail_additive_checkbutton() {
     }
 }
 #[test]
-fn bankart_sync_authors_add_only_on_retail_add_regions() {
+fn ui_template_blend_bankart_sync_authors_add_only_on_retail_add_regions() {
     for skin in [ActiveSkin::Modern, ActiveSkin::Forever] {
         let r = synced(skin, false);
         for name in ["BankFrameTab1Selected", "BankFrameItem1Highlight"] {

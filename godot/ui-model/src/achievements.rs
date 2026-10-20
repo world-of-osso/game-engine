@@ -2093,7 +2093,7 @@ mod blend_tests {
     // Read straight from sync: Blizzard_AchievementUI.xml:650 category HighlightTexture ADD;
     // Mainline Blizzard_AchievementUI.lua:2219-2228 alternate statistic rows ADD at 0.5.
     #[test]
-    fn statistics_rows_and_selected_category_author_source_blend_modes() {
+    fn ui_template_blend_statistics_rows_and_selected_category_author_source_blend_modes() {
         crate::paths::set_data_root(
             std::path::PathBuf::from(env!("CARGO_MANIFEST_DIR")).join("../../data"),
         )

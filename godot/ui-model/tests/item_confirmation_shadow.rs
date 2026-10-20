@@ -90,7 +90,7 @@ fn item_confirmation_captions_inherit_black_shadow_both_skins() {
 }
 
 #[test]
-fn item_confirmation_pending_spinner_sparks_are_authored_additive_both_skins() {
+fn ui_template_blend_item_confirmation_pending_spinner_sparks_are_authored_additive_both_skins() {
     use ui_toolkit::widgets::texture::BlendMode;
     game_engine_ui_model::paths::set_data_root(
         std::path::PathBuf::from(env!("CARGO_MANIFEST_DIR")).join("../../data"),

@@ -45,7 +45,8 @@ fn text(registry: &FrameRegistry, name: &str) -> String {
 }
 
 #[test]
-fn discovered_zero_pvp_wallet_opens_source_token_rows_in_both_skins_but_empty_wallet_hides_tab() {
+fn ui_template_blend_discovered_zero_pvp_wallet_opens_source_token_rows_in_both_skins_but_empty_wallet_hides_tab()
+ {
     game_engine_ui_model::paths::set_data_root(
         std::path::PathBuf::from(env!("CARGO_MANIFEST_DIR")).join("../../data"),
     )
@@ -91,6 +92,17 @@ fn discovered_zero_pvp_wallet_opens_source_token_rows_in_both_skins_but_empty_wa
         view.currencies = wallet_rows();
         shared.insert(view.clone());
         screen.sync(&shared, &mut registry);
+        for suffix in ["Left", "Middle", "Right"] {
+            let name = format!("TokenHeader2Highlight{suffix}");
+            let frame = registry.get(registry.get_by_name(&name).unwrap()).unwrap();
+            let Some(WidgetData::Texture(texture)) = &frame.widget_data else {
+                panic!("{name} must carry authored texture data");
+            };
+            assert_eq!(
+                texture.blend_mode,
+                ui_toolkit::widgets::texture::BlendMode::Additive
+            );
+        }
         apply_character_frame_postsetup(&mut registry, view.tab);
         let currency_tab = registry
             .get(registry.get_by_name("CharacterFrameTab3").unwrap())

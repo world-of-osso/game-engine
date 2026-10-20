@@ -459,7 +459,7 @@ fn guild_bank_log_scroll_reaches_oldest_transaction_and_retains_position() {
 }
 
 #[test]
-fn guild_bank_selected_tab_checked_art_is_authored_additive_from_sync() {
+fn ui_template_blend_guild_bank_selected_tab_checked_art_is_authored_additive_from_sync() {
     use game_engine_ui_model::guild_bank_frame_component::guild_bank_frame_screen;
     use ui_toolkit::frame::WidgetData;
     use ui_toolkit::registry::FrameRegistry;
