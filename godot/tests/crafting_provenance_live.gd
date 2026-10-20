@@ -62,8 +62,10 @@ func click_pickable(matches: Callable, id_meta: String) -> bool:
 					continue
 				var id: int = area.get_meta(id_meta) if area.has_meta(id_meta) else node.get_meta(id_meta)
 				var point := pick_mesh_point(node, camera, id)
-				if point != Vector2.INF and await point_unhovered(point):
+				var central := Rect2(Vector2(root.size) * 0.25, Vector2(root.size) * 0.5)
+				if point != Vector2.INF and central.has_point(point) and await point_unhovered(point):
 					await click_at(point, MOUSE_BUTTON_RIGHT)
+					print("PROVENANCE PICK point=", point, " turns=", turn, " hovered=", root.gui_get_hovered_control())
 					return true
 		push_key(KEY_LEFT, 0, true)
 		await create_timer(0.2).timeout
