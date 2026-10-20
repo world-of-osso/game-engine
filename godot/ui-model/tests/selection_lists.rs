@@ -38,6 +38,125 @@ fn layout(registry: &FrameRegistry, name: &str) -> (f32, f32) {
 }
 
 #[test]
+fn ui_template_blend_shared_rows_keep_each_source_templates_normal_hover_and_selected_modes() {
+    use game_engine_ui_model::selection_list::*;
+    use ui_toolkit::{widget_def::Element, widgets::texture::BlendMode};
+    fn fixture(_: &SharedContext) -> Element {
+        [
+            SEARCH,
+            PVP_INSTANCE,
+            PVP_CATEGORY,
+            MENU,
+            RAID_INSTANCE,
+            AUCTION_ROW,
+            AUCTION_CATEGORY,
+            TRANSMOG_OUTFIT,
+            COMMUNITIES_TAB,
+            COLUMN_HEADER,
+            GUILD_MEMBER,
+            NEIGHBORHOOD,
+            MOUNT,
+            PET,
+            ACHIEVEMENT_CATEGORY,
+            PROFESSION_RECIPE,
+            AUTHORED,
+            PVP_RATED_ACTIVITY,
+            PVP_CASUAL_ACTIVITY,
+            PET_BATTLE_SELECTION,
+        ]
+        .iter()
+        .enumerate()
+        .flat_map(|(index, template)| {
+            row(
+                format!("AuthoredRow{index}"),
+                "select",
+                true,
+                (0.0, index as f32 * 50.0, 200.0, 48.0),
+                (template, true),
+                Element::new(),
+            )
+        })
+        .collect()
+    }
+    // Modes from the concrete Retail declarations cited on the templates above.
+    // QUEST_TITLE is MENU's alias, not an independent behavior/control.
+    let modes = [
+        [None, Some(true), Some(false)],
+        [None, Some(true), Some(true)],
+        [Some(false), Some(true), Some(false)],
+        [None, Some(true), None],
+        [None, Some(true), Some(true)],
+        [None, Some(true), None],
+        [None, Some(false), None],
+        [None, Some(true), None],
+        [None, Some(true), Some(true)],
+        [None, Some(true), None],
+        [Some(false), Some(true), None],
+        [Some(false), Some(true), None],
+        [None, Some(false), None],
+        [None, Some(false), None],
+        [None, Some(true), None],
+        [None, Some(false), None],
+        [None, None, None],
+        [None, Some(true), Some(true)],
+        [None, Some(true), Some(true)],
+        [None, Some(false), Some(false)],
+    ];
+    game_engine_ui_model::paths::set_data_root(
+        std::path::PathBuf::from(env!("CARGO_MANIFEST_DIR")).join("../../data"),
+    )
+    .unwrap();
+    for skin in [ActiveSkin::Modern, ActiveSkin::Forever] {
+        set_thread_skin(skin);
+        let mut registry = FrameRegistry::new(1280.0, 1080.0);
+        Screen::new(fixture).sync(&SharedContext::new(), &mut registry);
+        for (index, expected) in modes.iter().enumerate() {
+            for (suffix, expected) in ["RowNormal", "RowHighlight", "RowSelected"]
+                .into_iter()
+                .zip(expected)
+            {
+                let name = format!("AuthoredRow{index}{suffix}");
+                let art = registry
+                    .get_by_name(&name)
+                    .and_then(|id| registry.get(id))
+                    .and_then(|frame| match &frame.widget_data {
+                        Some(WidgetData::Texture(texture))
+                            if texture.source != TextureSource::None =>
+                        {
+                            Some(texture)
+                        }
+                        _ => None,
+                    });
+                assert_eq!(
+                    art.map(|texture| texture.blend_mode == BlendMode::Additive),
+                    *expected,
+                    "{skin:?} {name}"
+                );
+            }
+        }
+        let region = |suffix: &str| {
+            let frame = registry
+                .get(
+                    registry
+                        .get_by_name(&format!("AuthoredRow2{suffix}"))
+                        .unwrap(),
+                )
+                .unwrap();
+            let Some(WidgetData::Texture(texture)) = &frame.widget_data else {
+                panic!("PvP category source region");
+            };
+            (texture.source.clone(), texture.tex_coords)
+        };
+        assert_eq!(
+            region("RowNormal"),
+            region("RowHighlight"),
+            "identical source and crop retain opposite authored modes"
+        );
+    }
+    set_thread_skin(ActiveSkin::Modern);
+}
+
+#[test]
 fn selection_lists_both_skins_keep_selection_through_scroll_and_refresh_without_push_button_art() {
     game_engine_ui_model::paths::set_data_root(
         std::path::PathBuf::from(env!("CARGO_MANIFEST_DIR")).join("../../data"),
