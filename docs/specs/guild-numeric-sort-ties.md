@@ -30,7 +30,7 @@ Existing Rank, Level and Class headers retain their numeric primary order; equal
 
 ## Known gaps (current cycle)
 
-- [ ] Ignored counterexamples/spec pushed first, then actual reversed-incoming/equal-primary RED before production, committed minimal implementation, focused GREEN, enabled proven tests and independent gate.
+- [ ] Ignored counterexamples/spec pushed first at4858919f1; actual behavior RED4 then observed (204s compile/0.08s tests/no warnings): all three headers retain reversed incoming ties; real overflowing registry shows Member23 instead of Member00. Production reuses the unchanged qualified base comparison; focused GREEN, enabled proven tests and independent gate remain pending.
 - [ ] Native equal-key proof remains separate from model/registry coverage and requires a new exact-cohort/private-copy/window allocation.
 - Full six-way Club presence, Club role/memberId and native name ordering remain absent/unqualified; this is the explicit represented-field policy, not universal Retail parity.
 
