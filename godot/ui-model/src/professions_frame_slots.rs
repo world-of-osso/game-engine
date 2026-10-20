@@ -173,7 +173,14 @@ fn quality_reagent_cells(view: &ProfessionView) -> Element {
         let owned = slot
             .choices
             .iter()
-            .map(|choice| u64::from(view.bag_counts.get(&choice.item_id).copied().unwrap_or(0)))
+            .map(|choice| {
+                u64::from(
+                    view.owned_reagents
+                        .get(&choice.item_id)
+                        .copied()
+                        .unwrap_or(0),
+                )
+            })
             .sum::<u64>()
             .min(u64::from(u32::MAX)) as u32;
         let action = if crate::professions_reagent_selection::selectable(slot) {
@@ -192,7 +199,7 @@ fn quality_reagent_cells(view: &ProfessionView) -> Element {
                 quality_atlas: crate::professions_reagent_selection::reagent_quality_atlas(
                     slot,
                     &view.reagent_selection.allocations,
-                    &view.bag_counts,
+                    &view.owned_reagents,
                     &view.crafting_quality,
                 ),
             },

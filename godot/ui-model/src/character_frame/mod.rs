@@ -529,6 +529,8 @@ pub fn average_equipped_item_level(
 }
 
 pub fn character_frame_screen(ctx: &SharedContext) -> Element {
+    // The chrome below follows thread_skin(); reading the skin rebuilds it on a layout switch.
+    let _ = ctx.get::<ActiveSkin>();
     let view = ctx
         .get::<CharacterFrameView>()
         .expect("CharacterFrameView must be in SharedContext");

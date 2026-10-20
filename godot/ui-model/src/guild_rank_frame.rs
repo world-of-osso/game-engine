@@ -380,6 +380,13 @@ fn member_menu(session: &GuildRanksSession) -> Element {
             "Demote",
             "guild:demote",
         ),
+        // Mainline COMMUNITIES_GUILD_MEMBER: Whisper precedes Promote to Guildmaster.
+        (
+            session.can_whisper(name),
+            "GuildMemberWhisper",
+            "Whisper",
+            "guild:whisper",
+        ),
         (
             session.can_transfer_leadership(name),
             "GuildMemberTransferLeadership",

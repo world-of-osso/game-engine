@@ -267,6 +267,9 @@ pub struct InventoryState {
     pub equipment: BTreeMap<EquipmentSlot, InventorySlot>,
     /// Character bank projection for the shared cursor, indexed by [tab][slot].
     pub bank_slots: Vec<Vec<InventorySlot>>,
+    /// The last contents of each bank, kept while the bank frame is closed:
+    /// crafting counts their reagents.
+    pub known_banks: Vec<shared::protocol::BankContents>,
 }
 
 impl Default for InventoryState {
@@ -282,6 +285,7 @@ impl Default for InventoryState {
             slots: vec![vec![InventorySlot::default(); 16]],
             equipment: BTreeMap::new(),
             bank_slots: Vec::new(),
+            known_banks: Vec::new(),
         }
     }
 }
@@ -312,8 +316,11 @@ impl InventoryState {
         .filter(|item| !item.is_empty())
     }
 
-    /// Character bank stacks projected for the shared item cursor.
+    /// Remember `contents`; character bank stacks are also projected for the
+    /// shared item cursor.
     pub fn apply_bank_contents(&mut self, contents: &shared::protocol::BankContents) {
+        self.known_banks.retain(|known| known.bank != contents.bank);
+        self.known_banks.push(contents.clone());
         if contents.bank != shared::protocol::BankType::Character {
             return;
         }
@@ -327,6 +334,13 @@ impl InventoryState {
                     .collect()
             })
             .collect();
+    }
+
+    /// Retail-source reagents in the bags and known banks (Retail
+    /// `ItemUtil.GetCraftingReagentCount`), by item id.
+    pub fn crafting_reagent_counts(&self) -> BTreeMap<u32, u32> {
+        let banks: Vec<_> = self.known_banks.iter().collect();
+        crate::professions_reagent_counts::crafting_reagent_counts(&self.slots, &banks)
     }
 
     pub fn total_free_slots(&self) -> usize {

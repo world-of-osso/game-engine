@@ -601,7 +601,7 @@ fn right_label(name: &str, text: &str, (right, top, height): (f32, f32, f32)) ->
 
 fn customer_reagent(view: &ProfessionView, index: usize, item: u32, quantity: u32) -> Element {
     let supplied = view.orders.supplied.get(&item).copied().unwrap_or(0);
-    let owned = view.bag_counts.get(&item).copied().unwrap_or(0);
+    let owned = view.owned_reagents.get(&item).copied().unwrap_or(0);
     let display = view.items.get(&item);
     let name = display.map_or("", |i| i.name.as_str());
     let mut children = art::atlas(

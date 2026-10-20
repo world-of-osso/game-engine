@@ -1,6 +1,6 @@
 //! Unit selection, ported from the Bevy client's `rendering/ui/target.rs`: left-click
-//! on a unit selects it through a camera ray against the unit's drawn triangles that
-//! world geometry occludes (`unit_pick`), Tab cycles attackable units nearest first, F1 targets the local
+//! on a shown nameplate selects its owner, otherwise a camera ray picks the unit's
+//! drawn triangles that world geometry occludes (`unit_pick`), Tab cycles attackable units nearest first, F1 targets the local
 //! player, Escape clears the target before the game menu opens. The server learns
 //! each change through `SetTarget`; the TargetFrame and the selection ring show it.
 
@@ -741,7 +741,9 @@ impl GameClient {
             return None;
         }
         let camera = viewport.get_camera_3d()?;
-        pick_unit(&camera, Vector2::from_array(self.physical_input.pointer()))
+        let pointer = Vector2::from_array(self.physical_input.pointer());
+        self.nameplate_at(&camera, pointer)
+            .or_else(|| pick_unit(&camera, pointer))
             .filter(|id| self.replica.unit(*id).is_some_and(is_unit))
     }
 
