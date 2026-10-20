@@ -1,6 +1,6 @@
 # M2 particle emitters (Godot client)
 
-M2 `ParticleSystem2` emitters on placed doodads (ADT MDDF and WMO MODD), creature display models and spell visual kit models. The shared parsing and simulation live in `godot/core` (`m2_particles`, the M2 parser in `godot/core/src/asset/m2_format/m2_particle.rs`). Godot drawing lives in `godot/rust/src/particles.rs` and `godot/shaders/particle.gdshader`. Behaviour follows WebWowViewerCpp `managers/particles/particleEmitter.cpp` and its generators; pool sizing follows solarityclient `particle_system2`. See [godot-conversion](../wiki/systems/godot-conversion.md#native-m2-particles).
+M2 `ParticleSystem2` emitters on placed doodads (ADT MDDF and WMO MODD), creature display models and spell visual kit models. The shared parsing and simulation live in `godot/core` (`m2_particles`, the M2 parser in `godot/core/src/asset/m2_format/m2_particle.rs`). Godot drawing lives in `godot/rust/src/particles.rs`, `godot/rust/src/particle_composite.rs` and the compositor effect `godot/rendering/particle_composite_effect.gd`. Behaviour follows WebWowViewerCpp `managers/particles/particleEmitter.cpp` and its generators; pool sizing follows solarityclient `particle_system2`. See [godot-conversion](../wiki/systems/godot-conversion.md#native-m2-particles).
 
 ## What it must do
 
@@ -22,7 +22,10 @@ M2 `ParticleSystem2` emitters on placed doodads (ADT MDDF and WMO MODD), creatur
 ### Rendering
 - [x] Explicitly resolved geometry resources draw actual model mesh batches with per-particle lifetime position, birth orientation/spin, scale, RGB and opacity, separately from recursive emitter definitions. Geometry references never substitute billboard quads. This consumer is proved synthetically; Retail reference resolution remains a named gap.
 - [x] Authored0x2 sorts live particles far-to-near within each emitter/placement in the current camera before expanding head/tail pairs; unflagged emitters retain live order. No cross-emitter/placement sort is claimed.
-- [x] Map particle blend types 0-7 to the M2 GL factors (Opaque, AlphaKey, Alpha, NoAlphaAdd, Add, Mod, Mod2x, BlendAdd); only 0/1 write depth; alpha test -1 / 0.502 / 1/255.
+- [x] Map particle blend types 0-7 to the M2 GL factors (Opaque, AlphaKey, Alpha, NoAlphaAdd, Add, Mod, Mod2x, BlendAdd); alpha test -1 / 0.502 / 1/255.
+- [x] Blend in authored (gamma) space, as WebWowViewerCpp writes particles unconverted into an R8G8B8A8_UNORM target (`GFrameBufferVLK.cpp:21`): after Godot's transparent pass and MSAA resolve the scene colour is sRGB-encoded in place (extended curve, HDR round-trips), the pools draw far to near with the GL factors on authored values, depth tested against the resolved scene depth, and the colour is decoded back to linear.
+- [ ] Blend 0/1 particles write depth. **Named gap PARTICLES_NO_DEPTH_WRITE:** the composite samples the resolved depth and attaches none, so opaque/alpha-key particles occlude scene geometry correctly but not each other.
+- [ ] Particles sort among other transparent geometry. **Named gap PARTICLES_COMPOSITE_AFTER_ALL_TRANSPARENT_GEOMETRY:** pools draw after all transparent geometry.
 - [x] Multiply colour into the texel in authored space; combine multitexture layers (Particle_Mod, 2Color_3Alpha, 3Color_3Alpha).
 - [x] Select Refraction for non-multitexture flag0x100000 and omit those emitters from the forward pass while no refraction pass exists, matching WebWowViewerCpp; never draw displacement textures as ordinary colour. Multitexture classification takes priority; AW's colour/UV emitters remain drawable.
 - [x] Draw one pooled `MultiMeshInstance3D` per (model FDID, emitter index), shared by every placement; pool capacity = sum of placement capacities capped at 4096.
@@ -48,7 +51,8 @@ M2 `ParticleSystem2` emitters on placed doodads (ADT MDDF and WMO MODD), creatur
 - `godot/rust/src/particles.rs` — pools, explicit model-reference resources, emitter frames from bones, `WowParticleProbe`.
 - `godot/rust/src/particle_models.rs` — geometry mesh/material resources, instance lifetime RGBA and placement-owned geometry nodes.
 - `godot/rust/src/particle_models_probe.rs` — synthetic model/child acceptance through native placement and uploads.
-- `godot/shaders/particle.gdshader` — particle fragment combiners and blend/fade output.
+- `godot/rust/src/particle_composite.rs` — per-frame publication of visible pools and the scene fog block to one compositor effect per camera.
+- `godot/rendering/particle_composite_effect.gd`, `godot/shaders/particle_composite.glsl.in` (combiners, blend/fade output, `retail_fog.gdshaderinc` inserted), `godot/shaders/particle_gamma.glsl` (encode/decode).
 - `godot/rust/src/terrain/objects.rs` — per-doodad emitters and `update_particles`.
 - `godot/rust/src/lib.rs` — graphics settings and the per-frame update.
 
@@ -56,7 +60,7 @@ M2 `ParticleSystem2` emitters on placed doodads (ADT MDDF and WMO MODD), creatur
 
 - `godot/core/tests/m2_particles.rs` — parsing of 197007, pool capacity, ramps, appearance, twinkle, lifespan, integration, steady state, long updates, world-space gravity, quad axes, blend depth/alpha test; real1127086 refraction selection and AW colour/UV preservation.
 - `godot/rust/src/particles.rs::tests` — real1127086 admits exactly0..4,7..9 and a refraction-only model creates no forward particles. Matched both-skin process/pixel proof: [rainbow investigation](../wiki/investigations/avenging-wrath-material-time.md#actual-source-capture-and-root-cause).
-- `godot/tests/particle_blend_pixels.gd` — GPU pixels for blend 0-7, colour tint, fade, and half legacy fog for Alpha (toward the fog colour) and Add (toward black). RED/GREEN `data/diagnostics/worldvis-2026-10-01/particle-fog-{red,green}.log`.
+- `godot/tests/particle_blend_pixels.gd` — GPU pixels for blend 0-7, colour tint, fade, and half legacy fog for Alpha (toward the fog colour) and Add (toward black), as raw equations on authored 8-bit values. RED/GREEN `data/diagnostics/worldvis-2026-10-01/particle-fog-{red,green}.log`; gamma RED `data/diagnostics/torch-particles-2026-10-20/gamma-red.log`.
 - `godot/tests/world_particle_fog_flow.gd` — real client, Northshire: every doodad pool carries the terrain's fog uniforms (`pfog.log`, 207 pools).
 - `godot/tests/world_unit_particles_flow.gd` — real client, Stormwind (-8708, 845): 9 creatures (Ethereals 123799/123791 and others) place 114 emitters in 46 pools, 529 particles drawn facing them (`unitp-sw.log`, `unitp-sw/*.png`).
 - `godot/tests/wmo_doodads_flow.gd` — portal pools empty while Jail01 is culled, all six drawing at the trigger.
