@@ -3,6 +3,9 @@
 use super::*;
 use shared::components::{CombatStatus, UnitTarget};
 
+const CLICK_DISPLAY_ID: u32 = 2079;
+const UNIT_FLAG_NOT_SELECTABLE: u32 = 0x02000000;
+
 fn stage_authored_inputs(project: &FixtureProject) -> Result<(), String> {
     let checkout = fixture_support::checkout_root_from_executable("native_npc_visual_fixture")?;
     let source = checkout.join("data");
@@ -77,7 +80,9 @@ pub(super) fn prepare(app: &mut App, player: Entity, npc: Entity) {
         .insert((
             CombatStatus(true),
             UnitTarget(Some(player.to_bits())),
-            ModelDisplay { display_id: 2079 },
+            ModelDisplay {
+                display_id: CLICK_DISPLAY_ID,
+            },
         ));
 }
 
@@ -95,7 +100,7 @@ pub(super) fn apply_control(
     }
     let (combat, flags) = match line {
         "FIXTURE NAMEPLATE_CLICK_HIDE" => (false, 0),
-        "FIXTURE NAMEPLATE_CLICK_NOT_SELECTABLE" => (true, 0x02000000),
+        "FIXTURE NAMEPLATE_CLICK_NOT_SELECTABLE" => (true, UNIT_FLAG_NOT_SELECTABLE),
         "FIXTURE NAMEPLATE_CLICK_SHOW" => (true, 0),
         _ => return Ok(false),
     };
@@ -108,7 +113,7 @@ pub(super) fn apply_control(
 }
 
 fn spawn_far_plate(app: &mut App, player: Entity, [x, y, z]: [f32; 3]) {
-    let far = spawn_named_npc(app, 2079, "Fixture Far Plate");
+    let far = spawn_named_npc(app, CLICK_DISPLAY_ID, "Fixture Far Plate");
     app.world_mut().entity_mut(far).insert((
         Position { x, y, z },
         UnitFactionTemplate(14),
