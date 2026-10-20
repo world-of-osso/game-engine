@@ -67,6 +67,13 @@ Local world.db has only627 of1,286 distinct Leatherworking effect24 outputs join
 - Makeable, skill-up, first-craft, source, category and expansion filters remain excluded from this slice.
 - Sources: cached Mainline `Blizzard_Professions.lua:1256–1263,1140–1141`, `Blizzard_ProfessionsRecipeList.xml:34–45`, and inherited `Blizzard_Menu/Mainline/MenuTemplates.xml:66–86` (Filter dropdown18px high, text-fit padding60, menu BOTTOMLEFT/+6/+2, Reset TOPRIGHT−3). Reset callbacks/defaults: `Blizzard_Professions.lua:1211–1224,1140–1141`, `Blizzard_Menu/MenuTemplates.lua:859–908`; `Blizzard_ProfessionsCrafting.lua:36` supplies no extra onDefault callback.
 
+## Reagents from banks
+
+- Owned reagent counts (reagent lines, Create All[N], craftable counts, quality dialog clamps) include the character bank and the Warband bank, as Retail `ItemUtil.GetCraftingReagentCount` does (includeBank/includeReagentBank/includeAccountBank). The Mainline UI never calls `SetUseCharacterInventoryOnly`, so the Warband bank always counts. Only Retail-source stacks count, matching the server.
+- Counts come from the last `BankContents` of each bank. The server sends both on world entry and the changed banks after a craft took bank reagents ([server spec](../../../game-server/docs/specs/professions.md)), so counts hold with the bank frame closed.
+- The server takes reagents by project policy CRAFTING_REAGENT_CONSUMPTION_ORDER_RETAIL_ACCESSIBLE_BAGS (Retail `CraftingAccessibleBags` enumeration order); the client never chooses sources.
+- Tests: ui-model `professions_reagent_counts` and `professions_create_all_counts_banked_reagents_after_the_bank_frame_closes`. Native both-skin proof is pending.
+
 ## Recipe cooldown
 
 - The selected recipe's remaining cooldown is the longer of its own spell clock and its base-difficulty `SpellCategories.Category` clock, both from the server's `SpellCooldownUpdate` (`C_TradeSkillUI.GetRecipeCooldown`). An uncast recipe sharing a running category (Void Sphere28028 after Prismatic Sphere28027, category1174) is on cooldown too.

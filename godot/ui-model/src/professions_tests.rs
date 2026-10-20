@@ -138,6 +138,40 @@ fn professions_schematic_sums_concrete_bag_stacks_not_equipment() {
     assert_eq!(book().reagent_counts(&bags), [(2589, 5, 1)]);
 }
 #[test]
+fn professions_create_all_counts_banked_reagents_after_the_bank_frame_closes() {
+    use shared::protocol::{BankContents, BankTabView, BankType, ItemStack};
+    let banked = |bank, count| BankContents {
+        bank,
+        tabs: vec![BankTabView {
+            name: "Tab 1".into(),
+            icon: 0,
+            deposit_flags: 0,
+            slots: vec![Some(ItemStack {
+                item_guid: 20 + count as u64,
+                item_id: 2589,
+                definition_source: shared::item_data::ItemDefinitionSource::Retail,
+                count,
+                durability: None,
+                soulbound: false,
+                crafting_origin: None,
+            })],
+        }],
+        next_tab_cost: None,
+        money: None,
+    };
+    let mut bags = bags();
+    bags.apply_bank_contents(&banked(BankType::Character, 4));
+    bags.apply_bank_contents(&banked(BankType::Account, 9));
+    // Closing the bank frame drops only the cursor projection.
+    bags.bank_slots.clear();
+    // A newer Warband snapshot replaces the old one.
+    bags.apply_bank_contents(&banked(BankType::Account, 3));
+    let mut book = book();
+    book.selected = Some(3276);
+    assert_eq!(book.reagent_counts(&bags), [(2589, 12, 2)]);
+    assert_eq!(book.craft_request(&bags, true).unwrap().casts, 6);
+}
+#[test]
 fn professions_create_emits_spell_id_and_cast_quantity() {
     let request = book().craft_request(&bags(), false).expect("can craft");
     assert_eq!(request.spell_id, 3275);

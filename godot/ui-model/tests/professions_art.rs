@@ -687,7 +687,7 @@ fn professions_quality_dialog_shows_authored_choices_without_a_crafted_tier_in_b
         view.book.selected = Some(375188);
         view.reagents.clear();
         view.reagent_slots = catalog.reagent_slots[&375188].clone();
-        view.bag_counts = [(193208, 6), (193210, 4), (193222, 2)].into();
+        view.owned_reagents = [(193208, 6), (193210, 4), (193222, 2)].into();
         for item in [193208, 193210, 193211] {
             view.items.insert(
                 item,

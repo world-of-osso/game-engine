@@ -352,6 +352,9 @@ impl GameClient {
                 break;
             }
         }
+        if let Some(prefill) = self.guild_ranks.session.chat_open.take() {
+            self.open_chat_input(&prefill)?;
+        }
         let commands = std::mem::take(&mut self.guild_ranks.session.commands);
         for command in commands {
             if let Err(error) = self.send_guild_command(command) {

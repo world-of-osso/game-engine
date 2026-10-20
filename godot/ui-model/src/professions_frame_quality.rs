@@ -47,7 +47,12 @@ pub(super) fn apply_dialog_art(
         return;
     };
     for choice in &slot.choices {
-        let enabled = view.bag_counts.get(&choice.item_id).copied().unwrap_or(0) > 0;
+        let enabled = view
+            .owned_reagents
+            .get(&choice.item_id)
+            .copied()
+            .unwrap_or(0)
+            > 0;
         apply_choice_enabled(registry, choice.item_id, enabled);
     }
 }
@@ -137,7 +142,7 @@ fn quality_icon(view: &ProfessionView, item_id: u32) -> Element {
         return vec![];
     };
     let prefix = format!("ProfessionQuality{item_id}");
-    let owned = view.bag_counts.get(&item_id).copied().unwrap_or(0);
+    let owned = view.owned_reagents.get(&item_id).copied().unwrap_or(0);
     let mut icon = art::atlas(
         &format!("{prefix}Background"),
         "Professions-Slot-bg",
@@ -174,7 +179,7 @@ fn quality_icon(view: &ProfessionView, item_id: u32) -> Element {
 
 fn quantity_spinner(view: &ProfessionView, slot: &ReagentSlot, item_id: u32) -> Element {
     let prefix = format!("ProfessionQuality{item_id}");
-    let owned = view.bag_counts.get(&item_id).copied().unwrap_or(0);
+    let owned = view.owned_reagents.get(&item_id).copied().unwrap_or(0);
     let quantity = view
         .reagent_selection
         .dialog
