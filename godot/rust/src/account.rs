@@ -2753,6 +2753,58 @@ mod tests {
     use super::*;
 
     #[test]
+    #[ignore = "source-expectation RED: one host poll must retain Purchase before Query"]
+    fn trading_post_account_coalesced_purchase_then_query_completes_pending_owner() {
+        use game_engine_ui_model::trading_post::View;
+        use shared::protocol::{TradingPostReplyKind, TradingPostSnapshot};
+        let mut account = Account::new(PathBuf::from("/unused-trading-post-data"));
+        let mut output = Vec::new();
+        let purchase = TradingPostSnapshot {
+            npc_net_id: Some(185468),
+            tender: 400,
+            points: 0,
+            now_unix: 100,
+            month_end_unix: 200,
+            frozen_item_id: None,
+            categories: vec![],
+            items: vec![],
+            thresholds: vec![],
+            source_gaps: vec![],
+            error: None,
+            catalog_complete: false,
+            reply_kind: TradingPostReplyKind::Purchase,
+        };
+        let query = TradingPostSnapshot {
+            tender: 425,
+            now_unix: 101,
+            catalog_complete: true,
+            reply_kind: TradingPostReplyKind::Query,
+            ..purchase.clone()
+        };
+        let mut view = View {
+            visible: true,
+            pending: true,
+            confirm: Some("purchase".into()),
+            ..Default::default()
+        };
+        // The host dispatches every drained message before the native view updates once.
+        for reply in [purchase, query] {
+            account
+                .dispatch_message(ProtocolMessage::for_tests(reply), &mut output)
+                .unwrap();
+        }
+        view.receive(account.trading_post.clone().unwrap());
+        assert!(
+            !view.pending,
+            "Purchase completion must survive a later Query in one host poll"
+        );
+        assert!(view.confirm.is_none());
+        assert_eq!(view.snapshot.as_ref().unwrap().tender, 425);
+        assert_eq!(view.snapshot.as_ref().unwrap().now_unix, 101);
+        assert!(output.is_empty());
+    }
+
+    #[test]
     fn inventory_max_count_error_dispatches_retail_ui_message() {
         let mut account = Account::new(PathBuf::from("/unused-inventory-data"));
         let mut events = Vec::new();
