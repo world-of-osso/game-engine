@@ -4,6 +4,8 @@
 # where the server's ground and line of sight load by default.
 # Tests needing files absent here fail on the build host with their own missing-path error.
 
+# Tracked TP/quest catalogs are copied separately from game-server/content/ by the
+# helper, never borrowed from a potentially stale data/ copy.
 game-server/world.db
 game-server/economy/config.json
 game-server/db2/active/ChrRaces.csv
