@@ -71,6 +71,9 @@ func open_simon() -> bool:
 ## Resume after an interrupted run: 990 copper with untouched scraps means the real
 ## trainer264578 purchase already committed, so only the casts remain.
 func prepare_classic_leatherworking() -> bool:
+	if money() == 990 and bag_count(2934) == 0 and bag_count(2318) == 14 and bag_count(2320) == 1:
+		print("PROVENANCE PREPARATION_RESUMED rank15 leather14 from committed casts")
+		return true
 	if bag_count(2934) != 42 or bag_count(2318) != 0 or bag_count(2320) != 1:
 		return fail("Preparation requires explicit fixture bags:42 scraps,0 leather,1 thread")
 	if money() == 1000:
@@ -93,6 +96,32 @@ func prepare_classic_leatherworking() -> bool:
 	if not await wait_until(func(): return bag_count(2934) == 0 and bag_count(2318) == 14 and text("ProfessionsSkillText").contains("15/300"), "actual14 casts consume42 scraps and raise rank1 to15"):
 		return false
 	print("PROVENANCE PREPARATION_DONE rank15 leather14")
+	return true
+
+## In-scope acquisition only: the real trainer56 2153 purchase, then select the known recipe.
+## The unlearned-preview conservation checks belong to modern_crafting_unlearned_live.gd.
+func discover_and_learn_pants() -> bool:
+	await tap(KEY_ESCAPE)
+	var bags: Array = client.merchant_state().bags.duplicate(true)
+	if money() != 990:
+		return fail("Pre-2153 copper must be 990, got %d" % money())
+	if not await open_simon():
+		return false
+	if not await purchase_service(2153, 50):
+		return false
+	await tap(KEY_ESCAPE)
+	await tap(KEY_K)
+	if not await wait_until(func(): return shown("ProfessionsSearchBox"), "reopened profession book"):
+		return false
+	await replace_field("ProfessionsSearchBox", "Handstitched Leather Pants")
+	if not await wait_until(func(): return shown("ProfessionRecipe2153") and not shown("ProfessionsUnlearnedLabel"), "trainer-learned2153 in learned group"):
+		return false
+	await press("ProfessionRecipe2153")
+	if not await wait_until(func(): return not control("ProfessionsCreate").disabled and text("ProfessionsSkillText").contains("15/300"), "known2153 enables Create at rank15"):
+		return false
+	if client.merchant_state().bags != bags or money() != 940:
+		return fail("2153 acquisition changed more than50 copper")
+	print("PROVENANCE ACQUIRED2153 trainer56 cost50 rank15; bags unchanged")
 	return true
 
 ## The base-profession confirmation is trainer_frame.rs TrainerConfirmation, not StaticPopup1.
