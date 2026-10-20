@@ -194,8 +194,9 @@ impl SpellEffects {
         for anim in held.anims {
             world.stop_unit_action(id, anim);
         }
-        self.pending
-            .retain(|pending| !(pending.unit == id && pending.lifetime == Lifetime::UntilCastEnds));
+        self.pending.retain(|pending| {
+            !(pending.owner == EffectOwner::Unit(id) && pending.lifetime == Lifetime::UntilCastEnds)
+        });
         self.sounds.end(
             SoundHold::Cast {
                 unit: id,
@@ -204,7 +205,7 @@ impl SpellEffects {
             self.clock,
         );
         for effect in &mut self.active {
-            if effect.owner == id
+            if effect.owner == EffectOwner::Unit(id)
                 && effect.spell_id == held.spell_id
                 && effect.lifetime == Lifetime::UntilCastEnds
                 && matches!(effect.phase, Phase::Start(_) | Phase::Hold)
