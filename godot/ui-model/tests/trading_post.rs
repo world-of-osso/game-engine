@@ -1,5 +1,7 @@
 #[path = "trading_post/monthly_clock.rs"]
 mod monthly_clock;
+#[path = "trading_post/time_sort.rs"]
+mod time_sort;
 use game_engine_ui_model::trading_post::{View, trading_post_screen};
 use shared::protocol::*;
 use std::sync::Arc;
@@ -3407,6 +3409,8 @@ fn trading_post_query_reply_keeps_pending_purchase_owner_until_purchase_reply() 
         ))
     );
     assert!(view.pending);
+    // A provider refresh still resets Time sorting while the Purchase owner survives.
+    view.sort = Sort::Time;
 
     let mut query_reply = data.clone();
     query_reply.now_unix = data.month_end_unix;
@@ -3417,6 +3421,8 @@ fn trading_post_query_reply_keeps_pending_purchase_owner_until_purchase_reply() 
         "Unrelated catalog Query refresh is not the Purchase success event"
     );
     assert_eq!(view.confirm.as_deref(), Some("purchase"));
+    assert_eq!(view.sort, Sort::Price);
+    assert!(!view.ascending);
     assert_eq!(view.snapshot.as_ref().unwrap().tender, 500);
     assert!(!view.selected_item().unwrap().purchased);
     for skin in [ActiveSkin::Modern, ActiveSkin::Forever] {

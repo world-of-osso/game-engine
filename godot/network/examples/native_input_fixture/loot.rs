@@ -27,6 +27,7 @@ pub(super) fn candle_stack(count: u32) -> ItemStack {
         count,
         durability: None,
         soulbound: false,
+        crafting_origin: None,
     }
 }
 

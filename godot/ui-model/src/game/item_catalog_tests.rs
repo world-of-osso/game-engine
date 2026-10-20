@@ -87,6 +87,7 @@ fn collision_catalogs_preserve_source_and_never_borrow_missing_rows() {
             count: 1,
             durability: None,
             soulbound: false,
+            crafting_origin: None,
         };
         let slot = crate::bag_data::stack_slot_in_catalog(&stack, sources.catalog(source).ok());
         let tooltip = crate::item_tooltip::item_tooltip_in_catalog(
@@ -140,6 +141,7 @@ fn collision_catalogs_preserve_source_and_never_borrow_missing_rows() {
         count: 1,
         durability: None,
         soulbound: false,
+        crafting_origin: None,
     };
     let absent_slot =
         crate::bag_data::stack_slot_in_catalog(&absent, sources.catalog(Forever70205).ok());
@@ -190,6 +192,7 @@ fn authored_forever_source_survives_mixed_snapshot_tooltips_and_equipped_levels(
                 count: 1,
                 durability: None,
                 soulbound: false,
+                crafting_origin: None,
             },
         })
         .collect();
