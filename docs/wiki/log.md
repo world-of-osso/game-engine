@@ -1,3 +1,7 @@
+## 2026-10-19 — Ordinary Description TOP alignment
+
+[Source/proof](systems/dungeon-achievements.md#ordinary-description-vertical-alignment): one explicitverticalTOP attribute; priorCENTERcontrolupdatedinown0ac8commit, ignoredREDpushedfirst/observedfourbothskin alignmentassertions. Font10/330×34/ink/shadow/horizontalCENTER/origin/actions conserved; GREEN pending, no otherpolicychange.
+
 ## 2026-10-19 — Ordinary achievement description font
 
 [Source/proof](systems/dungeon-achievements.md#ordinary-card-description-font): one nominalfont12→10 value only; ignorednativeREDfirst/four both-skin size assertions, all330×34/ink/shadow/alignment/origin/click/title controls conserved. Strict both-skin nativeGREEN6/6 and model35/35 pass at3bf83a1ec8/protocol0399f8b; required protocolFF preceded currentengine merge. Central gate pending; Lua-driven color/shadow policy and otherlabels/globalpipeline excluded.
