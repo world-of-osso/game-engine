@@ -4994,3 +4994,7 @@ After pushed ignored regression and actual Offline-vs-recency rendering RED, rep
 ## 2026-10-19 — Last Online native acceptance
 
 gl728 landed protocol50517c9/server1a2f13fd4/engine51f1af4f8. Real peer disconnect→both-skin roster/detail recency, genuine reconnect→Online/Elwynn Forest, second disconnect→fresh server/client persisted readback accepted; six inspected unchanged original PNGs published. Historical original unchanged, owned actors/slice stopped, UDP5891 unbound and window cleared. [Exact evidence and automated/native boundaries](systems/guilds.md#last-online-native-acceptance-2026-10-19); no fabricated history or audio/clean-exit repair claim.
+
+## 2026-10-19 — Zone header sort implementation
+
+After pushed ignored tests and actual3-case behavioral RED, activated the existing Zone header and pure presentation comparator. Allowed historical prose supplies valid-string mapping; GUILD_ZONE_SORT_OFFLINE_BY_LOGOUT_SECONDS explicitly uses most-recent seconds first ascending, with fixed existing name ties and no Retail counter/sub-hour claim. No wire/backend/layout changes or Note-mechanics changes. [Source, limits and current proof](systems/guilds.md#zone-header-sorting); focused GREEN/gate/native pending.
