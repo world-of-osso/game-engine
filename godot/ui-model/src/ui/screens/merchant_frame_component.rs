@@ -700,6 +700,8 @@ fn service_button(button: ServiceButton) -> Element {
                 width: 36.0,
                 height: 36.0,
                 texture_fdid: BUTTON_HIGHLIGHT,
+                // MerchantFrame.xml:316 HighlightTexture alphaMode="ADD".
+                blend_mode: "ADD",
                 hidden: unlit,
                 pos_type: "absolute",
                 left: 0.0,

@@ -47,7 +47,11 @@ mod tests {
     use ui_toolkit::{frame::WidgetData, registry::FrameRegistry, screen::Screen};
     #[test]
     fn timer_bars_project_source_art_and_remaining_fraction_in_both_skins() {
-        use ui_toolkit::{frame::Dimension, layout_values::Val, widgets::texture::TextureSource};
+        use ui_toolkit::{
+            frame::Dimension,
+            layout_values::Val,
+            widgets::texture::{BlendMode, TextureSource},
+        };
         crate::paths::set_data_root(
             std::path::PathBuf::from(env!("CARGO_MANIFEST_DIR")).join("../../data"),
         )
@@ -130,7 +134,18 @@ mod tests {
                     TextureSource::Atlas("UI-HUD-CoolDownManager-Bar".into())
                 );
                 assert_eq!(texture.tex_coords, [0.0, fraction, 0.0, 1.0]);
+                assert_eq!(texture.blend_mode, BlendMode::Blend);
                 let spark = frame("EncounterTimer1Spark");
+                let Some(WidgetData::Texture(texture)) = &spark.widget_data else {
+                    panic!("source bar spark");
+                };
+                assert_eq!(
+                    (texture.source.clone(), texture.blend_mode),
+                    (
+                        TextureSource::Atlas("UI-HUD-CoolDownManager-Bar-Pip".into()),
+                        BlendMode::Additive
+                    )
+                );
                 assert_eq!(
                     [spark.width, spark.height],
                     [Dimension::Fixed(10.0), Dimension::Fixed(46.0)]
@@ -327,7 +342,9 @@ fn timer_bar_art(prefix: &str, fraction: f32, color: &str) -> Element {
         texture { name: {DynName(format!("{prefix}Spark"))},
             texture_atlas: "UI-HUD-CoolDownManager-Bar-Pip", width: spark.width, height: spark.height,
             hidden, pos_type: "absolute", left: {width - spark.width / 2.0},
-            top: {(BAR_HEIGHT - spark.height) / 2.0}, draw_layer: "OVERLAY" }
+            top: {(BAR_HEIGHT - spark.height) / 2.0}, draw_layer: "OVERLAY",
+            // EncounterTimelineTimerEvent.xml:53 Spark alphaMode="ADD".
+            blend_mode: "ADD" }
     }
 }
 
@@ -344,20 +361,6 @@ fn timer_bar_labels(prefix: &str, text: &str, seconds: &str) -> Element {
             width: DURATION_WIDTH, height: BAR_HEIGHT, font: GameFont::FrizQuadrata, font_size: 13.0,
             font_color: {FontColor::new(1.0,1.0,1.0,1.0)}, justify_h: "RIGHT",
             pos_type: "absolute", left: duration_left, top: 0.0, frame_level: 5.0 }
-    }
-}
-
-/// TimerEvent.xml Spark uses ADD. Retire this assignment when RSX exposes blend_mode.
-pub fn apply_timeline_bar_art(registry: &mut ui_toolkit::registry::FrameRegistry) {
-    for index in 1..=MAX_TIMERS {
-        let Some(id) = registry.get_by_name(&format!("EncounterTimer{index}Spark")) else {
-            continue;
-        };
-        let frame = registry.get_mut(id).expect("timer spark frame");
-        let Some(ui_toolkit::frame::WidgetData::Texture(texture)) = &mut frame.widget_data else {
-            panic!("timer spark must be a texture");
-        };
-        texture.blend_mode = ui_toolkit::widgets::texture::BlendMode::Additive;
     }
 }
 

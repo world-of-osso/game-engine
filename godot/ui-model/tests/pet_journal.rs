@@ -839,7 +839,7 @@ fn journal_owned_stats_and_locked_ability_flyout_render_in_both_skins() {
         };
         assert_eq!(text.text, "10");
         assert_eq!(option.onclick.as_deref(), Some("pet:ability:202"));
-        game_engine_ui_model::collections_component::apply_collections_postsetup(&mut registry);
+        // Blizzard_PetCollection.xml:773 CheckedTexture alphaMode="ADD", straight from sync.
         let selected = registry
             .get(
                 registry

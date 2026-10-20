@@ -89,14 +89,6 @@ pub fn apply_collections_postsetup(registry: &mut ui_toolkit::registry::FrameReg
             texture.vert_tile = vertical;
         }
     }
-    // Retire when RSX can set Texture.blend_mode; its current attr path ignores it.
-    if let Some(id) = registry.get_by_name("PetJournalSpellSelectSelected") {
-        let frame = registry.get_mut(id).expect("pet spell highlight");
-        let Some(ui_toolkit::frame::WidgetData::Texture(texture)) = &mut frame.widget_data else {
-            panic!("pet spell highlight must be a texture");
-        };
-        texture.blend_mode = ui_toolkit::widgets::texture::BlendMode::Additive;
-    }
 }
 
 // CompanionLoadOutTemplate names use BOTTOM; retire when RSX supports justify_v.

@@ -69,3 +69,109 @@ fn forever_player_spark_spans_fill_height() {
 fn modern_player_spark_keeps_matching_fill_height() {
     assert_player_spark_matches_fill(ActiveSkin::Modern, 256.0, 20.0);
 }
+
+fn synced_feedback(feedback: CastFeedback, is_channel: bool) -> FrameRegistry {
+    let mut ctx = SharedContext::new();
+    ctx.insert(ActiveSkin::Modern);
+    ctx.insert(CastingBarState {
+        visible: true,
+        spell_name: "Steady Shot".into(),
+        timer_text: "0.6".into(),
+        progress: 0.75,
+        is_channel,
+        player_feedback: Some(feedback),
+        ..Default::default()
+    });
+    let mut registry = FrameRegistry::new(1920.0, 1080.0);
+    Screen::new(casting_bar_frame_screen).sync(&ctx, &mut registry);
+    registry
+}
+
+// Mainline/CastingBarFrame.xml region alphaMode, read straight from sync: ADD at
+// InterruptGlow:206, EnergyGlow:226, Flakes:261-271, BaseGlow:276, WispGlow:281,
+// Flash:306, StandardGlow:347; BLEND at WispMask:286, Sparkles:294/299, Spark:326,
+// ChannelShadow:359.
+#[test]
+fn player_cast_feedback_authors_source_blend_modes_at_construction() {
+    use ui_toolkit::frame::WidgetData;
+    use ui_toolkit::widgets::texture::{BlendMode, TextureSource};
+    let cases: [(CastFeedback, bool, &[(&str, &str, BlendMode)]); 5] = [
+        (
+            CastFeedback::Casting,
+            false,
+            &[
+                ("Spark", "ui-castingbar-pip", BlendMode::Blend),
+                ("StandardGlow", "cast_standard_pipglow", BlendMode::Additive),
+            ],
+        ),
+        (
+            CastFeedback::Casting,
+            true,
+            &[("ChannelShadow", "cast_channel_pipshadow", BlendMode::Blend)],
+        ),
+        (
+            CastFeedback::Finished(0.1),
+            false,
+            &[
+                (
+                    "Flash",
+                    "ui-castingbar-full-glow-standard",
+                    BlendMode::Additive,
+                ),
+                ("EnergyGlow", "cast_standard_glowline", BlendMode::Additive),
+                ("Flakes01", "cast_standard_flakes01", BlendMode::Additive),
+                ("Flakes02", "cast_standard_flakes02", BlendMode::Additive),
+                ("Flakes03", "cast_standard_flakes03", BlendMode::Additive),
+            ],
+        ),
+        (
+            CastFeedback::Finished(0.3),
+            true,
+            &[
+                (
+                    "Flash",
+                    "ui-castingbar-full-glow-channel",
+                    BlendMode::Additive,
+                ),
+                ("BaseGlow", "channel_wispglow2", BlendMode::Additive),
+                ("WispMask", "cast_channel_wispmask", BlendMode::Blend),
+                ("WispGlow", "cast_channel_wispglow", BlendMode::Additive),
+                ("Sparkles01", "cast_channel_sparkles_01", BlendMode::Blend),
+                ("Sparkles02", "cast_channel_sparkles_02", BlendMode::Blend),
+            ],
+        ),
+        (
+            CastFeedback::Interrupted(0.05),
+            false,
+            &[
+                (
+                    "InterruptGlow",
+                    "cast_interrupt_outerglow",
+                    BlendMode::Additive,
+                ),
+                ("Spark", "ui-castingbar-pip-red", BlendMode::Blend),
+            ],
+        ),
+    ];
+    for (feedback, is_channel, parts) in cases {
+        let registry = synced_feedback(feedback, is_channel);
+        for &(part, atlas, expected) in parts {
+            let name = format!("CastingBar{part}");
+            let frame = registry
+                .get(
+                    registry
+                        .get_by_name(&name)
+                        .unwrap_or_else(|| panic!("{name} missing")),
+                )
+                .unwrap();
+            let Some(WidgetData::Texture(texture)) = &frame.widget_data else {
+                panic!("{name} must be a texture");
+            };
+            assert_eq!(
+                (texture.source.clone(), texture.blend_mode),
+                (TextureSource::Atlas(atlas.into()), expected),
+                "{feedback:?} channel={is_channel} {name}"
+            );
+        }
+    }
+}

@@ -574,15 +574,8 @@ pub fn merchant_screen(ctx: &SharedContext) -> Element {
 }
 
 /// Window placement after each rebuild: the backpack in the container slot at the
-/// bottom right (the Bevy window manager's `container_positions`). Also blends the
-/// repair-item `HighlightTexture` additively (`alphaMode="ADD"`, MF.xml:316).
+/// bottom right (the Bevy window manager's `container_positions`).
 pub fn place_merchant_windows(registry: &mut FrameRegistry) {
-    if let Some(id) = registry.get_by_name("MerchantRepairItemButtonHighlight")
-        && let Some(frame) = registry.get_mut(id)
-        && let Some(ui_toolkit::frame::WidgetData::Texture(texture)) = &mut frame.widget_data
-    {
-        texture.blend_mode = ui_toolkit::widgets::texture::BlendMode::Additive;
-    }
     let (width, height) = (registry.screen_width, registry.screen_height);
     let Some(id) = registry.get_by_name("ContainerFrame0") else {
         return;
