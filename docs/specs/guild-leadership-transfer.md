@@ -5,9 +5,9 @@ Mainline `Blizzard_ChatFrameBase/Shared/SlashCommands.lua:793–799` forwards th
 ## What it must do
 
 - [x] `/gleader <member>` produces one target-only TransferLeadership request, not help or ordinary chat. Existing command case/whitespace handling is retained; no invented buttons or dialogs.
-- [ ] Existing authoritative guild replies refresh displayed member ranks and permission controls. Successful transfer is not fabricated from local input.
-- [ ] Both skins share the same sourced slash route and unchanged guild geometry.
-- [ ] Self-target refusal follows the named server project policy GUILD_SELF_LEADER_TRANSFER_REFUSED_UNSOURCED; no Retail-native self semantics are claimed.
+- [x] Existing authoritative guild replies refresh displayed member ranks and permission controls. Successful transfer is not fabricated from local input.
+- [x] Both skins share the same sourced slash route and unchanged guild geometry.
+- [x] Self-target refusal follows the named server project policy GUILD_SELF_LEADER_TRANSFER_REFUSED_UNSOURCED; no Retail-native self semantics are claimed.
 
 ## How it works
 
@@ -26,7 +26,7 @@ Mainline `Blizzard_ChatFrameBase/Shared/SlashCommands.lua:793–799` forwards th
 
 ## Known gaps (current cycle)
 
-- [ ] Coordinated P/S/E gate and real two-member both-skin native authority proof remain pending. Actual generic-help RED precedes focused slash GREEN1/1, covering named/uppercase/whitespace/empty input routes.
+None within this slice. gz709 landed the coordinated cohort; two real authenticated members prove typed transfer, immediate rank/permission refresh and fresh-process new-master settings in both skins. See [native acceptance](../wiki/systems/guilds.md#leadership-native-acceptance-2026-10-19). Self refusal remains backend-tested project policy, not a native Retail parity claim.
 
 ## Out of scope
 

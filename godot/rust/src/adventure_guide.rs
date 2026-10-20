@@ -23,6 +23,7 @@ pub(crate) struct AdventureGuide {
     pending: Option<(u64, u32)>,
     shown: Option<u32>,
     model_source: Option<(u32, u32, u32)>,
+    state_kit_visual: Option<InstanceId>,
     portraits: BTreeMap<u32, Portrait>,
     #[cfg(debug_assertions)]
     fixture_suggestion: Option<shared::protocol::AdventureSuggestion>,
@@ -856,6 +857,9 @@ impl GameClient {
         )
     }
     fn clear_journal_model(&mut self) {
+        if let Some(visual) = self.adventure_guide.state_kit_visual.take() {
+            self.spell_effects.end_detached_display_kit(visual);
+        }
         if let Some((id, _)) = self.adventure_guide.pending.take() {
             self.world.cancel_detached_visual(id);
         }
@@ -902,6 +906,7 @@ impl GameClient {
             self.adventure_guide.scene = Some(Scene::new(host));
         }
         self.attach_journal_model()?;
+        self.sync_journal_display_state_kit()?;
         self.adventure_guide
             .scene
             .as_mut()
@@ -909,6 +914,26 @@ impl GameClient {
             .fit_viewport();
         Ok(())
     }
+    fn sync_journal_display_state_kit(&mut self) -> Result<(), String> {
+        if self.adventure_guide.state_kit_visual.is_some() {
+            return Ok(());
+        }
+        let Some(display) = self.adventure_guide.shown else {
+            return Ok(());
+        };
+        let Some(model) = self.adventure_guide.scene.as_ref().and_then(Scene::model) else {
+            return Ok(());
+        };
+        let visual = model.instance_id();
+        if self
+            .spell_effects
+            .begin_detached_display_kit(display, visual)?
+        {
+            self.adventure_guide.state_kit_visual = Some(visual);
+        }
+        Ok(())
+    }
+
     fn attach_journal_model(&mut self) -> Result<(), String> {
         let Some((id, display)) = self.adventure_guide.pending else {
             return Ok(());
