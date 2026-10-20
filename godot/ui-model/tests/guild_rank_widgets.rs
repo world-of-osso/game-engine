@@ -2689,7 +2689,6 @@ fn guild_member_detail_opens_from_roster_both_skins() {
 }
 
 #[test]
-#[ignore = "RED first: actual logout authority must drive existing roster/detail recency"]
 fn guild_last_online_elapsed_recency_and_unknown_online_fields_both_skins() {
     let _lock = SKIN.lock().unwrap_or_else(|p| p.into_inner());
     let now = std::time::SystemTime::now()
