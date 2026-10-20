@@ -6,16 +6,25 @@ use shared::protocol::BankContents;
 
 use crate::bag_data::InventorySlot;
 
-/// Retail-source reagents in the bags, by item id.
+/// Retail-source reagents in the bags and the given banks, by item id.
 pub fn crafting_reagent_counts(
     bags: &[Vec<InventorySlot>],
-    _banks: &[&BankContents],
+    banks: &[&BankContents],
 ) -> BTreeMap<u32, u32> {
+    let bag_stacks = bags
+        .iter()
+        .flatten()
+        .filter(|item| item.item_id != 0)
+        .map(|item| (item.item_id, item.count, item.definition_source));
+    let bank_stacks = banks
+        .iter()
+        .flat_map(|bank| bank.tabs.iter().flat_map(|tab| tab.slots.iter().flatten()))
+        .map(|item| (item.item_id, item.count, item.definition_source));
     let mut counts = BTreeMap::<u32, u32>::new();
-    for item in bags.iter().flatten() {
-        if item.definition_source == ItemDefinitionSource::Retail {
-            let count = counts.entry(item.item_id).or_default();
-            *count = count.saturating_add(item.count);
+    for (item_id, count, source) in bag_stacks.chain(bank_stacks) {
+        if source == ItemDefinitionSource::Retail {
+            let owned = counts.entry(item_id).or_default();
+            *owned = owned.saturating_add(count);
         }
     }
     counts
@@ -72,7 +81,6 @@ mod tests {
     /// (`includeBank`, `includeReagentBank`, `includeAccountBank`); the Mainline UI
     /// never sets `characterInventoryOnly`.
     #[test]
-    #[ignore = "RED: CRAFTING_REAGENTS_FROM_BANK"]
     fn crafting_reagent_counts_include_character_and_warband_banks() {
         use ItemDefinitionSource::{Forever70205, Retail};
         let bags = vec![

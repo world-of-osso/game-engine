@@ -15,10 +15,7 @@ impl GameClient {
     }
 
     pub(super) fn profession_reagent_counts(&self) -> BTreeMap<u32, u32> {
-        game_engine_ui_model::professions_reagent_counts::crafting_reagent_counts(
-            &self.merchant.session.inventory.slots,
-            &[],
-        )
+        self.merchant.session.inventory.crafting_reagent_counts()
     }
 
     fn open_quality_slot(&self) -> Option<ReagentSlot> {
