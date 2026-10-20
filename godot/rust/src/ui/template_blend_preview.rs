@@ -283,12 +283,10 @@ fn housing_storage_basic(
 fn achievement_statistics() -> game_engine_ui_model::achievements::AchievementWindow {
     use game_engine_ui_model::achievements::{AchievementWindow, CategoryPage};
     use shared::protocol::{AchievementCatalogEntry, AchievementCategoryEntry};
-    let mut window = AchievementWindow {
-        visible: true,
-        statistics: true,
-        selected_category: Some(14807),
-        ..Default::default()
-    };
+    let mut window = AchievementWindow::default();
+    window.visible = true;
+    window.statistics = true;
+    window.selected_category = Some(14807);
     window.categories.insert(
         14807,
         AchievementCategoryEntry {
