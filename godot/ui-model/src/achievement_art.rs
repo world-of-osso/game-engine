@@ -22,7 +22,7 @@ pub(super) fn skin_tint(fdid: u32) -> &'static str {
 }
 
 /// XML:1505-1660: 768x500 wood/metal frame, 175-wide categories, 504-wide content.
-pub(super) fn chrome(summary: bool) -> Element {
+pub(super) fn chrome(summary: bool, guild: bool) -> Element {
     let content_width = if summary { 523.0 } else { 498.0 };
     let mut out = named_atlas_texture(
         "AchievementFrameRock".into(),
@@ -105,9 +105,15 @@ pub(super) fn chrome(summary: bool) -> Element {
     ] {
         out.extend(texture(&format!("AchievementFrame{name}"), fdid, uv, rect));
     }
-    out.extend(rsx! {fontstring {name:"AchievementFrameTitle",text:"Achievements",width:150.0,height:20.0,
+    // AchievementUI.lua380/398; XML1956 inherits GameFontNormalSmall (RomanFriz10).
+    let title = crate::auction_mail::text(if guild {
+        "GUILD_ACHIEVEMENTS_TITLE"
+    } else {
+        "ACHIEVEMENT_TITLE"
+    });
+    out.extend(rsx! {fontstring {name:"AchievementFrameTitle",text:title,width:150.0,height:20.0,
         left:334.0,top:-29.0,pos_type:"absolute",font:ui_toolkit::widgets::font_string::GameFont::FrizQuadrata,
-        font_size:12.0,font_color:GOLD,justify_h:"CENTER",
+        font_size:10.0,font_color:GOLD,justify_h:"CENTER",shadow_color:"0,0,0,1",shadow_offset:"1,-1",
     }});
     let close = named_atlas_texture(
         "AchievementFrameCloseArt".into(),

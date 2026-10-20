@@ -16,6 +16,7 @@ import time
 
 from build_hosts import CACHE_ROOT, execute
 from native_cargo import native_slot, run_cargo
+from native_build_hosts import SERVER_RUNTIME_CATALOGS
 
 SCRIPTS = Path(__file__).resolve().parent
 spec = importlib.util.spec_from_file_location("depot_build", SCRIPTS / "depot-build.py")
@@ -146,6 +147,10 @@ def test_data_filters(root):
 def sync_test_data(root, host, cache):
     """Mirror the TEST_DATA files to `host`; returns the mirror path there. Unchanged files
     (size and mtime) are not re-sent; files no longer listed are deleted."""
+    catalogs = [root / "content" / name for name in SERVER_RUNTIME_CATALOGS]
+    for catalog in catalogs:
+        if not catalog.is_file():
+            raise FileNotFoundError(f"missing tracked server catalog: {catalog}")
     if host == "desktop":
         mirror = CACHE_ROOT / TEST_DATA_MIRROR
         # rsync runs `<rsh> <host> rsync --server ...`; the host `env` passes the rest through.
@@ -159,6 +164,11 @@ def sync_test_data(root, host, cache):
              *(f"--filter={rule}" for rule in rules), f"{data}/", f"{destination}/{name}/"],
             check=True,
         )
+    subprocess.run(
+        ["rsync", "-rt", "--mkpath", *transport, *map(str, catalogs),
+         f"{destination}/game-server/"],
+        check=True,
+    )
     return mirror
 
 
