@@ -5053,3 +5053,6 @@ gc774 passed tests/fmt and landed engineb0b3d4b39; exact server842325bf3/protoco
 ## 2026-10-20 — Crafting reagents from banks
 
 [Professions reagent counts](systems/native-professions-crafting.md) now include the character and Warband banks from the last `BankContents` of each bank, which the server sends on world entry and after bank-reagent crafts. Retail-source only; `ProfessionView.bag_counts` renamed `owned_reagents`. Native proof pending.
+## 2026-10-20 — Gamma particle compositing
+
+[Root cause, fix and captures](investigations/godot-torch-rendering.md#gamma-compositing-2026-10-20): particles blended in linear light; WWV blends authored values in a UNORM target. A POST_TRANSPARENT CompositorEffect encodes the scene to sRGB, draws the pools with the GL factors against the resolved depth, and decodes. `particle_blend_pixels.gd` RED 12/16 fail → GREEN 16/16. Native both-skin 1920x1080 captures of 145304, 199823 and Frostbolt; composite 52-116 us GPU. Named gaps PARTICLES_COMPOSITE_AFTER_ALL_TRANSPARENT_GEOMETRY and PARTICLES_NO_DEPTH_WRITE.

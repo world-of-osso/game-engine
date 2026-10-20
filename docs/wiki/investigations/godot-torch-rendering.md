@@ -47,9 +47,42 @@ the light got 0.744 of overhead light (retail 0.718); after, all three shaders a
 
 ## Remaining gaps
 
-- Blending runs in linear space; retail adds in gamma space, so overlapping additive
-  flame particles stay more orange here than retail's yellow-white core.
+- Particles draw after all transparent geometry
+  (PARTICLES_COMPOSITE_AFTER_ALL_TRANSPARENT_GEOMETRY) and blend 0/1 particles write no
+  depth (PARTICLES_NO_DEPTH_WRITE); see [m2-particles](../../specs/m2-particles.md).
 - The particle debug ground is near-black (0.08 albedo), so the light barely shows on it.
+
+## Gamma compositing (2026-10-20)
+
+Root cause of the thin, orange flames: particles blended in Godot's linear framebuffer,
+while WebWowViewerCpp blends authored values straight into an R8G8B8A8_UNORM target
+(`GFrameBufferVLK.cpp:21`). In a matched replay, gamma blending raised positive
+luminance 1.9x for 145304 and 5-8x for 199823. Both torches' generator tracks are
+constant and 199823 already combined its three textures, so neither global sequences
+nor multitexture explained it.
+
+Fix: a POST_TRANSPARENT `CompositorEffect` (`rendering/particle_composite_effect.gd`)
+sRGB-encodes the resolved scene colour, draws the pools with the GL factors on authored
+values against the resolved depth, and decodes back to linear
+([godot-conversion](../systems/godot-conversion.md#native-m2-particles)). Scene fog
+reaches it through `lighting::set_scene_fog`, because `global_shader_parameter_get` is
+editor-only at runtime.
+
+Native captures at 1920x1080 in a headless cage, Modern and Forever skins (pixel-identical
+footprints), `data/diagnostics/torch-particles-2026-10-20/gamma-captures/`:
+
+| Capture | Quads | Composite GPU | Viewport GPU shown / hidden |
+|---|---|---|---|
+| 145304 default | 16 | 52 us | 0.427 / 0.374 ms |
+| 145304 close | 16 | 54 us | 0.477 / 0.425 ms |
+| Frostbolt 1598570 | 290 | 105 us | 0.436 / 0.324 ms |
+| 199823 MODD32 close | 481 | 116 us | 0.838 / 0.735 ms |
+
+Composite GPU is the encode-to-end span of the effect's RD timestamps, median of 60
+frames. Godot documents these timestamps in microseconds, but the raw spans (52,576 to
+116,384) only fit the viewport deltas (0.052 to 0.112 ms) as nanoseconds, so they are
+reported as ns/1000. The cost includes two full-screen compute passes, so it grows
+with resolution, not just with quad count.
 
 ## Tests
 
