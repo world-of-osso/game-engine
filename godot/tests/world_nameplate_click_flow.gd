@@ -30,7 +30,7 @@ func run_test() -> void:
 	await click_point(enter.get_global_rect().get_center())
 	if not await wait_screen(client, "InWorld", WORLD_LOAD_WAIT_MS):
 		return
-	if not await wait_visual(client, 1.5, WORLD_LOAD_WAIT_MS):
+	if not await wait_click_npc(client):
 		return
 	var npc := client.get_node("WorldUnits/" + NPC) as Node3D
 	var pick := npc.find_child("UnitPick", true, false) as Area3D
@@ -66,6 +66,24 @@ func run_test() -> void:
 	print("FIXTURE NAMEPLATE_CLICK_DONE")
 	client.free()
 	quit(0)
+
+func wait_click_npc(client: Node) -> bool:
+	var deadline := Time.get_ticks_msec() + WORLD_LOAD_WAIT_MS
+	while Time.get_ticks_msec() < deadline:
+		await process_frame
+		var model := client.get_node_or_null("WorldUnits/" + NPC + "/NpcVisualRoot/NpcModel")
+		if model == null:
+			continue
+		for node in model.find_children("*", "MeshInstance3D", true, false):
+			var mesh := node as MeshInstance3D
+			if mesh.mesh == null or not mesh.is_visible_in_tree():
+				continue
+			var material := mesh.get_active_material(0) as ShaderMaterial
+			if material != null and material.get_shader_parameter("base_texture") is Texture2D:
+				print("FIXTURE NAMEPLATE_AUTHORED_NPC_READY display=3728 mesh=", mesh.get_path())
+				return true
+	fail("Authored nameplate NPC never acquired a visible textured mesh: " + str(client.account_state()))
+	return false
 
 func plate_mesh_miss(client: Node, camera: Camera3D, id: int) -> Dictionary:
 	var plate: Dictionary = client.nameplate_state()[id]

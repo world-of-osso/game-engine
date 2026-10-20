@@ -3,36 +3,51 @@
 use super::*;
 use shared::components::{CombatStatus, UnitTarget};
 
-fn stage_player_model_chain(project: &FixtureProject) -> Result<(), String> {
-    let active = project.root.join("data/db2/active");
+fn stage_authored_inputs(project: &FixtureProject) -> Result<(), String> {
+    let checkout = fixture_support::checkout_root_from_executable("native_npc_visual_fixture")?;
+    let source = checkout.join("data");
+    let data = project.root.join("data");
+    let active = data.join("db2/active");
     let active_path = fs::canonicalize(&active).map_err(|error| error.to_string())?;
     let private_root = fs::canonicalize(&project.root).map_err(|error| error.to_string())?;
     if !active_path.starts_with(&private_root) {
         return Err("Click-fixture DB2 staging requires a private active directory".into());
     }
-    for (name, rows) in [
-        ("ChrModel.csv", "ID,DisplayID\n910040,910012\n"),
-        ("CreatureDisplayInfo.csv", "ID,ModelID\n910012,910013\n"),
-        ("CreatureModelData.csv", "ID,FileDataID\n910013,910013\n"),
+    for name in STAGED_RETAIL_CSVS {
+        fs::copy(source.join("db2/active").join(name), active.join(name))
+            .map_err(|error| format!("Stage authored click-fixture CSV {name}: {error}"))?;
+    }
+    for name in [
+        "customization-v5.sqlite",
+        "char_texture-v2.sqlite",
+        "creature_display.sqlite",
+        "npc_appearance.sqlite",
     ] {
-        let path = active.join(name);
-        fs::remove_file(&path)
-            .map_err(|error| format!("Unlink fixture model catalog {name}: {error}"))?;
-        fs::write(&path, rows)
-            .map_err(|error| format!("Write fixture model catalog {name}: {error}"))?;
+        fixture_data::backup_database(
+            &source.join("cache").join(name),
+            &data.join("cache").join(name),
+        )?;
+    }
+    stage_asset_receipts(&source.join("cache"), &data.join("cache"))
+}
+
+fn stage_asset_receipts(source: &Path, target: &Path) -> Result<(), String> {
+    for entry in
+        fs::read_dir(source).map_err(|error| format!("List authored asset receipts: {error}"))?
+    {
+        let entry = entry.map_err(|error| format!("Read authored asset receipt entry: {error}"))?;
+        let name = entry.file_name();
+        let text = name.to_string_lossy();
+        if text.starts_with("model-asset-index") && text.ends_with(".json") {
+            fs::copy(entry.path(), target.join(name))
+                .map_err(|error| format!("Stage authored asset receipt: {error}"))?;
+        }
     }
     Ok(())
 }
 
 pub(super) fn seed_layout(project: &FixtureProject, address: SocketAddr) -> Result<(), String> {
-    stage_player_model_chain(project)?;
-    let checkout = fixture_support::checkout_root_from_executable("native_npc_visual_fixture")?;
-    let races = Path::new(game_engine_core::player_model_data::RETAIL_DB2_DIR).join("ChrRaces.csv");
-    fs::copy(
-        checkout.join("data").join(&races),
-        project.root.join("data").join(&races),
-    )
-    .map_err(|error| format!("Stage complete click-fixture race catalog: {error}"))?;
+    stage_authored_inputs(project)?;
     let skin = std::env::var("GODOT_NAMEPLATE_CLICK_SKIN")
         .map_err(|error| format!("Required click-fixture skin: {error}"))?;
     if !["Modern", "Forever"].contains(&skin.as_str()) {
@@ -58,7 +73,12 @@ pub(super) fn seed_layout(project: &FixtureProject, address: SocketAddr) -> Resu
 pub(super) fn prepare(app: &mut App, player: Entity, npc: Entity) {
     app.world_mut()
         .entity_mut(npc)
-        .insert((CombatStatus(true), UnitTarget(Some(player.to_bits()))));
+        // Authored display 3728 (Dark Strand Adept), already covered by the NPC oracle.
+        .insert((
+            CombatStatus(true),
+            UnitTarget(Some(player.to_bits())),
+            ModelDisplay { display_id: 3728 },
+        ));
 }
 
 pub(super) fn echo_targets(app: &mut App, player: Entity) -> Result<(), String> {
