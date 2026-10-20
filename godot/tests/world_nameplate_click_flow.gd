@@ -17,6 +17,8 @@ func run_test() -> void:
 	var ui = client.get_node("CharacterSelectUI")
 	var card := ui.find_child("CharCard_0", true, false) as Control
 	var enter := ui.find_child("EnterWorld", true, false) as Button
+	enter.pressed.connect(func(): print("FIXTURE NAMEPLATE_ENTER_PRESSED"))
+	print("FIXTURE NAMEPLATE_GUI disabled=", root.gui_disable_input, " viewport=", root.get_visible_rect(), " button_visible=", enter.is_visible_in_tree(), " filter=", enter.mouse_filter)
 	for frame in range(5):
 		await process_frame
 	print("FIXTURE NAMEPLATE_ROSTER card=", card.get_global_rect(), " enter=", enter.get_global_rect(), " disabled=", enter.disabled)
@@ -75,13 +77,12 @@ func plate_mesh_miss(client: Node, camera: Camera3D, id: int) -> Dictionary:
 	return {}
 
 func click_point(point: Vector2) -> void:
-	# Like battleground_live.gd: headless has no OS pointer-enter notification.
-	root.notify_mouse_entered()
 	var motion := InputEventMouseMotion.new()
 	motion.position = point
 	motion.global_position = point
 	root.push_input(motion, true)
 	await process_frame
+	print("FIXTURE NAMEPLATE_POINTER point=", point, " hovered=", root.gui_get_hovered_control(), " gui_disabled=", root.gui_disable_input)
 	for pressed in [true, false]:
 		var event := InputEventMouseButton.new()
 		event.position = point
