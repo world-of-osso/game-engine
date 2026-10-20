@@ -359,7 +359,7 @@ fn assert_retail_alpha(registry: &FrameRegistry, name: &str) {
     };
     assert_eq!(
         texture.blend_mode,
-        ui_toolkit::widgets::texture::BlendMode::AlphaKey,
+        ui_toolkit::widgets::texture::BlendMode::Blend,
         "{name}: Retail12.1 authored StateTexture uses ordinary alpha"
     );
 }

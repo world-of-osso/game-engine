@@ -113,7 +113,7 @@ fn cooldown_buff_bars_use_source_texture_geometry_and_remaining_fill() {
             };
             assert_eq!(
                 texture.blend_mode,
-                BlendMode::AlphaKey,
+                BlendMode::Blend,
                 "Buff pip has no ADD alphaMode in XML"
             );
             let name = frame("CooldownViewer900Name");
