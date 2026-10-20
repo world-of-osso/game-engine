@@ -1,5 +1,5 @@
 extends "res://tests/achievement_search_full_results.gd"
-# Font-size-only native configuration proof; retain existing ink/shadow/alignment policy.
+# Font-size and approved ordinary-description TOP alignment; retain ink/shadow/horizontal policy.
 
 func run_cases() -> void:
 	root.size = Vector2i(1920, 1080)
@@ -51,8 +51,8 @@ func check_description_case(forever: bool, kind: String) -> bool:
 			var offset := Vector2i(label.get_theme_constant("shadow_offset_x"), label.get_theme_constant("shadow_offset_y"))
 			if offset != Vector2i.ZERO:
 				failures.append("description shadow offset changed: " + str(offset))
-			if label.horizontal_alignment != HORIZONTAL_ALIGNMENT_CENTER or label.vertical_alignment != VERTICAL_ALIGNMENT_CENTER:
-				failures.append("description justification changed")
+			if label.horizontal_alignment != HORIZONTAL_ALIGNMENT_CENTER or label.vertical_alignment != VERTICAL_ALIGNMENT_TOP:
+				failures.append("description expected horizontal CENTER and Retail vertical TOP")
 			if label.text != "Defeat Hogger.":
 				failures.append("description text changed")
 			var row := ui.find_child("Achievement633Row", true, false) as Control
