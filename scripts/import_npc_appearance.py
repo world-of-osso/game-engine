@@ -12,7 +12,7 @@ from pathlib import Path
 
 # Callers also load this module by path; resolve its sibling helper from here.
 sys.path.insert(0, str(Path(__file__).resolve().parent))
-from server_db2 import db2_casc  # noqa: E402
+from server_db2 import db2_casc
 
 # WoWDBDefs: only the three locally observed layouts, not a general DB2 reader.
 LAYOUTS = {
