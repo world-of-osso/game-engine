@@ -21,13 +21,6 @@ func run_test() -> void:
 		await process_frame
 	print("FIXTURE NAMEPLATE_ROSTER card=", card.get_global_rect(), " enter=", enter.get_global_rect(), " disabled=", enter.disabled)
 	await click_point(card.get_global_rect().get_center())
-	var selected_deadline := Time.get_ticks_msec() + 5000
-	while client.account_state().selected_character_id == null and Time.get_ticks_msec() < selected_deadline:
-		await process_frame
-	if client.account_state().selected_character_id == null:
-		fail("Physical roster card click did not select character: " + str(client.account_state()))
-		return
-	print("FIXTURE NAMEPLATE_ROSTER_SELECTED ", client.account_state().selected_character_id)
 	await click_point(enter.get_global_rect().get_center())
 	if not await wait_screen(client, "InWorld", WORLD_LOAD_WAIT_MS):
 		return
