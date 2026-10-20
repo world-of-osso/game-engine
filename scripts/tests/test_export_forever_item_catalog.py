@@ -4,6 +4,7 @@ import csv
 import gzip
 import hashlib
 import json
+import os
 from pathlib import Path
 import shutil
 import subprocess
@@ -106,6 +107,7 @@ class ForeverItemExportTests(unittest.TestCase):
             text=True,
             capture_output=True,
             check=False,
+            env={**os.environ, "DEPOT_SIBLING_GAME_SERVER": str(self.server)},
         )
 
     def rows(self, name):

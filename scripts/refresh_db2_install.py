@@ -18,6 +18,7 @@ import sqlite3
 
 import db2_dbd
 import export_db2_csv as wdc
+from server_db2 import SERVER_SCRIPTS, db2_casc
 from stage_mount_model_assets import authenticate_install
 
 DBD_COMMIT = 'd6f50d4f351193e84226aa62a36faa0f58528afa'
@@ -89,8 +90,9 @@ def export_tables(args):
     directory.mkdir(parents=True, exist_ok=True)
     raw.mkdir(parents=True, exist_ok=True)
     tables = table_fdids(args.engine / 'data/community-listfile.csv', consumed_tables(args.engine, args.server, definitions))
-    sys.path.insert(0, str(args.server / 'scripts'))
-    import db2_casc
+    if SERVER_SCRIPTS != (args.server / 'scripts').resolve():
+        raise ValueError(f'--server {args.server} is not the DB2 decoder checkout {SERVER_SCRIPTS.parent}; '
+                         'set DEPOT_SIBLING_GAME_SERVER')
     receipt = {'identity': identity, 'schema_commit': args.schema_commit, 'tables': {}, 'unavailable': {}}
     pending = []
     for fdid in tables.values():
