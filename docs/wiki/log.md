@@ -1,3 +1,7 @@
+## 2026-10-20 — Generic assisted type3 distance
+
+[Policy and provenance](investigations/cooldown-assist-data.md#generic-type3-distance-policy--2026-10-20): exact Azure1252 in-combat refusal and native885 reproduce in pushed ignored4f84212ff (0PASS/2FAIL). Generic SimC76f8118 type3 policy replaces rule1261 allowlist; complete70448 fixtures,92 native distance rows and per-type gap sweep. Headless GREEN pending; no server/protocol/live changes or Retail certification.
+
 ## 2026-10-20 — Guild roster context Whisper
 
 [Contract](../specs/guild-context-whisper.md), [flow](systems/guilds.md#roster-context-whisper): sourced Whisper entry opens the existing chat input with `/w <name> `; named gap `CHAT_WHISPER_HEADER_ABSENT`. Actual RED → GREEN7/7. Context-leadership citation corrected to `COMMUNITIES_GUILD_MEMBER`. Gate/native pending.
