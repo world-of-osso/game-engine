@@ -51,7 +51,7 @@ pub(super) fn content(ctx: &SharedContext, window: &AchievementWindow) -> Elemen
         left:581.0,top:0.0,pos_type:"absolute",frame_level:510.0,
         onclick:"achievement:search_dismiss",button_default_skin:false,
         button_atlas_up:"RedButton-Exit",button_atlas_pressed:"RedButton-exit-pressed",
-        button_atlas_highlight:"RedButton-Highlight",button_atlas_disabled:"RedButton-Exit-Disabled",
+        button_atlas_highlight:"RedButton-Highlight", button_highlight_blend_mode:"ADD",button_atlas_disabled:"RedButton-Exit-Disabled",
     }});
     let left = if window.comparison.is_some() {
         144.0

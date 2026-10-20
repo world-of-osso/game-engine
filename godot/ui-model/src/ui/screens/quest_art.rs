@@ -614,7 +614,7 @@ pub fn panel_button(
             strata: FrameStrata::Dialog,
             button_fdid_up: 130828_u32,
             button_fdid_pressed: 130825_u32,
-            button_fdid_highlight: 130826_u32,
+            button_fdid_highlight: 130826_u32, button_highlight_blend_mode:"ADD",
             button_fdid_disabled: 130824_u32,
             pos_type: "absolute",
             left: x,

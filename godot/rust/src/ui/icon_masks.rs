@@ -153,9 +153,13 @@ impl IconMasks {
                 && let Some(frame) = registry.get_mut(id)
                 && let Some(WidgetData::Button(button)) = &mut frame.widget_data
             {
-                button.normal_texture = Some(textures[0].clone());
-                button.pushed_texture = Some(textures[1].clone());
-                button.disabled_texture = Some(textures[2].clone());
+                for (slot, source) in [
+                    (&mut button.normal_texture, &textures[0]),
+                    (&mut button.pushed_texture, &textures[1]),
+                    (&mut button.disabled_texture, &textures[2]),
+                ] {
+                    slot.get_or_insert_with(Default::default).source = source.clone();
+                }
             }
         }
     }

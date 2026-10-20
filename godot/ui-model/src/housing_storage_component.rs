@@ -28,7 +28,7 @@ pub(crate) fn drawer(view: &HousingView, disabled: bool, can_edit: bool) -> Elem
             (-4.0, 0.0, 64.0, 72.0),
         );
         let top = ((view.viewport[1] - 72.0) / 2.0 - 150.0).max(0.0);
-        return rsx! {button {name:"HouseEditorStorageExpandButton",width:64.0,height:72.0,pos_type:"absolute",left,top,strata:FrameStrata::Dialog,onclick:"housing:storage:expand",button_default_skin:false,button_atlas_highlight:"house-chest-open-drawer-button",button_highlight_alpha:"0.5",{icon}}};
+        return rsx! {button {name:"HouseEditorStorageExpandButton",width:64.0,height:72.0,pos_type:"absolute",left,top,strata:FrameStrata::Dialog,onclick:"housing:storage:expand",button_default_skin:false,button_atlas_highlight:"house-chest-open-drawer-button",button_highlight_blend_mode:"ADD",button_highlight_alpha:"0.5",{icon}}};
     }
     let background = named_atlas_texture(
         "HouseEditorStorageBackground".into(),
@@ -72,7 +72,7 @@ pub(crate) fn drawer(view: &HousingView, disabled: bool, can_edit: bool) -> Elem
         fontstring {name:"HouseEditorStorageCategoryPath",text:{category_path.as_str()},width:content_width,height:20.0,pos_type:"absolute",left:85.0,top:78.0,font_size:14.0,justify_h:"LEFT"}
         fontstring {name:"HouseEditorStorageTitle",text:status,width:content_width,height:32.0,pos_type:"absolute",left:85.0,top:footer_top,font_size:14.0}
         {search}
-        button {name:"HouseEditorStorageCollapseButton",width:32.0,height:74.0,pos_type:"absolute",left:collapse_left,top:collapse_top,onclick:"housing:storage:collapse",button_default_skin:false,button_atlas_highlight:"house-chest-close-drawer-button",button_highlight_alpha:"0.5",{collapse}}
+        button {name:"HouseEditorStorageCollapseButton",width:32.0,height:74.0,pos_type:"absolute",left:collapse_left,top:collapse_top,onclick:"housing:storage:collapse",button_default_skin:false,button_atlas_highlight:"house-chest-close-drawer-button",button_highlight_blend_mode:"ADD",button_highlight_alpha:"0.5",{collapse}}
         button {name:"HouseEditorStorageResizeButton",width:20.0,height:20.0,pos_type:"absolute",left:resize_left,top:resize_top,button_default_skin:false}
     }}
 }

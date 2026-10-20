@@ -5,7 +5,7 @@
 
 use ui_toolkit::atlas::{ActiveSkin, thread_skin};
 use ui_toolkit::frame::{Frame, NineSlice, ThreeSlice, WidgetData};
-use ui_toolkit::widgets::button::{ButtonData, ButtonState};
+use ui_toolkit::widgets::button::{ButtonData, ButtonState, ButtonTexture};
 use ui_toolkit::widgets::font_string::{GameFont, JustifyH, JustifyV, Outline};
 use ui_toolkit::widgets::texture::{BlendMode, TextureSource};
 
@@ -75,7 +75,7 @@ pub fn project_images(frame: &Frame, width: f32, height: f32) -> Vec<ImagePart> 
         if let Some(color) = frame.background_color {
             parts.push(solid(rect, color));
         }
-        parts.push(textured(rect, skin, Crop::Full, WHITE));
+        parts.push(button_image(rect, &skin, Crop::Full, WHITE));
     } else if let Some(slice) = &frame.nine_slice {
         if frame.background_color.is_some() {
             project_sliced_background(frame, slice, width, height, &mut parts);
@@ -93,7 +93,7 @@ pub fn project_images(frame: &Frame, width: f32, height: f32) -> Vec<ImagePart> 
     parts
 }
 
-/// Minimap.xml:190-219: full-opacity base, disabled desaturation and ADD highlight.
+/// Minimap.xml:190-219: full-opacity base and disabled desaturation; authored state blend.
 fn project_minimap_zoom_button(
     frame: &Frame,
     width: f32,
@@ -103,7 +103,11 @@ fn project_minimap_zoom_button(
     let Some(WidgetData::Button(button)) = &frame.widget_data else {
         return false;
     };
-    let Some(TextureSource::Atlas(normal)) = &button.normal_texture else {
+    let Some(TextureSource::Atlas(normal)) = button
+        .normal_texture
+        .as_ref()
+        .map(|texture| &texture.source)
+    else {
         return false;
     };
     if !matches!(
@@ -112,18 +116,21 @@ fn project_minimap_zoom_button(
     ) {
         return false;
     }
-    let source = select_button_base_texture_source(button).expect("minimap defines all state art");
-    let mut base = textured([0., 0., width, height], source.clone(), Crop::Full, WHITE);
+    let texture = select_button_base_texture(button).expect("minimap defines all state art");
+    let mut base = button_image([0., 0., width, height], texture, Crop::Full, WHITE);
     base.desaturated = button.state == ButtonState::Disabled;
     parts.push(base);
     if button.hovered && button.state != ButtonState::Disabled {
-        let source = button
+        let texture = button
             .highlight_texture
             .as_ref()
             .expect("minimap defines highlight art");
-        let mut highlight = textured([0., 0., width, height], source.clone(), Crop::Full, WHITE);
-        highlight.additive = true;
-        parts.push(highlight);
+        parts.push(button_image(
+            [0., 0., width, height],
+            texture,
+            Crop::Full,
+            WHITE,
+        ));
     }
     true
 }
@@ -138,20 +145,16 @@ fn project_perks_rotate_button(
     let Some(WidgetData::Button(button)) = &frame.widget_data else {
         return false;
     };
-    let is_perks_rotation = matches!(&button.normal_texture, Some(TextureSource::Atlas(atlas)) if atlas == "perks-button-up");
+    let is_perks_rotation = matches!(button.normal_texture.as_ref().map(|texture| &texture.source), Some(TextureSource::Atlas(atlas)) if atlas == "perks-button-up");
     if !is_perks_rotation {
         return false;
     }
     let pressed = button.state == ButtonState::Pushed;
-    let source = if pressed {
-        "perks-button-down"
-    } else {
-        "perks-button-up"
-    };
+    let texture = select_button_base_texture(button).expect("Perks rotation defines base art");
     let offset = if pressed { 1. } else { 0. };
-    parts.push(textured(
+    parts.push(button_image(
         [offset, offset, width, height],
-        TextureSource::Atlas(source.into()),
+        texture,
         Crop::Full,
         WHITE,
     ));
@@ -168,14 +171,16 @@ fn project_perks_rotate_highlight(
     if !(button.hovered || button.highlight_locked) {
         return;
     }
-    let mut hover = textured(
+    let texture = button
+        .highlight_texture
+        .as_ref()
+        .expect("Perks rotation defines highlight art");
+    parts.push(button_image(
         [0., 0., width, height],
-        TextureSource::Atlas("perks-button-up".into()),
+        texture,
         Crop::Full,
         [1., 1., 1., 0.6],
-    );
-    hover.additive = true;
-    parts.push(hover);
+    ));
 }
 
 /// SharedButtonTemplate inherits128-RedButton; its114px/292px caps scale with height.
@@ -189,7 +194,12 @@ fn project_shared_red_button(
     let Some(WidgetData::Button(button)) = &frame.widget_data else {
         return false;
     };
-    if button.normal_texture != Some(TextureSource::Atlas("128-redbutton-left".into())) {
+    if button
+        .normal_texture
+        .as_ref()
+        .map(|texture| &texture.source)
+        != Some(&TextureSource::Atlas("128-redbutton-left".into()))
+    {
         return false;
     }
     let suffix = match button.state {
@@ -197,6 +207,7 @@ fn project_shared_red_button(
         ButtonState::Pushed => "-pressed",
         ButtonState::Disabled => "-disabled",
     };
+    let texture = select_button_base_texture(button).expect("SharedButton defines base art");
     let left = 114.0 * height / 128.0;
     let right = 292.0 * height / 128.0;
     for (x, w, member) in [
@@ -204,22 +215,26 @@ fn project_shared_red_button(
         (left, width - left - right, "_128-redbutton-center"),
         (width - right, right, "128-redbutton-right"),
     ] {
-        parts.push(textured(
+        let mut part = textured(
             [x, 0.0, w, height],
             TextureSource::Atlas(format!("{member}{suffix}")),
             Crop::Full,
             WHITE,
-        ));
+        );
+        part.additive = texture.blend_mode == BlendMode::Additive;
+        parts.push(part);
     }
     if button.hovered && button.state != ButtonState::Disabled {
-        let mut highlight = textured(
+        let texture = button
+            .highlight_texture
+            .as_ref()
+            .expect("SharedButton defines highlight art");
+        parts.push(button_image(
             [0.0, 0.0, width, height],
-            TextureSource::Atlas("retail-128-redbutton-highlight".into()),
+            texture,
             Crop::Full,
             WHITE,
-        );
-        highlight.additive = true;
-        parts.push(highlight);
+        ));
     }
     true
 }
@@ -235,11 +250,15 @@ fn project_panel_button(
     let Some(WidgetData::Button(button)) = &frame.widget_data else {
         return false;
     };
-    let Some(source @ TextureSource::FileDataId(130824 | 130825 | 130828)) =
-        select_button_base_texture_source(button)
-    else {
+    let Some(texture) = select_button_base_texture(button) else {
         return false;
     };
+    if !matches!(
+        texture.source,
+        TextureSource::FileDataId(130824 | 130825 | 130828)
+    ) {
+        return false;
+    }
     // TOP/BOTTOM anchors stretch the strip vertically; its XML width stays12px.
     let cap = 12.0;
     for (x, w, left, right) in [
@@ -247,22 +266,24 @@ fn project_panel_button(
         (cap, width - 2.0 * cap, 0.09375, 0.53125),
         (width - cap, cap, 0.53125, 0.625),
     ] {
-        parts.push(textured(
+        parts.push(button_image(
             [x, 0.0, w, height],
-            source.clone(),
+            texture,
             Crop::Normalized([left, right, 0.0, 0.6875]),
             WHITE,
         ));
     }
     if button.hovered && button.state != ButtonState::Disabled {
-        let mut highlight = textured(
+        let texture = button
+            .highlight_texture
+            .as_ref()
+            .expect("UIPanelButton defines highlight art");
+        parts.push(button_image(
             [0.0, 0.0, width, height],
-            TextureSource::FileDataId(130826),
+            texture,
             Crop::Normalized([0.0, 0.625, 0.0, 0.6875]),
             WHITE,
-        );
-        highlight.additive = true;
-        parts.push(highlight);
+        ));
     }
     true
 }
@@ -319,8 +340,8 @@ fn project_sliced_background(
 fn base_image(frame: &Frame, width: f32, height: f32) -> Option<ImagePart> {
     let rect = [0.0, 0.0, width, height];
     match &frame.widget_data {
-        Some(WidgetData::Button(button)) => match select_button_base_texture_source(button) {
-            Some(source) => Some(textured(rect, source.clone(), Crop::Full, WHITE)),
+        Some(WidgetData::Button(button)) => match select_button_base_texture(button) {
+            Some(texture) => Some(button_image(rect, texture, Crop::Full, WHITE)),
             None => frame.background_color.map(|color| solid(rect, color)),
         },
         Some(WidgetData::Texture(texture)) => {
@@ -344,13 +365,7 @@ fn base_image(frame: &Frame, width: f32, height: f32) -> Option<ImagePart> {
             let mut part = textured(rect, texture.source.clone(), crop, [r, g, b, a]);
             part.desaturated = texture.desaturated;
             part.rotation = texture.rotation;
-            // PerksProgramElements.xml223/383: ordinary and frozen SelectedTexture use ADD.
-            let perks_product_selection = frame.name.as_deref().is_some_and(|name| {
-                name.starts_with("PerksProgramSelected") || name == "PerksProgramFrozenSelected"
-            });
-            part.additive = texture.blend_mode == BlendMode::Additive
-                || perks_product_selection
-                || game_engine_ui_model::selection_list::is_additive_row_art(frame, texture);
+            part.additive = texture.blend_mode == BlendMode::Additive;
             part.tiling = [texture.horiz_tile, texture.vert_tile];
             Some(part)
         }
@@ -502,7 +517,7 @@ fn project_highlight(frame: &Frame, width: f32, height: f32, parts: &mut Vec<Ima
     let Some(WidgetData::Button(button)) = &frame.widget_data else {
         return;
     };
-    let Some(source) = button.highlight_texture.as_ref() else {
+    let Some(texture) = button.highlight_texture.as_ref() else {
         return;
     };
     if frame.nine_slice.is_some()
@@ -519,40 +534,34 @@ fn project_highlight(frame: &Frame, width: f32, height: f32, parts: &mut Vec<Ima
         frame.width.value() / 2.0
     };
     // HouseEditorStorageButtonTemplate anchors both the icon and ADD overlay at x=-4.
-    let offset_x = match source {
+    let offset_x = match &texture.source {
         TextureSource::Atlas(name) if name == "house-chest-open-drawer-button" => -4.0,
         _ => 0.0,
     };
     let rect = [center_x - w / 2.0 + offset_x, height / 2.0 - h / 2.0, w, h];
-    let mut part = textured(
+    let mut part = button_image(
         rect,
-        source.clone(),
+        texture,
         Crop::Full,
         [1.0, 1.0, 1.0, button.highlight_alpha],
     );
     part.overlay = true;
-    // Blizzard_TransmogTemplates.xml: model-card BorderHighlight uses ADD;
-    // its black centre must not cover the separately composited 3D preview.
-    part.additive = matches!(source, TextureSource::FileDataId(130757 | 130717))
-        || matches!(source, TextureSource::Atlas(name) if matches!(name.as_str(),
-        "transmog-itemcard-default" | "transmog-setcard-default" | "transmog-setcard-incomplete"
-        | "transmog-gearslot-default" | "transmog-gearslot-transmogrified" | "transmog-gearslot-pending"
-        | "transmog-gearslot-default-small" | "transmog-gearslot-transmogrified-small"
-        | "house-chest-open-drawer-button" | "house-chest-close-drawer-button"
-        | "RedButton-Highlight" | "perks-list-hover"));
     parts.push(part);
 }
 
 /// State texture of a button the original `sync_button_nine_slices` skins, if any.
-fn button_skin(frame: &Frame) -> Option<TextureSource> {
+fn button_skin(frame: &Frame) -> Option<ButtonTexture> {
     let Some(WidgetData::Button(button)) = &frame.widget_data else {
         return None;
     };
     // These explicit state textures retain base art beneath a separate highlight.
     if matches!(
-        button.normal_texture,
+        button
+            .normal_texture
+            .as_ref()
+            .map(|texture| &texture.source),
         Some(TextureSource::FileDataId(130869 | 130866 | 130845 | 130847))
-    ) || matches!(&button.normal_texture, Some(TextureSource::Atlas(name)) if matches!(name.as_str(),
+    ) || matches!(button.normal_texture.as_ref().map(|texture| &texture.source), Some(TextureSource::Atlas(name)) if matches!(name.as_str(),
         "RedButton-Exit" | "128-redbutton-cart-add" | "128-redbutton-cart-minus"))
     {
         return None;
@@ -560,19 +569,19 @@ fn button_skin(frame: &Frame) -> Option<TextureSource> {
     if !button.use_default_skin
         && (frame.three_slice.is_some()
             || frame.nine_slice.is_some()
-            || select_button_base_texture_source(button).is_none())
+            || select_button_base_texture(button).is_none())
     {
         return None;
     }
     Some(
-        select_button_texture_source(button)
+        select_button_texture(button)
             .cloned()
             .unwrap_or_else(|| default_button_texture(button)),
     )
 }
 
-fn select_button_base_texture_source(button: &ButtonData) -> Option<&TextureSource> {
-    let source = match button.state {
+fn select_button_base_texture(button: &ButtonData) -> Option<&ButtonTexture> {
+    let texture = match button.state {
         ButtonState::Normal => button.normal_texture.as_ref(),
         ButtonState::Pushed => button
             .pushed_texture
@@ -583,28 +592,34 @@ fn select_button_base_texture_source(button: &ButtonData) -> Option<&TextureSour
             .as_ref()
             .or(button.normal_texture.as_ref()),
     }?;
-    (!matches!(source, TextureSource::None)).then_some(source)
+    (!matches!(texture.source, TextureSource::None)).then_some(texture)
 }
 
-fn select_button_texture_source(button: &ButtonData) -> Option<&TextureSource> {
-    let source = match button.state {
+fn select_button_texture(button: &ButtonData) -> Option<&ButtonTexture> {
+    let texture = match button.state {
         ButtonState::Normal if button.hovered => button
             .highlight_texture
             .as_ref()
             .or(button.normal_texture.as_ref()),
-        _ => return select_button_base_texture_source(button),
+        _ => return select_button_base_texture(button),
     }?;
-    (!matches!(source, TextureSource::None)).then_some(source)
+    (!matches!(texture.source, TextureSource::None)).then_some(texture)
 }
 
-fn default_button_texture(button: &ButtonData) -> TextureSource {
+fn default_button_texture(button: &ButtonData) -> ButtonTexture {
     let name = match button.state {
         ButtonState::Disabled => "defaultbutton-nineslice-disabled",
         ButtonState::Pushed => "defaultbutton-nineslice-pressed",
         ButtonState::Normal if button.hovered => "defaultbutton-nineslice-highlight",
         ButtonState::Normal => "defaultbutton-nineslice-up",
     };
-    TextureSource::Atlas(name.into())
+    ButtonTexture::new(TextureSource::Atlas(name.into()))
+}
+
+fn button_image(rect: [f32; 4], texture: &ButtonTexture, crop: Crop, color: [f32; 4]) -> ImagePart {
+    let mut part = textured(rect, texture.source.clone(), crop, color);
+    part.additive = texture.blend_mode == BlendMode::Additive;
+    part
 }
 
 fn layout_edges(slice: &NineSlice) -> [f32; 4] {

@@ -730,7 +730,7 @@ impl UiProjection {
         // Shared dropdown chrome is passive; its owner receives pointer events.
         let passive_dropdown_art = frame.onclick.is_none()
             && matches!(&frame.widget_data, Some(WidgetData::Button(button))
-                if matches!(&button.normal_texture, Some(TextureSource::Atlas(atlas))
+                if matches!(button.normal_texture.as_ref().map(|texture| &texture.source), Some(TextureSource::Atlas(atlas))
                     if atlas.starts_with("common-dropdown-")));
         node.set_mouse_filter(if passive_dropdown_art {
             godot::classes::control::MouseFilter::IGNORE

@@ -458,10 +458,14 @@ pub fn apply_auction_paging_postsetup(registry: &mut ui_toolkit::registry::Frame
         let Some(WidgetData::Button(button)) = frame.widget_data.as_mut() else {
             panic!("auction pager must be a button");
         };
-        button.normal_texture = Some(TextureSource::FileDataId(up));
-        button.pushed_texture = Some(TextureSource::FileDataId(down));
-        button.disabled_texture = Some(TextureSource::FileDataId(disabled));
-        button.highlight_texture = Some(TextureSource::FileDataId(130_757));
+        use ui_toolkit::widgets::{button::ButtonTexture, texture::BlendMode};
+        button.normal_texture = Some(ButtonTexture::new(TextureSource::FileDataId(up)));
+        button.pushed_texture = Some(ButtonTexture::new(TextureSource::FileDataId(down)));
+        button.disabled_texture = Some(ButtonTexture::new(TextureSource::FileDataId(disabled)));
+        button.highlight_texture = Some(ButtonTexture {
+            source: TextureSource::FileDataId(130_757),
+            blend_mode: BlendMode::Additive,
+        });
     }
 }
 

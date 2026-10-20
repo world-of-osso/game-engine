@@ -51,7 +51,7 @@ pub(crate) fn placed_list_controls(context: &SharedContext, view: &HousingView) 
             {icon}
             fontstring {name:"HouseEditorDecorBudgetText",text:BUDGET_TEXT,width:{budget_width-42.0},height:20.0,left:42.0,top:11.0,pos_type:"absolute",font_size:20.0,font_color:"1.0,1.0,1.0,1.0",justify_h:"RIGHT"}
         }
-        button {name:"HouseEditorPlacedDecorListButton",width:36.0,height:36.0,left:toggle_left,top:43.0,pos_type:"absolute",strata:FrameStrata::Dialog,onclick:"housing:placed-list:toggle",button_default_skin:false,button_atlas_up:up,button_atlas_pressed:"decor-placement-list-pressed",button_atlas_highlight:up,button_highlight_alpha:"0.5"}
+        button {name:"HouseEditorPlacedDecorListButton",width:36.0,height:36.0,left:toggle_left,top:43.0,pos_type:"absolute",strata:FrameStrata::Dialog,onclick:"housing:placed-list:toggle",button_default_skin:false,button_atlas_up:up,button_atlas_pressed:"decor-placement-list-pressed",button_atlas_highlight:up,button_highlight_blend_mode:"ADD",button_highlight_alpha:"0.5"}
         {list}{menu}
     }
 }
@@ -88,7 +88,7 @@ fn placed_list_panel(context: &SharedContext, view: &HousingView) -> Element {
         {background}{header}{foliage}
         button {name:"HouseEditorPlacedDecorListDragBar",width:410.0,height:32.0,left:-5.0,top:-5.0,pos_type:"absolute",button_default_skin:false}
         fontstring {name:"HouseEditorPlacedDecorListHeaderText",text:"Placed Decor",width:410.0,height:32.0,left:-5.0,top:-5.0,pos_type:"absolute",font_size:12.0,mouse_enabled:false}
-        button {name:"HouseEditorPlacedDecorListCloseButton",width:24.0,height:24.0,left:388.0,top:-8.0,pos_type:"absolute",onclick:"housing:placed-list:close",button_default_skin:false,button_atlas_up:"RedButton-Exit",button_atlas_pressed:"RedButton-exit-pressed",button_atlas_disabled:"RedButton-Exit-Disabled",button_atlas_highlight:"RedButton-Highlight",button_highlight_alpha:"1.0"}
+        button {name:"HouseEditorPlacedDecorListCloseButton",width:24.0,height:24.0,left:388.0,top:-8.0,pos_type:"absolute",onclick:"housing:placed-list:close",button_default_skin:false,button_atlas_up:"RedButton-Exit",button_atlas_pressed:"RedButton-exit-pressed",button_atlas_disabled:"RedButton-Exit-Disabled",button_atlas_highlight:"RedButton-Highlight", button_highlight_blend_mode:"ADD",button_highlight_alpha:"1.0"}
         {rows}
     }}
 }
@@ -210,5 +210,12 @@ pub(crate) fn apply_placed_list_postsetup(registry: &mut FrameRegistry) {
     } else {
         button.normal_texture.clone()
     };
-    button.highlight_texture = Some(atlas.expect("Placed-list toggle needs its state atlas"));
+    let source = atlas
+        .expect("Placed-list toggle needs its state atlas")
+        .source;
+    button
+        .highlight_texture
+        .as_mut()
+        .expect("Placed-list toggle defines highlight metadata")
+        .source = source;
 }

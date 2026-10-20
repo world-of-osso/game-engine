@@ -169,8 +169,8 @@ fn emit_texture_lines(frame: &Frame, indent: &str, lines: &mut Vec<String>) {
             ("[highlight]", &button.highlight_texture),
             ("[disabled]", &button.disabled_texture),
         ] {
-            if let Some(source) = source {
-                emit_texture_source_line(label, source, indent, lines);
+            if let Some(texture) = source {
+                emit_texture_source_line(label, &texture.source, indent, lines);
             }
         }
     }

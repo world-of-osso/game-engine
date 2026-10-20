@@ -117,7 +117,7 @@ fn template_region_update(registry: &FrameRegistry, frame: &Frame) -> Option<Reg
         _ => None,
     };
     let state = matches!(&frame.widget_data, Some(WidgetData::Button(child))
-        if matches!(&child.normal_texture, Some(TextureSource::Atlas(atlas)) if atlas.starts_with("common-dropdown-")))
+        if matches!(child.normal_texture.as_ref().map(|texture| &texture.source), Some(TextureSource::Atlas(atlas)) if atlas.starts_with("common-dropdown-")))
         .then_some((button.state, button.hovered));
     (visible.is_some() || state.is_some()).then_some(RegionUpdate {
         id: frame.id,
@@ -127,7 +127,11 @@ fn template_region_update(registry: &FrameRegistry, frame: &Frame) -> Option<Reg
 }
 
 fn update_dropdown_hover_art(button: &mut ButtonData) {
-    let Some(TextureSource::Atlas(normal)) = &button.normal_texture else {
+    let Some(TextureSource::Atlas(normal)) = button
+        .normal_texture
+        .as_ref()
+        .map(|texture| &texture.source)
+    else {
         return;
     };
     let prefix = if normal.starts_with("common-dropdown-a-button") {
@@ -147,9 +151,11 @@ fn update_dropdown_hover_art(button: &mut ButtonData) {
     } else {
         "hover"
     };
-    button.highlight_texture = Some(TextureSource::Atlas(format!(
-        "{prefix}-{hover_state}{suffix}"
-    )));
+    let source = TextureSource::Atlas(format!("{prefix}-{hover_state}{suffix}"));
+    button
+        .highlight_texture
+        .get_or_insert_with(Default::default)
+        .source = source;
 }
 
 fn apply_texture_flags(registry: &mut FrameRegistry) {
@@ -240,7 +246,11 @@ fn is_text_holder(
 }
 
 fn sliced_dropdown_source(button: &ButtonData) -> Option<(TextureSource, [f32; 4])> {
-    let Some(TextureSource::Atlas(normal)) = &button.normal_texture else {
+    let Some(TextureSource::Atlas(normal)) = button
+        .normal_texture
+        .as_ref()
+        .map(|texture| &texture.source)
+    else {
         return None;
     };
     let edges = if normal.starts_with("common-dropdown-b-button") {
@@ -258,7 +268,7 @@ fn sliced_dropdown_source(button: &ButtonData) -> Option<(TextureSource, [f32; 4
         ButtonState::Normal => button.normal_texture.as_ref(),
     }
     .expect("dropdown template defines every state atlas");
-    Some((source.clone(), edges))
+    Some((source.source.clone(), edges))
 }
 
 fn apply_dropdown_text_displacement(registry: &mut FrameRegistry) {
@@ -300,7 +310,9 @@ fn find_filter_background<'a>(registry: &'a FrameRegistry, owner: &Frame) -> Opt
         let Some(WidgetData::Button(art)) = &child.widget_data else {
             return None;
         };
-        let Some(TextureSource::Atlas(atlas)) = &art.normal_texture else {
+        let Some(TextureSource::Atlas(atlas)) =
+            art.normal_texture.as_ref().map(|texture| &texture.source)
+        else {
             return None;
         };
         let filter_atlas = atlas.starts_with("common-dropdown-b-button")

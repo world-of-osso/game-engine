@@ -849,7 +849,7 @@ fn product_row(view: &View, row: &TradingPostItem, top: f32, selected: bool) -> 
     children.extend(clock::row_time(view, row));
     children.extend(row_cart_toggle(view, row.id));
     let action = format!("perks:select:{}", row.id);
-    rsx! {button{name:{DynName(format!("PerksProgramProduct{}",row.id))},left:0.0,top,width:LIST_WIDTH,height:ROW_HEIGHT,pos_type:"absolute",button_default_skin:false,onclick:action.as_str(),button_atlas_highlight:"perks-list-hover",{children}}}
+    rsx! {button{name:{DynName(format!("PerksProgramProduct{}",row.id))},left:0.0,top,width:LIST_WIDTH,height:ROW_HEIGHT,pos_type:"absolute",button_default_skin:false,onclick:action.as_str(),button_atlas_highlight:"perks-list-hover",button_highlight_blend_mode:"ADD",{children}}}
 }
 
 fn row_item_icon(view: &View, row: &TradingPostItem) -> Element {

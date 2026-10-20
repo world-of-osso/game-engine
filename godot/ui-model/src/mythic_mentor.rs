@@ -54,7 +54,9 @@ pub fn apply_mentor_postsetup(registry: &mut ui_toolkit::registry::FrameRegistry
             panic!("Mentor teleport frame is not a button")
         };
         button.highlight_texture =
-            mapped.then_some(TextureSource::SolidColor([0.0, 0.0, 0.0, 0.5]));
+            mapped.then_some(ui_toolkit::widgets::button::ButtonTexture::new(
+                TextureSource::SolidColor([0.0, 0.0, 0.0, 0.5]),
+            ));
         button.highlight_alpha = 1.0;
     }
 }
@@ -384,7 +386,13 @@ mod tests {
                     panic!("Keystone click target must be a button")
                 };
                 let highlight = spell.map(|_| TextureSource::SolidColor([0.0, 0.0, 0.0, 0.5]));
-                assert_eq!(button.highlight_texture, highlight);
+                assert_eq!(
+                    button
+                        .highlight_texture
+                        .as_ref()
+                        .map(|texture| texture.source.clone()),
+                    highlight
+                );
             }
         }
     }
