@@ -114,6 +114,10 @@ func verify_controls(client: Node, camera: Camera3D, id: int, self_id: int, plat
 	print("FIXTURE NAMEPLATE_CLICK_NOT_SELECTABLE")
 	if not await wait_plate_visibility(client, id, false, true):
 		return false
+	var flagged_model := client.get_node("WorldUnits/" + NPC + "/NpcVisualRoot/NpcModel") as Node3D
+	if not flagged_model.is_visible_in_tree():
+		fail("NOT_SELECTABLE must block picking without hiding the NPC model")
+		return false
 	var flagged_mesh = UnitPicker.pick(camera, mesh_point.point)
 	print("FIXTURE MESH_NOT_SELECTABLE_QUALIFIED owner=", id, " raw_pick=", flagged_mesh, " flags_selectable=", client.nameplate_rules(id).selectable, " point=", mesh_point.point)
 	await click_point(plate_point)
