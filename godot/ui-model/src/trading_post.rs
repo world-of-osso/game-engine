@@ -186,6 +186,16 @@ impl View {
     }
 
     pub fn receive(&mut self, snapshot: Arc<TradingPostSnapshot>) {
+        let kind = snapshot.reply_kind;
+        self.receive_replies(snapshot, &[kind]);
+    }
+
+    /// Apply final authority after every reply kind drained by the host in this poll.
+    pub fn receive_replies(
+        &mut self,
+        snapshot: Arc<TradingPostSnapshot>,
+        reply_kinds: &[TradingPostReplyKind],
+    ) {
         let confirmation_kind = match self.confirm.as_deref() {
             Some("purchase") => Some(TradingPostReplyKind::Purchase),
             Some("cart-checkout") => Some(TradingPostReplyKind::Checkout),
@@ -193,7 +203,7 @@ impl View {
             _ => None,
         };
         let keep_pending =
-            self.pending && confirmation_kind.is_some_and(|kind| kind != snapshot.reply_kind);
+            self.pending && confirmation_kind.is_some_and(|kind| !reply_kinds.contains(&kind));
         self.error = snapshot.error.clone().unwrap_or_default();
         self.snapshot = Some(snapshot);
         self.refund_elapsed = 0;

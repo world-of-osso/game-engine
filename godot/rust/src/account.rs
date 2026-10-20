@@ -162,6 +162,8 @@ pub struct Account {
     pub challenge: shared::protocol::ChallengeSnapshot,
     pub adventure_guide: Option<std::sync::Arc<shared::protocol::AdventureGuideSnapshot>>,
     pub trading_post: Option<std::sync::Arc<shared::protocol::TradingPostSnapshot>>,
+    /// Actual reply kinds since the vendor view last drained an account update.
+    trading_post_reply_kinds: Vec<shared::protocol::TradingPostReplyKind>,
     pub renown: Option<std::sync::Arc<shared::protocol::RenownSnapshot>>,
     /// Owner wallet from CurrencyStateUpdate; None until the realm sends it.
     pub currencies: Option<shared::protocol::CurrencySnapshot>,
@@ -407,6 +409,7 @@ impl Account {
             challenge: Default::default(),
             adventure_guide: None,
             trading_post: None,
+            trading_post_reply_kinds: Vec::new(),
             renown: None,
             currencies: None,
             party_keystones: Default::default(),
@@ -475,6 +478,7 @@ impl Account {
         self.scenario_objectives = Default::default();
         self.adventure_guide = None;
         self.trading_post = None;
+        self.trading_post_reply_kinds.clear();
         self.renown = None;
         self.currencies = None;
         self.achievements = Default::default();
@@ -833,6 +837,19 @@ impl Account {
         self.bridge()?
             .send::<_, InstanceChannel>(request)
             .map_err(SessionError)
+    }
+
+    pub fn take_trading_post_update(
+        &mut self,
+    ) -> Option<(
+        std::sync::Arc<shared::protocol::TradingPostSnapshot>,
+        Vec<shared::protocol::TradingPostReplyKind>,
+    )> {
+        if self.trading_post_reply_kinds.is_empty() {
+            return None;
+        }
+        let snapshot = self.trading_post.clone()?;
+        Some((snapshot, std::mem::take(&mut self.trading_post_reply_kinds)))
     }
 
     pub fn send_trading_post(
@@ -1660,6 +1677,7 @@ impl Account {
                 Event::Disconnected(reason) => {
                     self.adventure_guide = None;
                     self.trading_post = None;
+                    self.trading_post_reply_kinds.clear();
                     self.renown = None;
                     self.currencies = None;
                     self.dungeon_objectives = Default::default();
@@ -1980,6 +1998,7 @@ impl Account {
                 update.frozen_item_id,
                 update.error
             );
+            self.trading_post_reply_kinds.push(update.reply_kind);
             self.trading_post = Some(std::sync::Arc::new(
                 shared::protocol::TradingPostSnapshot::merge(self.trading_post.as_deref(), update),
             ));
@@ -2500,6 +2519,7 @@ impl Account {
                 SessionEffect::ResetNetworkWorld => {
                     self.adventure_guide = None;
                     self.trading_post = None;
+                    self.trading_post_reply_kinds.clear();
                     self.renown = None;
                     self.currencies = None;
                     self.dungeon_objectives = Default::default();
@@ -2753,7 +2773,6 @@ mod tests {
     use super::*;
 
     #[test]
-    #[ignore = "source-expectation RED: one host poll must retain Purchase before Query"]
     fn trading_post_account_coalesced_purchase_then_query_completes_pending_owner() {
         use game_engine_ui_model::trading_post::View;
         use shared::protocol::{TradingPostReplyKind, TradingPostSnapshot};
@@ -2793,7 +2812,12 @@ mod tests {
                 .dispatch_message(ProtocolMessage::for_tests(reply), &mut output)
                 .unwrap();
         }
-        view.receive(account.trading_post.clone().unwrap());
+        let (snapshot, reply_kinds) = account.take_trading_post_update().unwrap();
+        view.receive_replies(snapshot, &reply_kinds);
+        assert!(
+            account.take_trading_post_update().is_none(),
+            "Completed replies are not replayed on the next frame"
+        );
         assert!(
             !view.pending,
             "Purchase completion must survive a later Query in one host poll"
