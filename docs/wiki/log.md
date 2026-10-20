@@ -5038,3 +5038,7 @@ gl728 landed protocol50517c9/server1a2f13fd4/engine51f1af4f8. Real peer disconne
 ## 2026-10-19 — Zone header sort implementation
 
 After pushed ignored tests and actual3-case behavioral RED, activated the existing Zone header and pure presentation comparator. Allowed historical prose supplies valid-string mapping; GUILD_ZONE_SORT_OFFLINE_BY_LOGOUT_SECONDS explicitly uses most-recent seconds first ascending, with fixed existing name ties and no Retail counter/sub-hour claim. No wire/backend/layout changes or Note-mechanics changes. [Source, limits and current proof](systems/guilds.md#zone-header-sorting); focused GREEN/gate/native pending.
+
+## 2026-10-20 — Guild context confirmation native proof
+
+gc774 passed tests/fmt and landed engineb0b3d4b39; exact server842325bf3/protocol600b755. [Both-skin real-member proof and limits](systems/guilds.md#context-confirmation-native-proof-2026-10-20): physical self/nonleader hiding, Cancel/Escape, captured target across selection/sort, Accept/actual authority and fresh-server/client new-master settings pass. Fourteen inspected original PNGs published unchanged; actors/cage/slice stopped, UDP5891 unbound/window cleared, historical original/source/artifact hashes unchanged. First-import editor errors and unrelated shared-CSV fixture startup blocker retained; no source/data repair, exact native request counts or offline/benign-refresh native sampling claimed.

@@ -34,8 +34,7 @@ Mainline UnitPopupSharedMenus.lua257–286 and UnitPopupSharedButtonMixins.lua88
 
 ## Known gaps (current cycle)
 
-- [ ] Ignored tests/spec were pushed before actual behavior RED4 atcf4ccddb2 (40.92s compile/0.11s tests/no warnings): missing sourced menu, captured popup/text and Escape dismissal. Earlier dimension/Val fixture errors and stale pre-tc765 consumer compile failures are setup only, never behavior RED. Implementation64458e9ce preceded focused GREEN4/4 at365eb32f6 (17.54s compile/0.12s tests/no warnings), then only ignore attributes were removed. Negative responder/caption observations were corrected to the existing registry/Button APIs without changing the requested behavior. Source GameDialog button-art alignment07bc881b2 also passes enabled GREEN4/4 (20.61s compile/0.14s tests/no warnings); the independent gate remains pending.
-- [ ] After gate/landing: exact-cohort/startup and granted private-copy/window, real authenticated two-member both-skin physical Cancel/Escape/Accept and authoritative refresh. Model snapshots are not native guild proof.
+None within this slice. Pushed-first actual RED4 → committed GREEN4/4, enabled tests and independent gc774 tests/fmt passed; landed engineb0b3d4b39. Real authenticated two-member native proof passes physical Cancel/Escape, captured-target selection/sort, Accept/authority refresh and fresh-server/client new-master settings in both skins. [Exact evidence and sampling limits](../wiki/systems/guilds.md#context-confirmation-native-proof-2026-10-20); exact request counts, offline eligibility and benign-refresh identity remain automated proof rather than extra native claims.
 
 ## Out of scope
 
