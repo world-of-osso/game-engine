@@ -4,6 +4,13 @@ use super::*;
 use shared::components::{CombatStatus, UnitTarget};
 
 pub(super) fn seed_layout(project: &FixtureProject, address: SocketAddr) -> Result<(), String> {
+    let checkout = fixture_support::checkout_root_from_executable("native_npc_visual_fixture")?;
+    let races = Path::new(game_engine_core::player_model_data::RETAIL_DB2_DIR).join("ChrRaces.csv");
+    fs::copy(
+        checkout.join("data").join(&races),
+        project.root.join("data").join(&races),
+    )
+    .map_err(|error| format!("Stage complete click-fixture race catalog: {error}"))?;
     let skin = std::env::var("GODOT_NAMEPLATE_CLICK_SKIN")
         .map_err(|error| format!("Required click-fixture skin: {error}"))?;
     if !["Modern", "Forever"].contains(&skin.as_str()) {
