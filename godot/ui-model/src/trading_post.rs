@@ -49,6 +49,8 @@ pub struct View {
     /// Vendor ID remembered while the cart, rather than a product, owns the preview.
     pub pre_cart_selected: Option<u32>,
     pub product_hover: Option<u32>,
+    /// SetSelected(false) keeps this ordinary label NORMAL until hover changes or reselection.
+    pub deselected_hover_name: Option<u32>,
     pub cart_hover: Option<u32>,
     pub cart_item_hover: Option<u32>,
     /// Retail selectedItems keyed by ConvertInvTypeToSelectionKey; 0 is OTHER.
@@ -152,6 +154,18 @@ impl View {
     }
 
     fn set_product_selection(&mut self, id: u32) {
+        let frozen = self.snapshot.as_ref().and_then(|data| data.frozen_item_id);
+        if let Some(previous) = self.selected
+            && previous != id
+            && self.product_hover == Some(previous)
+            && frozen != Some(previous)
+        {
+            // Elements.lua335–340: deselection writes NORMAL even without a mouse leave.
+            self.deselected_hover_name = Some(previous);
+        }
+        if self.deselected_hover_name == Some(id) {
+            self.deselected_hover_name = None;
+        }
         // Products.lua ProductSelected hides the cart before selection callbacks.
         self.cart_visible = false;
         self.pre_cart_selected = None;
@@ -749,8 +763,9 @@ fn product_row(view: &View, row: &TradingPostItem, top: f32, selected: bool) -> 
         vec![]
     };
     children.extend(row_item_icon(view, row));
-    // Settled states only; same-hover deselection callback ordering remains unimplemented.
-    let name_color = if selected || view.product_hover == Some(row.id) {
+    let hover_white =
+        view.product_hover == Some(row.id) && view.deselected_hover_name != Some(row.id);
+    let name_color = if selected || hover_white {
         WHITE
     } else {
         // GlobalColor1 NORMAL_FONT_COLOR: RGB255/210/0, not template-rounded0.82.
