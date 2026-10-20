@@ -1,3 +1,7 @@
+## 2026-10-20 — Crafting origin native proof accepted
+
+[Both-skin craft → reopened-server readback](systems/native-professions-crafting.md#native-provenance-proof--2026-10-20): real trainer/cast/Create path records {1355, 2153, null} on new 2303 GUIDs only; a fresh server generation on the same DB and readback-only clients preserve it. Normal item tooltip plus owner-state readback; no lineage tooltip line. Stackable-output origin policy is the follow-up; unlearned fixture native gap named.
+
 ## 2026-10-19 — Crafting origin vertical slice, targeted GREEN
 
 [Source, actual-craft persistence and consumer proof](systems/native-professions-crafting.md#server-recorded-crafting-origin): pushed ignored RED in all three repositories before implementation, then P1/S2/E1 targeted GREEN at separately recorded revisions. Real2153→new2303 GUID carries ability1355/joinedspell2153 after DB reopen; identical non-crafted item unknown. Actual2963 unknown-stack RED→compatible merging/split persistence controls; engine mirrors optional metadata on the same GUID. No fabricated quality/slots/watermark or recraft activation. Current masters merged; atomic lead gate/consumer integration pending, not a new rendered/process-reopen claim.
