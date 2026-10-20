@@ -240,7 +240,7 @@ fn guild_context_leadership_popup_has_source_labels_and_bounded_dialog_geometry_
             .get_by_name(POPUP)
             .expect("source confirmation must render");
         let popup = registry.get(popup).unwrap();
-        assert_eq!(popup.width.value(), Some(320.0));
+        assert_eq!(popup.width.value(), 320.0);
         assert_eq!(popup.position.top, 135.0);
         let message = registry
             .get(
@@ -249,13 +249,10 @@ fn guild_context_leadership_popup_has_source_labels_and_bounded_dialog_geometry_
                     .unwrap(),
             )
             .unwrap();
-        assert_eq!(message.width.value(), Some(290.0));
+        assert_eq!(message.width.value(), 290.0);
         for (name, caption) in [(ACCEPT, "Accept"), (CANCEL, "Cancel")] {
             let button = registry.get(registry.get_by_name(name).unwrap()).unwrap();
-            assert_eq!(
-                (button.width.value(), button.height.value()),
-                (Some(128.0), Some(21.0))
-            );
+            assert_eq!((button.width.value(), button.height.value()), (128.0, 21.0));
             assert_eq!(text(&registry, &format!("{name}Text")), caption);
             assert!(!action(&registry, name).is_empty());
         }
