@@ -4,6 +4,11 @@ use shared::protocol::InventorySnapshot;
 #[test]
 #[ignore = "RED: engine owner inventory discards server crafting origin"]
 fn crafting_origin_owner_snapshot_changes_only_instance_provenance() {
+    game_engine_ui_model::paths::set_data_root(
+        std::path::PathBuf::from(env!("CARGO_MANIFEST_DIR")).join("../../data"),
+    )
+    .unwrap();
+    game_engine_ui_model::item_catalog::wait_for_item_catalog();
     let item = serde_json::json!({
         "item_guid": 9001,
         "item_id": 2303,
