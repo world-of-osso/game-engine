@@ -76,7 +76,7 @@ pub(super) fn seed_layout(project: &FixtureProject, address: SocketAddr) -> Resu
 pub(super) fn prepare(app: &mut App, player: Entity, npc: Entity) {
     app.world_mut()
         .entity_mut(npc)
-        // Authored display 2079 (Conservator Ilthalaine), in the imported coverage catalog.
+        // Use an authored display that is present in the imported coverage catalog.
         .insert((
             CombatStatus(true),
             UnitTarget(Some(player.to_bits())),
