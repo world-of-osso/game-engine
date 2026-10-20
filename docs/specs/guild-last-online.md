@@ -19,11 +19,11 @@ Existing roster offline Zone cells and member detail Last Online fields display 
 
 ## Tests asserting this spec
 
-- `guild_last_online_elapsed_recency_and_unknown_online_fields_both_skins` (ignored RED pushed first).
+- `guild_last_online_elapsed_recency_and_unknown_online_fields_both_skins` (enabled after actual rendering RED→GREEN).
 
 ## Known gaps (current cycle)
 
-- [ ] Actual rendering RED observed (Offline instead of source < an hour); implementation committed. Focused GREEN, coordinated P/S/E landing and real two-member disconnect/fresh-server readback/reconnect proof pending. Large elapsed-time boundaries are deterministic automated proof, never backdated native actor state.
+- [ ] Actual rendering RED observed (Offline instead of source < an hour); implementation committed. Focused GREEN2/2 (deterministic source-unit boundaries plus both-skin fields) passes with no warnings; coordinated P/S/E landing and real two-member disconnect/fresh-server readback/reconnect proof remain pending. Large elapsed-time boundaries are deterministic automated proof, never backdated native actor state.
 
 ## Out of scope
 
