@@ -88,3 +88,50 @@ fn item_confirmation_captions_inherit_black_shadow_both_skins() {
         }
     }
 }
+
+#[test]
+fn item_confirmation_pending_spinner_sparks_are_authored_additive_both_skins() {
+    use ui_toolkit::widgets::texture::BlendMode;
+    game_engine_ui_model::paths::set_data_root(
+        std::path::PathBuf::from(env!("CARGO_MANIFEST_DIR")).join("../../data"),
+    )
+    .unwrap();
+    for skin in [ActiveSkin::Modern, ActiveSkin::Forever] {
+        set_thread_skin(skin);
+        let mut shared = SharedContext::new();
+        shared.insert((true, true));
+        let mut registry = FrameRegistry::new(1920.0, 1080.0);
+        Screen::new(confirmation_screen).sync(&shared, &mut registry);
+        let blend = |registry: &FrameRegistry, name: &str| match &registry
+            .get(
+                registry
+                    .get_by_name(name)
+                    .unwrap_or_else(|| panic!("missing {name}")),
+            )
+            .unwrap()
+            .widget_data
+        {
+            Some(WidgetData::Texture(texture)) => texture.blend_mode,
+            other => panic!("{name} is {other:?}"),
+        };
+        // SharedXML/Spinner.xml7-8: Ring default BLEND, Sparks alphaMode="ADD".
+        let expected = [
+            ("ShadowConfirmSpinnerRing", BlendMode::Blend),
+            ("ShadowConfirmSpinnerSparks", BlendMode::Additive),
+            ("ShadowConfirmButtonNormalArt", BlendMode::Blend),
+            ("ShadowConfirmButtonHighlight", BlendMode::Additive),
+        ];
+        for (name, mode) in expected {
+            assert_eq!(blend(&registry, name), mode, "{skin:?} {name}");
+        }
+        // The template-state pass changes visibility/tiling, not authored blend.
+        game_engine_ui_model::menu_template_art::sync_template_art(&mut registry);
+        for (name, mode) in expected {
+            assert_eq!(
+                blend(&registry, name),
+                mode,
+                "{skin:?} {name} after template sync"
+            );
+        }
+    }
+}

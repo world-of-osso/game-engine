@@ -12,6 +12,11 @@ use ui_toolkit::screen::{Screen, SharedContext};
 use ui_toolkit::widgets::texture::{BlendMode, TextureData, TextureSource};
 
 fn mount(skin: ActiveSkin, purchase: bool) -> FrameRegistry {
+    let mut registry = synced(skin, purchase);
+    game_engine_ui_model::bank_frame_component::apply_bank_postsetup(&mut registry);
+    registry
+}
+fn synced(skin: ActiveSkin, purchase: bool) -> FrameRegistry {
     game_engine_ui_model::paths::set_data_root(
         PathBuf::from(env!("CARGO_MANIFEST_DIR")).join("../../data"),
     )
@@ -40,7 +45,6 @@ fn mount(skin: ActiveSkin, purchase: bool) -> FrameRegistry {
     ctx.insert(state);
     let mut registry = FrameRegistry::new(1920.0, 1080.0);
     Screen::new(bank_frame_screen).sync(&ctx, &mut registry);
-    game_engine_ui_model::bank_frame_component::apply_bank_postsetup(&mut registry);
     registry
 }
 fn frame<'a>(r: &'a FrameRegistry, name: &str) -> &'a Frame {
@@ -95,6 +99,18 @@ fn bankart_selected_tab_is_retail_additive_checkbutton() {
     }
 }
 #[test]
+fn bankart_sync_authors_add_only_on_retail_add_regions() {
+    for skin in [ActiveSkin::Modern, ActiveSkin::Forever] {
+        let r = synced(skin, false);
+        for name in ["BankFrameTab1Selected", "BankFrameItem1Highlight"] {
+            assert_eq!(art(&r, name).blend_mode, BlendMode::Additive, "{name}");
+        }
+        for name in ["BankFrameTab1Border", "BankFrameBackground"] {
+            assert_eq!(art(&r, name).blend_mode, BlendMode::Blend, "{name}");
+        }
+    }
+}
+#[test]
 fn bankart_background_repeats_skin_member_without_changing_approved_rect() {
     for skin in [ActiveSkin::Modern, ActiveSkin::Forever] {
         let r = mount(skin, false);
@@ -102,7 +118,7 @@ fn bankart_background_repeats_skin_member_without_changing_approved_rect() {
         rect(&r, "BankFrameBackground", [2.0, 51.0, 734.0, 379.0]);
         let t = art(&r, "BankFrameBackground");
         assert!(t.horiz_tile && t.vert_tile);
-        assert_eq!(t.blend_mode, BlendMode::AlphaKey);
+        assert_eq!(t.blend_mode, BlendMode::Blend);
     }
 }
 #[test]
@@ -168,7 +184,7 @@ fn bankart_edge_shadows_use_retail_atlases_and_axis_tiles() {
             let t = art(&r, &name);
             assert_eq!(t.source, TextureSource::FileDataId(fdid));
             assert_eq!([t.horiz_tile, t.vert_tile], tiles);
-            assert_eq!(t.blend_mode, BlendMode::AlphaKey);
+            assert_eq!(t.blend_mode, BlendMode::Blend);
         }
     }
 }

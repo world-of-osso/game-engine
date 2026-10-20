@@ -162,8 +162,9 @@ fn emblem_overlays(view: &GuildTabards) -> Element {
         ("BottomRight", textures.lower[1], "0,0.5,0,1", (237.0,176.0,100.0,74.0)),
         ("BottomLeft", textures.lower[1], "0.5,0,0,1", (137.0,176.0,100.0,74.0)),
     ].into_iter().flat_map(|(name, fdid, uv, (left,top,width,height))| {
+        // TabardFrame.xml152-173: all four emblem quarters are alphaMode="ADD".
         rsx! { texture { name: {DynName(format!("TabardFrameEmblem{name}"))}, texture_fdid: fdid, tex_coords: uv,
-            left, top, width, height, pos_type: "absolute", alpha: {0.4}, draw_layer: "OVERLAY" } }
+            left, top, width, height, pos_type: "absolute", alpha: {0.4}, draw_layer: "OVERLAY", blend_mode: "ADD" } }
     }).collect()
 }
 
@@ -323,7 +324,7 @@ fn source_arrow_textures(name: &str) -> Option<(u32, u32, Option<u32>, u32)> {
 }
 
 pub fn apply_postsetup(registry: &mut ui_toolkit::registry::FrameRegistry) {
-    use ui_toolkit::{frame::WidgetData, widgets::texture::BlendMode};
+    use ui_toolkit::frame::WidgetData;
     let ids: Vec<_> = registry.frames_iter().map(|frame| frame.id).collect();
     for name in ids {
         let frame = registry.get_mut(name).expect("registered tabard frame");
@@ -334,11 +335,6 @@ pub fn apply_postsetup(registry: &mut ui_toolkit::registry::FrameRegistry) {
             if let Some(WidgetData::Texture(texture)) = &mut frame.widget_data {
                 texture.horiz_tile = true;
                 texture.vert_tile = true;
-            }
-        }
-        if name.starts_with("TabardFrameEmblem") {
-            if let Some(WidgetData::Texture(texture)) = &mut frame.widget_data {
-                texture.blend_mode = BlendMode::Additive;
             }
         }
         if let Some(WidgetData::Button(button)) = &mut frame.widget_data {

@@ -2281,6 +2281,26 @@ fn housing_storage_tiles_match_source_geometry_counts_and_background_states_both
         context.insert(view.clone());
         let mut registry = FrameRegistry::new(1280.0, 720.0);
         Screen::new(housing_screen).sync(&context, &mut registry);
+        let blend = |registry: &FrameRegistry, name: &str| match &registry
+            .get(registry.get_by_name(name).unwrap())
+            .unwrap()
+            .widget_data
+        {
+            Some(WidgetData::Texture(texture)) => texture.blend_mode,
+            _ => panic!("{name} must be a Texture"),
+        };
+        // HousingCatalogEntry.xml47/51: authored at construction, unchanged by state sync.
+        for (_, decor) in &entries {
+            let prefix = format!("HouseEditorStored{}", decor.id);
+            assert_eq!(
+                blend(&registry, &format!("{prefix}Background")),
+                BlendMode::Blend
+            );
+            assert_eq!(
+                blend(&registry, &format!("{prefix}HoverBackground")),
+                BlendMode::Additive
+            );
+        }
         apply_housing_postsetup(&view, &mut registry);
         for (index, (quantity, decor)) in entries.iter().enumerate() {
             let prefix = format!("HouseEditorStored{}", decor.id);
@@ -2370,12 +2390,15 @@ fn housing_storage_tiles_match_source_geometry_counts_and_background_states_both
                         matches!(&frame.widget_data,Some(WidgetData::Texture(texture)) if texture.tex_coords==[0.0,1.0,0.0,1.0]),
                         "member atlas state must not retain full-sheet UVs and crop twice"
                     );
-                    if suffix == "HoverBackground" {
+                    let expected = if suffix == "HoverBackground" {
                         assert_eq!(frame.alpha, alpha);
-                        assert!(
-                            matches!(&frame.widget_data,Some(WidgetData::Texture(texture)) if texture.blend_mode==BlendMode::Additive)
-                        );
-                    }
+                        BlendMode::Additive
+                    } else {
+                        BlendMode::Blend
+                    };
+                    assert!(
+                        matches!(&frame.widget_data,Some(WidgetData::Texture(texture)) if texture.blend_mode==expected)
+                    );
                 }
                 assert_eq!(
                     view.authority, original,
@@ -2642,6 +2665,23 @@ fn housing_basic_source_controls_and_unbound_instruction_rows_both_skins() {
                 .unwrap();
             assert_eq!(button.width, Dimension::Fixed(64.0));
             assert_eq!(button.height, Dimension::Fixed(64.0));
+            // HouseEditorModeButtons.xml33: only HoverIcon is ADD; Icon keeps BLEND.
+            for (suffix, blend) in [
+                ("Icon", ui_toolkit::widgets::texture::BlendMode::Blend),
+                ("Hover", ui_toolkit::widgets::texture::BlendMode::Additive),
+            ] {
+                let art = registry
+                    .get(
+                        registry
+                            .get_by_name(&format!("HouseEditor{name}Button{suffix}"))
+                            .unwrap(),
+                    )
+                    .unwrap();
+                assert!(
+                    matches!(&art.widget_data,Some(WidgetData::Texture(texture)) if texture.blend_mode==blend),
+                    "{skin:?} {name}{suffix}"
+                );
+            }
         }
         assert!(registry.get_by_name("HouseEditorRotateLeft").is_none());
         assert!(registry.get_by_name("HouseEditorDone").is_none());

@@ -457,3 +457,35 @@ fn guild_bank_log_scroll_reaches_oldest_transaction_and_retains_position() {
     screen.sync(&shared, &mut registry);
     assert!(texts(&registry).contains(&"Cara deposited Linen Cloth x 1".into()));
 }
+
+#[test]
+fn guild_bank_selected_tab_checked_art_is_authored_additive_from_sync() {
+    use game_engine_ui_model::guild_bank_frame_component::guild_bank_frame_screen;
+    use ui_toolkit::frame::WidgetData;
+    use ui_toolkit::registry::FrameRegistry;
+    use ui_toolkit::screen::{Screen, SharedContext};
+    use ui_toolkit::widgets::texture::BlendMode;
+    game_engine_ui_model::paths::set_data_root(
+        std::path::PathBuf::from(env!("CARGO_MANIFEST_DIR")).join("../../data"),
+    )
+    .unwrap();
+    let mut shared = SharedContext::new();
+    shared.insert(opened().frame_state());
+    let mut registry = FrameRegistry::new(1280.0, 720.0);
+    Screen::new(guild_bank_frame_screen).sync(&shared, &mut registry);
+    let blend = |name: &str| match &registry
+        .get(
+            registry
+                .get_by_name(name)
+                .unwrap_or_else(|| panic!("missing {name}")),
+        )
+        .unwrap()
+        .widget_data
+    {
+        Some(WidgetData::Texture(texture)) => texture.blend_mode,
+        other => panic!("{name} is {other:?}"),
+    };
+    // GB.xml156: CheckedTexture alphaMode="ADD"; the tab background keeps BLEND.
+    assert_eq!(blend("GuildBankTab1Checked"), BlendMode::Additive);
+    assert_eq!(blend("GuildBankTab1Background"), BlendMode::Blend);
+}

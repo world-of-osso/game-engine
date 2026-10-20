@@ -85,8 +85,10 @@ fn apply_guild_bank_checked_art(registry: &mut ui_toolkit::registry::FrameRegist
         .collect();
     for id in checked {
         let frame = registry.get_mut(id).expect("registered checked texture");
-        if let Some(ui_toolkit::frame::WidgetData::Texture(texture)) = frame.widget_data.as_mut() {
-            texture.blend_mode = ui_toolkit::widgets::texture::BlendMode::Additive;
+        if matches!(
+            frame.widget_data,
+            Some(ui_toolkit::frame::WidgetData::Texture(_))
+        ) {
             frame.draw_layer = DrawLayer::Overlay;
         }
     }
@@ -628,12 +630,20 @@ fn side_tab(index: usize, icon: u32, selected: bool, action: &str) -> Element {
         WHITE,
     ));
     if selected {
-        children.extend(texture(
-            format!("{name}Checked"),
-            CHECKED_HIGHLIGHT,
-            (2.0, 8.0, 36.0, 34.0),
-            WHITE,
-        ));
+        // GB.xml156: CheckedTexture CheckButtonHilight is alphaMode="ADD".
+        children.extend(rsx! {
+            texture {
+                name: {DynName(format!("{name}Checked"))},
+                width: 36.0,
+                height: 34.0,
+                texture_fdid: CHECKED_HIGHLIGHT,
+                vertex_color: WHITE,
+                blend_mode: "ADD",
+                pos_type: "absolute",
+                left: 2.0,
+                top: 8.0,
+            }
+        });
     }
     rsx! {
         r#frame {

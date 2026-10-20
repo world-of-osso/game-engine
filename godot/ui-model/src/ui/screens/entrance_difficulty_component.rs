@@ -10,7 +10,7 @@ use ui_toolkit::registry::FrameRegistry;
 use ui_toolkit::rsx;
 use ui_toolkit::screen::SharedContext;
 use ui_toolkit::widget_def::Element;
-use ui_toolkit::widgets::texture::{BlendMode, TextureData};
+use ui_toolkit::widgets::texture::TextureData;
 
 use crate::dungeon_entrance_data::DifficultyChoice;
 use crate::ui::anchor::FrameName;
@@ -236,6 +236,8 @@ fn highlight(entry: &EntranceBarChoice, layout: &EntranceBarLayout, index: usize
             texture_file: ART,
             tex_coords: {uv(HIGHLIGHT_UV)},
             alpha: HIGHLIGHT_ALPHA,
+            // DifficultySelector.lua541: ButtonHighlight:SetBlendMode("ADD").
+            blend_mode: "ADD",
             hidden: true,
             pos_type: "absolute",
             left,
@@ -479,7 +481,7 @@ pub fn entrance_difficulty_screen(ctx: &SharedContext) -> Element {
 }
 
 /// Hover and selection visuals the tree cannot express: white labels on the selected or
-/// hovered button, its additive glow, and the spinner's rotation.
+/// hovered button, its glow's visibility, and the spinner's rotation.
 pub fn apply_entrance_bar_postsetup(state: &EntranceBarState, registry: &mut FrameRegistry) {
     for entry in &state.choices {
         let id = entry.choice.difficulty_id;
@@ -512,9 +514,6 @@ fn sync_button_visual(registry: &mut FrameRegistry, id: u32, selected: bool) {
         label.color = color;
     }
     let highlight = part(id, "Highlight").0;
-    edit_texture(registry, &highlight, |texture| {
-        texture.blend_mode = BlendMode::Additive;
-    });
     if let Some(frame) = registry.get_by_name(&highlight)
         && registry
             .get(frame)
