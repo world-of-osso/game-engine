@@ -60,6 +60,8 @@ pub struct GuildRanksSession {
     pub member_detail: Option<String>,
     pub member_rank_menu_open: bool,
     pub removal_target: Option<String>,
+    /// CONFIRM_GUILD_PROMOTE data, independent of later roster selection.
+    pub leadership_target: Option<String>,
     /// StaticPopup data captures the target identity independently of roster selection.
     pub note_editor: Option<(String, bool)>,
     pub error: Option<String>,
@@ -130,6 +132,7 @@ impl GuildRanksSession {
         self.member_rank_menu_open = false;
         self.note_editor = None;
         self.removal_target = None;
+        self.leadership_target = None;
         self.log_open = false;
         self.news.filters_open = false;
         self.news.menu = None;
@@ -137,6 +140,9 @@ impl GuildRanksSession {
     }
 
     pub fn dismiss_subdialog(&mut self) -> bool {
+        if self.leadership_target.take().is_some() {
+            return true;
+        }
         if self.member_rank_menu_open {
             self.member_rank_menu_open = false;
             return true;
@@ -441,6 +447,7 @@ impl GuildRanksSession {
                 let officer = action == "guild:note_officer";
                 if self.can_edit_note(officer) && !self.awaiting_state && !self.profile_waiting {
                     self.removal_target = None;
+                    self.leadership_target = None;
                     self.note_editor = self.member_detail.clone().map(|name| (name, officer));
                 }
                 None
@@ -451,6 +458,22 @@ impl GuildRanksSession {
             }
             "guild:note_accept" => self.submit_note(input(crate::guild_member_detail::NOTE_BOX)),
             "guild:gold" => self.set_gold_limit(input(crate::guild_rank_frame::GOLD_BOX)),
+            "guild:transfer_leadership" => {
+                self.open_leadership_confirmation(self.member_menu.clone()?);
+                None
+            }
+            "guild:transfer_leadership_confirm" => {
+                if self.awaiting_state {
+                    return None;
+                }
+                self.leadership_target
+                    .take()
+                    .map(|character_name| GuildRankRequest::TransferLeadership { character_name })
+            }
+            "guild:transfer_leadership_cancel" => {
+                self.leadership_target = None;
+                None
+            }
             "guild:promote" => self.promote(self.member_menu.as_deref()?),
             "guild:demote" => self.demote(self.member_menu.as_deref()?),
             "guild:remove_member" => {
@@ -465,11 +488,22 @@ impl GuildRanksSession {
         request
     }
 
+    fn open_leadership_confirmation(&mut self, name: String) {
+        if self.can_transfer_leadership(&name) {
+            self.leadership_target = Some(name);
+            self.member_menu = None;
+            self.member_rank_menu_open = false;
+            self.note_editor = None;
+            self.removal_target = None;
+        }
+    }
+
     fn open_member_removal(&mut self, name: String) {
         if self.remove_member(&name).is_some() {
             self.removal_target = Some(name);
             self.member_menu = None;
             self.note_editor = None;
+            self.leadership_target = None;
         }
     }
 
@@ -711,6 +745,26 @@ impl GuildRanksSession {
             return None;
         }
         Some(GuildRankRequest::Move { rank, up })
+    }
+
+    pub fn can_transfer_leadership(&self, name: &str) -> bool {
+        if self.awaiting_state || self.profile_waiting {
+            return false;
+        }
+        let Some(state) = self.state.as_ref().filter(|state| state.own_rank == 0) else {
+            return false;
+        };
+        let known_member = state
+            .members
+            .iter()
+            .any(|member| member.character_name == name);
+        let other_member = self.profile.as_ref().is_some_and(|profile| {
+            profile
+                .members
+                .iter()
+                .any(|member| member.character_name == name && !member.is_self)
+        });
+        known_member && other_member
     }
 
     pub fn remove_member(&self, name: &str) -> Option<GuildRankRequest> {

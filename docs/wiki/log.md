@@ -1,3 +1,7 @@
+## 2026-10-20 — Crafting origin native proof accepted
+
+[Both-skin craft → reopened-server readback](systems/native-professions-crafting.md#native-provenance-proof--2026-10-20): real trainer/cast/Create path records {1355, 2153, null} on new 2303 GUIDs only; a fresh server generation on the same DB and readback-only clients preserve it. Normal item tooltip plus owner-state readback; no lineage tooltip line. Stackable-output origin policy is the follow-up; unlearned fixture native gap named.
+
 ## 2026-10-20 — Monthly Time sorting native proof
 
 [Exact cohort and qualifications](systems/trading-post.md#monthly-time-sorting): after ts754 landing, actual Ead3/S001/P566 both-skin7/7 naturalexit0/unique marker/approved-baseline full-stream VALID. Native header/menu/toggle/name-tie first12/provider reset/empty ordinary disabled with frozen kept; exact original local/authority/HUD and seven sampled positions restore. Each skin1 Query/0 mutations;14 inspected original PNGs published. Owned runtime/5899/window cleared. Quest519073 gap persists; owned sentinel/expiry variants remain CPU-qualified and monthly BEST_GUESS is not Retail calendar parity.
@@ -14,9 +18,13 @@
 ## 2026-10-19 — Crafting origin vertical slice, targeted GREEN
 
 [Source, actual-craft persistence and consumer proof](systems/native-professions-crafting.md#server-recorded-crafting-origin): pushed ignored RED in all three repositories before implementation, then P1/S2/E1 targeted GREEN at separately recorded revisions. Real2153→new2303 GUID carries ability1355/joinedspell2153 after DB reopen; identical non-crafted item unknown. Actual2963 unknown-stack RED→compatible merging/split persistence controls; engine mirrors optional metadata on the same GUID. No fabricated quality/slots/watermark or recraft activation. Current masters merged; atomic lead gate/consumer integration pending, not a new rendered/process-reopen claim.
+## 2026-10-20 — Sourced guild leadership context confirmation
+
+[Source/capture boundary](systems/guilds.md#roster-leadership-context-confirmation): ignored menu/confirmation/dismissal/geometry tests pushed first; after separately retained fixture/schema setup corrections, actual behavior RED4 observed atcf4ccddb2. Only the source current-master/nonself menu, captured optional target string and ordinary dialog are added; Accept reuses existing TransferLeadership, Cancel/Escape no transfer, no optimistic ranks or new backend/wire. Authenticated70448 labels and no-fullScreenCover flag qualified before implementation. Implementation64458e9ce committed before focused GREEN4/4 at365eb32f6 (17.54s compile/0.12s tests/no warnings), then final assertions retained/enabled. Source GameDialog button primitive alignment07bc881b2 passes a second enabled focused4/4 (20.61s compile/0.14s tests/no warnings). Independent gate/native pending; ordinary rank actions, slash route and named self policy unchanged.
+
 ## 2026-10-20 — Guild numeric-header equal-key fallback
 
-[Source and qualified policy](systems/guilds.md#numeric-header-equal-key-ordering): pushed ignored Rank/Level/Class reversed-input ties and24-row real registry regressions before actual behavior RED4. Only numeric primary direction now reverses; equal keys reuse the unchanged represented-field base comparison. Focused GREEN4/4 at6ef84509b (21.44s compile/0.19s tests/no warnings), then only proven ignore attributes removed. Existing primary/missing/reset behavior and Name/Note/Zone mechanics remain unchanged; independent gate/controls/native pending, no new widgets/protocol/server work.
+[Source and qualified policy](systems/guilds.md#numeric-header-equal-key-ordering): pushed ignored Rank/Level/Class reversed-input ties and24-row real registry regressions before actual behavior RED4. Only numeric primary direction now reverses; equal keys reuse the unchanged represented-field base comparison. Focused GREEN4/4 at6ef84509b (21.44s compile/0.19s tests/no warnings), then only proven ignore attributes removed. Existing primary/missing/reset behavior and Name/Note/Zone mechanics remain unchanged; gn758 passed tests/fmt/controls and landed3b8b57980; numeric branches cleaned, worktree retained for active context-leadership stack. Native equal-key proof unallocated/unrun; no new widgets/protocol/server work.
 
 ## 2026-10-20 — Guild Zone sorting native accepted
 
