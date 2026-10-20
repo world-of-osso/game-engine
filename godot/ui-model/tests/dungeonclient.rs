@@ -49,21 +49,13 @@ fn achievements_bottom_tabs_honor_retail_art_geometry_both_skins() {
                         .unwrap()
                         .0;
                 let width = text_width + 50.0;
-                assert!(
-                    (frame.rect.width - width).abs() < 0.01,
+                assert_eq!(
+                    frame.width,
+                    ui_toolkit::frame::Dimension::Fixed(width),
                     "{name} TabResize30 width"
                 );
-                assert!(
-                    (frame.rect.x
-                        - registry
-                            .get(registry.get_by_name("AchievementFrame").unwrap())
-                            .unwrap()
-                            .rect
-                            .x
-                        - left)
-                        .abs()
-                        < 0.01
-                );
+                assert_eq!(frame.position.left, Val::Px(left));
+                assert_eq!(frame.position.top, Val::Px(497.0));
                 let active = selected == index;
                 for (part, x, part_width, uv) in [
                     (
@@ -93,9 +85,12 @@ fn achievements_bottom_tabs_honor_retail_art_geometry_both_skins() {
                     };
                     assert_eq!(texture.source, TextureSource::FileDataId(235402));
                     assert_eq!(texture.tex_coords, uv);
-                    assert!((art.rect.x - frame.rect.x - x).abs() < 0.01);
-                    assert!((art.rect.width - part_width).abs() < 0.01);
-                    assert_eq!(art.rect.height, if active { 59.0 } else { 49.0 });
+                    assert_eq!(art.position.left, Val::Px(x));
+                    assert_eq!(art.width, ui_toolkit::frame::Dimension::Fixed(part_width));
+                    assert_eq!(
+                        art.height,
+                        ui_toolkit::frame::Dimension::Fixed(if active { 59.0 } else { 49.0 })
+                    );
                 }
                 left += width + if index == 0 { 3.0 } else { -5.0 };
             }
