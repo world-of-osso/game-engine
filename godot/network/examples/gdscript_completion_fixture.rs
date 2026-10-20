@@ -15,6 +15,7 @@ const FIXTURES: &[(&str, usize)] = &[
     ("trading_post_same_hover", 9),
     ("trading_post_monthly_clock", 7),
     ("trading_post_monthly_startup", 1),
+    ("trading_post_time_sort", 7),
     ("campsite_selected_hover", 2),
     ("communities_fidelity", 2),
     ("dropdown_caption_centering", 4),
@@ -39,6 +40,7 @@ const FIXTURES: &[(&str, usize)] = &[
     ("achievement_card_description_font", 6),
     ("achievement_card_description_alignment", 6),
     ("justify_v_options_capture", 2),
+    ("achievement_bottom_tabs", 6),
 ];
 
 struct Invocation {

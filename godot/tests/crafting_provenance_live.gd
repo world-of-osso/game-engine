@@ -1,0 +1,245 @@
+extends "res://tests/modern_crafting_unlearned_live.gd"
+
+## Native crafting-provenance proof; run only in the lead-granted UDP5951 window.
+## craft: real trainer264578, fourteen2881 casts, trainer2153, then one Create.
+## readback: fresh client on a reopened server; observes only, never casts.
+## The tooltip shows the normal item; origin comes from the owner-state readback.
+const PANTS := 2303
+const CRAFTED_ORIGIN := {"skill_line_ability_id": 1355, "recipe_spell_id": 2153, "crafting_quality_id": null}
+
+func run_test() -> void:
+	root.size = Vector2i(1920, 1080)
+	root.content_scale_size = Vector2i(1920, 1080)
+	root.content_scale_mode = Window.CONTENT_SCALE_MODE_VIEWPORT
+	if OS.get_environment("GODOT_TEST_SERVER") != "127.0.0.1:5951" or not OS.get_environment("BANK_ACCOUNT").begins_with("fb_moderncraft_provenance_"):
+		fail("Provenance proof requires owned provenance accounts on UDP5951")
+		return
+	role = OS.get_environment("MODERN_CRAFTING_SKIN")
+	shots = OS.get_environment("BANK_SHOTS")
+	var phase := OS.get_environment("PROVENANCE_PHASE")
+	if phase != "craft" and phase != "readback":
+		fail("Explicit PROVENANCE_PHASE craft or readback is required")
+		return
+	client = load("res://scenes/client.tscn").instantiate()
+	root.add_child(client)
+	await process_frame
+	var startup_deadline := Time.get_ticks_msec() + 240000
+	while client.account_state().assets_starting and Time.get_ticks_msec() < startup_deadline:
+		await process_frame
+	if client.account_state().assets_starting:
+		fail("Asset startup exceeded240s before provenance proof")
+		return
+	var error = client.connect_account("127.0.0.1:5951", OS.get_environment("BANK_ACCOUNT"), PASSWORD, false)
+	if error != "":
+		fail(error)
+		return
+	if not await enter_world(OS.get_environment("BANK_CHARACTER")):
+		return
+	Engine.max_fps = 60
+	if client.account_state().ui_skin != role:
+		fail("Observed skin differs from provenance fixture")
+		return
+	var done := false
+	if phase == "craft":
+		done = await craft_once()
+	else:
+		done = await readback_only()
+	if not done:
+		return
+	print("FIXTURE CRAFTING_PROVENANCE_DONE phase=", phase, " skin=", role)
+	client.free()
+	quit(0)
+
+## Setup sends the existing NPC interaction request (trading_post_live.gd open_vendor);
+## gossip choice, trainer purchase, casts and Create remain native input.
+func open_simon() -> bool:
+	if (await ipc(["quest", "interact", "--npc", "Simon Tanner"])).is_empty():
+		return false
+	if not await wait_until(func(): return shown("ClassTrainerFrame") or shown("AuctionGossipOption0") or shown("GossipOption0Text"), "Simon Tanner gossip or trainer"):
+		return false
+	if not shown("ClassTrainerFrame"):
+		await press("AuctionGossipOption0" if shown("AuctionGossipOption0") else "GossipOption0Text")
+	if not await wait_until(func(): return shown("ClassTrainerFrame"), "real trainer56 services"):
+		return false
+	await press("ClassTrainerFilterDropdown")
+	for index in [1, 2]:
+		if shown("ClassTrainerFilter%dCheck" % index):
+			await press("ClassTrainerFilter%d" % index)
+	await press("ClassTrainerFilterDropdown")
+	return true
+
+## Resume after an interrupted run: 990 copper with untouched scraps means the real
+## trainer264578 purchase already committed, so only the casts remain.
+func prepare_classic_leatherworking() -> bool:
+	if money() == 990 and bag_count(2934) == 0 and bag_count(2318) == 14 and bag_count(2320) == 1:
+		print("PROVENANCE PREPARATION_RESUMED rank15 leather14 from committed casts")
+		return true
+	if bag_count(2934) != 42 or bag_count(2318) != 0 or bag_count(2320) != 1:
+		return fail("Preparation requires explicit fixture bags:42 scraps,0 leather,1 thread")
+	if money() == 1000:
+		if not await open_simon():
+			return false
+		if not await purchase_service(264578, 10):
+			return false
+		await tap(KEY_ESCAPE)
+	elif money() != 990:
+		return fail("Unexpected pre-cast copper %d" % money())
+	if not await open_recipe_book():
+		return false
+	await replace_field("ProfessionsSearchBox", "Light Leather")
+	if not await wait_until(func(): return shown("ProfessionRecipe2881"), "learned Light Leather"):
+		return false
+	await press("ProfessionRecipe2881")
+	if not await wait_until(func(): return not control("ProfessionsCreateAll").disabled, "fourteen available Light Leather casts"):
+		return false
+	await press("ProfessionsCreateAll")
+	if not await wait_until(func(): return bag_count(2934) == 0 and bag_count(2318) == 14 and text("ProfessionsSkillText").contains("15/300"), "actual14 casts consume42 scraps and raise rank1 to15"):
+		return false
+	print("PROVENANCE PREPARATION_DONE rank15 leather14")
+	return true
+
+## In-scope acquisition only: the real trainer56 2153 purchase, then select the known recipe.
+## The unlearned-preview conservation checks belong to modern_crafting_unlearned_live.gd.
+func discover_and_learn_pants() -> bool:
+	# Escape with no window open would raise the Game Menu over the gossip.
+	if shown("ProfessionsSearchBox"):
+		await tap(KEY_ESCAPE)
+	var bags: Array = client.merchant_state().bags.duplicate(true)
+	if money() != 990:
+		return fail("Pre-2153 copper must be 990, got %d" % money())
+	if not await open_simon():
+		return false
+	if not await purchase_service(2153, 50):
+		return false
+	await tap(KEY_ESCAPE)
+	await tap(KEY_K)
+	if not await wait_until(func(): return shown("ProfessionsSearchBox"), "reopened profession book"):
+		return false
+	await replace_field("ProfessionsSearchBox", "Handstitched Leather Pants")
+	if not await wait_until(func(): return shown("ProfessionRecipe2153") and not shown("ProfessionsUnlearnedLabel"), "trainer-learned2153 in learned group"):
+		return false
+	await press("ProfessionRecipe2153")
+	if not await wait_until(func(): return not control("ProfessionsCreate").disabled and text("ProfessionsSkillText").contains("15/300"), "known2153 enables Create at rank15"):
+		return false
+	if client.merchant_state().bags != bags or money() != 940:
+		return fail("2153 acquisition changed more than50 copper")
+	print("PROVENANCE ACQUIRED2153 trainer56 cost50 rank15; bags unchanged")
+	return true
+
+## The base-profession confirmation is trainer_frame.rs TrainerConfirmation, not StaticPopup1.
+func purchase_service(spell: int, cost: int) -> bool:
+	var name := "ClassTrainerService%d" % spell
+	if not await wait_until(func(): return shown(name), "authored trainer service " + str(spell)):
+		return false
+	await press(name)
+	if not await wait_until(func(): return not control("ClassTrainerTrainButton").disabled, "available real trainer service"):
+		return false
+	var before := money()
+	await press("ClassTrainerTrainButton")
+	if spell == 264578:
+		if not await wait_until(func(): return money() == before - cost or shown("TrainerConfirmAccept"), "base-profession confirmation or payment"):
+			return false
+		if shown("TrainerConfirmAccept"):
+			await press("TrainerConfirmAccept")
+	return await wait_until(func(): return money() == before - cost, "authoritative trainer payment " + str(cost))
+
+func ipc(arguments: Array) -> String:
+	var worker := Thread.new()
+	var argv := ["--signal=KILL", "15", OS.get_environment("GAME_ENGINE_CLI"), "--socket", "/tmp/game-engine-%d.sock" % OS.get_process_id()] + arguments
+	var error := worker.start(func():
+		var output := []
+		var code := OS.execute("/usr/bin/timeout", argv, output, true)
+		return {"code": code, "text": "\n".join(output)})
+	if error != OK:
+		fail("Cannot start IPC setup worker")
+		return ""
+	while worker.is_alive():
+		await process_frame
+	var result: Dictionary = worker.wait_to_finish()
+	print("PROVENANCE SETUP_IPC ", arguments, " code=", result.code, " text=", result.text)
+	if result.code != 0:
+		fail("Bounded NPC setup failed")
+		return ""
+	return result.text
+
+func pants_entries() -> Array:
+	return client.merchant_state().bags.filter(func(entry): return entry.item_id == PANTS)
+
+func craft_once() -> bool:
+	var before := pants_entries()
+	if before.size() != 1 or before[0].crafting_origin != null:
+		return fail("Craft requires exactly one unknown-origin2303 control: %s" % [before])
+	var control_guid: int = before[0].item_guid
+	if not await prepare_classic_leatherworking():
+		return false
+	if not await discover_and_learn_pants():
+		return false
+	await capture("p1-learned-pre-craft")
+	var money_before := money()
+	await press("ProfessionsCreate")
+	if not await wait_until(func(): return pants_entries().size() == 2 and bag_count(2318) == 10 and bag_count(2320) == 0 and text("ProfessionsSkillText").contains("16/300"), "one actual2153 craft consumes4 leather+1 thread and raises rank15 to16"):
+		return false
+	if money() != money_before:
+		return fail("Craft changed copper")
+	var crafted := pants_entries().filter(func(entry): return entry.item_guid != control_guid)
+	var control := pants_entries().filter(func(entry): return entry.item_guid == control_guid)
+	if crafted.size() != 1 or control.size() != 1:
+		return fail("Craft must add one new GUID and keep the control: %s" % [pants_entries()])
+	if crafted[0].crafting_origin != CRAFTED_ORIGIN or control[0].crafting_origin != null:
+		return fail("Origin must be on the crafted GUID only: %s" % [pants_entries()])
+	await capture("p2-crafted-readback")
+	print("PROVENANCE CRAFTED crafted_guid=", crafted[0].item_guid, " control_guid=", control_guid, " origin=", JSON.stringify(crafted[0].crafting_origin), " money=", money())
+	await tap(KEY_ESCAPE)
+	return await hover_pair(crafted[0], control[0], "p3")
+
+func readback_only() -> bool:
+	var crafted_guid := int(OS.get_environment("PROVENANCE_CRAFTED_GUID"))
+	var control_guid := int(OS.get_environment("PROVENANCE_CONTROL_GUID"))
+	var successes = client.spells_state().cast_success.duplicate()
+	var failure_seq: int = client.spells_state().cast_failure_seq
+	var crafted := pants_entries().filter(func(entry): return entry.item_guid == crafted_guid)
+	var control := pants_entries().filter(func(entry): return entry.item_guid == control_guid)
+	if pants_entries().size() != 2 or crafted.size() != 1 or control.size() != 1:
+		return fail("Reopened owner must keep both recorded GUIDs: %s" % [pants_entries()])
+	if crafted[0].crafting_origin != CRAFTED_ORIGIN or control[0].crafting_origin != null:
+		return fail("Reopened origin differs: %s" % [pants_entries()])
+	if money() != 940 or bag_count(2934) != 0 or bag_count(2318) != 10 or bag_count(2320) != 0:
+		return fail("Reopened bags/copper differ: money=%d bags=%s" % [money(), client.merchant_state().bags])
+	await tap(KEY_K)
+	if not await wait_until(func(): return shown("ProfessionsSearchBox"), "profession book"):
+		return false
+	await replace_field("ProfessionsSearchBox", "Handstitched Leather Pants")
+	if not await wait_until(func(): return shown("ProfessionRecipe2153") and not shown("ProfessionsUnlearnedLabel"), "persisted known2153"):
+		return false
+	await press("ProfessionRecipe2153")
+	if not await wait_until(func(): return text("ProfessionsSkillText").contains("16/300"), "persisted rank16"):
+		return false
+	await tap(KEY_ESCAPE)
+	if not await hover_pair(crafted[0], control[0], "r1"):
+		return false
+	if client.spells_state().casting != 0 or client.spells_state().cast_success != successes or client.spells_state().cast_failure_seq != failure_seq:
+		return fail("Readback emitted a cast or refusal")
+	print("PROVENANCE REOPENED crafted_guid=", crafted_guid, " control_guid=", control_guid, " origin=", JSON.stringify(crafted[0].crafting_origin), " money=", money())
+	return true
+
+## Hover the crafted then the control slot; each tooltip is the normal item.
+func hover_pair(crafted: Dictionary, control_entry: Dictionary, prefix: String) -> bool:
+	if not shown("ContainerFrame%d" % crafted.bag):
+		await press("MainMenuBarBackpackButton")
+	for pair in [[crafted, "crafted"], [control_entry, "control"]]:
+		var entry: Dictionary = pair[0]
+		var slot := "ContainerFrame%dSlot%d" % [entry.bag, entry.slot]
+		if not await wait_until(func(): return shown(slot), "bag slot " + slot):
+			return false
+		var point := control(slot).get_global_rect().get_center()
+		var motion := InputEventMouseMotion.new()
+		motion.position = point
+		motion.global_position = point
+		root.push_input(motion, true)
+		Input.warp_mouse(point)
+		if not await wait_until(func(): return client.tooltip_state().visible and client.tooltip_state().title == "Handstitched Leather Pants", "normal item tooltip on " + slot):
+			return false
+		var state: Dictionary = pants_entries().filter(func(item): return item.item_guid == entry.item_guid)[0]
+		await capture("%s-%s-tooltip" % [prefix, pair[1]])
+		print("PROVENANCE HOVER ", pair[1], " slot=", slot, " guid=", state.item_guid, " origin=", JSON.stringify(state.crafting_origin), " tooltip=", JSON.stringify(client.tooltip_state().lines))
+	return true
