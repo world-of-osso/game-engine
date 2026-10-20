@@ -122,6 +122,17 @@ fn pull_epoch_requires_full_update_and_forgets_prior_deaths_on_teleport() {
 }
 
 #[test]
+fn pull_initial_full_update_after_cleared_map_entry_counts_without_an_extra_packet() {
+    let (replica, _) = fixture();
+    let mut observer = PullUnits::default();
+    observer.observe(&replica, Some(7), Some(34), 1);
+    assert!(
+        observer.full_update_after_entry(),
+        "first complete update since cleared entry must count"
+    );
+}
+
+#[test]
 fn pull_projection_missing_authority_and_initial_corpses_do_not_establish_safe_coverage() {
     let (mut replica, templates) = fixture();
     replica.remove::<UnitScale>(43);
