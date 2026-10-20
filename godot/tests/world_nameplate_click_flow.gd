@@ -80,7 +80,7 @@ func wait_click_npc(client: Node) -> bool:
 				continue
 			var material := mesh.get_active_material(0) as ShaderMaterial
 			if material != null and material.get_shader_parameter("base_texture") is Texture2D:
-				print("FIXTURE NAMEPLATE_AUTHORED_NPC_READY display=3728 mesh=", mesh.get_path())
+				print("FIXTURE NAMEPLATE_AUTHORED_NPC_READY display=2079 mesh=", mesh.get_path())
 				return true
 	fail("Authored nameplate NPC never acquired a visible textured mesh: " + str(client.account_state()))
 	return false
