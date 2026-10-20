@@ -2,12 +2,22 @@
 
 [Exact cohort and qualifications](systems/trading-post.md#monthly-time-sorting): after ts754 landing, actual Ead3/S001/P566 both-skin7/7 naturalexit0/unique marker/approved-baseline full-stream VALID. Native header/menu/toggle/name-tie first12/provider reset/empty ordinary disabled with frozen kept; exact original local/authority/HUD and seven sampled positions restore. Each skin1 Query/0 mutations;14 inspected original PNGs published. Owned runtime/5899/window cleared. Quest519073 gap persists; owned sentinel/expiry variants remain CPU-qualified and monthly BEST_GUESS is not Retail calendar parity.
 
+## 2026-10-19 — Trading Post reply-kind correlation implementation
+
+[Flow and proof status](systems/trading-post.md#reply-kind-correlation): required server reply kind, host-poll kind drain and captured popup product preserve pending ownership across unrelated Query/catalog removal and Purchase→Query coalescing. Pushed-first regressions reached assertion RED before their corresponding changes, including the coalesced terminal-error control. Targeted107 model/13 host/3 UDP/5 protocol GREEN; coordinated gate pending. No timed/native/provider parity claim.
+## 2026-10-19 — Ordinary Description TOP alignment
+
+[Source/proof](systems/dungeon-achievements.md#ordinary-description-vertical-alignment): one explicitverticalTOP attribute; priorCENTERcontrolupdatedinown0ac8commit, ignoredREDpushedfirst/observedfourbothskin alignmentassertions. Font10/330×34/ink/shadow/horizontalCENTER/origin/actions conserved; GREEN pending, no otherpolicychange.
 ## 2026-10-20 — Monthly Time sorting CPU proof
 
 [Source and proof boundary](systems/trading-post.md#monthly-time-sorting): pushed-first ignored6 genuine RED→unignored6 GREEN at3844d4233; existing header/menu/action use common server monthly duration, source1000/999 padding floored to minutes, ascending-name ties and provider Time→Price reset. No wire/per-item pending invention; selection/cart/authority preserved. Both-skin native pending; earlier rollover acceptance is not relabeled.
 ## 2026-10-19 — Crafting origin vertical slice, targeted GREEN
 
 [Source, actual-craft persistence and consumer proof](systems/native-professions-crafting.md#server-recorded-crafting-origin): pushed ignored RED in all three repositories before implementation, then P1/S2/E1 targeted GREEN at separately recorded revisions. Real2153→new2303 GUID carries ability1355/joinedspell2153 after DB reopen; identical non-crafted item unknown. Actual2963 unknown-stack RED→compatible merging/split persistence controls; engine mirrors optional metadata on the same GUID. No fabricated quality/slots/watermark or recraft activation. Current masters merged; atomic lead gate/consumer integration pending, not a new rendered/process-reopen claim.
+## 2026-10-20 — Guild numeric-header equal-key fallback
+
+[Source and qualified policy](systems/guilds.md#numeric-header-equal-key-ordering): pushed ignored Rank/Level/Class reversed-input ties and24-row real registry regressions before actual behavior RED4. Only numeric primary direction now reverses; equal keys reuse the unchanged represented-field base comparison. Focused GREEN4/4 at6ef84509b (21.44s compile/0.19s tests/no warnings), then only proven ignore attributes removed. Existing primary/missing/reset behavior and Name/Note/Zone mechanics remain unchanged; independent gate/controls/native pending, no new widgets/protocol/server work.
+
 ## 2026-10-20 — Guild Zone sorting native accepted
 
 [Exact cohort, originals and limits](systems/guilds.md#native-zone-sort-acceptance-2026-10-20): gz746 tests/fmt passed and landed; exact E6874f287d/private Sb12089d1f/Pda007a6 builds and import/parse/login passed. Real two-member Modern/Forever physical Zone direction/reset, Elwynn/Westfall ordering, genuine peer disconnect/mixed recency, original detail identity and offline filter hide/restore pass strict1/1. Eight inspected original PNGs published; historical DB unchanged, actors/cage/slice stopped,5891 unbound/window cleared. Seconds/ties/Unicode/overflow remain automated; native binding/count limits stay unqualified. Setup PATH127, import ObjectDB leaks and live audio/Wayland/data diagnostics retained. Lead inspected two representative frames and accepted.
