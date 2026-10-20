@@ -1,12 +1,12 @@
 # Guild Last Online recency
 
-Existing roster offline Zone cells and member detail Last Online fields display actual elapsed recency. Retail GuildRoster.lua115–120, CommunitiesMemberList.lua1285–1297 and TimeUtil.lua24–43 define the behavior: elapsed years/months/days/hours, otherwise less than an hour, not a calendar date. Local GlobalStrings.csv rows10842/11461/11518–11520 supply English plural text.
+Existing roster offline Zone cells and member detail Last Online fields display actual elapsed recency. Retail GuildRoster.lua115–120, CommunitiesMemberList.lua1285–1297 and TimeUtil.lua24–43 define the behavior: elapsed years/months/days/hours, otherwise less than an hour, not a calendar date. Authenticated active local-CASC GlobalStrings.csv rows10842/11461/11518–11520 (12.1.5.70448, FDID1394440) supply English plural text.
 
 ## What it must do
 
-- [ ] Render optional authoritative observed logout time as source recency in both existing fields, identically in both skins.
-- [ ] Unknown offline history displays Offline; online displays Online/current zone even if a stale offline timestamp was supplied.
-- [ ] Preserve source controls/layout, member identity and saved filtering; no synthetic timestamp from local receipt/query time.
+- [x] Render optional authoritative observed logout time as source recency in both existing fields, identically in both skins.
+- [x] Unknown offline history displays Offline; online displays Online/current zone even if a stale offline timestamp was supplied.
+- [x] Preserve source controls/layout, member identity and saved filtering; no synthetic timestamp from local receipt/query time.
 
 ## How it works
 
@@ -23,7 +23,7 @@ Existing roster offline Zone cells and member detail Last Online fields display 
 
 ## Known gaps (current cycle)
 
-- [ ] Actual rendering RED→GREEN, coordinated P/S/E landing and real two-member disconnect/fresh-server readback/reconnect proof pending. Large elapsed-time boundaries are deterministic automated proof, never backdated native actor state.
+- [ ] Actual rendering RED observed (Offline instead of source < an hour); implementation committed. Focused GREEN, coordinated P/S/E landing and real two-member disconnect/fresh-server readback/reconnect proof pending. Large elapsed-time boundaries are deterministic automated proof, never backdated native actor state.
 
 ## Out of scope
 

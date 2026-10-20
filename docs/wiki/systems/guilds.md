@@ -145,6 +145,14 @@ Hasty native trials `typed-human-baseline-1792203539` and `typed-human-member-17
 
 Native existing-caret follow-up: `before  after` + real Shift-click at caret7 initially reverted to the old text. The shared chat insertion path wrote only Godot LineEdit, while the next chat update read RegistryUi's unchanged EditBox state and removed the link from the draft. The insertion now uses RegistryUi::set_editbox_text, then restores the returned caret; this keeps model/native text synchronized. This is a separate actual native RED, not inferred from the earlier empty-draft proof.
 
+## Last Online recency
+
+[Contract](../../specs/guild-last-online.md). Guild snapshots replace the old opaque `last_online` string with optional observed `last_logout_unix_secs`. `guild_presence.rs` computes source elapsed units at normal existing field rendering; both the offline roster Zone cell and detail Last Online share it. Online keeps Online/current zone even if a stale timestamp is supplied. Unknown history stays Offline, never inferred from receipt/query time. No new geometry, sort or optimistic presence state.
+
+Mainline GuildRoster.lua115–120 and CommunitiesMemberList.lua1285–1297 call TimeUtil.lua24–43. TimeUtil10–11 declares30-day months/12-month years; English plurals and `< an hour` are authenticated by active local-CASC GlobalStrings10842/11461/11518–11520, FDID1394440/build12.1.5.70448, receipt CSV SHA2563028c6f0520a18b4874fb4a3f64101bdd89dc9174798ee034350bc8a0316ad75. Source receipt: `/home/osso/.worktrees/logs/guild-last-online-2026-10-19/recency-string-source.json`. This is elapsed recency, not an absolute date and not legacy CSV/Wago provenance.
+
+Ignored wire/server/widget regressions were pushed first. Actual engine RED56d0d12a8 renders Offline instead of `< an hour`; actual server RED crosses real production disconnect/save/despawn and closed DB/new-app reopen. The initial wrong test-target command is setup failure, not rendering RED. Focused GREEN, coordinated landing and real two-member both-skin disconnect/readback/reconnect proof remain pending; deterministic tests, not backdated native actors, cover large elapsed units.
+
 ## Voluntary leadership transfer
 
 [Contract](../../specs/guild-leadership-transfer.md): `/gleader <member>` enters the existing chat parser, producing one target-only `GuildRankRequest::TransferLeadership`. Native chat submission and the account bridge already carry generic guild-rank requests; replies replace authoritative session state and request the existing full profile. No local rank promotion, new button/layout or extra leader field is introduced. The server owns current-master/same-guild validation and atomic old/new ranks; direct member-rank assignment still cannot assign rank0.
