@@ -2,7 +2,6 @@ use game_engine_ui_model::bag_data::InventoryState;
 use shared::protocol::InventorySnapshot;
 
 #[test]
-#[ignore = "RED: engine owner inventory discards server crafting origin"]
 fn crafting_origin_owner_snapshot_changes_only_instance_provenance() {
     game_engine_ui_model::paths::set_data_root(
         std::path::PathBuf::from(env!("CARGO_MANIFEST_DIR")).join("../../data"),
@@ -36,6 +35,15 @@ fn crafting_origin_owner_snapshot_changes_only_instance_provenance() {
         after, &before,
         "engine must mirror changed authoritative origin on the same GUID"
     );
+    assert_eq!(
+        after.crafting_origin,
+        Some(shared::protocol::CraftingOrigin {
+            skill_line_ability_id: 1355,
+            recipe_spell_id: 2153,
+            crafting_quality_id: None
+        })
+    );
+    assert_eq!(before.crafting_origin, None);
     assert_eq!(after.item_guid, before.item_guid);
     assert_eq!(after.item_id, before.item_id);
     assert_eq!(after.count, before.count);

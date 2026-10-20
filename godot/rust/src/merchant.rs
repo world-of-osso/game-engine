@@ -808,6 +808,24 @@ fn string_array<'a>(items: impl Iterator<Item = &'a String>) -> VarArray {
     array
 }
 
+fn crafting_origin_state(origin: Option<shared::protocol::CraftingOrigin>) -> Variant {
+    let Some(origin) = origin else {
+        return Variant::nil();
+    };
+    let mut state = VarDictionary::new();
+    state.set(
+        "skill_line_ability_id",
+        i64::from(origin.skill_line_ability_id),
+    );
+    state.set("recipe_spell_id", i64::from(origin.recipe_spell_id));
+    let quality = origin
+        .crafting_quality_id
+        .map(|id| i64::from(id).to_variant())
+        .unwrap_or_else(Variant::nil);
+    state.set("crafting_quality_id", quality);
+    state.to_variant()
+}
+
 /// Occupied equipment slots from the authoritative inventory state.
 fn equipment_items(inventory: &game_engine_ui_model::bag_data::InventoryState) -> VarArray {
     inventory
@@ -818,6 +836,10 @@ fn equipment_items(inventory: &game_engine_ui_model::bag_data::InventoryState) -
             entry.set("slot", format!("{slot:?}").as_str());
             entry.set("item_id", i64::from(item.item_id));
             entry.set("item_guid", item.item_guid as i64);
+            entry.set(
+                "crafting_origin",
+                crafting_origin_state(item.crafting_origin),
+            );
             entry.set("count", i64::from(item.count));
             entry.set("name", item.name.as_str());
             entry.set("icon_fdid", i64::from(item.icon_fdid));
@@ -838,6 +860,11 @@ fn bag_items(inventory: &game_engine_ui_model::bag_data::InventoryState) -> VarA
             let mut entry = VarDictionary::new();
             entry.set("bag", bag as i64);
             entry.set("slot", slot as i64);
+            entry.set("item_guid", item.item_guid as i64);
+            entry.set(
+                "crafting_origin",
+                crafting_origin_state(item.crafting_origin),
+            );
             entry.set("item_id", i64::from(item.item_id));
             entry.set("name", item.name.as_str());
             entry.set("count", i64::from(item.count));
