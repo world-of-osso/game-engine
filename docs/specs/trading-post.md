@@ -281,6 +281,7 @@ Retail SharedXML calls native `CalculateMountScale`; its formula remains unestab
 
 - `scripts/trading_post_import.py`: qualified local DB2 decode and SQL/provenance preparation.
 - `godot/ui-model/src/trading_post.rs`: shared vendor state/actions and source layout.
+- `godot/ui-model/src/trading_post_clock.rs`: server-duration Time labels and one-query-per-expired-boundary clock projection.
 - `godot/rust/src/trading_post.rs`: native host, interaction/request lifecycle, detached previews and source-typed TryOn.
 - `godot/network/src/lib.rs`, `godot/rust/src/account.rs`: reply registration/cache and requests.
 - `adventure_guide.rs`, `adventure_activities.rs`: monthly Tender integration.
@@ -291,6 +292,7 @@ Retail SharedXML calls native `CalculateMountScale`; its formula remains unestab
 
 - `scripts/tests/test_trading_post_import.py`: authentic category/price/UI group round-trip and mismatched-layout rejection.
 - `godot/ui-model/tests/trading_post.rs`: both-skin XML geometry/dropdown, Tender/price/frozen/refund controls, modal confirmation/no local debit/pending state, freeze/replace/drag-off requests, second-page/category clipping and refund-icon row identity/time-unit/color/expiry/closed suppression.
+- `godot/ui-model/tests/trading_post/monthly_clock.rs`: both-skin Time text/geometry/red threshold/hover/owned rules, next-boundary/full-replacement and same-boundary/hidden-window requery controls; four clock cases pass within the103-case Trading Post model family. Native rollover proof remains post-landing.
 - `godot/network/src/trading_post_wire_tests.rs`: real UDP snapshot/request round-trip.
 - `scripts/tests/test_trading_post_asset_seeds.py`: server preview rules (mount/pet/transmog/set) and whole-chain receipt verdicts.
 - `godot/tests/trading_post_live.gd`: private 127.0.0.1:5791 fb_* native-input proof — Log Tender line, authentic NPC gossip, HUD hidden/restored, category dropdown, player transmog/set and creature mount/pet previews, drag rotation, ToyOverlay, unavailable row, drag-to-freeze, unaffordable gating and frozen slot after relog. Phase `refund-icon-tooltip` proves ordinary-row owner/parent-click/hovered-owner teardown and authoritative purchase/refund conservation.
@@ -299,7 +301,7 @@ Retail SharedXML calls native `CalculateMountScale`; its formula remains unestab
 
 - [ ] Native shutdown RID/resource leaks: rejected first Forever frozen-selected-add-green1 attempt logs eight shutdown ERRORs after9/9 behavioural completion; accepted Modern green1 and sole Forever green2 retry have no leak lines. Root cause remains unexplained/not fixed; failed attempt stays rejected. [Exact qualification/provenance](../wiki/systems/trading-post.md#committed-frozen-selected-texture-add-compositing).
 
-- [ ] Monthly featured catalog/seasonal reward calendar binding; no verified epoch.
+- [ ] Retail-authoritative monthly inventory and seasonal activity/reward binding remain unverified. Current membership/Jan2023 epoch uses the explicit server news BEST_GUESS policy, not a discovered DB2 join. Both-skin native countdown/open-window rollover proof remains post-landing.
 - [ ] Refund duration; server-provided remaining time is documented but no duration sourced.
 - [ ] Unknown PerksVendorItem fields and one unreadable vendor category; never infer semantics.
 - [x] Live purchase/collection/relog/refund proof in both skins; Tender comes from the server admin-socket test grant because no supported activity has reachable private-world content (lead decision October12).
