@@ -89,6 +89,14 @@ func choose_products() -> bool:
 	if not gate.require(ids.size() >= 2, "two observed available ordinary products required"): return false
 	primary = int(ids[0])
 	neighbor = int(ids[1])
+	# An aborted earlier attempt may leave genuine refundable purchases; refund them for real first.
+	for id in [primary,neighbor]:
+		if not await select(id): return false
+		if client.trading_post_state().purchased:
+			var before := int(client.trading_post_state().tender)
+			if not await refund(id, before+int(client.trading_post_state().price), "prior-attempt-%d" % id, {"tender_before":before}): return false
+	baseline = client.trading_post_state().duplicate(true)
+	appearances = sorted_appearances()
 	for id in [primary,neighbor]:
 		if not await select(id): return false
 		var now: Dictionary = client.trading_post_state()
