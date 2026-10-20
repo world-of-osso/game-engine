@@ -41,11 +41,13 @@ fn requeue_enabled(registry: &FrameRegistry) -> bool {
                 .expect("ended skirmish has a Queue Again button"),
         )
         .unwrap();
-    assert_eq!(frame.onclick.as_deref(), Some("pvp:requeue"));
     let Some(WidgetData::Button(button)) = &frame.widget_data else {
         panic!("Queue Again button");
     };
     assert_eq!(button.text, "Queue Again");
+    // UIPanelButtonTemplate: a disabled button carries no action.
+    let action = if button.enabled { "pvp:requeue" } else { "" };
+    assert_eq!(frame.onclick.as_deref(), Some(action));
     button.enabled
 }
 
