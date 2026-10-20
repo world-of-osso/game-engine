@@ -16,9 +16,9 @@ Retail Mainline Blizzard_PerksProgram and the local C_PerksProgram/PerksActiviti
 
 ## Server-driven monthly Time column
 
-- [ ] Ordinary rows show the remaining monthly duration from server `month_end_unix - now_unix`, minus monotonic time since receiving that snapshot. Retail `TimeLeftListFormatter` uses one abbreviated unit, floors values and stops at minutes; white above one hour, red at/below one hour. Purchased/zero-duration text is the sourced gray `--`; committed frozen rows do not show a countdown.
-- [ ] Use existing Retail TimeRemaining geometry:42×38 at PriceIcon.RIGHT+30, centered, with the cart toggle taking its place on cartable hover. Do not alter product-name colours or cart/frozen ownership.
-- [ ] At expiration, send one `TradingPostRequest::Query` per expired server month-end boundary, not every frame. Same-boundary replies do not re-arm it; a fresh full snapshot replaces expired rows and arms the next boundary. No local calendar, wall-clock dependence, wire change or client-invented monthly catalog.
+- [x] Ordinary rows show the remaining monthly duration from server `month_end_unix - now_unix`, minus monotonic time since receiving that snapshot. Retail `TimeLeftListFormatter` uses one abbreviated unit, floors values and stops at minutes; white above one hour, red at/below one hour. Purchased/zero-duration text is the sourced gray `--`; committed frozen rows do not show a countdown.
+- [x] Use existing Retail TimeRemaining geometry:42×38 at PriceIcon.RIGHT+30, centered, with the cart toggle taking its place on cartable hover. Do not alter product-name colours or cart/frozen ownership.
+- [x] At expiration, send one `TradingPostRequest::Query` per expired server month-end boundary, not every frame. Same-boundary replies do not re-arm it; a fresh full snapshot replaces expired rows and arms the next boundary. No local calendar, wall-clock dependence, wire change or client-invented monthly catalog.
 - [ ] Both-skin native countdown/open-window rollover proof follows landing; registry/model tests do not substitute for that proof.
 
 ## Committed frozen selected-texture ADD compositing

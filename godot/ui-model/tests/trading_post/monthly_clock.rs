@@ -9,7 +9,6 @@ fn timed_view(remaining: i64) -> View {
 }
 
 #[test]
-#[ignore = "TP_MONTHLY_CLOCK RED: Time column absent"]
 fn trading_post_monthly_clock_time_column_counts_server_days_hours_minutes_in_both_skins() {
     for skin in [ActiveSkin::Modern, ActiveSkin::Forever] {
         for (remaining, elapsed, expected) in [
@@ -45,7 +44,6 @@ fn trading_post_monthly_clock_time_column_counts_server_days_hours_minutes_in_bo
 }
 
 #[test]
-#[ignore = "TP_MONTHLY_CLOCK RED: Time column absent"]
 fn trading_post_monthly_clock_time_column_red_threshold_purchased_dash_and_hover_cart() {
     for skin in [ActiveSkin::Modern, ActiveSkin::Forever] {
         let mut view = timed_view(3_601);
