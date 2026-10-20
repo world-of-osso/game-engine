@@ -98,6 +98,49 @@ fn achievements_bottom_tabs_honor_retail_art_geometry_both_skins() {
     }
 }
 
+#[test]
+fn achievements_header_title_uses_retail_content_style_both_skins() {
+    use ui_toolkit::frame::Dimension;
+    use ui_toolkit::widgets::font_string::GameFont;
+    for skin in [ActiveSkin::Modern, ActiveSkin::Forever] {
+        assets(skin);
+        for (guild, expected) in [
+            (false, "Warband Achievement Points"),
+            (true, "Guild Achievements"),
+        ] {
+            let mut window = AchievementWindow::default();
+            window.visible = true;
+            window.guild = guild;
+            let registry = achievement_registry(&window, skin);
+            let frame = registry
+                .get(registry.get_by_name("AchievementFrameTitle").unwrap())
+                .unwrap();
+            let WidgetData::FontString(font) = frame.widget_data.as_ref().unwrap() else {
+                panic!("header title")
+            };
+            assert_eq!(font.text, expected, "{skin:?} guild={guild}");
+            assert_eq!(font.font, GameFont::FrizQuadrata);
+            assert_eq!(font.font_size, 10.0);
+            assert_eq!(font.shadow_color, Some([0.0, 0.0, 0.0, 1.0]));
+            assert_eq!(font.shadow_offset, [1.0, -1.0]);
+            assert_eq!(font.color, [1.0, 0.82, 0.0, 1.0]);
+            assert_eq!(font.justify_h, JustifyH::Center);
+            assert_eq!(frame.width, Dimension::Fixed(150.0));
+            assert_eq!(frame.height, Dimension::Fixed(20.0));
+            assert_eq!(frame.position.left, Val::Px(334.0));
+            assert_eq!(frame.position.top, Val::Px(-29.0));
+            let (width, _) =
+                ui_toolkit::text_measure::measure_text(expected, GameFont::FrizQuadrata, 10.0)
+                    .unwrap();
+            println!("ACHIEVEMENT_HEADER_TITLE_FIT {skin:?} guild={guild} width={width}/150");
+            assert!(
+                width <= 150.0,
+                "Retail title actually overflows: {expected} {width}"
+            );
+        }
+    }
+}
+
 fn retail_categories() -> Vec<AchievementCategoryEntry> {
     let records = game_engine_core::csv_util::parse_csv_records(include_str!(
         "../../../data/db2/active/Achievement_Category.csv"

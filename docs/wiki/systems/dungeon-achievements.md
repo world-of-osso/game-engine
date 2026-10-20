@@ -2,6 +2,12 @@
 
 Native client consumes copy snapshots and on-demand catalog pages; the server remains authoritative. [Feature contract](../../specs/dungeon-achievements.md).
 
+## Header title
+
+`achievement_art::chrome` chooses the installed player/guild GlobalStrings tag from `window.guild`, instead of hardcoding Achievements. Mainline AchievementUI.xml1956–1964/Lua380,398 supplies ACHIEVEMENT_TITLE or GUILD_ACHIEVEMENTS_TITLE; installed CSV rows19040/21254 resolve Warband Achievement Points and Guild Achievements. FontStyles.xml56→Fonts.xml39–43 supplies RomanFriz10 with black(+1,−1) shadow. Existing150×20/(334,−29)/gold/CENTER and points/shield/actions stay unchanged.
+
+Tests-only4e21deeba reproduces the wrong player title; product164c78eb2 passes the targeted model control across bothskins×player/guild, including source font/shadow and geometry. The real strings measure138/95px within150px, so `ACHIEVEMENT_HEADER_TITLE_AUTOSCALE_UNIMPLEMENTED` explicitly leaves maxLines2/AutoScaling(min8) out of scope. Native fixture `achievement_header_title`4 is registered/prepared but intentionally not run before landing; no native pixel proof claimed yet. [Contract](../../specs/dungeon-achievements.md#header-title-content-and-style).
+
 ## Bottom-tab source template
 
 The three bottom tabs now use the shared Merchant tab builder's bounded Achievement variant. Mainline AchievementUI.xml246–342 is a distinct Header-sheet template, not generic PanelTab art. Reuse the existing strips while replacing the old generic LEFT/12pt label and fixed widths with source-centered Friz10, TabResize30 (text+50), and the shared +3/Statistics−5 anchors. Panel/Minimal consumers stay unchanged; other frames are audit-only. [Contract](../../specs/dungeon-achievements.md#bottom-tabs), [source and consumer audit](../../handoffs/achievement-bottom-tabs.md).
