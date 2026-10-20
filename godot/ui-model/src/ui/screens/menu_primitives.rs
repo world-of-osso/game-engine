@@ -265,7 +265,7 @@ fn reset_button(props: DropdownButton<'_>, state: DropdownState<'_>) -> Element 
         name: {DynName(format!("{}ResetButton", props.frame_name))}, width: 23.0, height: 23.0,
         pos_type: "absolute", left: {props.width - 3.0 - 11.5}, top: {y - 11.5}, hidden, onclick,
         button_default_skin: false, button_atlas_up: "auctionhouse-ui-filter-redx",
-        button_atlas_highlight: "auctionhouse-ui-filter-redx", button_highlight_alpha: "0.4",
+        button_atlas_highlight: "auctionhouse-ui-filter-redx", button_highlight_blend_mode:"ADD", button_highlight_alpha: "0.4",
     } }
 }
 
