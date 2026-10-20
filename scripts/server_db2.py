@@ -17,7 +17,7 @@ if not (SERVER_SCRIPTS / "db2_casc.py").is_file():
         "to the game-server checkout"
     )
 sys.path.append(str(SERVER_SCRIPTS))
-import db2_casc  # noqa: E402
+import db2_casc
 
 if Path(db2_casc.__file__).resolve() != SERVER_SCRIPTS / "db2_casc.py":
     raise ImportError(
