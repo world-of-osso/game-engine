@@ -58,14 +58,17 @@ class StockadeRun:
         self.credit_offset = 0
         self.blocked_steps = 0
         self.opening_target = None
-        self.plan = stockade_plan(args.world_db)
+        self.plan = (json.loads(args.source_plan.read_text()) if args.source_plan is not None
+                     else stockade_plan(args.world_db))
+        if not self.plan.get("bosses") or self.plan.get("map") not in (34, 2515):
+            raise ValueError("Explicit sourced Stockade or Azure plan required")
         self.run = {"spec": args.spec, "role": 2, "actor": None, "party_actors": [],
                     "start_ms": int(time.time() * 1000), "end_ms": None,
                     "elapsed_ms": 0, "clear_elapsed_ms": None, "capture_complete": True,
                     "bosses": self.plan["bosses"], "attempts": [], "openings": [], "native_errors": [],
                     "owner_snapshot": [], "capture_gaps": [], "failure": None}
         self.player = routed_player(self.invoke, self.snapshot,
-                                   [str(args.engine / "scripts/agent/agent-run"), "bot-harness",
+                                   [str(args.engine / "scripts/agent/agent-run"), "followers",
                                     str(args.server / "target/debug/examples/follower_route")],
                                    args.navmesh, self.output)
         self.query_route = self.player.route
@@ -147,7 +150,7 @@ class StockadeRun:
 
     def owner_ready(self, account, state):
         named_owner = account.get("selected_character_name") == self.args.character
-        entered = account.get("screen") == "InWorld" and account.get("world_map_id") == 34
+        entered = account.get("screen") == "InWorld" and account.get("world_map_id") == self.plan["map"]
         observed = account.get("local_player_health") is not None and state["spells"]["catalog_ready"]
         if not (named_owner and entered and observed):
             return False
@@ -201,7 +204,8 @@ class StockadeRun:
         if len(party) != 5 or Counter(row["role"] for row in party) != {"tank": 1, "healer": 1, "damage": 3}:
             raise ValueError("Native Stockade requires the real five-member1/1/3 group")
         self.tank = next(row["name"] for row in party if row["role"] == "tank")
-        self.instance = admitted_copy(self.args.server_log.read_text(), account["selected_character_id"])
+        self.instance = admitted_copy(self.args.server_log.read_text(), account["selected_character_id"],
+                                      self.plan["map"], self.plan["difficulty"])
         actors = []
         with closing(sqlite3.connect(self.args.world_db.resolve().as_uri() + "?mode=ro", uri=True)) as db:
             for member in party:
@@ -210,14 +214,14 @@ class StockadeRun:
                 row = db.execute("SELECT entry FROM follower_profiles WHERE name=?", (member["name"],)).fetchone()
                 if row is None:
                     raise ValueError("Native group member lacks its authored follower identity")
-                actors.append(parse_npc(self.admin("npc-info", 34, self.instance, row[0]), row[0]))
+                actors.append(parse_npc(self.admin("npc-info", self.plan["map"], self.instance, row[0]), row[0]))
         self.run["party_actors"] = [row["entity"] for row in actors]
         self.party_actor_ids = {row["name"]: row["entity"] for row in actors}
         self.party_actor_ids[self.args.character] = str(account["local_player_id"])
         for boss in self.run["bosses"]:
-            native = parse_npc(self.admin("npc-info", 34, self.instance, boss["entry"]), boss["entry"])
-            if native["health"] <= 0 or native["difficulty"] != 1:
-                raise ValueError("Expected fresh Normal boss was not alive")
+            native = parse_npc(self.admin("npc-info", self.plan["map"], self.instance, boss["entry"]), boss["entry"])
+            if native["health"] <= 0 or native["difficulty"] != self.plan["difficulty"]:
+                raise ValueError("Fresh boss missing or wrong requested difficulty")
             boss.update(entity=native["entity"], native_before=native)
         publish(self.output / "admitted-party.json", {"instance": self.instance, "party": party, "actors": actors})
 
@@ -226,7 +230,7 @@ class StockadeRun:
             source.seek(self.credit_offset)
             text = source.read()
             self.credit_offset = source.tell()
-        observed = encounter_states(text, self.instance)
+        observed = encounter_states(text, self.instance, self.plan["map"])
         for boss in self.run["bosses"]:
             boss["state"] = observed.get(boss["encounter"], boss["state"])
         if all(boss["state"] == "Done" for boss in self.run["bosses"]) and self.run["clear_elapsed_ms"] is None:
@@ -236,8 +240,8 @@ class StockadeRun:
 
     def party(self):
         account = self.account()
-        if account.get("world_map_id") != 34:
-            raise RuntimeError("Native player left the Stockade map")
+        if account.get("world_map_id") != self.plan["map"]:
+            raise RuntimeError("Native player left the requested dungeon map")
         party = parse_party(self.invoke("group", "roster"))
         if os.environ.get("BOT_PATH_MAP_TRACE") == "1":
             append_party(self.output, party)
@@ -526,7 +530,7 @@ class StockadeRun:
         report = summarize_dungeon(self.run, events)
         report["failure"] = self.run["failure"]
         publish(self.output / "report.json", report)
-        lines = [f"# Spec{self.args.spec} Stockade", f"Clear: {report['clear_complete']}; clear_ms: {report['clear_time_ms']}",
+        lines = [f"# Spec{self.args.spec} map{self.plan['map']} difficulty{self.plan['difficulty']}", f"Clear: {report['clear_complete']}; clear_ms: {report['clear_time_ms']}",
                  f"Player deaths: {report['player_deaths']}; party deaths: {report['party_deaths']}"]
         lines += [f"{boss['name']}: damage={boss['damage']}; DPS={boss['dps']}; complete={boss['measurement_complete']}" for boss in report["bosses"]]
         (self.output / "summary.md").write_text("\n\n".join(lines) + "\n")
@@ -542,6 +546,8 @@ def main():
     for name in ("engine", "server", "world-db", "navmesh", "output", "socket", "server-log"):
         parser.add_argument("--" + name, type=Path, required=True)
     parser.add_argument("--character", required=True)
+    parser.add_argument("--source-plan", type=Path,
+                        help="Explicit DB-derived dungeon plan; retains native admission/difficulty checks")
     parser.add_argument("--server-port", type=int, default=5871,
                         help="Private server port; selects /tmp/game-server-admin-PORT.sock")
     parser.add_argument("--spec", type=int, default=72)

@@ -9,12 +9,12 @@ from pathlib import Path
 from bot_rotation import authored_next
 
 
-def admitted_copy(server_text, character_id):
-    pattern = (rf"Created instance (\d+) of map 34 at difficulty 1 for InstanceEntrant "
+def admitted_copy(server_text, character_id, map_id=34, difficulty=1):
+    pattern = (rf"Created instance (\d+) of map {int(map_id)} at difficulty {int(difficulty)} for InstanceEntrant "
                rf"\{{ character_id: {int(character_id)},")
     copies = {int(value) for value in re.findall(pattern, server_text)}
     if len(copies) != 1:
-        raise ValueError(f"Native admitted Stockade copy is not unique: {sorted(copies)}")
+        raise ValueError(f"Native admitted dungeon copy is not unique: {sorted(copies)}")
     return copies.pop()
 
 
@@ -30,8 +30,8 @@ def parse_npc(text, entry):
             "combat": json.loads(row[7])}
 
 
-def encounter_states(server_text, instance):
-    pattern = (rf"Instance InMap \{{ map_id: 34, instance_id: {int(instance)} \}}: "
+def encounter_states(server_text, instance, map_id=34):
+    pattern = (rf"Instance InMap \{{ map_id: {int(map_id)}, instance_id: {int(instance)} \}}: "
                r"boss \d+ \(encounter (\d+)\) \w+ -> (\w+)")
     return {int(encounter): state for encounter, state in re.findall(pattern, server_text)}
 
