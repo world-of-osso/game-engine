@@ -241,6 +241,25 @@ def read_sysroot(project, env, prefix, lease, local=False):
         return 0, Path(sysroot)
 
 
+SERVER_RUNTIME_CATALOGS = ("trading-post-monthly-catalog.json", "quest-reward-bonus.json")
+
+
+def stage_server_catalogs(project, data):
+    """Stage tracked catalogs into a private runtime; never rewrite checkout data."""
+    sources = [Path(project) / "content" / name for name in SERVER_RUNTIME_CATALOGS]
+    for source in sources:
+        if not source.is_file():
+            raise FileNotFoundError(f"missing tracked server catalog: {source}")
+    for source in sources:
+        with tempfile.NamedTemporaryFile(dir=data, prefix=f".{source.name}.", delete=False) as stream:
+            temporary = Path(stream.name)
+        try:
+            shutil.copyfile(source, temporary)
+            os.replace(temporary, Path(data) / source.name)
+        finally:
+            temporary.unlink(missing_ok=True)
+
+
 def native_runtime(
     project,
     target,
@@ -275,10 +294,13 @@ def native_runtime(
     executable = target / profile / binary
     if not executable.is_file():
         raise FileNotFoundError(f"missing native runtime binary: {executable}")
+    cwd = project if runtime_cwd is None else Path(runtime_cwd)
+    if binary == "game-server" and cwd.resolve() != project.resolve():
+        stage_server_catalogs(project, cwd / "data")
     print(f"native artifact={executable}", flush=True)
     return run_owned(
         [*prefix, str(executable), *runtime_args],
-        project if runtime_cwd is None else runtime_cwd,
+        cwd,
         env,
         lease=lease,
     )
