@@ -4,10 +4,10 @@ Retail Mainline Blizzard_EncounterJournal defines structure and behavior. Modern
 
 ## Detached Journal CDI state kits
 
-- [ ] A Journal detached model applies its displayed CreatureDisplayInfo.StateSpellVisualKit model attachments through the existing kit catalog and model-attachment path, with a detached visual owner rather than a fabricated Replica/server ID.
-- [ ] Void Pulsar display141206 resolves kit253973: effect models4861458/7455384 attach to authored34, retain source offsets/yaw/scale/alpha and clip158 clocks once per visual. Actor4131 display0's explicit nil actor kit and idle0 defaults remain separate.
-- [ ] Normal Journal synchronization retains the same effect instances and progressing clocks. Creature switch/close cancels delayed work and destroys owned effects; reopening uses a fresh model/effects.
-- [ ] Genuine detached-child absence RED precedes correction; both-skin native acceptance follows landing. Catalog tests alone do not prove attachment/lifecycle.
+- [x] A Journal detached model applies its displayed CreatureDisplayInfo.StateSpellVisualKit model attachments through the existing kit catalog and model-attachment path, with a detached visual owner rather than a fabricated Replica/server ID.
+- [x] Void Pulsar display141206 resolves kit253973: effect models4861458/7455384 attach to authored34, retain source offsets/yaw/scale/alpha and clip158 clocks once per visual. Actor4131 display0's explicit nil actor kit and idle0 defaults remain separate.
+- [x] Normal Journal synchronization retains the same effect instances and progressing clocks; creature switch destroys owned effects, close destroys the visual and reopening uses fresh effects. Both skins pass on runtime7b8d/fixturefbc29/servera6f7/P0399. Delayed-work cancellation is source-reviewed, not a separate pending-load race stress proof.
+- [x] Genuine detached-child absence RED precedes correction; both-skin native acceptance follows landing. Catalog tests alone do not prove attachment/lifecycle.
 
 Particle/material appearance, opaque CAPI timing and generalized detached unit-animation/sound-kit support are not claimed by this bounded model-attachment slice. [Implementation](../wiki/systems/adventure-guide.md#detached-journal-cdi-state-kit-ownership).
 
