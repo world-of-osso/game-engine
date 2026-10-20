@@ -115,6 +115,7 @@ fn merchant_fixture(case: &str) -> MerchantStates {
             prev_enabled: true,
             next_enabled: true,
             repair: Some(true),
+            repair_mode: case == "merchant-repair",
             ..Default::default()
         },
         bags: Default::default(),
@@ -204,7 +205,9 @@ fn character_fixture(case: &str) -> game_engine_ui_model::character_frame::Chara
 impl RegistryUi {
     fn mount_buttonfit_service(&mut self, case: &str) -> Result<(), String> {
         match case {
-            "merchant" | "buyback" => self.show_merchant(merchant_fixture(case)),
+            "merchant" | "merchant-repair" | "buyback" => {
+                self.show_merchant(merchant_fixture(case))
+            }
             "inbox" | "send" | "openmail" | "opening" => self.show_mail(mail_fixture(case)),
             "trade" => self.show_trade(trade_fixture()),
             "guildbank" => self.show_guild_bank(guild_bank_fixture()),
