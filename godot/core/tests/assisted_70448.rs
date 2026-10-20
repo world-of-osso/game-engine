@@ -137,3 +137,70 @@ fn assisted_70448_all_type3_rules_share_distance_boundaries() {
         }
     }
 }
+
+#[test]
+fn assisted_70448_condition_type_sweep_names_every_rule_outcome() {
+    let rules = native_rules();
+    assert_eq!(rules.len(), 3116);
+    // Synthetic supplied readings measure predicate coverage, not live success
+    // or all-spec rotation correctness. Unsupported semantics remain errors.
+    let facts = sweep_facts(&rules);
+    let mut report: BTreeMap<u32, BTreeMap<String, Vec<u32>>> = BTreeMap::new();
+    for rule in &rules {
+        let result = if rule.field_11_1_7_60520_002 != 0 {
+            Err(format!(
+                "unidentified field {}",
+                rule.field_11_1_7_60520_002
+            ))
+        } else {
+            evaluate_rule(rule, &facts)
+        };
+        let outcome = match result {
+            Ok(_) => "evaluated".to_string(),
+            Err(error) => format!("gap: {error}"),
+        };
+        report
+            .entry(rule.condition_type)
+            .or_default()
+            .entry(outcome)
+            .or_default()
+            .push(rule.id);
+    }
+    assert_eq!(report[&3]["evaluated"].len(), 92);
+    assert!(!report[&4].contains_key("evaluated"));
+    for (kind, outcomes) in &report {
+        let evaluated = outcomes.get("evaluated").map_or(0, Vec::len);
+        let total: usize = outcomes.values().map(Vec::len).sum();
+        println!(
+            "type{kind}: {evaluated}/{total} evaluated; {} named gaps",
+            total - evaluated
+        );
+    }
+    println!(
+        "ASSISTED_70448_SWEEP={}",
+        serde_json::to_string(&report).unwrap()
+    );
+}
+
+fn sweep_facts(rules: &[AssistedRule]) -> AssistedFacts {
+    let mut facts = AssistedFacts {
+        target_hostile: Some(true),
+        has_pet: Some(false),
+        player_health_pct: Some(50.5),
+        target_health_pct: Some(50.5),
+        target_distance_yd: Some(2.359868049621582),
+        player_combat_enemies_within_8yd: Some(1),
+        powers: (0..=19).map(|power| (power, 75.5)).collect(),
+        ..Default::default()
+    };
+    for rule in rules {
+        for spell in [rule.step_spell, rule.values[0]] {
+            facts.ready.insert(spell, Ok(true));
+            facts.affordable.insert(spell, Ok(true));
+            facts.in_range.insert(spell, Ok(true));
+            facts.cooldowns_ms.insert(spell, 1500.5);
+        }
+        facts.charges.insert(rule.step_spell, 1);
+    }
+    facts
+}
