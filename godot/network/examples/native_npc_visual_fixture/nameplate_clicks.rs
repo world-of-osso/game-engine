@@ -73,11 +73,11 @@ pub(super) fn seed_layout(project: &FixtureProject, address: SocketAddr) -> Resu
 pub(super) fn prepare(app: &mut App, player: Entity, npc: Entity) {
     app.world_mut()
         .entity_mut(npc)
-        // Authored display 3728 (Dark Strand Adept), already covered by the NPC oracle.
+        // Authored display 2079 (Conservator Ilthalaine), in the imported coverage catalog.
         .insert((
             CombatStatus(true),
             UnitTarget(Some(player.to_bits())),
-            ModelDisplay { display_id: 3728 },
+            ModelDisplay { display_id: 2079 },
         ));
 }
 
