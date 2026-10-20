@@ -151,7 +151,7 @@ Native existing-caret follow-up: `before  after` + real Shift-click at caret7 in
 
 Mainline CommunitiesMemberList.lua798–819/905–913 returns nil for equal primary attributes; FrameXMLUtil/CommunitiesUtil.lua53–78/172–182 then applies the non-reversed base comparison. This extends the existing explicitly approved **GUILD_ROSTER_CLUB_FIELDS_ABSENT** projection, not full six-way presence, Club role/memberId or native name-order parity. No new metadata or string/native-binding policy.
 
-Ignored header/registry regressions were pushed first at4858919f1. Actual RED4 observes reversed incoming ties for all three headers and Member23 instead of Member00 after a real24-row/second-viewport setup (204s compile/0.08s tests/no warnings). Minimal production shares one numeric comparison path and changes only base-helper visibility for reuse. Focused GREEN, independent gate and any allocated native proof remain pending; no synthetic fixture is claimed as real native guild membership.
+Ignored header/registry regressions were pushed first at4858919f1. Actual RED4 observes reversed incoming ties for all three headers and Member23 instead of Member00 after a real24-row/second-viewport setup (204s compile/0.08s tests/no warnings). Minimal production shares one numeric comparison path and changes only base-helper visibility for reuse. Focused GREEN4/4 passes at6ef84509b (21.44s compile/0.19s tests/no warnings); assertion-identical tests then enabled. Independent gate, including existing metadata/Note/Zone controls, and any allocated native proof remain pending; no synthetic fixture is claimed as real native guild membership.
 
 ## Zone header sorting
 
