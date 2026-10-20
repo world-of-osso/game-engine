@@ -16,6 +16,13 @@ Pinned Retail 12.1.0.69933 `SkillLineAbility`/`SpellEffect`/`SpellReagents` cens
 
 Local world.db has only627 of1,286 distinct Leatherworking effect24 outputs joined to `content_item`; pinned CSV presence does not imply server runtime readiness. Existing Classic Leatherworking is the first end-to-end acceptance slice, not a claim of complete Midnight support.
 
+## Passive operation diagnostics
+
+- Passive CraftStatus omits the typed missing-operation diagnostic, both on recipe selection and after non-consuming reagent validation. Pending validation and concrete validation/player-action errors remain visible.
+- The named operation gap remains diagnostic/internal state and is logged through the existing native sink once at the recipe-selection transition, not on every view refresh. No new sink is introduced.
+- Missing output never assigns a quality or enables actions. Server refusals, selection, reagents and gameplay remain unchanged. This does not hide the Details pane, infer Retail capability flags from fixed-output absence, or implement an operation evaluator.
+- Source: cached Mainline `Blizzard_ProfessionsRecipeSchematicForm.lua:273–302,1370–1443` and `Blizzard_ProfessionsRecipeCrafterDetails.lua:288–310,380–419` skip absent operation stats and independently gate quality/concentration regions; they do not author the engine's raw evaluator diagnostic as passive text.
+
 ## Recipe search magnifier
 
 - Both skins use the Mainline SearchBoxTemplate magnifier:10×10 `common-search-magnifyingglass`, LEFT(+1,−1) relative to the search editbox. RGB is0.6 only when empty and unfocused, otherwise1; alpha remains1.

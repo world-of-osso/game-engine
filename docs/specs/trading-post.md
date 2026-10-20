@@ -1,18 +1,34 @@
 # Trading Post
 
-Retail Mainline Blizzard_PerksProgram and the local C_PerksProgram/PerksActivities API documentation define the vendor and Traveler's Log. Forever changes art only. All catalog rows derive from local CASC Retail 12.1.0.69933, with exact layout validation; no invented items, prices, availability or monthly rotations.
+Retail Mainline Blizzard_PerksProgram and the local C_PerksProgram/PerksActivities API documentation define the vendor and Traveler's Log. Forever changes art only. Authored catalog metadata follows the installed local CASC build. Monthly membership is the explicit server-owned `TP_MONTHLY_CATALOG_WOWHEAD_NEWS_BEST_GUESS` exception, not a verified DB2 calendar join or Retail-parity claim; see the [server source policy](../../../game-server/docs/specs/trading-post.md#monthly-inventory-source-policy-lead-decision-2026-10-19).
 
 ## What it must do
 
 - [x] Decode authored categories, vendor items/prices, preview/UI group metadata and interval relations; retain unreadable counts and schema/DB2 provenance. Prepare SQL without writing world.db.
 - [x] Track supported authored activity criteria through real gameplay events, account-wide, without historical login credit; retain unsupported criteria/conditions as named gaps.
 - [x] Reset the Log and monthly Tender award cap at 00:00 UTC on each calendar month's first day, using the injectable server clock. Earn each sourced default group1 threshold once per account/month (lead policy October12). Preserve earned Tender, collection ownership and a frozen item across rollover.
-- [x] Offer all sourced catalog rows unless an authored availability field can be verified; honor authored categories/UI groups. Unknown interval/calendar binding remains a named gap, not a fabricated rotation.
+- [x] Honor authored categories/UI groups and the server's complete current-month catalog replacement, including its frozen-item row. Monthly membership comes only from the approved server policy; unknown activity/calendar binding remains a named gap.
 - [x] Vendor requests require an authentic capital NPC interaction and server-authoritative Tender balance. Purchases grant existing account collections atomically and persist across relog; one frozen vendor item survives rollover.
 - [x] Refund requests are server-authoritative, policy-duration bounded and reverse only grants introduced by that purchase. Default policy duration is zero because no sourced duration exists (lead decision October12); Retail refund UI remains disabled.
 - [x] Shared native full-screen vendor, PerksProgramFilter category dropdown, scrollable authored item list, transmog/mount/pet3D MainModelScene and Retail ToyOverlayFrame icon/details, purchase confirmation, ordinary drag-to-freeze/replacement and server-time-controlled refund. Both skins share layout/behaviour. Lead clarified October12: Retail source takes precedence over PLAN's shorthand 'category tabs'/'3D toys'.
 - [x] Traveler's Log displays authoritative monthly Tender earned/cap/balance. No invented mail awards. Retail XML defines visible controls; remove unsourced vendor SearchBox, Log/Collections and Freeze/Unfreeze buttons (lead clarification October13).
 - [x] Targeted behavioural tests and inspected private UDP5731 fb_* account PNG proof in Modern and Forever.
+
+## Server-driven monthly Time column
+
+- [x] Ordinary rows show the remaining monthly duration from server `month_end_unix - now_unix`, minus monotonic time since receiving that snapshot. Retail `TimeLeftListFormatter` uses one abbreviated unit, floors values and stops at minutes; white above one hour, red at/below one hour. Purchased/zero-duration text is the sourced gray `--`; committed frozen rows do not show a countdown.
+- [x] Use existing Retail TimeRemaining geometry:42×38 at PriceIcon.RIGHT+30, centered, with the cart toggle taking its place on cartable hover. Do not alter product-name colours or cart/frozen ownership.
+- [x] At expiration, send one `TradingPostRequest::Query` per expired server month-end boundary, not every frame. Same-boundary replies do not re-arm it; a fresh full snapshot replaces expired rows and arms the next boundary. No local calendar, wall-clock dependence, wire change or client-invented monthly catalog.
+- [ ] Both-skin native countdown/open-window rollover proof follows landing; registry/model tests do not substitute for that proof.
+
+## Same-hover ordinary deselection ordering
+
+Retail Elements.lua291–304 OnEnter writes WHITE,335–340 SetSelected(false) writes NORMAL gold regardless hover. Program332–338/Products612–620/ScrollUtil591–617 supply native Down: deselect visible A before selecting adjacent visible B; ScrollBox821–850 does not scroll already-visible B. Current ordinary label derives WHITE from selected-or-hover, so source predicts an ordering gap; native/client dispatch and actual glyph behaviour still require proof. `TP_NAME_COLOR_SAME_HOVER_DESELECT_ORDER_UNIMPLEMENTED` remains open.
+
+- [x] Pushed-first741 diagnostic/nine-case registration before execution; actual E741/S7ca/P724 both-skin native RED: real Down642→848, fixed pointer[196,273], scroll[0,0]/rowrect/hover-owner unchanged; A actual WHITE RGBA with202 WHITE glyph pixels/0 gold versus source-expected gold. Real leave gold169/170 pixels, re-enter WHITE202, selected B/reselection/authority/HUD/XYZ controls pass before intended assertion naturalexit1; complete streams otherwise clean/two Query/no transactions. Runtime/window cleared19:11:35. Diagnostic `same-hover-deselect-order-native-red-proof.json` retains exact receipts/source/binaries. Retail native Enter/Leave dispatch is not measured: label as source-expectation parity.
+- [ ] Collect initial selected A WHITE/B gold, same-hover deselected A expected gold/B selected WHITE, real leave gold/re-enter WHITE, native Up reselection A WHITE/B gold and selected leave WHITE. Restore exact original authority/local/HUD/XYZ before verdict; no transactions. No source/field/compile/data/harness failure counts as native RED; if it does not reproduce, keep gap/no production fix.
+- [ ] Fresh helper-built engine/server/protocol cohort/hashes, proven isolated offline asset-backed startup, registered parse and explicit owned TP5791 window for genuine both-skin diagnostic evidence, strict natural known nine checked-await cases/unique marker/complete streams. Preserve original memory/provenance and shutdown failure qualification; clear runtime/window promptly.
+- [ ] Accepted both-skin native RED led to separately approved ONE optional ordinary ID: `View.deselected_hover_name` records the current still-hovered last-deselected ordinary label; it stays NORMAL until existing native hover polling observes a real Leave/Enter owner boundary or that ID is reselected. Existing selection and hover paths only; no event bus/client API/provider/cart/frozen/audio/layout/blend/metadata/shutdown changes. Enabled36fa CPU tests reproduce two rendered-WHITE versus source-gold RED failures before implementation; single-ID65ae then passes9/9 focused ordinary-name colour cases. Parent gate/fresh unchanged-oracle native remain pending. Native remains labeled source-expectation parity; named gap stays open until completion.
 
 ## Committed frozen selected-texture ADD compositing
 
@@ -274,6 +290,7 @@ Retail SharedXML calls native `CalculateMountScale`; its formula remains unestab
 
 - `scripts/trading_post_import.py`: qualified local DB2 decode and SQL/provenance preparation.
 - `godot/ui-model/src/trading_post.rs`: shared vendor state/actions and source layout.
+- `godot/ui-model/src/trading_post_clock.rs`: server-duration Time labels and one-query-per-expired-boundary clock projection.
 - `godot/rust/src/trading_post.rs`: native host, interaction/request lifecycle, detached previews and source-typed TryOn.
 - `godot/network/src/lib.rs`, `godot/rust/src/account.rs`: reply registration/cache and requests.
 - `adventure_guide.rs`, `adventure_activities.rs`: monthly Tender integration.
@@ -284,6 +301,7 @@ Retail SharedXML calls native `CalculateMountScale`; its formula remains unestab
 
 - `scripts/tests/test_trading_post_import.py`: authentic category/price/UI group round-trip and mismatched-layout rejection.
 - `godot/ui-model/tests/trading_post.rs`: both-skin XML geometry/dropdown, Tender/price/frozen/refund controls, modal confirmation/no local debit/pending state, freeze/replace/drag-off requests, second-page/category clipping and refund-icon row identity/time-unit/color/expiry/closed suppression.
+- `godot/ui-model/tests/trading_post/monthly_clock.rs`: both-skin Time text/geometry/red threshold/hover/owned rules, next-boundary/full-replacement and same-boundary/hidden-window requery controls; four clock cases pass within the103-case Trading Post model family. Native rollover proof remains post-landing.
 - `godot/network/src/trading_post_wire_tests.rs`: real UDP snapshot/request round-trip.
 - `scripts/tests/test_trading_post_asset_seeds.py`: server preview rules (mount/pet/transmog/set) and whole-chain receipt verdicts.
 - `godot/tests/trading_post_live.gd`: private 127.0.0.1:5791 fb_* native-input proof — Log Tender line, authentic NPC gossip, HUD hidden/restored, category dropdown, player transmog/set and creature mount/pet previews, drag rotation, ToyOverlay, unavailable row, drag-to-freeze, unaffordable gating and frozen slot after relog. Phase `refund-icon-tooltip` proves ordinary-row owner/parent-click/hovered-owner teardown and authoritative purchase/refund conservation.
@@ -292,7 +310,7 @@ Retail SharedXML calls native `CalculateMountScale`; its formula remains unestab
 
 - [ ] Native shutdown RID/resource leaks: rejected first Forever frozen-selected-add-green1 attempt logs eight shutdown ERRORs after9/9 behavioural completion; accepted Modern green1 and sole Forever green2 retry have no leak lines. Root cause remains unexplained/not fixed; failed attempt stays rejected. [Exact qualification/provenance](../wiki/systems/trading-post.md#committed-frozen-selected-texture-add-compositing).
 
-- [ ] Monthly featured catalog/seasonal reward calendar binding; no verified epoch.
+- [ ] Retail-authoritative monthly inventory and seasonal activity/reward binding remain unverified. Current membership/Jan2023 epoch uses the explicit server news BEST_GUESS policy, not a discovered DB2 join. Both-skin native countdown/open-window rollover proof remains post-landing.
 - [ ] Refund duration; server-provided remaining time is documented but no duration sourced.
 - [ ] Unknown PerksVendorItem fields and one unreadable vendor category; never infer semantics.
 - [x] Live purchase/collection/relog/refund proof in both skins; Tender comes from the server admin-socket test grant because no supported activity has reachable private-world content (lead decision October12).
