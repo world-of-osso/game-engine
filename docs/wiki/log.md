@@ -1,6 +1,13 @@
 ## 2026-10-19 — Trading Post slow-purchase timer implementation
 
 [Source and clock boundary](systems/trading-post.md#ten-second-slow-purchase-notice): pushed-first ignored Purchase/Checkout cases reached actual10s missing-notice assertions through the existing snapshot clock. Approved GREEN API switches to request-relative View elapsed driven by native request Instant, so Query cannot restart it. One authored Return/Escape notice, matching completion/hide cancellation, unchanged two-button confirmation geometry; GREEN/gate pending. No production delay or native runtime.
+## 2026-10-20 — Crafting origin native proof accepted
+
+[Both-skin craft → reopened-server readback](systems/native-professions-crafting.md#native-provenance-proof--2026-10-20): real trainer/cast/Create path records {1355, 2153, null} on new 2303 GUIDs only; a fresh server generation on the same DB and readback-only clients preserve it. Normal item tooltip plus owner-state readback; no lineage tooltip line. Stackable-output origin policy is the follow-up; unlearned fixture native gap named.
+
+## 2026-10-20 — Monthly Time sorting native proof
+
+[Exact cohort and qualifications](systems/trading-post.md#monthly-time-sorting): after ts754 landing, actual Ead3/S001/P566 both-skin7/7 naturalexit0/unique marker/approved-baseline full-stream VALID. Native header/menu/toggle/name-tie first12/provider reset/empty ordinary disabled with frozen kept; exact original local/authority/HUD and seven sampled positions restore. Each skin1 Query/0 mutations;14 inspected original PNGs published. Owned runtime/5899/window cleared. Quest519073 gap persists; owned sentinel/expiry variants remain CPU-qualified and monthly BEST_GUESS is not Retail calendar parity.
 
 ## 2026-10-19 — Trading Post reply-kind correlation implementation
 
