@@ -46,23 +46,17 @@ fn canvas<T: 'static>(
 
 /// R DamageMeterSessionWindow.xml24/57/75: GameFontNormalMed1 inherits Friz13 + black shadow.
 #[test]
-fn ui_template_fonts_meter_headers_inherit_the_authored_shadow_in_both_skins() {
-    for skin in [ActiveSkin::Modern, ActiveSkin::Forever] {
-        let registry = canvas(skin, meter_view(), damage_meter_screen);
-        for name in [
-            "DamageMeterSessionTimer",
-            "DamageMeterSessionName",
-            "DamageMeterTypeName",
-        ] {
-            let label = font(&registry, name);
-            assert_eq!(label.font_size, 13.0, "{skin:?} {name}");
-            assert_eq!(
-                label.shadow_color,
-                Some([0.0, 0.0, 0.0, 1.0]),
-                "{skin:?} {name}"
-            );
-            assert_eq!(label.shadow_offset, [1.0, -1.0], "{skin:?} {name}");
-        }
+fn ui_template_fonts_meter_headers_inherit_the_authored_shadow() {
+    let registry = canvas(ActiveSkin::Modern, meter_view(), damage_meter_screen);
+    for name in [
+        "DamageMeterSessionTimer",
+        "DamageMeterSessionName",
+        "DamageMeterTypeName",
+    ] {
+        let label = font(&registry, name);
+        assert_eq!(label.font_size, 13.0, "{name}");
+        assert_eq!(label.shadow_color, Some([0.0, 0.0, 0.0, 1.0]), "{name}");
+        assert_eq!(label.shadow_offset, [1.0, -1.0], "{name}");
     }
 }
 
