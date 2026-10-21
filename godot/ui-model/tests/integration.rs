@@ -58,7 +58,6 @@ mod guild_tabards;
 mod housing;
 mod housing_key_labels;
 mod housing_settings_fidelity;
-mod item_catalog_pending;
 mod item_confirmation_shadow;
 mod item_tooltip;
 mod launcher;
