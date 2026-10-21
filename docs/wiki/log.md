@@ -1,3 +1,7 @@
+## 2026-10-21 — PvP policy HUD
+
+[Retail proposal/timer wiring](systems/battle-pets.md#pvp-policy-completion--2026-10-21): source high-strata473×27 timer,337px fill, Pass anchors, local-only countdown, immediate Accept/Decline and hideOnEscape, fresh-queue dismissal reset and70448 caption. RED4→GREEN7/7, all tests enabled; no protocol change, native UDP5941 pending. Journal-card pad normalization unchanged.
+
 ## 2026-10-20 — Authored blend native proof
 
 [Mechanism and limits](systems/ui-system.md#authored-blend-metadata--step-1-integration): typed BLEND/ADD propagation replaces panel material corrections and name/FDID/atlas inference. Core4/model16/projection5/shared-row1/currency1 passed; strict supplied-panel native42/42 exit0 in both skins, all42 captures inspected. Metadata-only state absence is covered. Lead acceptance pending; no realm/UDP, retired-renderer or whole-engine parity claim.
