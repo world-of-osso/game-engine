@@ -9,7 +9,7 @@ use game_engine_ui_model::{
 };
 use godot::prelude::*;
 use shared::protocol::{
-    EncounterDisengageUnit, EncounterEnd, EncounterEngageUnit, EncounterStart,
+    ConversationUpdate, EncounterDisengageUnit, EncounterEnd, EncounterEngageUnit, EncounterStart,
     EncounterTimelineEvent,
 };
 
@@ -23,10 +23,12 @@ pub(crate) enum EncounterMessage {
     Engage(EncounterEngageUnit),
     Disengage(EncounterDisengageUnit),
     Timeline(EncounterTimelineEvent),
+    Conversation(ConversationUpdate),
 }
 
 pub(crate) fn is_encounter_message(message: &ProtocolMessage) -> bool {
-    message.is::<EncounterTimelineEvent>()
+    message.is::<ConversationUpdate>()
+        || message.is::<EncounterTimelineEvent>()
         || message.is::<EncounterStart>()
         || message.is::<EncounterEnd>()
         || message.is::<EncounterEngageUnit>()
@@ -34,6 +36,9 @@ pub(crate) fn is_encounter_message(message: &ProtocolMessage) -> bool {
 }
 
 pub(crate) fn decode_message(message: ProtocolMessage) -> Result<EncounterMessage, String> {
+    if message.is::<ConversationUpdate>() {
+        return decode(message).map(EncounterMessage::Conversation);
+    }
     if message.is::<EncounterTimelineEvent>() {
         return decode(message).map(EncounterMessage::Timeline);
     }
@@ -75,7 +80,7 @@ impl EncounterFrames {
             EncounterMessage::End(_) => self.clear(),
             EncounterMessage::Engage(unit) => self.engage(unit),
             EncounterMessage::Disengage(unit) => self.engaged.retain(|boss| boss.unit != unit.unit),
-            EncounterMessage::Timeline(_) => {}
+            EncounterMessage::Timeline(_) | EncounterMessage::Conversation(_) => {}
         }
     }
 
@@ -138,6 +143,12 @@ impl EncounterHud {
 
 impl GameClient {
     pub(crate) fn receive_encounter(&mut self, message: EncounterMessage) {
+        if let EncounterMessage::Conversation(update) = message {
+            if let Err(error) = self.receive_talking_head(update) {
+                godot_error!("ConversationUpdate: {error}");
+            }
+            return;
+        }
         match &message {
             EncounterMessage::Start(start) => {
                 godot_print!("ENCOUNTER_START {}", start.encounter_id);

@@ -2255,7 +2255,6 @@ fn follower_group_finder_default_bridge_receives_catalog_over_udp() {
 }
 
 #[test]
-#[ignore = "RED: ConversationUpdate is absent from the production EncounterChannel relay"]
 fn talking_head_wire_bridge_preserves_private_snapshot_and_clear_in_channel_order() {
     use shared::protocol::{ConversationUpdate, EncounterChannel, EncounterEnd, EncounterStart};
     let (mut server, address) = start_fixture_server();

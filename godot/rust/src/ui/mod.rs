@@ -1787,6 +1787,17 @@ impl RegistryUi {
         )
     }
 
+    pub(crate) fn show_talking_head(
+        &mut self,
+        state: game_engine_ui_model::talking_head::TalkingHeadState,
+    ) -> Result<(), String> {
+        self.show_viewport_screen(
+            state,
+            game_engine_ui_model::talking_head_component::talking_head_screen,
+            ScreenPostsetup::None,
+        )
+    }
+
     pub(crate) fn show_encounter_timeline(
         &mut self,
         state: game_engine_ui_model::encounter_timeline_component::EncounterTimelineScreen,
