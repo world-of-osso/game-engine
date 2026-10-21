@@ -112,8 +112,7 @@ pub(super) fn chrome(summary: bool, guild: bool) -> Element {
         "ACHIEVEMENT_TITLE"
     });
     out.extend(rsx! {fontstring {name:"AchievementFrameTitle",text:title,width:150.0,height:20.0,
-        left:334.0,top:-29.0,pos_type:"absolute",font:ui_toolkit::widgets::font_string::GameFont::FrizQuadrata,
-        font_size:10.0,font_color:GOLD,justify_h:"CENTER",shadow_color:"0,0,0,1",shadow_offset:"1,-1",
+        left:334.0,top:-29.0,pos_type:"absolute",font_object:"GameFontNormalSmall",justify_h:"CENTER",
     }});
     let close = named_atlas_texture(
         "AchievementFrameCloseArt".into(),

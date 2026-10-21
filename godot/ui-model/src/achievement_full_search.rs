@@ -132,8 +132,7 @@ fn text(
 ) -> Element {
     let (left, top, width, height) = rect;
     rsx! {fontstring {name:{DynName(name)},text:value,left,top,width,height,pos_type:"absolute",
-        font:GameFont::FrizQuadrata,font_size:size,font_color:color,justify_h:justify,justify_v:"MIDDLE",
-        shadow_color:"0,0,0,1",shadow_offset:"1,-1",
+        font_object:"GameFontNormal",font_size:size,font_color:color,justify_h:justify,justify_v:"MIDDLE",
     }}
 }
 
