@@ -26,7 +26,7 @@ Consume the private source conversation payload and render the authored70448 Ret
 
 - `godot/ui-model/tests/talking_head.rs`: actual source payload/elapsed expiry/private-owner refusal and dismissal.
 - `godot/network/src/wire_tests.rs`: real UDP/Host ordered source snapshot and clear.
-- Native both-skin fixtures pending.
+- `godot/tests/talking_head.gd`, `godot/rust/src/talking_head_fixture.rs`: native source-payload projection, authored model host and unscaled1920 PNGs; actual model/camera paint is an explicit prerequisite, not waived by chrome rendering.
 
 ## Known gaps (current cycle)
 

@@ -119,6 +119,8 @@ mod spells;
 mod startup;
 mod swim;
 mod talking_head;
+#[cfg(debug_assertions)]
+mod talking_head_fixture;
 mod targeting;
 mod terrain;
 mod tooltip_sources;
