@@ -1,6 +1,6 @@
 ## 2026-10-21 — Named font inheritance implementation
 
-[Shared font objects](systems/ui-system.md#named-font-inheritance--step-3): source chains resolve before local overrides; audited helpers delete inherited-style copies. PlayerSpells preserves unshadowed book versus shadowed tabs/talent roots; TabSystem widths use shared metrics. Missing family/shadow, wrong added shadow and glyph-count REDs reproduced; model3/core1 GREEN. Strict38-case native proof and lead gate pending; autoscale excluded.
+[Shared font objects](systems/ui-system.md#named-font-inheritance--step-3): source chains resolve before local overrides; audited helpers delete inherited-style copies. PlayerSpells preserves unshadowed book versus shadowed tabs/talent roots; TabSystem widths use shared metrics. Missing family/shadow, wrong added shadow and glyph-count REDs reproduced; model3/core1 GREEN. Strict native38/38 passed both skins with38 original1920×1080 PNGs and0 Godot errors; final scoped checks and lead gate pending. Autoscale excluded.
 
 ## 2026-10-21 — Authored button regions implementation
 

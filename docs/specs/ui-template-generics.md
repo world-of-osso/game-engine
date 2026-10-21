@@ -38,13 +38,14 @@ Port recurring behavior once from the Retail R cache, then migrate every audited
 
 ## Tests asserting this spec
 
+- Step3 core inheritance/rebuild/local-override controls4 and source-root1, model font/text-width controls3, and raster metric controls7 passed. `godot/tests/ui_template_fonts_matrix.gd` strict38/38 covers19 supplied scopes in both skins, all38 originals1920×1080,0 Godot errors. PNGs: `/syncthing/AgentShared/2026-10-21/ui-template-generics/step3-4d54697d4/`. Native checks preserve unshadowed book/tooltip, Meter13px/shadow, GroupLoot12px/shadow and map outline4. Final scoped checks and lead acceptance remain pending; not whole-client Retail pixel parity.
 - Toolkit `core/src/attrs_layout_tests.rs` — source-identical normal/additive regions and unsupported-mode rejection.
 - Step2 toolkit attrs21/projection30 passed, including independent crop/tint/alpha/Checked state and source changes. Whole ui-model integration1170 passed with0 failures (7 existing ignored) before native capture; scoped cargo check and format checks passed. `godot/tests/ui_template_regions_matrix.gd` strict16/16 covers8 supplied production states in both skins at1920×1080. All16 original PNGs inspected; PNGs: `/syncthing/AgentShared/2026-10-21/ui-template-generics/step2-1d857264b/`. Perks Normal-hover versus Pushed is strictly distinguished by base rect[0,0,48,48] versus[1,1,48,48]; the shared ADD highlight remains alpha0.6 at[0,0,48,48]. Native texture-identity comparison is not claimed.
 - Engine model/projection `ui_template_blend` controls and `godot/tests/ui_template_blend_matrix.gd` cover authored panel data and its native projection. The matrix visits 21 panel/control groups in both skins; masked casting FX require raster inspection alongside model/projection mode controls. Unexecuted fixtures are not acceptance.
 
 ## Known gaps (current cycle)
 
-- Steps3–6 remain unimplemented. Shared-red/UIPanel geometry routing is intentionally retained until Step4; Step2 does not claim named-art migration or realm/UDP parity.
+- Step3 implementation/native capture is complete; final scoped proof and lead gate remain pending. Steps4–6 remain unimplemented. Shared-red/UIPanel geometry routing is intentionally retained until Step4; Step2 does not claim named-art migration or realm/UDP parity.
 - Step1 is landed at engine a982e08c7+ and toolkit e8c9f6f. Step2 lead integration gate follows its submitted E/T tips.
 
 ## Out of scope
