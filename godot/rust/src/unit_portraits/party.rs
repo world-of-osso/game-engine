@@ -286,7 +286,6 @@ mod tests {
     }
 
     #[test]
-    #[ignore = "party follower portrait RED; enable after native/headless GREEN"]
     fn party_follower_roster_uses_real_creature_head_without_replication() {
         let mut group = roster(&["Captain Garrick"]);
         let mut received = serde_json::to_value(&group.members[0].portrait).unwrap();
