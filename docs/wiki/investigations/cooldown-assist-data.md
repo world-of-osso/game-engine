@@ -1,5 +1,15 @@
 # Cooldown Viewer and Assisted Combat authored data
-verified: 2026-10-17
+verified: 2026-10-20
+
+## Generic type3 distance policy — 2026-10-20
+
+Azure follower205's actual in-combat decision stopped on rule1252/type3, values[12,0,0], native step328/Odyn's Fury385059. Distance2.359868049621582yd and ordinary learned/ready/affordable/in-range readings already existed. Root cause: core `evaluate_rule` recognized type3 only for one rule1261/Whirlwind190411. Server publishes costs; it does not own this predicate pipeline.
+
+Lead-authorized extension of [SimC-mirror policy](../../specs/cooldown-assist.md#user-approved-spatial-policy) removes the rule/spell allowlist for type3 only. SimC76f8118 `data_enums.hh:2058` names type3 `AC_TARGET_DISTANCE_LESS`; `player.cpp:3839–3841` emits `target.distance<=v1`. Current target centre3D distance, inclusive comparator and absent-target=false are project policy, **not verified Retail geometry**. Retail `AssistedCombatDocumentation.lua` exposes `GetNextCastSpell` but no predicate semantics. No other condition semantics, usability, ordered unknown refusal, type12 scope or server/protocol changes.
+
+Complete byte-identical70448 three-table fixtures (40 rotations/693 steps/3116 rules) and unchanged final Azure facts live in `godot/core/tests/fixtures/assisted_70448/`; `provenance.json` records hashes and capture projection. `assisted_70448` tests cover the exact native decision, every92 type3 boundary/invalid reading, and a per-type sweep with row IDs and explicit error gaps. Sweep readings are synthetic supplied facts; evaluated predicates do not certify all-spec or live rotation correctness. Historical capture/error remains unchanged. Headless RED at4f84212ff reproduces exact1252 refusal and a second native885 refusal (0PASS/2FAIL). At6d1a2e21f, unchanged RED bodies plus sweep and retained spatial controls give7GREEN: actual Azure facts select385059, all92 type3 rows pass, prior type12 scope is unchanged. Tests enabled after GREEN; no live/UDP run.
+
+Pinned source/hash receipts and proof logs: `data/diagnostics/assist-rule-1252-2026-10-20/`. `condition-sweep.md` summarizes each observed condition type; `condition-sweep.json` names every row/outcome. Fixed supplied readings evaluate2903/3116 predicates. Remaining213 rows include46 automation-only70 catalog exclusions,42 type12 rules outside approved1268 policy, and125 rows with unverified types4/11/13/17/18/20/49/50/51/52/53/54/55 (including two unidentified-field1 rows). Unsupported types/encodings and unidentified fields stay named errors; these are existing gaps, not new semantics. Numeric equality and unavailable-input refusals are not certified away by the fixed-state sweep.
 
 ## Fury distance/nearby-count source boundary — 2026-10-17
 

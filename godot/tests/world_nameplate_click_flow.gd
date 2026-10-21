@@ -114,12 +114,31 @@ func verify_controls(client: Node, camera: Camera3D, id: int, self_id: int, plat
 	print("FIXTURE NAMEPLATE_CLICK_NOT_SELECTABLE")
 	if not await wait_plate_visibility(client, id, false, true):
 		return false
-	print("FIXTURE NAMEPLATE_EXISTING_MESH_SELECTABILITY raw_pick=", UnitPicker.pick(camera, mesh_point.point), " flags_selectable=", client.nameplate_rules(id).selectable)
+	var flagged_model := client.get_node("WorldUnits/" + NPC + "/NpcVisualRoot/NpcModel") as Node3D
+	if not flagged_model.is_visible_in_tree():
+		fail("NOT_SELECTABLE must block picking without hiding the NPC model")
+		return false
+	var flagged_mesh = UnitPicker.pick(camera, mesh_point.point)
+	print("FIXTURE MESH_NOT_SELECTABLE_QUALIFIED owner=", id, " raw_pick=", flagged_mesh, " flags_selectable=", client.nameplate_rules(id).selectable, " point=", mesh_point.point)
 	await click_point(plate_point)
 	if not await selection(client, self_id, PLAYER, "not-selectable plate cannot target"):
 		return false
+	await click_point(mesh_point.point)
+	if not await selection(client, self_id, PLAYER, "NOT_SELECTABLE mesh retains different self target"):
+		return false
+	if flagged_mesh == id:
+		fail("Raw mesh picker returned NOT_SELECTABLE owner despite retaining target")
+		return false
 	print("FIXTURE NAMEPLATE_CLICK_SHOW")
 	if not await wait_plate_visibility(client, id, true):
+		return false
+	# Camera/model geometry can move while the replicated flag changes.
+	mesh_point = pick_mesh_point(client, camera, id)
+	if mesh_point.is_empty():
+		fail("Clearing NOT_SELECTABLE did not restore a qualified raw mesh hit")
+		return false
+	await click_point(mesh_point.point)
+	if not await selection(client, id, NPC, "flag clear restores physical mesh selection"):
 		return false
 	if not await verify_modal_guard(client, plate_point):
 		return false

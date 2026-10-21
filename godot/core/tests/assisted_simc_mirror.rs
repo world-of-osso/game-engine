@@ -54,16 +54,15 @@ fn policy_nearby_count_requires_more_than_three_and_received_count() {
 }
 
 #[test]
-fn policy_does_not_enable_other_rule_ids_or_nonzero_unused_operands() {
+fn policy_refuses_nonzero_unused_operands_and_unqualified_nearby_counts() {
     let facts = facts(Some(1.0), Some(9));
     for (id, kind) in [(1261, 3), (1268, 12)] {
         for values in [[3, 1, 0], [3, 0, 1]] {
             assert!(evaluate_rule(&rule(id, kind, values), &facts).is_err());
         }
-        assert!(evaluate_rule(&rule(id + 100000, kind, [3, 0, 0]), &facts).is_err());
     }
     assert!(evaluate_rule(&rule(1261, 12, [3, 0, 0]), &facts).is_err());
-    assert!(evaluate_rule(&rule(1268, 3, [3, 0, 0]), &facts).is_err());
+    assert_eq!(evaluate_rule(&rule(1268, 3, [3, 0, 0]), &facts), Ok(true));
 }
 
 #[test]
