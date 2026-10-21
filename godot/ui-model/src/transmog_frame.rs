@@ -85,7 +85,6 @@ fn button_skin_attrs(skin: &Skin) -> Vec<ui_toolkit::widget_def::Attr> {
             ("button_atlas_pressed", *pressed),
             ("button_atlas_disabled", *disabled),
             ("button_atlas_highlight", *highlight),
-            ("button_highlight_blend_mode", "ADD"),
         ]
         .into_iter()
         .map(|(name, value)| Attr::new_dynamic(name, value.into()))
@@ -465,7 +464,7 @@ fn clear_all_pending(book: &TransmogBook) -> Element {
             36.0,
             36.0,
         ),
-        &Skin {
+        &Skin::States {
             up: "common-button-tertiary-square-normal",
             pressed: "common-button-tertiary-square-pressed",
             disabled: "common-button-tertiary-square-normal",
@@ -559,7 +558,7 @@ fn model_controls() -> Element {
             action,
             enabled,
             (left + index as f32 * 26.0, REGION_TOP + 18.0, 32.0, 32.0),
-            &Skin {
+            &Skin::States {
                 up: "common-button-square-gray-up",
                 pressed: "common-button-square-gray-down",
                 disabled: "common-button-square-gray-up",
