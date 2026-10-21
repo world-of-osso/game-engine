@@ -16,6 +16,8 @@ Spellbook seeds include auto-learned class/default-skill spells and future Warri
 
 `table_paths` explicitly names four top-level legacy CSV inputs absent from the pinned directory; each remains a reported unverified metadata build. This is source configuration, not an alternate-path fallback. Unknown/default-locked customization requirements are not selectable; NPC-only options are excluded from the bounded player.
 
+`customization_cache` in the seed config explicitly selects the SQLite source for both player and NPC customization joins. The maintained configs use `cache/customization-v5.sqlite`, matching native `customization_query_data::customization_cache_file`; the obsolete unversioned cache is not an alternate source. Imported cache contents still require separate provenance authentication.
+
 `--config scripts/closure-full-catalog.json` changes roots to all Map directories/tiles, modeled race/sex pairs/all customization choices, all world.db template displays, all content_item rows and all spell_name rows. This is a conservative catalog superset. Nonplayable placeholders, unsupported source products, customization requirements and pruned server spell reachability are unresolved policies, not silently inferred support.
 
 ## Manifest and boundaries

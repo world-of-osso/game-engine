@@ -1,4 +1,5 @@
 """Concrete offline closure fixtures; no install, extractor, or network required."""
+
 import hashlib
 import importlib.util
 import json
@@ -15,7 +16,11 @@ SPEC = importlib.util.spec_from_file_location(
 
 
 def chunk(tag, payload, reverse=False):
-    return (tag[::-1] if reverse else tag).encode() + struct.pack("<I", len(payload)) + payload
+    return (
+        (tag[::-1] if reverse else tag).encode()
+        + struct.pack("<I", len(payload))
+        + payload
+    )
 
 
 def ints(*values):
@@ -36,10 +41,17 @@ class ClosureTests(unittest.TestCase):
         self.tmp = tempfile.TemporaryDirectory()
         self.addCleanup(self.tmp.cleanup)
         self.data = Path(self.tmp.name)
-        self.paths = {1: "world/maps/azeroth/azeroth_32_48_obj0.adt",
-                      2: "world/a.m2", 3: "world/abbey.wmo", 4: "world/abbey_000.wmo",
-                      5: "world/a00.skin", 6: "world/a.skel", 7: "world/a.anim",
-                      8: "textures/a.blp", 9: "world/b.m2"}
+        self.paths = {
+            1: "world/maps/azeroth/azeroth_32_48_obj0.adt",
+            2: "world/a.m2",
+            3: "world/abbey.wmo",
+            4: "world/abbey_000.wmo",
+            5: "world/a00.skin",
+            6: "world/a.skel",
+            7: "world/a.anim",
+            8: "textures/a.blp",
+            9: "world/b.m2",
+        }
 
     def put(self, path, data):
         dest = self.data / path
@@ -47,7 +59,9 @@ class ClosureTests(unittest.TestCase):
         dest.write_bytes(data)
 
     def closure(self, fdid=1, kind="adt"):
-        tool = self.tool.Closure(self.data, self.paths, product="wow", metadata_build="fixture")
+        tool = self.tool.Closure(
+            self.data, self.paths, product="wow", metadata_build="fixture"
+        )
         tool.add(fdid, kind, "fixture seed")
         return tool.run()
 
@@ -59,13 +73,23 @@ class ClosureTests(unittest.TestCase):
         struct.pack_into("<I", modf, 0, 3)
         struct.pack_into("<H", modf, 56, 0x8)
         self.put("terrain/1.adt", chunk("MDDF", mddf, True) + chunk("MODF", modf, True))
-        self.put("models/2.m2", model(chunk("SFID", ints(5)), chunk("SKID", ints(6)), chunk("TXID", ints(8))))
+        self.put(
+            "models/2.m2",
+            model(
+                chunk("SFID", ints(5)), chunk("SKID", ints(6)), chunk("TXID", ints(8))
+            ),
+        )
         self.put("models/200.skin", b"SKINfixture")
         self.put("models/2.skel", chunk("AFID", struct.pack("<HHI", 1, 0, 7)))
         self.put("models/7.anim", b"AFSBfixture")
         mat = bytearray(64)
         struct.pack_into("<I", mat, 12, 8)
-        self.put("models/3.wmo", chunk("GFID", ints(4), True) + chunk("MOMT", mat, True) + chunk("MODI", ints(9), True))
+        self.put(
+            "models/3.wmo",
+            chunk("GFID", ints(4), True)
+            + chunk("MOMT", mat, True)
+            + chunk("MODI", ints(9), True),
+        )
         self.put("models/4.wmo", chunk("MVER", ints(17), True))
         self.put("models/9.m2", model(chunk("TXID", ints(8))))
         self.put("textures/8.blp", b"BLP2fixture")
@@ -83,11 +107,21 @@ class ClosureTests(unittest.TestCase):
         self.put("models/2.m2", model(chunk("SKID", ints(6))))
         result = self.closure(2, "m2")
         self.assertEqual(result["summary"]["missing"], 1)
-        self.assertTrue(any(u["code"] == "missing_dependency_bytes" and u["fdid"] == 6 for u in result["unresolved"]))
+        self.assertTrue(
+            any(
+                u["code"] == "missing_dependency_bytes" and u["fdid"] == 6
+                for u in result["unresolved"]
+            )
+        )
 
     def test_named_adt_and_wmo_dependencies(self):
         mddf = bytearray(36)
-        self.put("terrain/1.adt", chunk("MMDX", b"world/a.m2\0", True) + chunk("MMID", ints(0), True) + chunk("MDDF", mddf, True))
+        self.put(
+            "terrain/1.adt",
+            chunk("MMDX", b"world/a.m2\0", True)
+            + chunk("MMID", ints(0), True)
+            + chunk("MDDF", mddf, True),
+        )
         self.put("models/2.m2", model())
         result = self.closure()
         self.assertEqual([a["fdid"] for a in result["assets"]], [1, 2])
@@ -110,6 +144,7 @@ class ClosureTests(unittest.TestCase):
         sys.path.insert(0, str(Path(__file__).parents[1]))
         self.addCleanup(sys.path.pop, 0)
         import closure_seeds
+
         for name, text in {
             "CreatureDisplayInfo": "ID,ModelID,TextureVariationFileDataID_0\n10,20,8\n",
             "CreatureModelData": "ID,FileDataID\n20,2\n",
@@ -131,8 +166,12 @@ class ClosureTests(unittest.TestCase):
         closure_seeds.seed_icons(graph, catalogs, [100])
         result = graph.run()
         self.assertEqual([a["fdid"] for a in result["assets"]], [2, 8, 9])
-        self.assertEqual(len(next(a for a in result["assets"] if a["fdid"] == 8)["edges"]), 3)
-        self.assertFalse(any(u["code"] == "missing_metadata_row" for u in result["unresolved"]))
+        self.assertEqual(
+            len(next(a for a in result["assets"] if a["fdid"] == 8)["edges"]), 3
+        )
+        self.assertFalse(
+            any(u["code"] == "missing_metadata_row" for u in result["unresolved"])
+        )
 
     def test_late_owner_alias_expands_a_previously_missing_skeleton(self):
         self.put("models/2.m2", model(chunk("SKID", ints(6))))
@@ -143,25 +182,34 @@ class ClosureTests(unittest.TestCase):
         graph.add(2, "m2", "body seed")
         result = graph.run()
         self.assertEqual([a["fdid"] for a in result["assets"]], [2, 6, 7])
-        self.assertFalse(any(u["code"] == "missing_dependency_bytes" for u in result["unresolved"]))
+        self.assertFalse(
+            any(u["code"] == "missing_dependency_bytes" for u in result["unresolved"])
+        )
 
     def test_explicit_metadata_sources_do_not_require_a_pinned_copy(self):
         sys.path.insert(0, str(Path(__file__).parents[1]))
         self.addCleanup(sys.path.pop, 0)
         import closure_seeds
+
         self.put("ModelFileData.csv", b"FileDataID,ModelResourcesID\n9,40\n")
         graph = self.tool.Closure(self.data, self.paths, "wow", "fixture")
         graph.seeds = {"table_paths": {"ModelFileData": "ModelFileData.csv"}}
         rows = closure_seeds.Catalogs(graph).rows("ModelFileData")
         self.assertEqual(rows, [{"FileDataID": "9", "ModelResourcesID": "40"}])
-        self.assertTrue(any(code == "unverified_metadata_build" for code, _, _ in graph.unresolved))
+        self.assertTrue(
+            any(code == "unverified_metadata_build" for code, _, _ in graph.unresolved)
+        )
 
     def test_player_requirement_gates_select_a_real_human_choice(self):
         sys.path.insert(0, str(Path(__file__).parents[1]))
         self.addCleanup(sys.path.pop, 0)
         import closure_seeds
-        self.put("db2/fixture/ChrCustomizationReq.csv", b"ID,ReqType,ClassMask,RaceMasks_0,RaceMasks_1\n141,3,-1,-1,-1\n12,2,0,-1,-1\n")
-        dbpath = self.data / "cache/customization.sqlite"
+
+        self.put(
+            "db2/fixture/ChrCustomizationReq.csv",
+            b"ID,ReqType,ClassMask,RaceMasks_0,RaceMasks_1\n141,3,-1,-1,-1\n12,2,0,-1,-1\n",
+        )
+        dbpath = self.data / "cache/customization-v5.sqlite"
         dbpath.parent.mkdir()
         db = sqlite3.connect(dbpath)
         db.executescript("""
@@ -179,9 +227,26 @@ class ClosureTests(unittest.TestCase):
         """)
         db.close()
         graph = self.tool.Closure(self.data, self.paths, "wow", "fixture")
+        # Production keeps an older cache alongside the versioned native cache.
+        legacy = dbpath.with_name("customization.sqlite")
+        legacy.write_bytes(dbpath.read_bytes())
+        with sqlite3.connect(legacy) as stale:
+            stale.execute("UPDATE texture_fdids SET file_data_id=99")
+        graph.seeds = {"customization_cache": "cache/customization-v5.sqlite"}
         choices = closure_seeds.seed_customizations(graph, 1, "default")
         self.assertEqual(choices, [20])
         self.assertEqual([a["fdid"] for a in graph.run()["assets"]], [8])
+        with sqlite3.connect(self.data / "cache/npc_appearance.sqlite") as npc:
+            npc.executescript("""
+                CREATE TABLE appearances (display_id, baked_texture_fdid);
+                CREATE TABLE choices (display_id, choice_id);
+                INSERT INTO appearances VALUES (123, 0);
+                INSERT INTO choices VALUES (123, 20);
+            """)
+        npc_graph = self.tool.Closure(self.data, self.paths, "wow", "fixture")
+        npc_graph.seeds = dict(graph.seeds)
+        closure_seeds.seed_npc_appearance(npc_graph, [123])
+        self.assertEqual([a["fdid"] for a in npc_graph.run()["assets"]], [8])
 
     def test_catalog_size_census_labels_missing_bytes_as_estimates(self):
         self.put("textures/8.blp", b"BLP2fixture")
@@ -228,7 +293,9 @@ class ClosureTests(unittest.TestCase):
         self.put("models/200.skin", b"SKINone")
         self.put("models/5.skin", b"SKINtwo")
         result = self.closure(2, "m2")
-        self.assertTrue(any(u["code"] == "conflicting_local_bytes" for u in result["unresolved"]))
+        self.assertTrue(
+            any(u["code"] == "conflicting_local_bytes" for u in result["unresolved"])
+        )
 
 
 if __name__ == "__main__":
