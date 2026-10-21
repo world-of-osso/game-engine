@@ -145,6 +145,26 @@ fn ui_template_art_named_shared_red_crops_caps_when_the_button_is_narrow() {
 }
 
 #[test]
+fn ui_template_art_explicit_default_skin_policy_does_not_depend_on_artwork_names() {
+    for source in [
+        TextureSource::FileDataId(130869),
+        TextureSource::Atlas("RedButton-Exit".into()),
+        TextureSource::Atlas("128-redbutton-cart-add".into()),
+    ] {
+        let frame = button(ButtonData {
+            normal_texture: Some(ButtonTexture::new(source.clone())),
+            highlight_texture: Some(ButtonTexture::new(TextureSource::FileDataId(999))),
+            use_default_skin: true,
+            hovered: true,
+            ..Default::default()
+        });
+        let parts = project_images(&frame, 24.0, 24.0);
+        assert_eq!(parts.len(), 1, "explicit skin policy {source:?}");
+        assert_eq!(parts[0].source, Some(TextureSource::FileDataId(999)));
+    }
+}
+
+#[test]
 fn ui_template_art_source_identity_does_not_choose_button_geometry() {
     for source in [
         TextureSource::Atlas("128-redbutton-left".into()),
