@@ -1,3 +1,7 @@
+## 2026-10-21 — Authored button regions implementation
+
+[Shared regions](systems/ui-system.md#authored-button-regions--step-2-acceptance-pending): extended the existing ButtonTexture record, moved checked/base/highlight selection into core and region metadata into native projection. Deleted Perks/Minimap state projectors, Housing offset guess and Transmog size-repair loop. Toolkit RED3→GREEN21/21; full model/projection/native gates pending. No Step2 acceptance claim.
+
 ## 2026-10-20 — Authored blend native proof
 
 [Mechanism and limits](systems/ui-system.md#authored-blend-metadata--step-1-integration): typed BLEND/ADD propagation replaces panel material corrections and name/FDID/atlas inference. Core4/model16/projection5/shared-row1/currency1 passed; strict supplied-panel native42/42 exit0 in both skins, all42 captures inspected. Metadata-only state absence is covered. Lead acceptance pending; no realm/UDP, retired-renderer or whole-engine parity claim.
