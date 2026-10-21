@@ -104,11 +104,11 @@ pub fn dialog_border(prefix: &str, width: f32, height: f32) -> Element {
 }
 
 fn menu_button(name: &str, text: &str, action: &str) -> Element {
-    // Native SharedButton projection scales the authored128-RedButton three slices.
+    // Core SharedButton preset scales the authored128-RedButton three slices.
     rsx! { button {
         name: DynName(name.into()), width: BUTTON_W, height: BUTTON_H, text, font_size: 16.0,
         strata: FrameStrata::Fullscreen, frame_level: 20.0, onclick: action,
-        button_default_skin: false, button_atlas_up: "128-redbutton-left",
+        button_template: "SharedButtonTemplate",
     } }
 }
 

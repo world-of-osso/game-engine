@@ -368,6 +368,7 @@ fn retail_panel_button_preserves_12px_caps_and_crops_unused_sheet_area() {
         (ButtonState::Disabled, 130824),
     ] {
         let frame = button(ButtonData {
+            template: Some(ui_toolkit::button_art::ButtonTemplate::Panel),
             state,
             normal_texture: Some(ButtonTexture::new(TextureSource::FileDataId(130828))),
             pushed_texture: Some(ButtonTexture::new(TextureSource::FileDataId(130825))),
@@ -396,6 +397,7 @@ fn retail_panel_button_preserves_12px_caps_and_crops_unused_sheet_area() {
 fn shared_panel_art_keeps_xml_12px_caps_when_callers_change_height() {
     for height in [21.0, 24.0, 30.0] {
         let frame = button(ButtonData {
+            template: Some(ui_toolkit::button_art::ButtonTemplate::Panel),
             normal_texture: Some(ButtonTexture::new(TextureSource::FileDataId(130828))),
             ..Default::default()
         });
@@ -488,6 +490,7 @@ fn retail_shared_red_button_preserves_authored_caps_in_each_state() {
         (ButtonState::Disabled, "-disabled"),
     ] {
         let frame = button(ButtonData {
+            template: Some(ui_toolkit::button_art::ButtonTemplate::SharedRed),
             normal_texture: button_atlas("128-redbutton-left"),
             state,
             use_default_skin: false,
