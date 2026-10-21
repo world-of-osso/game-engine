@@ -10,6 +10,7 @@
   "maps": "all",
   "characters": "all",
   "npc_displays": "all",
+  "game_objects": "all",
   "items": "all",
   "spells": "all"
 }
