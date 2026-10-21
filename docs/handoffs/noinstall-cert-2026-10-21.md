@@ -100,6 +100,12 @@ Invalid attempts remain explicit: early Stormwind used incorrect teleport axes; 
 
 `proof-ledger.json` retains historical development-test scope/log hashes rather than claiming current-HEAD broad verification. Current bounded visits expose no further missing-file request; pristine manifest-only bundle, all-catalog fixed point and comprehensive classes/customizations/items remain unproven.
 
+## Priority follower-party closure
+
+The owned world snapshot maps Shuja209053/Garrick209057/Meredy209059/Crenna209072 to displays113752/113753/113755/113757. Full source-qualified display, baked/raw customization and observed world-attachment roots reach1,031 identities:151M2,412SKIN,223ANIM,76BONE,4SKEL,165BLP. Two local extraction frontiers recover32 then11 files; final graph has1,031 present/zero missing/zero structural unresolved, retaining three cache/metadata provenance labels. This is a bounded four-profile asset closure, not complete native rendering or all-follower acceptance.
+
+`staged-party-followers/cache/model-asset-index-party-followers.json` contains43 newly authenticated Retail70448 assets (4M2,10SKIN,29BLP;2,402,538bytes), zero source gaps/dedupe conflicts; receipt SHA256`bfe09a8f571fbc64905074ea2830d0f467f464fcc48b8baddada96dc7147aefa`. Includes observed4891419BLP,2025666M2,1696769M2 and their newly exposed skins/textures. `party-followers-authentication/summary.json`, `party-followers-graph4.json` and extraction2/3 retain proof. Lead owns canonical publication and native party recapture. Earlier three follower-head texture receipts are separate in `staged-party-frames/cache/model-asset-index-party-frames-textures.json` (527,860bytes); lead confirmed publication.
+
 ## Remaining acceptance
 
 Owned protocol-matched authenticated server/client runs, receipt/skin publication rechecks, all-class/item/spell descendants, full-catalog closure/provenance reconciliation and pristine player-bundle/download acceptance remain unqualified. Historical graph counts and metadata-only `36 profiles / 0 certified` evidence are documented in [offline asset closure](../wiki/systems/offline-asset-closure.md); they are not replaced by this bounded sweep.
