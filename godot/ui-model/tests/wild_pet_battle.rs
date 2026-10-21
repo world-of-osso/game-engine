@@ -67,6 +67,54 @@ fn snapshot() -> WildPetBattleSnapshot {
     }
 }
 #[test]
+fn petbattle_pvp_terminal_loss_hides_faint_picker_but_keeps_result_and_continue() {
+    game_engine_ui_model::paths::set_data_root(
+        std::path::PathBuf::from(env!("CARGO_MANIFEST_DIR")).join("../../data"),
+    )
+    .unwrap();
+    for skin in [ActiveSkin::Modern, ActiveSkin::Forever] {
+        set_thread_skin(skin);
+        let render = |view: &WildBattleView| {
+            let mut context = SharedContext::new();
+            context.insert(skin);
+            context.insert(view.clone());
+            let mut registry = FrameRegistry::new(1920.0, 1080.0);
+            Screen::new(wild_battle_screen).sync(&context, &mut registry);
+            registry
+        };
+        let mut state = snapshot();
+        state.wild_creature = 0;
+        state.can_trap = false;
+        state.replacement_required = true;
+        for pet in &mut state.teams[0] {
+            pet.health = 0;
+        }
+        let mut view = WildBattleView::default();
+        view.receive(WildPetBattleUpdate::State(state));
+        assert!(
+            render(&view).get_by_name("PetBattleSwapPet1").is_some(),
+            "active faint selection remains available"
+        );
+        view.receive(WildPetBattleUpdate::End {
+            battle_id: 100,
+            outcome: WildPetBattleOutcome::Lost,
+            rewards: vec![],
+            captured_pet_id: None,
+            combat_text: vec![],
+        });
+        let registry = render(&view);
+        assert!(registry.get_by_name("PetBattleOutcome").is_some());
+        assert!(registry.get_by_name("PetBattleClose").is_some());
+        assert!(
+            registry.get_by_name("PetBattleSwapPet1").is_none(),
+            "finished battle cannot require another front pet"
+        );
+        assert!(registry.get_by_name("PetBattleSwapPet2").is_none());
+        assert!(registry.get_by_name("PetBattleSwapPet3").is_none());
+    }
+}
+
+#[test]
 fn retail_pet_selection_buttons_keep_initial_and_dead_swap_rules_and_source_geometry() {
     use ui_toolkit::{frame::WidgetData, layout_values::Val};
     game_engine_ui_model::paths::set_data_root(
