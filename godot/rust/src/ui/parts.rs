@@ -124,14 +124,16 @@ fn project_shared_red_button(
         (left, width - left - right, "_128-redbutton-center"),
         (width - right, right, "128-redbutton-right"),
     ] {
-        let mut part = textured(
+        let member = ButtonTexture {
+            source: TextureSource::Atlas(format!("{member}{suffix}")),
+            ..texture.clone()
+        };
+        parts.push(button_image(
             [x, 0.0, w, height],
-            TextureSource::Atlas(format!("{member}{suffix}")),
+            &member,
             Crop::Full,
             WHITE,
-        );
-        part.additive = texture.blend_mode == BlendMode::Additive;
-        parts.push(part);
+        ));
     }
     if button.hovered && button.state != ButtonState::Disabled {
         let texture = button
@@ -515,17 +517,29 @@ fn button_image(rect: [f32; 4], texture: &ButtonTexture, crop: Crop, color: [f32
         h,
     ];
     let color = std::array::from_fn(|i| color[i] * texture.vertex_color[i]);
-    let crop = match crop {
-        Crop::Full if texture.tex_coords != [0.0, 1.0, 0.0, 1.0] => {
-            Crop::Normalized(texture.tex_coords)
-        }
-        crop => crop,
-    };
+    let crop = button_region_crop(crop, texture.tex_coords);
     let mut part = textured(rect, texture.source.clone(), crop, color);
     part.color[3] *= texture.alpha;
     part.additive = texture.blend_mode == BlendMode::Additive;
     part.desaturated = texture.desaturated;
     part
+}
+
+fn button_region_crop(crop: Crop, [left, right, top, bottom]: [f32; 4]) -> Crop {
+    if [left, right, top, bottom] == [0.0, 1.0, 0.0, 1.0] {
+        return crop;
+    }
+    let [l, r, t, b] = match crop {
+        Crop::Normalized(coords) => coords,
+        Crop::Full => [0.0, 1.0, 0.0, 1.0],
+        other => return other,
+    };
+    Crop::Normalized([
+        left + l * (right - left),
+        left + r * (right - left),
+        top + t * (bottom - top),
+        top + b * (bottom - top),
+    ])
 }
 
 fn layout_edges(slice: &NineSlice) -> [f32; 4] {
