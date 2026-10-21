@@ -68,7 +68,10 @@ pub fn evaluate_rule(rule: &AssistedRule, facts: &AssistedFacts) -> Result<bool,
         0 => Ok(facts.known.contains(&spell)),
         1 => read_boolean(&facts.ready, spell, "cooldown readiness").map(|ready| !ready),
         2 => read_boolean(&facts.ready, spell, "cooldown readiness"),
-        3 if rule.id == 1261 && rule.step_spell == 190411 => {
+        // SimC76f8118 player.cpp3839–3841: target.distance<=v1.
+        // Project SimC-mirror policy uses current target centre distance for all
+        // authored type3 rows; this is not verified Retail comparator geometry.
+        3 => {
             require_zero_tail(rule)?;
             match facts.target_distance_yd {
                 None => Ok(false),

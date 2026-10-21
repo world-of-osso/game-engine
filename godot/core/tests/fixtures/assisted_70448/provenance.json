@@ -1,0 +1,38 @@
+{
+  "build": "12.1.5.70448",
+  "tables": {
+    "AssistedCombat": {
+      "sha256": "0a98f8b95939649a0cf40aea99975060378d3794205f4bfdf2778ed9d789b5cd",
+      "rows": 40
+    },
+    "AssistedCombatStep": {
+      "sha256": "0ec2f45a7f5d544a5b46aee7e19de949e3fa51446579bf0e82371770a3a1c9ab",
+      "rows": 693
+    },
+    "AssistedCombatRule": {
+      "sha256": "d5e2d9a6fd368ca74669d3bea0041731777e1d596308c99bc90b07cb25874a46",
+      "rows": 3116
+    }
+  },
+  "excluded": "Unrelated cooldown/category tables retain native headers only; all three AssistedCombat tables are complete byte-identical native70448 exports.",
+  "capture": {
+    "path": "/home/osso/Projects/world-of-osso/game-engine/data/diagnostics/follower-kits-2026-10-18/azure-follower205-integration-8ea8af5a3/run/priority-samples.jsonl",
+    "sha256": "768f2a1e516f09f19a7272286d3e73d16667094cc488c021c574be05c49a7efd",
+    "projection": "Last JSONL row: unchanged assisted.in_combat and decoded assisted.evaluation_json; no new facts."
+  },
+  "semantics": [
+    {
+      "revision": "76f8118",
+      "url": "https://raw.githubusercontent.com/simulationcraft/simc/76f8118/engine/player/player.cpp",
+      "sha256": "23ef8df4ffee959019908b549947999b6f852be28f25fc6f9505d057b14234df",
+      "path": "/home/osso/Projects/world-of-osso/game-engine/data/diagnostics/assist-rule-1252-2026-10-20/player.cpp"
+    },
+    {
+      "revision": "76f8118",
+      "url": "https://raw.githubusercontent.com/simulationcraft/simc/76f8118/engine/dbc/data_enums.hh",
+      "sha256": "25a88c629f3d4ebb4ac966f3927307b28f756cf9cef9482dc77a79b197873ea4",
+      "path": "/home/osso/Projects/world-of-osso/game-engine/data/diagnostics/assist-rule-1252-2026-10-20/data_enums.hh"
+    }
+  ],
+  "semantics_boundary": "Lead-approved generic SimC mirror policy, not verified Retail geometry/comparator; Retail API documents next-spell access but no predicates."
+}
