@@ -119,6 +119,32 @@ fn ui_template_blend_metadata_only_highlight_does_not_draw_an_absent_source() {
 }
 
 #[test]
+fn ui_template_art_named_shared_red_crops_caps_when_the_button_is_narrow() {
+    let mut registry = ui_toolkit::registry::FrameRegistry::new(800.0, 600.0);
+    let id = registry.create_frame("NarrowSharedButton", None);
+    registry.get_mut(id).unwrap().widget_data = Some(WidgetData::Button(Default::default()));
+    ui_toolkit::attrs::apply_attribute(
+        &mut registry,
+        id,
+        "button_template",
+        "SharedButtonTemplate",
+    );
+    let parts = project_images(registry.get(id).unwrap(), 40.0, 30.0);
+    assert_eq!(parts.len(), 3);
+    assert_eq!(parts[0].rect, [0.0, 0.0, 20.0, 30.0]);
+    assert_eq!(parts[1].rect, [20.0, 0.0, 0.0, 30.0]);
+    assert_eq!(parts[2].rect, [20.0, 0.0, 20.0, 30.0]);
+    let Crop::Normalized(left) = parts[0].crop else {
+        panic!("cropped left cap")
+    };
+    let Crop::Normalized(right) = parts[2].crop else {
+        panic!("cropped right cap")
+    };
+    assert!((left[1] - 20.0 / (114.0 * 30.0 / 128.0)).abs() < 0.0001);
+    assert!((right[0] - (1.0 - 20.0 / (292.0 * 30.0 / 128.0))).abs() < 0.0001);
+}
+
+#[test]
 fn ui_template_art_source_identity_does_not_choose_button_geometry() {
     for source in [
         TextureSource::Atlas("128-redbutton-left".into()),
