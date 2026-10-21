@@ -106,11 +106,15 @@ func check_authored_fonts(panel: String, forever: bool, labels: Array) -> String
 			if label.shadow != 1.0 or label.offset != [1,1] or label.size != 13:
 				return name+": GameFontNormalMed1 mismatch"
 			controls += 1
+		if panel == "WorldMap" and name == "WorldMapAreaLabel":
+			if label.outline != 4 or label.shadow != 0.0 or label.size != 24:
+				return name+": WorldMapTextFont mismatch"
+			controls += 1
 		if panel == "GroupLoot" and name == "GroupLootFrame1Name":
 			if label.shadow != 1.0 or label.offset != [1,1] or label.size != 12:
 				return name+": GameFontNormal mismatch"
 			controls += 1
-	var required := 3 if panel == "DamageMeter" and not forever else 2 if panel == "Tooltip" else 1 if panel in ["Spellbook","GroupLoot"] else 0
+	var required := 3 if panel == "DamageMeter" and not forever else 2 if panel == "Tooltip" else 1 if panel in ["Spellbook","GroupLoot","WorldMap"] else 0
 	if controls < required:
 		return panel+": authored font controls "+str(controls)+" expected at least "+str(required)
 	return ""
