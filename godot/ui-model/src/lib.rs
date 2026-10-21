@@ -108,6 +108,7 @@ pub mod housing_settings;
 pub mod housing_settings_component;
 mod housing_storage;
 pub mod talking_head;
+pub mod talking_head_component;
 pub use housing_storage::StorageMenuTarget;
 mod housing_storage_component;
 mod housing_storage_tiles;

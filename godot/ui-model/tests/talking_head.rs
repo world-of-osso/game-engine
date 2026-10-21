@@ -75,3 +75,81 @@ fn talking_head_native_dismissed_identity_does_not_replay_and_foreign_owner_is_r
         "authoritative clear removes visible source object"
     );
 }
+
+#[test]
+#[ignore = "RED: authored TalkingHead native frame is absent"]
+fn talking_head_source_template_geometry_name_text_and_model_in_both_skins() {
+    use ui_toolkit::{
+        atlas::ActiveSkin,
+        frame::{Dimension, WidgetData},
+        layout_values::Val,
+        registry::FrameRegistry,
+        screen::{Screen, SharedContext},
+    };
+    game_engine_ui_model::paths::set_data_root(
+        std::path::PathBuf::from(env!("CARGO_MANIFEST_DIR")).join("../../data"),
+    )
+    .unwrap();
+    for skin in [ActiveSkin::Modern, ActiveSkin::Forever] {
+        ui_toolkit::atlas::set_thread_skin(skin);
+        let update = source();
+        let mut state = TalkingHeadState::default();
+        state.receive(update.clone(), 400).unwrap();
+        let mut context = SharedContext::new();
+        context.insert(state);
+        let mut registry = FrameRegistry::new(1920.0, 1080.0);
+        Screen::new(game_engine_ui_model::talking_head_component::talking_head_screen)
+            .sync(&context, &mut registry);
+        let frame = |name| {
+            registry
+                .get(registry.get_by_name(name).expect(name))
+                .unwrap()
+        };
+        assert_eq!(
+            (
+                frame("TalkingHeadFrame").width,
+                frame("TalkingHeadFrame").height
+            ),
+            (Dimension::Fixed(570.0), Dimension::Fixed(155.0))
+        );
+        assert_eq!(frame("TalkingHeadFrame").position.bottom, Val::Px(96.0));
+        let model = frame("TalkingHeadModel");
+        assert_eq!(
+            (model.width, model.height),
+            (Dimension::Fixed(115.0), Dimension::Fixed(115.0))
+        );
+        assert_eq!(
+            (model.position.left, model.position.top),
+            (Val::Px(21.0), Val::Px(21.0))
+        );
+        let Some(WidgetData::FontString(name)) = &frame("TalkingHeadName").widget_data else {
+            panic!("source name")
+        };
+        assert_eq!(name.text, "Orator Krix'vizk");
+        let Some(WidgetData::FontString(text)) = &frame("TalkingHeadText").widget_data else {
+            panic!("source text")
+        };
+        assert_eq!(
+            text.text,
+            update.conversations[0].lines[0]
+                .text
+                .as_ref()
+                .unwrap()
+                .male_text
+        );
+        assert_eq!(
+            (
+                frame("TalkingHeadCloseButton").width,
+                frame("TalkingHeadCloseButton").height
+            ),
+            (Dimension::Fixed(24.0), Dimension::Fixed(24.0))
+        );
+        assert_eq!(
+            (
+                frame("TalkingHeadCloseButton").position.right,
+                frame("TalkingHeadCloseButton").position.top
+            ),
+            (Val::Px(12.0), Val::Px(12.0))
+        );
+    }
+}
