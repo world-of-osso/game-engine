@@ -249,14 +249,19 @@ def seed_skyboxes(graph, catalogs, map_ids):
         for key in row
         if key.startswith("LightParamsID_") and number(row, key)
     }
+    param_rows = catalogs.index("LightParams") if params else {}
     skies = set()
     for param in sorted(params):
-        row = catalogs.required("LightParams", param)
-        if row and number(row, "LightSkyboxID"):
-            skies.add(number(row, "LightSkyboxID"))
-    for sky in sorted(skies):
-        row = catalogs.required("LightSkybox", sky)
+        row = param_rows.get(param)
         if row is None:
+            graph.issue("missing_metadata_row", f"LightParams ID={param}")
+        elif number(row, "LightSkyboxID"):
+            skies.add(number(row, "LightSkyboxID"))
+    sky_rows = catalogs.index("LightSkybox") if skies else {}
+    for sky in sorted(skies):
+        row = sky_rows.get(sky)
+        if row is None:
+            graph.issue("missing_metadata_row", f"LightSkybox ID={sky}")
             continue
         for column in ("SkyboxFileDataID", "CelestialSkyboxFileDataID"):
             if number(row, column):
