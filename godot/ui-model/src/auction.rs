@@ -465,6 +465,7 @@ pub fn apply_auction_paging_postsetup(registry: &mut ui_toolkit::registry::Frame
         button.highlight_texture = Some(ButtonTexture {
             source: TextureSource::FileDataId(130_757),
             blend_mode: BlendMode::Additive,
+            ..Default::default()
         });
     }
 }
