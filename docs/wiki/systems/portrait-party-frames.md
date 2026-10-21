@@ -62,6 +62,10 @@ Retail `Blizzard_UnitFrame/Mainline/UnitFrame.lua:175–200` updates the unit po
 
 Proof remains in progress: ignored server/engine regressions reproduced missing display/creature selection; native RED PNGs and raw group states live in `data/diagnostics/party-frames-2026-10-21/`. GREEN/native acceptance is not yet established.
 
+### Shared compact title
+
+Retail `Shared/CompactPartyFrame.xml` inherits `CompactRaidGroupTemplate`; `Shared/CompactRaidGroup.xml` places its 50×14 title BOTTOM on Member1 TOP. The old Forever-only hide is removed. Both skins show "Party" centered over the first member, including changed member widths. Existing 14-unit header/member placement and raid geometry remain unchanged. The ignored registry regression reproduced `(hidden,98×14,x0)` instead of `(shown,50×14,x24)` at width98 before this correction; GREEN/native proof remains pending.
+
 ## Roster-only appearance — 2026-10-06
 
 Client `c582ef32` replaces party replicated-player lookup with `party::roster_appearances(&self.account.group)` and removes the retained-appearance fallback. Test `a104cde8` verifies canonical customization/visage and hidden head equipment survive offline roster replacement. Read-only protocol/server revisions: `a936ed2` / `bc58a01`.

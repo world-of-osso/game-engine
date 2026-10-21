@@ -38,6 +38,8 @@ pub const RAID_GROUPS: usize = 8;
 pub const GROUP_SIZE: usize = 5;
 /// `CompactRaidGroupTemplate` title button height (CompactRaidGroup.xml).
 const TITLE_H: f32 = 14.0;
+/// `CompactRaidGroup.xml` title button: BOTTOM anchored to Member1 TOP.
+const PARTY_TITLE_W: f32 = 50.0;
 /// Party column height for `members` frames; the column hangs from its top-left, so it
 /// grows downward as members join.
 pub fn party_height(members: usize) -> f32 {
@@ -148,7 +150,7 @@ pub fn group_frames_screen(ctx: &SharedContext) -> Element {
         &state.portrait_party
     };
     rsx! {
-        {scale_party(party_frame(compact_members, &layout.party, party_title_hidden(skin), settings.party, &state), settings.party, &layout.party)}
+        {scale_party(party_frame(compact_members, &layout.party, settings.party, &state), settings.party, &layout.party)}
         {scale_party(crate::portrait_party_frame_component::portrait_party_frame_with_settings(portraits, &layout.party, skin, settings.party), settings.party, &layout.party)}
         {raid_frame(&state, &layout.raid)}
         {group_context_menu(&state.menu)}
@@ -158,19 +160,9 @@ pub fn group_frames_screen(ctx: &SharedContext) -> Element {
     }
 }
 
-/// FlareUI hides `CompactPartyFrameTitle` by default (`Core.lua:392` `hidePartyTitle`,
-/// `Modules/Tweaks.lua:869-874`); `Hide()` leaves the members where they are.
-fn party_title_hidden(skin: ActiveSkin) -> bool {
-    match skin {
-        ActiveSkin::Modern => false,
-        ActiveSkin::Forever => true,
-    }
-}
-
 fn party_frame(
     members: &[CompactUnitView],
     anchor: &HudAnchor,
-    title_hidden: bool,
     settings: PartyFrameSettings,
     state: &GroupFramesState,
 ) -> Element {
@@ -236,7 +228,7 @@ fn party_frame(
             margin_left: {at.margin_left},
             margin_top: {at.margin_top},
             {party_chrome(PARTY_FRAME, width, height, settings)}
-            {group_title("CompactPartyFrameTitle", "Party", (0.0, PARTY_MEMBER_W), title_hidden)}
+            {group_title("CompactPartyFrameTitle", "Party", ((member_w - PARTY_TITLE_W) / 2.0, PARTY_TITLE_W))}
             {frames}
         }
     }
@@ -279,7 +271,6 @@ fn raid_group(group: usize, members: &[CompactUnitView], state: &GroupFramesStat
         &format!("CompactRaidGroup{}Title", group + 1),
         &format!("Group {}", group + 1),
         (x, RAID_MEMBER_W),
-        false,
     );
     column.extend(
         members
@@ -299,14 +290,13 @@ fn raid_group(group: usize, members: &[CompactUnitView], state: &GroupFramesStat
     column
 }
 
-fn group_title(name: &str, text: &str, (x, width): (f32, f32), hidden: bool) -> Element {
+fn group_title(name: &str, text: &str, (x, width): (f32, f32)) -> Element {
     rsx! {
         fontstring {
             name: {DynName(name.to_string())},
             width,
             height: TITLE_H,
             text,
-            hidden,
             font: GameFont::FrizQuadrata,
             font_size: 10.0,
             font_color: TITLE_COLOR,
