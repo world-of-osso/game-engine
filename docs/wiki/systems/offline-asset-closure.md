@@ -172,8 +172,10 @@ Final manifest `manifest-3.json` SHA-256 **`8349cd5eb377bcf911269ef6d1a22aabc38a
 owns the publication rules. Reproduce the recorded inventory with:
 
 ```text
-python3 scripts/verify_legacy_product_assets.py --misses data/diagnostics/noinstall-2026-10-10/misses.json --install "/syncthing/World of Warcraft" --data data --output data/diagnostics/noinstall-receipts-2026-10-10/legacy-authentication
+python3 scripts/verify_legacy_product_assets.py --misses data/diagnostics/noinstall-2026-10-10/misses.json --install "/syncthing/World of Warcraft" --data data --output data/diagnostics/noinstall-receipts-2026-10-10/legacy-authentication --build wow=12.1.0.69933 --build wow_classic_beta=1.60.1.70338
 ```
+
+The legacy-byte receipt producer requires explicit `--build PRODUCT=VERSION` pins matching exactly the inventory's requested products. It authenticates those local product roots only; historical hardcoded build defaults are removed. A pin mismatch still fails before publication, and bytes must still match authenticated root content keys. Current install builds must be named explicitly rather than silently replacing the historical pins above.
 
 473 legacy candidates match authenticated requested-product roots; the same3
 M2 conflicts above remain rejected and untouched. All476 original runtime
