@@ -17,6 +17,49 @@ fn action(model: &GameMenuModel, name: &str) -> Option<String> {
     model.registry.get(id)?.onclick.clone()
 }
 
+#[test]
+fn ui_template_art_shared_window_close_button_carries_authored_interactive_states() {
+    use ui_toolkit::registry::FrameRegistry;
+    use ui_toolkit::screen::{Screen, SharedContext};
+    use ui_toolkit::widgets::texture::{BlendMode, TextureSource};
+    load_fonts_and_atlases();
+    let mut registry = FrameRegistry::new(1920.0, 1080.0);
+    Screen::new(|_| {
+        game_engine_ui_model::quest_art::window_chrome(
+            "SourceWindow",
+            (400.0, 300.0),
+            "Window",
+            "source:close",
+        )
+    })
+    .sync(&SharedContext::new(), &mut registry);
+    let frame = registry
+        .get(registry.get_by_name("SourceWindowCloseButton").unwrap())
+        .unwrap();
+    let Some(WidgetData::Button(button)) = &frame.widget_data else {
+        panic!("close button")
+    };
+    assert_eq!(
+        button
+            .normal_texture
+            .as_ref()
+            .map(|texture| &texture.source),
+        Some(&TextureSource::Atlas("RedButton-Exit".into()))
+    );
+    assert_eq!(
+        button
+            .pushed_texture
+            .as_ref()
+            .map(|texture| &texture.source),
+        Some(&TextureSource::Atlas("RedButton-exit-pressed".into()))
+    );
+    assert_eq!(
+        button.highlight_texture.as_ref().unwrap().blend_mode,
+        BlendMode::Additive
+    );
+    assert_eq!(frame.onclick.as_deref(), Some("source:close"));
+}
+
 /// R NineSlice.lua SetupEdge anchors between corner edges, even when they cross.
 #[test]
 fn ui_template_art_short_dialog_sides_span_crossed_corner_anchors_in_both_skins() {
