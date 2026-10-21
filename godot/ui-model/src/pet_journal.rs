@@ -78,6 +78,7 @@ pub struct PetJournalView {
     pub error: String,
     pub queue: shared::protocol::PetBattleQueueState,
     pub queue_pending: bool,
+    pub dismissed_proposal: Option<u64>,
     pub combat: BTreeMap<u64, shared::protocol::OwnedPetBattleSnapshot>,
     pub battle_locked: bool,
     pub ability_selection: Option<(usize, u8)>,
@@ -101,6 +102,7 @@ impl Default for PetJournalView {
             error: String::new(),
             queue: shared::protocol::PetBattleQueueState::Idle,
             queue_pending: false,
+            dismissed_proposal: None,
             combat: BTreeMap::new(),
             battle_locked: false,
             ability_selection: None,
@@ -113,9 +115,9 @@ impl PetJournalView {
         matches!(
             self.queue,
             shared::protocol::PetBattleQueueState::Proposal {
+                proposal_id,
                 accepted: false,
-                ..
-            }
+            } if self.dismissed_proposal != Some(proposal_id)
         )
     }
     pub fn queue_action(
@@ -145,6 +147,10 @@ impl PetJournalView {
             }
             _ => return None,
         };
+        if let Request::Accept { proposal_id } | Request::Decline { proposal_id } = request {
+            // StaticPopupSpecial.xml hides on the click, not on the server acknowledgement.
+            self.dismissed_proposal = Some(proposal_id);
+        }
         self.queue_pending = true;
         Some(request)
     }

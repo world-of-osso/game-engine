@@ -14,6 +14,12 @@ Runtime source: engine`ff562ed60` on approved`d32076603`, server`17c35e32a`, pro
 
 The account journal supports companion collection and bounded wild PvE battles. Phase1 acceptance lives in the [client contract](../../specs/battle-pets.md) and [server contract](../../../../game-server/docs/specs/battle-pets.md); [wild acceptance](../../specs/wild-pet-battles.md#acceptance--2026-10-10) owns battle proof and exclusions.
 
+## PvP policy completion — 2026-10-21
+
+[Server policy authority](../../../../game-server/docs/wiki/systems/petbattle-pvp.md) records the explicit unsourced project timer/XP/matchmaking rules, separate from Retail evidence. No protocol change: existing `turn_time_ms` carries the server phase's remaining duration. `WildBattleView` counts down locally for presentation only; server snapshots restart the phase clock, and client expiration never invents a decision. Retail XML1374–1427 and patchwerks provide473×27 background,339×17 frame/fill, Pass left25 and center+40 caption; Lua479–528 supplies337px usable fill and half-alpha waiting behavior.
+
+Ready-popup decisions dismiss the current proposal locally at the click, matching `StaticPopupSpecial.xml`, while queue authority/pending guards remain server-owned. A new proposal identity can show again. Existing journal-card battlefield normalization is unchanged. Headless proposal/timer RED2 reproduced at `a5a1db779`; GREEN and native UDP5941 proof pending. Sources are hash-pinned in `data/diagnostics/pb-pvp-2026-10-21/sources.json`.
+
 ## Local data
 `export_db2_csv.py` pins each observed WDC5 layout. BattlePetSpecies has inline ID at field2. BattlePetEffectProperties has six inline relative string offsets in one 192-bit field: each offset's base is its own 32-bit element, not the array start. Unreadable Species/Creature records are excluded and counted. Key-flagged sections already decrypted by local CASC are readable and must not be rejected solely by that flag.
 

@@ -24,6 +24,8 @@ pub struct WildBattleView {
     pub show_swap: bool,
     pub error: String,
     pub feedback_seconds: f32,
+    pub turn_duration_ms: u32,
+    pub turn_remaining_ms: f32,
 }
 impl Default for WildBattleView {
     fn default() -> Self {
@@ -38,12 +40,30 @@ impl Default for WildBattleView {
             show_swap: false,
             error: String::new(),
             feedback_seconds: 0.0,
+            turn_duration_ms: 0,
+            turn_remaining_ms: 0.0,
         }
     }
 }
 impl WildBattleView {
+    /// Presentation only: expiration never submits a decision or changes authoritative state.
+    pub fn advance_clock(&mut self, delta: f32) {
+        if self.result.is_none() && self.turn_duration_ms != 0 {
+            self.turn_remaining_ms = (self.turn_remaining_ms - delta * 1000.0).max(10.0);
+        }
+    }
     pub fn receive(&mut self, update: WildPetBattleUpdate) {
         self.pending = false;
+        if let WildPetBattleUpdate::Start(state)
+        | WildPetBattleUpdate::State(state)
+        | WildPetBattleUpdate::Round { state, .. } = &update
+        {
+            self.turn_duration_ms = state.turn_time_ms;
+            self.turn_remaining_ms = state.turn_time_ms as f32;
+            let ally = &state.teams[0][usize::from(state.active[0])];
+            let enemy = &state.teams[1][usize::from(state.active[1])];
+            self.pending = state.wild_creature == 0 && ally.health > 0 && enemy.health <= 0;
+        }
         self.error.clear();
         match update {
             WildPetBattleUpdate::Start(state) => {
@@ -266,7 +286,9 @@ pub fn wild_battle_screen(ctx: &SharedContext) -> Element {
     }
     children.extend(rsx! { r#frame { name: "PetBattleFloatingLayer", width, height, left: 0.0, top: 0.0, pos_type: "absolute", mouse_enabled: false, strata: ui_toolkit::strata::FrameStrata::Dialog, {floating} } });
 
-    if view.show_swap || state.replacement_required || state.initial_selection_required {
+    if !view.pending
+        && (view.show_swap || state.replacement_required || state.initial_selection_required)
+    {
         children.extend(swap_panel(view, state));
     }
     if view.confirm_forfeit {
@@ -589,35 +611,79 @@ fn action_bar(view: &WildBattleView, state: &WildPetBattleSnapshot) -> Element {
             WHITE,
         ));
     }
-    out.extend(texture(
-        "PetBattlePassFrame".into(),
-        630622,
-        (width / 2.0 - 64.0, height - 127.0, 128.0, 44.0),
-        WHITE,
-    ));
+    if state.wild_creature != 0 {
+        out.extend(texture(
+            "PetBattlePassFrame".into(),
+            630622,
+            (width / 2.0 - 64.0, height - 127.0, 128.0, 44.0),
+            WHITE,
+        ));
+    }
+    let pass_left = if state.wild_creature == 0 {
+        width / 2.0 - 211.5
+    } else {
+        width / 2.0 - 40.0
+    };
+    if state.wild_creature == 0 && view.result.is_none() {
+        out.extend(turn_timer(view, width, height));
+    }
     out.extend(panel_button(
         "PetBattlePass".into(),
         "Pass",
         "pb:pass",
         enabled && !state.replacement_required && !state.initial_selection_required,
-        (width / 2.0 - 40.0, height - 116.0, 80.0, 22.0),
+        (pass_left, height - 116.0, 80.0, 22.0),
     ));
-    if state.turn_time_ms != 0 {
-        out.extend(cropped(
-            "PetBattleTurnTimer".into(),
-            HUD_TEXTURE,
-            "0.00097656,0.46289063,0.23632813,0.28906250",
-            (left + 13.5, height - 118.5, 473.0, 27.0),
-        ));
-        out.extend(label(
-            "PetBattleTurnTimerText".into(),
-            &state.turn_time_ms.div_ceil(1000).to_string(),
-            (left + 108.0, height - 113.5, 339.0, 17.0),
-            (14.0, WHITE, "CENTER"),
-        ));
-    }
     out
 }
+/// Retail XML1374: 473×27 centered at BottomFrame.TOP-5. Lua479:337px usable fill.
+fn turn_timer(view: &WildBattleView, width: f32, height: f32) -> Element {
+    let left = width / 2.0 - 236.5;
+    let top = height - 118.5;
+    let mut out = cropped(
+        "PetBattleTurnTimer".into(),
+        HUD_TEXTURE,
+        "0.00097656,0.46289063,0.23632813,0.28906250",
+        (left, top, 473.0, 27.0),
+    );
+    if view.turn_duration_ms != 0 {
+        let ratio = (view.turn_remaining_ms / view.turn_duration_ms as f32).clamp(0.0, 1.0);
+        let fill_width = 337.0 * ratio;
+        let right = 0.56347656 + (0.89453125 - 0.56347656) * ratio;
+        let coords = format!("0.56347656,{right},0.00195313,0.03515625");
+        let color = if view.pending { "1,1,1,0.5" } else { WHITE };
+        let x = left + 108.0;
+        let y = top + 5.0;
+        out.extend(
+            rsx! { texture { name: "PetBattleTurnTimerFill", texture_fdid: HUD_TEXTURE,
+            tex_coords: coords, vertex_color: color, width: fill_width, height: 17.0,
+            pos_type: "absolute", left: x, top: y } },
+        );
+    }
+    out.extend(cropped(
+        "PetBattleTurnTimerFrame".into(),
+        HUD_TEXTURE,
+        "0.00097656,0.33203125,0.93359375,0.96679688",
+        (left + 108.0, top + 5.0, 339.0, 17.0),
+    ));
+    let caption = if view.pending {
+        "Waiting For Opponent...".to_string()
+    } else if view.turn_duration_ms != 0 {
+        (view.turn_remaining_ms.max(10.0) / 1000.0)
+            .ceil()
+            .to_string()
+    } else {
+        "Select An Action".to_string()
+    };
+    out.extend(label(
+        "PetBattleTurnTimerText".into(),
+        &caption,
+        (left + 107.0, top + 5.0, 339.0, 17.0),
+        (14.0, WHITE, "CENTER"),
+    ));
+    out
+}
+
 /// Retail GetAttackModifier: non-neutral badges use ability family, not caster family.
 fn effectiveness_badge(attack: u8, defender: u8) -> Option<u32> {
     const STRONG: [u8; 10] = [1, 5, 8, 0, 3, 2, 9, 4, 6, 7];
