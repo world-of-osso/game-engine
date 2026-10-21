@@ -30,8 +30,8 @@ Retail Pet Journal Find Battle queues account-owned teams. Mainline sources: loc
 
 - [x] Private two-account, both-skin queue → proposal Accept → initial selection → actual rounds → three-pet win/loss and HUD restoration.
 - [x] PvP initial selection automatically shows the existing three-pet picker, permits selecting the current front pet and prevents abilities/pass until both owners choose. Mainline `Blizzard_PetBattleUI.lua:185–198` drives mandatory pre-battle selection; `GlobalStrings.csv` ID22782 supplies `Select a pet!`.
-- [ ] Proposal/round timer values and PvP XP formula were not established from local Retail Lua/GlobalStrings/BattlePet DB2; remain unset, never guessed. Lua:523 reads `C_PetBattles.GetTurnTimeInfo()`, XML ready popup:54 queries `CanAcceptQueuedPVPMatch()`, Lua:264 reads current XP. None supplies the required numerical policy. Diagnostic census: `data/diagnostics/petbattle-pvp-2026-10-10/pvp2-retail-evidence.json`.
-- [ ] Exact Retail matchmaking rating/level tolerance and penalty/reward policy not yet certified.
+- [ ] Server-authoritative project-policy proposal/initial/turn/replacement clocks and living-participant winner XP, with FIFO widening-level pairing; see [policy authority](../../../game-server/docs/wiki/systems/petbattle-pvp.md). Numerical Retail parity remains uncertified.
+- [ ] Accept/Decline immediately dismiss the ready popup; PvP Timer-BG/Timer-Fill/Timer-Frame/Pass use the Retail anchors and waiting caption. Countdown is presentation-only; the server resolves expiry. Headless RED2 reproduced; GREEN/native pending.
 
 ## Acceptance — 2026-10-10 (petbattle-pvp2)
 Private UDP5598, fresh redb, accounts `fb_pbpvp2_a`/`fb_pbpvp2_b`, characters Pvptwoalpha30/Pvptwobeta31. Three authentic item4401 learns per account equip species39 pets. Each client uses its own runtime project, XDG config and `data/auth_token.127.0.0.1_5598`; only asset directories are shared. Saved-token restart succeeds with its own `layout_accounts.ron`. Modern is explicitly selected in each account-scoped HUD layout; both skins are asserted from `account_state().ui_skin`.
