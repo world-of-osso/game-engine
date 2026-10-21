@@ -124,6 +124,7 @@ mod talent_layout;
 mod talent_loadouts;
 mod talents;
 mod talentwire;
+mod talking_head;
 mod target_cast_bar;
 mod target_classification;
 mod target_raid_icon;
