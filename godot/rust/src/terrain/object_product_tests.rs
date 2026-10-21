@@ -2,14 +2,18 @@
 use super::*;
 
 #[test]
-#[ignore = "RED: terrain map2991 currently reads cross-product flat model companions"]
 fn terrain_model_asset_skyborne_579120_keeps_authored_sfid_namespace() {
     let data = PathBuf::from(env!("CARGO_MANIFEST_DIR")).join("../../data");
     let maps = game_engine_core::map_catalog::MapCatalog::read(&data).unwrap();
     let map = maps.by_id(2991).expect("authored Skyborne map");
     assert_eq!(map.directory, "2991");
-    let loaded = load_asset(&local_resolver(&data), &data, ObjectAsset::Model(579120))
-        .unwrap_or_else(|error| panic!("map2991 model579120 failed acquisition: {error}"));
+    assert_eq!(map.source_product, AssetProduct::Forever);
+    let loaded = load_asset(
+        &local_resolver(&data),
+        &data,
+        ObjectAsset::Model(map.source_product, 579120),
+    )
+    .unwrap_or_else(|error| panic!("map2991 model579120 failed acquisition: {error}"));
     let LoadedAsset::Model(cached, _) = loaded else {
         panic!("M2 placement returned a WMO");
     };

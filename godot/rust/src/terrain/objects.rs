@@ -16,6 +16,7 @@ use game_engine_core::{
     adt::{DoodadPlacement, WmoPlacement},
     asset::wmo_format::fog::{WmoFogBlend, WmoFogVolume},
     asset_loader::{AssetLoader, Priority},
+    asset_product::AssetProduct,
     campsite_object_data::{
         campsite_doodad_placement, doodad_position, placement_position, wmo_bounds,
     },
@@ -35,8 +36,9 @@ use crate::{
     assets::{
         build_model,
         creature::{
-            CachedModel, DecodedTextures, cache_model_textures, decode_new_textures,
-            load_model_files, local_resolver, publish_decoded_texture,
+            CachedModel, DecodedTextures, authored_model_resolver, cache_model_textures,
+            decode_new_textures, load_model_files, local_resolver, model_asset_root,
+            publish_decoded_texture,
         },
         uv_animation::WowMaterialAnimation,
     },
@@ -101,7 +103,7 @@ struct ParsedModel {
 /// A file set a worker loads for placements: an M2 model or a WMO root and its groups.
 #[derive(Clone, Copy, Debug, PartialEq, Eq, Hash)]
 enum ObjectAsset {
-    Model(u32),
+    Model(AssetProduct, u32),
     Wmo(u32),
 }
 
@@ -122,10 +124,11 @@ fn load_asset(
 ) -> Result<LoadedAsset, String> {
     let _span = crate::profile::span(|| format!("objects.worker {asset:?}"));
     match asset {
-        ObjectAsset::Model(fdid) => {
-            let cached = load_model_files(resolver, data_root, fdid)?;
-            let fdids = cache_model_textures(resolver, data_root, &[0; 3], &cached.model)?;
-            let textures = decode_new_textures(data_root, &fdids)?;
+        ObjectAsset::Model(product, fdid) => {
+            let resolver = authored_model_resolver(data_root, product, fdid)?;
+            let cached = load_model_files(&resolver, data_root, fdid)?;
+            let fdids = cache_model_textures(&resolver, data_root, &[0; 3], &cached.model)?;
+            let textures = decode_new_textures(model_asset_root(&cached)?, &fdids)?;
             Ok(LoadedAsset::Model(cached, textures))
         }
         ObjectAsset::Wmo(fdid) => {
@@ -145,6 +148,7 @@ fn load_asset(
 /// A built doodad node, its M2 header render box in engine axes, and its emitters.
 struct BuiltDoodad {
     node: Gd<Node3D>,
+    texture_dir: PathBuf,
     render_box: (Vec3, Vec3),
     particles: Option<std::rc::Rc<ModelParticles>>,
 }
@@ -375,6 +379,7 @@ pub(crate) struct TerrainObjects {
     root: Option<Gd<Node3D>>,
     resolver: Arc<CascListfileResolver>,
     data_root: PathBuf,
+    source_product: Option<AssetProduct>,
     loader: AssetLoader<ObjectAsset, LoadedAsset>,
     queued_tiles: BTreeSet<Tile>,
     /// Queued placements in selection order, not yet looked at.
@@ -402,7 +407,7 @@ pub(crate) struct TerrainObjects {
     wmo_tiles: HashMap<u32, Tile>,
     /// Loaded doodad models, or why they cannot load, by FDID; kept across `reset` like
     /// the loader's record of what it loaded.
-    models: HashMap<u32, Result<ParsedModel, String>>,
+    models: HashMap<(AssetProduct, u32), Result<ParsedModel, String>>,
     /// Loaded WMOs, or why they cannot load, by root FDID; kept across `reset`.
     wmo_assets: HashMap<u32, Result<Arc<NativeWmoAsset>, String>>,
     light: Option<TerrainLight>,
@@ -428,6 +433,7 @@ impl TerrainObjects {
             root: None,
             resolver,
             data_root,
+            source_product: None,
             loader,
             queued_tiles: BTreeSet::new(),
             pending: VecDeque::new(),
@@ -576,6 +582,7 @@ impl TerrainObjects {
         terrain: &StreamedTerrain,
         selection: &impl ObjectSelection,
     ) {
+        self.source_product = terrain.map_wdt.as_ref().map(|map| map.source_product);
         if let Some(pools) = &mut self.particles {
             pools.attach(parent);
         }
@@ -649,7 +656,7 @@ impl TerrainObjects {
         match pending {
             Pending::Doodad(tile, index) => {
                 let doodad = &tile_objects(tile).doodads[index];
-                self.doodad_fdid(doodad).map(ObjectAsset::Model)
+                self.model_asset(self.doodad_fdid(doodad)?)
             }
             Pending::Wmo(tile, index) => {
                 let placement = &tile_objects(tile).wmos[index];
@@ -658,14 +665,21 @@ impl TerrainObjects {
             }
             Pending::WmoDoodad(wmo, index) => {
                 let (doodad, _) = &self.wmo_doodads[&wmo].doodads[index];
-                self.wmo_doodad_fdid(wmo, doodad).map(ObjectAsset::Model)
+                self.model_asset(self.wmo_doodad_fdid(wmo, doodad)?)
             }
         }
     }
 
+    fn model_asset(&self, fdid: u32) -> Result<ObjectAsset, String> {
+        let product = self
+            .source_product
+            .ok_or("Terrain M2 request has no authored map product")?;
+        Ok(ObjectAsset::Model(product, fdid))
+    }
+
     fn is_loaded(&self, asset: ObjectAsset) -> bool {
         match asset {
-            ObjectAsset::Model(fdid) => self.models.contains_key(&fdid),
+            ObjectAsset::Model(product, fdid) => self.models.contains_key(&(product, fdid)),
             ObjectAsset::Wmo(fdid) => self.wmo_assets.contains_key(&fdid),
         }
     }
@@ -693,20 +707,20 @@ impl TerrainObjects {
             return;
         }
         match (asset, loaded) {
-            (ObjectAsset::Model(fdid), Ok(LoadedAsset::Model(cached, _))) => {
+            (ObjectAsset::Model(product, fdid), Ok(LoadedAsset::Model(cached, _))) => {
                 let parsed = Ok(ParsedModel {
                     path: GString::from(cached.path.to_string_lossy().as_ref()),
                     particles: ModelParticles::from_model(fdid, &cached.model),
                     collision: doodad_collision::collision_shape(cached.model.collision.as_ref()),
                     model: cached,
                 });
-                self.models.insert(fdid, parsed);
+                self.models.insert((product, fdid), parsed);
             }
             (ObjectAsset::Wmo(fdid), Ok(LoadedAsset::Wmo(wmo, _))) => {
                 self.wmo_assets.insert(fdid, Ok(wmo));
             }
-            (ObjectAsset::Model(fdid), Err(error)) => {
-                self.models.insert(fdid, Err(error));
+            (ObjectAsset::Model(product, fdid), Err(error)) => {
+                self.models.insert((product, fdid), Err(error));
             }
             (ObjectAsset::Wmo(fdid), Err(error)) => {
                 self.wmo_assets.insert(fdid, Err(error));
@@ -942,8 +956,8 @@ impl TerrainObjects {
     ) {
         let mut doodad = CulledDoodad::new(built.node, scenery, unique_id, wmo_groups);
         if let (Some(pools), Some(particles)) = (&mut self.particles, &built.particles) {
-            let texture_dir = self.data_root.join("textures");
-            let (placed, errors) = pools.place(particles, &doodad.node, unique_id, &texture_dir);
+            let (placed, errors) =
+                pools.place(particles, &doodad.node, unique_id, &built.texture_dir);
             for error in errors {
                 self.failures += 1;
                 godot_error!("{}: {error}", self.name);
@@ -985,7 +999,10 @@ impl TerrainObjects {
 
     /// A node of loaded model `fdid` for one placement.
     fn build_doodad_model(&mut self, fdid: u32) -> Result<BuiltDoodad, String> {
-        let parsed = self.models[&fdid]
+        let product = self
+            .source_product
+            .ok_or("Terrain M2 build has no authored map product")?;
+        let parsed = self.models[&(product, fdid)]
             .as_ref()
             .map_err(|error| format!("model {fdid}: {error}"))?;
         let (mut model, missing) = build_model(&parsed.model.model, &parsed.path, &[0; 3], None)?;
@@ -1005,6 +1022,7 @@ impl TerrainObjects {
             engine_axes(parsed.model.model.bounding_box_max),
         );
         Ok(BuiltDoodad {
+            texture_dir: model_asset_root(&parsed.model)?.join("textures"),
             node: model,
             render_box,
             particles: parsed.particles.clone(),
@@ -1229,6 +1247,7 @@ impl TerrainObjects {
         }
         drop(span);
         let _span = crate::profile::span(|| "objects.reset.clear".to_owned());
+        self.source_product = None;
         self.queued_tiles.clear();
         self.pending.clear();
         self.waiting.clear();
