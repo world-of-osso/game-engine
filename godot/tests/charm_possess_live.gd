@@ -2,6 +2,8 @@ extends "res://tests/pet_bar_live.gd"
 
 ## Private native605/205364 proof. Reuses the real account/character, input and capture
 ## helpers. PET_SKIN=modern|forever; CHARM_TARGET names a published eligible NPC.
+# Both spells use native SpellRange4/max30yd; retain10yd fixture margin.
+const CONTROL_TARGET_REACH := 20.0
 var authored_target := ""
 
 func run_test() -> void:
@@ -97,7 +99,7 @@ func capture(file: String) -> void:
 	await RenderingServer.frame_post_draw
 	var image := root.get_texture().get_image()
 	if image.get_size() != Vector2i(1920, 1080):
-		fail("Native proof requires1920x1080 pixels, got %s" % image.get_size())
+		fail("Native proof requires 1920x1080 pixels, got %s" % image.get_size())
 		return
 	var path := shots.path_join(file)
 	var error := image.save_png(path)
@@ -111,6 +113,9 @@ func select_authored_target() -> bool:
 		await press(KEY_TAB)
 		await wait_frames(6)
 		if str(client.target_state().target_name) == authored_target:
-			return true
+			var candidate = client.target_state().target
+			var node := unit_node(int(candidate)) if candidate != null else null
+			if node != null and player().global_position.distance_to(node.global_position) <= CONTROL_TARGET_REACH:
+				return true
 	fail("No published %s near private priest: %s" % [authored_target, client.target_state()])
 	return false
