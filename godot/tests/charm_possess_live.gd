@@ -13,7 +13,8 @@ func run_test() -> void:
 	character = OS.get_environment("PET_CHARACTER")
 	shots = OS.get_environment("PET_SHOTS")
 	authored_target = OS.get_environment("CHARM_TARGET")
-	if server == "" or account == "" or character == "" or shots == "" or authored_target == "":
+	var ready_file := OS.get_environment("CHARM_READY_FILE")
+	if server == "" or account == "" or character == "" or shots == "" or authored_target == "" or ready_file == "":
 		fail("Private endpoint/account/character/screenshots required")
 		return
 	DirAccess.make_dir_recursive_absolute(shots)
@@ -24,6 +25,10 @@ func run_test() -> void:
 		fail("Fixture connection: " + error)
 		return
 	if not await enter_world():
+		return
+	# The private admin API learns spells only for online characters.
+	print("CHARM_READY_ONLINE ", character)
+	if not await wait_until(func(): return FileAccess.file_exists(ready_file), 30000, "private online spell setup"):
 		return
 	error = client.preview_world_skin(OS.get_environment("PET_SKIN") == "forever")
 	if error != "":
