@@ -6,7 +6,7 @@ use shared::{components::TransportPassenger, transport_route::TransportPose};
 impl GameClient {
     fn replicated_transport_passenger(&self) -> Option<TransportPassenger> {
         self.world
-            .local_player_id()
+            .local_mover_id()
             .and_then(|id| self.replica.unit(id))
             .and_then(|unit| unit.get::<TransportPassenger>())
             .copied()

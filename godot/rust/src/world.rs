@@ -65,6 +65,7 @@ struct UnitNode {
     node: Gd<Node3D>,
     name: String,
     is_player: bool,
+    charm: Option<shared::components::UnitCharm>,
     motion: UnitMotion,
     /// The appearance of the newest requested visual.
     appearance: Option<UnitAppearance>,
@@ -133,6 +134,10 @@ impl LodTarget {
 }
 
 impl UnitNode {
+    fn uses_player_motion(&self) -> bool {
+        (self.is_player && self.charm.is_none()) || self.charm.is_some_and(|charm| charm.possessed)
+    }
+
     /// Frees the current visual and shows `visual` (already in the tree) instead.
     fn replace_visual(&mut self, visual: Option<Gd<Node3D>>) {
         if let Some(previous) = self.visual.take() {
@@ -274,6 +279,17 @@ fn unit_yaw(snapshot: Unit, is_new: bool) -> Option<f32> {
         .or_else(|| is_new.then(|| if snapshot.has::<Player>() { PI } else { 0.0 }))
 }
 
+fn resolve_local_charm(
+    player: Option<u64>,
+    mut units: impl Iterator<Item = (u64, Option<shared::components::UnitCharm>)>,
+) -> Option<(u64, bool)> {
+    let player = player?;
+    units.find_map(|(id, charm)| {
+        let charm = charm?;
+        (charm.charmer == player).then_some((id, charm.possessed))
+    })
+}
+
 fn newest_matching_player<'a>(
     units: impl Iterator<Item = (u64, &'a str, bool, i32)>,
     selected_name: &str,
@@ -315,6 +331,7 @@ fn spawn_unit(
         node,
         name: name.to_owned(),
         is_player,
+        charm: None,
         motion: UnitMotion::new([position.x, position.y, position.z], yaw),
         appearance: None,
         visual: None,
@@ -941,7 +958,7 @@ fn sync_unit_sheath(unit: &mut UnitNode, snapshot: Unit, models: &mut WorldModel
 }
 
 fn sync_unit_animation(unit: &mut UnitNode, snapshot: Unit, fallbacks: &HashMap<u16, u16>) {
-    if unit.is_player || unit.death_applied {
+    if unit.uses_player_motion() || unit.death_applied {
         return;
     }
     let Some(mut animation) = unit
@@ -1006,6 +1023,7 @@ pub struct WorldUnits {
     units: HashMap<u64, UnitNode>,
     selected_name: Option<String>,
     local_player_id: Option<u64>,
+    local_charm: Option<(u64, bool)>,
     models: WorldModels,
     /// Loaded visuals waiting for main-thread time, oldest first.
     arrived: VecDeque<(u64, Result<VisualParts, String>)>,
@@ -1030,6 +1048,7 @@ impl WorldUnits {
             units: HashMap::new(),
             selected_name: None,
             local_player_id: None,
+            local_charm: None,
             models: WorldModels::new(data_root),
             arrived: VecDeque::new(),
             light: None,
@@ -1230,6 +1249,12 @@ impl WorldUnits {
             .0;
         unit.node.set_scale(Vector3::ONE * scale);
         unit.is_player = snapshot.has::<Player>();
+        let charm = snapshot.get::<shared::components::UnitCharm>().copied();
+        if unit.charm != charm {
+            unit.animation = None;
+            unit.animation_facing = None;
+        }
+        unit.charm = charm;
         unit.player_motion = snapshot.get::<PlayerMotion>().copied();
         unit.life_state = snapshot.get::<DeathState>().copied();
         unit.in_combat = snapshot
@@ -1411,8 +1436,10 @@ impl WorldUnits {
     }
 
     pub fn advance(&mut self, delta: f32) {
+        let local = self.local_mover_id();
+        let locally_driven = !self.local_player_charmed();
         for (id, unit) in &mut self.units {
-            advance_unit_transform(unit, self.local_player_id == Some(*id), delta);
+            advance_unit_transform(unit, locally_driven && local == Some(*id), delta);
             mount::seat_rider(unit);
         }
         let vehicles: HashMap<_, _> = self
@@ -1439,7 +1466,11 @@ impl WorldUnits {
     /// as the local player's do; unchanged flags neither restart a clip nor its crossfade.
     /// A model missing a clip is a client failure; the other players still animate.
     pub fn update_remote_locomotion(&mut self) -> Result<(), String> {
-        let local = self.local_player_id;
+        let local = if self.local_player_charmed() {
+            None
+        } else {
+            self.local_mover_id()
+        };
         let mut errors = Vec::new();
         let fallbacks = combat::load_fallbacks(&mut self.anim_fallbacks, &self.data_root);
         for (id, unit) in &mut self.units {
@@ -1447,7 +1478,7 @@ impl WorldUnits {
                 errors.push(format!("Player {} death animation: {error}", unit.name));
             }
             let Some(locomotion) = remote_player_locomotion(
-                unit.is_player,
+                unit.uses_player_motion(),
                 local == Some(*id),
                 unit.player_motion,
                 unit.life_state,
@@ -1526,6 +1557,13 @@ impl WorldUnits {
         }
         if self.local_player_id == Some(id) {
             self.local_player_id = None;
+            self.local_charm = None;
+        }
+        if self
+            .local_charm
+            .is_some_and(|(controlled, _)| controlled == id)
+        {
+            self.local_charm = None;
         }
     }
 
@@ -1540,6 +1578,7 @@ impl WorldUnits {
         self.units.clear();
         self.deaths.clear();
         self.local_player_id = None;
+        self.local_charm = None;
         self.selected_name = None;
         if let Some(root) = self.root.take() {
             root.free();
@@ -1605,11 +1644,11 @@ impl WorldUnits {
     }
 
     pub fn local_player_node(&self) -> Option<Gd<Node3D>> {
-        Some(self.units.get(&self.local_player_id?)?.node.clone())
+        Some(self.units.get(&self.local_mover_id()?)?.node.clone())
     }
 
     pub fn local_footstep_phase(&self) -> Option<(u64, Vector3, (usize, u16, f32, f32))> {
-        let id = self.local_player_id?;
+        let id = self.local_mover_id()?;
         let unit = self.units.get(&id)?;
         let animation = unit.animation_player()?;
         Some((
@@ -1634,7 +1673,7 @@ impl WorldUnits {
         running_forward: bool,
         flying: bool,
     ) -> Result<(), String> {
-        let Some(unit) = self.local_player_id.and_then(|id| self.units.get_mut(&id)) else {
+        let Some(unit) = self.local_mover_id().and_then(|id| self.units.get_mut(&id)) else {
             return Ok(());
         };
         let fallbacks = combat::load_fallbacks(&mut self.anim_fallbacks, &self.data_root);
@@ -1709,31 +1748,47 @@ impl WorldUnits {
     }
 
     pub fn local_player_mounted(&self) -> bool {
-        self.local_player_id
+        self.local_mover_id()
             .and_then(|id| self.units.get(&id))
             .is_some_and(|unit| unit.mount.is_some())
     }
 
     /// The local player's replicated stand state.
     pub fn local_player_stand_state(&self) -> Option<StandState> {
-        self.units.get(&self.local_player_id?)?.stand_state
+        self.units.get(&self.local_mover_id()?)?.stand_state
     }
 
     pub fn local_player_facing(&self) -> Option<f32> {
-        Some(self.units.get(&self.local_player_id?)?.motion.facing_yaw)
+        Some(self.units.get(&self.local_mover_id()?)?.motion.facing_yaw)
     }
 
     pub fn set_local_player_facing(&mut self, yaw: f32) {
-        if let Some(unit) = self.local_player_id.and_then(|id| self.units.get_mut(&id)) {
+        if let Some(unit) = self.local_mover_id().and_then(|id| self.units.get_mut(&id)) {
             unit.motion.facing_yaw = yaw;
         }
     }
 
     pub fn local_player_controlled(&self) -> bool {
+        self.local_player_charmed()
+            || self
+                .local_mover_id()
+                .and_then(|id| self.units.get(&id))
+                .and_then(|unit| unit.motion.control)
+                .is_some_and(|control| control.controlled)
+    }
+
+    pub fn local_player_charmed(&self) -> bool {
         self.local_player_id
             .and_then(|id| self.units.get(&id))
-            .and_then(|unit| unit.motion.control)
-            .is_some_and(|control| control.controlled)
+            .is_some_and(|unit| unit.charm.is_some())
+    }
+
+    /// Identity stays the selected character; only aura2 changes mover/camera.
+    pub fn local_mover_id(&self) -> Option<u64> {
+        self.local_charm
+            .filter(|(_, possessed)| *possessed)
+            .map(|(id, _)| id)
+            .or(self.local_player_id)
     }
 
     pub fn local_player_id(&self) -> Option<u64> {
@@ -1742,13 +1797,16 @@ impl WorldUnits {
 
     /// The `MovementControl::epoch` whose position the local player adopted.
     pub fn local_player_epoch(&self) -> Option<u32> {
-        self.units.get(&self.local_player_id?)?.motion.adopted_epoch
+        self.units
+            .get(&self.local_mover_id()?)?
+            .motion
+            .adopted_epoch
     }
 
     /// The newest server-replicated movement epoch, before motion adoption.
     pub fn local_player_server_epoch(&self) -> Option<u32> {
         self.units
-            .get(&self.local_player_id?)?
+            .get(&self.local_mover_id()?)?
             .motion
             .control
             .map(|control| control.epoch)
@@ -1758,7 +1816,7 @@ impl WorldUnits {
     pub fn local_player_server_position(&self) -> Option<Vector3> {
         let target = self
             .units
-            .get(&self.local_player_id?)?
+            .get(&self.local_mover_id()?)?
             .motion
             .target
             .position;
@@ -1771,7 +1829,7 @@ impl WorldUnits {
     }
 
     pub fn local_player_transform(&self) -> Option<Transform3D> {
-        let unit = self.units.get(&self.local_player_id?)?;
+        let unit = self.units.get(&self.local_mover_id()?)?;
         Some(unit.node.get_transform())
     }
 
@@ -1782,9 +1840,14 @@ impl WorldUnits {
             self.local_player_id = None;
         }
         let Some(name) = selected_name else {
+            self.local_charm = None;
             return;
         };
         self.local_player_id = resolve_selected_player(&self.units, self.local_player_id, name);
+        self.local_charm = resolve_local_charm(
+            self.local_player_id,
+            self.units.iter().map(|(&id, unit)| (id, unit.charm)),
+        );
     }
 }
 
@@ -1809,6 +1872,39 @@ fn npc_animation_lod(
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    #[test]
+    fn charm_native_client_selects_only_own_control_and_clears_release() {
+        use shared::components::UnitCharm;
+        for possessed in [false, true] {
+            let units = [
+                (
+                    200,
+                    Some(UnitCharm {
+                        charmer: 100,
+                        possessed,
+                    }),
+                ),
+                (
+                    300,
+                    Some(UnitCharm {
+                        charmer: 999,
+                        possessed: true,
+                    }),
+                ),
+            ];
+            assert_eq!(
+                resolve_local_charm(Some(100), units.into_iter()),
+                Some((200, possessed))
+            );
+            assert_eq!(resolve_local_charm(Some(101), units.into_iter()), None);
+            assert_eq!(resolve_local_charm(None, units.into_iter()), None);
+        }
+        assert_eq!(
+            resolve_local_charm(Some(100), [(200, None)].into_iter()),
+            None
+        );
+    }
 
     /// A camera at the origin looking down -Z with a 90° view, near 0.05, far 1000.
     fn forward_frustum() -> Vec<HalfSpace> {

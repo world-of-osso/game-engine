@@ -66,6 +66,7 @@ fn shared_codecs() -> Vec<Codec> {
         Codec::of::<shared::components::TransportState>(),
         Codec::of::<shared::components::TransportPassenger>(),
         Codec::of::<MovementControl>(),
+        Codec::of::<shared::components::UnitCharm>(),
         Codec::of::<shared::components::ForcedFacing>(),
         Codec::of::<WorldArrival>(),
         Codec::of::<Zone>(),
