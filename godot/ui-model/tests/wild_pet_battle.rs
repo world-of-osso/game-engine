@@ -358,6 +358,31 @@ fn petbattle_pvp_timer_uses_retail_frame_fill_and_waiting_caption_in_both_skins(
             registry.get_by_name("PetBattleTurnTimerFill").is_some(),
             "Retail Timer-Fill is not just Timer-BG"
         );
+        let timer = registry
+            .get(registry.get_by_name("PetBattleTurnTimer").unwrap())
+            .unwrap();
+        assert_eq!((timer.width.value(), timer.height.value()), (473.0, 27.0));
+        assert_eq!(
+            (timer.position.left, timer.position.top),
+            (
+                ui_toolkit::layout_values::Val::Px(403.5),
+                ui_toolkit::layout_values::Val::Px(601.5)
+            )
+        );
+        let fill = registry
+            .get(registry.get_by_name("PetBattleTurnTimerFill").unwrap())
+            .unwrap();
+        assert_eq!((fill.width.value(), fill.height.value()), (337.0, 17.0));
+        let pass = registry
+            .get(registry.get_by_name("PetBattlePass").unwrap())
+            .unwrap();
+        assert_eq!(
+            (pass.position.left, pass.position.top),
+            (
+                ui_toolkit::layout_values::Val::Px(25.0),
+                ui_toolkit::layout_values::Val::Px(2.5)
+            )
+        );
         let caption = registry
             .get(registry.get_by_name("PetBattleTurnTimerText").unwrap())
             .unwrap();
