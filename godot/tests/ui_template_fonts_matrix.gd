@@ -30,6 +30,7 @@ func cases(forever: bool) -> Array:
 	]
 
 func run_cases() -> void:
+	OS.set_environment("GODOT_AUCTION_VIEW","browse")
 	root.size = Vector2i(1920,1080)
 	root.content_scale_size = Vector2i.ZERO
 	completion = preload("res://tests/completion.gd").new(self,38)
