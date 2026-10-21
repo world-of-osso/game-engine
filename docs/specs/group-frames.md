@@ -45,7 +45,7 @@ References (under `~/.cache/wow-ui-sim/blizzard-ui/retail/AddOns/`):
 ### Party frame (raid-style `CompactPartyFrame`)
 - [x] Raid-style party frames are the project default. This is a user decision: Retail's own default is `UseRaidStylePartyFrames = 0` (EMP:276), whose classic frame needs a portrait.
 - [x] Placement: `CompactPartyFrame`, 98 × (14 + 5×44), at the Retail Modern preset: TOPLEFT on `CompactRaidFrameManager`'s TOPRIGHT at (0, −7) (EMP:290-295). The 222 × 140 manager starts collapsed at UIParent TOPLEFT (−200, −140) (Blizzard_CompactRaidFrameManager.xml:113, .lua:93, :335), so the frame's top-left is (22, −147) from UIParent's top-left and it grows downward.
-  - Title "Party" (`PARTY`, `GameFontNormalSmall`, CRG title 50×14).
+  - Title "Party" (`PARTY`, `GameFontNormalSmall`) is visible under both skins, with Retail `CompactRaidGroup.xml`'s 50×14 bounds, BOTTOM anchored to Member1 TOP. Width settings move its center with the first member. Preserve the existing 14-unit header/member positions.
 - [x] Members `CompactPartyFrameMember1..5`, each 98×44: the Edit Mode default 72×36 + (26, 8) (EMP:280-281).
   - Order: the player first, then the others in roster order (`CRFSort_Group`).
 - [x] Member frame, Legacy layout (`DefaultCompactUnitFrameSetup`, CUF:1941-2069):
