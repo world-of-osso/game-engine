@@ -122,6 +122,9 @@ fn trees(skin: ActiveSkin) -> String {
 #[test]
 fn modern_non_zoom_cluster_retains_preskin_contract() {
     let trees = trees(ActiveSkin::Modern);
+    if std::env::var_os("PRINT_MODERN_TREES").is_some() {
+        println!("<<<MODERN_TREES\n{trees}MODERN_TREES>>>");
+    }
     let without_zoom = |tree: &str| -> Vec<String> {
         tree.lines()
             .filter(|line| {

@@ -1,3 +1,7 @@
+## 2026-10-21 — Named artwork layout implementation
+
+[Shared artwork](systems/ui-system.md#named-artwork-layouts--step-4-implementation): removed audited border/tab/three-slice/button copies, Perks compositor and source-based projection policy. Actual core6/model3/projection3 controls GREEN; snapshot refresh/final checks/native capture pending. Distinct authored geometry and approved skins retained; no global raster parity claim.
+
 ## 2026-10-21 — Named font inheritance implementation
 
 [Shared font objects](systems/ui-system.md#named-font-inheritance--step-3): source chains resolve before local overrides; audited helpers delete inherited-style copies. PlayerSpells preserves unshadowed book versus shadowed tabs/talent roots; TabSystem widths use shared metrics. Missing family/shadow, wrong added shadow and glyph-count REDs reproduced; model3/core1 GREEN. Strict native38/38 passed both skins with38 original1920×1080 PNGs and0 Godot errors; final Spellbook14/projection2/check/fmt passed; lead gate remains separate. Autoscale excluded.
