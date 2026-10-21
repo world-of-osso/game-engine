@@ -67,7 +67,9 @@ func run_test() -> void:
 		return
 	print("CHARM_POSSESS_MOVE skin=", client.account_state().ui_skin, " npc=", npc_start, "->", npc_end, " body=", player().global_position, " authoritative=", server_position)
 	await capture("02-native605-npc-moved-body-parked.png")
-	await press(KEY_ESCAPE)
+	# The runner submits the existing native IPC `spell stop` command. Escape's
+	# target-clear priority is outside this fixture's channel-cancellation contract.
+	print("CHARM_CANCEL_READY ", OS.get_process_id())
 	if not await wait_until(func(): return not bar().get("shown", false), 10000, "native605 channel cancel releases bar"):
 		return
 	push_key(KEY_W, true, false)
