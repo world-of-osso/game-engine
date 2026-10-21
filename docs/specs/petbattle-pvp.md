@@ -33,7 +33,8 @@ Retail Pet Journal Find Battle queues account-owned teams. Mainline sources: loc
 - [x] Private two-account, both-skin queue → proposal Accept → initial selection → actual rounds → three-pet win/loss and HUD restoration.
 - [x] PvP initial selection automatically shows the existing three-pet picker, permits selecting the current front pet and prevents abilities/pass until both owners choose. Mainline `Blizzard_PetBattleUI.lua:185–198` drives mandatory pre-battle selection; `GlobalStrings.csv` ID22782 supplies `Select a pet!`.
 - [ ] Server-authoritative project-policy proposal/initial/turn/replacement clocks and living-participant winner XP, with FIFO widening-level pairing; see [policy authority](../../../game-server/docs/wiki/systems/petbattle-pvp.md). Numerical Retail parity remains uncertified.
-- [ ] New both-skin native policy proof on UDP5941 remains pending.
+- [ ] Terminal Lost results hide the faint-pet picker while retaining outcome and Continue; native both-skin counterexample reproduced, approved phase gate correction pending GREEN/fresh terminal PNGs.
+- [x] Both-skin UDP5941 queue/proposal expiry/decline/requeue/Accept, initial default, turn pass/streak-forfeit and225XP receipts, plus actual three-pet win/loss/replacement timeout complete. Corrected terminal pixels remain the separate gate above.
 
 ## Acceptance — 2026-10-10 (petbattle-pvp2)
 Private UDP5598, fresh redb, accounts `fb_pbpvp2_a`/`fb_pbpvp2_b`, characters Pvptwoalpha30/Pvptwobeta31. Three authentic item4401 learns per account equip species39 pets. Each client uses its own runtime project, XDG config and `data/auth_token.127.0.0.1_5598`; only asset directories are shared. Saved-token restart succeeds with its own `layout_accounts.ron`. Modern is explicitly selected in each account-scoped HUD layout; both skins are asserted from `account_state().ui_skin`.
