@@ -1,6 +1,10 @@
 //! ADT `_obj` doodads and WMOs as native nodes (original `terrain_objects.rs`),
 //! spawned in selection order within a per-frame time budget.
 
+#[cfg(test)]
+#[path = "object_product_tests.rs"]
+mod product_tests;
+
 use std::{
     collections::{BTreeSet, HashMap, VecDeque},
     path::{Path, PathBuf},
