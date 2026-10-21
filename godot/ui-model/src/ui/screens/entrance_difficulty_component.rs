@@ -178,10 +178,6 @@ fn uv([left, right, top, bottom]: [f32; 4]) -> String {
     )
 }
 
-fn art_piece(name: DynName, rect: [f32; 4], pixels: [f32; 4]) -> Element {
-    art_piece_alpha(name, rect, pixels, 1.0)
-}
-
 fn art_piece_alpha(name: DynName, rect: [f32; 4], pixels: [f32; 4], alpha: f32) -> Element {
     let [left, top, width, height] = rect;
     rsx! {

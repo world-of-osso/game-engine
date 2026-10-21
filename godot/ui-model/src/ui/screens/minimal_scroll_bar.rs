@@ -17,8 +17,6 @@ const TRACK_INSET: f32 = 19.0;
 const MIN_THUMB: f32 = 23.0;
 const STEPPER_W: f32 = 17.0;
 const STEPPER_H: f32 = 11.0;
-/// The track and thumb end caps are 8×8 atlas members.
-const CAP: f32 = ui_toolkit::three_slice::MINIMAL_SCROLLBAR_CAP;
 /// `minimal-scrollbar-small-thumb-middle` is 715 tall; the thumb shows its top
 /// `height / 715` (`MinimalScrollBar.lua:193-203`).
 const THUMB_MIDDLE_ATLAS_H: f32 = 715.0;
