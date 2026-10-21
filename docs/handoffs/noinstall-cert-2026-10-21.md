@@ -64,6 +64,42 @@ Lead reports round3 publication: 237 scoped assets plus 29 aliases re-extracted/
 
 Private server setup initially stopped before any client when a PvP live window was observed. The corrected pair preflight reads the lease file even when capacity's ADD summary hides the owner; no authenticated client pass is inferred from account setup. The server is stopped between batches, with a 300-second watchdog and confirmed unbound private UDP5961.
 
+## Published rounds4–5 and current bounded coverage
+
+Lead published round4 after removing26 equal-identity overlaps:1,283 assets/408 aliases,1,707 new files. Producer commits `485814fb6` and `a2e407c56` now dedupe every canonical fragment before staged payload writes, reject conflicts/remaining duplicate assets and preserve existing legacy alias metadata (GREEN7). Numeric raw repairs remain separate from index ownership.
+
+`creation-round5` reaches **62/62 valid race/body selections with nonzero models**, zero emitted engine errors and tripwire0; all four contact sheets inspected. Randomized appearance selection still prevents equivalent-profile or full class/customization claims. `debugcharacter-round4` remains the inspected57-mesh equipped-character proof.
+
+Round5 authenticated33 assets/6 aliases/8 raw repairs locally, zero source/alias gaps. Lead re-extracted and published all39 fragment files and8 raw repairs without clobber, retaining212,774 unique canonical asset keys. Game-object skin505852 and skybox skin7345740 errors disappear in post-publication runs. `e9794c6c7` fixes dynamic game-object roots (GREEN5); `60262b0c8` fixes selected-map lighting roots through every LightParams slot, skybox and celestial FDIDs, including tile-free maps (entrypoint RED→GREEN3; full-root regression3).
+
+### Authenticated representative visits
+
+Engine base `52e47cd5d`, protocol `03cebdb`, own server `0cc7b3866`; per-case argv, fixture SHA, observations, complete logs and captures are retained. All cases below verify the requested roster character, positive player/NPC geometry and HP, mode `ExtractedOnly`, tripwire0 and normal shutdown. Owned UDP5961 server stops after each pair. Counts are observations, not whole-zone/catalog completeness.
+
+| Case | Player/NPC meshes; HP | Current result |
+|---|---|---|
+| `auth-human-round2` / Northshire |14/93;292|No emitted engine error;9tiles.|
+| `auth-orc-round1` / Durotar |15/49;293|No emitted engine error;9tiles.|
+| `auth-stormwind-round2` |14/46;292|No emitted engine error;9tiles; landing/final error0.000015m.|
+| `auth-dunmorogh-round1` |14/58;292|No emitted engine error;9tiles; landing/final error0.000489m.|
+| `auth-orgrimmar-round1` |15/72;293|No emitted engine error;9tiles; landing/final error0.000130m.|
+| `auth-tauren-round2` / Mulgore |15/54;295|No missing-file error;9tiles; spell81502/kit507 owner Unit4294897458 attachment34 lookup fails (two reported lines).|
+| `auth-skyone-round2` / Skyborne95 |17/51;292|No missing-file error;9tiles; four existing Vertex101 errors.|
+| `auth-skytwo-round4` / Skyborne96 |17/54;292|No missing-file error;9tiles; four existing Vertex101 errors.|
+| `auth-stockades-round3` |14/96;292|No missing-file error; global WMO108631;5,048 zero-Basis errors; landing/final error0.000025m at authored entrance.|
+
+Latest Mulgore/Skyborne captures inspected. They close the observed missing-file boundary, not overall rendering/gameplay acceptance. Mulgore rig samples contain attachment34 on every sampled model; the reported effect-owner ID never appears in those samples or visual-request logs. This does **not** establish that an owner rig lacks the attachment; lifecycle/visibility/lookup cause remains under investigation.
+
+### Stockades repro classification
+
+Earlier `auth-stockades-round2` requested engine `[82.3245,-26.5229,10.6106]`, but entered at `[56.68209,-19.26912,-0.62376]` (28.92m away). Generic cause: server `maps/login.rs::LoginMaps::resolve` replaces a saved dungeon position with `MapStore::entrance_location` when the instance copy is newly created; that selects the lowest-ID incoming trigger. This is not a missing asset or failed admin save. `auth-stockades-round3` expects the authored entrance `[56.6821,-19.2691,-0.62376]` and measures0.000025m error.
+
+Zero-Basis errors reproduce on that valid landing with populated NPCs, not offline global-WMO streaming. First round2 error follows NPC display2992 visual completion and reports `core/math/basis.cpp:717 get_quaternion`; correlation does not identify the responsible model. Round3's sampled unit-root and model global determinants are all nonzero, falsifying a simple root-scale-zero explanation. Exact repro inputs are retained in `auth-stockades-round3/{argv.json,fixture.gd,observations.json,rig-samples.jsonl,client.log}` and `server/auth-stockades-round3-{argv,teleport}.json`. Engine rendering cause stays outside no-install fixes unless closure is demonstrated.
+
+Invalid attempts remain explicit: early Stormwind used incorrect teleport axes; Skyborne96 round1 entered Human/Stockades and round2 failed selection. Neither counts as Skyborne96 proof. Corrected fixture uses keyboard roster selection and verifies the exact selected name before entry.
+
+`proof-ledger.json` retains historical development-test scope/log hashes rather than claiming current-HEAD broad verification. Current bounded visits expose no further missing-file request; pristine manifest-only bundle, all-catalog fixed point and comprehensive classes/customizations/items remain unproven.
+
 ## Remaining acceptance
 
 Owned protocol-matched authenticated server/client runs, receipt/skin publication rechecks, all-class/item/spell descendants, full-catalog closure/provenance reconciliation and pristine player-bundle/download acceptance remain unqualified. Historical graph counts and metadata-only `36 profiles / 0 certified` evidence are documented in [offline asset closure](../wiki/systems/offline-asset-closure.md); they are not replaced by this bounded sweep.
