@@ -576,11 +576,12 @@ fn slot_button(book: &TransmogBook, slot: EquipmentSlot, x: f32, y: f32) -> Elem
         ));
     }
     children.extend(slot_border(book, slot, state));
-    let (highlight, _) = slot_border_art(book, slot, state);
+    let (highlight, size) = slot_border_art(book, slot, state);
+    let highlight_size = format!("{size},{size}");
     let disabled = book.busy() || state.is_none();
     let action = format!("transmog:slot:{}", slot.inv_slot_id());
     rsx! { button { name: {DynName(name)}, width: 59.0, height: 59.0, left: x, top: y,
-    pos_type: "absolute", button_default_skin: false, disabled, button_atlas_highlight: highlight, button_highlight_blend_mode:"ADD",
+    pos_type: "absolute", button_default_skin: false, disabled, button_atlas_highlight: highlight, button_highlight_blend_mode:"ADD", button_highlight_size:highlight_size,
     onclick: {action.as_str()}, {children} } }
 }
 

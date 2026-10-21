@@ -367,7 +367,7 @@ fn item_card(
     let disabled = book.busy();
     rsx! { button { name: {DynName(prefix)}, width: MODEL_WIDTH, height: MODEL_HEIGHT,
     left: x, top: y, pos_type: "absolute", disabled, button_default_skin: false,
-    button_atlas_highlight: "transmog-itemcard-default", button_highlight_blend_mode:"ADD", onclick: {action.as_str()}, {children} } }
+    button_atlas_highlight: "transmog-itemcard-default", button_highlight_blend_mode:"ADD", button_highlight_size:"114,146", onclick: {action.as_str()}, {children} } }
 }
 
 fn source_card(book: &TransmogBook, source: &TransmogSource, index: usize) -> Element {
@@ -509,7 +509,7 @@ fn set_base_card(
     children.extend(rsx! { fontstring { name: {DynName(format!("{prefix}Status"))}, text: {status.as_str()}, hidden: true } });
     rsx! { button { name: {DynName(prefix)}, width: SET_WIDTH, height: SET_HEIGHT, left: x, top: y,
     pos_type: "absolute", disabled: busy, button_default_skin: false,
-    button_atlas_highlight: "transmog-itemcard-default", button_highlight_blend_mode:"ADD", onclick: {action.as_str()}, {children} } }
+    button_atlas_highlight: "transmog-itemcard-default", button_highlight_blend_mode:"ADD", button_highlight_size:"194,234", onclick: {action.as_str()}, {children} } }
 }
 
 fn set_card(
@@ -653,72 +653,8 @@ pub(super) fn name_popup(book: &TransmogBook) -> Element {
     {children} } }
 }
 
-/// Native-only button data the RSX attributes do not cover.
-pub fn apply_transmog_art(view: &TransmogView, registry: &mut ui_toolkit::registry::FrameRegistry) {
-    apply_paging_art(registry);
-    // TransmogAppearanceSlotMixin:676–677 uses the current gear border as ADD highlight.
-    if let Some(state) = &view.book.state {
-        for slot in &state.slots {
-            let name = format!("TransmogSlot{}", slot.slot.inv_slot_id());
-            let (_, size) = slot_border_art(&view.book, slot.slot, Some(slot));
-            let id = registry
-                .get_by_name(&name)
-                .expect("registered transmog slot");
-            if let Some(ui_toolkit::frame::WidgetData::Button(button)) =
-                &mut registry.get_mut(id).expect("transmog slot").widget_data
-            {
-                button.highlight_size = Some([size, size]);
-            }
-        }
-    }
-    let (names, size): (Vec<String>, [f32; 2]) = match view.book.tab {
-        WardrobeTab::Items => (
-            view.book
-                .page_items()
-                .into_iter()
-                .map(|entry| match entry {
-                    ItemEntry::Hidden => "TransmogHiddenVisual".to_string(),
-                    ItemEntry::Source(source) => format!("TransmogSource{}", source.source_id),
-                    ItemEntry::Illusion(illusion) => {
-                        format!("TransmogIllusionEntry{}", illusion.id)
-                    }
-                })
-                .collect(),
-            [114.0, 146.0],
-        ),
-        WardrobeTab::Sets => (
-            view.book
-                .page_sets()
-                .into_iter()
-                .map(|(set, _)| format!("TransmogSet{}", set.set_id))
-                .collect(),
-            [194.0, 234.0],
-        ),
-        WardrobeTab::CustomSets => (
-            view.book
-                .page_custom_sets()
-                .into_iter()
-                .map(|set| format!("TransmogCustomSet{}", set.id))
-                .collect(),
-            [194.0, 234.0],
-        ),
-        WardrobeTab::Situations => return,
-    };
-    // Blizzard_TransmogTemplates.xml: useAtlasSize, centred on item/set models.
-    for name in names {
-        let id = registry
-            .get_by_name(&name)
-            .expect("registered transmog card");
-        let frame = registry.get_mut(id).expect("registered transmog card");
-        let Some(ui_toolkit::frame::WidgetData::Button(button)) = &mut frame.widget_data else {
-            panic!("Transmog card {name} is not a button");
-        };
-        button.highlight_size = Some(size);
-    }
-}
-
 /// Blizzard_PagingControls.xml file textures; ids from the maintained local listfile.
-fn apply_paging_art(registry: &mut ui_toolkit::registry::FrameRegistry) {
+pub fn apply_transmog_art(registry: &mut ui_toolkit::registry::FrameRegistry) {
     use ui_toolkit::{frame::WidgetData, widgets::texture::TextureSource};
     for (name, normal, pressed, disabled) in [
         ("TransmogPreviousPage", 130869, 130868, 130867),
@@ -738,6 +674,7 @@ fn apply_paging_art(registry: &mut ui_toolkit::registry::FrameRegistry) {
         button.highlight_texture = Some(ButtonTexture {
             source: TextureSource::FileDataId(130757),
             blend_mode: BlendMode::Additive,
+            ..Default::default()
         });
     }
 }

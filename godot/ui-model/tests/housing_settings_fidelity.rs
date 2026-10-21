@@ -259,7 +259,7 @@ fn house_settings_source_close_button_both_skins() {
             ] {
                 assert_eq!(*actual, Some(TextureSource::Atlas(atlas.into())));
             }
-            assert_eq!(button.highlight_alpha, 1.0);
+            assert_eq!(button.highlight_texture.as_ref().unwrap().alpha, 1.0);
         }
     }
 }

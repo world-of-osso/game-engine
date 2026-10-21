@@ -783,6 +783,7 @@ fn zoom_button(
             button_atlas_pressed: pressed,
             button_atlas_highlight: highlight,
             button_atlas_disabled: atlas,
+            button_disabled_desaturated: true,
             disabled,
             onclick: action,
             pos_type: "absolute",
