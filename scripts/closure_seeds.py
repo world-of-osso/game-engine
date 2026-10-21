@@ -272,6 +272,75 @@ def npc_displays(db, tiles):
     return spawns, sorted(displays - {0})
 
 
+def select_game_object_templates(db, selector, tiles):
+    if selector == "all":
+        rows = list(
+            db.execute(
+                "SELECT entry,type,displayId FROM content_gameobject_template ORDER BY entry"
+            )
+        )
+    elif selector == "tiles":
+        rows = []
+        for map_id, x, y in sorted(tiles):
+            rows.extend(
+                db.execute(
+                    "SELECT t.entry,t.type,t.displayId FROM content_gameobject g "
+                    "JOIN content_gameobject_template t ON t.entry=g.id "
+                    "WHERE g.map=? AND g.position_x>? AND g.position_x<=? "
+                    "AND g.position_y>? AND g.position_y<=? ORDER BY t.entry",
+                    (
+                        map_id,
+                        (31 - y) * (1600 / 3),
+                        (32 - y) * (1600 / 3),
+                        (31 - x) * (1600 / 3),
+                        (32 - x) * (1600 / 3),
+                    ),
+                )
+            )
+    else:
+        raise ValueError(f"Unknown game_objects selector: {selector!r}")
+    templates = {
+        int(row[0]): {
+            "entry": int(row[0]),
+            "type": int(row[1]),
+            "display_id": int(row[2]),
+        }
+        for row in rows
+    }
+    return [templates[entry] for entry in sorted(templates)]
+
+
+def seed_game_objects(graph, catalogs, db, selector, tiles):
+    templates = select_game_object_templates(db, selector, tiles)
+    if not templates:
+        return []
+    if selector == "all":
+        graph.issue(
+            "game_object_reachability_superset",
+            "all game-object templates, including unspawned/script-summoned objects; not a pruned native-renderable set",
+        )
+    displays = catalogs.index("GameObjectDisplayInfo")
+    for template in templates:
+        display = template["display_id"]
+        if not display:
+            continue
+        row = displays.get(display)
+        if row is None or not number(row, "FileDataID"):
+            graph.issue(
+                "missing_metadata_row",
+                f"GameObjectDisplayInfo ID={display} FileDataID for template {template['entry']}",
+            )
+            continue
+        # Native game_objects::load_visual dispatches only type15 map transports to WMO.
+        kind = "wmo" if template["type"] == 15 else "m2"
+        graph.add(
+            number(row, "FileDataID"),
+            kind,
+            f"game object template {template['entry']} display {display}",
+        )
+    return templates
+
+
 def starting_items(db, character):
     race_bit = 1 << (character["race"] - 1)
     items = [
@@ -642,9 +711,13 @@ def seed_catalogs(graph, world_path, config):
                 }
             )
         seed_items(graph, catalogs, db, items)
+        game_objects = seed_game_objects(
+            graph, catalogs, db, config["game_objects"], tiles
+        )
         selected = {
             "spawns": spawns,
             "displays": npc_ids,
+            "game_objects": game_objects,
             "items": items,
             "spells": spells,
         }
