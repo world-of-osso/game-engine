@@ -7,7 +7,6 @@ fn source() -> ConversationUpdate {
 }
 
 #[test]
-#[ignore = "RED: native private conversation has no TalkingHead consumer"]
 fn talking_head_native_payload_keeps_source_identity_text_sound_and_elapsed_lifetime() {
     let update = source();
     let mut state = TalkingHeadState::default();
@@ -47,7 +46,6 @@ fn talking_head_native_payload_keeps_source_identity_text_sound_and_elapsed_life
 }
 
 #[test]
-#[ignore = "RED: native private conversation has no TalkingHead dismissal state"]
 fn talking_head_native_dismissed_identity_does_not_replay_and_foreign_owner_is_refused() {
     let update = source();
     let mut state = TalkingHeadState::default();
@@ -77,7 +75,6 @@ fn talking_head_native_dismissed_identity_does_not_replay_and_foreign_owner_is_r
 }
 
 #[test]
-#[ignore = "RED: authored TalkingHead native frame is absent"]
 fn talking_head_source_template_geometry_name_text_and_model_in_both_skins() {
     use ui_toolkit::{
         atlas::ActiveSkin,
