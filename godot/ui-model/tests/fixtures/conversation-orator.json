@@ -1,0 +1,53 @@
+{
+  "map_id": 2669,
+  "instance_id": 41,
+  "conversations": [
+    {
+      "id": 700,
+      "entry": 24642,
+      "creator": 600,
+      "private_owner": 400,
+      "texture_kit_id": 0,
+      "flags": 0,
+      "actors": [
+        {
+          "id": 51642,
+          "index": 0,
+          "name": "Orator Krix'vizk",
+          "object": {
+            "TalkingHead": {
+              "creature_id": 220769,
+              "display_id": 116692
+            }
+          }
+        }
+      ],
+      "lines": [
+        {
+          "id": 67085,
+          "broadcast_text_id": 259911,
+          "ui_camera_id": 1751,
+          "actor_index": 0,
+          "flags": 0,
+          "chat_type": 0,
+          "start_ms": 0,
+          "source_duration_ms": null,
+          "additional_duration_ms": 0,
+          "visual_kit_id": 0,
+          "animation_kit_id": 0,
+          "start_animation": 60,
+          "end_animation": 60,
+          "text": {
+            "male_text": "Our queen offers a most wondrous gift. We will become greater than we are.",
+            "female_text": "",
+            "sound_kit_id": 250774,
+            "language_id": 0
+          }
+        }
+      ],
+      "last_line_end_ms": 0,
+      "duration_ms": 10000,
+      "elapsed_ms": 750
+    }
+  ]
+}
