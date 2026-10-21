@@ -1,6 +1,6 @@
 ## 2026-10-21 — Actual scripted boss alert clocks
 
-[Boss alerts](systems/boss-encounters.md#actual-scripted-clocks--2026-10-21): explicit six current-Lua scripts publish real selected EventMap requests via existing ordered wire/client. Sourced warnings retained; dynamic/native-text gaps named. Canonical catalog absent; retained private Kokia clocks are legacy, not a publication fix. Kokia behavioral RED recorded; GREEN/native pending.
+[Boss alerts](systems/boss-encounters.md#actual-scripted-clocks--2026-10-21): explicit six current-Lua scripts publish real selected EventMap requests via existing ordered wire/client. Sourced warnings retained; dynamic/native-text gaps named. Canonical catalog absent; retained private Kokia clocks are legacy, not a publication fix. Missing-snapshot RED→post-master behavioral2/2GREEN; accepted actual private5981 Kokia205 both-skin1920 countdown/warnings/kill-clear, ten inspected originals. Source-text/condition limits retained.
 
 ## 2026-10-21 — Authored button regions implementation
 
