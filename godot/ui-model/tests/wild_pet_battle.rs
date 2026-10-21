@@ -335,6 +335,39 @@ fn wild_pet_battle_forfeit_requires_confirmation_and_end_stops_actions() {
 }
 
 #[test]
+#[ignore = "RED: Retail timer projection pending"]
+fn petbattle_pvp_timer_uses_retail_frame_fill_and_waiting_caption_in_both_skins() {
+    game_engine_ui_model::paths::set_data_root(
+        std::path::PathBuf::from(env!("CARGO_MANIFEST_DIR")).join("../../data"),
+    )
+    .unwrap();
+    for skin in [ActiveSkin::Modern, ActiveSkin::Forever] {
+        set_thread_skin(skin);
+        let mut state = snapshot();
+        state.wild_creature = 0;
+        state.turn_time_ms = 30_000;
+        let mut view = WildBattleView::default();
+        view.receive(WildPetBattleUpdate::Start(state));
+        assert!(view.action("pb:pass").is_some());
+        let mut context = SharedContext::new();
+        context.insert(skin);
+        context.insert(view);
+        let mut registry = FrameRegistry::new(1280.0, 720.0);
+        Screen::new(wild_battle_screen).sync(&context, &mut registry);
+        assert!(
+            registry.get_by_name("PetBattleTurnTimerFill").is_some(),
+            "Retail Timer-Fill is not just Timer-BG"
+        );
+        let caption = registry
+            .get(registry.get_by_name("PetBattleTurnTimerText").unwrap())
+            .unwrap();
+        assert!(
+            matches!(caption.widget_data.as_ref(), Some(ui_toolkit::frame::WidgetData::FontString(text)) if text.text == "Waiting For Opponent...")
+        );
+    }
+}
+
+#[test]
 fn petbattle_pvp_waiting_player_can_still_confirm_forfeit() {
     let mut view = WildBattleView::default();
     let mut state = snapshot();
