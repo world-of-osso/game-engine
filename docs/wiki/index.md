@@ -404,7 +404,7 @@
 
 
 - [Offline asset closure — round 4](systems/offline-asset-closure.md#round-4-local-fixed-point--verified-2026-10-10) — local fixed point, precise root/metadata residuals, authenticated no-clobber recovery and backed-up runtime-index regeneration; no no-install certificate. Historical round-3 dataset remains linked in the same page.
-- [M2 product shadowing](investigations/m2-product-shadowing.md) — unqualified disk/parsed collisions, metadata-source RED/GREEN, authenticated actual-build offline chains and remaining runtime/native boundary; [continuation evidence](investigations/m2-product-shadowing.md#continuation-authenticated-offline-chains-2026-10-09).
+- [M2 product shadowing](investigations/m2-product-shadowing.md) — authenticated character/equipment isolation; [terrain model579120/skin579121 collision](investigations/m2-product-shadowing.md#terrain-collision-reproduced-2026-10-21) proves flat Forever/Retail mixing persists outside that boundary.
 - [Offline asset closure](systems/offline-asset-closure.md) — full-catalog traversal and authenticated no-clobber extraction; [70338 recheck](systems/offline-asset-closure.md#recorded-gap-recovery--verified-2026-10-10) recovers seven bakes, vehicle7476985 and204 IV8 failures. Optional joins/no-install acceptance remain open.
 
 - [Zephras sky/minimap diagnosis](investigations/zephras-sky-minimap.md) — map2991 listfile-only tile loss and wrong M2 dual-crossfade; shader/tile RED/GREEN and inspected rebuilt private before/after; whole-day sky parity unclaimed.

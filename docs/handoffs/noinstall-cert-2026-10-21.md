@@ -88,7 +88,7 @@ Engine base `52e47cd5d`, protocol `03cebdb`, own server `0cc7b3866`; per-case ar
 | `auth-skytwo-round4` / Skyborne96 |17/54;292|No missing-file error;9tiles; four existing Vertex101 errors.|
 | `auth-stockades-round3` |14/96;292|No missing-file error; global WMO108631;5,048 zero-Basis errors; landing/final error0.000025m at authored entrance.|
 
-Latest Mulgore/Skyborne captures inspected. They close the observed missing-file boundary, not overall rendering/gameplay acceptance. Mulgore rig samples contain attachment34 on every sampled model; the reported effect-owner ID never appears in those samples or visual-request logs. This does **not** establish that an owner rig lacks the attachment; lifecycle/visibility/lookup cause remains under investigation.
+Latest Mulgore/Skyborne captures inspected. They close the observed absent-file boundary, not provenance, rendering or gameplay acceptance. [Skyborne's Vertex101 cause](../wiki/investigations/m2-product-shadowing.md#terrain-collision-reproduced-2026-10-21) is now a proven cross-product pair: flat Forever579120.m2 with flat Retail579121.skin. Four placements expose the mismatched vertex ranges; the unqualified terrain loader bypasses converted source-qualified model IO. Authentic per-product alternatives are being staged without flat overwrites; no terrain runtime repair or full-chain product proof is claimed. Mulgore rig samples contain attachment34 on every sampled model; the reported effect-owner ID never appears in those samples or visual-request logs. This does **not** establish that an owner rig lacks the attachment; lifecycle/visibility/lookup cause remains under investigation.
 
 ### Stockades repro classification
 
