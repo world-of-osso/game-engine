@@ -2,6 +2,14 @@
 # Native authored-blend Housing storage and mode-button atlas sheets (local CASC).
 textures/6356256.blp
 textures/6653881.blp
+# Remaining production-panel textures observed by the native blend matrix (local CASC).
+textures/341547.blp
+textures/4616456.blp
+textures/593919.blp
+textures/593917.blp
+textures/922034.blp
+textures/517165.blp
+textures/337492.blp
 # EJ Search templates: generic creature and authored file top border (local CASC334a36cf).
 textures/533888.blp
 textures/374157.blp
