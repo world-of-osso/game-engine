@@ -162,7 +162,7 @@ fn build(skin: ActiveSkin, book: TransmogBook) -> FrameRegistry {
     shared.insert(view.clone());
     let mut registry = FrameRegistry::new(1920.0, 1080.0);
     Screen::new(transmog_screen).sync(&shared, &mut registry);
-    game_engine_ui_model::transmog_frame::apply_transmog_art(&view, &mut registry);
+    game_engine_ui_model::transmog_frame::apply_transmog_art(&mut registry);
     registry
 }
 
@@ -383,7 +383,10 @@ fn transmog_hover_borders_have_the_authored_model_card_sizes() {
                 "transmog-itemcard-default".into()
             ))
         );
-        assert_eq!(button.highlight_size, Some([114.0, 146.0]));
+        assert_eq!(
+            button.highlight_texture.as_ref().unwrap().size,
+            Some([114.0, 146.0])
+        );
         let mut sets = book();
         sets.set_tab(WardrobeTab::Sets);
         let registry = build(skin, sets);
@@ -393,7 +396,10 @@ fn transmog_hover_borders_have_the_authored_model_card_sizes() {
         let Some(WidgetData::Button(button)) = &frame.widget_data else {
             panic!("set card")
         };
-        assert_eq!(button.highlight_size, Some([194.0, 234.0]));
+        assert_eq!(
+            button.highlight_texture.as_ref().unwrap().size,
+            Some([194.0, 234.0])
+        );
         assert_eq!(
             button
                 .highlight_texture
