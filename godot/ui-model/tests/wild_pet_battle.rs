@@ -368,6 +368,31 @@ fn petbattle_pvp_timer_uses_retail_frame_fill_and_waiting_caption_in_both_skins(
 }
 
 #[test]
+fn petbattle_pvp_clock_is_presentation_only_and_new_phase_restarts_it() {
+    let mut view = WildBattleView::default();
+    let mut state = snapshot();
+    state.wild_creature = 0;
+    state.turn_time_ms = 30_000;
+    view.receive(WildPetBattleUpdate::Start(state.clone()));
+    view.advance_clock(1.25);
+    assert_eq!(view.turn_remaining_ms, 28_750.0);
+    assert_eq!(
+        view.state.as_ref().unwrap(),
+        &state,
+        "presentation never mutates authority"
+    );
+    view.advance_clock(60.0);
+    assert_eq!(
+        view.turn_remaining_ms, 10.0,
+        "Retail clamps expired display, server owns expiry"
+    );
+    assert!(!view.pending, "client expiry never submits an action");
+    state.initial_selection_required = true;
+    view.receive(WildPetBattleUpdate::State(state));
+    assert_eq!(view.turn_remaining_ms, 30_000.0);
+}
+
+#[test]
 fn petbattle_pvp_waiting_player_can_still_confirm_forfeit() {
     let mut view = WildBattleView::default();
     let mut state = snapshot();
