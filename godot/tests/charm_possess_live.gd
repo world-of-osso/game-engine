@@ -125,17 +125,22 @@ func select_authored_target() -> bool:
 	fail("No published %s near private priest: %s" % [authored_target, client.target_state()])
 	return false
 
-# Match world_input_flow's native viewport clicks. Warping the real pointer between
-# synthetic events lets cage's asynchronous motion replace the injected position.
-func click(control: Control) -> void:
-	await wait_frames(3)
-	var point := control.get_global_rect().get_center()
-	print("CHARM_CLICK ", control.name, " point=", point)
-	for pressed in [true, false]:
-		var event := InputEventMouseButton.new()
-		event.position = point
-		event.button_index = MOUSE_BUTTON_LEFT
-		event.pressed = pressed
-		root.push_input(event, true)
-		await process_frame
-	await wait_frames(3)
+# CharacterSelect's sourced native Down/Enter route avoids coupling this control
+# proof to headless pointer hover/viewport scaling. Never emit a UI signal directly.
+func enter_world() -> bool:
+	if not await wait_until(func(): return client.account_state().screen == "CharacterSelect" and client.account_state().character_count == 1, 60000, "private single-character roster"):
+		return false
+	var ui := client.get_node("CharacterSelectUI")
+	var label := ui.find_child("CharCard_0Name", true, false) as Label
+	if label == null or label.text != character:
+		fail("Private roster does not contain " + character)
+		return false
+	await press(KEY_DOWN)
+	await press(KEY_ENTER)
+	if not await wait_until(func():
+		var state: Dictionary = client.account_state()
+		return state.screen == "InWorld" and state.local_player_position != null and state.local_server_position != null and state.terrain.pending_count == 0 and not state.terrain.parsed_tiles.is_empty(), 300000, "native world terrain and selected player"):
+		return false
+	print("CHARM_IN_WORLD ", client.account_state().selected_character_name)
+	await wait_frames(60)
+	return true
