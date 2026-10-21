@@ -13,11 +13,11 @@ pub mod transmog;
 pub mod unit;
 
 use ui_toolkit::atlas::ActiveSkin;
+use ui_toolkit::font_object::resolve_font_object;
 use ui_toolkit::rsx;
 use ui_toolkit::screen::SharedContext;
 use ui_toolkit::text_measure::measure_text;
 use ui_toolkit::widget_def::Element;
-use ui_toolkit::widgets::font_string::GameFont;
 
 use crate::inworld_unit_frames_component::inworld_unit_frames_art::AtlasArt;
 use crate::tooltip_presentation::{
@@ -256,7 +256,8 @@ fn health_bar(main: &TooltipPresentation, health: Option<f32>, skin: ActiveSkin)
 }
 
 fn compare_header(prefix: &str, shopping: &ShoppingTooltip) -> Element {
-    let label_w = measure_text(&shopping.header, GameFont::FrizQuadrata, render::TEXT_SIZE)
+    let font = resolve_font_object(render::TEXT_FONT_OBJECT);
+    let label_w = measure_text(&shopping.header, font.font, font.font_size)
         .map_or(0.0, |(width, _)| width.ceil());
     let width = label_w + COMPARE_HEADER_PADDING;
     let hidden = !shopping.tooltip.visible || shopping.header.is_empty();
@@ -291,8 +292,7 @@ fn compare_header(prefix: &str, shopping: &ShoppingTooltip) -> Element {
                 width: {width},
                 height: {COMPARE_HEADER_H},
                 text: {shopping.header.as_str()},
-                font: "FrizQuadrata",
-                font_size: {render::TEXT_SIZE},
+                font_object: render::TEXT_FONT_OBJECT,
                 font_color: {rgba_string(TOOLTIP_DESCRIPTION_COLOR)},
                 justify_h: "CENTER",
                 pos_type: "absolute",
