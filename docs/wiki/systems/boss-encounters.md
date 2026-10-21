@@ -34,7 +34,7 @@ Art proof: initial missing-background RED and corrected runtime-size RED (224px 
 
 Server opt-in is limited to Kokia, Melidrussa, Kyrioss, Doragosa, Azureblade and Umbrelskul. Common post-hook projection reads selected EventMap deadlines/durations, sends changes immediately and unchanged samples at1s; repeat, cancellation and real cast dispatch remain server-owned. Explicit native→addon-label joins preserve wrapper labels without casting wrappers. Current callback counts and enUS renames travel verbatim with the existing color→severity policy. No client scheduler, new protocol or panel-specific generic behavior was added. Kokia Ritual's native target-message text, Kyrioss444034 phase warning and Umbrelskul role/target-dependent Strike warning remain absent rather than fabricated.
 
-Audit found no canonical bossmod tables or automatic catalog publication. The2026-10-11 retained private catalog contains obsolete Kokia legacy clocks; it is not a deployment-ready current schedule. RED proves missing real Kokia snapshots before the change; current GREEN/native acceptance remains pending.
+Audit found no canonical bossmod tables or automatic catalog publication. The2026-10-11 retained private catalog contains obsolete Kokia legacy clocks; it is not a deployment-ready current schedule. RED proves missing real Kokia snapshots before the change; post-master behavioral2/2 pass (six exact initial schedules plus Kokia countdown/actual warning/repeat/copy isolation/evade). Preliminary actual private5981 Kokia205 bars and Molten Boulder(1) warning work, but cage clipped the surface to1280×720; required1920×1080 both-skin acceptance remains pending.
 
 ## Boss-mod continuation — verified2026-10-11
 
