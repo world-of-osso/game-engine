@@ -306,7 +306,7 @@ fn display_type_button(
         action,
         enabled,
         (x, y, 188.0, 36.0),
-        &Skin {
+        &Skin::States {
             up,
             pressed: "common-button-tertiary-pressed",
             disabled: up,
