@@ -1,6 +1,13 @@
 use super::*;
 
 impl SpellVisualCatalog {
+    /// Source conversation voice without requiring a spell to reference its kit.
+    pub fn read_sound_kit(_dir: &Path, id: u32) -> Result<KitSound, String> {
+        Err(format!(
+            "SoundKit{id} direct voice loader is not implemented"
+        ))
+    }
+
     /// The `SoundKit`s kits, missiles, unit voices and melee reference, with their
     /// `SoundKitEntry` files.
     pub(super) fn read_sound_kits(&mut self, dir: &Path) -> Result<(), String> {

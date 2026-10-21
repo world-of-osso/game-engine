@@ -1,0 +1,4 @@
+ID,SoundType,VolumeFloat,Flags,MinDistance,DistanceCutoff,EAXDef,SoundKitAdvancedID,VolumeVariationPlus,VolumeVariationMinus,PitchVariationPlus,PitchVariationMinus,DialogType,PitchAdjust,BusOverwriteID,MaxInstances,SoundMixGroupID
+250774,10,0.799999952,4100,20,60,0,210954,0,0,0,0,1,0,0,0,0
+250775,10,0.799999952,4100,20,60,0,210955,0,0,0,0,1,0,0,0,0
+250776,10,0.799999952,4100,20,60,0,210956,0,0,0,0,1,0,0,0,0
