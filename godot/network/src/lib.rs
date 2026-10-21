@@ -945,8 +945,8 @@ fn install_merchant_relay(app: &mut App, events: Sender<Event>) {
 
 fn install_encounter_relay(app: &mut App, events: Sender<Event>) {
     use protocol::{
-        EncounterDisengageUnit, EncounterEnd, EncounterEngageUnit, EncounterStart,
-        EncounterTimelineEvent,
+        ConversationUpdate, EncounterDisengageUnit, EncounterEnd, EncounterEngageUnit,
+        EncounterStart, EncounterTimelineEvent,
     };
     app.add_systems(
         Update,
@@ -954,7 +954,8 @@ fn install_encounter_relay(app: &mut App, events: Sender<Event>) {
                mut ends: Query<&mut MessageReceiver<EncounterEnd>>,
                mut engages: Query<&mut MessageReceiver<EncounterEngageUnit>>,
                mut disengages: Query<&mut MessageReceiver<EncounterDisengageUnit>>,
-               mut timeline: Query<&mut MessageReceiver<EncounterTimelineEvent>>| {
+               mut timeline: Query<&mut MessageReceiver<EncounterTimelineEvent>>,
+               mut conversations: Query<&mut MessageReceiver<ConversationUpdate>>| {
             let mut received = Vec::new();
             macro_rules! drain {
                 ($receivers:ident) => {
@@ -970,6 +971,7 @@ fn install_encounter_relay(app: &mut App, events: Sender<Event>) {
             drain!(engages);
             drain!(disengages);
             drain!(timeline);
+            drain!(conversations);
             received.sort_by_key(|(id, _)| *id);
             for (_, message) in received {
                 events
