@@ -45,6 +45,7 @@ const FIXTURES: &[(&str, usize)] = &[
     ("achievement_bottom_tabs", 6),
     ("achievement_header_title", 4),
     ("ui_template_blend_matrix", 42),
+    ("ui_template_regions_matrix", 16),
 ];
 
 struct Invocation {
