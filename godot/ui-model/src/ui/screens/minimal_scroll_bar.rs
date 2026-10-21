@@ -12,13 +12,13 @@ use crate::quest_art::DynName;
 
 /// 8 wide (:16), its track 19 in from either end (:26-27), a thumb at least 23 long (:20),
 /// and 17×11 Back / Forward steppers at its top and bottom (:100-137).
-pub const BAR_W: f32 = 8.0;
+pub const BAR_W: f32 = ui_toolkit::three_slice::MINIMAL_SCROLLBAR_WIDTH;
 const TRACK_INSET: f32 = 19.0;
 const MIN_THUMB: f32 = 23.0;
 const STEPPER_W: f32 = 17.0;
 const STEPPER_H: f32 = 11.0;
 /// The track and thumb end caps are 8×8 atlas members.
-const CAP: f32 = 8.0;
+const CAP: f32 = ui_toolkit::three_slice::MINIMAL_SCROLLBAR_CAP;
 /// `minimal-scrollbar-small-thumb-middle` is 715 tall; the thumb shows its top
 /// `height / 715` (`MinimalScrollBar.lua:193-203`).
 const THUMB_MIDDLE_ATLAS_H: f32 = 715.0;
@@ -119,9 +119,7 @@ impl MinimalScrollBar<'_> {
                     left: 0,
                     top: TRACK_INSET,
                     mouse_enabled: true,
-                    {art("minimal-scrollbar-track-top", 0.0, CAP, None)}
-                    {art("!minimal-scrollbar-track-middle", CAP, track - 2.0 * CAP, None)}
-                    {art("minimal-scrollbar-track-bottom", track - CAP, CAP, None)}
+                    {ui_toolkit::three_slice::minimal_scrollbar_art(&track_name(list), track, ui_toolkit::three_slice::MinimalScrollArt::Track, 1.0)}
                     r#frame {
                         name: DynName(thumb_name(list)),
                         width: BAR_W,
@@ -132,9 +130,7 @@ impl MinimalScrollBar<'_> {
                         mouse_enabled: true,
                         hit_rect_insets: "-4,-4,-4,-4",
                         hidden: {hide_thumb},
-                        {art("minimal-scrollbar-small-thumb-top", 0.0, CAP, None)}
-                        {art("minimal-scrollbar-small-thumb-middle", CAP, thumb_height - 2.0 * CAP, Some(middle_v))}
-                        {art("minimal-scrollbar-small-thumb-bottom", thumb_height - CAP, CAP, None)}
+                        {ui_toolkit::three_slice::minimal_scrollbar_art(&thumb_name(list), thumb_height, ui_toolkit::three_slice::MinimalScrollArt::Thumb, middle_v)}
                     }
                 }
                 {stepper(forward_stepper_name(list), "minimal-scrollbar-arrow-bottom", (stepper_left, self.height - STEPPER_H), self.offset >= self.geometry.max_first_row())}
@@ -166,23 +162,6 @@ fn stepper(name: String, atlas: &str, (left, top): (f32, f32), disabled: bool) -
                 left: 0,
                 top: 0,
             }
-        }
-    }
-}
-
-/// One 8-wide piece of track or thumb art `height` tall at `top`; `v` crops a stretched
-/// middle to its top part.
-fn art(atlas: &str, top: f32, height: f32, v: Option<f32>) -> Element {
-    let coords = format!("0,1,0,{}", v.unwrap_or(1.0));
-    rsx! {
-        texture {
-            width: BAR_W,
-            height: {height.max(0.0)},
-            texture_atlas: atlas,
-            tex_coords: {coords},
-            pos_type: "absolute",
-            left: 0,
-            top,
         }
     }
 }

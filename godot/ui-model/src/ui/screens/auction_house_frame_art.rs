@@ -193,19 +193,33 @@ pub(super) fn three_slice(
     cap_w: f32,
     rect: (f32, f32, f32, f32),
 ) -> Element {
-    let (x, y, w, h) = rect;
-    let mut out = crop_texture(format!("{prefix}Left"), left, (x, y, cap_w, h));
-    out.extend(crop_texture(
-        format!("{prefix}Middle"),
-        middle,
-        (x + cap_w, y, (w - 2.0 * cap_w).max(0.0), h),
-    ));
-    out.extend(crop_texture(
-        format!("{prefix}Right"),
-        right,
-        (x + w - cap_w, y, cap_w, h),
-    ));
-    out
+    use ui_toolkit::frame::ThreeSlice;
+    use ui_toolkit::widgets::texture::TextureSource;
+    let (x, y, width, height) = rect;
+    let crops = [left, middle, right];
+    let slice = ThreeSlice {
+        cap_widths: [cap_w; 2],
+        left: TextureSource::FileDataId(left.fdid),
+        center: TextureSource::FileDataId(middle.fdid),
+        right: TextureSource::FileDataId(right.fdid),
+        tex_coords: crops.map(|crop| {
+            let (l, r, t, b) = crop.rect;
+            [
+                l / crop.sheet.0,
+                r / crop.sheet.0,
+                t / crop.sheet.1,
+                b / crop.sheet.1,
+            ]
+        }),
+        ..Default::default()
+    };
+    ui_toolkit::three_slice::slice_art(
+        prefix,
+        &slice,
+        [x, y, width, height],
+        ["Left", "Middle", "Right"],
+        ui_toolkit::strata::DrawLayer::Artwork,
+    )
 }
 
 /// `InsetFrameTemplate` NineSlice border around `rect`.
