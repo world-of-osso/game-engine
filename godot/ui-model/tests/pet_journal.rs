@@ -522,7 +522,6 @@ fn loadout_decoration_and_names_follow_owned_quality_type_and_health() {
 }
 
 #[test]
-#[ignore = "RED: immediate Retail proposal dismissal pending"]
 fn petbattle_pvp_journal_find_leave_and_proposal_wait_for_authority() {
     use shared::protocol::{
         PetBattleQueueRequest as Request, PetBattleQueueState as State, PetBattleQueueUpdate,
