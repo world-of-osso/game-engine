@@ -6,11 +6,11 @@ Port recurring behavior once from the Retail R cache, then migrate every audited
 
 ### Step 1: authored blend propagation
 
-- [ ] Default and explicit BLEND use normal alpha blending; ADD uses additive blending. No other mode is advertised or silently accepted.
-- [ ] Preserve different modes for the same atlas/source; material selection reads typed region state, never a frame name, FDID or atlas allowlist.
-- [ ] Migrate all audited model setters, six ignored declarations, selection-row art and button highlights to authored data. Delete the replaced corrections and material guesses; no alternate paths remain.
-- [ ] Preserve other properties unless the R cache explicitly establishes a corrected blend declaration. Record source differences separately from unrelated feature gaps.
-- [ ] Behavioral model/projection controls exercise real authored templates. One native pass covers all migrated panels in both skins; there are no per-attribute capture gates.
+- [x] Default and explicit BLEND use normal alpha blending; ADD uses additive blending. No other mode is advertised or silently accepted.
+- [x] Preserve different modes for the same atlas/source; material selection reads typed region state, never a frame name, FDID or atlas allowlist.
+- [x] Migrate all audited model setters, six ignored declarations, selection-row art and button highlights to authored data. Delete the replaced corrections and material guesses; no alternate paths remain.
+- [x] Preserve other properties unless the R cache explicitly establishes a corrected blend declaration. Record source differences separately from unrelated feature gaps.
+- [x] Behavioral model/projection controls exercise real authored templates. One native pass covers all migrated panels in both skins; there are no per-attribute capture gates.
 
 ### Ordered subsequent slices
 
@@ -40,7 +40,7 @@ Port recurring behavior once from the Retail R cache, then migrate every audited
 
 ## Known gaps (current cycle)
 
-- [ ] Complete Step 1 and submit coordinated toolkit/engine tips for the lead gate.
+- [ ] Lead acceptance of the coordinated Step 1 toolkit/engine tips and both-skin native packet.
 
 ## Out of scope
 
