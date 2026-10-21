@@ -54,6 +54,19 @@ func run_fixture() -> void:
         check(image.get_size() == Vector2i(1920,1080), "native1920x1080 image: " + skin)
         check(image.save_png(output.path_join("talking-head-" + skin + ".png")) == OK, "save unscaled original PNG: " + skin)
         check(fixture.model_ready(), "actual source display116692 and camera1751 painted: " + skin)
+        for frame in range(600):
+            if fixture.voice_state().get("playing", false):
+                break
+            if not check(fixture.tick(0.0).is_empty(), "native voice loader: " + skin):
+                break
+            await process_frame
+        var voice: Dictionary = fixture.voice_state()
+        check(voice.get("playing", false), "source voice starts on native audio player (not audible-output proof): " + skin)
+        check(voice.get("kit", 0) == 250774 and voice.get("fdid", 0) == 5834729, "actual source kit and clip: " + skin)
+        check(voice.get("offset_ms", -1) == 750, "voice seeks to sampled source elapsed750ms: " + skin)
+        fixture.dismiss()
+        check(fixture.tick(0.0).is_empty(), "local source dismissal: " + skin)
+        check(not fixture.voice_state().get("playing", false), "local close stops voice: " + skin)
         fixture.free()
         await process_frame
     print("TALKING_HEAD_FIXTURE steps=%d failures=%d" % [steps, failures])

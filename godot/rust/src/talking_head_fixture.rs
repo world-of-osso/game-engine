@@ -50,6 +50,16 @@ impl TalkingHeadFixture {
     fn model_ready(&self) -> bool {
         false
     }
+
+    #[func]
+    fn voice_state(&self) -> VarDictionary {
+        VarDictionary::new()
+    }
+
+    #[func]
+    fn dismiss(&mut self) {
+        self.state.dismiss();
+    }
 }
 
 impl TalkingHeadFixture {
