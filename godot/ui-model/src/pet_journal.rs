@@ -120,6 +120,16 @@ impl PetJournalView {
             } if self.dismissed_proposal != Some(proposal_id)
         )
     }
+    /// StaticPopupSpecial.xml hideOnEscape dismisses presentation, not matchmaking.
+    pub fn dismiss_queue_ready(&mut self) -> bool {
+        if !self.queue_ready() {
+            return false;
+        }
+        if let shared::protocol::PetBattleQueueState::Proposal { proposal_id, .. } = self.queue {
+            self.dismissed_proposal = Some(proposal_id);
+        }
+        true
+    }
     pub fn queue_action(
         &mut self,
         action: &str,

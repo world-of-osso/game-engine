@@ -696,6 +696,10 @@ impl INode3D for GameClient {
             return;
         }
         if key.get_keycode() == godot::global::Key::ESCAPE {
+            if self.pet_journal.view.dismiss_queue_ready() {
+                self.mark_viewport_input_handled();
+                return;
+            }
             match self.dismiss_guild_invitation() {
                 Ok(true) => {
                     self.mark_viewport_input_handled();

@@ -566,6 +566,43 @@ fn petbattle_pvp_journal_find_leave_and_proposal_wait_for_authority() {
     assert_eq!(view.queue_action("pet:find-battle"), Some(Request::Leave));
 }
 #[test]
+fn petbattle_pvp_proposal_escape_keeps_authority_and_new_proposal_can_show() {
+    use shared::protocol::{PetBattleQueueState as State, PetBattleQueueUpdate};
+    let mut view = view();
+    view.queue = State::Proposal {
+        proposal_id: 91,
+        accepted: false,
+    };
+    assert!(view.dismiss_queue_ready());
+    assert!(!view.queue_ready());
+    assert!(!view.queue_pending, "Escape is not Decline");
+    assert_eq!(
+        view.queue,
+        State::Proposal {
+            proposal_id: 91,
+            accepted: false
+        }
+    );
+    assert!(!view.dismiss_queue_ready());
+    view.receive_queue(PetBattleQueueUpdate {
+        state: State::Proposal {
+            proposal_id: 92,
+            accepted: false,
+        },
+        error: None,
+    });
+    assert!(view.queue_ready());
+    assert_eq!(
+        view.queue_action("pet:queue-decline"),
+        Some(shared::protocol::PetBattleQueueRequest::Decline { proposal_id: 92 })
+    );
+    assert!(
+        !view.queue_ready(),
+        "Retail Decline also hides before acknowledgement"
+    );
+}
+
+#[test]
 fn petbattle_pvp_ready_popup_appears_without_open_journal_in_both_skins() {
     use shared::protocol::PetBattleQueueState;
     for skin in [ActiveSkin::Modern, ActiveSkin::Forever] {
