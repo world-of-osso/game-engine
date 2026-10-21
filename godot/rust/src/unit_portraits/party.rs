@@ -280,6 +280,23 @@ mod tests {
     }
 
     #[test]
+    #[ignore = "party follower portrait RED; enable after native/headless GREEN"]
+    fn party_follower_roster_uses_real_creature_head_without_replication() {
+        let mut group = roster(&["Captain Garrick"]);
+        let mut received = serde_json::to_value(&group.members[0].portrait).unwrap();
+        received["creature_display_id"] = serde_json::json!(113753);
+        group.members[0].portrait = serde_json::from_value(received).unwrap();
+        group.members[0].online = false;
+        assert_eq!(group.members[0].entity, None);
+        let appearances = roster_appearances(&group);
+        assert!(matches!(
+            appearances.get("Captain Garrick"),
+            Some(UnitAppearance::Creature { display_id: 113753, items }) if items.entries.is_empty()
+        ));
+        assert!(bindings(&group, None, false)[0].desaturated);
+    }
+
+    #[test]
     fn rosterclient_unreplicated_member_uses_canonical_roster_appearance() {
         use shared::components::{CharacterAppearance, EquipmentAppearance, Player};
         let mut group = roster(&["Ann"]);
