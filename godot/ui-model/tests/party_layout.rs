@@ -241,7 +241,6 @@ fn rect(r: &FrameRegistry, name: &str) -> (f32, f32, f32, f32) {
 }
 
 #[test]
-#[ignore = "party title RED; enable after headless/native GREEN"]
 fn party_title_is_visible_at_retail_first_member_anchor_under_both_skins() {
     let _lock = SKIN.lock().unwrap();
     // CompactRaidGroup.xml: 50x14, BOTTOM anchored to Member1 TOP.
