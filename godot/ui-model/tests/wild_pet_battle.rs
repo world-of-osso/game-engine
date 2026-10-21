@@ -335,7 +335,6 @@ fn wild_pet_battle_forfeit_requires_confirmation_and_end_stops_actions() {
 }
 
 #[test]
-#[ignore = "RED: inherited negative-Y anchor sign correction pending"]
 fn petbattle_pvp_timer_uses_retail_frame_fill_and_waiting_caption_in_both_skins() {
     game_engine_ui_model::paths::set_data_root(
         std::path::PathBuf::from(env!("CARGO_MANIFEST_DIR")).join("../../data"),
