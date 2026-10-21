@@ -286,7 +286,8 @@ pub fn wild_battle_screen(ctx: &SharedContext) -> Element {
     }
     children.extend(rsx! { r#frame { name: "PetBattleFloatingLayer", width, height, left: 0.0, top: 0.0, pos_type: "absolute", mouse_enabled: false, strata: ui_toolkit::strata::FrameStrata::Dialog, {floating} } });
 
-    if !view.pending
+    if view.result.is_none()
+        && !view.pending
         && (view.show_swap || state.replacement_required || state.initial_selection_required)
     {
         children.extend(swap_panel(view, state));
