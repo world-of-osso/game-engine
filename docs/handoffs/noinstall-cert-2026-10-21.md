@@ -15,7 +15,7 @@ The real `WowAssetLoader.asset_runtime_status()` is recorded per observation: ev
 | Case | Status | Exact boundary |
 |---|---|---|
 | Login | Bounded PASS | Native screen captured, no emitted engine errors, tripwire zero. No authentication in this case. |
-| Character creation | GAP | All 31 catalog race entries × two bodies selected correctly; 62 captures/observations, many absent models and required receipt errors. Defaults only, not all classes/customization combinations. |
+| Character creation | GAP | All 31 catalog race entries × two bodies selected correctly; 62 captures/observations, many absent models and required receipt errors. Production race/body changes randomize appearances; not all classes/customization combinations. |
 | Character select | Pending | Requires owned authenticated server/character. |
 | M2 debug | Bounded PASS | Reference wolf visible, three mesh descendants, no emitted errors, tripwire zero; interactions not certified by this sweep. |
 | Selection debug | Asset-I/O subset only | Screen visible, no emitted errors/tripwire hits; zero descendant model meshes, so not a model-rendering certificate. |
@@ -43,7 +43,7 @@ All cases below exercise production map identity, terrain, object and lighting r
 
 - `9323d70c0`: legacy receipt authentication requires explicit product/build pins instead of obsolete hardcoded versions; only requested products are authenticated. Current-build synthetic root/publication and integrity tests: RED → GREEN18. No identity checks bypassed.
 - `abc2de31b`: player and NPC closure seeds use the explicitly configured native customization cache, not obsolete `customization.sqlite`. Concrete stale-cache FDID99 versus current FDID8: RED → GREEN14. Maintained configs select `cache/customization-v5.sqlite`; its metadata origin remains separately unverified.
-- Round1: all 192 legacy payloads match authenticated Retail70448 content keys, 74,918,722 bytes. Lead reports re-extraction and no-clobber canonical publication with `model-asset-index-noinstall-cert-round1.json`. A subsequent run exposes further texture layers; this was not a fixed point.
+- Round1: all 192 legacy payloads match authenticated Retail70448 content keys, 74,918,722 bytes. Lead reports re-extraction and no-clobber canonical publication with `model-asset-index-noinstall-cert-round1.json`. Subsequent randomized sweeps expose additional material choices/layers; this was not a fixed point or an identical-profile comparison.
 - All 62 numeric skins match owner SFID relationships and authenticated parent/child product roots. Private staging retains source alias and per-file provenance; 65 scoped receipts cover 62 Forever70450 identities plus three identical Retail70448 identities. Lead reports per-product CASC re-extraction/verification and publication of scoped plus numeric paths.
 - Round2 publishes a conservative all-choice material-texture superset from the current versioned customization cache, excluding existing indexed Retail textures, plus the observed debug-character miss. Its 9,294 receipts comprise 9,229 Retail textures and 65 skins, 3,538,326,632 bytes. All 64 other selected Retail texture FDIDs have authenticated roots/local index entries but absent legacy bytes; local decoding remains pending. This is not all model/item closure.
 
@@ -51,10 +51,18 @@ All cases below exercise production map identity, terrain, object and lighting r
 
 Matching engine base `52e47cd5d` was merged into this branch and rebuilt against frozen protocol `03cebdb`; `build-current.log` succeeds without compiler warnings and `executables-current.json` records binary hashes. A private SQLite backup isolates writable listfile bindings from canonical data; prior read-only binding-persistence messages were sandbox setup limits, not missing payloads or CASC accesses.
 
-- Creation: 62 valid race/body selections, **59 nonzero model observations**, five emitted receipt misses: Retail M2 `7760206` and Forever textures `7485094`, `7484364`, `7485028`, `7485156`. Four labeled sheets cover all 62 captures and were inspected; this is not full customization/class acceptance. Last-marker attribution remains asynchronous.
+- Creation: 62 valid race/body selections, **59 nonzero model observations**, five emitted receipt misses: Retail M2 `7760206` and Forever textures `7485094`, `7484364`, `7485028`, `7485156`. Four labeled sheets cover all 62 captures and were inspected. Production `apply_race_change_with_seed` randomizes appearances, so sweep counts are not equivalent-profile comparisons or full customization/class acceptance. Last-marker attribution remains asynchronous.
 - Skyborne: numeric-skin misses disappear; objects **584→988**, meshes **3,814→4,840**. Four existing `Vertex 101 out of bounds` errors remain separate from file closure; no new asset miss emitted. Tripwire zero.
 - Debug character: startup now reaches a further required Retail texture `2373869`; early-exit tripwire zero, model rendering still GAP.
-- Own server source `0cc7b3866` builds successfully against frozen protocol `03cebdb`; inherited dead-code warning `followers/pull_history.rs::has_uncleared_fight` remains visible. Own admin build/authenticated runs pending. Private read-only world snapshot is 883,261,440 bytes; no live player database was copied.
+- Own server source `0cc7b3866` builds successfully against frozen protocol `03cebdb`; inherited dead-code warning `followers/pull_history.rs::has_uncleared_fight` remains visible. Own admin build also succeeds. Private server first-tick/admin readiness and disposable five-character setup succeed; authenticated client proof remains pending. Private read-only world snapshot is 883,261,440 bytes; no live player database was copied.
+
+## Post-round3 continuation
+
+Lead reports round3 publication: 237 scoped assets plus 29 aliases re-extracted/verified, and 127 new/110 identical numeric paths, zero refused. All 64 previously absent Retail customization textures are included. The bounded debug-item graph expands after those model roots arrive: 757 assets, zero structural unresolved records, with 408 newly discovered absent children; this is only the twelve debug displays plus the observed collection model, not every item.
+
+`debugcharacter-round4` now renders both equipped characters (57 mesh descendants), inspected native capture, no emitted engine error, normal shutdown and tripwire zero. Character creation still emits five Forever material receipt misses because later selections randomize appearances. Its product-local Skyborne cache contributes 1,086 texture IDs for models218/219; 873 remain unreceipted after round3, plus ten collection/dependency identities. Round4's explicit frontier is 426 Retail gear children and 883 Forever identities; local decoding/publication/recheck pending.
+
+Private server setup initially stopped before any client when a PvP live window was observed. The corrected pair preflight reads the lease file even when capacity's ADD summary hides the owner; no authenticated client pass is inferred from account setup. The server is stopped between batches, with a 300-second watchdog and confirmed unbound private UDP5961.
 
 ## Remaining acceptance
 
