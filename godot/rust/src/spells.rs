@@ -86,6 +86,7 @@ pub(crate) struct SpellsHud {
     floats_spawned: u32,
     /// Spell ids sent, oldest first, for automation.
     sent: Vec<u32>,
+    held_cast_bindings: game_engine_core::spell_binding_holds::SpellBindingHolds,
     /// Error lines shown for `CastFailed`, oldest first, for automation.
     errors: Vec<String>,
     ground: game_engine_ui_model::spell_targeting::GroundTarget,
@@ -115,6 +116,7 @@ impl Default for SpellsHud {
             floating: Vec::new(),
             floats_spawned: 0,
             sent: Vec::new(),
+            held_cast_bindings: Default::default(),
             errors: Vec::new(),
             ground: Default::default(),
             ground_toy: None,
@@ -173,6 +175,7 @@ impl SpellsHud {
                 text.node.free();
             }
         }
+        self.held_cast_bindings.clear();
         self.book_position = None;
         self.book_drag = None;
         self.book = SpellbookFrameState::default();
@@ -263,6 +266,13 @@ impl GameClient {
         self.spells.poll_catalog(&self.data_root);
         self.account.spells.tick(delta);
         self.update_assisted_combat();
+        for spell_id in self
+            .spells
+            .held_cast_bindings
+            .take_released(&self.physical_input)
+        {
+            self.account.send_empower_release(spell_id)?;
+        }
         if self.game_menu_ui.is_none() && self.account.session.gameplay_input_allowed() {
             self.apply_spell_keys()?;
         }
@@ -300,7 +310,22 @@ impl GameClient {
             self.toggle_player_spells(tab)?;
         }
         for (bar, index) in pressed {
+            let binding = self
+                .client_options
+                .bindings
+                .binding(bar.binding_actions()[index]);
+            let before = self.spells.sent.len();
             self.use_action_button(bar, index)?;
+            if self.spells.sent.len() > before
+                && let Some(binding) = binding
+            {
+                let spell_id = *self
+                    .spells
+                    .sent
+                    .last()
+                    .expect("cast just recorded its sent spell");
+                self.spells.held_cast_bindings.record(binding, spell_id);
+            }
         }
         Ok(())
     }
