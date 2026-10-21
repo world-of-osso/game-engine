@@ -28,11 +28,24 @@ impl RegistryUi {
                     history_open: true,
                 }),
                 "Tooltip" => self.show_game_tooltip(font_preview_tooltip()),
+                "DamageMeter" => self.show_damage_meter(font_preview_meter()),
                 other => Err(format!("Unknown font preview panel {other}")),
             }
         });
         result.err().unwrap_or_default().as_str().into()
     }
+}
+
+fn font_preview_meter() -> game_engine_ui_model::damage_meter_data::DamageMeterView {
+    let mut view = super::meter_preview::view();
+    // Ordinary in-combat timer content; the existing preview supplies an empty timer.
+    view.timer_text = "[00:42] ".into();
+    let font = ui_toolkit::font_object::resolve_font_object("GameFontNormalMed1");
+    view.timer_width =
+        ui_toolkit::text_measure::measure_text(&view.timer_text, font.font, font.font_size)
+            .expect("Damage Meter timer font")
+            .0;
+    view
 }
 
 fn font_preview_tooltip() -> GameTooltipView {

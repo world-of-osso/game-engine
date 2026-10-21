@@ -19,7 +19,7 @@ func cases(forever: bool) -> Array:
 		["Transmog","show_template_blend_preview",[forever,"Transmog"]],
 		["Character","show_template_blend_preview",[forever,"CharacterCurrency"]],
 		["Tooltip","show_template_font_preview",[forever,"Tooltip"]],
-		["DamageMeter","show_gameplay_panels_preview",[forever,"meter"]],
+		["DamageMeter","show_template_font_preview",[forever,"DamageMeter"]],
 		["StackSplit","show_stack_split_preview",[forever,false,true]],
 		["Merchant","show_buttonfit_service_preview",["merchant-repair",forever]],
 		["Spellbook",prefix+"spellbook_preview",[]],
