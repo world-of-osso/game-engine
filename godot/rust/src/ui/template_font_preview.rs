@@ -27,27 +27,32 @@ impl RegistryUi {
                     viewer: 11,
                     history_open: true,
                 }),
-                "Tooltip" => self.show_game_tooltip(GameTooltipView {
-                    main: place(
-                        GameTooltip::new(
-                            TooltipPresentation {
-                                title: "Moss Agate".into(),
-                                lines: vec![TooltipLineState::new("A green gemstone.")],
-                                ..Default::default()
-                            },
-                            None,
-                        ),
-                        TooltipScreen {
-                            size: [1920.0, 1080.0],
-                            cursor: [960.0, 540.0],
-                        },
-                    ),
-                    ..Default::default()
-                }),
+                "Tooltip" => self.show_game_tooltip(font_preview_tooltip()),
                 other => Err(format!("Unknown font preview panel {other}")),
             }
         });
         result.err().unwrap_or_default().as_str().into()
+    }
+}
+
+fn font_preview_tooltip() -> GameTooltipView {
+    let tooltip = GameTooltip::new(
+        TooltipPresentation {
+            title: "Moss Agate".into(),
+            lines: vec![TooltipLineState::new("A green gemstone.")],
+            ..Default::default()
+        },
+        None,
+    );
+    GameTooltipView {
+        main: place(
+            tooltip,
+            TooltipScreen {
+                size: [1920.0, 1080.0],
+                cursor: [960.0, 540.0],
+            },
+        ),
+        ..Default::default()
     }
 }
 
