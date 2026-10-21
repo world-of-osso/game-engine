@@ -80,9 +80,11 @@ func run_test() -> void:
 		fail("Priest movement not restored after possess cancel")
 		return
 	await capture("03-native605-priest-control-restored.png")
-	if not await select_authored_target():
+	# Spell stop preserves the selected published actor. Do not Tab away from it
+	# after moving it behind the priest's restored camera/target-selection cone.
+	if client.target_state().target != controlled:
+		fail("Native spell stop lost the selected published actor: " + str(client.target_state()))
 		return
-	controlled = int(client.target_state().target)
 	error = client.use_spell(205364)
 	if error != "":
 		fail("Native205364: " + error)
