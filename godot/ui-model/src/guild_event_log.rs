@@ -3,7 +3,7 @@ use crate::bank_art::label;
 use crate::chat_frame::{ChatLine, ChatRow, ChatSpan, wrap_chat_line};
 use crate::guild_ranks::GuildRanksSession;
 use crate::minimal_scroll_bar::{MinimalScrollBar, Unscrollable, pixel_geometry, scroll_list_attr};
-use crate::quest_art::{DynName, named_atlas_texture, panel_button};
+use crate::quest_art::{DynName, panel_button};
 use crate::ui::strata::FrameStrata;
 use shared::protocol::{GuildEventKind, GuildEventLog};
 use ui_toolkit::widgets::font_string::GameFont;
