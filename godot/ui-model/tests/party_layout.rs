@@ -241,6 +241,38 @@ fn rect(r: &FrameRegistry, name: &str) -> (f32, f32, f32, f32) {
 }
 
 #[test]
+#[ignore = "party title RED; enable after headless/native GREEN"]
+fn party_title_is_visible_at_retail_first_member_anchor_under_both_skins() {
+    let _lock = SKIN.lock().unwrap();
+    // CompactRaidGroup.xml: 50x14, BOTTOM anchored to Member1 TOP.
+    for skin in [ActiveSkin::Forever, ActiveSkin::Modern] {
+        for width in [98, 144] {
+            let settings = LayoutSettings {
+                party: PartyFrameSettings {
+                    width: Some(width),
+                    ..Default::default()
+                },
+                ..Default::default()
+            };
+            let registry = render(skin, settings);
+            let title = frame(&registry, "CompactPartyFrameTitle");
+            let expected_x = (f32::from(width) - 50.0) / 2.0;
+            assert_eq!(
+                (
+                    !title.hidden,
+                    text(&registry, "CompactPartyFrameTitle"),
+                    rect(&registry, "CompactPartyFrameTitle")
+                ),
+                (true, "Party".to_string(), (expected_x, 0.0, 50.0, 14.0)),
+                "Retail Party title at member width {width}, {skin:?}"
+            );
+            let member = rect(&registry, "CompactPartyFrameMember1");
+            assert_eq!(member.1, 14.0, "title must not move members");
+        }
+    }
+}
+
+#[test]
 fn raid_member_keeps_replicated_buffs_and_harmful_auras_after_conversion() {
     let _lock = SKIN.lock().unwrap();
     for skin in [ActiveSkin::Modern, ActiveSkin::Forever] {
