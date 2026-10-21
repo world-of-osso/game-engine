@@ -51,37 +51,49 @@ def read_indexes(data):
     return documents
 
 
-def index_fragment_records(documents):
+def index_asset_receipts(documents):
     records = {}
     for path, document in documents.items():
         if document["version"] != 1:
             raise ValueError(f"Unsupported model asset index version in {path}")
-        for field in ("assets", "aliases"):
-            rows = (
-                document["assets"] if field == "assets" else document.get("aliases", [])
-            )
-            for row in rows:
-                identity = (
-                    receipt_key(row)
-                    if field == "assets"
-                    else (row["product"], relative_asset_path(row))
-                )
-                key = field, identity
-                if key in records:
-                    raise ValueError(f"Duplicate {field} receipt {identity} in {path}")
-                records[key] = path, row
+        for row in document["assets"]:
+            identity = receipt_key(row)
+            if identity in records:
+                raise ValueError(f"Duplicate asset receipt {identity} in {path}")
+            records[identity] = path, row
     return records
+
+
+def alias_metadata_key(row):
+    return (
+        row["product"],
+        relative_asset_path(row),
+        row["fdid"],
+        row["kind"],
+        row["bytes"],
+        row["sha256"],
+    )
+
+
+def existing_alias_metadata(documents):
+    # Alias rows are provenance metadata, not ModelAssetIndex's unique asset map.
+    return {
+        alias_metadata_key(row)
+        for document in documents.values()
+        for row in document.get("aliases", [])
+    }
 
 
 def deduplicate_staged_fragment(data, fragment):
     """Keep new owners; identical bytes in another scope never create a second owner."""
-    existing = index_fragment_records(read_indexes(data))
-    incoming = index_fragment_records({Path("<staged>"): fragment})
-    selected = {"assets": [], "aliases": []}
-    for (field, identity), (_, row) in incoming.items():
-        owner = existing.get((field, identity))
+    documents = read_indexes(data)
+    existing = index_asset_receipts(documents)
+    incoming = index_asset_receipts({Path("<staged>"): fragment})
+    assets = []
+    for identity, (_, row) in incoming.items():
+        owner = existing.get(identity)
         if owner is None:
-            selected[field].append(row)
+            assets.append(row)
             continue
         path, previous = owner
         if any(
@@ -91,12 +103,25 @@ def deduplicate_staged_fragment(data, fragment):
             raise ValueError(
                 f"conflicting staged receipt {identity} already owned by {path}"
             )
-    return {**fragment, **selected}
+    known_aliases = existing_alias_metadata(documents)
+    aliases = [
+        row
+        for row in fragment.get("aliases", [])
+        if alias_metadata_key(row) not in known_aliases
+    ]
+    return {**fragment, "assets": assets, "aliases": aliases}
 
 
 def validate_staged_fragment(data, fragment):
     """Fail if this fragment would make the canonical receipt union ambiguous."""
-    index_fragment_records({**read_indexes(data), Path("<staged>"): fragment})
+    documents = read_indexes(data)
+    index_asset_receipts({**documents, Path("<staged>"): fragment})
+    aliases = existing_alias_metadata(documents)
+    for row in fragment.get("aliases", []):
+        key = alias_metadata_key(row)
+        if key in aliases:
+            raise ValueError(f"Duplicate alias receipt {key}")
+        aliases.add(key)
 
 
 def plan_assets(documents, target, verified):
