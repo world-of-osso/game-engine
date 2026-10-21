@@ -16,13 +16,7 @@ impl RegistryUi {
             self.set_ui_scale(1.0)?;
             match panel.to_string().as_str() {
                 "Chat" => self.show_chat_frame(chat_view()),
-                "ToyBox" => self.show_toybox(game_engine_ui_model::toybox_component::ToyBoxView {
-                    model: game_engine_ui_model::toybox::ToyBox {
-                        open: true,
-                        ..Default::default()
-                    },
-                    viewport: [1920.0, 1080.0],
-                }),
+                "ToyBox" => self.show_toybox(toy_view()),
                 "Loading" => {
                     let error = self.show_loading().to_string();
                     if error.is_empty() { Ok(()) } else { Err(error) }
@@ -58,6 +52,15 @@ impl RegistryUi {
             .unwrap_or_default()
             .as_str()
             .into()
+    }
+}
+
+fn toy_view() -> game_engine_ui_model::toybox_component::ToyBoxView {
+    let mut model = game_engine_ui_model::toybox::ToyBox::default();
+    model.open = true;
+    game_engine_ui_model::toybox_component::ToyBoxView {
+        model,
+        viewport: [1920.0, 1080.0],
     }
 }
 
