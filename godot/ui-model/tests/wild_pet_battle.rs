@@ -365,7 +365,8 @@ fn petbattle_pvp_timer_uses_retail_frame_fill_and_waiting_caption_in_both_skins(
             (timer.position.left, timer.position.top),
             (
                 ui_toolkit::layout_values::Val::Px(403.5),
-                ui_toolkit::layout_values::Val::Px(601.5)
+                // BottomFrame.TOP is620; WoW y=-5 moves DOWN to625, less27/2.
+                ui_toolkit::layout_values::Val::Px(611.5)
             )
         );
         let fill = registry
