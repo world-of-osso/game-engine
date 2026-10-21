@@ -169,6 +169,7 @@ pub fn sync_campsite_art(registry: &mut ui_toolkit::registry::FrameRegistry) {
             button.highlight_texture = Some(ButtonTexture {
                 source: TextureSource::FileDataId(130757),
                 blend_mode: BlendMode::Additive,
+                ..Default::default()
             });
         }
     }

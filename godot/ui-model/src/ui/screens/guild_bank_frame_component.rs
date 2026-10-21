@@ -18,7 +18,7 @@ use crate::ui::screens::merchant_frame_component::{tab, tab_width};
 use crate::ui::screens::quest_art::{
     DynName, NORMAL_FONT_COLOR, panel_button, window_chrome_no_portrait,
 };
-use crate::ui::strata::{DrawLayer, FrameStrata};
+use crate::ui::strata::FrameStrata;
 
 pub const FRAME_NAME: &str = "GuildBankFrame";
 /// GB.xml:167 `<Size x="750" y="428"/>`.
@@ -50,7 +50,6 @@ pub const INFO_BOX: &str = "GuildBankTabInfoEditBox";
 /// GB.xml:758: native multiline tab text with a 500-character limit.
 pub fn apply_guild_bank_postsetup(registry: &mut ui_toolkit::registry::FrameRegistry) {
     apply_guild_bank_info_postsetup(registry);
-    apply_guild_bank_checked_art(registry);
 }
 
 fn apply_guild_bank_info_postsetup(registry: &mut ui_toolkit::registry::FrameRegistry) {
@@ -69,28 +68,6 @@ fn apply_guild_bank_info_postsetup(registry: &mut ui_toolkit::registry::FrameReg
     {
         edit.multi_line = true;
         edit.max_letters = Some(500);
-    }
-}
-
-fn apply_guild_bank_checked_art(registry: &mut ui_toolkit::registry::FrameRegistry) {
-    let checked: Vec<_> = registry
-        .frames_iter()
-        .filter_map(|frame| {
-            frame
-                .name
-                .as_deref()
-                .filter(|name| name.starts_with("GuildBankTab") && name.ends_with("Checked"))
-                .map(|_| frame.id)
-        })
-        .collect();
-    for id in checked {
-        let frame = registry.get_mut(id).expect("registered checked texture");
-        if matches!(
-            frame.widget_data,
-            Some(ui_toolkit::frame::WidgetData::Texture(_))
-        ) {
-            frame.draw_layer = DrawLayer::Overlay;
-        }
     }
 }
 
@@ -629,29 +606,21 @@ fn side_tab(index: usize, icon: u32, selected: bool, action: &str) -> Element {
         (2.0 + 18.0 - 30.0, 8.0 + 17.0 - 30.0 + 1.0, 60.0, 60.0),
         WHITE,
     ));
-    if selected {
-        // GB.xml156: CheckedTexture CheckButtonHilight is alphaMode="ADD".
-        children.extend(rsx! {
-            texture {
-                name: {DynName(format!("{name}Checked"))},
-                width: 36.0,
-                height: 34.0,
-                texture_fdid: CHECKED_HIGHLIGHT,
-                vertex_color: WHITE,
-                blend_mode: "ADD",
-                pos_type: "absolute",
-                left: 2.0,
-                top: 8.0,
-            }
-        });
-    }
+    // GuildBankTabButtonMixin owns CheckedTexture; metadata survives selection rebuilds.
+    children.extend(rsx! {
+        button {
+            name: {DynName(format!("{name}Button"))},
+            width:36.0, height:34.0, left:2.0, top:8.0, pos_type:"absolute",
+            onclick:action, button_default_skin:false,
+            button_checked:selected, button_fdid_checked:CHECKED_HIGHLIGHT,
+            button_checked_blend_mode:"ADD",
+        }
+    });
     rsx! {
         r#frame {
             name: {DynName(name)},
             width: 42.0,
             height: 50.0,
-            onclick: action,
-            mouse_enabled: true,
             pos_type: "absolute",
             left: x,
             top: y,

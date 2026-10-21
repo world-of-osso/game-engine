@@ -17,6 +17,59 @@ fn button_atlas(name: &str) -> Option<ButtonTexture> {
 }
 
 #[test]
+fn authored_state_regions_project_crop_tint_alpha_and_checked_independently() {
+    use ui_toolkit::{attrs::apply_attribute, registry::FrameRegistry};
+    for state in [
+        ButtonState::Normal,
+        ButtonState::Pushed,
+        ButtonState::Disabled,
+    ] {
+        let mut registry = FrameRegistry::new(800.0, 600.0);
+        let id = registry.create_frame("AuthoredControl", None);
+        registry.get_mut(id).unwrap().widget_data = Some(WidgetData::Button(Default::default()));
+        for (attr, value) in [
+            ("button_default_skin", "false"),
+            ("button_fdid_up", "132152"),
+            ("button_fdid_pressed", "132152"),
+            ("button_fdid_disabled", "132152"),
+            ("button_normal_tex_coords", "0.125,0.875,0.25,0.75"),
+            ("button_pushed_tex_coords", "0.125,0.875,0.25,0.75"),
+            ("button_disabled_tex_coords", "0.125,0.875,0.25,0.75"),
+            ("button_normal_vertex_color", "0.2,0.4,0.8,0.5"),
+            ("button_pushed_vertex_color", "0.2,0.4,0.8,0.5"),
+            ("button_disabled_vertex_color", "0.2,0.4,0.8,0.5"),
+            ("button_normal_alpha", "0.6"),
+            ("button_pushed_alpha", "0.6"),
+            ("button_disabled_alpha", "0.6"),
+            ("button_checked", "true"),
+            ("button_fdid_checked", "130724"),
+            ("button_checked_blend_mode", "ADD"),
+            ("button_fdid_disabled_checked", "130718"),
+            ("button_disabled_checked_alpha", "0.25"),
+        ] {
+            apply_attribute(&mut registry, id, attr, value);
+        }
+        let frame = registry.get_mut(id).unwrap();
+        let Some(WidgetData::Button(button)) = &mut frame.widget_data else {
+            unreachable!()
+        };
+        button.state = state;
+        let parts = project_images(frame, 36.0, 34.0);
+        assert_eq!(parts.len(), 2);
+        assert_eq!(parts[0].crop, Crop::Normalized([0.125, 0.875, 0.25, 0.75]));
+        assert_eq!(parts[0].color, [0.2, 0.4, 0.8, 0.3]);
+        if state == ButtonState::Disabled {
+            assert_eq!(parts[1].source, Some(TextureSource::FileDataId(130718)));
+            assert_eq!(parts[1].color[3], 0.25);
+            assert!(!parts[1].additive);
+        } else {
+            assert_eq!(parts[1].source, Some(TextureSource::FileDataId(130724)));
+            assert!(parts[1].additive);
+        }
+    }
+}
+
+#[test]
 fn ui_template_blend_metadata_only_states_do_not_replace_existing_normal_art() {
     use ui_toolkit::{attrs::apply_attribute, registry::FrameRegistry};
     for (state, mode_attribute) in [
@@ -84,6 +137,7 @@ fn ui_template_blend_button_material_depends_on_authored_mode_not_source_or_geom
                 let art = Some(ButtonTexture {
                     source: source.clone(),
                     blend_mode,
+                    ..Default::default()
                 });
                 let frame = button(ButtonData {
                     normal_texture: art.clone(),
@@ -417,12 +471,17 @@ fn trading_post_rotate_button_projects_additive_hover_and_offset_pressed_art() {
     for state in [ButtonState::Normal, ButtonState::Pushed] {
         let frame = button(ButtonData {
             normal_texture: button_atlas("perks-button-up"),
-            pushed_texture: button_atlas("perks-button-down"),
+            pushed_texture: Some(ButtonTexture {
+                source: TextureSource::Atlas("perks-button-down".into()),
+                offset: [1.0, 1.0],
+                ..Default::default()
+            }),
             highlight_texture: Some(ButtonTexture {
                 source: TextureSource::Atlas("perks-button-up".into()),
                 blend_mode: BlendMode::Additive,
+                alpha: 0.6,
+                ..Default::default()
             }),
-            highlight_alpha: 0.6,
             hovered: true,
             state,
             use_default_skin: false,
@@ -489,9 +548,10 @@ fn transmog_hover_borders_add_light_without_covering_the_preview() {
             highlight_texture: Some(ButtonTexture {
                 source: TextureSource::Atlas(atlas.into()),
                 blend_mode: BlendMode::Additive,
+                size: Some(size),
+                ..Default::default()
             }),
             hovered: true,
-            highlight_size: Some(size),
             ..Default::default()
         });
         let parts = project_images(&frame, size[0] - 14.0, size[1] - 14.0);
@@ -512,8 +572,10 @@ fn housing_storage_hover_overlays_add_half_alpha_with_source_handle_alignment() 
             highlight_texture: Some(ButtonTexture {
                 source: TextureSource::Atlas(atlas.into()),
                 blend_mode: BlendMode::Additive,
+                alpha: 0.5,
+                offset: [left, 0.0],
+                ..Default::default()
             }),
-            highlight_alpha: 0.5,
             hovered: true,
             ..Default::default()
         });
@@ -537,10 +599,13 @@ fn unskinned_button_with_authored_slice_overlays_its_highlight() {
     let glow = TextureSource::File("data/ui/glow.ktx2".into());
     let mut frame = button(ButtonData {
         use_default_skin: false,
-        highlight_texture: Some(ButtonTexture::new(glow.clone())),
-        highlight_alpha: 0.7,
+        highlight_texture: Some(ButtonTexture {
+            source: glow.clone(),
+            alpha: 0.7,
+            size: Some([100.0, 100.0]),
+            ..Default::default()
+        }),
         hovered: true,
-        highlight_size: Some([100.0, 100.0]),
         ..Default::default()
     });
     frame.three_slice = Some(ThreeSlice::default());
