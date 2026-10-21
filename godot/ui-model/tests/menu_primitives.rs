@@ -440,7 +440,7 @@ fn filter_reset_open_state_and_radio_checkbox_art_both_skins() {
         let Some(WidgetData::Button(reset)) = &frame(&reg, "FilterResetButton").widget_data else {
             panic!("reset")
         };
-        assert_eq!(reset.highlight_alpha, 0.4);
+        assert_eq!(reset.highlight_texture.as_ref().unwrap().alpha, 0.4);
         game_engine_ui_model::menu_template_art::sync_template_art(&mut reg);
         let Some(WidgetData::Texture(tick)) = &frame(&reg, "DisabledTick").widget_data else {
             panic!("disabled tick")

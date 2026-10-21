@@ -322,7 +322,7 @@ fn housing_storage_drawer_collapse_expand_and_resize_reflow_keep_both_skins_equi
             )
             .unwrap();
         assert!(
-            matches!(&collapse.widget_data, Some(WidgetData::Button(button)) if button.highlight_texture.as_ref().map(|texture| texture.source.clone()) == Some(ui_toolkit::widgets::texture::TextureSource::Atlas("house-chest-close-drawer-button".into())) && button.highlight_alpha == 0.5),
+            matches!(&collapse.widget_data, Some(WidgetData::Button(button)) if button.highlight_texture.as_ref().map(|texture| texture.source.clone()) == Some(ui_toolkit::widgets::texture::TextureSource::Atlas("house-chest-close-drawer-button".into())) && button.highlight_texture.as_ref().unwrap().alpha == 0.5),
             "actual source collapse data: {:?}",
             collapse.widget_data
         );
@@ -370,7 +370,7 @@ fn housing_storage_drawer_collapse_expand_and_resize_reflow_keep_both_skins_equi
             )
             .unwrap();
         assert!(
-            matches!(&expand.widget_data, Some(WidgetData::Button(button)) if button.highlight_texture.as_ref().map(|texture| texture.source.clone()) == Some(ui_toolkit::widgets::texture::TextureSource::Atlas("house-chest-open-drawer-button".into())) && button.highlight_alpha == 0.5)
+            matches!(&expand.widget_data, Some(WidgetData::Button(button)) if button.highlight_texture.as_ref().map(|texture| texture.source.clone()) == Some(ui_toolkit::widgets::texture::TextureSource::Atlas("house-chest-open-drawer-button".into())) && button.highlight_texture.as_ref().unwrap().alpha == 0.5)
         );
         view.model
             .editor

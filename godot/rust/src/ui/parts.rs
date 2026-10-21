@@ -63,8 +63,6 @@ pub fn project_images(frame: &Frame, width: f32, height: f32) -> Vec<ImagePart> 
     let mut parts = Vec::new();
     if project_shared_red_button(frame, width, height, &mut parts)
         || project_panel_button(frame, width, height, &mut parts)
-        || project_perks_rotate_button(frame, width, height, &mut parts)
-        || project_minimap_zoom_button(frame, width, height, &mut parts)
     {
         return parts;
     }
@@ -89,98 +87,9 @@ pub fn project_images(frame: &Frame, width: f32, height: f32) -> Vec<ImagePart> 
         project_three_slice(slice, width, height, &mut parts);
     }
     project_border(frame, width, height, &mut parts);
+    project_checked(frame, width, height, &mut parts);
     project_highlight(frame, width, height, &mut parts);
     parts
-}
-
-/// Minimap.xml:190-219: full-opacity base and disabled desaturation; authored state blend.
-fn project_minimap_zoom_button(
-    frame: &Frame,
-    width: f32,
-    height: f32,
-    parts: &mut Vec<ImagePart>,
-) -> bool {
-    let Some(WidgetData::Button(button)) = &frame.widget_data else {
-        return false;
-    };
-    let Some(TextureSource::Atlas(normal)) = button
-        .normal_texture
-        .as_ref()
-        .map(|texture| &texture.source)
-    else {
-        return false;
-    };
-    if !matches!(
-        normal.as_str(),
-        "ui-hud-minimap-zoom-in" | "ui-hud-minimap-zoom-out"
-    ) {
-        return false;
-    }
-    let texture = select_button_base_texture(button).expect("minimap defines all state art");
-    let mut base = button_image([0., 0., width, height], texture, Crop::Full, WHITE);
-    base.desaturated = button.state == ButtonState::Disabled;
-    parts.push(base);
-    if button.hovered && button.state != ButtonState::Disabled {
-        let texture = button
-            .highlight_texture
-            .as_ref()
-            .expect("minimap defines highlight art");
-        parts.push(button_image(
-            [0., 0., width, height],
-            texture,
-            Crop::Full,
-            WHITE,
-        ));
-    }
-    true
-}
-
-/// PerksModelSceneControlButtonTemplate: offset pressed art and additive0.6 hover.
-fn project_perks_rotate_button(
-    frame: &Frame,
-    width: f32,
-    height: f32,
-    parts: &mut Vec<ImagePart>,
-) -> bool {
-    let Some(WidgetData::Button(button)) = &frame.widget_data else {
-        return false;
-    };
-    let is_perks_rotation = matches!(button.normal_texture.as_ref().map(|texture| &texture.source), Some(TextureSource::Atlas(atlas)) if atlas == "perks-button-up");
-    if !is_perks_rotation {
-        return false;
-    }
-    let pressed = button.state == ButtonState::Pushed;
-    let texture = select_button_base_texture(button).expect("Perks rotation defines base art");
-    let offset = if pressed { 1. } else { 0. };
-    parts.push(button_image(
-        [offset, offset, width, height],
-        texture,
-        Crop::Full,
-        WHITE,
-    ));
-    project_perks_rotate_highlight(button, width, height, parts);
-    true
-}
-
-fn project_perks_rotate_highlight(
-    button: &ButtonData,
-    width: f32,
-    height: f32,
-    parts: &mut Vec<ImagePart>,
-) {
-    if !(button.hovered || button.highlight_locked) {
-        return;
-    }
-    let texture = button
-        .highlight_texture
-        .as_ref()
-        .expect("Perks rotation defines highlight art");
-    parts.push(button_image(
-        [0., 0., width, height],
-        texture,
-        Crop::Full,
-        [1., 1., 1., 0.6],
-    ));
 }
 
 /// SharedButtonTemplate inherits128-RedButton; its114px/292px caps scale with height.
@@ -215,14 +124,16 @@ fn project_shared_red_button(
         (left, width - left - right, "_128-redbutton-center"),
         (width - right, right, "128-redbutton-right"),
     ] {
-        let mut part = textured(
+        let member = ButtonTexture {
+            source: TextureSource::Atlas(format!("{member}{suffix}")),
+            ..texture.clone()
+        };
+        parts.push(button_image(
             [x, 0.0, w, height],
-            TextureSource::Atlas(format!("{member}{suffix}")),
+            &member,
             Crop::Full,
             WHITE,
-        );
-        part.additive = texture.blend_mode == BlendMode::Additive;
-        parts.push(part);
+        ));
     }
     if button.hovered && button.state != ButtonState::Disabled {
         let texture = button
@@ -517,36 +428,26 @@ fn project_highlight(frame: &Frame, width: f32, height: f32, parts: &mut Vec<Ima
     let Some(WidgetData::Button(button)) = &frame.widget_data else {
         return;
     };
-    let Some(texture) = sourced_button_texture(button.highlight_texture.as_ref()) else {
+    let Some(texture) = button.highlight_region() else {
         return;
     };
-    if frame.nine_slice.is_some()
-        || button_skin(frame).is_some()
-        || !(button.hovered || button.highlight_locked)
-        || button.state == ButtonState::Disabled
-    {
+    if button_skin(frame).is_some() {
         return;
     }
-    let [w, h] = button.highlight_size.unwrap_or([width, height]);
-    let center_x = if button.highlight_size.is_some() {
-        width / 2.0
-    } else {
-        frame.width.value() / 2.0
-    };
-    // HouseEditorStorageButtonTemplate anchors both the icon and ADD overlay at x=-4.
-    let offset_x = match &texture.source {
-        TextureSource::Atlas(name) if name == "house-chest-open-drawer-button" => -4.0,
-        _ => 0.0,
-    };
-    let rect = [center_x - w / 2.0 + offset_x, height / 2.0 - h / 2.0, w, h];
-    let mut part = button_image(
-        rect,
-        texture,
-        Crop::Full,
-        [1.0, 1.0, 1.0, button.highlight_alpha],
-    );
+    let mut part = button_image([0.0, 0.0, width, height], texture, Crop::Full, WHITE);
     part.overlay = true;
     parts.push(part);
+}
+
+fn project_checked(frame: &Frame, width: f32, height: f32, parts: &mut Vec<ImagePart>) {
+    let Some(WidgetData::Button(button)) = &frame.widget_data else {
+        return;
+    };
+    if let Some(texture) = button.checked_region() {
+        let mut part = button_image([0.0, 0.0, width, height], texture, Crop::Full, WHITE);
+        part.overlay = true;
+        parts.push(part);
+    }
 }
 
 /// State texture of a button the original `sync_button_nine_slices` skins, if any.
@@ -566,11 +467,7 @@ fn button_skin(frame: &Frame) -> Option<ButtonTexture> {
     {
         return None;
     }
-    if !button.use_default_skin
-        && (frame.three_slice.is_some()
-            || frame.nine_slice.is_some()
-            || select_button_base_texture(button).is_none())
-    {
+    if !button.use_default_skin {
         return None;
     }
     Some(
@@ -586,14 +483,7 @@ fn sourced_button_texture(texture: Option<&ButtonTexture>) -> Option<&ButtonText
 }
 
 fn select_button_base_texture(button: &ButtonData) -> Option<&ButtonTexture> {
-    let normal = sourced_button_texture(button.normal_texture.as_ref());
-    match button.state {
-        ButtonState::Normal => normal,
-        ButtonState::Pushed => sourced_button_texture(button.pushed_texture.as_ref()).or(normal),
-        ButtonState::Disabled => {
-            sourced_button_texture(button.disabled_texture.as_ref()).or(normal)
-        }
-    }
+    button.base_texture()
 }
 
 fn select_button_texture(button: &ButtonData) -> Option<&ButtonTexture> {
@@ -617,9 +507,39 @@ fn default_button_texture(button: &ButtonData) -> ButtonTexture {
 }
 
 fn button_image(rect: [f32; 4], texture: &ButtonTexture, crop: Crop, color: [f32; 4]) -> ImagePart {
+    let [x, y, width, height] = rect;
+    let [w, h] = texture.size.unwrap_or([width, height]);
+    let [dx, dy] = texture.offset;
+    let rect = [
+        x + (width - w) / 2.0 + dx,
+        y + (height - h) / 2.0 + dy,
+        w,
+        h,
+    ];
+    let color = std::array::from_fn(|i| color[i] * texture.vertex_color[i]);
+    let crop = button_region_crop(crop, texture.tex_coords);
     let mut part = textured(rect, texture.source.clone(), crop, color);
+    part.color[3] *= texture.alpha;
     part.additive = texture.blend_mode == BlendMode::Additive;
+    part.desaturated = texture.desaturated;
     part
+}
+
+fn button_region_crop(crop: Crop, [left, right, top, bottom]: [f32; 4]) -> Crop {
+    if [left, right, top, bottom] == [0.0, 1.0, 0.0, 1.0] {
+        return crop;
+    }
+    let [l, r, t, b] = match crop {
+        Crop::Normalized(coords) => coords,
+        Crop::Full => [0.0, 1.0, 0.0, 1.0],
+        other => return other,
+    };
+    Crop::Normalized([
+        left + l * (right - left),
+        left + r * (right - left),
+        top + t * (bottom - top),
+        top + b * (bottom - top),
+    ])
 }
 
 fn layout_edges(slice: &NineSlice) -> [f32; 4] {
