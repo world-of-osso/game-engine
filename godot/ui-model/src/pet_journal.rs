@@ -165,6 +165,12 @@ impl PetJournalView {
         Some(request)
     }
     pub fn receive_queue(&mut self, update: shared::protocol::PetBattleQueueUpdate) {
+        if !matches!(
+            update.state,
+            shared::protocol::PetBattleQueueState::Proposal { .. }
+        ) {
+            self.dismissed_proposal = None;
+        }
         self.ability_selection = None;
         self.queue = update.state;
         self.queue_pending = false;
@@ -521,7 +527,8 @@ fn queue_popup(view: &PetJournalView) -> Element {
         texture { name: "PetBattleQueueArt", texture_fdid: 655474,
             width: 256.0, height: 100.0, left: 32.0, top: 20.0,
             pos_type: "absolute", strata: FrameStrata::Dialog, frame_level: 6.0 }
-        fontstring { name: "PetBattleQueueLabel", text: "A pet battle is ready!",
+        // 70448 GlobalStrings23067: PET_BATTLE_QUEUE_PROPOSE_MATCH.
+        fontstring { name: "PetBattleQueueLabel", text: "Your Pet Battle match is ready.",
             width: 300.0, height: 25.0, left: 10.0, top: 130.0, font_size: 14.0,
             font_color: WHITE, justify_h: "CENTER", pos_type: "absolute",
             strata: FrameStrata::Dialog, frame_level: 6.0 }

@@ -25,7 +25,7 @@ func verify_caption() -> void:
 		if verify:
 			var caption := probe.find_child("PetBattleQueueLabel", true, false) as Label
 			assert(caption != null and caption.is_visible_in_tree(), "Rendered visible caption")
-			assert(caption.text == "A pet battle is ready!", "Ready caption text")
+			assert(caption.text == "Your Pet Battle match is ready.", "Ready caption text")
 			assert(caption.horizontal_alignment == HORIZONTAL_ALIGNMENT_CENTER, "Preserved CENTER")
 			assert(caption.size == Vector2(300, 25), "Preserved caption geometry")
 			assert(caption.global_position.is_equal_approx(popup.global_position + Vector2(10, 130)), "Preserved caption anchor")
