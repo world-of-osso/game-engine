@@ -1,5 +1,7 @@
 //! Real loopback UDP proof; owns its server and never contacts the development game server.
 
+#[path = "wire_charm_tests.rs"]
+mod charm;
 #[path = "wire_guild_perks_tests.rs"]
 mod guild_perks;
 #[path = "wire_toy_pet_tests.rs"]
