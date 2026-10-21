@@ -1,3 +1,7 @@
+## 2026-10-21 — Named font inheritance implementation
+
+[Shared font objects](systems/ui-system.md#named-font-inheritance--step-3): source chains resolve before local overrides; audited helpers delete inherited-style copies. PlayerSpells preserves unshadowed book versus shadowed tabs/talent roots; TabSystem widths use shared metrics. Missing family/shadow, wrong added shadow and glyph-count REDs reproduced; model3/core1 GREEN. Strict38-case native proof and lead gate pending; autoscale excluded.
+
 ## 2026-10-21 — Authored button regions implementation
 
 [Shared regions](systems/ui-system.md#authored-button-regions--step-2): extended ButtonTexture, moved checked/base/highlight selection into core and region metadata into native projection. Deleted Perks/Minimap state projectors, Housing offset guess and Transmog size-repair loop. Toolkit RED3→GREEN21/21; projection30/full-model1170 GREEN, scoped check/fmt passed; strict both-skin native16/16 and16 inspected1920×1080 originals. Perks Normal-hover/Pushed base offset is asserted independently, not inferred from sheet appearance. Lead integration gate separate; no realm/UDP claim.
