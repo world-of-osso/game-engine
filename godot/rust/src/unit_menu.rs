@@ -302,12 +302,17 @@ impl GameClient {
             player_items.push(ride_item());
         }
         let pet_items = if Some(unit) == self.local_pet_id() {
+            let charmed = self
+                .replica
+                .unit(unit)
+                .is_some_and(|unit| unit.has::<shared::components::UnitCharm>());
             let hunter = self
                 .world
                 .local_player_id()
                 .and_then(|id| self.replica.unit(id))
                 .and_then(|unit| unit.get::<Player>())
-                .is_some_and(|player| player.class == HUNTER_CLASS);
+                .is_some_and(|player| player.class == HUNTER_CLASS)
+                && !charmed;
             let knows_dismiss = self.account.spells.known().contains(&DISMISS_PET_SPELL);
             pet_menu_items(hunter, knows_dismiss)
         } else {

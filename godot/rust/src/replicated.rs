@@ -15,9 +15,15 @@ pub(crate) fn is_unit(unit: Unit) -> bool {
     unit.has::<Player>() || unit.has::<Npc>()
 }
 
-/// Source-designated pets only. TC SetMinion sets PLAYER_CONTROLLED on other
-/// minions too; UnitIsPet is emitted by pet constructors, independently of that flag.
+/// The pet HUD slot exposes an active charm first (TC GetFirstControlled), then a
+/// source-designated pet. PLAYER_CONTROLLED alone still never turns a guardian into a pet.
 pub(crate) fn local_pet(replica: &Replica, player: u64) -> Option<u64> {
+    if let Some(charmed) = replica.units().find(|unit| {
+        unit.get::<shared::components::UnitCharm>()
+            .is_some_and(|charm| charm.charmer == player)
+    }) {
+        return Some(charmed.server_id);
+    }
     replica
         .units()
         .find(|unit| {
@@ -212,6 +218,26 @@ mod tests {
         replica.insert(WOLF, UnitSummonedBy(HUNTER));
         replica.insert(WOLF, UnitFlags(0x8));
         replica.insert(WOLF, UnitIsPet(true));
+        assert_eq!(local_pet(&replica, HUNTER), Some(WOLF));
+    }
+
+    #[test]
+    fn charm_native_client_control_bar_identity_precedes_pet_and_release_restores_pet() {
+        let mut replica = Replica::for_tests();
+        replica.insert(WOLF, npc("Wolf"));
+        replica.insert(WOLF, UnitSummonedBy(HUNTER));
+        replica.insert(WOLF, UnitIsPet(true));
+        replica.insert(BOAR, npc("Charmed Boar"));
+        replica.insert(
+            BOAR,
+            shared::components::UnitCharm {
+                charmer: HUNTER,
+                possessed: true,
+            },
+        );
+        assert_eq!(local_pet(&replica, HUNTER), Some(BOAR));
+        assert_eq!(local_pet(&replica, OTHER_HUNTER), None);
+        replica.remove::<shared::components::UnitCharm>(BOAR);
         assert_eq!(local_pet(&replica, HUNTER), Some(WOLF));
     }
 

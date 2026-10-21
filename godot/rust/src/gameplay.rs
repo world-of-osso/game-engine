@@ -34,6 +34,7 @@ const MAX_STEP_SECONDS: f32 = 1.0 / 60.0;
 const LANDING_SLACK: f32 = 0.05;
 
 pub(crate) struct PlayerMovement {
+    mover: Option<(u64, bool)>,
     pub running: bool,
     pub autorun: bool,
     pub jumping: bool,
@@ -115,6 +116,7 @@ pub(crate) struct MovementFrame {
 impl Default for PlayerMovement {
     fn default() -> Self {
         Self {
+            mover: None,
             running: true,
             autorun: false,
             jumping: false,
@@ -297,10 +299,20 @@ impl PlayerMovement {
         base * movement_speed_multiplier(self.direction)
     }
 
-    /// Adopt the local player's replicated `MovementSpeed` (base × auras × direction of the
-    /// input the server applied) as the aura multiplier of the newest reported input. The
-    /// server rewrites it only when it applies an input, so an unchanged value is not read
-    /// again against a newer input.
+    /// Control transfer discards the old body's motion and network-report history.
+    fn adopt_mover(&mut self, mover: Option<u64>, charmed: bool) {
+        let mover = mover.map(|id| (id, charmed));
+        if self.mover != mover {
+            *self = Self {
+                running: self.running,
+                mover,
+                ..Default::default()
+            };
+        }
+    }
+
+    /// Adopt replicated speed against the newest reported input. Unchanged server
+    /// values are not read again against a later input.
     pub fn adopt_server_speed(&mut self, speed: f32) {
         if self.server_speed == Some(speed) {
             return;
@@ -654,7 +666,9 @@ impl crate::GameClient {
     pub(super) fn update_player_animation(&mut self) -> Result<(), String> {
         // World entry now loads unit visuals asynchronously. Local gameplay animation
         // starts at the same Loading → InWorld barrier as input and footsteps.
-        if self.account.session.screen != SessionScreen::InWorld {
+        if self.account.session.screen != SessionScreen::InWorld
+            || self.world.local_player_charmed()
+        {
             return Ok(());
         }
         let Some(facing) = self.world.local_player_facing() else {
@@ -674,6 +688,10 @@ impl crate::GameClient {
     }
 
     pub(super) fn update_player_input(&mut self, delta: f32) -> Result<(), String> {
+        self.player_movement.adopt_mover(
+            self.world.local_mover_id(),
+            self.world.local_player_charmed(),
+        );
         use game_engine_core::camera_input_data::CameraInput;
         use godot::prelude::*;
         if self.game_menu_ui.is_some() || self.wild_pet_battle.view.state.is_some() {
@@ -922,7 +940,7 @@ impl crate::GameClient {
     fn adopt_server_speed(&mut self) {
         let Some(unit) = self
             .world
-            .local_player_id()
+            .local_mover_id()
             .and_then(|id| self.replica.unit(id))
         else {
             return;
@@ -1048,6 +1066,45 @@ mod tests {
 
     /// The Stockade entrance (`tdb_world_safe_locs` 3599), world space.
     const FEET: Vec3 = Vec3::new(56.682, -19.269, -0.624);
+
+    #[test]
+    fn charm_native_client_mover_switch_drops_old_motion_and_reports_new_epoch() {
+        let mut movement = PlayerMovement::default();
+        movement.adopt_mover(Some(100), false);
+        movement.autorun = true;
+        movement.jumping = true;
+        movement.running = false;
+        movement.adopt_mover(Some(200), false);
+        let frame = movement.resolve(
+            &InputBindingsData::default(),
+            &PhysicalInput::default(),
+            0.0,
+            0.0,
+            false,
+        );
+        assert_eq!(frame.direction, [0.0; 3]);
+        assert!(
+            movement
+                .network_input(0.0, Vec3::new(3.0, 4.0, 5.0), 2)
+                .is_none()
+        );
+        let mut keys = PhysicalInput::default();
+        keys.set_key(BindingKey::KeyW, true);
+        movement.resolve(&InputBindingsData::default(), &keys, 0.0, 0.0, false);
+        let input = movement
+            .network_input(0.0, Vec3::new(3.0, 4.0, 5.0), 2)
+            .unwrap();
+        assert_eq!(input.position, [3.0, 4.0, 5.0]);
+        assert_eq!(input.epoch, 2);
+        assert!(!input.jumping);
+        assert!(
+            !input.running,
+            "the user's walk toggle survives control transfer"
+        );
+        movement.adopt_mover(Some(100), false);
+        movement.resolve(&InputBindingsData::default(), &keys, 0.0, 0.0, false);
+        assert_eq!(movement.network_input(0.0, Vec3::ZERO, 3).unwrap().epoch, 3);
+    }
 
     /// A scripted step runs forward along the facing with no key held and reports it
     /// as forward running on the wire.
