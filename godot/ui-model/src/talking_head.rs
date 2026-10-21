@@ -140,7 +140,7 @@ fn current_line(active: &Active) -> Option<TalkingHeadView> {
         name: actor.name.clone()?,
         text: line.text.as_ref()?.male_text.clone(),
         sound_kit: line.text.as_ref()?.sound_kit_id,
-        elapsed_ms: (active.elapsed_ms as u32).saturating_sub(line.start_ms),
+        elapsed_ms: (active.elapsed_ms - line.start_ms as f64) as u32,
         texture_kit: payload.texture_kit_id,
         animation_kit: line.animation_kit_id,
         start_animation: line.start_animation,
