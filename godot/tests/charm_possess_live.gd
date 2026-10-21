@@ -128,8 +128,12 @@ func select_authored_target() -> bool:
 # CharacterSelect's sourced native Down/Enter route avoids coupling this control
 # proof to headless pointer hover/viewport scaling. Never emit a UI signal directly.
 func enter_world() -> bool:
-	if not await wait_until(func(): return client.account_state().screen == "CharacterSelect" and client.account_state().character_count == 1, 60000, "private single-character roster"):
+	if not await wait_until(func():
+		var state: Dictionary = client.account_state()
+		var roster = client.get_node_or_null("CharacterSelectUI")
+		return state.screen == "CharacterSelect" and state.character_count == 1 and roster != null and roster.is_visible_in_tree() and not state.assets_starting, 60000, "visible private single-character roster"):
 		return false
+	await wait_frames(3)
 	var ui := client.get_node("CharacterSelectUI")
 	var label := ui.find_child("CharCard_0Name", true, false) as Label
 	if label == null or label.text != character:
