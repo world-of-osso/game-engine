@@ -8,7 +8,7 @@ Private worktree: `/home/osso/.worktrees/game-engine-noinstall`, branch `noinsta
 
 Initial runtime source `4d266a933`; `build.log` records extension/CLI build success, `executables.json` their hashes. Each case records exact argv/environment, complete native output, observations, screenshot and summary. Native Vulkan runs through `agent-run` and `headless-client.sh` on a private cage. Bubblewrap mounts the host read-only except owned runtime paths, hides the configured install/CASC/resolver-cache paths, and isolates networking for offline cases. This is configured-path isolation, not an exhaustive successful-access/syscall trace or immutable manifest-only bundle.
 
-The real `WowAssetLoader.asset_runtime_status()` is recorded per observation: every observed count is zero and mode `ExtractedOnly`. Early fatal startup originally prevented a counter readback for `debugcharacter`; do not infer zero from missing observations. Initial login setup failures are retained separately in `login-setup-invalid/`; they do not enter the asset inventory. Complete private data links fixed those harness-only misses.
+The real `WowAssetLoader.asset_runtime_status()` is recorded per observation: every observed count is zero and mode `ExtractedOnly`. Early fatal startup originally prevented a counter readback for `debugcharacter`; the updated diagnostic records the root's exit signal and observes zero on its round3 fatal startup. Do not infer zero for earlier missing observations. Initial login setup failures are retained separately in `login-setup-invalid/`; they do not enter the asset inventory. Complete private data links fixed those harness-only misses.
 
 ## Initial runtime coverage
 
@@ -20,7 +20,7 @@ The real `WowAssetLoader.asset_runtime_status()` is recorded per observation: ev
 | M2 debug | Bounded PASS | Reference wolf visible, three mesh descendants, no emitted errors, tripwire zero; interactions not certified by this sweep. |
 | Selection debug | Asset-I/O subset only | Screen visible, no emitted errors/tripwire hits; zero descendant model meshes, so not a model-rendering certificate. |
 | Particle debug | Bounded PASS | Visible authored emitters/models, three mesh descendants, no emitted errors, tripwire zero; all toggles/emitters not exercised. |
-| Debug character | GAP | Startup stops on required equipped-character texture receipts; no positive counter/model proof yet. |
+| Debug character | GAP | Startup stops on required equipped-character texture receipts; round3 early-exit counter is zero, but no rendered-model proof. |
 | Loading | Bounded PASS | Offline loading screen captured, no emitted errors, tripwire zero; no authenticated loading transition claimed. |
 
 ## Offline zone coverage
@@ -44,8 +44,17 @@ All cases below exercise production map identity, terrain, object and lighting r
 - `9323d70c0`: legacy receipt authentication requires explicit product/build pins instead of obsolete hardcoded versions; only requested products are authenticated. Current-build synthetic root/publication and integrity tests: RED → GREEN18. No identity checks bypassed.
 - `abc2de31b`: player and NPC closure seeds use the explicitly configured native customization cache, not obsolete `customization.sqlite`. Concrete stale-cache FDID99 versus current FDID8: RED → GREEN14. Maintained configs select `cache/customization-v5.sqlite`; its metadata origin remains separately unverified.
 - Round1: all 192 legacy payloads match authenticated Retail70448 content keys, 74,918,722 bytes. Lead reports re-extraction and no-clobber canonical publication with `model-asset-index-noinstall-cert-round1.json`. A subsequent run exposes further texture layers; this was not a fixed point.
-- All 62 numeric skins match owner SFID relationships and authenticated parent/child product roots. Private staging retains source alias and per-file provenance; 65 scoped receipts cover 62 Forever70450 identities plus three identical Retail70448 identities. Lead publication/recheck pending.
-- Round2 preparation selects a conservative all-choice material-texture superset from the current versioned customization cache, excluding existing indexed Retail textures, plus the observed debug-character miss. This does not certify all model/item descendants. Staging/publication/runtime recheck remain pending.
+- All 62 numeric skins match owner SFID relationships and authenticated parent/child product roots. Private staging retains source alias and per-file provenance; 65 scoped receipts cover 62 Forever70450 identities plus three identical Retail70448 identities. Lead reports per-product CASC re-extraction/verification and publication of scoped plus numeric paths.
+- Round2 publishes a conservative all-choice material-texture superset from the current versioned customization cache, excluding existing indexed Retail textures, plus the observed debug-character miss. Its 9,294 receipts comprise 9,229 Retail textures and 65 skins, 3,538,326,632 bytes. All 64 other selected Retail texture FDIDs have authenticated roots/local index entries but absent legacy bytes; local decoding remains pending. This is not all model/item closure.
+
+## Post-round2 runtime recheck
+
+Matching engine base `52e47cd5d` was merged into this branch and rebuilt against frozen protocol `03cebdb`; `build-current.log` succeeds without compiler warnings and `executables-current.json` records binary hashes. A private SQLite backup isolates writable listfile bindings from canonical data; prior read-only binding-persistence messages were sandbox setup limits, not missing payloads or CASC accesses.
+
+- Creation: 62 valid race/body selections, **59 nonzero model observations**, five emitted receipt misses: Retail M2 `7760206` and Forever textures `7485094`, `7484364`, `7485028`, `7485156`. Four labeled sheets cover all 62 captures and were inspected; this is not full customization/class acceptance. Last-marker attribution remains asynchronous.
+- Skyborne: numeric-skin misses disappear; objects **584→988**, meshes **3,814→4,840**. Four existing `Vertex 101 out of bounds` errors remain separate from file closure; no new asset miss emitted. Tripwire zero.
+- Debug character: startup now reaches a further required Retail texture `2373869`; early-exit tripwire zero, model rendering still GAP.
+- Own server source `0cc7b3866` builds successfully against frozen protocol `03cebdb`; inherited dead-code warning `followers/pull_history.rs::has_uncleared_fight` remains visible. Own admin build/authenticated runs pending. Private read-only world snapshot is 883,261,440 bytes; no live player database was copied.
 
 ## Remaining acceptance
 
