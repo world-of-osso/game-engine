@@ -1,14 +1,17 @@
 extends "res://tests/pet_bar_live.gd"
 
 ## Private native605/205364 proof. Reuses the real account/character, input and capture
-## helpers. PET_SKIN=modern|forever; own priest near source Kobold Vermin spawns.
+## helpers. PET_SKIN=modern|forever; CHARM_TARGET names a published eligible NPC.
+var authored_target := ""
+
 func run_test() -> void:
 	root.size = Vector2i(1920, 1080)
 	var server := OS.get_environment("GODOT_TEST_SERVER")
 	var account := OS.get_environment("PET_ACCOUNT")
 	character = OS.get_environment("PET_CHARACTER")
 	shots = OS.get_environment("PET_SHOTS")
-	if server == "" or account == "" or character == "" or shots == "":
+	authored_target = OS.get_environment("CHARM_TARGET")
+	if server == "" or account == "" or character == "" or shots == "" or authored_target == "":
 		fail("Private endpoint/account/character/screenshots required")
 		return
 	DirAccess.make_dir_recursive_absolute(shots)
@@ -25,7 +28,7 @@ func run_test() -> void:
 		fail("Skin: " + error)
 		return
 	await wait_frames(90)
-	if not await select_kobold():
+	if not await select_authored_target():
 		return
 	var controlled: int = client.target_state().target
 	var body_start := player().global_position
@@ -68,7 +71,7 @@ func run_test() -> void:
 		fail("Priest movement not restored after possess cancel")
 		return
 	await capture("03-native605-priest-control-restored.png")
-	if not await select_kobold():
+	if not await select_authored_target():
 		return
 	controlled = int(client.target_state().target)
 	error = client.use_spell(205364)
@@ -90,11 +93,24 @@ func run_test() -> void:
 	client.free()
 	quit(0)
 
-func select_kobold() -> bool:
+func capture(file: String) -> void:
+	await RenderingServer.frame_post_draw
+	var image := root.get_texture().get_image()
+	if image.get_size() != Vector2i(1920, 1080):
+		fail("Native proof requires1920x1080 pixels, got %s" % image.get_size())
+		return
+	var path := shots.path_join(file)
+	var error := image.save_png(path)
+	if error != OK:
+		fail("Capture failed %s: %s" % [path, error])
+		return
+	print("CHARM_CAPTURE ", path, " size=", image.get_size())
+
+func select_authored_target() -> bool:
 	for attempt in range(24):
 		await press(KEY_TAB)
 		await wait_frames(6)
-		if str(client.target_state().target_name) == "Kobold Vermin":
+		if str(client.target_state().target_name) == authored_target:
 			return true
-	fail("No source Kobold Vermin near private priest: %s" % client.target_state())
+	fail("No published %s near private priest: %s" % [authored_target, client.target_state()])
 	return false

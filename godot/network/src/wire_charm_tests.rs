@@ -3,7 +3,6 @@ use super::*;
 use shared::components::{MovementControl, UnitCharm};
 
 #[test]
-#[ignore = "RED: native replica has no UnitCharm codec"]
 fn charm_native_bridge_receives_control_identity_modes_and_release() {
     let (mut server, address) = start_fixture_server();
     let mut host = Host::connect(address, 8311);
