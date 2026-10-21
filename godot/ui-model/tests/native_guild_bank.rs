@@ -486,6 +486,16 @@ fn ui_template_blend_guild_bank_selected_tab_checked_art_is_authored_additive_fr
         other => panic!("{name} is {other:?}"),
     };
     // GB.xml156: CheckedTexture alphaMode="ADD"; the tab background keeps BLEND.
-    assert_eq!(blend("GuildBankTab1Checked"), BlendMode::Additive);
+    let tab = registry
+        .get(registry.get_by_name("GuildBankTab1Button").unwrap())
+        .unwrap();
+    let Some(WidgetData::Button(button)) = &tab.widget_data else {
+        panic!("tab button")
+    };
+    assert!(button.checked);
+    assert_eq!(
+        button.checked_region().unwrap().blend_mode,
+        BlendMode::Additive
+    );
     assert_eq!(blend("GuildBankTab1Background"), BlendMode::Blend);
 }

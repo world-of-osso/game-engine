@@ -57,7 +57,6 @@ pub fn apply_mentor_postsetup(registry: &mut ui_toolkit::registry::FrameRegistry
             mapped.then_some(ui_toolkit::widgets::button::ButtonTexture::new(
                 TextureSource::SolidColor([0.0, 0.0, 0.0, 0.5]),
             ));
-        button.highlight_alpha = 1.0;
     }
 }
 

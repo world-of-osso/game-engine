@@ -106,7 +106,7 @@ fn rotation_button(direction: &str, left: f32, atlas: &str, action: &str) -> Ele
     let name = DynName(format!("PerksProgramRotate{direction}Button"));
     let icon = named_atlas_texture(format!("{}Icon", name.0), atlas, (11., 11.5, 26., 25.));
     rsx! {button{name,left,top:0.0,width:48.0,height:48.0,pos_type:"absolute",button_default_skin:false,
-    button_atlas_up:"perks-button-up",button_atlas_pressed:"perks-button-down",
+    button_atlas_up:"perks-button-up",button_atlas_pressed:"perks-button-down",button_pushed_offset:"1,1",
     button_atlas_highlight:"perks-button-up",button_highlight_blend_mode:"ADD",button_highlight_alpha:0.6,onclick:action,{icon}}}
 }
 
