@@ -100,6 +100,19 @@ class StagedFragmentTests(unittest.TestCase):
                 self.data, self.document([self.receipt(42), self.receipt(42, "b")])
             )
 
+    def test_repeated_legacy_alias_metadata_does_not_invalidate_unique_assets(self):
+        alias = dict(self.receipt(42), path=f"products/wow/{'a' * 32}/models/4200.skin")
+        del alias["content_key"]
+        self.write("model-asset-index.json", self.document([self.receipt(42)], [alias]))
+        self.write(
+            "model-asset-index-other.json", self.document([self.receipt(43)], [alias])
+        )
+        prepared = publication.deduplicate_staged_fragment(
+            self.data, self.document([self.receipt(44)])
+        )
+        self.assertEqual([row["fdid"] for row in prepared["assets"]], [44])
+        publication.validate_staged_fragment(self.data, prepared)
+
     def test_existing_cross_fragment_duplicates_fail_before_staging(self):
         self.write("model-asset-index.json", self.document([self.receipt(42)]))
         self.write(
