@@ -444,7 +444,7 @@ fn label(spec: Label<'_>, s: f32) -> Element {
             width: {width * s},
             height: {height * s},
             text: spec.text,
-            font: GameFont::FrizQuadrata,
+            font_object: "GameFontNormal",
             font_size: {(spec.size * s).max(6.0)},
             font_color: spec.color,
             justify_h: spec.justify,
