@@ -360,8 +360,15 @@ fn tabs(active: AuctionHouseTab) -> Element {
 /// `PanelTemplates_TabResize(tab, TAB_PADDING = 20, nil, MIN_TAB_WIDTH = 70)`
 /// (Blizzard_AuctionHouseTab.lua:2-11): text width + `TAB_SIDES_PADDING` (20) + 20.
 fn tab_width(label: &str) -> f32 {
-    let text = measure_text(label, GameFont::FrizQuadrata, 10.0).map_or(0.0, |(w, _)| w);
-    (text + 40.0).max(70.0)
+    ui_toolkit::tab_art::measured_tab_width(
+        ui_toolkit::tab_art::TabLayout::Panel,
+        label,
+        ui_toolkit::tab_art::TabWidth {
+            padding: 20.0,
+            minimum: Some(70.0),
+            maximum: None,
+        },
+    )
 }
 
 /// `PanelTabButtonTemplate` (SharedUIPanelTemplates.xml:905): left cap at x -3 (active -1),
@@ -376,38 +383,19 @@ fn panel_tab(
     (x, y, width): (f32, f32, f32),
     top: bool,
 ) -> Element {
-    let (caps, left_x, right_x, art_h) = if active {
-        (
-            [TAB_ACTIVE_LEFT, TAB_ACTIVE_MIDDLE, TAB_ACTIVE_RIGHT],
-            -1.0,
-            8.0,
-            42.0,
-        )
+    use ui_toolkit::tab_art::{TabArtSpec, TabLayout, tab_art, text_y_offset};
+    let layout = if top {
+        TabLayout::PanelTop
     } else {
-        ([TAB_LEFT, TAB_MIDDLE, TAB_RIGHT], -3.0, 7.0, 36.0)
+        TabLayout::Panel
     };
-    let [left, middle, right] = caps.map(|crop| if top { crop.top_tab() } else { crop });
-    let art_h = if top { art_h * 0.75 } else { art_h };
-    let art_y = if top { 32.0 - art_h } else { 0.0 };
-    let left_rect = (left_x, art_y, 35.0, art_h);
-    let right_rect = (width + right_x - 37.0, art_y, 37.0, art_h);
-    let middle_rect = (left_x + 35.0, art_y, right_rect.0 - left_x - 35.0, art_h);
+    let art = tab_art(name, TabArtSpec::new(layout, active, [width, 32.0]));
     let text_color = if active {
         HIGHLIGHT_FONT_COLOR
     } else {
         NORMAL_FONT_COLOR
     };
-    // `PanelTemplates_SelectTab` / `DeselectTab`: CENTER y -3 selected, +2 deselected (up is
-    // positive); top tabs `-y - 7` / `-y - 6`. The label spans the tab, so top = -y.
-    let label_y = match (top, active) {
-        (false, true) => 3.0,
-        (false, false) => -2.0,
-        (true, true) => 4.0,
-        (true, false) => 8.0,
-    };
-    let mut art = crop_texture(format!("{name}Left"), left, left_rect);
-    art.extend(crop_texture(format!("{name}Middle"), middle, middle_rect));
-    art.extend(crop_texture(format!("{name}Right"), right, right_rect));
+    let label_y = -text_y_offset(layout, active);
     rsx! {
         button {
             name: {DynName(name.to_string())},
