@@ -47,7 +47,7 @@ fn loading_state_projects_status_zone_tip_and_progress() {
         .three_slice
         .as_ref()
         .expect("Authored loading shell must resolve");
-    assert_eq!(slice.cap_width, 25.0);
+    assert_eq!(slice.cap_widths, [25.0; 2]);
     assert_eq!(slice.color, [1.0; 4]);
 
     model.shared.insert(LoadingScreenState {
