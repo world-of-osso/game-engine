@@ -100,6 +100,12 @@ Invalid attempts remain explicit: early Stormwind used incorrect teleport axes; 
 
 `proof-ledger.json` retains historical development-test scope/log hashes rather than claiming current-HEAD broad verification. Current bounded visits expose no further missing-file request; pristine manifest-only bundle, all-catalog fixed point and comprehensive classes/customizations/items remain unproven.
 
+## Terrain source-qualification implementation (acceptance pending)
+
+Ignored regression `75208c162` reproduces production map2991/model579120/SFID579121 `Vertex101 out of bounds` through `load_asset` (one failed test, exit101). `7ded89db4` carries selected MapCatalog CSV provenance into WDT and TerrainObjects, keys worker/retained M2s by product+FDID, uses `authored_model_resolver` and the parsed model's texture root, and separates particle pools by texture namespace. WMO geometry/material acquisition is unchanged. Compile-only helper succeeds; this is not GREEN/live acceptance. Scoped map M2 closure acquisition and both-skin Skyborne/Mulgore checks remain pending.
+
+The first compiled probe incorrectly ran with the unit process's default local-CASC mode and extracted `products/wow_classic_beta/84bea4233331e390fda8724c6f91ffa5/textures/579119.blp` through the native-root data symlink into canonical data. It is **not** no-install GREEN; lead was notified, and this agent did not delete/repair canonical state. `terrain-green-first.log` and `terrain-test-canonical-write-incident.json` preserve the event. `359aa3c1d` fixes the harness with a fresh extracted-only child, explicit runtime configuration, panic-on-CASC hook and tripwire0 assertion; guarded GREEN remains required.
+
 ## Priority follower-party closure
 
 The owned world snapshot maps Shuja209053/Garrick209057/Meredy209059/Crenna209072 to displays113752/113753/113755/113757. Full source-qualified display, baked/raw customization and observed world-attachment roots reach1,031 identities:151M2,412SKIN,223ANIM,76BONE,4SKEL,165BLP. Two local extraction frontiers recover32 then11 files; final graph has1,031 present/zero missing/zero structural unresolved, retaining three cache/metadata provenance labels. This is a bounded four-profile asset closure, not complete native rendering or all-follower acceptance.

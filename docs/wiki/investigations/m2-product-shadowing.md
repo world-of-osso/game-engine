@@ -89,6 +89,10 @@ Neither579120/579121 identity had a scoped receipt at this checkpoint. `terrain/
 
 Evidence under the certification's private diagnostic root: `skyborne-small-model-candidates.json`, `skyborne-invalid-vertex-candidates.json` and `skyborne-vertex-root-authentication/{comparison,wow-root-keys,wow_classic_beta-root-keys}.json`. These record source bytes, placements and authenticated current roots. Fresh local extraction then authenticated both variants: Retail M2 has374 vertices and its skin's maximum is124; Forever M2 has101 vertices and its skin's maximum is100. Four scoped files (30,558bytes) are staged separately in `staged-product-collision/cache/model-asset-index-noinstall-cert-collision.json`; `round6-authentication/summary.json` records validation. No shared flat file is overwritten. Terrain ownership/runtime propagation remains unresolved, not part of the earlier P2 PASS or a rendering fallback opportunity.
 
+### Terrain qualification implementation, acceptance pending
+
+`75208c162` adds the ignored real-map worker regression and reproduces `Vertex101` (exit101). `7ded89db4` retains selected MapCatalog CSV provenance in WDT; terrain M2 worker/parsed keys include product+FDID, companion acquisition uses `authored_model_resolver`, decoded/material/particle textures keep the model's root, and particle pools key by texture namespace too. WMO geometry/material IO remains separate. Compile-only proof passes; scoped terrain source recovery, guarded GREEN and both-skin Skyborne/Mulgore acceptance remain open. [Current proof and harness incident](../../handoffs/noinstall-cert-2026-10-21.md#terrain-source-qualification-implementation-acceptance-pending) owns exact bounds; do not infer P4 from implementation.
+
 ## Sources
 
 - [Native Skyborne checkpoint](../systems/forever-data.md#native-skyborne-rosterworld-recheck-2026-10-09)
