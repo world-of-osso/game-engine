@@ -1,3 +1,7 @@
+## 2026-10-21 — No-install certification continuation
+
+[Current coverage and evidence](../handoffs/noinstall-cert-2026-10-21.md): bounded native screens, all catalog race/body selections and seven offline zone streams; live extracted-only/tripwire readback, required receipt/numeric-skin staging. Explicit build pins and native-cache source fix the two reproduced producer gaps. P4 remains open; authenticated and post-publication proof pending.
+
 ## 2026-10-21 — Authored button regions implementation
 
 [Shared regions](systems/ui-system.md#authored-button-regions--step-2): extended ButtonTexture, moved checked/base/highlight selection into core and region metadata into native projection. Deleted Perks/Minimap state projectors, Housing offset guess and Transmog size-repair loop. Toolkit RED3→GREEN21/21; projection30/full-model1170 GREEN, scoped check/fmt passed; strict both-skin native16/16 and16 inspected1920×1080 originals. Perks Normal-hover/Pushed base offset is asserted independently, not inferred from sheet appearance. Lead integration gate separate; no realm/UDP claim.

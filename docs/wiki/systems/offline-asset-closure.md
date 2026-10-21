@@ -213,6 +213,10 @@ receipt errors recur. Four new absent texture candidates:7484430,7485185,
 full-catalog or equivalent-scenario coverage. `misses.json`, `receipt-proof.json`,
 `world-sweep.json`, `proof-ledger.json` and `summary.md` retain exact boundaries.
 
+## 2026-10-21 certification continuation
+
+[Current certification coverage and evidence](../../handoffs/noinstall-cert-2026-10-21.md) records the continuing extracted-only native sweep, source fixes and private staging. It does not close P4 or replace the historical full-graph evidence.
+
 ## Sources
 
 - [Contract](../../specs/offline-asset-closure.md).
