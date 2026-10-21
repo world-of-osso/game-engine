@@ -18,4 +18,4 @@ The existing pet slot/bar and context menu refer to a charm before a source-desi
 
 ## Proof status
 
-Real UDP ignoredRED fails explicitly on missing `shared::components::UnitCharm` codec (0PASS/1FAIL0.03s). Consumer code and source-bound pure selection/report tests added; GREEN/native screenshots still pending. Runtime proof ledger is maintained outside tracked data in `/home/osso/.worktrees/handoff-charm-possess.md`.
+Real UDP ignoredRED fails explicitly on missing `shared::components::UnitCharm` codec (0PASS/1FAIL0.03s). At14d61bb20, actualUDP1GREEN0.90s and three source-bound client selection/movement-report regressions GREEN (native helper508.9s); ignored wire case now enabled. Rendered native screenshots still pending. Runtime proof ledger is maintained outside tracked data in `/home/osso/.worktrees/handoff-charm-possess.md`.
