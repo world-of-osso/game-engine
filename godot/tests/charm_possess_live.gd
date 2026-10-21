@@ -131,7 +131,7 @@ func enter_world() -> bool:
 	if not await wait_until(func():
 		var state: Dictionary = client.account_state()
 		var roster = client.get_node_or_null("CharacterSelectUI")
-		return state.screen == "CharacterSelect" and state.character_count == 1 and roster != null and roster.is_visible_in_tree() and not state.assets_starting, 60000, "visible private single-character roster"):
+		return state.screen == "CharacterSelect" and state.character_count == 1 and roster != null and roster.is_visible() and not state.assets_starting, 60000, "visible private single-character roster"):
 		return false
 	await wait_frames(3)
 	var ui := client.get_node("CharacterSelectUI")
