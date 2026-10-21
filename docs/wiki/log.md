@@ -1,3 +1,7 @@
+## 2026-10-21 — Native charm and possession
+
+[Control and proof](systems/charm-possess.md): minimal UnitCharm codec/effective mover/camera, parked priest and existing pet HUD. Actual UDP RED→GREEN1+3 state cases; both native skins cast605/205364 on a published Blackrock Spy, move the NPC authoritatively with parked priest/following camera, cancel through existing StopSpellCast IPC and restore priest movement. Eight inspected original1920×1080 PNGs. Native roster/online-learning setup and menu-click/NPC-controlled-player rendered bounds explicit; lead gate/landing separate.
+
 ## 2026-10-21 — Authored button regions implementation
 
 [Shared regions](systems/ui-system.md#authored-button-regions--step-2): extended ButtonTexture, moved checked/base/highlight selection into core and region metadata into native projection. Deleted Perks/Minimap state projectors, Housing offset guess and Transmog size-repair loop. Toolkit RED3→GREEN21/21; projection30/full-model1170 GREEN, scoped check/fmt passed; strict both-skin native16/16 and16 inspected1920×1080 originals. Perks Normal-hover/Pushed base offset is asserted independently, not inferred from sheet appearance. Lead integration gate separate; no realm/UDP claim.

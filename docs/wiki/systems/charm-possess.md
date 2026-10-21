@@ -18,4 +18,8 @@ The existing pet slot/bar and context menu refer to a charm before a source-desi
 
 ## Proof status
 
-Real UDP ignoredRED fails explicitly on missing `shared::components::UnitCharm` codec (0PASS/1FAIL0.03s). At14d61bb20, actualUDP1GREEN0.90s and three source-bound client selection/movement-report regressions GREEN (native helper508.9s); ignored wire case now enabled. Rendered native screenshots still pending. Runtime proof ledger is maintained outside tracked data in `/home/osso/.worktrees/handoff-charm-possess.md`.
+Real UDP ignoredRED fails explicitly on missing `shared::components::UnitCharm` codec (0PASS/1FAIL0.03s). At14d61bb20, actualUDP1GREEN0.90s and three source-bound client selection/movement-report regressions GREEN (native helper508.9s); ignored wire case now enabled.
+
+At267edf0ca, both native skins pass actual605 on a published Blackrock Spy, authoritative NPC movement with parked priest and following camera, StopSpellCast cancellation/control restoration, and205364 with the priest still movable. Eight inspected original1920×1080 PNGs live at `/syncthing/AgentShared/charm-possess-2026-10-21/`; receipts/log paths are in the [contract](../../specs/charm-possess.md). No skin-specific behavior was added.
+
+The fixture waits for the roster CanvasLayer before native Down/Enter input. Admin learn-spell requires the character online, so an explicit ready marker/file brackets setup. IPC `spell stop` tests the existing channel-cancel route; Escape's target-clear priority and context-menu clicks are not part of this native proof. Failed setup runs remain in diagnostics. Runtime proof ledger: `/home/osso/.worktrees/handoff-charm-possess.md`.
