@@ -75,6 +75,20 @@ fn talking_head_native_dismissed_identity_does_not_replay_and_foreign_owner_is_r
 }
 
 #[test]
+fn talking_head_voice_clock_keeps_source_elapsed_without_restarting_on_refresh() {
+    let update = source();
+    let mut state = TalkingHeadState::default();
+    state.receive(update.clone(), 400).unwrap();
+    assert_eq!(state.current().unwrap().elapsed_ms, 750);
+    state.advance(0.5);
+    assert_eq!(state.current().unwrap().elapsed_ms, 1250);
+    state.receive(update, 400).unwrap();
+    assert_eq!(state.current().unwrap().elapsed_ms, 1250);
+    state.clear();
+    assert!(state.current().is_none());
+}
+
+#[test]
 fn talking_head_source_template_geometry_name_text_and_model_in_both_skins() {
     use ui_toolkit::{
         atlas::ActiveSkin,
