@@ -356,6 +356,7 @@ fn install_source_button_art(button: &mut ui_toolkit::widgets::button::ButtonDat
         button.highlight_texture = Some(ButtonTexture {
             source: TextureSource::FileDataId(highlight),
             blend_mode: BlendMode::Additive,
+            ..Default::default()
         });
     }
 }
