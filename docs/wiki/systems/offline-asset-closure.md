@@ -177,6 +177,8 @@ owns the publication rules. Reproduce the recorded inventory with:
 python3 scripts/verify_legacy_product_assets.py --misses data/diagnostics/noinstall-2026-10-10/misses.json --install "/syncthing/World of Warcraft" --data data --output data/diagnostics/noinstall-receipts-2026-10-10/legacy-authentication --build wow=12.1.0.69933 --build wow_classic_beta=1.60.1.70338
 ```
 
+Private staging uses `model_asset_publication.deduplicate_staged_fragment` against the canonical base index and every receipt fragment before producing a new fragment. Identical product/FDID/kind bytes retain their existing owner even under another build directory; conflicting payloads fail. Aliases dedupe by product/owner-relative path, not child FDID. `validate_staged_fragment` rejects remaining cross-fragment/internal duplicates before publication; raw path repairs do not create a second receipt owner.
+
 The legacy-byte receipt producer requires explicit `--build PRODUCT=VERSION` pins matching exactly the inventory's requested products. It authenticates those local product roots only; historical hardcoded build defaults are removed. A pin mismatch still fails before publication, and bytes must still match authenticated root content keys. Current install builds must be named explicitly rather than silently replacing the historical pins above.
 
 473 legacy candidates match authenticated requested-product roots; the same3
