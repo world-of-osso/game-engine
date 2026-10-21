@@ -16,6 +16,11 @@ path = "tests/integration.rs"
 name = "active_db2"
 path = "tests/active_db2.rs"
 
+# The pending-load boundary requires a fresh process-global item catalog.
+[[test]]
+name = "item_catalog_pending"
+path = "tests/item_catalog_pending.rs"
+
 [dependencies]
 # Shared chat timestamps: local `HH:MM:SS`, as the root client's chat frame formats them.
 chrono = { version = "0.4", default-features = false, features = ["clock"] }
