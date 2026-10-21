@@ -118,6 +118,7 @@ mod spell_sounds;
 mod spells;
 mod startup;
 mod swim;
+mod talking_head;
 mod targeting;
 mod terrain;
 mod tooltip_sources;
@@ -254,6 +255,7 @@ pub struct GameClient {
     mirror_timer_ui: Option<Gd<ui::RegistryUi>>,
     chat: chat::Chat,
     encounter: encounter::EncounterHud,
+    talking_head: talking_head::TalkingHeadHud,
     game_menu_ui: Option<Gd<ui::RegistryUi>>,
     world_map: world_map::WorldMap,
     flight_map: flight_map::FlightMap,
@@ -424,6 +426,7 @@ impl INode3D for GameClient {
             mirror_timer_ui: None,
             chat: Default::default(),
             encounter: Default::default(),
+            talking_head: Default::default(),
             game_menu_ui: None,
             world_map: world_map::WorldMap::default(),
             flight_map: flight_map::FlightMap::default(),
@@ -530,6 +533,10 @@ impl INode3D for GameClient {
 
     fn input(&mut self, event: Gd<godot::classes::InputEvent>) {
         self.physical_input.capture_pointer(&event);
+        if self.talking_head_pointer(&event) {
+            self.mark_viewport_input_handled();
+            return;
+        }
         if self.dispatch_priority_input(&event) {
             return;
         }
@@ -2235,6 +2242,7 @@ impl GameClient {
             ("Toy Box", |c, d| c.update_toybox(d)),
             ("Housing", |c, _| c.update_housing()),
             ("Encounter", |c, d| c.update_encounter(d)),
+            ("TalkingHead", |c, d| c.update_talking_head(d)),
             ("World map", |c, _| c.update_world_map()),
             ("Minimap", |c, _| c.update_minimap()),
             ("Quests", |c, _| c.update_quests()),

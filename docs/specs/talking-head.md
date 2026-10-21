@@ -20,7 +20,7 @@ Consume the private source conversation payload and render the authored70448 Ret
 - `godot/ui-model/src/talking_head.rs`: private source payload/elapsed line state and local dismissal.
 - `godot/ui-model/src/talking_head_component.rs`: authored Retail TalkingHead chrome/name/text/model host geometry.
 - `godot/network/src/lib.rs`: ordered ConversationUpdate relay on EncounterChannel.
-- Godot model/audio host pending.
+- `godot/rust/src/{talking_head,encounter,lib}.rs`: native owner/map-validated UI host, event routing and local dismissal; model/audio pending.
 
 ## Tests asserting this spec
 

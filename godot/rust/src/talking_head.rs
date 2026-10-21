@@ -1,0 +1,111 @@
+//! Native host for the source conversation payload and Retail TalkingHead frame.
+use crate::{GameClient, frame_error::FrameError, ui::RegistryUi};
+use game_engine_session::SessionScreen;
+use game_engine_ui_model::{talking_head::TalkingHeadState, talking_head_component};
+use godot::{
+    classes::{InputEvent, InputEventMouseButton},
+    global::MouseButton,
+    prelude::*,
+};
+use shared::protocol::ConversationUpdate;
+
+#[derive(Default)]
+pub(crate) struct TalkingHeadHud {
+    state: TalkingHeadState,
+    ui: Option<Gd<RegistryUi>>,
+}
+
+impl GameClient {
+    pub(crate) fn receive_talking_head(
+        &mut self,
+        update: ConversationUpdate,
+    ) -> Result<(), String> {
+        if self.world_map_id != Some(update.map_id) {
+            return Err(format!(
+                "conversation map{} is not the current world map",
+                update.map_id
+            ));
+        }
+        let owner = self
+            .world
+            .local_player_id()
+            .ok_or("conversation arrived before local player identity")?;
+        self.talking_head.state.receive(update, owner)
+    }
+
+    pub(crate) fn update_talking_head(&mut self, delta: f32) -> Result<(), FrameError> {
+        let in_world = self.account.session.screen == SessionScreen::InWorld;
+        if !in_world {
+            self.talking_head.state.clear();
+        }
+        self.talking_head.state.advance(delta);
+        if let Some(mut ui) = self.talking_head.ui.clone() {
+            loop {
+                let action = ui.bind_mut().pop_action().to_string();
+                if action.is_empty() {
+                    break;
+                }
+                if action == talking_head_component::DISMISS {
+                    self.talking_head.state.dismiss();
+                }
+            }
+        }
+        if self.talking_head.ui.is_none() && self.talking_head.state.current().is_some() {
+            self.attach_talking_head()?;
+        }
+        if let Some(ui) = &mut self.talking_head.ui {
+            ui.set_visible(in_world);
+            ui.bind_mut().set_state(self.talking_head.state.clone())?;
+        }
+        Ok(())
+    }
+
+    fn attach_talking_head(&mut self) -> Result<(), String> {
+        self.extract_art(&crate::quests::screen_texture_fdids(
+            self.talking_head.state.clone(),
+            talking_head_component::talking_head_screen,
+        ));
+        let mut ui = RegistryUi::new_alloc();
+        ui.set_name("TalkingHeadUI");
+        self.base_mut().add_child(&ui);
+        let shown = ui
+            .bind_mut()
+            .show_talking_head(self.talking_head.state.clone());
+        if let Err(error) = shown {
+            ui.free();
+            return Err(error);
+        }
+        self.talking_head.ui = Some(ui);
+        Ok(())
+    }
+
+    pub(crate) fn talking_head_pointer(&mut self, event: &Gd<InputEvent>) -> bool {
+        if self.talking_head.state.current().is_none() {
+            return false;
+        }
+        let Ok(button) = event.clone().try_cast::<InputEventMouseButton>() else {
+            return false;
+        };
+        if button.get_button_index() != MouseButton::RIGHT || button.is_pressed() {
+            return false;
+        }
+        let Some(rect) = self
+            .talking_head
+            .ui
+            .as_ref()
+            .and_then(|ui| ui.bind().frame_viewport_rect("TalkingHeadFrame"))
+        else {
+            return false;
+        };
+        if !Rect2::new(
+            Vector2::new(rect[0], rect[1]),
+            Vector2::new(rect[2], rect[3]),
+        )
+        .contains_point(button.get_position())
+        {
+            return false;
+        }
+        self.talking_head.state.dismiss();
+        true
+    }
+}
