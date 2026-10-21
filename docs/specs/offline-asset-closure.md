@@ -6,6 +6,7 @@ Offline audit tooling in `scripts/asset_closure.py` computes a content-rooted de
 
 - [x] Traverse ADT textures/placements, WMO groups/materials/doodads, and M2 skins/skeletons/external animations/textures to a fixed point; retain all incoming reasons and missing leaves.
 - [x] Seed Northshire tiles, a male level-1 Human Warrior, starting kit, local world.db spawn displays and spellbook SpellMisc icons.
+- [x] Seed selected maps' authored skybox/celestial models through every Light.LightParamsID slot, LightParams.LightSkyboxID and LightSkybox FDIDs, including maps without terrain tiles; retain positive missing joins and traverse model descendants.
 - [x] Seed dynamic game-object templates through GameObjectDisplayInfo.FileDataID: explicit tile/all selectors, unspawned templates in the full superset, native type15 transport WMOs versus other model requests, and selected template identities in the world fingerprint.
 - [x] Emit deterministic JSON with FDID/type/path, edges, product/build provenance status, presence, sizes and SHA-256; fingerprint every resolver module, not just the entrypoint.
 - [x] Report unknown joins, malformed bytes, missing expansion boundaries and conflicting local aliases instead of silently dropping dependencies.
@@ -26,6 +27,7 @@ Offline audit tooling in `scripts/asset_closure.py` computes a content-rooted de
 ## Tests asserting this spec
 
 - `scripts/tests/test_asset_closure.py` — concrete binary chains, catalog joins, missing/malformed dependencies, cycles, aliases and census.
+- `scripts/tests/test_closure_skyboxes.py` — map isolation, all authored lighting slots, skybox7345733/skin7345740, celestial roots, positive missing joins versus zero and tile-free catalog entrypoint.
 - `scripts/tests/test_closure_game_objects.py` — observed entry202588/display2690/model200010/skin505852 chain, map/tile selection, transport WMO identity, unspawned roots, named missing rows and selection fingerprint changes.
 - `scripts/tests/test_staged_asset_fragment.py` — canonical cross-fragment uniqueness, equal-byte/different-scope ownership, conflicting payload rejection and preserved legacy alias metadata.
 - `scripts/tests/test_closure_terrain.py` — repeated MCNK layers, liquid/object joins, global blob, FDIDs versus flags, malformed offsets and not-needed evidence.

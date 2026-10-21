@@ -239,6 +239,30 @@ def seed_terrain(graph, config):
     return selected
 
 
+def seed_skyboxes(graph, catalogs, map_ids):
+    if not map_ids:
+        return
+    params = {
+        number(row, key)
+        for row in catalogs.rows("Light")
+        if number(row, "ContinentID") in map_ids
+        for key in row
+        if key.startswith("LightParamsID_") and number(row, key)
+    }
+    skies = set()
+    for param in sorted(params):
+        row = catalogs.required("LightParams", param)
+        if row and number(row, "LightSkyboxID"):
+            skies.add(number(row, "LightSkyboxID"))
+    for sky in sorted(skies):
+        row = catalogs.required("LightSkybox", sky)
+        if row is None:
+            continue
+        for column in ("SkyboxFileDataID", "CelestialSkyboxFileDataID"):
+            if number(row, column):
+                graph.add(number(row, column), "m2", f"LightSkybox {sky} {column}")
+
+
 def npc_displays(db, tiles):
     spawns = []
     for map_id, x, y in sorted(tiles):
@@ -602,6 +626,7 @@ def seed_catalogs(graph, world_path, config):
             if row.get("Directory")
         ]
     tiles = seed_terrain(graph, {"maps": maps})
+    seed_skyboxes(graph, catalogs, {map_spec["id"] for map_spec in maps})
     race_models = catalogs.rows("ChrRaceXChrModel")
     characters = config["characters"]
     if characters == "all":
