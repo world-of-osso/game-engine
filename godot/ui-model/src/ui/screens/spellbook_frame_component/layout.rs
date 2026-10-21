@@ -39,11 +39,15 @@ pub(super) fn background(s: f32) -> Element {
 /// PlayerSpells bottom tabs and `SpellBookCategoryTabTemplate`: the side caps (35 + 37)
 /// plus `TabSideExtraSpacing` 20, or the text plus 10 when wider, clamped to 100..150.
 pub(super) fn tab_width(name: &str) -> f32 {
-    let sides = TAB_LEFT_W + TAB_RIGHT_W + 20.0;
-    let font = ui_toolkit::font_object::resolve_font_object("GameFontNormalSmall");
-    let (text, _) = measure_text(name, font.font, font.font_size).expect("TabSystem font metrics");
-    let width = if sides < text { text + 10.0 } else { sides };
-    width.clamp(TAB_MIN_W, TAB_MAX_W)
+    ui_toolkit::tab_art::measured_tab_width(
+        ui_toolkit::tab_art::TabLayout::System,
+        name,
+        ui_toolkit::tab_art::TabWidth {
+            padding: 0.0,
+            minimum: Some(TAB_MIN_W),
+            maximum: Some(TAB_MAX_W),
+        },
+    )
 }
 
 /// `TabSystemButtonArtTemplate` with `isTabOnTop`: the tab art is flipped vertically.
@@ -74,28 +78,10 @@ fn category_tab(
 }
 
 fn category_tab_pieces(frame: &str, width: f32, selected: bool, s: f32) -> Element {
-    let (left, middle, right, height) = if selected {
-        (ACTIVE_TAB_LEFT, ACTIVE_TAB_MIDDLE, ACTIVE_TAB_RIGHT, 42.0)
-    } else {
-        (TAB_LEFT, TAB_MIDDLE, TAB_RIGHT, 36.0)
-    };
-    [
-        ("Left", left, [0.0, 0.0, 35.0, height]),
-        ("Middle", middle, [35.0, 0.0, width - 35.0 - 31.0, height]),
-        ("Right", right, [width - 31.0, 0.0, 37.0, height]),
-    ]
-    .into_iter()
-    .flat_map(|(part, texture, rect)| {
-        art_colored(
-            format!("{frame}{part}"),
-            &texture,
-            rect,
-            s,
-            "1.0,1.0,1.0,1.0",
-            true,
-        )
-    })
-    .collect()
+    use ui_toolkit::tab_art::{TabArtSpec, TabLayout, tab_art};
+    let mut spec = TabArtSpec::new(TabLayout::SystemTop, selected, [width, TAB_H]);
+    spec.scale = s;
+    tab_art(frame, spec)
 }
 
 fn category_tab_text(frame: &str, category: &SpellbookCategory, selected: bool, s: f32) -> Element {

@@ -26,17 +26,6 @@ pub(super) struct Crop {
 }
 
 impl Crop {
-    /// `PanelTopTabButtonMixin:OnLoad` (SharedUIPanelTemplates.lua:280-286) shows the lower
-    /// 75 % of the art upside down (`SetTexCoord(0, 1, 1, 0.25)`): top edge at the member's
-    /// bottom row, bottom edge 25 % below its top.
-    pub fn top_tab(self) -> Self {
-        let (l, r, t, b) = self.rect;
-        Self {
-            rect: (l, r, b, t + 0.25 * (b - t)),
-            ..self
-        }
-    }
-
     /// Atlas member size in pixels.
     pub fn size(self) -> (f32, f32) {
         let (l, r, t, b) = self.rect;
@@ -54,8 +43,6 @@ impl Crop {
 const AH_SHEET: u32 = 3_046_538;
 /// UiTextureAtlas 1499, 2048×1024: auction house panel backgrounds.
 const AH_BG_SHEET: u32 = 3_054_898;
-/// UiTextureAtlas 2134, 64×256: `PanelTabButtonTemplate` art.
-const TAB_SHEET: u32 = 4_707_839;
 /// UiTextureAtlas 3172, 2048×1024: `common-search-border-*` of `InputBoxVisualTemplate`.
 const SEARCH_SHEET: u32 = 6_725_697;
 /// `Interface\Common\Moneyframe` (`ThinGoldEdgeTemplate`), 128×64.
@@ -73,14 +60,6 @@ const fn ah_bg(l: f32, r: f32, t: f32, b: f32) -> Crop {
     Crop {
         fdid: AH_BG_SHEET,
         sheet: (2048.0, 1024.0),
-        rect: (l, r, t, b),
-    }
-}
-
-const fn tab(l: f32, r: f32, t: f32, b: f32) -> Crop {
-    Crop {
-        fdid: TAB_SHEET,
-        sheet: (64.0, 256.0),
         rect: (l, r, t, b),
     }
 }
@@ -122,14 +101,6 @@ pub(super) const INPUT_RIGHT: Crop = ah(259.0, 275.0, 853.0, 919.0); // -inputfi
 pub(super) const COIN_GOLD: Crop = ah(985.0, 1005.0, 125.0, 145.0);
 pub(super) const COIN_SILVER: Crop = ah(954.0, 974.0, 147.0, 167.0);
 pub(super) const COIN_COPPER: Crop = ah(963.0, 983.0, 125.0, 145.0);
-
-// `PanelTabButtonTemplate` (SharedUIPanelTemplates.xml:905): inactive caps 35/37×36, active 35/37×42.
-pub(super) const TAB_LEFT: Crop = tab(1.0, 36.0, 209.0, 245.0); // uiframe-tab-left (17155)
-pub(super) const TAB_MIDDLE: Crop = tab(0.0, 1.0, 45.0, 81.0); // _uiframe-tab-center (17158)
-pub(super) const TAB_RIGHT: Crop = tab(1.0, 38.0, 171.0, 207.0); // uiframe-tab-right (17156)
-pub(super) const TAB_ACTIVE_LEFT: Crop = tab(1.0, 36.0, 127.0, 169.0); // uiframe-activetab-left (17153)
-pub(super) const TAB_ACTIVE_MIDDLE: Crop = tab(0.0, 1.0, 1.0, 43.0); // _uiframe-activetab-center (17157)
-pub(super) const TAB_ACTIVE_RIGHT: Crop = tab(1.0, 38.0, 83.0, 125.0); // uiframe-activetab-right (17154)
 
 // `InputBoxVisualTemplate` (InputBoxTemplates.xml:43) search border, 16/224/16×40 atlas pixels.
 pub(super) const SEARCH_LEFT: Crop = sheet(SEARCH_SHEET, 2048.0, 1024.0, 1970.0, 1986.0, 1.0, 41.0);
