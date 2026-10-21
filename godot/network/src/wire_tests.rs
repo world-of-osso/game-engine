@@ -2253,3 +2253,72 @@ fn follower_group_finder_default_bridge_receives_catalog_over_udp() {
     assert_eq!(message.downcast::<FollowerDungeons>().ok(), Some(expected));
     host.stop();
 }
+
+#[test]
+#[ignore = "RED: ConversationUpdate is absent from the production EncounterChannel relay"]
+fn talking_head_wire_bridge_preserves_private_snapshot_and_clear_in_channel_order() {
+    use shared::protocol::{ConversationUpdate, EncounterChannel, EncounterEnd, EncounterStart};
+    let (mut server, address) = start_fixture_server();
+    let mut host = Host::connect(address, 8399);
+    await_connected(&mut server, &mut host);
+    let update: ConversationUpdate = serde_json::from_str(include_str!(
+        "../../ui-model/tests/fixtures/conversation-orator.json"
+    ))
+    .unwrap();
+    let clear = ConversationUpdate {
+        conversations: vec![],
+        ..update.clone()
+    };
+    let start = EncounterStart {
+        encounter_id: 2907,
+        difficulty_id: 1,
+        group_size: 1,
+    };
+    let end = EncounterEnd {
+        encounter_id: 2907,
+        difficulty_id: 1,
+        group_size: 1,
+        success: true,
+    };
+    macro_rules! send {
+        ($ty:ty,$value:expr) => {{
+            let world = server.world_mut();
+            world
+                .query::<&mut MessageSender<$ty>>()
+                .single_mut(world)
+                .unwrap()
+                .send::<EncounterChannel>($value.clone());
+            server.update();
+        }};
+    }
+    send!(EncounterStart, start);
+    send!(ConversationUpdate, update);
+    send!(ConversationUpdate, clear);
+    send!(EncounterEnd, end);
+    let mut messages = await_messages(&mut server, &mut host, 4).into_iter();
+    assert_eq!(
+        messages.next().unwrap().downcast::<EncounterStart>().ok(),
+        Some(start)
+    );
+    assert_eq!(
+        messages
+            .next()
+            .unwrap()
+            .downcast::<ConversationUpdate>()
+            .ok(),
+        Some(update)
+    );
+    assert_eq!(
+        messages
+            .next()
+            .unwrap()
+            .downcast::<ConversationUpdate>()
+            .ok(),
+        Some(clear)
+    );
+    assert_eq!(
+        messages.next().unwrap().downcast::<EncounterEnd>().ok(),
+        Some(end)
+    );
+    host.stop();
+}
