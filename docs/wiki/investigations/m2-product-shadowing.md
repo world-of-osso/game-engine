@@ -70,6 +70,23 @@ The maintained native fixture runs all cases even after a failure, reports exact
 
 Final acceptance4/4, zero model/texture/type9 errors, `ExtractedOnly`, CASC tripwire0. Four1280×720 RGB PNGs in `/syncthing/AgentShared/2026-10-10/modelisolation/` decode successfully with ffmpeg; ffprobe dimensions and signalstats logs are in the diagnostics `inspection/` directory. Remaining P2 source gap list: empty. No full-world/catalog, missing historical metadata provenance, P3/P4 closure, pristine-bundle or release/deployment claim. Host XWayland/decor/VSync warnings are not compiler warnings or model failures.
 
+## Terrain collision reproduced (2026-10-21)
+
+Verified against runtime engine base `52e47cd5d`, current local Retail70448 and Forever70450 authenticated roots during [no-install certification](../../handoffs/noinstall-cert-2026-10-21.md). Converted character/equipment acceptance above does not cover terrain's unqualified model loader.
+
+Skyborne map2991's visited nine ADT tiles place model579120 four times. The flat M2 declares101 vertices and primary SFID579121, while its flat SKIN maps125 vertices up to124. Native `m2::submesh_arrays` rejects vertex101; four `WorldObjects: Vertex 101 out of bounds` errors match those four placements.
+
+Authenticated root comparison establishes a cross-product pair, not merely corrupt geometry:
+
+| File | Flat MD5 | Current Retail70448 root | Current Forever70450 root |
+|---|---|---|---|
+|579120.m2|`7bc5de4defc7715c73327d1d94925cb4`|`ac9d93a9b4b9f3cfbb960331e1575492`|Matches flat|
+|579121.skin|`e1fbb53052011d2ee2a009e692f364f0`|Matches flat|`cda5d039e301c0c41efd9a10a0fccf0a`|
+
+Neither identity had a scoped receipt at this checkpoint. `terrain/objects.rs::WorldObjects::new` creates an unqualified `local_resolver`; worker `load_asset` → `assets/creature.rs::load_model_files/cache_model_files` → `assets/mod.rs::read_model_file` reads flat siblings. The converted `authored_model_resolver` path is not used for terrain. Every required file can therefore exist and CASC tripwire remain0 while a model consumes another product's companion.
+
+Evidence under the certification's private diagnostic root: `skyborne-small-model-candidates.json`, `skyborne-invalid-vertex-candidates.json` and `skyborne-vertex-root-authentication/{comparison,wow-root-keys,wow_classic_beta-root-keys}.json`. These record source bytes, placements and authenticated current roots. Correct variants are being staged separately by product; no shared flat file is overwritten. Terrain ownership/runtime propagation remains unresolved, not part of the earlier P2 PASS or a rendering fallback opportunity.
+
 ## Sources
 
 - [Native Skyborne checkpoint](../systems/forever-data.md#native-skyborne-rosterworld-recheck-2026-10-09)

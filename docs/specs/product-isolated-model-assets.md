@@ -60,6 +60,8 @@ Option 1 is approved for the full referenced render-asset chain, preserving exis
 
 ## Known gaps (current cycle)
 
+- [ ] Terrain M2 acquisition still uses unqualified model/companion paths. The [map2991 model579120/SFID579121 collision](../wiki/investigations/m2-product-shadowing.md#terrain-collision-reproduced-2026-10-21) combines authenticated Forever model bytes with Retail skin bytes and fails vertex bounds despite all files being present. Earlier character/equipment P2 acceptance does not cover this boundary; flat replacement cannot establish product isolation.
+
 - [x] Publish verified actual-build per-asset provenance before runtime ownership is consumed. Frozen source publication survives install upgrades and incremental imports retain earlier dependency graphs; no legacy bytes are relabelled.
 - [x] Wire converted creature/player/equipment/appearance constructors, parsed/decode/publication keys, material/cape/body-overlay products and nested animation readers. Focused CPU gate: resolver1/core6/native7 tests pass; this is not named-display GPU acceptance.
 - [x] Complete authentic named-display equipment/appearance asset availability and render acceptance. Frozen-build local archive extraction recovered all four earlier gaps; no borrowed, fabricated or zero-filled assets replace them.

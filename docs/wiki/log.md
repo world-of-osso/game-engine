@@ -1,6 +1,6 @@
 ## 2026-10-21 — No-install certification continuation
 
-[Current coverage and evidence](../handoffs/noinstall-cert-2026-10-21.md): bounded native screens, all catalog race/body selections and seven offline zone streams; live extracted-only/tripwire readback, required receipt/numeric-skin staging. Explicit build pins and native-cache source fix the two reproduced producer gaps. P4 remains open; authenticated and post-publication proof pending.
+[Current coverage and evidence](../handoffs/noinstall-cert-2026-10-21.md):62/62 creation models, nine authenticated visits and five publication rounds; tripwire0 does not certify pristine/full-catalog or rendering acceptance. Generic producers now seed native customization, dynamic objects and authored skies. [Terrain collision](investigations/m2-product-shadowing.md#terrain-collision-reproduced-2026-10-21) authenticates flat Forever579120 M2/Retail579121 SKIN mixing behind Skyborne's four Vertex101 errors. Stockades entrance reset explains its earlier coordinate offset; zero-Basis errors remain open. P4 not complete.
 
 ## 2026-10-21 — Authored button regions implementation
 
