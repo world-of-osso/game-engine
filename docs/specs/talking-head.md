@@ -17,11 +17,13 @@ Consume the private source conversation payload and render the authored70448 Ret
 
 ## Implementation inventory
 
-- Pending network relay, UI model and Godot host.
+- `godot/ui-model/src/talking_head.rs`: private source payload/elapsed line state and local dismissal.
+- Network relay and Godot host pending.
 
 ## Tests asserting this spec
 
-- Pending source-payload/line state, ordered relay and native both-skin fixtures.
+- `godot/ui-model/tests/talking_head.rs`: actual source payload/elapsed expiry/private-owner refusal and dismissal.
+- Ordered relay and native both-skin fixtures pending.
 
 ## Known gaps (current cycle)
 
