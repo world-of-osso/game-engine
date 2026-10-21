@@ -61,9 +61,7 @@ pub fn project_images(frame: &Frame, width: f32, height: f32) -> Vec<ImagePart> 
         return Vec::new();
     }
     let mut parts = Vec::new();
-    if project_shared_red_button(frame, width, height, &mut parts)
-        || project_panel_button(frame, width, height, &mut parts)
-    {
+    if project_templated_button(frame, width, height, &mut parts) {
         return parts;
     }
     let rect = [0.0, 0.0, width, height];
@@ -92,9 +90,8 @@ pub fn project_images(frame: &Frame, width: f32, height: f32) -> Vec<ImagePart> 
     parts
 }
 
-/// SharedButtonTemplate inherits128-RedButton; its114px/292px caps scale with height.
-/// Using the three authored members avoids the project's brown whole-button override.
-fn project_shared_red_button(
+/// Project core-authored button parts; sources never select a geometry path.
+fn project_templated_button(
     frame: &Frame,
     width: f32,
     height: f32,
@@ -103,99 +100,18 @@ fn project_shared_red_button(
     let Some(WidgetData::Button(button)) = &frame.widget_data else {
         return false;
     };
-    if button
-        .normal_texture
-        .as_ref()
-        .map(|texture| &texture.source)
-        != Some(&TextureSource::Atlas("128-redbutton-left".into()))
-    {
-        return false;
-    }
-    let suffix = match button.state {
-        ButtonState::Normal => "",
-        ButtonState::Pushed => "-pressed",
-        ButtonState::Disabled => "-disabled",
-    };
-    let texture = select_button_base_texture(button).expect("SharedButton defines base art");
-    let left = 114.0 * height / 128.0;
-    let right = 292.0 * height / 128.0;
-    for (x, w, member) in [
-        (0.0, left, "128-redbutton-left"),
-        (left, width - left - right, "_128-redbutton-center"),
-        (width - right, right, "128-redbutton-right"),
-    ] {
-        let member = ButtonTexture {
-            source: TextureSource::Atlas(format!("{member}{suffix}")),
-            ..texture.clone()
-        };
-        parts.push(button_image(
-            [x, 0.0, w, height],
-            &member,
-            Crop::Full,
-            WHITE,
-        ));
-    }
-    if button.hovered && button.state != ButtonState::Disabled {
-        let texture = button
-            .highlight_texture
-            .as_ref()
-            .expect("SharedButton defines highlight art");
-        parts.push(button_image(
-            [0.0, 0.0, width, height],
-            texture,
-            Crop::Full,
-            WHITE,
-        ));
-    }
-    true
-}
-
-/// SecureUIPanelTemplates.xml: fixed12px caps on the cropped80×22 sheet member.
-/// The atlas nine-slice path is different art and must not stretch these legacy files.
-fn project_panel_button(
-    frame: &Frame,
-    width: f32,
-    height: f32,
-    parts: &mut Vec<ImagePart>,
-) -> bool {
-    let Some(WidgetData::Button(button)) = &frame.widget_data else {
+    let Some(regions) = ui_toolkit::button_art::button_art_parts(button, width, height) else {
         return false;
     };
-    let Some(texture) = select_button_base_texture(button) else {
-        return false;
-    };
-    if !matches!(
-        texture.source,
-        TextureSource::FileDataId(130824 | 130825 | 130828)
-    ) {
-        return false;
-    }
-    // TOP/BOTTOM anchors stretch the strip vertically; its XML width stays12px.
-    let cap = 12.0;
-    for (x, w, left, right) in [
-        (0.0, cap, 0.0, 0.09375),
-        (cap, width - 2.0 * cap, 0.09375, 0.53125),
-        (width - cap, cap, 0.53125, 0.625),
-    ] {
-        parts.push(button_image(
-            [x, 0.0, w, height],
-            texture,
-            Crop::Normalized([left, right, 0.0, 0.6875]),
+    parts.extend(regions.into_iter().map(|region| {
+        button_image(
+            region.rect,
+            &region.texture,
+            Crop::Normalized(region.crop),
             WHITE,
-        ));
-    }
-    if button.hovered && button.state != ButtonState::Disabled {
-        let texture = button
-            .highlight_texture
-            .as_ref()
-            .expect("UIPanelButton defines highlight art");
-        parts.push(button_image(
-            [0.0, 0.0, width, height],
-            texture,
-            Crop::Normalized([0.0, 0.625, 0.0, 0.6875]),
-            WHITE,
-        ));
-    }
+        )
+    }));
+    project_checked(frame, width, height, parts);
     true
 }
 
