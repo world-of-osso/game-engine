@@ -18,7 +18,7 @@ use std::sync::Arc;
 use ui_toolkit::atlas::{ActiveSkin, set_thread_skin};
 
 const PANELS: &str = "AdventureGuide, TradingPost, CharacterCurrency, \
-    CollectionsPetSpellSelect, EntranceDifficulty, HousingStorageBasic, WorldMap, GuildBank, GuildTabard, AchievementStatistics, Transmog";
+    CollectionsPetSpellSelect, EntranceDifficulty, HousingStorageBasic, HousingStorageCollapsed, WorldMap, GuildBank, GuildTabard, AchievementStatistics, Transmog";
 
 /// Cached Blackfathom/encounter112 opened through production instance, encounter and
 /// model-page actions; this reaches both side-tab and creature-ring ADD regions.
@@ -477,6 +477,11 @@ impl RegistryUi {
                 "CollectionsPetSpellSelect" => self.show_pet_journal(pet_spell_select(viewport)?),
                 "EntranceDifficulty" => self.show_entrance_bar(entrance_difficulty(size.x)?),
                 "HousingStorageBasic" => self.show_housing(housing_storage_basic(viewport)),
+                "HousingStorageCollapsed" => {
+                    let mut view = housing_storage_basic(viewport);
+                    view.model.storage_panel.collapsed = true;
+                    self.show_housing(view)
+                }
                 "WorldMap" => self.show_world_map(load_world_map(viewport)?),
                 "GuildBank" => self.show_guild_bank(guild_bank()),
                 "GuildTabard" => self.show_guild_tabard(guild_tabard()?),
