@@ -638,7 +638,8 @@ fn action_bar(view: &WildBattleView, state: &WildPetBattleSnapshot) -> Element {
 /// Retail XML1374: 473×27 centered at BottomFrame.TOP-5. Lua479:337px usable fill.
 fn turn_timer(view: &WildBattleView, width: f32, height: f32, pass_enabled: bool) -> Element {
     let left = width / 2.0 - 236.5;
-    let top = height - 118.5;
+    // BottomFrame.TOP is height-100; WoW y=-5 moves DOWN5 before centering27px.
+    let top = height - 108.5;
     let mut children = cropped(
         "PetBattleTurnTimerBackground".into(),
         HUD_TEXTURE,

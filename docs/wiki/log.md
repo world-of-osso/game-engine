@@ -1,6 +1,6 @@
 ## 2026-10-21 — PvP policy HUD
 
-[Retail proposal/timer wiring](systems/battle-pets.md#pvp-policy-completion--2026-10-21): source high-strata473×27 timer,337px fill, Pass anchors, local-only countdown, immediate Accept/Decline and hideOnEscape, fresh-queue dismissal reset and70448 caption. RED4→GREEN7/7, all tests enabled; no protocol change, native UDP5941 pending. Journal-card pad normalization unchanged.
+[Retail proposal/timer wiring](systems/battle-pets.md#pvp-policy-completion--2026-10-21): source high-strata473×27 timer,337px fill, Pass anchors, local-only countdown, immediate Accept/Decline and hideOnEscape, fresh-queue dismissal reset and70448 caption. RED4→GREEN7/7, all tests enabled; no protocol change, native UDP5941 pending. Journal-card pad normalization unchanged. Additional XML Y-sign RED at720px reproduced601.5 versus611.5; PvP root corrected10px down from source negative-Y convention, final gate pending.
 ## 2026-10-21 — Authored button regions implementation
 
 [Shared regions](systems/ui-system.md#authored-button-regions--step-2): extended ButtonTexture, moved checked/base/highlight selection into core and region metadata into native projection. Deleted Perks/Minimap state projectors, Housing offset guess and Transmog size-repair loop. Toolkit RED3→GREEN21/21; projection30/full-model1170 GREEN, scoped check/fmt passed; strict both-skin native16/16 and16 inspected1920×1080 originals. Perks Normal-hover/Pushed base offset is asserted independently, not inferred from sheet appearance. Lead integration gate separate; no realm/UDP claim.
