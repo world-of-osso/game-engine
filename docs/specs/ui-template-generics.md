@@ -14,7 +14,7 @@ Port recurring behavior once from the Retail R cache, then migrate every audited
 
 ### Ordered subsequent slices
 
-- [ ] Step 2: Normal/Pushed/Disabled/Highlight/Checked regions carry source, crop, blend, tint and alpha through one mechanism; migrate listed consumers and delete old paths.
+- [x] Step 2: Normal/Pushed/Disabled/Highlight/Checked regions carry source, crop, blend, tint and alpha through one mechanism; migrate listed consumers and delete old paths.
 - [ ] Step 3: source font-object inheritance; migrate listed consumers and delete local inherited-style corrections.
 - [ ] Step 4: named slice/tab/button art; migrate listed consumers and delete source-name/FDID geometry guesses.
 - [ ] Step 5: lifecycle/Escape/sound descriptors; migrate listed consumers while retaining domain close actions and source ordering.
@@ -37,11 +37,13 @@ Port recurring behavior once from the Retail R cache, then migrate every audited
 ## Tests asserting this spec
 
 - Toolkit `core/src/attrs_layout_tests.rs` — source-identical normal/additive regions and unsupported-mode rejection.
+- Step2 toolkit attrs21/projection30 passed, including independent crop/tint/alpha/Checked state and source changes. Whole ui-model integration1170 passed with0 failures (7 existing ignored) before native capture; scoped cargo check and format checks passed. `godot/tests/ui_template_regions_matrix.gd` strict16/16 covers8 supplied production states in both skins at1920×1080. All16 original PNGs inspected; PNGs: `/syncthing/AgentShared/2026-10-21/ui-template-generics/step2-1d857264b/`. Perks Normal-hover versus Pushed is strictly distinguished by base rect[0,0,48,48] versus[1,1,48,48]; the shared ADD highlight remains alpha0.6 at[0,0,48,48]. Native texture-identity comparison is not claimed.
 - Engine model/projection `ui_template_blend` controls and `godot/tests/ui_template_blend_matrix.gd` cover authored panel data and its native projection. The matrix visits 21 panel/control groups in both skins; masked casting FX require raster inspection alongside model/projection mode controls. Unexecuted fixtures are not acceptance.
 
 ## Known gaps (current cycle)
 
-- [ ] Lead acceptance of the coordinated Step 1 toolkit/engine tips and both-skin native packet.
+- Steps3–6 remain unimplemented. Shared-red/UIPanel geometry routing is intentionally retained until Step4; Step2 does not claim named-art migration or realm/UDP parity.
+- Step1 is landed at engine a982e08c7+ and toolkit e8c9f6f. Step2 lead integration gate follows its submitted E/T tips.
 
 ## Out of scope
 
