@@ -378,57 +378,8 @@ fn dialog_button(
     )
 }
 fn dialog_border(height: f32, scale: f32) -> Element {
-    let side_height = (height - 128.0).abs();
-    [
-        (
-            "TopLeft",
-            "UI-Frame-DiamondMetal-CornerTopLeft",
-            [0.0, 0.0, 64.0, 64.0],
-        ),
-        (
-            "TopRight",
-            "UI-Frame-DiamondMetal-CornerTopRight",
-            [396.0, 0.0, 64.0, 64.0],
-        ),
-        (
-            "BottomLeft",
-            "UI-Frame-DiamondMetal-CornerBottomLeft",
-            [0.0, height - 64.0, 64.0, 64.0],
-        ),
-        (
-            "BottomRight",
-            "UI-Frame-DiamondMetal-CornerBottomRight",
-            [396.0, height - 64.0, 64.0, 64.0],
-        ),
-        (
-            "Top",
-            "_UI-Frame-DiamondMetal-EdgeTop",
-            [64.0, 0.0, 332.0, 64.0],
-        ),
-        (
-            "Bottom",
-            "_UI-Frame-DiamondMetal-EdgeBottom",
-            [64.0, height - 64.0, 332.0, 64.0],
-        ),
-        (
-            "Left",
-            "!UI-Frame-DiamondMetal-EdgeLeft",
-            [0.0, 64.0, 64.0, side_height],
-        ),
-        (
-            "Right",
-            "!UI-Frame-DiamondMetal-EdgeRight",
-            [396.0, 64.0, 64.0, side_height],
-        ),
-    ]
-    .into_iter()
-    .flat_map(|(name, atlas, rect)| {
-        retail_atlas(
-            &format!("TalentLoadoutDialogBorder{name}"),
-            atlas,
-            rect,
-            scale,
-        )
-    })
-    .collect()
+    use ui_toolkit::art_layout::{BorderLayout, BorderSpec, border_art};
+    let mut spec = BorderSpec::new(BorderLayout::Dialog, [0.0, 0.0, 460.0, height]);
+    spec.scale = scale;
+    border_art("TalentLoadoutDialogBorder", spec)
 }
