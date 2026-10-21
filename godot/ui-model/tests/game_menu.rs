@@ -17,6 +17,40 @@ fn action(model: &GameMenuModel, name: &str) -> Option<String> {
     model.registry.get(id)?.onclick.clone()
 }
 
+/// R NineSlice.lua SetupEdge anchors between corner edges, even when they cross.
+#[test]
+fn ui_template_art_short_dialog_sides_span_crossed_corner_anchors_in_both_skins() {
+    use ui_toolkit::atlas::{ActiveSkin, set_thread_skin};
+    use ui_toolkit::layout_values::Val;
+    use ui_toolkit::registry::FrameRegistry;
+    use ui_toolkit::screen::{Screen, SharedContext};
+    load_fonts_and_atlases();
+    for skin in [ActiveSkin::Modern, ActiveSkin::Forever] {
+        set_thread_skin(skin);
+        let mut registry = FrameRegistry::new(1920.0, 1080.0);
+        Screen::new(|_| {
+            game_engine_ui_model::game_menu_main::dialog_border("ShortDialog", 420.0, 100.0)
+        })
+        .sync(&SharedContext::new(), &mut registry);
+        for (name, x) in [("ShortDialogLeft", 0.0), ("ShortDialogRight", 356.0)] {
+            let frame = registry
+                .get(registry.get_by_name(name).expect(name))
+                .unwrap();
+            assert_eq!(
+                (frame.position.left, frame.position.top),
+                (Val::Px(x), Val::Px(36.0)),
+                "{skin:?} {name}"
+            );
+            assert_eq!(
+                (frame.width, frame.height),
+                (Dimension::Fixed(64.0), Dimension::Fixed(28.0)),
+                "{skin:?} {name}"
+            );
+        }
+    }
+    set_thread_skin(ActiveSkin::Modern);
+}
+
 #[test]
 fn logged_in_menu_preserves_authored_actions_and_labels() {
     load_fonts_and_atlases();
