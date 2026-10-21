@@ -309,18 +309,18 @@ fn slice_part_crop(slice: &NineSlice, index: u8, uv: [f32; 4], kept: f32) -> Cro
 }
 
 fn project_three_slice(slice: &ThreeSlice, width: f32, height: f32, parts: &mut Vec<ImagePart>) {
-    let cap = slice.cap_width;
-    let center = (width - cap * 2.0).max(0.0);
-    for (source, x, w) in [
-        (&slice.left, 0.0, cap),
-        (&slice.center, cap, center),
-        (&slice.right, cap + center, cap),
-    ] {
-        let rect = [x, 0.0, w, height];
-        parts.push(match source {
-            TextureSource::None => solid(rect, slice.color),
-            source => textured(rect, source.clone(), Crop::Full, slice.color),
-        });
+    for part in ui_toolkit::three_slice::slice_parts(slice, width, height) {
+        let mut image = match part.source {
+            TextureSource::None => solid(part.rect, slice.color),
+            source => textured(
+                part.rect,
+                source.clone(),
+                Crop::Normalized(part.crop),
+                slice.color,
+            ),
+        };
+        image.additive = slice.blend_mode == BlendMode::Additive;
+        parts.push(image);
     }
 }
 
