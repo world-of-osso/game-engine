@@ -213,8 +213,6 @@ const TAB_SPACING: f32 = 1.0;
 /// `uiframe-tab-left` / `uiframe-tab-right` atlas widths (TabSystemTemplates.xml:41-52).
 const TAB_LEFT_W: f32 = 35.0;
 const TAB_RIGHT_W: f32 = 37.0;
-/// `textPadding`-free width estimate of `GameFontNormalSmall` glyphs.
-const TAB_GLYPH_W: f32 = 6.5;
 /// `PagingControls` BOTTOMRIGHT -75,40 of `PagedSpellsFrame`: page text, then 32×32
 /// previous and next buttons, 8 apart.
 const PAGING_RIGHT: f32 = BOOK_W - 75.0;
@@ -428,6 +426,7 @@ fn file_texture(name: String, fdid: u32, rect: [f32; 4], s: f32) -> Element {
 }
 
 struct Label<'a> {
+    font_object: &'a str,
     name: String,
     text: &'a str,
     rect: [f32; 4],
@@ -444,7 +443,7 @@ fn label(spec: Label<'_>, s: f32) -> Element {
             width: {width * s},
             height: {height * s},
             text: spec.text,
-            font_object: "GameFontNormal",
+            font_object: spec.font_object,
             font_size: {(spec.size * s).max(6.0)},
             font_color: spec.color,
             justify_h: spec.justify,

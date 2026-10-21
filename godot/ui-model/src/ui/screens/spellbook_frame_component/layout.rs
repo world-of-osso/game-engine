@@ -40,7 +40,8 @@ pub(super) fn background(s: f32) -> Element {
 /// plus `TabSideExtraSpacing` 20, or the text plus 10 when wider, clamped to 100..150.
 pub(super) fn tab_width(name: &str) -> f32 {
     let sides = TAB_LEFT_W + TAB_RIGHT_W + 20.0;
-    let text = name.chars().count() as f32 * TAB_GLYPH_W;
+    let font = ui_toolkit::font_object::resolve_font_object("GameFontNormalSmall");
+    let (text, _) = measure_text(name, font.font, font.font_size).expect("TabSystem font metrics");
     let width = if sides < text { text + 10.0 } else { sides };
     width.clamp(TAB_MIN_W, TAB_MAX_W)
 }
@@ -100,6 +101,11 @@ fn category_tab_pieces(frame: &str, width: f32, selected: bool, s: f32) -> Eleme
 fn category_tab_text(frame: &str, category: &SpellbookCategory, selected: bool, s: f32) -> Element {
     label(
         Label {
+            font_object: if selected {
+                "GameFontHighlightSmall"
+            } else {
+                "GameFontNormalSmall"
+            },
             name: format!("{frame}Text"),
             text: &category.name,
             rect: [0.0, 11.0, tab_width(&category.name), 14.0],

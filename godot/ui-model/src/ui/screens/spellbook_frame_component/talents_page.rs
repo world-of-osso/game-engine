@@ -25,6 +25,7 @@ pub(super) fn talents(state: &SpellbookFrameState, scale: f32) -> Element {
         Some(view) => page_contents(view, scale),
         None => heading(
             "TalentsContext",
+            "SystemFont_Large",
             "Talents require a class and specialization",
             [BOOK_W / 2.0, BOOK_H / 2.0],
             scale,
@@ -94,9 +95,10 @@ fn page_contents(view: &TalentView, scale: f32) -> Element {
     children.extend(choice_flyout(view, scale));
     children
 }
-fn heading(name: &str, text: &str, center: [f32; 2], scale: f32) -> Element {
+fn heading(name: &str, font_object: &str, text: &str, center: [f32; 2], scale: f32) -> Element {
     label(
         Label {
+            font_object,
             name: name.into(),
             text,
             rect: [center[0] - 240.0, center[1] - 12.0, 480.0, 24.0],
@@ -225,6 +227,7 @@ fn render_gate(
     );
     children.extend(label(
         Label {
+            font_object: "SystemFont_Huge2",
             name: format!("TalentGate{}Text", gate.condition_id),
             text: &text,
             rect: [55.0 - width, 6.0, width, 30.0],
@@ -679,6 +682,7 @@ fn talent_controls(view: &TalentView, scale: f32) -> Element {
     if let Some(reason) = talent_error.or(view.pvp_error.as_ref()) {
         children.extend(label(
             Label {
+                font_object: "GameFontNormal",
                 name: "TalentError".into(),
                 text: reason,
                 rect: [200.0, BOOK_H - 76.0, 1212.0, 24.0],
@@ -710,6 +714,7 @@ fn currency_header(
     let left = center[0] - (width + 3.0 + 54.0) / 2.0;
     let mut children = label(
         Label {
+            font_object: "SystemFont_Shadow_Large2",
             name: format!("{prefix}Name"),
             text: name,
             rect: [left, center[1] - 12.0, width, 24.0],
@@ -721,6 +726,7 @@ fn currency_header(
     );
     children.extend(label(
         Label {
+            font_object: "Game32Font_Shadow2",
             name: format!("{prefix}Points"),
             text: &points,
             rect: [left + width + 3.0, center[1] - 20.0, 54.0, 40.0],
@@ -939,6 +945,7 @@ fn hero_selector(view: &TalentView, scale: f32) -> Element {
     if let Some(tree) = active {
         children.extend(heading(
             "TalentHeroSelectionLabel",
+            "SystemFont_Shadow_Large",
             &tree.name,
             [center_x, 67.0],
             scale,
@@ -946,6 +953,7 @@ fn hero_selector(view: &TalentView, scale: f32) -> Element {
     } else {
         children.extend(label(
             Label {
+                font_object: "System15Font",
                 name: "TalentHeroChooseLabel".into(),
                 text: "CHOOSE YOUR",
                 rect: [center_x - 160.0, 43.0, 320.0, 15.0],
@@ -957,6 +965,7 @@ fn hero_selector(view: &TalentView, scale: f32) -> Element {
         ));
         children.extend(label(
             Label {
+                font_object: "SystemFont_Shadow_Huge2",
                 name: "TalentHeroSelectionLabel".into(),
                 text: "HERO TALENTS",
                 rect: [center_x - 180.0, 60.0, 360.0, 24.0],
@@ -981,6 +990,7 @@ fn hero_selector(view: &TalentView, scale: f32) -> Element {
         let x = center_x - width / 2.0 - if text.starts_with('1') { 2.0 } else { 0.0 };
         children.extend(label(
             Label {
+                font_object: "Game32Font_Shadow2",
                 name: "TalentHeroPoints".into(),
                 text: &text,
                 rect: [x, 197.0, width, 30.0],
@@ -1114,6 +1124,7 @@ fn hero_choice_column(
     let height = HERO_DIALOG_SIZE[1];
     let mut children = label(
         Label {
+            font_object: "Game24Font",
             name: format!("TalentHero{}Name", tree.id),
             text: &tree.name,
             rect: [width / 2.0 - 212.5, 39.0, 425.0, 24.0],
@@ -1141,6 +1152,7 @@ fn hero_choice_column(
     ));
     children.extend(label(
         Label {
+            font_object: "GameFontNormalMed1",
             name: format!("TalentHero{}Description", tree.id),
             text: &tree.description,
             rect: [40.0, 284.0, width - 80.0, 80.0],
@@ -1153,6 +1165,7 @@ fn hero_choice_column(
     let points = view.hero_points_for(tree).to_string();
     children.extend(label(
         Label {
+            font_object: "Game32Font_Shadow2",
             name: format!("TalentHero{}DialogPoints", tree.id),
             text: &points,
             rect: [width - 212.0, HERO_DIALOG_NODES_TOP - 12.0, 54.0, 40.0],
@@ -1164,6 +1177,7 @@ fn hero_choice_column(
     ));
     children.extend(label(
         Label {
+            font_object: "SystemFont_Shadow_Small2",
             name: format!("TalentHero{}DialogPointsLabel", tree.id),
             text: "Points Available",
             rect: [width - 153.0, HERO_DIALOG_NODES_TOP - 9.0, 100.0, 40.0],
@@ -1195,6 +1209,7 @@ fn hero_choice_column(
     } else if view.editor.rank(node.id, entry.id) > 0 {
         children.extend(label(
             Label {
+                font_object: "SystemFont_Shadow_Large2",
                 name: format!("TalentHero{}Active", tree.id),
                 text: "Active",
                 rect: [width / 2.0 - 80.0, height - 70.0, 160.0, 22.0],

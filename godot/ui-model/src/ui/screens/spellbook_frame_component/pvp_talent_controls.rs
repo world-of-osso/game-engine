@@ -38,6 +38,7 @@ fn render_label(scale: f32) -> Element {
     let (width, _) = measure_text(text, GameFont::FrizQuadrata, 16.0).expect("PvP label font");
     label(
         Label {
+            font_object: "GameFontHighlightLarge",
             name: "PvPTalentLabel".into(),
             text,
             rect: [
@@ -267,6 +268,7 @@ fn choice_row(
     ));
     children.extend(label(
         Label {
+            font_object: "GameFontHighlightSmall",
             name: format!("PvPTalentChoice{}Name", choice.id),
             text: &choice.name,
             rect: [58.0, y + 14.0, 150.0, 12.0],

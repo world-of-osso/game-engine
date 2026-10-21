@@ -50,6 +50,11 @@ pub(super) fn bottom_tabs(state: &SpellbookFrameState, s: f32) -> Element {
             ),
             label(
                 Label {
+                    font_object: if selected {
+                        "GameFontHighlightSmall"
+                    } else {
+                        "GameFontNormalSmall"
+                    },
                     name: format!("{frame}Text"),
                     text: tab.title(),
                     rect: [5.0, (TAB_H - 10.0) / 2.0 - text_offset, width - 10.0, 10.0],
@@ -145,6 +150,7 @@ fn spec_column(
         ),
         label(
             Label {
+                font_object: "Game30Font",
                 name: format!("{name}Name"),
                 text: &spec.name,
                 rect: [0.0, 278.0, width, 38.0],
@@ -156,6 +162,7 @@ fn spec_column(
         ),
         label(
             Label {
+                font_object: "GameFontNormalMed2",
                 name: format!("{name}Role"),
                 text: &spec.role,
                 rect: [0.0, 327.0, width, 24.0],
@@ -167,6 +174,7 @@ fn spec_column(
         ),
         label(
             Label {
+                font_object: "GameFontNormalMed2",
                 name: format!("{name}Description"),
                 text: &spec.description,
                 rect: [(width - 280.0) / 2.0, 378.0, 280.0, 220.0],
@@ -191,6 +199,7 @@ fn spec_column(
     if spec.active {
         children.extend(label(
             Label {
+                font_object: "GameFontNormalLarge2",
                 name: format!("{name}Active"),
                 text: "Active",
                 rect: [0.0, BOOK_H - 119.0, width, 24.0],

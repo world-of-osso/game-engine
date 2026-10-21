@@ -142,6 +142,7 @@ pub(super) fn loadout_dialog(view: &TalentView, viewport: [f32; 2]) -> Element {
     }
     contents.extend(label(
         Label {
+            font_object: "GameFontHighlight",
             name: "TalentLoadoutDialogTitle".into(),
             text: title,
             rect: [105.0, 20.0, 250.0, 12.0],
@@ -154,6 +155,7 @@ pub(super) fn loadout_dialog(view: &TalentView, viewport: [f32; 2]) -> Element {
     if confirm {
         contents.extend(label(
             Label {
+                font_object: "GameFontNormal",
                 name: "TalentLoadoutConfirmationText".into(),
                 text: if matches!(dialog, LoadoutDialog::Delete(_)) {
                     &view.editor.loadout_name
@@ -170,6 +172,7 @@ pub(super) fn loadout_dialog(view: &TalentView, viewport: [f32; 2]) -> Element {
     } else {
         contents.extend(label(
             Label {
+                font_object: "GameFontNormal",
                 name: "TalentLoadoutNameLabel".into(),
                 text: if importing {
                     "New Loadout Name"
@@ -267,6 +270,7 @@ pub(super) fn loadout_dialog(view: &TalentView, viewport: [f32; 2]) -> Element {
     if let Some(error) = view.editor.error_text.as_ref().filter(|_| !importing) {
         contents.extend(label(
             Label {
+                font_object: "GameFontNormal",
                 name: "TalentLoadoutNameError".into(),
                 text: error,
                 rect: [40.0, 90.0, 380.0, 24.0],
@@ -299,6 +303,7 @@ fn import_control(text: &str) -> Element {
         .map(|part| format!("data/ui/Common-Input-Border-{part}.blp"));
     let mut elements = label(
         Label {
+            font_object: "GameFontNormal",
             name: "TalentLoadoutCodeLabel".into(),
             text: "Import Text",
             rect: [40.0, 40.0, 380.0, 12.0],
