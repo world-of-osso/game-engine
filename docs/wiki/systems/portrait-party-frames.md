@@ -54,6 +54,14 @@ Proof runner: `res://tests/party_portraits.gd` instantiates the offline `PartyPo
 
 At native `5f33198a` plus fixture `978772c5`, both skin processes pass all five tests and exit 0. Offline head sample: 0 colored / 127 visible grey pixels. Both `data/diagnostics/party3-2026-10-05/{modern,forever}-party-recapture.png` and enlarged `*-party-detail.png` pass inspected bounded runtime-head raster; not live or full reference parity. Five targeted native Rust tests and six UI-model tests pass; native build and Cargo formatting pass. Owned portrait SubViewports are zero after four joins/four leaves, compact switch and fixture shutdown. All owned PIDs exit. Global shutdown warnings remain (Modern 16 texture RIDs/16 ObjectDB instances, Forever 18/17), higher than the static step-2 baseline; clean global shutdown is not proved. Diagnostics retain rejected test assumptions: typed array conversion, automatic node renaming during reparent, and colored skin-ring pixels outside the grey head. Full proof and revision ledger: `data/diagnostics/party3-2026-10-05/proof.md`.
 
+## Follower roster heads — 2026-10-21
+
+Native five-member follower admission reproduced four empty portrait wells under both skins. `Follower::online` sent a default player portrait (race0), although the spawned NPC had its real `ModelDisplay`. `GroupPortraitAppearance.creature_display_id` now carries that actual template-selected display; the party selector uses the existing `UnitAppearance::Creature` path. Player customization/head equipment and compact-default selection stay unchanged. No entity lookup or invented player race is used.
+
+Retail `Blizzard_UnitFrame/Mainline/UnitFrame.lua:175–200` updates the unit portrait through `SetPortraitTexture`; follower identity must not turn an NPC into a synthetic player. Existing NPC display/appearance data supplies each head. The missing three appearance profiles and baked textures were imported from local data and published by the lead; acceptance must use canonical caches, not a private overlay.
+
+Proof remains in progress: ignored server/engine regressions reproduced missing display/creature selection; native RED PNGs and raw group states live in `data/diagnostics/party-frames-2026-10-21/`. GREEN/native acceptance is not yet established.
+
 ## Roster-only appearance — 2026-10-06
 
 Client `c582ef32` replaces party replicated-player lookup with `party::roster_appearances(&self.account.group)` and removes the retained-appearance fallback. Test `a104cde8` verifies canonical customization/visage and hidden head equipment survive offline roster replacement. Read-only protocol/server revisions: `a936ed2` / `bc58a01`.
