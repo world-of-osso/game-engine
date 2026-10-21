@@ -91,7 +91,7 @@ Evidence under the certification's private diagnostic root: `skyborne-small-mode
 
 ### Terrain qualification implementation, acceptance pending
 
-`75208c162` adds the ignored real-map worker regression and reproduces `Vertex101` (exit101). `7ded89db4` retains selected MapCatalog CSV provenance in WDT; terrain M2 worker/parsed keys include product+FDID, companion acquisition uses `authored_model_resolver`, decoded/material/particle textures keep the model's root, and particle pools key by texture namespace too. WMO geometry/material IO remains separate. Compile-only proof passes; scoped terrain source recovery, guarded GREEN and both-skin Skyborne/Mulgore acceptance remain open. [Current proof and harness incident](../../handoffs/noinstall-cert-2026-10-21.md#terrain-source-qualification-implementation-acceptance-pending) owns exact bounds; do not infer P4 from implementation.
+`75208c162` adds the ignored real-map worker regression and reproduces `Vertex101` (exit101). `7ded89db4` retains selected MapCatalog CSV provenance in WDT; terrain M2 worker/parsed keys include product+FDID, companion acquisition uses `authored_model_resolver`, decoded/material/particle textures keep the model's root, and particle pools key by texture namespace too. WMO geometry/material IO remains separate. Compile-only/native extension builds and guarded extracted-only GREEN1 pass. Scoped terrain source recovery stages2,248 files, retaining one all-doodad-set root gap; both-skin Skyborne/Mulgore acceptance remains blocked on lead-owned publication. [Current proof and harness incident](../../handoffs/noinstall-cert-2026-10-21.md#terrain-source-qualification-implementation-acceptance-pending) owns exact bounds; do not infer P4 from implementation.
 
 ## Sources
 
