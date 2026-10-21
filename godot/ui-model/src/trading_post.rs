@@ -881,7 +881,7 @@ fn row_cart_toggle(view: &View, id: u32) -> Element {
     // TimeRemaining is LEFT of PriceIcon.RIGHT+30,42x38; button36 centers there.
     cart_ui::cart_icon_button(
         &format!("PerksProgramCartToggle{id}"),
-        atlas,
+        ("button_art_kit", atlas),
         &format!("perks:cart:toggle:{id}"),
         true,
         (443., (ROW_HEIGHT - 36.) / 2., 36., 36.),

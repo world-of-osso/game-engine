@@ -371,18 +371,6 @@ fn button_skin(frame: &Frame) -> Option<ButtonTexture> {
     let Some(WidgetData::Button(button)) = &frame.widget_data else {
         return None;
     };
-    // These explicit state textures retain base art beneath a separate highlight.
-    if matches!(
-        button
-            .normal_texture
-            .as_ref()
-            .map(|texture| &texture.source),
-        Some(TextureSource::FileDataId(130869 | 130866 | 130845 | 130847))
-    ) || matches!(button.normal_texture.as_ref().map(|texture| &texture.source), Some(TextureSource::Atlas(name)) if matches!(name.as_str(),
-        "RedButton-Exit" | "128-redbutton-cart-add" | "128-redbutton-cart-minus"))
-    {
-        return None;
-    }
     if !button.use_default_skin {
         return None;
     }
