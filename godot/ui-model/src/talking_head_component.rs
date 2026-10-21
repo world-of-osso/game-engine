@@ -23,7 +23,7 @@ pub fn talking_head_screen(context: &SharedContext) -> Element {
         }
         texture {name:"TalkingHeadPortrait",texture_atlas:"TalkingHeads-Alliance-PortraitFrame",width:143.0,height:143.0,left:5.0,top:6.0,pos_type:"absolute",draw_layer:"OVERLAY",mouse_enabled:false}
         fontstring {name:"TalkingHeadName",text:name,font:GameFont::Morpheus,font_size:22.0,font_color:"1,0.82,0,1",justify_h:"LEFT",left:150.0,right:42.0,top:25.0,height:22.0,pos_type:"absolute",mouse_enabled:false}
-        fontstring {name:"TalkingHeadText",text,font:GameFont::FrizQuadrata,font_size:16.0,font_color:"1,1,1,1",justify_h:"LEFT",justify_v:"TOP",left:150.0,right:42.0,top:50.0,bottom:12.0,pos_type:"absolute",mouse_enabled:false}
+        fontstring {name:"TalkingHeadText",text,width:378.0,word_wrap:true,font:GameFont::FrizQuadrata,font_size:16.0,font_color:"1,1,1,1",justify_h:"LEFT",justify_v:"TOP",left:150.0,right:42.0,top:50.0,bottom:12.0,pos_type:"absolute",mouse_enabled:false}
         button {name:"TalkingHeadCloseButton",width:24.0,height:24.0,right:12.0,top:12.0,pos_type:"absolute",onclick:DISMISS,button_default_skin:false,
             button_atlas_up:"RedButton-Exit",button_atlas_pressed:"RedButton-exit-pressed",button_atlas_disabled:"RedButton-Exit-Disabled",button_atlas_highlight:"RedButton-Highlight",button_highlight_blend_mode:"ADD",button_highlight_alpha:"1.0"}
     }}
