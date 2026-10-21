@@ -31,7 +31,9 @@ impl TalkingHeadFixture {
     #[func]
     fn initialize(&mut self, forever: bool, payload: GString) -> GString {
         let result = self.initialize_native(forever, &payload.to_string());
-        result.err().map_or_else(GString::new, |error| error.into())
+        result
+            .err()
+            .map_or_else(GString::new, |error| error.as_str().into())
     }
     #[func]
     fn tick(&mut self, delta: f64) -> GString {
@@ -42,7 +44,7 @@ impl TalkingHeadFixture {
         ui.bind_mut()
             .set_state(self.state.clone())
             .err()
-            .map_or_else(GString::new, |error| error.into())
+            .map_or_else(GString::new, |error| error.as_str().into())
     }
     #[func]
     fn model_ready(&self) -> bool {
