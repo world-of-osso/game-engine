@@ -582,11 +582,12 @@ impl RegistryModel {
         {
             game_engine_ui_model::trainer_frame::apply_trainer_art(view, &mut self.registry);
         }
-        if let Some(view) = self
+        if self
             .shared
             .get::<game_engine_ui_model::transmog_frame::TransmogView>()
+            .is_some()
         {
-            game_engine_ui_model::transmog_frame::apply_transmog_art(view, &mut self.registry);
+            game_engine_ui_model::transmog_frame::apply_transmog_art(&mut self.registry);
         }
         if let Some(view) = self
             .shared

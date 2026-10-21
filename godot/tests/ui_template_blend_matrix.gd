@@ -17,7 +17,7 @@ func cases(forever: bool) -> Array:
 		["EntranceDifficulty", "EntranceDifficultyButton2", [["EntranceDifficultyHighlight2", true]]],
 		["HousingStorageBasic", "HouseEditorStored1693", [["HouseEditorStored1693HoverBackground", true]]],
 		["WorldMap", "", [["WorldMapHighlight", true], ["WorldMapPin0Highlight", true], ["QuestLogTitle332Selected", false]]],
-		["GuildBank", "", [["GuildBankTab1Checked", true], ["GuildBankTab1Background", false]]],
+		["GuildBank", "", [["GuildBankTab1Button", true], ["GuildBankTab1Background", false]]],
 		["GuildTabard", "", [["TabardFrameEmblemTopLeft", true], ["TabardFrameEmblemTopRight", true], ["TabardFrameEmblemBottomLeft", true], ["TabardFrameEmblemBottomRight", true]]],
 		["AchievementStatistics", "", [["Achievement1068Stripe", false], ["Achievement1069Stripe", true], ["AchievementCategory14807Highlight", true]]],
 	]:
