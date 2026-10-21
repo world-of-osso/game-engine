@@ -610,6 +610,7 @@ fn category_tabs_use_retail_update_tab_width() {
     let registry = build(&book);
     let rect = |index| placed(&registry, &format!("SpellBookCategoryTab{index}"));
     assert_eq!(rect(1), [70.0, 19.0, 100.0, 32.0]);
-    assert_eq!(rect(2), [171.0, 19.0, 150.0, 32.0]);
-    assert_eq!(rect(3), [322.0, 19.0, 100.0, 32.0]);
+    // Roman Friz10 measures this title at135px; text +10, not the old glyph-count cap.
+    assert_eq!(rect(2), [171.0, 19.0, 145.0, 32.0]);
+    assert_eq!(rect(3), [317.0, 19.0, 100.0, 32.0]);
 }
