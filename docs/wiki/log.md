@@ -1,6 +1,6 @@
 ## 2026-10-21 — Authored button regions implementation
 
-[Shared regions](systems/ui-system.md#authored-button-regions--step-2-acceptance-pending): extended the existing ButtonTexture record, moved checked/base/highlight selection into core and region metadata into native projection. Deleted Perks/Minimap state projectors, Housing offset guess and Transmog size-repair loop. Toolkit RED3→GREEN21/21; full model/projection/native gates pending. No Step2 acceptance claim.
+[Shared regions](systems/ui-system.md#authored-button-regions--step-2): extended ButtonTexture, moved checked/base/highlight selection into core and region metadata into native projection. Deleted Perks/Minimap state projectors, Housing offset guess and Transmog size-repair loop. Toolkit RED3→GREEN21/21; projection30/full-model1170 GREEN, scoped check/fmt passed; strict both-skin native16/16 and16 inspected1920×1080 originals. Perks Normal-hover/Pushed base offset is asserted independently, not inferred from sheet appearance. Lead integration gate separate; no realm/UDP claim.
 
 ## 2026-10-20 — Authored blend native proof
 
