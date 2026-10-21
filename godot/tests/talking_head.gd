@@ -44,6 +44,11 @@ func run_fixture() -> void:
         check(host != null, "source115x115 model host: " + skin)
         if host != null:
             check(host.size.is_equal_approx(Vector2(115,115)), "native authored model host size: " + skin)
+        var text: Label = fixture.find_child("TalkingHeadText", true, false)
+        check(text != null, "native source dialogue label: " + skin)
+        if text != null:
+            check(text.get_line_count() > 1, "actual source dialogue wraps within authored text allocation: " + skin)
+            check(text.size.x <= 378.01, "dialogue stays inside source570-150-42 width: " + skin)
         await RenderingServer.frame_post_draw
         var image := root.get_texture().get_image()
         check(image.get_size() == Vector2i(1920,1080), "native1920x1080 image: " + skin)
