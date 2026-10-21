@@ -1,3 +1,7 @@
+## 2026-10-20 — Authored blend native proof
+
+[Mechanism and limits](systems/ui-system.md#authored-blend-metadata--step-1-integration): typed BLEND/ADD propagation replaces panel material corrections and name/FDID/atlas inference. Core4/model16/projection5/shared-row1/currency1 passed; strict supplied-panel native42/42 exit0 in both skins, all42 captures inspected. Metadata-only state absence is covered. Lead acceptance pending; no realm/UDP, retired-renderer or whole-engine parity claim.
+
 ## 2026-10-20 — Guild roster context Whisper
 
 [Contract](../specs/guild-context-whisper.md), [flow](systems/guilds.md#roster-context-whisper): sourced Whisper entry opens the existing chat input with `/w <name> `; named gap `CHAT_WHISPER_HEADER_ABSENT`. Actual RED → GREEN7/7. Context-leadership citation corrected to `COMMUNITIES_GUILD_MEMBER`. Gate/native pending.
