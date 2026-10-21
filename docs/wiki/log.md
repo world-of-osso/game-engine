@@ -1,3 +1,7 @@
+## 2026-10-21 — Follower party portrait identity
+
+[Root cause and contract](systems/portrait-party-frames.md#follower-roster-heads--2026-10-21): actual five-member UDP5887 admission under both skins shows four empty portrait wells. Server omitted NPC display IDs; engine selected race0 players. Ignored server/engine headless regressions reproduce missing identity/creature selection. Minimal roster display field and existing NPC renderer selection implemented; GREEN/native acceptance pending. Lead published authentic missing appearance rows and baked textures; private overlay removed.
+
 ## 2026-10-20 — Authored blend native proof
 
 [Mechanism and limits](systems/ui-system.md#authored-blend-metadata--step-1-integration): typed BLEND/ADD propagation replaces panel material corrections and name/FDID/atlas inference. Core4/model16/projection5/shared-row1/currency1 passed; strict supplied-panel native42/42 exit0 in both skins, all42 captures inspected. Metadata-only state absence is covered. Lead acceptance pending; no realm/UDP, retired-renderer or whole-engine parity claim.

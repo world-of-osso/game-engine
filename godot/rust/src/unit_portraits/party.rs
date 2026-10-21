@@ -19,6 +19,12 @@ pub(super) fn roster_appearances(group: &GroupState) -> HashMap<String, UnitAppe
 
 fn roster_appearance(member: &shared::protocol::GroupMemberSnapshot) -> UnitAppearance {
     use shared::components::{EquipmentAppearance, Player};
+    if let Some(display_id) = member.portrait.creature_display_id {
+        return UnitAppearance::Creature {
+            display_id,
+            items: EquipmentAppearance::default(),
+        };
+    }
     let player = Player {
         name: member.name.clone(),
         race: member.portrait.race,
@@ -345,6 +351,7 @@ mod tests {
             hidden: true,
         };
         group.members[0].portrait = GroupPortraitAppearance {
+            creature_display_id: None,
             race: 52,
             appearance: CharacterAppearance {
                 sex: 1,

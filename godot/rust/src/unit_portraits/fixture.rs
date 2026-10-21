@@ -407,6 +407,7 @@ fn fixture_group(names: impl Iterator<Item = String>, disconnected: bool) -> Gro
 fn fixture_appearance(name: &str) -> GroupPortraitAppearance {
     let sex = u8::from(matches!(name, "Jaina" | "Valeera"));
     GroupPortraitAppearance {
+        creature_display_id: None,
         race: if matches!(name, "Theron" | "Valeera") {
             10
         } else {
