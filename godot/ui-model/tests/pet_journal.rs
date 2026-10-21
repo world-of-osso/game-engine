@@ -600,6 +600,21 @@ fn petbattle_pvp_proposal_escape_keeps_authority_and_new_proposal_can_show() {
         !view.queue_ready(),
         "Retail Decline also hides before acknowledgement"
     );
+    view.receive_queue(PetBattleQueueUpdate {
+        state: State::Queued,
+        error: None,
+    });
+    view.receive_queue(PetBattleQueueUpdate {
+        state: State::Proposal {
+            proposal_id: 92,
+            accepted: false,
+        },
+        error: None,
+    });
+    assert!(
+        view.queue_ready(),
+        "fresh queue authority clears the old dismissed popup identity"
+    );
 }
 
 #[test]
@@ -629,7 +644,7 @@ fn petbattle_pvp_ready_popup_appears_without_open_journal_in_both_skins() {
         let Some(WidgetData::FontString(text)) = &caption.widget_data else {
             panic!("Ready popup caption must be a rendered FontString")
         };
-        assert_eq!(text.text, "A pet battle is ready!");
+        assert_eq!(text.text, "Your Pet Battle match is ready.");
         assert_eq!(text.font_size, 14.0);
         assert_eq!(
             text.justify_h,
