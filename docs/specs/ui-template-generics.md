@@ -1,6 +1,6 @@
 # Authored UI template mechanisms
 
-Port recurring behavior once from the Retail R cache, then migrate every audited panel and remove the old corrections in the same gated slice. The approved order is blend propagation, per-state regions, font objects, named art, lifecycle/Escape/sounds, then tooltip owners. Existing domain models and server authority remain unchanged. [Audit](../../data/diagnostics/ui-template-generics-2026-10-20/report.md).
+Port recurring behavior once from the Retail R cache, then migrate every audited panel and remove the old corrections in the same gated slice. The approved order is blend propagation, per-state regions, font objects and text sizing, named art, tooltip owners plus lifecycle/Escape/sounds, then keyboard navigation and scroll configuration. Existing domain models and server authority remain unchanged. [Audit](../../data/diagnostics/ui-template-generics-2026-10-20/report.md).
 
 ## What it must do
 
@@ -17,8 +17,8 @@ Port recurring behavior once from the Retail R cache, then migrate every audited
 - [x] Step 2: Normal/Pushed/Disabled/Highlight/Checked regions carry source, crop, blend, tint and alpha through one mechanism; migrate listed consumers and delete old paths.
 - [ ] Step 3: source font-object inheritance; migrate listed consumers and delete local inherited-style corrections.
 - [ ] Step 4: named slice/tab/button art; migrate listed consumers and delete source-name/FDID geometry guesses.
-- [ ] Step 5: lifecycle/Escape/sound descriptors; migrate listed consumers while retaining domain close actions and source ordering.
-- [ ] Step 6: tooltip-owner bindings; migrate listed consumers while preserving shared live-content refresh and placement.
+- [ ] Step 5: tooltip-owner/content bindings and lifecycle/Escape/sound descriptors; migrate listed consumers while preserving live-content refresh, placement, domain close actions and source ordering.
+- [ ] Step 6: keyboard navigation and scroll configuration; migrate the audited list/search routing and scroll name dispatch while preserving domain eligibility and distinct row/pixel units.
 
 ## How it works
 
@@ -27,6 +27,7 @@ Port recurring behavior once from the Retail R cache, then migrate every audited
 - Button Normal/Pushed/Disabled/Highlight/Checked/DisabledChecked slots contain shared `ButtonTexture` records: source, blend, normalized crop, tint, alpha, desaturation, size and screen offset. Source changes preserve metadata. A metadata-only record has no drawable artwork: it must not replace existing normal art or emit an empty overlay. `ButtonData` selects base/highlight/checked regions; disabled checked art remains independently authored, not synthesized from an enabled checked source.
 - Region alpha defaults to1, matching Retail's ordinary texture alpha. Hover opacity and dimensions are region metadata, not separate ButtonData fields. Perks rotation's pressed(+1,+1)/highlight0.6, Minimap disabled desaturation and Housing drawer(-4,0) belong to their authored declarations, not source-name projectors. Transmog hover sizes are declared alongside their artwork rather than repaired after sync.
 - FontString declarations may name `font_object`; core resolves source font-parent chains into existing FontStringData before explicit local attributes. Rebuilds resolve the object again, so removing a local override restores inherited values; deliberate local face/size/color/shadow/justification still wins regardless declaration order. Unknown names fail explicitly. Native projection consumes the resolved data, not a panel-name font correction. Source subset is in toolkit `core/src/font_object.rs`; autoscale and arbitrary XML/Lua interpretation remain outside this slice.
+- PlayerSpells font references are explicit per authored role: unshadowed System fonts for book text, shadowed GameFont category tabs, and the distinct specialization/talent roots. Local scale/size/color/justification remain overrides, not inferred font identities. TabSystem sizing measures the named normal font with shared font metrics rather than multiplying character count; source cap/padding/min/max policy is unchanged.
 - Geometry-only routing remains until Step 4; all routed parts consume the chosen state's mode. Minimap highlights default BLEND. UIPanelCloseButton's `RedButton-Highlight` explicitly uses ADD (R SharedUIPanelTemplates.xml139/146); this is distinct from the SharedButton Lua setter's omitted blend argument.
 
 ## Implementation inventory
