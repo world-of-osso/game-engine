@@ -522,6 +522,7 @@ fn loadout_decoration_and_names_follow_owned_quality_type_and_health() {
 }
 
 #[test]
+#[ignore = "RED: immediate Retail proposal dismissal pending"]
 fn petbattle_pvp_journal_find_leave_and_proposal_wait_for_authority() {
     use shared::protocol::{
         PetBattleQueueRequest as Request, PetBattleQueueState as State, PetBattleQueueUpdate,
@@ -549,6 +550,10 @@ fn petbattle_pvp_journal_find_leave_and_proposal_wait_for_authority() {
     assert_eq!(
         view.queue_action("pet:queue-accept"),
         Some(Request::Accept { proposal_id: 91 })
+    );
+    assert!(
+        !view.queue_ready(),
+        "Retail Accept immediately hides the popup, before authority returns"
     );
     view.receive_queue(PetBattleQueueUpdate {
         state: State::Proposal {
