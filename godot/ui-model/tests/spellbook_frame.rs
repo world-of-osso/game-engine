@@ -580,6 +580,22 @@ fn bottom_tab_bar_matches_retail_tab_system_geometry_in_both_skins() {
 /// of `SpellBookCategoryTabTemplate`, a `TabSystemButtonTemplate`, so `UpdateTabWidth`
 /// keeps short names at 100 and widens long ones to text + 10, capped at 150.
 #[test]
+fn ui_template_fonts_tab_width_uses_glyph_metrics_not_character_count() {
+    let category = |name: &str| SpellbookCategory {
+        name: name.into(),
+        groups: vec![group(name, 1)],
+    };
+    let mut book = state(vec![
+        category("iiiiiiiiiiiiiiiiii"),
+        category("WWWWWWWWWWWWWWWWWW"),
+    ]);
+    book.viewport = [1920.0, 1080.0];
+    let registry = build(&book);
+    assert_eq!(placed(&registry, "SpellBookCategoryTab1")[2], 100.0);
+    assert_eq!(placed(&registry, "SpellBookCategoryTab2")[2], 150.0);
+}
+
+#[test]
 fn category_tabs_use_retail_update_tab_width() {
     let category = |name: &str| SpellbookCategory {
         name: name.into(),
