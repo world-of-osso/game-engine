@@ -389,14 +389,15 @@ def requirement_allows(graph, requirements, requirement_id, race, class_id):
 
 
 def seed_customizations(graph, chr_model, selector, race=1, class_id=1):
-    path = graph.data / "cache/customization.sqlite"
+    cache = graph.seeds["customization_cache"]
+    path = graph.data / cache
     if not path.is_file():
-        graph.issue("missing_metadata_file", "cache/customization.sqlite")
+        graph.issue("missing_metadata_file", cache)
         return []
     graph.input_file(path)
     graph.issue(
         "unverified_cache_build",
-        "customization.sqlite: source mtimes do not authenticate build",
+        f"{cache}: source mtimes do not authenticate build",
     )
     requirements = (
         Catalogs(graph).index("ChrCustomizationReq") if selector != "all" else {}
@@ -491,7 +492,7 @@ def seed_npc_appearance(graph, displays):
         "unverified_cache_build",
         "npc_appearance.sqlite: no authenticated source receipt",
     )
-    customization = graph.data / "cache/customization.sqlite"
+    customization = graph.data / graph.seeds["customization_cache"]
     with readonly(path) as db:
         choice_ids = []
         for display in displays:
@@ -511,7 +512,8 @@ def seed_npc_appearance(graph, displays):
                 apply_choices(graph, choices, choice_ids, "selected")
         elif choice_ids:
             graph.issue(
-                "missing_metadata_file", "NPC choices need cache/customization.sqlite"
+                "missing_metadata_file",
+                f"NPC choices need {graph.seeds['customization_cache']}",
             )
 
 
