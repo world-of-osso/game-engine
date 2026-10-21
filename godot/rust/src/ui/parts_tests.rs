@@ -119,6 +119,27 @@ fn ui_template_blend_metadata_only_highlight_does_not_draw_an_absent_source() {
 }
 
 #[test]
+fn ui_template_art_source_identity_does_not_choose_button_geometry() {
+    for source in [
+        TextureSource::Atlas("128-redbutton-left".into()),
+        TextureSource::FileDataId(130828),
+    ] {
+        let frame = button(ButtonData {
+            normal_texture: Some(ButtonTexture::new(source.clone())),
+            use_default_skin: false,
+            ..Default::default()
+        });
+        let parts = project_images(&frame, 180.0, 46.0);
+        assert_eq!(
+            parts.len(),
+            1,
+            "plain image {source:?} must not become slices"
+        );
+        assert_eq!(parts[0].rect, [0.0, 0.0, 180.0, 46.0]);
+    }
+}
+
+#[test]
 fn ui_template_blend_button_material_depends_on_authored_mode_not_source_or_geometry_router() {
     for source in [
         TextureSource::Atlas("transmog-itemcard-default".into()),
