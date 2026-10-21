@@ -124,3 +124,18 @@ func select_authored_target() -> bool:
 				return true
 	fail("No published %s near private priest: %s" % [authored_target, client.target_state()])
 	return false
+
+# Match world_input_flow's native viewport clicks. Warping the real pointer between
+# synthetic events lets cage's asynchronous motion replace the injected position.
+func click(control: Control) -> void:
+	await wait_frames(3)
+	var point := control.get_global_rect().get_center()
+	print("CHARM_CLICK ", control.name, " point=", point)
+	for pressed in [true, false]:
+		var event := InputEventMouseButton.new()
+		event.position = point
+		event.button_index = MOUSE_BUTTON_LEFT
+		event.pressed = pressed
+		root.push_input(event, true)
+		await process_frame
+	await wait_frames(3)
