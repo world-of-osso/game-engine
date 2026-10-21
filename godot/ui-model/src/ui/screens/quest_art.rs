@@ -76,8 +76,6 @@ pub const QUEST_PARCHMENT: &str = "QuestBG-Parchment";
 /// No XML/Lua reference in either Blizzard source export; this client's existing plate.
 pub const QUEST_LOG_DIVIDER: &str = "questlog_divider";
 
-/// Retail/Forever AddOns/Blizzard_SharedXML/Mainline/SharedUIPanelTemplates.xml:137.
-const CLOSE_BUTTON: &str = "RedButton-Exit";
 /// `Interface\FrameGeneral\UI-Background-Rock`, tiled window background.
 const WINDOW_BACKGROUND: u32 = 374_155;
 /// Retail/Forever AddOns/Blizzard_SharedXML/Mainline/SharedUIPanelTemplates.xml:76.
@@ -339,8 +337,7 @@ fn launcher_header_controls(width: f32, height: f32) -> Element {
         button { name: "LauncherCloseButton", width: close_size, height: close_size,
             onclick: crate::launcher::ACTION_CLOSE, pos_type: "absolute",
             left: {width - close_size - 4.0}, top: {(height - close_size) / 2.0},
-            {named_atlas_texture("LauncherCloseButtonNormal".into(), CLOSE_BUTTON,
-                (0.0, 0.0, close_size, close_size))}
+            button_template: "UIPanelCloseButton",
         }
     }
 }
@@ -526,8 +523,6 @@ fn close_button_offset() -> (f32, f32) {
 
 /// `UIPanelCloseButtonDefaultAnchors`: 24×24 at the skin's TOPRIGHT offset.
 pub(crate) fn close_button(prefix: &str, width: f32, action: &str) -> Element {
-    let art = read_active_atlas_art(CLOSE_BUTTON);
-    let coords = art.tex_coords(1.0);
     let (offset_x, offset_top) = close_button_offset();
     rsx! {
         button {
@@ -538,16 +533,7 @@ pub(crate) fn close_button(prefix: &str, width: f32, action: &str) -> Element {
             pos_type: "absolute",
             left: {width + offset_x - 24.0},
             top: offset_top,
-            texture {
-                name: {DynName(format!("{prefix}CloseButtonNormal"))},
-                width: 24.0,
-                height: 24.0,
-                texture_fdid: {art.fdid},
-                tex_coords: {coords.as_str()},
-                pos_type: "absolute",
-                left: 0.0,
-                top: 0.0,
-            }
+            button_template: "UIPanelCloseButton",
         }
     }
 }

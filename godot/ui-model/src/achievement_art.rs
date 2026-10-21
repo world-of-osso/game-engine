@@ -114,14 +114,9 @@ pub(super) fn chrome(summary: bool, guild: bool) -> Element {
     out.extend(rsx! {fontstring {name:"AchievementFrameTitle",text:title,width:150.0,height:20.0,
         left:334.0,top:-29.0,pos_type:"absolute",font_object:"GameFontNormalSmall",justify_h:"CENTER",
     }});
-    let close = named_atlas_texture(
-        "AchievementFrameCloseArt".into(),
-        "RedButton-Exit",
-        (0.0, 0.0, 24.0, 24.0),
-    );
     out.extend(
         rsx! { button { name:"AchievementFrameCloseButton", width:24.0,height:24.0,
-            left:741.0,top:-4.0,pos_type:"absolute",onclick:"achievement:close", {close}
+            left:741.0,top:-4.0,pos_type:"absolute",onclick:"achievement:close", button_template:"UIPanelCloseButton"
         } },
     );
     out

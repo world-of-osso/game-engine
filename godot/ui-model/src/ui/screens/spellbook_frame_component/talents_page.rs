@@ -1101,11 +1101,13 @@ fn hero_choice_dialog(
             scale,
         ));
     }
-    children.extend(rsx! { button { name:"TalentCloseChoice",onclick:"talent:close_choice",
-        width:{24.0*scale},height:{24.0*scale},button_default_skin:false,
-        button_atlas_up:"RedButton-Exit",button_atlas_pressed:"RedButton-Exit-Pressed",button_atlas_highlight:"RedButton-Highlight",button_highlight_blend_mode:"ADD",
-        pos_type:"absolute",pos_x:{(width-23.0)*scale},pos_y:0.0,frame_level:2010,
-    }});
+    children.extend(
+        rsx! { button { name:"TalentCloseChoice",onclick:"talent:close_choice",
+            width:{24.0*scale},height:{24.0*scale},button_default_skin:false,
+            button_template:"UIPanelCloseButton",
+            pos_type:"absolute",pos_x:{(width-23.0)*scale},pos_y:0.0,frame_level:2010,
+        }},
+    );
     rsx! {r#frame {name:"TalentChoiceFlyout",width:{width*scale},height:{height*scale},
         background_color:"0.08,0.06,0.04,1.0",strata:FrameStrata::Dialog,pos_type:"absolute",pos_x:{(viewport[0]-width*scale)/2.0},pos_y:{70.0*scale},frame_level:2001,
         {children}

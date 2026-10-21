@@ -44,14 +44,9 @@ pub fn frame(session: &GuildRanksSession, shared: &SharedContext) -> Element {
 }
 
 fn close_buttons() -> Element {
-    let art = named_atlas_texture(
-        "CommunitiesGuildLogExitNormal".into(),
-        "RedButton-Exit",
-        (0.0, 0.0, 24.0, 24.0),
-    );
     let mut out = rsx! { button { name: "CommunitiesGuildLogExit", left: 356.0, top: 4.0,
     width: 24.0, height: 24.0, pos_type: "absolute", button_default_skin: false,
-    onclick: "guild:log_close", {art} } };
+    onclick: "guild:log_close", button_template: "UIPanelCloseButton" } };
     out.extend(panel_button(
         "CommunitiesGuildLogClose".into(),
         "Close",

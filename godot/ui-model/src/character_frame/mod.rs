@@ -629,11 +629,6 @@ pub fn apply_character_frame_postsetup(registry: &mut FrameRegistry, tab: Charac
 
 /// Name the art emitted by shared helpers without changing other windows.
 fn apply_named_chrome(registry: &mut FrameRegistry, tab: CharacterTab) {
-    apply_named_texture(
-        registry,
-        "CharacterFrameCloseButtonNormal",
-        "RedButton-Exit",
-    );
     if thread_skin() == ActiveSkin::Modern {
         apply_named_texture(
             registry,
