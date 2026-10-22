@@ -292,6 +292,22 @@ Compressed manifest25,307,276bytes,SHA256`4a4e8b26a670cfd90af24ce9282129932129bb
 
 **Next proposed boundary:** make the offline audit follow receipt-selected native model paths and explicit mixed-product metadata/equipment ownership before treating raw misses as extraction work. Keep generic terrain/liquid/audio receipt families separate and preserve unknown source/policy gaps. A source-faithful affected-scope rerun would require this real input/behavior change; neither completed diagnostic should be replayed merely for another milestone.
 
+### Offline auditor receipt-selected model IO
+
+Lead approves the bounded source-qualification slice and explicitly chooses separate producer discovery. `RawByteGraph` replaces the ambiguous raw `Closure` name,with producer/parser callers renamed mechanically; no compatibility alias or runtime fallback remains. Auditor CLI always constructs `ReceiptClosure`. Initial scoped-only CLI test is genuinely RED: only10.m2 is reported missing and its11.skin/12.blp descendants are hidden despite supplied scoped files. Existing same-FDID roots also collapse across products; preserved RED evidence owns that reproduction.
+
+Implemented `1210c853c`,with test controls `da39bcf66` and authentic fixture `fd19a8685`. Follow-up REDs expose stale verified identity after payload mutation (`94edcdf2f` fixes it) and an alias whose bytes differ from its same-product owner (`2b30e6788` rejects it). Current receipt cases13/13 GREEN;63 unique raw producer/parser controls pass across the logged focused runs. The final receipt run has no ResourceWarnings; earlier broader controls retain inherited SQLite warnings. RuffF and diff checks pass. No Rust/runtime source change,extraction,native run or full-graph replay.
+
+| Exact capability | Proof / boundary |
+|---|---|
+| Scoped-only model root→SFID/TXID descendants | Actual auditor CLI,file-backed RED→GREEN; no flat model present |
+| Same FDID across products/build namespaces | Separate product/build graph identities; concrete mixed roots and authentic Retail/Forever579120 plus579121 primary-skin hashes pass |
+| Model-owned companions and provenance aliases | Own namespace required,not another build's owner path; alias bytes match same-product unique receipt owner |
+| Required failure boundaries | Missing/wrong-product receipts,tempting flat files,duplicate/escaping receipts,corrupt payloads and changed-byte rechecks remain failures; no descendant expansion from invalid model bytes |
+| Native flat WMO material boundary | Existing legacy texture remains the observed input and unverified; scoped current texture publication does not replace it in the audit |
+
+`audit-receipt-{path-red,recheck-red,alias-owner-red,final-green,final-ruff}.log` and `audit-receipt-authentic-579120-green.log` retain proof. Schema2 records scoped receipt identity plus product/build-qualified source edges. `add(...,product=...)` accepts explicit source ownership; native metadata-derived mixed-product root seeding is **not implemented** by this slice. Terrain/liquid/audio provenance and scenario containment remain open. The two full-config diagnostics above are immutable pre-change evidence,not retroactively source-qualified manifests.
+
 ## Remaining acceptance and proposed P4 plan
 
 Lead confirms eight-material CASC re-extraction/no-clobber publication:226,775 canonical keys,zero duplicates,flat legacy files untouched. Independent eight-payload readback is recorded above. This is not full-catalog certification.
