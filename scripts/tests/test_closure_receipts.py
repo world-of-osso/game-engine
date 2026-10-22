@@ -264,6 +264,24 @@ class ReceiptClosureTests(unittest.TestCase):
         )
         self.assertEqual(manifest["summary"]["missing"], 0)
 
+    def test_changed_payload_cannot_retain_verified_identity_on_graph_recheck(self):
+        row = self.publish("wow", 10, "m2", model())
+        graph = self.auditor()
+        graph.add(10, "m2", "body")
+        self.assertEqual(
+            graph.run()["assets"][0]["identity_status"], "verified_receipt"
+        )
+        self.put(row["path"], model(chunk("TXID", ints(99))))
+        rechecked = graph.run()
+        self.assertEqual(rechecked["assets"][0]["identity_status"], "unverified")
+        self.assertIsNone(rechecked["assets"][0]["actual_build"])
+        self.assertTrue(
+            any(
+                issue["code"] == "receipt_payload_mismatch"
+                for issue in rechecked["unresolved"]
+            )
+        )
+
     def test_duplicate_receipts_are_rejected_before_selecting_bytes(self):
         self.publish("wow", 10, "m2", model())
         self.publish("wow", 10, "m2", model())

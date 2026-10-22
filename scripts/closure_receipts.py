@@ -132,6 +132,9 @@ class ReceiptClosure(RawByteGraph):
     def inspect(self, asset):
         if not asset["receipt_selected"]:
             return super().inspect(asset)
+        asset.update(
+            source_product=None, actual_build=None, identity_status="unverified"
+        )
         path = next(iter(asset["locations"]), None)
         receipt = self.scoped_receipts.get(path)
         if receipt is None:
