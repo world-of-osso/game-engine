@@ -89,6 +89,42 @@ fn mcbride_greeting(runtime: &mut QuestRuntime, state: QuestGiverQuestState) {
     });
 }
 
+#[test]
+fn ui_template_behavior_combat_quest_reward_owns_live_choice_content() {
+    use ui_toolkit::atlas::{ActiveSkin, set_thread_skin};
+    use ui_toolkit::tooltip::{TooltipAnchor, tooltip_owner};
+    for skin in [ActiveSkin::Modern, ActiveSkin::Forever] {
+        set_thread_skin(skin);
+        let mut runtime = QuestRuntime::default();
+        runtime.show_reward(
+            "Marshal McBride".into(),
+            QuestGiverOfferReward {
+                npc: MCBRIDE,
+                quest_id: BEATING_THEM_BACK,
+                title: "Beating Them Back!".into(),
+                reward_text: "Well done, $N.".into(),
+                rewards: QuestRewards {
+                    money: 2000,
+                    items: Vec::new(),
+                    choice_items: vec![QuestRewardItem {
+                        item_id: 2249,
+                        name: "Militia Buckler".into(),
+                        count: 1,
+                    }],
+                },
+            },
+        );
+        let registry = render_frame(&runtime);
+        let hit = registry
+            .get_by_name("QuestInfoRewardsFrameQuestInfoItem1")
+            .unwrap();
+        let (owner, binding) = tooltip_owner(&registry, hit).expect("quest reward live owner");
+        assert_eq!(owner.id, hit);
+        assert_eq!(binding.provider.as_deref(), Some("quest_reward"));
+        assert_eq!(binding.anchor, TooltipAnchor::Right);
+    }
+}
+
 fn render_frame(runtime: &QuestRuntime) -> FrameRegistry {
     configure_assets();
     let mut registry = FrameRegistry::new(1920.0, 1080.0);
