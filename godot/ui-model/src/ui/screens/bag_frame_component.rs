@@ -422,6 +422,8 @@ fn bag_slot_frame(
             height: {SLOT_SIZE},
             onclick: {action.as_str()},
             mouse_enabled: true,
+            tooltip_provider: "bag_slot",
+            tooltip_anchor: "BAG_SLOT",
             pos_type: "absolute",
             left: {x},
             top: {y},
