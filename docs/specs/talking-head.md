@@ -32,7 +32,7 @@ Consume the private source conversation payload and render the authored70448 Ret
 
 ## Known gaps (current cycle)
 
-- [ ] `TALKING_HEAD_MODEL_PROJECTION_UNSOURCED`: model rendering stays disabled. Source Pos→model translation, LookAt→yaw/pitch/roll and fixed camera(4,0,0)→target(0,0,0) are retained; flags→useModelCenter and native PlayerModel projection remain unknown. Do not treat Pos as the eye, substitute an M2 portrait camera, or fit the mesh.
+- [ ] Animated speaker model is in scope, queued after native multiline paint. Current runtime still disables it under `TALKING_HEAD_MODEL_PROJECTION_UNSOURCED`. Source Pos→model translation, LookAt→yaw/pitch/roll and fixed camera(4,0,0)→target(0,0,0) are retained; flags→useModelCenter and native PlayerModel projection remain unknown. Do not treat Pos as the eye, substitute an M2 portrait camera, or fit the mesh. This is a real production gap, not a fixture-only omission: no model/camera render nodes are created. Orator source conversation24642/actor51642 supplies creature220769, CreatureDisplay116692, line67085, UiCamera1751 and start/end animation60. After native multiline paint, inspect UiCamera1751's actual schema/fields and reuse the existing Adventure Guide/character-frame PlayerModel/ModelScene rendering path with the source115×115 host and ModelFrames math. Source projection/model-center semantics rather than fit bounds; any residual unknown stays a named gap. An empty well is not full Retail TalkingHead parity.
 - [ ] Native multiline painting, transient teardown-warning diagnosis and joint protocol/server/engine acceptance remain open. Model paint is explicitly excluded under the approved projection gap, not silently certified.
 
 ## Bounded proof
