@@ -81,7 +81,8 @@ pub(crate) fn overlay(view: &View, encounter: &Encounter) -> Element {
         button {
             name: {DynName(format!("JournalBoss{}DefeatedOverlay", encounter.id))},
             left: 4., top: 39., width: 16., height: 16., frame_level: 150.,
-            pos_type: "absolute", button_default_skin: false, {icon}
+            pos_type: "absolute", button_default_skin: false,
+            tooltip_provider: "journal_defeated", tooltip_anchor: "ANCHOR_RIGHT", {icon}
         }
     }
 }
