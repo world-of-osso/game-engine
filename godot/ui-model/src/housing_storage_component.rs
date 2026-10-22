@@ -28,7 +28,7 @@ pub(crate) fn drawer(view: &HousingView, disabled: bool, can_edit: bool) -> Elem
             (-4.0, 0.0, 64.0, 72.0),
         );
         let top = ((view.viewport[1] - 72.0) / 2.0 - 150.0).max(0.0);
-        return rsx! {button {name:"HouseEditorStorageExpandButton",width:64.0,height:72.0,pos_type:"absolute",left,top,strata:FrameStrata::Dialog,onclick:"housing:storage:expand",button_default_skin:false,button_atlas_highlight:"house-chest-open-drawer-button",button_highlight_blend_mode:"ADD",button_highlight_alpha:"0.5",button_highlight_offset:"-4,0",{icon}}};
+        return rsx! {button {name:"HouseEditorStorageExpandButton",tooltip_provider:"housing",width:64.0,height:72.0,pos_type:"absolute",left,top,strata:FrameStrata::Dialog,onclick:"housing:storage:expand",button_default_skin:false,button_atlas_highlight:"house-chest-open-drawer-button",button_highlight_blend_mode:"ADD",button_highlight_alpha:"0.5",button_highlight_offset:"-4,0",{icon}}};
     }
     let background = named_atlas_texture(
         "HouseEditorStorageBackground".into(),

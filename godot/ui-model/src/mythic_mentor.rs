@@ -219,7 +219,7 @@ fn row_icon(prefix: &str, member: &PartyKeystoneMember) -> Element {
         .map(|spell| format!("{TELEPORT_ACTION_PREFIX}{spell}"))
         .unwrap_or_default();
     rsx! { button { name: {DynName(format!("{prefix}Teleport"))}, width: 26.0, height: 26.0,
-    button_default_skin: false, onclick: {action.as_str()},
+    button_default_skin: false, onclick: {action.as_str()}, tooltip_provider: "mentor_teleport",
     pos_type: "absolute", left: 5.0, top: 5.0, {art} } }
 }
 
