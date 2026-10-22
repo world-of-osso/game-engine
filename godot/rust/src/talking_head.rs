@@ -113,7 +113,7 @@ pub(crate) fn dismiss_pointer(
     ui: Option<&Gd<RegistryUi>>,
     event: &Gd<InputEvent>,
 ) -> bool {
-    if state.current().is_none() {
+    if state.presentation().is_none() {
         return false;
     }
     let Ok(button) = event.clone().try_cast::<InputEventMouseButton>() else {

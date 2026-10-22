@@ -3,6 +3,11 @@
 use shared::protocol::{ActorObject, ConversationPayload, ConversationUpdate};
 use std::collections::HashSet;
 
+mod presentation;
+pub use presentation::TalkingHeadPaint;
+
+const CLOSE_DURATION_MS: f64 = 1000.0;
+
 #[derive(Clone, Debug, PartialEq)]
 pub struct TalkingHeadView {
     pub conversation: u64,
@@ -26,14 +31,22 @@ struct Active {
     elapsed_ms: f64,
 }
 
+#[derive(Clone, Debug, PartialEq)]
+struct Closing {
+    view: TalkingHeadView,
+    elapsed_ms: f64,
+}
+
 #[derive(Clone, Debug, Default, PartialEq)]
 pub struct TalkingHeadState {
     active: Vec<Active>,
     dismissed: HashSet<u64>,
+    closing: Option<Closing>,
 }
 
 impl TalkingHeadState {
     pub fn receive(&mut self, update: ConversationUpdate, owner: u64) -> Result<(), String> {
+        let previous = self.current();
         if update
             .conversations
             .iter()
@@ -64,18 +77,42 @@ impl TalkingHeadState {
         self.active = next;
         self.dismissed
             .retain(|id| self.active.iter().any(|active| active.payload.id == *id));
+        self.sync_close(previous, 0.0);
         Ok(())
     }
 
     pub fn advance(&mut self, delta: f32) {
+        let elapsed = f64::from(delta.max(0.0)) * 1000.0;
+        let previous = self.current();
+        let until_expiry = previous.as_ref().and_then(|view| {
+            self.active
+                .iter()
+                .find(|active| active.payload.id == view.conversation)
+                .map(|active| active.payload.duration_ms as f64 - active.elapsed_ms)
+        });
+        if let Some(closing) = &mut self.closing {
+            closing.elapsed_ms += elapsed;
+        }
         for active in &mut self.active {
-            active.elapsed_ms += f64::from(delta.max(0.0)) * 1000.0;
+            active.elapsed_ms += elapsed;
         }
         self.active
             .retain(|active| active.elapsed_ms < active.payload.duration_ms as f64);
+        self.sync_close(
+            previous,
+            until_expiry.map_or(0.0, |remaining| (elapsed - remaining).max(0.0)),
+        );
+        if self
+            .closing
+            .as_ref()
+            .is_some_and(|closing| closing.elapsed_ms >= CLOSE_DURATION_MS)
+        {
+            self.closing = None;
+        }
     }
 
     pub fn dismiss(&mut self) {
+        self.closing = None;
         if let Some(view) = self.current() {
             self.dismissed.insert(view.conversation);
         }
@@ -84,6 +121,19 @@ impl TalkingHeadState {
     pub fn clear(&mut self) {
         self.active.clear();
         self.dismissed.clear();
+        self.closing = None;
+    }
+
+    pub fn presentation(&self) -> Option<TalkingHeadPaint> {
+        presentation::present(self)
+    }
+
+    fn sync_close(&mut self, previous: Option<TalkingHeadView>, elapsed_ms: f64) {
+        if self.current().is_some() {
+            self.closing = None;
+        } else if self.closing.is_none() {
+            self.closing = previous.map(|view| Closing { view, elapsed_ms });
+        }
     }
 
     pub fn current(&self) -> Option<TalkingHeadView> {
