@@ -3,6 +3,7 @@
 use shared::protocol::{ActorObject, ConversationPayload, ConversationUpdate};
 use std::collections::HashSet;
 
+pub mod glows;
 mod presentation;
 pub use presentation::TalkingHeadPaint;
 

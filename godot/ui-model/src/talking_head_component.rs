@@ -31,6 +31,12 @@ pub fn talking_head_screen(context: &SharedContext) -> Element {
             paint.close_alpha,
         ]
     });
+    let glows: Vec<Element> = paint.as_ref().map_or_else(Vec::new, |paint| {
+        crate::talking_head::glows::sample(paint.main_elapsed_ms)
+            .into_iter()
+            .map(glow_region)
+            .collect()
+    });
     // TalkingHeadUI.xml: portrait143x143 TOPLEFT5/-6. Lua Name TOPLEFT
     // relative to Portrait TOPRIGHT +2/-19; right edge42; text gap3.
     rsx! {r#frame {name:"TalkingHeadFrame",width:570.0,height:155.0,
@@ -42,7 +48,17 @@ pub fn talking_head_screen(context: &SharedContext) -> Element {
         texture {name:"TalkingHeadPortrait",texture_atlas:"TalkingHeads-Alliance-PortraitFrame",alpha:portrait_alpha,width:143.0,height:143.0,left:5.0,top:6.0,pos_type:"absolute",draw_layer:"OVERLAY",mouse_enabled:false}
         fontstring {name:"TalkingHeadName",text:name,alpha:name_alpha,font:GameFont::Morpheus,font_size:22.0,font_color:"1,0.82,0,1",justify_h:"LEFT",left:150.0,right:42.0,top:25.0,height:22.0,pos_type:"absolute",mouse_enabled:false}
         fontstring {name:"TalkingHeadText",text,alpha:text_alpha,width:378.0,word_wrap:true,font:GameFont::FrizQuadrata,font_size:16.0,font_color:"1,1,1,1",justify_h:"LEFT",justify_v:"TOP",left:150.0,right:42.0,top:50.0,bottom:12.0,pos_type:"absolute",mouse_enabled:false}
+        {glows}
         button {name:"TalkingHeadCloseButton",alpha:close_alpha,width:24.0,height:24.0,right:12.0,top:12.0,pos_type:"absolute",onclick:DISMISS,button_default_skin:false,
             button_atlas_up:"RedButton-Exit",button_atlas_pressed:"RedButton-exit-pressed",button_atlas_disabled:"RedButton-Exit-Disabled",button_atlas_highlight:"RedButton-Highlight",button_highlight_blend_mode:"ADD",button_highlight_alpha:"1.0"}
     }}
+}
+
+fn glow_region(glow: crate::talking_head::glows::Glow) -> Element {
+    let name = crate::ui::anchor::FrameName(glow.name);
+    let [width, height] = glow.size;
+    let [left, top] = glow.position;
+    let alpha = glow.alpha;
+    rsx! {texture {name,texture_atlas:glow.atlas,width,height,left,top,alpha,
+    pos_type:"absolute",draw_layer:"OVERLAY",blend_mode:"ADD",mouse_enabled:false}}
 }
