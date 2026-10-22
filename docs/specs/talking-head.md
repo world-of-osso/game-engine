@@ -45,6 +45,12 @@ Consume the private source conversation payload and render the authored70448 Ret
 
 - Source camera/voice reader batch at `a19238fff`:2/2 passed,0 warnings. Native host built with0 warnings; manual sampled fixture completed4/4 skin/input cases and204 checked steps. That manual launcher did not retain child exit status and its host audio initialization emitted ERROR before selecting Dummy: it is observational behavior evidence, **not strict native acceptance**. The fixture is registered with `gdscript_completion_fixture` at an independent expected4 and emits one `ALL_CASES_DONE` only after checked success. Its offline invocation selects Dummy explicitly and must pass complete child-stream/exit validation without an error allowlist.
 
+### Strict native child proof — 2026-10-22
+
+At `e60ea055a`, maintained `gdscript_completion_fixture` accepted4/4 with foreground runner exit0, exactly one `ALL_CASES_DONE 4/4`,204 checks and no ERROR in either complete Godot child stream. All four original1920×1080 PNGs were inspected: both skins render authored chrome/name/wrapped dialogue; button/right-click dismiss, source voice playback/750ms seek/stop pass. Evidence: `data/diagnostics/follower-dungeons-2026-10-21/talking-head-strict-native/`.
+
+This is sampled offline presentation, not real world ingress, authored fades/glows, model paint or audible-output proof. Dummy audio is explicit. Outer Cage stderr reports unavailable XWayland; the tested Godot child uses native Wayland and has only the recorded platform/model-gap warnings. VRAM preflight sampled card0 rather than the selected NVIDIA adapter; post-run NVIDIA free7472MiB does not establish a matching preflight. The helper build log records both successful Cargo phases/zero warnings; its enclosing detached adapter failed before writing an exit-status artifact, so no helper exit-code claim is made.
+
 ## Camera reference boundary
 
 - Retail70448 `CameraDocumentation.lua:31–41` and `ModelFrames.lua:70–99`: authored model transform and fixed camera/target. API `useModelCenter` is a returned Boolean, not a documented mapping from DB2 Flags.
