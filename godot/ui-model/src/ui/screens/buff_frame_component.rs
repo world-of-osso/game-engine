@@ -374,6 +374,8 @@ fn aura_button(name: String, (right, top): (f32, f32), icon: &BuffIconState) -> 
     rsx! {
         r#frame {
             name: {DynName(name.clone())},
+            tooltip_provider: "player_aura",
+            tooltip_anchor: "ANCHOR_BOTTOMLEFT",
             onclick: {cancel_action.as_str()},
             width: AURA_W,
             height: AURA_H,

@@ -111,7 +111,7 @@ fn small_item(name: &str, label_name: &str, item: &RewardItemView, [x, y]: [f32;
     let count_text = count.to_string();
     rsx! {
         r#frame { name: {DynName(name.into())}, width: ITEM_WIDTH, height: ITEM_HEIGHT,
-            mouse_enabled: true, pos_type: "absolute", left: x, top: y,
+            tooltip_provider: "quest_reward", mouse_enabled: true, pos_type: "absolute", left: x, top: y,
             {art}
             texture { name: {DynName(format!("{name}IconTexture"))}, width: ITEM_HEIGHT, height: ITEM_HEIGHT,
                 texture_fdid: icon, pos_type: "absolute", left: 0.0, top: 0.0 }

@@ -810,7 +810,7 @@ fn message_run(row: usize, run_index: usize, run: &ChatRun, font_size: f32) -> E
         .achievement_id
         .map(|id| format!("achievement:open:{id}"))
         .unwrap_or_default();
-    rsx! {
+    let element = rsx! {
         fontstring {
             name: {DynName(name)},
             width: {run.width.ceil() + 1.0},
@@ -826,6 +826,16 @@ fn message_run(row: usize, run_index: usize, run: &ChatRun, font_size: f32) -> E
             left: {run.x},
             top: 0.0,
         }
+    };
+    if run.spell_id.is_some() {
+        ui_toolkit::tooltip::bind_provider_at(
+            element,
+            "chat_link",
+            ui_toolkit::tooltip::TooltipAnchor::Default,
+            [0.0; 2],
+        )
+    } else {
+        element
     }
 }
 
