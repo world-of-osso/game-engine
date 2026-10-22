@@ -35,7 +35,7 @@ Port recurring behavior once from the Retail R cache, then migrate every audited
 
 ## Step5 implementation in progress
 
-Toolkit Frame tooltip metadata records a live provider key or static enabled/disabled content, source anchor/offset/color/wrap policy. Declaration rebuilds remove omitted bindings. One ancestor walk resolves the nearest visible content owner; unsupported anchors reject explicitly. Initial attribute/rebuild/rejection controls reproduced3 actual REDs before implementation. Consumer migration, native bridging, lifecycle/Escape/sound descriptors and Step5 GREEN/native acceptance remain pending; no existing host dispatch was replaced yet.
+Toolkit Frame tooltip metadata records a live provider key or static enabled/disabled content, source anchor/offset/color/wrap policy. Declaration rebuilds remove omitted bindings. One ancestor walk resolves the nearest visible content owner; unsupported anchors reject explicitly. Initial attribute/rebuild/rejection controls reproduced3 actual REDs before implementation, then5 core controls passed. Static model conversion preserves separate disabled red title/anchor/offset, promotes body-only text into the first source font slot, and routes wrap policy through existing shared text handling. Dynamic keys remain host-resolved. New model API tests first failed compilation because the API was absent; their GREEN, consumer migration, native bridging, lifecycle/Escape/sound descriptors and Step5 native acceptance remain pending. No existing host dispatch was replaced yet.
 
 ## Implementation inventory
 
