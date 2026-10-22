@@ -16,6 +16,17 @@ func wait_signal(name: String) -> bool:
 		return false
 	return true
 
+func wait_map(map_id: int) -> bool:
+	var deadline := Time.get_ticks_msec() + 180000
+	while Time.get_ticks_msec() < deadline:
+		var account: Dictionary = client.account_state()
+		if account.world_map_id == map_id and account.pending_world_port == "None":
+			await settle()
+			return true
+		await process_frame
+	stop("Private map transfer did not finish: " + str(map_id))
+	return false
+
 func boss_frame_right_click() -> bool:
 	var deadline := Time.get_ticks_msec() + 60000
 	while not shown("Boss1TargetFrame") and Time.get_ticks_msec() < deadline:
@@ -70,12 +81,18 @@ func run() -> void:
 	if not await connect_owned_realm():
 		return
 	phase("closed-ready")
+	if not await wait_signal("lucifron-ported") or not await wait_map(409):
+		return
+	phase("lucifron-entered")
 	if not await wait_signal("lucifron-killed"):
 		return
 	if client.adventure_guide_state().visible or client.adventure_guide_state().loaded:
 		stop("Closed Guide auto-opened on the real Lucifron event")
 		return
 	phase("cobrahn-ready")
+	if not await wait_signal("cobrahn-ported") or not await wait_map(43):
+		return
+	phase("cobrahn-entered")
 	if not await wait_signal("cobrahn-started"):
 		return
 	if client.adventure_guide_state().visible or client.adventure_guide_state().loaded:
@@ -92,7 +109,7 @@ func run() -> void:
 	if not await shot("integration-open-guide-encounter-start"):
 		return
 	phase("pythas-observed")
-	if not await wait_signal("safe-origin") or not await verify_received_save_and_key():
+	if not await wait_signal("safe-origin") or not await wait_map(0) or not await verify_received_save_and_key():
 		return
 	phase("passed")
 	print("AG_PAGES_INTEGRATION_PASS skin=%s closedStart/firstBossRightClick/nonemptySave/openStart/realLucifronDeath/sourceMapAzureKey" % client.account_state().ui_skin)
