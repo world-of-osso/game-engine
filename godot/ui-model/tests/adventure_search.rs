@@ -6,6 +6,7 @@ use ui_toolkit::{
     frame::{Dimension, WidgetData},
     registry::FrameRegistry,
     screen::{Screen, SharedContext},
+    widgets::texture::TextureSource,
 };
 
 fn journal(query: &str) -> View {
@@ -31,6 +32,102 @@ fn present(registry: &FrameRegistry, name: &str) -> bool {
         .get_by_name(name)
         .is_some_and(|id| registry.get(id).unwrap().visible)
 }
+#[test]
+#[ignore = "RED: authentic JournalEncounterItem names must be searchable"]
+fn journal_search_item_results_preserve_source_icon_quality_parent_and_difficulty() {
+    for skin in [ActiveSkin::Modern, ActiveSkin::Forever] {
+        let mut view = journal("Buzzer Blade");
+        game_engine_ui_model::item_catalog::wait_for_item_catalog();
+        view.apply("journal:search-focus").unwrap();
+        let registry = render(&view, skin);
+        let frame = registry
+            .get(
+                registry
+                    .get_by_name("JournalSearchPreview0Name")
+                    .expect("Real Journal loot must produce its search preview"),
+            )
+            .unwrap();
+        let Some(WidgetData::FontString(name)) = &frame.widget_data else {
+            panic!("Item result title");
+        };
+        assert_eq!(name.text, "Buzzer Blade");
+        assert_eq!(name.color, [0., 0.44, 0.87, 1.]);
+        let icon = registry
+            .get(registry.get_by_name("JournalSearchPreview0Icon").unwrap())
+            .unwrap();
+        assert!(
+            matches!(&icon.widget_data, Some(WidgetData::Texture(texture))
+            if texture.source == TextureSource::FileDataId(135641))
+        );
+        view.apply("journal:search-full").unwrap();
+        let registry = render(&view, skin);
+        for (name, expected) in [
+            (
+                "JournalSearchResult0Type",
+                game_engine_ui_model::auction_mail::text("ENCOUNTER_JOURNAL_ITEM"),
+            ),
+            ("JournalSearchResult0Path", "Deadmines > Glubtok"),
+        ] {
+            let frame = registry.get(registry.get_by_name(name).unwrap()).unwrap();
+            assert!(
+                matches!(&frame.widget_data, Some(WidgetData::FontString(text)) if text.text == expected)
+            );
+        }
+        for (index, encounter, difficulty, item) in [(0, 89, 1, 2169), (1, 2624, 2, 65163)] {
+            let mut selection = journal("Buzzer Blade");
+            selection.difficulty = 24;
+            selection
+                .apply(&format!("journal:search-select:{index}"))
+                .unwrap();
+            assert_eq!(selection.instance, Some(63));
+            assert_eq!(selection.encounter, Some(encounter));
+            assert_eq!(selection.difficulty, difficulty);
+            assert_eq!(selection.page, Page::Loot);
+            assert_eq!(selection.search, "Buzzer Blade");
+            assert!(selection.loot().iter().any(|drop| drop.id == item));
+        }
+    }
+}
+
+#[test]
+#[ignore = "RED: authentic JournalEncounterCreature names must open the selected model"]
+fn journal_search_creature_results_open_the_authored_model_choice() {
+    for skin in [ActiveSkin::Modern, ActiveSkin::Forever] {
+        let mut view = journal("Lumbering Oaf");
+        view.apply("journal:search-focus").unwrap();
+        let registry = render(&view, skin);
+        assert!(
+            present(&registry, "JournalSearchPreview0"),
+            "Authored creature result missing"
+        );
+        view.apply("journal:search-full").unwrap();
+        let registry = render(&view, skin);
+        for (name, expected) in [
+            ("JournalSearchResult0Name", "Lumbering Oaf"),
+            (
+                "JournalSearchResult0Type",
+                game_engine_ui_model::auction_mail::text("ENCOUNTER_JOURNAL_ENCOUNTER"),
+            ),
+            ("JournalSearchResult0Path", "Deadmines > Helix Gearbreaker"),
+        ] {
+            let frame = registry.get(registry.get_by_name(name).unwrap()).unwrap();
+            assert!(
+                matches!(&frame.widget_data, Some(WidgetData::FontString(text)) if text.text == expected)
+            );
+        }
+        view.apply("journal:search-select:0").unwrap();
+        assert_eq!(view.instance, Some(63));
+        assert_eq!(view.encounter, Some(90));
+        assert_eq!(view.difficulty, 1);
+        assert_eq!(view.page, Page::Model);
+        assert_eq!(view.creature, Some(630));
+        assert_eq!(view.model_creature().unwrap().display, 33003);
+        assert_eq!(view.search, "Lumbering Oaf");
+        let registry = render(&view, skin);
+        assert!(present(&registry, "JournalCreature630"));
+    }
+}
+
 #[test]
 fn journal_search_localized_display_quotes_are_not_export_escape_codes() {
     let _view = journal("flame");
