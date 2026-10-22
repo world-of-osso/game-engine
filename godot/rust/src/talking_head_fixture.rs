@@ -55,6 +55,21 @@ impl TalkingHeadFixture {
             .map_or_else(GString::new, |error| error.as_str().into())
     }
     #[func]
+    fn receive(&mut self, payload: GString, owner: i64) -> GString {
+        let result =
+            serde_json::from_str::<shared::protocol::ConversationUpdate>(&payload.to_string())
+                .map_err(|error| error.to_string())
+                .and_then(|update| {
+                    let owner =
+                        u64::try_from(owner).map_err(|_| "negative fixture owner".to_owned())?;
+                    self.state.receive(update, owner)
+                });
+        result
+            .err()
+            .map_or_else(GString::new, |error| error.as_str().into())
+    }
+
+    #[func]
     fn tick(&mut self, delta: f64) -> GString {
         self.state.advance(delta as f32);
         let Some(ui) = &mut self.ui else {
