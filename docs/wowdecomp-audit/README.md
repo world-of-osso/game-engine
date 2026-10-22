@@ -99,6 +99,7 @@ Before rework, identify the applicable product/build and a real authored asset, 
 
 ## Related knowledge
 
+- [12340 CloseAuctionHouse](closeauctionhouse-12340.md): Lua binding, local state cleanup, event order and proof limits (2026-10-22).
 - [12340 UI source questions](ui-source-questions-12340.md): texture filenames, auction return values, addon dependencies, and unresolved FrameXML ordering (2026-10-22).
 
 - [M2 format](../wiki/formats/m2-format.md) and [animation](../wiki/systems/animation.md).
