@@ -1863,7 +1863,6 @@ dependencies = [
 [[package]]
 name = "cascette-formats"
 version = "0.2.0"
-source = "git+https://github.com/Osso/cascette-rs?rev=027a1ac34c81b4ec23a0bfa36ea298f6642abe19#027a1ac34c81b4ec23a0bfa36ea298f6642abe19"
 dependencies = [
  "binrw",
  "cascette-crypto",
@@ -1871,6 +1870,7 @@ dependencies = [
  "hex",
  "lz4_flex",
  "md5",
+ "salsa20",
  "serde",
  "serde_json",
  "thiserror 2.0.21",
