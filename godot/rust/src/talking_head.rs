@@ -42,7 +42,11 @@ impl GameClient {
         if !in_world {
             self.talking_head.state.clear();
         }
-        self.talking_head.state.advance(delta);
+        advance_source_presentation(
+            &mut self.talking_head.state,
+            &mut self.talking_head.voice,
+            delta,
+        );
         if let Some(mut ui) = self.talking_head.ui.clone() {
             consume_actions(&mut self.talking_head.state, &mut ui.bind_mut());
         }
@@ -93,6 +97,24 @@ impl GameClient {
             self.talking_head.ui.as_ref(),
             event,
         )
+    }
+}
+
+pub(crate) fn advance_source_presentation(
+    state: &mut TalkingHeadState,
+    voice: &mut voice::TalkingHeadVoice,
+    delta: f32,
+) {
+    // A received clear starts before advancing its timer; natural expiry starts after.
+    begin_source_voice_close(state, voice);
+    state.advance(delta);
+    begin_source_voice_close(state, voice);
+}
+
+fn begin_source_voice_close(state: &mut TalkingHeadState, voice: &mut voice::TalkingHeadVoice) {
+    if state.is_closing() && voice.is_playing() {
+        state.defer_close_for_voice();
+        voice.fade_out();
     }
 }
 

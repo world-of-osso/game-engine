@@ -218,6 +218,37 @@ fn talking_head_source_clear_without_voice_fades_for_one_second_but_dismiss_is_i
 }
 
 #[test]
+fn talking_head_voice_close_keeps_source_delay_without_snapshot_restart() {
+    let mut update = source();
+    let mut state = TalkingHeadState::default();
+    state.receive(update.clone(), 400).unwrap();
+    state.advance(1.0);
+    update.conversations.clear();
+    state.receive(update.clone(), 400).unwrap();
+    state.defer_close_for_voice();
+    assert!(
+        state.current().is_none(),
+        "the source VO handle is retired, not replayed"
+    );
+    state.advance(0.5);
+    state.receive(update, 400).unwrap();
+    assert_eq!(state.presentation().unwrap().text_alpha, 1.0);
+    state.advance(1.0);
+    assert_eq!(state.presentation().unwrap().text_alpha, 0.5);
+    let mut dismissed = state.clone();
+    dismissed.dismiss();
+    assert!(
+        dismissed.presentation().is_none(),
+        "local close remains immediate during source fade"
+    );
+    state.advance(0.5);
+    assert!(
+        state.presentation().is_none(),
+        "source1s delay plus1s Close complete"
+    );
+}
+
+#[test]
 fn talking_head_source_opening_fades_follow_elapsed_time_in_both_skins() {
     use ui_toolkit::{
         atlas::ActiveSkin,

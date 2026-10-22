@@ -7,6 +7,7 @@ mod presentation;
 pub use presentation::TalkingHeadPaint;
 
 const CLOSE_DURATION_MS: f64 = 1000.0;
+const VOICE_CLOSE_DELAY_MS: f64 = 1000.0;
 
 #[derive(Clone, Debug, PartialEq)]
 pub struct TalkingHeadView {
@@ -35,6 +36,7 @@ struct Active {
 struct Closing {
     view: TalkingHeadView,
     elapsed_ms: f64,
+    delay_ms: f64,
 }
 
 #[derive(Clone, Debug, Default, PartialEq)]
@@ -102,7 +104,7 @@ impl TalkingHeadState {
         if self
             .closing
             .as_ref()
-            .is_some_and(|closing| closing.elapsed_ms >= CLOSE_DURATION_MS)
+            .is_some_and(|closing| closing.elapsed_ms >= closing.delay_ms + CLOSE_DURATION_MS)
         {
             self.closing = None;
         }
@@ -125,6 +127,17 @@ impl TalkingHeadState {
         presentation::present(self)
     }
 
+    pub fn is_closing(&self) -> bool {
+        self.closing.is_some()
+    }
+
+    /// TalkingHeadUI.lua Close delays FadeoutFrames by1s when a VO handle exists.
+    pub fn defer_close_for_voice(&mut self) {
+        if let Some(closing) = &mut self.closing {
+            closing.delay_ms = VOICE_CLOSE_DELAY_MS;
+        }
+    }
+
     fn remaining_lifetime(&self, view: &TalkingHeadView) -> Option<f64> {
         self.active
             .iter()
@@ -136,7 +149,11 @@ impl TalkingHeadState {
         if self.current().is_some() {
             self.closing = None;
         } else if self.closing.is_none() {
-            self.closing = previous.map(|view| Closing { view, elapsed_ms });
+            self.closing = previous.map(|view| Closing {
+                view,
+                elapsed_ms,
+                delay_ms: 0.0,
+            });
         }
     }
 
