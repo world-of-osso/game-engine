@@ -1,3 +1,7 @@
+## 2026-10-22 — Strict TalkingHead child proof
+
+[Bounded proof](systems/talking-head.md#bounded-native-proof): maintained offline runner4/4,204 checks, runner exit0, one exact completion marker and complete Godot child streams without ERROR; four original1920×1080 captures inspected. Chrome/text/source-voice/input only; Dummy audio, named model gap, pending fades/world ingress and compositor/build-adapter/GPU-preflight limitations retained.
+
 ## 2026-10-21 — Authored button regions implementation
 
 [Shared regions](systems/ui-system.md#authored-button-regions--step-2): extended ButtonTexture, moved checked/base/highlight selection into core and region metadata into native projection. Deleted Perks/Minimap state projectors, Housing offset guess and Transmog size-repair loop. Toolkit RED3→GREEN21/21; projection30/full-model1170 GREEN, scoped check/fmt passed; strict both-skin native16/16 and16 inspected1920×1080 originals. Perks Normal-hover/Pushed base offset is asserted independently, not inferred from sheet appearance. Lead integration gate separate; no realm/UDP claim.

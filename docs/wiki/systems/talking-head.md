@@ -10,6 +10,10 @@ The ordered EncounterChannel relay projects owner-scoped ConversationUpdate snap
 
 `talking_head_camera` reads Pos as model translation and LookAt as yaw/pitch/roll; ModelFrames supplies camera-space4→target0. The native host retains these source values as diagnostics. No model/camera rendering nodes are made: `TALKING_HEAD_MODEL_PROJECTION_UNSOURCED` covers unresolved Flags→useModelCenter and default PlayerModel projection. Allowed reference file/line receipts and bounded proofs live in the contract; no viewer-specific bounds fit/FOV is substituted.
 
+## Bounded native proof
+
+The [contract's strict child proof](../../specs/talking-head.md#strict-native-child-proof--2026-10-22) records maintained-runner4/4,204 checks, complete clean Godot child streams and four inspected1920×1080 originals. This covers chrome/text/source voice/input only; source-model projection, authored fades/glows and joint world ingress remain open. Compositor, adapter-status and GPU-preflight limitations stay explicit in that record.
+
 ## Sources
 
 - [Contract and reference receipts](../../specs/talking-head.md) — exact Retail source paths, exclusions and proof bounds.
