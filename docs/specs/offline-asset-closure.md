@@ -75,7 +75,11 @@ product publishes scoped bytes and a model-asset-index receipt. Build config,
 encoding and root metadata hashes must validate first. Existing asset bytes are
 never overwritten; root absence, missing bytes, byte mismatch and scoped conflicts
 remain explicit results. A match in another product is diagnostic only, never a
-substitution. New staged fragments must dedupe against the canonical base index
+substitution. Asset receipt kinds must match the native index contract: `blp`, `m2`, `wmo`,
+`skin`, `skel`, `anim`, `bone`. Unsupported kinds fail fragment preparation,
+preflight and publication before any payload or index writes; opaque closure
+nodes remain audit evidence rather than native index members.
+New staged fragments must dedupe against the canonical base index
 and every fragment, then reject remaining duplicate asset identities; raw path repairs
 must not create another product/FDID/kind owner. An identical authenticated asset
 required at another model-build namespace must retain that requested path as a
