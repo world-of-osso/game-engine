@@ -1,7 +1,7 @@
 extends "res://tests/tooltips_live.gd"
 
 # Actual authenticated GameClient, never a standalone RegistryUi preview.
-# Setup: private admin learn-spell <character> 133, set-level <character> 10.
+# Setup: default Arcane Mage with received Arcane Blast30451, level10.
 # Private admin changes only this fixture character's level after each refresh marker.
 # Source placement: default UnitFrame owner, SpellBookItem ANCHOR_RIGHT,
 # MainMenuBarBackpackButton ANCHOR_LEFT. Existing domain content remains live.
@@ -9,6 +9,8 @@ var completion
 var receipts: Array[Dictionary] = []
 var receipt_path := ""
 var current_skin := ""
+var injected_pointer := Vector2.ZERO
+var motion_serial := 0
 
 func run_test() -> void:
 	root.size = Vector2i(1920, 1080)
@@ -33,7 +35,7 @@ func run_test() -> void:
 		return
 	if not await enter_world(): return
 	print("UI_TEMPLATE_GENERICS_SPELLS ", {"catalog_ready": spells().catalog_ready, "known": spells().known, "bar": spells().bar})
-	if not await wait_until(func(): return spells().catalog_ready and spells().known.has(133), 60000, "Fireball catalog/authority"): return
+	if not await wait_until(func(): return spells().catalog_ready and spells().known.has(30451), 60000, "Arcane Blast catalog/authority"): return
 	for forever in [false, true]:
 		current_skin = "forever" if forever else "modern"
 		error = client.preview_world_skin(forever)
@@ -84,22 +86,25 @@ func player_refresh(level: int) -> bool:
 	if not await wait_until(func(): return tooltip().visible and tooltip().title == character and has_line(tooltip(), "Level %d " % level), 4000, "PlayerFrame initial level"): return false
 	if not at_default_anchor(tooltip()): return fail_state("Player default anchor", tooltip())
 	await capture("player-before.png")
-	var pointer := root.get_mouse_position()
+	var pointer := injected_pointer
+	var serial := motion_serial
 	print("UI_TEMPLATE_GENERICS_REFRESH_ARM ", current_skin, " ", level + 1)
 	if not await wait_until(func(): return has_line(tooltip(), "Level %d " % (level + 1)), 10000, "same-pointer authoritative level refresh"): return false
-	if root.get_mouse_position().distance_to(pointer) > 0.01:
+	if injected_pointer.distance_to(pointer) > 0.01 or motion_serial != serial:
 		return fail_state("Pointer moved during live refresh", tooltip())
 	await capture("player-after.png")
 	return true
 
 func spellbook_owner() -> bool:
 	await press(KEY_P)
-	if not await wait_until(func(): return spells().spellbook_open and control("SpellBookUI", "SpellBookItem133Button") != null, 4000, "Fireball spellbook owner"): return false
-	var owner := control("SpellBookUI", "SpellBookItem133Button")
+	var owner := control("SpellBookUI", "SpellBookItem30451Button")
+	print("UI_TEMPLATE_GENERICS_BOOK ", {"open": spells().spellbook_open, "owner_present": owner != null, "owner_visible": owner.is_visible_in_tree() if owner != null else false, "owner_rect": owner.get_global_rect() if owner != null else null, "injected_pointer": injected_pointer})
+	if not await wait_until(func(): return spells().spellbook_open and control("SpellBookUI", "SpellBookItem30451Button") != null, 4000, "Arcane Blast spellbook owner"): return false
+	owner = control("SpellBookUI", "SpellBookItem30451Button")
 	await hover(owner)
-	if not await wait_tooltip("Fireball"): return false
-	if not has_line(tooltip(), "Spell ID: 133"):
-		return fail_state("Fireball record", tooltip())
+	if not await wait_tooltip("Arcane Blast"): return false
+	if not has_line(tooltip(), "Spell ID: 30451"):
+		return fail_state("Arcane Blast record", tooltip())
 	var rect := ui_rect(owner)
 	if absf(tooltip().rect[0] - rect.end.x) > 1.5 or absf(tooltip().rect[1] + tooltip().rect[3] - rect.position.y) > 1.5:
 		return fail_state("Spellbook Right anchor", tooltip())
@@ -117,6 +122,16 @@ func backpack_owner() -> bool:
 	await capture("backpack.png")
 	return true
 
+func move_mouse(point: Vector2) -> void:
+	injected_pointer = point
+	motion_serial += 1
+	var motion := InputEventMouseMotion.new()
+	motion.position = point
+	motion.global_position = point
+	root.push_input(motion, true)
+	Input.warp_mouse(point)
+	await wait_frames(3)
+
 func capture(file: String) -> void:
 	await RenderingServer.frame_post_draw
 	var image := root.get_texture().get_image()
@@ -124,7 +139,7 @@ func capture(file: String) -> void:
 	if image == null or image.get_size() != Vector2i(1920, 1080) or image.save_png(path) != OK:
 		fail("PNG capture failed or dimensions differ: " + path)
 		return
-	receipts.append({"skin": current_skin, "phase": file, "tooltip": tooltip(), "pointer": root.get_mouse_position(), "capture": path})
+	receipts.append({"skin": current_skin, "phase": file, "tooltip": tooltip(), "injected_pointer": injected_pointer, "motion_serial": motion_serial, "root_mouse_position": root.get_mouse_position(), "capture": path})
 	var output := FileAccess.open(receipt_path, FileAccess.WRITE)
 	if output == null:
 		fail("Cannot write receipt file")
