@@ -13,6 +13,14 @@ import json
 SOUND_KINDS = {"ogg", "mp3", "wav", "audio"}
 
 
+def is_hex(value, size):
+    return (
+        isinstance(value, str)
+        and len(value) == size
+        and all(character in "0123456789abcdefABCDEF" for character in value)
+    )
+
+
 def family(kind):
     if kind in SOUND_KINDS:
         return "sound"
@@ -61,6 +69,16 @@ def verify_table(graph, path, name):
         graph.issue(
             "metadata_product_mismatch",
             f"{path.relative_to(graph.data)}: requested {graph.product}, receipt {identity.get('product')!r}",
+        )
+        return False
+    if (
+        not is_hex(identity.get("build_key"), 32)
+        or not isinstance(identity.get("build"), str)
+        or not identity["build"]
+    ):
+        graph.issue(
+            "metadata_receipt_mismatch",
+            f"{path.relative_to(graph.data)}: invalid export build identity",
         )
         return False
     table = document.get("tables", {}).get(name)
@@ -130,6 +148,35 @@ def matches_payload(graph, asset, row, md5):
     return valid and file_md5(graph.data, row["path"], md5) == row.get("content_key")
 
 
+def requested_receipts(ledger, wanted):
+    with ledger.open() as stream:
+        for line_number, line in enumerate(stream, 1):
+            try:
+                row = json.loads(line)
+            except json.JSONDecodeError as error:
+                raise ValueError(
+                    f"{ledger}:{line_number}: invalid extraction receipt"
+                ) from error
+            key = (
+                row.get("product"),
+                row.get("fdid"),
+                family(row.get("type")),
+                row.get("path"),
+            )
+            for index in wanted.get(key, []):
+                yield row, index
+
+
+def valid_file_identity(row):
+    return (
+        isinstance(row.get("actual_build"), str)
+        and bool(row["actual_build"])
+        and is_hex(row.get("build_config"), 32)
+        and is_hex(row.get("content_key"), 32)
+        and row.get("disposition") in {"extracted", "verified_existing"}
+    )
+
+
 def qualify_flat_assets(graph, result):
     assets = flat_assets(result)
     if not assets:
@@ -150,30 +197,12 @@ def qualify_flat_assets(graph, result):
     ledger = graph.data / "provenance/closure-extract.jsonl"
     md5 = {}
     if ledger.is_file() and record_input(graph, ledger) is not None:
-        with ledger.open() as stream:
-            for line_number, line in enumerate(stream, 1):
-                try:
-                    row = json.loads(line)
-                except json.JSONDecodeError as error:
-                    raise ValueError(
-                        f"{ledger}:{line_number}: invalid extraction receipt"
-                    ) from error
-                key = (
-                    row.get("product"),
-                    row.get("fdid"),
-                    family(row.get("type")),
-                    row.get("path"),
-                )
-                for index in wanted.get(key, []):
-                    matched[index] = True
-                    complete = (
-                        row.get("actual_build")
-                        and row.get("build_config")
-                        and row.get("content_key")
-                        and row.get("disposition") in {"extracted", "verified_existing"}
-                    )
-                    if complete and matches_payload(graph, assets[index], row, md5):
-                        verified[index].add((row["actual_build"], row["build_config"]))
+        for row, index in requested_receipts(ledger, wanted):
+            matched[index] = True
+            if valid_file_identity(row) and matches_payload(
+                graph, assets[index], row, md5
+            ):
+                verified[index].add((row["actual_build"], row["build_config"]))
     for index, asset in enumerate(assets):
         proofs = sorted(verified[index])
         if proofs:
