@@ -10,9 +10,9 @@
 
 use game_engine_core::spell_catalog::{CasterPower, SpellTextContext};
 use game_engine_ui_model::bag_data::{InventorySlot, InventoryState};
-use game_engine_ui_model::buff_frame_component::buff_button_at;
+use game_engine_ui_model::buff_frame_component::parse_button_name;
 use game_engine_ui_model::character_frame::{paperdoll_button, parse_equipment_slot_action};
-use game_engine_ui_model::chat_frame_component::chat_spell_link_at;
+use game_engine_ui_model::chat_frame_component::chat_spell_id;
 use game_engine_ui_model::game_tooltip::hud::{
     backpack_tooltip, calendar_tooltip, clock_tooltip, empty_bag_slot_tooltip,
     empty_paperdoll_slot_tooltip, minimap_mouseover_tooltip, tracking_tooltip, twelve_hour_time,
@@ -44,7 +44,16 @@ use ui_toolkit::frame::Frame;
 use crate::GameClient;
 use crate::faction_reaction::Reaction;
 use crate::replicated::UnitFields;
-use crate::tooltips::{HoveredFrame, HoveredTooltip, named_ancestor};
+use crate::tooltips::{HoveredFrame, HoveredTooltip};
+
+/// Read domain identity from the already-resolved metadata owner, without walking parents.
+fn read_owner<T>(
+    registry: &ui_toolkit::registry::FrameRegistry,
+    owner: u64,
+    read: impl FnOnce(&Frame) -> Option<T>,
+) -> Option<T> {
+    read(registry.get(owner)?)
+}
 
 /// `ENCLOSED_MONEY`, `COD_AMOUNT`, `MAIL_MULTIPLE_ITEMS`.
 const ENCLOSED_MONEY: &str = "Money Enclosed:";
@@ -121,7 +130,7 @@ fn parse_housing_tooltip_target(frame: &Frame) -> Option<HousingTooltipTarget> {
     }
     if matches!(
         name,
-        "HousingCatalogSubcategoryAll" | "HouseEditorStorageSubcategoryAll"
+        "HousingSubcategoryAll" | "HouseEditorStorageSubcategoryAll"
     ) {
         return Some(HousingTooltipTarget::AllSubcategories);
     }
@@ -131,12 +140,9 @@ fn parse_housing_tooltip_target(frame: &Frame) -> Option<HousingTooltipTarget> {
             HousingTooltipTarget::Decor as fn(u32) -> HousingTooltipTarget,
         ),
         ("HouseEditorStored", HousingTooltipTarget::Decor),
-        ("HousingCatalogCategory", HousingTooltipTarget::Category),
+        ("HousingCategory", HousingTooltipTarget::Category),
         ("HouseEditorStorageCategory", HousingTooltipTarget::Category),
-        (
-            "HousingCatalogSubcategory",
-            HousingTooltipTarget::Subcategory,
-        ),
+        ("HousingSubcategory", HousingTooltipTarget::Subcategory),
         (
             "HouseEditorStorageSubcategory",
             HousingTooltipTarget::Subcategory,
@@ -152,63 +158,95 @@ fn parse_housing_tooltip_target(frame: &Frame) -> Option<HousingTooltipTarget> {
 impl GameClient {
     /// The tooltip of the hovered frame, if it has one.
     pub(crate) fn frame_tooltip(&mut self, hit: &HoveredFrame) -> Option<HoveredTooltip> {
-        type Source = fn(&mut GameClient, &HoveredFrame) -> Option<HoveredTooltip>;
-        const SOURCES: &[Source] = &[
-            GameClient::token_currency_tooltip,
-            GameClient::trading_post_cart_tooltip,
-            GameClient::guild_perk_tooltip,
-            GameClient::pvp_honor_tooltip,
-            GameClient::guild_news_tooltip,
-            GameClient::trading_post_button_tooltip,
-            GameClient::trading_post_refund_tooltip,
-            GameClient::trading_post_tooltip,
-            GameClient::journal_suggestion_text_tooltip,
-            GameClient::journal_section_flag_tooltip,
-            GameClient::journal_defeated_tooltip,
-            GameClient::journal_creature_tooltip,
-            GameClient::journal_monthly_tooltip,
-            GameClient::journal_journey_tooltip,
-            GameClient::journal_set_tooltip,
-            GameClient::journal_loot_tooltip,
-            GameClient::transmog_set_tooltip,
-            GameClient::transmog_source_tooltip,
-            GameClient::transmog_illusion_tooltip,
-            GameClient::housing_tooltip,
-            GameClient::toybox_tooltip,
-            GameClient::action_button_tooltip,
-            GameClient::mentor_teleport_tooltip,
-            GameClient::talent_gate_tooltip,
-            GameClient::profession_recipe_source_tooltip,
-            GameClient::profession_concentration_tooltip,
-            GameClient::profession_reagent_quality_tooltip,
-            GameClient::profession_specialization_tooltip,
-            GameClient::spellbook_tooltip,
-            GameClient::trainer_tooltip,
-            GameClient::chat_link_tooltip,
-            GameClient::bag_slot_tooltip,
-            GameClient::paperdoll_tooltip,
-            GameClient::merchant_tooltip,
-            GameClient::merchant_button_tooltip,
-            GameClient::group_loot_tooltip,
-            GameClient::loot_tooltip,
-            GameClient::mail_attachment_tooltip,
-            GameClient::inbox_item_tooltip,
-            GameClient::auction_tooltip,
-            GameClient::quest_reward_tooltip,
-            GameClient::bag_bar_tooltip,
-            GameClient::micro_menu_tooltip,
-            GameClient::player_aura_tooltip,
-            GameClient::target_aura_tooltip,
-            GameClient::xp_bar_tooltip,
-            GameClient::hud_frame_tooltip,
-        ];
-        SOURCES.iter().find_map(|source| source(self, hit))
+        use ui_toolkit::{frame::WidgetData, tooltip::tooltip_owner, widgets::button::ButtonState};
+        let (frame, binding, enabled) = {
+            let ui = hit.ui.bind();
+            let (owner, binding) = tooltip_owner(ui.registry()?, hit.frame)?;
+            let enabled = !matches!(&owner.widget_data, Some(WidgetData::Button(button)) if button.state == ButtonState::Disabled);
+            (owner.id, binding.clone(), enabled)
+        };
+        let rect = self.owner_rect(&hit.ui, frame)?;
+        let owner = HoveredFrame {
+            ui: hit.ui.clone(),
+            frame,
+        };
+        match binding.provider.as_deref() {
+            Some(provider) => {
+                let mut hovered = self.provider_tooltip(provider, &owner)?;
+                hovered.tooltip.anchor = game_engine_ui_model::game_tooltip::binding_anchor(
+                    binding.anchor,
+                    rect,
+                    binding.offset,
+                );
+                Some(hovered)
+            }
+            None => GameTooltip::from_binding(&binding, enabled, rect).map(HoveredTooltip::text),
+        }
+    }
+
+    /// Exactly the nearest declaration's live provider; never probe another panel.
+    fn provider_tooltip(&mut self, provider: &str, hit: &HoveredFrame) -> Option<HoveredTooltip> {
+        match provider {
+            "token_currency" => self.token_currency_tooltip(hit),
+            "trading_post_cart" => self.trading_post_cart_tooltip(hit),
+            "guild_perk" => self.guild_perk_tooltip(hit),
+            "pvp_honor" => self.pvp_honor_tooltip(hit),
+            "guild_news" => self.guild_news_tooltip(hit),
+            "trading_post_button" => self.trading_post_button_tooltip(hit),
+            "trading_post_refund" => self.trading_post_refund_tooltip(hit),
+            "trading_post" => self.trading_post_tooltip(hit),
+            "journal_suggestion_text" => self.journal_suggestion_text_tooltip(hit),
+            "journal_section_flag" => self.journal_section_flag_tooltip(hit),
+            "journal_defeated" => self.journal_defeated_tooltip(hit),
+            "journal_creature" => self.journal_creature_tooltip(hit),
+            "journal_monthly" => self.journal_monthly_tooltip(hit),
+            "journal_journey" => self.journal_journey_tooltip(hit),
+            "journal_set" => self.journal_set_tooltip(hit),
+            "journal_loot" => self.journal_loot_tooltip(hit),
+            "transmog_set" => self.transmog_set_tooltip(hit),
+            "transmog_source" => self.transmog_source_tooltip(hit),
+            "transmog_illusion" => self.transmog_illusion_tooltip(hit),
+            "housing" => self.housing_tooltip(hit),
+            "toybox" => self.toybox_tooltip(hit),
+            "action_button" => self.action_button_tooltip(hit),
+            "mentor_teleport" => self.mentor_teleport_tooltip(hit),
+            "talent_gate" => self.talent_gate_tooltip(hit),
+            "profession_recipe_source" => self.profession_recipe_source_tooltip(hit),
+            "profession_concentration" => self.profession_concentration_tooltip(hit),
+            "profession_reagent_quality" => self.profession_reagent_quality_tooltip(hit),
+            "profession_specialization" => self.profession_specialization_tooltip(hit),
+            "spellbook" => self.spellbook_tooltip(hit),
+            "trainer" => self.trainer_tooltip(hit),
+            "chat_link" => self.chat_link_tooltip(hit),
+            "bag_slot" => self.bag_slot_tooltip(hit),
+            "paperdoll" => self.paperdoll_tooltip(hit),
+            "merchant" => self.merchant_tooltip(hit),
+            "merchant_button" => self.merchant_button_tooltip(hit),
+            "group_loot" => self.group_loot_tooltip(hit),
+            "loot" => self.loot_tooltip(hit),
+            "mail_attachment" => self.mail_attachment_tooltip(hit),
+            "inbox_item" => self.inbox_item_tooltip(hit),
+            "auction" => self.auction_tooltip(hit),
+            "quest_reward" => self.quest_reward_tooltip(hit),
+            "bag_bar" => self.bag_bar_tooltip(hit),
+            "micro_menu" => self.micro_menu_tooltip(hit),
+            "player_aura" => self.player_aura_tooltip(hit),
+            "target_aura" => self.target_aura_tooltip(hit),
+            "xp_bar" => self.xp_bar_tooltip(hit),
+            "hud_frame" => self.hud_frame_tooltip(hit),
+            unknown => {
+                crate::frame_error::report_once(&format!(
+                    "Unknown authored tooltip provider: {unknown}"
+                ));
+                None
+            }
+        }
     }
 
     /// TokenEntryMixin:ShowCurrencyTooltip owns its source row at ANCHOR_RIGHT.
     fn token_currency_tooltip(&mut self, hit: &HoveredFrame) -> Option<HoveredTooltip> {
         let ui = hit.ui.bind();
-        let (owner, id) = named_ancestor(ui.registry()?, hit.frame, |frame| {
+        let id = read_owner(ui.registry()?, hit.frame, |frame| {
             indexed(frame, "TokenEntry")
         })?;
         drop(ui);
@@ -222,18 +260,13 @@ impl GameClient {
         };
         let row = rows.iter().find(|row| row.id as usize == id)?;
         let tooltip = game_engine_ui_model::character_frame::currency_tooltip(row);
-        Some(HoveredTooltip::text(self.owned_by(
-            hit,
-            owner,
-            OwnerSide::Right,
-            tooltip,
-        )?))
+        Some(HoveredTooltip::text(tooltip))
     }
 
     /// Elements.lua1603–1623: cart details inherit GetItemByID, left(-8,-20).
     fn trading_post_cart_tooltip(&mut self, hit: &HoveredFrame) -> Option<HoveredTooltip> {
         let ui = hit.ui.bind();
-        let (owner, name) = named_ancestor(ui.registry()?, hit.frame, |frame| {
+        let name = read_owner(ui.registry()?, hit.frame, |frame| {
             frame.onclick.as_deref()?.strip_prefix("perks:cart:item:")?;
             Some(name_of(frame)?.to_owned())
         })?;
@@ -246,53 +279,38 @@ impl GameClient {
                 crate::frame_error::report_once(&format!("Trading Post cart tooltip: {error}"))
             })
             .ok()??;
-        let rect = self.owner_rect(&hit.ui, owner)?;
-        // OwnerOffset uses UI y-down coordinates, unlike Retail SetOwner's y-up.
-        Some(HoveredTooltip::text(tooltip.owned_offset(
-            rect,
-            OwnerSide::Left,
-            [-8.0, 20.0],
-        )))
+        Some(HoveredTooltip::text(tooltip))
     }
 
     /// GuildPerks.lua: real spell tooltip at ANCHOR_RIGHT, offset36,0.
     fn guild_perk_tooltip(&mut self, hit: &HoveredFrame) -> Option<HoveredTooltip> {
         let ui = hit.ui.bind();
-        let (owner, spell_id) = named_ancestor(ui.registry()?, hit.frame, |frame| {
+        let spell_id = read_owner(ui.registry()?, hit.frame, |frame| {
             indexed(frame, "CommunitiesGuildPerk")
         })?;
         drop(ui);
         let spell_id = u32::try_from(spell_id).ok()?;
         self.spells.catalog()?.get(spell_id)?;
         let tooltip = self.spell_game_tooltip(spell_id, None);
-        let rect = self.owner_rect(&hit.ui, owner)?;
-        Some(HoveredTooltip::text(tooltip.owned_offset(
-            rect,
-            OwnerSide::Right,
-            [36.0, 0.0],
-        )))
+        Some(HoveredTooltip::text(tooltip))
     }
 
     /// Mainline PVPUI.lua1975: lifetime honor, ANCHOR_RIGHT offsets-20,-20.
     fn pvp_honor_tooltip(&mut self, hit: &HoveredFrame) -> Option<HoveredTooltip> {
         let ui = hit.ui.bind();
-        let (owner, ()) = named_ancestor(ui.registry()?, hit.frame, |frame| {
+        let () = read_owner(ui.registry()?, hit.frame, |frame| {
             (name_of(frame)? == "PVPUIHonorLevelDisplay").then_some(())
         })?;
         drop(ui);
         let tooltip = self.battleground.view.honor_tooltip()?;
-        Some(HoveredTooltip::text(tooltip.owned_offset(
-            self.owner_rect(&hit.ui, owner)?,
-            OwnerSide::Right,
-            [-20.0, -20.0],
-        )))
+        Some(HoveredTooltip::text(tooltip))
     }
 
     /// PerksProgram button ShowTooltip methods own ANCHOR_LEFT, including disabled controls.
     fn trading_post_button_tooltip(&mut self, hit: &HoveredFrame) -> Option<HoveredTooltip> {
         use ui_toolkit::{frame::WidgetData, widgets::button::ButtonState};
         let ui = hit.ui.bind();
-        let (owner, tooltip) = named_ancestor(ui.registry()?, hit.frame, |frame| {
+        let tooltip = read_owner(ui.registry()?, hit.frame, |frame| {
             let WidgetData::Button(button) = frame.widget_data.as_ref()? else {
                 return None;
             };
@@ -302,46 +320,28 @@ impl GameClient {
                 .button_tooltip(name_of(frame)?, enabled)
         })?;
         drop(ui);
-        Some(HoveredTooltip::text(self.owned_by(
-            hit,
-            owner,
-            OwnerSide::Left,
-            tooltip,
-        )?))
+        Some(HoveredTooltip::text(tooltip))
     }
 
     /// Elements.lua123–137: the21px undo texture owns ANCHOR_RIGHT, offsets0/0.
     fn trading_post_refund_tooltip(&mut self, hit: &HoveredFrame) -> Option<HoveredTooltip> {
         let ui = hit.ui.bind();
-        let registry = ui.registry()?;
-        let (row, vendor_id) = named_ancestor(registry, hit.frame, parse_trading_post_vendor_id)?;
-        let prefix = if name_of(registry.get(row)?)? == "PerksProgramFrozenSlot" {
-            "PerksProgramFrozen"
-        } else {
-            "PerksProgram"
-        };
-        let owner = registry.get_by_name(&format!("{prefix}RefundIcon{vendor_id}"))?;
-        let rect = ui.frame_id_rect(owner)?;
-        // Motion ownership must not turn this texture into a click blocker.
-        let pointer = godot::prelude::Vector2::from_array(self.physical_input.pointer());
-        if !rect.contains_point(pointer) {
-            return None;
-        }
+        let vendor_id = read_owner(ui.registry()?, hit.frame, |frame| {
+            let name = name_of(frame)?;
+            name.strip_prefix("PerksProgramRefundIcon")
+                .or_else(|| name.strip_prefix("PerksProgramFrozenRefundIcon"))?
+                .parse::<u32>()
+                .ok()
+        })?;
         drop(ui);
         let tooltip = self.trading_post.view.refund_icon_tooltip(vendor_id)?;
-        Some(HoveredTooltip::text(self.owned_by(
-            hit,
-            owner,
-            OwnerSide::Right,
-            tooltip,
-        )?))
+        Some(HoveredTooltip::text(tooltip))
     }
 
     /// Elements.lua306–314, including its inherited frozen-product template.
     fn trading_post_tooltip(&mut self, hit: &HoveredFrame) -> Option<HoveredTooltip> {
         let ui = hit.ui.bind();
-        let (owner, product_id) =
-            named_ancestor(ui.registry()?, hit.frame, parse_trading_post_vendor_id)?;
+        let product_id = read_owner(ui.registry()?, hit.frame, parse_trading_post_vendor_id)?;
         drop(ui);
         let snapshot = self.trading_post.view.snapshot.as_ref()?;
         let product = snapshot.items.iter().find(|row| row.id == product_id)?;
@@ -354,22 +354,16 @@ impl GameClient {
             0,
         );
         let tooltip = without_sell_price(item_game_tooltip(&item, self.player_level()));
-        let owner_rect = self.owner_rect(&hit.ui, owner)?;
-        Some(HoveredTooltip::text(tooltip.owned_offset(
-            owner_rect,
-            OwnerSide::Right,
-            [-16.0, 0.0],
-        )))
+        Some(HoveredTooltip::text(tooltip))
     }
 
     /// Catalog/stored decor and the source open-storage handle use `ANCHOR_RIGHT`.
     fn housing_tooltip(&mut self, hit: &HoveredFrame) -> Option<HoveredTooltip> {
         let ui = hit.ui.bind();
-        let (owner, target) =
-            named_ancestor(ui.registry()?, hit.frame, parse_housing_tooltip_target)?;
+        let target = read_owner(ui.registry()?, hit.frame, parse_housing_tooltip_target)?;
         let editor_control = matches!(target, HousingTooltipTarget::EditorControl(_));
         if editor_control {
-            let frame = ui.registry()?.get(owner)?;
+            let frame = ui.registry()?.get(hit.frame)?;
             let Some(ui_toolkit::frame::WidgetData::Button(button)) = &frame.widget_data else {
                 return None;
             };
@@ -378,25 +372,11 @@ impl GameClient {
             }
         }
         drop(ui);
-        let (tooltip, category) = self.housing_tooltip_content(target)?;
-        let rect = self.owner_rect(&hit.ui, owner)?;
-        let tooltip = if editor_control {
-            tooltip.owned(rect, OwnerSide::Top)
-        } else if category {
-            tooltip.owned_offset(rect, OwnerSide::Right, [-12.0, 12.0])
-        } else {
-            tooltip.owned(rect, OwnerSide::Right)
-        };
+        let tooltip = self.housing_tooltip_content(target)?;
         Some(HoveredTooltip::text(tooltip))
     }
 
-    fn housing_tooltip_content(&self, target: HousingTooltipTarget) -> Option<(GameTooltip, bool)> {
-        let category = matches!(
-            target,
-            HousingTooltipTarget::Category(_)
-                | HousingTooltipTarget::Subcategory(_)
-                | HousingTooltipTarget::AllSubcategories
-        );
+    fn housing_tooltip_content(&self, target: HousingTooltipTarget) -> Option<GameTooltip> {
         let tooltip = match target {
             HousingTooltipTarget::EditorControl(action) => self
                 .housing
@@ -415,7 +395,7 @@ impl GameClient {
             }
             category => self.housing_category_tooltip(category)?,
         };
-        Some((tooltip, category))
+        Some(tooltip)
     }
 
     fn housing_category_tooltip(&self, target: HousingTooltipTarget) -> Option<GameTooltip> {
@@ -449,7 +429,7 @@ impl GameClient {
     fn journal_suggestion_text_tooltip(&mut self, hit: &HoveredFrame) -> Option<HoveredTooltip> {
         let snapshot = self.adventure_guide.view.activities.as_deref()?;
         let ui = hit.ui.bind();
-        let (owner, tooltip) = named_ancestor(ui.registry()?, hit.frame, |frame| {
+        let tooltip = read_owner(ui.registry()?, hit.frame, |frame| {
             game_engine_ui_model::adventure_suggestions::text_tooltip(
                 snapshot,
                 frame.name.as_deref()?,
@@ -457,53 +437,49 @@ impl GameClient {
             )
         })?;
         drop(ui);
-        let rect = self.owner_rect(&hit.ui, owner)?;
-        Some(HoveredTooltip::text(tooltip.owned(rect, OwnerSide::Right)))
+        Some(HoveredTooltip::text(tooltip))
     }
 
     fn journal_section_flag_tooltip(&mut self, hit: &HoveredFrame) -> Option<HoveredTooltip> {
         let ui = hit.ui.bind();
-        let (owner, tooltip) = named_ancestor(ui.registry()?, hit.frame, |frame| {
+        let tooltip = read_owner(ui.registry()?, hit.frame, |frame| {
             game_engine_ui_model::adventure_section_flags::tooltip(
                 &self.adventure_guide.view,
                 frame.name.as_deref()?,
             )
         })?;
         drop(ui);
-        let rect = self.owner_rect(&hit.ui, owner)?;
-        Some(HoveredTooltip::text(tooltip.owned(rect, OwnerSide::Right)))
+        Some(HoveredTooltip::text(tooltip))
     }
 
     fn journal_defeated_tooltip(&mut self, hit: &HoveredFrame) -> Option<HoveredTooltip> {
         let ui = hit.ui.bind();
-        let (owner, tooltip) = named_ancestor(ui.registry()?, hit.frame, |frame| {
+        let tooltip = read_owner(ui.registry()?, hit.frame, |frame| {
             game_engine_ui_model::adventure_defeated::tooltip(
                 &self.adventure_guide.view,
                 frame.name.as_deref()?,
             )
         })?;
         drop(ui);
-        let rect = self.owner_rect(&hit.ui, owner)?;
-        Some(HoveredTooltip::text(tooltip.owned(rect, OwnerSide::Right)))
+        Some(HoveredTooltip::text(tooltip))
     }
 
     fn journal_creature_tooltip(&mut self, hit: &HoveredFrame) -> Option<HoveredTooltip> {
         let ui = hit.ui.bind();
-        let (owner, tooltip) = named_ancestor(ui.registry()?, hit.frame, |frame| {
+        let tooltip = read_owner(ui.registry()?, hit.frame, |frame| {
             game_engine_ui_model::adventure_creatures::tooltip(
                 &self.adventure_guide.view,
                 frame.name.as_deref()?,
             )
         })?;
         drop(ui);
-        let rect = self.owner_rect(&hit.ui, owner)?;
-        Some(HoveredTooltip::text(tooltip.owned(rect, OwnerSide::Right)))
+        Some(HoveredTooltip::text(tooltip))
     }
 
     fn journal_monthly_tooltip(&mut self, hit: &HoveredFrame) -> Option<HoveredTooltip> {
         let snapshot = self.adventure_guide.view.activities.as_deref()?;
         let ui = hit.ui.bind();
-        let (_, tooltip) = named_ancestor(ui.registry()?, hit.frame, |frame| {
+        let tooltip = read_owner(ui.registry()?, hit.frame, |frame| {
             game_engine_ui_model::adventure_activities::activity_tooltip(
                 snapshot,
                 frame.name.as_deref()?,
@@ -515,21 +491,14 @@ impl GameClient {
     /// SetRewards uses ANCHOR_RIGHT; LockedState's requirement uses ANCHOR_CURSOR_RIGHT.
     fn journal_journey_tooltip(&mut self, hit: &HoveredFrame) -> Option<HoveredTooltip> {
         let ui = hit.ui.bind();
-        let (owner, (mut tooltip, at_cursor)) =
-            named_ancestor(ui.registry()?, hit.frame, |frame| {
-                self.journey_tooltip_for_frame(frame)
-            })?;
+        let tooltip = read_owner(ui.registry()?, hit.frame, |frame| {
+            self.journey_tooltip_for_frame(frame)
+        })?;
         drop(ui);
-        if at_cursor {
-            tooltip.anchor = game_engine_ui_model::game_tooltip::TooltipAnchor::CursorRight;
-        } else {
-            let rect = self.owner_rect(&hit.ui, owner)?;
-            tooltip = tooltip.owned(rect, OwnerSide::Right);
-        }
         Some(HoveredTooltip::text(tooltip))
     }
 
-    fn journey_tooltip_for_frame(&self, frame: &Frame) -> Option<(GameTooltip, bool)> {
+    fn journey_tooltip_for_frame(&self, frame: &Frame) -> Option<GameTooltip> {
         let view = &self.adventure_guide.view;
         let name = frame.name.as_deref()?;
         game_engine_ui_model::adventure_journeys::reward_tooltip(
@@ -537,12 +506,11 @@ impl GameClient {
             view.renown.as_deref(),
             name,
         )
-        .map(|tooltip| (tooltip, false))
     }
 
     fn journal_loot_tooltip(&mut self, hit: &HoveredFrame) -> Option<HoveredTooltip> {
         let ui = hit.ui.bind();
-        let (owner, item) = named_ancestor(ui.registry()?, hit.frame, |frame| {
+        let item = read_owner(ui.registry()?, hit.frame, |frame| {
             let id = frame
                 .name
                 .as_deref()?
@@ -564,12 +532,12 @@ impl GameClient {
             0,
         );
         drop(ui);
-        self.item_owned(hit, owner, OwnerSide::Right, slot)
+        Some(self.item_tooltip(slot))
     }
 
     fn journal_set_tooltip(&mut self, hit: &HoveredFrame) -> Option<HoveredTooltip> {
         let ui = hit.ui.bind();
-        let (owner, (set, item)) = named_ancestor(ui.registry()?, hit.frame, |frame| {
+        let (set, item) = read_owner(ui.registry()?, hit.frame, |frame| {
             self.adventure_guide.view.set_member(frame.name.as_deref()?)
         })?;
         let slot = named_item_for(
@@ -588,7 +556,7 @@ impl GameClient {
             &self.merchant.session.inventory,
             &descriptions,
         );
-        let mut hovered = self.item_owned(hit, owner, OwnerSide::Right, slot)?;
+        let mut hovered = self.item_tooltip(slot);
         hovered.tooltip.content.lines.extend(lines);
         Some(hovered)
     }
@@ -596,7 +564,7 @@ impl GameClient {
     /// TransmogSetModelMixin:OnEnter -> RefreshTooltip, `ANCHOR_RIGHT`.
     fn transmog_set_tooltip(&mut self, hit: &HoveredFrame) -> Option<HoveredTooltip> {
         let ui = hit.ui.bind();
-        let (owner, set_id) = named_ancestor(ui.registry()?, hit.frame, |frame| {
+        let set_id = read_owner(ui.registry()?, hit.frame, |frame| {
             name_of(frame)?
                 .strip_prefix("TransmogSet")?
                 .parse::<u32>()
@@ -612,12 +580,7 @@ impl GameClient {
             .iter()
             .find(|set| set.set_id == set_id)?;
         let tooltip = game_engine_ui_model::game_tooltip::transmog::transmog_set_tooltip(set);
-        Some(HoveredTooltip::text(self.owned_by(
-            hit,
-            owner,
-            OwnerSide::Right,
-            tooltip,
-        )?))
+        Some(HoveredTooltip::text(tooltip))
     }
 
     /// ItemModelBaseMixin:OnEnter and TransmogAppearanceSlotMixin item tooltips.
@@ -627,7 +590,7 @@ impl GameClient {
             Slot(u8),
         }
         let ui = hit.ui.bind();
-        let (owner, target) = named_ancestor(ui.registry()?, hit.frame, |frame| {
+        let target = read_owner(ui.registry()?, hit.frame, |frame| {
             let name = name_of(frame)?;
             if let Some(id) = name.strip_prefix("TransmogSource") {
                 id.parse().ok().map(Target::Source)
@@ -682,7 +645,7 @@ impl GameClient {
         let quality =
             game_engine_ui_model::item_catalog::item_catalog_entry_for(definition, item)?.quality;
         let item = named_item_for(definition, item, &name, quality, 1, 0);
-        self.item_owned(hit, owner, OwnerSide::Right, item)
+        Some(self.item_tooltip(item))
     }
 
     /// An illusion card or a weapon's illusion slot, `ANCHOR_RIGHT`.
@@ -692,7 +655,7 @@ impl GameClient {
             Slot(u8),
         }
         let ui = hit.ui.bind();
-        let (owner, hovered) = named_ancestor(ui.registry()?, hit.frame, |frame| {
+        let hovered = read_owner(ui.registry()?, hit.frame, |frame| {
             let name = name_of(frame)?;
             match name.strip_prefix("TransmogIllusionEntry") {
                 Some(id) => id.parse().ok().map(Hovered::Card),
@@ -719,12 +682,7 @@ impl GameClient {
         let tooltip = game_engine_ui_model::game_tooltip::transmog::transmog_illusion_tooltip(
             name.as_deref(),
         );
-        Some(HoveredTooltip::text(self.owned_by(
-            hit,
-            owner,
-            OwnerSide::Right,
-            tooltip,
-        )?))
+        Some(HoveredTooltip::text(tooltip))
     }
 
     fn journal_bonus_descriptions(&self, set: u32) -> std::collections::BTreeMap<u32, String> {
@@ -813,7 +771,7 @@ impl GameClient {
             TELEPORT_ACTION_PREFIX, mentor_teleport_tooltip,
         };
         let ui = hit.ui.bind();
-        let (owner, spell_id) = named_ancestor(ui.registry()?, hit.frame, |frame| {
+        let spell_id = read_owner(ui.registry()?, hit.frame, |frame| {
             frame
                 .onclick
                 .as_deref()?
@@ -831,17 +789,12 @@ impl GameClient {
             self.spell_game_tooltip_with_cooldown(spell_id, None, remaining),
             self.account.spells.known().contains(&spell_id),
         );
-        Some(HoveredTooltip::text(self.owned_by(
-            hit,
-            owner,
-            OwnerSide::Right,
-            tooltip,
-        )?))
+        Some(HoveredTooltip::text(tooltip))
     }
 
     fn action_button_tooltip(&mut self, hit: &HoveredFrame) -> Option<HoveredTooltip> {
         let ui = hit.ui.bind();
-        let (_, (bar, index)) = named_ancestor(ui.registry()?, hit.frame, |frame| {
+        let (bar, index) = read_owner(ui.registry()?, hit.frame, |frame| {
             parse_action_button(frame.onclick.as_deref()?)
         })?;
         match self.action_slot(self.bar_slot(bar, index))? {
@@ -883,7 +836,7 @@ impl GameClient {
 
     fn toybox_tooltip(&mut self, hit: &HoveredFrame) -> Option<HoveredTooltip> {
         let ui = hit.ui.bind();
-        let (owner, item_id) = named_ancestor(ui.registry()?, hit.frame, |frame| {
+        let item_id = read_owner(ui.registry()?, hit.frame, |frame| {
             frame
                 .onclick
                 .as_deref()?
@@ -893,17 +846,12 @@ impl GameClient {
         })?;
         drop(ui);
         let tooltip = self.toy_game_tooltip(item_id)?;
-        Some(HoveredTooltip::text(self.owned_by(
-            hit,
-            owner,
-            OwnerSide::Right,
-            tooltip,
-        )?))
+        Some(HoveredTooltip::text(tooltip))
     }
 
     fn profession_recipe_source_tooltip(&mut self, hit: &HoveredFrame) -> Option<HoveredTooltip> {
         let ui = hit.ui.bind();
-        let (owner, ()) = named_ancestor(ui.registry()?, hit.frame, |frame| {
+        let () = read_owner(ui.registry()?, hit.frame, |frame| {
             (name_of(frame)? == "ProfessionsRecipeSourceButton").then_some(())
         })?;
         drop(ui);
@@ -911,33 +859,23 @@ impl GameClient {
             &self.professions.book,
             &self.professions.skill_names(),
         )?;
-        Some(HoveredTooltip::text(self.owned_by(
-            hit,
-            owner,
-            OwnerSide::Right,
-            tooltip,
-        )?))
+        Some(HoveredTooltip::text(tooltip))
     }
 
     fn profession_concentration_tooltip(&mut self, hit: &HoveredFrame) -> Option<HoveredTooltip> {
         let ui = hit.ui.bind();
-        let (owner, ()) = named_ancestor(ui.registry()?, hit.frame, |frame| {
+        let () = read_owner(ui.registry()?, hit.frame, |frame| {
             (name_of(frame)? == "ProfessionsConcentrationDisplay").then_some(())
         })?;
         drop(ui);
         let snapshot = self.professions.concentration.as_ref()?;
         let tooltip = game_engine_ui_model::professions_frame::concentration::tooltip(snapshot);
-        Some(HoveredTooltip::text(self.owned_by(
-            hit,
-            owner,
-            OwnerSide::Right,
-            tooltip,
-        )?))
+        Some(HoveredTooltip::text(tooltip))
     }
 
     fn profession_reagent_quality_tooltip(&mut self, hit: &HoveredFrame) -> Option<HoveredTooltip> {
         let ui = hit.ui.bind();
-        let (owner, item_id) = named_ancestor(ui.registry()?, hit.frame, |frame| {
+        let item_id = read_owner(ui.registry()?, hit.frame, |frame| {
             name_of(frame)?
                 .strip_prefix("ProfessionQuality")?
                 .strip_suffix("Choice")?
@@ -948,12 +886,12 @@ impl GameClient {
         let item = game_engine_ui_model::item_catalog::item_catalog_entry(item_id)?;
         let slot = named_item(item_id, &item.name, item.quality, 1);
         // QualityDialog.lua81-84: GameTooltip owner ANCHOR_TOPLEFT, actual reagent item.
-        self.item_owned(hit, owner, OwnerSide::TopLeft, slot)
+        Some(self.item_tooltip(slot))
     }
 
     fn profession_specialization_tooltip(&mut self, hit: &HoveredFrame) -> Option<HoveredTooltip> {
         let ui = hit.ui.bind();
-        let (owner, node) = named_ancestor(ui.registry()?, hit.frame, |frame| {
+        let node = read_owner(ui.registry()?, hit.frame, |frame| {
             let name = name_of(frame)?;
             let id = name
                 .strip_prefix("ProfessionSpecNode")
@@ -962,23 +900,16 @@ impl GameClient {
         })?;
         drop(ui);
         let tooltip = self.professions.specializations.tooltip(node)?;
-        Some(HoveredTooltip::text(self.owned_by(
-            hit,
-            owner,
-            OwnerSide::Right,
-            tooltip,
-        )?))
+        Some(HoveredTooltip::text(tooltip))
     }
 
     fn talent_gate_tooltip(&mut self, hit: &HoveredFrame) -> Option<HoveredTooltip> {
         let ui = hit.ui.bind();
-        if let Some((owner, export)) =
-            named_ancestor(ui.registry()?, hit.frame, |frame| match name_of(frame)? {
-                "TalentExportLoadout" => Some(true),
-                "TalentStarterBuild" => Some(false),
-                _ => None,
-            })
-        {
+        if let Some(export) = read_owner(ui.registry()?, hit.frame, |frame| match name_of(frame)? {
+            "TalentExportLoadout" => Some(true),
+            "TalentStarterBuild" => Some(false),
+            _ => None,
+        }) {
             let view = self.spells.projected_talents()?;
             if export && view.editor.can_export(view) {
                 return None;
@@ -1001,14 +932,9 @@ impl GameClient {
                 },
                 None,
             );
-            return Some(HoveredTooltip::text(self.owned_by(
-                hit,
-                owner,
-                OwnerSide::Right,
-                tooltip,
-            )?));
+            return Some(HoveredTooltip::text(tooltip));
         }
-        let (owner, condition) = named_ancestor(ui.registry()?, hit.frame, |frame| {
+        let condition = read_owner(ui.registry()?, hit.frame, |frame| {
             name_of(frame)?
                 .strip_prefix("TalentGate")?
                 .strip_suffix("Button")?
@@ -1017,16 +943,11 @@ impl GameClient {
         })?;
         drop(ui);
         let tooltip = self.spells.projected_talents()?.gate_tooltip(condition)?;
-        Some(HoveredTooltip::text(self.owned_by(
-            hit,
-            owner,
-            OwnerSide::Left,
-            tooltip,
-        )?))
+        Some(HoveredTooltip::text(tooltip))
     }
     fn spellbook_tooltip(&mut self, hit: &HoveredFrame) -> Option<HoveredTooltip> {
         let ui = hit.ui.bind();
-        let (owner, (spell_id, talent)) = named_ancestor(ui.registry()?, hit.frame, |frame| {
+        let (spell_id, talent) = read_owner(ui.registry()?, hit.frame, |frame| {
             let name = name_of(frame)?;
             if let Some(spell) = game_engine_ui_model::talents::talent_button_spell(name) {
                 return Some((spell, true));
@@ -1038,7 +959,7 @@ impl GameClient {
                 .map(|spell| (spell, false))
         })?;
         let talent_entry = if talent {
-            let name = ui.registry()?.get(owner)?.name.as_deref()?;
+            let name = ui.registry()?.get(hit.frame)?.name.as_deref()?;
             Some((
                 game_engine_ui_model::talents::talent_button_node(name)?,
                 game_engine_ui_model::talents::talent_button_entry(name)?,
@@ -1065,21 +986,16 @@ impl GameClient {
         } else {
             tooltip
         };
-        Some(HoveredTooltip::text(self.owned_by(
-            hit,
-            owner,
-            OwnerSide::Right,
-            tooltip,
-        )?))
+        Some(HoveredTooltip::text(tooltip))
     }
 
     /// TrainerUI.xml OnEnter: the hovered service, ANCHOR_RIGHT +35, through GameTooltipUI.
     fn trainer_tooltip(&mut self, hit: &HoveredFrame) -> Option<HoveredTooltip> {
         let ui = hit.ui.bind();
-        let (owner, spell) = self
+        let spell = self
             .trainer
             .book
-            .hovered_service(ui.registry()?, hit.frame)?;
+            .service_for_action(ui.registry()?.get(hit.frame)?.onclick.as_deref()?)?;
         drop(ui);
         let tooltip = game_engine_ui_model::game_tooltip::trainer::trainer_service_content(
             self.spell_game_tooltip(spell, None),
@@ -1093,46 +1009,36 @@ impl GameClient {
                 return None;
             }
         };
-        let tooltip = self.trainer_view().service_tooltip(
-            spell,
-            tooltip,
-            self.owner_rect(&hit.ui, owner)?,
-        )?;
         Some(HoveredTooltip::text(tooltip))
     }
 
     fn chat_link_tooltip(&mut self, hit: &HoveredFrame) -> Option<HoveredTooltip> {
-        let spell_id = chat_spell_link_at(hit.ui.bind().registry()?, hit.frame)?;
+        let ui = hit.ui.bind();
+        let spell_id = chat_spell_id(ui.registry()?.get(hit.frame)?.name.as_deref()?)?;
         Some(HoveredTooltip::text(
             self.spell_game_tooltip(spell_id, None),
         ))
     }
 
-    /// An item tooltip owned by `owner`, compared on Shift.
-    fn item_owned(
-        &self,
-        hit: &HoveredFrame,
-        owner: u64,
-        side: OwnerSide,
-        item: InventorySlot,
-    ) -> Option<HoveredTooltip> {
+    /// Live item content and comparison identity; the shared binding supplies placement.
+    fn item_tooltip(&self, item: InventorySlot) -> HoveredTooltip {
         let mut tooltip = item_game_tooltip(&item, self.player_level());
         tooltip.content = self.mount_journal.view.item_tooltip(
             item.definition_source,
             item.item_id,
             tooltip.content,
         );
-        Some(HoveredTooltip {
-            tooltip: self.owned_by(hit, owner, side, tooltip)?,
+        HoveredTooltip {
+            tooltip,
             item: Some(item),
             health: None,
-        })
+        }
     }
 
     /// `ContainerFrame{bag}Slot{slot}` of the standalone bags and the NPC-window backpack.
     fn bag_slot_tooltip(&mut self, hit: &HoveredFrame) -> Option<HoveredTooltip> {
         let ui = hit.ui.bind();
-        let (owner, (bag, slot)) = named_ancestor(ui.registry()?, hit.frame, |frame| {
+        let (bag, slot) = read_owner(ui.registry()?, hit.frame, |frame| {
             let (bag, slot) = name_of(frame)?
                 .strip_prefix("ContainerFrame")?
                 .split_once("Slot")?;
@@ -1143,14 +1049,14 @@ impl GameClient {
         if item.is_empty() {
             return None;
         }
-        self.item_owned(hit, owner, OwnerSide::BagSlot, item.clone())
+        Some(self.item_tooltip(item.clone()))
     }
 
     /// `PaperDollItemSlotButton_OnEnter` (PaperDollFrame.lua): `SetInventoryItem`, `ANCHOR_RIGHT`;
     /// an empty slot shows its slot name. None while the cursor holds an item.
     fn paperdoll_tooltip(&mut self, hit: &HoveredFrame) -> Option<HoveredTooltip> {
         let ui = hit.ui.bind();
-        let (owner, slot) = named_ancestor(ui.registry()?, hit.frame, |frame| {
+        let slot = read_owner(ui.registry()?, hit.frame, |frame| {
             parse_equipment_slot_action(frame.onclick.as_deref()?)
         })?;
         drop(ui);
@@ -1159,10 +1065,9 @@ impl GameClient {
         }
         let location = ItemLocation::Equipment(slot);
         if let Some(item) = self.merchant.session.inventory.item_at(location) {
-            return self.item_owned(hit, owner, OwnerSide::Right, item.clone());
+            return Some(self.item_tooltip(item.clone()));
         }
         let tooltip = empty_paperdoll_slot_tooltip(paperdoll_button(slot)?.label);
-        let tooltip = self.owned_by(hit, owner, OwnerSide::Right, tooltip)?;
         Some(HoveredTooltip::text(tooltip))
     }
 
@@ -1174,12 +1079,12 @@ impl GameClient {
             return None;
         }
         let ui = hit.ui.bind();
-        let (owner, index) = named_ancestor(ui.registry()?, hit.frame, |frame| {
+        let index = read_owner(ui.registry()?, hit.frame, |frame| {
             indexed(frame, "MerchantItem")?.checked_sub(1)
         })?;
         drop(ui);
         let item = merchant_cell_item(merchant, index)?;
-        self.item_owned(hit, owner, OwnerSide::Right, item)
+        Some(self.item_tooltip(item))
     }
 
     /// The service buttons' `OnEnter` (MF.xml:207-211, 240-252, 300-303, 332-364) and the last-sale
@@ -1191,15 +1096,14 @@ impl GameClient {
             return None;
         }
         let ui = hit.ui.bind();
-        let (owner, button) =
-            named_ancestor(ui.registry()?, hit.frame, |frame| match name_of(frame)? {
-                name @ ("MerchantSellAllJunkButton"
-                | "MerchantRepairAllButton"
-                | "MerchantRepairItemButton"
-                | "MerchantGuildBankRepairButton"
-                | "MerchantBuyBackItem") => Some(name.to_owned()),
-                _ => None,
-            })?;
+        let button = read_owner(ui.registry()?, hit.frame, |frame| match name_of(frame)? {
+            name @ ("MerchantSellAllJunkButton"
+            | "MerchantRepairAllButton"
+            | "MerchantRepairItemButton"
+            | "MerchantGuildBankRepairButton"
+            | "MerchantBuyBackItem") => Some(name.to_owned()),
+            _ => None,
+        })?;
         drop(ui);
         let cost = u64::from(session.repair_cost);
         let tooltip = match button.as_str() {
@@ -1212,48 +1116,42 @@ impl GameClient {
             }
             _ => {
                 let last = buyback_item(session.merchant.last_buyback()?);
-                return self.item_owned(hit, owner, OwnerSide::Right, last);
+                return Some(self.item_tooltip(last));
             }
         };
-        Some(HoveredTooltip::text(self.owned_by(
-            hit,
-            owner,
-            OwnerSide::Right,
-            tooltip,
-        )?))
+        Some(HoveredTooltip::text(tooltip))
     }
 
     fn group_loot_tooltip(&mut self, hit: &HoveredFrame) -> Option<HoveredTooltip> {
         let ui = hit.ui.bind();
-        let (owner, (history, index, choice)) =
-            named_ancestor(ui.registry()?, hit.frame, |frame| {
-                let name = name_of(frame)?;
+        let (history, index, choice) = read_owner(ui.registry()?, hit.frame, |frame| {
+            let name = name_of(frame)?;
+            if let Some(index) = name
+                .strip_prefix("LootHistoryElement")
+                .and_then(|index| index.parse::<usize>().ok())
+            {
+                return Some((true, index.checked_sub(1)?, None));
+            }
+            for (suffix, choice) in [
+                ("NeedButton", Some(shared::loot::LootRollChoice::Need)),
+                ("GreedButton", Some(shared::loot::LootRollChoice::Greed)),
+                (
+                    "TransmogButton",
+                    Some(shared::loot::LootRollChoice::Transmog),
+                ),
+                ("PassButton", Some(shared::loot::LootRollChoice::Pass)),
+                ("IconFrame", None),
+            ] {
                 if let Some(index) = name
-                    .strip_prefix("LootHistoryElement")
+                    .strip_prefix("GroupLootFrame")
+                    .and_then(|name| name.strip_suffix(suffix))
                     .and_then(|index| index.parse::<usize>().ok())
                 {
-                    return Some((true, index.checked_sub(1)?, None));
+                    return Some((false, index.checked_sub(1)?, choice));
                 }
-                for (suffix, choice) in [
-                    ("NeedButton", Some(shared::loot::LootRollChoice::Need)),
-                    ("GreedButton", Some(shared::loot::LootRollChoice::Greed)),
-                    (
-                        "TransmogButton",
-                        Some(shared::loot::LootRollChoice::Transmog),
-                    ),
-                    ("PassButton", Some(shared::loot::LootRollChoice::Pass)),
-                    ("IconFrame", None),
-                ] {
-                    if let Some(index) = name
-                        .strip_prefix("GroupLootFrame")
-                        .and_then(|name| name.strip_suffix(suffix))
-                        .and_then(|index| index.parse::<usize>().ok())
-                    {
-                        return Some((false, index.checked_sub(1)?, choice));
-                    }
-                }
-                None
-            })?;
+            }
+            None
+        })?;
         drop(ui);
         let viewer = self.account.session.selected_character_id?;
         let roll = if history {
@@ -1279,12 +1177,7 @@ impl GameClient {
                 ));
             }
             let tooltip = GameTooltip::new(content, None);
-            return Some(HoveredTooltip::text(self.owned_by(
-                hit,
-                owner,
-                OwnerSide::Right,
-                tooltip,
-            )?));
+            return Some(HoveredTooltip::text(tooltip));
         }
         let LootContent::Item {
             item_id,
@@ -1312,7 +1205,7 @@ impl GameClient {
         } else {
             Vec::new()
         };
-        let mut tooltip = self.item_owned(hit, owner, OwnerSide::Right, item)?;
+        let mut tooltip = self.item_tooltip(item);
         tooltip.tooltip.content.lines.extend(
             lines
                 .into_iter()
@@ -1324,7 +1217,7 @@ impl GameClient {
     /// `LootFrameElement{n}`: `SetLootItem` for item slots; money slots have no tooltip.
     fn loot_tooltip(&mut self, hit: &HoveredFrame) -> Option<HoveredTooltip> {
         let ui = hit.ui.bind();
-        let (owner, index) = named_ancestor(ui.registry()?, hit.frame, |frame| {
+        let index = read_owner(ui.registry()?, hit.frame, |frame| {
             indexed(frame, "LootFrameElement")?.checked_sub(1)
         })?;
         drop(ui);
@@ -1338,27 +1231,27 @@ impl GameClient {
             return None;
         };
         let item = named_item(*item_id, name, *quality, *count);
-        self.item_owned(hit, owner, OwnerSide::Right, item)
+        Some(self.item_tooltip(item))
     }
 
     /// `QuestInfoItem{n}` of the quest frame and log: `QuestInfoRewardItemMixin:OnEnter`
     /// (QuestInfo.lua:1240-1258), `SetQuestItem`/`SetQuestLogItem` at `ANCHOR_RIGHT`.
     fn quest_reward_tooltip(&mut self, hit: &HoveredFrame) -> Option<HoveredTooltip> {
         let ui = hit.ui.bind();
-        let (owner, n) = named_ancestor(ui.registry()?, hit.frame, |frame| {
+        let n = read_owner(ui.registry()?, hit.frame, |frame| {
             indexed(frame, "QuestInfoRewardsFrameQuestInfoItem")
         })?;
         drop(ui);
         let reward = self.quest_reward_item(&hit.ui, n)?;
         let quality = item_catalog_entry(reward.item_id).map_or(1, |entry| entry.quality);
         let item = named_item(reward.item_id, &reward.name, quality, reward.count);
-        self.item_owned(hit, owner, OwnerSide::Right, item)
+        Some(self.item_tooltip(item))
     }
 
     /// `OpenMailAttachmentButton{n}`: `SetInboxItem` and the C.O.D. money line.
     fn mail_attachment_tooltip(&mut self, hit: &HoveredFrame) -> Option<HoveredTooltip> {
         let ui = hit.ui.bind();
-        let (owner, slot) = named_ancestor(ui.registry()?, hit.frame, |frame| {
+        let slot = read_owner(ui.registry()?, hit.frame, |frame| {
             indexed(frame, "OpenMailAttachmentButton")?.checked_sub(1)
         })?;
         drop(ui);
@@ -1372,8 +1265,7 @@ impl GameClient {
             .attachments
             .iter()
             .find(|attachment| usize::from(attachment.slot) == slot)?;
-        let mut hovered =
-            self.item_owned(hit, owner, OwnerSide::Right, attachment_item(attachment))?;
+        let mut hovered = self.item_tooltip(attachment_item(attachment));
         if mail.cod > 0 {
             let lines = &mut hovered.tooltip.content.lines;
             lines.push(TooltipLineState::money(String::new(), mail.cod));
@@ -1384,7 +1276,7 @@ impl GameClient {
     /// `MailItem{n}Button`, the inbox package (`InboxFrameItem_OnEnter`).
     fn inbox_item_tooltip(&mut self, hit: &HoveredFrame) -> Option<HoveredTooltip> {
         let ui = hit.ui.bind();
-        let (owner, mail_id) = named_ancestor(ui.registry()?, hit.frame, |frame| {
+        let mail_id = read_owner(ui.registry()?, hit.frame, |frame| {
             let name = name_of(frame)?;
             name.strip_prefix("MailItem")?.strip_suffix("Button")?;
             let action = frame.onclick.as_deref()?;
@@ -1394,7 +1286,6 @@ impl GameClient {
         let contents = self.mailbox.session.contents.as_ref()?;
         let mail = contents.mails.iter().find(|mail| mail.mail_id == mail_id)?;
         let tooltip = inbox_tooltip(mail, self.player_level())?;
-        let tooltip = self.owned_by(hit, owner, OwnerSide::Right, tooltip)?;
         Some(HoveredTooltip::text(tooltip))
     }
 
@@ -1404,7 +1295,7 @@ impl GameClient {
             return None;
         }
         let ui = hit.ui.bind();
-        let (owner, item) = named_ancestor(ui.registry()?, hit.frame, |frame| {
+        let item = read_owner(ui.registry()?, hit.frame, |frame| {
             auction_row_item(frame.onclick.as_deref()?, &self.auction.session.net)
         })?;
         drop(ui);
@@ -1415,7 +1306,7 @@ impl GameClient {
             tooltip.content,
         );
         Some(HoveredTooltip {
-            tooltip: self.owned_by(hit, owner, OwnerSide::Right, tooltip)?,
+            tooltip,
             item: Some(item),
             health: None,
         })
@@ -1424,7 +1315,7 @@ impl GameClient {
     /// `MainMenuBarBackpackButton` and `CharacterBag{i}Slot`.
     fn bag_bar_tooltip(&mut self, hit: &HoveredFrame) -> Option<HoveredTooltip> {
         let ui = hit.ui.bind();
-        let (owner, bag) = named_ancestor(ui.registry()?, hit.frame, |frame| {
+        let bag = read_owner(ui.registry()?, hit.frame, |frame| {
             let name = name_of(frame)?;
             if name == "MainMenuBarBackpackButton" {
                 return Some(0);
@@ -1438,14 +1329,13 @@ impl GameClient {
         })?;
         drop(ui);
         let tooltip = bag_bar_button_tooltip(&self.merchant.session.inventory, bag);
-        let tooltip = self.owned_by(hit, owner, OwnerSide::Left, tooltip)?;
         Some(HoveredTooltip::text(tooltip))
     }
 
     /// `MainMenuBarMicroButtonMixin:EvaluateTooltipVisibility`: `ANCHOR_RIGHT`.
     fn micro_menu_tooltip(&mut self, hit: &HoveredFrame) -> Option<HoveredTooltip> {
         let ui = hit.ui.bind();
-        let (owner, index) = named_ancestor(ui.registry()?, hit.frame, |frame| {
+        let index = read_owner(ui.registry()?, hit.frame, |frame| {
             micro_button_index(name_of(frame)?)
         })?;
         drop(ui);
@@ -1454,13 +1344,15 @@ impl GameClient {
             .and_then(|action| self.client_options.bindings.binding(action))
             .map(|binding| binding.display());
         let tooltip = micro_button_tooltip(&self.micro_menu_view(), index, key.as_deref())?;
-        let tooltip = self.owned_by(hit, owner, OwnerSide::Right, tooltip)?;
         Some(HoveredTooltip::text(tooltip))
     }
 
     /// `BuffButton{n}` / `DebuffButton{n}` of the local player's BuffFrame.
     fn player_aura_tooltip(&mut self, hit: &HoveredFrame) -> Option<HoveredTooltip> {
-        let (is_debuff, index) = buff_button_at(hit.ui.bind().registry()?, hit.frame)?;
+        let ui = hit.ui.bind();
+        let (is_debuff, index) =
+            parse_button_name(ui.registry()?.get(hit.frame)?.name.as_deref()?)?;
+        drop(ui);
         let local = self.world.local_player_id()?;
         let auras = self.unit_auras(local);
         let aura = auras
@@ -1468,18 +1360,13 @@ impl GameClient {
             .filter(|aura| aura.is_debuff == is_debuff)
             .nth(index)?;
         let tooltip = aura_tooltip(aura);
-        Some(HoveredTooltip::text(self.owned_by(
-            hit,
-            hit.frame,
-            OwnerSide::BottomLeft,
-            tooltip,
-        )?))
+        Some(HoveredTooltip::text(tooltip))
     }
 
     /// `TargetBuffIcon{n}` / `TargetDebuffIcon{n}` in the TargetFrame's sort.
     fn target_aura_tooltip(&mut self, hit: &HoveredFrame) -> Option<HoveredTooltip> {
         let ui = hit.ui.bind();
-        let (owner, (debuff, index)) = named_ancestor(ui.registry()?, hit.frame, |frame| {
+        let (debuff, index) = read_owner(ui.registry()?, hit.frame, |frame| {
             let name = name_of(frame)?;
             let (debuff, rest) = match name.strip_prefix("TargetBuffIcon") {
                 Some(rest) => (false, rest),
@@ -1494,12 +1381,7 @@ impl GameClient {
         let (buffs, debuffs) = target_frame_auras(&auras, view);
         let aura = if debuff { debuffs } else { buffs }.get(index).copied()?;
         let tooltip = aura_tooltip(aura);
-        Some(HoveredTooltip::text(self.owned_by(
-            hit,
-            owner,
-            OwnerSide::ByCenter,
-            tooltip,
-        )?))
+        Some(HoveredTooltip::text(tooltip))
     }
 
     fn target_aura_view(&mut self, target: u64) -> TargetAuraView {
@@ -1522,7 +1404,7 @@ impl GameClient {
             return self.unit_hovered_tooltip(unit);
         }
         let ui = hit.ui.bind();
-        let (owner, name) = named_ancestor(ui.registry()?, hit.frame, |frame| {
+        let name = read_owner(ui.registry()?, hit.frame, |frame| {
             Some(name_of(frame)?.to_owned())
         })?;
         drop(ui);
@@ -1531,12 +1413,7 @@ impl GameClient {
             MINIMAP_ZOOM_OUT => Some(HoveredTooltip::text(zoom_tooltip(false))),
             game_engine_ui_model::minimap::MINIMAP_ZONE_TEXT => {
                 let tooltip = self.zone_text_tooltip()?;
-                Some(HoveredTooltip::text(self.owned_by(
-                    hit,
-                    owner,
-                    OwnerSide::Left,
-                    tooltip,
-                )?))
+                Some(HoveredTooltip::text(tooltip))
             }
             _ => None,
         }

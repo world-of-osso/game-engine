@@ -116,7 +116,7 @@ fn trainer_hover_resolves_row_descendants_and_all_service_states_not_selection()
 #[test]
 fn trainer_spell_tooltip_uses_shared_content_right_offset_and_id_in_both_skins() {
     for skin in [ActiveSkin::Modern, ActiveSkin::Forever] {
-        let (book, _) = setup(skin);
+        let (book, owners) = setup(skin);
         let spell = CatalogSpell {
             id: 2963,
             name: "Bolt of Linen Cloth".into(),
@@ -130,14 +130,20 @@ fn trainer_spell_tooltip_uses_shared_content_right_offset_and_id_in_both_skins()
                 ..Default::default()
             },
         );
-        let tooltip = book
-            .service_tooltip(2963, tooltip.clone(), [34.0, 207.0, 298.0, 47.0])
-            .unwrap();
+        let hit = owners.get_by_name("ClassTrainerService2963").unwrap();
+        let (_, binding) = ui_toolkit::tooltip::tooltip_owner(&owners, hit).unwrap();
+        let mut tooltip = tooltip;
+        tooltip.anchor = game_engine_ui_model::game_tooltip::binding_anchor(
+            binding.anchor,
+            [34.0, 207.0, 298.0, 47.0],
+            binding.offset,
+        );
         assert_eq!(
             tooltip.anchor,
-            TooltipAnchor::Owner {
-                rect: [69.0, 207.0, 298.0, 47.0],
-                side: game_engine_ui_model::game_tooltip::OwnerSide::Right
+            TooltipAnchor::OwnerOffset {
+                rect: [34.0, 207.0, 298.0, 47.0],
+                side: game_engine_ui_model::game_tooltip::OwnerSide::Right,
+                offset: [35.0, 0.0],
             }
         );
         let main = place(
@@ -176,10 +182,7 @@ fn trainer_spell_tooltip_uses_shared_content_right_offset_and_id_in_both_skins()
         assert!(
             matches!(&title.widget_data, Some(WidgetData::FontString(font)) if font.text == "Bolt of Linen Cloth")
         );
-        assert!(
-            book.service_tooltip(9999, spell_tooltip(&spell, &Default::default()), [0.0; 4])
-                .is_none()
-        );
+        assert!(book.service_for_action("trainer:select:9999").is_none());
     }
 }
 

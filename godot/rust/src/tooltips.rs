@@ -12,7 +12,7 @@ use game_engine_ui_model::bag_data::InventorySlot;
 use game_engine_ui_model::game_tooltip::item::comparisons;
 use game_engine_ui_model::game_tooltip::unit::FactionNames;
 use game_engine_ui_model::game_tooltip::{
-    GameTooltip, GameTooltipView, OwnerSide, TooltipScreen, place, place_comparisons,
+    GameTooltip, GameTooltipView, TooltipScreen, place, place_comparisons,
 };
 use godot::prelude::*;
 use shared::components::UnitLevel;
@@ -189,7 +189,7 @@ impl GameClient {
     pub(crate) fn hovered_ui_frame(&mut self) -> Result<Option<HoveredFrame>, String> {
         let at = Vector2::from_array(self.physical_input.pointer());
         let skip = [self.tooltips.ui.clone(), self.bags.cursor.ui.clone()];
-        self.ui_frame_at(at, &skip)
+        self.ui_tooltip_frame_at(at, &skip)
     }
 
     /// The owner rect `[x, y, w, h]` in UI units of frame `id` of `ui`.
@@ -202,17 +202,6 @@ impl GameClient {
             rect.size.x / scale,
             rect.size.y / scale,
         ])
-    }
-
-    /// `tooltip` owned by frame `id` of `hit`'s registry at `side`.
-    pub(crate) fn owned_by(
-        &self,
-        hit: &HoveredFrame,
-        id: u64,
-        side: OwnerSide,
-        tooltip: GameTooltip,
-    ) -> Option<GameTooltip> {
-        Some(tooltip.owned(self.owner_rect(&hit.ui, id)?, side))
     }
 
     fn sync_game_tooltip(&mut self, view: GameTooltipView) -> Result<(), String> {
