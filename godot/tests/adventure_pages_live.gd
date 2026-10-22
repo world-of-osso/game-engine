@@ -58,7 +58,11 @@ func verify_role_refresh() -> bool:
 	if not shown("JournalSection25036") or not await shot("pages-kurog-abilities"):
 		stop("Authentic Kurog ability tree missing")
 		return false
-	if not await click("JournalSection25036") or not await click("JournalSection25036"):
+	if not await click("JournalSection25036") or label_text("JournalSection25036ExpandedIcon") != "+":
+		stop("Actual ability header did not collapse")
+		return false
+	if not await click("JournalSection25036") or label_text("JournalSection25036ExpandedIcon") != "−":
+		stop("Actual ability header did not expand")
 		return false
 	print("AG_PAGES_ROLE_PASS real70-to66-ACK/reopen/role-headers/ability-disclosure")
 	return true
@@ -80,8 +84,18 @@ func verify_link_menus_and_loot() -> bool:
 	if shown("EncounterJournalNavBarOverflowMenu") or shown("EncounterJournalClassMenu"):
 		stop("Encounter link retained old navigation overlay")
 		return false
-	if client.adventure_guide_state().difficulty != 2 or not await click("EncounterJournalPage2"):
-		stop("Paralyze search did not retain its authored Heroic mode")
+	if client.adventure_guide_state().difficulty != 2 or not shown("JournalSection2410"):
+		stop("Paralyze search did not select its authored Heroic-only section")
+		return false
+	if not await click("JournalDifficultyDropdown") or not await click("JournalDifficulty1"):
+		return false
+	if shown("JournalSection2410") or not await shot("pages-normal-without-paralyze"):
+		stop("Normal incorrectly retains the Heroic-only section")
+		return false
+	if not await click("JournalDifficultyDropdown") or not await click("JournalDifficulty2"):
+		return false
+	if not shown("JournalSection2410") or not await shot("pages-heroic-paralyze") or not await click("EncounterJournalPage2"):
+		stop("Heroic did not restore its real section")
 		return false
 	if client.adventure_guide_state().loot_count != 6 or label_text("EncounterJournalSearchBox") != "Paralyze":
 		stop("Retained section search incorrectly hides Heroic Ozruk's six drops")
