@@ -249,6 +249,119 @@ fn talking_head_voice_close_keeps_source_delay_without_snapshot_restart() {
 }
 
 #[test]
+fn talking_head_source_glow_art_blend_geometry_and_alpha_keyframes_in_both_skins() {
+    use ui_toolkit::{
+        atlas::ActiveSkin,
+        frame::{Dimension, WidgetData},
+        layout_values::Val,
+        widgets::texture::{BlendMode, TextureSource},
+    };
+    // Retail XML anchors and native70448 atlas member4452..4455, sheet604.
+    let regions = [
+        (
+            "TalkingHeadGlowTopBar",
+            "TalkingHeads-Glow-TopBarGlow",
+            81.0,
+            23.0,
+            36.0,
+            5.5,
+            false,
+        ),
+        (
+            "TalkingHeadGlowLeftBar",
+            "TalkingHeads-Glow-SideBarGlow",
+            23.0,
+            86.0,
+            4.5,
+            9.5,
+            true,
+        ),
+        (
+            "TalkingHeadGlowRightBar",
+            "TalkingHeads-Glow-SideBarGlow",
+            23.0,
+            86.0,
+            125.5,
+            9.5,
+            true,
+        ),
+        (
+            "TalkingHeadSheen",
+            "TalkingHeads-Glow-Sheen",
+            262.0,
+            34.0,
+            102.0,
+            19.0,
+            false,
+        ),
+        (
+            "TalkingHeadTextSheen",
+            "TalkingHeads-Glow-TextSheen",
+            251.0,
+            71.0,
+            102.0,
+            45.0,
+            false,
+        ),
+    ];
+    for skin in [ActiveSkin::Modern, ActiveSkin::Forever] {
+        ui_toolkit::atlas::set_thread_skin(skin);
+        for (elapsed, alphas, bar_translation) in [
+            (200, [0.14, 0.01, 0.01, 0.01, 0.01], 0.0),
+            (750, [0.21, 0.7, 0.7, 0.35, 0.0], 5.0),
+            (1000, [0.0, 0.28, 0.56, 0.7, 0.35], 8.125),
+            (1500, [0.0, 0.0, 0.0, 0.0, 0.35], 10.0),
+            (1750, [0.0; 5], 10.0),
+        ] {
+            let mut update = source();
+            update.conversations[0].elapsed_ms = elapsed;
+            let mut state = TalkingHeadState::default();
+            state.receive(update, 400).unwrap();
+            let registry = project_source_state(state);
+            for ((name, atlas, width, height, left, top, translates), alpha) in
+                regions.into_iter().zip(alphas)
+            {
+                let id = registry
+                    .get_by_name(name)
+                    .unwrap_or_else(|| panic!("{skin:?} {elapsed}ms missing source glow {name}"));
+                let frame = registry.get(id).unwrap();
+                assert_eq!(
+                    (frame.width, frame.height),
+                    (Dimension::Fixed(width), Dimension::Fixed(height)),
+                    "{name}:source atlas size"
+                );
+                assert!(
+                    (frame.alpha - alpha).abs() < 0.0001,
+                    "{skin:?} {elapsed}ms {name}:{} != {alpha}",
+                    frame.alpha
+                );
+                if alpha > 0.0 {
+                    let translated = if translates { bar_translation } else { 0.0 };
+                    assert_eq!(
+                        (frame.position.left, frame.position.top),
+                        (Val::Px(left), Val::Px(top + translated)),
+                        "{name}:source anchor and translation"
+                    );
+                }
+                let Some(WidgetData::Texture(texture)) = &frame.widget_data else {
+                    panic!("{name}:source texture")
+                };
+                assert_eq!(
+                    texture.source,
+                    TextureSource::Atlas(atlas.into()),
+                    "{name}:source atlas identity"
+                );
+                assert_eq!(
+                    texture.blend_mode,
+                    BlendMode::Additive,
+                    "{name}:source ADD blend"
+                );
+            }
+        }
+    }
+}
+
+#[test]
 fn talking_head_source_opening_fades_follow_elapsed_time_in_both_skins() {
     use ui_toolkit::{
         atlas::ActiveSkin,
