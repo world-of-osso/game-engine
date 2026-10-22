@@ -543,19 +543,19 @@ mod tests {
     }
 
     #[test]
-    fn forever_puts_default_anchored_tooltips_right_of_the_cursor() {
-        let tooltip = five_lines();
-        let height = tooltip_size(&tooltip.content)[1];
-        let placed = place(tooltip.clone().for_skin(ActiveSkin::Forever), SCREEN);
-        // ANCHOR_CURSOR_RIGHT: the tooltip's BOTTOMLEFT on the cursor (800, 600).
-        assert_eq!((placed.x, placed.y), (800.0, 600.0 - height));
-        // Modern keeps GameTooltip_SetDefaultAnchor's bottom right.
-        let placed = place(tooltip.clone().for_skin(ActiveSkin::Modern), SCREEN);
-        assert_eq!(placed.x + w(), 1920.0 - 9.0);
-        // FlareUI only hooks the default anchor: owned tooltips keep their owner.
-        let owned = tooltip.owned([600.0, 500.0, 36.0, 36.0], OwnerSide::Right);
-        let placed = place(owned.for_skin(ActiveSkin::Forever), SCREEN);
-        assert_eq!((placed.x, placed.y), (636.0, 500.0 - height));
+    fn ui_template_behavior_default_anchor_is_retail_in_both_art_skins() {
+        for skin in [ActiveSkin::Modern, ActiveSkin::Forever] {
+            ui_toolkit::atlas::set_thread_skin(skin);
+            let tooltip = five_lines();
+            let height = tooltip_size(&tooltip.content)[1];
+            let placed = place(tooltip.clone().for_skin(skin), SCREEN);
+            // R GameTooltipDefaultContainer: BOTTOMRIGHT on UIParent (-9, +85).
+            assert_eq!(placed.x + w(), 1920.0 - 9.0, "{skin:?} default x");
+            assert_eq!(placed.y + height, 1080.0 - 85.0, "{skin:?} default y");
+            let owned = tooltip.owned([600.0, 500.0, 36.0, 36.0], OwnerSide::Right);
+            let placed = place(owned.for_skin(skin), SCREEN);
+            assert_eq!((placed.x, placed.y), (636.0, 500.0 - height));
+        }
     }
 
     #[test]
