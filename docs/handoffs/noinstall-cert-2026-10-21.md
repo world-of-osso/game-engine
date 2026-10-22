@@ -324,6 +324,22 @@ Lead explicitly decides that world.content_item's absent definition-source colum
 
 Next approved slice: existing generic texture/sound provenance ledger and selected DB2 table receipts,with ignored RED fixtures pushed first. No ModelAssetIndex expansion,no data writes/extraction and no full-graph or native replay.
 
+### Non-model texture/sound and DB2 receipt qualification
+
+Lead approves the same ignored-RED-first workflow after root ownership. `5fd5e847a` pushes12 skipped fixtures; enabled RED reproduces11 behavioral failures plus the absent input-status field. Implementation `498b7b5b2` enables them. Two additional malformed-build-identity REDs are pushed skipped in `a3567ff47`,then fixed/enabled by `5bac69917`. Current focused integration passes96 tests,including14 non-model cases,6 root-source cases,13 model-receipt cases and63 raw producer/parser controls. RuffF and diff checks pass; source master is already integrated. No full-graph,native,extraction or canonical data write.
+
+| Family | Exact bounded behavior |
+|---|---|
+| Native flat textures | Qualify the actual path's product/FDID,size,SHA256 and content-key MD5 against existing generic extraction receipts; never redirect to a scoped current copy |
+| Sounds | Use the existing generic ledger,not ModelAssetIndex; other-product records cannot authenticate identical flat bytes; malformed identity/content mismatches remain gaps |
+| Historical records | Select all valid matches to actual bytes,not last-row precedence; retain matching build identities rather than relabelling old bytes as current |
+| DB2 exports | Selected CSV requires its directory's authenticated table receipt with matching product/build identity and CSV SHA256; missing,wrong-product or changed receipts block parsing; partial exports retain exact unreadable counts |
+| Missing provenance | Hash-only UI icon inventories do not authenticate origin; missing actual-file receipts and in-cohort receipt/input drift remain explicit unresolved records |
+
+`closure_nonmodel_receipts.py` streams existing `provenance/closure-extract.jsonl` once for requested flat inputs and checks per-directory `receipt.json` for metadata. Native spell/icon/visual BLP requests are explicitly flat; model-owned companions/textures retain their scoped namespace. Source metadata fixtures now include table receipts instead of relying on unauthenticated CSVs. Generic sound/blob/DB2 entries are not added to the native model index.
+
+Proof: `audit-nonmodel-{red,identity-red,identity-green,ruff}.log` and `audit-source-families-final-green.log` at5bac69917. These are bounded file-backed behavior tests,not a readback of every current generic ledger entry or a new full-catalog certificate. Actual cache-import provenance,unreceipted Forever metadata,unsupported/policy source gaps,scenario containment and clean-room bundle acceptance remain open. In particular,the native Skyborne-only player body/customization overlay is not covered by the NPC display-cache source tests; do not present all-character source selection as qualified. The old full-config manifests above keep their original scope/counts.
+
 ## Remaining acceptance and proposed P4 plan
 
 Lead confirms eight-material CASC re-extraction/no-clobber publication:226,775 canonical keys,zero duplicates,flat legacy files untouched. Independent eight-payload readback is recorded above. This is not full-catalog certification.
@@ -336,4 +352,4 @@ Lead confirms eight-material CASC re-extraction/no-clobber publication:226,775 c
 - [ ] **Prove scenario containment and cache/GPU boundaries.** Cover supported creation/class/customization,item/spell/NPC/map families and retained-cache mixed-product collisions with manifest-contained successful requests,zero required misses and tripwire0. Preserve named Skyborne603672,Mulgore attachment34,Stockades zero-Basis,NPC animation5 and unobserved follower-weapon boundaries; rendering defects are not automatically asset-closure fixes. R5c normal native exit remains a separate gap.
 - [ ] **Integrate the certificate and clean-room gate.** Produce the exact current manifest/receipt/scenario coverage matrix and prove the prerequisite manifest-only P3 slice plus deterministic missing-file failure. Release-only packaging,CASC compile-out and download-hash validation belong to P5,not a relabelled P4 pass; production publication/deployment remains subject to the player-bundle security hold.
 
-Immediate proposed slice: metadata-only current input/root inventory,then a fresh bounded full-graph reconciliation under ADD. The exempt native-run allowance is consumed; no deployment or publication authority is inferred from this plan. The selected-map native evidence above remains bounded proof,not all-catalog acceptance.
+Approved metadata/root inventory,sequential legacy diagnostic graphs and bounded model/root/non-model auditor corrections are recorded above. No corrected full-graph replay has run. Next proposed milestone is a fresh frozen-input reconciliation with the changed auditor,explicit owned-item source gaps and generic/table receipts retained; it needs the applicable scope/admission instruction. The native allowance remains consumed; no native,deployment or publication authority is inferred. Selected-map native evidence remains bounded,not all-catalog acceptance.
