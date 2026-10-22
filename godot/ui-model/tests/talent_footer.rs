@@ -270,7 +270,8 @@ fn talent_loadout_new_opens_a_retail_name_dialog() {
 }
 
 #[test]
-fn loadout_menu_has_only_server_supported_default_configuration_no_fabricated_saved_builds() {
+fn ui_template_behavior_services_loadout_menu_keeps_disabled_export_owner_and_real_configurations()
+{
     for skin in [ActiveSkin::Modern, ActiveSkin::Forever] {
         set_thread_skin(skin);
         let mut state = state();
@@ -282,6 +283,33 @@ fn loadout_menu_has_only_server_supported_default_configuration_no_fabricated_sa
         shared.insert(state.clone());
         let mut registry = FrameRegistry::new(1920.0, 1080.0);
         Screen::new(spellbook_frame_screen).sync(&shared, &mut registry);
+        let hit = registry.get_by_name("TalentExportLoadout").unwrap();
+        let (owner, binding) =
+            ui_toolkit::tooltip::tooltip_owner(&registry, hit).expect("disabled export live owner");
+        assert_eq!(owner.id, hit);
+        assert_eq!(binding.provider.as_deref(), Some("talent_gate"));
+        assert_eq!(binding.anchor, ui_toolkit::tooltip::TooltipAnchor::Right);
+        let gates: Vec<_> = registry
+            .frames_iter()
+            .filter(|frame| {
+                frame
+                    .name
+                    .as_deref()
+                    .is_some_and(|name| name.starts_with("TalentGate") && name.ends_with("Button"))
+            })
+            .map(|frame| frame.id)
+            .collect();
+        assert!(
+            !gates.is_empty(),
+            "real preview supplies trait condition gates"
+        );
+        for hit in gates {
+            let (owner, binding) = ui_toolkit::tooltip::tooltip_owner(&registry, hit)
+                .expect("trait condition live owner");
+            assert_eq!(owner.id, hit);
+            assert_eq!(binding.provider.as_deref(), Some("talent_gate"));
+            assert_eq!(binding.anchor, ui_toolkit::tooltip::TooltipAnchor::Left);
+        }
         assert!(registry.get_by_name("TalentDefaultLoadout").is_none()); // default is caption, not a saved config ID
         let Some(WidgetData::FontString(caption)) = &registry
             .get(registry.get_by_name("TalentLoadoutName").unwrap())
