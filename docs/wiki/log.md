@@ -5113,3 +5113,7 @@ gc774 passed tests/fmt and landed engineb0b3d4b39; exact server842325bf3/protoco
 ## 2026-10-22 — Metadata-owned offline roots
 
 [Root ownership proof](../handoffs/noinstall-cert-2026-10-21.md#metadata-owned-auditor-roots) records ignored RED-first publication then native map/display/NPC resource source selection. Owned items require explicit definition source and isolated catalogs; unsourced full-catalog IDs remain named gaps. No full-graph replay,native run,extraction or cache-import provenance claim.
+
+## 2026-10-22 — Non-model source receipts in the offline auditor
+
+[Bounded family qualification](../handoffs/noinstall-cert-2026-10-21.md#non-model-texturesound-and-db2-receipt-qualification) follows ignored RED publication with actual-path generic texture/sound receipts and selected DB2 export product/hash/partial-record checks. Native flat paths never borrow scoped bytes; hash-only UI inventories remain unauthenticated. No corrected full-graph replay,native/extraction run or all-content certificate.
