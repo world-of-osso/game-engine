@@ -3,7 +3,7 @@
 use crate::ui::RegistryUi;
 use game_engine_ui_model::talking_head::TalkingHeadState;
 use godot::{
-    classes::{Node, ProjectSettings},
+    classes::{InputEvent, Node, ProjectSettings},
     prelude::*,
 };
 
@@ -31,6 +31,18 @@ impl INode for TalkingHeadFixture {
                 .into(),
         }
     }
+
+    fn input(&mut self, event: Gd<InputEvent>) {
+        if crate::talking_head::dismiss_pointer(&mut self.state, self.ui.as_ref(), &event) {
+            if let Some(mut viewport) = self.base().get_viewport() {
+                viewport.set_input_as_handled();
+            }
+        }
+    }
+
+    fn exit_tree(&mut self) {
+        self.voice.stop();
+    }
 }
 
 #[godot_api]
@@ -48,6 +60,7 @@ impl TalkingHeadFixture {
         let Some(ui) = &mut self.ui else {
             return "TalkingHead fixture not initialized".into();
         };
+        crate::talking_head::consume_actions(&mut self.state, &mut ui.bind_mut());
         let result = ui.bind_mut().set_state(self.state.clone());
         let mut parent = self.base().clone().upcast();
         result
@@ -78,11 +91,6 @@ impl TalkingHeadFixture {
     fn voice_state(&self) -> VarDictionary {
         self.voice.snapshot()
     }
-
-    #[func]
-    fn dismiss(&mut self) {
-        self.state.dismiss();
-    }
 }
 
 impl TalkingHeadFixture {
@@ -106,6 +114,7 @@ impl TalkingHeadFixture {
         self.base_mut().add_child(&ui);
         let result = ui.bind_mut().show_talking_head(self.state.clone());
         self.ui = Some(ui);
+        self.base_mut().set_process_input(true);
         result
     }
 }
