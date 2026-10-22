@@ -63,11 +63,6 @@ func run_case(forever: bool, close_method: String, payload: String, output: Stri
     check(model_position.distance_to(Vector3(2.82894468,-0.0669228658,-2.48507595)) < 0.000001, "model translation, not fitted eye: " + label)
     check(angles.distance_to(Vector3(0.220450103,0,0)) < 0.000001, "LookAt as yaw/pitch/roll: " + label)
     check(camera.get("camera_position", Vector3.ZERO) == Vector3(4,0,0) and camera.get("camera_target", Vector3.ONE) == Vector3.ZERO, "fixed camera-space4 to target0: " + label)
-    await RenderingServer.frame_post_draw
-    var image := root.get_texture().get_image()
-    check(image.get_size() == Vector2i(1920,1080), "native1920x1080: " + label)
-    var filename := "talking-head-%s-%s.png" % [skin, close_method]
-    check(image.save_png(output.path_join(filename)) == OK, "unscaled original PNG: " + label)
     # Worker/CASC readiness follows wall time, not renderer throughput.
     var voice_deadline := Time.get_ticks_msec() + 30000
     error = ""
@@ -83,6 +78,15 @@ func run_case(forever: bool, close_method: String, payload: String, output: Stri
     check(voice.get("playing", false), "native playback, not audible-output proof: " + label)
     check(voice.get("kit", 0) == 250774 and voice.get("fdid", 0) == 5834729, "source kit/clip: " + label)
     check(voice.get("offset_ms", -1) == 750, "source elapsed750ms seek: " + label)
+    check(text != null and is_zero_approx(text.modulate.a), "source text fade starts at750ms: " + label)
+    error = fixture.tick(0.75)
+    await process_frame
+    check(error.is_empty() and text != null and is_equal_approx(text.modulate.a, 1.0), "source opening settled at1500ms: " + label)
+    await RenderingServer.frame_post_draw
+    var image := root.get_texture().get_image()
+    check(image.get_size() == Vector2i(1920,1080), "native1920x1080: " + label)
+    var filename := "talking-head-%s-%s.png" % [skin, close_method]
+    check(image.save_png(output.path_join(filename)) == OK, "unscaled original PNG: " + label)
     var close: Control = fixture.find_child("TalkingHeadCloseButton", true, false)
     if close_method == "button":
         if close != null:
@@ -121,8 +125,8 @@ func run_fixture() -> void:
                 quit(1)
                 return
     check(cases == 4, "all four skin/input cases completed")
-    check(steps == 203, "exact checked-step contract before final assertion")
-    print("TALKING_HEAD_FIXTURE cases=%d expected_cases=4 steps=%d expected_steps=204 failures=%d" % [cases,steps,failures])
+    check(steps == 211, "exact checked-step contract before final assertion")
+    print("TALKING_HEAD_FIXTURE cases=%d expected_cases=4 steps=%d expected_steps=212 failures=%d" % [cases,steps,failures])
     if failures == 0:
         print("ALL_CASES_DONE %d/4" % cases)
         print("PASS talking_head_native_both_skins chrome_text_voice_input_only MODEL_GAP=TALKING_HEAD_MODEL_PROJECTION_UNSOURCED")
