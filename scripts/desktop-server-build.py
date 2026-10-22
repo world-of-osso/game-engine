@@ -15,6 +15,9 @@ import tempfile
 import time
 
 from build_hosts import CACHE_ROOT, execute
+
+# Forward the host key for the server's private git dev-dependency (scripts/desktop-server/Dockerfile).
+SSH_FORWARD = ("--ssh", f"default={Path.home() / '.ssh/id_ed25519'}")
 from native_cargo import native_slot, run_cargo
 from native_build_hosts import SERVER_RUNTIME_CATALOGS
 
@@ -99,6 +102,7 @@ def build(root, host=None, release=False, binary=None, features=None):
             snapshot(root, context)
             output = Path(temporary)
             arguments = [
+                *SSH_FORWARD,
                 "--build-arg",
                 f"TARGET_CACHE=server-target-{key}",
                 "--build-arg",
@@ -203,6 +207,7 @@ def run_tests(root, cargo_args, host=None):
             snapshot(root, context)
             output = Path(temporary)
             arguments = [
+                *SSH_FORWARD,
                 "--build-context", f"test-data={mirror}",
                 "--build-arg", f"TARGET_CACHE=server-target-{key}",
                 "--build-arg", f"SERVER_CACHE={key}",
