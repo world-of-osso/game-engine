@@ -33,6 +33,10 @@ Port recurring behavior once from the Retail R cache, then migrate every audited
 - The existing `ThreeSlice` now has independent cap extents, per-region UVs, vertical orientation and blend metadata. Shared core geometry feeds native projection and ordinary texture expansion; audited chat/auction/entrance/currency/header/scroll helpers no longer own this arithmetic. Existing Loading symmetric25px caps are unchanged. Step4 strict native fixture covers30 supplied production states in both skins, including ordinary close hover/Pushed transitions; lead integration/visual acceptance remains separate.
 - Minimap highlights default BLEND. UIPanelCloseButton's `RedButton-Highlight` explicitly uses ADD (R SharedUIPanelTemplates.xml139/146); this is distinct from the SharedButton Lua setter's omitted blend argument.
 
+## Step5 implementation in progress
+
+Toolkit Frame tooltip metadata records a live provider key or static enabled/disabled content, source anchor/offset/color/wrap policy. Declaration rebuilds remove omitted bindings. One ancestor walk resolves the nearest visible content owner; unsupported anchors reject explicitly. Initial attribute/rebuild/rejection controls reproduced3 actual REDs before implementation. Consumer migration, native bridging, lifecycle/Escape/sound descriptors and Step5 GREEN/native acceptance remain pending; no existing host dispatch was replaced yet.
+
 ## Implementation inventory
 
 - `godot/ui-model/src/` — production panel/template declarations and existing domain decisions.
