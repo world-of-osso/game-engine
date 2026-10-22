@@ -53,7 +53,15 @@ func run_fixture() -> void:
         var image := root.get_texture().get_image()
         check(image.get_size() == Vector2i(1920,1080), "native1920x1080 image: " + skin)
         check(image.save_png(output.path_join("talking-head-" + skin + ".png")) == OK, "save unscaled original PNG: " + skin)
-        check(fixture.model_ready(), "actual source display116692 and camera1751 painted: " + skin)
+        var camera: Dictionary = fixture.camera_state()
+        check(camera.get("model_gap", "") == "TALKING_HEAD_MODEL_PROJECTION_UNSOURCED", "explicit model-projection source gap: " + skin)
+        check(camera.get("source_ui_camera", 0) == 1751 and camera.get("source_flags", -1) == 0, "native source camera identity/raw flags: " + skin)
+        var model_position: Vector3 = camera.get("model_position", Vector3.ZERO)
+        var angles: Vector3 = camera.get("yaw_pitch_roll", Vector3.ZERO)
+        check(model_position.distance_to(Vector3(2.82894468,-0.0669228658,-2.48507595)) < 0.000001, "source model translation, not fitted eye: " + skin)
+        check(angles.distance_to(Vector3(0.220450103,0,0)) < 0.000001, "source LookAt values remain yaw/pitch/roll: " + skin)
+        check(camera.get("camera_position", Vector3.ZERO) == Vector3(4,0,0) and camera.get("camera_target", Vector3.ONE) == Vector3.ZERO, "authored fixed camera space4 to target0: " + skin)
+        print("GAP TALKING_HEAD_MODEL_PROJECTION_UNSOURCED skin=" + skin)
         # Worker/CASC readiness follows wall time, not renderer throughput.
         var voice_deadline := Time.get_ticks_msec() + 30000
         while Time.get_ticks_msec() < voice_deadline:

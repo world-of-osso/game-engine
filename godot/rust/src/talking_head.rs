@@ -9,6 +9,7 @@ use godot::{
 };
 use shared::protocol::ConversationUpdate;
 
+pub(crate) mod camera;
 pub(crate) mod voice;
 
 #[derive(Default)]
@@ -59,6 +60,11 @@ impl GameClient {
         if let Some(ui) = &mut self.talking_head.ui {
             ui.set_visible(in_world);
             ui.bind_mut().set_state(self.talking_head.state.clone())?;
+            camera::sync_source_camera(
+                ui,
+                self.talking_head.state.current().as_ref(),
+                &self.data_root,
+            )?;
         }
         let mut parent = self.base().clone().upcast();
         self.talking_head.voice.sync(

@@ -27,7 +27,8 @@ Consume the private source conversation payload and render the authored70448 Ret
 
 - `godot/ui-model/tests/talking_head.rs`: actual source payload/elapsed expiry/private-owner refusal and dismissal.
 - `godot/network/src/wire_tests.rs`: real UDP/Host ordered source snapshot and clear.
-- `godot/tests/talking_head.gd`, `godot/rust/src/talking_head_fixture.rs`: native source-payload projection, authored model host and unscaled1920 PNGs; actual model/camera paint is an explicit prerequisite, not waived by chrome rendering.
+- `godot/tests/talking_head.gd`, `godot/rust/src/talking_head_fixture.rs`: native source-payload projection, authored host/source-camera metadata, voice playback/stop and unscaled1920 PNGs. Model paint is not claimed: the approved named projection gap is asserted explicitly.
+- `godot/core/tests/talking_head_camera.rs`: exact source1751 Pos/Euler/raw Flags and authored fixed camera/target; no inferred native projection.
 
 ## Known gaps (current cycle)
 

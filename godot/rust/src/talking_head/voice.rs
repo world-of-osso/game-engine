@@ -116,6 +116,7 @@ impl TalkingHeadVoice {
         self.line = None;
     }
 
+    #[cfg(debug_assertions)]
     pub(crate) fn snapshot(&self) -> VarDictionary {
         let mut state = VarDictionary::new();
         state.set(
