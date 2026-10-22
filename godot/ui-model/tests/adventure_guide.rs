@@ -149,6 +149,10 @@ fn encounter_link_reopens_the_class_filter_without_the_previous_submenu() {
     view.apply("journal:filter:class").unwrap();
     view.apply("journal:class-menu").unwrap();
     view.select_dungeon_encounter(1058, Some(24)).unwrap();
+    assert!(
+        !view.class_menu_open,
+        "Encounter navigation must discard the previous nested menu state"
+    );
     view.apply("journal:filter:class").unwrap();
     let mut shared = SharedContext::new();
     shared.insert(ActiveSkin::Modern);
