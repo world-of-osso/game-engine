@@ -17,7 +17,11 @@ pub struct TalkingHeadPaint {
 
 pub(super) fn present(state: &TalkingHeadState) -> Option<TalkingHeadPaint> {
     if let Some(closing) = &state.closing {
-        return Some(close_paint(closing.view.clone(), closing.elapsed_ms));
+        return Some(close_paint(
+            closing.view.clone(),
+            closing.elapsed_ms,
+            closing.delay_ms,
+        ));
     }
     let view = state.current()?;
     let active = state
@@ -78,9 +82,9 @@ fn source_lines(active: &Active) -> Vec<(f64, &str, &str)> {
         .collect()
 }
 
-fn close_paint(view: TalkingHeadView, elapsed: f64) -> TalkingHeadPaint {
+fn close_paint(view: TalkingHeadView, elapsed: f64, delay: f64) -> TalkingHeadPaint {
     // FadeoutFrames plays each source Close alpha group from1 to0 for1s.
-    let alpha = (1.0 - elapsed / CLOSE_DURATION_MS).clamp(0.0, 1.0) as f32;
+    let alpha = (1.0 - (elapsed - delay) / CLOSE_DURATION_MS).clamp(0.0, 1.0) as f32;
     let main_elapsed_ms = view.conversation_elapsed_ms as f64 + elapsed;
     TalkingHeadPaint {
         view,

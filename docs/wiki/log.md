@@ -1,3 +1,7 @@
+## 2026-10-22 — Playing-voice source Close implementation
+
+[Runtime](systems/talking-head.md#runtime): genuine native player/gain/UI assertions reproduce4RED after typed source clear; Godot JSON identity casts fix only the earlier invalid fixture boundary. Native close now retires the active VO onto its own bound2s gain tween and defers UI Close1s without resetting receipt elapsed. Local active-handle dismissal remains immediate. CPU/native GREEN pending; no audible-output claim.
+
 ## 2026-10-22 — Source TalkingHead line/close model boundaries
 
 [Runtime](systems/talking-head.md#runtime): authentic705 line callbacks and Orator no-voice Close reproduce2RED, then all7model controls GREEN at4abef5a71. Source VO stays authoritative while painted text replaces after250ms and Fadein begins after500ms; no-voice source clear retains1s chrome. Native playing-voice delay/fade and glows remain open; native RED fixture is registered, not yet run. Opening216-check native snapshots retain the unresolved transient ObjectDB warning.

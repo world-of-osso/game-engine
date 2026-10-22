@@ -71,7 +71,11 @@ impl TalkingHeadFixture {
 
     #[func]
     fn tick(&mut self, delta: f64) -> GString {
-        self.state.advance(delta as f32);
+        crate::talking_head::advance_source_presentation(
+            &mut self.state,
+            &mut self.voice,
+            delta as f32,
+        );
         let Some(ui) = &mut self.ui else {
             return "TalkingHead fixture not initialized".into();
         };

@@ -17,11 +17,11 @@ Consume the private source conversation payload and render the authored70448 Ret
 
 ## Implementation inventory
 
-- `godot/ui-model/src/talking_head.rs` and `talking_head/presentation.rs`: private source/elapsed state remains the voice authority; painted name/text follows Lua's250ms replacement and500ms Fadein callbacks without delaying the source line. An authoritative clear retains the no-voice1s Close painting; local dismissal/world clear remain immediate. Playing-voice close delay/fade is not implemented yet.
+- `godot/ui-model/src/talking_head.rs` and `talking_head/presentation.rs`: private source/elapsed state remains the voice authority; painted name/text follows Lua's250ms replacement and500ms Fadein callbacks without delaying the source line. An authoritative clear retains the no-voice1s Close painting; local dismissal/world clear remain immediate. A playing source voice defers Close by1s without restarting that timer; native gain fade runs for2s. Its GREEN proof remains pending.
 - `godot/ui-model/src/talking_head_component.rs`: authored Retail TalkingHead chrome/name/text/model host geometry and opening alphas from the conversation's elapsed time. Lua delays name500ms/text750ms; XML durations name/text250ms, portrait/model750ms, background750ms after400ms and close750ms after750ms. Repeated snapshots do not restart them. Painted line/close transitions live in the separate presentation state; playing-voice close and glow animation remain open.
 - `godot/network/src/lib.rs`: ordered ConversationUpdate relay on EncounterChannel.
 - `godot/rust/src/{talking_head,encounter,lib}.rs`: native owner/map-validated UI host, event routing, shared UI-scale/pointer registration and local dismissal; model framing remains absent.
-- `godot/rust/src/talking_head/voice.rs`: source-kit/file loading off-frame, elapsed seek, one active voice and local/world-exit stop. Native source extraction is blocked below.
+- `godot/rust/src/talking_head/voice.rs`: source-kit/file loading off-frame, elapsed seek and one active voice. Local/world-exit stop the active handle immediately. Source Close retires that handle onto its own bound2s gain tween, so a subsequent source line does not restart/cut off the retiring fade; queued free ends that player. This is playback/gain state, not audible-output or exact waveform parity.
 
 ## Tests asserting this spec
 
@@ -33,7 +33,7 @@ Consume the private source conversation payload and render the authored70448 Ret
 ## Known gaps (current cycle)
 
 - [ ] `TALKING_HEAD_MODEL_PROJECTION_UNSOURCED`: model rendering stays disabled. Source Pos→model translation, LookAt→yaw/pitch/roll and fixed camera(4,0,0)→target(0,0,0) are retained; flags→useModelCenter and native PlayerModel projection remain unknown. Do not treat Pos as the eye, substitute an M2 portrait camera, or fit the mesh.
-- [ ] Playing-voice Close (source1s delay/2s sound fade), glow/scale/translation animation and joint protocol/server/engine acceptance remain open. Model paint is explicitly excluded under the approved projection gap, not silently certified.
+- [ ] Playing-voice Close GREEN/native proof, glow/scale/translation animation and joint protocol/server/engine acceptance remain open. Model paint is explicitly excluded under the approved projection gap, not silently certified.
 
 ## Bounded proof
 
@@ -53,7 +53,7 @@ This is sampled offline presentation, not real world ingress, authored fades/glo
 
 ### Transition RED boundary
 
-`c595b0b2a` adds exact source705 lines1683/1684 (additional500ms each, missing locale duration retained) and actor98075's pinned TDB name; fixture map/entity IDs are controls. Source rows are recorded in `talking-head-705-source-rows.json`; canonical runtime actor-name coverage is not claimed. Source-model target tests reproduce2RED: new text replaced immediately at625ms instead of after the source250ms callback, and source clear hid chrome immediately instead of retaining the no-voice1s Close. Existing opening/layout controls remain GREEN. At `4abef5a71`, all seven TalkingHead model controls pass (0.11s, zero warnings), including both repaired boundaries. Native transition proof and playing-voice Close remain pending. `talking_head_source_close.gd` is registered with an independent expected2 and checks the actual source AudioStreamPlayer, gain/lifetime and1s UI delay/1s Close; it is the next unrun native RED, not acceptance.
+`c595b0b2a` adds exact source705 lines1683/1684 (additional500ms each, missing locale duration retained) and actor98075's pinned TDB name; fixture map/entity IDs are controls. Source rows are recorded in `talking-head-705-source-rows.json`; canonical runtime actor-name coverage is not claimed. Source-model target tests reproduce2RED: new text replaced immediately at625ms instead of after the source250ms callback, and source clear hid chrome immediately instead of retaining the no-voice1s Close. Existing opening/layout controls remain GREEN. At `4abef5a71`, all seven TalkingHead model controls pass (0.11s, zero warnings), including both repaired boundaries. Native transition proof and playing-voice Close remain pending. `talking_head_source_close.gd` is registered with an independent expected2 and checks the actual source AudioStreamPlayer, gain/lifetime and1s UI delay/1s Close; at `278d8f997` the valid source-clear run fails Modern's actual player cutoff, missing gain fade and1s UI delay/half-close (steps11/14/15/17). Fail-fast stops before Forever. Earlier source-clear attempts were invalid fixture input: Godot JSON changed u32 identity41 to41.0; explicit integer encoding fixed that boundary without widening protocol types. Evidence: `talking-head-source-close-red-valid/`. Playing-voice implementation GREEN is pending, not acceptance.
 
 ## Camera reference boundary
 

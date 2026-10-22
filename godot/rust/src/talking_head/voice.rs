@@ -107,6 +107,24 @@ impl TalkingHeadVoice {
         Ok(())
     }
 
+    pub(crate) fn is_playing(&self) -> bool {
+        self.player
+            .as_ref()
+            .is_some_and(|player| player.is_playing())
+    }
+
+    /// Source StopSound(handle,2000): the retiring player owns its native tween,
+    /// so a new source line can start without restarting or cutting this fade.
+    pub(crate) fn fade_out(&mut self) {
+        self.pending = None;
+        self.line = None;
+        let mut player = self.player.take().expect("playing source voice");
+        player.set_name("TalkingHeadVoiceClosing");
+        let mut tween = player.create_tween();
+        tween.tween_property(&player, "volume_linear", &0.0f32.to_variant(), 2.0);
+        tween.tween_callback(&player.callable("queue_free"));
+    }
+
     pub(crate) fn stop(&mut self) {
         self.pending = None;
         if let Some(mut player) = self.player.take() {
@@ -119,12 +137,7 @@ impl TalkingHeadVoice {
     #[cfg(debug_assertions)]
     pub(crate) fn snapshot(&self) -> VarDictionary {
         let mut state = VarDictionary::new();
-        state.set(
-            "playing",
-            self.player
-                .as_ref()
-                .is_some_and(|player| player.is_playing()),
-        );
+        state.set("playing", self.is_playing());
         state.set("kit", self.kit);
         state.set("fdid", self.fdid);
         state.set("offset_ms", self.offset_ms);
