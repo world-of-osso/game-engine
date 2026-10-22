@@ -23,6 +23,9 @@ func boss_frame_right_click() -> bool:
 	if not shown("Boss1TargetFrame"):
 		stop("Real private encounter did not present its boss frame")
 		return false
+	if client.adventure_guide_state().visible or client.adventure_guide_state().loaded:
+		stop("Received boss frame auto-opened the previously unopened Guide")
+		return false
 	var point := control("Boss1TargetFrame").get_global_rect().get_center()
 	var motion := InputEventMouseMotion.new()
 	motion.position = point
@@ -86,7 +89,10 @@ func run() -> void:
 	phase("open-guide-ready")
 	if not await wait_signal("pythas-started") or not await wait_journal(func(state): return state.encounter == 476 and state.difficulty == 1, "Open Guide did not follow actual Pythas ENCOUNTER_START"):
 		return
-	if not await shot("integration-open-guide-encounter-start") or not await verify_received_save_and_key():
+	if not await shot("integration-open-guide-encounter-start"):
+		return
+	phase("pythas-observed")
+	if not await wait_signal("safe-origin") or not await verify_received_save_and_key():
 		return
 	phase("passed")
 	print("AG_PAGES_INTEGRATION_PASS skin=%s closedStart/firstBossRightClick/nonemptySave/openStart/realLucifronDeath/sourceMapAzureKey" % client.account_state().ui_skin)
