@@ -52,27 +52,45 @@ fn atlas(name: String, art: &str, rect: (f32, f32, f32, f32)) -> Element {
     pos_type: "absolute", texture_atlas: art } }
 }
 
-/// Atlas-skinned control with no implicit wooden project skin.
-struct Skin<'a> {
-    up: &'a str,
-    pressed: &'a str,
-    disabled: &'a str,
-    highlight: &'a str,
+/// A named template or distinct inline artwork authored by Transmog itself.
+enum Skin<'a> {
+    Template(&'a str),
+    States {
+        up: &'a str,
+        pressed: &'a str,
+        disabled: &'a str,
+        highlight: &'a str,
+    },
 }
 
-/// SharedButtonTemplate (128-RedButton three-slice, rendered natively from the left member).
-const RED_BUTTON: Skin = Skin {
-    up: "128-redbutton-left",
-    pressed: "128-redbutton-left-pressed",
-    disabled: "128-redbutton-left-disabled",
-    highlight: "128-redbutton-left",
-};
-const TERTIARY: Skin = Skin {
+const RED_BUTTON: Skin = Skin::Template("SharedButtonTemplate");
+const TERTIARY: Skin = Skin::States {
     up: "common-button-tertiary-normal",
     pressed: "common-button-tertiary-pressed",
     disabled: "common-button-tertiary-disabled",
     highlight: "common-button-tertiary-normal",
 };
+
+fn button_skin_attrs(skin: &Skin) -> Vec<ui_toolkit::widget_def::Attr> {
+    use ui_toolkit::widget_def::Attr;
+    match skin {
+        Skin::Template(name) => vec![Attr::new_dynamic("button_template", (*name).into())],
+        Skin::States {
+            up,
+            pressed,
+            disabled,
+            highlight,
+        } => [
+            ("button_atlas_up", *up),
+            ("button_atlas_pressed", *pressed),
+            ("button_atlas_disabled", *disabled),
+            ("button_atlas_highlight", *highlight),
+        ]
+        .into_iter()
+        .map(|(name, value)| Attr::new_dynamic(name, value.into()))
+        .collect(),
+    }
+}
 
 fn skinned_button(
     name: &str,
@@ -86,13 +104,14 @@ fn skinned_button(
     let (left, top, width, height) = rect;
     let disabled = !enabled;
     let action = if enabled { action } else { "" };
-    rsx! { button { name: {DynName(name.into())}, width, height, left, top,
+    let mut element = rsx! { button { name: {DynName(name.into())}, width, height, left, top,
     pos_type: "absolute", disabled, text: caption, font_size: 12.0,
-    button_default_skin: false, onclick: action,
-    button_atlas_up: skin.up,
-    button_atlas_pressed: skin.pressed,
-    button_atlas_disabled: skin.disabled,
-    button_atlas_highlight: skin.highlight, {children} } }
+    button_default_skin: false, onclick: action, {children} } };
+    let [ui_toolkit::widget_def::WidgetChild::Widget(widget)] = element.as_mut_slice() else {
+        unreachable!("skinned button has one root");
+    };
+    widget.attrs.extend(button_skin_attrs(skin));
+    element
 }
 
 pub fn transmog_screen(ctx: &SharedContext) -> Element {
@@ -445,7 +464,7 @@ fn clear_all_pending(book: &TransmogBook) -> Element {
             36.0,
             36.0,
         ),
-        &Skin {
+        &Skin::States {
             up: "common-button-tertiary-square-normal",
             pressed: "common-button-tertiary-square-pressed",
             disabled: "common-button-tertiary-square-normal",
@@ -539,7 +558,7 @@ fn model_controls() -> Element {
             action,
             enabled,
             (left + index as f32 * 26.0, REGION_TOP + 18.0, 32.0, 32.0),
-            &Skin {
+            &Skin::States {
                 up: "common-button-square-gray-up",
                 pressed: "common-button-square-gray-down",
                 disabled: "common-button-square-gray-up",

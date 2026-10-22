@@ -105,26 +105,6 @@ const COIN_GOLD: AtlasArt = coin(197.0);
 const COIN_SILVER: AtlasArt = coin(219.0);
 const COIN_COPPER: AtlasArt = coin(175.0);
 
-/// PanelTabButtonTemplate atlas 4707839 64×256 (SharedUIPanelTemplates.xml:905-977).
-const TAB_ATLAS: (u32, (f32, f32)) = (4_707_839, (64.0, 256.0));
-const fn tab_art(rect: (f32, f32, f32, f32)) -> AtlasArt {
-    AtlasArt {
-        fdid: TAB_ATLAS.0,
-        atlas: TAB_ATLAS.1,
-        rect,
-    }
-}
-const TAB_ACTIVE: [AtlasArt; 3] = [
-    tab_art((1.0, 36.0, 127.0, 169.0)),
-    tab_art((0.0, 1.0, 1.0, 43.0)),
-    tab_art((1.0, 38.0, 83.0, 125.0)),
-];
-const TAB_INACTIVE: [AtlasArt; 3] = [
-    tab_art((1.0, 36.0, 209.0, 245.0)),
-    tab_art((0.0, 1.0, 45.0, 81.0)),
-    tab_art((1.0, 38.0, 171.0, 207.0)),
-];
-
 const HIGHLIGHT_FONT_COLOR: &str = "1.0,1.0,1.0,1.0";
 const GRAY_FONT_COLOR: &str = "0.5,0.5,0.5,1.0";
 const WHITE: &str = "1.0,1.0,1.0,1.0";
@@ -266,11 +246,10 @@ fn text(t: Text) -> Element {
             width,
             height,
             text: t.text,
+            font_object: "GameFontNormal",
             font: t.font,
             font_size: t.size,
             font_color: t.color,
-            shadow_color: "0.0,0.0,0.0,1.0",
-            shadow_offset: "1,-1",
             justify_h: t.justify,
             pos_type: "absolute",
             left: x,
@@ -1069,10 +1048,16 @@ pub(crate) fn tab_width<'a>(label: impl Into<TabLabel<'a>>) -> f32 {
                 .ceil();
         }
     };
-    let text_w = measure_text(label, GameFont::FrizQuadrata, 10.0).map_or(50.0, |(w, _)| w);
-    (text_w + 20.0)
-        .max(TAB_INACTIVE[0].size().0 + TAB_INACTIVE[2].size().0)
-        .ceil()
+    ui_toolkit::tab_art::measured_tab_width(
+        ui_toolkit::tab_art::TabLayout::Panel,
+        label,
+        ui_toolkit::tab_art::TabWidth {
+            padding: 0.0,
+            minimum: None,
+            maximum: None,
+        },
+    )
+    .ceil()
 }
 
 /// MinimalTab.xml anchors each cap to BOTTOM, center between their TOP corners.
@@ -1159,37 +1144,12 @@ pub(crate) fn tab(
             return minimal_tab(name, label, (x, y, width), selected, action);
         }
     };
-    let art = if selected { &TAB_ACTIVE } else { &TAB_INACTIVE };
-    let height = art[0].size().1;
-    let (left_w, right_w) = (art[0].size().0, art[2].size().0);
-    // Left at TOPLEFT x -1 (active) / -3, Right at TOPRIGHT +8 / +7 (xml:909-935).
-    let (left_x, right_x) = if selected { (-1.0, 8.0) } else { (-3.0, 7.0) };
-    let mut children = atlas_texture(
-        format!("{name}Left"),
-        &art[0],
-        (left_x, 0.0, left_w, height),
+    use ui_toolkit::tab_art::{TabArtSpec, TabLayout, tab_art, text_y_offset};
+    let mut children = tab_art(
+        name,
+        TabArtSpec::new(TabLayout::Panel, selected, [width, 32.0]),
     );
-    children.extend(atlas_texture(
-        format!("{name}Middle"),
-        &art[1],
-        (
-            left_x + left_w,
-            0.0,
-            (width + right_x - right_w) - (left_x + left_w),
-            height,
-        ),
-    ));
-    children.extend(atlas_texture(
-        format!("{name}Right"),
-        &art[2],
-        (width + right_x - right_w, 0.0, right_w, height),
-    ));
-    // Text CENTER (0, 2) deselected, (0, -3) selected (SharedUIPanelTemplates.lua:524-542).
-    let text_y = if selected {
-        16.0 - 5.0 + 3.0
-    } else {
-        16.0 - 5.0 - 2.0
-    };
+    let text_y = (32.0 - 10.0) / 2.0 - text_y_offset(TabLayout::Panel, selected);
     let color = if selected {
         HIGHLIGHT_FONT_COLOR
     } else {

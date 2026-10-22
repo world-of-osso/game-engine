@@ -210,11 +210,6 @@ const TAB_H: f32 = 32.0;
 const TAB_MIN_W: f32 = 100.0;
 const TAB_MAX_W: f32 = 150.0;
 const TAB_SPACING: f32 = 1.0;
-/// `uiframe-tab-left` / `uiframe-tab-right` atlas widths (TabSystemTemplates.xml:41-52).
-const TAB_LEFT_W: f32 = 35.0;
-const TAB_RIGHT_W: f32 = 37.0;
-/// `textPadding`-free width estimate of `GameFontNormalSmall` glyphs.
-const TAB_GLYPH_W: f32 = 6.5;
 /// `PagingControls` BOTTOMRIGHT -75,40 of `PagedSpellsFrame`: page text, then 32×32
 /// previous and next buttons, 8 apart.
 const PAGING_RIGHT: f32 = BOOK_W - 75.0;
@@ -243,15 +238,6 @@ const fn elements(rect: (f32, f32, f32, f32)) -> AtlasArt {
     }
 }
 
-/// `interface/common/uiframetabs` (FDID 4707839, 64×256).
-const fn tabs(rect: (f32, f32, f32, f32)) -> AtlasArt {
-    AtlasArt {
-        fdid: 4_707_839,
-        atlas: (64.0, 256.0),
-        rect,
-    }
-}
-
 const TOP_BAR: AtlasArt = evergreen((1.0, 1615.0, 1.0, 59.0));
 const BOOK_LEFT: AtlasArt = evergreen((914.0, 1720.0, 61.0, 866.0));
 const BOOK_RIGHT: AtlasArt = evergreen((1.0, 808.0, 61.0, 866.0));
@@ -270,12 +256,6 @@ const PASSIVE_FRAME: AtlasArt = AtlasArt {
     atlas: (2048.0, 1024.0),
     rect: (219.0, 269.0, 569.0, 619.0),
 };
-const TAB_LEFT: AtlasArt = tabs((1.0, 36.0, 209.0, 245.0));
-const TAB_RIGHT: AtlasArt = tabs((1.0, 38.0, 171.0, 207.0));
-const TAB_MIDDLE: AtlasArt = tabs((0.0, 1.0, 45.0, 81.0));
-const ACTIVE_TAB_LEFT: AtlasArt = tabs((1.0, 36.0, 127.0, 169.0));
-const ACTIVE_TAB_RIGHT: AtlasArt = tabs((1.0, 38.0, 83.0, 125.0));
-const ACTIVE_TAB_MIDDLE: AtlasArt = tabs((0.0, 1.0, 1.0, 43.0));
 /// `Interface\Buttons\UI-SpellbookIcon-PrevPage-*` / `NextPage-*`.
 const PREV_PAGE_UP: u32 = 130_869;
 const PREV_PAGE_DISABLED: u32 = 130_867;
@@ -428,6 +408,7 @@ fn file_texture(name: String, fdid: u32, rect: [f32; 4], s: f32) -> Element {
 }
 
 struct Label<'a> {
+    font_object: &'a str,
     name: String,
     text: &'a str,
     rect: [f32; 4],
@@ -444,7 +425,7 @@ fn label(spec: Label<'_>, s: f32) -> Element {
             width: {width * s},
             height: {height * s},
             text: spec.text,
-            font: GameFont::FrizQuadrata,
+            font_object: spec.font_object,
             font_size: {(spec.size * s).max(6.0)},
             font_color: spec.color,
             justify_h: spec.justify,

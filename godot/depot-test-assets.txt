@@ -1,4 +1,8 @@
 # data/-relative files uploaded for `scripts/depot-build.py --test`; see docs/remote-builds.md.
+# Real map2991 terrain M2/SFID product-isolation regression (current authenticated index).
+model:wow_classic_beta:579120:m2
+model:wow_classic_beta:579121:skin
+model:wow_classic_beta:579119:blp
 # Native authored-blend Housing storage and mode-button atlas sheets (local CASC).
 textures/6356256.blp
 textures/6653881.blp

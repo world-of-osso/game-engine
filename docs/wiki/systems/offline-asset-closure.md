@@ -10,13 +10,17 @@ From a checkout, use `agent-run` for agent audit/test/extraction processes; no b
 python3 scripts/asset_closure.py --data /path/to/extracted/data --world-db /path/to/world.db --output data/diagnostics/closure-slice-2026-10-09/manifest.json --estimate-output data/diagnostics/closure-slice-2026-10-09/full-catalog-estimate.json
 ```
 
-Default config is `scripts/closure-northshire.json`: Azeroth tiles (32,48), (33,48), (32,49), (33,49), encompassing the Abbey, lake and vineyard vicinity; male level-1 Human Warrior with first player-selectable choices in option order (ReqType player bit, race/class masks and no account unlocks). Starting gear is world.db's Purpose-9 CharacterLoadout plus race/class item overrides, **not** the obsolete CharStartOutfit kit. NPCs are the imported `content_creature` rows inside those tile bounds; all template display alternatives and explicit spawn model overrides are included. This over-enumerates the slice rather than relying on a playthrough.
+Default config is `scripts/closure-northshire.json`: Azeroth tiles (32,48), (33,48), (32,49), (33,49), encompassing the Abbey, lake and vineyard vicinity; male level-1 Human Warrior with first player-selectable choices in option order (ReqType player bit, race/class masks and no account unlocks). Starting gear is world.db's Purpose-9 CharacterLoadout plus race/class item overrides, **not** the obsolete CharStartOutfit kit. NPCs are the imported `content_creature` rows inside those tile bounds; all template display alternatives and explicit spawn model overrides are included. Dynamic game objects use the explicit `game_objects` selector: `tiles` selects placed template IDs within those same bounds; `all` includes every template, including unspawned/script-summoned entries. Template display IDs join `GameObjectDisplayInfo.FileDataID`; native type15 map transports seed WMO, other native model requests seed M2. Selected template/type/display rows enter the world-selection fingerprint. This over-enumerates the slice rather than relying on a playthrough.
+
+Selected map IDs also seed authored skies through `Light.ContinentID` → every nonzero `LightParamsID_*` → `LightParams.LightSkyboxID` → `LightSkybox.{SkyboxFileDataID,CelestialSkyboxFileDataID}`. This includes global maps without ADT tiles and all weather slots, not just current weather. Positive missing rows stay unresolved; zero references issue no file request. M2 traversal exposes skybox skins and other descendants; the observed Skyborne7345733→7345740 gap motivated this root fix.
 
 Spellbook seeds include auto-learned class/default-skill spells and future Warrior entries displayed in the book, plus Initial-spec spells. Spell IDs and chosen customization IDs are recorded. Spell icons come from pinned `SpellMisc` DifficultyID=0 rows. No spell visuals/audio are part of this bounded request.
 
 `table_paths` explicitly names four top-level legacy CSV inputs absent from the pinned directory; each remains a reported unverified metadata build. This is source configuration, not an alternate-path fallback. Unknown/default-locked customization requirements are not selectable; NPC-only options are excluded from the bounded player.
 
-`--config scripts/closure-full-catalog.json` changes roots to all Map directories/tiles, modeled race/sex pairs/all customization choices, all world.db template displays, all content_item rows and all spell_name rows. This is a conservative catalog superset. Nonplayable placeholders, unsupported source products, customization requirements and pruned server spell reachability are unresolved policies, not silently inferred support.
+`customization_cache` in the seed config explicitly selects the SQLite source for both player and NPC customization joins. The maintained configs use `cache/customization-v5.sqlite`, matching native `customization_query_data::customization_cache_file`; the obsolete unversioned cache is not an alternate source. Imported cache contents still require separate provenance authentication.
+
+`--config scripts/closure-full-catalog.json` changes roots to all Map directories/tiles, modeled race/sex pairs/all customization choices, all world.db creature and game-object template displays, all content_item rows and all spell_name rows. This is a conservative catalog superset. Nonplayable placeholders, unsupported source products, customization requirements and pruned server spell reachability are unresolved policies, not silently inferred support.
 
 ## Manifest and boundaries
 
@@ -172,8 +176,12 @@ Final manifest `manifest-3.json` SHA-256 **`8349cd5eb377bcf911269ef6d1a22aabc38a
 owns the publication rules. Reproduce the recorded inventory with:
 
 ```text
-python3 scripts/verify_legacy_product_assets.py --misses data/diagnostics/noinstall-2026-10-10/misses.json --install "/syncthing/World of Warcraft" --data data --output data/diagnostics/noinstall-receipts-2026-10-10/legacy-authentication
+python3 scripts/verify_legacy_product_assets.py --misses data/diagnostics/noinstall-2026-10-10/misses.json --install "/syncthing/World of Warcraft" --data data --output data/diagnostics/noinstall-receipts-2026-10-10/legacy-authentication --build wow=12.1.0.69933 --build wow_classic_beta=1.60.1.70338
 ```
+
+Private staging uses `model_asset_publication.deduplicate_staged_fragment` against the canonical base index and every receipt fragment before producing a new fragment. Identical product/FDID/kind bytes retain their existing owner even under another build directory; conflicting payloads fail. Aliases dedupe by product/owner-relative path and payload, not child FDID. `ModelAssetIndex` uniquely indexes only `assets`; existing repeated alias provenance is preserved, including older rows without a content key. `validate_staged_fragment` rejects remaining asset-key and newly repeated alias duplicates before publication; raw path repairs do not create a second receipt owner.
+
+The legacy-byte receipt producer requires explicit `--build PRODUCT=VERSION` pins matching exactly the inventory's requested products. It authenticates those local product roots only; historical hardcoded build defaults are removed. A pin mismatch still fails before publication, and bytes must still match authenticated root content keys. Current install builds must be named explicitly rather than silently replacing the historical pins above.
 
 473 legacy candidates match authenticated requested-product roots; the same3
 M2 conflicts above remain rejected and untouched. All476 original runtime
@@ -208,6 +216,10 @@ receipt errors recur. Four new absent texture candidates:7484430,7485185,
 7484392,7961159. Failed owners still hide further descendants; counts are not
 full-catalog or equivalent-scenario coverage. `misses.json`, `receipt-proof.json`,
 `world-sweep.json`, `proof-ledger.json` and `summary.md` retain exact boundaries.
+
+## 2026-10-21 certification continuation
+
+[Current certification coverage and evidence](../../handoffs/noinstall-cert-2026-10-21.md) records the continuing extracted-only native sweep, source fixes and private staging. It does not close P4 or replace the historical full-graph evidence.
 
 ## Sources
 
