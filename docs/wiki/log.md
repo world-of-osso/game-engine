@@ -1,3 +1,7 @@
+## 2026-10-22 — Source TalkingHead line/close model boundaries
+
+[Runtime](systems/talking-head.md#runtime): authentic705 line callbacks and Orator no-voice Close reproduce2RED, then all7model controls GREEN at4abef5a71. Source VO stays authoritative while painted text replaces after250ms and Fadein begins after500ms; no-voice source clear retains1s chrome. Native playing-voice delay/fade and glows remain open; native RED fixture is registered, not yet run. Opening216-check native snapshots retain the unresolved transient ObjectDB warning.
+
 ## 2026-10-22 — Source TalkingHead opening alpha
 
 [Runtime](systems/talking-head.md#runtime): opening alphas use authoritative conversation elapsed and source Lua/XML delays/durations, not a refreshed local clock. Genuine Modern625ms name-alpha RED→both-skin625/875/1500ms GREEN in five retained model controls at742b7bf1e. Native phase proof pending; line-change/close/glow animation still open.

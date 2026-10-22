@@ -53,7 +53,7 @@ This is sampled offline presentation, not real world ingress, authored fades/glo
 
 ### Transition RED boundary
 
-`c595b0b2a` adds exact source705 lines1683/1684 (additional500ms each, missing locale duration retained) and actor98075's pinned TDB name; fixture map/entity IDs are controls. Source rows are recorded in `talking-head-705-source-rows.json`; canonical runtime actor-name coverage is not claimed. Source-model target tests reproduce2RED: new text replaced immediately at625ms instead of after the source250ms callback, and source clear hid chrome immediately instead of retaining the no-voice1s Close. Existing opening/layout controls remain GREEN. Transition implementation/native proof is pending; no playing-voice fade claim.
+`c595b0b2a` adds exact source705 lines1683/1684 (additional500ms each, missing locale duration retained) and actor98075's pinned TDB name; fixture map/entity IDs are controls. Source rows are recorded in `talking-head-705-source-rows.json`; canonical runtime actor-name coverage is not claimed. Source-model target tests reproduce2RED: new text replaced immediately at625ms instead of after the source250ms callback, and source clear hid chrome immediately instead of retaining the no-voice1s Close. Existing opening/layout controls remain GREEN. At `4abef5a71`, all seven TalkingHead model controls pass (0.11s, zero warnings), including both repaired boundaries. Native transition proof and playing-voice Close remain pending. `talking_head_source_close.gd` is registered with an independent expected2 and checks the actual source AudioStreamPlayer, gain/lifetime and1s UI delay/1s Close; it is the next unrun native RED, not acceptance.
 
 ## Camera reference boundary
 
