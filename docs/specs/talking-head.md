@@ -20,7 +20,8 @@ Consume the private source conversation payload and render the authored70448 Ret
 - `godot/ui-model/src/talking_head.rs`: private source payload/elapsed line state and local dismissal.
 - `godot/ui-model/src/talking_head_component.rs`: authored Retail TalkingHead chrome/name/text/model host geometry.
 - `godot/network/src/lib.rs`: ordered ConversationUpdate relay on EncounterChannel.
-- `godot/rust/src/{talking_head,encounter,lib}.rs`: native owner/map-validated UI host, event routing and local dismissal; model/audio pending.
+- `godot/rust/src/{talking_head,encounter,lib}.rs`: native owner/map-validated UI host, event routing, shared UI-scale/pointer registration and local dismissal; model framing remains absent.
+- `godot/rust/src/talking_head/voice.rs`: source-kit/file loading off-frame, elapsed seek, one active voice and local/world-exit stop. Native source extraction is blocked below.
 
 ## Tests asserting this spec
 
@@ -38,6 +39,7 @@ Consume the private source conversation payload and render the authored70448 Ret
 - Ordered real UDP relay and pure private-owner/dismissal state are implemented; these do not prove native world ingress or rendered models.
 - Original1920×1080 Modern/Forever PNGs were inspected at `250064b00`: authentic atlas/name/dialogue render, native wrapping RED4→GREEN4. Model rectangle remains empty and the process fixture remains RED2. Evidence: `data/diagnostics/follower-dungeons-2026-10-21/talking-head-native-wrap-{red,green}/`.
 - Exact selected70448 voice rows resolve250774/775/776→5834729/730/731 at volume0.799999952 (direct-kit RED→GREEN1). This metadata proof is not playback or audible-output proof; this agent host selected Godot's dummy audio driver.
+- Native voice RED6 was reproduced before implementation. The implemented consumer reaches local CASC extraction in both skins, but actual FDID5834729 fails BLTE decryption: encoding43dee1e72eb96dcd59fcfd62b353630d, IV size8 versus decoder's expected4. No replacement clip/CDN or suppressed error. See `talking-head-native-voice-diagnostic/process.log`; voice playback/stop remain unproved.
 
 ## Out of scope
 
