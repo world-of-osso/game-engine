@@ -53,6 +53,8 @@ class ReceiptClosure(RawByteGraph):
         super().__init__(*args, **kwargs)
         self.active_asset = None
         self.adding_product = None
+        self.source_appearances = {}
+        self.source_catalogs = {}
         documents = read_indexes(self.data)
         self.receipts = {
             key: row for key, (_, row) in index_asset_receipts(documents).items()
