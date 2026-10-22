@@ -42,20 +42,24 @@ fn build(skin: ActiveSkin, state: MinimapClusterState) -> FrameRegistry {
 fn ui_template_behavior_hud_minimap_preserves_distinct_zone_and_zoom_anchor_policy() {
     use ui_toolkit::tooltip::{TooltipAnchor, tooltip_owner};
     for skin in [ActiveSkin::Modern, ActiveSkin::Forever] {
-        let registry = build(skin, MinimapClusterState::default());
+        let registry = build(
+            skin,
+            MinimapClusterState {
+                zoom_buttons: true,
+                ..Default::default()
+            },
+        );
         let hit = registry.get_by_name(MINIMAP_ZONE_TEXT).unwrap();
         let (owner, binding) = tooltip_owner(&registry, hit).expect("zone live owner");
         assert_eq!(owner.id, hit);
         assert_eq!(binding.provider.as_deref(), Some("hud_frame"));
         assert_eq!(binding.anchor, TooltipAnchor::Left);
-        if skin == ActiveSkin::Modern {
-            for name in [MINIMAP_ZOOM_IN, MINIMAP_ZOOM_OUT] {
-                let hit = registry.get_by_name(name).unwrap();
-                let (owner, binding) = tooltip_owner(&registry, hit).expect(name);
-                assert_eq!(owner.id, hit);
-                assert_eq!(binding.provider.as_deref(), Some("hud_frame"));
-                assert_eq!(binding.anchor, TooltipAnchor::Default);
-            }
+        for name in [MINIMAP_ZOOM_IN, MINIMAP_ZOOM_OUT] {
+            let hit = registry.get_by_name(name).unwrap();
+            let (owner, binding) = tooltip_owner(&registry, hit).expect(name);
+            assert_eq!(owner.id, hit);
+            assert_eq!(binding.provider.as_deref(), Some("hud_frame"));
+            assert_eq!(binding.anchor, TooltipAnchor::Default);
         }
     }
 }
