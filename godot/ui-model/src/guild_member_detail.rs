@@ -44,13 +44,8 @@ pub fn detail(session: &GuildRanksSession) -> Element {
     let mut children = rsx! { r#frame { name: "GuildMemberDetailBorder", width: 214.0, height: {height-1.0}, left: 4.0, top: 0.0, frame_level: DETAIL_FRAME_LEVEL, pos_type: "absolute", {border} }
         texture { name: "GuildMemberDetailBackground", texture_fdid: 6839810, left: 11.0, top: 7.0, width: 200.0, height: {height-15.0}, pos_type: "absolute", draw_layer: "BACKGROUND" }
     };
-    let close_art = crate::quest_art::named_atlas_texture(
-        "GuildMemberDetailCloseButtonNormal".into(),
-        "RedButton-Exit",
-        (0.0, 0.0, 24.0, 24.0),
-    );
     children.extend(rsx! { button { name: "GuildMemberDetailCloseButton", width: 24.0, height: 24.0,
-        left: 191.0, top: 4.0, pos_type: "absolute", onclick: "guild:detail_close", button_default_skin: false, {close_art} } });
+        left: 191.0, top: 4.0, pos_type: "absolute", onclick: "guild:detail_close", button_template: "UIPanelCloseButton" } });
     children.extend(label(
         "GuildMemberDetailName".into(),
         name,

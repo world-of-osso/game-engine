@@ -161,7 +161,7 @@ pub(super) fn detail(row: Option<&ReputationRow>, ctx: &SharedContext) -> Elemen
             button {
                 name: "ReputationDetailFrameCloseButton", width: 24.0, height: 24.0,
                 onclick: ACTION_REPUTATION_DETAIL_CLOSE, pos_type: "absolute", right: 2.0, top: 2.0,
-                texture { width: 24.0, height: 24.0, texture_atlas: "RedButton-Exit", }
+                button_template: "UIPanelCloseButton",
             }
         });
     }

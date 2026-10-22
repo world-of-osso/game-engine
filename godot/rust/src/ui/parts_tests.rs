@@ -119,6 +119,73 @@ fn ui_template_blend_metadata_only_highlight_does_not_draw_an_absent_source() {
 }
 
 #[test]
+fn ui_template_art_named_shared_red_crops_caps_when_the_button_is_narrow() {
+    let mut registry = ui_toolkit::registry::FrameRegistry::new(800.0, 600.0);
+    let id = registry.create_frame("NarrowSharedButton", None);
+    registry.get_mut(id).unwrap().widget_data = Some(WidgetData::Button(Default::default()));
+    ui_toolkit::attrs::apply_attribute(
+        &mut registry,
+        id,
+        "button_template",
+        "SharedButtonTemplate",
+    );
+    let parts = project_images(registry.get(id).unwrap(), 40.0, 30.0);
+    assert_eq!(parts.len(), 3);
+    assert_eq!(parts[0].rect, [0.0, 0.0, 20.0, 30.0]);
+    assert_eq!(parts[1].rect, [20.0, 0.0, 0.0, 30.0]);
+    assert_eq!(parts[2].rect, [20.0, 0.0, 20.0, 30.0]);
+    let Crop::Normalized(left) = parts[0].crop else {
+        panic!("cropped left cap")
+    };
+    let Crop::Normalized(right) = parts[2].crop else {
+        panic!("cropped right cap")
+    };
+    assert!((left[1] - 20.0 / (114.0 * 30.0 / 128.0)).abs() < 0.0001);
+    assert!((right[0] - (1.0 - 20.0 / (292.0 * 30.0 / 128.0))).abs() < 0.0001);
+}
+
+#[test]
+fn ui_template_art_explicit_default_skin_policy_does_not_depend_on_artwork_names() {
+    for source in [
+        TextureSource::FileDataId(130869),
+        TextureSource::Atlas("RedButton-Exit".into()),
+        TextureSource::Atlas("128-redbutton-cart-add".into()),
+    ] {
+        let frame = button(ButtonData {
+            normal_texture: Some(ButtonTexture::new(source.clone())),
+            highlight_texture: Some(ButtonTexture::new(TextureSource::FileDataId(999))),
+            use_default_skin: true,
+            hovered: true,
+            ..Default::default()
+        });
+        let parts = project_images(&frame, 24.0, 24.0);
+        assert_eq!(parts.len(), 1, "explicit skin policy {source:?}");
+        assert_eq!(parts[0].source, Some(TextureSource::FileDataId(999)));
+    }
+}
+
+#[test]
+fn ui_template_art_source_identity_does_not_choose_button_geometry() {
+    for source in [
+        TextureSource::Atlas("128-redbutton-left".into()),
+        TextureSource::FileDataId(130828),
+    ] {
+        let frame = button(ButtonData {
+            normal_texture: Some(ButtonTexture::new(source.clone())),
+            use_default_skin: false,
+            ..Default::default()
+        });
+        let parts = project_images(&frame, 180.0, 46.0);
+        assert_eq!(
+            parts.len(),
+            1,
+            "plain image {source:?} must not become slices"
+        );
+        assert_eq!(parts[0].rect, [0.0, 0.0, 180.0, 46.0]);
+    }
+}
+
+#[test]
 fn ui_template_blend_button_material_depends_on_authored_mode_not_source_or_geometry_router() {
     for source in [
         TextureSource::Atlas("transmog-itemcard-default".into()),
@@ -321,6 +388,7 @@ fn retail_panel_button_preserves_12px_caps_and_crops_unused_sheet_area() {
         (ButtonState::Disabled, 130824),
     ] {
         let frame = button(ButtonData {
+            template: Some(ui_toolkit::button_art::ButtonTemplate::Panel),
             state,
             normal_texture: Some(ButtonTexture::new(TextureSource::FileDataId(130828))),
             pushed_texture: Some(ButtonTexture::new(TextureSource::FileDataId(130825))),
@@ -349,6 +417,7 @@ fn retail_panel_button_preserves_12px_caps_and_crops_unused_sheet_area() {
 fn shared_panel_art_keeps_xml_12px_caps_when_callers_change_height() {
     for height in [21.0, 24.0, 30.0] {
         let frame = button(ButtonData {
+            template: Some(ui_toolkit::button_art::ButtonTemplate::Panel),
             normal_texture: Some(ButtonTexture::new(TextureSource::FileDataId(130828))),
             ..Default::default()
         });
@@ -441,6 +510,7 @@ fn retail_shared_red_button_preserves_authored_caps_in_each_state() {
         (ButtonState::Disabled, "-disabled"),
     ] {
         let frame = button(ButtonData {
+            template: Some(ui_toolkit::button_art::ButtonTemplate::SharedRed),
             normal_texture: button_atlas("128-redbutton-left"),
             state,
             use_default_skin: false,

@@ -8,7 +8,6 @@ use crate::quest_art::{DynName, flat_panel_chrome};
 use crate::ui::strata::FrameStrata;
 use shared::loot::ROLL_WINDOW_TIMEOUT;
 use shared::protocol::{GroupLootRoll, LootContent};
-use ui_toolkit::widgets::font_string::GameFont;
 use ui_toolkit::{rsx, screen::SharedContext, widget_def::Element};
 
 pub const HISTORY_CLOSE: &str = "group_loot_history_close";
@@ -185,7 +184,7 @@ fn item_label(prefix: &str, roll: &GroupLootRoll, rect: [f32; 4]) -> Element {
 
 fn label(name: String, text: &str, [left, top, width, height]: [f32; 4], color: &str) -> Element {
     rsx! { fontstring { name: {DynName(name)}, width, height, text,
-        font: GameFont::FrizQuadrata, font_size: 11.0, font_color: color,
+        font_object: "GameFontNormal", font_color: color,
         justify_h: "LEFT", pos_type: "absolute", left, top,
     }}
 }
