@@ -57,6 +57,27 @@ fn setup(skin: ActiveSkin) -> (TrainerBook, FrameRegistry) {
 }
 
 #[test]
+fn ui_template_behavior_trainer_children_keep_source_owner_offset() {
+    use ui_toolkit::tooltip::{TooltipAnchor, tooltip_owner};
+    for skin in [ActiveSkin::Modern, ActiveSkin::Forever] {
+        let (_, registry) = setup(skin);
+        for spell in [2963, 2964, 2965] {
+            let hit = registry
+                .get_by_name(&format!("ClassTrainerService{spell}Icon"))
+                .unwrap();
+            let (owner, binding) = tooltip_owner(&registry, hit).expect("trainer live owner");
+            assert_eq!(
+                owner.name.as_deref(),
+                Some(format!("ClassTrainerService{spell}").as_str())
+            );
+            assert_eq!(binding.provider.as_deref(), Some("trainer"));
+            assert_eq!(binding.anchor, TooltipAnchor::Right);
+            assert_eq!(binding.offset, [35.0, 0.0]);
+        }
+    }
+}
+
+#[test]
 fn trainer_hover_resolves_row_descendants_and_all_service_states_not_selection() {
     for skin in [ActiveSkin::Modern, ActiveSkin::Forever] {
         let (mut book, registry) = setup(skin);
