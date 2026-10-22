@@ -102,6 +102,85 @@ fn encounter_link_replaces_search_and_open_navigation_menus() {
 }
 
 #[test]
+#[ignore = "RED: encounter links must dismiss every stale navigation menu"]
+fn encounter_link_dismisses_overflow_and_nested_class_menu_in_both_skins() {
+    for skin in [ActiveSkin::Modern, ActiveSkin::Forever] {
+        set_thread_skin(skin);
+        let mut view = journal();
+        view.select_encounter(2491).unwrap();
+        view.page = Page::Loot;
+        view.apply("journal:filter:class").unwrap();
+        view.apply("journal:class-menu").unwrap();
+        view.apply("journal:nav-overflow").unwrap();
+        view.select_dungeon_encounter(1058, Some(24)).unwrap();
+        let mut shared = SharedContext::new();
+        shared.insert(skin);
+        shared.insert(view.clone());
+        let mut registry = FrameRegistry::new(1920., 1080.);
+        let mut screen = Screen::new(adventure_guide_screen);
+        screen.sync(&shared, &mut registry);
+        assert!(registry.get_by_name("JournalBoss112").is_some());
+        assert!(
+            !view.nav_overflow_open,
+            "Linked Ozruk retains stale navbar overflow"
+        );
+        assert!(
+            !view.class_menu_open,
+            "Linked Ozruk retains the previous class submenu"
+        );
+        view.apply("journal:filter:class").unwrap();
+        shared.insert(view);
+        screen.sync(&shared, &mut registry);
+        assert!(registry.get_by_name("EncounterJournalFilterMenu").is_some());
+        assert!(
+            registry.get_by_name("EncounterJournalClassMenu").is_none(),
+            "Opening the new encounter's filter must not reopen the old submenu"
+        );
+    }
+    set_thread_skin(ActiveSkin::Modern);
+}
+
+#[test]
+#[ignore = "RED: active role changes must rebuild authored overview defaults"]
+fn encounter_overview_role_change_expands_the_new_role_without_resetting_abilities() {
+    let mut view = journal();
+    view.role = 2;
+    view.select_encounter(2491).unwrap();
+    assert!(
+        !view.collapsed.contains(&25033),
+        "Kurog Damage Dealers initially expanded"
+    );
+    assert!(
+        view.collapsed.contains(&25035),
+        "Kurog Tanks initially collapsed"
+    );
+    view.collapsed.insert(25036);
+    view.apply("journal:role:1").unwrap();
+    assert!(
+        !view.collapsed.contains(&25035),
+        "New Tank overview must expand"
+    );
+    assert!(
+        view.collapsed.contains(&25033),
+        "Previous Damage overview must collapse"
+    );
+    assert!(
+        view.collapsed.contains(&25034),
+        "Healer overview remains collapsed"
+    );
+    assert!(
+        view.collapsed.contains(&25036),
+        "Independent ability disclosure is preserved"
+    );
+    view.apply("journal:section:25033").unwrap();
+    view.apply("journal:role:1").unwrap();
+    assert!(
+        !view.collapsed.contains(&25033),
+        "Unchanged role must preserve manual disclosure"
+    );
+}
+
+#[test]
 fn owned_keystones_browse_authentic_dungeons_without_active_run() {
     use shared::protocol::KeystoneInfo;
     let mut view = journal();
