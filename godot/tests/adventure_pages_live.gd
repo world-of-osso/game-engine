@@ -138,10 +138,15 @@ func verify_link_menus_and_loot() -> bool:
 		return false
 	if not await choose_slot(2) or client.adventure_guide_state().loot_count != 1 or not await shot("pages-heroic-ret-neck"):
 		return false
-	if not await choose_slot(0) or not await click("JournalDifficultyDropdown") or not await click("JournalDifficulty24"):
+	if not await choose_slot(0) or not await click("JournalClassFilter") or not await click("JournalClassMenu") or not await click("JournalClass0"):
 		return false
-	if client.adventure_guide_state().difficulty != 24 or client.adventure_guide_state().loot_count <= 0 or not await shot("pages-timewalking-ret-loot"):
-		stop("Authored Timewalking loot missing")
+	if client.adventure_guide_state().loot_count != 6 or not await shot("pages-heroic-all-loot"):
+		stop("All Classes must restore Heroic Ozruk's six authored drops")
+		return false
+	if not await click("JournalDifficultyDropdown") or not await click("JournalDifficulty24"):
+		return false
+	if client.adventure_guide_state().difficulty != 24 or client.adventure_guide_state().loot_count != 8 or not await shot("pages-timewalking-all-loot"):
+		stop("Timewalking must replace the six Heroic drops with its eight authored drops")
 		return false
 	if not await click("EncounterJournalPage3") or not await expect_model(382, 36475, "Ozruk"):
 		return false
