@@ -11,10 +11,13 @@ func wait_journal(predicate: Callable, reason: String) -> bool:
 	stop(reason + ": " + str(client.adventure_guide_state()))
 	return false
 
-func select_named_boss(value: String, codes: Array, encounter: int) -> bool:
+func enter_query(value: String, codes: Array) -> bool:
 	if not label_text("EncounterJournalSearchBox").is_empty() and not await click("EncounterJournalSearchBoxClearButton"):
 		return false
-	if not await type_word(value, codes) or not await click("JournalSearchPreview0"):
+	return await type_word(value, codes)
+
+func select_named_boss(value: String, codes: Array, encounter: int) -> bool:
+	if not await enter_query(value, codes) or not await click("JournalSearchPreview0"):
 		return false
 	return await wait_journal(func(state): return state.encounter == encounter, "Authored boss search did not select " + value)
 
@@ -67,7 +70,7 @@ func verify_role_refresh() -> bool:
 	print("AG_PAGES_ROLE_PASS real70-to66-ACK/reopen/role-headers/ability-disclosure")
 	return true
 
-func verify_journal_model_paint() -> bool:
+func verify_journal_model_paint(label: String) -> bool:
 	var viewport := control("CharacterModelView") as TextureRect
 	if viewport == null or viewport.texture == null:
 		stop("Native Journal model viewport missing")
@@ -87,7 +90,7 @@ func verify_journal_model_paint() -> bool:
 			if absf(difference.r) + absf(difference.g) + absf(difference.b) > 0.06:
 				samples += 1
 	if samples < 100:
-		await shot("pages-ozruk-model-paint-failure")
+		await shot(label + "-paint-failure")
 		stop("Attached model did not paint above backdrop: " + str(samples))
 		return false
 	print("AG_PAGES_MODEL_PAINT samples=" + str(samples))
@@ -150,9 +153,60 @@ func verify_link_menus_and_loot() -> bool:
 		return false
 	if not await click("EncounterJournalPage3") or not await expect_model(382, 36475, "Ozruk"):
 		return false
-	if not await verify_rendered_portrait("JournalCreature382Portrait", 36475) or not await verify_journal_model_paint() or not await shot("pages-ozruk-model"):
+	if not await verify_rendered_portrait("JournalCreature382Portrait", 36475) or not await verify_journal_model_paint("pages-ozruk-model") or not await shot("pages-ozruk-model"):
 		return false
 	print("AG_PAGES_LINK_LOOT_PASS authoredTindralOverflow/classSubmenu/Paralyze-retained/role-class-slot/difficulty/model")
+	return true
+
+func verify_item_search_targets() -> bool:
+	for source in [[0,89,1,2169], [1,2624,2,65163]]:
+		if not await enter_query("Buzzer Blade", [KEY_B,KEY_U,KEY_Z,KEY_Z,KEY_E,KEY_R,KEY_SPACE,KEY_B,KEY_L,KEY_A,KEY_D,KEY_E]):
+			return false
+		var row := "JournalSearchPreview%s" % source[0]
+		if label_text(row + "Name") != "Buzzer Blade" or not await verify_painted_icon(row + "Icon"):
+			stop("Real source item preview/icon missing")
+			return false
+		if not await move_to(row):
+			return false
+		if client.tooltip_state().get("title", "") != "Buzzer Blade":
+			await shot("item-search-hover-failure")
+			stop("Authored search item must use shared owner-right item tooltip")
+			return false
+		if not await shot("item-search-preview-%s" % source[2]) or not await click(row):
+			return false
+		var state: Dictionary = client.adventure_guide_state()
+		if state.instance != 63 or state.encounter != source[1] or state.difficulty != source[2] or state.page != "Loot":
+			stop("Item search changed its authored parent/difficulty/Loot navigation: " + str(state))
+			return false
+		var loot := "JournalLoot%s" % source[3]
+		if not shown(loot) or label_text("EncounterJournalSearchBox") != "Buzzer Blade" or not await shot("item-search-loot-%s" % source[2]):
+			stop("Selected item is not in real loot with retained source query")
+			return false
+	if not await enter_query("Onyx-Imbued Breeches", [KEY_O,KEY_N,KEY_Y,KEY_X,KEY_MINUS,KEY_I,KEY_M,KEY_B,KEY_U,KEY_E,KEY_D,KEY_SPACE,KEY_B,KEY_R,KEY_E,KEY_E,KEY_C,KEY_H,KEY_E,KEY_S]):
+		return false
+	if label_text("JournalSearchPreview0Name") != "Onyx-Imbued Breeches" or not await verify_painted_icon("JournalSearchPreview0Icon") or not await shot("item-search-zero-raw-icon"):
+		stop("Zero raw icon must paint its authentic appearance icon")
+		return false
+	print("AG_ITEM_SEARCH_PASS sourceNormal2169/Heroic65163/parents/modes/sharedHover/zeroRawAppearance174139")
+	return true
+
+func verify_creature_search_targets() -> bool:
+	for source in [[0,90,1,630], [1,2623,2,5689]]:
+		if not await enter_query("Lumbering Oaf", [KEY_L,KEY_U,KEY_M,KEY_B,KEY_E,KEY_R,KEY_I,KEY_N,KEY_G,KEY_SPACE,KEY_O,KEY_A,KEY_F]):
+			return false
+		var row := "JournalSearchPreview%s" % source[0]
+		if label_text(row + "Name") != "Lumbering Oaf" or not await verify_painted_icon(row + "Icon") or not await shot("creature-search-preview-%s" % source[2]):
+			stop("Real JournalEncounterCreature result missing")
+			return false
+		if not await click(row) or not await expect_model(source[3], 33003, "Lumbering Oaf"):
+			return false
+		var state: Dictionary = client.adventure_guide_state()
+		if state.instance != 63 or state.encounter != source[1] or state.difficulty != source[2] or state.page != "Model":
+			stop("Creature search changed authored parent/mode/Model: " + str(state))
+			return false
+		if not await verify_journal_model_paint("creature-search-model-%s" % source[2]) or not await shot("creature-search-model-%s" % source[2]):
+			return false
+	print("AG_CREATURE_SEARCH_PASS real630/5689-same-display33003/source-parents/modes/model-paint")
 	return true
 
 func verify_search_surface() -> bool:
@@ -203,11 +257,21 @@ func run() -> void:
 	await journal_key()
 	if not await wait_journal(func(state): return state.visible, "J did not reopen Guide"):
 		return
-	if OS.get_environment("ADVENTURE_GUIDE_PHASE") == "search":
-		if not await verify_search_surface():
-			return
-	else:
-		if not await verify_role_refresh() or not await verify_link_menus_and_loot():
+	match OS.get_environment("ADVENTURE_GUIDE_PHASE"):
+		"search":
+			if not await verify_search_surface():
+				return
+		"item-search":
+			if not await verify_item_search_targets():
+				return
+		"creature-search":
+			if not await verify_creature_search_targets():
+				return
+		"pages":
+			if not await verify_role_refresh() or not await verify_link_menus_and_loot():
+				return
+		_:
+			stop("Explicit supported proof phase required")
 			return
 	print("AG_PAGES_PASS skin=%s phase=%s" % [client.account_state().ui_skin, OS.get_environment("ADVENTURE_GUIDE_PHASE")])
 	quit(0)
