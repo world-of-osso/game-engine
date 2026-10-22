@@ -16,7 +16,7 @@ Port recurring behavior once from the Retail R cache, then migrate every audited
 
 - [x] Step 2: Normal/Pushed/Disabled/Highlight/Checked regions carry source, crop, blend, tint and alpha through one mechanism; migrate listed consumers and delete old paths.
 - [x] Step 3: source font-object inheritance and measured text sizing; migrated audited consumers and removed inherited-style copies. Lead integration/visual acceptance remains separate.
-- [ ] Step 4: named slice/tab/button art; migrate listed consumers and delete source-name/FDID geometry guesses.
+- [x] Step 4: named slice/tab/button art; migrated audited consumers and deleted source-name/FDID geometry guesses. Lead integration/visual acceptance remains separate.
 - [ ] Step 5: tooltip-owner/content bindings and lifecycle/Escape/sound descriptors; migrate listed consumers while preserving live-content refresh, placement, domain close actions and source ordering.
 - [ ] Step 6: keyboard navigation and scroll configuration; migrate the audited list/search routing and scroll name dispatch while preserving domain eligibility and distinct row/pixel units.
 
@@ -41,6 +41,8 @@ Port recurring behavior once from the Retail R cache, then migrate every audited
 
 ## Tests asserting this spec
 
+- Step4 final core6/model3/projection3 plus24 scoped consumer/golden modules passed at engine2932e6933/toolkit76b7a2f. Helper-backed native Cargo check and package format checks passed without compiler warnings. `godot/tests/ui_template_art_matrix.gd` strict60/60 covers30 supplied states in both skins, all60 originals1920×1080 and0 Godot errors. Close hover/Pushed checks owner-sized regions, ADD highlight and changed Pushed texture. Main inspected overviews/details;65 hash-verified PNGs published at `/syncthing/AgentShared/2026-10-21/ui-template-generics/step4-056eaed8e/` (native extension056eaed8e). Lead integration/visual acceptance remains separate; this is not realm/UDP or whole-Retail pixel parity.
+
 - Step3 core inheritance/rebuild/local-override controls4 and source-root1, model font/text-width controls3, and raster metric controls7 passed. `godot/tests/ui_template_fonts_matrix.gd` strict38/38 covers19 supplied scopes in both skins, all38 originals1920×1080,0 Godot errors. PNGs: `/syncthing/AgentShared/2026-10-21/ui-template-generics/step3-4d54697d4/`. Native checks preserve unshadowed book/tooltip, Meter13px/shadow, GroupLoot12px/shadow and map outline4. Final scoped Spellbook14/projection-allocation2 tests and helper cargo check passed with no compiler warnings; package format checks passed. Lead acceptance remains separate; not whole-client Retail pixel parity.
 - Toolkit `core/src/attrs_layout_tests.rs` — source-identical normal/additive regions and unsupported-mode rejection.
 - Step2 toolkit attrs21/projection30 passed, including independent crop/tint/alpha/Checked state and source changes. Whole ui-model integration1170 passed with0 failures (7 existing ignored) before native capture; scoped cargo check and format checks passed. `godot/tests/ui_template_regions_matrix.gd` strict16/16 covers8 supplied production states in both skins at1920×1080. All16 original PNGs inspected; PNGs: `/syncthing/AgentShared/2026-10-21/ui-template-generics/step2-1d857264b/`. Perks Normal-hover versus Pushed is strictly distinguished by base rect[0,0,48,48] versus[1,1,48,48]; the shared ADD highlight remains alpha0.6 at[0,0,48,48]. Native texture-identity comparison is not claimed.
@@ -48,7 +50,7 @@ Port recurring behavior once from the Retail R cache, then migrate every audited
 
 ## Known gaps (current cycle)
 
-- Step3 implementation/scoped proof/native capture is complete; lead gate remains pending. Step4 named-art implementation and strict60/60 native capture are complete; final scoped/golden/check/format evidence and lead gate remain pending. Steps5–6 remain unimplemented. Native fixture states do not establish realm/UDP parity or whole-client Retail pixel parity.
+- Step3 implementation/scoped proof/native capture is complete; lead gate remains pending. Step4 named-art implementation and strict60/60 native capture are complete; scoped core/model/projection/consumer/golden tests, helper check and format checks pass; lead gate remains pending. Steps5–6 remain unimplemented. Native fixture states do not establish realm/UDP parity or whole-client Retail pixel parity.
 - Step1 is landed at engine a982e08c7+ and toolkit e8c9f6f. Step2 lead integration gate follows its submitted E/T tips.
 
 ## Out of scope
