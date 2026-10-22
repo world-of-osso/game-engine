@@ -132,6 +132,7 @@ pub mod spell_visual;
 #[path = "status_text_data.rs"]
 pub mod status_text_data;
 pub mod talent_data;
+pub mod talking_head_camera;
 #[path = "sound/ui_click_data.rs"]
 pub mod ui_click_data;
 pub mod ui_layout_account;
