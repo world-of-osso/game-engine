@@ -30,7 +30,7 @@ Port recurring behavior once from the Retail R cache, then migrate every audited
 - PlayerSpells font references are explicit per authored role: unshadowed System fonts for book text, shadowed GameFont category tabs, and the distinct specialization/talent roots. Local scale/size/color/justification remain overrides, not inferred font identities. TabSystem sizing measures the named normal font with shared font metrics rather than multiplying character count; source cap/padding/min/max policy is unchanged.
 - Step4 named button templates/art kits populate state sources in core before local region overrides. Shared-red narrow caps follow `ThreeSliceButtonMixin:UpdateScale`; Panel strips retain fixed12px caps; source identity no longer selects geometry or default-skin policy. Cart-kit suffixes follow `UIButtonMixin:SetButtonArtKit`, and close controls use the shared state preset rather than static normal-only children.
 - Named Inset/Dialog/Translucent and Panel/PanelTop/System/SystemTop art expand ordinary texture declarations in core. Dialog crossed side anchors normalize between source corner endpoints; Inset bottom corners extend1px and edges meet those corners. Rotated SystemTop and cropped75%-height PanelTop remain distinct. Tab width formulas remain independently source-derived with caller padding/min/max.
-- The existing `ThreeSlice` now has independent cap extents, per-region UVs, vertical orientation and blend metadata. Shared core geometry feeds native projection and ordinary texture expansion; audited chat/auction/entrance/currency/header/scroll helpers no longer own this arithmetic. Existing Loading symmetric25px caps are unchanged. Step4 native acceptance remains pending.
+- The existing `ThreeSlice` now has independent cap extents, per-region UVs, vertical orientation and blend metadata. Shared core geometry feeds native projection and ordinary texture expansion; audited chat/auction/entrance/currency/header/scroll helpers no longer own this arithmetic. Existing Loading symmetric25px caps are unchanged. Step4 strict native fixture covers30 supplied production states in both skins, including ordinary close hover/Pushed transitions; lead integration/visual acceptance remains separate.
 - Minimap highlights default BLEND. UIPanelCloseButton's `RedButton-Highlight` explicitly uses ADD (R SharedUIPanelTemplates.xml139/146); this is distinct from the SharedButton Lua setter's omitted blend argument.
 
 ## Implementation inventory
@@ -48,7 +48,7 @@ Port recurring behavior once from the Retail R cache, then migrate every audited
 
 ## Known gaps (current cycle)
 
-- Step3 implementation/scoped proof/native capture is complete; lead gate remains pending. Steps4–6 remain unimplemented. Shared-red/UIPanel geometry routing is intentionally retained until Step4; Step2 does not claim named-art migration or realm/UDP parity.
+- Step3 implementation/scoped proof/native capture is complete; lead gate remains pending. Step4 named-art implementation and strict60/60 native capture are complete; final scoped/golden/check/format evidence and lead gate remain pending. Steps5–6 remain unimplemented. Native fixture states do not establish realm/UDP parity or whole-client Retail pixel parity.
 - Step1 is landed at engine a982e08c7+ and toolkit e8c9f6f. Step2 lead integration gate follows its submitted E/T tips.
 
 ## Out of scope
