@@ -142,6 +142,7 @@ pub(super) fn loadout_dialog(view: &TalentView, viewport: [f32; 2]) -> Element {
     }
     contents.extend(label(
         Label {
+            font_object: "GameFontHighlight",
             name: "TalentLoadoutDialogTitle".into(),
             text: title,
             rect: [105.0, 20.0, 250.0, 12.0],
@@ -154,6 +155,7 @@ pub(super) fn loadout_dialog(view: &TalentView, viewport: [f32; 2]) -> Element {
     if confirm {
         contents.extend(label(
             Label {
+                font_object: "GameFontNormal",
                 name: "TalentLoadoutConfirmationText".into(),
                 text: if matches!(dialog, LoadoutDialog::Delete(_)) {
                     &view.editor.loadout_name
@@ -170,6 +172,7 @@ pub(super) fn loadout_dialog(view: &TalentView, viewport: [f32; 2]) -> Element {
     } else {
         contents.extend(label(
             Label {
+                font_object: "GameFontNormal",
                 name: "TalentLoadoutNameLabel".into(),
                 text: if importing {
                     "New Loadout Name"
@@ -267,6 +270,7 @@ pub(super) fn loadout_dialog(view: &TalentView, viewport: [f32; 2]) -> Element {
     if let Some(error) = view.editor.error_text.as_ref().filter(|_| !importing) {
         contents.extend(label(
             Label {
+                font_object: "GameFontNormal",
                 name: "TalentLoadoutNameError".into(),
                 text: error,
                 rect: [40.0, 90.0, 380.0, 24.0],
@@ -299,6 +303,7 @@ fn import_control(text: &str) -> Element {
         .map(|part| format!("data/ui/Common-Input-Border-{part}.blp"));
     let mut elements = label(
         Label {
+            font_object: "GameFontNormal",
             name: "TalentLoadoutCodeLabel".into(),
             text: "Import Text",
             rect: [40.0, 40.0, 380.0, 12.0],
@@ -373,57 +378,8 @@ fn dialog_button(
     )
 }
 fn dialog_border(height: f32, scale: f32) -> Element {
-    let side_height = (height - 128.0).abs();
-    [
-        (
-            "TopLeft",
-            "UI-Frame-DiamondMetal-CornerTopLeft",
-            [0.0, 0.0, 64.0, 64.0],
-        ),
-        (
-            "TopRight",
-            "UI-Frame-DiamondMetal-CornerTopRight",
-            [396.0, 0.0, 64.0, 64.0],
-        ),
-        (
-            "BottomLeft",
-            "UI-Frame-DiamondMetal-CornerBottomLeft",
-            [0.0, height - 64.0, 64.0, 64.0],
-        ),
-        (
-            "BottomRight",
-            "UI-Frame-DiamondMetal-CornerBottomRight",
-            [396.0, height - 64.0, 64.0, 64.0],
-        ),
-        (
-            "Top",
-            "_UI-Frame-DiamondMetal-EdgeTop",
-            [64.0, 0.0, 332.0, 64.0],
-        ),
-        (
-            "Bottom",
-            "_UI-Frame-DiamondMetal-EdgeBottom",
-            [64.0, height - 64.0, 332.0, 64.0],
-        ),
-        (
-            "Left",
-            "!UI-Frame-DiamondMetal-EdgeLeft",
-            [0.0, 64.0, 64.0, side_height],
-        ),
-        (
-            "Right",
-            "!UI-Frame-DiamondMetal-EdgeRight",
-            [396.0, 64.0, 64.0, side_height],
-        ),
-    ]
-    .into_iter()
-    .flat_map(|(name, atlas, rect)| {
-        retail_atlas(
-            &format!("TalentLoadoutDialogBorder{name}"),
-            atlas,
-            rect,
-            scale,
-        )
-    })
-    .collect()
+    use ui_toolkit::art_layout::{BorderLayout, BorderSpec, border_art};
+    let mut spec = BorderSpec::new(BorderLayout::Dialog, [0.0, 0.0, 460.0, height]);
+    spec.scale = scale;
+    border_art("TalentLoadoutDialogBorder", spec)
 }

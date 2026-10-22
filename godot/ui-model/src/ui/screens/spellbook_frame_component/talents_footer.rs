@@ -168,6 +168,7 @@ fn search_box(view: &TalentView, y: f32, scale: f32) -> Element {
             if overflow > 0 {
                 rows.extend(label(
                     Label {
+                        font_object: "GameFontNormal",
                         name: "TalentSearchOverflow".into(),
                         text: &format!("{overflow} more results"),
                         rect: [6.0, height - 24.0, 164.0, 20.0],

@@ -14,7 +14,7 @@ pub(super) fn footer_controls(view: &View, purchase_left: f32) -> Element {
     }
     let mut children = cart_icon_button(
         "PerksProgramViewCartButton",
-        "128-RedButton-ShoppingCart",
+        ("button_art_kit", "128-RedButton-ShoppingCart"),
         "perks:cart:show",
         !view.cart.is_empty(),
         (purchase_left - 16. - 46., 34., 46., 46.),
@@ -93,14 +93,14 @@ pub(super) fn panel(ctx: &SharedContext, view: &View) -> Element {
     ));
     children.extend(cart_icon_button(
         "PerksProgramCartClearButton",
-        "128-RedButton-Delete",
+        ("button_art_kit", "128-RedButton-Delete"),
         "perks:cart:clear",
         !view.cart.is_empty(),
         (30., CART_HEIGHT - 100. + 12. + 3. + 12., 64., 64.),
     ));
     children.extend(cart_icon_button(
         "PerksProgramCartCloseButton",
-        "RedButton-Exit",
+        ("button_template", "UIPanelCloseButton"),
         "perks:cart:close",
         true,
         (CART_WIDTH - 16. - 24., 16., 24., 24.),
@@ -323,22 +323,20 @@ fn cart_preview_status(prefix: &str, selected: bool, hovered: bool, enabled: boo
 
 pub(super) fn cart_icon_button(
     name: &str,
-    atlas: &str,
+    art: (&'static str, &str),
     action: &str,
     enabled: bool,
     (left, top, width, height): (f32, f32, f32, f32),
 ) -> Element {
-    let pressed = format!("{atlas}-pressed");
-    let disabled_art = format!("{atlas}-disabled");
-    // UIPanelCloseButtonNoScripts uses RedButton-Highlight, unlike UIButton art kits.
-    let highlight = if atlas == "RedButton-Exit" {
-        "RedButton-Highlight".to_owned()
-    } else {
-        format!("{atlas}-highlight")
-    };
+    use ui_toolkit::widget_def::{Attr, WidgetChild};
     let disabled = !enabled;
     let action = if enabled { action } else { "" };
-    rsx! {button{name:{DynName(name.into())},left,top,width,height,pos_type:"absolute",button_default_skin:false,disabled,onclick:action,button_atlas_up:atlas,button_atlas_pressed:pressed.as_str(),button_atlas_disabled:disabled_art.as_str(),button_atlas_highlight:highlight.as_str()}}
+    let mut element = rsx! {button{name:{DynName(name.into())},left,top,width,height,pos_type:"absolute",disabled,onclick:action}};
+    let [WidgetChild::Widget(widget)] = element.as_mut_slice() else {
+        unreachable!("one cart control")
+    };
+    widget.attrs.push(Attr::new_dynamic(art.0, art.1.into()));
+    element
 }
 
 fn panel_art() -> Element {

@@ -1,10 +1,14 @@
 //! Explicit retail + Forever map identities. Retail wins ID and directory conflicts.
 use std::path::Path;
 
-use crate::csv_util::{header_index, parse_csv_records};
+use crate::{
+    asset_product::AssetProduct,
+    csv_util::{header_index, parse_csv_records},
+};
 
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct MapIdentity {
+    pub source_product: AssetProduct,
     pub id: u32,
     pub directory: String,
     pub name: String,
@@ -28,8 +32,8 @@ impl MapCatalog {
     }
 
     pub fn parse(retail: &str, forever: &str) -> Result<Self, String> {
-        let mut maps = parse_maps(retail, "retail Map.csv")?;
-        for map in parse_maps(forever, "Forever Map.csv")? {
+        let mut maps = parse_maps(retail, "retail Map.csv", AssetProduct::Retail)?;
+        for map in parse_maps(forever, "Forever Map.csv", AssetProduct::Forever)? {
             if !maps.iter().any(|existing| {
                 existing.id == map.id || existing.directory.eq_ignore_ascii_case(&map.directory)
             }) {
@@ -50,7 +54,11 @@ impl MapCatalog {
     }
 }
 
-fn parse_maps(text: &str, source: &str) -> Result<Vec<MapIdentity>, String> {
+fn parse_maps(
+    text: &str,
+    source: &str,
+    source_product: AssetProduct,
+) -> Result<Vec<MapIdentity>, String> {
     let records = parse_csv_records(text);
     let header = records
         .first()
@@ -81,6 +89,7 @@ fn parse_maps(text: &str, source: &str) -> Result<Vec<MapIdentity>, String> {
                 })
             };
             Ok(MapIdentity {
+                source_product,
                 id: number(id)?,
                 directory: field(directory)?.clone(),
                 name: field(name)?.clone(),
@@ -101,7 +110,7 @@ mod db2_header_tests {
         lines[1] = "invalid".into();
         let csv = lines.join("\n");
         std::fs::write(&fixture.0, &csv).unwrap();
-        let error = parse_maps(&csv, "Map.csv").unwrap_err();
+        let error = parse_maps(&csv, "Map.csv", AssetProduct::Retail).unwrap_err();
         assert!(error.contains("Map.csv:2:"), "{error}");
     }
 }
@@ -113,7 +122,7 @@ mod db2_canonical_tests {
     fn db2_header_maps_read_every_installed_record() {
         let fixture = crate::db2_test_support::ExportFixture::copy("db2/active/Map", None);
         let text = std::fs::read_to_string(&fixture.0).unwrap();
-        let maps = parse_maps(&text, "Map.csv").unwrap();
+        let maps = parse_maps(&text, "Map.csv", AssetProduct::Retail).unwrap();
         assert_eq!(
             maps.len(),
             crate::csv_util::parse_csv_records(&text).len() - 1

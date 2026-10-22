@@ -643,35 +643,24 @@ fn three_slice(
     left_w: f32,
     right_w: f32,
 ) -> Element {
+    use ui_toolkit::frame::ThreeSlice;
+    use ui_toolkit::widgets::texture::TextureSource;
     let [r, g, b] = color;
-    let tint = format!("{r},{g},{b},1");
-    let parts = [
-        ("Left", TAB_LEFT_TEXTURE, 0.0, left_w),
-        (
-            "Middle",
-            TAB_MIDDLE_TEXTURE,
-            left_w,
-            width - left_w - right_w,
-        ),
-        ("Right", TAB_RIGHT_TEXTURE, width - right_w, right_w),
-    ];
-    parts
-        .into_iter()
-        .flat_map(|(part, file, x, part_w)| {
-            rsx! {
-                texture {
-                    name: {DynName(format!("{name}{part}"))},
-                    width: part_w,
-                    height: height,
-                    texture_file: file,
-                    vertex_color: {tint.as_str()},
-                    pos_type: "absolute",
-                    left: x,
-                    top: 0.0,
-                }
-            }
-        })
-        .collect()
+    let slice = ThreeSlice {
+        cap_widths: [left_w, right_w],
+        left: TextureSource::File(TAB_LEFT_TEXTURE.into()),
+        center: TextureSource::File(TAB_MIDDLE_TEXTURE.into()),
+        right: TextureSource::File(TAB_RIGHT_TEXTURE.into()),
+        color: [r, g, b, 1.0],
+        ..Default::default()
+    };
+    ui_toolkit::three_slice::slice_art(
+        name,
+        &slice,
+        [0.0, 0.0, width, height],
+        ["Left", "Middle", "Right"],
+        ui_toolkit::strata::DrawLayer::Artwork,
+    )
 }
 
 fn chat_button(name: &str, action: &str, icon: &str, x: f32, y: f32, hidden: bool) -> Element {

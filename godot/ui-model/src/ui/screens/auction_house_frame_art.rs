@@ -26,17 +26,6 @@ pub(super) struct Crop {
 }
 
 impl Crop {
-    /// `PanelTopTabButtonMixin:OnLoad` (SharedUIPanelTemplates.lua:280-286) shows the lower
-    /// 75 % of the art upside down (`SetTexCoord(0, 1, 1, 0.25)`): top edge at the member's
-    /// bottom row, bottom edge 25 % below its top.
-    pub fn top_tab(self) -> Self {
-        let (l, r, t, b) = self.rect;
-        Self {
-            rect: (l, r, b, t + 0.25 * (b - t)),
-            ..self
-        }
-    }
-
     /// Atlas member size in pixels.
     pub fn size(self) -> (f32, f32) {
         let (l, r, t, b) = self.rect;
@@ -54,12 +43,6 @@ impl Crop {
 const AH_SHEET: u32 = 3_046_538;
 /// UiTextureAtlas 1499, 2048×1024: auction house panel backgrounds.
 const AH_BG_SHEET: u32 = 3_054_898;
-/// UiTextureAtlas 2134, 64×256: `PanelTabButtonTemplate` art.
-const TAB_SHEET: u32 = 4_707_839;
-/// UiTextureAtlas 948 / 949 / 950: `InsetFrameTemplate` corners, side and top/bottom tiles.
-const INSET_CORNERS: u32 = 1_723_831;
-const INSET_SIDES: u32 = 1_723_832;
-const INSET_TOP_BOTTOM: u32 = 1_723_833;
 /// UiTextureAtlas 3172, 2048×1024: `common-search-border-*` of `InputBoxVisualTemplate`.
 const SEARCH_SHEET: u32 = 6_725_697;
 /// `Interface\Common\Moneyframe` (`ThinGoldEdgeTemplate`), 128×64.
@@ -77,14 +60,6 @@ const fn ah_bg(l: f32, r: f32, t: f32, b: f32) -> Crop {
     Crop {
         fdid: AH_BG_SHEET,
         sheet: (2048.0, 1024.0),
-        rect: (l, r, t, b),
-    }
-}
-
-const fn tab(l: f32, r: f32, t: f32, b: f32) -> Crop {
-    Crop {
-        fdid: TAB_SHEET,
-        sheet: (64.0, 256.0),
         rect: (l, r, t, b),
     }
 }
@@ -127,14 +102,6 @@ pub(super) const COIN_GOLD: Crop = ah(985.0, 1005.0, 125.0, 145.0);
 pub(super) const COIN_SILVER: Crop = ah(954.0, 974.0, 147.0, 167.0);
 pub(super) const COIN_COPPER: Crop = ah(963.0, 983.0, 125.0, 145.0);
 
-// `PanelTabButtonTemplate` (SharedUIPanelTemplates.xml:905): inactive caps 35/37×36, active 35/37×42.
-pub(super) const TAB_LEFT: Crop = tab(1.0, 36.0, 209.0, 245.0); // uiframe-tab-left (17155)
-pub(super) const TAB_MIDDLE: Crop = tab(0.0, 1.0, 45.0, 81.0); // _uiframe-tab-center (17158)
-pub(super) const TAB_RIGHT: Crop = tab(1.0, 38.0, 171.0, 207.0); // uiframe-tab-right (17156)
-pub(super) const TAB_ACTIVE_LEFT: Crop = tab(1.0, 36.0, 127.0, 169.0); // uiframe-activetab-left (17153)
-pub(super) const TAB_ACTIVE_MIDDLE: Crop = tab(0.0, 1.0, 1.0, 43.0); // _uiframe-activetab-center (17157)
-pub(super) const TAB_ACTIVE_RIGHT: Crop = tab(1.0, 38.0, 83.0, 125.0); // uiframe-activetab-right (17154)
-
 // `InputBoxVisualTemplate` (InputBoxTemplates.xml:43) search border, 16/224/16×40 atlas pixels.
 pub(super) const SEARCH_LEFT: Crop = sheet(SEARCH_SHEET, 2048.0, 1024.0, 1970.0, 1986.0, 1.0, 41.0);
 pub(super) const SEARCH_MIDDLE: Crop =
@@ -162,14 +129,6 @@ pub(super) const GOLD_EDGE_MIDDLE: Crop = Crop {
 };
 
 // `InsetFrameTemplate` (NineSliceLayouts.lua:81): 6×6 corners, 3 px tiles.
-const INSET_TOP_LEFT: Crop = sheet(INSET_CORNERS, 128.0, 128.0, 97.0, 103.0, 71.0, 77.0);
-const INSET_TOP_RIGHT: Crop = sheet(INSET_CORNERS, 128.0, 128.0, 105.0, 111.0, 71.0, 77.0);
-const INSET_BOTTOM_LEFT: Crop = sheet(INSET_CORNERS, 128.0, 128.0, 81.0, 87.0, 71.0, 77.0);
-const INSET_BOTTOM_RIGHT: Crop = sheet(INSET_CORNERS, 128.0, 128.0, 89.0, 95.0, 71.0, 77.0);
-const INSET_LEFT: Crop = sheet(INSET_SIDES, 64.0, 256.0, 31.0, 34.0, 0.0, 256.0);
-const INSET_RIGHT: Crop = sheet(INSET_SIDES, 64.0, 256.0, 36.0, 39.0, 0.0, 256.0);
-const INSET_TOP: Crop = sheet(INSET_TOP_BOTTOM, 256.0, 128.0, 0.0, 256.0, 116.0, 119.0);
-const INSET_BOTTOM: Crop = sheet(INSET_TOP_BOTTOM, 256.0, 128.0, 0.0, 256.0, 111.0, 114.0);
 
 /// `NORMAL_FONT_COLOR`.
 pub(super) const NORMAL_FONT_COLOR: &str = "1.0,0.82,0.0,1.0";
@@ -234,51 +193,43 @@ pub(super) fn three_slice(
     cap_w: f32,
     rect: (f32, f32, f32, f32),
 ) -> Element {
-    let (x, y, w, h) = rect;
-    let mut out = crop_texture(format!("{prefix}Left"), left, (x, y, cap_w, h));
-    out.extend(crop_texture(
-        format!("{prefix}Middle"),
-        middle,
-        (x + cap_w, y, (w - 2.0 * cap_w).max(0.0), h),
-    ));
-    out.extend(crop_texture(
-        format!("{prefix}Right"),
-        right,
-        (x + w - cap_w, y, cap_w, h),
-    ));
-    out
+    use ui_toolkit::frame::ThreeSlice;
+    use ui_toolkit::widgets::texture::TextureSource;
+    let (x, y, width, height) = rect;
+    let crops = [left, middle, right];
+    let slice = ThreeSlice {
+        cap_widths: [cap_w; 2],
+        left: TextureSource::FileDataId(left.fdid),
+        center: TextureSource::FileDataId(middle.fdid),
+        right: TextureSource::FileDataId(right.fdid),
+        tex_coords: crops.map(|crop| {
+            let (l, r, t, b) = crop.rect;
+            [
+                l / crop.sheet.0,
+                r / crop.sheet.0,
+                t / crop.sheet.1,
+                b / crop.sheet.1,
+            ]
+        }),
+        ..Default::default()
+    };
+    ui_toolkit::three_slice::slice_art(
+        prefix,
+        &slice,
+        [x, y, width, height],
+        ["Left", "Middle", "Right"],
+        ui_toolkit::strata::DrawLayer::Artwork,
+    )
 }
 
 /// `InsetFrameTemplate` NineSlice border around `rect`.
 pub(crate) fn inset_border(prefix: &str, rect: (f32, f32, f32, f32)) -> Element {
-    let (x, y, w, h) = rect;
-    let parts = [
-        ("TopEdge", INSET_TOP, (x + 6.0, y, w - 12.0, 3.0)),
-        (
-            "BottomEdge",
-            INSET_BOTTOM,
-            (x + 6.0, y + h - 3.0, w - 12.0, 3.0),
-        ),
-        ("LeftEdge", INSET_LEFT, (x, y + 6.0, 3.0, h - 12.0)),
-        (
-            "RightEdge",
-            INSET_RIGHT,
-            (x + w - 3.0, y + 6.0, 3.0, h - 12.0),
-        ),
-        ("TopLeft", INSET_TOP_LEFT, (x, y, 6.0, 6.0)),
-        ("TopRight", INSET_TOP_RIGHT, (x + w - 6.0, y, 6.0, 6.0)),
-        // BottomLeft/RightCorner carry `y = -1`.
-        ("BottomLeft", INSET_BOTTOM_LEFT, (x, y + h - 5.0, 6.0, 6.0)),
-        (
-            "BottomRight",
-            INSET_BOTTOM_RIGHT,
-            (x + w - 6.0, y + h - 5.0, 6.0, 6.0),
-        ),
-    ];
-    parts
-        .into_iter()
-        .flat_map(|(part, crop, rect)| crop_texture(format!("{prefix}{part}"), crop, rect))
-        .collect()
+    use ui_toolkit::art_layout::{BorderLayout, BorderSpec, border_art};
+    let (x, y, width, height) = rect;
+    border_art(
+        prefix,
+        BorderSpec::new(BorderLayout::Inset, [x, y, width, height]),
+    )
 }
 
 /// `PriceFontWhite` (ArialNarrow 14) used by `MoneyDenominationDisplayTemplate`.

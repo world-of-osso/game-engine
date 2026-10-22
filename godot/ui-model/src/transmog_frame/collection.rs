@@ -55,8 +55,18 @@ pub(super) fn wardrobe_region(book: &TransmogBook) -> Element {
 
 fn collection_tabs(book: &TransmogBook) -> Element {
     [
-        ("TransmogItemsTab", "Items", WardrobeTab::Items, "transmog:tab:items"),
-        ("TransmogSetsTab", "Sets", WardrobeTab::Sets, "transmog:tab:sets"),
+        (
+            "TransmogItemsTab",
+            "Items",
+            WardrobeTab::Items,
+            "transmog:tab:items",
+        ),
+        (
+            "TransmogSetsTab",
+            "Sets",
+            WardrobeTab::Sets,
+            "transmog:tab:sets",
+        ),
         (
             "TransmogCustomSetsTab",
             "Custom Sets",
@@ -64,28 +74,27 @@ fn collection_tabs(book: &TransmogBook) -> Element {
             "transmog:tab:custom-sets",
         ),
         // TransmogSituation data and the situation-trigger server path are not implemented.
-        ("TransmogSituationsTab", "Situations", WardrobeTab::Situations, ""),
+        (
+            "TransmogSituationsTab",
+            "Situations",
+            WardrobeTab::Situations,
+            "",
+        ),
     ]
     .into_iter()
     .enumerate()
     .flat_map(|(index, (name, caption, tab, action))| {
         let selected = book.tab == tab;
-        let prefix = if selected { "uiframe-activetab" } else { "uiframe-tab" };
-        let height = if selected { 42.0 } else { 36.0 };
-        let mut art = Vec::new();
-        // TabSystemTopButtonTemplate rotates the right cap onto the left and vice versa.
-        for (suffix, x, width) in [("right", -7.0, 37.0), ("center", 30.0, 30.0), ("left", 60.0, 35.0)] {
-            let member = if suffix == "center" {
-                format!("_{prefix}-{suffix}")
-            } else {
-                format!("{prefix}-{suffix}")
-            };
-            let rotation = std::f32::consts::PI;
-            art.extend(rsx! { texture { name: {DynName(format!("{name}{suffix}"))}, width, height,
-            left: x, top: 0.0, pos_type: "absolute", texture_atlas: {member.as_str()}, rotation } });
-        }
+        use ui_toolkit::tab_art::{TabArtSpec, TabLayout, tab_art};
+        let mut spec = TabArtSpec::new(TabLayout::SystemTop, selected, [95.0, 32.0]);
+        spec.names = ["left", "center", "right"];
+        let mut art = tab_art(name, spec);
         if selected {
-            art.extend(atlas(format!("{name}Highlight"), "transmog-tab-hl", (2.0, 26.0, 90.0, 1.0)));
+            art.extend(atlas(
+                format!("{name}Highlight"),
+                "transmog-tab-hl",
+                (2.0, 26.0, 90.0, 1.0),
+            ));
         }
         let enabled = !action.is_empty();
         let color = if selected {
@@ -95,7 +104,12 @@ fn collection_tabs(book: &TransmogBook) -> Element {
         } else {
             GRAY
         };
-        art.extend(label(format!("{name}Text"), caption, (0.0, 3.0, 95.0, 28.0), (12.0, color, "CENTER")));
+        art.extend(label(
+            format!("{name}Text"),
+            caption,
+            (0.0, 3.0, 95.0, 28.0),
+            (12.0, color, "CENTER"),
+        ));
         let disabled = !enabled || book.busy();
         rsx! { button { name: {DynName(name.into())}, width: 95.0, height: 32.0,
         left: {1004.0 + index as f32 * 96.0}, top: 33.0, pos_type: "absolute",
@@ -306,7 +320,7 @@ fn display_type_button(
         action,
         enabled,
         (x, y, 188.0, 36.0),
-        &Skin {
+        &Skin::States {
             up,
             pressed: "common-button-tertiary-pressed",
             disabled: up,

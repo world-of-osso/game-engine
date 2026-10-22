@@ -44,6 +44,22 @@ fn canvas<T: 'static>(
     registry
 }
 
+/// R DamageMeterSessionWindow.xml24/57/75: GameFontNormalMed1 inherits Friz13 + black shadow.
+#[test]
+fn ui_template_fonts_meter_headers_inherit_the_authored_shadow() {
+    let registry = canvas(ActiveSkin::Modern, meter_view(), damage_meter_screen);
+    for name in [
+        "DamageMeterSessionTimer",
+        "DamageMeterSessionName",
+        "DamageMeterTypeName",
+    ] {
+        let label = font(&registry, name);
+        assert_eq!(label.font_size, 13.0, "{name}");
+        assert_eq!(label.shadow_color, Some([0.0, 0.0, 0.0, 1.0]), "{name}");
+        assert_eq!(label.shadow_offset, [1.0, -1.0], "{name}");
+    }
+}
+
 #[test]
 fn metergaps_forever_row_font_is_friz_quadrata_12() {
     let registry = canvas(ActiveSkin::Forever, meter_view(), damage_meter_screen);

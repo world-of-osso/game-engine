@@ -436,7 +436,8 @@ fn talent_tree3_hero_staging_keeps_dialog_apply_and_authored_close_control() {
                 .as_ref()
                 .map(|texture| texture.source.clone()),
             Some(ui_toolkit::widgets::texture::TextureSource::Atlas(
-                "RedButton-Exit-Pressed".into()
+                // R SharedUIPanelTemplates.xml138 authors this exact atlas casing.
+                "RedButton-exit-pressed".into()
             ))
         );
     }

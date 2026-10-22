@@ -1,6 +1,6 @@
-//! The Modern skin's chat frame, damage meter and tooltip canvases are unchanged by the
-//! Forever `flare_bronze` panel: every frame's name, rect, visibility, art and widget data
-//! hash to what they were before it (forever6 0c9f5dff).
+//! Modern chat, meter and tooltip canvases retain their current authored-template contract.
+//! Source font assertions qualify the baseline; hashes retain the remaining frame contract,
+//! including widget Debug metadata, rather than asserting pre-template bytes or native pixels.
 
 use std::collections::HashMap;
 use std::hash::{DefaultHasher, Hash, Hasher};
@@ -140,22 +140,61 @@ fn modern_chat_meter_and_tooltip_canvases_are_unchanged() {
         std::path::PathBuf::from(env!("CARGO_MANIFEST_DIR")).join("../../data"),
     )
     .unwrap();
+    let chat = modern(chat_view(), chat_frame_screen);
+    let meter = modern(meter_view(), damage_meter_screen);
+    let tooltip = modern(tooltip_view(), game_tooltip_screen);
+    // R DamageMeterSessionWindow.xml24/57/75; FontStyles.xml245–249.
+    for name in [
+        "DamageMeterSessionTimer",
+        "DamageMeterSessionName",
+        "DamageMeterTypeName",
+    ] {
+        let font = named_font(&meter, name);
+        assert_eq!(font.font_size, 13.0, "{name}");
+        assert_eq!(font.shadow_color, Some([0.0, 0.0, 0.0, 1.0]), "{name}");
+        assert_eq!(font.shadow_offset, [1.0, -1.0], "{name}");
+    }
+    // R FontStyles.xml314–319 inherits unshadowed GameTooltipHeader / Tooltip_Med.
+    for (name, size) in [("TooltipTitle", 14.0), ("TooltipLine0Left", 12.0)] {
+        let font = named_font(&tooltip, name);
+        assert_eq!(font.font_size, size, "{name}");
+        assert_eq!(font.shadow_color, None, "{name}");
+    }
+    let message = named_font(&chat, "ChatFrame1MessagesRow0Run0");
+    assert_eq!(
+        message.font,
+        ui_toolkit::widgets::font_string::GameFont::ArialNarrow
+    );
+    assert_eq!(message.font_size, 14.0);
     let hashes = [
-        canvas_hash(&modern(chat_view(), chat_frame_screen)),
-        canvas_hash(&modern(meter_view(), damage_meter_screen)),
-        canvas_hash(&modern(tooltip_view(), game_tooltip_screen)),
+        canvas_hash(&chat),
+        canvas_hash(&meter),
+        canvas_hash(&tooltip),
     ];
     println!("MODERN_CANVAS_HASHES {hashes:?}");
     assert_eq!(hashes, MODERN_CANVAS_HASHES);
 }
 
-/// Captured from forever6 (0c9f5dff) with this test; the meter's again at meter2
-/// (9a8e9715), which adds the clickable `DamageMeterTypeDropdown` (was 9780770820284619226).
-/// Recaptured after ui-toolkit dbbfda7 added `FontStringData::line_spacing`: hashing with
-/// `, line_spacing: None` stripped reproduces the previous constants exactly, so only the
-/// widget Debug text changed, not the canvases.
+fn named_font<'a>(
+    model: &'a RegistryModel,
+    name: &str,
+) -> &'a ui_toolkit::widgets::font_string::FontStringData {
+    let registry = &model.registry;
+    let frame = registry
+        .get(registry.get_by_name(name).expect(name))
+        .unwrap();
+    let Some(ui_toolkit::frame::WidgetData::FontString(font)) = &frame.widget_data else {
+        panic!("{name} is not rendered text")
+    };
+    font
+}
+
+/// E9ada5e6c7/T76b7a2f, after authored font/state/ThreeSlice migrations. New ButtonData
+/// state records/template metadata also change Debug bytes used by all three hashes.
+/// The Meter13px black shadow and unshadowed Tooltip14/12 are asserted above from R;
+/// both-skin native Step3/4 PNGs were separately inspected and accepted by the lead.
 const MODERN_CANVAS_HASHES: [u64; 3] = [
-    10955398444729447730,
-    10138633227594077484,
-    18211835941521366489,
+    2238469926673388168,
+    9492689086693559626,
+    10849505802571825320,
 ];

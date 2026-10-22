@@ -79,10 +79,11 @@ pub fn filters(session: &GuildRanksSession) -> Element {
         (24.0, 18.0, 210.0, 12.0),
         (12.0, "1,0.82,0,1", "LEFT"),
     ));
-    children.extend(rsx! { button { name: "GuildNewsFiltersFrameCloseButton", left: 236.0, top: 4.0,
+    children.extend(
+        rsx! { button { name: "GuildNewsFiltersFrameCloseButton", left: 236.0, top: 4.0,
         width: 24.0, height: 24.0, pos_type: "absolute", button_default_skin: false,
-        onclick: "guild:news_filters_close", button_atlas_up: "RedButton-Exit",
-        button_atlas_pressed: "RedButton-exit-pressed", button_atlas_highlight: "RedButton-Highlight", button_highlight_blend_mode:"ADD" } });
+        onclick: "guild:news_filters_close", button_template: "UIPanelCloseButton" } },
+    );
     for (row, (id, text)) in [
         (2, "Members Achievements"),
         (4, "Epic Items Looted"),
