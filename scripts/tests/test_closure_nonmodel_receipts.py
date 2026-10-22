@@ -2,7 +2,6 @@
 
 import hashlib
 import json
-import os
 from pathlib import Path
 import struct
 import sys
@@ -212,9 +211,6 @@ class NonModelReceiptTests(unittest.TestCase):
         self.assertFalse(asset["receipt_selected"])
         self.assertEqual(asset["identity_status"], "verified_receipt")
 
-    @unittest.skipUnless(
-        os.environ.get("P4_RED"), "Ignored RED: invalid source-build identity"
-    )
     def test_malformed_generic_build_key_cannot_authenticate_flat_bytes(self):
         raw = b"OggSactualsound"
         self.put("sounds/30.ogg", raw)
@@ -232,9 +228,6 @@ class NonModelReceiptTests(unittest.TestCase):
             )
         )
 
-    @unittest.skipUnless(
-        os.environ.get("P4_RED"), "Ignored RED: invalid export identity"
-    )
     def test_malformed_db2_build_key_cannot_authenticate_export(self):
         document = self.table_receipt(b"ID,Directory\n1,azeroth\n")
         document["identity"]["build_key"] = "not-a-build-key"
