@@ -1,6 +1,6 @@
 ## 2026-10-21 — Named artwork layout implementation
 
-[Shared artwork](systems/ui-system.md#named-artwork-layouts--step-4-implementation): removed audited border/tab/three-slice/button copies, Perks compositor and source-based projection policy. Final core6/model3/projection3 plus24 scoped consumer/golden modules GREEN. Strict native60/60 covers30 supplied states×both skins,60 inspected1920×1080 originals and interactive close-state assertions;65 PNGs published. Format passed; helper check/lead acceptance pending. Distinct authored geometry and approved skins retained; no global raster parity claim.
+[Shared artwork](systems/ui-system.md#named-artwork-layouts--step-4-implementation): removed audited border/tab/three-slice/button copies, Perks compositor and source-based projection policy. Final core6/model3/projection3 plus24 scoped consumer/golden modules GREEN. Strict native60/60 covers30 supplied states×both skins,60 inspected1920×1080 originals and interactive close-state assertions;65 PNGs published. Helper check/format passed without compiler warnings; lead acceptance separate. Distinct authored geometry and approved skins retained; no global raster parity claim.
 
 ## 2026-10-21 — Named font inheritance implementation
 
