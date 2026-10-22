@@ -69,6 +69,36 @@ fn parse_trading_post_vendor_id(frame: &Frame) -> Option<u32> {
         .ok()
 }
 
+#[cfg(test)]
+mod authored_owner_tests {
+    use super::*;
+
+    #[test]
+    fn ui_template_behavior_provider_housing_declared_categories_resolve_exact_domain_ids() {
+        let mut registry = ui_toolkit::registry::FrameRegistry::new(1920., 1080.);
+        for (name, category, id) in [
+            ("HousingCategory18", true, 18),
+            ("HousingSubcategory4", false, 4),
+            ("HouseEditorStorageCategory1", true, 1),
+            ("HouseEditorStorageSubcategory2", false, 2),
+        ] {
+            let frame = registry.create_frame(name, None);
+            let parsed = parse_housing_tooltip_target(registry.get(frame).unwrap());
+            let actual = match parsed {
+                Some(HousingTooltipTarget::Category(id)) => Some((true, id)),
+                Some(HousingTooltipTarget::Subcategory(id)) => Some((false, id)),
+                _ => None,
+            };
+            assert_eq!(actual, Some((category, id)), "{name}");
+        }
+        let all = registry.create_frame("HousingSubcategoryAll", None);
+        assert!(matches!(
+            parse_housing_tooltip_target(registry.get(all).unwrap()),
+            Some(HousingTooltipTarget::AllSubcategories)
+        ));
+    }
+}
+
 enum HousingTooltipTarget {
     EditorControl(game_engine_core::input_bindings_data::InputAction),
     Decor(u32),
