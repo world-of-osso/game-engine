@@ -552,24 +552,22 @@ impl View {
         })
     }
     pub fn loot(&self) -> Vec<&Item> {
-        let search = self.search.to_lowercase();
         let mut seen = BTreeSet::new();
         let items = self
             .instance_loot_entries()
             .filter(|loot| self.encounter.is_none_or(|id| loot.encounter == id))
             .filter_map(|loot| self.catalog.items.get(&loot.item));
         items
-            .filter(|item| self.matches_loot_filters(item, &search))
+            .filter(|item| self.matches_loot_filters(item))
             .filter(|item| seen.insert(item.id))
             .collect()
     }
-    fn matches_loot_filters(&self, item: &Item, search: &str) -> bool {
+    fn matches_loot_filters(&self, item: &Item) -> bool {
         slot_matches(item.slot, self.slot)
             && (self.class == 0
                 || item.class_mask == -1
                 || item.class_mask & (1 << (self.class - 1)) != 0)
             && self.matches_specialization(item.id)
-            && item.name.to_lowercase().contains(search)
     }
     pub(crate) fn loot_boss_names(&self) -> BTreeMap<u32, Vec<&str>> {
         let encounters: BTreeMap<_, _> = self

@@ -207,7 +207,6 @@ fn encounter_overview_role_change_expands_the_new_role_without_resetting_abiliti
 }
 
 #[test]
-#[ignore = "RED: retained global journal search must not filter selected boss drops"]
 fn encounter_search_section_selection_preserves_real_loot_with_its_retained_query() {
     let mut view = journal();
     view.select_dungeon_encounter(1058, Some(2)).unwrap();
