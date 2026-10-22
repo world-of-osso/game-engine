@@ -53,7 +53,7 @@ fn enabled_content(binding: &TooltipBinding) -> Option<TooltipPresentation> {
 fn disabled_content(binding: &TooltipBinding) -> Option<TooltipPresentation> {
     Some(TooltipPresentation {
         title: binding.disabled_text.clone()?,
-        title_color: RED_FONT_COLOR,
+        title_color: binding.disabled_title_color.unwrap_or(RED_FONT_COLOR),
         ..Default::default()
     })
 }
