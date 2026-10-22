@@ -17,15 +17,15 @@ Consume the private source conversation payload and render the authored70448 Ret
 
 ## Implementation inventory
 
-- `godot/ui-model/src/talking_head.rs`: private source payload/elapsed line state and local dismissal.
-- `godot/ui-model/src/talking_head_component.rs`: authored Retail TalkingHead chrome/name/text/model host geometry and opening alphas from the conversation's elapsed time. Lua delays name500ms/text750ms; XML durations name/text250ms, portrait/model750ms, background750ms after400ms and close750ms after750ms. Repeated snapshots do not restart them. New-line/close transitions and glow animation remain open.
+- `godot/ui-model/src/talking_head.rs` and `talking_head/presentation.rs`: private source/elapsed state remains the voice authority; painted name/text follows Lua's250ms replacement and500ms Fadein callbacks without delaying the source line. An authoritative clear retains the no-voice1s Close painting; local dismissal/world clear remain immediate. Playing-voice close delay/fade is not implemented yet.
+- `godot/ui-model/src/talking_head_component.rs`: authored Retail TalkingHead chrome/name/text/model host geometry and opening alphas from the conversation's elapsed time. Lua delays name500ms/text750ms; XML durations name/text250ms, portrait/model750ms, background750ms after400ms and close750ms after750ms. Repeated snapshots do not restart them. Painted line/close transitions live in the separate presentation state; playing-voice close and glow animation remain open.
 - `godot/network/src/lib.rs`: ordered ConversationUpdate relay on EncounterChannel.
 - `godot/rust/src/{talking_head,encounter,lib}.rs`: native owner/map-validated UI host, event routing, shared UI-scale/pointer registration and local dismissal; model framing remains absent.
 - `godot/rust/src/talking_head/voice.rs`: source-kit/file loading off-frame, elapsed seek, one active voice and local/world-exit stop. Native source extraction is blocked below.
 
 ## Tests asserting this spec
 
-- `godot/ui-model/tests/talking_head.rs`: actual source payload/elapsed expiry/private-owner refusal/dismissal and source opening alphas at625/875/1500ms in both skins. Opening-alpha RED: Modern625ms name remained1 instead of0.5 at `6c9b5da7a`. At `742b7bf1e`, all five TalkingHead model tests pass, including both-skin alpha samples at625/875/1500ms; native phase proof remains pending. Logs: `talking-head-opening-red-exact.log`, `talking-head-opening-green.log` under the diagnostic evidence root.
+- `godot/ui-model/tests/talking_head.rs`: actual source payload/elapsed expiry/private-owner refusal/dismissal and source opening alphas at625/875/1500ms in both skins. Opening-alpha RED: Modern625ms name remained1 instead of0.5 at `6c9b5da7a`. At `742b7bf1e`, all five TalkingHead model tests pass, including both-skin alpha samples at625/875/1500ms; native4/4 then checks source750→1500ms with216 checked steps and eight inspected1920×1080 phase/settled PNGs. The normal run emitted a4-instance ObjectDB teardown warning; unchanged verbose replay did not reproduce it. Its cause remains open, not fixed or suppressed. Logs: `talking-head-opening-red-exact.log`, `talking-head-opening-green.log` under the diagnostic evidence root.
 - `godot/network/src/wire_tests.rs`: real UDP/Host ordered source snapshot and clear.
 - `godot/tests/talking_head.gd`, `godot/rust/src/talking_head_fixture.rs`: native source-payload projection, authored host/source-camera metadata, voice playback/stop and unscaled1920 PNGs. Model paint is not claimed: the approved named projection gap is asserted explicitly.
 - `godot/core/tests/talking_head_camera.rs`: exact source1751 Pos/Euler/raw Flags and authored fixed camera/target; no inferred native projection.
@@ -33,7 +33,7 @@ Consume the private source conversation payload and render the authored70448 Ret
 ## Known gaps (current cycle)
 
 - [ ] `TALKING_HEAD_MODEL_PROJECTION_UNSOURCED`: model rendering stays disabled. Source Pos→model translation, LookAt→yaw/pitch/roll and fixed camera(4,0,0)→target(0,0,0) are retained; flags→useModelCenter and native PlayerModel projection remain unknown. Do not treat Pos as the eye, substitute an M2 portrait camera, or fit the mesh.
-- [ ] Native source-model paint, authored animation/fades and joint protocol/server/engine acceptance remain open. Model paint is explicitly excluded under the approved projection gap, not silently certified.
+- [ ] Playing-voice Close (source1s delay/2s sound fade), glow/scale/translation animation and joint protocol/server/engine acceptance remain open. Model paint is explicitly excluded under the approved projection gap, not silently certified.
 
 ## Bounded proof
 
@@ -50,6 +50,10 @@ Consume the private source conversation payload and render the authored70448 Ret
 At `e60ea055a`, maintained `gdscript_completion_fixture` accepted4/4 with foreground runner exit0, exactly one `ALL_CASES_DONE 4/4`,204 checks and no ERROR in either complete Godot child stream. All four original1920×1080 PNGs were inspected: both skins render authored chrome/name/wrapped dialogue; button/right-click dismiss, source voice playback/750ms seek/stop pass. Evidence: `data/diagnostics/follower-dungeons-2026-10-21/talking-head-strict-native/`.
 
 This is sampled offline presentation, not real world ingress, authored fades/glows, model paint or audible-output proof. Dummy audio is explicit. Outer Cage stderr reports unavailable XWayland; the tested Godot child uses native Wayland and has only the recorded platform/model-gap warnings. VRAM preflight sampled card0 rather than the selected NVIDIA adapter; post-run NVIDIA free7472MiB does not establish a matching preflight. The helper build log records both successful Cargo phases/zero warnings; its enclosing detached adapter failed before writing an exit-status artifact, so no helper exit-code claim is made.
+
+### Transition RED boundary
+
+`c595b0b2a` adds exact source705 lines1683/1684 (additional500ms each, missing locale duration retained) and actor98075's pinned TDB name; fixture map/entity IDs are controls. Source rows are recorded in `talking-head-705-source-rows.json`; canonical runtime actor-name coverage is not claimed. Source-model target tests reproduce2RED: new text replaced immediately at625ms instead of after the source250ms callback, and source clear hid chrome immediately instead of retaining the no-voice1s Close. Existing opening/layout controls remain GREEN. Transition implementation/native proof is pending; no playing-voice fade claim.
 
 ## Camera reference boundary
 

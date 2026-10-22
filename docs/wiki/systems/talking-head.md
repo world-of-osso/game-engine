@@ -4,7 +4,7 @@
 
 ## Runtime
 
-The ordered EncounterChannel relay projects owner-scoped ConversationUpdate snapshots into `TalkingHeadState`. State advances authoritative elapsed time, retains dismissed object identities across unchanged snapshots, and clears on authoritative removal/world exit. RegistryUi hosts the source chrome/name/dialogue and shared scale/pointer registration. Opening region alpha follows the conversation's authoritative elapsed time, not the current line offset or a new local clock: source name/text delays and per-region XML durations are retained. Repeated snapshots do not restart it; line-change/close transitions and animated glows remain open.
+The ordered EncounterChannel relay projects owner-scoped ConversationUpdate snapshots into `TalkingHeadState`. State advances authoritative elapsed time, retains dismissed object identities across unchanged snapshots, and clears on authoritative removal/world exit. RegistryUi hosts the source chrome/name/dialogue and shared scale/pointer registration. Opening region alpha follows the conversation's authoritative elapsed time, not the current line offset or a new local clock: source name/text delays and per-region XML durations are retained. Repeated snapshots do not restart it. Presentation state separates Lua's delayed painted name/text from the authoritative voice line, and retains the no-voice1s source Close. Playing-voice close and animated glows remain open; transition proof is still pending.
 
 `talking_head/voice.rs` reads the source SoundKit/Entry on a worker, extracts the actual Ogg from local CASC, seeks to line elapsed and stops on source replacement/local close/world exit. The Godot workspace must select asset-resolver's existing vendored IV8 patch: a dependency's own Cargo patches do not apply in its consumer workspace. Native playback state is proved in both skins; this host's dummy audio is not audible-output proof.
 
@@ -12,7 +12,7 @@ The ordered EncounterChannel relay projects owner-scoped ConversationUpdate snap
 
 ## Bounded native proof
 
-The [contract's strict child proof](../../specs/talking-head.md#strict-native-child-proof--2026-10-22) records maintained-runner4/4,204 checks, complete clean Godot child streams and four inspected1920×1080 originals. This covers chrome/text/source voice/input only; source-model projection, authored fades/glows and joint world ingress remain open. Compositor, adapter-status and GPU-preflight limitations stay explicit in that record.
+The [contract's strict child proof](../../specs/talking-head.md#strict-native-child-proof--2026-10-22) records maintained-runner4/4,204 checks, complete clean Godot child streams and four inspected1920×1080 originals. This covers chrome/text/source voice/input only. Opening-alpha samples later passed216 checks with eight inspected phase PNGs, but a transient4-instance teardown warning remains unresolved (absent on unchanged verbose replay). Source-model projection, playing-voice close/glows and joint world ingress remain open. Compositor, adapter-status and GPU-preflight limitations stay explicit in that record.
 
 ## Sources
 
