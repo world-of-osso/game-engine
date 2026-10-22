@@ -20,7 +20,7 @@ from closure_seeds import (
     seed_item_displays,
     seed_items,
 )
-from test_asset_closure import chunk, ints, model
+from test_asset_closure import chunk, model
 
 
 class RootProductTests(unittest.TestCase):
