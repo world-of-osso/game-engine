@@ -25,6 +25,7 @@ fn page_text(page: usize, pages: usize, prev_left: f32, s: f32) -> Element {
     let text = format!("Page {}/{}", page + 1, pages);
     label(
         Label {
+            font_object: "SystemFont_Med3",
             name: "SpellBookPageText".into(),
             text: &text,
             rect: [

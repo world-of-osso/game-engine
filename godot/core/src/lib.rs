@@ -100,6 +100,7 @@ pub mod m2_material;
 mod m2_material_transition;
 pub mod m2_particles;
 pub mod m2_ribbons;
+pub mod spell_binding_holds;
 pub use wow_m2::m2_texture_composite_data;
 pub mod map_catalog;
 pub mod minimap_data;

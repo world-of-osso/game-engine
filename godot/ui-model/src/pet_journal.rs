@@ -528,10 +528,7 @@ fn queue_popup(view: &PetJournalView) -> Element {
         onclick: action, disabled: view.queue_pending, width: 120.0, height: 21.0,
         left: x, top: 159.0, pos_type: "absolute", font_size: 13.0,
         strata: FrameStrata::Dialog, frame_level: 10.0,
-        button_fdid_up: 130828_u32,
-        button_fdid_pressed: 130825_u32,
-        button_fdid_highlight: 130826_u32, button_highlight_blend_mode:"ADD",
-        button_fdid_disabled: 130824_u32 } });
+        button_template: "UIPanelButtonTemplate" } });
     }
     rsx! { r#frame { name: "PetBattleQueueReadyFrame", width: 320.0, height: 200.0,
     strata: FrameStrata::Dialog,

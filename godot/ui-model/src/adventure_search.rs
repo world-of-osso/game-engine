@@ -432,12 +432,7 @@ fn full_results(ctx: &SharedContext, view: &View, rows: &[ResultRow<'_>]) -> Ele
         (60., 7., 480., 12.),
         (12., NAME_COLOR, "CENTER"),
     ));
-    let close = named_atlas_texture(
-        "JournalSearchCloseArt".into(),
-        "RedButton-Exit",
-        (0., 0., 24., 24.),
-    );
-    art.extend(rsx! {button {name:"EncounterJournalSearchResultsClose",left:583.0,top:-2.0,width:24.0,height:24.0,pos_type:"absolute",button_default_skin:false,onclick:"journal:search-close",{close}}});
+    art.extend(rsx! {button {name:"EncounterJournalSearchResultsClose",left:583.0,top:-2.0,width:24.0,height:24.0,pos_type:"absolute",button_default_skin:false,onclick:"journal:search-close",button_template:"UIPanelCloseButton"}});
     rsx! {r#frame {name:"EncounterJournalSearchResults",left:100.0,top:89.0,width:600.0,height:400.0,pos_type:"absolute",mouse_enabled:true,frame_level:25.0,{art} {list}}}
 }
 fn atlas_region(name: &str, atlas: &str, rect: (f32, f32, f32, f32)) -> Element {

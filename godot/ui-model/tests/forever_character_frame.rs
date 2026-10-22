@@ -123,11 +123,15 @@ fn frame<'a>(registry: &'a FrameRegistry, node: &str) -> &'a Frame {
 
 /// The art `node` draws: a source and a non-empty crop of it.
 fn art(registry: &FrameRegistry, node: &str) -> String {
-    let Some(WidgetData::Texture(TextureData {
-        source, tex_coords, ..
-    })) = &frame(registry, node).widget_data
-    else {
-        panic!("not a texture: {node}")
+    let (source, tex_coords) = match &frame(registry, node).widget_data {
+        Some(WidgetData::Texture(TextureData {
+            source, tex_coords, ..
+        })) => (source, tex_coords),
+        Some(WidgetData::Button(button)) => {
+            let region = button.base_texture().expect("authored button region");
+            (&region.source, &region.tex_coords)
+        }
+        _ => panic!("not textured artwork: {node}"),
     };
     assert_ne!(*source, TextureSource::None, "{node} draws nothing");
     let [left, right, top, bottom] = *tex_coords;
@@ -240,7 +244,7 @@ fn character_frame_skin_art_and_layout_preserve_modern_bytes() {
             "CharacterStatsPaneItemLevelCategoryBackground",
             "CharacterStatsPaneStat2Background",
             "CharacterStatsPaneItemLevelFrameBackground",
-            "CharacterFrameCloseButtonNormal",
+            "CharacterFrameCloseButton",
             "CharacterFrameBackground",
         ] {
             art(&registry, node);

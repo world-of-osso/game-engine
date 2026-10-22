@@ -58,38 +58,19 @@ pub(super) fn inset() -> Element {
         "0.00195313,0.5859375,0.00195313,0.65429688",
         (6.0, 61.0, 308.0, 338.0),
     ));
-    for (name, member, rect) in [
-        ("TopLeft", "UI-Frame-InnerTopLeft", (4.0, 60.0, 6.0, 6.0)),
-        (
-            "TopRight",
-            "UI-Frame-InnerTopRight",
-            (326.0, 60.0, 6.0, 6.0),
-        ),
-        (
-            "BottomLeft",
-            "UI-Frame-InnerBotLeftCorner",
-            (4.0, 393.0, 6.0, 6.0),
-        ),
-        (
-            "BottomRight",
-            "UI-Frame-InnerBotRight",
-            (326.0, 393.0, 6.0, 6.0),
-        ),
-        ("Top", "_UI-Frame-InnerTopTile", (10.0, 60.0, 316.0, 3.0)),
-        (
-            "Bottom",
-            "_UI-Frame-InnerBotTile",
-            (10.0, 396.0, 316.0, 3.0),
-        ),
-        ("Left", "!UI-Frame-InnerLeftTile", (4.0, 66.0, 3.0, 327.0)),
-        (
-            "Right",
-            "!UI-Frame-InnerRightTile",
-            (329.0, 66.0, 3.0, 327.0),
-        ),
-    ] {
-        out.extend(atlas(&format!("ClassTrainerInset{name}"), member, rect));
-    }
+    use ui_toolkit::art_layout::{BorderLayout, BorderSpec, border_art};
+    let mut spec = BorderSpec::new(BorderLayout::Inset, [4.0, 60.0, 328.0, 338.0]);
+    spec.names = [
+        "TopLeft",
+        "TopRight",
+        "BottomLeft",
+        "BottomRight",
+        "Top",
+        "Bottom",
+        "Left",
+        "Right",
+    ];
+    out.extend(border_art("ClassTrainerInset", spec));
     out
 }
 

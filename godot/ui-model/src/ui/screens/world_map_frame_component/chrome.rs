@@ -108,8 +108,7 @@ pub(super) fn title(layout: &WorldMapLayout, maximized: bool) -> Element {
         "WorldMapTitle".into(),
         text,
         [left, 0.0, layout.size[0] - 2.0 * left, TITLE_H],
-        13.0,
-        GOLD,
+        ("GameFontNormal", 13.0, GOLD),
     )
 }
 

@@ -88,7 +88,7 @@ fn placed_list_panel(context: &SharedContext, view: &HousingView) -> Element {
         {background}{header}{foliage}
         button {name:"HouseEditorPlacedDecorListDragBar",width:410.0,height:32.0,left:-5.0,top:-5.0,pos_type:"absolute",button_default_skin:false}
         fontstring {name:"HouseEditorPlacedDecorListHeaderText",text:"Placed Decor",width:410.0,height:32.0,left:-5.0,top:-5.0,pos_type:"absolute",font_size:12.0,mouse_enabled:false}
-        button {name:"HouseEditorPlacedDecorListCloseButton",width:24.0,height:24.0,left:388.0,top:-8.0,pos_type:"absolute",onclick:"housing:placed-list:close",button_default_skin:false,button_atlas_up:"RedButton-Exit",button_atlas_pressed:"RedButton-exit-pressed",button_atlas_disabled:"RedButton-Exit-Disabled",button_atlas_highlight:"RedButton-Highlight", button_highlight_blend_mode:"ADD",button_highlight_alpha:"1.0"}
+        button {name:"HouseEditorPlacedDecorListCloseButton",width:24.0,height:24.0,left:388.0,top:-8.0,pos_type:"absolute",onclick:"housing:placed-list:close",button_default_skin:false,button_template:"UIPanelCloseButton"}
         {rows}
     }}
 }

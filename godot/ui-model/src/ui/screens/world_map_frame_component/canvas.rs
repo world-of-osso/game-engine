@@ -72,8 +72,7 @@ fn canvas_highlight(highlight: &MapHighlight, [w, h]: [f32; 2]) -> Element {
         WORLD_MAP_HIGHLIGHT_NAME.into(),
         &highlight.name,
         [0.0, 12.0, w, 32.0],
-        24.0,
-        GOLD,
+        ("WorldMapTextFont", 24.0, GOLD),
     ));
     children
 }
@@ -130,8 +129,7 @@ fn map_pin(index: usize, pin: &MapPin, [w, h]: [f32; 2], highlighted: Option<u32
             format!("WorldMapPin{index}Badge"),
             &pin.badge,
             rect,
-            11.0,
-            WHITE,
+            ("GameFontNormal", 11.0, WHITE),
         ));
     }
     if pin.quest_id.is_some() && pin.quest_id == highlighted {
