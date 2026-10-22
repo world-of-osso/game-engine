@@ -1009,6 +1009,7 @@ impl GameClient {
                 return None;
             }
         };
+        let tooltip = self.trainer_view().service_tooltip(spell, tooltip)?;
         Some(HoveredTooltip::text(tooltip))
     }
 

@@ -293,9 +293,7 @@ fn trainer_tooltip_requirements_refresh_with_the_current_service() {
         },
         &Default::default(),
     );
-    let tooltip = view
-        .service_tooltip(2963, content.clone(), [0.0; 4])
-        .unwrap();
+    let tooltip = view.service_tooltip(2963, content.clone()).unwrap();
     assert!(
         tooltip
             .content
@@ -333,9 +331,7 @@ fn trainer_tooltip_requirements_refresh_with_the_current_service() {
         step: 1,
     });
     view.known_spells.insert(3908);
-    let met = view
-        .service_tooltip(2963, content.clone(), [0.0; 4])
-        .unwrap();
+    let met = view.service_tooltip(2963, content.clone()).unwrap();
     for expected in [
         "Requires Level 5",
         "Requires Classic Tailoring (75)",
@@ -349,9 +345,7 @@ fn trainer_tooltip_requirements_refresh_with_the_current_service() {
         );
     }
     view.book.list.as_mut().unwrap().services[0].req_skill_rank = 150;
-    let refreshed = view
-        .service_tooltip(2963, content.clone(), [0.0; 4])
-        .unwrap();
+    let refreshed = view.service_tooltip(2963, content.clone()).unwrap();
     assert!(
         refreshed
             .content
@@ -367,7 +361,7 @@ fn trainer_tooltip_requirements_refresh_with_the_current_service() {
             .any(|line| line.left_text == "Requires Classic Tailoring (75)")
     );
     view.book.close();
-    assert!(view.service_tooltip(2963, content, [0.0; 4]).is_none());
+    assert!(view.service_tooltip(2963, content).is_none());
 }
 
 #[test]
