@@ -44,15 +44,7 @@ impl GameClient {
         }
         self.talking_head.state.advance(delta);
         if let Some(mut ui) = self.talking_head.ui.clone() {
-            loop {
-                let action = ui.bind_mut().pop_action().to_string();
-                if action.is_empty() {
-                    break;
-                }
-                if action == talking_head_component::DISMISS {
-                    self.talking_head.state.dismiss();
-                }
-            }
+            consume_actions(&mut self.talking_head.state, &mut ui.bind_mut());
         }
         if self.talking_head.ui.is_none() && self.talking_head.state.current().is_some() {
             self.attach_talking_head()?;
@@ -96,32 +88,50 @@ impl GameClient {
     }
 
     pub(crate) fn talking_head_pointer(&mut self, event: &Gd<InputEvent>) -> bool {
-        if self.talking_head.state.current().is_none() {
-            return false;
-        }
-        let Ok(button) = event.clone().try_cast::<InputEventMouseButton>() else {
-            return false;
-        };
-        if button.get_button_index() != MouseButton::RIGHT || button.is_pressed() {
-            return false;
-        }
-        let Some(rect) = self
-            .talking_head
-            .ui
-            .as_ref()
-            .and_then(|ui| ui.bind().frame_viewport_rect("TalkingHeadFrame"))
-        else {
-            return false;
-        };
-        if !Rect2::new(
-            Vector2::new(rect[0], rect[1]),
-            Vector2::new(rect[2], rect[3]),
+        dismiss_pointer(
+            &mut self.talking_head.state,
+            self.talking_head.ui.as_ref(),
+            event,
         )
-        .contains_point(button.get_position())
-        {
-            return false;
-        }
-        self.talking_head.state.dismiss();
-        true
     }
+}
+
+pub(crate) fn consume_actions(state: &mut TalkingHeadState, ui: &mut RegistryUi) {
+    loop {
+        let action = ui.pop_action().to_string();
+        if action.is_empty() {
+            break;
+        }
+        if action == talking_head_component::DISMISS {
+            state.dismiss();
+        }
+    }
+}
+
+pub(crate) fn dismiss_pointer(
+    state: &mut TalkingHeadState,
+    ui: Option<&Gd<RegistryUi>>,
+    event: &Gd<InputEvent>,
+) -> bool {
+    if state.current().is_none() {
+        return false;
+    }
+    let Ok(button) = event.clone().try_cast::<InputEventMouseButton>() else {
+        return false;
+    };
+    if button.get_button_index() != MouseButton::RIGHT || button.is_pressed() {
+        return false;
+    }
+    let Some(rect) = ui.and_then(|ui| ui.bind().frame_viewport_rect("TalkingHeadFrame")) else {
+        return false;
+    };
+    let bounds = Rect2::new(
+        Vector2::new(rect[0], rect[1]),
+        Vector2::new(rect[2], rect[3]),
+    );
+    if !bounds.contains_point(button.get_position()) {
+        return false;
+    }
+    state.dismiss();
+    true
 }
