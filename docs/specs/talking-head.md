@@ -18,14 +18,14 @@ Consume the private source conversation payload and render the authored70448 Ret
 ## Implementation inventory
 
 - `godot/ui-model/src/talking_head.rs`: private source payload/elapsed line state and local dismissal.
-- `godot/ui-model/src/talking_head_component.rs`: authored Retail TalkingHead chrome/name/text/model host geometry.
+- `godot/ui-model/src/talking_head_component.rs`: authored Retail TalkingHead chrome/name/text/model host geometry and opening alphas from the conversation's elapsed time. Lua delays name500ms/text750ms; XML durations name/text250ms, portrait/model750ms, background750ms after400ms and close750ms after750ms. Repeated snapshots do not restart them. New-line/close transitions and glow animation remain open.
 - `godot/network/src/lib.rs`: ordered ConversationUpdate relay on EncounterChannel.
 - `godot/rust/src/{talking_head,encounter,lib}.rs`: native owner/map-validated UI host, event routing, shared UI-scale/pointer registration and local dismissal; model framing remains absent.
 - `godot/rust/src/talking_head/voice.rs`: source-kit/file loading off-frame, elapsed seek, one active voice and local/world-exit stop. Native source extraction is blocked below.
 
 ## Tests asserting this spec
 
-- `godot/ui-model/tests/talking_head.rs`: actual source payload/elapsed expiry/private-owner refusal and dismissal.
+- `godot/ui-model/tests/talking_head.rs`: actual source payload/elapsed expiry/private-owner refusal/dismissal and source opening alphas at625/875/1500ms in both skins. Opening-alpha RED: Modern625ms name remained1 instead of0.5 at `6c9b5da7a`; GREEN/native phase proof pending.
 - `godot/network/src/wire_tests.rs`: real UDP/Host ordered source snapshot and clear.
 - `godot/tests/talking_head.gd`, `godot/rust/src/talking_head_fixture.rs`: native source-payload projection, authored host/source-camera metadata, voice playback/stop and unscaled1920 PNGs. Model paint is not claimed: the approved named projection gap is asserted explicitly.
 - `godot/core/tests/talking_head_camera.rs`: exact source1751 Pos/Euler/raw Flags and authored fixed camera/target; no inferred native projection.
