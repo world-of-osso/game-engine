@@ -43,6 +43,23 @@ fn backpack() -> BagFrameState {
     }
 }
 
+#[test]
+fn ui_template_behavior_bag_child_uses_live_slot_owner_and_screen_half_anchor() {
+    use ui_toolkit::tooltip::{TooltipAnchor, tooltip_owner};
+    for skin in [ActiveSkin::Modern, ActiveSkin::Forever] {
+        set_thread_skin(skin);
+        let mut registry = mount();
+        let icon = registry.get_by_name("ContainerFrame0Slot0Icon").unwrap();
+        let (owner, binding) = tooltip_owner(&registry, icon).expect("bag tooltip owner");
+        assert_eq!(owner.name.as_deref(), Some("ContainerFrame0Slot0"));
+        assert_eq!(binding.provider.as_deref(), Some("bag_slot"));
+        assert_eq!(binding.anchor, TooltipAnchor::BagSlot);
+        let bag = registry.get_by_name("ContainerFrame0").unwrap();
+        registry.set_hidden(bag, true);
+        assert!(tooltip_owner(&registry, icon).is_none());
+    }
+}
+
 fn mount() -> FrameRegistry {
     mount_state(backpack())
 }
