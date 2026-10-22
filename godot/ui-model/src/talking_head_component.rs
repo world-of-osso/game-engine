@@ -31,10 +31,10 @@ pub fn talking_head_screen(context: &SharedContext) -> Element {
             paint.close_alpha,
         ]
     });
-    let glows: Vec<Element> = paint.as_ref().map_or_else(Vec::new, |paint| {
+    let glows: Element = paint.as_ref().map_or_else(Vec::new, |paint| {
         crate::talking_head::glows::sample(paint.main_elapsed_ms)
             .into_iter()
-            .map(glow_region)
+            .flat_map(glow_region)
             .collect()
     });
     // TalkingHeadUI.xml: portrait143x143 TOPLEFT5/-6. Lua Name TOPLEFT
