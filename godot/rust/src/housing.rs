@@ -15,6 +15,10 @@ const PURCHASE_POPUP: &str = "HOUSING_BUY_PLOT";
 const ATLAS_ELEMENTS: &str = "db2/active/UiTextureAtlasElement.csv";
 const TEXTURE_KITS: &str = "db2/active/UiTextureKit.csv";
 
+#[cfg(test)]
+#[path = "housing_catalog_filter_tests.rs"]
+mod catalog_filter_tests;
+
 #[derive(Default)]
 pub(crate) struct HousingHud {
     pub model: Option<HousingDashboard>,
