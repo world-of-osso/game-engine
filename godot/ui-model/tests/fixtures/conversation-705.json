@@ -1,0 +1,62 @@
+{
+  "map_id": 2669,
+  "instance_id": 41,
+  "conversations": [{
+    "id": 700,
+    "entry": 705,
+    "creator": 600,
+    "private_owner": 400,
+    "texture_kit_id": 0,
+    "flags": 0,
+    "actors": [{
+      "id": 50124,
+      "index": 0,
+      "name": "Illidan Stormrage",
+      "object": {"TalkingHead": {"creature_id": 98075, "display_id": 21135}}
+    }],
+    "lines": [{
+      "id": 1683,
+      "broadcast_text_id": 100005,
+      "ui_camera_id": 296,
+      "actor_index": 0,
+      "flags": 0,
+      "chat_type": 0,
+      "start_ms": 0,
+      "source_duration_ms": null,
+      "additional_duration_ms": 500,
+      "visual_kit_id": 0,
+      "animation_kit_id": 9926,
+      "start_animation": 65,
+      "end_animation": 65,
+      "text": {
+        "male_text": "Sargeras's keystone is the crux of my plan to defeat the Burning Legion.",
+        "female_text": "",
+        "sound_kit_id": 55306,
+        "language_id": 0
+      }
+    }, {
+      "id": 1684,
+      "broadcast_text_id": 100571,
+      "ui_camera_id": 296,
+      "actor_index": 0,
+      "flags": 0,
+      "chat_type": 0,
+      "start_ms": 500,
+      "source_duration_ms": null,
+      "additional_duration_ms": 500,
+      "visual_kit_id": 0,
+      "animation_kit_id": 9926,
+      "start_animation": 65,
+      "end_animation": 65,
+      "text": {
+        "male_text": "It is also your only way back. Find it and return to the Black Temple.",
+        "female_text": "",
+        "sound_kit_id": 55309,
+        "language_id": 0
+      }
+    }],
+    "last_line_end_ms": 1000,
+    "duration_ms": 11000,
+    "elapsed_ms": 0
+  }]
+}
