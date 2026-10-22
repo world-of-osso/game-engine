@@ -28,7 +28,10 @@ def source_catalog(graph, product, *, owned_items=False):
         }
     graph.seeds = {**graph.seeds, "table_paths": overrides}
     try:
-        yield Catalogs(graph)
+        key = product, owned_items
+        if key not in graph.source_catalogs:
+            graph.source_catalogs[key] = Catalogs(graph)
+        yield graph.source_catalogs[key]
     finally:
         graph.product, graph.metadata_build, graph.seeds = previous
 
@@ -63,26 +66,32 @@ def source_cache(graph, name):
         yield db
 
 
+def source_maps(graph, product):
+    with source_catalog(graph, product) as catalogs:
+        return [
+            {
+                "id": number(row, "ID"),
+                "directory": row["Directory"],
+                "tiles": "all",
+                "wdt_fdid": number(row, "WdtFileDataID"),
+                "product": product,
+            }
+            for row in catalogs.rows("Map")
+        ]
+
+
 def native_maps(graph):
     maps, ids, directories = [], set(), set()
     for product in SOURCES:
-        with source_catalog(graph, product) as catalogs:
-            for row in catalogs.rows("Map"):
-                item = {
-                    "id": number(row, "ID"),
-                    "directory": row["Directory"],
-                    "tiles": "all",
-                    "wdt_fdid": number(row, "WdtFileDataID"),
-                    "product": product,
-                }
-                directory = ascii_lower(item["directory"])
-                if product == "wow_classic_beta" and (
-                    item["id"] in ids or directory in directories
-                ):
-                    continue
-                maps.append(item)
-                ids.add(item["id"])
-                directories.add(directory)
+        for item in source_maps(graph, product):
+            directory = ascii_lower(item["directory"])
+            if product == "wow_classic_beta" and (
+                item["id"] in ids or directory in directories
+            ):
+                continue
+            maps.append(item)
+            ids.add(item["id"])
+            directories.add(directory)
     return maps
 
 
@@ -136,11 +145,24 @@ def seed_display_appearance(graph, product, display, model_fdid):
             return
         from closure_appearance import DisplayAppearanceReferences
 
-        appearances = graph.__dict__.setdefault("source_appearances", {})
+        appearances = graph.source_appearances
         if product not in appearances:
             appearances[product] = DisplayAppearanceReferences(graph, catalogs)
         appearances[product].expand(display, extra, model_fdid)
         appearances[product].flush_items()
+
+
+def seed_display_model(graph, row, display):
+    with source_catalog(graph, row["source_product"]):
+        graph.add(row["model_fdid"], "m2", f"source display {display} model")
+        for slot in range(4):
+            fdid = row[f"skin_fdid_{slot}"]
+            if fdid:
+                graph.add_model_texture(
+                    row["model_fdid"],
+                    fdid,
+                    f"source display {display} texture variation {slot}",
+                )
 
 
 def seed_displays(graph, displays):
@@ -163,16 +185,7 @@ def seed_displays(graph, displays):
             product = row["source_product"]
             if not require_product(graph, product, f"display {display}", display):
                 continue
-            with source_catalog(graph, product):
-                graph.add(row["model_fdid"], "m2", f"source display {display} model")
-                for slot in range(4):
-                    fdid = row[f"skin_fdid_{slot}"]
-                    if fdid:
-                        graph.add_model_texture(
-                            row["model_fdid"],
-                            fdid,
-                            f"source display {display} texture variation {slot}",
-                        )
+            seed_display_model(graph, row, display)
             seed_display_appearance(graph, product, display, row["model_fdid"])
 
 
@@ -246,21 +259,24 @@ def seed_item_displays(graph, displays):
                 )
 
 
-def owned_display(catalogs, item):
+def owned_displays(catalogs, items):
     first = {}
     for row in catalogs.rows("ItemModifiedAppearance"):
         identity, appearance = number(row, "ItemID"), number(row, "ItemAppearanceID")
         if identity and appearance:
             first.setdefault(identity, appearance)
-    appearance = first.get(item)
-    row = catalogs.index("ItemAppearance").get(appearance)
-    if row is None:
-        catalogs.graph.issue(
-            "missing_metadata_row",
-            f"{catalogs.graph.product} owned item {item}: source-local appearance unavailable",
-        )
-        return None
-    return number(row, "ItemDisplayInfoID")
+    appearances = catalogs.index("ItemAppearance")
+    displays = set()
+    for item in items:
+        row = appearances.get(first.get(item))
+        if row is None:
+            catalogs.graph.issue(
+                "missing_metadata_row",
+                f"{catalogs.graph.product} owned item {item}: source-local appearance unavailable",
+            )
+        else:
+            displays.add(number(row, "ItemDisplayInfoID"))
+    return displays - {0}
 
 
 def seed_items(graph, items):
@@ -282,8 +298,6 @@ def seed_items(graph, items):
         if not wanted:
             continue
         with source_catalog(graph, ITEM_SOURCES[source], owned_items=True) as catalogs:
-            displays = {owned_display(catalogs, item) for item in sorted(wanted)} - {
-                None,
-                0,
-            }
-            seed_item_display_rows(graph, catalogs, displays)
+            seed_item_display_rows(
+                graph, catalogs, owned_displays(catalogs, sorted(wanted))
+            )
