@@ -20,7 +20,7 @@ serde = "1"
 tracing-subscriber = { version = "0.3", features = ["env-filter"] }
 # Execute the original synchronous ui.* script compiler, without Godot objects in JS.
 quick-js = "0.4"
-shared = { git = "https://github.com/world-of-osso/shared-protocol.git", rev = "186134ff880f1a6a7b754e4ce43456d775a44caf" }
+shared = { git = "https://github.com/world-of-osso/shared-protocol.git", rev = "74e67cf" }
 
 [dev-dependencies]
 # Live protocol peer fixtures persist authoritative JSON evidence for inspection.
