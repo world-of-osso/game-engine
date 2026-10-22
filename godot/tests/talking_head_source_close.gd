@@ -42,6 +42,9 @@ func run_case(forever: bool, payload: String) -> bool:
     var text: Control = fixture.find_child("TalkingHeadText", true, false)
     var clear: Dictionary = JSON.parse_string(payload)
     clear["conversations"] = []
+    # Godot JSON parses numbers as float; encode the actual integer wire identities.
+    clear["map_id"] = int(clear["map_id"])
+    clear["instance_id"] = int(clear["instance_id"])
     error = fixture.receive(JSON.stringify(clear), 400)
     check(error.is_empty(), "authoritative source clear %s: %s" % [skin, error])
     error = fixture.tick(0.0)
