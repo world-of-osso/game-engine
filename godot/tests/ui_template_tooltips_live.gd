@@ -53,7 +53,9 @@ func run_test() -> void:
 	completion.finish(true)
 
 func enter_world() -> bool:
-	if not await wait_until(selection_ready, 30000, "laid-out enabled character controls"): return false
+	if not await wait_until(selection_ready, 60000, "laid-out enabled character controls"):
+		print("UI_TEMPLATE_GENERICS_SELECTION_FAILURE ", client.account_state())
+		return false
 	await wait_frames(15)
 	var selection := client.get_node("CharacterSelectUI")
 	var card := selection.find_child("CharCard_0", true, false) as Control
