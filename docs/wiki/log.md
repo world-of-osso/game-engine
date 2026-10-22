@@ -1,6 +1,6 @@
 ## 2026-10-22 — Source TalkingHead glow RED and implementation
 
-[Runtime](systems/talking-head.md#runtime): genuine model/native RED detects absent top-bar glow at200ms. Five source atlas604 regions now use XML additive blend, alpha/translation and local native axis-scale/origin curves. Both-skin five-phase GREEN and ten original capture inspections remain pending; model rendering stays excluded.
+[Runtime](systems/talking-head.md#runtime): genuine model/native RED detects absent top-bar glow at200ms. Five source atlas604 regions now use XML additive blend, alpha/translation and local native axis-scale/origin curves. At0f3071384, model9/9 and strict native2/2/257 checks pass; all ten original1920×1080 phase captures inspected. Child streams clean/no leak warning on this path; earlier warning remains unresolved and model rendering stays excluded.
 
 ## 2026-10-22 — Playing-voice source Close implementation
 
