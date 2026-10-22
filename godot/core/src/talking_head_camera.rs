@@ -14,6 +14,30 @@ pub struct TalkingHeadCamera {
     pub flags: u32,
 }
 
-pub fn read_camera(_root: &Path, id: u32) -> Result<TalkingHeadCamera, String> {
-    Err(format!("UiCamera{id} source transform is not implemented"))
+pub fn read_camera(root: &Path, id: u32) -> Result<TalkingHeadCamera, String> {
+    let mut camera = None;
+    crate::csv_util::read_db2_rows(&root.join("db2/active/UiCamera.csv"), |row| {
+        if row.parse::<u32>("ID")? != id {
+            return Ok(());
+        }
+        camera = Some(TalkingHeadCamera {
+            id,
+            model_position: [
+                row.parse("Pos_0")?,
+                row.parse("Pos_1")?,
+                row.parse("Pos_2")?,
+            ],
+            yaw_pitch_roll: [
+                row.parse("LookAt_0")?,
+                row.parse("LookAt_1")?,
+                row.parse("LookAt_2")?,
+            ],
+            // ModelFrames.lua70–71: camera space, not a fitted model-space eye.
+            camera_position: [4.0, 0.0, 0.0],
+            camera_target: [0.0, 0.0, 0.0],
+            flags: row.parse("Flags")?,
+        });
+        Ok(())
+    })?;
+    camera.ok_or_else(|| format!("UiCamera{id} has no source transform"))
 }
