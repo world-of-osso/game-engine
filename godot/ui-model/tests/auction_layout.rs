@@ -49,7 +49,9 @@ fn ui_template_behavior_services_auction_rows_declare_live_item_owners() {
                 let (owner, binding) = tooltip_owner(&registry, hit).unwrap_or_else(|| {
                     panic!(
                         "{skin:?} {view} auction live owner: {:?}",
-                        registry.get(hit)
+                        registry
+                            .get(hit)
+                            .map(|frame| (&frame.name, frame.visible, &frame.tooltip))
                     )
                 });
                 assert_eq!(owner.id, hit);
