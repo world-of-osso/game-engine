@@ -91,3 +91,17 @@ fn ui_template_behavior_wrap_policy_and_dynamic_content_do_not_become_static_sna
     binding.provider = None;
     assert!(GameTooltip::from_binding(&binding, false, [10.0; 4]).is_none());
 }
+
+#[test]
+fn ui_template_behavior_source_mixin_can_keep_highlight_color_for_a_disabled_tooltip() {
+    // R PerksProgramElements.lua832–836 uses AddHighlightLine, unlike UIButton's red title.
+    let binding = TooltipBinding {
+        disabled_text: Some("Refund Unavailable".into()),
+        disabled_title_color: Some([1.0; 4]),
+        disabled_anchor: AuthoredAnchor::Left,
+        ..Default::default()
+    };
+    let tooltip = GameTooltip::from_binding(&binding, false, [100.0, 200.0, 180.0, 30.0]).unwrap();
+    assert_eq!(tooltip.content.title, "Refund Unavailable");
+    assert_eq!(tooltip.content.title_color, [1.0; 4]);
+}
