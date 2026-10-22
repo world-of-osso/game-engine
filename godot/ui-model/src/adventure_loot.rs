@@ -73,7 +73,8 @@ fn loot_row(item: &Item, top: f32, height: f32, bosses: Option<&[&str]>) -> Elem
     rsx! {
         button {
             name: {DynName(name)}, left: 0., top, width: 321., height,
-            pos_type: "absolute", onclick: {action.as_str()}, button_default_skin: false, {content}
+            pos_type: "absolute", onclick: {action.as_str()}, button_default_skin: false,
+            tooltip_provider: "journal_loot", tooltip_anchor: "ANCHOR_RIGHT", {content}
         }
     }
 }
