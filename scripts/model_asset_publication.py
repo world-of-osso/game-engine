@@ -67,6 +67,7 @@ def index_asset_receipts(documents):
 def alias_metadata_key(row):
     return (
         row["product"],
+        row["build_key"],
         relative_asset_path(row),
         row["fdid"],
         row["kind"],
@@ -85,11 +86,12 @@ def existing_alias_metadata(documents):
 
 
 def deduplicate_staged_fragment(data, fragment):
-    """Keep new owners; identical bytes in another scope never create a second owner."""
+    """Keep one owner and preserve required namespaces as authenticated aliases."""
     documents = read_indexes(data)
     existing = index_asset_receipts(documents)
     incoming = index_asset_receipts({Path("<staged>"): fragment})
     assets = []
+    relocated = []
     for identity, (_, row) in incoming.items():
         owner = existing.get(identity)
         if owner is None:
@@ -103,12 +105,15 @@ def deduplicate_staged_fragment(data, fragment):
             raise ValueError(
                 f"conflicting staged receipt {identity} already owned by {path}"
             )
+        if previous["path"] != row["path"]:
+            relocated.append(row)
     known_aliases = existing_alias_metadata(documents)
-    aliases = [
-        row
-        for row in fragment.get("aliases", [])
-        if alias_metadata_key(row) not in known_aliases
-    ]
+    aliases = []
+    for row in fragment.get("aliases", []) + relocated:
+        key = alias_metadata_key(row)
+        if key not in known_aliases:
+            aliases.append(row)
+            known_aliases.add(key)
     return {**fragment, "assets": assets, "aliases": aliases}
 
 
