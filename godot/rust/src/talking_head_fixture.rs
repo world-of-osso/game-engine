@@ -49,7 +49,33 @@ impl INode for TalkingHeadFixture {
 impl TalkingHeadFixture {
     #[func]
     fn initialize(&mut self, forever: bool, payload: GString) -> GString {
-        let result = self.initialize_native(forever, &payload.to_string());
+        let result =
+            serde_json::from_str::<shared::protocol::ConversationUpdate>(&payload.to_string())
+                .map_err(|error| error.to_string())
+                .and_then(|update| self.initialize_native(forever, update));
+        result
+            .err()
+            .map_or_else(GString::new, |error| error.as_str().into())
+    }
+
+    #[func]
+    fn initialize_at_elapsed(
+        &mut self,
+        forever: bool,
+        payload: GString,
+        elapsed_ms: i64,
+    ) -> GString {
+        let result =
+            serde_json::from_str::<shared::protocol::ConversationUpdate>(&payload.to_string())
+                .map_err(|error| error.to_string())
+                .and_then(|mut update| {
+                    let elapsed = u32::try_from(elapsed_ms)
+                        .map_err(|_| "fixture elapsed outside u32".to_owned())?;
+                    for conversation in &mut update.conversations {
+                        conversation.elapsed_ms = elapsed;
+                    }
+                    self.initialize_native(forever, update)
+                });
         result
             .err()
             .map_or_else(GString::new, |error| error.as_str().into())
@@ -113,7 +139,11 @@ impl TalkingHeadFixture {
 }
 
 impl TalkingHeadFixture {
-    fn initialize_native(&mut self, forever: bool, payload: &str) -> Result<(), String> {
+    fn initialize_native(
+        &mut self,
+        forever: bool,
+        update: shared::protocol::ConversationUpdate,
+    ) -> Result<(), String> {
         let path = ProjectSettings::singleton().globalize_path("res://../data");
         game_engine_ui_model::paths::set_data_root(std::path::PathBuf::from(path.to_string()))?;
         ui_toolkit::atlas::set_thread_skin(if forever {
@@ -121,8 +151,6 @@ impl TalkingHeadFixture {
         } else {
             ui_toolkit::atlas::ActiveSkin::Modern
         });
-        let update: shared::protocol::ConversationUpdate =
-            serde_json::from_str(payload).map_err(|error| error.to_string())?;
         let owner = update
             .conversations
             .first()

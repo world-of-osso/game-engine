@@ -48,6 +48,7 @@ const FIXTURES: &[(&str, usize)] = &[
     ("ui_template_regions_matrix", 16),
     ("talking_head", 4),
     ("talking_head_source_close", 2),
+    ("talking_head_glows", 2),
 ];
 
 struct Invocation {
