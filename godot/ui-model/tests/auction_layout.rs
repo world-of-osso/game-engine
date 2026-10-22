@@ -46,8 +46,12 @@ fn ui_template_behavior_services_auction_rows_declare_live_item_owners() {
                 .collect();
             assert!(!hits.is_empty(), "{skin:?} {view} supplies real item rows");
             for hit in hits {
-                let (owner, binding) =
-                    tooltip_owner(&registry, hit).expect("auction live item owner");
+                let (owner, binding) = tooltip_owner(&registry, hit).unwrap_or_else(|| {
+                    panic!(
+                        "{skin:?} {view} auction live owner: {:?}",
+                        registry.get(hit)
+                    )
+                });
                 assert_eq!(owner.id, hit);
                 assert_eq!(binding.provider.as_deref(), Some("auction"));
                 assert_eq!(binding.anchor, TooltipAnchor::Right);
