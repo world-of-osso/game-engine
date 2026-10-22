@@ -1619,6 +1619,7 @@ impl GameClient {
             &mut self.world_map.ui,
             &mut self.toybox.ui,
             &mut self.housing.ui,
+            &mut self.talking_head.ui,
         ] {
             if let Some(ui) = ui {
                 visit(ui)?;

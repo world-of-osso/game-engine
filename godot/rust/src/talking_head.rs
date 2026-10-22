@@ -14,7 +14,7 @@ pub(crate) mod voice;
 #[derive(Default)]
 pub(crate) struct TalkingHeadHud {
     state: TalkingHeadState,
-    ui: Option<Gd<RegistryUi>>,
+    pub(super) ui: Option<Gd<RegistryUi>>,
     voice: voice::TalkingHeadVoice,
 }
 
