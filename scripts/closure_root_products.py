@@ -16,7 +16,13 @@ ITEM_SOURCES = {"Retail": "wow", "Forever70205": "wow_classic_beta"}
 
 @contextmanager
 def source_catalog(graph, product, *, owned_items=False):
-    previous = graph.product, graph.metadata_build, graph.seeds
+    previous = (
+        graph.product,
+        graph.metadata_build,
+        graph.seeds,
+        getattr(graph, "appearance", None),
+    )
+    graph.appearance = graph.source_appearances.get(product)
     relative = SOURCES[product]
     graph.product = product
     graph.metadata_build = relative.removeprefix("db2/")
@@ -33,7 +39,9 @@ def source_catalog(graph, product, *, owned_items=False):
             graph.source_catalogs[key] = Catalogs(graph)
         yield graph.source_catalogs[key]
     finally:
-        graph.product, graph.metadata_build, graph.seeds = previous
+        if graph.appearance is not None:
+            graph.source_appearances[product] = graph.appearance
+        graph.product, graph.metadata_build, graph.seeds, graph.appearance = previous
 
 
 def require_product(graph, product, reason, identity):

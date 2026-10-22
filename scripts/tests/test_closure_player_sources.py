@@ -1,7 +1,6 @@
-"""Ignored RED player overlay fixtures; no install, renderer or extraction."""
+"""Player body/customization source overlay; no install, renderer or extraction."""
 
 from contextlib import closing
-import os
 from pathlib import Path
 import sqlite3
 import sys
@@ -24,9 +23,6 @@ CREATE TABLE skinned_models(id,collection_fdid);
 """
 
 
-@unittest.skipUnless(
-    os.environ.get("P4_RED"), "Ignored RED player source overlay; enable P4_RED"
-)
 class PlayerSourceTests(unittest.TestCase):
     def setUp(self):
         self.files = fixtures.RootProductTests()

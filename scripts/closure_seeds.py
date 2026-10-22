@@ -32,6 +32,7 @@ class Catalogs:
     def __init__(self, graph):
         self.graph = graph
         self.tables = {}
+        self.indices = {}
 
     def rows(self, name):
         if name not in self.tables:
@@ -66,7 +67,10 @@ class Catalogs:
         return self.tables[name]
 
     def index(self, name, key="ID"):
-        return {number(row, key): row for row in self.rows(name)}
+        identity = name, key
+        if identity not in self.indices:
+            self.indices[identity] = {number(row, key): row for row in self.rows(name)}
+        return self.indices[identity]
 
     def required(self, name, key):
         row = self.index(name).get(key)
@@ -491,6 +495,9 @@ def requirement_allows(graph, requirements, requirement_id, race, class_id):
     # Bounded Human race bit follows customization_catalog.rs/support. Full
     # catalog mode enumerates all choices, so it does not prune by this mask.
     race_bit = race - 1
+    if graph.receipt_audit and race in {95, 96}:
+        # Native customization_catalog_support.rs: Forever ChrRaces.PlayableRaceBit.
+        race_bit = race - 63
     race_allowed = race_masks == [0, 0] or (
         race_bit < 64 and race_masks[race_bit // 32] & (1 << (race_bit % 32))
     )
@@ -638,30 +645,13 @@ def seed_npc_appearance(graph, displays):
             )
 
 
-def seed_catalogs(graph, world_path, config):
-    catalogs = Catalogs(graph)
-    graph.seeds = dict(config)
-    maps = config["maps"]
-    if maps == "all" and not graph.receipt_audit:
-        maps = [
-            {
-                "id": number(row, "ID"),
-                "directory": row["Directory"],
-                "tiles": "all",
-                "wdt_fdid": number(row, "WdtFileDataID"),
-            }
-            for row in catalogs.rows("Map")
-            if row.get("Directory")
-        ]
+def seed_characters(graph, catalogs, selector):
     if graph.receipt_audit:
-        from closure_root_products import seed_map_roots
+        from closure_player_roots import seed_characters as seed_sourced_characters
 
-        tiles = seed_map_roots(graph, config)
-    else:
-        tiles = seed_terrain(graph, {"maps": maps})
-        seed_skyboxes(graph, catalogs, {map_spec["id"] for map_spec in maps})
+        return seed_sourced_characters(graph, selector)
     race_models = catalogs.rows("ChrRaceXChrModel")
-    characters = config["characters"]
+    characters = selector
     if characters == "all":
         graph.issue(
             "playable_character_reachability",
@@ -708,6 +698,32 @@ def seed_catalogs(graph, world_path, config):
                 character["race"],
                 character.get("class", 1),
             )
+    return characters, player_displays
+
+
+def seed_catalogs(graph, world_path, config):
+    catalogs = Catalogs(graph)
+    graph.seeds = dict(config)
+    maps = config["maps"]
+    if maps == "all" and not graph.receipt_audit:
+        maps = [
+            {
+                "id": number(row, "ID"),
+                "directory": row["Directory"],
+                "tiles": "all",
+                "wdt_fdid": number(row, "WdtFileDataID"),
+            }
+            for row in catalogs.rows("Map")
+            if row.get("Directory")
+        ]
+    if graph.receipt_audit:
+        from closure_root_products import seed_map_roots
+
+        tiles = seed_map_roots(graph, config)
+    else:
+        tiles = seed_terrain(graph, {"maps": maps})
+        seed_skyboxes(graph, catalogs, {map_spec["id"] for map_spec in maps})
+    characters, player_displays = seed_characters(graph, catalogs, config["characters"])
     with readonly(world_path) as db:
         if config["npc_displays"] == "all":
             spawns = [

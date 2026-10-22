@@ -17,6 +17,7 @@ Offline audit tooling in `scripts/asset_closure.py` computes a content-rooted de
 ## Root ownership
 
 - Auditor map roots follow native MapCatalog: Retail `db2/active/Map.csv`,then Forever70205 rows only when neither ID nor ASCII-case-insensitive directory collides. Placement/model descendants retain the selected map product.
+- Player bodies follow the native source-local ChrRaceXChrModel→ChrModel→CreatureDisplayInfo→CreatureModelData chain. Only Skyborne95/96,both sexes,use Forever70205 body/customization data; Retail placeholders and Forever rows for other races do not substitute. Forever customization uses its product-local versioned cache; missing mappings/caches remain gaps. Default Skyborne requirements use the authored playable bits32/33. This body policy never selects owned-item source.
 - Creature display roots use `cache/creature_display.sqlite` source_product/model/variation rows. Missing source is unresolved,not an inferred global product or a CSV fallback. NPC equipment uses `cache/outfit_links-v5.sqlite` source ownership independently for model and material resource groups.
 - Owned-item selectors require the explicit ItemDefinitionSource,for example `{"id": 2947, "definition_source": "Retail"}` or `Forever70205`. Source-local appearance/resource joins must not borrow the shared NPC cache. Bare item IDs,including every ID selected by `items: all`,remain individually unresolved until their definition source is provided; race and graph product never supply it.
 - Source cache rows establish request ownership,not authenticated cache-import provenance. Preserve that separate gap.
@@ -36,6 +37,7 @@ Offline audit tooling in `scripts/asset_closure.py` computes a content-rooted de
 - `scripts/asset_closure.py` — raw producer/parser graph traversal,manifest and census CLI; the CLI always constructs the receipt-qualified auditor.
 - `scripts/closure_receipts.py` — receipt-selected model IO,product/build-qualified graph identities and native flat-reader boundary.
 - `scripts/closure_root_products.py` — native map/display/NPC resource ownership and explicit source-local owned-item roots.
+- `scripts/closure_player_roots.py` — explicit native Skyborne-only player body/customization overlay; source-local body joins avoid the merged NPC display cache.
 - `scripts/closure_nonmodel_receipts.py` — actual flat byte receipts and DB2 export provenance; no extraction or index publication.
 - `scripts/closure_seeds.py` — metadata joins and configurable content roots.
 - `scripts/closure-northshire.json` — four Northshire ADT tiles and one Human Warrior.
@@ -46,6 +48,7 @@ Offline audit tooling in `scripts/asset_closure.py` computes a content-rooted de
 - `scripts/tests/test_asset_closure.py` — concrete raw producer binary chains,catalog joins,missing/malformed dependencies,cycles,aliases and census.
 - `scripts/tests/test_closure_receipts.py` — actual CLI scoped-only descendants,mixed-product same-FDID roots,owning-build companion aliases,wrong-product/legacy rejection,corrupt payload rejection and unchanged native flat WMO material selection.
 - `scripts/tests/test_closure_root_products.py` — native Retail ID/directory map precedence,sourced display/model/material roots,missing source refusal and source-local owned item isolation; ignored RED fixtures are pushed before implementation.
+- `scripts/tests/test_closure_player_sources.py` — ignored RED-first four Skyborne pair overlays,unchanged Retail Human,missing Forever mapping/cache refusal and authored default requirement bits.
 - `scripts/tests/test_closure_nonmodel_receipts.py` — ignored RED-first flat texture/sound product/path/content checks,historical receipt selection,hash-only provenance refusal,native flat icons and authenticated/partial/corrupt/missing DB2 export receipts.
 - `scripts/tests/test_closure_skyboxes.py` — map isolation, all authored lighting slots, skybox7345733/skin7345740, celestial roots, positive missing joins versus zero and tile-free catalog entrypoint.
 - `scripts/tests/test_closure_game_objects.py` — observed entry202588/display2690/model200010/skin505852 chain, map/tile selection, transport WMO identity, unspawned roots, named missing rows and selection fingerprint changes.

@@ -250,6 +250,7 @@ class ReceiptClosure(RawByteGraph):
             "closure_receipts.py",
             "closure_root_products.py",
             "closure_nonmodel_receipts.py",
+            "closure_player_roots.py",
         ]:
             result["resolver_tool_sha256"][name] = hashlib.sha256(
                 Path(__file__).with_name(name).read_bytes()
