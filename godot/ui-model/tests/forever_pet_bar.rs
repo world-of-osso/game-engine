@@ -172,7 +172,11 @@ fn assert_rect(registry: &FrameRegistry, expected: (f32, f32, f32, f32)) {
 #[test]
 fn modern_pet_bar_matches_base_fixture() {
     let (_, _, registry) = setup(ActiveSkin::Modern);
-    assert_eq!(dump(&registry), modern_fixture::MODERN_PET_BAR);
+    let tree = dump(&registry);
+    if std::env::var_os("PRINT_MODERN_TREES").is_some() {
+        println!("<<<MODERN_TREES\n{tree}MODERN_TREES>>>");
+    }
+    assert_eq!(tree, modern_fixture::MODERN_PET_BAR);
     assert_rect(&registry, (679.0, 955.0, 318.0, 30.0));
 }
 

@@ -15,6 +15,10 @@ if [ $# -lt 2 ]; then
 fi
 name=$(printf '%s' "$1" | tr -c 'a-zA-Z0-9_\n' '_')
 shift
+# /tmp is RAM-backed tmpfs; tests copy the 886 MB world.db into temp dirs and filled it (quota
+# errors, 2026-10-21). Keep agent temp files on disk. IPC sockets stay in /tmp (hardcoded paths).
+export TMPDIR=/var/tmp/agents
+mkdir -p "$TMPDIR"
 exec systemd-run --user --scope --quiet --collect \
     --slice="agents-${name}.slice" \
     --unit="agent-${name}-$$-${RANDOM}" \

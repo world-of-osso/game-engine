@@ -223,24 +223,8 @@ fn collection_shadows() -> Element {
 }
 
 fn collection_inset() -> Element {
-    // InsetFrameTemplate:6px corners/3px edges; bottom corners extend1below parent.
-    [
-        ("TL", "UI-Frame-InnerTopLeft", (0.0, 0.0, 6.0, 6.0)),
-        ("TR", "UI-Frame-InnerTopRight", (687.0, 0.0, 6.0, 6.0)),
-        ("BL", "UI-Frame-InnerBotLeftCorner", (0.0, 477.0, 6.0, 6.0)),
-        ("BR", "UI-Frame-InnerBotRight", (687.0, 477.0, 6.0, 6.0)),
-        ("Top", "_UI-Frame-InnerTopTile", (6.0, 0.0, 681.0, 3.0)),
-        ("Bottom", "_UI-Frame-InnerBotTile", (6.0, 480.0, 681.0, 3.0)),
-        ("Left", "!UI-Frame-InnerLeftTile", (0.0, 6.0, 3.0, 471.0)),
-        (
-            "Right",
-            "!UI-Frame-InnerRightTile",
-            (690.0, 6.0, 3.0, 471.0),
-        ),
-    ]
-    .into_iter()
-    .flat_map(|(part, atlas, rect)| {
-        crate::quest_art::named_atlas_texture(format!("CampsiteInset{part}"), atlas, rect)
-    })
-    .collect()
+    use ui_toolkit::art_layout::{BorderLayout, BorderSpec, border_art};
+    let mut spec = BorderSpec::new(BorderLayout::Inset, [0.0, 0.0, 693.0, 482.0]);
+    spec.names = ["TL", "TR", "BL", "BR", "Top", "Bottom", "Left", "Right"];
+    border_art("CampsiteInset", spec)
 }

@@ -54,61 +54,19 @@ fn panel_title() -> Element {
 }
 
 pub fn dialog_border(prefix: &str, width: f32, height: f32) -> Element {
-    // Dialog NineSlice layout: source atlas corners/edges are64px, no external offsets.
-    const CORNER: f32 = 64.0;
-    [
-        (
-            "TopLeft",
-            "UI-Frame-DiamondMetal-CornerTopLeft",
-            (0.0, 0.0, CORNER, CORNER),
-        ),
-        (
-            "TopRight",
-            "UI-Frame-DiamondMetal-CornerTopRight",
-            (width - CORNER, 0.0, CORNER, CORNER),
-        ),
-        (
-            "BottomLeft",
-            "UI-Frame-DiamondMetal-CornerBottomLeft",
-            (0.0, height - CORNER, CORNER, CORNER),
-        ),
-        (
-            "BottomRight",
-            "UI-Frame-DiamondMetal-CornerBottomRight",
-            (width - CORNER, height - CORNER, CORNER, CORNER),
-        ),
-        (
-            "Top",
-            "_UI-Frame-DiamondMetal-EdgeTop",
-            (CORNER, 0.0, width - 2.0 * CORNER, CORNER),
-        ),
-        (
-            "Bottom",
-            "_UI-Frame-DiamondMetal-EdgeBottom",
-            (CORNER, height - CORNER, width - 2.0 * CORNER, CORNER),
-        ),
-        (
-            "Left",
-            "!UI-Frame-DiamondMetal-EdgeLeft",
-            (0.0, CORNER, CORNER, height - 2.0 * CORNER),
-        ),
-        (
-            "Right",
-            "!UI-Frame-DiamondMetal-EdgeRight",
-            (width - CORNER, CORNER, CORNER, height - 2.0 * CORNER),
-        ),
-    ]
-    .into_iter()
-    .flat_map(|(part, atlas, rect)| named_atlas_texture(format!("{prefix}{part}"), atlas, rect))
-    .collect()
+    use ui_toolkit::art_layout::{BorderLayout, BorderSpec, border_art};
+    border_art(
+        prefix,
+        BorderSpec::new(BorderLayout::Dialog, [0.0, 0.0, width, height]),
+    )
 }
 
 fn menu_button(name: &str, text: &str, action: &str) -> Element {
-    // Native SharedButton projection scales the authored128-RedButton three slices.
+    // Core SharedButton preset scales the authored128-RedButton three slices.
     rsx! { button {
         name: DynName(name.into()), width: BUTTON_W, height: BUTTON_H, text, font_size: 16.0,
         strata: FrameStrata::Fullscreen, frame_level: 20.0, onclick: action,
-        button_default_skin: false, button_atlas_up: "128-redbutton-left",
+        button_template: "SharedButtonTemplate",
     } }
 }
 

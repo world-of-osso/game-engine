@@ -1,6 +1,6 @@
 //! Compact party/raid frames are Blizzard's shared `CompactUnitFrame` under both skins
 //! (Forever `Blizzard_UnitFrame.toc` loads `Shared\\CompactUnitFrame`, no Camelot override).
-//! FlareUI only hides the party title (`Core.lua:392`, `Modules/Tweaks.lua:869-874`).
+//! Retail's Party title is visible under both art skins.
 
 #[path = "fixtures/modern_group_frames.rs"]
 mod fixture;
@@ -139,28 +139,13 @@ fn modern_party_and_raid_trees_are_unchanged() {
     assert_eq!(trees(ActiveSkin::Modern), fixture::MODERN_GROUP_TREES);
 }
 
-/// FlareUI's `hidePartyTitle` default hides `CompactPartyFrameTitle` and nothing else:
-/// raid group titles, members, art and positions are Blizzard's.
+/// Art skins do not alter Retail's group elements or title visibility.
 #[test]
-fn forever_differs_from_modern_only_by_the_hidden_party_title() {
-    let modern = trees(ActiveSkin::Modern);
-    let forever = trees(ActiveSkin::Forever);
-    let changed: Vec<(&str, &str)> = modern
-        .lines()
-        .zip(forever.lines())
-        .filter(|(m, f)| m != f)
-        .collect();
-    assert_eq!(modern.lines().count(), forever.lines().count());
-    assert_eq!(changed.len(), 1, "{changed:#?}");
-    let (was, now) = changed[0];
-    assert_eq!(
-        now.replace("hidden=true", "hidden=false"),
-        was,
-        "only the visibility changes"
-    );
-    for (skin, hidden) in [(ActiveSkin::Modern, false), (ActiveSkin::Forever, true)] {
+fn both_skins_preserve_the_same_party_and_raid_elements() {
+    assert_eq!(trees(ActiveSkin::Modern), trees(ActiveSkin::Forever));
+    for skin in [ActiveSkin::Modern, ActiveSkin::Forever] {
         let registry = group_frames(skin);
-        assert_eq!(frame(&registry, "CompactPartyFrameTitle").hidden, hidden);
+        assert!(!frame(&registry, "CompactPartyFrameTitle").hidden);
         assert!(!frame(&registry, "CompactRaidGroup1Title").hidden);
         assert!(!frame(&registry, "CompactRaidGroup3Title").hidden);
     }
