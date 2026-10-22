@@ -329,6 +329,22 @@ class ReceiptClosureTests(unittest.TestCase):
             )
         )
 
+    def test_alias_bytes_must_match_the_same_product_receipt_owner(self):
+        self.publish("wow", 10, "m2", model(chunk("SFID", ints(11))))
+        self.publish("wow", 11, "skin", b"SKINauthentic", key="c" * 32)
+        self.publish("wow", 11, "skin", b"SKINdifferent", alias=True)
+        graph = self.auditor()
+        graph.add(10, "m2", "body")
+        manifest = graph.run()
+        skin = next(row for row in manifest["assets"] if row["type"] == "skin")
+        self.assertEqual(skin["identity_status"], "unverified")
+        self.assertTrue(
+            any(
+                issue["code"] == "alias_receipt_mismatch"
+                for issue in manifest["unresolved"]
+            )
+        )
+
     def test_duplicate_receipts_are_rejected_before_selecting_bytes(self):
         self.publish("wow", 10, "m2", model())
         self.publish("wow", 10, "m2", model())

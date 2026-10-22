@@ -149,10 +149,24 @@ class ReceiptClosure(RawByteGraph):
         found = super().inspect(asset)
         if found is None:
             return None
+        owner = self.receipts.get(
+            (asset["requested_product"], asset["fdid"], asset["type"])
+        )
+        if owner is None or any(
+            receipt[field] != owner[field] for field in ["bytes", "sha256"]
+        ):
+            self.issue(
+                "alias_receipt_mismatch",
+                f"{path}: alias has no matching same-product receipt owner",
+                asset["fdid"],
+            )
+            return None
         with found.open("rb") as stream:
             md5 = hashlib.file_digest(stream, "md5").hexdigest()
         valid = (
-            asset["size"] == receipt["bytes"] and asset["sha256"] == receipt["sha256"]
+            asset["size"] == receipt["bytes"]
+            and asset["sha256"] == receipt["sha256"]
+            and md5 == owner["content_key"]
         )
         if receipt.get("content_key"):
             valid = valid and md5 == receipt["content_key"]
