@@ -5104,3 +5104,7 @@ gc774 passed tests/fmt and landed engineb0b3d4b39; exact server842325bf3/protoco
 ## 2026-10-22 — Tooltip metadata dispatch and native anchor counterexample
 
 [Step5 ownership](systems/ui-system.md#tooltip-owner-metadata--step-5-partial) now declares all47 providers and replaces native try-all/ancestor/anchor copies with nearest-owner exact dispatch and shared placement. Bridge2+13+5 controls pass at engine1a328dec5/toolkit3463e1f. Real private5993 Modern5/5 owner/live-refresh/leave cases pass at fixture67b49984d, five full-HD originals published; Forever exposes the existing Default→CursorRight skin rewrite. Shared Retail-default regression67b65539a is queued before the approved bounded deletion. No paired native acceptance, lifecycle/sound completion or all47 native-provider claim.
+
+## 2026-10-22 — Retail tooltip anchor shared/native GREEN
+
+[Step5 partial proof](systems/ui-system.md#tooltip-owner-metadata--step-5-partial): actual Forever-default RED→engine9f1cddfae deletes the skin rewrite and all callers, preserving explicit CursorRight and art/health-bar policy. Model2+integration14 and toolkitbaf28de lifecycle5 pass; matched extension/CLI build passes. Fixturebccd6d6df real5993 GameClient strict10/10 passes both-skin Default, same-pointer authoritative refresh, Right/Left owner and leave checks. Ten full-HD originals published and overviews inspected. Lifecycle consumer/descriptors, specialized maps/minimap and native all47/refund-click coverage remain separate.
