@@ -249,6 +249,23 @@ Initial r5 preparation fails before any client: the old private world snapshot l
 
 Named gap **ruby-forever-r5-authentication-wire-mismatch**: drain time **unmeasured**, not zero or an observed drain timeout. All eight WMO bindings remain **unobserved**; the current-material fragment stays **unpublished**, with no publication request. Evidence: `ruby-forever-r5-named-gap.json`, `r5b-pair-controller.json`, and the case observations. The one exempt client run is consumed. Owned server/client stop and UDP5961 is unbound. Further proof requires explicit aligned-engine cohort/rebuild and another client-run authorization, or restoration of the original exact server cohort; no silent repin or retry.
 
+### Aligned r5-engine: Ruby Forever drains and eight WMO keys bind
+
+Lead explicitly authorizes the matching engine rebuild and one new client run. Master `004921be9` merges into this branch at `bb73bc7c2`; protocol `2abc7fa` matches server r5. Initial build fails on the stale shared toolkit; lead fast-forwards it to `76b7a2f`. The helper retry under normal ADD builds extension and CLI without warnings. `executables-r5-engine.json` records:
+
+| Executable | SHA256 |
+|---|---|
+| GDExtension | `ab3caa87e7f9d17a35d6796d50c19da8b6d1159722e7ac5f9f804548bd019b3d` |
+| game-engine-cli | `2e789da54d1e3e4ce0d5c0c02226beb6a72f1a48ef29a299468e157657ae2230` |
+
+`auth-queue-ruby-forever-post869-r5c` authenticates CertHuman on map2521, verifies Forever skin, and **drains in78.704seconds**: nine tiles,14,216 spawned objects, pending0/failures0, tile1,708/1,708, nearby421/421, both collision queues0. All16,076 observed model placements use the expected Retail product paths; errors0/tripwire0. Particle counters are positive, not pixel qualification.
+
+Read-only native inspection observes **all eight actual WMO texture bindings**, with legacy asset_path, file SHA256 and decoded-image hash. Binding counts:343253→226,3999701→89,3999704→365,4032026→577,4044717→20,4076834→141,4184526→20,4249948→83. `r5c-eight-wmo-bindings.json` preserves exact mesh/uniform examples and an empty unobserved list. This proves runtime consumption of those keys and existing legacy bytes, not current-root substitution, visibility of every binding, or pixel equivalence.
+
+Lead-only publication of `staged-selected-map-eight-materials-current` is requested after that observation; it remains unpublished at request time. Flat legacy bytes stay unchanged. Fragment SHA256 remains `05af8cd0d4467d229312c5729aa9269d1e973d73ef9ec050ad22f515f981c8f8`.
+
+**Process-exit gap:** fixture shutdown is recorded, but process-completion polling reaches the hard288second alarm. Forced cleanup finishes the whole pair in291.044seconds, below300; do not label this normal native exit. Owned runtime stops, UDP5961 is unbound, and the new client exemption is consumed. Exact case summary and `r5c-pair-controller.json` preserve this distinction. No automatic retry or budget extension.
+
 ## Remaining acceptance
 
-Owned protocol-matched authenticated server/client runs, receipt/skin publication rechecks, all-class/item/spell descendants, full-catalog closure/provenance reconciliation and pristine player-bundle/download acceptance remain unqualified. Historical graph counts and metadata-only `36 profiles / 0 certified` evidence are documented in [offline asset closure](../wiki/systems/offline-asset-closure.md); they are not replaced by this bounded sweep.
+The bounded selected-map runs above do not qualify all-class/item/spell descendants, full-catalog closure/provenance reconciliation or pristine player-bundle/download acceptance. Current-material publication/readback and runtime substitution remain pending; r5c normal native process exit is also unqualified. Historical graph counts and metadata-only `36 profiles / 0 certified` evidence are documented in [offline asset closure](../wiki/systems/offline-asset-closure.md); they are not replaced by this bounded sweep.
