@@ -37,6 +37,19 @@ fn journal_with_catalog(skin: ActiveSkin, catalog: Vec<ToySnapshot>) -> FrameReg
     registry
 }
 
+#[test]
+fn ui_template_behavior_collection_toy_icon_resolves_its_live_spell_button() {
+    use ui_toolkit::tooltip::{TooltipAnchor, tooltip_owner};
+    for skin in [ActiveSkin::Modern, ActiveSkin::Forever] {
+        let registry = journal(skin);
+        let icon = registry.get_by_name("ToySpellButton1Icon").unwrap();
+        let (owner, binding) = tooltip_owner(&registry, icon).expect("toy owner");
+        assert_eq!(owner.name.as_deref(), Some("ToySpellButton1"));
+        assert_eq!(binding.provider.as_deref(), Some("toybox"));
+        assert_eq!(binding.anchor, TooltipAnchor::Right);
+    }
+}
+
 fn visible_frame<'a>(registry: &'a FrameRegistry, name: &str) -> &'a Frame {
     let frame = registry
         .get(registry.get_by_name(name).expect(name))

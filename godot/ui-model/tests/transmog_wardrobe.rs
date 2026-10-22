@@ -166,6 +166,42 @@ fn build(skin: ActiveSkin, book: TransmogBook) -> FrameRegistry {
     registry
 }
 
+#[test]
+fn ui_template_behavior_collection_transmog_cards_and_slots_keep_separate_live_owners() {
+    use ui_toolkit::tooltip::{TooltipAnchor, tooltip_owner};
+    for skin in [ActiveSkin::Modern, ActiveSkin::Forever] {
+        let mut sets = book();
+        sets.set_tab(WardrobeTab::Sets);
+        let mut illusions = book();
+        illusions.select_illusion(EquipmentSlot::MainHand);
+        for (registry, owners) in [
+            (
+                build(skin, book()),
+                vec![
+                    ("TransmogSource821", "transmog_source"),
+                    ("TransmogSlot16", "transmog_source"),
+                ],
+            ),
+            (build(skin, sets), vec![("TransmogSet13", "transmog_set")]),
+            (
+                build(skin, illusions),
+                vec![
+                    ("TransmogIllusionEntry13", "transmog_illusion"),
+                    ("TransmogIllusion16", "transmog_illusion"),
+                ],
+            ),
+        ] {
+            for (name, provider) in owners {
+                let hit = registry.get_by_name(name).expect(name);
+                let (owner, binding) = tooltip_owner(&registry, hit).expect(name);
+                assert_eq!(owner.id, hit);
+                assert_eq!(binding.provider.as_deref(), Some(provider));
+                assert_eq!(binding.anchor, TooltipAnchor::Right);
+            }
+        }
+    }
+}
+
 fn text(registry: &FrameRegistry, name: &str) -> String {
     let frame = registry
         .get(registry.get_by_name(name).expect(name))
