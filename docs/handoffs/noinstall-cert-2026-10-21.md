@@ -1,0 +1,156 @@
+# No-install certification — 2026-10-21
+
+**Status: in progress; P4 remains open.** Scope remains all zones, races and items. Representative runtime visits cannot certify the complete catalog, every customization, or a pristine manifest-only player bundle.
+
+## Evidence and isolation
+
+Private worktree: `/home/osso/.worktrees/game-engine-noinstall`, branch `noinstall-cert`. Evidence: its `data/diagnostics/noinstall-cert-2026-10-21/`. Canonical asset publication belongs to the lead; this worktree stages payloads and provenance only.
+
+Initial runtime source `4d266a933`; `build.log` records extension/CLI build success, `executables.json` their hashes. Each case records exact argv/environment, complete native output, observations, screenshot and summary. Native Vulkan runs through `agent-run` and `headless-client.sh` on a private cage. Bubblewrap mounts the host read-only except owned runtime paths, hides the configured install/CASC/resolver-cache paths, and isolates networking for offline cases. This is configured-path isolation, not an exhaustive successful-access/syscall trace or immutable manifest-only bundle.
+
+The real `WowAssetLoader.asset_runtime_status()` is recorded per observation: every observed count is zero and mode `ExtractedOnly`. Early fatal startup originally prevented a counter readback for `debugcharacter`; the updated diagnostic records the root's exit signal and observes zero on its round3 fatal startup. Do not infer zero for earlier missing observations. Initial login setup failures are retained separately in `login-setup-invalid/`; they do not enter the asset inventory. Complete private data links fixed those harness-only misses.
+
+## Initial runtime coverage
+
+| Case | Status | Exact boundary |
+|---|---|---|
+| Login | Bounded PASS | Native screen captured, no emitted engine errors, tripwire zero. No authentication in this case. |
+| Character creation | GAP | All 31 catalog race entries × two bodies selected correctly; 62 captures/observations, many absent models and required receipt errors. Production race/body changes randomize appearances; not all classes/customization combinations. |
+| Character select | Pending | Requires owned authenticated server/character. |
+| M2 debug | Bounded PASS | Reference wolf visible, three mesh descendants, no emitted errors, tripwire zero; interactions not certified by this sweep. |
+| Selection debug | Asset-I/O subset only | Screen visible, no emitted errors/tripwire hits; zero descendant model meshes, so not a model-rendering certificate. |
+| Particle debug | Bounded PASS | Visible authored emitters/models, three mesh descendants, no emitted errors, tripwire zero; all toggles/emitters not exercised. |
+| Debug character | GAP | Startup stops on required equipped-character texture receipts; round3 early-exit counter is zero, but no rendered-model proof. |
+| Loading | Bounded PASS | Offline loading screen captured, no emitted errors, tripwire zero; no authenticated loading transition claimed. |
+
+## Offline zone coverage
+
+All cases below exercise production map identity, terrain, object and lighting readers through `preview_world_map`, not an authenticated local player/NPC population. Each ran in a separate process. Terrain presence is not healthy gameplay or complete zone coverage.
+
+| Zone | Terrain/object status | Proof |
+|---|---|---|
+| Northshire | Bounded streaming PASS | Nine parsed tiles, zero terrain failures/pending; 23,021 meshes, 6,487 spawned objects; no emitted errors, tripwire zero. |
+| Dun Morogh | Bounded streaming PASS | Nine parsed tiles, zero terrain failures/pending; 10,888 meshes, 3,040 objects; no emitted errors, tripwire zero. |
+| Orgrimmar | Bounded streaming PASS | Nine parsed tiles, zero terrain failures/pending; 12,148 meshes, 1,888 objects; no emitted errors, tripwire zero. Coordinates preserve the historical representative visit, not a valid player-grounding claim. |
+| Mulgore | Bounded streaming PASS | Nine parsed tiles, zero terrain failures/pending; 7,064 meshes, 2,587 objects; no emitted errors, tripwire zero. |
+| Skyborne/Map2991 | GAP | Nine parsed tiles, zero terrain failures/pending; 3,814 meshes, 584 objects; missing numeric skins and four `Vertex 101 out of bounds` errors. Tripwire zero. |
+| Stockades/Map34 | Bounded global-WMO PASS | Global-WMO interior, 1,105 meshes, no terrain tiles as expected; no emitted errors, tripwire zero. No dungeon lifecycle/NPC certificate. |
+| Stormwind | Bounded streaming PASS | Nine parsed tiles, zero terrain failures/pending; 18,217 meshes, 4,198 objects; no emitted errors, tripwire zero. |
+
+## Recovery and producer fixes
+
+`misses-round1.json` preserves every emitted asset error from these cases, source line and last scenario marker. It contains 254 identities: 192 missing verified Retail texture receipts with existing legacy bytes, and 62 absent numeric skin paths. Four non-file vertex errors remain separate. Markers are best-effort attribution; asynchronous completions can belong to an earlier selection, and failed owners hide descendants.
+
+- `9323d70c0`: legacy receipt authentication requires explicit product/build pins instead of obsolete hardcoded versions; only requested products are authenticated. Current-build synthetic root/publication and integrity tests: RED → GREEN18. No identity checks bypassed.
+- `abc2de31b`: player and NPC closure seeds use the explicitly configured native customization cache, not obsolete `customization.sqlite`. Concrete stale-cache FDID99 versus current FDID8: RED → GREEN14. Maintained configs select `cache/customization-v5.sqlite`; its metadata origin remains separately unverified.
+- Round1: all 192 legacy payloads match authenticated Retail70448 content keys, 74,918,722 bytes. Lead reports re-extraction and no-clobber canonical publication with `model-asset-index-noinstall-cert-round1.json`. Subsequent randomized sweeps expose additional material choices/layers; this was not a fixed point or an identical-profile comparison.
+- All 62 numeric skins match owner SFID relationships and authenticated parent/child product roots. Private staging retains source alias and per-file provenance; 65 scoped receipts cover 62 Forever70450 identities plus three identical Retail70448 identities. Lead reports per-product CASC re-extraction/verification and publication of scoped plus numeric paths.
+- Round2 publishes a conservative all-choice material-texture superset from the current versioned customization cache, excluding existing indexed Retail textures, plus the observed debug-character miss. Its 9,294 receipts comprise 9,229 Retail textures and 65 skins, 3,538,326,632 bytes. All 64 other selected Retail texture FDIDs have authenticated roots/local index entries but absent legacy bytes; local decoding remains pending. This is not all model/item closure.
+
+## Post-round2 runtime recheck
+
+Matching engine base `52e47cd5d` was merged into this branch and rebuilt against frozen protocol `03cebdb`; `build-current.log` succeeds without compiler warnings and `executables-current.json` records binary hashes. A private SQLite backup isolates writable listfile bindings from canonical data; prior read-only binding-persistence messages were sandbox setup limits, not missing payloads or CASC accesses.
+
+- Creation: 62 valid race/body selections, **59 nonzero model observations**, five emitted receipt misses: Retail M2 `7760206` and Forever textures `7485094`, `7484364`, `7485028`, `7485156`. Four labeled sheets cover all 62 captures and were inspected. Production `apply_race_change_with_seed` randomizes appearances, so sweep counts are not equivalent-profile comparisons or full customization/class acceptance. Last-marker attribution remains asynchronous.
+- Skyborne: numeric-skin misses disappear; objects **584→988**, meshes **3,814→4,840**. Four existing `Vertex 101 out of bounds` errors remain separate from file closure; no new asset miss emitted. Tripwire zero.
+- Debug character: startup now reaches a further required Retail texture `2373869`; early-exit tripwire zero, model rendering still GAP.
+- Own server source `0cc7b3866` builds successfully against frozen protocol `03cebdb`; inherited dead-code warning `followers/pull_history.rs::has_uncleared_fight` remains visible. Own admin build also succeeds. Private server first-tick/admin readiness and disposable five-character setup succeed; authenticated client proof remains pending. Private read-only world snapshot is 883,261,440 bytes; no live player database was copied.
+
+## Post-round3 continuation
+
+Lead reports round3 publication: 237 scoped assets plus 29 aliases re-extracted/verified, and 127 new/110 identical numeric paths, zero refused. All 64 previously absent Retail customization textures are included. The bounded debug-item graph expands after those model roots arrive: 757 assets, zero structural unresolved records, with 408 newly discovered absent children; this is only the twelve debug displays plus the observed collection model, not every item.
+
+`debugcharacter-round4` now renders both equipped characters (57 mesh descendants), inspected native capture, no emitted engine error, normal shutdown and tripwire zero. Character creation still emits five Forever material receipt misses because later selections randomize appearances. Its product-local Skyborne cache contributes 1,086 texture IDs for models218/219; 873 remain unreceipted after round3, plus ten collection/dependency identities. Round4's explicit frontier is 426 Retail gear children and 883 Forever identities; local decoding/publication/recheck pending.
+
+Private server setup initially stopped before any client when a PvP live window was observed. The corrected pair preflight reads the lease file even when capacity's ADD summary hides the owner; no authenticated client pass is inferred from account setup. The server is stopped between batches, with a 300-second watchdog and confirmed unbound private UDP5961.
+
+## Published rounds4–5 and current bounded coverage
+
+Lead published round4 after removing26 equal-identity overlaps:1,283 assets/408 aliases,1,707 new files. Producer commits `485814fb6` and `a2e407c56` now dedupe every canonical fragment before staged payload writes, reject conflicts/remaining duplicate assets and preserve existing legacy alias metadata (GREEN7). Numeric raw repairs remain separate from index ownership.
+
+`creation-round5` reaches **62/62 valid race/body selections with nonzero models**, zero emitted engine errors and tripwire0; all four contact sheets inspected. Randomized appearance selection still prevents equivalent-profile or full class/customization claims. `debugcharacter-round4` remains the inspected57-mesh equipped-character proof.
+
+Round5 authenticated33 assets/6 aliases/8 raw repairs locally, zero source/alias gaps. Lead re-extracted and published all39 fragment files and8 raw repairs without clobber, retaining212,774 unique canonical asset keys. Game-object skin505852 and skybox skin7345740 errors disappear in post-publication runs. `e9794c6c7` fixes dynamic game-object roots (GREEN5); `60262b0c8` fixes selected-map lighting roots through every LightParams slot, skybox and celestial FDIDs, including tile-free maps (entrypoint RED→GREEN3; full-root regression3).
+
+### Authenticated representative visits
+
+Engine base `52e47cd5d`, protocol `03cebdb`, own server `0cc7b3866`; per-case argv, fixture SHA, observations, complete logs and captures are retained. All cases below verify the requested roster character, positive player/NPC geometry and HP, mode `ExtractedOnly`, tripwire0 and normal shutdown. Owned UDP5961 server stops after each pair. Counts are observations, not whole-zone/catalog completeness.
+
+| Case | Player/NPC meshes; HP | Current result |
+|---|---|---|
+| `auth-human-round2` / Northshire |14/93;292|No emitted engine error;9tiles.|
+| `auth-orc-round1` / Durotar |15/49;293|No emitted engine error;9tiles.|
+| `auth-stormwind-round2` |14/46;292|No emitted engine error;9tiles; landing/final error0.000015m.|
+| `auth-dunmorogh-round1` |14/58;292|No emitted engine error;9tiles; landing/final error0.000489m.|
+| `auth-orgrimmar-round1` |15/72;293|No emitted engine error;9tiles; landing/final error0.000130m.|
+| `auth-tauren-round2` / Mulgore |15/54;295|No missing-file error;9tiles; spell81502/kit507 owner Unit4294897458 attachment34 lookup fails (two reported lines).|
+| `auth-skyone-round2` / Skyborne95 |17/51;292|No missing-file error;9tiles; four existing Vertex101 errors.|
+| `auth-skytwo-round4` / Skyborne96 |17/54;292|No missing-file error;9tiles; four existing Vertex101 errors.|
+| `auth-stockades-round3` |14/96;292|No missing-file error; global WMO108631;5,048 zero-Basis errors; landing/final error0.000025m at authored entrance.|
+
+Latest Mulgore/Skyborne captures inspected. They close the observed absent-file boundary, not provenance, rendering or gameplay acceptance. [Skyborne's Vertex101 cause](../wiki/investigations/m2-product-shadowing.md#terrain-collision-reproduced-2026-10-21) is now a proven cross-product pair: flat Forever579120.m2 with flat Retail579121.skin. Four placements expose the mismatched vertex ranges; the unqualified terrain loader bypasses converted source-qualified model IO. Authentic per-product alternatives are being staged without flat overwrites; no terrain runtime repair or full-chain product proof is claimed. Mulgore rig samples contain attachment34 on every sampled model; the reported effect-owner ID never appears in those samples or visual-request logs. This does **not** establish that an owner rig lacks the attachment; lifecycle/visibility/lookup cause remains under investigation.
+
+### Stockades repro classification
+
+Earlier `auth-stockades-round2` requested engine `[82.3245,-26.5229,10.6106]`, but entered at `[56.68209,-19.26912,-0.62376]` (28.92m away). Generic cause: server `maps/login.rs::LoginMaps::resolve` replaces a saved dungeon position with `MapStore::entrance_location` when the instance copy is newly created; that selects the lowest-ID incoming trigger. This is not a missing asset or failed admin save. `auth-stockades-round3` expects the authored entrance `[56.6821,-19.2691,-0.62376]` and measures0.000025m error.
+
+Zero-Basis errors reproduce on that valid landing with populated NPCs, not offline global-WMO streaming. First round2 error follows NPC display2992 visual completion and reports `core/math/basis.cpp:717 get_quaternion`; correlation does not identify the responsible model. Round3's sampled unit-root and model global determinants are all nonzero, falsifying a simple root-scale-zero explanation. Exact repro inputs are retained in `auth-stockades-round3/{argv.json,fixture.gd,observations.json,rig-samples.jsonl,client.log}` and `server/auth-stockades-round3-{argv,teleport}.json`. Bone diagnostics round4 reproduce2,924 errors with no sampled wholly zero local bone scale. Native-stack round6 completes normally with8,000 errors/tripwire0; `auth-stockades-round6/native-stack.log` captures the error write stack entirely inside stripped pinned Godot (no Rust frame), so it does not yet establish the responsible renderer operation/model. Interrupted round5 server setup is not runtime proof and its owned server was stopped. Engine rendering cause stays outside no-install fixes unless closure is demonstrated.
+
+Invalid attempts remain explicit: early Stormwind used incorrect teleport axes; Skyborne96 round1 entered Human/Stockades and round2 failed selection. Neither counts as Skyborne96 proof. Corrected fixture uses keyboard roster selection and verifies the exact selected name before entry.
+
+`proof-ledger.json` retains historical development-test scope/log hashes rather than claiming current-HEAD broad verification. Current bounded visits expose no further missing-file request; pristine manifest-only bundle, all-catalog fixed point and comprehensive classes/customizations/items remain unproven.
+
+## Terrain source-qualification implementation (acceptance pending)
+
+Ignored regression `75208c162` reproduces production map2991/model579120/SFID579121 `Vertex101 out of bounds` through `load_asset` (one failed test, exit101). `7ded89db4` carries selected MapCatalog CSV provenance into WDT and TerrainObjects, keys worker/retained M2s by product+FDID, uses `authored_model_resolver` and the parsed model's texture root, and separates particle pools by texture namespace. WMO geometry/material acquisition is unchanged. Compile-only helper and the rebuilt extension/CLI succeed without compiler warnings; `executables-terrain.json` records hashes. Guarded extracted-only regression GREEN1/1 at `359aa3c1d` is recorded in `terrain-green.log`, with a panic-on-CASC hook and tripwire0 assertion. This is not live acceptance.
+
+The first compiled probe incorrectly ran with the unit process's default local-CASC mode and extracted `products/wow_classic_beta/84bea4233331e390fda8724c6f91ffa5/textures/579119.blp` through the native-root data symlink into canonical data. It is **not** no-install GREEN; lead was notified, and this agent did not delete/repair canonical state. `terrain-green-first.log` and `terrain-test-canonical-write-incident.json` preserve the event. `359aa3c1d` fixes the harness with a fresh extracted-only child, explicit runtime configuration, panic-on-CASC hook and tripwire0 assertion; its guarded GREEN passes. The uncontrolled earlier probe remains disqualified.
+
+The scoped terrain frontier stages2,248 new assets/59,855,830bytes in `staged-terrain-models/cache/model-asset-index-terrain-models.json` (SHA256`e67395433b2a70c7ed9efc42fcac72f7fd2f02b4f90afcc08dc5ca99229691a0`). Mulgore's411 M2 roots reach1,189/1,189 files; Skyborne's315 roots reach1,195/1,196. Sole retained source gap603672 is an absent Forever-root M2 reached through WMO111221's all-doodad-set superset (`MODI[18]`); no Retail fallback or flat repair. All new files are current-root authenticated, with byte mismatches locally re-extracted. Source graphs and final authentication snapshots live under `terrain-model-closure/`.
+
+**Initial publication wait (historical).** The four-case Modern/Forever × Skyborne/Mulgore controller waited60minutes for lead-owned publication and exited before starting any server/client. A canonical key scan observed0/2,248 terrain and0/43 follower new mappings. This is an external dependency, not four failed/passing client runs. No both-skin acceptance is claimed; `terrain-both-skins-control.log` retains the wait result. Subsequent publication and attempts are recorded below; the initial wait is not the current blocker.
+
+### Published terrain and campsite readiness frontier
+
+Lead published all2,248 terrain mappings:2,247 new files plus identical incident579119BLP, re-extracted/authenticated and now properly receipted. Incident closed;215,072 unique keys. Canonical readback verifies all2,248 staged SHA256s.
+
+First live batch could not reach world because strict source acquisition exposed campsite props missing Retail receipts. The direct-root frontier authenticated46 M2 roots→281 files and published278 new assets/18,921,360bytes (215,350 keys). Captures show a loading overlay: `CampsiteObjects::is_ready` requires zero failed objects, so EnterWorld stays unavailable. No readiness bypass was added.
+
+All four `auth-terrain-*-r2` attempts remain blocked before world: Skyborne Modern36/Forever36 error lines, Mulgore Modern36/Forever37; all tripwire0, none applied/verified the requested in-world skin. Generic receipt-FDID parsing reveals nine additional WMO-attached roots omitted by the original direct-only prefix filter. Their descendants and requested Garrick1696789BLP are in the next staged frontier. Only1696789 needs fresh local payload decoding; normal ADD is pending. Source graphs/authentication live under `campsite-wmo-closure/`; do not count these attempts as world/skin acceptance. A baseline fourth attempt additionally failed private-server first-tick readiness before client launch; its log is retained separately.
+
+### In-world terrain recheck and texture co-location
+
+Lead published the nine WMO campsite chains plus Garrick1696789 material:48 assets/1,199,786bytes;215,398 unique mappings. All four `auth-terrain-*-r3` cases then entered world and applied the requested skin. All inspected captures show the intended character/world; every recorded CASC tripwire remains0. Runtime binaries are unchanged from `executables-terrain.json`.
+
+| Case | Player/NPC meshes | HP | Terrain placements/sources | Remaining errors |
+|---|---:|---:|---:|---|
+| Skyborne Modern |17/51|292|1,157/185|4 missing texture paths |
+| Skyborne Forever |17/51|292|1,317/222|4 missing texture paths |
+| Mulgore Modern |15/53|295|2,840/332|2 spell81502/kit507 attachment34 lines |
+| Mulgore Forever |15/53|295|2,840/332|1 attachment34 line |
+
+Every audited terrain source has the expected product namespace:Forever for map2991, Retail for Mulgore/map1, independent of skin. Vertex101 no longer appears. Mulgore has zero object failures/pending; Skyborne has four failures, with166 objects still pending at the Modern observation and zero pending at Forever. This is bounded in-world evidence, not complete terrain/full-catalog acceptance. `terrain-r3-aggregate.json` retains exact counts. The r3 controller exited0 and correctly stopped its server. A later active server belonged to the already-started r4 retry, not stale r3; continuation initially misidentified and stopped it during Forever server readiness. That interrupted attempt is invalid and retained; Modern r4 already completed.
+
+The four Skyborne errors are three parent models using196613BLP and one using147183BLP. Existing unique owners authenticate Forever70338/build`f6e309c700cea095978aeb5d85210df4`; current70450 root keys match those exact bytes, but current-model sibling paths are absent. `6ae2b9313` keeps the historical owner and stages an authenticated same-product different-build alias, never a fallback or owner migration. Alias deduplication includes the requested namespace. Behavioral RED3→GREEN9 covers immutable owners/indexes, physical companion files, conflicts and alias identity. Related player-bundle/provenance/migration regressions pass25; an initial attempt lacked the sibling-server override and is retained as setup failure, not product RED. A nonexistent publication-test pattern ran zero tests and is not proof.
+
+`staged-terrain-texture-colocation/cache/model-asset-index-terrain-texture-colocation.json`:zero assets/two aliases/177,816bytes, SHA256`46cfaa366680746a77d0bd4fc9a84e7ec9e0c6983985397b175fcfa35dca1285`. Lead published both aliases at20:52; canonical readback matches both staged hashes. Modern r4 reaches world with17 player meshes/51 NPC models/HP292,1,321 placements/226 correct Forever sources,zero object failures/pending,zero errors and tripwire0. Forever r4 was interrupted before client startup by the mistaken server stop above; fresh Forever-only r5 completes with the same17/51/292,1,321/226,zero wrong-product sources/object failures/pending/errors and tripwire0. Both Skyborne final captures were inspected. Controller exits0, server inactive/MainPID0 and UDP5961 unbound. `terrain-both-skins-final-bounded.json` combines valid Skyborne Modern r4/Forever r5 with Mulgore r3; no redundant Mulgore rerun for Forever-only aliases. This closes the bounded terrain-chain native recheck, not the named attachment34/source-superset gaps or P4.
+
+## Priority follower-party closure
+
+The owned world snapshot maps Shuja209053/Garrick209057/Meredy209059/Crenna209072 to displays113752/113753/113755/113757. The source-qualified display, baked/raw customization and explicitly observed world-attachment roots reach1,031 identities:151M2,412SKIN,223ANIM,76BONE,4SKEL,165BLP. Two local extraction frontiers recover32 then11 files; final graph has1,031 present/zero missing/zero structural unresolved, retaining three cache/metadata provenance labels. This is a bounded four-profile asset closure, not complete native rendering or all-follower acceptance.
+
+`staged-party-followers/cache/model-asset-index-party-followers.json` contains43 newly authenticated Retail70448 assets (4M2,10SKIN,29BLP;2,402,538bytes), zero source gaps/dedupe conflicts; receipt SHA256`bfe09a8f571fbc64905074ea2830d0f467f464fcc48b8baddada96dc7147aefa`. Includes observed4891419BLP,2025666M2,1696769M2 and their newly exposed skins/textures. `party-followers-authentication/summary.json`, `party-followers-graph4.json` and extraction2/3 retain proof. Lead owns canonical publication and native party recapture. A later native-equipment audit shows that this graph omitted world virtual-item selection: `content_creature_equip_template` supplies163887/163891/128820/133959/128306; native outfit-cache joins map them to165502/166557/152504/180120/152443. Existing display-material traversal emits Garrick1696789 through display166557/material398117. The equipment controller passed the campsite publication barrier and completed two normal-ADD local decode frontiers. Five model roots now reach27/27 present files (5M2/5SKIN/17BLP),zero missing/structural unresolved/source gaps. New Retail70448 fragment `staged-follower-equipment/cache/model-asset-index-follower-equipment.json` contains12 assets (3M2/3SKIN/6BLP),941,616bytes,zero aliases/deduplications; SHA256`f3dc8fe76eab0701f88fd2c1552c7895884cee17ad8bd5b54b487af2fa6992a5`. All12 staged sizes/SHA256/content-key MD5s read back correctly. Existing owner receipts retain historical identity; graph presence counters alone do not authenticate metadata. Controller exits0. Lead published12/12 new files,215,410 unique index keys/zero duplicates; canonical sizes/SHA256/content-key MD5 readback matches all12 (`follower-equipment-canonical-readback.json`). Full follower native acceptance remains open.
+
+Follower native calibration now uses1920×1080 original PNGs. Modern r1 reused CertHuman's saved Stockades location, retaining its zero-Basis gap and a newly strict doodad199823 receipt miss; no follower queue occurred. Modern r2 genuinely admits all four followers to Ruby2521 through reliable IPC and records positive body/armor/weapon meshes with tripwire0, but transfer resets the skin toForever, the party initially overlaps at entrance, and production camera sync supersedes the observer camera. Those captures are not accepted as Modern/individual equipment rendering proof. Northshire/Ruby terrain receipts also remain incomplete after source qualification; do not label that process error-free or all-zone closure. A fresh private fixture re-applies requested skin after admission and selects its observer at pre-draw without modifying actor gear/poses or production code. Modern r3 confirms all four followers remain at the same entrance position23.149seconds after queue despite actual owner movement; `follower-entrance-overlap-finding.json` records positions/map/timing and was sent to the lead. No formation fix is in this lane. Lead approved visibility-only individual capture isolation. Initial r4 hiding occurred before a wait, so native sync reclaimed visibility and an unrelated actor despawned before restoration; that fixture failure remains diagnostic, not accepted proof.
+
+### Follower native rendered subset
+
+Modern r5 and Forever r1 complete genuine reliable-IPC damage-role queue2436 admission into Ruby2521, apply/read back their requested skin after transfer, and render all four followers through production replicated appearance/equipment paths. Actor visibility snapshot/hide and observer camera selection occur together at pre-draw, capture at post-draw, then exact visibility restoration occurs before any simulation tick. No actor pose, equipment, replication or production rendering code changes. Each skin records Meredy26/Shuja15/Crenna23/Garrick18 visible meshes; observed armor is textured for all four, and Garrick sword1696511/shield1696769 are visible. Eight individual PNGs were inspected. Original1920×1080 files (four isolated actors plus one unisolated party each skin) are published under `/syncthing/AgentShared/2026-10-21/noinstall-follower-equipment/{Modern,Forever}/`; private `follower-{modern,forever}-png-publication.json` manifests retain exact SHA256/size/source paths.
+
+This is a bounded rendered armor/Garrick-weapon subset, not every item/state. Meredy/Crenna's newly staged weapon roots are not observed scene descendants; asset presence does not certify their rendering. Crenna's hat top is marginally cropped. Party overlap remains visible in the unisolated capture. Every observed runtime tripwire is0; both controllers exit0 with normal shutdown and server/UDP5961 stopped. Processes are not globally error-free:Modern emits14,017 terrain-only receipt lines (1,002 unique M2 identities across Northshire→Ruby); Forever emits16,845 terrain receipt lines plus one NPC animation5 missing-base-variation line. `follower-terrain-receipt-frontier.json` retains exact identities without speculative last-marker per-map attribution. Lead authorized the1,002-root closure after the engine gate packet; P4 remains open. Evidence: `party-follower-world-equipment-{joins,graph}.json`.
+
+Earlier three follower-head texture receipts are separate in `staged-party-frames/cache/model-asset-index-party-frames-textures.json` (527,860bytes); lead confirmed publication.
+
+## Remaining acceptance
+
+Owned protocol-matched authenticated server/client runs, receipt/skin publication rechecks, all-class/item/spell descendants, full-catalog closure/provenance reconciliation and pristine player-bundle/download acceptance remain unqualified. Historical graph counts and metadata-only `36 profiles / 0 certified` evidence are documented in [offline asset closure](../wiki/systems/offline-asset-closure.md); they are not replaced by this bounded sweep.

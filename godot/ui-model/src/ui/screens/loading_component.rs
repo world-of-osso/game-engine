@@ -16,11 +16,12 @@ pub const TEX_LOADING_BAR_FILL: &str = "data/ui/loading-bar-fill-v3-alchemical.p
 pub fn loading_bar_shell() -> ui_toolkit::frame::ThreeSlice {
     use ui_toolkit::widgets::texture::TextureSource;
     ui_toolkit::frame::ThreeSlice {
-        cap_width: BAR_CAP_WIDTH,
+        cap_widths: [BAR_CAP_WIDTH; 2],
         left: TextureSource::File(TEX_LOADING_BAR_LEFT.to_owned()),
         center: TextureSource::File(TEX_LOADING_BAR_CENTER.to_owned()),
         right: TextureSource::File(TEX_LOADING_BAR_RIGHT.to_owned()),
         color: [1.0; 4],
+        ..Default::default()
     }
 }
 

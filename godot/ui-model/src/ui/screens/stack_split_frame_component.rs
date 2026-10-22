@@ -7,7 +7,6 @@ use ui_toolkit::screen::SharedContext;
 use ui_toolkit::widget_def::Element;
 
 use crate::ui::strata::FrameStrata;
-use crate::ui::widgets::font_string::GameFont;
 
 pub const FRAME_NAME: &str = "StackSplitFrame";
 pub const FRAME_W: f32 = 172.0;
@@ -199,11 +198,8 @@ fn label(
             width,
             height,
             text,
-            font: GameFont::FrizQuadrata,
-            font_size: 12.0,
+            font_object: "GameFontNormal",
             font_color: color,
-            shadow_color: "0,0,0,1",
-            shadow_offset: "1,-1",
             justify_h: justify,
             pos_type: "absolute",
             left,

@@ -210,6 +210,36 @@ fn drawn(registry: &FrameRegistry, name: &str) -> bool {
         .visible
 }
 
+/// R TabSystemTemplates.lua6–28 rotates caps onto BOTTOM anchors; inactive offset is−6.
+#[test]
+fn ui_template_art_transmog_top_tabs_use_authored_state_specific_bottom_anchors() {
+    use ui_toolkit::layout_values::Val;
+    for skin in [ActiveSkin::Modern, ActiveSkin::Forever] {
+        let mut view = book();
+        view.tab = WardrobeTab::Items;
+        let registry = build(skin, view);
+        for (name, x, y, height) in [
+            ("TransmogItemsTabright", -7.0, -10.0, 42.0),
+            ("TransmogSetsTabright", -6.0, -4.0, 36.0),
+        ] {
+            let frame = registry
+                .get(registry.get_by_name(name).expect(name))
+                .unwrap();
+            assert_eq!(
+                (frame.position.left, frame.position.top),
+                (Val::Px(x), Val::Px(y)),
+                "{skin:?} {name}"
+            );
+            assert_eq!(rect(&registry, name), (37.0, height));
+            let Some(WidgetData::Texture(texture)) = &frame.widget_data else {
+                panic!("{name}")
+            };
+            assert!((texture.rotation - std::f32::consts::PI).abs() < 0.0001);
+        }
+    }
+    set_thread_skin(ActiveSkin::Modern);
+}
+
 /// Status and name strings are automation hooks; Retail draws none of them on cards.
 #[test]
 fn transmog_filter_menus_expose_real_source_types_and_completion_in_both_skins() {

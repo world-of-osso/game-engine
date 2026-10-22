@@ -178,10 +178,6 @@ fn uv([left, right, top, bottom]: [f32; 4]) -> String {
     )
 }
 
-fn art_piece(name: DynName, rect: [f32; 4], pixels: [f32; 4]) -> Element {
-    art_piece_alpha(name, rect, pixels, 1.0)
-}
-
 fn art_piece_alpha(name: DynName, rect: [f32; 4], pixels: [f32; 4], alpha: f32) -> Element {
     let [left, top, width, height] = rect;
     rsx! {
@@ -201,28 +197,23 @@ fn art_piece_alpha(name: DynName, rect: [f32; 4], pixels: [f32; 4], alpha: f32) 
 
 /// Three pieces over `[left, top, width, height]`: fixed caps, stretched centre.
 fn three_slice(prefix: &str, rect: [f32; 4], cap: f32, pixels: [[f32; 4]; 3]) -> Element {
-    let [left, top, width, height] = rect;
-    let center = (width - 2.0 * cap).max(0.0);
-    [
-        art_piece(
-            DynName(format!("{prefix}Left")),
-            [left, top, cap, height],
-            pixels[0],
-        ),
-        art_piece(
-            DynName(format!("{prefix}Center")),
-            [left + cap, top, center, height],
-            pixels[1],
-        ),
-        art_piece(
-            DynName(format!("{prefix}Right")),
-            [left + cap + center, top, cap, height],
-            pixels[2],
-        ),
-    ]
-    .into_iter()
-    .flatten()
-    .collect()
+    use ui_toolkit::frame::ThreeSlice;
+    use ui_toolkit::widgets::texture::TextureSource;
+    let slice = ThreeSlice {
+        cap_widths: [cap; 2],
+        left: TextureSource::File(ART.into()),
+        center: TextureSource::File(ART.into()),
+        right: TextureSource::File(ART.into()),
+        tex_coords: pixels.map(|coordinates| coordinates.map(|value| value / 1024.0)),
+        ..Default::default()
+    };
+    ui_toolkit::three_slice::slice_art(
+        prefix,
+        &slice,
+        rect,
+        ["Left", "Center", "Right"],
+        ui_toolkit::strata::DrawLayer::Artwork,
+    )
 }
 
 fn highlight(entry: &EntranceBarChoice, layout: &EntranceBarLayout, index: usize) -> Element {

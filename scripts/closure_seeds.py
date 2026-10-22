@@ -239,6 +239,35 @@ def seed_terrain(graph, config):
     return selected
 
 
+def seed_skyboxes(graph, catalogs, map_ids):
+    if not map_ids:
+        return
+    params = {
+        number(row, key)
+        for row in catalogs.rows("Light")
+        if number(row, "ContinentID") in map_ids
+        for key in row
+        if key.startswith("LightParamsID_") and number(row, key)
+    }
+    param_rows = catalogs.index("LightParams") if params else {}
+    skies = set()
+    for param in sorted(params):
+        row = param_rows.get(param)
+        if row is None:
+            graph.issue("missing_metadata_row", f"LightParams ID={param}")
+        elif number(row, "LightSkyboxID"):
+            skies.add(number(row, "LightSkyboxID"))
+    sky_rows = catalogs.index("LightSkybox") if skies else {}
+    for sky in sorted(skies):
+        row = sky_rows.get(sky)
+        if row is None:
+            graph.issue("missing_metadata_row", f"LightSkybox ID={sky}")
+            continue
+        for column in ("SkyboxFileDataID", "CelestialSkyboxFileDataID"):
+            if number(row, column):
+                graph.add(number(row, column), "m2", f"LightSkybox {sky} {column}")
+
+
 def npc_displays(db, tiles):
     spawns = []
     for map_id, x, y in sorted(tiles):
@@ -270,6 +299,75 @@ def npc_displays(db, tiles):
                     )
                 )
     return spawns, sorted(displays - {0})
+
+
+def select_game_object_templates(db, selector, tiles):
+    if selector == "all":
+        rows = list(
+            db.execute(
+                "SELECT entry,type,displayId FROM content_gameobject_template ORDER BY entry"
+            )
+        )
+    elif selector == "tiles":
+        rows = []
+        for map_id, x, y in sorted(tiles):
+            rows.extend(
+                db.execute(
+                    "SELECT t.entry,t.type,t.displayId FROM content_gameobject g "
+                    "JOIN content_gameobject_template t ON t.entry=g.id "
+                    "WHERE g.map=? AND g.position_x>? AND g.position_x<=? "
+                    "AND g.position_y>? AND g.position_y<=? ORDER BY t.entry",
+                    (
+                        map_id,
+                        (31 - y) * (1600 / 3),
+                        (32 - y) * (1600 / 3),
+                        (31 - x) * (1600 / 3),
+                        (32 - x) * (1600 / 3),
+                    ),
+                )
+            )
+    else:
+        raise ValueError(f"Unknown game_objects selector: {selector!r}")
+    templates = {
+        int(row[0]): {
+            "entry": int(row[0]),
+            "type": int(row[1]),
+            "display_id": int(row[2]),
+        }
+        for row in rows
+    }
+    return [templates[entry] for entry in sorted(templates)]
+
+
+def seed_game_objects(graph, catalogs, db, selector, tiles):
+    templates = select_game_object_templates(db, selector, tiles)
+    if not templates:
+        return []
+    if selector == "all":
+        graph.issue(
+            "game_object_reachability_superset",
+            "all game-object templates, including unspawned/script-summoned objects; not a pruned native-renderable set",
+        )
+    displays = catalogs.index("GameObjectDisplayInfo")
+    for template in templates:
+        display = template["display_id"]
+        if not display:
+            continue
+        row = displays.get(display)
+        if row is None or not number(row, "FileDataID"):
+            graph.issue(
+                "missing_metadata_row",
+                f"GameObjectDisplayInfo ID={display} FileDataID for template {template['entry']}",
+            )
+            continue
+        # Native game_objects::load_visual dispatches only type15 map transports to WMO.
+        kind = "wmo" if template["type"] == 15 else "m2"
+        graph.add(
+            number(row, "FileDataID"),
+            kind,
+            f"game object template {template['entry']} display {display}",
+        )
+    return templates
 
 
 def starting_items(db, character):
@@ -389,14 +487,15 @@ def requirement_allows(graph, requirements, requirement_id, race, class_id):
 
 
 def seed_customizations(graph, chr_model, selector, race=1, class_id=1):
-    path = graph.data / "cache/customization.sqlite"
+    cache = graph.seeds["customization_cache"]
+    path = graph.data / cache
     if not path.is_file():
-        graph.issue("missing_metadata_file", "cache/customization.sqlite")
+        graph.issue("missing_metadata_file", cache)
         return []
     graph.input_file(path)
     graph.issue(
         "unverified_cache_build",
-        "customization.sqlite: source mtimes do not authenticate build",
+        f"{cache}: source mtimes do not authenticate build",
     )
     requirements = (
         Catalogs(graph).index("ChrCustomizationReq") if selector != "all" else {}
@@ -491,7 +590,7 @@ def seed_npc_appearance(graph, displays):
         "unverified_cache_build",
         "npc_appearance.sqlite: no authenticated source receipt",
     )
-    customization = graph.data / "cache/customization.sqlite"
+    customization = graph.data / graph.seeds["customization_cache"]
     with readonly(path) as db:
         choice_ids = []
         for display in displays:
@@ -511,7 +610,8 @@ def seed_npc_appearance(graph, displays):
                 apply_choices(graph, choices, choice_ids, "selected")
         elif choice_ids:
             graph.issue(
-                "missing_metadata_file", "NPC choices need cache/customization.sqlite"
+                "missing_metadata_file",
+                f"NPC choices need {graph.seeds['customization_cache']}",
             )
 
 
@@ -531,6 +631,7 @@ def seed_catalogs(graph, world_path, config):
             if row.get("Directory")
         ]
     tiles = seed_terrain(graph, {"maps": maps})
+    seed_skyboxes(graph, catalogs, {map_spec["id"] for map_spec in maps})
     race_models = catalogs.rows("ChrRaceXChrModel")
     characters = config["characters"]
     if characters == "all":
@@ -640,9 +741,13 @@ def seed_catalogs(graph, world_path, config):
                 }
             )
         seed_items(graph, catalogs, db, items)
+        game_objects = seed_game_objects(
+            graph, catalogs, db, config["game_objects"], tiles
+        )
         selected = {
             "spawns": spawns,
             "displays": npc_ids,
+            "game_objects": game_objects,
             "items": items,
             "spells": spells,
         }

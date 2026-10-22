@@ -74,52 +74,11 @@ pub fn guild_screen(shared: &SharedContext) -> Element {
 
 /// UIPanelTemplates.xml984–1043: TranslucentFrameTemplate, no StaticPopup art.
 pub(crate) fn translucent_chrome(prefix: &str, (width, height): (f32, f32)) -> Element {
-    let background = DynName(format!("{prefix}Bg"));
-    let mut out = rsx! { texture { name: background, width: {width-20.0}, height: {height-20.0},
-    left: 10.0, top: 10.0, pos_type: "absolute", draw_layer: "BACKGROUND", background_color: "0,0,0,0.9" } };
-    for (suffix, coords, x, y) in [
-        ("TopLeftCorner", "0,0.5,0,0.5", 0.0, 0.0),
-        ("TopRightCorner", "0.5,1,0,0.5", width - 32.0, 0.0),
-        ("BottomLeftCorner", "0,0.5,0.5,1", 0.0, height - 32.0),
-        (
-            "BottomRightCorner",
-            "0.5,1,0.5,1",
-            width - 32.0,
-            height - 32.0,
-        ),
-    ] {
-        let name = DynName(format!("{prefix}{suffix}"));
-        out.extend(rsx! { texture { name, texture_fdid: 407329, tex_coords: coords,
-            left: x, top: y, width: 32.0, height: 32.0, pos_type: "absolute", draw_layer: "BORDER" } });
-    }
-    for (suffix, fdid, x, y, width, height, horizontal) in [
-        ("TopBorder", 407332, 32.0, 1.0, width - 64.0, 16.0, true),
-        (
-            "BottomBorder",
-            407328,
-            32.0,
-            height - 16.0,
-            width - 64.0,
-            16.0,
-            true,
-        ),
-        ("LeftBorder", 407330, 1.0, 32.0, 16.0, height - 64.0, false),
-        (
-            "RightBorder",
-            407331,
-            width - 16.0,
-            32.0,
-            16.0,
-            height - 64.0,
-            false,
-        ),
-    ] {
-        let name = DynName(format!("{prefix}{suffix}"));
-        let vertical = !horizontal;
-        out.extend(rsx! { texture { name, texture_fdid: fdid, left: x, top: y, width, height,
-            horiz_tile: horizontal, vert_tile: vertical, pos_type: "absolute", draw_layer: "BORDER" } });
-    }
-    out
+    use ui_toolkit::art_layout::{BorderLayout, BorderSpec, border_art};
+    border_art(
+        prefix,
+        BorderSpec::new(BorderLayout::Translucent, [0.0, 0.0, width, height]),
+    )
 }
 
 /// Retail GuildInviteFrame.xml: centered 310×188, inviter, invitation, guild, Join/Decline.
