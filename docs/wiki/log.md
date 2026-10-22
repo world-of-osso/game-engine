@@ -5109,3 +5109,7 @@ gc774 passed tests/fmt and landed engineb0b3d4b39; exact server842325bf3/protoco
 ## 2026-10-22 — Receipt-selected offline auditor IO
 
 [Bounded capability and proof](../handoffs/noinstall-cert-2026-10-21.md#offline-auditor-receipt-selected-model-io): auditor CLI requires product receipts while `RawByteGraph` explicitly remains producer discovery. File-backed scoped-only/mixed-product cases and authentic579120 collision pass; model-owned namespaces/owner-matched aliases retain required failures and flat WMO material provenance limits. No runtime change,extraction,full-graph replay or native metadata-owned mixed-product certification.
+
+## 2026-10-22 — Metadata-owned offline roots
+
+[Root ownership proof](../handoffs/noinstall-cert-2026-10-21.md#metadata-owned-auditor-roots) records ignored RED-first publication then native map/display/NPC resource source selection. Owned items require explicit definition source and isolated catalogs; unsourced full-catalog IDs remain named gaps. No full-graph replay,native run,extraction or cache-import provenance claim.
