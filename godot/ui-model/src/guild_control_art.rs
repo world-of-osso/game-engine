@@ -68,29 +68,13 @@ pub fn navigation_x() -> f32 {
 }
 
 pub fn shell() -> Element {
-    let mut out = rsx! { texture { name: "GuildControlUIBg", width: 318.0, height: 424.0,
-    left: 10.0, top: 10.0, pos_type: "absolute", draw_layer: "BACKGROUND", background_color: "0,0,0,0.9" }
-    texture { name: "GuildControlUITopBg", texture_fdid: 374155, horiz_tile: true, vert_tile: true,
-    width: 314.0, height: 40.0, left: 12.0, top: 12.0, pos_type: "absolute", draw_layer: "BACKGROUND" } };
-    for (name, coords, x, y) in [
-        ("TopLeft", "0,0.5,0,0.5", 0.0, 0.0),
-        ("TopRight", "0.5,1,0,0.5", 306.0, 0.0),
-        ("BottomLeft", "0,0.5,0.5,1", 0.0, 412.0),
-        ("BottomRight", "0.5,1,0.5,1", 306.0, 412.0),
-    ] {
-        out.extend(cropped(
-            format!("GuildControlUI{name}Corner"),
-            407329,
-            coords,
-            (x, y, 32.0, 32.0),
-        ));
-    }
-    out.extend(rsx! {
-        texture { name: "GuildControlUITopBorder", texture_fdid: 407332, horiz_tile: true, width: 274.0, height: 16.0, left: 32.0, top: 1.0, pos_type: "absolute" }
-        texture { name: "GuildControlUIBottomBorder", texture_fdid: 407328, horiz_tile: true, width: 274.0, height: 16.0, left: 32.0, top: 428.0, pos_type: "absolute" }
-        texture { name: "GuildControlUILeftBorder", texture_fdid: 407330, vert_tile: true, width: 16.0, height: 380.0, left: 1.0, top: 32.0, pos_type: "absolute" }
-        texture { name: "GuildControlUIRightBorder", texture_fdid: 407331, vert_tile: true, width: 16.0, height: 380.0, left: 322.0, top: 32.0, pos_type: "absolute" }
-    });
+    use ui_toolkit::art_layout::{BorderLayout, BorderSpec, border_art};
+    let mut out = border_art(
+        "GuildControlUI",
+        BorderSpec::new(BorderLayout::Translucent, [0.0, 0.0, 338.0, 444.0]),
+    );
+    out.extend(rsx! { texture { name: "GuildControlUITopBg", texture_fdid: 374155, horiz_tile: true, vert_tile: true,
+        width: 314.0, height: 40.0, left: 12.0, top: 12.0, pos_type: "absolute", draw_layer: "BACKGROUND" } });
     out.extend(label(
         "GuildControlUITitle".into(),
         "Guild Control",
@@ -100,7 +84,7 @@ pub fn shell() -> Element {
     // UIPanelCloseButton normal/pushed/highlight source atlases shared by native panels.
     out.extend(rsx! { button { name: "GuildControlUICloseButton", width: 24.0, height: 24.0, left: 307.0, top: 7.0, pos_type: "absolute",
         onclick: "guild:settings_close", button_default_skin: false,
-        frame_level: 510.0, button_atlas_up: "RedButton-Exit", button_atlas_pressed: "RedButton-exit-pressed", button_atlas_highlight: "RedButton-Highlight", button_highlight_blend_mode:"ADD", button_atlas_disabled: "RedButton-Exit-Disabled" } });
+        frame_level: 510.0, button_template: "UIPanelCloseButton" } });
     out.extend(horizontal_bar());
     out
 }

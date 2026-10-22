@@ -94,7 +94,9 @@ mod stack_split_preview;
 #[cfg(debug_assertions)]
 mod static_popup_shadow_preview;
 mod target_cast_preview;
+mod template_art_preview;
 mod template_blend_preview;
+mod template_font_preview;
 mod toy_cooldown;
 mod toybox_preview;
 pub(crate) mod ui_parent;

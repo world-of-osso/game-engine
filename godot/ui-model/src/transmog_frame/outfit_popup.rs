@@ -87,7 +87,7 @@ pub(super) fn outfit_popups(book: &TransmogBook) -> Element {
                 40.0,
                 40.0,
             ),
-            &Skin {
+            &Skin::States {
                 up: border,
                 pressed: "common-button-square-gray-down",
                 disabled: border,

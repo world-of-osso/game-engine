@@ -1191,8 +1191,8 @@ fn label(
 ) -> Element {
     let (x, y, w, h) = rect;
     rsx! { fontstring {
-        name: {DynName(name)}, width: w, height: h, text, font: GameFont::FrizQuadrata,
-        font_size: 12.0, font_color: color, justify_h: "LEFT", onclick: action,
+        name: {DynName(name)}, width: w, height: h, text, font_object: "GameFontNormal",
+        font_color: color, justify_h: "LEFT", onclick: action,
         pos_type: "absolute", left: x, top: y,
     } }
 }
