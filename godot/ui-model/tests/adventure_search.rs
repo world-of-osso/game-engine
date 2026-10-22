@@ -90,6 +90,27 @@ fn journal_search_item_results_preserve_source_icon_quality_parent_and_difficult
 }
 
 #[test]
+#[ignore = "RED: Journal item search must resolve an authored appearance when raw icon is zero"]
+fn journal_search_item_result_resolves_the_real_zero_raw_icon_appearance() {
+    let mut view = journal("Onyx-Imbued Breeches");
+    game_engine_ui_model::item_catalog::wait_for_item_catalog();
+    assert_eq!(view.catalog.items[&174139].icon, 0);
+    view.apply("journal:search-focus").unwrap();
+    let registry = render(&view, ActiveSkin::Modern);
+    let icon = registry
+        .get(
+            registry
+                .get_by_name("JournalSearchPreview0Icon")
+                .expect("Real zero-raw-icon item search result is required"),
+        )
+        .unwrap();
+    assert!(
+        matches!(&icon.widget_data, Some(WidgetData::Texture(texture))
+        if texture.source == TextureSource::FileDataId(2978247))
+    );
+}
+
+#[test]
 #[ignore = "RED: authentic JournalEncounterCreature names must open the selected model"]
 fn journal_search_creature_results_open_the_authored_model_choice() {
     for skin in [ActiveSkin::Modern, ActiveSkin::Forever] {
