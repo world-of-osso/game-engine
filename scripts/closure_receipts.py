@@ -26,7 +26,11 @@ def validate_receipt(row, alias=False):
     hashes = [(key, 32), (row["sha256"], 64)]
     if not alias or row.get("content_key"):
         hashes.append((row["content_key"], 32))
-    if product not in PRODUCTS or not row.get("build") or row["bytes"] <= 0:
+    if (
+        product not in PRODUCTS
+        or (not alias and not row.get("build"))
+        or row["bytes"] <= 0
+    ):
         raise ValueError(f"Incomplete verified receipt: {row['path']}")
     if any(
         len(value) != size or any(c not in "0123456789abcdefABCDEF" for c in value)
@@ -219,7 +223,7 @@ class ReceiptClosure(RawByteGraph):
             return None
         asset.update(
             source_product=receipt["product"],
-            actual_build=receipt["build"],
+            actual_build=owner["build"],
             identity_status="verified_receipt",
         )
         return found

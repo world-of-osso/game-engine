@@ -3,7 +3,6 @@
 from contextlib import closing
 import hashlib
 import json
-import os
 from pathlib import Path
 import sqlite3
 import struct
@@ -373,9 +372,6 @@ class ReceiptClosureTests(unittest.TestCase):
             )
         )
 
-    @unittest.skipUnless(
-        os.environ.get("P4_RED"), "Ignored RED: preserved legacy alias metadata"
-    )
     def test_unused_modelnamed_alias_without_owner_fields_does_not_poison_index(self):
         product = "wow_classic_beta"
         self.keys[product] = "f6e309c700cea095978aeb5d85210df4"
@@ -405,9 +401,6 @@ class ReceiptClosureTests(unittest.TestCase):
         self.assertEqual(skin["locations"], [owner["path"]])
         self.assertFalse((self.data / alias["path"]).exists())
 
-    @unittest.skipUnless(
-        os.environ.get("P4_RED"), "Ignored RED: alias source comes from unique owner"
-    )
     def test_selected_numeric_alias_derives_build_and_md5_from_unique_owner(self):
         self.publish("wow", 10, "m2", model(chunk("SFID", ints(11))))
         owner = self.publish("wow", 11, "skin", b"SKINsame", key="c" * 32)

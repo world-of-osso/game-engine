@@ -106,7 +106,12 @@ New staged fragments must dedupe against the canonical base index
 and every fragment, then reject remaining duplicate asset identities; raw path repairs
 must not create another product/FDID/kind owner. An identical authenticated asset
 required at another model-build namespace must retain that requested path as a
-provenance alias, without changing its unique existing owner. Alias dedupe includes
+provenance alias, without changing its unique existing owner. Alias metadata is
+not another asset owner: preserved rows can omit build/content-key fields. The
+auditor validates selected alias bytes against the same-product unique owner's
+size,SHA256 and content key and records that owner's actual build; it never
+infers origin from the alias directory or reads model-named legacy aliases in
+place of numeric SFID/SKID inputs. Alias dedupe includes
 the build namespace; same relative paths in different builds are distinct physical
 requirements. Different content remains a conflict, never an alias or runtime fallback.
 This bounded inventory does not verify
