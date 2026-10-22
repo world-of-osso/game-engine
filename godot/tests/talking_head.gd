@@ -57,7 +57,8 @@ func run_fixture() -> void:
         for frame in range(600):
             if fixture.voice_state().get("playing", false):
                 break
-            if not check(fixture.tick(0.0).is_empty(), "native voice loader: " + skin):
+            var voice_error: String = fixture.tick(0.0)
+            if not check(voice_error.is_empty(), "native voice loader %s: %s" % [skin, voice_error]):
                 break
             await process_frame
         var voice: Dictionary = fixture.voice_state()
