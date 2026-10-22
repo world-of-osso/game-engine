@@ -54,7 +54,9 @@ func run_fixture() -> void:
         check(image.get_size() == Vector2i(1920,1080), "native1920x1080 image: " + skin)
         check(image.save_png(output.path_join("talking-head-" + skin + ".png")) == OK, "save unscaled original PNG: " + skin)
         check(fixture.model_ready(), "actual source display116692 and camera1751 painted: " + skin)
-        for frame in range(600):
+        # Worker/CASC readiness follows wall time, not renderer throughput.
+        var voice_deadline := Time.get_ticks_msec() + 30000
+        while Time.get_ticks_msec() < voice_deadline:
             if fixture.voice_state().get("playing", false):
                 break
             var voice_error: String = fixture.tick(0.0)
