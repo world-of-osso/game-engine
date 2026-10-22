@@ -171,6 +171,53 @@ class ReceiptClosureTests(unittest.TestCase):
         )
         self.assertEqual(manifest["summary"]["missing"], 0)
 
+    def test_authentic_579120_collision_keeps_each_products_primary_skin(self):
+        sources = [
+            (
+                "wow",
+                "88d5e8ef05ec5a8446cdec93d142d7c6",
+                "2f0242f06b19409a382e418c8a92f0c383536075fb2e1d25dce7f3bdc6d4b19f",
+                "e751505c024d0372ff2dab9ce18330e52cf90e0bae511451487f96231c50cdfc",
+            ),
+            (
+                "wow_classic_beta",
+                "84bea4233331e390fda8724c6f91ffa5",
+                "6254ea3ea766575c88fa899208e2f5b4558b47413c27d178a31dba28cbba55df",
+                "c44314528670cf2507ec44acdf92d2195e5378bb966eef6462c7bccba75085f6",
+            ),
+        ]
+        expected = {}
+        for product, key, model_hash, skin_hash in sources:
+            source = SCRIPTS.parent / "data/products" / product / key / "models"
+            for fdid, kind, wanted in [
+                (579120, "m2", model_hash),
+                (579121, "skin", skin_hash),
+            ]:
+                raw = (source / f"{fdid}.{kind}").read_bytes()
+                self.assertEqual(hashlib.sha256(raw).hexdigest(), wanted)
+                self.publish(product, fdid, kind, raw, key=key)
+                expected[product, fdid] = wanted
+        # This exact wrong-product flat companion caused the native Vertex101 failure.
+        retail_skin = (
+            self.data / f"products/wow/{sources[0][1]}/models/579121.skin"
+        ).read_bytes()
+        self.put("models/579121.skin", retail_skin)
+        graph = self.auditor()
+        for product, _, _, _ in sources:
+            graph.add(579120, "m2", "authentic product collision", product=product)
+        manifest = graph.run()
+        selected = {
+            (row["requested_product"], row["fdid"]): row
+            for row in manifest["assets"]
+            if row["fdid"] in {579120, 579121}
+        }
+        self.assertEqual(set(selected), set(expected))
+        for identity, wanted in expected.items():
+            self.assertEqual(selected[identity]["sha256"], wanted)
+            self.assertEqual(selected[identity]["identity_status"], "verified_receipt")
+        # Other authored LODs/textures were deliberately not supplied: never call this full closure.
+        self.assertGreater(manifest["summary"]["missing"], 0)
+
     def test_companion_requires_the_model_namespace_not_another_receipt_build(self):
         self.publish("wow", 10, "m2", model(chunk("SFID", ints(11))))
         self.publish("wow", 11, "skin", b"SKINsame", key="c" * 32)
