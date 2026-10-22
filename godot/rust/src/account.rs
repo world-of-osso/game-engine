@@ -654,6 +654,13 @@ impl Account {
             .map_err(SessionError)
     }
 
+    /// Key-up requests release only; the server validates the matching active empower.
+    pub fn send_empower_release(&self, spell_id: u32) -> Result<(), SessionError> {
+        self.bridge()?
+            .send::<_, CombatChannel>(shared::protocol::ReleaseEmpowerSpell { spell_id })
+            .map_err(SessionError)
+    }
+
     /// `SpellStopCasting`: cancel the current cast.
     pub fn send_stop_cast(&self) -> Result<(), SessionError> {
         self.bridge()?
