@@ -309,6 +309,7 @@ fn ui_template_behavior_services_loadout_menu_keeps_disabled_export_owner_and_re
             assert_eq!(owner.id, hit);
             assert_eq!(binding.provider.as_deref(), Some("talent_gate"));
             assert_eq!(binding.anchor, ui_toolkit::tooltip::TooltipAnchor::Left);
+            assert_eq!(binding.offset, [4.0, -4.0]);
         }
         assert!(registry.get_by_name("TalentDefaultLoadout").is_none()); // default is caption, not a saved config ID
         let Some(WidgetData::FontString(caption)) = &registry
