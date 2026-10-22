@@ -31,7 +31,7 @@ Consume the private source conversation payload and render the authored70448 Ret
 
 ## Known gaps (current cycle)
 
-- [ ] Exact native UiCamera/GetUICameraInfo/model-space conversion and PlayerModel projection semantics remain unqualified; do not treat DB2 Pos as the camera eye or fit the mesh heuristically.
+- [ ] `TALKING_HEAD_MODEL_PROJECTION_UNSOURCED`: model rendering stays disabled. Source Pos→model translation, LookAt→yaw/pitch/roll and fixed camera(4,0,0)→target(0,0,0) are retained; flags→useModelCenter and native PlayerModel projection remain unknown. Do not treat Pos as the eye, substitute an M2 portrait camera, or fit the mesh.
 - [ ] Native source-model paint, voice playback/stop, authored animation/fades and joint protocol/server/engine acceptance remain open.
 
 ## Bounded proof
@@ -40,6 +40,13 @@ Consume the private source conversation payload and render the authored70448 Ret
 - Original1920×1080 Modern/Forever PNGs were inspected at `250064b00`: authentic atlas/name/dialogue render, native wrapping RED4→GREEN4. Model rectangle remains empty and the process fixture remains RED2. Evidence: `data/diagnostics/follower-dungeons-2026-10-21/talking-head-native-wrap-{red,green}/`.
 - Exact selected70448 voice rows resolve250774/775/776→5834729/730/731 at volume0.799999952 (direct-kit RED→GREEN1). This metadata proof is not playback or audible-output proof; this agent host selected Godot's dummy audio driver.
 - Native voice RED6 was reproduced before implementation. The implemented consumer reaches local CASC extraction in both skins, but actual FDID5834729 fails BLTE decryption: encoding43dee1e72eb96dcd59fcfd62b353630d, IV size8 versus decoder's expected4. No replacement clip/CDN or suppressed error. See `talking-head-native-voice-diagnostic/process.log`; voice playback/stop remain unproved. The IV fix already exists in asset-resolver's vendored `cascette-formats` (`898cef7`, provenance/retirement: sibling `vendor/README.md`). Cargo ignores a path dependency's workspace patches, so the Godot workspace explicitly selects that same existing fix; no second crypto implementation.
+
+## Camera reference boundary
+
+- Retail70448 `CameraDocumentation.lua:31–41` and `ModelFrames.lua:70–99`: authored model transform and fixed camera/target. API `useModelCenter` is a returned Boolean, not a documented mapping from DB2 Flags.
+- WebWowViewerCpp `1a8cccbe`, `wowViewerLib/src/engine/camera/m2TiedCamera.cpp:16–17,31–35`: M2-camera selection, authored clips and diagonal FOV; not native PlayerModel defaults. `persistance/header/M2FileHeader.h:120–135` describes M2 portrait camera types, not UiCamera flags.
+- wow.export `c2fd7bde`, `src/js/components/model-viewer-gl.js:163–184,502`: viewer-specific bounds fitting and70° camera. These are not Retail framing evidence and are deliberately not copied.
+- WoWDBDefs `definitions/UiCamera.dbd:6,27,58,81,116,148,179`: Flags column and storage widths only; no model-centering semantics. Saved schema SHA/qualified reference revisions: `data/diagnostics/follower-dungeons-2026-10-21/talking-head-camera-reference-receipts.json`.
 
 ## Out of scope
 
