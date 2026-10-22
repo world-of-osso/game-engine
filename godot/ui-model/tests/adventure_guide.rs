@@ -121,13 +121,13 @@ fn encounter_link_dismisses_overflow_and_nested_class_menu_in_both_skins() {
         screen.sync(&shared, &mut registry);
         assert!(registry.get_by_name("JournalBoss112").is_some());
         assert!(
-            !view.nav_overflow_open,
-            "Linked Ozruk retains stale navbar overflow"
+            registry
+                .get_by_name("EncounterJournalNavBarOverflowMenu")
+                .is_none(),
+            "Linked Ozruk must not paint the previous encounter's overflow"
         );
-        assert!(
-            !view.class_menu_open,
-            "Linked Ozruk retains the previous class submenu"
-        );
+        assert!(!view.nav_overflow_open);
+        assert!(!view.class_menu_open);
         view.apply("journal:filter:class").unwrap();
         shared.insert(view);
         screen.sync(&shared, &mut registry);
@@ -138,6 +138,29 @@ fn encounter_link_dismisses_overflow_and_nested_class_menu_in_both_skins() {
         );
     }
     set_thread_skin(ActiveSkin::Modern);
+}
+
+#[test]
+#[ignore = "RED: encounter links must dismiss the nested class submenu"]
+fn encounter_link_reopens_the_class_filter_without_the_previous_submenu() {
+    let mut view = journal();
+    view.select_encounter(2491).unwrap();
+    view.page = Page::Loot;
+    view.apply("journal:filter:class").unwrap();
+    view.apply("journal:class-menu").unwrap();
+    view.select_dungeon_encounter(1058, Some(24)).unwrap();
+    view.apply("journal:filter:class").unwrap();
+    let mut shared = SharedContext::new();
+    shared.insert(ActiveSkin::Modern);
+    shared.insert(view);
+    let mut registry = FrameRegistry::new(1920., 1080.);
+    let mut screen = Screen::new(adventure_guide_screen);
+    screen.sync(&shared, &mut registry);
+    assert!(registry.get_by_name("EncounterJournalFilterMenu").is_some());
+    assert!(
+        registry.get_by_name("EncounterJournalClassMenu").is_none(),
+        "Linked encounter's filter must not paint the previous nested class submenu"
+    );
 }
 
 #[test]
