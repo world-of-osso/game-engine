@@ -5105,3 +5105,7 @@ gc774 passed tests/fmt and landed engineb0b3d4b39; exact server842325bf3/protoco
 ## 2026-10-22 — Frozen no-install full-config diagnostics
 
 [Certification SSOT](../handoffs/noinstall-cert-2026-10-21.md#fresh-full-catalog-retail-diagnostic-on-frozen70448-metadata) records independently frozen metadata,source/config/root inventory and sequential Retail/Forever-runtime-metadata graph/receipt readbacks. [Audit boundary](systems/offline-asset-closure.md#2026-10-21-certification-continuation): legacy-flat traversal can miss valid scoped files and hide descendants; one requested product is not native mixed-product ownership. Exact current counts/hashes and sparse-metadata qualifications stay in the handoff; no P4 certificate or new native/extraction/publication claim.
+
+## 2026-10-22 — Receipt-selected offline auditor IO
+
+[Bounded capability and proof](../handoffs/noinstall-cert-2026-10-21.md#offline-auditor-receipt-selected-model-io): auditor CLI requires product receipts while `RawByteGraph` explicitly remains producer discovery. File-backed scoped-only/mixed-product cases and authentic579120 collision pass; model-owned namespaces/owner-matched aliases retain required failures and flat WMO material provenance limits. No runtime change,extraction,full-graph replay or native metadata-owned mixed-product certification.
