@@ -27,6 +27,47 @@ fn snapshot(id: u64) -> GroupLootRoll {
 }
 
 #[test]
+fn ui_template_behavior_combat_group_roll_choices_item_and_history_own_live_content() {
+    use crate::group_loot_component::{GroupLootUiState, group_loot_screen};
+    use ui_toolkit::{
+        atlas::{ActiveSkin, set_thread_skin},
+        registry::FrameRegistry,
+        screen::{Screen, SharedContext},
+        tooltip::{TooltipAnchor, tooltip_owner},
+    };
+    crate::paths::set_data_root(
+        std::path::PathBuf::from(env!("CARGO_MANIFEST_DIR")).join("../../data"),
+    )
+    .unwrap();
+    for skin in [ActiveSkin::Modern, ActiveSkin::Forever] {
+        set_thread_skin(skin);
+        let mut shared = SharedContext::new();
+        shared.insert(skin);
+        shared.insert(GroupLootUiState {
+            prompts: vec![snapshot(1)],
+            history: vec![snapshot(1)],
+            viewer: 11,
+            history_open: true,
+        });
+        let mut registry = FrameRegistry::new(1920.0, 1080.0);
+        Screen::new(group_loot_screen).sync(&shared, &mut registry);
+        for name in [
+            "GroupLootFrame1IconFrame",
+            "GroupLootFrame1NeedButton",
+            "GroupLootFrame1GreedButton",
+            "GroupLootFrame1PassButton",
+            "LootHistoryElement1",
+        ] {
+            let hit = registry.get_by_name(name).expect(name);
+            let (owner, binding) = tooltip_owner(&registry, hit).expect(name);
+            assert_eq!(owner.id, hit);
+            assert_eq!(binding.provider.as_deref(), Some("group_loot"));
+            assert_eq!(binding.anchor, TooltipAnchor::Right);
+        }
+    }
+}
+
+#[test]
 fn four_pending_frames_queue_remaining_rolls_and_confirmed_response_promotes_queue() {
     let mut state = GroupLootState::default();
     for id in 1..=5 {

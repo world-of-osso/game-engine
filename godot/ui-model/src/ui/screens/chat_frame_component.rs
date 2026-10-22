@@ -885,6 +885,21 @@ mod tests {
     }
 
     #[test]
+    fn ui_template_behavior_combat_chat_spell_link_owns_default_anchor_but_plain_text_does_not() {
+        use ui_toolkit::tooltip::{TooltipAnchor, tooltip_owner};
+        let reg = build(vec![ChatRow {
+            runs: vec![run("Alice's ", 0.0, None), run("Fireball", 60.0, Some(133))],
+        }]);
+        let link = reg.get_by_name("ChatFrame1Link0_1_133").unwrap();
+        let (owner, binding) = tooltip_owner(&reg, link).expect("chat spell live owner");
+        assert_eq!(owner.id, link);
+        assert_eq!(binding.provider.as_deref(), Some("chat_link"));
+        assert_eq!(binding.anchor, TooltipAnchor::Default);
+        let plain = reg.get_by_name("ChatFrame1MessagesRow0Run0").unwrap();
+        assert!(tooltip_owner(&reg, plain).is_none());
+    }
+
+    #[test]
     fn link_runs_resolve_to_their_spell_and_text_runs_do_not() {
         let reg = build(vec![ChatRow {
             runs: vec![run("Alice's ", 0.0, None), run("Fireball", 60.0, Some(133))],

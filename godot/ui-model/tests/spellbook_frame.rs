@@ -139,6 +139,27 @@ fn build(state: &SpellbookFrameState) -> FrameRegistry {
     registry
 }
 
+#[test]
+fn ui_template_behavior_combat_spellbook_button_resolves_live_unlearned_spell_owner() {
+    use ui_toolkit::tooltip::{TooltipAnchor, tooltip_owner};
+    let book = state(vec![SpellbookCategory {
+        name: "Warrior".into(),
+        groups: vec![SpellbookGroup {
+            name: "Warrior".into(),
+            items: vec![spell(100, "Charge", Some(2))],
+        }],
+    }]);
+    for skin in [ActiveSkin::Modern, ActiveSkin::Forever] {
+        set_thread_skin(skin);
+        let registry = build(&book);
+        let hit = registry.get_by_name("SpellBookItem100Button").unwrap();
+        let (owner, binding) = tooltip_owner(&registry, hit).expect("spellbook live owner");
+        assert_eq!(owner.name.as_deref(), Some("SpellBookItem100Button"));
+        assert_eq!(binding.provider.as_deref(), Some("spellbook"));
+        assert_eq!(binding.anchor, TooltipAnchor::Right);
+    }
+}
+
 fn text(registry: &FrameRegistry, name: &str) -> String {
     let frame = registry
         .get(registry.get_by_name(name).expect(name))
