@@ -134,6 +134,11 @@ impl TalkingHeadFixture {
             .map_or_else(GString::new, |error| error.as_str().into())
     }
     #[func]
+    fn clear_world(&mut self) {
+        self.state.clear();
+    }
+
+    #[func]
     fn camera_state(&self) -> VarDictionary {
         crate::talking_head::camera::camera_state(self.ui.as_ref())
     }
