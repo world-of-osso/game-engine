@@ -91,7 +91,51 @@ class StagedFragmentTests(unittest.TestCase):
             self.document([self.receipt(42, "b")], [repeated, distinct_owner]),
         )
         self.assertEqual(prepared["assets"], [])
-        self.assertEqual(prepared["aliases"], [distinct_owner])
+        self.assertEqual(
+            prepared["aliases"], [repeated, distinct_owner, self.receipt(42, "b")]
+        )
+        publication.validate_staged_fragment(self.data, prepared)
+
+    def test_new_model_build_materializes_identical_owned_companion_path(self):
+        payload = b"SKIN same authenticated companion"
+        previous = self.receipt(42, "a", payload)
+        requested = self.receipt(42, "b", payload)
+        index = self.write("model-asset-index.json", self.document([previous]))
+        original_index = index.read_bytes()
+        old_path = self.data / previous["path"]
+        old_path.parent.mkdir(parents=True)
+        old_path.write_bytes(payload)
+
+        prepared = publication.deduplicate_staged_fragment(
+            self.data, self.document([requested])
+        )
+        publication.validate_staged_fragment(self.data, prepared)
+        for row in prepared["assets"] + prepared["aliases"]:
+            destination = self.data / row["path"]
+            destination.parent.mkdir(parents=True, exist_ok=True)
+            destination.write_bytes(payload)
+        self.write("model-asset-index-new.json", prepared)
+
+        self.assertTrue((self.data / requested["path"]).is_file())
+        self.assertEqual((self.data / requested["path"]).read_bytes(), payload)
+        self.assertEqual(old_path.read_bytes(), payload)
+        self.assertEqual(index.read_bytes(), original_index)
+        owners = publication.index_asset_receipts(publication.read_indexes(self.data))
+        self.assertEqual(len(owners), 1)
+        self.assertEqual(
+            next(iter(owners.values()))[1]["build_key"], previous["build_key"]
+        )
+
+    def test_alias_colocation_keeps_distinct_builds_and_dedupes_same_path(self):
+        previous = self.receipt(42, "a")
+        earlier_copy = self.receipt(42, "b")
+        requested = self.receipt(42, "c")
+        self.write("model-asset-index.json", self.document([previous], [earlier_copy]))
+        prepared = publication.deduplicate_staged_fragment(
+            self.data, self.document([requested], [requested, requested])
+        )
+        self.assertEqual(prepared["assets"], [])
+        self.assertEqual(prepared["aliases"], [requested])
         publication.validate_staged_fragment(self.data, prepared)
 
     def test_incoming_internal_duplicates_fail_preflight(self):

@@ -77,7 +77,12 @@ never overwritten; root absence, missing bytes, byte mismatch and scoped conflic
 remain explicit results. A match in another product is diagnostic only, never a
 substitution. New staged fragments must dedupe against the canonical base index
 and every fragment, then reject remaining duplicate asset identities; raw path repairs
-must not create another product/FDID/kind owner. This bounded inventory does not verify
+must not create another product/FDID/kind owner. An identical authenticated asset
+required at another model-build namespace must retain that requested path as a
+provenance alias, without changing its unique existing owner. Alias dedupe includes
+the build namespace; same relative paths in different builds are distinct physical
+requirements. Different content remains a conflict, never an alias or runtime fallback.
+This bounded inventory does not verify
 the entire legacy catalog.
 
 `scripts/tests/test_verify_legacy_product_assets.py` covers authenticated local
