@@ -221,7 +221,7 @@ full-catalog or equivalent-scenario coverage. `misses.json`, `receipt-proof.json
 
 ## 2026-10-21 certification continuation
 
-[Current certification coverage and evidence](../../handoffs/noinstall-cert-2026-10-21.md) records the continuing extracted-only native sweep, source fixes and private staging. It does not close P4 or replace the historical full-graph evidence.
+[Current certification coverage and evidence](../../handoffs/noinstall-cert-2026-10-21.md) owns the extracted-only native sweep,source fixes,publication readbacks and frozen current-metadata full-config diagnostics. The [fresh Retail](../../handoffs/noinstall-cert-2026-10-21.md#fresh-full-catalog-retail-diagnostic-on-frozen70448-metadata) and [Forever-runtime-metadata](../../handoffs/noinstall-cert-2026-10-21.md#sequential-forever-runtime-metadata-diagnostic) graphs retain separate scopes: the current auditor reads legacy flat paths and one requested product,not native receipt-selected mixed-product ownership. Already-valid scoped files can therefore appear missing and hide descendants. These diagnostics are not extraction frontiers or a P4 certificate; historical graph counts remain historical.
 
 ## Sources
 
