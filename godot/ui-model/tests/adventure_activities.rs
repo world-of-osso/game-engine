@@ -320,7 +320,7 @@ fn tooltip_lines(data: &AdventureGuideSnapshot, id: u32) -> String {
 }
 
 #[test]
-fn monthly_unavailable_remains_unknown_in_source_tooltip_and_shift_request() {
+fn ui_template_behavior_remaining_journal_monthly_owner() {
     use game_engine_ui_model::adventure_activities::{activity_tooltip, tracking_request};
     use shared::protocol::AdventureGuideRequest;
     for skin in [ActiveSkin::Modern, ActiveSkin::Forever] {
@@ -337,6 +337,15 @@ fn monthly_unavailable_remains_unknown_in_source_tooltip_and_shift_request() {
         ] {
             assert!(registry.get_by_name(old).is_none());
         }
+        let hit = registry.get_by_name("JournalActivity3").unwrap();
+        let (owner, binding) =
+            ui_toolkit::tooltip::tooltip_owner(&registry, hit).expect("live monthly owner");
+        assert_eq!(owner.id, hit);
+        assert_eq!(binding.provider.as_deref(), Some("journal_monthly"));
+        assert_eq!(
+            binding.anchor,
+            ui_toolkit::tooltip::TooltipAnchor::CursorRight
+        );
         let tooltip = activity_tooltip(&data, "JournalActivity3").unwrap();
         assert_eq!(tooltip.content.title, "Complete 30 Quests");
         assert!(matches!(
@@ -562,12 +571,21 @@ fn assert_suggestion_truncated_text_hover(skin: ActiveSkin) {
             button_text: String::new(),
         })
         .collect();
+    let ctx = context(skin);
+    let mut registry = FrameRegistry::new(800., 496.);
+    Screen::new(|ctx| suggested(ctx, Some(&data))).sync(&ctx, &mut registry);
     for id in [642, 195] {
         for (suffix, full_text) in [
             ("TitleFrame", data.suggestions[0].name.as_str()),
             ("DescriptionFrame", data.suggestions[0].description.as_str()),
         ] {
             let owner = format!("JournalSuggestion{id}{suffix}");
+            let hit = registry.get_by_name(&owner).expect(&owner);
+            let (resolved, binding) = ui_toolkit::tooltip::tooltip_owner(&registry, hit)
+                .expect("live suggestion text owner");
+            assert_eq!(resolved.id, hit);
+            assert_eq!(binding.provider.as_deref(), Some("journal_suggestion_text"));
+            assert_eq!(binding.anchor, ui_toolkit::tooltip::TooltipAnchor::Right);
             let tooltip =
                 game_engine_ui_model::adventure_suggestions::text_tooltip(&data, &owner, true)
                     .expect("Retail truncated secondary text must show its full tooltip");
@@ -640,12 +658,12 @@ fn assert_suggestion_truncated_text_hover(skin: ActiveSkin) {
 }
 
 #[test]
-fn suggestions_truncated_text_hover_modern() {
+fn ui_template_behavior_remaining_journal_suggestion_hover_modern() {
     assert_suggestion_truncated_text_hover(ActiveSkin::Modern);
 }
 
 #[test]
-fn suggestions_truncated_text_hover_forever() {
+fn ui_template_behavior_remaining_journal_suggestion_hover_forever() {
     assert_suggestion_truncated_text_hover(ActiveSkin::Forever);
 }
 
