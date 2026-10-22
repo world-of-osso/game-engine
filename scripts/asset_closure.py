@@ -213,6 +213,9 @@ class RawByteGraph:
             ):
                 self.queue.append(key)
 
+    def add_flat(self, fdid, kind, reason, parent=None):
+        self.add(fdid, kind, reason, parent)
+
     def named(self, logical, kind, reason, parent):
         canonical = normalized(logical)
         ids = self.by_path.get(canonical, [])
@@ -298,12 +301,7 @@ class RawByteGraph:
                 )
             ]
             assets.append(row)
-        issues = [
-            {"code": code, "reason": reason, "fdid": fdid}
-            for code, reason, fdid in sorted(
-                self.unresolved, key=lambda issue: (issue[0], issue[2] or 0, issue[1])
-            )
-        ]
+        issues = self.unresolved_records()
         return {
             "schema_version": 1,
             "tool_sha256": digest(Path(__file__)),
@@ -345,6 +343,14 @@ class RawByteGraph:
                 "by_type": dict(sorted(Counter(a["type"] for a in assets).items())),
             },
         }
+
+    def unresolved_records(self):
+        return [
+            {"code": code, "reason": reason, "fdid": fdid}
+            for code, reason, fdid in sorted(
+                self.unresolved, key=lambda issue: (issue[0], issue[2] or 0, issue[1])
+            )
+        ]
 
     def expand(self, asset, data):
         kind, fdid = asset["type"], asset["fdid"]

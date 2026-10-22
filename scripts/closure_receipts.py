@@ -2,9 +2,10 @@
 
 Native references: assets/creature.rs authored_asset_resolver/cache_model_files/
 cache_model_textures. Model children use the owning model's namespace; native
-terrain WMO/ADT readers still use flat files and remain unverified here.
+terrain WMO/ADT readers still use flat files with separate provenance checks.
 """
 
+from collections import Counter
 import hashlib
 from pathlib import Path
 
@@ -53,6 +54,7 @@ class ReceiptClosure(RawByteGraph):
         super().__init__(*args, **kwargs)
         self.active_asset = None
         self.adding_product = None
+        self.adding_flat = False
         self.source_appearances = {}
         self.source_catalogs = {}
         documents = read_indexes(self.data)
@@ -81,7 +83,8 @@ class ReceiptClosure(RawByteGraph):
             raise ValueError(f"Unsupported requested product {product}")
         # WMO/ADT children have no model resolver: their textures stay flat.
         scoped = bool(
-            kind in MODEL_KINDS
+            not self.adding_flat
+            and kind in MODEL_KINDS
             and (not parent or parent["receipt_selected"] or kind == "m2")
         )
         receipt = self.receipts.get((product, int(fdid), kind)) if scoped else None
@@ -136,6 +139,19 @@ class ReceiptClosure(RawByteGraph):
         edges = asset.setdefault("source_edges", [])
         if source_edge not in edges:
             edges.append(source_edge)
+
+    def add_flat(self, fdid, kind, reason, parent=None):
+        previous = self.adding_flat
+        self.adding_flat = True
+        try:
+            self.add(fdid, kind, reason, parent)
+        finally:
+            self.adding_flat = previous
+
+    def verify_metadata(self, path, name):
+        from closure_nonmodel_receipts import verify_table
+
+        return verify_table(self, path, name)
 
     def add_model_texture(self, model_fdid, texture_fdid, reason):
         model_asset = self.assets.get(self.asset_key(model_fdid, "m2"))
@@ -217,9 +233,24 @@ class ReceiptClosure(RawByteGraph):
             self.active_asset = previous
 
     def run(self):
+        from closure_nonmodel_receipts import qualify_flat_assets
+
         result = super().run()
+        qualify_flat_assets(self, result)
+        result["inputs"] = sorted(self.inputs.values(), key=lambda row: row["path"])
+        result["unresolved"] = self.unresolved_records()
+        result["summary"].update(
+            unresolved=len(result["unresolved"]),
+            unresolved_by_code=dict(
+                sorted(Counter(row["code"] for row in result["unresolved"]).items())
+            ),
+        )
         result["schema_version"] = 2
-        for name in ["closure_receipts.py", "closure_root_products.py"]:
+        for name in [
+            "closure_receipts.py",
+            "closure_root_products.py",
+            "closure_nonmodel_receipts.py",
+        ]:
             result["resolver_tool_sha256"][name] = hashlib.sha256(
                 Path(__file__).with_name(name).read_bytes()
             ).hexdigest()
@@ -227,6 +258,6 @@ class ReceiptClosure(RawByteGraph):
             row["identity_status"] != "verified_receipt" for row in result["assets"]
         )
         result["io_policy"] = (
-            "Receipt-selected model roots; model-owned companions/textures use the same namespace; native flat WMO/ADT inputs remain unverified. RawByteGraph is producer discovery, not audit."
+            "Receipt-selected model roots and owning namespaces; actual flat texture/sound bytes require separate matching source receipts, never scoped substitution. DB2 exports require matching table receipts. RawByteGraph is producer discovery, not audit."
         )
         return result

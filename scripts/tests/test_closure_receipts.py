@@ -29,6 +29,27 @@ class ReceiptClosureTests(unittest.TestCase):
         path = self.data / relative
         path.parent.mkdir(parents=True, exist_ok=True)
         path.write_bytes(raw)
+        if relative.startswith("db2/") and relative.endswith(".csv"):
+            receipt = path.parent / "receipt.json"
+            document = (
+                json.loads(receipt.read_text())
+                if receipt.exists()
+                else {
+                    "identity": {
+                        "product": "wow",
+                        "build": "fixture-export",
+                        "build_key": self.keys["wow"],
+                    },
+                    "tables": {},
+                }
+            )
+            document["tables"][path.stem] = {
+                "fdid": 1,
+                "csv_sha256": hashlib.sha256(raw).hexdigest(),
+                "content_authenticated": True,
+                "unreadable_records": 0,
+            }
+            receipt.write_text(json.dumps(document))
         return path
 
     def publish(self, product, fdid, kind, raw, key=None, alias=False):

@@ -54,6 +54,32 @@ class RootProductTests(unittest.TestCase):
         path = self.data / relative
         path.parent.mkdir(parents=True, exist_ok=True)
         path.write_bytes(raw)
+        if relative.startswith("db2/") and relative.endswith(".csv"):
+            product = (
+                "wow_classic_beta"
+                if relative.startswith("db2/1.60.1.70205/")
+                else "wow"
+            )
+            receipt = path.parent / "receipt.json"
+            document = (
+                json.loads(receipt.read_text())
+                if receipt.exists()
+                else {
+                    "identity": {
+                        "product": product,
+                        "build": "fixture-export",
+                        "build_key": self.keys[product],
+                    },
+                    "tables": {},
+                }
+            )
+            document["tables"][path.stem] = {
+                "fdid": 1,
+                "csv_sha256": hashlib.sha256(raw).hexdigest(),
+                "content_authenticated": True,
+                "unreadable_records": 0,
+            }
+            receipt.write_text(json.dumps(document))
         return path
 
     def cache(self, name, sql):

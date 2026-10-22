@@ -38,10 +38,11 @@ class Catalogs:
             overrides = self.graph.seeds.get("table_paths", {})
             if name in overrides:
                 path = self.graph.data / overrides[name]
-                self.graph.issue(
-                    "unverified_metadata_build",
-                    f"{name}: explicit legacy source {overrides[name]}",
-                )
+                if not self.graph.receipt_audit:
+                    self.graph.issue(
+                        "unverified_metadata_build",
+                        f"{name}: explicit legacy source {overrides[name]}",
+                    )
             else:
                 path = (
                     self.graph.data
@@ -53,6 +54,10 @@ class Catalogs:
                 self.graph.issue(
                     "missing_metadata_file", str(path.relative_to(self.graph.data))
                 )
+                self.tables[name] = []
+            elif self.graph.receipt_audit and not self.graph.verify_metadata(
+                path, name
+            ):
                 self.tables[name] = []
             else:
                 self.graph.input_file(path)
@@ -206,7 +211,7 @@ def seed_icons(graph, catalogs, spells):
             continue
         found.add(spell)
         for key in ["SpellIconFileDataID", "ActiveIconFileDataID"]:
-            graph.add(
+            graph.add_flat(
                 number(row, key), "blp", f"spell {spell} SpellMisc {row['ID']} {key}"
             )
     for spell in sorted(wanted - found):

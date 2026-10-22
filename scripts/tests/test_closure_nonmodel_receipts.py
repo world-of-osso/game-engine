@@ -1,8 +1,7 @@
-"""Ignored RED cases for actual flat bytes and exported DB2 receipt qualification."""
+"""Actual flat bytes and exported DB2 receipt qualification; no CASC/network."""
 
 import hashlib
 import json
-import os
 from pathlib import Path
 import struct
 import sys
@@ -16,9 +15,6 @@ from closure_seeds import Catalogs, seed_icons
 from test_asset_closure import chunk
 
 
-@unittest.skipUnless(
-    os.environ.get("P4_RED"), "Ignored RED fixture; enable P4_RED for bounded proof"
-)
 class NonModelReceiptTests(unittest.TestCase):
     def setUp(self):
         self.temporary = tempfile.TemporaryDirectory()
