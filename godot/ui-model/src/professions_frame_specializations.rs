@@ -222,7 +222,8 @@ fn node_button(
         (12.0, HIGHLIGHT_FONT_COLOR, "CENTER"),
     ));
     let action = format!("profession:spec:node:{}", node.node_id);
-    rsx! {button{name:{DynName(format!("ProfessionSpecNode{}",node.node_id))},left:{center[0]-27.5},top:{center[1]-27.5},width:55.0,height:55.0,pos_type:"absolute",onclick:{action.as_str()},button_default_skin:false,{children}}}
+    rsx! {button{name:{DynName(format!("ProfessionSpecNode{}",node.node_id))},left:{center[0]-27.5},top:{center[1]-27.5},width:55.0,height:55.0,pos_type:"absolute",onclick:{action.as_str()},button_default_skin:false,
+    tooltip_provider:"profession_specialization",{children}}}
 }
 fn detailed_path(view: &ProfessionView) -> Element {
     let state = &view.specializations;
