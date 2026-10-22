@@ -4,7 +4,7 @@
 
 ## Runtime
 
-The ordered EncounterChannel relay projects owner-scoped ConversationUpdate snapshots into `TalkingHeadState`. State advances authoritative elapsed time, retains dismissed object identities across unchanged snapshots, and clears on authoritative removal/world exit. RegistryUi hosts the source chrome/name/dialogue and shared scale/pointer registration.
+The ordered EncounterChannel relay projects owner-scoped ConversationUpdate snapshots into `TalkingHeadState`. State advances authoritative elapsed time, retains dismissed object identities across unchanged snapshots, and clears on authoritative removal/world exit. RegistryUi hosts the source chrome/name/dialogue and shared scale/pointer registration. Opening region alpha follows the conversation's authoritative elapsed time, not the current line offset or a new local clock: source name/text delays and per-region XML durations are retained. Repeated snapshots do not restart it; line-change/close transitions and animated glows remain open.
 
 `talking_head/voice.rs` reads the source SoundKit/Entry on a worker, extracts the actual Ogg from local CASC, seeks to line elapsed and stops on source replacement/local close/world exit. The Godot workspace must select asset-resolver's existing vendored IV8 patch: a dependency's own Cargo patches do not apply in its consumer workspace. Native playback state is proved in both skins; this host's dummy audio is not audible-output proof.
 

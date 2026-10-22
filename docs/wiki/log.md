@@ -1,3 +1,7 @@
+## 2026-10-22 — Source TalkingHead opening alpha
+
+[Runtime](systems/talking-head.md#runtime): opening alphas use authoritative conversation elapsed and source Lua/XML delays/durations, not a refreshed local clock. Genuine Modern625ms name-alpha RED→both-skin625/875/1500ms GREEN in five retained model controls at742b7bf1e. Native phase proof pending; line-change/close/glow animation still open.
+
 ## 2026-10-22 — Strict TalkingHead child proof
 
 [Bounded proof](systems/talking-head.md#bounded-native-proof): maintained offline runner4/4,204 checks, runner exit0, one exact completion marker and complete Godot child streams without ERROR; four original1920×1080 captures inspected. Chrome/text/source-voice/input only; Dummy audio, named model gap, pending fades/world ingress and compositor/build-adapter/GPU-preflight limitations retained.
