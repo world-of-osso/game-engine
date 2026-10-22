@@ -329,25 +329,8 @@ fn category_contents(state: &CooldownSettingsView) -> (Element, f32) {
 
 fn category_header(category: u32, title: &str, top: f32) -> Element {
     let prefix = format!("CooldownSettingsCategory{category}");
-    let left =
-        ui_toolkit::atlas::get_region("Options_ListExpand_Left").expect("Retail list header");
-    let right =
-        ui_toolkit::atlas::get_region("Options_ListExpand_Right").expect("Retail list header");
-    let mut children = named_atlas_texture(
-        format!("{prefix}Left"),
-        "Options_ListExpand_Left",
-        (0.0, top, left.width, left.height),
-    );
-    children.extend(named_atlas_texture(
-        format!("{prefix}Right"),
-        "Options_ListExpand_Right",
-        (344.0 - right.width, top, right.width, right.height),
-    ));
-    children.extend(named_atlas_texture(
-        format!("{prefix}Middle"),
-        "_Options_ListExpand_Middle",
-        (left.width, top, 344.0 - left.width - right.width, 22.0),
-    ));
+    let mut children =
+        ui_toolkit::three_slice::option_header_art(&prefix, [0.0, top, 344.0, 22.0], false, false);
     children.extend(label(
         format!("{prefix}Name"),
         title,

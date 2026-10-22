@@ -955,11 +955,10 @@ fn forever_focus_right_of_target_and_tot_under_its_cast_bar_overlap_nothing() {
     }
 }
 
-/// Party and raid members stack without overlapping inside their group frame under both
-/// presets. FlareUI's hidden party title (`Core.lua:392`, `Modules/Tweaks.lua:869-874`) is a
-/// `Hide()`: the members stay where Modern has them.
+/// Party and raid members keep the same non-overlapping placement under both skins;
+/// the shared title occupies its existing 14-unit header without moving members.
 #[test]
-fn group_members_do_not_overlap_and_keep_their_place_without_the_party_title() {
+fn group_members_do_not_overlap_and_keep_their_place_under_both_skins() {
     set_data_root();
     let five = || {
         (1..=5)

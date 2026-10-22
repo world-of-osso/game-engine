@@ -881,7 +881,7 @@ fn row_cart_toggle(view: &View, id: u32) -> Element {
     // TimeRemaining is LEFT of PriceIcon.RIGHT+30,42x38; button36 centers there.
     cart_ui::cart_icon_button(
         &format!("PerksProgramCartToggle{id}"),
-        atlas,
+        ("button_art_kit", atlas),
         &format!("perks:cart:toggle:{id}"),
         true,
         (443., (ROW_HEIGHT - 36.) / 2., 36., 36.),
@@ -1199,7 +1199,7 @@ fn purchase_button(view: &View, row: &TradingPostItem, x: f32) -> Element {
     out
 }
 
-/// SharedButtonLargeTemplate; native template-art pass composes all three slice states.
+/// SharedButtonLargeTemplate; core resolves the authored three-slice state artwork.
 fn perks_button(name: &str, text: &str, action: &str, enabled: bool, x: f32) -> Element {
     perks_button_at(
         name,
@@ -1219,7 +1219,7 @@ fn perks_button_at(
 ) -> Element {
     let disabled = !enabled;
     let action = if enabled { action } else { "" };
-    rsx! {button{name:{DynName(name.into())},left,top,width,height,pos_type:"absolute",frame_level:2000.0,text,font_size:16.0,font_color:"1,0.82,0,1",button_default_skin:false,disabled,onclick:action,button_atlas_highlight:"128-RedButton-Highlight"}}
+    rsx! {button{name:{DynName(name.into())},left,top,width,height,pos_type:"absolute",frame_level:2000.0,text,font_size:16.0,font_color:"1,0.82,0,1",button_template:"SharedButtonLargeTemplate",disabled,onclick:action}}
 }
 
 const TENDER_ICON: u32 = 4696085; // verified CurrencyTypes 2032 iconFileDataID

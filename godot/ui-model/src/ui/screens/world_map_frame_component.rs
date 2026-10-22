@@ -477,7 +477,12 @@ fn solid(name: &str, color: &str, rect: [f32; 4]) -> Element {
     }
 }
 
-fn label(name: String, text: &str, rect: [f32; 4], size: f32, color: &str) -> Element {
+fn label(
+    name: String,
+    text: &str,
+    rect: [f32; 4],
+    (font_object, size, color): (&str, f32, &str),
+) -> Element {
     let [x, y, width, height] = rect;
     rsx! {
         fontstring {
@@ -485,6 +490,7 @@ fn label(name: String, text: &str, rect: [f32; 4], size: f32, color: &str) -> El
             width,
             height,
             text,
+            font_object,
             font_size: size,
             font_color: color,
             justify_h: "CENTER",

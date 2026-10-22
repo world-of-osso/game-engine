@@ -134,38 +134,18 @@ pub(super) fn entries(rows: &[CurrencyRow], collapsed: bool, offset: usize) -> E
 }
 
 fn header(width: f32, collapsed: bool, top: f32) -> Element {
-    let right = if collapsed {
-        "Options_ListExpand_Right"
-    } else {
-        "Options_ListExpand_Right_Expanded"
-    };
-    let atlas = |name| {
-        ui_toolkit::atlas::resolve_region(name, ui_toolkit::atlas::thread_skin())
-            .expect("source token header atlas")
-    };
-    let sides = (atlas("Options_ListExpand_Left").width, atlas(right).width);
-    let mut children = three_slice(
+    let expanded = !collapsed;
+    let mut children = ui_toolkit::three_slice::option_header_art(
         "TokenHeader2",
-        (
-            "Options_ListExpand_Left",
-            "_Options_ListExpand_Middle",
-            right,
-        ),
-        (width, HEADER_HEIGHT),
-        sides,
-        ("BACKGROUND", 1.0, false, "BLEND"),
+        [0.0, 0.0, width, HEADER_HEIGHT],
+        expanded,
+        false,
     );
-    children.extend(three_slice(
+    children.extend(ui_toolkit::three_slice::option_header_art(
         "TokenHeader2Highlight",
-        (
-            "Options_ListExpand_Left",
-            "_Options_ListExpand_Middle",
-            right,
-        ),
-        (width, HEADER_HEIGHT),
-        sides,
-        // ListTemplates.xml:84-94: HighlightLeft/Right/Middle alphaMode="ADD".
-        ("HIGHLIGHT", 0.4, false, "ADD"),
+        [0.0, 0.0, width, HEADER_HEIGHT],
+        expanded,
+        true,
     ));
     children.extend(label(
         "TokenHeader2Name".into(),
@@ -246,19 +226,30 @@ fn three_slice(
     sides: (f32, f32),
     style: (&str, f32, bool, &str),
 ) -> Element {
-    use ui_toolkit::atlas::{AtlasSource, resolve_region, thread_skin};
+    use ui_toolkit::frame::ThreeSlice;
+    use ui_toolkit::strata::DrawLayer;
+    use ui_toolkit::widgets::texture::{BlendMode, TextureSource};
     let (width, height) = size;
-    let (left_span, right_span) = sides;
     let (layer, alpha, mirror_right, blend_mode) = style;
-    [("Left", atlases.0, 0.0, left_span),
-        ("Middle", atlases.1, left_span, width - left_span - right_span),
-        ("Right", atlases.2, width - right_span, right_span)]
-    .into_iter().flat_map(|(part, atlas, left, width)| {
-        let region = resolve_region(atlas, thread_skin()).expect("source token atlas");
-        let AtlasSource::FileDataId(fdid) = region.source else { panic!("TokenFrame atlas must be a DB2 file") };
-        let (u0, u1) = if part == "Right" && mirror_right { (region.right, region.left) } else { (region.left, region.right) };
-        let coords = format!("{u0},{u1},{},{}", region.top, region.bottom);
-        rsx! { texture { name: {DynName(format!("{name}{part}"))}, texture_fdid: fdid, width, height,
-            left, top: 0.0, pos_type: "absolute", alpha, draw_layer: layer, blend_mode, tex_coords: {coords.as_str()} } }
-    }).collect()
+    let mut crops = [[0.0, 1.0, 0.0, 1.0]; 3];
+    if mirror_right {
+        crops[2] = [1.0, 0.0, 0.0, 1.0];
+    }
+    let slice = ThreeSlice {
+        cap_widths: [sides.0, sides.1],
+        left: TextureSource::Atlas(atlases.0.into()),
+        center: TextureSource::Atlas(atlases.1.into()),
+        right: TextureSource::Atlas(atlases.2.into()),
+        tex_coords: crops,
+        color: [1.0, 1.0, 1.0, alpha],
+        blend_mode: BlendMode::from_alpha_mode(blend_mode),
+        ..Default::default()
+    };
+    ui_toolkit::three_slice::slice_art(
+        name,
+        &slice,
+        [0.0, 0.0, width, height],
+        ["Left", "Middle", "Right"],
+        DrawLayer::from_str(layer).expect("currency slice layer"),
+    )
 }

@@ -12,10 +12,6 @@ pub const DELETE_CONFIRM_INPUT: FrameName = FrameName("DeleteCharacterConfirmInp
 pub const DELETE_CONFIRM_BUTTON: FrameName = FrameName("DeleteCharacterConfirmButton");
 pub const DELETE_CANCEL_BUTTON: FrameName = FrameName("DeleteCharacterCancelButton");
 
-const BUTTON_ATLAS_UP: &str = "128-redbutton-left";
-const BUTTON_ATLAS_PRESSED: &str = "128-redbutton-left-pressed";
-const BUTTON_ATLAS_HIGHLIGHT: &str = "retail-128-redbutton-highlight";
-const BUTTON_ATLAS_DISABLED: &str = "128-redbutton-left-disabled";
 const COLOR_GOLD: FontColor = FontColor::new(1.0, 0.82, 0.0, 1.0);
 #[derive(Clone, Debug, Default, PartialEq, Eq)]
 pub struct DeleteConfirmUiState {
@@ -210,8 +206,7 @@ fn modal_button(name: FrameName, text: &str, action: Option<CharSelectAction>, x
     rsx! {
         button {
             name, width: 200.0, height: 30.0, text, font_size: 15.0, onclick, disabled,
-            button_atlas_up: BUTTON_ATLAS_UP, button_atlas_pressed: BUTTON_ATLAS_PRESSED,
-            button_atlas_highlight: BUTTON_ATLAS_HIGHLIGHT, button_atlas_disabled: BUTTON_ATLAS_DISABLED,
+            button_template: "SharedButtonTemplate",
             pos_type: "absolute", left: "50%", top: "100%", translate_y: "-100%",
             margin_left: x, margin_top: -18.0,
         }

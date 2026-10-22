@@ -40,7 +40,6 @@ pub struct IconMasks {
     /// Keyed by mask, FDID and the bits of its normalized crop.
     icons: HashMap<(Mask, u32, [u32; 4]), DynamicTextureId>,
     mask_alpha: Option<GrayImage>,
-    perks_buttons: HashMap<(u8, &'static str), DynamicTextureId>,
 }
 
 impl IconMasks {
@@ -107,61 +106,6 @@ impl IconMasks {
         {
             text.justify_v = ui_toolkit::widgets::font_string::JustifyV::Top;
         }
-        let names = [
-            "PerksProgramLeaveButton",
-            "PerksProgramPurchaseButton",
-            "PerksProgramRefundButton",
-            "PerksProgramAddToCartButton",
-            "PerksProgramRemoveFromCartButton",
-            "PerksProgramCartPurchaseButton",
-        ];
-        if !names
-            .iter()
-            .any(|name| registry.get_by_name(name).is_some())
-        {
-            return;
-        }
-        let skin = match ui_toolkit::atlas::thread_skin() {
-            ui_toolkit::atlas::ActiveSkin::Modern => 0,
-            ui_toolkit::atlas::ActiveSkin::Forever => 1,
-        };
-        let mut textures = Vec::new();
-        for suffix in ["", "-Pressed", "-Disabled"] {
-            let key = (skin, suffix);
-            let source = if let Some(id) = self.perks_buttons.get(&key) {
-                Ok(*id)
-            } else {
-                read_perks_button(suffix).and_then(|image| {
-                    registry
-                        .create_dynamic_texture(image.width(), image.height(), image.into_raw())
-                        .map_err(str::to_owned)
-                })
-            };
-            match source {
-                Ok(id) => {
-                    self.perks_buttons.insert(key, id);
-                    textures.push(TextureSource::Dynamic(id));
-                }
-                Err(error) => {
-                    godot_error!("Trading Post shared button art: {error}");
-                    return;
-                }
-            }
-        }
-        for name in names {
-            if let Some(id) = registry.get_by_name(name)
-                && let Some(frame) = registry.get_mut(id)
-                && let Some(WidgetData::Button(button)) = &mut frame.widget_data
-            {
-                for (slot, source) in [
-                    (&mut button.normal_texture, &textures[0]),
-                    (&mut button.pushed_texture, &textures[1]),
-                    (&mut button.disabled_texture, &textures[2]),
-                ] {
-                    slot.get_or_insert_with(Default::default).source = source.clone();
-                }
-            }
-        }
     }
 
     fn masked(
@@ -218,45 +162,6 @@ impl IconMasks {
         self.icons.insert(key, id);
         Ok(id)
     }
-}
-
-/// SharedButtonLargeTemplate -> BigRedThreeSliceButtonTemplate; ThreeSliceButtonMixin UpdateScale.
-fn read_perks_button(suffix: &str) -> Result<RgbaImage, String> {
-    let names = [
-        format!("128-RedButton-Left{suffix}"),
-        format!("_128-RedButton-Center{suffix}"),
-        format!("128-RedButton-Right{suffix}"),
-    ];
-    let pieces = names
-        .iter()
-        .map(|name| {
-            let region = ui_toolkit::atlas::get_region(name)
-                .ok_or_else(|| format!("missing shared button atlas {name}"))?;
-            let ui_toolkit::atlas::AtlasSource::FileDataId(fdid) = region.source else {
-                return Err(format!("shared button atlas {name} has no FDID"));
-            };
-            Ok(crop_normalized(
-                load_rgba(fdid, "shared button")?,
-                [region.left, region.right, region.top, region.bottom],
-            ))
-        })
-        .collect::<Result<Vec<_>, String>>()?;
-    // Retail atlas geometry fixes cap widths in both skins; Forever only changes pixels.
-    let scale: f32 = 46. / 128.;
-    let widths = [
-        (114. * scale).round() as u32,
-        180 - (114. * scale).round() as u32 - (292. * scale).round() as u32,
-        (292. * scale).round() as u32,
-    ];
-    let mut result = RgbaImage::new(180, 46);
-    let mut x = 0;
-    for (piece, width) in pieces.iter().zip(widths) {
-        let piece =
-            image::imageops::resize(piece, width, 46, image::imageops::FilterType::Triangle);
-        image::imageops::overlay(&mut result, &piece, x, 0);
-        x += i64::from(width);
-    }
-    Ok(result)
 }
 
 /// `Race_*_Icon` / `Class_*_Icon` / `Form_*_Icon`, the bag bar's
@@ -468,23 +373,6 @@ mod tests {
         let bytes = std::fs::read(&path).unwrap_or_else(|error| panic!("{path:?}: {error}"));
         let image = game_engine_core::blp::decode_rgba(&bytes).unwrap();
         RgbaImage::from_raw(image.width, image.height, image.pixels).unwrap()
-    }
-
-    #[test]
-    fn trading_post_shared_large_buttons_have_distinct_source_states() {
-        game_engine_ui_model::paths::set_data_root(
-            std::path::PathBuf::from(env!("CARGO_MANIFEST_DIR")).join("../../data"),
-        )
-        .unwrap();
-        ui_toolkit::atlas::set_thread_skin(ui_toolkit::atlas::ActiveSkin::Modern);
-        let normal = super::read_perks_button("").unwrap();
-        let pressed = super::read_perks_button("-Pressed").unwrap();
-        let disabled = super::read_perks_button("-Disabled").unwrap();
-        assert_eq!(normal.dimensions(), (180, 46));
-        assert_eq!(pressed.dimensions(), (180, 46));
-        assert_eq!(disabled.dimensions(), (180, 46));
-        assert_ne!(normal.as_raw(), pressed.as_raw());
-        assert_ne!(normal.as_raw(), disabled.as_raw());
     }
 
     #[test]

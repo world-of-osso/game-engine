@@ -10,6 +10,12 @@ References (under `/syncthing/Sync/Projects/wow/reference-addons.new/wow-ui-sour
 - MAB.xml = `Blizzard_ActionBar/Mainline/MainActionBar.xml`; ABT.xml = `Mainline/ActionButtonTemplate.xml`; EMPL.lua = `Blizzard_EditMode/Mainline/EditModePresetLayouts.lua`
 - data: `data/db2/12.1.0.69933` (SkillLine, SkillLineAbility, SpellLevels, SpecializationSpells, SpellMisc, UiTextureAtlasMember, GlobalColor); strings from GlobalStrings.
 
+## Empower release input
+
+A successful bound-key spell cast retains its actual sent spell ID and physical key/button until key-up, including native override spell IDs. Key-up sends `ReleaseEmpowerSpell {spell_id}` on CombatChannel; `StopSpellCast` remains cancellation. Releasing Shift/Ctrl alone must not release a still-held physical cast key. Action-slot or binding changes must not retarget a pending release; leaving the world clears held casts. The server ignores nonmatching/non-empower requests. Empower-stage cast-bar presentation is a separate later slice.
+
+Proof: `godot/core/src/spell_binding_holds.rs` tests actual sent Font ID preservation, modifier-up versus key-up, one-shot release, mouse bindings and world-exit cleanup. Native sender/transport integration remains pending until matching protocol/server/client verification.
+
 ## Spell icon source
 
 A requested spell icon must decode its own `SpellMisc.SpellIconFileDataID` BLP from the shipped asset set. The UI worker and synchronous icon masks must not read a local WoW installation, call CASC, or substitute question-mark art. Missing or invalid files return a hard error. `classbook_icons.rs` checks every entry in all 13 class preview snapshots against authentic nonempty pixels or a concrete justified exception.

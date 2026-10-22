@@ -6,10 +6,10 @@
 //! (wow-ui-sim `DOUBLE_LINE_GAP`), and the width of the widest line.
 
 use ui_toolkit::atlas::ActiveSkin;
+use ui_toolkit::font_object::resolve_font_object;
 use ui_toolkit::rsx;
 use ui_toolkit::text_measure::measure_text;
 use ui_toolkit::widget_def::Element;
-use ui_toolkit::widgets::font_string::GameFont;
 
 use crate::flare_panel::{TOOLTIP_BACKGROUND, tooltip_border_rgb};
 use crate::inworld_unit_frames_component::inworld_unit_frames_art::AtlasArt;
@@ -18,8 +18,16 @@ use crate::tooltip_presentation::{
     COLLECTED_MARK, ItemMark, TooltipLineState, TooltipPresentation, UNCOLLECTED_MARK, rgba_string,
 };
 
-pub const HEADER_SIZE: f32 = 14.0;
-pub const TEXT_SIZE: f32 = 12.0;
+const HEADER_FONT_OBJECT: &str = "GameTooltipHeaderText";
+pub const TEXT_FONT_OBJECT: &str = "GameTooltipText";
+
+fn header_size() -> f32 {
+    resolve_font_object(HEADER_FONT_OBJECT).font_size
+}
+
+fn text_size() -> f32 {
+    resolve_font_object(TEXT_FONT_OBJECT).font_size
+}
 pub const INSET: f32 = 10.0;
 pub const LINE_GAP: f32 = 2.0;
 const DOUBLE_LINE_GAP: f32 = 20.0;
@@ -58,8 +66,9 @@ impl std::fmt::Display for DynName {
     }
 }
 
-fn text_width(text: &str, size: f32) -> f32 {
-    measure_text(text, GameFont::FrizQuadrata, size).map_or(0.0, |(width, _)| width.ceil())
+fn text_width(text: &str, font_object: &str) -> f32 {
+    let font = resolve_font_object(font_object);
+    measure_text(text, font.font, font.font_size).map_or(0.0, |(width, _)| width.ceil())
 }
 
 fn line_width(line: &TooltipLineState) -> f32 {
@@ -68,10 +77,10 @@ fn line_width(line: &TooltipLineState) -> f32 {
     } else {
         0.0
     };
-    let left = text_width(&line.left_text, TEXT_SIZE);
+    let left = text_width(&line.left_text, TEXT_FONT_OBJECT);
     let right = match line.right_text.is_empty() {
         true => 0.0,
-        false => DOUBLE_LINE_GAP + text_width(&line.right_text, TEXT_SIZE),
+        false => DOUBLE_LINE_GAP + text_width(&line.right_text, TEXT_FONT_OBJECT),
     };
     let coins = line
         .money
@@ -84,8 +93,8 @@ pub fn tooltip_size(tooltip: &TooltipPresentation) -> [f32; 2] {
     let suffix_width = tooltip
         .title_suffix
         .as_ref()
-        .map_or(0.0, |(text, _)| text_width(text, HEADER_SIZE));
-    let title_width = text_width(&tooltip.title, HEADER_SIZE) + suffix_width;
+        .map_or(0.0, |(text, _)| text_width(text, HEADER_FONT_OBJECT));
+    let title_width = text_width(&tooltip.title, HEADER_FONT_OBJECT) + suffix_width;
     let widest = tooltip
         .lines
         .iter()
@@ -94,13 +103,13 @@ pub fn tooltip_size(tooltip: &TooltipPresentation) -> [f32; 2] {
     let lines = tooltip.lines.len() as f32;
     [
         widest + 2.0 * INSET,
-        2.0 * INSET + HEADER_SIZE + lines * (LINE_GAP + TEXT_SIZE),
+        2.0 * INSET + header_size() + lines * (LINE_GAP + text_size()),
     ]
 }
 
 /// Top of line `index` (0 is the first line after the title).
 fn line_top(index: usize) -> f32 {
-    INSET + HEADER_SIZE + LINE_GAP + index as f32 * (TEXT_SIZE + LINE_GAP)
+    INSET + header_size() + LINE_GAP + index as f32 * (text_size() + LINE_GAP)
 }
 
 /// One tooltip: `{prefix}Frame` with its nine-slice, `{prefix}Title` and
@@ -125,11 +134,11 @@ pub fn retail_tooltip(state: &TooltipPresentation, prefix: &str, skin: ActiveSki
     let mut title = text(
         format!("{prefix}Title"),
         &state.title,
-        [INSET, INSET, width - 2.0 * INSET, HEADER_SIZE],
-        (HEADER_SIZE, state.title_color, "LEFT"),
+        [INSET, INSET, width - 2.0 * INSET, header_size()],
+        (HEADER_FONT_OBJECT, state.title_color, "LEFT"),
     );
     if let Some((suffix, color)) = &state.title_suffix {
-        let label_width = text_width(&state.title, HEADER_SIZE);
+        let label_width = text_width(&state.title, HEADER_FONT_OBJECT);
         title.extend(text(
             format!("{prefix}TitleSuffix"),
             suffix,
@@ -137,9 +146,9 @@ pub fn retail_tooltip(state: &TooltipPresentation, prefix: &str, skin: ActiveSki
                 INSET + label_width,
                 INSET,
                 width - 2.0 * INSET - label_width,
-                HEADER_SIZE,
+                header_size(),
             ],
-            (HEADER_SIZE, *color, "LEFT"),
+            (HEADER_FONT_OBJECT, *color, "LEFT"),
         ));
     }
     let lines: Element = state
@@ -179,21 +188,21 @@ fn line_elements(prefix: &str, index: usize, line: &TooltipLineState, width: f32
     elements.extend(text(
         format!("{name}Left"),
         &line.left_text,
-        [INSET + indent, top, inner - indent, TEXT_SIZE],
-        (TEXT_SIZE, line.left_color, "LEFT"),
+        [INSET + indent, top, inner - indent, text_size()],
+        (TEXT_FONT_OBJECT, line.left_color, "LEFT"),
     ));
     elements.extend(text(
         format!("{name}Right"),
         &line.right_text,
-        [INSET, top, inner, TEXT_SIZE],
-        (TEXT_SIZE, line.right_color, "RIGHT"),
+        [INSET, top, inner, text_size()],
+        (TEXT_FONT_OBJECT, line.right_color, "RIGHT"),
     ));
     if let Some(copper) = line.money {
-        let x = INSET + indent + text_width(&line.left_text, TEXT_SIZE) + MONEY_GAP;
+        let x = INSET + indent + text_width(&line.left_text, TEXT_FONT_OBJECT) + MONEY_GAP;
         elements.extend(money(
             &format!("{name}Money"),
             copper,
-            (x, top + TEXT_SIZE + 1.0),
+            (x, top + text_size() + 1.0),
             MoneyAlign::Left,
             false,
         ));
@@ -201,16 +210,20 @@ fn line_elements(prefix: &str, index: usize, line: &TooltipLineState, width: f32
     elements
 }
 
-fn text(name: String, text: &str, [x, y, w, h]: [f32; 4], style: (f32, [f32; 4], &str)) -> Element {
-    let (size, color, justify) = style;
+fn text(
+    name: String,
+    text: &str,
+    [x, y, w, h]: [f32; 4],
+    style: (&str, [f32; 4], &str),
+) -> Element {
+    let (font_object, color, justify) = style;
     rsx! {
         fontstring {
             name: {DynName(name)},
             width: {w.max(1.0)},
             height: {h + 2.0},
             text: {text},
-            font: "FrizQuadrata",
-            font_size: {size},
+            font_object,
             font_color: {rgba_string(color)},
             justify_h: {justify},
             pos_type: "absolute",
@@ -231,7 +244,7 @@ fn mark(name: &str, mark: Option<ItemMark>, top: f32) -> Element {
         art,
         [
             INSET,
-            top + (TEXT_SIZE - MARK_SIZE) / 2.0,
+            top + (text_size() - MARK_SIZE) / 2.0,
             MARK_SIZE,
             MARK_SIZE,
         ],
@@ -337,7 +350,7 @@ mod tests {
             ..TooltipPresentation::hidden()
         };
         let [width, height] = tooltip_size(&tooltip);
-        assert_eq!(width, text_width("Zoom In", HEADER_SIZE) + 20.0);
+        assert_eq!(width, text_width("Zoom In", HEADER_FONT_OBJECT) + 20.0);
         assert_eq!(height, 20.0 + 14.0);
         let pair = TooltipPresentation {
             lines: vec![
@@ -347,11 +360,12 @@ mod tests {
             ..tooltip
         };
         let [width, height] = tooltip_size(&pair);
-        let expected =
-            text_width("20 Rage", TEXT_SIZE) + 20.0 + text_width("Melee Range", TEXT_SIZE);
+        let expected = text_width("20 Rage", TEXT_FONT_OBJECT)
+            + 20.0
+            + text_width("Melee Range", TEXT_FONT_OBJECT);
         assert_eq!(
             width,
-            expected.max(text_width("Zoom In", HEADER_SIZE)) + 20.0
+            expected.max(text_width("Zoom In", HEADER_FONT_OBJECT)) + 20.0
         );
         assert_eq!(height, 20.0 + 14.0 + 2.0 * 14.0);
     }

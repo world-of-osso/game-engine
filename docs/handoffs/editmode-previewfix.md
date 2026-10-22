@@ -14,7 +14,7 @@ Rectangles are `(x,y,width,height)` at UI scale1, 1920×1080. Tables contain bas
 
 Raid now starts `(22,145)`, matching the Mainline top-left anchor already landed as `e793a64b8`; original bottom-centre raid report does not reproduce on this base. Preview deliberately mounts both five-member party and eight one-member raid groups, so their top-left preset boxes overlap each other; that synthetic simultaneous inventory is not a reason to relocate either live preset.
 
-Forever party root reserves14 units above its members while its title is hidden (`group_frames_component.rs:144-150,176-184,222`): selection equals the native container, not the painted members alone. This is a reported visual gap, not an inferred live placement bug; preset stays compact/top-left.
+Historical capture: Forever party root reserved14 units while its title was hidden, so selection included blank header space. The [shared Retail title restoration](../wiki/systems/portrait-party-frames.md#shared-compact-title) fills that same header without changing member placement; preset stays compact/top-left.
 
 Forever chat was the proven selection-footprint defect: the authored canvas intentionally starts offscreen to put its inset border flush bottom-left (`hud_layout.rs:409-415`). Both selection collection and placement projection now use `ChatFrame1FlareSkin`, while moving the entire canvas/descendant tree. The frame position itself is unchanged. Modern chat retains its native container, including tab/input allocation.
 
