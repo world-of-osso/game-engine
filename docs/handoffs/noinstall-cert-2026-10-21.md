@@ -210,6 +210,16 @@ Complementary skin measurements preserve the same limits:
 
 Both have9tiles and requested skin readback. Exact cases `auth-queue-northshire-modern-post869-r1` and `auth-queue-ruby-forever-post869-r1`. No causal attribution of different timings to skin. All owned runtime stops and UDP5961 is unbound after each pair. Ruby Forever whole-tile convergence remains unqualified by this attempt.
 
+Ruby Forever r2 also reaches the unchanged pair-budget deadline before whole-tile convergence:72.152seconds observed,5,282 spawned/9,444 pending,tile196/1,706,nearby421/421,both collision queues0. Errors0/tripwire0,normal shutdown,pair294.84seconds. Retain both Forever timeouts;no performance or source fix is inferred. A quiet native slot is requested from the lead rather than blindly repeating contended pairs.
+
+### Frozen object-graph receipt reconciliation
+
+The recorded nine-tile/all-WMO-set graphs contain more than M2 chains. Northshire4,540 graph assets include695WMO,1,876BLP,925M2,1,043SKIN and1opaque blob;Ruby7,522 include592WMO,1,843BLP,1,183M2 and3,904SKIN. Current canonical membership leaves1,471/1,279 unreceipted respectively,2,718 unique. This is the frozen **object dependency graph**,not a fresh fixed point or a terrain/WDT/ADT/lighting/audio manifest.
+
+Current Retail70448 root authentication validates2,710 legacy payloads exactly,472,632,047bytes. Eight Ruby BLPs differ from current authenticated roots:343253,3999701,3999704,4032026,4044717,4076834,4184526,4249948. Every ID has a current root;these are local-byte mismatches,not root-absent source gaps. Exact candidates/content keys/hashes:`selected-map-all-family-authentication-r1/results.json`.
+
+Private fragment `staged-selected-map-all-family-r1/cache/model-asset-index-selected-map-all-family-r1.json` stages2,710 new assets (1,287WMO/1,422BLP/1blob),472,632,047bytes,zero aliases/deduplications. SHA256`132910664ad907451937dd3f82745984d470010ecfb85f32710143c6233f5938`;all2,710 size/SHA256/content-key MD5 readbacks pass. Blob768431 is byte-authenticated but its opaque format is not validated. No decoder,flat replacement,canonical write or runtime change. Lead-only publication is pending. WMO readers still use legacy paths;publishing scoped receipts alone cannot certify the eight mismatched runtime material inputs. Owned staging/work totals9.584GB before this0.473GB fragment,below20GiB.
+
 ## Remaining acceptance
 
 Owned protocol-matched authenticated server/client runs, receipt/skin publication rechecks, all-class/item/spell descendants, full-catalog closure/provenance reconciliation and pristine player-bundle/download acceptance remain unqualified. Historical graph counts and metadata-only `36 profiles / 0 certified` evidence are documented in [offline asset closure](../wiki/systems/offline-asset-closure.md); they are not replaced by this bounded sweep.
