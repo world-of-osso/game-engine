@@ -69,8 +69,8 @@ impl TalkingHeadFixture {
             serde_json::from_str::<shared::protocol::ConversationUpdate>(&payload.to_string())
                 .map_err(|error| error.to_string())
                 .and_then(|mut update| {
-                    let elapsed = u32::try_from(elapsed_ms)
-                        .map_err(|_| "fixture elapsed outside u32".to_owned())?;
+                    let elapsed = u64::try_from(elapsed_ms)
+                        .map_err(|_| "negative fixture elapsed".to_owned())?;
                     for conversation in &mut update.conversations {
                         conversation.elapsed_ms = elapsed;
                     }
