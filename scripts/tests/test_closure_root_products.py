@@ -1,9 +1,8 @@
-"""Ignored RED fixtures for native metadata-owned auditor roots; no runtime/CASC."""
+"""Native metadata-owned auditor roots; file-backed IO, no runtime/CASC."""
 
 from contextlib import closing
 import hashlib
 import json
-import os
 from pathlib import Path
 import sqlite3
 import struct
@@ -24,9 +23,6 @@ from closure_seeds import (
 from test_asset_closure import chunk, ints, model
 
 
-@unittest.skipUnless(
-    os.environ.get("P4_RED"), "Ignored RED fixture; enable P4_RED for the bounded proof"
-)
 class RootProductTests(unittest.TestCase):
     def setUp(self):
         self.temporary = tempfile.TemporaryDirectory()

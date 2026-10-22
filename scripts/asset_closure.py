@@ -120,6 +120,8 @@ def read_local_listfile(path):
 class RawByteGraph:
     """Producer/parser byte discovery, not a receipt-qualified offline audit."""
 
+    receipt_audit = False
+
     def __init__(
         self, data, paths, product, metadata_build, runtime_paths=None, path_cache=None
     ):

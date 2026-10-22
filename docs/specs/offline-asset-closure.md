@@ -14,6 +14,13 @@ Offline audit tooling in `scripts/asset_closure.py` computes a content-rooted de
 - [ ] Select full catalogs through configuration without changing the traversal; label approximate full-scope file/byte estimates separately from proven coverage.
 - [x] Auditor model roots require a matching product/FDID/kind receipt; read and validate scoped payloads,never unqualified flat or another product's bytes. Model-owned SFID/SKID/animation/texture dependencies use the owning model namespace,including authenticated same-product aliases. Keep different products/build namespaces distinct in one graph. Native flat WMO/ADT inputs remain explicitly unverified; scoped publication alone does not qualify their runtime bytes. `RawByteGraph` is an explicitly named producer/parser discovery helper,not an auditor or missing-receipt fallback.
 
+## Root ownership
+
+- Auditor map roots follow native MapCatalog: Retail `db2/active/Map.csv`,then Forever70205 rows only when neither ID nor ASCII-case-insensitive directory collides. Placement/model descendants retain the selected map product.
+- Creature display roots use `cache/creature_display.sqlite` source_product/model/variation rows. Missing source is unresolved,not an inferred global product or a CSV fallback. NPC equipment uses `cache/outfit_links-v5.sqlite` source ownership independently for model and material resource groups.
+- Owned-item selectors require the explicit ItemDefinitionSource,for example `{"id": 2947, "definition_source": "Retail"}` or `Forever70205`. Source-local appearance/resource joins must not borrow the shared NPC cache. Bare item IDs,including every ID selected by `items: all`,remain individually unresolved until their definition source is provided; race and graph product never supply it.
+- Source cache rows establish request ownership,not authenticated cache-import provenance. Preserve that separate gap.
+
 ## How it works
 
 - [Offline closure audit](../wiki/systems/offline-asset-closure.md).
@@ -22,6 +29,7 @@ Offline audit tooling in `scripts/asset_closure.py` computes a content-rooted de
 
 - `scripts/asset_closure.py` — raw producer/parser graph traversal,manifest and census CLI; the CLI always constructs the receipt-qualified auditor.
 - `scripts/closure_receipts.py` — receipt-selected model IO,product/build-qualified graph identities and native flat-reader boundary.
+- `scripts/closure_root_products.py` — native map/display/NPC resource ownership and explicit source-local owned-item roots.
 - `scripts/closure_seeds.py` — metadata joins and configurable content roots.
 - `scripts/closure-northshire.json` — four Northshire ADT tiles and one Human Warrior.
 - `scripts/closure-full-catalog.json` — broad catalog selectors; not a completeness certificate.
@@ -30,6 +38,7 @@ Offline audit tooling in `scripts/asset_closure.py` computes a content-rooted de
 
 - `scripts/tests/test_asset_closure.py` — concrete raw producer binary chains,catalog joins,missing/malformed dependencies,cycles,aliases and census.
 - `scripts/tests/test_closure_receipts.py` — actual CLI scoped-only descendants,mixed-product same-FDID roots,owning-build companion aliases,wrong-product/legacy rejection,corrupt payload rejection and unchanged native flat WMO material selection.
+- `scripts/tests/test_closure_root_products.py` — native Retail ID/directory map precedence,sourced display/model/material roots,missing source refusal and source-local owned item isolation; ignored RED fixtures are pushed before implementation.
 - `scripts/tests/test_closure_skyboxes.py` — map isolation, all authored lighting slots, skybox7345733/skin7345740, celestial roots, positive missing joins versus zero and tile-free catalog entrypoint.
 - `scripts/tests/test_closure_game_objects.py` — observed entry202588/display2690/model200010/skin505852 chain, map/tile selection, transport WMO identity, unspawned roots, named missing rows and selection fingerprint changes.
 - `scripts/tests/test_staged_asset_fragment.py` — canonical cross-fragment uniqueness, equal-byte/different-scope ownership, conflicting payload rejection and preserved legacy alias metadata.

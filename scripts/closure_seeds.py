@@ -71,6 +71,10 @@ class Catalogs:
 
 
 def seed_displays(graph, catalogs, displays):
+    if graph.receipt_audit:
+        from closure_root_products import seed_displays as seed_sourced_displays
+
+        return seed_sourced_displays(graph, displays)
     if not hasattr(graph, "appearance"):
         graph.appearance = None
     models = catalogs.index("CreatureModelData")
@@ -111,6 +115,10 @@ def seed_displays(graph, catalogs, displays):
 
 
 def seed_items(graph, catalogs, db, item_ids):
+    if graph.receipt_audit:
+        from closure_root_products import seed_items as seed_sourced_items
+
+        return seed_sourced_items(graph, item_ids)
     displays = set()
     for item in sorted(set(item_ids)):
         row = db.execute(
@@ -124,6 +132,16 @@ def seed_items(graph, catalogs, db, item_ids):
 
 
 def seed_item_displays(graph, catalogs, displays):
+    if graph.receipt_audit:
+        from closure_root_products import (
+            seed_item_displays as seed_sourced_item_displays,
+        )
+
+        return seed_sourced_item_displays(graph, displays)
+    return seed_item_display_rows(graph, catalogs, displays)
+
+
+def seed_item_display_rows(graph, catalogs, displays):
     info = catalogs.index("ItemDisplayInfo")
     model_rows = defaultdict(list)
     texture_rows = defaultdict(list)
@@ -619,7 +637,7 @@ def seed_catalogs(graph, world_path, config):
     catalogs = Catalogs(graph)
     graph.seeds = dict(config)
     maps = config["maps"]
-    if maps == "all":
+    if maps == "all" and not graph.receipt_audit:
         maps = [
             {
                 "id": number(row, "ID"),
@@ -630,8 +648,13 @@ def seed_catalogs(graph, world_path, config):
             for row in catalogs.rows("Map")
             if row.get("Directory")
         ]
-    tiles = seed_terrain(graph, {"maps": maps})
-    seed_skyboxes(graph, catalogs, {map_spec["id"] for map_spec in maps})
+    if graph.receipt_audit:
+        from closure_root_products import seed_map_roots
+
+        tiles = seed_map_roots(graph, config)
+    else:
+        tiles = seed_terrain(graph, {"maps": maps})
+        seed_skyboxes(graph, catalogs, {map_spec["id"] for map_spec in maps})
     race_models = catalogs.rows("ChrRaceXChrModel")
     characters = config["characters"]
     if characters == "all":

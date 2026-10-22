@@ -47,6 +47,8 @@ def receipt_rows(document):
 
 
 class ReceiptClosure(RawByteGraph):
+    receipt_audit = True
+
     def __init__(self, *args, **kwargs):
         super().__init__(*args, **kwargs)
         self.active_asset = None
@@ -78,12 +80,12 @@ class ReceiptClosure(RawByteGraph):
         # WMO/ADT children have no model resolver: their textures stay flat.
         scoped = bool(
             kind in MODEL_KINDS
-            and (not parent or parent["asset_build_key"] or kind == "m2")
+            and (not parent or parent["receipt_selected"] or kind == "m2")
         )
         receipt = self.receipts.get((product, int(fdid), kind)) if scoped else None
         build_key = (
             parent["asset_build_key"]
-            if scoped and parent and parent["asset_build_key"]
+            if scoped and parent and parent["receipt_selected"]
             else (receipt["build_key"] if receipt else "")
         )
         path = asset_path(product, build_key, fdid, kind) if build_key else None
@@ -111,6 +113,9 @@ class ReceiptClosure(RawByteGraph):
         asset = self.assets[key]
         asset.update(
             requested_product=requested,
+            metadata_build=self.active_asset["metadata_build"]
+            if self.active_asset
+            else self.metadata_build,
             asset_build_key=build_key,
             receipt_selected=scoped,
         )
@@ -129,6 +134,22 @@ class ReceiptClosure(RawByteGraph):
         edges = asset.setdefault("source_edges", [])
         if source_edge not in edges:
             edges.append(source_edge)
+
+    def add_model_texture(self, model_fdid, texture_fdid, reason):
+        model_asset = self.assets.get(self.asset_key(model_fdid, "m2"))
+        if model_asset is None:
+            self.issue(
+                "missing_product_source",
+                f"texture {texture_fdid}: model {model_fdid} namespace unavailable",
+                texture_fdid,
+            )
+            return
+        previous = self.active_asset
+        self.active_asset = model_asset
+        try:
+            self.add(texture_fdid, "blp", reason, model_fdid)
+        finally:
+            self.active_asset = previous
 
     def inspect(self, asset):
         if not asset["receipt_selected"]:
@@ -196,9 +217,10 @@ class ReceiptClosure(RawByteGraph):
     def run(self):
         result = super().run()
         result["schema_version"] = 2
-        result["resolver_tool_sha256"]["closure_receipts.py"] = hashlib.sha256(
-            Path(__file__).read_bytes()
-        ).hexdigest()
+        for name in ["closure_receipts.py", "closure_root_products.py"]:
+            result["resolver_tool_sha256"][name] = hashlib.sha256(
+                Path(__file__).with_name(name).read_bytes()
+            ).hexdigest()
         result["summary"]["unverified_identity"] = sum(
             row["identity_status"] != "verified_receipt" for row in result["assets"]
         )
