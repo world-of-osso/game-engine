@@ -234,6 +234,21 @@ Lead authorizes one headless client run≤300seconds without ADD and directs rem
 
 Blob768431 is subsequently classified from the recorded edges and existing reader,not guessed from its extension:LiquidMaterial2 magma noise volume,raw RGBA128×2,048 (16 slices),1,048,576bytes. `godot/core/src/liquid_data.rs:100-101` defines the dimensions;`LiquidSource::read_global_texture` checks byte count and reads `textures/768431.blob`. Existing bytes match the authenticated current root and expected size (`magma-noise-768431-classification.json`). It is excluded from **ModelAssetIndex**,not an unsupported native liquid format or absent source. Generic closure/provenance evidence owns it separately;actual sampled liquid binding remains unobserved.
 
+### Requalified server r5: authenticated probe blocked by wire revision
+
+Successor `noinstall-cert-2` rebuilds server and admin from current master `fc5e87cc112120a160eaf6a4a5b09b46d3076b5b`, protocol `2abc7fa844f6e71d93203ce5421ae853e884854d`, under normal capacity ADD. `server-executables.json` records cohort **r5 (requalified)**; the prior frozen manifest survives as `server-executables-pre-r5.json`.
+
+| Executable | SHA256 |
+|---|---|
+| game-server | `b52b3f50ea36bf2c97f7148a824fecc22416bd74f243c4c9bce8ba50d681e996` |
+| game-server-admin | `12a2c0164ca9d90d242b4492513f3192e60c36627de286240e028fce70c32ad1` |
+
+Initial r5 preparation fails before any client: the old private world snapshot lacks `item_bonus`, now required by `item_stats.rs:198`. A read-only SQLite backup of current canonical world.db refreshes only the private snapshot; its old copy is retained. New snapshot passes quick_check and contains20,272 item_bonus rows (`r5-server-world-snapshot.json`). No canonical writes or source changes.
+
+`auth-queue-ruby-forever-post869-r5b` then reaches server first-tick/admin readiness and teleport, but the unchanged frozen engine uses protocol `03cebdb`. Native status explicitly reports: “Client and server protocols differ (message registry). Rebuild both from the same shared-protocol revision.” Roster0/connectedfalse; no world entry. Pair227.912seconds including cleanup, hard288second alarm within the300second maximum; normal shutdown/errors0/tripwire0 do not establish authenticated-world acceptance.
+
+Named gap **ruby-forever-r5-authentication-wire-mismatch**: drain time **unmeasured**, not zero or an observed drain timeout. All eight WMO bindings remain **unobserved**; the current-material fragment stays **unpublished**, with no publication request. Evidence: `ruby-forever-r5-named-gap.json`, `r5b-pair-controller.json`, and the case observations. The one exempt client run is consumed. Owned server/client stop and UDP5961 is unbound. Further proof requires explicit aligned-engine cohort/rebuild and another client-run authorization, or restoration of the original exact server cohort; no silent repin or retry.
+
 ## Remaining acceptance
 
 Owned protocol-matched authenticated server/client runs, receipt/skin publication rechecks, all-class/item/spell descendants, full-catalog closure/provenance reconciliation and pristine player-bundle/download acceptance remain unqualified. Historical graph counts and metadata-only `36 profiles / 0 certified` evidence are documented in [offline asset closure](../wiki/systems/offline-asset-closure.md); they are not replaced by this bounded sweep.
