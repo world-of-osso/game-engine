@@ -5101,3 +5101,7 @@ gc774 passed tests/fmt and landed engineb0b3d4b39; exact server842325bf3/protoco
 ## 2026-10-20 — Gamma particle compositing
 
 [Root cause, fix and captures](investigations/godot-torch-rendering.md#gamma-compositing-2026-10-20): particles blended in linear light; WWV blends authored values in a UNORM target. A POST_TRANSPARENT CompositorEffect encodes the scene to sRGB, draws the pools with the GL factors against the resolved depth, and decodes. `particle_blend_pixels.gd` RED 12/16 fail → GREEN 16/16. Native both-skin 1920x1080 captures of 145304, 199823 and Frostbolt; composite 52-116 us GPU. Named gaps PARTICLES_COMPOSITE_AFTER_ALL_TRANSPARENT_GEOMETRY and PARTICLES_NO_DEPTH_WRITE.
+
+## 2026-10-22 — Frozen no-install full-config diagnostics
+
+[Certification SSOT](../handoffs/noinstall-cert-2026-10-21.md#fresh-full-catalog-retail-diagnostic-on-frozen70448-metadata) records independently frozen metadata,source/config/root inventory and sequential Retail/Forever-runtime-metadata graph/receipt readbacks. [Audit boundary](systems/offline-asset-closure.md#2026-10-21-certification-continuation): legacy-flat traversal can miss valid scoped files and hide descendants; one requested product is not native mixed-product ownership. Exact current counts/hashes and sparse-metadata qualifications stay in the handoff; no P4 certificate or new native/extraction/publication claim.
