@@ -27,6 +27,7 @@ use crate::tooltip_presentation::{
     GRAY_FONT_COLOR, TOOLTIP_DESCRIPTION_COLOR, TooltipLineState, TooltipPresentation,
     item_id_line, rgba_string,
 };
+pub use binding::binding_anchor;
 pub use item::ShoppingTooltip;
 use render::retail_tooltip;
 pub use render::tooltip_size;
