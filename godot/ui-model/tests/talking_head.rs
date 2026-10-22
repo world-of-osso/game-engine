@@ -89,6 +89,60 @@ fn talking_head_voice_clock_keeps_source_elapsed_without_restarting_on_refresh()
 }
 
 #[test]
+fn talking_head_source_opening_fades_follow_elapsed_time_in_both_skins() {
+    use ui_toolkit::{
+        atlas::ActiveSkin,
+        registry::FrameRegistry,
+        screen::{Screen, SharedContext},
+    };
+    game_engine_ui_model::paths::set_data_root(
+        std::path::PathBuf::from(env!("CARGO_MANIFEST_DIR")).join("../../data"),
+    )
+    .unwrap();
+    // Retail70448 Lua FadeinFrames delays name by0.5s and text by0.75s.
+    // XML durations: name/text0.25s; portrait/model0.75s;
+    // background0.75s after0.4s; close0.75s after0.75s.
+    for skin in [ActiveSkin::Modern, ActiveSkin::Forever] {
+        ui_toolkit::atlas::set_thread_skin(skin);
+        for (elapsed, expected) in [
+            (625, [0.5, 0.01, 0.3, 5.0 / 6.0, 5.0 / 6.0, 0.01]),
+            (875, [1.0, 0.5, 19.0 / 30.0, 1.0, 1.0, 1.0 / 6.0]),
+            (1500, [1.0; 6]),
+        ] {
+            let mut update = source();
+            update.conversations[0].elapsed_ms = elapsed;
+            let mut state = TalkingHeadState::default();
+            state.receive(update.clone(), 400).unwrap();
+            // Repeated authoritative snapshots cannot restart opening animation.
+            state.receive(update, 400).unwrap();
+            let mut context = SharedContext::new();
+            context.insert(state);
+            let mut registry = FrameRegistry::new(1920.0, 1080.0);
+            Screen::new(game_engine_ui_model::talking_head_component::talking_head_screen)
+                .sync(&context, &mut registry);
+            for (name, alpha) in [
+                "TalkingHeadName",
+                "TalkingHeadText",
+                "TalkingHeadTextBackground",
+                "TalkingHeadPortrait",
+                "TalkingHeadModel",
+                "TalkingHeadCloseButton",
+            ]
+            .into_iter()
+            .zip(expected)
+            {
+                let frame = registry.get(registry.get_by_name(name).unwrap()).unwrap();
+                assert!(
+                    (frame.alpha - alpha).abs() < 0.0001,
+                    "{skin:?} {elapsed}ms {name}: {} != {alpha}",
+                    frame.alpha
+                );
+            }
+        }
+    }
+}
+
+#[test]
 fn talking_head_source_template_geometry_name_text_and_model_in_both_skins() {
     use ui_toolkit::{
         atlas::ActiveSkin,
