@@ -53,6 +53,7 @@ fn assert_live_owner(registry: &FrameRegistry, hit: &str, name: &str, provider: 
 fn ui_template_behavior_remaining_journal_loot_and_section_flag_owners() {
     for skin in [ActiveSkin::Modern, ActiveSkin::Forever] {
         let mut v = view();
+        game_engine_ui_model::item_catalog::wait_for_item_catalog();
         v.apply("journal:instance:63").unwrap();
         v.apply("journal:page:loot").unwrap();
         let registry = render(&v, skin);

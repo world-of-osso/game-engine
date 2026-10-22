@@ -571,9 +571,10 @@ fn assert_suggestion_truncated_text_hover(skin: ActiveSkin) {
             button_text: String::new(),
         })
         .collect();
-    let ctx = context(skin);
+    let mut ctx = context(skin);
+    ctx.insert(data.clone());
     let mut registry = FrameRegistry::new(800., 496.);
-    Screen::new(|ctx| suggested(ctx, Some(&data))).sync(&ctx, &mut registry);
+    Screen::new(|ctx| suggested(ctx, ctx.get())).sync(&ctx, &mut registry);
     for id in [642, 195] {
         for (suffix, full_text) in [
             ("TitleFrame", data.suggestions[0].name.as_str()),
