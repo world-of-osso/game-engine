@@ -46,6 +46,7 @@ fn backpack() -> BagFrameState {
 #[test]
 fn ui_template_behavior_bag_child_uses_live_slot_owner_and_screen_half_anchor() {
     use ui_toolkit::tooltip::{TooltipAnchor, tooltip_owner};
+    set_data_root();
     for skin in [ActiveSkin::Modern, ActiveSkin::Forever] {
         set_thread_skin(skin);
         let mut registry = mount();
