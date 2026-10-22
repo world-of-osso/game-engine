@@ -239,10 +239,29 @@ fn selection_lists_both_skins_keep_selection_through_scroll_and_refresh_without_
         let Some(WidgetData::Button(button)) = &frame.widget_data else {
             panic!("action button")
         };
-        assert!(
-            button.use_default_skin,
-            "Join Battle stays an action button"
-        );
+        // R PVPUI.xml1291 -> MagicButtonTemplate -> UIPanelButtonTemplate
+        // (SharedUIPanelTemplates.xml722): real three-cap action art, not a row.
+        let mut button = button.clone();
+        for (state, fdid) in [
+            (ui_toolkit::widgets::button::ButtonState::Normal, 130828),
+            (ui_toolkit::widgets::button::ButtonState::Pushed, 130825),
+            (ui_toolkit::widgets::button::ButtonState::Disabled, 130824),
+        ] {
+            button.state = state;
+            let parts = ui_toolkit::button_art::button_art_parts(
+                &button,
+                frame.resolved_width(),
+                frame.resolved_height(),
+            )
+            .expect("Join Battle retains drawable action art");
+            assert_eq!(parts.len(), 3, "Join Battle {state:?}");
+            for part in &parts {
+                assert_eq!(part.texture.source, TextureSource::FileDataId(fdid));
+                assert!(part.rect[2] > 0.0 && part.rect[3] > 0.0);
+            }
+            assert_eq!(parts[0].rect[2], 12.0, "authored left cap");
+            assert_eq!(parts[2].rect[2], 12.0, "authored right cap");
+        }
     }
     set_thread_skin(ActiveSkin::Modern);
 }

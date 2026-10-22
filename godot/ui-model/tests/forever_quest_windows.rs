@@ -177,16 +177,35 @@ fn assert_draws_member(
         "{atlas} {skin:?} is empty"
     );
     let data = registry.get(registry.get_by_name(frame).unwrap()).unwrap();
-    let Some(WidgetData::Texture(data)) = &data.widget_data else {
-        panic!("expected texture {frame}")
+    let (source, coords) = match &data.widget_data {
+        Some(WidgetData::Texture(data)) => (&data.source, data.tex_coords),
+        Some(WidgetData::Button(button)) => {
+            let region = button.base_texture().expect("authored close region");
+            (&region.source, region.tex_coords)
+        }
+        _ => panic!("expected textured artwork {frame}"),
     };
+    let (actual_fdid, bounds) = match source {
+        TextureSource::FileDataId(fdid) => (*fdid, [0.0, 1.0, 0.0, 1.0]),
+        TextureSource::Atlas(name) => {
+            let actual = resolve_region(name, skin).expect("sampled atlas member");
+            let AtlasSource::FileDataId(fdid) = actual.source else {
+                panic!("sampled atlas file")
+            };
+            (fdid, [actual.left, actual.right, actual.top, actual.bottom])
+        }
+        other => panic!("unsupported sampled artwork {other:?}"),
+    };
+    let [l, r, t, b] = bounds;
+    let sampled = [
+        l + coords[0] * (r - l),
+        l + coords[1] * (r - l),
+        t + coords[2] * (b - t),
+        t + coords[3] * (b - t),
+    ];
+    assert_eq!(actual_fdid, fdid, "{frame} {skin:?}");
     assert_eq!(
-        data.source,
-        TextureSource::FileDataId(fdid),
-        "{frame} {skin:?}"
-    );
-    assert_eq!(
-        data.tex_coords,
+        sampled,
         [region.left, region.right, region.top, region.bottom],
         "{frame} {skin:?}"
     );
@@ -233,12 +252,7 @@ fn assert_quest_chrome(skin: ActiveSkin) {
 fn assert_close_texture(skin: ActiveSkin) -> u32 {
     set_thread_skin(skin);
     let dialog = registry(QuestFrameState::default(), quest_frame_screen);
-    assert_draws_member(
-        &dialog,
-        "QuestFrameCloseButtonNormal",
-        "RedButton-Exit",
-        skin,
-    )
+    assert_draws_member(&dialog, "QuestFrameCloseButton", "RedButton-Exit", skin)
 }
 
 #[test]

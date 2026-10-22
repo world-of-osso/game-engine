@@ -303,7 +303,7 @@ fn texture(
 }
 fn arrow(name: &str, action: &str, (left, top, width, height): (f32, f32, f32, f32)) -> Element {
     rsx! { button { name: {DynName(name.into())}, onclick: action, left, top, width, height,
-    pos_type: "absolute", mouse_enabled: true } }
+    pos_type: "absolute", mouse_enabled: true, button_default_skin: false } }
 }
 
 fn source_arrow_textures(name: &str) -> Option<(u32, u32, Option<u32>, u32)> {

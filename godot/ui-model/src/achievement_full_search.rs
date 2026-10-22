@@ -47,12 +47,13 @@ pub(super) fn content(ctx: &SharedContext, window: &AchievementWindow) -> Elemen
     );
     children.extend(bar.element());
     // XML2678–2687: explicit TOPRIGHT from TopRightCorner(+1,-4), not skin default anchors.
-    children.extend(rsx! {button {name:"AchievementFullSearchClose",width:24.0,height:24.0,
-        left:581.0,top:0.0,pos_type:"absolute",frame_level:510.0,
-        onclick:"achievement:search_dismiss",button_default_skin:false,
-        button_atlas_up:"RedButton-Exit",button_atlas_pressed:"RedButton-exit-pressed",
-        button_atlas_highlight:"RedButton-Highlight", button_highlight_blend_mode:"ADD",button_atlas_disabled:"RedButton-Exit-Disabled",
-    }});
+    children.extend(
+        rsx! {button {name:"AchievementFullSearchClose",width:24.0,height:24.0,
+            left:581.0,top:0.0,pos_type:"absolute",frame_level:510.0,
+            onclick:"achievement:search_dismiss",button_default_skin:false,
+            button_template:"UIPanelCloseButton",
+        }},
+    );
     let left = if window.comparison.is_some() {
         144.0
     } else {
@@ -132,8 +133,7 @@ fn text(
 ) -> Element {
     let (left, top, width, height) = rect;
     rsx! {fontstring {name:{DynName(name)},text:value,left,top,width,height,pos_type:"absolute",
-        font:GameFont::FrizQuadrata,font_size:size,font_color:color,justify_h:justify,justify_v:"MIDDLE",
-        shadow_color:"0,0,0,1",shadow_offset:"1,-1",
+        font_object:"GameFontNormal",font_size:size,font_color:color,justify_h:justify,justify_v:"MIDDLE",
     }}
 }
 

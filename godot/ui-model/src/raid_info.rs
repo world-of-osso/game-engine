@@ -205,18 +205,14 @@ pub fn screen(ctx: &SharedContext) -> Element {
     content.extend(label(
         "RaidInfoInstance",
         "Instance",
-        18.0,
-        12.0,
-        150.0,
-        "1,1,1,1",
+        (18.0, 12.0, 150.0),
+        ("GameFontHighlight", "1,1,1,1"),
     ));
     content.extend(label(
         "RaidInfoExpires",
         "Lock Expires",
-        184.0,
-        12.0,
-        122.0,
-        "1,1,1,1",
+        (184.0, 12.0, 122.0),
+        ("GameFontHighlight", "1,1,1,1"),
     ));
     content.extend(saved_instance_list(ctx, state));
     let enabled = state.selected_row().is_some_and(|row| !row.extend_disabled);
@@ -280,38 +276,42 @@ fn saved_row(
     } else {
         "Expired".into()
     };
-    let mut texts = label(&format!("{name}Name"), &row.name, 5.0, 4.0, 150.0, color);
+    let mut texts = label(
+        &format!("{name}Name"),
+        &row.name,
+        (5.0, 4.0, 150.0),
+        ("GameFontNormal", color),
+    );
     texts.extend(label(
         &format!("{name}Difficulty"),
         &row.difficulty,
-        5.0,
-        21.0,
-        150.0,
-        "1,1,1,1",
+        (5.0, 21.0, 150.0),
+        ("GameFontHighlightSmall", "1,1,1,1"),
     ));
     texts.extend(label(
         &format!("{name}Reset"),
         &remaining,
-        161.0,
-        4.0,
-        126.0,
-        "1,1,1,1",
+        (161.0, 4.0, 126.0),
+        ("GameFontHighlightSmall", "1,1,1,1"),
     ));
     if row.lock.extended {
         texts.extend(label(
             &format!("{name}Extended"),
             "Extended",
-            201.0,
-            21.0,
-            86.0,
-            "1,1,1,1",
+            (201.0, 21.0, 86.0),
+            ("GameFontHighlightSmall", "1,1,1,1"),
         ));
     }
     let template = (&crate::selection_list::RAID_INSTANCE, selected);
     crate::selection_list::row(name, &action, true, (0.0, y, 292.0, 40.0), template, texts)
 }
-fn label(name: &str, text: &str, x: f32, y: f32, width: f32, color: &str) -> Element {
-    rsx! { fontstring {name:{DynName(name.into())},text:text,width:width,height:18.0,font_size:11.0,font_color:color,
+fn label(
+    name: &str,
+    text: &str,
+    (x, y, width): (f32, f32, f32),
+    (font_object, color): (&str, &str),
+) -> Element {
+    rsx! { fontstring {name:{DynName(name.into())},text:text,width:width,height:18.0,font_object,font_color:color,
     justify_h:"LEFT",pos_type:"absolute",left:x,top:y} }
 }
 pub fn format_reset(seconds: u32) -> String {
