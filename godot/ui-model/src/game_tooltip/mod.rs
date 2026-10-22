@@ -3,6 +3,8 @@
 //! `GameTooltip_SetDefaultAnchor` put it, the screen clamp and the comparison tooltips.
 //! The host resolves the hovered frame or unit and renders [`GameTooltipView`].
 
+#[cfg(test)]
+mod binding_tests;
 pub mod hud;
 pub mod item;
 pub mod merchant;
