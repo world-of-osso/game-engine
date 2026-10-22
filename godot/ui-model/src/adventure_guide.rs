@@ -133,6 +133,43 @@ impl Default for View {
     }
 }
 impl View {
+    /// EJ.lua803–815/2014–2062 rebuilds overview defaults for a changed role.
+    pub fn update_role(&mut self, role: u32) -> Result<(), String> {
+        if self.role == role {
+            return Ok(());
+        }
+        self.role = role;
+        if self.search_section.is_none() {
+            self.reset_overview_roles()?;
+        }
+        Ok(())
+    }
+
+    fn reset_overview_roles(&mut self) -> Result<(), String> {
+        if !self.instance_has_overview() {
+            return Ok(());
+        }
+        let previous_page = self.page;
+        self.page = Page::Overview;
+        let role = if self.role == 0 { 2 } else { self.role };
+        let disclosure = self.sections().map(|sections| {
+            sections
+                .into_iter()
+                .filter(|(_, depth)| *depth > 0)
+                .map(|(section, _)| (section.id, section.roles & role == 0))
+                .collect::<Vec<_>>()
+        });
+        self.page = previous_page;
+        for (id, collapsed) in disclosure? {
+            if collapsed {
+                self.collapsed.insert(id);
+            } else {
+                self.collapsed.remove(&id);
+            }
+        }
+        Ok(())
+    }
+
     pub fn challenge_text(&self) -> Option<String> {
         let instance = self.catalog.instance(self.instance?)?;
         let run = self
@@ -413,25 +450,13 @@ impl View {
         if !instance.tiers.contains(&self.tier) {
             self.tier = *instance.tiers.first().ok_or("Instance tier data missing")?;
         }
-        // Initialize overview role groups independently of the retained info tab.
-        let previous_page = self.page;
-        self.page = Page::Overview;
         self.visible = true;
         self.clear_search();
         self.tier_open = false;
         self.difficulty_open = false;
         self.filter_menu = None;
         self.collapsed.clear();
-        let role = if self.role == 0 { 2 } else { self.role };
-        let collapse_roles = self.shows_overview();
-        let collapsed: Vec<_> = self
-            .sections()?
-            .into_iter()
-            .filter(|(section, depth)| collapse_roles && *depth > 0 && section.roles & role == 0)
-            .map(|(section, _)| section.id)
-            .collect();
-        self.collapsed.extend(collapsed);
-        self.page = previous_page;
+        self.reset_overview_roles()?;
         self.validate_selected_page();
         Ok(())
     }
@@ -754,7 +779,7 @@ impl View {
                 self.difficulty_open = false;
                 self.validate_selected_page();
             }
-            "role" => self.role = number()?,
+            "role" => self.update_role(number()?)?,
             "filter" => {
                 let menu = match value {
                     Some("class") => LootFilter::Class,

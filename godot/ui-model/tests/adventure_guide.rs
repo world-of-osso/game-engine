@@ -168,7 +168,6 @@ fn encounter_link_reopens_the_class_filter_without_the_previous_submenu() {
 }
 
 #[test]
-#[ignore = "RED: active role changes must rebuild authored overview defaults"]
 fn encounter_overview_role_change_expands_the_new_role_without_resetting_abilities() {
     let mut view = journal();
     view.role = 2;
