@@ -1,6 +1,7 @@
 extends "res://tests/tooltips_live.gd"
 
 # Actual authenticated GameClient, never a standalone RegistryUi preview.
+# Setup: private admin learn-spell <character> 133, set-level <character> 10.
 # Private admin changes only this fixture character's level after each refresh marker.
 # Source placement: default UnitFrame owner, SpellBookItem ANCHOR_RIGHT,
 # MainMenuBarBackpackButton ANCHOR_LEFT. Existing domain content remains live.
@@ -31,6 +32,7 @@ func run_test() -> void:
 		fail(error)
 		return
 	if not await enter_world(): return
+	print("UI_TEMPLATE_GENERICS_SPELLS ", {"catalog_ready": spells().catalog_ready, "known": spells().known, "bar": spells().bar})
 	if not await wait_until(func(): return spells().catalog_ready and spells().known.has(133), 60000, "Fireball catalog/authority"): return
 	for forever in [false, true]:
 		current_skin = "forever" if forever else "modern"
