@@ -204,6 +204,29 @@ fn encounter_overview_role_change_expands_the_new_role_without_resetting_abiliti
 }
 
 #[test]
+#[ignore = "RED: retained global journal search must not filter selected boss drops"]
+fn encounter_search_section_selection_preserves_real_loot_with_its_retained_query() {
+    let mut view = journal();
+    view.select_dungeon_encounter(1058, Some(2)).unwrap();
+    let expected: Vec<_> = view.loot().iter().map(|item| item.id).collect();
+    assert!(
+        !expected.is_empty(),
+        "Authentic Heroic Ozruk loot is required"
+    );
+    view.update_search("Paralyze".into());
+    view.apply("journal:search-select:0").unwrap();
+    assert_eq!(view.encounter, Some(112));
+    assert_eq!(view.difficulty, 2);
+    assert_eq!(view.search, "Paralyze");
+    view.apply("journal:page:loot").unwrap();
+    let actual: Vec<_> = view.loot().iter().map(|item| item.id).collect();
+    assert_eq!(
+        actual, expected,
+        "The retained section-title search must not hide this boss's authored drops"
+    );
+}
+
+#[test]
 fn owned_keystones_browse_authentic_dungeons_without_active_run() {
     use shared::protocol::KeystoneInfo;
     let mut view = journal();
