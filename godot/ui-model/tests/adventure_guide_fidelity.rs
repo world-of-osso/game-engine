@@ -50,11 +50,12 @@ fn assert_live_owner(registry: &FrameRegistry, hit: &str, name: &str, provider: 
 }
 
 #[test]
-fn ui_template_behavior_remaining_journal_loot_and_section_flag_owners() {
+fn ui_template_behavior_remaining_journal_loot_owner() {
     for skin in [ActiveSkin::Modern, ActiveSkin::Forever] {
         let mut v = view();
         game_engine_ui_model::item_catalog::wait_for_item_catalog();
         v.apply("journal:instance:63").unwrap();
+        v.apply("journal:difficulty:1").unwrap();
         v.apply("journal:page:loot").unwrap();
         let registry = render(&v, skin);
         assert_live_owner(
@@ -63,6 +64,13 @@ fn ui_template_behavior_remaining_journal_loot_and_section_flag_owners() {
             "JournalLoot2169",
             "journal_loot",
         );
+    }
+}
+
+#[test]
+fn ui_template_behavior_remaining_journal_section_flag_owner() {
+    for skin in [ActiveSkin::Modern, ActiveSkin::Forever] {
+        let mut v = view();
         v.apply("journal:encounter:2364").unwrap();
         v.apply("journal:page:abilities").unwrap();
         let registry = render(&v, skin);
