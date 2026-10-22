@@ -494,7 +494,7 @@ impl GameClient {
             self.load_adventure_guide()?;
             self.adventure_guide.view.loading = false;
         }
-        self.adventure_guide.view.role = self
+        let role = self
             .spells
             .catalog()
             .zip(self.account.spells.spec())
@@ -505,6 +505,7 @@ impl GameClient {
                 2 => 2,
                 role => panic!("Unknown ChrSpecialization role {role}"),
             });
+        self.adventure_guide.view.update_role(role)?;
         self.select_queued_journal_encounter()?;
         self.adventure_guide
             .copy_activity_presentation(self.account.adventure_guide.clone())?;
