@@ -149,6 +149,43 @@ fn text(registry: &FrameRegistry, name: &str) -> String {
     }
 }
 
+/// R SpellBookItem.xml74/88 and SpellBookTemplates.xml20 use unshadowed System fonts.
+#[test]
+fn ui_template_fonts_spellbook_preserves_unshadowed_book_text_and_shadowed_tabs() {
+    let book = state(vec![SpellbookCategory {
+        name: "Warrior".into(),
+        groups: vec![SpellbookGroup {
+            name: "Warrior".into(),
+            items: vec![spell(100, "Charge", Some(2))],
+        }],
+    }]);
+    for skin in [ActiveSkin::Modern, ActiveSkin::Forever] {
+        set_thread_skin(skin);
+        let registry = build(&book);
+        for name in [
+            "SpellBookHeaderWarriorText",
+            "SpellBookItem100Name",
+            "SpellBookItem100RequiredLevel",
+        ] {
+            let frame = registry
+                .get(registry.get_by_name(name).expect(name))
+                .unwrap();
+            let Some(WidgetData::FontString(font)) = &frame.widget_data else {
+                panic!("{name}")
+            };
+            assert_eq!(font.shadow_color, None, "{skin:?}: {name}");
+        }
+        let frame = registry
+            .get(registry.get_by_name("SpellBookCategoryTab1Text").unwrap())
+            .unwrap();
+        let Some(WidgetData::FontString(font)) = &frame.widget_data else {
+            panic!("tab")
+        };
+        assert_eq!(font.shadow_color, Some([0.0, 0.0, 0.0, 1.0]));
+    }
+    set_thread_skin(ActiveSkin::Modern);
+}
+
 #[test]
 fn known_spells_cast_and_future_spells_show_their_level_greyed() {
     let book = state(vec![SpellbookCategory {
@@ -543,6 +580,22 @@ fn bottom_tab_bar_matches_retail_tab_system_geometry_in_both_skins() {
 /// of `SpellBookCategoryTabTemplate`, a `TabSystemButtonTemplate`, so `UpdateTabWidth`
 /// keeps short names at 100 and widens long ones to text + 10, capped at 150.
 #[test]
+fn ui_template_fonts_tab_width_uses_glyph_metrics_not_character_count() {
+    let category = |name: &str| SpellbookCategory {
+        name: name.into(),
+        groups: vec![group(name, 1)],
+    };
+    let mut book = state(vec![
+        category("iiiiiiiiiiiiiiiiii"),
+        category("WWWWWWWWWWWWWWWWWW"),
+    ]);
+    book.viewport = [1920.0, 1080.0];
+    let registry = build(&book);
+    assert_eq!(placed(&registry, "SpellBookCategoryTab1")[2], 100.0);
+    assert_eq!(placed(&registry, "SpellBookCategoryTab2")[2], 150.0);
+}
+
+#[test]
 fn category_tabs_use_retail_update_tab_width() {
     let category = |name: &str| SpellbookCategory {
         name: name.into(),
@@ -557,6 +610,7 @@ fn category_tabs_use_retail_update_tab_width() {
     let registry = build(&book);
     let rect = |index| placed(&registry, &format!("SpellBookCategoryTab{index}"));
     assert_eq!(rect(1), [70.0, 19.0, 100.0, 32.0]);
-    assert_eq!(rect(2), [171.0, 19.0, 150.0, 32.0]);
-    assert_eq!(rect(3), [322.0, 19.0, 100.0, 32.0]);
+    // Roman Friz10 measures this title at135px; text +10, not the old glyph-count cap.
+    assert_eq!(rect(2), [171.0, 19.0, 145.0, 32.0]);
+    assert_eq!(rect(3), [317.0, 19.0, 100.0, 32.0]);
 }

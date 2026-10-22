@@ -226,29 +226,11 @@ fn page_tabs(page: ProfessionPage) -> Element {
             "profession:tab:orders",
         ),
     ] {
-        let mut children = Vec::new();
-        let state = if selected { "activetab" } else { "tab" };
-        for (suffix, member, x, w) in [
-            ("Left", format!("uiframe-{state}-left"), 0.0, 35.0),
-            (
-                "Middle",
-                format!("_uiframe-{state}-center"),
-                35.0,
-                width - 72.0,
-            ),
-            (
-                "Right",
-                format!("uiframe-{state}-right"),
-                width - 37.0,
-                37.0,
-            ),
-        ] {
-            children.extend(art::atlas(
-                &format!("Professions{key}Tab{suffix}"),
-                &member,
-                (x, 0.0, w, 42.0),
-            ));
-        }
+        use ui_toolkit::tab_art::{TabArtSpec, TabLayout, tab_art};
+        let mut children = tab_art(
+            &format!("Professions{key}Tab"),
+            TabArtSpec::new(TabLayout::System, selected, [width, 42.0]),
+        );
         children.extend(label(
             format!("Professions{key}TabText"),
             caption,

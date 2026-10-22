@@ -90,38 +90,17 @@ pub(super) fn top_tab(
     selected: bool,
     rect: (f32, f32, f32, f32),
 ) -> Element {
-    use ui_toolkit::widget_def::{Attr, WidgetChild};
+    use ui_toolkit::tab_art::{TabArtSpec, TabLayout, tab_art, text_y_offset};
     let (left, top, width, height) = rect;
-    let state = if selected { "activetab" } else { "tab" };
-    let mut children = Vec::new();
-    for (suffix, member, x, w) in [
-        ("Right", format!("uiframe-{state}-right"), -7.0, 37.0),
-        (
-            "Middle",
-            format!("_uiframe-{state}-center"),
-            30.0,
-            width - 65.0,
-        ),
-        ("Left", format!("uiframe-{state}-left"), width - 35.0, 35.0),
-    ] {
-        let mut cap = atlas(
-            &format!("{name}{suffix}"),
-            &member,
-            (x, height - 42.0, w, 42.0),
-        );
-        let WidgetChild::Widget(widget) = &mut cap[0] else {
-            unreachable!()
-        };
-        widget.attrs.push(Attr::new_dynamic(
-            "rotation",
-            std::f32::consts::PI.to_string(),
-        ));
-        children.extend(cap);
-    }
+    let mut children = tab_art(
+        name,
+        TabArtSpec::new(TabLayout::SystemTop, selected, [width, height]),
+    );
+    let text_top = -text_y_offset(TabLayout::SystemTop, selected);
     children.extend(crate::bank_art::label(
         format!("{name}Text"),
         caption,
-        (0.0, 0.0, width, height),
+        (0.0, text_top, width, height),
         (12.0, crate::bank_art::HIGHLIGHT_FONT_COLOR, "CENTER"),
     ));
     let disabled = action.is_empty();

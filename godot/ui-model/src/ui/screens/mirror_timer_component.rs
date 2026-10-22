@@ -10,7 +10,6 @@ use crate::mirror_timer_data::{
 };
 use crate::ui::anchor::FrameName;
 use crate::ui::screens::inworld_unit_frames_component::inworld_unit_frames_art::AtlasArt;
-use crate::ui::widgets::font_string::{FontColor, GameFont};
 
 pub const MIRROR_TIMER_CONTAINER: FrameName = FrameName("MirrorTimerContainer");
 
@@ -27,7 +26,6 @@ const BAR_Y: f32 = 2.0;
 const TEXT_BORDER_H: f32 = BAR_H + 14.0;
 const TEXT_H: f32 = TEXT_BORDER_H - BAR_H - 2.0;
 /// `GameFontHighlightSmall`: 10 pt white.
-const TEXT_SIZE: f32 = 10.0;
 
 /// UiTextureAtlas 1942 (`interface/castingbar/uicastingbar.blp`, FDID 4505182, 512×256).
 const fn casting_bar(rect: (f32, f32, f32, f32)) -> AtlasArt {
@@ -179,11 +177,7 @@ fn text(name: String, label: &str) -> Element {
             width: BAR_W,
             height: TEXT_H,
             text: label,
-            font: GameFont::FrizQuadrata,
-            font_size: TEXT_SIZE,
-            font_color: FontColor::new(1.0, 1.0, 1.0, 1.0),
-            shadow_color: "0,0,0,1",
-            shadow_offset: "1,-1",
+            font_object: "GameFontHighlightSmall",
             justify_h: "CENTER",
             pos_type: "absolute",
             pos_x: 0.0,

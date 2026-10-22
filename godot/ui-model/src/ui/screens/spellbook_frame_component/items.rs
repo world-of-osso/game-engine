@@ -43,6 +43,7 @@ fn header_children(name: &str, group: &SpellbookGroup, s: f32) -> Element {
 fn header_text(name: &str, group: &SpellbookGroup, s: f32) -> Element {
     label(
         Label {
+            font_object: "SystemFont_Huge2",
             name: format!("{name}Text"),
             text: &group.name,
             rect: [-8.0, 6.0, VIEW_W - 60.0 + 8.0, 30.0],
@@ -77,12 +78,17 @@ fn item_texts(name: &str, item: &SpellbookItemView, s: f32) -> Element {
     let level = item
         .available_at
         .map(|level| format!("{AVAILABLE_AT}{level}"));
-    let lines: Vec<(&str, &str, f32)> = [
-        Some(("Name", item.name.as_str(), NAME_SIZE)),
-        (!item.subtext.is_empty()).then_some(("SubName", item.subtext.as_str(), SUBTEXT_SIZE)),
+    let lines: Vec<(&str, &str, f32, &str)> = [
+        Some(("Name", item.name.as_str(), NAME_SIZE, "SystemFont_Large")),
+        (!item.subtext.is_empty()).then_some((
+            "SubName",
+            item.subtext.as_str(),
+            SUBTEXT_SIZE,
+            "SystemFont_Med1",
+        )),
         level
             .as_deref()
-            .map(|text| ("RequiredLevel", text, SUBTEXT_SIZE)),
+            .map(|text| ("RequiredLevel", text, SUBTEXT_SIZE, "SystemFont_Med1")),
     ]
     .into_iter()
     .flatten()
@@ -93,7 +99,7 @@ fn item_texts(name: &str, item: &SpellbookItemView, s: f32) -> Element {
 fn render_item_texts(
     name: &str,
     item: &SpellbookItemView,
-    lines: Vec<(&str, &str, f32)>,
+    lines: Vec<(&str, &str, f32, &str)>,
     s: f32,
 ) -> Element {
     let color = if item.available_at.is_some() {
@@ -102,13 +108,17 @@ fn render_item_texts(
         FONT_COLOR
     };
     let line_h = |size: f32| size + 3.0;
-    let block: f32 = lines.iter().map(|&(_, _, size)| line_h(size)).sum::<f32>()
+    let block: f32 = lines
+        .iter()
+        .map(|&(_, _, size, _)| line_h(size))
+        .sum::<f32>()
         + 2.0 * (lines.len() as f32 - 1.0);
     let mut y = (ITEM_H - block) / 2.0 - 1.0;
     let mut out = Vec::new();
-    for (part, text, size) in lines {
+    for (part, text, size, font_object) in lines {
         out.extend(label(
             Label {
+                font_object,
                 name: format!("{name}{part}"),
                 text,
                 rect: [TEXT_LEFT, y, ITEM_W - TEXT_LEFT, line_h(size)],

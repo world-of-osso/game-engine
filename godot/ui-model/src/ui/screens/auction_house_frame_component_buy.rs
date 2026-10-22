@@ -548,62 +548,11 @@ pub(super) fn bid_frame((x, y): (f32, f32), enabled: bool) -> Element {
 /// item text (`Number15FontWhite`) 17 from the top, the price 6 below it, Buy Now / Cancel
 /// 120×22 at ±64 and 18 above the bottom (Blizzard_AuctionHouseBuyDialog.xml:41-123).
 fn commodity_dialog_border(w: f32, h: f32) -> Element {
-    // Dialog layout, NineSliceLayouts.lua:157-166. Atlas logical sizes are 64px.
-    // Short dialogs have crossing side-edge anchors, rendered between those anchors.
-    const CORNER: f32 = 64.0;
-    let side_top = (h - CORNER).min(CORNER);
-    let side_height = (h - 2.0 * CORNER).abs();
-    [
-        (
-            "TopLeft",
-            "UI-Frame-DiamondMetal-CornerTopLeft",
-            (0.0, 0.0, CORNER, CORNER),
-        ),
-        (
-            "TopRight",
-            "UI-Frame-DiamondMetal-CornerTopRight",
-            (w - CORNER, 0.0, CORNER, CORNER),
-        ),
-        (
-            "BottomLeft",
-            "UI-Frame-DiamondMetal-CornerBottomLeft",
-            (0.0, h - CORNER, CORNER, CORNER),
-        ),
-        (
-            "BottomRight",
-            "UI-Frame-DiamondMetal-CornerBottomRight",
-            (w - CORNER, h - CORNER, CORNER, CORNER),
-        ),
-        (
-            "Top",
-            "_UI-Frame-DiamondMetal-EdgeTop",
-            (CORNER, 0.0, w - 2.0 * CORNER, CORNER),
-        ),
-        (
-            "Bottom",
-            "_UI-Frame-DiamondMetal-EdgeBottom",
-            (CORNER, h - CORNER, w - 2.0 * CORNER, CORNER),
-        ),
-        (
-            "Left",
-            "!UI-Frame-DiamondMetal-EdgeLeft",
-            (0.0, side_top, CORNER, side_height),
-        ),
-        (
-            "Right",
-            "!UI-Frame-DiamondMetal-EdgeRight",
-            (w - CORNER, side_top, CORNER, side_height),
-        ),
-    ]
-    .into_iter()
-    .flat_map(|(name, atlas, rect)| {
-        crate::ui::screens::quest_art::named_atlas_texture(
-            format!("AuctionHouseFrameBuyDialogBorder{name}"),
-            atlas,
-            rect,
-        )
-    })
-    .collect()
+    use ui_toolkit::art_layout::{BorderLayout, BorderSpec, border_art};
+    border_art(
+        "AuctionHouseFrameBuyDialogBorder",
+        BorderSpec::new(BorderLayout::Dialog, [0.0, 0.0, w, h]),
+    )
 }
 
 pub(super) fn buy_dialog(dialog: Option<&BuyDialogView>) -> Element {
