@@ -79,6 +79,10 @@ func run_case(forever: bool, close_method: String, payload: String, output: Stri
     check(voice.get("kit", 0) == 250774 and voice.get("fdid", 0) == 5834729, "source kit/clip: " + label)
     check(voice.get("offset_ms", -1) == 750, "source elapsed750ms seek: " + label)
     check(text != null and is_zero_approx(text.modulate.a), "source text fade starts at750ms: " + label)
+    await RenderingServer.frame_post_draw
+    var opening := root.get_texture().get_image()
+    var opening_filename := "talking-head-%s-%s-750ms.png" % [skin, close_method]
+    check(opening.save_png(output.path_join(opening_filename)) == OK, "source750ms phase PNG: " + label)
     error = fixture.tick(0.75)
     await process_frame
     check(error.is_empty() and text != null and is_equal_approx(text.modulate.a, 1.0), "source opening settled at1500ms: " + label)
@@ -125,8 +129,8 @@ func run_fixture() -> void:
                 quit(1)
                 return
     check(cases == 4, "all four skin/input cases completed")
-    check(steps == 211, "exact checked-step contract before final assertion")
-    print("TALKING_HEAD_FIXTURE cases=%d expected_cases=4 steps=%d expected_steps=212 failures=%d" % [cases,steps,failures])
+    check(steps == 215, "exact checked-step contract before final assertion")
+    print("TALKING_HEAD_FIXTURE cases=%d expected_cases=4 steps=%d expected_steps=216 failures=%d" % [cases,steps,failures])
     if failures == 0:
         print("ALL_CASES_DONE %d/4" % cases)
         print("PASS talking_head_native_both_skins chrome_text_voice_input_only MODEL_GAP=TALKING_HEAD_MODEL_PROJECTION_UNSOURCED")
