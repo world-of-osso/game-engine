@@ -345,6 +345,8 @@ fn aura_button_sized(
             width: size,
             height: size,
             mouse_enabled: true,
+            tooltip_provider: "target_aura",
+            tooltip_anchor: "BY_CENTER",
             pos_type: "absolute",
             left: x,
             top: y,

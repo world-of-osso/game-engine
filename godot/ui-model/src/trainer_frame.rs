@@ -252,7 +252,8 @@ fn service_row(
     }
     children.extend(art::hover(&prefix));
     let action = format!("trainer:select:{}", row.spell_id);
-    let mut row = ui_toolkit::tooltip::bind_provider(
+    // Blizzard_TrainerUI.xml96: ANCHOR_RIGHT, x35 (not a child-art offset).
+    ui_toolkit::tooltip::bind_provider_at(
         crate::selection_list::row(
             prefix,
             &action,
@@ -262,16 +263,9 @@ fn service_row(
             children,
         ),
         "trainer",
-    );
-    let [ui_toolkit::widget_def::WidgetChild::Widget(owner)] = row.as_mut_slice() else {
-        panic!("trainer selection row requires one owner")
-    };
-    // Blizzard_TrainerUI.xml96: ANCHOR_RIGHT, x35 (not a child-art offset).
-    owner.attrs.push(ui_toolkit::widget_def::Attr::new_static(
-        "tooltip_offset_x",
-        "35".into(),
-    ));
-    row
+        ui_toolkit::tooltip::TooltipAnchor::Right,
+        [35.0, 0.0],
+    )
 }
 
 pub fn apply_trainer_art(view: &TrainerView, registry: &mut FrameRegistry) {
