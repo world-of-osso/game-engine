@@ -27,7 +27,7 @@ fn ui_template_behavior_services_auction_rows_declare_live_item_owners() {
     };
     use ui_toolkit::tooltip::{TooltipAnchor, tooltip_owner};
     for skin in [ActiveSkin::Modern, ActiveSkin::Forever] {
-        for view in ["browse", "item", "owned", "bids", "sell"] {
+        for view in ["browse", "item", "owned", "bids", "inventory"] {
             let registry = render(skin, view);
             let hits: Vec<_> = registry
                 .frames_iter()
