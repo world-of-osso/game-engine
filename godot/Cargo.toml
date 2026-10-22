@@ -15,6 +15,11 @@ taffy = { path = "../vendor/taffy" }
 # Provision client UDP queues for real catalog/replication bursts.
 lightyear_udp = { path = "../../shared-protocol/vendor/lightyear_udp" }
 
+# Workspace patches in path dependencies are ignored; use asset-resolver's existing
+# four/eight-byte BLTE IV fix for source conversation voice extraction.
+[patch."https://github.com/Osso/cascette-rs"]
+cascette-formats = { path = "../../asset-resolver/vendor/cascette-formats" }
+
 [patch."https://github.com/world-of-osso/shared-protocol.git"]
 shared = { path = "../../shared-protocol" }
 
