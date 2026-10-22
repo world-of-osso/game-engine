@@ -13,6 +13,8 @@ struct TalkingHeadFixture {
     base: Base<Node>,
     state: TalkingHeadState,
     ui: Option<Gd<RegistryUi>>,
+    voice: crate::talking_head::voice::TalkingHeadVoice,
+    data_root: std::path::PathBuf,
 }
 
 #[godot_api]
@@ -22,6 +24,11 @@ impl INode for TalkingHeadFixture {
             base,
             state: Default::default(),
             ui: None,
+            voice: Default::default(),
+            data_root: ProjectSettings::singleton()
+                .globalize_path("res://../data")
+                .to_string()
+                .into(),
         }
     }
 }
@@ -41,8 +48,17 @@ impl TalkingHeadFixture {
         let Some(ui) = &mut self.ui else {
             return "TalkingHead fixture not initialized".into();
         };
-        ui.bind_mut()
-            .set_state(self.state.clone())
+        let result = ui.bind_mut().set_state(self.state.clone());
+        let mut parent = self.base().clone().upcast();
+        result
+            .and_then(|()| {
+                self.voice.sync(
+                    self.state.current().as_ref(),
+                    &mut parent,
+                    &self.data_root,
+                    &game_engine_core::client_options_data::SoundOptionsFile::default(),
+                )
+            })
             .err()
             .map_or_else(GString::new, |error| error.as_str().into())
     }
@@ -53,7 +69,7 @@ impl TalkingHeadFixture {
 
     #[func]
     fn voice_state(&self) -> VarDictionary {
-        VarDictionary::new()
+        self.voice.snapshot()
     }
 
     #[func]

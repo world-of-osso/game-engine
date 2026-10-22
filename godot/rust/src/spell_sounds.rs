@@ -345,7 +345,11 @@ pub(crate) fn late_offset(late: f32, length: f32, looping: bool) -> Option<f32> 
 }
 
 /// Godot's stream of Ogg file `fdid`.
-fn ogg_stream(fdid: u32, looping: bool, bytes: &[u8]) -> Result<Gd<AudioStream>, String> {
+pub(crate) fn ogg_stream(
+    fdid: u32,
+    looping: bool,
+    bytes: &[u8],
+) -> Result<Gd<AudioStream>, String> {
     let mut stream = AudioStreamOggVorbis::load_from_buffer(&PackedByteArray::from(bytes))
         .ok_or_else(|| format!("Spell sound {fdid}: Godot rejected the Ogg stream"))?;
     stream.set_loop(looping);

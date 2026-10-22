@@ -9,10 +9,13 @@ use godot::{
 };
 use shared::protocol::ConversationUpdate;
 
+pub(crate) mod voice;
+
 #[derive(Default)]
 pub(crate) struct TalkingHeadHud {
     state: TalkingHeadState,
     ui: Option<Gd<RegistryUi>>,
+    voice: voice::TalkingHeadVoice,
 }
 
 impl GameClient {
@@ -57,6 +60,13 @@ impl GameClient {
             ui.set_visible(in_world);
             ui.bind_mut().set_state(self.talking_head.state.clone())?;
         }
+        let mut parent = self.base().clone().upcast();
+        self.talking_head.voice.sync(
+            self.talking_head.state.current().as_ref(),
+            &mut parent,
+            &self.data_root,
+            &self.client_options.sound,
+        )?;
         Ok(())
     }
 
