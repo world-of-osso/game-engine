@@ -102,6 +102,7 @@ type CachedFile = (PathBuf, Vec<u8>);
 type TileFiles = (CachedFile, Option<CachedFile>, Option<CachedFile>);
 
 pub(crate) struct NativeMapWdt {
+    pub source_product: game_engine_core::asset_product::AssetProduct,
     pub map_id: u32,
     pub path: PathBuf,
     pub flags: wdt::MphdFlags,
@@ -187,6 +188,7 @@ impl NativeTerrainAssets {
             Vec::new()
         };
         Ok(NativeMapWdt {
+            source_product: identity.source_product,
             map_id: identity.id,
             m2_floors,
             path,

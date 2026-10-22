@@ -70,6 +70,29 @@ The maintained native fixture runs all cases even after a failure, reports exact
 
 Final acceptance4/4, zero model/texture/type9 errors, `ExtractedOnly`, CASC tripwire0. Four1280×720 RGB PNGs in `/syncthing/AgentShared/2026-10-10/modelisolation/` decode successfully with ffmpeg; ffprobe dimensions and signalstats logs are in the diagnostics `inspection/` directory. Remaining P2 source gap list: empty. No full-world/catalog, missing historical metadata provenance, P3/P4 closure, pristine-bundle or release/deployment claim. Host XWayland/decor/VSync warnings are not compiler warnings or model failures.
 
+## Terrain collision reproduced (2026-10-21)
+
+Verified against runtime engine base `52e47cd5d`, current local Retail70448 and Forever70450 authenticated roots during [no-install certification](../../handoffs/noinstall-cert-2026-10-21.md). Converted character/equipment acceptance above does not cover terrain's unqualified model loader.
+
+Skyborne map2991's visited nine ADT tiles place model579120 four times. The flat M2 declares101 vertices and primary SFID579121, while its flat SKIN maps125 vertices up to124. Native `m2::submesh_arrays` rejects vertex101; four `WorldObjects: Vertex 101 out of bounds` errors match those four placements.
+
+Authenticated root comparison establishes a cross-product pair, not merely corrupt geometry:
+
+| File | Flat MD5 | Current Retail70448 root | Current Forever70450 root |
+|---|---|---|---|
+|579120.m2|`7bc5de4defc7715c73327d1d94925cb4`|`ac9d93a9b4b9f3cfbb960331e1575492`|Matches flat|
+|579121.skin|`e1fbb53052011d2ee2a009e692f364f0`|Matches flat|`cda5d039e301c0c41efd9a10a0fccf0a`|
+
+A read-only current-root audit of all155 distinct M2s/1,017 placements in those nine tiles finds152 flat primary model/skin pairs matching at least one common current product and three mixed pairs:194286→497258(two placements),440161→501335(eight),579120→579121(four). Each mixed pair is Forever M2/Retail SKIN. `skyborne-pair-audit/{pairs,summary}.json` retains exact per-file matches; matching one product does not establish the placement's authored ownership or certify textures/other companions.
+
+Neither579120/579121 identity had a scoped receipt at this checkpoint. `terrain/objects.rs::WorldObjects::new` creates an unqualified `local_resolver`; worker `load_asset` → `assets/creature.rs::load_model_files/cache_model_files` → `assets/mod.rs::read_model_file` reads flat siblings. The converted `authored_model_resolver` path is not used for terrain. Every required file can therefore exist and CASC tripwire remain0 while a model consumes another product's companion.
+
+Evidence under the certification's private diagnostic root: `skyborne-small-model-candidates.json`, `skyborne-invalid-vertex-candidates.json` and `skyborne-vertex-root-authentication/{comparison,wow-root-keys,wow_classic_beta-root-keys}.json`. These record source bytes, placements and authenticated current roots. Fresh local extraction then authenticated both variants: Retail M2 has374 vertices and its skin's maximum is124; Forever M2 has101 vertices and its skin's maximum is100. Four scoped files (30,558bytes) are staged separately in `staged-product-collision/cache/model-asset-index-noinstall-cert-collision.json`; `round6-authentication/summary.json` records validation. No shared flat file is overwritten. Terrain ownership/runtime propagation remains unresolved, not part of the earlier P2 PASS or a rendering fallback opportunity.
+
+### Terrain qualification implementation, acceptance pending
+
+`75208c162` adds the ignored real-map worker regression and reproduces `Vertex101` (exit101). `7ded89db4` retains selected MapCatalog CSV provenance in WDT; terrain M2 worker/parsed keys include product+FDID, companion acquisition uses `authored_model_resolver`, decoded/material/particle textures keep the model's root, and particle pools key by texture namespace too. WMO geometry/material IO remains separate. Compile-only/native extension builds and guarded extracted-only GREEN1 pass. Lead published2,248 terrain mappings and campsite descendants. Four r3 cases reach world with requested Modern/Forever skin, positive player/NPC geometry, expected-product terrain paths and tripwire0; Vertex101 is absent. Mulgore has zero object failures and only the separate attachment34 gap. Skyborne still lacks two authenticated same-product texture aliases beside current-build models:unique owners retain historical70338 identity while parents use70450. Producer `6ae2b9313` preserves those requested namespaces as aliases without changing owner receipts or adding runtime fallback (RED3→GREEN9). Lead published both aliases; canonical hashes match. Fresh Modern r4/Forever r5 Skyborne runs each show17 player meshes/51 NPC models/HP292,1,321 placements/226 Forever sources,zero wrong sources/object failures/pending/errors and tripwire0, with inspected captures. Mulgore r3 remains valid for both skins with only its named attachment34 errors. Bounded terrain-chain recheck is complete; all-doodad-set root603672/full-catalog/pristine-bundle and independent lead gates remain open. [Current proof and harness incident](../../handoffs/noinstall-cert-2026-10-21.md#terrain-source-qualification-implementation-acceptance-pending) owns exact bounds; do not infer P4 from implementation.
+
 ## Sources
 
 - [Native Skyborne checkpoint](../systems/forever-data.md#native-skyborne-rosterworld-recheck-2026-10-09)

@@ -528,7 +528,7 @@ impl PlacedParticles {
 pub(crate) struct ParticlePools {
     root: Option<Gd<Node3D>>,
     pools: Vec<ParticlePool>,
-    by_emitter: HashMap<(u32, usize), usize>,
+    by_emitter: HashMap<(std::path::PathBuf, u32, usize), usize>,
     density: f32,
     quads: Vec<Quad>,
     /// Last frame's updated emitters, simulation and upload time.
@@ -690,7 +690,8 @@ impl ParticlePools {
         emitter: &ParticleEmitter,
         texture_dir: &Path,
     ) -> Result<usize, String> {
-        if let Some(&pool) = self.by_emitter.get(&(fdid, index)) {
+        let key = (texture_dir.to_owned(), fdid, index);
+        if let Some(&pool) = self.by_emitter.get(&key) {
             return Ok(pool);
         }
         let root = self
@@ -704,7 +705,7 @@ impl ParticlePools {
         let pool = ParticlePool::new(&format!("Particles{fdid}_{index}"), &material);
         root.add_child(pool.node());
         self.pools.push(pool);
-        self.by_emitter.insert((fdid, index), self.pools.len() - 1);
+        self.by_emitter.insert(key, self.pools.len() - 1);
         Ok(self.pools.len() - 1)
     }
 
