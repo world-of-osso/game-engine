@@ -92,6 +92,12 @@ class ReceiptClosureTests(unittest.TestCase):
                 "CREATE TABLE content_item(ID,DisplayInfoID); INSERT INTO content_item VALUES(1,40); CREATE TABLE content_creature_template_model(CreatureDisplayID); CREATE TABLE content_creature(guid,id1,id2,id3,modelid,position_x,position_y); CREATE TABLE content_gameobject_template(entry,type,displayId);"
             )
             db.commit()
+        self.put(
+            "db2/fixture/ItemModifiedAppearance.csv",
+            b"ID,ItemID,ItemAppearanceID\n1,1,2\n",
+        )
+        self.put("db2/fixture/ItemAppearance.csv", b"ID,ItemDisplayInfoID\n2,40\n")
+        (self.data / "db2/active").symlink_to("fixture", target_is_directory=True)
         config = {
             "product": "wow",
             "metadata_build": "fixture",
@@ -100,7 +106,7 @@ class ReceiptClosureTests(unittest.TestCase):
             "characters": [],
             "npc_displays": "all",
             "game_objects": "all",
-            "items": "all",
+            "items": [{"id": 1, "definition_source": "Retail"}],
             "spells": [],
         }
         self.put("config.json", json.dumps(config).encode())
