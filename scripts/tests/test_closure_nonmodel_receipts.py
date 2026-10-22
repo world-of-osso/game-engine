@@ -2,6 +2,7 @@
 
 import hashlib
 import json
+import os
 from pathlib import Path
 import struct
 import sys
@@ -210,6 +211,39 @@ class NonModelReceiptTests(unittest.TestCase):
         self.assertTrue(asset["present"])
         self.assertFalse(asset["receipt_selected"])
         self.assertEqual(asset["identity_status"], "verified_receipt")
+
+    @unittest.skipUnless(
+        os.environ.get("P4_RED"), "Ignored RED: invalid source-build identity"
+    )
+    def test_malformed_generic_build_key_cannot_authenticate_flat_bytes(self):
+        raw = b"OggSactualsound"
+        self.put("sounds/30.ogg", raw)
+        row = self.receipt("sounds/30.ogg", 30, "ogg", raw)
+        row["build_config"] = "not-a-build-key"
+        self.put("provenance/closure-extract.jsonl", (json.dumps(row) + "\n").encode())
+        graph = self.graph()
+        graph.add(30, "ogg", "authored SoundKit")
+        result = graph.run()
+        self.assertEqual(result["assets"][0]["identity_status"], "unverified")
+        self.assertTrue(
+            any(
+                issue["code"] == "file_receipt_mismatch"
+                for issue in result["unresolved"]
+            )
+        )
+
+    @unittest.skipUnless(
+        os.environ.get("P4_RED"), "Ignored RED: invalid export identity"
+    )
+    def test_malformed_db2_build_key_cannot_authenticate_export(self):
+        document = self.table_receipt(b"ID,Directory\n1,azeroth\n")
+        document["identity"]["build_key"] = "not-a-build-key"
+        self.put("db2/fixture/receipt.json", json.dumps(document).encode())
+        graph = self.graph()
+        self.assertEqual(Catalogs(graph).rows("Map"), [])
+        self.assertTrue(
+            any(code == "metadata_receipt_mismatch" for code, _, _ in graph.unresolved)
+        )
 
     def test_db2_without_export_receipt_is_not_silently_used(self):
         self.put("db2/fixture/Map.csv", b"ID,Directory\n1,azeroth\n")
