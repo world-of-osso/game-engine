@@ -32,13 +32,13 @@ func click_at(position: Vector2, button: MouseButton) -> void:
         Input.parse_input_event(event)
         await process_frame
 
-func run_case(forever: bool, close_method: String, payload: String, output: String) -> void:
+func run_case(forever: bool, close_method: String, payload: String, output: String) -> bool:
     var prior_failures := failures
     var skin := "forever" if forever else "modern"
     var label := skin + "/" + close_method
     var fixture = ClassDB.instantiate("TalkingHeadFixture")
     if not check(fixture != null, "native consumer: " + label):
-        return
+        return false
     root.add_child(fixture)
     var error: String = fixture.initialize(forever, payload)
     check(error.is_empty(), "authentic source state/UI %s: %s" % [label,error])
@@ -95,8 +95,11 @@ func run_case(forever: bool, close_method: String, payload: String, output: Stri
     check(not fixture.voice_state().get("playing", false), "native local close stops voice: " + label)
     fixture.free()
     await process_frame
+    if failures != prior_failures:
+        return false
     cases += 1
-    print("CASE talking_head %s PASS=%s GAP=TALKING_HEAD_MODEL_PROJECTION_UNSOURCED" % [label, failures == prior_failures])
+    print("CASE talking_head %s PASS=true GAP=TALKING_HEAD_MODEL_PROJECTION_UNSOURCED" % label)
+    return true
 
 func run_fixture() -> void:
     root.size = Vector2i(1920,1080)
@@ -114,10 +117,13 @@ func run_fixture() -> void:
     DirAccess.make_dir_recursive_absolute(output)
     for forever in [false, true]:
         for close_method in ["button", "right"]:
-            await run_case(forever, close_method, payload, output)
+            if not await run_case(forever, close_method, payload, output):
+                quit(1)
+                return
     check(cases == 4, "all four skin/input cases completed")
     check(steps == 203, "exact checked-step contract before final assertion")
     print("TALKING_HEAD_FIXTURE cases=%d expected_cases=4 steps=%d expected_steps=204 failures=%d" % [cases,steps,failures])
     if failures == 0:
+        print("ALL_CASES_DONE %d/4" % cases)
         print("PASS talking_head_native_both_skins chrome_text_voice_input_only MODEL_GAP=TALKING_HEAD_MODEL_PROJECTION_UNSOURCED")
     quit(1 if failures else 0)
