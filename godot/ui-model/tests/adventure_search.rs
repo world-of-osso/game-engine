@@ -146,6 +146,13 @@ fn journal_search_creature_results_open_the_authored_model_choice() {
         assert_eq!(view.search, "Lumbering Oaf");
         let registry = render(&view, skin);
         assert!(present(&registry, "JournalCreature630"));
+        let mut heroic = journal("Lumbering Oaf");
+        heroic.apply("journal:search-select:1").unwrap();
+        assert_eq!(heroic.encounter, Some(2623));
+        assert_eq!(heroic.difficulty, 2);
+        assert_eq!(heroic.page, Page::Model);
+        assert_eq!(heroic.creature, Some(5689));
+        assert_eq!(heroic.model_creature().unwrap().display, 33003);
     }
 }
 
