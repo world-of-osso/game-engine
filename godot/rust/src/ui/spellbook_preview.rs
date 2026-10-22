@@ -107,7 +107,7 @@ impl RegistryUi {
             .size;
         Ok(GameTooltipView {
             main: place(
-                tooltip.for_skin(ui_toolkit::atlas::thread_skin()),
+                tooltip,
                 TooltipScreen {
                     size: [size.x, size.y],
                     cursor: [at.x, at.y],

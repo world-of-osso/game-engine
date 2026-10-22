@@ -147,7 +147,7 @@ fn trainer_spell_tooltip_uses_shared_content_right_offset_and_id_in_both_skins()
             }
         );
         let main = place(
-            tooltip.for_skin(skin),
+            tooltip,
             TooltipScreen {
                 size: [1920.0, 1080.0],
                 cursor: [100.0, 220.0],
@@ -214,7 +214,7 @@ fn trainer_recipe_shows_created_item_quality_reagents_and_both_record_ids() {
         )
         .unwrap();
         let main = place(
-            tooltip.for_skin(skin),
+            tooltip,
             TooltipScreen {
                 size: [1920.0, 1080.0],
                 cursor: [0.0; 2],
@@ -242,6 +242,7 @@ fn trainer_class_spell_retains_full_shared_tooltip() {
     };
     assert!(!input.description.is_empty());
     for skin in [ActiveSkin::Modern, ActiveSkin::Forever] {
+        set_thread_skin(skin);
         let tooltip = game_engine_ui_model::game_tooltip::trainer::trainer_service_content(
             spell_tooltip(spell, &input),
             None,
@@ -250,7 +251,7 @@ fn trainer_class_spell_retains_full_shared_tooltip() {
         .unwrap();
         assert_eq!(tooltip, spell_tooltip(spell, &input));
         let main = place(
-            tooltip.for_skin(skin),
+            tooltip,
             TooltipScreen {
                 size: [1920.0, 1080.0],
                 cursor: [0.0; 2],

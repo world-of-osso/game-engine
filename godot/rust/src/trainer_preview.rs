@@ -74,7 +74,7 @@ impl RegistryUi {
         );
         let screen = self.read_trainer_preview_screen(at)?;
         Ok(GameTooltipView {
-            main: place(tooltip.for_skin(ui_toolkit::atlas::thread_skin()), screen),
+            main: place(tooltip, screen),
             ..Default::default()
         })
     }

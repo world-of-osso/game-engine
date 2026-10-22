@@ -148,19 +148,6 @@ impl GameTooltip {
             ..self
         }
     }
-
-    /// The Forever skin takes FlareUI's tooltip anchor: its `GameTooltip_SetDefaultAnchor`
-    /// hook re-owns default-anchored tooltips at `ANCHOR_CURSOR_RIGHT` with offset 0, 0
-    /// (Tooltips.lua:410-423,459; `anchor`/`anchorFrames` "cursorOffset", Core.lua:350-353).
-    pub fn for_skin(self, skin: ActiveSkin) -> Self {
-        match (skin, self.anchor) {
-            (ActiveSkin::Forever, TooltipAnchor::Default) => Self {
-                anchor: TooltipAnchor::CursorRight,
-                ..self
-            },
-            _ => self,
-        }
-    }
 }
 
 /// What the host renders: the main tooltip and up to two comparison tooltips
@@ -548,19 +535,20 @@ mod tests {
             ui_toolkit::atlas::set_thread_skin(skin);
             let tooltip = five_lines();
             let height = tooltip_size(&tooltip.content)[1];
-            let placed = place(tooltip.clone().for_skin(skin), SCREEN);
+            let placed = place(tooltip.clone(), SCREEN);
             // R GameTooltipDefaultContainer: BOTTOMRIGHT on UIParent (-9, +85).
             assert_eq!(placed.x + w(), 1920.0 - 9.0, "{skin:?} default x");
             assert_eq!(placed.y + height, 1080.0 - 85.0, "{skin:?} default y");
             let owned = tooltip.owned([600.0, 500.0, 36.0, 36.0], OwnerSide::Right);
-            let placed = place(owned.for_skin(skin), SCREEN);
+            let placed = place(owned, SCREEN);
             assert_eq!((placed.x, placed.y), (636.0, 500.0 - height));
         }
     }
 
     #[test]
-    fn forever_cursor_tooltips_stay_on_screen_at_the_right_edge() {
-        let tooltip = five_lines().for_skin(ActiveSkin::Forever);
+    fn authored_cursor_right_tooltips_stay_on_screen_at_the_right_edge() {
+        let mut tooltip = five_lines();
+        tooltip.anchor = TooltipAnchor::CursorRight;
         let height = tooltip_size(&tooltip.content)[1];
         let inside = |placed: &TooltipPresentation| {
             placed.x >= 0.0
