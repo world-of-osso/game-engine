@@ -25,7 +25,7 @@ Consume the private source conversation payload and render the authored70448 Ret
 
 ## Tests asserting this spec
 
-- `godot/ui-model/tests/talking_head.rs`: actual source payload/elapsed expiry/private-owner refusal/dismissal and source opening alphas at625/875/1500ms in both skins. Opening-alpha RED: Modern625ms name remained1 instead of0.5 at `6c9b5da7a`; GREEN/native phase proof pending.
+- `godot/ui-model/tests/talking_head.rs`: actual source payload/elapsed expiry/private-owner refusal/dismissal and source opening alphas at625/875/1500ms in both skins. Opening-alpha RED: Modern625ms name remained1 instead of0.5 at `6c9b5da7a`. At `742b7bf1e`, all five TalkingHead model tests pass, including both-skin alpha samples at625/875/1500ms; native phase proof remains pending. Logs: `talking-head-opening-red-exact.log`, `talking-head-opening-green.log` under the diagnostic evidence root.
 - `godot/network/src/wire_tests.rs`: real UDP/Host ordered source snapshot and clear.
 - `godot/tests/talking_head.gd`, `godot/rust/src/talking_head_fixture.rs`: native source-payload projection, authored host/source-camera metadata, voice playback/stop and unscaled1920 PNGs. Model paint is not claimed: the approved named projection gap is asserted explicitly.
 - `godot/core/tests/talking_head_camera.rs`: exact source1751 Pos/Euler/raw Flags and authored fixed camera/target; no inferred native projection.
