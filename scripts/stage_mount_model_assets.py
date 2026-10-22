@@ -142,7 +142,7 @@ def stage_closure(data, package, install, extract, seed, scope, fragment_name, p
     paths, runtime_paths = audit.read_listfile(data / 'community-listfile.csv')
     verified, new, failures, checked = {}, {}, {}, {}
 
-    class AuthenticatedClosure(audit.Closure):
+    class AuthenticatedClosure(audit.RawByteGraph):
         def inspect(self, asset):
             key = asset['fdid'], asset['type']
             if key in checked:

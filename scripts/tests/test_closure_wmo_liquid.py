@@ -7,7 +7,7 @@ import tempfile
 import unittest
 
 sys.path.insert(0, str(Path(__file__).parents[1]))
-from asset_closure import Closure
+from asset_closure import RawByteGraph
 
 
 def chunk(tag, payload):
@@ -44,7 +44,7 @@ class WmoLiquidTests(unittest.TestCase):
         (p / "LiquidTypeXTexture.csv").write_text(
             "ID,LiquidTypeID,FileDataID\n1,13,101\n2,14,102\n3,19,103\n4,20,104\n5,21,105\n"
         )
-        return Closure(data, {}, "wow", "fixture")
+        return RawByteGraph(data, {}, "wow", "fixture")
 
     def test_shared_group_with_two_root_flag_contexts(self):
         with tempfile.TemporaryDirectory() as tmp:

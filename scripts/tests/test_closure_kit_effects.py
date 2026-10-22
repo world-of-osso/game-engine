@@ -6,7 +6,7 @@ import tempfile
 import unittest
 
 sys.path.insert(0, str(Path(__file__).parents[1]))
-from asset_closure import Closure
+from asset_closure import RawByteGraph
 from closure_seeds import Catalogs
 from closure_spell_seeds import seed_spell_visuals
 
@@ -39,7 +39,7 @@ class KitEffectsTests(unittest.TestCase):
             root.mkdir(parents=True)
             for name, text in tables.items():
                 (root / (name + ".csv")).write_text(text)
-            graph = Closure(data, {700: "sound/beam.ogg"}, "wow", "fixture")
+            graph = RawByteGraph(data, {700: "sound/beam.ogg"}, "wow", "fixture")
             seed_spell_visuals(graph, Catalogs(graph), [100])
             self.assertEqual(
                 sorted(graph.assets),
