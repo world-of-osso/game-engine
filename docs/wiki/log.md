@@ -1,6 +1,6 @@
 ## 2026-10-22 — Tooltip binding metadata in progress
 
-[Owner bindings](systems/ui-system.md#tooltip-owner-metadata--step-5-partial): shared attrs/nearest-owner and static model conversion; actual ignored-binding/anchor RED3→core5 GREEN, Perks disabled Highlight-color RED→model4 GREEN, Currency child/collapse controls3 GREEN. Eight provider declarations; native dispatcher, remaining consumers and lifecycle/Escape/sounds still pending. No Step5 native acceptance.
+[Owner bindings](systems/ui-system.md#tooltip-owner-metadata--step-5-partial): shared attrs/nearest-owner and static model conversion; actual ignored-binding/anchor RED3→core5 GREEN, Perks disabled Highlight-color RED→model4 GREEN, Currency child/collapse controls3 GREEN. [Current declaration/proof scope](systems/ui-system.md#tooltip-owner-metadata--step-5-partial) updated through Journal/Trading Post migration; native dispatch and Step5 acceptance remain open.
 
 ## 2026-10-21 — No-install certification continuation
 
