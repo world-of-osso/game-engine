@@ -88,6 +88,135 @@ fn talking_head_voice_clock_keeps_source_elapsed_without_restarting_on_refresh()
     assert!(state.current().is_none());
 }
 
+fn project_source_state(state: TalkingHeadState) -> ui_toolkit::registry::FrameRegistry {
+    use ui_toolkit::{
+        registry::FrameRegistry,
+        screen::{Screen, SharedContext},
+    };
+    game_engine_ui_model::paths::set_data_root(
+        std::path::PathBuf::from(env!("CARGO_MANIFEST_DIR")).join("../../data"),
+    )
+    .unwrap();
+    let mut context = SharedContext::new();
+    context.insert(state);
+    let mut registry = FrameRegistry::new(1920.0, 1080.0);
+    Screen::new(game_engine_ui_model::talking_head_component::talking_head_screen)
+        .sync(&context, &mut registry);
+    registry
+}
+
+#[test]
+fn talking_head_source_multiline_keeps_vo_current_while_text_uses_lua_callbacks() {
+    use ui_toolkit::{atlas::ActiveSkin, frame::WidgetData};
+    // Source705: TDB1210 actors/lines and native70448 additional500ms rows.
+    // Name is pinned TDB creature98075, not a placeholder. Map/entity IDs are controls.
+    let update: ConversationUpdate =
+        serde_json::from_str(include_str!("fixtures/conversation-705.json")).unwrap();
+    let first = update.conversations[0].lines[0]
+        .text
+        .as_ref()
+        .unwrap()
+        .male_text
+        .clone();
+    let second = update.conversations[0].lines[1]
+        .text
+        .as_ref()
+        .unwrap()
+        .male_text
+        .clone();
+    for skin in [ActiveSkin::Modern, ActiveSkin::Forever] {
+        ui_toolkit::atlas::set_thread_skin(skin);
+        let mut state = TalkingHeadState::default();
+        state.receive(update.clone(), 400).unwrap();
+        for (advance, expected_text) in [(0.625, &first), (0.25, &second), (0.25, &second)] {
+            state.advance(advance);
+            assert_eq!(
+                state.current().unwrap().line,
+                1684,
+                "VO follows source500ms boundary"
+            );
+            let registry = project_source_state(state.clone());
+            let frame = registry
+                .get(registry.get_by_name("TalkingHeadText").unwrap())
+                .unwrap();
+            let Some(WidgetData::FontString(text)) = &frame.widget_data else {
+                panic!("dialogue")
+            };
+            assert_eq!(
+                &text.text, expected_text,
+                "{skin:?}:250ms delayed text replacement"
+            );
+            // At625ms the old text fades out. At875ms initial Fadein's750ms
+            // callback applies; at1125ms line-change Fadein's1000ms callback applies.
+            assert!(
+                (frame.alpha - 0.5).abs() < 0.0001,
+                "{skin:?}:source fade callback alpha {}",
+                frame.alpha
+            );
+        }
+    }
+}
+
+#[test]
+fn talking_head_source_clear_without_voice_fades_for_one_second_but_dismiss_is_immediate() {
+    use ui_toolkit::atlas::ActiveSkin;
+    for skin in [ActiveSkin::Modern, ActiveSkin::Forever] {
+        ui_toolkit::atlas::set_thread_skin(skin);
+        let mut update = source();
+        let mut state = TalkingHeadState::default();
+        state.receive(update.clone(), 400).unwrap();
+        state.advance(1.0);
+        update.conversations.clear();
+        state.receive(update, 400).unwrap();
+        assert!(
+            state.current().is_none(),
+            "source clear stops authoritative voice view"
+        );
+        let registry = project_source_state(state.clone());
+        let root = registry
+            .get(registry.get_by_name("TalkingHeadFrame").unwrap())
+            .unwrap();
+        assert!(
+            !root.hidden,
+            "{skin:?}:source Close retains chrome through its1s fade"
+        );
+        state.advance(0.5);
+        let registry = project_source_state(state.clone());
+        for name in [
+            "TalkingHeadName",
+            "TalkingHeadText",
+            "TalkingHeadTextBackground",
+            "TalkingHeadPortrait",
+            "TalkingHeadCloseButton",
+        ] {
+            let frame = registry.get(registry.get_by_name(name).unwrap()).unwrap();
+            assert!(
+                (frame.alpha - 0.5).abs() < 0.0001,
+                "{skin:?}:{name} source1s close alpha {}",
+                frame.alpha
+            );
+        }
+        state.advance(0.5);
+        let registry = project_source_state(state);
+        assert!(
+            registry
+                .get(registry.get_by_name("TalkingHeadFrame").unwrap())
+                .unwrap()
+                .hidden
+        );
+        let mut dismissed = TalkingHeadState::default();
+        dismissed.receive(source(), 400).unwrap();
+        dismissed.dismiss();
+        let registry = project_source_state(dismissed);
+        assert!(
+            registry
+                .get(registry.get_by_name("TalkingHeadFrame").unwrap())
+                .unwrap()
+                .hidden
+        );
+    }
+}
+
 #[test]
 fn talking_head_source_opening_fades_follow_elapsed_time_in_both_skins() {
     use ui_toolkit::{
