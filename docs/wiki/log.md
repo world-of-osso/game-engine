@@ -5,6 +5,9 @@
 ## 2026-10-21 — Named font inheritance implementation
 
 [Shared font objects](systems/ui-system.md#named-font-inheritance--step-3): source chains resolve before local overrides; audited helpers delete inherited-style copies. PlayerSpells preserves unshadowed book versus shadowed tabs/talent roots; TabSystem widths use shared metrics. Missing family/shadow, wrong added shadow and glyph-count REDs reproduced; model3/core1 GREEN. Strict native38/38 passed both skins with38 original1920×1080 PNGs and0 Godot errors; final Spellbook14/projection2/check/fmt passed; lead gate remains separate. Autoscale excluded.
+## 2026-10-21 — Actual scripted boss alert clocks
+
+[Boss alerts](systems/boss-encounters.md#actual-scripted-clocks--2026-10-21): explicit six current-Lua scripts publish real selected EventMap requests via existing ordered wire/client. Sourced warnings retained; dynamic/native-text gaps named. Canonical catalog absent; retained private Kokia clocks are legacy, not a publication fix. Missing-snapshot RED→post-master behavioral2/2GREEN; accepted actual private5981 Kokia205 both-skin1920 countdown/warnings/kill-clear, ten inspected originals. Source-text/condition limits retained.
 
 ## 2026-10-21 — Authored button regions implementation
 
