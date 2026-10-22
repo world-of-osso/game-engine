@@ -5077,3 +5077,7 @@ gc774 passed tests/fmt and landed engineb0b3d4b39; exact server842325bf3/protoco
 ## 2026-10-20 — Gamma particle compositing
 
 [Root cause, fix and captures](investigations/godot-torch-rendering.md#gamma-compositing-2026-10-20): particles blended in linear light; WWV blends authored values in a UNORM target. A POST_TRANSPARENT CompositorEffect encodes the scene to sRGB, draws the pools with the GL factors against the resolved depth, and decodes. `particle_blend_pixels.gd` RED 12/16 fail → GREEN 16/16. Native both-skin 1920x1080 captures of 145304, 199823 and Frostbolt; composite 52-116 us GPU. Named gaps PARTICLES_COMPOSITE_AFTER_ALL_TRANSPARENT_GEOMETRY and PARTICLES_NO_DEPTH_WRITE.
+
+## 2026-10-21 — Private source TalkingHead
+
+[Runtime and explicit model boundary](systems/talking-head.md): ordered owner-scoped snapshots, authored both-skin chrome/dialogue, source-kit voice with elapsed seek/local stop; native voice RED→both-skin GREEN under existing IV8 consumer patch. Original1920 PNGs inspected; source-model painting remains disabled under TALKING_HEAD_MODEL_PROJECTION_UNSOURCED, not fitted or silently certified. Exact source1751 transform reader had genuine RED before implementation; native diagnostic metadata and its GREEN proof are pending. Host dummy audio is not audible-output proof.

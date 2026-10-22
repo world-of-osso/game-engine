@@ -52,6 +52,13 @@ impl TalkingHeadFixture {
         let mut parent = self.base().clone().upcast();
         result
             .and_then(|()| {
+                crate::talking_head::camera::sync_source_camera(
+                    self.ui.as_ref().expect("initialized"),
+                    self.state.current().as_ref(),
+                    &self.data_root,
+                )
+            })
+            .and_then(|()| {
                 self.voice.sync(
                     self.state.current().as_ref(),
                     &mut parent,
@@ -63,8 +70,8 @@ impl TalkingHeadFixture {
             .map_or_else(GString::new, |error| error.as_str().into())
     }
     #[func]
-    fn model_ready(&self) -> bool {
-        false
+    fn camera_state(&self) -> VarDictionary {
+        crate::talking_head::camera::camera_state(self.ui.as_ref())
     }
 
     #[func]
