@@ -1,6 +1,6 @@
 ## 2026-10-22 — Playing-voice source Close implementation
 
-[Runtime](systems/talking-head.md#runtime): genuine native player/gain/UI assertions reproduce4RED after typed source clear; Godot JSON identity casts fix only the earlier invalid fixture boundary. Native close now retires the active VO onto its own bound2s gain tween and defers UI Close1s without resetting receipt elapsed. Local active-handle dismissal remains immediate. CPU/native GREEN pending; no audible-output claim.
+[Runtime](systems/talking-head.md#runtime): genuine native player/gain/UI assertions reproduce4RED after typed source clear; Godot JSON identity casts fix only the earlier invalid fixture boundary. Native close now retires the active VO onto its own bound2s gain tween and defers UI Close1s without resetting receipt elapsed. Local active-handle dismissal remains immediate. Model8/8 and strict native2/2/40checks GREEN atdf623bfc6; complete Godot child streams have no ERROR or leak warning on this path. Earlier216-check teardown warning remains open; no audible-output claim.
 
 ## 2026-10-22 — Source TalkingHead line/close model boundaries
 
