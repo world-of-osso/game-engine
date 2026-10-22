@@ -32,14 +32,15 @@ Consume the private source conversation payload and render the authored70448 Ret
 ## Known gaps (current cycle)
 
 - [ ] `TALKING_HEAD_MODEL_PROJECTION_UNSOURCED`: model rendering stays disabled. Source Pos→model translation, LookAt→yaw/pitch/roll and fixed camera(4,0,0)→target(0,0,0) are retained; flags→useModelCenter and native PlayerModel projection remain unknown. Do not treat Pos as the eye, substitute an M2 portrait camera, or fit the mesh.
-- [ ] Native source-model paint, voice playback/stop, authored animation/fades and joint protocol/server/engine acceptance remain open.
+- [ ] Native source-model paint, authored animation/fades and joint protocol/server/engine acceptance remain open. Model paint is explicitly excluded under the approved projection gap, not silently certified.
 
 ## Bounded proof
 
 - Ordered real UDP relay and pure private-owner/dismissal state are implemented; these do not prove native world ingress or rendered models.
 - Original1920×1080 Modern/Forever PNGs were inspected at `250064b00`: authentic atlas/name/dialogue render, native wrapping RED4→GREEN4. Model rectangle remains empty and the process fixture remains RED2. Evidence: `data/diagnostics/follower-dungeons-2026-10-21/talking-head-native-wrap-{red,green}/`.
 - Exact selected70448 voice rows resolve250774/775/776→5834729/730/731 at volume0.799999952 (direct-kit RED→GREEN1). This metadata proof is not playback or audible-output proof; this agent host selected Godot's dummy audio driver.
-- Native voice RED6 was reproduced before implementation. The implemented consumer reaches local CASC extraction in both skins, but actual FDID5834729 fails BLTE decryption: encoding43dee1e72eb96dcd59fcfd62b353630d, IV size8 versus decoder's expected4. No replacement clip/CDN or suppressed error. See `talking-head-native-voice-diagnostic/process.log`; voice playback/stop remain unproved. The IV fix already exists in asset-resolver's vendored `cascette-formats` (`898cef7`, provenance/retirement: sibling `vendor/README.md`). Cargo ignores a path dependency's workspace patches, so the Godot workspace explicitly selects that same existing fix; no second crypto implementation.
+- Native voice RED6 was reproduced before implementation. The implemented consumer reaches local CASC extraction in both skins, but actual FDID5834729 fails BLTE decryption: encoding43dee1e72eb96dcd59fcfd62b353630d, IV size8 versus decoder's expected4. No replacement clip/CDN or suppressed error. Historical failure: `talking-head-native-voice-diagnostic/process.log`; playback/stop were unproved at that revision. The IV fix already exists in asset-resolver's vendored `cascette-formats` (`898cef7`, provenance/retirement: sibling `vendor/README.md`). Cargo ignores a path dependency's workspace patches, so the Godot workspace explicitly selects that same existing fix; no second crypto implementation.
+- With the workspace override (`59b8d416a` native extension), both-skin source-voice playback, actual clip identity,750ms source seek and local-close stop pass. `talking-head-native-voice-ready/process.log`:228 checks, only two remaining model-paint failures. No ObjectDB leak warning on this completed-readiness path. Cold CASC worker readiness uses bounded30s wall time, not an arbitrary render-frame count; source lifetime/elapsed clocks stay unchanged. The agent host uses dummy audio: playback state is proved, audible output is not. Local Ogg provenance: `talking-head-voice-clip-receipt.json`.
 
 ## Camera reference boundary
 
