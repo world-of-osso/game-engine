@@ -48,6 +48,35 @@ func run_test() -> void:
 	client.free()
 	completion.finish(true)
 
+func enter_world() -> bool:
+	if not await wait_until(selection_ready, 30000, "laid-out enabled character controls"): return false
+	await wait_frames(15)
+	var selection := client.get_node("CharacterSelectUI")
+	var card := selection.find_child("CharCard_0", true, false) as Control
+	await click(card)
+	await wait_frames(5)
+	var enter := selection.find_child("EnterWorld", true, false) as BaseButton
+	await move_mouse(enter.get_global_rect().get_center())
+	print("UI_TEMPLATE_GENERICS_ENTER ", {"card": card.get_global_rect(), "enter": enter.get_global_rect(), "disabled": enter.disabled, "hovered": root.gui_get_hovered_control(), "viewport": root.get_visible_rect()})
+	await click(enter)
+	if not await wait_until(func(): return client.account_state().screen != "CharacterSelect", 8000, "Enter World click accepted"): return false
+	if not await wait_until(func():
+		var state: Dictionary = client.account_state()
+		return state.screen == "InWorld" and state.local_player_position != null and state.local_server_position != null and state.terrain.pending_count == 0 and not state.terrain.parsed_tiles.is_empty(),
+		120000, "entered world and terrain"): return false
+	print("UI_TEMPLATE_GENERICS_INWORLD ", client.account_state().selected_character_name)
+	await wait_frames(30)
+	return true
+
+func selection_ready() -> bool:
+	var state: Dictionary = client.account_state()
+	if not state.reply_received or state.screen != "CharacterSelect" or state.character_count != 1: return false
+	var selection := client.get_node_or_null("CharacterSelectUI")
+	if selection == null: return false
+	var card := selection.find_child("CharCard_0", true, false) as Control
+	var enter := selection.find_child("EnterWorld", true, false) as BaseButton
+	return card != null and card.is_visible_in_tree() and card.size.x > 100 and enter != null and enter.is_visible_in_tree() and not enter.disabled and enter.size.x > 100
+
 func player_refresh(level: int) -> bool:
 	await hover(control("UnitFramesUI", "PlayerFrame"))
 	if not await wait_until(func(): return tooltip().visible and tooltip().title == character and has_line(tooltip(), "Level %d " % level), 4000, "PlayerFrame initial level"): return false
