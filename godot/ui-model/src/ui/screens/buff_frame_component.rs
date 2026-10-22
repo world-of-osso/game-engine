@@ -204,14 +204,9 @@ pub fn aura_button_name(is_debuff: bool, index: usize) -> String {
 }
 
 /// A buff-frame button under the cursor: `(is_debuff, index)`.
-pub fn buff_button_at(registry: &FrameRegistry, mut frame_id: u64) -> Option<(bool, usize)> {
-    loop {
-        let frame = registry.get(frame_id)?;
-        if let Some(hit) = frame.name.as_deref().and_then(parse_button_name) {
-            return Some(hit);
-        }
-        frame_id = frame.parent_id?;
-    }
+pub fn buff_button_at(registry: &FrameRegistry, frame_id: u64) -> Option<(bool, usize)> {
+    let (owner, _) = ui_toolkit::tooltip::tooltip_owner(registry, frame_id)?;
+    parse_button_name(owner.name.as_deref()?)
 }
 
 /// Retail `AuraButtonMixin:OnClick`: only helpful player auras may be cancelled.
@@ -230,7 +225,7 @@ pub fn player_buff_cancel(
     })
 }
 
-fn parse_button_name(name: &str) -> Option<(bool, usize)> {
+pub fn parse_button_name(name: &str) -> Option<(bool, usize)> {
     let (is_debuff, rest) = match name.strip_prefix(BUFF_BUTTON) {
         Some(rest) => (false, rest),
         None => (true, name.strip_prefix(DEBUFF_BUTTON)?),

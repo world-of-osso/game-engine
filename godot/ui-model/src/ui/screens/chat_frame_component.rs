@@ -839,21 +839,19 @@ fn message_run(row: usize, run_index: usize, run: &ChatRun, font_size: f32) -> E
     }
 }
 
-/// Spell id of the chat link frame at or above `frame_id`.
-pub fn chat_spell_link_at(registry: &FrameRegistry, mut frame_id: u64) -> Option<u32> {
-    loop {
-        let frame = registry.get(frame_id)?;
-        if let Some(spell) = frame
-            .name
-            .as_deref()
-            .and_then(|name| name.strip_prefix(LINK_PREFIX))
-            .and_then(|rest| rest.rsplit('_').next())
-            .and_then(|spell| spell.parse().ok())
-        {
-            return Some(spell);
-        }
-        frame_id = frame.parent_id?;
-    }
+/// Spell identity of a declared chat link owner.
+pub fn chat_spell_id(name: &str) -> Option<u32> {
+    name.strip_prefix(LINK_PREFIX)?
+        .rsplit('_')
+        .next()?
+        .parse()
+        .ok()
+}
+
+/// Resolve descendant input through the shared metadata owner walk.
+pub fn chat_spell_link_at(registry: &FrameRegistry, frame_id: u64) -> Option<u32> {
+    let (owner, _) = ui_toolkit::tooltip::tooltip_owner(registry, frame_id)?;
+    chat_spell_id(owner.name.as_deref()?)
 }
 
 #[cfg(test)]
