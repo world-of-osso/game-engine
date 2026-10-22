@@ -201,6 +201,15 @@ Authenticated Ruby Modern case `auth-queue-ruby-modern-post869-r1` does **not** 
 
 Ruby Modern r2 is an invalid harness attempt:shortened fixed waits reach the roster before character asset/catalog readiness;selected account name stays empty and EnterWorld is absent. No world proof follows its clean shutdown. Revised private r3 waits for observable selected-character/enabled-EnterWorld readiness,with its queue deadline capped by the process budget remaining inside the unchanged300second pair. `auth-queue-ruby-modern-post869-r3` genuinely reaches CertHuman/map2521 and drains in70.857seconds:9tiles,14,216 spawned objects,pending0/failures0,tile4,289/4,289,nearby421/421,both collision queues0. Modern readback matches;normal shutdown,errors0/tripwire0,total pair294.02seconds. Particle counters show5 updated emitters/113 drawn particles,not pixel qualification. Different tile-progress totals and timings across attempts are retained without attributing them to skin;no terrain-source or performance code changes.
 
+Complementary skin measurements preserve the same limits:
+
+| Authenticated case | Placement queue | Local readiness | Proof |
+|---|---|---|---|
+| Northshire Modern r1 | Drained33.871s;6,487 spawned,pending0/failures0 | Tile1,254/1,254;nearby470/470;both collision queues0 | Errors0/tripwire0,normal shutdown,pair202.81s |
+| Ruby Forever r1 | **Not drained** at91.221s remaining-pair deadline;8,094 spawned,6,505 pending,failures0 | Tile196/1,706;nearby421/421;both collision queues0 | Errors0/tripwire0,normal shutdown,pair294.44s |
+
+Both have9tiles and requested skin readback. Exact cases `auth-queue-northshire-modern-post869-r1` and `auth-queue-ruby-forever-post869-r1`. No causal attribution of different timings to skin. All owned runtime stops and UDP5961 is unbound after each pair. Ruby Forever whole-tile convergence remains unqualified by this attempt.
+
 ## Remaining acceptance
 
 Owned protocol-matched authenticated server/client runs, receipt/skin publication rechecks, all-class/item/spell descendants, full-catalog closure/provenance reconciliation and pristine player-bundle/download acceptance remain unqualified. Historical graph counts and metadata-only `36 profiles / 0 certified` evidence are documented in [offline asset closure](../wiki/systems/offline-asset-closure.md); they are not replaced by this bounded sweep.
