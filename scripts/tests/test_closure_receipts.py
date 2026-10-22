@@ -1,5 +1,6 @@
 """File-backed auditor cases; tempting flat/other-product bytes are not authority."""
 
+from contextlib import closing
 import hashlib
 import json
 from pathlib import Path
@@ -86,10 +87,11 @@ class ReceiptClosureTests(unittest.TestCase):
         self.put("db2/fixture/CreatureModelData.csv", b"ID,FileDataID\n")
         self.put("db2/fixture/SpellMisc.csv", b"ID,SpellID,DifficultyID\n")
         world = self.data / "world.db"
-        with sqlite3.connect(world) as db:
+        with closing(sqlite3.connect(world)) as db:
             db.executescript(
                 "CREATE TABLE content_item(ID,DisplayInfoID); INSERT INTO content_item VALUES(1,40); CREATE TABLE content_creature_template_model(CreatureDisplayID); CREATE TABLE content_creature(guid,id1,id2,id3,modelid,position_x,position_y); CREATE TABLE content_gameobject_template(entry,type,displayId);"
             )
+            db.commit()
         config = {
             "product": "wow",
             "metadata_build": "fixture",
@@ -232,6 +234,51 @@ class ReceiptClosureTests(unittest.TestCase):
         self.assertEqual(texture["present_files"][0]["path"], "textures/12.blp")
         self.assertIsNone(texture["actual_build"])
         self.assertEqual(texture["identity_status"], "unverified")
+
+    def test_unreceipted_model_texture_cannot_be_satisfied_by_flat_wmo_texture(self):
+        material = bytearray(64)
+        struct.pack_into("<I", material, 12, 12)
+        self.put("models/20.wmo", chunk("MOMT", material, True))
+        self.put("textures/12.blp", b"BLP2legacy")
+        graph = self.auditor()
+        graph.add(12, "blp", "independently sourced replacement texture")
+        graph.add(20, "wmo", "native flat WMO")
+        textures = [row for row in graph.run()["assets"] if row["type"] == "blp"]
+        self.assertEqual(len(textures), 2)
+        self.assertEqual(sorted(row["present"] for row in textures), [False, True])
+        self.assertTrue(all(row["identity_status"] == "unverified" for row in textures))
+
+    def test_same_product_shared_skin_retains_each_owning_model_namespace(self):
+        for fdid, key in [(10, "a" * 32), (20, "c" * 32)]:
+            self.publish("wow", fdid, "m2", model(chunk("SFID", ints(11))), key=key)
+        self.publish("wow", 11, "skin", b"SKINsame")
+        self.publish("wow", 11, "skin", b"SKINsame", key="c" * 32, alias=True)
+        graph = self.auditor()
+        graph.add(10, "m2", "first body")
+        graph.add(20, "m2", "second body")
+        manifest = graph.run()
+        skins = [row for row in manifest["assets"] if row["type"] == "skin"]
+        self.assertEqual(len(skins), 2)
+        self.assertEqual(
+            {row["asset_build_key"] for row in skins}, {"a" * 32, "c" * 32}
+        )
+        self.assertEqual(manifest["summary"]["missing"], 0)
+
+    def test_duplicate_receipts_are_rejected_before_selecting_bytes(self):
+        self.publish("wow", 10, "m2", model())
+        self.publish("wow", 10, "m2", model())
+        with self.assertRaisesRegex(ValueError, "Duplicate asset receipt"):
+            self.auditor()
+
+    def test_receipt_path_cannot_escape_its_product_namespace(self):
+        self.publish("wow", 10, "m2", model())
+        self.documents["wow"]["assets"][0]["path"] = "models/10.m2"
+        self.put(
+            "cache/model-asset-index-wow.json",
+            json.dumps(self.documents["wow"]).encode(),
+        )
+        with self.assertRaisesRegex(ValueError, "namespace"):
+            self.auditor()
 
 
 if __name__ == "__main__":
