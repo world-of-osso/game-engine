@@ -9,6 +9,69 @@ use ui_toolkit::registry::FrameRegistry;
 use ui_toolkit::screen::{Screen, SharedContext};
 
 #[test]
+#[ignore = "RED: dashboard catalog lacks the source filter template and Reset control"]
+fn housing_catalog_filter_reset_visibility_and_source_header_in_both_skins() {
+    use game_engine_ui_model::housing::{CollectionFilter, HousingAuthority};
+    use ui_toolkit::layout_values::Val;
+    use ui_toolkit::widgets::texture::TextureSource;
+
+    game_engine_ui_model::paths::set_data_root(
+        std::path::PathBuf::from(env!("CARGO_MANIFEST_DIR")).join("../../data"),
+    )
+    .unwrap();
+    for skin in [ActiveSkin::Modern, ActiveSkin::Forever] {
+        set_thread_skin(skin);
+        let mut model = HousingDashboard::new(Arc::new(HousingCatalog::default()));
+        model.tab = DashboardTab::Catalog;
+        let mut view = HousingView {
+            model,
+            authority: HousingAuthority::default(),
+            viewport: [1920.0, 1080.0],
+            money: None,
+            missing_thumbnails: BTreeSet::new(),
+            vendor_names: Default::default(),
+        };
+        let mut context = SharedContext::new();
+        let mut registry = FrameRegistry::new(1920.0, 1080.0);
+        let mut screen = Screen::new(housing_screen);
+        for (dyeable, collection, open, reset_visible) in [
+            (false, CollectionFilter::All, false, false),
+            (true, CollectionFilter::All, true, true),
+            (false, CollectionFilter::Collected, false, true),
+            (false, CollectionFilter::Uncollected, true, true),
+            (false, CollectionFilter::All, true, false),
+        ] {
+            view.model.dyeable_only = dyeable;
+            view.model.collection = collection;
+            view.model.filters_open = open;
+            context.insert(view.clone());
+            screen.sync(&context, &mut registry);
+            let frame = |name| registry.get(registry.get_by_name(name).unwrap()).unwrap();
+            let filter = frame("HousingCatalogFilters");
+            assert_eq!(filter.width, Dimension::Fixed(100.0));
+            assert_eq!(filter.height, Dimension::Fixed(20.0));
+            assert_eq!(filter.position.left, Val::Px(704.0));
+            assert_eq!(filter.position.top, Val::Px(30.0));
+            let reset = registry
+                .get_by_name("HousingCatalogFiltersResetButton")
+                .and_then(|id| registry.get(id))
+                .expect("Retail catalog filter Reset control is missing");
+            assert_eq!(reset.visible, reset_visible);
+            assert_eq!(reset.width, Dimension::Fixed(23.0));
+            assert_eq!(reset.height, Dimension::Fixed(23.0));
+            if reset_visible {
+                assert_eq!(reset.onclick.as_deref(), Some("housing:filter:reset"));
+            }
+            assert!(
+                matches!(&reset.widget_data, Some(WidgetData::Button(button))
+                if button.normal_texture.as_ref().map(|texture| texture.source.clone())
+                    == Some(TextureSource::Atlas("auctionhouse-ui-filter-redx".into())))
+            );
+        }
+    }
+}
+
+#[test]
 fn housing_catalog_input_postsetup_limits_unicode_in_both_skins() {
     use game_engine_ui_model::housing::HousingAuthority;
     use game_engine_ui_model::housing_component::apply_housing_postsetup;
