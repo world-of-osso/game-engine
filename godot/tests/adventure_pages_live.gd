@@ -67,6 +67,32 @@ func verify_role_refresh() -> bool:
 	print("AG_PAGES_ROLE_PASS real70-to66-ACK/reopen/role-headers/ability-disclosure")
 	return true
 
+func verify_journal_model_paint() -> bool:
+	var viewport := control("CharacterModelView") as TextureRect
+	if viewport == null or viewport.texture == null:
+		stop("Native Journal model viewport missing")
+		return false
+	await RenderingServer.frame_post_draw
+	var painted := root.get_texture().get_image()
+	var rect := viewport.get_global_rect()
+	viewport.hide()
+	await RenderingServer.frame_post_draw
+	var backdrop := root.get_texture().get_image()
+	viewport.show()
+	await RenderingServer.frame_post_draw
+	var samples := 0
+	for y in range(int(rect.position.y), int(rect.end.y), 4):
+		for x in range(int(rect.position.x), int(rect.end.x), 4):
+			var difference := painted.get_pixel(x, y) - backdrop.get_pixel(x, y)
+			if absf(difference.r) + absf(difference.g) + absf(difference.b) > 0.06:
+				samples += 1
+	if samples < 100:
+		await shot("pages-ozruk-model-paint-failure")
+		stop("Attached model did not paint above backdrop: " + str(samples))
+		return false
+	print("AG_PAGES_MODEL_PAINT samples=" + str(samples))
+	return true
+
 func verify_link_menus_and_loot() -> bool:
 	if not await select_named_boss("Tindral", [KEY_T,KEY_I,KEY_N,KEY_D,KEY_R,KEY_A,KEY_L], 2565):
 		return false
@@ -119,7 +145,7 @@ func verify_link_menus_and_loot() -> bool:
 		return false
 	if not await click("EncounterJournalPage3") or not await expect_model(382, 36475, "Ozruk"):
 		return false
-	if not await verify_rendered_portrait("JournalCreature382Portrait", 36475) or not await shot("pages-ozruk-model"):
+	if not await verify_rendered_portrait("JournalCreature382Portrait", 36475) or not await verify_journal_model_paint() or not await shot("pages-ozruk-model"):
 		return false
 	print("AG_PAGES_LINK_LOOT_PASS authoredTindralOverflow/classSubmenu/Paralyze-retained/role-class-slot/difficulty/model")
 	return true
