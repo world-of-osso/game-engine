@@ -2023,7 +2023,7 @@ fn housing_cleanup_hides_storage_and_uses_source_cursor_tooltip_in_both_skins() 
                 "No fabricated pet/lock/removability metadata"
             );
             let shown = place(
-                tooltip.for_skin(skin),
+                tooltip,
                 TooltipScreen {
                     size: view.viewport,
                     cursor: [600.0, 300.0],
