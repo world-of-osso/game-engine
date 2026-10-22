@@ -110,6 +110,12 @@ impl TalkingHeadFixture {
         let mut parent = self.base().clone().upcast();
         result
             .and_then(|()| {
+                crate::talking_head::glows::sync(
+                    self.ui.as_ref().expect("initialized"),
+                    &self.state,
+                )
+            })
+            .and_then(|()| {
                 crate::talking_head::camera::sync_source_camera(
                     self.ui.as_ref().expect("initialized"),
                     self.state.current().as_ref(),

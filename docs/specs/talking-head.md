@@ -18,7 +18,7 @@ Consume the private source conversation payload and render the authored70448 Ret
 ## Implementation inventory
 
 - `godot/ui-model/src/talking_head.rs` and `talking_head/presentation.rs`: private source/elapsed state remains the voice authority; painted name/text follows Lua's250ms replacement and500ms Fadein callbacks without delaying the source line. An authoritative clear retains the no-voice1s Close painting; local dismissal/world clear remain immediate. A playing source voice defers Close by1s without restarting that timer; native gain fade runs for2s. Bounded model/native proof below covers both skins.
-- `godot/ui-model/src/talking_head_component.rs`: authored Retail TalkingHead chrome/name/text/model host geometry and opening alphas from the conversation's elapsed time. Lua delays name500ms/text750ms; XML durations name/text250ms, portrait/model750ms, background750ms after400ms and close750ms after750ms. Repeated snapshots do not restart them. Painted line/close transitions live in the separate presentation state; glow animation remains open.
+- `godot/ui-model/src/talking_head_component.rs`: authored Retail TalkingHead chrome/name/text/model host geometry and opening alphas from the conversation's elapsed time. Lua delays name500ms/text750ms; XML durations name/text250ms, portrait/model750ms, background750ms after400ms and close750ms after750ms. Repeated snapshots do not restart them. Painted line/close transitions live in the separate presentation state. Five additive glow regions now sample the XML curves from that same elapsed time; model/native GREEN remains pending.
 - `godot/network/src/lib.rs`: ordered ConversationUpdate relay on EncounterChannel.
 - `godot/rust/src/{talking_head,encounter,lib}.rs`: native owner/map-validated UI host, event routing, shared UI-scale/pointer registration and local dismissal; model framing remains absent.
 - `godot/rust/src/talking_head/voice.rs`: source-kit/file loading off-frame, elapsed seek and one active voice. Local/world-exit stop the active handle immediately. Source Close retires that handle onto its own bound2s gain tween, so a subsequent source line does not restart/cut off the retiring fade; queued free ends that player. This is playback/gain state, not audible-output or exact waveform parity.
@@ -33,7 +33,7 @@ Consume the private source conversation payload and render the authored70448 Ret
 ## Known gaps (current cycle)
 
 - [ ] `TALKING_HEAD_MODEL_PROJECTION_UNSOURCED`: model rendering stays disabled. Source Pos→model translation, LookAt→yaw/pitch/roll and fixed camera(4,0,0)→target(0,0,0) are retained; flags→useModelCenter and native PlayerModel projection remain unknown. Do not treat Pos as the eye, substitute an M2 portrait camera, or fit the mesh.
-- [ ] Glow/scale/translation animation, transient teardown-warning diagnosis and joint protocol/server/engine acceptance remain open. Model paint is explicitly excluded under the approved projection gap, not silently certified.
+- [ ] Glow/scale/translation acceptance, transient teardown-warning diagnosis and joint protocol/server/engine acceptance remain open. Model paint is explicitly excluded under the approved projection gap, not silently certified.
 
 ## Bounded proof
 
@@ -60,6 +60,12 @@ This is sampled offline presentation, not real world ingress, authored fades/glo
 At `df623bfc6`, all8 TalkingHead model controls pass (0.21s, zero warnings). The rebuilt extension/maintained runner compile with exit0/zero warnings. `talking_head_source_close` then accepts2/2 Modern/Forever cases,40 checked steps, exactly one `ALL_CASES_DONE 2/2` and child/runner exit0; neither complete Godot child stream contains ERROR or an ObjectDB leak warning. Evidence: `data/diagnostics/follower-dungeons-2026-10-21/talking-head-source-close-green/`.
 
 This checks the actual source AudioStreamPlayer: playback continues with decreasing gain after clear, UI remains opaque during its1s hold, is halfway through the1s Close at1.5s, and player/UI finish after the2s deadline. It is not audible-output/exact-waveform or realm-ingress proof. Matching NVIDIA memory/admission preflights are saved. Outer Cage still reports unavailable XWayland; the native-Wayland child retains the platform/named-model-gap warnings. Absence of a leak warning on this path does not fix or erase the earlier216-check teardown warning.
+
+### Authored glow RED — 2026-10-22
+
+At `545fd010a`, the targeted model test fails on the absent `TalkingHeadGlowTopBar` at Modern200ms. At `d3c97fada`, the maintained native fixture independently fails step7 on that same missing region; child/runner exit1, no completion marker. Earlier build failures are not behavioral RED. Evidence: `talking-head-glows-model-red-after-master.log` and `talking-head-glows-native-red/` under the diagnostic evidence root.
+
+The implementation adds five atlas604 additive regions, XML alpha/translation curves and axis-specific source-origin scale. Model projection stays unchanged/excluded. Native transforms are local to TalkingHead; no toolkit-wide transform API is introduced. Expected native acceptance samples five phases in both skins with ten original1920×1080 PNGs; GREEN/pixel acceptance is not yet claimed.
 
 ## Camera reference boundary
 
