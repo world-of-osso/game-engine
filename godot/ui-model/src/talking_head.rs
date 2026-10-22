@@ -84,12 +84,9 @@ impl TalkingHeadState {
     pub fn advance(&mut self, delta: f32) {
         let elapsed = f64::from(delta.max(0.0)) * 1000.0;
         let previous = self.current();
-        let until_expiry = previous.as_ref().and_then(|view| {
-            self.active
-                .iter()
-                .find(|active| active.payload.id == view.conversation)
-                .map(|active| active.payload.duration_ms as f64 - active.elapsed_ms)
-        });
+        let until_expiry = previous
+            .as_ref()
+            .and_then(|view| self.remaining_lifetime(view));
         if let Some(closing) = &mut self.closing {
             closing.elapsed_ms += elapsed;
         }
@@ -126,6 +123,13 @@ impl TalkingHeadState {
 
     pub fn presentation(&self) -> Option<TalkingHeadPaint> {
         presentation::present(self)
+    }
+
+    fn remaining_lifetime(&self, view: &TalkingHeadView) -> Option<f64> {
+        self.active
+            .iter()
+            .find(|active| active.payload.id == view.conversation)
+            .map(|active| active.payload.duration_ms as f64 - active.elapsed_ms)
     }
 
     fn sync_close(&mut self, previous: Option<TalkingHeadView>, elapsed_ms: f64) {
