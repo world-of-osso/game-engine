@@ -308,6 +308,22 @@ Implemented `1210c853c`,with test controls `da39bcf66` and authentic fixture `fd
 
 `audit-receipt-{path-red,recheck-red,alias-owner-red,final-green,final-ruff}.log` and `audit-receipt-authentic-579120-green.log` retain proof. Schema2 records scoped receipt identity plus product/build-qualified source edges. `add(...,product=...)` accepts explicit source ownership; native metadata-derived mixed-product root seeding is **not implemented** by this slice. Terrain/liquid/audio provenance and scenario containment remain open. The two full-config diagnostics above are immutable pre-change evidence,not retroactively source-qualified manifests.
 
+### Metadata-owned auditor roots
+
+Lead orders ignored RED fixtures pushed before implementation. `af4b7af87` contains six `unittest.skipUnless(P4_RED)` fixtures; targeted enabled execution reproduces five behavioral failures and the unsupported structured-item selector error (`audit-root-products-red.log`). Implementation `eb1f34aaf` removes those skips; `b67a41f76` batches source-local joins and reuses catalogs by product/owned-item scope. Current pushed tip `260dfe4d7` removes an unused fixture import. Eighty-two focused receipt/root/raw-parser controls pass; RuffF passes. No full-graph,native or extraction run.
+
+| Root boundary | Qualified behavior |
+|---|---|
+| MapCatalog | Native Retailactive then Forever70205; Retail ID and ASCII-case-insensitive directory conflicts win; WDT→ADT→model descendants keep selected product |
+| Creature displays | Native creature_display.sqlite model/variation/source_product rows; variation textures use the owning model namespace; missing product never guesses from CSV/global product |
+| NPC equipment | Native outfit_links-v5.sqlite resource groups independently own model and material products; display/body product is not substituted |
+| Owned items | Explicit Retail/Forever70205 ItemDefinitionSource joins source-local appearance/resource tables,not borrowed NPC groups; every unsourced selected ID stays unresolved |
+| Provenance boundary | Source cache rows establish request ownership only; unauthenticated cache imports remain gaps. Player playable/customization policy and other source families remain outside this proof |
+
+Lead explicitly decides that world.content_item's absent definition-source column cannot be repaired by inferring graph product or race. Structured item selectors use `{"id": 1, "definition_source": "Retail"}` or `Forever70205`; bare IDs,including `items: all`,are listed individually as `missing_item_definition_source`. Source-local catalogs avoid repeated full-table joins per item/display. `audit-root-products-targeted-green.log` records the82-case proof atb67a41f76; only an unused import changes afterward.
+
+Next approved slice: existing generic texture/sound provenance ledger and selected DB2 table receipts,with ignored RED fixtures pushed first. No ModelAssetIndex expansion,no data writes/extraction and no full-graph or native replay.
+
 ## Remaining acceptance and proposed P4 plan
 
 Lead confirms eight-material CASC re-extraction/no-clobber publication:226,775 canonical keys,zero duplicates,flat legacy files untouched. Independent eight-payload readback is recorded above. This is not full-catalog certification.
