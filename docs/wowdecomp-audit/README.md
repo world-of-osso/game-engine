@@ -99,6 +99,8 @@ Before rework, identify the applicable product/build and a real authored asset, 
 
 ## Related knowledge
 
+- [12340 UI source questions](ui-source-questions-12340.md): texture filenames, auction return values, addon dependencies, and unresolved FrameXML ordering (2026-10-22).
+
 - [M2 format](../wiki/formats/m2-format.md) and [animation](../wiki/systems/animation.md).
 - [Particle contract](../specs/m2-particles.md) and [ribbon contract](../specs/m2-ribbons.md).
 - [Retail lighting](../wiki/systems/retail-lighting.md), [sound](../wiki/systems/sound.md) and [reference clients](../wiki/reference/open-source-wow-clients.md).
