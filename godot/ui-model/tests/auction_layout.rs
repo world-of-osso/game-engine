@@ -31,6 +31,7 @@ fn ui_template_behavior_services_auction_rows_declare_live_item_owners() {
             let registry = render(skin, view);
             let hits: Vec<_> = registry
                 .frames_iter()
+                .filter(|frame| frame.visible)
                 .filter(|frame| {
                     frame.onclick.as_deref().is_some_and(|action| {
                         [
