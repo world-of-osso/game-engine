@@ -1,3 +1,7 @@
+## 2026-10-22 — Tooltip binding metadata in progress
+
+[Owner bindings](systems/ui-system.md#tooltip-owner-metadata--step-5-partial): shared attrs/nearest-owner and static model conversion; actual ignored-binding/anchor RED3→core5 GREEN, Perks disabled Highlight-color RED→model4 GREEN, Currency child/collapse controls3 GREEN. Eight provider declarations; native dispatcher, remaining consumers and lifecycle/Escape/sounds still pending. No Step5 native acceptance.
+
 ## 2026-10-21 — Named artwork layout implementation
 
 [Shared artwork](systems/ui-system.md#named-artwork-layouts--step-4-implementation): removed audited border/tab/three-slice/button copies, Perks compositor and source-based projection policy. Final core6/model3/projection3 plus24 scoped consumer/golden modules GREEN. Strict native60/60 covers30 supplied states×both skins,60 inspected1920×1080 originals and interactive close-state assertions;65 PNGs published. Helper check/format passed without compiler warnings. Lead visually accepted65PNGs; gate follow-up replaces renderer-policy classification with actual PvP action-state art and uses source-exact close atlas casing. Full model integration1176/1176 (7 existing ignored) passed; Modern snapshot1/1 passed with direct sourced font assertions. Lead integration acceptance separate. Distinct authored geometry and approved skins retained; no global raster parity claim.
