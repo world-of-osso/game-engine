@@ -123,13 +123,13 @@ func verify_search_surface() -> bool:
 		return false
 	return await type_word("flame", [KEY_F,KEY_L,KEY_A,KEY_M,KEY_E]) and await verify_preview() and await verify_full_results() and await verify_section_selection()
 
-func run() -> void:
+func connect_owned_realm() -> bool:
 	var server := OS.get_environment("ADVENTURE_GUIDE_SERVER")
 	var account := OS.get_environment("ADVENTURE_GUIDE_ACCOUNT")
 	shots = OS.get_environment("ADVENTURE_GUIDE_SHOTS")
 	if server != "127.0.0.1:5996" or not account.begins_with("fb_agpages") or not shots.begins_with("/"):
 		stop("Owned private5996/fb_agpages account and absolute screenshot directory required")
-		return
+		return false
 	client = load("res://scenes/client.tscn").instantiate()
 	root.add_child(client)
 	var deadline := Time.get_ticks_msec() + 180000
@@ -138,11 +138,16 @@ func run() -> void:
 	var error: String = client.connect_account(server, account, OS.get_environment("ADVENTURE_GUIDE_PASSWORD"), false)
 	if not error.is_empty():
 		stop(error)
-		return
+		return false
 	if not await enter_world_when_ready():
-		return
+		return false
 	if client.account_state().ui_skin != OS.get_environment("ADVENTURE_GUIDE_EXPECTED_SKIN"):
 		stop("Authenticated character skin differs from receipt")
+		return false
+	return true
+
+func run() -> void:
+	if not await connect_owned_realm():
 		return
 	if not await click("EJMicroButton") or not await wait_journal(func(state): return state.loaded and state.visible, "Micro menu did not open Guide"):
 		return
