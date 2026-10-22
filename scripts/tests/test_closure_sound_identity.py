@@ -6,7 +6,7 @@ import tempfile
 import unittest
 
 sys.path.insert(0, str(Path(__file__).parents[1]))
-from asset_closure import Closure
+from asset_closure import RawByteGraph
 from closure_seeds import Catalogs
 from closure_spell_seeds import seed_sound_kits
 
@@ -23,7 +23,7 @@ class SoundIdentityTests(unittest.TestCase):
             (d / "sounds/100.audio").write_bytes(b"OggS" + b"\0" * 28)
             (d / "sounds/101.audio").write_bytes(b"ID3" + b"\0" * 30)
             (d / "sounds/102.audio").write_bytes(b"not audio")
-            g = Closure(d, {}, "wow", "fixture")
+            g = RawByteGraph(d, {}, "wow", "fixture")
             seed_sound_kits(g, Catalogs(g), {10})
             self.assertEqual(
                 sorted(g.assets), [(100, "ogg"), (101, "mp3"), (102, "audio")]

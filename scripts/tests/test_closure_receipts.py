@@ -1,0 +1,238 @@
+"""File-backed auditor cases; tempting flat/other-product bytes are not authority."""
+
+import hashlib
+import json
+from pathlib import Path
+import sqlite3
+import struct
+import subprocess
+import sys
+import tempfile
+import unittest
+
+SCRIPTS = Path(__file__).resolve().parents[1]
+sys.path.insert(0, str(SCRIPTS))
+from test_asset_closure import chunk, ints, model
+
+
+class ReceiptClosureTests(unittest.TestCase):
+    def setUp(self):
+        self.temporary = tempfile.TemporaryDirectory()
+        self.addCleanup(self.temporary.cleanup)
+        self.data = Path(self.temporary.name)
+        self.documents = {}
+        self.keys = {"wow": "a" * 32, "wow_classic_beta": "b" * 32}
+        self.builds = {"wow": "12.1.5.70448", "wow_classic_beta": "1.60.1.70450"}
+
+    def put(self, relative, raw):
+        path = self.data / relative
+        path.parent.mkdir(parents=True, exist_ok=True)
+        path.write_bytes(raw)
+        return path
+
+    def publish(self, product, fdid, kind, raw, key=None, alias=False):
+        key = key or self.keys[product]
+        directory = "textures" if kind == "blp" else "models"
+        relative = f"products/{product}/{key}/{directory}/{fdid}.{kind}"
+        row = {
+            "product": product,
+            "build_key": key,
+            "build": self.builds[product],
+            "fdid": fdid,
+            "kind": kind,
+            "path": relative,
+            "bytes": len(raw),
+            "sha256": hashlib.sha256(raw).hexdigest(),
+            "content_key": hashlib.md5(raw).hexdigest(),
+        }
+        self.put(relative, raw)
+        document = self.documents.setdefault(
+            product, {"version": 1, "assets": [], "aliases": [], "chains": []}
+        )
+        document["aliases" if alias else "assets"].append(row)
+        self.put(
+            f"cache/model-asset-index-{product}.json", json.dumps(document).encode()
+        )
+        return row
+
+    def auditor(self, product="wow"):
+        from closure_receipts import ReceiptClosure
+
+        return ReceiptClosure(self.data, {}, product, "fixture")
+
+    def test_cli_discovers_children_when_only_scoped_model_exists(self):
+        self.put("community-listfile.csv", b"")
+        self.publish(
+            "wow", 10, "m2", model(chunk("SFID", ints(11)), chunk("TXID", ints(12)))
+        )
+        self.publish("wow", 11, "skin", b"SKINfixture")
+        self.publish("wow", 12, "blp", b"BLP2fixture")
+        self.put("db2/fixture/ItemDisplayInfo.csv", b"ID,ModelResourcesID_0\n40,50\n")
+        self.put(
+            "db2/fixture/ModelFileData.csv", b"FileDataID,ModelResourcesID\n10,50\n"
+        )
+        self.put("db2/fixture/TextureFileData.csv", b"FileDataID,MaterialResourcesID\n")
+        self.put(
+            "db2/fixture/ItemDisplayInfoMaterialRes.csv",
+            b"ID,ItemDisplayInfoID,MaterialResourcesID\n",
+        )
+        self.put(
+            "db2/fixture/ItemDisplayInfoModelMatRes.csv",
+            b"ID,ItemDisplayInfoID,MaterialResourcesID\n",
+        )
+        self.put("db2/fixture/ChrRaceXChrModel.csv", b"ID,ChrRacesID,Sex,ChrModelID\n")
+        self.put("db2/fixture/ChrModel.csv", b"ID,DisplayID,SkeletonFileDataID\n")
+        self.put("db2/fixture/CreatureDisplayInfo.csv", b"ID,ModelID\n")
+        self.put("db2/fixture/CreatureModelData.csv", b"ID,FileDataID\n")
+        self.put("db2/fixture/SpellMisc.csv", b"ID,SpellID,DifficultyID\n")
+        world = self.data / "world.db"
+        with sqlite3.connect(world) as db:
+            db.executescript(
+                "CREATE TABLE content_item(ID,DisplayInfoID); INSERT INTO content_item VALUES(1,40); CREATE TABLE content_creature_template_model(CreatureDisplayID); CREATE TABLE content_creature(guid,id1,id2,id3,modelid,position_x,position_y); CREATE TABLE content_gameobject_template(entry,type,displayId);"
+            )
+        config = {
+            "product": "wow",
+            "metadata_build": "fixture",
+            "customization_cache": "cache/customization-v5.sqlite",
+            "maps": [],
+            "characters": [],
+            "npc_displays": "all",
+            "game_objects": "all",
+            "items": "all",
+            "spells": [],
+        }
+        self.put("config.json", json.dumps(config).encode())
+        result = subprocess.run(
+            [
+                sys.executable,
+                str(SCRIPTS / "asset_closure.py"),
+                "--data",
+                str(self.data),
+                "--world-db",
+                str(world),
+                "--config",
+                str(self.data / "config.json"),
+                "--output",
+                str(self.data / "manifest.json"),
+            ],
+            capture_output=True,
+            text=True,
+            timeout=30,
+        )
+        self.assertEqual(
+            result.returncode, 1, result.stderr
+        )  # Explicit cache-policy gaps remain.
+        manifest = json.loads((self.data / "manifest.json").read_text())
+        self.assertEqual(
+            [
+                (row["requested_product"], row["fdid"], row["type"], row["present"])
+                for row in manifest["assets"]
+            ],
+            [
+                ("wow", 10, "m2", True),
+                ("wow", 11, "skin", True),
+                ("wow", 12, "blp", True),
+            ],
+        )
+        self.assertEqual(manifest["summary"]["missing"], 0)
+        self.assertEqual(manifest["assets"][0]["actual_build"], "12.1.5.70448")
+
+    def test_same_fdid_products_keep_distinct_children_in_one_graph(self):
+        for product, skin, texture in [("wow", 11, 12), ("wow_classic_beta", 21, 22)]:
+            self.publish(
+                product,
+                10,
+                "m2",
+                model(chunk("SFID", ints(skin)), chunk("TXID", ints(texture))),
+            )
+            self.publish(product, skin, "skin", b"SKIN" + product.encode())
+            self.publish(product, texture, "blp", b"BLP2" + product.encode())
+        self.put("models/10.m2", model(chunk("TXID", ints(999))))
+        graph = self.auditor()
+        graph.add(10, "m2", "Retail body", product="wow")
+        graph.add(10, "m2", "Forever actor", product="wow_classic_beta")
+        manifest = graph.run()
+        observed = {
+            (row["requested_product"], row["fdid"], row["type"])
+            for row in manifest["assets"]
+        }
+        self.assertEqual(
+            observed,
+            {
+                ("wow", 10, "m2"),
+                ("wow", 11, "skin"),
+                ("wow", 12, "blp"),
+                ("wow_classic_beta", 10, "m2"),
+                ("wow_classic_beta", 21, "skin"),
+                ("wow_classic_beta", 22, "blp"),
+            },
+        )
+        self.assertEqual(manifest["summary"]["missing"], 0)
+
+    def test_companion_requires_the_model_namespace_not_another_receipt_build(self):
+        self.publish("wow", 10, "m2", model(chunk("SFID", ints(11))))
+        self.publish("wow", 11, "skin", b"SKINsame", key="c" * 32)
+        self.put("models/11.skin", b"SKINtempting")
+        result = self.auditor()
+        result.add(10, "m2", "body")
+        manifest = result.run()
+        skin = next(row for row in manifest["assets"] if row["type"] == "skin")
+        self.assertFalse(skin["present"])
+        self.assertEqual(
+            skin["locations"], [f"products/wow/{self.keys['wow']}/models/11.skin"]
+        )
+        self.assertTrue(
+            any(
+                row["code"] == "missing_scoped_receipt"
+                for row in manifest["unresolved"]
+            )
+        )
+        self.publish("wow", 11, "skin", b"SKINsame", alias=True)
+        repaired = self.auditor()
+        repaired.add(10, "m2", "body")
+        self.assertEqual(repaired.run()["summary"]["missing"], 0)
+
+    def test_missing_product_receipt_never_uses_flat_or_other_product(self):
+        self.publish("wow", 10, "m2", model())
+        self.put("models/10.m2", model())
+        graph = self.auditor("wow_classic_beta")
+        graph.add(10, "m2", "Forever actor")
+        manifest = graph.run()
+        self.assertFalse(manifest["assets"][0]["present"])
+        self.assertTrue(
+            any(
+                row["code"] == "missing_asset_receipt" for row in manifest["unresolved"]
+            )
+        )
+
+    def test_corrupt_receipt_payload_stops_descendant_expansion(self):
+        row = self.publish("wow", 10, "m2", model(chunk("TXID", ints(12))))
+        self.put(row["path"], model(chunk("TXID", ints(99))))
+        graph = self.auditor()
+        graph.add(10, "m2", "body")
+        manifest = graph.run()
+        self.assertEqual([row["fdid"] for row in manifest["assets"]], [10])
+        self.assertTrue(
+            any(
+                row["code"] == "receipt_payload_mismatch"
+                for row in manifest["unresolved"]
+            )
+        )
+
+    def test_flat_wmo_material_is_not_falsely_replaced_by_scoped_current_texture(self):
+        material = bytearray(64)
+        struct.pack_into("<I", material, 12, 12)
+        self.put("models/20.wmo", chunk("MOMT", material, True))
+        self.put("textures/12.blp", b"BLP2legacy")
+        self.publish("wow", 12, "blp", b"BLP2current")
+        graph = self.auditor()
+        graph.add(20, "wmo", "native flat WMO")
+        manifest = graph.run()
+        texture = next(row for row in manifest["assets"] if row["fdid"] == 12)
+        self.assertEqual(texture["present_files"][0]["path"], "textures/12.blp")
+        self.assertIsNone(texture["actual_build"])
+        self.assertEqual(texture["identity_status"], "unverified")
+
+
+if __name__ == "__main__":
+    unittest.main()

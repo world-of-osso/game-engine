@@ -8,7 +8,7 @@ import tempfile
 import unittest
 
 sys.path.insert(0, str(Path(__file__).resolve().parents[1]))
-from asset_closure import Closure
+from asset_closure import RawByteGraph
 import closure_seeds
 
 
@@ -44,7 +44,7 @@ class GameObjectRootsTests(unittest.TestCase):
         self.db.commit()
 
     def seed(self, selector, tiles):
-        graph = Closure(self.data, {}, "wow", "fixture")
+        graph = RawByteGraph(self.data, {}, "wow", "fixture")
         selected = closure_seeds.seed_game_objects(
             graph, closure_seeds.Catalogs(graph), self.db, selector, tiles
         )
@@ -99,7 +99,7 @@ class GameObjectRootsTests(unittest.TestCase):
             "spells": [],
             "customization_cache": "cache/customization-v5.sqlite",
         }
-        graph = Closure(self.data, {}, "wow", "fixture")
+        graph = RawByteGraph(self.data, {}, "wow", "fixture")
         closure_seeds.seed_catalogs(graph, self.data / "world.db", config)
         self.assertIn(
             (200010, "m2"),
@@ -110,7 +110,7 @@ class GameObjectRootsTests(unittest.TestCase):
             "UPDATE content_gameobject_template SET displayId=2701 WHERE entry=202588"
         )
         self.db.commit()
-        changed = Closure(self.data, {}, "wow", "fixture")
+        changed = RawByteGraph(self.data, {}, "wow", "fixture")
         closure_seeds.seed_catalogs(changed, self.data / "world.db", config)
         self.assertNotEqual(changed.seeds["world_selection_sha256"], before)
 

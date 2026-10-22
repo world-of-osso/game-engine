@@ -12,6 +12,7 @@ Offline audit tooling in `scripts/asset_closure.py` computes a content-rooted de
 - [x] Report unknown joins, malformed bytes, missing expansion boundaries and conflicting local aliases instead of silently dropping dependencies.
 - [x] Resolve named references with the runtime's persisted-local precedence and surviving SQLite import binding, not largest/minimum FDID heuristics; retain displacement gaps. Prefer declared Map.WdtFileDataID, M2 TXID and ADT MDID over stale names; a present TXID/MDID never falls back to names for zero/short slots. Hash the explicit read-only local-listfile snapshot used by the audit.
 - [ ] Select full catalogs through configuration without changing the traversal; label approximate full-scope file/byte estimates separately from proven coverage.
+- [x] Auditor model roots require a matching product/FDID/kind receipt; read and validate scoped payloads,never unqualified flat or another product's bytes. Model-owned SFID/SKID/animation/texture dependencies use the owning model namespace,including authenticated same-product aliases. Keep different products/build namespaces distinct in one graph. Native flat WMO/ADT inputs remain explicitly unverified; scoped publication alone does not qualify their runtime bytes. `RawByteGraph` is an explicitly named producer/parser discovery helper,not an auditor or missing-receipt fallback.
 
 ## How it works
 
@@ -19,14 +20,16 @@ Offline audit tooling in `scripts/asset_closure.py` computes a content-rooted de
 
 ## Implementation inventory
 
-- `scripts/asset_closure.py` — extracted-byte parser, graph traversal, manifest and census CLI.
+- `scripts/asset_closure.py` — raw producer/parser graph traversal,manifest and census CLI; the CLI always constructs the receipt-qualified auditor.
+- `scripts/closure_receipts.py` — receipt-selected model IO,product/build-qualified graph identities and native flat-reader boundary.
 - `scripts/closure_seeds.py` — metadata joins and configurable content roots.
 - `scripts/closure-northshire.json` — four Northshire ADT tiles and one Human Warrior.
 - `scripts/closure-full-catalog.json` — broad catalog selectors; not a completeness certificate.
 
 ## Tests asserting this spec
 
-- `scripts/tests/test_asset_closure.py` — concrete binary chains, catalog joins, missing/malformed dependencies, cycles, aliases and census.
+- `scripts/tests/test_asset_closure.py` — concrete raw producer binary chains,catalog joins,missing/malformed dependencies,cycles,aliases and census.
+- `scripts/tests/test_closure_receipts.py` — actual CLI scoped-only descendants,mixed-product same-FDID roots,owning-build companion aliases,wrong-product/legacy rejection,corrupt payload rejection and unchanged native flat WMO material selection.
 - `scripts/tests/test_closure_skyboxes.py` — map isolation, all authored lighting slots, skybox7345733/skin7345740, celestial roots, positive missing joins versus zero and tile-free catalog entrypoint.
 - `scripts/tests/test_closure_game_objects.py` — observed entry202588/display2690/model200010/skin505852 chain, map/tile selection, transport WMO identity, unspawned roots, named missing rows and selection fingerprint changes.
 - `scripts/tests/test_staged_asset_fragment.py` — canonical cross-fragment uniqueness, equal-byte/different-scope ownership, conflicting payload rejection and preserved legacy alias metadata.

@@ -117,7 +117,9 @@ def read_local_listfile(path):
     return by_fdid, by_path
 
 
-class Closure:
+class RawByteGraph:
+    """Producer/parser byte discovery, not a receipt-qualified offline audit."""
+
     def __init__(
         self, data, paths, product, metadata_build, runtime_paths=None, path_cache=None
     ):
@@ -173,10 +175,16 @@ class Closure:
                 "sha256": digest(path),
             }
 
+    def asset_key(self, fdid, kind):
+        return int(fdid), kind
+
+    def wmo_context_key(self, fdid):
+        return fdid
+
     def add(self, fdid, kind, reason, parent=None, alias=None):
         if not fdid:
             return
-        key = (int(fdid), kind)
+        key = self.asset_key(fdid, kind)
         if key not in self.assets:
             self.assets[key] = {
                 "fdid": int(fdid),
@@ -639,10 +647,11 @@ def main():
     )
     args = parser.parse_args()
     from closure_seeds import seed_catalogs
+    from closure_receipts import ReceiptClosure
 
     config = json.loads(args.config.read_text())
     paths, runtime_paths = read_listfile(args.data / "community-listfile.csv")
-    graph = Closure(
+    graph = ReceiptClosure(
         args.data,
         paths,
         config["product"],

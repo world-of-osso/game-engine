@@ -9,7 +9,7 @@ import tempfile
 import unittest
 
 sys.path.insert(0, str(Path(__file__).parents[1]))
-from asset_closure import Closure
+from asset_closure import RawByteGraph
 from closure_seeds import seed_terrain, seed_catalogs
 
 
@@ -25,7 +25,7 @@ class FullRootsTests(unittest.TestCase):
             maid = struct.pack("<8I", 20, 0, 0, 0, 0, 21, 0, 0)
             (data / "terrain/10.wdt").write_bytes(chunk("MAID", maid))
             (data / "terrain/20.adt").write_bytes(chunk("MVER", struct.pack("<I", 18)))
-            graph = Closure(
+            graph = RawByteGraph(
                 data, {10: "world/maps/newmap/newmap.wdt"}, "wow", "fixture"
             )
             seed_terrain(
@@ -47,7 +47,7 @@ class FullRootsTests(unittest.TestCase):
             (data / "terrain/10.wdt").write_bytes(
                 chunk("MWMO", b"world/global.wmo\0") + chunk("MODF", placement)
             )
-            graph = Closure(
+            graph = RawByteGraph(
                 data,
                 {10: "world/maps/indoor/indoor.wdt", 11: "world/global.wmo"},
                 "wow",
@@ -76,7 +76,7 @@ class FullRootsTests(unittest.TestCase):
             """)
             db.commit()
             db.close()
-            graph = Closure(data, {}, "wow", "fixture")
+            graph = RawByteGraph(data, {}, "wow", "fixture")
             seed_catalogs(
                 graph,
                 data / "world.db",
