@@ -43,7 +43,7 @@ func run_case(forever: bool, payload: String) -> bool:
     var clear: Dictionary = JSON.parse_string(payload)
     clear["conversations"] = []
     error = fixture.receive(JSON.stringify(clear), 400)
-    check(error.is_empty(), "authoritative source clear: " + skin)
+    check(error.is_empty(), "authoritative source clear %s: %s" % [skin, error])
     error = fixture.tick(0.0)
     check(error.is_empty(), "begin production Close: " + skin)
     check(is_instance_valid(player) and player.playing, "StopSound2000ms must fade, not cut off: " + skin)
