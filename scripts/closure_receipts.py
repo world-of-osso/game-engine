@@ -41,6 +41,11 @@ def validate_receipt(row, alias=False):
         raise ValueError(f"Asset has wrong namespace; expected {expected}")
 
 
+def receipt_rows(document):
+    yield from ((row, False) for row in document["assets"])
+    yield from ((row, True) for row in document.get("aliases", []))
+
+
 class ReceiptClosure(RawByteGraph):
     def __init__(self, *args, **kwargs):
         super().__init__(*args, **kwargs)
@@ -53,19 +58,15 @@ class ReceiptClosure(RawByteGraph):
         self.scoped_receipts = {}
         for path, document in documents.items():
             self.input_file(path)
-            for alias, rows in [
-                (False, document["assets"]),
-                (True, document.get("aliases", [])),
-            ]:
-                for row in rows:
-                    validate_receipt(row, alias)
-                    previous = self.scoped_receipts.get(row["path"])
-                    if previous and any(
-                        previous[field] != row[field]
-                        for field in ["product", "fdid", "kind", "bytes", "sha256"]
-                    ):
-                        raise ValueError(f"Conflicting scoped receipt: {row['path']}")
-                    self.scoped_receipts[row["path"]] = row
+            for row, alias in receipt_rows(document):
+                validate_receipt(row, alias)
+                previous = self.scoped_receipts.get(row["path"])
+                if previous and any(
+                    previous[field] != row[field]
+                    for field in ["product", "fdid", "kind", "bytes", "sha256"]
+                ):
+                    raise ValueError(f"Conflicting scoped receipt: {row['path']}")
+                self.scoped_receipts[row["path"]] = row
 
     def request(self, fdid, kind):
         parent = self.active_asset
