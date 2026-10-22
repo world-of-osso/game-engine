@@ -266,6 +266,22 @@ Lead-only publication of `staged-selected-map-eight-materials-current` is reques
 
 **Process-exit gap:** fixture shutdown is recorded, but process-completion polling reaches the hard288second alarm. Forced cleanup finishes the whole pair in291.044seconds, below300; do not label this normal native exit. Owned runtime stops, UDP5961 is unbound, and the new client exemption is consumed. Exact case summary and `r5c-pair-controller.json` preserve this distinction. No automatic retry or budget extension.
 
+### Fresh full-catalog Retail diagnostic on frozen70448 metadata
+
+`p4-current-r1/audit-wow` runs the frozen production traversal with every full-catalog selector,requested productwow and metadata70448. Normal ADD,read-only host,no install/network; hard14GiB/zero-swap/2hours. It completes in2,055.203seconds with12G reported memory peak. Expected exit1 means incomplete audit,not an execution crash. Compressed manifest172,000,956bytes,SHA256`339d8e4cb9449ae8c10990c6c6da3aff4d8fbcbabced294a7a46c5e24b912b86`; gzip CRC passes and reconciliation SQLite quick_check is ok.
+
+| Boundary | Fresh diagnostic result |
+|---|---|
+| Legacy-flat graph |1,094,268 identities;999,722 present/94,546 missing;42,846 unresolved |
+| Matching scoped receipt payloads |178,994 size/SHA256/content-key MD5 valid;zero matched-owner payload failures |
+| Legacy bytes versus those receipts |168,917 hash matches;10,077 differ or are absent |
+| Other graph nodes |547,740 native model-index kinds lack matching receipts;367,534 identities belong outside ModelAssetIndex |
+| Principal unresolved classes |36,703 unexpanded missing-byte records;3,851 metadata joins;2,231 unknown sound formats; remaining classes retained in summary |
+
+**Not a native missing-file frontier:**9,407 raw misses already have valid scoped payloads (5,664M2/3,332BLP/411SKIN). The existing auditor reads legacy flat paths and one requested product per graph,not native mixed-product receipt-selected inputs. Failed raw owners hide descendants,so this graph is not source-faithful P4 closure. All1,094,268 graph identity_status fields remain unverified; the separate receipt checks do not rewrite them. New missing IDs have not been classified as root-absent or encrypted.
+
+Exact per-identity evidence: `manifest.json.gz`, `reconciliation.sqlite`, `reconciliation-counts.json`, `summary.json`. The independent Forever-runtime-metadata pass is queued sequentially under normal ADD; it uses70205 metadata without relabelling it70450. No native run,extraction or publication accompanies these audits. Real-file evidence footprint after Retail is18.886GiB (bounded fd inventory,no symlink following).
+
 ## Remaining acceptance and proposed P4 plan
 
 Lead confirms eight-material CASC re-extraction/no-clobber publication:226,775 canonical keys,zero duplicates,flat legacy files untouched. Independent eight-payload readback is recorded above. This is not full-catalog certification.
