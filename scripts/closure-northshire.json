@@ -1,6 +1,7 @@
 {
   "product": "wow",
   "metadata_build": "12.1.0.69933",
+  "customization_cache": "cache/customization-v5.sqlite",
   "table_paths": {
     "ModelFileData": "ModelFileData.csv",
     "TextureFileData": "TextureFileData.csv",
@@ -10,6 +11,7 @@
   "maps": [{"id": 0, "directory": "azeroth", "tiles": [[32, 48], [33, 48], [32, 49], [33, 49]]}],
   "characters": [{"race": 1, "sex": 0, "class": 1, "level": 1, "choices": "default"}],
   "npc_displays": "tiles",
+  "game_objects": "tiles",
   "items": "starting",
   "spells": "spellbook"
 }

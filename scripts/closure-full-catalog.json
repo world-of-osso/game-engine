@@ -1,6 +1,7 @@
 {
   "product": "wow",
   "metadata_build": "12.1.0.69933",
+  "customization_cache": "cache/customization-v5.sqlite",
   "table_paths": {
     "ModelFileData": "ModelFileData.csv",
     "ItemDisplayInfoMaterialRes": "ItemDisplayInfoMaterialRes.csv",
@@ -9,6 +10,7 @@
   "maps": "all",
   "characters": "all",
   "npc_displays": "all",
+  "game_objects": "all",
   "items": "all",
   "spells": "all"
 }
