@@ -167,8 +167,11 @@ fn roster(session: &GuildRanksSession, shared: &SharedContext) -> Element {
     children.extend(crate::guild_news::frame(session, shared));
     children.extend(member_menu(session));
     children.extend(crate::guild_member_detail::detail(session));
-    rsx! { r#frame { name: {DynName("CommunitiesFrame".into())}, width: 814.0, height: 426.0,
-    left: "50%", top: "50%", translate_x: "-50%", translate_y: "-50%", pos_type: "absolute", mouse_enabled: true, strata: FrameStrata::Dialog, {children} } }
+    crate::panel_lifecycle::bind_close(
+        rsx! { r#frame { name: {DynName("CommunitiesFrame".into())}, width: 814.0, height: 426.0,
+        left: "50%", top: "50%", translate_x: "-50%", translate_y: "-50%", pos_type: "absolute", mouse_enabled: true, strata: FrameStrata::Dialog, {children} } },
+        "guild_ranks",
+    )
 }
 fn guild_profile(session: &GuildRanksSession) -> Element {
     if session.communities_tab != crate::guild_ranks::CommunitiesTab::Info {

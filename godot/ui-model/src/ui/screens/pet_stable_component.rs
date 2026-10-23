@@ -98,10 +98,13 @@ pub fn pet_stable_screen(ctx: &SharedContext) -> Element {
     }
     let x = (view.viewport[0] - WIDTH) * 0.5;
     let y = (view.viewport[1] - HEIGHT) * 0.5;
-    rsx! { r#frame { name: {DynName(FRAME_NAME.into())}, width: WIDTH, height: HEIGHT,
-        strata: FrameStrata::Dialog, mouse_enabled: true, pos_type: "absolute", left: x, top: y,
-        {children}
-    } }
+    crate::panel_lifecycle::bind_close(
+        rsx! { r#frame { name: {DynName(FRAME_NAME.into())}, width: WIDTH, height: HEIGHT,
+            strata: FrameStrata::Dialog, mouse_enabled: true, pos_type: "absolute", left: x, top: y,
+            {children}
+        } },
+        "combat_stable",
+    )
 }
 
 fn stabled_list(view: &StableFrameView) -> Element {

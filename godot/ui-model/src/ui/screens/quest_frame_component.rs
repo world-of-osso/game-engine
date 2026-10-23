@@ -204,22 +204,25 @@ pub fn quest_frame_screen(ctx: &SharedContext) -> Element {
         (PARCHMENT_X, PARCHMENT_Y, PARCHMENT_W, PARCHMENT_H),
     );
     let page = page_elements(&state.page, ctx);
-    rsx! {
-        r#frame {
-            name: {DynName(QUEST_FRAME.into())},
-            width: FRAME_W,
-            height: FRAME_H,
-            strata: FrameStrata::Dialog,
-            hidden: hide,
-            mouse_enabled: true,
-            pos_type: "absolute",
-            left: 16.0,
-            top: 104.0,
-            {chrome}
-            {parchment}
-            {page}
-        }
-    }
+    crate::panel_lifecycle::bind_close(
+        rsx! {
+            r#frame {
+                name: {DynName(QUEST_FRAME.into())},
+                width: FRAME_W,
+                height: FRAME_H,
+                strata: FrameStrata::Dialog,
+                hidden: hide,
+                mouse_enabled: true,
+                pos_type: "absolute",
+                left: 16.0,
+                top: 104.0,
+                {chrome}
+                {parchment}
+                {page}
+            }
+        },
+        "quests",
+    )
 }
 
 fn page_elements(page: &QuestFramePage, ctx: &SharedContext) -> Element {

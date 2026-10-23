@@ -66,11 +66,14 @@ pub fn basic_screen(view: &HousingView) -> Element {
         false,
         Element::default(),
     );
-    rsx! {r#frame {name:"HouseEditorFrame",stretch:true,
-        button {name:"HouseEditorDecorMoveOverlay",stretch:true,hidden:overlay_hidden,strata:FrameStrata::High,mouse_enabled:true,button_default_skin:false}
-        {drawer} {modes} {instructions}
-        r#frame {name:"HouseEditorBasicSubmodeBar",width:116.0,height:64.0,left,top,pos_type:"absolute",strata:FrameStrata::Dialog,{snap}{free}}
-    }}
+    crate::panel_lifecycle::bind_close(
+        rsx! {r#frame {name:"HouseEditorFrame",stretch:true,
+            button {name:"HouseEditorDecorMoveOverlay",stretch:true,hidden:overlay_hidden,strata:FrameStrata::High,mouse_enabled:true,button_default_skin:false}
+            {drawer} {modes} {instructions}
+            r#frame {name:"HouseEditorBasicSubmodeBar",width:116.0,height:64.0,left,top,pos_type:"absolute",strata:FrameStrata::Dialog,{snap}{free}}
+        }},
+        "housing",
+    )
 }
 
 fn text_width(text: &str) -> f32 {
