@@ -3,7 +3,6 @@ use crate::{GameClient, ui::RegistryUi};
 use game_engine_ui_model::game_menu_component::GameMenuView;
 use game_engine_ui_model::options_menu_component::{LayoutOptionsView, OptionsCategory};
 use game_engine_ui_model::options_menu_data::{self as policy, BindingCapture, OptionsModel};
-use godot::classes::{INode3D, InputEventKey};
 use godot::prelude::*;
 
 #[godot_api(secondary)]
@@ -58,7 +57,7 @@ impl GameClient {
 
     #[func]
     fn step_game_menu_escape_probe(&mut self) -> VarDictionary {
-        send_escape(self);
+        crate::escape::send_fixture_escape(self);
         menu_probe_state(self)
     }
 
@@ -108,16 +107,6 @@ fn append_menu_binding(state: &mut VarDictionary, ui: &Gd<RegistryUi>) {
     }
     if let Some(group) = binding.close_group {
         state.set("group", group.as_str());
-    }
-}
-
-fn send_escape(client: &mut GameClient) {
-    let mut key = InputEventKey::new_gd();
-    key.set_keycode(godot::global::Key::ESCAPE);
-    key.set_pressed(true);
-    let event = key.upcast();
-    if !client.dispatch_priority_input(&event) {
-        <GameClient as INode3D>::unhandled_key_input(client, event);
     }
 }
 

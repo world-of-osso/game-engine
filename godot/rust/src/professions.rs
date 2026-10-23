@@ -14,6 +14,9 @@ use shared::protocol::ProfessionSnapshot;
 use std::collections::{BTreeMap, BTreeSet};
 use std::sync::mpsc::{self, Receiver, TryRecvError};
 
+#[cfg(debug_assertions)]
+#[path = "professions_escape_fixture.rs"]
+mod escape_fixture;
 #[path = "professions_favorites.rs"]
 mod favorites;
 #[path = "professions_reagents.rs"]
