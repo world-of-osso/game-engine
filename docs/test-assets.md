@@ -22,6 +22,12 @@ The exporter reads `forever-1.60.1.70205/skyborne-probe/1122117.db2` and `foreve
 
 The source hashes/layout and runtime behavior are documented in [Forever authored names](wiki/systems/forever-data.md#authored-skyborne-names). Main must provision the export before running the full `name_catalog` test filter through the desktop/local helper; fixture-only development proof is not asset-provisioned or native UI acceptance.
 
+## Receipt and DB2 export fixtures
+
+The authentic product-collision test requires `DEPOT_GAME_ENGINE_DATA` explicitly set to a data root containing `products/wow/88d5e8ef05ec5a8446cdec93d142d7c6/models/{579120.m2,579121.skin}` and the corresponding `products/wow_classic_beta/84bea4233331e390fda8724c6f91ffa5/models/` pair. It fails clearly when unset; no canonical-path fallback or network extraction occurs. Existing SHA256 pins authenticate the supplied bytes; Blizzard assets are not checked into git.
+
+BeamEffect/CloneEffect CLI export tests pass the checked-in `scripts/tests/fixtures/db2-dbd` definitions explicitly. Its receipt pins the open-source WoWDBDefs revision and DBD hashes. Export summaries report unreadable-record counts separately from emitted rows.
+
 ## Models and textures
 
 - M2: `data/models/club_1h_torch_a_01.m2` — **textured** item model (FDID 145513 + 198077)
