@@ -203,26 +203,26 @@ pub fn merchant_frame_screen(ctx: &SharedContext) -> Element {
     }
     children.extend(money_bar(state.money));
     children.extend(tabs(state.buyback_tab));
-    rsx! {
-        r#frame {
-            name: {DynName(FRAME_NAME.into())},
-            lifecycle_on_show: {LIFECYCLE_SOUNDS.on_show.unwrap()},
-            lifecycle_on_hide: {LIFECYCLE_SOUNDS.on_hide.unwrap()},
-            lifecycle_close_hook: "merchant",
-            lifecycle_close_group: "PANELS",
-            lifecycle_escape_priority: "AddOnPost",
-            width: FRAME_W,
-            height: FRAME_H,
-            strata: FrameStrata::Dialog,
-            hidden: hide,
-            mouse_enabled: true,
-            onclick: ACTION_FRAME,
-            pos_type: "absolute",
-            left: 16.0,
-            top: 104.0,
-            {children}
-        }
-    }
+    crate::panel_lifecycle::bind_close(
+        rsx! {
+            r#frame {
+                name: {DynName(FRAME_NAME.into())},
+                lifecycle_on_show: {LIFECYCLE_SOUNDS.on_show.unwrap()},
+                lifecycle_on_hide: {LIFECYCLE_SOUNDS.on_hide.unwrap()},
+                width: FRAME_W,
+                height: FRAME_H,
+                strata: FrameStrata::Dialog,
+                hidden: hide,
+                mouse_enabled: true,
+                onclick: ACTION_FRAME,
+                pos_type: "absolute",
+                left: 16.0,
+                top: 104.0,
+                {children}
+            }
+        },
+        "merchant",
+    )
 }
 
 fn texture(name: String, fdid: u32, rect: (f32, f32, f32, f32), color: &str) -> Element {

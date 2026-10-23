@@ -17,6 +17,9 @@ use shared::components::{EquipmentAppearance, EquippedAppearanceEntry, SheathSta
 use shared::protocol::{EquipmentSlot, TradingPostRequest};
 use ui_toolkit::lifecycle::{HoverEdge, VisibilityEdge};
 
+#[cfg(debug_assertions)]
+#[path = "lifecycle_close_fixture.rs"]
+mod lifecycle_close_fixture;
 #[path = "trading_post_mount.rs"]
 mod mount_preview;
 

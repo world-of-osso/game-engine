@@ -155,6 +155,7 @@ pub mod compact_unit_frame_component;
 #[path = "ui/screens/group_frames_component.rs"]
 pub mod group_frames_component;
 pub use inworld_unit_frames_component::portrait_party_frame_component;
+pub mod panel_lifecycle;
 #[path = "ui/popup.rs"]
 pub mod popup;
 pub mod ready_check_difficulty;
