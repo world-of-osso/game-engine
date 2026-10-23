@@ -1,6 +1,6 @@
 ## 2026-10-22 — Exclusive Escape dispatch and root metadata in progress
 
-[Lifecycle bindings](systems/ui-system.md#lifecycle-bindings--step-5-partial): deleted global native ordering chain in favor of stable shared dispatch after real menu/pending precedence RED. GameMenu root now reads the same exclusive registration after model metadata RED; core13 passes. Painted GameClient ordering GREEN, native click consumers and the unified independent optional-policy catalog remain open.
+[Lifecycle bindings](systems/ui-system.md#lifecycle-bindings--step-5-partial): deleted global native ordering chain in favor of stable shared dispatch after real menu/pending precedence RED. GameMenu root now reads the same exclusive registration after model metadata RED; core13 passes. Rebuilt GameClient painted ordering passes4/4 across both skins with four inspected full-HD PNGs, model1 and extension/CLI build pass. Native click consumers, further priorities and the unified independent optional-policy catalog remain open.
 
 ## 2026-10-22 — Shared close registrations and decoded ReadyCheck sound
 
