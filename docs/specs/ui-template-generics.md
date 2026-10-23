@@ -20,6 +20,15 @@ Port recurring behavior once from the Retail R cache, then migrate every audited
 - [ ] Step 5: tooltip-owner/content bindings and lifecycle/Escape/sound descriptors; migrate listed consumers while preserving live-content refresh, placement, domain close actions and source ordering.
 - [ ] Step 6: keyboard navigation and scroll configuration; migrate the audited list/search routing and scroll name dispatch while preserving domain eligibility and distinct row/pixel units.
 
+## FontString text markup
+
+- Shared core decoding handles `|cAARRGGBB`/`|r` colour runs, `|Htarget|hdisplay|h` hyperlink display text, and escaped `||` literal pipes for every FontString; no panel-name stripping or invented link colour.
+- Measurement uses display text without supported control bytes. Registry source strings remain unchanged; escaped display text is not parsed twice.
+- Coloured text retains the authored font, alignment, shadow, outline and allocated bounds. Reactive plain→coloured→plain updates preserve descendant controls and their local placement.
+- Uncoloured FontStrings retain the existing Label path. Texture/atlas controls and hyperlink activation are outside this slice.
+
+**Named gap — COLOURED_FONTSTRING_TRUNCATION_UNSUPPORTED:** the coloured native control lacks Label's line-limit/ellipsis controls. Keep plain-label behavior unchanged; additional shaping requires an actual affected Adventure Guide single-line overflow and lead approval.
+
 ## How it works
 
 - [Existing UI system](../wiki/systems/ui-system.md).

@@ -5,7 +5,7 @@ use std::rc::Rc;
 use godot::classes::text_server::{AutowrapMode, OverrunBehavior};
 use godot::classes::{
     Button, ColorRect, Control, InputEvent, InputEventMouseButton, InputEventMouseMotion, Label,
-    LineEdit, StyleBoxEmpty, TextEdit, Texture2D, TextureRect,
+    LineEdit, RichTextLabel, StyleBoxEmpty, TextEdit, Texture2D, TextureRect,
 };
 use godot::global::{HorizontalAlignment, VerticalAlignment};
 use godot::prelude::*;
@@ -24,6 +24,8 @@ use super::layout;
 use super::parts::{self, ImagePart, TextPart};
 use crate::frame_error::report_once;
 
+#[path = "font_string_markup.rs"]
+mod font_string_markup;
 #[path = "text_markup_fixture.rs"]
 mod text_markup_fixture;
 
@@ -412,6 +414,9 @@ impl UiProjection {
                 .and_then(|id| self.nodes.get(&id))
                 .cloned()
                 .unwrap_or_else(|| self.root.clone());
+            if self.replace_font_string_node(frame, registry, &parent)? {
+                created.set(created.get() + 1);
+            }
             if !self.nodes.contains_key(&frame.id) {
                 let node = self.create_node(frame, registry)?;
                 parent
@@ -522,6 +527,7 @@ impl UiProjection {
         frame: &Frame,
         data: &ui_toolkit::widgets::font_string::FontStringData,
     ) -> Result<(f32, f32), String> {
+        let (display, _) = font_string_markup::decode_font_string(data);
         let width = match frame.width {
             Dimension::Fixed(width) => width,
             _ => 0.0,
@@ -538,18 +544,18 @@ impl UiProjection {
             height: 0.0,
         };
         let result = self
-            .update_label(label.clone(), data, frame, &rect)
+            .update_label(label.clone(), &display, frame, &rect)
             .and_then(|()| {
                 let size = label.get_minimum_size();
-                let line_count = if data.text.is_empty() {
+                let line_count = if display.text.is_empty() {
                     0
                 } else {
                     label.get_line_count() as usize
                 };
-                let line_count = data
+                let line_count = display
                     .max_lines
                     .map_or(line_count, |limit| line_count.min(limit as usize));
-                let (_, metrics) = self.resolve_font_string(data, frame, line_count)?;
+                let (_, metrics) = self.resolve_font_string(&display, frame, line_count)?;
                 Ok((size.x, metrics.block_height_ui.max(1.0)))
             });
         self.root.remove_child(&label);
@@ -583,7 +589,13 @@ impl UiProjection {
                 }
                 _ => LineEdit::new_alloc().upcast(),
             },
-            WidgetType::FontString => Label::new_alloc().upcast(),
+            WidgetType::FontString => {
+                if font_string_markup::uses_colored_text(frame) {
+                    RichTextLabel::new_alloc().upcast()
+                } else {
+                    Label::new_alloc().upcast()
+                }
+            }
             other => {
                 return Err(format!(
                     "Unconverted native widget {other:?}: {}",
@@ -843,7 +855,7 @@ impl UiProjection {
             }
             Some(WidgetData::EditBox(edit)) => self.update_editbox(node, edit, rect)?,
             Some(WidgetData::FontString(text)) => {
-                self.update_label(node.cast::<Label>(), text, frame, rect)?
+                self.update_font_string(node, text, frame, rect)?
             }
             None | Some(WidgetData::Texture(_)) | Some(WidgetData::Slider(_)) => {}
             Some(other) => {
@@ -961,20 +973,8 @@ impl UiProjection {
         }
         label.add_theme_font_size_override("font_size", text.font_size as i32);
         label.add_theme_color_override("font_color", color(text.color));
-        // `OUTLINE` / `THICKOUTLINE` font flags: a black outline around each glyph.
-        let outline = match text.outline {
-            Outline::None => 0,
-            Outline::Outline => 2,
-            Outline::ThickOutline => 4,
-        };
-        label.add_theme_constant_override("outline_size", outline);
-        label.add_theme_color_override("font_outline_color", Color::from_rgba(0.0, 0.0, 0.0, 1.0));
-        // FontString `Shadow` (e.g. `ObjectiveTrackerLineFont` black at 1, −1): WoW's
-        // offset y is up, Godot's is down.
-        let (shadow_color, [x, y]) = text.shadow.unwrap_or(([0.0; 4], [0.0, 0.0]));
-        label.add_theme_color_override("font_shadow_color", color(shadow_color));
-        label.add_theme_constant_override("shadow_offset_x", x.round() as i32);
-        label.add_theme_constant_override("shadow_offset_y", (-y).round() as i32);
+        let mut control = label.clone().upcast::<Control>();
+        apply_text_effects(&mut control, text.outline, text.shadow);
         Ok(())
     }
 
@@ -1174,6 +1174,25 @@ fn depth(registry: &FrameRegistry, id: u64) -> usize {
         parent = registry.parent_of(id);
     }
     depth
+}
+
+fn apply_text_effects(
+    node: &mut Gd<Control>,
+    outline: Outline,
+    shadow: Option<([f32; 4], [f32; 2])>,
+) {
+    let outline = match outline {
+        Outline::None => 0,
+        Outline::Outline => 2,
+        Outline::ThickOutline => 4,
+    };
+    node.add_theme_constant_override("outline_size", outline);
+    node.add_theme_color_override("font_outline_color", Color::from_rgba(0.0, 0.0, 0.0, 1.0));
+    // FontString shadows use x right, y up; Godot's y is down.
+    let (shadow_color, [x, y]) = shadow.unwrap_or(([0.0; 4], [0.0, 0.0]));
+    node.add_theme_color_override("font_shadow_color", color(shadow_color));
+    node.add_theme_constant_override("shadow_offset_x", x.round() as i32);
+    node.add_theme_constant_override("shadow_offset_y", (-y).round() as i32);
 }
 
 fn color([r, g, b, a]: [f32; 4]) -> Color {
