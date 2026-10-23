@@ -130,6 +130,10 @@ class PublishModelFragmentTests(unittest.TestCase):
         self.assertFalse(self.backup.exists())
 
     def test_apply_merges_preserves_pre_index_and_rerun_is_noop(self):
+        preview = self.invoke()
+        self.assertEqual(preview.returncode, 0, preview.stderr)
+        expected = json.loads(preview.stdout)
+        prior_files = self.snapshot(self.root)
         result = self.invoke("--apply")
         self.assertEqual(result.returncode, 0, result.stderr)
         self.assertEqual((self.data / self.new["path"]).read_bytes(), self.new_raw)
@@ -139,6 +143,18 @@ class PublishModelFragmentTests(unittest.TestCase):
         self.assertEqual(index["chains"], [{"keep": "existing chain"}])
         self.assertEqual(
             (self.backup / f"pre-{self.filename}").read_bytes(), self.original_index
+        )
+        changed = {
+            str(self.root / path)
+            for path, raw in self.snapshot(self.root).items()
+            if prior_files.get(path) != raw
+        }
+        self.assertEqual(
+            changed,
+            set(
+                expected["canonical_write_paths"]
+                + expected.get("backup_write_paths", [])
+            ),
         )
         self.assertEqual(
             json.loads((self.data / "cache/model-asset-index.json").read_text())[

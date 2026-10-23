@@ -32,7 +32,7 @@ Offline audit tooling in `scripts/asset_closure.py` computes a content-rooted de
 
 ### Lead-only fragment publication
 
-- [x] Default dry-run reads the staged package and **current** canonical receipt union without modifying either; report unique-owner/path conflicts,identical-payload no-ops,copy/space estimates and every canonical payload/index path requiring a write.
+- [x] Default dry-run reads the staged package and **current** canonical receipt union without modifying either; report unique-owner/path conflicts,identical-payload no-ops,copy/space estimates and every canonical payload/index path plus every persistent backup/recovery artifact requiring a write.
 - [x] Differing owner or destination hashes,duplicate canonical owners and invalid source size/SHA256/content-MD5 refuse publication before writes. Identical existing owners remain immutable; required additional namespaces use explicit authenticated aliases.
 - [x] Only explicit `--apply` publishes: atomic payload copies precede the merged index,each touched index has a retained `pre-*` backup(or an explicit previous-absence record),and transaction recovery is retained. Re-running a completed publication is a no-op; apply remains lead-only.
 
