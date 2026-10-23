@@ -7,7 +7,7 @@ import tempfile
 import unittest
 
 sys.path.insert(0, str(Path(__file__).parents[1]))
-from asset_closure import Closure
+from asset_closure import RawByteGraph
 
 
 def chunk(tag, payload):
@@ -54,7 +54,7 @@ class EmitterTests(unittest.TestCase):
                 2: "particle/child.m2",
                 3: "particle/geometry.m2",
             }
-            g = Closure(data, paths, "wow", "fixture")
+            g = RawByteGraph(data, paths, "wow", "fixture")
             g.add(1, "m2", "seed")
             result = g.run()
             self.assertEqual(
@@ -101,7 +101,7 @@ class EmitterTests(unittest.TestCase):
                 + chunk("BFID", struct.pack("<2I", 100, 101))
                 + chunk("PFID", struct.pack("<I", 102))
             )
-            g = Closure(d, {}, "wow", "fixture")
+            g = RawByteGraph(d, {}, "wow", "fixture")
             g.add(1, "m2", "seed")
             r = g.run()
             self.assertEqual(
@@ -119,7 +119,7 @@ class EmitterTests(unittest.TestCase):
             d = Path(tmp)
             (d / "models").mkdir()
             (d / "models/1.m2").write_bytes(chunk("MD21", raw))
-            g = Closure(d, {}, "wow", "fixture")
+            g = RawByteGraph(d, {}, "wow", "fixture")
             g.add(1, "m2", "seed")
             r = g.run()
             self.assertTrue(

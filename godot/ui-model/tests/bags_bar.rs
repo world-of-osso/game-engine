@@ -19,6 +19,31 @@ fn left_top(frame: &Frame) -> (f32, f32) {
 }
 
 #[test]
+fn ui_template_behavior_bag_bar_art_uses_left_owned_tooltip() {
+    use ui_toolkit::atlas::{ActiveSkin, set_thread_skin};
+    use ui_toolkit::tooltip::{TooltipAnchor, tooltip_owner};
+    for skin in [ActiveSkin::Modern, ActiveSkin::Forever] {
+        set_thread_skin(skin);
+        let mut registry = FrameRegistry::new(1920.0, 1080.0);
+        let mut shared = SharedContext::new();
+        shared.insert(skin);
+        shared.insert(BagBarState::default());
+        Screen::new(bags_bar_screen).sync(&shared, &mut registry);
+        for name in [
+            "MainMenuBarBackpackButton",
+            "CharacterBag0Slot",
+            "CharacterBag3Slot",
+        ] {
+            let hit = registry.get_by_name(&format!("{name}Art")).unwrap();
+            let (owner, binding) = tooltip_owner(&registry, hit).expect(name);
+            assert_eq!(owner.name.as_deref(), Some(name));
+            assert_eq!(binding.provider.as_deref(), Some("bag_bar"));
+            assert_eq!(binding.anchor, TooltipAnchor::Left);
+        }
+    }
+}
+
+#[test]
 fn bags_bar_has_no_money_in_either_preset() {
     for skin in [
         ui_toolkit::atlas::ActiveSkin::Modern,

@@ -190,19 +190,22 @@ fn bag_container(bag: &BagContainerState, state: &BagFrameState) -> Element {
         (size, grid_right, grid_bottom),
     ));
     let x_offset = 300.0 + bag.bag_index as f32 * 20.0;
-    rsx! {
-        r#frame {
-            name: {DynName(prefix)},
-            width: {size.0},
-            height: {size.1},
-            strata: FrameStrata::Dialog,
-            hidden: hide,
-            pos_type: "absolute",
-            left: {x_offset},
-            top: 100.0,
-            {children}
-        }
-    }
+    crate::panel_lifecycle::bind_close(
+        rsx! {
+            r#frame {
+                name: {DynName(prefix)},
+                width: {size.0},
+                height: {size.1},
+                strata: FrameStrata::Dialog,
+                hidden: hide,
+                pos_type: "absolute",
+                left: {x_offset},
+                top: 100.0,
+                {children}
+            }
+        },
+        "bags",
+    )
 }
 
 /// `<prefix>Portrait`: the bag's round portrait over the metal ring.
@@ -422,6 +425,8 @@ fn bag_slot_frame(
             height: {SLOT_SIZE},
             onclick: {action.as_str()},
             mouse_enabled: true,
+            tooltip_provider: "bag_slot",
+            tooltip_anchor: "BAG_SLOT",
             pos_type: "absolute",
             left: {x},
             top: {y},

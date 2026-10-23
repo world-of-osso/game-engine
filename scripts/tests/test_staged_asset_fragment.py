@@ -45,6 +45,54 @@ class StagedFragmentTests(unittest.TestCase):
         path.write_text(json.dumps(document))
         return path
 
+    def test_unsupported_kind_rejected_before_fragment_publication(self):
+        self.write("model-asset-index.json", self.document([self.receipt(42)]))
+        before = {p: p.read_bytes() for p in self.data.rglob("*") if p.is_file()}
+        payload = b"opaque authenticated payload"
+        unsupported = dict(
+            self.receipt(768431, payload=payload),
+            kind="blob",
+            path=f"products/wow/{'a' * 32}/textures/768431.blob",
+        )
+        fragment = self.document([unsupported])
+        for prepare in (
+            publication.deduplicate_staged_fragment,
+            publication.validate_staged_fragment,
+        ):
+            with self.subTest(operation=prepare.__name__):
+                with self.assertRaisesRegex(ValueError, "Unsupported.*kind blob"):
+                    prepare(self.data, fragment)
+        identity = {key: unsupported[key] for key in ("product", "build_key", "build")}
+        with self.assertRaisesRegex(ValueError, "Unsupported.*kind blob"):
+            publication.publish_receipts(
+                self.data,
+                identity,
+                {"dependencies": {}},
+                [(unsupported, payload)],
+                [],
+                fragment="unsupported",
+            )
+        self.assertEqual(
+            {p: p.read_bytes() for p in self.data.rglob("*") if p.is_file()}, before
+        )
+
+    def test_native_supported_asset_kinds_remain_publishable(self):
+        assets = []
+        for kind in ("m2", "wmo", "skin", "skel", "anim", "bone", "blp"):
+            directory = "textures" if kind == "blp" else "models"
+            assets.append(
+                dict(
+                    self.receipt(42),
+                    kind=kind,
+                    path=f"products/wow/{'a' * 32}/{directory}/42.{kind}",
+                )
+            )
+        prepared = publication.deduplicate_staged_fragment(
+            self.data, self.document(assets)
+        )
+        publication.validate_staged_fragment(self.data, prepared)
+        self.assertEqual(prepared["assets"], assets)
+
     def test_dedupe_reads_base_and_fragments_without_mutating_canonical(self):
         first, second = self.receipt(42), self.receipt(43)
         self.write("model-asset-index.json", self.document([first]))

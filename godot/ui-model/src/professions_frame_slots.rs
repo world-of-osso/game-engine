@@ -140,6 +140,7 @@ fn recipe_source_button(view: &ProfessionView) -> Element {
         (12.0, crate::quest_art::NORMAL_FONT_COLOR, "LEFT"),
     ));
     rsx! { button { name: "ProfessionsRecipeSourceButton", width: 150.0, height: 16.0,
+    tooltip_provider: "profession_recipe_source",
     left: 308.0, top: 171.0, pos_type: "absolute", button_default_skin: false, {children} } }
 }
 

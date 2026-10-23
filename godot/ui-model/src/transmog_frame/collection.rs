@@ -391,13 +391,16 @@ fn source_card(book: &TransmogBook, source: &TransmogSource, index: usize) -> El
     let pending = book.selected.is_some_and(|slot| {
         book.pending.get(&slot) == Some(&TransmogChoice::Source(source.source_id))
     });
-    item_card(
-        book,
-        format!("TransmogSource{}", source.source_id),
-        format!("transmog:source:{}", source.source_id),
-        index,
-        (applied, pending),
-        Vec::new(),
+    ui_toolkit::tooltip::bind_provider(
+        item_card(
+            book,
+            format!("TransmogSource{}", source.source_id),
+            format!("transmog:source:{}", source.source_id),
+            index,
+            (applied, pending),
+            Vec::new(),
+        ),
+        "transmog_source",
     )
 }
 
@@ -431,13 +434,16 @@ fn illusion_card(book: &TransmogBook, illusion: &TransmogIllusion, index: usize)
         slot.is_some_and(|slot| book.pending_illusions.get(&slot) == Some(&Some(illusion.id)));
     let name = rsx! { fontstring { name: {DynName(format!("TransmogIllusionEntry{}Name", illusion.id))},
     text: {illusion.name.as_str()}, hidden: true } };
-    item_card(
-        book,
-        format!("TransmogIllusionEntry{}", illusion.id),
-        format!("transmog:illusion:{}", illusion.id),
-        index,
-        (applied, pending),
-        name,
+    ui_toolkit::tooltip::bind_provider(
+        item_card(
+            book,
+            format!("TransmogIllusionEntry{}", illusion.id),
+            format!("transmog:illusion:{}", illusion.id),
+            index,
+            (applied, pending),
+            name,
+        ),
+        "transmog_illusion",
     )
 }
 
@@ -539,14 +545,17 @@ fn set_card(
         progress.collected,
         progress.total
     );
-    set_base_card(
-        format!("TransmogSet{}", set.set_id),
-        format!("transmog:set:{}", set.set_id),
-        index,
-        complete,
-        book.set_match(set),
-        status,
-        book.busy(),
+    ui_toolkit::tooltip::bind_provider(
+        set_base_card(
+            format!("TransmogSet{}", set.set_id),
+            format!("transmog:set:{}", set.set_id),
+            index,
+            complete,
+            book.set_match(set),
+            status,
+            book.busy(),
+        ),
+        "transmog_set",
     )
 }
 

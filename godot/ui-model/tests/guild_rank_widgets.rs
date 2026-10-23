@@ -54,6 +54,51 @@ fn mounted(session: &GuildRanksSession) -> FrameRegistry {
     game_engine_ui_model::guild_rank_frame::apply_guild_postsetup(session, &mut registry);
     registry
 }
+#[test]
+fn ui_template_behavior_services_guild_news_subject_keeps_live_entry_owner() {
+    use ui_toolkit::tooltip::{TooltipAnchor, tooltip_owner};
+    let _lock = SKIN.lock().unwrap_or_else(|p| p.into_inner());
+    for skin in [ActiveSkin::Modern, ActiveSkin::Forever] {
+        set_thread_skin(skin);
+        let mut session = GuildRanksSession::default();
+        session.open();
+        session.apply(state(0));
+        session.profile = Some(GuildSnapshot {
+            guild_id: 7,
+            guild_name: "Guild Testers".into(),
+            tabard: None,
+            created_at: None,
+            motd: String::new(),
+            info_text: String::new(),
+            members: vec![],
+        });
+        session.click("guild:info_open", &Default::default());
+        session.news.apply(GuildNewsState {
+            server_time: 1792100000,
+            error: None,
+            entries: vec![GuildNewsEntry {
+                id: 1,
+                timestamp: 1792090000,
+                sticky: false,
+                kind: GuildNewsKind::PlayerAchievement {
+                    member: "Cara".into(),
+                    achievement_id: 14782,
+                    name: "Level 50".into(),
+                    description: "Reach level 50.".into(),
+                },
+            }],
+        });
+        let registry = mounted(&session);
+        let hit = registry
+            .get_by_name("CommunitiesGuildNewsEntry1Subject")
+            .unwrap();
+        let (owner, binding) = tooltip_owner(&registry, hit).expect("guild news live owner");
+        assert_eq!(owner.name.as_deref(), Some("CommunitiesGuildNewsEntry1"));
+        assert_eq!(binding.provider.as_deref(), Some("guild_news"));
+        assert_eq!(binding.anchor, TooltipAnchor::Right);
+    }
+}
+
 fn text(reg: &FrameRegistry, name: &str) -> String {
     let f = reg.get(reg.get_by_name(name).expect(name)).unwrap();
     match f.widget_data.as_ref().unwrap() {

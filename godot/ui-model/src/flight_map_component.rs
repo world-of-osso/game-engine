@@ -39,19 +39,22 @@ pub fn flight_map_screen(ctx: &SharedContext) -> Element {
         "Flight Map",
         CLOSE_ACTION,
     );
-    rsx! {
-        r#frame {
-            name: "FlightMapRoot", stretch: true,
+    crate::panel_lifecycle::bind_close(
+        rsx! {
             r#frame {
-                name: "FlightMapFrame", width, height, mouse_enabled: true,
-                pos_type: "absolute", left, top,
-                background_color: "0.0,0.0,0.0,1.0",
-                {canvas}
-                {border}
-                {portrait}
+                name: "FlightMapRoot", stretch: true,
+                r#frame {
+                    name: "FlightMapFrame", width, height, mouse_enabled: true,
+                    pos_type: "absolute", left, top,
+                    background_color: "0.0,0.0,0.0,1.0",
+                    {canvas}
+                    {border}
+                    {portrait}
+                }
             }
-        }
-    }
+        },
+        "flight_map",
+    )
 }
 
 fn flight_canvas(view: &FlightMapView) -> Element {

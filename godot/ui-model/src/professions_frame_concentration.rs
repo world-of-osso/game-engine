@@ -33,6 +33,7 @@ pub(super) fn display(view: &ProfessionView) -> Element {
         (12.0, HIGHLIGHT_FONT_COLOR, "LEFT"),
     ));
     rsx! { r#frame { name: "ProfessionsConcentrationDisplay", width: 110.0, height: 32.0,
+        tooltip_provider: "profession_concentration",
         left: 120.0, top: 35.0, pos_type: "absolute", mouse_enabled: true, {children}
     } }
 }

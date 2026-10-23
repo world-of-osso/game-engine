@@ -44,9 +44,12 @@ pub fn expert_screen(view: &HousingView) -> Element {
     let instructions = expert_instructions(view);
     let submodes = submode_bar(view);
     let mouse_controls = crate::housing_mouse_component::mouse_controls(view);
-    rsx! {r#frame {name:"HouseEditorFrame",stretch:true,
-        {mouse_controls}{modes}{submodes}{instructions}
-    }}
+    crate::panel_lifecycle::bind_close(
+        rsx! {r#frame {name:"HouseEditorFrame",stretch:true,
+            {mouse_controls}{modes}{submodes}{instructions}
+        }},
+        "housing",
+    )
 }
 
 fn editor_disabled(view: &HousingView) -> bool {
@@ -151,12 +154,17 @@ fn submode_controls(view: &HousingView) -> Element {
                 (-56.0, -57.0, 176.0, 178.0),
             );
             overlays.extend(binding_control_text(view, name, binding, true));
-            icon_control(
-                (name, atlas, action),
-                (index as f32 * SUBMODE_STEP, 0.0),
-                restricted,
-                editor.submode == mode,
-                overlays,
+            ui_toolkit::tooltip::bind_provider_at(
+                icon_control(
+                    (name, atlas, action),
+                    (index as f32 * SUBMODE_STEP, 0.0),
+                    restricted,
+                    editor.submode == mode,
+                    overlays,
+                ),
+                "housing",
+                ui_toolkit::tooltip::TooltipAnchor::Top,
+                [0.0; 2],
             )
         })
         .collect()

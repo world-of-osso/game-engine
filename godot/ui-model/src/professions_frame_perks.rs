@@ -64,7 +64,7 @@ fn perk(view: &ProfessionView, node: &ProfessionSpecNodeSnapshot, ranks: PathRan
     let name = format!("ProfessionSpecPerk{}", node.node_id);
     let children = milestone_art(view, node, ranks, rotation);
     rsx! { r#frame { name: {DynName(name)}, left, top, width: PERK_SIZE, height: PERK_SIZE,
-    pos_type: "absolute", mouse_enabled: true, {children} } }
+    pos_type: "absolute", mouse_enabled: true, tooltip_provider: "profession_specialization", {children} } }
 }
 
 fn milestone_art(

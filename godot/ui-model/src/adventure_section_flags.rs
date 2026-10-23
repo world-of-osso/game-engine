@@ -76,7 +76,7 @@ fn flag_frame(section: u32, index: usize, (left, top): (f32, f32)) -> Element {
             region.height,
         ),
     );
-    rsx! {r#frame {name:{DynName(name)},left,top,width:FRAME_SIZE,height:FRAME_SIZE,pos_type:"absolute",mouse_enabled:true,{art}}}
+    rsx! {r#frame {name:{DynName(name)},left,top,width:FRAME_SIZE,height:FRAME_SIZE,pos_type:"absolute",mouse_enabled:true,tooltip_provider:"journal_section_flag",tooltip_anchor:"ANCHOR_RIGHT",{art}}}
 }
 
 pub fn tooltip(view: &View, frame: &str) -> Option<GameTooltip> {

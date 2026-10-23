@@ -287,28 +287,31 @@ pub fn auction_house_frame_screen(ctx: &SharedContext) -> Element {
 /// Uses the caller's context so category scroll positions remain reactive.
 pub fn auction_house_frame_content(ctx: &SharedContext, state: &AuctionHouseFrameState) -> Element {
     let hide = !state.visible;
-    rsx! {
-        r#frame {
-            name: {DynName(ROOT_FRAME.to_string())},
-            width: FRAME_W,
-            height: FRAME_H,
-            // Below `UIErrorsFrame` (`frameStrata="DIALOG"`, Blizzard_UIErrorsFrame/Mainline/UIErrorsFrame.xml) like every Retail
-            // UIParent panel, so server errors show over the frame.
-            strata: FrameStrata::High,
-            hidden: hide,
-            pos_type: "absolute",
-            left: 0.0,
-            top: 0.0,
-            {window_chrome(ROOT_FRAME, (FRAME_W, FRAME_H), state.tab.title(), ACTION_CLOSE)}
-            {crate::quest_art::window_portrait(&PORTRAIT)}
-            {money_frame(state.money)}
-            {tabs(state.tab)}
-            {buy_tab::buy_content(ctx, state)}
-            {sell_tab::sell_content(state)}
-            {auctions_tab::auctions_content(state)}
-            {buy_tab::buy_dialog(state.dialog.as_ref())}
-        }
-    }
+    crate::panel_lifecycle::bind_close(
+        rsx! {
+            r#frame {
+                name: {DynName(ROOT_FRAME.to_string())},
+                width: FRAME_W,
+                height: FRAME_H,
+                // Below `UIErrorsFrame` (`frameStrata="DIALOG"`, Blizzard_UIErrorsFrame/Mainline/UIErrorsFrame.xml) like every Retail
+                // UIParent panel, so server errors show over the frame.
+                strata: FrameStrata::High,
+                hidden: hide,
+                pos_type: "absolute",
+                left: 0.0,
+                top: 0.0,
+                {window_chrome(ROOT_FRAME, (FRAME_W, FRAME_H), state.tab.title(), ACTION_CLOSE)}
+                {crate::quest_art::window_portrait(&PORTRAIT)}
+                {money_frame(state.money)}
+                {tabs(state.tab)}
+                {buy_tab::buy_content(ctx, state)}
+                {sell_tab::sell_content(state)}
+                {auctions_tab::auctions_content(state)}
+                {buy_tab::buy_dialog(state.dialog.as_ref())}
+            }
+        },
+        "auction",
+    )
 }
 
 /// `MoneyFrameInset` (2,-27..167,-3 from the bottom) and `MoneyFrameBorder` 158×19 at
@@ -581,13 +584,16 @@ fn list_row(
     if selected {
         out.extend(crop_texture(format!("{name}Selected"), ROW_SELECT, rect));
     }
-    out.extend(crate::selection_list::row(
-        name.to_string(),
-        action,
-        true,
-        rect,
-        (&crate::selection_list::AUCTION_ROW, false),
-        cells,
+    out.extend(ui_toolkit::tooltip::bind_provider(
+        crate::selection_list::row(
+            name.to_string(),
+            action,
+            true,
+            rect,
+            (&crate::selection_list::AUCTION_ROW, false),
+            cells,
+        ),
+        "auction",
     ));
     out
 }

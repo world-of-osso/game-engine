@@ -209,13 +209,16 @@ fn entry(row: &CurrencyRow, (left, top, width): (f32, f32, f32)) -> Element {
         (12.0, color),
         "LEFT",
     ));
-    crate::selection_list::row(
-        name,
-        "",
-        true,
-        (left, top, width, ENTRY_HEIGHT),
-        (&crate::selection_list::AUTHORED, false),
-        children,
+    ui_toolkit::tooltip::bind_provider(
+        crate::selection_list::row(
+            name,
+            "",
+            true,
+            (left, top, width, ENTRY_HEIGHT),
+            (&crate::selection_list::AUTHORED, false),
+            children,
+        ),
+        "token_currency",
     )
 }
 

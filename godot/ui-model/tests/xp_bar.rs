@@ -33,6 +33,19 @@ fn setup(skin: ActiveSkin, state: XpBarState) -> FrameRegistry {
     registry
 }
 
+#[test]
+fn ui_template_behavior_collection_experience_bar_uses_live_default_anchor() {
+    use ui_toolkit::tooltip::{TooltipAnchor, tooltip_owner};
+    for skin in [ActiveSkin::Modern, ActiveSkin::Forever] {
+        let registry = setup(skin, state());
+        let root = registry.get_by_name("ExperienceBar").unwrap();
+        let (owner, binding) = tooltip_owner(&registry, root).expect("experience live owner");
+        assert_eq!(owner.id, root);
+        assert_eq!(binding.provider.as_deref(), Some("xp_bar"));
+        assert_eq!(binding.anchor, TooltipAnchor::Default);
+    }
+}
+
 fn frame<'a>(registry: &'a FrameRegistry, name: &str) -> &'a Frame {
     registry
         .get(registry.get_by_name(name).expect(name))

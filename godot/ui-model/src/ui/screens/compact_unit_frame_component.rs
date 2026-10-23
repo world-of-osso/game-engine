@@ -180,6 +180,8 @@ fn compact_frame(
             alpha,
             strata: FrameStrata::Low,
             mouse_enabled: true,
+            tooltip_provider: "hud_frame",
+            tooltip_anchor: "DEFAULT",
             pos_type: "absolute",
             pos_x: x,
             pos_y: y,

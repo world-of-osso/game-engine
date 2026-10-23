@@ -239,6 +239,7 @@ fn render_gate(
     ));
     rsx! { button { name:{DynName(format!("TalentGate{}Button",gate.condition_id))},
         width:{124.0*scale},height:{40.0*scale},mouse_enabled:true,button_default_skin:false,
+        tooltip_provider:"talent_gate", tooltip_anchor:"ANCHOR_LEFT", tooltip_offset_x:4.0, tooltip_offset_y:-4.0,
         pos_type:"absolute",pos_x:{(center[0]-node_width/2.0-12.0-124.0)*scale},pos_y:{(center[1]-20.0)*scale},
         {children}
     }}

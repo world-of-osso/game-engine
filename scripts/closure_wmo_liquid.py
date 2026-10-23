@@ -11,12 +11,12 @@ import struct
 def inherit_root(graph, child, flags):
     if not child:
         return
-    contexts = graph.wmo_root_flags.setdefault(child, set())
+    contexts = graph.wmo_root_flags.setdefault(graph.wmo_context_key(child), set())
     flags &= 4
     if flags in contexts:
         return
     contexts.add(flags)
-    key = (child, "wmo")
+    key = graph.asset_key(child, "wmo")
     if key in graph.assets and "present" in graph.assets[key]:
         graph.queue.append(key)
 
@@ -55,7 +55,7 @@ def expand_liquid(graph, fdid, header, payload):
         "MLIQ needs owning MOHD root flags; no liquid identity guessed",
         fdid,
     )
-    contexts = graph.wmo_root_flags.get(fdid)
+    contexts = graph.wmo_root_flags.get(graph.wmo_context_key(fdid))
     if not contexts:
         graph.unresolved.add(missing)
         return

@@ -5,7 +5,9 @@
 //! `layer`, then by sibling index, so that pair is the stacking key here too; a
 //! release resolves against the same canvas the pointer sees on top.
 
+use game_engine_ui_model::panel_lifecycle::CLOSE_REGISTRATIONS;
 use godot::prelude::*;
+use ui_toolkit::lifecycle::{CloseGroup, close_registered_group};
 
 use crate::GameClient;
 use crate::bag_cursor::BagInput;
@@ -13,6 +15,78 @@ use crate::frame_error::FrameError;
 use crate::tooltips::HoveredFrame;
 use crate::ui::RegistryUi;
 use crate::ui::input_queue::in_arrival_order;
+
+type CloseCallback = fn(&mut GameClient) -> Result<bool, FrameError>;
+
+/// Exact domain adapters only; membership, group and priority live in ui-model.
+const CLOSE_CALLBACKS: &[(&str, CloseCallback)] = &[
+    ("bags", |client| Ok(client.bags.close_all_bags(None))),
+    ("housing", |client| {
+        let open = client.housing.ui.is_some();
+        if open {
+            client.close_housing();
+        }
+        Ok(open)
+    }),
+    ("toybox", |client| {
+        let open = client.toybox.model.open;
+        if open {
+            client.close_toybox();
+        }
+        Ok(open)
+    }),
+    ("spellbook", |client| {
+        let open = client.spellbook_open();
+        if open {
+            client.close_spellbook();
+        }
+        Ok(open)
+    }),
+    ("world_map", |client| {
+        let open = client.world_map.is_open();
+        if open {
+            client.close_world_map();
+        }
+        Ok(open)
+    }),
+    ("mailbox", |client| Ok(client.close_mailbox_window()?)),
+    ("auction", |client| Ok(client.close_auction_window()?)),
+    ("merchant", |client| Ok(client.close_merchant_window()?)),
+    ("trade", |client| Ok(client.close_trade_window()?)),
+    ("quests", |client| client.close_quest_windows()),
+    ("character", |client| Ok(client.close_character_window())),
+    ("guild_ranks", |client| Ok(client.close_guild_ranks())),
+    ("guild_charter", |client| client.close_guild_charter()),
+    ("guild_tabard", |client| client.close_guild_tabard()),
+    ("professions", |client| client.close_professions_window()),
+    ("pet_journal", |client| Ok(client.close_pet_journal())),
+    ("mount_journal", |client| {
+        let open = client.mount_journal.view.visible;
+        if open {
+            client.close_mount_journal();
+        }
+        Ok(open)
+    }),
+    ("adventure_guide", |client| {
+        Ok(client.close_adventure_guide())
+    }),
+    ("trading_post", |client| client.close_trading_post_window()),
+    ("trainer", |client| client.close_trainer_window()),
+    ("transmog", |client| client.close_transmog_window()),
+    ("achievements", |client| Ok(client.close_achievements())),
+    ("mythic_mentor", |client| Ok(client.close_mythic_mentor())),
+    ("raid_info", |client| Ok(client.close_raid_info())),
+    ("combat_stable", |client| Ok(client.close_combat_stable()?)),
+    ("bank", |client| Ok(client.close_bank_window()?)),
+    ("guild_bank", |client| Ok(client.close_guild_bank_window()?)),
+    ("flight_map", |client| {
+        let open = client.flight_map.session.map.is_some();
+        if open {
+            client.close_flight_map_interaction()?;
+        }
+        Ok(open)
+    }),
+];
 
 /// Godot canvas order: higher `layer` first, then the later sibling.
 #[derive(Clone, Copy, Debug, PartialEq, Eq, PartialOrd, Ord)]
@@ -84,12 +158,33 @@ impl GameClient {
         at: Vector2,
         skip: &[Option<Gd<RegistryUi>>],
     ) -> Result<Option<HoveredFrame>, String> {
+        self.registry_frame_at(at, skip, false)
+    }
+
+    pub(super) fn ui_tooltip_frame_at(
+        &mut self,
+        at: Vector2,
+        skip: &[Option<Gd<RegistryUi>>],
+    ) -> Result<Option<HoveredFrame>, String> {
+        self.registry_frame_at(at, skip, true)
+    }
+
+    fn registry_frame_at(
+        &mut self,
+        at: Vector2,
+        skip: &[Option<Gd<RegistryUi>>],
+        tooltip: bool,
+    ) -> Result<Option<HoveredFrame>, String> {
         let canvases = self
             .registry_uis()?
             .into_iter()
             .filter(|ui| !skip.iter().flatten().any(|other| other == ui))
             .map(|ui| {
-                let frame = ui.bind().pointer_frame_at(at);
+                let frame = if tooltip {
+                    ui.bind().tooltip_frame_at(at)
+                } else {
+                    ui.bind().pointer_frame_at(at)
+                };
                 let hit = frame.map(|frame| HoveredFrame {
                     ui: ui.clone(),
                     frame,
@@ -144,49 +239,26 @@ impl GameClient {
     /// Retail Escape step `CloseAllWindows` (UIParentPanelManager.lua:1091-1106): one
     /// press closes every bag and every panel. Returns whether anything was open.
     pub(super) fn close_all_windows(&mut self) -> Result<bool, FrameError> {
-        let mut closed = self.bags.close_all_bags(None);
-        if self.housing.ui.is_some() {
-            self.close_housing();
-            closed = true;
+        let mut closed = false;
+        for group in [CloseGroup::Bags, CloseGroup::Panels, CloseGroup::Special] {
+            closed |= close_registered_group(
+                CLOSE_REGISTRATIONS,
+                group,
+                self,
+                Self::close_registered_window,
+            )?;
         }
-        if self.toybox.model.open {
-            self.close_toybox();
-            closed = true;
-        }
-        if self.spellbook_open() {
-            self.close_spellbook();
-            closed = true;
-        }
-        if self.world_map.is_open() {
-            self.close_world_map();
-            closed = true;
-        }
-        closed |= self.close_mailbox_window()?;
-        closed |= self.close_auction_window()?;
-        closed |= self.close_merchant_window()?;
-        closed |= self.close_trade_window()?;
-        closed |= self.close_quest_windows()?;
-        closed |= self.close_character_window();
-        closed |= self.close_guild_ranks();
-        closed |= self.close_guild_charter()?;
-        closed |= self.close_guild_tabard()?;
-        closed |= self.close_professions_window()?;
-        closed |= self.close_pet_journal();
-        if self.mount_journal.view.visible {
-            self.close_mount_journal();
-            closed = true;
-        }
-        closed |= self.close_adventure_guide();
-        closed |= self.close_trading_post_window()?;
-        closed |= self.close_trainer_window()?;
-        closed |= self.close_transmog_window()?;
-        closed |= self.close_achievements();
-        closed |= self.close_mythic_mentor();
-        closed |= self.close_raid_info();
-        closed |= self.close_combat_stable()?;
-        closed |= self.close_bank_window()?;
-        closed |= self.close_guild_bank_window()?;
         Ok(closed)
+    }
+
+    fn close_registered_window(&mut self, hook: &str) -> Result<bool, FrameError> {
+        let (_, close) = CLOSE_CALLBACKS
+            .iter()
+            .find(|(key, _)| *key == hook)
+            .ok_or_else(|| {
+                FrameError::Client(format!("Unknown authored window close hook: {hook}"))
+            })?;
+        close(self)
     }
 
     /// Raises and cursor-item input from every window canvas, in arrival order.

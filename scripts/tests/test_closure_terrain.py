@@ -6,7 +6,7 @@ import tempfile
 import unittest
 
 sys.path.insert(0, str(Path(__file__).parents[1]))
-from asset_closure import Closure
+from asset_closure import RawByteGraph
 from test_asset_closure import chunk, ints, model
 
 
@@ -15,7 +15,7 @@ class TerrainTests(unittest.TestCase):
         self.tmp = tempfile.TemporaryDirectory()
         self.addCleanup(self.tmp.cleanup)
         self.data = Path(self.tmp.name)
-        self.graph = Closure(self.data, {}, 'wow', 'fixture')
+        self.graph = RawByteGraph(self.data, {}, 'wow', 'fixture')
 
     def put(self, path, payload):
         target = self.data / path
@@ -26,7 +26,7 @@ class TerrainTests(unittest.TestCase):
         self.put(f'db2/fixture/{name}.csv', text.encode())
 
     def run_adt(self, payload):
-        self.graph = Closure(self.data, {}, 'wow', 'fixture')
+        self.graph = RawByteGraph(self.data, {}, 'wow', 'fixture')
         self.put('terrain/1.adt', payload)
         self.graph.add(1, 'adt', 'test')
         return self.graph.run()

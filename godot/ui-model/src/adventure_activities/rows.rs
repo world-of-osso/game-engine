@@ -174,13 +174,18 @@ pub(super) fn render(row: &ActivityRow<'_>, rewards_available: Option<bool>) -> 
     content.extend(row_marks(row));
     content.extend(row_rewards(row, rewards_available));
     let left = if row.child { 32. } else { 0. };
-    crate::selection_list::row(
-        format!("JournalActivity{}", row.activity.id),
-        &format!("journal:activity:{}", row.activity.id),
-        true,
-        (left, row.top, 521., row.height),
-        (&template, false),
-        content,
+    ui_toolkit::tooltip::bind_provider_at(
+        crate::selection_list::row(
+            format!("JournalActivity{}", row.activity.id),
+            &format!("journal:activity:{}", row.activity.id),
+            true,
+            (left, row.top, 521., row.height),
+            (&template, false),
+            content,
+        ),
+        "journal_monthly",
+        ui_toolkit::tooltip::TooltipAnchor::CursorRight,
+        [0.; 2],
     )
 }
 

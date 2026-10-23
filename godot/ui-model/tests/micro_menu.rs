@@ -23,6 +23,39 @@ fn build(view: MicroMenuView) -> FrameRegistry {
 }
 
 #[test]
+fn ui_template_behavior_collection_micro_buttons_retain_live_binding_and_hidden_owner_lifetime() {
+    use game_engine_core::ui_layout_data::LayoutSettings;
+    use ui_toolkit::atlas::set_thread_skin;
+    use ui_toolkit::tooltip::{TooltipAnchor, tooltip_owner};
+    for skin in [ActiveSkin::Modern, ActiveSkin::Forever] {
+        set_thread_skin(skin);
+        let mut registry = FrameRegistry::new(1920.0, 1080.0);
+        let mut shared = SharedContext::new();
+        shared.insert(skin);
+        shared.insert(LayoutSettings {
+            show_micro_menu: Some(true),
+            ..Default::default()
+        });
+        let mut screen = Screen::new(micro_menu_screen);
+        screen.sync(&shared, &mut registry);
+        for button in MICRO_BUTTONS {
+            let hit = registry.get_by_name(button.name).unwrap();
+            let (owner, binding) = tooltip_owner(&registry, hit).expect(button.name);
+            assert_eq!(owner.id, hit);
+            assert_eq!(binding.provider.as_deref(), Some("micro_menu"));
+            assert_eq!(binding.anchor, TooltipAnchor::Right);
+        }
+        shared.insert(LayoutSettings {
+            show_micro_menu: Some(false),
+            ..Default::default()
+        });
+        screen.sync(&shared, &mut registry);
+        let hit = registry.get_by_name(MICRO_BUTTONS[0].name).unwrap();
+        assert!(tooltip_owner(&registry, hit).is_none());
+    }
+}
+
+#[test]
 fn both_presets_hide_the_micro_menu_without_destroying_its_buttons() {
     for skin in [ActiveSkin::Modern, ActiveSkin::Forever] {
         let mut registry = FrameRegistry::new(1920.0, 1080.0);
