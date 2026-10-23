@@ -20,6 +20,12 @@ Project policy approved2026-10-16, **not a Retail grant claim**: successfully cl
 
 `OwnedHouse.plot_id` is the existing persisted plot relationship; this policy does not assert a decoded static DB2 House template relationship where none is authenticated. Exterior/door/interior assembly remains a separate world slice. Editor-chrome polish is paused until the ordered neighborhood→claim→exterior/interior→decor/visitor→house-list world slices are resolved or have exact source blockers.
 
+## Dashboard Catalog filter reset
+
+The Catalog uses the Retail100×20 WowStyle1FilterDropdown header at TOPRIGHT(-10,-30), including its source Reset control. Reset is hidden while the supported Dyeable/Collection filters are at defaults; either nondefault filter reveals it. Reset clears Dyeable Only and restores Collection All without changing search text, focused category/subcategory, open-menu state or confirmed ownership/storage. Unsupported filter semantics remain unavailable; this does not certify the complete popup or dashboard.
+
+Source: Retail `Blizzard_HousingCatalogFilters.lua` default callback/`AreFiltersAtDefault`/`ResetFiltersToDefault`, its XML template, `Blizzard_HousingDashboardCatalog.xml` and `MenuTemplates.lua::WowDropdownFilterBehaviorMixin.OnLoad`.
+
 ## Basic placement release contract
 
 Normal owned-storage click starts placement but its original release does not place decor; the next visible move-overlay click commits on release, not press. Owned-storage drag starts placement armed for the first global left release. Selected placed decor moves only after an armed overlay release. Native GUI still receives the actual mouse release after world commit, so a captured mode button released outside restores its source artwork without switching modes. Invalid authored ground retains editing state with an explicit error. Cancel clears release capture. Assigned rotate actions update a new owned decor preview locally and include that yaw only in the eventual placement command; no persisted instance is fabricated for preview rotation. All commands preserve confirmed counts/layout until authority replies; visitors and absent-owned copies cannot start drag placement. Preview/market placement remains unavailable.

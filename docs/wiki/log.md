@@ -1,6 +1,9 @@
 ## 2026-10-23 — Generic FontString text markup
 
 [Shared display-run boundary](systems/ui-system.md#fontstring-text-markup--2026-10-23) replaces literal control-byte drawing through core decoding and generic projection. Concrete Kurog core RED4→GREEN5 and baseline Vulkan projection RED precede coloured drawing; current native transition/affected-page proof remains pending. Plain Label behavior stays unchanged; coloured truncation is explicitly qualified.
+## 2026-10-23 — Dashboard Catalog filter reset native proof
+
+[Catalog Reset](systems/housing.md#dashboard-catalog-reset--verified2026-10-23): retained paired RED→GREEN5/5, both-skin five-phase native search/category/menu/authority preservation, ten inspected untouched1920×1080 originals. Records exact runtime hashes, source Lua163–176 category-preserving semantics,169 encrypted records across16 housing tables, and independently qualified canonical HelmetGeosetData provenance. Scoped check/lead integration remain separate; full housing stays open.
 
 ## 2026-10-22 — Tooltip binding metadata in progress
 

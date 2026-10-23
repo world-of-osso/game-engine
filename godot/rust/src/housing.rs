@@ -15,6 +15,10 @@ const PURCHASE_POPUP: &str = "HOUSING_BUY_PLOT";
 const ATLAS_ELEMENTS: &str = "db2/active/UiTextureAtlasElement.csv";
 const TEXTURE_KITS: &str = "db2/active/UiTextureKit.csv";
 
+#[cfg(test)]
+#[path = "housing_catalog_filter_tests.rs"]
+mod catalog_filter_tests;
+
 #[derive(Default)]
 pub(crate) struct HousingHud {
     pub model: Option<HousingDashboard>,
@@ -600,6 +604,10 @@ fn apply_catalog_action(
     authority: &HousingAuthority,
     action: &str,
 ) -> Result<(), String> {
+    if action == "housing:filter:reset" {
+        model.reset_catalog_filters(authority);
+        return Ok(());
+    }
     let (kind, id) = action
         .rsplit_once(':')
         .ok_or_else(|| format!("Invalid housing action: {action}"))?;
