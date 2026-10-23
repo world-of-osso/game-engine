@@ -60,6 +60,9 @@ fn housing_catalog_reset_action_restores_results_without_changing_search_categor
 
 const SIZE_TAG_GROUP: u32 = 2;
 const SMALL_DATA_TAG: u32 = 66;
+const TINY_DATA_TAG: u32 = 65;
+const CULTURE_TAG_GROUP: u32 = 3;
+const ELVEN_DATA_TAG: u32 = 83;
 const BOOKCASE_DECOR: u32 = 1693;
 
 fn load_published_tag_catalog() -> Arc<HousingCatalog> {
@@ -129,6 +132,22 @@ fn housing_catalog_tag_group_all_none_and_reset_restore_the_same_query() {
     apply_catalog_action(&mut model, &authority, &all_group).unwrap();
     assert_eq!(matching_ids(&model, &authority), before);
     apply_catalog_action(&mut model, &authority, &clear_group).unwrap();
+    let toggle_small = format!("housing:filter:tag:{SIZE_TAG_GROUP}:{SMALL_DATA_TAG}");
+    let toggle_tiny = format!("housing:filter:tag:{SIZE_TAG_GROUP}:{TINY_DATA_TAG}");
+    apply_catalog_action(&mut model, &authority, &toggle_small).unwrap();
+    assert_eq!(matching_ids(&model, &authority), before);
+    apply_catalog_action(&mut model, &authority, &toggle_tiny).unwrap();
+    // Any within Size: selecting Tiny as well must not remove the Small Bookcase.
+    assert_eq!(matching_ids(&model, &authority), before);
+    let clear_culture = format!("housing:filter:tags-none:{CULTURE_TAG_GROUP}");
+    apply_catalog_action(&mut model, &authority, &clear_culture).unwrap();
+    assert!(matching_ids(&model, &authority).is_empty());
+    let toggle_elven = format!("housing:filter:tag:{CULTURE_TAG_GROUP}:{ELVEN_DATA_TAG}");
+    apply_catalog_action(&mut model, &authority, &toggle_elven).unwrap();
+    assert_eq!(matching_ids(&model, &authority), before);
+    // The Bookcase has Elven83 and Small66, not Tiny65: both group filters apply.
+    apply_catalog_action(&mut model, &authority, &toggle_small).unwrap();
+    assert!(matching_ids(&model, &authority).is_empty());
     apply_catalog_action(&mut model, &authority, "housing:filter:reset").unwrap();
     assert_eq!(matching_ids(&model, &authority), before);
     assert_eq!(model.search, "Small Val'sharah Bookcase");
@@ -144,7 +163,12 @@ fn housing_catalog_tag_actions_refuse_wrong_groups_and_unavailable_sources() {
     model.set_search("Small Val'sharah Bookcase".into(), &authority);
     let before = matching_ids(&model, &authority);
     // DataTag83 Elven belongs to Culture3, not Size2; group0 is not authored.
-    for action in ["housing:filter:tag:2:83", "housing:filter:tag:0:66"] {
+    for action in [
+        "housing:filter:tag:2:83",
+        "housing:filter:tag:0:66",
+        // Info record2 must not be accepted as an alias for literal DataTag66.
+        "housing:filter:tag:2:2",
+    ] {
         assert!(apply_catalog_action(&mut model, &authority, action).is_err());
         assert_eq!(matching_ids(&model, &authority), before);
         assert_eq!(authority, original);
