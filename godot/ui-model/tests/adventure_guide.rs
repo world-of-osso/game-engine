@@ -102,7 +102,6 @@ fn encounter_link_replaces_search_and_open_navigation_menus() {
 }
 
 #[test]
-#[ignore = "RED: encounter links must dismiss every stale navigation menu"]
 fn encounter_link_dismisses_overflow_and_nested_class_menu_in_both_skins() {
     for skin in [ActiveSkin::Modern, ActiveSkin::Forever] {
         set_thread_skin(skin);
@@ -141,7 +140,6 @@ fn encounter_link_dismisses_overflow_and_nested_class_menu_in_both_skins() {
 }
 
 #[test]
-#[ignore = "RED: encounter links must dismiss the nested class submenu"]
 fn encounter_link_reopens_the_class_filter_without_the_previous_submenu() {
     let mut view = journal();
     view.select_encounter(2491).unwrap();
