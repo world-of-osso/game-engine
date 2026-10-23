@@ -79,6 +79,13 @@ const CLOSE_CALLBACKS: &[(&str, CloseCallback)] = &[
     ("combat_stable", |client| Ok(client.close_combat_stable()?)),
     ("bank", |client| Ok(client.close_bank_window()?)),
     ("guild_bank", |client| Ok(client.close_guild_bank_window()?)),
+    ("flight_map", |client| {
+        let open = client.flight_map.session.map.is_some();
+        if open {
+            client.close_flight_map_interaction()?;
+        }
+        Ok(open)
+    }),
 ];
 
 /// Godot canvas order: higher `layer` first, then the later sibling.
