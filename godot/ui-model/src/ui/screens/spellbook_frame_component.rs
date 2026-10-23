@@ -448,22 +448,25 @@ pub fn spellbook_frame_screen(ctx: &SharedContext) -> Element {
         ACTION_SPELLBOOK_CLOSE,
     );
     let content = frame_content(state, s);
-    let mut elements = rsx! {
-        r#frame {
-            name: SPELLBOOK_FRAME,
-            width: {FRAME_W * s},
-            height: {FRAME_H * s},
-            mouse_enabled: true,
-            strata: FrameStrata::High,
-            pos_type: "absolute",
-            left: x,
-            top: y,
-            {chrome}
-            {content}
-            {player_spells_pages::bottom_tabs(state, s)}
-            {frame_portrait(state, s)}
-        }
-    };
+    let mut elements = crate::panel_lifecycle::bind_close(
+        rsx! {
+            r#frame {
+                name: SPELLBOOK_FRAME,
+                width: {FRAME_W * s},
+                height: {FRAME_H * s},
+                mouse_enabled: true,
+                strata: FrameStrata::High,
+                pos_type: "absolute",
+                left: x,
+                top: y,
+                {chrome}
+                {content}
+                {player_spells_pages::bottom_tabs(state, s)}
+                {frame_portrait(state, s)}
+            }
+        },
+        "spellbook",
+    );
     elements.extend(talents_page::dialogs(state, s));
     elements
 }
