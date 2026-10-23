@@ -12,7 +12,6 @@ HISTORICAL_KEY = "dcfc90fffd79ba00406ae46f5f657592"
 MODEL_KEY = "88d5e8ef05ec5a8446cdec93d142d7c6"
 
 
-@unittest.skipUnless(os.environ.get("P4_RED") == "1", "P4 model recovery RED")
 class ConcreteModelRecoveryTests(unittest.TestCase):
     def setUp(self):
         value = os.environ.get("DEPOT_GAME_ENGINE_DATA")
