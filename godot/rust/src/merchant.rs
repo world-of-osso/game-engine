@@ -6,20 +6,20 @@
 //! Escape, the close button or the server's `InteractionClosed` close it.
 
 use game_engine_core::input_bindings_data::{BindingMouseButton, InputState};
-use game_engine_core::ui_sound_kits::{IG_CHARACTER_INFO_CLOSE, IG_CHARACTER_INFO_OPEN};
 use game_engine_session::SessionScreen;
 use game_engine_ui_model::cursor_item::CursorTarget;
 use game_engine_ui_model::merchant::{
     Click, MerchantEffect, MerchantSession, SplitKey, click_sound,
 };
 use game_engine_ui_model::merchant_data::MerchantTab;
-use game_engine_ui_model::merchant_frame_component::FRAME_NAME;
+use game_engine_ui_model::merchant_frame_component::{FRAME_NAME, LIFECYCLE_SOUNDS};
 use game_engine_ui_model::wow_cursor_data::{ActiveWowCursor, NpcCursorView, npc_cursor};
 use godot::classes::{ImageTexture, Input};
 use godot::global::Key;
 use godot::prelude::*;
 use shared::components::{Health, Npc};
 use shared::protocol::{GameObjectInfo, InteractionKind, NpcFlags, NpcRole};
+use ui_toolkit::lifecycle::VisibilityEdge;
 
 use crate::GameClient;
 use crate::account::NpcMessage;
@@ -43,7 +43,7 @@ pub(crate) struct Merchant {
     pub(super) position_character: Option<u64>,
     pub(super) drag: Option<WindowDrag>,
     /// Shown last frame: `OnShow` / `OnHide` play their sounds on a change.
-    shown: bool,
+    visibility: VisibilityEdge,
     /// Item icon FDIDs already looked up in local CASC.
     cached_icons: std::collections::HashSet<u32>,
     /// The bags took the item catalog's data once it loaded.
@@ -227,7 +227,7 @@ impl GameClient {
     /// right-click interaction, the hover cursor, then the frame's presentation.
     pub(super) fn update_merchant(&mut self) -> Result<(), FrameError> {
         if self.account.session.screen != SessionScreen::InWorld {
-            self.merchant.shown = false;
+            self.merchant.visibility.reset();
             self.merchant.session.merchant.close();
             self.merchant.session.split = None;
             self.merchant.free_ui();
@@ -246,23 +246,12 @@ impl GameClient {
             interactive.then(|| self.hover_cursor()).flatten()
         };
         self.set_world_cursor(cursor);
-        self.play_merchant_show_sound()?;
+        let kit = self
+            .merchant
+            .visibility
+            .observe(self.merchant.session.is_open(), &LIFECYCLE_SOUNDS);
+        self.play_ui_lifecycle_sound(kit)?;
         Ok(self.sync_merchant_ui()?)
-    }
-
-    /// `PlaySound(SOUNDKIT.IG_CHARACTER_INFO_OPEN / _CLOSE)` in `MerchantFrame_OnShow` /
-    /// `OnHide` (MF.lua:158, 174).
-    fn play_merchant_show_sound(&mut self) -> Result<(), String> {
-        let open = self.merchant.session.is_open();
-        if open == self.merchant.shown {
-            return Ok(());
-        }
-        self.merchant.shown = open;
-        self.play_ui_sound_kit(if open {
-            IG_CHARACTER_INFO_OPEN
-        } else {
-            IG_CHARACTER_INFO_CLOSE
-        })
     }
 
     /// Bevy `right_click_interact`: the unit under the pointer, else the current target.

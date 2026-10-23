@@ -18,6 +18,14 @@ use crate::ui::screens::quest_art::{
 use crate::ui::strata::FrameStrata;
 
 pub const FRAME_NAME: &str = "MerchantFrame";
+/// MerchantFrame.lua145–174: observe the session before native UI sync.
+pub const LIFECYCLE_SOUNDS: ui_toolkit::lifecycle::LifecycleSounds =
+    ui_toolkit::lifecycle::LifecycleSounds {
+        on_show: Some(game_engine_core::ui_sound_kits::IG_CHARACTER_INFO_OPEN),
+        on_hide: Some(game_engine_core::ui_sound_kits::IG_CHARACTER_INFO_CLOSE),
+        on_enter: None,
+        on_click: None,
+    };
 /// MF.xml:92 `<Size x="336" y="444"/>`.
 pub const FRAME_W: f32 = 336.0;
 pub const FRAME_H: f32 = 444.0;
@@ -198,8 +206,8 @@ pub fn merchant_frame_screen(ctx: &SharedContext) -> Element {
     rsx! {
         r#frame {
             name: {DynName(FRAME_NAME.into())},
-            lifecycle_on_show: 839,
-            lifecycle_on_hide: 840,
+            lifecycle_on_show: {LIFECYCLE_SOUNDS.on_show.unwrap()},
+            lifecycle_on_hide: {LIFECYCLE_SOUNDS.on_hide.unwrap()},
             lifecycle_close_hook: "merchant",
             lifecycle_close_group: "PANELS",
             lifecycle_escape_priority: "AddOnPost",
