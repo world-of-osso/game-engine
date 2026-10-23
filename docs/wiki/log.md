@@ -1,3 +1,7 @@
+## 2026-10-23 — Housing tag-source availability correction
+
+[Qualified tag sources](systems/housing.md#tag-source-availability--qualified2026-10-23): pinned70448 already exports150 names,10 groups and138 memberships; runtime47-table housing import omits these definitions. Recorded literal tag-value versus record-ID distinction, seven missing names with readable decor associations, and unqualified ordering/default semantics. Docs-only correction to the older F20 absence claim; no new UI behavior, fallback, canonical writes or completed-test replay.
+
 ## 2026-10-23 — Dashboard Catalog filter reset native proof
 
 [Catalog Reset](systems/housing.md#dashboard-catalog-reset--verified2026-10-23): retained paired RED→GREEN5/5, both-skin five-phase native search/category/menu/authority preservation, ten inspected untouched1920×1080 originals. Records exact runtime hashes, source Lua163–176 category-preserving semantics,169 encrypted records across16 housing tables, and independently qualified canonical HelmetGeosetData provenance. Scoped check/lead integration remain separate; full housing stays open.
