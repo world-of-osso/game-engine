@@ -2,7 +2,7 @@
 //! R UIParentPanelManager.lua1147–1162: bags, panels, special frames; AddOnPost.
 //! Existing project projections split Collections/Guild surfaces into separate domain hooks.
 use ui_toolkit::lifecycle::{
-    CloseGroup, CloseRegistration, EscapePriority, bind_close_registration,
+    CloseGroup, CloseRegistration, EscapeBinding, EscapePriority, bind_close_registration,
 };
 use ui_toolkit::widget_def::Element;
 
@@ -42,6 +42,28 @@ pub const CLOSE_REGISTRATIONS: &[CloseRegistration<&str>] = &[
     panel("guild_bank"),
     panel("flight_map"),
 ];
+
+/// Global handlers left after focused/native keyboard owners declined the key.
+/// R GameMenuEsc.lua: stable priority order, first handled stops; existing domain tie order.
+/// GameMenuFrame.lua36 runs Framework before UIParentPanelManager.lua1162 AddOnPost.
+/// Earlier popup/editor keyboard owners remain in the native priority-input route.
+pub const ESCAPE_BINDINGS: &[EscapeBinding<&str>] = &[
+    escape_handler("talent_loadout_dialog", EscapePriority::Dialog),
+    escape_handler("guild_invitation", EscapePriority::Dialog),
+    escape_handler("trading_slow_purchase", EscapePriority::Dialog),
+    escape_handler("ground_target", EscapePriority::Casting),
+    escape_handler("pet_move_to", EscapePriority::Casting),
+    escape_handler("game_menu", EscapePriority::Framework),
+    escape_handler("all_windows", EscapePriority::AddOnPost),
+    escape_handler("clear_target", EscapePriority::World),
+];
+
+const fn escape_handler(
+    hook: &'static str,
+    priority: EscapePriority,
+) -> EscapeBinding<&'static str> {
+    EscapeBinding { priority, hook }
+}
 
 const fn panel(hook: &'static str) -> CloseRegistration<&'static str> {
     CloseRegistration {
