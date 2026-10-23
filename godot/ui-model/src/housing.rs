@@ -605,6 +605,13 @@ impl HousingDashboard {
         self.reset_results(authority);
     }
 
+    /// HousingCatalogFiltersMixin.ResetFiltersToDefault leaves search/category intact.
+    pub fn reset_catalog_filters(&mut self, authority: &HousingAuthority) {
+        self.dyeable_only = false;
+        self.collection = CollectionFilter::All;
+        self.reset_results(authority);
+    }
+
     fn reset_results(&mut self, authority: &HousingAuthority) {
         self.offset = 0;
         self.selection = self.matching(authority).first().map(|decor| decor.id);

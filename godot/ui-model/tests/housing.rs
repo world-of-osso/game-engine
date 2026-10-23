@@ -9,7 +9,6 @@ use ui_toolkit::registry::FrameRegistry;
 use ui_toolkit::screen::{Screen, SharedContext};
 
 #[test]
-#[ignore = "RED: dashboard catalog lacks the source filter template and Reset control"]
 fn housing_catalog_filter_reset_visibility_and_source_header_in_both_skins() {
     use game_engine_ui_model::housing::{CollectionFilter, HousingAuthority};
     use ui_toolkit::layout_values::Val;
