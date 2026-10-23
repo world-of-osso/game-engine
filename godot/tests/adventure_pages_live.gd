@@ -1,6 +1,14 @@
 extends "res://tests/adventure_search.gd"
 # Existing authored source catalog + native input; private5996 only, no UI/catalog injection.
 
+func stop(reason: String) -> void:
+	if not shots.is_empty():
+		var image := root.get_texture().get_image()
+		var path := shots.path_join("native-failure.png")
+		var error := image.save_png(path)
+		print("AG_FAILURE_PIXELS path=%s size=%s error=%s" % [path, image.get_size(), error])
+	super.stop(reason)
+
 func wait_journal(predicate: Callable, reason: String) -> bool:
 	var deadline := Time.get_ticks_msec() + 90000
 	while Time.get_ticks_msec() < deadline:
