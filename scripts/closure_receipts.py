@@ -273,6 +273,6 @@ class ReceiptClosure(RawByteGraph):
             row["identity_status"] != "verified_receipt" for row in result["assets"]
         )
         result["io_policy"] = (
-            "Receipt-selected model roots and owning namespaces; actual flat texture/sound bytes require separate matching source receipts, never scoped substitution. DB2 exports require matching table receipts. RawByteGraph is producer discovery, not audit."
+            "Receipt-selected model roots and owning namespaces; actual flat ADT/WMO/texture/sound bytes require separate matching source receipts, never scoped substitution. DB2 exports require matching table receipts. RawByteGraph is producer discovery, not audit."
         )
         return result

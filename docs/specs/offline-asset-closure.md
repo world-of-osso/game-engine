@@ -24,7 +24,8 @@ Offline audit tooling in `scripts/asset_closure.py` computes a content-rooted de
 
 ## Non-model provenance
 
-- Selected flat texture/sound bytes qualify only against same-product,FDID,path and size/SHA256/content-key matches in the existing `provenance/closure-extract.jsonl` ledger. Scan once for requested identities; preserve matching historical builds instead of last-row precedence. Missing or mismatched receipts remain named gaps. Hash-only UI inventories do not authenticate origin.
+- Selected flat ADT/WMO/texture/sound bytes qualify only against same-product,FDID,family,path and size/SHA256/content-key matches in the existing `provenance/closure-extract.jsonl` ledger. Scan once for requested identities; preserve matching historical builds instead of last-row precedence. Missing or mismatched receipts remain named gaps. Hash-only UI inventories do not authenticate origin.
+- ADT and WMO are distinct generic receipt families; their historical build/build-key provenance remains unchanged,never relabeled to the metadata build. No WDT/WDL/physics or model-companion eligibility is implied. This qualification authenticates source bytes,not parser acceptance.
 - Native flat icon/visual texture requests remain flat; model-owned texture namespaces stay separate. Do not add generic sound/blob/DB2 rows to ModelAssetIndex.
 - Each selected DB2 CSV requires its own directory's table export receipt,matching source product and CSV SHA256 with authenticated content. Missing,wrong-product or changed exports are not parsed as valid metadata. Authenticated partial exports expose readable rows but retain exact unreadable-record gaps. Receipt/input drift inside a graph invalidates qualification.
 

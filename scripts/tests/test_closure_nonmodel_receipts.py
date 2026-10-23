@@ -2,7 +2,6 @@
 
 import hashlib
 import json
-import os
 from pathlib import Path
 import struct
 import sys
@@ -85,7 +84,6 @@ class NonModelReceiptTests(unittest.TestCase):
         self.put("db2/fixture/receipt.json", json.dumps(document).encode())
         return document
 
-    @unittest.skipUnless(os.environ.get("P4_RED") == "1", "P4 structural RED")
     def test_flat_adt_wmo_keep_exact_paths_and_historical_receipt_identity(self):
         for fdid, kind, directory, version in [
             (10, "adt", "terrain", 18),
