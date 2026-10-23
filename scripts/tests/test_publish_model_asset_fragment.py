@@ -2,7 +2,6 @@
 
 import hashlib
 import json
-import os
 from pathlib import Path
 import subprocess
 import sys
@@ -36,7 +35,6 @@ def receipt(fdid, raw, key="a", kind="m2"):
     }
 
 
-@unittest.skipUnless(os.environ.get("P4_RED") == "1", "Publication CLI RED")
 class PublishModelFragmentTests(unittest.TestCase):
     def setUp(self):
         temporary = tempfile.TemporaryDirectory()
