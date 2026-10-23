@@ -61,6 +61,7 @@ class ReceiptClosure(RawByteGraph):
         self.adding_flat = False
         self.source_appearances = {}
         self.source_catalogs = {}
+        self.db2_policy_exclusions = {}
         documents = read_indexes(self.data)
         self.receipts = {
             key: row for key, (_, row) in index_asset_receipts(documents).items()
@@ -250,10 +251,18 @@ class ReceiptClosure(RawByteGraph):
             ),
         )
         result["schema_version"] = 2
+        result["db2_policy_exclusions"] = [
+            self.db2_policy_exclusions[path]
+            for path in sorted(self.db2_policy_exclusions)
+        ]
+        result["summary"]["db2_policy_excluded_records"] = sum(
+            row["excluded_records"] for row in result["db2_policy_exclusions"]
+        )
         for name in [
             "closure_receipts.py",
             "closure_root_products.py",
             "closure_nonmodel_receipts.py",
+            "closure_db2_policy.py",
             "closure_player_roots.py",
         ]:
             result["resolver_tool_sha256"][name] = hashlib.sha256(

@@ -45,6 +45,7 @@ Offline audit tooling in `scripts/asset_closure.py` computes a content-rooted de
 - `scripts/closure_root_products.py` — native map/display/NPC resource ownership and explicit source-local owned-item roots.
 - `scripts/closure_player_roots.py` — explicit native Skyborne-only player body/customization overlay; source-local body joins avoid the merged NPC display cache.
 - `scripts/closure_nonmodel_receipts.py` — actual flat byte receipts and DB2 export provenance; no extraction or index publication.
+- `scripts/closure_db2_policy.py` — pinned WDC5 encrypted-section/key-census proof and named unreachable-row exclusions; never whole-file provenance promotion.
 - `scripts/closure_seeds.py` — metadata joins and configurable content roots.
 - `scripts/closure-northshire.json` — four Northshire ADT tiles and one Human Warrior.
 - `scripts/closure-full-catalog.json` — broad catalog selectors; not a completeness certificate.
@@ -56,6 +57,7 @@ Offline audit tooling in `scripts/asset_closure.py` computes a content-rooted de
 - `scripts/tests/test_closure_root_products.py` — native Retail ID/directory map precedence,sourced display/model/material roots,missing source refusal and source-local owned item isolation; ignored RED fixtures are pushed before implementation.
 - `scripts/tests/test_closure_player_sources.py` — ignored RED-first four Skyborne pair overlays,unchanged Retail Human,missing Forever mapping/cache refusal and authored default requirement bits.
 - `scripts/tests/test_closure_nonmodel_receipts.py` — ignored RED-first flat texture/sound product/path/content checks,historical receipt selection,hash-only provenance refusal,native flat icons and authenticated/partial/corrupt/missing DB2 export receipts.
+- `scripts/tests/test_closure_db2_policy.py` — ignored RED-first readable rows,per-section exclusion counts,available-key refusal,unproven input rejection and key-census drift.
 - `scripts/tests/test_closure_skyboxes.py` — map isolation, all authored lighting slots, skybox7345733/skin7345740, celestial roots, positive missing joins versus zero and tile-free catalog entrypoint.
 - `scripts/tests/test_closure_game_objects.py` — observed entry202588/display2690/model200010/skin505852 chain, map/tile selection, transport WMO identity, unspawned roots, named missing rows and selection fingerprint changes.
 - `scripts/tests/test_staged_asset_fragment.py` — canonical cross-fragment uniqueness, equal-byte/different-scope ownership, conflicting payload rejection and preserved legacy alias metadata.
