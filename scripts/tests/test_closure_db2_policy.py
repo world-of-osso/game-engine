@@ -3,6 +3,7 @@
 import copy
 import hashlib
 import json
+import os
 from pathlib import Path
 import struct
 import sys
@@ -22,9 +23,9 @@ def digest(raw):
     return hashlib.sha256(raw).hexdigest()
 
 
-def partial_db2(excluded):
+def partial_db2(excluded, copies=0):
     start = 204 + 40 * (1 + len(excluded))
-    raw = bytearray(start + 4 * (1 + sum(count for _, count in excluded)))
+    raw = bytearray(start + 4 * (1 + sum(count for _, count in excluded)) + 8 * copies)
     raw[:4] = b"WDC5"
     struct.pack_into(
         "<9I",
@@ -47,13 +48,26 @@ def partial_db2(excluded):
     start += 4
     warnings = []
     for index, (key, count) in enumerate(excluded, 1):
+        section_copies = copies if index == 1 else 0
         struct.pack_into(
-            "<Q8I", raw, 204 + index * 40, int(key, 16), start, count, 0, 0, 0, 0, 0, 0
+            "<Q8I",
+            raw,
+            204 + index * 40,
+            int(key, 16),
+            start,
+            count,
+            0,
+            0,
+            0,
+            0,
+            0,
+            section_copies,
         )
+        size = 4 * count + 8 * section_copies
         warnings.append(
-            f"CASC warning: FDID 1349477 has encrypted chunks with unknown TACT keys, zero-filled: {key} (chunk {index}, {4 * count} bytes at offset {start})"
+            f"CASC warning: FDID 1349477 has encrypted chunks with unknown TACT keys, zero-filled: {key} (chunk {index}, {size} bytes at offset {start})"
         )
-        start += 4 * count
+        start += size
     return bytes(raw), warnings
 
 
@@ -72,8 +86,8 @@ class EncryptedDb2PolicyTests(unittest.TestCase):
         destination.write_bytes(raw)
         return {"path": path, "sha256": digest(raw)}
 
-    def prepare(self, excluded):
-        raw, warnings = partial_db2(excluded)
+    def prepare(self, excluded, copies=0):
+        raw, warnings = partial_db2(excluded, copies)
         self.put(self.raw_path, raw)
         self.put("db2/fixture/Map.csv", self.csv)
         ring = b"# Keyring Configuration\nkey-1000000000000000 = 11111111111111111111111111111111\n"
@@ -229,6 +243,21 @@ class EncryptedDb2PolicyTests(unittest.TestCase):
                 graph = self.graph()
                 self.assertEqual(self.rows(graph), {})
         self.document = original
+
+    @unittest.skipUnless(os.environ.get("P4_RED"), "staged RED: excluded copy rows")
+    def test_encrypted_section_counts_base_and_copy_rows_separately(self):
+        # Production SpellVisual section1 has three encrypted records and two copies.
+        self.prepare([(MISSING_KEY, 3)], copies=2)
+        graph = self.graph()
+        self.assertEqual(set(self.rows(graph)), {42})
+        result = graph.run()
+        self.assertEqual(result["summary"]["db2_policy_excluded_records"], 3)
+        self.assertEqual(result["summary"].get("db2_policy_excluded_copy_records"), 2)
+        self.assertEqual(result["summary"].get("db2_policy_excluded_rows"), 5)
+        proof = result["db2_policy_exclusions"][0]
+        self.assertEqual(proof.get("excluded_copy_records"), 2)
+        self.assertEqual(proof["sections"][0].get("copy_records"), 2)
+        self.assertEqual(set(self.rows(graph)), {42})
 
     def test_key_census_drift_invalidates_previously_qualified_rows(self):
         graph = self.graph()
