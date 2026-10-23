@@ -1115,7 +1115,7 @@ fn housing_editor_native_storage_and_owner_controls_follow_the_same_layout_in_bo
 }
 
 #[test]
-fn catalog_preview_reports_owned_count_sources_and_missing_image_in_both_skins() {
+fn ui_template_behavior_services_catalog_preview_keeps_live_decor_owner_and_sources() {
     use game_engine_core::housing::DecorSource;
     game_engine_ui_model::paths::set_data_root(
         std::path::PathBuf::from(env!("CARGO_MANIFEST_DIR")).join("../../data"),
@@ -1193,6 +1193,12 @@ fn catalog_preview_reports_owned_count_sources_and_missing_image_in_both_skins()
                 frame("HousingDashboardFrame").height,
                 Dimension::Fixed(544.0)
             );
+            let hit = registry.get_by_name("HousingCatalogEntry1693").unwrap();
+            let (owner, binding) = ui_toolkit::tooltip::tooltip_owner(&registry, hit)
+                .expect("catalog live decor owner");
+            assert_eq!(owner.id, hit);
+            assert_eq!(binding.provider.as_deref(), Some("housing"));
+            assert_eq!(binding.anchor, ui_toolkit::tooltip::TooltipAnchor::Right);
             assert!(frame("HousingCatalogEntry1693Icon").hidden);
             assert_eq!(
                 text("HousingCatalogEntry1693Unavailable"),
@@ -2017,7 +2023,7 @@ fn housing_cleanup_hides_storage_and_uses_source_cursor_tooltip_in_both_skins() 
                 "No fabricated pet/lock/removability metadata"
             );
             let shown = place(
-                tooltip.for_skin(skin),
+                tooltip,
                 TooltipScreen {
                     size: view.viewport,
                     cursor: [600.0, 300.0],

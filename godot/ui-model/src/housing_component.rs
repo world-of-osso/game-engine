@@ -148,15 +148,18 @@ pub fn housing_screen(context: &SharedContext) -> Element {
     let tabs = side_tabs(view.model.tab);
     let left = ((view.viewport[0] - SIZE[0]) / 2.0).max(0.0);
     let top = ((view.viewport[1] - SIZE[1]) / 2.0).max(0.0);
-    rsx! {
-        r#frame { name: "HousingRoot", stretch: true,
-            r#frame { name: "HousingDashboardFrame", width: 814.0, height: 544.0,
-                mouse_enabled: true, pos_type: "absolute", left, top, strata: FrameStrata::Dialog,
-                background_color: "0.08,0.07,0.06,1.0",
-                {chrome} {portrait} {body} {tabs}
+    crate::panel_lifecycle::bind_close(
+        rsx! {
+            r#frame { name: "HousingRoot", stretch: true,
+                r#frame { name: "HousingDashboardFrame", width: 814.0, height: 544.0,
+                    mouse_enabled: true, pos_type: "absolute", left, top, strata: FrameStrata::Dialog,
+                    background_color: "0.08,0.07,0.06,1.0",
+                    {chrome} {portrait} {body} {tabs}
+                }
             }
-        }
-    }
+        },
+        "housing",
+    )
 }
 
 fn house_info(view: &HousingView) -> Element {
@@ -434,6 +437,7 @@ pub(crate) fn category_button(
         })
         .unwrap_or_default();
     rsx! { button { name: {DynName(name)}, width: size, height: size,
+        tooltip_provider: "housing", tooltip_offset_x: -12.0, tooltip_offset_y: -12.0,
         pos_type: "absolute", left, top, onclick: {action.as_str()},
         button_default_skin: false, {art}
     } }
@@ -456,6 +460,7 @@ fn tile(view: &HousingView, index: usize, decor: &Decor) -> Element {
     let quantity = view.authority.quantity(decor.id).unwrap_or(0);
     let quantity_text = quantity.to_string();
     rsx! { button { name: {DynName(name.clone())}, width: 97.0, height: 97.0,
+        tooltip_provider: "housing",
         pos_type: "absolute", left, top, onclick: {action.as_str()}, button_default_skin: false,
         {art}
         fontstring { name: {DynName(format!("{name}Quantity"))}, text: {quantity_text.as_str()},

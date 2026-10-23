@@ -117,7 +117,11 @@ def read_local_listfile(path):
     return by_fdid, by_path
 
 
-class Closure:
+class RawByteGraph:
+    """Producer/parser byte discovery, not a receipt-qualified offline audit."""
+
+    receipt_audit = False
+
     def __init__(
         self, data, paths, product, metadata_build, runtime_paths=None, path_cache=None
     ):
@@ -173,10 +177,16 @@ class Closure:
                 "sha256": digest(path),
             }
 
+    def asset_key(self, fdid, kind):
+        return int(fdid), kind
+
+    def wmo_context_key(self, fdid):
+        return fdid
+
     def add(self, fdid, kind, reason, parent=None, alias=None):
         if not fdid:
             return
-        key = (int(fdid), kind)
+        key = self.asset_key(fdid, kind)
         if key not in self.assets:
             self.assets[key] = {
                 "fdid": int(fdid),
@@ -202,6 +212,9 @@ class Closure:
                 and (self.data / alias).is_file()
             ):
                 self.queue.append(key)
+
+    def add_flat(self, fdid, kind, reason, parent=None):
+        self.add(fdid, kind, reason, parent)
 
     def named(self, logical, kind, reason, parent):
         canonical = normalized(logical)
@@ -288,12 +301,7 @@ class Closure:
                 )
             ]
             assets.append(row)
-        issues = [
-            {"code": code, "reason": reason, "fdid": fdid}
-            for code, reason, fdid in sorted(
-                self.unresolved, key=lambda issue: (issue[0], issue[2] or 0, issue[1])
-            )
-        ]
+        issues = self.unresolved_records()
         return {
             "schema_version": 1,
             "tool_sha256": digest(Path(__file__)),
@@ -335,6 +343,14 @@ class Closure:
                 "by_type": dict(sorted(Counter(a["type"] for a in assets).items())),
             },
         }
+
+    def unresolved_records(self):
+        return [
+            {"code": code, "reason": reason, "fdid": fdid}
+            for code, reason, fdid in sorted(
+                self.unresolved, key=lambda issue: (issue[0], issue[2] or 0, issue[1])
+            )
+        ]
 
     def expand(self, asset, data):
         kind, fdid = asset["type"], asset["fdid"]
@@ -639,10 +655,11 @@ def main():
     )
     args = parser.parse_args()
     from closure_seeds import seed_catalogs
+    from closure_receipts import ReceiptClosure
 
     config = json.loads(args.config.read_text())
     paths, runtime_paths = read_listfile(args.data / "community-listfile.csv")
-    graph = Closure(
+    graph = ReceiptClosure(
         args.data,
         paths,
         config["product"],

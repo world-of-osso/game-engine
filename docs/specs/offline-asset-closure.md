@@ -12,6 +12,28 @@ Offline audit tooling in `scripts/asset_closure.py` computes a content-rooted de
 - [x] Report unknown joins, malformed bytes, missing expansion boundaries and conflicting local aliases instead of silently dropping dependencies.
 - [x] Resolve named references with the runtime's persisted-local precedence and surviving SQLite import binding, not largest/minimum FDID heuristics; retain displacement gaps. Prefer declared Map.WdtFileDataID, M2 TXID and ADT MDID over stale names; a present TXID/MDID never falls back to names for zero/short slots. Hash the explicit read-only local-listfile snapshot used by the audit.
 - [ ] Select full catalogs through configuration without changing the traversal; label approximate full-scope file/byte estimates separately from proven coverage.
+- [x] Auditor model roots require a matching product/FDID/kind receipt; read and validate scoped payloads,never unqualified flat or another product's bytes. Model-owned SFID/SKID/animation/texture dependencies use the owning model namespace,including authenticated same-product aliases. Keep different products/build namespaces distinct in one graph. Native flat WMO/ADT inputs require their actual flat bytes' provenance; scoped publication alone does not qualify them or replace their paths. `RawByteGraph` is an explicitly named producer/parser discovery helper,not an auditor or missing-receipt fallback.
+
+## Root ownership
+
+- Auditor map roots follow native MapCatalog: Retail `db2/active/Map.csv`,then Forever70205 rows only when neither ID nor ASCII-case-insensitive directory collides. Placement/model descendants retain the selected map product.
+- Player bodies follow the native source-local ChrRaceXChrModel→ChrModel→CreatureDisplayInfo→CreatureModelData chain. Only Skyborne95/96,both sexes,use Forever70205 body/customization data; Retail placeholders and Forever rows for other races do not substitute. Forever customization uses its product-local versioned cache; missing mappings/caches remain gaps. Default Skyborne requirements use the authored playable bits32/33. This body policy never selects owned-item source.
+- Creature display roots use `cache/creature_display.sqlite` source_product/model/variation rows. Missing source is unresolved,not an inferred global product or a CSV fallback. NPC equipment uses `cache/outfit_links-v5.sqlite` source ownership independently for model and material resource groups.
+- Owned-item selectors require the explicit ItemDefinitionSource,for example `{"id": 2947, "definition_source": "Retail"}` or `Forever70205`. Source-local appearance/resource joins must not borrow the shared NPC cache. Bare item IDs,including every ID selected by `items: all`,remain individually unresolved until their definition source is provided; race and graph product never supply it.
+- Source cache rows establish request ownership,not authenticated cache-import provenance. Preserve that separate gap.
+
+## Non-model provenance
+
+- Selected flat ADT/WMO/texture/sound bytes qualify only against same-product,FDID,family,path and size/SHA256/content-key matches in the existing `provenance/closure-extract.jsonl` ledger. Scan once for requested identities; preserve matching historical builds instead of last-row precedence. Missing or mismatched receipts remain named gaps. Hash-only UI inventories do not authenticate origin.
+- ADT and WMO are distinct generic receipt families; their historical build/build-key provenance remains unchanged,never relabeled to the metadata build. No WDT/WDL/physics or model-companion eligibility is implied. This qualification authenticates source bytes,not parser acceptance.
+- Native flat icon/visual texture requests remain flat; model-owned texture namespaces stay separate. Do not add generic sound/blob/DB2 rows to ModelAssetIndex.
+- Each selected DB2 CSV requires its own directory's table export receipt,matching source product and CSV SHA256 with authenticated content. Missing,wrong-product or changed exports are not parsed as valid metadata. Authenticated partial exports expose readable rows but retain exact unreadable-record gaps. Receipt/input drift inside a graph invalidates qualification.
+
+### Encrypted DB2 section policy
+
+- [x] `DB2_ENCRYPTED_SECTION_KEY_UNAVAILABLE` qualifies only readable sections when retained DB2 bytes match the pinned source receipt's SHA256, the CSV matches its export hash, and every excluded section is proven encrypted with an identified key absent from the recorded key census. Missing raw bytes, unexplained unreadable rows, unproven encryption or changed hashes keep the table refused. Never flip whole-file `content_authenticated` to true for partial bytes.
+- [x] Exclude unreadable encrypted-section rows as unreachable under this named policy and count them separately with section/key identities. Keep base records and copy-table rows distinct,with their total logical-row count; prove encrypted chunk coverage through the copy table. Never synthesize zero-valued rows. Other missing joins remain explicit gaps, not presumed encrypted content.
+- [x] The approved key-availability premise is monotonic: pushed TACT keys accumulate, so absence from the later70529 local key census may establish absence for pinned70448 sections. Hash and disclose the later keyring/external-key census identity without relabelling DB2 bytes; a recovered70448 snapshot may replace it. This is an explicit policy premise, not a decoder-derived guarantee.
 
 ## How it works
 
@@ -19,14 +41,24 @@ Offline audit tooling in `scripts/asset_closure.py` computes a content-rooted de
 
 ## Implementation inventory
 
-- `scripts/asset_closure.py` — extracted-byte parser, graph traversal, manifest and census CLI.
+- `scripts/asset_closure.py` — raw producer/parser graph traversal,manifest and census CLI; the CLI always constructs the receipt-qualified auditor.
+- `scripts/closure_receipts.py` — receipt-selected model IO,product/build-qualified graph identities and native flat-reader boundary.
+- `scripts/closure_root_products.py` — native map/display/NPC resource ownership and explicit source-local owned-item roots.
+- `scripts/closure_player_roots.py` — explicit native Skyborne-only player body/customization overlay; source-local body joins avoid the merged NPC display cache.
+- `scripts/closure_nonmodel_receipts.py` — actual flat byte receipts and DB2 export provenance; no extraction or index publication.
+- `scripts/closure_db2_policy.py` — pinned WDC5 encrypted-section/key-census proof and named unreachable-row exclusions; never whole-file provenance promotion.
 - `scripts/closure_seeds.py` — metadata joins and configurable content roots.
 - `scripts/closure-northshire.json` — four Northshire ADT tiles and one Human Warrior.
 - `scripts/closure-full-catalog.json` — broad catalog selectors; not a completeness certificate.
 
 ## Tests asserting this spec
 
-- `scripts/tests/test_asset_closure.py` — concrete binary chains, catalog joins, missing/malformed dependencies, cycles, aliases and census.
+- `scripts/tests/test_asset_closure.py` — concrete raw producer binary chains,catalog joins,missing/malformed dependencies,cycles,aliases and census.
+- `scripts/tests/test_closure_receipts.py` — actual CLI scoped-only descendants,mixed-product same-FDID roots,owning-build companion aliases,wrong-product/legacy rejection,corrupt payload rejection and unchanged native flat WMO material selection.
+- `scripts/tests/test_closure_root_products.py` — native Retail ID/directory map precedence,sourced display/model/material roots,missing source refusal and source-local owned item isolation; ignored RED fixtures are pushed before implementation.
+- `scripts/tests/test_closure_player_sources.py` — ignored RED-first four Skyborne pair overlays,unchanged Retail Human,missing Forever mapping/cache refusal and authored default requirement bits.
+- `scripts/tests/test_closure_nonmodel_receipts.py` — ignored RED-first flat texture/sound product/path/content checks,historical receipt selection,hash-only provenance refusal,native flat icons and authenticated/partial/corrupt/missing DB2 export receipts.
+- `scripts/tests/test_closure_db2_policy.py` — ignored RED-first readable rows,per-section exclusion counts,available-key refusal,unproven input rejection and key-census drift.
 - `scripts/tests/test_closure_skyboxes.py` — map isolation, all authored lighting slots, skybox7345733/skin7345740, celestial roots, positive missing joins versus zero and tile-free catalog entrypoint.
 - `scripts/tests/test_closure_game_objects.py` — observed entry202588/display2690/model200010/skin505852 chain, map/tile selection, transport WMO identity, unspawned roots, named missing rows and selection fingerprint changes.
 - `scripts/tests/test_staged_asset_fragment.py` — canonical cross-fragment uniqueness, equal-byte/different-scope ownership, conflicting payload rejection and preserved legacy alias metadata.
@@ -75,11 +107,20 @@ product publishes scoped bytes and a model-asset-index receipt. Build config,
 encoding and root metadata hashes must validate first. Existing asset bytes are
 never overwritten; root absence, missing bytes, byte mismatch and scoped conflicts
 remain explicit results. A match in another product is diagnostic only, never a
-substitution. New staged fragments must dedupe against the canonical base index
+substitution. Asset receipt kinds must match the native index contract: `blp`, `m2`, `wmo`,
+`skin`, `skel`, `anim`, `bone`. Unsupported kinds fail fragment preparation,
+preflight and publication before any payload or index writes; opaque closure
+nodes remain audit evidence rather than native index members.
+New staged fragments must dedupe against the canonical base index
 and every fragment, then reject remaining duplicate asset identities; raw path repairs
 must not create another product/FDID/kind owner. An identical authenticated asset
 required at another model-build namespace must retain that requested path as a
-provenance alias, without changing its unique existing owner. Alias dedupe includes
+provenance alias, without changing its unique existing owner. Alias metadata is
+not another asset owner: preserved rows can omit build/content-key fields. The
+auditor validates selected alias bytes against the same-product unique owner's
+size,SHA256 and content key and records that owner's actual build; it never
+infers origin from the alias directory or reads model-named legacy aliases in
+place of numeric SFID/SKID inputs. Alias dedupe includes
 the build namespace; same relative paths in different builds are distinct physical
 requirements. Different content remains a conflict, never an alias or runtime fallback.
 This bounded inventory does not verify

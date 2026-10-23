@@ -390,26 +390,33 @@ fn player_frame(
     anchor: &HudAnchor,
     skin: ActiveSkin,
 ) -> Element {
-    if skin == ActiveSkin::Forever {
+    let frame = if skin == ActiveSkin::Forever {
         let unit = FlareUnit {
             aura_state: Some(state),
             ..state.into()
         };
-        return flare_player_frame(unit, !visible, anchor);
-    }
-    let content = rsx! {
-        {unit_frame_contents("Player", state, &PLAYER_SLOTS, HEALTH_BAR)}
-        {class_bar(state.class_bar.as_ref())}
-        {status_icons(state, skin)}
+        flare_player_frame(unit, !visible, anchor)
+    } else {
+        let content = rsx! {
+            {unit_frame_contents("Player", state, &PLAYER_SLOTS, HEALTH_BAR)}
+            {class_bar(state.class_bar.as_ref())}
+            {status_icons(state, skin)}
+        };
+        art_root(
+            dyn_name("PlayerFrame".into()),
+            UNIT_FRAME_SIZE,
+            anchor,
+            !visible,
+            centred_art("PlayerFrame", PLAYER_PORTRAIT_ON, UNIT_FRAME_SIZE, skin),
+            portrait_slot(&PLAYER_PORTRAIT),
+            content,
+        )
     };
-    art_root(
-        dyn_name("PlayerFrame".into()),
-        UNIT_FRAME_SIZE,
-        anchor,
-        !visible,
-        centred_art("PlayerFrame", PLAYER_PORTRAIT_ON, UNIT_FRAME_SIZE, skin),
-        portrait_slot(&PLAYER_PORTRAIT),
-        content,
+    ui_toolkit::tooltip::bind_provider_at(
+        frame,
+        "hud_frame",
+        ui_toolkit::tooltip::TooltipAnchor::Default,
+        [0.0; 2],
     )
 }
 
@@ -419,8 +426,8 @@ fn target_frame(
     anchor: &HudAnchor,
     skin: ActiveSkin,
 ) -> Element {
-    if skin == ActiveSkin::Forever {
-        return flare_frame(
+    let frame = if skin == ActiveSkin::Forever {
+        flare_frame(
             &FLARE_TARGET,
             target.map(|state| FlareUnit {
                 aura_state: Some(state),
@@ -428,19 +435,26 @@ fn target_frame(
             }),
             !visible,
             anchor,
-        );
-    }
-    let content = target
-        .map(|target| target_frame_contents(target, skin))
-        .unwrap_or_default();
-    art_root(
-        dyn_name("TargetFrame".into()),
-        UNIT_FRAME_SIZE,
-        anchor,
-        target.is_none() || !visible,
-        centred_art("TargetFrame", TARGET_PORTRAIT_ON, UNIT_FRAME_SIZE, skin),
-        portrait_slot(&TARGET_PORTRAIT),
-        content,
+        )
+    } else {
+        let content = target
+            .map(|target| target_frame_contents(target, skin))
+            .unwrap_or_default();
+        art_root(
+            dyn_name("TargetFrame".into()),
+            UNIT_FRAME_SIZE,
+            anchor,
+            target.is_none() || !visible,
+            centred_art("TargetFrame", TARGET_PORTRAIT_ON, UNIT_FRAME_SIZE, skin),
+            portrait_slot(&TARGET_PORTRAIT),
+            content,
+        )
+    };
+    ui_toolkit::tooltip::bind_provider_at(
+        frame,
+        "hud_frame",
+        ui_toolkit::tooltip::TooltipAnchor::Default,
+        [0.0; 2],
     )
 }
 

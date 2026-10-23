@@ -21,8 +21,28 @@
 ## 2026-10-22 — Strict TalkingHead child proof
 
 [Bounded proof](systems/talking-head.md#bounded-native-proof): maintained offline runner4/4,204 checks, runner exit0, one exact completion marker and complete Godot child streams without ERROR; four original1920×1080 captures inspected. Chrome/text/source-voice/input only; Dummy audio, named model gap, pending fades/world ingress and compositor/build-adapter/GPU-preflight limitations retained.
+## 2026-10-22 — Tooltip binding metadata in progress
+
+[Owner bindings](systems/ui-system.md#tooltip-owner-metadata--step-5-partial): shared attrs/nearest-owner and static model conversion; actual ignored-binding/anchor RED3→core5 GREEN, Perks disabled Highlight-color RED→model4 GREEN, Currency child/collapse controls3 GREEN. [Current declaration/proof scope](systems/ui-system.md#tooltip-owner-metadata--step-5-partial) updated through Journal/Trading Post migration; native dispatch and Step5 acceptance remain open.
+## 2026-10-22 — Flat ADT/WMO receipt eligibility
+
+[Non-model receipt boundary](systems/offline-asset-closure.md#non-model-receipt-boundary) now includes distinct ADT/WMO families without parser or model-companion changes. [Measured projection](../handoffs/noinstall-cert-2026-10-21.md#structural-adtwmo-receipt-projection--measurement-only) retains historical source identity and named residuals; no new full graph/P4 acceptance.
+
+## 2026-10-22 — Pinned DB2 readable-section proofs
+
+[Named section policy](systems/offline-asset-closure.md#named-encrypted-section-qualification) keeps unavailable base/copy rows distinct without whole-file flag promotion. [Pinned-source recovery](systems/offline-asset-closure.md#restoring-a-pinned-partial-db2-source) reproduces one missing raw/CSV from an authenticated retained envelope; missing ciphertext stays a restoration gap. [Current evidence and exact boundaries](../handoffs/noinstall-cert-2026-10-21.md#pinned-db2-source-recovery--effectname-restored-other-payloads-blocked) own counts,not a full-closure certificate.
+
+## 2026-10-22 — Corrected receipt-qualified full graph
+
+[Corrected r5 evidence](../handoffs/noinstall-cert-2026-10-21.md#corrected-full-graph-r5--complete-traversal-explicit-gaps) completes traversal and compressed-artifact reconciliation,not P4 acceptance. Metadata receipt refusals still gate downstream roots; exact counts and per-cause breakdowns live in the handoff. Lead orders those refusals measured before structural qualification; native/scenario/bundle proof remains separate.
+
+## 2026-10-22 — Native receipt-kind publication boundary
+
+[Receipt recovery](systems/offline-asset-closure.md#no-install-receipt-recovery--verified-2026-10-10) now documents native-kind preflight: authenticated opaque blob768431 poisoned an entire index before world entry. Producer rejects unsupported kinds before writes; RED3→GREEN11 plus16 configured migration/provenance regressions. Historical fragment/readback remains byte proof,not consumer compatibility; lead-owned canonical correction/native recheck separate. [Exact failure and bounded convergence evidence](../handoffs/noinstall-cert-2026-10-21.md#unsupported-opaque-node-publication-failure).
+
 ## 2026-10-21 — No-install certification continuation
 
+[Current coverage and evidence](../handoffs/noinstall-cert-2026-10-21.md):62/62 creation models, nine authenticated visits and five publication rounds; tripwire0 does not certify pristine/full-catalog or rendering acceptance. Generic producers now seed native customization, dynamic objects and authored skies. [Terrain collision](investigations/m2-product-shadowing.md#terrain-collision-reproduced-2026-10-21) authenticates flat Forever579120 M2/Retail579121 SKIN mixing behind Skyborne's four Vertex101 errors. Stockades entrance reset explains its earlier coordinate offset; zero-Basis errors remain open. P4 not complete. Post-publication r3 reaches world in all four terrain/skin cases:expected source namespaces, positive geometry and tripwire0; Vertex101 absent. Two current-build texture aliases now publish and fresh Skyborne both-skin runs emit zero errors; Mulgore retains separate attachment34 errors. Historical owner receipts remain immutable (alias producer RED3→GREEN9, related regressions25). [Exact case counts and co-location proof](../handoffs/noinstall-cert-2026-10-21.md#in-world-terrain-recheck-and-texture-co-location). The later[1,002-root terrain frontier](../handoffs/noinstall-cert-2026-10-21.md#observed1002-root-terrain-closure) authenticates4,300files, publishes4,185new/115deduped, and removes all emitted receipt errors in both-skin bounded Northshire→Ruby rechecks; large pending queues and one NPCanimation5 gap remain. Native follower PNGs prove a bounded armor/Garrick-weapon subset, not all item states.
 [Current coverage and evidence](../handoffs/noinstall-cert-2026-10-21.md):62/62 creation models, nine authenticated visits and five publication rounds; tripwire0 does not certify pristine/full-catalog or rendering acceptance. Generic producers now seed native customization, dynamic objects and authored skies. [Terrain collision](investigations/m2-product-shadowing.md#terrain-collision-reproduced-2026-10-21) authenticates flat Forever579120 M2/Retail579121 SKIN mixing behind Skyborne's four Vertex101 errors. Stockades entrance reset explains its earlier coordinate offset; zero-Basis errors remain open. P4 not complete. Post-publication r3 reaches world in all four terrain/skin cases:expected source namespaces, positive geometry and tripwire0; Vertex101 absent. Skyborne still needs two current-build texture aliases; Mulgore retains separate attachment34 errors. Historical owner receipts remain immutable (alias producer RED3→GREEN9, related regressions25). [Exact case counts and remaining publication gate](../handoffs/noinstall-cert-2026-10-21.md#in-world-terrain-recheck-and-texture-co-location).
 ## 2026-10-21 — Follower party portrait identity
 
@@ -5123,3 +5143,33 @@ gc774 passed tests/fmt and landed engineb0b3d4b39; exact server842325bf3/protoco
 ## 2026-10-21 — Private source TalkingHead
 
 [Runtime and explicit model boundary](systems/talking-head.md): ordered owner-scoped snapshots, authored both-skin chrome/dialogue, source-kit voice with elapsed seek/local stop; native voice RED→both-skin GREEN under existing IV8 consumer patch. Original1920 PNGs inspected; source-model painting remains disabled under TALKING_HEAD_MODEL_PROJECTION_UNSOURCED, not fitted or silently certified. Exact source1751 transform reader had genuine RED before implementation; native diagnostic metadata and its GREEN proof are pending. Host dummy audio is not audible-output proof.
+## 2026-10-22 — Tooltip metadata dispatch and native anchor counterexample
+
+[Step5 ownership](systems/ui-system.md#tooltip-owner-metadata--step-5-partial) now declares all47 providers and replaces native try-all/ancestor/anchor copies with nearest-owner exact dispatch and shared placement. Bridge2+13+5 controls pass at engine1a328dec5/toolkit3463e1f. Real private5993 Modern5/5 owner/live-refresh/leave cases pass at fixture67b49984d, five full-HD originals published; Forever exposes the existing Default→CursorRight skin rewrite. Shared Retail-default regression67b65539a is queued before the approved bounded deletion. No paired native acceptance, lifecycle/sound completion or all47 native-provider claim.
+
+## 2026-10-22 — Retail tooltip anchor shared/native GREEN
+
+[Step5 partial proof](systems/ui-system.md#tooltip-owner-metadata--step-5-partial): actual Forever-default RED→engine9f1cddfae deletes the skin rewrite and all callers, preserving explicit CursorRight and art/health-bar policy. Model2+integration14 and toolkitbaf28de lifecycle5 pass; matched extension/CLI build passes. Fixturebccd6d6df real5993 GameClient strict10/10 passes both-skin Default, same-pointer authoritative refresh, Right/Left owner and leave checks. Ten full-HD originals published and overviews inspected. Lifecycle consumer/descriptors, specialized maps/minimap and native all47/refund-click coverage remain separate.
+
+## 2026-10-22 — Shared lifecycle descriptors and sound edges
+
+[Lifecycle partial](systems/ui-system.md#lifecycle-bindings--step-5-partial): three descriptor/rejection REDs and nearest-hover API RED led to core9 GREEN. Merchant session-before-sync, Trading Post mounted-after-sync and ReadyCheck shown-listener boundaries now use shared observers/one playback bridge; copied edge comparisons and TP sound-prefix classifier are deleted. Frozen missing-hover RED preceded its declaration. Model3/native ReadyCheck2 pass at enginee1f9b5547/toolkitd7bf4a5,0 warnings. Live lifecycle sounds,26close callbacks/Escape and other audited mixin hooks remain open; prior tooltip PNG acceptance is not lifecycle-event proof.
+## 2026-10-22 — Frozen no-install full-config diagnostics
+
+[Certification SSOT](../handoffs/noinstall-cert-2026-10-21.md#fresh-full-catalog-retail-diagnostic-on-frozen70448-metadata) records independently frozen metadata,source/config/root inventory and sequential Retail/Forever-runtime-metadata graph/receipt readbacks. [Audit boundary](systems/offline-asset-closure.md#2026-10-21-certification-continuation): legacy-flat traversal can miss valid scoped files and hide descendants; one requested product is not native mixed-product ownership. Exact current counts/hashes and sparse-metadata qualifications stay in the handoff; no P4 certificate or new native/extraction/publication claim.
+
+## 2026-10-22 — Receipt-selected offline auditor IO
+
+[Bounded capability and proof](../handoffs/noinstall-cert-2026-10-21.md#offline-auditor-receipt-selected-model-io): auditor CLI requires product receipts while `RawByteGraph` explicitly remains producer discovery. File-backed scoped-only/mixed-product cases and authentic579120 collision pass; model-owned namespaces/owner-matched aliases retain required failures and flat WMO material provenance limits. No runtime change,extraction,full-graph replay or native metadata-owned mixed-product certification.
+
+## 2026-10-22 — Metadata-owned offline roots
+
+[Root ownership proof](../handoffs/noinstall-cert-2026-10-21.md#metadata-owned-auditor-roots) records ignored RED-first publication then native map/display/NPC resource source selection. Owned items require explicit definition source and isolated catalogs; unsourced full-catalog IDs remain named gaps. No full-graph replay,native run,extraction or cache-import provenance claim.
+
+## 2026-10-22 — Non-model source receipts in the offline auditor
+
+[Bounded family qualification](../handoffs/noinstall-cert-2026-10-21.md#non-model-texturesound-and-db2-receipt-qualification) follows ignored RED publication with actual-path generic texture/sound receipts and selected DB2 export product/hash/partial-record checks. Native flat paths never borrow scoped bytes; hash-only UI inventories remain unauthenticated. No corrected full-graph replay,native/extraction run or all-content certificate.
+
+## 2026-10-22 — Explicit Skyborne player roots
+
+[Player source overlay](../handoffs/noinstall-cert-2026-10-21.md#explicit-skyborne-player-source-overlay) replaces merged-NPC body selection with source-local body/customization joins for only95/96; Retail Human remains unchanged. Ignored RED-first four cases and100-case focused proof pass. Dataset metadata/cache provenance remains separate; corrected full graph is queued under normal admission,not yet certificate evidence.

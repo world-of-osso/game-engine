@@ -251,15 +251,41 @@ impl UiProjection {
         self.nodes.get(&id).cloned()
     }
 
-    /// The topmost visible mouse-enabled frame containing the physical point.
+    /// Click claims remain limited to mouse-enabled frames.
     pub fn pointer_frame_at<'a>(
         &self,
         registry: &'a FrameRegistry,
         at: Vector2,
     ) -> Option<&'a Frame> {
+        self.frame_at(registry, at, false)
+    }
+
+    /// Authored tooltip regions may receive hover without claiming the parent's clicks.
+    pub fn tooltip_frame_at<'a>(
+        &self,
+        registry: &'a FrameRegistry,
+        at: Vector2,
+    ) -> Option<&'a Frame> {
+        self.frame_at(registry, at, true)
+    }
+
+    fn frame_at<'a>(
+        &self,
+        registry: &'a FrameRegistry,
+        at: Vector2,
+        tooltip: bool,
+    ) -> Option<&'a Frame> {
         let mut candidates: Vec<_> = registry
             .frames_iter()
-            .filter(|frame| frame.visible && frame.mouse_enabled)
+            .filter(|frame| {
+                frame.visible
+                    && (frame.mouse_enabled
+                        || (tooltip
+                            && frame
+                                .tooltip
+                                .as_ref()
+                                .is_some_and(|binding| binding.has_content())))
+            })
             .collect();
         candidates.sort_by(|a, b| {
             b.strata

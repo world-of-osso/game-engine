@@ -522,7 +522,7 @@ fn journeys_home_breadcrumb_returns_from_progress_to_the_list() {
 }
 
 #[test]
-fn selected_journey_reward_tooltip_uses_authored_text_without_invented_claim_state() {
+fn ui_template_behavior_remaining_journal_journey_reward_owner() {
     use game_engine_ui_model::adventure_journeys::reward_tooltip;
     let mut view = data_view();
     view.renown = Some(Arc::new(snapshot()));
@@ -534,6 +534,20 @@ fn selected_journey_reward_tooltip_uses_authored_text_without_invented_claim_sta
         "JourneyReward622Card",
     )
     .unwrap();
+    for skin in [ActiveSkin::Modern, ActiveSkin::Forever] {
+        let mut ctx = SharedContext::new();
+        ui_toolkit::atlas::set_thread_skin(skin);
+        ctx.insert(skin);
+        ctx.insert(view.clone());
+        let mut registry = FrameRegistry::new(1920., 1080.);
+        Screen::new(adventure_guide_screen).sync(&ctx, &mut registry);
+        let hit = registry.get_by_name("JourneyReward622Card").unwrap();
+        let (owner, binding) =
+            ui_toolkit::tooltip::tooltip_owner(&registry, hit).expect("live journey reward owner");
+        assert_eq!(owner.id, hit);
+        assert_eq!(binding.provider.as_deref(), Some("journal_journey"));
+        assert_eq!(binding.anchor, ui_toolkit::tooltip::TooltipAnchor::Right);
+    }
     assert_eq!(tooltip.content.title, "Centaur Hunting Trophies");
     let lines: Vec<_> = tooltip
         .content

@@ -134,7 +134,8 @@ fn quality_button(view: &ProfessionView, item_id: u32) -> Element {
     let prefix = format!("ProfessionQuality{item_id}");
     let icon = quality_icon(view, item_id);
     let action = format!("profession:quality:fill:{item_id}");
-    rsx! { button { name:{DynName(format!("{prefix}Choice"))},width:39.0,height:39.0,left:30.5,top:0.0,pos_type:"absolute",button_default_skin:false,onclick:action,{icon} } }
+    rsx! { button { name:{DynName(format!("{prefix}Choice"))},width:39.0,height:39.0,left:30.5,top:0.0,pos_type:"absolute",button_default_skin:false,onclick:action,
+    tooltip_provider:"profession_reagent_quality",tooltip_anchor:"ANCHOR_TOPLEFT",{icon} } }
 }
 
 fn quality_icon(view: &ProfessionView, item_id: u32) -> Element {

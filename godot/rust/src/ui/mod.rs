@@ -1166,6 +1166,17 @@ impl RegistryUi {
         Some(frame.id)
     }
 
+    /// Hover-only tooltip artwork participates in picking but never claims clicks.
+    pub(crate) fn tooltip_frame_at(&self, at: Vector2) -> Option<u64> {
+        let model = self.model.as_ref()?;
+        Some(
+            self.projection
+                .as_ref()?
+                .tooltip_frame_at(&model.registry, at)?
+                .id,
+        )
+    }
+
     /// The click action of frame `id` or its nearest ancestor with one.
     pub(crate) fn frame_click_action(&self, id: u64) -> Option<String> {
         projection::frame_click_action(&self.model.as_ref()?.registry, id)
@@ -2949,6 +2960,17 @@ impl RegistryUi {
             (button.hovered && frame.visible)
                 .then_some((name, [rect.x, rect.y, rect.width, rect.height]))
         })
+    }
+
+    /// Resolve source OnEnter ownership through typed metadata, independent of button names.
+    pub fn hovered_lifecycle_sound(
+        &self,
+    ) -> Option<(String, ui_toolkit::lifecycle::LifecycleSounds)> {
+        let model = self.model.as_ref()?;
+        let (name, _) = self.hovered_button()?;
+        let id = model.registry.get_by_name(&name)?;
+        let (_, binding) = ui_toolkit::lifecycle::hover_owner(&model.registry, id)?;
+        Some((binding.hover_owner.clone()?, binding.sounds))
     }
 
     /// Name of the button held down (`ButtonState::Pushed` from a press).

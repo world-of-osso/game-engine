@@ -75,7 +75,10 @@ pub fn toybox_screen(ctx: &SharedContext) -> Element {
                     {filters} {context}
                 }
     };
-    crate::collections_component::collections_shell(view.viewport, 2, body)
+    crate::panel_lifecycle::bind_close(
+        crate::collections_component::collections_shell(view.viewport, 2, body),
+        "toybox",
+    )
 }
 
 // ToyBox.iconsFrame inherits CollectionsBackgroundTemplate; Retail anchors resolve
@@ -185,6 +188,7 @@ fn toy_tile(model: &ToyBox, index: usize, toy: &shared::protocol::ToySnapshot) -
         "0.5,0.5,0.5,1.0"
     };
     rsx! { button { name: {DynName(name.clone())}, width: 50.0, height: 50.0,
+        tooltip_provider: "toybox",
         pos_type: "absolute", left, top, onclick: {action.as_str()}, button_default_skin: false,
         texture { name: {DynName(format!("{name}Icon"))}, texture_fdid: {toy.icon_file_data_id},
             width: 42.0, height: 42.0, pos_type: "absolute", left: 4.0, top: 3.0, alpha }

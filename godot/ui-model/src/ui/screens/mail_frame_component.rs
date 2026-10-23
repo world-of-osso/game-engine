@@ -231,20 +231,23 @@ fn build_mail_frame(state: &MailFrameState) -> Element {
     if let Some(open) = &state.open {
         children.extend(open_mail(open, busy));
     }
-    rsx! {
-        r#frame {
-            name: {DynName(FRAME_NAME.into())},
-            width: FRAME_W,
-            height: FRAME_H,
-            strata: FrameStrata::Dialog,
-            hidden: hide,
-            mouse_enabled: true,
-            pos_type: "absolute",
-            left: 16.0,
-            top: 104.0,
-            {children}
-        }
-    }
+    crate::panel_lifecycle::bind_close(
+        rsx! {
+            r#frame {
+                name: {DynName(FRAME_NAME.into())},
+                width: FRAME_W,
+                height: FRAME_H,
+                strata: FrameStrata::Dialog,
+                hidden: hide,
+                mouse_enabled: true,
+                pos_type: "absolute",
+                left: 16.0,
+                top: 104.0,
+                {children}
+            }
+        },
+        "mailbox",
+    )
 }
 
 /// `MailFrameTab1` BOTTOMLEFT 14,-30, Tab2 at its RIGHT -8 (MF.xml:840-852).
@@ -432,16 +435,19 @@ fn inbox_row(index: usize, row: &InboxRow, busy: bool) -> Element {
         count: row.count,
         quality_border: WHITE.into(),
     };
-    out.extend(item_slot(
-        &format!("{name}Button"),
-        (x + 4.0, y + 3.0),
-        button_bg,
-        Some(&item),
-        &if busy {
-            String::new()
-        } else {
-            format!("{ACTION_OPEN_PREFIX}{}", row.mail_id)
-        },
+    out.extend(ui_toolkit::tooltip::bind_provider(
+        item_slot(
+            &format!("{name}Button"),
+            (x + 4.0, y + 3.0),
+            button_bg,
+            Some(&item),
+            &if busy {
+                String::new()
+            } else {
+                format!("{ACTION_OPEN_PREFIX}{}", row.mail_id)
+            },
+        ),
+        "inbox_item",
     ));
     if row.selected {
         out.extend(texture(
@@ -888,16 +894,19 @@ fn open_mail(open: &OpenMailView, busy: bool) -> Element {
     }
     for attachment in &open.attachments {
         let (x, y) = open_attachment_position(index, rows);
-        children.extend(item_slot(
-            &format!("OpenMailAttachmentButton{}", attachment.slot + 1),
-            (x, y),
-            Element::default(),
-            Some(&attachment.item),
-            &if busy {
-                String::new()
-            } else {
-                format!("{ACTION_TAKE_ITEM_PREFIX}{}", attachment.slot)
-            },
+        children.extend(ui_toolkit::tooltip::bind_provider(
+            item_slot(
+                &format!("OpenMailAttachmentButton{}", attachment.slot + 1),
+                (x, y),
+                Element::default(),
+                Some(&attachment.item),
+                &if busy {
+                    String::new()
+                } else {
+                    format!("{ACTION_TAKE_ITEM_PREFIX}{}", attachment.slot)
+                },
+            ),
+            "mail_attachment",
         ));
         index += 1;
     }
