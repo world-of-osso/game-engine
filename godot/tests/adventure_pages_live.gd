@@ -230,6 +230,17 @@ func verify_search_surface() -> bool:
 		return false
 	return await type_word("flame", [KEY_F,KEY_L,KEY_A,KEY_M,KEY_E]) and await verify_preview() and await verify_full_results() and await verify_section_selection()
 
+func wait_micro_menu_layout() -> bool:
+	var deadline := Time.get_ticks_msec() + 90000
+	while Time.get_ticks_msec() < deadline:
+		var button := control("EJMicroButton")
+		if button != null and button.is_visible_in_tree() and button.get_global_rect().size.y > 0.0:
+			await settle()
+			return true
+		await process_frame
+	stop("InWorld did not publish its visible Adventure Guide micro button")
+	return false
+
 func connect_owned_realm() -> bool:
 	var server := OS.get_environment("ADVENTURE_GUIDE_SERVER")
 	var account := OS.get_environment("ADVENTURE_GUIDE_ACCOUNT")
@@ -251,7 +262,7 @@ func connect_owned_realm() -> bool:
 	if client.account_state().ui_skin != OS.get_environment("ADVENTURE_GUIDE_EXPECTED_SKIN"):
 		stop("Authenticated character skin differs from receipt")
 		return false
-	return true
+	return await wait_micro_menu_layout()
 
 func run() -> void:
 	if not await connect_owned_realm():
