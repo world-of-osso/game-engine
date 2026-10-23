@@ -121,23 +121,35 @@ impl GameClient {
         }
     }
 
+    /// Framework Escape only dismisses an existing menu; opening is the final fallback.
+    pub(super) fn apply_game_menu_escape(&mut self) -> Result<bool, String> {
+        if self.game_menu_ui.is_none() {
+            return Ok(false);
+        }
+        let model = self
+            .game_menu_options
+            .as_mut()
+            .expect("menu has options model");
+        if policy::cancel_binding_capture(model) {
+            self.refresh_game_menu()?;
+        } else if model.view == GameMenuView::Options {
+            self.game_menu_drag = None;
+            model.view = GameMenuView::MainMenu;
+            self.refresh_game_menu()?;
+        } else {
+            self.close_game_menu();
+        }
+        Ok(true)
+    }
+
     pub(super) fn handle_game_menu_key(&mut self, key: godot::global::Key) -> Result<bool, String> {
-        if self.game_menu_ui.is_some() {
-            if key == godot::global::Key::ESCAPE {
-                let model = self
-                    .game_menu_options
-                    .as_mut()
-                    .expect("menu has options model");
-                if policy::cancel_binding_capture(model) {
-                    self.refresh_game_menu()?;
-                } else if model.view == GameMenuView::Options {
-                    self.game_menu_drag = None;
-                    model.view = GameMenuView::MainMenu;
-                    self.refresh_game_menu()?;
-                } else {
-                    self.close_game_menu();
-                }
+        if key == godot::global::Key::ESCAPE {
+            let handled = self.apply_game_menu_escape()?;
+            if handled {
+                return Ok(true);
             }
+        }
+        if self.game_menu_ui.is_some() {
             return Ok(true);
         }
         if key != godot::global::Key::ESCAPE {

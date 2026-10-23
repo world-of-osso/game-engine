@@ -32,6 +32,7 @@ mod encounter;
 mod entrance_bar;
 #[path = "game/equipment/equipment_appearance_data.rs"]
 pub mod equipment_appearance_data;
+mod escape;
 mod eula;
 #[path = "game/faction_reaction.rs"]
 mod faction_reaction;
@@ -648,10 +649,6 @@ impl INode3D for GameClient {
         if key.is_echo() && key.get_keycode() == godot::global::Key::ESCAPE {
             return;
         }
-        if key.get_keycode() == godot::global::Key::ESCAPE && self.cancel_ground_target() {
-            self.mark_viewport_input_handled();
-            return;
-        }
         if self.bag_cursor_key(key.get_keycode()) {
             if let Some(mut viewport) = self.base().get_viewport() {
                 viewport.set_input_as_handled();
@@ -672,48 +669,21 @@ impl INode3D for GameClient {
             }
             Ok(false) => {}
         }
-        // Escape ends pet Move To ground targeting first (`SpellStopTargeting`).
-        if key.get_keycode() == godot::global::Key::ESCAPE && self.cancel_pet_move_to() {
-            if let Some(mut viewport) = self.base().get_viewport() {
-                viewport.set_input_as_handled();
-            }
-            return;
-        }
-        if key.get_keycode() == godot::global::Key::ESCAPE
-            && self.account.talents.cancel_loadout_dialog()
-        {
-            self.mark_viewport_input_handled();
-            return;
-        }
         if key.get_keycode() == godot::global::Key::ESCAPE {
-            match self.dismiss_guild_invitation() {
+            match self.dispatch_template_escape() {
                 Ok(true) => {
                     self.mark_viewport_input_handled();
                     return;
                 }
                 Ok(false) => {}
-                Err(error) => {
-                    self.handle_frame_error("Guild invitation dismissal", error);
+                Err(escape::EscapeError::Frame(context, error)) => {
+                    self.handle_frame_error(context, error);
                     return;
                 }
-            }
-            // The slow-purchase popup owns Escape without closing vendor or hidden panels.
-            if self.dismiss_trading_slow_purchase() {
-                self.mark_viewport_input_handled();
-                return;
-            }
-            match self.close_all_windows() {
-                Ok(true) => {
-                    if let Some(mut viewport) = self.base().get_viewport() {
-                        viewport.set_input_as_handled();
-                    }
+                Err(escape::EscapeError::GameMenu(error)) => {
+                    godot_error!("Game menu key failed: {error}");
                     return;
                 }
-                Err(error) => {
-                    self.handle_frame_error("Close all windows", error.into());
-                    return;
-                }
-                Ok(false) => {}
             }
         }
         match self.open_chat_from_key(&key) {
@@ -728,12 +698,6 @@ impl INode3D for GameClient {
                 return;
             }
             Ok(false) => {}
-        }
-        if key.get_keycode() == godot::global::Key::ESCAPE && self.clear_target_on_escape() {
-            if let Some(mut viewport) = self.base().get_viewport() {
-                viewport.set_input_as_handled();
-            }
-            return;
         }
         match self.handle_game_menu_key(key.get_keycode()) {
             Ok(true) => {
