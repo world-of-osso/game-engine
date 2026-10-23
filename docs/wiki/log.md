@@ -1,3 +1,7 @@
+## 2026-10-23 — Dashboard Catalog filter reset native proof
+
+[Catalog Reset](systems/housing.md#dashboard-catalog-reset--verified2026-10-23): retained paired RED→GREEN5/5, both-skin five-phase native search/category/menu/authority preservation, ten inspected untouched1920×1080 originals. Records exact runtime hashes, source Lua163–176 category-preserving semantics,169 encrypted records across16 housing tables, and independently qualified canonical HelmetGeosetData provenance. Scoped check/lead integration remain separate; full housing stays open.
+
 ## 2026-10-22 — Tooltip binding metadata in progress
 
 [Owner bindings](systems/ui-system.md#tooltip-owner-metadata--step-5-partial): shared attrs/nearest-owner and static model conversion; actual ignored-binding/anchor RED3→core5 GREEN, Perks disabled Highlight-color RED→model4 GREEN, Currency child/collapse controls3 GREEN. [Current declaration/proof scope](systems/ui-system.md#tooltip-owner-metadata--step-5-partial) updated through Journal/Trading Post migration; native dispatch and Step5 acceptance remain open.
