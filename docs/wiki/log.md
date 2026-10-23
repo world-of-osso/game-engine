@@ -1,3 +1,7 @@
+## 2026-10-23 — Housing tag-definition refresh dependency
+
+[Source dependencies](systems/housing.md#tag-source-availability--qualified2026-10-23): actual SQLite RED2 reproduces an old catalog omitting available tag definitions and unavailable-source metadata. Refresh now requires DataTagInfo/Group/GroupX independently of the old source set, retaining literal fields/receipts. No tag-menu/search semantics, missing labels or canonical data are changed; private regeneration proof remains separate.
+
 ## 2026-10-23 — Housing tag-source availability correction
 
 [Qualified tag sources](systems/housing.md#tag-source-availability--qualified2026-10-23): pinned70448 already exports150 names,10 groups and138 memberships; runtime47-table housing import omits these definitions. Recorded literal tag-value versus record-ID distinction, seven missing names with readable decor associations, and unqualified ordering/default semantics. Docs-only correction to the older F20 absence claim; no new UI behavior, fallback, canonical writes or completed-test replay.
