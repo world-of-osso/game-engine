@@ -1,0 +1,75 @@
+//! Materialized close declarations must survive both skins and screen rebuilds.
+use game_engine_ui_model::{character_frame, professions_frame, raid_info};
+use ui_toolkit::atlas::{ActiveSkin, set_thread_skin};
+use ui_toolkit::lifecycle::{CloseGroup, EscapePriority};
+use ui_toolkit::registry::FrameRegistry;
+use ui_toolkit::screen::{Screen, SharedContext};
+
+fn assert_close(registry: &FrameRegistry, name: &str, hook: &str) {
+    let id = registry.get_by_name(name).expect(name);
+    let binding = registry.get(id).unwrap().lifecycle.as_ref().expect(name);
+    assert_eq!(binding.close_hook.as_deref(), Some(hook), "{name}");
+    assert_eq!(binding.close_group, Some(CloseGroup::Panels), "{name}");
+    assert_eq!(
+        binding.escape_priority,
+        Some(EscapePriority::AddOnPost),
+        "{name}"
+    );
+}
+
+#[test]
+fn ui_template_lifecycle_root_character_keeps_registration_across_hide_and_rebuild() {
+    for skin in [ActiveSkin::Modern, ActiveSkin::Forever] {
+        set_thread_skin(skin);
+        let mut shared = SharedContext::new();
+        let mut registry = FrameRegistry::new(1920.0, 1080.0);
+        let mut screen = Screen::new(character_frame::character_frame_screen);
+        for visible in [true, false, true] {
+            shared.insert(character_frame::CharacterFrameView {
+                visible,
+                ..Default::default()
+            });
+            screen.sync(&shared, &mut registry);
+            assert_close(&registry, "CharacterFrame", "character");
+        }
+    }
+}
+
+#[test]
+fn ui_template_lifecycle_root_raid_info_keeps_registration_across_hide_and_rebuild() {
+    for skin in [ActiveSkin::Modern, ActiveSkin::Forever] {
+        set_thread_skin(skin);
+        let mut shared = SharedContext::new();
+        let mut registry = FrameRegistry::new(1920.0, 1080.0);
+        let mut screen = Screen::new(raid_info::screen);
+        for visible in [true, false, true] {
+            shared.insert(raid_info::RaidInfoState {
+                visible,
+                ..Default::default()
+            });
+            screen.sync(&shared, &mut registry);
+            assert_close(&registry, raid_info::FRAME, "raid_info");
+        }
+    }
+}
+
+#[test]
+fn ui_template_lifecycle_root_professions_unmounts_without_losing_registration_on_reopen() {
+    for skin in [ActiveSkin::Modern, ActiveSkin::Forever] {
+        set_thread_skin(skin);
+        let mut shared = SharedContext::new();
+        let mut registry = FrameRegistry::new(1920.0, 1080.0);
+        let mut screen = Screen::new(professions_frame::professions_screen);
+        for visible in [true, false, true] {
+            let mut view = professions_frame::ProfessionView::default();
+            view.book.visible = visible;
+            shared.insert(view);
+            screen.sync(&shared, &mut registry);
+            if visible {
+                assert_close(&registry, "ProfessionsFrame", "professions");
+            } else {
+                assert!(registry.get_by_name("ProfessionsFrame").is_none());
+            }
+        }
+    }
+}
