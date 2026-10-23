@@ -1,3 +1,7 @@
+## 2026-10-23 — Journal summary actual-pixel RED
+
+[Summary painting](systems/adventure-guide.md#journal-summary-painting--2026-10-23): real Azure+8/37:30 data has0 glyph pixels because root labels sit below child instance paper. Reparent summaries preserving bounds; native GREEN pending. Earlier12-phase semantic proof remains qualified, not relabeled pixel acceptance.
+
 ## 2026-10-23 — Generic FontString text markup
 
 [Shared display-run boundary](systems/ui-system.md#fontstring-text-markup--2026-10-23) replaces literal control-byte drawing through core decoding and generic projection. Concrete Kurog core RED4→GREEN5 and baseline Vulkan projection RED precede coloured drawing; merged4a05/8e75 native transition/ink/child tests and authenticated Kurog link/original-brown ink pass both skins (extension7d5fb0119a27). Twelve authenticated Guide phases produce62 inspected fullHD PNGs; lead gate remains separate. Existing actor framing and hidden Journal key-summary painting are explicitly not accepted by markup proof. Plain Label behavior stays unchanged; coloured truncation is explicitly qualified.

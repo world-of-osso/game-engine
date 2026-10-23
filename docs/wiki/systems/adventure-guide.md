@@ -274,6 +274,12 @@ Historical2026-10-11 evidence in `data/diagnostics/adventure-guide3-2026-10-11/`
 
 Owned keys use ChallengeSnapshot.keys independently of an active run, joined via authentic MapChallengeMode to Journal maps/timers. Opening explicitly queries challenges: an in-session grant had left cached keys stale, reproduced in Forever and fixed with native1→2 GREEN. Both skins show owned Azure8/timer37:30 and first-unopened Cobrahn right-click selects Journal475/Dungeons while fetching persisted Molten Core9/mask1 save. Both skins prove ItemSet filter scroll reset, authored Lightbringer icons and set tooltip membership/bonuses. Source Warmonger items270367–270374 have icon0; the shared spell renderer still lacks some stat-name text. Neither gap gets invented replacement data.
 
+## Journal summary painting — 2026-10-23
+
+[Required display](../../specs/adventure-guide.md#required-behavior) is distinct from populated control text. Actual private integration on extension7d5fb0119a27/fixturefe32a35fe receives an owned Azure+8 key and37:30 timer but fails with **0 changed brown glyph pixels**. `key-paint-red2-full.log` and its original PNG under `data/diagnostics/adventure-guide-pages-2026-10-22/` preserve the actual RED. The earlier12-phase data/navigation proof does not certify this summary's pixels.
+
+Registry insertion assigns children parent+1; native projection sorts frame level before draw layer. Root-level Keystone/Lockout labels were below the child InstanceFrame's paper. Both labels now belong to that paper's content, with child-relative positions preserving their prior journal-relative bounds. No key authority, timer, camera or new layout is introduced. Native GREEN remains pending.
+
 ## October 13 navigation lifetime proof
 
 The Trading Post Log opener closes its vendor interaction, selects the existing monthly Guide pane and requests shared balance/activity snapshots. It does not toggle a visible Guide closed, and pending encounter navigation cannot replace the newly selected Log.

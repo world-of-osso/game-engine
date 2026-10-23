@@ -1032,29 +1032,30 @@ fn encounter_page(ctx: &SharedContext, view: &View) -> Element {
     let Some(encounter) = view.encounter.and_then(|id| view.catalog.encounter(id)) else {
         let mut lore = crate::adventure_guide_art::instance_lore(instance);
         lore.extend(instance_lore_scroll(ctx, instance));
-        out.extend(rsx! {r#frame {name:"EncounterJournalInstanceFrame",left:402.0,top:64.0,width:390.0,height:425.0,pos_type:"absolute",{lore}}});
-        out.extend(difficulty_button(view));
         let keys = [view.owned_key_text(), view.challenge_text()]
             .into_iter()
             .flatten()
             .collect::<Vec<_>>()
             .join("\n");
         if !keys.is_empty() {
-            out.extend(label(
+            lore.extend(label(
                 "EncounterJournalKeystone".into(),
                 &keys,
-                (437., 305., 315., 75.),
+                (35., 241., 315., 75.),
                 (12., INK, "LEFT"),
             ));
         }
         if let Some((_, status)) = view.lockouts.iter().find(|(map, _)| *map == instance.map) {
-            out.extend(label(
+            lore.extend(label(
                 "EncounterJournalLockout".into(),
                 status,
-                (437., 369., 315., 20.),
+                (35., 305., 315., 20.),
                 (10., INK, "LEFT"),
             ));
         }
+        // Summaries share the paper's frame level; their journal-relative bounds stay unchanged.
+        out.extend(rsx! {r#frame {name:"EncounterJournalInstanceFrame",left:402.0,top:64.0,width:390.0,height:425.0,pos_type:"absolute",{lore}}});
+        out.extend(difficulty_button(view));
         if view.difficulty_open {
             out.extend(difficulty_menu(ctx, view, instance));
         }
