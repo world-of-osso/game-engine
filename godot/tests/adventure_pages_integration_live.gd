@@ -110,6 +110,11 @@ func verify_received_save_and_key() -> bool:
 	if state.instance != 1203 or state.encounter != -1 or not key.contains("The Azure Vault +8") or not key.contains("37:30"):
 		stop("Authoritative owned key401 did not join authentic Azure dungeon/timer: " + key)
 		return false
+	var counts: Vector2i = await sample_native_text_ink(control("EncounterJournalKeystone"))
+	if counts.y < 20:
+		stop("Authoritative owned key text exists but does not paint: ink=%s text=%s" % [counts.y, key])
+		return false
+	print("AG_OWNED_KEY_PAINT_PASS ink=%s text=%s" % [counts.y, key])
 	return await shot("integration-owned-azure-key")
 
 func run() -> void:
