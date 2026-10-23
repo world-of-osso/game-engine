@@ -1,3 +1,7 @@
+## 2026-10-22 — Corrected receipt-qualified full graph
+
+[Corrected r5 evidence](../handoffs/noinstall-cert-2026-10-21.md#corrected-full-graph-r5--complete-traversal-explicit-gaps) completes traversal and compressed-artifact reconciliation,not P4 acceptance. Metadata receipt refusals still gate downstream roots; exact counts and per-cause breakdowns live in the handoff. Lead orders those refusals measured before structural qualification; native/scenario/bundle proof remains separate.
+
 ## 2026-10-22 — Native receipt-kind publication boundary
 
 [Receipt recovery](systems/offline-asset-closure.md#no-install-receipt-recovery--verified-2026-10-10) now documents native-kind preflight: authenticated opaque blob768431 poisoned an entire index before world entry. Producer rejects unsupported kinds before writes; RED3→GREEN11 plus16 configured migration/provenance regressions. Historical fragment/readback remains byte proof,not consumer compatibility; lead-owned canonical correction/native recheck separate. [Exact failure and bounded convergence evidence](../handoffs/noinstall-cert-2026-10-21.md#unsupported-opaque-node-publication-failure).
