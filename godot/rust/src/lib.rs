@@ -649,7 +649,7 @@ impl INode3D for GameClient {
         if key.is_echo() && key.get_keycode() == godot::global::Key::ESCAPE {
             return;
         }
-        if self.bag_cursor_key(key.get_keycode()) {
+        if self.consume_bag_cursor_focused_key(key.get_keycode()) {
             if let Some(mut viewport) = self.base().get_viewport() {
                 viewport.set_input_as_handled();
             }

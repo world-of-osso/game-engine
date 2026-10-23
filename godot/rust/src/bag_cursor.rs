@@ -351,6 +351,15 @@ impl GameClient {
         self.bags.cursor.split.is_some()
     }
 
+    /// Focused split input stays ahead of the global Escape registrations.
+    pub(super) fn consume_bag_cursor_focused_key(&mut self, key: Key) -> bool {
+        let global_escape = key == Key::ESCAPE && !self.bag_cursor_text_input();
+        if global_escape {
+            return false;
+        }
+        self.bag_cursor_key(key)
+    }
+
     /// The split owns the keyboard; cursor Escape precedes every window Escape step.
     pub(super) fn bag_cursor_key(&mut self, key: Key) -> bool {
         if self.bag_cursor_text_input() {
