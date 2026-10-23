@@ -6,7 +6,7 @@ import tempfile
 import unittest
 
 sys.path.insert(0, str(Path(__file__).resolve().parents[1]))
-from asset_closure import Closure
+from asset_closure import RawByteGraph
 from closure_extract_rounds import fixed_point, count_retryable
 
 
@@ -56,7 +56,7 @@ class FixedPointTests(unittest.TestCase):
             }
 
             def traverse():
-                graph = Closure(data, paths, "wow", "fixture")
+                graph = RawByteGraph(data, paths, "wow", "fixture")
                 graph.add(1, "wdt", "map root")
                 return graph.run()
 

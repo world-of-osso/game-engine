@@ -8,7 +8,7 @@ import tempfile
 import unittest
 
 sys.path.insert(0, str(Path(__file__).parents[1]))
-from asset_closure import Closure, read_listfile
+from asset_closure import RawByteGraph, read_listfile
 from test_asset_closure import chunk, ints, model
 
 
@@ -25,7 +25,7 @@ class PathTests(unittest.TestCase):
         return target
 
     def test_named_reference_uses_last_imported_identity_not_largest_fdid(self):
-        graph = Closure(self.data, {9: 'world/test.m2', 2: 'world/test.m2'}, 'wow', 'fixture')
+        graph = RawByteGraph(self.data, {9: 'world/test.m2', 2: 'world/test.m2'}, 'wow', 'fixture')
         self.put('models/2.m2', model())
         graph.named('WORLD\\TEST.M2', 'm2', 'named placement', None)
         result = graph.run()
@@ -51,7 +51,7 @@ class PathTests(unittest.TestCase):
         paths, bindings = read_listfile(path)
         self.assertEqual(bindings, {'world/Éclair.m2': 1, 'world/éclair.m2': 9})
         self.put('models/1.m2', model())
-        graph = Closure(self.data, paths, 'wow', 'fixture', runtime_paths=bindings)
+        graph = RawByteGraph(self.data, paths, 'wow', 'fixture', runtime_paths=bindings)
         graph.named('WORLD/Éclair.M2', 'm2', 'case-sensitive non-ASCII name', None)
         self.assertEqual([a['fdid'] for a in graph.run()['assets']], [1])
 
@@ -61,7 +61,7 @@ class PathTests(unittest.TestCase):
             db.execute('CREATE TABLE local_listfile_entries(fdid INTEGER PRIMARY KEY,path TEXT,lower_path TEXT UNIQUE)')
             db.execute('INSERT INTO local_listfile_entries VALUES(17,?,?)', ('world/test.m2', 'world/test.m2'))
             db.commit()
-        graph = Closure(self.data, {9: 'world/test.m2', 2: 'world/test.m2'}, 'wow', 'fixture', path_cache=cache)
+        graph = RawByteGraph(self.data, {9: 'world/test.m2', 2: 'world/test.m2'}, 'wow', 'fixture', path_cache=cache)
         self.put('models/17.m2', model())
         graph.named('world/test.m2', 'm2', 'named placement', None)
         result = graph.run()
@@ -73,7 +73,7 @@ class PathTests(unittest.TestCase):
     def test_declared_map_wdt_fdid_wins_over_named_duplicates(self):
         from closure_seeds import seed_terrain
         self.put('terrain/10.wdt', chunk('MVER', ints(18), True))
-        graph = Closure(self.data, {10: 'world/maps/fixture/fixture.wdt', 9: 'world/maps/fixture/fixture.wdt'}, 'wow', 'fixture')
+        graph = RawByteGraph(self.data, {10: 'world/maps/fixture/fixture.wdt', 9: 'world/maps/fixture/fixture.wdt'}, 'wow', 'fixture')
         seed_terrain(graph, {'maps': [{'id': 1, 'directory': 'fixture', 'tiles': 'all', 'wdt_fdid': 10}]})
         result = graph.run()
         self.assertEqual([a['fdid'] for a in result['assets']], [10])
@@ -85,7 +85,7 @@ class PathTests(unittest.TestCase):
         struct.pack_into('<H', row, 34, 0x40)
         self.put('terrain/1.adt', chunk('MDDF', row, True))
         self.put('models/4.m2', model())
-        graph = Closure(self.data, {4: 'world/test.m2', 9: 'world/test.m2'}, 'wow', 'fixture')
+        graph = RawByteGraph(self.data, {4: 'world/test.m2', 9: 'world/test.m2'}, 'wow', 'fixture')
         graph.add(1, 'adt', 'test')
         result = graph.run()
         self.assertEqual([a['fdid'] for a in result['assets']], [1, 4])
@@ -101,13 +101,13 @@ class PathTests(unittest.TestCase):
         self.put('models/2.m2', chunk('MD21', raw) + chunk('TXID', ints(17)))
         self.put('textures/17.blp', b'BLP2current')
         paths = {8: 'textures/old.blp', 9: 'textures/old.blp'}
-        graph = Closure(self.data, paths, 'wow', 'fixture')
+        graph = RawByteGraph(self.data, paths, 'wow', 'fixture')
         graph.add(2, 'm2', 'test')
         result = graph.run()
         self.assertEqual([a['fdid'] for a in result['assets']], [2, 17])
         self.assertFalse(result['unresolved'])
         self.put('terrain/1.adt', chunk('MDID', ints(17), True) + chunk('MTEX', name, True))
-        graph = Closure(self.data, paths, 'wow', 'fixture')
+        graph = RawByteGraph(self.data, paths, 'wow', 'fixture')
         graph.add(1, 'adt', 'test')
         result = graph.run()
         self.assertEqual([a['fdid'] for a in result['assets']], [1, 17])
@@ -122,17 +122,17 @@ class PathTests(unittest.TestCase):
         raw[0x148:] = name
         for txid in [ints(0), b'']:
             self.put('models/2.m2', chunk('MD21', raw) + chunk('TXID', txid))
-            graph = Closure(self.data, {8: 'textures/old.blp'}, 'wow', 'fixture')
+            graph = RawByteGraph(self.data, {8: 'textures/old.blp'}, 'wow', 'fixture')
             graph.add(2, 'm2', 'test')
             self.assertEqual([a['fdid'] for a in graph.run()['assets']], [2])
         for mdid in [ints(0), b'']:
             self.put('terrain/1.adt', chunk('MDID', mdid, True) + chunk('MTEX', name, True))
-            graph = Closure(self.data, {8: 'textures/old.blp'}, 'wow', 'fixture')
+            graph = RawByteGraph(self.data, {8: 'textures/old.blp'}, 'wow', 'fixture')
             graph.add(1, 'adt', 'test')
             self.assertEqual([a['fdid'] for a in graph.run()['assets']], [1])
 
     def test_displaced_path_without_runtime_binding_remains_a_visible_gap(self):
-        graph = Closure(self.data, {7: 'world/a.m2', 3: 'world/b.m2'}, 'wow', 'fixture', runtime_paths={'world/b.m2': 3})
+        graph = RawByteGraph(self.data, {7: 'world/a.m2', 3: 'world/b.m2'}, 'wow', 'fixture', runtime_paths={'world/b.m2': 3})
         graph.named('world/a.m2', 'm2', 'displaced placement', None)
         result = graph.run()
         self.assertEqual(result['assets'], [])

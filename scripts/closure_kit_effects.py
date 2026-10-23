@@ -155,7 +155,8 @@ class KitEffectReferences:
             kind = FILE_FIELDS.get(table, {}).get(base)
             if kind:
                 if number > 0:
-                    self.graph.add(number, kind, f"{table} {identity} {field}")
+                    add = self.graph.add_flat if kind == "blp" else self.graph.add
+                    add(number, kind, f"{table} {identity} {field}")
                 else:
                     self.graph.issue(
                         "unsupported_spell_procedural_model",

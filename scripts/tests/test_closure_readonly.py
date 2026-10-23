@@ -1,4 +1,4 @@
-"""Closure's read transaction ends and its SQLite descriptor closes at the context boundary."""
+"""RawByteGraph's read transaction ends and its SQLite descriptor closes at the context boundary."""
 
 from pathlib import Path
 import sqlite3
