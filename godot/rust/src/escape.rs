@@ -1,6 +1,6 @@
 //! Exact domain adapters for authored global Escape handlers; core owns stable dispatch.
 use crate::{GameClient, frame_error::FrameError};
-use game_engine_ui_model::panel_lifecycle::ESCAPE_BINDINGS;
+use game_engine_ui_model::panel_lifecycle::REGISTRATIONS;
 use ui_toolkit::lifecycle::dispatch_escape;
 
 /// Preserve account-failure authority and the menu's existing nonfatal logging path.
@@ -44,7 +44,7 @@ const ESCAPE_CALLBACKS: &[(&str, EscapeCallback)] = &[
 
 impl GameClient {
     pub(super) fn dispatch_template_escape(&mut self) -> Result<bool, EscapeError> {
-        dispatch_escape(ESCAPE_BINDINGS, self, Self::invoke_escape_hook)
+        dispatch_escape(REGISTRATIONS, self, Self::invoke_escape_hook)
     }
 
     fn invoke_escape_hook(&mut self, hook: &str) -> Result<bool, EscapeError> {

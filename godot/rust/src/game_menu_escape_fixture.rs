@@ -100,7 +100,7 @@ fn append_menu_binding(state: &mut VarDictionary, ui: &Gd<RegistryUi>) {
         );
         return;
     };
-    if let Some(hook) = &binding.close_hook {
+    if let Some(hook) = &binding.escape_hook {
         state.set("hook", hook.as_str());
     }
     if let Some(priority) = binding.escape_priority {
