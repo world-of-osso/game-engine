@@ -35,6 +35,10 @@ Spellbook seeds include auto-learned class/default-skill spells and future Warri
 
 The full-catalog census counts listfile candidates by extension and actual extracted disk files/bytes. Additional extraction file counts and bytes are **estimates**, using numeric FDID overlap and the biased local mean size per class. Mixed-product listfile entries, owner-named skin aliases and absent receipts prevent treating these as verified release coverage. No size is guessed when there is no local sample. Unnamed FDIDs can be absent from the listfile, especially skeletons, so the census is neither an upper nor a lower bound on the required full catalog. Compression/download size is unknown.
 
+## Model-owner recovery boundary
+
+[Owner/companion source projection](../../handoffs/noinstall-cert-2026-10-21.md#model-owner-and-companion-source-projection--no-publication-yet) distinguishes authenticated generic source bytes from native-owned namespaces. Native selects a unique product/FDID/kind owner before constructing its resolver; recovery requires explicit immutable owners and authenticated companion aliases,not flat-byte fallback. Historical source identity stays historical even when identical bytes require an alias under a newer model namespace. Missing source receipts,global-owner-present unresolved parent namespaces and untraversed descendants remain separate gaps. A globally known texture owner does not override its requested parent namespace.
+
 ## Canonical raw DB2 source mismatch
 
 The [canonical raw census](../../handoffs/noinstall-cert-2026-10-21.md#canonical-raw-db2-mismatch-census--report-only) records unversioned raw caches that do not match the pinned70448 raw receipt hashes,including both HelmetGeosetData aliases. A WDC5 `WOWSTATIC` schema label is not an authenticated extraction-build receipt. Preserve the mismatch and unknown origin as named gaps; do not use canonical raw filenames to invalidate separately authenticated frozen CSV/private restored-source proofs,or silently replace their bytes. Investigation is read-only.
