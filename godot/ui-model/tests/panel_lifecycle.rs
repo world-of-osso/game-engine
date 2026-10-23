@@ -5,6 +5,14 @@ use ui_toolkit::lifecycle::{CloseGroup, EscapePriority};
 use ui_toolkit::registry::FrameRegistry;
 use ui_toolkit::screen::{Screen, SharedContext};
 
+fn set_skin(skin: ActiveSkin) {
+    game_engine_ui_model::paths::set_data_root(
+        std::path::PathBuf::from(env!("CARGO_MANIFEST_DIR")).join("../../data"),
+    )
+    .unwrap();
+    set_thread_skin(skin);
+}
+
 fn assert_close(registry: &FrameRegistry, name: &str, hook: &str) {
     let id = registry.get_by_name(name).expect(name);
     let binding = registry.get(id).unwrap().lifecycle.as_ref().expect(name);
@@ -20,7 +28,7 @@ fn assert_close(registry: &FrameRegistry, name: &str, hook: &str) {
 #[test]
 fn ui_template_lifecycle_root_character_keeps_registration_across_hide_and_rebuild() {
     for skin in [ActiveSkin::Modern, ActiveSkin::Forever] {
-        set_thread_skin(skin);
+        set_skin(skin);
         let mut shared = SharedContext::new();
         let mut registry = FrameRegistry::new(1920.0, 1080.0);
         let mut screen = Screen::new(character_frame::character_frame_screen);
@@ -38,7 +46,7 @@ fn ui_template_lifecycle_root_character_keeps_registration_across_hide_and_rebui
 #[test]
 fn ui_template_lifecycle_root_raid_info_keeps_registration_across_hide_and_rebuild() {
     for skin in [ActiveSkin::Modern, ActiveSkin::Forever] {
-        set_thread_skin(skin);
+        set_skin(skin);
         let mut shared = SharedContext::new();
         let mut registry = FrameRegistry::new(1920.0, 1080.0);
         let mut screen = Screen::new(raid_info::screen);
@@ -56,7 +64,7 @@ fn ui_template_lifecycle_root_raid_info_keeps_registration_across_hide_and_rebui
 #[test]
 fn ui_template_lifecycle_root_professions_unmounts_without_losing_registration_on_reopen() {
     for skin in [ActiveSkin::Modern, ActiveSkin::Forever] {
-        set_thread_skin(skin);
+        set_skin(skin);
         let mut shared = SharedContext::new();
         let mut registry = FrameRegistry::new(1920.0, 1080.0);
         let mut screen = Screen::new(professions_frame::professions_screen);
