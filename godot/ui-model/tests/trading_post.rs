@@ -1666,14 +1666,7 @@ fn ui_template_behavior_remaining_trading_post_refund_and_product_owners() {
 fn ui_template_lifecycle_consumer_trading_post_declares_mounted_edges_and_stable_product_hover() {
     use ui_toolkit::attrs::read_attribute;
     for skin in [ActiveSkin::Modern, ActiveSkin::Forever] {
-        let registry = render(
-            skin,
-            View {
-                visible: true,
-                snapshot: Some(Arc::new(snapshot())),
-                ..Default::default()
-            },
-        );
+        let registry = render(skin, freeze_view());
         let frame = registry.get_by_name("PerksProgramFrame").unwrap();
         for (key, value) in [
             ("lifecycle_on_show", "218932"),
@@ -1688,14 +1681,14 @@ fn ui_template_lifecycle_consumer_trading_post_declares_mounted_edges_and_stable
                 "{key}"
             );
         }
-        let product = registry.get_by_name("PerksProgramProduct4").unwrap();
+        let product = registry.get_by_name("PerksProgramProduct5").unwrap();
         assert_eq!(
             read_attribute(&registry, product, "lifecycle_on_enter").as_deref(),
             Some("218934")
         );
         assert_eq!(
             read_attribute(&registry, product, "lifecycle_hover_owner").as_deref(),
-            Some("PerksProgramProduct4")
+            Some("PerksProgramProduct5")
         );
     }
 }
