@@ -198,6 +198,11 @@ pub fn merchant_frame_screen(ctx: &SharedContext) -> Element {
     rsx! {
         r#frame {
             name: {DynName(FRAME_NAME.into())},
+            lifecycle_on_show: 839,
+            lifecycle_on_hide: 840,
+            lifecycle_close_hook: "merchant",
+            lifecycle_close_group: "PANELS",
+            lifecycle_escape_priority: "AddOnPost",
             width: FRAME_W,
             height: FRAME_H,
             strata: FrameStrata::Dialog,

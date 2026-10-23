@@ -632,7 +632,7 @@ pub fn trading_post_screen(ctx: &SharedContext) -> Element {
     if let Some(confirm) = &view.confirm {
         children.extend(confirm_popup(view, confirm));
     }
-    rsx! {r#frame{name:"PerksProgramFrame",width:WIDTH,height:HEIGHT,left:0.0,top:0.0,pos_type:"absolute",strata:FrameStrata::FullscreenDialog,mouse_enabled:true,{children}}}
+    rsx! {r#frame{name:"PerksProgramFrame",width:WIDTH,height:HEIGHT,left:0.0,top:0.0,pos_type:"absolute",strata:FrameStrata::FullscreenDialog,mouse_enabled:true,lifecycle_on_show:218932,lifecycle_on_hide:218933,lifecycle_close_hook:"trading_post",lifecycle_close_group:"PANELS",lifecycle_escape_priority:"AddOnPost",{children}}}
 }
 
 fn catalog_controls(ctx: &SharedContext, view: &View, snapshot: &TradingPostSnapshot) -> Element {
@@ -849,7 +849,8 @@ fn product_row(view: &View, row: &TradingPostItem, top: f32, selected: bool) -> 
     children.extend(clock::row_time(view, row));
     children.extend(row_cart_toggle(view, row.id));
     let action = format!("perks:select:{}", row.id);
-    rsx! {button{name:{DynName(format!("PerksProgramProduct{}",row.id))},left:0.0,top,width:LIST_WIDTH,height:ROW_HEIGHT,pos_type:"absolute",button_default_skin:false,onclick:action.as_str(),button_atlas_highlight:"perks-list-hover",button_highlight_blend_mode:"ADD",tooltip_provider:"trading_post",tooltip_anchor:"ANCHOR_RIGHT",tooltip_offset_x:-16.0,{children}}}
+    let hover_owner = format!("PerksProgramProduct{}", row.id);
+    rsx! {button{name:{DynName(format!("PerksProgramProduct{}",row.id))},lifecycle_on_enter:218934,lifecycle_hover_owner:hover_owner.as_str(),left:0.0,top,width:LIST_WIDTH,height:ROW_HEIGHT,pos_type:"absolute",button_default_skin:false,onclick:action.as_str(),button_atlas_highlight:"perks-list-hover",button_highlight_blend_mode:"ADD",tooltip_provider:"trading_post",tooltip_anchor:"ANCHOR_RIGHT",tooltip_offset_x:-16.0,{children}}}
 }
 
 fn row_item_icon(view: &View, row: &TradingPostItem) -> Element {
