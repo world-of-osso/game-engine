@@ -40,6 +40,7 @@ pub const CLOSE_REGISTRATIONS: &[CloseRegistration<&str>] = &[
     panel("combat_stable"),
     panel("bank"),
     panel("guild_bank"),
+    panel("flight_map"),
 ];
 
 const fn panel(hook: &'static str) -> CloseRegistration<&'static str> {
