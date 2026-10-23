@@ -486,12 +486,14 @@ def build(root, fixture=None, cli=False, release=False, host=None, jobs=None):
                 print(cli_destination)
 
 
-def run_tests(root, cargo_args, host=None):
+def run_tests(root, cargo_args, host=None, jobs=None):
     """Run `cargo test` on the selected host and return cargo's exit status."""
     host = select_build_host(host)
     if host == "native":
         lock, _, _ = locked_checkout(root)
         with lock:
+            if jobs is not None:
+                cargo_args = ["-j", str(jobs), *cargo_args]
             return run_tests_native(root, cargo_args)
     lock, cache, checkout_key = locked_checkout(root)
     with lock:
@@ -511,6 +513,8 @@ def run_tests(root, cargo_args, host=None):
                 "--build-arg",
                 f"TEST_RUN={time.time_ns()}",
             ]
+            if jobs is not None:
+                command.extend(["--build-arg", f"JOBS={jobs}"])
             execute(context, output, checkout_key, "test-result", command, host)
             phase(f"{host} test", start)
             log, status = output / "test.log", output / "status"
@@ -600,10 +604,9 @@ def main():
             save_build_host(args.save_build_host)
             return 0
         if args.test:
-            cargo_args = argv[split:]
-            if args.jobs is not None:
-                cargo_args = ["-j", str(args.jobs), *cargo_args]
-            return run_tests(args.root.resolve(), cargo_args, args.build_host)
+            return run_tests(
+                args.root.resolve(), argv[split:], args.build_host, args.jobs
+            )
         build(
             args.root.resolve(),
             args.fixture,
