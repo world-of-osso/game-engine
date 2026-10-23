@@ -99,6 +99,7 @@ Before rework, identify the applicable product/build and a real authored asset, 
 
 ## Related knowledge
 
+- [CF-2 client API source audit](cf2-client-api-audit-20261023.md): six request batches, Retail/PTR/Forever/Mists source pins, documented UI/API contracts and native-proof gaps (2026-10-23).
 - [F15 12340 secure/UI behavior](f15-12340.md): native click, tooltip and combo paths; FrameXML secure-header gaps (2026-10-23).
 - [F14 12340 UI/API questions](f14-12340.md): FrameXML/UI cache provenance, Battle.net reporting, timers and quest cache (2026-10-23).
 - [12340 tooltip padding and aura files](tooltip-padding-buff-12340.md): source-derived width arithmetic and 3.4.3 cache versus unavailable 12340 UI files (2026-10-23).
