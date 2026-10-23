@@ -66,6 +66,7 @@ pub fn ready_check_frame(state: &ReadyCheckFrameState) -> Element {
     rsx! {
         r#frame {
             name: {DynName(READY_CHECK_FRAME.to_string())},
+            lifecycle_on_show: 8960,
             width: FRAME_W,
             height: FRAME_H,
             strata: FrameStrata::Dialog,
