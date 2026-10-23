@@ -1,6 +1,6 @@
 # CF-2 client API source audit — 2026-10-23
 
-Source-only answers for agent-server CF-2 requests #1–6 (items 1–16). No client was run. Generated API documentation and FrameXML establish declarations and caller behavior, not hidden native implementation details or runtime values.
+Source-only answers for agent-server CF-2 requests #1–7 (items 1–19). No client was run. Generated API documentation and FrameXML establish declarations and caller behavior, not hidden native implementation details or runtime values.
 
 ## Source/build pins
 
@@ -127,6 +127,30 @@ Evidence: L/P/F `Blizzard_APIDocumentationGenerated/ItemUpgradeDocumentation.lua
 L/P/F docs declare `C_StorePublic.DoesGroupHavePurchaseableProducts(groupID: number) -> hasPurchaseableProducts: bool`, non-nil. Store/launcher UI uses it to decide whether to open a category. Docs and callers do not define how ownership, regional availability, disabled shop state, or an unknown group affect the return. Those native results are unknown.
 
 Evidence: L/P/F `Blizzard_APIDocumentationGenerated/StorePublicUIDocumentation.lua:11–23`; L `Blizzard_GlueParent/Mainline/GlueParent.lua:827–837`; F `GlueParent.lua:800–807`; L/F `Blizzard_SharedXML/InterfaceUtil.lua:41–51`; `Blizzard_StoreUI/Blizzard_Shared_StoreUISecure.lua:1519–1525`.
+
+### 17. `GetInventoryItemsForSlot`
+
+L and F PaperDoll flyout callers pass `(paperDollItemSlot, itemTable)`; no local generated API schema or target-build native implementation defines the optional `transmog` argument. Modern table encoding, item sources, eligibility rules and invalid-slot behavior remain unknown.
+
+In W/build 12340, `Script_GetInventoryItemsForSlot` takes a numeric 1-based slot or slot name and an optional output table. It populates numeric location keys with numeric item-entry IDs. It checks equipped slots 0–18, bank slots 23–38, carried bags 0–3, and—only while a banker is available—bank slots 39–66 and bank bags 4–10. It does not read a third argument or deduplicate item IDs across locations. Numeric slots outside 1–19 return no Lua values; zero/negative inputs wrap through its unsigned slot variable and hit the same range check; an unmatched string raises a usage error. Missing active player/class returns no values.
+
+12340 eligibility calls `CanGoInSlot` plus `CanEquipItem`/`CanEquipItemInSlot`. The helper uses inventory-type slot masks and special main/off-hand branches; the equip check covers level, proficiency, race/class, reputation, and off-hand dual-wield restrictions. This is historical build-12340 behavior, not Retail/PTR/Forever semantics. The 12340 wrapper's opposite-hand checks are candidate-slot predicates, not a scan of the currently equipped opposing slot.
+
+Evidence: L `Blizzard_UIPanels_Game/Mainline/PaperDollFrame.lua:2053–2055`; F `PaperDollFrame.lua:2301–2303`; W `WoW/Source/Ui/PaperDollInfoFrame_Scripts.cpp:570–706`; `WoW/Source/Object/ObjectClient/Item_C.cpp:53,1791–1854`; `WoW/Source/Ui/PaperDollInfoFrame.cpp:584–694`; `WoW/Source/UIUtil/Tooltip.cpp:201`; `WoW/Source/Ui/TradeSkillFrame.cpp:59`.
+
+### 18. `C_EquipmentSet.EquipmentSetContainsLockedItems`
+
+L/F generated docs declare `equipmentSetID:number` → non-nil `hasLockedItems:bool`; they do not define the lock predicate or results for unknown IDs/empty sets. Retail `EquipmentManager_EquipSet` checks this query separately from `UnitCastingInfo("player")`; its action path has a separate combat restriction.
+
+W/build 12340 exposes an older global `EquipmentSetContainsLockedItems(setName)` taking a string. It returns true only if a saved equipment slot resolves to a live item with `m_itemFlags & 0x1`, excluding merchant buyback; otherwise the wrapper returns zero Lua values. The native predicate contains no direct trade/mail/auction/moving/combat check. The meaning of bit `0x1` and any external state-setting paths remain unknown. This is not proof of the modern numeric-ID API's behavior.
+
+Evidence: L/F `Blizzard_APIDocumentationGenerated/EquipmentManagerDocumentation.lua:56–68`; L/F `Blizzard_FrameXML/Mainline/EquipmentManager.lua:259–270`; W `WoW/Source/Ui/EquipmentManager_Scripts.cpp:470–483`; `WoW/Source/Ui/EquipmentManager.cpp:376–391`.
+
+### 19. Profession-bag filter menu
+
+L and F `ContainerFrame_CanContainerUseFilterMenu` suppresses the `BAG_FILTER_ASSIGN_TO` section for bank tabs, the backpack, container ID 5 (reagent bag), and bags for which `IsInventoryItemProfessionBag("player", C_Container.ContainerIDToInventoryID(bagID))` is true. For eligible ordinary bags, the menu enumerates the generic `ContainerFrameUtil_EnumerateBagGearFilters()` list and reads/writes `C_Container.GetBagSlotFlag`. The displayed options are not selected by inspecting bag contents. The native internals of `IsInventoryItemProfessionBag` are not present, so whether that predicate itself depends only on item subtype is unknown.
+
+Evidence: L `Blizzard_UIPanels_Game/Mainline/ContainerFrame.lua:86–107,580–601,2110–2115`; F `ContainerFrame.lua:94–107,628–648,2312–2317`.
 
 ## Overall proof limit
 
