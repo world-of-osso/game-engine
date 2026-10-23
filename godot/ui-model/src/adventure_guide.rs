@@ -311,7 +311,6 @@ impl View {
         (!rows.is_empty()).then(|| rows.join("\n"))
     }
     pub fn instances(&self) -> Vec<&Instance> {
-        let search = self.search.to_lowercase();
         self.catalog
             .instances
             .iter()
@@ -322,7 +321,6 @@ impl View {
                     } else {
                         i.tiers.contains(&self.tier)
                     }
-                    && i.name.to_lowercase().contains(&search)
             })
             .collect()
     }
