@@ -223,8 +223,11 @@ pub fn screen(ctx: &SharedContext) -> Element {
         enabled,
         (50.0, 210.0, 245.0, 30.0),
     ));
-    rsx! { r#frame { name: "RaidInfoFrame", width:345.0,height:250.0,hidden:hidden,strata:FrameStrata::Dialog,
-    mouse_enabled:true,pos_type:"absolute",left:360.0,top:140.0,{content} } }
+    crate::panel_lifecycle::bind_close(
+        rsx! { r#frame { name: "RaidInfoFrame", width:345.0,height:250.0,hidden:hidden,strata:FrameStrata::Dialog,
+        mouse_enabled:true,pos_type:"absolute",left:360.0,top:140.0,{content} } },
+        "raid_info",
+    )
 }
 fn saved_instance_list(ctx: &SharedContext, state: &RaidInfoState) -> Element {
     // RaidInfoFrameSocialView.xml: ScrollBox292x157 TOPLEFT(16,-48), bar RIGHT+10, top-2/bottom+4.
