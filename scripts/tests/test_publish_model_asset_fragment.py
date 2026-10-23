@@ -153,6 +153,23 @@ class PublishModelFragmentTests(unittest.TestCase):
         self.assertEqual(json.loads(again.stdout)["canonical_write_paths"], [])
         self.assertEqual(self.snapshot(self.root), before)
 
+    def test_new_fragment_records_absent_pre_index_and_is_idempotent(self):
+        (self.data / "cache" / self.filename).unlink()
+        result = self.invoke("--apply")
+        self.assertEqual(result.returncode, 0, result.stderr)
+        record = json.loads(
+            (self.backup / f"pre-{self.filename}.absent.json").read_text()
+        )
+        self.assertTrue(record["previously_absent"])
+        index = json.loads((self.data / "cache" / self.filename).read_text())
+        self.assertEqual(index["assets"], [self.new])
+        self.assertEqual(index["aliases"], [self.alias])
+        before = self.snapshot(self.root)
+        again = self.invoke("--apply")
+        self.assertEqual(again.returncode, 0, again.stderr)
+        self.assertTrue(json.loads(again.stdout)["noop"])
+        self.assertEqual(self.snapshot(self.root), before)
+
     def test_different_hash_existing_owner_is_error_before_any_write(self):
         wrong = receipt(43, b"different owner", key="c", kind="blp")
         self.write(
