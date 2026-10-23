@@ -143,8 +143,8 @@ fn housing_catalog_tag_actions_refuse_wrong_groups_and_unavailable_sources() {
     let mut model = HousingDashboard::new(load_published_tag_catalog());
     model.set_search("Small Val'sharah Bookcase".into(), &authority);
     let before = matching_ids(&model, &authority);
-    // DataTag85 Night Elf belongs to Culture3, not Size2; group0 is not authored.
-    for action in ["housing:filter:tag:2:85", "housing:filter:tag:0:66"] {
+    // DataTag83 Elven belongs to Culture3, not Size2; group0 is not authored.
+    for action in ["housing:filter:tag:2:83", "housing:filter:tag:0:66"] {
         assert!(apply_catalog_action(&mut model, &authority, action).is_err());
         assert_eq!(matching_ids(&model, &authority), before);
         assert_eq!(authority, original);
