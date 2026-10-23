@@ -30,6 +30,12 @@ Offline audit tooling in `scripts/asset_closure.py` computes a content-rooted de
 
 - Source-authenticated `M3DT` payloads remain `MODEL_M3DT_FORMAT_UNSUPPORTED` when the pinned native reader lacks M3 support. Preserve their FDIDs,source hashes and actual build as named gaps; exclude them from M2/BLP staging. Do not relabel M3 as M2 or add reader tolerance within recovery work.
 
+### Lead-only fragment publication
+
+- [ ] Default dry-run reads the staged package and **current** canonical receipt union without modifying either; report unique-owner/path conflicts,identical-payload no-ops,copy/space estimates and every canonical payload/index path requiring a write.
+- [ ] Differing owner or destination hashes,duplicate canonical owners and invalid source size/SHA256/content-MD5 refuse publication before writes. Identical existing owners remain immutable; required additional namespaces use explicit authenticated aliases.
+- [ ] Only explicit `--apply` publishes: atomic payload copies precede the merged index,each touched index has a retained `pre-*` backup(or an explicit previous-absence record),and transaction recovery is retained. Re-running a completed publication is a no-op; apply remains lead-only.
+
 ## Non-model provenance
 
 - Selected flat ADT/WMO/texture/sound bytes qualify only against same-product,FDID,family,path and size/SHA256/content-key matches in the existing `provenance/closure-extract.jsonl` ledger. Scan once for requested identities; preserve matching historical builds instead of last-row precedence. Missing or mismatched receipts remain named gaps. Hash-only UI inventories do not authenticate origin.
@@ -55,11 +61,14 @@ Offline audit tooling in `scripts/asset_closure.py` computes a content-rooted de
 - `scripts/closure_player_roots.py` — explicit native Skyborne-only player body/customization overlay; source-local body joins avoid the merged NPC display cache.
 - `scripts/closure_nonmodel_receipts.py` — actual flat byte receipts and DB2 export provenance; no extraction or index publication.
 - `scripts/closure_db2_policy.py` — pinned WDC5 encrypted-section/key-census proof and named unreachable-row exclusions; never whole-file provenance promotion.
+- `scripts/publish_model_asset_fragment.py` — read-only current-canonical preflight by default; explicit lead-only transactional publication with persistent index backups.
 - `scripts/closure_seeds.py` — metadata joins and configurable content roots.
 - `scripts/closure-northshire.json` — four Northshire ADT tiles and one Human Warrior.
 - `scripts/closure-full-catalog.json` — broad catalog selectors; not a completeness certificate.
 
 ## Tests asserting this spec
+
+- `scripts/tests/test_publish_model_asset_fragment.py` — real CLI temporary-tree dry-run,conflict refusal,atomic publication/index backup and idempotent rerun.
 
 - `scripts/tests/test_asset_closure.py` — concrete raw producer binary chains,catalog joins,missing/malformed dependencies,cycles,aliases and census.
 - `scripts/tests/test_closure_receipts.py` — actual CLI scoped-only descendants,mixed-product same-FDID roots,owning-build companion aliases,wrong-product/legacy rejection,corrupt payload rejection and unchanged native flat WMO material selection.
