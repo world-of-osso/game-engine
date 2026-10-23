@@ -30,6 +30,8 @@ def validate_key(checkout_key: str) -> None:
 
 
 def docker_command(context, output, checkout_key, target, build_args):
+    explicit_jobs = any(arg.startswith("JOBS=") for arg in build_args)
+    default_jobs = [] if explicit_jobs else ["--build-arg", "JOBS=8"]
     return [
         "docker",
         "buildx",
@@ -44,8 +46,7 @@ def docker_command(context, output, checkout_key, target, build_args):
         target,
         "--build-arg",
         f"TARGET_CACHE=godot-target-{checkout_key}",
-        "--build-arg",
-        "JOBS=8",
+        *default_jobs,
         "--output",
         f"type=local,dest={output}",
         *build_args,

@@ -381,7 +381,7 @@ def native_cargo(root, command, arguments, output=None):
     ).returncode
 
 
-def build_native(root, fixture, cli):
+def build_native(root, fixture, cli, jobs=None):
     builds = [["-p", "game-engine-godot", "--lib"]]
     if fixture:
         builds.append(["-p", "game-engine-network", "--example", fixture])
@@ -390,6 +390,8 @@ def build_native(root, fixture, cli):
     start = time.monotonic()
     with native_slot():
         for arguments in builds:
+            if jobs is not None:
+                arguments.extend(["-j", str(jobs)])
             code = native_cargo(root, "build", arguments)
             if code != 0:
                 raise subprocess.CalledProcessError(code, ["cargo", "build", *arguments])
@@ -414,7 +416,7 @@ def run_tests_native(root, cargo_args):
     return code
 
 
-def build(root, fixture=None, cli=False, release=False, host=None):
+def build(root, fixture=None, cli=False, release=False, host=None, jobs=None):
     host = select_build_host(host)
     if release and host == "native":
         # glibc portability: a host (Arch) link needs the host's newest glibc.
@@ -426,7 +428,7 @@ def build(root, fixture=None, cli=False, release=False, host=None):
     if host == "native":
         lock, _, _ = locked_checkout(root)
         with lock:
-            return build_native(root, fixture, cli)
+            return build_native(root, fixture, cli, jobs)
     if release:
         # Shipping requires prepared UI art; debug/CPU work can diagnose gaps without
         # publishing an incomplete asset set. Runtime never calls this developer step.
@@ -455,6 +457,8 @@ def build(root, fixture=None, cli=False, release=False, host=None):
             output = Path(work) / "output"
             output.mkdir()
             command = []
+            if jobs is not None:
+                command.extend(["--build-arg", f"JOBS={jobs}"])
             if fixture:
                 command.extend(["--build-arg", f"FIXTURE={fixture}"])
             if cli:
@@ -551,6 +555,7 @@ def main():
         choices=HOSTS,
         help="save default host and exit without building",
     )
+    parser.add_argument("--jobs", type=int, help="explicit Cargo job limit (before --test)")
     mode = parser.add_mutually_exclusive_group()
     parser.add_argument(
         "--fixture",
@@ -573,6 +578,8 @@ def main():
     # argparse drops `--`, which cargo needs to separate test-binary arguments.
     split = argv.index("--test") + 1 if "--test" in argv else len(argv)
     args = parser.parse_args(argv[:split])
+    if args.jobs is not None and args.jobs <= 0:
+        parser.error("jobs must be positive")
     if args.fixture and args.test:
         parser.error("argument --fixture: not allowed with argument --test")
     if args.cli and (args.test or args.release):
@@ -581,14 +588,29 @@ def main():
         )
     try:
         if args.save_build_host:
-            if args.build_host or args.fixture or args.cli or args.release or args.test:
+            if (
+                args.build_host
+                or args.fixture
+                or args.cli
+                or args.release
+                or args.test
+                or args.jobs is not None
+            ):
                 parser.error("--save-build-host cannot combine with build options")
             save_build_host(args.save_build_host)
             return 0
         if args.test:
-            return run_tests(args.root.resolve(), argv[split:], args.build_host)
+            cargo_args = argv[split:]
+            if args.jobs is not None:
+                cargo_args = ["-j", str(args.jobs), *cargo_args]
+            return run_tests(args.root.resolve(), cargo_args, args.build_host)
         build(
-            args.root.resolve(), args.fixture, args.cli, args.release, args.build_host
+            args.root.resolve(),
+            args.fixture,
+            args.cli,
+            args.release,
+            args.build_host,
+            args.jobs,
         )
     except (OSError, ValueError, subprocess.CalledProcessError) as error:
         print(f"Remote build failed: {error}", file=sys.stderr)
