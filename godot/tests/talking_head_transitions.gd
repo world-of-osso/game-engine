@@ -69,6 +69,7 @@ func world_case(forever: bool, payload: String) -> bool:
     check(error.is_empty(), "actual voice readiness %s: %s" % [skin,error])
     var player: AudioStreamPlayer = fixture.find_child("TalkingHeadVoice", true, false)
     check(is_instance_valid(player) and player.playing, "actual voice before world clear: " + skin)
+    var playback: AudioStreamPlayback = player.get_stream_playback() if is_instance_valid(player) else null
     fixture.clear_world()
     error = fixture.tick(0.0)
     check(error.is_empty(), "production world-clear projection %s: %s" % [skin,error])
@@ -81,6 +82,9 @@ func world_case(forever: bool, payload: String) -> bool:
     if failures != prior:
         return false
     cases += 1
+    check(playback != null and playback.get_reference_count() == 1, "audio server has retired playback before process exit: %s refs=%d" % [skin,playback.get_reference_count() if playback != null else -1])
+    if failures != prior:
+        return false
     print("CASE talking_head_transitions %s/world-clear PASS=true" % skin)
     return true
 
