@@ -29,35 +29,6 @@ impl GameClient {
     }
 
     #[func]
-    fn probe_game_menu_escape_precedence(&mut self) -> VarDictionary {
-        let mut state = VarDictionary::new();
-        if self.asset_startup.is_some()
-            || self.game_menu_ui.is_some()
-            || self.trading_post.view.visible
-        {
-            state.set(
-                "error",
-                "Escape fixture requires completed startup and a fresh GameClient",
-            );
-            return state;
-        }
-        self.game_menu_options = Some(escape_menu_model(self));
-        self.game_menu_ui = Some(RegistryUi::new_alloc());
-        self.trading_post.view.visible = true;
-        state.set("menu_before", self.game_menu_ui.is_some());
-        state.set("pending_before", self.trading_post.view.visible);
-        send_escape(self);
-        state.set("menu_after_first", self.game_menu_ui.is_some());
-        state.set("pending_after_first", self.trading_post.view.visible);
-        send_escape(self);
-        state.set("menu_after_second", self.game_menu_ui.is_some());
-        state.set("pending_after_second", self.trading_post.view.visible);
-        self.close_game_menu();
-        self.trading_post.view.visible = false;
-        state
-    }
-
-    #[func]
     fn attach_game_menu_escape_probe(&mut self, mut parent: Gd<Node>, forever: bool) -> GString {
         if self.asset_startup.is_some() || self.game_menu_ui.is_some() {
             return "render probe requires completed startup and no menu".into();
