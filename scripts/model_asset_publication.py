@@ -57,6 +57,8 @@ def index_asset_receipts(documents):
         if document["version"] != 1:
             raise ValueError(f"Unsupported model asset index version in {path}")
         for row in document["assets"]:
+            if row["kind"] not in ("blp", "m2", "wmo", "skin", "skel", "anim", "bone"):
+                raise ValueError(f"Unsupported model-chain asset kind {row['kind']}")
             identity = receipt_key(row)
             if identity in records:
                 raise ValueError(f"Duplicate asset receipt {identity} in {path}")
@@ -258,5 +260,6 @@ def publish_receipts(data, identity, staged, verified, aliases, fragment=None):
     alias_payloads = plan_aliases(documents, target, verified, aliases)
     merge_chain(target, identity, staged)
     target["assets"].sort(key=receipt_key)
+    index_asset_receipts(documents)
     publish_documents(data, documents, [*verified, *alias_payloads])
     return target

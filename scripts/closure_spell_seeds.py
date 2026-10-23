@@ -92,7 +92,7 @@ def seed_spell_visuals(graph, catalogs, spells):
         spell = value(row, "SpellID")
         if spell in wanted:
             for field in ["SpellIconFileDataID", "ActiveIconFileDataID"]:
-                graph.add(
+                graph.add_flat(
                     value(row, field),
                     "blp",
                     f"spell {spell} difficulty {row.get('DifficultyID', '')} {field}",
@@ -103,7 +103,7 @@ def seed_spell_visuals(graph, catalogs, spells):
             continue
         visuals.add(value(row, "SpellVisualID"))
         for field in ["SpellIconFileID", "ActiveIconFileID"]:
-            graph.add(value(row, field), "blp", f"spell {spell} {field}")
+            graph.add_flat(value(row, field), "blp", f"spell {spell} {field}")
     visuals.discard(0)
     kits = {
         value(row, "SpellVisualKitID")
