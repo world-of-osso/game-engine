@@ -604,6 +604,10 @@ fn apply_catalog_action(
     authority: &HousingAuthority,
     action: &str,
 ) -> Result<(), String> {
+    if action == "housing:filter:reset" {
+        model.reset_catalog_filters(authority);
+        return Ok(());
+    }
     let (kind, id) = action
         .rsplit_once(':')
         .ok_or_else(|| format!("Invalid housing action: {action}"))?;

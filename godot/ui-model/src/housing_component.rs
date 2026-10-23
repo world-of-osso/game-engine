@@ -1,5 +1,8 @@
 //! Native Retail 814x544 Housing Dashboard and three-column 97px catalog.
 use crate::housing::{CollectionFilter, DashboardTab, HousingDashboard};
+use crate::menu_primitives::{
+    DropdownButton, DropdownState, DropdownStyle, dropdown_button_with_state,
+};
 use crate::quest_art::{DynName, named_atlas_texture, portrait_border};
 use crate::ui::strata::FrameStrata;
 use game_engine_core::housing::Decor;
@@ -104,6 +107,33 @@ pub(crate) fn housing_search_box(
             r#frame {name:{DynName(format!("{prefix}ClearArt"))},width:17.0,height:17.0,alpha:"0.5",mouse_enabled:false,{icon}}
         }
     }
+}
+
+fn build_catalog_filter_header(model: &HousingDashboard) -> Element {
+    dropdown_button_with_state(
+        DropdownButton {
+            frame_name: "HousingCatalogFilters",
+            label_name: "HousingCatalogFiltersText",
+            arrow_name: "HousingCatalogFiltersArrow",
+            text: "Filter",
+            width: 100.0,
+            height: 20.0,
+            x: 704.0,
+            y: -30.0,
+            background_color: "",
+            text_color: "",
+            arrow_color: "",
+            onclick: Some("housing:filters"),
+        },
+        DropdownState {
+            style: DropdownStyle::Filter,
+            resize_to_text: false,
+            open: model.filters_open,
+            reset_action: (model.dyeable_only || model.collection != CollectionFilter::All)
+                .then_some("housing:filter:reset"),
+            ..Default::default()
+        },
+    )
 }
 
 pub fn housing_screen(context: &SharedContext) -> Element {
@@ -281,6 +311,7 @@ fn catalog(view: &HousingView) -> Element {
         .collect();
     let preview = preview(view);
     let filter = filter_menu(model, authority.state.is_some());
+    let filter_header = build_catalog_filter_header(model);
     let search = housing_search_box(
         "HousingCatalogSearch",
         &model.search,
@@ -332,8 +363,7 @@ fn catalog(view: &HousingView) -> Element {
     rsx! {
         {background} {divider} {categories}
         {search}
-        button { name: "HousingCatalogFilters", text: "Filter", width: 100.0, height: 20.0,
-            pos_type: "absolute", left: 704.0, top: 30.0, onclick: "housing:filters" }
+        {filter_header}
         fontstring { name: "HousingCatalogCategoryText", text: {category_title.as_str()}, width: 315.0, height: 20.0,
             pos_type: "absolute", left: 100.0, top: 67.0, font_size: 12.0, justify_h: "LEFT",
             font_color: category_color }

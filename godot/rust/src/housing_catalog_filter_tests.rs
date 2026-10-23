@@ -2,7 +2,6 @@ use super::*;
 use std::{path::PathBuf, sync::Arc};
 
 #[test]
-#[ignore = "RED: native catalog has no supported filter reset action"]
 fn housing_catalog_reset_action_restores_results_without_changing_search_category_or_ownership() {
     use game_engine_ui_model::housing::CollectionFilter;
     use shared::protocol::{HousingState, StoredDecor};
