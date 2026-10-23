@@ -8,6 +8,7 @@ alternate path/product, or promote hash-only UI inventories into source identity
 from collections import defaultdict
 import hashlib
 import json
+import struct
 
 
 SOUND_KINDS = {"ogg", "mp3", "wav", "audio"}
@@ -50,6 +51,8 @@ def record_input(graph, path):
 
 
 def verify_table(graph, path, name):
+    relative = str(path.relative_to(graph.data))
+    graph.db2_policy_exclusions.pop(relative, None)
     entry = record_input(graph, path)
     if entry is None:
         return False
@@ -82,12 +85,7 @@ def verify_table(graph, path, name):
         )
         return False
     table = document.get("tables", {}).get(name)
-    if (
-        not table
-        or table.get("content_authenticated") is not True
-        or not identity.get("build")
-        or not identity.get("build_key")
-    ):
+    if not table or not identity.get("build") or not identity.get("build_key"):
         graph.issue(
             "missing_metadata_receipt",
             f"{path.relative_to(graph.data)}: no authenticated {name} table export receipt",
@@ -106,6 +104,30 @@ def verify_table(graph, path, name):
             f"{path.relative_to(graph.data)}: invalid unreadable-record count",
         )
         return False
+    if table.get("content_authenticated") is not True:
+        if not table.get("readable_section_policy"):
+            graph.issue(
+                "missing_metadata_receipt",
+                f"{relative}: no authenticated {name} table export receipt",
+            )
+            return False
+        from closure_db2_policy import POLICY, verify_readable_sections
+
+        try:
+            proof = verify_readable_sections(graph, path, table, identity)
+        except (ValueError, KeyError, OSError, struct.error) as error:
+            graph.issue("db2_policy_refused", f"{relative}: {POLICY}: {error}")
+            return False
+        graph.db2_policy_exclusions[relative] = proof
+        entry.update(
+            source_product=identity["product"],
+            actual_build=identity["build"],
+            identity_status="authenticated_readable_sections",
+            excluded_records=proof["excluded_records"],
+            db2_policy=POLICY,
+            export_receipt=str(receipt_path.relative_to(graph.data)),
+        )
+        return True
     entry.update(
         source_product=identity["product"],
         actual_build=identity["build"],

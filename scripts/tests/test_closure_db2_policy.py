@@ -3,7 +3,6 @@
 import copy
 import hashlib
 import json
-import os
 from pathlib import Path
 import struct
 import sys
@@ -58,9 +57,6 @@ def partial_db2(excluded):
     return bytes(raw), warnings
 
 
-@unittest.skipUnless(
-    os.environ.get("P4_RED"), "staged RED: enable before policy implementation"
-)
 class EncryptedDb2PolicyTests(unittest.TestCase):
     def setUp(self):
         self.temporary = tempfile.TemporaryDirectory()
