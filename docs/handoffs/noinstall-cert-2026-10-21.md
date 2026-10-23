@@ -366,6 +366,16 @@ Of747,940 diagnostics,480,084 are missing metadata joins (416,203 SpellMisc,34,8
 
 Evidence: `summary.json`, `independent-artifact-check.json`, `categories.json`, `cause-breakdown.json`. Lead accepts validation,then orders the17 table-receipt refusals investigated/produced from pinned DB2 sources before structural qualification. No new tolerance or inferred owned-item provenance is authorized; bounded remeasurement should avoid another full graph.
 
+### Encrypted DB2 receipt policy — bounded implementation
+
+Lead defines `DB2_ENCRYPTED_SECTION_KEY_UNAVAILABLE`: qualify readable sections only from pinned70448 raw hashes plus per-section unavailable-key proof; exclude/count unreachable rows separately without zero-valued fabrication or whole-file authentication promotion. The approved later70529 key census uses an explicit monotonic-availability premise,recorded in the [spec](../specs/offline-asset-closure.md#encrypted-db2-section-policy); it is not a source-build substitution.
+
+Normal-ADD measurement (`db2-receipt-policy-measure-r1/projection.json`) finds pinned raws and complete section/key proofs for seven tables: GameObjectDisplayInfo,CreatureDisplayInfo,SoundKitEntry,SpellVisual,SpellVisualEvent,SpellVisualMissile,SpellXSpellVisual. Their3,857 unreadable records are the projected named exclusion bucket. Conditional removal of current join diagnostics is63,630 (34,802 sourced CreatureDisplayInfo plus28,828 GameObjectDisplayInfo; three game-object joins remain). New descendants can add gaps,so this is not net asset closure. SpellMisc would resolve412,791 current join diagnostics but its pinned raw is absent,as are SpellVisualEffectName,SpellVisualKitEffect and SpellVisualKitModelAttach raws. SpellVisualKit has a matching raw but five refused-section keys are now available: it needs decrypting re-export,not exclusion.
+
+Ignored RED is pushed before implementation (`c955d0c72`,fixture correction `06d2afd50`); the configured run has four real failures. `2ea460cb6` implements/enables five policy tests: readable-only output,individual section/key counts,available-key refusal,unproven source rejection and key-census drift. Focused34/34 policy/nonmodel/model-receipt controls pass; RuffF/diff pass. `policy-red.log` preserves the initial invalid Catalogs-constructor setup,not behavioral RED; `policy-red-configured.log` is the valid RED proof. Private seven-table exact re-export and root-only remeasurement are next; no full graph/native/extraction/canonical publication is implied.
+
+Forever70205 is separate: a Map1349477 raw exists at9,837bytes,layoutD43AFAC3,SHA256 `fe534678ef7bb007cc156b74648b7489c8c07b1f79bd33b010b984e12879ccab`,with71 readable and eight rows in three keyed sections. A source/root receipt for build842b2e5d11f8d6fe257a5b73bd5cf6c6,exact DBD/raw/export hashes and section proofs is still needed; the README/fixture pin is not itself authenticated CASC-origin evidence. Other four needed70205 table raws are absent from the bounded candidates. No authenticated35-map recovery is claimed.
+
 ## Remaining acceptance and proposed P4 plan
 
 Lead confirms eight-material CASC re-extraction/no-clobber publication:226,775 canonical keys,zero duplicates,flat legacy files untouched. Independent eight-payload readback is recorded above. This is not full-catalog certification.
