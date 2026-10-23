@@ -6,16 +6,16 @@ use crate::{
     ui::RegistryUi,
     world_models::UnitAppearance,
 };
-use game_engine_core::ui_sound_kits::{
-    TRADING_POST_UI_ITEM_HOVER, TRADING_POST_UI_ITEM_LOCKING, TRADING_POST_UI_ITEM_SELECT,
-    TRADING_POST_UI_MENU_CLOSE, TRADING_POST_UI_MENU_OPEN,
-};
+use game_engine_core::ui_sound_kits::{TRADING_POST_UI_ITEM_LOCKING, TRADING_POST_UI_ITEM_SELECT};
 use game_engine_session::SessionScreen;
-use game_engine_ui_model::trading_post::{Action, FilterSubmenu, HEIGHT, MODEL, View, WIDTH};
+use game_engine_ui_model::trading_post::{
+    Action, FilterSubmenu, HEIGHT, LIFECYCLE_SOUNDS, MODEL, View, WIDTH,
+};
 use godot::classes::CanvasLayer;
 use godot::prelude::*;
 use shared::components::{EquipmentAppearance, EquippedAppearanceEntry, SheathState};
 use shared::protocol::{EquipmentSlot, TradingPostRequest};
+use ui_toolkit::lifecycle::{HoverEdge, VisibilityEdge};
 
 #[path = "trading_post_mount.rs"]
 mod mount_preview;
@@ -34,8 +34,8 @@ struct ProductDrag {
 pub(crate) struct TradingPost {
     pub view: View,
     ui: Option<Gd<RegistryUi>>,
-    menu_was_shown: bool,
-    product_sound_owner: Option<String>,
+    menu_visibility: VisibilityEdge,
+    product_hover: HoverEdge,
     scene: Option<Scene>,
     pending: Option<(u64, UnitAppearance)>,
     shown: Option<UnitAppearance>,
@@ -125,7 +125,7 @@ impl GameClient {
         }
         self.trading_post.rotating = false;
         self.trading_post.dragged = None;
-        self.trading_post.product_sound_owner = None;
+        self.trading_post.product_hover.reset();
         self.trading_post.view.take_selection_sounds();
         visible
     }
@@ -224,42 +224,11 @@ impl GameClient {
     /// Retail PerksProgram.OnShow/OnHide; a request alone is not a shown menu.
     fn play_trading_post_menu_sound(&mut self) -> Result<(), String> {
         let shown = self.trading_post.ui.is_some();
-        if self.trading_post.menu_was_shown == shown {
-            return Ok(());
-        }
-        self.trading_post.menu_was_shown = shown;
-        self.play_ui_sound_kit(if shown {
-            TRADING_POST_UI_MENU_OPEN
-        } else {
-            TRADING_POST_UI_MENU_CLOSE
-        })
-    }
-
-    /// OnEnter belongs to the product button, not the selected item or its child toggle.
-    fn play_trading_post_product_hover_sound(
-        &mut self,
-        hovered: Option<(String, [f32; 4])>,
-    ) -> Result<(), String> {
-        let owner = hovered.and_then(|(name, _)| {
-            if name == "PerksProgramFrozenSlot" {
-                return Some(name);
-            }
-            let id: u32 = name
-                .strip_prefix("PerksProgramProduct")
-                .or_else(|| name.strip_prefix("PerksProgramCartToggle"))?
-                .parse()
-                .ok()?;
-            Some(format!("PerksProgramProduct{id}"))
-        });
-        if owner == self.trading_post.product_sound_owner {
-            return Ok(());
-        }
-        let entering = owner.is_some();
-        self.trading_post.product_sound_owner = owner;
-        if entering {
-            self.play_ui_sound_kit(TRADING_POST_UI_ITEM_HOVER)?;
-        }
-        Ok(())
+        let kit = self
+            .trading_post
+            .menu_visibility
+            .observe(shown, &LIFECYCLE_SOUNDS);
+        self.play_ui_lifecycle_sound(kit)
     }
 
     /// A failed preview must not leave the previous selection's model on screen; the
@@ -342,7 +311,18 @@ impl GameClient {
             .get_viewport()
             .ok_or("Trading Post viewport missing")?
             .get_mouse_position();
-        self.play_trading_post_product_hover_sound(ui.bind().hovered_button())?;
+        let hover = ui.bind().hovered_lifecycle_sound();
+        let kit = match hover {
+            Some((owner, sounds)) => self
+                .trading_post
+                .product_hover
+                .observe(Some(owner), &sounds),
+            None => {
+                self.trading_post.product_hover.reset();
+                None
+            }
+        };
+        self.play_ui_lifecycle_sound(kit)?;
         let product_hover = ui.bind().hovered_button().and_then(|(name, _)| {
             name.strip_prefix("PerksProgramProduct")
                 .or_else(|| name.strip_prefix("PerksProgramCartToggle"))?
