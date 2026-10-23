@@ -1,3 +1,7 @@
+## 2026-10-22 — Shared close registrations and decoded ReadyCheck sound
+
+[Lifecycle bindings](systems/ui-system.md#lifecycle-bindings--step-5-partial): one template catalog now supplies root attrs and exact native close dispatch, including pending domains without mounted UI. Root RED3→GREEN3; core11/native6 and real GameClient pending cancellation2/2 pass. Ordinary taxi Escape reproduced map-closed/bag-still-open RED; registered-sweep fix committed, both-skin GREEN pending admission. ReadyCheck decoded playback passes20 phases across both skins with four full-HD PNGs; live Merchant/TP, whole Escape and Step5 acceptance remain open.
+
 ## 2026-10-22 — Tooltip binding metadata in progress
 
 [Owner bindings](systems/ui-system.md#tooltip-owner-metadata--step-5-partial): shared attrs/nearest-owner and static model conversion; actual ignored-binding/anchor RED3→core5 GREEN, Perks disabled Highlight-color RED→model4 GREEN, Currency child/collapse controls3 GREEN. [Current declaration/proof scope](systems/ui-system.md#tooltip-owner-metadata--step-5-partial) updated through Journal/Trading Post migration; native dispatch and Step5 acceptance remain open.
