@@ -16,6 +16,10 @@ fn screen(shared: &SharedContext) -> Element {
 #[test]
 fn ui_template_lifecycle_consumer_ready_check_listener_declares_only_its_show_sound() {
     use ui_toolkit::attrs::read_attribute;
+    game_engine_ui_model::paths::set_data_root(
+        std::path::PathBuf::from(env!("CARGO_MANIFEST_DIR")).join("../../data"),
+    )
+    .unwrap();
     for skin in [ActiveSkin::Modern, ActiveSkin::Forever] {
         set_thread_skin(skin);
         let mut shared = SharedContext::new();
