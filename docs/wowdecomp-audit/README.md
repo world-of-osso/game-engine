@@ -99,6 +99,7 @@ Before rework, identify the applicable product/build and a real authored asset, 
 
 ## Related knowledge
 
+- [F14 12340 UI/API questions](f14-12340.md): FrameXML/UI cache provenance, Battle.net reporting, timers and quest cache (2026-10-23).
 - [12340 tooltip padding and aura files](tooltip-padding-buff-12340.md): source-derived width arithmetic and 3.4.3 cache versus unavailable 12340 UI files (2026-10-23).
 - [12340 CloseAuctionHouse](closeauctionhouse-12340.md): Lua binding, local state cleanup, event order and proof limits (2026-10-22).
 - [12340 UI source questions](ui-source-questions-12340.md): texture filenames, auction return values, addon dependencies, and unresolved FrameXML ordering (2026-10-22).
