@@ -49,9 +49,12 @@ fn input(name: &str, y: f32) -> Element {
     max_letters: 24, bg_color: "0.1,0.07,0.04,0.8" } }
 }
 fn window(name: &str, children: Element) -> Element {
-    rsx! { r#frame { name: {DynName(name.into())}, width: WIDTH, height: HEIGHT,
-    pos_type: "absolute", left: 20.0, top: 100.0, mouse_enabled: true, strata: FrameStrata::Dialog,
-    {children} } }
+    crate::panel_lifecycle::bind_close(
+        rsx! { r#frame { name: {DynName(name.into())}, width: WIDTH, height: HEIGHT,
+        pos_type: "absolute", left: 20.0, top: 100.0, mouse_enabled: true, strata: FrameStrata::Dialog,
+        {children} } },
+        "guild_charter",
+    )
 }
 fn registrar(view: &GuildCharters) -> Element {
     let Some(registrar) = &view.registrar else {

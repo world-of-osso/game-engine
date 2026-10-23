@@ -321,7 +321,10 @@ pub fn pet_journal_screen(ctx: &SharedContext) -> Element {
     children.extend(combat::spell_select(view));
     let body = rsx! { r#frame { name: "PetJournal", width: 703.0, height: 606.0,
     left: 0.0, top: 0.0, pos_type: "absolute", mouse_enabled: false, {children} } };
-    let mut out = crate::collections_component::collections_shell(view.viewport, 1, body);
+    let mut out = crate::panel_lifecycle::bind_close(
+        crate::collections_component::collections_shell(view.viewport, 1, body),
+        "pet_journal",
+    );
     out.extend(queue_popup(view));
     out
 }
