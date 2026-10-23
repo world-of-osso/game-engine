@@ -132,7 +132,7 @@ class EncryptedDb2PolicyTests(unittest.TestCase):
         return graph
 
     def rows(self, graph):
-        return Catalogs(graph, {"metadata_build": "fixture"}).index("Map")
+        return Catalogs(graph).index("Map")
 
     def test_only_readable_rows_qualify_without_promoting_whole_file(self):
         graph = self.graph()
