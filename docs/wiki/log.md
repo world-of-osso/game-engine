@@ -1,3 +1,7 @@
+## 2026-10-22 — Canonical raw DB2 provenance gaps
+
+[Raw source mismatch boundary](systems/offline-asset-closure.md#canonical-raw-db2-source-mismatch) separates stale unversioned raw caches from authenticated CSV/private-source cohorts. [Census and Helmet attribution limits](../handoffs/noinstall-cert-2026-10-21.md#canonical-raw-db2-mismatch-census--report-only) preserve exact hashes and schema-versus-extraction identity; no canonical writes. [Fixture follow-up](../handoffs/noinstall-cert-2026-10-21.md#structural-eligibility-and-fixture-follow-up) uses explicit product data and checked-in open-source DBDs,not committed Blizzard bytes.
+
 ## 2026-10-22 — Flat ADT/WMO receipt eligibility
 
 [Non-model receipt boundary](systems/offline-asset-closure.md#non-model-receipt-boundary) now includes distinct ADT/WMO families without parser or model-companion changes. [Measured projection](../handoffs/noinstall-cert-2026-10-21.md#structural-adtwmo-receipt-projection--measurement-only) retains historical source identity and named residuals; no new full graph/P4 acceptance.
