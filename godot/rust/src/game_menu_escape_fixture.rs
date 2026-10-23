@@ -3,7 +3,7 @@ use crate::{GameClient, ui::RegistryUi};
 use game_engine_ui_model::game_menu_component::GameMenuView;
 use game_engine_ui_model::options_menu_component::{LayoutOptionsView, OptionsCategory};
 use game_engine_ui_model::options_menu_data::{self as policy, BindingCapture, OptionsModel};
-use godot::classes::{INode, InputEventKey};
+use godot::classes::{INode3D, InputEventKey};
 use godot::prelude::*;
 
 #[godot_api(secondary)]
@@ -64,7 +64,7 @@ fn send_escape(client: &mut GameClient) {
     key.set_pressed(true);
     let event = key.upcast();
     if !client.dispatch_priority_input(&event) {
-        <GameClient as INode>::unhandled_key_input(client, event);
+        <GameClient as INode3D>::unhandled_key_input(client, event);
     }
 }
 
