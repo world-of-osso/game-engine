@@ -5,7 +5,12 @@ const COLOURED := "Earth Breakers continually cast |cFF2959D3|Hspell:377780|h[Sk
 var owner: Node
 
 func _initialize() -> void:
+	call_deferred("watchdog")
 	call_deferred("run_contract")
+
+func watchdog() -> void:
+	await create_timer(90.0).timeout
+	require(false, "projection transition exceeded90s")
 
 func settle() -> void:
 	for frame in 8:
