@@ -2,7 +2,6 @@
 
 import hashlib
 import json
-import os
 from pathlib import Path
 import sys
 import tempfile
@@ -16,7 +15,6 @@ SOURCE_KEY = "dcfc90fffd79ba00406ae46f5f657592"
 PARENT_KEY = "88d5e8ef05ec5a8446cdec93d142d7c6"
 
 
-@unittest.skipUnless(os.environ.get("P4_RED") == "1", "P4 producer RED")
 class ReceiptedModelStageTests(unittest.TestCase):
     def setUp(self):
         temporary = tempfile.TemporaryDirectory()
