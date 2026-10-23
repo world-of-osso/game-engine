@@ -3,6 +3,7 @@
 //! Existing project projections split Collections/Guild surfaces into separate domain hooks.
 use ui_toolkit::lifecycle::{
     CloseGroup, CloseRegistration, EscapeBinding, EscapePriority, bind_close_registration,
+    bind_escape_registration,
 };
 use ui_toolkit::widget_def::Element;
 
@@ -74,6 +75,14 @@ const fn panel(hook: &'static str) -> CloseRegistration<&'static str> {
         group: CloseGroup::Panels,
         priority: EscapePriority::AddOnPost,
     }
+}
+
+pub fn bind_escape(element: Element, hook: &str) -> Element {
+    let registration = ESCAPE_BINDINGS
+        .iter()
+        .find(|entry| entry.hook == hook)
+        .unwrap_or_else(|| panic!("unknown authored Escape registration: {hook}"));
+    bind_escape_registration(element, registration)
 }
 
 pub fn bind_close(element: Element, hook: &str) -> Element {
