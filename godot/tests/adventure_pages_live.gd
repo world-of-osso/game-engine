@@ -52,6 +52,14 @@ func verify_inline_markup(name: String, expected: String) -> bool:
 	if not rendered.contains(expected) or rendered.contains("|cFF") or rendered.contains("|Hspell:"):
 		stop("Actual source markup display differs: " + rendered)
 		return false
+	var counts: Vector2i = await sample_native_text_ink(text)
+	if counts.x < 20 or counts.y < 20:
+		stop("Actual source link/regular ink absent: %s blue=%s ink=%s" % [name, counts.x, counts.y])
+		return false
+	print("AG_INLINE_MARKUP_PAINT_PASS %s blue=%s ink=%s text=%s" % [name, counts.x, counts.y, rendered])
+	return true
+
+func sample_native_text_ink(text: Control) -> Vector2i:
 	var rect := text.get_global_rect()
 	await RenderingServer.frame_post_draw
 	var painted := root.get_texture().get_image()
@@ -72,11 +80,7 @@ func verify_inline_markup(name: String, expected: String) -> bool:
 				blue += 1
 			if pixel.r < 0.55 and pixel.g < 0.45 and pixel.b < 0.3:
 				ink += 1
-	if blue < 20 or ink < 20:
-		stop("Actual source link/regular ink absent: %s blue=%s ink=%s" % [name, blue, ink])
-		return false
-	print("AG_INLINE_MARKUP_PAINT_PASS %s blue=%s ink=%s text=%s" % [name, blue, ink, rendered])
-	return true
+	return Vector2i(blue, ink)
 
 func verify_role_refresh() -> bool:
 	if not await choose_spec(70) or not await select_named_boss("Kurog", [KEY_K,KEY_U,KEY_R,KEY_O,KEY_G], 2491):
