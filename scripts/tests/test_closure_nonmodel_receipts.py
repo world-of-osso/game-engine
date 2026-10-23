@@ -84,6 +84,88 @@ class NonModelReceiptTests(unittest.TestCase):
         self.put("db2/fixture/receipt.json", json.dumps(document).encode())
         return document
 
+    def test_flat_adt_wmo_keep_exact_paths_and_historical_receipt_identity(self):
+        for fdid, kind, directory, version in [
+            (10, "adt", "terrain", 18),
+            (20, "wmo", "models", 17),
+        ]:
+            with self.subTest(kind=kind):
+                raw = chunk("MVER", struct.pack("<I", version), True)
+                relative = f"{directory}/{fdid}.{kind}"
+                self.put(relative, raw)
+                receipt = self.receipt(relative, fdid, kind, raw, build="12.1.0.69933")
+                graph = self.graph()
+                graph.add(fdid, kind, "native structural root")
+                result = graph.run()
+                asset = result["assets"][0]
+                self.assertEqual(asset["identity_status"], "verified_receipt")
+                self.assertEqual(asset["actual_build"], "12.1.0.69933")
+                self.assertEqual(asset["verified_builds"], ["12.1.0.69933"])
+                self.assertEqual(
+                    asset["file_receipt_build_keys"], [receipt["build_config"]]
+                )
+                self.assertEqual(asset["source_product"], "wow")
+                self.assertEqual(asset["present_files"][0]["path"], relative)
+                self.assertFalse(asset["receipt_selected"])
+                self.assertEqual(result["summary"]["unverified_identity"], 0)
+
+    def test_structural_receipts_refuse_wrong_identity_path_and_payload(self):
+        for fdid, kind, directory in [(10, "adt", "terrain"), (20, "wmo", "models")]:
+            for field, value in [
+                ("product", "wow_classic_beta"),
+                ("fdid", 999),
+                ("type", "wmo" if kind == "adt" else "adt"),
+                ("path", f"products/wow/{'a' * 32}/{directory}/{fdid}.{kind}"),
+                ("size", 999),
+                ("sha256", "c" * 64),
+                ("content_key", "c" * 32),
+                ("build_config", "not-a-build-key"),
+                ("disposition", "unverified"),
+            ]:
+                with self.subTest(kind=kind, field=field):
+                    raw = chunk("MVER", struct.pack("<I", 18), True)
+                    relative = f"{directory}/{fdid}.{kind}"
+                    self.put(relative, raw)
+                    self.ledger = []
+                    row = self.receipt(relative, fdid, kind, raw)
+                    row[field] = value
+                    self.put(
+                        "provenance/closure-extract.jsonl",
+                        (json.dumps(row) + "\n").encode(),
+                    )
+                    graph = self.graph()
+                    graph.add(fdid, kind, "native structural root")
+                    result = graph.run()
+                    self.assertEqual(
+                        result["assets"][0]["identity_status"], "unverified"
+                    )
+
+    def test_generic_structural_eligibility_does_not_admit_other_flat_families(self):
+        for kind in ["skin", "skel", "anim", "bone", "wdt", "wdl", "phys"]:
+            with self.subTest(kind=kind):
+                raw = chunk("MVER", struct.pack("<I", 18), True)
+                directory = "terrain" if kind in {"wdt", "wdl"} else "models"
+                relative = f"{directory}/30.{kind}"
+                self.put(relative, raw)
+                self.receipt(relative, 30, kind, raw)
+                graph = self.graph()
+                graph.add_flat(30, kind, "outside approved structural families")
+                asset = graph.run()["assets"][0]
+                self.assertEqual(asset["identity_status"], "unverified")
+
+    def test_generic_receipt_cannot_replace_required_model_owner(self):
+        raw = b"MD20model"
+        self.put("models/40.m2", raw)
+        self.receipt("models/40.m2", 40, "m2", raw)
+        graph = self.graph()
+        graph.add(40, "m2", "receipt-selected native model")
+        result = graph.run()
+        self.assertFalse(result["assets"][0]["present"])
+        self.assertEqual(result["assets"][0]["identity_status"], "unverified")
+        self.assertTrue(
+            any(row["code"] == "missing_asset_receipt" for row in result["unresolved"])
+        )
+
     def test_flat_texture_qualifies_only_its_actual_legacy_path_bytes(self):
         raw = b"BLP2legacy"
         graph = self.flat_texture_graph(raw)
