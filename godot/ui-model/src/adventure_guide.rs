@@ -454,6 +454,8 @@ impl View {
         self.clear_search();
         self.tier_open = false;
         self.difficulty_open = false;
+        self.nav_overflow_open = false;
+        self.class_menu_open = false;
         self.filter_menu = None;
         self.collapsed.clear();
         self.reset_overview_roles()?;
