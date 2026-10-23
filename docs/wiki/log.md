@@ -1,3 +1,7 @@
+## 2026-10-22 — TalkingHead native paint and audio-retirement boundary
+
+[Bounded proof](../specs/talking-head.md#explicit-audio-server-retirement--2026-10-22): source705 paint/world-clear53 checks reproduce four Ogg-resource leaks. Actual playback-refcount2 at the old exit boundary proves RED; bounded observed retirement before process exit then passes55 transition and220 retained input checks, no leaked instances/warning. All14 originals inspected. Fixture lifecycle repair only; generic shutdown and Retail speaker-camera semantics remain unproved.
+
 ## 2026-10-22 — Source TalkingHead glow RED and implementation
 
 [Runtime](systems/talking-head.md#runtime): genuine model/native RED detects absent top-bar glow at200ms. Five source atlas604 regions now use XML additive blend, alpha/translation and local native axis-scale/origin curves. At0f3071384, model9/9 and strict native2/2/257 checks pass; all ten original1920×1080 phase captures inspected. Child streams clean/no leak warning on this path; earlier warning remains unresolved and model rendering stays excluded.
