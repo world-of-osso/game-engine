@@ -221,20 +221,23 @@ pub fn guild_bank_frame(ctx: &SharedContext, state: &GuildBankFrameState) -> Ele
             ((FRAME_W - 320.0) / 2.0, 31.0),
         ));
     }
-    rsx! {
-        r#frame {
-            name: {DynName(FRAME_NAME.into())},
-            width: FRAME_W,
-            height: FRAME_H,
-            strata: FrameStrata::Dialog,
-            hidden: hide,
-            mouse_enabled: true,
-            pos_type: "absolute",
-            left: 16.0,
-            top: 104.0,
-            {children}
-        }
-    }
+    crate::panel_lifecycle::bind_close(
+        rsx! {
+            r#frame {
+                name: {DynName(FRAME_NAME.into())},
+                width: FRAME_W,
+                height: FRAME_H,
+                strata: FrameStrata::Dialog,
+                hidden: hide,
+                mouse_enabled: true,
+                pos_type: "absolute",
+                left: 16.0,
+                top: 104.0,
+                {children}
+            }
+        },
+        "guild_bank",
+    )
 }
 
 /// `TabTitleBG` / `TabLimitBG`: UI-TabNameBorder caps around the text, TOP at `top`.
