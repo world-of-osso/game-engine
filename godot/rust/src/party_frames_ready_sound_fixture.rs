@@ -8,9 +8,10 @@ use godot::{
 };
 use shared::protocol::{ReadyCheckAnswer, ReadyCheckMemberSnapshot, ReadyCheckUpdate};
 
-use super::{GroupFramesHud, GroupViewer, group_frames_state, ready_check_show_sound};
+use super::{GroupFramesHud, GroupViewer, group_frames_state};
 use crate::{sound_ui_kits::UiKits, ui::RegistryUi};
 use game_engine_ui_model::group_state::GroupState;
+use game_engine_ui_model::ready_check_frame_component::LIFECYCLE_SOUNDS;
 
 #[derive(GodotClass)]
 #[class(base=Node)]
@@ -137,8 +138,7 @@ impl ReadyCheckSoundFixture {
             .ok_or("Sound fixture is not initialized")?;
         ui.bind_mut().set_state(state)?;
         let shown = self.hud.listener_is_shown();
-        let was_shown = std::mem::replace(&mut self.hud.ready_check_shown, shown);
-        if let Some(kit) = ready_check_show_sound(was_shown, shown) {
+        if let Some(kit) = self.hud.ready_visibility.observe(shown, &LIFECYCLE_SOUNDS) {
             self.kits.play(
                 &self.data_root,
                 kit,

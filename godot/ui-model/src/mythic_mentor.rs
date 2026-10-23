@@ -79,17 +79,20 @@ pub fn mentor_screen(ctx: &SharedContext) -> Element {
         .flat_map(|(index, member)| keystone_row(index, member, &view.cooldowns))
         .collect();
     let [left, top] = view.position;
-    rsx! {
-        r#frame { name: {DynName(FRAME.into())}, width: PANEL_WIDTH, height,
-            strata: FrameStrata::Dialog, mouse_enabled: true,
-            pos_type: "absolute", left, top,
-            {flat_panel_chrome("MythicMentor", (PANEL_WIDTH, height), "Keys", CLOSE_ACTION)}
-            button { name: "MentorDragHandle", width: {PANEL_WIDTH - 30.0}, height: 22.0,
-                button_default_skin: false, onclick: "mentor:drag",
-                pos_type: "absolute", left: 0.0, top: 0.0 }
-            {rows}
-        }
-    }
+    crate::panel_lifecycle::bind_close(
+        rsx! {
+            r#frame { name: {DynName(FRAME.into())}, width: PANEL_WIDTH, height,
+                strata: FrameStrata::Dialog, mouse_enabled: true,
+                pos_type: "absolute", left, top,
+                {flat_panel_chrome("MythicMentor", (PANEL_WIDTH, height), "Keys", CLOSE_ACTION)}
+                button { name: "MentorDragHandle", width: {PANEL_WIDTH - 30.0}, height: 22.0,
+                    button_default_skin: false, onclick: "mentor:drag",
+                    pos_type: "absolute", left: 0.0, top: 0.0 }
+                {rows}
+            }
+        },
+        "mythic_mentor",
+    )
 }
 
 /// Current installed MythicTeleport.lua:17-26. No inferred teleport for Azure401.

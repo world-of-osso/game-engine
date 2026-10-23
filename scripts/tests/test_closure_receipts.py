@@ -3,6 +3,7 @@
 from contextlib import closing
 import hashlib
 import json
+import os
 from pathlib import Path
 import sqlite3
 import struct
@@ -199,6 +200,11 @@ class ReceiptClosureTests(unittest.TestCase):
         self.assertEqual(manifest["summary"]["missing"], 0)
 
     def test_authentic_579120_collision_keeps_each_products_primary_skin(self):
+        data_root = os.environ.get("DEPOT_GAME_ENGINE_DATA")
+        self.assertTrue(
+            data_root,
+            "Set DEPOT_GAME_ENGINE_DATA to the data root containing authenticated products/ fixtures; no implicit source is selected",
+        )
         sources = [
             (
                 "wow",
@@ -215,7 +221,7 @@ class ReceiptClosureTests(unittest.TestCase):
         ]
         expected = {}
         for product, key, model_hash, skin_hash in sources:
-            source = SCRIPTS.parent / "data/products" / product / key / "models"
+            source = Path(data_root) / "products" / product / key / "models"
             for fdid, kind, wanted in [
                 (579120, "m2", model_hash),
                 (579121, "skin", skin_hash),

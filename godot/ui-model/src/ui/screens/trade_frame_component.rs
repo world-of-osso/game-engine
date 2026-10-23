@@ -116,20 +116,23 @@ pub fn trade_frame_screen(ctx: &SharedContext) -> Element {
         false,
     ));
     children.extend(buttons(state));
-    rsx! {
-        r#frame {
-            name: {DynName(FRAME_NAME.into())},
-            width: FRAME_W,
-            height: FRAME_H,
-            strata: FrameStrata::Dialog,
-            hidden: hide,
-            mouse_enabled: true,
-            pos_type: "absolute",
-            left: 16.0,
-            top: 104.0,
-            {children}
-        }
-    }
+    crate::panel_lifecycle::bind_close(
+        rsx! {
+            r#frame {
+                name: {DynName(FRAME_NAME.into())},
+                width: FRAME_W,
+                height: FRAME_H,
+                strata: FrameStrata::Dialog,
+                hidden: hide,
+                mouse_enabled: true,
+                pos_type: "absolute",
+                left: 16.0,
+                top: 104.0,
+                {children}
+            }
+        },
+        "trade",
+    )
 }
 
 /// `TradeFramePlayerNameText` at 65,-5 and `TradeFrameRecipientNameText` at 230,-5.

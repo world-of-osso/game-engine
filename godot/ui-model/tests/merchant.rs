@@ -188,6 +188,30 @@ fn ui_template_behavior_merchant_item_and_service_have_distinct_live_owners() {
     }
 }
 
+#[test]
+fn ui_template_lifecycle_consumer_merchant_declares_session_sound_edges_and_domain_close() {
+    use ui_toolkit::atlas::{ActiveSkin, set_thread_skin};
+    use ui_toolkit::attrs::read_attribute;
+    for skin in [ActiveSkin::Modern, ActiveSkin::Forever] {
+        set_thread_skin(skin);
+        let registry = render(&session(godric(), "Godric Rothgar", 1000));
+        let frame = registry.get_by_name("MerchantFrame").unwrap();
+        for (key, value) in [
+            ("lifecycle_on_show", "839"),
+            ("lifecycle_on_hide", "840"),
+            ("lifecycle_close_hook", "merchant"),
+            ("lifecycle_close_group", "PANELS"),
+            ("lifecycle_escape_priority", "AddOnPost"),
+        ] {
+            assert_eq!(
+                read_attribute(&registry, frame, key).as_deref(),
+                Some(value),
+                "{key}"
+            );
+        }
+    }
+}
+
 fn text(registry: &FrameRegistry, name: &str) -> String {
     let frame = registry
         .get(

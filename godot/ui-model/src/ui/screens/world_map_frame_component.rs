@@ -399,32 +399,35 @@ pub fn world_map_frame_screen(ctx: &SharedContext) -> Element {
     } else {
         Vec::new()
     };
-    rsx! {
-        r#frame {
-            name: WORLD_MAP_ROOT,
-            stretch: true,
-            strata: FrameStrata::High,
-            hidden: hide,
-            {blackout}
+    crate::panel_lifecycle::bind_close(
+        rsx! {
             r#frame {
-                name: "WorldMapBorderFrame",
-                width,
-                height,
-                mouse_enabled: true,
-                pos_type: "absolute",
-                left: x,
-                top: y,
-                {background(&layout)}
-                {canvas(state, &layout)}
-                {nav_bar(&state.breadcrumbs, &layout, state.maximized, state.nav_overflow_open)}
-                {panel}
-                {border(&layout, state.maximized)}
-                {title(&layout, state.maximized)}
-                {close_button(&layout)}
-                {maximize_button(&layout, state.maximized)}
+                name: WORLD_MAP_ROOT,
+                stretch: true,
+                strata: FrameStrata::High,
+                hidden: hide,
+                {blackout}
+                r#frame {
+                    name: "WorldMapBorderFrame",
+                    width,
+                    height,
+                    mouse_enabled: true,
+                    pos_type: "absolute",
+                    left: x,
+                    top: y,
+                    {background(&layout)}
+                    {canvas(state, &layout)}
+                    {nav_bar(&state.breadcrumbs, &layout, state.maximized, state.nav_overflow_open)}
+                    {panel}
+                    {border(&layout, state.maximized)}
+                    {title(&layout, state.maximized)}
+                    {close_button(&layout)}
+                    {maximize_button(&layout, state.maximized)}
+                }
             }
-        }
-    }
+        },
+        "world_map",
+    )
 }
 
 /// `BlackoutFrame` over the whole screen while maximized (Blizzard_WorldMap.xml:30-42,

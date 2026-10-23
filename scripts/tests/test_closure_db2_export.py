@@ -1,6 +1,7 @@
 """Local authenticated DB2 export produces effect join identities, not field guesses."""
 
 from pathlib import Path
+import ast
 import csv
 import subprocess
 import tempfile
@@ -8,6 +9,7 @@ import unittest
 
 ROOT = Path(__file__).parents[2]
 DATA = Path("/home/osso/Projects/world-of-osso/game-engine/data")
+DEFINITIONS = Path(__file__).parent / "fixtures/db2-dbd"
 
 
 class EffectExportTests(unittest.TestCase):
@@ -35,6 +37,8 @@ class EffectExportTests(unittest.TestCase):
                     "CloneEffect",
                     str(DATA / "dbfilesclient/2175218.db2"),
                     str(path),
+                    "--definitions",
+                    str(DEFINITIONS),
                 ],
                 capture_output=True,
                 text=True,
@@ -53,6 +57,8 @@ class EffectExportTests(unittest.TestCase):
                     "BeamEffect",
                     str(DATA / "dbfilesclient/1525607.db2"),
                     str(path),
+                    "--definitions",
+                    str(DEFINITIONS),
                 ],
                 capture_output=True,
                 text=True,
@@ -62,7 +68,11 @@ class EffectExportTests(unittest.TestCase):
                 rows = {int(r["ID"]): r for r in csv.DictReader(stream)}
             self.assertEqual(int(rows[3]["BeamID"]), 743)
             self.assertEqual(int(rows[4]["BeamID"]), 6301)
-            self.assertIn("encrypted records dropped", result.stderr)
+            summary = ast.literal_eval(result.stderr.split(": ", 1)[1])
+            # Retained BeamEffect has 5,289 readable base rows and 969 copy rows.
+            self.assertEqual(summary["unreadable_records"], 0)
+            self.assertEqual(summary["rows"], 6258)
+            self.assertEqual(len(rows), 6258)
 
 
 if __name__ == "__main__":

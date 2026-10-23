@@ -898,7 +898,10 @@ pub fn adventure_guide_screen(ctx: &SharedContext) -> Element {
     }
     let left = (view.viewport[0] - 800.) / 2.;
     let top = (view.viewport[1] - 496.) / 2.;
-    rsx! {r#frame {name:"EncounterJournalRoot",stretch:true,r#frame {name:"EncounterJournal",width:800.0,height:496.0,left,top,pos_type:"absolute",mouse_enabled:true,background_color:"0.08,0.07,0.06,1.0",strata:crate::ui::strata::FrameStrata::Dialog,{body}}}}
+    crate::panel_lifecycle::bind_close(
+        rsx! {r#frame {name:"EncounterJournalRoot",stretch:true,r#frame {name:"EncounterJournal",width:800.0,height:496.0,left,top,pos_type:"absolute",mouse_enabled:true,background_color:"0.08,0.07,0.06,1.0",strata:crate::ui::strata::FrameStrata::Dialog,{body}}}},
+        "adventure_guide",
+    )
 }
 fn instance_list(ctx: &SharedContext, view: &View) -> Element {
     let background = crate::adventure_guide_art::grid_background(view);
