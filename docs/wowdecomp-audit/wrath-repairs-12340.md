@@ -16,7 +16,7 @@ Evidence: W `Engine/Source/lua-5.1/src/lbaselib.c:352–359`; `ldebug.c:505–53
 
 ## Q2 — S35: `Frame:SetForbidden` / `Frame:IsForbidden`
 
-Both `frame.SetForbidden` and `frame.IsForbidden` resolve to one nil value on a normal 12340 Frame. Secure versus `forceinsecure` callers do not change the result: `__index` uses the registered method table, and `forceinsecure` changes taint, not that table. The inherited `CScriptRegion` and `CSimpleFrame` method registrations contain neither name. No callable signature, conversion, return tuple, or forbidden-state transition exists in this source snapshot. A colon call fails as a nil method call.
+Both `frame.SetForbidden` and `frame.IsForbidden` resolve to one nil value on a normal 12340 Frame. Secure versus `forceinsecure` callers do not change the result: `__index` uses the registered method table, and `forceinsecure` can alter taint under its native guard, not the method table. The inherited `CScriptRegion` and `CSimpleFrame` method registrations contain neither name. No callable signature, conversion, return tuple, or forbidden-state transition exists in this source snapshot. A colon call fails as a nil method call.
 
 Evidence: W `Engine/Source/FrameScript/FrameScript_Object.cpp:31–49`; `Engine/Source/Frame/CScriptRegion_Scripts.cpp:734–767`; `CSimpleFrame_Scripts.cpp:1981–2074`; `Engine/Source/FrameScript/FrameScript_Scripts.cpp:299–304`.
 
