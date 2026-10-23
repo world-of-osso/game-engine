@@ -33,7 +33,6 @@ fn present(registry: &FrameRegistry, name: &str) -> bool {
         .is_some_and(|id| registry.get(id).unwrap().visible)
 }
 #[test]
-#[ignore = "RED: global search incorrectly empties the underlying Cataclysm grid"]
 fn journal_global_search_preserves_the_authored_instance_grid_in_both_skins() {
     for skin in [ActiveSkin::Modern, ActiveSkin::Forever] {
         let mut view = journal("");
