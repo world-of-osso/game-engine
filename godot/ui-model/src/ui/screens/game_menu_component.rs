@@ -57,7 +57,7 @@ pub fn game_menu_screen(shared: &SharedContext) -> Element {
                 .and_then(|state| state.menu.as_ref()),
         ),
     };
-    crate::panel_lifecycle::bind_escape(root, "game_menu")
+    crate::panel_lifecycle::bind_close(root, "game_menu")
 }
 
 fn options_menu_overlay(

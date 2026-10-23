@@ -1668,12 +1668,14 @@ fn ui_template_lifecycle_consumer_trading_post_declares_mounted_edges_and_stable
     for skin in [ActiveSkin::Modern, ActiveSkin::Forever] {
         let registry = render(skin, freeze_view());
         let frame = registry.get_by_name("PerksProgramFrame").unwrap();
+        for key in ["lifecycle_escape_hook", "lifecycle_escape_priority"] {
+            assert_eq!(read_attribute(&registry, frame, key), None, "{key}");
+        }
         for (key, value) in [
             ("lifecycle_on_show", "218932"),
             ("lifecycle_on_hide", "218933"),
             ("lifecycle_close_hook", "trading_post"),
             ("lifecycle_close_group", "PANELS"),
-            ("lifecycle_escape_priority", "AddOnPost"),
         ] {
             assert_eq!(
                 read_attribute(&registry, frame, key).as_deref(),

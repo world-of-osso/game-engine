@@ -5,7 +5,7 @@
 //! `layer`, then by sibling index, so that pair is the stacking key here too; a
 //! release resolves against the same canvas the pointer sees on top.
 
-use game_engine_ui_model::panel_lifecycle::CLOSE_REGISTRATIONS;
+use game_engine_ui_model::panel_lifecycle::REGISTRATIONS;
 use godot::prelude::*;
 use ui_toolkit::lifecycle::{CloseGroup, close_registered_group};
 
@@ -241,12 +241,8 @@ impl GameClient {
     pub(super) fn close_all_windows(&mut self) -> Result<bool, FrameError> {
         let mut closed = false;
         for group in [CloseGroup::Bags, CloseGroup::Panels, CloseGroup::Special] {
-            closed |= close_registered_group(
-                CLOSE_REGISTRATIONS,
-                group,
-                self,
-                Self::close_registered_window,
-            )?;
+            closed |=
+                close_registered_group(REGISTRATIONS, group, self, Self::close_registered_window)?;
         }
         Ok(closed)
     }

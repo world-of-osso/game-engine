@@ -98,7 +98,8 @@ fn ui_template_lifecycle_consumer_game_menu_keeps_framework_registration_across_
                 .lifecycle
                 .as_ref()
                 .expect("GameMenuRoot source Framework registration");
-            assert_eq!(binding.close_hook.as_deref(), Some("game_menu"));
+            assert_eq!(binding.close_hook, None);
+            assert_eq!(binding.escape_hook.as_deref(), Some("game_menu"));
             assert_eq!(binding.escape_priority, Some(EscapePriority::Framework));
             assert_eq!(binding.close_group, None);
         }

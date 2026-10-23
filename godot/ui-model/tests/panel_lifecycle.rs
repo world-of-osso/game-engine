@@ -1,7 +1,7 @@
 //! Materialized close declarations must survive both skins and screen rebuilds.
 use game_engine_ui_model::{character_frame, professions_frame, raid_info};
 use ui_toolkit::atlas::{ActiveSkin, set_thread_skin};
-use ui_toolkit::lifecycle::{CloseGroup, EscapePriority};
+use ui_toolkit::lifecycle::CloseGroup;
 use ui_toolkit::registry::FrameRegistry;
 use ui_toolkit::screen::{Screen, SharedContext};
 
@@ -18,11 +18,8 @@ fn assert_close(registry: &FrameRegistry, name: &str, hook: &str) {
     let binding = registry.get(id).unwrap().lifecycle.as_ref().expect(name);
     assert_eq!(binding.close_hook.as_deref(), Some(hook), "{name}");
     assert_eq!(binding.close_group, Some(CloseGroup::Panels), "{name}");
-    assert_eq!(
-        binding.escape_priority,
-        Some(EscapePriority::AddOnPost),
-        "{name}"
-    );
+    assert_eq!(binding.escape_hook, None, "{name}");
+    assert_eq!(binding.escape_priority, None, "{name}");
 }
 
 #[test]

@@ -196,12 +196,14 @@ fn ui_template_lifecycle_consumer_merchant_declares_session_sound_edges_and_doma
         set_thread_skin(skin);
         let registry = render(&session(godric(), "Godric Rothgar", 1000));
         let frame = registry.get_by_name("MerchantFrame").unwrap();
+        for key in ["lifecycle_escape_hook", "lifecycle_escape_priority"] {
+            assert_eq!(read_attribute(&registry, frame, key), None, "{key}");
+        }
         for (key, value) in [
             ("lifecycle_on_show", "839"),
             ("lifecycle_on_hide", "840"),
             ("lifecycle_close_hook", "merchant"),
             ("lifecycle_close_group", "PANELS"),
-            ("lifecycle_escape_priority", "AddOnPost"),
         ] {
             assert_eq!(
                 read_attribute(&registry, frame, key).as_deref(),
