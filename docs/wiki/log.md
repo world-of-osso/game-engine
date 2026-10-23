@@ -1,3 +1,7 @@
+## 2026-10-23 — Authenticated source versus native model format
+
+[Measured format boundary](systems/offline-asset-closure.md#unsupported-model-format-after-source-qualification) preserves strict M2 refusal and five named M3 exclusions. [Exact census and retry scope](../handoffs/noinstall-cert-2026-10-21.md#model-staging-format-boundary--five-m3-gaps) keep source provenance distinct from parser support,original partial evidence retained,and no net P4 closure claimed.
+
 ## 2026-10-22 — Model-owner recovery projection
 
 [Owner recovery boundary](systems/offline-asset-closure.md#model-owner-recovery-boundary) keeps native namespace selection mandatory. [Measured source candidates and residuals](../handoffs/noinstall-cert-2026-10-21.md#model-owner-and-companion-source-projection--no-publication-yet) separate historical origin,newer alias destinations and globally owned textures with unresolved parent namespaces; no publication,full graph or P4 acceptance.

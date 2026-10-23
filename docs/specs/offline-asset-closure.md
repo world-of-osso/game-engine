@@ -28,6 +28,8 @@ Offline audit tooling in `scripts/asset_closure.py` computes a content-rooted de
 - Publish immutable owners under the actual source build namespace. Companion aliases use their explicitly recorded actual owning namespaces; alias `build_key` describes the destination namespace while `source_build`/`source_build_key` retain the actual source identity. Native unique-owner selection still precedes path/resolver construction. Generic flat acceptance is never a model recovery path.
 - Emit one `HISTORICAL_ASSET_SOURCE_BUILD_MISMATCH` finding per admitted graph identity: product,FDID,kind,metadata build,actual build/build-key,source path,size/SHA256/content-key,owner path and companion destination if applicable. This named historical-source exception is evidence,not promotion to metadata/current-build identity or net P4 closure. Residual nodes and newly exposed descendants remain gaps. Private staging does not authorize canonical publication.
 
+- Source-authenticated `M3DT` payloads remain `MODEL_M3DT_FORMAT_UNSUPPORTED` when the pinned native reader lacks M3 support. Preserve their FDIDs,source hashes and actual build as named gaps; exclude them from M2/BLP staging. Do not relabel M3 as M2 or add reader tolerance within recovery work.
+
 ## Non-model provenance
 
 - Selected flat ADT/WMO/texture/sound bytes qualify only against same-product,FDID,family,path and size/SHA256/content-key matches in the existing `provenance/closure-extract.jsonl` ledger. Scan once for requested identities; preserve matching historical builds instead of last-row precedence. Missing or mismatched receipts remain named gaps. Hash-only UI inventories do not authenticate origin.
