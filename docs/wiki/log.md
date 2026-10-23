@@ -1,6 +1,6 @@
 ## 2026-10-22 — Shared close registrations and decoded ReadyCheck sound
 
-[Lifecycle bindings](systems/ui-system.md#lifecycle-bindings--step-5-partial): one template catalog now supplies root attrs and exact native close dispatch, including pending domains without mounted UI. Root RED3→GREEN3; core11/native6 and real GameClient pending cancellation2/2 pass. Ordinary taxi Escape reproduced map-closed/bag-still-open RED; registered-sweep fix committed, both-skin GREEN pending admission. ReadyCheck decoded playback passes20 phases across both skins with four full-HD PNGs; live Merchant/TP, whole Escape and Step5 acceptance remain open.
+[Lifecycle bindings](systems/ui-system.md#lifecycle-bindings--step-5-partial): one template catalog now supplies root attrs and exact native close dispatch, including pending domains without mounted UI. Root RED3→GREEN3; core11/native6 and real GameClient pending cancellation2/2 pass. Ordinary taxi Escape reproduced map-closed/bag-still-open RED; registered-sweep fix passes strict both-skin4/4 on private5993 with map/bag close and unchanged target/item/money authority. ReadyCheck decoded playback passes20 phases across both skins with four full-HD PNGs; live Merchant/TP, whole Escape and Step5 acceptance remain open.
 
 ## 2026-10-22 — Tooltip binding metadata in progress
 

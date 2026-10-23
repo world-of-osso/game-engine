@@ -1,5 +1,5 @@
 extends "res://tests/bank_live.gd"
-# R Shared/TaxiFrame.lua2 registers TaxiFrame as an ordinary UIPanel; CloseAllWindows
+# R Blizzard_FlightMap.lua1 registers FlightMapFrame as an ordinary UIPanel; CloseAllWindows
 # closes bags plus panels before the World fallback. No taxi activation is performed.
 var completion
 var current_skin := ""
