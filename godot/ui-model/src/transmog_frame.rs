@@ -138,8 +138,11 @@ pub fn transmog_screen(ctx: &SharedContext) -> Element {
     children.extend(collection::name_popup(&view.book));
     children.extend(outfit_popup::outfit_popups(&view.book));
     let left = ((view.viewport_width - WIDTH) * 0.5).max(0.0);
-    rsx! { r#frame { name: "TransmogFrame", width: WIDTH, height: HEIGHT, left, top: 41.0,
-    pos_type: "absolute", mouse_enabled: true, strata: FrameStrata::Dialog, {children} } }
+    crate::panel_lifecycle::bind_close(
+        rsx! { r#frame { name: "TransmogFrame", width: WIDTH, height: HEIGHT, left, top: 41.0,
+        pos_type: "absolute", mouse_enabled: true, strata: FrameStrata::Dialog, {children} } },
+        "transmog",
+    )
 }
 
 fn region_art() -> Element {
