@@ -110,15 +110,17 @@ pub(crate) fn housing_search_box(
 }
 
 fn build_catalog_filter_header(model: &HousingDashboard) -> Element {
+    // HousingDashboardCatalog.xml: fixed100x20 TOPRIGHT(-10,-30).
+    let width = 100.0;
     dropdown_button_with_state(
         DropdownButton {
             frame_name: "HousingCatalogFilters",
             label_name: "HousingCatalogFiltersText",
             arrow_name: "HousingCatalogFiltersArrow",
             text: "Filter",
-            width: 100.0,
+            width,
             height: 20.0,
-            x: 704.0,
+            x: SIZE[0] - width - 10.0,
             y: -30.0,
             background_color: "",
             text_color: "",
