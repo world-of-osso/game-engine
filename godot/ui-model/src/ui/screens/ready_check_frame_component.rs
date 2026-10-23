@@ -11,6 +11,14 @@ use crate::ui::strata::FrameStrata;
 use crate::ui::widgets::font_string::{FontColor, GameFont};
 
 pub const READY_CHECK_FRAME: &str = "ReadyCheckFrame";
+/// ReadyCheck.xml107–111: shown pending listener only; no hide sound.
+pub const LIFECYCLE_SOUNDS: ui_toolkit::lifecycle::LifecycleSounds =
+    ui_toolkit::lifecycle::LifecycleSounds {
+        on_show: Some(game_engine_core::ui_sound_kits::READY_CHECK),
+        on_hide: None,
+        on_enter: None,
+        on_click: None,
+    };
 pub const ACTION_READY_CHECK_YES: &str = "ready_check_yes";
 pub const ACTION_READY_CHECK_NO: &str = "ready_check_no";
 
@@ -66,7 +74,7 @@ pub fn ready_check_frame(state: &ReadyCheckFrameState) -> Element {
     rsx! {
         r#frame {
             name: {DynName(READY_CHECK_FRAME.to_string())},
-            lifecycle_on_show: 8960,
+            lifecycle_on_show: {LIFECYCLE_SOUNDS.on_show.unwrap()},
             width: FRAME_W,
             height: FRAME_H,
             strata: FrameStrata::Dialog,
