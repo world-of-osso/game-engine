@@ -30,6 +30,25 @@ impl GameClient {
         self.trading_post.view.visible = false;
         state
     }
+
+    #[func]
+    fn probe_trading_dialog_escape_precedence(&mut self) -> VarDictionary {
+        use game_engine_ui_model::window_manager::WindowId;
+        let mut state = VarDictionary::new();
+        self.trading_post.view.visible = true;
+        self.trading_post.view.confirm = Some("Confirm purchase".into());
+        self.bags.open_all_bags(WindowId::Bag(0), [0]);
+        send_escape(self);
+        state.set(
+            "confirmation_retained",
+            self.trading_post.view.confirm.is_some(),
+        );
+        state.set("vendor_retained", self.trading_post.view.visible);
+        state.set("bag_survived_dialog", self.bags.close_all_bags(None));
+        self.trading_post.view.confirm = None;
+        self.trading_post.view.visible = false;
+        state
+    }
 }
 
 fn send_escape(client: &mut GameClient) {
