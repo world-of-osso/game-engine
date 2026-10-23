@@ -47,7 +47,7 @@ pub fn game_menu_screen(shared: &SharedContext) -> Element {
     let Some(model) = shared.get::<GameMenuViewModel>() else {
         return Vec::new();
     };
-    match model.view {
+    let root = match model.view {
         GameMenuView::MainMenu => main_menu_view(model.logged_in),
         GameMenuView::Options => options_menu_overlay(
             &model.options,
@@ -56,7 +56,8 @@ pub fn game_menu_screen(shared: &SharedContext) -> Element {
                 .get::<crate::options_dropdown::OptionsDropdownState>()
                 .and_then(|state| state.menu.as_ref()),
         ),
-    }
+    };
+    crate::panel_lifecycle::bind_escape(root, "game_menu")
 }
 
 fn options_menu_overlay(
