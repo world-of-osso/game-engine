@@ -36,6 +36,8 @@ cargo run -- --build-host desktop --screen charselect
 python3 scripts/depot-build.py --root "$PWD" --build-host local
 # Build/install only, without launching:
 python3 scripts/depot-build.py --root "$PWD"
+# Explicit Cargo concurrency (default host behaviour unchanged):
+TMPDIR=/var/tmp/osso python3 scripts/depot-build.py --root "$PWD" --jobs 2
 # Build the extension and one owned UDP fixture executable (any godot/network/examples/*.rs stem):
 python3 scripts/depot-build.py --root "$PWD" --fixture native_input_fixture
 # Optimized library, into target/release/ (used by ./deploy.sh; not combinable with --cli/--test):
@@ -48,7 +50,7 @@ python3 scripts/depot-build.py --root "$PWD" --cli
 
 `--fixture` accepts every top-level `godot/network/examples/*.rs` file stem (`native_input_fixture`, `native_npc_visual_fixture`, `native_reconnect_fixture`, `native_transfer_fixture`, and any new one); the helper validates the name and the Dockerfile builds it. Debug fixtures install under `target/debug/examples/<name>`; `--release --fixture` builds and exports both the extension and named example in the release profile under `target/release/`, without replacing debug artifacts. Fixtures locate their checkout relative to their installed examples path. `native_input_fixture` and `native_npc_visual_fixture` stage authored root CSVs while preserving generated fixture catalogs; SQL setup and WAL-safe listfile snapshots use bundled rusqlite, not a host `sqlite3` executable. Their private data trees live under canonical `data/`.
 
-`--fixture`, `--cli`, `--release`, and `--test` retain their arguments and source/assets behavior on both hosts. For CPU tests, use `python3 scripts/depot-build.py --root "$PWD" --build-host desktop --test -p game-engine-core` (substitute `local` as needed). Host selection does not make GDScript or GPU tests part of `--test`.
+`--fixture`, `--cli`, `--release`, and `--test` retain their arguments and source/assets behavior on both hosts. For CPU tests, use `python3 scripts/depot-build.py --root "$PWD" --build-host desktop --test -p game-engine-core` (substitute `local` as needed). Host selection does not make GDScript or GPU tests part of `--test`. Optional `--jobs N` forwards an explicit `-j N` to Cargo on every host; place it before `--test` for test mode. Omit it to preserve the host's existing default.
 
 ## UI-model integration tests
 

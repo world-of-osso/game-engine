@@ -170,8 +170,10 @@ class DepotBuildTests(unittest.TestCase):
             capture_output=True,
         )
 
-    def build(self, *, fixture=None, cli=False, **env):
+    def build(self, *, fixture=None, cli=False, jobs=None, **env):
         command = ["python3", str(SCRIPT), "--root", str(self.root)]
+        if jobs is not None:
+            command.extend(["--jobs", str(jobs)])
         if fixture is not None:
             command.extend(["--fixture", fixture])
         if cli:
@@ -215,6 +217,38 @@ class DepotBuildTests(unittest.TestCase):
             for index, arg in enumerate(args)
             if arg == "--build-arg"
         )
+
+    def test_explicit_jobs_reaches_container_without_duplicate_build_args(self):
+        result = self.build(jobs=2)
+        self.assertEqual(result.returncode, 0, result.stderr)
+        self.assertEqual(self.build_args(self.records()[0])["JOBS"], "2")
+
+    def test_explicit_jobs_reaches_native_extension_and_cli_cargo(self):
+        self._put(self.home, ".config/game-engine/build-host", "native\n")
+        cargo = self.base / "bin/cargo"
+        cargo.write_text(
+            "#!/usr/bin/env python3\n"
+            "import json, os, sys\n"
+            "with open(os.environ['DEPOT_RECORD'], 'a') as record:\n"
+            "    record.write(json.dumps({'args': sys.argv[1:]}) + '\\n')\n"
+        )
+        cargo.chmod(0o755)
+        result = self.build(jobs=2, cli=True)
+        self.assertEqual(result.returncode, 0, result.stderr)
+        calls = self.records()
+        self.assertEqual(len(calls), 2)
+        for call in calls:
+            args = call["args"]
+            self.assertEqual(args[args.index("-j") + 1], "2")
+        self.assertIn("game-engine-godot", calls[0]["args"])
+        self.assertIn("game-engine-cli", calls[1]["args"])
+
+    def test_jobs_rejects_nonpositive_limit_before_build(self):
+        for jobs in [0, -1]:
+            result = self.build(jobs=jobs)
+            self.assertNotEqual(result.returncode, 0)
+            self.assertIn("jobs must be positive", result.stderr)
+        self.assertEqual(self.records(), [])
 
     def test_saved_host_builds_without_depot_credentials(self):
         result = self.build()
