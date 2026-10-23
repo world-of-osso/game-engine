@@ -225,7 +225,8 @@ fn item_button(set: u32, item: &Item, index: usize) -> Element {
     rsx! {
         button {
             name: {DynName(prefix)}, left, top: 4.5, width: 32., height: 32.,
-            pos_type: "absolute", button_default_skin: false, {content}
+            pos_type: "absolute", button_default_skin: false,
+            tooltip_provider: "journal_set", tooltip_anchor: "ANCHOR_RIGHT", {content}
         }
     }
 }

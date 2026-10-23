@@ -118,5 +118,6 @@ fn perk_row(perk: &GuildPerk, top: f32) -> Element {
     ));
     let action = format!("guild:perk:{}", perk.spell_id);
     rsx! { button { name: {DynName(name)}, left: 8.0, top, width: 270.0, height: 44.0,
-    pos_type: "absolute", button_default_skin: false, onclick: action, {art} } }
+    pos_type: "absolute", button_default_skin: false, onclick: action,
+    tooltip_provider: "guild_perk", tooltip_offset_x: 36.0, {art} } }
 }

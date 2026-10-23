@@ -34,6 +34,8 @@ pub(super) fn honor_inset(view: &PvpView) -> Element {
     );
     children.extend(rsx! { r#frame {
         name: "PVPUIHonorLevelDisplay", width: 128.0, height: 128.0,
+        tooltip_provider: "pvp_honor", tooltip_anchor: "ANCHOR_RIGHT",
+        tooltip_offset_x: -20.0, tooltip_offset_y: -20.0,
         left: 19.0, top: 25.0, pos_type: "absolute", mouse_enabled: true, {ring}
     } });
     // PVPUI.xml1682/1718: inherit the queue strata; neither child promotes to DIALOG.

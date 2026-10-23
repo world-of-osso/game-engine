@@ -527,7 +527,7 @@ fn reward_card(reward: &shared::protocol::RenownReward, left: f32, top: f32) -> 
     ));
     rsx! {r#frame {
         name:{DynName(format!("{prefix}Card"))},left,top,width:{REWARD_CARD.0},height:{REWARD_CARD.1},
-        pos_type:"absolute",mouse_enabled:true,{parts}
+        pos_type:"absolute",mouse_enabled:true,tooltip_provider:"journal_journey",tooltip_anchor:"ANCHOR_RIGHT",{parts}
     }}
 }
 

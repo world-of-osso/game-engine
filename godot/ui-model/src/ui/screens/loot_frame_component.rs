@@ -155,6 +155,7 @@ fn loot_card(index: usize, row: &LootFrameRow) -> Element {
             width: ROW_W,
             height: ROW_H,
             mouse_enabled: false,
+            tooltip_provider: "loot",
             pos_type: "absolute",
             left: x,
             top: y,

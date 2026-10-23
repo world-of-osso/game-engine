@@ -217,6 +217,28 @@ fn render_state(
     Screen::new(group_frames_screen).sync(&shared, &mut registry);
     registry
 }
+#[test]
+fn ui_template_behavior_hud_compact_group_member_keeps_live_default_anchor() {
+    use ui_toolkit::tooltip::{TooltipAnchor, tooltip_owner};
+    let _lock = SKIN.lock().unwrap();
+    for skin in [ActiveSkin::Modern, ActiveSkin::Forever] {
+        let registry = render(
+            skin,
+            LayoutSettings {
+                use_raid_style_party_frames: Some(true),
+                ..Default::default()
+            },
+        );
+        let hit = registry
+            .get_by_name("CompactPartyFrameMember1Name")
+            .unwrap();
+        let (owner, binding) = tooltip_owner(&registry, hit).expect("party member live owner");
+        assert_eq!(owner.name.as_deref(), Some("CompactPartyFrameMember1"));
+        assert_eq!(binding.provider.as_deref(), Some("hud_frame"));
+        assert_eq!(binding.anchor, TooltipAnchor::Default);
+    }
+}
+
 fn frame<'a>(r: &'a FrameRegistry, name: &str) -> &'a Frame {
     r.get(r.get_by_name(name).expect(name)).unwrap()
 }

@@ -60,6 +60,23 @@ fn equipped(items: &[(EquipmentSlot, u32)]) -> InventoryState {
     inventory
 }
 
+#[test]
+fn ui_template_behavior_collection_paperdoll_slots_own_live_equipment_content() {
+    use ui_toolkit::atlas::{ActiveSkin, set_thread_skin};
+    use ui_toolkit::tooltip::{TooltipAnchor, tooltip_owner};
+    for skin in [ActiveSkin::Modern, ActiveSkin::Forever] {
+        set_thread_skin(skin);
+        let registry = build(view(&equipped(&[(EquipmentSlot::MainHand, 25)]), None));
+        for button in PAPERDOLL_BUTTONS {
+            let hit = registry.get_by_name(button.name).expect(button.name);
+            let (owner, binding) = tooltip_owner(&registry, hit).expect(button.name);
+            assert_eq!(owner.id, hit);
+            assert_eq!(binding.provider.as_deref(), Some("paperdoll"));
+            assert_eq!(binding.anchor, TooltipAnchor::Right);
+        }
+    }
+}
+
 fn catalog_level(item: &game_engine_ui_model::bag_data::InventorySlot) -> Option<(u16, u8)> {
     game_engine_ui_model::item_catalog::item_catalog_entry_for(item.definition_source, item.item_id)
         .map(|entry| (entry.item_level, entry.inventory_type))

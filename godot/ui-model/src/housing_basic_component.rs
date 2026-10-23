@@ -235,13 +235,23 @@ pub(super) fn mode_bar(view: &HousingView) -> Element {
                 binding_control_text(view, &format!("HouseEditor{name}Button"), action, false)
             })
             .unwrap_or_default();
-        children.extend(icon_button(
+        let button = icon_button(
             (name, atlas, action),
             (index as f32 * BUTTON, 0.0),
             view.model.pending || action.is_empty(),
             mode_is_active(view, name),
             control_text,
-        ));
+        );
+        children.extend(if binding.is_some() {
+            ui_toolkit::tooltip::bind_provider_at(
+                button,
+                "housing",
+                ui_toolkit::tooltip::TooltipAnchor::Top,
+                [0.0; 2],
+            )
+        } else {
+            button
+        });
     }
     rsx! {r#frame {name:"HouseEditorModeBar",width,height:64.0,left,top,pos_type:"absolute",strata:FrameStrata::Dialog,mouse_enabled:true,
         r#frame {name:"HouseEditorModeBarGradientAlpha",width:800.0,height:260.0,left:gradient_left,top:-47.0,pos_type:"absolute",alpha:"0.5",mouse_enabled:false,{gradient}}

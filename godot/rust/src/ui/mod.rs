@@ -1166,6 +1166,17 @@ impl RegistryUi {
         Some(frame.id)
     }
 
+    /// Hover-only tooltip artwork participates in picking but never claims clicks.
+    pub(crate) fn tooltip_frame_at(&self, at: Vector2) -> Option<u64> {
+        let model = self.model.as_ref()?;
+        Some(
+            self.projection
+                .as_ref()?
+                .tooltip_frame_at(&model.registry, at)?
+                .id,
+        )
+    }
+
     /// The click action of frame `id` or its nearest ancestor with one.
     pub(crate) fn frame_click_action(&self, id: u64) -> Option<String> {
         projection::frame_click_action(&self.model.as_ref()?.registry, id)

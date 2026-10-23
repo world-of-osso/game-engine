@@ -434,6 +434,7 @@ pub(crate) fn category_button(
         })
         .unwrap_or_default();
     rsx! { button { name: {DynName(name)}, width: size, height: size,
+        tooltip_provider: "housing", tooltip_offset_x: -12.0, tooltip_offset_y: -12.0,
         pos_type: "absolute", left, top, onclick: {action.as_str()},
         button_default_skin: false, {art}
     } }
@@ -456,6 +457,7 @@ fn tile(view: &HousingView, index: usize, decor: &Decor) -> Element {
     let quantity = view.authority.quantity(decor.id).unwrap_or(0);
     let quantity_text = quantity.to_string();
     rsx! { button { name: {DynName(name.clone())}, width: 97.0, height: 97.0,
+        tooltip_provider: "housing",
         pos_type: "absolute", left, top, onclick: {action.as_str()}, button_default_skin: false,
         {art}
         fontstring { name: {DynName(format!("{name}Quantity"))}, text: {quantity_text.as_str()},

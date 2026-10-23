@@ -3,6 +3,9 @@
 //! `GameTooltip_SetDefaultAnchor` put it, the screen clamp and the comparison tooltips.
 //! The host resolves the hovered frame or unit and renders [`GameTooltipView`].
 
+pub mod binding;
+#[cfg(test)]
+mod binding_tests;
 pub mod hud;
 pub mod item;
 pub mod merchant;
@@ -24,6 +27,7 @@ use crate::tooltip_presentation::{
     GRAY_FONT_COLOR, TOOLTIP_DESCRIPTION_COLOR, TooltipLineState, TooltipPresentation,
     item_id_line, rgba_string,
 };
+pub use binding::binding_anchor;
 pub use item::ShoppingTooltip;
 use render::retail_tooltip;
 pub use render::tooltip_size;
@@ -142,19 +146,6 @@ impl GameTooltip {
         Self {
             anchor: TooltipAnchor::Cursor,
             ..self
-        }
-    }
-
-    /// The Forever skin takes FlareUI's tooltip anchor: its `GameTooltip_SetDefaultAnchor`
-    /// hook re-owns default-anchored tooltips at `ANCHOR_CURSOR_RIGHT` with offset 0, 0
-    /// (Tooltips.lua:410-423,459; `anchor`/`anchorFrames` "cursorOffset", Core.lua:350-353).
-    pub fn for_skin(self, skin: ActiveSkin) -> Self {
-        match (skin, self.anchor) {
-            (ActiveSkin::Forever, TooltipAnchor::Default) => Self {
-                anchor: TooltipAnchor::CursorRight,
-                ..self
-            },
-            _ => self,
         }
     }
 }
@@ -539,24 +530,25 @@ mod tests {
     }
 
     #[test]
-    fn forever_puts_default_anchored_tooltips_right_of_the_cursor() {
-        let tooltip = five_lines();
-        let height = tooltip_size(&tooltip.content)[1];
-        let placed = place(tooltip.clone().for_skin(ActiveSkin::Forever), SCREEN);
-        // ANCHOR_CURSOR_RIGHT: the tooltip's BOTTOMLEFT on the cursor (800, 600).
-        assert_eq!((placed.x, placed.y), (800.0, 600.0 - height));
-        // Modern keeps GameTooltip_SetDefaultAnchor's bottom right.
-        let placed = place(tooltip.clone().for_skin(ActiveSkin::Modern), SCREEN);
-        assert_eq!(placed.x + w(), 1920.0 - 9.0);
-        // FlareUI only hooks the default anchor: owned tooltips keep their owner.
-        let owned = tooltip.owned([600.0, 500.0, 36.0, 36.0], OwnerSide::Right);
-        let placed = place(owned.for_skin(ActiveSkin::Forever), SCREEN);
-        assert_eq!((placed.x, placed.y), (636.0, 500.0 - height));
+    fn ui_template_behavior_default_anchor_is_retail_in_both_art_skins() {
+        for skin in [ActiveSkin::Modern, ActiveSkin::Forever] {
+            ui_toolkit::atlas::set_thread_skin(skin);
+            let tooltip = five_lines();
+            let height = tooltip_size(&tooltip.content)[1];
+            let placed = place(tooltip.clone(), SCREEN);
+            // R GameTooltipDefaultContainer: BOTTOMRIGHT on UIParent (-9, +85).
+            assert_eq!(placed.x + w(), 1920.0 - 9.0, "{skin:?} default x");
+            assert_eq!(placed.y + height, 1080.0 - 85.0, "{skin:?} default y");
+            let owned = tooltip.owned([600.0, 500.0, 36.0, 36.0], OwnerSide::Right);
+            let placed = place(owned, SCREEN);
+            assert_eq!((placed.x, placed.y), (636.0, 500.0 - height));
+        }
     }
 
     #[test]
-    fn forever_cursor_tooltips_stay_on_screen_at_the_right_edge() {
-        let tooltip = five_lines().for_skin(ActiveSkin::Forever);
+    fn authored_cursor_right_tooltips_stay_on_screen_at_the_right_edge() {
+        let mut tooltip = five_lines();
+        tooltip.anchor = TooltipAnchor::CursorRight;
         let height = tooltip_size(&tooltip.content)[1];
         let inside = |placed: &TooltipPresentation| {
             placed.x >= 0.0

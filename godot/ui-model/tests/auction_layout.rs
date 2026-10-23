@@ -20,6 +20,49 @@ fn render(skin: ActiveSkin, view: &str) -> FrameRegistry {
     registry
 }
 
+#[test]
+fn ui_template_behavior_services_auction_rows_declare_live_item_owners() {
+    use game_engine_ui_model::auction_house_frame_component::{
+        ACTION_BROWSE_ITEM_PREFIX, ACTION_SELECT_AUCTION_PREFIX, ACTION_SELL_ITEM_PREFIX,
+    };
+    use ui_toolkit::tooltip::{TooltipAnchor, tooltip_owner};
+    for skin in [ActiveSkin::Modern, ActiveSkin::Forever] {
+        for view in ["browse", "item", "owned", "bids", "inventory"] {
+            let registry = render(skin, view);
+            let hits: Vec<_> = registry
+                .frames_iter()
+                .filter(|frame| frame.visible)
+                .filter(|frame| {
+                    frame.onclick.as_deref().is_some_and(|action| {
+                        [
+                            ACTION_BROWSE_ITEM_PREFIX,
+                            ACTION_SELECT_AUCTION_PREFIX,
+                            ACTION_SELL_ITEM_PREFIX,
+                        ]
+                        .iter()
+                        .any(|prefix| action.starts_with(prefix))
+                    })
+                })
+                .map(|frame| frame.id)
+                .collect();
+            assert!(!hits.is_empty(), "{skin:?} {view} supplies real item rows");
+            for hit in hits {
+                let (owner, binding) = tooltip_owner(&registry, hit).unwrap_or_else(|| {
+                    panic!(
+                        "{skin:?} {view} auction live owner: {:?}",
+                        registry
+                            .get(hit)
+                            .map(|frame| (&frame.name, frame.visible, &frame.tooltip))
+                    )
+                });
+                assert_eq!(owner.id, hit);
+                assert_eq!(binding.provider.as_deref(), Some("auction"));
+                assert_eq!(binding.anchor, TooltipAnchor::Right);
+            }
+        }
+    }
+}
+
 fn frame<'a>(registry: &'a FrameRegistry, name: &str) -> &'a Frame {
     registry
         .get(registry.get_by_name(name).expect(name))

@@ -541,6 +541,8 @@ fn button(
             width: size,
             height: size,
             onclick: {format!("{}{index}", bar.click_prefix())},
+            tooltip_provider: "action_button",
+            tooltip_anchor: "DEFAULT",
             button_default_skin: false,
             pos_type: "absolute",
             pos_x: x,

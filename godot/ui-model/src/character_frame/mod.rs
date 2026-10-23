@@ -954,6 +954,7 @@ fn slot_button(button: &PaperDollButton, view: &PaperDollSlotView) -> Element {
             width: SLOT,
             height: SLOT,
             mouse_enabled: true,
+            tooltip_provider: "paperdoll",
             onclick: {action.as_str()},
             pos_type: "absolute",
             left: x,

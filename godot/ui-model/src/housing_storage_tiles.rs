@@ -64,6 +64,7 @@ fn stored_tile(decor: &Decor, quantity: u32, disabled: bool, [left, top]: [f32; 
     };
     let action = format!("housing:place:{}", decor.id);
     rsx! {button {name:{DynName(prefix.clone())},width:TILE_SIZE,height:TILE_SIZE,pos_type:"absolute",left,top,onclick:action,disabled,button_default_skin:false,
+        tooltip_provider:"housing",
         {background}{hover}
         texture {name:{DynName(format!("HouseEditorIcon{}",decor.id))},texture_fdid:{decor.thumbnail_fdid},width:87.0,height:87.0,pos_type:"absolute",left:5.0,top:5.0,mouse_enabled:false}
         fontstring {name:{DynName(format!("{prefix}Count"))},text,width:count_width,height:20.0,font_size:16.0,font_color:color,pos_type:"absolute",left:count_left,top:70.0,justify_h:"RIGHT",mouse_enabled:false}

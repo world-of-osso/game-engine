@@ -88,6 +88,7 @@ fn creature_button(
         button {
             name: {DynName(name)}, left: FIRST_LEFT, top, width, height,
             pos_type: "absolute", frame_level: 2., disabled: selected,
+            tooltip_provider: "journal_creature", tooltip_anchor: "ANCHOR_RIGHT",
             onclick: {action.as_str()}, button_default_skin: false, {content}
         }
     }

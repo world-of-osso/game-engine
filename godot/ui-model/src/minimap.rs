@@ -784,6 +784,8 @@ fn zoom_button(
             button_atlas_highlight: highlight,
             button_atlas_disabled: atlas,
             button_disabled_desaturated: true,
+            tooltip_provider: "hud_frame",
+            tooltip_anchor: "DEFAULT",
             disabled,
             onclick: action,
             pos_type: "absolute",
@@ -843,6 +845,8 @@ fn zone_text(
     rsx! {
         fontstring {
             name: {DynName(MINIMAP_ZONE_TEXT.into())},
+            tooltip_provider: "hud_frame",
+            tooltip_anchor: "ANCHOR_LEFT",
             width,
             height,
             text: {state.zone_text.as_str()},

@@ -116,6 +116,10 @@ fn ui_template_blend_discovered_zero_pvp_wallet_opens_source_token_rows_in_both_
         assert_eq!(text(&registry, "TokenEntry1792Name"), "Honor");
         assert_eq!(text(&registry, "TokenEntry1602Name"), "Conquest");
         assert_eq!(text(&registry, "TokenEntry1792Count"), "0");
+        let hovered_name = registry.get_by_name("TokenEntry1792Name").unwrap();
+        let (owner, binding) = ui_toolkit::tooltip::tooltip_owner(&registry, hovered_name).unwrap();
+        assert_eq!(owner.name.as_deref(), Some("TokenEntry1792"));
+        assert_eq!(binding.provider.as_deref(), Some("token_currency"));
         assert!(registry.get_by_name("TokenFrameScrollBox").is_some());
         assert!(registry.get_by_name("ReputationScrollBox").is_none());
         let quantity = registry
@@ -137,6 +141,7 @@ fn ui_template_blend_discovered_zero_pvp_wallet_opens_source_token_rows_in_both_
         shared.insert(view.clone());
         screen.sync(&shared, &mut registry);
         assert!(registry.get_by_name("TokenEntry1792").is_none());
+        assert!(ui_toolkit::tooltip::tooltip_owner(&registry, hovered_name).is_none());
         assert!(registry.get_by_name("TokenHeader2").is_some());
     }
 }

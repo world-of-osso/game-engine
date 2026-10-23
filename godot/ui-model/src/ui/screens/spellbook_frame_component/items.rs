@@ -232,6 +232,7 @@ fn item_button(name: &str, item: &SpellbookItemView, s: f32) -> Element {
     let mut button = rsx! {
         button {
             name: {DynName(format!("{name}Button"))},
+            tooltip_provider: "spellbook",
             width: {BUTTON_SIZE * s},
             height: {BUTTON_SIZE * s},
             button_default_skin: false,
