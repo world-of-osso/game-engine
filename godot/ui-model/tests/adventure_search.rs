@@ -33,6 +33,31 @@ fn present(registry: &FrameRegistry, name: &str) -> bool {
         .is_some_and(|id| registry.get(id).unwrap().visible)
 }
 #[test]
+#[ignore = "RED: merged shared dispatcher cannot hover undeclared item search rows"]
+fn journal_search_item_children_resolve_the_shared_owner_in_preview_and_full_results() {
+    for skin in [ActiveSkin::Modern, ActiveSkin::Forever] {
+        let mut view = journal("Buzzer Blade");
+        game_engine_ui_model::item_catalog::wait_for_item_catalog();
+        view.apply("journal:search-focus").unwrap();
+        for (action, row) in [
+            ("journal:search-focus", "JournalSearchPreview0"),
+            ("journal:search-full", "JournalSearchResult0"),
+        ] {
+            view.apply(action).unwrap();
+            let registry = render(&view, skin);
+            let hit = registry.get_by_name(&format!("{row}Icon")).unwrap();
+            let (owner, binding) = ui_toolkit::tooltip::tooltip_owner(&registry, hit)
+                .expect("Actual item-search child must resolve a live tooltip owner");
+            assert_eq!(owner.name.as_deref(), Some(row));
+            assert_eq!(binding.provider.as_deref(), Some("journal_loot"));
+            assert_eq!(binding.anchor, ui_toolkit::tooltip::TooltipAnchor::Right);
+            assert_eq!(binding.offset, [0., 0.]);
+            assert_eq!(view.search_item(row).unwrap().id, 2169);
+        }
+    }
+}
+
+#[test]
 fn journal_search_item_results_preserve_source_icon_quality_parent_and_difficulty() {
     for skin in [ActiveSkin::Modern, ActiveSkin::Forever] {
         let mut view = journal("Buzzer Blade");
