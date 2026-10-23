@@ -12,7 +12,7 @@ attempt to call global 'SetGuildRosterSelection' (a nil value)
 
 `luaG_typeerror` recovers the name from the `OP_GETGLOBAL` feeding the failing `OP_CALL`, using the single-quote `LUA_QS` format. `luaB_pcall` returns status plus all protected-call results, so the failing closure gives `(false, error_string)`. Prefix is the evaluated chunk's `luaO_chunkid` and current source line; the request clarification leaves the simulator-selected chunk name unspecified. The bundled core labels itself Lua 5.1.1 and follows the stock Lua 5.1 name-recovery path here; no WoW-specific difference is visible in source. Runtime equivalence is unknown.
 
-Evidence: W `Engine/Source/lua-5.1/src/lbaselib.c:352–359`; `ldebug.c:505–531,579–589,627–634`; `luaconf.h:201–202`; `lua.h:21–24`; `llex.c:160–161`.
+Evidence: W `Engine/Source/lua-5.1/src/lbaselib.c:352–359`; `ldebug.c:505–523,579–589,627–634`; `ldo.c:56–73,590–610`; `luaconf.h:201–202`; `lua.h:21–24`; `llex.c:160–161`.
 
 ## Q2 — S35: `Frame:SetForbidden` / `Frame:IsForbidden`
 
@@ -24,7 +24,7 @@ Evidence: W `Engine/Source/FrameScript/FrameScript_Object.cpp:31–49`; `Engine/
 
 The `CGTooltip` method lookup is nil. Its method table contains `SetMinimumWidth`, but not `SetCustomWordWrapMinWidth`. Consequently the supplied sequence raises `attempt to call method 'SetCustomWordWrapMinWidth' (a nil value)` at the setter call, before `AddLine` and `Show`; there is no resulting width, setter/baseline delta, or update order for this absent method. The already answered default wrapped-row width is not repeated.
 
-Evidence: W `WoW/Source/UIUtil/Tooltip_Scripts.cpp:2639–2716`; inherited lookup/registration `Engine/Source/FrameScript/FrameScript_Object.cpp:31–49`, `Engine/Source/Frame/CSimpleFrame_Scripts.cpp:1981–2074`.
+Evidence: W `WoW/Source/UIUtil/Tooltip_Scripts.cpp:2639–2716`; inherited lookup/registration `Engine/Source/FrameScript/FrameScript_Object.cpp:31–49`, `Engine/Source/Frame/CSimpleFrame_Scripts.cpp:1981–2074`; nil-call diagnostic `Engine/Source/lua-5.1/src/ldo.c:270–275`, `ldebug.c:540–543,579–589`, `luaconf.h:201–202`.
 
 ## Q4 — S53: requested table-extension keys
 
@@ -32,7 +32,7 @@ At completion of native `FrameScript_Initialize` (the Lua table library plus bui
 
 The registered native table library includes `removemulti`, not the requested keys. The compatibility chunk only aliases existing table functions into globals and does not extend `table`. Later target-build Lua could mutate `table`; the absent FrameXML source leaves that possibility unverified.
 
-Evidence: W `Engine/Source/lua-5.1/src/ltablib.c:321–341`; `Engine/Source/FrameScript/FrameScript.cpp:66–117,1152–1165`; `Engine/Source/lua-5.1/src/ldebug.c:505–531,579–589`.
+Evidence: W `Engine/Source/lua-5.1/src/ltablib.c:321–341`; `Engine/Source/FrameScript/FrameScript.cpp:66–117,1152–1165`; `Engine/Source/lua-5.1/src/lbaselib.c:166–172`; `ldebug.c:532–533,579–589`.
 
 ## Related
 
