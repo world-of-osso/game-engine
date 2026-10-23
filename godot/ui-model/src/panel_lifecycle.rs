@@ -52,6 +52,9 @@ pub const ESCAPE_BINDINGS: &[EscapeBinding<&str>] = &[
     escape_handler("guild_invitation", EscapePriority::Dialog),
     escape_handler("trading_slow_purchase", EscapePriority::Dialog),
     escape_handler("ground_target", EscapePriority::Casting),
+    // Project cursor cleanup retains its existing position between ground and pet targeting.
+    // This is native input policy, not an invented Retail Lua registration.
+    escape_handler("bag_cursor", EscapePriority::Casting),
     escape_handler("pet_move_to", EscapePriority::Casting),
     escape_handler("game_menu", EscapePriority::Framework),
     escape_handler("all_windows", EscapePriority::AddOnPost),

@@ -25,6 +25,9 @@ const ESCAPE_CALLBACKS: &[(&str, EscapeCallback)] = &[
         Ok(client.dismiss_trading_slow_purchase())
     }),
     ("ground_target", |client| Ok(client.cancel_ground_target())),
+    ("bag_cursor", |client| {
+        Ok(client.bag_cursor_key(godot::global::Key::ESCAPE))
+    }),
     ("pet_move_to", |client| Ok(client.cancel_pet_move_to())),
     ("game_menu", |client| {
         client
