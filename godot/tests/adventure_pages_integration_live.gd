@@ -156,7 +156,11 @@ func run() -> void:
 	if not await shot("integration-open-guide-encounter-start"):
 		return
 	phase("pythas-observed")
-	if not await wait_signal("safe-origin") or not await wait_map(0) or not await verify_received_save_and_key():
+	if not await wait_signal("safe-origin") or not await wait_map(0):
+		return
+	# The real world-port tears down the old world's open service windows.
+	await journal_key()
+	if not await wait_journal(func(state): return state.visible and state.loaded, "Guide did not reopen after source world port") or not await verify_received_save_and_key():
 		return
 	phase("passed")
 	print("AG_PAGES_INTEGRATION_PASS skin=%s closedStart/firstBossRightClick/nonemptySave/openStart/realLucifronDeath/sourceMapAzureKey" % client.account_state().ui_skin)
