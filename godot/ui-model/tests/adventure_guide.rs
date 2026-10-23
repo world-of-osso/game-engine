@@ -638,9 +638,11 @@ fn raid_selection_search_and_back_preserve_authored_identity() {
     view.apply("journal:tab:raids").unwrap();
     view.apply("journal:tier:68").unwrap();
     view.search = "Molten".into();
+    // Retail Mainline EncounterJournalSearchBox_OnTextChanged (2647-2655) updates
+    // global search results, not the underlying tier's authored instance list.
     assert_eq!(
         view.instances().iter().map(|i| i.id).collect::<Vec<_>>(),
-        vec![741]
+        vec![741, 742, 743, 744, 1301]
     );
     view.apply("journal:encounter:1519").unwrap();
     assert_eq!(view.instance, Some(741));
