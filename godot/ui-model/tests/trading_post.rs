@@ -1690,6 +1690,15 @@ fn ui_template_lifecycle_consumer_trading_post_declares_mounted_edges_and_stable
             read_attribute(&registry, product, "lifecycle_hover_owner").as_deref(),
             Some("PerksProgramProduct5")
         );
+        let frozen = registry.get_by_name("PerksProgramFrozenSlot").unwrap();
+        assert_eq!(
+            read_attribute(&registry, frozen, "lifecycle_on_enter").as_deref(),
+            Some("218934")
+        );
+        assert_eq!(
+            read_attribute(&registry, frozen, "lifecycle_hover_owner").as_deref(),
+            Some("PerksProgramFrozenSlot")
+        );
     }
 }
 
