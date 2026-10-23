@@ -28,6 +28,12 @@ Offline audit tooling in `scripts/asset_closure.py` computes a content-rooted de
 - Native flat icon/visual texture requests remain flat; model-owned texture namespaces stay separate. Do not add generic sound/blob/DB2 rows to ModelAssetIndex.
 - Each selected DB2 CSV requires its own directory's table export receipt,matching source product and CSV SHA256 with authenticated content. Missing,wrong-product or changed exports are not parsed as valid metadata. Authenticated partial exports expose readable rows but retain exact unreadable-record gaps. Receipt/input drift inside a graph invalidates qualification.
 
+### Encrypted DB2 section policy
+
+- [ ] `DB2_ENCRYPTED_SECTION_KEY_UNAVAILABLE` qualifies only readable sections when retained DB2 bytes match the pinned source receipt's SHA256, the CSV matches its export hash, and every excluded section is proven encrypted with an identified key absent from the recorded key census. Missing raw bytes, unexplained unreadable rows, unproven encryption or changed hashes keep the table refused. Never flip whole-file `content_authenticated` to true for partial bytes.
+- [ ] Exclude unreadable encrypted-section rows as unreachable under this named policy and count them separately with section/key identities; never synthesize zero-valued rows. Other missing joins remain explicit gaps, not presumed encrypted content.
+- [ ] The approved key-availability premise is monotonic: pushed TACT keys accumulate, so absence from the later70529 local key census may establish absence for pinned70448 sections. Hash and disclose the later keyring/external-key census identity without relabelling DB2 bytes; a recovered70448 snapshot may replace it. This is an explicit policy premise, not a decoder-derived guarantee.
+
 ## How it works
 
 - [Offline closure audit](../wiki/systems/offline-asset-closure.md).
