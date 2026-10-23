@@ -53,7 +53,10 @@ func verify_visible_reset_geometry() -> bool:
 	var header := housing_control("HousingCatalogFilters").get_global_rect()
 	var reset := housing_control("HousingCatalogFiltersResetButton").get_global_rect()
 	var scale: float = dashboard.size.x / 814.0
-	if reset.size.distance_to(Vector2(23.0, 23.0) * scale) > 0.1 or reset.get_center().distance_to(Vector2(header.end.x - 3.0 * scale, header.position.y)) > 0.1:
+	var source_size := Vector2(23.0, 23.0) * scale
+	# The native canvas rounds rectangle edges to physical pixels, including odd sizes.
+	var expected_origin := (Vector2(header.end.x - 3.0 * scale, header.position.y) - source_size * 0.5).round()
+	if reset.size.distance_to(source_size.round()) > 0.1 or reset.position.distance_to(expected_origin) > 0.1:
 		fail("Catalog Reset lost source23x23 TOPRIGHT-3: " + str(reset))
 		return false
 	return true
