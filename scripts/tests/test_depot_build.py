@@ -186,15 +186,11 @@ class DepotBuildTests(unittest.TestCase):
             check=False,
         )
 
-    def run_test_mode(self, *cargo_args, **env):
-        command = [
-            "python3",
-            str(SCRIPT),
-            "--root",
-            str(self.root),
-            "--test",
-            *cargo_args,
-        ]
+    def run_test_mode(self, *cargo_args, jobs=None, **env):
+        command = ["python3", str(SCRIPT), "--root", str(self.root)]
+        if jobs is not None:
+            command.extend(["--jobs", str(jobs)])
+        command.extend(["--test", *cargo_args])
         return subprocess.run(
             command,
             env={**self.env, **env},
@@ -242,6 +238,13 @@ class DepotBuildTests(unittest.TestCase):
             self.assertEqual(args[args.index("-j") + 1], "2")
         self.assertIn("game-engine-godot", calls[0]["args"])
         self.assertIn("game-engine-cli", calls[1]["args"])
+
+    def test_explicit_test_jobs_sets_container_limit_not_duplicate_cargo_options(self):
+        result = self.run_test_mode("-p", "game-engine-core", jobs=2)
+        self.assertEqual(result.returncode, 0, result.stderr)
+        args = self.build_args(self.records()[0])
+        self.assertEqual(args["JOBS"], "2")
+        self.assertEqual(args["TEST_ARGS"], "-p game-engine-core")
 
     def test_jobs_rejects_nonpositive_limit_before_build(self):
         for jobs in [0, -1]:
