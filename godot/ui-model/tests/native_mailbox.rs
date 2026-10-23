@@ -468,6 +468,40 @@ fn native_mailbox_pages_and_stale_opening_stay_bounded() {
 }
 
 #[test]
+fn ui_template_behavior_mail_inbox_and_open_attachment_own_separate_live_content() {
+    use game_engine_ui_model::mail_frame_component::mail_frame_screen;
+    use ui_toolkit::{
+        atlas::{ActiveSkin, set_thread_skin},
+        registry::FrameRegistry,
+        screen::{Screen, SharedContext},
+        tooltip::{TooltipAnchor, tooltip_owner},
+    };
+    configure_assets();
+    for skin in [ActiveSkin::Modern, ActiveSkin::Forever] {
+        set_thread_skin(skin);
+        let mut session = open(vec![player_mail(9)]);
+        let mut shared = SharedContext::new();
+        shared.insert(session.view(77, &InventoryState::default(), &MailTexts::new()));
+        let mut registry = FrameRegistry::new(1920.0, 1080.0);
+        let mut screen = Screen::new(mail_frame_screen);
+        screen.sync(&shared, &mut registry);
+        let inbox = registry.get_by_name("MailItem1Button").unwrap();
+        let (owner, binding) = tooltip_owner(&registry, inbox).expect("inbox package owner");
+        assert_eq!(owner.id, inbox);
+        assert_eq!(binding.provider.as_deref(), Some("inbox_item"));
+        assert_eq!(binding.anchor, TooltipAnchor::Right);
+        click(&mut session, "mail_open:9");
+        shared.insert(session.view(77, &InventoryState::default(), &MailTexts::new()));
+        screen.sync(&shared, &mut registry);
+        let attachment = registry.get_by_name("OpenMailAttachmentButton8").unwrap();
+        let (owner, binding) = tooltip_owner(&registry, attachment).expect("open attachment owner");
+        assert_eq!(owner.id, attachment);
+        assert_eq!(binding.provider.as_deref(), Some("mail_attachment"));
+        assert_eq!(binding.anchor, TooltipAnchor::Right);
+    }
+}
+
+#[test]
 fn native_mailbox_authored_ui_has_both_tabs_and_disables_actions_while_pending() {
     use game_engine_ui_model::bag_frame_component::BagFrameState;
     use game_engine_ui_model::mail::{NativeMailView, native_mail_screen};

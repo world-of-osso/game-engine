@@ -581,13 +581,16 @@ fn list_row(
     if selected {
         out.extend(crop_texture(format!("{name}Selected"), ROW_SELECT, rect));
     }
-    out.extend(crate::selection_list::row(
-        name.to_string(),
-        action,
-        true,
-        rect,
-        (&crate::selection_list::AUCTION_ROW, false),
-        cells,
+    out.extend(ui_toolkit::tooltip::bind_provider(
+        crate::selection_list::row(
+            name.to_string(),
+            action,
+            true,
+            rect,
+            (&crate::selection_list::AUCTION_ROW, false),
+            cells,
+        ),
+        "auction",
     ));
     out
 }

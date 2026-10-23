@@ -258,6 +258,7 @@ fn entry_row(entry: &shared::protocol::GuildNewsEntry, top: f32) -> Element {
     let action = format!("guild:news_entry:{}", entry.id);
     rsx! { button { name: {DynName(name)}, left: 0.0, top, width: 300.0, height: 18.0,
     pos_type: "absolute", button_default_skin: false, onclick: action,
+    tooltip_provider: "guild_news",
     button_fdid_highlight: 440557_u32, {art} } }
 }
 

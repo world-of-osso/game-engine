@@ -40,6 +40,63 @@ fn frame<'a>(registry: &'a FrameRegistry, name: &str) -> &'a Frame {
         )
         .unwrap()
 }
+fn assert_live_owner(registry: &FrameRegistry, hit: &str, name: &str, provider: &str) {
+    let hit = registry.get_by_name(hit).expect(hit);
+    let (owner, binding) =
+        ui_toolkit::tooltip::tooltip_owner(registry, hit).expect("live journal owner");
+    assert_eq!(owner.name.as_deref(), Some(name));
+    assert_eq!(binding.provider.as_deref(), Some(provider));
+    assert_eq!(binding.anchor, ui_toolkit::tooltip::TooltipAnchor::Right);
+}
+
+#[test]
+fn ui_template_behavior_remaining_journal_loot_owner() {
+    for skin in [ActiveSkin::Modern, ActiveSkin::Forever] {
+        let mut v = view();
+        game_engine_ui_model::item_catalog::wait_for_item_catalog();
+        v.apply("journal:instance:63").unwrap();
+        v.apply("journal:difficulty:1").unwrap();
+        v.apply("journal:page:loot").unwrap();
+        let registry = render(&v, skin);
+        assert_live_owner(
+            &registry,
+            "JournalLoot2169Icon",
+            "JournalLoot2169",
+            "journal_loot",
+        );
+    }
+}
+
+#[test]
+fn ui_template_behavior_remaining_journal_section_flag_owner() {
+    for skin in [ActiveSkin::Modern, ActiveSkin::Forever] {
+        let mut v = view();
+        v.apply("journal:encounter:2364").unwrap();
+        v.apply("journal:page:abilities").unwrap();
+        let registry = render(&v, skin);
+        let flags: Vec<_> = registry
+            .frames_iter()
+            .filter_map(|frame| {
+                let name = frame.name.as_deref()?;
+                game_engine_ui_model::adventure_section_flags::tooltip(&v, name)
+                    .map(|_| name.to_owned())
+            })
+            .collect();
+        assert!(
+            !flags.is_empty(),
+            "authored encounter supplies real section flags"
+        );
+        for name in flags {
+            assert_live_owner(
+                &registry,
+                &format!("{name}Art"),
+                &name,
+                "journal_section_flag",
+            );
+        }
+    }
+}
+
 fn rect(registry: &FrameRegistry, name: &str) -> [f32; 4] {
     let f = frame(registry, name);
     let px = |v| {
@@ -659,7 +716,7 @@ fn adventure_guide_item_sets_search_uses_global_results_without_filtering_the_se
 }
 
 #[test]
-fn adventure_guide_item_sets_use_source_pane_rows_and_item_borders() {
+fn ui_template_behavior_remaining_journal_set_owners() {
     for skin in [ActiveSkin::Modern, ActiveSkin::Forever] {
         let mut v = view();
         game_engine_ui_model::item_catalog::wait_for_item_catalog();
@@ -681,6 +738,12 @@ fn adventure_guide_item_sets_use_source_pane_rows_and_item_borders() {
         assert_eq!(
             rect(&r, "JournalSet567Item24545Border"),
             [-5., -5.5, 41., 41.]
+        );
+        assert_live_owner(
+            &r,
+            "JournalSet567Item24545Icon",
+            "JournalSet567Item24545",
+            "journal_set",
         );
         assert!(frame(&r, "JournalSet567Item24545").onclick.is_none());
         assert!(frame(&r, "JournalSet567Row").background_color.is_none());
@@ -738,7 +801,7 @@ fn adventure_guide_item_sets_use_one_source_class_specialization_menu() {
 }
 
 #[test]
-fn adventure_guide_defeated_marker_uses_saved_difficulty_and_sparse_encounter_bit() {
+fn ui_template_behavior_remaining_journal_defeated_owner_lifetime() {
     use shared::protocol::InstanceLockInfo;
     for skin in [ActiveSkin::Modern, ActiveSkin::Forever] {
         let mut v = view();
@@ -765,6 +828,7 @@ fn adventure_guide_defeated_marker_uses_saved_difficulty_and_sparse_encounter_bi
             rect(&r, "JournalBoss2364DefeatedIcon"),
             [-8., -8., 32., 32.]
         );
+        assert_live_owner(&r, name, name, "journal_defeated");
         assert!(r.get_by_name("JournalBoss2365DefeatedOverlay").is_none());
         assert!(v.lockouts[0].1.contains("1 bosses defeated"));
         let tooltip = game_engine_ui_model::adventure_defeated::tooltip(&v, name).unwrap();
@@ -1135,12 +1199,21 @@ fn adventure_guide_instance_loot_encounter_row_uses_source_slot_and_subclass() {
 }
 
 #[test]
-fn adventure_guide_model_tooltip_retains_authored_creature_description() {
+fn ui_template_behavior_remaining_journal_creature_owner() {
     let mut v = view();
     v.apply("journal:encounter:154").unwrap();
     v.apply("journal:page:model").unwrap();
     let tooltip =
         game_engine_ui_model::adventure_creatures::tooltip(&v, "JournalCreature555").unwrap();
+    for skin in [ActiveSkin::Modern, ActiveSkin::Forever] {
+        let registry = render(&v, skin);
+        assert_live_owner(
+            &registry,
+            "JournalCreature555Portrait",
+            "JournalCreature555",
+            "journal_creature",
+        );
+    }
     assert_eq!(tooltip.content.title, "Nezir");
     assert_eq!(tooltip.content.lines[0].left_text, "Lord of the North Wind");
     assert!(game_engine_ui_model::adventure_creatures::tooltip(&v, "JournalCreature359").is_none());

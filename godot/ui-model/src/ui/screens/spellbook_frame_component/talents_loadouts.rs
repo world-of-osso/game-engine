@@ -65,14 +65,19 @@ pub(super) fn loadout_menu(view: &TalentView, y: f32, scale: f32) -> Element {
             view.editor.can_export(view),
         ),
     ] {
-        rows.extend(sentinel_row(
+        let row = sentinel_row(
             name,
             label,
             action,
             available,
             configs.len() + starter_count + offset,
             scale,
-        ));
+        );
+        rows.extend(if offset == 2 {
+            ui_toolkit::tooltip::bind_provider(row, "talent_gate")
+        } else {
+            row
+        });
     }
     let height = 8.0 + (configs.len() + starter_count + 3) as f32 * 20.0 + 15.0;
     menu(
@@ -97,13 +102,16 @@ fn starter_row(view: &TalentView, index: usize, enabled: bool, scale: f32) -> El
     };
     let content = rsx! {fontstring {name:FrameName("TalentStarterBuildText"),text:"Starter Build",width:{164.0*scale},height:{20.0*scale},
     font_size:{12.0*scale},font_color:STARTER_BUILD_COLOR,justify_h:"LEFT",mouse_enabled:false} {check}};
-    crate::selection_list::row(
-        "TalentStarterBuild".into(),
-        &action,
-        enabled,
-        (8.0 * scale, top, 184.0 * scale, 20.0 * scale),
-        (&crate::selection_list::MENU, false),
-        content,
+    ui_toolkit::tooltip::bind_provider(
+        crate::selection_list::row(
+            "TalentStarterBuild".into(),
+            &action,
+            enabled,
+            (8.0 * scale, top, 184.0 * scale, 20.0 * scale),
+            (&crate::selection_list::MENU, false),
+            content,
+        ),
+        "talent_gate",
     )
 }
 

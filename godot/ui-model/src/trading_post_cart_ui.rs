@@ -12,12 +12,17 @@ pub(super) fn footer_controls(view: &View, purchase_left: f32) -> Element {
     if view.cart_visible {
         return vec![];
     }
-    let mut children = cart_icon_button(
-        "PerksProgramViewCartButton",
-        ("button_art_kit", "128-RedButton-ShoppingCart"),
-        "perks:cart:show",
-        !view.cart.is_empty(),
-        (purchase_left - 16. - 46., 34., 46., 46.),
+    let mut children = ui_toolkit::tooltip::bind_provider_at(
+        cart_icon_button(
+            "PerksProgramViewCartButton",
+            ("button_art_kit", "128-RedButton-ShoppingCart"),
+            "perks:cart:show",
+            !view.cart.is_empty(),
+            (purchase_left - 16. - 46., 34., 46., 46.),
+        ),
+        "trading_post_button",
+        ui_toolkit::tooltip::TooltipAnchor::Left,
+        [0.; 2],
     );
     let bg = ui_toolkit::atlas::resolve_region(
         "tokens-counterbg",
@@ -91,12 +96,17 @@ pub(super) fn panel(ctx: &SharedContext, view: &View) -> Element {
         "perks-divider-short",
         (30., CART_HEIGHT - 100. + 12., 340., 3.),
     ));
-    children.extend(cart_icon_button(
-        "PerksProgramCartClearButton",
-        ("button_art_kit", "128-RedButton-Delete"),
-        "perks:cart:clear",
-        !view.cart.is_empty(),
-        (30., CART_HEIGHT - 100. + 12. + 3. + 12., 64., 64.),
+    children.extend(ui_toolkit::tooltip::bind_provider_at(
+        cart_icon_button(
+            "PerksProgramCartClearButton",
+            ("button_art_kit", "128-RedButton-Delete"),
+            "perks:cart:clear",
+            !view.cart.is_empty(),
+            (30., CART_HEIGHT - 100. + 12. + 3. + 12., 64., 64.),
+        ),
+        "trading_post_button",
+        ui_toolkit::tooltip::TooltipAnchor::Left,
+        [0.; 2],
     ));
     children.extend(cart_icon_button(
         "PerksProgramCartCloseButton",
@@ -135,7 +145,7 @@ pub(super) fn panel(ctx: &SharedContext, view: &View) -> Element {
     );
     let disabled = !view.can_checkout();
     let action = if disabled { "" } else { "perks:cart:checkout" };
-    let button = rsx! {button{name:"PerksProgramCartPurchaseButton",left:102.0,top:{CART_HEIGHT-100.0+27.0},width:268.0,height:64.0,pos_type:"absolute",button_default_skin:false,disabled,onclick:action,
+    let button = rsx! {button{name:"PerksProgramCartPurchaseButton",left:102.0,top:{CART_HEIGHT-100.0+27.0},width:268.0,height:64.0,pos_type:"absolute",button_default_skin:false,disabled,onclick:action,tooltip_provider:"trading_post_button",tooltip_anchor:"ANCHOR_LEFT",
         r#frame{name:"PerksProgramCartPurchaseTextContainer",left:{(268.0-76.0)/2.0},top:20.0,width:76.0,height:24.0,pos_type:"absolute",{price}{icon}}
     }};
     children.extend(button);
@@ -282,7 +292,7 @@ fn cart_row(view: &View, element: &cart_rows::Row, width: f32) -> Element {
         ));
     }
     let select = format!("perks:cart:item:{}", row.item_id);
-    rsx! {button{name:{DynName(prefix)},left:12.0,top:element.top,width,height:element.height,pos_type:"absolute",button_default_skin:false,onclick:select.as_str(),button_atlas_highlight:"petlist-buttonhighlight",{children}}}
+    rsx! {button{name:{DynName(prefix)},left:12.0,top:element.top,width,height:element.height,pos_type:"absolute",button_default_skin:false,onclick:select.as_str(),button_atlas_highlight:"petlist-buttonhighlight",tooltip_provider:"trading_post_cart",tooltip_anchor:"ANCHOR_LEFT",tooltip_offset_x:-8.0,tooltip_offset_y:-20.0,{children}}}
 }
 
 fn cart_preview_status(prefix: &str, selected: bool, hovered: bool, enabled: bool) -> Element {

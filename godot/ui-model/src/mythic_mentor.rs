@@ -219,7 +219,7 @@ fn row_icon(prefix: &str, member: &PartyKeystoneMember) -> Element {
         .map(|spell| format!("{TELEPORT_ACTION_PREFIX}{spell}"))
         .unwrap_or_default();
     rsx! { button { name: {DynName(format!("{prefix}Teleport"))}, width: 26.0, height: 26.0,
-    button_default_skin: false, onclick: {action.as_str()},
+    button_default_skin: false, onclick: {action.as_str()}, tooltip_provider: "mentor_teleport",
     pos_type: "absolute", left: 5.0, top: 5.0, {art} } }
 }
 
@@ -311,7 +311,8 @@ mod tests {
     }
 
     #[test]
-    fn mythic_mentor_current_dungeon_icons_and_teleport_actions() {
+    fn ui_template_behavior_services_mythic_mentor_current_dungeon_icons_teleport_actions_and_owner()
+     {
         use ui_toolkit::widgets::texture::TextureSource;
         crate::paths::set_data_root(
             std::path::PathBuf::from(env!("CARGO_MANIFEST_DIR")).join("../../data"),
@@ -377,6 +378,11 @@ mod tests {
                     .map(|id| format!("mentor:teleport:{id}"))
                     .unwrap_or_default();
                 assert_eq!(button.onclick.as_deref().unwrap_or_default(), action);
+                let (owner, binding) = ui_toolkit::tooltip::tooltip_owner(&registry, button.id)
+                    .expect("mentor live teleport owner");
+                assert_eq!(owner.id, button.id);
+                assert_eq!(binding.provider.as_deref(), Some("mentor_teleport"));
+                assert_eq!(binding.anchor, ui_toolkit::tooltip::TooltipAnchor::Right);
                 apply_mentor_postsetup(&mut registry);
                 let button = registry
                     .get(registry.get_by_name("MentorRow0Teleport").unwrap())

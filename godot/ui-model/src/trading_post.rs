@@ -849,7 +849,7 @@ fn product_row(view: &View, row: &TradingPostItem, top: f32, selected: bool) -> 
     children.extend(clock::row_time(view, row));
     children.extend(row_cart_toggle(view, row.id));
     let action = format!("perks:select:{}", row.id);
-    rsx! {button{name:{DynName(format!("PerksProgramProduct{}",row.id))},left:0.0,top,width:LIST_WIDTH,height:ROW_HEIGHT,pos_type:"absolute",button_default_skin:false,onclick:action.as_str(),button_atlas_highlight:"perks-list-hover",button_highlight_blend_mode:"ADD",{children}}}
+    rsx! {button{name:{DynName(format!("PerksProgramProduct{}",row.id))},left:0.0,top,width:LIST_WIDTH,height:ROW_HEIGHT,pos_type:"absolute",button_default_skin:false,onclick:action.as_str(),button_atlas_highlight:"perks-list-hover",button_highlight_blend_mode:"ADD",tooltip_provider:"trading_post",tooltip_anchor:"ANCHOR_RIGHT",tooltip_offset_x:-16.0,{children}}}
 }
 
 fn row_item_icon(view: &View, row: &TradingPostItem) -> Element {
@@ -879,12 +879,17 @@ fn row_cart_toggle(view: &View, id: u32) -> Element {
         "128-redbutton-cart-add"
     };
     // TimeRemaining is LEFT of PriceIcon.RIGHT+30,42x38; button36 centers there.
-    cart_ui::cart_icon_button(
-        &format!("PerksProgramCartToggle{id}"),
-        ("button_art_kit", atlas),
-        &format!("perks:cart:toggle:{id}"),
-        true,
-        (443., (ROW_HEIGHT - 36.) / 2., 36., 36.),
+    ui_toolkit::tooltip::bind_provider_at(
+        cart_ui::cart_icon_button(
+            &format!("PerksProgramCartToggle{id}"),
+            ("button_art_kit", atlas),
+            &format!("perks:cart:toggle:{id}"),
+            true,
+            (443., (ROW_HEIGHT - 36.) / 2., 36., 36.),
+        ),
+        "trading_post_button",
+        ui_toolkit::tooltip::TooltipAnchor::Left,
+        [0.; 2],
     )
 }
 
@@ -892,11 +897,14 @@ fn row_price(prefix: &str, row: &TradingPostItem, center_y: f32) -> Element {
     if row.refund_seconds > 0 {
         // Elements.xml325: RefundIcon is authored alphaMode="ADD"; the32px
         // PurchasedHistoryFrame icon has no such override.
-        return crate::quest_art::named_atlas_texture_blend(
-            format!("{prefix}RefundIcon{}", row.id),
-            "common-icon-undo",
-            (389., center_y - 21. / 2., 21., 21.),
-            ui_toolkit::widgets::texture::BlendMode::Additive,
+        return ui_toolkit::tooltip::bind_provider(
+            crate::quest_art::named_atlas_texture_blend(
+                format!("{prefix}RefundIcon{}", row.id),
+                "common-icon-undo",
+                (389., center_y - 21. / 2., 21., 21.),
+                ui_toolkit::widgets::texture::BlendMode::Additive,
+            ),
+            "trading_post_refund",
         );
     }
     if row.purchased {
@@ -973,7 +981,7 @@ fn frozen_row(
     };
     let frozen_art = frozen_icon_art(frozen.is_some(), candidate.is_some());
     let action = frozen.map_or(String::new(), |row| format!("perks:select:{}", row.id));
-    let row = rsx! {button{name:"PerksProgramFrozenSlot",left:0.0,top:{(120.0-84.0)/2.0},width:527.0,height:84.0,pos_type:"absolute",button_default_skin:false,onclick:action.as_str(),mouse_enabled:true,frame_level:1000.0,{selected_art}{contents}{frozen_art}}};
+    let row = rsx! {button{name:"PerksProgramFrozenSlot",left:0.0,top:{(120.0-84.0)/2.0},width:527.0,height:84.0,pos_type:"absolute",button_default_skin:false,onclick:action.as_str(),mouse_enabled:true,frame_level:1000.0,tooltip_provider:"trading_post",tooltip_anchor:"ANCHOR_RIGHT",tooltip_offset_x:-16.0,{selected_art}{contents}{frozen_art}}};
     let container = rsx! {r#frame{name:"PerksProgramFrozenProductContainer",left:0.0,top:0.0,width:527.0,height:120.0,pos_type:"absolute",frame_level:1000.0,{row}}};
     let art = hold_art();
     rsx! {r#frame{name:"PerksProgramHoldFrame",left:0.0,top:{58.0+LIST_HEIGHT},width:527.0,height:120.0,pos_type:"absolute",frame_level:985.0,{art}{container}}}
@@ -1114,12 +1122,17 @@ fn footer(view: &View) -> Element {
     if let Some(row) = view.selected_item().filter(|_| !view.cart_visible) {
         let x = WIDTH - 46. - 180.;
         if view.remaining_refund_seconds() > 0 {
-            children.extend(perks_button(
-                "PerksProgramRefundButton",
-                "Refund",
-                "perks:refund",
-                view.can_refund(),
-                x,
+            children.extend(ui_toolkit::tooltip::bind_provider_at(
+                perks_button(
+                    "PerksProgramRefundButton",
+                    "Refund",
+                    "perks:refund",
+                    view.can_refund(),
+                    x,
+                ),
+                "trading_post_button",
+                ui_toolkit::tooltip::TooltipAnchor::Left,
+                [0.; 2],
             ));
         } else if !row.purchased && !row.collected {
             children.extend(purchase_button(view, row, x));
@@ -1196,7 +1209,12 @@ fn purchase_button(view: &View, row: &TradingPostItem, x: f32) -> Element {
         ));
         button.children.extend(rsx! {r#frame{name:"PerksProgramPurchasePriceLayout",left:{(180.0-72.0)/2.0},top:{(46.0-20.0)/2.0},width:72.0,height:20.0,pos_type:"absolute",{price}}});
     }
-    out
+    ui_toolkit::tooltip::bind_provider_at(
+        out,
+        "trading_post_button",
+        ui_toolkit::tooltip::TooltipAnchor::Left,
+        [0.; 2],
+    )
 }
 
 /// SharedButtonLargeTemplate; core resolves the authored three-slice state artwork.

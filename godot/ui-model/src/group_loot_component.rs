@@ -82,7 +82,10 @@ fn prompt(index: usize, roll: &GroupLootRoll, viewer: u64) -> Element {
         "0.00097656,0.28027344,0.43750000,0.73437500",
         [-4.5, -4.5, 286.0, 76.0],
     ));
-    children.extend(item_art(&prefix, roll, [10.0, 13.0, 34.0, 34.0]));
+    children.extend(ui_toolkit::tooltip::bind_provider(
+        item_art(&prefix, roll, [10.0, 13.0, 34.0, 34.0]),
+        "group_loot",
+    ));
     children.extend(item_label(&prefix, roll, [60.0, 15.0, 125.0, 30.0]));
     children.extend(roll_button(
         &prefix,
@@ -140,7 +143,7 @@ fn roll_button(
     let highlight = format!("lootroll-toast-icon-{choice}-highlight");
     let alpha = if enabled { 1.0 } else { 0.35 };
     rsx! { button { name: {DynName(format!("{prefix}{suffix}Button"))}, width: 32.0, height: 32.0,
-        enabled, alpha, onclick: {action.as_str()},
+        enabled, alpha, onclick: {action.as_str()}, tooltip_provider: "group_loot",
         button_atlas_up: {up.as_str()}, button_atlas_pressed: {down.as_str()},
         button_atlas_highlight: {highlight.as_str()}, button_atlas_disabled: {up.as_str()},
         pos_type: "absolute", left, top,
@@ -274,6 +277,6 @@ fn history_entry(index: usize, roll: &GroupLootRoll) -> Element {
         "1,1,1,1",
     ));
     rsx! { r#frame { name: {DynName(prefix)}, width: 218.0, height: HISTORY_ROW_H,
-        mouse_enabled: true, pos_type: "absolute", left: 0.0, top: {index as f32 * HISTORY_ROW_H}, {children}
+        tooltip_provider: "group_loot", mouse_enabled: true, pos_type: "absolute", left: 0.0, top: {index as f32 * HISTORY_ROW_H}, {children}
     }}
 }

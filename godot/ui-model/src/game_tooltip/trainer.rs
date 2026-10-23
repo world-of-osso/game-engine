@@ -65,18 +65,12 @@ fn reagent_lines(recipe: &Recipe) -> Result<Vec<TooltipLineState>, String> {
 }
 
 impl TrainerView {
-    /// Current service requirements and Retail row ownership, independent of selection.
-    pub fn service_tooltip(
-        &self,
-        spell: u32,
-        tooltip: GameTooltip,
-        owner: [f32; 4],
-    ) -> Option<GameTooltip> {
+    /// Current service requirements, independent of selection or tooltip placement.
+    pub fn service_tooltip(&self, spell: u32, mut tooltip: GameTooltip) -> Option<GameTooltip> {
         let service = self
             .book
             .visible_services()
             .find(|service| service.spell_id == spell)?;
-        let mut tooltip = self.book.service_tooltip(spell, tooltip, owner)?;
         tooltip
             .content
             .lines

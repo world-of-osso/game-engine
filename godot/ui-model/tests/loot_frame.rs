@@ -8,6 +8,43 @@ use ui_toolkit::frame::WidgetData;
 use ui_toolkit::registry::FrameRegistry;
 use ui_toolkit::screen::{Screen, SharedContext};
 
+#[test]
+fn ui_template_behavior_loot_child_resolves_live_card_not_window() {
+    use ui_toolkit::atlas::{ActiveSkin, set_thread_skin};
+    use ui_toolkit::tooltip::{TooltipAnchor, tooltip_owner};
+    for skin in [ActiveSkin::Modern, ActiveSkin::Forever] {
+        set_thread_skin(skin);
+        let mut shared = SharedContext::new();
+        shared.insert(LootFrameState {
+            visible: true,
+            left: 850.0,
+            top: 430.0,
+            rows: vec![LootFrameRow {
+                slot: 9,
+                icon_fdid: 132350,
+                name: "Sharp Shortsword".into(),
+                color: "0.12,1,0,1",
+                count: 2,
+                quality_text: Some("Uncommon"),
+            }],
+        });
+        let mut registry = FrameRegistry::new(1920.0, 1080.0);
+        Screen::new(loot_frame_screen).sync(&shared, &mut registry);
+        for name in [
+            "LootFrameElement1Item",
+            "LootFrameElement1ItemIcon",
+            "LootFrameElement1Text",
+        ] {
+            let (owner, binding) =
+                tooltip_owner(&registry, registry.get_by_name(name).unwrap()).expect(name);
+            assert_eq!(owner.name.as_deref(), Some("LootFrameElement1"));
+            assert_eq!(binding.provider.as_deref(), Some("loot"));
+            assert_eq!(binding.anchor, TooltipAnchor::Right);
+        }
+        assert!(tooltip_owner(&registry, registry.get_by_name(FRAME_NAME).unwrap()).is_none());
+    }
+}
+
 fn text(registry: &FrameRegistry, name: &str) -> String {
     let frame = registry.get(registry.get_by_name(name).unwrap()).unwrap();
     match frame.widget_data.as_ref().unwrap() {

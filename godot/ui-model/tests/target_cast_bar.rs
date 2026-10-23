@@ -290,6 +290,28 @@ fn target_aura_state(icon_fdid: u32) -> InWorldUnitFramesState {
     units
 }
 
+#[test]
+fn ui_template_behavior_combat_target_aura_owns_tooltip_before_parent_unit_frame() {
+    use ui_toolkit::atlas::set_thread_skin;
+    use ui_toolkit::tooltip::{TooltipAnchor, tooltip_owner};
+    for skin in [ActiveSkin::Modern, ActiveSkin::Forever] {
+        set_thread_skin(skin);
+        let registry = registry(skin, target_aura_state(135932));
+        let hit = registry.get_by_name("TargetBuffIcon0Texture").unwrap();
+        let (owner, binding) = tooltip_owner(&registry, hit).expect("target aura owner");
+        assert_eq!(owner.name.as_deref(), Some("TargetBuffIcon0"));
+        assert_eq!(binding.provider.as_deref(), Some("target_aura"));
+        assert_eq!(binding.anchor, TooltipAnchor::ByCenter);
+        for name in ["PlayerFrame", "TargetFrame"] {
+            let hit = registry.get_by_name(name).unwrap();
+            let (owner, binding) = tooltip_owner(&registry, hit).expect(name);
+            assert_eq!(owner.id, hit);
+            assert_eq!(binding.provider.as_deref(), Some("hud_frame"));
+            assert_eq!(binding.anchor, TooltipAnchor::Default);
+        }
+    }
+}
+
 fn drawn_fdids(r: &FrameRegistry) -> Vec<u32> {
     r.frames_iter()
         .filter_map(|frame| match frame.widget_data.as_ref()? {

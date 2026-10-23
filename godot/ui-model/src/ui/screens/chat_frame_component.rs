@@ -810,7 +810,7 @@ fn message_run(row: usize, run_index: usize, run: &ChatRun, font_size: f32) -> E
         .achievement_id
         .map(|id| format!("achievement:open:{id}"))
         .unwrap_or_default();
-    rsx! {
+    let element = rsx! {
         fontstring {
             name: {DynName(name)},
             width: {run.width.ceil() + 1.0},
@@ -826,24 +826,32 @@ fn message_run(row: usize, run_index: usize, run: &ChatRun, font_size: f32) -> E
             left: {run.x},
             top: 0.0,
         }
+    };
+    if run.spell_id.is_some() {
+        ui_toolkit::tooltip::bind_provider_at(
+            element,
+            "chat_link",
+            ui_toolkit::tooltip::TooltipAnchor::Default,
+            [0.0; 2],
+        )
+    } else {
+        element
     }
 }
 
-/// Spell id of the chat link frame at or above `frame_id`.
-pub fn chat_spell_link_at(registry: &FrameRegistry, mut frame_id: u64) -> Option<u32> {
-    loop {
-        let frame = registry.get(frame_id)?;
-        if let Some(spell) = frame
-            .name
-            .as_deref()
-            .and_then(|name| name.strip_prefix(LINK_PREFIX))
-            .and_then(|rest| rest.rsplit('_').next())
-            .and_then(|spell| spell.parse().ok())
-        {
-            return Some(spell);
-        }
-        frame_id = frame.parent_id?;
-    }
+/// Spell identity of a declared chat link owner.
+pub fn chat_spell_id(name: &str) -> Option<u32> {
+    name.strip_prefix(LINK_PREFIX)?
+        .rsplit('_')
+        .next()?
+        .parse()
+        .ok()
+}
+
+/// Resolve descendant input through the shared metadata owner walk.
+pub fn chat_spell_link_at(registry: &FrameRegistry, frame_id: u64) -> Option<u32> {
+    let (owner, _) = ui_toolkit::tooltip::tooltip_owner(registry, frame_id)?;
+    chat_spell_id(owner.name.as_deref()?)
 }
 
 #[cfg(test)]
@@ -882,6 +890,21 @@ mod tests {
         });
         Screen::new(chat_frame_screen).sync(&shared, &mut reg);
         reg
+    }
+
+    #[test]
+    fn ui_template_behavior_combat_chat_spell_link_owns_default_anchor_but_plain_text_does_not() {
+        use ui_toolkit::tooltip::{TooltipAnchor, tooltip_owner};
+        let reg = build(vec![ChatRow {
+            runs: vec![run("Alice's ", 0.0, None), run("Fireball", 60.0, Some(133))],
+        }]);
+        let link = reg.get_by_name("ChatFrame1Link0_1_133").unwrap();
+        let (owner, binding) = tooltip_owner(&reg, link).expect("chat spell live owner");
+        assert_eq!(owner.id, link);
+        assert_eq!(binding.provider.as_deref(), Some("chat_link"));
+        assert_eq!(binding.anchor, TooltipAnchor::Default);
+        let plain = reg.get_by_name("ChatFrame1MessagesRow0Run0").unwrap();
+        assert!(tooltip_owner(&reg, plain).is_none());
     }
 
     #[test]

@@ -390,6 +390,7 @@ fn micro_button(view: &MicroMenuView, index: usize) -> Element {
             button_default_skin: false,
             disabled,
             alpha,
+            tooltip_provider: "micro_menu",
             onclick: {action.as_str()},
             pos_type: "absolute",
             left: {index as f32 * (BUTTON_W + GAP)},

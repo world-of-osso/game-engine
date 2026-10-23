@@ -56,26 +56,25 @@ impl RegistryUi {
 impl RegistryUi {
     fn trainer_preview_tooltip_at(&self, at: Vector2) -> Result<GameTooltipView, String> {
         let view = preview_view();
-        let Some((owner, spell)) = self
-            .pointer_frame_at(at)
-            .and_then(|hit| view.book.hovered_service(self.registry()?, hit))
-        else {
+        let Some((owner, spell, binding)) = self.tooltip_frame_at(at).and_then(|hit| {
+            let (owner, binding) = ui_toolkit::tooltip::tooltip_owner(self.registry()?, hit)?;
+            let spell = view.book.service_for_action(owner.onclick.as_deref()?)?;
+            Some((owner.id, spell, binding.clone()))
+        }) else {
             return Ok(GameTooltipView::default());
         };
         let rect = self
             .frame_id_rect(owner)
             .ok_or("Trainer preview owner is not visible")?;
-        let tooltip = load_preview_spell_tooltip(spell)?;
-        let tooltip = view
-            .service_tooltip(
-                spell,
-                tooltip,
-                [rect.position.x, rect.position.y, rect.size.x, rect.size.y],
-            )
-            .ok_or("Trainer preview service is no longer visible")?;
+        let mut tooltip = load_preview_spell_tooltip(spell)?;
+        tooltip.anchor = game_engine_ui_model::game_tooltip::binding_anchor(
+            binding.anchor,
+            [rect.position.x, rect.position.y, rect.size.x, rect.size.y],
+            binding.offset,
+        );
         let screen = self.read_trainer_preview_screen(at)?;
         Ok(GameTooltipView {
-            main: place(tooltip.for_skin(ui_toolkit::atlas::thread_skin()), screen),
+            main: place(tooltip, screen),
             ..Default::default()
         })
     }

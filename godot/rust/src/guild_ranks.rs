@@ -176,17 +176,17 @@ impl GameClient {
         &mut self,
         hit: &crate::tooltips::HoveredFrame,
     ) -> Option<crate::tooltips::HoveredTooltip> {
-        use game_engine_ui_model::game_tooltip::{GameTooltip, OwnerSide};
+        use game_engine_ui_model::game_tooltip::GameTooltip;
         use game_engine_ui_model::tooltip_presentation::{TooltipPresentation, description_lines};
         let ui = hit.ui.bind();
-        let (owner, id) = crate::tooltips::named_ancestor(ui.registry()?, hit.frame, |frame| {
-            frame
-                .name
-                .as_deref()?
-                .strip_prefix("CommunitiesGuildNewsEntry")?
-                .parse::<u64>()
-                .ok()
-        })?;
+        let id = ui
+            .registry()?
+            .get(hit.frame)?
+            .name
+            .as_deref()?
+            .strip_prefix("CommunitiesGuildNewsEntry")?
+            .parse::<u64>()
+            .ok()?;
         drop(ui);
         let entry = self.guild_ranks.session.news.entry(id)?;
         let tooltip = match &entry.kind {
@@ -213,10 +213,7 @@ impl GameClient {
                 game_engine_ui_model::game_tooltip::item::item_game_tooltip(&slot, None)
             }
         };
-        let rect = self.owner_rect(&hit.ui, owner)?;
-        Some(crate::tooltips::HoveredTooltip::text(
-            tooltip.owned(rect, OwnerSide::Right),
-        ))
+        Some(crate::tooltips::HoveredTooltip::text(tooltip))
     }
 
     fn guild_notice(&mut self, text: &str, error: bool) -> Result<(), FrameError> {
