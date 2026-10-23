@@ -1,3 +1,7 @@
+## 2026-10-22 — Exclusive Escape dispatch and root metadata in progress
+
+[Lifecycle bindings](systems/ui-system.md#lifecycle-bindings--step-5-partial): deleted global native ordering chain in favor of stable shared dispatch after real menu/pending precedence RED. GameMenu root now reads the same exclusive registration after model metadata RED; core13 passes. Painted GameClient ordering GREEN, native click consumers and the unified independent optional-policy catalog remain open.
+
 ## 2026-10-22 — Shared close registrations and decoded ReadyCheck sound
 
 [Lifecycle bindings](systems/ui-system.md#lifecycle-bindings--step-5-partial): one template catalog now supplies root attrs and exact native close dispatch, including pending domains without mounted UI. Root RED3→GREEN3; core11/native6 and real GameClient pending cancellation2/2 pass. Ordinary taxi Escape reproduced map-closed/bag-still-open RED; registered-sweep fix passes strict both-skin4/4 on private5993 with map/bag close and unchanged target/item/money authority. ReadyCheck decoded playback passes20 phases across both skins with four full-HD PNGs; live Merchant/TP, whole Escape and Step5 acceptance remain open.
