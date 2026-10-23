@@ -69,8 +69,10 @@ class EffectExportTests(unittest.TestCase):
             self.assertEqual(int(rows[3]["BeamID"]), 743)
             self.assertEqual(int(rows[4]["BeamID"]), 6301)
             summary = ast.literal_eval(result.stderr.split(": ", 1)[1])
-            self.assertGreater(summary["unreadable_records"], 0)
-            self.assertEqual(summary["rows"], len(rows))
+            # Retained BeamEffect has 5,289 readable base rows and 969 copy rows.
+            self.assertEqual(summary["unreadable_records"], 0)
+            self.assertEqual(summary["rows"], 6258)
+            self.assertEqual(len(rows), 6258)
 
 
 if __name__ == "__main__":
