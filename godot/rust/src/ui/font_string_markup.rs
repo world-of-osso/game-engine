@@ -1,4 +1,6 @@
 //! FontString display runs; the registry keeps the original authored source text.
+use std::borrow::Cow;
+
 use godot::classes::{Control, RichTextLabel, StyleBoxEmpty, text_server::AutowrapMode};
 use godot::prelude::*;
 use ui_toolkit::{
@@ -12,11 +14,14 @@ use ui_toolkit::{
 use super::{UiProjection, apply_text_effects, color, horizontal, vertical};
 
 /// Decode once per operation: escaped pipes in display text never re-enter the lexer.
-pub(super) fn decode_font_string(data: &FontStringData) -> (FontStringData, Vec<TextRun>) {
+pub(super) fn decode_font_string(data: &FontStringData) -> (Cow<'_, FontStringData>, Vec<TextRun>) {
+    if !data.text.contains('|') {
+        return (Cow::Borrowed(data), Vec::new());
+    }
     let runs = parse_text_markup(&data.text);
     let mut display = data.clone();
     display.text = display_text(&runs);
-    (display, runs)
+    (Cow::Owned(display), runs)
 }
 
 fn runs_have_color(runs: &[TextRun]) -> bool {
@@ -25,7 +30,9 @@ fn runs_have_color(runs: &[TextRun]) -> bool {
 
 pub(super) fn uses_colored_text(frame: &Frame) -> bool {
     match &frame.widget_data {
-        Some(WidgetData::FontString(data)) => runs_have_color(&parse_text_markup(&data.text)),
+        Some(WidgetData::FontString(data)) => {
+            data.text.contains('|') && runs_have_color(&parse_text_markup(&data.text))
+        }
         _ => false,
     }
 }
