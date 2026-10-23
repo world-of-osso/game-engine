@@ -19,7 +19,7 @@
 
 ## Private refresh
 
-Build `db2_cache_import` through `scripts/depot-build.py --root CHECKOUT --fixture db2_cache_import` before invoking `scripts/refresh_db2_data.py`. Supply the built executable as `--cache-importer`, plus the private output, exact definitions checkout, resolver/cache, baseline, read-only world, and canonical repository paths. The refresh reads canonical Forever inputs but never writes them; failed housing regeneration leaves the previous catalog intact. Prepared server SQL is reviewable output only, never automatically imported into TDB.
+Build `db2_cache_import` through `scripts/depot-build.py --root CHECKOUT --fixture db2_cache_import` before invoking `scripts/refresh_db2_data.py`. Supply the built executable as `--cache-importer`, plus the private output, exact definitions checkout, resolver/cache, baseline, read-only world, and canonical repository paths. The refresh reads canonical Forever inputs but never writes them; failed housing regeneration leaves the previous catalog intact. Housing regeneration includes `DataTagInfo`, `DataTagGroup` and `DataTagGroupXDataTag` even when the previous cache omitted them, preserving their literal records and source receipts. An unavailable dependency remains an explicit zero-record source gap; this does not implement tag filtering or invent missing names. Prepared server SQL is reviewable output only, never automatically imported into TDB.
 
 ## Lead publication
 
