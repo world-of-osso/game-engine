@@ -333,10 +333,10 @@ fn suggestion_text(
     let description_top = title_frame_height + gap;
     let justify = if primary { "CENTER" } else { "LEFT" };
     rsx! { r#frame { name: {DynName(format!("JournalSuggestion{id}Text"))}, left, top, width, height, pos_type: "absolute",
-        r#frame { name: {DynName(format!("JournalSuggestion{id}TitleFrame"))}, left: 0., top: 0., width, height: title_frame_height, pos_type: "absolute",
+        r#frame { name: {DynName(format!("JournalSuggestion{id}TitleFrame"))}, left: 0., top: 0., width, height: title_frame_height, pos_type: "absolute", tooltip_provider: "journal_suggestion_text", tooltip_anchor: "ANCHOR_RIGHT",
             fontstring { name: {DynName(format!("JournalSuggestion{id}Name"))}, text: {suggestion.name.as_str()}, left: 0., top: 0., width, height: metrics.title_height, pos_type: "absolute", font: GameFont::Morpheus, font_size: metrics.title_size, font_color: "0,0,0,1", justify_h: justify, }
         }
-        r#frame { name: {DynName(format!("JournalSuggestion{id}DescriptionFrame"))}, left: 0., top: description_top, width: description_width, height: description_frame_height, pos_type: "absolute",
+        r#frame { name: {DynName(format!("JournalSuggestion{id}DescriptionFrame"))}, left: 0., top: description_top, width: description_width, height: description_frame_height, pos_type: "absolute", tooltip_provider: "journal_suggestion_text", tooltip_anchor: "ANCHOR_RIGHT",
             fontstring { name: {DynName(format!("JournalSuggestion{id}Description"))}, text: {suggestion.description.as_str()}, left: 0., top: 0., width: description_width, height: metrics.description_height, pos_type: "absolute", font: GameFont::FrizQuadrata, font_size: description_size, font_color: "0.2824,0.0157,0.0157,1", justify_h: justify, }
         }
     } }

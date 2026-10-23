@@ -19,7 +19,7 @@ use crate::GameClient;
 use crate::frame_error::FrameError;
 use crate::replicated::UnitFields;
 use crate::targeting::unit_classification;
-use crate::tooltips::{HoveredFrame, HoveredTooltip, named_ancestor};
+use crate::tooltips::{HoveredFrame, HoveredTooltip};
 use crate::unit_pick::pick_unit;
 
 impl GameClient {
@@ -27,9 +27,7 @@ impl GameClient {
     /// and raid members of the compact group frames (`UnitFrame_OnEnter`), found by name.
     pub(crate) fn unit_frame_unit(&self, hit: &HoveredFrame) -> Option<u64> {
         let ui = hit.ui.bind();
-        let (_, frame) = named_ancestor(ui.registry()?, hit.frame, |frame| {
-            UnitFrameName::parse(frame.name.as_deref()?)
-        })?;
+        let frame = UnitFrameName::parse(ui.registry()?.get(hit.frame)?.name.as_deref()?)?;
         drop(ui);
         match frame {
             UnitFrameName::Player => self.world.local_player_id(),

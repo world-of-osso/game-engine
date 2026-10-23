@@ -84,12 +84,33 @@ impl GameClient {
         at: Vector2,
         skip: &[Option<Gd<RegistryUi>>],
     ) -> Result<Option<HoveredFrame>, String> {
+        self.registry_frame_at(at, skip, false)
+    }
+
+    pub(super) fn ui_tooltip_frame_at(
+        &mut self,
+        at: Vector2,
+        skip: &[Option<Gd<RegistryUi>>],
+    ) -> Result<Option<HoveredFrame>, String> {
+        self.registry_frame_at(at, skip, true)
+    }
+
+    fn registry_frame_at(
+        &mut self,
+        at: Vector2,
+        skip: &[Option<Gd<RegistryUi>>],
+        tooltip: bool,
+    ) -> Result<Option<HoveredFrame>, String> {
         let canvases = self
             .registry_uis()?
             .into_iter()
             .filter(|ui| !skip.iter().flatten().any(|other| other == ui))
             .map(|ui| {
-                let frame = ui.bind().pointer_frame_at(at);
+                let frame = if tooltip {
+                    ui.bind().tooltip_frame_at(at)
+                } else {
+                    ui.bind().pointer_frame_at(at)
+                };
                 let hit = frame.map(|frame| HoveredFrame {
                     ui: ui.clone(),
                     frame,

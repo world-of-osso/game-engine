@@ -57,6 +57,27 @@ fn setup(skin: ActiveSkin) -> (TrainerBook, FrameRegistry) {
 }
 
 #[test]
+fn ui_template_behavior_trainer_children_keep_source_owner_offset() {
+    use ui_toolkit::tooltip::{TooltipAnchor, tooltip_owner};
+    for skin in [ActiveSkin::Modern, ActiveSkin::Forever] {
+        let (_, registry) = setup(skin);
+        for spell in [2963, 2964, 2965] {
+            let hit = registry
+                .get_by_name(&format!("ClassTrainerService{spell}Icon"))
+                .unwrap();
+            let (owner, binding) = tooltip_owner(&registry, hit).expect("trainer live owner");
+            assert_eq!(
+                owner.name.as_deref(),
+                Some(format!("ClassTrainerService{spell}").as_str())
+            );
+            assert_eq!(binding.provider.as_deref(), Some("trainer"));
+            assert_eq!(binding.anchor, TooltipAnchor::Right);
+            assert_eq!(binding.offset, [35.0, 0.0]);
+        }
+    }
+}
+
+#[test]
 fn trainer_hover_resolves_row_descendants_and_all_service_states_not_selection() {
     for skin in [ActiveSkin::Modern, ActiveSkin::Forever] {
         let (mut book, registry) = setup(skin);
@@ -95,7 +116,7 @@ fn trainer_hover_resolves_row_descendants_and_all_service_states_not_selection()
 #[test]
 fn trainer_spell_tooltip_uses_shared_content_right_offset_and_id_in_both_skins() {
     for skin in [ActiveSkin::Modern, ActiveSkin::Forever] {
-        let (book, _) = setup(skin);
+        let (book, owners) = setup(skin);
         let spell = CatalogSpell {
             id: 2963,
             name: "Bolt of Linen Cloth".into(),
@@ -109,18 +130,24 @@ fn trainer_spell_tooltip_uses_shared_content_right_offset_and_id_in_both_skins()
                 ..Default::default()
             },
         );
-        let tooltip = book
-            .service_tooltip(2963, tooltip.clone(), [34.0, 207.0, 298.0, 47.0])
-            .unwrap();
+        let hit = owners.get_by_name("ClassTrainerService2963").unwrap();
+        let (_, binding) = ui_toolkit::tooltip::tooltip_owner(&owners, hit).unwrap();
+        let mut tooltip = tooltip;
+        tooltip.anchor = game_engine_ui_model::game_tooltip::binding_anchor(
+            binding.anchor,
+            [34.0, 207.0, 298.0, 47.0],
+            binding.offset,
+        );
         assert_eq!(
             tooltip.anchor,
-            TooltipAnchor::Owner {
-                rect: [69.0, 207.0, 298.0, 47.0],
-                side: game_engine_ui_model::game_tooltip::OwnerSide::Right
+            TooltipAnchor::OwnerOffset {
+                rect: [34.0, 207.0, 298.0, 47.0],
+                side: game_engine_ui_model::game_tooltip::OwnerSide::Right,
+                offset: [35.0, 0.0],
             }
         );
         let main = place(
-            tooltip.for_skin(skin),
+            tooltip,
             TooltipScreen {
                 size: [1920.0, 1080.0],
                 cursor: [100.0, 220.0],
@@ -155,10 +182,7 @@ fn trainer_spell_tooltip_uses_shared_content_right_offset_and_id_in_both_skins()
         assert!(
             matches!(&title.widget_data, Some(WidgetData::FontString(font)) if font.text == "Bolt of Linen Cloth")
         );
-        assert!(
-            book.service_tooltip(9999, spell_tooltip(&spell, &Default::default()), [0.0; 4])
-                .is_none()
-        );
+        assert!(book.service_for_action("trainer:select:9999").is_none());
     }
 }
 
@@ -190,7 +214,7 @@ fn trainer_recipe_shows_created_item_quality_reagents_and_both_record_ids() {
         )
         .unwrap();
         let main = place(
-            tooltip.for_skin(skin),
+            tooltip,
             TooltipScreen {
                 size: [1920.0, 1080.0],
                 cursor: [0.0; 2],
@@ -218,6 +242,7 @@ fn trainer_class_spell_retains_full_shared_tooltip() {
     };
     assert!(!input.description.is_empty());
     for skin in [ActiveSkin::Modern, ActiveSkin::Forever] {
+        set_thread_skin(skin);
         let tooltip = game_engine_ui_model::game_tooltip::trainer::trainer_service_content(
             spell_tooltip(spell, &input),
             None,
@@ -226,7 +251,7 @@ fn trainer_class_spell_retains_full_shared_tooltip() {
         .unwrap();
         assert_eq!(tooltip, spell_tooltip(spell, &input));
         let main = place(
-            tooltip.for_skin(skin),
+            tooltip,
             TooltipScreen {
                 size: [1920.0, 1080.0],
                 cursor: [0.0; 2],
@@ -269,9 +294,7 @@ fn trainer_tooltip_requirements_refresh_with_the_current_service() {
         },
         &Default::default(),
     );
-    let tooltip = view
-        .service_tooltip(2963, content.clone(), [0.0; 4])
-        .unwrap();
+    let tooltip = view.service_tooltip(2963, content.clone()).unwrap();
     assert!(
         tooltip
             .content
@@ -309,9 +332,7 @@ fn trainer_tooltip_requirements_refresh_with_the_current_service() {
         step: 1,
     });
     view.known_spells.insert(3908);
-    let met = view
-        .service_tooltip(2963, content.clone(), [0.0; 4])
-        .unwrap();
+    let met = view.service_tooltip(2963, content.clone()).unwrap();
     for expected in [
         "Requires Level 5",
         "Requires Classic Tailoring (75)",
@@ -325,9 +346,7 @@ fn trainer_tooltip_requirements_refresh_with_the_current_service() {
         );
     }
     view.book.list.as_mut().unwrap().services[0].req_skill_rank = 150;
-    let refreshed = view
-        .service_tooltip(2963, content.clone(), [0.0; 4])
-        .unwrap();
+    let refreshed = view.service_tooltip(2963, content.clone()).unwrap();
     assert!(
         refreshed
             .content
@@ -343,7 +362,7 @@ fn trainer_tooltip_requirements_refresh_with_the_current_service() {
             .any(|line| line.left_text == "Requires Classic Tailoring (75)")
     );
     view.book.close();
-    assert!(view.service_tooltip(2963, content, [0.0; 4]).is_none());
+    assert!(view.service_tooltip(2963, content).is_none());
 }
 
 #[test]

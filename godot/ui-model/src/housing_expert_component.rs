@@ -151,12 +151,17 @@ fn submode_controls(view: &HousingView) -> Element {
                 (-56.0, -57.0, 176.0, 178.0),
             );
             overlays.extend(binding_control_text(view, name, binding, true));
-            icon_control(
-                (name, atlas, action),
-                (index as f32 * SUBMODE_STEP, 0.0),
-                restricted,
-                editor.submode == mode,
-                overlays,
+            ui_toolkit::tooltip::bind_provider_at(
+                icon_control(
+                    (name, atlas, action),
+                    (index as f32 * SUBMODE_STEP, 0.0),
+                    restricted,
+                    editor.submode == mode,
+                    overlays,
+                ),
+                "housing",
+                ui_toolkit::tooltip::TooltipAnchor::Top,
+                [0.0; 2],
             )
         })
         .collect()

@@ -22,6 +22,30 @@ fn icon(fdid: u32, dispel: Option<DebuffType>) -> BuffIconState {
 }
 
 #[test]
+fn ui_template_behavior_combat_aura_icons_keep_their_live_bottom_left_owner() {
+    use ui_toolkit::atlas::set_thread_skin;
+    use ui_toolkit::tooltip::{TooltipAnchor, tooltip_owner};
+    for skin in [ActiveSkin::Modern, ActiveSkin::Forever] {
+        set_thread_skin(skin);
+        let mut shared = SharedContext::new();
+        shared.insert(skin);
+        shared.insert(BuffFrameState {
+            buffs: vec![icon(STATIC_FLIGHT_ICON, None)],
+            debuffs: vec![icon(136_116, Some(DebuffType::Magic))],
+        });
+        let mut registry = FrameRegistry::new(1920.0, 1080.0);
+        Screen::new(buff_frame_screen).sync(&shared, &mut registry);
+        for name in ["BuffButton0", "DebuffButton0"] {
+            let hit = registry.get_by_name(&format!("{name}Icon")).unwrap();
+            let (owner, binding) = tooltip_owner(&registry, hit).expect(name);
+            assert_eq!(owner.name.as_deref(), Some(name));
+            assert_eq!(binding.provider.as_deref(), Some("player_aura"));
+            assert_eq!(binding.anchor, TooltipAnchor::BottomLeft);
+        }
+    }
+}
+
+#[test]
 fn buff_frame_cache_requests_cover_static_flight_and_drawn_debuff_art() {
     let state = BuffFrameState {
         buffs: vec![icon(STATIC_FLIGHT_ICON, None)],

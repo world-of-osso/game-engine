@@ -1605,7 +1605,7 @@ fn trading_post_frozen_row_exclusion_follows_committed_not_pending_replacement()
 }
 
 #[test]
-fn trading_post_refund_icon_tooltip_uses_hovered_row_time_not_selected_product() {
+fn ui_template_behavior_remaining_trading_post_refund_and_product_owners() {
     let mut data = snapshot();
     let mut refundable = data.items[0].clone();
     refundable.id = 5;
@@ -1619,6 +1619,31 @@ fn trading_post_refund_icon_tooltip_uses_hovered_row_time_not_selected_product()
         refund_elapsed: 60,
         ..Default::default()
     };
+    for skin in [ActiveSkin::Modern, ActiveSkin::Forever] {
+        let registry = render(skin, view.clone());
+        for (name, provider, anchor, offset) in [
+            (
+                "PerksProgramRefundIcon5",
+                "trading_post_refund",
+                ui_toolkit::tooltip::TooltipAnchor::Right,
+                [0., 0.],
+            ),
+            (
+                "PerksProgramProduct5",
+                "trading_post",
+                ui_toolkit::tooltip::TooltipAnchor::Right,
+                [-16., 0.],
+            ),
+        ] {
+            let hit = registry.get_by_name(name).expect(name);
+            let (owner, binding) = ui_toolkit::tooltip::tooltip_owner(&registry, hit)
+                .expect("live product/refund owner");
+            assert_eq!(owner.id, hit);
+            assert_eq!(binding.provider.as_deref(), Some(provider));
+            assert_eq!(binding.anchor, anchor);
+            assert_eq!(binding.offset, offset);
+        }
+    }
     let tooltip = view.refund_icon_tooltip(5).unwrap();
     assert_eq!(
         tooltip.content.title_text(),
@@ -3306,7 +3331,7 @@ fn trading_post_button_tooltips_keep_disabled_view_cart_but_hide_disabled_clear_
 }
 
 #[test]
-fn trading_post_cart_tooltip_resolves_regular_and_ensemble_members_in_retail_namespace() {
+fn ui_template_behavior_remaining_trading_post_cart_and_button_owners() {
     use game_engine_ui_model::game_tooltip::TooltipRecord;
     let mut data = snapshot();
     data.items[0].category_id = 8;
@@ -3329,10 +3354,29 @@ fn trading_post_cart_tooltip_resolves_regular_and_ensemble_members_in_retail_nam
     };
     for skin in [ActiveSkin::Modern, ActiveSkin::Forever] {
         set_thread_skin(skin);
+        let registry = render(skin, view.clone());
+        for name in [
+            "PerksProgramCartClearButton",
+            "PerksProgramCartPurchaseButton",
+        ] {
+            let hit = registry.get_by_name(name).expect(name);
+            let (owner, binding) =
+                ui_toolkit::tooltip::tooltip_owner(&registry, hit).expect("live cart button owner");
+            assert_eq!(owner.id, hit);
+            assert_eq!(binding.provider.as_deref(), Some("trading_post_button"));
+            assert_eq!(binding.anchor, ui_toolkit::tooltip::TooltipAnchor::Left);
+        }
         for (owner, id, title) in [
             ("PerksProgramCartItem5", 25, "Worn Shortsword"),
             ("PerksProgramCartSubItem4_876", 876, "Worn Wooden Buckler"),
         ] {
+            let hit = registry.get_by_name(owner).expect(owner);
+            let (resolved, binding) =
+                ui_toolkit::tooltip::tooltip_owner(&registry, hit).expect("live cart item owner");
+            assert_eq!(resolved.id, hit);
+            assert_eq!(binding.provider.as_deref(), Some("trading_post_cart"));
+            assert_eq!(binding.anchor, ui_toolkit::tooltip::TooltipAnchor::Left);
+            assert_eq!(binding.offset, [-8., -20.]);
             let tooltip = view.cart_item_tooltip(owner, Some(80)).unwrap().unwrap();
             assert_eq!(tooltip.record, Some(TooltipRecord::Item(id)));
             assert_eq!(tooltip.content.title, title);
