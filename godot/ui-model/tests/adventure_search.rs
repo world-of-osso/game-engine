@@ -33,7 +33,6 @@ fn present(registry: &FrameRegistry, name: &str) -> bool {
         .is_some_and(|id| registry.get(id).unwrap().visible)
 }
 #[test]
-#[ignore = "RED: merged shared dispatcher cannot hover undeclared item search rows"]
 fn journal_search_item_children_resolve_the_shared_owner_in_preview_and_full_results() {
     for skin in [ActiveSkin::Modern, ActiveSkin::Forever] {
         let mut view = journal("Buzzer Blade");
