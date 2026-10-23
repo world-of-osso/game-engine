@@ -380,6 +380,14 @@ const LARGE: RowTemplate = RowTemplate {
 const NAME_COLOR: &str = "0.96875,0.8984375,0.578125,1";
 const PATH_COLOR: &str = "0.66796875,0.51171875,0.3359375,1";
 impl ResultRow<'_> {
+    fn bind_item_tooltip(&self, element: Element) -> Element {
+        if matches!(self.target, Target::Item(_)) {
+            ui_toolkit::tooltip::bind_provider(element, "journal_loot")
+        } else {
+            element
+        }
+    }
+
     fn name_color(&self) -> &'static str {
         match self.quality {
             Some(quality) => crate::merchant_data::quality_color(quality),
@@ -474,12 +482,13 @@ fn preview_row(index: usize, row: &ResultRow<'_>, chosen: bool) -> Element {
         (10., row.name_color(), "LEFT"),
     ));
     content.extend(selection_highlight(&name, 210., height, chosen));
-    preview_button(
+    let button = preview_button(
         name,
         &format!("journal:search-select:{index}"),
         (0., top, 210., height),
         content,
-    )
+    );
+    row.bind_item_tooltip(button)
 }
 fn show_all_row(count: usize, top: f32, chosen: bool) -> Element {
     let title =
@@ -545,14 +554,15 @@ fn full_result_row(index: usize, row: &ResultRow<'_>) -> Element {
     ] {
         content.extend(label(format!("{name}{suffix}"), value, rect, style));
     }
-    selection_list::row(
+    let button = selection_list::row(
         name,
         &format!("journal:search-select:{index}"),
         true,
         (0., index as f32 * 49., 575., 49.),
         (&LARGE, false),
         content,
-    )
+    );
+    row.bind_item_tooltip(button)
 }
 fn full_results(ctx: &SharedContext, view: &View, rows: &[ResultRow<'_>]) -> Element {
     let content = rows
