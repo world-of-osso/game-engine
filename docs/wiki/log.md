@@ -1,3 +1,7 @@
+## 2026-10-23 — Private historical model recovery readback
+
+[Recovery boundary](systems/offline-asset-closure.md#model-owner-recovery-boundary) now links [completed private staging,readback and concrete controls](../handoffs/noinstall-cert-2026-10-21.md#r3-private-recovery-complete--lead-publication-pending). Historical source versus destination namespaces remain explicit;failed-copy evidence is retained and current canonical preflight belongs to lead. No new full graph,net P4 or native certificate.
+
 ## 2026-10-23 — Authenticated source versus native model format
 
 [Measured format boundary](systems/offline-asset-closure.md#unsupported-model-format-after-source-qualification) preserves strict M2 refusal and five named M3 exclusions. [Exact census and retry scope](../handoffs/noinstall-cert-2026-10-21.md#model-staging-format-boundary--five-m3-gaps) keep source provenance distinct from parser support,original partial evidence retained,and no net P4 closure claimed.

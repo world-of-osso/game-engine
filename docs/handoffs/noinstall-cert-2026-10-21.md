@@ -432,7 +432,24 @@ Successor `noinstall-cert-3` verifies predecessor controller PID2036500 absent,u
 
 The payload unit exits143 after159.858seconds,peak1.2GiB/zero swap: host available RAM falls to6,293,479,424bytes,below the unchanged6GiB safety floor. Free disk is416,660,586,496bytes. `model-owner-stage-r1/{stage-r2-exit.json,stage-r2-safety-stop.json,stage-r2-controller.log}` preserve the failure. No summary,index fragment or completed findings exist; readback and concreteGREEN are not run. Owned unit is inactive/MainPID0 and controller finishes.
 
-Partial `package-r2` remains intact beside the first failed package. Metadata-only `du -sb` measures26,501,160,837 apparent bytes for the complete evidence tree,including directory entries; the26GiB budget is27,917,287,424bytes. A fresh full3,325,739,498-byte copy cannot fit while retaining both failures. No deletion,overwrite,safety relaxation or automatic retry occurs. Further staging needs a lead-owned scheduling and evidence-budget/reuse decision. This is an incomplete private copy,not publication,closure delta or P4 proof.
+Partial `package-r2` remains intact beside the first failed package. Metadata-only `du -sb` measures26,501,160,837 apparent bytes for the complete evidence tree,including directory entries; the26GiB budget is27,917,287,424bytes. A fresh full3,325,739,498-byte copy cannot fit while retaining both failures. No deletion,overwrite,safety relaxation or automatic retry occurs. Further staging needs a lead-owned scheduling and evidence-budget/reuse decision. This is an incomplete private copy,not publication,closure delta or P4 proof. The approved R3 decision and successful bounded retry follow.
+
+### R3 private recovery complete — lead publication pending
+
+Lead authorizes30GiB,priority `CAPACITY_ID=lead_noinstall_14847`,normal ADD/HOLD/SHED plus a12GiB available-RAM launch precondition,and one bounded retry. Fresh `package-r3` fits while preserving both failed payload trees,so no deletion,resumable-producer change or overwrite occurs. Attempt3 admits with23,914,872,832bytes available RAM; strict existing runtime6GiB/300GiB safety floors remain unchanged. Stage succeeds in139.593seconds,peak2.3GiB/zero swap. Source producer remains `0d5ba7f9f`.
+
+| Boundary | Exact completed proof |
+|---|---|
+| Private package |36,575 owners+589 aliases;37,164 payload paths/3,325,739,498bytes;filtered36,591 graph identities include16root/companion overlaps |
+| Copied-byte readback |All sizes/SHA256/content-key MD5s match;SQLite37,164rows/integrity `ok`;1,485 existing physical scoped-path collisions match exactly,no overwrite |
+| Finding reconciliation |36,591 `HISTORICAL_ASSET_SOURCE_BUILD_MISMATCH` findings retain69933/`dcfc90fffd79ba00406ae46f5f657592`;five authenticated M3 sources remain excluded as `MODEL_M3DT_FORMAT_UNSUPPORTED` |
+| Concrete closure controls |GREEN3/3,zero skips:132007 selects historical model owner;122979 keeps parent namespace and historical origin;122893 remains refused despite flat bytes |
+
+Aliases physically target `88d5e8ef05ec5a8446cdec93d142d7c6` owning namespaces while their actual/source build remains69933/`dcfc…`;that destination never authenticates70448 origin. Readback takes103.038seconds and concrete controls35.872seconds;the normal-ADD combined unit exits0 in139.289seconds,peak3.4GiB/zero swap. Concrete tests are enabled/formatted/committed/pushed at `b93f1d895`;only their prior RED gate is removed after actual GREEN. ProducerGREEN9 remains its existing0d5ba7f9f proof;no redundant broad suite is run.
+
+Fragment `model-owner-stage-r1/package-r3/cache/model-asset-index-noinstall-model-recovery-69933.json` SHA256 `f83463cb7a8ba6d1ea99167f313b6f56b7e7f2b3b42fce0375731f8a3d7b5a2a`. Finding SHA256 `2ffc2e6ef52a20e749f20346dc6ff11cd4ecc3ad649905e682888319e7a0616c`;readback SQLite SHA256 `313183fe90a381d8fe26ac280446c7843a4d7fd703f2d169dde93a94ede380a6`. Evidence: `model-owner-stage-r1/{stage-r3-summary.json,readback-r3.json,concrete-green-r3-result.json,readback-r3-controller.log}`. Owned-tree `du -sb` is29,918,809,664bytes <30GiB32,212,254,720bytes,both failed packages retained. Both units/controllers finish;no owned runtime remains.
+
+Lead owns current canonical preflight,unique-owner conflict checks and publication;the private source-index snapshot is not current canonical authority. This recovery qualifies36,591 retained-census identities,not a net P4 delta. Retained source/namespace residuals remain6,988 including five unsupported M3s. New owner descendants and later DB2 roots have not received a new full-graph traversal;current-build equivalence,manifest/scenario containment and P4 remain open. No canonical write,native run or publication claim occurs here.
 
 ## Remaining acceptance and proposed P4 plan
 
