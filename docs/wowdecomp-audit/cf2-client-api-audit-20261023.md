@@ -9,7 +9,7 @@ Source-only answers for agent-server CF-2 requests #1–6 (items 1–16). No cli
 | L | `/home/osso/.cache/wow-ui-sim/wow-ui-source/live/` | `version.txt`: Retail `12.1.0.69497`; cached UI/API source only. |
 | P | `/home/osso/.cache/wow-ui-sim/wow-ui-source/ptr/` | PTR UI/API branch exists, but no `version.txt` is present; exact client build unknown. |
 | F | `/home/osso/.cache/wow-ui-sim/wow-ui-source/forever/` | `version.txt`: Forever `1.60.1.69977`; cached UI/API source only. A user reply in a Blizzard forum thread reported build `70532` on October 21, 2026, but that is not authoritative build provenance; no local sources for 70532 were found. |
-| M | `/syncthing/Sync/Projects/wow/wow-ui-sim/vendor/wow-ui-source-mists/` | Source snapshot commit `0fa050554e3e3c8ad559ff258516d9c86b70815`; no exact client build identifier found. |
+| M | `/syncthing/Sync/Projects/wow/wow-ui-sim/vendor/wow-ui-source-mists/` | `version.txt`: Mists Classic `5.5.4.68042`; source snapshot commit `0fa050554e3e3c8ad559ff258516d9c86b70815`. |
 | Native references | `~/Repos/wowdecomp`, `~/Repos/wowdecomp15595` | Reconstructed C++ sources for 3.3.5a/build 12340 and 4.3.4/build 15595 only. These do not establish Retail 12.x, Forever 1.60, or Mists Classic behavior. |
 
 For F, conclusions below apply only to cached source snapshot `1.60.1.69977`; the current executable build is not pinned here. No local native implementation for the target builds was located.
@@ -28,7 +28,7 @@ L/F `C_LFGInfo.IsLFREnabled()` is declared with no arguments and a non-nilable b
 
 The Group Finder frame registers `LFG_UPDATE_RANDOM_INFO` and `PLAYER_LEVEL_CHANGED`, reevaluates on its registered events, and reevaluates on show. This is a UI refresh path, not a documented event contract for changes to `IsLFREnabled()`.
 
-Evidence: L/F `Blizzard_APIDocumentationGenerated/LFGInfoDocumentation.lua:46–53,243–249`; L/F `Blizzard_GroupFinder/Mainline/PVEFrame.lua:207–211,228–233,263–310,363–364`; L/F `Blizzard_ChatFrameBase/Shared/SlashCommands.lua:1434–1436`.
+Evidence: L/F `Blizzard_APIDocumentationGenerated/LFGInfoDocumentation.lua:46–53`; L `LFGInfoDocumentation.lua:243–249`; F `LFGInfoDocumentation.lua:261–267`; L/F `Blizzard_GroupFinder/Mainline/PVEFrame.lua:207–211,228–233,263–310,363–364`; L/F `Blizzard_ChatFrameBase/Shared/SlashCommands.lua:1434–1436`.
 
 ### 3. Community self-invitations
 
@@ -36,7 +36,7 @@ The cached API documents `GetInvitationsForSelf()` as a non-nil table of clubs t
 
 These facts describe the UI if the native API supplies an invitation. They do **not** establish whether a self-invitation is allowed, transmitted, stored, rejected, or returned by either query. No native protocol/service source or runtime evidence was found for that case.
 
-Evidence: L/F `Blizzard_APIDocumentationGenerated/ClubDocumentation.lua:546–560,563–588,1013–1024,1938–1950`; L/F `Blizzard_Communities/CommunitiesList.lua:54–61`; `CommunitiesInvitationFrame.lua:89–100`; `CommunitiesFrame.lua:1493–1496`.
+Evidence: L/F `Blizzard_APIDocumentationGenerated/ClubDocumentation.lua:546–560,563–588,1013–1024,1938–1950`; L/F `Blizzard_Communities/CommunitiesList.lua:54–61`; `CommunitiesInvitationFrame.lua:89–100`; L `CommunitiesFrame.lua:1493–1496`; F `CommunitiesFrame.lua:1512–1515`.
 
 ### 4. Combat-log secure filters
 
@@ -44,7 +44,7 @@ The processor clears filters, then calls `AddEventFilter` once per configured fi
 
 Generated `C_CombatLogSecure` docs mark `AddEventFilter` and `ClearEventFilters` restricted but provide no parameter schema or matching rules. `ShouldShowCurrentEntry()` is documented as a non-nilable boolean. The UI caller does not prove nil/empty event-list meaning, any-bit versus all-bit source/destination matching, native GUID comparison, or OR versus AND across registered filters. Those semantics remain unknown without native implementation or runtime evidence.
 
-Evidence: L/P `Blizzard_CombatLogProcessor/Blizzard_CombatLogProcessor.lua:35–75,121–183`; L/P `Blizzard_APIDocumentationGenerated/CombatLogSecureDocumentation.lua:11–14,102–109`; `Blizzard_APIDocumentationGenerated/CombatLogDocumentation.lua:52–65`.
+Evidence: L/P `Blizzard_CombatLogProcessor/Blizzard_CombatLogProcessor.lua:35–80,121–183`; L/P `Blizzard_APIDocumentationGenerated/CombatLogSecureDocumentation.lua:11–14,102–109`; `Blizzard_APIDocumentationGenerated/CombatLogDocumentation.lua:52–65`.
 
 ### 5. Forever group-buff visual alerts
 
@@ -62,7 +62,7 @@ The Mists provider uses `C_PvP.GetBattlefieldVehicles(uiMapID)` and `C_PvP.GetBa
 
 This schema has no `unitName`, `isPossessed`, `vehicleType`, or `orientation` fields; the facing field is named `facing`. The provider listens for `PVP_VEHICLE_INFO_UPDATED`, filters maps below `Enum.UIMapType.Zone`, and draws qualifying returned entries at `SetPosition(x,y)`. That shows how this UI treats the coordinates, not a native coordinate-space guarantee. The local schema/provider do not establish which battlegrounds populate the API or the outside-battleground result/count; both remain unknown.
 
-Evidence: M `Interface/AddOns/Blizzard_APIDocumentationGenerated/PvpInfoDocumentation.lua:71–100,610–614,760–772`; `Interface/AddOns/Blizzard_SharedMapDataProviders/VehicleDataProvider.lua:1–34,57–80`.
+Evidence: M `Interface/AddOns/Blizzard_APIDocumentationGenerated/PvpInfoDocumentation.lua:71–100,610–614,760–774`; `Interface/AddOns/Blizzard_SharedMapDataProviders/VehicleDataProvider.lua:1–34,57–80`.
 
 ### 7. Super-tracked content
 
@@ -114,7 +114,7 @@ L/P/F API docs declare `C_StableInfo.GetActivePetList()` as a non-nil table of `
 
 StableUI assigns the result to `self.pets` and matches each record by `slotID`, so rendering does not depend on array order. A separate `GetStabledPetList()` exists and feeds the stabled-pet UI, suggesting distinct active/stabled lists. Neither the generated docs nor FrameXML specify ordering, empty-slot representation, no-hunter contents, or whether all inactive/stabled pets are excluded at the native boundary. The non-nil table declaration excludes nil in the documented return shape; an empty table for no pet is contract-consistent, not runtime-confirmed.
 
-Evidence: L/P/F `Blizzard_APIDocumentationGenerated/StableInfoDocumentation.lua:15–24,193–237`; L `Blizzard_StableUI/Blizzard_StableUI.lua:447–466`; F `Blizzard_StableUI/Standard/Blizzard_StableUI.lua:457–466`.
+Evidence: L/P `Blizzard_APIDocumentationGenerated/StableInfoDocumentation.lua:15–24,193–212,81–87`; F `Blizzard_APIDocumentationGenerated/StableInfoDocumentation.lua:19–26,215–239,103–109`; L `Blizzard_StableUI/Blizzard_StableUI.lua:447–466`; F `Blizzard_StableUI/Standard/Blizzard_StableUI.lua:457–466`.
 
 ### 15. Item-upgrade eligibility
 
@@ -126,7 +126,7 @@ Evidence: L/P/F `Blizzard_APIDocumentationGenerated/ItemUpgradeDocumentation.lua
 
 L/P/F docs declare `C_StorePublic.DoesGroupHavePurchaseableProducts(groupID: number) -> hasPurchaseableProducts: bool`, non-nil. Store/launcher UI uses it to decide whether to open a category. Docs and callers do not define how ownership, regional availability, disabled shop state, or an unknown group affect the return. Those native results are unknown.
 
-Evidence: L/P/F `Blizzard_APIDocumentationGenerated/StorePublicUIDocumentation.lua:11–23`; L/F `Blizzard_GlueParent/Mainline/GlueParent.lua:800–807`; `Blizzard_SharedXML/InterfaceUtil.lua:41–51`; `Blizzard_StoreUI/Blizzard_Shared_StoreUISecure.lua:1519–1525`.
+Evidence: L/P/F `Blizzard_APIDocumentationGenerated/StorePublicUIDocumentation.lua:11–23`; L `Blizzard_GlueParent/Mainline/GlueParent.lua:827–837`; F `GlueParent.lua:800–807`; L/F `Blizzard_SharedXML/InterfaceUtil.lua:41–51`; `Blizzard_StoreUI/Blizzard_Shared_StoreUISecure.lua:1519–1525`.
 
 ## Overall proof limit
 
