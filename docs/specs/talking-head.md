@@ -69,7 +69,13 @@ The implementation adds five atlas604 additive regions, XML alpha/translation cu
 
 ### Native multiline/world-clear behavior — 2026-10-22
 
-At `b638d2ba9`, maintained `talking_head_transitions` accepts4/4 cases,53 checks, child/runner exit0, one completion marker and no child ERROR. Both skins paint source705's old text at625ms and replacement at875/1125ms with source0.5 alpha; all six original1920×1080 PNGs inspected. World-clear controls stop the actual Orator voice and hide chrome immediately without the source-Close delay. Evidence: `talking-head-transitions-native/receipt.json`. Four ObjectDB instances leak at exit: behavior passes, clean teardown does not. Source705 voice playback is not asserted by this fixture.
+At `b638d2ba9`, maintained `talking_head_transitions` accepts4/4 cases,53 checks, child/runner exit0, one completion marker and no child ERROR. Both skins paint source705's old text at625ms and replacement at875/1125ms with source0.5 alpha; all six original1920×1080 PNGs inspected. World-clear controls stop the actual Orator voice and hide chrome immediately without the source-Close delay. Evidence: `talking-head-transitions-native/receipt.json`. That original run leaked four ObjectDB instances: behavior passed, clean teardown did not. The explicit retirement regression and corrected boundary are qualified below. Source705 voice playback is not asserted by this fixture.
+
+### Explicit audio-server retirement — 2026-10-22
+
+Verbose reproduction identifies one retained Ogg playback graph: `AudioStreamPlaybackOggVorbis`, `AudioStreamOggVorbis`, `OggPacketSequencePlayback`, `OggPacketSequence`. Pinned Godot `ed1daf0bf` marks stopped streams for asynchronous mixer deletion; `AudioServer.update()` later releases their references. The fixture's one-process-frame shutdown did not establish that completion. At `21188a0eb`, the actual playback reference count is still2 at the old exit boundary (expected only the test-owned1): genuine native RED, not a clean-replay inference.
+
+`be4f61f50` preserves all immediate UI/player-stop assertions, then bounds a wait on actual playback reference retirement to1 before process exit; no fixed sleep, warning suppression or runtime/Godot patch. Maintained verbose transition cases pass4/4/55 checks and retained button/right-click cases pass4/4/220 checks, each runner/child0, exactly one completion marker, no child ERROR, leak warning or leaked-instance lines. All14 new original PNGs inspected through unscaled full-frame crops. Receipts: `talking-head-audio-retirement-green/receipt.json`, `talking-head-retained-input-retirement-green/receipt.json`; RED: `talking-head-audio-retirement-red/`. This repairs and proves the process-fixture completion boundary, not generic game-client shutdown or every historical warning's root cause. Earlier warning artifacts remain preserved.
 
 ## Camera reference boundary
 
