@@ -33,6 +33,41 @@ fn present(registry: &FrameRegistry, name: &str) -> bool {
         .is_some_and(|id| registry.get(id).unwrap().visible)
 }
 #[test]
+#[ignore = "RED: global search incorrectly empties the underlying Cataclysm grid"]
+fn journal_global_search_preserves_the_authored_instance_grid_in_both_skins() {
+    for skin in [ActiveSkin::Modern, ActiveSkin::Forever] {
+        let mut view = journal("");
+        view.tier = view.catalog.instance(67).unwrap().tiers[0];
+        let expected: Vec<_> = view
+            .instances()
+            .iter()
+            .map(|instance| instance.id)
+            .collect();
+        assert!(expected.contains(&67), "Authentic Stonecore grid fixture");
+        for query in ["flame", "Paralyze"] {
+            view.search = query.into();
+            for action in [
+                "journal:search-focus",
+                "journal:search-full",
+                "journal:search-close",
+            ] {
+                view.apply(action).unwrap();
+                let actual: Vec<_> = view
+                    .instances()
+                    .iter()
+                    .map(|instance| instance.id)
+                    .collect();
+                assert_eq!(
+                    actual, expected,
+                    "Global search must not filter the instance grid"
+                );
+                assert!(present(&render(&view, skin), "JournalInstance67"));
+            }
+        }
+    }
+}
+
+#[test]
 fn journal_search_item_children_resolve_the_shared_owner_in_preview_and_full_results() {
     for skin in [ActiveSkin::Modern, ActiveSkin::Forever] {
         let mut view = journal("Buzzer Blade");
