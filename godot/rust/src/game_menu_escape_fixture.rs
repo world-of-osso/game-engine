@@ -56,6 +56,88 @@ impl GameClient {
         self.trading_post.view.visible = false;
         state
     }
+
+    #[func]
+    fn attach_game_menu_escape_probe(&mut self, mut parent: Gd<Node>, forever: bool) -> GString {
+        if self.asset_startup.is_some() || self.game_menu_ui.is_some() {
+            return "render probe requires completed startup and no menu".into();
+        }
+        ui_toolkit::atlas::set_thread_skin(if forever {
+            ui_toolkit::atlas::ActiveSkin::Forever
+        } else {
+            ui_toolkit::atlas::ActiveSkin::Modern
+        });
+        let model = escape_menu_model(self);
+        let mut ui = RegistryUi::new_alloc();
+        ui.set_name("GameMenuUI");
+        ui.set_layer(10);
+        parent.add_child(&ui);
+        let mounted = ui
+            .bind_mut()
+            .show_game_menu_view(policy::build_view_model(&model));
+        if let Err(error) = mounted {
+            ui.free();
+            return GString::from(error.as_str());
+        }
+        self.game_menu_options = Some(model);
+        self.game_menu_ui = Some(ui);
+        self.trading_post.view.visible = true;
+        GString::new()
+    }
+
+    #[func]
+    fn step_game_menu_escape_probe(&mut self) -> VarDictionary {
+        send_escape(self);
+        menu_probe_state(self)
+    }
+
+    #[func]
+    fn game_menu_escape_probe_state(&self) -> VarDictionary {
+        menu_probe_state(self)
+    }
+
+    #[func]
+    fn cleanup_game_menu_escape_probe(&mut self) {
+        self.close_game_menu();
+        self.trading_post.view.visible = false;
+    }
+}
+
+fn menu_probe_state(client: &GameClient) -> VarDictionary {
+    let mut state = VarDictionary::new();
+    state.set("menu", client.game_menu_ui.is_some());
+    state.set("pending", client.trading_post.view.visible);
+    if let Some(ui) = &client.game_menu_ui {
+        append_menu_binding(&mut state, ui);
+    }
+    state
+}
+
+fn append_menu_binding(state: &mut VarDictionary, ui: &Gd<RegistryUi>) {
+    let ui = ui.bind();
+    let Some(registry) = ui.registry() else {
+        state.set("error", "mounted menu has no registry");
+        return;
+    };
+    let frame = registry
+        .get_by_name(game_engine_ui_model::game_menu_main::GAME_MENU_ROOT.0)
+        .and_then(|id| registry.get(id));
+    let Some(binding) = frame.and_then(|frame| frame.lifecycle.as_ref()) else {
+        state.set(
+            "error",
+            "mounted GameMenuRoot has no lifecycle registration",
+        );
+        return;
+    };
+    if let Some(hook) = &binding.close_hook {
+        state.set("hook", hook.as_str());
+    }
+    if let Some(priority) = binding.escape_priority {
+        state.set("priority", format!("{priority:?}").as_str());
+    }
+    if let Some(group) = binding.close_group {
+        state.set("group", group.as_str());
+    }
 }
 
 fn send_escape(client: &mut GameClient) {
