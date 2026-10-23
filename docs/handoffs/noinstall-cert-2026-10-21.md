@@ -388,6 +388,12 @@ Normal-ADD unit succeeds in11.539s,peak783MiB/zero swap; independent raw/CSV rea
 
 Evidence: `db2-source-recovery-r1/{recovery,publication-lookup}.json`, `db2-effectname-restore-r1/{summary,independent-artifact-check}.json`. The next independent approved measurement is structural flat ADT/WMO provenance coverage; source-restoration gaps remain open rather than being reclassified as unreachable content.
 
+### Structural ADT/WMO receipt projection — measurement only
+
+`structural-provenance-r1` measures the retained r5 census,not later DB2 descendants:312,862 identities =248,526 ADT+64,336 WMO. Exact same-product/kind/native-flat-path receipts and current size/SHA256/content-MD5 authenticate283,371 candidate identities (90.57%):235,383 ADT+47,988 WMO. Residual29,491 =11,770 ADT+16,348 WMO without matching receipts,1,164 ADT missing snapshot bytes,and209 ADT with unverified ledger identity. Every qualifying receipt preserves historical build12.1.0.69933/build-key `dcfc90fffd79ba00406ae46f5f657592`; none is relabeled70448.
+
+Normal-ADD measurement exits0 in393.443s after reading69,180,894,328 payload bytes. Independent SQLite row/category/hash reconciliation passes:312,862 rows,integrity `ok`,38,051,840bytes,SHA256 `6ed26fcb855b13d4ddb2dbc7c10b3276d40a652eb06f84326b27cffc66d70be7`. Evidence: `structural-provenance-r1/{summary.json,classification.sqlite,artifact-reconciliation.json,exit.json}`. Auditor remains unchanged. This is source-identity projection,not structural parser acceptance,new descendants,net full-graph closure or P4. Report delivered before implementation; any ADT/WMO eligibility change must preserve exact native flat paths/product identity and must not qualify model-owner companions through generic receipts.
+
 ## Remaining acceptance and proposed P4 plan
 
 Lead confirms eight-material CASC re-extraction/no-clobber publication:226,775 canonical keys,zero duplicates,flat legacy files untouched. Independent eight-payload readback is recorded above. This is not full-catalog certification.
