@@ -1,6 +1,9 @@
 //! Main-menu overlay and native Options controller; the underlying scene stays attached.
 
 pub(crate) mod drag;
+#[cfg(debug_assertions)]
+#[path = "game_menu_escape_fixture.rs"]
+mod escape_fixture;
 
 use game_engine_core::{
     client_options_data::{load_options_file_with_legacy, options_path, save_options_file_to_path},
