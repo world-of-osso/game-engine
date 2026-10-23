@@ -8,7 +8,7 @@ import tempfile
 import unittest
 
 sys.path.insert(0, str(Path(__file__).resolve().parents[1]))
-from asset_closure import Closure
+from asset_closure import RawByteGraph
 import closure_seeds
 
 
@@ -38,7 +38,7 @@ class SkyboxRootsTests(unittest.TestCase):
         )
 
     def graph(self):
-        return Closure(self.data, {}, "wow_classic_beta", "fixture")
+        return RawByteGraph(self.data, {}, "wow_classic_beta", "fixture")
 
     def test_selected_map_all_slots_expose_skybox_skin_and_celestial(self):
         graph = self.graph()

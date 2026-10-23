@@ -59,7 +59,7 @@ class ClosureTests(unittest.TestCase):
         dest.write_bytes(data)
 
     def closure(self, fdid=1, kind="adt"):
-        tool = self.tool.Closure(
+        tool = self.tool.RawByteGraph(
             self.data, self.paths, product="wow", metadata_build="fixture"
         )
         tool.add(fdid, kind, "fixture seed")
@@ -155,7 +155,7 @@ class ClosureTests(unittest.TestCase):
             "SpellMisc": "ID,SpellID,DifficultyID,SpellIconFileDataID,ActiveIconFileDataID\n1,100,0,8,0\n",
         }.items():
             self.put(f"db2/fixture/{name}.csv", text.encode())
-        graph = self.tool.Closure(self.data, self.paths, "wow", "fixture")
+        graph = self.tool.RawByteGraph(self.data, self.paths, "wow", "fixture")
         catalogs = closure_seeds.Catalogs(graph)
         closure_seeds.seed_displays(graph, catalogs, [10])
         db = sqlite3.connect(":memory:")
@@ -177,7 +177,7 @@ class ClosureTests(unittest.TestCase):
         self.put("models/2.m2", model(chunk("SKID", ints(6))))
         self.put("models/2.skel", chunk("AFID", struct.pack("<HHI", 1, 0, 7)))
         self.put("models/7.anim", b"AFSBfixture")
-        graph = self.tool.Closure(self.data, self.paths, "wow", "fixture")
+        graph = self.tool.RawByteGraph(self.data, self.paths, "wow", "fixture")
         graph.add(6, "skel", "ChrModel skeleton seed")
         graph.add(2, "m2", "body seed")
         result = graph.run()
@@ -192,7 +192,7 @@ class ClosureTests(unittest.TestCase):
         import closure_seeds
 
         self.put("ModelFileData.csv", b"FileDataID,ModelResourcesID\n9,40\n")
-        graph = self.tool.Closure(self.data, self.paths, "wow", "fixture")
+        graph = self.tool.RawByteGraph(self.data, self.paths, "wow", "fixture")
         graph.seeds = {"table_paths": {"ModelFileData": "ModelFileData.csv"}}
         rows = closure_seeds.Catalogs(graph).rows("ModelFileData")
         self.assertEqual(rows, [{"FileDataID": "9", "ModelResourcesID": "40"}])
@@ -226,7 +226,7 @@ class ClosureTests(unittest.TestCase):
             INSERT INTO texture_fdids VALUES (50,8);
         """)
         db.close()
-        graph = self.tool.Closure(self.data, self.paths, "wow", "fixture")
+        graph = self.tool.RawByteGraph(self.data, self.paths, "wow", "fixture")
         # Production keeps an older cache alongside the versioned native cache.
         legacy = dbpath.with_name("customization.sqlite")
         legacy.write_bytes(dbpath.read_bytes())
@@ -243,7 +243,7 @@ class ClosureTests(unittest.TestCase):
                 INSERT INTO appearances VALUES (123, 0);
                 INSERT INTO choices VALUES (123, 20);
             """)
-        npc_graph = self.tool.Closure(self.data, self.paths, "wow", "fixture")
+        npc_graph = self.tool.RawByteGraph(self.data, self.paths, "wow", "fixture")
         npc_graph.seeds = dict(graph.seeds)
         closure_seeds.seed_npc_appearance(npc_graph, [123])
         self.assertEqual([a["fdid"] for a in npc_graph.run()["assets"]], [8])

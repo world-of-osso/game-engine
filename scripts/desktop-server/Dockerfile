@@ -9,7 +9,11 @@ ARG JOBS=8
 ARG RELEASE=false
 ARG BINARY
 ARG FEATURES
-ENV CARGO_TARGET_DIR=/build-target \
+# The server's AssistedCombat parity dev-dependency pins a private game-engine revision over SSH;
+# cargo resolves dev-dependencies even for `cargo build`, so fetch through the forwarded key.
+ENV CARGO_NET_GIT_FETCH_WITH_CLI=true \
+    GIT_SSH_COMMAND="ssh -o StrictHostKeyChecking=accept-new" \
+    CARGO_TARGET_DIR=/build-target \
     CARGO_TARGET_X86_64_UNKNOWN_LINUX_GNU_LINKER=clang \
     RUSTFLAGS="-C link-arg=-fuse-ld=mold -C link-arg=-Wl,--thread-count=4"
 COPY game-server/ ${BUILD_ROOT}/
@@ -19,7 +23,8 @@ WORKDIR ${BUILD_ROOT}
 
 FROM source AS build
 # Only these two source trees may be refreshed, even if BUILD_PARENT contains image files.
-RUN --mount=type=cache,id=server-registry-${SERVER_CACHE},target=/usr/local/cargo/registry \
+RUN --mount=type=ssh \
+    --mount=type=cache,id=server-registry-${SERVER_CACHE},target=/usr/local/cargo/registry \
     --mount=type=cache,id=server-git-${SERVER_CACHE},target=/usr/local/cargo/git \
     --mount=type=cache,id=${TARGET_CACHE},target=/build-target,sharing=locked \
     python3 -c 'import os, runpy, sys; from pathlib import Path; from types import SimpleNamespace; refresh = runpy.run_path(sys.argv[1])["refresh_sources"]; refresh(SimpleNamespace(iterdir=lambda: [Path(path) for path in sys.argv[2:]]), Path(os.environ["CARGO_TARGET_DIR"]))' \
@@ -48,7 +53,8 @@ COPY --from=build /out/ /
 FROM source AS test
 ARG TEST_ARGS
 ARG TEST_RUN
-RUN --mount=type=cache,id=server-registry-${SERVER_CACHE},target=/usr/local/cargo/registry \
+RUN --mount=type=ssh \
+    --mount=type=cache,id=server-registry-${SERVER_CACHE},target=/usr/local/cargo/registry \
     --mount=type=cache,id=server-git-${SERVER_CACHE},target=/usr/local/cargo/git \
     --mount=type=cache,id=${TARGET_CACHE},target=/build-target,sharing=locked \
     --mount=type=bind,from=test-data,target=/test-data \

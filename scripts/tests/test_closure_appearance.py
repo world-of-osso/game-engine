@@ -6,7 +6,7 @@ import tempfile
 import unittest
 
 sys.path.insert(0, str(Path(__file__).parents[1]))
-from asset_closure import Closure
+from asset_closure import RawByteGraph
 from closure_seeds import Catalogs, seed_displays, apply_choices
 import sqlite3
 
@@ -35,7 +35,7 @@ class AppearanceTests(unittest.TestCase):
             root.mkdir(parents=True)
             for n, t in tables.items():
                 (root / (n + ".csv")).write_text(t)
-            g = Closure(
+            g = RawByteGraph(
                 data,
                 {
                     100: "character/human/male/humanmale_hd.m2",
@@ -80,7 +80,7 @@ class AppearanceTests(unittest.TestCase):
             db.executescript(
                 "CREATE TABLE elements(choice_id,related_choice_id,material_id,skinned_model_id,has_unsupported_effects); INSERT INTO elements VALUES(30,0,0,0,1); CREATE TABLE materials(id,material_resources_id); CREATE TABLE texture_fdids(material_resources_id,file_data_id); CREATE TABLE skinned_models(id,collection_fdid);"
             )
-            g = Closure(d, {}, "wow", "fixture")
+            g = RawByteGraph(d, {}, "wow", "fixture")
             apply_choices(g, db, [30], "selected")
             self.assertIn((104, "m2"), g.assets)
             self.assertFalse(
@@ -97,7 +97,7 @@ class AppearanceTests(unittest.TestCase):
             )
             (root / "CreatureModelData.csv").write_text("ID,FileDataID\n10,100\n")
             (root / "CreatureDisplayInfoExtra.csv").write_text("ID\n")
-            g = Closure(d, {100: "character/human_hd.m2"}, "wow", "fixture")
+            g = RawByteGraph(d, {100: "character/human_hd.m2"}, "wow", "fixture")
             seed_displays(g, Catalogs(g), [1])
             self.assertTrue(
                 any(
