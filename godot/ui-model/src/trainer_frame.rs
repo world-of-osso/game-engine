@@ -80,8 +80,11 @@ pub fn trainer_screen(ctx: &SharedContext) -> Element {
         ));
     }
     children.extend(confirmation(view));
-    rsx! { r#frame { name: "ClassTrainerFrame", width: WIDTH, height: HEIGHT, left: 24.0, top: 94.0,
-    pos_type: "absolute", mouse_enabled: true, strata: FrameStrata::Dialog, {children} } }
+    crate::panel_lifecycle::bind_close(
+        rsx! { r#frame { name: "ClassTrainerFrame", width: WIDTH, height: HEIGHT, left: 24.0, top: 94.0,
+        pos_type: "absolute", mouse_enabled: true, strata: FrameStrata::Dialog, {children} } },
+        "trainer",
+    )
 }
 
 fn filters(book: &TrainerBook) -> Element {

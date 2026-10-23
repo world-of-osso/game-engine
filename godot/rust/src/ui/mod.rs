@@ -2951,6 +2951,17 @@ impl RegistryUi {
         })
     }
 
+    /// Resolve source OnEnter ownership through typed metadata, independent of button names.
+    pub fn hovered_lifecycle_sound(
+        &self,
+    ) -> Option<(String, ui_toolkit::lifecycle::LifecycleSounds)> {
+        let model = self.model.as_ref()?;
+        let (name, _) = self.hovered_button()?;
+        let id = model.registry.get_by_name(&name)?;
+        let (_, binding) = ui_toolkit::lifecycle::hover_owner(&model.registry, id)?;
+        Some((binding.hover_owner.clone()?, binding.sounds))
+    }
+
     /// Name of the button held down (`ButtonState::Pushed` from a press).
     pub fn pushed_button(&self) -> Option<String> {
         let model = self.model.as_ref()?;

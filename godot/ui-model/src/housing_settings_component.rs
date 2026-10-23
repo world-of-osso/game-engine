@@ -28,33 +28,36 @@ pub fn settings_screen(view: &HousingView) -> Element {
     let decoration = decorative_regions();
     let columns = access_columns(draft, view.model.pending);
     let save_disabled = view.model.pending || draft.access.is_none();
-    rsx! { r#frame { name: "HousingRoot", stretch: true,
-        r#frame { name: "HousingHouseSettingsFrame", width: 600.0, height: 550.0,
-            pos_type: "absolute", left, top, strata: FrameStrata::Dialog, mouse_enabled: true,
-            {background} {header} {decoration} {columns}
-            fontstring { name: "HousingSettingsTitle", text: "House Settings", width: 400.0, height: 30.0,
-                pos_type: "absolute", left: 100.0, top: 14.0, font_size: 17.0 }
-            button { name: "HousingSettingsClose", width: 24.0, height: 24.0,
-                pos_type: "absolute", left: 577.0, top: 0.0, frame_level: 510.0,
-                onclick: "housing:close", button_default_skin: false,
-                button_template: "UIPanelCloseButton" }
-            fontstring { name: "HousingSettingsOwnerLabel", text: "House Owner", width: 200.0, height: 20.0,
-                pos_type: "absolute", left: 46.0, top: 104.0, font_size: 15.0, justify_h: "LEFT" }
-            button { name: "HousingSettingsOwner", text: "Owner assignment unavailable", width: 200.0, height: 28.0,
-                pos_type: "absolute", left: 46.0, top: 132.0, disabled: true }
-            button { name: "HousingSettingsAbandon", text: "Abandon House", width: 152.0, height: 28.0,
-                pos_type: "absolute", left: 401.0, top: 132.0, disabled: true,
-                button_template: "UIPanelButtonTemplate" }
-            fontstring { name: "HousingSettingsUnavailable", text: "Plot / blueprint access and owner assignment are unavailable; Save changes house access only.",
-                width: 508.0, height: 35.0, pos_type: "absolute", left: 46.0, top: 465.0, font_size: 12.0 }
-            button { name: "HousingSettingsIgnoreList", text: "Ignore List", width: 152.0, height: 28.0,
-                pos_type: "absolute", left: 46.0, top: 488.0, disabled: true,
-                button_template: "UIPanelButtonTemplate" }
-            button { name: "HousingSettingsSave", text: "Save", width: 152.0, height: 28.0,
-                pos_type: "absolute", left: 402.0, top: 488.0, onclick: "housing:settings:save", disabled: save_disabled,
-                button_template: "UIPanelButtonTemplate" }
-        }
-    } }
+    crate::panel_lifecycle::bind_close(
+        rsx! { r#frame { name: "HousingRoot", stretch: true,
+            r#frame { name: "HousingHouseSettingsFrame", width: 600.0, height: 550.0,
+                pos_type: "absolute", left, top, strata: FrameStrata::Dialog, mouse_enabled: true,
+                {background} {header} {decoration} {columns}
+                fontstring { name: "HousingSettingsTitle", text: "House Settings", width: 400.0, height: 30.0,
+                    pos_type: "absolute", left: 100.0, top: 14.0, font_size: 17.0 }
+                button { name: "HousingSettingsClose", width: 24.0, height: 24.0,
+                    pos_type: "absolute", left: 577.0, top: 0.0, frame_level: 510.0,
+                    onclick: "housing:close", button_default_skin: false,
+                    button_template: "UIPanelCloseButton" }
+                fontstring { name: "HousingSettingsOwnerLabel", text: "House Owner", width: 200.0, height: 20.0,
+                    pos_type: "absolute", left: 46.0, top: 104.0, font_size: 15.0, justify_h: "LEFT" }
+                button { name: "HousingSettingsOwner", text: "Owner assignment unavailable", width: 200.0, height: 28.0,
+                    pos_type: "absolute", left: 46.0, top: 132.0, disabled: true }
+                button { name: "HousingSettingsAbandon", text: "Abandon House", width: 152.0, height: 28.0,
+                    pos_type: "absolute", left: 401.0, top: 132.0, disabled: true,
+                    button_template: "UIPanelButtonTemplate" }
+                fontstring { name: "HousingSettingsUnavailable", text: "Plot / blueprint access and owner assignment are unavailable; Save changes house access only.",
+                    width: 508.0, height: 35.0, pos_type: "absolute", left: 46.0, top: 465.0, font_size: 12.0 }
+                button { name: "HousingSettingsIgnoreList", text: "Ignore List", width: 152.0, height: 28.0,
+                    pos_type: "absolute", left: 46.0, top: 488.0, disabled: true,
+                    button_template: "UIPanelButtonTemplate" }
+                button { name: "HousingSettingsSave", text: "Save", width: 152.0, height: 28.0,
+                    pos_type: "absolute", left: 402.0, top: 488.0, onclick: "housing:settings:save", disabled: save_disabled,
+                    button_template: "UIPanelButtonTemplate" }
+            }
+        } },
+        "housing",
+    )
 }
 
 /// HouseSettings XML Header/PlantDecoLeft/Spacer; no caller Lua overrides.

@@ -25,13 +25,15 @@ use game_engine_ui_model::group_state::{GroupCommand, GroupState};
 use game_engine_ui_model::inworld_unit_frames_component::power_bar_rgb;
 use game_engine_ui_model::popup::{PopupOutcome, PopupResult, PopupSpec, PopupStack};
 use game_engine_ui_model::ready_check_frame_component::{
-    ACTION_READY_CHECK_NO, ACTION_READY_CHECK_YES, READY_CHECK_FRAME, ReadyCheckFrameState,
+    ACTION_READY_CHECK_NO, ACTION_READY_CHECK_YES, LIFECYCLE_SOUNDS, READY_CHECK_FRAME,
+    ReadyCheckFrameState,
 };
 use game_engine_ui_model::static_popup_component::{StaticPopupState, parse_popup_action};
 use godot::prelude::*;
 use shared::components::Player;
 use shared::death::DeathState;
 use shared::protocol::{GROUP_INVITE_TIMEOUT_SECS, GroupMemberSnapshot};
+use ui_toolkit::lifecycle::VisibilityEdge;
 
 use crate::{GameClient, frame_error::FrameError, ui::RegistryUi};
 
@@ -46,7 +48,7 @@ pub(crate) struct GroupFramesHud {
     frames: Option<Gd<RegistryUi>>,
     popups_ui: Option<Gd<RegistryUi>>,
     popups_shown: bool,
-    ready_check_shown: bool,
+    ready_visibility: VisibilityEdge,
     ready_difficulties:
         Option<game_engine_ui_model::ready_check_difficulty::ReadyCheckDifficulties>,
     pub(crate) popups: PopupStack,
@@ -79,7 +81,7 @@ impl GroupFramesHud {
     }
 
     fn close(&mut self) {
-        self.ready_check_shown = false;
+        self.ready_visibility.reset();
         for ui in [self.frames.take(), self.popups_ui.take()]
             .into_iter()
             .flatten()
@@ -88,11 +90,6 @@ impl GroupFramesHud {
         }
         self.popups.clear();
     }
-}
-
-/// ReadyCheck.xml:107–111 fires once when the listener actually becomes visible.
-fn ready_check_show_sound(was_shown: bool, shown: bool) -> Option<u32> {
-    (!was_shown && shown).then_some(game_engine_core::ui_sound_kits::READY_CHECK)
 }
 
 /// Who the frames are seen by: the player's name and the current target's.
@@ -394,10 +391,11 @@ impl GameClient {
         self.populate_ready_check_difficulty(&mut frames.ready_check)?;
         self.show_group_ui(frames, popups)?;
         let shown = self.group_frames.listener_is_shown();
-        let was_shown = std::mem::replace(&mut self.group_frames.ready_check_shown, shown);
-        if let Some(kit) = ready_check_show_sound(was_shown, shown) {
-            self.play_ui_sound_kit(kit)?;
-        }
+        let kit = self
+            .group_frames
+            .ready_visibility
+            .observe(shown, &LIFECYCLE_SOUNDS);
+        self.play_ui_lifecycle_sound(kit)?;
         self.sync_party_portraits()?;
         self.sync_ready_check_portrait()?;
         Ok(())
@@ -726,10 +724,9 @@ mod tests {
             .ready_check
             .visible
         };
-        assert_eq!(
-            ready_check_show_sound(false, visible(&group, Some("Bob"))),
-            None
-        );
+        let mut listener = VisibilityEdge::default();
+        let mut sound = |shown| listener.observe(shown, &LIFECYCLE_SOUNDS);
+        assert_eq!(sound(visible(&group, Some("Bob"))), None);
         let mut update = ReadyCheckUpdate {
             initiator_name: "Ann".into(),
             time_remaining_secs: 30.0,
@@ -746,50 +743,34 @@ mod tests {
             finished: false,
         };
         group.apply_ready_check(update.clone());
-        assert_eq!(ready_check_show_sound(false, visible(&group, None)), None);
-        assert_eq!(
-            ready_check_show_sound(false, visible(&group, Some("Ann"))),
-            None
-        );
+        assert_eq!(sound(visible(&group, None)), None);
+        assert_eq!(sound(visible(&group, Some("Ann"))), None);
         let shown = visible(&group, Some("Bob"));
-        assert_eq!(ready_check_show_sound(false, shown), Some(8960));
+        assert_eq!(sound(shown), Some(8960));
         // Reliable snapshot/remaining-time refresh does not replay OnShow.
         update.time_remaining_secs = 23.0;
         group.apply_ready_check(update.clone());
-        assert_eq!(
-            ready_check_show_sound(shown, visible(&group, Some("Bob"))),
-            None
-        );
+        assert_eq!(sound(visible(&group, Some("Bob"))), None);
         update.members[1].answer = ReadyCheckAnswer::Ready;
         group.apply_ready_check(update.clone());
         let answered = visible(&group, Some("Bob"));
         assert!(!answered);
-        assert_eq!(ready_check_show_sound(shown, answered), None);
+        assert_eq!(sound(answered), None);
         update.members[1].answer = ReadyCheckAnswer::Pending;
         group.apply_ready_check(update.clone());
-        assert_eq!(
-            ready_check_show_sound(answered, visible(&group, Some("Bob"))),
-            Some(8960)
-        );
+        assert_eq!(sound(visible(&group, Some("Bob"))), Some(8960));
         update.finished = true;
         group.apply_ready_check(update);
-        assert_eq!(
-            ready_check_show_sound(true, visible(&group, Some("Bob"))),
-            None
-        );
+        assert_eq!(sound(visible(&group, Some("Bob"))), None);
     }
 
     #[test]
     fn ready_check_sound_hidden_visibility_is_quiet_and_show_can_rearm() {
         let observed = [false, false, true, true, false, false, true, true];
-        let mut previous = false;
+        let mut listener = VisibilityEdge::default();
         let emitted: Vec<_> = observed
             .into_iter()
-            .filter_map(|shown| {
-                let sound = ready_check_show_sound(previous, shown);
-                previous = shown;
-                sound
-            })
+            .filter_map(|shown| listener.observe(shown, &LIFECYCLE_SOUNDS))
             .collect();
         assert_eq!(emitted, [8960, 8960]);
     }

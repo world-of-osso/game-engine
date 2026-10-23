@@ -75,7 +75,10 @@ pub fn toybox_screen(ctx: &SharedContext) -> Element {
                     {filters} {context}
                 }
     };
-    crate::collections_component::collections_shell(view.viewport, 2, body)
+    crate::panel_lifecycle::bind_close(
+        crate::collections_component::collections_shell(view.viewport, 2, body),
+        "toybox",
+    )
 }
 
 // ToyBox.iconsFrame inherits CollectionsBackgroundTemplate; Retail anchors resolve

@@ -14,6 +14,36 @@ fn screen(shared: &SharedContext) -> Element {
 }
 
 #[test]
+fn ui_template_lifecycle_consumer_ready_check_listener_declares_only_its_show_sound() {
+    use ui_toolkit::attrs::read_attribute;
+    game_engine_ui_model::paths::set_data_root(
+        std::path::PathBuf::from(env!("CARGO_MANIFEST_DIR")).join("../../data"),
+    )
+    .unwrap();
+    for skin in [ActiveSkin::Modern, ActiveSkin::Forever] {
+        set_thread_skin(skin);
+        let mut shared = SharedContext::new();
+        shared.insert(ReadyCheckFrameState {
+            visible: true,
+            initiator: "Raidleader".into(),
+            difficulty_name: None,
+        });
+        let mut registry = FrameRegistry::new(1920.0, 1080.0);
+        Screen::new(screen).sync(&shared, &mut registry);
+        // The existing native listener_is_shown observes this production root.
+        let listener = registry.get_by_name("ReadyCheckFrame").unwrap();
+        assert_eq!(
+            read_attribute(&registry, listener, "lifecycle_on_show").as_deref(),
+            Some("8960")
+        );
+        assert_eq!(
+            read_attribute(&registry, listener, "lifecycle_on_hide"),
+            None
+        );
+    }
+}
+
+#[test]
 fn ready_check_portrait_keeps_source_slot_and_metal_ring_both_skins() {
     use ui_toolkit::atlas::{AtlasSource, resolve_region};
     use ui_toolkit::layout_values::Val;

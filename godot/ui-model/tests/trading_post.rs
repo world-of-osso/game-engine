@@ -1663,6 +1663,46 @@ fn ui_template_behavior_remaining_trading_post_refund_and_product_owners() {
 }
 
 #[test]
+fn ui_template_lifecycle_consumer_trading_post_declares_mounted_edges_and_stable_product_hover() {
+    use ui_toolkit::attrs::read_attribute;
+    for skin in [ActiveSkin::Modern, ActiveSkin::Forever] {
+        let registry = render(skin, freeze_view());
+        let frame = registry.get_by_name("PerksProgramFrame").unwrap();
+        for (key, value) in [
+            ("lifecycle_on_show", "218932"),
+            ("lifecycle_on_hide", "218933"),
+            ("lifecycle_close_hook", "trading_post"),
+            ("lifecycle_close_group", "PANELS"),
+            ("lifecycle_escape_priority", "AddOnPost"),
+        ] {
+            assert_eq!(
+                read_attribute(&registry, frame, key).as_deref(),
+                Some(value),
+                "{key}"
+            );
+        }
+        let product = registry.get_by_name("PerksProgramProduct5").unwrap();
+        assert_eq!(
+            read_attribute(&registry, product, "lifecycle_on_enter").as_deref(),
+            Some("218934")
+        );
+        assert_eq!(
+            read_attribute(&registry, product, "lifecycle_hover_owner").as_deref(),
+            Some("PerksProgramProduct5")
+        );
+        let frozen = registry.get_by_name("PerksProgramFrozenSlot").unwrap();
+        assert_eq!(
+            read_attribute(&registry, frozen, "lifecycle_on_enter").as_deref(),
+            Some("218934")
+        );
+        assert_eq!(
+            read_attribute(&registry, frozen, "lifecycle_hover_owner").as_deref(),
+            Some("PerksProgramFrozenSlot")
+        );
+    }
+}
+
+#[test]
 fn trading_post_refund_icon_tooltip_truncates_minutes_and_colors_time_at_one_hour() {
     for (seconds, text, color) in [
         (90061, "1d 1h", [1., 1., 1., 1.]),
