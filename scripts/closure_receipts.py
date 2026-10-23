@@ -26,7 +26,11 @@ def validate_receipt(row, alias=False):
     hashes = [(key, 32), (row["sha256"], 64)]
     if not alias or row.get("content_key"):
         hashes.append((row["content_key"], 32))
-    if product not in PRODUCTS or not row.get("build") or row["bytes"] <= 0:
+    if (
+        product not in PRODUCTS
+        or (not alias and not row.get("build"))
+        or row["bytes"] <= 0
+    ):
         raise ValueError(f"Incomplete verified receipt: {row['path']}")
     if any(
         len(value) != size or any(c not in "0123456789abcdefABCDEF" for c in value)
@@ -57,6 +61,7 @@ class ReceiptClosure(RawByteGraph):
         self.adding_flat = False
         self.source_appearances = {}
         self.source_catalogs = {}
+        self.db2_policy_exclusions = {}
         documents = read_indexes(self.data)
         self.receipts = {
             key: row for key, (_, row) in index_asset_receipts(documents).items()
@@ -219,7 +224,7 @@ class ReceiptClosure(RawByteGraph):
             return None
         asset.update(
             source_product=receipt["product"],
-            actual_build=receipt["build"],
+            actual_build=owner["build"],
             identity_status="verified_receipt",
         )
         return found
@@ -246,10 +251,19 @@ class ReceiptClosure(RawByteGraph):
             ),
         )
         result["schema_version"] = 2
+        result["db2_policy_exclusions"] = [
+            self.db2_policy_exclusions[path]
+            for path in sorted(self.db2_policy_exclusions)
+        ]
+        for field in ["excluded_records", "excluded_copy_records", "excluded_rows"]:
+            result["summary"]["db2_policy_" + field] = sum(
+                row[field] for row in result["db2_policy_exclusions"]
+            )
         for name in [
             "closure_receipts.py",
             "closure_root_products.py",
             "closure_nonmodel_receipts.py",
+            "closure_db2_policy.py",
             "closure_player_roots.py",
         ]:
             result["resolver_tool_sha256"][name] = hashlib.sha256(
@@ -259,6 +273,6 @@ class ReceiptClosure(RawByteGraph):
             row["identity_status"] != "verified_receipt" for row in result["assets"]
         )
         result["io_policy"] = (
-            "Receipt-selected model roots and owning namespaces; actual flat texture/sound bytes require separate matching source receipts, never scoped substitution. DB2 exports require matching table receipts. RawByteGraph is producer discovery, not audit."
+            "Receipt-selected model roots and owning namespaces; actual flat ADT/WMO/texture/sound bytes require separate matching source receipts, never scoped substitution. DB2 exports require matching table receipts. RawByteGraph is producer discovery, not audit."
         )
         return result
