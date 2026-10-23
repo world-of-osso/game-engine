@@ -41,12 +41,18 @@ func run_test() -> void:
 func verify_header_geometry() -> bool:
 	var dashboard := housing_control("HousingDashboardFrame").get_global_rect()
 	var header := housing_control("HousingCatalogFilters").get_global_rect()
-	var reset := housing_control("HousingCatalogFiltersResetButton").get_global_rect()
 	var scale: float = dashboard.size.x / 814.0
 	var expected := Vector2(dashboard.end.x - 110.0 * scale, dashboard.position.y + 30.0 * scale)
 	if header.size.distance_to(Vector2(100.0, 20.0) * scale) > 0.1 or header.position.distance_to(expected) > 0.1:
 		fail("Catalog Filter lost source100x20 TOPRIGHT(-10,-30): " + str(header))
 		return false
+	return true
+
+func verify_visible_reset_geometry() -> bool:
+	var dashboard := housing_control("HousingDashboardFrame").get_global_rect()
+	var header := housing_control("HousingCatalogFilters").get_global_rect()
+	var reset := housing_control("HousingCatalogFiltersResetButton").get_global_rect()
+	var scale: float = dashboard.size.x / 814.0
 	if reset.size.distance_to(Vector2(23.0, 23.0) * scale) > 0.1 or reset.get_center().distance_to(Vector2(header.end.x - 3.0 * scale, header.position.y)) > 0.1:
 		fail("Catalog Reset lost source23x23 TOPRIGHT-3: " + str(reset))
 		return false
@@ -62,6 +68,7 @@ func prove_search_reset() -> bool:
 	if not await wait_housing(func(): return housing_control("HousingFilterDyeable") != null, "Catalog Filter menu"): return false
 	await click_control(housing_control("HousingFilterDyeable"), MOUSE_BUTTON_LEFT)
 	if not await wait_housing(func(): return listed_decor().is_empty() and housing_control("HousingCatalogFiltersResetButton").is_visible_in_tree(), "Dyeable hides the non-dyeable Bookcase and reveals Reset"): return false
+	if not verify_visible_reset_geometry(): return false
 	if not await record_reset("search-filtered"): return false
 	await click_control(housing_control("HousingCatalogFiltersResetButton"), MOUSE_BUTTON_LEFT)
 	if not await wait_housing(func(): return listed_decor() == [BOOKCASE_DECOR] and not housing_control("HousingCatalogFiltersResetButton").is_visible_in_tree(), "Reset restores Bookcase results"): return false
@@ -88,6 +95,7 @@ func prove_category_reset() -> bool:
 	if not await wait_housing(func(): return housing_control("HousingFilterCollectionCollected") != null, "Collection filter"): return false
 	await click_control(housing_control("HousingFilterCollectionCollected"), MOUSE_BUTTON_LEFT)
 	if not await wait_housing(func(): return housing_control("HousingCatalogFiltersResetButton").is_visible_in_tree(), "nondefault Collection reveals Reset"): return false
+	if not verify_visible_reset_geometry(): return false
 	if not await record_reset("category-filtered"): return false
 	await click_control(housing_control("HousingCatalogFiltersResetButton"), MOUSE_BUTTON_LEFT)
 	if not await wait_housing(func(): return listed_decor() == before_ids and not housing_control("HousingCatalogFiltersResetButton").is_visible_in_tree(), "Reset restores category results"): return false
