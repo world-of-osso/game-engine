@@ -24,6 +24,9 @@ use super::layout;
 use super::parts::{self, ImagePart, TextPart};
 use crate::frame_error::report_once;
 
+#[path = "text_markup_fixture.rs"]
+mod text_markup_fixture;
+
 // The build helper ships Rust sources, not project .gdshader files; embed this
 // native-only shader exactly like the existing desaturation shader below.
 const ATLAS_TILE_SHADER: &str = r#"shader_type canvas_item;
