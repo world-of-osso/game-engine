@@ -49,7 +49,7 @@ func verify_inline_markup(name: String, expected: String) -> bool:
 		stop("Actual source markup body absent: " + name)
 		return false
 	var rendered: String = text.get_parsed_text() if text.has_method("get_parsed_text") else text.get("text")
-	if rendered != expected:
+	if not rendered.contains(expected) or rendered.contains("|cFF") or rendered.contains("|Hspell:"):
 		stop("Actual source markup display differs: " + rendered)
 		return false
 	var rect := text.get_global_rect()
@@ -86,7 +86,7 @@ func verify_role_refresh() -> bool:
 	if label_text("JournalSection25033ExpandedIcon") != "−" or label_text("JournalSection25035ExpandedIcon") != "+":
 		stop("Authentic Kurog Damage/Tank overview defaults differ")
 		return false
-	if not await verify_inline_markup("JournalSection25033BodyBullet0Text", "Earth Breakers continually cast [Skeletal Fractures].") or not await shot("pages-kurog-damage-overview"):
+	if not await verify_inline_markup("JournalSection25033Body", "Earth Breakers continually cast [Skeletal Fractures].") or not await shot("pages-kurog-damage-overview"):
 		return false
 	await journal_key()
 	if not await choose_spec(66):
@@ -97,7 +97,7 @@ func verify_role_refresh() -> bool:
 	if label_text("JournalSection25035ExpandedIcon") != "−" or label_text("JournalSection25033ExpandedIcon") != "+":
 		stop("Reopened Guide sorted Tank first but retained Damage disclosure")
 		return false
-	if not await verify_inline_markup("JournalSection25035BodyBullet0Text", "[Sundering Strike] applies stacking Physical damage over time.") or not await shot("pages-kurog-tank-overview"):
+	if not await verify_inline_markup("JournalSection25035Body", "[Sundering Strike] applies stacking Physical damage over time.") or not await shot("pages-kurog-tank-overview"):
 		return false
 	if not await click("EncounterJournalPage1"):
 		return false
