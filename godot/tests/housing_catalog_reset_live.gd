@@ -16,7 +16,9 @@ func run_test() -> void:
 	DirAccess.make_dir_recursive_absolute(shots)
 	client = load("res://scenes/client.tscn").instantiate()
 	root.add_child(client)
-	if not await connect_housing_account(): return
+	if not await connect_housing_account():
+		print("CATALOG_RESET_ACCOUNT_FAILURE ", client.account_state())
+		return
 	await click_control(housing_named_control("MicroMenuUI", "HousingMicroButton"), MOUSE_BUTTON_LEFT)
 	if not await wait_housing(func(): return housing_control("HousingDashboardCatalogTabButton") != null and client.housing_state().get("confirmed", false), "confirmed dashboard"): return
 	confirmed_before = client.housing_state().duplicate(true)
