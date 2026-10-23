@@ -48,11 +48,12 @@ func attack_named_boss(name: String) -> bool:
 	if client.target_state().get("target_name", "") != name:
 		stop("Physical Tab did not select real boss " + name)
 		return false
-	# Shared default-bar Attack action, also used by melee_sounds_live.gd.
-	var attack: int = client.spells_state().bar.find(88163)
+	# Actual Paladin default-bar Crusader Strike; SpellMisc35395's combat-initiation
+	# flag reaches auto_attack_on_cast, unlike the Warrior-only default Attack slot.
+	var attack: int = client.spells_state().bar.find(35395)
 	var keys := [KEY_1, KEY_2, KEY_3, KEY_4, KEY_5, KEY_6, KEY_7, KEY_8, KEY_9, KEY_0, KEY_MINUS, KEY_EQUAL]
 	if attack < 0 or attack >= keys.size():
-		stop("Actual Attack action unavailable: " + str(client.spells_state().bar))
+		stop("Actual Crusader Strike action unavailable: " + str(client.spells_state().bar))
 		return false
 	var target = client.target_state().target
 	await press_key(keys[attack])
