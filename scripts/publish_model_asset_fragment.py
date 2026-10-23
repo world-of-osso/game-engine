@@ -140,6 +140,27 @@ def merge_fragment_index(documents, index_path, prepared):
     return (json.dumps(target, indent=2) + "\n").encode()
 
 
+def list_backup_files(backup, payloads, index_files):
+    if not payloads and not index_files:
+        return []
+    paths = [backup / "planned-publication.json"]
+    paths.extend(
+        backup / "transaction" / name
+        for name in (
+            "fingerprint-diff.json",
+            "manifest.json",
+            "recovery.json",
+            "published-fingerprints.json",
+        )
+    )
+    for entry in index_files:
+        name = Path(entry["path"]).name
+        paths.extend([Path(entry["pre_backup"]), backup / f"merged-{name}"])
+        if entry["before_sha256"] is not None:
+            paths.append(backup / "transaction/files" / f"{len(payloads):06d}-{name}")
+    return [str(path) for path in paths]
+
+
 def plan_publication(data, package, fragment_relative, backup):
     data, package, backup = data.resolve(), package.resolve(), backup.resolve()
     if fragment_relative.parts != ("cache", fragment_relative.name) or not (
@@ -201,6 +222,10 @@ def plan_publication(data, package, fragment_relative, backup):
         raise ValueError(
             "Current canonical indexes changed during preflight; rerun dry-run"
         )
+    backup_files = list_backup_files(backup, payloads, index_files)
+    canonical_files = [row["destination"] for row in payloads] + [
+        row["path"] for row in index_files
+    ]
     report = {
         "mode": "dry-run",
         "noop": not payloads and not changed,
@@ -218,6 +243,9 @@ def plan_publication(data, package, fragment_relative, backup):
         "index_files": index_files,
         "canonical_write_paths": [row["destination"] for row in payloads]
         + [row["path"] for row in index_files],
+        "backup_write_paths": backup_files,
+        "all_canonical_write_paths": canonical_files
+        + [path for path in backup_files if Path(path).is_relative_to(data)],
         "space_required_bytes": estimate,
         "disk_free_bytes": shutil.disk_usage(data).free,
         "transaction_directory": str(backup / "transaction"),
