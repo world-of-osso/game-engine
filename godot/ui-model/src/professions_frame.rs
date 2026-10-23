@@ -143,10 +143,13 @@ pub fn professions_screen(ctx: &SharedContext) -> Element {
     children.extend(page_tabs(view.page));
     children.extend(quality::dialog(view));
     children.extend(favorites::favorite_menu(view));
-    rsx! { r#frame { name: "ProfessionsFrame", width, height: HEIGHT,
-        left: 24.0, top: 94.0, pos_type: "absolute", mouse_enabled: true,
-        strata: FrameStrata::Dialog, {children}
-    } }
+    crate::panel_lifecycle::bind_close(
+        rsx! { r#frame { name: "ProfessionsFrame", width, height: HEIGHT,
+            left: 24.0, top: 94.0, pos_type: "absolute", mouse_enabled: true,
+            strata: FrameStrata::Dialog, {children}
+        } },
+        "professions",
+    )
 }
 
 fn text(name: &str, value: &str, rect: (f32, f32, f32, f32)) -> Element {

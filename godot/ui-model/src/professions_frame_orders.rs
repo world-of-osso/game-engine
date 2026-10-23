@@ -69,7 +69,10 @@ pub(super) fn customer_screen(ctx: &SharedContext, view: &ProfessionView) -> Ele
         &view.orders.status,
         (30.0, 523.0, 760.0, 24.0),
     ));
-    rsx! {r#frame{name:"ProfessionsCustomerOrdersFrame",width:825.0,height:568.0,left:24.0,top:94.0,pos_type:"absolute",mouse_enabled:true,strata:crate::ui::strata::FrameStrata::Dialog,{children}}}
+    crate::panel_lifecycle::bind_close(
+        rsx! {r#frame{name:"ProfessionsCustomerOrdersFrame",width:825.0,height:568.0,left:24.0,top:94.0,pos_type:"absolute",mouse_enabled:true,strata:crate::ui::strata::FrameStrata::Dialog,{children}}},
+        "professions",
+    )
 }
 pub(super) fn crafter_page(ctx: &SharedContext, view: &ProfessionView) -> Element {
     if view.orders.selected_order().is_some() {
