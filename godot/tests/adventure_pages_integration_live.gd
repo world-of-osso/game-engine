@@ -27,6 +27,20 @@ func wait_map(map_id: int) -> bool:
 	stop("Private map transfer did not finish: " + str(map_id))
 	return false
 
+func wait_source_position(signal_name: String) -> bool:
+	var data: Dictionary = JSON.parse_string(FileAccess.get_file_as_string(evidence.path_join(signal_name + ".json")))
+	var source: Array = data.source
+	var expected := Vector3(float(source[2]), float(source[4]), -float(source[3]))
+	var deadline := Time.get_ticks_msec() + 90000
+	while Time.get_ticks_msec() < deadline:
+		var observed = client.unit_transform(client.account_state().local_player_id)
+		if typeof(observed) == TYPE_TRANSFORM3D and observed.origin.distance_to(expected) < 1.0:
+			await settle()
+			return true
+		await process_frame
+	stop("Actual replica did not reach source port " + signal_name)
+	return false
+
 func attack_named_boss(name: String) -> bool:
 	var deadline := Time.get_ticks_msec() + 60000
 	while client.target_state().get("target_name", "") != name and Time.get_ticks_msec() < deadline:
@@ -113,8 +127,13 @@ func run() -> void:
 	if client.adventure_guide_state().visible or client.adventure_guide_state().loaded:
 		stop("Closed Guide auto-opened on the real Lucifron event")
 		return
-	phase("cobrahn-ready")
-	if not await wait_signal("cobrahn-ported") or not await wait_map(43):
+	phase("caverns-ready")
+	if not await wait_signal("caverns-warm-ported") or not await wait_map(43) or not await wait_source_position("caverns-warm-ported"):
+		return
+	# Normal entry initializes the instance before a player reaches its first boss.
+	await create_timer(1.0).timeout
+	phase("caverns-initialized")
+	if not await wait_signal("cobrahn-ported") or not await wait_source_position("cobrahn-ported"):
 		return
 	phase("cobrahn-entered")
 	if not await wait_signal("cobrahn-started"):
@@ -128,6 +147,9 @@ func run() -> void:
 		stop("First boss link did not use real Normal difficulty")
 		return
 	phase("open-guide-ready")
+	if not await wait_signal("pythas-ported") or not await wait_source_position("pythas-ported"):
+		return
+	phase("pythas-entered")
 	if not await wait_signal("pythas-started") or not await wait_journal(func(state): return state.encounter == 476 and state.difficulty == 1, "Open Guide did not follow actual Pythas ENCOUNTER_START"):
 		return
 	if not await shot("integration-open-guide-encounter-start"):
