@@ -25,6 +25,8 @@ def is_hex(value, size):
 def family(kind):
     if kind in SOUND_KINDS:
         return "sound"
+    if kind in {"adt", "wmo"}:
+        return kind
     return "texture" if kind in {"blp", "blob"} else None
 
 
