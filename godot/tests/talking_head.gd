@@ -91,6 +91,8 @@ func run_case(forever: bool, close_method: String, payload: String, output: Stri
     check(image.get_size() == Vector2i(1920,1080), "native1920x1080: " + label)
     var filename := "talking-head-%s-%s.png" % [skin, close_method]
     check(image.save_png(output.path_join(filename)) == OK, "unscaled original PNG: " + label)
+    var player: AudioStreamPlayer = fixture.find_child("TalkingHeadVoice", true, false)
+    var playback: AudioStreamPlayback = player.get_stream_playback() if is_instance_valid(player) else null
     var close: Control = fixture.find_child("TalkingHeadCloseButton", true, false)
     if close_method == "button":
         if close != null:
@@ -103,6 +105,11 @@ func run_case(forever: bool, close_method: String, payload: String, output: Stri
     check(not fixture.voice_state().get("playing", false), "native local close stops voice: " + label)
     fixture.free()
     await process_frame
+    # Player stop is immediate; AudioServer releases its playback Ref asynchronously.
+    var retirement_deadline := Time.get_ticks_msec() + 30000
+    while playback != null and playback.get_reference_count() > 1 and Time.get_ticks_msec() < retirement_deadline:
+        await process_frame
+    check(playback != null and playback.get_reference_count() == 1, "actual audio server retirement before exit: " + label)
     if failures != prior_failures:
         return false
     cases += 1
@@ -129,8 +136,8 @@ func run_fixture() -> void:
                 quit(1)
                 return
     check(cases == 4, "all four skin/input cases completed")
-    check(steps == 215, "exact checked-step contract before final assertion")
-    print("TALKING_HEAD_FIXTURE cases=%d expected_cases=4 steps=%d expected_steps=216 failures=%d" % [cases,steps,failures])
+    check(steps == 219, "exact checked-step contract before final assertion")
+    print("TALKING_HEAD_FIXTURE cases=%d expected_cases=4 steps=%d expected_steps=220 failures=%d" % [cases,steps,failures])
     if failures == 0:
         print("ALL_CASES_DONE %d/4" % cases)
         print("PASS talking_head_native_both_skins chrome_text_voice_input_only MODEL_GAP=TALKING_HEAD_MODEL_PROJECTION_UNSOURCED")

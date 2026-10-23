@@ -82,6 +82,11 @@ func world_case(forever: bool, payload: String) -> bool:
     if failures != prior:
         return false
     cases += 1
+    # stop() retires asynchronously through AudioServer's mixer and main-thread cleanup.
+    # Immediate UI/player stop was asserted above; process exit must observe retirement.
+    var retirement_deadline := Time.get_ticks_msec() + 30000
+    while playback != null and playback.get_reference_count() > 1 and Time.get_ticks_msec() < retirement_deadline:
+        await process_frame
     check(playback != null and playback.get_reference_count() == 1, "audio server has retired playback before process exit: %s refs=%d" % [skin,playback.get_reference_count() if playback != null else -1])
     if failures != prior:
         return false
