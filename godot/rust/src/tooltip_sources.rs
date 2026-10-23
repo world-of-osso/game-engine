@@ -513,17 +513,17 @@ impl GameClient {
     fn journal_loot_tooltip(&mut self, hit: &HoveredFrame) -> Option<HoveredTooltip> {
         let ui = hit.ui.bind();
         let (owner, item) = named_ancestor(ui.registry()?, hit.frame, |frame| {
-            let id = frame
-                .name
-                .as_deref()?
-                .strip_prefix("JournalLoot")?
-                .parse::<u32>()
-                .ok()?;
-            self.adventure_guide
-                .view
-                .loot()
-                .into_iter()
-                .find(|item| item.id == id)
+            let name = frame.name.as_deref()?;
+            if let Some(id) = name.strip_prefix("JournalLoot") {
+                let id = id.parse::<u32>().ok()?;
+                self.adventure_guide
+                    .view
+                    .loot()
+                    .into_iter()
+                    .find(|item| item.id == id)
+            } else {
+                self.adventure_guide.view.search_item(name)
+            }
         })?;
         let slot = named_item_for(
             shared::item_data::ItemDefinitionSource::Retail,

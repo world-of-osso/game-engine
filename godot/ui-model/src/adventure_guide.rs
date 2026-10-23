@@ -463,14 +463,13 @@ impl View {
         Ok(())
     }
     pub fn model_creatures(&self) -> Vec<&game_engine_core::adventure_guide::Creature> {
-        self.catalog
-            .creatures
-            .iter()
-            .filter(|creature| Some(creature.encounter) == self.encounter)
-            // Retail fills the first nine authored slots before checking displayInfo.
-            .take(crate::adventure_creatures::MAX_CREATURES)
-            .filter(|creature| creature.display != 0)
-            .collect()
+        crate::adventure_creatures::model_choices(
+            self.catalog
+                .creatures
+                .iter()
+                .filter(|creature| Some(creature.encounter) == self.encounter),
+        )
+        .collect()
     }
     pub fn model_creature(&self) -> Option<&game_engine_core::adventure_guide::Creature> {
         self.model_creatures()
