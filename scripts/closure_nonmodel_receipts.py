@@ -124,6 +124,8 @@ def verify_table(graph, path, name):
             actual_build=identity["build"],
             identity_status="authenticated_readable_sections",
             excluded_records=proof["excluded_records"],
+            excluded_copy_records=proof["excluded_copy_records"],
+            excluded_rows=proof["excluded_rows"],
             db2_policy=POLICY,
             export_receipt=str(receipt_path.relative_to(graph.data)),
         )

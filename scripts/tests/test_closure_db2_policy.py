@@ -3,7 +3,6 @@
 import copy
 import hashlib
 import json
-import os
 from pathlib import Path
 import struct
 import sys
@@ -152,7 +151,8 @@ class EncryptedDb2PolicyTests(unittest.TestCase):
         proof = result["db2_policy_exclusions"][0]
         self.assertEqual(proof["policy"], POLICY)
         self.assertEqual(
-            proof["sections"], [{"index": 1, "key_id": MISSING_KEY, "records": 1}]
+            proof["sections"],
+            [{"index": 1, "key_id": MISSING_KEY, "records": 1, "copy_records": 0}],
         )
         inputs = {row["path"]: row for row in result["inputs"]}
         self.assertEqual(
@@ -182,8 +182,8 @@ class EncryptedDb2PolicyTests(unittest.TestCase):
         self.assertEqual(
             result["db2_policy_exclusions"][0]["sections"],
             [
-                {"index": 1, "key_id": MISSING_KEY, "records": 1},
-                {"index": 2, "key_id": SECOND_KEY, "records": 2},
+                {"index": 1, "key_id": MISSING_KEY, "records": 1, "copy_records": 0},
+                {"index": 2, "key_id": SECOND_KEY, "records": 2, "copy_records": 0},
             ],
         )
 
@@ -244,7 +244,6 @@ class EncryptedDb2PolicyTests(unittest.TestCase):
                 self.assertEqual(self.rows(graph), {})
         self.document = original
 
-    @unittest.skipUnless(os.environ.get("P4_RED"), "staged RED: excluded copy rows")
     def test_encrypted_section_counts_base_and_copy_rows_separately(self):
         # Production SpellVisual section1 has three encrypted records and two copies.
         self.prepare([(MISSING_KEY, 3)], copies=2)

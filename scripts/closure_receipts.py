@@ -255,9 +255,10 @@ class ReceiptClosure(RawByteGraph):
             self.db2_policy_exclusions[path]
             for path in sorted(self.db2_policy_exclusions)
         ]
-        result["summary"]["db2_policy_excluded_records"] = sum(
-            row["excluded_records"] for row in result["db2_policy_exclusions"]
-        )
+        for field in ["excluded_records", "excluded_copy_records", "excluded_rows"]:
+            result["summary"]["db2_policy_" + field] = sum(
+                row[field] for row in result["db2_policy_exclusions"]
+            )
         for name in [
             "closure_receipts.py",
             "closure_root_products.py",
