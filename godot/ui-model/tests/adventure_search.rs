@@ -33,7 +33,6 @@ fn present(registry: &FrameRegistry, name: &str) -> bool {
         .is_some_and(|id| registry.get(id).unwrap().visible)
 }
 #[test]
-#[ignore = "RED: authentic JournalEncounterItem names must be searchable"]
 fn journal_search_item_results_preserve_source_icon_quality_parent_and_difficulty() {
     for skin in [ActiveSkin::Modern, ActiveSkin::Forever] {
         let mut view = journal("Buzzer Blade");
@@ -52,6 +51,11 @@ fn journal_search_item_results_preserve_source_icon_quality_parent_and_difficult
         };
         assert_eq!(name.text, "Buzzer Blade");
         assert_eq!(name.color, [0., 0.44, 0.87, 1.]);
+        assert_eq!(
+            view.search_item("JournalSearchPreview0")
+                .map(|item| item.id),
+            Some(2169)
+        );
         let icon = registry
             .get(registry.get_by_name("JournalSearchPreview0Icon").unwrap())
             .unwrap();
@@ -60,6 +64,11 @@ fn journal_search_item_results_preserve_source_icon_quality_parent_and_difficult
             if texture.source == TextureSource::FileDataId(135641))
         );
         view.apply("journal:search-full").unwrap();
+        assert_eq!(
+            view.search_item("JournalSearchResult0").map(|item| item.id),
+            Some(2169)
+        );
+        assert!(view.search_item("JournalSearchPreview0").is_none());
         let registry = render(&view, skin);
         for (name, expected) in [
             (
@@ -85,12 +94,12 @@ fn journal_search_item_results_preserve_source_icon_quality_parent_and_difficult
             assert_eq!(selection.page, Page::Loot);
             assert_eq!(selection.search, "Buzzer Blade");
             assert!(selection.loot().iter().any(|drop| drop.id == item));
+            assert!(selection.search_item("JournalSearchPreview0").is_none());
         }
     }
 }
 
 #[test]
-#[ignore = "RED: Journal item search must resolve an authored appearance when raw icon is zero"]
 fn journal_search_item_result_resolves_the_real_zero_raw_icon_appearance() {
     let mut view = journal("Onyx-Imbued Breeches");
     game_engine_ui_model::item_catalog::wait_for_item_catalog();
@@ -111,7 +120,6 @@ fn journal_search_item_result_resolves_the_real_zero_raw_icon_appearance() {
 }
 
 #[test]
-#[ignore = "RED: authentic JournalEncounterCreature names must open the selected model"]
 fn journal_search_creature_results_open_the_authored_model_choice() {
     for skin in [ActiveSkin::Modern, ActiveSkin::Forever] {
         let mut view = journal("Lumbering Oaf");

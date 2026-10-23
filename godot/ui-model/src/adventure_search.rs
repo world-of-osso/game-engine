@@ -6,7 +6,9 @@ use crate::{
     quest_art::{DynName, named_atlas_texture},
     selection_list::{self, Art, RowArt, RowTemplate},
 };
-use game_engine_core::adventure_guide::{Encounter, Instance, Section, difficulty_matches};
+use game_engine_core::adventure_guide::{
+    Creature, Encounter, Instance, Item, Loot, Section, difficulty_matches,
+};
 use std::collections::BTreeSet;
 use ui_toolkit::{rsx, screen::SharedContext, widget_def::Element};
 const GENERIC_CREATURE: u32 = 533888;
@@ -25,11 +27,15 @@ enum Target {
     Instance(u32),
     Encounter(u32),
     Section(u32),
+    /// JournalEncounterItem.ID, not Item.ID: retain its actual parent/difficulty join.
+    Item(u32),
+    Creature(u32),
 }
 struct ResultRow<'a> {
     target: Target,
     title: &'a str,
-    icon: u32,
+    icon: Option<u32>,
+    quality: Option<u8>,
     kind: &'static str,
     path: String,
 }
@@ -70,7 +76,99 @@ impl View {
             .values()
             .filter(|row| row.title.to_lowercase().contains(&query))
             .filter_map(|row| self.section_result(row));
-        instances.chain(encounters).chain(sections).collect()
+        let items = self.item_results(&query);
+        let creatures = crate::adventure_creatures::model_choices(self.catalog.creatures.iter())
+            .filter(|row| row.name.to_lowercase().contains(&query))
+            .filter_map(|row| self.creature_result(row));
+        instances
+            .chain(encounters)
+            .chain(sections)
+            .chain(items)
+            .chain(creatures)
+            .collect()
+    }
+    fn item_results(&self, query: &str) -> Vec<ResultRow<'_>> {
+        let mut matches: Vec<_> = self
+            .catalog
+            .loot
+            .iter()
+            .filter(|loot| {
+                self.catalog
+                    .items
+                    .get(&loot.item)
+                    .is_some_and(|item| item.name.to_lowercase().contains(query))
+            })
+            .collect();
+        matches.sort_by_key(|loot| loot.id);
+        matches
+            .into_iter()
+            .filter_map(|loot| self.item_result(loot))
+            .collect()
+    }
+    fn loot_search_difficulties(&self, loot: &Loot) -> Vec<u32> {
+        let Some(encounter) = self.catalog.encounter(loot.encounter) else {
+            return Vec::new();
+        };
+        self.available_difficulties(encounter.instance, Some(encounter.id))
+            .into_iter()
+            .filter(|difficulty| {
+                difficulty_matches(&self.catalog.loot_difficulties, loot.id, *difficulty)
+            })
+            .collect()
+    }
+    fn item_result(&self, loot: &Loot) -> Option<ResultRow<'_>> {
+        let item = self.catalog.items.get(&loot.item)?;
+        let encounter = self.catalog.encounter(loot.encounter)?;
+        let instance = self.catalog.instance(encounter.instance)?;
+        if self.loot_search_difficulties(loot).is_empty() {
+            return None;
+        }
+        Some(ResultRow {
+            target: Target::Item(loot.id),
+            title: &item.name,
+            icon: crate::item_icons::item_icon_fdid(item.id),
+            quality: Some(item.quality as u8),
+            kind: "ENCOUNTER_JOURNAL_ITEM",
+            path: format!("{} > {}", instance.name, encounter.name),
+        })
+    }
+    fn creature_result<'a>(&self, creature: &'a Creature) -> Option<ResultRow<'a>> {
+        let encounter = self.catalog.encounter(creature.encounter)?;
+        let instance = self.catalog.instance(encounter.instance)?;
+        if self
+            .available_difficulties(instance.id, Some(encounter.id))
+            .is_empty()
+        {
+            return None;
+        }
+        Some(ResultRow {
+            target: Target::Creature(creature.id),
+            title: &creature.name,
+            icon: Some(GENERIC_CREATURE),
+            quality: None,
+            kind: "ENCOUNTER_JOURNAL_ENCOUNTER",
+            path: format!("{} > {}", instance.name, encounter.name),
+        })
+    }
+    /// Resolve only a currently displayed source item row for the shared tooltip owner.
+    pub fn search_item(&self, frame: &str) -> Option<&Item> {
+        let index = match self.search_mode {
+            SearchMode::Preview => frame
+                .strip_prefix("JournalSearchPreview")?
+                .parse::<usize>()
+                .ok()
+                .filter(|index| *index < PREVIEW_LIMIT)?,
+            SearchMode::Full => frame
+                .strip_prefix("JournalSearchResult")?
+                .parse::<usize>()
+                .ok()?,
+            SearchMode::Hidden => return None,
+        };
+        let Target::Item(id) = self.search_rows().get(index)?.target else {
+            return None;
+        };
+        let loot = self.catalog.loot.iter().find(|loot| loot.id == id)?;
+        self.catalog.items.get(&loot.item)
     }
     fn encounter_result<'a>(&self, encounter: &'a Encounter) -> ResultRow<'a> {
         let path = self
@@ -81,7 +179,8 @@ impl View {
         ResultRow {
             target: Target::Encounter(encounter.id),
             title: &encounter.name,
-            icon: GENERIC_CREATURE,
+            icon: Some(GENERIC_CREATURE),
+            quality: None,
             kind: "ENCOUNTER_JOURNAL_ENCOUNTER",
             path,
         }
@@ -94,10 +193,11 @@ impl View {
             target: Target::Section(section.id),
             title: &section.title,
             icon: if creature {
-                GENERIC_CREATURE
+                Some(GENERIC_CREATURE)
             } else {
-                section.icon
+                (section.icon != 0).then_some(section.icon)
             },
+            quality: None,
             kind: if creature {
                 "ENCOUNTER_JOURNAL_ENCOUNTER_ADD"
             } else {
@@ -154,10 +254,41 @@ impl View {
             }
             Target::Encounter(id) => self.select_encounter(id)?,
             Target::Section(id) => self.select_search_section(id)?,
+            Target::Item(id) => self.select_search_item(id)?,
+            Target::Creature(id) => {
+                let encounter = self
+                    .catalog
+                    .creatures
+                    .iter()
+                    .find(|creature| creature.id == id)
+                    .ok_or("Search creature missing")?
+                    .encounter;
+                self.select_encounter(encounter)?;
+                self.apply("journal:page:model")?;
+                self.apply(&format!("journal:creature:{id}"))?;
+            }
         }
         self.search = query;
         self.search_mode = SearchMode::Hidden;
         Ok(())
+    }
+    fn select_search_item(&mut self, id: u32) -> Result<(), String> {
+        let loot = self
+            .catalog
+            .loot
+            .iter()
+            .find(|loot| loot.id == id)
+            .ok_or("Search loot entry missing")?;
+        let encounter = loot.encounter;
+        let difficulties = self.loot_search_difficulties(loot);
+        let first = *difficulties.first().ok_or_else(|| {
+            format!("Journal loot entry {id} has no compatible encounter difficulty")
+        })?;
+        self.select_encounter(encounter)?;
+        if !difficulties.contains(&self.difficulty) {
+            self.difficulty = first;
+        }
+        self.apply("journal:page:loot")
     }
     fn select_search_section(&mut self, id: u32) -> Result<(), String> {
         let section = self
@@ -229,7 +360,8 @@ fn instance_result(instance: &Instance) -> ResultRow<'_> {
     ResultRow {
         target: Target::Instance(instance.id),
         title: &instance.name,
-        icon: instance.button,
+        icon: (instance.button != 0).then_some(instance.button),
+        quality: None,
         kind: "ENCOUNTER_JOURNAL_INSTANCE",
         path: String::new(),
     }
@@ -247,8 +379,19 @@ const LARGE: RowTemplate = RowTemplate {
 };
 const NAME_COLOR: &str = "0.96875,0.8984375,0.578125,1";
 const PATH_COLOR: &str = "0.66796875,0.51171875,0.3359375,1";
+impl ResultRow<'_> {
+    fn name_color(&self) -> &'static str {
+        match self.quality {
+            Some(quality) => crate::merchant_data::quality_color(quality),
+            None => NAME_COLOR,
+        }
+    }
+}
 
 pub(crate) fn search_results(ctx: &SharedContext, view: &View) -> Element {
+    if view.search_mode == SearchMode::Hidden {
+        return vec![];
+    }
     let rows = view.search_rows();
     if rows.is_empty() {
         return vec![];
@@ -288,16 +431,19 @@ fn result_icon(name: &str, row: &ResultRow<'_>, small: bool, height: f32) -> Ele
         (left, top, frame_size, frame_size),
     );
     let rect = (left + 1., top + 2., frame_size - 2., frame_size - 3.);
+    let Some(icon) = row.icon else {
+        return out;
+    };
     let crop_instance = matches!(row.target, Target::Instance(_)) && !small;
     out.extend(if crop_instance {
         cropped(
             format!("{name}Icon"),
-            row.icon,
+            icon,
             "0.16796875,0.51171875,0.03125,0.71875",
             rect,
         )
     } else {
-        texture(format!("{name}Icon"), row.icon, rect, "1,1,1,1")
+        texture(format!("{name}Icon"), icon, rect, "1,1,1,1")
     });
     out
 }
@@ -325,7 +471,7 @@ fn preview_row(index: usize, row: &ResultRow<'_>, chosen: bool) -> Element {
         format!("{name}Name"),
         row.title,
         (30., (height - 10.) / 2., 175., 10.),
-        (10., NAME_COLOR, "LEFT"),
+        (10., row.name_color(), "LEFT"),
     ));
     content.extend(selection_highlight(&name, 210., height, chosen));
     preview_button(
@@ -382,7 +528,7 @@ fn full_result_row(index: usize, row: &ResultRow<'_>) -> Element {
             "Name",
             row.title,
             (58., 5.5, 460., 12.),
-            (16., NAME_COLOR, "LEFT"),
+            (16., row.name_color(), "LEFT"),
         ),
         (
             "Path",

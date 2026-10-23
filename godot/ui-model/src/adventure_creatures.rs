@@ -20,6 +20,19 @@ pub const PORTRAIT: PortraitSlot = PortraitSlot {
     tex_coords: FULL_PORTRAIT,
 };
 pub const MAX_CREATURES: usize = 9;
+
+/// EJ fills nine authored slots per encounter before checking displayInfo.
+/// Share that data rule between the Model chooser and global creature search.
+pub(crate) fn model_choices<'a>(
+    creatures: impl Iterator<Item = &'a game_engine_core::adventure_guide::Creature>,
+) -> impl Iterator<Item = &'a game_engine_core::adventure_guide::Creature> {
+    let mut slots = std::collections::BTreeMap::<u32, usize>::new();
+    creatures.filter(move |creature| {
+        let count = slots.entry(creature.encounter).or_default();
+        *count += 1;
+        *count <= MAX_CREATURES && creature.display != 0
+    })
+}
 const SELECTED_SIZE: (f32, f32, f32) = (64., 61., 40.);
 const OTHER_SIZE: (f32, f32, f32) = (50., 49., 36.);
 const OVERLAP: f32 = 8.;
