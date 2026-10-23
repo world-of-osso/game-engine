@@ -22,6 +22,12 @@ Offline audit tooling in `scripts/asset_closure.py` computes a content-rooted de
 - Owned-item selectors require the explicit ItemDefinitionSource,for example `{"id": 2947, "definition_source": "Retail"}` or `Forever70205`. Source-local appearance/resource joins must not borrow the shared NPC cache. Bare item IDs,including every ID selected by `items: all`,remain individually unresolved until their definition source is provided; race and graph product never supply it.
 - Source cache rows establish request ownership,not authenticated cache-import provenance. Preserve that separate gap.
 
+## Historical model-source recovery
+
+- Explicit recovery requests may stage M2/BLP source bytes only when product,FDID,kind,native flat source path,actual build/build-key and current size/SHA256/content-MD5 match a valid record in the pinned extraction ledger. Missing receipts,changed bytes or an existing unique owner refuse staging; no extraction,active-build substitution,owner refresh or source-tree write occurs.
+- Publish immutable owners under the actual source build namespace. Companion aliases use their explicitly recorded actual owning namespaces; alias `build_key` describes the destination namespace while `source_build`/`source_build_key` retain the actual source identity. Native unique-owner selection still precedes path/resolver construction. Generic flat acceptance is never a model recovery path.
+- Emit one `HISTORICAL_ASSET_SOURCE_BUILD_MISMATCH` finding per admitted graph identity: product,FDID,kind,metadata build,actual build/build-key,source path,size/SHA256/content-key,owner path and companion destination if applicable. This named historical-source exception is evidence,not promotion to metadata/current-build identity or net P4 closure. Residual nodes and newly exposed descendants remain gaps. Private staging does not authorize canonical publication.
+
 ## Non-model provenance
 
 - Selected flat ADT/WMO/texture/sound bytes qualify only against same-product,FDID,family,path and size/SHA256/content-key matches in the existing `provenance/closure-extract.jsonl` ledger. Scan once for requested identities; preserve matching historical builds instead of last-row precedence. Missing or mismatched receipts remain named gaps. Hash-only UI inventories do not authenticate origin.
