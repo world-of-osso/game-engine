@@ -1,6 +1,6 @@
 ## 2026-10-23 — Housing tag-definition refresh dependency
 
-[Source dependencies](systems/housing.md#tag-source-availability--qualified2026-10-23): actual SQLite RED2 reproduces an old catalog omitting available tag definitions and unavailable-source metadata. Refresh now requires DataTagInfo/Group/GroupX independently of the old source set, retaining literal fields/receipts. No tag-menu/search semantics, missing labels or canonical data are changed; private regeneration proof remains separate.
+[Source dependencies](systems/housing.md#tag-source-availability--qualified2026-10-23): actual SQLite RED2 reproduces an old catalog omitting available tag definitions and unavailable-source metadata. Refresh now requires DataTagInfo/Group/GroupX independently of the old source set, retaining literal fields/receipts. Focused consumers/manifest GREEN7/7; private70448 regeneration proves47→50 tables/301977→302275 records, exact Small66/Info.ID2 and Size2 source fields,169 unreadable records unchanged and original catalog hash unchanged. No tag-menu/search semantics, missing labels, decoding or canonical data are changed.
 
 ## 2026-10-23 — Housing tag-source availability correction
 
