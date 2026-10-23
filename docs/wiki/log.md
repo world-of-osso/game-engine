@@ -1,6 +1,6 @@
 ## 2026-10-23 — One independent lifecycle registration catalog in progress
 
-[Lifecycle bindings](systems/ui-system.md#lifecycle-bindings--step-5-partial): after a missing-type/private-binder/missing-field API RED, core registration and one engine catalog now independently express optional group membership and exclusive hook/priority. Separate root hook fields replace the conflated metadata path; both old arrays/binders are removed, preserving existing28 callback order and nine global ties. Core15, scoped model, rebuilt native pending-close and visible-marker acceptance are queued; no new GREEN claim.
+[Lifecycle bindings](systems/ui-system.md#lifecycle-bindings--step-5-partial): after a missing-type/private-binder/missing-field API RED, core registration and one engine catalog now independently express optional group membership and exclusive hook/priority. Separate root hook fields replace the conflated metadata path; both old arrays/binders are removed, preserving existing28 callback order and nine global ties. At engine934c34013/toolkit8f4eca0, core15/model7 pass, rebuilt actual pending-close2 and both-skin visible-marker4 pass with four inspected full-HD originals. Full suites and remaining5/6 stay separate.
 
 ## 2026-10-23 — Escape pixel qualification and menu roster gaps
 
