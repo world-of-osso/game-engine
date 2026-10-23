@@ -1,3 +1,7 @@
+## 2026-10-22 — Model-owner recovery projection
+
+[Owner recovery boundary](systems/offline-asset-closure.md#model-owner-recovery-boundary) keeps native namespace selection mandatory. [Measured source candidates and residuals](../handoffs/noinstall-cert-2026-10-21.md#model-owner-and-companion-source-projection--no-publication-yet) separate historical origin,newer alias destinations and globally owned textures with unresolved parent namespaces; no publication,full graph or P4 acceptance.
+
 ## 2026-10-22 — Canonical raw DB2 provenance gaps
 
 [Raw source mismatch boundary](systems/offline-asset-closure.md#canonical-raw-db2-source-mismatch) separates stale unversioned raw caches from authenticated CSV/private-source cohorts. [Census and Helmet attribution limits](../handoffs/noinstall-cert-2026-10-21.md#canonical-raw-db2-mismatch-census--report-only) preserve exact hashes and schema-versus-extraction identity; no canonical writes. [Fixture follow-up](../handoffs/noinstall-cert-2026-10-21.md#structural-eligibility-and-fixture-follow-up) uses explicit product data and checked-in open-source DBDs,not committed Blizzard bytes.
