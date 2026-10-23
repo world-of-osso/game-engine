@@ -7,7 +7,7 @@ import tempfile
 import unittest
 
 sys.path.insert(0, str(Path(__file__).parents[1]))
-from asset_closure import Closure
+from asset_closure import RawByteGraph
 from closure_extract_rounds import fixed_point, missing_runtime_assets
 
 
@@ -29,7 +29,7 @@ class ConvergenceTests(unittest.TestCase):
             (d / "models/2.skel").write_bytes(payloads[2])
 
             def traverse():
-                g = Closure(d, {}, "wow", "fixture")
+                g = RawByteGraph(d, {}, "wow", "fixture")
                 g.add(1, "m2", "root")
                 return g.run()
 
@@ -65,7 +65,7 @@ class ConvergenceTests(unittest.TestCase):
             }
 
             def traverse():
-                g = Closure(d, {}, "wow", "fixture")
+                g = RawByteGraph(d, {}, "wow", "fixture")
                 g.add(1, "wdt", "root")
                 return g.run()
 
