@@ -105,6 +105,7 @@ Before rework, identify the applicable product/build and a real authored asset, 
 - [12340 tooltip padding and aura files](tooltip-padding-buff-12340.md): source-derived width arithmetic and 3.4.3 cache versus unavailable 12340 UI files (2026-10-23).
 - [12340 CloseAuctionHouse](closeauctionhouse-12340.md): Lua binding, local state cleanup, event order and proof limits (2026-10-22).
 - [12340 UI source questions](ui-source-questions-12340.md): texture filenames, auction return values, addon dependencies, and unresolved FrameXML ordering (2026-10-22).
+- [Wrath repairs batch 1](wrath-repairs-12340.md): nil-global call diagnostics, absent Frame/tooltip APIs, and unavailable table helpers (2026-10-23).
 
 - [M2 format](../wiki/formats/m2-format.md) and [animation](../wiki/systems/animation.md).
 - [Particle contract](../specs/m2-particles.md) and [ribbon contract](../specs/m2-ribbons.md).
