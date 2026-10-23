@@ -90,6 +90,7 @@ def prepare_housing_cache(args, receipt, root):
         return
     with closing(sqlite3.connect(f'file:{source}?mode=ro', uri=True)) as old:
         tables = [row[0] for row in old.execute('SELECT DISTINCT table_name FROM housing_catalog_source')]
+        tables = sorted(set(tables) | {'DataTagInfo', 'DataTagGroup', 'DataTagGroupXDataTag'})
         schema = '\n'.join(row[0] + ';' for row in old.execute("SELECT sql FROM sqlite_master WHERE type='table' AND name LIKE 'housing_catalog_%'"))
     path = root / 'cache/housing.sqlite'
     staging = path.with_suffix('.sqlite.building')

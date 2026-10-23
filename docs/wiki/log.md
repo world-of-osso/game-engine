@@ -1,6 +1,14 @@
 ## 2026-10-23 — Generic FontString text markup
 
 [Shared display-run boundary](systems/ui-system.md#fontstring-text-markup--2026-10-23) replaces literal control-byte drawing through core decoding and generic projection. Concrete Kurog core RED4→GREEN5 and baseline Vulkan projection RED precede coloured drawing; merged4a05/8e75 native transition/ink/child tests and authenticated Kurog link/original-brown ink pass both skins (extension7d5fb0119a27). Twelve authenticated Guide phases produce62 inspected fullHD PNGs; lead gate remains separate. Existing actor framing and hidden Journal key-summary painting are explicitly not accepted by markup proof. Plain Label behavior stays unchanged; coloured truncation is explicitly qualified.
+## 2026-10-23 — Housing tag-definition refresh dependency
+
+[Source dependencies](systems/housing.md#tag-source-availability--qualified2026-10-23): actual SQLite RED2 reproduces an old catalog omitting available tag definitions and unavailable-source metadata. Refresh now requires DataTagInfo/Group/GroupX independently of the old source set, retaining literal fields/receipts. Focused consumers/manifest GREEN7/7; private70448 regeneration proves47→50 tables/301977→302275 records, exact Small66/Info.ID2 and Size2 source fields,169 unreadable records unchanged and original catalog hash unchanged. No tag-menu/search semantics, missing labels, decoding or canonical data are changed.
+
+## 2026-10-23 — Housing tag-source availability correction
+
+[Qualified tag sources](systems/housing.md#tag-source-availability--qualified2026-10-23): pinned70448 already exports150 names,10 groups and138 memberships; runtime47-table housing import omits these definitions. Recorded literal tag-value versus record-ID distinction, seven missing names with readable decor associations, and unqualified ordering/default semantics. Docs-only correction to the older F20 absence claim; no new UI behavior, fallback, canonical writes or completed-test replay.
+
 ## 2026-10-23 — Dashboard Catalog filter reset native proof
 
 [Catalog Reset](systems/housing.md#dashboard-catalog-reset--verified2026-10-23): retained paired RED→GREEN5/5, both-skin five-phase native search/category/menu/authority preservation, ten inspected untouched1920×1080 originals. Records exact runtime hashes, source Lua163–176 category-preserving semantics,169 encrypted records across16 housing tables, and independently qualified canonical HelmetGeosetData provenance. Scoped check/lead integration remain separate; full housing stays open.
