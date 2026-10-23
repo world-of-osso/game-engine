@@ -2,7 +2,7 @@
 use crate::{GameClient, frame_error::FrameError};
 use godot::prelude::*;
 
-#[godot_api]
+#[godot_api(secondary)]
 impl GameClient {
     #[func]
     fn probe_registered_window_closes(&mut self) -> VarDictionary {
