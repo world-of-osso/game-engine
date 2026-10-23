@@ -69,6 +69,42 @@ fn settings_apply_commits_pending_values_and_hides_again_without_closing_options
     assert!(menu.registry.get_by_name("OptionsRoot").is_some());
 }
 
+#[test]
+fn ui_template_lifecycle_consumer_game_menu_keeps_framework_registration_across_views() {
+    use game_engine_ui_model::{GameMenuModel, game_menu_main::GAME_MENU_ROOT};
+    use ui_toolkit::atlas::{ActiveSkin, set_thread_skin};
+    use ui_toolkit::lifecycle::EscapePriority;
+    game_engine_ui_model::paths::set_data_root(
+        std::path::PathBuf::from(env!("CARGO_MANIFEST_DIR")).join("../../data"),
+    )
+    .unwrap();
+    for skin in [ActiveSkin::Modern, ActiveSkin::Forever] {
+        set_thread_skin(skin);
+        let mut state = model();
+        let mut menu = GameMenuModel::from_view(1920.0, 1080.0, build_view_model(&state));
+        for view in [
+            GameMenuView::MainMenu,
+            GameMenuView::Options,
+            GameMenuView::MainMenu,
+        ] {
+            state.view = view;
+            menu.shared.insert(build_view_model(&state));
+            menu.sync();
+            let frame = menu
+                .registry
+                .get(menu.registry.get_by_name(GAME_MENU_ROOT.0).unwrap())
+                .unwrap();
+            let binding = frame
+                .lifecycle
+                .as_ref()
+                .expect("GameMenuRoot source Framework registration");
+            assert_eq!(binding.close_hook.as_deref(), Some("game_menu"));
+            assert_eq!(binding.escape_priority, Some(EscapePriority::Framework));
+            assert_eq!(binding.close_group, None);
+        }
+    }
+}
+
 fn model() -> OptionsModel {
     let graphics = graphics_draft_from_file(&GraphicsOptionsFile::default());
     let sound = sound_draft_from_file(&SoundOptionsFile::default());
