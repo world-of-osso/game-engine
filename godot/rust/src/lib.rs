@@ -658,16 +658,6 @@ impl INode3D for GameClient {
             }
             return;
         }
-        if key.get_keycode() == godot::global::Key::ESCAPE && self.flight_map.session.map.is_some()
-        {
-            if let Err(error) = self.close_flight_map_interaction() {
-                self.handle_frame_error("Flight map close", error.into());
-            }
-            if let Some(mut viewport) = self.base().get_viewport() {
-                viewport.set_input_as_handled();
-            }
-            return;
-        }
         // Split pickers own their keys, Escape included, before any window closes.
         match self.merchant_key(key.get_keycode()) {
             Ok(true) => {

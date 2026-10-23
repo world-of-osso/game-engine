@@ -1249,11 +1249,14 @@ pub fn achievement_screen(ctx: &SharedContext) -> Element {
     } else {
         768.0
     };
-    rsx! { r#frame {
-        name: {DynName(FRAME.into())}, width, height: 500.0, strata: FrameStrata::Dialog,
-        hidden: hide, mouse_enabled: true, pos_type: "absolute", left: 0.0, top: 104.0,
-        {content}
-    } }
+    crate::panel_lifecycle::bind_close(
+        rsx! { r#frame {
+            name: {DynName(FRAME.into())}, width, height: 500.0, strata: FrameStrata::Dialog,
+            hidden: hide, mouse_enabled: true, pos_type: "absolute", left: 0.0, top: 104.0,
+            {content}
+        } },
+        "achievements",
+    )
 }
 /// Retail Mainline/Blizzard_AchievementUI.lua:298: bare formatted points;
 /// XML:1973-1984: white text with a 20x20 shield three units to its right.

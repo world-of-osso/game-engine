@@ -574,21 +574,24 @@ pub fn character_frame_screen(ctx: &SharedContext) -> Element {
         children.extend(reputation_detail::detail(selected, ctx));
     }
     children.extend(tabs(view.tab, view.has_currencies, (width, height)));
-    rsx! {
-        r#frame {
-            name: {DynName(FRAME_NAME.into())},
-            width,
-            height,
-            strata: FrameStrata::Medium,
-            hidden: hide,
-            mouse_enabled: true,
-            onclick: ACTION_FRAME,
-            pos_type: "absolute",
-            left: PANEL_LEFT,
-            top: PANEL_TOP,
-            {children}
-        }
-    }
+    crate::panel_lifecycle::bind_close(
+        rsx! {
+            r#frame {
+                name: {DynName(FRAME_NAME.into())},
+                width,
+                height,
+                strata: FrameStrata::Medium,
+                hidden: hide,
+                mouse_enabled: true,
+                onclick: ACTION_FRAME,
+                pos_type: "absolute",
+                left: PANEL_LEFT,
+                top: PANEL_TOP,
+                {children}
+            }
+        },
+        "character",
+    )
 }
 
 /// The `PaperDollFrame`: pane backgrounds, race backdrop, model scene, level line, stats

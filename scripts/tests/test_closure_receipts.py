@@ -3,6 +3,7 @@
 from contextlib import closing
 import hashlib
 import json
+import os
 from pathlib import Path
 import sqlite3
 import struct
@@ -199,6 +200,11 @@ class ReceiptClosureTests(unittest.TestCase):
         self.assertEqual(manifest["summary"]["missing"], 0)
 
     def test_authentic_579120_collision_keeps_each_products_primary_skin(self):
+        data_root = os.environ.get("DEPOT_GAME_ENGINE_DATA")
+        self.assertTrue(
+            data_root,
+            "Set DEPOT_GAME_ENGINE_DATA to the data root containing authenticated products/ fixtures; no implicit source is selected",
+        )
         sources = [
             (
                 "wow",
@@ -215,7 +221,7 @@ class ReceiptClosureTests(unittest.TestCase):
         ]
         expected = {}
         for product, key, model_hash, skin_hash in sources:
-            source = SCRIPTS.parent / "data/products" / product / key / "models"
+            source = Path(data_root) / "products" / product / key / "models"
             for fdid, kind, wanted in [
                 (579120, "m2", model_hash),
                 (579121, "skin", skin_hash),
@@ -371,6 +377,60 @@ class ReceiptClosureTests(unittest.TestCase):
                 for issue in manifest["unresolved"]
             )
         )
+
+    def test_unused_modelnamed_alias_without_owner_fields_does_not_poison_index(self):
+        product = "wow_classic_beta"
+        self.keys[product] = "f6e309c700cea095978aeb5d85210df4"
+        self.builds[product] = "1.60.1.70338"
+        self.publish(product, 123939, "m2", model(chunk("SFID", ints(475713))))
+        owner = self.publish(product, 475713, "skin", b"SKINlegacy")
+        alias = {
+            key: owner[key]
+            for key in ["product", "build_key", "fdid", "kind", "bytes", "sha256"]
+        }
+        alias.update(
+            path=f"products/{product}/{self.keys[product]}/models/12393900.skin",
+            owner_model_fdid=123939,
+            reference="SFID[0]",
+        )
+        self.documents[product]["aliases"].append(alias)
+        self.put(
+            f"cache/model-asset-index-{product}.json",
+            json.dumps(self.documents[product]).encode(),
+        )
+        graph = self.auditor(product)
+        graph.add(123939, "m2", "recorded production alias ordering")
+        result = graph.run()
+        skin = next(row for row in result["assets"] if row["type"] == "skin")
+        self.assertTrue(skin["present"])
+        self.assertEqual(skin["actual_build"], "1.60.1.70338")
+        self.assertEqual(skin["locations"], [owner["path"]])
+        self.assertFalse((self.data / alias["path"]).exists())
+
+    def test_selected_numeric_alias_derives_build_and_md5_from_unique_owner(self):
+        self.publish("wow", 10, "m2", model(chunk("SFID", ints(11))))
+        owner = self.publish("wow", 11, "skin", b"SKINsame", key="c" * 32)
+        alias = {
+            key: owner[key] for key in ["product", "fdid", "kind", "bytes", "sha256"]
+        }
+        alias.update(
+            build_key=self.keys["wow"],
+            path=f"products/wow/{self.keys['wow']}/models/11.skin",
+            owner_model_fdid=10,
+            reference="SFID[0]",
+        )
+        self.put(alias["path"], b"SKINsame")
+        self.documents["wow"]["aliases"].append(alias)
+        self.put(
+            "cache/model-asset-index-wow.json",
+            json.dumps(self.documents["wow"]).encode(),
+        )
+        graph = self.auditor()
+        graph.add(10, "m2", "selected build-qualified alias")
+        skin = next(row for row in graph.run()["assets"] if row["type"] == "skin")
+        self.assertEqual(skin["identity_status"], "verified_receipt")
+        self.assertEqual(skin["actual_build"], owner["build"])
+        self.assertEqual(skin["sha256"], owner["sha256"])
 
     def test_duplicate_receipts_are_rejected_before_selecting_bytes(self):
         self.publish("wow", 10, "m2", model())
