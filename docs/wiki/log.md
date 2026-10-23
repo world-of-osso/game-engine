@@ -1,3 +1,7 @@
+## 2026-10-23 — Generic FontString text markup
+
+[Shared display-run boundary](systems/ui-system.md#fontstring-text-markup--2026-10-23) replaces literal control-byte drawing through core decoding and generic projection. Concrete Kurog core RED4→GREEN5 and baseline Vulkan projection RED precede coloured drawing; current native transition/affected-page proof remains pending. Plain Label behavior stays unchanged; coloured truncation is explicitly qualified.
+
 ## 2026-10-22 — Tooltip binding metadata in progress
 
 [Owner bindings](systems/ui-system.md#tooltip-owner-metadata--step-5-partial): shared attrs/nearest-owner and static model conversion; actual ignored-binding/anchor RED3→core5 GREEN, Perks disabled Highlight-color RED→model4 GREEN, Currency child/collapse controls3 GREEN. [Current declaration/proof scope](systems/ui-system.md#tooltip-owner-metadata--step-5-partial) updated through Journal/Trading Post migration; native dispatch and Step5 acceptance remain open.

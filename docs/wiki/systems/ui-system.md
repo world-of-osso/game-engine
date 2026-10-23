@@ -1,6 +1,6 @@
 # UI System
 
-The UI system uses Dioxus `rsx!` authoring, `SharedContext` generation tracking, a registry-authoritative frame model, and a native Bevy UI projection. The [registry-backed Bevy UI spec](../../specs/registry-bevy-ui.md) is the layout/API contract.
+Current UI uses `rsx!` WidgetDef authoring, `SharedContext` generation tracking, registry-authoritative frames and native Godot controls. The [generic-template contract](../../specs/ui-template-generics.md) defines shared mechanisms. Bevy projection notes below are historical.
 
 ## Core Primitives
 
@@ -77,6 +77,16 @@ Commit `364a29ac` applies `clamp(user_scale, 0.75, 1.5)` outside `InWorld`; `InW
 ## Native FontString bounds
 
 Legacy `render_text.rs` bounds text to `frame.resolved_width()` and uses `LineBreak::WordBoundary` for horizontal justification; `word_wrap` only affects its height bound (`false` leaves height unbounded). `9c12ce9e` sets Godot FontString Labels to word wrap at their authored 370 logical px width, retaining full text and horizontal/vertical justification without clipping or widening rows. Depot `jcmsl5lx24` builds `9c12ce9e` with `native_input_fixture` (exit 0; existing `NativeWmoGroup::fdid` warning). The owned merchant Options runtime exits 0 and verifies actual descriptions, two visible lines for long text, 370-logical-px label width, row/content/root right edges, and non-overlap at 0.75/1.25 (`data/diagnostics/options-fontstring-wrap-green/merchant-click-runtime-short.log`); main inspected `merchant-options-125.png`. This is bounded rendered evidence for Merchant Options only, not pixel equality, all RegistryUi owners, or UI/conversion parity.
+
+## FontString text markup — 2026-10-23
+
+[Contract](../../specs/ui-template-generics.md#fontstring-text-markup): `ui_toolkit::text_markup` turns authored colour/link-display/escaped-pipe controls into display runs. The registry retains its raw source. [Native adapter](../../../godot/rust/src/ui/font_string_markup.rs) decodes once per measurement/drawing operation, so escaped pipes do not re-enter the lexer.
+
+Godot keeps ordinary Label rendering for uncoloured strings and uses RichTextLabel only for explicit colour runs. Both consume the same raster font resource and shadow/outline conversion. Plain↔coloured replacement preserves descendant objects/local coordinates and refreshes visual parts; no panel name chooses this behavior.
+
+Core concrete Kurog RED4→GREEN5 is recorded at toolkit550c5ca. The actual baseline Vulkan projection fails `markup must not paint its control bytes` (SO17bd1147, fixture079dd92dd); current coloured projection and both-skin affected-page acceptance remain pending. `text_markup_projection.gd` checks actual display text, blue/white ink, reactive restoration and child lifetime rather than node-class selection.
+
+**COLOURED_FONTSTRING_TRUNCATION_UNSUPPORTED** names RichTextLabel's missing line-limit/ellipsis API. Plain-label truncation stays unchanged. Texture/atlas controls and link activation are excluded; no EJ title or actor-camera values are synthesized.
 
 ## Registry-native migration status
 
