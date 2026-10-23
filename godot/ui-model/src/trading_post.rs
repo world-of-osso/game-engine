@@ -641,7 +641,10 @@ pub fn trading_post_screen(ctx: &SharedContext) -> Element {
     if let Some(confirm) = &view.confirm {
         children.extend(confirm_popup(view, confirm));
     }
-    rsx! {r#frame{name:"PerksProgramFrame",width:WIDTH,height:HEIGHT,left:0.0,top:0.0,pos_type:"absolute",strata:FrameStrata::FullscreenDialog,mouse_enabled:true,lifecycle_on_show:{LIFECYCLE_SOUNDS.on_show.unwrap()},lifecycle_on_hide:{LIFECYCLE_SOUNDS.on_hide.unwrap()},lifecycle_close_hook:"trading_post",lifecycle_close_group:"PANELS",lifecycle_escape_priority:"AddOnPost",{children}}}
+    crate::panel_lifecycle::bind_close(
+        rsx! {r#frame{name:"PerksProgramFrame",width:WIDTH,height:HEIGHT,left:0.0,top:0.0,pos_type:"absolute",strata:FrameStrata::FullscreenDialog,mouse_enabled:true,lifecycle_on_show:{LIFECYCLE_SOUNDS.on_show.unwrap()},lifecycle_on_hide:{LIFECYCLE_SOUNDS.on_hide.unwrap()},{children}}},
+        "trading_post",
+    )
 }
 
 fn catalog_controls(ctx: &SharedContext, view: &View, snapshot: &TradingPostSnapshot) -> Element {
