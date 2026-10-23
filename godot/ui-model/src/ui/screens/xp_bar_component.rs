@@ -126,6 +126,8 @@ pub fn xp_bar_screen(ctx: &SharedContext) -> Element {
     rsx! {
         r#frame {
             name: "ExperienceBar",
+            tooltip_provider: "xp_bar",
+            tooltip_anchor: "DEFAULT",
             width,
             height,
             hidden: capped,

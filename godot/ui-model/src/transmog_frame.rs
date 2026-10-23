@@ -440,6 +440,7 @@ fn illusion_slot(book: &TransmogBook, slot: EquipmentSlot, x: f32, y: f32) -> El
     let disabled = book.busy();
     rsx! { button { name: {DynName(name)}, width: 42.0, height: 42.0, left: x, top: y,
     pos_type: "absolute", button_default_skin: false, disabled,
+    tooltip_provider: "transmog_illusion",
     button_atlas_highlight: border, button_highlight_blend_mode:"ADD", onclick: {action.as_str()}, {art} } }
 }
 
@@ -600,7 +601,7 @@ fn slot_button(book: &TransmogBook, slot: EquipmentSlot, x: f32, y: f32) -> Elem
     let disabled = book.busy() || state.is_none();
     let action = format!("transmog:slot:{}", slot.inv_slot_id());
     rsx! { button { name: {DynName(name)}, width: 59.0, height: 59.0, left: x, top: y,
-    pos_type: "absolute", button_default_skin: false, disabled, button_atlas_highlight: highlight, button_highlight_blend_mode:"ADD", button_highlight_size:highlight_size,
+    pos_type: "absolute", button_default_skin: false, disabled, tooltip_provider: "transmog_source", button_atlas_highlight: highlight, button_highlight_blend_mode:"ADD", button_highlight_size:highlight_size,
     onclick: {action.as_str()}, {children} } }
 }
 

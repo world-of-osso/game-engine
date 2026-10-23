@@ -811,6 +811,7 @@ fn item_button(
             width: ITEM_W,
             height: ITEM_H,
             mouse_enabled: true,
+            tooltip_provider: "quest_reward",
             pos_type: "absolute",
             left: x,
             top: y,

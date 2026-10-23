@@ -57,8 +57,7 @@ fn housing_mode_tooltips_use_full_keys_source_colors_and_owner_top_both_skins() 
                     .model
                     .editor_control_tooltip(action, binding)
                     .unwrap()
-                    .owned([600.0, 600.0, 64.0, 64.0], OwnerSide::Top)
-                    .for_skin(skin);
+                    .owned([600.0, 600.0, 64.0, 64.0], OwnerSide::Top);
                 assert_eq!(tooltip.content.title_text(), format!("{label}{suffix}"));
                 assert_eq!(tooltip.content.title_color, [1.0; 4]);
                 let shown = place(

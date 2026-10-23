@@ -147,6 +147,47 @@ fn render(session: &MerchantSession) -> FrameRegistry {
     registry
 }
 
+#[test]
+fn ui_template_behavior_merchant_item_and_service_have_distinct_live_owners() {
+    use ui_toolkit::atlas::{ActiveSkin, set_thread_skin};
+    use ui_toolkit::tooltip::{TooltipAnchor, tooltip_owner};
+    for skin in [ActiveSkin::Modern, ActiveSkin::Forever] {
+        set_thread_skin(skin);
+        let registry = render(&session(godric(), "Godric Rothgar", 1000));
+        for (hit, name, provider) in [
+            ("MerchantItem1ItemButtonIcon", "MerchantItem1", "merchant"),
+            (
+                "MerchantRepairItemButton",
+                "MerchantRepairItemButton",
+                "merchant_button",
+            ),
+            (
+                "MerchantRepairAllButton",
+                "MerchantRepairAllButton",
+                "merchant_button",
+            ),
+            (
+                "MerchantSellAllJunkButton",
+                "MerchantSellAllJunkButton",
+                "merchant_button",
+            ),
+            (
+                "MerchantBuyBackItem",
+                "MerchantBuyBackItem",
+                "merchant_button",
+            ),
+        ] {
+            let hit = registry.get_by_name(hit).expect(hit);
+            let (owner, binding) = tooltip_owner(&registry, hit).expect(name);
+            assert_eq!(owner.name.as_deref(), Some(name));
+            assert_eq!(binding.provider.as_deref(), Some(provider));
+            assert_eq!(binding.anchor, TooltipAnchor::Right);
+        }
+        let background = registry.get_by_name("MerchantFrame").unwrap();
+        assert!(tooltip_owner(&registry, background).is_none());
+    }
+}
+
 fn text(registry: &FrameRegistry, name: &str) -> String {
     let frame = registry
         .get(

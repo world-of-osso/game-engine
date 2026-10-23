@@ -1,3 +1,6 @@
+## 2026-10-22 — Tooltip binding metadata in progress
+
+[Owner bindings](systems/ui-system.md#tooltip-owner-metadata--step-5-partial): shared attrs/nearest-owner and static model conversion; actual ignored-binding/anchor RED3→core5 GREEN, Perks disabled Highlight-color RED→model4 GREEN, Currency child/collapse controls3 GREEN. [Current declaration/proof scope](systems/ui-system.md#tooltip-owner-metadata--step-5-partial) updated through Journal/Trading Post migration; native dispatch and Step5 acceptance remain open.
 ## 2026-10-22 — Native receipt-kind publication boundary
 
 [Receipt recovery](systems/offline-asset-closure.md#no-install-receipt-recovery--verified-2026-10-10) now documents native-kind preflight: authenticated opaque blob768431 poisoned an entire index before world entry. Producer rejects unsupported kinds before writes; RED3→GREEN11 plus16 configured migration/provenance regressions. Historical fragment/readback remains byte proof,not consumer compatibility; lead-owned canonical correction/native recheck separate. [Exact failure and bounded convergence evidence](../handoffs/noinstall-cert-2026-10-21.md#unsupported-opaque-node-publication-failure).
@@ -5102,6 +5105,13 @@ gc774 passed tests/fmt and landed engineb0b3d4b39; exact server842325bf3/protoco
 
 [Root cause, fix and captures](investigations/godot-torch-rendering.md#gamma-compositing-2026-10-20): particles blended in linear light; WWV blends authored values in a UNORM target. A POST_TRANSPARENT CompositorEffect encodes the scene to sRGB, draws the pools with the GL factors against the resolved depth, and decodes. `particle_blend_pixels.gd` RED 12/16 fail → GREEN 16/16. Native both-skin 1920x1080 captures of 145304, 199823 and Frostbolt; composite 52-116 us GPU. Named gaps PARTICLES_COMPOSITE_AFTER_ALL_TRANSPARENT_GEOMETRY and PARTICLES_NO_DEPTH_WRITE.
 
+## 2026-10-22 — Tooltip metadata dispatch and native anchor counterexample
+
+[Step5 ownership](systems/ui-system.md#tooltip-owner-metadata--step-5-partial) now declares all47 providers and replaces native try-all/ancestor/anchor copies with nearest-owner exact dispatch and shared placement. Bridge2+13+5 controls pass at engine1a328dec5/toolkit3463e1f. Real private5993 Modern5/5 owner/live-refresh/leave cases pass at fixture67b49984d, five full-HD originals published; Forever exposes the existing Default→CursorRight skin rewrite. Shared Retail-default regression67b65539a is queued before the approved bounded deletion. No paired native acceptance, lifecycle/sound completion or all47 native-provider claim.
+
+## 2026-10-22 — Retail tooltip anchor shared/native GREEN
+
+[Step5 partial proof](systems/ui-system.md#tooltip-owner-metadata--step-5-partial): actual Forever-default RED→engine9f1cddfae deletes the skin rewrite and all callers, preserving explicit CursorRight and art/health-bar policy. Model2+integration14 and toolkitbaf28de lifecycle5 pass; matched extension/CLI build passes. Fixturebccd6d6df real5993 GameClient strict10/10 passes both-skin Default, same-pointer authoritative refresh, Right/Left owner and leave checks. Ten full-HD originals published and overviews inspected. Lifecycle consumer/descriptors, specialized maps/minimap and native all47/refund-click coverage remain separate.
 ## 2026-10-22 — Frozen no-install full-config diagnostics
 
 [Certification SSOT](../handoffs/noinstall-cert-2026-10-21.md#fresh-full-catalog-retail-diagnostic-on-frozen70448-metadata) records independently frozen metadata,source/config/root inventory and sequential Retail/Forever-runtime-metadata graph/receipt readbacks. [Audit boundary](systems/offline-asset-closure.md#2026-10-21-certification-continuation): legacy-flat traversal can miss valid scoped files and hide descendants; one requested product is not native mixed-product ownership. Exact current counts/hashes and sparse-metadata qualifications stay in the handoff; no P4 certificate or new native/extraction/publication claim.

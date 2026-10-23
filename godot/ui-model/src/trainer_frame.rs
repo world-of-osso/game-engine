@@ -252,13 +252,19 @@ fn service_row(
     }
     children.extend(art::hover(&prefix));
     let action = format!("trainer:select:{}", row.spell_id);
-    crate::selection_list::row(
-        prefix,
-        &action,
-        true,
-        (0.0, index as f32 * ROW_HEIGHT, 298.0, ROW_HEIGHT),
-        (&crate::selection_list::AUTHORED, false),
-        children,
+    // Blizzard_TrainerUI.xml96: ANCHOR_RIGHT, x35 (not a child-art offset).
+    ui_toolkit::tooltip::bind_provider_at(
+        crate::selection_list::row(
+            prefix,
+            &action,
+            true,
+            (0.0, index as f32 * ROW_HEIGHT, 298.0, ROW_HEIGHT),
+            (&crate::selection_list::AUTHORED, false),
+            children,
+        ),
+        "trainer",
+        ui_toolkit::tooltip::TooltipAnchor::Right,
+        [35.0, 0.0],
     )
 }
 
