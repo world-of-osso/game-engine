@@ -8,6 +8,15 @@ func run_probe() -> void:
 	var completion = preload("res://tests/completion.gd").new(self, 2)
 	var client = ClassDB.instantiate("GameClient")
 	if not completion.require(client != null, "real GameClient allocation"): return
+	var startup: String = client.poll_escape_probe_startup()
+	var deadline := Time.get_ticks_msec() + 60000
+	while startup == "pending" and Time.get_ticks_msec() < deadline:
+		await process_frame
+		startup = client.poll_escape_probe_startup()
+	if not startup.is_empty():
+		client.free()
+		completion.fail("asset boundary not ready: " + startup)
+		return
 	var state: Dictionary = client.probe_game_menu_escape_precedence()
 	print("UI_TEMPLATE_ESCAPE_PRECEDENCE ", JSON.stringify(state))
 	client.free()

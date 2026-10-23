@@ -8,11 +8,37 @@ use godot::prelude::*;
 
 #[godot_api(secondary)]
 impl GameClient {
+    /// Complete the real asset boundary without mounting unrelated login/audio scenes.
+    #[func]
+    fn poll_escape_probe_startup(&mut self) -> GString {
+        let Some(startup) = self.asset_startup.as_mut() else {
+            return GString::new();
+        };
+        let startup = match startup {
+            Ok(startup) => startup,
+            Err(error) => return GString::from(format!("startup error: {error}").as_str()),
+        };
+        match startup.poll() {
+            None => "pending".into(),
+            Some(Err(error)) => GString::from(format!("startup error: {error}").as_str()),
+            Some(Ok(())) => {
+                self.asset_startup = None;
+                GString::new()
+            }
+        }
+    }
+
     #[func]
     fn probe_game_menu_escape_precedence(&mut self) -> VarDictionary {
         let mut state = VarDictionary::new();
-        if self.game_menu_ui.is_some() || self.trading_post.view.visible {
-            state.set("error", "Escape fixture requires a fresh GameClient");
+        if self.asset_startup.is_some()
+            || self.game_menu_ui.is_some()
+            || self.trading_post.view.visible
+        {
+            state.set(
+                "error",
+                "Escape fixture requires completed startup and a fresh GameClient",
+            );
             return state;
         }
         self.game_menu_options = Some(escape_menu_model(self));
