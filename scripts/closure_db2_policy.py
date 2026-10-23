@@ -123,7 +123,7 @@ def read_excluded_sections(raw, table, available_keys):
         raise ValueError(f"unsupported DB2 section flags {flags:#x}")
     excluded = []
     for index in range(section_count):
-        key, start, count, _, end, *_ = struct.unpack_from(
+        key, start, count, strings, end, ids, _, _, copies = struct.unpack_from(
             "<Q8I", raw, 204 + index * 40
         )
         if flags in {0, 4}:
@@ -136,16 +136,23 @@ def read_excluded_sections(raw, table, available_keys):
             raise ValueError(
                 f"section {index} has unreadable bytes without proven encryption"
             )
+        copy_end = end + strings + ids + 8 * copies
+        if copy_end > len(raw):
+            raise ValueError(f"section {index} copy-table span exceeds pinned bytes")
         section = {
             "index": index,
             "key_id": f"{key:016X}",
             "records": count,
+            "copy_records": copies,
             "start": start,
-            "end": end,
+            "end": copy_end,
         }
         prove_missing_key(table, section, available_keys)
         excluded.append(
-            {name: section[name] for name in ["index", "key_id", "records"]}
+            {
+                name: section[name]
+                for name in ["index", "key_id", "records", "copy_records"]
+            }
         )
     count = sum(section["records"] for section in excluded)
     if not excluded or count != table["unreadable_records"]:
@@ -170,5 +177,9 @@ def verify_readable_sections(graph, path, table, source):
         "key_census_build": policy["key_census"]["build"],
         "key_availability_premise": "monotonic pushed-key availability; disclosed later census, not source-build substitution",
         "excluded_records": sum(section["records"] for section in sections),
+        "excluded_copy_records": sum(section["copy_records"] for section in sections),
+        "excluded_rows": sum(
+            section["records"] + section["copy_records"] for section in sections
+        ),
         "sections": sections,
     }
