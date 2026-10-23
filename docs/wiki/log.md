@@ -1,3 +1,7 @@
+## 2026-10-22 — Pinned DB2 readable-section proofs
+
+[Named section policy](systems/offline-asset-closure.md#named-encrypted-section-qualification) keeps unavailable base/copy rows distinct without whole-file flag promotion. [Pinned-source recovery](systems/offline-asset-closure.md#restoring-a-pinned-partial-db2-source) reproduces one missing raw/CSV from an authenticated retained envelope; missing ciphertext stays a restoration gap. [Current evidence and exact boundaries](../handoffs/noinstall-cert-2026-10-21.md#pinned-db2-source-recovery--effectname-restored-other-payloads-blocked) own counts,not a full-closure certificate.
+
 ## 2026-10-22 — Corrected receipt-qualified full graph
 
 [Corrected r5 evidence](../handoffs/noinstall-cert-2026-10-21.md#corrected-full-graph-r5--complete-traversal-explicit-gaps) completes traversal and compressed-artifact reconciliation,not P4 acceptance. Metadata receipt refusals still gate downstream roots; exact counts and per-cause breakdowns live in the handoff. Lead orders those refusals measured before structural qualification; native/scenario/bundle proof remains separate.
