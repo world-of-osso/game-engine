@@ -1,6 +1,18 @@
 ## 2026-10-22 — Tooltip binding metadata in progress
 
 [Owner bindings](systems/ui-system.md#tooltip-owner-metadata--step-5-partial): shared attrs/nearest-owner and static model conversion; actual ignored-binding/anchor RED3→core5 GREEN, Perks disabled Highlight-color RED→model4 GREEN, Currency child/collapse controls3 GREEN. [Current declaration/proof scope](systems/ui-system.md#tooltip-owner-metadata--step-5-partial) updated through Journal/Trading Post migration; native dispatch and Step5 acceptance remain open.
+## 2026-10-22 — Flat ADT/WMO receipt eligibility
+
+[Non-model receipt boundary](systems/offline-asset-closure.md#non-model-receipt-boundary) now includes distinct ADT/WMO families without parser or model-companion changes. [Measured projection](../handoffs/noinstall-cert-2026-10-21.md#structural-adtwmo-receipt-projection--measurement-only) retains historical source identity and named residuals; no new full graph/P4 acceptance.
+
+## 2026-10-22 — Pinned DB2 readable-section proofs
+
+[Named section policy](systems/offline-asset-closure.md#named-encrypted-section-qualification) keeps unavailable base/copy rows distinct without whole-file flag promotion. [Pinned-source recovery](systems/offline-asset-closure.md#restoring-a-pinned-partial-db2-source) reproduces one missing raw/CSV from an authenticated retained envelope; missing ciphertext stays a restoration gap. [Current evidence and exact boundaries](../handoffs/noinstall-cert-2026-10-21.md#pinned-db2-source-recovery--effectname-restored-other-payloads-blocked) own counts,not a full-closure certificate.
+
+## 2026-10-22 — Corrected receipt-qualified full graph
+
+[Corrected r5 evidence](../handoffs/noinstall-cert-2026-10-21.md#corrected-full-graph-r5--complete-traversal-explicit-gaps) completes traversal and compressed-artifact reconciliation,not P4 acceptance. Metadata receipt refusals still gate downstream roots; exact counts and per-cause breakdowns live in the handoff. Lead orders those refusals measured before structural qualification; native/scenario/bundle proof remains separate.
+
 ## 2026-10-22 — Native receipt-kind publication boundary
 
 [Receipt recovery](systems/offline-asset-closure.md#no-install-receipt-recovery--verified-2026-10-10) now documents native-kind preflight: authenticated opaque blob768431 poisoned an entire index before world entry. Producer rejects unsupported kinds before writes; RED3→GREEN11 plus16 configured migration/provenance regressions. Historical fragment/readback remains byte proof,not consumer compatibility; lead-owned canonical correction/native recheck separate. [Exact failure and bounded convergence evidence](../handoffs/noinstall-cert-2026-10-21.md#unsupported-opaque-node-publication-failure).
@@ -5131,3 +5143,7 @@ gc774 passed tests/fmt and landed engineb0b3d4b39; exact server842325bf3/protoco
 ## 2026-10-22 — Non-model source receipts in the offline auditor
 
 [Bounded family qualification](../handoffs/noinstall-cert-2026-10-21.md#non-model-texturesound-and-db2-receipt-qualification) follows ignored RED publication with actual-path generic texture/sound receipts and selected DB2 export product/hash/partial-record checks. Native flat paths never borrow scoped bytes; hash-only UI inventories remain unauthenticated. No corrected full-graph replay,native/extraction run or all-content certificate.
+
+## 2026-10-22 — Explicit Skyborne player roots
+
+[Player source overlay](../handoffs/noinstall-cert-2026-10-21.md#explicit-skyborne-player-source-overlay) replaces merged-NPC body selection with source-local body/customization joins for only95/96; Retail Human remains unchanged. Ignored RED-first four cases and100-case focused proof pass. Dataset metadata/cache provenance remains separate; corrected full graph is queued under normal admission,not yet certificate evidence.
