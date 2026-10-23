@@ -27,6 +27,30 @@ func wait_map(map_id: int) -> bool:
 	stop("Private map transfer did not finish: " + str(map_id))
 	return false
 
+func attack_named_boss(name: String) -> bool:
+	var deadline := Time.get_ticks_msec() + 60000
+	while client.target_state().get("target_name", "") != name and Time.get_ticks_msec() < deadline:
+		await press_key(KEY_TAB)
+	if client.target_state().get("target_name", "") != name:
+		stop("Physical Tab did not select real boss " + name)
+		return false
+	# Shared default-bar Attack action, also used by melee_sounds_live.gd.
+	var attack: int = client.spells_state().bar.find(88163)
+	var keys := [KEY_1, KEY_2, KEY_3, KEY_4, KEY_5, KEY_6, KEY_7, KEY_8, KEY_9, KEY_0, KEY_MINUS, KEY_EQUAL]
+	if attack < 0 or attack >= keys.size():
+		stop("Actual Attack action unavailable: " + str(client.spells_state().bar))
+		return false
+	var target = client.target_state().target
+	await press_key(keys[attack])
+	deadline = Time.get_ticks_msec() + 15000
+	while client.target_state().auto_attack != target and Time.get_ticks_msec() < deadline:
+		await process_frame
+	if client.target_state().auto_attack != target:
+		stop("Physical Attack did not start on actual boss " + name)
+		return false
+	print("AG_PHYSICAL_BOSS_ATTACK ", client.target_state())
+	return true
+
 func boss_frame_right_click() -> bool:
 	var deadline := Time.get_ticks_msec() + 60000
 	while not shown("Boss1TargetFrame") and Time.get_ticks_msec() < deadline:
@@ -98,7 +122,7 @@ func run() -> void:
 	if client.adventure_guide_state().visible or client.adventure_guide_state().loaded:
 		stop("Closed Guide auto-opened on the real Cobrahn event")
 		return
-	if not await boss_frame_right_click() or not await wait_journal(func(state): return state.loaded and state.encounter == 475 and state.lockout_count > 0 and state.owned_key_count > 0, "First-open boss link/snapshot replies incomplete"):
+	if not await attack_named_boss("Lord Cobrahn") or not await boss_frame_right_click() or not await wait_journal(func(state): return state.loaded and state.encounter == 475 and state.lockout_count > 0 and state.owned_key_count > 0, "First-open boss link/snapshot replies incomplete"):
 		return
 	if client.adventure_guide_state().difficulty != 1 or not await shot("integration-first-boss-link"):
 		stop("First boss link did not use real Normal difficulty")

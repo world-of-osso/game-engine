@@ -75,6 +75,9 @@ func run() -> void:
 		return
 	if not await connect_owned_realm():
 		return
+	phase("challenge-outside-ready")
+	if not await wait_signal("challenge-outside") or not await wait_map(1):
+		return
 	var error: String = client.choose_mythic_difficulty()
 	if not error.is_empty():
 		stop(error)
