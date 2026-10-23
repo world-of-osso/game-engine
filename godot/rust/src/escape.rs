@@ -9,6 +9,20 @@ pub(super) enum EscapeError {
     GameMenu(String),
 }
 
+/// Debug fixtures use the same priority prelude and actual Godot key virtual.
+#[cfg(debug_assertions)]
+pub(super) fn send_fixture_escape(client: &mut GameClient) {
+    use godot::classes::{INode3D, InputEventKey};
+    use godot::prelude::*;
+    let mut key = InputEventKey::new_gd();
+    key.set_keycode(godot::global::Key::ESCAPE);
+    key.set_pressed(true);
+    let event = key.upcast();
+    if !client.dispatch_priority_input(&event) {
+        <GameClient as INode3D>::unhandled_key_input(client, event);
+    }
+}
+
 type EscapeCallback = fn(&mut GameClient) -> Result<bool, EscapeError>;
 
 /// No frame-name inference: priorities and membership live only in authored bindings.

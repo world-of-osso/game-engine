@@ -462,6 +462,17 @@ impl GameClient {
     }
 }
 
+#[cfg(debug_assertions)]
+impl Bags {
+    pub(crate) fn probe_toggle_manual_backpack(&mut self) {
+        self.toggle_backpack();
+    }
+
+    pub(crate) fn probe_manual_backpack_open(&self) -> bool {
+        self.windows.is_open(WindowId::Bag(0))
+    }
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
