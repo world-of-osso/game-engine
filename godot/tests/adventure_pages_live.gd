@@ -43,6 +43,41 @@ func choose_spec(id: int) -> bool:
 	await settle()
 	return true
 
+func verify_inline_markup(name: String, expected: String) -> bool:
+	var text := control(name)
+	if text == null or not text.is_visible_in_tree():
+		stop("Actual source markup body absent: " + name)
+		return false
+	var rendered: String = text.get_parsed_text() if text.has_method("get_parsed_text") else text.get("text")
+	if rendered != expected:
+		stop("Actual source markup display differs: " + rendered)
+		return false
+	var rect := text.get_global_rect()
+	await RenderingServer.frame_post_draw
+	var painted := root.get_texture().get_image()
+	text.hide()
+	await RenderingServer.frame_post_draw
+	var backdrop := root.get_texture().get_image()
+	text.show()
+	await RenderingServer.frame_post_draw
+	var blue := 0
+	var ink := 0
+	for y in range(int(rect.position.y), int(rect.end.y)):
+		for x in range(int(rect.position.x), int(rect.end.x)):
+			var pixel := painted.get_pixel(x, y)
+			var removed := pixel - backdrop.get_pixel(x, y)
+			if absf(removed.r) + absf(removed.g) + absf(removed.b) < 0.08:
+				continue
+			if pixel.b > 0.4 and pixel.b > pixel.r * 1.5 and pixel.b > pixel.g * 1.2:
+				blue += 1
+			if pixel.r < 0.55 and pixel.g < 0.45 and pixel.b < 0.3:
+				ink += 1
+	if blue < 20 or ink < 20:
+		stop("Actual source link/regular ink absent: %s blue=%s ink=%s" % [name, blue, ink])
+		return false
+	print("AG_INLINE_MARKUP_PAINT_PASS %s blue=%s ink=%s text=%s" % [name, blue, ink, rendered])
+	return true
+
 func verify_role_refresh() -> bool:
 	if not await choose_spec(70) or not await select_named_boss("Kurog", [KEY_K,KEY_U,KEY_R,KEY_O,KEY_G], 2491):
 		return false
@@ -51,7 +86,7 @@ func verify_role_refresh() -> bool:
 	if label_text("JournalSection25033ExpandedIcon") != "−" or label_text("JournalSection25035ExpandedIcon") != "+":
 		stop("Authentic Kurog Damage/Tank overview defaults differ")
 		return false
-	if not await shot("pages-kurog-damage-overview"):
+	if not await verify_inline_markup("JournalSection25033BodyBullet0Text", "Earth Breakers continually cast [Skeletal Fractures].") or not await shot("pages-kurog-damage-overview"):
 		return false
 	await journal_key()
 	if not await choose_spec(66):
@@ -62,7 +97,7 @@ func verify_role_refresh() -> bool:
 	if label_text("JournalSection25035ExpandedIcon") != "−" or label_text("JournalSection25033ExpandedIcon") != "+":
 		stop("Reopened Guide sorted Tank first but retained Damage disclosure")
 		return false
-	if not await shot("pages-kurog-tank-overview"):
+	if not await verify_inline_markup("JournalSection25035BodyBullet0Text", "[Sundering Strike] applies stacking Physical damage over time.") or not await shot("pages-kurog-tank-overview"):
 		return false
 	if not await click("EncounterJournalPage1"):
 		return false
