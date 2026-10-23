@@ -51,8 +51,11 @@ pub fn tabard_screen(shared: &SharedContext) -> Element {
     children.extend(money(view));
     children.extend(footer_buttons(view.can_save()));
     children.extend(rotation_buttons());
-    rsx! { r#frame { name: "TabardFrame", width: {SIZE.0}, height: {SIZE.1}, left: 16.0, top: 116.0,
-    pos_type: "absolute", mouse_enabled: true, strata: FrameStrata::Dialog, {children} } }
+    crate::panel_lifecycle::bind_close(
+        rsx! { r#frame { name: "TabardFrame", width: {SIZE.0}, height: {SIZE.1}, left: 16.0, top: 116.0,
+        pos_type: "absolute", mouse_enabled: true, strata: FrameStrata::Dialog, {children} } },
+        "guild_tabard",
+    )
 }
 
 fn footer_buttons(can_save: bool) -> Element {

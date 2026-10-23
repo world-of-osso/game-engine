@@ -1,5 +1,14 @@
 //! Retail Mainline Blizzard_PerksProgram: full-screen list, category filter and model.
 //! Forever changes atlas art only; ToyOverlayFrame uses the authored item icon/details.
+
+/// PerksProgram OnShow/OnHide and product OnEnter; actual mounted visibility is observed.
+pub const LIFECYCLE_SOUNDS: ui_toolkit::lifecycle::LifecycleSounds =
+    ui_toolkit::lifecycle::LifecycleSounds {
+        on_show: Some(game_engine_core::ui_sound_kits::TRADING_POST_UI_MENU_OPEN),
+        on_hide: Some(game_engine_core::ui_sound_kits::TRADING_POST_UI_MENU_CLOSE),
+        on_enter: Some(game_engine_core::ui_sound_kits::TRADING_POST_UI_ITEM_HOVER),
+        on_click: None,
+    };
 #[path = "trading_post_cart.rs"]
 mod cart;
 #[path = "trading_post_cart_rows.rs"]
@@ -632,7 +641,10 @@ pub fn trading_post_screen(ctx: &SharedContext) -> Element {
     if let Some(confirm) = &view.confirm {
         children.extend(confirm_popup(view, confirm));
     }
-    rsx! {r#frame{name:"PerksProgramFrame",width:WIDTH,height:HEIGHT,left:0.0,top:0.0,pos_type:"absolute",strata:FrameStrata::FullscreenDialog,mouse_enabled:true,{children}}}
+    crate::panel_lifecycle::bind_close(
+        rsx! {r#frame{name:"PerksProgramFrame",width:WIDTH,height:HEIGHT,left:0.0,top:0.0,pos_type:"absolute",strata:FrameStrata::FullscreenDialog,mouse_enabled:true,lifecycle_on_show:{LIFECYCLE_SOUNDS.on_show.unwrap()},lifecycle_on_hide:{LIFECYCLE_SOUNDS.on_hide.unwrap()},{children}}},
+        "trading_post",
+    )
 }
 
 fn catalog_controls(ctx: &SharedContext, view: &View, snapshot: &TradingPostSnapshot) -> Element {
@@ -849,7 +861,8 @@ fn product_row(view: &View, row: &TradingPostItem, top: f32, selected: bool) -> 
     children.extend(clock::row_time(view, row));
     children.extend(row_cart_toggle(view, row.id));
     let action = format!("perks:select:{}", row.id);
-    rsx! {button{name:{DynName(format!("PerksProgramProduct{}",row.id))},left:0.0,top,width:LIST_WIDTH,height:ROW_HEIGHT,pos_type:"absolute",button_default_skin:false,onclick:action.as_str(),button_atlas_highlight:"perks-list-hover",button_highlight_blend_mode:"ADD",tooltip_provider:"trading_post",tooltip_anchor:"ANCHOR_RIGHT",tooltip_offset_x:-16.0,{children}}}
+    let hover_owner = format!("PerksProgramProduct{}", row.id);
+    rsx! {button{name:{DynName(format!("PerksProgramProduct{}",row.id))},lifecycle_on_enter:{LIFECYCLE_SOUNDS.on_enter.unwrap()},lifecycle_hover_owner:hover_owner.as_str(),left:0.0,top,width:LIST_WIDTH,height:ROW_HEIGHT,pos_type:"absolute",button_default_skin:false,onclick:action.as_str(),button_atlas_highlight:"perks-list-hover",button_highlight_blend_mode:"ADD",tooltip_provider:"trading_post",tooltip_anchor:"ANCHOR_RIGHT",tooltip_offset_x:-16.0,{children}}}
 }
 
 fn row_item_icon(view: &View, row: &TradingPostItem) -> Element {
@@ -981,7 +994,7 @@ fn frozen_row(
     };
     let frozen_art = frozen_icon_art(frozen.is_some(), candidate.is_some());
     let action = frozen.map_or(String::new(), |row| format!("perks:select:{}", row.id));
-    let row = rsx! {button{name:"PerksProgramFrozenSlot",left:0.0,top:{(120.0-84.0)/2.0},width:527.0,height:84.0,pos_type:"absolute",button_default_skin:false,onclick:action.as_str(),mouse_enabled:true,frame_level:1000.0,tooltip_provider:"trading_post",tooltip_anchor:"ANCHOR_RIGHT",tooltip_offset_x:-16.0,{selected_art}{contents}{frozen_art}}};
+    let row = rsx! {button{name:"PerksProgramFrozenSlot",lifecycle_on_enter:{LIFECYCLE_SOUNDS.on_enter.unwrap()},lifecycle_hover_owner:"PerksProgramFrozenSlot",left:0.0,top:{(120.0-84.0)/2.0},width:527.0,height:84.0,pos_type:"absolute",button_default_skin:false,onclick:action.as_str(),mouse_enabled:true,frame_level:1000.0,tooltip_provider:"trading_post",tooltip_anchor:"ANCHOR_RIGHT",tooltip_offset_x:-16.0,{selected_art}{contents}{frozen_art}}};
     let container = rsx! {r#frame{name:"PerksProgramFrozenProductContainer",left:0.0,top:0.0,width:527.0,height:120.0,pos_type:"absolute",frame_level:1000.0,{row}}};
     let art = hold_art();
     rsx! {r#frame{name:"PerksProgramHoldFrame",left:0.0,top:{58.0+LIST_HEIGHT},width:527.0,height:120.0,pos_type:"absolute",frame_level:985.0,{art}{container}}}

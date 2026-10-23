@@ -9,6 +9,8 @@
     "ChrCustomizationCategory.dbd": "4d431c5e91ab5d7572ce0c06bd6455e33d43b0d940e4bf6312c98f23f870919b",
     "CharComponentTextureLayouts.dbd": "30dec35dff951cc47ad62e245fccdb6e7ff2d78aa60d77b6c5ed4ab19eb23cfc",
     "CharComponentTextureSections.dbd": "c1cf8e3ede8120cbe88d9e89887e2c67f3b8f8f9690214d7276fb462fc66a8ae",
-    "ItemDisplayInfoMaterialRes.dbd": "8d9d087446eef0aa8d490ccdc73b505a30757bef4cddcd7db48ec1723e641570"
+    "ItemDisplayInfoMaterialRes.dbd": "8d9d087446eef0aa8d490ccdc73b505a30757bef4cddcd7db48ec1723e641570",
+    "BeamEffect.dbd": "a9bc1a78cf05133ee93447e6e759d8bf3ce7a298207fed10d6d79d53fdace011",
+    "CloneEffect.dbd": "6acced0e1119391e37018d7125094965454518d71bf50daa8ea13770c1c507a2"
   }
 }

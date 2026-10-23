@@ -115,10 +115,13 @@ fn portrait_panel(
         "housing-basic-panel-background",
         (0.0, 0.0, size[0], size[1]),
     );
-    rsx! { r#frame { name: "HousingRoot", stretch: true,
-        r#frame { name: {DynName(name.into())}, width: {size[0]}, height: {size[1]},
-            mouse_enabled: true, pos_type: "absolute", left, top, strata: FrameStrata::Dialog,
-            {background} {chrome} {body}
-        }
-    } }
+    crate::panel_lifecycle::bind_close(
+        rsx! { r#frame { name: "HousingRoot", stretch: true,
+            r#frame { name: {DynName(name.into())}, width: {size[0]}, height: {size[1]},
+                mouse_enabled: true, pos_type: "absolute", left, top, strata: FrameStrata::Dialog,
+                {background} {chrome} {body}
+            }
+        } },
+        "housing",
+    )
 }

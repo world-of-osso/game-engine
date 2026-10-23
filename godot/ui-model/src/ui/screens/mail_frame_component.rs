@@ -231,20 +231,23 @@ fn build_mail_frame(state: &MailFrameState) -> Element {
     if let Some(open) = &state.open {
         children.extend(open_mail(open, busy));
     }
-    rsx! {
-        r#frame {
-            name: {DynName(FRAME_NAME.into())},
-            width: FRAME_W,
-            height: FRAME_H,
-            strata: FrameStrata::Dialog,
-            hidden: hide,
-            mouse_enabled: true,
-            pos_type: "absolute",
-            left: 16.0,
-            top: 104.0,
-            {children}
-        }
-    }
+    crate::panel_lifecycle::bind_close(
+        rsx! {
+            r#frame {
+                name: {DynName(FRAME_NAME.into())},
+                width: FRAME_W,
+                height: FRAME_H,
+                strata: FrameStrata::Dialog,
+                hidden: hide,
+                mouse_enabled: true,
+                pos_type: "absolute",
+                left: 16.0,
+                top: 104.0,
+                {children}
+            }
+        },
+        "mailbox",
+    )
 }
 
 /// `MailFrameTab1` BOTTOMLEFT 14,-30, Tab2 at its RIGHT -8 (MF.xml:840-852).

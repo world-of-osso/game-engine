@@ -236,7 +236,10 @@ pub fn mount_journal_screen(ctx: &SharedContext) -> Element {
     body.extend(filter_dropdown(view));
     body.extend(filter_menu(view));
     body.extend(context_menu(view));
-    crate::collections_component::collections_shell(view.viewport, 0, body)
+    crate::panel_lifecycle::bind_close(
+        crate::collections_component::collections_shell(view.viewport, 0, body),
+        "mount_journal",
+    )
 }
 fn search_box(view: &MountJournalView) -> Element {
     crate::search_box_template::search_box(

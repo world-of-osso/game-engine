@@ -18,6 +18,14 @@ use crate::ui::screens::quest_art::{
 use crate::ui::strata::FrameStrata;
 
 pub const FRAME_NAME: &str = "MerchantFrame";
+/// MerchantFrame.lua145–174: observe the session before native UI sync.
+pub const LIFECYCLE_SOUNDS: ui_toolkit::lifecycle::LifecycleSounds =
+    ui_toolkit::lifecycle::LifecycleSounds {
+        on_show: Some(game_engine_core::ui_sound_kits::IG_CHARACTER_INFO_OPEN),
+        on_hide: Some(game_engine_core::ui_sound_kits::IG_CHARACTER_INFO_CLOSE),
+        on_enter: None,
+        on_click: None,
+    };
 /// MF.xml:92 `<Size x="336" y="444"/>`.
 pub const FRAME_W: f32 = 336.0;
 pub const FRAME_H: f32 = 444.0;
@@ -195,21 +203,26 @@ pub fn merchant_frame_screen(ctx: &SharedContext) -> Element {
     }
     children.extend(money_bar(state.money));
     children.extend(tabs(state.buyback_tab));
-    rsx! {
-        r#frame {
-            name: {DynName(FRAME_NAME.into())},
-            width: FRAME_W,
-            height: FRAME_H,
-            strata: FrameStrata::Dialog,
-            hidden: hide,
-            mouse_enabled: true,
-            onclick: ACTION_FRAME,
-            pos_type: "absolute",
-            left: 16.0,
-            top: 104.0,
-            {children}
-        }
-    }
+    crate::panel_lifecycle::bind_close(
+        rsx! {
+            r#frame {
+                name: {DynName(FRAME_NAME.into())},
+                lifecycle_on_show: {LIFECYCLE_SOUNDS.on_show.unwrap()},
+                lifecycle_on_hide: {LIFECYCLE_SOUNDS.on_hide.unwrap()},
+                width: FRAME_W,
+                height: FRAME_H,
+                strata: FrameStrata::Dialog,
+                hidden: hide,
+                mouse_enabled: true,
+                onclick: ACTION_FRAME,
+                pos_type: "absolute",
+                left: 16.0,
+                top: 104.0,
+                {children}
+            }
+        },
+        "merchant",
+    )
 }
 
 fn texture(name: String, fdid: u32, rect: (f32, f32, f32, f32), color: &str) -> Element {

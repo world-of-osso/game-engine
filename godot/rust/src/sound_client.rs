@@ -92,6 +92,14 @@ impl GameClient {
         Ok(())
     }
 
+    /// One bridge for explicitly authored lifecycle events; unchanged edges are quiet.
+    pub(crate) fn play_ui_lifecycle_sound(&mut self, kit: Option<u32>) -> Result<(), String> {
+        match kit {
+            Some(kit) => self.play_ui_sound_kit(kit),
+            None => Ok(()),
+        }
+    }
+
     /// `PlaySound(kit)`; nothing plays when native audio failed to start (already reported).
     pub(crate) fn play_ui_sound_kit(&mut self, kit: u32) -> Result<(), String> {
         let Some(sound) = &mut self.sound else {
