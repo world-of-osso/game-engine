@@ -1,3 +1,7 @@
+## 2026-10-23 — Escape pixel qualification and menu roster gaps
+
+[Retail menu roster qualification](../handoffs/ui-generics-game-menu-roster-gap.md) cites exact70448 initialization, order and20px section spacing. Offline Logout omission has no Retail hide condition; further source eligibility is unqualified, not fixed in lifecycle scope. Original blank Escape after-images prove menu removal only; fixture now paints a real pending-state diagnostic marker, awaiting final recapture.
+
 ## 2026-10-22 — Exclusive Escape dispatch and root metadata in progress
 
 [Lifecycle bindings](systems/ui-system.md#lifecycle-bindings--step-5-partial): deleted global native ordering chain in favor of stable shared dispatch after real menu/pending precedence RED. GameMenu root now reads the same exclusive registration after model metadata RED; core13 passes. Rebuilt GameClient painted ordering passes4/4 across both skins with four inspected full-HD PNGs, model1 and extension/CLI build pass. Native click consumers, further priorities and the unified independent optional-policy catalog remain open.

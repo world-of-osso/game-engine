@@ -41,6 +41,8 @@ Native menus implement Retail `Blizzard_GameMenu/Shared/GameMenuFrame.lua:139-21
 - [ ] Macros page reports planned editor/storage; this change only exposes that existing page. Support remains the existing About/Support page, not Blizzard support services.
 - [ ] Search uses supported rendered settings labels/descriptions, not Blizzard-only initializer search-tag metadata or relevance scoring.
 
+[Roster qualification and filed gaps](../handoffs/ui-generics-game-menu-roster-gap.md) distinguish the offline six-button Escape fixture from full Retail conditions. In particular, Retail always adds Log Out (only disabling it), while the native offline preview hides it; Edit Mode/AddOns/Macros eligibility also lacks the full source predicates. These are not lifecycle Step 5 fixes.
+
 ## Out of scope
 
 Commercial store, splash content, ratings implementation, addon manager and macro execution are not introduced by this follow-up.
