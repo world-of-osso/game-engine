@@ -1,7 +1,7 @@
 //! Observable recipe colours and slot geometry through the production screen.
-use game_engine_ui_model::{
-    professions::{ProfessionBook, Recipe},
-    professions_frame::{ItemDisplay, ProfessionView, professions_screen},
+use game_engine_ui_model::professions::{ProfessionBook, Recipe};
+use game_engine_ui_professions::professions_frame::{
+    ItemDisplay, ProfessionView, professions_screen,
 };
 use shared::{profession::ProfessionSkillLine, protocol::ProfessionSnapshot};
 use ui_toolkit::{
@@ -78,7 +78,7 @@ fn render(skin: ActiveSkin, view: ProfessionView) -> FrameRegistry {
     shared.insert(view);
     let mut registry = FrameRegistry::new(1920.0, 1080.0);
     Screen::new(professions_screen).sync(&shared, &mut registry);
-    game_engine_ui_model::professions_frame::apply_professions_art(
+    game_engine_ui_professions::professions_frame::apply_professions_art(
         shared.get::<ProfessionView>().unwrap(),
         &mut registry,
     );
@@ -377,7 +377,9 @@ fn professions_search_magnifier_geometry_and_four_focus_query_tints_match_source
 
 #[test]
 fn professions_passive_operation_status_omits_gap_and_preserves_pending_and_errors() {
-    use game_engine_ui_model::professions_reagent_selection::{ReagentSelection, craft_status};
+    use game_engine_ui_professions::professions_reagent_selection::{
+        ReagentSelection, craft_status,
+    };
     use shared::profession::CraftingOperationGap;
     use shared::protocol::CraftingOperationStateUpdate;
 
@@ -472,7 +474,7 @@ fn professions_unlearned_schematic_and_learned_transition_in_both_skins() {
 
 #[test]
 fn professions_unlearned_source_header_requires_a_sourced_trainer_row() {
-    use game_engine_ui_model::professions_frame::recipe_source_tooltip;
+    use game_engine_ui_professions::professions_frame::recipe_source_tooltip;
     for skin in [ActiveSkin::Modern, ActiveSkin::Forever] {
         let mut view = view(15);
         let catalog = game_engine_ui_model::professions_catalog::RecipeCatalog::load(
@@ -674,7 +676,7 @@ fn professions_quality_recipe_is_visible_without_assigning_an_output() {
 #[test]
 fn professions_quality_dialog_shows_authored_choices_without_a_crafted_tier_in_both_skins() {
     use game_engine_ui_model::professions_catalog::RecipeCatalog;
-    use game_engine_ui_model::professions_reagent_selection::ReagentSelection;
+    use game_engine_ui_professions::professions_reagent_selection::ReagentSelection;
     let dir = std::path::PathBuf::from(env!("CARGO_MANIFEST_DIR")).join("../../data/db2/active");
     let catalog = RecipeCatalog::load(&dir).unwrap();
     let mut recipe = catalog.get(375188).unwrap().clone();
@@ -985,7 +987,8 @@ fn professions_concentration_known_amount_and_full_warning_preserve_origin_gap()
             text(&registry, "ProfessionsConcentrationAmount").0,
             format!("{quantity}/1000")
         );
-        let tooltip = game_engine_ui_model::professions_frame::concentration::tooltip(&snapshot);
+        let tooltip =
+            game_engine_ui_professions::professions_frame::concentration::tooltip(&snapshot);
         assert_eq!(tooltip.content.title, "Leatherworking Concentration");
         assert_eq!(
             tooltip

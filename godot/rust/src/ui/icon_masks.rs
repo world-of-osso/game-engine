@@ -696,7 +696,7 @@ mod tests {
 
     #[test]
     fn professions_specialization_icons_cut_corners_with_authored_circle_mask() {
-        use game_engine_ui_model::professions_frame::{
+        use game_engine_ui_professions::professions_frame::{
             ProfessionPage, ProfessionView, professions_screen,
         };
         use shared::protocol::*;

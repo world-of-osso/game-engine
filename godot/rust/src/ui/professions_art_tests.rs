@@ -1,7 +1,7 @@
 //! Resolved profession geometry through the native production Taffy layout, not authored attrs.
 use super::super::layout::compute_layout_with_intrinsics;
 use super::preview_view;
-use game_engine_ui_model::professions_frame::professions_screen;
+use game_engine_ui_professions::professions_frame::professions_screen;
 use std::collections::HashMap;
 use ui_toolkit::{
     atlas::{ActiveSkin, set_thread_skin},

@@ -1,7 +1,7 @@
 //! Mainline ProfessionsSpecPageTemplate: tree at left, selected path dial at right.
 use super::{ProfessionView, art, text};
-use crate::bank_art::{HIGHLIGHT_FONT_COLOR, label, texture};
-use crate::quest_art::{DynName, panel_button};
+use game_engine_ui_model::bank_art::{HIGHLIGHT_FONT_COLOR, label, texture};
+use game_engine_ui_model::quest_art::{DynName, panel_button};
 use shared::protocol::{ProfessionSpecNodeSnapshot, ProfessionSpecTreeSnapshot};
 use ui_toolkit::{
     rsx,
@@ -287,7 +287,7 @@ fn unlock_confirmation(view: &ProfessionView) -> Element {
     let Some(tree) = state.tree() else {
         return vec![];
     };
-    let mut children = crate::quest_art::window_chrome(
+    let mut children = game_engine_ui_model::quest_art::window_chrome(
         "ProfessionSpecConfirm",
         (420.0, 180.0),
         "Unlock Specialization",
@@ -312,5 +312,5 @@ fn unlock_confirmation(view: &ProfessionView) -> Element {
         true,
         (235.0, 130.0, 100.0, 22.0),
     ));
-    rsx! {r#frame{name:"ProfessionSpecConfirm",left:362.0,top:230.0,width:420.0,height:180.0,pos_type:"absolute",mouse_enabled:true,strata:crate::ui::strata::FrameStrata::FullscreenDialog,{children}}}
+    rsx! {r#frame{name:"ProfessionSpecConfirm",left:362.0,top:230.0,width:420.0,height:180.0,pos_type:"absolute",mouse_enabled:true,strata:game_engine_ui_model::ui::strata::FrameStrata::FullscreenDialog,{children}}}
 }

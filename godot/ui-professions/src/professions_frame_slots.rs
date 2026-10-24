@@ -1,8 +1,8 @@
 //! Schematic output/reagent slots and bottom-right creation controls.
 use super::{HEIGHT, ProfessionView, QUANTITY, art, text};
-use crate::bank_art::{HIGHLIGHT_FONT_COLOR, cropped, edit_box, label, texture};
-use crate::merchant_data::quality_color;
-use crate::quest_art::{DynName, panel_button, panel_button_fit_to_text_width};
+use game_engine_ui_model::bank_art::{HIGHLIGHT_FONT_COLOR, cropped, edit_box, label, texture};
+use game_engine_ui_model::merchant_data::quality_color;
+use game_engine_ui_model::quest_art::{DynName, panel_button, panel_button_fit_to_text_width};
 use ui_toolkit::{rsx, widget_def::Element};
 
 // Retail ReagentSlot.lua:99-110, GlobalColor DISABLED_REAGENT_COLOR #a0a0a0.
@@ -67,9 +67,9 @@ pub(super) fn schematic(view: &ProfessionView) -> Element {
 
 /// RecipeSchematicForm.lua627–649: unlearned source header owns an ANCHOR_RIGHT tooltip.
 pub fn recipe_source_tooltip(
-    book: &crate::professions::ProfessionBook,
+    book: &game_engine_ui_model::professions::ProfessionBook,
     skills: &std::collections::BTreeMap<u32, String>,
-) -> Option<crate::game_tooltip::GameTooltip> {
+) -> Option<game_engine_ui_model::game_tooltip::GameTooltip> {
     let recipe = book.selected_recipe()?;
     if book.selected_is_learned() {
         return None;
@@ -84,8 +84,8 @@ pub fn recipe_source_tooltip(
     if lines.is_empty() {
         return None;
     }
-    Some(crate::game_tooltip::GameTooltip::new(
-        crate::tooltip_presentation::TooltipPresentation {
+    Some(game_engine_ui_model::game_tooltip::GameTooltip::new(
+        game_engine_ui_model::tooltip_presentation::TooltipPresentation {
             title: "Unlearned Recipe".into(),
             title_color: [1.0; 4],
             lines,
@@ -98,7 +98,7 @@ pub fn recipe_source_tooltip(
 fn trainer_source_lines(
     source: &shared::protocol::ProfessionTrainerSource,
     skills: &std::collections::BTreeMap<u32, String>,
-) -> Vec<crate::tooltip_presentation::TooltipLineState> {
+) -> Vec<game_engine_ui_model::tooltip_presentation::TooltipLineState> {
     let skill = skills
         .get(&source.req_skill_line)
         .cloned()
@@ -118,7 +118,9 @@ fn trainer_source_lines(
     );
     lines
         .into_iter()
-        .map(|text| crate::tooltip_presentation::TooltipLineState::colored(text, [1.0; 4]))
+        .map(|text| {
+            game_engine_ui_model::tooltip_presentation::TooltipLineState::colored(text, [1.0; 4])
+        })
         .collect()
 }
 
@@ -137,7 +139,11 @@ fn recipe_source_button(view: &ProfessionView) -> Element {
         "ProfessionsRecipeSourceLabel".into(),
         "Unlearned Recipe",
         (23.0, 0.0, 127.0, 16.0),
-        (12.0, crate::quest_art::NORMAL_FONT_COLOR, "LEFT"),
+        (
+            12.0,
+            game_engine_ui_model::quest_art::NORMAL_FONT_COLOR,
+            "LEFT",
+        ),
     ));
     rsx! { button { name: "ProfessionsRecipeSourceButton", width: 150.0, height: 16.0,
     tooltip_provider: "profession_recipe_source",
@@ -151,7 +157,9 @@ fn recipe_cooldown(view: &ProfessionView) -> Element {
         return vec![];
     };
     // GlobalColor RED_FONT_COLOR (-57312 = 0xFFFF2020) overrides the font's own red.
-    let red = crate::tooltip_presentation::rgba_string(crate::item_tooltip::RED_FONT_COLOR);
+    let red = game_engine_ui_model::tooltip_presentation::rgba_string(
+        game_engine_ui_model::item_tooltip::RED_FONT_COLOR,
+    );
     label(
         "ProfessionsRecipeCooldown".into(),
         &crate::professions_cooldown::remaining_text(secs),

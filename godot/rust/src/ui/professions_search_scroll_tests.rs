@@ -1,9 +1,7 @@
 //! The production reactive state replacement and screen/scroll registry boundary.
 use super::{RegistryModel, ScreenPostsetup};
-use game_engine_ui_model::{
-    professions::Recipe,
-    professions_frame::{LIST, ProfessionView, professions_screen},
-};
+use game_engine_ui_model::professions::Recipe;
+use game_engine_ui_professions::professions_frame::{LIST, ProfessionView, professions_screen};
 use ui_toolkit::{
     atlas::{ActiveSkin, set_thread_skin},
     registry::FrameRegistry,
@@ -201,7 +199,7 @@ fn professions_search_scroll_shared_wheel_and_thumb_move_the_real_list() {
 
 #[test]
 fn professions_search_clear_click_clears_editbox_and_focus_without_owner_mutation() {
-    use game_engine_ui_model::professions_frame::SEARCH;
+    use game_engine_ui_professions::professions_frame::SEARCH;
     use std::collections::VecDeque;
     use ui_toolkit::frame::WidgetData;
     for skin in [ActiveSkin::Modern, ActiveSkin::Forever] {

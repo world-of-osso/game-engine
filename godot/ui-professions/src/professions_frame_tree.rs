@@ -1,9 +1,11 @@
 //! ProfessionsRecipeListTemplate geometry and tree rows (Retail XML:40-217).
 use super::{LIST, ProfessionView, ROW_HEIGHT, SEARCH, art, text};
-use crate::bank_art::label;
-use crate::minimal_scroll_bar::{MinimalScrollBar, Unscrollable, pixel_geometry, scroll_list_attr};
-use crate::professions::Recipe;
-use crate::quest_art::{DynName, HIGHLIGHT_FONT_COLOR};
+use game_engine_ui_model::bank_art::label;
+use game_engine_ui_model::minimal_scroll_bar::{
+    MinimalScrollBar, Unscrollable, pixel_geometry, scroll_list_attr,
+};
+use game_engine_ui_model::professions::Recipe;
+use game_engine_ui_model::quest_art::{DynName, HIGHLIGHT_FONT_COLOR};
 use shared::profession::{RecipeDifficulty, recipe_difficulty};
 use ui_toolkit::{rsx, screen::SharedContext, widget_def::Element, widgets::font_string::GameFont};
 
@@ -62,7 +64,7 @@ fn tree_rows(view: &ProfessionView) -> (Element, f32) {
     }
     let mut unlearned_divider = false;
     for (index, (category, recipes)) in view.book.groups().iter().enumerate() {
-        let favorite = category == crate::professions::FAVORITES_GROUP;
+        let favorite = category == game_engine_ui_model::professions::FAVORITES_GROUP;
         let learned = view.book.snapshot.spells.contains(&recipes[0].spell_id);
         if !learned && !unlearned_divider {
             let height = if index == 0 { 30.0 } else { 70.0 };
@@ -105,19 +107,23 @@ fn unlearned_heading(y: f32, height: f32) -> Element {
         "ProfessionsUnlearnedLabel".into(),
         "Unlearned",
         (10.0, y + height - 23.0, ROW_WIDTH - 10.0, 13.0),
-        (12.0, crate::quest_art::NORMAL_FONT_COLOR, "LEFT"),
+        (
+            12.0,
+            game_engine_ui_model::quest_art::NORMAL_FONT_COLOR,
+            "LEFT",
+        ),
     );
     out.extend(art::tinted(
         "ProfessionsUnlearnedDivider",
         "Options_HorizontalDivider",
         (5.0, y + height - 7.0, 250.0, 2.0),
-        crate::quest_art::NORMAL_FONT_COLOR,
+        game_engine_ui_model::quest_art::NORMAL_FONT_COLOR,
     ));
     out
 }
 
 fn search_box(view: &ProfessionView) -> Element {
-    let filter_width = crate::menu_primitives::filter_dropdown_width("Filter");
+    let filter_width = game_engine_ui_model::menu_primitives::filter_dropdown_width("Filter");
     let filter_left = LIST_BACKGROUND.0 + LIST_BACKGROUND.2 - 8.0 - filter_width;
     let search_width = filter_left - 4.0 - 18.0;
     let mut out =
@@ -217,7 +223,7 @@ fn category_row(
         (ROW_WIDTH - 21.0, 6.0, 11.0, 8.0),
     ));
     let color = if learned {
-        crate::quest_art::NORMAL_FONT_COLOR
+        game_engine_ui_model::quest_art::NORMAL_FONT_COLOR
     } else {
         "0.5,0.5,0.5,1"
     };
@@ -228,12 +234,12 @@ fn category_row(
         (12.0, color, "LEFT"),
     ));
     let action = format!("profession:category:{key}");
-    crate::selection_list::row(
+    game_engine_ui_model::selection_list::row(
         prefix,
         &action,
         true,
         (0.0, y, ROW_WIDTH, CATEGORY_HEIGHT),
-        (&crate::selection_list::AUTHORED, false),
+        (&game_engine_ui_model::selection_list::AUTHORED, false),
         children,
     )
 }
@@ -301,7 +307,7 @@ fn recipe_row(view: &ProfessionView, recipe: &Recipe, y: f32, favorite: bool) ->
         },
         recipe.spell_id
     );
-    crate::selection_list::row(
+    game_engine_ui_model::selection_list::row(
         prefix,
         &action,
         true,
@@ -322,11 +328,11 @@ fn recipe_template(
     view: &ProfessionView,
     recipe: &Recipe,
     favorite: bool,
-) -> &'static crate::selection_list::RowTemplate {
+) -> &'static game_engine_ui_model::selection_list::RowTemplate {
     if recipe_is_selected(view, recipe, favorite) {
-        &crate::selection_list::AUTHORED
+        &game_engine_ui_model::selection_list::AUTHORED
     } else {
-        &crate::selection_list::PROFESSION_RECIPE
+        &game_engine_ui_model::selection_list::PROFESSION_RECIPE
     }
 }
 

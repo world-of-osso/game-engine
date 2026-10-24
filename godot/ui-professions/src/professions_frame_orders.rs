@@ -1,16 +1,22 @@
 //! Mainline customer PortraitFrame and crafter order browse/detail, sharing server records.
 use super::{ProfessionView, art, text};
-use crate::bank_art::{HIGHLIGHT_FONT_COLOR, MoneyBoxNames, edit_box, label, money_input, texture};
-use crate::menu_primitives::{DropdownButton, DropdownState, dropdown_button_with_state};
-use crate::merchant_frame_component::{tab, tab_width};
-use crate::minimal_scroll_bar::{MinimalScrollBar, Unscrollable, pixel_geometry, scroll_list_attr};
-use crate::quest_art::{
+use game_engine_ui_model::bank_art::{
+    HIGHLIGHT_FONT_COLOR, MoneyBoxNames, edit_box, label, money_input, texture,
+};
+use game_engine_ui_model::menu_primitives::{
+    DropdownButton, DropdownState, dropdown_button_with_state,
+};
+use game_engine_ui_model::merchant_frame_component::{tab, tab_width};
+use game_engine_ui_model::minimal_scroll_bar::{
+    MinimalScrollBar, Unscrollable, pixel_geometry, scroll_list_attr,
+};
+use game_engine_ui_model::quest_art::{
     DynName, NORMAL_FONT_COLOR, panel_button, window_chrome, window_portrait, window_portrait_slot,
 };
 use shared::protocol::{CraftingOrderKind, CraftingOrderSnapshot};
 use ui_toolkit::{rsx, screen::SharedContext, widget_def::Element};
 
-pub const PORTRAIT: crate::inworld_unit_frames_component::PortraitSlot =
+pub const PORTRAIT: game_engine_ui_model::inworld_unit_frames_component::PortraitSlot =
     window_portrait_slot("ProfessionsCustomerOrdersPortrait");
 pub const RECIPIENT: &str = "CraftingOrderRecipient";
 pub const NOTE: &str = "CraftingOrderNote";
@@ -69,8 +75,8 @@ pub(super) fn customer_screen(ctx: &SharedContext, view: &ProfessionView) -> Ele
         &view.orders.status,
         (30.0, 523.0, 760.0, 24.0),
     ));
-    crate::panel_lifecycle::bind_close(
-        rsx! {r#frame{name:"ProfessionsCustomerOrdersFrame",width:825.0,height:568.0,left:24.0,top:94.0,pos_type:"absolute",mouse_enabled:true,strata:crate::ui::strata::FrameStrata::Dialog,{children}}},
+    game_engine_ui_model::panel_lifecycle::bind_close(
+        rsx! {r#frame{name:"ProfessionsCustomerOrdersFrame",width:825.0,height:568.0,left:24.0,top:94.0,pos_type:"absolute",mouse_enabled:true,strata:game_engine_ui_model::ui::strata::FrameStrata::Dialog,{children}}},
         "professions",
     )
 }
@@ -209,12 +215,12 @@ fn order_row(
         (width * 0.83, 0.0, width * 0.17, 20.0),
     ));
     let action = format!("profession:order:select:{}", order.id);
-    crate::selection_list::row(
+    game_engine_ui_model::selection_list::row(
         format!("CraftingOrderRow{}", order.id),
         &action,
         true,
         (0.0, top, width, 20.0),
-        (&crate::selection_list::AUCTION_ROW, false),
+        (&game_engine_ui_model::selection_list::AUCTION_ROW, false),
         children,
     )
 }
@@ -654,12 +660,12 @@ fn recipe_list(ctx: &SharedContext, view: &ProfessionView, customer: bool) -> El
                 (4.0, 0.0, 230.0, 20.0),
             );
             let action = format!("profession:order:recipe:{}", recipe.spell_id);
-            crate::selection_list::row(
+            game_engine_ui_model::selection_list::row(
                 format!("CraftingOrderRecipe{}", recipe.spell_id),
                 &action,
                 true,
                 (0.0, index as f32 * 22.0, 236.0, 20.0),
-                (&crate::selection_list::AUCTION_ROW, false),
+                (&game_engine_ui_model::selection_list::AUCTION_ROW, false),
                 children,
             )
         })
@@ -726,15 +732,20 @@ fn form_menu(view: &ProfessionView) -> Element {
             ],
         ),
     };
-    let mut children =
-        crate::selection_list::menu_background("CraftingOrderMenuBackground".into(), (145.0, 83.0));
+    let mut children = game_engine_ui_model::selection_list::menu_background(
+        "CraftingOrderMenuBackground".into(),
+        (145.0, 83.0),
+    );
     children.extend(choices.into_iter().enumerate().flat_map(
         |(index, (key, caption, action, chosen))| {
-            crate::selection_list::menu_choice(
+            game_engine_ui_model::selection_list::menu_choice(
                 format!("CraftingOrderMenu{key}"),
                 caption,
                 &format!("profession:order:{action}"),
-                (crate::selection_list::MenuTick::Radio, chosen),
+                (
+                    game_engine_ui_model::selection_list::MenuTick::Radio,
+                    chosen,
+                ),
                 (8.0, 8.0 + index as f32 * 20.0, 129.0, 20.0),
             )
         },

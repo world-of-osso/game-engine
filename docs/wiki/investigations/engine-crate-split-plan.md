@@ -188,6 +188,10 @@ Approved `game-engine-ui-professions` owns `professions_frame`, `professions_coo
 
 Parent approved separate rename-only/wiring/census commits and paired post-cut timing, after ec4 landed `68f93ff62`. Preserve14 unit and39 total moved integration names, source fixture roots, data/type ownership and profiles. Initial before suite listing included83 names across relevant/comparison suites and zero ignored; only39 belong to this cut. Full gate remains parent-owned. Raw before evidence: `/home/osso/.worktrees/logs/engine-crate-split-professions-before-68f93ff62/`. No Professions source move is part of this before packet.
 
+### Professions extraction implementation
+
+Before packet committed `3053ece16`; rename-only `e168fc1a3` moves19 source files/three dedicated suites unchanged. Wiring creates `game-engine-ui-professions` with direct native imports and unchanged base model/catalog ownership. Only the two existing Professions cases in mixed suites relocate, retaining `buttonfit::buttonfit_create_all_keeps_retail_padding_and_right_anchor_for_concrete_counts` and `panel_lifecycle::ui_template_lifecycle_root_professions_unmounts_without_losing_registration_on_reopen`; unrelated cases remain base. Test-local helper copies do not duplicate production code. Check/test/census and post-cut timing are pending.
+
 ## Baseline edit measurements
 
 [Machine-readable receipts](engine-crate-split-baseline.json) include exact commands, package/target dirtiness, wall/user/system time, dependency pins, Cargo unit timings and raw-log hashes. Host `agent-server`, Rust/Cargo 1.99.0, four jobs, native helper defaults and unchanged profiles/linker. Raw logs, HTML timings, drivers and before/after name lists are archived outside the worktree at `/home/osso/.worktrees/logs/engine-crate-split-baseline-4645578c7/`. No post-split improvement is claimed.

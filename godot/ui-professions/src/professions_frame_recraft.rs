@@ -1,6 +1,6 @@
 //! Retail owned-item recraft slot. No synthetic fixed-output recraft submission.
 use super::{ProfessionView, art, text};
-use crate::quest_art::panel_button;
+use game_engine_ui_model::quest_art::panel_button;
 use ui_toolkit::{rsx, widget_def::Element};
 pub const RECRAFT_UNAVAILABLE: &str = "Recrafting unavailable: authored operation evaluator and owned-item lineage are not available. No item will be consumed.";
 pub(super) fn schematic(view: &ProfessionView) -> Element {

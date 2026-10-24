@@ -1,7 +1,7 @@
 //! Mainline ProfessionsQualityDialogTemplate and its quality containers.
 use super::{ProfessionView, art};
-use crate::bank_art::{HIGHLIGHT_FONT_COLOR, numeric_spinner_edit_box, texture};
-use crate::quest_art::{DynName, flat_panel_chrome, panel_button};
+use game_engine_ui_model::bank_art::{HIGHLIGHT_FONT_COLOR, numeric_spinner_edit_box, texture};
+use game_engine_ui_model::quest_art::{DynName, flat_panel_chrome, panel_button};
 use shared::crafting_reagents::ReagentSlot;
 use ui_toolkit::{rsx, widget_def::Element};
 
@@ -29,7 +29,7 @@ pub(super) fn dialog(view: &ProfessionView) -> Element {
     // SchematicForm.xml46-49 CENTER; Crafting.xml145/150: 793×553 at RecipeList RIGHT+2, y72.
     rsx! { r#frame { name:"ProfessionsQualityDialog", width:WIDTH, height:HEIGHT,
     left:513.0, top:245.0, pos_type:"absolute", mouse_enabled:true,
-    strata:crate::ui::strata::FrameStrata::Dialog, {children} } }
+    strata:game_engine_ui_model::ui::strata::FrameStrata::Dialog, {children} } }
 }
 
 pub(super) fn apply_dialog_art(
@@ -159,7 +159,7 @@ fn quality_icon(view: &ProfessionView, item_id: u32) -> Element {
         &format!("{prefix}Border"),
         "Professions-Slot-Frame",
         (2.0, 2.0, 35.0, 35.0),
-        crate::merchant_data::quality_color(item.quality),
+        game_engine_ui_model::merchant_data::quality_color(item.quality),
     ));
     if let Some(quality) = view.crafting_quality.get(&item_id) {
         icon.extend(art::atlas_at_size(

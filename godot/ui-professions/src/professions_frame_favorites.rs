@@ -1,6 +1,8 @@
 //! Retail learned-recipe context menu (RecipeList.lua60–78).
 use super::ProfessionView;
-use crate::menu_primitives::{ContextMenuItem, MenuElementKind, context_menu_description};
+use game_engine_ui_model::menu_primitives::{
+    ContextMenuItem, MenuElementKind, context_menu_description,
+};
 use ui_toolkit::widget_def::Element;
 
 pub(super) fn favorite_menu(view: &ProfessionView) -> Element {

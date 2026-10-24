@@ -857,7 +857,7 @@ impl GameClient {
             (name_of(frame)? == "ProfessionsRecipeSourceButton").then_some(())
         })?;
         drop(ui);
-        let tooltip = game_engine_ui_model::professions_frame::recipe_source_tooltip(
+        let tooltip = game_engine_ui_professions::professions_frame::recipe_source_tooltip(
             &self.professions.book,
             &self.professions.skill_names(),
         )?;
@@ -871,7 +871,8 @@ impl GameClient {
         })?;
         drop(ui);
         let snapshot = self.professions.concentration.as_ref()?;
-        let tooltip = game_engine_ui_model::professions_frame::concentration::tooltip(snapshot);
+        let tooltip =
+            game_engine_ui_professions::professions_frame::concentration::tooltip(snapshot);
         Some(HoveredTooltip::text(tooltip))
     }
 

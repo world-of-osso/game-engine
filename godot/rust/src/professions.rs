@@ -5,7 +5,7 @@ use game_engine_session::SessionScreen;
 use game_engine_ui_model::item_catalog::item_catalog;
 use game_engine_ui_model::professions::ProfessionBook;
 use game_engine_ui_model::professions_catalog::RecipeCatalog;
-use game_engine_ui_model::professions_frame::{
+use game_engine_ui_professions::professions_frame::{
     ItemDisplay, ProfessionPage, ProfessionView, QUANTITY, SEARCH, professions_screen,
 };
 use godot::prelude::*;
@@ -28,15 +28,15 @@ pub(crate) struct Professions {
     pub(crate) ui: Option<Gd<RegistryUi>>,
     pub(crate) error: String,
     pub(crate) reagent_selection:
-        game_engine_ui_model::professions_reagent_selection::ReagentSelection,
+        game_engine_ui_professions::professions_reagent_selection::ReagentSelection,
     collapsed: BTreeSet<String>,
     page: ProfessionPage,
     favorite_menu: Option<(u32, [f32; 2])>,
     selected_favorite: bool,
     filter_open: bool,
     pub(crate) specializations:
-        game_engine_ui_model::professions_specializations::SpecializationDraft,
-    pub(crate) orders: game_engine_ui_model::professions_orders::CraftingOrders,
+        game_engine_ui_professions::professions_specializations::SpecializationDraft,
+    pub(crate) orders: game_engine_ui_professions::professions_orders::CraftingOrders,
     order_search: String,
     order_form_initialized: bool,
     pub(crate) concentration: Option<shared::concentration::ConcentrationSnapshot>,
@@ -427,7 +427,7 @@ impl GameClient {
             self.professions.specializations.pending = true;
         } else {
             self.professions.specializations =
-                game_engine_ui_model::professions_specializations::SpecializationDraft {
+                game_engine_ui_professions::professions_specializations::SpecializationDraft {
                     status: "No learned specialization tier for the selected profession.".into(),
                     ..Default::default()
                 };
@@ -489,7 +489,7 @@ impl GameClient {
             .as_ref()
             .and_then(|catalog| catalog.cooldown_categories.get(&spell))
             .and_then(|&category| spells.category_cooldown(category));
-        game_engine_ui_model::professions_cooldown::remaining_secs(
+        game_engine_ui_professions::professions_cooldown::remaining_secs(
             spells
                 .button_cooldown(spell, false)
                 .map(|clock| clock.remaining),
@@ -564,7 +564,7 @@ impl GameClient {
                 .as_ref()
                 .map(|catalog| catalog.child_skills.clone())
                 .unwrap_or_default(),
-            status: game_engine_ui_model::professions_reagent_selection::craft_status(
+            status: game_engine_ui_professions::professions_reagent_selection::craft_status(
                 &self.professions.error,
                 &self.professions.reagent_selection,
             ),
