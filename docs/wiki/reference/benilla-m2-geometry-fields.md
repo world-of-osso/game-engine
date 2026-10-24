@@ -129,7 +129,7 @@ E `godot/core/src/asset/m2_format/parser.rs:103–116,231–263`; B `crates/beni
 | Batch offset | E `u32 +40`, consumed | B `u32 +36`, consumed. |
 | Trailing bone-count scalar | Not parsed in E44-byte header | B `u32 +40`, unread by skin reader. |
 
-E texture-record filename length `u32 +8` and offset `u32 +12` are individually read raw but dropped, not retained as a path (`parser.rs:96–102,312–333`). B independently reads length+8 and offset+12, retaining counted filename bytes in `M2ArrayString` (`B/crates/benilla-m2/src/lib.rs:188–200`). Its stored length, offset, decoded CString and asset path are representations of those inputs, not four extra disk fields.
+E texture-record filename length `u32 +8` and offset `u32 +12` are individually read raw but dropped, not retained as a path (`parser.rs:96–102,312–333`). B independently reads length+8 and offset+12, retaining counted filename bytes in `M2ArrayString` (`B/crates/benilla-m2/src/lib.rs:188–200`). B consumes length/offset without retaining them as `M2ArrayString` members; only the decoded CString is retained there. Later asset paths are derived, not additional disk fields.
 
 Ordinary track members are expanded in [ribbon descriptors](benilla-m2-ribbon-fields.md#track-descriptors-six-instances-not-six-additional-record-types), applied separately to each named RGB/alpha/weight/UV transform channel above. E material evaluator's clock/interpolation policy differs from ordinary bone evaluators: see [animation fields](benilla-m2-animation-fields.md).
 
