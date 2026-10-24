@@ -41,7 +41,7 @@ Each E row is a distinct declared field. Offsets are MCNK-payload-relative, inte
 | `0x6c` | `pos_x: f32`, D267 | Becomes `pos[0]` | Retained as B `position[1]`, B381 |
 | `0x70` | `pos_z: f32`, D268 | Becomes `pos[2]` | Retained as B `position[2]`, B382 |
 
-B's additional **`no_effect_doodad: [u8;8]` at `0x48`**, B369–373, occupies the second half of E's16-byte texture-selection map. It must not be relabeled as E's `0x50` map. B's misleading raw names do not describe its cooked semantics: `crates/benilla-formats/src/terrain.rs:422–434` concatenates the0x40/0x48 byte arrays into16 bytes, decodes64 two-bit selectors, and decodes0x50's `unknown_8bytes` into64 exclusion booleans. `ground_effects.rs:195–210` rejects excluded cells and resolves selected-layer effect IDs; terrain95–108 uses selectors for underfoot effects. This is actual B consumer evidence, not a rename of the raw0x48 field to offset0x50.
+B's additional **`no_effect_doodad: [u8;8]` at `0x48`**, B369–373, occupies the second half of E's16-byte texture-selection map. It must not be relabeled as E's `0x50` map. B's misleading raw names do not describe its cooked semantics: `crates/benilla-formats/src/terrain.rs:422–434` concatenates the0x40/0x48 byte arrays into16 bytes, decodes64 two-bit selectors, and decodes0x50's `unknown_8bytes` into64 exclusion booleans. `ground_effects.rs:211–229` rejects excluded cells and resolves selected-layer effect IDs; terrain95–108 uses selectors for underfoot effects. This is actual B consumer evidence, not a rename of the raw0x48 field to offset0x50.
 
 ## Named flag predicates and downstream boundaries
 
