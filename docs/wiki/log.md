@@ -1,3 +1,7 @@
+## 2026-10-24 — M2 geometry/material inputs
+
+[Geometry/material rows](reference/benilla-m2-geometry-fields.md) cover vertex payloads, separate SKIN/M2View descriptor members, raw submeshes, all13 modern batch inputs and material/UV handling. B batch words+6/+12 are unread, not texture-combo/count fields. Static-only; consumer evidence is independently gated and B downstream additions remain in progress.
+
 ## 2026-10-24 — M2 scene inputs
 
 [Scene fields](reference/benilla-m2-scene-fields.md) separate attachment/event descriptors, modern camera snapshots, B full events versus marker projection and collision bounds. Native animated point-light wiring is present; parser-module light snapshots do not describe that production evaluator. Static research only; geometry integration and independent audits remain open.

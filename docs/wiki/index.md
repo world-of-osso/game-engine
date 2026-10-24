@@ -377,6 +377,7 @@ Root cause analyses and debug findings.
 
 External resources and asset lists.
 
+- [M2 geometry/material fields](reference/benilla-m2-geometry-fields.md) — vertices, SKIN/M2View headers, raw submesh/batch inputs and material/UV consumers; B unread words explicit.
 - [M2 scene fields](reference/benilla-m2-scene-fields.md) — attachments/events/lights/camera/collision inputs; full event versus marker projection and native animated point-light wiring distinguished.
 - [M2 header/container fields](reference/benilla-m2-header-fields.md) — literal count/offset inputs, opaque intervals, modern file-ID chunks and separate pre-Wrath header walk.
 - [M2 animation field handling](reference/benilla-m2-animation-fields.md) — bone/sequence members, descriptor/version differences, ordinary versus material interpolation and external payload boundaries.
