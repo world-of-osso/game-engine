@@ -35,11 +35,15 @@ Verified source: 2026-10-07. `godot/network` relays `ProfessionSnapshot`; `accou
 
 The [native coverage section](../../specs/professions-frame.md#native-godot-coverage-2026-10-07) owns test/live proof, inspected Modern/Forever captures, exact cleanup and remaining gaps. Native trainers and exact Retail book-entry/art/layout parity are not implemented here.
 
+## Presentation crate ownership
+
+Source `8b773aa0f`: `game-engine-ui-professions` owns frame/cooldown/order/reagent-selection/specialization presentation. ProfessionBook, Recipe, quality, reagent-count and RecipeCatalog implementations stay in ui-model; native hosts depend directly on the presentation crate. Two mixed integration and four mixed unit cases preserve their original module::test names on the new side, with all unrelated model/auction/character/raid cases retained in base. [Split census and paired edit timing](../investigations/engine-crate-split-plan.md#professions-extraction-implementation) own compile-isolation evidence, not a gameplay change.
+
 ## Sources
 
 - [Professions contract](../../specs/professions-frame.md) — Retail citations and bounded native proof.
 - [Native host](../../../godot/rust/src/professions.rs) — owner event, catalog worker, inputs and authoritative refresh.
-- [Pure book](../../../godot/ui-model/src/professions.rs) and [screen](../../../godot/ui-model/src/professions_frame.rs) — bag counts, requests and projection.
+- [Pure book](../../../godot/ui-model/src/professions.rs) and [screen](../../../godot/ui-professions/src/professions_frame.rs) — bag counts, requests and projection.
 
 ## See Also
 

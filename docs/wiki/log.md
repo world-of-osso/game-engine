@@ -1,3 +1,7 @@
+## 2026-10-24 — Professions presentation split and honest timing result
+
+[Professions cut](investigations/engine-crate-split-plan.md#professions-extraction-implementation) before3053ece16/rename-onlye168fc1a3/wiring820a57342/mixed-unit8b773aa0f keeps all shared model/catalog ownership base. Four additional mixed units retain professions::tests names in cfg(test)-only namespace; two mixed integrations keep original names and unrelated siblings stay base. Check passes/no diagnostics;390base+18feature units+39integration+3residual cases pass (450total0fail/ignored), original473 names conserved. Exact edit wall32.599→38.389s is slower17.8%,no wall gain claimed;childCPU25.801→10.119s,feature1.50s,otherUI fresh, native21.89→35.04s. No-op/restore/pins/profiles retained; no cherry-picked rerun. Parent10-package gate separate.
+
 ## 2026-10-24 — Collections pet/shared shell stage4
 
 [Stage4](investigations/engine-crate-split-plan.md#collections-stage4-implementation) rename-onlybaaf42472/wiring2f17f12ac moves10sources+2suites, completing33-source/12-root leaf UI group. Existing serde derive ownership declared46ba60eb6 after initial missing-dependency failure; same version/features. Native imports direct, prior mount/toy shell references now local; no residual base→feature edges/self aliases. Check passes/no diagnostics;408base+24feature units+197integration+1isolated pass (630total0fail/ignored). Exact original473 unit names=408+37+4+24 and complete197-suite packet conserved; no new timing/native-runtime/full-gate claim, parent9-package gate remains.
