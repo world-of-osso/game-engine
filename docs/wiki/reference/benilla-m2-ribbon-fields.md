@@ -21,7 +21,7 @@ E parser reference **EP** = `E/godot/core/src/asset/m2_format/m2_ribbon.rs:7–2
 | Material-reference count | `u32 +0x1c`, consumed into vector length (EP). | Must equal texture-reference count and be nonempty: `E/godot/rust/src/ribbons.rs:190–205`. | `u32 +0x1c`; only first material selected. |
 | Material-reference offset | `u32 +0x20`, used then discarded (EP). | Address is not runtime state. | `u32 +0x20`; follows first `u16`. |
 | Material-reference element | `u16[]`, all retained (EP). | One material pass per texture/material pair; material blend/flags resolved: `E/godot/rust/src/ribbons.rs:138–154,243–279`. | First material's blend retained both raw and folded into `ParticleBlend`; material flags not copied by BP. Modes outside 1–4 fold to opaque; not a model for E's complete material policy. |
-| Color track | Vec3 track `+0x24`, retained (EP). | RGB sampling: `E/godot/core/src/m2_ribbons.rs:45–64`. | 28-byte track `+0x24`; adapted to `ValueTrack`, rebased on first sequence band. |
+| Color track | Vec3 track `+0x24`, retained (EP). | RGB sampling: `E/godot/core/src/m2_ribbons.rs:45–64`. | 28-byte track `+0x24`; adapted to `ValueTrack`. Only sequence-timeline tracks rebase onto first sequence band; global tracks retain raw times (`B/crates/benilla-formats/src/value_track.rs:194–196`). Neither branch establishes global-clock wrapping in the ribbon renderer. |
 | Alpha track | Signed-fixed16 track `+0x38`, retained (EP). | Divide by 32767 and clamp: `E/godot/core/src/m2_ribbons.rs:48–50`. | 28-byte track `+0x40`, signed `/32767`. |
 | Height-above track | Float track `+0x4c`, retained (EP). | Sampled into strip width: `E/godot/core/src/m2_ribbons.rs:51–64`. | 28-byte track `+0x5c`, retained as `ValueTrack`. |
 | Height-below track | Float track `+0x60`, retained (EP). | Same width sampling, independent value: `E/godot/core/src/m2_ribbons.rs:51–65`. | 28-byte track `+0x78`, retained as `ValueTrack`. |
@@ -42,9 +42,9 @@ Apply each row separately to color, alpha, height-above, height-below, texture-s
 
 | E descriptor member | Relative offset / type | Handling and evidence |
 |---|---|---|
-| Interpolation type | `+0 u16` | Retained by ordinary track parser. Ribbon vec3/float evaluators interpolate linearly and integer evaluators step rather than dispatch on this field: `E/godot/core/src/asset/m2_format/m2_anim.rs:579–672`; called by ribbon `sample` above. |
-| Global-sequence index | `+2 i16` | Retained; `AnimTime::track_time` chooses sequence/time per track: `E/godot/core/src/m2.rs:263–275`; ribbon sampling calls it individually (`m2_ribbons.rs:45–58`). |
-| Timestamp outer-array count | `+4 u32` | Sequence-array cardinality consumed during parse. See `E/godot/core/src/asset/m2_format/m2_anim.rs:295–370` track parsing; no raw descriptor runtime member. |
+| Interpolation type | `+0 u16` | Retained by ordinary track parser. Ribbon vec3/float evaluators interpolate linearly and integer evaluators step rather than dispatch on this field: `E/godot/core/src/asset/m2_format/m2_anim.rs:579–689`; called by ribbon `sample` above. |
+| Global-sequence index | `+2 i16` | Retained; `AnimTime::track_time` chooses sequence/time per track: `E/godot/core/src/m2.rs:263–276,288–294`; ribbon sampling calls it individually (`m2_ribbons.rs:45–58`). |
+| Timestamp outer-array count | `+4 u32` | Sequence-array cardinality consumed during parse. See `E/godot/core/src/asset/m2_format/m2_anim.rs:295–382` track parsing; no raw descriptor runtime member. |
 | Timestamp outer-array offset | `+8 u32` | Locates inner descriptors; discarded after decoding. Same parser. |
 | Value outer-array count | `+12 u32` | Consumed during parse; values retained as sequence vectors. Same parser. |
 | Value outer-array offset | `+16 u32` | Address consumed and discarded. Same parser. |
