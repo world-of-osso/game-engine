@@ -1,6 +1,6 @@
 //! Blizzard_PetCollection.lua:118-214: checkbox groups and sorting submenus.
 use super::{PetJournalView, PetRow};
-use crate::menu_primitives::*;
+use game_engine_ui_model::menu_primitives::*;
 use std::collections::BTreeSet;
 use ui_toolkit::widget_def::Element;
 

@@ -1,7 +1,9 @@
 //! Retail Blizzard_Collections PetJournal: 703×606, 260px list, card and three slots.
-use crate::bank_art::{WHITE, label, texture};
-use crate::minimal_scroll_bar::{MinimalScrollBar, Unscrollable, pixel_geometry, scroll_list_attr};
-use crate::quest_art::{DynName, NORMAL_FONT_COLOR, panel_button};
+use game_engine_ui_model::bank_art::{WHITE, label, texture};
+use game_engine_ui_model::minimal_scroll_bar::{
+    MinimalScrollBar, Unscrollable, pixel_geometry, scroll_list_attr,
+};
+use game_engine_ui_model::quest_art::{DynName, NORMAL_FONT_COLOR, panel_button};
 use shared::pet_battle::PetJournal;
 #[path = "pet_journal_combat.rs"]
 mod combat;
@@ -321,7 +323,7 @@ pub fn pet_journal_screen(ctx: &SharedContext) -> Element {
     children.extend(combat::spell_select(view));
     let body = rsx! { r#frame { name: "PetJournal", width: 703.0, height: 606.0,
     left: 0.0, top: 0.0, pos_type: "absolute", mouse_enabled: false, {children} } };
-    let mut out = crate::panel_lifecycle::bind_close(
+    let mut out = game_engine_ui_model::panel_lifecycle::bind_close(
         crate::collections_component::collections_shell(view.viewport, 1, body),
         "pet_journal",
     );
@@ -329,7 +331,7 @@ pub fn pet_journal_screen(ctx: &SharedContext) -> Element {
     out
 }
 fn search_box(view: &PetJournalView) -> Element {
-    crate::search_box_template::search_box(
+    game_engine_ui_model::search_box_template::search_box(
         "PetJournal",
         &view.search,
         "pet:search-clear",
@@ -390,7 +392,7 @@ fn pet_row(view: &PetJournalView, row: &PetRow, top: f32) -> Element {
         ));
     }
     if view.selected == Some(row.key) {
-        let mut selected = crate::quest_art::named_atlas_texture(
+        let mut selected = game_engine_ui_model::quest_art::named_atlas_texture(
             format!("{prefix}Selected"),
             "PetList-ButtonSelect",
             (0.0, 0.0, 250.0, ROW_HEIGHT),
@@ -398,12 +400,12 @@ fn pet_row(view: &PetJournalView, row: &PetRow, top: f32) -> Element {
         selected.extend(children);
         children = selected;
     }
-    crate::selection_list::row(
+    game_engine_ui_model::selection_list::row(
         prefix,
         &action,
         true,
         (0.0, top, 250.0, ROW_HEIGHT),
-        (&crate::selection_list::PET, false),
+        (&game_engine_ui_model::selection_list::PET, false),
         children,
     )
 }

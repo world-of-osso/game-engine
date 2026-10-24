@@ -1,11 +1,11 @@
 //! Retail Blizzard_StableUI StableFrame (1040x638): stabled list left, model right,
 //! five Call Pet slots in the footer. Both skins use these same elements/positions.
-use crate::bank_art::{edit_box, label, texture};
 use crate::pet_stable::StableSession;
-use crate::quest_art::{
+use game_engine_ui_model::bank_art::{edit_box, label, texture};
+use game_engine_ui_model::quest_art::{
     DynName, named_atlas_texture, panel_button, window_chrome, window_chrome_no_portrait,
 };
-use crate::ui::strata::FrameStrata;
+use game_engine_ui_model::ui::strata::FrameStrata;
 use shared::protocol::{PET_ACTIVE_SLOTS, PET_STABLE_SLOTS, PetStableContents, StablePetInfo};
 use ui_toolkit::rsx;
 use ui_toolkit::screen::SharedContext;
@@ -98,7 +98,7 @@ pub fn pet_stable_screen(ctx: &SharedContext) -> Element {
     }
     let x = (view.viewport[0] - WIDTH) * 0.5;
     let y = (view.viewport[1] - HEIGHT) * 0.5;
-    crate::panel_lifecycle::bind_close(
+    game_engine_ui_model::panel_lifecycle::bind_close(
         rsx! { r#frame { name: {DynName(FRAME_NAME.into())}, width: WIDTH, height: HEIGHT,
             strata: FrameStrata::Dialog, mouse_enabled: true, pos_type: "absolute", left: x, top: y,
             {children}
@@ -204,12 +204,12 @@ fn stabled_row(view: &StableFrameView, pet: &StablePetInfo, y: f32) -> Element {
     ));
     let disabled = view.pending || view.rename;
     let action = format!("stable_slot:{}", pet.slot);
-    crate::selection_list::row(
+    game_engine_ui_model::selection_list::row(
         slot_name(pet.slot),
         &action,
         !disabled,
         (40.0, y, 260.0, 56.0),
-        (&crate::selection_list::AUTHORED, false),
+        (&game_engine_ui_model::selection_list::AUTHORED, false),
         children,
     )
 }
@@ -290,7 +290,7 @@ fn model_panel(view: &StableFrameView) -> Element {
                     .find(|spec| Some(spec.id) == pet.specialization)
             })
             .map_or("", |spec| spec.name.as_str());
-        use crate::menu_primitives::*;
+        use game_engine_ui_model::menu_primitives::*;
         // PetModelScene BOTTOMRIGHT(-2,5), 708x550; PetInfo +10, Favorite +20,+18;
         // NameBox centered -2 from Favorite, 40 high; specialization below NameBox +1.
         children.extend(dropdown_button_with_state(
@@ -341,13 +341,15 @@ fn model_panel(view: &StableFrameView) -> Element {
 }
 
 fn specialization_menu(view: &StableFrameView) -> Element {
-    use crate::menu_primitives::*;
+    use game_engine_ui_model::menu_primitives::*;
     let Some(contents) = &view.contents else {
         return Vec::new();
     };
     let height = 43.0 + contents.specializations.len() as f32 * 20.0;
-    let mut body =
-        crate::selection_list::menu_background("StableSpecMenuBackground".into(), (151.0, height));
+    let mut body = game_engine_ui_model::selection_list::menu_background(
+        "StableSpecMenuBackground".into(),
+        (151.0, height),
+    );
     body.extend(menu_element(
         ContextMenuItem {
             name: "StableSpecMenuTitle",

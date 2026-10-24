@@ -55,7 +55,6 @@ pub mod chat_draft;
 pub mod chat_frame;
 #[path = "ui/screens/chat_frame_component.rs"]
 pub mod chat_frame_component;
-pub mod collections_component;
 pub mod cooldown_assist;
 pub mod cooldown_settings_component;
 pub mod cooldown_viewer_component;
@@ -76,10 +75,6 @@ pub mod guild_tabards;
 pub mod menu_template_art;
 pub mod mythic_mentor;
 pub mod navigation_bar;
-pub mod pet_journal;
-pub mod pet_stable;
-#[path = "ui/screens/pet_stable_component.rs"]
-pub mod pet_stable_component;
 pub mod professions;
 pub mod professions_catalog;
 pub mod professions_cooldown;
@@ -98,7 +93,6 @@ pub mod summon;
 pub mod talents;
 pub mod trainer;
 pub mod trainer_frame;
-pub mod wild_pet_battle;
 
 // Party/raid frames, ready check and the PARTY_INVITE popup (docs/specs/group-frames.md).
 /// The compact unit frame's dispel colours (root `buff_data`).

@@ -1,4 +1,4 @@
-use game_engine_ui_model::pet_journal::{
+use game_engine_ui_collections::pet_journal::{
     PetJournalView, PetRequest, PetRowKey, PetSpeciesVisual, pet_journal_screen,
 };
 use shared::pet_battle::{PetJournal, PetQuality};
@@ -157,7 +157,7 @@ fn pet_filters_toggle_ownership_families_and_reset_without_changing_authority() 
 
 #[test]
 fn journal_species_flags_hide_debug_rows_and_reveal_learned_only_species() {
-    use game_engine_ui_model::pet_journal::PetSpeciesFilter;
+    use game_engine_ui_collections::pet_journal::PetSpeciesFilter;
     let mut view = view();
     view.species_filters.insert(
         40,
@@ -189,7 +189,7 @@ fn journal_species_flags_hide_debug_rows_and_reveal_learned_only_species() {
 
 #[test]
 fn pet_source_menu_omits_no_source_sentinel_in_real_catalog_metadata() {
-    use game_engine_ui_model::pet_journal::PetSpeciesFilter;
+    use game_engine_ui_collections::pet_journal::PetSpeciesFilter;
     game_engine_ui_model::paths::set_data_root(
         std::path::PathBuf::from(env!("CARGO_MANIFEST_DIR")).join("../../data"),
     )
@@ -224,7 +224,7 @@ fn pet_source_menu_omits_no_source_sentinel_in_real_catalog_metadata() {
 
 #[test]
 fn pet_filters_use_species_source_combat_flags_and_owned_sort_values() {
-    use game_engine_ui_model::pet_journal::PetSpeciesFilter;
+    use game_engine_ui_collections::pet_journal::PetSpeciesFilter;
     let mut view = view();
     view.species_filters.insert(
         39,
@@ -467,7 +467,7 @@ fn loadout_decoration_and_names_follow_owned_quality_type_and_health() {
                 context.insert(state);
                 let mut registry = FrameRegistry::new(1920.0, 1080.0);
                 Screen::new(pet_journal_screen).sync(&context, &mut registry);
-                game_engine_ui_model::collections_component::apply_collections_postsetup(
+                game_engine_ui_collections::collections_component::apply_collections_postsetup(
                     &mut registry,
                 );
                 let frame = |name| {

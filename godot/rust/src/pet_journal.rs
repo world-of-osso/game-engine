@@ -3,7 +3,7 @@ use crate::character_frame::preview::{Scene, bind_sheet_light};
 use crate::world_models::UnitAppearance;
 use crate::{GameClient, frame_error::FrameError, ui::RegistryUi};
 use game_engine_session::SessionScreen;
-use game_engine_ui_model::pet_journal::{
+use game_engine_ui_collections::pet_journal::{
     PetJournalView, PetRowKey, PetSpeciesFilter, PetSpeciesVisual, SEARCH, pet_journal_screen,
 };
 use godot::prelude::*;

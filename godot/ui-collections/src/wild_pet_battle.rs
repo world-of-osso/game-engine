@@ -1,7 +1,7 @@
 //! Retail PetBattleFrame: identical controls/layout for Modern and Forever art skins.
-use crate::bank_art::{WHITE, cropped, label, texture};
 use crate::pet_journal::PetSpeciesVisual;
-use crate::quest_art::{DynName, panel_button};
+use game_engine_ui_model::bank_art::{WHITE, cropped, label, texture};
+use game_engine_ui_model::quest_art::{DynName, panel_button};
 use shared::protocol::*;
 use ui_toolkit::{rsx, screen::SharedContext, widget_def::Element};
 
@@ -681,12 +681,15 @@ fn selection_button(
             WHITE,
         ));
     }
-    crate::selection_list::row(
+    game_engine_ui_model::selection_list::row(
         name,
         &action,
         enabled,
         (left, top, 192.0, 200.0),
-        (&crate::selection_list::PET_BATTLE_SELECTION, selected),
+        (
+            &game_engine_ui_model::selection_list::PET_BATTLE_SELECTION,
+            selected,
+        ),
         contents,
     )
 }

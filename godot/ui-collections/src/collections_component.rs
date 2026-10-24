@@ -1,9 +1,9 @@
 //! Retail Mainline CollectionsJournal: one portrait shell and shared tab bar.
-use crate::merchant_frame_component::tab_width;
-use crate::quest_art::{
+use game_engine_ui_model::merchant_frame_component::tab_width;
+use game_engine_ui_model::quest_art::{
     DynName, named_atlas_texture, portrait_border, window_portrait_slot, window_portrait_texture,
 };
-use crate::ui::strata::FrameStrata;
+use game_engine_ui_model::ui::strata::FrameStrata;
 use ui_toolkit::{rsx, widget_def::Element};
 
 pub const SIZE: [f32; 2] = [703.0, 606.0];
@@ -212,7 +212,7 @@ fn journal_tab(index: usize, active: usize, title: &str, left: f32, width: f32) 
         2 => "collections:toys",
         _ => "",
     };
-    crate::merchant_frame_component::tab(
+    game_engine_ui_model::merchant_frame_component::tab(
         &format!("CollectionsJournalTab{}", index + 1),
         title,
         (left, SIZE[1] - 2.0, width),
