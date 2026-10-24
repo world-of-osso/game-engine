@@ -12,7 +12,7 @@ attempt to call global 'SetGuildRosterSelection' (a nil value)
 
 `luaG_typeerror` recovers the name from the `OP_GETGLOBAL` feeding the failing `OP_CALL`, using the single-quote `LUA_QS` format. `luaB_pcall` returns status plus all protected-call results, so the failure gives `(false, error_string)`. In the snippet as printed, the failing call is line 5 if compiled directly starting at line 1. The request provides no chunk name or compilation wrapper; FrameScript compilation accepts a caller-supplied chunk name, so the complete `chunk:line: body` string cannot be determined. Do not attribute an exact prefix. The bundled core identifies itself as Lua 5.1.1; runtime equivalence is unverified.
 
-Evidence: W `Engine/Source/lua-5.1/src/lbaselib.c:352–359`; `ldebug.c:505–523,579–589,627–634`; `ldo.c:56–73,590–610`; `luaconf.h:201–202`; `lua.h:21–24`; `llex.c:160–161`; `Engine/Source/FrameScript/FrameScript.cpp:754–760,814–820,916–930,964–969`.
+Evidence: W `Engine/Source/lua-5.1/src/lbaselib.c:352–359`; `ldebug.c:505–523,579–589,627–634`; `ldo.c:56–73,590–610`; `luaconf.h:201–202`; `lua.h:20`; `llex.c:160–161`; `Engine/Source/FrameScript/FrameScript.cpp:754–760,814–820,916–930,964–969`.
 
 ## Q2 — S35: `Frame:SetForbidden` / `Frame:IsForbidden`
 
