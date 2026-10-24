@@ -20,6 +20,7 @@ godot/           # Godot project + Rust workspace (built and tested through desk
 ├── ui-professions/ # game-engine-ui-professions: crafting/order/specialization presentation; shared ProfessionBook/Recipe/catalogs stay in ui-model
 ├── ui-player-spells/ # game-engine-ui-player-spells: Player Spells/talent presentation and previews; tab/item data and talent models stay in ui-model
 ├── ui-pvp/      # game-engine-ui-pvp: PvP queue/arena/match/scoreboard presentation; native match behavior stays in rust
+├── ui-achievements/ # game-engine-ui-achievements: frame/toast rendering; state, tracker/chat, comparison cache and catalog stay in ui-model
 ├── network/     # game-engine-network: headless lightyear transport, IPC wire schema, JS automation; examples/ = process fixtures
 ├── session/     # game-engine-session: account and character-session decisions
 ├── rust/        # game-engine-godot: the GDExtension (scenes, rendering, input, IPC server)

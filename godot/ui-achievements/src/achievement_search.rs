@@ -1,6 +1,6 @@
 //! Mainline AchievementUI.xml14–60,1724–1852; Lua3401–3459.
 use super::*;
-use crate::quest_art::named_atlas_texture;
+use game_engine_ui_model::quest_art::named_atlas_texture;
 
 const WIDTH: f32 = 206.0;
 const ROW_HEIGHT: f32 = 27.0;

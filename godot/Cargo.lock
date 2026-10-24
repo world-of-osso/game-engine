@@ -3180,6 +3180,7 @@ dependencies = [
  "game-engine-core",
  "game-engine-network",
  "game-engine-session",
+ "game-engine-ui-achievements",
  "game-engine-ui-adventure",
  "game-engine-ui-collections",
  "game-engine-ui-housing",
@@ -3231,6 +3232,18 @@ name = "game-engine-session"
 version = "0.1.0"
 dependencies = [
  "shared",
+]
+
+[[package]]
+name = "game-engine-ui-achievements"
+version = "0.1.0"
+dependencies = [
+ "chrono",
+ "game-engine-core",
+ "game-engine-ui-model",
+ "serde_json",
+ "shared",
+ "ui-toolkit-core",
 ]
 
 [[package]]

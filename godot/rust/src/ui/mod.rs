@@ -2038,7 +2038,8 @@ impl RegistryUi {
         &mut self,
         state: game_engine_ui_model::achievements::AchievementWindow,
     ) -> Result<(), String> {
-        use game_engine_ui_model::achievements::{AchievementWindow, ROWS_SCROLLBOX};
+        use game_engine_ui_achievements::achievements::ROWS_SCROLLBOX;
+        use game_engine_ui_model::achievements::AchievementWindow;
         let model = self
             .model
             .as_mut()
@@ -2103,7 +2104,7 @@ impl RegistryUi {
         self.toplevel = true;
         self.show_viewport_screen_in(
             state,
-            game_engine_ui_model::achievements::achievement_screen,
+            game_engine_ui_achievements::achievements::achievement_screen,
             ScreenPostsetup::None,
             registry,
             parent,
@@ -2127,7 +2128,7 @@ impl RegistryUi {
     ) -> Result<(), String> {
         self.show_viewport_screen(
             state,
-            game_engine_ui_model::achievements::achievement_toast_screen,
+            game_engine_ui_achievements::achievements::achievement_toast_screen,
             ScreenPostsetup::None,
         )
     }

@@ -1,5 +1,5 @@
 [workspace]
-members = ["cli", "core", "network", "rust", "session", "ui-adventure", "ui-collections", "ui-housing", "ui-model", "ui-player-spells", "ui-professions", "ui-pvp"]
+members = ["cli", "core", "network", "rust", "session", "ui-achievements", "ui-adventure", "ui-collections", "ui-housing", "ui-model", "ui-player-spells", "ui-professions", "ui-pvp"]
 resolver = "3"
 
 [workspace.package]

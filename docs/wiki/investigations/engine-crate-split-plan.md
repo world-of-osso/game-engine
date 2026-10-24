@@ -254,6 +254,18 @@ The reversible Honor-label edit `"Honor Level —"` → `"Honor Level —!"` tak
 
 **No wall-speed claim under unequal shared-host load:** native time also changes32.51→11.88s,so this is one descriptive before/after pair, not a guaranteed latency gain. Isolation is proven; child CPU is69.9% lower. Common artifact features/profiles have zero differences,sibling pins match,input restored. Warmups42.015/156.840s are excluded. Parent owns the twelve-package full gate and push/merge; no new native runtime acceptance.
 
+## Achievements presentation — approved boundary
+
+Parent accepted PvP on `origin/engine-crate-split` at `2800d47ec`,then approved the next presentation-only cut. [Exact approved plan/census](engine-crate-split-achievements-plan.json) measures2185 existing render lines from3466 combined lines;1281 existing state/cache/catalog lines remain base. Counts include imports/comments/tests and are not a final crate-size or per-module compile-time forecast. The full mixed group has65 distinct14-day commits;three pure-view files alone have24,not65 render-only edits.
+
+Keep the actual base `achievements` owner for AchievementWindow/action/query/apply/delta/refresh/tracking,private pending queue/snapshot baseline,comparison page caching,chat links and static search ancestry's one OnceLock. Tracker/chat imports remain base. The new `game-engine-ui-achievements::achievements` module owns real frame/toast render functions,not re-exported models or a compatibility façade.
+
+Approved boundaries are only public `has_more_search_results` (original count **or cursor** predicate unchanged),shared SEARCH_PREVIEW_LIMIT/CRITERIA constants,actual search_catalog::category_path,and one read-only `is_achievement_request_pending(id)->bool` copying the existing queue-membership predicate. No queue exposure,state rewrite or duplicate cache. The blend fixture initializes the same public fields after Default rather than constructing external private fields; assertions remain unchanged.
+
+Before `9881aade6`:390 units and37 dungeonclient integration cases,zero ignored. Proposed/executed ownership is one blend unit+27 render integration to feature;one catalog unit+10 model/tracker/chat cases stay base,with all names exact. Original test-local fixture helpers may be shared by copy;no production implementations are copied. Rename-only `57fb9ff98` moves only the three whole pure-view companions. Wiring splits mixed root/comparison rendering while retaining original state/cache bodies and migrates the27-case fixture; no base→feature dependency.
+
+The reversible label before measurement is `"Select a category"`→`"Select a category!"`:41.569s edit,childCPU14.962s,no-op6.625s/zero dirty units,restore28.054s,input restored. Before raw receipts are in `/home/osso/.worktrees/logs/engine-crate-split-achievements-plan-2800d47ec/`. User requires an admitted serialized helper check of **all thirteen packages**,exact after inventories,scoped behavior/fmt,and the paired edit with no wall-speed claim under unequal load. Check/tests/post-cut measurement pending.
+
 ## Baseline edit measurements
 
 [Machine-readable receipts](engine-crate-split-baseline.json) include exact commands, package/target dirtiness, wall/user/system time, dependency pins, Cargo unit timings and raw-log hashes. Host `agent-server`, Rust/Cargo 1.99.0, four jobs, native helper defaults and unchanged profiles/linker. Raw logs, HTML timings, drivers and before/after name lists are archived outside the worktree at `/home/osso/.worktrees/logs/engine-crate-split-baseline-4645578c7/`. No post-split improvement is claimed.

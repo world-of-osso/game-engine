@@ -106,7 +106,7 @@ fn scroll_steps(model: &RegistryModel, list: &str) -> (usize, usize) {
         return (12, 12);
     }
     if [
-        game_engine_ui_model::achievements::ROWS_SCROLLBOX,
+        game_engine_ui_achievements::achievements::ROWS_SCROLLBOX,
         "AchievementCategoriesScrollBox",
     ]
     .contains(&list)
