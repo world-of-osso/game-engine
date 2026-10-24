@@ -1,6 +1,10 @@
+## 2026-10-23 — Companion source coverage and immutable-owner conflict
+
+[Measured source projection](../handoffs/noinstall-cert-2026-10-21.md#companion-source-projection--measured-coverage-and-held-gaps) separates exact historical byte coverage,duplicate same-byte source paths,header census,source gaps and a real current-owner conflict. Lead authorizes only the small SKIN+ANIM producer/private-stage continuation;BLP budget,alias provenance,902335 conflict and historical gaps stay held.
+
 ## 2026-10-23 — Recovered-owner companion frontier
 
-[Bounded owner-only traversal](../handoffs/noinstall-cert-2026-10-21.md#recovered-owner-descendant-traversal--explicit-companion-frontier) completes with verified roots but required missing owning-namespace companions and separate unqualified PHYS. Gzip/SQLite/frozen-input reconciliation passes;global-owner metadata does not qualify aliases. New source coverage remains a proposed measurement,not net P4 or native acceptance.
+[Bounded owner-only traversal](../handoffs/noinstall-cert-2026-10-21.md#recovered-owner-descendant-traversal--explicit-companion-frontier) completes with verified roots but required missing owning-namespace companions and separate unqualified PHYS. Gzip/SQLite/frozen-input reconciliation passes;global-owner metadata does not qualify aliases. The subsequent source projection is recorded separately above;neither result is net P4 or native acceptance.
 
 ## 2026-10-23 — Lead-only recovery publication and canonical readback
 
