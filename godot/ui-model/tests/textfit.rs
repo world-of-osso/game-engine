@@ -29,24 +29,6 @@ fn size(frame: &Frame) -> (f32, f32) {
     (width, height)
 }
 
-fn assert_caption_fits(frame: &Frame) {
-    let Some(WidgetData::FontString(text)) = &frame.widget_data else {
-        panic!("expected caption: {:?}", frame.name);
-    };
-    let (width, height) = size(frame);
-    let (text_width, text_height) = measure_text(&text.text, text.font, text.font_size).unwrap();
-    assert!(
-        text_width <= width,
-        "{}: text {text_width} > bounds {width}",
-        text.text
-    );
-    assert!(
-        text_height <= height,
-        "{}: line {text_height} > bounds {height}",
-        text.text
-    );
-}
-
 fn character(tab: CharacterTab) -> FrameRegistry {
     let mut shared = SharedContext::new();
     shared.insert(CharacterFrameView {
