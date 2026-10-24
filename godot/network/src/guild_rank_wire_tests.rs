@@ -85,6 +85,46 @@ fn guild_charter_registrar_crosses_real_udp() {
     assert_eq!(received, Some(reply));
 }
 
+#[test]
+fn guild_chat_history_response_crosses_existing_real_udp_service() {
+    let (mut server, address) = crate::wire_tests::start_fixture_server_with(|_| {});
+    let mut bridge = NetworkBridge::connect(address, 8284).unwrap();
+    connect(&mut server, &mut bridge);
+    let world = server.world_mut();
+    world
+        .query::<&mut MessageSender<ChatHistoryResponse>>()
+        .single_mut(world)
+        .unwrap()
+        .send::<AuthChannel>(ChatHistoryResponse {
+            messages: vec![ChatMessage {
+                sender: "Cara".into(),
+                content: "Ready for the guild run".into(),
+                channel: ChatType::Guild,
+            }],
+            error: None,
+        });
+    let deadline = Instant::now() + Duration::from_secs(3);
+    let mut received = None;
+    while received.is_none() && Instant::now() < deadline {
+        server.update();
+        for event in bridge.drain_events().unwrap() {
+            if let Event::Message(message) = event {
+                if message.is::<ChatHistoryResponse>() {
+                    received = Some(message.downcast::<ChatHistoryResponse>().ok().unwrap());
+                }
+            }
+        }
+        thread::sleep(Duration::from_millis(5));
+    }
+    bridge.stop().unwrap();
+    let received = received.expect("native bridge must retain the actual history reply");
+    assert!(received.error.is_none());
+    assert_eq!(received.messages.len(), 1);
+    assert_eq!(received.messages[0].sender, "Cara");
+    assert_eq!(received.messages[0].content, "Ready for the guild run");
+    assert_eq!(received.messages[0].channel, ChatType::Guild);
+}
+
 #[derive(Resource, Default)]
 struct Declines(usize);
 fn capture_declines(

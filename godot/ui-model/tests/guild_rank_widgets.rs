@@ -9,6 +9,8 @@ use ui_toolkit::registry::FrameRegistry;
 use ui_toolkit::screen::{Screen, SharedContext};
 static SKIN: Mutex<()> = Mutex::new(());
 
+#[path = "guild_chat_tests.rs"]
+mod guild_chat_tests;
 #[path = "guild_context_leadership_tests.rs"]
 mod guild_context_leadership_tests;
 #[path = "guild_context_whisper_tests.rs"]
