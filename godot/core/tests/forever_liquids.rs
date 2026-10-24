@@ -1,5 +1,5 @@
 use game_engine_core::liquid_data::{LiquidCatalog, MapLiquidCatalog};
-use std::{fs, path::PathBuf};
+use std::{fs, os::unix::fs::PermissionsExt, path::PathBuf};
 
 fn data_root() -> PathBuf {
     PathBuf::from(env!("CARGO_MANIFEST_DIR")).join("../../data")
@@ -105,7 +105,12 @@ fn forever_liquids_are_isolated_from_colliding_retail_ids_and_missing_tables() {
     )
     .unwrap();
     let objects = "ID,FlowDirection,FlowSpeed,LiquidTypeID\n427,1,2,5\n";
-    fs::write(forever_dir.join("LiquidObject.csv"), objects).unwrap();
+    let object_file = forever_dir.join("LiquidObject.csv");
+    // fs::copy preserves the read-only source mode; only the scratch copy is edited.
+    let mut permissions = fs::metadata(&object_file).unwrap().permissions();
+    permissions.set_mode(permissions.mode() | 0o200);
+    fs::set_permissions(&object_file, permissions).unwrap();
+    fs::write(object_file, objects).unwrap();
     let catalog = MapLiquidCatalog::read(&scratch).unwrap();
     assert_eq!(catalog.liquid_material(0, 5, 427).unwrap().flow_speed, 0.0);
     assert_eq!(
