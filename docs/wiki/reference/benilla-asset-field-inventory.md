@@ -30,6 +30,8 @@ Status vocabulary:
 
 [M2 declared-field census](benilla-m2-field-census.md) lists each named reader/model representation field as the starting scope for the deeper audit. It is explicitly a working census, not the final parser-to-consumer matrix or a native-format completeness count.
 
+[WMO root header/material fields](benilla-wmo-root-fields.md) enumerate MOHD/MOMT inputs, counts and discarded words, shader-specific extra slots and separate terrain-priority consumers. Other WMO records and later formats remain in progress.
+
 ## 1. Actionable comparison inventory
 
 | ID | Field or behavior | Our current boundary | Benilla reference and transfer limit |
