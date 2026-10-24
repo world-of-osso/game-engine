@@ -140,14 +140,14 @@ The [effect HUD contract](../../specs/wild-pet-battles.md#effect-hud-state) adds
 Private UDP5598 native pointers cast real Sunlight404, Cyclone190 and Tranquility254 against a map1 Rabbit. Both configured skins show weather8→6→4, enemy Cyclone4→2 across ally swaps, friendly Tranquility1, damage/miss/heal floats, cooldown5, retained chat and HUD restoration. Six inspected1280×720 PNGs live at `/syncthing/AgentShared/2026-10-10/petbattle-hud3/`; diagnostics `petbattle-hud3-2026-10-10` retain source-state/control snapshots and pointer ledger. The private redb fixture seeded authentic species347/194/118 at level2 for fb_pbhud3; this proves HUD transport, not pet acquisition. Native detached models are not proved in this run: Soul of the Aspects FDID574802 lacks a verified asset receipt. UI/icons remain visible; prior two-mesh acceptance is separate. No world.db writes, UDP5000, public deployment or master merge.
 
 ## Sources
-- [Effect HUD projection](../../../godot/ui-model/src/wild_pet_battle/effect_hud.rs), local Retail Blizzard_PetBattleUI Shared XML725–913/Lua1593–1705 and Mainline ChatFrameBase's PET_BATTLE_COMBAT_LOG temporary window.
-- [PvP contract](../../specs/petbattle-pvp.md), [journal model](../../../godot/ui-model/src/pet_journal.rs), [battle view](../../../godot/ui-model/src/wild_pet_battle.rs).
+- [Effect HUD projection](../../../godot/ui-collections/src/wild_pet_battle/effect_hud.rs), local Retail Blizzard_PetBattleUI Shared XML725–913/Lua1593–1705 and Mainline ChatFrameBase's PET_BATTLE_COMBAT_LOG temporary window.
+- [PvP contract](../../specs/petbattle-pvp.md), [journal model](../../../godot/ui-collections/src/pet_journal.rs), [battle view](../../../godot/ui-collections/src/wild_pet_battle.rs).
 - [Receipt index](../../../godot/core/src/model_asset_index.rs), [authenticated publisher](../../../scripts/import_model_asset_chains.py), [native visibility regression](../../../scripts/tests/test_petbattle_model_visibility.py), [preview bounds](../../../godot/rust/src/character_frame/preview.rs).
 - [Wild native host](../../../godot/rust/src/wild_pet_battle.rs), [private pointer fixture](../../../godot/tests/pet_battle_live.gd) and [wild spec/acceptance](../../specs/wild-pet-battles.md).
 - [Client spec](../../specs/battle-pets.md)
 - [Exporter](../../../scripts/export_db2_csv.py)
 - [Catalog join](../../../scripts/export_pet_catalog.py)
-- [UI model](../../../godot/ui-model/src/pet_journal.rs)
+- [UI model](../../../godot/ui-collections/src/pet_journal.rs)
 - Local Mainline AddOns/Blizzard_Collections/{Mainline/Blizzard_Collections.xml,Shared/Blizzard_PetCollection.xml,.lua}
 
 ## See Also

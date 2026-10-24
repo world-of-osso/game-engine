@@ -31,7 +31,7 @@ Only personally inspected genuine1920×1080 PNGs are published under `/syncthing
 
 ## Sources
 
-- [Stable model](../../../godot/ui-model/src/pet_stable.rs), [screen](../../../godot/ui-model/src/ui/screens/pet_stable_component.rs), [native host](../../../godot/rust/src/pet_stable.rs), [chrome registration](../../../godot/rust/src/ui/mod.rs).
+- [Stable model](../../../godot/ui-collections/src/pet_stable.rs), [screen](../../../godot/ui-collections/src/ui/screens/pet_stable_component.rs), [native host](../../../godot/rust/src/pet_stable.rs), [chrome registration](../../../godot/rust/src/ui/mod.rs).
 - [Account transport](../../../godot/rust/src/account.rs); protocol/server branch `pet-lifecycle` and scoped proof ledger `/home/osso/.worktrees/handoff-pet-lifecycle.md`.
 - Installed Retail `Blizzard_StableUI` and `Blizzard_APIDocumentationGenerated/PetConstantsDocumentation.lua`; pinned TrinityCorea352b1fa pet/spell references retained in the diagnostic `reference/` directory.
 

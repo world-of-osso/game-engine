@@ -1,3 +1,7 @@
+## 2026-10-24 — Collections pet/shared shell stage4
+
+[Stage4](investigations/engine-crate-split-plan.md#collections-stage4-implementation) rename-onlybaaf42472/wiring2f17f12ac moves10sources+2suites, completing33-source/12-root leaf UI group. Existing serde derive ownership declared46ba60eb6 after initial missing-dependency failure; same version/features. Native imports direct, prior mount/toy shell references now local; no residual base→feature edges/self aliases. Check passes/no diagnostics;408base+24feature units+197integration+1isolated pass (630total0fail/ignored). Exact original473 unit names=408+37+4+24 and complete197-suite packet conserved; no new timing/native-runtime/full-gate claim, parent9-package gate remains.
+
 ## 2026-10-24 — Collections toybox stage3
 
 [Stage3](investigations/engine-crate-split-plan.md#collections-stage3-implementation) rename-only6a77dd742/wiringbfcdbe17c moves2sources+1suite unchanged into Collections while ec2 gate runs. Direct native/base imports only; no new visibility/dependency/profile changes, shell/pet stay base. Scoped check passes/no diagnostics;414base+18feature units+166integration+1isolated pass (599total0fail/ignored), exact152+14 names preserved. Parent9-package gate separate, no timing/native runtime claim.

@@ -2,6 +2,10 @@
 
 Verified: 2026-10-14. Mounts, Pets and Toy Box share Retail Mainline geometry in both skins. [Mount](../../specs/mount-journal.md), [pet](../../specs/battle-pets.md) and [toy](../../specs/toy-box.md) contracts own behavior; Forever changes art only.
 
+## Rust ownership
+
+Source `46ba60eb6`: `game-engine-ui-collections` owns the shared shell, mount/pet journals, toybox, stable/wild-pet views, transmog and Trading Post. It depends on ui-model for unchanged shared chrome, item catalogs, tooltips and data-root state; native hosts import it directly. Actor/render implementation remains in GDExtension. The [staged source/census packet](../investigations/engine-crate-split-plan.md#collections-stage4-implementation) separates targeted proof from parent-owned integration acceptance; no geometry or gameplay change is part of the crate extraction.
+
 ## Shared chrome and menus
 
 `collections_component::collections_shell` retains PortraitFrameTemplate's703×606 root, rock background and top streaks. No solid brown root replaces the source background. The three Filter owners use the [shared menu primitives](menu-primitives.md), `resize_to_text:false` and Lua's90px width. Their menu descriptions fit actual labels and preserve the owner's minimum width, Mount's10px spacer and Pet's13px divider. Checkbox/reset behavior still updates the existing filter state.
@@ -37,7 +41,7 @@ The source-blend regression fails before the two-line correction, then all14 Mou
 - Retail `Blizzard_PetCollection.xml:209–430,903–910` and Lua525–700 — slots, decoration and name state.
 - Retail `Blizzard_ToyBox.xml`, Lua38–143; `SharedCollectionTemplates.xml:56–202` — parent fill, inset, tiling, shadows and filters.
 - Retail `Blizzard_Menu/MenuUtil.lua:140–166` — cursor context menus.
-- [Native fixture](../../../godot/tests/collections_fidelity_live.gd), [shared shell](../../../godot/ui-model/src/collections_component.rs), [menu compositor](../../../godot/ui-model/src/ui/screens/menu_primitives.rs).
+- [Native fixture](../../../godot/tests/collections_fidelity_live.gd), [shared shell](../../../godot/ui-collections/src/collections_component.rs), [menu compositor](../../../godot/ui-model/src/ui/screens/menu_primitives.rs).
 
 ## See Also
 
