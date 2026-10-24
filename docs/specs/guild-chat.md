@@ -18,7 +18,8 @@ Mainline Communities guild Chat in Modern and Forever uses the existing authoriz
 
 ## Implementation inventory
 
-- `godot/ui-model/src/guild_communities.rs`: Communities shell/tab composition.
+- `godot/ui-model/src/guild_chat.rs`: source stream picker/transcript/composer, recipient-history state and exact service commands.
+- `godot/ui-model/src/guild_communities.rs`: Communities shell and compact actual-member roster.
 - `godot/ui-model/src/guild_ranks.rs`: authoritative guild session and command output.
 - `godot/rust/src/guild_ranks.rs`: native input and guild presentation lifecycle.
 - `godot/rust/src/chat.rs`, `account.rs`: existing chat service boundary.

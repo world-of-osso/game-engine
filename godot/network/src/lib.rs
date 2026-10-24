@@ -365,6 +365,7 @@ impl NetworkBridge {
             .receive::<protocol::GuildTabardReply>()
             // Chat lines for the chat frame.
             .receive::<ChatMessage>()
+            .receive::<protocol::ChatHistoryResponse>()
             .receive::<protocol::CreatureTextSound>()
             // Players' social emotes, played on their models.
             .receive::<protocol::EmoteEvent>()

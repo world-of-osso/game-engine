@@ -1,3 +1,7 @@
+## 2026-10-24 — Communities guild Chat implementation
+
+[Guild Chat](systems/guilds.md#communities-guild-chat--implementation2026-10-24) adds actual transcript/composer/history over existing authorized service, source stream picker and compact roster. Targeted RED3 preceded production changes; committed before GREEN/native proof. No new service, Club metadata, offline-history or pass claim.
+
 ## 2026-10-24 — Player Spells presentation split
 
 [Player Spells cut](investigations/engine-crate-split-plan.md#player-spells-presentation--approved-next-slice) beforea154708f7/rename-only534ae04b1/wiringd8d935ea2 moves11presentation sources and11dedicated suites;35existing enum/item lines stay once in realbase data module. Talent/editor/loadout/search models remain unchanged;override typepath only. Four mixed cases preserve names/21siblings remain base;orphaned helper deletedc6dfa999e,affected21rerun/no warnings. Check passes;390base+72feature+21residual cases pass0fail/1original ignored audit;94names/390units exact,original473units conserved. Paired edit23.287→22.914s/childCPU17.509→12.139s,onlyfeature+native dirty;no wall-speed claim under unequal load. Controls/pins/profiles retained,parent11-package gate separate.

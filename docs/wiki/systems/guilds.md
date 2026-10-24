@@ -2,6 +2,12 @@
 
 Guild state is server-authoritative. Contracts: [ranks/lifecycle](../../specs/guild-ranks.md), [charters](../../specs/guild-charters.md), [vault](../../specs/guild-bank-frame.md), [tabards](../../specs/guild-tabards.md).
 
+## Communities guild Chat — implementation2026-10-24
+
+[Contract](../../specs/guild-chat.md). `guild_chat.rs` owns the existing-service history/display state and Mainline maximized transcript,32px composer and stream picker. `guild_communities.rs` composes that pane with the actual compact roster; the native guild host sends ordinary ChatMessage on ChatChannel and the already-defined ChatHistoryRequest on AuthChannel. The network bridge now receives existing ChatHistoryResponse. Guild/officer listening and speaking stay independent and authoritative; leaving clears guild-only data and closed panes reject history replies. No Club streams, dates, messages or new chat service are synthesized.
+
+Actual targeted source/control/command RED3/3 preceded production edits. Implementation and native two-actor fixture are committed before GREEN/live acceptance; no current-tip pass or capture is claimed yet. The source composer plates375507/375508/389190 were extracted locally and published by the lead. History is the existing service's bounded recipient history, not5000 durable Club messages or offline history.
+
 ## Lifecycle
 
 `GuildRanksSession` holds roster/permissions, profile, pending invitation and reply pacing. The native `guild_ranks.rs` canvas forwards exact requests; profile updates replace display state. Loading preserves early replies; logout clears them. Modified member clicks reach the native action consumer and on-screen hierarchy-filtered menu. Native LineEdit limits are applied only when changed, before synchronizing text: resetting the same limit resets Godot's caret and reverses typing.

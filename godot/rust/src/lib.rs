@@ -2516,6 +2516,7 @@ impl GameClient {
             AccountEvent::Loot(message) => self.receive_loot_message(message)?,
             AccountEvent::Auction(reply) => self.auction.session.receive(reply),
             AccountEvent::Chat(message) => self.receive_chat(&message),
+            AccountEvent::ChatHistory(reply) => self.receive_guild_chat_history(reply),
             AccountEvent::CreatureTextSound(sound) => {
                 self.play_creature_text_sound(sound.sound_kit)?
             }

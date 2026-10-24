@@ -19,6 +19,14 @@ pub fn apply_guild_postsetup(
     crate::guild_control::apply_postsetup(registry);
     crate::guild_member_detail::apply_note_art(registry);
     crate::guild_event_log::apply_art(registry);
+    if let Some(id) = registry.get_by_name(crate::guild_chat::EDITOR) {
+        if let Some(WidgetData::EditBox(edit)) = registry
+            .get_mut(id)
+            .and_then(|frame| frame.widget_data.as_mut())
+        {
+            edit.max_bytes = Some(crate::guild_chat::MAX_MESSAGE_BYTES as u32);
+        }
+    }
     if let Some(id) = registry.get_by_name(crate::guild_member_detail::NOTE_BOX) {
         if let Some(WidgetData::EditBox(edit)) = &mut registry
             .get_mut(id)
