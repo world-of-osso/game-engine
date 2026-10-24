@@ -1,6 +1,6 @@
 ## 2026-10-23 — Housing local tag actions and tri-state query
 
-[Local query boundary](systems/housing.md#tag-source-availability--qualified2026-10-23): committed source namespaces now feed toggle/all/none/reset with search/category/menu/authority preserved. `catalog_query()` separates qualified matches from named per-entry/group unqualified gaps; all/reset removes local restrictions. Real Size-unqualified entries1727/15255 are explicit, not guessed matches/nonmatches. Actual preimplementation native RED retained; four focused native-dispatch/query tests prepared, GREEN pending. No tag UI exposure or historical native proof replay.
+[Local query boundary](systems/housing.md#tag-source-availability--qualified2026-10-23): committed source namespaces now feed toggle/all/none/reset with search/category/menu/authority preserved. `catalog_query()` separates qualified matches from named per-entry/group unqualified gaps; all/reset removes local restrictions. Real Size-unqualified entries1727/15255 are explicit, not guessed matches/nonmatches. Actual preimplementation native RED retained; at47a1828fe all five focused catalog-dispatch tests pass, including the existing Reset regression and real unqualified-entry query case. No tag UI exposure or historical native proof replay.
 
 ## 2026-10-23 — Housing typed tag sources
 
