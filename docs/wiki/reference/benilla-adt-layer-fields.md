@@ -50,7 +50,7 @@ T127–132 raw `MclyEntry` → T327–360 public `TextureLayer`. B48–60,448–
 | Bit10/`0x400` | `use_cube_map_reflection`, T49–51 → M64–83 reflection channel | Raw retained; matching consumer not established |
 | Bits11–31 | Raw retained, semantics not assigned by these predicates | Raw retained; meanings/use not established |
 
-Native N`material.rs:284–292,397–399` binds animation vectors; **`godot/shaders/terrain.gdshader:106–109` applies velocity × animation time to each slot's UV**, and137 uses reflection weights. N`material.rs:360–399` truncates rendered layer inputs to four; retaining additional MCLY records is not proof all are rendered.
+Native N`material.rs:284–292,397–399` binds animation vectors; **`godot/shaders/terrain.gdshader:106–109` applies velocity × animation time to each slot's UV**, and137 uses reflection weights. N`material.rs:360–399` truncates rendered layer inputs to four; retaining additional MCLY records is not proof all are rendered. **Clock boundary:** bounded `animation_time` lookup under `godot/` located the terrain shader uniform/use and explicit test setters, but no production setter advancing that terrain uniform. Water's native `animation_time_ms` setter is a different input. Bound velocity and shader math therefore do not establish live terrain UV motion; no runtime test was performed.
 
 ## Alpha payload and other `_tex0` fields
 
