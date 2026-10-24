@@ -16,6 +16,42 @@ use ui_toolkit::{
 #[derive(Clone, PartialEq)]
 struct Preview;
 
+#[derive(Clone, PartialEq)]
+struct AutoGridPreview {
+    count: usize,
+}
+
+fn auto_grid_screen(ctx: &SharedContext) -> Element {
+    let count = ctx
+        .get::<AutoGridPreview>()
+        .expect("auto-grid preview state")
+        .count;
+    let rows: Vec<_> = (0..count)
+        .map(|index| {
+            (
+                format!("AutoGridCell{index}"),
+                format!("preview:grid:{index}"),
+            )
+        })
+        .collect();
+    let entries: Vec<_> = rows
+        .iter()
+        .map(|(name, action)| {
+            (
+                ContextMenuItem {
+                    name,
+                    label: "Collected",
+                    action,
+                },
+                MenuElementKind::Checkbox { checked: true },
+                true,
+            )
+        })
+        .collect();
+    let menu = context_menu_description_auto_grid("AutoGridFixture", (20., 30.), 120., &entries);
+    rsx! { r#frame { name:"MenuAutoGridPreview", width:1920., height:1080., left:0., top:0., pos_type:"absolute", {menu} } }
+}
+
 fn dropdown(
     name: &str,
     text: &str,
@@ -191,6 +227,27 @@ fn menu_demo() -> Element {
 
 #[godot_api(secondary)]
 impl RegistryUi {
+    #[func]
+    pub fn show_menu_auto_grid_preview(&mut self, count: i64, forever: bool) -> GString {
+        let result = usize::try_from(count)
+            .map_err(|_| "Menu auto-grid preview count must be nonnegative.".to_string())
+            .and_then(|count| {
+                party_preview::load_data_root()?;
+                set_thread_skin(if forever {
+                    ActiveSkin::Forever
+                } else {
+                    ActiveSkin::Modern
+                });
+                self.set_ui_scale(1.0)?;
+                self.show_viewport_screen(
+                    AutoGridPreview { count },
+                    auto_grid_screen,
+                    ScreenPostsetup::None,
+                )
+            });
+        GString::from(result.err().unwrap_or_default().as_str())
+    }
+
     #[func]
     pub fn show_menu_primitives_preview(&mut self) -> GString {
         self.show_primitives_skin(ActiveSkin::Modern)
