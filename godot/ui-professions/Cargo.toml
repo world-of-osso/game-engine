@@ -12,7 +12,7 @@ path = "tests/integration.rs"
 [dependencies]
 # Existing recipe/trait catalogs and tooltip source data retain core identity.
 game-engine-core = { path = "../core" }
-# ProfessionBook/Recipe, quality/counts/catalogs, shared chrome and tooltips stay base.
+# ProfessionBook/Recipe, quality/counts, shared CSV readers, chrome and tooltips stay base.
 game-engine-ui-model = { path = "../ui-model" }
 # Authoritative crafting/order/specialization snapshots retain wire identities.
 shared = { git = "https://github.com/world-of-osso/shared-protocol.git", rev = "74e67cf" }

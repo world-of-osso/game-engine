@@ -73,7 +73,7 @@ fn load_quality_types(dir: &Path) -> Result<BTreeMap<u32, CraftingQuality>, Stri
     Ok(qualities)
 }
 
-pub(super) fn load(dir: &Path) -> Result<BTreeMap<u32, CraftingQuality>, String> {
+pub fn load(dir: &Path) -> Result<BTreeMap<u32, CraftingQuality>, String> {
     let qualities = load_quality_types(dir)?;
     let mut items = BTreeMap::new();
     read_rows(dir, "Item", &["ID", "CraftingQualityID"], |row| {

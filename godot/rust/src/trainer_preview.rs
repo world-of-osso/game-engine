@@ -129,8 +129,8 @@ fn load_preview_class_tooltip(root: &std::path::Path, id: u32) -> Result<GameToo
 
 fn load_preview_recipe_catalog(
     root: &std::path::Path,
-) -> Result<&'static game_engine_ui_model::professions_catalog::RecipeCatalog, String> {
-    use game_engine_ui_model::professions_catalog::RecipeCatalog;
+) -> Result<&'static game_engine_ui_professions::professions_catalog::RecipeCatalog, String> {
+    use game_engine_ui_professions::professions_catalog::RecipeCatalog;
     static CATALOG: std::sync::OnceLock<Result<RecipeCatalog, String>> = std::sync::OnceLock::new();
     CATALOG
         .get_or_init(|| {

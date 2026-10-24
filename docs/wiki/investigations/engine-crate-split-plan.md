@@ -292,7 +292,7 @@ Only three existing functions gain public visibility:`professions_catalog::{numb
 
 Exact test proposal:base389→386 units,feature18→21;feature39→43 integration,base trainer9→5. Three catalog-dependent units retain `professions::tests::*`;four catalog-dependent trainer cases retain `trainer_tooltips::*`. Eight model units+one reagent unit and five trainer siblings stay base. Full existing base-unit scope yields455 tests before/after;relevant subset78. Fresh original trainer runtime listing9/ignored0;other name inventories reuse unchanged,previously executed sources. Temporary census manifest/harness restored;no new execution credit. Catalog has8 distinct path commits in pinned14days,not a measured compile share.
 
-After approval:format/commit coherent wiring,run admitted serialized `-j4` scoped tests/exact inventories,all13-package helper check andfmt;parent owns full gate/push/merge. **Parent explicitly waived paired timing for this small slice:no timing edit/run.** No source/test relocation occurred in the before packet.
+Mixed-file implementation moves the approved definition/helpers once into the existing feature;the three/four mixed cases preserve their bodies and namespaces. Actual CSV readers remain base-owned,not a reexport. Validation pending:format/commit coherent wiring,run admitted serialized `-j4` scoped tests/exact inventories,all13-package helper check andfmt;parent owns full gate/push/merge. **Parent explicitly waived paired timing for this small slice:no timing edit/run.** No source/test relocation occurred in the before packet.
 
 ## Baseline edit measurements
 

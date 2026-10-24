@@ -477,7 +477,7 @@ fn professions_unlearned_source_header_requires_a_sourced_trainer_row() {
     use game_engine_ui_professions::professions_frame::recipe_source_tooltip;
     for skin in [ActiveSkin::Modern, ActiveSkin::Forever] {
         let mut view = view(15);
-        let catalog = game_engine_ui_model::professions_catalog::RecipeCatalog::load(
+        let catalog = game_engine_ui_professions::professions_catalog::RecipeCatalog::load(
             &std::path::PathBuf::from(env!("CARGO_MANIFEST_DIR")).join("../../data/db2/active"),
         )
         .unwrap();
@@ -532,7 +532,7 @@ fn professions_unlearned_source_header_requires_a_sourced_trainer_row() {
 
 #[test]
 fn professions_favorites_owner_snapshot_groups_known_recipe_except_while_searching() {
-    let catalog = game_engine_ui_model::professions_catalog::RecipeCatalog::load(
+    let catalog = game_engine_ui_professions::professions_catalog::RecipeCatalog::load(
         &std::path::PathBuf::from(env!("CARGO_MANIFEST_DIR")).join("../../data/db2/active"),
     )
     .unwrap();
@@ -653,7 +653,7 @@ fn professions_favorites_menu_and_instance_selection_follow_owner_state_in_both_
 
 #[test]
 fn professions_quality_recipe_is_visible_without_assigning_an_output() {
-    use game_engine_ui_model::professions_catalog::RecipeCatalog;
+    use game_engine_ui_professions::professions_catalog::RecipeCatalog;
     let dir = std::path::PathBuf::from(env!("CARGO_MANIFEST_DIR")).join("../../data/db2/active");
     let catalog = RecipeCatalog::load(&dir).unwrap();
     let recipe = catalog
@@ -675,7 +675,7 @@ fn professions_quality_recipe_is_visible_without_assigning_an_output() {
 
 #[test]
 fn professions_quality_dialog_shows_authored_choices_without_a_crafted_tier_in_both_skins() {
-    use game_engine_ui_model::professions_catalog::RecipeCatalog;
+    use game_engine_ui_professions::professions_catalog::RecipeCatalog;
     use game_engine_ui_professions::professions_reagent_selection::ReagentSelection;
     let dir = std::path::PathBuf::from(env!("CARGO_MANIFEST_DIR")).join("../../data/db2/active");
     let catalog = RecipeCatalog::load(&dir).unwrap();
@@ -782,7 +782,7 @@ fn professions_retail_page_tabs_in_both_skins() {
 
 #[test]
 fn professions_authored_midnight_reagent_quality_overlay_in_both_skins() {
-    use game_engine_ui_model::professions_catalog::RecipeCatalog;
+    use game_engine_ui_professions::professions_catalog::RecipeCatalog;
     let dir = std::path::PathBuf::from(env!("CARGO_MANIFEST_DIR")).join("../../data/db2/active");
     let catalog = RecipeCatalog::load(&dir).unwrap();
     let quality = catalog.crafting_quality.get(&244634).unwrap();
@@ -827,7 +827,7 @@ fn professions_authored_midnight_reagent_quality_overlay_in_both_skins() {
 }
 
 fn ordinary_reagent_view(
-    catalog: &game_engine_ui_model::professions_catalog::RecipeCatalog,
+    catalog: &game_engine_ui_professions::professions_catalog::RecipeCatalog,
 ) -> ProfessionView {
     let mut view = view(1);
     view.crafting_quality = catalog.crafting_quality.clone();

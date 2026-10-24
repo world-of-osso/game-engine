@@ -4,7 +4,7 @@ use game_engine_core::input_bindings_data::InputAction;
 use game_engine_session::SessionScreen;
 use game_engine_ui_model::item_catalog::item_catalog;
 use game_engine_ui_model::professions::ProfessionBook;
-use game_engine_ui_model::professions_catalog::RecipeCatalog;
+use game_engine_ui_professions::professions_catalog::RecipeCatalog;
 use game_engine_ui_professions::professions_frame::{
     ItemDisplay, ProfessionPage, ProfessionView, QUANTITY, SEARCH, professions_screen,
 };
