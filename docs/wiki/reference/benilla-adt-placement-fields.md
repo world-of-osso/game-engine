@@ -8,7 +8,7 @@ Individual MDDF/MODF inputs, name resolution, companion references and active do
 
 | Offset | Serialized field | E read/retained/derived → actual native consumer | B contrast |
 |---|---|---|---|
-| `0x00` | `name_id: u32` | Retained plus resolved `fdid`/`path`, O245–285; N761–763,801 selects/spawns model | Retained; F470–486 indexes resolved `root.models` and builds `Doodad.model` |
+| `0x00` | `name_id: u32` | Retained plus resolved `fdid`/`path`, O245–285; N754–781 resolves the ADT model; N801,959–975 loads/transforms it | Retained; F470–486 indexes resolved `root.models` and builds `Doodad.model` |
 | `0x04` | `unique_id: u32` | Retained; N797–804 uses spawn/dedup/name identity | Retained; copied into cooked doodad F485 |
 | `0x08` | `position[0]: f32` | Retained; N965/K63–65,118–140 placement conversion | Retained; F476–480 computes transformed world position |
 | `0x0c` | `position[1]: f32` | Same conversion input | Same B transform, not asserted equal E coordinate convention |
@@ -23,7 +23,7 @@ Individual MDDF/MODF inputs, name resolution, companion references and active do
 
 | Offset | Serialized field | E retention/production consumer | B contrast |
 |---|---|---|---|
-| `0x00` | `name_id: u32` | Retained/resolved using `0x8`; N815–822 WMO load/build | Retained; F490–510 resolves `root.wmos` |
+| `0x00` | `name_id: u32` | Retained/resolved using `0x8`; N815–822 calls native `wmo/assets.rs:128–144` WMO resolution/load | Retained; F490–510 resolves `root.wmos` |
 | `0x04` | `unique_id: u32` | Retained; N812–822,908–911 lifecycle/dedup | Retained/cooked identity F504 |
 | `0x08` | `position[0]: f32` | Retained; N887–888/K67–88 conversion | Retained; F498–502 world transform |
 | `0x0c` | `position[1]: f32` | Same conversion | Same transform |
@@ -60,7 +60,7 @@ O76–114,154–218,245–258 handles these distinct serialized dependencies. Na
 | MWDR `last` | u32 `+4` | Inclusive final MWDS index, same selector; not exclusive range end | Same bounded nonmatch |
 | MWDS set index[i] | LE u16,2-byte stride | O107–112 projects `wmo_doodad_sets`; MWDR selection → actual N820–821 build input | Same bounded nonmatch |
 
-O60–73's ordinary mode activates set0 plus `placement.doodad_set`; `0x80` mode uses only the referenced MWDS entries. `fdid`, `path`, normalized scale and active-set vectors are **derived/helper fields**, not extra record bytes. `AdtObjData.doodads/wmos/chunk_refs` are aggregate arrays. The temporary `Obj0Chunks` blobs/indices are transport containers, not alternate on-disk headers. `chunks_exact` array/pair readers discard incomplete suffixes; no tail-preservation claim. Unknown flags/tags stay unnamed. Root MCRF absence must not be generalized to companion MCRD/MCRW support.
+O60–73's ordinary mode activates set0 plus `placement.doodad_set`; `0x80` mode with a present MWDR pair uses only its inclusive referenced MWDS entries, filtering missing MWDS indices. A missing MWDR pair returns `[0, placement.doodad_set]`, as does ordinary mode; a reversed pair yields no entries. These are observed source branches, not a new fallback policy. `fdid`, `path`, normalized scale and active-set vectors are **derived/helper fields**, not extra record bytes. `AdtObjData.doodads/wmos/chunk_refs` are aggregate arrays. The temporary `Obj0Chunks` blobs/indices are transport containers, not alternate on-disk headers. `chunks_exact` array/pair readers discard incomplete suffixes; no tail-preservation claim. Unknown flags/tags stay unnamed. Root MCRF absence must not be generalized to companion MCRD/MCRW support.
 
 ## Sources
 

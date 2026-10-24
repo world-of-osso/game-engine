@@ -32,7 +32,7 @@ Each E row is a distinct declared field. Offsets are MCNK-payload-relative, inte
 | `0x3c` | `_holes_low_res: u16`, D255 | `holes_low_res` | Same named member retained, B363 |
 | `0x3e` | `_unknown_but_used: u16`, D256 | Dropped; source name supplies no additional interpretation | No read in B path |
 | `0x40` | `low_quality_texture_map: [u8;16]`, D258 | Eight LE u16 rows → `texture_selection` | B retains only eight bytes here as `pred_tex`, B364–368; next eight bytes separately named below |
-| `0x50` | `no_effect_doodad: u64`, D260 | LE bytes → eight `detail_exclusion` rows | B retains these eight bytes as `unknown_8bytes`, B374–378, not as E's named exclusion map |
+| `0x50` | `no_effect_doodad: u64`, D260 | LE bytes → eight `detail_exclusion` rows | B parser retains these eight bytes as `unknown_8bytes`, B374–378; formats terrain422–434 subsequently derives cooked exclusion bits from them |
 | `0x58` | `_ofs_mcse: u32`, D261 | Dropped; MCSE records parsed from stream | No read in B path |
 | `0x5c` | `_n_sound_emitters: u32`, D262 | Dropped | No read in B path |
 | `0x60` | `_ofs_mclq: u32`, D263 | Dropped in root-header projection; water reader is separate | Temporary MCLQ locator, B489–493 |
@@ -41,18 +41,18 @@ Each E row is a distinct declared field. Offsets are MCNK-payload-relative, inte
 | `0x6c` | `pos_x: f32`, D267 | Becomes `pos[0]` | Retained as B `position[1]`, B381 |
 | `0x70` | `pos_z: f32`, D268 | Becomes `pos[2]` | Retained as B `position[2]`, B382 |
 
-B's additional **`no_effect_doodad: [u8;8]` at `0x48`**, B369–373, occupies the second half of E's16-byte texture-selection map. It must not be relabeled as E's `0x50` map. B's `unknown_8bytes` stays opaque even though E names a map at that offset.
+B's additional **`no_effect_doodad: [u8;8]` at `0x48`**, B369–373, occupies the second half of E's16-byte texture-selection map. It must not be relabeled as E's `0x50` map. B's misleading raw names do not describe its cooked semantics: `crates/benilla-formats/src/terrain.rs:422–434` concatenates the0x40/0x48 byte arrays into16 bytes, decodes64 two-bit selectors, and decodes0x50's `unknown_8bytes` into64 exclusion booleans. `ground_effects.rs:195–210` rejects excluded cells and resolves selected-layer effect IDs; terrain95–108 uses selectors for underfoot effects. This is actual B consumer evidence, not a rename of the raw0x48 field to offset0x50.
 
 ## Named flag predicates and downstream boundaries
 
 | Wire flag | E projection / consumer | B distinction |
 |---|---|---|
 | `0x1` | `has_mcsh`, D22,63,72; parsed flag retained; shadow-map data handled separately, not proof of native baked-shadow rendering | B raw flag retained; shadow data located independently |
-| `0x2` | `impass`, D23,64,73; retained in internal `McnkData.flags` but **not copied into public `adt::Chunk`**, A30–52,98–140; native consumer not established | B `MCNK_IMPASSABLE` and `McnkHeader::impassable`, B132–155; retained raw flag supports whole-chunk predicate |
+| `0x2` | `impass`, D23,64,73; retained in internal `McnkData.flags` but **not copied into public `adt::Chunk`**, A30–52,98–140; native consumer not established | B `MCNK_IMPASSABLE`/`McnkHeader::impassable`, B132–155 → formats terrain458 `ChunkMesh.impassable` → world `terrain_stream/collider.rs:227–265` wall generation, called by `terrain_stream.rs:730–753` |
 | `0x40` | `has_mccv`, D24,65,74; missing MCCV becomes an explicit error in P741–749 | B MCCV is not represented in the inspected parser/terrain-adapter path, not a repository-wide absence claim |
 | `0x8000` | `do_not_fix_alpha_map`, D25,66,75; controls companion alpha edge policy via D484–508 and `adt_tex.rs:234–300,436–483` | No corresponding named B predicate established |
 | `0x10000` | `high_res_holes`, D26,67,76; selects u64 hole projection in P625–626 | No corresponding B high-res-hole projection established |
-| Other E bits | Not retained by `McnkFlags::from_bits`, D70–79 | B raw u32 survives; B `0x3c` liquid bits select count/kind of MCLQ blocks, B498–545; see water worksheet |
+| Other E bits | Not retained by `McnkFlags::from_bits`, D70–79 | B raw u32 survives; B `0x3c` liquid bits select only block **count** via popcount, minimum1, B498–518. Kind comes from majority low-nibble **cell** flags in `benilla-formats/src/liquid.rs:141–185`; see water worksheet |
 
 E chunk index, position, heights and hole masks reach public `Chunk` through A30–47,77–140; core origin/height-grid projections are D399–464. Native `godot/rust/src/terrain/streaming.rs:181–191` reads `index_x/index_y/area_id` for area queries. Texture selection/exclusion and hole masks feed `godot/core/src/ground_detail.rs:125–170` (`DetailChunk::from_adt`/`detail_effect_at`), reached by native `terrain/ground_detail.rs:229–236`; they are not additional wire fields. [[benilla-adt-layer-fields]] traces detail consumers. E root MCRF omission is **not** absence of modern object references: object companions parse MCRD/MCRW independently; see [[benilla-adt-placement-fields]].
 
