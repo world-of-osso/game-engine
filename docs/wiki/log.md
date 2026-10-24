@@ -1116,6 +1116,10 @@ Explicit user instruction authorizes frame growth, not a discovered Retail mecha
 
 [Normal/huge bomb interaction](systems/battlegrounds.md#ioc-bomb-disarm-interaction--active-2026-10-14): actual request RED→GREEN with physical picking, cursor and soft-interaction paths; game-object15/15 and soft10/10, no generic trap enablement. Native both-skin bomb deployment/disarm and full IoC remain pending.
 ## 2026-10-23 — Benilla asset-field inventory
+## 2026-10-24 — M2 declared-field scope
+
+[Working census](reference/benilla-m2-field-census.md) exposes named M2/SKIN reader/model fields individually, separately from source byte layouts and downstream handling. Parser-to-consumer proofs, header/opaque ranges and runtime classifications remain active work; no completeness or runtime claim.
+
 ## 2026-10-24 — Benilla taint/aura boundary
 
 `reference/open-source-wow-clients.md` distinguishes the `benilla` client at `8161582` from its pinned `benilla-re` reference at `c854c4e`. The reference documents per-value context tags and attribute/effect-based hidden-aura filtering; the client models function/call-stack context, not addon data-value taint, and keeps classic aura behavior. Static 1.12.1 evidence only; no runtime or cross-build claim.

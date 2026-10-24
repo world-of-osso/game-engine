@@ -22,6 +22,10 @@ Status vocabulary:
 
 `E/path:lines` and `B/path:lines` identify files relative to the roots above. Code revisions, rather than wiki descriptions, govern the matrix.
 
+## Per-field expansion
+
+[M2 declared-field census](benilla-m2-field-census.md) lists each named reader/model representation field as the starting scope for the deeper audit. It is explicitly a working census, not the final parser-to-consumer matrix or a native-format completeness count.
+
 ## 1. Actionable comparison inventory
 
 | ID | Field or behavior | Our current boundary | Benilla reference and transfer limit |
