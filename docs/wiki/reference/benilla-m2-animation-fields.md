@@ -9,7 +9,7 @@ E parser **A** = `E/godot/core/src/asset/m2_format/m2_anim.rs`; bone stride88, s
 | E field | Serialized location / retention | Production read | B counterpart / boundary |
 |---|---|---|---|
 | Key-bone ID | `i32 +0`, retained | `E/godot/rust/src/animation/action.rs:110`, `animation/mount_special.rs:132,146` masks. | B skeleton retains `key_bone`; adapted type differs. |
-| Flags | `u32 +4`, retained | Billboard interpretation `E/godot/rust/src/animation/billboard.rs:24–26,47,83`; light handling `assets/m2_lights.rs:124`. | B derives billboard and parent-arm metadata (`models/anim.rs:39–44`), while base model retains raw flags. Individual bit-equivalence not established. |
+| Flags | `u32 +4`, retained | Billboard interpretation `E/godot/rust/src/animation/billboard.rs:24–26,47,83`; light handling `assets/m2_lights.rs:124`. | B derives billboard and parent-arm metadata (`models/anim.rs:52–69`), while base model retains raw flags. Individual bit-equivalence not established. |
 | Parent index | `i16 +8`, retained | Skeleton hierarchy and parent-relative pivots `E/godot/rust/src/assets/mod.rs:402–405`, `animation/mod.rs:227–232`; action parent traversal. | B retains signed parent. |
 | Submesh ID | `u16 +0x0a`, retained | No non-copy production read found in bounded E native Rust and core variation paths. Not a global absence proof. | B base bone metadata requires separate consumer tracing; no equivalence asserted. |
 | Name CRC | `u32 +0x0c`, retained | Equipment CRC-to-joint remap `E/godot/rust/src/assets/equipment.rs:459–460,476–477`. | No matching CRC consumer established in inspected B skeleton adapter. |
@@ -22,7 +22,7 @@ The B rotation/scale/pivot offsets must follow its actual parser, not a stride s
 
 ## Sequences: E64 bytes versus B68 bytes
 
-E all named fields decode at A:128–158. E intentionally retains opaque gaps without inferred native field names. **BC** = `B/crates/benilla-formats/src/models/anim.rs:302–338`, the cooked animation schema; B raw sequence adapter and consumer limitations are separate from field declarations.
+E all named fields decode at A:128–158. E leaves opaque gaps unread; cooked sequences do not retain their bytes or assign native field names. **BC** = `B/crates/benilla-formats/src/models/anim.rs:302–338`, the cooked animation schema; B raw sequence adapter and consumer limitations are separate from field declarations.
 
 | Field | E offset / type / retention | E production read | B counterpart / layout difference |
 |---|---|---|---|
@@ -53,7 +53,7 @@ Each E translation/rotation/scale track instantiates every descriptor row in [ri
 | Global-sequence index | Retained; `AnimTime::track_time` wraps global clock using duration (`E/godot/core/src/m2.rs:263–276,288–294`). | B retains global period and keys; own extraction differs. |
 | Timestamp payload | `u32` milliseconds, per-sequence vectors | B flat absolute timeline plus range windows, rebased to sequence bands. |
 | Quaternion payload | E bone values compressed signed16×4; texture rotation floats×4 | B bone float quaternion reads must remain version-qualified. |
-| Material interpolation | Separate evaluator: type1 linear, others step; quaternion normalized component lerp (`E/godot/core/src/m2_material.rs:296–325`). | Do not extrapolate B camera sampler to ordinary material or bone channels. |
+| Material interpolation | Separate evaluator: type1 linear, others step; quaternion normalized component lerp (`E/godot/core/src/m2_material.rs:296–325,350–365`). | Do not extrapolate B camera sampler to ordinary material or bone channels. |
 
 B 28-byte `ChannelTrack` descriptor fields (`B/crates/benilla-formats/src/models/anim.rs:365–428`) are individually: interpolation `u16 +0`; global-sequence `u16 +2`; range count `u32 +4`; range offset `u32 +8`; timestamp count `u32 +0x0c`; timestamp offset `u32 +0x10`; value count slot `u32 +0x14`; value offset `u32 +0x18`. This particular adapter iterates timestamp count and bounds-checks payload rather than reading the value-count slot. Range elements each contain `lo:u32` and `hi:u32`; retained as windows. Addresses are not retained. These are not modern E missing fields: E uses nested per-sequence arrays instead of B ranges. Base B spline-track readers have their own descriptor behavior, not automatically this adapter's behavior.
 
