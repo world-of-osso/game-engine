@@ -2,6 +2,7 @@
 
 import hashlib
 import json
+import os
 from pathlib import Path
 import sys
 import tempfile
@@ -213,6 +214,121 @@ class ReceiptedModelStageTests(unittest.TestCase):
         graph = ReceiptClosure(self.data, {}, "wow", "12.1.5.70448")
         graph.add(122893, "m2", "unreceipted residual")
         self.assertFalse(graph.run()["assets"][0]["present"])
+
+    @unittest.skipUnless(os.environ.get("P4_RED") == "1", "SKIN ANIM recovery RED")
+    def test_skin_owned_destination_retains_source_without_alias(self):
+        raw = b"SKIN" + b"\0" * 40
+        destination = f"products/wow/{SOURCE_KEY}/models/473319.skin"
+        self.source(473319, "skin", raw, destination)
+        try:
+            result = self.stage()
+        except ValueError as error:
+            self.fail(f"Authenticated SKIN owner was refused: {error}")
+        self.assertEqual(
+            (result["owners"], result["aliases"], result["findings"]), (1, 0, 1)
+        )
+        owner = self.fragment()["assets"][0]
+        self.assertEqual(owner["path"], destination)
+        self.assertEqual(owner["build"], "12.1.0.69933")
+        self.assertEqual((self.output / destination).read_bytes(), raw)
+        self.assertEqual((self.data / "models/473319.skin").read_bytes(), raw)
+        finding = json.loads(
+            (self.output / "_proof/historical-source-findings.jsonl").read_text()
+        )
+        self.assertEqual(finding["alias_destination"], destination)
+        self.assertEqual(finding["actual_build_key"], SOURCE_KEY)
+        graph = ReceiptClosure(self.output, {}, "wow", "12.1.5.70448")
+        graph.add(473319, "skin", "historical SKIN owner")
+        self.assertEqual(
+            graph.run()["assets"][0]["identity_status"], "verified_receipt"
+        )
+
+    @unittest.skipUnless(os.environ.get("P4_RED") == "1", "SKIN ANIM recovery RED")
+    def test_chunked_and_raw_animation_owners_keep_source_namespace(self):
+        for index, raw in enumerate([chunk("AFM2", ints(1, 2)), ints(10, 20, 30)]):
+            with self.subTest(chunked=index == 0):
+                self.rows, self.requests = [], []
+                self.output = self.root / f"package-anim-{index}"
+                fdid = 7001 + index
+                destination = f"products/wow/{SOURCE_KEY}/models/{fdid}.anim"
+                self.source(fdid, "anim", raw, destination)
+                try:
+                    result = self.stage()
+                except ValueError as error:
+                    self.fail(f"Authenticated AFID owner was refused: {error}")
+                self.assertEqual((result["owners"], result["aliases"]), (1, 0))
+                owner = self.fragment()["assets"][0]
+                self.assertEqual(owner["path"], destination)
+                self.assertEqual(owner["content_key"], hashlib.md5(raw).hexdigest())
+                self.assertEqual((self.output / destination).read_bytes(), raw)
+
+    @unittest.skipUnless(os.environ.get("P4_RED") == "1", "SKIN ANIM recovery RED")
+    def test_skin_requires_native_minimum_header_before_fragment(self):
+        self.source(473319, "skin", b"SKIN" + b"\0" * 8)
+        with self.assertRaisesRegex(ValueError, "SKIN.*44"):
+            self.stage()
+        self.assertFalse((self.output / "cache").exists())
+
+    @unittest.skipUnless(os.environ.get("P4_RED") == "1", "SKIN ANIM recovery RED")
+    def test_skin_animation_cross_namespace_aliases_remain_refused(self):
+        for kind, raw in [("skin", b"SKIN" + b"\0" * 40), ("anim", ints(1, 2))]:
+            with self.subTest(kind=kind):
+                self.rows, self.requests = [], []
+                self.output = self.root / f"package-cross-{kind}"
+                destination = f"products/wow/{PARENT_KEY}/models/473319.{kind}"
+                self.source(473319, kind, raw, destination)
+                with self.assertRaisesRegex(ValueError, "namespace"):
+                    self.stage()
+                self.assertFalse((self.output / "cache").exists())
+
+    @unittest.skipUnless(os.environ.get("P4_RED") == "1", "SKIN ANIM recovery RED")
+    def test_skin_animation_payload_drift_cannot_stage(self):
+        for kind, raw in [("skin", b"SKIN" + b"\0" * 40), ("anim", ints(1, 2))]:
+            with self.subTest(kind=kind):
+                self.rows, self.requests = [], []
+                self.output = self.root / f"package-drift-{kind}"
+                request = self.source(473319, kind, raw)
+                self.put(request["source_path"], b"different unreceipted bytes")
+                with self.assertRaisesRegex(ValueError, "payload"):
+                    self.stage()
+                self.assertFalse((self.output / "cache").exists())
+
+    @unittest.skipUnless(os.environ.get("P4_RED") == "1", "SKIN ANIM recovery RED")
+    def test_other_companion_kinds_are_not_enabled(self):
+        for kind, raw in [("bone", b"BONEdata"), ("skel", b"SKL1data")]:
+            with self.subTest(kind=kind):
+                self.rows, self.requests = [], []
+                self.output = self.root / f"package-unsupported-{kind}"
+                self.source(473319, kind, raw)
+                with self.assertRaisesRegex(ValueError, "Unsupported"):
+                    self.stage()
+
+    @unittest.skipUnless(os.environ.get("P4_RED") == "1", "SKIN ANIM recovery RED")
+    def test_existing_skin_animation_owners_are_immutable(self):
+        for kind, raw in [("skin", b"SKIN" + b"\0" * 40), ("anim", ints(1, 2))]:
+            with self.subTest(kind=kind):
+                self.rows, self.requests = [], []
+                self.output = self.root / f"package-existing-{kind}"
+                self.source(473319, kind, raw)
+                owner = {
+                    "product": "wow",
+                    "fdid": 473319,
+                    "kind": kind,
+                    "build": "12.1.5.70448",
+                    "build_key": PARENT_KEY,
+                    "path": f"products/wow/{PARENT_KEY}/models/473319.{kind}",
+                    "bytes": len(raw),
+                    "sha256": hashlib.sha256(raw).hexdigest(),
+                    "content_key": hashlib.md5(raw).hexdigest(),
+                }
+                original = json.dumps({"version": 1, "assets": [owner]}).encode()
+                self.put("cache/model-asset-index.json", original)
+                with self.assertRaisesRegex(ValueError, "owner"):
+                    self.stage()
+                self.assertEqual(
+                    (self.data / "cache/model-asset-index.json").read_bytes(), original
+                )
+                self.assertFalse((self.output / "cache").exists())
 
 
 if __name__ == "__main__":
