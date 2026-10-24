@@ -1,3 +1,7 @@
+## 2026-10-24 — Adventure Guide crate and landed Housing tags
+
+[Adventure extraction](investigations/engine-crate-split-plan.md#adventure-guide-extraction) moves15 production modules/private fixtures/seven suites with separate rename-only2ba7f80f5/wiring7048f5b06. Parent tag master58d10 merges atf9be3a1ef; nested Housing tags move unchanged inc77628cbc, remaining test import31dde0e4d. Affected helper check passes/no diagnostics;616 tests pass (432 base units+37 Housing+4 Adventure,33+110 feature integration),0fail/ignored; exact original473-unit multiset conserved. Native actor code stays put; no Adventure timing/native runtime/full-suite claim, parent gate separate.
+
 ## 2026-10-24 — Housing crate pilot
 
 [Housing split](investigations/engine-crate-split-plan.md#housing-pilot-implementation) moves20 modules/three suites with no façade or base rename, direct native consumers and one shared-helper visibility change. Atfaadc498c, affected helper check passes;473 original unit names=436 residual+37 moved,33 integration names unchanged; all436/37/33 pass,0 failures/ignored. Exact warm UI-edit extension loop58.258→34.051s, no-op1.161s/restore17.563s; Housing/native dirty, ui-model fresh. Matched sibling pins/profiles and single-sample shared-host variance explicit; raw receipts retained, lead integration gate separate. Adventure Guide proposed, not started.
