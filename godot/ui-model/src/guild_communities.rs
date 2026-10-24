@@ -407,7 +407,7 @@ fn member_row(session: &GuildRanksSession, index: usize, member: &GuildRankMembe
 
 fn compact_roster(session: &GuildRanksSession, shared: &SharedContext) -> Element {
     const LIST_NAME: &str = "CommunitiesChatMemberList";
-    let members = sorted_members(session);
+    let members = sort_compact_members(session);
     let geometry = pixel_geometry(335.0, members.len() as f32 * ROW_HEIGHT, 330.0);
     let offset = geometry.clamp(shared.scroll_first_row(LIST_NAME));
     let rows: Element = members
@@ -418,24 +418,24 @@ fn compact_roster(session: &GuildRanksSession, shared: &SharedContext) -> Elemen
             let labels = label(
                 format!("{name}Name"),
                 &member.character_name,
-                (18.0, 0.0, 143.0, ROW_HEIGHT),
+                (4.0, 0.0, 130.0, ROW_HEIGHT),
                 (11.0, "1,1,1,1", "LEFT"),
             );
             row(
                 name,
                 &format!("guild:member:{}", member.character_name),
                 true,
-                (0.0, index as f32 * ROW_HEIGHT, 165.0, ROW_HEIGHT),
+                (0.0, index as f32 * ROW_HEIGHT, 139.0, ROW_HEIGHT),
                 (&crate::selection_list::GUILD_MEMBER, false),
                 labels,
             )
         })
         .collect();
     let config = scroll_list_attr(&geometry);
-    let mut out = rsx! { r#frame { name: "CommunitiesChatMemberList", left: 623.0, top: 63.0,
-        width: 165.0, height: 335.0, pos_type: "absolute", mouse_enabled: true, scroll_list: config,
+    let mut out = rsx! { r#frame { name: "CommunitiesChatMemberList", left: 649.0, top: 63.0,
+        width: 139.0, height: 335.0, pos_type: "absolute", mouse_enabled: true, scroll_list: config,
         r#frame { name: "CommunitiesChatMemberChild", left: 0.0, top: {-(offset as f32)},
-            width: 165.0, height: {members.len() as f32 * ROW_HEIGHT}, pos_type: "absolute", {rows} }
+            width: 139.0, height: {members.len() as f32 * ROW_HEIGHT}, pos_type: "absolute", {rows} }
     } };
     out.extend(
         MinimalScrollBar {
@@ -450,6 +450,28 @@ fn compact_roster(session: &GuildRanksSession, shared: &SharedContext) -> Elemen
         .element(),
     );
     out
+}
+
+fn sort_compact_members(session: &GuildRanksSession) -> Vec<&GuildRankMember> {
+    let profiles: HashMap<_, _> = session
+        .profile
+        .iter()
+        .flat_map(|profile| &profile.members)
+        .map(|member| (member.character_name.as_str(), member))
+        .collect();
+    // Mainline ShouldShowOfflinePlayers: the compact Chat list always includes offline rows.
+    let mut members: Vec<_> = session
+        .state()
+        .into_iter()
+        .flat_map(|state| &state.members)
+        .collect();
+    members.sort_by(|lhs, rhs| {
+        crate::guild_note_sort::compare_base(
+            (lhs, profiles.get(lhs.character_name.as_str()).copied()),
+            (rhs, profiles.get(rhs.character_name.as_str()).copied()),
+        )
+    });
+    members
 }
 
 /// SharedConstants.lua CLASS_ICON_TCOORDS; names come from authoritative GuildSnapshot.

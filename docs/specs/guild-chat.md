@@ -4,7 +4,7 @@ Mainline Communities guild Chat in Modern and Forever uses the existing authoriz
 
 ## What it must do
 
-- [ ] Chat renders the source maximized transcript/inset/MinimalScrollBar,32px composer,160px stream dropdown and compact roster in both skins. Guild Chat and Officer Chat select existing server channels, not invented Club streams.
+- [ ] Chat renders the source maximized transcript/inset/MinimalScrollBar,32px composer,160px stream dropdown and compact roster in both skins. Guild Chat and Officer Chat select existing server channels, not invented Club streams. Compact MemberList uses its literal frame-right anchors and remains independent of the expanded-roster Show Offline preference.
 - [ ] Opening Chat queries existing recipient-authorized history. Render only actual guild/officer messages for the selected permitted channel; no sample lines, fabricated dates or local optimistic echoes. Reopening refreshes history without duplicating a received snapshot. Snapshot replacement and subsequent live deliveries retain server ChatChannel order across the native typed receiver buffers.
 - [ ] Composer Enter sends one actual ChatMessage through the same service as /g or /o; empty input sends nothing,512-byte source limit is enforced and Escape only releases focus. A successful send clears the native input, not the transcript.
 - [ ] Current rank's independent listen/speak rights control stream visibility and composer availability. Server authority remains decisive; an ordinary member's officer send is refused without disclosure to unauthorized recipients/history.

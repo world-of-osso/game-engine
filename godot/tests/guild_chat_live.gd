@@ -64,10 +64,10 @@ func check_chat_geometry() -> bool:
 	var frame := control("CommunitiesFrame").get_global_rect()
 	var scale := frame.size.x / 814.0
 	var expected := {
-		"CommunitiesChatMessageFrame": Rect2(201, 67, 390, 303),
-		"CommunitiesChatEditBox": Rect2(197, 374, 397, 32),
+		"CommunitiesChatMessageFrame": Rect2(201, 67, 416, 303),
+		"CommunitiesChatEditBox": Rect2(197, 374, 423, 32),
 		"CommunitiesStreamDropdown": Rect2(195, 31, 160, 25),
-		"CommunitiesChatMemberList": Rect2(623, 63, 165, 335),
+		"CommunitiesChatMemberList": Rect2(649, 63, 139, 335),
 	}
 	for name in expected:
 		var source: Rect2 = expected[name]
@@ -230,7 +230,7 @@ func transcript() -> String:
 	return "\n".join(values)
 
 func received(value: String) -> bool:
-	return await wait_until(func(): return transcript().contains(value), "real received " + value)
+	return await wait_until(func(): return " ".join(transcript().replace("\n", " ").split(" ", false)).contains(value) and JSON.stringify(observation()).contains(value), "real received and painted " + value)
 
 func mark(stage: String) -> void:
 	FileAccess.open(directory.path_join(role + "-" + stage), FileAccess.WRITE).store_string("actual-native\n")

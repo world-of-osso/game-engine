@@ -1,3 +1,7 @@
+## 2026-10-24 — Compact Chat literal right anchors
+
+[Compact Chat](systems/guilds.md#compact-chat-source-anchors) corrects x623→649 and source139px content/416px transcript/423px composer after actual generated-layout RED. Expanded-only offline preference no longer hides compact members. Actual native bounds and refreshed model proof remain pending; UDP ordering2GREEN is independent.
+
 ## 2026-10-24 — Guild history/live delivery ordering
 
 [Guild Chat](systems/guilds.md#communities-guild-chat--implementation2026-10-24): actual held-worker UDP returns a later live line before history replacement (1receiptPASS/1orderFAIL). Existing reply moves to ChatChannel and a single typed relay preserves real message IDs; no new RPC/schema/service. UI7GREEN retained, transport GREEN/native acceptance pending.

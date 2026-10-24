@@ -8,6 +8,10 @@ Guild state is server-authoritative. Contracts: [ranks/lifecycle](../../specs/gu
 
 Actual targeted source/control/command RED3/3 preceded production edits. Implementation and native two-actor fixture are committed before GREEN/live acceptance; no current-tip pass or capture is claimed yet. The source composer plates375507/375508/389190 were extracted locally and published by the lead. History is the existing service's bounded recipient history, not5000 durable Club messages or offline history.
 
+### Compact Chat source anchors
+
+Mainline CommunitiesMemberList.lua586–590 anchors compact TOPLEFT to the814px frame's TOPRIGHT−165, givingx649; XML's RIGHT−26 makes its content139px, not165. Maximize Chat right follows that left−32, so transcript416px and composer423px. The generated native-layout contract reproduced the earlier wrongx623 in actual RED. `ShouldShowOfflinePlayers` keeps compact members regardless of the expanded-only saved checkbox; compact uses the existing qualified represented-field base ordering, not invented Club roles/presence. Physical resolved bounds remain a separate native assertion.
+
 ## Lifecycle
 
 `GuildRanksSession` holds roster/permissions, profile, pending invitation and reply pacing. The native `guild_ranks.rs` canvas forwards exact requests; profile updates replace display state. Loading preserves early replies; logout clears them. Modified member clicks reach the native action consumer and on-screen hierarchy-filtered menu. Native LineEdit limits are applied only when changed, before synchronizing text: resetting the same limit resets Godot's caret and reverses typing.

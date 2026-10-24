@@ -15,7 +15,8 @@ pub const SCROLL_BOX: &str = "CommunitiesChatMessageFrame";
 pub const LINE_HEIGHT: f32 = 14.0;
 pub const MAX_MESSAGE_BYTES: usize = 512;
 const MAX_MESSAGES: usize = 5000;
-const CHAT_RECT: (f32, f32, f32, f32) = (201.0, 67.0, 390.0, 303.0);
+// MemberList starts at FrameTOPRIGHT-165 (649), with its right edge at814-26.
+const CHAT_RECT: (f32, f32, f32, f32) = (201.0, 67.0, 416.0, 303.0);
 
 #[derive(Clone, Debug, PartialEq, Eq)]
 pub struct GuildChatLine {
@@ -103,7 +104,7 @@ pub fn frame(session: &GuildRanksSession, shared: &SharedContext) -> Element {
     use ui_toolkit::art_layout::{BorderLayout, BorderSpec, border_art};
     let mut children = border_art(
         "CommunitiesChatInset",
-        BorderSpec::new(BorderLayout::Inset, [191.0, 60.0, 410.0, 338.0]),
+        BorderSpec::new(BorderLayout::Inset, [191.0, 60.0, 436.0, 338.0]),
     );
     children.extend(stream_picker(session));
     children.extend(transcript(session, shared));
@@ -279,10 +280,10 @@ fn composer(enabled: bool) -> Element {
         texture { name: "CommunitiesChatEditBoxLeft", texture_fdid: 375507,
             left: 187.0, top: 374.0, width: 32.0, height: 32.0, pos_type: "absolute" }
         texture { name: "CommunitiesChatEditBoxMid", texture_fdid: 389190,
-            left: 219.0, top: 374.0, width: 353.0, height: 32.0, pos_type: "absolute", horiz_tile: true }
+            left: 219.0, top: 374.0, width: 379.0, height: 32.0, pos_type: "absolute", horiz_tile: true }
         texture { name: "CommunitiesChatEditBoxRight", texture_fdid: 375508,
-            left: 572.0, top: 374.0, width: 32.0, height: 32.0, pos_type: "absolute" }
-        editbox { name: {DynName(EDITOR.into())}, left: 197.0, top: 374.0, width: 397.0, height: 32.0,
+            left: 598.0, top: 374.0, width: 32.0, height: 32.0, pos_type: "absolute" }
+        editbox { name: {DynName(EDITOR.into())}, left: 197.0, top: 374.0, width: 423.0, height: 32.0,
             pos_type: "absolute", font: GameFont::ArialNarrow, font_size: LINE_HEIGHT,
             font_color: color, text_insets: "0,0,0,0", mouse_enabled: enabled }
     }
