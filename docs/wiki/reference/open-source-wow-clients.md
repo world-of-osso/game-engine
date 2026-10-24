@@ -8,7 +8,7 @@ See also: [awesome-wow-rust](https://github.com/arlyon/awesome-wow-rust) — cur
 
 | Project | Lang | Target | Status |
 |---------|------|--------|--------|
-| Benilla (`/home/osso/Repos/benilla`) | Rust / Bevy | 1.12.1 / build 5875 | [Pinned asset-field inventory](benilla-asset-field-inventory.md): M2/WMO/terrain/texture comparison; static field/consumer evidence, not native-runtime parity |
+| Benilla (`/home/osso/Repos/benilla`) | Rust / Bevy | 1.12.1 / build 5875 | [Pinned asset-field inventory](benilla-asset-field-inventory.md): M2/WMO/terrain/texture comparison; static field/consumer evidence, not native-runtime parity; [taint/aura boundary](#benilla-taint-and-aura-boundary) |
 | [Whoa](https://github.com/whoahq/whoa) | C++ | 3.3.5a | Active (1,300+ commits, 2026) — login, animations, char select |
 | [solarityclient](https://github.com/isekaishy-jpg/solarityclient) | Rust / Vulkan (ash) | 3.3.5a | 1,000+ commits — shipyard ECS, SDL3, egui, mlua, warcraft-rs `wow-*` + gtker `wow_*_messages`; [rendering crate](https://github.com/isekaishy-jpg/solarityclient/tree/main/crates/rendering/src) covers terrain, models, particles, liquid, lighting, weather, minimap, world text, UI |
 | wow_client (`~/Repos/wow_client`) | C++ | — | Active — client reimplementation/reference |
@@ -18,6 +18,10 @@ See also: [awesome-wow-rust](https://github.com/arlyon/awesome-wow-rust) — cur
 | [Wowser](https://github.com/wowserhq/client) | TypeScript / WebGL 2 | 3.3.5a | Stalled — browser-based, MIT |
 | [Warcraft-Arena-Unity](https://github.com/Reinisch/Warcraft-Arena-Unity) | C# / Unity | — | Abandoned (2019) — 30+ spells, aura system, Photon Bolt networking |
 | [idewave-cli](https://github.com/idewave/idewave-cli) | Rust | — | — CLI-based WoW client |
+
+### Benilla taint and aura boundary
+
+The Benilla row names [`samwhosung/benilla`](https://github.com/samwhosung/benilla), the client implementation, not [`benilla-re`](https://github.com/samwhosung/benilla-re), its reverse-engineering reference. At [source commit `8161582`](https://github.com/samwhosung/benilla/commit/8161582210adfe1681b858d83519880844b34bfe), the 1.12.1/build-5875 client describes per-value context tags in its reference but uses function/call-stack context itself; addon data-value taint is explicitly unmodeled. Its protected-action gate uses context and input-event state. Its aura module implements classic `UnitBuff`/`UnitDebuff` lists and `RequiredAuraVision` visibility, not modern secret-value/aura-secrecy semantics. [Taint](https://github.com/samwhosung/benilla/blob/8161582210adfe1681b858d83519880844b34bfe/crates/benilla-ui/src/script/taint.rs), [gate](https://github.com/samwhosung/benilla/blob/8161582210adfe1681b858d83519880844b34bfe/crates/benilla-ui/src/script/protected.rs), [auras](https://github.com/samwhosung/benilla/blob/8161582210adfe1681b858d83519880844b34bfe/crates/benilla-ui/src/script/aura/mod.rs). Static source evidence only; no transfer to Mists/Retail or runtime claim.
 
 ## Renderers & Map Viewers
 
