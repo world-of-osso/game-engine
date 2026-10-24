@@ -842,7 +842,7 @@ impl GameClient {
             frame
                 .onclick
                 .as_deref()?
-                .strip_prefix(game_engine_ui_model::toybox::USE_PREFIX)?
+                .strip_prefix(game_engine_ui_collections::toybox::USE_PREFIX)?
                 .parse::<u32>()
                 .ok()
         })?;

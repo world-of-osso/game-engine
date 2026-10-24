@@ -1,7 +1,7 @@
 //! Offline native pointer regression/capture, not a live-server acceptance claim.
 use super::{RegistryUi, party_preview};
-use game_engine_ui_model::toybox::ToyBox;
-use game_engine_ui_model::toybox_component::ToyBoxView;
+use game_engine_ui_collections::toybox::ToyBox;
+use game_engine_ui_collections::toybox_component::ToyBoxView;
 use godot::prelude::*;
 use shared::protocol::{SpellCooldownUpdate, ToySnapshot};
 use ui_toolkit::atlas::{ActiveSkin, set_thread_skin};

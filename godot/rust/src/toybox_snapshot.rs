@@ -1,5 +1,5 @@
 use crate::GameClient;
-use game_engine_ui_model::toybox::ToyAction;
+use game_engine_ui_collections::toybox::ToyAction;
 use godot::prelude::*;
 
 impl GameClient {

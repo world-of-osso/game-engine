@@ -55,10 +55,10 @@ impl RegistryUi {
     }
 }
 
-fn toy_view() -> game_engine_ui_model::toybox_component::ToyBoxView {
-    let mut model = game_engine_ui_model::toybox::ToyBox::default();
+fn toy_view() -> game_engine_ui_collections::toybox_component::ToyBoxView {
+    let mut model = game_engine_ui_collections::toybox::ToyBox::default();
     model.open = true;
-    game_engine_ui_model::toybox_component::ToyBoxView {
+    game_engine_ui_collections::toybox_component::ToyBoxView {
         model,
         viewport: [1920.0, 1080.0],
     }

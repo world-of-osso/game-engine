@@ -598,9 +598,9 @@ impl RegistryModel {
         }
         if let Some(view) = self
             .shared
-            .get::<game_engine_ui_model::toybox_component::ToyBoxView>()
+            .get::<game_engine_ui_collections::toybox_component::ToyBoxView>()
         {
-            game_engine_ui_model::toybox_component::apply_toybox_postsetup(
+            game_engine_ui_collections::toybox_component::apply_toybox_postsetup(
                 view,
                 &mut self.registry,
             );
@@ -1498,9 +1498,12 @@ impl RegistryUi {
 
     pub fn show_toybox(
         &mut self,
-        view: game_engine_ui_model::toybox_component::ToyBoxView,
+        view: game_engine_ui_collections::toybox_component::ToyBoxView,
     ) -> Result<(), String> {
-        self.show_quest_window(view, game_engine_ui_model::toybox_component::toybox_screen)?;
+        self.show_quest_window(
+            view,
+            game_engine_ui_collections::toybox_component::toybox_screen,
+        )?;
         self.enable_cursor_inputs();
         Ok(())
     }
