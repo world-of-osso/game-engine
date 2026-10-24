@@ -102,6 +102,7 @@ Before rework, identify the applicable product/build and a real authored asset, 
 - [CF-2 client API source audit](cf2-client-api-audit-20261023.md): seven request batches, 19 behaviors, build-pinned UI/API sources and native-proof gaps (2026-10-23).
 - [Clank Together target vs. local Mists profile](clank-mists-profile-comparison.md): 15890-x64 target, point-in-time matched-code progress, and the unverified local native-build boundary (2026-10-24).
 - [F15 12340 secure/UI behavior](f15-12340.md): native click, tooltip and combo paths; FrameXML secure-header gaps (2026-10-23).
+- [F19 12340 UI-source questions](f19-12340.md): ActionStatus, quest-POI selectors and dependencies; native/cache source boundaries.
 - [F14 12340 UI/API questions](f14-12340.md): FrameXML/UI cache provenance, Battle.net reporting, timers and quest cache (2026-10-23).
 - [12340 tooltip padding and aura files](tooltip-padding-buff-12340.md): source-derived width arithmetic and 3.4.3 cache versus unavailable 12340 UI files (2026-10-23).
 - [12340 CloseAuctionHouse](closeauctionhouse-12340.md): Lua binding, local state cleanup, event order and proof limits (2026-10-22).
