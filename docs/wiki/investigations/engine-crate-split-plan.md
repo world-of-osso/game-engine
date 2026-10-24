@@ -159,7 +159,9 @@ Parent accepted/landed stage1 at `ce946a284`. Rename-only `cf31450bf` moves `mou
 
 ### Collections stage3 implementation
 
-Parent approved toy stage3 while stage2's gate was queued. Rename-only `6a77dd742` moves toy model/component and the14-name integration suite unchanged into ui-collections. Native consumers import Collections directly; shared shell and pet modules remain in base. Stage2 already exposed the existing inset helper, so stage3 adds no visibility/dependency/profile changes. The before packet is source-qualified: the three toy files have no diff since `214a9b854`. Check/test/after census are pending; no behavior/assertion/fixture changes.
+Parent approved toy stage3 while stage2's gate was queued. Rename-only `6a77dd742` moves toy model/component and the14-name integration suite unchanged into ui-collections. Native consumers import Collections directly; shared shell and pet modules remain in base. Stage2 already exposed the existing inset helper, so stage3 adds no visibility/dependency/profile changes. The before packet is source-qualified: the three toy files have no diff since `214a9b854`. At wiring `bfcdbe17c`, admitted helper check Collections/GDExtension passes with no diagnostics. Scoped tests pass **414 base units,18 Collections units,166 integration and one isolated test** (599 total, zero failures/ignored). Runtime census preserves414/18 unit names, **152 + 14 = 166** integration names and one isolated name byte-identically; no assertions or fixtures changed.
+
+[Stage3 receipts](engine-crate-split-collections-stage3.json) and `/home/osso/.worktrees/logs/engine-crate-split-collections-stage3-bfcdbe17c/` retain exact names/commands/results. The parent owns the unchanged nine-package gate, push and merge; no new timing/native runtime/full-suite acceptance claim. Pet/shell remain for stage4.
 
 ## Baseline edit measurements
 
