@@ -13,26 +13,26 @@ The inventory covers **24 chunk families**: five root extensions, four MCNK exte
 | Family | Full decoded footprint | Scalar slots per entry / payload | Source |
 |---|---|---|---|
 | MFBO | 36-byte prefix | 18 × i16 | P:305–333 |
-| MBMH | 28-byte records | 7 × u32 | A:212–223; P:223–225 |
-| MBBB | 28-byte records | u32 + 6 × f32 = 7 | A:225–232; P:227–229 |
-| MBNV | 44-byte records | 8 × f32 + 12 × u8 = 20 | A:234–241; P:231–233 |
+| MBMH | 28-byte records | 7 × u32 | A:207–215; P:223–225 |
+| MBBB | 28-byte records | u32 + 6 × f32 = 7 | A:219–223; P:227–229 |
+| MBNV | 44-byte records | 8 × f32 + 12 × u8 = 20 | A:227–232; P:231–233 |
 | MBMI | Entire even payload | N × u16 | P:235–250 |
-| MCBB (not a tag named MBBBatch) | 20-byte records | 5 × u32 | A:200–210; P:181–199 |
-| MCLV | 580-byte prefix | 145 × 4 bytes, including ignored byte 3 | P:86–113 |
+| MCBB (not a tag named MBBBatch) | 20-byte records | 5 × u32 | A:197–203; P:190–207 |
+| MCLV | 580-byte prefix | 145 × 4 bytes, including ignored byte 3 | P:102–126 |
 | MCDD | 64-byte prefix | 64 × u8 | P:201–221 |
-| MCSE | 28-byte records | u32 + 6 × f32 = 7 | A:191–198; P:161–179 |
+| MCSE | 28-byte records | u32 + 6 × f32 = 7 | A:189–193; P:171–188 |
 | MVER | 4-byte prefix | 1 × u32 | P:335–337 |
 | MLHD | 28-byte prefix | u32 + 6 × f32 = 7 | P:339–357 |
 | MLVH | Entire multiple-of-4 payload | N × f32 | P:359–373 |
 | MLLL | 20-byte records | f32 + 4 × u32 = 5 | P:375–401 |
-| MLND | 20-byte records | 4 × u16 + 3 × u32 = 7 | P:403–434 |
-| MLVI / MLSI | Each entire even payload | N × u16 each | P:436–455 |
+| MLND | 20-byte records | 4 × u16 + 3 × u32 = 7 | P:400–428 |
+| MLVI / MLSI | Each entire even payload | N × u16 each | P:430–449; A:566–567 |
 | MLLD | Entire uninterpreted payload | N × u8, no field subdivision | A:569–571 |
-| MLLN | 24-byte prefix | 6 × u32 | P:457–474 |
-| MLLI | Entire even payload | N × u16 | P:500–514 |
-| MLLV | 12-byte records | 3 × f32 | P:476–498 |
-| MLDD / MLMD | Each 40-byte records | 2 × u32 + 7 × f32 + u32 = 10 each | P:516–559 |
-| MLDX / MLMX | Each 28-byte records | 7 × f32 each | P:561–588 |
+| MLLN | 24-byte prefix | 6 × u32 | P:451–467 |
+| MLLI | Entire even payload | N × u16 | P:430–449,491–504 |
+| MLLV | 12-byte records | 3 × f32 | P:469–489 |
+| MLDD / MLMD | Each 40-byte records | 2 × u32 + 7 × f32 + u32 = 10 each | P:506–543; A:572,574 |
+| MLDX / MLMX | Each 28-byte records | 7 × f32 each | P:545–579; A:573,575 |
 
 This accounts for every byte in each accepted fixed record. Prefix readers MFBO/MVER/MLHD/MLLN/MCLV/MCDD do not retain bytes after their documented prefix. MLLD is the explicit whole-payload opaque exception. No invented schema subdivides its bytes.
 
@@ -160,7 +160,7 @@ MLLN requires 24 bytes and discards later bytes; MLLI requires even length; MLLV
 
 ### LOD object records (not ordinary MDDF/MODF)
 
-Each paired table below applies independently to **both** named chunks: there are two separate serialized populations and result vectors, not one shared record instance. MLDD → `m2_placements`; MLMD → `wmo_placements`. Each is optional, missing → empty; stride is 40, no trailing bytes accepted. Reads are P:516–559 `read_u32`/`read_f32` with no conversion.
+Each paired table below applies independently to **both** named chunks: there are two separate serialized populations and result vectors, not one shared record instance. MLDD → `m2_placements`; MLMD → `wmo_placements`. Each is optional, missing → empty; stride is 40, no trailing bytes accepted. Reads are P:506–543 `read_u32`/`read_f32` with no conversion.
 
 | Serialized field in each MLDD and MLMD record | Offset / type | Retention and located boundary |
 |---|---|---|
@@ -175,7 +175,7 @@ Each paired table below applies independently to **both** named chunks: there ar
 | scale | `+32`, f32 | `scale`; D. Not MDDF's u16/1024 decoder. |
 | flags | `+36`, u32 | `flags`; D. Opaque bit semantics. |
 
-MLDX → `m2_visibility`; MLMX → `wmo_visibility`. Each optional 28-byte-record array is parsed independently by P:561–588; missing → empty. No matching-length, ID join, radius validity or min/max ordering check is established here.
+MLDX → `m2_visibility`; MLMX → `wmo_visibility`. Each optional 28-byte-record array is parsed independently by P:545–579; missing → empty. No matching-length, ID join, radius validity or min/max ordering check is established here.
 
 | Serialized field in each MLDX and MLMX record | Offset / type / read | Retention and located boundary |
 |---|---|---|
@@ -202,13 +202,13 @@ MLDX → `m2_visibility`; MLMX → `wmo_visibility`. Each optional 28-byte-recor
 | `LodHeader`, `LodLevel`, `LodQuadTreeNode` | Retained record wrappers above. Their names do not supply meanings for opaque payload/word arrays. |
 | `LodLiquidDirectory`, `LodLiquidPatchHeader`, `LodLiquidPatch` | Opaque raw directory, six-word header, and header/indices/vertices aggregate; no directory-driven grouping interpretation. |
 | `LodObjectPlacement`, `LodObjectVisibility` | Shared Rust record shapes applied to separate M2/WMO populations; no new fields beyond the tables. |
-| `ChunkHeightGrid` | A:51–59,461–476: index_x/index_y copied; origin_x/origin_z derived via chunk/tile origin; base_y from pos[2]; heights copied. Standard MCNK/MCVT inputs owned elsewhere, not extension bytes. |
+| `ChunkHeightGrid` | A:51–59,449–464 (origin derivation A:421–447): index_x/index_y copied; origin_x/origin_z derived via chunk/tile origin; base_y from pos[2]; heights copied. Standard MCNK/MCVT inputs owned elsewhere, not extension bytes. |
 | `center_surface` | A:507–523 selects chunk (8,8), otherwise middle chunk, then computes vertex row9/col4 position. Derived helper, not a root serialized member. |
 | `chunk_positions` | A:536 copies parsed MCNK positions into a vector; no extra source fields. |
 
 ## Benilla comparison and unresolved semantics
 
-B0:178–197 models a Vanilla monolithic `RootAdt` and only a Root variant of `ParsedAdt`. B0:235–289 dispatches MTEX, MMDX/MMID, MWMO/MWID, MDDF/MODF and MCNK, skipping other top-level tags. Thus **none of the five E root extension families or fifteen LOD tags has a matched result in this inspected B root parser**. This is a bounded parser nonmatch, not a global claim that all Benilla crates lack analogous functionality.
+B0:195–210 models a Vanilla monolithic `RootAdt` and only a Root variant of `ParsedAdt`. B0:235–289 dispatches MTEX, MMDX/MMID, MWMO/MWID, MDDF/MODF and MCNK, skipping other top-level tags. Thus **none of the five E root extension families or fifteen LOD tags has a matched result in this inspected B root parser**. This is a bounded parser nonmatch, not a global claim that all Benilla crates lack analogous functionality.
 
 B0:352–505 `read_mcnk` uses header-offset lookup for MCVT, MCNR, MCLY, MCAL, MCSH and MCLQ; its `McnkChunk` at B0:157–170 has no corresponding MCLV/MCBB/MCDD/MCSE fields. Its older monolithic offset walk must not be equated with E's sequential modern extension dispatch or transplanted as the layout for modern split files. B's ordinary placements and MCLQ are separate inventories, not substitutes for MLDD/MLMD or MLLN groups.
 
@@ -222,7 +222,7 @@ Unresolved: MBMH unknown/texture identifier semantics; MBNV three color-vector r
 - E `godot/core/src/adt.rs` — public retained Root/Chunk projections and `parse_lod` entry point.
 - E `godot/rust/src/terrain/{assets,material,mod,streaming,horizon}.rs` — root loading, actual ordinary terrain mesh/color inputs, empty fixture extension fields and separate WDL horizon path; bounded native field-name lookup across `godot/rust/src`.
 - B `crates/benilla-adt/src/lib.rs` — inspected Vanilla root model, bounded top-level dispatch and MCNK offset reader; no whole-repository absence inference.
-- [Wiki schema](../SCHEMA.md) and [index](../index.md) — page conventions and existing comparison context. Only this page is edited under the explicit task restriction; index/log updates are intentionally not performed.
+- [Wiki schema](../SCHEMA.md) and [index](../index.md) — page conventions and existing comparison context. The integrated inventory commit also updates parent/index/log navigation; those links are documentation wiring, not additional source-field evidence.
 
 ## See Also
 
