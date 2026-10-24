@@ -1,3 +1,7 @@
+## 2026-10-24 — PvP presentation split
+
+[PvP cut](investigations/engine-crate-split-plan.md#pvp-presentation-implementation) before5af0fd2ab/rename-onlyb5e1f98e7/wiringcf0cd0eac moves4sources/1702LOC+3dedicated testfiles;one mixed selectioncase moves,3siblings remain base.2peer cross-panel cases retain names through test-only dependency,no productionreverseedge/facade. Check passes/no diagnostics;390units+31feature+2peer+3residual pass (426total0fail/ignored),exact names conserved. Honor edit42.452→15.008s/CPU27.386→8.241s,onlyfeature+native dirty;native32.51→11.88s,so no wall-speed claim under unequal load. Parent12-package gate separate.
+
 ## 2026-10-24 — Player Spells presentation split
 
 [Player Spells cut](investigations/engine-crate-split-plan.md#player-spells-presentation--approved-next-slice) beforea154708f7/rename-only534ae04b1/wiringd8d935ea2 moves11presentation sources and11dedicated suites;35existing enum/item lines stay once in realbase data module. Talent/editor/loadout/search models remain unchanged;override typepath only. Four mixed cases preserve names/21siblings remain base;orphaned helper deletedc6dfa999e,affected21rerun/no warnings. Check passes;390base+72feature+21residual cases pass0fail/1original ignored audit;94names/390units exact,original473units conserved. Paired edit23.287→22.914s/childCPU17.509→12.139s,onlyfeature+native dirty;no wall-speed claim under unequal load. Controls/pins/profiles retained,parent11-package gate separate.

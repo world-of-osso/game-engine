@@ -238,7 +238,21 @@ Parent accepted Player Spells at `abd6a4ddc`, then authorized PvP or achievement
 
 One mixed `selection_lists` case moves with its exact module::test name; three unrelated siblings stay base. Existing two cross-panel Player Spells cases stay in their peer crate through a **test-only** dependency on ui-pvp. Neither base nor Player Spells production gains a reverse dependency; no façade or new shared definitions. Before census is390 unchanged unit names and36 affected integration names:31 to PvP, three residual base and two peer cases; zero ignored.
 
-The reversible Honor-label edit `"Honor Level —"` → `"Honor Level —!"` takes42.452s before the cut, childCPU27.386s; no-op4.935s, restore53.125s. Controls include existing slot/helper wait, matching sibling pins/profiles and input restoration. [Before receipt](engine-crate-split-pvp-before.json), raw `/home/osso/.worktrees/logs/engine-crate-split-pvp-before-abd6a4ddc/`. Wiring check/tests/census and post-cut timing pending; no wall-speed claim under unequal load.
+The reversible Honor-label edit `"Honor Level —"` → `"Honor Level —!"` takes42.452s before the cut, childCPU27.386s; no-op4.935s, restore53.125s. Controls include existing slot/helper wait, matching sibling pins/profiles and input restoration. [Before receipt](engine-crate-split-pvp-before.json), raw `/home/osso/.worktrees/logs/engine-crate-split-pvp-before-abd6a4ddc/`. Wiring `cf0cd0eac` passes admitted feature/GDExtension helper check without diagnostics. Scoped tests pass **390 base units,31 PvP integration cases,two unchanged Player Spells cross-panel cases and three residual selection cases** (426 total, zero failures/ignored). PvP unit count is zero. Exact runtime names conserve390 units, **34 base integration names = 31 moved + 3 residual**, and both peer names unchanged. No production helper visibility changes were needed.
+
+[PvP result receipt](engine-crate-split-pvp.json) retains names, commands and controls; raw post-cut evidence: `/home/osso/.worktrees/logs/engine-crate-split-pvp-cf0cd0eac/`.
+
+| Same reversible Honor-label edit | Before `abd6a4ddc` | After `cf0cd0eac` |
+|---|---:|---:|
+| No-op wall | 4.935s | 0.946s |
+| Edit wall | 42.452s | 15.008s |
+| Edit child user+system CPU | 27.386s | 8.241s |
+| Restore wall | 53.125s | 13.878s |
+| Changed base/feature unit | base8.98s | PvP1.79s |
+| Native unit | 32.51s | 11.88s |
+| Dirty UI crates | base +all five extracted features | PvP only; all six others fresh |
+
+**No wall-speed claim under unequal shared-host load:** native time also changes32.51→11.88s,so this is one descriptive before/after pair, not a guaranteed latency gain. Isolation is proven; child CPU is69.9% lower. Common artifact features/profiles have zero differences,sibling pins match,input restored. Warmups42.015/156.840s are excluded. Parent owns the twelve-package full gate and push/merge; no new native runtime acceptance.
 
 ## Baseline edit measurements
 
