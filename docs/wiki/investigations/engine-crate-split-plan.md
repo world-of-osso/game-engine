@@ -171,6 +171,23 @@ Exact runtime census conserves **414 = 408 + 6** base unit names, **18 + 6 = 24*
 
 [Stage4 receipts](engine-crate-split-collections-stage4.json) and `/home/osso/.worktrees/logs/engine-crate-split-collections-stage4-46ba60eb6/` retain exact names, commands and results. No base→Collections source edges or self-external aliases remain. This completes the planned leaf UI source group, not the overall compile-time goal or native-render cuts. No new timing/native-runtime/full-suite acceptance claim; parent owns the unchanged nine-package gate and push/merge.
 
+## Next approved group — Professions presentation
+
+At `68f93ff62`, remaining ui-model is304 reachable source files/103,366 physical LOC. The62-module shared SCC still owns58,570LOC. The largest high-churn **closed leaf candidate** audited next is Professions presentation: five roots,19 source files/4,204LOC and61 distinct non-merge commits in the pinned14-day interval. This is not a claim that it gives the largest possible saving after arbitrary architectural changes.
+
+| Candidate | Source LOC /14d distinct commits | Boundary |
+|---|---:|---|
+| Professions presentation | 4,204 /61 | No residual production incoming edges; approved next |
+| PvP/battleground | 1,702 /44 | Closed smaller alternative |
+| Spellbook/talents/overrides/preview | 5,471 /52 | micro_menu returns feature-owned PlayerSpellsTab; defer coupling fix |
+| Achievements | 3,466 /65 | Objective tracker consumes AchievementWindow; adding tracker exposes five more outside consumers |
+
+Approved `game-engine-ui-professions` owns `professions_frame`, `professions_cooldown`, `professions_orders`, `professions_reagent_selection` and `professions_specializations` with all descendants. Keep ProfessionBook/Recipe (`professions`), quality, reagent counts **and RecipeCatalog** in base for tooltip/bag/trainer consumers. Before census:14 units and37 dedicated integration cases, plus the existing Professions cases in `buttonfit` and `panel_lifecycle`. Move only those two mixed-suite cases with exact module::test names; unrelated auction/character/raid siblings stay base. No base reverse-dependency or copied production implementations.
+
+[Before packet](engine-crate-split-professions-before.json) retains exact names and measurement receipts. The reversible real-build edit is `professions_frame_tree.rs`: `No matching recipes` → `No matching recipes!`. Current warm extension wall **32.599s**, user/system17.298/8.503s; restore23.520s. No-op10.300s has zero dirty units and includes helper/slot wait. Warmup403.342s is excluded. Cargo attributes9.70s to base UI and21.89s to native; Housing1.98s, Adventure2.05s and Collections2.34s also rebuild. These overlapping durations are not additive. A cut should keep base/other feature crates fresh for this edit, but saving is **unmeasured until post-cut**; the native tail remains.
+
+Parent approved separate rename-only/wiring/census commits and paired post-cut timing, after ec4 landed `68f93ff62`. Preserve14 unit and39 total moved integration names, source fixture roots, data/type ownership and profiles. Initial before suite listing included83 names across relevant/comparison suites and zero ignored; only39 belong to this cut. Full gate remains parent-owned. Raw before evidence: `/home/osso/.worktrees/logs/engine-crate-split-professions-before-68f93ff62/`. No Professions source move is part of this before packet.
+
 ## Baseline edit measurements
 
 [Machine-readable receipts](engine-crate-split-baseline.json) include exact commands, package/target dirtiness, wall/user/system time, dependency pins, Cargo unit timings and raw-log hashes. Host `agent-server`, Rust/Cargo 1.99.0, four jobs, native helper defaults and unchanged profiles/linker. Raw logs, HTML timings, drivers and before/after name lists are archived outside the worktree at `/home/osso/.worktrees/logs/engine-crate-split-baseline-4645578c7/`. No post-split improvement is claimed.
