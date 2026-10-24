@@ -1,3 +1,7 @@
+## 2026-10-24 — Remaining UI rebuild-work ranking
+
+[Current ranking](investigations/engine-crate-split-plan.md#remaining-base-ui-cuts--expected-rebuild-work-ranking) at12695a5ad/codeb57:Guild79,QuestMap29,Cooldown21,residual talent models18,RaidInfo11 distinct14-day path commits. These are frequency upper bounds,not LOC/compiler time/eligible edit counts. Base currently fans out into seven feature crates;native tail remains. Boundary costs explicit;Cooldown is cheapest bounded presentation-only next scope. Spellbook renderer already moved;micro_menu edge already resolved by retaining35 existing data lines once in base. Residual talent-model movement needs new ownership approval,not another menu workaround. No code/timing changes.
+
 ## 2026-10-24 — RecipeCatalog residual implementation
 
 [Residual cut](investigations/engine-crate-split-plan.md#recipecatalog-residual--approved-mixed-file-cut) `b57ba9275` retains the actual parser functions/base model/quality/reagent/native cache owners;only approved three functions gain visibility. All12 catalog/parser function bodies conserved;three units/four trainer cases keep exact names. All13-package check/zero diagnostics andall13fmt pass.386base+21feature units+43featureintegration+5retainedtrainer=455pass/0fail/ignored;407unit/48integration name multisets exact. No timing run per parent. Parent fullgate separate;no new native-runtime acceptance.

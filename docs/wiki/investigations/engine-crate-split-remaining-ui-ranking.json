@@ -1,0 +1,111 @@
+{
+  "source_revision": "12695a5adeced98bde6a7538e841caf71dc29550",
+  "code_revision": "b57ba92751bff5fbb9a8b724b40d2daff695d84a",
+  "since": "2026-10-10T11:51:59-05:00",
+  "until": "2026-10-24T11:51:59-05:00",
+  "method": "Expected recurring avoided compiler work,not LOC:common base fanout makes eligible edit frequency the leading aggregate proxy. Gross opportunity order shown separately from boundary cost;Cooldown is cheaper to split than higher-frequencyQuest/Map. Whole-path14day nonmerge commits are upper-bound frequency proxies,include tests/retained state/engineering edits,not forecasts of eligible render edits or build loops. No per-candidate seconds or numerical speedup forecast. No new timing trials.",
+  "base_reverse_normal_feature_dependencies": [
+    "game-engine-ui-achievements",
+    "game-engine-ui-adventure",
+    "game-engine-ui-collections",
+    "game-engine-ui-housing",
+    "game-engine-ui-player-spells",
+    "game-engine-ui-professions",
+    "game-engine-ui-pvp"
+  ],
+  "current_base_edit_ui_units": "base+7existingfeatures,then native;newleaf edits replace these UI compiles withleaf+native. Existingfeature extension makes base+6otherfeatures fresh. Newleaf adds one leaf compile while base+7oldfeatures fresh.",
+  "native_tail": "Still dirty for every feature edit;historical PlayerSpells pair had base5.91->feature0.85s but native16.06->21.54s;wall23.287->22.914s,childCPU17.509->12.139s under unequal load. Qualifies expected work savings,not guaranteed latency.",
+  "rankings": [
+    {
+      "rank": 1,
+      "candidate": "guild_presentation",
+      "files": [
+        "godot/ui-model/src/guild_communities.rs",
+        "godot/ui-model/src/guild_control.rs",
+        "godot/ui-model/src/guild_control_art.rs",
+        "godot/ui-model/src/guild_event_log.rs",
+        "godot/ui-model/src/guild_member_detail.rs",
+        "godot/ui-model/src/guild_news.rs",
+        "godot/ui-model/src/guild_perks.rs",
+        "godot/ui-model/src/guild_rank_frame.rs",
+        "godot/ui-model/src/guild_tabard_frame.rs"
+      ],
+      "distinct_path_commits": 79,
+      "expected_work_savings": "Avoid base+unrelated-feature compiler work on edits wholly inside moved rendering/model boundary;native still recompiles/links. No per-candidate seconds measured.",
+      "boundary_cost": "Highest expected aggregate avoided work;retain GuildRanksSession/GuildCommand/news state,4 field-name constants (INVITE/PROFILE/GOLD/NOTE),PAGES and permission_right implementation;render/control/privatehelper closure still needs exact cut census. Chat cannot import moved state. Medium confidence on eligible-view share."
+    },
+    {
+      "rank": 2,
+      "candidate": "quest_map_presentation",
+      "files": [
+        "godot/ui-model/src/ui/screens/objective_tracker_component.rs",
+        "godot/ui-model/src/ui/screens/quest_frame_component.rs",
+        "godot/ui-model/src/ui/screens/quest_log_frame_component.rs",
+        "godot/ui-model/src/ui/screens/quest_scroll.rs",
+        "godot/ui-model/src/ui/screens/world_map_frame_art.rs",
+        "godot/ui-model/src/ui/screens/world_map_frame_component.rs",
+        "godot/ui-model/src/ui/screens/world_map_frame_component/canvas.rs",
+        "godot/ui-model/src/ui/screens/world_map_frame_component/chrome.rs",
+        "godot/ui-model/src/ui/screens/world_map_frame_component/rewards.rs",
+        "godot/ui-model/src/ui/screens/world_map_frame_component/rewards_content.rs"
+      ],
+      "distinct_path_commits": 29,
+      "expected_work_savings": "Avoid base+unrelated-feature compiler work on edits wholly inside moved rendering/model boundary;native still recompiles/links. No per-candidate seconds measured.",
+      "boundary_cost": "High gross opportunity but larger up-front break cost:retain MapBreadcrumb/MapHighlight/MapPin/MapPinType/MapPlayerMarker/MapTile/WorldMapFrameState type owners for world_map_view_data/world_quest_ui/flight_map plus tracker state for challenge/dungeon_progress/hud_layout/quest_actions. No model/POI movement or copied map data."
+    },
+    {
+      "rank": 3,
+      "candidate": "cooldown_presentation",
+      "files": [
+        "godot/ui-model/src/cooldown_settings_component.rs",
+        "godot/ui-model/src/cooldown_viewer_component.rs"
+      ],
+      "distinct_path_commits": 21,
+      "expected_work_savings": "Avoid base+unrelated-feature compiler work on edits wholly inside moved rendering/model boundary;native still recompiles/links. No per-candidate seconds measured.",
+      "boundary_cost": "Lower split cost:retain the 2 existing CooldownSettingEntry/CooldownSettingsView definitions in base because CooldownViewerView.settings/sort_settings use them. Move renderer/postsetup only;not cooldown model/order/recommendations."
+    },
+    {
+      "rank": 4,
+      "candidate": "talent_ui_models",
+      "files": [
+        "godot/ui-model/src/talent_editor.rs",
+        "godot/ui-model/src/talent_loadouts.rs",
+        "godot/ui-model/src/talent_search.rs",
+        "godot/ui-model/src/talents.rs"
+      ],
+      "distinct_path_commits": 18,
+      "expected_work_savings": "Avoid base+unrelated-feature compiler work on edits wholly inside moved rendering/model boundary;native still recompiles/links. No per-candidate seconds measured.",
+      "boundary_cost": "Conditional:requires approval to move actual TalentView/editor/loadout/search UI-model ownership into existing PlayerSpells crate;not a presentation-only move.4files,11 current production consumer files (6native/5feature),5 peer integration files+one base talent_icons suite. No residual-base normal production incoming edge observed;no new visibility expected,not yet exact cut census."
+    },
+    {
+      "rank": 5,
+      "candidate": "raid_info_presentation",
+      "files": [
+        "godot/ui-model/src/raid_info.rs"
+      ],
+      "distinct_path_commits": 11,
+      "expected_work_savings": "Avoid base+unrelated-feature compiler work on edits wholly inside moved rendering/model boundary;native still recompiles/links. No per-candidate seconds measured.",
+      "boundary_cost": "Cheap smaller-frequency option:retain RaidInfoState/action/model decisions,move screen/art only;zero non-root base production incoming callers in resolved graph. Encounter timeline renderer is similar lower-frequency8commit option. ReadyCheck is NOT a closed tiny leaf:base group_frames owns both ReadyCheckFrameState and ready_check_frame call."
+    }
+  ],
+  "spellbook_micro_menu_correction": {
+    "already_extracted_presentation_lines": 3843,
+    "prior_base_retained_existing_lines": 35,
+    "retained_path": "godot/ui-model/src/player_spells_data.rs",
+    "definitions": [
+      "PlayerSpellsTab enum+impl",
+      "SpellbookItemView struct"
+    ],
+    "current_micro_menu_witness": "godot/ui-model/src/micro_menu.rs:210-212 returns base::player_spells_data::PlayerSpellsTab",
+    "current_spell_override_witness": "godot/ui-model/src/spell_overrides.rs:9 consumes same base SpellbookItemView",
+    "remaining_micro_menu_edge_break_cost": "ZERO if those existing definitions stay base;do not move menu or invent a new enum/interface. Cost already paid in d8d935ea2 and accepted abd6a4ddc.",
+    "residual_model_candidate_cost": "Conditional:requires approval to move actual TalentView/editor/loadout/search UI-model ownership into existing PlayerSpells crate;not a presentation-only move.4files,11 current production consumer files (6native/5feature),5 peer integration files+one base talent_icons suite. No residual-base normal production incoming edge observed;no new visibility expected,not yet exact cut census.",
+    "if_no_model_moves": "Skip residual talents;old spellbook/talent renderer is already outside base,zero remaining presentation saving from moving it again."
+  },
+  "defer": [
+    "Shared quest_art/bank_art/game_tooltip/menu primitives participate in resolved57-module knot;do not call directory extraction cheap or attribute all their edits to a leaf.",
+    "Readycheck alone cannot move without breaking group-frame render/state calls;do not treat literal-root-only incoming count as proof."
+  ],
+  "confidence": "Guild highest aggregate proxy but medium confidence until exact render-only cut/census;Cooldown best bounded presentation-only next scope;Talent residual potentially good effort/rebuild ratio if model-ownership move explicitly approved;map/tracker costs larger. No further implementation authorized.",
+  "raw_archive": "/home/osso/.worktrees/logs/engine-crate-split-remaining-ui-12695a5ad"
+}
