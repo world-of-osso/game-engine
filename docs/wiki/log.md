@@ -1,6 +1,6 @@
 ## 2026-10-24 — M2 representation boundaries
 
-[Representation fields](reference/benilla-m2-representation-fields.md) distinguish eight B bounds members and twelve marker/animation projection members from extra disk fields. Static source trace locates global-channel asset conversion and live pose consumers; not runtime proof. Remaining declaration reconciliation and independent delta verification stay open.
+[Representation fields](reference/benilla-m2-representation-fields.md) distinguish eight B bounds members and twelve marker/animation projection members from extra disk fields. Static source trace locates global-channel asset conversion and live pose consumers; not runtime proof. The [declaration map](reference/benilla-m2-representation-map.md) subsequently routes all90 records to worksheets, correcting weight-versus-duration, texture-replacement-versus-SFID and SKB1-versus-SKS1 helper interpretations. Independent scope/delta verification remains open.
 
 ## 2026-10-24 — M2 geometry/material inputs
 

@@ -20,6 +20,21 @@ E parser **A** = `E/godot/core/src/asset/m2_format/m2_anim.rs`; bone stride88, s
 
 The B rotation/scale/pivot offsets must follow its actual parser, not a stride subtraction rule. Bone remapping descriptions in historical wiki pages do not establish which assets require global-vs-local remap; that question remains outside this source-only inventory.
 
+### E bone flag selectors
+
+The raw flags word remains retained. Native `E/godot/rust/src/animation/billboard.rs:20–28` passes bone flags into `E/godot/core/src/m2_billboard.rs`; its constants at12–18 and selector at63–81 establish the predicates below. These are E consumers, not B bit-equivalence claims.
+
+| Bits | Selected behavior |
+|---|---|
+| `0x8` | Spherical mode when `(flags & 0x78)==0x8`; fixed camera-facing axes unless the animated mask below is nonzero. |
+| `0x10` | Exact masked mode locks X and reconstructs Y/Z. |
+| `0x20` | Exact masked mode locks Y and reconstructs X/Z. |
+| `0x40` | Exact masked mode locks Z and reconstructs X/Y. |
+| `0x80` | Contributes to `(flags & 0x280)!=0`, selecting animated axes only in spherical mode. |
+| `0x200` | Same combined animated-spherical predicate; no independent non-spherical effect established here. |
+
+Other mode-bit combinations fall through without billboard axes. Other flag semantics remain unclassified.
+
 ## Sequences: E64 bytes versus B68 bytes
 
 E all named fields decode at A:128–158. E leaves opaque gaps unread; cooked sequences do not retain their bytes or assign native field names. **BC** = `B/crates/benilla-formats/src/models/anim.rs:302–338`, the cooked animation schema; B raw sequence adapter and consumer limitations are separate from field declarations.
