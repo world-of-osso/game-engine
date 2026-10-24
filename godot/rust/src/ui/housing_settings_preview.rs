@@ -1,6 +1,6 @@
 //! Supplied offline HouseSettings draft through production screen/reducer/projection.
 use super::{RegistryUi, party_preview};
-use game_engine_ui_model::{
+use game_engine_ui_housing::{
     housing::{HousingAuthority, HousingDashboard, HousingSurface},
     housing_component::HousingView,
     housing_settings::HouseSettings,
