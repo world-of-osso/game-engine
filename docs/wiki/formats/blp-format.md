@@ -54,6 +54,8 @@ UI textures are referenced by virtual path (e.g. `Interface/Buttons/...`) and re
 
 ## See Also
 
+- [[benilla-blp-fields]] — individual header/payload fields and version-qualified decoder/native texture boundaries
+
 - [[casc-format]] — BLP files extracted by FDID from CASC archives
 - [[m2-format]] — BLP textures referenced by M2 TXID chunk and texture type system
 - [[godot-dxt1-punch-through]] — 1-bit-alpha DXT1 drew opaque black in the Godot client
