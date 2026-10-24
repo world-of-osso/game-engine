@@ -21,20 +21,20 @@ Snapshot: **2026-10-24**. E native source baseline `354bdb7dbf177047ed46d63168ac
 
 ## B marker and animation projections: twelve members
 
-Here **A** is `B/crates/benilla-formats/src/models/anim.rs`. The original event/bone/track inputs remain in [[benilla-m2-scene-fields]] and [[benilla-m2-animation-fields]]. A synthesized record index is not a new bone-index field in the file.
+Here **A** is `B/crates/benilla-formats/src/models/anim.rs`. The original event/bone/track inputs remain in [[benilla-m2-scene-fields]] and [[benilla-m2-animation-fields]]. A synthesized record index is not a new bone-index field in the file. Ordinary clip construction reads bone targets and translation/rotation/scale keys at `B/crates/benilla-assets/src/model.rs:441–496`; production loader invocation and registration are `B/crates/benilla-assets/src/m2.rs:503–516`.
 
 | Member | Source or derivation | Located production use / boundary |
 |---|---|---|
 | `StringAnchors.top` | Last `$WTT` record encountered in the bounded44-byte event scan; tuple contains `u32(+8) as u16` bone and `f32(+12,+16,+20)` position. Both top and bottom must exist (A:127–160). | Asset conversion `B/crates/benilla-assets/src/m2.rs:660`; equipment `B/crates/benilla-app/src/entities/equipment/spawn.rs:284–296`; posed top endpoint in `bowstring.rs:50–57`. Bone narrowing loses high16 bits. |
 | `StringAnchors.bottom` | Same projection for last `$WTB` (A:127–160). Not the checked-narrowing general marker API. | Same conversion/equipment chain; posed bottom endpoint `bowstring.rs:50–57`. |
-| `GlobalSeqChannel.period_ms` | Global-duration entry selected by track global index; valid index and positive period required (A:700–730,735–754). | `B/crates/benilla-assets/src/model.rs:602–645` converts period/keys to seconds; `B/crates/benilla-world/src/rig_anim/global_seq.rs:109–119` wraps instance-relative clock and samples channels. |
+| `GlobalSeqChannel.period_ms` | Global-duration entry selected by track global index; valid index and positive period required (A:700–730,735–754). | `B/crates/benilla-assets/src/model.rs:602–645` converts period/keys to seconds; `B/crates/benilla-world/src/rig_anim/global_seq.rs:81–119` wraps instance-relative clock and samples channels. |
 | `GlobalSeqChannel.keys` | Timestamp/value pairs, scan order retained; channel emitted only with more than one valid key (A:714–730). | Same asset conversion and live pose sampler. A lone key is omitted from this global-channel representation, not proof it disappears from the ordinary clip path. |
 | `GlobalSeqBone.bone` | Bone-record loop index `i as u16`, not an additional payload read (A:758–777). | Asset conversion indexes skeleton/rest translation; live drive maps joint or rig index (`global_seq.rs:32–59`). |
 | `GlobalSeqBone.translation` | Optional channel from bone track `+0x0c`, using the above index/period/multiple-key rules (A:766–777). | Asset conversion applies coordinate conversion and rest translation; live sampler writes translation. |
 | `GlobalSeqBone.rotation` | Optional channel from `+0x28`, same rules (A:766–777). | Asset conversion conjugates quaternion into target frame; live sampler writes rotation. |
 | `GlobalSeqBone.scale` | Optional channel from `+0x44`, same rules (A:766–777). | Asset conversion permutes scale axes; live sampler writes scale. |
 | `BoneKeys.bone` | Bone-track enumeration index cast to `u16` (A:645–657). | `m2_bone_spins` selects skeleton bone (A:230–251); ordinary clip construction consumes the sequence's bones. |
-| `BoneKeys.translation` | Bone translation track selected with sequence slot/start/end; `ChannelTrack::band` rebases timestamps to seconds from start (A:365–481,602–609,645–657). | Spin classifier rejects nonempty translation (A:233); clip construction `B/crates/benilla-assets/src/model.rs:433` consumes sequence bone keys. |
+| `BoneKeys.translation` | Bone translation track selected with sequence slot/start/end; `ChannelTrack::band` rebases timestamps to seconds from start (A:365–481,602–609,645–657). | Spin classifier rejects nonempty translation (A:233); ordinary clip construction consumes sequence bone keys at the body/invocation ranges above. |
 | `BoneKeys.rotation` | Sequence-band projection of rotation track, same rebasing. | Spin classifier retains rotation keys (A:233–251); ordinary clip construction. |
 | `BoneKeys.scale` | Sequence-band projection of scale track, same rebasing. | Spin classifier rejects nonempty scale (A:233); ordinary clip construction. |
 
