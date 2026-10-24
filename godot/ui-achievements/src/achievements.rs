@@ -7,7 +7,7 @@ use game_engine_ui_model::quest_art::{DynName, panel_button};
 use game_engine_ui_model::ui::strata::FrameStrata;
 use shared::protocol::{
     ACHIEVEMENT_CRITERION_FLAG_PROGRESS_BAR, ACHIEVEMENT_SEARCH_MAX_CHARS, AchievementCatalogEntry,
-    AchievementCriterionLine, AchievementScope, AchievementSummary,
+    AchievementCriterionLine, AchievementSummary,
 };
 use ui_toolkit::atlas::{ActiveSkin, thread_skin};
 use ui_toolkit::widgets::font_string::GameFont;
