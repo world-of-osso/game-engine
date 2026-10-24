@@ -56,6 +56,8 @@ UI-model suites share `tests/integration.rs` instead of separate Cargo binaries.
 
 Housing owns its separate `game-engine-ui-housing` crate and `integration` harness. Run its affected tests with `python3 scripts/depot-build.py --root "$PWD" --test -p game-engine-ui-housing --lib --test integration -j4`; shared primitives remain in ui-model. The moved suites retain their original module/test names and data-relative fixture paths. See the [Housing split census and paired timing](wiki/investigations/engine-crate-split-plan.md#housing-pilot-implementation).
 
+Adventure Guide similarly owns `game-engine-ui-adventure`; its seven suites share that crate's `integration` harness. Run `python3 scripts/depot-build.py --root "$PWD" --test -p game-engine-ui-adventure --lib --test integration -j4`. Native actor/model-scene code remains in GDExtension; [exact conserved census](wiki/investigations/engine-crate-split-plan.md#adventure-guide-extraction).
+
 ## UI icons prepared before shipping
 
 Release builds run `scripts/prepare_ui_icons.py` on the originating developer checkout before native compilation. It enumerates all positive spell/trait/class/spec and source-local item icon metadata, writes `data/cache/required-ui-icons.json`, and uses the existing sibling `asset-resolver/target/debug/casc-local` to fill missing BLPs from local archives only. Source-table hashes and actual file hashes/sizes are recorded in `data/cache/ui-icon-provenance.json`; these cache files and textures are included by `deploy.sh`.
