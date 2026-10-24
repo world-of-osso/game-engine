@@ -1116,6 +1116,10 @@ Explicit user instruction authorizes frame growth, not a discovered Retail mecha
 
 [Normal/huge bomb interaction](systems/battlegrounds.md#ioc-bomb-disarm-interaction--active-2026-10-14): actual request RED→GREEN with physical picking, cursor and soft-interaction paths; game-object15/15 and soft10/10, no generic trap enablement. Native both-skin bomb deployment/disarm and full IoC remain pending.
 ## 2026-10-23 — Benilla asset-field inventory
+## 2026-10-24 — Cross-format source gates accepted
+
+[Cross-format evidence](reference/benilla-asset-field-evidence.md) consolidates accepted M2/SKIN, WMO, ADT/WDT/WDL, BLP and environment family scopes. Final terrain anchor `f33b5a21a` and lighting correction `ac58d22b2` passed bounded independent checks; earlier accepted source scope was preserved. M2/WMO/terrain milestone receipts acknowledged. Final ledger/navigation receipt and final relay are separate integration gates. No build, test, execution or runtime/asset/visual compatibility proof.
+
 ## 2026-10-24 — Cross-format static proof ledger
 
 [Cross-format evidence](reference/benilla-asset-field-evidence.md) records selected source footprints, independent audit/correction receipts and incompatible counting units. M2 and WMO final receipts were acknowledged; terrain, texture and zone/weather gates passed. Ordinary lighting input census passed, with helper/consumer correction awaiting a bounded receipt. Final integration remains open; no execution/runtime/asset compatibility claim.
