@@ -13,7 +13,7 @@ func run_test() -> void:
 		print("PASS GUILD_CHAT_NATIVE actor=", actor, " skin=", skin)
 		completion.case_done()
 		client.free()
-		quit(0)
+	completion.finish(success)
 
 func run_chat() -> bool:
 	root.size = Vector2i(1920, 1080)
@@ -173,4 +173,9 @@ func mark(stage: String) -> void:
 func other(stage: String) -> bool:
 	var peer := "peer" if actor == "leader" else "leader"
 	var path := directory.path_join(skin.to_lower() + "-" + peer + "-" + stage)
-	return await wait_until(func(): return FileAccess.file_exists(path), "other actual actor " + stage)
+	var deadline := Time.get_ticks_msec() + 300000
+	while Time.get_ticks_msec() < deadline:
+		if FileAccess.file_exists(path):
+			return true
+		await process_frame
+	return fail("Other actual actor did not complete " + stage)
