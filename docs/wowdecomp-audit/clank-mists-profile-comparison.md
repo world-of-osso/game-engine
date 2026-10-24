@@ -1,10 +1,10 @@
 # Clank Together target vs. local Mists profile
 
-Verified: 2026-10-24. Source/repository inspection and a point-in-time read of the public Clank Together page/API; no client or executable was run.
+Verified: 2026-10-24. Browser page snapshot: `2026-10-24T06:08:44Z`; API snapshot: `2026-10-24T06:09:33Z`. Source/repository inspection only; no client or executable was run.
 
 ## Target identity
 
-The Clank Together `wowdecomp` project reported target ID `15890-x64`, label `World of Warcraft 5.0.3 (build 15890, x64)`, SHA-256 `819519af4eb6c46f72e4e9c151c78b6b33cb4a232602e5fab61d29143e4c9cc0`, and toolchain `msvc2010-x64`. Its `/api/info` reported repository head `9a47a653926c6c9b21a65655f9d10387a74b0af5` at inspection time.
+The Clank Together `wowdecomp` project reported target ID `15890-x64`, label `World of Warcraft 5.0.3 (build 15890, x64)`, SHA-256 `819519af4eb6c46f72e4e9c151c78b6b33cb4a232602e5fab61d29143e4c9cc0`, and toolchain `msvc2010-x64`. The public [`/api/info`](https://saty.dev/api/info) reported repository head `9a47a653926c6c9b21a65655f9d10387a74b0af5` at the API snapshot time.
 
 The linked repository's initial-import commit identifies it as a standalone 5.0.3/build 15890 port copied from the `wowdecomp15595` working tree at `92c679d2` (`w15595`), including uncommitted changes with x64 addresses resolved. That is source provenance, not evidence that the target executable is build 15595. The target metadata is 15890. The configured target hash was not independently compared with an independently sourced original client binary.
 
@@ -14,7 +14,7 @@ Evidence: [project initial import](https://saty.dev/git/clank/wowdecomp/commit/1
 
 The live page displayed **48.53% of functions** (20,251 / 41,730) and **41.02% of matched code bytes** (4,140 / 10,092 KB). The matched-code figure includes peer-confirmed code; “about 40%” is not function-count completion. Both percentages describe Clank's own 15890-x64 target.
 
-At the same inspection, `/api/progress` returned 41,730 functions and 10,334,086 bytes, with `exact` 11,561 / 1,166,911 bytes, `match_unresolved` 174 / 129,788 bytes, and `confirmed` 8,516 / 2,942,521 bytes. Summing these status buckets gives 20,251 functions and 4,239,220 bytes, matching the page's rounded headline percentages. The lower task-state view separately showed 20,392 `done`; that is not the headline matched-function numerator. No cause for the difference between these live views was established, so preserve the snapshot boundary and do not substitute task-state totals for the displayed progress metric.
+At the API snapshot time, public [`/api/progress`](https://saty.dev/api/progress) returned 41,730 functions and 10,334,086 bytes, with `exact` 11,561 / 1,166,911 bytes, `match_unresolved` 174 / 129,788 bytes, and `confirmed` 8,516 / 2,942,521 bytes. Summing these status buckets gives 20,251 functions and 4,239,220 bytes, matching the page's rounded headline percentages. The lower task-state view separately showed 20,392 `done`; that is not the headline matched-function numerator. No cause for the difference between these live views was established, so preserve the snapshot boundary and do not substitute task-state totals for the displayed progress metric.
 
 The site's own description says submissions are compared byte-for-byte and its function map is in address order. The percentages are project-specific matched-code progress, not a general “Mists profile completeness” score.
 
