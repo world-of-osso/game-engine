@@ -1116,6 +1116,10 @@ Explicit user instruction authorizes frame growth, not a discovered Retail mecha
 
 [Normal/huge bomb interaction](systems/battlegrounds.md#ioc-bomb-disarm-interaction--active-2026-10-14): actual request RED→GREEN with physical picking, cursor and soft-interaction paths; game-object15/15 and soft10/10, no generic trap enablement. Native both-skin bomb deployment/disarm and full IoC remain pending.
 ## 2026-10-23 — Benilla asset-field inventory
+## 2026-10-24 — Ordinary light and fog projections
+
+[Lighting fields](reference/benilla-lighting-fields.md) enumerate ordinary Light inputs, the union of two live LightData projections, exact Params/Skybox CSV reads, separate WDC5 metadata and Vanilla per-key bands. Modern fog inputs are not lost merely because the normal-light projection omits them. Static-only; independent source/coverage verification remains open.
+
 ## 2026-10-24 — Zone-light and weather inputs
 
 [Zone/weather fields](reference/benilla-zone-weather-fields.md) trace explicit ZoneLight/ZoneLightPoint CSV columns and joined spatial weights, then separate B's four weather packet fields from local/derived state and actual precipitation, lighting/fog and sound consumers. No equivalent E weather state was found in the named native Rust paths; not global absence or runtime compatibility proof. Ordinary light/fog integration and independent verification remain open.
