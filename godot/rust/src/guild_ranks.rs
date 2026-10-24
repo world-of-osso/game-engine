@@ -493,19 +493,10 @@ impl GameClient {
         if std::mem::take(&mut self.guild_ranks.chat_scroll_to_latest) {
             ui.bind_mut().scroll_guild_chat_to_latest()?;
         }
-        if let Some(node) = ui
-            .find_child_ex(game_engine_ui_model::guild_chat::EDITOR)
-            .owned(false)
-            .done()
-        {
-            let mut edit = node
-                .try_cast::<godot::classes::LineEdit>()
-                .map_err(|_| "Guild composer is not a LineEdit")?;
+        if self.guild_ranks.session.chat_is_open() {
             let enabled = self.guild_ranks.session.chat_can_speak();
-            edit.set_editable(enabled);
-            if !enabled {
-                edit.release_focus();
-            }
+            ui.bind_mut()
+                .set_line_edit_enabled(game_engine_ui_model::guild_chat::EDITOR, enabled)?;
         }
         Ok(())
     }
