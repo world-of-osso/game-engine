@@ -1,6 +1,6 @@
 # Benilla M2 Representation Boundaries
 
-The [declaration census](benilla-m2-field-census.md) counts source members, not unique serialized fields. This companion separates retained source inputs from cooked copies, calculated values and helper state. Wire layouts and version-specific losses remain in the six handling pages; representation names do not establish new disk records or modern/Vanilla equivalence. Coverage reconciliation is in progress.
+The [declaration census](benilla-m2-field-census.md) counts source members, not unique serialized fields. This companion separates retained source inputs from cooked copies, calculated values and helper state. Wire layouts and version-specific losses remain in the six handling pages; representation names do not establish new disk records or modern/Vanilla equivalence. The [representation map](benilla-m2-representation-map.md) assigns all90 census records to handling worksheets without duplicating their member lists.
 
 Snapshot: **2026-10-24**. E native source baseline `354bdb7dbf177047ed46d63168acec531f5c4426`; B `8a6c74036cfe3d00275fd75ad1aeae1f4ea7d0df`. Roots and static-only evidence restrictions follow [[benilla-asset-field-inventory]]. No client, parser, build or test was executed.
 
@@ -38,7 +38,7 @@ Here **A** is `B/crates/benilla-formats/src/models/anim.rs`. The original event/
 | `BoneKeys.rotation` | Sequence-band projection of rotation track, same rebasing. | Spin classifier retains rotation keys (A:233–251); ordinary clip construction. |
 | `BoneKeys.scale` | Sequence-band projection of scale track, same rebasing. | Spin classifier rejects nonempty scale (A:233); ordinary clip construction. |
 
-The previous bounded report that had not located global-channel consumers is superseded here: the asset conversion and live `GlobalSeqDrive` path above are present. That is static consumer evidence, not an executed timing or pose-parity result.
+The asset conversion and live `GlobalSeqDrive` path above establish production consumers. That is static evidence, not an executed timing or pose-parity result.
 
 ## Sources
 
