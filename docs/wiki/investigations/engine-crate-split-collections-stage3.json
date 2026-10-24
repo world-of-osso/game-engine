@@ -1,0 +1,94 @@
+{
+  "source_revision": "bfcdbe17c",
+  "before_source": "8f670745a",
+  "rename_only_revision": "6a77dd742",
+  "raw_archive": "/home/osso/.worktrees/logs/engine-crate-split-collections-stage3-bfcdbe17c",
+  "scope": {
+    "source_files": 2,
+    "test_files": 1,
+    "physical_source_lines": 661,
+    "modules": [
+      "toybox",
+      "toybox_component"
+    ],
+    "pet_shell_unchanged": true
+  },
+  "check": {
+    "arguments": [
+      "-p",
+      "game-engine-ui-collections",
+      "-p",
+      "game-engine-godot",
+      "-j4",
+      "--message-format=json"
+    ],
+    "exit": 0,
+    "compiler_diagnostics": []
+  },
+  "tests": {
+    "ui-model:lib": {
+      "pass": 414,
+      "fail": 0,
+      "ignored": 0
+    },
+    "ui-collections:lib": {
+      "pass": 18,
+      "fail": 0,
+      "ignored": 0
+    },
+    "ui-collections:integration": {
+      "pass": 166,
+      "fail": 0,
+      "ignored": 0
+    },
+    "ui-collections:active_db2": {
+      "pass": 1,
+      "fail": 0,
+      "ignored": 0
+    }
+  },
+  "census": {
+    "base_units_before_after": 414,
+    "collections_units_before_after": 18,
+    "previous_integration": 152,
+    "moved_integration": 14,
+    "combined_integration": 166,
+    "active_db2_before_after": 1,
+    "names_byte_identical": true,
+    "base_unit_names_sha256": "b3804d87ee9201300b0f7632c8b80bae3f1845330819520b621cd3f31df721f3",
+    "collections_unit_names_sha256": "dcaf82b4de8afc79f50a62b525057e6e2f76ca56e47730e7891cbc2cdd5eb002",
+    "integration_names_sha256": "3176588975d5d8c45d0892c6031dcc0d0c7276805b547a83547bab469ec0dc85",
+    "toy_integration_names": [
+      "toybox::authoritative_cooldown_ticks_clears_and_ignores_gcd",
+      "toybox::collections_portrait_shell_uses_source_background_in_both_skins",
+      "toybox::filters_search_and_favourite_sort_are_catalog_backed",
+      "toybox::initial_snapshot_is_not_new_but_learning_pages_and_glows",
+      "toybox::names_are_visible_for_collected_and_uncollected_in_both_skins",
+      "toybox::paging_has_eighteen_and_a_real_second_page",
+      "toybox::search_progress_and_six_journal_tabs_exist_in_both_skins",
+      "toybox::toy_filters_use_retail_checkbox_submenu_and_reset_controls_both_skins",
+      "toybox::toy_menus_fit_source_descriptions_and_preserve_actions_in_both_skins",
+      "toybox::toy_slot_round_trip_preserves_identity_and_rejects_unlearned",
+      "toybox::toybox_allpoints_and_background_match_retail_anchors",
+      "toybox::ui_template_behavior_collection_toy_icon_resolves_its_live_spell_button",
+      "toybox::uncollected_icons_are_desaturated_in_both_skins",
+      "toybox::unresolved_catalog_names_display_item_id_like_retail_in_both_skins"
+    ],
+    "active_db2_names": [
+      "trading_post_reads_scene_flags_from_active_snapshot_without_historical_directory"
+    ]
+  },
+  "before_census_reused": "14 toy names from214a9 packet; git diff214a9b854..8f670745a over2sources+suite empty; prior unit/integration/isolated lists source-qualified stage2",
+  "log_sha256": {
+    "collections-stage3-check.log": "e07693588be063312e50a09bed30132587b55d8c9642e103f1948f045c9b6296",
+    "collections-stage3-model-tests-driver.log": "9d3d0a9a5aa994603e03aec4486043265c59471fcd07c3c353fdc2d2db639eb3",
+    "collections-stage3-tests.log": "930af70c96a86a06788a0af09b9a1454064929ed750ba5c533de4b50724188b6",
+    "collections-stage3-after-model-census-driver.log": "ba795ac29b73449ab1f96f38fadccb2fc7fdd00da42fb08f7901b26d11df7bd9",
+    "collections-stage3-tests-driver.log": "5f8def5166478cdfe3de56547fa6581aaeb7291b4ebe76dac46d7c097d82b551",
+    "collections-stage3-after-model-census.log": "b18ee7eb019906d1e227a0b27c48504eff42d1d47dd905617471eb20ba3da5cf",
+    "collections-stage3-model-tests.log": "c190183043f8e727c6852238c024bb9b762cc24614d725d0e442fc681758a6ec",
+    "collections-stage3-after-census.log": "6243e2283b8d582f8aa2dd67434b2678aea955bfa88d6e42f73ab2c6416dfa47",
+    "collections-stage3-after-census-driver.log": "84858a0acd03b0adeea4c6a1fdb75250a133b3e2634b2729e1a6e5cf0bf1e40d"
+  },
+  "qualification": "No behavior/visibility/dependency/profile/asset changes. No timing/native-runtime/full-suite acceptance claim. Parent owns9-package gate/push/merge. Pet/shell remain base."
+}

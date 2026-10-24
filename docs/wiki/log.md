@@ -1,3 +1,7 @@
+## 2026-10-24 — Collections toybox stage3
+
+[Stage3](investigations/engine-crate-split-plan.md#collections-stage3-implementation) rename-only6a77dd742/wiringbfcdbe17c moves2sources+1suite unchanged into Collections while ec2 gate runs. Direct native/base imports only; no new visibility/dependency/profile changes, shell/pet stay base. Scoped check passes/no diagnostics;414base+18feature units+166integration+1isolated pass (599total0fail/ignored), exact152+14 names preserved. Parent9-package gate separate, no timing/native runtime claim.
+
 ## 2026-10-24 — Collections mount journal stage2
 
 [Stage2](investigations/engine-crate-split-plan.md#collections-stage2-implementation) rename-onlycf31450bf/wiring9c3035d6a moves2source+1suite unchanged, preserves14mount names within138+14=152 integration. Shared shell stays base; original inset_border/helper re-export gain public visibility, native imports direct. Scoped check passes/no diagnostics;414base+18feature units+152integration+1isolated pass (585total0fail/ignored), exact names preserved. Parent9-package gate separate; no timing/runtime claim, toy/pet/shell untouched.
