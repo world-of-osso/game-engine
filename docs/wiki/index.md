@@ -377,6 +377,7 @@ Root cause analyses and debug findings.
 
 External resources and asset lists.
 
+- [M2 scene fields](reference/benilla-m2-scene-fields.md) — attachments/events/lights/camera/collision inputs; full event versus marker projection and native animated point-light wiring distinguished.
 - [M2 header/container fields](reference/benilla-m2-header-fields.md) — literal count/offset inputs, opaque intervals, modern file-ID chunks and separate pre-Wrath header walk.
 - [M2 animation field handling](reference/benilla-m2-animation-fields.md) — bone/sequence members, descriptor/version differences, ordinary versus material interpolation and external payload boundaries.
 - [M2 particle field handling](reference/benilla-m2-particle-fields.md) — generator/lifetime inputs, EXP2, packed textures, flag consumers and conditional single-key loss; B model-mesh spawning distinguished from recursion.

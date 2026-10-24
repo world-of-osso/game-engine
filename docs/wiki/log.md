@@ -1,3 +1,7 @@
+## 2026-10-24 — M2 scene inputs
+
+[Scene fields](reference/benilla-m2-scene-fields.md) separate attachment/event descriptors, modern camera snapshots, B full events versus marker projection and collision bounds. Native animated point-light wiring is present; parser-module light snapshots do not describe that production evaluator. Static research only; geometry integration and independent audits remain open.
+
 ## 2026-10-24 — M2 header and animation inputs
 
 [Header/container rows](reference/benilla-m2-header-fields.md) expose individual count/offset inputs and unread intervals without transferring Benilla's pre-Wrath offsets. [Animation rows](reference/benilla-m2-animation-fields.md) trace named bones/sequences, ordinary-track descriptors and external payload selection. Static-only; geometry/scene integration and independent audits remain open.
