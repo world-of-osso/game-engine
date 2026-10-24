@@ -9,7 +9,7 @@ All locations below are relative to the payload selected from MD21. Each count/o
 | Field | Offset / type | Handling / source |
 |---|---|---|
 | Payload magic bytes | `0x00..0x04` | Not validated by scoped MD21 payload parser; outer MD21 tag is required (`parser.rs:187–224`). No universal plain-MD20 acceptance inferred. |
-| Version | `0x04 u32` | Particle stride branch (`pure.rs:38`, `m2_particle.rs:725–740,777–783`); camera independently accepts272–274 (`m2_camera.rs`). Not a general model-version compatibility gate. |
+| Version | `0x04 u32` | Particle stride branch (`pure.rs:38`, `m2_particle.rs:725–740,782–788`); camera independently accepts272–274 (`m2_camera.rs`). Not a general model-version compatibility gate. |
 | Global flags | `0x10 u32` | Retained (`parser.rs:353–355`, `m2.rs:372,421,435`); flag0x8 derives texture-combiner policy; ribbon flag0x20000 gates UV lookup. Other bits need individual consumers, not blanket unsupported classification. |
 | Global sequences count | `0x14 u32` | Durations -> shared clocks; animation field page; `m2_anim.rs:182–198`. |
 | Global sequences offset | `0x18 u32` | Payload address consumed then discarded; `m2_anim.rs:182–198`. |

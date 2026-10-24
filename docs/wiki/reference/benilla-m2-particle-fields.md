@@ -4,7 +4,7 @@ Individual particle-record inputs, decoded representations and production bounda
 
 ## Layout and table keys
 
-E parser **P** = `E/godot/core/src/asset/m2_format/m2_particle.rs`. Offsets are relative to an E emitter. `P:154–217` declares offsets, `P:472–502` reads the prefix, `P:518–577` fills decoded values, `P:634–650` reads generator tracks. E selects stride **492 bytes (0x1ec) for version >=272**, otherwise **376 bytes (0x178)** (`P:777–783`). That branch is not proof of general older-layout compatibility: later reads use a slice extending beyond the record and default missing reads. Do not call either record “272 bytes.” B uses different 28-byte tracks and a different emitter layout; its field offsets below are B-only.
+E parser **P** = `E/godot/core/src/asset/m2_format/m2_particle.rs`. Offsets are relative to an E emitter. `P:154–217` declares offsets, `P:472–502` reads the prefix, `P:518–577` fills decoded values, `P:634–650` reads generator tracks. E selects stride **492 bytes (0x1ec) for version >=272**, otherwise **376 bytes (0x178)** (`P:782–788`). That branch is not proof of general older-layout compatibility: later reads use a slice extending beyond the record and default missing reads. Do not call either record “272 bytes.” B uses different 28-byte tracks and a different emitter layout; its field offsets below are B-only.
 
 **G** = `E/godot/core/src/m2_particles.rs:419–470,544–640`: generator values enter simulation, choosing per-track global/sequence clocks, then plane/sphere spawning and motion. **V** = same file `:283–315`: lifetime keys determine color, alpha, size and head cell. **N** = `E/godot/rust/src/particles.rs`: native placement/material wiring. **BP** = `B/crates/benilla-formats/src/particles.rs:550–665`: paired parser/adaptation evidence. A B parser row alone is not runtime proof.
 
@@ -82,7 +82,7 @@ Every row is independently retained by `P:533–577` unless marked opaque. Lifet
 
 ## Partial tracks, multitexture and EXP2
 
-For each of color/opacity/scale/head-cell/tail-cell and EXP2 alpha cutoff, partial track members are: timestamp count `u32 +0`, timestamp offset `u32 +4`, value count `u32 +8`, value offset `u32 +12`; timestamp elements are normalized `u16 /32767`, values are the row-specific type. Counts/addresses are consumed then discarded; decoded `(time,value)` pairs retained up to the smaller count (`P:284–295,428–448`). This schema is distinct from ordinary tracks: no interpolation/global-sequence words. Address base is MD20 for ordinary particle lifetime data, EXP2 chunk for cutoff.
+For each of color/opacity/scale/head-cell/tail-cell and EXP2 alpha cutoff, partial track members are: timestamp count `u32 +0`, timestamp offset `u32 +4`, value count `u32 +8`, value offset `u32 +12`; timestamp elements are normalized `clamp(u16 /32767,0,1)`, values are the row-specific type. Counts/addresses are consumed then discarded; decoded `(time,value)` pairs retained up to the smaller count (`P:284–295,428–448`). This schema is distinct from ordinary tracks: no interpolation/global-sequence words. Address base is MD20 for ordinary particle lifetime data, EXP2 chunk for cutoff.
 
 | Field | Serialized input | Handling / consumer |
 |---|---|---|
@@ -98,14 +98,14 @@ For each of color/opacity/scale/head-cell/tail-cell and EXP2 alpha cutoff, parti
 | UV velocity range layer2 | Two i16 `+0x1e8`, `/512` | Same. E492-byte record fully ends after this field. |
 | EXP2 record count | `u32 chunk+0` | Limits emitter-order assignment (`P:747–775`). |
 | EXP2 record offset | `u32 chunk+4` | Locates 28-byte records; descriptor address discarded. |
-| EXP2 zSource | `f32 record+0` | Replaces MD20 scalar; presence clears all z-source tracks even if a later record cannot decode (`P:747–768`); G consumes value. |
+| EXP2 zSource | `f32 record+0` | Replaces MD20 scalar; presence clears all z-source tracks even if a later record cannot decode (`P:756–774`); G consumes value. |
 | EXP2 color multiplier | `f32 record+4` | V multiplies RGB. |
 | EXP2 alpha multiplier | `f32 record+8` | V multiplies alpha. |
 | EXP2 alpha-cutoff track | Partial track `record+12`, signed-fixed16 values | Retained `alpha_cutoff_keys`; no consumer found in inspected E core/native particle paths. Native blend-based alpha test is a different input. |
 
 ## Flag decoding and unknowns
 
-Raw flags remain retained. Definitions at `E/godot/core/src/m2_particles.rs:14–29`; individual tested bits below. Unlisted bits remain uninterpreted here, not declared unused. This table is E behavior, not a same-bit Vanilla equivalence map.
+Raw flags remain retained. Definitions at `E/godot/core/src/m2_particles.rs:14–30`; individual tested bits below. Unlisted bits remain uninterpreted here, not declared unused. This table is E behavior, not a same-bit Vanilla equivalence map.
 
 | Bit | Named branch | Consumer evidence |
 |---|---|---|
@@ -129,7 +129,7 @@ Refraction filtering is not missing ordinary multitexture support. Inherit-scale
 
 ## Benilla model particles: resolved contradiction
 
-B support is not limited to recursion. Geometry and recursion filenames become separate `M2Model` dependency handles (`B/crates/benilla-assets/src/m2.rs:337–349`). Runtime copies the geometry handle (`B/crates/benilla-world/src/particles.rs:158–163,532–535`); simulation emits particles but suppresses ordinary quads when geometry is authored (`particles/sim.rs:876–914,967`). `particles/model.rs:46–126,132–180` resolves the loaded model, creates static submesh instances and updates per-particle transforms/color/size. Scheduling invokes this after simulation (`particles.rs:679–687`). This establishes a source chain to static model meshes, **not animated geometry-model fidelity or successful load of every path**.
+B support is not limited to recursion. Geometry and recursion filenames become separate `M2Model` dependency handles (`B/crates/benilla-assets/src/m2.rs:343–350`). Runtime copies the geometry handle (`B/crates/benilla-world/src/particles.rs:158–163,532–535`); simulation emits particles but suppresses ordinary quads when geometry is authored (`particles/sim.rs:876–914,967`). `particles/model.rs:46–126,132–180` resolves the loaded model, creates static submesh instances and updates per-particle transforms/color/size. Scheduling invokes this after simulation (`particles.rs:679–687`). This establishes a source chain to static model meshes, **not animated geometry-model fidelity or successful load of every path**.
 
 Recursion separately resolves the recursion model and wires up to four emitter definitions (`B/crates/benilla-world/src/particles.rs:559–606`). Head/tail quads use `head_tail` and separate UV/lifetime inputs (`particles/quads.rs:168–239`); those are neither model-mesh rendering nor a consumer of E's stored filename. B-only/differently encoded payload members follow. Each is read in BP; normalized colors, ramp base/span and sampled outputs are derived, not extra disk fields.
 
