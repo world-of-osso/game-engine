@@ -48,6 +48,8 @@ The asset conversion and live `GlobalSeqDrive` path above establish production c
 
 ## See Also
 
+- [[benilla-m2-evidence]] — accepted static audit scopes and runtime exclusions.
+
 - [[benilla-asset-field-inventory]] — cross-format research goal and evidence vocabulary.
 - [[benilla-m2-header-fields]] — serialized header/chunk inputs.
 - [[benilla-m2-animation-fields]] — authored tracks and sequence boundaries.

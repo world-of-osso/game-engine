@@ -259,5 +259,7 @@ Every census record is assigned a role and worksheet; this is not a proof of uni
 
 ## See Also
 
+- [[benilla-m2-evidence]] — scoped static acceptance and remaining evidence limits.
+
 - [[benilla-m2-representation-fields]] — individual B bounds and marker/animation projection members.
 - [[benilla-asset-field-inventory]] — parent comparison and later formats.
