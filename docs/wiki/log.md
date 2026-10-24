@@ -1,3 +1,7 @@
+## 2026-10-24 — M2 representation boundaries
+
+[Representation fields](reference/benilla-m2-representation-fields.md) distinguish eight B bounds members and twelve marker/animation projection members from extra disk fields. Static source trace locates global-channel asset conversion and live pose consumers; not runtime proof. Remaining declaration reconciliation and independent delta verification stay open.
+
 ## 2026-10-24 — M2 geometry/material inputs
 
 [Geometry/material rows](reference/benilla-m2-geometry-fields.md) cover vertex payloads, separate SKIN/M2View descriptor members, raw submeshes, all13 modern batch inputs and material/UV handling. B batch words+6/+12 are unread, not texture-combo/count fields. Static-only; consumer evidence is independently gated and B downstream additions remain in progress.

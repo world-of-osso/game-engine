@@ -383,6 +383,7 @@ External resources and asset lists.
 - [M2 animation field handling](reference/benilla-m2-animation-fields.md) — bone/sequence members, descriptor/version differences, ordinary versus material interpolation and external payload boundaries.
 - [M2 particle field handling](reference/benilla-m2-particle-fields.md) — generator/lifetime inputs, EXP2, packed textures, flag consumers and conditional single-key loss; B model-mesh spawning distinguished from recursion.
 - [M2 ribbon field handling](reference/benilla-m2-ribbon-fields.md) — individual modern/Vanilla record inputs, expanded descriptors, native consumers and bounded unknowns; static research, broader M2 audit open.
+- [M2 representation boundaries](reference/benilla-m2-representation-fields.md) — separates copied bounds, calculated camera/ring inputs and animation/marker projections from additional disk fields; declaration reconciliation in progress.
 - [M2 declared-field census](reference/benilla-m2-field-census.md) — per-field source roster, with raw/cooked duplicates and unexpanded header/track boundaries explicit; working input to the consumer audit, not completed parity proof.
 - [Benilla asset-field inventory](reference/benilla-asset-field-inventory.md) — pinned M2/WMO/ADT/WDT/WDL/BLP and environment comparison; parsed-but-unbound fields, existing coverage and version-qualified research leads, static evidence only.
 

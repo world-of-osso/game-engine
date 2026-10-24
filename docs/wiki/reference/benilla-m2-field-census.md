@@ -6,6 +6,8 @@ Snapshot: 2026-10-24. E source baseline `354bdb7dbf177047ed46d63168acec531f5c442
 
 Method: static text enumeration of named struct fields; no reader, client, build or test executed. Generic track payloads and M2Array count/offset members are not expanded by declaration extraction. Enum variants, constants and implicit fields read directly from byte offsets are not counted here. B WmoLight is excluded as a separate format. Helpers sharing selected files are representations, not new serialized fields.
 
+[Representation boundaries](benilla-m2-representation-fields.md) classify copied, derived and helper members separately from serialized inputs; reconciliation remains in progress.
+
 ## Inventory scope
 
 Declared representation fields: E **362**, B **268**; **90** file-qualified struct representations. Names/types are literal source representation, not cross-version equivalence. No missing/unsupported claim follows solely from this table.
