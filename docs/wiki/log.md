@@ -1,3 +1,7 @@
+## 2026-10-24 — RecipeCatalog residual implementation
+
+[Residual cut](investigations/engine-crate-split-plan.md#recipecatalog-residual--approved-mixed-file-cut) `b57ba9275` retains the actual parser functions/base model/quality/reagent/native cache owners;only approved three functions gain visibility. All12 catalog/parser function bodies conserved;three units/four trainer cases keep exact names. All13-package check/zero diagnostics andall13fmt pass.386base+21feature units+43featureintegration+5retainedtrainer=455pass/0fail/ignored;407unit/48integration name multisets exact. No timing run per parent. Parent fullgate separate;no new native-runtime acceptance.
+
 ## 2026-10-24 — RecipeCatalog residual approval and census
 
 Parent accepts Achievements `fc6cbeb88`:ac-eng matches the same three known baseline failures,none new. [RecipeCatalog residual](investigations/engine-crate-split-plan.md#recipecatalog-residual--approved-mixed-file-cut) extends existing Professions crate295 original lines,retains31 including actual parser helpers;only number/read_rows/quality::load may gain visibility. Exact base389→386/feature18→21 units and feature39→43/trainer9→5 integration planned;three units/four trainer cases move,models/reagent unit/five trainer siblings stay. Original trainer runtime9/ignored0,other census reused on unchanged sources. No product changes in this packet. Parent explicitly skips paired timing;13-package check/fmt/exact inventories remain required.
