@@ -168,17 +168,17 @@ Record partition: named prefix `[0x04,0x29)`, shape/head-tail `[0x2a,0x2d)`, dim
 |---|---|---|
 | `0x1` | Unlit when set; blend also gates lighting | `benilla-formats/src/particles.rs:459–468` derives `lit`; do not identify it with E's particle flags by width alone. |
 | `0x8` | Fog off | `benilla-world/src/particles/buffer.rs:99–107`. |
-| `0x10` | Emitter-local storage, placement reapplied at draw | Predicate `benilla-formats/src/particles.rs:309–312`; `benilla-world/src/particles.rs:317`, `particles/quads.rs:64–69`, `particles/sim.rs:842–844`. |
+| `0x10` | Emitter-local storage, placement reapplied at draw | Predicate `benilla-formats/src/particles.rs:309–312`; `benilla-world/src/particles.rs:317`, `particles/quads.rs:64–69`, `particles/sim.rs:633,845–853`. |
 | `0x20` | Instance scale affects size | Predicate `benilla-formats/src/particles.rs:336–340`; `benilla-world/src/particles/quads.rs:88–94,107–112`, `particles/model.rs:135–139`. |
-| `0x40` | Birth velocity inherits emitter motion | Predicate `benilla-formats/src/particles.rs:332–334`; `benilla-world/src/particles/sim.rs:778–790,867–869`; child velocity path `:104–105,142`. |
-| `0x80` | Sphere outbound retirement | Predicate `benilla-formats/src/particles.rs:348–351`; `benilla-world/src/particles/sim.rs:799`. |
-| `0x100` | Sphere birth velocity points up | Predicate `benilla-formats/src/particles.rs:343–346`; `benilla-world/src/particles/emit.rs:96`. |
-| `0x200` | Random sign per tumble axis | Predicate `benilla-formats/src/particles.rs:359–362`; `benilla-world/src/particles/sim.rs:884`. |
-| `0x400` | Tail length clamped to particle age | Predicate `benilla-formats/src/particles.rs:354–357`; `benilla-world/src/particles/quads.rs:201`. |
-| `0x1000` | XY-plane head quad | Predicate `benilla-formats/src/particles.rs:379–382`; `benilla-world/src/particles/quads.rs:114–120`. |
-| `0x2000` | World-mode ground snap on birth | Predicate `benilla-formats/src/particles.rs:367–370`; `benilla-world/src/particles/sim.rs:854–857`. |
+| `0x40` | Birth velocity inherits emitter motion | Predicate `benilla-formats/src/particles.rs:331–333`; `benilla-world/src/particles/sim.rs:778–790,867–872`; child velocity path `:142–144`. |
+| `0x80` | Sphere outbound retirement | Predicate `benilla-formats/src/particles.rs:346–348`; `benilla-world/src/particles/sim.rs:53–68,799–805`. |
+| `0x100` | Sphere birth direction +Z when zSource is zero; nonzero zSource takes precedence | Predicate `benilla-formats/src/particles.rs:341–343`; `benilla-world/src/particles/emit.rs:92–100`. |
+| `0x200` | Random sign per tumble axis | Predicate `benilla-formats/src/particles.rs:356–358`; `benilla-world/src/particles/sim.rs:876–890` (geometry-model branch). |
+| `0x400` | Tail length clamped to particle age | Predicate `benilla-formats/src/particles.rs:351–353`; `benilla-world/src/particles/quads.rs:201–205`. |
+| `0x1000` | XY-plane head quad | Predicate `benilla-formats/src/particles.rs:375–377`; `benilla-world/src/particles/quads.rs:114–123,167–169`. |
+| `0x2000` | World-mode ground snap on birth | Predicate `benilla-formats/src/particles.rs:363–365`; `benilla-world/src/particles/sim.rs:854–865`. |
 | `0x4000` | Fraction of emitter translation moves live particles | Predicate/line fit `benilla-formats/src/particles.rs:316–325`; `benilla-world/src/particles/sim.rs:74–85`. Equal follow speeds yield no response; result clamped0..1. |
-| `0x8000` | One-shot burst at enabled-positive-rate rising edge | Predicate `benilla-formats/src/particles.rs:374–376`; `benilla-world/src/particles.rs:634–635`, `particles/sim.rs:826–835`. |
+| `0x8000` | One-shot burst at enabled-positive-rate rising edge | Predicate `benilla-formats/src/particles.rs:369–371`; `benilla-world/src/particles.rs:637–662`, `particles/sim.rs:825–833`. |
 
 Flags not listed remain raw/unclassified in this inventory. Literal code proves branches, not B's claimed native runtime-bit remapping or parity.
 
