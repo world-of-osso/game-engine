@@ -377,6 +377,7 @@ Root cause analyses and debug findings.
 
 External resources and asset lists.
 
+- [M2 declared-field census](reference/benilla-m2-field-census.md) — per-field source roster, with raw/cooked duplicates and unexpanded header/track boundaries explicit; working input to the consumer audit, not completed parity proof.
 - [Benilla asset-field inventory](reference/benilla-asset-field-inventory.md) — pinned M2/WMO/ADT/WDT/WDL/BLP and environment comparison; parsed-but-unbound fields, existing coverage and version-qualified research leads, static evidence only.
 
 - [open-source-wow-clients](reference/open-source-wow-clients.md) — Client/rendering references; Benilla taint/aura boundary; separate source-only 3.3.5a and 4.3.4 audits; no runtime parity established

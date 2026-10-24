@@ -1,3 +1,7 @@
+## 2026-10-24 — M2 declared-field scope
+
+[Working census](reference/benilla-m2-field-census.md) exposes named M2/SKIN reader/model fields individually, separately from source byte layouts and downstream handling. Parser-to-consumer proofs, header/opaque ranges and runtime classifications remain active work; no completeness or runtime claim.
+
 ## 2026-10-24 — Benilla taint/aura boundary
 
 `reference/open-source-wow-clients.md` distinguishes the `benilla` client at `8161582` from its pinned `benilla-re` reference at `c854c4e`. The reference documents per-value context tags and attribute/effect-based hidden-aura filtering; the client models function/call-stack context, not addon data-value taint, and keeps classic aura behavior. Static 1.12.1 evidence only; no runtime or cross-build claim.
