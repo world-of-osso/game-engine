@@ -1,6 +1,6 @@
 //! Native global bounds, derived from effective PerksProgram XML/Lua anchors.
 use super::compute_layout_with_intrinsics;
-use game_engine_ui_model::trading_post::{FilterSubmenu, View, trading_post_screen};
+use game_engine_ui_collections::trading_post::{FilterSubmenu, View, trading_post_screen};
 use image::GenericImageView;
 use shared::protocol::{TradingPostCategory, TradingPostItem, TradingPostSnapshot};
 use std::{collections::HashMap, sync::Arc};
@@ -317,7 +317,9 @@ fn trading_post_rotate_pressed_icon_survives_registry_layout_then_restores_on_re
                     panic!("rotation button")
                 };
                 data.state = state;
-                game_engine_ui_model::trading_post::apply_rotation_icon_positions(&mut registry);
+                game_engine_ui_collections::trading_post::apply_rotation_icon_positions(
+                    &mut registry,
+                );
                 let bounds = compute_layout_with_intrinsics(&registry, &HashMap::new()).unwrap();
                 assert_rect(
                     &registry,

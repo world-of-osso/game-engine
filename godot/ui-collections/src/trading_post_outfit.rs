@@ -6,7 +6,7 @@ const SCENE_CSV: &str = "db2/active/UiModelScene.csv";
 static FLAGS: OnceLock<Result<BTreeMap<u32, u32>, String>> = OnceLock::new();
 
 fn load_scene_flags() -> Result<BTreeMap<u32, u32>, String> {
-    let path = crate::paths::resolve_data_path(SCENE_CSV);
+    let path = game_engine_ui_model::paths::resolve_data_path(SCENE_CSV);
     let text = std::fs::read_to_string(&path)
         .map_err(|error| format!("Trading Post scene flags {}: {error}", path.display()))?;
     let records = game_engine_core::csv_util::parse_csv_records(&text);

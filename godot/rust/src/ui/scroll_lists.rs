@@ -322,9 +322,9 @@ pub(super) fn release_thumbs(registry: &mut FrameRegistry) -> bool {
 impl RegistryUi {
     pub(crate) fn reveal_trading_post_selection(
         &mut self,
-        view: &game_engine_ui_model::trading_post::View,
+        view: &game_engine_ui_collections::trading_post::View,
     ) -> Result<(), String> {
-        use game_engine_ui_model::trading_post::LIST;
+        use game_engine_ui_collections::trading_post::LIST;
         let model = self
             .model
             .as_mut()

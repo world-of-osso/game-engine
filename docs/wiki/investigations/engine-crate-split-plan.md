@@ -60,7 +60,7 @@ game-engine-godot → ui-housing / ui-adventure / ui-collections → ui-model �
                  → godot-render   → core / godot support
 ```
 
-Names below were proposed package suffixes at baseline; current Housing/Adventure extractions are documented below. No duplicate model definitions, copied `#[path]` implementations, shadow caches or alternative rendering paths.
+Names below were proposed package suffixes at baseline; current extractions are documented below. No duplicate model definitions, copied `#[path]` implementations, shadow caches or alternative rendering paths.
 
 | Boundary | Current reachable footprint | Why this cut / prerequisites | Risk |
 |---|---:|---|---|
@@ -128,7 +128,7 @@ Parent merged tag-action master `58d10a3c9` at `f9be3a1ef`. The newly landed nes
 
 ## Collections staged packet — before moves
 
-Source `214a9b854`, pending lead `es-eng` landing. **Planning/census only; no Collections source moves yet.** The current graph retains exactly12 root modules,33 reachable source files and11,629 physical LOC, with no outside ui-model production/unit incoming edges. The group includes the four `pet_journal_*` companions, eight `trading_post_*` companions, nested transmog/frame files and wild-pet effect HUD; filename-prefix-only moves would miss descendants.
+Before-packet source `214a9b854`. Parent subsequently confirmed `es-eng` passed/landed and approved stage1; the census below remains the unchanged source baseline. The current graph retains exactly12 root modules,33 reachable source files and11,629 physical LOC, with no outside ui-model production/unit incoming edges. The group includes the four `pet_journal_*` companions, eight `trading_post_*` companions, nested transmog/frame files and wild-pet effect HUD; filename-prefix-only moves would miss descendants.
 
 Populate one `game-engine-ui-collections` crate incrementally, preserving a separately pushed rename-only/wiring/census gate per family:
 
@@ -143,7 +143,11 @@ Populate one `game-engine-ui-collections` crate incrementally, preserving a sepa
 
 The source-qualified [before census](engine-crate-split-collections-before.json) reuses the unchanged432-name ui-model unit listing;24 affected names are18 transmog and6 stable. Runtime listing of the six integration suites finds **197 enabled/zero ignored**: Trading Post124, transmog14, mount14, pet19, toy14, wild-pet12. The separately listed **`active_db2` target has one enabled/zero ignored** Trading Post source-switch test. It must move as its own target, never into integration; `item_catalog_pending` remains in base. Temporary same-module listing harness is removed. These tests were listed, not newly executed. Preserve nested `trading_post/monthly_clock`, `slow_purchase` and `time_sort` modules, exact names/assertions and fixture paths.
 
-At every family gate, compare original432 unit names against residual+extracted names and compare exact affected integration/process-target multisets; run only the admitted serialized `-j4` helper checks/tests. Maintain the same base/core/shared/toolkit type identities, existing profiles and explicit real data-root setup in moved fixtures. No moves are authorized before `es-eng` lands; lead owns integration acceptance and operational push/merge.
+At every family gate, compare original432 unit names against residual+extracted names and compare exact affected integration/process-target multisets; run only the admitted serialized `-j4` helper checks/tests. Maintain the same base/core/shared/toolkit type identities, existing profiles and explicit real data-root setup in moved fixtures. The lead owns integration acceptance and operational push/merge; later families still require their own gates.
+
+### Collections stage1 implementation
+
+Rename-only `dfca8fe29` moves19 source and6 test files unchanged into `godot/ui-collections`. Wiring creates `game-engine-ui-collections`, leaves the original shared shell in ui-model, and changes native callers to direct feature imports. `active_db2` remains its own test target in the new crate; `item_catalog_pending` stays in base. Only the existing `money_colored` helper gains public visibility. Actor/preview behavior, type identities, profiles, assertions and fixture paths remain unchanged. Check/test/census evidence is pending.
 
 ## Baseline edit measurements
 

@@ -9,9 +9,9 @@ use crate::{
     world_models::UnitAppearance,
 };
 use game_engine_session::SessionScreen;
-use game_engine_ui_model::{
-    transmog::{TransmogBook, TransmogSend, WardrobeTab},
-    transmog_frame::{HEIGHT, MODEL_SCENE, NAME_POPUP_EDITBOX, TransmogView, WIDTH},
+use game_engine_ui_collections::transmog::{TransmogBook, TransmogSend, WardrobeTab};
+use game_engine_ui_collections::transmog_frame::{
+    HEIGHT, MODEL_SCENE, NAME_POPUP_EDITBOX, TransmogView, WIDTH,
 };
 use godot::prelude::*;
 use shared::components::{Gold, SheathState};
@@ -235,7 +235,7 @@ impl GameClient {
         };
         let search = ui
             .bind_mut()
-            .frame_text(game_engine_ui_model::transmog_frame::SEARCH.into())
+            .frame_text(game_engine_ui_collections::transmog_frame::SEARCH.into())
             .to_string();
         if search != self.transmog.book.search {
             self.transmog.book.set_search(search);
@@ -243,7 +243,7 @@ impl GameClient {
         if let Some(draft) = &mut self.transmog.book.outfit_info {
             draft.name = ui
                 .bind_mut()
-                .frame_text(game_engine_ui_model::transmog_frame::OUTFIT_ICON_EDITBOX.into())
+                .frame_text(game_engine_ui_collections::transmog_frame::OUTFIT_ICON_EDITBOX.into())
                 .to_string();
         }
         while let Some((action, right, _)) = ui.bind_mut().pop_alt_click() {

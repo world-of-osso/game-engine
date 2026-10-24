@@ -16,6 +16,7 @@ godot/           # Godot project + Rust workspace (built and tested through desk
 ├── ui-model/    # game-engine-ui-model: shared rsx! components and UI state (ui-toolkit-core)
 ├── ui-housing/  # game-engine-ui-housing: Housing screens/state; depends on ui-model, imported directly by native hosts
 ├── ui-adventure/ # game-engine-ui-adventure: Adventure Guide screens/state; native actor/model-scene code stays in rust
+├── ui-collections/ # game-engine-ui-collections: transmog and Trading Post UI; later families move at separate gates
 ├── network/     # game-engine-network: headless lightyear transport, IPC wire schema, JS automation; examples/ = process fixtures
 ├── session/     # game-engine-session: account and character-session decisions
 ├── rust/        # game-engine-godot: the GDExtension (scenes, rendering, input, IPC server)

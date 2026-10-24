@@ -944,7 +944,7 @@ pub(crate) fn player_money(
 }
 
 /// [`money`] with the amounts in `color` (the trainer's red unaffordable cost).
-pub(crate) fn money_colored(
+pub fn money_colored(
     prefix: &str,
     copper: u64,
     anchor: (f32, f32),

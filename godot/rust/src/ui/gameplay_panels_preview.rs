@@ -1,15 +1,13 @@
 //! Offline production-screen fixtures for Retail control comparisons, without network mutation.
 use super::{RegistryUi, ScreenPostsetup, party_preview};
-use game_engine_ui_model::{
-    damage_meter_component::damage_meter_screen,
-    inworld_unit_frames_component::{
-        DifficultyMenuEntry, DifficultyMenuState, InWorldUnitFramesState, UnitFrameMenuState,
-        UnitFrameState, inworld_unit_frames_screen,
-    },
-    minimap::{MinimapClusterState, TrackingState, minimap_cluster_screen},
-    transmog::{TransmogBook, WardrobeTab},
-    transmog_frame::TransmogView,
+use game_engine_ui_collections::transmog::{TransmogBook, WardrobeTab};
+use game_engine_ui_collections::transmog_frame::TransmogView;
+use game_engine_ui_model::damage_meter_component::damage_meter_screen;
+use game_engine_ui_model::inworld_unit_frames_component::{
+    DifficultyMenuEntry, DifficultyMenuState, InWorldUnitFramesState, UnitFrameMenuState,
+    UnitFrameState, inworld_unit_frames_screen,
 };
+use game_engine_ui_model::minimap::{MinimapClusterState, TrackingState, minimap_cluster_screen};
 use godot::prelude::*;
 use ui_toolkit::{
     atlas::{ActiveSkin, set_thread_skin},

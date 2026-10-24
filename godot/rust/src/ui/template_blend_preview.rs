@@ -43,7 +43,7 @@ fn load_adventure_guide(
 }
 
 /// One purchased product still inside its supplied refund window.
-fn trading_post() -> game_engine_ui_model::trading_post::View {
+fn trading_post() -> game_engine_ui_collections::trading_post::View {
     use shared::protocol::{
         TradingPostCategory, TradingPostItem, TradingPostReplyKind, TradingPostSnapshot,
     };
@@ -85,7 +85,7 @@ fn trading_post() -> game_engine_ui_model::trading_post::View {
         catalog_complete: true,
         reply_kind: TradingPostReplyKind::Query,
     };
-    let mut view = game_engine_ui_model::trading_post::View {
+    let mut view = game_engine_ui_collections::trading_post::View {
         visible: true,
         ..Default::default()
     };
@@ -324,12 +324,12 @@ fn achievement_statistics() -> game_engine_ui_model::achievements::AchievementWi
     window
 }
 
-fn transmog() -> game_engine_ui_model::transmog_frame::TransmogView {
+fn transmog() -> game_engine_ui_collections::transmog_frame::TransmogView {
     use shared::{
         item_data::ItemDefinitionSource,
         protocol::{EquipmentSlot, TransmogChoice, TransmogSlot, TransmogState},
     };
-    let mut book = game_engine_ui_model::transmog::TransmogBook::default();
+    let mut book = game_engine_ui_collections::transmog::TransmogBook::default();
     book.state = Some(TransmogState {
         npc: 54442,
         slots: vec![TransmogSlot {
@@ -345,7 +345,7 @@ fn transmog() -> game_engine_ui_model::transmog_frame::TransmogView {
         }],
         ..Default::default()
     });
-    game_engine_ui_model::transmog_frame::TransmogView {
+    game_engine_ui_collections::transmog_frame::TransmogView {
         book,
         viewport_width: 1920.0,
         ..Default::default()

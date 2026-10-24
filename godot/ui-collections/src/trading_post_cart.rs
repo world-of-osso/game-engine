@@ -22,7 +22,7 @@ impl View {
         {
             return Ok(0);
         }
-        crate::item_catalog::item_catalog()
+        game_engine_ui_model::item_catalog::item_catalog()
             .ok_or("Trading Post cart item catalog still loading")?
             .get(item_id)
             .map(|item| item.inventory_type)

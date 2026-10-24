@@ -1,9 +1,7 @@
 //! Shared-skin Retail12.1 TransmogFrame contract: regions, collection cards, outfits,
 //! sets, custom sets and illusions in both art skins.
-use game_engine_ui_model::{
-    transmog::{TransmogBook, WardrobeTab},
-    transmog_frame::{TransmogView, transmog_screen},
-};
+use game_engine_ui_collections::transmog::{TransmogBook, WardrobeTab};
+use game_engine_ui_collections::transmog_frame::{TransmogView, transmog_screen};
 use shared::{item_data::ItemDefinitionSource, protocol::*};
 use ui_toolkit::{
     atlas::{ActiveSkin, set_thread_skin},
@@ -162,7 +160,7 @@ fn build(skin: ActiveSkin, book: TransmogBook) -> FrameRegistry {
     shared.insert(view.clone());
     let mut registry = FrameRegistry::new(1920.0, 1080.0);
     Screen::new(transmog_screen).sync(&shared, &mut registry);
-    game_engine_ui_model::transmog_frame::apply_transmog_art(&mut registry);
+    game_engine_ui_collections::transmog_frame::apply_transmog_art(&mut registry);
     registry
 }
 

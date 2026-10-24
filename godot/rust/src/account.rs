@@ -163,7 +163,7 @@ pub struct Account {
     pub adventure_guide: Option<std::sync::Arc<shared::protocol::AdventureGuideSnapshot>>,
     pub trading_post: Option<std::sync::Arc<shared::protocol::TradingPostSnapshot>>,
     /// Actual completion results since the vendor view last drained an account update.
-    trading_post_replies: Vec<game_engine_ui_model::trading_post::Reply>,
+    trading_post_replies: Vec<game_engine_ui_collections::trading_post::Reply>,
     pub renown: Option<std::sync::Arc<shared::protocol::RenownSnapshot>>,
     /// Owner wallet from CurrencyStateUpdate; None until the realm sends it.
     pub currencies: Option<shared::protocol::CurrencySnapshot>,
@@ -850,7 +850,7 @@ impl Account {
         &mut self,
     ) -> Option<(
         std::sync::Arc<shared::protocol::TradingPostSnapshot>,
-        Vec<game_engine_ui_model::trading_post::Reply>,
+        Vec<game_engine_ui_collections::trading_post::Reply>,
     )> {
         if self.trading_post_replies.is_empty() {
             return None;
@@ -892,12 +892,12 @@ impl Account {
             .map_err(SessionError)
     }
 
-    /// Paid Apply or an outfit/custom-set save (game_engine_ui_model::transmog::TransmogSend).
+    /// Paid Apply or an outfit/custom-set save (game_engine_ui_collections::transmog::TransmogSend).
     pub fn send_transmog(
         &self,
-        request: game_engine_ui_model::transmog::TransmogSend,
+        request: game_engine_ui_collections::transmog::TransmogSend,
     ) -> Result<(), SessionError> {
-        use game_engine_ui_model::transmog::TransmogSend;
+        use game_engine_ui_collections::transmog::TransmogSend;
         let bridge = self.bridge()?;
         match request {
             TransmogSend::Apply(apply) => {
@@ -2009,7 +2009,7 @@ impl Account {
                 update.error
             );
             self.trading_post_replies
-                .push(game_engine_ui_model::trading_post::Reply {
+                .push(game_engine_ui_collections::trading_post::Reply {
                     kind: update.reply_kind,
                     error: update.error.clone(),
                 });
@@ -2788,7 +2788,7 @@ mod tests {
 
     #[test]
     fn trading_post_account_coalesced_purchase_then_query_completes_pending_owner() {
-        use game_engine_ui_model::trading_post::View;
+        use game_engine_ui_collections::trading_post::View;
         use shared::protocol::{TradingPostReplyKind, TradingPostSnapshot};
         for purchase_error in [
             None,

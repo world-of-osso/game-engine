@@ -30,8 +30,8 @@ fn trading_post_reads_scene_flags_from_active_snapshot_without_historical_direct
     )
     .unwrap();
     game_engine_ui_model::paths::set_data_root(root.clone()).unwrap();
-    assert!(!game_engine_ui_model::trading_post::load_scene_autodress(430).unwrap());
-    assert!(game_engine_ui_model::trading_post::load_scene_autodress(418).unwrap());
-    assert!(game_engine_ui_model::trading_post::load_scene_autodress(999).is_err());
+    assert!(!game_engine_ui_collections::trading_post::load_scene_autodress(430).unwrap());
+    assert!(game_engine_ui_collections::trading_post::load_scene_autodress(418).unwrap());
+    assert!(game_engine_ui_collections::trading_post::load_scene_autodress(999).is_err());
     fs::remove_dir_all(root).unwrap();
 }

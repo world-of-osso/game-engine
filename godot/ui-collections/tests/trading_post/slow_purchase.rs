@@ -1,5 +1,5 @@
 use super::*;
-use game_engine_ui_model::trading_post::Action;
+use game_engine_ui_collections::trading_post::Action;
 
 const SLOW_TEXT: &str = "It's taking longer than usual to process your purchase. Processing will continue in the background.";
 
@@ -158,7 +158,7 @@ fn trading_post_slow_purchase_query_does_not_restart_request_deadline() {
 
 #[test]
 fn trading_post_slow_purchase_coalesced_success_and_refusal_clear_notice() {
-    use game_engine_ui_model::trading_post::Reply;
+    use game_engine_ui_collections::trading_post::Reply;
     for checkout in [false, true] {
         for error in [None, Some("Purchase refused".to_string())] {
             let mut view = accept_purchase(checkout);

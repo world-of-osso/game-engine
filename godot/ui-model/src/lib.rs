@@ -102,8 +102,6 @@ pub mod toybox;
 pub mod toybox_component;
 pub mod trainer;
 pub mod trainer_frame;
-pub mod transmog;
-pub mod transmog_frame;
 pub mod wild_pet_battle;
 
 // Party/raid frames, ready check and the PARTY_INVITE popup (docs/specs/group-frames.md).
@@ -375,7 +373,6 @@ pub mod paths;
 pub mod stack_split;
 #[path = "ui/screens/tooltip_presentation.rs"]
 pub mod tooltip_presentation;
-pub mod trading_post;
 #[path = "window_manager/mod.rs"]
 pub mod window_manager;
 #[path = "rendering/ui/wow_cursor_data.rs"]

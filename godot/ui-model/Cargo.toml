@@ -11,11 +11,6 @@ autotests = false
 name = "integration"
 path = "tests/integration.rs"
 
-# Host data roots and scene flags are process-global, so isolate source-switch proof.
-[[test]]
-name = "active_db2"
-path = "tests/active_db2.rs"
-
 # The pending-load boundary requires a fresh process-global item catalog.
 [[test]]
 name = "item_catalog_pending"
