@@ -1,3 +1,7 @@
+## 2026-10-24 — M2 ribbon field handling
+
+[Individual ribbon inputs](reference/benilla-m2-ribbon-fields.md) separate modern 176-byte records from Benilla's 220-byte records, expand array/track descriptors, trace native strip/material/UV consumers and bound unknown color-index use. Static source research only; remaining M2 families and later formats stay open.
+
 ## 2026-10-24 — M2 declared-field scope
 
 [Working census](reference/benilla-m2-field-census.md) exposes named M2/SKIN reader/model fields individually, separately from source byte layouts and downstream handling. Parser-to-consumer proofs, header/opaque ranges and runtime classifications remain active work; no completeness or runtime claim.
