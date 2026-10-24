@@ -4,7 +4,7 @@ Literal header inputs read by the inspected implementations, not a reconstructed
 
 ## E MD20 payload header
 
-All locations below are relative to the payload selected from MD21. Each count/offset is a distinct serialized u32 input. Counts determine decoded vector cardinality; addresses are consumed and discarded, not retained runtime field values. Source abbreviations in this table are relative to `E/godot/core/src/asset/m2_format/`. `E/godot/core/src/m2.rs:311–437` wires these into the production Model; family pages trace runtime consumers. E does not use B's sequential pre-Wrath header walk.
+All locations below are relative to the payload selected from MD21. Each count/offset is a distinct serialized u32 input. Counts bound attempted decoding, not necessarily final vector cardinality: individual readers can truncate, filter or reject inputs. Addresses are consumed and discarded, not retained runtime field values. Source abbreviations in this table are relative to `E/godot/core/src/asset/m2_format/`. `E/godot/core/src/m2.rs:311–437` wires these into the production Model; family pages trace runtime consumers. E does not use B's sequential pre-Wrath header walk.
 
 | Field | Offset / type | Handling / source |
 |---|---|---|
@@ -49,8 +49,8 @@ All locations below are relative to the payload selected from MD21. Each count/o
 | Events offset | `0x104 u32` | Payload address consumed then discarded; `m2_event.rs:22–25,39–66`. |
 | Lights count | `0x108 u32` | Full seven-track light records; `m2_light.rs:7,133–145`. |
 | Lights offset | `0x10c u32` | Payload address consumed then discarded; `m2_light.rs:7,133–145`. |
-| Cameras count | `0x110 u32` | Snapshot reader, not part of returned Model; `m2_camera.rs:6,27–44`. |
-| Cameras offset | `0x114 u32` | Payload address consumed then discarded; `m2_camera.rs:6,27–44`. |
+| Cameras count | `0x110 u32` | Snapshot reader, not part of returned Model; `m2_camera.rs:6,115–128,151–179`. |
+| Cameras offset | `0x114 u32` | Payload address consumed then discarded; `m2_camera.rs:6,115–128,151–179`. |
 | Ribbons count | `0x120 u32` | 176-byte records -> native trails; `m2_ribbon.rs:7,51–65`. |
 | Ribbons offset | `0x124 u32` | Payload address consumed then discarded; `m2_ribbon.rs:7,51–65`. |
 | Particles count | `0x128 u32` | Version-selected emitter records -> native particles; `pure.rs:55; m2_particle.rs:725–740`. |
@@ -77,7 +77,7 @@ E `parser.rs:187–224,339–343,384–388,453–505` reads modern chunk framing
 | AFID animation ID | `u16 entry+0` | Retained tuple key and matching sequence ID. |
 | AFID variation | `u16 entry+2` | Retained tuple key and matching variation. |
 | AFID FDID | `u32 entry+4` | External `.anim` dependency; zero/unmatched/in-file sequences not loaded. Incomplete8-byte tail dropped. |
-| SKA1 payload | Counted bytes | Attachment parser selects nonempty skeleton/model data before MD20; detailed descriptor reads in scene field page. |
+| SKA1 payload | Counted bytes | Attachment parser selects nonempty skeleton/model data before MD20; four descriptor words (`m2_attach.rs:60–83,104–121`) individually listed in [scene descriptors](benilla-m2-scene-fields.md#descriptor-members-and-omitted-spans). |
 | EXP2 payload | Counted bytes | Particle supplemental header/28-byte records; [particle field table](benilla-m2-particle-fields.md#partial-tracks-multitexture-and-exp2). |
 | External `.anim` tag | Four bytes | Selects requested AFM2/AFSB; chunkless input treated as payload (`parser.rs:492–505`). |
 | External `.anim` size | `u32 header+4` | Selected end clamped to file; not same strict framing as model parser. |
@@ -101,8 +101,8 @@ B `crates/benilla-m2/src/lib.rs:39–155` validates MD20 and admits versions256�
 | Flags | `0x10 u32` | Cursor skips scalar in this walk. |
 | Name count | `0x08 u32` | walk-only. |
 | Name offset | `0x0c u32` | Address consumed; walk-only. |
-| Global sequences count | `0x14 u32` | walk-only here; separately read by animation/material adapters. |
-| Global sequences offset | `0x18 u32` | Address consumed; walk-only here; separately read by animation/material adapters. |
+| Global sequences count | `0x14 u32` | Initial `_global` pair unused, but same base reader rereads/decodes durations (`B/crates/benilla-m2/src/lib.rs:409–421`) and retains them (`:452`). |
+| Global sequences offset | `0x18 u32` | Address reread/consumed by same base reader; duration vector retained (same sources). |
 | Sequences count | `0x1c u32` | walk-only here; separately read by animation adapter. |
 | Sequences offset | `0x20 u32` | Address consumed; walk-only here; separately read by animation adapter. |
 | Animation lookup count | `0x24 u32` | decoded lookup. |
@@ -124,7 +124,7 @@ B `crates/benilla-m2/src/lib.rs:39–155` validates MD20 and admits versions256�
 | Transparency count | `0x64 u32` | decoded tracks. |
 | Transparency offset | `0x68 u32` | Address consumed; decoded tracks. |
 | Texture flipbooks count | `0x6c u32` | cursor skips pair. |
-| Texture flipbooks offset | `0x70 u32` | Address consumed; cursor skips pair. |
+| Texture flipbooks offset | `0x70 u32` | Cursor skips pair without reading count or address (`B/crates/benilla-m2/src/lib.rs:96–98`). |
 | Texture animation count | `0x74 u32` | decoded transforms. |
 | Texture animation offset | `0x78 u32` | Address consumed; decoded transforms. |
 | Color replacement count | `0x7c u32` | walk-only. |
