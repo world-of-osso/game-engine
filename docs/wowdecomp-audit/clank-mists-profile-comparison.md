@@ -8,11 +8,11 @@ The Clank Together `wowdecomp` project reported target ID `15890-x64`, label `Wo
 
 The linked repository's initial-import commit identifies it as a standalone 5.0.3/build 15890 port copied from the `wowdecomp15595` working tree at `92c679d2` (`w15595`), including uncommitted changes with x64 addresses resolved. That is source provenance, not evidence that the target executable is build 15595. The target metadata is 15890. The configured target hash was not independently compared with an independently sourced original client binary.
 
-Evidence: [project initial import](https://saty.dev/git/clank/wowdecomp/commit/9572d34732063f10931059e06002a55c61ca497a); [project](https://saty.dev/git/clank/wowdecomp); [live site](https://saty.dev/#/).
+Evidence: [project initial import](https://saty.dev/git/clank/wowdecomp/commit/19d92d8e9fd4b82f65f532a5d50b9ef079f67fd2); [project](https://saty.dev/git/clank/wowdecomp); [live site](https://saty.dev/#/).
 
 ## Progress metric observed
 
-The live page displayed **48.53% of functions** (20,251 / 41,730) and **41.02% of code** (4,140 / 10,092 KB). Therefore “about 40%” refers to matched code bytes, not function count, and both percentages describe Clank's own 15890-x64 target.
+The live page displayed **48.53% of functions** (20,251 / 41,730) and **41.02% of matched code bytes** (4,140 / 10,092 KB). The matched-code figure includes peer-confirmed code; “about 40%” is not function-count completion. Both percentages describe Clank's own 15890-x64 target.
 
 At the same inspection, `/api/progress` returned 41,730 functions and 10,334,086 bytes, with `exact` 11,561 / 1,166,911 bytes, `match_unresolved` 174 / 129,788 bytes, and `confirmed` 8,516 / 2,942,521 bytes. Summing these status buckets gives 20,251 functions and 4,239,220 bytes, matching the page's rounded headline percentages. The lower task-state view separately showed 20,392 `done`; that is not the headline matched-function numerator. No cause for the difference between these live views was established, so preserve the snapshot boundary and do not substitute task-state totals for the displayed progress metric.
 
