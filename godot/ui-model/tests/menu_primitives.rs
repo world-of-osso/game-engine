@@ -537,3 +537,74 @@ fn navbar_overflow_preserves_rightmost_breadcrumb_and_hidden_callbacks() {
     };
     assert!(background.horiz_tile);
 }
+
+#[derive(Clone, Copy, Debug, PartialEq)]
+struct AutoGridFixtureCount(usize);
+
+fn auto_grid_fixture(ctx: &SharedContext) -> Element {
+    use game_engine_ui_model::menu_primitives::{
+        MenuElementKind, context_menu_description_auto_grid,
+    };
+    let count = ctx.get::<AutoGridFixtureCount>().unwrap().0;
+    let names: Vec<_> = (0..count)
+        .map(|index| format!("AutoGridCell{index}"))
+        .collect();
+    let entries: Vec<_> = names
+        .iter()
+        .map(|name| {
+            (
+                ContextMenuItem {
+                    name,
+                    label: "Collected",
+                    action: "toggle",
+                },
+                MenuElementKind::Checkbox { checked: true },
+                true,
+            )
+        })
+        .collect();
+    context_menu_description_auto_grid("AutoGridFixture", (20., 30.), 120., &entries)
+}
+
+fn assert_auto_grid_registry(skin: ActiveSkin) {
+    use ui_toolkit::layout_values::Val;
+    let _ = mount(skin);
+    for (count, columns, rows) in [(7, 1, 7), (11, 2, 6), (25, 3, 9), (37, 4, 10)] {
+        let mut shared = SharedContext::new();
+        shared.insert(AutoGridFixtureCount(count));
+        let mut registry = FrameRegistry::new(1920., 1080.);
+        Screen::new(auto_grid_fixture).sync(&shared, &mut registry);
+        let menu = frame(&registry, "AutoGridFixture");
+        let cell_width = frame(&registry, "AutoGridCell0").width.value();
+        assert_eq!(
+            menu.width.value(),
+            columns as f32 * cell_width + 16.,
+            "{skin:?} count{count}"
+        );
+        assert_eq!(
+            menu.height.value(),
+            rows as f32 * 20. + 23.,
+            "{skin:?} count{count}"
+        );
+        for index in 0..count {
+            let cell = frame(&registry, &format!("AutoGridCell{index}"));
+            let column = index / rows;
+            let row = index % rows;
+            assert_eq!(cell.position.left, Val::Px(8. + column as f32 * cell_width));
+            assert_eq!(cell.position.top, Val::Px(8. + row as f32 * 20.));
+            assert_eq!(cell.width.value(), cell_width);
+            assert_eq!(cell.height.value(), 20.);
+            assert_eq!(cell.onclick.as_deref(), Some("toggle"));
+        }
+    }
+}
+
+#[test]
+fn menu_auto_grid_both_skins_modern_uses_shared_columns_and_vertical_fill() {
+    assert_auto_grid_registry(ActiveSkin::Modern);
+}
+
+#[test]
+fn menu_auto_grid_both_skins_forever_uses_shared_columns_and_vertical_fill() {
+    assert_auto_grid_registry(ActiveSkin::Forever);
+}

@@ -12,6 +12,8 @@ Dropdowns, context menus and breadcrumb navigation implement Retail Mainline `Bl
 - [x] Shared NavBar exposes home, measured breadcrumbs and overflow; world map consumes it.
 - [x] Both skins retain identical geometry/actions; native captures match source XML.
 
+- [ ] Auto-grid descriptions use shared Toolkit count thresholds (1/2/3/4 columns at≤10/≤24/≤36/>36), uniform measured cells and source vertical fill by final row count, with unchanged entry actions in both skins.
+
 ## How it works
 
 - [Shared primitives](../wiki/systems/menu-primitives.md)
@@ -33,7 +35,9 @@ Dropdowns, context menus and breadcrumb navigation implement Retail Mainline `Bl
 
 ## Known gaps (current cycle)
 
-No remaining primitive-scope gaps. Source textures used by these templates are present in canonical `data/textures/`; no extraction performed.
+- [ ] Shared auto-grid is a new scope: observe separate Modern/Forever registry RED against the actual linear compositor, then integrate the shared Toolkit model and prove both-skin registry/native rendering. Housing CAPI IDs/order and seven missing labels remain named gaps, not invented menu content.
+
+Source textures used by these templates are present in canonical `data/textures/`; no extraction performed.
 
 ## Out of scope
 
