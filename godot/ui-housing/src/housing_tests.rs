@@ -587,6 +587,7 @@ fn dashboard() -> HousingDashboard {
         missing_tables: vec!["NeighborhoodInitiativeTask".into()],
         sources_imported: false,
         neighborhoods: Vec::new(),
+        tags: Default::default(),
     };
     HousingDashboard::new(Arc::new(catalog))
 }
