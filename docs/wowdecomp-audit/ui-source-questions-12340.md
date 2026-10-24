@@ -1,6 +1,6 @@
 # UI source questions — build 12340
 
-Verified source inspection: 2026-10-22. Reference W: `wowdecomp` revision `0e4e9fe0a4a9fa08027c5eed4b2c5e873739cfd3` (3.3.5a/12340 reconstruction). These findings do not establish native execution fidelity or Retail parity. No client, simulator, server, or tests were run; no implementation changes were made. Behavioral-only answers were sent to the requesting wow-ui-sim session. Local evidence references below are for source-side auditing, not source-code handoff.
+Original inspection: 2026-10-22; F16/F18 follow-up: 2026-10-24. Reference W: `wowdecomp` revision `0e4e9fe0a4a9fa08027c5eed4b2c5e873739cfd3` (3.3.5a/12340 reconstruction). These findings do not establish native execution fidelity or Retail parity. No client, simulator, server, or tests were run; no implementation changes were made. Behavioral-only answers were sent to the requesting wow-ui-sim session. Local evidence references below are for source-side auditing, not source-code handoff.
 
 ## Coverage
 
@@ -9,6 +9,8 @@ Verified source inspection: 2026-10-22. Reference W: `wowdecomp` revision `0e4e9
 | F05 Texture:GetTexture / UnitBuff icon | Filename string, extension handling, conditional spelling preservation, cache reuse caveat | Native runtime comparison; concrete cache/alias state | Binding and texture-layer source trace |
 | F12 GetAuctionItemInfo | All 13 positions, bidder representation, invalid-row tuple | Native runtime comparison | Binding and indexed lookup source trace |
 | F13 addon loader | Dependency loading; base FrameXML precedes addon startup pass | Named addon metadata; exact character-slot/bag OnLoad order | Native loader trace; matching Lua/XML/TOCs absent |
+| F16 pools/aura/chat/party/map | Legacy UnitBuff tuple; party-token/aura lookup; distinct message-frame timing; map event producer | Pool API contract; GetPlayerAuraBySpellID target availability; DEFAULT_CHAT_FRAME type; named child identity/timing | Pinned native C++; separate 3.4.3 comparison only |
+| F18 containers/tradeskills/currency | Bag initialization/update events; legacy item/currency tuples; conditional TRADE_SKILL_SHOW | Target button refresh/load order, trade-skill visibility, TokenUI owner/load order | Pinned native C++; separate 3.4.3 comparison only |
 
 ## F05 — texture filename, not file ID
 
@@ -62,4 +64,4 @@ Evidence: W `WoW/Source/UIUtil/AddOns.cpp:1003–1045,1098–1124,1189–1232,13
 
 ## Related
 
-[Audit index and version limits](README.md) · [Coverage and unresolved applicability](coverage.md)
+[F16/F18 follow-up](f16-f18-12340.md) · [Audit index and version limits](README.md) · [Coverage and unresolved applicability](coverage.md)
