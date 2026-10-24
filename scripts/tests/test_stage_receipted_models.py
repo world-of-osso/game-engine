@@ -2,7 +2,6 @@
 
 import hashlib
 import json
-import os
 from pathlib import Path
 import sys
 import tempfile
@@ -215,7 +214,6 @@ class ReceiptedModelStageTests(unittest.TestCase):
         graph.add(122893, "m2", "unreceipted residual")
         self.assertFalse(graph.run()["assets"][0]["present"])
 
-    @unittest.skipUnless(os.environ.get("P4_RED") == "1", "SKIN ANIM recovery RED")
     def test_skin_owned_destination_retains_source_without_alias(self):
         raw = b"SKIN" + b"\0" * 40
         destination = f"products/wow/{SOURCE_KEY}/models/473319.skin"
@@ -243,7 +241,6 @@ class ReceiptedModelStageTests(unittest.TestCase):
             graph.run()["assets"][0]["identity_status"], "verified_receipt"
         )
 
-    @unittest.skipUnless(os.environ.get("P4_RED") == "1", "SKIN ANIM recovery RED")
     def test_chunked_and_raw_animation_owners_keep_source_namespace(self):
         for index, raw in enumerate([chunk("AFM2", ints(1, 2)), ints(10, 20, 30)]):
             with self.subTest(chunked=index == 0):
@@ -262,14 +259,12 @@ class ReceiptedModelStageTests(unittest.TestCase):
                 self.assertEqual(owner["content_key"], hashlib.md5(raw).hexdigest())
                 self.assertEqual((self.output / destination).read_bytes(), raw)
 
-    @unittest.skipUnless(os.environ.get("P4_RED") == "1", "SKIN ANIM recovery RED")
     def test_skin_requires_native_minimum_header_before_fragment(self):
         self.source(473319, "skin", b"SKIN" + b"\0" * 8)
         with self.assertRaisesRegex(ValueError, "SKIN.*44"):
             self.stage()
         self.assertFalse((self.output / "cache").exists())
 
-    @unittest.skipUnless(os.environ.get("P4_RED") == "1", "SKIN ANIM recovery RED")
     def test_skin_animation_cross_namespace_aliases_remain_refused(self):
         for kind, raw in [("skin", b"SKIN" + b"\0" * 40), ("anim", ints(1, 2))]:
             with self.subTest(kind=kind):
@@ -281,7 +276,6 @@ class ReceiptedModelStageTests(unittest.TestCase):
                     self.stage()
                 self.assertFalse((self.output / "cache").exists())
 
-    @unittest.skipUnless(os.environ.get("P4_RED") == "1", "SKIN ANIM recovery RED")
     def test_skin_animation_payload_drift_cannot_stage(self):
         for kind, raw in [("skin", b"SKIN" + b"\0" * 40), ("anim", ints(1, 2))]:
             with self.subTest(kind=kind):
@@ -293,7 +287,6 @@ class ReceiptedModelStageTests(unittest.TestCase):
                     self.stage()
                 self.assertFalse((self.output / "cache").exists())
 
-    @unittest.skipUnless(os.environ.get("P4_RED") == "1", "SKIN ANIM recovery RED")
     def test_other_companion_kinds_are_not_enabled(self):
         for kind, raw in [("bone", b"BONEdata"), ("skel", b"SKL1data")]:
             with self.subTest(kind=kind):
@@ -303,7 +296,6 @@ class ReceiptedModelStageTests(unittest.TestCase):
                 with self.assertRaisesRegex(ValueError, "Unsupported"):
                     self.stage()
 
-    @unittest.skipUnless(os.environ.get("P4_RED") == "1", "SKIN ANIM recovery RED")
     def test_existing_skin_animation_owners_are_immutable(self):
         for kind, raw in [("skin", b"SKIN" + b"\0" * 40), ("anim", ints(1, 2))]:
             with self.subTest(kind=kind):
