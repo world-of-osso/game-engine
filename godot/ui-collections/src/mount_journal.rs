@@ -1,8 +1,10 @@
 //! Retail Mainline Blizzard_MountCollection.lua/.xml, shared by both art skins.
-use crate::bank_art::{WHITE, cropped, label, texture};
-use crate::minimal_scroll_bar::{MinimalScrollBar, Unscrollable, pixel_geometry, scroll_list_attr};
 use crate::mount_source::readable_source;
-use crate::quest_art::{NORMAL_FONT_COLOR, named_atlas_texture, panel_button};
+use game_engine_ui_model::bank_art::{WHITE, cropped, label, texture};
+use game_engine_ui_model::minimal_scroll_bar::{
+    MinimalScrollBar, Unscrollable, pixel_geometry, scroll_list_attr,
+};
+use game_engine_ui_model::quest_art::{NORMAL_FONT_COLOR, named_atlas_texture, panel_button};
 use shared::protocol::mount_journal_types::{AQUATIC, FLYING, GROUND, RIDE_ALONG, SKYRIDING};
 use shared::protocol::{MountJournalEntry, MountJournalUpdate};
 use std::collections::{BTreeMap, BTreeSet};
@@ -85,14 +87,14 @@ impl MountJournalView {
         &self,
         source: shared::item_data::ItemDefinitionSource,
         item: u32,
-        mut tooltip: crate::tooltip_presentation::TooltipPresentation,
-    ) -> crate::tooltip_presentation::TooltipPresentation {
+        mut tooltip: game_engine_ui_model::tooltip_presentation::TooltipPresentation,
+    ) -> game_engine_ui_model::tooltip_presentation::TooltipPresentation {
         if self.item_is_known(source, item) {
             tooltip.lines.insert(
                 0,
-                crate::tooltip_presentation::TooltipLineState::colored(
+                game_engine_ui_model::tooltip_presentation::TooltipLineState::colored(
                     "Already known",
-                    crate::item_tooltip::RED_FONT_COLOR,
+                    game_engine_ui_model::item_tooltip::RED_FONT_COLOR,
                 ),
             );
         }
@@ -236,13 +238,13 @@ pub fn mount_journal_screen(ctx: &SharedContext) -> Element {
     body.extend(filter_dropdown(view));
     body.extend(filter_menu(view));
     body.extend(context_menu(view));
-    crate::panel_lifecycle::bind_close(
-        crate::collections_component::collections_shell(view.viewport, 0, body),
+    game_engine_ui_model::panel_lifecycle::bind_close(
+        game_engine_ui_model::collections_component::collections_shell(view.viewport, 0, body),
         "mount_journal",
     )
 }
 fn search_box(view: &MountJournalView) -> Element {
-    crate::search_box_template::search_box(
+    game_engine_ui_model::search_box_template::search_box(
         "MountJournal",
         &view.search,
         "mount:search-clear",
@@ -318,19 +320,19 @@ fn mount_row(view: &MountJournalView, mount: &MountJournalEntry, top: f32) -> El
             (42.0, 0.0, 208.0, 46.0),
         ));
     }
-    crate::selection_list::row(
+    game_engine_ui_model::selection_list::row(
         prefix,
         &action,
         true,
         (0.0, top, 250.0, ROW_HEIGHT),
-        (&crate::selection_list::MOUNT, false),
+        (&game_engine_ui_model::selection_list::MOUNT, false),
         children,
     )
 }
 fn mount_details(view: &MountJournalView) -> Element {
     // Blizzard_MountCollection.xml:397-400,443-466,523-526. LeftInset's bottom
     // is 606-111=495; RightInset bottom is 495+85=580, left is 4+260+20=284.
-    let border = crate::ui::screens::auction_house_frame_component::inset_border(
+    let border = game_engine_ui_model::ui::screens::auction_house_frame_component::inset_border(
         "MountJournalRightInset",
         (0.0, 0.0, 413.0, 520.0),
     );
@@ -432,7 +434,7 @@ fn mount_shadow_overlay() -> Element {
 }
 
 fn filter_dropdown(view: &MountJournalView) -> Element {
-    use crate::menu_primitives::*;
+    use game_engine_ui_model::menu_primitives::*;
     let changed = !view.collected
         || !view.uncollected
         || !view.unusable
@@ -465,8 +467,12 @@ fn filter_dropdown(view: &MountJournalView) -> Element {
 
 fn filter_entries(
     view: &MountJournalView,
-) -> Vec<(String, String, crate::menu_primitives::MenuElementKind)> {
-    use crate::menu_primitives::MenuElementKind as Kind;
+) -> Vec<(
+    String,
+    String,
+    game_engine_ui_model::menu_primitives::MenuElementKind,
+)> {
+    use game_engine_ui_model::menu_primitives::MenuElementKind as Kind;
     let checkbox = |checked| Kind::Checkbox { checked };
     let mut entries: Vec<(String, String, Kind)> = if view.submenu.as_deref() == Some("sources") {
         let mut rows = vec![
@@ -542,7 +548,9 @@ fn filter_menu(view: &MountJournalView) -> Element {
     if !view.filters_open {
         return Vec::new();
     }
-    use crate::menu_primitives::{ContextMenuItem, MenuElementKind, context_menu_description};
+    use game_engine_ui_model::menu_primitives::{
+        ContextMenuItem, MenuElementKind, context_menu_description,
+    };
     let entries = filter_entries(view);
     let names: Vec<_> = (0..entries.len())
         .map(|index| format!("MountJournalFilter{index}"))
@@ -591,7 +599,9 @@ fn context_menu(view: &MountJournalView) -> Element {
     } else {
         "Set Favorite"
     };
-    use crate::menu_primitives::{ContextMenuItem, MenuElementKind, context_menu_description};
+    use game_engine_ui_model::menu_primitives::{
+        ContextMenuItem, MenuElementKind, context_menu_description,
+    };
     context_menu_description(
         "MountJournalContextMenu",
         (left, top),

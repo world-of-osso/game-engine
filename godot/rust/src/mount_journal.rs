@@ -4,7 +4,9 @@ use crate::world_models::UnitAppearance;
 use crate::{GameClient, frame_error::FrameError, ui::RegistryUi};
 use game_engine_core::input_bindings_data::InputAction;
 use game_engine_session::SessionScreen;
-use game_engine_ui_model::mount_journal::{MODEL, MountJournalView, SEARCH, mount_journal_screen};
+use game_engine_ui_collections::mount_journal::{
+    MODEL, MountJournalView, SEARCH, mount_journal_screen,
+};
 use godot::prelude::*;
 
 #[derive(Default)]

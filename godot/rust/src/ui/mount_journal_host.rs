@@ -3,7 +3,7 @@ use super::{RegistryUi, ScreenPostsetup, register_metal_frame_style};
 impl RegistryUi {
     pub fn show_mount_journal(
         &mut self,
-        state: game_engine_ui_model::mount_journal::MountJournalView,
+        state: game_engine_ui_collections::mount_journal::MountJournalView,
     ) -> Result<(), String> {
         let parent = self.hud_parent()?;
         let mut registry = parent.registry();
@@ -13,7 +13,7 @@ impl RegistryUi {
         )?;
         self.show_viewport_screen_in(
             state,
-            game_engine_ui_model::mount_journal::mount_journal_screen,
+            game_engine_ui_collections::mount_journal::mount_journal_screen,
             ScreenPostsetup::None,
             registry,
             parent,

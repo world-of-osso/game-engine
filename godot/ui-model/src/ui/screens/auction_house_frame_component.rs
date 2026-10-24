@@ -16,7 +16,7 @@ use crate::ui::strata::FrameStrata;
 #[path = "auction_house_frame_art.rs"]
 mod art;
 /// `InsetFrameTemplate` border, shared with the trade and mail frames.
-pub(crate) use art::inset_border;
+pub use art::inset_border;
 #[path = "auction_house_frame_component_auctions.rs"]
 mod auctions_tab;
 #[path = "auction_house_frame_component_buy.rs"]

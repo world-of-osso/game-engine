@@ -223,7 +223,7 @@ pub(super) fn three_slice(
 }
 
 /// `InsetFrameTemplate` NineSlice border around `rect`.
-pub(crate) fn inset_border(prefix: &str, rect: (f32, f32, f32, f32)) -> Element {
+pub fn inset_border(prefix: &str, rect: (f32, f32, f32, f32)) -> Element {
     use ui_toolkit::art_layout::{BorderLayout, BorderSpec, border_art};
     let (x, y, width, height) = rect;
     border_art(
