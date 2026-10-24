@@ -1,3 +1,7 @@
+## 2026-10-24 — Collections before packet
+
+[Collections staging](investigations/engine-crate-split-plan.md#collections-staged-packet--before-moves) inventories12 roots/33 sources/11,629LOC at214a9b854, no outside base incoming edges. Four family gates keep the shared shell in base until its last consumer moves; first transmog+Trading Post19sources/6,781LOC. Exact before packet reuses432 unit names (24affected), lists197 ordinary+1 isolated active_db2 names/0ignored; no new execution or source moves. es-eng landing remains prerequisite.
+
 ## 2026-10-24 — Adventure Guide crate and landed Housing tags
 
 [Adventure extraction](investigations/engine-crate-split-plan.md#adventure-guide-extraction) moves15 production modules/private fixtures/seven suites with separate rename-only2ba7f80f5/wiring7048f5b06. Parent tag master58d10 merges atf9be3a1ef; nested Housing tags move unchanged inc77628cbc, remaining test import31dde0e4d. Affected helper check passes/no diagnostics;616 tests pass (432 base units+37 Housing+4 Adventure,33+110 feature integration),0fail/ignored; exact original473-unit multiset conserved. Native actor code stays put; no Adventure timing/native runtime/full-suite claim, parent gate separate.

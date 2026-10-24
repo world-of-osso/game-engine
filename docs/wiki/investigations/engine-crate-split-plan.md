@@ -126,6 +126,25 @@ Parent merged tag-action master `58d10a3c9` at `f9be3a1ef`. The newly landed nes
 
 [Machine-readable Adventure receipts](engine-crate-split-adventure.json) retain names, commands and results. Raw logs/census live at `/home/osso/.worktrees/logs/engine-crate-split-adventure-31dde0e4d/`. Targeted tests/checks are not full-suite/native runtime acceptance; the lead owns that gate. Native actor/model-scene code was not moved, only its UI imports changed.
 
+## Collections staged packet — before moves
+
+Source `214a9b854`, pending lead `es-eng` landing. **Planning/census only; no Collections source moves yet.** The current graph retains exactly12 root modules,33 reachable source files and11,629 physical LOC, with no outside ui-model production/unit incoming edges. The group includes the four `pet_journal_*` companions, eight `trading_post_*` companions, nested transmog/frame files and wild-pet effect HUD; filename-prefix-only moves would miss descendants.
+
+Populate one `game-engine-ui-collections` crate incrementally, preserving a separately pushed rename-only/wiring/census gate per family:
+
+| Gate | Existing root modules | Source files / LOC | Conserved affected tests |
+|---|---|---:|---|
+| 1 | `transmog`, `transmog_frame`, `trading_post` | 19 / 6,781 | 18 unit +138 integration +1 isolated `active_db2` |
+| 2 | `mount_journal`, `mount_source` | 2 / 684 | 14 integration |
+| 3 | `toybox`, `toybox_component` | 2 / 661 | 14 integration |
+| 4 | `pet_journal`, `pet_stable`, `pet_stable_component`, `wild_pet_battle`, then `collections_component` | 10 / 3,503 | 6 unit +31 integration |
+
+**Keep the original `collections_component` implementation in ui-model until Gate4:** mount, pet and toy still consume that shell. Moving it early would create residual base→feature edges while feature→base already exists. Shell-last avoids a façade, duplicated implementation or new service abstraction. Pet journal and wild-pet consumers stay together; native preview/actor and gameplay behavior stay in GDExtension. First-cut known visibility boundary is the existing `merchant_frame_component::money_colored`; expose only actually consumed existing helpers/signature types after import audit.
+
+The source-qualified [before census](engine-crate-split-collections-before.json) reuses the unchanged432-name ui-model unit listing;24 affected names are18 transmog and6 stable. Runtime listing of the six integration suites finds **197 enabled/zero ignored**: Trading Post124, transmog14, mount14, pet19, toy14, wild-pet12. The separately listed **`active_db2` target has one enabled/zero ignored** Trading Post source-switch test. It must move as its own target, never into integration; `item_catalog_pending` remains in base. Temporary same-module listing harness is removed. These tests were listed, not newly executed. Preserve nested `trading_post/monthly_clock`, `slow_purchase` and `time_sort` modules, exact names/assertions and fixture paths.
+
+At every family gate, compare original432 unit names against residual+extracted names and compare exact affected integration/process-target multisets; run only the admitted serialized `-j4` helper checks/tests. Maintain the same base/core/shared/toolkit type identities, existing profiles and explicit real data-root setup in moved fixtures. No moves are authorized before `es-eng` lands; lead owns integration acceptance and operational push/merge.
+
 ## Baseline edit measurements
 
 [Machine-readable receipts](engine-crate-split-baseline.json) include exact commands, package/target dirtiness, wall/user/system time, dependency pins, Cargo unit timings and raw-log hashes. Host `agent-server`, Rust/Cargo 1.99.0, four jobs, native helper defaults and unchanged profiles/linker. Raw logs, HTML timings, drivers and before/after name lists are archived outside the worktree at `/home/osso/.worktrees/logs/engine-crate-split-baseline-4645578c7/`. No post-split improvement is claimed.
