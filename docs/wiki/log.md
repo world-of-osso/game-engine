@@ -1,3 +1,7 @@
+## 2026-10-23 — Professions owner versus customer Escape ordering
+
+[Lifecycle bindings](systems/ui-system.md#lifecycle-bindings--step-5-partial): actual owner-plus-bag native RED precedes the shared AddOn8 owner/ordinary Customer Orders role fix. At engine5ed6d8997/toolkit8f4eca0, model root4 and both-skin rendered native6 pass, with eight individually inspected full-HD PNGs and ten actual-state receipts. Missing local Blacksmithing background art and a clipped owner footer limit visual acceptance; explicit fixture scale/local-CASC art preparation precede recapture. No realm/NPC/network/hardware-input or whole5/6 completion claim.
+
 ## 2026-10-23 — One independent lifecycle registration catalog in progress
 
 [Lifecycle bindings](systems/ui-system.md#lifecycle-bindings--step-5-partial): after a missing-type/private-binder/missing-field API RED, core registration and one engine catalog now independently express optional group membership and exclusive hook/priority. Separate root hook fields replace the conflated metadata path; both old arrays/binders are removed, preserving existing28 callback order and nine global ties. At engine934c34013/toolkit8f4eca0, core15/model7 pass, rebuilt actual pending-close2 and both-skin visible-marker4 pass with four inspected full-HD originals. Full suites and remaining5/6 stay separate.

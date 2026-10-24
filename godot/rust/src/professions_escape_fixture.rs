@@ -76,7 +76,13 @@ fn mount_professions_probe_ui(
     ui.set_name("ProfessionsProbeUI");
     ui.set_layer(10);
     parent.add_child(&ui);
-    let result = ui.bind_mut().show_professions(view);
+    let result = {
+        let mut projection = ui.bind_mut();
+        // Explicit fixture scale keeps the source window within the 1920x1080 viewport.
+        projection
+            .set_ui_scale(1.0)
+            .and_then(|()| projection.show_professions(view))
+    };
     if let Err(error) = result {
         ui.free();
         return Err(error);
