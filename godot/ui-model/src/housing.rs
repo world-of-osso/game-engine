@@ -1,6 +1,12 @@
 //! Retail HousingDashboardCatalog.lua search/category/preview decisions.
 use game_engine_core::housing::{Decor, HousingCatalog};
-use std::sync::Arc;
+use std::{
+    collections::{BTreeMap, BTreeSet},
+    sync::Arc,
+};
+
+mod tags;
+pub use tags::{CatalogQuery, CatalogTagGap};
 
 #[derive(Clone, Debug, Default, PartialEq)]
 pub struct HousingAuthority {
@@ -218,6 +224,7 @@ pub struct HousingDashboard {
     pub filters_open: bool,
     pub collection: CollectionFilter,
     pub dyeable_only: bool,
+    tag_selections: BTreeMap<u32, BTreeSet<u32>>,
     pub editor: crate::housing_editor::EditorInteraction,
     /// Native account bindings copied into the view; absent keys remain source-unbound.
     pub editor_bindings: game_engine_core::input_bindings_data::InputBindingsData,
@@ -324,6 +331,7 @@ impl HousingDashboard {
             filters_open: false,
             collection: CollectionFilter::All,
             dyeable_only: false,
+            tag_selections: BTreeMap::new(),
             editor: crate::housing_editor::EditorInteraction::default(),
             editor_bindings: Default::default(),
             placed_list: Default::default(),
@@ -494,9 +502,12 @@ impl HousingDashboard {
         Ok(None)
     }
 
-    /// Retail catalog searcher results: search, category, subcategory, Dyeable Only and
-    /// collection filters, in catalog order.
+    /// Qualified matches only. Tag UI must also surface catalog_query().unqualified.
     pub fn matching(&self, authority: &HousingAuthority) -> Vec<&Decor> {
+        self.catalog_query(authority).matches
+    }
+
+    fn base_catalog_matches(&self, authority: &HousingAuthority) -> Vec<&Decor> {
         let search = housing_search_query(&self.search).to_lowercase();
         self.catalog
             .decor
@@ -609,6 +620,7 @@ impl HousingDashboard {
     pub fn reset_catalog_filters(&mut self, authority: &HousingAuthority) {
         self.dyeable_only = false;
         self.collection = CollectionFilter::All;
+        self.tag_selections.clear();
         self.reset_results(authority);
     }
 

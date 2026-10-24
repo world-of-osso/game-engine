@@ -81,6 +81,21 @@ fn matching_ids(model: &HousingDashboard, authority: &HousingAuthority) -> Vec<u
 #[test]
 fn housing_catalog_tag_toggle_preserves_search_category_menu_and_authority() {
     let catalog = load_published_tag_catalog();
+    assert!(catalog.tags.available);
+    let small = catalog
+        .tags
+        .info
+        .iter()
+        .find(|tag| tag.record_id == 2)
+        .unwrap();
+    assert_eq!((small.value, small.name.as_str()), (66, "Small"));
+    let fel = catalog
+        .tags
+        .info
+        .iter()
+        .find(|tag| tag.record_id == 66)
+        .unwrap();
+    assert_eq!((fel.value, fel.name.as_str()), (147, "Fel"));
     let authority = HousingAuthority::default();
     let original = authority.clone();
     //70448: Bookcase1693 link1531 has DataTagID66; Info.ID2 names DataTag66 Small.
@@ -168,6 +183,10 @@ fn housing_catalog_tag_actions_refuse_wrong_groups_and_unavailable_sources() {
         "housing:filter:tag:0:66",
         // Info record2 must not be accepted as an alias for literal DataTag66.
         "housing:filter:tag:2:2",
+        "housing:filter:tags-all:0",
+        "housing:filter:tags-none:0",
+        "housing:filter:tag:2:66:83",
+        "housing:filter:tag:2:not-a-tag",
     ] {
         assert!(apply_catalog_action(&mut model, &authority, action).is_err());
         assert_eq!(matching_ids(&model, &authority), before);
@@ -175,5 +194,62 @@ fn housing_catalog_tag_actions_refuse_wrong_groups_and_unavailable_sources() {
     }
     let mut unavailable = HousingDashboard::new(Arc::new(HousingCatalog::default()));
     assert!(apply_catalog_action(&mut unavailable, &authority, "housing:filter:tag:2:66").is_err());
+    assert_eq!(authority, original);
+}
+
+#[test]
+fn housing_catalog_tag_query_reports_untagged_entries_without_guessing() {
+    use game_engine_ui_model::housing::CatalogTagGap;
+    let authority = HousingAuthority::default();
+    let original = authority.clone();
+    let mut model = HousingDashboard::new(load_published_tag_catalog());
+    model.set_category(Some(1), &authority);
+    model.set_subcategory(Some(6), &authority);
+    let before = matching_ids(&model, &authority);
+    assert!(before.contains(&1727) && before.contains(&15255));
+
+    apply_catalog_action(&mut model, &authority, "housing:filter:tags-none:2").unwrap();
+    let query = model.catalog_query(&authority);
+    assert!(query.matches.is_empty());
+    let mut gaps = query.unqualified;
+    assert!(
+        gaps.iter()
+            .all(|gap| gap.code() == "HOUSING_TAG_MEMBERSHIP_UNQUALIFIED")
+    );
+    gaps.sort_by_key(|gap| gap.decor_id);
+    assert_eq!(
+        gaps,
+        vec![
+            CatalogTagGap {
+                decor_id: 1727,
+                group_id: 2
+            },
+            CatalogTagGap {
+                decor_id: 15255,
+                group_id: 2
+            },
+        ]
+    );
+    apply_catalog_action(&mut model, &authority, "housing:filter:tags-all:2").unwrap();
+    assert!(model.catalog_query(&authority).unqualified.is_empty());
+    assert_eq!(matching_ids(&model, &authority), before);
+
+    apply_catalog_action(&mut model, &authority, "housing:filter:tag:2:66").unwrap();
+    model.set_search(
+        "[DNT] [AUTOGEN] 11WE_WildElves_Storage_Handcart02.m2".into(),
+        &authority,
+    );
+    let query = model.catalog_query(&authority);
+    assert!(query.matches.is_empty());
+    assert_eq!(
+        query.unqualified,
+        vec![CatalogTagGap {
+            decor_id: 1727,
+            group_id: 2
+        }]
+    );
+    apply_catalog_action(&mut model, &authority, "housing:filter:reset").unwrap();
+    assert!(model.catalog_query(&authority).unqualified.is_empty());
+    assert_eq!(matching_ids(&model, &authority), vec![1727]);
     assert_eq!(authority, original);
 }
