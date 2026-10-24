@@ -202,3 +202,48 @@ fn guild_chat_paints_only_selected_actual_stream_both_skins() {
         );
     }
 }
+
+#[test]
+fn guild_chat_compact_mainline_anchor_ignores_the_expanded_roster_filter() {
+    use ui_toolkit::layout_values::Val;
+    let _lock = SKIN.lock().unwrap_or_else(|p| p.into_inner());
+    for skin in [ActiveSkin::Modern, ActiveSkin::Forever] {
+        set_thread_skin(skin);
+        let mut session = GuildRanksSession::default();
+        session.open();
+        session.apply(state(0));
+        session.roster_online_only = true;
+        session.click("guild:chat_open", &Default::default());
+        let registry = mounted(&session);
+        // These authored constraints are the external input to native layout.
+        // MemberList TOPLEFT is FrameTOPRIGHT(-165,-63), RIGHT is FrameRIGHT-26.
+        for (name, rect) in [
+            ("CommunitiesChatMemberList", [649.0, 63.0, 139.0, 335.0]),
+            ("CommunitiesChatMessageFrame", [201.0, 67.0, 416.0, 303.0]),
+            ("CommunitiesChatEditBox", [197.0, 374.0, 423.0, 32.0]),
+        ] {
+            let frame = registry.get(registry.get_by_name(name).unwrap()).unwrap();
+            assert_eq!(
+                (frame.position.left, frame.position.top),
+                (Val::Px(rect[0]), Val::Px(rect[1])),
+                "{skin:?} {name}"
+            );
+            assert_eq!(
+                (frame.width.value(), frame.height.value()),
+                (rect[2], rect[3]),
+                "{skin:?} {name}"
+            );
+        }
+        let member = registry
+            .get(
+                registry
+                    .get_by_name("CommunitiesChatMember0Name")
+                    .expect("compact source includes members despite the roster-only preference"),
+            )
+            .unwrap();
+        let Some(WidgetData::FontString(name)) = &member.widget_data else {
+            panic!("actual member name")
+        };
+        assert_eq!(name.text, "Cara");
+    }
+}

@@ -137,6 +137,8 @@ func privacy_denial() -> bool:
 	if not await wait_until(func(): return text("CommunitiesChatError") == "You don't have permission to do that.", "actual officer server refusal"):
 		return false
 	await press("CommunitiesStreamDropdown")
+	if not await wait_until(func(): return shown("CommunitiesGuildChatChoice"), "actual stream menu after demotion"):
+		return false
 	if shown("CommunitiesOfficerChatChoice"):
 		return fail("Officer stream remains available after demotion")
 	await press("CommunitiesStreamDropdown")
@@ -160,6 +162,8 @@ func privacy_denial() -> bool:
 func history_open() -> bool:
 	if actor == "leader":
 		await press("GuildRosterTab")
+		if not await wait_until(func(): return not shown("CommunitiesChatEditBox"), "Chat pane physically closed before history-only delivery"):
+			return false
 		mark("history-closed")
 		if not await other("history-sent"):
 			return false
@@ -181,6 +185,10 @@ func history_open() -> bool:
 		return false
 	mark("history-sent")
 	return await other("history-read")
+
+func press(name: String) -> void:
+	if not await press_checked(name):
+		completion.fail("Physical chat control failed: " + name)
 
 func observation() -> Dictionary:
 	return JSON.parse_string(str(client.guild_chat_observation()))
