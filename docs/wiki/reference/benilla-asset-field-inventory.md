@@ -4,7 +4,7 @@ Static comparison of Benilla's asset readers **and their consumers** against the
 
 ## Snapshot and evidence
 
-Verified: **2026-10-23**. Source revisions:
+Verified: **2026-10-24**. Source revisions:
 
 - **E**: `/syncthing/Sync/Projects/world-of-osso/game-engine`, `354bdb7dbf177047ed46d63168acec531f5c4426` (Godot/core and Godot/rust production paths, not the retired Bevy renderer).
 - **B**: `/home/osso/Repos/benilla`, `8a6c74036cfe3d00275fd75ad1aeae1f4ea7d0df`, clean local checkout. Not a claim about a newer remote HEAD.

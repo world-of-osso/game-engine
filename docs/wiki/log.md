@@ -1,4 +1,4 @@
-## 2026-10-23 — Benilla asset-field inventory
+## 2026-10-24 — Benilla asset-field inventory
 
 [Paired source inventory](reference/benilla-asset-field-inventory.md) compares pinned Benilla 1.12.1 readers/adapters/runtime against current Godot paths: camera tracks, WMO material/liquid/footstep inputs, terrain impass/shadows, weather selection and conditional texture/legacy-water gaps. Existing modern support, uncertain fields and Benilla deviations remain distinct; no client execution or implementation changes.
 
