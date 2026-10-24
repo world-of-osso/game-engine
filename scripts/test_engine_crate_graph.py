@@ -56,7 +56,7 @@ fn run() { beta::run(); }
             source = root / 'godot/ui-model/src'
             source.mkdir(parents=True)
             fixtures = {
-                'lib.rs': 'mod alpha; mod beta; mod gamma;\npub struct GameClient;\n',
+                'lib.rs': 'mod alpha; mod beta; #[path = "../../core/src/gamma.rs"] mod gamma;\npub struct GameClient;\n',
                 'alpha.rs': '''use crate::beta::B;
 #[cfg(test)]
 #[path = "alpha_tests.rs"]
@@ -67,10 +67,12 @@ mod loader;
                 'alpha_loader.rs': 'use crate::beta::B;\n',
                 'alpha_tests.rs': 'use crate::gamma::C;\n',
                 'beta.rs': 'use crate::alpha::A;\n',
-                'gamma.rs': 'pub struct C;\n',
             }
             for name, text in fixtures.items():
                 (source / name).write_text(text)
+            core_source = root / 'godot/core/src'
+            core_source.mkdir(parents=True)
+            (core_source / 'gamma.rs').write_text('pub struct C;\n')
             def git(*args):
                 return subprocess.check_output(['git', '-C', str(root), *args], text=True)
             git('init', '-q')
@@ -84,6 +86,7 @@ mod loader;
             self.assertIn(['alpha', 'beta'], result['graphs']['production']['scc'])
             self.assertEqual(result['modules']['alpha']['files'], 3)
             self.assertEqual(result['modules']['alpha']['commits'], 1)
+            self.assertEqual(result['modules']['gamma']['commits'], 1)
             self.assertEqual(result['modules']['alpha']['test_file_lines'], 1)
             witness = next(edge for edge in result['witnesses'] if edge['to'] == 'gamma')
             self.assertEqual((witness['path'], witness['line'], witness['test_only']),

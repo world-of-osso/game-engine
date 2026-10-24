@@ -299,7 +299,7 @@ def analyze(root, crate_dir, since, until):
     churn = {name: set() for name in modules}
     revision = git(root, 'rev-parse', 'HEAD').strip()
     log = git(root, 'log', revision, '--no-merges', '--no-renames', '--since=' + since,
-              '--until=' + until, '--format=COMMIT:%H', '--name-only', '--', str(Path(crate_dir) / 'src'))
+              '--until=' + until, '--format=COMMIT:%H', '--name-only', '--', *sorted(owners))
     commit = None
     for line in log.splitlines():
         if line.startswith('COMMIT:'):
