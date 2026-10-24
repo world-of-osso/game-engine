@@ -1116,6 +1116,10 @@ Explicit user instruction authorizes frame growth, not a discovered Retail mecha
 
 [Normal/huge bomb interaction](systems/battlegrounds.md#ioc-bomb-disarm-interaction--active-2026-10-14): actual request RED→GREEN with physical picking, cursor and soft-interaction paths; game-object15/15 and soft10/10, no generic trap enablement. Native both-skin bomb deployment/disarm and full IoC remain pending.
 ## 2026-10-23 — Benilla asset-field inventory
+## 2026-10-24 — M2 header and animation inputs
+
+[Header/container rows](reference/benilla-m2-header-fields.md) expose individual count/offset inputs and unread intervals without transferring Benilla's pre-Wrath offsets. [Animation rows](reference/benilla-m2-animation-fields.md) trace named bones/sequences, ordinary-track descriptors and external payload selection. Static-only; geometry/scene integration and independent audits remain open.
+
 ## 2026-10-24 — M2 particle field handling
 
 [Particle inputs](reference/benilla-m2-particle-fields.md) enumerate generator/lifetime fields, partial descriptors, packed multitexture, EXP2, tested flags and conditional single-key loss. Benilla's geometry-model dependency-to-static-mesh chain is distinct from recursive emitters. Static source evidence only; B reserved-byte/flag accounting and broader inventory remain open.
