@@ -1116,6 +1116,10 @@ Explicit user instruction authorizes frame growth, not a discovered Retail mecha
 
 [Normal/huge bomb interaction](systems/battlegrounds.md#ioc-bomb-disarm-interaction--active-2026-10-14): actual request RED→GREEN with physical picking, cursor and soft-interaction paths; game-object15/15 and soft10/10, no generic trap enablement. Native both-skin bomb deployment/disarm and full IoC remain pending.
 ## 2026-10-23 — Benilla asset-field inventory
+## 2026-10-24 — M2 geometry/material inputs
+
+[Geometry/material rows](reference/benilla-m2-geometry-fields.md) cover vertex payloads, separate SKIN/M2View descriptor members, raw submeshes, all13 modern batch inputs and material/UV handling. B batch words+6/+12 are unread, not texture-combo/count fields. Static-only; consumer evidence is independently gated and B downstream additions remain in progress.
+
 ## 2026-10-24 — M2 scene inputs
 
 [Scene fields](reference/benilla-m2-scene-fields.md) separate attachment/event descriptors, modern camera snapshots, B full events versus marker projection and collision bounds. Native animated point-light wiring is present; parser-module light snapshots do not describe that production evaluator. Static research only; geometry integration and independent audits remain open.
