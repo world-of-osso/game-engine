@@ -232,6 +232,14 @@ Before packet `a154708f7`; rename-only `534ae04b1` moves11 presentation sources+
 
 **No wall-speed claim under unequal shared-host load.** The descriptive wall samples differ by0.374s, while child CPU is30.7% lower and dependency isolation is proven. The native unit grows16.06→21.54s; before/after restore/no-op controls and admission waits remain separate. Common Cargo feature/profile multisets have zero differences, sibling pins match and input is restored. Post-cut warmup177.208s is excluded (before warmup1.991s had zero dirty units, already warm). The subsequent helper-only test deletion does not intersect the measured production scope. Parent owns the eleven-package integration gate; no native runtime/full-suite acceptance is claimed. Raw before evidence: `/home/osso/.worktrees/logs/engine-crate-split-player-spells-before-1123c7606/`.
 
+## PvP presentation implementation
+
+Parent accepted Player Spells at `abd6a4ddc`, then authorized PvP or achievement presentation. PvP is selected for the better isolation-to-effort ratio: four closed files/1702LOC, versus achievement rendering mixed with authoritative state/comparison caches. Before packet `5af0fd2ab`; rename-only `b5e1f98e7` moves four source/three dedicated test files unchanged into `game-engine-ui-pvp`. Native match/actor behavior and wire authority remain unchanged.
+
+One mixed `selection_lists` case moves with its exact module::test name; three unrelated siblings stay base. Existing two cross-panel Player Spells cases stay in their peer crate through a **test-only** dependency on ui-pvp. Neither base nor Player Spells production gains a reverse dependency; no façade or new shared definitions. Before census is390 unchanged unit names and36 affected integration names:31 to PvP, three residual base and two peer cases; zero ignored.
+
+The reversible Honor-label edit `"Honor Level —"` → `"Honor Level —!"` takes42.452s before the cut, childCPU27.386s; no-op4.935s, restore53.125s. Controls include existing slot/helper wait, matching sibling pins/profiles and input restoration. [Before receipt](engine-crate-split-pvp-before.json), raw `/home/osso/.worktrees/logs/engine-crate-split-pvp-before-abd6a4ddc/`. Wiring check/tests/census and post-cut timing pending; no wall-speed claim under unequal load.
+
 ## Baseline edit measurements
 
 [Machine-readable receipts](engine-crate-split-baseline.json) include exact commands, package/target dirtiness, wall/user/system time, dependency pins, Cargo unit timings and raw-log hashes. Host `agent-server`, Rust/Cargo 1.99.0, four jobs, native helper defaults and unchanged profiles/linker. Raw logs, HTML timings, drivers and before/after name lists are archived outside the worktree at `/home/osso/.worktrees/logs/engine-crate-split-baseline-4645578c7/`. No post-split improvement is claimed.

@@ -1,7 +1,7 @@
 //! Native PvP queue, entry dialog, objective HUD and match score/results.
 use crate::{GameClient, frame_error::FrameError, ui::RegistryUi};
 use game_engine_session::SessionScreen;
-use game_engine_ui_model::battleground::{PvpView, pvp_screen};
+use game_engine_ui_pvp::battleground::{PvpView, pvp_screen};
 use godot::prelude::*;
 #[derive(Default)]
 pub(crate) struct BattlegroundUi {
@@ -45,7 +45,7 @@ impl GameClient {
         self.battleground.view.visible = !self.battleground.view.visible;
         if self.battleground.view.visible {
             self.account
-                .send_pvp(game_engine_ui_model::battleground::PvpAction::Query)?;
+                .send_pvp(game_engine_ui_pvp::battleground::PvpAction::Query)?;
         }
         Ok(())
     }
@@ -60,7 +60,7 @@ impl GameClient {
                     break;
                 }
                 match self.battleground.view.action(&action) {
-                    Some(game_engine_ui_model::battleground::PvpAction::Target(entity)) => {
+                    Some(game_engine_ui_pvp::battleground::PvpAction::Target(entity)) => {
                         self.set_target(Some(entity));
                     }
                     Some(request) => self.account.send_pvp(request)?,

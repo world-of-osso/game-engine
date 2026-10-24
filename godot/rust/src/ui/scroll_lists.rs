@@ -134,7 +134,7 @@ fn scroll_steps(model: &RegistryModel, list: &str) -> (usize, usize) {
         let pan = game_engine_ui_model::follower_dungeons::ROW_HEIGHT;
         return (pan * 2, pan);
     }
-    if let Some(pan) = game_engine_ui_model::battleground::pvp_pan_extent(list) {
+    if let Some(pan) = game_engine_ui_pvp::battleground::pvp_pan_extent(list) {
         return (pan * 2, pan);
     }
     let options = (list == OPTIONS_CONTENT_SCROLL)

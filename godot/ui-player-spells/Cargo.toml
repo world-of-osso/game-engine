@@ -17,3 +17,7 @@ game-engine-ui-model = { path = "../ui-model" }
 # Existing spell/talent snapshots retain their wire identities.
 shared = { git = "https://github.com/world-of-osso/shared-protocol.git", rev = "74e67cf" }
 ui-toolkit = { package = "ui-toolkit-core", path = "../../../ui-toolkit/core" }
+
+[dev-dependencies]
+# Two existing cross-panel progression tests render Player Spells and inspect PvP actions.
+game-engine-ui-pvp = { path = "../ui-pvp" }

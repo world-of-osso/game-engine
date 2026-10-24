@@ -3186,6 +3186,7 @@ dependencies = [
  "game-engine-ui-model",
  "game-engine-ui-player-spells",
  "game-engine-ui-professions",
+ "game-engine-ui-pvp",
  "glam",
  "godot",
  "image 0.25.10",
@@ -3281,6 +3282,7 @@ version = "0.1.0"
 dependencies = [
  "game-engine-core",
  "game-engine-ui-model",
+ "game-engine-ui-pvp",
  "shared",
  "ui-toolkit-core",
 ]
@@ -3292,6 +3294,15 @@ dependencies = [
  "game-engine-core",
  "game-engine-ui-model",
  "serde_json",
+ "shared",
+ "ui-toolkit-core",
+]
+
+[[package]]
+name = "game-engine-ui-pvp"
+version = "0.1.0"
+dependencies = [
+ "game-engine-ui-model",
  "shared",
  "ui-toolkit-core",
 ]

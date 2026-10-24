@@ -1,7 +1,7 @@
 #[path = "battleground_requeue.rs"]
 mod requeue;
 
-use game_engine_ui_model::battleground::{PvpAction, PvpView, pvp_screen};
+use game_engine_ui_pvp::battleground::{PvpAction, PvpView, pvp_screen};
 use shared::battleground::{BgOutcome, BgPhase, BgTeam, FlagObjective};
 use shared::protocol::*;
 use ui_toolkit::{
@@ -675,7 +675,7 @@ fn assert_text(registry: &FrameRegistry, name: &str, expected: &str) {
 
 #[test]
 fn retail_pvp_activity_rows_use_authored_templates_and_keep_bracket_actions() {
-    use game_engine_ui_model::battleground::PvpCategory;
+    use game_engine_ui_pvp::battleground::PvpCategory;
     game_engine_ui_model::paths::set_data_root(
         std::path::PathBuf::from(env!("CARGO_MANIFEST_DIR")).join("../../data"),
     )

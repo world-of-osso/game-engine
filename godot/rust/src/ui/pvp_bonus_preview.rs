@@ -1,6 +1,6 @@
 //! Serverless supplied-state BonusFrame input proof; never sends network commands.
 use super::{RegistryUi, party_preview};
-use game_engine_ui_model::battleground::{PvpAction, PvpView};
+use game_engine_ui_pvp::battleground::{PvpAction, PvpView};
 use godot::prelude::*;
 use shared::protocol::PvpSnapshot;
 use ui_toolkit::atlas::{ActiveSkin, set_thread_skin};

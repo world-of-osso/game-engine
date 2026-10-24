@@ -1,7 +1,7 @@
 //! Mainline CompactArenaFrame: default EditMode dimensions72+26 by36+8,
 //! RIGHT/RIGHT at0,0; Forever shares elements and only changes atlas art.
 use super::{DynName, PvpView, frame, panel_button, text};
-use crate::ui::screens::compact_unit_frame_component::{
+use game_engine_ui_model::ui::screens::compact_unit_frame_component::{
     CompactUnitView, UnitStatus, compact_unit_frame,
 };
 use shared::protocol::{ArenaUnitSnapshot, BattlegroundSnapshot, GroupRoleSnapshot};
@@ -87,7 +87,7 @@ pub(super) fn rated_panel(view: &PvpView) -> Element {
             rating,
         }));
     }
-    elements.extend(crate::bank_art::label(
+    elements.extend(game_engine_ui_model::bank_art::label(
         "PVPUIError".into(),
         &view.error,
         (
@@ -181,7 +181,7 @@ fn activity_button(props: ActivityButton<'_>) -> Element {
     } else {
         height / 2.0 + 1.0 - title_height / 2.0
     };
-    let mut children = crate::bank_art::label(
+    let mut children = game_engine_ui_model::bank_art::label(
         format!("{name}Text"),
         title,
         (20.0, title_top, 325.0, title_height),
@@ -196,14 +196,14 @@ fn activity_button(props: ActivityButton<'_>) -> Element {
         ),
     );
     if props.rated {
-        children.extend(crate::bank_art::label(
+        children.extend(game_engine_ui_model::bank_art::label(
             format!("{name}TypeText"),
             detail,
             (19.0, 34.0, 326.0, 12.0),
             (12.0, "0.5,0.5,0.5,1", "LEFT"),
         ));
         if let Some(rating) = props.rating {
-            children.extend(crate::bank_art::label(
+            children.extend(game_engine_ui_model::bank_art::label(
                 format!("{name}CurrentRating"),
                 &rating.to_string(),
                 (202.5, 21.0, 100.0, 14.0),
@@ -212,11 +212,11 @@ fn activity_button(props: ActivityButton<'_>) -> Element {
         }
     }
     let template = if props.rated {
-        &crate::selection_list::PVP_RATED_ACTIVITY
+        &game_engine_ui_model::selection_list::PVP_RATED_ACTIVITY
     } else {
-        &crate::selection_list::PVP_CASUAL_ACTIVITY
+        &game_engine_ui_model::selection_list::PVP_CASUAL_ACTIVITY
     };
-    let mut row = crate::selection_list::row(
+    let mut row = game_engine_ui_model::selection_list::row(
         name.into(),
         props.action,
         props.enabled,
@@ -298,7 +298,7 @@ fn enemy_frame(index: usize, unit: &ArenaUnitSnapshot) -> Element {
     };
     let view = CompactUnitView {
         name: unit.name.clone(),
-        class_rgb: crate::damage_meter_data::class_color(unit.class),
+        class_rgb: game_engine_ui_model::damage_meter_data::class_color(unit.class),
         health_fraction,
         power: None,
         role: GroupRoleSnapshot::None,
