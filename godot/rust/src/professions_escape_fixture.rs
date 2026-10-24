@@ -1,5 +1,5 @@
 //! Actual mounted profession roots and manual bag state, without a realm/NPC request.
-use super::{ProfessionPage, ProfessionView};
+use super::{ProfessionPage, ProfessionView, professions_screen};
 use crate::{GameClient, ui::RegistryUi};
 use godot::prelude::*;
 
@@ -24,6 +24,10 @@ impl GameClient {
             ui_toolkit::atlas::ActiveSkin::Modern
         });
         let view = professions_probe_view(customer);
+        self.extract_art(&crate::quests::screen_texture_fdids(
+            view.clone(),
+            professions_screen,
+        ));
         self.professions.book = view.book.clone();
         self.professions.page = view.page;
         self.professions.orders.customer = customer;
