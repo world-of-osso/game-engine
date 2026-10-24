@@ -56,6 +56,9 @@ impl GameClient {
 fn professions_probe_view(customer: bool) -> ProfessionView {
     let mut view = ProfessionView::default();
     view.book.visible = true;
+    // Cached SkillLine164: real Blacksmithing title/icon, not the default FDID0.
+    view.profession_name = "Blacksmithing".into();
+    view.profession_icon = 4_620_670;
     view.orders.customer = customer;
     view.page = if customer {
         ProfessionPage::Orders
