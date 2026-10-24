@@ -19,6 +19,8 @@ path = "tests/active_db2.rs"
 game-engine-core = { path = "../core" }
 # Item catalogs, shared chrome/tooltips and data-root state remain single base owners.
 game-engine-ui-model = { path = "../ui-model" }
+# The moved pet-journal snapshot already derives Deserialize; retain base's serde features.
+serde = { version = "1", features = ["derive"] }
 # Authoritative wardrobe/Trading Post snapshots keep existing wire type identity.
 shared = { git = "https://github.com/world-of-osso/shared-protocol.git", rev = "74e67cf" }
 ui-toolkit = { package = "ui-toolkit-core", path = "../../../ui-toolkit/core" }
