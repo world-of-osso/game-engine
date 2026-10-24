@@ -72,7 +72,7 @@ Forever's first private startup failed on stale encounter orbit/summon schema af
 - [Client contract](../../specs/arenas.md).
 - [Arena queues](../../../../game-server/crates/server/src/pvp_arena.rs), [rated queue](../../../../game-server/crates/server/src/pvp_arena_rated_queue.rs), [results](../../../../game-server/crates/server/src/pvp_arena_rated_results.rs).
 - [Source orb lifecycle](../../../../game-server/crates/server/src/pvp_arena_sight.rs), [gate lifecycle](../../../../game-server/crates/server/src/pvp_arena_objects.rs), [combat scores](../../../../game-server/crates/server/src/pvp_arena_scores.rs).
-- [Native UI](../../../godot/ui-model/src/arena_ui.rs) and [object renderer](../../../godot/rust/src/game_objects.rs).
+- [Native UI](../../../godot/ui-pvp/src/arena_ui.rs) and [object renderer](../../../godot/rust/src/game_objects.rs).
 - Pinned source files and SHA256 receipts: data/diagnostics/arena-coverage-2026-10-12/tc-a352b1fa/sources.json.
 
 ## See Also

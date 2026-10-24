@@ -1,0 +1,708 @@
+{
+  "source_revision": "cf0cd0eac",
+  "before_source": "abd6a4ddc",
+  "before_receipt": "engine-crate-split-pvp-before.json",
+  "rename_only_revision": "b5e1f98e7",
+  "wiring_revision": "cf0cd0eac",
+  "raw_archive": "/home/osso/.worktrees/logs/engine-crate-split-pvp-cf0cd0eac",
+  "scope": {
+    "source_files": 4,
+    "original_source_lines": 1702,
+    "root_modules": [
+      "battleground"
+    ],
+    "dedicated_test_files": 3,
+    "mixed_selection_cases": 1,
+    "residual_selection_cases": 3,
+    "unchanged_peer_cases": 2,
+    "production_helper_visibility_changes": 0
+  },
+  "check": {
+    "arguments": [
+      "-p",
+      "game-engine-ui-pvp",
+      "-p",
+      "game-engine-godot",
+      "-j4",
+      "--message-format=json"
+    ],
+    "exit": 0,
+    "compiler_diagnostics": []
+  },
+  "tests": {
+    "ui-model:lib": {
+      "pass": 390,
+      "fail": 0,
+      "ignored": 0
+    },
+    "ui-pvp:lib": {
+      "pass": 0,
+      "fail": 0,
+      "ignored": 0
+    },
+    "ui-pvp:integration": {
+      "pass": 31,
+      "fail": 0,
+      "ignored": 0
+    },
+    "ui-player-spells:pvp_progression": {
+      "pass": 2,
+      "fail": 0,
+      "ignored": 0
+    },
+    "residual_selection_lists": {
+      "pass": 3,
+      "fail": 0,
+      "ignored": 0
+    }
+  },
+  "census": {
+    "base_unit_names_before_after": 390,
+    "base_integration_before": 34,
+    "feature_integration_after": 31,
+    "base_residual_after": 3,
+    "peer_before_after": 2,
+    "names_byte_identical": true,
+    "ignored": 0,
+    "base_unit_names_sha256": "eeabf950bc2f5eb72b963d8fdcf51bb1ec7cd84c5d506caa5ef0d2f2ba4d1725",
+    "feature_names": [
+      "battleground::arena_queue_actions_and_enemy_frames_use_authoritative_units_in_both_skins",
+      "battleground::battleground_both_skins_render_invite_hud_score_rows_and_end_without_fake_honor",
+      "battleground::battleground_invitation_phase_guards_keep_accepted_ended_and_running_arena_unactionable",
+      "battleground::battleground_ready_placement_forever_1280",
+      "battleground::battleground_ready_placement_forever_1920",
+      "battleground::battleground_ready_placement_modern_1280",
+      "battleground::battleground_ready_placement_modern_1920",
+      "battleground::battleground_requests_wait_for_authority_and_echo_match_identity",
+      "battleground::battleground_running_copy_invite_both_skins_renders_and_sends_owned_accept_or_decline",
+      "battleground::deephaul_both_skin_cart_crystal_hud_source_columns_and_automatic_results",
+      "battleground::epic_both_skin_source_queue_reinforcement_hud_columns_and_results",
+      "battleground::eye_of_the_storm_both_skin_tower_flag_hud_source_column_and_results",
+      "battleground::kotmogu_both_skin_orb_hud_source_columns_queue_and_results",
+      "battleground::node_battleground_both_skin_hud_columns_and_results",
+      "battleground::node_battleground_selection_preserves_queue_identity",
+      "battleground::random32_bonus_forever_renders_source_modes_and_row_without_fake_rewards",
+      "battleground::random32_bonus_modern_renders_source_modes_and_row_without_fake_rewards",
+      "battleground::random32_bonus_routes_existing_queue_and_preserves_specific_and_arena_choices",
+      "battleground::rated_arena_ui_sends_selected_bracket_and_shows_only_played_match_rating_changes",
+      "battleground::requeue::skirmish_requeue_action_binds_ended_match_and_blocks_duplicates",
+      "battleground::requeue::skirmish_requeue_both_skin_results_button_and_immediate_disable",
+      "battleground::requeue::skirmish_requeue_hides_and_refuses_bg_rated_shuffle_active_unaccepted",
+      "battleground::retail_pvp_activity_rows_use_authored_templates_and_keep_bracket_actions",
+      "battleground::retail_scoreboard_tabs_use_source_anchor_spacing_and_filter_actions",
+      "battleground::seething_both_skin_resource_score_source_column_and_automatic_results",
+      "battleground::silvershard_both_skin_visible_queue_retains_cart_hud_source_column_and_results",
+      "battleground::solo_shuffle_both_skins_queue_unrated_and_show_character_round_wins",
+      "battleground::twin_peaks_both_skin_flag_hud_source_columns_and_results",
+      "pvp_progression::honor_lifetime_display_never_substitutes_spendable_cap_for_unknown_level_curve",
+      "pvp_progression::quick_match_and_rated_tabs_show_wallet_balances_without_fake_season_policy",
+      "selection_lists::selection_lists_both_skins_keep_selection_through_scroll_and_refresh_without_push_button_art"
+    ],
+    "residual_names": [
+      "selection_lists::selection_lists_generic_search_rows_use_search_select_and_search_highlight",
+      "selection_lists::selection_lists_guild_members_keep_communities_line_backing",
+      "selection_lists::ui_template_blend_shared_rows_keep_each_source_templates_normal_hover_and_selected_modes"
+    ],
+    "peer_names": [
+      "pvp_progression::retail_war_mode_control_exists_but_requires_authoritative_context_in_both_skins",
+      "pvp_progression::three_source_pvp_slots_and_authoritative_choice_actions_render_in_both_skins"
+    ],
+    "original_473_unit_distribution_unchanged": {
+      "ui-model": 390,
+      "ui-housing": 37,
+      "ui-adventure": 4,
+      "ui-collections": 24,
+      "ui-professions": 18,
+      "ui-player-spells": 0,
+      "ui-pvp": 0
+    }
+  },
+  "peer_dependency": "ui-player-spells dev-depends on ui-pvp only for existing cross-panel integration cases;no production/base reverse dependency or facade",
+  "measurements": [
+    {
+      "label": "cold-build",
+      "helper": "depot.build(native)",
+      "command": [
+        "build",
+        "-p",
+        "game-engine-godot",
+        "--lib",
+        "-j4",
+        "--message-format=json",
+        "--timings"
+      ],
+      "wall_s": 156.8404405429028,
+      "user_s": 446.085738,
+      "system_s": 10.111201,
+      "exit": 0,
+      "dirty_units": [
+        {
+          "package": "path+file:///home/osso/.cache/game-engine/native-roots/ed6da6aa056a8a9bf29d-d19212ff8350/game-engine/godot/ui-pvp#game-engine-ui-pvp@0.1.0",
+          "target": "game_engine_ui_pvp",
+          "kind": [
+            "lib"
+          ],
+          "test": false,
+          "executable": null
+        },
+        {
+          "package": "path+file:///home/osso/.cache/game-engine/native-roots/ed6da6aa056a8a9bf29d-d19212ff8350/game-engine/godot/ui-player-spells#game-engine-ui-player-spells@0.1.0",
+          "target": "game_engine_ui_player_spells",
+          "kind": [
+            "lib"
+          ],
+          "test": false,
+          "executable": null
+        },
+        {
+          "package": "path+file:///home/osso/.cache/game-engine/native-roots/ed6da6aa056a8a9bf29d-d19212ff8350/game-engine/godot/ui-professions#game-engine-ui-professions@0.1.0",
+          "target": "game_engine_ui_professions",
+          "kind": [
+            "lib"
+          ],
+          "test": false,
+          "executable": null
+        },
+        {
+          "package": "path+file:///home/osso/.cache/game-engine/native-roots/ed6da6aa056a8a9bf29d-d19212ff8350/game-engine/godot/ui-adventure#game-engine-ui-adventure@0.1.0",
+          "target": "game_engine_ui_adventure",
+          "kind": [
+            "lib"
+          ],
+          "test": false,
+          "executable": null
+        },
+        {
+          "package": "path+file:///home/osso/.cache/game-engine/native-roots/ed6da6aa056a8a9bf29d-d19212ff8350/game-engine/godot/ui-housing#game-engine-ui-housing@0.1.0",
+          "target": "game_engine_ui_housing",
+          "kind": [
+            "lib"
+          ],
+          "test": false,
+          "executable": null
+        },
+        {
+          "package": "path+file:///home/osso/.cache/game-engine/native-roots/ed6da6aa056a8a9bf29d-d19212ff8350/game-engine/godot/ui-collections#game-engine-ui-collections@0.1.0",
+          "target": "game_engine_ui_collections",
+          "kind": [
+            "lib"
+          ],
+          "test": false,
+          "executable": null
+        },
+        {
+          "package": "path+file:///home/osso/.cache/game-engine/native-roots/ed6da6aa056a8a9bf29d-d19212ff8350/game-engine/godot/ui-model#game-engine-ui-model@0.1.0",
+          "target": "game_engine_ui_model",
+          "kind": [
+            "lib"
+          ],
+          "test": false,
+          "executable": null
+        },
+        {
+          "package": "path+file:///home/osso/.cache/game-engine/native-roots/ed6da6aa056a8a9bf29d-d19212ff8350/game-engine/godot/rust#game-engine-godot@0.1.0",
+          "target": "game_engine_godot",
+          "kind": [
+            "cdylib",
+            "rlib"
+          ],
+          "test": false,
+          "executable": null
+        }
+      ],
+      "dependencies_before": {
+        "asset-resolver": "da1a0edb1248fb6666ed358c71b8ecb6e36ca526",
+        "ui-toolkit": "544b9fcef9001d27e3842cc2bb94c928b8ac97e6",
+        "ui-toolkit-macros": "645c0b88f65204ede9b9605faf2e84e89a82bcc2",
+        "shared-protocol": "2abc7fa844f6e71d93203ce5421ae853e884854d"
+      },
+      "dependencies_after": {
+        "asset-resolver": "da1a0edb1248fb6666ed358c71b8ecb6e36ca526",
+        "ui-toolkit": "544b9fcef9001d27e3842cc2bb94c928b8ac97e6",
+        "ui-toolkit-macros": "645c0b88f65204ede9b9605faf2e84e89a82bcc2",
+        "shared-protocol": "2abc7fa844f6e71d93203ce5421ae853e884854d"
+      },
+      "cargo_units": [
+        {
+          "i": 218,
+          "name": "game-engine-ui-model",
+          "version": "0.1.0",
+          "mode": "todo",
+          "target": "",
+          "features": [],
+          "start": 1.01,
+          "duration": 20.04,
+          "unblocked_units": [
+            212
+          ],
+          "unblocked_rmeta_units": [
+            220,
+            221,
+            217,
+            216,
+            215,
+            219
+          ],
+          "sections": [
+            [
+              "frontend",
+              {
+                "start": 0.0,
+                "end": 12.45
+              }
+            ],
+            [
+              "codegen",
+              {
+                "start": 12.45,
+                "end": 20.04
+              }
+            ]
+          ]
+        },
+        {
+          "i": 221,
+          "name": "game-engine-ui-pvp",
+          "version": "0.1.0",
+          "mode": "todo",
+          "target": "",
+          "features": [],
+          "start": 13.46,
+          "duration": 0.98,
+          "unblocked_units": [],
+          "unblocked_rmeta_units": [],
+          "sections": [
+            [
+              "frontend",
+              {
+                "start": 0.0,
+                "end": 0.51
+              }
+            ],
+            [
+              "codegen",
+              {
+                "start": 0.51,
+                "end": 0.98
+              }
+            ]
+          ]
+        },
+        {
+          "i": 215,
+          "name": "game-engine-ui-adventure",
+          "version": "0.1.0",
+          "mode": "todo",
+          "target": "",
+          "features": [],
+          "start": 13.47,
+          "duration": 3.89,
+          "unblocked_units": [],
+          "unblocked_rmeta_units": [],
+          "sections": [
+            [
+              "frontend",
+              {
+                "start": 0.0,
+                "end": 1.38
+              }
+            ],
+            [
+              "codegen",
+              {
+                "start": 1.38,
+                "end": 3.89
+              }
+            ]
+          ]
+        },
+        {
+          "i": 219,
+          "name": "game-engine-ui-player-spells",
+          "version": "0.1.0",
+          "mode": "todo",
+          "target": "",
+          "features": [],
+          "start": 13.47,
+          "duration": 2.57,
+          "unblocked_units": [],
+          "unblocked_rmeta_units": [],
+          "sections": [
+            [
+              "frontend",
+              {
+                "start": 0.0,
+                "end": 0.81
+              }
+            ],
+            [
+              "codegen",
+              {
+                "start": 0.81,
+                "end": 2.57
+              }
+            ]
+          ]
+        },
+        {
+          "i": 220,
+          "name": "game-engine-ui-professions",
+          "version": "0.1.0",
+          "mode": "todo",
+          "target": "",
+          "features": [],
+          "start": 14.44,
+          "duration": 1.73,
+          "unblocked_units": [],
+          "unblocked_rmeta_units": [],
+          "sections": [
+            [
+              "frontend",
+              {
+                "start": 0.0,
+                "end": 0.73
+              }
+            ],
+            [
+              "codegen",
+              {
+                "start": 0.73,
+                "end": 1.73
+              }
+            ]
+          ]
+        },
+        {
+          "i": 216,
+          "name": "game-engine-ui-collections",
+          "version": "0.1.0",
+          "mode": "todo",
+          "target": "",
+          "features": [],
+          "start": 16.03,
+          "duration": 3.95,
+          "unblocked_units": [],
+          "unblocked_rmeta_units": [],
+          "sections": [
+            [
+              "frontend",
+              {
+                "start": 0.0,
+                "end": 2.24
+              }
+            ],
+            [
+              "codegen",
+              {
+                "start": 2.24,
+                "end": 3.95
+              }
+            ]
+          ]
+        },
+        {
+          "i": 217,
+          "name": "game-engine-ui-housing",
+          "version": "0.1.0",
+          "mode": "todo",
+          "target": "",
+          "features": [],
+          "start": 16.17,
+          "duration": 2.6,
+          "unblocked_units": [],
+          "unblocked_rmeta_units": [],
+          "sections": [
+            [
+              "frontend",
+              {
+                "start": 0.0,
+                "end": 1.13
+              }
+            ],
+            [
+              "codegen",
+              {
+                "start": 1.13,
+                "end": 2.6
+              }
+            ]
+          ]
+        },
+        {
+          "i": 212,
+          "name": "game-engine-godot",
+          "version": "0.1.0",
+          "mode": "todo",
+          "target": "",
+          "features": [],
+          "start": 21.05,
+          "duration": 135.57,
+          "unblocked_units": [],
+          "unblocked_rmeta_units": [],
+          "sections": null
+        }
+      ],
+      "log_sha256": "2b6b8f41869ca83cb34773cb87ddf3640805f3f89ead23d6b535499471b67b7b",
+      "timing_html": "cargo-timings/cargo-timing-20261024T145555367Z-30b50b5d2a71bae4.html"
+    },
+    {
+      "label": "noop-build",
+      "helper": "depot.build(native)",
+      "command": [
+        "build",
+        "-p",
+        "game-engine-godot",
+        "--lib",
+        "-j4",
+        "--message-format=json",
+        "--timings"
+      ],
+      "wall_s": 0.9457465650048107,
+      "user_s": 0.3060970000000225,
+      "system_s": 0.10343799999999881,
+      "exit": 0,
+      "dirty_units": [],
+      "dependencies_before": {
+        "asset-resolver": "da1a0edb1248fb6666ed358c71b8ecb6e36ca526",
+        "ui-toolkit": "544b9fcef9001d27e3842cc2bb94c928b8ac97e6",
+        "ui-toolkit-macros": "645c0b88f65204ede9b9605faf2e84e89a82bcc2",
+        "shared-protocol": "2abc7fa844f6e71d93203ce5421ae853e884854d"
+      },
+      "dependencies_after": {
+        "asset-resolver": "da1a0edb1248fb6666ed358c71b8ecb6e36ca526",
+        "ui-toolkit": "544b9fcef9001d27e3842cc2bb94c928b8ac97e6",
+        "ui-toolkit-macros": "645c0b88f65204ede9b9605faf2e84e89a82bcc2",
+        "shared-protocol": "2abc7fa844f6e71d93203ce5421ae853e884854d"
+      },
+      "cargo_units": [],
+      "log_sha256": "0d7fa8d652b1594a90490b624f67922c6743a42a0066f64069ef457d0141b88a",
+      "timing_html": "cargo-timings/cargo-timing-20261024T145902329Z-30b50b5d2a71bae4.html"
+    },
+    {
+      "label": "ui-edit-build-restore",
+      "helper": "depot.build(native)",
+      "command": [
+        "build",
+        "-p",
+        "game-engine-godot",
+        "--lib",
+        "-j4",
+        "--message-format=json",
+        "--timings"
+      ],
+      "wall_s": 13.87822598288767,
+      "user_s": 5.016492000000028,
+      "system_s": 1.3747819999999997,
+      "exit": 0,
+      "dirty_units": [
+        {
+          "package": "path+file:///home/osso/.cache/game-engine/native-roots/ed6da6aa056a8a9bf29d-d19212ff8350/game-engine/godot/ui-pvp#game-engine-ui-pvp@0.1.0",
+          "target": "game_engine_ui_pvp",
+          "kind": [
+            "lib"
+          ],
+          "test": false,
+          "executable": null
+        },
+        {
+          "package": "path+file:///home/osso/.cache/game-engine/native-roots/ed6da6aa056a8a9bf29d-d19212ff8350/game-engine/godot/rust#game-engine-godot@0.1.0",
+          "target": "game_engine_godot",
+          "kind": [
+            "cdylib",
+            "rlib"
+          ],
+          "test": false,
+          "executable": null
+        }
+      ],
+      "dependencies_before": {
+        "asset-resolver": "da1a0edb1248fb6666ed358c71b8ecb6e36ca526",
+        "ui-toolkit": "544b9fcef9001d27e3842cc2bb94c928b8ac97e6",
+        "ui-toolkit-macros": "645c0b88f65204ede9b9605faf2e84e89a82bcc2",
+        "shared-protocol": "2abc7fa844f6e71d93203ce5421ae853e884854d"
+      },
+      "dependencies_after": {
+        "asset-resolver": "da1a0edb1248fb6666ed358c71b8ecb6e36ca526",
+        "ui-toolkit": "544b9fcef9001d27e3842cc2bb94c928b8ac97e6",
+        "ui-toolkit-macros": "645c0b88f65204ede9b9605faf2e84e89a82bcc2",
+        "shared-protocol": "2abc7fa844f6e71d93203ce5421ae853e884854d"
+      },
+      "cargo_units": [
+        {
+          "i": 221,
+          "name": "game-engine-ui-pvp",
+          "version": "0.1.0",
+          "mode": "todo",
+          "target": "",
+          "features": [],
+          "start": 1.66,
+          "duration": 0.35,
+          "unblocked_units": [
+            212
+          ],
+          "unblocked_rmeta_units": [],
+          "sections": [
+            [
+              "frontend",
+              {
+                "start": 0.0,
+                "end": 0.27
+              }
+            ],
+            [
+              "codegen",
+              {
+                "start": 0.27,
+                "end": 0.35
+              }
+            ]
+          ]
+        },
+        {
+          "i": 212,
+          "name": "game-engine-godot",
+          "version": "0.1.0",
+          "mode": "todo",
+          "target": "",
+          "features": [],
+          "start": 2.01,
+          "duration": 11.34,
+          "unblocked_units": [],
+          "unblocked_rmeta_units": [],
+          "sections": null
+        }
+      ],
+      "log_sha256": "03f1eb0f8c2316a5018acbcde79c8fd7473eb6305bbe8547b02a1d871c163697",
+      "timing_html": "cargo-timings/cargo-timing-20261024T150019157Z-30b50b5d2a71bae4.html"
+    },
+    {
+      "label": "ui-edit-build",
+      "helper": "depot.build(native)",
+      "command": [
+        "build",
+        "-p",
+        "game-engine-godot",
+        "--lib",
+        "-j4",
+        "--message-format=json",
+        "--timings"
+      ],
+      "wall_s": 15.008157681906596,
+      "user_s": 5.035652000000027,
+      "system_s": 3.2051730000000003,
+      "exit": 0,
+      "dirty_units": [
+        {
+          "package": "path+file:///home/osso/.cache/game-engine/native-roots/ed6da6aa056a8a9bf29d-d19212ff8350/game-engine/godot/ui-pvp#game-engine-ui-pvp@0.1.0",
+          "target": "game_engine_ui_pvp",
+          "kind": [
+            "lib"
+          ],
+          "test": false,
+          "executable": null
+        },
+        {
+          "package": "path+file:///home/osso/.cache/game-engine/native-roots/ed6da6aa056a8a9bf29d-d19212ff8350/game-engine/godot/rust#game-engine-godot@0.1.0",
+          "target": "game_engine_godot",
+          "kind": [
+            "cdylib",
+            "rlib"
+          ],
+          "test": false,
+          "executable": null
+        }
+      ],
+      "dependencies_before": {
+        "asset-resolver": "da1a0edb1248fb6666ed358c71b8ecb6e36ca526",
+        "ui-toolkit": "544b9fcef9001d27e3842cc2bb94c928b8ac97e6",
+        "ui-toolkit-macros": "645c0b88f65204ede9b9605faf2e84e89a82bcc2",
+        "shared-protocol": "2abc7fa844f6e71d93203ce5421ae853e884854d"
+      },
+      "dependencies_after": {
+        "asset-resolver": "da1a0edb1248fb6666ed358c71b8ecb6e36ca526",
+        "ui-toolkit": "544b9fcef9001d27e3842cc2bb94c928b8ac97e6",
+        "ui-toolkit-macros": "645c0b88f65204ede9b9605faf2e84e89a82bcc2",
+        "shared-protocol": "2abc7fa844f6e71d93203ce5421ae853e884854d"
+      },
+      "cargo_units": [
+        {
+          "i": 221,
+          "name": "game-engine-ui-pvp",
+          "version": "0.1.0",
+          "mode": "todo",
+          "target": "",
+          "features": [],
+          "start": 1.27,
+          "duration": 1.79,
+          "unblocked_units": [
+            212
+          ],
+          "unblocked_rmeta_units": [],
+          "sections": [
+            [
+              "frontend",
+              {
+                "start": 0.0,
+                "end": 1.68
+              }
+            ],
+            [
+              "codegen",
+              {
+                "start": 1.68,
+                "end": 1.79
+              }
+            ]
+          ]
+        },
+        {
+          "i": 212,
+          "name": "game-engine-godot",
+          "version": "0.1.0",
+          "mode": "todo",
+          "target": "",
+          "features": [],
+          "start": 3.07,
+          "duration": 11.88,
+          "unblocked_units": [],
+          "unblocked_rmeta_units": [],
+          "sections": null
+        }
+      ],
+      "log_sha256": "d758b448a03ab41dd7897752f8a41e5cc3d72e0d97a9152dfbb06c6939935ee5",
+      "timing_html": "cargo-timings/cargo-timing-20261024T145933523Z-30b50b5d2a71bae4.html"
+    }
+  ],
+  "common_artifact_feature_profile_multiset_differences": [],
+  "before_edit_wall_s": 42.45245607383549,
+  "after_edit_wall_s": 15.008157681906596,
+  "before_edit_child_cpu_s": 27.386208999999994,
+  "after_edit_child_cpu_s": 8.240825000000028,
+  "isolation": "OnlyPvP+native dirty;ui-model and all5existing feature crates fresh",
+  "log_sha256": {
+    "pvp-after-census-driver.log": "5c1e23f43523dbce6fbd6a1caf33fde99788dc6b7872e8e216f138f547496b43",
+    "pvp-after-peer-census.log": "116484f771d5502e0f12f943b415d6c4c6f796953002d7f0d751e2e16184c34b",
+    "pvp-before-base-ignored-driver.log": "e3b7e01f304e956e944829c722feba7c00f2613f838cb6968d6755232dab39cc",
+    "pvp-before-peer-ignored-driver.log": "48d93c521ad3f1294c14df1aa1969da622091b3bbbedd968333cb276d136572d",
+    "pvp-tests.log": "fec3fcfcb84ec0bf3fa166a0257934d495058f6fbc682e2c7550654d02b0bf68",
+    "pvp-base-tests-driver.log": "2b2a075cd62fbb4481bec3eccbeb2ec4014240ebfd27106a243fb26719357a52",
+    "pvp-tests-driver.log": "0138dd01a4968983f6e18a6acf97f63d352c1b828b843b7ea9d6f8f71aea0d5f",
+    "pvp-check.log": "41fb1747b9baa82ea60b2c4f2d9099168ed1f18d731fd6ea12ca17f4070982e9",
+    "pvp-after-census.log": "0fc229402844a0d893574b0336e0a59f9452fe132c172217a00af128cb1bc20a",
+    "pvp-peer-tests.log": "65a060e65a5d05a945d1b3b0cca110acc6784f0bec766a46ad9d67ef6bd5e801",
+    "pvp-before-base-census-driver.log": "849fe05550b45c61b8487872e4826c7d5895e24a0a2a918080c4e32c5d8bd784",
+    "pvp-after-peer-census-driver.log": "1316e70ad5d93c327fe66c99bd86f203cb066ceafa09de13b93fc109d6ee5139",
+    "pvp-after-measure-driver.log": "c3938a44f15069c0c2ac74efbd215e8c17d241600e48238bdfb5e4985d555dfd",
+    "pvp-before-measure-driver.log": "fbe77ec89c1becb3fbb59431c6a85c862ffaf4ec266cd3af711b141b9524c884",
+    "pvp-before-base-ignored.log": "6e0917475dd6eae8bcfacb2d95030804bed9ec0172d79e5b4f9af9454b86c5e4",
+    "pvp-before-peer-census.log": "e45b03f973a77313117a608bdfc728ad6830ad4d4df193325c7f645648d23fbb",
+    "pvp-base-tests.log": "a4ace197aabd9653f15fe245aa149ba3efe81702732b2cd5bfdd2ee453f20459",
+    "pvp-before-peer-census-driver.log": "bc27aaac54bc82655f9934a371bf66429fc17d5bcaf2d7d278c824e320cc7a83",
+    "pvp-after-base-census-driver.log": "110c93b7859205b7a57a9ad224a69bf053e58e9539235460e3098b80b26f57ce",
+    "pvp-peer-tests-driver.log": "02abe4676774265d5bb8a040ade39c806cbec11d6b9529e249196364bec5d9df",
+    "pvp-before-peer-ignored.log": "50d2dd7ad86a3f802551f431b752a8ae59a6c95e4a2917cabe5626c4b57333e7",
+    "pvp-after-base-census.log": "6548458b5d41e0042663cc693f596df7c173c4c37f250af7ed0e6748142b673c",
+    "pvp-before-base-census.log": "12e1dd13ee6b7e3f064b1d4a2e183e71ce65bc4ece1a2e0108b8dca28606bea3"
+  },
+  "qualification": "No wall-speed claim under unequal shared-host load. Descriptive42.452->15.008s pair includes native32.51->11.88s change;childCPU69.9%lower,isolation proven. No-op/restore controls,pins/profiles matched,input restored. Parent owns12-package gate/push/merge;no new native-runtime/full-suite acceptance."
+}

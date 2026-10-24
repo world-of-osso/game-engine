@@ -282,7 +282,7 @@ Proof (CPU, `data/diagnostics/pvp-skirmish-requeue-2026-10-19/`): UI RED e24d876
 - [PvP progression contract](../../specs/pvp-progression.md) — wallet, source talents, War Mode proof and unresolved lifetime honor policy.
 - [Client contract](../../specs/battleground-lifecycle.md) — source XML/Lua paths, panel geometry, policy gaps.
 - [Server contract](../../../../game-server/docs/specs/battleground-lifecycle.md) — source identity, content, objectives and transfer authority.
-- [UI model](../../../godot/ui-model/src/battleground.rs) — authoritative view, actions, filters and results.
+- [UI model](../../../godot/ui-pvp/src/battleground.rs) — authoritative view, actions, filters and results.
 - [Native host](../../../godot/rust/src/battleground.rs) and [game objects](../../../godot/rust/src/game_objects.rs) — registry lifecycle and flag interaction.
 - [UDP peers](../../../godot/network/examples/native_battleground_peers.rs) and [native input driver](../../../godot/tests/battleground_live.gd) — real-message and pointer proof.
 
