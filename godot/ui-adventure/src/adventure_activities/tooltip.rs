@@ -4,10 +4,8 @@ use shared::protocol::{
 };
 
 use super::{presentation, rows::completed};
-use crate::{
-    game_tooltip::{GameTooltip, TooltipAnchor},
-    tooltip_presentation::{TooltipLineState, TooltipPresentation},
-};
+use game_engine_ui_model::game_tooltip::{GameTooltip, TooltipAnchor};
+use game_engine_ui_model::tooltip_presentation::{TooltipLineState, TooltipPresentation};
 
 const WHITE: [f32; 4] = [1., 1., 1., 1.];
 const GRAY: [f32; 4] = [0.5, 0.5, 0.5, 1.];

@@ -9,7 +9,7 @@ use crate::{
 };
 use game_engine_core::{adventure_guide::Catalog, input_bindings_data::InputAction};
 use game_engine_session::SessionScreen;
-use game_engine_ui_model::adventure_guide::{Page, SEARCH, View, adventure_guide_screen};
+use game_engine_ui_adventure::adventure_guide::{Page, SEARCH, View, adventure_guide_screen};
 use godot::prelude::*;
 use std::{collections::BTreeMap, sync::Arc};
 
@@ -554,7 +554,7 @@ impl GameClient {
         }
     }
     fn update_journey_hover(&mut self) -> Result<(), String> {
-        use game_engine_ui_model::adventure_guide::Tab;
+        use game_engine_ui_adventure::adventure_guide::Tab;
         let view = &mut self.adventure_guide.view;
         if view.tab != Tab::Journeys || view.journeys.selected.is_some() {
             view.journeys.hovered = None;
@@ -565,7 +565,7 @@ impl GameClient {
             .and_then(|hit| hit.ui.bind().frame_click_action(hit.frame));
         self.adventure_guide.view.journeys.hovered = action
             .as_deref()
-            .and_then(game_engine_ui_model::adventure_journeys::hovered_faction);
+            .and_then(game_engine_ui_adventure::adventure_journeys::hovered_faction);
         Ok(())
     }
 
@@ -581,7 +581,7 @@ impl GameClient {
     }
 
     fn advance_journey_scroll(&mut self) {
-        use game_engine_ui_model::adventure_guide::Tab;
+        use game_engine_ui_adventure::adventure_guide::Tab;
         if self.adventure_guide.view.tab != Tab::Journeys || self.game_menu_ui.is_some() {
             self.adventure_guide.view.journeys.scroll = None;
             return;
@@ -597,7 +597,7 @@ impl GameClient {
     }
 
     fn journey_arrow_input(&mut self, event: &Gd<godot::classes::InputEvent>) {
-        use game_engine_ui_model::adventure_guide::Tab;
+        use game_engine_ui_adventure::adventure_guide::Tab;
         use godot::{classes::InputEventMouseButton, global::MouseButton};
         let Ok(mouse) = event.clone().try_cast::<InputEventMouseButton>() else {
             return;
@@ -654,7 +654,7 @@ impl GameClient {
     }
 
     fn journey_wheel_action(&self, event: &Gd<godot::classes::InputEvent>) -> Option<&'static str> {
-        use game_engine_ui_model::adventure_guide::Tab;
+        use game_engine_ui_adventure::adventure_guide::Tab;
         use godot::{classes::InputEventMouseButton, global::MouseButton};
         if self.adventure_guide.view.tab != Tab::Journeys {
             return None;
@@ -700,7 +700,7 @@ impl GameClient {
         self.account
             .send_renown(shared::protocol::RenownRequest::SetWatchedFaction { faction_id })
             .map_err(|error| error.to_string())?;
-        let sound = game_engine_ui_model::adventure_journeys::watch_click_sound(faction_id);
+        let sound = game_engine_ui_adventure::adventure_journeys::watch_click_sound(faction_id);
         if let Err(error) = self.play_ui_sound_kit(sound) {
             self.handle_frame_error("Journeys watch click sound", error.into());
         }
@@ -714,7 +714,7 @@ impl GameClient {
                 .adventure_guide
                 .as_deref()
                 .and_then(|snapshot| {
-                    game_engine_ui_model::adventure_activities::tracking_request(
+                    game_engine_ui_adventure::adventure_activities::tracking_request(
                         snapshot, &action, right, shift,
                     )
                 });
@@ -749,7 +749,7 @@ impl GameClient {
             self.adventure_guide.view.apply(&action)?;
             if action.starts_with("journal:search-")
                 && self.adventure_guide.view.search_mode
-                    != game_engine_ui_model::adventure_search::SearchMode::Preview
+                    != game_engine_ui_adventure::adventure_search::SearchMode::Preview
             {
                 ui.bind_mut().release_focus_named(SEARCH);
             }
@@ -844,10 +844,9 @@ impl GameClient {
             ui.bind()
                 .frame_control(&format!("JournalCreature{id}Portrait"))
         });
-        let portrait =
-            self.adventure_guide.portraits.entry(id).or_insert_with(|| {
-                Portrait::new(game_engine_ui_model::adventure_creatures::PORTRAIT)
-            });
+        let portrait = self.adventure_guide.portraits.entry(id).or_insert_with(|| {
+            Portrait::new(game_engine_ui_adventure::adventure_creatures::PORTRAIT)
+        });
         portrait.sync(
             &mut self.world,
             host,

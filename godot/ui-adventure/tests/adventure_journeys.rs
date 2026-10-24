@@ -1,4 +1,4 @@
-use game_engine_ui_model::adventure_guide::{View, adventure_guide_screen};
+use game_engine_ui_adventure::adventure_guide::{View, adventure_guide_screen};
 use shared::protocol::{MajorFactionSnapshot, RenownReward, RenownSnapshot, RenownUnlock};
 use std::sync::Arc;
 use ui_toolkit::{
@@ -87,7 +87,7 @@ fn render_skin(view: &View, skin: ActiveSkin) -> FrameRegistry {
     context.insert(view.clone());
     let mut registry = FrameRegistry::new(1280., 720.);
     Screen::new(adventure_guide_screen).sync(&context, &mut registry);
-    game_engine_ui_model::adventure_guide_art::apply_postsetup(view, &mut registry);
+    game_engine_ui_adventure::adventure_guide_art::apply_postsetup(view, &mut registry);
     registry
 }
 
@@ -129,7 +129,7 @@ fn rect(registry: &FrameRegistry, name: &str) -> [f32; 4] {
 
 #[test]
 fn journeys_watch_click_sound_follows_the_requested_target_not_optimistic_state() {
-    use game_engine_ui_model::adventure_journeys::watch_click_sound;
+    use game_engine_ui_adventure::adventure_journeys::watch_click_sound;
     assert_eq!(watch_click_sound(0), 857);
     assert_eq!(watch_click_sound(2503), 856);
     assert_eq!(watch_click_sound(2696), 856);
@@ -206,7 +206,7 @@ fn journeys_watch_uses_source_hover_geometry_and_authoritative_checked_state() {
 
 #[test]
 fn journeys_watch_child_hover_keeps_the_card_not_the_clear_target_selected() {
-    use game_engine_ui_model::adventure_journeys::hovered_faction;
+    use game_engine_ui_adventure::adventure_journeys::hovered_faction;
     for (action, faction) in [
         ("journal:journey:12", Some(12)),
         ("journal:journey-watch:12:0", Some(12)),
@@ -523,7 +523,7 @@ fn journeys_home_breadcrumb_returns_from_progress_to_the_list() {
 
 #[test]
 fn ui_template_behavior_remaining_journal_journey_reward_owner() {
-    use game_engine_ui_model::adventure_journeys::reward_tooltip;
+    use game_engine_ui_adventure::adventure_journeys::reward_tooltip;
     let mut view = data_view();
     view.renown = Some(Arc::new(snapshot()));
     view.apply("journal:tab:journeys").unwrap();

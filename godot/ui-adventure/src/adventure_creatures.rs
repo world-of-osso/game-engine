@@ -1,14 +1,12 @@
 //! EncounterCreatureButtonTemplate XML525–581; Lua1044–1054/1455–1517.
 use ui_toolkit::{rsx, widget_def::Element};
 
-use crate::{
-    adventure_guide::View,
-    adventure_guide_art::{Art, art, highlight},
-    game_tooltip::GameTooltip,
-    inworld_unit_frames_component::{FULL_PORTRAIT, PortraitSlot},
-    quest_art::DynName,
-    tooltip_presentation::{TooltipLineState, TooltipPresentation},
-};
+use crate::adventure_guide::View;
+use crate::adventure_guide_art::{Art, art, highlight};
+use game_engine_ui_model::game_tooltip::GameTooltip;
+use game_engine_ui_model::inworld_unit_frames_component::{FULL_PORTRAIT, PortraitSlot};
+use game_engine_ui_model::quest_art::DynName;
+use game_engine_ui_model::tooltip_presentation::{TooltipLineState, TooltipPresentation};
 
 /// XML535–543: the whole portrait with TempPortraitAlphaMask.
 /// Native host geometry supplies either authored40px or36px output size.

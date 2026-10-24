@@ -3,12 +3,12 @@ use game_engine_core::adventure_guide::Encounter;
 use shared::protocol::InstanceLockInfo;
 use ui_toolkit::{rsx, widget_def::Element};
 
-use crate::{
-    adventure_guide::View,
-    adventure_guide_menus::{JOURNAL_DIFFICULTIES, base_difficulty, difficulty_name},
-    game_tooltip::GameTooltip,
-    quest_art::DynName,
-    tooltip_presentation::{TOOLTIP_DESCRIPTION_COLOR, TooltipLineState, TooltipPresentation},
+use crate::adventure_guide::View;
+use crate::adventure_guide_menus::{JOURNAL_DIFFICULTIES, base_difficulty, difficulty_name};
+use game_engine_ui_model::game_tooltip::GameTooltip;
+use game_engine_ui_model::quest_art::DynName;
+use game_engine_ui_model::tooltip_presentation::{
+    TOOLTIP_DESCRIPTION_COLOR, TooltipLineState, TooltipPresentation,
 };
 
 impl View {
@@ -69,7 +69,7 @@ pub(crate) fn overlay(view: &View, encounter: &Encounter) -> Element {
     if !is_defeated(view, encounter) {
         return vec![];
     }
-    let icon = crate::inworld_unit_frames_component::inworld_unit_frames_art::sized_atlas_texture(
+    let icon = game_engine_ui_model::inworld_unit_frames_component::inworld_unit_frames_art::sized_atlas_texture(
         format!("JournalBoss{}DefeatedIcon", encounter.id),
         "Map-MarkedDefeated",
         ui_toolkit::atlas::thread_skin(),
@@ -98,8 +98,10 @@ pub fn tooltip(view: &View, frame: &str) -> Option<GameTooltip> {
         return None;
     }
     let difficulty = difficulty_name(base_difficulty(view.difficulty));
-    let line = crate::auction_mail::text("ENCOUNTER_JOURNAL_ENCOUNTER_STATUS_DEFEATED_TOOLTIP")
-        .replacen("%s", difficulty, 1);
+    let line = game_engine_ui_model::auction_mail::text(
+        "ENCOUNTER_JOURNAL_ENCOUNTER_STATUS_DEFEATED_TOOLTIP",
+    )
+    .replacen("%s", difficulty, 1);
     Some(GameTooltip::new(
         TooltipPresentation {
             lines: vec![TooltipLineState::colored(line, TOOLTIP_DESCRIPTION_COLOR)],

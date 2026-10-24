@@ -2,7 +2,7 @@
 //! Root800×496 -> Inset (4,60)..(796,491) -> Encounter (4,60)..(793,491)
 //! -> Info BOTTOMRIGHT(-1,+2), size785×425 = (7,64)..(792,489).
 use game_engine_core::adventure_guide::Catalog;
-use game_engine_ui_model::adventure_guide::{View, adventure_guide_screen};
+use game_engine_ui_adventure::adventure_guide::{View, adventure_guide_screen};
 use std::sync::Arc;
 use ui_toolkit::{
     atlas::{ActiveSkin, set_thread_skin},
@@ -53,7 +53,7 @@ fn assert_gold(registry: &FrameRegistry, name: &str) {
 
 fn render(view: &View, skin: ActiveSkin) -> FrameRegistry {
     let mut registry = synced(view, skin);
-    game_engine_ui_model::adventure_guide_art::apply_postsetup(view, &mut registry);
+    game_engine_ui_adventure::adventure_guide_art::apply_postsetup(view, &mut registry);
     registry
 }
 
@@ -83,7 +83,7 @@ fn texture_blend(registry: &FrameRegistry, name: &str) -> (TextureSource, BlendM
 
 #[test]
 fn tutorials_use_source_pane_art_and_fonts_in_both_skins() {
-    use game_engine_ui_model::adventure_guide::Tab;
+    use game_engine_ui_adventure::adventure_guide::Tab;
     use ui_toolkit::widgets::font_string::GameFont;
 
     let root = std::path::PathBuf::from(env!("CARGO_MANIFEST_DIR")).join("../../data");
@@ -229,7 +229,7 @@ fn adventure_guide_frame_geometry_matches_retail_xml_in_both_skins() {
             button.state = ButtonState::Pushed;
             button.hovered = true;
         }
-        game_engine_ui_model::adventure_guide_art::apply_postsetup(&view, &mut instance);
+        game_engine_ui_adventure::adventure_guide_art::apply_postsetup(&view, &mut instance);
         let pressed = instance
             .get(instance.get_by_name("JournalBoss112ButtonArt").unwrap())
             .unwrap();
@@ -334,7 +334,7 @@ fn adventure_guide_instance_navigation_does_not_reuse_grid_pixel_offset_for_deta
     );
     let mut next = previous.clone();
     next.apply("journal:instance:240").unwrap();
-    game_engine_ui_model::adventure_guide_art::reset_changed_scrolls(
+    game_engine_ui_adventure::adventure_guide_art::reset_changed_scrolls(
         &previous,
         &next,
         &mut registry,
@@ -404,7 +404,7 @@ fn ui_template_blend_adventure_guide_highlights_author_source_blend_modes_at_con
     let root = std::path::PathBuf::from(env!("CARGO_MANIFEST_DIR")).join("../../data");
     game_engine_ui_model::paths::set_data_root(root.clone()).unwrap();
     let catalog = Arc::new(Catalog::load(&root.join("cache/adventure_guide.sqlite")).unwrap());
-    let sheet = TextureSource::FileDataId(game_engine_ui_model::adventure_guide_art::SHEET);
+    let sheet = TextureSource::FileDataId(game_engine_ui_adventure::adventure_guide_art::SHEET);
     for skin in [ActiveSkin::Modern, ActiveSkin::Forever] {
         let mut view = View {
             visible: true,

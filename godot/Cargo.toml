@@ -1,5 +1,5 @@
 [workspace]
-members = ["cli", "core", "network", "rust", "session", "ui-housing", "ui-model"]
+members = ["cli", "core", "network", "rust", "session", "ui-adventure", "ui-housing", "ui-model"]
 resolver = "3"
 
 [workspace.package]

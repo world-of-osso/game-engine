@@ -1,6 +1,6 @@
 //! Retail EJ Lua3311–3357: install secondary text hover only after native layout
 //! reports truncation. No provider, reward or activation decisions live here.
-use game_engine_ui_model::adventure_suggestions::hover_text;
+use game_engine_ui_adventure::adventure_suggestions::hover_text;
 use godot::classes::{Label, control::MouseFilter, text_server::AutowrapMode};
 use godot::prelude::*;
 use shared::protocol::AdventureGuideSnapshot;

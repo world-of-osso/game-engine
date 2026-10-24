@@ -1,14 +1,12 @@
 //! Retail EncounterSearchSM/LG and SearchBoxListMixin. Local title matching and
 //! instance → encounter → section catalog order are project policy, not EJ C API ranking.
-use crate::{
-    adventure_guide::{Page, Tab, View, scroll_in},
-    bank_art::{cropped, label, texture},
-    quest_art::{DynName, named_atlas_texture},
-    selection_list::{self, Art, RowArt, RowTemplate},
-};
+use crate::adventure_guide::{Page, Tab, View, scroll_in};
 use game_engine_core::adventure_guide::{
     Creature, Encounter, Instance, Item, Loot, Section, difficulty_matches,
 };
+use game_engine_ui_model::bank_art::{cropped, label, texture};
+use game_engine_ui_model::quest_art::{DynName, named_atlas_texture};
+use game_engine_ui_model::selection_list::{self, Art, RowArt, RowTemplate};
 use std::collections::BTreeSet;
 use ui_toolkit::{rsx, screen::SharedContext, widget_def::Element};
 const GENERIC_CREATURE: u32 = 533888;
@@ -126,7 +124,7 @@ impl View {
         Some(ResultRow {
             target: Target::Item(loot.id),
             title: &item.name,
-            icon: crate::item_icons::item_icon_fdid(item.id),
+            icon: game_engine_ui_model::item_icons::item_icon_fdid(item.id),
             quality: Some(item.quality as u8),
             kind: "ENCOUNTER_JOURNAL_ITEM",
             path: format!("{} > {}", instance.name, encounter.name),
@@ -390,7 +388,7 @@ impl ResultRow<'_> {
 
     fn name_color(&self) -> &'static str {
         match self.quality {
-            Some(quality) => crate::merchant_data::quality_color(quality),
+            Some(quality) => game_engine_ui_model::merchant_data::quality_color(quality),
             None => NAME_COLOR,
         }
     }
@@ -491,8 +489,8 @@ fn preview_row(index: usize, row: &ResultRow<'_>, chosen: bool) -> Element {
     row.bind_item_tooltip(button)
 }
 fn show_all_row(count: usize, top: f32, chosen: bool) -> Element {
-    let title =
-        crate::auction_mail::text("SEARCH_RESULTS_SHOW_COUNT").replace("%d", &count.to_string());
+    let title = game_engine_ui_model::auction_mail::text("SEARCH_RESULTS_SHOW_COUNT")
+        .replace("%d", &count.to_string());
     let mut content = row_background("JournalSearchAll", 210., 24., true);
     content.extend(label(
         "JournalSearchAllName".into(),
@@ -547,7 +545,7 @@ fn full_result_row(index: usize, row: &ResultRow<'_>) -> Element {
         ),
         (
             "Type",
-            crate::auction_mail::text(row.kind),
+            game_engine_ui_model::auction_mail::text(row.kind),
             (421., 18.5, 140., 12.),
             (12., PATH_COLOR, "RIGHT"),
         ),
@@ -578,7 +576,7 @@ fn full_results(ctx: &SharedContext, view: &View, rows: &[ResultRow<'_>]) -> Ele
         height,
         "EncounterJournalSearchList",
     );
-    let title = crate::auction_mail::text("ENCOUNTER_JOURNAL_SEARCH_RESULTS")
+    let title = game_engine_ui_model::auction_mail::text("ENCOUNTER_JOURNAL_SEARCH_RESULTS")
         .replacen("%s", &view.search, 1)
         .replacen("%d", &rows.len().to_string(), 1);
     let mut art = popup_art();

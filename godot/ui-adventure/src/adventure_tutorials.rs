@@ -6,7 +6,7 @@ use ui_toolkit::{
     widgets::font_string::{FontColor, GameFont},
 };
 
-use crate::quest_art::{named_atlas_texture, shared_button_small};
+use game_engine_ui_model::quest_art::{named_atlas_texture, shared_button_small};
 
 pub(crate) fn apply_postsetup(registry: &mut ui_toolkit::registry::FrameRegistry) {
     use ui_toolkit::{frame::WidgetData, widgets::font_string::JustifyV};

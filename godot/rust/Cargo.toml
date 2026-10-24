@@ -37,6 +37,7 @@ game-engine-session = { path = "../session" }
 shared = { git = "https://github.com/world-of-osso/shared-protocol.git", rev = "74e67cf" }
 game-engine-ui-model = { path = "../ui-model" }
 game-engine-ui-housing = { path = "../ui-housing" }
+game-engine-ui-adventure = { path = "../ui-adventure" }
 ui-toolkit = { package = "ui-toolkit-core", path = "../../../ui-toolkit/core" }
 # Preserve the authored registry layout semantics and local rounding fix.
 taffy = "0.10.1"

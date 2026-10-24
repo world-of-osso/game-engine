@@ -110,7 +110,7 @@ fn scroll_steps(model: &RegistryModel, list: &str) -> (usize, usize) {
         "AchievementCategoriesScrollBox",
     ]
     .contains(&list)
-        || game_engine_ui_model::adventure_guide::SCROLL_LISTS.contains(&list)
+        || game_engine_ui_adventure::adventure_guide::SCROLL_LISTS.contains(&list)
     {
         // Achievement and journal lists use pixel steps, not one-pixel rows.
         return (SCROLL_PAN_EXTENT, SCROLL_PAN_EXTENT);
@@ -346,7 +346,7 @@ impl RegistryUi {
             model
                 .registry
                 .scroll_lists
-                .scroll_to(game_engine_ui_model::adventure_guide::LIST, 0);
+                .scroll_to(game_engine_ui_adventure::adventure_guide::LIST, 0);
         }
     }
 

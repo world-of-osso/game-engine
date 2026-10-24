@@ -4,14 +4,14 @@
 mod sliding;
 mod track;
 use crate::adventure_guide::{scroll_in, text};
-use crate::auction_mail::text as global_string;
-use crate::bank_art::{WHITE, label, texture};
-use crate::menu_primitives::{
+use game_engine_core::adventure_guide::JourneyPresentation;
+use game_engine_ui_model::auction_mail::text as global_string;
+use game_engine_ui_model::bank_art::{WHITE, label, texture};
+use game_engine_ui_model::menu_primitives::{
     ContextMenu, ContextMenuItem, MenuElementKind, context_menu_with_rows, menu_element,
     menu_row_rect_with_heading,
 };
-use crate::quest_art::{DynName, NORMAL_FONT_COLOR, named_atlas_texture};
-use game_engine_core::adventure_guide::JourneyPresentation;
+use game_engine_ui_model::quest_art::{DynName, NORMAL_FONT_COLOR, named_atlas_texture};
 use shared::protocol::{MajorFactionSnapshot, RenownSnapshot, RenownUnlock};
 use std::collections::{BTreeMap, BTreeSet};
 use ui_toolkit::{rsx, screen::SharedContext, widget_def::Element};
@@ -364,7 +364,7 @@ fn watch_toggle(
     let checked = snapshot.watched_faction == Some(faction.faction_id);
     let target = if checked { 0 } else { faction.faction_id };
     let action = format!("journal:journey-watch:{}:{target}", faction.id);
-    let contents = crate::bank_art::checkbox_sized(
+    let contents = game_engine_ui_model::bank_art::checkbox_sized(
         &format!("{name}Checkbox"),
         global_string("SHOW_FACTION_ON_MAINSCREEN"),
         checked,
@@ -536,8 +536,8 @@ pub fn reward_tooltip(
     state: &Journeys,
     snapshot: Option<&RenownSnapshot>,
     frame: &str,
-) -> Option<crate::game_tooltip::GameTooltip> {
-    use crate::tooltip_presentation::{
+) -> Option<game_engine_ui_model::game_tooltip::GameTooltip> {
+    use game_engine_ui_model::tooltip_presentation::{
         TOOLTIP_DESCRIPTION_COLOR, TOOLTIP_WHITE, TooltipLineState, TooltipPresentation,
     };
     let id = frame
@@ -552,7 +552,7 @@ pub fn reward_tooltip(
         .filter(|reward| reward.level == state.level)
         .take(MAX_REWARD_CARDS)
         .find(|reward| reward.id == id)?;
-    Some(crate::game_tooltip::GameTooltip::new(
+    Some(game_engine_ui_model::game_tooltip::GameTooltip::new(
         TooltipPresentation {
             title: reward.name.clone(),
             title_color: TOOLTIP_WHITE,

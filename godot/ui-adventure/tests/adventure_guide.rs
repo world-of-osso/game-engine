@@ -1,6 +1,6 @@
 use game_engine_core::adventure_guide::Catalog;
-use game_engine_ui_model::adventure_guide::adventure_guide_screen;
-use game_engine_ui_model::adventure_guide::{Page, Tab, View};
+use game_engine_ui_adventure::adventure_guide::adventure_guide_screen;
+use game_engine_ui_adventure::adventure_guide::{Page, Tab, View};
 use std::sync::Arc;
 use ui_toolkit::{
     atlas::{ActiveSkin, set_thread_skin},
@@ -84,7 +84,7 @@ fn encounter_link_replaces_search_and_open_navigation_menus() {
     view.search = "Lucifron".into();
     view.tier_open = true;
     view.difficulty_open = true;
-    view.filter_menu = Some(game_engine_ui_model::adventure_guide::LootFilter::Class);
+    view.filter_menu = Some(game_engine_ui_adventure::adventure_guide::LootFilter::Class);
     view.collapsed.insert(2405);
     view.select_encounter(112).unwrap();
     assert_eq!(view.encounter, Some(112));
@@ -395,10 +395,8 @@ fn set_name_takes_quality_of_last_sorted_member_like_retail_configure_order() {
 
 #[test]
 fn set_tooltip_uses_authentic_members_thresholds_and_inactive_legacy_flag() {
-    use game_engine_ui_model::{
-        adventure_guide_tooltip::set_lines,
-        bag_data::{InventorySlot, InventoryState},
-    };
+    use game_engine_ui_adventure::adventure_guide_tooltip::set_lines;
+    use game_engine_ui_model::bag_data::{InventorySlot, InventoryState};
     use shared::protocol::EquipmentSlot;
     let mut view = journal();
     view.spec = 70;

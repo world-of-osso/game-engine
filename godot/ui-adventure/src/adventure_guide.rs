@@ -1,10 +1,12 @@
 //! Retail Mainline Adventure Guide; both skins share the same 800×496 layout.
-use crate::bank_art::{WHITE, label};
-use crate::minimal_scroll_bar::{MinimalScrollBar, Unscrollable, pixel_geometry, scroll_list_attr};
-use crate::quest_art::{DynName, NORMAL_FONT_COLOR, portrait_border};
 use game_engine_core::adventure_guide::{
     Catalog, Instance, Item, ItemSet, JourneyPresentation, Section, difficulty_matches,
 };
+use game_engine_ui_model::bank_art::{WHITE, label};
+use game_engine_ui_model::minimal_scroll_bar::{
+    MinimalScrollBar, Unscrollable, pixel_geometry, scroll_list_attr,
+};
+use game_engine_ui_model::quest_art::{DynName, NORMAL_FONT_COLOR, portrait_border};
 use std::{
     collections::{BTreeMap, BTreeSet},
     sync::Arc,
@@ -176,7 +178,7 @@ impl View {
             .challenge
             .as_ref()
             .filter(|run| run.map_id == instance.map)?;
-        let block = crate::challenge::tracker_block(run)?;
+        let block = game_engine_ui_model::challenge::tracker_block(run)?;
         Some(
             std::iter::once(block.name)
                 .chain(block.bosses.into_iter().map(|line| line.text))
@@ -254,9 +256,9 @@ impl View {
     pub(crate) fn set_level(&self, set: &ItemSet) -> Option<u32> {
         set.items
             .iter()
-            .filter_map(|id| crate::item_catalog::item_catalog_entry(*id))
+            .filter_map(|id| game_engine_ui_model::item_catalog::item_catalog_entry(*id))
             .map(|item| {
-                u32::from(crate::item_stats::item_level_for(
+                u32::from(game_engine_ui_model::item_stats::item_level_for(
                     shared::item_data::ItemDefinitionSource::Retail,
                     item,
                 ))
@@ -304,7 +306,7 @@ impl View {
                     "Owned Keystone: {} +{} · Time Limit: {}",
                     dungeon.name,
                     key.level,
-                    crate::challenge::clock(dungeon.time_limit_ms)
+                    game_engine_ui_model::challenge::clock(dungeon.time_limit_ms)
                 )
             })
             .collect();
@@ -898,8 +900,8 @@ pub fn adventure_guide_screen(ctx: &SharedContext) -> Element {
     }
     let left = (view.viewport[0] - 800.) / 2.;
     let top = (view.viewport[1] - 496.) / 2.;
-    crate::panel_lifecycle::bind_close(
-        rsx! {r#frame {name:"EncounterJournalRoot",stretch:true,r#frame {name:"EncounterJournal",width:800.0,height:496.0,left,top,pos_type:"absolute",mouse_enabled:true,background_color:"0.08,0.07,0.06,1.0",strata:crate::ui::strata::FrameStrata::Dialog,{body}}}},
+    game_engine_ui_model::panel_lifecycle::bind_close(
+        rsx! {r#frame {name:"EncounterJournalRoot",stretch:true,r#frame {name:"EncounterJournal",width:800.0,height:496.0,left,top,pos_type:"absolute",mouse_enabled:true,background_color:"0.08,0.07,0.06,1.0",strata:game_engine_ui_model::ui::strata::FrameStrata::Dialog,{body}}}},
         "adventure_guide",
     )
 }
@@ -951,7 +953,7 @@ fn instance_list(ctx: &SharedContext, view: &View) -> Element {
 fn instance_card(index: usize, instance: &Instance, view: &View) -> Element {
     let left = (index % 4) as f32 * 189.;
     let top = 5. + (index / 4) as f32 * 111.;
-    let mut art = crate::bank_art::cropped(
+    let mut art = game_engine_ui_model::bank_art::cropped(
         format!("JournalInstance{}Art", instance.id),
         instance.button,
         "0,0.68359375,0,0.7421875",
@@ -989,7 +991,7 @@ fn encounter_page(ctx: &SharedContext, view: &View) -> Element {
     let Some(instance) = view.instance.and_then(|id| view.catalog.instance(id)) else {
         return vec![];
     };
-    let mut out = crate::bank_art::cropped(
+    let mut out = game_engine_ui_model::bank_art::cropped(
         "EncounterJournalInfo".into(),
         521750,
         "0,0.766601562,0,0.830078125",
@@ -1304,14 +1306,14 @@ fn loot_filter_buttons(view: &View) -> Element {
         .classes
         .get(&view.class)
         .map(String::as_str)
-        .unwrap_or(crate::auction_mail::text("ALL_CLASSES"));
+        .unwrap_or(game_engine_ui_model::auction_mail::text("ALL_CLASSES"));
     let spec = view.catalog.specs.iter().find(|s| s.id == view.spec);
     let title = spec.map_or_else(
         || class.to_string(),
         |spec| format!("{class} ({})", spec.name),
     );
     let slot = if view.slot == 0 {
-        crate::auction_mail::text("ALL_INVENTORY_SLOTS")
+        game_engine_ui_model::auction_mail::text("ALL_INVENTORY_SLOTS")
     } else {
         slot_name(view.slot)
     };
@@ -1333,14 +1335,17 @@ fn loot_filter_buttons(view: &View) -> Element {
 }
 pub(crate) fn loot_filter_entries(view: &View, menu: LootFilter) -> Vec<(u32, String)> {
     match menu {
-        LootFilter::Class => std::iter::once((0, crate::auction_mail::text("ALL_CLASSES").into()))
-            .chain(
-                view.catalog
-                    .classes
-                    .iter()
-                    .map(|(id, name)| (*id, name.clone())),
-            )
-            .collect(),
+        LootFilter::Class => std::iter::once((
+            0,
+            game_engine_ui_model::auction_mail::text("ALL_CLASSES").into(),
+        ))
+        .chain(
+            view.catalog
+                .classes
+                .iter()
+                .map(|(id, name)| (*id, name.clone())),
+        )
+        .collect(),
         LootFilter::Spec => std::iter::once((0, "All specs".into()))
             .chain(
                 view.catalog

@@ -116,7 +116,11 @@ At `faadc498c`, the admitted `-j4` helper check passes for Housing and GDExtensi
 
 This single descriptive edit sample is 24.207s (41.6%) lower; shared-host scheduling still materially affects wall time, so it is not a statistical speedup guarantee. Warmup418.566s is excluded; no-op and restore exit zero, and the reversible edit is absent from the committed tree. Native final compilation/linking remains. No post-split UI-lib-test-binary timing was requested or measured.
 
-**Proposed next gate: Adventure Guide**, not started. Preserve the complete15-module feature group and seven named integration modules; retain native model-scene/actor code in GDExtension and the same rename-only/wiring/census/paired-timing discipline. Re-audit source changes from concurrent feature landings before moving.
+**Adventure Guide approved next:** implementation is in progress, preserving the complete15-module feature group and seven named integration modules. Native model-scene/actor code stays in GDExtension. Source changes from concurrent feature landings must be reconciled before gating.
+
+## Adventure Guide extraction
+
+Rename-only `2ba7f80f5` moves21 source files (15 production root modules, their five nested sources and private section tests) plus seven integration suites into `godot/ui-adventure`. The new crate depends on ui-model; native consumers import it directly. Existing shared helpers remain in ui-model; only `inventory_type_label`, `TabLabel`, `TabGeometry`, `tab_width` and `tab` gain required public visibility. Profile/type identities, actor implementation and assertions stay unchanged. The before census is436 residual ui-model units, including four Adventure section tests, plus110 Adventure integration names. Wiring is committed before targeted checking; after census and execution are pending.
 
 ## Baseline edit measurements
 

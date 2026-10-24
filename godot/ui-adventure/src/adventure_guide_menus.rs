@@ -1,11 +1,9 @@
 //! Retail EJ dropdown contents composed from shared menu primitives.
-use crate::{
-    adventure_guide::{LootFilter, Tab, View, loot_filter_entries},
-    auction_mail::text,
-    menu_primitives::{
-        ContextMenu, ContextMenuItem, MenuElementKind, context_menu_with_rows, menu_element,
-        menu_row_rect_with_heading,
-    },
+use crate::adventure_guide::{LootFilter, Tab, View, loot_filter_entries};
+use game_engine_ui_model::auction_mail::text;
+use game_engine_ui_model::menu_primitives::{
+    ContextMenu, ContextMenuItem, MenuElementKind, context_menu_with_rows, menu_element,
+    menu_row_rect_with_heading,
 };
 use ui_toolkit::widget_def::Element;
 

@@ -233,7 +233,7 @@ fn search_for_clear_action(action: &str) -> Option<&'static str> {
         game_engine_ui_model::bag_frame_component::ACTION_SEARCH_CLEAR => {
             Some(game_engine_ui_model::bag_frame_component::SEARCH_BOX)
         }
-        "journal:search-clear" => Some(game_engine_ui_model::adventure_guide::SEARCH),
+        "journal:search-clear" => Some(game_engine_ui_adventure::adventure_guide::SEARCH),
         "profession:search-clear" => Some(game_engine_ui_model::professions_frame::SEARCH),
         _ => None,
     }
@@ -312,7 +312,7 @@ impl RegistryModel {
     fn sync_journal_suggestion_hovers(&mut self, projection: &UiProjection) {
         if let Some(snapshot) = self
             .shared
-            .get::<game_engine_ui_model::adventure_guide::View>()
+            .get::<game_engine_ui_adventure::adventure_guide::View>()
             .and_then(|view| view.activities.as_deref())
         {
             projection.sync_journal_suggestion_hovers(&mut self.registry, snapshot);
@@ -347,12 +347,12 @@ impl RegistryModel {
             }
         }
         if let Some(next) = (&state as &dyn std::any::Any)
-            .downcast_ref::<game_engine_ui_model::adventure_guide::View>()
+            .downcast_ref::<game_engine_ui_adventure::adventure_guide::View>()
             && let Some(previous) = self
                 .shared
-                .get::<game_engine_ui_model::adventure_guide::View>()
+                .get::<game_engine_ui_adventure::adventure_guide::View>()
         {
-            game_engine_ui_model::adventure_guide_art::reset_changed_scrolls(
+            game_engine_ui_adventure::adventure_guide_art::reset_changed_scrolls(
                 previous,
                 next,
                 &mut self.registry,
@@ -422,9 +422,12 @@ impl RegistryModel {
         }
         if let Some(view) = self
             .shared
-            .get::<game_engine_ui_model::adventure_guide::View>()
+            .get::<game_engine_ui_adventure::adventure_guide::View>()
         {
-            game_engine_ui_model::adventure_guide_art::apply_postsetup(view, &mut self.registry);
+            game_engine_ui_adventure::adventure_guide_art::apply_postsetup(
+                view,
+                &mut self.registry,
+            );
             self.icon_masks.apply(&mut self.registry);
         }
         game_engine_ui_model::collections_component::apply_collections_postsetup(
@@ -963,13 +966,13 @@ impl RegistryModel {
             }
             _ if self
                 .shared
-                .get::<game_engine_ui_model::adventure_guide::View>()
+                .get::<game_engine_ui_adventure::adventure_guide::View>()
                 .is_some()
                 && self.registry.focused_frame.is_some()
                 && self.registry.focused_frame
                     == self
                         .registry
-                        .get_by_name(game_engine_ui_model::adventure_guide::SEARCH) =>
+                        .get_by_name(game_engine_ui_adventure::adventure_guide::SEARCH) =>
             {
                 actions.push_back("journal:search-submit".into());
             }
@@ -2198,7 +2201,7 @@ impl RegistryUi {
 
     pub fn show_adventure_guide(
         &mut self,
-        state: game_engine_ui_model::adventure_guide::View,
+        state: game_engine_ui_adventure::adventure_guide::View,
     ) -> Result<(), String> {
         let parent = self.hud_parent()?;
         let mut registry = parent.registry();
@@ -2208,7 +2211,7 @@ impl RegistryUi {
         )?;
         self.show_viewport_screen_in(
             state,
-            game_engine_ui_model::adventure_guide::adventure_guide_screen,
+            game_engine_ui_adventure::adventure_guide::adventure_guide_screen,
             ScreenPostsetup::None,
             registry,
             parent,
@@ -2898,7 +2901,7 @@ impl RegistryUi {
         let model = self.model.as_mut().ok_or("Journal model missing")?;
         let view = model
             .shared
-            .get::<game_engine_ui_model::adventure_guide::View>()
+            .get::<game_engine_ui_adventure::adventure_guide::View>()
             .ok_or("Journal state missing")?;
         let section = view
             .catalog
@@ -2918,7 +2921,7 @@ impl RegistryUi {
             .and_then(|id| model.registry.get(id))
             .and_then(|frame| frame.layout_rect.as_ref())
             .ok_or_else(|| format!("Journal search target {name} has no layout"))?;
-        let list = game_engine_ui_model::adventure_guide::LIST;
+        let list = game_engine_ui_adventure::adventure_guide::LIST;
         let bounds = model
             .registry
             .get_by_name(list)
@@ -3320,11 +3323,11 @@ impl RegistryUi {
             UiInput::Focus(id) | UiInput::Blur(id)
                 if model
                     .shared
-                    .get::<game_engine_ui_model::adventure_guide::View>()
+                    .get::<game_engine_ui_adventure::adventure_guide::View>()
                     .is_some()
                     && model
                         .registry
-                        .get_by_name(game_engine_ui_model::adventure_guide::SEARCH)
+                        .get_by_name(game_engine_ui_adventure::adventure_guide::SEARCH)
                         == Some(id) =>
             {
                 let focused = matches!(event, UiInput::Focus(_));
@@ -3342,7 +3345,7 @@ impl RegistryUi {
             UiInput::SearchPreviewStep(step) => {
                 let action = if model
                     .shared
-                    .get::<game_engine_ui_model::adventure_guide::View>()
+                    .get::<game_engine_ui_adventure::adventure_guide::View>()
                     .is_some()
                 {
                     format!("journal:search-move:{step}")
@@ -3365,7 +3368,7 @@ impl RegistryUi {
                 if entered
                     && model
                         .shared
-                        .get::<game_engine_ui_model::adventure_guide::View>()
+                        .get::<game_engine_ui_adventure::adventure_guide::View>()
                         .is_some()
                 {
                     let name = model
@@ -3374,7 +3377,7 @@ impl RegistryUi {
                         .and_then(|frame| frame.name.as_deref())
                         .unwrap_or("");
                     let index = if name == "JournalSearchAll" {
-                        Some(game_engine_ui_model::adventure_search::PREVIEW_LIMIT)
+                        Some(game_engine_ui_adventure::adventure_search::PREVIEW_LIMIT)
                     } else {
                         name.strip_prefix("JournalSearchPreview")
                             .and_then(|value| value.parse::<usize>().ok())

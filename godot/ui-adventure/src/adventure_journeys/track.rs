@@ -1,8 +1,6 @@
 //! Blizzard_FrameXML/RewardTrackTemplates.xml/.lua ordinary renown track.
-use crate::{
-    bank_art::{WHITE, label, texture},
-    quest_art::{DynName, NORMAL_FONT_COLOR, named_atlas_texture},
-};
+use game_engine_ui_model::bank_art::{WHITE, label, texture};
+use game_engine_ui_model::quest_art::{DynName, NORMAL_FONT_COLOR, named_atlas_texture};
 use shared::protocol::MajorFactionSnapshot;
 use ui_toolkit::{rsx, widget_def::Element};
 

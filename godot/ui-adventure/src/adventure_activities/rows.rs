@@ -5,11 +5,9 @@ use shared::protocol::{AdventureGuideSnapshot, PerksActivityProgress, PerksActiv
 use ui_toolkit::widget_def::Element;
 
 use super::{ActivityFilters, presentation};
-use crate::{
-    bank_art::label,
-    quest_art::{HIGHLIGHT_FONT_COLOR, line_height, wrapped_line_count},
-    selection_list::{Art, RowArt, RowTemplate},
-};
+use game_engine_ui_model::bank_art::label;
+use game_engine_ui_model::quest_art::{HIGHLIGHT_FONT_COLOR, line_height, wrapped_line_count};
+use game_engine_ui_model::selection_list::{Art, RowArt, RowTemplate};
 
 struct ActivityGroup<'a> {
     source_root: &'a PerksActivitySnapshot,
@@ -175,7 +173,7 @@ pub(super) fn render(row: &ActivityRow<'_>, rewards_available: Option<bool>) -> 
     content.extend(row_rewards(row, rewards_available));
     let left = if row.child { 32. } else { 0. };
     ui_toolkit::tooltip::bind_provider_at(
-        crate::selection_list::row(
+        game_engine_ui_model::selection_list::row(
             format!("JournalActivity{}", row.activity.id),
             &format!("journal:activity:{}", row.activity.id),
             true,

@@ -1,11 +1,11 @@
 //! Blizzard_EncounterJournal.xml texture regions and translated anchors.
 //! UI-EJ-* are virtual XML textures on FDID522972, not DB2 atlas members.
 use crate::adventure_guide::{Page, Tab, View};
-use crate::bank_art::{WHITE, cropped, label};
-use crate::quest_art::{
+use game_engine_core::adventure_guide::{Encounter, Instance};
+use game_engine_ui_model::bank_art::{WHITE, cropped, label};
+use game_engine_ui_model::quest_art::{
     DynName, named_atlas_texture, window_portrait_slot, window_portrait_texture,
 };
-use game_engine_core::adventure_guide::{Encounter, Instance};
 use ui_toolkit::{rsx, widget_def::Element};
 
 pub const INK: &str = "0.13,0.07,0.01,1.0";
@@ -394,7 +394,7 @@ pub fn search_box(value: &str) -> Element {
     }
     parts.extend(rsx! {editbox {name:"EncounterJournalSearchBox",text:value,left:580.0,top:32.0,width:210.0,height:20.0,font_size:12.0,font_color:WHITE,max_letters:40,text_insets:"16,20,0,0",pos_type:"absolute"}});
     let instructions_hidden = !value.is_empty();
-    parts.extend(rsx! {fontstring {name:"EncounterJournalSearchBoxInstructions",text:crate::auction_mail::text("SEARCH"),left:596.0,top:32.0,width:174.0,height:20.0,pos_type:"absolute",font_size:12.0,font_color:"0.35,0.35,0.35,1",justify_h:"LEFT",hidden:instructions_hidden}});
+    parts.extend(rsx! {fontstring {name:"EncounterJournalSearchBoxInstructions",text:game_engine_ui_model::auction_mail::text("SEARCH"),left:596.0,top:32.0,width:174.0,height:20.0,pos_type:"absolute",font_size:12.0,font_color:"0.35,0.35,0.35,1",justify_h:"LEFT",hidden:instructions_hidden}});
     // RSX static float literals truncate fractions; expressions preserve the XML center anchor.
     // Remove this binding when ui-toolkit-macros preserves numeric literal precision.
     let clear_top = 32.0 + (20.0 - 17.0) / 2.0;
@@ -455,7 +455,7 @@ pub fn portrait(view: &View) -> Element {
 
 /// Retail NavBarTemplate owns sizing, arrow placement and real interaction regions.
 pub fn navigation(view: &View) -> Element {
-    use crate::navigation_bar::{NavBar, NavButton, nav_bar};
+    use game_engine_ui_model::navigation_bar::{NavBar, NavButton, nav_bar};
     let instance = view.instance.and_then(|id| view.catalog.instance(id));
     let encounter = view.encounter.and_then(|id| view.catalog.encounter(id));
     let instance_action = instance.map(|i| format!("journal:instance:{}", i.id));
@@ -470,9 +470,9 @@ pub fn navigation(view: &View) -> Element {
     let journey_action = journey.map(|faction| format!("journal:journey:{}", faction.id));
     let mut buttons = vec![NavButton {
         name: "EncounterJournalBack",
-        text: crate::auction_mail::text("HOME"),
+        text: game_engine_ui_model::auction_mail::text("HOME"),
         action: "journal:back",
-        text_width: navigation_text_width(crate::auction_mail::text("HOME")),
+        text_width: navigation_text_width(game_engine_ui_model::auction_mail::text("HOME")),
     }];
     if let Some(instance) = instance {
         buttons.push(NavButton {
@@ -518,7 +518,7 @@ fn navigation_text_width(value: &str) -> f32 {
 
 /// Shared PanelTabButtonTemplate; source names/order and Lua +3px spacing.
 pub fn bottom_tabs(view: &View) -> Element {
-    use crate::auction_mail::text as global_string;
+    use game_engine_ui_model::auction_mail::text as global_string;
     let mut left = 11.;
     [
         ("Journeys", "JOURNEYS_LABEL", "journeys", Tab::Journeys),
@@ -547,8 +547,8 @@ pub fn bottom_tabs(view: &View) -> Element {
     .into_iter()
     .flat_map(|(key, title, action, tab)| {
         let title = global_string(title);
-        let width = crate::merchant_frame_component::tab_width(title);
-        let out = crate::merchant_frame_component::tab(
+        let width = game_engine_ui_model::merchant_frame_component::tab_width(title);
+        let out = game_engine_ui_model::merchant_frame_component::tab(
             &format!("EncounterJournal{key}Tab"),
             title,
             (left, 494., width),
@@ -658,7 +658,7 @@ fn difficulty_glyph(difficulty: u32) -> (Element, f32, f32) {
     };
     if let Some(atlas) = atlas {
         let (width, height) =
-            crate::inworld_unit_frames_component::inworld_unit_frames_art::atlas_size(
+            game_engine_ui_model::inworld_unit_frames_component::inworld_unit_frames_art::atlas_size(
                 atlas,
                 ui_toolkit::atlas::thread_skin(),
             )
@@ -740,7 +740,9 @@ pub fn dropdown(
     rect: (f32, f32, f32, f32),
     open: bool,
 ) -> Element {
-    use crate::menu_primitives::{DropdownButton, DropdownState, dropdown_button_with_state};
+    use game_engine_ui_model::menu_primitives::{
+        DropdownButton, DropdownState, dropdown_button_with_state,
+    };
     dropdown_button_with_state(
         DropdownButton {
             frame_name: name,
