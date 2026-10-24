@@ -4,7 +4,7 @@ Inspection: 2026-10-24. Native reference W is `/home/osso/Repos/wowdecomp` at `0
 
 ## `GetGuildBankTabPermissions(tab)`
 
-The global binding requires a number-convertible first argument; a nonnumeric argument raises a Lua usage error. It converts the value to `int32`, subtracts one, then narrows to `uint8`. There is no explicit 1–6 range check. For ordinary inputs whose normalized byte is at least six (for example, tab 0 or 7), the getter returns four values: nil, nil, nil, and numeric 0. Because of the narrowing conversion, some extreme out-of-range values can wrap to a valid tab index; the binding does not enforce a strict user-facing range.
+The global binding requires a number-convertible first argument; a nonnumeric or missing argument raises a Lua usage error. It reads only argument 1 and ignores extras. It converts the value to `int32`, subtracts one, then narrows to `uint8`. There is no explicit 1–6 range check. For ordinary inputs whose normalized byte is at least six (for example, tab 0 or 7), the getter returns four values: nil, nil, nil, and numeric 0. Because of the narrowing conversion, some extreme out-of-range values can wrap to a valid tab index; the binding does not enforce a strict user-facing range.
 
 For a valid normalized tab and selected rank, the exact result order is:
 
@@ -21,7 +21,7 @@ The binding reads `m_rankInfo[s_guildControlRank]`, not the active player's rank
 
 ## `GetGuildBankWithdrawLimit()`
 
-This global takes no arguments and returns one Lua number. It reads the selected rank's `m_bankMoneyPerDay`. For nonnegative stored values it returns integer division by 10,000; negative values pass through unchanged. The field and API identify the selected rank's daily guild-bank money limit. The setter/save path's 10,000 multiplier is consistent with a gold-scale UI value, but this client source does not prove server-side unit policy.
+This global reads no arguments, does not validate argument count, and ignores extras. It returns one Lua number from the selected rank's `m_bankMoneyPerDay`. For nonnegative stored values it returns integer division by 10,000; negative values pass through unchanged. The field and API identify the selected rank's daily guild-bank money limit. The setter/save path's 10,000 multiplier is consistent with a gold-scale UI value, but this client source does not prove server-side unit policy.
 
 ## Backing state, defaults, and rank cases
 
