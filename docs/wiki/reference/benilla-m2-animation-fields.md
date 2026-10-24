@@ -57,6 +57,21 @@ Each E translation/rotation/scale track instantiates every descriptor row in [ri
 
 B 28-byte `ChannelTrack` descriptor fields (`B/crates/benilla-formats/src/models/anim.rs:365–428`) are individually: interpolation `u16 +0`; global-sequence `u16 +2`; range count `u32 +4`; range offset `u32 +8`; timestamp count `u32 +0x0c`; timestamp offset `u32 +0x10`; value count slot `u32 +0x14`; value offset `u32 +0x18`. This particular adapter iterates timestamp count and bounds-checks payload rather than reading the value-count slot. Range elements each contain `lo:u32` and `hi:u32`; retained as windows. Addresses are not retained. These are not modern E missing fields: E uses nested per-sequence arrays instead of B ranges. Base B spline-track readers have their own descriptor behavior, not automatically this adapter's behavior.
 
+## B-only lookup and raw-sequence boundaries
+
+| B input | Serialized location | Handling / actual consumer |
+|---|---|---|
+| Playable resolved ID | Low16 bits of each4-byte entry; table count/offset `0x2c/0x30` | Retained `resolved_id` (`B/crates/benilla-m2/src/lib.rs:317–330`); requested animation replacement `B/crates/benilla-app/src/ranged_flex.rs:117`. No matching E header at those offsets: E stores bones there. |
+| Playable direction flags | High16 bits of same entry | Retained `dir_flags`; format adapter carries but does not apply them (`B/crates/benilla-formats/src/models/anim.rs:185–208`). No applied direction policy established by this bounded audit. |
+| Animation lookup entry | `u16[]`, table `0x24/0x28` | Base reader retains table; ownership query `B/crates/benilla-m2/src/model.rs:299–304` checks non-0xffff slot. E header interval unread in inspected parser. |
+| Sequence start time | `u32 record+4` in68-byte B record | Retained/rebased for keys; duration derived from start/end (`B/crates/benilla-formats/src/models/anim.rs:617–645`). Not modern E duration semantics. |
+| Sequence end time | `u32 record+8` | Independent authored endpoint; same adapter. |
+| Sequence raw flags | `u32 record+0x10` | Cooked looping = bit0 clear (`:626,643`); remaining raw flags not retained in `ModelAnimation`. |
+| Sequence bounds radius | `f32 record+0x3c` | Retained (`:636`); no E sphere-radius read at its opaque sequence+0x38..0x3c. |
+| Sequence opaque intervals | `record+2..4`, `+0x16..0x18`, `+0x40..0x44` | No reads by B sequence adapter `:617–645`; bytes not retained or assigned semantic names here. |
+
+B sequence accounting: ID2 + start/end8 + movespeed4 + flags4 + frequency2 + replay8 + blend4 + bounds24 + radius4 =60 named bytes; opaque2+2+4 =8, total68. Cooked `seq_index`, seconds-duration, looping and bounds-center are derived; not additional serialized fields.
+
 ## Global sequences and sidecars
 
 | Input | Decode / retention | Downstream boundary |
