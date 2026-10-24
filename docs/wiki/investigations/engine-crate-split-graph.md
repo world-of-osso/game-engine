@@ -514,3 +514,8 @@ All other SCCs are singletons (self-edges omitted).
 | world_map | 19 | 993 (0) | 6 | @main, account, assets, frame_error, quests, ui, vignettes | — |
 | world_models | 9 | 814 (0) | 10 | animation, assets, equipment_appearance_data, lighting, npc_gear_data, particles | — |
 | xp_bar | 0 | 118 (0) | 3 | @main, frame_error, tooltips, ui | — |
+
+## Sources
+
+- `scripts/engine-crate-graph.py` — source scanner and SCC/churn census.
+- [Engine crate split plan](engine-crate-split-plan.md) — interpretation and limitations.
