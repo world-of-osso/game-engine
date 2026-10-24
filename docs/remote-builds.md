@@ -62,6 +62,8 @@ Adventure Guide similarly owns `game-engine-ui-adventure`; its seven suites shar
 
 `game-engine-ui-professions` owns presentation only; run `python3 scripts/depot-build.py --root "$PWD" --test -p game-engine-ui-professions --lib --test integration -j4`. Shared ProfessionBook/Recipe/quality/reagent-count/catalog models stay in ui-model. The two moved mixed-suite integration cases and four mixed unit cases keep exact original names; [ownership/census](wiki/investigations/engine-crate-split-plan.md#professions-extraction-implementation).
 
+`game-engine-ui-player-spells` owns Player Spells/talent presentation and offline previews; run `python3 scripts/depot-build.py --root "$PWD" --test -p game-engine-ui-player-spells --lib --test integration -j4`. The data-only classbook audit stays ignored. Base `player_spells_data` uniquely owns PlayerSpellsTab and SpellbookItemView; talent/editor/loadout/search/override implementations remain base. [Exact moved/residual census and timing controls](wiki/investigations/engine-crate-split-plan.md#player-spells-presentation--approved-next-slice).
+
 ## UI icons prepared before shipping
 
 Release builds run `scripts/prepare_ui_icons.py` on the originating developer checkout before native compilation. It enumerates all positive spell/trait/class/spec and source-local item icon metadata, writes `data/cache/required-ui-icons.json`, and uses the existing sibling `asset-resolver/target/debug/casc-local` to fill missing BLPs from local archives only. Source-table hashes and actual file hashes/sizes are recorded in `data/cache/ui-icon-provenance.json`; these cache files and textures are included by `deploy.sh`.

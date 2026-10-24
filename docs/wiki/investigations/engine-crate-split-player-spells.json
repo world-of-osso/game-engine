@@ -1,0 +1,728 @@
+{
+  "source_revision": "c6dfa999e",
+  "production_revision": "d8d935ea2",
+  "before_source": "1123c7606",
+  "before_receipt": "engine-crate-split-player-spells-before.json",
+  "rename_only_revision": "534ae04b1",
+  "wiring_revision": "d8d935ea2",
+  "orphan_test_helper_removal": "c6dfa999e",
+  "raw_archive": "/home/osso/.worktrees/logs/engine-crate-split-player-spells-d8d935ea2",
+  "scope": {
+    "original_source_files": 11,
+    "original_source_lines": 3878,
+    "existing_shared_type_lines_retained_base": 35,
+    "existing_presentation_lines_to_feature": 3843,
+    "base_data_module": "player_spells_data",
+    "unique_base_types": [
+      "PlayerSpellsTab enum and impl",
+      "SpellbookItemView struct"
+    ],
+    "retained_base_implementations": [
+      "talents",
+      "talent_editor",
+      "talent_loadouts",
+      "talent_search",
+      "spell_overrides"
+    ],
+    "dedicated_test_suites": 11,
+    "mixed_integration_cases": 4,
+    "residual_mixed_cases": 21
+  },
+  "check": {
+    "arguments": [
+      "-p",
+      "game-engine-ui-player-spells",
+      "-p",
+      "game-engine-godot",
+      "-j4",
+      "--message-format=json"
+    ],
+    "exit": 0,
+    "compiler_diagnostics": []
+  },
+  "tests": {
+    "ui-model:lib": {
+      "pass": 390,
+      "fail": 0,
+      "ignored": 0
+    },
+    "ui-player-spells:lib": {
+      "pass": 0,
+      "fail": 0,
+      "ignored": 0
+    },
+    "ui-player-spells:integration": {
+      "pass": 72,
+      "fail": 0,
+      "ignored": 1
+    },
+    "residual_mixed_integration": {
+      "pass": 21,
+      "fail": 0,
+      "ignored": 0
+    }
+  },
+  "proof_scope": "Production check/build/measurement and390unit+72feature tests atd8d935ea2;helper-only deletionc6dfa999e affects only residual harness,21rerun pass/no warnings. Temporary harness removed.",
+  "census": {
+    "base_units_before_after": 390,
+    "integration_before_total": 94,
+    "feature_integration_names_total": 73,
+    "residual_integration_names_total": 21,
+    "names_byte_identical": true,
+    "ignored_names_byte_identical": true,
+    "base_unit_names_sha256": "eeabf950bc2f5eb72b963d8fdcf51bb1ec7cd84c5d506caa5ef0d2f2ba4d1725",
+    "feature_integration_names": [
+      "classbook_catalog_audit::emit_classbook_catalog_coverage",
+      "classbook_icons::every_class_spellbook_entry_has_nonempty_real_icon",
+      "classbook_preview::explicit_preview_rejects_wrong_or_unknown_class_and_spec",
+      "classbook_preview::non_mage_preview_contains_own_spells_and_spec_tree",
+      "classbook_preview::paladin_preview_does_not_pretend_effects_and_artifact_abilities_are_known",
+      "micro_menu::combined_player_spells_micro_button_opens_specialization_when_talents_are_absent",
+      "pvp_progression::retail_war_mode_control_exists_but_requires_authoritative_context_in_both_skins",
+      "pvp_progression::three_source_pvp_slots_and_authoritative_choice_actions_render_in_both_skins",
+      "spellbook_frame::bottom_tab_bar_matches_retail_tab_system_geometry_in_both_skins",
+      "spellbook_frame::category_tabs_use_retail_update_tab_width",
+      "spellbook_frame::clicking_bottom_tabs_switches_content_in_both_skins",
+      "spellbook_frame::items_fill_columns_first_with_the_fewest_rows",
+      "spellbook_frame::known_spells_cast_and_future_spells_show_their_level_greyed",
+      "spellbook_frame::long_groups_continue_in_the_next_view",
+      "spellbook_frame::n_and_p_open_their_page_and_only_same_page_toggle_closes",
+      "spellbook_frame::player_spells_has_three_bottom_tabs",
+      "spellbook_frame::specialization_page_uses_class_data_and_marks_only_server_active_spec",
+      "spellbook_frame::spell_without_a_known_icon_builds_no_icon_texture",
+      "spellbook_frame::the_book_scales_to_fit_the_viewport",
+      "spellbook_frame::the_book_window_has_title_spec_portrait_and_close_button",
+      "spellbook_frame::ui_template_behavior_combat_spellbook_button_resolves_live_unlearned_spell_owner",
+      "spellbook_frame::ui_template_fonts_spellbook_preserves_unshadowed_book_text_and_shadowed_tabs",
+      "spellbook_frame::ui_template_fonts_tab_width_uses_glyph_metrics_not_character_count",
+      "spellbook_preview::mage_preview_projects_visible_player_spells_in_both_skins_and_all_pages",
+      "talent_centering::retail_ret_and_arcane_centers_use_db2_pan_without_fit_zoom_in_both_skins",
+      "talent_footer::keyboard_search_preview_selects_real_name_and_clear_removes_matches",
+      "talent_footer::reset_all_preserves_selected_hero_purchases_and_granted_main_ranks",
+      "talent_footer::reset_class_then_undo_restores_committed_purchases_and_keeps_spec",
+      "talent_footer::search_highlights_matching_nodes_and_preview_selects_actual_entry_in_both_skins",
+      "talent_footer::talent_loadout_new_opens_a_retail_name_dialog",
+      "talent_footer::ui_template_behavior_services_loadout_menu_keeps_disabled_export_owner_and_real_configurations",
+      "talent_layout::all40_specs_main_rects_and_hero_dialog_columns_fit_both_skins",
+      "talent_layout::arms_currency_headers_align_above_nodes_in_both_skins",
+      "talent_layout::arms_spend_badges_and_disabled_apply_remain_legible",
+      "talent_layout::hero_selector_excludes_unconditioned_nodes_from_other_specializations",
+      "talent_layout::mainline_capstone_keeps_84px_padded_art_around_64px_hit_target",
+      "talent_layout::mainline_spend_anchor_and_capstone_atlas_draw_bounds_match_retail",
+      "talent_layout::retail_reset_uses_20px_icon_inside_25px_footer_hit_rect",
+      "talent_layout::worst_three_specs_keep_nodes_above_footer_and_only_eligible_hero_options",
+      "talent_loadouts::talent_loadouts_both_skins_render_three_server_rows_and_selected_caption",
+      "talent_loadouts::talent_loadouts_both_skins_show_builtin_starter_without_gear",
+      "talent_loadouts::talent_loadouts_create_copies_pending_allocation_and_waits_for_server_selection",
+      "talent_loadouts::talent_loadouts_ignore_list_from_other_spec",
+      "talent_loadouts::talent_loadouts_import_dialog_has_retail_fields_limits_and_shared_geometry",
+      "talent_loadouts::talent_loadouts_import_export_roundtrip_queues_authoritative_create_only",
+      "talent_loadouts::talent_loadouts_invalid_import_retains_dialog_and_never_sends_request",
+      "talent_loadouts::talent_loadouts_modern_dialog_draws_the_mainline_panel_button_sheets",
+      "talent_loadouts::talent_loadouts_rename_delete_and_dirty_switch_require_correct_confirmations",
+      "talent_loadouts::talent_loadouts_retail_export_disallows_drafts_and_unspent_points",
+      "talent_loadouts::talent_loadouts_starter_deviation_requires_confirmation_and_undo_restores_guidance",
+      "talent_loadouts::talent_loadouts_starter_selection_waits_for_authority_and_is_not_a_named_config",
+      "talents::arcane_talents_render_real_icons_positions_edges_and_staged_choices_in_both_skins",
+      "talents::talent_tree3_available_icons_and_spec_background_are_authored_in_both_skins",
+      "talents::talent_tree3_choice_flyout_is_a_horizontal_authored_icon_row_above_its_node",
+      "talents::talent_tree3_edges_and_node_hover_use_authored_atlases",
+      "talents::talent_tree3_entry_tooltips_show_actual_choice_rank_and_never_route_navigation_as_a_spell",
+      "talents::talent_tree3_gate_badge_uses_retail_numeric_text_instead_of_overlapping_hero_nodes",
+      "talents::talent_tree3_headers_separate_spec_name_and_green32px_points_and_forever_skins_art",
+      "talents::talent_tree3_hero_dialog_anchors_to_ui_parent_and_covers_the_underlying_window",
+      "talents::talent_tree3_hero_selector_has_retail_headline_and_available_currency",
+      "talents::talent_tree3_hero_staging_keeps_dialog_apply_and_authored_close_control",
+      "talents::talent_tree3_real_gates_show_remaining_earlier_row_cost",
+      "talents::talents_pending_ranks_counters_apply_and_choice_elements_match_both_skins",
+      "talentwire::talent_tree3_switching_hero_subtree_refunds_its_purchases_but_keeps_grants",
+      "talentwire::talents_apply_serializes_full_entry_list",
+      "talentwire::talents_choice_flyout_selects_one_entry_and_switches",
+      "talentwire::talents_click_refund_and_undo_stage_without_mutating_committed",
+      "talentwire::talents_failure_reason_and_new_snapshot_clear_pending",
+      "talentwire::talents_gate_and_hero_level_reject_unavailable_purchases",
+      "talentwire::talents_impossible_clicks_do_nothing",
+      "talentwire::talents_snapshot_projects_ranks_and_points",
+      "talentwire::talents_tiered_refund_uses_db2_entry_order_not_sorted_wire_ids",
+      "textfit::textfit_long_spell_name_stays_above_subtext_and_level_in_both_skins"
+    ],
+    "residual_integration_names": [
+      "micro_menu::an_older_custom_layout_resets_to_forever_with_the_micro_menu_hidden",
+      "micro_menu::an_open_game_menu_pushes_its_button_and_disables_the_rest_without_tooltips",
+      "micro_menu::an_unconverted_button_is_lit_clickable_and_says_why_on_click",
+      "micro_menu::both_presets_hide_the_micro_menu_without_destroying_its_buttons",
+      "micro_menu::collections_tooltip_uses_the_assignable_live_binding",
+      "micro_menu::follower_group_finder_micro_button_is_enabled_with_native_action",
+      "micro_menu::hiding_and_showing_again_keeps_the_menu_and_portrait_slot_mounted",
+      "micro_menu::hover_shows_the_mouseover_atlas_and_an_open_window_pushes_its_button",
+      "micro_menu::retail_order_with_every_button_lit",
+      "micro_menu::the_character_button_draws_the_portrait_shadow_and_pushed_shadow_when_open",
+      "micro_menu::the_character_button_holds_the_player_portrait_slot_under_its_mask",
+      "micro_menu::tooltips_name_the_button_and_its_binding",
+      "micro_menu::ui_template_behavior_collection_micro_buttons_retain_live_binding_and_hidden_owner_lifetime",
+      "pvp_progression::honor_lifetime_display_never_substitutes_spendable_cap_for_unknown_level_curve",
+      "pvp_progression::quick_match_and_rated_tabs_show_wallet_balances_without_fake_season_policy",
+      "spell_overrides::animation_override_and_item_action_do_not_replace_spells",
+      "spell_overrides::override_applies_and_restores_action_button_without_rebinding",
+      "spell_overrides::spellbook_replacement_preserves_base_binding_and_presents_its_cooldown",
+      "spell_overrides::toyfx2_override_set_replaces_empty_spell_and_item_slots_then_restores",
+      "textfit::textfit_character_portrait_has_a_foreground_render_slot_in_both_skins",
+      "textfit::textfit_character_tab_captions_fit_in_both_skins"
+    ],
+    "ignored_before": [
+      "classbook_catalog_audit::emit_classbook_catalog_coverage"
+    ],
+    "ignored_after": [
+      "classbook_catalog_audit::emit_classbook_catalog_coverage"
+    ],
+    "original_473_unit_distribution_unchanged": {
+      "ui-model": 390,
+      "ui-housing": 37,
+      "ui-adventure": 4,
+      "ui-collections": 24,
+      "ui-professions": 18,
+      "ui-player-spells": 0
+    }
+  },
+  "measurements": [
+    {
+      "label": "cold-build",
+      "helper": "depot.build(native)",
+      "command": [
+        "build",
+        "-p",
+        "game-engine-godot",
+        "--lib",
+        "-j4",
+        "--message-format=json",
+        "--timings"
+      ],
+      "wall_s": 177.20796852884814,
+      "user_s": 477.278413,
+      "system_s": 12.67273,
+      "exit": 0,
+      "dirty_units": [
+        {
+          "package": "path+file:///home/osso/.cache/game-engine/native-roots/ed6da6aa056a8a9bf29d-d19212ff8350/game-engine/godot/ui-player-spells#game-engine-ui-player-spells@0.1.0",
+          "target": "game_engine_ui_player_spells",
+          "kind": [
+            "lib"
+          ],
+          "test": false,
+          "executable": null
+        },
+        {
+          "package": "path+file:///home/osso/.cache/game-engine/native-roots/ed6da6aa056a8a9bf29d-d19212ff8350/game-engine/godot/ui-housing#game-engine-ui-housing@0.1.0",
+          "target": "game_engine_ui_housing",
+          "kind": [
+            "lib"
+          ],
+          "test": false,
+          "executable": null
+        },
+        {
+          "package": "path+file:///home/osso/.cache/game-engine/native-roots/ed6da6aa056a8a9bf29d-d19212ff8350/game-engine/godot/ui-professions#game-engine-ui-professions@0.1.0",
+          "target": "game_engine_ui_professions",
+          "kind": [
+            "lib"
+          ],
+          "test": false,
+          "executable": null
+        },
+        {
+          "package": "path+file:///home/osso/.cache/game-engine/native-roots/ed6da6aa056a8a9bf29d-d19212ff8350/game-engine/godot/ui-collections#game-engine-ui-collections@0.1.0",
+          "target": "game_engine_ui_collections",
+          "kind": [
+            "lib"
+          ],
+          "test": false,
+          "executable": null
+        },
+        {
+          "package": "path+file:///home/osso/.cache/game-engine/native-roots/ed6da6aa056a8a9bf29d-d19212ff8350/game-engine/godot/ui-adventure#game-engine-ui-adventure@0.1.0",
+          "target": "game_engine_ui_adventure",
+          "kind": [
+            "lib"
+          ],
+          "test": false,
+          "executable": null
+        },
+        {
+          "package": "path+file:///home/osso/.cache/game-engine/native-roots/ed6da6aa056a8a9bf29d-d19212ff8350/game-engine/godot/ui-model#game-engine-ui-model@0.1.0",
+          "target": "game_engine_ui_model",
+          "kind": [
+            "lib"
+          ],
+          "test": false,
+          "executable": null
+        },
+        {
+          "package": "path+file:///home/osso/.cache/game-engine/native-roots/ed6da6aa056a8a9bf29d-d19212ff8350/game-engine/godot/rust#game-engine-godot@0.1.0",
+          "target": "game_engine_godot",
+          "kind": [
+            "cdylib",
+            "rlib"
+          ],
+          "test": false,
+          "executable": null
+        }
+      ],
+      "dependencies_before": {
+        "asset-resolver": "da1a0edb1248fb6666ed358c71b8ecb6e36ca526",
+        "ui-toolkit": "544b9fcef9001d27e3842cc2bb94c928b8ac97e6",
+        "ui-toolkit-macros": "645c0b88f65204ede9b9605faf2e84e89a82bcc2",
+        "shared-protocol": "2abc7fa844f6e71d93203ce5421ae853e884854d"
+      },
+      "dependencies_after": {
+        "asset-resolver": "da1a0edb1248fb6666ed358c71b8ecb6e36ca526",
+        "ui-toolkit": "544b9fcef9001d27e3842cc2bb94c928b8ac97e6",
+        "ui-toolkit-macros": "645c0b88f65204ede9b9605faf2e84e89a82bcc2",
+        "shared-protocol": "2abc7fa844f6e71d93203ce5421ae853e884854d"
+      },
+      "cargo_units": [
+        {
+          "i": 218,
+          "name": "game-engine-ui-model",
+          "version": "0.1.0",
+          "mode": "todo",
+          "target": "",
+          "features": [],
+          "start": 2.54,
+          "duration": 21.72,
+          "unblocked_units": [
+            212
+          ],
+          "unblocked_rmeta_units": [
+            215,
+            219,
+            220,
+            217,
+            216
+          ],
+          "sections": [
+            [
+              "frontend",
+              {
+                "start": 0.0,
+                "end": 13.8
+              }
+            ],
+            [
+              "codegen",
+              {
+                "start": 13.8,
+                "end": 21.72
+              }
+            ]
+          ]
+        },
+        {
+          "i": 216,
+          "name": "game-engine-ui-collections",
+          "version": "0.1.0",
+          "mode": "todo",
+          "target": "",
+          "features": [],
+          "start": 16.34,
+          "duration": 4.96,
+          "unblocked_units": [],
+          "unblocked_rmeta_units": [],
+          "sections": [
+            [
+              "frontend",
+              {
+                "start": 0.0,
+                "end": 2.11
+              }
+            ],
+            [
+              "codegen",
+              {
+                "start": 2.11,
+                "end": 4.96
+              }
+            ]
+          ]
+        },
+        {
+          "i": 217,
+          "name": "game-engine-ui-housing",
+          "version": "0.1.0",
+          "mode": "todo",
+          "target": "",
+          "features": [],
+          "start": 16.34,
+          "duration": 2.94,
+          "unblocked_units": [],
+          "unblocked_rmeta_units": [],
+          "sections": [
+            [
+              "frontend",
+              {
+                "start": 0.0,
+                "end": 0.85
+              }
+            ],
+            [
+              "codegen",
+              {
+                "start": 0.85,
+                "end": 2.94
+              }
+            ]
+          ]
+        },
+        {
+          "i": 219,
+          "name": "game-engine-ui-player-spells",
+          "version": "0.1.0",
+          "mode": "todo",
+          "target": "",
+          "features": [],
+          "start": 16.34,
+          "duration": 1.71,
+          "unblocked_units": [],
+          "unblocked_rmeta_units": [],
+          "sections": [
+            [
+              "frontend",
+              {
+                "start": 0.0,
+                "end": 0.67
+              }
+            ],
+            [
+              "codegen",
+              {
+                "start": 0.67,
+                "end": 1.71
+              }
+            ]
+          ]
+        },
+        {
+          "i": 215,
+          "name": "game-engine-ui-adventure",
+          "version": "0.1.0",
+          "mode": "todo",
+          "target": "",
+          "features": [],
+          "start": 18.05,
+          "duration": 3.34,
+          "unblocked_units": [],
+          "unblocked_rmeta_units": [],
+          "sections": [
+            [
+              "frontend",
+              {
+                "start": 0.0,
+                "end": 1.49
+              }
+            ],
+            [
+              "codegen",
+              {
+                "start": 1.49,
+                "end": 3.34
+              }
+            ]
+          ]
+        },
+        {
+          "i": 220,
+          "name": "game-engine-ui-professions",
+          "version": "0.1.0",
+          "mode": "todo",
+          "target": "",
+          "features": [],
+          "start": 19.28,
+          "duration": 1.71,
+          "unblocked_units": [],
+          "unblocked_rmeta_units": [],
+          "sections": [
+            [
+              "frontend",
+              {
+                "start": 0.0,
+                "end": 0.84
+              }
+            ],
+            [
+              "codegen",
+              {
+                "start": 0.84,
+                "end": 1.71
+              }
+            ]
+          ]
+        },
+        {
+          "i": 212,
+          "name": "game-engine-godot",
+          "version": "0.1.0",
+          "mode": "todo",
+          "target": "",
+          "features": [],
+          "start": 24.26,
+          "duration": 152.59,
+          "unblocked_units": [],
+          "unblocked_rmeta_units": [],
+          "sections": null
+        }
+      ],
+      "log_sha256": "e4688f380874ff73873b47dd2dd1556822e1d61e684f14fe599e3ba883e29674",
+      "timing_html": "cargo-timings/cargo-timing-20261024T133917691Z-30b50b5d2a71bae4.html"
+    },
+    {
+      "label": "noop-build",
+      "helper": "depot.build(native)",
+      "command": [
+        "build",
+        "-p",
+        "game-engine-godot",
+        "--lib",
+        "-j4",
+        "--message-format=json",
+        "--timings"
+      ],
+      "wall_s": 1.0447012179065496,
+      "user_s": 0.3609950000000026,
+      "system_s": 0.17406200000000105,
+      "exit": 0,
+      "dirty_units": [],
+      "dependencies_before": {
+        "asset-resolver": "da1a0edb1248fb6666ed358c71b8ecb6e36ca526",
+        "ui-toolkit": "544b9fcef9001d27e3842cc2bb94c928b8ac97e6",
+        "ui-toolkit-macros": "645c0b88f65204ede9b9605faf2e84e89a82bcc2",
+        "shared-protocol": "2abc7fa844f6e71d93203ce5421ae853e884854d"
+      },
+      "dependencies_after": {
+        "asset-resolver": "da1a0edb1248fb6666ed358c71b8ecb6e36ca526",
+        "ui-toolkit": "544b9fcef9001d27e3842cc2bb94c928b8ac97e6",
+        "ui-toolkit-macros": "645c0b88f65204ede9b9605faf2e84e89a82bcc2",
+        "shared-protocol": "2abc7fa844f6e71d93203ce5421ae853e884854d"
+      },
+      "cargo_units": [],
+      "log_sha256": "ba7cd3b0553702e23602e323bd2c3bd003182651e781fb653645dbb94efb5184",
+      "timing_html": "cargo-timings/cargo-timing-20261024T134245058Z-30b50b5d2a71bae4.html"
+    },
+    {
+      "label": "ui-edit-build-restore",
+      "helper": "depot.build(native)",
+      "command": [
+        "build",
+        "-p",
+        "game-engine-godot",
+        "--lib",
+        "-j4",
+        "--message-format=json",
+        "--timings"
+      ],
+      "wall_s": 16.453337020007893,
+      "user_s": 7.040023000000019,
+      "system_s": 1.748944999999999,
+      "exit": 0,
+      "dirty_units": [
+        {
+          "package": "path+file:///home/osso/.cache/game-engine/native-roots/ed6da6aa056a8a9bf29d-d19212ff8350/game-engine/godot/ui-player-spells#game-engine-ui-player-spells@0.1.0",
+          "target": "game_engine_ui_player_spells",
+          "kind": [
+            "lib"
+          ],
+          "test": false,
+          "executable": null
+        },
+        {
+          "package": "path+file:///home/osso/.cache/game-engine/native-roots/ed6da6aa056a8a9bf29d-d19212ff8350/game-engine/godot/rust#game-engine-godot@0.1.0",
+          "target": "game_engine_godot",
+          "kind": [
+            "cdylib",
+            "rlib"
+          ],
+          "test": false,
+          "executable": null
+        }
+      ],
+      "dependencies_before": {
+        "asset-resolver": "da1a0edb1248fb6666ed358c71b8ecb6e36ca526",
+        "ui-toolkit": "544b9fcef9001d27e3842cc2bb94c928b8ac97e6",
+        "ui-toolkit-macros": "645c0b88f65204ede9b9605faf2e84e89a82bcc2",
+        "shared-protocol": "2abc7fa844f6e71d93203ce5421ae853e884854d"
+      },
+      "dependencies_after": {
+        "asset-resolver": "da1a0edb1248fb6666ed358c71b8ecb6e36ca526",
+        "ui-toolkit": "544b9fcef9001d27e3842cc2bb94c928b8ac97e6",
+        "ui-toolkit-macros": "645c0b88f65204ede9b9605faf2e84e89a82bcc2",
+        "shared-protocol": "2abc7fa844f6e71d93203ce5421ae853e884854d"
+      },
+      "cargo_units": [
+        {
+          "i": 219,
+          "name": "game-engine-ui-player-spells",
+          "version": "0.1.0",
+          "mode": "todo",
+          "target": "",
+          "features": [],
+          "start": 3.69,
+          "duration": 0.68,
+          "unblocked_units": [
+            212
+          ],
+          "unblocked_rmeta_units": [],
+          "sections": [
+            [
+              "frontend",
+              {
+                "start": 0.0,
+                "end": 0.56
+              }
+            ],
+            [
+              "codegen",
+              {
+                "start": 0.56,
+                "end": 0.68
+              }
+            ]
+          ]
+        },
+        {
+          "i": 212,
+          "name": "game-engine-godot",
+          "version": "0.1.0",
+          "mode": "todo",
+          "target": "",
+          "features": [],
+          "start": 4.37,
+          "duration": 11.99,
+          "unblocked_units": [],
+          "unblocked_rmeta_units": [],
+          "sections": null
+        }
+      ],
+      "log_sha256": "46509332de516024ce66a90e23aa4b2689ba9e6864769f667d4c3bb571dcf613",
+      "timing_html": "cargo-timings/cargo-timing-20261024T134409465Z-30b50b5d2a71bae4.html"
+    },
+    {
+      "label": "ui-edit-build",
+      "helper": "depot.build(native)",
+      "command": [
+        "build",
+        "-p",
+        "game-engine-godot",
+        "--lib",
+        "-j4",
+        "--message-format=json",
+        "--timings"
+      ],
+      "wall_s": 22.913701607845724,
+      "user_s": 7.786354000000017,
+      "system_s": 4.352401999999998,
+      "exit": 0,
+      "dirty_units": [
+        {
+          "package": "path+file:///home/osso/.cache/game-engine/native-roots/ed6da6aa056a8a9bf29d-d19212ff8350/game-engine/godot/ui-player-spells#game-engine-ui-player-spells@0.1.0",
+          "target": "game_engine_ui_player_spells",
+          "kind": [
+            "lib"
+          ],
+          "test": false,
+          "executable": null
+        },
+        {
+          "package": "path+file:///home/osso/.cache/game-engine/native-roots/ed6da6aa056a8a9bf29d-d19212ff8350/game-engine/godot/rust#game-engine-godot@0.1.0",
+          "target": "game_engine_godot",
+          "kind": [
+            "cdylib",
+            "rlib"
+          ],
+          "test": false,
+          "executable": null
+        }
+      ],
+      "dependencies_before": {
+        "asset-resolver": "da1a0edb1248fb6666ed358c71b8ecb6e36ca526",
+        "ui-toolkit": "544b9fcef9001d27e3842cc2bb94c928b8ac97e6",
+        "ui-toolkit-macros": "645c0b88f65204ede9b9605faf2e84e89a82bcc2",
+        "shared-protocol": "2abc7fa844f6e71d93203ce5421ae853e884854d"
+      },
+      "dependencies_after": {
+        "asset-resolver": "da1a0edb1248fb6666ed358c71b8ecb6e36ca526",
+        "ui-toolkit": "544b9fcef9001d27e3842cc2bb94c928b8ac97e6",
+        "ui-toolkit-macros": "645c0b88f65204ede9b9605faf2e84e89a82bcc2",
+        "shared-protocol": "2abc7fa844f6e71d93203ce5421ae853e884854d"
+      },
+      "cargo_units": [
+        {
+          "i": 219,
+          "name": "game-engine-ui-player-spells",
+          "version": "0.1.0",
+          "mode": "todo",
+          "target": "",
+          "features": [],
+          "start": 0.45,
+          "duration": 0.85,
+          "unblocked_units": [
+            212
+          ],
+          "unblocked_rmeta_units": [],
+          "sections": [
+            [
+              "frontend",
+              {
+                "start": 0.0,
+                "end": 0.72
+              }
+            ],
+            [
+              "codegen",
+              {
+                "start": 0.72,
+                "end": 0.85
+              }
+            ]
+          ]
+        },
+        {
+          "i": 212,
+          "name": "game-engine-godot",
+          "version": "0.1.0",
+          "mode": "todo",
+          "target": "",
+          "features": [],
+          "start": 1.3,
+          "duration": 21.54,
+          "unblocked_units": [],
+          "unblocked_rmeta_units": [],
+          "sections": null
+        }
+      ],
+      "log_sha256": "1918e1822c171e8e9c105514393443457634778889aa6a43074b17f66fb3b64b",
+      "timing_html": "cargo-timings/cargo-timing-20261024T134316199Z-30b50b5d2a71bae4.html"
+    }
+  ],
+  "common_artifact_feature_profile_multiset_differences": [],
+  "before_edit_wall_s": 23.287426985101774,
+  "after_edit_wall_s": 22.913701607845724,
+  "before_edit_child_cpu_s": 17.50857,
+  "after_edit_child_cpu_s": 12.138756000000015,
+  "isolation": "OnlyPlayerSpells+GDExtension dirty onpostcut edit;base/Housing/Adventure/Collections/Professions fresh",
+  "log_sha256": {
+    "player-spells-after-ignored-driver.log": "c03cad56e2e22809dd1c91ab974c11126928c62d7294a5adcf5b19f810737835",
+    "player-spells-after-ignored.log": "696bad213916583289ee0670baff3b05e8b3479d4fddfd4b9ad471a30366e6a2",
+    "player-spells-tests-driver.log": "53c3dddea3b5ad45be9221d24659ce77d7569d6e0c2b1251e251d9c41271955c",
+    "player-spells-after-census.log": "0d48d2565d8b6c36782447f39f74d2de81beae6049adc4d7e8c46308b39d69d3",
+    "player-spells-residual-helper-green.log": "b4f06982578427da6feeb90a9900bb3f5b8a3bb18875f0be7c3d2ba3d9e47bcb",
+    "player-spells-base-tests.log": "567c7b8525f5f5b6e4dfb80f75ef20da3727a299cbc810667f9d59c16a8f42dc",
+    "player-spells-after-base-census-driver.log": "b4e058383e905e2bdbc179cc5ab5accbfadc7c9ecb5546553b1e48c7062fee0c",
+    "player-spells-base-tests-driver.log": "c274439b4e8b25b67fd39473ae3d74cd4d590c0be1ac05434d9b9b7cbce3ea1b",
+    "player-spells-after-base-census.log": "d8f6ffa0ffa9808872365515e6923dcbe347bcaa0b6f3e4eb447eb742dbc407d",
+    "player-spells-after-measure-driver.log": "564702a3b0086949bd87859eeaafba46444038157ff39e81c187775c9cddf4d2",
+    "player-spells-tests.log": "0f357fa5a181b5f8ac1d46704594db231fefab030f44e005ba63ee89f90dc2cb",
+    "player-spells-check.log": "4840e85825811add950482725f7386103c1c12a5e1990d3d707216bb84962bf1",
+    "player-spells-after-census-driver.log": "12d8418d08c48efb0462e131627181bf774c85874eff753ff6a54fdbeeb8a6b0",
+    "player-spells-residual-helper-green-driver.log": "9c03249ae7c6c97b88a7e671fbe4deb5084109de920bd85758ef8ab607b758e2",
+    "player-spells-before-measure-driver.log": "c885494c185d3a9fb09cf3dbaca4ca86b7003de8aa6c3733c7be44a3d8f9a605"
+  },
+  "qualification": "No wall-speed claim under unequal shared-host load. Single descriptive edit samples differ0.374s;childCPU30.7%lower,feature unit0.85s/native21.54s vsbase5.91/native16.06before. Controls retained,input restored,pins/profiles matched. No new full-suite/native-runtime acceptance;parent owns11-package gate/push/merge."
+}
