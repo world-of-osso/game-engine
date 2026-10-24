@@ -64,7 +64,7 @@ Wait for item metadata before native bag actions: the prior absent-metadata bran
 
 ## Sources
 
-- [Book](../../../godot/ui-model/src/transmog.rs), [wardrobe state](../../../godot/ui-model/src/transmog/wardrobe.rs), [filters](../../../godot/ui-model/src/transmog/filters.rs), [frame](../../../godot/ui-model/src/transmog_frame.rs).
+- [Book](../../../godot/ui-collections/src/transmog.rs), [wardrobe state](../../../godot/ui-collections/src/transmog/wardrobe.rs), [filters](../../../godot/ui-collections/src/transmog/filters.rs), [frame](../../../godot/ui-collections/src/transmog_frame.rs).
 - [Native host](../../../godot/rust/src/transmog.rs), [collection previews](../../../godot/rust/src/transmog/collection.rs), [live fixture](../../../godot/tests/transmog_wardrobe_live.gd).
 - Local Retail `Blizzard_Transmog/Blizzard_Transmog.xml`, `Blizzard_TransmogTemplates.xml/.lua`, `Blizzard_Transmog.lua`, and generated `TransmogSharedDocumentation.lua`/`TransmogSetsDocumentation.lua`.
 - [Server metadata importer](../../../../game-server/scripts/import_transmog_catalogue.py); pinned TrinityCore a352b1fa CollectionMgr and TransmogrificationHandler sources retained in canonical diagnostics.

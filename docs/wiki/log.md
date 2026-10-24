@@ -1,3 +1,7 @@
+## 2026-10-24 — Collections transmog/Trading Post stage1
+
+[Stage1](investigations/engine-crate-split-plan.md#collections-stage1-implementation) rename-onlydfca8fe29/wiring2896b6d3e moves19sources+6testfiles into game-engine-ui-collections; shared shell stays base, native imports direct, only money_colored gains visibility. Helper check feature+extension passes/no diagnostics;414base+18feature units+138integration+1isolated pass,0fail/ignored; exact432=414+18/138/1 names conserved. Original473 units remain414+37+4+18. No timing/native runtime/full gate claim; parent owns9-package gate, other families unchanged.
+
 ## 2026-10-24 — Collections before packet
 
 [Collections staging](investigations/engine-crate-split-plan.md#collections-staged-packet--before-moves) inventories12 roots/33 sources/11,629LOC at214a9b854, no outside base incoming edges. Four family gates keep the shared shell in base until its last consumer moves; first transmog+Trading Post19sources/6,781LOC. Exact before packet reuses432 unit names (24affected), lists197 ordinary+1 isolated active_db2 names/0ignored; no new execution or source moves. es-eng landing remains prerequisite.
