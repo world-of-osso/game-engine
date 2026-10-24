@@ -280,6 +280,20 @@ The reversible label before measurement is `"Select a category"`→`"Select a ca
 
 **No wall-speed claim under unequal shared-host load:**native time changes too. Child CPU is31.2% lower and dependency isolation is proven in this descriptive sample. Normal package feature/profile multisets have zero differences,sibling pins match and edit input is restored. Before warmup1.902s was already fresh;post warmup182.345s is excluded. Parent owns the thirteen-package full gate/push/merge;no new native-runtime acceptance.
 
+Parent `ac-eng` gate on `fc6cbeb88` matches the prior baseline exactly: `forever_liquids` and two network `fixture_completion` failures, nothing new. Achievements accepted; historical three failures remain, not waived as passes.
+
+## RecipeCatalog residual — approved mixed-file cut
+
+At `fc6cbeb88`, the original4530-line Professions proposal is4204 already-extracted presentation lines plus326 previously excluded catalog lines. Do not count the completed19-source/18-unit/39-integration cut again. [Current exact source/test packet](engine-crate-split-professions-catalog-plan.json).
+
+Extend existing `game-engine-ui-professions::professions_catalog`, not a new crate. Move295 original mixed-file lines (3–293,298–301):RecipeCatalog,its unchanged loader/get/specialization methods and private recipe helpers. Retain31 original lines (1–2,294–297,302–326),including actual `number`/`read_rows` bodies (29lines),in base;no forwarding façade. Counts include imports/comments/blank lines,not final wired size. Whole-file rename-only is inapplicable;parent approved the mixed-file split.
+
+Only three existing functions gain public visibility:`professions_catalog::{number,read_rows}` and `professions_quality::load`. The quality→parser edge stays within base;feature→Recipe/ProfessionBook/quality stays downward. Keep all model decisions,quality/reagent-count types and bodies,native catalog/receiver/worker and trainer OnceLock owners. Native catalog imports change directly;trainer content continues accepting the same base Recipe. No copied model/parser/cache or reverse base edge.
+
+Exact test proposal:base389→386 units,feature18→21;feature39→43 integration,base trainer9→5. Three catalog-dependent units retain `professions::tests::*`;four catalog-dependent trainer cases retain `trainer_tooltips::*`. Eight model units+one reagent unit and five trainer siblings stay base. Full existing base-unit scope yields455 tests before/after;relevant subset78. Fresh original trainer runtime listing9/ignored0;other name inventories reuse unchanged,previously executed sources. Temporary census manifest/harness restored;no new execution credit. Catalog has8 distinct path commits in pinned14days,not a measured compile share.
+
+After approval:format/commit coherent wiring,run admitted serialized `-j4` scoped tests/exact inventories,all13-package helper check andfmt;parent owns full gate/push/merge. **Parent explicitly waived paired timing for this small slice:no timing edit/run.** No source/test relocation occurred in the before packet.
+
 ## Baseline edit measurements
 
 [Machine-readable receipts](engine-crate-split-baseline.json) include exact commands, package/target dirtiness, wall/user/system time, dependency pins, Cargo unit timings and raw-log hashes. Host `agent-server`, Rust/Cargo 1.99.0, four jobs, native helper defaults and unchanged profiles/linker. Raw logs, HTML timings, drivers and before/after name lists are archived outside the worktree at `/home/osso/.worktrees/logs/engine-crate-split-baseline-4645578c7/`. No post-split improvement is claimed.

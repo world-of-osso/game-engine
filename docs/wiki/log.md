@@ -1,3 +1,7 @@
+## 2026-10-24 — RecipeCatalog residual approval and census
+
+Parent accepts Achievements `fc6cbeb88`:ac-eng matches the same three known baseline failures,none new. [RecipeCatalog residual](investigations/engine-crate-split-plan.md#recipecatalog-residual--approved-mixed-file-cut) extends existing Professions crate295 original lines,retains31 including actual parser helpers;only number/read_rows/quality::load may gain visibility. Exact base389→386/feature18→21 units and feature39→43/trainer9→5 integration planned;three units/four trainer cases move,models/reagent unit/five trainer siblings stay. Original trainer runtime9/ignored0,other census reused on unchanged sources. No product changes in this packet. Parent explicitly skips paired timing;13-package check/fmt/exact inventories remain required.
+
 ## 2026-10-24 — Achievements presentation-only split
 
 [Achievements cut](investigations/engine-crate-split-plan.md#achievements-presentation--approved-boundary) before9881aade6/rename-only57fb9ff98/wiring15eb1f1ef/importcleanupde71748fb moves2185existingrenderlines,leavesstate/cache/catalog/tracker/chatbase. Onlyapprovedvisibility andreadonlypendingbool accessor;noqueueexposure/facade/reverseedge. All13packagecheck passes/zero diagnostics;389base+1feature units+27render+10retained cases pass427/0fail/ignored,exact390=389+1/37=27+10 and11retainednames conserved. Category edit41.569→16.058s/CPU14.962→10.290s,onlyfeature+native dirty;native26.44→14.73s,so no wall-speed claim under unequal load. Controls/pins/profiles retained,parent13-package gate separate.
