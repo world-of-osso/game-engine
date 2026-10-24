@@ -157,6 +157,10 @@ Parent accepted/landed stage1 at `ce946a284`. Rename-only `cf31450bf` moves `mou
 
 [Stage2 receipts](engine-crate-split-collections-stage2.json) and `/home/osso/.worktrees/logs/engine-crate-split-collections-stage2-9c3035d6a/` retain exact names, commands and results. No new timing, native runtime or full-suite acceptance claim; parent owns the unchanged nine-package gate and operational push/merge.
 
+### Collections stage3 implementation
+
+Parent approved toy stage3 while stage2's gate was queued. Rename-only `6a77dd742` moves toy model/component and the14-name integration suite unchanged into ui-collections. Native consumers import Collections directly; shared shell and pet modules remain in base. Stage2 already exposed the existing inset helper, so stage3 adds no visibility/dependency/profile changes. The before packet is source-qualified: the three toy files have no diff since `214a9b854`. Check/test/after census are pending; no behavior/assertion/fixture changes.
+
 ## Baseline edit measurements
 
 [Machine-readable receipts](engine-crate-split-baseline.json) include exact commands, package/target dirtiness, wall/user/system time, dependency pins, Cargo unit timings and raw-log hashes. Host `agent-server`, Rust/Cargo 1.99.0, four jobs, native helper defaults and unchanged profiles/linker. Raw logs, HTML timings, drivers and before/after name lists are archived outside the worktree at `/home/osso/.worktrees/logs/engine-crate-split-baseline-4645578c7/`. No post-split improvement is claimed.

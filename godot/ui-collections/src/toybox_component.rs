@@ -1,14 +1,16 @@
 //! Retail Mainline CollectionsJournal.xml (703x606) and ToyBox.xml (3x6 grid).
-use crate::menu_primitives::{ContextMenuItem, MenuElementKind, context_menu_description};
 use crate::toybox::{self, ToyBox};
-use crate::ui::screens::quest_art::{DynName, named_atlas_texture};
+use game_engine_ui_model::menu_primitives::{
+    ContextMenuItem, MenuElementKind, context_menu_description,
+};
+use game_engine_ui_model::ui::screens::quest_art::{DynName, named_atlas_texture};
 use ui_toolkit::{
     frame::WidgetData, registry::FrameRegistry, rsx, screen::SharedContext, widget_def::Element,
 };
 
 /// Retail ToySpellButton_UpdateButton desaturates the uncollected icon.
 pub fn apply_toybox_postsetup(view: &ToyBoxView, registry: &mut FrameRegistry) {
-    crate::collections_component::apply_collections_postsetup(registry);
+    game_engine_ui_model::collections_component::apply_collections_postsetup(registry);
     if let Some(id) = registry.get_by_name("ToyBoxBackground") {
         let frame = registry.get_mut(id).expect("ToyBox background");
         let Some(WidgetData::Texture(texture)) = &mut frame.widget_data else {
@@ -28,7 +30,7 @@ pub fn apply_toybox_postsetup(view: &ToyBoxView, registry: &mut FrameRegistry) {
     }
 }
 
-pub use crate::collections_component::{SIZE, TABS};
+pub use game_engine_ui_model::collections_component::{SIZE, TABS};
 // ToyBox_InitFilterDropdown explicitly fixes the owner width to90.
 const FILTER_WIDTH: f32 = 90.0;
 #[derive(Clone, Debug, PartialEq)]
@@ -75,8 +77,8 @@ pub fn toybox_screen(ctx: &SharedContext) -> Element {
                     {filters} {context}
                 }
     };
-    crate::panel_lifecycle::bind_close(
-        crate::collections_component::collections_shell(view.viewport, 2, body),
+    game_engine_ui_model::panel_lifecycle::bind_close(
+        game_engine_ui_model::collections_component::collections_shell(view.viewport, 2, body),
         "toybox",
     )
 }
@@ -89,11 +91,11 @@ fn collections_background() -> Element {
         "collections-background-tile",
         (4.0, 4.0, 685.0, 533.0),
     );
-    let border = crate::ui::screens::auction_house_frame_component::inset_border(
+    let border = game_engine_ui_model::ui::screens::auction_house_frame_component::inset_border(
         "ToyBoxIconsFrame",
         (0.0, 0.0, 693.0, 541.0),
     );
-    let shadows = crate::collections_component::collection_background_shadows(
+    let shadows = game_engine_ui_model::collections_component::collection_background_shadows(
         "ToyBox",
         (4.0, 4.0, 685.0, 533.0),
     );
@@ -104,7 +106,7 @@ fn collections_background() -> Element {
 }
 
 fn search_box(model: &ToyBox) -> Element {
-    crate::search_box_template::search_box(
+    game_engine_ui_model::search_box_template::search_box(
         "ToyBox",
         &model.filters.search,
         "toy_search:clear",
@@ -203,7 +205,7 @@ fn toy_tile(model: &ToyBox, index: usize, toy: &shared::protocol::ToySnapshot) -
 }
 
 fn filter_dropdown(model: &ToyBox) -> Element {
-    use crate::menu_primitives::*;
+    use game_engine_ui_model::menu_primitives::*;
     let changed = !model.filters.collected
         || !model.filters.uncollected
         || model.filters.usable_only

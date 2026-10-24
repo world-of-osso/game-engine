@@ -96,8 +96,6 @@ pub mod spell_overrides;
 pub mod spell_targeting;
 pub mod summon;
 pub mod talents;
-pub mod toybox;
-pub mod toybox_component;
 pub mod trainer;
 pub mod trainer_frame;
 pub mod wild_pet_battle;

@@ -1,5 +1,5 @@
-use game_engine_ui_model::toybox::{PAGE_SIZE, ToyAction, ToyBox, ToyFilters};
-use game_engine_ui_model::toybox_component::{ToyBoxView, toybox_screen};
+use game_engine_ui_collections::toybox::{PAGE_SIZE, ToyAction, ToyBox, ToyFilters};
+use game_engine_ui_collections::toybox_component::{ToyBoxView, toybox_screen};
 use shared::protocol::{ActionRef, SpellCooldownUpdate, ToySnapshot};
 use ui_toolkit::atlas::{ActiveSkin, set_thread_skin};
 use ui_toolkit::frame::{Dimension, Frame, WidgetData};
@@ -30,7 +30,7 @@ fn journal_with_catalog(skin: ActiveSkin, catalog: Vec<ToySnapshot>) -> FrameReg
     });
     let mut registry = FrameRegistry::new(1920.0, 1080.0);
     Screen::new(toybox_screen).sync(&shared, &mut registry);
-    game_engine_ui_model::toybox_component::apply_toybox_postsetup(
+    game_engine_ui_collections::toybox_component::apply_toybox_postsetup(
         shared.get::<ToyBoxView>().unwrap(),
         &mut registry,
     );
@@ -143,7 +143,7 @@ fn toy_menus_fit_source_descriptions_and_preserve_actions_in_both_skins() {
             visible_frame(&registry, "ToyBoxFavouriteToggle")
                 .onclick
                 .as_deref(),
-            Some(format!("{}1", game_engine_ui_model::toybox::FAVOURITE_PREFIX).as_str())
+            Some(format!("{}1", game_engine_ui_collections::toybox::FAVOURITE_PREFIX).as_str())
         );
     }
 }

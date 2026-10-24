@@ -648,7 +648,7 @@ impl UiProjection {
                         || action.starts_with("profession:favorite-select:")
                         || action.starts_with("journal:activity:")
                         || action.starts_with("transmog:outfit:")
-                        || action.starts_with(game_engine_ui_model::toybox::USE_PREFIX)
+                        || action.starts_with(game_engine_ui_collections::toybox::USE_PREFIX)
                         || action.starts_with(
                             game_engine_ui_model::spellbook_frame_component::ACTION_SPELLBOOK_CAST,
                         )

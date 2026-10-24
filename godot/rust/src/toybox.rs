@@ -2,9 +2,9 @@
 use crate::frame_error::SessionError;
 use crate::{GameClient, frame_error::FrameError, ui::RegistryUi};
 use game_engine_session::SessionScreen;
+use game_engine_ui_collections::toybox::{self as model, ToyAction, ToyBox};
+use game_engine_ui_collections::toybox_component::{ToyBoxView, toybox_screen};
 use game_engine_ui_model::merchant::Click;
-use game_engine_ui_model::toybox::{self as model, ToyAction, ToyBox};
-use game_engine_ui_model::toybox_component::{ToyBoxView, toybox_screen};
 use godot::prelude::*;
 
 pub(crate) struct ToyDrag {
