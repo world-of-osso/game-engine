@@ -1,3 +1,7 @@
+## 2026-10-24 — BLP serialized-field expansion
+
+[BLP fields](reference/benilla-blp-fields.md) distinguish dependency header inputs, palette/JPEG payloads, mip directories, native compressed/full-chain DXT, alpha-BC1 RGBA chains and BC5 from the CPU mip0 projection. Version/codec boundaries remain explicit; no runtime proof. Independent static verification and environment-field integration remain open.
+
 ## 2026-10-24 — ADT, water and map field expansion
 
 [MCNK header](reference/benilla-adt-header-fields.md), [samples/layers](reference/benilla-adt-layer-fields.md), [placements/references](reference/benilla-adt-placement-fields.md), [extensions/LOD](reference/benilla-adt-extension-fields.md) and [water/WDT/WDL](reference/benilla-terrain-water-fields.md) enumerate individual source inputs and projection losses. Effect IDs, animated UVs, detail shadows, placement bounds, modern water and horizon-mask face reordering have located consumers. Static-only; independent field/source verification remains open.

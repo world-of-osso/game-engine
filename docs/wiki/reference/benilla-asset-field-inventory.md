@@ -34,6 +34,8 @@ Status vocabulary:
 
 [ADT header](benilla-adt-header-fields.md), [samples/layers](benilla-adt-layer-fields.md), [placements/references](benilla-adt-placement-fields.md), [extensions/LOD](benilla-adt-extension-fields.md) and [water/WDT/WDL](benilla-terrain-water-fields.md) expand terrain inputs, including retained effect IDs, native animated UVs, detail-shadow consumers, placement bounds and separate modern water. Independent static field/source verification remains open.
 
+[BLP individual fields](benilla-blp-fields.md) separate header/payload inputs and CPU mip0 from full-chain compressed/alpha-BC1 uploads and the BC5 path. Independent static verification and environment-field integration remain open.
+
 ## 1. Actionable comparison inventory
 
 | ID | Field or behavior | Our current boundary | Benilla reference and transfer limit |
