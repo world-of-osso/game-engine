@@ -48,6 +48,11 @@ const ESCAPE_CALLBACKS: &[(&str, EscapeCallback)] = &[
             .apply_game_menu_escape()
             .map_err(EscapeError::GameMenu)
     }),
+    ("professions", |client| {
+        client
+            .close_professions_owner_on_escape()
+            .map_err(|error| EscapeError::Frame("Profession Escape", error))
+    }),
     ("all_windows", |client| {
         client
             .close_all_windows()

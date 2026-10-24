@@ -71,7 +71,7 @@ pub(super) fn customer_screen(ctx: &SharedContext, view: &ProfessionView) -> Ele
     ));
     crate::panel_lifecycle::bind_close(
         rsx! {r#frame{name:"ProfessionsCustomerOrdersFrame",width:825.0,height:568.0,left:24.0,top:94.0,pos_type:"absolute",mouse_enabled:true,strata:crate::ui::strata::FrameStrata::Dialog,{children}}},
-        "professions",
+        "professions_customer",
     )
 }
 pub(super) fn crafter_page(ctx: &SharedContext, view: &ProfessionView) -> Element {
