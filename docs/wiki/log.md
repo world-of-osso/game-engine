@@ -1,3 +1,7 @@
+## 2026-10-24 — M2 particle field handling
+
+[Particle inputs](reference/benilla-m2-particle-fields.md) enumerate generator/lifetime fields, partial descriptors, packed multitexture, EXP2, tested flags and conditional single-key loss. Benilla's geometry-model dependency-to-static-mesh chain is distinct from recursive emitters. Static source evidence only; B reserved-byte/flag accounting and broader inventory remain open.
+
 ## 2026-10-24 — M2 ribbon field handling
 
 [Individual ribbon inputs](reference/benilla-m2-ribbon-fields.md) separate modern 176-byte records from Benilla's 220-byte records, expand array/track descriptors, trace native strip/material/UV consumers and bound unknown color-index use. Static source research only; remaining M2 families and later formats stay open.

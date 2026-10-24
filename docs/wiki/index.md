@@ -377,6 +377,7 @@ Root cause analyses and debug findings.
 
 External resources and asset lists.
 
+- [M2 particle field handling](reference/benilla-m2-particle-fields.md) — generator/lifetime inputs, EXP2, packed textures, flag consumers and conditional single-key loss; B model-mesh spawning distinguished from recursion.
 - [M2 ribbon field handling](reference/benilla-m2-ribbon-fields.md) — individual modern/Vanilla record inputs, expanded descriptors, native consumers and bounded unknowns; static research, broader M2 audit open.
 - [M2 declared-field census](reference/benilla-m2-field-census.md) — per-field source roster, with raw/cooked duplicates and unexpanded header/track boundaries explicit; working input to the consumer audit, not completed parity proof.
 - [Benilla asset-field inventory](reference/benilla-asset-field-inventory.md) — pinned M2/WMO/ADT/WDT/WDL/BLP and environment comparison; parsed-but-unbound fields, existing coverage and version-qualified research leads, static evidence only.
