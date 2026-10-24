@@ -104,6 +104,7 @@ Before rework, identify the applicable product/build and a real authored asset, 
 - [F15 12340 secure/UI behavior](f15-12340.md): native click, tooltip and combo paths; FrameXML secure-header gaps (2026-10-23).
 - [F19 12340 UI-source questions](f19-12340.md): ActionStatus, quest-POI selectors and dependencies; native/cache source boundaries.
 - [F16/F18 12340 UI-source follow-up](f16-f18-12340.md): pools, aura/chat/party APIs, container and currency tuples, tradeskill events, plus unresolved target FrameXML timing.
+- [12340 guild-bank permission getters](guildbank-permissions-12340.md): rank/tab return tuples, defaults, server-backed state, and no-guild rank-index limits.
 - [F14 12340 UI/API questions](f14-12340.md): FrameXML/UI cache provenance, Battle.net reporting, timers and quest cache (2026-10-23).
 - [12340 tooltip padding and aura files](tooltip-padding-buff-12340.md): source-derived width arithmetic and 3.4.3 cache versus unavailable 12340 UI files (2026-10-23).
 - [12340 CloseAuctionHouse](closeauctionhouse-12340.md): Lua binding, local state cleanup, event order and proof limits (2026-10-22).
