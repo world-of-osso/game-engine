@@ -21,12 +21,14 @@ Dropdowns, context menus and breadcrumb navigation implement Retail Mainline `Bl
 ## Implementation inventory
 
 - `godot/ui-model/src/ui/screens/menu_primitives.rs` — dropdowns and context menus.
+- `godot/rust/src/ui/menu_primitives_preview.rs` — standalone real generic-menu grid fixture; no Housing UI or synthetic artwork.
 - `godot/ui-model/src/navigation_bar.rs` — shared breadcrumb navigation.
 - `godot/ui-model/src/ui/screens/world_map_frame_component/chrome.rs` — world-map consumer.
 
 ## Tests asserting this spec
 
 - `godot/ui-model/tests/menu_primitives.rs` — registry geometry, source art, responders, disabled selection art, measured resizing and press/overflow state.
+- `godot/tests/menu_auto_grid.gd` — separate Modern/Forever projected auto-grid cases and native input actions; RED/GREEN pending, not covered by historical captures.
 - `godot/tests/menu_primitives_capture.gd` — both-skin native backdrop opacity and source-pixel slice-edge regression; inspected PNGs under `/syncthing/AgentShared/2026-10-13/ui-primitives/`.
 - `godot/tests/guild_menu_order.gd` — actual projected rank-menu order above Last Online/public/officer notes and GuildControl navigation control, both skins.
 - `godot/tests/projection_order.gd` — actual native tooltip/dialog, conflicting-strata/level, raise and sibling-ID render/pointer controls, including reused sibling reordering.
