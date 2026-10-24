@@ -4,7 +4,7 @@ mod monthly_clock;
 mod slow_purchase;
 #[path = "trading_post/time_sort.rs"]
 mod time_sort;
-use game_engine_ui_model::trading_post::{Sort, View, trading_post_screen};
+use game_engine_ui_collections::trading_post::{Sort, View, trading_post_screen};
 use shared::protocol::*;
 use std::sync::Arc;
 use ui_toolkit::{
@@ -369,7 +369,7 @@ fn trading_post_frozen_item_caption_accepted_waiting_candidate_stays_plain() {
 
 #[test]
 fn trading_post_frozen_item_caption_empty_immediate_candidate_stays_plain() {
-    use game_engine_ui_model::trading_post::Action;
+    use game_engine_ui_collections::trading_post::Action;
     for skin in [ActiveSkin::Modern, ActiveSkin::Forever] {
         let mut view = freeze_view();
         let mut data = view.snapshot.as_ref().unwrap().as_ref().clone();
@@ -497,7 +497,7 @@ fn trading_post_frozen_source_no_drag_ordinary_outside_keeps_held_selection() {
 
 #[test]
 fn trading_post_frozen_source_no_drag_ordinary_replacement_cancel_and_accept_remain() {
-    use game_engine_ui_model::trading_post::Action;
+    use game_engine_ui_collections::trading_post::Action;
     let mut view = freeze_view();
     let authority = view.snapshot.clone();
     assert!(view.select_dragged_product(5));
@@ -526,7 +526,7 @@ fn trading_post_frozen_source_no_drag_ordinary_replacement_cancel_and_accept_rem
 
 #[test]
 fn trading_post_frozen_source_no_drag_ordinary_empty_slot_remains_immediate() {
-    use game_engine_ui_model::trading_post::Action;
+    use game_engine_ui_collections::trading_post::Action;
     let mut view = freeze_view();
     let mut snapshot = view.snapshot.as_ref().unwrap().as_ref().clone();
     snapshot.frozen_item_id = None;
@@ -557,7 +557,7 @@ fn open_unaccepted_texture_preview() -> View {
 }
 
 fn create_accepted_texture_preview() -> View {
-    use game_engine_ui_model::trading_post::Action;
+    use game_engine_ui_collections::trading_post::Action;
     let mut view = open_unaccepted_texture_preview();
     view.update_freeze_confirmation(5.0);
     assert_eq!(
@@ -730,7 +730,7 @@ fn trading_post_pending_freeze_selected_texture_reply_keeps_committed_selection(
 
 #[test]
 fn trading_post_pending_freeze_selected_texture_empty_immediate_remains_active() {
-    use game_engine_ui_model::trading_post::Action;
+    use game_engine_ui_collections::trading_post::Action;
     for skin in [ActiveSkin::Modern, ActiveSkin::Forever] {
         let mut view = freeze_view();
         let mut data = view.snapshot.as_ref().unwrap().as_ref().clone();
@@ -1244,7 +1244,7 @@ fn keyboard_view() -> View {
         visible: true,
         snapshot: Some(Arc::new(data)),
         selected: Some(11),
-        sort: game_engine_ui_model::trading_post::Sort::Name,
+        sort: game_engine_ui_collections::trading_post::Sort::Name,
         ascending: true,
         ..Default::default()
     }
@@ -1360,7 +1360,7 @@ fn trading_post_keyboard_nearest_scroll_reveals_edges_without_centering() {
 
 #[test]
 fn trading_post_keyboard_crosses_a_real_page_then_returns_in_both_skins() {
-    use game_engine_ui_model::trading_post::LIST;
+    use game_engine_ui_collections::trading_post::LIST;
     for skin in [ActiveSkin::Modern, ActiveSkin::Forever] {
         set_thread_skin(skin);
         let mut view = keyboard_page_view();
@@ -1427,7 +1427,7 @@ fn purchase_price_view() -> View {
         snapshot: Some(Arc::new(data)),
         selected: Some(4),
         cart: vec![14],
-        sort: game_engine_ui_model::trading_post::Sort::Name,
+        sort: game_engine_ui_collections::trading_post::Sort::Name,
         ..Default::default()
     }
 }
@@ -1537,7 +1537,7 @@ fn trading_post_frozen_row_exclusion_keeps_frozen_details_selectable_in_both_ski
 
 #[test]
 fn trading_post_frozen_row_exclusion_follows_committed_not_pending_replacement() {
-    use game_engine_ui_model::trading_post::Action;
+    use game_engine_ui_collections::trading_post::Action;
     for skin in [ActiveSkin::Modern, ActiveSkin::Forever] {
         let mut view = freeze_view();
         view.cart.clear();
@@ -1954,7 +1954,10 @@ fn render(skin: ActiveSkin, view: View) -> FrameRegistry {
     ctx.insert(view);
     let mut registry = FrameRegistry::new(1920., 1080.);
     Screen::new(trading_post_screen).sync(&ctx, &mut registry);
-    game_engine_ui_model::trading_post::apply_cart_art(ctx.get::<View>().unwrap(), &mut registry);
+    game_engine_ui_collections::trading_post::apply_cart_art(
+        ctx.get::<View>().unwrap(),
+        &mut registry,
+    );
     registry
 }
 fn text(registry: &FrameRegistry, name: &str) -> String {
@@ -2290,9 +2293,9 @@ fn trading_post_hide_armor_uses_authored_default_and_persists_toggle_between_pro
         };
         render(skin, view.clone()); // Initialize the same data root as the host.
         assert!(!view.hide_armor().unwrap()); // Scene583 flags6 includes Autodress4.
-        assert!(game_engine_ui_model::trading_post::load_scene_autodress(430).unwrap());
-        assert!(!game_engine_ui_model::trading_post::load_scene_autodress(418).unwrap());
-        assert!(game_engine_ui_model::trading_post::load_scene_autodress(u32::MAX).is_err());
+        assert!(game_engine_ui_collections::trading_post::load_scene_autodress(430).unwrap());
+        assert!(!game_engine_ui_collections::trading_post::load_scene_autodress(418).unwrap());
+        assert!(game_engine_ui_collections::trading_post::load_scene_autodress(u32::MAX).is_err());
         view.click("perks:hide-armor").unwrap();
         let registry = render(skin, view.clone());
         assert_eq!(
@@ -2394,7 +2397,7 @@ fn trading_post_cart_add_remove_and_confirmed_clear_follow_retail_in_both_skins(
 
 #[test]
 fn trading_post_cart_checkout_confirms_total_then_waits_for_authority_without_local_debit() {
-    use game_engine_ui_model::trading_post::Action;
+    use game_engine_ui_collections::trading_post::Action;
     for skin in [ActiveSkin::Modern, ActiveSkin::Forever] {
         let mut data = snapshot();
         data.frozen_item_id = None;
@@ -2633,7 +2636,7 @@ fn trading_post_renders_player_faction_gradients_in_both_skins() {
 
 #[test]
 fn trading_post_controls_wait_for_server_and_confirm_purchase_without_local_debit() {
-    use game_engine_ui_model::trading_post::Action;
+    use game_engine_ui_collections::trading_post::Action;
     let mut view = View {
         visible: true,
         snapshot: Some(Arc::new(snapshot())),
@@ -2769,7 +2772,7 @@ fn trading_post_virtualized_list_reaches_second_page_then_empty_category_clamps_
 
 #[test]
 fn trading_post_drag_freeze_and_replace_wait_for_authority() {
-    use game_engine_ui_model::trading_post::Action;
+    use game_engine_ui_collections::trading_post::Action;
     let mut data = snapshot();
     let mut replacement = data.items[0].clone();
     replacement.id = 5;
@@ -3194,7 +3197,7 @@ fn trading_post_freeze_replacement_previews_candidate_and_cancel_preserves_autho
 
 #[test]
 fn trading_post_freeze_empty_slot_is_immediate_and_removes_only_frozen_cart_member() {
-    use game_engine_ui_model::trading_post::Action;
+    use game_engine_ui_collections::trading_post::Action;
     let mut view = freeze_view();
     let mut data = view.snapshot.as_ref().unwrap().as_ref().clone();
     data.frozen_item_id = None;
@@ -3214,7 +3217,7 @@ fn trading_post_freeze_empty_slot_is_immediate_and_removes_only_frozen_cart_memb
 
 #[test]
 fn trading_post_freeze_replacement_accepts_after_five_seconds_and_waits_for_authority() {
-    use game_engine_ui_model::trading_post::Action;
+    use game_engine_ui_collections::trading_post::Action;
     let mut view = freeze_view();
     assert_eq!(view.drop_item(5, true), None);
     view.update_freeze_confirmation(4.999);
@@ -3490,7 +3493,7 @@ fn trading_post_query_reply_keeps_pending_purchase_owner_until_purchase_reply() 
     );
     assert_eq!(
         view.click("perks:confirm").unwrap(),
-        Some(game_engine_ui_model::trading_post::Action::Request(
+        Some(game_engine_ui_collections::trading_post::Action::Request(
             TradingPostRequest::Purchase { vendor_item_id: 4 }
         ))
     );
@@ -3562,7 +3565,7 @@ fn trading_post_query_reply_keeps_pending_purchase_product_after_catalog_removal
     );
     assert_eq!(
         view.click("perks:confirm").unwrap(),
-        Some(game_engine_ui_model::trading_post::Action::Request(
+        Some(game_engine_ui_collections::trading_post::Action::Request(
             TradingPostRequest::Purchase { vendor_item_id: 5 }
         ))
     );
@@ -3618,7 +3621,7 @@ fn trading_post_pending_dialog_purchase_waits_for_reply_and_prunes_only_accepted
     view.click("perks:purchase").unwrap();
     assert_eq!(
         view.click("perks:confirm").unwrap(),
-        Some(game_engine_ui_model::trading_post::Action::Request(
+        Some(game_engine_ui_collections::trading_post::Action::Request(
             TradingPostRequest::Purchase { vendor_item_id: 4 }
         ))
     );
@@ -3682,7 +3685,7 @@ fn trading_post_pending_dialog_refund_keeps_owner_until_authoritative_reply() {
     view.click("perks:refund").unwrap();
     assert_eq!(
         view.click("perks:confirm").unwrap(),
-        Some(game_engine_ui_model::trading_post::Action::Request(
+        Some(game_engine_ui_collections::trading_post::Action::Request(
             TradingPostRequest::Refund { vendor_item_id: 4 }
         ))
     );

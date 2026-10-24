@@ -8,7 +8,7 @@ use crate::{
 };
 use game_engine_core::ui_sound_kits::{TRADING_POST_UI_ITEM_LOCKING, TRADING_POST_UI_ITEM_SELECT};
 use game_engine_session::SessionScreen;
-use game_engine_ui_model::trading_post::{
+use game_engine_ui_collections::trading_post::{
     Action, FilterSubmenu, HEIGHT, LIFECYCLE_SOUNDS, MODEL, View, WIDTH,
 };
 use godot::classes::CanvasLayer;
@@ -1149,9 +1149,9 @@ impl GameClient {
         state.set(
             "sort",
             match view.sort {
-                game_engine_ui_model::trading_post::Sort::Name => "name",
-                game_engine_ui_model::trading_post::Sort::Time => "time",
-                game_engine_ui_model::trading_post::Sort::Price => "price",
+                game_engine_ui_collections::trading_post::Sort::Name => "name",
+                game_engine_ui_collections::trading_post::Sort::Time => "time",
+                game_engine_ui_collections::trading_post::Sort::Price => "price",
             },
         );
         state.set("ascending", view.ascending);

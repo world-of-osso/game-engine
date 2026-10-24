@@ -1,6 +1,6 @@
 //! Effective PerksProgramProducts.lua filter description, not template-default categories.
 use super::{FilterSubmenu, Filters, Sort, View};
-use crate::ui::{
+use game_engine_ui_model::ui::{
     screens::menu_primitives::{
         ContextMenuItem, DescribedMenuElement, MenuElementKind, context_menu_description,
     },

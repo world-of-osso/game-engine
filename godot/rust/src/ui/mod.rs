@@ -415,10 +415,12 @@ impl RegistryModel {
     fn apply_postsetup(&mut self) {
         if let Some(view) = self
             .shared
-            .get::<game_engine_ui_model::trading_post::View>()
+            .get::<game_engine_ui_collections::trading_post::View>()
         {
-            game_engine_ui_model::trading_post::apply_cart_art(view, &mut self.registry);
-            game_engine_ui_model::trading_post::apply_rotation_icon_positions(&mut self.registry);
+            game_engine_ui_collections::trading_post::apply_cart_art(view, &mut self.registry);
+            game_engine_ui_collections::trading_post::apply_rotation_icon_positions(
+                &mut self.registry,
+            );
         }
         if let Some(view) = self
             .shared
@@ -589,10 +591,10 @@ impl RegistryModel {
         }
         if self
             .shared
-            .get::<game_engine_ui_model::transmog_frame::TransmogView>()
+            .get::<game_engine_ui_collections::transmog_frame::TransmogView>()
             .is_some()
         {
-            game_engine_ui_model::transmog_frame::apply_transmog_art(&mut self.registry);
+            game_engine_ui_collections::transmog_frame::apply_transmog_art(&mut self.registry);
         }
         if let Some(view) = self
             .shared
@@ -620,7 +622,7 @@ impl RegistryModel {
             .is_some()
             || self
                 .shared
-                .get::<game_engine_ui_model::trading_post::View>()
+                .get::<game_engine_ui_collections::trading_post::View>()
                 .is_some()
         {
             self.icon_masks.apply(&mut self.registry);
@@ -1882,7 +1884,7 @@ impl RegistryUi {
     /// The Retail TransmogFrame and its TRANSMOG_CUSTOM_SET_NAME StaticPopup.
     pub(crate) fn show_transmog(
         &mut self,
-        view: game_engine_ui_model::transmog_frame::TransmogView,
+        view: game_engine_ui_collections::transmog_frame::TransmogView,
     ) -> Result<(), String> {
         if self.model.is_some() {
             return Err("RegistryUi already has a screen".into());
@@ -1897,7 +1899,7 @@ impl RegistryUi {
         self.toplevel = true;
         self.show_viewport_screen_in(
             view,
-            game_engine_ui_model::transmog_frame::transmog_screen,
+            game_engine_ui_collections::transmog_frame::transmog_screen,
             ScreenPostsetup::None,
             registry,
             parent,
@@ -2183,14 +2185,14 @@ impl RegistryUi {
 
     pub fn show_trading_post(
         &mut self,
-        state: game_engine_ui_model::trading_post::View,
+        state: game_engine_ui_collections::trading_post::View,
     ) -> Result<(), String> {
         let parent = self.hud_parent()?;
         let mut registry = parent.registry();
         register_auction_popup_style(&mut registry);
         self.show_viewport_screen_in(
             state,
-            game_engine_ui_model::trading_post::trading_post_screen,
+            game_engine_ui_collections::trading_post::trading_post_screen,
             ScreenPostsetup::None,
             registry,
             parent,

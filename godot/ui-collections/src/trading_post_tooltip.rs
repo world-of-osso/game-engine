@@ -1,7 +1,9 @@
 //! PerksProgramElements.lua button ShowTooltip branches; GlobalStrings70391 labels.
 use super::View;
-use crate::game_tooltip::GameTooltip;
-use crate::tooltip_presentation::{TOOLTIP_DESCRIPTION_COLOR, TOOLTIP_WHITE, TooltipPresentation};
+use game_engine_ui_model::game_tooltip::GameTooltip;
+use game_engine_ui_model::tooltip_presentation::{
+    TOOLTIP_DESCRIPTION_COLOR, TOOLTIP_WHITE, TooltipPresentation,
+};
 
 impl View {
     /// Elements.lua123–137: refund time belongs to the hovered row, not the preview.
@@ -41,7 +43,9 @@ impl View {
         owner: &str,
         player_level: Option<u16>,
     ) -> Result<Option<GameTooltip>, String> {
-        use crate::game_tooltip::item::{item_game_tooltip, named_item_for, without_sell_price};
+        use game_engine_ui_model::game_tooltip::item::{
+            item_game_tooltip, named_item_for, without_sell_price,
+        };
         if !self.cart_visible {
             return Ok(None);
         }

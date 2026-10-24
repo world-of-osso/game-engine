@@ -637,7 +637,7 @@ pub(super) fn name_popup(book: &TransmogBook) -> Element {
     height: {H - 14.0}, left: 7.0, top: 7.0, pos_type: "absolute", texture_fdid: 6_839_810u32 } };
     children.extend(
         rsx! { r#frame { name: "TransmogNamePopupBorder", width: W, height: H,
-        style: crate::ui::screens::static_popup_component::STATIC_POPUP_PANEL_STYLE,
+        style: game_engine_ui_model::ui::screens::static_popup_component::STATIC_POPUP_PANEL_STYLE,
         frame_level: 5.0, pos_type: "absolute", left: 0.0, top: 0.0 } },
     );
     children.extend(label(

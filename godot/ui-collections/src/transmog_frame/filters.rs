@@ -7,7 +7,7 @@ struct Row {
     title: String,
     action: String,
     enabled: bool,
-    kind: crate::menu_primitives::MenuElementKind,
+    kind: game_engine_ui_model::menu_primitives::MenuElementKind,
 }
 
 fn checkbox(name: &str, title: &str, checked: bool, action: &str) -> Row {
@@ -16,7 +16,7 @@ fn checkbox(name: &str, title: &str, checked: bool, action: &str) -> Row {
         title: title.into(),
         action: action.into(),
         enabled: true,
-        kind: crate::menu_primitives::MenuElementKind::Checkbox { checked },
+        kind: game_engine_ui_model::menu_primitives::MenuElementKind::Checkbox { checked },
     }
 }
 
@@ -29,7 +29,7 @@ fn rows(book: &TransmogBook) -> Vec<Row> {
                 title: title.into(),
                 action: format!("transmog:filter:{action}"),
                 enabled: true,
-                kind: crate::menu_primitives::MenuElementKind::Button,
+                kind: game_engine_ui_model::menu_primitives::MenuElementKind::Button,
             })
             .collect();
         rows.extend(SOURCE_FILTERS.into_iter().map(|(id, title)| {
@@ -65,7 +65,9 @@ fn rows(book: &TransmogBook) -> Vec<Row> {
                 title: title.into(),
                 action: String::new(),
                 enabled: false,
-                kind: crate::menu_primitives::MenuElementKind::Checkbox { checked: false },
+                kind: game_engine_ui_model::menu_primitives::MenuElementKind::Checkbox {
+                    checked: false,
+                },
             }),
     );
     rows
@@ -79,13 +81,13 @@ pub(super) fn menu(book: &TransmogBook) -> Element {
     let rows = rows(book);
     // MenuStyle1: left/top/right8, bottom15, 20px element extent; owner TOPRIGHT(-29,-24).
     let height = 8.0 + rows.len() as f32 * 20.0 + 15.0;
-    let mut children = crate::selection_list::menu_background(
+    let mut children = game_engine_ui_model::selection_list::menu_background(
         "TransmogFilterMenuBackground".into(),
         (168.0, height),
     );
     for (index, row) in rows.into_iter().enumerate() {
-        children.extend(crate::menu_primitives::menu_element(
-            crate::menu_primitives::ContextMenuItem {
+        children.extend(game_engine_ui_model::menu_primitives::menu_element(
+            game_engine_ui_model::menu_primitives::ContextMenuItem {
                 name: &row.name,
                 label: &row.title,
                 action: &row.action,

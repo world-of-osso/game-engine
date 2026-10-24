@@ -26,16 +26,16 @@ mod history;
 mod outfit;
 #[path = "trading_post_tooltip.rs"]
 mod tooltip;
-use crate::{
-    bank_art::{WHITE, label, texture},
-    minimal_scroll_bar::{MinimalScrollBar, Unscrollable, pixel_geometry, scroll_list_attr},
-    quest_art::{DynName, named_atlas_texture},
-    ui::{
-        screens::menu_primitives::{
-            DropdownButton, DropdownState, DropdownStyle, dropdown_button_with_state,
-        },
-        strata::FrameStrata,
+use game_engine_ui_model::bank_art::{WHITE, label, texture};
+use game_engine_ui_model::minimal_scroll_bar::{
+    MinimalScrollBar, Unscrollable, pixel_geometry, scroll_list_attr,
+};
+use game_engine_ui_model::quest_art::{DynName, named_atlas_texture};
+use game_engine_ui_model::ui::{
+    screens::menu_primitives::{
+        DropdownButton, DropdownState, DropdownStyle, dropdown_button_with_state,
     },
+    strata::FrameStrata,
 };
 pub use outfit::{apply_rotation_icon_positions, load_scene_autodress};
 use shared::protocol::{
@@ -641,7 +641,7 @@ pub fn trading_post_screen(ctx: &SharedContext) -> Element {
     if let Some(confirm) = &view.confirm {
         children.extend(confirm_popup(view, confirm));
     }
-    crate::panel_lifecycle::bind_close(
+    game_engine_ui_model::panel_lifecycle::bind_close(
         rsx! {r#frame{name:"PerksProgramFrame",width:WIDTH,height:HEIGHT,left:0.0,top:0.0,pos_type:"absolute",strata:FrameStrata::FullscreenDialog,mouse_enabled:true,lifecycle_on_show:{LIFECYCLE_SOUNDS.on_show.unwrap()},lifecycle_on_hide:{LIFECYCLE_SOUNDS.on_hide.unwrap()},{children}}},
         "trading_post",
     )
@@ -911,7 +911,7 @@ fn row_price(prefix: &str, row: &TradingPostItem, center_y: f32) -> Element {
         // Elements.xml325: RefundIcon is authored alphaMode="ADD"; the32px
         // PurchasedHistoryFrame icon has no such override.
         return ui_toolkit::tooltip::bind_provider(
-            crate::quest_art::named_atlas_texture_blend(
+            game_engine_ui_model::quest_art::named_atlas_texture_blend(
                 format!("{prefix}RefundIcon{}", row.id),
                 "common-icon-undo",
                 (389., center_y - 21. / 2., 21., 21.),
@@ -1350,7 +1350,8 @@ fn detail_text(
     let line_height = measure_text(text, GameFont::FrizQuadrata, size)
         .expect("Retail detail text metrics")
         .1;
-    let height = crate::quest_art::wrapped_line_count(text, 320., size) as f32 * line_height;
+    let height =
+        game_engine_ui_model::quest_art::wrapped_line_count(text, 320., size) as f32 * line_height;
     *cursor += top_padding;
     let out = label(
         name.into(),
@@ -1404,7 +1405,7 @@ fn toy_overlay(row: &TradingPostItem) -> Element {
     out
 }
 fn slow_purchase_popup() -> Element {
-    use crate::static_popup_component::{ItemConfirmation, item_confirmation};
+    use game_engine_ui_model::static_popup_component::{ItemConfirmation, item_confirmation};
     // Elements.lua60–67; local GlobalStrings51538/51539.
     item_confirmation(ItemConfirmation {
         name: "PerksProgramSlowPurchase",
@@ -1423,7 +1424,7 @@ fn slow_purchase_popup() -> Element {
 }
 
 fn confirm_popup(view: &View, kind: &str) -> Element {
-    use crate::static_popup_component::{ItemConfirmation, item_confirmation};
+    use game_engine_ui_model::static_popup_component::{ItemConfirmation, item_confirmation};
     if view.slow_purchase {
         return slow_purchase_popup();
     }

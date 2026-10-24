@@ -2,8 +2,8 @@
 //! Item and illusion cards show weapons standalone; set cards dress an undressed player
 //! (TransmogSetBaseModelMixin SetAutoDress(false) + TryOn).
 use super::*;
-use game_engine_ui_model::transmog::ItemEntry;
-use game_engine_ui_model::transmog_frame::{
+use game_engine_ui_collections::transmog::ItemEntry;
+use game_engine_ui_collections::transmog_frame::{
     custom_set_model_scene, illusion_model_scene, set_model_scene, source_model_scene,
 };
 use godot::classes::Node3D;

@@ -1,11 +1,11 @@
 //! Retail12.1 TransmogFrame regions and template natural sizes.
 //! Sources: Blizzard_Transmog.xml and Blizzard_TransmogTemplates.xml in local Retail UI.
 //! Forever changes art only. Server-authoritative pending/apply behavior is unchanged.
-use crate::bank_art::label;
-use crate::merchant_frame_component::{MoneyAlign, money_colored};
-use crate::quest_art::{DynName, window_chrome};
 use crate::transmog::TransmogBook;
-use crate::ui::strata::FrameStrata;
+use game_engine_ui_model::bank_art::label;
+use game_engine_ui_model::merchant_frame_component::{MoneyAlign, money_colored};
+use game_engine_ui_model::quest_art::{DynName, window_chrome};
+use game_engine_ui_model::ui::strata::FrameStrata;
 use shared::protocol::{EquipmentSlot, TransmogChoice};
 use ui_toolkit::{rsx, screen::SharedContext, widget_def::Element};
 
@@ -138,7 +138,7 @@ pub fn transmog_screen(ctx: &SharedContext) -> Element {
     children.extend(collection::name_popup(&view.book));
     children.extend(outfit_popup::outfit_popups(&view.book));
     let left = ((view.viewport_width - WIDTH) * 0.5).max(0.0);
-    crate::panel_lifecycle::bind_close(
+    game_engine_ui_model::panel_lifecycle::bind_close(
         rsx! { r#frame { name: "TransmogFrame", width: WIDTH, height: HEIGHT, left, top: 41.0,
         pos_type: "absolute", mouse_enabled: true, strata: FrameStrata::Dialog, {children} } },
         "transmog",
@@ -306,12 +306,15 @@ fn outfit_entry(book: &TransmogBook, row: &crate::transmog::OutfitRow, top: f32)
         (12.0, if viewed { WHITE } else { GOLD }, "LEFT"),
     ));
     let action = format!("transmog:outfit:{}", row.id);
-    out.extend(crate::selection_list::row(
+    out.extend(game_engine_ui_model::selection_list::row(
         format!("{prefix}Button"),
         &action,
         !book.busy(),
         (65.0, top + 1.0, 208.0, 43.0),
-        (&crate::selection_list::TRANSMOG_OUTFIT, false),
+        (
+            &game_engine_ui_model::selection_list::TRANSMOG_OUTFIT,
+            false,
+        ),
         card,
     ));
     out
@@ -657,7 +660,7 @@ fn slot_icon(book: &TransmogBook, slot: &shared::protocol::TransmogSlot) -> Opti
 }
 
 fn equipped_icon(slot: &shared::protocol::TransmogSlot) -> Option<u32> {
-    crate::item_catalog::item_catalog_entry_for(slot.definition_source, slot.item_id)
+    game_engine_ui_model::item_catalog::item_catalog_entry_for(slot.definition_source, slot.item_id)
         .map(|item| item.icon_fdid)
 }
 

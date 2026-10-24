@@ -232,9 +232,11 @@ fn cart_row(view: &View, element: &cart_rows::Row, width: f32) -> Element {
         border,
         (16., 14., 56., 56.),
     ));
-    let slot = crate::item_catalog::item_catalog()
+    let slot = game_engine_ui_model::item_catalog::item_catalog()
         .and_then(|catalog| catalog.get(row.item_id))
-        .and_then(|item| crate::item_tooltip::inventory_type_label(item.inventory_type))
+        .and_then(|item| {
+            game_engine_ui_model::item_tooltip::inventory_type_label(item.inventory_type)
+        })
         .map(str::to_owned)
         .or_else(|| {
             view.snapshot
@@ -266,7 +268,7 @@ fn cart_row(view: &View, element: &cart_rows::Row, width: f32) -> Element {
         ),
         (
             14.,
-            crate::merchant_data::quality_color(row.quality),
+            game_engine_ui_model::merchant_data::quality_color(row.quality),
             "LEFT",
         ),
     ));

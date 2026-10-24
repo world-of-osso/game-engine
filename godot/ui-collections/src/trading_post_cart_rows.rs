@@ -85,7 +85,7 @@ pub(super) fn expand(view: &View) -> Result<Vec<Row>, String> {
         });
         top += height + 8.;
         if ensemble {
-            let catalog = crate::item_catalog::item_catalog()
+            let catalog = game_engine_ui_model::item_catalog::item_catalog()
                 .ok_or("Trading Post cart catalog still loading")?;
             for (index, id) in item.preview_item_ids.iter().enumerate() {
                 let metadata = catalog.get(*id).ok_or_else(|| {
@@ -129,7 +129,7 @@ pub(super) fn header(view: &View, row: &Row, width: f32) -> Element {
         (5., 12., 160., 32.),
         (
             14.,
-            crate::merchant_data::quality_color(row.item.quality),
+            game_engine_ui_model::merchant_data::quality_color(row.item.quality),
             "LEFT",
         ),
     ));

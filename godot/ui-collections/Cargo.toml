@@ -1,0 +1,24 @@
+[package]
+name = "game-engine-ui-collections"
+version = "0.1.0"
+edition.workspace = true
+rust-version.workspace = true
+autotests = false
+
+[[test]]
+name = "integration"
+path = "tests/integration.rs"
+
+# Keep scene-flag/data-root source switching in its original isolated process.
+[[test]]
+name = "active_db2"
+path = "tests/active_db2.rs"
+
+[dependencies]
+# Authored wardrobe/model-scene catalogs retain their existing core ownership.
+game-engine-core = { path = "../core" }
+# Item catalogs, shared chrome/tooltips and data-root state remain single base owners.
+game-engine-ui-model = { path = "../ui-model" }
+# Authoritative wardrobe/Trading Post snapshots keep existing wire type identity.
+shared = { git = "https://github.com/world-of-osso/shared-protocol.git", rev = "74e67cf" }
+ui-toolkit = { package = "ui-toolkit-core", path = "../../../ui-toolkit/core" }

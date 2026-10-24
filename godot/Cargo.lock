@@ -3181,6 +3181,7 @@ dependencies = [
  "game-engine-network",
  "game-engine-session",
  "game-engine-ui-adventure",
+ "game-engine-ui-collections",
  "game-engine-ui-housing",
  "game-engine-ui-model",
  "glam",
@@ -3231,6 +3232,16 @@ dependencies = [
 
 [[package]]
 name = "game-engine-ui-adventure"
+version = "0.1.0"
+dependencies = [
+ "game-engine-core",
+ "game-engine-ui-model",
+ "shared",
+ "ui-toolkit-core",
+]
+
+[[package]]
+name = "game-engine-ui-collections"
 version = "0.1.0"
 dependencies = [
  "game-engine-core",

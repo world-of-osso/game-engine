@@ -1,5 +1,5 @@
 use super::*;
-use game_engine_ui_model::trading_post::{FilterSubmenu, Sort};
+use game_engine_ui_collections::trading_post::{FilterSubmenu, Sort};
 use ui_toolkit::widgets::button::ButtonState;
 
 fn time_view(remaining: i64) -> View {
