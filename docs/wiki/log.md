@@ -1115,6 +1115,10 @@ Explicit user instruction authorizes frame growth, not a discovered Retail mecha
 ## 2026-10-15 — Authored IoC disarm requests
 
 [Normal/huge bomb interaction](systems/battlegrounds.md#ioc-bomb-disarm-interaction--active-2026-10-14): actual request RED→GREEN with physical picking, cursor and soft-interaction paths; game-object15/15 and soft10/10, no generic trap enablement. Native both-skin bomb deployment/disarm and full IoC remain pending.
+## 2026-10-23 — Benilla asset-field inventory
+
+[Paired source inventory](reference/benilla-asset-field-inventory.md) compares pinned Benilla 1.12.1 readers/adapters/runtime against current Godot paths: camera tracks, WMO material/liquid/footstep inputs, terrain impass/shadows, weather selection and conditional texture/legacy-water gaps. Existing modern support, uncertain fields and Benilla deviations remain distinct; no client execution or implementation changes.
+
 ## 2026-10-15 — MountSpecial authored playback continuation
 
 [MountSpecial](systems/mounts.md#mountspecial-continuation--2026-10-15): unified input/identity/emote routing and deterministic complete-segment scheduler. Core6/server3 GREEN; mount sequence ownership native PASS. Actual rider FishingCast1000ms versus AnimStartTime2000 exposes unresolved offset semantics; both-skin three-mount/observer rendering not yet proven.

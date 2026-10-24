@@ -8,6 +8,7 @@ See also: [awesome-wow-rust](https://github.com/arlyon/awesome-wow-rust) — cur
 
 | Project | Lang | Target | Status |
 |---------|------|--------|--------|
+| Benilla (`/home/osso/Repos/benilla`) | Rust / Bevy | 1.12.1 / build 5875 | [Pinned asset-field inventory](benilla-asset-field-inventory.md): M2/WMO/terrain/texture comparison; static field/consumer evidence, not native-runtime parity |
 | [Whoa](https://github.com/whoahq/whoa) | C++ | 3.3.5a | Active (1,300+ commits, 2026) — login, animations, char select |
 | [solarityclient](https://github.com/isekaishy-jpg/solarityclient) | Rust / Vulkan (ash) | 3.3.5a | 1,000+ commits — shipyard ECS, SDL3, egui, mlua, warcraft-rs `wow-*` + gtker `wow_*_messages`; [rendering crate](https://github.com/isekaishy-jpg/solarityclient/tree/main/crates/rendering/src) covers terrain, models, particles, liquid, lighting, weather, minimap, world text, UI |
 | wow_client (`~/Repos/wow_client`) | C++ | — | Active — client reimplementation/reference |
@@ -81,6 +82,8 @@ See also: [awesome-wow-rust](https://github.com/arlyon/awesome-wow-rust) — cur
 | wow-ui-sim (ours) | Rust / iced | `/syncthing/Sync/Projects/wow/wow-ui-sim/` |
 
 ## Source Audits
+
+- [Benilla asset-field inventory](benilla-asset-field-inventory.md) — pinned Godot-vs-Vanilla parser/consumer matrix, concrete binding losses, existing coverage, unresolved fields and reference deviations.
 
 - [wowdecomp behavior rework backlog](../../wowdecomp-audit/README.md) — source-only reconstructed 3.3.5a (build 12340) audit plus a separate [4.3.4 (build 15595) reference expansion](../../wowdecomp-audit/cataclysm-434.md): five additional conditional findings, 28 total. The original 23 were not wholesale revalidated against 4.3.4. [Coverage](../../wowdecomp-audit/coverage.md) records evidence and unresolved boundaries; no runtime parity established.
 
