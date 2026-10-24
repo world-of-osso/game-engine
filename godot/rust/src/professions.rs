@@ -194,6 +194,17 @@ impl GameClient {
         self.professions.free_ui();
         visible
     }
+    /// R ProfessionsRegistration.lua: only the shown owner consumes AddOn Escape.
+    pub(super) fn close_professions_owner_on_escape(&mut self) -> Result<bool, FrameError> {
+        let customer =
+            self.professions.page == ProfessionPage::Orders && self.professions.orders.customer;
+        let shown = self.professions.book.visible && self.professions.ui.is_some();
+        if !shown || customer {
+            return Ok(false);
+        }
+        self.close_professions_window()
+    }
+
     pub(super) fn close_professions_window(&mut self) -> Result<bool, FrameError> {
         if let Some(npc) = self.professions.orders.npc {
             self.account.send_close_interaction(npc)?;

@@ -28,7 +28,15 @@ pub const REGISTRATIONS: &[LifecycleRegistration<&str>] = &[
     panel("guild_ranks"),
     panel("guild_charter"),
     panel("guild_tabard"),
-    panel("professions"),
+    // R ProfessionsRegistration.lua24–35: owner is both UIPanel and AddOn handler.
+    LifecycleRegistration {
+        hook: "professions",
+        group: Some(CloseGroup::Panels),
+        escape: Some(EscapeBinding {
+            hook: "professions",
+            priority: EscapePriority::AddOn,
+        }),
+    },
     panel("pet_journal"),
     panel("mount_journal"),
     panel("adventure_guide"),
@@ -42,6 +50,8 @@ pub const REGISTRATIONS: &[LifecycleRegistration<&str>] = &[
     panel("bank"),
     panel("guild_bank"),
     panel("flight_map"),
+    // CustomerOrders/Registration.lua: ordinary UIPanel, not the owner handler.
+    panel("professions_customer"),
     // Global handlers run after focused/native owners decline the key.
     exclusive("talent_loadout_dialog", EscapePriority::Dialog),
     exclusive("guild_invitation", EscapePriority::Dialog),

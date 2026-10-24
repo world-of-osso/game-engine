@@ -86,6 +86,9 @@ const CLOSE_CALLBACKS: &[(&str, CloseCallback)] = &[
         }
         Ok(open)
     }),
+    ("professions_customer", |client| {
+        client.close_professions_window()
+    }),
 ];
 
 /// Godot canvas order: higher `layer` first, then the later sibling.
