@@ -79,7 +79,7 @@ These are compile-isolation candidates, not linear LOC-to-time savings. Editing 
 - [x] **0 — Baseline packet.** Source/dependency pins, exact edits, check/real-extension-build/UI-lib-test-binary timings, dirty units and the unchanged 473-name unit census are recorded below. Risk: cold caches or host pressure mistaken for extraction benefit. Housing's paired pilot sample is recorded below.
 - [x] **1 — Housing pilot (landed `214a9b854`).** First commit only `git mv` of the housing source/test files into the new crate directory. Next wiring commit adds manifest/workspace/lockfile entries, module declarations, exact imports/visibility, native consumers and migrated integration harness declarations. Push the buildable tip for gate. Risk: `StorageMenuTarget`, private helper access and cfg-test data setup. Do not break unrelated base dependencies merely to shrink a table.
 - [x] **2 — Adventure Guide (landed `214a9b854`).** Same rename-only then wiring sequence; move the complete feature SCC and its seven currently named Adventure integration modules. Native model-scene/actor code stays put. Risk: cross-feature menu/catalog test inputs and manifest-relative fixture paths.
-- [ ] **3 — Collection families.** First transmog+Trading Post, then journal/toy/pet families at individually pushed gates. Keep collection helpers once, and keep stable/wild-pet consumers on the same side of the cut. Risk: hidden test dependencies and global catalog initialization. Do not create a second monolithic integration-test crate.
+- [x] **3 — Collection families (landed `68f93ff62`).** First transmog+Trading Post, then journal/toy/pet families at individually pushed gates. Keep collection helpers once, and keep stable/wild-pet consumers on the same side of the cut. Risk: hidden test dependencies and global catalog initialization. Do not create a second monolithic integration-test crate.
 ### Later
 
 - [ ] **4 — Native UI projection.** Produce a file-level subgraph for the proposed low-level group before moving files; land the unchanged profile/error support relocation at its own gate first. Extract the closed projection set without `RegistryUi` or `GameClient`; host behavioral tests remain host tests. Risk: Godot registration and resource lifetime. Gate includes unchanged rendered/layout/input behavior, not only `cargo check`.
@@ -190,7 +190,21 @@ Parent approved separate rename-only/wiring/census commits and paired post-cut t
 
 ### Professions extraction implementation
 
-Before packet committed `3053ece16`; rename-only `e168fc1a3` moves19 source files/three dedicated suites unchanged. Wiring creates `game-engine-ui-professions` with direct native imports and unchanged base model/catalog ownership. Only the two existing Professions cases in mixed suites relocate, retaining `buttonfit::buttonfit_create_all_keeps_retail_padding_and_right_anchor_for_concrete_counts` and `panel_lifecycle::ui_template_lifecycle_root_professions_unmounts_without_losing_registration_on_reopen`; unrelated cases remain base. Test-local helper copies do not duplicate production code. Check/test/census and post-cut timing are pending.
+Before packet committed `3053ece16`; rename-only `e168fc1a3` moves19 source files/three dedicated suites unchanged. Wiring creates `game-engine-ui-professions` with direct native imports and unchanged base model/catalog ownership. The two existing Professions integration cases in mixed suites relocate, retaining `buttonfit::buttonfit_create_all_keeps_retail_padding_and_right_anchor_for_concrete_counts` and `panel_lifecycle::ui_template_lifecycle_root_professions_unmounts_without_losing_registration_on_reopen`; unrelated cases remain base. Test-local helper copies do not duplicate production code. A test-inclusive falsification audit additionally finds four base `professions::tests::*` cases calling the moved frame/cooldown; `8b773aa0f` relocates those unchanged bodies into a **cfg(test)-only namespace** with the same names, not a production model/facade. Thus the root-owned14-unit before count expands to18 conserved moved units. Base ProfessionBook/Recipe/quality/counts/catalog implementation files remain unchanged.
+
+At `820a57342`, helper feature/native check passes without diagnostics; the subsequent four-case relocation changes only tests and their cfg(test) declaration, not that production proof scope. Scoped execution at `8b773aa0f` passes **390 residual units,18 feature units,39 feature integration and three residual mixed-suite siblings** (450 total, zero failures/ignored). Runtime census conserves **408 = 390 + 18** units, **37 + 2 = 39** feature integration names, and **5 mixed integration cases = 3 residual + 2 moved**. All original473 unit names now equal390base+37Housing+4Adventure+24Collections+18Professions byte-identically. [Professions result receipt](engine-crate-split-professions.json) binds the census/check/test logs and timing pair; raw post-cut evidence is `/home/osso/.worktrees/logs/engine-crate-split-professions-8b773aa0f/`.
+
+| Same reversible Professions edit | Before `68f93ff62` | After `8b773aa0f` |
+|---|---:|---:|
+| No-op wall (no dirty units) | 10.300s | 9.985s |
+| Edit wall | **32.599s** | **38.389s** |
+| Edit user + system CPU | 25.801s | 10.119s |
+| Restore wall | 23.520s | 13.100s |
+| Changed feature/base unit | base9.70s | Professions1.50s |
+| Native unit | 21.89s | 35.04s |
+| Dirty UI crates | base +Housing/Adventure/Collections | Professions only; all four others fresh |
+
+**No measured edit-wall improvement:** the single post-cut edit sample is5.790s/17.8% slower. Compilation isolation is proven and child CPU is60.8% lower; the native unit grew from21.89s to35.04s. Restore is faster, but is a separate control, not a replacement result. Shared-host scheduling and helper-slot wait make one sample insufficient for a latency guarantee. Common Cargo artifact feature/profile multisets have zero differences, sibling pins match before/after, and the input edit is restored. Warmup197.630s is excluded. No success-biased rerun or timing/native-runtime/full-suite claim; parent owns the ten-package gate.
 
 ## Baseline edit measurements
 

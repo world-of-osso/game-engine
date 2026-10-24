@@ -60,6 +60,8 @@ Adventure Guide similarly owns `game-engine-ui-adventure`; its seven suites shar
 
 `game-engine-ui-collections` owns the shared Collections shell, transmog, Trading Post, mount/pet journals, toybox, stable and wild-pet UI. Run `python3 scripts/depot-build.py --root "$PWD" --test -p game-engine-ui-collections --lib --test integration --test active_db2 -j4`. `active_db2` deliberately stays separate from ordinary integration to isolate once-only source flags/data roots; `item_catalog_pending` remains in ui-model. Shared item catalogs/chrome/data-root state stay in ui-model; native actor/render behavior stays in GDExtension. [Exact staged census and gates](wiki/investigations/engine-crate-split-plan.md#collections-stage4-implementation).
 
+`game-engine-ui-professions` owns presentation only; run `python3 scripts/depot-build.py --root "$PWD" --test -p game-engine-ui-professions --lib --test integration -j4`. Shared ProfessionBook/Recipe/quality/reagent-count/catalog models stay in ui-model. The two moved mixed-suite integration cases and four mixed unit cases keep exact original names; [ownership/census](wiki/investigations/engine-crate-split-plan.md#professions-extraction-implementation).
+
 ## UI icons prepared before shipping
 
 Release builds run `scripts/prepare_ui_icons.py` on the originating developer checkout before native compilation. It enumerates all positive spell/trait/class/spec and source-local item icon metadata, writes `data/cache/required-ui-icons.json`, and uses the existing sibling `asset-resolver/target/debug/casc-local` to fill missing BLPs from local archives only. Source-table hashes and actual file hashes/sizes are recorded in `data/cache/ui-icon-provenance.json`; these cache files and textures are included by `deploy.sh`.
