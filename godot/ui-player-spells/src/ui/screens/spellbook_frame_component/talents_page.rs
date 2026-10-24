@@ -1,8 +1,8 @@
 //! Blizzard SharedTalentUtil.lua:494-509 and ClassTalentsFrame.xml:37-42.
 //! Retail hero selector: one active tree on the page, two columns in its dialog.
 use super::*;
-use crate::talents::{TalentView, TalentVisualState};
 use game_engine_core::talent_data::{TalentNode, TalentTree};
+use game_engine_ui_model::talents::{TalentView, TalentVisualState};
 use std::collections::BTreeMap;
 use ui_toolkit::atlas::{ActiveSkin, AtlasSource, resolve_region};
 use ui_toolkit::widgets::texture::TextureSource;
@@ -211,7 +211,7 @@ fn render_tree(tree: &TalentTree, view: &TalentView, layout: TreeLayout, scale: 
     children
 }
 fn render_gate(
-    gate: &crate::talents::TalentGate,
+    gate: &game_engine_ui_model::talents::TalentGate,
     center: [f32; 2],
     node_width: f32,
     scale: f32,
@@ -606,7 +606,7 @@ pub(super) fn apply_talents_postsetup(state: &SpellbookFrameState, registry: &mu
 }
 
 fn talent_controls(view: &TalentView, scale: f32) -> Element {
-    use crate::ui::screens::quest_art::panel_button;
+    use game_engine_ui_model::ui::screens::quest_art::panel_button;
     let dirty = view.editor.dirty();
     let footer_top = BOOK_H - FOOTER_HEIGHT;
     let mut children = retail_atlas(
@@ -675,11 +675,9 @@ fn talent_controls(view: &TalentView, scale: f32) -> Element {
     children.extend(war_mode_control(view, scale));
     children.extend(pvp_talent_controls::render(view, scale));
     // ImportExport.ShowImportError owns a StaticPopup, not the commit footer.
-    let talent_error = view
-        .editor
-        .error_text
-        .as_ref()
-        .filter(|_| view.editor.loadout_dialog != Some(crate::talents::LoadoutDialog::Import));
+    let talent_error = view.editor.error_text.as_ref().filter(|_| {
+        view.editor.loadout_dialog != Some(game_engine_ui_model::talents::LoadoutDialog::Import)
+    });
     if let Some(reason) = talent_error.or(view.pvp_error.as_ref()) {
         children.extend(label(
             Label {
@@ -1122,7 +1120,7 @@ fn hero_choice_column(
     column: [f32; 2],
     scale: f32,
 ) -> Element {
-    use crate::ui::screens::quest_art::panel_button;
+    use game_engine_ui_model::ui::screens::quest_art::panel_button;
     let [x, width] = column;
     let height = HERO_DIALOG_SIZE[1];
     let mut children = label(

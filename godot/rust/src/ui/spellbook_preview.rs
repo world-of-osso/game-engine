@@ -1,7 +1,9 @@
 //! Offline PlayerSpellsFrame capture through the production spellbook projection.
 use super::{RegistryUi, party_preview};
-use game_engine_ui_model::spellbook_frame_component::PlayerSpellsTab;
-use game_engine_ui_model::spellbook_preview::{load_class_preview_state, load_preview_state};
+use game_engine_ui_model::player_spells_data::PlayerSpellsTab;
+use game_engine_ui_player_spells::spellbook_preview::{
+    load_class_preview_state, load_preview_state,
+};
 use godot::prelude::*;
 use ui_toolkit::atlas::{ActiveSkin, set_thread_skin};
 
@@ -51,7 +53,7 @@ impl RegistryUi {
             if tab == PlayerSpellsTab::Talents
                 && std::env::var("GODOT_TALENT_PENDING").as_deref() == Ok("1")
             {
-                game_engine_ui_model::spellbook_preview::stage_talent_preview(&mut state)?;
+                game_engine_ui_player_spells::spellbook_preview::stage_talent_preview(&mut state)?;
                 let view = state
                     .talents
                     .as_ref()

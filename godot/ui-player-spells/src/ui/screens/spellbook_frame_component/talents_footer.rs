@@ -1,15 +1,17 @@
 //! ClassTalentsFrame.xml: LoadSystem LEFT48, SearchBox LEFT20, Reset/Undo shared anchor.
 use super::*;
-use crate::talents::search::{MAX_PREVIEW_ENTRIES, MIN_SEARCH_CHARACTERS, NOT_ON_ACTION_BAR};
-use crate::ui::screens::menu_primitives::{
+use game_engine_ui_model::talents::search::{
+    MAX_PREVIEW_ENTRIES, MIN_SEARCH_CHARACTERS, NOT_ON_ACTION_BAR,
+};
+use game_engine_ui_model::ui::screens::menu_primitives::{
     DropdownButton, DropdownState, dropdown_button_with_state,
 };
 #[path = "talents_loadouts.rs"]
 mod loadouts;
 
 // ClassTalentsFrame::RefreshLoadoutOptions wraps Starter's name in BLUE_FONT_COLOR.
-const STARTER_BUILD_COLOR: crate::ui::widgets::font_string::FontColor =
-    crate::ui::widgets::font_string::FontColor::new(0.53, 0.67, 1.0, 1.0);
+const STARTER_BUILD_COLOR: game_engine_ui_model::ui::widgets::font_string::FontColor =
+    game_engine_ui_model::ui::widgets::font_string::FontColor::new(0.53, 0.67, 1.0, 1.0);
 
 pub(super) fn apply_loadout_caption(view: &TalentView, registry: &mut FrameRegistry) {
     let committed_starter = view.editor.starter_active() && !view.editor.dirty();
@@ -264,7 +266,7 @@ fn preview_icon(view: &TalentView, entry: u32, name: &str, scale: f32) -> Elemen
 }
 
 fn menu(name: &str, rect: [f32; 4], children: Element, scale: f32) -> Element {
-    let backdrop = crate::selection_list::menu_background(
+    let backdrop = game_engine_ui_model::selection_list::menu_background(
         format!("{name}Background"),
         (rect[2] * scale, rect[3] * scale),
     );
@@ -281,13 +283,13 @@ fn menu_row(
     width: f32,
     scale: f32,
 ) -> Element {
-    crate::menu_primitives::menu_element(
-        crate::menu_primitives::ContextMenuItem {
+    game_engine_ui_model::menu_primitives::menu_element(
+        game_engine_ui_model::menu_primitives::ContextMenuItem {
             name,
             label: text,
             action,
         },
-        crate::menu_primitives::MenuElementKind::Button,
+        game_engine_ui_model::menu_primitives::MenuElementKind::Button,
         enabled,
         (
             8.0 * scale,

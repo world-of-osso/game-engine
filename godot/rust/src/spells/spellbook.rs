@@ -9,11 +9,11 @@ use crate::{
 use game_engine_core::spellbook_data::{
     SpellbookPlayer, SpellbookSpell, SpellbookTab, build_spellbook_tabs,
 };
-use game_engine_ui_model::spellbook_frame_component::{
+use game_engine_ui_model::player_spells_data::{PlayerSpellsTab, SpellbookItemView};
+use game_engine_ui_player_spells::spellbook_frame_component::{
     ACTION_ACTIVATE_SPEC, ACTION_SPELLBOOK_CAST, ACTION_SPELLBOOK_CLOSE,
     ACTION_SPELLBOOK_NEXT_PAGE, ACTION_SPELLBOOK_PREV_PAGE, ACTION_SPELLBOOK_TAB, FRAME_W,
-    PlayerSpellsTab, SpellbookCategory, SpellbookFrameState, SpellbookGroup, SpellbookItemView,
-    frame_layout, specialization_choices,
+    SpellbookCategory, SpellbookFrameState, SpellbookGroup, frame_layout, specialization_choices,
 };
 use godot::classes::{InputEvent, InputEventMouseButton, InputEventMouseMotion};
 use godot::global::MouseButton;
@@ -75,7 +75,7 @@ pub(super) fn placed_book_rect(viewport: [f32; 2], saved: Option<[f32; 2]>) -> [
     let (fit, _) = frame_layout(viewport);
     let size = [
         FRAME_W * fit,
-        game_engine_ui_model::spellbook_frame_component::FRAME_TOTAL_H * fit,
+        game_engine_ui_player_spells::spellbook_frame_component::FRAME_TOTAL_H * fit,
     ];
     let [x, y] = saved.unwrap_or([16.0, 104.0]);
     [
@@ -331,7 +331,7 @@ impl GameClient {
         if self.spells.book_art_state.as_ref() != Some(state) {
             self.extract_art(&crate::quests::screen_texture_fdids(
                 state.clone(),
-                game_engine_ui_model::spellbook_frame_component::spellbook_frame_screen,
+                game_engine_ui_player_spells::spellbook_frame_component::spellbook_frame_screen,
             ));
             self.spells.book_art_state = Some(state.clone());
         }

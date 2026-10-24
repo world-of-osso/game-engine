@@ -13,9 +13,9 @@ use ui_toolkit::screen::SharedContext;
 use ui_toolkit::text_measure::measure_text;
 use ui_toolkit::widget_def::Element;
 
-use crate::ui::anchor::FrameName;
-use crate::ui::screens::inworld_unit_frames_component::inworld_unit_frames_art::AtlasArt;
-use crate::ui::screens::quest_art::window_chrome;
+use game_engine_ui_model::ui::anchor::FrameName;
+use game_engine_ui_model::ui::screens::inworld_unit_frames_component::inworld_unit_frames_art::AtlasArt;
+use game_engine_ui_model::ui::screens::quest_art::window_chrome;
 
 #[path = "spellbook_frame_component/items.rs"]
 mod items;
@@ -30,8 +30,8 @@ mod player_spells_pages;
 #[path = "spellbook_frame_component/talents_page.rs"]
 mod talents_page;
 
-use crate::ui::strata::FrameStrata;
-use crate::ui::widgets::font_string::GameFont;
+use game_engine_ui_model::ui::strata::FrameStrata;
+use game_engine_ui_model::ui::widgets::font_string::GameFont;
 pub use items::apply_spellbook_postsetup;
 use items::view;
 use layout::{background, category_tabs, tab_width};
@@ -49,26 +49,7 @@ pub const ACTION_SPELLBOOK_CLOSE: &str = "spellbook_close";
 pub const ACTION_PLAYER_SPELLS_TAB: &str = "player_spells_tab:";
 pub const ACTION_ACTIVATE_SPEC: &str = "player_spells_activate:";
 
-/// Blizzard_PlayerSpellsFrame.lua:14-16: independent pages, in this order.
-#[derive(Clone, Copy, Debug, Default, PartialEq, Eq)]
-pub enum PlayerSpellsTab {
-    Specialization,
-    Talents,
-    #[default]
-    Spellbook,
-}
-
-impl PlayerSpellsTab {
-    pub const ALL: [Self; 3] = [Self::Specialization, Self::Talents, Self::Spellbook];
-
-    pub fn title(self) -> &'static str {
-        match self {
-            Self::Specialization => "Specialization",
-            Self::Talents => "Talents",
-            Self::Spellbook => "Spellbook",
-        }
-    }
-}
+use game_engine_ui_model::player_spells_data::{PlayerSpellsTab, SpellbookItemView};
 
 pub fn pressed_player_spells_tab(
     bindings: &game_engine_core::input_bindings_data::InputBindingsData,
@@ -262,20 +243,6 @@ const PREV_PAGE_DISABLED: u32 = 130_867;
 const NEXT_PAGE_UP: u32 = 130_866;
 const NEXT_PAGE_DISABLED: u32 = 130_864;
 
-/// One spell entry of a category.
-#[derive(Clone, Debug, PartialEq)]
-pub struct SpellbookItemView {
-    pub spell_id: u32,
-    pub name: String,
-    pub subtext: String,
-    pub icon_fdid: u32,
-    pub passive: bool,
-    /// Learned later: greyed with "Level N" (`FutureSpell`).
-    pub available_at: Option<u32>,
-    /// Remaining fraction of the effective spell's cooldown/GCD.
-    pub cooldown_fraction: f32,
-}
-
 /// A skill line of the category: its header and spells.
 #[derive(Clone, Debug, PartialEq)]
 pub struct SpellbookGroup {
@@ -302,7 +269,7 @@ pub struct SpellbookFrameState {
     pub tab: PlayerSpellsTab,
     pub specializations: Vec<SpecializationChoice>,
     pub can_activate_spec: bool,
-    pub talents: Option<crate::talents::TalentView>,
+    pub talents: Option<game_engine_ui_model::talents::TalentView>,
 }
 
 impl SpellbookFrameState {
@@ -448,7 +415,7 @@ pub fn spellbook_frame_screen(ctx: &SharedContext) -> Element {
         ACTION_SPELLBOOK_CLOSE,
     );
     let content = frame_content(state, s);
-    let mut elements = crate::panel_lifecycle::bind_close(
+    let mut elements = game_engine_ui_model::panel_lifecycle::bind_close(
         rsx! {
             r#frame {
                 name: SPELLBOOK_FRAME,

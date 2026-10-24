@@ -29,7 +29,7 @@ use game_engine_session::SessionScreen;
 use game_engine_ui_model::main_action_bar_component::{
     ActionBar, MAIN_BAR_BUTTONS, pressed_action_buttons,
 };
-use game_engine_ui_model::spellbook_frame_component::{
+use game_engine_ui_player_spells::spellbook_frame_component::{
     SpellbookFrameState, pressed_player_spells_tab,
 };
 use godot::classes::ProjectSettings;

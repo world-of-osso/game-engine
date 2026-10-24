@@ -2,9 +2,8 @@ use game_engine_core::{
     blp,
     spell_catalog::{SpellCatalogPaths, load_spell_catalog},
 };
-use game_engine_ui_model::{
-    spellbook_frame_component::PlayerSpellsTab, spellbook_preview::load_class_preview_state,
-};
+use game_engine_ui_model::player_spells_data::PlayerSpellsTab;
+use game_engine_ui_player_spells::spellbook_preview::load_class_preview_state;
 use std::collections::BTreeMap;
 
 // Exceptions must name concrete spells and a witnessed local-CASC/DB2 blocker.

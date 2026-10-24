@@ -178,23 +178,6 @@ fn tooltip_rows(view: &MicroMenuView, name: &str, key: Option<&str>) -> Option<V
 }
 
 #[test]
-fn combined_player_spells_micro_button_opens_specialization_when_talents_are_absent() {
-    use game_engine_ui_model::micro_menu::player_spells_micro_tab;
-    use game_engine_ui_model::spellbook_frame_component::{PlayerSpellsTab, SpellbookFrameState};
-    let registry = build(MicroMenuView::default());
-    let (_, _, action) = button_state(&registry, "PlayerSpellsMicroButton");
-    let tab = player_spells_micro_tab(action.as_deref().unwrap()).unwrap();
-    let mut book = SpellbookFrameState::default();
-    assert!(book.toggle_tab(false, tab));
-    assert_eq!(book.tab, PlayerSpellsTab::Specialization);
-    assert_eq!(
-        MICRO_BUTTONS[index("PlayerSpellsMicroButton")].binding,
-        Some(game_engine_core::input_bindings_data::InputAction::ToggleTalents)
-    );
-    assert!(player_spells_micro_tab(ACTION_CHARACTER).is_none());
-}
-
-#[test]
 fn retail_order_with_every_button_lit() {
     let names: Vec<_> = MICRO_BUTTONS.iter().map(|button| button.name).collect();
     assert_eq!(

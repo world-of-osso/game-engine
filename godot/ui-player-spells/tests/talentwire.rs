@@ -1,8 +1,6 @@
-use game_engine_ui_model::{
-    spellbook_frame_component::PlayerSpellsTab,
-    spellbook_preview::load_preview_state,
-    talents::{TalentEditor, TalentView},
-};
+use game_engine_ui_model::player_spells_data::PlayerSpellsTab;
+use game_engine_ui_model::talents::{TalentEditor, TalentView};
+use game_engine_ui_player_spells::spellbook_preview::load_preview_state;
 use shared::protocol::{
     CommitTraitConfig, TraitCommitResult, TraitConfigSnapshot, TraitEntrySelection,
 };

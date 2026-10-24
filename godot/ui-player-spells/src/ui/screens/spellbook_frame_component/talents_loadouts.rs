@@ -1,6 +1,6 @@
 //! Retail LoadSystem rows and ClassTalentLoadoutDialogTemplate dimensions.
 use super::*;
-use crate::talents::LoadoutDialog;
+use game_engine_ui_model::talents::LoadoutDialog;
 
 pub(super) fn loadout_menu(view: &TalentView, y: f32, scale: f32) -> Element {
     let mut rows = Vec::new();
@@ -24,12 +24,12 @@ pub(super) fn loadout_menu(view: &TalentView, y: f32, scale: f32) -> Element {
             fontstring {name:{DynName(format!("{name}Text"))},text:{config.name.as_str()},width:{136.0*scale},height:{20.0*scale},
                 font_size:{12.0*scale},font_color:TAB_TEXT,justify_h:"LEFT",mouse_enabled:false} {check}
         };
-        rows.extend(crate::selection_list::row(
+        rows.extend(game_engine_ui_model::selection_list::row(
             name.clone(),
             &action,
             enabled,
             (8.0 * scale, top, 164.0 * scale, 20.0 * scale),
-            (&crate::selection_list::MENU, false),
+            (&game_engine_ui_model::selection_list::MENU, false),
             content,
         ));
         rows.extend(rsx! { button {name:{DynName(format!("TalentLoadoutEdit{}",config.id))},onclick:{edit.as_str()},disabled,button_default_skin:false,
@@ -103,12 +103,12 @@ fn starter_row(view: &TalentView, index: usize, enabled: bool, scale: f32) -> El
     let content = rsx! {fontstring {name:FrameName("TalentStarterBuildText"),text:"Starter Build",width:{164.0*scale},height:{20.0*scale},
     font_size:{12.0*scale},font_color:STARTER_BUILD_COLOR,justify_h:"LEFT",mouse_enabled:false} {check}};
     ui_toolkit::tooltip::bind_provider(
-        crate::selection_list::row(
+        game_engine_ui_model::selection_list::row(
             "TalentStarterBuild".into(),
             &action,
             enabled,
             (8.0 * scale, top, 184.0 * scale, 20.0 * scale),
-            (&crate::selection_list::MENU, false),
+            (&game_engine_ui_model::selection_list::MENU, false),
             content,
         ),
         "talent_gate",
@@ -194,7 +194,7 @@ pub(super) fn loadout_dialog(view: &TalentView, viewport: [f32; 2]) -> Element {
             },
             scale,
         ));
-        let mut input = crate::bank_art::edit_box(
+        let mut input = game_engine_ui_model::bank_art::edit_box(
             "TalentLoadoutNameInput",
             (
                 40.0 * scale,
@@ -336,7 +336,7 @@ fn starter_deviation_popup(viewport: [f32; 2]) -> Element {
     let height = 70.0 + text_height;
     rsx! {r#frame {name:"TalentLoadoutBlocker",width:{viewport[0]},height:{viewport[1]},strata:FrameStrata::FullscreenDialog,pos_type:"absolute",left:0.0,top:0.0}
     r#frame {name:"TalentLoadoutDialog",width:320.0,height:height,pos_type:"absolute",left:{(viewport[0]-320.0)/2.0},top:135.0,
-        strata:FrameStrata::FullscreenDialog,frame_level:2200,style:crate::static_popup_component::STATIC_POPUP_PANEL_STYLE,
+        strata:FrameStrata::FullscreenDialog,frame_level:2200,style:game_engine_ui_model::static_popup_component::STATIC_POPUP_PANEL_STYLE,
         texture {name:"TalentStarterDeviationBackground",texture_fdid:6839810,width:306.0,height:{height-14.0},pos_type:"absolute",left:7.0,top:7.0}
         fontstring {name:"TalentStarterDeviationText",text:text,width:290.0,height:text_height,pos_type:"absolute",left:15.0,top:16.0,font_size:14.0,font_color:"1.0,1.0,1.0,1.0",justify_h:"CENTER"}
         button {name:"TalentLoadoutSave",text:"Continue",onclick:"talent:loadout_confirm",width:128.0,height:26.0,pos_type:"absolute",left:26.0,top:{28.0+text_height},
@@ -360,7 +360,7 @@ fn import_error(error: Option<&str>, viewport: [f32; 2]) -> Element {
     rsx! { r#frame {name:"TalentImportErrorBlocker",width:{viewport[0]},height:{viewport[1]},strata:FrameStrata::FullscreenDialog,pos_type:"absolute",left:0.0,top:0.0}
         r#frame {name:"TalentImportError",width:320.0,height:height,pos_type:"absolute",left:{(viewport[0]-320.0)/2.0},top:135.0,
             strata:FrameStrata::FullscreenDialog,frame_level:2200,
-            style:crate::static_popup_component::STATIC_POPUP_PANEL_STYLE,
+            style:game_engine_ui_model::static_popup_component::STATIC_POPUP_PANEL_STYLE,
             texture {name:"TalentImportErrorBackground",texture_fdid:6839810,width:306.0,height:{height-14.0},pos_type:"absolute",left:7.0,top:7.0}
             fontstring {name:"TalentImportErrorText",text:error,width:290.0,height:text_height,pos_type:"absolute",left:15.0,top:16.0,font_size:14.0,font_color:"1.0,0.2,0.2,1.0",justify_h:"CENTER"}
             button {name:"TalentImportErrorOkay",text:"Okay",onclick:"talent:loadout_error_ok",width:128.0,height:26.0,pos_type:"absolute",left:96.0,top:{28.0+text_height},
@@ -377,7 +377,7 @@ fn dialog_button(
     at: [f32; 2],
     scale: f32,
 ) -> Element {
-    crate::ui::screens::quest_art::panel_button(
+    game_engine_ui_model::ui::screens::quest_art::panel_button(
         name.into(),
         text,
         action,

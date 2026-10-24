@@ -1,10 +1,10 @@
 //! Offline catalog previews and the unchanged legacy Mage snapshot, without a session/network.
 use crate::spellbook_frame_component::{
-    PlayerSpellsTab, SpellbookCategory, SpellbookFrameState, SpellbookGroup, SpellbookItemView,
-    specialization_choices,
+    SpellbookCategory, SpellbookFrameState, SpellbookGroup, specialization_choices,
 };
 use game_engine_core::spell_catalog::{SpellCatalogPaths, load_spell_catalog};
 use game_engine_core::spellbook_data::{SpellbookPlayer, SpellbookTab, build_spellbook_tabs};
+use game_engine_ui_model::player_spells_data::{PlayerSpellsTab, SpellbookItemView};
 
 const MAGE_CLASS: u32 = 8;
 const FROST_SPEC: u32 = 64;
@@ -146,8 +146,8 @@ fn load_preview_talents(
     class: u32,
     spec: u32,
     catalog: &game_engine_core::spell_catalog::SpellCatalogData,
-) -> Result<crate::talents::TalentView, String> {
-    let mut view = crate::talents::load_talent_view(data, class, spec, catalog)?;
+) -> Result<game_engine_ui_model::talents::TalentView, String> {
+    let mut view = game_engine_ui_model::talents::load_talent_view(data, class, spec, catalog)?;
     if view.graph.class.nodes.is_empty() || view.graph.spec.nodes.is_empty() {
         return Err(format!(
             "Preview class {class} spec {spec} requires nonempty class and spec talent trees"

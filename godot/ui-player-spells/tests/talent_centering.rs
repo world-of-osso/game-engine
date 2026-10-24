@@ -3,9 +3,10 @@ use game_engine_core::{
     spell_catalog::{SpellCatalogPaths, load_spell_catalog},
     talent_data::TalentTree,
 };
-use game_engine_ui_model::{
-    spellbook_frame_component::{PlayerSpellsTab, SpellbookFrameState, spellbook_frame_screen},
-    talents::load_talent_view,
+use game_engine_ui_model::player_spells_data::PlayerSpellsTab;
+use game_engine_ui_model::talents::load_talent_view;
+use game_engine_ui_player_spells::spellbook_frame_component::{
+    SpellbookFrameState, spellbook_frame_screen,
 };
 use std::path::PathBuf;
 use ui_toolkit::{

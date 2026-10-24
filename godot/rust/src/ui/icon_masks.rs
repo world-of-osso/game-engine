@@ -356,7 +356,7 @@ mod tests {
     use game_engine_ui_model::bag_frame_component::{
         BACKPACK_PORTRAIT, BagContainerState, BagFrameState, bag_frame_screen,
     };
-    use game_engine_ui_model::spellbook_frame_component::{
+    use game_engine_ui_player_spells::spellbook_frame_component::{
         SpellbookFrameState, spellbook_frame_screen,
     };
     use image::RgbaImage;

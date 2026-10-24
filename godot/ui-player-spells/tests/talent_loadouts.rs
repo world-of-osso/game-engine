@@ -1,8 +1,7 @@
-use game_engine_ui_model::{
-    spellbook_frame_component::{PlayerSpellsTab, spellbook_frame_screen},
-    spellbook_preview::{load_preview_state, stage_talent_preview},
-    talents::{LoadoutDialog, TalentEditor},
-};
+use game_engine_ui_model::player_spells_data::PlayerSpellsTab;
+use game_engine_ui_model::talents::{LoadoutDialog, TalentEditor};
+use game_engine_ui_player_spells::spellbook_frame_component::spellbook_frame_screen;
+use game_engine_ui_player_spells::spellbook_preview::{load_preview_state, stage_talent_preview};
 use shared::protocol::{TraitLoadoutInfo, TraitLoadoutOperation, TraitLoadoutsSnapshot};
 use ui_toolkit::{
     atlas::{ActiveSkin, set_thread_skin},
@@ -10,7 +9,7 @@ use ui_toolkit::{
     registry::FrameRegistry,
     screen::{Screen, SharedContext},
 };
-fn state() -> game_engine_ui_model::spellbook_frame_component::SpellbookFrameState {
+fn state() -> game_engine_ui_player_spells::spellbook_frame_component::SpellbookFrameState {
     let data = std::path::PathBuf::from(env!("CARGO_MANIFEST_DIR")).join("../../data");
     game_engine_ui_model::paths::set_data_root(data.clone()).unwrap();
     let mut state = load_preview_state(&data, PlayerSpellsTab::Talents).unwrap();
@@ -226,7 +225,7 @@ fn talent_loadouts_both_skins_show_builtin_starter_without_gear() {
         let mut registry = FrameRegistry::new(1920.0, 1080.0);
         let mut screen = Screen::new(spellbook_frame_screen);
         screen.sync(&shared, &mut registry);
-        game_engine_ui_model::spellbook_frame_component::apply_spellbook_postsetup(
+        game_engine_ui_player_spells::spellbook_frame_component::apply_spellbook_postsetup(
             &state,
             &mut registry,
         );
@@ -257,7 +256,7 @@ fn talent_loadouts_both_skins_show_builtin_starter_without_gear() {
             .selected_id = 1;
         shared.insert(state.clone());
         screen.sync(&shared, &mut registry);
-        game_engine_ui_model::spellbook_frame_component::apply_spellbook_postsetup(
+        game_engine_ui_player_spells::spellbook_frame_component::apply_spellbook_postsetup(
             &state,
             &mut registry,
         );
@@ -313,7 +312,7 @@ fn talent_loadouts_modern_dialog_draws_the_mainline_panel_button_sheets() {
     shared.insert(state.clone());
     let mut registry = FrameRegistry::new(1920.0, 1080.0);
     Screen::new(spellbook_frame_screen).sync(&shared, &mut registry);
-    game_engine_ui_model::spellbook_frame_component::apply_spellbook_postsetup(
+    game_engine_ui_player_spells::spellbook_frame_component::apply_spellbook_postsetup(
         &state,
         &mut registry,
     );
@@ -469,7 +468,7 @@ fn talent_loadouts_import_dialog_has_retail_fields_limits_and_shared_geometry() 
         shared.insert(state.clone());
         let mut registry = FrameRegistry::new(1920.0, 1080.0);
         Screen::new(spellbook_frame_screen).sync(&shared, &mut registry);
-        game_engine_ui_model::spellbook_frame_component::apply_spellbook_postsetup(
+        game_engine_ui_player_spells::spellbook_frame_component::apply_spellbook_postsetup(
             &state,
             &mut registry,
         );

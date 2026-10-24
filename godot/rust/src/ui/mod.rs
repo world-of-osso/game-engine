@@ -131,9 +131,6 @@ use game_engine_ui_model::objective_tracker_component::{
     ObjectiveTrackerState, objective_tracker_screen,
 };
 use game_engine_ui_model::pet_action_bar_component::PetActionBarState;
-use game_engine_ui_model::spellbook_frame_component::{
-    SpellbookFrameState, apply_spellbook_postsetup, spellbook_frame_screen,
-};
 use game_engine_ui_model::stack_split_frame_component::StackSplitFrameState;
 use game_engine_ui_model::world_map_frame_component::{
     WORLD_MAP_QUEST_AREAS, WorldMapFrameState, apply_world_map_postsetup, world_map_frame_screen,
@@ -144,6 +141,9 @@ use game_engine_ui_model::{
     loading_component::{LoadingScreenState, LoadingViewportHeight, advance_displayed_progress},
     login,
     ui_errors_data::UiErrorsData,
+};
+use game_engine_ui_player_spells::spellbook_frame_component::{
+    SpellbookFrameState, apply_spellbook_postsetup, spellbook_frame_screen,
 };
 use godot::classes::{CanvasLayer, Control, ICanvasLayer};
 use godot::prelude::*;

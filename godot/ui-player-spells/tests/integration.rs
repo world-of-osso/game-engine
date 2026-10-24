@@ -1,0 +1,14 @@
+mod classbook_catalog_audit;
+mod classbook_icons;
+mod classbook_preview;
+mod micro_menu;
+mod pvp_progression;
+mod spellbook_frame;
+mod spellbook_preview;
+mod talent_centering;
+mod talent_footer;
+mod talent_layout;
+mod talent_loadouts;
+mod talents;
+mod talentwire;
+mod textfit;

@@ -185,8 +185,7 @@ pub mod casting_bar_frame_component;
 pub mod main_action_bar_component;
 #[path = "ui/screens/pet_action_bar_component.rs"]
 pub mod pet_action_bar_component;
-#[path = "ui/screens/spellbook_frame_component.rs"]
-pub mod spellbook_frame_component;
+pub mod player_spells_data;
 #[path = "ui/ui_errors_data.rs"]
 pub mod ui_errors_data;
 #[path = "ui/screens/ui_errors_frame_component.rs"]
@@ -268,7 +267,6 @@ pub mod auction;
 #[path = "ui/screens/auction_house_frame_component.rs"]
 pub mod auction_house_frame_component;
 pub mod char_select_data;
-pub mod spellbook_preview;
 
 #[path = "loot_data.rs"]
 pub mod loot_data;

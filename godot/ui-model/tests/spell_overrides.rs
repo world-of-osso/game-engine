@@ -121,9 +121,8 @@ fn animation_override_and_item_action_do_not_replace_spells() {
 
 #[test]
 fn spellbook_replacement_preserves_base_binding_and_presents_its_cooldown() {
-    use game_engine_ui_model::{
-        spell_overrides::update_spellbook_item, spellbook_frame_component::SpellbookItemView,
-    };
+    use game_engine_ui_model::player_spells_data::SpellbookItemView;
+    use game_engine_ui_model::spell_overrides::update_spellbook_item;
     let base = SpellbookItemView {
         spell_id: 85288,
         name: "Raging Blow".into(),

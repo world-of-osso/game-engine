@@ -5,7 +5,7 @@ use crate::frame_error::FrameError;
 use game_engine_ui_model::cursor_item::CursorItem;
 use game_engine_ui_model::main_action_bar_component::{ACTION_VEHICLE_EXIT, parse_action_button};
 use game_engine_ui_model::merchant::Click;
-use game_engine_ui_model::spellbook_frame_component::ACTION_SPELLBOOK_CAST;
+use game_engine_ui_player_spells::spellbook_frame_component::ACTION_SPELLBOOK_CAST;
 use godot::prelude::*;
 use shared::protocol::ActionRef;
 

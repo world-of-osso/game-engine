@@ -6,7 +6,7 @@ use shared::{
 };
 
 pub fn update_spellbook_item(
-    item: &mut crate::spellbook_frame_component::SpellbookItemView,
+    item: &mut crate::player_spells_data::SpellbookItemView,
     replacement: Option<&game_engine_core::spell_catalog::CatalogSpell>,
     cooldown_fraction: f32,
 ) {

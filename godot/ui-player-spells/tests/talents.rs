@@ -1,7 +1,8 @@
-use game_engine_ui_model::spellbook_frame_component::{
-    PlayerSpellsTab, apply_spellbook_postsetup, spellbook_frame_screen,
+use game_engine_ui_model::player_spells_data::PlayerSpellsTab;
+use game_engine_ui_player_spells::spellbook_frame_component::{
+    apply_spellbook_postsetup, spellbook_frame_screen,
 };
-use game_engine_ui_model::spellbook_preview::load_preview_state;
+use game_engine_ui_player_spells::spellbook_preview::load_preview_state;
 use ui_toolkit::atlas::{ActiveSkin, set_thread_skin};
 use ui_toolkit::frame::{Dimension, WidgetData};
 use ui_toolkit::registry::FrameRegistry;
@@ -557,7 +558,7 @@ fn talent_tree3_real_gates_show_remaining_earlier_row_cost() {
 
 #[test]
 fn talents_pending_ranks_counters_apply_and_choice_elements_match_both_skins() {
-    use game_engine_ui_model::spellbook_preview::stage_talent_preview;
+    use game_engine_ui_player_spells::spellbook_preview::stage_talent_preview;
     let data = std::path::PathBuf::from(env!("CARGO_MANIFEST_DIR")).join("../../data");
     game_engine_ui_model::paths::set_data_root(data.clone()).unwrap();
     for skin in [ActiveSkin::Modern, ActiveSkin::Forever] {
