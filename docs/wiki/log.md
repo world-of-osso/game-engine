@@ -1,3 +1,7 @@
+## 2026-10-24 — M2 header and animation inputs
+
+[Header/container rows](reference/benilla-m2-header-fields.md) expose individual count/offset inputs and unread intervals without transferring Benilla's pre-Wrath offsets. [Animation rows](reference/benilla-m2-animation-fields.md) trace named bones/sequences, ordinary-track descriptors and external payload selection. Static-only; geometry/scene integration and independent audits remain open.
+
 ## 2026-10-24 — M2 particle field handling
 
 [Particle inputs](reference/benilla-m2-particle-fields.md) enumerate generator/lifetime fields, partial descriptors, packed multitexture, EXP2, tested flags and conditional single-key loss. Benilla's geometry-model dependency-to-static-mesh chain is distinct from recursive emitters. Static source evidence only; B reserved-byte/flag accounting and broader inventory remain open.
