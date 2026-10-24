@@ -18,6 +18,45 @@ impl GameClient {
     }
 }
 
+#[cfg(debug_assertions)]
+#[godot_api(secondary)]
+impl GameClient {
+    /// Actual delivered packets only; native fixtures cannot supply a reply here.
+    #[func]
+    pub fn guild_chat_observation(&self) -> GString {
+        use game_engine_ui_model::chat_data::ChatChannelType;
+        let live: Vec<_> = self
+            .chat
+            .model
+            .log
+            .messages
+            .iter()
+            .filter(|message| {
+                matches!(
+                    message.channel_type,
+                    ChatChannelType::Guild | ChatChannelType::Officer
+                )
+            })
+            .map(|message| {
+                serde_json::json!({
+                    "sender": message.sender, "content": message.text,
+                    "officer": message.channel_type == ChatChannelType::Officer,
+                })
+            })
+            .collect();
+        let receipt = serde_json::json!({
+            "live": live,
+            "history_count": self.guild_ranks.chat_history_count,
+            "history": &self.guild_ranks.chat_history_reply,
+        });
+        GString::from(
+            serde_json::to_string(&receipt)
+                .expect("serialize actual guild chat receipts")
+                .as_str(),
+        )
+    }
+}
+
 #[derive(Default)]
 pub(crate) struct GuildRanks {
     session: GuildRanksSession,
@@ -25,6 +64,10 @@ pub(crate) struct GuildRanks {
     invite_targets: std::collections::VecDeque<String>,
     query_info: bool,
     chat_scroll_to_latest: bool,
+    #[cfg(debug_assertions)]
+    chat_history_count: u64,
+    #[cfg(debug_assertions)]
+    chat_history_reply: Option<shared::protocol::ChatHistoryResponse>,
 }
 impl GuildRanks {
     pub(crate) fn visit_uis(
@@ -86,6 +129,11 @@ impl GameClient {
         &mut self,
         reply: shared::protocol::ChatHistoryResponse,
     ) {
+        #[cfg(debug_assertions)]
+        {
+            self.guild_ranks.chat_history_count += 1;
+            self.guild_ranks.chat_history_reply = Some(reply.clone());
+        }
         self.guild_ranks.session.apply_chat_history(reply);
         self.guild_ranks.chat_scroll_to_latest = self.guild_ranks.session.chat_is_open();
     }

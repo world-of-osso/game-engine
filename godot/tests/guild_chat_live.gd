@@ -47,6 +47,8 @@ func run_chat() -> bool:
 		return false
 	if not check_chat_geometry():
 		return false
+	if not await wait_until(func(): return int(observation().history_count) > 0, "actual history receipt on open"):
+		return false
 	mark("ready")
 	if not await other("ready"):
 		return false
@@ -116,7 +118,16 @@ func privacy_denial() -> bool:
 		if not await main_chat("/gdemote " + OS.get_environment("GUILD_CHAT_PEER")):
 			return false
 		mark("demoted")
-		return await other("denied")
+		if not await other("denied"):
+			return false
+		if not await compose(message("officer-private-after-demotion")):
+			return false
+		if not await received(message("officer-private-after-demotion")):
+			return false
+		if not await capture_checked("officer-private-after-demotion"):
+			return false
+		mark("private-sent")
+		return await other("privacy-checked")
 	if not await other("demoted"):
 		return false
 	if not await wait_until(func(): return text("CommunitiesStreamDropdownText") == "Guild Chat", "authoritative officer access revoked"):
@@ -132,6 +143,18 @@ func privacy_denial() -> bool:
 	if not await capture_checked("officer-denial"):
 		return false
 	mark("denied")
+	if not await other("private-sent"):
+		return false
+	var before := int(observation().history_count)
+	await press("GuildRosterTab")
+	await press("CommunitiesChatTab")
+	if not await wait_until(func(): return int(observation().history_count) > before, "ordinary member actual history receipt"):
+		return false
+	if JSON.stringify(observation()).contains(message("officer-private-after-demotion")):
+		return fail("Ordinary member received officer data in live delivery or history")
+	if not await capture_checked("officer-private-history-refused"):
+		return false
+	mark("privacy-checked")
 	return true
 
 func history_open() -> bool:
@@ -140,11 +163,14 @@ func history_open() -> bool:
 		mark("history-closed")
 		if not await other("history-sent"):
 			return false
+		var before := int(observation().history_count)
 		await press("CommunitiesChatTab")
+		if not await wait_until(func(): return int(observation().history_count) > before, "new actual history reply after opening"):
+			return false
 		if not await received(message("history-peer")):
 			return false
-		if transcript().contains(message("forbidden-officer")):
-			return fail("Refused officer line entered history")
+		if JSON.stringify(observation()).contains(message("forbidden-officer")):
+			return fail("Refused officer line entered actual live delivery or history")
 		if not await capture_checked("history-on-open"):
 			return false
 		mark("history-read")
@@ -155,6 +181,18 @@ func history_open() -> bool:
 		return false
 	mark("history-sent")
 	return await other("history-read")
+
+func observation() -> Dictionary:
+	return JSON.parse_string(str(client.guild_chat_observation()))
+
+func capture_checked(name: String) -> bool:
+	if not await super.capture_checked(name):
+		return false
+	var file := FileAccess.open(directory.path_join(role + "-" + name + "-received.json"), FileAccess.WRITE)
+	if file == null:
+		return fail("Cannot write actual chat receipt: " + str(FileAccess.get_open_error()))
+	file.store_string(JSON.stringify(observation(), "\t"))
+	return true
 
 func compose(value: String) -> bool:
 	await press("CommunitiesChatEditBox")

@@ -28,6 +28,8 @@ Mainline Communities guild Chat in Modern and Forever uses the existing authoriz
 ## Tests asserting this spec
 
 - `godot/ui-model/tests/guild_chat_tests.rs`: rendered controls, history, rights and exact command behavior.
+- `godot/network/src/guild_rank_wire_tests.rs`: real UDP existing history and held-worker snapshot/live ordering.
+- `godot/tests/guild_chat_live.gd`: two actual native actors, source rectangles, physical composer/stream changes, delivered packets/history, ordinary-rank speak/listen privacy and full-HD captures. Debug-only `guild_chat_observation` exposes actual received data without a setter; no reply fixture injection.
 
 ## Known gaps (current cycle)
 
