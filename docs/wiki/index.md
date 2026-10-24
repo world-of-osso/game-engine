@@ -396,6 +396,7 @@ External resources and asset lists.
 - [ADT placement/reference fields](reference/benilla-adt-placement-fields.md) — MDDF/MODF, names, bounds, companion references and doodad-set indirection.
 - [ADT extensions/LOD fields](reference/benilla-adt-extension-fields.md) — blend mesh, flight bounds, lighting/detail masks and modern LOD inputs; opaque words unassigned.
 - [Terrain water/WDT/WDL fields](reference/benilla-terrain-water-fields.md) — MH2O versus legacy MCLQ, map directories and horizon masks; static source evidence.
+- [Zone-light/weather fields](reference/benilla-zone-weather-fields.md) — CSV joins and spatial blends, distinct Vanilla weather packet/state/precipitation/lighting/sound routes and bounded native counterpart search.
 - [BLP individual fields](reference/benilla-blp-fields.md) — BLP1/2 headers, mip directories, palette/JPEG/DXT/BC5 boundaries and separate CPU versus full-chain GPU paths.
 - [Benilla asset-field inventory](reference/benilla-asset-field-inventory.md) — pinned M2/WMO/ADT/WDT/WDL/BLP and environment comparison; parsed-but-unbound fields, existing coverage and version-qualified research leads, static evidence only.
 

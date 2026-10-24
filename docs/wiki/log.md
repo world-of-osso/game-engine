@@ -1,3 +1,7 @@
+## 2026-10-24 — Zone-light and weather inputs
+
+[Zone/weather fields](reference/benilla-zone-weather-fields.md) trace explicit ZoneLight/ZoneLightPoint CSV columns and joined spatial weights, then separate B's four weather packet fields from local/derived state and actual precipitation, lighting/fog and sound consumers. No equivalent E weather state was found in the named native Rust paths; not global absence or runtime compatibility proof. Ordinary light/fog integration and independent verification remain open.
+
 ## 2026-10-24 — BLP serialized-field expansion
 
 [BLP fields](reference/benilla-blp-fields.md) distinguish dependency header inputs, palette/JPEG payloads, mip directories, native compressed/full-chain DXT, alpha-BC1 RGBA chains and BC5 from the CPU mip0 projection. Version/codec boundaries remain explicit; no runtime proof. Independent static verification and environment-field integration remain open.
