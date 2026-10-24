@@ -24,7 +24,8 @@ Offline audit tooling in `scripts/asset_closure.py` computes a content-rooted de
 
 ## Historical model-source recovery
 
-- Explicit recovery requests may stage M2/BLP source bytes only when product,FDID,kind,native flat source path,actual build/build-key and current size/SHA256/content-MD5 match a valid record in the pinned extraction ledger. Missing receipts,changed bytes or an existing unique owner refuse staging; no extraction,active-build substitution,owner refresh or source-tree write occurs.
+- Explicit recovery requests may stage M2/BLP/SKIN/ANIM source bytes only when product,FDID,kind,native flat source path,actual build/build-key and current size/SHA256/content-MD5 match a valid record in the pinned extraction ledger. Missing receipts,changed bytes or an existing unique owner refuse staging; no extraction,active-build substitution,owner refresh or source-tree write occurs.
+- SKIN requires the existing native44-byte minimum header and SKIN magic. ANIM retains the existing chunked-tag/nonempty raw-AFID handling,with exact content-key MD5 required. SKIN/ANIM may record their own actual owner destination without creating aliases;cross-namespace SKIN/ANIM aliases remain refused. BONE,SKEL and other new kinds are not enabled. Header/source qualification is not full geometry/parent/track or rendering proof.
 - Publish immutable owners under the actual source build namespace. Companion aliases use their explicitly recorded actual owning namespaces; alias `build_key` describes the destination namespace while `source_build`/`source_build_key` retain the actual source identity. Native unique-owner selection still precedes path/resolver construction. Generic flat acceptance is never a model recovery path.
 - Emit one `HISTORICAL_ASSET_SOURCE_BUILD_MISMATCH` finding per admitted graph identity: product,FDID,kind,metadata build,actual build/build-key,source path,size/SHA256/content-key,owner path and companion destination if applicable. This named historical-source exception is evidence,not promotion to metadata/current-build identity or net P4 closure. Residual nodes and newly exposed descendants remain gaps. Private staging does not authorize canonical publication.
 
@@ -62,11 +63,14 @@ Offline audit tooling in `scripts/asset_closure.py` computes a content-rooted de
 - `scripts/closure_nonmodel_receipts.py` — actual flat byte receipts and DB2 export provenance; no extraction or index publication.
 - `scripts/closure_db2_policy.py` — pinned WDC5 encrypted-section/key-census proof and named unreachable-row exclusions; never whole-file provenance promotion.
 - `scripts/publish_model_asset_fragment.py` — read-only current-canonical preflight by default; explicit lead-only transactional publication with persistent index backups.
+- `scripts/stage_receipted_models.py` — exact-ledger immutable M2/BLP/SKIN/ANIM owner staging and existing BLP-only cross-namespace alias support;no extraction or canonical writes.
 - `scripts/closure_seeds.py` — metadata joins and configurable content roots.
 - `scripts/closure-northshire.json` — four Northshire ADT tiles and one Human Warrior.
 - `scripts/closure-full-catalog.json` — broad catalog selectors; not a completeness certificate.
 
 ## Tests asserting this spec
+
+- `scripts/tests/test_stage_receipted_models.py` — exact source/product/path/hash and immutable-owner refusal;SKIN minimum header,chunked/raw ANIM,own-destination zero-alias behavior and refusal of cross-namespace SKIN/ANIM or unapproved kinds.
 
 - `scripts/tests/test_publish_model_asset_fragment.py` — real CLI temporary-tree dry-run,conflict refusal,atomic publication/index backup and idempotent rerun.
 

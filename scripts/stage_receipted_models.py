@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""Stage immutable model owners from exact historical extraction receipts.
+"""Stage immutable M2/BLP/SKIN/ANIM owners from exact historical receipts.
 
 No install, extraction, source writes, owner refresh, or generic auditor fallback.
 The request document names each source identity and actual companion destination.
@@ -39,7 +39,7 @@ def validate_request(request, metadata_build):
     product, fdid, kind, source, build, key = request_key(request)
     if (
         product not in PRODUCTS
-        or kind not in {"m2", "blp"}
+        or kind not in {"m2", "blp", "skin", "anim"}
         or not isinstance(fdid, int)
         or fdid <= 0
     ):
@@ -53,6 +53,10 @@ def validate_request(request, metadata_build):
         raise ValueError("Historical recovery requires a distinct actual source build")
     destination = request["requested_path"]
     if destination is None:
+        return
+    if kind in {"skin", "anim"} and destination == (
+        f"products/{product}/{key}/{directory}/{fdid}.{kind}"
+    ):
         return
     parts = Path(destination).parts
     if (
@@ -113,6 +117,8 @@ def make_owner(row, raw):
             f"Source payload size/SHA256/content-key mismatch: {row['path']}"
         )
     kind = row["type"]
+    if kind == "skin" and len(raw) < 44:
+        raise ValueError(f"SKIN header requires at least 44 bytes: {row['path']}")
     validate_magic(raw, kind, row["content_key"])
     identity = {
         "product": row["product"],
