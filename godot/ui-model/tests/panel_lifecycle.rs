@@ -1,7 +1,7 @@
 //! Materialized close declarations must survive both skins and screen rebuilds.
 use game_engine_ui_model::{character_frame, professions_frame, raid_info};
 use ui_toolkit::atlas::{ActiveSkin, set_thread_skin};
-use ui_toolkit::lifecycle::CloseGroup;
+use ui_toolkit::lifecycle::{CloseGroup, EscapePriority};
 use ui_toolkit::registry::FrameRegistry;
 use ui_toolkit::screen::{Screen, SharedContext};
 
@@ -59,6 +59,29 @@ fn ui_template_lifecycle_root_raid_info_keeps_registration_across_hide_and_rebui
 }
 
 #[test]
+fn ui_template_lifecycle_root_customer_orders_remains_ordinary_without_owner_escape() {
+    for skin in [ActiveSkin::Modern, ActiveSkin::Forever] {
+        set_skin(skin);
+        let mut shared = SharedContext::new();
+        let mut registry = FrameRegistry::new(1920.0, 1080.0);
+        let mut screen = Screen::new(professions_frame::professions_screen);
+        let mut view = professions_frame::ProfessionView::default();
+        view.book.visible = true;
+        view.page = professions_frame::ProfessionPage::Orders;
+        view.orders.customer = true;
+        shared.insert(view);
+        screen.sync(&shared, &mut registry);
+        let id = registry
+            .get_by_name("ProfessionsCustomerOrdersFrame")
+            .unwrap();
+        let binding = registry.get(id).unwrap().lifecycle.as_ref().unwrap();
+        assert_eq!(binding.close_group, Some(CloseGroup::Panels));
+        assert_eq!(binding.escape_hook, None);
+        assert_eq!(binding.escape_priority, None);
+    }
+}
+
+#[test]
 fn ui_template_lifecycle_root_professions_unmounts_without_losing_registration_on_reopen() {
     for skin in [ActiveSkin::Modern, ActiveSkin::Forever] {
         set_skin(skin);
@@ -71,7 +94,12 @@ fn ui_template_lifecycle_root_professions_unmounts_without_losing_registration_o
             shared.insert(view);
             screen.sync(&shared, &mut registry);
             if visible {
-                assert_close(&registry, "ProfessionsFrame", "professions");
+                let id = registry.get_by_name("ProfessionsFrame").unwrap();
+                let binding = registry.get(id).unwrap().lifecycle.as_ref().unwrap();
+                assert_eq!(binding.close_hook.as_deref(), Some("professions"));
+                assert_eq!(binding.close_group, Some(CloseGroup::Panels));
+                assert_eq!(binding.escape_hook.as_deref(), Some("professions"));
+                assert_eq!(binding.escape_priority, Some(EscapePriority::AddOn));
             } else {
                 assert!(registry.get_by_name("ProfessionsFrame").is_none());
             }
