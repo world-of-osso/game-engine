@@ -1116,6 +1116,10 @@ Explicit user instruction authorizes frame growth, not a discovered Retail mecha
 
 [Normal/huge bomb interaction](systems/battlegrounds.md#ioc-bomb-disarm-interaction--active-2026-10-14): actual request RED→GREEN with physical picking, cursor and soft-interaction paths; game-object15/15 and soft10/10, no generic trap enablement. Native both-skin bomb deployment/disarm and full IoC remain pending.
 ## 2026-10-23 — Benilla asset-field inventory
+## 2026-10-24 — M2 ribbon field handling
+
+[Individual ribbon inputs](reference/benilla-m2-ribbon-fields.md) separate modern 176-byte records from Benilla's 220-byte records, expand array/track descriptors, trace native strip/material/UV consumers and bound unknown color-index use. Static source research only; remaining M2 families and later formats stay open.
+
 ## 2026-10-24 — M2 declared-field scope
 
 [Working census](reference/benilla-m2-field-census.md) exposes named M2/SKIN reader/model fields individually, separately from source byte layouts and downstream handling. Parser-to-consumer proofs, header/opaque ranges and runtime classifications remain active work; no completeness or runtime claim.

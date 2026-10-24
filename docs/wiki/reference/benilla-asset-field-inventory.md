@@ -24,6 +24,8 @@ Status vocabulary:
 
 ## Per-field expansion
 
+[M2 ribbon field handling](benilla-m2-ribbon-fields.md) traces individual ribbon inputs and expanded descriptors to native consumers, with version differences and bounded unknowns. Other M2 families remain under integration.
+
 [M2 declared-field census](benilla-m2-field-census.md) lists each named reader/model representation field as the starting scope for the deeper audit. It is explicitly a working census, not the final parser-to-consumer matrix or a native-format completeness count.
 
 ## 1. Actionable comparison inventory
