@@ -1,7 +1,7 @@
 //! Native basic editor input. Ground placement uses the existing authored-surface ray.
 use crate::GameClient;
 use game_engine_core::input_bindings_data::InputAction;
-use game_engine_ui_model::{
+use game_engine_ui_housing::{
     housing::HousingSurface,
     housing_editor::{EditorMode, PrecisionSubmode},
 };
@@ -495,7 +495,7 @@ impl GameClient {
     }
 
     pub(super) fn update_cleanup_hover(&mut self, point: Vector2) -> Result<(), String> {
-        use game_engine_ui_model::housing_editor::EditorMode;
+        use game_engine_ui_housing::housing_editor::EditorMode;
         let Some(model) = &self.housing.model else {
             return Ok(());
         };
@@ -657,7 +657,7 @@ const EXPERT_INCREMENT_RATE: f32 = 0.5;
 
 impl GameClient {
     pub(super) fn advance_housing_precision(&mut self) -> Result<(), String> {
-        use game_engine_ui_model::housing_editor::{EditorMode, PrecisionSubmode};
+        use game_engine_ui_housing::housing_editor::{EditorMode, PrecisionSubmode};
         if self.housing_keyboard_blocked() {
             self.housing.expert_input.clear();
         }

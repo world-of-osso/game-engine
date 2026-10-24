@@ -194,7 +194,7 @@ pub struct HousingDashboard {
     pub surface: HousingSurface,
     pub neighborhood: u32,
     pub finder_plot: Option<u32>,
-    pub maps: Option<Arc<crate::ui_map_data::UiMapCatalog>>,
+    pub maps: Option<Arc<game_engine_ui_model::ui_map_data::UiMapCatalog>>,
     pub pending: bool,
     pub catalog: Arc<HousingCatalog>,
     pub search: String,
@@ -233,9 +233,9 @@ impl HousingDashboard {
         &self,
         action: game_engine_core::input_bindings_data::InputAction,
         binding: Option<game_engine_core::input_bindings_data::InputBinding>,
-    ) -> Option<crate::game_tooltip::GameTooltip> {
-        use crate::game_tooltip::GameTooltip;
-        use crate::tooltip_presentation::{TOOLTIP_WHITE, TooltipPresentation};
+    ) -> Option<game_engine_ui_model::game_tooltip::GameTooltip> {
+        use game_engine_ui_model::game_tooltip::GameTooltip;
+        use game_engine_ui_model::tooltip_presentation::{TOOLTIP_WHITE, TooltipPresentation};
         if self.surface != HousingSurface::Editor || self.pending {
             return None;
         }
@@ -260,10 +260,10 @@ impl HousingDashboard {
     pub fn cleanup_hover_tooltip(
         &self,
         authority: &HousingAuthority,
-    ) -> Option<crate::game_tooltip::GameTooltip> {
-        use crate::game_tooltip::GameTooltip;
+    ) -> Option<game_engine_ui_model::game_tooltip::GameTooltip> {
         use crate::housing_editor::EditorMode;
-        use crate::tooltip_presentation::{TOOLTIP_WHITE, TooltipPresentation};
+        use game_engine_ui_model::game_tooltip::GameTooltip;
+        use game_engine_ui_model::tooltip_presentation::{TOOLTIP_WHITE, TooltipPresentation};
         if self.surface != HousingSurface::Editor
             || self.editor.mode != EditorMode::Cleanup
             || self.pending
@@ -695,12 +695,12 @@ pub fn source_lines(decor: &Decor, names: &std::collections::HashMap<u32, String
 const NORMAL_FONT_COLOR: [f32; 4] = [1.0, 0.82, 0.0, 1.0];
 
 /// HouseEditorStorageButtonMixin: GlobalStrings54006 HOUSE_EDITOR_CATALOG_BUTTON_TOOLTIP.
-pub fn storage_handle_tooltip() -> crate::game_tooltip::GameTooltip {
-    crate::game_tooltip::GameTooltip::new(
-        crate::tooltip_presentation::TooltipPresentation {
+pub fn storage_handle_tooltip() -> game_engine_ui_model::game_tooltip::GameTooltip {
+    game_engine_ui_model::game_tooltip::GameTooltip::new(
+        game_engine_ui_model::tooltip_presentation::TooltipPresentation {
             title: "House Chest".into(),
-            title_color: crate::tooltip_presentation::TOOLTIP_WHITE,
-            ..crate::tooltip_presentation::TooltipPresentation::hidden()
+            title_color: game_engine_ui_model::tooltip_presentation::TOOLTIP_WHITE,
+            ..game_engine_ui_model::tooltip_presentation::TooltipPresentation::hidden()
         },
         None,
     )
@@ -713,8 +713,10 @@ pub fn decor_entry_tooltip(
     decor: &Decor,
     catalog: &HousingCatalog,
     authority: &HousingAuthority,
-) -> crate::game_tooltip::GameTooltip {
-    use crate::tooltip_presentation::{TOOLTIP_WHITE, TooltipLineState, TooltipPresentation};
+) -> game_engine_ui_model::game_tooltip::GameTooltip {
+    use game_engine_ui_model::tooltip_presentation::{
+        TOOLTIP_WHITE, TooltipLineState, TooltipPresentation,
+    };
     let mut lines: Vec<TooltipLineState> = decor
         .subcategories
         .iter()
@@ -743,7 +745,7 @@ pub fn decor_entry_tooltip(
             NORMAL_FONT_COLOR,
         ));
     }
-    crate::game_tooltip::GameTooltip::new(
+    game_engine_ui_model::game_tooltip::GameTooltip::new(
         TooltipPresentation {
             title: decor.name.clone(),
             title_color: TOOLTIP_WHITE,

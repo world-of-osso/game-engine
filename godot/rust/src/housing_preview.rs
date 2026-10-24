@@ -3,7 +3,7 @@
 use crate::GameClient;
 use crate::character_frame::preview::{Scene, bind_sheet_light};
 use game_engine_core::housing::HousingCatalog;
-use game_engine_ui_model::housing::{DashboardTab, HousingSurface};
+use game_engine_ui_housing::housing::{DashboardTab, HousingSurface};
 use godot::classes::{Control, InputEvent, InputEventMouseButton, InputEventMouseMotion, Label};
 use godot::global::MouseButton;
 use godot::prelude::*;

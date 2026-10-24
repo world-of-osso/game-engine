@@ -1,11 +1,11 @@
 //! Native Retail 814x544 Housing Dashboard and three-column 97px catalog.
 use crate::housing::{CollectionFilter, DashboardTab, HousingDashboard};
-use crate::menu_primitives::{
+use game_engine_core::housing::Decor;
+use game_engine_ui_model::menu_primitives::{
     DropdownButton, DropdownState, DropdownStyle, dropdown_button_with_state,
 };
-use crate::quest_art::{DynName, named_atlas_texture, portrait_border};
-use crate::ui::strata::FrameStrata;
-use game_engine_core::housing::Decor;
+use game_engine_ui_model::quest_art::{DynName, named_atlas_texture, portrait_border};
+use game_engine_ui_model::ui::strata::FrameStrata;
 use std::collections::{BTreeSet, HashMap};
 use ui_toolkit::{
     frame::WidgetData, registry::FrameRegistry, rsx, screen::SharedContext, widget_def::Element,
@@ -180,7 +180,7 @@ pub fn housing_screen(context: &SharedContext) -> Element {
     let tabs = side_tabs(view.model.tab);
     let left = ((view.viewport[0] - SIZE[0]) / 2.0).max(0.0);
     let top = ((view.viewport[1] - SIZE[1]) / 2.0).max(0.0);
-    crate::panel_lifecycle::bind_close(
+    game_engine_ui_model::panel_lifecycle::bind_close(
         rsx! {
             r#frame { name: "HousingRoot", stretch: true,
                 r#frame { name: "HousingDashboardFrame", width: 814.0, height: 544.0,

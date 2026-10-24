@@ -442,9 +442,9 @@ impl RegistryModel {
         }
         if let Some(view) = self
             .shared
-            .get::<game_engine_ui_model::housing_component::HousingView>()
+            .get::<game_engine_ui_housing::housing_component::HousingView>()
         {
-            game_engine_ui_model::housing_component::apply_housing_postsetup(
+            game_engine_ui_housing::housing_component::apply_housing_postsetup(
                 view,
                 &mut self.registry,
             );
@@ -1502,11 +1502,11 @@ impl RegistryUi {
 
     pub(crate) fn show_housing(
         &mut self,
-        view: game_engine_ui_model::housing_component::HousingView,
+        view: game_engine_ui_housing::housing_component::HousingView,
     ) -> Result<(), String> {
         self.show_quest_window(
             view,
-            game_engine_ui_model::housing_component::housing_screen,
+            game_engine_ui_housing::housing_component::housing_screen,
         )?;
         self.enable_cursor_inputs();
         self.toplevel = true;

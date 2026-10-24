@@ -5,9 +5,9 @@ use crate::housing_basic_component::{
 };
 use crate::housing_component::HousingView;
 use crate::housing_editor::{EditorMode, PrecisionSubmode};
-use crate::quest_art::named_atlas_texture;
-use crate::ui::strata::FrameStrata;
 use game_engine_core::input_bindings_data::InputAction;
+use game_engine_ui_model::quest_art::named_atlas_texture;
+use game_engine_ui_model::ui::strata::FrameStrata;
 use ui_toolkit::{registry::FrameRegistry, rsx, widget_def::Element};
 
 const SUBMODES: [(&str, &str, &str, PrecisionSubmode, InputAction); 3] = [
@@ -44,7 +44,7 @@ pub fn expert_screen(view: &HousingView) -> Element {
     let instructions = expert_instructions(view);
     let submodes = submode_bar(view);
     let mouse_controls = crate::housing_mouse_component::mouse_controls(view);
-    crate::panel_lifecycle::bind_close(
+    game_engine_ui_model::panel_lifecycle::bind_close(
         rsx! {r#frame {name:"HouseEditorFrame",stretch:true,
             {mouse_controls}{modes}{submodes}{instructions}
         }},

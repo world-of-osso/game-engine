@@ -1,8 +1,8 @@
 //! Retail Menu.lua hover timer, global dismissal and popup owner lifetime.
 use crate::GameClient;
-use game_engine_ui_model::StorageMenuTarget;
-use game_engine_ui_model::housing::HousingSurface;
-use game_engine_ui_model::housing_editor::EditorMode;
+use game_engine_ui_housing::StorageMenuTarget;
+use game_engine_ui_housing::housing::HousingSurface;
+use game_engine_ui_housing::housing_editor::EditorMode;
 use godot::classes::{InputEvent, InputEventKey, InputEventMouseButton};
 use godot::global::{Key, MouseButton};
 use godot::prelude::*;

@@ -2,9 +2,11 @@
 use crate::housing_component::HousingView;
 use crate::housing_editor::EditorMode;
 use crate::housing_placed_list::{ENTRY_PREFIX, LIST, ROW_PITCH, SIZE};
-use crate::minimal_scroll_bar::{MinimalScrollBar, Unscrollable, pixel_geometry, scroll_list_attr};
-use crate::quest_art::{DynName, named_atlas_texture};
-use crate::ui::strata::FrameStrata;
+use game_engine_ui_model::minimal_scroll_bar::{
+    MinimalScrollBar, Unscrollable, pixel_geometry, scroll_list_attr,
+};
+use game_engine_ui_model::quest_art::{DynName, named_atlas_texture};
+use game_engine_ui_model::ui::strata::FrameStrata;
 use ui_toolkit::text_measure::measure_text;
 use ui_toolkit::widgets::{button::ButtonState, font_string::GameFont};
 use ui_toolkit::{

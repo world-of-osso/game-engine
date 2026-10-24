@@ -3180,6 +3180,7 @@ dependencies = [
  "game-engine-core",
  "game-engine-network",
  "game-engine-session",
+ "game-engine-ui-housing",
  "game-engine-ui-model",
  "glam",
  "godot",
@@ -3225,6 +3226,16 @@ name = "game-engine-session"
 version = "0.1.0"
 dependencies = [
  "shared",
+]
+
+[[package]]
+name = "game-engine-ui-housing"
+version = "0.1.0"
+dependencies = [
+ "game-engine-core",
+ "game-engine-ui-model",
+ "shared",
+ "ui-toolkit-core",
 ]
 
 [[package]]

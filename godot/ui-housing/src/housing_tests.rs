@@ -786,7 +786,7 @@ fn housing_storage_handle_tooltip_names_the_source_house_chest_without_policy_li
     assert_eq!(tooltip.content.title, "House Chest");
     assert_eq!(
         tooltip.content.title_color,
-        crate::tooltip_presentation::TOOLTIP_WHITE
+        game_engine_ui_model::tooltip_presentation::TOOLTIP_WHITE
     );
     assert!(tooltip.content.lines.is_empty());
 }

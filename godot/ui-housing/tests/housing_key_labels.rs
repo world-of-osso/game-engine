@@ -1,8 +1,8 @@
 use game_engine_core::housing::HousingCatalog;
 use game_engine_core::input_bindings_data::{BindingKey, InputAction, InputBinding};
-use game_engine_ui_model::housing::{HousingAuthority, HousingDashboard, HousingSurface};
-use game_engine_ui_model::housing_component::{HousingView, housing_screen};
-use game_engine_ui_model::housing_editor::EditorMode;
+use game_engine_ui_housing::housing::{HousingAuthority, HousingDashboard, HousingSurface};
+use game_engine_ui_housing::housing_component::{HousingView, housing_screen};
+use game_engine_ui_housing::housing_editor::EditorMode;
 use std::sync::Arc;
 use ui_toolkit::atlas::{ActiveSkin, set_thread_skin};
 use ui_toolkit::frame::{Dimension, WidgetData};
@@ -27,9 +27,9 @@ fn view(mode: EditorMode) -> HousingView {
 
 #[test]
 fn housing_mode_tooltips_use_full_keys_source_colors_and_owner_top_both_skins() {
+    use game_engine_ui_housing::housing::EDITOR_CONTROL_TOOLTIPS;
     use game_engine_ui_model::game_tooltip::render::tooltip_size;
     use game_engine_ui_model::game_tooltip::{OwnerSide, TooltipScreen, place};
-    use game_engine_ui_model::housing::EDITOR_CONTROL_TOOLTIPS;
     game_engine_ui_model::paths::set_data_root(
         std::path::PathBuf::from(env!("CARGO_MANIFEST_DIR")).join("../../data"),
     )
@@ -167,7 +167,7 @@ fn housing_control_hover_hides_while_pressed_and_restores_on_release_both_skins(
 
 #[test]
 fn housing_disabled_controls_use_source_default_atlas_and_darkgray_tint_both_skins() {
-    use game_engine_ui_model::housing_editor::PrecisionSubmode::{Rotate, Scale, Translate};
+    use game_engine_ui_housing::housing_editor::PrecisionSubmode::{Rotate, Scale, Translate};
     game_engine_ui_model::paths::set_data_root(
         std::path::PathBuf::from(env!("CARGO_MANIFEST_DIR")).join("../../data"),
     )
@@ -221,12 +221,12 @@ fn assert_disabled_control_case(
     skin: ActiveSkin,
     case: (
         EditorMode,
-        game_engine_ui_model::housing_editor::PrecisionSubmode,
+        game_engine_ui_housing::housing_editor::PrecisionSubmode,
         &str,
         &str,
     ),
 ) {
-    use game_engine_ui_model::housing_component::apply_housing_postsetup;
+    use game_engine_ui_housing::housing_component::apply_housing_postsetup;
     set_thread_skin(skin);
     let (mode, submode, name, atlas) = case;
     let mut view = view(mode);
@@ -299,7 +299,7 @@ fn assert_source_icon_visual(
 }
 
 fn assert_editor_hover_states(view: &HousingView, registry: &mut FrameRegistry) {
-    use game_engine_ui_model::housing_component::apply_housing_postsetup;
+    use game_engine_ui_housing::housing_component::apply_housing_postsetup;
     use ui_toolkit::widgets::button::ButtonState;
     for name in [
         "HouseEditorBasicDecorModeButton",

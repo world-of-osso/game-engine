@@ -1,7 +1,7 @@
 //! Retail stored CatalogEntry tiles: source art/geometry, server-confirmed quantities.
 use crate::housing_component::HousingView;
-use crate::quest_art::{DynName, named_atlas_texture, named_atlas_texture_blend};
 use game_engine_core::housing::Decor;
+use game_engine_ui_model::quest_art::{DynName, named_atlas_texture, named_atlas_texture_blend};
 use ui_toolkit::frame::WidgetData;
 use ui_toolkit::registry::FrameRegistry;
 use ui_toolkit::text_measure::measure_text;

@@ -62,8 +62,8 @@ impl GameClient {
             return Ok(None);
         }
         let cleanup = self.housing.model.as_ref().is_some_and(|model| {
-            model.surface == game_engine_ui_model::housing::HousingSurface::Editor
-                && model.editor.mode == game_engine_ui_model::housing_editor::EditorMode::Cleanup
+            model.surface == game_engine_ui_housing::housing::HousingSurface::Editor
+                && model.editor.mode == game_engine_ui_housing::housing_editor::EditorMode::Cleanup
         });
         if cleanup {
             self.update_cleanup_hover(Vector2::from_array(self.physical_input.pointer()))?;

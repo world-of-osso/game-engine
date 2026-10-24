@@ -3,7 +3,7 @@ use std::{path::PathBuf, sync::Arc};
 
 #[test]
 fn housing_catalog_reset_action_restores_results_without_changing_search_category_or_ownership() {
-    use game_engine_ui_model::housing::CollectionFilter;
+    use game_engine_ui_housing::housing::CollectionFilter;
     use shared::protocol::{HousingState, StoredDecor};
 
     let data = PathBuf::from(env!("CARGO_MANIFEST_DIR")).join("../../data");

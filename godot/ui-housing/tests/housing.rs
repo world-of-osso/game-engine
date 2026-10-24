@@ -1,6 +1,6 @@
 use game_engine_core::housing::{Decor, HousingCatalog};
-use game_engine_ui_model::housing::{DashboardTab, HousingDashboard};
-use game_engine_ui_model::housing_component::{HousingView, housing_screen};
+use game_engine_ui_housing::housing::{DashboardTab, HousingDashboard};
+use game_engine_ui_housing::housing_component::{HousingView, housing_screen};
 use std::collections::BTreeSet;
 use std::sync::Arc;
 use ui_toolkit::atlas::{ActiveSkin, set_thread_skin};
@@ -10,7 +10,7 @@ use ui_toolkit::screen::{Screen, SharedContext};
 
 #[test]
 fn housing_catalog_filter_reset_visibility_and_source_header_in_both_skins() {
-    use game_engine_ui_model::housing::{CollectionFilter, HousingAuthority};
+    use game_engine_ui_housing::housing::{CollectionFilter, HousingAuthority};
     use ui_toolkit::layout_values::Val;
     use ui_toolkit::widgets::texture::TextureSource;
 
@@ -72,8 +72,8 @@ fn housing_catalog_filter_reset_visibility_and_source_header_in_both_skins() {
 
 #[test]
 fn housing_catalog_input_postsetup_limits_unicode_in_both_skins() {
-    use game_engine_ui_model::housing::HousingAuthority;
-    use game_engine_ui_model::housing_component::apply_housing_postsetup;
+    use game_engine_ui_housing::housing::HousingAuthority;
+    use game_engine_ui_housing::housing_component::apply_housing_postsetup;
     game_engine_ui_model::paths::set_data_root(
         std::path::PathBuf::from(env!("CARGO_MANIFEST_DIR")).join("../../data"),
     )
@@ -110,8 +110,8 @@ fn housing_catalog_input_postsetup_limits_unicode_in_both_skins() {
 
 #[test]
 fn housing_storage_input_postsetup_limits_unicode_and_tints_source_magnifier_both_skins() {
-    use game_engine_ui_model::housing::{HousingAuthority, HousingSurface};
-    use game_engine_ui_model::housing_component::apply_housing_postsetup;
+    use game_engine_ui_housing::housing::{HousingAuthority, HousingSurface};
+    use game_engine_ui_housing::housing_component::apply_housing_postsetup;
     game_engine_ui_model::paths::set_data_root(
         std::path::PathBuf::from(env!("CARGO_MANIFEST_DIR")).join("../../data"),
     )
@@ -179,7 +179,7 @@ fn housing_storage_input_postsetup_limits_unicode_and_tints_source_magnifier_bot
 
 #[test]
 fn housing_storage_search_clear_has_source_geometry_and_nonempty_visibility_in_both_skins() {
-    use game_engine_ui_model::housing::{HousingAuthority, HousingSurface};
+    use game_engine_ui_housing::housing::{HousingAuthority, HousingSurface};
     use ui_toolkit::layout_values::Val;
     game_engine_ui_model::paths::set_data_root(
         std::path::PathBuf::from(env!("CARGO_MANIFEST_DIR")).join("../../data"),
@@ -271,7 +271,7 @@ fn housing_storage_search_clear_has_source_geometry_and_nonempty_visibility_in_b
 
 #[test]
 fn housing_storage_transition_frames_slide_in_source_order_in_both_skins() {
-    use game_engine_ui_model::housing::{HousingAuthority, HousingSurface};
+    use game_engine_ui_housing::housing::{HousingAuthority, HousingSurface};
     use ui_toolkit::layout_values::Val;
     let data = std::path::PathBuf::from(env!("CARGO_MANIFEST_DIR")).join("../../data");
     game_engine_ui_model::paths::set_data_root(data).unwrap();
@@ -333,7 +333,7 @@ fn housing_storage_transition_frames_slide_in_source_order_in_both_skins() {
 
 #[test]
 fn housing_storage_drawer_collapse_expand_and_resize_reflow_keep_both_skins_equivalent() {
-    use game_engine_ui_model::housing::{HousingAuthority, HousingSurface};
+    use game_engine_ui_housing::housing::{HousingAuthority, HousingSurface};
     use shared::protocol::{HousingState, StoredDecor};
     let data = std::path::PathBuf::from(env!("CARGO_MANIFEST_DIR")).join("../../data");
     game_engine_ui_model::paths::set_data_root(data.clone()).unwrap();
@@ -436,7 +436,7 @@ fn housing_storage_drawer_collapse_expand_and_resize_reflow_keep_both_skins_equi
         );
         view.model
             .editor
-            .set_mode(game_engine_ui_model::housing_editor::EditorMode::Cleanup);
+            .set_mode(game_engine_ui_housing::housing_editor::EditorMode::Cleanup);
         assert!(
             render(&view)
                 .get_by_name("HouseEditorStorageExpandButton")
@@ -444,7 +444,7 @@ fn housing_storage_drawer_collapse_expand_and_resize_reflow_keep_both_skins_equi
         );
         view.model
             .editor
-            .set_mode(game_engine_ui_model::housing_editor::EditorMode::Basic);
+            .set_mode(game_engine_ui_housing::housing_editor::EditorMode::Basic);
         view.model.storage_panel.collapsed = false;
         let registry = render(&view);
         assert!(registry.get_by_name("HouseEditorStorageFrame").is_some());
@@ -455,7 +455,7 @@ fn housing_storage_drawer_collapse_expand_and_resize_reflow_keep_both_skins_equi
 
 #[test]
 fn housing_storage_filters_render_independent_choices_and_reset_in_both_skins() {
-    use game_engine_ui_model::housing::{HousingAuthority, HousingSurface};
+    use game_engine_ui_housing::housing::{HousingAuthority, HousingSurface};
     use shared::protocol::{HousingState, StoredDecor};
     let data = std::path::PathBuf::from(env!("CARGO_MANIFEST_DIR")).join("../../data");
     game_engine_ui_model::paths::set_data_root(data.clone()).unwrap();
@@ -638,7 +638,7 @@ fn assert_storage_filter_header(registry: &FrameRegistry, open: bool, reset_visi
 
 #[test]
 fn housing_house_settings_both_skins_stage_without_changing_confirmed_authority() {
-    use game_engine_ui_model::housing::{HousingAuthority, HousingSurface};
+    use game_engine_ui_housing::housing::{HousingAuthority, HousingSurface};
     use shared::protocol::{HouseAccess, HousingHouse, HousingState};
     game_engine_ui_model::paths::set_data_root(
         std::path::PathBuf::from(env!("CARGO_MANIFEST_DIR")).join("../../data"),
@@ -836,7 +836,7 @@ fn housing_catalog_model_scene_replaces_the_thumbnail_in_both_skins() {
 
 #[test]
 fn neighborhood_finder_and_authenticated_cornerstone_controls_match_in_both_skins() {
-    use game_engine_ui_model::housing::HousingSurface;
+    use game_engine_ui_housing::housing::HousingSurface;
     game_engine_ui_model::paths::set_data_root(
         std::path::PathBuf::from(env!("CARGO_MANIFEST_DIR")).join("../../data"),
     )
@@ -857,7 +857,7 @@ fn neighborhood_finder_and_authenticated_cornerstone_controls_match_in_both_skin
             owner_character_id: None,
             owner_type: shared::protocol::HousingPlotOwnerType::None,
         };
-        let mut authority = game_engine_ui_model::housing::HousingAuthority::default();
+        let mut authority = game_engine_ui_housing::housing::HousingAuthority::default();
         authority
             .receive(shared::protocol::HousingReply {
                 request_id: 1,
@@ -950,7 +950,7 @@ fn neighborhood_finder_and_authenticated_cornerstone_controls_match_in_both_skin
 
 #[test]
 fn neighborhood_bulletin_board_lists_and_sorts_the_servers_residents_in_both_skins() {
-    use game_engine_ui_model::housing::{BulletinBoard, HousingSurface};
+    use game_engine_ui_housing::housing::{BulletinBoard, HousingSurface};
     use shared::protocol::{NeighborhoodResident, NeighborhoodRoster};
     game_engine_ui_model::paths::set_data_root(
         std::path::PathBuf::from(env!("CARGO_MANIFEST_DIR")).join("../../data"),
@@ -1081,7 +1081,7 @@ fn neighborhood_bulletin_board_lists_and_sorts_the_servers_residents_in_both_ski
 
 #[test]
 fn housing_editor_native_storage_and_owner_controls_follow_the_same_layout_in_both_skins() {
-    use game_engine_ui_model::housing::HousingSurface;
+    use game_engine_ui_housing::housing::HousingSurface;
     game_engine_ui_model::paths::set_data_root(
         std::path::PathBuf::from(env!("CARGO_MANIFEST_DIR")).join("../../data"),
     )
@@ -1107,7 +1107,7 @@ fn housing_editor_native_storage_and_owner_controls_follow_the_same_layout_in_bo
                 ..Default::default()
             }));
             model.surface = HousingSurface::Editor;
-            let authority = game_engine_ui_model::housing::HousingAuthority {
+            let authority = game_engine_ui_housing::housing::HousingAuthority {
                 state: Some(shared::protocol::HousingState {
                     build_key: game_engine_core::housing::RETAIL_BUILD_KEY.into(),
                     stored: vec![shared::protocol::StoredDecor {
@@ -1210,7 +1210,7 @@ fn ui_template_behavior_services_catalog_preview_keeps_live_decor_owner_and_sour
             };
             let mut model = HousingDashboard::new(Arc::new(catalog));
             model.tab = DashboardTab::Catalog;
-            let mut authority = game_engine_ui_model::housing::HousingAuthority::default();
+            let mut authority = game_engine_ui_housing::housing::HousingAuthority::default();
             if confirmed {
                 let decor = |quantity| {
                     vec![shared::protocol::StoredDecor {
@@ -1324,7 +1324,7 @@ fn ui_template_behavior_services_catalog_preview_keeps_live_decor_owner_and_sour
 #[test]
 fn catalog_subcategory_column_and_collection_filters_render_in_both_skins() {
     use game_engine_core::housing::{Category, Subcategory};
-    use game_engine_ui_model::housing::HousingAuthority;
+    use game_engine_ui_housing::housing::HousingAuthority;
     game_engine_ui_model::paths::set_data_root(
         std::path::PathBuf::from(env!("CARGO_MANIFEST_DIR")).join("../../data"),
     )
@@ -1408,8 +1408,8 @@ fn catalog_subcategory_column_and_collection_filters_render_in_both_skins() {
 
 #[test]
 fn housing_expert_mouse_controls_show_real_rotation_and_scale_values_in_both_skins() {
-    use game_engine_ui_model::housing::{HousingAuthority, HousingSurface};
-    use game_engine_ui_model::housing_editor::{EditorMode, PrecisionSubmode};
+    use game_engine_ui_housing::housing::{HousingAuthority, HousingSurface};
+    use game_engine_ui_housing::housing_editor::{EditorMode, PrecisionSubmode};
     game_engine_ui_model::paths::set_data_root(
         std::path::PathBuf::from(env!("CARGO_MANIFEST_DIR")).join("../../data"),
     )
@@ -1515,7 +1515,7 @@ fn housing_expert_mouse_controls_show_real_rotation_and_scale_values_in_both_ski
 #[test]
 fn housing_storage_categories_show_owned_roots_then_back_all_and_source_filtered_children_both_skins()
  {
-    use game_engine_ui_model::housing::{HousingAuthority, HousingSurface};
+    use game_engine_ui_housing::housing::{HousingAuthority, HousingSurface};
     use shared::protocol::{HouseLayout, HousingState, StoredDecor};
     let data = std::path::PathBuf::from(env!("CARGO_MANIFEST_DIR")).join("../../data");
     game_engine_ui_model::paths::set_data_root(data.clone()).unwrap();
@@ -1637,9 +1637,9 @@ fn housing_storage_categories_show_owned_roots_then_back_all_and_source_filtered
 #[test]
 fn housing_expert_placed_list_uses_source_bounds_unknown_budget_and_real_scrollable_rows_both_skins()
  {
-    use game_engine_ui_model::housing::{HousingAuthority, HousingSurface};
-    use game_engine_ui_model::housing_editor::EditorMode;
-    use game_engine_ui_model::housing_placed_list::LIST;
+    use game_engine_ui_housing::housing::{HousingAuthority, HousingSurface};
+    use game_engine_ui_housing::housing_editor::EditorMode;
+    use game_engine_ui_housing::housing_placed_list::LIST;
     use shared::protocol::{DecorTransform, HouseLayout, HousingState, PlacedDecor, StoredDecor};
     let data = std::path::PathBuf::from(env!("CARGO_MANIFEST_DIR")).join("../../data");
     game_engine_ui_model::paths::set_data_root(data.clone()).unwrap();
@@ -1795,7 +1795,7 @@ fn housing_expert_placed_list_uses_source_bounds_unknown_budget_and_real_scrolla
 
 #[test]
 fn housing_basic_selection_hides_both_drawer_parts_and_cancel_restores_preferences_both_skins() {
-    use game_engine_ui_model::housing::{HousingAuthority, HousingSurface};
+    use game_engine_ui_housing::housing::{HousingAuthority, HousingSurface};
     use shared::protocol::{DecorTransform, HouseLayout, HousingState, PlacedDecor, StoredDecor};
     let data = std::path::PathBuf::from(env!("CARGO_MANIFEST_DIR")).join("../../data");
     game_engine_ui_model::paths::set_data_root(data.clone()).unwrap();
@@ -1937,8 +1937,8 @@ fn housing_basic_selection_hides_both_drawer_parts_and_cancel_restores_preferenc
 
 #[test]
 fn housing_cleanup_hides_storage_and_uses_source_cursor_tooltip_in_both_skins() {
-    use game_engine_ui_model::housing::{HousingAuthority, HousingSurface};
-    use game_engine_ui_model::housing_editor::EditorMode;
+    use game_engine_ui_housing::housing::{HousingAuthority, HousingSurface};
+    use game_engine_ui_housing::housing_editor::EditorMode;
     game_engine_ui_model::paths::set_data_root(
         std::path::PathBuf::from(env!("CARGO_MANIFEST_DIR")).join("../../data"),
     )
@@ -2130,8 +2130,8 @@ fn housing_expert_native_submodes_hide_storage_and_preserve_visitor_restrictions
         std::path::PathBuf::from(env!("CARGO_MANIFEST_DIR")).join("../../data"),
     )
     .unwrap();
-    use game_engine_ui_model::housing::{HousingAuthority, HousingSurface};
-    use game_engine_ui_model::housing_editor::EditorMode;
+    use game_engine_ui_housing::housing::{HousingAuthority, HousingSurface};
+    use game_engine_ui_housing::housing_editor::EditorMode;
     for skin in [ActiveSkin::Modern, ActiveSkin::Forever] {
         set_thread_skin(skin);
         for can_edit in [true, false] {
@@ -2185,7 +2185,7 @@ fn housing_expert_native_submodes_hide_storage_and_preserve_visitor_restrictions
 #[test]
 fn housing_finder_draws_source_sale_and_real_friend_pins_not_strangers_or_self_both_skins() {
     use game_engine_core::housing::NeighborhoodMap;
-    use game_engine_ui_model::housing::{HousingAuthority, HousingSurface};
+    use game_engine_ui_housing::housing::{HousingAuthority, HousingSurface};
     use shared::protocol::{HousingPlot, HousingPlotOwnerType, HousingState};
     let data = std::path::PathBuf::from(env!("CARGO_MANIFEST_DIR")).join("../../data");
     game_engine_ui_model::paths::set_data_root(data.clone()).unwrap();
@@ -2300,8 +2300,8 @@ fn housing_finder_draws_source_sale_and_real_friend_pins_not_strangers_or_self_b
 #[test]
 fn ui_template_blend_housing_storage_tiles_match_source_geometry_counts_and_background_states_both_skins()
  {
-    use game_engine_ui_model::housing::{HousingAuthority, HousingSurface};
-    use game_engine_ui_model::housing_component::apply_housing_postsetup;
+    use game_engine_ui_housing::housing::{HousingAuthority, HousingSurface};
+    use game_engine_ui_housing::housing_component::apply_housing_postsetup;
     use shared::protocol::{HouseLayout, HousingState, StoredDecor};
     use ui_toolkit::widgets::button::ButtonState;
     use ui_toolkit::widgets::texture::{BlendMode, TextureSource};
@@ -2481,8 +2481,8 @@ fn ui_template_blend_housing_storage_tiles_match_source_geometry_counts_and_back
 #[test]
 fn housing_expert_source_instruction_states_and_assigned_controls_both_skins() {
     use game_engine_core::input_bindings_data::{BindingKey, InputAction, InputBinding};
-    use game_engine_ui_model::housing::{HousingAuthority, HousingSurface};
-    use game_engine_ui_model::housing_editor::{EditorMode, PrecisionSubmode};
+    use game_engine_ui_housing::housing::{HousingAuthority, HousingSurface};
+    use game_engine_ui_housing::housing_editor::{EditorMode, PrecisionSubmode};
     use shared::protocol::{DecorTransform, HouseLayout, HousingState, PlacedDecor};
     game_engine_ui_model::paths::set_data_root(
         std::path::PathBuf::from(env!("CARGO_MANIFEST_DIR")).join("../../data"),
@@ -2640,7 +2640,7 @@ fn housing_expert_source_instruction_states_and_assigned_controls_both_skins() {
 
 #[test]
 fn ui_template_blend_housing_basic_source_controls_and_unbound_instruction_rows_both_skins() {
-    use game_engine_ui_model::housing::HousingSurface;
+    use game_engine_ui_housing::housing::HousingSurface;
     game_engine_ui_model::paths::set_data_root(
         std::path::PathBuf::from(env!("CARGO_MANIFEST_DIR")).join("../../data"),
     )

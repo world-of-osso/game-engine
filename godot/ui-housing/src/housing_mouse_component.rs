@@ -1,8 +1,8 @@
 //! Retail TransformManipulator scale/rotate widgets; native 3D handle art is unavailable.
 use crate::housing_component::HousingView;
 use crate::housing_editor::{PrecisionSubmode, RotationAxis};
-use crate::quest_art::{DynName, named_atlas_texture};
-use crate::ui::strata::FrameStrata;
+use game_engine_ui_model::quest_art::{DynName, named_atlas_texture};
+use game_engine_ui_model::ui::strata::FrameStrata;
 use ui_toolkit::{rsx, widget_def::Element};
 
 pub fn mouse_controls(view: &HousingView) -> Element {

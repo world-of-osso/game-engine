@@ -3,11 +3,11 @@ use crate::replicated::UnitFields;
 use crate::{GameClient, frame_error::FrameError, ui::RegistryUi};
 use game_engine_core::housing::HousingCatalog;
 use game_engine_session::SessionScreen;
-use game_engine_ui_model::housing::{
+use game_engine_ui_housing::housing::{
     BulletinBoard, CollectionFilter, DashboardTab, HousingAuthority, HousingDashboard,
     HousingSurface, SEARCH_FIELD, STORAGE_SEARCH_FIELD,
 };
-use game_engine_ui_model::housing_component::{HousingView, housing_screen};
+use game_engine_ui_housing::housing_component::{HousingView, housing_screen};
 use game_engine_ui_model::popup::{PopupOutcome, PopupResult, PopupSpec};
 use godot::prelude::*;
 use std::sync::Arc;
@@ -517,7 +517,7 @@ impl GameClient {
         if !money.is_some_and(|money| money >= plot.cost) {
             return Err("Money is unconfirmed or insufficient for this plot.".into());
         }
-        let price = game_engine_ui_model::housing_navigation_component::format_money(plot.cost);
+        let price = game_engine_ui_housing::housing_navigation_component::format_money(plot.cost);
         self.housing.confirming_plot = Some(plot_id);
         self.group_frames.popups.push(PopupSpec {
             key: PURCHASE_POPUP.into(),
