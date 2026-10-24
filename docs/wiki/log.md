@@ -1,3 +1,7 @@
+## 2026-10-24 — Cross-format static proof ledger
+
+[Cross-format evidence](reference/benilla-asset-field-evidence.md) records selected source footprints, independent audit/correction receipts and incompatible counting units. M2 and WMO final receipts were acknowledged; terrain, texture and zone/weather gates passed. Ordinary lighting input census passed, with helper/consumer correction awaiting a bounded receipt. Final integration remains open; no execution/runtime/asset compatibility claim.
+
 ## 2026-10-24 — Ordinary light and fog projections
 
 [Lighting fields](reference/benilla-lighting-fields.md) enumerate ordinary Light inputs, the union of two live LightData projections, exact Params/Skybox CSV reads, separate WDC5 metadata and Vanilla per-key bands. Modern fog inputs are not lost merely because the normal-light projection omits them. Static-only; independent source/coverage verification remains open.

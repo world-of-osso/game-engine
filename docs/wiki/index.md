@@ -382,7 +382,7 @@ External resources and asset lists.
 - [M2 header/container fields](reference/benilla-m2-header-fields.md) — literal count/offset inputs, opaque intervals, modern file-ID chunks and separate pre-Wrath header walk.
 - [M2 animation field handling](reference/benilla-m2-animation-fields.md) — bone/sequence members, descriptor/version differences, ordinary versus material interpolation and external payload boundaries.
 - [M2 particle field handling](reference/benilla-m2-particle-fields.md) — generator/lifetime inputs, EXP2, packed textures, flag consumers and conditional single-key loss; B model-mesh spawning distinguished from recursion.
-- [M2 static evidence](reference/benilla-m2-evidence.md) — accepted scoped family/representation audits, corrective deltas and explicit no-runtime/no-universal-layout limits; later formats remain open.
+- [M2 static evidence](reference/benilla-m2-evidence.md) — accepted scoped family/representation audits, corrective deltas and explicit no-runtime/no-universal-layout limits; other format gates tracked separately.
 - [M2 ribbon field handling](reference/benilla-m2-ribbon-fields.md) — individual modern/Vanilla record inputs, expanded descriptors, native consumers and bounded unknowns; static research only.
 - [M2 declaration-to-handling map](reference/benilla-m2-representation-map.md) — all90 census representations routed to worksheets; decoded, projected, aggregate and helper roles do not imply630 unique disk fields.
 - [M2 representation boundaries](reference/benilla-m2-representation-fields.md) — individual copied bounds, calculated camera/ring inputs and animation/marker projections, with actual global-channel consumers.
@@ -399,6 +399,7 @@ External resources and asset lists.
 - [Ordinary lighting fields](reference/benilla-lighting-fields.md) — Light/Params/Skybox inputs, both live LightData projections and distinct Vanilla bands; static native consumer boundaries.
 - [Zone-light/weather fields](reference/benilla-zone-weather-fields.md) — CSV joins and spatial blends, distinct Vanilla weather packet/state/precipitation/lighting/sound routes and bounded native counterpart search.
 - [BLP individual fields](reference/benilla-blp-fields.md) — BLP1/2 headers, mip directories, palette/JPEG/DXT/BC5 boundaries and separate CPU versus full-chain GPU paths.
+- [Cross-format static evidence](reference/benilla-asset-field-evidence.md) — explicit inventory units, accepted family/correction revisions, remaining gates and no-runtime/no-universal-format limits.
 - [Benilla asset-field inventory](reference/benilla-asset-field-inventory.md) — pinned M2/WMO/ADT/WDT/WDL/BLP and environment comparison; parsed-but-unbound fields, existing coverage and version-qualified research leads, static evidence only.
 
 - [open-source-wow-clients](reference/open-source-wow-clients.md) — Client/rendering references; Benilla taint/aura boundary; separate source-only 3.3.5a and 4.3.4 audits; no runtime parity established

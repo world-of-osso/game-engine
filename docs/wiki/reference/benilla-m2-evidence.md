@@ -1,6 +1,6 @@
 # M2 Field Inventory: Scope and Static Evidence
 
-Acceptance ledger for the source-grounded M2/SKIN comparison, not runtime compatibility certification. The inventory covers the selected reader/model/adapter source scope in [[benilla-m2-field-census]], expands implicit header/track inputs in the handling worksheets and separates raw/cooked/default/helper representations. WMO, terrain, texture and environment inventories remain independent unfinished work.
+Acceptance ledger for the source-grounded M2/SKIN comparison, not runtime compatibility certification. The inventory covers the selected reader/model/adapter source scope in [[benilla-m2-field-census]], expands implicit header/track inputs in the handling worksheets and separates raw/cooked/default/helper representations. WMO, terrain, texture and environment acceptance scopes are tracked separately in [[benilla-asset-field-evidence]]; their gates do not broaden this M2 proof.
 
 Verified: **2026-10-24**. E native baseline `354bdb7dbf177047ed46d63168acec531f5c4426`; B `8a6c74036cfe3d00275fd75ad1aeae1f4ea7d0df`. Native source was unchanged through the accepted documentation revisions below. Benilla's1.12.1/build5875 layouts are not modern E layouts. No builds, tests, parser/client execution/imports, downloads, extraction, asset-corpus validation or visual comparison were performed.
 
