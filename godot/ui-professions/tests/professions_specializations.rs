@@ -1,7 +1,7 @@
-use game_engine_ui_model::{
-    professions_frame::{ProfessionPage, ProfessionView, professions_screen},
-    professions_specializations::SpecializationDraft,
+use game_engine_ui_professions::professions_frame::{
+    ProfessionPage, ProfessionView, professions_screen,
 };
+use game_engine_ui_professions::professions_specializations::SpecializationDraft;
 use shared::protocol::*;
 use ui_toolkit::{
     atlas::{ActiveSkin, set_thread_skin},

@@ -110,7 +110,7 @@ impl Default for UnitPortraits {
             registrar: Portrait::new(REGISTRAR_PORTRAIT),
             tabard_vendor: Portrait::new(game_engine_ui_model::guild_tabard_frame::PORTRAIT),
             customer_orders: Portrait::new(
-                game_engine_ui_model::professions_frame::orders::PORTRAIT,
+                game_engine_ui_professions::professions_frame::orders::PORTRAIT,
             ),
             party: PartyPortraits::default(),
             ready_check: Portrait::new(READY_CHECK_PORTRAIT),
@@ -616,7 +616,7 @@ impl GameClient {
         );
         let (customer_orders_host, customer_orders_npc) = self.npc_portrait(
             self.professions.ui.as_ref(),
-            &game_engine_ui_model::professions_frame::orders::PORTRAIT,
+            &game_engine_ui_professions::professions_frame::orders::PORTRAIT,
             self.professions
                 .orders
                 .npc

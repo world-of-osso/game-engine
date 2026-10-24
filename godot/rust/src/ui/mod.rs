@@ -234,7 +234,7 @@ fn search_for_clear_action(action: &str) -> Option<&'static str> {
             Some(game_engine_ui_model::bag_frame_component::SEARCH_BOX)
         }
         "journal:search-clear" => Some(game_engine_ui_adventure::adventure_guide::SEARCH),
-        "profession:search-clear" => Some(game_engine_ui_model::professions_frame::SEARCH),
+        "profession:search-clear" => Some(game_engine_ui_professions::professions_frame::SEARCH),
         _ => None,
     }
 }
@@ -359,16 +359,16 @@ impl RegistryModel {
             );
         }
         if let Some(next) = (&state as &dyn std::any::Any)
-            .downcast_ref::<game_engine_ui_model::professions_frame::ProfessionView>(
+            .downcast_ref::<game_engine_ui_professions::professions_frame::ProfessionView>(
         ) && let Some(previous) =
             self.shared
-                .get::<game_engine_ui_model::professions_frame::ProfessionView>()
+                .get::<game_engine_ui_professions::professions_frame::ProfessionView>()
             && !next.book.search.is_empty()
             && previous.book.search != next.book.search
         {
             self.registry
                 .scroll_lists
-                .scroll_to(game_engine_ui_model::professions_frame::LIST, 0);
+                .scroll_to(game_engine_ui_professions::professions_frame::LIST, 0);
         }
         self.shared.insert(state);
         true
@@ -576,9 +576,9 @@ impl RegistryModel {
         }
         if let Some(view) = self
             .shared
-            .get::<game_engine_ui_model::professions_frame::ProfessionView>()
+            .get::<game_engine_ui_professions::professions_frame::ProfessionView>()
         {
-            game_engine_ui_model::professions_frame::apply_professions_art(
+            game_engine_ui_professions::professions_frame::apply_professions_art(
                 view,
                 &mut self.registry,
             );
@@ -877,7 +877,7 @@ impl RegistryModel {
         }
         let profession_quantity = self
             .shared
-            .get::<game_engine_ui_model::professions_frame::ProfessionView>()
+            .get::<game_engine_ui_professions::professions_frame::ProfessionView>()
             .is_some()
             && self
                 .registry
@@ -2249,7 +2249,7 @@ impl RegistryUi {
 
     pub fn show_professions(
         &mut self,
-        state: game_engine_ui_model::professions_frame::ProfessionView,
+        state: game_engine_ui_professions::professions_frame::ProfessionView,
     ) -> Result<(), String> {
         let parent = self.hud_parent()?;
         let mut registry = parent.registry();
@@ -2263,7 +2263,7 @@ impl RegistryUi {
         )?;
         self.show_viewport_screen_in(
             state,
-            game_engine_ui_model::professions_frame::professions_screen,
+            game_engine_ui_professions::professions_frame::professions_screen,
             ScreenPostsetup::None,
             registry,
             parent,

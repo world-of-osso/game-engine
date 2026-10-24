@@ -1,6 +1,6 @@
 //! Retail RecipeList.xml34–45 and Professions.lua1256–1263 learned-state filters.
 use super::ProfessionView;
-use crate::menu_primitives::{
+use game_engine_ui_model::menu_primitives::{
     ContextMenuItem, DropdownButton, DropdownState, DropdownStyle, MenuElementKind,
     context_menu_description, dropdown_button_with_state,
 };
@@ -18,7 +18,7 @@ pub(super) fn dropdown(view: &ProfessionView, (left, top, width): (f32, f32, f32
             x: left,
             y: -top,
             background_color: "",
-            text_color: crate::quest_art::HIGHLIGHT_FONT_COLOR,
+            text_color: game_engine_ui_model::quest_art::HIGHLIGHT_FONT_COLOR,
             arrow_color: "",
             onclick: Some("profession:filter:menu"),
         },

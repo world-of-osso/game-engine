@@ -1,8 +1,8 @@
 //! Mainline ProfessionsCurrencyTemplate (Templates.xml322–344, Crafting.xml124–128).
 use super::ProfessionView;
-use crate::bank_art::{HIGHLIGHT_FONT_COLOR, label, texture};
-use crate::game_tooltip::GameTooltip;
-use crate::tooltip_presentation::{
+use game_engine_ui_model::bank_art::{HIGHLIGHT_FONT_COLOR, label, texture};
+use game_engine_ui_model::game_tooltip::GameTooltip;
+use game_engine_ui_model::tooltip_presentation::{
     TOOLTIP_DESCRIPTION_COLOR, TooltipLineState, TooltipPresentation, description_lines,
 };
 use shared::concentration::ConcentrationSnapshot;
@@ -42,14 +42,16 @@ pub fn tooltip(snapshot: &ConcentrationSnapshot) -> GameTooltip {
     let mut lines = Vec::new();
     if snapshot.quantity == Some(snapshot.currency.cap) {
         lines.push(TooltipLineState::colored(
-            crate::auction_mail::text(
+            game_engine_ui_model::auction_mail::text(
                 "PROFESSIONS_CRAFTING_CONCENTRATION_CURRENCY_TOOLTIP_WARNING",
             ),
             [1.0, 0.1, 0.1, 1.0],
         ));
     }
     lines.extend(description_lines(
-        crate::auction_mail::text("PROFESSIONS_CRAFTING_CONCENTRATION_CURRENCY_TOOLTIP"),
+        game_engine_ui_model::auction_mail::text(
+            "PROFESSIONS_CRAFTING_CONCENTRATION_CURRENCY_TOOLTIP",
+        ),
         TOOLTIP_DESCRIPTION_COLOR,
     ));
     if let Err(gap) = snapshot.recharge_origin {

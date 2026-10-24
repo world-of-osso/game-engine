@@ -103,7 +103,7 @@ pub fn reagent_quality_atlas<'a>(
     slot: &ReagentSlot,
     allocations: &[ReagentAllocation],
     owned: &BTreeMap<u32, u32>,
-    qualities: &'a BTreeMap<u32, crate::professions_quality::CraftingQuality>,
+    qualities: &'a BTreeMap<u32, game_engine_ui_model::professions_quality::CraftingQuality>,
 ) -> Option<&'a str> {
     let allocated = allocations
         .iter()
@@ -121,7 +121,7 @@ pub fn reagent_quality_atlas<'a>(
 }
 
 fn choose_quality_atlas<'a>(
-    mut qualities: impl Iterator<Item = &'a crate::professions_quality::CraftingQuality>,
+    mut qualities: impl Iterator<Item = &'a game_engine_ui_model::professions_quality::CraftingQuality>,
 ) -> Option<&'a str> {
     let first = qualities.next()?;
     Some(match qualities.next() {
@@ -190,7 +190,7 @@ mod tests {
     fn professions_reagent_glyph_uses_allocated_tiers_or_actual_stock_never_a_default_tier() {
         let dir =
             std::path::PathBuf::from(env!("CARGO_MANIFEST_DIR")).join("../../data/db2/active");
-        let catalog = crate::professions_catalog::RecipeCatalog::load(&dir).unwrap();
+        let catalog = game_engine_ui_model::professions_catalog::RecipeCatalog::load(&dir).unwrap();
         let slot = &catalog.reagent_slots[&375188][1];
         let owned = [(193208, 6), (193210, 4)].into();
         let qualities = &catalog.crafting_quality;

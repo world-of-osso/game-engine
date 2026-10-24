@@ -1,8 +1,10 @@
 //! Native fixed-output order requests, form input and catalog projection.
 use super::*;
-use game_engine_ui_model::professions_frame::orders::{NOTE, ORDER_MONEY, ORDER_SEARCH, RECIPIENT};
-use game_engine_ui_model::professions_orders::owned_count;
 use game_engine_ui_model::trade::{money_texts, parse_money};
+use game_engine_ui_professions::professions_frame::orders::{
+    NOTE, ORDER_MONEY, ORDER_SEARCH, RECIPIENT,
+};
+use game_engine_ui_professions::professions_orders::owned_count;
 use shared::protocol::{CraftingOrderKind, CraftingOrderRequest};
 
 impl GameClient {
@@ -229,10 +231,12 @@ impl GameClient {
             }
             "back" => self.professions.orders.selected = None,
             "refresh" => self.query_crafting_orders()?,
-            "recipient-menu" => self
-                .toggle_order_menu(game_engine_ui_model::professions_orders::OrderMenu::Recipient),
-            "duration-menu" => self
-                .toggle_order_menu(game_engine_ui_model::professions_orders::OrderMenu::Duration),
+            "recipient-menu" => self.toggle_order_menu(
+                game_engine_ui_professions::professions_orders::OrderMenu::Recipient,
+            ),
+            "duration-menu" => self.toggle_order_menu(
+                game_engine_ui_professions::professions_orders::OrderMenu::Duration,
+            ),
             "place" => self.place_crafting_order()?,
             "claim" | "release" | "fulfill" | "cancel" => {
                 if let Some(request) = self.professions.orders.action_request(action) {
@@ -243,7 +247,10 @@ impl GameClient {
         }
         Ok(())
     }
-    fn toggle_order_menu(&mut self, menu: game_engine_ui_model::professions_orders::OrderMenu) {
+    fn toggle_order_menu(
+        &mut self,
+        menu: game_engine_ui_professions::professions_orders::OrderMenu,
+    ) {
         self.professions.orders.menu = if self.professions.orders.menu == Some(menu) {
             None
         } else {

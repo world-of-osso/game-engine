@@ -1,6 +1,6 @@
 //! Mainline selected-path perk dial: source milestones, major bit and 90px flipbook cells.
 use super::super::{ProfessionView, art};
-use crate::quest_art::DynName;
+use game_engine_ui_model::quest_art::DynName;
 use shared::protocol::ProfessionSpecNodeSnapshot;
 use ui_toolkit::{
     rsx,

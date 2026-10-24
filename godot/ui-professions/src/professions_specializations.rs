@@ -285,8 +285,8 @@ impl SpecializationDraft {
     fn perk_tooltip_lines(
         &self,
         perk: &ProfessionSpecPerk,
-    ) -> Option<Vec<crate::tooltip_presentation::TooltipLineState>> {
-        use crate::tooltip_presentation::TooltipLineState;
+    ) -> Option<Vec<game_engine_ui_model::tooltip_presentation::TooltipLineState>> {
+        use game_engine_ui_model::tooltip_presentation::TooltipLineState;
         let path = self.entry_for_node(perk.path_node_id)?;
         let (committed, _) = self.committed_display_ranks(perk.path_node_id)?;
         let (staged, _) = self.display_ranks(perk.path_node_id)?;
@@ -309,8 +309,8 @@ impl SpecializationDraft {
         }
         Some(lines)
     }
-    pub fn tooltip(&self, node_id: u32) -> Option<crate::game_tooltip::GameTooltip> {
-        use crate::tooltip_presentation::{
+    pub fn tooltip(&self, node_id: u32) -> Option<game_engine_ui_model::game_tooltip::GameTooltip> {
+        use game_engine_ui_model::tooltip_presentation::{
             TOOLTIP_DESCRIPTION_COLOR, TooltipLineState, TooltipPresentation, description_lines,
         };
         let node = self.entry_for_node(node_id)?;
@@ -330,7 +330,7 @@ impl SpecializationDraft {
                 [1.0, 0.1, 0.1, 1.0],
             ));
         }
-        Some(crate::game_tooltip::GameTooltip::new(
+        Some(game_engine_ui_model::game_tooltip::GameTooltip::new(
             TooltipPresentation {
                 title: node.name.clone(),
                 lines,

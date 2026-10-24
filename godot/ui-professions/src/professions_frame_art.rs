@@ -1,6 +1,6 @@
 //! Profession atlas art uses Forever members when provided, otherwise shared Retail art.
-use crate::bank_art::cropped;
-use crate::quest_art::DynName;
+use game_engine_ui_model::bank_art::cropped;
+use game_engine_ui_model::quest_art::DynName;
 use ui_toolkit::{
     atlas::{ActiveSkin, AtlasRegion, AtlasSource, resolve_region, thread_skin},
     rsx,
@@ -20,7 +20,10 @@ fn forever_sheet_is_supplied(region: &AtlasRegion) -> bool {
     if region.source != AtlasSource::FileDataId(FOREVER_PROFESSION_SHEET) {
         return true;
     }
-    crate::paths::resolve_data_path(format!("textures/{FOREVER_PROFESSION_SHEET}.blp")).is_file()
+    game_engine_ui_model::paths::resolve_data_path(format!(
+        "textures/{FOREVER_PROFESSION_SHEET}.blp"
+    ))
+    .is_file()
 }
 
 pub(super) fn atlas(name: &str, member: &str, rect: (f32, f32, f32, f32)) -> Element {
@@ -97,11 +100,15 @@ pub(super) fn top_tab(
         TabArtSpec::new(TabLayout::SystemTop, selected, [width, height]),
     );
     let text_top = -text_y_offset(TabLayout::SystemTop, selected);
-    children.extend(crate::bank_art::label(
+    children.extend(game_engine_ui_model::bank_art::label(
         format!("{name}Text"),
         caption,
         (0.0, text_top, width, height),
-        (12.0, crate::bank_art::HIGHLIGHT_FONT_COLOR, "CENTER"),
+        (
+            12.0,
+            game_engine_ui_model::bank_art::HIGHLIGHT_FONT_COLOR,
+            "CENTER",
+        ),
     ));
     let disabled = action.is_empty();
     rsx! { button { name: {DynName(name.into())}, left, top, width, height, pos_type: "absolute", onclick: action, disabled, button_default_skin: false, {children} } }

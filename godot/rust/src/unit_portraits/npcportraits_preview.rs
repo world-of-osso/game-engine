@@ -128,7 +128,7 @@ pub(crate) fn attach_customer_orders_preview(ui: Gd<RegistryUi>) {
         .add_child(&preview);
     let mut host = preview.bind_mut();
     host.portrait = Some(Portrait::new(
-        game_engine_ui_model::professions_frame::orders::PORTRAIT,
+        game_engine_ui_professions::professions_frame::orders::PORTRAIT,
     ));
     host.appearance = Some(UnitAppearance::Player(
         Player {

@@ -1,6 +1,6 @@
 //! Retail recipe right-click Favorites; only authoritative owner snapshots change the preference.
 use crate::{GameClient, frame_error::FrameError, ui::RegistryUi};
-use game_engine_ui_model::professions_frame::ProfessionPage;
+use game_engine_ui_professions::professions_frame::ProfessionPage;
 use godot::prelude::*;
 
 impl GameClient {

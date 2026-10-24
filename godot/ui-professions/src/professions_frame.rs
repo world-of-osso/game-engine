@@ -1,10 +1,10 @@
 //! Retail profession tree and schematic; crafting decisions remain in ProfessionBook.
-use crate::bank_art::{HIGHLIGHT_FONT_COLOR, label};
-use crate::professions::ProfessionBook;
-use crate::quest_art::{
+use game_engine_ui_model::bank_art::{HIGHLIGHT_FONT_COLOR, label};
+use game_engine_ui_model::professions::ProfessionBook;
+use game_engine_ui_model::quest_art::{
     NORMAL_FONT_COLOR, window_chrome, window_portrait_slot, window_portrait_texture,
 };
-use crate::ui::strata::FrameStrata;
+use game_engine_ui_model::ui::strata::FrameStrata;
 use std::collections::{BTreeMap, BTreeSet};
 use ui_toolkit::{rsx, screen::SharedContext, widget_def::Element};
 
@@ -72,7 +72,7 @@ pub struct ProfessionView {
     pub profession_name: String,
     pub profession_icon: u32,
     pub items: BTreeMap<u32, ItemDisplay>,
-    pub crafting_quality: BTreeMap<u32, crate::professions_quality::CraftingQuality>,
+    pub crafting_quality: BTreeMap<u32, game_engine_ui_model::professions_quality::CraftingQuality>,
     pub recipe_craftable: BTreeMap<u32, u32>,
     pub collapsed: BTreeSet<String>,
     pub reagents: Vec<(u32, u32, u32)>,
@@ -143,7 +143,7 @@ pub fn professions_screen(ctx: &SharedContext) -> Element {
     children.extend(page_tabs(view.page));
     children.extend(quality::dialog(view));
     children.extend(favorites::favorite_menu(view));
-    crate::panel_lifecycle::bind_close(
+    game_engine_ui_model::panel_lifecycle::bind_close(
         rsx! { r#frame { name: "ProfessionsFrame", width, height: HEIGHT,
             left: 24.0, top: 94.0, pos_type: "absolute", mouse_enabled: true,
             strata: FrameStrata::Dialog, {children}
@@ -241,7 +241,7 @@ fn page_tabs(page: ProfessionPage) -> Element {
             (12.0, HIGHLIGHT_FONT_COLOR, "CENTER"),
         ));
         out.extend(
-            rsx! { button { name: {crate::quest_art::DynName(format!("Professions{key}Tab"))},
+            rsx! { button { name: {game_engine_ui_model::quest_art::DynName(format!("Professions{key}Tab"))},
                 left, top: {HEIGHT - 2.0}, width, height: 42.0, pos_type: "absolute",
                 onclick: action, button_default_skin: false, {children}
             } },

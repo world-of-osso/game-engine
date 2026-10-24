@@ -39,6 +39,7 @@ game-engine-ui-model = { path = "../ui-model" }
 game-engine-ui-housing = { path = "../ui-housing" }
 game-engine-ui-adventure = { path = "../ui-adventure" }
 game-engine-ui-collections = { path = "../ui-collections" }
+game-engine-ui-professions = { path = "../ui-professions" }
 ui-toolkit = { package = "ui-toolkit-core", path = "../../../ui-toolkit/core" }
 # Preserve the authored registry layout semantics and local rounding fix.
 taffy = "0.10.1"

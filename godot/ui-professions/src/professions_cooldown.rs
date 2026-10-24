@@ -1,7 +1,7 @@
 //! Recipe cooldown display: `C_TradeSkillUI.GetRecipeCooldown` from the spell's own and
 //! category clocks, and RecipeSchematicForm.lua's `COOLDOWN_REMAINING` text.
 
-use crate::auction_mail::text;
+use game_engine_ui_model::auction_mail::text;
 
 /// Whole seconds until the recipe is ready: the longer of its own and its category clock.
 pub fn remaining_secs(own: Option<f32>, category: Option<f32>) -> Option<u32> {

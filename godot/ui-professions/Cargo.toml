@@ -1,0 +1,23 @@
+[package]
+name = "game-engine-ui-professions"
+version = "0.1.0"
+edition.workspace = true
+rust-version.workspace = true
+autotests = false
+
+[[test]]
+name = "integration"
+path = "tests/integration.rs"
+
+[dependencies]
+# Existing recipe/trait catalogs and tooltip source data retain core identity.
+game-engine-core = { path = "../core" }
+# ProfessionBook/Recipe, quality/counts/catalogs, shared chrome and tooltips stay base.
+game-engine-ui-model = { path = "../ui-model" }
+# Authoritative crafting/order/specialization snapshots retain wire identities.
+shared = { git = "https://github.com/world-of-osso/shared-protocol.git", rev = "74e67cf" }
+ui-toolkit = { package = "ui-toolkit-core", path = "../../../ui-toolkit/core" }
+
+[dev-dependencies]
+# Existing authentic recipe snapshot fixture decodes its serialized authority.
+serde_json = "1"

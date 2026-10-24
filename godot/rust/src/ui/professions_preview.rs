@@ -1,9 +1,7 @@
 //! Offline concrete profession snapshot through the production screen; no network/catalog worker.
 use super::{RegistryUi, party_preview};
-use game_engine_ui_model::{
-    professions::{ProfessionBook, Recipe},
-    professions_frame::{ItemDisplay, ProfessionView},
-};
+use game_engine_ui_model::professions::{ProfessionBook, Recipe};
+use game_engine_ui_professions::professions_frame::{ItemDisplay, ProfessionView};
 use godot::prelude::*;
 use shared::{profession::ProfessionSkillLine, protocol::ProfessionSnapshot};
 use ui_toolkit::atlas::{ActiveSkin, set_thread_skin};
@@ -64,10 +62,8 @@ impl RegistryUi {
 }
 
 fn customer_orders_view(duration: bool) -> ProfessionView {
-    use game_engine_ui_model::{
-        professions_frame::ProfessionPage,
-        professions_orders::{CraftingOrders, OrderMenu},
-    };
+    use game_engine_ui_professions::professions_frame::ProfessionPage;
+    use game_engine_ui_professions::professions_orders::{CraftingOrders, OrderMenu};
     use shared::protocol::{CraftingOrderRecipeSnapshot, CraftingOrdersSnapshot};
     let mut view = preview_view();
     view.page = ProfessionPage::Orders;
@@ -106,7 +102,7 @@ fn cache_preview_art(view: &ProfessionView) -> Result<(), String> {
     let resolver = crate::assets::creature::local_resolver(&root);
     let fdids = crate::quests::screen_texture_fdids(
         view.clone(),
-        game_engine_ui_model::professions_frame::professions_screen,
+        game_engine_ui_professions::professions_frame::professions_screen,
     );
     for fdid in fdids
         .into_iter()

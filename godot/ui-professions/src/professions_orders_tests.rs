@@ -1,5 +1,5 @@
 use super::*;
-use crate::bag_data::InventorySlot;
+use game_engine_ui_model::bag_data::InventorySlot;
 fn recipe() -> CraftingOrderRecipeSnapshot {
     CraftingOrderRecipeSnapshot {
         spell_id: 2153,

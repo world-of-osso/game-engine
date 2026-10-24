@@ -1,5 +1,5 @@
 //! Fixed-output Retail orders; escrow, visibility and action eligibility are server-owned.
-use crate::bag_data::InventoryState;
+use game_engine_ui_model::bag_data::InventoryState;
 use shared::protocol::*;
 use std::collections::BTreeMap;
 

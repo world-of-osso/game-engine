@@ -1,7 +1,7 @@
-use game_engine_ui_model::{
-    professions_frame::{ProfessionPage, ProfessionView, professions_screen},
-    professions_orders::CraftingOrders,
+use game_engine_ui_professions::professions_frame::{
+    ProfessionPage, ProfessionView, professions_screen,
 };
+use game_engine_ui_professions::professions_orders::CraftingOrders;
 use shared::protocol::*;
 use ui_toolkit::{
     atlas::{ActiveSkin, set_thread_skin},
@@ -61,7 +61,7 @@ fn view() -> ProfessionView {
         items: [
             (
                 2303,
-                game_engine_ui_model::professions_frame::ItemDisplay {
+                game_engine_ui_professions::professions_frame::ItemDisplay {
                     name: "Handstitched Leather Pants".into(),
                     icon_fdid: 134585,
                     quality: 1,
@@ -69,7 +69,7 @@ fn view() -> ProfessionView {
             ),
             (
                 2318,
-                game_engine_ui_model::professions_frame::ItemDisplay {
+                game_engine_ui_professions::professions_frame::ItemDisplay {
                     name: "Light Leather".into(),
                     icon_fdid: 134252,
                     quality: 1,
@@ -139,7 +139,7 @@ fn orders_scroll_reaches_second_page_with_forty_concrete_rows() {
 
 #[test]
 fn orders_customer_form_offers_real_recipient_and_duration_menu_choices() {
-    use game_engine_ui_model::professions_orders::OrderMenu;
+    use game_engine_ui_professions::professions_orders::OrderMenu;
     for skin in [ActiveSkin::Modern, ActiveSkin::Forever] {
         let mut v = view();
         v.orders.customer = true;
