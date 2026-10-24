@@ -5,7 +5,9 @@ use crate::world_models::UnitAppearance;
 use crate::{GameClient, frame_error::FrameError, ui::RegistryUi};
 use game_engine_core::model_scene_actor::{ModelSceneActor, read_scene_actors};
 use game_engine_session::SessionScreen;
-use game_engine_ui_model::wild_pet_battle::{MODEL_SCENE, WildBattleView, wild_battle_screen};
+use game_engine_ui_collections::wild_pet_battle::{
+    MODEL_SCENE, WildBattleView, wild_battle_screen,
+};
 use godot::classes::{CanvasLayer, Node3D};
 use godot::prelude::*;
 use shared::components::Npc;

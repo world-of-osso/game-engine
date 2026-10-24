@@ -163,6 +163,10 @@ Parent approved toy stage3 while stage2's gate was queued. Rename-only `6a77dd74
 
 [Stage3 receipts](engine-crate-split-collections-stage3.json) and `/home/osso/.worktrees/logs/engine-crate-split-collections-stage3-bfcdbe17c/` retain exact names/commands/results. The parent owns the unchanged nine-package gate, push and merge; no new timing/native runtime/full-suite acceptance claim. Pet/shell remain for stage4.
 
+### Collections stage4 implementation
+
+Parent approved pet/shell stage4 while toy's gate was queued. Rename-only `baaf42472` moves10 sources and two suites unchanged, completing the33-source/12-root Collections group in ui-collections. The stable component keeps its explicit `ui/screens` path; all pet_journal companions and wild-pet effect HUD stay with their owners. Native imports now point directly at Collections. Existing mount/toy shell references become local crate references, not self-external aliases or a base façade. The stable render unit fixture already initializes the explicit real data root; its base paths call is namespace-adjusted without changing assertions/data. Before sources/suites have no diff since `214a9b854`. Check/execution/after census are pending.
+
 ## Baseline edit measurements
 
 [Machine-readable receipts](engine-crate-split-baseline.json) include exact commands, package/target dirtiness, wall/user/system time, dependency pins, Cargo unit timings and raw-log hashes. Host `agent-server`, Rust/Cargo 1.99.0, four jobs, native helper defaults and unchanged profiles/linker. Raw logs, HTML timings, drivers and before/after name lists are archived outside the worktree at `/home/osso/.worktrees/logs/engine-crate-split-baseline-4645578c7/`. No post-split improvement is claimed.

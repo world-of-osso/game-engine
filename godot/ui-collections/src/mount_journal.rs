@@ -239,7 +239,7 @@ pub fn mount_journal_screen(ctx: &SharedContext) -> Element {
     body.extend(filter_menu(view));
     body.extend(context_menu(view));
     game_engine_ui_model::panel_lifecycle::bind_close(
-        game_engine_ui_model::collections_component::collections_shell(view.viewport, 0, body),
+        crate::collections_component::collections_shell(view.viewport, 0, body),
         "mount_journal",
     )
 }

@@ -1,7 +1,7 @@
 //! Blizzard_PetCollection.xml: PetCard, CompanionLoadOutTemplate and SpellSelect.
 use super::super::PetJournalView;
-use crate::bank_art::{WHITE, cropped, label, texture};
-use crate::quest_art::{DynName, named_atlas_texture};
+use game_engine_ui_model::bank_art::{WHITE, cropped, label, texture};
+use game_engine_ui_model::quest_art::{DynName, named_atlas_texture};
 use shared::{pet_battle::OwnedPet, protocol::PetJournalAbility};
 use ui_toolkit::{
     atlas::{resolve_region, thread_skin},

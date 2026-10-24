@@ -432,7 +432,7 @@ impl RegistryModel {
             );
             self.icon_masks.apply(&mut self.registry);
         }
-        game_engine_ui_model::collections_component::apply_collections_postsetup(
+        game_engine_ui_collections::collections_component::apply_collections_postsetup(
             &mut self.registry,
         );
         if self.shared.get::<GameMenuViewModel>().is_some() {
@@ -1984,7 +1984,7 @@ impl RegistryUi {
 
     pub fn show_combat_pet_stable(
         &mut self,
-        state: game_engine_ui_model::pet_stable_component::StableFrameView,
+        state: game_engine_ui_collections::pet_stable_component::StableFrameView,
     ) -> Result<(), String> {
         let parent = self.hud_parent()?;
         let mut registry = parent.registry();
@@ -2000,7 +2000,7 @@ impl RegistryUi {
         self.toplevel = true;
         self.show_viewport_screen_in(
             state,
-            game_engine_ui_model::pet_stable_component::pet_stable_screen,
+            game_engine_ui_collections::pet_stable_component::pet_stable_screen,
             ScreenPostsetup::None,
             registry,
             parent,
@@ -2134,12 +2134,12 @@ impl RegistryUi {
 
     pub fn show_wild_pet_battle(
         &mut self,
-        state: game_engine_ui_model::wild_pet_battle::WildBattleView,
+        state: game_engine_ui_collections::wild_pet_battle::WildBattleView,
     ) -> Result<(), String> {
         self.toplevel = true;
         self.show_viewport_screen(
             state,
-            game_engine_ui_model::wild_pet_battle::wild_battle_screen,
+            game_engine_ui_collections::wild_pet_battle::wild_battle_screen,
             ScreenPostsetup::None,
         )
     }
@@ -2227,7 +2227,7 @@ impl RegistryUi {
 
     pub fn show_pet_journal(
         &mut self,
-        state: game_engine_ui_model::pet_journal::PetJournalView,
+        state: game_engine_ui_collections::pet_journal::PetJournalView,
     ) -> Result<(), String> {
         let parent = self.hud_parent()?;
         let mut registry = parent.registry();
@@ -2238,7 +2238,7 @@ impl RegistryUi {
         )?;
         self.show_viewport_screen_in(
             state,
-            game_engine_ui_model::pet_journal::pet_journal_screen,
+            game_engine_ui_collections::pet_journal::pet_journal_screen,
             ScreenPostsetup::None,
             registry,
             parent,

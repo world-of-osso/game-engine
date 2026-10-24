@@ -10,7 +10,7 @@ use ui_toolkit::{
 
 /// Retail ToySpellButton_UpdateButton desaturates the uncollected icon.
 pub fn apply_toybox_postsetup(view: &ToyBoxView, registry: &mut FrameRegistry) {
-    game_engine_ui_model::collections_component::apply_collections_postsetup(registry);
+    crate::collections_component::apply_collections_postsetup(registry);
     if let Some(id) = registry.get_by_name("ToyBoxBackground") {
         let frame = registry.get_mut(id).expect("ToyBox background");
         let Some(WidgetData::Texture(texture)) = &mut frame.widget_data else {
@@ -30,7 +30,7 @@ pub fn apply_toybox_postsetup(view: &ToyBoxView, registry: &mut FrameRegistry) {
     }
 }
 
-pub use game_engine_ui_model::collections_component::{SIZE, TABS};
+pub use crate::collections_component::{SIZE, TABS};
 // ToyBox_InitFilterDropdown explicitly fixes the owner width to90.
 const FILTER_WIDTH: f32 = 90.0;
 #[derive(Clone, Debug, PartialEq)]
@@ -78,7 +78,7 @@ pub fn toybox_screen(ctx: &SharedContext) -> Element {
                 }
     };
     game_engine_ui_model::panel_lifecycle::bind_close(
-        game_engine_ui_model::collections_component::collections_shell(view.viewport, 2, body),
+        crate::collections_component::collections_shell(view.viewport, 2, body),
         "toybox",
     )
 }
@@ -95,7 +95,7 @@ fn collections_background() -> Element {
         "ToyBoxIconsFrame",
         (0.0, 0.0, 693.0, 541.0),
     );
-    let shadows = game_engine_ui_model::collections_component::collection_background_shadows(
+    let shadows = crate::collections_component::collection_background_shadows(
         "ToyBox",
         (4.0, 4.0, 685.0, 533.0),
     );

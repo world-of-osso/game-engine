@@ -235,7 +235,7 @@ mod tests {
             registry::FrameRegistry,
             screen::{Screen, SharedContext},
         };
-        crate::paths::set_data_root(
+        game_engine_ui_model::paths::set_data_root(
             std::path::PathBuf::from(env!("CARGO_MANIFEST_DIR")).join("../../data"),
         )
         .unwrap();

@@ -125,8 +125,8 @@ fn character_currency() -> Result<game_engine_ui_model::character_frame::Charact
 /// Slotted pet with its first ability flyout open through the production reducer.
 fn pet_spell_select(
     viewport: [f32; 2],
-) -> Result<game_engine_ui_model::pet_journal::PetJournalView, String> {
-    use game_engine_ui_model::pet_journal::{PetJournalView, PetSpeciesVisual};
+) -> Result<game_engine_ui_collections::pet_journal::PetJournalView, String> {
+    use game_engine_ui_collections::pet_journal::{PetJournalView, PetSpeciesVisual};
     use shared::pet_battle::{PetJournal, PetQuality};
     use shared::protocol::{
         CollectionPetSnapshot, CollectionSnapshot, CollectionStateUpdate, OwnedPetBattleSnapshot,

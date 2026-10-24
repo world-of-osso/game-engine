@@ -1,4 +1,4 @@
-use game_engine_ui_model::wild_pet_battle::{WildBattleView, wild_battle_screen};
+use game_engine_ui_collections::wild_pet_battle::{WildBattleView, wild_battle_screen};
 use shared::protocol::*;
 use ui_toolkit::{
     atlas::{ActiveSkin, set_thread_skin},

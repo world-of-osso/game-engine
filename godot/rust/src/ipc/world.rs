@@ -56,14 +56,14 @@ impl crate::GameClient {
             Request::CollectionPets { missing } => Ok(self.pet_journal_text(missing)),
             Request::CollectionSummonPet { pet_id } => self
                 .account
-                .send_pet_request(game_engine_ui_model::pet_journal::PetRequest::Summon(
+                .send_pet_request(game_engine_ui_collections::pet_journal::PetRequest::Summon(
                     pet_id,
                 ))
                 .map(|()| format!("companion summon submitted: {pet_id}"))
                 .map_err(|error| error.to_string()),
             Request::CollectionDismissPet => self
                 .account
-                .send_pet_request(game_engine_ui_model::pet_journal::PetRequest::Dismiss)
+                .send_pet_request(game_engine_ui_collections::pet_journal::PetRequest::Dismiss)
                 .map(|()| "companion dismiss submitted".into())
                 .map_err(|error| error.to_string()),
             Request::MapTarget => self.map_target(),

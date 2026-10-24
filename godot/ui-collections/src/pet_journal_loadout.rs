@@ -1,7 +1,7 @@
 //! Blizzard_PetCollection.xml CompanionLoadOutTemplate: source art/anchors, same equip action.
 use super::{PetJournalView, PetRowKey};
-use crate::bank_art::{WHITE, label, texture};
-use crate::quest_art::{DynName, NORMAL_FONT_COLOR, named_atlas_texture};
+use game_engine_ui_model::bank_art::{WHITE, label, texture};
+use game_engine_ui_model::quest_art::{DynName, NORMAL_FONT_COLOR, named_atlas_texture};
 use shared::pet_battle::OwnedPet;
 use ui_toolkit::{
     atlas::{resolve_region, thread_skin},
@@ -136,10 +136,10 @@ fn owned_decoration(view: &PetJournalView, name: &str, pet: &OwnedPet) -> Elemen
         format!("{name}QualityBorder"),
         QUALITY_BORDER,
         (7.0, 11.0, 38.0, 38.0),
-        crate::merchant_data::quality_color(pet.quality as u8),
+        game_engine_ui_model::merchant_data::quality_color(pet.quality as u8),
     );
     if let Some(visual) = view.visuals.get(&pet.species_id) {
-        out.extend(crate::bank_art::cropped(
+        out.extend(game_engine_ui_model::bank_art::cropped(
             format!("{name}PetTypeIcon"),
             visual.type_icon(),
             "0.0078125,0.4765625,0.50390625,0.73828125",
@@ -195,13 +195,13 @@ fn loadout_border() -> Element {
         (301.5, 565.0, 378.0, 16.0),
         [0.0, 1.0, 1.0, 0.0],
     ));
-    out.extend(crate::bank_art::cropped(
+    out.extend(game_engine_ui_model::bank_art::cropped(
         "PetJournalLoadoutBorderLeft".into(),
         651998,
         "0,1,0,1",
         (284.5, 268.0, 16.0, 296.0),
     ));
-    out.extend(crate::bank_art::cropped(
+    out.extend(game_engine_ui_model::bank_art::cropped(
         "PetJournalLoadoutBorderRight".into(),
         651998,
         "1,0,0,1",

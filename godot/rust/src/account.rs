@@ -921,9 +921,9 @@ impl Account {
 
     pub fn send_pet_request(
         &self,
-        request: game_engine_ui_model::pet_journal::PetRequest,
+        request: game_engine_ui_collections::pet_journal::PetRequest,
     ) -> Result<(), SessionError> {
-        use game_engine_ui_model::pet_journal::PetRequest;
+        use game_engine_ui_collections::pet_journal::PetRequest;
         use shared::protocol::{CollectionChannel, DismissPet, SummonPet};
         let bridge = self.bridge()?;
         match request {
