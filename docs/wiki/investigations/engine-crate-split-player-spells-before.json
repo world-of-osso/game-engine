@@ -1,0 +1,1116 @@
+{
+  "source_revision": "1123c7606",
+  "raw_archive": "/home/osso/.worktrees/logs/engine-crate-split-player-spells-before-1123c7606",
+  "source_files": [
+    "godot/ui-model/src/ui/screens/spellbook_frame_component.rs",
+    "godot/ui-model/src/ui/screens/spellbook_frame_component/items.rs",
+    "godot/ui-model/src/ui/screens/spellbook_frame_component/layout.rs",
+    "godot/ui-model/src/ui/screens/spellbook_frame_component/pagination.rs",
+    "godot/ui-model/src/ui/screens/spellbook_frame_component/paging.rs",
+    "godot/ui-model/src/ui/screens/spellbook_frame_component/player_spells_pages.rs",
+    "godot/ui-model/src/ui/screens/spellbook_frame_component/talents_page.rs",
+    "godot/ui-model/src/ui/screens/spellbook_frame_component/talents_footer.rs",
+    "godot/ui-model/src/ui/screens/spellbook_frame_component/talents_loadouts.rs",
+    "godot/ui-model/src/ui/screens/spellbook_frame_component/pvp_talent_controls.rs",
+    "godot/ui-model/src/spellbook_preview.rs"
+  ],
+  "source_file_count": 11,
+  "original_lines": 3878,
+  "base_shared_type_lines": 35,
+  "existing_lines_to_feature": 3843,
+  "14day_distinct_commits": 47,
+  "churn_since": "2026-10-10T07:39:11-05:00",
+  "churn_until": "2026-10-24T07:39:11-05:00",
+  "retained_shared_types": [
+    "PlayerSpellsTab enum and impl",
+    "SpellbookItemView struct"
+  ],
+  "retained_base_models": [
+    "talents",
+    "talent_editor",
+    "talent_loadouts",
+    "talent_search",
+    "spell_overrides"
+  ],
+  "dedicated_test_suites": [
+    "talent_footer",
+    "talent_centering",
+    "talentwire",
+    "classbook_preview",
+    "classbook_icons",
+    "talents",
+    "talent_loadouts",
+    "talent_layout",
+    "classbook_catalog_audit",
+    "spellbook_frame",
+    "spellbook_preview"
+  ],
+  "census": {
+    "source_revision": "1123c7606",
+    "integration_names": [
+      "classbook_catalog_audit::emit_classbook_catalog_coverage",
+      "classbook_icons::every_class_spellbook_entry_has_nonempty_real_icon",
+      "classbook_preview::explicit_preview_rejects_wrong_or_unknown_class_and_spec",
+      "classbook_preview::non_mage_preview_contains_own_spells_and_spec_tree",
+      "classbook_preview::paladin_preview_does_not_pretend_effects_and_artifact_abilities_are_known",
+      "micro_menu::an_older_custom_layout_resets_to_forever_with_the_micro_menu_hidden",
+      "micro_menu::an_open_game_menu_pushes_its_button_and_disables_the_rest_without_tooltips",
+      "micro_menu::an_unconverted_button_is_lit_clickable_and_says_why_on_click",
+      "micro_menu::both_presets_hide_the_micro_menu_without_destroying_its_buttons",
+      "micro_menu::collections_tooltip_uses_the_assignable_live_binding",
+      "micro_menu::combined_player_spells_micro_button_opens_specialization_when_talents_are_absent",
+      "micro_menu::follower_group_finder_micro_button_is_enabled_with_native_action",
+      "micro_menu::hiding_and_showing_again_keeps_the_menu_and_portrait_slot_mounted",
+      "micro_menu::hover_shows_the_mouseover_atlas_and_an_open_window_pushes_its_button",
+      "micro_menu::retail_order_with_every_button_lit",
+      "micro_menu::the_character_button_draws_the_portrait_shadow_and_pushed_shadow_when_open",
+      "micro_menu::the_character_button_holds_the_player_portrait_slot_under_its_mask",
+      "micro_menu::tooltips_name_the_button_and_its_binding",
+      "micro_menu::ui_template_behavior_collection_micro_buttons_retain_live_binding_and_hidden_owner_lifetime",
+      "pvp_progression::honor_lifetime_display_never_substitutes_spendable_cap_for_unknown_level_curve",
+      "pvp_progression::quick_match_and_rated_tabs_show_wallet_balances_without_fake_season_policy",
+      "pvp_progression::retail_war_mode_control_exists_but_requires_authoritative_context_in_both_skins",
+      "pvp_progression::three_source_pvp_slots_and_authoritative_choice_actions_render_in_both_skins",
+      "spell_overrides::animation_override_and_item_action_do_not_replace_spells",
+      "spell_overrides::override_applies_and_restores_action_button_without_rebinding",
+      "spell_overrides::spellbook_replacement_preserves_base_binding_and_presents_its_cooldown",
+      "spell_overrides::toyfx2_override_set_replaces_empty_spell_and_item_slots_then_restores",
+      "spellbook_frame::bottom_tab_bar_matches_retail_tab_system_geometry_in_both_skins",
+      "spellbook_frame::category_tabs_use_retail_update_tab_width",
+      "spellbook_frame::clicking_bottom_tabs_switches_content_in_both_skins",
+      "spellbook_frame::items_fill_columns_first_with_the_fewest_rows",
+      "spellbook_frame::known_spells_cast_and_future_spells_show_their_level_greyed",
+      "spellbook_frame::long_groups_continue_in_the_next_view",
+      "spellbook_frame::n_and_p_open_their_page_and_only_same_page_toggle_closes",
+      "spellbook_frame::player_spells_has_three_bottom_tabs",
+      "spellbook_frame::specialization_page_uses_class_data_and_marks_only_server_active_spec",
+      "spellbook_frame::spell_without_a_known_icon_builds_no_icon_texture",
+      "spellbook_frame::the_book_scales_to_fit_the_viewport",
+      "spellbook_frame::the_book_window_has_title_spec_portrait_and_close_button",
+      "spellbook_frame::ui_template_behavior_combat_spellbook_button_resolves_live_unlearned_spell_owner",
+      "spellbook_frame::ui_template_fonts_spellbook_preserves_unshadowed_book_text_and_shadowed_tabs",
+      "spellbook_frame::ui_template_fonts_tab_width_uses_glyph_metrics_not_character_count",
+      "spellbook_preview::mage_preview_projects_visible_player_spells_in_both_skins_and_all_pages",
+      "talent_centering::retail_ret_and_arcane_centers_use_db2_pan_without_fit_zoom_in_both_skins",
+      "talent_footer::keyboard_search_preview_selects_real_name_and_clear_removes_matches",
+      "talent_footer::reset_all_preserves_selected_hero_purchases_and_granted_main_ranks",
+      "talent_footer::reset_class_then_undo_restores_committed_purchases_and_keeps_spec",
+      "talent_footer::search_highlights_matching_nodes_and_preview_selects_actual_entry_in_both_skins",
+      "talent_footer::talent_loadout_new_opens_a_retail_name_dialog",
+      "talent_footer::ui_template_behavior_services_loadout_menu_keeps_disabled_export_owner_and_real_configurations",
+      "talent_layout::all40_specs_main_rects_and_hero_dialog_columns_fit_both_skins",
+      "talent_layout::arms_currency_headers_align_above_nodes_in_both_skins",
+      "talent_layout::arms_spend_badges_and_disabled_apply_remain_legible",
+      "talent_layout::hero_selector_excludes_unconditioned_nodes_from_other_specializations",
+      "talent_layout::mainline_capstone_keeps_84px_padded_art_around_64px_hit_target",
+      "talent_layout::mainline_spend_anchor_and_capstone_atlas_draw_bounds_match_retail",
+      "talent_layout::retail_reset_uses_20px_icon_inside_25px_footer_hit_rect",
+      "talent_layout::worst_three_specs_keep_nodes_above_footer_and_only_eligible_hero_options",
+      "talent_loadouts::talent_loadouts_both_skins_render_three_server_rows_and_selected_caption",
+      "talent_loadouts::talent_loadouts_both_skins_show_builtin_starter_without_gear",
+      "talent_loadouts::talent_loadouts_create_copies_pending_allocation_and_waits_for_server_selection",
+      "talent_loadouts::talent_loadouts_ignore_list_from_other_spec",
+      "talent_loadouts::talent_loadouts_import_dialog_has_retail_fields_limits_and_shared_geometry",
+      "talent_loadouts::talent_loadouts_import_export_roundtrip_queues_authoritative_create_only",
+      "talent_loadouts::talent_loadouts_invalid_import_retains_dialog_and_never_sends_request",
+      "talent_loadouts::talent_loadouts_modern_dialog_draws_the_mainline_panel_button_sheets",
+      "talent_loadouts::talent_loadouts_rename_delete_and_dirty_switch_require_correct_confirmations",
+      "talent_loadouts::talent_loadouts_retail_export_disallows_drafts_and_unspent_points",
+      "talent_loadouts::talent_loadouts_starter_deviation_requires_confirmation_and_undo_restores_guidance",
+      "talent_loadouts::talent_loadouts_starter_selection_waits_for_authority_and_is_not_a_named_config",
+      "talents::arcane_talents_render_real_icons_positions_edges_and_staged_choices_in_both_skins",
+      "talents::talent_tree3_available_icons_and_spec_background_are_authored_in_both_skins",
+      "talents::talent_tree3_choice_flyout_is_a_horizontal_authored_icon_row_above_its_node",
+      "talents::talent_tree3_edges_and_node_hover_use_authored_atlases",
+      "talents::talent_tree3_entry_tooltips_show_actual_choice_rank_and_never_route_navigation_as_a_spell",
+      "talents::talent_tree3_gate_badge_uses_retail_numeric_text_instead_of_overlapping_hero_nodes",
+      "talents::talent_tree3_headers_separate_spec_name_and_green32px_points_and_forever_skins_art",
+      "talents::talent_tree3_hero_dialog_anchors_to_ui_parent_and_covers_the_underlying_window",
+      "talents::talent_tree3_hero_selector_has_retail_headline_and_available_currency",
+      "talents::talent_tree3_hero_staging_keeps_dialog_apply_and_authored_close_control",
+      "talents::talent_tree3_real_gates_show_remaining_earlier_row_cost",
+      "talents::talents_pending_ranks_counters_apply_and_choice_elements_match_both_skins",
+      "talentwire::talent_tree3_switching_hero_subtree_refunds_its_purchases_but_keeps_grants",
+      "talentwire::talents_apply_serializes_full_entry_list",
+      "talentwire::talents_choice_flyout_selects_one_entry_and_switches",
+      "talentwire::talents_click_refund_and_undo_stage_without_mutating_committed",
+      "talentwire::talents_failure_reason_and_new_snapshot_clear_pending",
+      "talentwire::talents_gate_and_hero_level_reject_unavailable_purchases",
+      "talentwire::talents_impossible_clicks_do_nothing",
+      "talentwire::talents_snapshot_projects_ranks_and_points",
+      "talentwire::talents_tiered_refund_uses_db2_entry_order_not_sorted_wire_ids",
+      "textfit::textfit_character_portrait_has_a_foreground_render_slot_in_both_skins",
+      "textfit::textfit_character_tab_captions_fit_in_both_skins",
+      "textfit::textfit_long_spell_name_stays_above_subtext_and_level_in_both_skins"
+    ],
+    "ignored_names": [
+      "classbook_catalog_audit::emit_classbook_catalog_coverage"
+    ],
+    "base_unit_names": [
+      "achievements::blend_tests::ui_template_blend_statistics_rows_and_selected_category_author_source_blend_modes",
+      "achievements::search_catalog::tests::achievement_search_catalog_uses_installed_root_and_nested_ancestry",
+      "auction_house_data::tests::money_display_copper_only",
+      "auction_house_data::tests::money_display_full",
+      "auction_house_data::tests::money_display_no_gold",
+      "auction_house_data::tests::money_display_short_copper_only",
+      "auction_house_data::tests::money_display_short_round_gold",
+      "auction_house_data::tests::money_display_short_silver_only",
+      "auction_house_data::tests::money_display_short_with_silver",
+      "auction_house_data::tests::money_from_gold_silver_copper",
+      "auction_house_data::tests::money_round_trip",
+      "auction_house_data::tests::money_zero_display",
+      "auction_house_frame_component::art::tests::money_parts_hide_zero_gold_and_keep_zero_silver_and_copper",
+      "bag_data::container_use_tests::container_use_does_not_cast_an_unresolved_weapon_before_equipping_it",
+      "bag_data::tests::inventory::bag_background_for_zero_rows",
+      "bag_data::tests::inventory::bag_background_selects_correct_size",
+      "bag_data::tests::inventory::bag_borders_follow_retail_bag_item_quality_colors",
+      "bag_data::tests::inventory::bag_slot_count_nonexistent_bag",
+      "bag_data::tests::inventory::default_inventory_has_backpack",
+      "bag_data::tests::inventory::empty_slot_detection",
+      "bag_data::tests::inventory::equipment_snapshot_and_deltas_fill_the_equipped_slots",
+      "bag_data::tests::inventory::server_snapshot_then_delta_drive_the_backpack",
+      "bag_data::tests::inventory::server_stacks_take_name_and_quality_from_the_item_catalog",
+      "bag_data::tests::inventory::slot_access_out_of_bounds_returns_none",
+      "bag_data::tests::inventory::slot_contents_across_bags",
+      "bag_data::tests::inventory::texture_fdids_are_nonzero",
+      "bag_data::tests::inventory::total_free_slots_counts_empty",
+      "bag_data::tests::inventory::total_slots_across_bags",
+      "bag_data::tests::inventory::varied_bag_sizes",
+      "bag_data::tests::mutations::add_bag_extends_inventory",
+      "bag_data::tests::mutations::clear_slot_empties",
+      "bag_data::tests::mutations::count_item_across_bags",
+      "bag_data::tests::mutations::first_empty_slot_finds_earliest",
+      "bag_data::tests::mutations::first_empty_slot_none_when_full",
+      "bag_data::tests::mutations::replace_all_resets_inventory",
+      "bag_data::tests::mutations::set_item_out_of_bounds_no_panic",
+      "bag_data::tests::mutations::set_item_populates_slot",
+      "bank_data::tests::a_bank_without_tabs_shows_the_purchase_prompt",
+      "bank_data::tests::a_new_banker_opens_on_the_character_bank_and_keeps_the_reagent_choice",
+      "bank_data::tests::contents_that_arrive_before_the_opening_are_kept",
+      "bank_data::tests::guild_log_modes_query_their_log_and_drop_stale_answers",
+      "bank_data::tests::log_lines_use_retail_formats",
+      "bank_data::tests::side_tabs_select_purchased_tabs_and_the_purchase_tab_per_bank",
+      "cast_failed_text::tests::toy_area_failure_preserves_group_detail_and_source_error_name",
+      "challenge::tests::mythic_challenge_tracker_displays_authored_time_forces_and_summary_without_rating",
+      "char_create_data::tests::all_races_have_at_least_one_class",
+      "char_create_data::tests::classes_follow_retail_creation_order",
+      "char_create_data::tests::dracthyr_are_allied_races_of_both_factions_defaulting_to_evoker",
+      "char_create_data::tests::first_available_class_returns_valid",
+      "char_create_data::tests::kul_tiran_earthen_and_haranir_follow_char_base_info",
+      "char_create_data::tests::new_classes_follow_retail_char_base_info",
+      "char_create_data::tests::race_class_availability_is_consistent",
+      "char_create_data::tests::skyborne_roster_uses_forever_names_classes_and_atlas",
+      "char_create_data::tests::unknown_race_returns_none",
+      "character_frame_component::tests::character_frame_builds_all_slot_frames",
+      "character_frame_component::tests::character_frame_hidden_when_not_visible",
+      "character_frame_component::tests::character_frame_screen_builds_expected_frames",
+      "character_frame_component::tests::equipment_slots_show_item_names",
+      "character_frame_component::tests::paperdoll_slots_click_with_their_equipment_slot_and_show_the_item_icon",
+      "character_frame_component::tests::slot_labels_show_slot_names",
+      "character_frame_component::tests::stat_rows_render_values",
+      "character_frame_component::tests::title_bar_and_character_info_text",
+      "chat_data::tests::add_message_trims",
+      "chat_data::tests::channel_by_name",
+      "chat_data::tests::channel_by_number",
+      "chat_data::tests::channel_colors_distinct",
+      "chat_data::tests::channel_prefixes",
+      "chat_data::tests::intent_drain_clears",
+      "chat_data::tests::intent_join",
+      "chat_data::tests::intent_leave",
+      "chat_data::tests::intent_send",
+      "chat_data::tests::intent_whisper",
+      "chat_data::tests::join_case_insensitive_duplicate",
+      "chat_data::tests::join_channel",
+      "chat_data::tests::join_duplicate_rejected",
+      "chat_data::tests::leave_channel",
+      "chat_data::tests::leave_nonexistent",
+      "chat_data::tests::message_formatted_custom_channel",
+      "chat_data::tests::message_formatted_emote_channel",
+      "chat_data::tests::message_formatted_system_channel",
+      "chat_data::tests::next_channel_number",
+      "chat_data::tests::next_channel_number_fills_gap",
+      "chat_data::tests::only_incoming_whispers_set_the_reply_target",
+      "chat_data::tests::receive_whisper_sets_reply_target",
+      "chat_data::tests::receive_whisper_updates_recent",
+      "chat_data::tests::recent_targets_case_insensitive_dedup",
+      "chat_data::tests::recent_targets_dedup_moves_to_front",
+      "chat_data::tests::recent_targets_max_limit",
+      "chat_data::tests::send_whisper_updates_recent",
+      "chat_data::tests::server_channels_map_to_runtime_channels",
+      "chat_data::tests::whisper_state_default",
+      "chat_data::tests::whispers_with_case_insensitive",
+      "chat_data::tests::whispers_with_filters",
+      "chat_draft::tests::achievements_art_draft_displays_names_without_losing_wire_ids",
+      "chat_draft::tests::achievements_art_draft_edits_at_unicode_caret_and_preserves_two_same_name_ids",
+      "chat_draft::tests::guild_news_item_link_draft_preserves_item_identity_and_existing_achievement",
+      "chat_draft::tests::guild_perks_real_spell_link_draft_hides_markup_and_preserves_existing_subjects",
+      "chat_draft::tests::guild_perks_spell_insertion_replaces_unicode_selection_without_losing_other_subjects",
+      "chat_frame::tests::a_coloured_run_starts_where_the_text_before_it_ends",
+      "chat_frame::tests::combat_log_keeps_newest_lines",
+      "chat_frame::tests::copied_chat_lists_timestamped_lines_oldest_first",
+      "chat_frame::tests::damage_on_the_player_reads_you_in_the_attackers_red",
+      "chat_frame::tests::deaths_read_you_killed_and_the_death_recap_link",
+      "chat_frame::tests::emote_who_invite_help_and_unknown_commands",
+      "chat_frame::tests::events_outside_the_default_filters_make_no_line",
+      "chat_frame::tests::falling_damage_on_the_player_reads_unknown_falling_damaged_you",
+      "chat_frame::tests::guild_perks_received_spell_link_renders_authored_label_and_real_tooltip_identity",
+      "chat_frame::tests::heals_read_healed_without_the_overhealing",
+      "chat_frame::tests::hug247_slash_uses_the_targeted_emote_action",
+      "chat_frame::tests::messages_fill_the_area_from_the_newest_and_drop_partial_ones",
+      "chat_frame::tests::mount_special_slash_uses_the_emote_action",
+      "chat_frame::tests::multi_school_damage_names_the_combined_school",
+      "chat_frame::tests::new_messages_flash_matching_tabs_unless_the_selected_tab_shows_them",
+      "chat_frame::tests::plain_text_is_said_and_channel_commands_pick_their_channel",
+      "chat_frame::tests::received_lines_use_retail_wording_and_channel_colour",
+      "chat_frame::tests::scrolling_stays_between_the_newest_and_the_oldest_message",
+      "chat_frame::tests::selecting_a_tab_clears_every_flash_and_each_tab_keeps_its_scroll_position",
+      "chat_frame::tests::sent_history_cycles_up_and_down",
+      "chat_frame::tests::tab_flash_bounces_between_hidden_and_full_every_half_second",
+      "chat_frame::tests::the_players_spell_damage_names_the_spell_and_its_results",
+      "chat_frame::tests::the_players_swing_reads_your_melee_hit_in_the_players_grey",
+      "chat_frame::tests::timestamps_use_the_clock_time_format",
+      "chat_frame::tests::toyfx14_dice_received_item_markup_renders_authored_label_colour_and_unsplit_text",
+      "chat_frame::tests::whisper_and_reply_target_the_named_player",
+      "chat_frame::tests::whispers_tab_lists_only_whispers",
+      "chat_frame::tests::wrapping_breaks_between_words_and_keeps_links_whole",
+      "chat_frame_component::tests::link_runs_resolve_to_their_spell_and_text_runs_do_not",
+      "chat_frame_component::tests::ui_template_behavior_combat_chat_spell_link_owns_default_anchor_but_plain_text_does_not",
+      "csv_records::tests::last_record_without_newline_is_returned",
+      "csv_records::tests::quoted_fields_keep_embedded_newlines_and_escaped_quotes",
+      "csv_util::tests::numeric_rows_reads_local_pet_species_with_multiline_description_fields",
+      "csv_util::tests::parse_csv_line_handles_escaped_quotes",
+      "csv_util::tests::parse_csv_line_handles_quoted_commas",
+      "csv_util::tests::parse_csv_line_trimmed_trims_unquoted_whitespace",
+      "csv_util::tests::parse_csv_records_keeps_quoted_newlines_in_one_record",
+      "cursor_item::tests::a_bag_item_dropped_on_a_paperdoll_slot_equips_and_an_equipped_item_unequips",
+      "cursor_item::tests::a_split_stack_drops_as_split_item_and_is_sold_or_destroyed_by_its_count",
+      "cursor_item::tests::a_vendor_item_on_the_cursor_is_bought_into_the_bag_slot_it_is_dropped_on",
+      "cursor_item::tests::a_whole_stack_dropped_on_the_merchant_sells_all_of_it_only_while_a_vendor_is_open",
+      "cursor_item::tests::clicking_the_source_slot_puts_the_item_back_and_empty_slots_pick_up_nothing",
+      "cursor_item::tests::cursor_rejects_same_id_replaced_by_a_different_definition_source",
+      "cursor_item::tests::destroy_popup_for_a_rare_item_requires_delete_without_a_timeout",
+      "cursor_item::tests::destroy_popup_for_an_ordinary_item_asks_yes_or_no_without_a_confirm_word",
+      "cursor_item::tests::dropping_on_the_world_asks_first_and_rare_items_need_delete_typed",
+      "cursor_item::tests::picking_up_then_clicking_another_bag_slot_swaps_on_the_server",
+      "cursor_item::tests::the_cursor_clears_when_its_item_leaves_the_slot_or_the_vendor_closes",
+      "damage_meter_data::tests::current_shows_the_latest_combat_and_its_timer_in_combat",
+      "damage_meter_data::tests::large_numbers_abbreviate_like_the_retail_lua",
+      "damage_meter_data::tests::overall_is_the_default_session_with_ranked_class_coloured_compact_rows",
+      "death_flow::tests::deathstate_corpse_marker_and_edge_arrow_both_skins",
+      "death_flow::tests::deathstate_dead_popup_release_both_skins",
+      "death_flow::tests::deathstate_ghost_corpse_range_recovery_both_skins",
+      "death_flow::tests::deathstate_healer_cancel_reopen_and_range",
+      "death_flow::tests::deathstate_healer_requires_interaction",
+      "death_flow::tests::deathstate_refusal_preserves_snapshot_and_unlocks_retry",
+      "death_flow::tests::deathstate_spirit_healer_accept_both_skins",
+      "death_flow::tests::deathstate_wrong_map_and_leaving_range_hide_stale_corpse",
+      "death_flow::tests::rezrtap_decline_timeout_and_alive_clear_offer",
+      "death_flow::tests::rezrtap_resurrect_popup_accept_both_skins",
+      "dungeon_entrance_data::tests::a_cleared_difficulty_shows_its_count_in_red",
+      "dungeon_entrance_data::tests::a_difficulty_the_dungeon_lacks_selects_nothing",
+      "dungeon_entrance_data::tests::deadmines_lists_normal_and_heroic_but_not_timewalking",
+      "dungeon_entrance_data::tests::killed_bosses_come_from_the_locked_lock_of_that_difficulty",
+      "dungeon_entrance_data::tests::proximity_is_rechecked_twice_a_second_within_60_yards",
+      "dungeon_entrance_data::tests::raid_entrances_are_not_offered",
+      "dungeon_entrance_data::tests::stockade_journal_instance_and_entrance_resolve_from_the_tables",
+      "dungeon_entrance_data::tests::stockade_offers_normal_with_three_bosses",
+      "dungeon_entrance_data::tests::the_bar_shows_within_31_yards_on_the_entrance_map_only",
+      "encounter_timeline::tests::timeline_countdown_replacement_real_cast_warning_and_reset",
+      "encounter_timeline::tests::timeline_delayed_delivery_keeps_the_servers_selected_deadline",
+      "encounter_timeline_component::tests::timeline_screen_both_skins_countdown_text_track_and_warning_visibility",
+      "encounter_timeline_component::tests::ui_template_blend_timer_bars_project_source_art_and_remaining_fraction_in_both_skins",
+      "entrance_difficulty_component::blend_tests::ui_template_blend_entrance_hover_authors_custom_art_mode_before_postsetup",
+      "flight_map::tests::flightmap_click_emits_exact_request_and_closes",
+      "flight_map::tests::flightmap_current_unknown_and_unreachable_do_not_activate",
+      "flight_map::tests::flightmap_resolves_current_nodes_continent_not_its_zone",
+      "game_tooltip::binding_tests::ui_template_behavior_body_without_title_starts_in_the_first_source_font_slot",
+      "game_tooltip::binding_tests::ui_template_behavior_source_mixin_can_keep_highlight_color_for_a_disabled_tooltip",
+      "game_tooltip::binding_tests::ui_template_behavior_static_tooltip_keeps_disabled_content_and_source_offset_conversion",
+      "game_tooltip::binding_tests::ui_template_behavior_wrap_policy_and_dynamic_content_do_not_become_static_snapshots",
+      "game_tooltip::hud::tests::an_empty_paperdoll_slot_shows_only_its_white_slot_name",
+      "game_tooltip::hud::tests::bag_bar_buttons_count_free_slots_and_name_empty_slots",
+      "game_tooltip::hud::tests::minimap_blips_list_their_units_at_the_cursor",
+      "game_tooltip::hud::tests::the_clock_lists_realm_and_local_time_then_the_hint",
+      "game_tooltip::hud::tests::the_xp_bar_shows_progress_and_the_rest_state",
+      "game_tooltip::hud::tests::the_zone_button_names_zone_subzone_and_the_world_map_key",
+      "game_tooltip::hud::tests::times_read_in_twelve_hours",
+      "game_tooltip::hud::tests::unread_mail_lists_its_senders_in_white_under_the_header",
+      "game_tooltip::item::tests::a_merchant_item_reads_its_catalog_lines_and_id",
+      "game_tooltip::item::tests::auction_rows_resolve_their_item_and_hide_the_vendor_price",
+      "game_tooltip::item::tests::losses_are_red",
+      "game_tooltip::item::tests::rings_compare_with_both_fingers_and_the_hovered_item_itself_never",
+      "game_tooltip::item::tests::the_rapier_compares_with_the_equipped_shortsword_and_shows_its_gains",
+      "game_tooltip::merchant::tests::a_vendor_bundle_prices_its_whole_purchase_without_durability",
+      "game_tooltip::merchant::tests::a_vendor_weapon_shows_its_full_item_tooltip_at_full_durability",
+      "game_tooltip::merchant::tests::buyback_cells_show_the_sold_stack",
+      "game_tooltip::merchant::tests::guild_repair_shows_the_cost_and_the_guild_money_left",
+      "game_tooltip::merchant::tests::repair_all_shows_cost_and_red_shortfall_only_when_damaged",
+      "game_tooltip::merchant::tests::service_buttons_show_their_retail_strings_in_white",
+      "game_tooltip::merchant::tests::shift_compares_a_vendor_axe_with_the_equipped_sword",
+      "game_tooltip::render::tests::the_size_fits_the_widest_line_and_stacks_the_lines",
+      "game_tooltip::spell::tests::aura_tooltip_ends_with_the_spell_id_line_after_placement",
+      "game_tooltip::spell::tests::auras_show_their_description_and_the_time_remaining_counting_down",
+      "game_tooltip::spell::tests::charge_shows_its_band_cast_cooldown_remaining_cooldown_and_level",
+      "game_tooltip::spell::tests::guild_mobile_banking_tooltip_uses_user_two_hour_policy_over_installed_one_hour",
+      "game_tooltip::spell::tests::mana_percent_costs_friendly_ranges_charges_and_long_cooldowns",
+      "game_tooltip::spell::tests::passive_spells_show_passive_instead_of_costs",
+      "game_tooltip::spell::tests::slam_reads_rage_melee_range_instant_and_its_description",
+      "game_tooltip::tests::authored_cursor_right_tooltips_stay_on_screen_at_the_right_edge",
+      "game_tooltip::tests::bag_slots_and_target_auras_pick_their_side_by_screen_half",
+      "game_tooltip::tests::comparisons_sit_beside_the_main_tooltip_on_the_side_with_room",
+      "game_tooltip::tests::every_record_ends_with_its_grey_id_line_and_others_have_none",
+      "game_tooltip::tests::forever_unit_tooltips_hide_the_health_bar_and_modern_keeps_it",
+      "game_tooltip::tests::housing_category_owner_offsets_keep_real_owner_geometry_and_clamp_after_translation",
+      "game_tooltip::tests::owner_anchors_follow_the_retail_anchor_types",
+      "game_tooltip::tests::the_default_anchor_is_bottom_right_and_cursor_follows_the_pointer",
+      "game_tooltip::tests::the_screen_draws_the_main_tooltip_and_headed_comparisons",
+      "game_tooltip::tests::tooltips_clamp_to_every_screen_edge",
+      "game_tooltip::tests::ui_template_behavior_default_anchor_is_retail_in_both_art_skins",
+      "game_tooltip::transmog::tests::transmog_illusion_tooltip_names_the_illusion_or_the_empty_slot",
+      "game_tooltip::transmog::tests::transmog_set_tooltip_lists_collected_and_uncollected_pieces",
+      "game_tooltip::unit::db2_header_tests::db2_header_faction_names_read_canonical_stormwind",
+      "game_tooltip::unit::db2_header_tests::db2_header_faction_names_reject_invalid_canonical_row",
+      "game_tooltip::unit::tests::a_beast_shows_its_type_on_the_line_below_the_level",
+      "game_tooltip::unit::tests::a_collected_appearance_shows_the_check_and_loses_its_priority",
+      "game_tooltip::unit::tests::before_the_server_answers_the_npc_shows_name_level_and_faction",
+      "game_tooltip::unit::tests::chances_read_like_the_spec",
+      "game_tooltip::unit::tests::defias_thug_lists_uncollected_first_then_by_chance_and_truncates",
+      "game_tooltip::unit::tests::elite_rare_elite_and_world_boss_level_lines",
+      "game_tooltip::unit::tests::only_reputation_factions_are_named",
+      "game_tooltip::unit::tests::players_show_guild_level_race_and_class_and_no_record",
+      "game_tooltip::unit::tests::timber_reads_level_10_rare_then_beast",
+      "game_tooltip::unit::tests::vendor_items_keep_slot_order_without_chances",
+      "group_loot::tests::completed_roll_prints_numeric_results_once_before_winner",
+      "group_loot::tests::countdown_hides_expired_prompt_but_keeps_history_and_cannot_submit_for_other_player",
+      "group_loot::tests::four_pending_frames_queue_remaining_rolls_and_confirmed_response_promotes_queue",
+      "group_loot::tests::transmog_replaces_greed_and_receiving_same_winner_twice_does_not_repeat_chat",
+      "group_loot::tests::ui_template_behavior_combat_group_roll_choices_item_and_history_own_live_content",
+      "group_state::tests::a_state_that_arrives_before_its_roster_is_kept_until_the_roster_decides",
+      "group_state::tests::finished_ready_check_marks_decay_after_eleven_seconds",
+      "group_state::tests::group_leader_menu_offers_mainline_loot_methods_and_thresholds",
+      "group_state::tests::leaving_the_group_clears_members_live_state_and_ready_check",
+      "group_state::tests::member_states_are_kept_for_roster_members_and_dropped_when_they_go_offline",
+      "group_state::tests::menu_actions_round_trip_to_commands_for_the_menu_unit",
+      "group_state::tests::party_leader_menus_offer_member_management_and_convert_to_raid",
+      "group_state::tests::party_member_menus_only_offer_own_role_and_leave",
+      "group_state::tests::raid_assistant_menu_permissions_follow_server_assignment_and_revocation",
+      "group_state::tests::ready_marks_follow_answers_and_unanswered_turn_not_ready_when_finished",
+      "group_state::tests::small_raid_leader_can_convert_back_but_not_a_six_member_raid",
+      "group_state::tests::ungrouped_player_can_invite_others_and_has_no_self_entries",
+      "guild_presence::tests::guild_last_online_source_unit_boundaries_are_deterministic",
+      "inworld_unit_frames_component::class_bars_tests::an_activating_arcane_charge_draws_its_retail_keyframes",
+      "inworld_unit_frames_component::class_bars_tests::charged_combo_points_drive_full_and_empty_charged_layers",
+      "inworld_unit_frames_component::class_bars_tests::charged_combo_points_play_blue_slash_and_charged_empty_keyframes",
+      "inworld_unit_frames_component::class_bars_tests::chi_orbs_space_and_animate_like_retail",
+      "inworld_unit_frames_component::class_bars_tests::class_bar_visibility_follows_class_spec_level_and_display_power",
+      "inworld_unit_frames_component::class_bars_tests::destruction_draws_soul_shard_fragments",
+      "inworld_unit_frames_component::class_bars_tests::druid_combo_points_activate_and_deactivate",
+      "inworld_unit_frames_component::class_bars_tests::emptied_soul_shards_pick_their_deplete_flipbook",
+      "inworld_unit_frames_component::class_bars_tests::essence_fills_the_next_point_over_five_seconds",
+      "inworld_unit_frames_component::class_bars_tests::essence_rate_change_retimes_the_existing_partial_point",
+      "inworld_unit_frames_component::class_bars_tests::essence_starts_from_received_fraction_at_received_rate",
+      "inworld_unit_frames_component::class_bars_tests::essence_with_zero_regen_fills_at_the_retail_default_rate",
+      "inworld_unit_frames_component::class_bars_tests::full_soul_shards_pulse_in_combat",
+      "inworld_unit_frames_component::class_bars_tests::holy_power_runes_light_and_pulse_when_spell_ready",
+      "inworld_unit_frames_component::class_bars_tests::missing_rune_timing_clears_old_swipes_instead_of_inventing_cooldowns",
+      "inworld_unit_frames_component::class_bars_tests::received_resource_clock_advances_across_repeated_frames_and_combat_events",
+      "inworld_unit_frames_component::class_bars_tests::received_rune_clock_survives_pool_count_arriving_before_rune_component",
+      "inworld_unit_frames_component::class_bars_tests::rogue_combo_points_transition_with_their_retail_groups",
+      "inworld_unit_frames_component::class_bars_tests::rune_swipes_use_independent_received_cooldowns_not_pool_count",
+      "inworld_unit_frames_component::class_bars_tests::runes_spend_recharge_and_sort_like_retail",
+      "inworld_unit_frames_component::class_bars_tests::settled_arcane_charges_draw_shadow_background_orb_and_active_icons",
+      "inworld_unit_frames_component::class_bars_tests::settled_rogue_combo_points_and_their_padding",
+      "inworld_unit_frames_component::class_bars_tests::spent_essence_depletes",
+      "item_catalog::tests::authored_forever_source_survives_mixed_snapshot_tooltips_and_equipped_levels",
+      "item_catalog::tests::collision_catalogs_preserve_source_and_never_borrow_missing_rows",
+      "item_catalog::tests::item_sparse_adds_name_quality_stack_and_sell_price",
+      "item_catalog::tests::missing_icon_column_is_an_error",
+      "item_catalog::tests::parses_class_and_icon_by_item_id",
+      "item_catalog::tests::retail_item_scaling_fields_keep_socket_costs_aligned_to_used_stats",
+      "item_catalog::tests::retail_tables_name_linen_and_the_grey_ruined_pelt",
+      "item_icons::db2_header_tests::db2_header_item_icons_read_canonical_count",
+      "item_icons::db2_header_tests::db2_header_item_icons_reject_invalid_canonical_row",
+      "item_icons::tests::brotherhood_of_thieves_reward_resolves_from_retail_tables",
+      "item_icons::tests::items_without_an_appearance_use_the_item_icon",
+      "item_icons::tests::lowest_order_index_with_an_icon_wins",
+      "item_stats::tests::armor_and_weapon_tooltips_match_server_local_rows",
+      "item_stats::tests::armor_follows_the_quality_total_and_location_tables",
+      "item_stats::tests::forest_chain_tooltip_matches_applied_stats",
+      "item_stats::tests::item_game_table_rows_preserve_level_alignment_and_column_order",
+      "item_stats::tests::stats_scale_the_percent_editor_by_the_random_property_points",
+      "item_stats::tests::weapon_damage_spreads_the_table_dps_by_variance_and_speed",
+      "item_tooltip::tests::a_level_requirement_above_the_viewer_is_red",
+      "item_tooltip::tests::rare_gear_shows_damage_speed_dps_and_white_then_green_stats",
+      "item_tooltip::tests::trade_goods_show_the_stack_sell_price_and_grey_junk_its_title_colour",
+      "item_tooltip::tests::worn_shortsword_reads_like_retail",
+      "loading_component::tests::apply_debug_const_override_ignores_non_const_lines",
+      "loading_component::tests::apply_debug_const_override_ignores_unknown_layout_const",
+      "loading_component::tests::apply_debug_const_override_updates_known_layout_const",
+      "loot_data::tests::money_reads_one_coin_per_line_and_picks_the_biggest_coin_icon",
+      "loot_data::tests::right_clicks_loot_corpses_with_loot_and_leave_empty_ones_targeted",
+      "loot_data::tests::shift_inverts_the_auto_loot_setting",
+      "loot_data::tests::taken_slots_print_retail_loot_lines",
+      "loot_data::tests::taking_slots_keeps_the_rest_until_the_server_closes",
+      "loot_frame_data::tests::card_clicks_loot_their_slot_and_the_close_button_releases",
+      "loot_frame_data::tests::money_and_items_become_retail_cards",
+      "loot_frame_data::tests::the_frame_opens_up_and_left_of_the_cursor_and_stays_on_screen",
+      "merchant_data::tests::a_stock_refresh_keeps_the_page_and_a_new_vendor_resets_it",
+      "merchant_data::tests::nineteen_items_make_two_pages_of_ten_and_nine",
+      "mythic_mentor::tests::mythic_mentor_both_skins_display_replace_and_prune_authoritative_rows",
+      "mythic_mentor::tests::mythic_mentor_cooldown_countdown_clears_when_ready_and_key_replaced",
+      "mythic_mentor::tests::mythic_mentor_unlearned_teleport_tooltip_preserves_real_spell_text",
+      "mythic_mentor::tests::ui_template_behavior_services_mythic_mentor_current_dungeon_icons_teleport_actions_and_owner",
+      "popup::tests::a_confirm_word_popup_accepts_only_once_the_word_is_typed",
+      "popup::tests::disabled_accept_cannot_be_accepted_but_can_be_cancelled",
+      "popup::tests::fourth_push_waits_until_a_slot_frees",
+      "popup::tests::hide_removes_popup_without_a_result_and_promotes_queued",
+      "popup::tests::same_key_replaces_in_place_and_keeps_id",
+      "popup::tests::set_text_keeps_the_time_on_screen",
+      "popup::tests::timeout_counts_only_on_screen_time",
+      "professions::tests::professions_create_all_counts_banked_reagents_after_the_bank_frame_closes",
+      "professions::tests::professions_create_emits_spell_id_and_cast_quantity",
+      "professions::tests::professions_db2_catalog_joins_classic_tailoring_recipe",
+      "professions::tests::professions_missing_reagents_disable_create",
+      "professions::tests::professions_recipe_cooldown_category_comes_from_spell_categories",
+      "professions::tests::professions_schematic_sums_concrete_bag_stacks_not_equipment",
+      "professions::tests::professions_search_filters_case_insensitively",
+      "professions::tests::professions_snapshot_and_bag_refresh_change_rank_and_remaining_crafts",
+      "professions::tests::professions_snapshot_groups_known_recipes_before_unlearned",
+      "professions::tests::professions_trainer_learned_leather_pants_use_recipe_knowledge_not_auto_learn_rank",
+      "professions::tests::professions_unlearned_recipe_is_selectable_but_cannot_emit_a_craft",
+      "professions_reagent_counts::tests::crafting_reagent_counts_include_character_and_warband_banks",
+      "quest_poi::tests::local_beating_them_back_has_the_authored_seven_point_area_and_turnin",
+      "quest_poi::tests::minimap_real_worg_objective_changes_to_turnin_and_offscreen_supertrack_arrow",
+      "quest_poi::tests::server_only_kobold_camp_cleanup_keeps_its_authored_geometry",
+      "quest_runtime::tests::collecting_items_announces_progress_but_acceptance_does_not_replay_counts",
+      "quest_runtime::tests::completing_a_quest_closes_the_reward_page_with_retail_lines",
+      "quest_runtime::tests::increasing_objective_counts_announce_retail_progress_once",
+      "quest_runtime::tests::interaction_close_only_closes_that_npcs_dialog",
+      "quest_runtime::tests::money_text_splits_gold_silver_copper",
+      "quest_runtime::tests::quest_list_fills_the_open_greeting_of_the_same_npc_only",
+      "quest_runtime::tests::quest_text_tokens_substitute_name_class_race_breaks_and_gender",
+      "quest_runtime::tests::reward_choice_is_bounded_by_the_offered_choices",
+      "quest_runtime::tests::update_adds_changes_and_removes_entries_and_announces_accepts",
+      "quest_view::tests::detail_page_substitutes_tokens",
+      "quest_view::tests::greeting_maps_quest_states_and_options",
+      "quest_view::tests::log_groups_by_sort_id_and_uses_owned_story_text",
+      "quest_view::tests::log_rows_carry_level_and_relative_difficulty",
+      "quest_view::tests::quest_share_requires_owned_pushability_and_current_group_membership",
+      "quest_view::tests::relogged_owned_quest_shows_authoritative_story_and_rewards_without_giver_cache",
+      "quest_view::tests::reward_page_carries_the_selected_choice_and_resolved_icons",
+      "quest_view::tests::uifixes_npc_articles_and_player_tokens_resolve_for_a_human_paladin",
+      "selection_debug_component::tests::screen_renders_selected_entry_and_controls",
+      "spell_targeting::tests::disenchant_item_cursor_cancel_never_sends_a_cast",
+      "spell_targeting::tests::disenchant_item_cursor_waits_for_bag_guid_then_exits_targeting",
+      "spell_targeting::tests::ground_cancel_never_sends_an_intent",
+      "spell_targeting::tests::ground_target_intent_contains_clicked_destination_and_exits_targeting",
+      "spell_targeting::tests::nonfinite_ground_point_keeps_targeting_and_does_not_send",
+      "stack_split::tests::arrows_step_between_one_and_the_stack_size",
+      "stack_split::tests::typed_digits_replace_then_append_and_stop_at_the_maximum",
+      "stack_split::tests::vendor_bundles_step_by_the_purchase_size_and_show_stacks",
+      "static_popup_component::tests::a_confirm_word_popup_shows_the_typed_text_and_enables_yes_once_it_matches",
+      "static_popup_component::tests::popup_action_round_trips",
+      "summon::tests::meetingstones_combat_blocks_click_and_enter_then_accept_sends_once",
+      "summon::tests::meetingstones_countdown_ceils_fractional_frame_time",
+      "summon::tests::meetingstones_decline_and_expiry_send_false",
+      "summon::tests::meetingstones_refusal_text_is_retail",
+      "summon::tests::meetingstones_request_countdown_and_replacement",
+      "tooltip_presentation::tests::a_sell_price_line_draws_its_coins_after_the_label",
+      "ui_errors_frame_component::tests::fading_line_uses_red_with_line_alpha",
+      "ui_errors_frame_component::tests::quest_progress_uses_yellow_and_keeps_error_lines_red",
+      "ui_errors_frame_component::tests::shows_newest_first_and_hides_unused_lines",
+      "ui_map_data::tests::best_map_is_the_smallest_zone_under_the_player",
+      "ui_map_data::tests::child_at_finds_the_zone_and_continent_under_the_cursor",
+      "ui_map_data::tests::housing_dedicated_map_follows_assignment_relation_not_names_or_edit_bounds",
+      "ui_map_data::tests::map_position_matches_retail_coordinates",
+      "ui_map_data::tests::zone_art_tiles_are_trimmed_to_the_layer",
+      "ui_map_data::tests::zone_zooms_out_to_continent_then_world",
+      "world_map_view_data::tests::arrow_points_where_forward_movement_goes_on_the_map",
+      "world_map_view_data::tests::completed_objective_does_not_keep_an_objective_pin",
+      "world_map_view_data::tests::doomwalkers_vignette_pins_tanaris_and_kalimdor",
+      "world_map_view_data::tests::flight_masters_follow_the_players_faction",
+      "world_map_view_data::tests::giver_offer_pin_projects_marshal_mcbride_only_when_authoritatively_available",
+      "world_map_view_data::tests::hover_adds_real_worg_blob_without_supertracking_and_leave_removes_it",
+      "world_map_view_data::tests::hovering_a_zone_on_the_continent_highlights_it",
+      "world_map_view_data::tests::objective_areas_outline_on_zone_and_continent_maps_only",
+      "world_map_view_data::tests::opens_on_the_players_zone_with_its_art_and_arrow",
+      "world_map_view_data::tests::quest_log_areas_pin_objectives_and_turn_ins",
+      "world_map_view_data::tests::real_worg_polygon_projects_into_elwynn_and_completion_replaces_it_with_turnin",
+      "world_map_view_data::tests::zooming_out_reaches_continent_then_world_and_keeps_the_player"
+    ]
+  },
+  "measurements": [
+    {
+      "label": "cold-build",
+      "helper": "depot.build(native)",
+      "command": [
+        "build",
+        "-p",
+        "game-engine-godot",
+        "--lib",
+        "-j4",
+        "--message-format=json",
+        "--timings"
+      ],
+      "wall_s": 1.9906976548954844,
+      "user_s": 0.42431199999999997,
+      "system_s": 0.348116,
+      "exit": 0,
+      "dirty_units": [],
+      "dependencies_before": {
+        "asset-resolver": "da1a0edb1248fb6666ed358c71b8ecb6e36ca526",
+        "ui-toolkit": "544b9fcef9001d27e3842cc2bb94c928b8ac97e6",
+        "ui-toolkit-macros": "645c0b88f65204ede9b9605faf2e84e89a82bcc2",
+        "shared-protocol": "2abc7fa844f6e71d93203ce5421ae853e884854d"
+      },
+      "dependencies_after": {
+        "asset-resolver": "da1a0edb1248fb6666ed358c71b8ecb6e36ca526",
+        "ui-toolkit": "544b9fcef9001d27e3842cc2bb94c928b8ac97e6",
+        "ui-toolkit-macros": "645c0b88f65204ede9b9605faf2e84e89a82bcc2",
+        "shared-protocol": "2abc7fa844f6e71d93203ce5421ae853e884854d"
+      },
+      "cargo_units": [],
+      "log_sha256": "aa535a24d770e9ff4217cc2660dc56046751fecef3ce0d2892095e10fa1718f9",
+      "timing_html": "cargo-timings/cargo-timing-20261024T131525064Z-30b50b5d2a71bae4.html"
+    },
+    {
+      "label": "noop-build",
+      "helper": "depot.build(native)",
+      "command": [
+        "build",
+        "-p",
+        "game-engine-godot",
+        "--lib",
+        "-j4",
+        "--message-format=json",
+        "--timings"
+      ],
+      "wall_s": 0.8318169328849763,
+      "user_s": 0.45157500000000006,
+      "system_s": 0.18829399999999996,
+      "exit": 0,
+      "dirty_units": [],
+      "dependencies_before": {
+        "asset-resolver": "da1a0edb1248fb6666ed358c71b8ecb6e36ca526",
+        "ui-toolkit": "544b9fcef9001d27e3842cc2bb94c928b8ac97e6",
+        "ui-toolkit-macros": "645c0b88f65204ede9b9605faf2e84e89a82bcc2",
+        "shared-protocol": "2abc7fa844f6e71d93203ce5421ae853e884854d"
+      },
+      "dependencies_after": {
+        "asset-resolver": "da1a0edb1248fb6666ed358c71b8ecb6e36ca526",
+        "ui-toolkit": "544b9fcef9001d27e3842cc2bb94c928b8ac97e6",
+        "ui-toolkit-macros": "645c0b88f65204ede9b9605faf2e84e89a82bcc2",
+        "shared-protocol": "2abc7fa844f6e71d93203ce5421ae853e884854d"
+      },
+      "cargo_units": [],
+      "log_sha256": "ce52bd0ebf12e14aef9682f39dd0e7ac890856f4419301d7b5fd110517851290",
+      "timing_html": "cargo-timings/cargo-timing-20261024T131557420Z-30b50b5d2a71bae4.html"
+    },
+    {
+      "label": "ui-edit-build-restore",
+      "helper": "depot.build(native)",
+      "command": [
+        "build",
+        "-p",
+        "game-engine-godot",
+        "--lib",
+        "-j4",
+        "--message-format=json",
+        "--timings"
+      ],
+      "wall_s": 24.31849128403701,
+      "user_s": 14.611959999999998,
+      "system_s": 6.194738999999999,
+      "exit": 0,
+      "dirty_units": [
+        {
+          "package": "path+file:///home/osso/.cache/game-engine/native-roots/ed6da6aa056a8a9bf29d-d19212ff8350/game-engine/godot/ui-professions#game-engine-ui-professions@0.1.0",
+          "target": "game_engine_ui_professions",
+          "kind": [
+            "lib"
+          ],
+          "test": false,
+          "executable": null
+        },
+        {
+          "package": "path+file:///home/osso/.cache/game-engine/native-roots/ed6da6aa056a8a9bf29d-d19212ff8350/game-engine/godot/ui-housing#game-engine-ui-housing@0.1.0",
+          "target": "game_engine_ui_housing",
+          "kind": [
+            "lib"
+          ],
+          "test": false,
+          "executable": null
+        },
+        {
+          "package": "path+file:///home/osso/.cache/game-engine/native-roots/ed6da6aa056a8a9bf29d-d19212ff8350/game-engine/godot/ui-adventure#game-engine-ui-adventure@0.1.0",
+          "target": "game_engine_ui_adventure",
+          "kind": [
+            "lib"
+          ],
+          "test": false,
+          "executable": null
+        },
+        {
+          "package": "path+file:///home/osso/.cache/game-engine/native-roots/ed6da6aa056a8a9bf29d-d19212ff8350/game-engine/godot/ui-collections#game-engine-ui-collections@0.1.0",
+          "target": "game_engine_ui_collections",
+          "kind": [
+            "lib"
+          ],
+          "test": false,
+          "executable": null
+        },
+        {
+          "package": "path+file:///home/osso/.cache/game-engine/native-roots/ed6da6aa056a8a9bf29d-d19212ff8350/game-engine/godot/ui-model#game-engine-ui-model@0.1.0",
+          "target": "game_engine_ui_model",
+          "kind": [
+            "lib"
+          ],
+          "test": false,
+          "executable": null
+        },
+        {
+          "package": "path+file:///home/osso/.cache/game-engine/native-roots/ed6da6aa056a8a9bf29d-d19212ff8350/game-engine/godot/rust#game-engine-godot@0.1.0",
+          "target": "game_engine_godot",
+          "kind": [
+            "cdylib",
+            "rlib"
+          ],
+          "test": false,
+          "executable": null
+        }
+      ],
+      "dependencies_before": {
+        "asset-resolver": "da1a0edb1248fb6666ed358c71b8ecb6e36ca526",
+        "ui-toolkit": "544b9fcef9001d27e3842cc2bb94c928b8ac97e6",
+        "ui-toolkit-macros": "645c0b88f65204ede9b9605faf2e84e89a82bcc2",
+        "shared-protocol": "2abc7fa844f6e71d93203ce5421ae853e884854d"
+      },
+      "dependencies_after": {
+        "asset-resolver": "da1a0edb1248fb6666ed358c71b8ecb6e36ca526",
+        "ui-toolkit": "544b9fcef9001d27e3842cc2bb94c928b8ac97e6",
+        "ui-toolkit-macros": "645c0b88f65204ede9b9605faf2e84e89a82bcc2",
+        "shared-protocol": "2abc7fa844f6e71d93203ce5421ae853e884854d"
+      },
+      "cargo_units": [
+        {
+          "i": 218,
+          "name": "game-engine-ui-model",
+          "version": "0.1.0",
+          "mode": "todo",
+          "target": "",
+          "features": [],
+          "start": 0.93,
+          "duration": 7.48,
+          "unblocked_units": [
+            212
+          ],
+          "unblocked_rmeta_units": [
+            215,
+            219,
+            217,
+            216
+          ],
+          "sections": [
+            [
+              "frontend",
+              {
+                "start": 0.0,
+                "end": 5.27
+              }
+            ],
+            [
+              "codegen",
+              {
+                "start": 5.27,
+                "end": 7.48
+              }
+            ]
+          ]
+        },
+        {
+          "i": 219,
+          "name": "game-engine-ui-professions",
+          "version": "0.1.0",
+          "mode": "todo",
+          "target": "",
+          "features": [],
+          "start": 6.19,
+          "duration": 0.63,
+          "unblocked_units": [],
+          "unblocked_rmeta_units": [],
+          "sections": [
+            [
+              "frontend",
+              {
+                "start": 0.0,
+                "end": 0.37
+              }
+            ],
+            [
+              "codegen",
+              {
+                "start": 0.37,
+                "end": 0.63
+              }
+            ]
+          ]
+        },
+        {
+          "i": 216,
+          "name": "game-engine-ui-collections",
+          "version": "0.1.0",
+          "mode": "todo",
+          "target": "",
+          "features": [],
+          "start": 6.2,
+          "duration": 1.98,
+          "unblocked_units": [],
+          "unblocked_rmeta_units": [],
+          "sections": [
+            [
+              "frontend",
+              {
+                "start": 0.0,
+                "end": 1.16
+              }
+            ],
+            [
+              "codegen",
+              {
+                "start": 1.16,
+                "end": 1.98
+              }
+            ]
+          ]
+        },
+        {
+          "i": 217,
+          "name": "game-engine-ui-housing",
+          "version": "0.1.0",
+          "mode": "todo",
+          "target": "",
+          "features": [],
+          "start": 6.2,
+          "duration": 1.61,
+          "unblocked_units": [],
+          "unblocked_rmeta_units": [],
+          "sections": [
+            [
+              "frontend",
+              {
+                "start": 0.0,
+                "end": 0.75
+              }
+            ],
+            [
+              "codegen",
+              {
+                "start": 0.75,
+                "end": 1.61
+              }
+            ]
+          ]
+        },
+        {
+          "i": 215,
+          "name": "game-engine-ui-adventure",
+          "version": "0.1.0",
+          "mode": "todo",
+          "target": "",
+          "features": [],
+          "start": 6.83,
+          "duration": 1.35,
+          "unblocked_units": [],
+          "unblocked_rmeta_units": [],
+          "sections": [
+            [
+              "frontend",
+              {
+                "start": 0.0,
+                "end": 0.86
+              }
+            ],
+            [
+              "codegen",
+              {
+                "start": 0.86,
+                "end": 1.35
+              }
+            ]
+          ]
+        },
+        {
+          "i": 212,
+          "name": "game-engine-godot",
+          "version": "0.1.0",
+          "mode": "todo",
+          "target": "",
+          "features": [],
+          "start": 8.41,
+          "duration": 15.81,
+          "unblocked_units": [],
+          "unblocked_rmeta_units": [],
+          "sections": null
+        }
+      ],
+      "log_sha256": "431db3e2f43afe30b16730705f4fef5b226b0c8dcba3c1948a59c794077c77b5",
+      "timing_html": "cargo-timings/cargo-timing-20261024T131722002Z-30b50b5d2a71bae4.html"
+    },
+    {
+      "label": "ui-edit-build",
+      "helper": "depot.build(native)",
+      "command": [
+        "build",
+        "-p",
+        "game-engine-godot",
+        "--lib",
+        "-j4",
+        "--message-format=json",
+        "--timings"
+      ],
+      "wall_s": 23.287426985101774,
+      "user_s": 13.951882999999999,
+      "system_s": 3.556687,
+      "exit": 0,
+      "dirty_units": [
+        {
+          "package": "path+file:///home/osso/.cache/game-engine/native-roots/ed6da6aa056a8a9bf29d-d19212ff8350/game-engine/godot/ui-professions#game-engine-ui-professions@0.1.0",
+          "target": "game_engine_ui_professions",
+          "kind": [
+            "lib"
+          ],
+          "test": false,
+          "executable": null
+        },
+        {
+          "package": "path+file:///home/osso/.cache/game-engine/native-roots/ed6da6aa056a8a9bf29d-d19212ff8350/game-engine/godot/ui-adventure#game-engine-ui-adventure@0.1.0",
+          "target": "game_engine_ui_adventure",
+          "kind": [
+            "lib"
+          ],
+          "test": false,
+          "executable": null
+        },
+        {
+          "package": "path+file:///home/osso/.cache/game-engine/native-roots/ed6da6aa056a8a9bf29d-d19212ff8350/game-engine/godot/ui-collections#game-engine-ui-collections@0.1.0",
+          "target": "game_engine_ui_collections",
+          "kind": [
+            "lib"
+          ],
+          "test": false,
+          "executable": null
+        },
+        {
+          "package": "path+file:///home/osso/.cache/game-engine/native-roots/ed6da6aa056a8a9bf29d-d19212ff8350/game-engine/godot/ui-housing#game-engine-ui-housing@0.1.0",
+          "target": "game_engine_ui_housing",
+          "kind": [
+            "lib"
+          ],
+          "test": false,
+          "executable": null
+        },
+        {
+          "package": "path+file:///home/osso/.cache/game-engine/native-roots/ed6da6aa056a8a9bf29d-d19212ff8350/game-engine/godot/ui-model#game-engine-ui-model@0.1.0",
+          "target": "game_engine_ui_model",
+          "kind": [
+            "lib"
+          ],
+          "test": false,
+          "executable": null
+        },
+        {
+          "package": "path+file:///home/osso/.cache/game-engine/native-roots/ed6da6aa056a8a9bf29d-d19212ff8350/game-engine/godot/rust#game-engine-godot@0.1.0",
+          "target": "game_engine_godot",
+          "kind": [
+            "cdylib",
+            "rlib"
+          ],
+          "test": false,
+          "executable": null
+        }
+      ],
+      "dependencies_before": {
+        "asset-resolver": "da1a0edb1248fb6666ed358c71b8ecb6e36ca526",
+        "ui-toolkit": "544b9fcef9001d27e3842cc2bb94c928b8ac97e6",
+        "ui-toolkit-macros": "645c0b88f65204ede9b9605faf2e84e89a82bcc2",
+        "shared-protocol": "2abc7fa844f6e71d93203ce5421ae853e884854d"
+      },
+      "dependencies_after": {
+        "asset-resolver": "da1a0edb1248fb6666ed358c71b8ecb6e36ca526",
+        "ui-toolkit": "544b9fcef9001d27e3842cc2bb94c928b8ac97e6",
+        "ui-toolkit-macros": "645c0b88f65204ede9b9605faf2e84e89a82bcc2",
+        "shared-protocol": "2abc7fa844f6e71d93203ce5421ae853e884854d"
+      },
+      "cargo_units": [
+        {
+          "i": 218,
+          "name": "game-engine-ui-model",
+          "version": "0.1.0",
+          "mode": "todo",
+          "target": "",
+          "features": [],
+          "start": 1.22,
+          "duration": 5.91,
+          "unblocked_units": [
+            212
+          ],
+          "unblocked_rmeta_units": [
+            219,
+            217,
+            216,
+            215
+          ],
+          "sections": [
+            [
+              "frontend",
+              {
+                "start": 0.0,
+                "end": 4.43
+              }
+            ],
+            [
+              "codegen",
+              {
+                "start": 4.43,
+                "end": 5.91
+              }
+            ]
+          ]
+        },
+        {
+          "i": 215,
+          "name": "game-engine-ui-adventure",
+          "version": "0.1.0",
+          "mode": "todo",
+          "target": "",
+          "features": [],
+          "start": 5.65,
+          "duration": 0.7,
+          "unblocked_units": [],
+          "unblocked_rmeta_units": [],
+          "sections": [
+            [
+              "frontend",
+              {
+                "start": 0.0,
+                "end": 0.54
+              }
+            ],
+            [
+              "codegen",
+              {
+                "start": 0.54,
+                "end": 0.7
+              }
+            ]
+          ]
+        },
+        {
+          "i": 219,
+          "name": "game-engine-ui-professions",
+          "version": "0.1.0",
+          "mode": "todo",
+          "target": "",
+          "features": [],
+          "start": 5.65,
+          "duration": 0.66,
+          "unblocked_units": [],
+          "unblocked_rmeta_units": [],
+          "sections": [
+            [
+              "frontend",
+              {
+                "start": 0.0,
+                "end": 0.37
+              }
+            ],
+            [
+              "codegen",
+              {
+                "start": 0.37,
+                "end": 0.66
+              }
+            ]
+          ]
+        },
+        {
+          "i": 216,
+          "name": "game-engine-ui-collections",
+          "version": "0.1.0",
+          "mode": "todo",
+          "target": "",
+          "features": [],
+          "start": 5.66,
+          "duration": 1.02,
+          "unblocked_units": [],
+          "unblocked_rmeta_units": [],
+          "sections": [
+            [
+              "frontend",
+              {
+                "start": 0.0,
+                "end": 0.76
+              }
+            ],
+            [
+              "codegen",
+              {
+                "start": 0.76,
+                "end": 1.02
+              }
+            ]
+          ]
+        },
+        {
+          "i": 217,
+          "name": "game-engine-ui-housing",
+          "version": "0.1.0",
+          "mode": "todo",
+          "target": "",
+          "features": [],
+          "start": 6.31,
+          "duration": 0.56,
+          "unblocked_units": [],
+          "unblocked_rmeta_units": [],
+          "sections": [
+            [
+              "frontend",
+              {
+                "start": 0.0,
+                "end": 0.41
+              }
+            ],
+            [
+              "codegen",
+              {
+                "start": 0.41,
+                "end": 0.56
+              }
+            ]
+          ]
+        },
+        {
+          "i": 212,
+          "name": "game-engine-godot",
+          "version": "0.1.0",
+          "mode": "todo",
+          "target": "",
+          "features": [],
+          "start": 7.14,
+          "duration": 16.06,
+          "unblocked_units": [],
+          "unblocked_rmeta_units": [],
+          "sections": null
+        }
+      ],
+      "log_sha256": "f48f769de46f49e08908e8d0c58325c26d16f83a9ca14d89e82efd6bc731db0c",
+      "timing_html": "cargo-timings/cargo-timing-20261024T131628599Z-30b50b5d2a71bae4.html"
+    }
+  ],
+  "timing_edit": {
+    "path": "godot/ui-model/src/ui/screens/spellbook_frame_component/pvp_talent_controls.rs",
+    "old": "let text = \"PvP Talents\";",
+    "new": "let text = \"PvP Talents!\";"
+  },
+  "qualification": "Planning baseline,not postcut win. No per-module compiler timing available;source lines are not build share. Base unit5.91s/native16.06s in23.287s wall,other4UI features dirty. Single shared-host sample,no latency guarantee. Original ignored audit must remain ignored."
+}
