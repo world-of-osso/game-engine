@@ -1,0 +1,94 @@
+{
+  "source_revision": "9c3035d6a",
+  "before_source": "ce946a284",
+  "rename_only_revision": "cf31450bf",
+  "raw_archive": "/home/osso/.worktrees/logs/engine-crate-split-collections-stage2-9c3035d6a",
+  "scope": {
+    "source_files": 2,
+    "test_files": 1,
+    "physical_source_lines": 684,
+    "modules": [
+      "mount_journal",
+      "mount_source"
+    ],
+    "toy_pet_shell_unchanged": true
+  },
+  "check": {
+    "arguments": [
+      "-p",
+      "game-engine-ui-collections",
+      "-p",
+      "game-engine-godot",
+      "-j4",
+      "--message-format=json"
+    ],
+    "exit": 0,
+    "compiler_diagnostics": []
+  },
+  "tests": {
+    "ui-model:lib": {
+      "pass": 414,
+      "fail": 0,
+      "ignored": 0
+    },
+    "ui-collections:lib": {
+      "pass": 18,
+      "fail": 0,
+      "ignored": 0
+    },
+    "ui-collections:integration": {
+      "pass": 152,
+      "fail": 0,
+      "ignored": 0
+    },
+    "ui-collections:active_db2": {
+      "pass": 1,
+      "fail": 0,
+      "ignored": 0
+    }
+  },
+  "census": {
+    "base_units_before_after": 414,
+    "collections_units_before_after": 18,
+    "previous_integration": 138,
+    "moved_integration": 14,
+    "combined_integration": 152,
+    "active_db2_before_after": 1,
+    "names_byte_identical": true,
+    "base_unit_names_sha256": "b3804d87ee9201300b0f7632c8b80bae3f1845330819520b621cd3f31df721f3",
+    "collections_unit_names_sha256": "dcaf82b4de8afc79f50a62b525057e6e2f76ca56e47730e7891cbc2cdd5eb002",
+    "integration_names_sha256": "d32a5705ac1df20c6fe94f3b8786fe24e4841dde46ba973c9a20b78193a2ed05",
+    "mount_integration_names": [
+      "mount_journal::mount_context_menu_fits_its_rendered_labels_in_both_skins",
+      "mount_journal::mount_display_follows_retail_inset_allpoints_in_both_skins",
+      "mount_journal::mount_filter_menu_fits_owner_and_keeps_source_spacer_in_both_skins",
+      "mount_journal::mount_filters_reset_and_source_bulk_controls_reselect_real_rows",
+      "mount_journal::mount_journal_authoritative_favourite_and_active_refresh_preserve_selection",
+      "mount_journal::mount_journal_collected_details_show_already_known",
+      "mount_journal::mount_journal_ground_filter_does_not_include_flying_mount_ground_capability",
+      "mount_journal::mount_journal_hidden_until_collected_and_server_only_rows_do_not_leak_into_list",
+      "mount_journal::mount_journal_known_item_feedback_tracks_authoritative_ownership_and_source",
+      "mount_journal::mount_journal_search_source_type_and_collected_filters_reselect",
+      "mount_journal::mount_journal_snapshot_changes_rebuild_shared_screen_without_reopening",
+      "mount_journal::mount_journal_source_renders_real_db2_markup_as_readable_vendor_zone_and_cost",
+      "mount_journal::mount_search_keeps_query_when_filter_rebuilds_and_renders_search_template",
+      "mount_journal::uncollected_mount_selection_keeps_source_alpha_blend_and_enabled_row"
+    ],
+    "active_db2_names": [
+      "trading_post_reads_scene_flags_from_active_snapshot_without_historical_directory"
+    ]
+  },
+  "before_census_reused": "14 mount names from original214a9b854 packet; git diff214a9b854..ce946a284 over the2sources+suite empty; unit/other integration/isolated names from prior validated stage1",
+  "log_sha256": {
+    "collections-stage2-check.log": "45aa1c684f5b1eb46a62e7fccb38c4800d5184673170dc4c185f601ab0c50270",
+    "collections-stage2-model-tests-driver.log": "73689a55631d65306663c891323b36a60907eaa2dca7a3538f07401abbe8b808",
+    "collections-stage2-after-model-census.log": "3d6fd59cc6206552cf3c75db1fbba8dd8ebc22c8cfd09117bf6fe5d6367cf64f",
+    "collections-stage2-tests.log": "f6f9c092b3db6f7d40b6be073b8e175b3b63f14ef25ad7e51486bd4f8c67a1f1",
+    "collections-stage2-tests-driver.log": "a6b6b151ffef1ed32ba16764a6e89c08ec475f13aadba56b7a2f6a2266693ab6",
+    "collections-stage2-after-census.log": "6acb719a7fd4f79b656a54cd14f241384c27ca739d2c687ed112df81d9c37efd",
+    "collections-stage2-after-census-driver.log": "99c9b75e102cf935fb9d1dc74b3862920398cec4f478a5bbc2cd0f1b8ab7370e",
+    "collections-stage2-model-tests.log": "3af3249129f9a0262ae844427163ec271b1a246a4286830b413f31c5789822e1",
+    "collections-stage2-after-model-census-driver.log": "cf3605a1ed20230cd9a306a2e34129fcef863f019a9ecd4ade793e456c109915"
+  },
+  "qualification": "No new behavior/dependency/profile/asset changes; existing inset_border helper and re-export visibility only. No timing/native-runtime/full-suite claim. Parent owns9-package gate/push/merge."
+}

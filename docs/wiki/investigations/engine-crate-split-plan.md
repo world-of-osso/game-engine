@@ -153,7 +153,9 @@ Rename-only `dfca8fe29` moves19 source and6 test files unchanged into `godot/ui-
 
 ### Collections stage2 implementation
 
-Parent accepted/landed stage1 at `ce946a284`. Rename-only `cf31450bf` moves `mount_journal.rs`, `mount_source.rs` and the mount integration suite unchanged into ui-collections. Wiring keeps the shared shell in base and changes native imports directly. Only the existing `inset_border` helper and its existing re-export gain public visibility; actor/render behavior, profiles and fixtures stay unchanged. The14-name before suite is reused from the source-qualified packet: the three mount files have no diff since `214a9b854`. Check/execution/after census are pending.
+Parent accepted/landed stage1 at `ce946a284`. Rename-only `cf31450bf` moves `mount_journal.rs`, `mount_source.rs` and the mount integration suite unchanged into ui-collections. Wiring keeps the shared shell in base and changes native imports directly. Only the existing `inset_border` helper and its existing re-export gain public visibility; actor/render behavior, profiles and fixtures stay unchanged. The14-name before suite is reused from the source-qualified packet: the three mount files have no diff since `214a9b854`. At wiring `9c3035d6a`, admitted helper check passes for Collections/GDExtension without diagnostics. Scoped tests pass **414 base units,18 Collections units,152 integration and one isolated test** (585 total, zero failures/ignored). Runtime census preserves414 and18 unit names, **138 + 14 = 152** integration names and the isolated active_db2 name byte-identically. The shared shell, toy and pet modules remain in base.
+
+[Stage2 receipts](engine-crate-split-collections-stage2.json) and `/home/osso/.worktrees/logs/engine-crate-split-collections-stage2-9c3035d6a/` retain exact names, commands and results. No new timing, native runtime or full-suite acceptance claim; parent owns the unchanged nine-package gate and operational push/merge.
 
 ## Baseline edit measurements
 

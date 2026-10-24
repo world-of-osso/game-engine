@@ -1,3 +1,7 @@
+## 2026-10-24 — Collections mount journal stage2
+
+[Stage2](investigations/engine-crate-split-plan.md#collections-stage2-implementation) rename-onlycf31450bf/wiring9c3035d6a moves2source+1suite unchanged, preserves14mount names within138+14=152 integration. Shared shell stays base; original inset_border/helper re-export gain public visibility, native imports direct. Scoped check passes/no diagnostics;414base+18feature units+152integration+1isolated pass (585total0fail/ignored), exact names preserved. Parent9-package gate separate; no timing/runtime claim, toy/pet/shell untouched.
+
 ## 2026-10-24 — Collections transmog/Trading Post stage1
 
 [Stage1](investigations/engine-crate-split-plan.md#collections-stage1-implementation) rename-onlydfca8fe29/wiring2896b6d3e moves19sources+6testfiles into game-engine-ui-collections; shared shell stays base, native imports direct, only money_colored gains visibility. Helper check feature+extension passes/no diagnostics;414base+18feature units+138integration+1isolated pass,0fail/ignored; exact432=414+18/138/1 names conserved. Original473 units remain414+37+4+18. No timing/native runtime/full gate claim; parent owns9-package gate, other families unchanged.
