@@ -32,7 +32,7 @@ L:57–73 **uses** the first MAVG whose `doodad_set_id` is in the active set lis
 | `doodad_set_id` | 36–37; `u16` | Retained. **MAVG USED** by L:59–63 membership selection. **MAVD retained**, not read for selection in L:64. |
 | `_padding` | 38–47; `[u8;10]` opaque | Raw read consumes all ten bytes; P conversion omits them. Dropped, no cooked field or consumer. |
 
-The ambient values feed `LightInputs.ambient` at L:139–147 during interior doodad lighting. This is a native consumer, not a claim that every WMO surface or exterior doodad uses these colors.
+The ambient values feed `LightInputs.ambient` at L:132–140 during interior doodad lighting. Selected color_1 RGB also feeds WMO surface batches: `scene.rs:181–198,216–223,339–340,385–393` prepares `interior_ambient`, `scene.rs:550–553` binds it, and `godot/shaders/wmo.gdshader:307` uses it in interior ambient lighting. That surface path takes only the selector's first RGB color, not separate color_2/color_3 or alpha. These are native consumers, not proof every surface/exterior doodad uses these colors or of visual parity.
 
 ## MBVD — 128-byte ambient box record
 
@@ -109,13 +109,13 @@ Finalization C:100–101 calls C:282–289 `apply_material_uv_transforms`: posit
 | Chunk / serialized field | Bytes / disk type | Retention / actual use |
 |---|---|---|
 | GFID `file_data_id[i]` | `4*i`–`4*i+3`; `u32` LE | P:162–167 decodes to `Vec<u32>` using the size constant `MODI_ENTRY_SIZE=4` (T:424), **not a MODI record association**. C:215–218/121 retains `group_file_data_ids`. A:192–220 **uses** the first `n_groups` entries as group file IDs when enough exist; zero in that selected prefix errors. Surplus IDs remain stored but are not loaded by this path. |
-| MDDI `intensity[i]` | `4*i`–`4*i+3`; `f32` LE | C:202–208 decodes directly, C:116 retains `doodad_intensities`; no raw struct. T:16–18 documents per-MODD indexing. L:125–147 **uses** `doodad.index` to retrieve the scalar, but only accepts it when MODD flag `USE_INTENSITY=0x10` (L:28) is set; missing entry or clear flag gives1.0. |
+| MDDI `intensity[i]` | `4*i`–`4*i+3`; `f32` LE | C:202–208 decodes directly, C:116 retains `doodad_intensities`; no raw struct. T:16–18 documents per-MODD indexing. L:125–147 **uses** `doodad.index` to retrieve the scalar, but only accepts it when MODD flag `USE_INTENSITY=0x10` (L:29) is set; missing entry or clear flag gives1.0. |
 
 The `i` in each table row is **array position**, not an extra serialized index. MDDI contains no doodad flags; `doodad.index` and `doodad.flags` are companion inputs. GFID contains no serialized group-count/LOD header in this decoder. A:209–220 resolves legacy indexed filenames when the vector is shorter than `n_groups`; this is observed existing behavior, not a proposed compatibility policy. MDDI intensity feeds `LightInputs`, rather than becoming an independent light object. L:189–212 `adjust_lighting` computes `color * inputs.intensity.max(1.0)` unless `NO_INTENSITY_COLOR` suppresses it, then selects direct/ambient adjustment using MODD flags; thus retention is not a universal unconstrained multiplication of final light by the raw scalar. Neither array has interior padding; incomplete trailing bytes are dropped as above.
 
 ## Serialized records versus helpers / projections
 
-`RawWmoAmbientVolume`, `RawWmoAmbientBoxVolume`, `RawWmoNewLight`, `RawWmoVisibleBlock`, `RawWmoConvexVolumePlane` and `RawWmoMaterialUvTransform` are disk readers. Their cooked counterparts T:280–343 are retained projections, **not another set of disk fields**. Color float components, `WmoNewLightType`, `Option<...>` for material transforms, and the root vectors do not add serialized words. MOVV/GFID/MDDI use arrays directly without corresponding named raw records. `WmoRootAccum`, dispatch function pointers and `apply_material_uv_transforms` are parser helpers; `DoodadLight`/`LightInputs` L:34–45,150–160 are native lighting results/inputs, not extension chunks. This distinction prevents double-counting declarations as independently authored fields.
+`RawWmoAmbientVolume`, `RawWmoAmbientBoxVolume`, `RawWmoNewLight`, `RawWmoVisibleBlock`, `RawWmoConvexVolumePlane` and `RawWmoMaterialUvTransform` are disk readers. Their cooked counterparts T:280–343 are retained projections, **not another set of disk fields**. Color float components, `WmoNewLightType`, `Option<...>` for material transforms, and the root vectors do not add serialized words. MOVV/GFID/MDDI use arrays directly without corresponding named raw records. `WmoRootAccum`, dispatch function pointers and `apply_material_uv_transforms` are parser helpers; `DoodadLight`/`LightInputs` L:34–45,143–153 are native lighting results/inputs, not extension chunks. This distinction prevents double-counting declarations as independently authored fields.
 
 ## Benilla comparison boundary
 
@@ -128,8 +128,9 @@ A literal search in `B/crates/**/*.rs` for the ten chunk names and reversed tags
 - E `godot/core/src/asset/wmo_format/parser_types.rs:3–31,94–108,280–343,420–442,529–591` — retained members, helper/projection distinction, strides and serialized layouts.
 - E `godot/core/src/asset/wmo_format/parser.rs:17–37,101–110,162–223,283–307,453–474` — complete-record parsing, conversion and BGRA normalization.
 - E `godot/core/src/asset/wmo_format/parser_chunks.rs:7–34,59–131,166–168,202–253,282–289` — actual dispatch, independent arrays, finalization and material association.
-- E `godot/rust/src/wmo/doodad_light.rs:28,34–73,119–160,189–212` — located MAVG/MAVD colors/set/flag and MDDI index/MODD-flag consumers; not inferred from parser retention.
+- E `godot/rust/src/wmo/doodad_light.rs:29,34–73,119–160,189–212` — located MAVG/MAVD colors/set/flag and MDDI index/MODD-flag consumers; not inferred from parser retention.
 - E `godot/rust/src/wmo/assets.rs:192–220` — GFID-selected group resolution and validation boundary.
+- E `godot/rust/src/wmo/scene.rs:181–198,216–223,339–340,385–393,550–553`; `godot/shaders/wmo.gdshader:19,307` — selected ambient RGB feeds native surface batches and interior shader lighting.
 - B `crates/benilla-wmo/src/lib.rs:177–214`; `crates/benilla-formats/src/models/wmo/root.rs:135–154`; `crates/benilla-formats/src/models/records.rs:268–300`; `crates/benilla-formats/tests/wmo_lights.rs:1–2` — bounded parser/adapter and traversal evidence.
 - B `docs/METHOD.md:1–6`, `docs/MAP.md` — stated Vanilla version scope. `/tmp/wmo-root-extension-fields.md` was a working lead, corrected against actual source anchors rather than treated as authoritative.
 
