@@ -29,12 +29,12 @@ This global reads no arguments, does not validate argument count, and ignores ex
 
 On fresh initialization, static rank storage begins zeroed and `s_guildControlRank` is set to -1. `EnterWorld` requests permissions only when the active player has a guild ID. It also seeds internal rank 0's six tab-right masks and stack-withdrawal limits to -1; it does not seed that rank's money limit. Thus, before any server reply, selecting rank 0 yields all three tab markers set and a per-tab limit of -1; the money-limit getter returns 0 from its zero-initialized field. After a server reply, getters reflect the returned rank data.
 
-There is no leader-specific branch in either getter. A leader's result is the selected rank's data; when internal rank 0 is selected before server data, it has the local tab defaults above. On a fresh no-guild path, `s_guildControlRank` remains -1 and no guild-permissions query is sent. Calling either getter with that rank is not a defined no-guild result: both index the rank array without guarding the negative index. If a rank has been explicitly selected despite there being no guild, the getters read that rank's stored values instead. Native source gives no stable tuple/number for the unselected-rank case.
+There is no leader-specific branch in either getter. A leader's result is the selected rank's data; when internal rank 0 is selected before server data, it has the local tab defaults above. On a fresh no-guild path, `s_guildControlRank` remains -1 and no guild-permissions query is sent. For a normalized tab below six, `GetGuildBankTabPermissions` indexes `m_rankInfo[-1]` and has no source-defined result; for a normalized tab of six or more, it avoids that rank access and returns nil, nil, nil, numeric 0. `GetGuildBankWithdrawLimit` indexes the selected rank unconditionally, so rank -1 has no source-defined result. If a rank has been explicitly selected despite there being no guild, the getters read that rank's stored values instead.
 
 The getters are registered global functions and do not require the guild-bank frame to be open. Rank selection affects which row they read; permission data arrives through the separate server packet handlers.
 
 ## Evidence boundary
 
-Sources: `WoW/Source/Ui/GuildInfo_Scripts.cpp:286–313,352–390,525–558,803–834,1018–1025`; `WoW/Source/Ui/GuildInfo.cpp:32–34,73,78–86,88–114,201–222,244–267,269–360`; `WoW/Source/Ui/GuildInfo.h:12–16,67–76`; `WoW/Source/Ui/GuildBankFrame_Scripts.cpp:560–624`.
+Sources: `WoW/Source/Ui/GuildInfo_Scripts.cpp:286–313,352–390,525–558,726–761,803–834,1018–1025`; `WoW/Source/Ui/GuildInfo.cpp:32–34,73,78–86,88–114,201–222,244–267,269–360`; `WoW/Source/Ui/GuildInfo.h:12–16,67–76`; `WoW/Source/Ui/GuildBankFrame_Scripts.cpp:560–624`.
 
 The exact behavior of the original 12340 client and the server's intended sentinel/unit semantics were not runtime-validated. No client, simulator, server, build, or tests were run.
