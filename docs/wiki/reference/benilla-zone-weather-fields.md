@@ -34,24 +34,33 @@ B `crates/benilla-protocol/src/messages/parse.rs:581–586` reads SMSG_WEATHER. 
 |---|---|---|
 | `+0 weather_type` | u32 → u32 | W23–40 maps1 Rain,2 Snow,3 Sand, other Fine; W131–155 changes kind/effect/cut state. Precipitation pool and mist select kind (`weather/precip/pool.rs:237–263`, `weather/precip/mist.rs:130–141`) |
 | `+4 grade` | f32 → f32 | W131–148 clamps0..1, Fine targets0; effect channel and sky channel target separate densities. W158–163 publishes emission density and sky density; actual precipitation and lighting consumers below |
-| `+8 sound_id` | u32 → u32 | Independent app `sound/weather.rs:18–27` stores `WeatherAmbience`; `sound/zone.rs:341–357` selects nonzero weather kit outdoors, otherwise normal/interior ambience. Not used by visual state machine |
+| `+8 sound_id` | u32 → u32 | Independent app `sound/weather.rs:18–27` stores `WeatherAmbience`; `sound/zone.rs:341–357` first honors forced ghost/submerged ambience, then selects nonzero weather kit outdoors, otherwise normal/interior ambience. Not used by visual state machine |
 | `+12 instant` | u8 → bool (`!=0`) | W149–155 chooses snap versus retarget/ramp for both visual channels |
 
 The fields have concrete B wire provenance, not CSV columns to be guessed for E. B client-side `weatherDensity` is a separate local setting, not packet input.
 
 ## B state/helper representations, not additional packet fields
 
-W44–83's `Channel` contains two f32 endpoints, f64 start time and f32 span scale. W86–110's `WeatherState` members below hold selected/derived values. They are not declarations of an alternative weather binary record.
+W44–83's private `Channel` has four individual helper members, not packet fields or a binary record layout:
+
+| Member | Type / derivation and mutation | Actual consumer |
+|---|---|---|
+| `from` | f32, initialized0; retarget copies previous `to` (not current interpolated value), snap assigns target, W47,57,74,81 | W66–68 duration denominator/interpolation origin |
+| `to` | f32, initialized0; retarget/snap assigns target, W48,58,75,82 | W66–68 interpolation endpoint; W74 next retarget origin; completion instrumentation W275–276 |
+| `start` | f64, initialized0; retarget sets real-time `now`; snap leaves it unchanged, W50,59,76 | W67 elapsed-time numerator; W228 supplies `Time<Real>` elapsed seconds |
+| `span_scale` | f32 constructor argument, W51,60; channel instances use1/4, W120–121 | W66 duration `abs((to-from)*span_scale+0.001)*10`; W67 clamps elapsed fraction0..1 |
+
+W86–110's `WeatherState` members below hold selected/derived values. Its two Channel instances are not eight additional wire inputs.
 
 | Member | Type/role | Actual consumer / limit |
 |---|---|---|
-| `kind` | private `WeatherKind`, latest selected type | W141–145 transition comparison; distinct active effect kind below |
+| `kind` | crate-visible (`pub(crate)`) `WeatherKind`, latest selected type | W141–145 transition comparison; distinct active effect kind below |
 | `effect_kind` | public `WeatherKind` | Precipitation kind/pool/mist selection as above |
 | `intensity` | private `Channel`, A | W158–163 resolves intensity and derives effect density |
 | `sky` | private `Channel`, B | W146–163 caps target at0.25 and resolves sky density |
 | `intensity_a` | f32 published within crate | W158–163 intermediate + module instrumentation; no additional direct consumer established |
-| `effect_density` | f32 | `weather/precip/mod.rs:234,317–332`, pool247–263 and mist141 scale emission; formula `max((A-0.25)*4/3,0)` |
-| `sky_density` | f32 | `lighting/resolve.rs:229–247` blends clear/storm LightParams via storm blend; resulting atmosphere feeds scene fog251–253 and committed lighting277–311 |
+| `effect_density` | f32 | `weather/precip/pool.rs:247–263` and `weather/precip/mist.rs:141` scale emission; `weather/precip/mod.rs:317–332` is diagnostics, not spawn-rate math; formula `max((A-0.25)*4/3,0)` |
+| `sky_density` | f32 | `lighting/resolve.rs:229–247` blends clear/storm LightParams via storm blend; resulting atmosphere feeds scene fog251–253 and constructed lighting277–319, committed320–323 |
 | `weather_density` | u8, default3 | W102–105,166–169 clamps gain index to3; pool/mist emission uses gain. App `video.rs:290` updates from CVar registered `cvars/table.rs:679–689` |
 | `cut_seq` | u32 wrapping counter | W141–143 changes on kind switch; precipitation notices type-change cut at `weather/precip/mod.rs:281–282` |
 
