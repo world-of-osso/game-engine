@@ -101,7 +101,22 @@ Each completed wiring tip gets targeted helper `cargo check -p <new-crate> -p ga
 
 `godot/ui-housing` now owns the 20 Housing modules and the three Housing integration suites. The existing `game-engine-ui-model` remains their shared dependency; native Housing/tooltip/preview callers depend directly on `game-engine-ui-housing`, with no reverse dependency or façade. Only the already-used `quest_art::close_button` helper gains public visibility. Workspace dev profiles, wire/map/tooltip type identities and all test module/function names remain unchanged. Rename-only commit: `8d140c66a`.
 
-Before-move runtime census: 473 ui-model unit names plus 33 Housing integration names. The original integration harness cannot currently compile because its unrelated `dungeonclient.rs` fixture includes missing `data/db2/active/Achievement_Category.csv`; the affected three suites were listed through a temporary same-module-name harness instead, removed before committing. Checks, execution, post-move census and paired timing are pending; no completed pilot or speedup is claimed yet.
+At `faadc498c`, the admitted `-j4` helper check passes for Housing and GDExtension without diagnostics. Runtime census preserves byte-identical fully qualified names: **473 = 436 residual ui-model + 37 Housing units**, and **33 = 33 Housing integration tests**. All 436/37/33 tests execute successfully, with zero failures/ignored. Before-move integration listing used a temporary same-module-name Housing harness because unrelated `dungeonclient.rs` lacked a worktree fixture link; that harness was removed. Parent-authorized shared-data link setup then supplied the original fixture paths without asset writes. Full-suite/integration acceptance remains the lead's gate.
+
+[Machine-readable pilot receipts](engine-crate-split-housing.json) and raw evidence at `/home/osso/.worktrees/logs/engine-crate-split-housing-faadc498c/` retain commands, exact census, dirty units, sibling pins, log hashes and Cargo HTML. The archived baseline build driver is unchanged except the relocated Housing edit path/output directory and omission of the unrequested native trial. Runtime source changes since the baseline are only this split; all four sibling revisions, profiles, feature selections, target path and linker remain matched.
+
+| Exact warm UI-edit extension loop | Before | Housing pilot |
+|---|---:|---:|
+| No-op wall | 0.954s | 1.161s |
+| `House Settings` → `House Settings!` wall | 58.258s | **34.051s** |
+| Edit user / system CPU | 12.968 / 2.858s | 8.890 / 2.993s |
+| Restore wall | 27.355s | 17.563s |
+| Dirty crates | ui-model, GDExtension | Housing, GDExtension; **ui-model fresh** |
+| Cargo feature/native unit duration | 23.55 / 33.00s | 1.97 / 21.77s |
+
+This single descriptive edit sample is 24.207s (41.6%) lower; shared-host scheduling still materially affects wall time, so it is not a statistical speedup guarantee. Warmup418.566s is excluded; no-op and restore exit zero, and the reversible edit is absent from the committed tree. Native final compilation/linking remains. No post-split UI-lib-test-binary timing was requested or measured.
+
+**Proposed next gate: Adventure Guide**, not started. Preserve the complete15-module feature group and seven named integration modules; retain native model-scene/actor code in GDExtension and the same rename-only/wiring/census/paired-timing discipline. Re-audit source changes from concurrent feature landings before moving.
 
 ## Baseline edit measurements
 
