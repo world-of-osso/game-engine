@@ -1,6 +1,10 @@
+## 2026-10-23 — Recovered-owner companion frontier
+
+[Bounded owner-only traversal](../handoffs/noinstall-cert-2026-10-21.md#recovered-owner-descendant-traversal--explicit-companion-frontier) completes with verified roots but required missing owning-namespace companions and separate unqualified PHYS. Gzip/SQLite/frozen-input reconciliation passes;global-owner metadata does not qualify aliases. New source coverage remains a proposed measurement,not net P4 or native acceptance.
+
 ## 2026-10-23 — Lead-only recovery publication and canonical readback
 
-[Publication/readback](../handoffs/noinstall-cert-2026-10-21.md#lead-only-publisher-and-canonical-readback) separates actual canonical copied-byte integrity from parser/descendant/P4 acceptance. Default dry-run and explicit apply have temporary-tree behavioral proof,including exact backup/recovery writes and idempotency. The next recovered-owner-only traversal is approved but held for lead `resume`.
+[Publication/readback](../handoffs/noinstall-cert-2026-10-21.md#lead-only-publisher-and-canonical-readback) separates actual canonical copied-byte integrity from parser/descendant/P4 acceptance. Default dry-run and explicit apply have temporary-tree behavioral proof,including exact backup/recovery writes and idempotency. The subsequently resumed recovered-owner-only traversal is recorded separately above.
 
 ## 2026-10-23 — Private historical model recovery readback
 
