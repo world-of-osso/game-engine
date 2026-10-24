@@ -354,7 +354,13 @@ def main():
         raise SystemExit(json.dumps(unresolved, indent=2))
     args.output.write_text(json.dumps(results, indent=2) + '\n')
     if args.markdown:
-        args.markdown.write_text('# Engine module graph and churn snapshot\n\n' + '\n'.join(render_markdown(result) for result in results))
+        args.markdown.write_text(
+            '# Engine module graph and churn snapshot\n\n'
+            + '\n'.join(render_markdown(result) for result in results)
+            + '\n## Sources\n\n'
+            '- `scripts/engine-crate-graph.py` — source scanner and SCC/churn census.\n'
+            '- [Engine crate split plan](engine-crate-split-plan.md) — interpretation and limitations.\n'
+        )
     for result in results:
         print(f"{result['crate']}: {len(result['modules']) - 1} modules, {len(result['files'])} file visits")
 
