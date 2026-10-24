@@ -1,8 +1,12 @@
 //! Retail Mainline PVPUIFrame, PVPReadyDialog, PVPMatchScoreboard and Results.
 //! Layout authority: Blizzard_PVPUI/Mainline and Blizzard_PVPMatch XML/Lua.
-use crate::bank_art::{WHITE, label};
-use crate::minimal_scroll_bar::{MinimalScrollBar, Unscrollable, pixel_geometry, scroll_list_attr};
-use crate::quest_art::{DynName, NORMAL_FONT_COLOR, panel_button, window_chrome_no_portrait};
+use game_engine_ui_model::bank_art::{WHITE, label};
+use game_engine_ui_model::minimal_scroll_bar::{
+    MinimalScrollBar, Unscrollable, pixel_geometry, scroll_list_attr,
+};
+use game_engine_ui_model::quest_art::{
+    DynName, NORMAL_FONT_COLOR, panel_button, window_chrome_no_portrait,
+};
 use shared::battleground::{BgOutcome, BgPhase, BgTeam, FlagState};
 use shared::protocol::{
     ArenaQueueMode, BattlegroundSnapshot, PvpBracketSnapshot, PvpSnapshot, PvpStateUpdate,
@@ -53,7 +57,7 @@ pub struct PvpView {
     pub selected_battleground: u32,
     pub honor_bonus: bool,
     pub honor_type_menu_open: bool,
-    pub honor_faction: Option<crate::char_create_data::Faction>,
+    pub honor_faction: Option<game_engine_ui_model::char_create_data::Faction>,
 }
 impl Default for PvpView {
     fn default() -> Self {
@@ -392,7 +396,7 @@ fn queue(context: &SharedContext, view: &PvpView) -> Element {
     .iter()
     .enumerate()
     {
-        children.extend(crate::selection_list::text_row(
+        children.extend(game_engine_ui_model::selection_list::text_row(
             format!("PVPQueueFrameCategoryButton{}", index + 1),
             title,
             action,
@@ -406,7 +410,7 @@ fn queue(context: &SharedContext, view: &PvpView) -> Element {
                     ][index],
             ),
             (10.0, 66.0 + index as f32 * 80.0, 168.0, 50.0),
-            &crate::selection_list::PVP_CATEGORY,
+            &game_engine_ui_model::selection_list::PVP_CATEGORY,
         ));
     }
     if view.category != PvpCategory::PremadeGroups {
@@ -492,13 +496,13 @@ fn specific_list(context: &SharedContext, view: &PvpView) -> Element {
         .iter()
         .enumerate()
         .flat_map(|(index, template)| {
-            crate::selection_list::text_row(
+            game_engine_ui_model::selection_list::text_row(
                 format!("HonorFrameSpecificBattlegroundButton{}", template.id),
                 &template.name,
                 &format!("pvp:select:{}", template.id),
                 (!view.pending, view.selected_battleground == template.id),
                 (0.0, index as f32 * SPECIFIC_ROW_H, 324.0, SPECIFIC_ROW_H),
-                &crate::selection_list::PVP_INSTANCE,
+                &game_engine_ui_model::selection_list::PVP_INSTANCE,
             )
         })
         .collect();
@@ -913,14 +917,14 @@ fn scoreboard(context: &SharedContext, view: &PvpView) -> Element {
         } else {
             title
         };
-        let width = crate::merchant_frame_component::tab_width(title);
+        let width = game_engine_ui_model::merchant_frame_component::tab_width(title);
         let selected = view.filter
             == match i {
                 1 => Some(BgTeam::A),
                 2 => Some(BgTeam::B),
                 _ => None,
             };
-        children.extend(crate::merchant_frame_component::tab(
+        children.extend(game_engine_ui_model::merchant_frame_component::tab(
             &format!("PVPScoreboardTab{}", i + 1),
             title,
             (

@@ -46,7 +46,6 @@ pub mod ui {
 
 // In-world chat frame (docs/specs/chat-frame.md).
 pub mod assisted_highlight;
-pub mod battleground;
 pub mod challenge;
 #[path = "game/chat_data.rs"]
 pub mod chat_data;

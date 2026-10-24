@@ -54,7 +54,7 @@ fn retail_war_mode_control_exists_but_requires_authoritative_context_in_both_ski
             ui_toolkit::widgets::button::ButtonState::Normal
         );
         assert_eq!(frame.onclick.as_deref(), Some("pvp:warmode"));
-        let mut pvp = game_engine_ui_model::battleground::PvpView::default();
+        let mut pvp = game_engine_ui_pvp::battleground::PvpView::default();
         pvp.snapshot = Some(shared::protocol::PvpSnapshot {
             lifetime_honor_xp: 0,
             honor_level: None,
@@ -70,7 +70,7 @@ fn retail_war_mode_control_exists_but_requires_authoritative_context_in_both_ski
         });
         assert_eq!(
             pvp.action("pvp:warmode"),
-            Some(game_engine_ui_model::battleground::PvpAction::WarMode(true))
+            Some(game_engine_ui_pvp::battleground::PvpAction::WarMode(true))
         );
         assert_eq!(
             pvp.action("pvp:warmode"),
@@ -163,7 +163,7 @@ fn three_source_pvp_slots_and_authoritative_choice_actions_render_in_both_skins(
             .get(registry.get_by_name("PvPTalentChoice5622").unwrap())
             .unwrap();
         assert_eq!(locked.onclick.as_deref(), Some(""));
-        let mut view = game_engine_ui_model::battleground::PvpView::default();
+        let mut view = game_engine_ui_pvp::battleground::PvpView::default();
         view.snapshot = Some(PvpSnapshot {
             lifetime_honor_xp: 0,
             honor_level: None,
@@ -181,12 +181,10 @@ fn three_source_pvp_slots_and_authoritative_choice_actions_render_in_both_skins(
         assert_eq!(view.action("pvp:talent-choice:5622"), None);
         assert_eq!(
             view.action("pvp:talent-choice:632"),
-            Some(
-                game_engine_ui_model::battleground::PvpAction::SelectTalent {
-                    slot: 1,
-                    talent_id: 632
-                }
-            )
+            Some(game_engine_ui_pvp::battleground::PvpAction::SelectTalent {
+                slot: 1,
+                talent_id: 632
+            })
         );
         assert!(view.pending);
         assert_eq!(view.talent_slot, None);

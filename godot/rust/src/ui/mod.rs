@@ -2167,7 +2167,7 @@ impl RegistryUi {
 
     pub fn show_pvp(
         &mut self,
-        state: game_engine_ui_model::battleground::PvpView,
+        state: game_engine_ui_pvp::battleground::PvpView,
     ) -> Result<(), String> {
         let parent = self.hud_parent()?;
         let mut registry = parent.registry();
@@ -2177,7 +2177,7 @@ impl RegistryUi {
         )?;
         self.show_viewport_screen_in(
             state,
-            game_engine_ui_model::battleground::pvp_screen,
+            game_engine_ui_pvp::battleground::pvp_screen,
             ScreenPostsetup::None,
             registry,
             parent,

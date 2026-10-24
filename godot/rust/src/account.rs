@@ -950,9 +950,9 @@ impl Account {
     }
     pub fn send_pvp(
         &self,
-        action: game_engine_ui_model::battleground::PvpAction,
+        action: game_engine_ui_pvp::battleground::PvpAction,
     ) -> Result<(), SessionError> {
-        use game_engine_ui_model::battleground::PvpAction;
+        use game_engine_ui_pvp::battleground::PvpAction;
         use shared::protocol::*;
         let bridge = self.bridge()?;
         let result = match action {

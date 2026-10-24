@@ -1,10 +1,10 @@
 //! Retail Mainline PVPUI.xml804–861/1670–1728; Lua1904–1947/1975–1983.
 //! No ratio, badge level or next reward is invented while HONOR_LEVEL_XP_CURVE is open.
 use super::PvpView;
-use crate::bank_art::label;
-use crate::game_tooltip::GameTooltip;
-use crate::quest_art::{NORMAL_FONT_COLOR, named_atlas_texture};
-use crate::tooltip_presentation::{TooltipLineState, TooltipPresentation};
+use game_engine_ui_model::bank_art::label;
+use game_engine_ui_model::game_tooltip::GameTooltip;
+use game_engine_ui_model::quest_art::{NORMAL_FONT_COLOR, named_atlas_texture};
+use game_engine_ui_model::tooltip_presentation::{TooltipLineState, TooltipPresentation};
 use ui_toolkit::{rsx, widget_def::Element};
 
 pub(super) fn honor_inset(view: &PvpView) -> Element {
@@ -47,7 +47,7 @@ pub(super) fn honor_inset(view: &PvpView) -> Element {
 }
 
 fn faction_art(view: &PvpView) -> Element {
-    use crate::char_create_data::Faction;
+    use game_engine_ui_model::char_create_data::Faction;
     let Some(faction) = view.honor_faction else {
         return vec![];
     };

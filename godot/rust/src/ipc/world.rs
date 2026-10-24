@@ -28,7 +28,7 @@ impl crate::GameClient {
             }
             Request::PvpStatus => self
                 .account
-                .send_pvp(game_engine_ui_model::battleground::PvpAction::Query)
+                .send_pvp(game_engine_ui_pvp::battleground::PvpAction::Query)
                 .map_err(|e| e.to_string())
                 .and_then(|()| {
                     serde_json::to_string(&self.battleground.view.snapshot)
@@ -39,20 +39,20 @@ impl crate::GameClient {
                 .map(|()| "PvP window toggled".into())
                 .map_err(|e| e.to_string()),
             Request::PvpQueueBattleground { battleground_id } => self.pvp_ipc(
-                game_engine_ui_model::battleground::PvpAction::Queue(battleground_id),
+                game_engine_ui_pvp::battleground::PvpAction::Queue(battleground_id),
             ),
             Request::PvpDequeue => {
-                self.pvp_ipc(game_engine_ui_model::battleground::PvpAction::Dequeue)
+                self.pvp_ipc(game_engine_ui_pvp::battleground::PvpAction::Dequeue)
             }
             Request::PvpRespond { match_id, accepted } => {
-                self.pvp_ipc(game_engine_ui_model::battleground::PvpAction::Respond {
+                self.pvp_ipc(game_engine_ui_pvp::battleground::PvpAction::Respond {
                     match_id,
                     accepted,
                 })
             }
-            Request::PvpLeave { match_id } => self.pvp_ipc(
-                game_engine_ui_model::battleground::PvpAction::Leave(match_id),
-            ),
+            Request::PvpLeave { match_id } => {
+                self.pvp_ipc(game_engine_ui_pvp::battleground::PvpAction::Leave(match_id))
+            }
             Request::CollectionPets { missing } => Ok(self.pet_journal_text(missing)),
             Request::CollectionSummonPet { pet_id } => self
                 .account
@@ -110,7 +110,7 @@ impl crate::GameClient {
 
     fn pvp_ipc(
         &self,
-        action: game_engine_ui_model::battleground::PvpAction,
+        action: game_engine_ui_pvp::battleground::PvpAction,
     ) -> Result<String, String> {
         self.account
             .send_pvp(action)

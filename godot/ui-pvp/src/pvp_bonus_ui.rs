@@ -1,12 +1,12 @@
 //! Retail PVPUI.xml1167–1232/645–695; Lua620–645/691–710/1130–1156.
 //! Queue exposure only: no invented rewards, availability or level requirement.
 use super::PvpView;
-use crate::bank_art::label;
-use crate::menu_primitives::{
+use game_engine_ui_model::bank_art::label;
+use game_engine_ui_model::menu_primitives::{
     ContextMenu, ContextMenuItem, DropdownButton, DropdownState, MenuElementKind,
     context_menu_with_rows, dropdown_button_with_state, menu_element,
 };
-use crate::quest_art::named_atlas_texture;
+use game_engine_ui_model::quest_art::named_atlas_texture;
 use ui_toolkit::{
     rsx,
     widget_def::{Attr, Element, WidgetChild},
@@ -116,8 +116,12 @@ pub(super) fn bonus_panel(view: &PvpView) -> Element {
     let mut children = Vec::new();
     if let Some(faction) = view.honor_faction {
         let atlas = match faction {
-            crate::char_create_data::Faction::Alliance => "pvpqueue-background-casual-alliance",
-            crate::char_create_data::Faction::Horde => "pvpqueue-background-casual-horde",
+            game_engine_ui_model::char_create_data::Faction::Alliance => {
+                "pvpqueue-background-casual-alliance"
+            }
+            game_engine_ui_model::char_create_data::Faction::Horde => {
+                "pvpqueue-background-casual-horde"
+            }
         };
         let region = ui_toolkit::atlas::resolve_region(atlas, ui_toolkit::atlas::thread_skin())
             .expect("Retail casual faction background atlas");
@@ -148,12 +152,15 @@ fn random_button(view: &PvpView) -> Element {
         (16.0, "1,1,1,1", "LEFT"),
     );
     let [left, top, width, height] = RANDOM_RECT;
-    let mut row = crate::selection_list::row(
+    let mut row = game_engine_ui_model::selection_list::row(
         "HonorFrameBonusFrameRandomBGButton".into(),
         "pvp:bonus:random",
         !view.pending && view.battleground().is_none(),
         (left, top, width, height),
-        (&crate::selection_list::PVP_CASUAL_ACTIVITY, true),
+        (
+            &game_engine_ui_model::selection_list::PVP_CASUAL_ACTIVITY,
+            true,
+        ),
         contents,
     );
     apply_random_button_art(&mut row);

@@ -1,7 +1,7 @@
 use super::scroll_lists::tests;
 use super::*;
-use game_engine_ui_model::battleground::{PvpView, pvp_screen};
 use game_engine_ui_model::selection_list::{highlight_layer_shown, is_selection_row};
+use game_engine_ui_pvp::battleground::{PvpView, pvp_screen};
 use ui_toolkit::screen::{Screen, SharedContext};
 
 fn pvp_model() -> RegistryModel {
@@ -73,7 +73,7 @@ fn selection_row_hover_and_keyboard_focus_draw_without_push_button_chrome() {
     model.update_input_widgets(UiInput::Focus(last), &mut sliders);
     tests::rebuild(&mut model);
     let row_rect = tests::rect(&model, "HonorFrameSpecificBattlegroundButton7").unwrap();
-    let list = tests::rect(&model, game_engine_ui_model::battleground::SPECIFIC_LIST).unwrap();
+    let list = tests::rect(&model, game_engine_ui_pvp::battleground::SPECIFIC_LIST).unwrap();
     assert!(
         row_rect.y >= list.y && row_rect.y + row_rect.height <= list.y + list.height,
         "keyboard focus reveals clipped rows"

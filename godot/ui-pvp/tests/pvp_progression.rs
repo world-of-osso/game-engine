@@ -7,7 +7,7 @@ use ui_toolkit::{
 
 #[test]
 fn quick_match_and_rated_tabs_show_wallet_balances_without_fake_season_policy() {
-    use game_engine_ui_model::battleground::{PvpAction, PvpView, pvp_screen};
+    use game_engine_ui_pvp::battleground::{PvpAction, PvpView, pvp_screen};
     use shared::protocol::{PvpBracketSnapshot, PvpSnapshot};
     let data = std::path::PathBuf::from(env!("CARGO_MANIFEST_DIR")).join("../../data");
     game_engine_ui_model::paths::set_data_root(data).unwrap();
@@ -123,7 +123,7 @@ fn quick_match_and_rated_tabs_show_wallet_balances_without_fake_season_policy() 
 
 #[test]
 fn honor_lifetime_display_never_substitutes_spendable_cap_for_unknown_level_curve() {
-    use game_engine_ui_model::battleground::{PvpView, pvp_screen};
+    use game_engine_ui_pvp::battleground::{PvpView, pvp_screen};
     let data = std::path::PathBuf::from(env!("CARGO_MANIFEST_DIR")).join("../../data");
     game_engine_ui_model::paths::set_data_root(data).unwrap();
     for skin in [ActiveSkin::Modern, ActiveSkin::Forever] {
