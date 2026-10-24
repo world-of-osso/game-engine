@@ -66,6 +66,10 @@ Both E and B iterate complete64-byte MOMT records; incomplete tails are not reta
 
 ## See Also
 
+- [[benilla-wmo-root-aux-fields]] — remaining root records and production consumers.
+- [[benilla-wmo-extension-fields]] — modern extension fields and opaque intervals.
+- [[benilla-wmo-group-fields]] — group mesh, liquid and BSP fields.
+
 - [[benilla-asset-field-inventory]] — parent comparison, actionable differences and broader scope.
 - [[wmo-format]] — engine WMO system/format reference, not independent original-client authentication.
 - [[open-source-wow-clients]] — reference-client version and evidence limits.
