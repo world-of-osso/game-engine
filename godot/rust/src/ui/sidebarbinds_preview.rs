@@ -5,7 +5,7 @@ use game_engine_core::input_bindings_data::{BindingKey, InputBinding, InputBindi
 use game_engine_ui_model::main_action_bar_component::{
     ActionBar, MainActionBarState, main_action_bar_screen,
 };
-use game_engine_ui_model::spellbook_frame_component::PlayerSpellsTab;
+use game_engine_ui_model::player_spells_data::PlayerSpellsTab;
 use godot::prelude::*;
 use shared::protocol::ActionRef;
 use ui_toolkit::atlas::{ActiveSkin, set_thread_skin};
@@ -36,7 +36,7 @@ impl RegistryUi {
 
 fn load_sidebarbinds_state() -> Result<MainActionBarState, String> {
     let data = game_engine_ui_model::paths::resolve_data_path("");
-    let book = game_engine_ui_model::spellbook_preview::load_preview_state(
+    let book = game_engine_ui_player_spells::spellbook_preview::load_preview_state(
         &data,
         PlayerSpellsTab::Spellbook,
     )?;
@@ -65,7 +65,7 @@ fn load_sidebarbinds_state() -> Result<MainActionBarState, String> {
 
 fn assign_preview_spells(
     state: &mut MainActionBarState,
-    icons: &[&game_engine_ui_model::spellbook_frame_component::SpellbookItemView],
+    icons: &[&game_engine_ui_model::player_spells_data::SpellbookItemView],
 ) -> Result<(), String> {
     let mut spells = PlayerSpells::default();
     for bar in ActionBar::ALL {

@@ -1,8 +1,9 @@
 //! Rect contracts from Retail ClassTalentsFrame bottomPadding82 and HeroTalentsContainer.
 use game_engine_core::spell_catalog::{SpellCatalogPaths, load_spell_catalog};
-use game_engine_ui_model::{
-    spellbook_frame_component::{PlayerSpellsTab, SpellbookFrameState, spellbook_frame_screen},
-    talents::{TalentView, load_talent_view},
+use game_engine_ui_model::player_spells_data::PlayerSpellsTab;
+use game_engine_ui_model::talents::{TalentView, load_talent_view};
+use game_engine_ui_player_spells::spellbook_frame_component::{
+    SpellbookFrameState, spellbook_frame_screen,
 };
 use shared::protocol::{TraitConfigSnapshot, TraitEntrySelection};
 use std::{collections::BTreeSet, path::PathBuf};
@@ -26,7 +27,7 @@ fn registry(view: TalentView) -> FrameRegistry {
     });
     let mut registry = FrameRegistry::new(1920.0, 1080.0);
     Screen::new(spellbook_frame_screen).sync(&context, &mut registry);
-    game_engine_ui_model::spellbook_frame_component::apply_spellbook_postsetup(
+    game_engine_ui_player_spells::spellbook_frame_component::apply_spellbook_postsetup(
         context.get::<SpellbookFrameState>().unwrap(),
         &mut registry,
     );

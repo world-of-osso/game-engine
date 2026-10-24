@@ -284,10 +284,11 @@ impl RegistryUi {
             }
             if page.starts_with("talent-") {
                 let data = game_engine_ui_model::paths::resolve_data_path("");
-                let mut state = game_engine_ui_model::spellbook_preview::load_preview_state(
-                    &data,
-                    game_engine_ui_model::spellbook_frame_component::PlayerSpellsTab::Talents,
-                )?;
+                let mut state =
+                    game_engine_ui_player_spells::spellbook_preview::load_preview_state(
+                        &data,
+                        game_engine_ui_model::player_spells_data::PlayerSpellsTab::Talents,
+                    )?;
                 let talents = state
                     .talents
                     .as_mut()

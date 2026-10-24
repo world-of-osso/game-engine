@@ -1,8 +1,8 @@
 //! Diagnostic output only: local catalog membership is not gameplay correctness.
 use game_engine_core::spell_catalog::{SpellCatalogPaths, load_spell_catalog};
 use game_engine_core::talent_data::load_talent_page;
-use game_engine_ui_model::spellbook_frame_component::PlayerSpellsTab;
-use game_engine_ui_model::spellbook_preview::load_class_preview_state;
+use game_engine_ui_model::player_spells_data::PlayerSpellsTab;
+use game_engine_ui_player_spells::spellbook_preview::load_class_preview_state;
 
 #[test]
 #[ignore = "data-only coverage report, run explicitly with --nocapture"]

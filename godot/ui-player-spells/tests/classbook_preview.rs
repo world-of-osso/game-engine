@@ -1,5 +1,5 @@
-use game_engine_ui_model::spellbook_frame_component::PlayerSpellsTab;
-use game_engine_ui_model::spellbook_preview::load_class_preview_state;
+use game_engine_ui_model::player_spells_data::PlayerSpellsTab;
+use game_engine_ui_player_spells::spellbook_preview::load_class_preview_state;
 
 #[test]
 fn non_mage_preview_contains_own_spells_and_spec_tree() {

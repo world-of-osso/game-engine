@@ -1,6 +1,7 @@
-use game_engine_ui_model::spellbook_frame_component::{
+use game_engine_ui_model::player_spells_data::SpellbookItemView;
+use game_engine_ui_player_spells::spellbook_frame_component::{
     ACTION_SPELLBOOK_CAST, ACTION_SPELLBOOK_CLOSE, COLUMNS, HEADER_H, ITEM_H, Placement,
-    SPELLBOOK_FRAME, SpellbookCategory, SpellbookFrameState, SpellbookGroup, SpellbookItemView,
+    SPELLBOOK_FRAME, SpellbookCategory, SpellbookFrameState, SpellbookGroup,
     apply_spellbook_postsetup, frame_layout, paginate, spell_item_name, spellbook_frame_screen,
 };
 use ui_toolkit::atlas::{ActiveSkin, set_thread_skin};
@@ -310,7 +311,7 @@ fn player_spells_has_three_bottom_tabs() {
 
 #[test]
 fn clicking_bottom_tabs_switches_content_in_both_skins() {
-    use game_engine_ui_model::spellbook_frame_component::PlayerSpellsTab;
+    use game_engine_ui_model::player_spells_data::PlayerSpellsTab;
     let mut book = state(vec![SpellbookCategory {
         name: "Warrior".into(),
         groups: vec![group("Warrior", 1)],
@@ -349,9 +350,8 @@ fn clicking_bottom_tabs_switches_content_in_both_skins() {
 #[test]
 fn n_and_p_open_their_page_and_only_same_page_toggle_closes() {
     use game_engine_core::input_bindings_data::{BindingKey, InputBindingsData, InputState};
-    use game_engine_ui_model::spellbook_frame_component::{
-        PlayerSpellsTab, pressed_player_spells_tab,
-    };
+    use game_engine_ui_model::player_spells_data::PlayerSpellsTab;
+    use game_engine_ui_player_spells::spellbook_frame_component::pressed_player_spells_tab;
     struct Key(BindingKey);
     impl InputState for Key {
         fn key_pressed(&self, key: BindingKey) -> bool {
@@ -398,9 +398,8 @@ fn n_and_p_open_their_page_and_only_same_page_toggle_closes() {
 #[test]
 fn specialization_page_uses_class_data_and_marks_only_server_active_spec() {
     use game_engine_core::spell_catalog::{SpellCatalogPaths, load_spell_catalog};
-    use game_engine_ui_model::spellbook_frame_component::{
-        PlayerSpellsTab, specialization_choices,
-    };
+    use game_engine_ui_model::player_spells_data::PlayerSpellsTab;
+    use game_engine_ui_player_spells::spellbook_frame_component::specialization_choices;
     let root = std::path::PathBuf::from(env!("CARGO_MANIFEST_DIR")).join("../core/data");
     let mut paths = SpellCatalogPaths::for_data_dir(&root);
     paths.cache_path = std::env::temp_dir().join(format!("spelltabs-{}.bin", std::process::id()));

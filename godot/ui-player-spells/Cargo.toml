@@ -1,0 +1,19 @@
+[package]
+name = "game-engine-ui-player-spells"
+version = "0.1.0"
+edition.workspace = true
+rust-version.workspace = true
+autotests = false
+
+[[test]]
+name = "integration"
+path = "tests/integration.rs"
+
+[dependencies]
+# Existing spell/talent catalogs and input types retain core ownership.
+game-engine-core = { path = "../core" }
+# Shared PlayerSpellsTab/item data, talents/editor/loadouts/search and chrome stay base.
+game-engine-ui-model = { path = "../ui-model" }
+# Existing spell/talent snapshots retain their wire identities.
+shared = { git = "https://github.com/world-of-osso/shared-protocol.git", rev = "74e67cf" }
+ui-toolkit = { package = "ui-toolkit-core", path = "../../../ui-toolkit/core" }

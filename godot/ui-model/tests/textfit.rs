@@ -2,10 +2,6 @@
 use game_engine_ui_model::character_frame::{
     CharacterFrameView, CharacterTab, apply_character_frame_postsetup, character_frame_screen,
 };
-use game_engine_ui_model::spellbook_frame_component::{
-    SpellbookCategory, SpellbookFrameState, SpellbookGroup, SpellbookItemView,
-    apply_spellbook_postsetup, spellbook_frame_screen,
-};
 use ui_toolkit::atlas::{ActiveSkin, set_thread_skin};
 use ui_toolkit::frame::{Dimension, Frame, WidgetData};
 use ui_toolkit::layout_values::Val;
@@ -65,63 +61,6 @@ fn character(tab: CharacterTab) -> FrameRegistry {
     Screen::new(character_frame_screen).sync(&shared, &mut registry);
     apply_character_frame_postsetup(&mut registry, tab);
     registry
-}
-
-#[test]
-fn textfit_long_spell_name_stays_above_subtext_and_level_in_both_skins() {
-    configure_data();
-    for skin in [ActiveSkin::Modern, ActiveSkin::Forever] {
-        set_thread_skin(skin);
-        for viewport in [[1920.0, 1080.0], [1280.0, 720.0]] {
-            let state = SpellbookFrameState {
-                viewport,
-                categories: vec![SpellbookCategory {
-                    name: "Paladin".into(),
-                    groups: vec![SpellbookGroup {
-                        name: "Protection".into(),
-                        items: [
-                            (25899, "Greater Blessing of Sanctuary"),
-                            (20911, "Blessing of Sanctuary"),
-                        ]
-                        .into_iter()
-                        .map(|(spell_id, name)| SpellbookItemView {
-                            spell_id,
-                            name: name.into(),
-                            subtext: "Passive".into(),
-                            icon_fdid: 135911,
-                            passive: true,
-                            available_at: Some(30),
-                            cooldown_fraction: 0.0,
-                        })
-                        .collect(),
-                    }],
-                }],
-                ..Default::default()
-            };
-            let mut shared = SharedContext::new();
-            shared.insert(state.clone());
-            let mut registry = FrameRegistry::new(viewport[0], viewport[1]);
-            Screen::new(spellbook_frame_screen).sync(&shared, &mut registry);
-            apply_spellbook_postsetup(&state, &mut registry);
-            for spell_id in [25899, 20911] {
-                let name = frame(&registry, &format!("SpellBookItem{spell_id}Name"));
-                assert_caption_fits(name);
-                let Val::Px(name_top) = name.position.top else {
-                    panic!("fixed caption position")
-                };
-                let mut bottom = name_top + size(name).1;
-                for part in ["SubName", "RequiredLevel"] {
-                    let next = frame(&registry, &format!("SpellBookItem{spell_id}{part}"));
-                    let Val::Px(top) = next.position.top else {
-                        panic!("fixed caption position")
-                    };
-                    assert!(bottom <= top, "{skin:?}: name/subtext/level overlap");
-                    bottom = top + size(next).1;
-                }
-            }
-        }
-    }
-    set_thread_skin(ActiveSkin::Modern);
 }
 
 #[test]

@@ -2,7 +2,7 @@
 //! Forever uses the same Retail page mechanics, not its Classic talent templates.
 
 use super::*;
-use crate::ui::screens::quest_art::panel_button;
+use game_engine_ui_model::ui::screens::quest_art::panel_button;
 
 /// PlayerSpellsFrame.xml:20-29: `TabSystem` TOPLEFT at the frame's BOTTOMLEFT 22,2.
 /// `TabSystemButtonTemplate` (TabSystemTemplates.xml:3-96): 32-high buttons; left cap

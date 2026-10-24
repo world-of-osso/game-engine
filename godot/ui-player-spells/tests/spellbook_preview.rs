@@ -1,7 +1,8 @@
-use game_engine_ui_model::spellbook_frame_component::{
-    PlayerSpellsTab, SPELLBOOK_FRAME, apply_spellbook_postsetup, spellbook_frame_screen,
+use game_engine_ui_model::player_spells_data::PlayerSpellsTab;
+use game_engine_ui_player_spells::spellbook_frame_component::{
+    SPELLBOOK_FRAME, apply_spellbook_postsetup, spellbook_frame_screen,
 };
-use game_engine_ui_model::spellbook_preview::load_preview_state;
+use game_engine_ui_player_spells::spellbook_preview::load_preview_state;
 use ui_toolkit::atlas::{ActiveSkin, set_thread_skin};
 use ui_toolkit::registry::FrameRegistry;
 use ui_toolkit::screen::{Screen, SharedContext};
