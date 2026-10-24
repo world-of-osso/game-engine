@@ -368,8 +368,9 @@ def native_cargo(root, command, arguments, output=None):
     environment["CARGO_BUILD_JOBS"] = str(len(os.sched_getaffinity(0)))
     environment.setdefault("CARGO_TARGET_X86_64_UNKNOWN_LINUX_GNU_LINKER", "clang")
     if "RUSTFLAGS" not in environment and "CARGO_ENCODED_RUSTFLAGS" not in environment:
+        # Evidence: /home/osso/.worktrees/logs/mold-thread-experiment/report.md
         environment["CARGO_ENCODED_RUSTFLAGS"] = "\x1f".join(
-            ["-C", "link-arg=-fuse-ld=mold", "-C", "link-arg=-Wl,--thread-count=4"]
+            ["-C", "link-arg=-fuse-ld=mold", "-C", "link-arg=-Wl,--thread-count=8"]
         )
     return subprocess.run(
         ["cargo", command, "--locked", "--target-dir", str(root / "target"), "--manifest-path", str(native_source_root(root) / "godot/Cargo.toml"), *arguments],
