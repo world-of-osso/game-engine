@@ -379,7 +379,7 @@ External resources and asset lists.
 
 - [Benilla asset-field inventory](reference/benilla-asset-field-inventory.md) — pinned M2/WMO/ADT/WDT/WDL/BLP and environment comparison; parsed-but-unbound fields, existing coverage and version-qualified research leads, static evidence only.
 
-- [open-source-wow-clients](reference/open-source-wow-clients.md) — Clients, renderers, viewers, editors, format libraries; [wowdecomp audit](../wowdecomp-audit/README.md): source-only 3.3.5a research plus [4.3.4 reference expansion](../wowdecomp-audit/cataclysm-434.md), 28 conditional findings total; no runtime parity established
+- [open-source-wow-clients](reference/open-source-wow-clients.md) — Client/rendering references; Benilla taint/aura boundary; separate source-only 3.3.5a and 4.3.4 audits; no runtime parity established
 - [test-assets](reference/test-assets.md) — Available local test files; [Zaralda fixture](reference/test-assets.md#zaralda-native-merchant-fixture-2026-10-01) historical 0/3; matched-protocol InWorld then binding fix/real torso pick; faction-0 AutoAttack observed, faction-35 native success observed; artifact gate116 scoped PASS, server SSOT for content/CLI proof
 - [keybindings](reference/keybindings.md) — Bindable actions vs fixed inputs, scope boundaries
 - [audio-libraries](reference/audio-libraries.md) — Audio engines and spatial audio tools (AudioNimbus, etc.)

@@ -1,3 +1,7 @@
+## 2026-10-24 — Benilla taint/aura boundary
+
+`reference/open-source-wow-clients.md` distinguishes the `benilla` client from `benilla-re` and pins the 1.12.1 implementation finding to source commit `8161582`: function/call-stack taint is a partial model, per-value data taint is unmodeled, and `RequiredAuraVision` is classic aura visibility rather than modern secret-aura handling. Static source only; no runtime or cross-build claim.
+
 ## 2026-10-24 — Benilla asset-field inventory
 
 [Paired source inventory](reference/benilla-asset-field-inventory.md) compares pinned Benilla 1.12.1 readers/adapters/runtime against current Godot paths: camera tracks, WMO material/liquid/footstep inputs, terrain impass/shadows, weather selection and conditional texture/legacy-water gaps. Existing modern support, uncertain fields and Benilla deviations remain distinct; no client execution or implementation changes.
