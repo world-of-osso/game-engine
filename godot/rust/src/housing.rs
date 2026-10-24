@@ -599,14 +599,45 @@ impl GameClient {
     }
 }
 
+fn apply_catalog_filter_action(
+    model: &mut HousingDashboard,
+    authority: &HousingAuthority,
+    filter: &str,
+) -> Result<(), String> {
+    let parts: Vec<_> = filter.split(':').collect();
+    match parts.as_slice() {
+        ["reset"] => {
+            model.reset_catalog_filters(authority);
+            Ok(())
+        }
+        ["tag", group, value] => model.toggle_catalog_tag(
+            parse_catalog_tag_id(group)?,
+            parse_catalog_tag_id(value)?,
+            authority,
+        ),
+        ["tags-all", group] => {
+            model.set_all_catalog_tags(parse_catalog_tag_id(group)?, true, authority)
+        }
+        ["tags-none", group] => {
+            model.set_all_catalog_tags(parse_catalog_tag_id(group)?, false, authority)
+        }
+        _ => Err(format!("Unknown housing filter action: {filter}")),
+    }
+}
+
+fn parse_catalog_tag_id(value: &str) -> Result<u32, String> {
+    value
+        .parse()
+        .map_err(|_| format!("Invalid housing tag ID: {value}"))
+}
+
 fn apply_catalog_action(
     model: &mut HousingDashboard,
     authority: &HousingAuthority,
     action: &str,
 ) -> Result<(), String> {
-    if action == "housing:filter:reset" {
-        model.reset_catalog_filters(authority);
-        return Ok(());
+    if let Some(filter) = action.strip_prefix("housing:filter:") {
+        return apply_catalog_filter_action(model, authority, filter);
     }
     let (kind, id) = action
         .rsplit_once(':')
