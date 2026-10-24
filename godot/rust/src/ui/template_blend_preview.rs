@@ -233,9 +233,9 @@ fn entrance_difficulty(
 /// Basic editor with one stored, editable supplied decor tile.
 fn housing_storage_basic(
     viewport: [f32; 2],
-) -> game_engine_ui_model::housing_component::HousingView {
+) -> game_engine_ui_housing::housing_component::HousingView {
     use game_engine_core::housing::{Decor, HousingCatalog, RETAIL_BUILD_KEY};
-    use game_engine_ui_model::housing::{HousingAuthority, HousingDashboard, HousingSurface};
+    use game_engine_ui_housing::housing::{HousingAuthority, HousingDashboard, HousingSurface};
     use shared::protocol::{HouseLayout, HousingState, StoredDecor};
     let mut model = HousingDashboard::new(Arc::new(HousingCatalog {
         decor: vec![Decor {
@@ -255,7 +255,7 @@ fn housing_storage_basic(
         ..Default::default()
     }));
     model.surface = HousingSurface::Editor;
-    game_engine_ui_model::housing_component::HousingView {
+    game_engine_ui_housing::housing_component::HousingView {
         model,
         authority: HousingAuthority {
             state: Some(HousingState {

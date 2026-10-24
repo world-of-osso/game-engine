@@ -4,9 +4,11 @@
 use crate::housing::BulletinBoard;
 use crate::housing_component::HousingView;
 use crate::housing_navigation_component::neighborhood_location;
-use crate::quest_art::{DynName, HIGHLIGHT_FONT_COLOR, close_button, named_atlas_texture};
-use crate::ui::screens::inworld_unit_frames_component::inworld_unit_frames_art::sized_atlas_texture;
-use crate::ui::strata::FrameStrata;
+use game_engine_ui_model::quest_art::{
+    DynName, HIGHLIGHT_FONT_COLOR, close_button, named_atlas_texture,
+};
+use game_engine_ui_model::ui::screens::inworld_unit_frames_component::inworld_unit_frames_art::sized_atlas_texture;
+use game_engine_ui_model::ui::strata::FrameStrata;
 use shared::protocol::NeighborhoodResident;
 use ui_toolkit::atlas::thread_skin;
 use ui_toolkit::{rsx, widget_def::Element};
@@ -39,7 +41,7 @@ pub fn bulletin_board(view: &HousingView) -> Element {
         .catalog
         .neighborhood_texture(board.neighborhood_id)
         .unwrap_or("elwynn");
-    let [left, top] = crate::world_map_frame_component::PANEL_SLOT;
+    let [left, top] = game_engine_ui_model::world_map_frame_component::PANEL_SLOT;
     let mut children = named_atlas_texture(
         format!("{FRAME}Background"),
         &format!("housing-dashboard-bg-{suffix}"),

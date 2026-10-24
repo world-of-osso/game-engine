@@ -1,7 +1,7 @@
 //! Retail HouseFinder MapCanvas and source sale/friend pins, not invented plot/edit bounds.
 use crate::housing_component::HousingView;
 use crate::housing_navigation_component::{format_money, neighborhood_location};
-use crate::quest_art::{DynName, named_atlas_texture};
+use game_engine_ui_model::quest_art::{DynName, named_atlas_texture};
 use shared::protocol::HousingPlotOwnerType;
 use ui_toolkit::{rsx, widget_def::Element};
 
@@ -26,13 +26,13 @@ fn neighborhood_choices(view: &HousingView) -> Element {
         .flat_map(|(index, id)| {
             let text = neighborhood_location(id);
             let top = 70.0 + index as f32 * 70.0;
-            crate::selection_list::text_row(
+            game_engine_ui_model::selection_list::text_row(
                 format!("HouseFinderNeighborhood{id}"),
                 text,
                 &format!("housing:neighborhood:{id}"),
                 (!view.model.pending, false),
                 (20.0, top, 217.0, 63.0),
-                &crate::selection_list::NEIGHBORHOOD,
+                &game_engine_ui_model::selection_list::NEIGHBORHOOD,
             )
         })
         .collect();
@@ -140,7 +140,7 @@ fn map_content(view: &HousingView) -> Result<Option<Element>, String> {
     Ok(Some(children))
 }
 
-fn map_tiles(art: &crate::ui_map_data::UiMapArtLayout, rect: [f32; 4]) -> Element {
+fn map_tiles(art: &game_engine_ui_model::ui_map_data::UiMapArtLayout, rect: [f32; 4]) -> Element {
     art.placed_tiles().into_iter().enumerate().flat_map(|(index,tile)| {
         let left=rect[0]+tile.rect[0]*rect[2];let top=rect[1]+tile.rect[1]*rect[3];
         let width=tile.rect[2]*rect[2];let height=tile.rect[3]*rect[3];

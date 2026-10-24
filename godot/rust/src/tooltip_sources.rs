@@ -119,7 +119,7 @@ enum HousingTooltipTarget {
 
 fn parse_housing_tooltip_target(frame: &Frame) -> Option<HousingTooltipTarget> {
     let name = name_of(frame)?;
-    if let Some((_, action, _)) = game_engine_ui_model::housing::EDITOR_CONTROL_TOOLTIPS
+    if let Some((_, action, _)) = game_engine_ui_housing::housing::EDITOR_CONTROL_TOOLTIPS
         .iter()
         .find(|(control, _, _)| *control == name)
     {
@@ -383,11 +383,13 @@ impl GameClient {
                 .model
                 .as_ref()?
                 .editor_control_tooltip(action, self.client_options.bindings.binding(action))?,
-            HousingTooltipTarget::Chest => game_engine_ui_model::housing::storage_handle_tooltip(),
+            HousingTooltipTarget::Chest => {
+                game_engine_ui_housing::housing::storage_handle_tooltip()
+            }
             HousingTooltipTarget::Decor(id) => {
                 let model = self.housing.model.as_ref()?;
                 let decor = model.catalog.decor.iter().find(|decor| decor.id == id)?;
-                game_engine_ui_model::housing::decor_entry_tooltip(
+                game_engine_ui_housing::housing::decor_entry_tooltip(
                     decor,
                     &model.catalog,
                     &self.housing.authority,
@@ -411,7 +413,7 @@ impl GameClient {
                 &catalog
                     .categories
                     .iter()
-                    .find(|row| row.id == game_engine_ui_model::housing::ALL_CATEGORY)?
+                    .find(|row| row.id == game_engine_ui_housing::housing::ALL_CATEGORY)?
                     .name
             }
             _ => return None,

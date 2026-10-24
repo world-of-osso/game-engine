@@ -1,8 +1,8 @@
 //! Retail Expert placed-list native input; confirmed layout remains server-owned.
 use crate::GameClient;
-use game_engine_ui_model::housing::HousingSurface;
-use game_engine_ui_model::housing_editor::EditorMode;
-use game_engine_ui_model::housing_placed_list::ENTRY_PREFIX;
+use game_engine_ui_housing::housing::HousingSurface;
+use game_engine_ui_housing::housing_editor::EditorMode;
+use game_engine_ui_housing::housing_placed_list::ENTRY_PREFIX;
 use godot::classes::{InputEvent, InputEventMouseButton, InputEventMouseMotion};
 use godot::global::MouseButton;
 use godot::prelude::*;
@@ -140,7 +140,7 @@ impl GameClient {
 
     fn pick_housing_placed_row(&self, point: Vector2) -> Option<u64> {
         if !self
-            .housing_control_rect(game_engine_ui_model::housing_placed_list::LIST)
+            .housing_control_rect(game_engine_ui_housing::housing_placed_list::LIST)
             .is_some_and(|rect| rect.contains_point(point))
         {
             return None;

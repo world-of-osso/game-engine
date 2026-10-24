@@ -1,12 +1,12 @@
 //! Blizzard_HousingHouseSettings.xml: 600x550, three 160px access columns.
 use crate::housing_component::HousingView;
 use crate::housing_settings::{AccessMode, HouseSettings};
-use crate::menu_primitives::{
+use game_engine_ui_model::menu_primitives::{
     ContextMenuItem, DropdownButton, DropdownState, DropdownStyle, MenuElementKind,
     context_menu_description, dropdown_button_with_state,
 };
-use crate::quest_art::{DynName, named_atlas_texture};
-use crate::ui::strata::FrameStrata;
+use game_engine_ui_model::quest_art::{DynName, named_atlas_texture};
+use game_engine_ui_model::ui::strata::FrameStrata;
 use ui_toolkit::{rsx, widget_def::Element};
 
 pub fn settings_screen(view: &HousingView) -> Element {
@@ -28,7 +28,7 @@ pub fn settings_screen(view: &HousingView) -> Element {
     let decoration = decorative_regions();
     let columns = access_columns(draft, view.model.pending);
     let save_disabled = view.model.pending || draft.access.is_none();
-    crate::panel_lifecycle::bind_close(
+    game_engine_ui_model::panel_lifecycle::bind_close(
         rsx! { r#frame { name: "HousingRoot", stretch: true,
             r#frame { name: "HousingHouseSettingsFrame", width: 600.0, height: 550.0,
                 pos_type: "absolute", left, top, strata: FrameStrata::Dialog, mouse_enabled: true,

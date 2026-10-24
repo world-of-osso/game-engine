@@ -1,6 +1,6 @@
 //! HouseSettingsAccessOptionsTemplate XML4–32 and its Lua SetupAccessTypeDropdown.
 use game_engine_core::housing::HousingCatalog;
-use game_engine_ui_model::{
+use game_engine_ui_housing::{
     housing::{HousingAuthority, HousingDashboard, HousingSurface},
     housing_component::{HousingView, housing_screen},
     housing_settings::HouseSettings,
@@ -367,7 +367,7 @@ fn house_settings_action_button_art_both_skins() {
 
 #[test]
 fn house_settings_checkbox_hit_area_excludes_labels_both_skins() {
-    use game_engine_ui_model::housing_settings::AccessMode;
+    use game_engine_ui_housing::housing_settings::AccessMode;
     game_engine_ui_model::paths::set_data_root(
         std::path::PathBuf::from(env!("CARGO_MANIFEST_DIR")).join("../../data"),
     )

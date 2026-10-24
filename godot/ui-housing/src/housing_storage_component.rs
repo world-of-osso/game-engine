@@ -1,11 +1,11 @@
 //! Retail owned category rail: 75px, 64px roots, 54px children and source Back/All.
 use crate::housing_component::{HousingView, category_button};
-use crate::menu_primitives::{
+use game_engine_ui_model::menu_primitives::{
     ContextMenuItem, DescribedMenuElement, DropdownButton, DropdownState, DropdownStyle,
     MenuElementKind, context_menu_description, dropdown_button_with_state,
 };
-use crate::quest_art::named_atlas_texture;
-use crate::ui::strata::FrameStrata;
+use game_engine_ui_model::quest_art::named_atlas_texture;
+use game_engine_ui_model::ui::strata::FrameStrata;
 use ui_toolkit::{rsx, widget_def::Element};
 
 pub(crate) fn drawer(view: &HousingView, disabled: bool, can_edit: bool) -> Element {

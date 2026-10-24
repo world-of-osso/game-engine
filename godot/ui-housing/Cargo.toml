@@ -1,0 +1,19 @@
+[package]
+name = "game-engine-ui-housing"
+version = "0.1.0"
+edition.workspace = true
+rust-version.workspace = true
+autotests = false
+
+[[test]]
+name = "integration"
+path = "tests/integration.rs"
+
+[dependencies]
+# Housing catalog and persisted editor/input types retain core ownership.
+game-engine-core = { path = "../core" }
+# Shared chrome, tooltips and map types retain their existing identities.
+game-engine-ui-model = { path = "../ui-model" }
+# Housing commands and authoritative snapshots retain wire type identity.
+shared = { git = "https://github.com/world-of-osso/shared-protocol.git", rev = "74e67cf" }
+ui-toolkit = { package = "ui-toolkit-core", path = "../../../ui-toolkit/core" }

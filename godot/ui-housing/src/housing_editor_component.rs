@@ -18,7 +18,7 @@ pub fn editor_screen(view: &HousingView) -> Element {
 fn cleanup_screen(view: &HousingView) -> Element {
     let modes = mode_bar(view);
     let instructions = instruction_rows(view, vec![("Select", "Remove Decor", None, false)]);
-    crate::panel_lifecycle::bind_close(
+    game_engine_ui_model::panel_lifecycle::bind_close(
         rsx! {r#frame {name:"HouseEditorFrame",stretch:true,
             {modes}{instructions}
         }},

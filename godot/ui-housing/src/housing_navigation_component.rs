@@ -1,8 +1,8 @@
 //! Retail HouseFinder954x490, cornerstone purchase340x320 and bulletin board controls.
 use crate::housing::HousingSurface;
 use crate::housing_component::HousingView;
-use crate::quest_art::{DynName, named_atlas_texture, portrait_border};
-use crate::ui::strata::FrameStrata;
+use game_engine_ui_model::quest_art::{DynName, named_atlas_texture, portrait_border};
+use game_engine_ui_model::ui::strata::FrameStrata;
 use ui_toolkit::{rsx, widget_def::Element};
 
 pub fn neighborhood_location(id: u32) -> &'static str {
@@ -115,7 +115,7 @@ fn portrait_panel(
         "housing-basic-panel-background",
         (0.0, 0.0, size[0], size[1]),
     );
-    crate::panel_lifecycle::bind_close(
+    game_engine_ui_model::panel_lifecycle::bind_close(
         rsx! { r#frame { name: "HousingRoot", stretch: true,
             r#frame { name: {DynName(name.into())}, width: {size[0]}, height: {size[1]},
                 mouse_enabled: true, pos_type: "absolute", left, top, strata: FrameStrata::Dialog,

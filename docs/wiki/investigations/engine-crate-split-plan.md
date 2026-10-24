@@ -97,6 +97,12 @@ UI-model currently uses one `integration` harness plus the separate `active_db2`
 
 Each completed wiring tip gets targeted helper `cargo check -p <new-crate> -p game-engine-godot -j4` and affected behavioral tests; save Cargo dirty-unit receipts. Full-suite execution and final acceptance remain the lead's gate. Measure the same one-line edit again with no-op and restore controls. Reject comparisons if sibling revisions, feature graphs, profiles or source baselines drift.
 
+## Housing pilot implementation
+
+`godot/ui-housing` now owns the 20 Housing modules and the three Housing integration suites. The existing `game-engine-ui-model` remains their shared dependency; native Housing/tooltip/preview callers depend directly on `game-engine-ui-housing`, with no reverse dependency or façade. Only the already-used `quest_art::close_button` helper gains public visibility. Workspace dev profiles, wire/map/tooltip type identities and all test module/function names remain unchanged. Rename-only commit: `8d140c66a`.
+
+Before-move runtime census: 473 ui-model unit names plus 33 Housing integration names. The original integration harness cannot currently compile because its unrelated `dungeonclient.rs` fixture includes missing `data/db2/active/Achievement_Category.csv`; the affected three suites were listed through a temporary same-module-name harness instead, removed before committing. Checks, execution, post-move census and paired timing are pending; no completed pilot or speedup is claimed yet.
+
 ## Baseline edit measurements
 
 [Machine-readable receipts](engine-crate-split-baseline.json) include exact commands, package/target dirtiness, wall/user/system time, dependency pins, Cargo unit timings and raw-log hashes. Host `agent-server`, Rust/Cargo 1.99.0, four jobs, native helper defaults and unchanged profiles/linker. Raw logs, HTML timings, drivers and before/after name lists are archived outside the worktree at `/home/osso/.worktrees/logs/engine-crate-split-baseline-4645578c7/`. No post-split improvement is claimed.

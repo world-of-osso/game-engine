@@ -1,8 +1,8 @@
 //! Retail BasicDecor XML instructions and mode/submode controls. Unsupported modes stay disabled.
 use crate::housing_component::HousingView;
-use crate::quest_art::{DynName, named_atlas_texture, named_atlas_texture_blend};
-use crate::ui::strata::FrameStrata;
 use game_engine_core::input_bindings_data::InputAction;
+use game_engine_ui_model::quest_art::{DynName, named_atlas_texture, named_atlas_texture_blend};
+use game_engine_ui_model::ui::strata::FrameStrata;
 use ui_toolkit::text_measure::measure_text;
 use ui_toolkit::widgets::texture::BlendMode;
 use ui_toolkit::widgets::{button::ButtonState, font_string::GameFont, texture::TextureSource};
@@ -66,7 +66,7 @@ pub fn basic_screen(view: &HousingView) -> Element {
         false,
         Element::default(),
     );
-    crate::panel_lifecycle::bind_close(
+    game_engine_ui_model::panel_lifecycle::bind_close(
         rsx! {r#frame {name:"HouseEditorFrame",stretch:true,
             button {name:"HouseEditorDecorMoveOverlay",stretch:true,hidden:overlay_hidden,strata:FrameStrata::High,mouse_enabled:true,button_default_skin:false}
             {drawer} {modes} {instructions}

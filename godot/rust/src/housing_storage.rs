@@ -1,7 +1,7 @@
 //! Source drawer preferences and bottom-right sizing, never housing authority.
 use crate::GameClient;
-use game_engine_ui_model::housing::HousingSurface;
-use game_engine_ui_model::housing_editor::EditorMode;
+use game_engine_ui_housing::housing::HousingSurface;
+use game_engine_ui_housing::housing_editor::EditorMode;
 use godot::classes::{BaseButton, InputEvent, InputEventMouseButton, InputEventMouseMotion};
 use godot::global::MouseButton;
 use godot::prelude::*;

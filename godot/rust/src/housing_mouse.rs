@@ -1,7 +1,7 @@
 //! Unsnapped Expert mouse manipulation. Only verified Retail 2D control art is drawn.
 use crate::GameClient;
-use game_engine_ui_model::housing::HousingSurface;
-use game_engine_ui_model::housing_editor::{EditorMode, PrecisionSubmode, RotationAxis};
+use game_engine_ui_housing::housing::HousingSurface;
+use game_engine_ui_housing::housing_editor::{EditorMode, PrecisionSubmode, RotationAxis};
 use godot::classes::{InputEvent, InputEventMouseButton, InputEventMouseMotion};
 use godot::global::MouseButton;
 use godot::prelude::*;

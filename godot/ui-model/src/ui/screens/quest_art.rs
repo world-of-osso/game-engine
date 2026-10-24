@@ -522,7 +522,7 @@ fn close_button_offset() -> (f32, f32) {
 }
 
 /// `UIPanelCloseButtonDefaultAnchors`: 24×24 at the skin's TOPRIGHT offset.
-pub(crate) fn close_button(prefix: &str, width: f32, action: &str) -> Element {
+pub fn close_button(prefix: &str, width: f32, action: &str) -> Element {
     let (offset_x, offset_top) = close_button_offset();
     rsx! {
         button {
