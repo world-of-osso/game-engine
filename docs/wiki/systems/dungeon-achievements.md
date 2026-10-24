@@ -2,6 +2,10 @@
 
 Native client consumes copy snapshots and on-demand catalog pages; the server remains authoritative. [Feature contract](../../specs/dungeon-achievements.md).
 
+## Presentation crate ownership
+
+Source `de71748fb`: [rendering](../../../godot/ui-achievements/src/achievements.rs) lives in `game-engine-ui-achievements`;[AchievementWindow/state](../../../godot/ui-model/src/achievements.rs),[comparison page cache](../../../godot/ui-model/src/achievement_comparison.rs),[static ancestry/OnceLock](../../../godot/ui-model/src/achievement_search_catalog.rs),tracker and chat stay base-owned. The approved read-only pending predicate exposes a bool,never the queue. Native UI callers depend on the feature directly;no base façade or reverse dependency. [Exact split census and paired build receipts](../investigations/engine-crate-split-plan.md#achievements-presentation--approved-boundary) qualify427 scoped passes separately from the parent gate and historical native pixel proof below.
+
 ## Header title
 
 `achievement_art::chrome` chooses the installed player/guild GlobalStrings tag from `window.guild`, instead of hardcoding Achievements. Mainline AchievementUI.xml1956–1964/Lua380,398 supplies ACHIEVEMENT_TITLE or GUILD_ACHIEVEMENTS_TITLE; installed CSV rows19040/21254 resolve Warband Achievement Points and Guild Achievements. FontStyles.xml56→Fonts.xml39–43 supplies RomanFriz10 with black(+1,−1) shadow. Existing150×20/(334,−29)/gold/CENTER and points/shield/actions stay unchanged.

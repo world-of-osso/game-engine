@@ -264,7 +264,21 @@ Approved boundaries are only public `has_more_search_results` (original count **
 
 Before `9881aade6`:390 units and37 dungeonclient integration cases,zero ignored. Proposed/executed ownership is one blend unit+27 render integration to feature;one catalog unit+10 model/tracker/chat cases stay base,with all names exact. Original test-local fixture helpers may be shared by copy;no production implementations are copied. Rename-only `57fb9ff98` moves only the three whole pure-view companions. Wiring splits mixed root/comparison rendering while retaining original state/cache bodies and migrates the27-case fixture; no base→feature dependency.
 
-The reversible label before measurement is `"Select a category"`→`"Select a category!"`:41.569s edit,childCPU14.962s,no-op6.625s/zero dirty units,restore28.054s,input restored. Before raw receipts are in `/home/osso/.worktrees/logs/engine-crate-split-achievements-plan-2800d47ec/`. User requires an admitted serialized helper check of **all thirteen packages**,exact after inventories,scoped behavior/fmt,and the paired edit with no wall-speed claim under unequal load. Check/tests/post-cut measurement pending.
+The reversible label before measurement is `"Select a category"`→`"Select a category!"`:41.569s edit,childCPU14.962s,no-op6.625s/zero dirty units,restore28.054s,input restored. Before raw receipts are in `/home/osso/.worktrees/logs/engine-crate-split-achievements-plan-2800d47ec/`. User requires an admitted serialized helper check of **all thirteen packages**,exact after inventories,scoped behavior/fmt,and the paired edit with no wall-speed claim under unequal load. Wiring `15eb1f1ef` initially checks with one unused rendering import; `de71748fb` removes it instead of suppressing it. The requested helper **check of all thirteen workspace packages** then passes with zero diagnostics. Scoped execution passes **389 base units,one feature unit,27 feature integration and ten retained state/tracker/chat cases** (427 total,zero failures/ignored). Exact census conserves **390 = 389 + 1** units and **37 = 27 + 10** integration names;all11 named retained cases remain base. The model's original count-or-cursor predicate and comparison merge ordering remain unchanged.
+
+[Achievements result receipt](engine-crate-split-achievements.json) binds source/census/check/paired-timing receipts;raw post-cut evidence is `/home/osso/.worktrees/logs/engine-crate-split-achievements-de71748fb/`.
+
+| Same reversible category-label edit | Before `2800d47ec` | After `de71748fb` |
+|---|---:|---:|
+| No-op wall | 6.625s | 1.094s |
+| Edit wall | 41.569s | 16.058s |
+| Edit child user+system CPU | 14.962s | 10.290s |
+| Restore wall | 28.054s | 10.975s |
+| Changed base/feature unit | base10.89s | Achievements0.74s |
+| Native unit | 26.44s | 14.73s |
+| Dirty UI crates | base +all six existing features | Achievements only;all seven others fresh |
+
+**No wall-speed claim under unequal shared-host load:**native time changes too. Child CPU is31.2% lower and dependency isolation is proven in this descriptive sample. Normal package feature/profile multisets have zero differences,sibling pins match and edit input is restored. Before warmup1.902s was already fresh;post warmup182.345s is excluded. Parent owns the thirteen-package full gate/push/merge;no new native-runtime acceptance.
 
 ## Baseline edit measurements
 

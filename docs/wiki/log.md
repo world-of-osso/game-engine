@@ -1,3 +1,7 @@
+## 2026-10-24 — Achievements presentation-only split
+
+[Achievements cut](investigations/engine-crate-split-plan.md#achievements-presentation--approved-boundary) before9881aade6/rename-only57fb9ff98/wiring15eb1f1ef/importcleanupde71748fb moves2185existingrenderlines,leavesstate/cache/catalog/tracker/chatbase. Onlyapprovedvisibility andreadonlypendingbool accessor;noqueueexposure/facade/reverseedge. All13packagecheck passes/zero diagnostics;389base+1feature units+27render+10retained cases pass427/0fail/ignored,exact390=389+1/37=27+10 and11retainednames conserved. Category edit41.569→16.058s/CPU14.962→10.290s,onlyfeature+native dirty;native26.44→14.73s,so no wall-speed claim under unequal load. Controls/pins/profiles retained,parent13-package gate separate.
+
 ## 2026-10-24 — PvP presentation split
 
 [PvP cut](investigations/engine-crate-split-plan.md#pvp-presentation-implementation) before5af0fd2ab/rename-onlyb5e1f98e7/wiringcf0cd0eac moves4sources/1702LOC+3dedicated testfiles;one mixed selectioncase moves,3siblings remain base.2peer cross-panel cases retain names through test-only dependency,no productionreverseedge/facade. Check passes/no diagnostics;390units+31feature+2peer+3residual pass (426total0fail/ignored),exact names conserved. Honor edit42.452→15.008s/CPU27.386→8.241s,onlyfeature+native dirty;native32.51→11.88s,so no wall-speed claim under unequal load. Parent12-package gate separate.
