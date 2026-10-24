@@ -391,6 +391,11 @@ External resources and asset lists.
 - [WMO root auxiliary fields](reference/benilla-wmo-root-aux-fields.md) — groups/names, portals, doodads, lights and fog; raw/helper losses and production consumer boundaries.
 - [WMO extension fields](reference/benilla-wmo-extension-fields.md) — individual ambient-volume, dynamic-light, visibility, plane, UV, group-file and doodad-index inputs; opaque spans remain unassigned.
 - [WMO group/liquid/BSP fields](reference/benilla-wmo-group-fields.md) — header, mesh/batch streams, liquid union and distinct native-triangle versus BSP-query consumers; static-only.
+- [ADT MCNK header fields](reference/benilla-adt-header-fields.md) — individual serialized words, raw/cooked losses and offset-qualified Vanilla contrast.
+- [ADT sample/layer fields](reference/benilla-adt-layer-fields.md) — terrain attributes, alpha/texture inputs, animation/effect consumers and bounded shadow/audio gaps.
+- [ADT placement/reference fields](reference/benilla-adt-placement-fields.md) — MDDF/MODF, names, bounds, companion references and doodad-set indirection.
+- [ADT extensions/LOD fields](reference/benilla-adt-extension-fields.md) — blend mesh, flight bounds, lighting/detail masks and modern LOD inputs; opaque words unassigned.
+- [Terrain water/WDT/WDL fields](reference/benilla-terrain-water-fields.md) — MH2O versus legacy MCLQ, map directories and horizon masks; static source evidence.
 - [Benilla asset-field inventory](reference/benilla-asset-field-inventory.md) — pinned M2/WMO/ADT/WDT/WDL/BLP and environment comparison; parsed-but-unbound fields, existing coverage and version-qualified research leads, static evidence only.
 
 - [open-source-wow-clients](reference/open-source-wow-clients.md) — Client/rendering references; Benilla taint/aura boundary; separate source-only 3.3.5a and 4.3.4 audits; no runtime parity established

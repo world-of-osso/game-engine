@@ -32,6 +32,8 @@ Status vocabulary:
 
 [WMO root header/material fields](benilla-wmo-root-fields.md) enumerate MOHD/MOMT inputs, counts and discarded words, shader-specific extra slots and separate terrain-priority consumers. [Root auxiliary fields](benilla-wmo-root-aux-fields.md), [extension fields](benilla-wmo-extension-fields.md) and [group/liquid/BSP fields](benilla-wmo-group-fields.md) add individual records, explicit opaque intervals and actual consumers, including separate native triangle and BSP-query paths. Independent WMO source verification remains open; later formats remain in progress.
 
+[ADT header](benilla-adt-header-fields.md), [samples/layers](benilla-adt-layer-fields.md), [placements/references](benilla-adt-placement-fields.md), [extensions/LOD](benilla-adt-extension-fields.md) and [water/WDT/WDL](benilla-terrain-water-fields.md) expand terrain inputs, including retained effect IDs, native animated UVs, detail-shadow consumers, placement bounds and separate modern water. Independent static field/source verification remains open.
+
 ## 1. Actionable comparison inventory
 
 | ID | Field or behavior | Our current boundary | Benilla reference and transfer limit |

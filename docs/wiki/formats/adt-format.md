@@ -65,6 +65,12 @@ For character-select scenes, the primary tile must be loaded first; sorting the 
 
 ## See Also
 
+- [[benilla-adt-header-fields]] — individual header inputs and version-qualified retention
+- [[benilla-adt-layer-fields]] — samples, layers and actual native consumer boundaries
+- [[benilla-adt-placement-fields]] — placement/reference records and active doodad sets
+- [[benilla-adt-extension-fields]] — remaining recognized root/LOD inputs
+- [[benilla-terrain-water-fields]] — liquids, WDT and WDL individual fields
+
 - [[casc-format]] — how ADT FDIDs are resolved from CASC archives
 - [[wmo-format]] — WMO objects placed via MODF records
 - [[m2-format]] — M2 doodads placed via MDDF records

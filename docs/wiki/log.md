@@ -1,3 +1,7 @@
+## 2026-10-24 — ADT, water and map field expansion
+
+[MCNK header](reference/benilla-adt-header-fields.md), [samples/layers](reference/benilla-adt-layer-fields.md), [placements/references](reference/benilla-adt-placement-fields.md), [extensions/LOD](reference/benilla-adt-extension-fields.md) and [water/WDT/WDL](reference/benilla-terrain-water-fields.md) enumerate individual source inputs and projection losses. Effect IDs, animated UVs, detail shadows, placement bounds, modern water and horizon-mask face reordering have located consumers. Static-only; independent field/source verification remains open.
+
 ## 2026-10-24 — WMO individual-field expansion
 
 [Root auxiliary](reference/benilla-wmo-root-aux-fields.md), [extensions](reference/benilla-wmo-extension-fields.md) and [group/liquid/BSP](reference/benilla-wmo-group-fields.md) worksheets distinguish raw records, helper projections, opaque intervals and production consumers. Modern ambient/doodad inputs, MOC2 and BSP-query support are present; no runtime/visual compatibility claim. Independent static source verification remains open.
