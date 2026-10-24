@@ -45,6 +45,8 @@ func run_chat() -> bool:
 	await press("CommunitiesChatTab")
 	if not await wait_until(func(): return shown("CommunitiesChatEditBox"), "guild composer"):
 		return false
+	if not check_chat_geometry():
+		return false
 	mark("ready")
 	if not await other("ready"):
 		return false
@@ -55,6 +57,23 @@ func run_chat() -> bool:
 	if not await privacy_denial():
 		return false
 	return await history_open()
+
+func check_chat_geometry() -> bool:
+	var frame := control("CommunitiesFrame").get_global_rect()
+	var scale := frame.size.x / 814.0
+	var expected := {
+		"CommunitiesChatMessageFrame": Rect2(201, 67, 390, 303),
+		"CommunitiesChatEditBox": Rect2(197, 374, 397, 32),
+		"CommunitiesStreamDropdown": Rect2(195, 31, 160, 25),
+		"CommunitiesChatMemberList": Rect2(623, 63, 165, 335),
+	}
+	for name in expected:
+		var source: Rect2 = expected[name]
+		var actual := control(name).get_global_rect()
+		var scaled := Rect2(frame.position + source.position * scale, source.size * scale)
+		if not actual.is_equal_approx(scaled):
+			return fail("Actual native source rectangle %s: %s expected %s" % [name, actual, scaled])
+	return true
 
 func guild_delivery() -> bool:
 	if actor == "leader":

@@ -167,7 +167,7 @@ fn guild_chat_speak_only_officer_can_send_but_cannot_read_and_limits_are_bytes()
 }
 
 #[test]
-fn guild_chat_paints_only_selected_actual_stream_and_source_geometry_both_skins() {
+fn guild_chat_paints_only_selected_actual_stream_both_skins() {
     let _lock = SKIN.lock().unwrap_or_else(|p| p.into_inner());
     for skin in [ActiveSkin::Modern, ActiveSkin::Forever] {
         set_thread_skin(skin);
@@ -194,26 +194,6 @@ fn guild_chat_paints_only_selected_actual_stream_and_source_geometry_both_skins(
             text(&registry, "CommunitiesChatMessage0"),
             "[Cara]: Guild run"
         );
-        for (name, rect) in [
-            ("CommunitiesChatMessageFrame", [754.0, 394.0, 390.0, 303.0]),
-            ("CommunitiesChatEditBox", [750.0, 701.0, 397.0, 32.0]),
-        ] {
-            let actual = registry
-                .get(registry.get_by_name(name).unwrap())
-                .unwrap()
-                .layout_rect
-                .as_ref()
-                .unwrap();
-            for (value, expected) in [actual.x, actual.y, actual.width, actual.height]
-                .into_iter()
-                .zip(rect)
-            {
-                assert!(
-                    (value - expected).abs() < 0.01,
-                    "{skin:?} {name}: {actual:?}"
-                );
-            }
-        }
         session.click("guild:chat_officer", &Default::default());
         let registry = mounted(&session);
         assert_eq!(
