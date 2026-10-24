@@ -1,0 +1,959 @@
+{
+  "source_revision": "4645578c7cf2eeb9afb712258c04faf57df53f7b",
+  "graph_generation_revision": "4640c228d",
+  "host": "agent-server",
+  "toolchain": "rustc 1.99.0 (b940084d7 2026-09-28) (Arch Linux rust 1:1.99.0-1)",
+  "jobs": 4,
+  "tmpdir": "/var/tmp/osso",
+  "capacity_id": "lead_esplit_15135",
+  "raw_archive": "/home/osso/.worktrees/logs/engine-crate-split-baseline-4645578c7",
+  "ui_lib_test_census": {
+    "enabled": 473,
+    "ignored": 0,
+    "before_after_names_identical": true,
+    "executed": false
+  },
+  "runtime_diff_empty": true,
+  "measurements": [
+    {
+      "label": "cold-build",
+      "helper": "depot.build(native)",
+      "command": [
+        "build",
+        "-p",
+        "game-engine-godot",
+        "--lib",
+        "-j4",
+        "--message-format=json",
+        "--timings"
+      ],
+      "wall_s": 812.0856257348787,
+      "user_s": 2685.927959,
+      "system_s": 103.900352,
+      "exit": 0,
+      "dependencies_before": {
+        "asset-resolver": "da1a0edb1248fb6666ed358c71b8ecb6e36ca526",
+        "ui-toolkit": "544b9fcef9001d27e3842cc2bb94c928b8ac97e6",
+        "ui-toolkit-macros": "645c0b88f65204ede9b9605faf2e84e89a82bcc2",
+        "shared-protocol": "2abc7fa844f6e71d93203ce5421ae853e884854d"
+      },
+      "dependencies_after": {
+        "asset-resolver": "da1a0edb1248fb6666ed358c71b8ecb6e36ca526",
+        "ui-toolkit": "544b9fcef9001d27e3842cc2bb94c928b8ac97e6",
+        "ui-toolkit-macros": "645c0b88f65204ede9b9605faf2e84e89a82bcc2",
+        "shared-protocol": "2abc7fa844f6e71d93203ce5421ae853e884854d"
+      },
+      "dirty_unit_count": 307,
+      "log_sha256": "9002ab18b40a20e28011dcafe29a8ae2d8eb29ee765f2eceb6ea2fac8a8a972e",
+      "timing_html": "cargo-timings/cargo-timing-20261024T015437541Z-30b50b5d2a71bae4.html"
+    },
+    {
+      "label": "cold-check",
+      "command": [
+        "depot.native_cargo",
+        "check",
+        "-p",
+        "game-engine-godot",
+        "--lib",
+        "-j4",
+        "--message-format=json",
+        "--timings"
+      ],
+      "wall_s": 395.47139050997794,
+      "user_s": 1214.6970589999999,
+      "system_s": 98.096048,
+      "exit": 0,
+      "dirty_unit_count": 621,
+      "log_sha256": "a6cf229ecc3e3db1e69f82cef2a5a17482cc324a0a38f616550a7b1700b0c6fc",
+      "timing_html": "cargo-timings/cargo-timing-20261024T013516198Z-30b50b5d2a71bae4.html"
+    },
+    {
+      "label": "cold-test",
+      "helper": "depot.run_tests_native",
+      "command": [
+        "test",
+        "-p",
+        "game-engine-ui-model",
+        "--lib",
+        "--no-run",
+        "-j4",
+        "--message-format=json",
+        "--timings"
+      ],
+      "wall_s": 530.1326663200743,
+      "user_s": 1835.1098180000001,
+      "system_s": 38.467527,
+      "exit": 0,
+      "dependencies_before": {
+        "asset-resolver": "da1a0edb1248fb6666ed358c71b8ecb6e36ca526",
+        "ui-toolkit": "544b9fcef9001d27e3842cc2bb94c928b8ac97e6",
+        "ui-toolkit-macros": "645c0b88f65204ede9b9605faf2e84e89a82bcc2",
+        "shared-protocol": "2abc7fa844f6e71d93203ce5421ae853e884854d"
+      },
+      "dependencies_after": {
+        "asset-resolver": "da1a0edb1248fb6666ed358c71b8ecb6e36ca526",
+        "ui-toolkit": "544b9fcef9001d27e3842cc2bb94c928b8ac97e6",
+        "ui-toolkit-macros": "645c0b88f65204ede9b9605faf2e84e89a82bcc2",
+        "shared-protocol": "2abc7fa844f6e71d93203ce5421ae853e884854d"
+      },
+      "dirty_unit_count": 116,
+      "log_sha256": "1d2c7bfd97832f1bfb131d7ce92e3649592030b9dc6e5c6e44b9d24a83adf9f6",
+      "timing_html": "cargo-timings/cargo-timing-20261024T021721780Z-30b50b5d2a71bae4.html"
+    },
+    {
+      "label": "native-edit-build-restore",
+      "helper": "depot.build(native)",
+      "command": [
+        "build",
+        "-p",
+        "game-engine-godot",
+        "--lib",
+        "-j4",
+        "--message-format=json",
+        "--timings"
+      ],
+      "wall_s": 43.985564838163555,
+      "user_s": 91.10182699999996,
+      "system_s": 8.203327999999999,
+      "exit": 0,
+      "dirty_units": [
+        {
+          "package": "path+file:///home/osso/.cache/game-engine/native-roots/ed6da6aa056a8a9bf29d-d19212ff8350/game-engine/godot/rust#game-engine-godot@0.1.0",
+          "target": "game_engine_godot",
+          "kind": [
+            "cdylib",
+            "rlib"
+          ],
+          "test": false,
+          "executable": null
+        }
+      ],
+      "dependencies_before": {
+        "asset-resolver": "da1a0edb1248fb6666ed358c71b8ecb6e36ca526",
+        "ui-toolkit": "544b9fcef9001d27e3842cc2bb94c928b8ac97e6",
+        "ui-toolkit-macros": "645c0b88f65204ede9b9605faf2e84e89a82bcc2",
+        "shared-protocol": "2abc7fa844f6e71d93203ce5421ae853e884854d"
+      },
+      "dependencies_after": {
+        "asset-resolver": "da1a0edb1248fb6666ed358c71b8ecb6e36ca526",
+        "ui-toolkit": "544b9fcef9001d27e3842cc2bb94c928b8ac97e6",
+        "ui-toolkit-macros": "645c0b88f65204ede9b9605faf2e84e89a82bcc2",
+        "shared-protocol": "2abc7fa844f6e71d93203ce5421ae853e884854d"
+      },
+      "dirty_unit_count": 1,
+      "log_sha256": "638e42a7cc5848c590e2b91e7dda2d645f72554fe9312e3bac5daea8e8d97377",
+      "cargo_units": [
+        {
+          "i": 212,
+          "name": "game-engine-godot",
+          "version": "0.1.0",
+          "mode": "todo",
+          "target": "",
+          "features": [],
+          "start": 1.23,
+          "duration": 42.39,
+          "unblocked_units": [],
+          "unblocked_rmeta_units": [],
+          "sections": null
+        }
+      ],
+      "timing_html": "cargo-timings/cargo-timing-20261024T021605325Z-30b50b5d2a71bae4.html"
+    },
+    {
+      "label": "native-edit-build",
+      "helper": "depot.build(native)",
+      "command": [
+        "build",
+        "-p",
+        "game-engine-godot",
+        "--lib",
+        "-j4",
+        "--message-format=json",
+        "--timings"
+      ],
+      "wall_s": 56.0765586940106,
+      "user_s": 95.9436310000001,
+      "system_s": 6.099119000000002,
+      "exit": 0,
+      "dirty_units": [
+        {
+          "package": "path+file:///home/osso/.cache/game-engine/native-roots/ed6da6aa056a8a9bf29d-d19212ff8350/game-engine/godot/rust#game-engine-godot@0.1.0",
+          "target": "game_engine_godot",
+          "kind": [
+            "cdylib",
+            "rlib"
+          ],
+          "test": false,
+          "executable": null
+        }
+      ],
+      "dependencies_before": {
+        "asset-resolver": "da1a0edb1248fb6666ed358c71b8ecb6e36ca526",
+        "ui-toolkit": "544b9fcef9001d27e3842cc2bb94c928b8ac97e6",
+        "ui-toolkit-macros": "645c0b88f65204ede9b9605faf2e84e89a82bcc2",
+        "shared-protocol": "2abc7fa844f6e71d93203ce5421ae853e884854d"
+      },
+      "dependencies_after": {
+        "asset-resolver": "da1a0edb1248fb6666ed358c71b8ecb6e36ca526",
+        "ui-toolkit": "544b9fcef9001d27e3842cc2bb94c928b8ac97e6",
+        "ui-toolkit-macros": "645c0b88f65204ede9b9605faf2e84e89a82bcc2",
+        "shared-protocol": "2abc7fa844f6e71d93203ce5421ae853e884854d"
+      },
+      "dirty_unit_count": 1,
+      "log_sha256": "82d385879098ed5720368a7842e82e41d8be405eca3d2b21a5ea48016c368ff2",
+      "cargo_units": [
+        {
+          "i": 212,
+          "name": "game-engine-godot",
+          "version": "0.1.0",
+          "mode": "todo",
+          "target": "",
+          "features": [],
+          "start": 1.45,
+          "duration": 54.51,
+          "unblocked_units": [],
+          "unblocked_rmeta_units": [],
+          "sections": null
+        }
+      ],
+      "timing_html": "cargo-timings/cargo-timing-20261024T021437869Z-30b50b5d2a71bae4.html"
+    },
+    {
+      "label": "native-edit-check-restore",
+      "command": [
+        "depot.native_cargo",
+        "check",
+        "-p",
+        "game-engine-godot",
+        "--lib",
+        "-j4",
+        "--message-format=json",
+        "--timings"
+      ],
+      "wall_s": 4.426985116908327,
+      "user_s": 3.2278939999998784,
+      "system_s": 0.4515480000000025,
+      "exit": 0,
+      "dirty_units": [
+        {
+          "package": "path+file:///home/osso/.cache/game-engine/native-roots/ed6da6aa056a8a9bf29d-d19212ff8350/game-engine/godot/rust#game-engine-godot@0.1.0",
+          "target": "game_engine_godot",
+          "kind": [
+            "cdylib",
+            "rlib"
+          ]
+        }
+      ],
+      "dirty_unit_count": 1,
+      "log_sha256": "bdbf0acd6a98c749e4b01eab857ebaa39b60b8c4f588f964fe3a49f9546bb93a",
+      "cargo_units": [
+        {
+          "i": 223,
+          "name": "game-engine-godot",
+          "version": "0.1.0",
+          "mode": "todo",
+          "target": " (check)",
+          "features": [],
+          "start": 0.43,
+          "duration": 3.93,
+          "unblocked_units": [],
+          "unblocked_rmeta_units": [],
+          "sections": [
+            [
+              "frontend",
+              {
+                "start": 0.0,
+                "end": 3.27
+              }
+            ],
+            [
+              "codegen",
+              {
+                "start": 3.27,
+                "end": 3.93
+              }
+            ]
+          ]
+        }
+      ],
+      "timing_html": "cargo-timings/cargo-timing-20261024T015054092Z-30b50b5d2a71bae4.html"
+    },
+    {
+      "label": "native-edit-check",
+      "command": [
+        "depot.native_cargo",
+        "check",
+        "-p",
+        "game-engine-godot",
+        "--lib",
+        "-j4",
+        "--message-format=json",
+        "--timings"
+      ],
+      "wall_s": 5.4232846279628575,
+      "user_s": 4.180749000000105,
+      "system_s": 0.6246950000000027,
+      "exit": 0,
+      "dirty_units": [
+        {
+          "package": "path+file:///home/osso/.cache/game-engine/native-roots/ed6da6aa056a8a9bf29d-d19212ff8350/game-engine/godot/rust#game-engine-godot@0.1.0",
+          "target": "game_engine_godot",
+          "kind": [
+            "cdylib",
+            "rlib"
+          ]
+        }
+      ],
+      "dirty_unit_count": 1,
+      "log_sha256": "1d92adcc1ce79f9b0448c4f06f955a3ea6f70639bbeb5cefde0597c3fbbcd762",
+      "cargo_units": [
+        {
+          "i": 223,
+          "name": "game-engine-godot",
+          "version": "0.1.0",
+          "mode": "todo",
+          "target": " (check)",
+          "features": [],
+          "start": 0.83,
+          "duration": 4.51,
+          "unblocked_units": [],
+          "unblocked_rmeta_units": [],
+          "sections": [
+            [
+              "frontend",
+              {
+                "start": 0.0,
+                "end": 4.06
+              }
+            ],
+            [
+              "codegen",
+              {
+                "start": 4.06,
+                "end": 4.51
+              }
+            ]
+          ]
+        }
+      ],
+      "timing_html": "cargo-timings/cargo-timing-20261024T015018531Z-30b50b5d2a71bae4.html"
+    },
+    {
+      "label": "noop-build",
+      "helper": "depot.build(native)",
+      "command": [
+        "build",
+        "-p",
+        "game-engine-godot",
+        "--lib",
+        "-j4",
+        "--message-format=json",
+        "--timings"
+      ],
+      "wall_s": 0.9536328630056232,
+      "user_s": 0.3931750000001557,
+      "system_s": 0.16909900000000277,
+      "exit": 0,
+      "dirty_units": [],
+      "dependencies_before": {
+        "asset-resolver": "da1a0edb1248fb6666ed358c71b8ecb6e36ca526",
+        "ui-toolkit": "544b9fcef9001d27e3842cc2bb94c928b8ac97e6",
+        "ui-toolkit-macros": "645c0b88f65204ede9b9605faf2e84e89a82bcc2",
+        "shared-protocol": "2abc7fa844f6e71d93203ce5421ae853e884854d"
+      },
+      "dependencies_after": {
+        "asset-resolver": "da1a0edb1248fb6666ed358c71b8ecb6e36ca526",
+        "ui-toolkit": "544b9fcef9001d27e3842cc2bb94c928b8ac97e6",
+        "ui-toolkit-macros": "645c0b88f65204ede9b9605faf2e84e89a82bcc2",
+        "shared-protocol": "2abc7fa844f6e71d93203ce5421ae853e884854d"
+      },
+      "dirty_unit_count": 0,
+      "log_sha256": "445808f84a5fccf58f8a525b1470564d237da7cee3ad754bc2426a2a283ad5fc",
+      "cargo_units": [],
+      "timing_html": "cargo-timings/cargo-timing-20261024T021009924Z-30b50b5d2a71bae4.html"
+    },
+    {
+      "label": "noop-check",
+      "command": [
+        "depot.native_cargo",
+        "check",
+        "-p",
+        "game-engine-godot",
+        "--lib",
+        "-j4",
+        "--message-format=json",
+        "--timings"
+      ],
+      "wall_s": 1.0402612758334726,
+      "user_s": 0.42302700000004734,
+      "system_s": 0.16961299999999824,
+      "exit": 0,
+      "dirty_units": [],
+      "dirty_unit_count": 0,
+      "log_sha256": "6a5a4ca7db71f1f4f935deba091194d08e62f6a7479b5d84966a17099c1a0d94",
+      "cargo_units": [],
+      "timing_html": "cargo-timings/cargo-timing-20261024T014522299Z-30b50b5d2a71bae4.html"
+    },
+    {
+      "label": "noop-test",
+      "helper": "depot.run_tests_native",
+      "command": [
+        "test",
+        "-p",
+        "game-engine-ui-model",
+        "--lib",
+        "--no-run",
+        "-j4",
+        "--message-format=json",
+        "--timings"
+      ],
+      "wall_s": 0.9954356011003256,
+      "user_s": 0.38873000000012325,
+      "system_s": 0.15757500000000135,
+      "exit": 0,
+      "dirty_units": [],
+      "dependencies_before": {
+        "asset-resolver": "da1a0edb1248fb6666ed358c71b8ecb6e36ca526",
+        "ui-toolkit": "544b9fcef9001d27e3842cc2bb94c928b8ac97e6",
+        "ui-toolkit-macros": "645c0b88f65204ede9b9605faf2e84e89a82bcc2",
+        "shared-protocol": "2abc7fa844f6e71d93203ce5421ae853e884854d"
+      },
+      "dependencies_after": {
+        "asset-resolver": "da1a0edb1248fb6666ed358c71b8ecb6e36ca526",
+        "ui-toolkit": "544b9fcef9001d27e3842cc2bb94c928b8ac97e6",
+        "ui-toolkit-macros": "645c0b88f65204ede9b9605faf2e84e89a82bcc2",
+        "shared-protocol": "2abc7fa844f6e71d93203ce5421ae853e884854d"
+      },
+      "dirty_unit_count": 0,
+      "log_sha256": "f0d8d9a201c733f93cf540ff2e91522e928c26534e4c96e5ec8dd3ed3933170e",
+      "cargo_units": [],
+      "timing_html": "cargo-timings/cargo-timing-20261024T022943058Z-30b50b5d2a71bae4.html"
+    },
+    {
+      "label": "ui-edit-build-restore",
+      "helper": "depot.build(native)",
+      "command": [
+        "build",
+        "-p",
+        "game-engine-godot",
+        "--lib",
+        "-j4",
+        "--message-format=json",
+        "--timings"
+      ],
+      "wall_s": 27.35544665181078,
+      "user_s": 13.585223000000042,
+      "system_s": 2.9594799999999992,
+      "exit": 0,
+      "dirty_units": [
+        {
+          "package": "path+file:///home/osso/.cache/game-engine/native-roots/ed6da6aa056a8a9bf29d-d19212ff8350/game-engine/godot/ui-model#game-engine-ui-model@0.1.0",
+          "target": "game_engine_ui_model",
+          "kind": [
+            "lib"
+          ],
+          "test": false,
+          "executable": null
+        },
+        {
+          "package": "path+file:///home/osso/.cache/game-engine/native-roots/ed6da6aa056a8a9bf29d-d19212ff8350/game-engine/godot/rust#game-engine-godot@0.1.0",
+          "target": "game_engine_godot",
+          "kind": [
+            "cdylib",
+            "rlib"
+          ],
+          "test": false,
+          "executable": null
+        }
+      ],
+      "dependencies_before": {
+        "asset-resolver": "da1a0edb1248fb6666ed358c71b8ecb6e36ca526",
+        "ui-toolkit": "544b9fcef9001d27e3842cc2bb94c928b8ac97e6",
+        "ui-toolkit-macros": "645c0b88f65204ede9b9605faf2e84e89a82bcc2",
+        "shared-protocol": "2abc7fa844f6e71d93203ce5421ae853e884854d"
+      },
+      "dependencies_after": {
+        "asset-resolver": "da1a0edb1248fb6666ed358c71b8ecb6e36ca526",
+        "ui-toolkit": "544b9fcef9001d27e3842cc2bb94c928b8ac97e6",
+        "ui-toolkit-macros": "645c0b88f65204ede9b9605faf2e84e89a82bcc2",
+        "shared-protocol": "2abc7fa844f6e71d93203ce5421ae853e884854d"
+      },
+      "dirty_unit_count": 2,
+      "log_sha256": "3172aac6feb87c775151d261d45b1dd52b0a9d12ec9c7f44d073032b65075233",
+      "cargo_units": [
+        {
+          "i": 215,
+          "name": "game-engine-ui-model",
+          "version": "0.1.0",
+          "mode": "todo",
+          "target": "",
+          "features": [],
+          "start": 3.9,
+          "duration": 8.83,
+          "unblocked_units": [
+            212
+          ],
+          "unblocked_rmeta_units": [],
+          "sections": [
+            [
+              "frontend",
+              {
+                "start": 0.0,
+                "end": 6.18
+              }
+            ],
+            [
+              "codegen",
+              {
+                "start": 6.18,
+                "end": 8.83
+              }
+            ]
+          ]
+        },
+        {
+          "i": 212,
+          "name": "game-engine-godot",
+          "version": "0.1.0",
+          "mode": "todo",
+          "target": "",
+          "features": [],
+          "start": 12.73,
+          "duration": 14.39,
+          "unblocked_units": [],
+          "unblocked_rmeta_units": [],
+          "sections": null
+        }
+      ],
+      "timing_html": "cargo-timings/cargo-timing-20261024T021340395Z-30b50b5d2a71bae4.html"
+    },
+    {
+      "label": "ui-edit-build",
+      "helper": "depot.build(native)",
+      "command": [
+        "build",
+        "-p",
+        "game-engine-godot",
+        "--lib",
+        "-j4",
+        "--message-format=json",
+        "--timings"
+      ],
+      "wall_s": 58.25772122293711,
+      "user_s": 12.968217999999979,
+      "system_s": 2.858328,
+      "exit": 0,
+      "dirty_units": [
+        {
+          "package": "path+file:///home/osso/.cache/game-engine/native-roots/ed6da6aa056a8a9bf29d-d19212ff8350/game-engine/godot/ui-model#game-engine-ui-model@0.1.0",
+          "target": "game_engine_ui_model",
+          "kind": [
+            "lib"
+          ],
+          "test": false,
+          "executable": null
+        },
+        {
+          "package": "path+file:///home/osso/.cache/game-engine/native-roots/ed6da6aa056a8a9bf29d-d19212ff8350/game-engine/godot/rust#game-engine-godot@0.1.0",
+          "target": "game_engine_godot",
+          "kind": [
+            "cdylib",
+            "rlib"
+          ],
+          "test": false,
+          "executable": null
+        }
+      ],
+      "dependencies_before": {
+        "asset-resolver": "da1a0edb1248fb6666ed358c71b8ecb6e36ca526",
+        "ui-toolkit": "544b9fcef9001d27e3842cc2bb94c928b8ac97e6",
+        "ui-toolkit-macros": "645c0b88f65204ede9b9605faf2e84e89a82bcc2",
+        "shared-protocol": "2abc7fa844f6e71d93203ce5421ae853e884854d"
+      },
+      "dependencies_after": {
+        "asset-resolver": "da1a0edb1248fb6666ed358c71b8ecb6e36ca526",
+        "ui-toolkit": "544b9fcef9001d27e3842cc2bb94c928b8ac97e6",
+        "ui-toolkit-macros": "645c0b88f65204ede9b9605faf2e84e89a82bcc2",
+        "shared-protocol": "2abc7fa844f6e71d93203ce5421ae853e884854d"
+      },
+      "dirty_unit_count": 2,
+      "log_sha256": "6b6a3c8b3012791d885d34d154095e5556502bb74cde75086b30887acb764e30",
+      "cargo_units": [
+        {
+          "i": 215,
+          "name": "game-engine-ui-model",
+          "version": "0.1.0",
+          "mode": "todo",
+          "target": "",
+          "features": [],
+          "start": 1.53,
+          "duration": 23.55,
+          "unblocked_units": [
+            212
+          ],
+          "unblocked_rmeta_units": [],
+          "sections": [
+            [
+              "frontend",
+              {
+                "start": 0.0,
+                "end": 16.57
+              }
+            ],
+            [
+              "codegen",
+              {
+                "start": 16.57,
+                "end": 23.55
+              }
+            ]
+          ]
+        },
+        {
+          "i": 212,
+          "name": "game-engine-godot",
+          "version": "0.1.0",
+          "mode": "todo",
+          "target": "",
+          "features": [],
+          "start": 25.08,
+          "duration": 33.0,
+          "unblocked_units": [],
+          "unblocked_rmeta_units": [],
+          "sections": null
+        }
+      ],
+      "timing_html": "cargo-timings/cargo-timing-20261024T021211476Z-30b50b5d2a71bae4.html"
+    },
+    {
+      "label": "ui-edit-check-restore",
+      "command": [
+        "depot.native_cargo",
+        "check",
+        "-p",
+        "game-engine-godot",
+        "--lib",
+        "-j4",
+        "--message-format=json",
+        "--timings"
+      ],
+      "wall_s": 10.992896876996383,
+      "user_s": 6.779198000000179,
+      "system_s": 1.035314999999997,
+      "exit": 0,
+      "dirty_units": [
+        {
+          "package": "path+file:///home/osso/.cache/game-engine/native-roots/ed6da6aa056a8a9bf29d-d19212ff8350/game-engine/godot/ui-model#game-engine-ui-model@0.1.0",
+          "target": "game_engine_ui_model",
+          "kind": [
+            "lib"
+          ]
+        },
+        {
+          "package": "path+file:///home/osso/.cache/game-engine/native-roots/ed6da6aa056a8a9bf29d-d19212ff8350/game-engine/godot/rust#game-engine-godot@0.1.0",
+          "target": "game_engine_godot",
+          "kind": [
+            "cdylib",
+            "rlib"
+          ]
+        }
+      ],
+      "dirty_unit_count": 2,
+      "log_sha256": "b907e328ac7f6d8c7fc22d53697bc72587c51ccd34df18c9daaade7a854cecfa",
+      "cargo_units": [
+        {
+          "i": 226,
+          "name": "game-engine-ui-model",
+          "version": "0.1.0",
+          "mode": "todo",
+          "target": " (check)",
+          "features": [],
+          "start": 1.2,
+          "duration": 4.63,
+          "unblocked_units": [
+            223
+          ],
+          "unblocked_rmeta_units": [],
+          "sections": [
+            [
+              "frontend",
+              {
+                "start": 0.0,
+                "end": 3.87
+              }
+            ],
+            [
+              "codegen",
+              {
+                "start": 3.87,
+                "end": 4.63
+              }
+            ]
+          ]
+        },
+        {
+          "i": 223,
+          "name": "game-engine-godot",
+          "version": "0.1.0",
+          "mode": "todo",
+          "target": " (check)",
+          "features": [],
+          "start": 5.84,
+          "duration": 5.08,
+          "unblocked_units": [],
+          "unblocked_rmeta_units": [],
+          "sections": [
+            [
+              "frontend",
+              {
+                "start": 0.0,
+                "end": 3.93
+              }
+            ],
+            [
+              "codegen",
+              {
+                "start": 3.93,
+                "end": 5.08
+              }
+            ]
+          ]
+        }
+      ],
+      "timing_html": "cargo-timings/cargo-timing-20261024T014937211Z-30b50b5d2a71bae4.html"
+    },
+    {
+      "label": "ui-edit-check",
+      "command": [
+        "depot.native_cargo",
+        "check",
+        "-p",
+        "game-engine-godot",
+        "--lib",
+        "-j4",
+        "--message-format=json",
+        "--timings"
+      ],
+      "wall_s": 13.122112101875246,
+      "user_s": 9.98762499999998,
+      "system_s": 1.8990590000000083,
+      "exit": 0,
+      "dirty_units": [
+        {
+          "package": "path+file:///home/osso/.cache/game-engine/native-roots/ed6da6aa056a8a9bf29d-d19212ff8350/game-engine/godot/ui-model#game-engine-ui-model@0.1.0",
+          "target": "game_engine_ui_model",
+          "kind": [
+            "lib"
+          ]
+        },
+        {
+          "package": "path+file:///home/osso/.cache/game-engine/native-roots/ed6da6aa056a8a9bf29d-d19212ff8350/game-engine/godot/rust#game-engine-godot@0.1.0",
+          "target": "game_engine_godot",
+          "kind": [
+            "cdylib",
+            "rlib"
+          ]
+        }
+      ],
+      "dirty_unit_count": 2,
+      "log_sha256": "d67033664bc57ec2a33a173018f8980379ef89188715133ecb9bc99502d606c2",
+      "cargo_units": [
+        {
+          "i": 226,
+          "name": "game-engine-ui-model",
+          "version": "0.1.0",
+          "mode": "todo",
+          "target": " (check)",
+          "features": [],
+          "start": 0.45,
+          "duration": 5.65,
+          "unblocked_units": [
+            223
+          ],
+          "unblocked_rmeta_units": [],
+          "sections": [
+            [
+              "frontend",
+              {
+                "start": 0.0,
+                "end": 5.12
+              }
+            ],
+            [
+              "codegen",
+              {
+                "start": 5.12,
+                "end": 5.65
+              }
+            ]
+          ]
+        },
+        {
+          "i": 223,
+          "name": "game-engine-godot",
+          "version": "0.1.0",
+          "mode": "todo",
+          "target": " (check)",
+          "features": [],
+          "start": 6.09,
+          "duration": 6.86,
+          "unblocked_units": [],
+          "unblocked_rmeta_units": [],
+          "sections": [
+            [
+              "frontend",
+              {
+                "start": 0.0,
+                "end": 5.95
+              }
+            ],
+            [
+              "codegen",
+              {
+                "start": 5.95,
+                "end": 6.86
+              }
+            ]
+          ]
+        }
+      ],
+      "timing_html": "cargo-timings/cargo-timing-20261024T014553476Z-30b50b5d2a71bae4.html"
+    },
+    {
+      "label": "ui-edit-test-restore",
+      "helper": "depot.run_tests_native",
+      "command": [
+        "test",
+        "-p",
+        "game-engine-ui-model",
+        "--lib",
+        "--no-run",
+        "-j4",
+        "--message-format=json",
+        "--timings"
+      ],
+      "wall_s": 6.534671906847507,
+      "user_s": 4.287150999999994,
+      "system_s": 0.8394099999999938,
+      "exit": 0,
+      "dirty_units": [
+        {
+          "package": "path+file:///home/osso/.cache/game-engine/native-roots/ed6da6aa056a8a9bf29d-d19212ff8350/game-engine/godot/ui-model#game-engine-ui-model@0.1.0",
+          "target": "game_engine_ui_model",
+          "kind": [
+            "lib"
+          ],
+          "test": true,
+          "executable": "/home/osso/.worktrees/game-engine-crate-split/target/debug/deps/game_engine_ui_model-e5bc19f7de03be8a"
+        }
+      ],
+      "dependencies_before": {
+        "asset-resolver": "da1a0edb1248fb6666ed358c71b8ecb6e36ca526",
+        "ui-toolkit": "544b9fcef9001d27e3842cc2bb94c928b8ac97e6",
+        "ui-toolkit-macros": "645c0b88f65204ede9b9605faf2e84e89a82bcc2",
+        "shared-protocol": "2abc7fa844f6e71d93203ce5421ae853e884854d"
+      },
+      "dependencies_after": {
+        "asset-resolver": "da1a0edb1248fb6666ed358c71b8ecb6e36ca526",
+        "ui-toolkit": "544b9fcef9001d27e3842cc2bb94c928b8ac97e6",
+        "ui-toolkit-macros": "645c0b88f65204ede9b9605faf2e84e89a82bcc2",
+        "shared-protocol": "2abc7fa844f6e71d93203ce5421ae853e884854d"
+      },
+      "dirty_unit_count": 1,
+      "log_sha256": "adc7ea6fd85920a69665e00fccdf652268f66f6eeffafc0db8a5ecf4160b698a",
+      "cargo_units": [
+        {
+          "i": 156,
+          "name": "game-engine-ui-model",
+          "version": "0.1.0",
+          "mode": "todo",
+          "target": " game_engine_ui_model \"lib\" (test)",
+          "features": [],
+          "start": 0.51,
+          "duration": 5.95,
+          "unblocked_units": [],
+          "unblocked_rmeta_units": [],
+          "sections": null
+        }
+      ],
+      "timing_html": "cargo-timings/cargo-timing-20261024T023059157Z-30b50b5d2a71bae4.html"
+    },
+    {
+      "label": "ui-edit-test",
+      "helper": "depot.run_tests_native",
+      "command": [
+        "test",
+        "-p",
+        "game-engine-ui-model",
+        "--lib",
+        "--no-run",
+        "-j4",
+        "--message-format=json",
+        "--timings"
+      ],
+      "wall_s": 14.680067186942324,
+      "user_s": 5.368549999999914,
+      "system_s": 0.8499359999999996,
+      "exit": 0,
+      "dirty_units": [
+        {
+          "package": "path+file:///home/osso/.cache/game-engine/native-roots/ed6da6aa056a8a9bf29d-d19212ff8350/game-engine/godot/ui-model#game-engine-ui-model@0.1.0",
+          "target": "game_engine_ui_model",
+          "kind": [
+            "lib"
+          ],
+          "test": true,
+          "executable": "/home/osso/.worktrees/game-engine-crate-split/target/debug/deps/game_engine_ui_model-e5bc19f7de03be8a"
+        }
+      ],
+      "dependencies_before": {
+        "asset-resolver": "da1a0edb1248fb6666ed358c71b8ecb6e36ca526",
+        "ui-toolkit": "544b9fcef9001d27e3842cc2bb94c928b8ac97e6",
+        "ui-toolkit-macros": "645c0b88f65204ede9b9605faf2e84e89a82bcc2",
+        "shared-protocol": "2abc7fa844f6e71d93203ce5421ae853e884854d"
+      },
+      "dependencies_after": {
+        "asset-resolver": "da1a0edb1248fb6666ed358c71b8ecb6e36ca526",
+        "ui-toolkit": "544b9fcef9001d27e3842cc2bb94c928b8ac97e6",
+        "ui-toolkit-macros": "645c0b88f65204ede9b9605faf2e84e89a82bcc2",
+        "shared-protocol": "2abc7fa844f6e71d93203ce5421ae853e884854d"
+      },
+      "dirty_unit_count": 1,
+      "log_sha256": "a8832a849e115443110e024b790db2e7e96c19d6fd37313575f813480c273722",
+      "cargo_units": [
+        {
+          "i": 156,
+          "name": "game-engine-ui-model",
+          "version": "0.1.0",
+          "mode": "todo",
+          "target": " game_engine_ui_model \"lib\" (test)",
+          "features": [],
+          "start": 0.49,
+          "duration": 14.13,
+          "unblocked_units": [],
+          "unblocked_rmeta_units": [],
+          "sections": null
+        }
+      ],
+      "timing_html": "cargo-timings/cargo-timing-20261024T023014178Z-30b50b5d2a71bae4.html"
+    }
+  ],
+  "dependencies": {
+    "asset-resolver": {
+      "revision": "da1a0edb1248fb6666ed358c71b8ecb6e36ca526",
+      "clean": true
+    },
+    "ui-toolkit": {
+      "revision": "544b9fcef9001d27e3842cc2bb94c928b8ac97e6",
+      "clean": true
+    },
+    "ui-toolkit-macros": {
+      "revision": "645c0b88f65204ede9b9605faf2e84e89a82bcc2",
+      "clean": true
+    },
+    "shared-protocol": {
+      "revision": "2abc7fa844f6e71d93203ce5421ae853e884854d",
+      "clean": true
+    }
+  }
+}
