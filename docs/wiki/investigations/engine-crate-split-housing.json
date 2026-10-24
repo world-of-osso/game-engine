@@ -1,0 +1,656 @@
+{
+  "source_revision": "faadc498c",
+  "baseline_source_revision": "4645578c7cf2eeb9afb712258c04faf57df53f7b",
+  "raw_archive": "/home/osso/.worktrees/logs/engine-crate-split-housing-faadc498c",
+  "same_runtime_sources_except_split": true,
+  "method": "Archived measure-real.py build wrapper, same edit, target, native helper, j4, profiles, dependency pins; changed only relocated edit path/output folder and omitted native trial. Admission wait excluded.",
+  "tests": {
+    "remaining_ui_model_units": {
+      "pass": 436,
+      "fail": 0,
+      "ignored": 0
+    },
+    "housing_units": {
+      "pass": 37,
+      "fail": 0,
+      "ignored": 0
+    },
+    "housing_integration": {
+      "pass": 33,
+      "fail": 0,
+      "ignored": 0
+    }
+  },
+  "census": {
+    "before_units": 473,
+    "after_units": {
+      "ui-model": 436,
+      "ui-housing": 37
+    },
+    "unit_names_byte_identical": true,
+    "unit_names_sha256": "08723be57790fe7518be16e7a91cdee705c3674cc9ae98bdb2048585a1ef136a",
+    "integration_before_after": 33,
+    "integration_names_byte_identical": true,
+    "integration_names_sha256": "e7f617b34dba9ccd29302dbcaedc55368077e6ea61f0e81cd84e524de425748a",
+    "housing_unit_names": [
+      "housing_editor_tests::housing_basic_catalog_click_ignores_initial_release_then_commits_overlay_release",
+      "housing_editor_tests::housing_basic_move_commits_only_armed_overlay_release_and_keeps_invalid_preview",
+      "housing_editor_tests::housing_basic_owned_catalog_drag_commits_first_release_and_cancellation_clears_capture",
+      "housing_editor_tests::housing_basic_owned_preview_rotation_stays_local_until_real_placement_commit",
+      "housing_editor_tests::housing_cleanup_hover_and_click_store_only_the_confirmed_target_without_optimistic_changes",
+      "housing_editor_tests::housing_cleanup_visitor_may_hover_but_cannot_remove_or_change_saved_layout",
+      "housing_editor_tests::housing_editor_saved_selection_moves_rotates_removes_and_visitor_is_read_only",
+      "housing_editor_tests::housing_editor_second_click_commits_movement_even_when_the_ray_still_hits_selected_decor",
+      "housing_editor_tests::housing_editor_uses_confirmed_storage_and_never_changes_quantity_optimistically",
+      "housing_editor_tests::housing_expert_mouse_drag_refuses_visitors_wmo_scale_and_unselected_or_basic_targets",
+      "housing_editor_tests::housing_expert_mouse_drag_stages_from_press_not_previous_motion_and_never_saves_on_release",
+      "housing_editor_tests::housing_expert_stages_xyz_rotation_scale_and_cancel_without_storage_mutation",
+      "housing_editor_tests::housing_same_active_submode_preserves_mouse_anchor_and_staged_draft",
+      "housing_placed_list_tests::housing_placed_list_refuses_stale_or_unknown_sources_and_never_turns_visitor_selection_into_editing",
+      "housing_placed_list_tests::housing_placed_list_sorts_real_layout_and_keeps_selection_menu_and_authority_separate",
+      "housing_settings::tests::housing_settings_stage_anyone_none_limited_and_save_only_explicit_selections",
+      "housing_tests::bulletin_board_sorts_like_retail_roster_columns",
+      "housing_tests::housing_all_category_is_the_unfiltered_retail_category",
+      "housing_tests::housing_catalog_search_uses_utf8_threshold_and_source_focus_callbacks",
+      "housing_tests::housing_category_with_several_subcategories_expands_like_retail",
+      "housing_tests::housing_collection_filter_counts_placed_and_stored_decor_as_owned",
+      "housing_tests::housing_entry_tooltip_lists_categories_and_owned_breakdown",
+      "housing_tests::housing_home_navigation_requests_house_identity_without_component_grants",
+      "housing_tests::housing_navigation_requests_authored_neighborhoods_without_claiming_property",
+      "housing_tests::housing_owned_storage_search_uses_positive_confirmed_counts_and_keeps_catalog_search_separate",
+      "housing_tests::housing_scroll_reaches_second_row_and_search_resets_scroll_without_stale_preview",
+      "housing_tests::housing_search_category_and_selection_follow_catalog_not_starting_quantity",
+      "housing_tests::housing_source_lines_name_vendors_only_through_the_creature_query",
+      "housing_tests::housing_storage_categories_use_real_ownership_and_keep_search_focus_independent",
+      "housing_tests::housing_storage_filters_use_authentic_dye_slots_and_independent_alphabetical_results",
+      "housing_tests::housing_storage_handle_tooltip_names_the_source_house_chest_without_policy_lines",
+      "housing_tests::housing_storage_menu_checkbox_refresh_and_radio_close_are_independent",
+      "housing_tests::housing_storage_menu_hover_delay_cancels_and_preserves_retained_levels",
+      "housing_tests::housing_storage_same_focus_is_noop_all_keeps_query_and_changed_specific_focus_clears",
+      "housing_tests::housing_storage_short_utf8_search_keeps_category_focus_until_three_characters",
+      "housing_tests::housing_storage_stays_unknown_until_a_qualified_snapshot_and_clears_on_logout",
+      "housing_tests::housing_storage_transitions_use_source_order_durations_and_out_exponential_offsets"
+    ],
+    "housing_integration_names": [
+      "housing::catalog_subcategory_column_and_collection_filters_render_in_both_skins",
+      "housing::housing_basic_selection_hides_both_drawer_parts_and_cancel_restores_preferences_both_skins",
+      "housing::housing_catalog_filter_reset_visibility_and_source_header_in_both_skins",
+      "housing::housing_catalog_input_postsetup_limits_unicode_in_both_skins",
+      "housing::housing_catalog_model_scene_replaces_the_thumbnail_in_both_skins",
+      "housing::housing_cleanup_hides_storage_and_uses_source_cursor_tooltip_in_both_skins",
+      "housing::housing_editor_native_storage_and_owner_controls_follow_the_same_layout_in_both_skins",
+      "housing::housing_expert_mouse_controls_show_real_rotation_and_scale_values_in_both_skins",
+      "housing::housing_expert_native_submodes_hide_storage_and_preserve_visitor_restrictions_both_skins",
+      "housing::housing_expert_placed_list_uses_source_bounds_unknown_budget_and_real_scrollable_rows_both_skins",
+      "housing::housing_expert_source_instruction_states_and_assigned_controls_both_skins",
+      "housing::housing_finder_draws_source_sale_and_real_friend_pins_not_strangers_or_self_both_skins",
+      "housing::housing_house_settings_both_skins_stage_without_changing_confirmed_authority",
+      "housing::housing_storage_categories_show_owned_roots_then_back_all_and_source_filtered_children_both_skins",
+      "housing::housing_storage_drawer_collapse_expand_and_resize_reflow_keep_both_skins_equivalent",
+      "housing::housing_storage_filters_render_independent_choices_and_reset_in_both_skins",
+      "housing::housing_storage_input_postsetup_limits_unicode_and_tints_source_magnifier_both_skins",
+      "housing::housing_storage_search_clear_has_source_geometry_and_nonempty_visibility_in_both_skins",
+      "housing::housing_storage_transition_frames_slide_in_source_order_in_both_skins",
+      "housing::neighborhood_bulletin_board_lists_and_sorts_the_servers_residents_in_both_skins",
+      "housing::neighborhood_finder_and_authenticated_cornerstone_controls_match_in_both_skins",
+      "housing::ui_template_behavior_services_catalog_preview_keeps_live_decor_owner_and_sources",
+      "housing::ui_template_blend_housing_basic_source_controls_and_unbound_instruction_rows_both_skins",
+      "housing::ui_template_blend_housing_storage_tiles_match_source_geometry_counts_and_background_states_both_skins",
+      "housing_key_labels::housing_control_hover_hides_while_pressed_and_restores_on_release_both_skins",
+      "housing_key_labels::housing_disabled_controls_use_source_default_atlas_and_darkgray_tint_both_skins",
+      "housing_key_labels::housing_mode_key_labels_follow_assignment_rebind_unbind_in_both_skins",
+      "housing_key_labels::housing_mode_tooltips_use_full_keys_source_colors_and_owner_top_both_skins",
+      "housing_settings_fidelity::house_access_source_dropdown_menu_and_staged_selection_both_skins",
+      "housing_settings_fidelity::house_settings_action_button_art_both_skins",
+      "housing_settings_fidelity::house_settings_checkbox_hit_area_excludes_labels_both_skins",
+      "housing_settings_fidelity::house_settings_paints_source_header_foliage_and_divider_both_skins",
+      "housing_settings_fidelity::house_settings_source_close_button_both_skins"
+    ]
+  },
+  "check": {
+    "crates": [
+      "game-engine-ui-housing",
+      "game-engine-godot"
+    ],
+    "exit": 0,
+    "compiler_diagnostics": []
+  },
+  "measurements": [
+    {
+      "label": "cold-build",
+      "helper": "depot.build(native)",
+      "command": [
+        "build",
+        "-p",
+        "game-engine-godot",
+        "--lib",
+        "-j4",
+        "--message-format=json",
+        "--timings"
+      ],
+      "wall_s": 418.56552983098663,
+      "user_s": 1233.323594,
+      "system_s": 30.289305000000002,
+      "exit": 0,
+      "dirty_units": [
+        {
+          "package": "registry+https://github.com/rust-lang/crates.io-index#md-5@0.10.6",
+          "target": "md5",
+          "kind": [
+            "lib"
+          ],
+          "test": false,
+          "executable": null
+        },
+        {
+          "package": "git+https://github.com/Osso/cascette-rs?rev=027a1ac34c81b4ec23a0bfa36ea298f6642abe19#cascette-crypto@0.2.0",
+          "target": "cascette_crypto",
+          "kind": [
+            "lib"
+          ],
+          "test": false,
+          "executable": null
+        },
+        {
+          "package": "path+file:///home/osso/.cache/game-engine/native-roots/ed6da6aa056a8a9bf29d-d19212ff8350/ui-toolkit/core#ui-toolkit-core@0.1.0",
+          "target": "ui_toolkit_core",
+          "kind": [
+            "lib"
+          ],
+          "test": false,
+          "executable": null
+        },
+        {
+          "package": "git+https://github.com/Osso/cascette-rs?rev=027a1ac34c81b4ec23a0bfa36ea298f6642abe19#cascette-client-storage@0.2.0",
+          "target": "cascette_client_storage",
+          "kind": [
+            "lib"
+          ],
+          "test": false,
+          "executable": null
+        },
+        {
+          "package": "git+https://github.com/Osso/cascette-rs?rev=027a1ac34c81b4ec23a0bfa36ea298f6642abe19#cascette-formats@0.2.0",
+          "target": "cascette_formats",
+          "kind": [
+            "lib"
+          ],
+          "test": false,
+          "executable": null
+        },
+        {
+          "package": "path+file:///home/osso/.cache/game-engine/native-roots/ed6da6aa056a8a9bf29d-d19212ff8350/asset-resolver#0.1.0",
+          "target": "asset_resolver",
+          "kind": [
+            "lib"
+          ],
+          "test": false,
+          "executable": null
+        },
+        {
+          "package": "path+file:///home/osso/.cache/game-engine/native-roots/ed6da6aa056a8a9bf29d-d19212ff8350/game-engine/godot/core#game-engine-core@0.1.0",
+          "target": "game_engine_core",
+          "kind": [
+            "lib"
+          ],
+          "test": false,
+          "executable": null
+        },
+        {
+          "package": "path+file:///home/osso/.cache/game-engine/native-roots/ed6da6aa056a8a9bf29d-d19212ff8350/game-engine/godot/session#game-engine-session@0.1.0",
+          "target": "game_engine_session",
+          "kind": [
+            "lib"
+          ],
+          "test": false,
+          "executable": null
+        },
+        {
+          "package": "path+file:///home/osso/.cache/game-engine/native-roots/ed6da6aa056a8a9bf29d-d19212ff8350/game-engine/godot/network#game-engine-network@0.1.0",
+          "target": "game_engine_network",
+          "kind": [
+            "lib"
+          ],
+          "test": false,
+          "executable": null
+        },
+        {
+          "package": "path+file:///home/osso/.cache/game-engine/native-roots/ed6da6aa056a8a9bf29d-d19212ff8350/game-engine/godot/ui-housing#game-engine-ui-housing@0.1.0",
+          "target": "game_engine_ui_housing",
+          "kind": [
+            "lib"
+          ],
+          "test": false,
+          "executable": null
+        },
+        {
+          "package": "path+file:///home/osso/.cache/game-engine/native-roots/ed6da6aa056a8a9bf29d-d19212ff8350/game-engine/godot/ui-model#game-engine-ui-model@0.1.0",
+          "target": "game_engine_ui_model",
+          "kind": [
+            "lib"
+          ],
+          "test": false,
+          "executable": null
+        },
+        {
+          "package": "path+file:///home/osso/.cache/game-engine/native-roots/ed6da6aa056a8a9bf29d-d19212ff8350/shared-protocol#shared@0.1.0",
+          "target": "shared",
+          "kind": [
+            "lib"
+          ],
+          "test": false,
+          "executable": null
+        },
+        {
+          "package": "path+file:///home/osso/.cache/game-engine/native-roots/ed6da6aa056a8a9bf29d-d19212ff8350/game-engine/godot/rust#game-engine-godot@0.1.0",
+          "target": "game_engine_godot",
+          "kind": [
+            "cdylib",
+            "rlib"
+          ],
+          "test": false,
+          "executable": null
+        }
+      ],
+      "dependencies_before": {
+        "asset-resolver": "da1a0edb1248fb6666ed358c71b8ecb6e36ca526",
+        "ui-toolkit": "544b9fcef9001d27e3842cc2bb94c928b8ac97e6",
+        "ui-toolkit-macros": "645c0b88f65204ede9b9605faf2e84e89a82bcc2",
+        "shared-protocol": "2abc7fa844f6e71d93203ce5421ae853e884854d"
+      },
+      "dependencies_after": {
+        "asset-resolver": "da1a0edb1248fb6666ed358c71b8ecb6e36ca526",
+        "ui-toolkit": "544b9fcef9001d27e3842cc2bb94c928b8ac97e6",
+        "ui-toolkit-macros": "645c0b88f65204ede9b9605faf2e84e89a82bcc2",
+        "shared-protocol": "2abc7fa844f6e71d93203ce5421ae853e884854d"
+      },
+      "log_sha256": "f91768abb745d1debbc36a72a6ecc780b9e6145216ae5cd7c0df6eb6dfa2526d",
+      "cargo_units": [
+        {
+          "i": 211,
+          "name": "game-engine-core",
+          "version": "0.1.0",
+          "mode": "todo",
+          "target": "",
+          "features": [],
+          "start": 1.7,
+          "duration": 66.57,
+          "unblocked_units": [],
+          "unblocked_rmeta_units": [],
+          "sections": [
+            [
+              "frontend",
+              {
+                "start": 0.0,
+                "end": 12.79
+              }
+            ],
+            [
+              "codegen",
+              {
+                "start": 12.79,
+                "end": 66.57
+              }
+            ]
+          ]
+        },
+        {
+          "i": 216,
+          "name": "game-engine-ui-model",
+          "version": "0.1.0",
+          "mode": "todo",
+          "target": "",
+          "features": [],
+          "start": 67.53,
+          "duration": 60.49,
+          "unblocked_units": [],
+          "unblocked_rmeta_units": [
+            215
+          ],
+          "sections": [
+            [
+              "frontend",
+              {
+                "start": 0.0,
+                "end": 27.53
+              }
+            ],
+            [
+              "codegen",
+              {
+                "start": 27.53,
+                "end": 60.49
+              }
+            ]
+          ]
+        },
+        {
+          "i": 214,
+          "name": "game-engine-session",
+          "version": "0.1.0",
+          "mode": "todo",
+          "target": "",
+          "features": [],
+          "start": 68.27,
+          "duration": 0.34,
+          "unblocked_units": [],
+          "unblocked_rmeta_units": [],
+          "sections": [
+            [
+              "frontend",
+              {
+                "start": 0.0,
+                "end": 0.21
+              }
+            ],
+            [
+              "codegen",
+              {
+                "start": 0.21,
+                "end": 0.34
+              }
+            ]
+          ]
+        },
+        {
+          "i": 213,
+          "name": "game-engine-network",
+          "version": "0.1.0",
+          "mode": "todo",
+          "target": "",
+          "features": [],
+          "start": 68.61,
+          "duration": 2.93,
+          "unblocked_units": [],
+          "unblocked_rmeta_units": [],
+          "sections": [
+            [
+              "frontend",
+              {
+                "start": 0.0,
+                "end": 1.81
+              }
+            ],
+            [
+              "codegen",
+              {
+                "start": 1.81,
+                "end": 2.93
+              }
+            ]
+          ]
+        },
+        {
+          "i": 215,
+          "name": "game-engine-ui-housing",
+          "version": "0.1.0",
+          "mode": "todo",
+          "target": "",
+          "features": [],
+          "start": 97.56,
+          "duration": 3.83,
+          "unblocked_units": [],
+          "unblocked_rmeta_units": [],
+          "sections": [
+            [
+              "frontend",
+              {
+                "start": 0.0,
+                "end": 1.6
+              }
+            ],
+            [
+              "codegen",
+              {
+                "start": 1.6,
+                "end": 3.83
+              }
+            ]
+          ]
+        },
+        {
+          "i": 212,
+          "name": "game-engine-godot",
+          "version": "0.1.0",
+          "mode": "todo",
+          "target": "",
+          "features": [],
+          "start": 216.18,
+          "duration": 191.0,
+          "unblocked_units": [],
+          "unblocked_rmeta_units": [],
+          "sections": null
+        }
+      ],
+      "timing_html": "cargo-timings/cargo-timing-20261024T063757913Z-30b50b5d2a71bae4.html"
+    },
+    {
+      "label": "noop-build",
+      "helper": "depot.build(native)",
+      "command": [
+        "build",
+        "-p",
+        "game-engine-godot",
+        "--lib",
+        "-j4",
+        "--message-format=json",
+        "--timings"
+      ],
+      "wall_s": 1.16121024498716,
+      "user_s": 0.47552699999982906,
+      "system_s": 0.1795170000000006,
+      "exit": 0,
+      "dirty_units": [],
+      "dependencies_before": {
+        "asset-resolver": "da1a0edb1248fb6666ed358c71b8ecb6e36ca526",
+        "ui-toolkit": "544b9fcef9001d27e3842cc2bb94c928b8ac97e6",
+        "ui-toolkit-macros": "645c0b88f65204ede9b9605faf2e84e89a82bcc2",
+        "shared-protocol": "2abc7fa844f6e71d93203ce5421ae853e884854d"
+      },
+      "dependencies_after": {
+        "asset-resolver": "da1a0edb1248fb6666ed358c71b8ecb6e36ca526",
+        "ui-toolkit": "544b9fcef9001d27e3842cc2bb94c928b8ac97e6",
+        "ui-toolkit-macros": "645c0b88f65204ede9b9605faf2e84e89a82bcc2",
+        "shared-protocol": "2abc7fa844f6e71d93203ce5421ae853e884854d"
+      },
+      "log_sha256": "6798262b5c6ffca52d84547cea69277e5d8248559c85f7bb4d59c7d161826dbd",
+      "cargo_units": [],
+      "timing_html": "cargo-timings/cargo-timing-20261024T064657029Z-30b50b5d2a71bae4.html"
+    },
+    {
+      "label": "ui-edit-build-restore",
+      "helper": "depot.build(native)",
+      "command": [
+        "build",
+        "-p",
+        "game-engine-godot",
+        "--lib",
+        "-j4",
+        "--message-format=json",
+        "--timings"
+      ],
+      "wall_s": 17.562576519791037,
+      "user_s": 8.035663000000113,
+      "system_s": 2.2421039999999977,
+      "exit": 0,
+      "dirty_units": [
+        {
+          "package": "path+file:///home/osso/.cache/game-engine/native-roots/ed6da6aa056a8a9bf29d-d19212ff8350/game-engine/godot/ui-housing#game-engine-ui-housing@0.1.0",
+          "target": "game_engine_ui_housing",
+          "kind": [
+            "lib"
+          ],
+          "test": false,
+          "executable": null
+        },
+        {
+          "package": "path+file:///home/osso/.cache/game-engine/native-roots/ed6da6aa056a8a9bf29d-d19212ff8350/game-engine/godot/rust#game-engine-godot@0.1.0",
+          "target": "game_engine_godot",
+          "kind": [
+            "cdylib",
+            "rlib"
+          ],
+          "test": false,
+          "executable": null
+        }
+      ],
+      "dependencies_before": {
+        "asset-resolver": "da1a0edb1248fb6666ed358c71b8ecb6e36ca526",
+        "ui-toolkit": "544b9fcef9001d27e3842cc2bb94c928b8ac97e6",
+        "ui-toolkit-macros": "645c0b88f65204ede9b9605faf2e84e89a82bcc2",
+        "shared-protocol": "2abc7fa844f6e71d93203ce5421ae853e884854d"
+      },
+      "dependencies_after": {
+        "asset-resolver": "da1a0edb1248fb6666ed358c71b8ecb6e36ca526",
+        "ui-toolkit": "544b9fcef9001d27e3842cc2bb94c928b8ac97e6",
+        "ui-toolkit-macros": "645c0b88f65204ede9b9605faf2e84e89a82bcc2",
+        "shared-protocol": "2abc7fa844f6e71d93203ce5421ae853e884854d"
+      },
+      "log_sha256": "1eafcf96569620b802a3ef0c66e41e724a9bd93e567b91b15b5894ada8fbd999",
+      "cargo_units": [
+        {
+          "i": 215,
+          "name": "game-engine-ui-housing",
+          "version": "0.1.0",
+          "mode": "todo",
+          "target": "",
+          "features": [],
+          "start": 0.97,
+          "duration": 0.86,
+          "unblocked_units": [
+            212
+          ],
+          "unblocked_rmeta_units": [],
+          "sections": [
+            [
+              "frontend",
+              {
+                "start": 0.0,
+                "end": 0.7
+              }
+            ],
+            [
+              "codegen",
+              {
+                "start": 0.7,
+                "end": 0.86
+              }
+            ]
+          ]
+        },
+        {
+          "i": 212,
+          "name": "game-engine-godot",
+          "version": "0.1.0",
+          "mode": "todo",
+          "target": "",
+          "features": [],
+          "start": 1.84,
+          "duration": 15.63,
+          "unblocked_units": [],
+          "unblocked_rmeta_units": [],
+          "sections": null
+        }
+      ],
+      "timing_html": "cargo-timings/cargo-timing-20261024T065002927Z-30b50b5d2a71bae4.html"
+    },
+    {
+      "label": "ui-edit-build",
+      "helper": "depot.build(native)",
+      "command": [
+        "build",
+        "-p",
+        "game-engine-godot",
+        "--lib",
+        "-j4",
+        "--message-format=json",
+        "--timings"
+      ],
+      "wall_s": 34.051297029946,
+      "user_s": 8.889852000000019,
+      "system_s": 2.992848000000002,
+      "exit": 0,
+      "dirty_units": [
+        {
+          "package": "path+file:///home/osso/.cache/game-engine/native-roots/ed6da6aa056a8a9bf29d-d19212ff8350/game-engine/godot/ui-housing#game-engine-ui-housing@0.1.0",
+          "target": "game_engine_ui_housing",
+          "kind": [
+            "lib"
+          ],
+          "test": false,
+          "executable": null
+        },
+        {
+          "package": "path+file:///home/osso/.cache/game-engine/native-roots/ed6da6aa056a8a9bf29d-d19212ff8350/game-engine/godot/rust#game-engine-godot@0.1.0",
+          "target": "game_engine_godot",
+          "kind": [
+            "cdylib",
+            "rlib"
+          ],
+          "test": false,
+          "executable": null
+        }
+      ],
+      "dependencies_before": {
+        "asset-resolver": "da1a0edb1248fb6666ed358c71b8ecb6e36ca526",
+        "ui-toolkit": "544b9fcef9001d27e3842cc2bb94c928b8ac97e6",
+        "ui-toolkit-macros": "645c0b88f65204ede9b9605faf2e84e89a82bcc2",
+        "shared-protocol": "2abc7fa844f6e71d93203ce5421ae853e884854d"
+      },
+      "dependencies_after": {
+        "asset-resolver": "da1a0edb1248fb6666ed358c71b8ecb6e36ca526",
+        "ui-toolkit": "544b9fcef9001d27e3842cc2bb94c928b8ac97e6",
+        "ui-toolkit-macros": "645c0b88f65204ede9b9605faf2e84e89a82bcc2",
+        "shared-protocol": "2abc7fa844f6e71d93203ce5421ae853e884854d"
+      },
+      "log_sha256": "f6e8c3266b89327497443a6a5f012b4bca1be343d42f74ae762610b1680edf13",
+      "cargo_units": [
+        {
+          "i": 215,
+          "name": "game-engine-ui-housing",
+          "version": "0.1.0",
+          "mode": "todo",
+          "target": "",
+          "features": [],
+          "start": 10.16,
+          "duration": 1.97,
+          "unblocked_units": [
+            212
+          ],
+          "unblocked_rmeta_units": [],
+          "sections": [
+            [
+              "frontend",
+              {
+                "start": 0.0,
+                "end": 1.79
+              }
+            ],
+            [
+              "codegen",
+              {
+                "start": 1.79,
+                "end": 1.97
+              }
+            ]
+          ]
+        },
+        {
+          "i": 212,
+          "name": "game-engine-godot",
+          "version": "0.1.0",
+          "mode": "todo",
+          "target": "",
+          "features": [],
+          "start": 12.13,
+          "duration": 21.77,
+          "unblocked_units": [],
+          "unblocked_rmeta_units": [],
+          "sections": null
+        }
+      ],
+      "timing_html": "cargo-timings/cargo-timing-20261024T064858770Z-30b50b5d2a71bae4.html"
+    }
+  ],
+  "qualification": "Single descriptive paired sample under shared-host scheduling; not a statistical speedup guarantee. Full-suite/integration gate belongs to lead. No post-split UI library-test timing requested or measured."
+}
