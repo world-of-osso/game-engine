@@ -199,7 +199,7 @@ fn housing_catalog_tag_actions_refuse_wrong_groups_and_unavailable_sources() {
 
 #[test]
 fn housing_catalog_tag_query_reports_untagged_entries_without_guessing() {
-    use game_engine_ui_model::housing::CatalogTagGap;
+    use game_engine_ui_housing::housing::CatalogTagGap;
     let authority = HousingAuthority::default();
     let original = authority.clone();
     let mut model = HousingDashboard::new(load_published_tag_catalog());
