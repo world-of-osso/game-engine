@@ -1,3 +1,7 @@
+## 2026-10-24 — WMO root header/material fields
+
+[Root inputs](reference/benilla-wmo-root-fields.md) list individual MOHD/MOMT values and shader-specific texture slots. Diff-color alpha and ground type have a terrain-priority consumer despite no shader-color binding; Benilla's MOTX offsets remain distinct from modern FDIDs. Static research; remaining WMO records and independent proof stay open.
+
 ## 2026-10-24 — M2 representation boundaries
 
 [Representation fields](reference/benilla-m2-representation-fields.md) distinguish eight B bounds members and twelve marker/animation projection members from extra disk fields. Static source trace locates global-channel asset conversion and live pose consumers; not runtime proof. The [declaration map](reference/benilla-m2-representation-map.md) subsequently routes all90 records to worksheets, correcting weight-versus-duration, texture-replacement-versus-SFID and SKB1-versus-SKS1 helper interpretations. Independent scope/delta verification remains open.

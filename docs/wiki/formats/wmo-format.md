@@ -75,6 +75,8 @@ The WMO parser is less complete than the M2 or ADT parsers. Rendering of WMO int
 
 ## See Also
 
+- [[benilla-wmo-root-fields]] — individual header/material inputs and version-qualified parser/consumer comparison
+
 - [[stormwind-dark-render]] — unified MapObj MOCV lighting
 - [[wmo-retail-lighting]] — Retail WMO lighting, two-layer, alpha test and placement dedup
 
