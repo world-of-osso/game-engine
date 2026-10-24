@@ -3180,12 +3180,14 @@ dependencies = [
  "game-engine-core",
  "game-engine-network",
  "game-engine-session",
+ "game-engine-ui-achievements",
  "game-engine-ui-adventure",
  "game-engine-ui-collections",
  "game-engine-ui-housing",
  "game-engine-ui-model",
  "game-engine-ui-player-spells",
  "game-engine-ui-professions",
+ "game-engine-ui-pvp",
  "glam",
  "godot",
  "image 0.25.10",
@@ -3230,6 +3232,18 @@ name = "game-engine-session"
 version = "0.1.0"
 dependencies = [
  "shared",
+]
+
+[[package]]
+name = "game-engine-ui-achievements"
+version = "0.1.0"
+dependencies = [
+ "chrono",
+ "game-engine-core",
+ "game-engine-ui-model",
+ "serde_json",
+ "shared",
+ "ui-toolkit-core",
 ]
 
 [[package]]
@@ -3281,6 +3295,7 @@ version = "0.1.0"
 dependencies = [
  "game-engine-core",
  "game-engine-ui-model",
+ "game-engine-ui-pvp",
  "shared",
  "ui-toolkit-core",
 ]
@@ -3292,6 +3307,15 @@ dependencies = [
  "game-engine-core",
  "game-engine-ui-model",
  "serde_json",
+ "shared",
+ "ui-toolkit-core",
+]
+
+[[package]]
+name = "game-engine-ui-pvp"
+version = "0.1.0"
+dependencies = [
+ "game-engine-ui-model",
  "shared",
  "ui-toolkit-core",
 ]

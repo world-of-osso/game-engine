@@ -76,7 +76,7 @@ fn number<T: std::str::FromStr>(
         .map_err(|_| format!("Achievement metadata column {index} invalid number {value:?}"))
 }
 
-pub(super) fn category_path(achievement: u32) -> String {
+pub fn category_path(achievement: u32) -> String {
     static CATALOG: OnceLock<SearchCatalog> = OnceLock::new();
     CATALOG
         .get_or_init(|| {

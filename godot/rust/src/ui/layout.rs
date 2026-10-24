@@ -496,7 +496,8 @@ mod tests {
         open_action: &str,
         expected_search_left: f32,
     ) {
-        use game_engine_ui_model::achievements::{AchievementWindow, achievement_screen};
+        use game_engine_ui_achievements::achievements::achievement_screen;
+        use game_engine_ui_model::achievements::AchievementWindow;
         use ui_toolkit::screen::{Screen, SharedContext};
 
         game_engine_ui_model::paths::set_data_root(

@@ -1,0 +1,789 @@
+{
+  "source_revision": "de71748fb",
+  "before_source": "2800d47ec",
+  "before_receipt": "engine-crate-split-achievements-plan.json",
+  "rename_only_revision": "57fb9ff98",
+  "wiring_revision": "15eb1f1ef",
+  "unused_import_cleanup_revision": "de71748fb",
+  "raw_archive": "/home/osso/.worktrees/logs/engine-crate-split-achievements-de71748fb",
+  "scope": {
+    "original_render_lines_moved": 2185,
+    "original_authority_cache_catalog_lines_retained": 1281,
+    "whole_pure_files_git_moved": 3,
+    "mixed_root_and_comparison_split": true,
+    "one_blend_unit_moved": true,
+    "render_integration_moved": 27,
+    "retained_named_cases": 11
+  },
+  "retained_base": [
+    "AchievementWindow/CategoryPage/AchievementComparison/AchievementFilter",
+    "query/reply/apply/delta/refresh/tracking/pending/baseline",
+    "comparison cache_page and distinct merge behavior",
+    "static search_catalog with its original single OnceLock",
+    "chat achievement_link",
+    "tracker and chat consumers"
+  ],
+  "only_boundary_changes": [
+    "has_more_search_results pub;original countORcursor expression preserved",
+    "SEARCH_PREVIEW_LIMIT and CRITERIA pub/shared,notduplicated",
+    "actual search_catalog module/category_path function pub;no facade/wrappercache",
+    "is_achievement_request_pending(id)->bool:readonly copy of exact private queue-membership predicate"
+  ],
+  "check": {
+    "packages": [
+      "game-engine-cli",
+      "game-engine-core",
+      "game-engine-network",
+      "game-engine-godot",
+      "game-engine-session",
+      "game-engine-ui-achievements",
+      "game-engine-ui-adventure",
+      "game-engine-ui-collections",
+      "game-engine-ui-housing",
+      "game-engine-ui-model",
+      "game-engine-ui-player-spells",
+      "game-engine-ui-professions",
+      "game-engine-ui-pvp"
+    ],
+    "arguments": [
+      "-p",
+      "game-engine-cli",
+      "-p",
+      "game-engine-core",
+      "-p",
+      "game-engine-network",
+      "-p",
+      "game-engine-godot",
+      "-p",
+      "game-engine-session",
+      "-p",
+      "game-engine-ui-achievements",
+      "-p",
+      "game-engine-ui-adventure",
+      "-p",
+      "game-engine-ui-collections",
+      "-p",
+      "game-engine-ui-housing",
+      "-p",
+      "game-engine-ui-model",
+      "-p",
+      "game-engine-ui-player-spells",
+      "-p",
+      "game-engine-ui-professions",
+      "-p",
+      "game-engine-ui-pvp",
+      "-j4",
+      "--message-format=json"
+    ],
+    "exit": 0,
+    "compiler_diagnostics": [],
+    "initial_warning": "Unused AchievementScope rendering import removed rather than suppressed;all13check then rerun green"
+  },
+  "tests": {
+    "ui-model:lib": {
+      "pass": 389,
+      "fail": 0,
+      "ignored": 0
+    },
+    "ui-achievements:lib": {
+      "pass": 1,
+      "fail": 0,
+      "ignored": 0
+    },
+    "ui-achievements:integration": {
+      "pass": 27,
+      "fail": 0,
+      "ignored": 0
+    },
+    "retained_dungeonclient": {
+      "pass": 10,
+      "fail": 0,
+      "ignored": 0
+    }
+  },
+  "census": {
+    "base_units_before": 390,
+    "base_units_after": 389,
+    "feature_units_after": 1,
+    "integration_before": 37,
+    "feature_integration_after": 27,
+    "retained_integration_after": 10,
+    "names_byte_identical": true,
+    "ignored": 0,
+    "base_unit_names_sha256": "e422e7c9fae83e88aa162d9670d141f8400e62a635d03f6f6d8a15c79332f81a",
+    "feature_unit_names": [
+      "achievements::blend_tests::ui_template_blend_statistics_rows_and_selected_category_author_source_blend_modes"
+    ],
+    "feature_integration_names": [
+      "dungeonclient::achievementlinks_toast_uses_mainline_icon_shield_and_plate_layout_both_skins",
+      "dungeonclient::achievements_art_categories_collapse_and_rows_expand_in_place_both_skins",
+      "dungeonclient::achievements_art_category_scroll_reaches_last_child_both_skins",
+      "dungeonclient::achievements_art_rows_scroll_and_cursor_append_preserves_expansion_both_skins",
+      "dungeonclient::achievements_bottom_tabs_honor_retail_art_geometry_both_skins",
+      "dungeonclient::achievements_comparison_correlates_target_and_preserves_own_progress_both_skins",
+      "dungeonclient::achievements_full_search_close_conserves_state_reopens_and_continues_cursor_both_skins",
+      "dungeonclient::achievements_full_search_presents_received_page_two_and_ignores_late_query_both_skins",
+      "dungeonclient::achievements_header_title_uses_retail_content_style_both_skins",
+      "dungeonclient::achievements_outside_statistics_category_does_not_invent_empty_text",
+      "dungeonclient::achievements_presentation_authored_single_quantity_flag_requires_bar_both_skins",
+      "dungeonclient::achievements_presentation_check_completion_and_cursor_flags_both_skins",
+      "dungeonclient::achievements_presentation_quantity_fill_and_unknown_progress_both_skins",
+      "dungeonclient::achievements_presentation_unflagged_hundred_quantity_uses_checklist_both_skins",
+      "dungeonclient::achievements_retail_category_tabs_use_real_db2_hierarchy_both_skins",
+      "dungeonclient::achievements_retail_completed_filters_and_feats_are_not_scope_filters",
+      "dungeonclient::achievements_search_keyboard_cursor_show_all_continues_received_pages_both_skins",
+      "dungeonclient::achievements_search_keyboard_late_other_query_preserves_selected_received_id_both_skins",
+      "dungeonclient::achievements_search_preview_clear_blur_and_late_replies_both_skins",
+      "dungeonclient::achievements_search_preview_preserves_category_and_caps_received_rows_both_skins",
+      "dungeonclient::achievements_search_preview_row_opens_received_achievement_both_skins",
+      "dungeonclient::achievements_search_preview_show_all_requires_more_than_five_and_opens_list_both_skins",
+      "dungeonclient::achievements_ui_browse_statistics_and_correlated_full_search_both_skins",
+      "dungeonclient::achievements_ui_scope_tabs_filter_authored_account_flag_both_skins",
+      "dungeonclient::achievements_ui_summary_opens_by_default_and_uses_authoritative_points_both_skins",
+      "dungeonclient::achievements_ui_uses_authored_sheet_regions_for_recent_icons_and_shields",
+      "dungeonclient::dungeonclient_launcher_requests_categories_and_catalog_pages_render_both_skins"
+    ],
+    "all_11_retained_names": [
+      "achievements::search_catalog::tests::achievement_search_catalog_uses_installed_root_and_nested_ancestry",
+      "dungeonclient::achievements_art_statistics_never_reuses_recent_achievement_rows",
+      "dungeonclient::dungeonclient_stockade_checks_three_bosses_in_order_then_clears_both_skins",
+      "dungeonclient::achievements_ui_summary_recent_criteria_continuation_merges_into_selected_row",
+      "dungeonclient::achievementlinks_open_unloaded_achievement_and_keep_server_earned_state",
+      "dungeonclient::achievementlinks_chat_displays_one_clickable_name_without_transport_markup",
+      "dungeonclient::dungeonclient_live_update_requests_fresh_page_even_with_query_in_flight",
+      "dungeonclient::achievements_ui_tracking_restores_authoritative_rows_after_new_session",
+      "dungeonclient::achievements_ui_tracking_survives_close_refreshes_and_clears_on_earn_both_skins",
+      "dungeonclient::dungeonclient_closed_live_update_refreshes_on_reopen",
+      "dungeonclient::dungeonclient_nonempty_cursor_pages_and_authored_tree_are_browsable"
+    ],
+    "original_473_unit_distribution": {
+      "ui-model": 389,
+      "ui-housing": 37,
+      "ui-adventure": 4,
+      "ui-collections": 24,
+      "ui-professions": 18,
+      "ui-player-spells": 0,
+      "ui-pvp": 0,
+      "ui-achievements": 1
+    }
+  },
+  "fixture_adaptation": "Only moved inline unit must set identical public fields after Default instead of external private-field struct update;assertions/data paths unchanged. Sharedtesthelpers copied locally,not production bodies.",
+  "measurements": [
+    {
+      "label": "cold-build",
+      "helper": "depot.build(native)",
+      "command": [
+        "build",
+        "-p",
+        "game-engine-godot",
+        "--lib",
+        "-j4",
+        "--message-format=json",
+        "--timings"
+      ],
+      "wall_s": 182.3453540080227,
+      "user_s": 516.313537,
+      "system_s": 25.403981,
+      "exit": 0,
+      "dirty_units": [
+        {
+          "package": "path+file:///home/osso/.cache/game-engine/native-roots/ed6da6aa056a8a9bf29d-d19212ff8350/game-engine/godot/ui-achievements#game-engine-ui-achievements@0.1.0",
+          "target": "game_engine_ui_achievements",
+          "kind": [
+            "lib"
+          ],
+          "test": false,
+          "executable": null
+        },
+        {
+          "package": "path+file:///home/osso/.cache/game-engine/native-roots/ed6da6aa056a8a9bf29d-d19212ff8350/game-engine/godot/ui-housing#game-engine-ui-housing@0.1.0",
+          "target": "game_engine_ui_housing",
+          "kind": [
+            "lib"
+          ],
+          "test": false,
+          "executable": null
+        },
+        {
+          "package": "path+file:///home/osso/.cache/game-engine/native-roots/ed6da6aa056a8a9bf29d-d19212ff8350/game-engine/godot/ui-player-spells#game-engine-ui-player-spells@0.1.0",
+          "target": "game_engine_ui_player_spells",
+          "kind": [
+            "lib"
+          ],
+          "test": false,
+          "executable": null
+        },
+        {
+          "package": "path+file:///home/osso/.cache/game-engine/native-roots/ed6da6aa056a8a9bf29d-d19212ff8350/game-engine/godot/ui-pvp#game-engine-ui-pvp@0.1.0",
+          "target": "game_engine_ui_pvp",
+          "kind": [
+            "lib"
+          ],
+          "test": false,
+          "executable": null
+        },
+        {
+          "package": "path+file:///home/osso/.cache/game-engine/native-roots/ed6da6aa056a8a9bf29d-d19212ff8350/game-engine/godot/ui-collections#game-engine-ui-collections@0.1.0",
+          "target": "game_engine_ui_collections",
+          "kind": [
+            "lib"
+          ],
+          "test": false,
+          "executable": null
+        },
+        {
+          "package": "path+file:///home/osso/.cache/game-engine/native-roots/ed6da6aa056a8a9bf29d-d19212ff8350/game-engine/godot/ui-professions#game-engine-ui-professions@0.1.0",
+          "target": "game_engine_ui_professions",
+          "kind": [
+            "lib"
+          ],
+          "test": false,
+          "executable": null
+        },
+        {
+          "package": "path+file:///home/osso/.cache/game-engine/native-roots/ed6da6aa056a8a9bf29d-d19212ff8350/game-engine/godot/ui-adventure#game-engine-ui-adventure@0.1.0",
+          "target": "game_engine_ui_adventure",
+          "kind": [
+            "lib"
+          ],
+          "test": false,
+          "executable": null
+        },
+        {
+          "package": "path+file:///home/osso/.cache/game-engine/native-roots/ed6da6aa056a8a9bf29d-d19212ff8350/game-engine/godot/ui-model#game-engine-ui-model@0.1.0",
+          "target": "game_engine_ui_model",
+          "kind": [
+            "lib"
+          ],
+          "test": false,
+          "executable": null
+        },
+        {
+          "package": "path+file:///home/osso/.cache/game-engine/native-roots/ed6da6aa056a8a9bf29d-d19212ff8350/game-engine/godot/rust#game-engine-godot@0.1.0",
+          "target": "game_engine_godot",
+          "kind": [
+            "cdylib",
+            "rlib"
+          ],
+          "test": false,
+          "executable": null
+        }
+      ],
+      "dependencies_before": {
+        "asset-resolver": "da1a0edb1248fb6666ed358c71b8ecb6e36ca526",
+        "ui-toolkit": "544b9fcef9001d27e3842cc2bb94c928b8ac97e6",
+        "ui-toolkit-macros": "645c0b88f65204ede9b9605faf2e84e89a82bcc2",
+        "shared-protocol": "2abc7fa844f6e71d93203ce5421ae853e884854d"
+      },
+      "dependencies_after": {
+        "asset-resolver": "da1a0edb1248fb6666ed358c71b8ecb6e36ca526",
+        "ui-toolkit": "544b9fcef9001d27e3842cc2bb94c928b8ac97e6",
+        "ui-toolkit-macros": "645c0b88f65204ede9b9605faf2e84e89a82bcc2",
+        "shared-protocol": "2abc7fa844f6e71d93203ce5421ae853e884854d"
+      },
+      "cargo_units": [
+        {
+          "i": 219,
+          "name": "game-engine-ui-model",
+          "version": "0.1.0",
+          "mode": "todo",
+          "target": "",
+          "features": [],
+          "start": 1.65,
+          "duration": 15.61,
+          "unblocked_units": [
+            212
+          ],
+          "unblocked_rmeta_units": [
+            221,
+            222,
+            217,
+            218,
+            216,
+            215,
+            220
+          ],
+          "sections": [
+            [
+              "frontend",
+              {
+                "start": 0.0,
+                "end": 6.38
+              }
+            ],
+            [
+              "codegen",
+              {
+                "start": 6.38,
+                "end": 15.61
+              }
+            ]
+          ]
+        },
+        {
+          "i": 215,
+          "name": "game-engine-ui-achievements",
+          "version": "0.1.0",
+          "mode": "todo",
+          "target": "",
+          "features": [],
+          "start": 8.03,
+          "duration": 1.24,
+          "unblocked_units": [],
+          "unblocked_rmeta_units": [],
+          "sections": [
+            [
+              "frontend",
+              {
+                "start": 0.0,
+                "end": 0.79
+              }
+            ],
+            [
+              "codegen",
+              {
+                "start": 0.79,
+                "end": 1.24
+              }
+            ]
+          ]
+        },
+        {
+          "i": 217,
+          "name": "game-engine-ui-collections",
+          "version": "0.1.0",
+          "mode": "todo",
+          "target": "",
+          "features": [],
+          "start": 8.03,
+          "duration": 5.1,
+          "unblocked_units": [],
+          "unblocked_rmeta_units": [],
+          "sections": [
+            [
+              "frontend",
+              {
+                "start": 0.0,
+                "end": 1.3
+              }
+            ],
+            [
+              "codegen",
+              {
+                "start": 1.3,
+                "end": 5.1
+              }
+            ]
+          ]
+        },
+        {
+          "i": 218,
+          "name": "game-engine-ui-housing",
+          "version": "0.1.0",
+          "mode": "todo",
+          "target": "",
+          "features": [],
+          "start": 8.03,
+          "duration": 2.61,
+          "unblocked_units": [],
+          "unblocked_rmeta_units": [],
+          "sections": [
+            [
+              "frontend",
+              {
+                "start": 0.0,
+                "end": 0.89
+              }
+            ],
+            [
+              "codegen",
+              {
+                "start": 0.89,
+                "end": 2.61
+              }
+            ]
+          ]
+        },
+        {
+          "i": 220,
+          "name": "game-engine-ui-player-spells",
+          "version": "0.1.0",
+          "mode": "todo",
+          "target": "",
+          "features": [],
+          "start": 9.27,
+          "duration": 1.55,
+          "unblocked_units": [],
+          "unblocked_rmeta_units": [],
+          "sections": [
+            [
+              "frontend",
+              {
+                "start": 0.0,
+                "end": 0.43
+              }
+            ],
+            [
+              "codegen",
+              {
+                "start": 0.43,
+                "end": 1.55
+              }
+            ]
+          ]
+        },
+        {
+          "i": 216,
+          "name": "game-engine-ui-adventure",
+          "version": "0.1.0",
+          "mode": "todo",
+          "target": "",
+          "features": [],
+          "start": 10.64,
+          "duration": 3.29,
+          "unblocked_units": [],
+          "unblocked_rmeta_units": [],
+          "sections": [
+            [
+              "frontend",
+              {
+                "start": 0.0,
+                "end": 0.87
+              }
+            ],
+            [
+              "codegen",
+              {
+                "start": 0.87,
+                "end": 3.29
+              }
+            ]
+          ]
+        },
+        {
+          "i": 222,
+          "name": "game-engine-ui-pvp",
+          "version": "0.1.0",
+          "mode": "todo",
+          "target": "",
+          "features": [],
+          "start": 10.83,
+          "duration": 0.93,
+          "unblocked_units": [],
+          "unblocked_rmeta_units": [],
+          "sections": [
+            [
+              "frontend",
+              {
+                "start": 0.0,
+                "end": 0.49
+              }
+            ],
+            [
+              "codegen",
+              {
+                "start": 0.49,
+                "end": 0.93
+              }
+            ]
+          ]
+        },
+        {
+          "i": 221,
+          "name": "game-engine-ui-professions",
+          "version": "0.1.0",
+          "mode": "todo",
+          "target": "",
+          "features": [],
+          "start": 11.75,
+          "duration": 1.56,
+          "unblocked_units": [],
+          "unblocked_rmeta_units": [],
+          "sections": [
+            [
+              "frontend",
+              {
+                "start": 0.0,
+                "end": 0.39
+              }
+            ],
+            [
+              "codegen",
+              {
+                "start": 0.39,
+                "end": 1.56
+              }
+            ]
+          ]
+        },
+        {
+          "i": 212,
+          "name": "game-engine-godot",
+          "version": "0.1.0",
+          "mode": "todo",
+          "target": "",
+          "features": [],
+          "start": 17.26,
+          "duration": 164.73,
+          "unblocked_units": [],
+          "unblocked_rmeta_units": [],
+          "sections": null
+        }
+      ],
+      "log_sha256": "7c05e6e8e4561bba7658fe21656442c146e0f131f83bbb4e9b6deed84817d936",
+      "timing_html": "cargo-timings/cargo-timing-20261024T155112687Z-30b50b5d2a71bae4.html"
+    },
+    {
+      "label": "noop-build",
+      "helper": "depot.build(native)",
+      "command": [
+        "build",
+        "-p",
+        "game-engine-godot",
+        "--lib",
+        "-j4",
+        "--message-format=json",
+        "--timings"
+      ],
+      "wall_s": 1.094076432986185,
+      "user_s": 0.3902659999999969,
+      "system_s": 0.19512299999999883,
+      "exit": 0,
+      "dirty_units": [],
+      "dependencies_before": {
+        "asset-resolver": "da1a0edb1248fb6666ed358c71b8ecb6e36ca526",
+        "ui-toolkit": "544b9fcef9001d27e3842cc2bb94c928b8ac97e6",
+        "ui-toolkit-macros": "645c0b88f65204ede9b9605faf2e84e89a82bcc2",
+        "shared-protocol": "2abc7fa844f6e71d93203ce5421ae853e884854d"
+      },
+      "dependencies_after": {
+        "asset-resolver": "da1a0edb1248fb6666ed358c71b8ecb6e36ca526",
+        "ui-toolkit": "544b9fcef9001d27e3842cc2bb94c928b8ac97e6",
+        "ui-toolkit-macros": "645c0b88f65204ede9b9605faf2e84e89a82bcc2",
+        "shared-protocol": "2abc7fa844f6e71d93203ce5421ae853e884854d"
+      },
+      "cargo_units": [],
+      "log_sha256": "5c0406ad9c1b9508043712a317fa58d9239806fa517958160d42cae0a9640375",
+      "timing_html": "cargo-timings/cargo-timing-20261024T155615668Z-30b50b5d2a71bae4.html"
+    },
+    {
+      "label": "ui-edit-build-restore",
+      "helper": "depot.build(native)",
+      "command": [
+        "build",
+        "-p",
+        "game-engine-godot",
+        "--lib",
+        "-j4",
+        "--message-format=json",
+        "--timings"
+      ],
+      "wall_s": 10.974786215927452,
+      "user_s": 6.814895000000092,
+      "system_s": 1.7179199999999994,
+      "exit": 0,
+      "dirty_units": [
+        {
+          "package": "path+file:///home/osso/.cache/game-engine/native-roots/ed6da6aa056a8a9bf29d-d19212ff8350/game-engine/godot/ui-achievements#game-engine-ui-achievements@0.1.0",
+          "target": "game_engine_ui_achievements",
+          "kind": [
+            "lib"
+          ],
+          "test": false,
+          "executable": null
+        },
+        {
+          "package": "path+file:///home/osso/.cache/game-engine/native-roots/ed6da6aa056a8a9bf29d-d19212ff8350/game-engine/godot/rust#game-engine-godot@0.1.0",
+          "target": "game_engine_godot",
+          "kind": [
+            "cdylib",
+            "rlib"
+          ],
+          "test": false,
+          "executable": null
+        }
+      ],
+      "dependencies_before": {
+        "asset-resolver": "da1a0edb1248fb6666ed358c71b8ecb6e36ca526",
+        "ui-toolkit": "544b9fcef9001d27e3842cc2bb94c928b8ac97e6",
+        "ui-toolkit-macros": "645c0b88f65204ede9b9605faf2e84e89a82bcc2",
+        "shared-protocol": "2abc7fa844f6e71d93203ce5421ae853e884854d"
+      },
+      "dependencies_after": {
+        "asset-resolver": "da1a0edb1248fb6666ed358c71b8ecb6e36ca526",
+        "ui-toolkit": "544b9fcef9001d27e3842cc2bb94c928b8ac97e6",
+        "ui-toolkit-macros": "645c0b88f65204ede9b9605faf2e84e89a82bcc2",
+        "shared-protocol": "2abc7fa844f6e71d93203ce5421ae853e884854d"
+      },
+      "cargo_units": [
+        {
+          "i": 215,
+          "name": "game-engine-ui-achievements",
+          "version": "0.1.0",
+          "mode": "todo",
+          "target": "",
+          "features": [],
+          "start": 0.67,
+          "duration": 0.62,
+          "unblocked_units": [
+            212
+          ],
+          "unblocked_rmeta_units": [],
+          "sections": [
+            [
+              "frontend",
+              {
+                "start": 0.0,
+                "end": 0.48
+              }
+            ],
+            [
+              "codegen",
+              {
+                "start": 0.48,
+                "end": 0.62
+              }
+            ]
+          ]
+        },
+        {
+          "i": 212,
+          "name": "game-engine-godot",
+          "version": "0.1.0",
+          "mode": "todo",
+          "target": "",
+          "features": [],
+          "start": 1.29,
+          "duration": 9.62,
+          "unblocked_units": [],
+          "unblocked_rmeta_units": [],
+          "sections": null
+        }
+      ],
+      "log_sha256": "c9ff2ad942ab09a16506d3a27fd8e083e3f24668062c5268d8f2775b718fbedc",
+      "timing_html": "cargo-timings/cargo-timing-20261024T155733095Z-30b50b5d2a71bae4.html"
+    },
+    {
+      "label": "ui-edit-build",
+      "helper": "depot.build(native)",
+      "command": [
+        "build",
+        "-p",
+        "game-engine-godot",
+        "--lib",
+        "-j4",
+        "--message-format=json",
+        "--timings"
+      ],
+      "wall_s": 16.057715486036614,
+      "user_s": 8.106612000000041,
+      "system_s": 2.1829479999999997,
+      "exit": 0,
+      "dirty_units": [
+        {
+          "package": "path+file:///home/osso/.cache/game-engine/native-roots/ed6da6aa056a8a9bf29d-d19212ff8350/game-engine/godot/ui-achievements#game-engine-ui-achievements@0.1.0",
+          "target": "game_engine_ui_achievements",
+          "kind": [
+            "lib"
+          ],
+          "test": false,
+          "executable": null
+        },
+        {
+          "package": "path+file:///home/osso/.cache/game-engine/native-roots/ed6da6aa056a8a9bf29d-d19212ff8350/game-engine/godot/rust#game-engine-godot@0.1.0",
+          "target": "game_engine_godot",
+          "kind": [
+            "cdylib",
+            "rlib"
+          ],
+          "test": false,
+          "executable": null
+        }
+      ],
+      "dependencies_before": {
+        "asset-resolver": "da1a0edb1248fb6666ed358c71b8ecb6e36ca526",
+        "ui-toolkit": "544b9fcef9001d27e3842cc2bb94c928b8ac97e6",
+        "ui-toolkit-macros": "645c0b88f65204ede9b9605faf2e84e89a82bcc2",
+        "shared-protocol": "2abc7fa844f6e71d93203ce5421ae853e884854d"
+      },
+      "dependencies_after": {
+        "asset-resolver": "da1a0edb1248fb6666ed358c71b8ecb6e36ca526",
+        "ui-toolkit": "544b9fcef9001d27e3842cc2bb94c928b8ac97e6",
+        "ui-toolkit-macros": "645c0b88f65204ede9b9605faf2e84e89a82bcc2",
+        "shared-protocol": "2abc7fa844f6e71d93203ce5421ae853e884854d"
+      },
+      "cargo_units": [
+        {
+          "i": 215,
+          "name": "game-engine-ui-achievements",
+          "version": "0.1.0",
+          "mode": "todo",
+          "target": "",
+          "features": [],
+          "start": 0.48,
+          "duration": 0.74,
+          "unblocked_units": [
+            212
+          ],
+          "unblocked_rmeta_units": [],
+          "sections": [
+            [
+              "frontend",
+              {
+                "start": 0.0,
+                "end": 0.55
+              }
+            ],
+            [
+              "codegen",
+              {
+                "start": 0.55,
+                "end": 0.74
+              }
+            ]
+          ]
+        },
+        {
+          "i": 212,
+          "name": "game-engine-godot",
+          "version": "0.1.0",
+          "mode": "todo",
+          "target": "",
+          "features": [],
+          "start": 1.22,
+          "duration": 14.73,
+          "unblocked_units": [],
+          "unblocked_rmeta_units": [],
+          "sections": null
+        }
+      ],
+      "log_sha256": "238b4548ece82bcab51176bf0a4535e90c91ae506070b34e39eab38d19eaaa7c",
+      "timing_html": "cargo-timings/cargo-timing-20261024T155646889Z-30b50b5d2a71bae4.html"
+    }
+  ],
+  "common_artifact_feature_profile_multiset_differences": [],
+  "before_edit_wall_s": 41.56872398406267,
+  "after_edit_wall_s": 16.057715486036614,
+  "before_edit_child_cpu_s": 14.9619,
+  "after_edit_child_cpu_s": 10.28956000000004,
+  "isolation": "OnlyAchievements+native dirty;ui-model and all6existingUIfeaturesfresh",
+  "log_sha256": {
+    "achievement-after-census-driver.log": "ce1cdb2e284f47b6ebadc88fc595daab6082a8c82f28871101f5394f6ca9bbc7",
+    "achievement-base-tests.log": "a4ebfb6027105916a4c3eb459c680cca6c07d644aedb428207c0d418943ad51a",
+    "achievement-before-ignored-driver.log": "0d5c94acd99cc2356a2607606b227e2911df244e620b5b548fd6e14d9bea3c8c",
+    "achievement-all13-check-green.log": "42799497cc8975404f54358928e5c5c7f3da43fbd4b958ba56d5cd46cf398040",
+    "achievement-after-census.log": "99ead7a78b9fc4dddb9c10950a4392e70430545088ae23e52d44f2b063f0a15b",
+    "achievement-before-measure-driver.log": "0c77a97a16c2c68283e79f617bbcafe18df5f89090e479d9d94206b39bbf84a4",
+    "achievement-before-census-driver.log": "b343772afed7e09fc6f9fc9ca6c87bce17f19e124a275245e4b35f67dc8e0052",
+    "achievement-before-census.log": "c7828347b68bedadacf55148c87f8352a776cf6c669ef41b17fe0e7c27fd8acd",
+    "achievement-base-tests-driver.log": "dd3c4c362ef6347b91e1347608037eebe7986e599c583f2471f857dab8e1cd1c",
+    "achievement-after-base-census-driver.log": "6dd1462d7e4c9f12ddc9b72fcb8f78efb92c8b38f3bca95276140b05102d5589",
+    "achievement-after-measure-driver.log": "6a6b3a1d640ef6e302ba082dd4571d8c7590d251b253ea4413498ade31fb1d74",
+    "achievement-all13-check.log": "f32a8ea599765722bb220c3fffff877e4742396f80782e61a1293f47c54a0ff9",
+    "achievement-tests.log": "fe88ce395ecbd35323095c286b9b23b5558f41e52dfc11d8dd9205d5f16aca3f",
+    "achievement-before-ignored.log": "fbddc31f022b03dca8b118ba1778dd0fa13fe82c1f3545f37e965dc826348cf5",
+    "achievement-tests-driver.log": "887f20ed47d3f9c2845af6ae3cc49e2563f39371047430550058d3aac58942f2",
+    "achievement-after-base-census.log": "1f5aced8861403500af7b568e4748ddaa21199a9c40f851f72596c7cd8dfbe8f"
+  },
+  "qualification": "No wall-speed claim under unequal sharedhost load. Descriptive41.569->16.058s pair has native26.44->14.73s;childCPU31.2%lower,isolationproven. No-op/restore controls,pins/profiles matched,inputrestored. Parent owns13-package fullgate/push/merge;no new native-runtime acceptance."
+}

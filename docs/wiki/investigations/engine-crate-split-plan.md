@@ -232,6 +232,86 @@ Before packet `a154708f7`; rename-only `534ae04b1` moves11 presentation sources+
 
 **No wall-speed claim under unequal shared-host load.** The descriptive wall samples differ by0.374s, while child CPU is30.7% lower and dependency isolation is proven. The native unit grows16.06→21.54s; before/after restore/no-op controls and admission waits remain separate. Common Cargo feature/profile multisets have zero differences, sibling pins match and input is restored. Post-cut warmup177.208s is excluded (before warmup1.991s had zero dirty units, already warm). The subsequent helper-only test deletion does not intersect the measured production scope. Parent owns the eleven-package integration gate; no native runtime/full-suite acceptance is claimed. Raw before evidence: `/home/osso/.worktrees/logs/engine-crate-split-player-spells-before-1123c7606/`.
 
+## PvP presentation implementation
+
+Parent accepted Player Spells at `abd6a4ddc`, then authorized PvP or achievement presentation. PvP is selected for the better isolation-to-effort ratio: four closed files/1702LOC, versus achievement rendering mixed with authoritative state/comparison caches. Before packet `5af0fd2ab`; rename-only `b5e1f98e7` moves four source/three dedicated test files unchanged into `game-engine-ui-pvp`. Native match/actor behavior and wire authority remain unchanged.
+
+One mixed `selection_lists` case moves with its exact module::test name; three unrelated siblings stay base. Existing two cross-panel Player Spells cases stay in their peer crate through a **test-only** dependency on ui-pvp. Neither base nor Player Spells production gains a reverse dependency; no façade or new shared definitions. Before census is390 unchanged unit names and36 affected integration names:31 to PvP, three residual base and two peer cases; zero ignored.
+
+The reversible Honor-label edit `"Honor Level —"` → `"Honor Level —!"` takes42.452s before the cut, childCPU27.386s; no-op4.935s, restore53.125s. Controls include existing slot/helper wait, matching sibling pins/profiles and input restoration. [Before receipt](engine-crate-split-pvp-before.json), raw `/home/osso/.worktrees/logs/engine-crate-split-pvp-before-abd6a4ddc/`. Wiring `cf0cd0eac` passes admitted feature/GDExtension helper check without diagnostics. Scoped tests pass **390 base units,31 PvP integration cases,two unchanged Player Spells cross-panel cases and three residual selection cases** (426 total, zero failures/ignored). PvP unit count is zero. Exact runtime names conserve390 units, **34 base integration names = 31 moved + 3 residual**, and both peer names unchanged. No production helper visibility changes were needed.
+
+[PvP result receipt](engine-crate-split-pvp.json) retains names, commands and controls; raw post-cut evidence: `/home/osso/.worktrees/logs/engine-crate-split-pvp-cf0cd0eac/`.
+
+| Same reversible Honor-label edit | Before `abd6a4ddc` | After `cf0cd0eac` |
+|---|---:|---:|
+| No-op wall | 4.935s | 0.946s |
+| Edit wall | 42.452s | 15.008s |
+| Edit child user+system CPU | 27.386s | 8.241s |
+| Restore wall | 53.125s | 13.878s |
+| Changed base/feature unit | base8.98s | PvP1.79s |
+| Native unit | 32.51s | 11.88s |
+| Dirty UI crates | base +all five extracted features | PvP only; all six others fresh |
+
+**No wall-speed claim under unequal shared-host load:** native time also changes32.51→11.88s,so this is one descriptive before/after pair, not a guaranteed latency gain. Isolation is proven; child CPU is69.9% lower. Common artifact features/profiles have zero differences,sibling pins match,input restored. Warmups42.015/156.840s are excluded. Parent owns the twelve-package full gate and push/merge; no new native runtime acceptance.
+
+## Achievements presentation — approved boundary
+
+Parent accepted PvP on `origin/engine-crate-split` at `2800d47ec`,then approved the next presentation-only cut. [Exact approved plan/census](engine-crate-split-achievements-plan.json) measures2185 existing render lines from3466 combined lines;1281 existing state/cache/catalog lines remain base. Counts include imports/comments/tests and are not a final crate-size or per-module compile-time forecast. The full mixed group has65 distinct14-day commits;three pure-view files alone have24,not65 render-only edits.
+
+Keep the actual base `achievements` owner for AchievementWindow/action/query/apply/delta/refresh/tracking,private pending queue/snapshot baseline,comparison page caching,chat links and static search ancestry's one OnceLock. Tracker/chat imports remain base. The new `game-engine-ui-achievements::achievements` module owns real frame/toast render functions,not re-exported models or a compatibility façade.
+
+Approved boundaries are only public `has_more_search_results` (original count **or cursor** predicate unchanged),shared SEARCH_PREVIEW_LIMIT/CRITERIA constants,actual search_catalog::category_path,and one read-only `is_achievement_request_pending(id)->bool` copying the existing queue-membership predicate. No queue exposure,state rewrite or duplicate cache. The blend fixture initializes the same public fields after Default rather than constructing external private fields; assertions remain unchanged.
+
+Before `9881aade6`:390 units and37 dungeonclient integration cases,zero ignored. Proposed/executed ownership is one blend unit+27 render integration to feature;one catalog unit+10 model/tracker/chat cases stay base,with all names exact. Original test-local fixture helpers may be shared by copy;no production implementations are copied. Rename-only `57fb9ff98` moves only the three whole pure-view companions. Wiring splits mixed root/comparison rendering while retaining original state/cache bodies and migrates the27-case fixture; no base→feature dependency.
+
+The reversible label before measurement is `"Select a category"`→`"Select a category!"`:41.569s edit,childCPU14.962s,no-op6.625s/zero dirty units,restore28.054s,input restored. Before raw receipts are in `/home/osso/.worktrees/logs/engine-crate-split-achievements-plan-2800d47ec/`. User requires an admitted serialized helper check of **all thirteen packages**,exact after inventories,scoped behavior/fmt,and the paired edit with no wall-speed claim under unequal load. Wiring `15eb1f1ef` initially checks with one unused rendering import; `de71748fb` removes it instead of suppressing it. The requested helper **check of all thirteen workspace packages** then passes with zero diagnostics. Scoped execution passes **389 base units,one feature unit,27 feature integration and ten retained state/tracker/chat cases** (427 total,zero failures/ignored). Exact census conserves **390 = 389 + 1** units and **37 = 27 + 10** integration names;all11 named retained cases remain base. The model's original count-or-cursor predicate and comparison merge ordering remain unchanged.
+
+[Achievements result receipt](engine-crate-split-achievements.json) binds source/census/check/paired-timing receipts;raw post-cut evidence is `/home/osso/.worktrees/logs/engine-crate-split-achievements-de71748fb/`.
+
+| Same reversible category-label edit | Before `2800d47ec` | After `de71748fb` |
+|---|---:|---:|
+| No-op wall | 6.625s | 1.094s |
+| Edit wall | 41.569s | 16.058s |
+| Edit child user+system CPU | 14.962s | 10.290s |
+| Restore wall | 28.054s | 10.975s |
+| Changed base/feature unit | base10.89s | Achievements0.74s |
+| Native unit | 26.44s | 14.73s |
+| Dirty UI crates | base +all six existing features | Achievements only;all seven others fresh |
+
+**No wall-speed claim under unequal shared-host load:**native time changes too. Child CPU is31.2% lower and dependency isolation is proven in this descriptive sample. Normal package feature/profile multisets have zero differences,sibling pins match and edit input is restored. Before warmup1.902s was already fresh;post warmup182.345s is excluded. Parent owns the thirteen-package full gate/push/merge;no new native-runtime acceptance.
+
+Parent `ac-eng` gate on `fc6cbeb88` matches the prior baseline exactly: `forever_liquids` and two network `fixture_completion` failures, nothing new. Achievements accepted; historical three failures remain, not waived as passes.
+
+## RecipeCatalog residual — approved mixed-file cut
+
+At `fc6cbeb88`, the original4530-line Professions proposal is4204 already-extracted presentation lines plus326 previously excluded catalog lines. Do not count the completed19-source/18-unit/39-integration cut again. [Current exact source/test packet](engine-crate-split-professions-catalog-plan.json).
+
+Extend existing `game-engine-ui-professions::professions_catalog`, not a new crate. Move295 original mixed-file lines (3–293,298–301):RecipeCatalog,its unchanged loader/get/specialization methods and private recipe helpers. Retain31 original lines (1–2,294–297,302–326),including actual `number`/`read_rows` bodies (29lines),in base;no forwarding façade. Counts include imports/comments/blank lines,not final wired size. Whole-file rename-only is inapplicable;parent approved the mixed-file split.
+
+Only three existing functions gain public visibility:`professions_catalog::{number,read_rows}` and `professions_quality::load`. The quality→parser edge stays within base;feature→Recipe/ProfessionBook/quality stays downward. Keep all model decisions,quality/reagent-count types and bodies,native catalog/receiver/worker and trainer OnceLock owners. Native catalog imports change directly;trainer content continues accepting the same base Recipe. No copied model/parser/cache or reverse base edge.
+
+Exact test proposal:base389→386 units,feature18→21;feature39→43 integration,base trainer9→5. Three catalog-dependent units retain `professions::tests::*`;four catalog-dependent trainer cases retain `trainer_tooltips::*`. Eight model units+one reagent unit and five trainer siblings stay base. Full existing base-unit scope yields455 tests before/after;relevant subset78. Fresh original trainer runtime listing9/ignored0;other name inventories reuse unchanged,previously executed sources. Temporary census manifest/harness restored;no new execution credit. Catalog has8 distinct path commits in pinned14days,not a measured compile share.
+
+Before packet `feb6d9320`;mixed-file implementation `b57ba9275` moves the approved definition/helpers once into the existing feature;the three/four mixed cases preserve bodies and namespaces. Actual CSV readers remain base-owned,not a reexport. All12 catalog/parser function bodies are mechanically conserved after owner-path/format normalization;ProfessionBook/reagent/trainer-content/data diffs are empty,quality differs only in load visibility,and base has no RecipeCatalog/feature references. No new control flow,abstractions or suppressions.
+
+[Residual result receipt](engine-crate-split-professions-catalog.json):all13-package helper check passes with zero diagnostics;all13fmt passes. Execution **386 base+21 feature units+43 feature integration+five retained trainer cases=455 pass,zero failures/ignored**. Exact inventories conserve407units=386+21 and48integration=43+5;all original473 global unit names remain. Temporary retained fixture target/manifest restored. Raw `/home/osso/.worktrees/logs/engine-crate-split-professions-catalog-b57ba9275/`;parent owns full gate/push/merge. **Parent explicitly waived paired timing for this small slice:no timing edit/run.**
+
+## Remaining base UI cuts — expected rebuild-work ranking
+
+Source `12695a5ad` (code `b57ba9275`),[exact paths/dependency/churn packet](engine-crate-split-remaining-ui-ranking.json). Rank **recurring compiler work avoided,not LOC**:a base edit currently dirties base plus seven feature dependents,then native. A closed leaf replaces that UI fanout with its own build;native still rebuilds/links. No per-module seconds are measured. Distinct path commits in pinned14days are an **upper-bound frequency proxy**,including retained state/tests/engineering edits—not eligible edit counts or build loops. Boundary cost is separate from gross saving rank.
+
+| Rank | Remaining candidate / path commits | Expected saving and boundary cost |
+|---|---|---|
+| 1 | Guild presentation /79 | Highest aggregate opportunity;medium confidence until render-only partition. Keep GuildRanksSession/GuildCommand/news state,four existing field names,control PAGES and permission_right in base. Keep chat on actual base state;move the render/private-helper closure together. |
+| 2 | Quest/map/tracker presentation /29 | High recurring fanout avoidance,but larger break cost:map builders/world quests/flight map consume seven existing map types;challenge/dungeon/HUD/actions consume tracker state. Retain these owners and POI/runtime data;no model copies. |
+| 3 | Cooldown viewer/settings /21 | Best bounded presentation-only next scope. Retain actual CooldownSettingEntry and CooldownSettingsView definitions because base CooldownViewerView.settings/sort_settings use them;move renderer/postsetup,not order/recommendation state. |
+| 4 | Residual talent UI model/editor/loadout/search /18 | Conditional new ownership approval,not another renderer cut. Four files,11 production consumer files (six native/five feature),five peer integration files plus one base talent_icons suite. No external residual-base production incoming edge observed;existing feature can consume base tooltips directly. |
+| 5 | RaidInfo screen /11 | Smaller-frequency,cheap screen-only alternative;retain RaidInfoState/actions. Encounter Timeline renderer is similar at8. ReadyCheck alone is **not** closed:base GroupFrames holds its state and calls its renderer. |
+
+**Spellbook/talents micro_menu cost is already paid.** Accepted Player Spells cut moved3843 render lines;exactly35 existing shared lines remain once in `player_spells_data` (PlayerSpellsTab+impl,SpellbookItemView). Current micro_menu:210–212 returns that base enum;spell_overrides:9 uses the same base item struct. No menu relocation,new enum/interface or additional visibility is needed if they stay put. Remaining talent-model movement would update real native/feature imports,including native account's TalentEditor field type path;it needs explicit model-ownership approval,not an edge-breaking workaround. Without that approval,skip row4:the old renderer cannot deliver savings twice.
+
+For scale,the historical Player Spells sample changes childCPU17.509→12.139s while wall23.287→22.914s;native16.06→21.54s under unequal load. This proves isolation,not a forecast for these cuts. Guild offers most potential recurring work avoidance;Cooldown is the cheaper bounded first packet. Shared primitives/game_tooltip/quest_art participate in a57-module resolved knot—do not extract a whole directory. No further implementation authorized.
+
 ## Baseline edit measurements
 
 [Machine-readable receipts](engine-crate-split-baseline.json) include exact commands, package/target dirtiness, wall/user/system time, dependency pins, Cargo unit timings and raw-log hashes. Host `agent-server`, Rust/Cargo 1.99.0, four jobs, native helper defaults and unchanged profiles/linker. Raw logs, HTML timings, drivers and before/after name lists are archived outside the worktree at `/home/osso/.worktrees/logs/engine-crate-split-baseline-4645578c7/`. No post-split improvement is claimed.

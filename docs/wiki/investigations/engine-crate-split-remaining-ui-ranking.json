@@ -1,0 +1,165 @@
+{
+  "source_revision": "12695a5adeced98bde6a7538e841caf71dc29550",
+  "code_revision": "b57ba92751bff5fbb9a8b724b40d2daff695d84a",
+  "since": "2026-10-10T11:51:59-05:00",
+  "until": "2026-10-24T11:51:59-05:00",
+  "method": "Expected recurring avoided compiler work,not LOC:common base fanout makes eligible edit frequency the leading aggregate proxy. Gross opportunity order shown separately from boundary cost;Cooldown is cheaper to split than higher-frequencyQuest/Map. Whole-path14day nonmerge commits are upper-bound frequency proxies,include tests/retained state/engineering edits,not forecasts of eligible render edits or build loops. No per-candidate seconds or numerical speedup forecast. No new timing trials.",
+  "base_reverse_normal_feature_dependencies": [
+    "game-engine-ui-achievements",
+    "game-engine-ui-adventure",
+    "game-engine-ui-collections",
+    "game-engine-ui-housing",
+    "game-engine-ui-player-spells",
+    "game-engine-ui-professions",
+    "game-engine-ui-pvp"
+  ],
+  "current_base_edit_ui_units": "base+7existingfeatures,then native;newleaf edits replace these UI compiles withleaf+native. Existingfeature extension makes base+6otherfeatures fresh. Newleaf adds one leaf compile while base+7oldfeatures fresh.",
+  "native_tail": "Still dirty for every feature edit;historical PlayerSpells pair had base5.91->feature0.85s but native16.06->21.54s;wall23.287->22.914s,childCPU17.509->12.139s under unequal load. Qualifies expected work savings,not guaranteed latency.",
+  "rankings": [
+    {
+      "rank": 1,
+      "candidate": "guild_presentation",
+      "files": [
+        "godot/ui-model/src/guild_communities.rs",
+        "godot/ui-model/src/guild_control.rs",
+        "godot/ui-model/src/guild_control_art.rs",
+        "godot/ui-model/src/guild_event_log.rs",
+        "godot/ui-model/src/guild_member_detail.rs",
+        "godot/ui-model/src/guild_news.rs",
+        "godot/ui-model/src/guild_perks.rs",
+        "godot/ui-model/src/guild_rank_frame.rs",
+        "godot/ui-model/src/guild_tabard_frame.rs"
+      ],
+      "distinct_path_commits": 79,
+      "expected_work_savings": "Avoid base+unrelated-feature compiler work on edits wholly inside moved rendering/model boundary;native still recompiles/links. No per-candidate seconds measured.",
+      "boundary_cost": "Exact render/private-helper census completed at307d19f1c;see shelved_plan. Chat/session/catalog owners remain base. Cross-crate shared-art visibility widening required.",
+      "shelved_plan": {
+        "status": "shelved",
+        "decision_date": "2026-10-24",
+        "census_revision": "307d19f1c831fa956a773f412306e9a1fdbb8c84",
+        "reason": "Lead judged visibility/API cost unjustified while native recompilation/link dominates;further UI leaf extraction deferred pending native bottleneck diagnosis. No implementation authorized or performed.",
+        "latency_qualification": "No Guild timing measured. Historical PlayerSpells wall23.287->22.914s (~0.37s) under unequal load is not a Guild prediction or guaranteed saving;native16.06->21.54s counteracted UI5.91->0.85s. A few warm-loop seconds may be plausible,but flat/slower remains possible. Do not sum parallel compiler units or promise large wall savings.",
+        "target_crate": "game-engine-ui-guild;one-way normal dependencies on ui-model,shared at current pin,and ui-toolkit-core;native imports feature directly;no base-to-feature normal/dev dependency or renderer re-export",
+        "move_entire_modules": [
+          "guild_communities",
+          "guild_control_art",
+          "guild_event_log",
+          "guild_news",
+          "guild_tabard_frame",
+          "guild_note_sort",
+          "guild_zone_sort",
+          "guild_presence"
+        ],
+        "move_partial_modules": {
+          "guild_control": "All functions/private render helpers except permission_right;PAGES and OFFICER_CHAT remain base",
+          "guild_member_detail": "All functions,RankChoice and DETAIL_FRAME_LEVEL;NOTE_BOX remains base",
+          "guild_rank_frame": "All functions including preview/translucent_chrome;GOLD_BOX,INVITE_BOX,PROFILE_BOX remain base",
+          "guild_perks": "SCROLL_BOX,frame,perk_list,perk_row only"
+        },
+        "private_helper_closure": {
+          "guild_note_sort": "Entire65lines:Member alias,policy constant,compare,compare_base,presence_sort_key,compare_storm_historical",
+          "guild_zone_sort": "Entire46lines:Member alias,policy constant,compare,offline_logout,online_zone,compare_zones",
+          "guild_presence": "Entire62lines:read_current_last_online_text,last_online_at,and one deterministic elapsed-recency unit test",
+          "incoming_edge_check": "These three modules have only Guild render/helper production consumers besides root declarations;move without public API widening"
+        },
+        "retain_base": [
+          "guild_ranks entire:GuildRanksSession,GuildCommand,enums,session/command/permission decisions",
+          "guild_news_state entire",
+          "guild_rank_frame::{GOLD_BOX,INVITE_BOX,PROFILE_BOX};guild_member_detail::NOTE_BOX at original paths",
+          "guild_control::{PAGES,OFFICER_CHAT,permission_right}",
+          "guild_perks::{CATALOG OnceLock,load_catalog};no copied cache",
+          "guild_tabards entire:GuildTabards,catalog,PortraitArt,load_portrait_art,rgb",
+          "guild_member_rank,guild_charters,guild_charter_frame,guild_bank and shared chrome/chat/menu/list/tooltip/data owners"
+        ],
+        "visibility_changes": [
+          "guild_tabards::{PortraitArt,load_portrait_art}:pub(crate)->pub;fields already pub",
+          "game_tooltip::render::nine_slice:pub(crate)->pub",
+          "merchant_frame_component::player_money:pub(crate)->pub",
+          "static_popup_item::dialog_button and static_popup_component re-export:pub(crate)->pub",
+          "Moved dropdown,menu_width,tooltip_border,translucent_chrome remain pub(crate) inside feature;private helper modules remain private"
+        ],
+        "native_wiring": "Screen/postsetup/input_action/scroll IDs/tabard MODEL/PORTRAIT/preview consumers import feature;field constants and chat perk-loader consumers keep base imports",
+        "test_partition": {
+          "move_integration": "Complete guild_rank_widgets51 + nested leadership4/whisper3/numeric4/zone3=65;guild_tabards last3 browse/render/art cases;selection_lists_guild_members_keep_communities_line_backing1 with guild_session/guild_registry helpers;total69",
+          "move_unit": "guild_presence::tests::guild_last_online_source_unit_boundaries_are_deterministic1",
+          "retain_base": "guild_tabards first2 pure draft/catalog cases;selection_lists generic/shared2;native_guild_ranks8;native_guild_bank11;guild_charters5;chat link/model tests unchanged",
+          "retain_native": "Existing native Guild/scroll/tabard tests and process fixtures retain native ownership;only feature imports rewire",
+          "required_proof_if_revived": "Preserve exact qualified-name before/after union mapping for70 transferred tests;run targeted feature/base/native checks through admitted helper;no dropped tests or base feature dev-dependency cycle"
+        }
+      }
+    },
+    {
+      "rank": 2,
+      "candidate": "quest_map_presentation",
+      "files": [
+        "godot/ui-model/src/ui/screens/objective_tracker_component.rs",
+        "godot/ui-model/src/ui/screens/quest_frame_component.rs",
+        "godot/ui-model/src/ui/screens/quest_log_frame_component.rs",
+        "godot/ui-model/src/ui/screens/quest_scroll.rs",
+        "godot/ui-model/src/ui/screens/world_map_frame_art.rs",
+        "godot/ui-model/src/ui/screens/world_map_frame_component.rs",
+        "godot/ui-model/src/ui/screens/world_map_frame_component/canvas.rs",
+        "godot/ui-model/src/ui/screens/world_map_frame_component/chrome.rs",
+        "godot/ui-model/src/ui/screens/world_map_frame_component/rewards.rs",
+        "godot/ui-model/src/ui/screens/world_map_frame_component/rewards_content.rs"
+      ],
+      "distinct_path_commits": 29,
+      "expected_work_savings": "Avoid base+unrelated-feature compiler work on edits wholly inside moved rendering/model boundary;native still recompiles/links. No per-candidate seconds measured.",
+      "boundary_cost": "High gross opportunity but larger up-front break cost:retain MapBreadcrumb/MapHighlight/MapPin/MapPinType/MapPlayerMarker/MapTile/WorldMapFrameState type owners for world_map_view_data/world_quest_ui/flight_map plus tracker state for challenge/dungeon_progress/hud_layout/quest_actions. No model/POI movement or copied map data."
+    },
+    {
+      "rank": 3,
+      "candidate": "cooldown_presentation",
+      "files": [
+        "godot/ui-model/src/cooldown_settings_component.rs",
+        "godot/ui-model/src/cooldown_viewer_component.rs"
+      ],
+      "distinct_path_commits": 21,
+      "expected_work_savings": "Avoid base+unrelated-feature compiler work on edits wholly inside moved rendering/model boundary;native still recompiles/links. No per-candidate seconds measured.",
+      "boundary_cost": "Lower split cost:retain the 2 existing CooldownSettingEntry/CooldownSettingsView definitions in base because CooldownViewerView.settings/sort_settings use them. Move renderer/postsetup only;not cooldown model/order/recommendations."
+    },
+    {
+      "rank": 4,
+      "candidate": "talent_ui_models",
+      "files": [
+        "godot/ui-model/src/talent_editor.rs",
+        "godot/ui-model/src/talent_loadouts.rs",
+        "godot/ui-model/src/talent_search.rs",
+        "godot/ui-model/src/talents.rs"
+      ],
+      "distinct_path_commits": 18,
+      "expected_work_savings": "Avoid base+unrelated-feature compiler work on edits wholly inside moved rendering/model boundary;native still recompiles/links. No per-candidate seconds measured.",
+      "boundary_cost": "Conditional:requires approval to move actual TalentView/editor/loadout/search UI-model ownership into existing PlayerSpells crate;not a presentation-only move.4files,11 current production consumer files (6native/5feature),5 peer integration files+one base talent_icons suite. No residual-base normal production incoming edge observed;no new visibility expected,not yet exact cut census."
+    },
+    {
+      "rank": 5,
+      "candidate": "raid_info_presentation",
+      "files": [
+        "godot/ui-model/src/raid_info.rs"
+      ],
+      "distinct_path_commits": 11,
+      "expected_work_savings": "Avoid base+unrelated-feature compiler work on edits wholly inside moved rendering/model boundary;native still recompiles/links. No per-candidate seconds measured.",
+      "boundary_cost": "Cheap smaller-frequency option:retain RaidInfoState/action/model decisions,move screen/art only;zero non-root base production incoming callers in resolved graph. Encounter timeline renderer is similar lower-frequency8commit option. ReadyCheck is NOT a closed tiny leaf:base group_frames owns both ReadyCheckFrameState and ready_check_frame call."
+    }
+  ],
+  "spellbook_micro_menu_correction": {
+    "already_extracted_presentation_lines": 3843,
+    "prior_base_retained_existing_lines": 35,
+    "retained_path": "godot/ui-model/src/player_spells_data.rs",
+    "definitions": [
+      "PlayerSpellsTab enum+impl",
+      "SpellbookItemView struct"
+    ],
+    "current_micro_menu_witness": "godot/ui-model/src/micro_menu.rs:210-212 returns base::player_spells_data::PlayerSpellsTab",
+    "current_spell_override_witness": "godot/ui-model/src/spell_overrides.rs:9 consumes same base SpellbookItemView",
+    "remaining_micro_menu_edge_break_cost": "ZERO if those existing definitions stay base;do not move menu or invent a new enum/interface. Cost already paid in d8d935ea2 and accepted abd6a4ddc.",
+    "residual_model_candidate_cost": "Conditional:requires approval to move actual TalentView/editor/loadout/search UI-model ownership into existing PlayerSpells crate;not a presentation-only move.4files,11 current production consumer files (6native/5feature),5 peer integration files+one base talent_icons suite. No residual-base normal production incoming edge observed;no new visibility expected,not yet exact cut census.",
+    "if_no_model_moves": "Skip residual talents;old spellbook/talent renderer is already outside base,zero remaining presentation saving from moving it again."
+  },
+  "defer": [
+    "Shared quest_art/bank_art/game_tooltip/menu primitives participate in resolved57-module knot;do not call directory extraction cheap or attribute all their edits to a leaf.",
+    "Readycheck alone cannot move without breaking group-frame render/state calls;do not treat literal-root-only incoming count as proof."
+  ],
+  "confidence": "Rankings preserve avoided-work proxies,not wall-time priorities. Guild exact census is recorded but split shelved on2026-10-24:visibility cost unjustified without measured latency benefit. Further UI leaf splits deferred while native rebuild/link dominates;next authorized work is read-only native bottleneck diagnosis. No further split implementation authorized.",
+  "raw_archive": "/home/osso/.worktrees/logs/engine-crate-split-remaining-ui-12695a5ad"
+}

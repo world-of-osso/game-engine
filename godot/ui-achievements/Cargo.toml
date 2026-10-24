@@ -1,0 +1,24 @@
+[package]
+name = "game-engine-ui-achievements"
+version = "0.1.0"
+edition.workspace = true
+rust-version.workspace = true
+autotests = false
+
+[[test]]
+name = "integration"
+path = "tests/integration.rs"
+
+[dependencies]
+# The existing earned-date renderer retains base's chrono features.
+chrono = { version = "0.4", default-features = false, features = ["clock"] }
+# Authority, pending query state, comparison cache and static ancestry stay base-owned.
+game-engine-ui-model = { path = "../ui-model" }
+# Existing achievement snapshots and rows retain their original wire identities.
+shared = { git = "https://github.com/world-of-osso/shared-protocol.git", rev = "74e67cf" }
+ui-toolkit = { package = "ui-toolkit-core", path = "../../../ui-toolkit/core" }
+
+[dev-dependencies]
+# Existing actual-source CSV and serialized row fixtures remain unchanged.
+game-engine-core = { path = "../core" }
+serde_json = "1"

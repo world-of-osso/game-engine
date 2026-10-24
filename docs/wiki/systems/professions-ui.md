@@ -37,7 +37,7 @@ The [native coverage section](../../specs/professions-frame.md#native-godot-cove
 
 ## Presentation crate ownership
 
-Source `8b773aa0f`: `game-engine-ui-professions` owns frame/cooldown/order/reagent-selection/specialization presentation. ProfessionBook, Recipe, quality, reagent-count and RecipeCatalog implementations stay in ui-model; native hosts depend directly on the presentation crate. Two mixed integration and four mixed unit cases preserve their original module::test names on the new side, with all unrelated model/auction/character/raid cases retained in base. [Split census and paired edit timing](../investigations/engine-crate-split-plan.md#professions-extraction-implementation) own compile-isolation evidence, not a gameplay change.
+`game-engine-ui-professions` owns frame/cooldown/order/reagent-selection/specialization presentation and the [residual RecipeCatalog](../investigations/engine-crate-split-plan.md#recipecatalog-residual--approved-mixed-file-cut). ProfessionBook/Recipe,quality,reagent-count and actual CSV reader implementations stay in ui-model;native hosts import the actual feature catalog directly. Only existing number/read_rows/quality::load gain public visibility. Native catalog worker/receiver and trainer OnceLock owners stay unchanged;no façade,model move or reverse dependency. Two mixed integration and four mixed unit cases preserve their original module::test names on the new side, with all unrelated model/auction/character/raid cases retained in base. [Split census and paired edit timing](../investigations/engine-crate-split-plan.md#professions-extraction-implementation) own compile-isolation evidence, not a gameplay change.
 
 ## Sources
 

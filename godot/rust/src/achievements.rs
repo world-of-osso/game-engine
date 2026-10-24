@@ -178,12 +178,15 @@ impl GameClient {
             let Some(registry) = host.registry() else {
                 return false;
             };
-            if registry.get_by_name(model::ROWS_SCROLLBOX).is_none() {
+            if registry
+                .get_by_name(game_engine_ui_achievements::achievements::ROWS_SCROLLBOX)
+                .is_none()
+            {
                 return false;
             }
             let scroll = registry
                 .scroll_lists
-                .get(model::ROWS_SCROLLBOX)
+                .get(game_engine_ui_achievements::achievements::ROWS_SCROLLBOX)
                 .expect("achievement rows scroll state");
             scroll.first_row >= scroll.geometry.max_first_row()
         });
@@ -309,7 +312,7 @@ impl GameClient {
         if let Some(ui) = &mut self.achievements.ui {
             return ui.bind_mut().set_achievement_window(state);
         }
-        self.extract_art(model::ART);
+        self.extract_art(game_engine_ui_achievements::achievements::ART);
         self.extract_art(&game_engine_ui_model::panel_style_data::metal_sheet_fdids(
             game_engine_ui_model::panel_style_data::MetalTopLeft::Plain,
         ));
@@ -337,7 +340,7 @@ impl GameClient {
         let Some(toast) = self.achievements.toasts.pop_front() else {
             return Ok(());
         };
-        self.extract_art(&[model::TOAST_ATLAS_FDID]);
+        self.extract_art(&[game_engine_ui_achievements::achievements::TOAST_ATLAS_FDID]);
         self.drawable_fdid(toast.icon_fdid);
         let mut ui = RegistryUi::new_alloc();
         ui.set_name("AchievementToastUI");

@@ -119,12 +119,12 @@ fn raid_state() -> Result<game_engine_ui_model::raid_info::RaidInfoState, String
     })
 }
 
-fn scoreboard_view() -> game_engine_ui_model::battleground::PvpView {
+fn scoreboard_view() -> game_engine_ui_pvp::battleground::PvpView {
     use shared::{
         battleground::{BgPhase, BgTeam, FlagObjective},
         protocol::{BattlegroundPlayerScoreSnapshot, BattlegroundSnapshot, PvpSnapshot},
     };
-    game_engine_ui_model::battleground::PvpView {
+    game_engine_ui_pvp::battleground::PvpView {
         scoreboard: true,
         viewport: [1920.0, 1080.0],
         snapshot: Some(PvpSnapshot {
@@ -177,7 +177,7 @@ fn scoreboard_view() -> game_engine_ui_model::battleground::PvpView {
 fn ready_dialog_view(
     waiting: bool,
     viewport: [f32; 2],
-) -> game_engine_ui_model::battleground::PvpView {
+) -> game_engine_ui_pvp::battleground::PvpView {
     let mut view = scoreboard_view();
     view.viewport = viewport;
     view.visible = true;
@@ -276,9 +276,9 @@ impl RegistryUi {
                     .expect("Offline PvP snapshot")
                     .battleground = None;
                 view.category = if page == "arena-rated" {
-                    game_engine_ui_model::battleground::PvpCategory::Rated
+                    game_engine_ui_pvp::battleground::PvpCategory::Rated
                 } else {
-                    game_engine_ui_model::battleground::PvpCategory::QuickMatch
+                    game_engine_ui_pvp::battleground::PvpCategory::QuickMatch
                 };
                 return self.show_pvp(view);
             }

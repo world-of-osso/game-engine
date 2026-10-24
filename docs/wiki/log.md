@@ -1,3 +1,23 @@
+## 2026-10-24 — Remaining UI rebuild-work ranking
+
+[Current ranking](investigations/engine-crate-split-plan.md#remaining-base-ui-cuts--expected-rebuild-work-ranking) at12695a5ad/codeb57:Guild79,QuestMap29,Cooldown21,residual talent models18,RaidInfo11 distinct14-day path commits. These are frequency upper bounds,not LOC/compiler time/eligible edit counts. Base currently fans out into seven feature crates;native tail remains. Boundary costs explicit;Cooldown is cheapest bounded presentation-only next scope. Spellbook renderer already moved;micro_menu edge already resolved by retaining35 existing data lines once in base. Residual talent-model movement needs new ownership approval,not another menu workaround. No code/timing changes.
+
+## 2026-10-24 — RecipeCatalog residual implementation
+
+[Residual cut](investigations/engine-crate-split-plan.md#recipecatalog-residual--approved-mixed-file-cut) `b57ba9275` retains the actual parser functions/base model/quality/reagent/native cache owners;only approved three functions gain visibility. All12 catalog/parser function bodies conserved;three units/four trainer cases keep exact names. All13-package check/zero diagnostics andall13fmt pass.386base+21feature units+43featureintegration+5retainedtrainer=455pass/0fail/ignored;407unit/48integration name multisets exact. No timing run per parent. Parent fullgate separate;no new native-runtime acceptance.
+
+## 2026-10-24 — RecipeCatalog residual approval and census
+
+Parent accepts Achievements `fc6cbeb88`:ac-eng matches the same three known baseline failures,none new. [RecipeCatalog residual](investigations/engine-crate-split-plan.md#recipecatalog-residual--approved-mixed-file-cut) extends existing Professions crate295 original lines,retains31 including actual parser helpers;only number/read_rows/quality::load may gain visibility. Exact base389→386/feature18→21 units and feature39→43/trainer9→5 integration planned;three units/four trainer cases move,models/reagent unit/five trainer siblings stay. Original trainer runtime9/ignored0,other census reused on unchanged sources. No product changes in this packet. Parent explicitly skips paired timing;13-package check/fmt/exact inventories remain required.
+
+## 2026-10-24 — Achievements presentation-only split
+
+[Achievements cut](investigations/engine-crate-split-plan.md#achievements-presentation--approved-boundary) before9881aade6/rename-only57fb9ff98/wiring15eb1f1ef/importcleanupde71748fb moves2185existingrenderlines,leavesstate/cache/catalog/tracker/chatbase. Onlyapprovedvisibility andreadonlypendingbool accessor;noqueueexposure/facade/reverseedge. All13packagecheck passes/zero diagnostics;389base+1feature units+27render+10retained cases pass427/0fail/ignored,exact390=389+1/37=27+10 and11retainednames conserved. Category edit41.569→16.058s/CPU14.962→10.290s,onlyfeature+native dirty;native26.44→14.73s,so no wall-speed claim under unequal load. Controls/pins/profiles retained,parent13-package gate separate.
+
+## 2026-10-24 — PvP presentation split
+
+[PvP cut](investigations/engine-crate-split-plan.md#pvp-presentation-implementation) before5af0fd2ab/rename-onlyb5e1f98e7/wiringcf0cd0eac moves4sources/1702LOC+3dedicated testfiles;one mixed selectioncase moves,3siblings remain base.2peer cross-panel cases retain names through test-only dependency,no productionreverseedge/facade. Check passes/no diagnostics;390units+31feature+2peer+3residual pass (426total0fail/ignored),exact names conserved. Honor edit42.452→15.008s/CPU27.386→8.241s,onlyfeature+native dirty;native32.51→11.88s,so no wall-speed claim under unequal load. Parent12-package gate separate.
+
 ## 2026-10-24 — Player Spells presentation split
 
 [Player Spells cut](investigations/engine-crate-split-plan.md#player-spells-presentation--approved-next-slice) beforea154708f7/rename-only534ae04b1/wiringd8d935ea2 moves11presentation sources and11dedicated suites;35existing enum/item lines stay once in realbase data module. Talent/editor/loadout/search models remain unchanged;override typepath only. Four mixed cases preserve names/21siblings remain base;orphaned helper deletedc6dfa999e,affected21rerun/no warnings. Check passes;390base+72feature+21residual cases pass0fail/1original ignored audit;94names/390units exact,original473units conserved. Paired edit23.287→22.914s/childCPU17.509→12.139s,onlyfeature+native dirty;no wall-speed claim under unequal load. Controls/pins/profiles retained,parent11-package gate separate.

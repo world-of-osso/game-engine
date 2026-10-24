@@ -190,7 +190,7 @@ mod tests {
     fn professions_reagent_glyph_uses_allocated_tiers_or_actual_stock_never_a_default_tier() {
         let dir =
             std::path::PathBuf::from(env!("CARGO_MANIFEST_DIR")).join("../../data/db2/active");
-        let catalog = game_engine_ui_model::professions_catalog::RecipeCatalog::load(&dir).unwrap();
+        let catalog = crate::professions_catalog::RecipeCatalog::load(&dir).unwrap();
         let slot = &catalog.reagent_slots[&375188][1];
         let owned = [(193208, 6), (193210, 4)].into();
         let qualities = &catalog.crafting_quality;

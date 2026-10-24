@@ -47,8 +47,8 @@ fn draft() -> SpecializationDraft {
 }
 #[test]
 fn specialization_query_uses_learned_specialization_tier_not_selected_classic_recipe() {
+    use crate::professions_catalog::RecipeCatalog;
     use game_engine_ui_model::professions::{ProfessionBook, Recipe};
-    use game_engine_ui_model::professions_catalog::RecipeCatalog;
     use shared::profession::ProfessionSkillLine;
     let catalog = RecipeCatalog::load(
         &std::path::PathBuf::from(env!("CARGO_MANIFEST_DIR")).join("../../data/db2/active"),

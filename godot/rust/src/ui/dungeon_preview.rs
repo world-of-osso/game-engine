@@ -222,7 +222,7 @@ pub(super) fn cache_art() -> Result<(), String> {
     let data = godot::classes::ProjectSettings::singleton().globalize_path("res://../data");
     let root = std::path::PathBuf::from(data.to_string());
     let resolver = crate::assets::creature::local_resolver(&root);
-    let fdids = game_engine_ui_model::achievements::ART
+    let fdids = game_engine_ui_achievements::achievements::ART
         .iter()
         .copied()
         .chain([134163, 5320671])

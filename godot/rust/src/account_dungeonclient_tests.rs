@@ -292,8 +292,10 @@ fn dungeonclient_account_catalog_continuations_and_live_toast_reach_host() {
     let mut shared = ui_toolkit::screen::SharedContext::new();
     shared.insert(toast);
     let mut registry = ui_toolkit::registry::FrameRegistry::new(1920.0, 1080.0);
-    ui_toolkit::screen::Screen::new(game_engine_ui_model::achievements::achievement_toast_screen)
-        .sync(&shared, &mut registry);
+    ui_toolkit::screen::Screen::new(
+        game_engine_ui_achievements::achievements::achievement_toast_screen,
+    )
+    .sync(&shared, &mut registry);
     let name = registry
         .get(registry.get_by_name("AchievementToastName").unwrap())
         .unwrap();

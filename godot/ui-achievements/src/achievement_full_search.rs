@@ -1,7 +1,9 @@
 //! Retail AchievementUI.xml62–111/2582–2703 and Lua3467–3493.
 use super::*;
-use crate::minimal_scroll_bar::{MinimalScrollBar, Unscrollable, pixel_geometry, scroll_list_attr};
-use crate::quest_art::named_atlas_texture;
+use game_engine_ui_model::minimal_scroll_bar::{
+    MinimalScrollBar, Unscrollable, pixel_geometry, scroll_list_attr,
+};
+use game_engine_ui_model::quest_art::named_atlas_texture;
 
 const WIDTH: f32 = 600.0;
 const HEIGHT: f32 = 382.0;

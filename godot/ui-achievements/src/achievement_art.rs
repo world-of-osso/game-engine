@@ -1,6 +1,6 @@
 //! Mainline AchievementUI.xml templates. Forever changes art tint, never geometry.
 use super::{DynName, Element, GOLD, WHITE, label};
-use crate::quest_art::named_atlas_texture;
+use game_engine_ui_model::quest_art::named_atlas_texture;
 use ui_toolkit::atlas::{ActiveSkin, thread_skin};
 use ui_toolkit::rsx;
 use ui_toolkit::widgets::font_string::GameFont;
@@ -106,7 +106,7 @@ pub(super) fn chrome(summary: bool, guild: bool) -> Element {
         out.extend(texture(&format!("AchievementFrame{name}"), fdid, uv, rect));
     }
     // AchievementUI.lua380/398; XML1956 inherits GameFontNormalSmall (RomanFriz10).
-    let title = crate::auction_mail::text(if guild {
+    let title = game_engine_ui_model::auction_mail::text(if guild {
         "GUILD_ACHIEVEMENTS_TITLE"
     } else {
         "ACHIEVEMENT_TITLE"
@@ -156,12 +156,15 @@ pub(super) fn category_row(
         if child { WHITE } else { GOLD },
         action,
     ));
-    crate::selection_list::row(
+    game_engine_ui_model::selection_list::row(
         format!("{name}Button"),
         action,
         true,
         (x, y, width, 24.0),
-        (&crate::selection_list::ACHIEVEMENT_CATEGORY, false),
+        (
+            &game_engine_ui_model::selection_list::ACHIEVEMENT_CATEGORY,
+            false,
+        ),
         content,
     )
 }
@@ -174,7 +177,7 @@ pub(super) fn scroll_pane(
     rect: (f32, f32, f32, f32),
     content_height: f32,
 ) -> Element {
-    use crate::minimal_scroll_bar::{
+    use game_engine_ui_model::minimal_scroll_bar::{
         MinimalScrollBar, Unscrollable, pixel_geometry, scroll_list_attr,
     };
     let (x, y, width, height) = rect;

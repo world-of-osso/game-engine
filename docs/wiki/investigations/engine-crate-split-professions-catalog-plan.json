@@ -1,0 +1,414 @@
+{
+  "status": "APPROVED mixed-file residual extraction;sourcefc6 before census. Only three specified visibility changes;parent waives paired timing.",
+  "source_revision": "fc6cbeb885e46817d4f5c56b73aa7460fe7df9e3",
+  "prior_completed_presentation_tip": "1123c760602b129cd608efe47b45c2dba2156f44",
+  "prior_presentation_receipt": "engine-crate-split-professions.json",
+  "prior_presentation_original_files": 19,
+  "prior_presentation_original_lines": 4204,
+  "prior_presentation_unit_tests": 18,
+  "prior_presentation_integration_tests": 39,
+  "prior_proposal_original_lines": 4530,
+  "reconciliation": "4530=4204 completed presentation +326 previously excluded RecipeCatalog;do not repeat or count4204 as new work",
+  "current_file_inventory": {
+    "godot/ui-model/src/professions.rs": {
+      "physical_lines": 153,
+      "sha256": "e932f3c48f67ccb33b214deee7ca7b1a8e804bc79e3a415fd0f02ac21b27add2"
+    },
+    "godot/ui-model/src/professions_catalog.rs": {
+      "physical_lines": 326,
+      "sha256": "75499e4b808a55a51b982be978e97f60c5ff60b5e8b0edbf55ea7e6e653b092d"
+    },
+    "godot/ui-model/src/professions_quality.rs": {
+      "physical_lines": 91,
+      "sha256": "559aadfccaa2fa02708a399848fdf7575b8075cc898e8d6b217bd037900e2a2a"
+    },
+    "godot/ui-model/src/professions_reagent_counts.rs": {
+      "physical_lines": 105,
+      "sha256": "c28aaa0bf03d877534a831dffbb6433d6680fda9896ef10d2bcadf6c1a23e116"
+    },
+    "godot/ui-model/src/professions_tests.rs": {
+      "physical_lines": 357,
+      "sha256": "e190acec9776eb88a105b589458f0ae704ad3d74c2022ceb29ce1179801cca52"
+    },
+    "godot/ui-professions/src/lib.rs": {
+      "physical_lines": 10,
+      "sha256": "f505f2d9a32ab16615beed78bf1aec345756014832f9f704b822d27d2d2a1c42"
+    },
+    "godot/ui-professions/src/professions.rs": {
+      "physical_lines": 3,
+      "sha256": "efbaa06ad3f2110900792898b73ca36bab3457e2e14db37fb510d278fc0512f4"
+    },
+    "godot/ui-professions/src/professions_cooldown.rs": {
+      "physical_lines": 54,
+      "sha256": "72af788c9c2e3d5f1d15c6fe49b0ad7d262ae8e31a62de6af1061719fdfee9bd"
+    },
+    "godot/ui-professions/src/professions_frame.rs": {
+      "physical_lines": 251,
+      "sha256": "23cc890959a6b8b4a2ebb653393d6c49634985c3c58af645fb7f9e4d9d1df0b0"
+    },
+    "godot/ui-professions/src/professions_frame_art.rs": {
+      "physical_lines": 143,
+      "sha256": "7ed16a1009885279d920bc7daed79ed7342dce1a17f999dccd5287904e5d5f44"
+    },
+    "godot/ui-professions/src/professions_frame_concentration.rs": {
+      "physical_lines": 70,
+      "sha256": "70f77782d4dc103235e68bed732a3d98ac3a178c9ed6baed5f0ecff830422416"
+    },
+    "godot/ui-professions/src/professions_frame_favorites.rs": {
+      "physical_lines": 35,
+      "sha256": "9ef3da057de77bc9a45938a7a0b206d975677403dd517817665129673ed71277"
+    },
+    "godot/ui-professions/src/professions_frame_filters.rs": {
+      "physical_lines": 66,
+      "sha256": "e50a10f9510003dbd0315cac6832c01056204762866e15e2153eeb43cbc2d28b"
+    },
+    "godot/ui-professions/src/professions_frame_orders.rs": {
+      "physical_lines": 756,
+      "sha256": "b5abaf80305322895163010afbb4b5fe0bbdd3705f22acb4ddc3fe9268ab95e9"
+    },
+    "godot/ui-professions/src/professions_frame_perks.rs": {
+      "physical_lines": 135,
+      "sha256": "83e5e1490fd17cf194bf124e4e093c72f0627a26e5c6b7b475360369da56102f"
+    },
+    "godot/ui-professions/src/professions_frame_quality.rs": {
+      "physical_lines": 206,
+      "sha256": "256ec826fcea62b4c2983b9f1f957af37a450eb22b09aa343de42826943327ab"
+    },
+    "godot/ui-professions/src/professions_frame_recraft.rs": {
+      "physical_lines": 42,
+      "sha256": "47597fc4a850f11cffc11d7cad390fdab77872e676e2eccebe54408c3aaec9cb"
+    },
+    "godot/ui-professions/src/professions_frame_slots.rs": {
+      "physical_lines": 389,
+      "sha256": "d5a85a09b163d47341d765d4d98bb963aa5e9a2a49b7ce0a49fdeac423b0d326"
+    },
+    "godot/ui-professions/src/professions_frame_specializations.rs": {
+      "physical_lines": 316,
+      "sha256": "f965f6f8af61ca20f35030950b299e8046f4f730637960fb12265f8ca22e6ff4"
+    },
+    "godot/ui-professions/src/professions_frame_tree.rs": {
+      "physical_lines": 362,
+      "sha256": "0a3fd47eadb3916b35bf86d14e7144cf7ce75d9a73568cef073909aceed33b73"
+    },
+    "godot/ui-professions/src/professions_mixed_tests.rs": {
+      "physical_lines": 286,
+      "sha256": "24d75d2b6786f2a2486a42c8dce77e5b30936af6d09410f6682073799c8369eb"
+    },
+    "godot/ui-professions/src/professions_orders.rs": {
+      "physical_lines": 190,
+      "sha256": "eef854a152fc0ce44999267e63064bffa23605ecf6a9f5c90e3ab45d83ae014f"
+    },
+    "godot/ui-professions/src/professions_orders_tests.rs": {
+      "physical_lines": 179,
+      "sha256": "26b78855c0b193e50643fa6fea8f87e07e730d194393c92da38f54554b9dc617"
+    },
+    "godot/ui-professions/src/professions_reagent_selection.rs": {
+      "physical_lines": 281,
+      "sha256": "cb1aaa92a9a0b367eb84f12f87b02b308edffd6fdbf99d7e04633b0dc994ebac"
+    },
+    "godot/ui-professions/src/professions_specializations.rs": {
+      "physical_lines": 345,
+      "sha256": "7e341503634f7e4bb3859f9263e0f329720f25a7ca64b1e6a4d002e94a82873b"
+    },
+    "godot/ui-professions/src/professions_specializations_layout.rs": {
+      "physical_lines": 132,
+      "sha256": "8856f2c66a3a380ba8bad2bf7c88df9d3ae219263be52a782d1c507038b44563"
+    },
+    "godot/ui-professions/src/professions_specializations_tests.rs": {
+      "physical_lines": 288,
+      "sha256": "db95f0b208961653d80135e75ccc061bfbad050a24f8c9b3dfe225df49344289"
+    },
+    "godot/ui-professions/tests/buttonfit.rs": {
+      "physical_lines": 74,
+      "sha256": "bddbfbe1855e2564f2671784210fa58a1f95827ba421d9d47a1cc868bcf602e0"
+    },
+    "godot/ui-professions/tests/integration.rs": {
+      "physical_lines": 5,
+      "sha256": "109b9946c504be3640b113a5801eefdeab146c38aca534aca4adc0377180e1ee"
+    },
+    "godot/ui-professions/tests/panel_lifecycle.rs": {
+      "physical_lines": 47,
+      "sha256": "605990bc9f173dfa79c0f40ec96d14d01159007565702841e9bdb581afee06fa"
+    },
+    "godot/ui-professions/tests/professions_art.rs": {
+      "physical_lines": 1009,
+      "sha256": "a7d52e5a32a6f2ef2ab2f13217d81c52749715a52508c98239553441d17883bf"
+    },
+    "godot/ui-professions/tests/professions_orders.rs": {
+      "physical_lines": 456,
+      "sha256": "341a708bc3eac241658d6015b62154965ef71e8e3da54ca2e578d8cae5dd0a36"
+    },
+    "godot/ui-professions/tests/professions_specializations.rs": {
+      "physical_lines": 324,
+      "sha256": "5ca724c8f029409900c3d8cfd0b720e71a271f76fbdd4ff8ffdf767afb72088a"
+    },
+    "godot/ui-model/tests/trainer_tooltips.rs": {
+      "physical_lines": 451,
+      "sha256": "9d84abdd8df53b94dcd722837766d01f37e7d14c858a738970167f1ab7c8a5e8"
+    }
+  },
+  "residual_four_production_files_lines": 675,
+  "current_base_professions_tests_lines": 357,
+  "catalog_partition": {
+    "mixed_file_lines": 326,
+    "candidate_existing_lines": 295,
+    "candidate_ranges_inclusive": [
+      [
+        3,
+        293
+      ],
+      [
+        298,
+        301
+      ]
+    ],
+    "retain_existing_lines": 31,
+    "retain_ranges_inclusive": [
+      [
+        1,
+        2
+      ],
+      [
+        294,
+        297
+      ],
+      [
+        302,
+        326
+      ]
+    ],
+    "retain_actual_helper_body_lines": 29,
+    "qualifier": "Physical lines include imports/comments/blank lines;final namespace/import/docs wiring changes size. No whole-file rename applies to this mixed file."
+  },
+  "proposed_owner": "existing game-engine-ui-professions::professions_catalog;no new package",
+  "move": [
+    "RecipeCatalog definition and its unchanged get/specialization_skill_line/load methods",
+    "load_specialization_lines/load_categories/load_cooldown_categories/load_outputs/load_reagents/load_recipes/rank and recipe constants",
+    "3 exact mixed catalog unit cases into existing cfg(test) professions::tests namespace",
+    "4 exact trainer integration cases into feature trainer_tooltips module"
+  ],
+  "retain": [
+    "ProfessionBook and Recipe type definitions and all model decisions",
+    "CraftingQuality and its loader/atlas maps",
+    "crafting_reagent_counts and InventoryState/bank ownership",
+    "actual number/read_rows implementations in base professions_catalog;not forwarding/reexport facade",
+    "native Professions.catalog/loading receiver/worker owner and trainer preview OnceLock instance",
+    "8 model unit cases+1 reagent unit and5 trainer integration siblings"
+  ],
+  "only_proposed_visibility_changes": [
+    "game_engine_ui_model::professions_catalog::number pub(super)->pub",
+    "game_engine_ui_model::professions_catalog::read_rows pub(super)->pub",
+    "game_engine_ui_model::professions_quality::load pub(super)->pub"
+  ],
+  "no_new_helpers_or_types": true,
+  "production_witnesses": [
+    {
+      "path": "godot/ui-model/src/professions_quality.rs",
+      "line": 2,
+      "edge": "quality uses actual catalog number/read_rows;whole-file relocation would create a base\u2192feature edge;retaining both implementations avoids it"
+    },
+    {
+      "path": "godot/ui-model/src/professions_catalog.rs",
+      "line": 3,
+      "edge": "Recipe type remains base;feature imports actual type"
+    },
+    {
+      "path": "godot/ui-model/src/professions_catalog.rs",
+      "line": 40,
+      "edge": "specialization_skill_line consumes base ProfessionBook;feature\u2192base permitted without method split"
+    },
+    {
+      "path": "godot/ui-model/src/professions_catalog.rs",
+      "line": 100,
+      "edge": "catalog calls base quality::load;only this existing function gains visibility"
+    },
+    {
+      "path": "godot/ui-model/src/game_tooltip/trainer.rs",
+      "line": 8,
+      "edge": "trainer content consumes base Recipe,not RecipeCatalog;implementation stays unchanged"
+    },
+    {
+      "path": "godot/ui-model/src/game/bag_data.rs",
+      "line": 343,
+      "edge": "bag_data/reagent-count cycle stays base,untouched"
+    },
+    {
+      "path": "godot/rust/src/professions.rs",
+      "line": 25,
+      "edge": "one current native owned catalog/receiver;import owner changes only"
+    },
+    {
+      "path": "godot/rust/src/trainer_preview.rs",
+      "line": 134,
+      "edge": "same native preview OnceLock remains;no copied instance"
+    }
+  ],
+  "before_census": {
+    "base_total_units": 389,
+    "base_relevant_unit_names": [
+      "professions::tests::professions_create_all_counts_banked_reagents_after_the_bank_frame_closes",
+      "professions::tests::professions_create_emits_spell_id_and_cast_quantity",
+      "professions::tests::professions_db2_catalog_joins_classic_tailoring_recipe",
+      "professions::tests::professions_missing_reagents_disable_create",
+      "professions::tests::professions_recipe_cooldown_category_comes_from_spell_categories",
+      "professions::tests::professions_schematic_sums_concrete_bag_stacks_not_equipment",
+      "professions::tests::professions_search_filters_case_insensitively",
+      "professions::tests::professions_snapshot_and_bag_refresh_change_rank_and_remaining_crafts",
+      "professions::tests::professions_snapshot_groups_known_recipes_before_unlearned",
+      "professions::tests::professions_trainer_learned_leather_pants_use_recipe_knowledge_not_auto_learn_rank",
+      "professions::tests::professions_unlearned_recipe_is_selectable_but_cannot_emit_a_craft",
+      "professions_reagent_counts::tests::crafting_reagent_counts_include_character_and_warband_banks"
+    ],
+    "base_unit_evidence": "achievement-census.json runtime listing at de71748fb;current source same,all professions source files byte-unchanged since1123c7606",
+    "existing_feature_units": [
+      "professions::tests::professions_both_skins_cooldown_disables_create_and_shows_remaining",
+      "professions::tests::professions_both_skins_show_counts_and_disable_missing_reagent_create",
+      "professions::tests::professions_recipe_cooldown_is_the_longer_of_spell_and_category_clocks",
+      "professions::tests::professions_recipe_cooldown_text_uses_two_retail_units",
+      "professions_orders::tests::order_crafter_actions_require_server_eligibility_and_exact_selected_order",
+      "professions_orders::tests::order_customer_places_exact_authored_reagents_without_crafting_or_mutating_bags",
+      "professions_orders::tests::order_customer_rejects_invalid_recipient_commission_and_supplied_counts",
+      "professions_orders::tests::orders_customer_service_opens_scoped_query_and_closes_only_for_its_npc",
+      "professions_reagent_selection::tests::professions_reagent_glyph_uses_allocated_tiers_or_actual_stock_never_a_default_tier",
+      "professions_reagent_selection::tests::quality_dialog_preserves_new_tier_and_cancel_does_not_commit",
+      "professions_specializations::tests::specialization_combines_costs_for_the_same_trait_currency",
+      "professions_specializations::tests::specialization_perk_tooltip_explains_source_path_and_pending_milestone",
+      "professions_specializations::tests::specialization_query_uses_learned_specialization_tier_not_selected_classic_recipe",
+      "professions_specializations::tests::specialization_stages_absolute_ranks_and_spends_only_pending_knowledge",
+      "professions_specializations::tests::specialization_tab_unlock_requires_confirmation_and_available_currency",
+      "professions_specializations::tests::specialization_unavailable_path_cannot_stage",
+      "professions_specializations::tests::specialization_undo_restores_balance_and_never_requests_a_refund",
+      "professions_specializations::tests::specialization_unlocked_root_spends_available_knowledge_entry_not_maxed_unlock_entry"
+    ],
+    "existing_feature_integration": [
+      "buttonfit::buttonfit_create_all_keeps_retail_padding_and_right_anchor_for_concrete_counts",
+      "panel_lifecycle::ui_template_lifecycle_root_professions_unmounts_without_losing_registration_on_reopen",
+      "professions_art::professions_art_reagent_count_prefix_and_name_share_availability_color",
+      "professions_art::professions_art_thresholds_keep_neutral_recipe_labels_in_both_skins",
+      "professions_art::professions_authored_midnight_reagent_quality_overlay_in_both_skins",
+      "professions_art::professions_concentration_known_amount_and_full_warning_preserve_origin_gap",
+      "professions_art::professions_concentration_uses_retail_currency_geometry_without_inventing_quantity",
+      "professions_art::professions_favorites_menu_and_instance_selection_follow_owner_state_in_both_skins",
+      "professions_art::professions_favorites_owner_snapshot_groups_known_recipe_except_while_searching",
+      "professions_art::professions_filter_reset_restores_defaults_without_other_view_mutation",
+      "professions_art::professions_filter_reset_shows_when_both_hidden",
+      "professions_art::professions_filter_reset_shows_when_learned_hidden",
+      "professions_art::professions_filter_reset_shows_when_unlearned_hidden",
+      "professions_art::professions_filter_reset_stays_hidden_for_default_flags_despite_search",
+      "professions_art::professions_gathering_skill_bar_uses_progress_line_not_parent_holder",
+      "professions_art::professions_passive_operation_status_omits_gap_and_preserves_pending_and_errors",
+      "professions_art::professions_quality_dialog_shows_authored_choices_without_a_crafted_tier_in_both_skins",
+      "professions_art::professions_quality_recipe_is_visible_without_assigning_an_output",
+      "professions_art::professions_retail_page_tabs_in_both_skins",
+      "professions_art::professions_search_clear_nonempty_query_has_source_control_in_both_skins",
+      "professions_art::professions_search_clear_visibility_follows_focus_or_query_without_owner_changes",
+      "professions_art::professions_search_magnifier_geometry_and_four_focus_query_tints_match_source",
+      "professions_art::professions_unlearned_schematic_and_learned_transition_in_both_skins",
+      "professions_art::professions_unlearned_source_header_requires_a_sourced_trainer_row",
+      "professions_art::professions_visibility_filters_have_authored_dropdown_and_search_geometry_in_both_skins",
+      "professions_art::professions_visibility_filters_preserve_owner_state_and_favorite_search_rules",
+      "professions_orders::orders_customer_committed_form_fits_its_retail_portrait_window",
+      "professions_orders::orders_customer_form_offers_real_recipient_and_duration_menu_choices",
+      "professions_orders::orders_customer_labels_align_with_source_payment_and_recipient_fields",
+      "professions_orders::orders_customer_tabs_follow_visible_page_even_when_snapshot_is_owned",
+      "professions_orders::orders_native_crafter_detail_uses_server_eligibility_in_both_skins",
+      "professions_orders::orders_native_customer_frame_is_separate_and_can_cancel_only_own_orders",
+      "professions_orders::orders_rows_keep_auction_row_hover_without_generic_search_art",
+      "professions_orders::orders_scroll_reaches_second_page_with_forty_concrete_rows",
+      "professions_orders::recraft_native_slot_explicitly_refuses_missing_evaluator_in_both_skins",
+      "professions_specializations::specialization_dial_shows_only_selected_path_source_perks",
+      "professions_specializations::specialization_major_perk_radius_is_independent_of_subpath_unlock_flag",
+      "professions_specializations::specialization_native_screen_staging_and_undo_in_both_skins",
+      "professions_specializations::specialization_tree350_uses_retail_radial_positions_and_one_button_per_path"
+    ],
+    "existing_feature_evidence": "professions-census.json runtime listing18+39/ignored0;all feature Rust source unchanged since1123c7606;parent ac-eng13-package gate atfc6 reports no new failures",
+    "trainer_names": [
+      "trainer_tooltips::trainer_class_spell_retains_full_shared_tooltip",
+      "trainer_tooltips::trainer_class_spell_that_creates_an_item_keeps_its_spell_tooltip",
+      "trainer_tooltips::trainer_hover_resolves_row_descendants_and_all_service_states_not_selection",
+      "trainer_tooltips::trainer_recipe_shows_created_item_quality_reagents_and_both_record_ids",
+      "trainer_tooltips::trainer_recipe_uses_crafted_gear_quality_and_item_requirements",
+      "trainer_tooltips::trainer_secondary_profession_recipe_keeps_item_and_reagents",
+      "trainer_tooltips::trainer_spell_tooltip_uses_shared_content_right_offset_and_id_in_both_skins",
+      "trainer_tooltips::trainer_tooltip_requirements_refresh_with_the_current_service",
+      "trainer_tooltips::ui_template_behavior_trainer_children_keep_source_owner_offset"
+    ],
+    "trainer_evidence": "fresh helper runtime --list on original trainer module through temporary harness;--ignored reports0;manifest byte-restored/harness removed",
+    "ignored": 0,
+    "not_new_test_execution": "Listing/partition only;no product execution or new pass credit claimed"
+  },
+  "proposed_census": {
+    "units_before": {
+      "base": 389,
+      "professions": 18
+    },
+    "units_after": {
+      "base": 386,
+      "professions": 21
+    },
+    "unit_partition": {
+      "move": [
+        "professions::tests::professions_db2_catalog_joins_classic_tailoring_recipe",
+        "professions::tests::professions_recipe_cooldown_category_comes_from_spell_categories",
+        "professions::tests::professions_trainer_learned_leather_pants_use_recipe_knowledge_not_auto_learn_rank"
+      ],
+      "retain": [
+        "professions::tests::professions_create_all_counts_banked_reagents_after_the_bank_frame_closes",
+        "professions::tests::professions_create_emits_spell_id_and_cast_quantity",
+        "professions::tests::professions_missing_reagents_disable_create",
+        "professions::tests::professions_schematic_sums_concrete_bag_stacks_not_equipment",
+        "professions::tests::professions_search_filters_case_insensitively",
+        "professions::tests::professions_snapshot_and_bag_refresh_change_rank_and_remaining_crafts",
+        "professions::tests::professions_snapshot_groups_known_recipes_before_unlearned",
+        "professions::tests::professions_unlearned_recipe_is_selectable_but_cannot_emit_a_craft"
+      ]
+    },
+    "reagent_unit_retained": "professions_reagent_counts::tests::crafting_reagent_counts_include_character_and_warband_banks",
+    "integration_before": {
+      "professions": 39,
+      "trainer_base": 9
+    },
+    "integration_after": {
+      "professions": 43,
+      "trainer_base": 5
+    },
+    "trainer_partition": {
+      "move": [
+        "trainer_tooltips::trainer_class_spell_that_creates_an_item_keeps_its_spell_tooltip",
+        "trainer_tooltips::trainer_recipe_shows_created_item_quality_reagents_and_both_record_ids",
+        "trainer_tooltips::trainer_recipe_uses_crafted_gear_quality_and_item_requirements",
+        "trainer_tooltips::trainer_secondary_profession_recipe_keeps_item_and_reagents"
+      ],
+      "retain": [
+        "trainer_tooltips::trainer_class_spell_retains_full_shared_tooltip",
+        "trainer_tooltips::trainer_hover_resolves_row_descendants_and_all_service_states_not_selection",
+        "trainer_tooltips::trainer_spell_tooltip_uses_shared_content_right_offset_and_id_in_both_skins",
+        "trainer_tooltips::trainer_tooltip_requirements_refresh_with_the_current_service",
+        "trainer_tooltips::ui_template_behavior_trainer_children_keep_source_owner_offset"
+      ]
+    },
+    "scoped_test_count_conserved": 78,
+    "planned_execution_including_all_base_units": 455,
+    "all_original_473_names_must_remain": true
+  },
+  "churn": {
+    "since": "2026-10-10T11:02:46-05:00",
+    "until": "2026-10-24T11:02:46-05:00",
+    "catalog_distinct_path_commits": 8,
+    "all_four_residual_production_file_distinct_commits": 18,
+    "qualifier": "Distinct nonmerge path commits,not remaining-line edits or compile share;catalog bucket includes retained helper edits"
+  },
+  "measurement_plan": {
+    "skipped": true,
+    "explicit_parent_instruction": "This slice is too small for a paired timing run, so skip it.",
+    "none_performed": true
+  },
+  "verification_plan": [
+    "No whole-file rename-only commit is applicable;approve mixed-file split explicitly rather than invent a rename",
+    "Commit coherent ownership/wiring/test/docs changes after formatting,before final checks;no copied production parsers/models/caches or backwards edge",
+    "Check all13 existing packages -j4;execute455 scoped cases and exact names/ignored census;fmt/diff/data/retained model/quality body/cache-owner review",
+    "Parent explicitly skips paired timing. Exact inventories,all13-package check andfmt required;parent owns full gate/push/merge."
+  ],
+  "raw_archive": "/home/osso/.worktrees/logs/engine-crate-split-professions-catalog-plan-fc6cbeb88",
+  "plan_only_no_godot_changes": true
+}

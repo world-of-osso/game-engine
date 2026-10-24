@@ -1,7 +1,7 @@
 //! PVPUIFrame's SpecificScrollBox pans by one row per stepper press and two per
 //! wheel notch (ScrollBoxListView.lua:637-661), exposing all implemented queue rows.
 
-use game_engine_ui_model::battleground::{PvpView, SPECIFIC_LIST, pvp_screen};
+use game_engine_ui_pvp::battleground::{PvpView, SPECIFIC_LIST, pvp_screen};
 use ui_toolkit::screen::{Screen, SharedContext};
 
 use super::tests::{rebuild, rect};
@@ -48,7 +48,7 @@ fn specific_list_stepper_and_wheel_reveal_all_rows_beyond_the_retail_viewport() 
     let list = rect(&model, SPECIFIC_LIST).unwrap();
     let content = rect(&model, "HonorFrameSpecificScrollChild").unwrap();
     let max_offset = (content.height - list.height).max(0.0);
-    let step = game_engine_ui_model::battleground::pvp_pan_extent(SPECIFIC_LIST).unwrap() as f32;
+    let step = game_engine_ui_pvp::battleground::pvp_pan_extent(SPECIFIC_LIST).unwrap() as f32;
     let rows = [
         EYE_ROW,
         SIXTH_ROW,
