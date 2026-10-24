@@ -8,11 +8,11 @@ use std::collections::BTreeSet;
 use shared::protocol::{AdventureGuideRequest, AdventureGuideSnapshot};
 use ui_toolkit::{atlas::ActiveSkin, rsx, screen::SharedContext, widget_def::Element};
 
-use crate::{
-    adventure_guide::{LIST, scroll, text},
-    minimal_scroll_bar::{MinimalScrollBar, Unscrollable, pixel_geometry, scroll_list_attr},
-    quest_art::DynName,
+use crate::adventure_guide::{LIST, scroll, text};
+use game_engine_ui_model::minimal_scroll_bar::{
+    MinimalScrollBar, Unscrollable, pixel_geometry, scroll_list_attr,
 };
+use game_engine_ui_model::quest_art::DynName;
 
 pub use tooltip::activity_tooltip;
 
@@ -174,7 +174,7 @@ fn filter_controls(
 }
 
 fn filter_row(id: u32, name: &str, selected: bool, top: f32) -> Element {
-    use crate::selection_list::{Art, RowArt, RowTemplate};
+    use game_engine_ui_model::selection_list::{Art, RowArt, RowTemplate};
     let art = |atlas| RowArt {
         art: Art::Atlas(atlas),
         insets: [-6., -0.5, -6., -0.5],
@@ -187,17 +187,17 @@ fn filter_row(id: u32, name: &str, selected: bool, top: f32) -> Element {
         selected: Some(art("options_list_active")),
     };
     let color = if selected {
-        crate::quest_art::HIGHLIGHT_FONT_COLOR
+        game_engine_ui_model::quest_art::HIGHLIGHT_FONT_COLOR
     } else {
-        crate::quest_art::NORMAL_FONT_COLOR
+        game_engine_ui_model::quest_art::NORMAL_FONT_COLOR
     };
-    let label = crate::bank_art::label(
+    let label = game_engine_ui_model::bank_art::label(
         format!("JournalActivityTag{id}Name"),
         name,
         (10., -1., 165., 20.),
         (12., color, "LEFT"),
     );
-    crate::selection_list::row(
+    game_engine_ui_model::selection_list::row(
         format!("JournalActivityTag{id}"),
         &format!("journal:activity-tag:{id}"),
         true,

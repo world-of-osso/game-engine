@@ -1,5 +1,5 @@
-use game_engine_ui_model::adventure_activities::{ActivityFilters, monthly};
-use game_engine_ui_model::adventure_suggestions::suggested;
+use game_engine_ui_adventure::adventure_activities::{ActivityFilters, monthly};
+use game_engine_ui_adventure::adventure_suggestions::suggested;
 use shared::protocol::{
     AchievementCriterionLine, AdventureGuideSnapshot, AdventureSuggestion, JournalMonth,
     PerksActivityProgress, PerksActivitySnapshot, PerksActivityTag, SuggestionCensus,
@@ -220,7 +220,7 @@ fn monthly_thresholds_use_received_points_not_claimed_currency_state() {
             catalog_complete: false,
             reply_kind: shared::protocol::TradingPostReplyKind::Balance,
         };
-        ctx.insert(game_engine_ui_model::adventure_guide::View {
+        ctx.insert(game_engine_ui_adventure::adventure_guide::View {
             trading_post: Some(Arc::new(tender)),
             ..Default::default()
         });
@@ -252,7 +252,7 @@ fn monthly_thresholds_use_received_points_not_claimed_currency_state() {
 
 #[test]
 fn monthly_source_rows_collapse_children_and_leaf_clicks_do_not_expand_details() {
-    use game_engine_ui_model::adventure_guide::View;
+    use game_engine_ui_adventure::adventure_guide::View;
     use std::sync::Arc;
     for skin in [ActiveSkin::Modern, ActiveSkin::Forever] {
         let mut data = snapshot();
@@ -306,7 +306,7 @@ fn monthly_source_rows_collapse_children_and_leaf_clicks_do_not_expand_details()
 }
 
 fn tooltip_lines(data: &AdventureGuideSnapshot, id: u32) -> String {
-    game_engine_ui_model::adventure_activities::activity_tooltip(
+    game_engine_ui_adventure::adventure_activities::activity_tooltip(
         data,
         &format!("JournalActivity{id}"),
     )
@@ -321,7 +321,7 @@ fn tooltip_lines(data: &AdventureGuideSnapshot, id: u32) -> String {
 
 #[test]
 fn ui_template_behavior_remaining_journal_monthly_owner() {
-    use game_engine_ui_model::adventure_activities::{activity_tooltip, tracking_request};
+    use game_engine_ui_adventure::adventure_activities::{activity_tooltip, tracking_request};
     use shared::protocol::AdventureGuideRequest;
     for skin in [ActiveSkin::Modern, ActiveSkin::Forever] {
         let data = snapshot();
@@ -375,7 +375,7 @@ fn ui_template_behavior_remaining_journal_monthly_owner() {
 
 #[test]
 fn available_progress_and_unevaluated_criteria_remain_distinct() {
-    use game_engine_ui_model::adventure_activities::tracking_request;
+    use game_engine_ui_adventure::adventure_activities::tracking_request;
     for skin in [ActiveSkin::Modern, ActiveSkin::Forever] {
         let mut data = snapshot();
         data.activities[0].progress = PerksActivityProgress::Available {
@@ -432,7 +432,7 @@ fn available_progress_and_unevaluated_criteria_remain_distinct() {
 
 #[test]
 fn source_tag_filters_preserve_tracking_marks_without_an_invented_toolbar() {
-    use game_engine_ui_model::adventure_activities::tracking_request;
+    use game_engine_ui_adventure::adventure_activities::tracking_request;
     for skin in [ActiveSkin::Modern, ActiveSkin::Forever] {
         let mut data = snapshot();
         data.activities[0].tags = vec![1];
@@ -588,7 +588,7 @@ fn assert_suggestion_truncated_text_hover(skin: ActiveSkin) {
             assert_eq!(binding.provider.as_deref(), Some("journal_suggestion_text"));
             assert_eq!(binding.anchor, ui_toolkit::tooltip::TooltipAnchor::Right);
             let tooltip =
-                game_engine_ui_model::adventure_suggestions::text_tooltip(&data, &owner, true)
+                game_engine_ui_adventure::adventure_suggestions::text_tooltip(&data, &owner, true)
                     .expect("Retail truncated secondary text must show its full tooltip");
             assert_eq!(tooltip.content.title_color, [1.; 4]);
             assert!(
@@ -611,7 +611,7 @@ fn assert_suggestion_truncated_text_hover(skin: ActiveSkin) {
             assert_eq!(actual, full_text);
             assert_eq!(tooltip.record, None);
             assert!(
-                game_engine_ui_model::adventure_suggestions::text_tooltip(&data, &owner, false,)
+                game_engine_ui_adventure::adventure_suggestions::text_tooltip(&data, &owner, false,)
                     .is_none(),
                 "untruncated text must not install hover"
             );
@@ -620,7 +620,7 @@ fn assert_suggestion_truncated_text_hover(skin: ActiveSkin) {
     // The scoped Lua3311 loop addresses physical Suggestion2/3, never primary1.
     for suffix in ["TitleFrame", "DescriptionFrame"] {
         assert!(
-            game_engine_ui_model::adventure_suggestions::text_tooltip(
+            game_engine_ui_adventure::adventure_suggestions::text_tooltip(
                 &data,
                 &format!("JournalSuggestion227{suffix}"),
                 true,
@@ -630,7 +630,7 @@ fn assert_suggestion_truncated_text_hover(skin: ActiveSkin) {
     }
     data.suggestions.pop();
     assert!(
-        game_engine_ui_model::adventure_suggestions::text_tooltip(
+        game_engine_ui_adventure::adventure_suggestions::text_tooltip(
             &data,
             "JournalSuggestion642TitleFrame",
             true,
@@ -639,7 +639,7 @@ fn assert_suggestion_truncated_text_hover(skin: ActiveSkin) {
         "two records never visit physical Suggestion3 in the second pass"
     );
     assert!(
-        game_engine_ui_model::adventure_suggestions::text_tooltip(
+        game_engine_ui_adventure::adventure_suggestions::text_tooltip(
             &data,
             "JournalSuggestion195TitleFrame",
             true,
@@ -648,7 +648,7 @@ fn assert_suggestion_truncated_text_hover(skin: ActiveSkin) {
     );
     data.suggestions.pop();
     assert!(
-        game_engine_ui_model::adventure_suggestions::text_tooltip(
+        game_engine_ui_adventure::adventure_suggestions::text_tooltip(
             &data,
             "JournalSuggestion642DescriptionFrame",
             true,
@@ -909,7 +909,7 @@ fn suggestions_partial_records_preserve_literal_initial_lower_geometry() {
 // EncounterJournal.lua2860–2861: only Dungeons/Raids/LootJournal show search.
 #[test]
 fn monthly_source_hides_encounter_search() {
-    use game_engine_ui_model::adventure_guide::{Tab, View, adventure_guide_screen};
+    use game_engine_ui_adventure::adventure_guide::{Tab, View, adventure_guide_screen};
     for skin in [ActiveSkin::Modern, ActiveSkin::Forever] {
         let mut ctx = context(skin);
         ctx.insert(View {

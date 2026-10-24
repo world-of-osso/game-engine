@@ -1022,7 +1022,7 @@ fn tabs(buyback_tab: bool) -> Element {
 #[path = "merchant_frame_component_achievement.rs"]
 mod achievement_tab;
 
-pub(crate) enum TabLabel<'a> {
+pub enum TabLabel<'a> {
     Panel(&'a str),
     Minimal(&'a str),
     Achievement(&'a str),
@@ -1033,7 +1033,7 @@ impl<'a> From<&'a str> for TabLabel<'a> {
     }
 }
 
-pub(crate) enum TabGeometry {
+pub enum TabGeometry {
     Panel(f32, f32, f32),
     Minimal(f32, f32, f32),
     Achievement(f32, f32, f32),
@@ -1044,7 +1044,7 @@ impl From<(f32, f32, f32)> for TabGeometry {
     }
 }
 
-pub(crate) fn tab_width<'a>(label: impl Into<TabLabel<'a>>) -> f32 {
+pub fn tab_width<'a>(label: impl Into<TabLabel<'a>>) -> f32 {
     let label = match label.into() {
         TabLabel::Panel(label) => label,
         TabLabel::Achievement(label) => {
@@ -1144,7 +1144,7 @@ fn minimal_tab(
     pos_type:"absolute",left:x,top:y,{art}{text} } }
 }
 
-pub(crate) fn tab(
+pub fn tab(
     name: &str,
     label: &str,
     geometry: impl Into<TabGeometry>,

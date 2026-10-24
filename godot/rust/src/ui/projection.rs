@@ -1446,7 +1446,7 @@ fn connect_button(pending: &PendingInputs, id: u64, node: &mut Gd<Control>) {
 fn connect_edit_box(pending: &PendingInputs, frame: &Frame, node: &mut Gd<Control>) {
     let id = frame.id;
     let journal_search =
-        frame.name.as_deref() == Some(game_engine_ui_model::adventure_guide::SEARCH);
+        frame.name.as_deref() == Some(game_engine_ui_adventure::adventure_guide::SEARCH);
     let achievement_search = frame.name.as_deref() == Some("AchievementSearchBox");
     let text_pending = pending.clone();
     let Some(WidgetData::EditBox(data)) = &frame.widget_data else {

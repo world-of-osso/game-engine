@@ -1,5 +1,5 @@
 use game_engine_core::adventure_guide::Catalog;
-use game_engine_ui_model::adventure_guide::{Page, Tab, View, adventure_guide_screen};
+use game_engine_ui_adventure::adventure_guide::{Page, Tab, View, adventure_guide_screen};
 use std::sync::Arc;
 use ui_toolkit::{
     atlas::ActiveSkin,

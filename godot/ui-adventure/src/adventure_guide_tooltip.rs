@@ -1,10 +1,8 @@
 //! Retail set membership and ItemSetSpell thresholds appended to the shared item tooltip.
-use crate::{
-    adventure_guide::View,
-    bag_data::InventoryState,
-    tooltip_presentation::{TooltipLineState, description_lines},
-};
+use crate::adventure_guide::View;
 use game_engine_core::adventure_guide::{ItemSet, SetBonus};
+use game_engine_ui_model::bag_data::InventoryState;
+use game_engine_ui_model::tooltip_presentation::{TooltipLineState, description_lines};
 use std::collections::{BTreeMap, BTreeSet};
 
 const GRAY: [f32; 4] = [0.5, 0.5, 0.5, 1.0];

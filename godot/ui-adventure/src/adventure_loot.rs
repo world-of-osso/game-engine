@@ -2,12 +2,10 @@
 use game_engine_core::adventure_guide::Item;
 use ui_toolkit::{rsx, widget_def::Element};
 
-use crate::{
-    adventure_guide::{View, paper_text},
-    adventure_guide_art::{Art, art},
-    bank_art::{WHITE, label, texture},
-    quest_art::DynName,
-};
+use crate::adventure_guide::{View, paper_text};
+use crate::adventure_guide_art::{Art, art};
+use game_engine_ui_model::bank_art::{WHITE, label, texture};
+use game_engine_ui_model::quest_art::DynName;
 
 const INK: &str = "0.25,0.1484375,0.02,1";
 const BOSS_HEIGHT: f32 = 45.;
@@ -56,7 +54,7 @@ fn loot_row(item: &Item, top: f32, height: f32, bosses: Option<&[&str]>) -> Elem
         (51., 9., 250., 12.),
         (
             14.,
-            crate::merchant_data::quality_color(item.quality as u8),
+            game_engine_ui_model::merchant_data::quality_color(item.quality as u8),
             "LEFT",
         ),
     ));
@@ -81,7 +79,7 @@ fn loot_row(item: &Item, top: f32, height: f32, bosses: Option<&[&str]>) -> Elem
 
 fn read_item_icon(item: &Item, name: &str) -> Element {
     // C_Item.GetItemIconByID: Item.IconFileDataID alone is not an appearance icon.
-    let Some(icon) = crate::item_icons::item_icon_fdid(item.id) else {
+    let Some(icon) = game_engine_ui_model::item_icons::item_icon_fdid(item.id) else {
         return vec![];
     };
     texture(format!("{name}Icon"), icon, (2., 2., 42., 42.), WHITE)
@@ -92,7 +90,7 @@ fn read_quality_border(item: &Item, name: &str) -> Element {
     if !(1..=8).contains(&item.quality) {
         return vec![];
     }
-    let Some(entry) = crate::item_catalog::item_catalog_entry(item.id) else {
+    let Some(entry) = game_engine_ui_model::item_catalog::item_catalog_entry(item.id) else {
         return vec![];
     };
     let frame = if entry.class_id == ITEM_CLASS_GEM && entry.subclass_id == ARTIFACT_RELIC_SUBCLASS
@@ -101,7 +99,7 @@ fn read_quality_border(item: &Item, name: &str) -> Element {
     } else {
         WHITE_ICON_FRAME
     };
-    let quality = crate::bag_data::ItemQuality::from_id(item.quality as u8);
+    let quality = game_engine_ui_model::bag_data::ItemQuality::from_id(item.quality as u8);
     texture(
         format!("{name}IconBorder"),
         frame,
@@ -112,7 +110,8 @@ fn read_quality_border(item: &Item, name: &str) -> Element {
 
 fn item_type_labels(item: &Item, name: &str) -> Element {
     let armor = read_armor_type(item.id);
-    let slot = crate::item_tooltip::inventory_type_label(item.slot as u8).unwrap_or_default();
+    let slot = game_engine_ui_model::item_tooltip::inventory_type_label(item.slot as u8)
+        .unwrap_or_default();
     // XML: Slot LEFT51, ArmorClass RIGHT315,15px between; ArmorClass has intrinsic x0.
     // Native font metrics, not a second backend's fixed width, resolve these constraints.
     rsx! {
@@ -135,14 +134,14 @@ fn item_type_labels(item: &Item, name: &str) -> Element {
 }
 
 fn read_armor_type(item: u32) -> &'static str {
-    let Some(entry) = crate::item_catalog::item_catalog_entry(item) else {
+    let Some(entry) = game_engine_ui_model::item_catalog::item_catalog_entry(item) else {
         return "";
     };
     // Same GetItemInfo subtype exclusion as the shared item tooltip's slot line.
     if entry.class_id == 4 && entry.subclass_id == 0 {
         return "";
     }
-    crate::item_catalog::item_subclass_name(entry).unwrap_or_default()
+    game_engine_ui_model::item_catalog::item_subclass_name(entry).unwrap_or_default()
 }
 
 fn boss_text(bosses: &[&str]) -> String {
@@ -152,10 +151,8 @@ fn boss_text(bosses: &[&str]) -> String {
         2 => "BOSS_INFO_STRING_TWO",
         _ => "BOSS_INFO_STRING_MANY",
     };
-    bosses
-        .iter()
-        .take(2)
-        .fold(crate::auction_mail::text(key).to_owned(), |text, boss| {
-            text.replacen("%s", boss, 1)
-        })
+    bosses.iter().take(2).fold(
+        game_engine_ui_model::auction_mail::text(key).to_owned(),
+        |text, boss| text.replacen("%s", boss, 1),
+    )
 }

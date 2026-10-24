@@ -11,7 +11,7 @@ use ui_toolkit::{
 
 fn catalog() -> Catalog {
     let root = std::path::PathBuf::from(env!("CARGO_MANIFEST_DIR")).join("../../data");
-    crate::paths::set_data_root(root.clone()).unwrap();
+    game_engine_ui_model::paths::set_data_root(root.clone()).unwrap();
     Catalog::load(&root.join("cache/adventure_guide.sqlite")).unwrap()
 }
 

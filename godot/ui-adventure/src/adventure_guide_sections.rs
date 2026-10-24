@@ -1,11 +1,9 @@
 //! EncounterInfoTemplate and the Overview paper regions from Retail EJ XML.
-use crate::{
-    adventure_guide::View,
-    adventure_guide_art::{GOLD, SHEET},
-    bank_art::{cropped, label, texture},
-    quest_art::DynName,
-};
+use crate::adventure_guide::View;
+use crate::adventure_guide_art::{GOLD, SHEET};
 use game_engine_core::adventure_guide::Section;
+use game_engine_ui_model::bank_art::{cropped, label, texture};
+use game_engine_ui_model::quest_art::DynName;
 use ui_toolkit::{
     frame::WidgetData, registry::FrameRegistry, rsx, widget_def::Element,
     widgets::button::ButtonState,
@@ -25,7 +23,7 @@ pub fn overview_header(top: f32) -> Element {
     );
     out.extend(label(
         "JournalOverviewTitle".into(),
-        crate::auction_mail::text("OVERVIEW"),
+        game_engine_ui_model::auction_mail::text("OVERVIEW"),
         (4.5, top + 14., 200., 10.),
         (12., "0.929,0.788,0.620,1", "LEFT"),
     ));

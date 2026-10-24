@@ -1,11 +1,9 @@
 //! Retail EJ SetupIconFlags/SetFlagIcon and EncounterSectionIconTemplate.
-use crate::{
-    adventure_guide::View,
-    game_tooltip::GameTooltip,
-    quest_art::{DynName, named_atlas_texture},
-    tooltip_presentation::{TooltipLineState, TooltipPresentation},
-};
+use crate::adventure_guide::View;
 use game_engine_core::adventure_guide::Section;
+use game_engine_ui_model::game_tooltip::GameTooltip;
+use game_engine_ui_model::quest_art::{DynName, named_atlas_texture};
+use game_engine_ui_model::tooltip_presentation::{TooltipLineState, TooltipPresentation};
 use ui_toolkit::{
     atlas::{resolve_region, thread_skin},
     rsx,
@@ -86,8 +84,9 @@ pub fn tooltip(view: &View, frame: &str) -> Option<GameTooltip> {
     if !view.visible || !displayed_flags(section.roles).any(|shown| shown == index) {
         return None;
     }
-    let title = crate::auction_mail::text(&format!("ENCOUNTER_JOURNAL_SECTION_FLAG{index}"));
-    let description = crate::auction_mail::text(&format!(
+    let title =
+        game_engine_ui_model::auction_mail::text(&format!("ENCOUNTER_JOURNAL_SECTION_FLAG{index}"));
+    let description = game_engine_ui_model::auction_mail::text(&format!(
         "ENCOUNTER_JOURNAL_SECTION_FLAG_DESCRIPTION{index}"
     ));
     Some(GameTooltip::new(

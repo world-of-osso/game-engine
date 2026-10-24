@@ -1,0 +1,19 @@
+[package]
+name = "game-engine-ui-adventure"
+version = "0.1.0"
+edition.workspace = true
+rust-version.workspace = true
+autotests = false
+
+[[test]]
+name = "integration"
+path = "tests/integration.rs"
+
+[dependencies]
+# Authored Journal catalogs and actor/section data retain core ownership.
+game-engine-core = { path = "../core" }
+# Shared chrome, item catalogs, tooltips and selection/menu helpers stay in ui-model.
+game-engine-ui-model = { path = "../ui-model" }
+# Realm Journal/renown snapshots retain their existing wire identities.
+shared = { git = "https://github.com/world-of-osso/shared-protocol.git", rev = "74e67cf" }
+ui-toolkit = { package = "ui-toolkit-core", path = "../../../ui-toolkit/core" }

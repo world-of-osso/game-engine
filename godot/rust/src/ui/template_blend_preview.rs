@@ -24,9 +24,9 @@ const PANELS: &str = "AdventureGuide, TradingPost, CharacterCurrency, \
 /// model-page actions; this reaches both side-tab and creature-ring ADD regions.
 fn load_adventure_guide(
     viewport: [f32; 2],
-) -> Result<game_engine_ui_model::adventure_guide::View, String> {
+) -> Result<game_engine_ui_adventure::adventure_guide::View, String> {
     use game_engine_core::adventure_guide::Catalog;
-    use game_engine_ui_model::adventure_guide::View;
+    use game_engine_ui_adventure::adventure_guide::View;
     let catalog = Catalog::load(&game_engine_ui_model::paths::resolve_data_path(
         "cache/adventure_guide.sqlite",
     ))?;

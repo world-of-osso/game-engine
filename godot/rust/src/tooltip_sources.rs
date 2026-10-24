@@ -432,7 +432,7 @@ impl GameClient {
         let snapshot = self.adventure_guide.view.activities.as_deref()?;
         let ui = hit.ui.bind();
         let tooltip = read_owner(ui.registry()?, hit.frame, |frame| {
-            game_engine_ui_model::adventure_suggestions::text_tooltip(
+            game_engine_ui_adventure::adventure_suggestions::text_tooltip(
                 snapshot,
                 frame.name.as_deref()?,
                 frame.mouse_enabled,
@@ -445,7 +445,7 @@ impl GameClient {
     fn journal_section_flag_tooltip(&mut self, hit: &HoveredFrame) -> Option<HoveredTooltip> {
         let ui = hit.ui.bind();
         let tooltip = read_owner(ui.registry()?, hit.frame, |frame| {
-            game_engine_ui_model::adventure_section_flags::tooltip(
+            game_engine_ui_adventure::adventure_section_flags::tooltip(
                 &self.adventure_guide.view,
                 frame.name.as_deref()?,
             )
@@ -457,7 +457,7 @@ impl GameClient {
     fn journal_defeated_tooltip(&mut self, hit: &HoveredFrame) -> Option<HoveredTooltip> {
         let ui = hit.ui.bind();
         let tooltip = read_owner(ui.registry()?, hit.frame, |frame| {
-            game_engine_ui_model::adventure_defeated::tooltip(
+            game_engine_ui_adventure::adventure_defeated::tooltip(
                 &self.adventure_guide.view,
                 frame.name.as_deref()?,
             )
@@ -469,7 +469,7 @@ impl GameClient {
     fn journal_creature_tooltip(&mut self, hit: &HoveredFrame) -> Option<HoveredTooltip> {
         let ui = hit.ui.bind();
         let tooltip = read_owner(ui.registry()?, hit.frame, |frame| {
-            game_engine_ui_model::adventure_creatures::tooltip(
+            game_engine_ui_adventure::adventure_creatures::tooltip(
                 &self.adventure_guide.view,
                 frame.name.as_deref()?,
             )
@@ -482,7 +482,7 @@ impl GameClient {
         let snapshot = self.adventure_guide.view.activities.as_deref()?;
         let ui = hit.ui.bind();
         let tooltip = read_owner(ui.registry()?, hit.frame, |frame| {
-            game_engine_ui_model::adventure_activities::activity_tooltip(
+            game_engine_ui_adventure::adventure_activities::activity_tooltip(
                 snapshot,
                 frame.name.as_deref()?,
             )
@@ -503,7 +503,7 @@ impl GameClient {
     fn journey_tooltip_for_frame(&self, frame: &Frame) -> Option<GameTooltip> {
         let view = &self.adventure_guide.view;
         let name = frame.name.as_deref()?;
-        game_engine_ui_model::adventure_journeys::reward_tooltip(
+        game_engine_ui_adventure::adventure_journeys::reward_tooltip(
             &view.journeys,
             view.renown.as_deref(),
             name,
@@ -552,7 +552,7 @@ impl GameClient {
         );
         drop(ui);
         let descriptions = self.journal_bonus_descriptions(set.id);
-        let lines = game_engine_ui_model::adventure_guide_tooltip::set_lines(
+        let lines = game_engine_ui_adventure::adventure_guide_tooltip::set_lines(
             &self.adventure_guide.view,
             set,
             &self.merchant.session.inventory,

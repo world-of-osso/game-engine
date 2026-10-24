@@ -1,6 +1,6 @@
 //! Observable Retail EJ layout/state regressions from the independent gate.
 use game_engine_core::adventure_guide::Catalog;
-use game_engine_ui_model::adventure_guide::{View, adventure_guide_screen};
+use game_engine_ui_adventure::adventure_guide::{View, adventure_guide_screen};
 use std::sync::Arc;
 use ui_toolkit::{
     atlas::{ActiveSkin, set_thread_skin},
@@ -27,7 +27,7 @@ fn render(view: &View, skin: ActiveSkin) -> FrameRegistry {
     ctx.insert(view.clone());
     let mut registry = FrameRegistry::new(1920., 1080.);
     Screen::new(adventure_guide_screen).sync(&ctx, &mut registry);
-    game_engine_ui_model::adventure_guide_art::apply_postsetup(view, &mut registry);
+    game_engine_ui_adventure::adventure_guide_art::apply_postsetup(view, &mut registry);
     game_engine_ui_model::menu_template_art::sync_template_art(&mut registry);
     registry
 }
@@ -78,7 +78,7 @@ fn ui_template_behavior_remaining_journal_section_flag_owner() {
             .frames_iter()
             .filter_map(|frame| {
                 let name = frame.name.as_deref()?;
-                game_engine_ui_model::adventure_section_flags::tooltip(&v, name)
+                game_engine_ui_adventure::adventure_section_flags::tooltip(&v, name)
                     .map(|_| name.to_owned())
             })
             .collect();
@@ -307,7 +307,7 @@ fn adventure_guide_fidelity_search_has_source_limit_instructions_clear_and_inset
         let mut r = render(&v, skin);
         assert!(frame(&r, "EncounterJournalSearchBoxClearButton").hidden);
         r.focused_frame = r.get_by_name("EncounterJournalSearchBox");
-        game_engine_ui_model::adventure_guide_art::apply_postsetup(&v, &mut r);
+        game_engine_ui_adventure::adventure_guide_art::apply_postsetup(&v, &mut r);
         assert!(!frame(&r, "EncounterJournalSearchBoxClearButton").hidden);
         let clear = r
             .get_by_name("EncounterJournalSearchBoxClearButton")
@@ -316,7 +316,7 @@ fn adventure_guide_fidelity_search_has_source_limit_instructions_clear_and_inset
             b.state = ButtonState::Pushed;
             b.hovered = true;
         }
-        game_engine_ui_model::adventure_guide_art::apply_postsetup(&v, &mut r);
+        game_engine_ui_adventure::adventure_guide_art::apply_postsetup(&v, &mut r);
         assert_eq!(
             rect(&r, "EncounterJournalSearchBoxClearIcon"),
             [4., 4., 10., 10.]
@@ -342,7 +342,7 @@ fn adventure_guide_fidelity_ability_header_uses_paper_regions_and_source_icon_in
         if let Some(WidgetData::Button(b)) = &mut r.get_mut(id).unwrap().widget_data {
             b.state = ButtonState::Pushed;
         }
-        game_engine_ui_model::adventure_guide_art::apply_postsetup(&v, &mut r);
+        game_engine_ui_adventure::adventure_guide_art::apply_postsetup(&v, &mut r);
         let Some(WidgetData::Texture(paper)) = &frame(&r, &format!("{name}PaperLeft")).widget_data
         else {
             panic!("paper")
@@ -546,7 +546,11 @@ fn adventure_guide_item_sets_clamp_stale_scroll_and_reset_class_changes() {
     );
     let previous = v.clone();
     v.apply("journal:class:2").unwrap();
-    game_engine_ui_model::adventure_guide_art::reset_changed_scrolls(&previous, &v, &mut registry);
+    game_engine_ui_adventure::adventure_guide_art::reset_changed_scrolls(
+        &previous,
+        &v,
+        &mut registry,
+    );
     assert_eq!(
         registry
             .scroll_lists
@@ -634,12 +638,12 @@ fn adventure_guide_item_sets_all_classes_caption_returns_after_colored_selection
     let mut registry = FrameRegistry::new(1920., 1080.);
     let mut screen = Screen::new(adventure_guide_screen);
     screen.sync(&context, &mut registry);
-    game_engine_ui_model::adventure_guide_art::apply_postsetup(&v, &mut registry);
+    game_engine_ui_adventure::adventure_guide_art::apply_postsetup(&v, &mut registry);
     assert!(!frame(&registry, "JournalClassFilterText").visible);
     v.apply("journal:class:0").unwrap();
     context.insert(v.clone());
     screen.sync(&context, &mut registry);
-    game_engine_ui_model::adventure_guide_art::apply_postsetup(&v, &mut registry);
+    game_engine_ui_adventure::adventure_guide_art::apply_postsetup(&v, &mut registry);
     assert_eq!(text(&registry, "JournalClassFilterText"), "All Classes");
     assert!(frame(&registry, "JournalClassFilterText").visible);
 }
@@ -831,7 +835,7 @@ fn ui_template_behavior_remaining_journal_defeated_owner_lifetime() {
         assert_live_owner(&r, name, name, "journal_defeated");
         assert!(r.get_by_name("JournalBoss2365DefeatedOverlay").is_none());
         assert!(v.lockouts[0].1.contains("1 bosses defeated"));
-        let tooltip = game_engine_ui_model::adventure_defeated::tooltip(&v, name).unwrap();
+        let tooltip = game_engine_ui_adventure::adventure_defeated::tooltip(&v, name).unwrap();
         assert!(tooltip.content.title.is_empty());
         assert_eq!(
             tooltip.content.lines[0].left_text,
@@ -873,7 +877,7 @@ fn ui_template_behavior_remaining_journal_defeated_owner_lifetime() {
         assert!(render(&v, skin).get_by_name(name).is_some());
         v.replace_saved_instances(&[], 0);
         assert!(render(&v, skin).get_by_name(name).is_none());
-        assert!(game_engine_ui_model::adventure_defeated::tooltip(&v, name).is_none());
+        assert!(game_engine_ui_adventure::adventure_defeated::tooltip(&v, name).is_none());
     }
 }
 
@@ -1092,7 +1096,10 @@ fn adventure_guide_instance_loot_row_opens_authored_boss_and_retains_loot() {
         v.apply(action).unwrap();
         assert_eq!(v.encounter, Some(89));
         assert_eq!(v.catalog.encounter(89).unwrap().name, "Glubtok");
-        assert_eq!(v.page, game_engine_ui_model::adventure_guide::Page::Loot);
+        assert_eq!(
+            v.page,
+            game_engine_ui_adventure::adventure_guide::Page::Loot
+        );
         let r = render(&v, skin);
         assert_eq!(rect(&r, "JournalLoot2169")[3], 45.);
         v.search = "Buzzer".into();
@@ -1110,9 +1117,15 @@ fn adventure_guide_instance_loot_transition_keeps_valid_loot_tab() {
     v.apply("journal:difficulty:1").unwrap();
     v.apply("journal:page:loot").unwrap();
     v.apply("journal:encounter:89").unwrap();
-    assert_eq!(v.page, game_engine_ui_model::adventure_guide::Page::Loot);
+    assert_eq!(
+        v.page,
+        game_engine_ui_adventure::adventure_guide::Page::Loot
+    );
     v.apply("journal:instance:63").unwrap();
-    assert_eq!(v.page, game_engine_ui_model::adventure_guide::Page::Loot);
+    assert_eq!(
+        v.page,
+        game_engine_ui_adventure::adventure_guide::Page::Loot
+    );
     assert_eq!(v.encounter, None);
 }
 
@@ -1134,7 +1147,7 @@ fn adventure_guide_instance_loot_transition_validates_empty_difficulty() {
     assert!(v.loot().is_empty());
     assert_eq!(
         v.page,
-        game_engine_ui_model::adventure_guide::Page::Overview
+        game_engine_ui_adventure::adventure_guide::Page::Overview
     );
     let r = render(&v, ActiveSkin::Modern);
     assert_eq!(
@@ -1149,7 +1162,10 @@ fn adventure_guide_instance_loot_transition_disables_zero_root_overview() {
     v.apply("journal:encounter:1519").unwrap();
     assert_eq!(v.catalog.encounter(1519).unwrap().name, "Lucifron");
     assert_eq!(v.catalog.encounter(1519).unwrap().root, 0);
-    assert_eq!(v.page, game_engine_ui_model::adventure_guide::Page::Loot);
+    assert_eq!(
+        v.page,
+        game_engine_ui_adventure::adventure_guide::Page::Loot
+    );
     let r = render(&v, ActiveSkin::Modern);
     assert_eq!(
         button(&r, "EncounterJournalPage0").state,
@@ -1204,7 +1220,7 @@ fn ui_template_behavior_remaining_journal_creature_owner() {
     v.apply("journal:encounter:154").unwrap();
     v.apply("journal:page:model").unwrap();
     let tooltip =
-        game_engine_ui_model::adventure_creatures::tooltip(&v, "JournalCreature555").unwrap();
+        game_engine_ui_adventure::adventure_creatures::tooltip(&v, "JournalCreature555").unwrap();
     for skin in [ActiveSkin::Modern, ActiveSkin::Forever] {
         let registry = render(&v, skin);
         assert_live_owner(
@@ -1216,5 +1232,7 @@ fn ui_template_behavior_remaining_journal_creature_owner() {
     }
     assert_eq!(tooltip.content.title, "Nezir");
     assert_eq!(tooltip.content.lines[0].left_text, "Lord of the North Wind");
-    assert!(game_engine_ui_model::adventure_creatures::tooltip(&v, "JournalCreature359").is_none());
+    assert!(
+        game_engine_ui_adventure::adventure_creatures::tooltip(&v, "JournalCreature359").is_none()
+    );
 }

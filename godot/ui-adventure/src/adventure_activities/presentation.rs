@@ -7,12 +7,12 @@ use ui_toolkit::{
     widgets::font_string::GameFont,
 };
 
-use crate::{
-    bank_art::label,
-    quest_art::{DynName, HIGHLIGHT_FONT_COLOR, NORMAL_FONT_COLOR, named_atlas_texture},
+use game_engine_ui_model::bank_art::label;
+use game_engine_ui_model::quest_art::{
+    DynName, HIGHLIGHT_FONT_COLOR, NORMAL_FONT_COLOR, named_atlas_texture,
 };
 
-pub(super) use crate::auction_mail::text as global;
+pub(super) use game_engine_ui_model::auction_mail::text as global;
 
 pub(super) fn sized_atlas(name: String, atlas: &str, center: (f32, f32)) -> Element {
     let region = resolve_region(atlas, thread_skin())

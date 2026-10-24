@@ -2,11 +2,9 @@
 use game_engine_core::adventure_guide::{Item, ItemSet};
 use ui_toolkit::{rsx, screen::SharedContext, widget_def::Element};
 
-use crate::{
-    adventure_guide::{LIST, LootFilter, View, scroll},
-    bank_art::{WHITE, texture},
-    quest_art::{DynName, named_atlas_texture},
-};
+use crate::adventure_guide::{LIST, LootFilter, View, scroll};
+use game_engine_ui_model::bank_art::{WHITE, texture};
+use game_engine_ui_model::quest_art::{DynName, named_atlas_texture};
 
 const ROW_HEIGHT: f32 = 41.;
 const ROW_STEP: f32 = 54.;
@@ -16,7 +14,11 @@ const LIST_HEIGHT: f32 = 332.;
 pub(crate) fn item_sets(ctx: &SharedContext, view: &View) -> Element {
     let rows = view.item_sets();
     let height = rows.len() as f32 * ROW_STEP + FIRST_TOP - (ROW_STEP - ROW_HEIGHT);
-    let geometry = crate::minimal_scroll_bar::pixel_geometry(LIST_HEIGHT, height, LIST_HEIGHT - 8.);
+    let geometry = game_engine_ui_model::minimal_scroll_bar::pixel_geometry(
+        LIST_HEIGHT,
+        height,
+        LIST_HEIGHT - 8.,
+    );
     let offset = geometry.clamp(ctx.scroll_first_row(LIST)) as f32;
     let content = rows
         .iter()
@@ -57,7 +59,7 @@ fn class_dropdown(view: &View) -> Element {
         .classes
         .get(&class)
         .map(String::as_str)
-        .unwrap_or(crate::auction_mail::text("ALL_CLASSES"));
+        .unwrap_or(game_engine_ui_model::auction_mail::text("ALL_CLASSES"));
     let title = view
         .catalog
         .specs
@@ -90,7 +92,7 @@ fn class_caption_runs(view: &View) -> Element {
         .find(|spec| spec.id == specialization)
         .map(|spec| format!(" ({})", spec.name))
         .unwrap_or_default();
-    let [red, green, blue] = crate::damage_meter_data::class_color(class as u8);
+    let [red, green, blue] = game_engine_ui_model::damage_meter_data::class_color(class as u8);
     let color = format!("{red},{green},{blue},1");
     // ClassMenu's inline class-colour span plus uncoloured spec, with native intrinsic widths.
     rsx! {
@@ -129,7 +131,8 @@ pub(crate) fn apply_postsetup(view: &View, registry: &mut ui_toolkit::registry::
         && let Some(ui_toolkit::frame::WidgetData::FontString(font)) =
             &mut registry.get_mut(id).unwrap().widget_data
     {
-        let [red, green, blue] = crate::damage_meter_data::class_color(menu_class as u8);
+        let [red, green, blue] =
+            game_engine_ui_model::damage_meter_data::class_color(menu_class as u8);
         font.color = [red, green, blue, 1.];
     }
 }
@@ -175,12 +178,12 @@ fn set_text(view: &View, set: &ItemSet, items: &[&Item]) -> Element {
         fontstring {
             name: {DynName(format!("JournalSet{}", set.id))}, text: {set.name.as_str()},
             width: 318., height: "auto", pos_type: "relative", font_size: 12.,
-            font_color: {crate::merchant_data::quality_color(last.quality as u8)},
+            font_color: {game_engine_ui_model::merchant_data::quality_color(last.quality as u8)},
             word_wrap: false, max_lines: 1, justify_h: "LEFT"
         }
     };
     let level = view.set_level(set).map(|level| {
-        let text = crate::auction_mail::text("ITEM_LEVEL").replace("%d", &level.to_string());
+        let text = game_engine_ui_model::auction_mail::text("ITEM_LEVEL").replace("%d", &level.to_string());
         rsx! {
             fontstring {
                 name: {DynName(format!("JournalSet{}Level", set.id))}, text,
@@ -200,7 +203,7 @@ fn set_text(view: &View, set: &ItemSet, items: &[&Item]) -> Element {
 
 fn item_button(set: u32, item: &Item, index: usize) -> Element {
     let prefix = format!("JournalSet{set}Item{}", item.id);
-    let mut content = crate::item_icons::item_icon_fdid(item.id)
+    let mut content = game_engine_ui_model::item_icons::item_icon_fdid(item.id)
         .map(|icon| texture(format!("{prefix}Icon"), icon, (2., 2., 28., 28.), WHITE))
         .unwrap_or_default();
     let border = match item.quality {
@@ -211,7 +214,7 @@ fn item_button(set: u32, item: &Item, index: usize) -> Element {
     };
     if let Some(atlas) = border {
         content.extend(
-            crate::inworld_unit_frames_component::inworld_unit_frames_art::sized_atlas_texture(
+            game_engine_ui_model::inworld_unit_frames_component::inworld_unit_frames_art::sized_atlas_texture(
                 format!("{prefix}Border"),
                 atlas,
                 ui_toolkit::atlas::thread_skin(),

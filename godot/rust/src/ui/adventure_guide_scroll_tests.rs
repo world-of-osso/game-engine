@@ -1,10 +1,8 @@
 //! Retail Guide scrollbars are anchored beside, not inside, their ScrollBoxes.
 use super::*;
 use game_engine_core::adventure_guide::Catalog;
-use game_engine_ui_model::{
-    adventure_guide::{View, adventure_guide_screen},
-    panel_style_data::{MetalGeometry, MetalTopLeft, metal_frame_style},
-};
+use game_engine_ui_adventure::adventure_guide::{View, adventure_guide_screen};
+use game_engine_ui_model::panel_style_data::{MetalGeometry, MetalTopLeft, metal_frame_style};
 use std::sync::Arc;
 use ui_toolkit::{
     screen::{Screen, SharedContext},

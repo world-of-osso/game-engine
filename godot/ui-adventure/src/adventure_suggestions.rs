@@ -6,10 +6,10 @@ use ui_toolkit::{
     widgets::font_string::GameFont,
 };
 
-use crate::{
-    adventure_guide::text,
-    bank_art::{WHITE, texture},
-    quest_art::{DynName, line_height, named_atlas_texture, wrapped_line_count_with_font},
+use crate::adventure_guide::text;
+use game_engine_ui_model::bank_art::{WHITE, texture};
+use game_engine_ui_model::quest_art::{
+    DynName, line_height, named_atlas_texture, wrapped_line_count_with_font,
 };
 
 pub fn apply_postsetup(
@@ -73,15 +73,17 @@ pub fn text_tooltip(
     snapshot: &AdventureGuideSnapshot,
     owner: &str,
     rendered_truncated: bool,
-) -> Option<crate::game_tooltip::GameTooltip> {
-    use crate::tooltip_presentation::{TOOLTIP_WHITE, TooltipPresentation, description_lines};
+) -> Option<game_engine_ui_model::game_tooltip::GameTooltip> {
+    use game_engine_ui_model::tooltip_presentation::{
+        TOOLTIP_WHITE, TooltipPresentation, description_lines,
+    };
     if !rendered_truncated {
         return None;
     }
     let text = hover_text(snapshot, owner)?;
     let mut lines = description_lines(text, TOOLTIP_WHITE).into_iter();
     let title = lines.next()?.left_text;
-    Some(crate::game_tooltip::GameTooltip::new(
+    Some(game_engine_ui_model::game_tooltip::GameTooltip::new(
         TooltipPresentation {
             title,
             title_color: TOOLTIP_WHITE,
@@ -290,11 +292,13 @@ fn measure_text_metrics(
     };
     let title_height = title_lines as f32 * title_size + if primary { 2. } else { 0. };
     let description_height = if primary {
-        (crate::quest_art::wrapped_line_count(&suggestion.description, 264., 14.) as f32
+        (game_engine_ui_model::quest_art::wrapped_line_count(&suggestion.description, 264., 14.)
+            as f32
             * line_height(14.))
         .max(1.)
     } else {
-        crate::quest_art::wrapped_line_count(&suggestion.description, 240., 12.).clamp(1, 4) as f32
+        game_engine_ui_model::quest_art::wrapped_line_count(&suggestion.description, 240., 12.)
+            .clamp(1, 4) as f32
             * 12.
     };
     TextMetrics {
