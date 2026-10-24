@@ -216,7 +216,21 @@ Before source `1123c7606`:390 unit names;15 affected integration suites list94 n
 
 The paired real-build baseline changes only `pvp_talent_controls.rs`: `let text = "PvP Talents";` → `let text = "PvP Talents!";`. Warm edit **23.287s**, child CPU17.509s, no-op0.832s/zero dirty units, restore24.318s; all exit0/input restored. Cargo base unit5.91s and native16.06s are package-level evidence, not module attribution; all four extracted UI features also rebuild. The post-cut comparison must preserve pins/profiles/flags, record differing load/controls and avoid a wall-speed guarantee.
 
-Before packet `a154708f7`; rename-only `534ae04b1` moves11 presentation sources+11 dedicated suites unchanged. Wiring retains shared types once in base and migrates four mixed cases without changing assertions. Check/census/post-cut measurement pending. Raw before evidence: `/home/osso/.worktrees/logs/engine-crate-split-player-spells-before-1123c7606/`.
+Before packet `a154708f7`; rename-only `534ae04b1` moves11 presentation sources+11 dedicated suites unchanged. Wiring retains shared types once in base and migrates four mixed cases without changing assertions. Wiring `d8d935ea2` passes the feature/GDExtension helper check with zero diagnostics. Source/tests compile with original model ownership; `c6dfa999e` deletes an orphaned base test helper after its sole caller moves (no warning suppression), then reruns only the21 affected residual cases. Scoped execution is **390 base units,72 feature integration cases,21 residual mixed cases passed; zero failures and one unchanged ignored audit**. Feature unit count is zero. Exact census preserves390 units and **94 integration names = 73 feature (one ignored) + 21 residual**; original473 UI unit names remain unchanged across all crates.
+
+[Player Spells result receipt](engine-crate-split-player-spells.json) binds commands/names/load controls; raw post-cut evidence is `/home/osso/.worktrees/logs/engine-crate-split-player-spells-d8d935ea2/`.
+
+| Same reversible PvP label edit | Before `1123c7606` | After `d8d935ea2` |
+|---|---:|---:|
+| No-op wall | 0.832s | 1.045s |
+| Edit wall | 23.287s | 22.914s |
+| Edit child user+system CPU | 17.509s | 12.139s |
+| Restore wall | 24.318s | 16.453s |
+| Changed base/feature unit | base5.91s | PlayerSpells0.85s |
+| Native unit | 16.06s | 21.54s |
+| Dirty UI crates | base +all four extracted features | PlayerSpells only; all five others fresh |
+
+**No wall-speed claim under unequal shared-host load.** The descriptive wall samples differ by0.374s, while child CPU is30.7% lower and dependency isolation is proven. The native unit grows16.06→21.54s; before/after restore/no-op controls and admission waits remain separate. Common Cargo feature/profile multisets have zero differences, sibling pins match and input is restored. Post-cut warmup177.208s is excluded (before warmup1.991s had zero dirty units, already warm). The subsequent helper-only test deletion does not intersect the measured production scope. Parent owns the eleven-package integration gate; no native runtime/full-suite acceptance is claimed. Raw before evidence: `/home/osso/.worktrees/logs/engine-crate-split-player-spells-before-1123c7606/`.
 
 ## Baseline edit measurements
 
