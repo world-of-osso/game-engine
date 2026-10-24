@@ -151,6 +151,10 @@ Rename-only `dfca8fe29` moves19 source and6 test files unchanged into `godot/ui-
 
 [Stage1 receipts](engine-crate-split-collections-stage1.json) retain exact names/commands/results; raw evidence is `/home/osso/.worktrees/logs/engine-crate-split-collections-stage1-2896b6d3e/`. No new timing, full-suite or native runtime acceptance is claimed. The parent owns the nine-package gate and push/merge; remaining mount/toy/pet/shell files stay in base until later approved stages.
 
+### Collections stage2 implementation
+
+Parent accepted/landed stage1 at `ce946a284`. Rename-only `cf31450bf` moves `mount_journal.rs`, `mount_source.rs` and the mount integration suite unchanged into ui-collections. Wiring keeps the shared shell in base and changes native imports directly. Only the existing `inset_border` helper and its existing re-export gain public visibility; actor/render behavior, profiles and fixtures stay unchanged. The14-name before suite is reused from the source-qualified packet: the three mount files have no diff since `214a9b854`. Check/execution/after census are pending.
+
 ## Baseline edit measurements
 
 [Machine-readable receipts](engine-crate-split-baseline.json) include exact commands, package/target dirtiness, wall/user/system time, dependency pins, Cargo unit timings and raw-log hashes. Host `agent-server`, Rust/Cargo 1.99.0, four jobs, native helper defaults and unchanged profiles/linker. Raw logs, HTML timings, drivers and before/after name lists are archived outside the worktree at `/home/osso/.worktrees/logs/engine-crate-split-baseline-4645578c7/`. No post-split improvement is claimed.

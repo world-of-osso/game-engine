@@ -74,8 +74,6 @@ pub mod guild_charters;
 pub mod guild_tabard_frame;
 pub mod guild_tabards;
 pub mod menu_template_art;
-pub mod mount_journal;
-mod mount_source;
 pub mod mythic_mentor;
 pub mod navigation_bar;
 pub mod pet_journal;

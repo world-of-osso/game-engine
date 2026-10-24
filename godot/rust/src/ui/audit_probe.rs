@@ -171,7 +171,7 @@ impl UiAuditProbe {
         let result =
             match journal.to_string().as_str() {
                 "mounts" => ui.bind_mut().show_mount_journal(
-                    game_engine_ui_model::mount_journal::MountJournalView {
+                    game_engine_ui_collections::mount_journal::MountJournalView {
                         visible: true,
                         viewport,
                         ..Default::default()

@@ -1,4 +1,4 @@
-use game_engine_ui_model::mount_journal::MountJournalView;
+use game_engine_ui_collections::mount_journal::MountJournalView;
 use shared::protocol::{MountJournalEntry, MountJournalUpdate};
 
 fn mare() -> MountJournalEntry {
@@ -23,7 +23,7 @@ fn mare() -> MountJournalEntry {
 }
 #[test]
 fn mount_journal_snapshot_changes_rebuild_shared_screen_without_reopening() {
-    use game_engine_ui_model::mount_journal::mount_journal_screen;
+    use game_engine_ui_collections::mount_journal::mount_journal_screen;
     use ui_toolkit::{
         frame::WidgetData,
         registry::FrameRegistry,
@@ -69,7 +69,7 @@ fn mount_journal_snapshot_changes_rebuild_shared_screen_without_reopening() {
 
 #[test]
 fn mount_display_follows_retail_inset_allpoints_in_both_skins() {
-    use game_engine_ui_model::mount_journal::mount_journal_screen;
+    use game_engine_ui_collections::mount_journal::mount_journal_screen;
     use ui_toolkit::{
         atlas::{ActiveSkin, set_thread_skin},
         frame::Dimension,
@@ -116,7 +116,7 @@ fn mount_display_follows_retail_inset_allpoints_in_both_skins() {
 
 #[test]
 fn uncollected_mount_selection_keeps_source_alpha_blend_and_enabled_row() {
-    use game_engine_ui_model::mount_journal::mount_journal_screen;
+    use game_engine_ui_collections::mount_journal::mount_journal_screen;
     use ui_toolkit::{
         atlas::{ActiveSkin, set_thread_skin},
         frame::WidgetData,
@@ -169,7 +169,7 @@ fn uncollected_mount_selection_keeps_source_alpha_blend_and_enabled_row() {
 
 #[test]
 fn mount_context_menu_fits_its_rendered_labels_in_both_skins() {
-    use game_engine_ui_model::mount_journal::mount_journal_screen;
+    use game_engine_ui_collections::mount_journal::mount_journal_screen;
     use ui_toolkit::{
         atlas::{ActiveSkin, set_thread_skin},
         registry::FrameRegistry,
@@ -213,7 +213,7 @@ fn mount_context_menu_fits_its_rendered_labels_in_both_skins() {
 
 #[test]
 fn mount_filter_menu_fits_owner_and_keeps_source_spacer_in_both_skins() {
-    use game_engine_ui_model::mount_journal::mount_journal_screen;
+    use game_engine_ui_collections::mount_journal::mount_journal_screen;
     use ui_toolkit::{
         atlas::{ActiveSkin, set_thread_skin},
         frame::Dimension,
@@ -322,7 +322,7 @@ fn mount_journal_known_item_feedback_tracks_authoritative_ownership_and_source()
 
 #[test]
 fn mount_journal_collected_details_show_already_known() {
-    use game_engine_ui_model::mount_journal::mount_journal_screen;
+    use game_engine_ui_collections::mount_journal::mount_journal_screen;
     use ui_toolkit::{
         frame::WidgetData,
         registry::FrameRegistry,
@@ -349,7 +349,7 @@ fn mount_journal_collected_details_show_already_known() {
 
 #[test]
 fn mount_journal_source_renders_real_db2_markup_as_readable_vendor_zone_and_cost() {
-    use game_engine_ui_model::mount_journal::mount_journal_screen;
+    use game_engine_ui_collections::mount_journal::mount_journal_screen;
     use ui_toolkit::{
         frame::WidgetData,
         registry::FrameRegistry,
@@ -402,7 +402,7 @@ fn mount_journal_search_source_type_and_collected_filters_reselect() {
 }
 #[test]
 fn mount_search_keeps_query_when_filter_rebuilds_and_renders_search_template() {
-    use game_engine_ui_model::mount_journal::mount_journal_screen;
+    use game_engine_ui_collections::mount_journal::mount_journal_screen;
     use ui_toolkit::{
         frame::WidgetData,
         registry::FrameRegistry,
