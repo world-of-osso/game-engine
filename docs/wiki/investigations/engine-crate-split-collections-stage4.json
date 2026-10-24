@@ -1,0 +1,139 @@
+{
+  "source_revision": "46ba60eb6",
+  "before_source": "47d2dc6d1",
+  "rename_only_revision": "baaf42472",
+  "wiring_revision": "2f17f12ac",
+  "serde_owner_declaration_revision": "46ba60eb6",
+  "raw_archive": "/home/osso/.worktrees/logs/engine-crate-split-collections-stage4-46ba60eb6",
+  "scope": {
+    "source_files": 10,
+    "test_files": 2,
+    "original_physical_source_lines": 3503,
+    "modules": [
+      "pet_journal",
+      "pet_stable",
+      "pet_stable_component",
+      "wild_pet_battle",
+      "collections_component"
+    ],
+    "complete_collections_sources": 33,
+    "complete_root_modules": 12,
+    "original_group_physical_lines": 11629
+  },
+  "check": {
+    "arguments": [
+      "-p",
+      "game-engine-ui-collections",
+      "-p",
+      "game-engine-godot",
+      "-j4",
+      "--message-format=json"
+    ],
+    "exit": 0,
+    "compiler_diagnostics": [],
+    "initial_failure": "Missing direct serde declaration for pre-existing pet-journal Deserialize derive; corrected using same existing serde1/derive features, no versions changed"
+  },
+  "tests": {
+    "ui-model:lib": {
+      "pass": 408,
+      "fail": 0,
+      "ignored": 0
+    },
+    "ui-collections:lib": {
+      "pass": 24,
+      "fail": 0,
+      "ignored": 0
+    },
+    "ui-collections:integration": {
+      "pass": 197,
+      "fail": 0,
+      "ignored": 0
+    },
+    "ui-collections:active_db2": {
+      "pass": 1,
+      "fail": 0,
+      "ignored": 0
+    }
+  },
+  "census": {
+    "base_units_before": 414,
+    "base_units_after": 408,
+    "collections_units_before": 18,
+    "collections_units_after": 24,
+    "moved_units": 6,
+    "previous_integration": 166,
+    "moved_integration": 31,
+    "combined_integration": 197,
+    "active_db2_before_after": 1,
+    "names_byte_identical": true,
+    "original_473_unit_names_conserved": true,
+    "original_197_collection_integration_names_conserved": true,
+    "original_unit_distribution": {
+      "ui-model": 408,
+      "ui-housing": 37,
+      "ui-adventure": 4,
+      "ui-collections": 24
+    },
+    "base_unit_names_sha256": "474b30b195e691c495a460acb2785efaa850dba31f30d4d6b6e881441001ca74",
+    "collections_unit_names_sha256": "e091c7ea41b6ef33c9ceab7c08d8f430afdf154c18f973f1f384ccf943f8cbe2",
+    "integration_names_sha256": "d741985a19ffdbe782da6eb761cb10ca4c90f2cfb2e06e925e1320eb7918af71",
+    "moved_unit_names": [
+      "pet_stable::tests::stable_make_active_uses_unlocked_empty_slot_then_first_active_when_full",
+      "pet_stable::tests::stable_rename_spec_and_abandon_emit_requests_without_optimistic_mutation",
+      "pet_stable::tests::stable_reply_from_closed_npc_does_not_open_or_populate_session",
+      "pet_stable::tests::stable_search_has_more_than_one_page_of_real_records",
+      "pet_stable::tests::stable_specialization_uses_retail_dropdown_and_radio_menu_in_both_skins",
+      "pet_stable::tests::stable_toggle_targets_first_non_secondary_stabled_slot_and_waits_for_server"
+    ],
+    "pet_integration_names": [
+      "pet_journal::companion_loadout_and_card_follow_retail_xml_in_both_skins",
+      "pet_journal::journal_combat_choices_wait_for_ack_and_refusal_preserves_server_state",
+      "pet_journal::journal_selection_uses_instance_not_species_and_waits_for_authority",
+      "pet_journal::journal_species_flags_hide_debug_rows_and_reveal_learned_only_species",
+      "pet_journal::journal_waits_for_loadout_ack_before_opening_an_owned_ability_selector",
+      "pet_journal::loadout_decoration_and_names_follow_owned_quality_type_and_health",
+      "pet_journal::pet_filter_menu_fits_owner_and_preserves_source_divider_in_both_skins",
+      "pet_journal::pet_filters_toggle_ownership_families_and_reset_without_changing_authority",
+      "pet_journal::pet_filters_use_species_source_combat_flags_and_owned_sort_values",
+      "pet_journal::pet_journal_equips_selected_owned_pet_without_duplicate_slots",
+      "pet_journal::pet_journal_skins_share_retail_layout_and_real_instance_text",
+      "pet_journal::pet_ready_buttons_project_source_panel_sheets_without_changing_input_or_geometry",
+      "pet_journal::pet_search_preserves_query_and_exposes_retail_clear_action_in_both_skins",
+      "pet_journal::pet_source_menu_omits_no_source_sentinel_in_real_catalog_metadata",
+      "pet_journal::petbattle_pvp_journal_find_leave_and_proposal_wait_for_authority",
+      "pet_journal::petbattle_pvp_ready_popup_appears_without_open_journal_in_both_skins",
+      "pet_journal::ui_template_blend_journal_owned_stats_and_locked_ability_flyout_render_in_both_skins",
+      "pet_journal::uncollected_species_cannot_summon_and_search_filters_names",
+      "pet_journal::unreadable_species_stays_in_catalog_but_not_blank_list_selection",
+      "wild_pet_battle::petbattle_effect_hud_both_skins_show_weather_pads_duration_polarity_and_lockout",
+      "wild_pet_battle::petbattle_effect_hud_chat_keeps_rounds_and_terminal_lines_until_next_battle",
+      "wild_pet_battle::petbattle_effect_hud_log_pages_and_cleared_effects_rebuild_from_authoritative_state",
+      "wild_pet_battle::petbattle_pvp_initial_selection_allows_current_pet_but_not_combat_actions",
+      "wild_pet_battle::petbattle_pvp_waiting_player_can_still_confirm_forfeit",
+      "wild_pet_battle::retail_pet_selection_buttons_keep_initial_and_dead_swap_rules_and_source_geometry",
+      "wild_pet_battle::wild_pet_battle_actions_use_authoritative_round_and_block_cooldowns_pending_and_fainted_swaps",
+      "wild_pet_battle::wild_pet_battle_end_updates_the_active_pet_xp_bar_after_level_up",
+      "wild_pet_battle::wild_pet_battle_feedback_preserves_event_amounts_and_badges_follow_enemy_type",
+      "wild_pet_battle::wild_pet_battle_forfeit_requires_confirmation_and_end_stops_actions",
+      "wild_pet_battle::wild_pet_battle_retail_hud_has_icons_locks_reserves_and_no_debug_output",
+      "wild_pet_battle::wild_pet_battle_skins_render_same_frames_auras_abilities_and_untimed_pve_timer"
+    ],
+    "active_db2_names": [
+      "trading_post_reads_scene_flags_from_active_snapshot_without_historical_directory"
+    ]
+  },
+  "before_census_reused": "10pet/shell sources+2suites unchanged214a9..47d2; units/integration/isolated previous lists source-qualified stage3",
+  "log_sha256": {
+    "collections-stage4-check-green.log": "3102d3ada1cde588357da55fb749135c06a3a01bbcdfbdb156593d763d361522",
+    "collections-stage4-model-tests.log": "21134891e7c66fb1c7ec91605c917f20f60b054bd477ca6a3f09cf458c9f032c",
+    "collections-stage4-check.log": "84ae9e152abfa02f0e0b7511ac45e8e224b0940f5be63d4bb3c3084b7e481326",
+    "collections-stage4-after-model-census.log": "3bc3d9c8633d8f1c5170fb4a22301394e48a19981ca69e04dce0c59872252de7",
+    "collections-stage4-after-model-census-driver.log": "c19cc2f1733a9f976c3b214a04e726ee70e6fbca4e76c7ca5cd76ad9b90dbeee",
+    "collections-stage4-tests.log": "6e4f3e12f79ca37daa09f86bc5b379537959e3c0d60663c43b7c47c62f5edf07",
+    "collections-stage4-model-tests-driver.log": "ee3b05b950035dd219caca2251003f66af4216652083aeac7c76e9b99eb603de",
+    "collections-stage4-tests-driver.log": "db3f4e9745e4355e5be49fedaba405eb8ff68ab9d6a40a237c824eb96af89dae",
+    "collections-stage4-after-census.log": "e5e08d664193cd48fdeb88711d7c07e7811a0ff9b7226c0dd6429bd3f49996cc",
+    "collections-stage4-after-census-driver.log": "d2ff06f25db1ebd97fe541803f5cb4518499f7f5c2e9467262a8ab9c55f5a68c"
+  },
+  "qualification": "No behavior/type/profile/asset changes or new helper visibility. Direct native imports/local shell references; no base->Collections source edges or self-external aliases. Existing serde version/features retain ownership. No timing/native-runtime/full-suite acceptance claim; parent owns9-package gate/push/merge. Native-render cuts need separate approved packets."
+}

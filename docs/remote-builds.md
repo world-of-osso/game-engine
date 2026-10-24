@@ -58,7 +58,7 @@ Housing owns its separate `game-engine-ui-housing` crate and `integration` harne
 
 Adventure Guide similarly owns `game-engine-ui-adventure`; its seven suites share that crate's `integration` harness. Run `python3 scripts/depot-build.py --root "$PWD" --test -p game-engine-ui-adventure --lib --test integration -j4`. Native actor/model-scene code remains in GDExtension; [exact conserved census](wiki/investigations/engine-crate-split-plan.md#adventure-guide-extraction).
 
-Collections stages1–3 own transmog, Trading Post, mount journal/source and toybox in `game-engine-ui-collections`. Run `python3 scripts/depot-build.py --root "$PWD" --test -p game-engine-ui-collections --lib --test integration --test active_db2 -j4`. `active_db2` deliberately stays separate from ordinary integration to isolate once-only source flags/data roots; `item_catalog_pending` remains in ui-model. Pet/shell modules still live in base until their individual [Collections gates](wiki/investigations/engine-crate-split-plan.md#collections-stage1-implementation).
+`game-engine-ui-collections` owns the shared Collections shell, transmog, Trading Post, mount/pet journals, toybox, stable and wild-pet UI. Run `python3 scripts/depot-build.py --root "$PWD" --test -p game-engine-ui-collections --lib --test integration --test active_db2 -j4`. `active_db2` deliberately stays separate from ordinary integration to isolate once-only source flags/data roots; `item_catalog_pending` remains in ui-model. Shared item catalogs/chrome/data-root state stay in ui-model; native actor/render behavior stays in GDExtension. [Exact staged census and gates](wiki/investigations/engine-crate-split-plan.md#collections-stage4-implementation).
 
 ## UI icons prepared before shipping
 
