@@ -119,7 +119,7 @@ These rows extend the earlier reader-only B cells: an earlier “not established
 | Skin triangles | `models/m2_batches.rs:312–322,361–369` | Section triangle_start/count slices this selector stream; lookup resolves global vertices, remapped local for mesh. |
 | Batch section index | `models/m2_batches.rs:364–369,583–584` | Chooses section geometry and carries section metadata. |
 | Batch texture combo | `models/m2_batches.rs:372–381,403–419` | Texture lookup then texture record; second stage uses combo+1. |
-| Batch coordinate combo | `models/m2_batches.rs:398–399`; `benilla-m2/src/model.rs:272–295` | Per-stage environment coordinate and combine helpers. |
+| Batch coordinate combo | `models/m2_batches.rs:398–399`; `benilla-m2/src/model.rs:272–275` | Per-stage environment-coordinate lookup. `stage_combine` is separate and does not read coordinate combo. |
 | Batch material index | `models/m2_batches.rs:382–438` | Blend, culling, emissive/depth/fog decisions. |
 | Batch color index | `models/m2_batches.rs:443–446,465–500,543–553` | Alpha/RGB track selection, opacity culling and tint. |
 | Batch weight combo | `models/m2_batches.rs:448–456,466–473` | Transparency lookup/track; applied only if texture_count nonzero. |
