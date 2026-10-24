@@ -388,6 +388,9 @@ External resources and asset lists.
 - [M2 representation boundaries](reference/benilla-m2-representation-fields.md) — individual copied bounds, calculated camera/ring inputs and animation/marker projections, with actual global-channel consumers.
 - [M2 declared-field census](reference/benilla-m2-field-census.md) — per-field source roster, with raw/cooked duplicates and unexpanded header/track boundaries explicit; working input to the consumer audit, not completed parity proof.
 - [WMO root header/material fields](reference/benilla-wmo-root-fields.md) — individual MOHD/MOMT inputs, modern sampled texture slots and distinct Vanilla material semantics; static consumer evidence.
+- [WMO root auxiliary fields](reference/benilla-wmo-root-aux-fields.md) — groups/names, portals, doodads, lights and fog; raw/helper losses and production consumer boundaries.
+- [WMO extension fields](reference/benilla-wmo-extension-fields.md) — individual ambient-volume, dynamic-light, visibility, plane, UV, group-file and doodad-index inputs; opaque spans remain unassigned.
+- [WMO group/liquid/BSP fields](reference/benilla-wmo-group-fields.md) — header, mesh/batch streams, liquid union and distinct native-triangle versus BSP-query consumers; static-only.
 - [Benilla asset-field inventory](reference/benilla-asset-field-inventory.md) — pinned M2/WMO/ADT/WDT/WDL/BLP and environment comparison; parsed-but-unbound fields, existing coverage and version-qualified research leads, static evidence only.
 
 - [open-source-wow-clients](reference/open-source-wow-clients.md) — Client/rendering references; Benilla taint/aura boundary; separate source-only 3.3.5a and 4.3.4 audits; no runtime parity established

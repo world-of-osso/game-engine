@@ -1,3 +1,7 @@
+## 2026-10-24 — WMO individual-field expansion
+
+[Root auxiliary](reference/benilla-wmo-root-aux-fields.md), [extensions](reference/benilla-wmo-extension-fields.md) and [group/liquid/BSP](reference/benilla-wmo-group-fields.md) worksheets distinguish raw records, helper projections, opaque intervals and production consumers. Modern ambient/doodad inputs, MOC2 and BSP-query support are present; no runtime/visual compatibility claim. Independent static source verification remains open.
+
 ## 2026-10-24 — M2 scoped static acceptance
 
 [M2 evidence ledger](reference/benilla-m2-evidence.md) records accepted six-family audits, declaration reconciliation (90 records/630 named members, not unique disk fields), individual projections and bounded correction receipts through `17e94300e`/`d39e8c649`. Unknown consumers/version bytes remain explicit. No project execution or runtime parity proof. Earlier dated entries describe their integration stages; WMO/terrain/texture/environment inventory remains open.
