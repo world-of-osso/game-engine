@@ -1,3 +1,7 @@
+## 2026-10-24 — Guild history/live delivery ordering
+
+[Guild Chat](systems/guilds.md#communities-guild-chat--implementation2026-10-24): actual held-worker UDP returns a later live line before history replacement (1receiptPASS/1orderFAIL). Existing reply moves to ChatChannel and a single typed relay preserves real message IDs; no new RPC/schema/service. UI7GREEN retained, transport GREEN/native acceptance pending.
+
 ## 2026-10-24 — Communities guild Chat implementation
 
 [Guild Chat](systems/guilds.md#communities-guild-chat--implementation2026-10-24) adds actual transcript/composer/history over existing authorized service, source stream picker and compact roster. Targeted RED3 preceded production changes; committed before GREEN/native proof. No new service, Club metadata, offline-history or pass claim.

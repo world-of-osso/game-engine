@@ -145,6 +145,12 @@ impl BridgeConfig {
         self
     }
 
+    /// Preserve history replacement and live-message order on ChatChannel.
+    pub fn receive_chat(mut self) -> Self {
+        self.relays.push(install_chat_relay);
+        self
+    }
+
     /// Preserve specialization, commit result and snapshot order on TalentChannel.
     pub fn receive_talents(mut self) -> Self {
         self.relays.push(install_talent_relay);
@@ -364,8 +370,7 @@ impl NetworkBridge {
             .receive::<protocol::GuildCharterReply>()
             .receive::<protocol::GuildTabardReply>()
             // Chat lines for the chat frame.
-            .receive::<ChatMessage>()
-            .receive::<protocol::ChatHistoryResponse>()
+            .receive_chat()
             .receive::<protocol::CreatureTextSound>()
             // Players' social emotes, played on their models.
             .receive::<protocol::EmoteEvent>()
@@ -663,6 +668,37 @@ fn install_relay<M: network::Message>(app: &mut App, events: Sender<Event>) {
                         .send(Event::Message(ProtocolMessage(Box::new(message))))
                         .expect("host event receiver closed");
                 }
+            }
+        })
+        .run_if(protocol_not_rejected),
+    );
+}
+
+fn install_chat_relay(app: &mut App, events: Sender<Event>) {
+    app.add_systems(
+        Update,
+        (move |mut lines: Query<&mut MessageReceiver<ChatMessage>>,
+               mut history: Query<&mut MessageReceiver<protocol::ChatHistoryResponse>>| {
+            let mut received = Vec::new();
+            for mut receiver in &mut lines {
+                received.extend(
+                    receiver.receive_with_tick().map(|message| {
+                        (message.message_id, ProtocolMessage(Box::new(message.data)))
+                    }),
+                );
+            }
+            for mut receiver in &mut history {
+                received.extend(
+                    receiver.receive_with_tick().map(|message| {
+                        (message.message_id, ProtocolMessage(Box::new(message.data)))
+                    }),
+                );
+            }
+            received.sort_by_key(|(id, _)| *id);
+            for (_, message) in received {
+                events
+                    .send(Event::Message(message))
+                    .expect("host event receiver closed");
             }
         })
         .run_if(protocol_not_rejected),

@@ -95,7 +95,7 @@ fn guild_chat_history_response_crosses_existing_real_udp_service() {
         .query::<&mut MessageSender<ChatHistoryResponse>>()
         .single_mut(world)
         .unwrap()
-        .send::<AuthChannel>(ChatHistoryResponse {
+        .send::<ChatChannel>(ChatHistoryResponse {
             messages: vec![ChatMessage {
                 sender: "Cara".into(),
                 content: "Ready for the guild run".into(),
@@ -144,7 +144,7 @@ fn guild_chat_history_precedes_a_later_live_message_in_a_held_worker_batch() {
         .query::<&mut MessageSender<ChatHistoryResponse>>()
         .single_mut(world)
         .unwrap()
-        .send::<AuthChannel>(ChatHistoryResponse {
+        .send::<ChatChannel>(ChatHistoryResponse {
             messages: vec![],
             error: None,
         });
