@@ -1,3 +1,7 @@
+## 2026-10-23 — Benilla asset-field inventory
+
+[Paired source inventory](reference/benilla-asset-field-inventory.md) compares pinned Benilla 1.12.1 readers/adapters/runtime against current Godot paths: camera tracks, WMO material/liquid/footstep inputs, terrain impass/shadows, weather selection and conditional texture/legacy-water gaps. Existing modern support, uncertain fields and Benilla deviations remain distinct; no client execution or implementation changes.
+
 ## 2026-10-15 — MountSpecial authored playback continuation
 
 [MountSpecial](systems/mounts.md#mountspecial-continuation--2026-10-15): unified input/identity/emote routing and deterministic complete-segment scheduler. Core6/server3 GREEN; mount sequence ownership native PASS. Actual rider FishingCast1000ms versus AnimStartTime2000 exposes unresolved offset semantics; both-skin three-mount/observer rendering not yet proven.
