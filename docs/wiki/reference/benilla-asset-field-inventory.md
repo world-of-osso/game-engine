@@ -26,6 +26,8 @@ Status vocabulary:
 
 [M2 ribbon field handling](benilla-m2-ribbon-fields.md) traces individual ribbon inputs and expanded descriptors to native consumers, with version differences and bounded unknowns. [M2 particle field handling](benilla-m2-particle-fields.md) adds generator/lifetime fields, packed inputs, EXP2 and conditional track loss, with B-only boundaries explicit. [Header/container](benilla-m2-header-fields.md) and [animation](benilla-m2-animation-fields.md) tables add implicit count/offset inputs, opaque intervals, bone/sequence consumers and sidecar boundaries. [Scene fields](benilla-m2-scene-fields.md) add attachments/events/lights/cameras/collision, including native point-light consumers. [Geometry/material fields](benilla-m2-geometry-fields.md) add vertices, SKIN/M2View descriptors, submeshes and batches. Independent audits and remaining B downstream consumer additions remain open.
 
+[M2 representation boundaries](benilla-m2-representation-fields.md) separate copied bounds, calculated values and runtime animation/marker projections; remaining declaration classification stays open.
+
 [M2 declared-field census](benilla-m2-field-census.md) lists each named reader/model representation field as the starting scope for the deeper audit. It is explicitly a working census, not the final parser-to-consumer matrix or a native-format completeness count.
 
 ## 1. Actionable comparison inventory
