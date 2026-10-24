@@ -415,6 +415,17 @@ fn description_row_height(kind: MenuElementKind) -> f32 {
     }
 }
 
+/// RED-enabling grid entry point delegates to the actual existing linear compositor.
+/// Auto-grid placement is intentionally not implemented until behavioral RED is observed.
+pub fn context_menu_description_auto_grid(
+    name: &str,
+    origin: (f32, f32),
+    minimum_width: f32,
+    entries: &[DescribedMenuElement<'_>],
+) -> Element {
+    context_menu_description(name, origin, minimum_width, entries)
+}
+
 /// DropdownButton.lua minimum owner width; Menu.lua content-fit compositor;
 /// MenuTemplates.CreateSpacer defaults to10. No synthetic title/divider is inserted.
 pub fn context_menu_description(
