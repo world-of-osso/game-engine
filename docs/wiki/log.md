@@ -5,6 +5,9 @@
 ## 2026-10-23 — Housing typed tag sources
 
 [Source loading](systems/housing.md#tag-source-availability--qualified2026-10-23) retains distinct Info record IDs, literal tag values and group/decor associations; all four exported receipts gate local action availability. Actual native action RED at582370e77: invalid-source refusal passes, toggle/all-none fail at missing dispatch. Actions/query/GREEN remain pending; untagged restricted entries require a named unqualified outcome. No tag UI/native proof claim.
+## 2026-10-23 — Engine crate split plan
+
+[Crate split investigation](investigations/engine-crate-split-plan.md) pins `4645578c7`: facade-resolved UI SCC62/native SCC101, leaf housing/Guide/collections before risky native projection/resources. Real warm extension UI/native edits take58.258s/56.077s; UI lib-test-binary rebuild14.680s; cold warmups excluded, shared-host variance explicit. Three graph fixtures pass;473 enabled/0 ignored unit names remain identical after restored edits, no unit suites executed. No runtime source changes; rename/wiring separation and per-tip lead gates remain required.
 
 ## 2026-10-23 — Generic FontString text markup
 
