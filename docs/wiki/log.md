@@ -1,6 +1,6 @@
 ## 2026-10-24 — Benilla taint/aura boundary
 
-`reference/open-source-wow-clients.md` distinguishes the `benilla` client from `benilla-re` and pins the 1.12.1 implementation finding to source commit `8161582`: function/call-stack taint is a partial model, per-value data taint is unmodeled, and `RequiredAuraVision` is classic aura visibility rather than modern secret-aura handling. Static source only; no runtime or cross-build claim.
+`reference/open-source-wow-clients.md` distinguishes the `benilla` client at `8161582` from its pinned `benilla-re` reference at `c854c4e`. The reference documents per-value context tags and attribute/effect-based hidden-aura filtering; the client models function/call-stack context, not addon data-value taint, and keeps classic aura behavior. Static 1.12.1 evidence only; no runtime or cross-build claim.
 
 ## 2026-10-24 — Benilla asset-field inventory
 
