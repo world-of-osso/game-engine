@@ -58,6 +58,8 @@ Housing owns its separate `game-engine-ui-housing` crate and `integration` harne
 
 Adventure Guide similarly owns `game-engine-ui-adventure`; its seven suites share that crate's `integration` harness. Run `python3 scripts/depot-build.py --root "$PWD" --test -p game-engine-ui-adventure --lib --test integration -j4`. Native actor/model-scene code remains in GDExtension; [exact conserved census](wiki/investigations/engine-crate-split-plan.md#adventure-guide-extraction).
 
+Collections stage1 owns transmog and Trading Post in `game-engine-ui-collections`. Run `python3 scripts/depot-build.py --root "$PWD" --test -p game-engine-ui-collections --lib --test integration --test active_db2 -j4`. `active_db2` deliberately stays separate from ordinary integration to isolate once-only source flags/data roots; `item_catalog_pending` remains in ui-model. Mount/toy/pet/shell modules still live in base until their individual [Collections gates](wiki/investigations/engine-crate-split-plan.md#collections-stage1-implementation).
+
 ## UI icons prepared before shipping
 
 Release builds run `scripts/prepare_ui_icons.py` on the originating developer checkout before native compilation. It enumerates all positive spell/trait/class/spec and source-local item icon metadata, writes `data/cache/required-ui-icons.json`, and uses the existing sibling `asset-resolver/target/debug/casc-local` to fill missing BLPs from local archives only. Source-table hashes and actual file hashes/sizes are recorded in `data/cache/ui-icon-provenance.json`; these cache files and textures are included by `deploy.sh`.
