@@ -60,7 +60,7 @@ game-engine-godot → ui-housing / ui-adventure / ui-collections → ui-model �
                  → godot-render   → core / godot support
 ```
 
-Names below are proposed package suffixes, not existing crates. No duplicate model definitions, copied `#[path]` implementations, shadow caches or alternative rendering paths.
+Names below were proposed package suffixes at baseline; current Housing/Adventure extractions are documented below. No duplicate model definitions, copied `#[path]` implementations, shadow caches or alternative rendering paths.
 
 | Boundary | Current reachable footprint | Why this cut / prerequisites | Risk |
 |---|---:|---|---|
@@ -76,7 +76,7 @@ These are compile-isolation candidates, not linear LOC-to-time savings. Editing 
 
 ### Now
 
-- [x] **0 — Baseline packet.** Source/dependency pins, exact edits, check/real-extension-build/UI-lib-test-binary timings, dirty units and the unchanged 473-name unit census are recorded below. Risk: cold caches or host pressure mistaken for extraction benefit. No post-split speedup is measured yet.
+- [x] **0 — Baseline packet.** Source/dependency pins, exact edits, check/real-extension-build/UI-lib-test-binary timings, dirty units and the unchanged 473-name unit census are recorded below. Risk: cold caches or host pressure mistaken for extraction benefit. Housing's paired pilot sample is recorded below.
 - [ ] **1 — Housing pilot.** First commit only `git mv` of the housing source/test files into the new crate directory. Next wiring commit adds manifest/workspace/lockfile entries, module declarations, exact imports/visibility, native consumers and migrated integration harness declarations. Push the buildable tip for gate. Risk: `StorageMenuTarget`, private helper access and cfg-test data setup. Do not break unrelated base dependencies merely to shrink a table.
 - [ ] **2 — Adventure Guide.** Same rename-only then wiring sequence; move the complete feature SCC and its seven currently named Adventure integration modules. Native model-scene/actor code stays put. Risk: cross-feature menu/catalog test inputs and manifest-relative fixture paths.
 - [ ] **3 — Collection families.** First transmog+Trading Post, then journal/toy/pet families at individually pushed gates. Keep collection helpers once, and keep stable/wild-pet consumers on the same side of the cut. Risk: hidden test dependencies and global catalog initialization. Do not create a second monolithic integration-test crate.
