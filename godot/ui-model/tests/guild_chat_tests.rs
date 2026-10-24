@@ -202,6 +202,7 @@ fn guild_chat_paints_only_selected_actual_stream_and_source_geometry_both_skins(
                 .get(registry.get_by_name(name).unwrap())
                 .unwrap()
                 .layout_rect
+                .as_ref()
                 .unwrap();
             for (value, expected) in [actual.x, actual.y, actual.width, actual.height]
                 .into_iter()

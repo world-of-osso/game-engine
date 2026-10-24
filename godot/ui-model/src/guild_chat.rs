@@ -1,5 +1,4 @@
 //! Mainline Communities guild streams over the existing chat/history service.
-use crate::bank_art::label;
 use crate::guild_ranks::{GuildCommand, GuildRanksSession};
 use crate::menu_primitives::{
     ContextMenu, ContextMenuItem, DropdownButton, DropdownState, MenuElementKind,
