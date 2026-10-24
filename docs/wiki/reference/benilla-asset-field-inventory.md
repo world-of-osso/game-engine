@@ -34,7 +34,7 @@ Status vocabulary:
 
 [ADT header](benilla-adt-header-fields.md), [samples/layers](benilla-adt-layer-fields.md), [placements/references](benilla-adt-placement-fields.md), [extensions/LOD](benilla-adt-extension-fields.md) and [water/WDT/WDL](benilla-terrain-water-fields.md) expand terrain inputs, including retained effect IDs, native animated UVs, detail-shadow consumers, placement bounds and separate modern water. Independent static field/source verification remains open.
 
-[BLP individual fields](benilla-blp-fields.md) separate header/payload inputs and CPU mip0 from full-chain compressed/alpha-BC1 uploads and the BC5 path. [Zone-light/weather fields](benilla-zone-weather-fields.md) add spatial CSV inputs and separate weather packet/state consumers; ordinary lighting/fog projection integration and independent static verification remain open.
+[BLP individual fields](benilla-blp-fields.md) separate header/payload inputs and CPU mip0 from full-chain compressed/alpha-BC1 uploads and the BC5 path. [Zone-light/weather fields](benilla-zone-weather-fields.md) add spatial CSV inputs and separate weather packet/state consumers; [ordinary lighting fields](benilla-lighting-fields.md) enumerate both live LightData projections, Params/Skybox reads and separate Vanilla bands. Independent static source/coverage verification remains open.
 
 ## 1. Actionable comparison inventory
 

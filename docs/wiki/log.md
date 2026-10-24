@@ -1,3 +1,7 @@
+## 2026-10-24 — Ordinary light and fog projections
+
+[Lighting fields](reference/benilla-lighting-fields.md) enumerate ordinary Light inputs, the union of two live LightData projections, exact Params/Skybox CSV reads, separate WDC5 metadata and Vanilla per-key bands. Modern fog inputs are not lost merely because the normal-light projection omits them. Static-only; independent source/coverage verification remains open.
+
 ## 2026-10-24 — Zone-light and weather inputs
 
 [Zone/weather fields](reference/benilla-zone-weather-fields.md) trace explicit ZoneLight/ZoneLightPoint CSV columns and joined spatial weights, then separate B's four weather packet fields from local/derived state and actual precipitation, lighting/fog and sound consumers. No equivalent E weather state was found in the named native Rust paths; not global absence or runtime compatibility proof. Ordinary light/fog integration and independent verification remain open.
