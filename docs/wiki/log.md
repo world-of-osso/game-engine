@@ -1,3 +1,7 @@
+## 2026-10-23 — Housing typed tag sources
+
+[Source loading](systems/housing.md#tag-source-availability--qualified2026-10-23) retains distinct Info record IDs, literal tag values and group/decor associations; all four exported receipts gate local action availability. Actual native action RED at582370e77: invalid-source refusal passes, toggle/all-none fail at missing dispatch. Actions/query/GREEN remain pending; untagged restricted entries require a named unqualified outcome. No tag UI/native proof claim.
+
 ## 2026-10-23 — Generic FontString text markup
 
 [Shared display-run boundary](systems/ui-system.md#fontstring-text-markup--2026-10-23) replaces literal control-byte drawing through core decoding and generic projection. Concrete Kurog core RED4→GREEN5 and baseline Vulkan projection RED precede coloured drawing; merged4a05/8e75 native transition/ink/child tests and authenticated Kurog link/original-brown ink pass both skins (extension7d5fb0119a27). Twelve authenticated Guide phases produce62 inspected fullHD PNGs; lead gate remains separate. Existing actor framing and hidden Journal key-summary painting are explicitly not accepted by markup proof. Plain Label behavior stays unchanged; coloured truncation is explicitly qualified.

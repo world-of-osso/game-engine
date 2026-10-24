@@ -59,6 +59,9 @@ impl StoragePanelSettings {
     }
 }
 
+mod tags;
+pub use tags::{CatalogTags, DataTagGroup, DataTagInfo};
+
 type Fields = BTreeMap<String, String>;
 
 #[derive(Clone, Debug, PartialEq)]
@@ -137,6 +140,7 @@ pub struct HousingCatalog {
     pub categories: Vec<Category>,
     pub subcategories: Vec<Subcategory>,
     pub neighborhoods: Vec<NeighborhoodMap>,
+    pub tags: CatalogTags,
     pub encrypted_records: u32,
     pub missing_tables: Vec<String>,
     /// Whether the cache carries the CollectableSource tables at all.
@@ -348,6 +352,7 @@ pub(crate) fn load_connection(
         });
     }
     read_sources(db, key, &mut catalog, &decor_indexes)?;
+    catalog.tags = tags::load(db, key)?;
     catalog.decor.sort_by_key(|decor| (decor.order, decor.id));
     catalog
         .categories
