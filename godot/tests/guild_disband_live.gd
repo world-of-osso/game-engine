@@ -140,13 +140,19 @@ func open_guild() -> bool:
 	return await press_checked("LauncherEntryGuildMicroButton")
 
 func slash(line: String) -> bool:
-	await tap(KEY_ENTER)
-	if not await wait_until(func(): return shown("ChatFrame1EditBox"), "native main chat"):
+	if not line.begins_with("/"):
+		return fail("Expected a slash command")
+	# A focused selection tab owns Enter; the actual slash shortcut opens chat.
+	print("GUILD_SLASH_KEY focus=", root.gui_get_focus_owner(), " command=", line)
+	await type_text("/")
+	if not await wait_until(func(): return shown("ChatFrame1EditBox"), "native main chat from slash shortcut"):
 		return false
 	var edit := control("ChatFrame1EditBox") as LineEdit
 	if edit == null or not edit.has_focus():
 		return fail("Main chat edit box does not own input")
-	await type_text(line)
+	if edit.text != "/":
+		return fail("Slash shortcut did not supply the source slash prefix")
+	await type_text(line.substr(1))
 	if edit.text != line:
 		return fail("Typed slash differs from expected input")
 	await tap(KEY_ENTER)
