@@ -18,7 +18,7 @@ The Retail source citations below use `R = /syncthing/World of Warcraft/_retail_
 
 The local `_retail_` UI source at `R/Interface/AddOns/Blizzard_APIDocumentationGenerated/HousingUIDocumentation.lua:297–331` declares `IsInsideHouseOrPlot` with no arguments and one return, `isInside: bool`, `Nilable = false`. It separately declares `IsInsideHouse`, `IsInsideOwnHouse`, and `IsInsidePlot` as no-argument functions with one non-nilable boolean return. The source file has no stamp tying it to installed build `12.1.5.70575`; this is install-tree API evidence, not an exact-build pin. It does not state that the combined query is the Boolean OR of the other two, nor define any relationship between their results.
 
-The cached Forever 1.60.1.69977 declaration also lists `IsInsideHouseOrPlot` as one non-nilable boolean at `Interface/AddOns/Blizzard_APIDocumentationGenerated/HousingUIDocumentation.lua:316–322`; it does not supply the missing behavior. The earlier cached Mainline source has different ownership-query names, so do not merge its API names with the 12.1.5 build.
+The cached Forever 1.60.1.69977 declaration also lists `IsInsideHouseOrPlot` as one non-nilable boolean at `Interface/AddOns/Blizzard_APIDocumentationGenerated/HousingUIDocumentation.lua:316–322`; it does not supply the missing behavior. The earlier cached Mainline source has different ownership-query names, so do not merge those names across source snapshots.
 
 The documented contract therefore excludes nil and additional return values. This is API-schema evidence only; no target-client runtime probe independently confirms it.
 
@@ -38,7 +38,7 @@ The complete pair of constituent-query results is also unresolved: `(false,false
 
 ## Ownership, tracked house, and editor state
 
-The 12.1.5 API exposes `IsInsideOwnHouse` separately. The Housing Controls UI also selects a visitor frame using `C_HousingNeighborhood.IsPlayerInOtherPlayersPlot()` or the combination of `IsInsideHouse()` and not `IsInsideOwnHouse()` (`R/Interface/AddOns/Blizzard_HousingControls/Blizzard_HousingControls.lua:56–61`). This proves that the UI has separate visitor/ownership logic; it does not prove whether the combined query is true for every visitor, depends on ownership, or depends on tracked-house selection or house-editor mode.
+The local `_retail_` API documentation exposes `IsInsideOwnHouse` separately. The Housing Controls UI also selects a visitor frame using `C_HousingNeighborhood.IsPlayerInOtherPlayersPlot()` or the combination of `IsInsideHouse()` and not `IsInsideOwnHouse()` (`R/Interface/AddOns/Blizzard_HousingControls/Blizzard_HousingControls.lua:56–61`). This proves that the UI has separate visitor/ownership logic; it does not prove whether the combined query is true for every visitor, depends on ownership, or depends on tracked-house selection or house-editor mode.
 
 `HOUSE_PLOT_ENTERED` and `HOUSE_PLOT_EXITED` are declared synchronous events with no payload in `HousingUIDocumentation.lua:651–660`. Their names and UI use do not specify the world-space boundary, whether all players' plots count, or whether ownership/editor/selection state affects the native query.
 
