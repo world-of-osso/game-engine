@@ -13,10 +13,10 @@ static SKIN: Mutex<()> = Mutex::new(());
 mod guild_chat_tests;
 #[path = "guild_context_leadership_tests.rs"]
 mod guild_context_leadership_tests;
-#[path = "guild_disband_tests.rs"]
-mod guild_disband_tests;
 #[path = "guild_context_whisper_tests.rs"]
 mod guild_context_whisper_tests;
+#[path = "guild_disband_tests.rs"]
+mod guild_disband_tests;
 #[path = "guild_numeric_sort_tests.rs"]
 mod guild_numeric_sort_tests;
 #[path = "guild_zone_sort_tests.rs"]
@@ -227,7 +227,13 @@ fn guild_communities_invite_and_profile_controls_send_authoritative_actions_both
                 .into_iter()
                 .collect(),
         );
-        assert_eq!(session.commands, vec![GuildCommand::Invite("Cara".into())]);
+        assert_eq!(
+            session.commands,
+            vec![
+                GuildCommand::ChatHistory,
+                GuildCommand::Invite("Cara".into())
+            ]
+        );
         session.commands.clear();
         session.click("guild:info_open", &Default::default());
         // GuildNews.lua:42–51 queries news when the Info news pane is shown.
@@ -2051,9 +2057,15 @@ fn guild_communities_retail_scroll_reaches_last_member_both_skins() {
         ] {
             assert_eq!(action(&reg, name), tab_action);
             session.click(tab_action, &Default::default());
-            assert!(
-                session.commands.is_empty(),
-                "Tab navigation does not fabricate service requests"
+            let expected = if tab_action == "guild:chat_open" {
+                vec![game_engine_ui_model::guild_ranks::GuildCommand::ChatHistory]
+            } else {
+                vec![]
+            };
+            assert_eq!(
+                std::mem::take(&mut session.commands),
+                expected,
+                "Only Chat queries its real history service"
             );
         }
         for (index, title) in ["Lvl", "Class", "Name", "Zone", "Rank", "Note"]
