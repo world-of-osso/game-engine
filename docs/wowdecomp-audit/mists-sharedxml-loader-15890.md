@@ -57,7 +57,7 @@ A literal repository search found no `SharedXML`, `UseSecureEnvironment`, `LoadI
 
 ## Separate UI-source evidence
 
-The local simulator's vendored Mists source identifies itself as **5.5.4.68042** (`wow-ui-sim/vendor/wow-ui-source-mists/version.txt:1`), not original 5.0.4/15890. Its `Interface/AddOns/Blizzard_SharedXML/Blizzard_SharedXML_Mists.toc:1–6` names the add-on and declares `AllowLoad: Both`; it lists `InputUtil.lua` at line 41. That is a later UI manifest, not evidence of how the 15890 native loader handles a SharedXML directory or restricted environment.
+The local simulator's vendored Mists source identifies itself as **5.5.4.68042** (`wow-ui-sim/vendor/wow-ui-source-mists/version.txt:1`), not original 5.0.4 or the 5.0.3/build 15890 target. Its `Interface/AddOns/Blizzard_SharedXML/Blizzard_SharedXML_Mists.toc:1–6` names the add-on and declares `AllowLoad: Both`; it lists `InputUtil.lua` at line 41. That is a later UI manifest, not evidence of how the 15890 native loader handles a SharedXML directory or restricted environment.
 
 ## Probe claim and applicability
 
