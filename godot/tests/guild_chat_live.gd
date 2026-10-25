@@ -47,6 +47,8 @@ func run_chat() -> bool:
 		return false
 	if not check_chat_geometry():
 		return false
+	if not await check_composer_escape():
+		return false
 	if not await wait_until(func(): return int(observation().history_count) > 0, "actual history receipt on open"):
 		return false
 	mark("ready")
@@ -76,6 +78,14 @@ func check_chat_geometry() -> bool:
 		if not actual.is_equal_approx(scaled):
 			return fail("Actual native source rectangle %s: %s expected %s" % [name, actual, scaled])
 	return true
+
+func check_composer_escape() -> bool:
+	if not await press_checked("CommunitiesChatEditBox"):
+		return false
+	if not completion.require(control("CommunitiesChatEditBox").has_focus(), "Actual composer focused before Escape"):
+		return false
+	await tap(KEY_ESCAPE)
+	return completion.require(shown("CommunitiesChatEditBox") and not control("CommunitiesChatEditBox").has_focus(), "Focused composer Escape must clear focus without closing Communities")
 
 func guild_delivery() -> bool:
 	if actor == "leader":
