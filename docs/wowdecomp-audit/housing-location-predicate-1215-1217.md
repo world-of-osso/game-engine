@@ -6,7 +6,7 @@ Source audit: 2026-10-24. This records source-backed API/UI facts separately fro
 
 | Target | Local evidence | Limit |
 |---|---|---|
-| Retail 12.1.5 | Installed build metadata `/syncthing/World of Warcraft/.build.info:2` identifies `12.1.5.70575`; that install includes `BlizzardInterfaceCode`. | The generated API file and FrameXML are UI sources, not the native function body. |
+| Retail install (client build `12.1.5.70575`) | Installed build metadata `/syncthing/World of Warcraft/.build.info:2` identifies `12.1.5.70575`; relevant files are present under `_retail_/BlizzardInterfaceCode`. | No source stamp ties those files to that exact build; treat them as local install-tree UI sources, not a verified build-pinned source or native body. |
 | PTR 12.1.7 | Installed build metadata `.build.info:5` identifies `12.1.7.70493` (`wowt`). | The local `_xptr_`/`_ptr_` installs have no matching `HousingUIDocumentation.lua`; the local `ptr` source has no version marker. |
 | Other PTR-oriented UI source | `/home/osso/.cache/wow-ui-sim/wow-ui-source-git/ptr2/version.txt:1` is `12.1.5.69594`. The separate cached `ptr` directory has no `version.txt`. | Neither establishes 12.1.7 behavior. |
 | Forever | `/home/osso/.cache/wow-ui-sim/wow-ui-source/forever/version.txt:1` is `1.60.1.69977`. | Its generated API docs establish the declaration in that snapshot, not native semantics or equivalence to Retail/PTR. |
@@ -16,7 +16,7 @@ The Retail source citations below use `R = /syncthing/World of Warcraft/_retail_
 
 ## Documented API shape
 
-In Retail 12.1.5.70575, `R/Interface/AddOns/Blizzard_APIDocumentationGenerated/HousingUIDocumentation.lua:297–331` declares `IsInsideHouseOrPlot` with no arguments and one return, `isInside: bool`, `Nilable = false`. It separately declares `IsInsideHouse`, `IsInsideOwnHouse`, and `IsInsidePlot` as no-argument functions with one non-nilable boolean return. It does not state that the combined query is the Boolean OR of the other two, nor define any relationship between their results.
+The local `_retail_` UI source at `R/Interface/AddOns/Blizzard_APIDocumentationGenerated/HousingUIDocumentation.lua:297–331` declares `IsInsideHouseOrPlot` with no arguments and one return, `isInside: bool`, `Nilable = false`. It separately declares `IsInsideHouse`, `IsInsideOwnHouse`, and `IsInsidePlot` as no-argument functions with one non-nilable boolean return. The source file has no stamp tying it to installed build `12.1.5.70575`; this is install-tree API evidence, not an exact-build pin. It does not state that the combined query is the Boolean OR of the other two, nor define any relationship between their results.
 
 The cached Forever 1.60.1.69977 declaration also lists `IsInsideHouseOrPlot` as one non-nilable boolean at `Interface/AddOns/Blizzard_APIDocumentationGenerated/HousingUIDocumentation.lua:316–322`; it does not supply the missing behavior. The earlier cached Mainline source has different ownership-query names, so do not merge its API names with the 12.1.5 build.
 
