@@ -229,6 +229,29 @@ func transcript() -> String:
 			values.append(value)
 	return "\n".join(values)
 
+func chat_control_observations() -> Array:
+	var controls := []
+	for index in range(10):
+		var node := control("CommunitiesChatMessage%d" % index)
+		if node == null:
+			continue
+		var display := "not a text node"
+		if node is Label:
+			display = node.text
+		elif node is RichTextLabel:
+			display = node.get_parsed_text()
+		controls.append({"name": node.name, "class": node.get_class(), "visible": node.is_visible_in_tree(), "text": display})
+	return controls
+
+func fail(message: String) -> bool:
+	if client != null and not directory.is_empty():
+		var file := FileAccess.open(directory.path_join(role + "-failure-observation.json"), FileAccess.WRITE)
+		if file == null:
+			push_error("Could not save actual Chat failure receipt: " + str(FileAccess.get_open_error()))
+		else:
+			file.store_string(JSON.stringify({"message": message, "receipt": observation(), "painted": transcript(), "controls": chat_control_observations()}, "\t"))
+	return super.fail(message)
+
 func received(value: String) -> bool:
 	return await wait_until(func(): return " ".join(transcript().replace("\n", " ").split(" ", false)).contains(value) and JSON.stringify(observation()).contains(value), "real received and painted " + value)
 
