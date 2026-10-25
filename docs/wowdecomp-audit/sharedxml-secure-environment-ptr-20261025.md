@@ -1,13 +1,13 @@
 # SharedXML secure-environment replay — PTR 12.1.7.70493
 
-**Audit date:** 2026-10-25  
+**Audit date:** 2026-10-25
 **Question:** Does native WoW execute `Blizzard_SharedXML` in both public and secure/forbidden environments, and how many `INPUT_DEVICE_INTERFACE_TRANSITION` listener frames exist after login?
 
 ## Result
 
-The exact native execution count is **unknown** from available evidence. The source cited in the request does not match the available PTR source snapshots: the only local `InputUtil.lua` copy containing the described listener is the separate WoW Forever source. The installed PTR build is identified, but it has no extracted Blizzard UI source tree; no PTR client was running, and none was launched. Therefore this audit cannot say whether the PTR file executes once or twice, or whether one or two listener frames are registered after login.
+The exact native execution count is **unknown** from available evidence. The source cited in the request does not match the available PTR source snapshots. The listener-bearing `InputUtil.lua` copies found locally belong to the separate WoW Forever product. The installed PTR build is identified, but it has no extracted Blizzard UI source tree; no PTR client was running, and none was launched. Therefore this audit cannot say whether the PTR file executes once or twice, or whether one or two transition-listener frames are registered after login.
 
-One execution of the described Forever file creates one event-listener frame. That conditional source fact does not establish the number of native executions for PTR.
+Each execution of the described Forever file creates one `INPUT_DEVICE_INTERFACE_TRANSITION` listener. The same file separately creates a `GAME_PAD_CONNECTED` listener, so it creates two event-listener frames in total. This does not establish the number of native executions for PTR.
 
 ## Evidence matrix
 
@@ -30,7 +30,7 @@ Unknown for native PTR 12.1.7.70493. Available TOCs show `InputUtil.lua` as a no
 
 ### 2. How many `InputUtil.lua` frames listen after login?
 
-Unknown: neither one nor two is proven for PTR 12.1.7.70493. The PTR source available here has no such listener. The Forever implementation creates one listener on each execution of its file, but its execution count for PTR is inapplicable. `Frame:IsEventRegistered` checks one frame at a time; available PTR metadata does not establish a way to enumerate and count all relevant frames, especially forbidden frames.
+Unknown: neither one nor two is proven for PTR 12.1.7.70493. The PTR source available here has no such listener. Each execution of the Forever file registers one `INPUT_DEVICE_INTERFACE_TRANSITION` listener; the file also registers a separate `GAME_PAD_CONNECTED` listener. Its execution count for PTR is inapplicable. `Frame:IsEventRegistered` checks one frame at a time; available PTR metadata does not establish a way to enumerate and count all relevant frames, especially forbidden frames.
 
 ### 3. What files/add-ons does the secure environment cover?
 
