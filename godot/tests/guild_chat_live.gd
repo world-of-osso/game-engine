@@ -236,10 +236,9 @@ func message(kind: String) -> String:
 
 func transcript() -> String:
 	var values := PackedStringArray()
-	for index in range(500):
-		var value := text("CommunitiesChatMessage%d" % index)
-		if not value.is_empty():
-			values.append(value)
+	for node in client.find_children("CommunitiesChatMessage*", "Label", true, false):
+		if node.is_visible_in_tree():
+			values.append(node.text)
 	return "\n".join(values)
 
 func chat_control_observations() -> Array:
