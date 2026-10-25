@@ -78,6 +78,8 @@ L documents `C_Housing.IsInsideHouse()`, `IsInsideHouseOrPlot()`, `IsInsideOwned
 
 Evidence: L `Blizzard_APIDocumentationGenerated/HousingUIDocumentation.lua:307–357,691–700`.
 
+**Follow-up:** [build-specific `IsInsideHouseOrPlot` audit](housing-location-predicate-1215-1217.md) records installed Retail 12.1.5 UI evidence, the PTR 12.1.7 source gap, and unresolved native behavior/timing.
+
 ### 9. Forever ping availability
 
 F documents `C_Ping.IsPingSystemEnabled()` as a no-argument boolean. The raid-frame manager checks it during setup before constructing the Restrict Pings dropdown; the shown handler regenerates that menu on `PLAYER_ROLES_ASSIGNED` but does not re-check API availability. The settings UI registers `enablePings` as a CVar and uses it to gate other ping settings. This does not prove `IsPingSystemEnabled()` directly reads that CVar or excludes server/realm/player-capability rules. Default state and an API change event remain unknown.
