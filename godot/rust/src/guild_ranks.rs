@@ -18,12 +18,56 @@ impl GameClient {
     }
 }
 
+#[cfg(debug_assertions)]
+#[godot_api(secondary)]
+impl GameClient {
+    /// Actual delivered packets only; native fixtures cannot supply a reply here.
+    #[func]
+    pub fn guild_chat_observation(&self) -> GString {
+        use game_engine_ui_model::chat_data::ChatChannelType;
+        let live: Vec<_> = self
+            .chat
+            .model
+            .log
+            .messages
+            .iter()
+            .filter(|message| {
+                matches!(
+                    message.channel_type,
+                    ChatChannelType::Guild | ChatChannelType::Officer
+                )
+            })
+            .map(|message| {
+                serde_json::json!({
+                    "sender": message.sender, "content": message.text,
+                    "officer": message.channel_type == ChatChannelType::Officer,
+                })
+            })
+            .collect();
+        let receipt = serde_json::json!({
+            "live": live,
+            "history_count": self.guild_ranks.chat_history_count,
+            "history": &self.guild_ranks.chat_history_reply,
+        });
+        GString::from(
+            serde_json::to_string(&receipt)
+                .expect("serialize actual guild chat receipts")
+                .as_str(),
+        )
+    }
+}
+
 #[derive(Default)]
 pub(crate) struct GuildRanks {
     session: GuildRanksSession,
     ui: Option<Gd<RegistryUi>>,
     invite_targets: std::collections::VecDeque<String>,
     query_info: bool,
+    chat_scroll_to_latest: bool,
+    #[cfg(debug_assertions)]
+    chat_history_count: u64,
+    #[cfg(debug_assertions)]
+    chat_history_reply: Option<shared::protocol::ChatHistoryResponse>,
 }
 impl GuildRanks {
     pub(crate) fn visit_uis(
@@ -77,6 +121,37 @@ impl GameClient {
             _ => {}
         }
         Ok(())
+    }
+
+    pub(crate) fn receive_guild_chat(&mut self, message: &shared::protocol::ChatMessage) {
+        if !self.guild_ranks.session.chat_is_open() {
+            return;
+        }
+        let following = self.guild_ranks.ui.as_ref().is_none_or(|ui| {
+            let host = ui.bind();
+            host.registry()
+                .and_then(|registry| {
+                    registry
+                        .scroll_lists
+                        .get(game_engine_ui_model::guild_chat::SCROLL_BOX)
+                })
+                .is_none_or(|scroll| scroll.first_row >= scroll.geometry.max_first_row())
+        });
+        self.guild_ranks.session.receive_chat(message);
+        self.guild_ranks.chat_scroll_to_latest |= following;
+    }
+
+    pub(super) fn receive_guild_chat_history(
+        &mut self,
+        reply: shared::protocol::ChatHistoryResponse,
+    ) {
+        #[cfg(debug_assertions)]
+        {
+            self.guild_ranks.chat_history_count += 1;
+            self.guild_ranks.chat_history_reply = Some(reply.clone());
+        }
+        self.guild_ranks.session.apply_chat_history(reply);
+        self.guild_ranks.chat_scroll_to_latest = self.guild_ranks.session.chat_is_open();
     }
 
     pub(super) fn receive_guild_invitation(
@@ -348,11 +423,15 @@ impl GameClient {
                 self.open_guild_news_subject()?;
                 continue;
             }
+            let previous_officer = self.guild_ranks.session.chat.officer;
             let previous_online_only = self.guild_ranks.session.roster_online_only;
             let previous_editor = self.guild_ranks.session.note_editor.clone();
             let texts = read_inputs(&mut ui, &self.guild_ranks.session);
             if let Some(request) = self.guild_ranks.session.click(&action, &texts) {
                 self.send_guild_rank_request(request)?;
+            }
+            if previous_officer != self.guild_ranks.session.chat.officer {
+                self.guild_ranks.chat_scroll_to_latest = true;
             }
             if previous_online_only != self.guild_ranks.session.roster_online_only {
                 self.save_guild_show_offline()?;
@@ -373,9 +452,15 @@ impl GameClient {
         }
         let commands = std::mem::take(&mut self.guild_ranks.session.commands);
         for command in commands {
+            let chat_sent = matches!(&command, GuildCommand::Chat { .. });
             if let Err(error) = self.send_guild_command(command) {
                 self.guild_ranks.session.invitation_waiting = false;
+                self.guild_ranks.session.chat.waiting = false;
                 return Err(error);
+            }
+            if chat_sent {
+                ui.bind_mut()
+                    .set_editbox_text(game_engine_ui_model::guild_chat::EDITOR, "")?;
             }
         }
         while let Some((action, right, shift)) = ui.bind_mut().pop_alt_click() {
@@ -471,7 +556,16 @@ impl GameClient {
             .clone()
             .ok_or("Guild ranks UI missing")?;
         ui.bind_mut().set_ui_scale(scale)?;
-        ui.bind_mut().set_state(state)
+        ui.bind_mut().set_state(state)?;
+        if std::mem::take(&mut self.guild_ranks.chat_scroll_to_latest) {
+            ui.bind_mut().scroll_guild_chat_to_latest()?;
+        }
+        if self.guild_ranks.session.chat_is_open() {
+            let enabled = self.guild_ranks.session.chat_can_speak();
+            ui.bind_mut()
+                .set_line_edit_enabled(game_engine_ui_model::guild_chat::EDITOR, enabled)?;
+        }
+        Ok(())
     }
 }
 fn read_inputs(ui: &mut Gd<RegistryUi>, session: &GuildRanksSession) -> InputTexts {
@@ -517,6 +611,7 @@ fn guild_input_names(session: &GuildRanksSession) -> impl Iterator<Item = String
         GOLD_BOX.to_owned(),
         INVITE_BOX.to_owned(),
         PROFILE_BOX.to_owned(),
+        game_engine_ui_model::guild_chat::EDITOR.to_owned(),
         game_engine_ui_model::guild_member_detail::NOTE_BOX.to_owned(),
     ]
     .into_iter()

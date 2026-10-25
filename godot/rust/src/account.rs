@@ -281,6 +281,7 @@ pub enum AccountEvent {
     Loot(LootMessage),
     /// A chat line: players, creatures, the MOTD and server errors (`ChatChannel`).
     Chat(ChatMessage),
+    ChatHistory(shared::protocol::ChatHistoryResponse),
     Encounter(crate::encounter::EncounterMessage),
     /// One owner-only experience gain (`CHAT_MSG_COMBAT_XP_GAIN`).
     XpGain(shared::protocol::LogXpGain),
@@ -1253,6 +1254,27 @@ impl Account {
                 bridge.send::<_, GuildChannel>(GuildRankRequest::QueryEventLog)
             }
             GuildCommand::News(request) => bridge.send::<_, GuildChannel>(request),
+            GuildCommand::ChatHistory => {
+                bridge.send::<_, AuthChannel>(ChatHistoryRequest { limit: 100 })
+            }
+            GuildCommand::Chat { officer, text } => {
+                let sender = self
+                    .session
+                    .selected_character_name
+                    .clone()
+                    .ok_or_else(|| {
+                        SessionError("Guild chat requires a selected character".into())
+                    })?;
+                bridge.send::<_, ChatChannel>(ChatMessage {
+                    sender,
+                    content: text,
+                    channel: if officer {
+                        ChatType::Officer
+                    } else {
+                        ChatType::Guild
+                    },
+                })
+            }
         }
         .map_err(SessionError)
     }
@@ -1897,6 +1919,10 @@ impl Account {
         }
         if message.is::<ChatMessage>() {
             output.push(AccountEvent::Chat(decode(message)?));
+            return Ok(());
+        }
+        if message.is::<shared::protocol::ChatHistoryResponse>() {
+            output.push(AccountEvent::ChatHistory(decode(message)?));
             return Ok(());
         }
         if message.is::<shared::protocol::CreatureTextSound>() {

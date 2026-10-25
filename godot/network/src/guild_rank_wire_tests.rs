@@ -85,6 +85,115 @@ fn guild_charter_registrar_crosses_real_udp() {
     assert_eq!(received, Some(reply));
 }
 
+#[test]
+fn guild_chat_history_response_crosses_existing_real_udp_service() {
+    let (mut server, address) = crate::wire_tests::start_fixture_server_with(|_| {});
+    let mut bridge = NetworkBridge::connect(address, 8284).unwrap();
+    connect(&mut server, &mut bridge);
+    let world = server.world_mut();
+    world
+        .query::<&mut MessageSender<ChatHistoryResponse>>()
+        .single_mut(world)
+        .unwrap()
+        .send::<ChatChannel>(ChatHistoryResponse {
+            messages: vec![ChatMessage {
+                sender: "Cara".into(),
+                content: "Ready for the guild run".into(),
+                channel: ChatType::Guild,
+            }],
+            error: None,
+        });
+    let deadline = Instant::now() + Duration::from_secs(3);
+    let mut received = None;
+    while received.is_none() && Instant::now() < deadline {
+        server.update();
+        for event in bridge.drain_events().unwrap() {
+            if let Event::Message(message) = event {
+                if message.is::<ChatHistoryResponse>() {
+                    received = Some(message.downcast::<ChatHistoryResponse>().ok().unwrap());
+                }
+            }
+        }
+        thread::sleep(Duration::from_millis(5));
+    }
+    bridge.stop().unwrap();
+    let received = received.expect("native bridge must retain the actual history reply");
+    assert!(received.error.is_none());
+    assert_eq!(received.messages.len(), 1);
+    assert_eq!(received.messages[0].sender, "Cara");
+    assert_eq!(received.messages[0].content, "Ready for the guild run");
+    assert_eq!(received.messages[0].channel, ChatType::Guild);
+}
+
+#[test]
+fn guild_chat_history_precedes_a_later_live_message_in_a_held_worker_batch() {
+    let (mut server, address) = crate::wire_tests::start_fixture_server_with(|_| {});
+    let mut bridge = NetworkBridge::connect(address, 8285).unwrap();
+    connect(&mut server, &mut bridge);
+    let (held, confirmed) = mpsc::channel();
+    let (resume, resumed) = mpsc::channel();
+    bridge
+        .enqueue(move |_| {
+            held.send(()).unwrap();
+            resumed.recv_timeout(Duration::from_secs(10)).unwrap();
+        })
+        .unwrap();
+    confirmed.recv_timeout(Duration::from_secs(10)).unwrap();
+    let world = server.world_mut();
+    world
+        .query::<&mut MessageSender<ChatHistoryResponse>>()
+        .single_mut(world)
+        .unwrap()
+        .send::<ChatChannel>(ChatHistoryResponse {
+            messages: vec![],
+            error: None,
+        });
+    server.update();
+    let world = server.world_mut();
+    world
+        .query::<&mut MessageSender<ChatMessage>>()
+        .single_mut(world)
+        .unwrap()
+        .send::<ChatChannel>(ChatMessage {
+            sender: "Cara".into(),
+            content: "Arrived after history".into(),
+            channel: ChatType::Guild,
+        });
+    let flush = Instant::now() + Duration::from_millis(100);
+    while Instant::now() < flush {
+        server.update();
+        thread::sleep(Duration::from_millis(5));
+    }
+    resume.send(()).unwrap();
+    let deadline = Instant::now() + Duration::from_secs(3);
+    let mut received = Vec::new();
+    while received.len() < 2 && Instant::now() < deadline {
+        server.update();
+        for event in bridge.drain_events().unwrap() {
+            if let Event::Message(message) = event {
+                if message.is::<ChatHistoryResponse>() || message.is::<ChatMessage>() {
+                    received.push(message);
+                }
+            }
+        }
+        thread::sleep(Duration::from_millis(5));
+    }
+    bridge.stop().unwrap();
+    assert_eq!(received.len(), 2);
+    assert!(
+        received[0].is::<ChatHistoryResponse>(),
+        "history replacement must not erase the later live delivery"
+    );
+    let live = received
+        .pop()
+        .unwrap()
+        .downcast::<ChatMessage>()
+        .ok()
+        .unwrap();
+    assert_eq!(live.sender, "Cara");
+    assert_eq!(live.content, "Arrived after history");
+}
+
 #[derive(Resource, Default)]
 struct Declines(usize);
 fn capture_declines(

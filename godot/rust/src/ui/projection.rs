@@ -1514,12 +1514,14 @@ fn connect_edit_box(pending: &PendingInputs, frame: &Frame, node: &mut Gd<Contro
         .as_deref()
         .and_then(game_engine_ui_model::guild_control::input_action)
         .is_some();
+    let owns_escape =
+        journal_search || frame.name.as_deref() == Some(game_engine_ui_model::guild_chat::EDITOR);
     let keys = if guild_field {
         release_guild_field_focus(node.clone(), pending.clone(), id)
     } else if is_housing_search_field(frame.name.as_deref()) {
         release_housing_search_focus(node.clone())
     } else {
-        release_focus_on_escape(node.clone(), journal_search)
+        release_focus_on_escape(node.clone(), owns_escape)
     };
     node.connect("gui_input", &keys);
 }
@@ -1664,7 +1666,7 @@ fn release_focus_on_escape(mut edit: Gd<Control>, consume_escape: bool) -> Calla
             .is_some_and(|key| key.is_pressed() && key.get_keycode() == godot::global::Key::ESCAPE);
         if escaped {
             edit.release_focus();
-            // Journal search owns its Escape; other edit widgets retain their bindings.
+            // Journal search and Communities Chat own Escape; other edits retain their bindings.
             if consume_escape {
                 edit.accept_event();
             }

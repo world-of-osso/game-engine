@@ -40,6 +40,8 @@ pub enum GuildCommand {
     Query,
     QueryEventLog,
     News(GuildNewsRequest),
+    ChatHistory,
+    Chat { officer: bool, text: String },
 }
 
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
@@ -75,6 +77,7 @@ pub struct GuildRanksSession {
     /// Chat edit-box prefill requested by roster Whisper; the host opens chat once.
     pub chat_open: Option<String>,
     pub communities_tab: CommunitiesTab,
+    pub chat: crate::guild_chat::GuildChatSession,
     pub roster_sort: Option<GuildRosterSort>,
     pub roster_sort_descending: bool,
     /// Presentation-only inverse of persisted communitiesShowOffline.
@@ -142,11 +145,16 @@ impl GuildRanksSession {
         self.log_open = false;
         self.news.filters_open = false;
         self.news.menu = None;
+        self.chat = Default::default();
         visible
     }
 
     pub fn dismiss_subdialog(&mut self) -> bool {
         if std::mem::take(&mut self.disband_open) {
+            return true;
+        }
+        if self.chat.menu_open {
+            self.chat.menu_open = false;
             return true;
         }
         if self.leadership_target.take().is_some() {
@@ -189,6 +197,7 @@ impl GuildRanksSession {
             self.log_waiting = false;
             self.event_log = None;
             self.news = Default::default();
+            self.chat = Default::default();
         }
         if state.error.is_some() {
             self.profile_waiting = false;
@@ -202,6 +211,56 @@ impl GuildRanksSession {
         if std::mem::take(&mut self.disband_query_pending) {
             self.open_disband_confirmation();
         }
+        let guild = self.can(GUILD_RIGHT_CHAT_LISTEN);
+        let officer = self.can(GUILD_RIGHT_OFFICER_LISTEN);
+        self.chat.retain_readable(guild, officer);
+        if !self.chat_can_officer() {
+            self.chat.officer = false;
+        }
+    }
+
+    pub fn chat_can_officer(&self) -> bool {
+        self.can(GUILD_RIGHT_OFFICER_LISTEN) || self.can(GUILD_RIGHT_OFFICER_SPEAK)
+    }
+
+    pub fn chat_can_speak(&self) -> bool {
+        self.can(if self.chat.officer {
+            GUILD_RIGHT_OFFICER_SPEAK
+        } else {
+            GUILD_RIGHT_CHAT_SPEAK
+        })
+    }
+
+    pub fn chat_is_open(&self) -> bool {
+        self.visible && self.communities_tab == CommunitiesTab::Chat
+    }
+
+    pub fn receive_chat(&mut self, message: &ChatMessage) {
+        if !self.chat_is_open() {
+            return;
+        }
+        if message.channel == ChatType::System
+            && message.content == GuildRankError::Permissions.message()
+        {
+            self.chat.error = Some(message.content.clone());
+        }
+        let guild = self.can(GUILD_RIGHT_CHAT_LISTEN);
+        let officer = self.can(GUILD_RIGHT_OFFICER_LISTEN);
+        self.chat.receive(message, guild, officer);
+    }
+
+    pub fn apply_chat_history(&mut self, reply: ChatHistoryResponse) {
+        if !self.chat_is_open()
+            || self
+                .state
+                .as_ref()
+                .is_none_or(|state| state.ranks.is_empty())
+        {
+            return;
+        }
+        let guild = self.can(GUILD_RIGHT_CHAT_LISTEN);
+        let officer = self.can(GUILD_RIGHT_OFFICER_LISTEN);
+        self.chat.apply_history(reply, guild, officer);
     }
 
     pub fn state(&self) -> Option<&GuildRanksState> {
@@ -240,6 +299,12 @@ impl GuildRanksSession {
         }
     }
     fn click_profile(&mut self, action: &str, texts: &crate::bank::InputTexts) {
+        if matches!(
+            action,
+            "guild:info_open" | "guild:benefits_open" | "guild:roster_open"
+        ) {
+            self.chat = Default::default();
+        }
         match action {
             "guild:info_open" => {
                 self.communities_tab = CommunitiesTab::Info;
@@ -280,8 +345,40 @@ impl GuildRanksSession {
                 }
             }
             "guild:log_close" => self.log_open = false,
-            "guild:roster_open" => self.communities_tab = CommunitiesTab::Roster,
-            "guild:chat_open" => self.communities_tab = CommunitiesTab::Chat,
+            "guild:roster_open" => {
+                self.communities_tab = CommunitiesTab::Roster;
+            }
+            "guild:chat_open" => {
+                self.communities_tab = CommunitiesTab::Chat;
+                if self
+                    .state
+                    .as_ref()
+                    .is_some_and(|state| !state.ranks.is_empty())
+                {
+                    if let Some(command) = self.chat.query() {
+                        self.commands.push(command);
+                    }
+                }
+            }
+            "guild:chat_stream_menu" => self.chat.menu_open = !self.chat.menu_open,
+            "guild:chat_guild" => {
+                self.chat.officer = false;
+                self.chat.menu_open = false;
+            }
+            "guild:chat_officer" if self.chat_can_officer() => {
+                self.chat.officer = true;
+                self.chat.menu_open = false;
+            }
+            "guild:chat_send" if self.chat_is_open() => {
+                let text = texts
+                    .get(crate::guild_chat::EDITOR)
+                    .map(String::as_str)
+                    .unwrap_or_default();
+                let can_speak = self.chat_can_speak();
+                if let Some(command) = self.chat.submit(text, can_speak) {
+                    self.commands.push(command);
+                }
+            }
             "guild:benefits_open" => self.communities_tab = CommunitiesTab::Benefits,
             "guild:roster-sort:name" => self.sort_roster(GuildRosterSort::Name),
             "guild:roster-sort:rank" => self.sort_roster(GuildRosterSort::Rank),

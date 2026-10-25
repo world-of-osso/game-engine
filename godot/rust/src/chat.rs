@@ -338,6 +338,7 @@ impl crate::GameClient {
 
     /// A server chat line.
     pub(crate) fn receive_chat(&mut self, msg: &ChatMessage) {
+        self.receive_guild_chat(msg);
         self.encounter.warnings.receive_chat(msg);
         let local = self.account.session.selected_character_name.clone();
         self.chat

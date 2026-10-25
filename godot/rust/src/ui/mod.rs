@@ -932,6 +932,15 @@ impl RegistryModel {
                     && self.registry.focused_frame
                         == self
                             .registry
+                            .get_by_name(game_engine_ui_model::guild_chat::EDITOR)
+                {
+                    actions.push_back("guild:chat_send".into());
+                    return;
+                }
+                if self.registry.focused_frame.is_some()
+                    && self.registry.focused_frame
+                        == self
+                            .registry
                             .get_by_name(game_engine_ui_model::guild_member_detail::NOTE_BOX)
                 {
                     actions.push_back("guild:note_accept".into());
@@ -2475,6 +2484,16 @@ impl RegistryUi {
         model.shared.insert(states.frame);
         model.shared.insert(states.bags);
         model.shared.insert(states.split);
+        self.sync_model()
+    }
+
+    /// Follow new guild messages only when the host was already at the bottom.
+    pub(crate) fn scroll_guild_chat_to_latest(&mut self) -> Result<(), String> {
+        let model = self.model.as_mut().ok_or("Guild chat UI missing")?;
+        model
+            .registry
+            .scroll_lists
+            .scroll_to(game_engine_ui_model::guild_chat::SCROLL_BOX, usize::MAX);
         self.sync_model()
     }
 

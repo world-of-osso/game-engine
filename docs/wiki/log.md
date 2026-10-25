@@ -21,6 +21,21 @@ Parent accepts Achievements `fc6cbeb88`:ac-eng matches the same three known base
 ## 2026-10-24 — PvP presentation split
 
 [PvP cut](investigations/engine-crate-split-plan.md#pvp-presentation-implementation) before5af0fd2ab/rename-onlyb5e1f98e7/wiringcf0cd0eac moves4sources/1702LOC+3dedicated testfiles;one mixed selectioncase moves,3siblings remain base.2peer cross-panel cases retain names through test-only dependency,no productionreverseedge/facade. Check passes/no diagnostics;390units+31feature+2peer+3residual pass (426total0fail/ignored),exact names conserved. Honor edit42.452→15.008s/CPU27.386→8.241s,onlyfeature+native dirty;native32.51→11.88s,so no wall-speed claim under unequal load. Parent12-package gate separate.
+## 2026-10-24 — Focused Chat composer Escape
+
+[Composer Escape](systems/guilds.md#focused-composer-escape): actual authenticated native RED closes Communities while the composer is focused. Only that composer now consumes Escape after clearing focus; the physical-tab fixture sequence is removed. Full native acceptance is pending.
+
+## 2026-10-24 — Compact Chat literal right anchors
+
+[Compact Chat](systems/guilds.md#compact-chat-source-anchors) corrects x623→649 and source139px content/416px transcript/423px composer after actual generated-layout RED. Expanded-only offline preference no longer hides compact members. Actual native bounds and refreshed model proof remain pending; UDP ordering2GREEN is independent.
+
+## 2026-10-24 — Guild history/live delivery ordering
+
+[Guild Chat](systems/guilds.md#communities-guild-chat--implementation2026-10-24): actual held-worker UDP returns a later live line before history replacement (1receiptPASS/1orderFAIL). Existing reply moves to ChatChannel and a single typed relay preserves real message IDs; no new RPC/schema/service. UI7GREEN retained, transport GREEN/native acceptance pending.
+
+## 2026-10-24 — Communities guild Chat implementation
+
+[Guild Chat](systems/guilds.md#communities-guild-chat--implementation2026-10-24) adds actual transcript/composer/history over existing authorized service, source stream picker and compact roster. Targeted RED3 preceded production changes; committed before GREEN/native proof. No new service, Club metadata, offline-history or pass claim.
 
 ## 2026-10-24 — Player Spells presentation split
 

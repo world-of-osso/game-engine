@@ -6,6 +6,20 @@ Guild state is server-authoritative. Contracts: [ranks/lifecycle](../../specs/gu
 
 [Contract and pinned source rules](../../specs/guild-disband.md): the slash parser produces a local confirmation intent, not a destructive packet. Native code queries current rank authority; the session opens Yes/No only for rank0. The popup also mounts while Communities is closed, with native pointer/Escape ownership; the slash does not open that panel. Info uses the same confirmation reducer. No/Escape send nothing; Yes consumes the local confirmation once and sends `GuildRankRequest::Disband`. Empty/changed authority or a known guild-ID change closes the confirmation. Source prompt: local GlobalStrings16280. The Info-button placement is project UI, not a claimed Retail menu coordinate. Backend coordination, GREEN and native acceptance remain pending.
 
+## Communities guild Chat — implementation2026-10-24
+
+[Contract](../../specs/guild-chat.md). `guild_chat.rs` owns the existing-service history/display state and Mainline maximized transcript,32px composer and stream picker. `guild_communities.rs` composes that pane with the actual compact roster; the native guild host sends ordinary ChatMessage on ChatChannel and the already-defined ChatHistoryRequest on AuthChannel. Existing ChatHistoryResponse shares ordered ChatChannel with live messages; one typed relay merges both receiver buffers by actual message ID. A held-worker real UDP test reproduced late history erasing a later live line before this repair. Guild/officer listening and speaking stay independent and authoritative; leaving clears guild-only data and closed panes reject history replies. No Club streams, dates, messages or new chat service are synthesized.
+
+Actual targeted source/control/command RED3/3 preceded production edits. Implementation and native two-actor fixture are committed before GREEN/live acceptance; no current-tip pass or capture is claimed yet. The source composer plates375507/375508/389190 were extracted locally and published by the lead. History is the existing service's bounded recipient history, not5000 durable Club messages or offline history.
+
+### Focused composer Escape
+
+Installed CommunitiesChatFrame.xml:87 uses `EditBox_ClearFocus`. Actual authenticated native RED at engine5880c806f/server5c9f49626 instead closed Communities while its composer had focus. The shared edit callback released focus without consuming Escape, so the global unhandled window-dismissal path also ran. The composer now uses the existing consume-Escape path; other edit bindings are unchanged. The live fixture asserts focus before the key and an open, unfocused composer afterwards. Full native GREEN remains pending.
+
+### Compact Chat source anchors
+
+Mainline CommunitiesMemberList.lua586–590 anchors compact TOPLEFT to the814px frame's TOPRIGHT−165, givingx649; XML's RIGHT−26 makes its content139px, not165. Maximize Chat right follows that left−32, so transcript416px and composer423px. The generated native-layout contract reproduced the earlier wrongx623 in actual RED. `ShouldShowOfflinePlayers` keeps compact members regardless of the expanded-only saved checkbox; compact uses the existing qualified represented-field base ordering, not invented Club roles/presence. Physical resolved bounds remain a separate native assertion.
+
 ## Lifecycle
 
 `GuildRanksSession` holds roster/permissions, profile, pending invitation and reply pacing. The native `guild_ranks.rs` canvas forwards exact requests; profile updates replace display state. Loading preserves early replies; logout clears them. Modified member clicks reach the native action consumer and on-screen hierarchy-filtered menu. Native LineEdit limits are applied only when changed, before synchronizing text: resetting the same limit resets Godot's caret and reverses typing.

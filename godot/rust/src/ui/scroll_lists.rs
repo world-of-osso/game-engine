@@ -68,7 +68,13 @@ fn scroll_steps(model: &RegistryModel, list: &str) -> (usize, usize) {
         let pan = game_engine_ui_model::char_select_component::CHARACTER_LIST_PAN;
         return (pan * 2, pan);
     }
-    if list == game_engine_ui_model::guild_communities::SCROLL_BOX {
+    if list == game_engine_ui_model::guild_chat::SCROLL_BOX {
+        let line = game_engine_ui_model::guild_chat::LINE_HEIGHT as usize;
+        return (line * 3, line);
+    }
+    if list == "CommunitiesChatMemberList"
+        || list == game_engine_ui_model::guild_communities::SCROLL_BOX
+    {
         // CommunitiesMemberListEntryTemplate is20px; ScrollBoxListView wheel=two pan extents.
         let pan = game_engine_ui_model::guild_communities::ROW_HEIGHT as usize;
         return (pan * 2, pan);
