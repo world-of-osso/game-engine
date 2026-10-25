@@ -77,6 +77,7 @@ fn guild_disband_slash_waits_for_actual_authority_without_opening_nonleader_pane
 
 #[test]
 fn guild_disband_loses_confirmation_on_membership_or_leadership_change() {
+    let _lock = SKIN.lock().unwrap_or_else(|poison| poison.into_inner());
     let mut leader = session(0, false, true);
     leader.click("guild:disband", &Default::default());
     leader.apply(state(1));
