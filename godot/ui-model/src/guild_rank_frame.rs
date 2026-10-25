@@ -60,13 +60,13 @@ pub fn guild_screen(shared: &SharedContext) -> Element {
         children.extend(crate::guild_control::settings(session, shared));
     }
     children.extend(invitation_popup(session));
+    children.extend(disband_confirmation(session));
     if session.visible {
         children.extend(invite_member_dialog(session));
         children.extend(profile_editor(session));
         children.extend(crate::guild_member_detail::editor(session));
         children.extend(crate::guild_member_detail::removal_confirmation(session));
         children.extend(crate::guild_member_detail::leadership_confirmation(session));
-        children.extend(disband_confirmation(session));
         children.extend(crate::guild_event_log::frame(session, shared));
         children.extend(crate::guild_news::filters(session));
     }

@@ -5,7 +5,7 @@ The current Guild Master can destroy the current guild through a confirmed nativ
 ## What it must do
 
 - [ ] Only the authenticated current Guild Master can disband the current guild. Other members, unguilded actors and actors from another guild cannot delete it. The request carries no actor or guild ID.
-- [ ] `/gdisband` opens a local Yes/No confirmation for the Guild Master. Opening, No and Escape send no destructive request. There is no confirmation timeout. Yes sends once; pending duplicate input sends nothing. A leadership or membership change invalidates an open confirmation.
+- [ ] `/gdisband` and `/guilddisband` open a local Yes/No confirmation for the Guild Master without opening Communities. Opening, No and Escape send no destructive request. There is no confirmation timeout. Yes sends once; pending duplicate input sends nothing. A leadership or membership change invalidates an open confirmation.
 - [ ] Both Modern and Forever expose a Guild Master-only Disband Guild action on the Info pane. It uses the same confirmation and authority path as the slash command. This placement is a project UI entry, not a claim that Retail has this exact button position.
 - [ ] Disband is allowed with other members present. One durable transaction removes every member (including offline members), guild ranks, notes, profile, bank contents/money/logs, guild event/news records, registered appearance and creation metadata, pending invitations to this guild, and the reserved guild name. Other guilds and player-owned inventories remain unchanged.
 - [ ] Online members receive authoritative empty guild state and lose replicated guild membership/appearance. Reconnect and storage reopen remain unguilded. No member is silently transferred to another guild.
@@ -19,7 +19,7 @@ The current Guild Master can destroy the current guild through a confirmed nativ
 
 - Shared `src/protocol/guild_rank_messages.rs`: current-guild request and wire test.
 - Server `crates/server/src/guild_ranks.rs`: authenticated request dispatch and online refresh.
-- Server `crates/server/src/guild_disband.rs` (planned): atomic durable deletion.
+- Server `crates/server/src/guild_disband.rs`: atomic durable deletion.
 - `godot/ui-model/src/guild_ranks.rs`: local confirmation and pending-authority decisions.
 - `godot/ui-model/src/guild_rank_frame.rs`, `guild_communities.rs`: both-skin native entry and confirmation.
 - `godot/ui-model/src/ui/chat_frame.rs`, `godot/rust/src/chat.rs`, `guild_ranks.rs`: slash routing and actual packet boundary.

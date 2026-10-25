@@ -324,7 +324,10 @@ impl GameClient {
         if let Some(command) = self.guild_ranks.session.advance_invitation(delta) {
             self.send_guild_command(command)?;
         }
-        if !self.guild_ranks.session.visible && self.guild_ranks.session.invitation.is_none() {
+        if !self.guild_ranks.session.visible
+            && !self.guild_ranks.session.disband_open
+            && self.guild_ranks.session.invitation.is_none()
+        {
             self.guild_ranks.free_ui();
             return Ok(());
         }
@@ -484,7 +487,7 @@ fn read_inputs(ui: &mut Gd<RegistryUi>, session: &GuildRanksSession) -> InputTex
 }
 
 pub(crate) fn guild_pointer_enabled(session: &GuildRanksSession, game_menu_open: bool) -> bool {
-    !game_menu_open && session.visible
+    !game_menu_open && (session.visible || session.disband_open)
 }
 
 pub(crate) fn read_inputs_for_registry(
@@ -546,6 +549,9 @@ mod tests {
         assert!(!guild_pointer_enabled(&session, true));
         session.visible = false;
         assert!(!guild_pointer_enabled(&session, false));
+        session.disband_open = true;
+        assert!(guild_pointer_enabled(&session, false));
+        assert!(!guild_pointer_enabled(&session, true));
     }
 
     #[test]

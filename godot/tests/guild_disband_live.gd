@@ -30,12 +30,8 @@ func run_disband() -> bool:
 		return fail(error)
 	if not await enter_world(OS.get_environment("BANK_CHARACTER")) or not await select_skin(skin):
 		return false
-	if shown("GuildMicroButton"):
-		if not await press_checked("GuildMicroButton"):
-			return false
-	else:
-		if not await press_checked("MinimapLauncherButton") or not await press_checked("LauncherEntryGuildMicroButton"):
-			return false
+	if not await open_guild():
+		return false
 	if OS.get_environment("GUILD_DISBAND_MODE") == "readback":
 		if not await wait_until(func(): return shown("CommunitiesFrame") and text("CommunitiesGuildEntryName").is_empty() and not shown("GuildMember0"), "fresh-process unguilded state"):
 			return false
@@ -75,6 +71,20 @@ func run_disband() -> bool:
 			return false
 		if not await capture_checked("cancelled"):
 			return false
+		await tap(KEY_ESCAPE)
+		if not await wait_until(func(): return not shown("CommunitiesFrame"), "closed Communities before slash"):
+			return false
+		if not await slash("/gdisband") or not await wait_until(func(): return shown("GuildDisbandPopup"), "standalone slash confirmation"):
+			return false
+		if shown("CommunitiesFrame"):
+			return fail("Slash opened Communities instead of only the source popup")
+		if not await capture_checked("standalone-confirmation"):
+			return false
+		await tap(KEY_ESCAPE)
+		if not await wait_until(func(): return not shown("GuildDisbandPopup") and client.get_node_or_null("GameMenuUI") == null, "standalone Escape consumes only the popup"):
+			return false
+		if not await open_guild() or not await press_checked("GuildInfoTab"):
+			return false
 		if not await press_checked("GuildDisbandButton") or not await press_checked("GuildDisbandYes"):
 			return false
 	if not await wait_until(func(): return not shown("GuildMember0") and text("CommunitiesGuildEntryName").is_empty(), "authoritative removal on both clients"):
@@ -85,6 +95,13 @@ func run_disband() -> bool:
 		return false
 	mark("done")
 	return await other("done")
+
+func open_guild() -> bool:
+	if shown("GuildMicroButton"):
+		return await press_checked("GuildMicroButton")
+	if not await press_checked("MinimapLauncherButton"):
+		return false
+	return await press_checked("LauncherEntryGuildMicroButton")
 
 func slash(line: String) -> bool:
 	await tap(KEY_ENTER)

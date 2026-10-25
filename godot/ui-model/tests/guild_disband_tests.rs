@@ -71,12 +71,37 @@ fn guild_disband_slash_waits_for_actual_authority_without_opening_nonleader_pane
             None
         );
         session.apply(state(own_rank));
-        assert_eq!(session.visible, own_rank == 0);
+        assert!(
+            !session.visible,
+            "The slash confirmation must not open Communities"
+        );
         assert_eq!(
             mounted(&session).get_by_name("GuildDisbandPopup").is_some(),
             own_rank == 0
         );
     }
+}
+
+#[test]
+fn guild_disband_cancelled_query_can_retry_without_late_reopen() {
+    let _lock = SKIN.lock().unwrap_or_else(|poison| poison.into_inner());
+    let mut session = GuildRanksSession::default();
+    assert_eq!(
+        session.click("guild:disband_request", &Default::default()),
+        Some(GuildRankRequest::Query)
+    );
+    assert_eq!(
+        session.click("guild:disband_cancel", &Default::default()),
+        None
+    );
+    session.apply(state(0));
+    assert!(mounted(&session).get_by_name("GuildDisbandPopup").is_none());
+    assert_eq!(
+        session.click("guild:disband_request", &Default::default()),
+        Some(GuildRankRequest::Query)
+    );
+    session.apply(state(0));
+    assert!(mounted(&session).get_by_name("GuildDisbandPopup").is_some());
 }
 
 #[test]

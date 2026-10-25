@@ -236,7 +236,6 @@ impl GuildRanksSession {
 
     fn open_disband_confirmation(&mut self) {
         if self.is_guild_master() && !self.awaiting_state {
-            self.visible = true;
             self.disband_open = true;
         }
     }

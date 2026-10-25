@@ -4,7 +4,7 @@ Guild state is server-authoritative. Contracts: [ranks/lifecycle](../../specs/gu
 
 ## Confirmed disband
 
-[Contract and pinned source rules](../../specs/guild-disband.md): the slash parser produces a local confirmation intent, not a destructive packet. Native code queries current rank authority; the session opens Yes/No only for rank0. Info uses the same confirmation reducer. No/Escape send nothing; Yes consumes the local confirmation once and sends `GuildRankRequest::Disband`. Empty/changed authority or a known guild-ID change closes the confirmation. Source prompt: local GlobalStrings16280. The Info-button placement is project UI, not a claimed Retail menu coordinate. Backend coordination, GREEN and native acceptance remain pending.
+[Contract and pinned source rules](../../specs/guild-disband.md): the slash parser produces a local confirmation intent, not a destructive packet. Native code queries current rank authority; the session opens Yes/No only for rank0. The popup also mounts while Communities is closed, with native pointer/Escape ownership; the slash does not open that panel. Info uses the same confirmation reducer. No/Escape send nothing; Yes consumes the local confirmation once and sends `GuildRankRequest::Disband`. Empty/changed authority or a known guild-ID change closes the confirmation. Source prompt: local GlobalStrings16280. The Info-button placement is project UI, not a claimed Retail menu coordinate. Backend coordination, GREEN and native acceptance remain pending.
 
 ## Lifecycle
 
