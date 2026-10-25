@@ -35,7 +35,7 @@ func run_disband() -> bool:
 	if not await open_guild():
 		return false
 	if OS.get_environment("GUILD_DISBAND_MODE") == "readback":
-		if not await wait_until(func(): return shown("CommunitiesFrame") and text("CommunitiesGuildEntryName").is_empty() and not shown("GuildMember0"), "fresh-process unguilded state"):
+		if not await wait_until(func(): return received_not_in_guild() and shown("CommunitiesFrame") and text("CommunitiesGuildEntryName").is_empty() and not shown("GuildMember0"), "actual fresh-process NotInGuild reply and empty guild state"):
 			return false
 		if shown("GuildDisbandButton") or shown("GuildDisbandPopup"):
 			return fail("Fresh client retains guild authority after disband")
@@ -96,6 +96,8 @@ func run_disband() -> bool:
 			return false
 		if not await open_guild() or not await press_checked("GuildInfoTab"):
 			return false
+		if not await wait_until(func(): return shown("GuildDisbandButton") and not (control("GuildDisbandButton") as BaseButton).disabled, "fresh rank reply enables the destructive control"):
+			return false
 		if not await press_checked("GuildDisbandButton") or not await press_checked("GuildDisbandYes"):
 			return false
 	if not await wait_until(func(): return not shown("GuildMember0") and text("CommunitiesGuildEntryName").is_empty(), "authoritative removal on both clients"):
@@ -109,6 +111,12 @@ func run_disband() -> bool:
 	mark("done")
 	return await other("done")
 
+func received_not_in_guild() -> bool:
+	for index in range(1, 4):
+		if text("UIErrorsFrameLine%d" % index) == "You are not in a guild.":
+			return true
+	return false
+
 func history_received() -> bool:
 	var receipt: Dictionary = JSON.parse_string(str(client.guild_chat_observation()))
 	return int(receipt.history_count) > 0
@@ -119,8 +127,9 @@ func chat_text() -> String:
 		return ""
 	var result := ""
 	for node in frame.find_children("*", "Label", true, false):
-		if node.is_visible_in_tree():
-			result += str(node.text) + "\n"
+		var label := node as Label
+		if label.is_visible_in_tree():
+			result += label.text + "\n"
 	return result
 
 func open_guild() -> bool:
