@@ -7,7 +7,7 @@ var skin := ""
 var trial := ""
 var directory := ""
 
-func run_test() -> void:
+func run_completion() -> void:
 	var success := await run_chat()
 	if success:
 		print("PASS GUILD_CHAT_NATIVE actor=", actor, " skin=", skin)
