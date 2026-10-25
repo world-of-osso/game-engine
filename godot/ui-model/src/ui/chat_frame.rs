@@ -595,6 +595,7 @@ pub enum ChatCommand {
     Who(String),
     Group(GroupCommand),
     GuildRank(shared::protocol::GuildRankRequest),
+    GuildDisbandConfirmation,
     Guild(crate::guild_ranks::GuildCommand),
     /// Local system lines, shown only to this client.
     System(Vec<String>),
@@ -624,6 +625,7 @@ pub fn parse_chat_input(line: &str, reply_target: Option<&str>) -> ChatCommand {
         "ginvite" | "guildinvite" => {
             ChatCommand::Guild(crate::guild_ranks::GuildCommand::Invite(rest.to_owned()))
         }
+        "gdisband" | "guilddisband" => ChatCommand::GuildDisbandConfirmation,
         "gquit" | "guildquit" => ChatCommand::GuildRank(shared::protocol::GuildRankRequest::Leave),
         "gremove" | "guildremove" => {
             ChatCommand::GuildRank(shared::protocol::GuildRankRequest::RemoveMember {

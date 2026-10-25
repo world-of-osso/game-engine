@@ -62,6 +62,8 @@ pub struct GuildRanksSession {
     pub removal_target: Option<String>,
     /// CONFIRM_GUILD_PROMOTE data, independent of later roster selection.
     pub leadership_target: Option<String>,
+    pub disband_open: bool,
+    disband_query_pending: bool,
     /// StaticPopup data captures the target identity independently of roster selection.
     pub note_editor: Option<(String, bool)>,
     pub error: Option<String>,
@@ -135,6 +137,8 @@ impl GuildRanksSession {
         self.note_editor = None;
         self.removal_target = None;
         self.leadership_target = None;
+        self.disband_open = false;
+        self.disband_query_pending = false;
         self.log_open = false;
         self.news.filters_open = false;
         self.news.menu = None;
@@ -142,6 +146,9 @@ impl GuildRanksSession {
     }
 
     pub fn dismiss_subdialog(&mut self) -> bool {
+        if std::mem::take(&mut self.disband_open) {
+            return true;
+        }
         if self.leadership_target.take().is_some() {
             return true;
         }
@@ -189,6 +196,12 @@ impl GuildRanksSession {
         self.error = state.error.map(|error| error.message().to_owned());
         self.selected_rank = self.selected_rank.min(state.ranks.len().saturating_sub(1));
         self.state = Some(state);
+        if !self.is_guild_master() {
+            self.disband_open = false;
+        }
+        if std::mem::take(&mut self.disband_query_pending) {
+            self.open_disband_confirmation();
+        }
     }
 
     pub fn state(&self) -> Option<&GuildRanksState> {
@@ -206,7 +219,25 @@ impl GuildRanksSession {
     pub fn apply_profile(&mut self, update: GuildStateUpdate) {
         self.profile_waiting = false;
         if update.error.is_none() {
+            let previous = self.profile.as_ref().map(|guild| guild.guild_id);
+            let current = update.guild.as_ref().map(|guild| guild.guild_id);
+            if previous.is_some() && previous != current {
+                self.disband_open = false;
+            }
             self.profile = update.guild;
+        }
+    }
+
+    pub fn is_guild_master(&self) -> bool {
+        self.state
+            .as_ref()
+            .is_some_and(|state| state.own_rank == 0 && !state.ranks.is_empty())
+    }
+
+    fn open_disband_confirmation(&mut self) {
+        if self.is_guild_master() && !self.awaiting_state {
+            self.visible = true;
+            self.disband_open = true;
         }
     }
     fn click_profile(&mut self, action: &str, texts: &crate::bank::InputTexts) {
@@ -382,6 +413,31 @@ impl GuildRanksSession {
             "guild:show_offline" if self.communities_tab == CommunitiesTab::Roster => {
                 self.roster_online_only = !self.roster_online_only;
                 None
+            }
+            "guild:disband_request" => {
+                if self.awaiting_state || self.disband_query_pending {
+                    return None;
+                }
+                self.disband_query_pending = true;
+                Some(GuildRankRequest::Query)
+            }
+            "guild:disband" => {
+                self.open_disband_confirmation();
+                None
+            }
+            "guild:disband_cancel" => {
+                self.disband_open = false;
+                if std::mem::take(&mut self.disband_query_pending) {
+                    self.awaiting_state = false;
+                }
+                None
+            }
+            "guild:disband_confirm" => {
+                if !self.disband_open || self.awaiting_state || !self.is_guild_master() {
+                    return None;
+                }
+                self.disband_open = false;
+                Some(GuildRankRequest::Disband)
             }
             "guild:close" => {
                 self.close();

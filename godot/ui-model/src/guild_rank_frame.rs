@@ -66,8 +66,45 @@ pub fn guild_screen(shared: &SharedContext) -> Element {
         children.extend(crate::guild_member_detail::editor(session));
         children.extend(crate::guild_member_detail::removal_confirmation(session));
         children.extend(crate::guild_member_detail::leadership_confirmation(session));
+        children.extend(disband_confirmation(session));
         children.extend(crate::guild_event_log::frame(session, shared));
         children.extend(crate::guild_news::filters(session));
+    }
+    children
+}
+
+fn disband_confirmation(session: &GuildRanksSession) -> Element {
+    if !session.disband_open {
+        return vec![];
+    }
+    let children = disband_contents(session.awaiting_state);
+    rsx! { r#frame { name: "GuildDisbandPopup", width: 320.0, height: 98.0,
+    left: "50%", top: 135.0, translate_x: "-50%", pos_type: "absolute",
+    strata: FrameStrata::Dialog, frame_level: 1100.0,
+    style: "static_popup", mouse_enabled: true, {children} } }
+}
+
+fn disband_contents(awaiting: bool) -> Element {
+    let mut children = rsx! { texture { name: "GuildDisbandBackground", texture_fdid: 6839810,
+    left: 7.0, top: 7.0, width: 306.0, height: 84.0, pos_type: "absolute", draw_layer: "BACKGROUND" } };
+    // GlobalStrings16280; GameDialogDefs CONFIRM_GUILD_DISBAND uses Yes/No.
+    children.extend(label(
+        "GuildDisbandPopupText".into(),
+        "Do you really want to disband your guild?",
+        (15.0, 16.0, 290.0, 28.0),
+        (12.0, "1,1,1,1", "CENTER"),
+    ));
+    for (name, caption, action, left) in [
+        ("GuildDisbandYes", "Yes", "guild:disband_confirm", 27.0),
+        ("GuildDisbandNo", "No", "guild:disband_cancel", 165.0),
+    ] {
+        children.extend(crate::static_popup_component::dialog_button(
+            name,
+            caption,
+            action,
+            awaiting && caption == "Yes",
+            (left, 61.0, 128.0),
+        ));
     }
     children
 }

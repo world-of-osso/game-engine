@@ -1,3 +1,7 @@
+## 2026-10-25 — Confirmed guild disband client path
+
+[Guild disband](systems/guilds.md#confirmed-disband) adds a local slash confirmation intent, rank-authority query, captured Yes/No state and a master-only Info entry in both skins. Retail slash/dialog rules and GlobalStrings16280 are recorded in the contract. Genuine UI RED: missing entry and missing Query; backend and native GREEN remain pending. Historical guild chat and ReadyCheck/countdown evidence is recovered separately, not relabeled as a new run.
+
 ## 2026-10-24 — Remaining UI rebuild-work ranking
 
 [Current ranking](investigations/engine-crate-split-plan.md#remaining-base-ui-cuts--expected-rebuild-work-ranking) at12695a5ad/codeb57:Guild79,QuestMap29,Cooldown21,residual talent models18,RaidInfo11 distinct14-day path commits. These are frequency upper bounds,not LOC/compiler time/eligible edit counts. Base currently fans out into seven feature crates;native tail remains. Boundary costs explicit;Cooldown is cheapest bounded presentation-only next scope. Spellbook renderer already moved;micro_menu edge already resolved by retaining35 existing data lines once in base. Residual talent-model movement needs new ownership approval,not another menu workaround. No code/timing changes.

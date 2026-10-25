@@ -49,6 +49,22 @@ impl GuildRanks {
     }
 }
 impl GameClient {
+    pub(crate) fn request_guild_disband_confirmation(&mut self) -> Result<(), FrameError> {
+        if let Some(query) = self
+            .guild_ranks
+            .session
+            .click("guild:disband_request", &InputTexts::default())
+        {
+            if let Err(error) = self.send_guild_rank_request(query) {
+                self.guild_ranks
+                    .session
+                    .click("guild:disband_cancel", &InputTexts::default());
+                return Err(error);
+            }
+        }
+        Ok(())
+    }
+
     pub(crate) fn send_guild_command(&mut self, command: GuildCommand) -> Result<(), FrameError> {
         self.account.send_guild_command(command.clone())?;
         match command {

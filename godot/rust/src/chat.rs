@@ -47,6 +47,7 @@ pub(crate) enum ChatRequest {
     /// `/invite`, `/uninvite`, `/promote`, `/leave`, `/readycheck`.
     Group(GroupCommand),
     GuildRank(shared::protocol::GuildRankRequest),
+    GuildDisbandConfirmation,
     Guild(game_engine_ui_model::guild_ranks::GuildCommand),
     /// `/trade`: `InitiateTrade("target")` (SlashCommands.lua:911-913).
     TradeTarget,
@@ -187,6 +188,7 @@ impl ChatModel {
             ChatCommand::Who(_) => self.system(WHO_UNAVAILABLE_TEXT),
             ChatCommand::Group(command) => Some(ChatRequest::Group(command)),
             ChatCommand::GuildRank(request) => Some(ChatRequest::GuildRank(request)),
+            ChatCommand::GuildDisbandConfirmation => Some(ChatRequest::GuildDisbandConfirmation),
             ChatCommand::Guild(request) => Some(ChatRequest::Guild(request)),
             ChatCommand::System(lines) => {
                 for line in lines {
@@ -643,6 +645,11 @@ impl crate::GameClient {
             ChatRequest::Emote(emote) => self.send_emote(emote),
             ChatRequest::Group(command) => self.account.send_group(command),
             ChatRequest::GuildRank(request) => self.account.send_guild_rank_request(request),
+            ChatRequest::GuildDisbandConfirmation => {
+                return self
+                    .request_guild_disband_confirmation()
+                    .map_err(|error| error.to_string());
+            }
             ChatRequest::Guild(command) => {
                 return self
                     .send_guild_command(command)

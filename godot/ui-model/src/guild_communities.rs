@@ -50,6 +50,15 @@ pub fn shell(session: &GuildRanksSession, shared: &SharedContext) -> Element {
             ));
         }
         CommunitiesTab::Info => {
+            if session.is_guild_master() {
+                children.extend(panel_button(
+                    "GuildDisbandButton".into(),
+                    "Disband Guild",
+                    "guild:disband",
+                    !session.awaiting_state,
+                    (679.0, 401.0, 130.0, 20.0),
+                ));
+            }
             // CommunitiesFrame.xml589–597; GUILD_INFO display mode, lua549–554.
             if session.state().is_some_and(|state| !state.ranks.is_empty()) {
                 children.extend(panel_button(

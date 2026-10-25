@@ -62,6 +62,8 @@ func run_disband() -> bool:
 			return false
 		if not await press_checked("GuildDisbandButton") or not await wait_until(func(): return shown("GuildDisbandPopup"), "UI confirmation"):
 			return false
+		if text("GuildDisbandPopupText") != "Do you really want to disband your guild?":
+			return fail("Actual confirmation differs from CONFIRM_GUILD_DISBAND")
 		if not await capture_checked("confirmation"):
 			return false
 		if not await press_checked("GuildDisbandNo") or not await wait_until(func(): return not shown("GuildDisbandPopup") and not text("CommunitiesGuildEntryName").is_empty(), "No leaves guild intact"):
@@ -88,8 +90,11 @@ func slash(line: String) -> bool:
 	await tap(KEY_ENTER)
 	if not await wait_until(func(): return shown("ChatFrame1EditBox"), "native main chat"):
 		return false
+	var edit := control("ChatFrame1EditBox") as LineEdit
+	if edit == null or not edit.has_focus():
+		return fail("Main chat edit box does not own input")
 	await type_text(line)
-	if text("ChatFrame1EditBox") != line:
+	if edit.text != line:
 		return fail("Typed slash differs from expected input")
 	await tap(KEY_ENTER)
 	return true

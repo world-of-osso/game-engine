@@ -2,6 +2,10 @@
 
 Guild state is server-authoritative. Contracts: [ranks/lifecycle](../../specs/guild-ranks.md), [charters](../../specs/guild-charters.md), [vault](../../specs/guild-bank-frame.md), [tabards](../../specs/guild-tabards.md).
 
+## Confirmed disband
+
+[Contract and pinned source rules](../../specs/guild-disband.md): the slash parser produces a local confirmation intent, not a destructive packet. Native code queries current rank authority; the session opens Yes/No only for rank0. Info uses the same confirmation reducer. No/Escape send nothing; Yes consumes the local confirmation once and sends `GuildRankRequest::Disband`. Empty/changed authority or a known guild-ID change closes the confirmation. Source prompt: local GlobalStrings16280. The Info-button placement is project UI, not a claimed Retail menu coordinate. Backend coordination, GREEN and native acceptance remain pending.
+
 ## Lifecycle
 
 `GuildRanksSession` holds roster/permissions, profile, pending invitation and reply pacing. The native `guild_ranks.rs` canvas forwards exact requests; profile updates replace display state. Loading preserves early replies; logout clears them. Modified member clicks reach the native action consumer and on-screen hierarchy-filtered menu. Native LineEdit limits are applied only when changed, before synchronizing text: resetting the same limit resets Godot's caret and reverses typing.

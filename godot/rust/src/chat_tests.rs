@@ -241,6 +241,23 @@ fn local_commands_print_system_lines_and_send_nothing() {
 }
 
 #[test]
+fn guild_disband_slashes_request_local_confirmation_not_destruction() {
+    let mut model = ChatModel::default();
+    for line in [
+        "/gdisband",
+        "/guilddisband",
+        " /GDISBAND ",
+        "/gdisband OtherGuild",
+    ] {
+        assert_eq!(
+            model.submit(line),
+            Some(ChatRequest::GuildDisbandConfirmation)
+        );
+    }
+    assert!(lines(&model, ChatTab::General).is_empty());
+}
+
+#[test]
 fn guild_rank_slashes_become_authoritative_requests() {
     let mut model = ChatModel::default();
     for (line, request) in [

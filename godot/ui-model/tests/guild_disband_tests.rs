@@ -16,6 +16,10 @@ fn guild_disband_confirmation_is_master_only_and_yes_sends_once_both_skins() {
         );
         assert_eq!(leader.click("guild:disband", &Default::default()), None);
         assert!(mounted(&leader).get_by_name("GuildDisbandPopup").is_some());
+        assert_eq!(
+            text(&mounted(&leader), "GuildDisbandPopupText"),
+            "Do you really want to disband your guild?"
+        );
         assert!(!leader.awaiting_state);
         assert_eq!(
             leader.click("guild:disband_cancel", &Default::default()),
@@ -79,6 +83,22 @@ fn guild_disband_slash_waits_for_actual_authority_without_opening_nonleader_pane
 fn guild_disband_loses_confirmation_on_membership_or_leadership_change() {
     let _lock = SKIN.lock().unwrap_or_else(|poison| poison.into_inner());
     let mut leader = session(0, false, true);
+    leader.click("guild:disband", &Default::default());
+    let same = leader.profile.clone().unwrap();
+    leader.apply_profile(GuildStateUpdate {
+        guild: Some(same.clone()),
+        message: None,
+        error: None,
+    });
+    assert!(mounted(&leader).get_by_name("GuildDisbandPopup").is_some());
+    let mut other = same;
+    other.guild_id = 8;
+    leader.apply_profile(GuildStateUpdate {
+        guild: Some(other),
+        message: None,
+        error: None,
+    });
+    assert!(mounted(&leader).get_by_name("GuildDisbandPopup").is_none());
     leader.click("guild:disband", &Default::default());
     leader.apply(state(1));
     assert_eq!(

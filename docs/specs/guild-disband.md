@@ -44,6 +44,7 @@ No unrelated guild feature is added by disband. Historical creation/rank/bank/ch
 Local Retail cache root: `/home/osso/.cache/wow-ui-sim/blizzard-ui/retail/AddOns/`.
 
 - `Blizzard_ChatFrameBase/Shared/SlashCommands.lua:805–809`: `IsGuildLeader()` gates `StaticPopup_Show("CONFIRM_GUILD_DISBAND")`.
+- Local `data/GlobalStrings.csv`: ID16280 gives `Do you really want to disband your guild?`; `SLASH_GUILD_DISBAND1/2` give `/gdisband` and `/guilddisband`.
 - `Blizzard_StaticPopup_Game/GameDialogDefs.lua:662–673`: Yes/No, `OnAccept` calls `C_GuildInfo.Disband()`, `timeout = 0`, `whileDead = 1`, `hideOnEscape = 1`.
 - TrinityCore pinned `a352b1fa`, `src/server/game/Guilds/Guild.cpp:2140–2148`: `HandleDelete` authorizes only `_IsLeader`.
 - Same source `:1199–1265`: `Disband` notifies online members, removes all members in a database transaction, deletes guild/rank/bank/event data and removes the guild. No last-member prerequisite is present.
