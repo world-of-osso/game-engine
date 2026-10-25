@@ -100,6 +100,7 @@ Before rework, identify the applicable product/build and a real authored asset, 
 ## Related knowledge
 
 - [CF-2 client API source audit](cf2-client-api-audit-20261023.md): seven request batches, 19 behaviors, build-pinned UI/API sources and native-proof gaps (2026-10-23).
+- [CF-2 native API semantics](cf2-api-native-semantics-20261024.md): aura-block, map-display, Social UI and PvP queries; exact declarations, build boundaries and unresolved native behavior (2026-10-24).
 - [Housing location predicate](housing-location-predicate-1215-1217.md): Retail install-tree UI evidence with exact source build unpinned, PTR 12.1.7 source gap, and unresolved native spatial/event semantics (2026-10-24).
 - [Clank Together target vs. local Mists profile](clank-mists-profile-comparison.md): 15890-x64 target, point-in-time matched-code progress, and the unverified local native-build boundary (2026-10-24).
 - [F15 12340 secure/UI behavior](f15-12340.md): native click, tooltip and combo paths; FrameXML secure-header gaps (2026-10-23).
