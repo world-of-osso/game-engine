@@ -48,6 +48,12 @@ References: GB.xml / GB.lua = `Blizzard_GuildBankUI/Mainline/Blizzard_GuildBankU
 
 - Guild repair (native, `data/diagnostics/merchant3-20261001/live/shots/g-7-guild-money-log.png`): the Money Log reads "Fbguildfour deposited 10g" and "Fbguildfour withdrew 16c for repairs".
 
+### Both-skin direct item moves — 2026-10-25
+
+`godot/tests/guild_bank_directions_live.gd` passes with two actual clients in each skin: master deposit/member withdrawal, then member deposit/master withdrawal, with both views observing the real Linen Cloth x10 moves. It also proves the member's 1g withdrawal, exhausted daily allowance/disabled Withdraw, subsequent 1g deposit and authoritative item/money logs. This closes the old mixed-skin pair's missing direct Modern deposit and Forever withdrawal cells, not every bank-permission permutation.
+
+Inspected full-HD originals and actor/build receipts: `/syncthing/AgentShared/2026-10-25/guilds/bank/{modern-1792951590,forever-1792951825}/`. The root `coverage.md` owns the qualified lifecycle matrix.
+
 ## How it works
 - [banks](../wiki/systems/banks.md)
 

@@ -1,6 +1,6 @@
 ## 2026-10-25 — Confirmed guild disband client path
 
-[Guild disband](systems/guilds.md#confirmed-disband) adds a local slash confirmation intent, rank-authority query, captured Yes/No state and a master-only Info entry in both skins. Retail slash/dialog rules and GlobalStrings16280 are recorded in the contract. Genuine UI RED: missing entry and missing Query; backend and native GREEN remain pending. Historical guild chat and ReadyCheck/countdown evidence is recovered separately, not relabeled as a new run.
+[Guild disband](systems/guilds.md#confirmed-disband) adds a local slash confirmation intent, rank-authority query, captured Yes/No state and a master-only Info entry in both skins. Retail slash/dialog rules and GlobalStrings16280 are recorded in the contract. Genuine UI RED reproduced the missing entry/Query; combined automated and actual two-client Chat/disband GREEN now passes in both skins, including disband restart readback. Direct bank deposit/withdrawal now passes in each skin, with the member's exhausted daily gold allowance. [Acceptance](../specs/guild-disband.md#acceptance--2026-10-25) links inspected originals and frozen artifacts. Older lifecycle and ReadyCheck/countdown evidence remains explicitly historical.
 
 ## 2026-10-24 — Remaining UI rebuild-work ranking
 

@@ -4,11 +4,11 @@ The current Guild Master can destroy the current guild through a confirmed nativ
 
 ## What it must do
 
-- [ ] Only the authenticated current Guild Master can disband the current guild. Other members, unguilded actors and actors from another guild cannot delete it. The request carries no actor or guild ID.
-- [ ] `/gdisband` and `/guilddisband` open a local Yes/No confirmation for the Guild Master without opening Communities. Opening, No and Escape send no destructive request. There is no confirmation timeout. Yes sends once; pending duplicate input sends nothing. A leadership or membership change invalidates an open confirmation.
-- [ ] Both Modern and Forever expose a Guild Master-only Disband Guild action on the Info pane. It uses the same confirmation and authority path as the slash command. This placement is a project UI entry, not a claim that Retail has this exact button position.
-- [ ] Disband is allowed with other members present. One durable transaction removes every member (including offline members), guild ranks, notes, profile, bank contents/money/logs, guild event/news records, registered appearance and creation metadata, pending invitations to this guild, and the reserved guild name. Other guilds and player-owned inventories remain unchanged.
-- [ ] Online members receive authoritative empty guild state and lose replicated guild membership/appearance. Reconnect and storage reopen remain unguilded. No member is silently transferred to another guild.
+- [x] Only the authenticated current Guild Master can disband the current guild. Other members, unguilded actors and actors from another guild cannot delete it. The request carries no actor or guild ID.
+- [x] `/gdisband` and `/guilddisband` open a local Yes/No confirmation for the Guild Master without opening Communities. Opening, No and Escape send no destructive request. There is no confirmation timeout. Yes sends once; pending duplicate input sends nothing. A leadership or membership change invalidates an open confirmation.
+- [x] Both Modern and Forever expose a Guild Master-only Disband Guild action on the Info pane. It uses the same confirmation and authority path as the slash command. This placement is a project UI entry, not a claim that Retail has this exact button position.
+- [x] Disband is allowed with other members present. One durable transaction removes every member (including offline members), guild ranks, notes, profile, bank contents/money/logs, guild event/news records, registered appearance and creation metadata, pending invitations to this guild, and the reserved guild name. Other guilds and player-owned inventories remain unchanged.
+- [x] Online members receive authoritative empty guild state and lose replicated guild membership/appearance. Reconnect and storage reopen remain unguilded. No member is silently transferred to another guild.
 
 ## How it works
 
@@ -31,9 +31,9 @@ The current Guild Master can destroy the current guild through a confirmed nativ
 - `godot/ui-model/tests/guild_disband_tests.rs`: both-skin eligibility, No/Escape, Yes-once, pending authority and invalidation.
 - `godot/tests/guild_disband_live.gd`: two actual native clients, both skins, UI/slash confirmation, member refusal, No/Escape, Yes and fresh server/client readback.
 
-## Known gaps (current cycle)
+## Acceptance — 2026-10-25
 
-- [ ] Behavioral GREEN, touched checks/format and native acceptance are pending.
+Behavioral GREEN, touched format/checks and actual two-client native acceptance pass. Modern `disband/modern-1792950901` and Forever `disband/forever-1792951168` prove master/member controls, Info and standalone slash confirmation, No/Escape, one actual Yes, cleared guild/Chat state and fresh server/client `NotInGuild` readback. Evidence root: `/syncthing/AgentShared/2026-10-25/guilds/`; `coverage.md` qualifies the whole lifecycle and `inspection-combined/` maps inspected full-HD originals. Artifact hashes and frozen source revisions are in each phase's `artifacts.json`; the parent owns landing and integration.
 
 ## Out of scope
 
