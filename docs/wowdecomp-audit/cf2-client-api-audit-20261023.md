@@ -78,7 +78,7 @@ L documents `C_Housing.IsInsideHouse()`, `IsInsideHouseOrPlot()`, `IsInsideOwned
 
 Evidence: L `Blizzard_APIDocumentationGenerated/HousingUIDocumentation.lua:307–357,691–700`.
 
-**Follow-up:** [build-specific `IsInsideHouseOrPlot` audit](housing-location-predicate-1215-1217.md) records installed Retail 12.1.5 UI evidence, the PTR 12.1.7 source gap, and unresolved native behavior/timing.
+**Follow-up:** [`IsInsideHouseOrPlot` source audit](housing-location-predicate-1215-1217.md) records local Retail install-tree UI evidence with exact source build unverified, the PTR 12.1.7 source gap, and unresolved native behavior/timing.
 
 ### 9. Forever ping availability
 
