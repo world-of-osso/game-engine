@@ -1,4 +1,4 @@
-# CF-2 native API semantics: aura blocks, maps, social UI, and PvP
+# CF-2 native API semantics: aura blocks, maps, social UI, PvP, pet battles, and TTS
 
 Inspection: 2026-10-24. This is a source audit, not a runtime probe. No client, simulator, or service was launched. It separates API declarations and UI consumers from native behavior. No modern native implementation for the requested behaviors was found in the available source.
 
@@ -88,6 +88,34 @@ The query contract is one boolean. No native source establishes its value before
 
 The inspected declarations list no arguments and no `SecretArguments` or restriction metadata. They do not define whether extra arguments are ignored or rejected, any native error text, or caller-taint behavior. No modern native implementation was found to settle these questions.
 
+## E — Mists `C_PetBattles.GetDisplayID(petOwner, petIndex)`
+
+The Mists UI-source snapshot is version `5.5.4.68042` (`/syncthing/Sync/Projects/wow/wow-ui-sim/vendor/wow-ui-source-mists/version.txt:1`), older than installed `wow_classic` build `5.5.4.70579`; it is not pinned to that executable. Its generated `PetBattlesDocumentation.lua:1–90` lists only a subset of the namespace and omits `GetDisplayID`. The UI does call `C_PetBattles.GetDisplayID(petOwner, petIndex)` to supply a `PetModel:SetDisplayInfo` argument, then separately queries `GetPetSpeciesID` for position selection (`Blizzard_PetBattleUI/Shared/Blizzard_PetBattleUI.lua:1107–1118`).
+
+The wowless `wow_classic` schema snapshot (build 70268/version 5.5.4) lists one unnamed numeric output but no inputs (`apis.yaml:14471–14473`). Its missing inputs conflict with the two-argument UI call, so it does not establish the complete native signature, return behavior, or errors. No native/decompiled implementation or simulator implementation/test for this method was found. `wow-ui-sim/src/c_api/c_pet_battles.rs` registers species/type/icon methods, not `GetDisplayID`; the larger Lua pet-battle surface does not register it either.
+
+### E1. Result arity and values
+
+The schema's one-number output is the only available return-shape clue, but its omitted inputs and lack of nilability/case semantics prevent treating it as a complete native contract. No source establishes the result arity or value for a valid battle pet, outside battle, missing pet, invalid owner, index 0, negative index, or out-of-range index. It does not establish whether any of these cases error or return a sentinel.
+
+### E2. Argument validation
+
+The UI caller supplies `petOwner` and `petIndex` but does not establish their native validation rules. No source establishes handling of numeric strings, nil, omitted arguments, invalid owners, or exact error messages.
+
+### E3. Zero and display changes
+
+The numeric schema does not establish whether 0 is a valid display ID or a sentinel. The Mists PetJournal docs expose `GetNumDisplays(speciesID)` and `GetDisplayIDByIndex(speciesID, index)` (`PetJournalInfoDocumentation.lua:28–40,72–84`), which permits enumeration of display variants by species; it does not prove that an individual battle pet changes display/skin while its species remains fixed. The battle UI queries display ID and species ID separately, but the dynamic relationship remains unknown.
+
+## F — Retail `C_TTSSettings.SetVoiceOptionName(voiceType, voiceName)`
+
+The installed Retail API docs declare two required, non-nil arguments—`voiceType: TtsVoiceType` and `voiceName: string`—and no setter returns (`/syncthing/World of Warcraft/_retail_/BlizzardInterfaceCode/Interface/AddOns/Blizzard_APIDocumentationGenerated/TTSSettingsDocumentation.lua:196–205`). `GetVoiceOptionName(voiceType)` returns one non-nil `cstring` (`:98–110`). The wowless `wow` schema records the same types (`apis.yaml:31282–31289,31348–31355`), but is build 69933/version 12.1.0, not the installed Retail build. No native setter implementation was found.
+
+The installed Retail `TextToSpeechFrame.lua:317–324,327–332` sets the standard and alternate defaults to numeric `0` and `1`. It tests `type(selectedVoiceStandard == string)` (and the alternate equivalent). The argument to `type` is a boolean, so `type` returns the truthy string `"boolean"`; the condition does not distinguish strings from numbers. The default numeric 0 is therefore passed to `SetVoiceOptionName` by this FrameXML path. This proves the caller's argument, not native acceptance.
+
+### F1. Numeric `voiceName`
+
+Number is outside the declared `string` parameter type. The declaration has no setter return values; the getter's declared return is one string. No native implementation or runtime observation establishes whether numeric 0 is rejected, coerced to `"0"`, ignored, or accepted in another way; its exact error and the subsequent `GetVoiceOptionName` value are unknown. The simulator's temporary TTS defaults do not implement `SetVoiceOptionName` or `GetVoiceOptionName` (`wow-ui-sim/src/lua_api/workarounds/temporary/tts_settings_defaults.rs:1–5,43–70`).
+
 ## Conclusion
 
-The available sources establish API schemas, event metadata, selected UI caller behavior, simulator-specific behavior, and installed build identities. They do not establish the requested modern native values, validation errors, state mutations, or event ordering. Treat each unresolved item above as unknown until exact-build native implementation or a controlled runtime probe is available.
+The available sources establish API schemas, event metadata, selected UI caller behavior, simulator-specific behavior, and installed build identities. They do not establish the requested native values, validation errors, mutations, or event ordering for these APIs. Treat each unresolved item above as unknown until exact-build native implementation or a controlled runtime probe is available.
