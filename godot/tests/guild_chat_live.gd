@@ -221,11 +221,7 @@ func compose(value: String) -> bool:
 	return await wait_until(func(): return edit.text.is_empty(), "actual composer send clears input")
 
 func main_chat(value: String) -> bool:
-	# Remove the focused composer through real tabs, without closing Communities.
-	# Escape closes the panel and therefore cannot prove its server-refusal display.
-	await press("GuildRosterTab")
-	await press("CommunitiesChatTab")
-	if not await wait_until(func(): return shown("CommunitiesChatEditBox"), "Chat open before main-chat command"):
+	if not await check_composer_escape():
 		return false
 	await tap(KEY_ENTER)
 	if not await wait_until(func(): return shown("ChatFrame1EditBox"), "actual main-chat composer"):

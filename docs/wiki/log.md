@@ -1,3 +1,7 @@
+## 2026-10-24 — Focused Chat composer Escape
+
+[Composer Escape](systems/guilds.md#focused-composer-escape): actual authenticated native RED closes Communities while the composer is focused. Only that composer now consumes Escape after clearing focus; the physical-tab fixture sequence is removed. Full native acceptance is pending.
+
 ## 2026-10-24 — Compact Chat literal right anchors
 
 [Compact Chat](systems/guilds.md#compact-chat-source-anchors) corrects x623→649 and source139px content/416px transcript/423px composer after actual generated-layout RED. Expanded-only offline preference no longer hides compact members. Actual native bounds and refreshed model proof remain pending; UDP ordering2GREEN is independent.

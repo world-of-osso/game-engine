@@ -8,6 +8,10 @@ Guild state is server-authoritative. Contracts: [ranks/lifecycle](../../specs/gu
 
 Actual targeted source/control/command RED3/3 preceded production edits. Implementation and native two-actor fixture are committed before GREEN/live acceptance; no current-tip pass or capture is claimed yet. The source composer plates375507/375508/389190 were extracted locally and published by the lead. History is the existing service's bounded recipient history, not5000 durable Club messages or offline history.
 
+### Focused composer Escape
+
+Installed CommunitiesChatFrame.xml:87 uses `EditBox_ClearFocus`. Actual authenticated native RED at engine5880c806f/server5c9f49626 instead closed Communities while its composer had focus. The shared edit callback released focus without consuming Escape, so the global unhandled window-dismissal path also ran. The composer now uses the existing consume-Escape path; other edit bindings are unchanged. The live fixture asserts focus before the key and an open, unfocused composer afterwards. Full native GREEN remains pending.
+
 ### Compact Chat source anchors
 
 Mainline CommunitiesMemberList.lua586–590 anchors compact TOPLEFT to the814px frame's TOPRIGHT−165, givingx649; XML's RIGHT−26 makes its content139px, not165. Maximize Chat right follows that left−32, so transcript416px and composer423px. The generated native-layout contract reproduced the earlier wrongx623 in actual RED. `ShouldShowOfflinePlayers` keeps compact members regardless of the expanded-only saved checkbox; compact uses the existing qualified represented-field base ordering, not invented Club roles/presence. Physical resolved bounds remain a separate native assertion.
