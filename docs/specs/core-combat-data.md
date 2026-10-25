@@ -10,7 +10,7 @@
 
 ## How it works
 
-- The default-enabled `client` feature selects client modules and their optional dependencies.
+- [Core combat-data feature](../wiki/systems/core-combat-data.md).
 
 ## Implementation inventory
 
@@ -24,7 +24,7 @@
 
 ## Known gaps (current cycle)
 
-- [ ] Check the data-only consumer and run existing evaluator tests.
+- [ ] Run existing evaluator tests; both library feature modes compile.
 
 ## Out of scope
 
