@@ -1,6 +1,7 @@
 # WoW Forever UI native questions — 1.60.1.70532
 
-**Audit date:** 2026-10-25  
+**Audit date:** 2026-10-25
+
 **Target:** WoW Forever `wowf` 1.60.1.70532; Retail/PTR 12.1.7 considered only as a separate comparison.
 
 ## Conclusion
