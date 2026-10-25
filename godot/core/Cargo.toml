@@ -4,31 +4,36 @@ version = "0.1.0"
 edition.workspace = true
 rust-version.workspace = true
 
+[features]
+default = ["client"]
+# The frozen AssistedCombat evaluator and catalog remain available without assets.
+client = ["dep:wow-chunk", "dep:wow-m2", "dep:wow-wmo", "dep:wow-adt", "dep:binrw", "dep:image-blp", "dep:texpresso", "dep:image", "dep:glam", "dep:half", "dep:ron", "dep:directories", "dep:rusqlite"]
+
 [dependencies]
 # Shared clean-room readers; defaults preserve the client's complete render-data parsing.
-wow-chunk = { git = "https://github.com/world-of-osso/wow-formats.git", rev = "882b2fc748c0365dad315375d0827e1f066f733f" }
-wow-m2 = { git = "https://github.com/world-of-osso/wow-formats.git", rev = "882b2fc748c0365dad315375d0827e1f066f733f" }
-wow-wmo = { git = "https://github.com/world-of-osso/wow-formats.git", rev = "882b2fc748c0365dad315375d0827e1f066f733f" }
-wow-adt = { git = "https://github.com/world-of-osso/wow-formats.git", rev = "882b2fc748c0365dad315375d0827e1f066f733f" }
-binrw = "0.15.1"
-image-blp = "1"
+wow-chunk = { git = "https://github.com/world-of-osso/wow-formats.git", rev = "882b2fc748c0365dad315375d0827e1f066f733f" , optional = true }
+wow-m2 = { git = "https://github.com/world-of-osso/wow-formats.git", rev = "882b2fc748c0365dad315375d0827e1f066f733f" , optional = true }
+wow-wmo = { git = "https://github.com/world-of-osso/wow-formats.git", rev = "882b2fc748c0365dad315375d0827e1f066f733f" , optional = true }
+wow-adt = { git = "https://github.com/world-of-osso/wow-formats.git", rev = "882b2fc748c0365dad315375d0827e1f066f733f" , optional = true }
+binrw = { version = "0.15.1", optional = true }
+image-blp = { version = "1", optional = true }
 # BC1 decode of 1-bit-alpha DXT1 mip chains; the same decoder image-blp uses.
-texpresso = "2"
+texpresso = { version = "2", optional = true }
 # Same resize filter as the original character-creation portrait mask.
-image = { version = "0.25", default-features = false }
+image = { version = "0.25", default-features = false , optional = true }
 # Same glam version as Bevy math, for shared camera vectors/quaternions.
-glam = "0.32.0"
+glam = { version = "0.32.0", optional = true }
 # Encode the shared procedural sky cubemap as linear RGBA16F pixels.
-half = "2"
+half = { version = "2", optional = true }
 # Shared input-binding config uses the same serialization format as the Bevy client.
 serde = { version = "1", features = ["derive"] }
 # Preserve the original public scene-snapshot JSON export/import contract.
 serde_json = "1"
 # Persist the original client options RON at the same platform config location.
-ron = "0.8"
-directories = "6"
+ron = { version = "0.8", optional = true }
+directories = { version = "6", optional = true }
 # Reuse the root client's original creature display SQLite catalog query.
-rusqlite = { version = "0.35", features = ["bundled"] }
+rusqlite = { version = "0.35", features = ["bundled"] , optional = true }
 # Shared spell catalog: bincode cache of the parsed DB2 CSVs and `log` warnings.
 bincode = { version = "2", default-features = false, features = ["std", "serde"] }
 log = "0.4"
