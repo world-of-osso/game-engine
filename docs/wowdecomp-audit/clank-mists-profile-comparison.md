@@ -20,7 +20,7 @@ The site's own description says submissions are compared byte-for-byte and its f
 
 ## Comparison boundary
 
-The local simulator feature is named `client-mists` (`/syncthing/Sync/Projects/wow/wow-ui-sim/Cargo.toml:158–159`). Its vendored Mists UI-source snapshot reports `5.5.4.68042` (`vendor/wow-ui-source-mists/version.txt:1`; snapshot commit `0fa050554e3e3c8ad559ff258516d9c86b70815`, recorded in `cf2-client-api-audit-20261023.md`). That is UI-source provenance, not a verified native executable identity. The existing audit records no local native Mists implementation or executable pin.
+The local simulator feature is named `client-mists` (`/syncthing/Sync/Projects/wow/wow-ui-sim/Cargo.toml:158–159`). Its vendored Mists UI-source snapshot reports `5.5.4.68042` (`vendor/wow-ui-source-mists/version.txt:1`; snapshot commit `0fa050554e3e3c8ad559ff258516d9c86b70815`, recorded in `cf2-client-api-audit-20261023.md`). That is UI-source provenance, not a verified native executable identity. At that inspection, the audit recorded no local native Mists implementation or executable pin. A subsequent source refresh cloned Clank's 15890 tree; see [the pinned loader follow-up](mists-sharedxml-loader-15890.md). This does not change the local simulator UI-source identity.
 
 Thus Clank's **5.0.3/build 15890 x64 executable target is not the same version as the local 5.5.4.68042 Mists UI-source snapshot**. There is no evidence mapping the local simulator profile to that target binary. Do not report Clank's 41.02% as coverage of our local Mists profile. A direct comparison needs a verified native executable/profile ID and matching target hash for the local profile.
 

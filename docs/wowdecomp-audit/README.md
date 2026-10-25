@@ -105,6 +105,7 @@ Before rework, identify the applicable product/build and a real authored asset, 
 - [WoW Forever native UI questions](wowforever-native-ui-questions-70532.md): build 70532 no-target spell ID, account locality API, and SharedXML replay; `benilla-re` 5875 evidence is explicitly non-transferable (2026-10-25).
 - [Housing location predicate](housing-location-predicate-1215-1217.md): Retail install-tree UI evidence with exact source build unpinned, PTR 12.1.7 source gap, and unresolved native spatial/event semantics (2026-10-24).
 - [Clank Together target vs. local Mists profile](clank-mists-profile-comparison.md): 15890-x64 target, point-in-time matched-code progress, and the unverified local native-build boundary (2026-10-24).
+- [Refreshed Clank Mists loader](mists-sharedxml-loader-15890.md): fetched 5.0.3/15890 source, mapped loader addresses, glue/game state replacement and unresolved SharedXML native execution count.
 - [F15 12340 secure/UI behavior](f15-12340.md): native click, tooltip and combo paths; FrameXML secure-header gaps (2026-10-23).
 - [F19 12340 UI-source questions](f19-12340.md): ActionStatus, quest-POI selectors and dependencies; native/cache source boundaries.
 - [F16/F18 12340 UI-source follow-up](f16-f18-12340.md): pools, aura/chat/party APIs, container and currency tuples, tradeskill events, plus unresolved target FrameXML timing.
