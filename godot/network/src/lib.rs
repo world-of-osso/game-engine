@@ -681,11 +681,19 @@ fn install_chat_relay(app: &mut App, events: Sender<Event>) {
                mut history: Query<&mut MessageReceiver<protocol::ChatHistoryResponse>>| {
             let mut received = Vec::new();
             for mut receiver in &mut lines {
-                received.extend(
-                    receiver.receive_with_tick().map(|message| {
-                        (message.message_id, ProtocolMessage(Box::new(message.data)))
-                    }),
-                );
+                received.extend(receiver.receive_with_tick().map(|message| {
+                    #[cfg(debug_assertions)]
+                    if matches!(
+                        message.data.channel,
+                        protocol::ChatType::Guild | protocol::ChatType::Officer
+                    ) {
+                        eprintln!(
+                            "GUILD_CHAT_WORKER_RECEIVE id={:?} message={:?}",
+                            message.message_id, message.data
+                        );
+                    }
+                    (message.message_id, ProtocolMessage(Box::new(message.data)))
+                }));
             }
             for mut receiver in &mut history {
                 received.extend(
