@@ -4,6 +4,7 @@ extends "res://tests/guild_member_notes_live.gd"
 var actor := ""
 var skin := ""
 var directory := ""
+var chat_marker := ""
 
 func run_completion() -> void:
 	var success := await run_disband()
@@ -19,6 +20,7 @@ func run_disband() -> bool:
 	actor = OS.get_environment("GUILD_DISBAND_ACTOR")
 	skin = OS.get_environment("GUILD_DISBAND_SKIN")
 	directory = OS.get_environment("GUILD_DISBAND_SYNC")
+	chat_marker = "Guilds2 disband " + OS.get_environment("GUILD_DISBAND_TRIAL")
 	shots = OS.get_environment("BANK_SHOTS")
 	role = skin.to_lower() + "-" + actor
 	DirAccess.make_dir_recursive_absolute(shots)
@@ -52,8 +54,17 @@ func run_disband() -> bool:
 			return fail("Nonleader slash changed guild state or opened confirmation")
 		if not await capture_checked("member-no-disband"):
 			return false
+		if not await press_checked("CommunitiesChatTab") or not await wait_until(Callable(self, "history_received"), "actual Chat history receipt"):
+			return false
+		mark("chat-ready")
+		if not await wait_until(func(): return chat_text().contains(chat_marker), "actual Guild line before destruction"):
+			return false
+		if not await capture_checked("chat-before-disband"):
+			return false
 		mark("ready")
 	else:
+		if not await other("chat-ready") or not await slash("/g " + chat_marker):
+			return false
 		if not await other("ready"):
 			return false
 		if not await press_checked("GuildDisbandButton") or not await wait_until(func(): return shown("GuildDisbandPopup"), "UI confirmation"):
@@ -91,10 +102,26 @@ func run_disband() -> bool:
 		return false
 	if shown("GuildDisbandButton") or shown("GuildDisbandPopup"):
 		return fail("Disband controls survived removal")
+	if actor == "peer" and chat_text().contains(chat_marker):
+		return fail("Communities retained the actual Guild line after membership removal")
 	if not await capture_checked("disbanded"):
 		return false
 	mark("done")
 	return await other("done")
+
+func history_received() -> bool:
+	var receipt: Dictionary = JSON.parse_string(str(client.guild_chat_observation()))
+	return int(receipt.history_count) > 0
+
+func chat_text() -> String:
+	var frame := control("CommunitiesChatMessageFrame")
+	if frame == null or not frame.is_visible_in_tree():
+		return ""
+	var result := ""
+	for node in frame.find_children("*", "Label", true, false):
+		if node.is_visible_in_tree():
+			result += str(node.text) + "\n"
+	return result
 
 func open_guild() -> bool:
 	if shown("GuildMicroButton"):

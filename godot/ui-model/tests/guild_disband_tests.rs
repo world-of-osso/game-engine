@@ -105,6 +105,41 @@ fn guild_disband_cancelled_query_can_retry_without_late_reopen() {
 }
 
 #[test]
+fn guild_disband_and_chat_keep_escape_priority_and_clear_lost_membership() {
+    let mut leader = session(0, false, true);
+    leader.communities_tab = game_engine_ui_model::guild_ranks::CommunitiesTab::Chat;
+    leader.receive_chat(&ChatMessage {
+        sender: "Cara".into(),
+        content: "Before disband".into(),
+        channel: ChatType::Guild,
+    });
+    assert_eq!(leader.chat.messages.len(), 1);
+    leader.click("guild:chat_stream_menu", &Default::default());
+    assert!(leader.chat.menu_open);
+    leader.click("guild:disband", &Default::default());
+    assert!(leader.dismiss_subdialog());
+    assert!(!leader.disband_open && leader.chat.menu_open);
+    assert!(leader.dismiss_subdialog());
+    assert!(!leader.chat.menu_open);
+    leader.click("guild:disband", &Default::default());
+    let mut empty = state(0);
+    empty.ranks.clear();
+    empty.members.clear();
+    leader.apply(empty);
+    assert!(!leader.disband_open);
+    assert!(leader.chat.messages.is_empty());
+    leader.apply_chat_history(ChatHistoryResponse {
+        messages: vec![ChatMessage {
+            sender: "Cara".into(),
+            content: "Late historical reply".into(),
+            channel: ChatType::Guild,
+        }],
+        error: None,
+    });
+    assert!(leader.chat.messages.is_empty());
+}
+
+#[test]
 fn guild_disband_loses_confirmation_on_membership_or_leadership_change() {
     let _lock = SKIN.lock().unwrap_or_else(|poison| poison.into_inner());
     let mut leader = session(0, false, true);
