@@ -5,7 +5,6 @@ use game_engine_ui_model::auction::{
 use ui_toolkit::{
     atlas::{ActiveSkin, set_thread_skin},
     frame::{Dimension, Frame, WidgetData},
-    layout_values::Val,
     registry::FrameRegistry,
     screen::{Screen, SharedContext},
     text_measure::measure_text,
