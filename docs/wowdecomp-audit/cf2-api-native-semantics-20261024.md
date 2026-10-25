@@ -14,9 +14,9 @@ The wowless API-schema snapshots identify `wow` as build 69933/version 12.1.0, `
 
 ## A — `C_UnitAuras.ClearBlockedAuras`
 
-The wowless Retail and wowxptr schemas declare one required `unit` input and no outputs: `wow/apis.yaml:31858–31862`; `wowxptr/apis.yaml:32220–32223`. The unversioned cached PTR generated docs add `SecretArguments = "AllowedWhenUntainted"` and type the required non-nil argument as `UnitTokenRestrictedForAddOns` (`wow-ui-source/ptr/Interface/AddOns/Blizzard_APIDocumentationGenerated/UnitAuraDocumentation.lua:83–90`). The latter is declaration metadata, not proof of exact native validation or error order.
+The wowless Retail and wowxptr schemas declare one required `unit` input and no outputs: `wow/apis.yaml:31858–31862`; `wowxptr/apis.yaml:32220–32224`. The unversioned cached PTR generated docs add `SecretArguments = "AllowedWhenUntainted"` and type the required non-nil argument as `UnitTokenRestrictedForAddOns` (`wow-ui-source/ptr/Interface/AddOns/Blizzard_APIDocumentationGenerated/UnitAuraDocumentation.lua:83–90`). The latter is declaration metadata, not proof of exact native validation or error order.
 
-The same cached API docs declare synchronous `UNIT_AURA_BLOCK_LIST_CLEARED` with one non-nil `unitTarget: UnitTokenVariant` payload (`UnitAuraDocumentation.lua:582–590`). They do not state that `ClearBlockedAuras` emits this event, when it fires, or whether it fires on an unchanged list. The PTR `Blizzard_PrivateAurasUI.lua:686–690` compares event units with `UnitIsUnit` and clears an addon-owned table; this is UI alias handling, not native token resolution. `CompactArenaFrame.lua:521–524` calls clear and then adds a current aura; caller order does not prove clear semantics.
+The same cached API docs declare synchronous `UNIT_AURA_BLOCK_LIST_CLEARED` with one non-nil `unitTarget: UnitTokenVariant` payload (`UnitAuraDocumentation.lua:582–590`). They do not state that `ClearBlockedAuras` emits this event, when it fires, or whether it fires on an unchanged list. The PTR `Blizzard_PrivateAurasUI.lua:700–703` compares event units with `UnitIsUnit`, then clears an addon-owned table at `:1050–1052`; this is UI alias handling, not native token resolution. `CompactArenaFrame.lua:521–524` calls clear and then adds a current aura; caller order does not prove clear semantics.
 
 The simulator registers `AddBlockedAura` but not a `ClearBlockedAuras` implementation in `src/lua_api/globals/auras.rs:87–117,636–649`. Its stored block keys are simulator state (`:359–370`), not a source for native alias or clear behavior.
 
@@ -72,7 +72,7 @@ The event is declared synchronous with no payload. UI code re-queries during its
 
 ## D — `C_PvP.IsMatchComplete()`
 
-The wowless `wow` and `wowxptr` schemas declare a zero-input query with one boolean output (`wow/apis.yaml:22438–22442`; `wowxptr/apis.yaml:22775–22778`). Generated PTR API docs likewise declare `IsMatchActive()` and `IsMatchComplete()` as zero-argument, one non-nilable boolean each (`PvpInfoDocumentation.lua:937–952`). `PVP_MATCH_ACTIVE` is synchronous with no payload; `PVP_MATCH_COMPLETE` is synchronous with `winner: number` and `duration: time_t`, both non-nil (`PvpInfoDocumentation.lua:1330–1345`). The wowxptr event schema records `winner: number` and `duration: number` (`events.yaml:7422–7426`); this is schema type notation, not evidence of event values or order.
+The wowless `wow` and `wowxptr` schemas declare a zero-input query with one boolean output (`wow/apis.yaml:22438–22442`; `wowxptr/apis.yaml:22775–22779`). Generated PTR API docs likewise declare `IsMatchActive()` and `IsMatchComplete()` as zero-argument, one non-nilable boolean each (`PvpInfoDocumentation.lua:937–952`). `PVP_MATCH_ACTIVE` is synchronous with no payload; `PVP_MATCH_COMPLETE` is synchronous with `winner: number` and `duration: time_t`, both non-nil (`PvpInfoDocumentation.lua:1330–1345`). The wowxptr event schema records `winner: number` and `duration: number` (`events.yaml:7422–7427`); this is schema type notation, not evidence of event values or order.
 
 ### D1. Values and side effects
 
