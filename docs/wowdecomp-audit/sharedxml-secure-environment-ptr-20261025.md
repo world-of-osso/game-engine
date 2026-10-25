@@ -43,4 +43,4 @@ The available non-target UI manifests identify explicit per-file secure loading 
 - Exact native execution count for the 70493 `InputUtil.lua` file.
 - Exact secure-environment add-on/file inventory for build 70493.
 
-A runtime probe would need to run against the exact PTR client and provide a supported way to inspect event registrations on forbidden frames. No such probe was performed.
+A runtime probe would need the exact PTR client, a compatible server session, and a supported way to inspect event registrations on forbidden frames. No such probe was performed.
