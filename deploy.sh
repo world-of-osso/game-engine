@@ -93,9 +93,10 @@ run() {
     fi
 }
 
-# publish: changed files first, then the manifest, then deletions, so the live manifest
-# never names a missing file. Only paths whose (sha256, size) differ from the live
-# manifest are uploaded and only paths it alone names are deleted: a full-tree
+# publish: changed legacy files first, then its manifest; immutable packs are
+# uploaded and checked before publishing the v2 manifest. Keep removed legacy files
+# and old packs for clients using an older manifest. Only changed legacy paths are
+# uploaded: a full-tree
 # rclone copy/sync of the 1.6M-file bundle spent most of a day listing and comparing
 # (2026-10-14). no-cache because paths keep their names across deploys.
 publish() {
@@ -126,14 +127,22 @@ publish() {
     echo "=== Verifying staged bytes of the files to upload ==="
     run python3 "$ROOT/scripts/player_bundle.py" --root "$ROOT" --bundle "$BUNDLE" --platform "$PLATFORM" \
         --verify-manifest --only "$work/upload.txt"
+    echo "=== Building immutable packs from the verified manifest ==="
+    local pack_cache="$BUNDLE.pack-cache"
+    run python3 "$ROOT/scripts/launcher_packs.py" "$BUNDLE" "$pack_cache" --manifest "$BUNDLE/manifest.json"
     echo "=== Uploading changed files to $DESTINATION ==="
     run rclone copy "$BUNDLE/" "$DESTINATION" --files-from "$work/upload.txt" --no-traverse \
         "${upload[@]}" --stats 60s --stats-one-line
     echo "=== Publishing manifest ==="
     run rclone copyto "$BUNDLE/manifest.json" "$DESTINATION/manifest.json" "${upload[@]}"
-    echo "=== Deleting files the manifest no longer names ==="
-    run rclone delete "$DESTINATION" --files-from "$work/delete.txt" --no-traverse \
+    echo "=== Publishing and checking immutable packs ==="
+    run rclone copy "$pack_cache/packs/" "$DESTINATION/packs/" --immutable \
+        --transfers 48 --checkers 16 --low-level-retries 20
+    run rclone check "$pack_cache/packs/" "$DESTINATION/packs/" --one-way --size-only \
         --checkers 16 --low-level-retries 20
+    echo "=== Publishing v2 manifest ==="
+    run rclone copyto "$pack_cache/manifest-v2.json" "$DESTINATION/manifest-v2.json" "${upload[@]}"
+    echo "=== Retaining old legacy files and packs for existing clients ==="
 }
 
 echo "=== Building Linux native extension (release, bookworm) ==="
