@@ -67,17 +67,17 @@ The publisher retains `chunk-index.json` version 1 beside the packs. Its key is 
 
 ## Local fixture proof (2026-10-26; incomplete implementation)
 
-`scripts/tests/launcher_pack_e2e.py` exercised the real Linux CLI launcher at game-launcher commit `d2a0f39`, with 96 files of 4 KiB and a 64 KiB test pack target. The localhost server added 10 ms per request. It compared every installed file byte-for-byte after each run. Results include manifest and launcher-update requests; asset counts are in parentheses:
+`scripts/tests/launcher_pack_e2e.py` exercised the real Linux CLI launcher at game-launcher commit `1a1f25b`, with 96 files of 4 KiB and a 64 KiB test pack target. The localhost server added 10 ms per request. It compared every installed file byte-for-byte after each run. Results include manifest and launcher-update requests; asset counts are in parentheses:
 
 | Case | Requests (assets) | Wall time |
 |---|---:|---:|
-| Pack cold | 9 (7) | 0.1171 s |
-| Legacy cold | 99 (96) | 2.1520 s |
-| Pack delta, two changed files | 4 (2) | 0.1572 s |
-| Legacy delta, same changes | 5 (2) | 0.1634 s |
-| Pack resume after process interruption | 3 (1) | 0.1748 s |
+| Pack cold | 9 (7) | 0.1092 s |
+| Legacy cold | 99 (96) | 1.7214 s |
+| Pack delta, two changed files | 4 (2) | 0.0900 s |
+| Legacy delta, same changes | 5 (2) | 0.0968 s |
+| Pack resume after process interruption | 3 (1) | 0.1020 s |
 
-The interruption retained seven verified packs; none was requested again on resume. This is a small localhost fixture, not a release benchmark. Publisher deployment integration, range and security coverage, retry behavior, and native Windows proof still need verification. No live publication was performed.
+The interruption retained seven verified packs; none was requested again on resume. This is a small localhost fixture, not a release benchmark. Publisher deployment integration, range and security coverage, running-game exclusion, and native Windows proof still need verification. Default-feature Cargo check failed on this host because the `javascriptcoregtk-4.1` system package is absent. No live publication was performed.
 
 ## Expected effect and acceptance measurements
 
