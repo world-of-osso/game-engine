@@ -57,6 +57,14 @@ Preserve `C:\Users\adeia\AppData\Local\World of Osso` and all unrelated user dat
 
 `scripts/depot-build.py` builds the extension; it is not the current publisher. `deploy.sh` assembles with `scripts/player_bundle.py`, invokes the file-server manifest generator and uses `scripts/manifest_diff.py` plus rclone for uploads. Add deterministic chunk/pack generation after staging in that publishing pipeline, with persisted chunk-to-pack index, staged-byte verification, and tests for reproducibility, corrupt records, old-manifest retention and reconstruction. `depot-build.py` should remain the build step unless an explicit orchestration interface is needed; it must not independently publish. Publish packs before v2 manifest, maintain legacy publication during migration, and make garbage collection a separate retention-aware operation.
 
+## Implemented v2 format (work in progress)
+
+The separate `manifest-v2.json` has `version: 2`, `format_version: 1`, and `chunking` with version 1, minimum 262,144 bytes, average 1,048,576 bytes, and maximum 4,194,304 bytes. Each file has its path, size, SHA-256, and ordered chunks. Each chunk has its SHA-256, size, pack SHA-256, pack size, and payload offset. Packs live at `packs/<sha256>` and start with the eight-byte magic `OSSPACK\x01`; each record is a little-endian 32-bit payload length followed by its bytes. Pack identity is SHA-256 of the whole object.
+
+Files of at most 1 MiB use one chunk. For larger files, the version-1 chunker starts a 64-bit rolling value at zero and updates it for each byte as `(value << 1) + gear[byte]`, modulo 2^64. `gear[i]` is the little-endian integer represented by the first eight bytes of `SHA256(bytes([i]))`. After the minimum, a chunk ends when the low 20 bits are zero, or at the maximum. The rolling value resets at each boundary. The final chunk may be shorter than the minimum.
+
+The publisher retains `chunk-index.json` version 1 beside the packs. Its key is the asset group and chunk digest; an existing key keeps its old pack and offset. New records are sorted by group and digest, and packs target 32 MiB. `data/<directory>` entries have separate groups; other paths use their top-level directory, or `_root` for root files. Old pack objects are not deleted. This implementation is not yet approved for live publication.
+
 ## Local fixture proof (2026-10-26; incomplete implementation)
 
 `scripts/tests/launcher_pack_e2e.py` exercised the real Linux CLI launcher at game-launcher commit `d2a0f39`, with 96 files of 4 KiB and a 64 KiB test pack target. The localhost server added 10 ms per request. It compared every installed file byte-for-byte after each run. Results include manifest and launcher-update requests; asset counts are in parentheses:
