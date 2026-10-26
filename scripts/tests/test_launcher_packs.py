@@ -26,6 +26,21 @@ class PackTests(unittest.TestCase):
                 payload = b''.join((output / 'packs' / chunk['pack']).read_bytes()[chunk['offset']:chunk['offset'] + chunk['size']] for chunk in entry['chunks'])
                 self.assertEqual(payload, (source / entry['path']).read_bytes())
 
+    def test_old_manifest_still_reconstructs_after_changed_file(self):
+        with tempfile.TemporaryDirectory() as directory:
+            root = Path(directory)
+            source = root / 'source'
+            source.mkdir()
+            asset = source / 'a'
+            asset.write_bytes(b'old bytes')
+            output = root / 'output'
+            old = build_packs(source, output)
+            asset.write_bytes(b'new bytes')
+            build_packs(source, output)
+            chunk = old['files'][0]['chunks'][0]
+            data = (output / 'packs' / chunk['pack']).read_bytes()
+            self.assertEqual(data[chunk['offset']:chunk['offset'] + chunk['size']], b'old bytes')
+
     def test_manifest_selects_exact_files_and_checks_staged_digest(self):
         import hashlib
         with tempfile.TemporaryDirectory() as directory:
