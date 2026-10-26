@@ -57,6 +57,20 @@ Preserve `C:\Users\adeia\AppData\Local\World of Osso` and all unrelated user dat
 
 `scripts/depot-build.py` builds the extension; it is not the current publisher. `deploy.sh` assembles with `scripts/player_bundle.py`, invokes the file-server manifest generator and uses `scripts/manifest_diff.py` plus rclone for uploads. Add deterministic chunk/pack generation after staging in that publishing pipeline, with persisted chunk-to-pack index, staged-byte verification, and tests for reproducibility, corrupt records, old-manifest retention and reconstruction. `depot-build.py` should remain the build step unless an explicit orchestration interface is needed; it must not independently publish. Publish packs before v2 manifest, maintain legacy publication during migration, and make garbage collection a separate retention-aware operation.
 
+## Local fixture proof (2026-10-26; incomplete implementation)
+
+`scripts/tests/launcher_pack_e2e.py` exercised the real Linux CLI launcher at game-launcher commit `d2a0f39`, with 96 files of 4 KiB and a 64 KiB test pack target. The localhost server added 10 ms per request. It compared every installed file byte-for-byte after each run. Results include manifest and launcher-update requests; asset counts are in parentheses:
+
+| Case | Requests (assets) | Wall time |
+|---|---:|---:|
+| Pack cold | 9 (7) | 0.1171 s |
+| Legacy cold | 99 (96) | 2.1520 s |
+| Pack delta, two changed files | 4 (2) | 0.1572 s |
+| Legacy delta, same changes | 5 (2) | 0.1634 s |
+| Pack resume after process interruption | 3 (1) | 0.1748 s |
+
+The interruption retained seven verified packs; none was requested again on resume. This is a small localhost fixture, not a release benchmark. Publisher deployment integration, range and security coverage, retry behavior, and native Windows proof still need verification. No live publication was performed.
+
 ## Expected effect and acceptance measurements
 
 At an ideal 32 MiB per pack, 229.94 GB is about **6,853 packs** instead of 1,678,634 individual file GETs, a theoretical **99.6% reduction in cold payload request count**; group boundaries, chunk duplication, empty files and actual fill increase the count. This is arithmetic, not a measured result. Using the sample's 292 ms mean header time as a rough comparison, 32-way request-latency work changes from about 4.25 hours (`1,678,634 × 0.292 / 32`) to about 63 seconds (`6,853 × 0.292 / 32`). Network transfer, hashing, disk writes, parallel overlap and server behavior prevent translating that difference directly into wall-time savings. A full cold install must still write and verify the same file payload; pack bandwidth is unmeasured.
