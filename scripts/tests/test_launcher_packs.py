@@ -16,6 +16,7 @@ class PackTests(unittest.TestCase):
             (source / 'a').write_bytes(b'first')
             output = root / 'output'
             first = build_packs(source, output)
+            self.assertEqual(first['format_version'], 1)
             first_chunk = first['files'][0]['chunks'][0]
             self.assertEqual(build_packs(source, output), first)
             (source / 'b').write_bytes(b'second')

@@ -115,7 +115,7 @@ def build_packs(source, output):
                     or len(chunk) != size or hashlib.sha256(chunk).hexdigest() != record['sha256']
                     or record['sha256'] != key.rsplit(':', 1)[1]):
                 raise ValueError(f'corrupt chunk index: {key}')
-    manifest = {'version': 2, 'chunking': {'version': 1, 'min': MIN_CHUNK, 'average': MIB, 'max': MAX_CHUNK},
+    manifest = {'version': 2, 'format_version': 1, 'chunking': {'version': 1, 'min': MIN_CHUNK, 'average': MIB, 'max': MAX_CHUNK},
                 'files': [{'path': path, 'size': size, 'sha256': digest, 'chunks': [existing[key] for key in refs]} for path, size, digest, refs in entries]}
     for path, value in ((index_path, index), (output / 'manifest-v2.json', manifest)):
         temporary = path.with_suffix(path.suffix + '.part')
