@@ -33,7 +33,7 @@ def chunks(path):
             yield bytes(current)
 
 
-def build_packs(source, output):
+def build_packs(source, output, input_manifest=None):
     source, output = Path(source), Path(output)
     packdir = output / 'packs'
     packdir.mkdir(parents=True, exist_ok=True)
@@ -43,8 +43,16 @@ def build_packs(source, output):
         raise ValueError('unsupported chunk index version')
     existing = index['chunks']
     entries, pending = [], {}
-    for path in sorted(p for p in source.rglob('*') if p.is_file()):
-        relative = path.relative_to(source).as_posix()
+    if input_manifest is None:
+        paths = [(p.relative_to(source).as_posix(), None) for p in source.rglob('*') if p.is_file()]
+    else:
+        paths = [(item['path'], item) for item in input_manifest['files']]
+    if len({name for name, _ in paths}) != len(paths):
+        raise ValueError('duplicate staged path')
+    for relative, expected in sorted(paths):
+        if any(part in ('', '.', '..') for part in relative.split('/')) or '\\' in relative or ':' in relative:
+            raise ValueError(f'unsafe staged path: {relative}')
+        path = source / relative
         parts = relative.split('/')
         group = '/'.join(parts[:2]) if parts[0] == 'data' and len(parts) > 2 else (parts[0] if len(parts) > 1 else '_root')
         file_hash = hashlib.sha256()
@@ -58,7 +66,10 @@ def build_packs(source, output):
             refs.append(key)
             if key not in existing and key not in pending:
                 pending[key] = (path, size - len(chunk), len(chunk))
-        entries.append((relative, size, file_hash.hexdigest(), refs))
+        digest = file_hash.hexdigest()
+        if expected is not None and (size != expected['size'] or digest != expected['sha256']):
+            raise ValueError(f'staged file does not match manifest: {relative}')
+        entries.append((relative, size, digest, refs))
 
     def flush(records):
         data = bytearray(HEADER)
@@ -128,8 +139,9 @@ def main():
     parser = argparse.ArgumentParser()
     parser.add_argument('source', type=Path)
     parser.add_argument('output', type=Path)
+    parser.add_argument('--manifest', type=Path, required=True)
     args = parser.parse_args()
-    build_packs(args.source, args.output)
+    build_packs(args.source, args.output, json.loads(args.manifest.read_text()))
 
 
 if __name__ == '__main__':

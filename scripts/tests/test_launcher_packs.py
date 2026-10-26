@@ -26,6 +26,21 @@ class PackTests(unittest.TestCase):
                 payload = b''.join((output / 'packs' / chunk['pack']).read_bytes()[chunk['offset']:chunk['offset'] + chunk['size']] for chunk in entry['chunks'])
                 self.assertEqual(payload, (source / entry['path']).read_bytes())
 
+    def test_manifest_selects_exact_files_and_checks_staged_digest(self):
+        import hashlib
+        with tempfile.TemporaryDirectory() as directory:
+            root = Path(directory)
+            source = root / 'source'
+            source.mkdir()
+            (source / 'a').write_bytes(b'first')
+            (source / 'unlisted').write_bytes(b'ignored')
+            listed = {'files': [{'path': 'a', 'size': 5, 'sha256': hashlib.sha256(b'first').hexdigest()}]}
+            result = build_packs(source, root / 'output', listed)
+            self.assertEqual([entry['path'] for entry in result['files']], ['a'])
+            (source / 'a').write_bytes(b'wrong')
+            with self.assertRaisesRegex(ValueError, 'staged'):
+                build_packs(source, root / 'output', listed)
+
     def test_large_file_insertion_reuses_content_defined_chunks(self):
         import random
         with tempfile.TemporaryDirectory() as directory:
