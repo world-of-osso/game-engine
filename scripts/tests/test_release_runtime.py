@@ -1,4 +1,6 @@
 import hashlib
+import os
+import shutil
 import subprocess
 import sys
 import tempfile
@@ -7,6 +9,50 @@ from pathlib import Path
 
 
 class ReleaseRuntimeTest(unittest.TestCase):
+    def test_builder_installs_checked_release_template(self):
+        with tempfile.TemporaryDirectory() as directory:
+            root = Path(directory)
+            scripts = root / 'scripts/godot'
+            scripts.mkdir(parents=True)
+            original = Path(__file__).parents[1] / 'godot'
+            for name in ('build-patched-godot.sh', 'pinned.sh'):
+                shutil.copy2(original / name, scripts / name)
+            version = '4.7.2-pr123946-pr123546'
+            (scripts / f'godot-{version}-template-release.sha512').write_text(hashlib.sha512(b'template').hexdigest() + '\n')
+            work = root / 'work'
+            sdk = work / 'x86_64-godot-linux-gnu_sdk-buildroot'
+            (sdk / 'bin').mkdir(parents=True)
+            (sdk / '.relocated').touch()
+            (work / 'accesskit/accesskit-c').mkdir(parents=True)
+            tools = root / 'tools'
+            tools.mkdir()
+            git = tools / 'git'
+            git.write_text('''#!/usr/bin/python3
+import pathlib, sys
+if 'clone' in sys.argv:
+    pathlib.Path(sys.argv[-1]).mkdir(parents=True)
+elif 'rev-parse' in sys.argv:
+    print('ed1daf0bf001b61586d9930840f2f1394092c079')
+''')
+            git.chmod(0o755)
+            uvx = tools / 'uvx'
+            uvx.write_text('''#!/usr/bin/python3
+import pathlib, sys
+if 'target=template_release' not in sys.argv:
+    raise SystemExit('wrong Godot target')
+output = pathlib.Path.cwd() / 'bin/godot.linuxbsd.template_release.x86_64'
+output.parent.mkdir(parents=True)
+output.write_bytes(b'template')
+''')
+            uvx.chmod(0o755)
+            env = dict(os.environ, XDG_CACHE_HOME=str(root / 'cache'), GODOT_BUILD_DIR=str(work),
+                       PATH=str(tools) + os.pathsep + os.environ['PATH'])
+            result = subprocess.run([str(scripts / 'build-patched-godot.sh'), '--template-release', '--jobs', '1'],
+                                    env=env, text=True, capture_output=True)
+            self.assertEqual(result.returncode, 0, result.stderr)
+            runtime = root / 'cache/game-engine/godot' / version / f'godot-template-release-{version}'
+            self.assertEqual(runtime.read_bytes(), b'template')
+
     def test_runtime_checksum_accepts_exact_binary_and_rejects_mutation(self):
         with tempfile.TemporaryDirectory() as directory:
             root = Path(directory)
