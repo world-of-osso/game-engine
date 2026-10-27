@@ -372,6 +372,13 @@ class PlayerBundleTest(unittest.TestCase):
                 bundle.write_extension_config(target, platform)
                 self.assertIn(library, (target / 'godot/game_engine.gdextension').read_text())
 
+    def test_player_window_opens_maximized(self):
+        with tempfile.TemporaryDirectory() as directory:
+            target = Path(directory)
+            bundle.write_extension_config(target, 'windows-x86_64')
+            self.assertEqual((target / 'godot/override.cfg').read_text(),
+                             '[display]\nwindow/size/mode=2\n')
+
 
 if __name__ == '__main__':
     unittest.main()

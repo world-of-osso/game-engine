@@ -253,6 +253,9 @@ def write_extension_config(bundle, platform):
         '[configuration]\nentry_symbol = "gdext_rust_init"\ncompatibility_minimum = "4.7"\nreloadable = false\n\n'
         f'[libraries]\n{libraries}\n'
     )
+    # Players get a maximized window (Retail's default); the dev project keeps its fixed
+    # 1280x720 window because capture fixtures depend on it.
+    (project / 'override.cfg').write_text('[display]\nwindow/size/mode=2\n')
     cache = project / '.godot'
     cache.mkdir(exist_ok=True)
     (cache / 'extension_list.cfg').write_text('res://game_engine.gdextension\n')
