@@ -16,7 +16,7 @@ def import_project(root, generated, godot):
         with tempfile.TemporaryDirectory() as home:
             env = dict(os.environ, XDG_CONFIG_HOME=f'{home}/config',
                        XDG_DATA_HOME=f'{home}/data', XDG_CACHE_HOME=f'{home}/cache')
-            subprocess.run(['bwrap', '--ro-bind', '/', '/', '--bind', str(generated), str(generated),
+            subprocess.run(['bwrap', '--ro-bind', '/', '/', '--dev', '/dev', '--bind', str(generated), str(generated),
                             '--bind', home, home, '--', str(godot), '--headless',
                             '--path', str(generated / 'godot'), '--import'], env=env, check=True)
     finally:

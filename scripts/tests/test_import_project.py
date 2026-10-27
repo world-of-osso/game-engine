@@ -21,6 +21,8 @@ class ImportProjectTest(unittest.TestCase):
             executable = generated / 'godot-fixture'
             executable.write_text('''#!/usr/bin/python3
 import errno, pathlib, sys
+with open('/dev/null', 'w') as sink:
+    sink.write('test')
 project = pathlib.Path(sys.argv[sys.argv.index('--path') + 1])
 source = project.parent / 'data/catalog'
 assert source.read_text() == 'original'
