@@ -4,10 +4,12 @@ Linux and Windows players share one staged project/data bundle. Publisher: `depl
 
 ## What it must do
 
-- [x] Copy mutable catalogs independently of their sources: `cache`, `db2`, `dbfilesclient`, `gametables`, `reference`, and SQLite/CSV/RON/JSON/text files elsewhere. Later source writes must not change staged bytes. Immutable extracted payloads may share storage.
-- [x] Generate the download manifest by hashing staged files, not live source files.
-- [x] Before uploading any bundle bytes, compare every manifest member's staged size and SHA256 with the generated manifest. Missing or changed files abort publication with path-specific errors.
-- [x] Preserve the runtime allowlist, product receipt selection and credential/extraction-state exclusions.
+- [x] Map shipped paths to source files without copying the full data set. Generate the project import and native files separately. Use SQLite online backups for mutable database files; hash, pack, and upload the backups.
+- [x] Generate the download manifest from source bytes. Detect source changes after hashing and reject changed bytes during pack construction.
+- [x] Stream each changed file to a temporary object, verify the streamed size and SHA256 against the manifest, and promote only matching bytes. Missing or changed files abort publication with path-specific errors.
+- [x] A dry run generates both manifests and packs without accessing the live bucket.
+- [x] Compare old and new file paths, sizes, and SHA256 except `godot/.godot/uid_cache.bin` and SQLite backups. Compare the UID cache's parsed UID-to-path pairs; two cold imports of the same old bundle produced different cache byte order. Do not rewrite the cache to make it deterministic. For each SQLite backup, compare schema and rows with a quiesced copy of its source; online backup bytes can differ from a raw file copy. Pack locations may differ; verify every referenced pack, range, and reconstructed file hash.
+- [x] Preserve the runtime allowlist, product receipt selection and credential/extraction-state exclusions. Abort if model indexes change while selecting or hashing their assets.
 - [x] `model-asset-index*.json` entries must stay within `products/<product>/<build_key>/`. UI audio ships directly through `sounds/` (including `sounds/ui/`); keep its verification receipts outside the model-index filename family. Do not produce model-asset-index fragments for flat UI sound paths.
 
 ## How it works
@@ -16,7 +18,7 @@ Linux and Windows players share one staged project/data bundle. Publisher: `depl
 
 ## Tests asserting this spec
 
-- `scripts/tests/test_player_bundle.py`: real SQLite source mutations cannot change staged catalogs; actual verifier CLI accepts matching bytes and rejects same-size mutation, incorrect size and missing files. Existing allowlist, product namespace and native-file cases remain required.
+- `scripts/tests/test_player_bundle.py`, `test_launcher_packs.py`, `test_mapped_deploy.py`, and `test_verified_upload.py` cover selection, source drift, removed files, pack output, and verified upload promotion. Existing allowlist, product namespace and native-file cases remain required.
 
 ## Out of scope
 

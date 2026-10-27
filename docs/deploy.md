@@ -1,6 +1,6 @@
 # Deploying the client
 
-`./deploy.sh` builds one combined Linux/Windows x86_64 Godot player bundle and publishes it to the public R2 bucket behind `files.worldofosso.com`. `./deploy.sh --dry-run` builds and assembles the same bundle, then prints the publish commands without running them.
+`./deploy.sh` builds the combined Linux/Windows x86_64 Godot player manifests and publishes them to the public R2 bucket behind `files.worldofosso.com`. `./deploy.sh --dry-run` builds the local manifests and packs without accessing the live bucket.
 
 ## Build
 
@@ -26,7 +26,7 @@ The import runs once at assembly with `.godot/extension_list.cfg` already writte
 
 `deploy.sh` uses the shared Linux/Windows assembler `scripts/player_bundle.py`. Its `data/` allowlist includes `cache campsite-ui db2 dbfilesclient fogs fonts forever-1.60.1.70205 gametables glues item-models los minimap models music products reference sounds terrain textures ui`, top-level `*.csv`, `*.ron` and `local-listfile-cache.sqlite`. TACT keys, credentials and diagnostics are excluded. It drops `*.missing` extraction markers, `*.lock`, `cache/casc` and `cache/pre-retail-*`. Both player entries set `GAME_ENGINE_ASSET_MODE=extracted-only`. `data/` also holds `auth_token*` files, diagnostics and screenshots, so it is never synced wholesale. On 2026-10-03 the bundle was 38 GB and 93,328 files. Of that, CASC extraction caches (`models`, `textures`, `terrain`, `music`) make up about 29 GB, and `los` 6.3 GB.
 
-Mutable catalogs are copied independently: `cache`, `db2`, `dbfilesclient`, `gametables`, `reference`, and SQLite/CSV/RON/JSON/text files. Immutable extracted payloads retain cheap hard-link staging. The manifest generator hashes the staged bundle; `player_bundle.py --verify-manifest --only <upload list>` re-checks the size and SHA256 of every file about to be uploaded and aborts on drift. [Staging contract](specs/player-bundle.md) owns this boundary.
+The deploy maps player paths to source files instead of copying the full data set. Mutable SQLite databases use online backups under `target/deploy/player.manifests/sqlite-snapshots`; other sources that change after hashing abort the deploy. Changed files stream to temporary objects and are promoted only after their size and SHA256 match the manifest. Generated project and import files live under `target/deploy/player.generated`; the persistent pack cache remains at `target/deploy/player.pack-cache`. Import uses `bwrap` to read source data without modifying it. The [staging contract](specs/player-bundle.md) owns this boundary.
 
 The player-bundle direction is extracted-only: players must not need a retail install or runtime CASC extraction. [Shipped assets](specs/shipped-assets.md) owns the runtime policy landed in `b4094d2b2`/`f6b32b79e`; P1 requires `GAME_ENGINE_ASSET_MODE=extracted-only`, while unset still selects development local-CASC mode. P1 did not change deployment; the combined Linux/Windows bundle now selects extracted-only from both entries. Manifest-qualified packaging and pristine no-install/download acceptance remain later phases; [offline closure](wiki/systems/offline-asset-closure.md) records the incomplete audit, not a release-ready asset set.
 

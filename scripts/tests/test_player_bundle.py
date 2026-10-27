@@ -16,6 +16,151 @@ spec.loader.exec_module(bundle)
 
 
 class PlayerBundleTest(unittest.TestCase):
+    def test_source_map_matches_assembled_bundle_and_drops_removed_files(self):
+        with tempfile.TemporaryDirectory() as directory:
+            root = Path(directory) / 'root'
+            root.mkdir()
+            subprocess.run(['git', 'init', '-q', str(root)], check=True)
+            (root / 'godot/scenes').mkdir(parents=True)
+            (root / 'godot/project.godot').write_text('project')
+            (root / 'godot/scenes/main.tscn').write_text('scene')
+            subprocess.run(['git', '-C', str(root), 'add', 'godot'], check=True)
+            data = root / 'data'
+            for name in bundle.DATA_DIRS:
+                (data / name).mkdir(parents=True)
+            (data / 'cache/model-asset-index.json').write_text('{"version":1,"assets":[]}')
+            asset = data / 'textures/12.blp'
+            asset.write_bytes(b'asset')
+            artifacts = root / 'windows'
+            artifacts.mkdir()
+            for name in ('godot.exe', 'game_engine_godot.dll', 'game-engine-windows-x86_64.exe'):
+                (artifacts / name).write_text(name)
+            staged = root / 'staged'
+            bundle.copy_project(root, staged, 'linux-x86_64')
+            bundle.copy_data(root, staged)
+            bundle.copy_windows_native(artifacts, staged)
+            generated = root / 'generated'
+            bundle.write_extension_config(generated, 'linux-x86_64')
+            mapping = bundle.source_map(root, generated, artifacts)
+            expected = {p.relative_to(staged).as_posix(): p.read_bytes()
+                        for p in staged.rglob('*') if p.is_file()}
+            self.assertEqual({name: path.read_bytes() for name, path in mapping.items()}, expected)
+            asset.unlink()
+            self.assertNotIn('data/textures/12.blp', bundle.source_map(root, generated, artifacts))
+
+    def test_mapped_manifest_rejects_mutation_and_drops_removed_files(self):
+        with tempfile.TemporaryDirectory() as directory:
+            root = Path(directory)
+            catalog = root / 'catalog.sqlite'
+            extra = root / 'extra'
+            catalog.write_bytes(b'expected')
+            extra.write_bytes(b'extra')
+            paths = {'data/cache/catalog.sqlite': catalog, 'extra': extra}
+            manifest = bundle.mapped_manifest(paths, root / 'digest-cache.json')
+            self.assertEqual([entry['path'] for entry in manifest['files']],
+                             ['data/cache/catalog.sqlite', 'extra'])
+            catalog.write_bytes(b'mutated!')
+            with self.assertRaisesRegex(ValueError, 'data/cache/catalog.sqlite'):
+                bundle.verify_mapped_manifest(paths, manifest)
+            extra.unlink()
+            paths.pop('extra')
+            refreshed = bundle.mapped_manifest(paths, root / 'digest-cache.json')
+            self.assertEqual([entry['path'] for entry in refreshed['files']],
+                             ['data/cache/catalog.sqlite'])
+
+    def test_manifest_captures_catalog_mutation_during_other_source_hashing(self):
+        import threading
+        from unittest.mock import patch
+        with tempfile.TemporaryDirectory() as directory:
+            root = Path(directory)
+            catalog = root / 'catalog.sqlite'
+            other = root / 'other.blp'
+            catalog.write_bytes(b'before')
+            other.write_bytes(b'payload')
+            started, proceed = threading.Event(), threading.Event()
+            digest_file = hashlib.file_digest
+            def synchronized_digest(stream, algorithm):
+                if Path(stream.name) == other:
+                    started.set()
+                    if not proceed.wait(5):
+                        raise TimeoutError('test did not release hash')
+                return digest_file(stream, algorithm)
+            result = []
+            with patch.object(bundle.hashlib, 'file_digest', side_effect=synchronized_digest):
+                worker = threading.Thread(target=lambda: result.append(bundle.mapped_manifest(
+                    {'data/cache/catalog.sqlite': catalog, 'data/textures/other.blp': other},
+                    root / 'cache.json')))
+                worker.start()
+                self.assertTrue(started.wait(5))
+                catalog.write_bytes(b'after!')
+                proceed.set()
+                worker.join(5)
+                self.assertFalse(worker.is_alive())
+            entry = next(item for item in result[0]['files'] if item['path'].endswith('catalog.sqlite'))
+            self.assertEqual(entry['sha256'], hashlib.sha256(b'after!').hexdigest())
+
+    def test_sqlite_snapshot_remains_consistent_after_source_write(self):
+        import importlib
+        sys.path.insert(0, str(Path(bundle.__file__).parent))
+        packs = importlib.import_module('launcher_packs')
+        with tempfile.TemporaryDirectory() as directory:
+            root = Path(directory)
+            source = root / 'catalog.sqlite'
+            with closing(sqlite3.connect(source)) as database:
+                database.execute('PRAGMA journal_mode=WAL')
+                database.execute('CREATE TABLE names (name TEXT)')
+                database.execute("INSERT INTO names VALUES ('before')")
+                database.commit()
+                paths = {'data/cache/catalog.sqlite': source}
+                selected = bundle.snapshot_sqlite_sources(paths, root / 'snapshots')
+                manifest = bundle.mapped_manifest(selected, root / 'digest-cache.json')
+                database.execute("INSERT INTO names VALUES ('after')")
+                database.commit()
+                with closing(sqlite3.connect(selected['data/cache/catalog.sqlite'])) as snapshot:
+                    self.assertEqual(snapshot.execute('SELECT name FROM names').fetchall(), [('before',)])
+                bundle.verify_mapped_manifest(selected, manifest)
+                packed = packs.build_packs(root, root / 'packs', manifest, source_map=selected)
+                chunks = packed['files'][0]['chunks']
+                payload = b''.join((root / 'packs/packs' / item['pack']).read_bytes()[item['offset']:item['offset'] + item['size']] for item in chunks)
+                self.assertEqual(payload, selected['data/cache/catalog.sqlite'].read_bytes())
+                with closing(sqlite3.connect(selected['data/cache/catalog.sqlite'])) as snapshot, snapshot:
+                    snapshot.execute("INSERT INTO names VALUES ('changed')")
+                with self.assertRaisesRegex(ValueError, 'data/cache/catalog.sqlite'):
+                    bundle.verify_mapped_manifest(selected, manifest)
+
+    def test_index_selection_rejects_source_changes_and_new_fragments(self):
+        with tempfile.TemporaryDirectory() as directory:
+            root = Path(directory)
+            cache = root / 'data/cache'
+            cache.mkdir(parents=True)
+            index = cache / 'model-asset-index.json'
+            index.write_text('{"version":1,"assets":[]}')
+            state = bundle.model_index_state(root)
+            index.write_text('{"version":1,"assets":[1]}')
+            with self.assertRaisesRegex(ValueError, 'model-asset-index.json'):
+                bundle.verify_model_index_state(root, state)
+            state = bundle.model_index_state(root)
+            (cache / 'model-asset-index-new.json').write_text('{"version":1,"assets":[]}')
+            with self.assertRaisesRegex(ValueError, 'model-asset-index-new.json'):
+                bundle.verify_model_index_state(root, state)
+
+    def test_project_only_cli_prepares_import_without_data(self):
+        with tempfile.TemporaryDirectory() as directory:
+            root = Path(directory) / 'root'
+            root.mkdir()
+            subprocess.run(['git', 'init', '-q', str(root)], check=True)
+            (root / 'godot').mkdir()
+            (root / 'godot/project.godot').write_text('project')
+            subprocess.run(['git', '-C', str(root), 'add', 'godot'], check=True)
+            output = root / 'generated'
+            result = subprocess.run([sys.executable, str(Path(bundle.__file__)), '--root', str(root),
+                                     '--bundle', str(output), '--platform', 'linux-x86_64',
+                                     '--project-only'], capture_output=True, text=True)
+            self.assertEqual(result.returncode, 0, result.stderr)
+            self.assertEqual((output / 'godot/project.godot').read_text(), 'project')
+            self.assertTrue((output / 'godot/.godot/extension_list.cfg').exists())
+            self.assertFalse((output / 'data').exists())
+
     def test_allowlist_excludes_credentials_and_extraction_state(self):
         with tempfile.TemporaryDirectory() as directory:
             root = Path(directory)

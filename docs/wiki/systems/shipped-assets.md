@@ -72,7 +72,11 @@ Evidence lives under
 
 ## Publication staging — 2026-10-14
 
-Separate from P1/CASC policy: hard-linking a mutable SQLite catalog lets later source writes alter staged upload bytes. The [bundle staging contract](../../specs/player-bundle.md) now copies mutable catalogs independently while extracted immutable payloads retain shared storage. Manifest generation hashes the staged directory; its verifier rechecks staged size/SHA256 before the first upload. Real SQLite mutation and actual verifier CLI cases reproduced RED2→GREEN8, including same-size corruption, incorrect size and missing files. This is packaging integrity proof, not full asset closure or publication acceptance.
+Separate from P1/CASC policy: hard-linking a mutable SQLite catalog lets later source writes alter staged upload bytes. The former staging contract copied mutable catalogs and rechecked staged size/SHA256 before upload. Real SQLite mutation and verifier CLI cases reproduced RED2→GREEN8. This historical proof is not full asset closure or publication acceptance.
+
+## Mapped publication — 2026-10-27
+
+The [bundle contract](../../specs/player-bundle.md) replaces full data staging with a source map. SQLite databases use online backups; other changed sources abort. Uploads are verified while streaming to temporary objects before promotion. A local dry run at `f21453ee8` completed for 1,678,640 files without publication. Independent proof checked 36 SQLite snapshots against quiesced source copies and reconstructed every file from 6,296 packs. UID cache byte order and SQLite backup bytes have the documented logical-comparison exceptions; full offline asset closure remains separate.
 
 ## Sources
 
