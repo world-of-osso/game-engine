@@ -68,6 +68,23 @@ class PlayerBundleTest(unittest.TestCase):
             self.assertEqual([entry['path'] for entry in refreshed['files']],
                              ['data/cache/catalog.sqlite'])
 
+    def test_project_only_cli_prepares_import_without_data(self):
+        with tempfile.TemporaryDirectory() as directory:
+            root = Path(directory) / 'root'
+            root.mkdir()
+            subprocess.run(['git', 'init', '-q', str(root)], check=True)
+            (root / 'godot').mkdir()
+            (root / 'godot/project.godot').write_text('project')
+            subprocess.run(['git', '-C', str(root), 'add', 'godot'], check=True)
+            output = root / 'generated'
+            result = subprocess.run([sys.executable, str(Path(bundle.__file__)), '--root', str(root),
+                                     '--bundle', str(output), '--platform', 'linux-x86_64',
+                                     '--project-only'], capture_output=True, text=True)
+            self.assertEqual(result.returncode, 0, result.stderr)
+            self.assertEqual((output / 'godot/project.godot').read_text(), 'project')
+            self.assertTrue((output / 'godot/.godot/extension_list.cfg').exists())
+            self.assertFalse((output / 'data').exists())
+
     def test_allowlist_excludes_credentials_and_extraction_state(self):
         with tempfile.TemporaryDirectory() as directory:
             root = Path(directory)

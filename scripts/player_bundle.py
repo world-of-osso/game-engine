@@ -240,6 +240,7 @@ def main():
     parser.add_argument('--bundle', type=Path, required=True)
     parser.add_argument('--platform', choices=LIBRARIES, required=True)
     parser.add_argument('--windows-artifacts', type=Path)
+    parser.add_argument('--project-only', action='store_true')
     parser.add_argument('--verify-manifest', action='store_true')
     parser.add_argument('--only', type=Path, help='with --verify-manifest: newline list of paths to check')
     args = parser.parse_args()
@@ -251,6 +252,8 @@ def main():
         print(f'Verified {count} staged files against manifest.json')
         return
     copy_project(args.root, args.bundle, args.platform)
+    if args.project_only:
+        return
     copy_data(args.root, args.bundle)
     if args.windows_artifacts:
         copy_windows_native(args.windows_artifacts, args.bundle)
