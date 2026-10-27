@@ -8,6 +8,7 @@ Linux and Windows players share one staged project/data bundle. Publisher: `depl
 - [x] Generate the download manifest from source bytes. Detect source changes after hashing and reject changed bytes during pack construction.
 - [x] Stream each changed file to a temporary object, verify the streamed size and SHA256 against the manifest, and promote only matching bytes. Missing or changed files abort publication with path-specific errors.
 - [x] A dry run generates both manifests and packs without accessing the live bucket.
+- [x] Compare old and new manifest entries byte-for-byte except `godot/.godot/uid_cache.bin`; compare that file's parsed UID-to-path pairs instead. Two cold imports of the same old bundle produced different UID-cache byte order. Do not rewrite the cache to make it deterministic.
 - [x] Preserve the runtime allowlist, product receipt selection and credential/extraction-state exclusions.
 - [x] `model-asset-index*.json` entries must stay within `products/<product>/<build_key>/`. UI audio ships directly through `sounds/` (including `sounds/ui/`); keep its verification receipts outside the model-index filename family. Do not produce model-asset-index fragments for flat UI sound paths.
 
