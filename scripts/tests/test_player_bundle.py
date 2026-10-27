@@ -16,6 +16,38 @@ spec.loader.exec_module(bundle)
 
 
 class PlayerBundleTest(unittest.TestCase):
+    def test_source_map_matches_assembled_bundle_and_drops_removed_files(self):
+        with tempfile.TemporaryDirectory() as directory:
+            root = Path(directory) / 'root'
+            root.mkdir()
+            subprocess.run(['git', 'init', '-q', str(root)], check=True)
+            (root / 'godot/scenes').mkdir(parents=True)
+            (root / 'godot/project.godot').write_text('project')
+            (root / 'godot/scenes/main.tscn').write_text('scene')
+            subprocess.run(['git', '-C', str(root), 'add', 'godot'], check=True)
+            data = root / 'data'
+            for name in bundle.DATA_DIRS:
+                (data / name).mkdir(parents=True)
+            (data / 'cache/model-asset-index.json').write_text('{"version":1,"assets":[]}')
+            asset = data / 'textures/12.blp'
+            asset.write_bytes(b'asset')
+            artifacts = root / 'windows'
+            artifacts.mkdir()
+            for name in ('godot.exe', 'game_engine_godot.dll', 'game-engine-windows-x86_64.exe'):
+                (artifacts / name).write_text(name)
+            staged = root / 'staged'
+            bundle.copy_project(root, staged, 'linux-x86_64')
+            bundle.copy_data(root, staged)
+            bundle.copy_windows_native(artifacts, staged)
+            generated = root / 'generated'
+            bundle.write_extension_config(generated, 'linux-x86_64')
+            mapping = bundle.source_map(root, generated, artifacts)
+            expected = {p.relative_to(staged).as_posix(): p.read_bytes()
+                        for p in staged.rglob('*') if p.is_file()}
+            self.assertEqual({name: path.read_bytes() for name, path in mapping.items()}, expected)
+            asset.unlink()
+            self.assertNotIn('data/textures/12.blp', bundle.source_map(root, generated, artifacts))
+
     def test_allowlist_excludes_credentials_and_extraction_state(self):
         with tempfile.TemporaryDirectory() as directory:
             root = Path(directory)

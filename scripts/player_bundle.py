@@ -163,6 +163,23 @@ def copy_project(root, bundle, platform):
     write_extension_config(bundle, platform)
 
 
+def source_map(root, generated, windows_artifacts):
+    """Map shipped paths to source files without copying the runtime data."""
+    files = {path.as_posix(): root / path for path in project_files(root)}
+    files.update({(Path('data') / path).as_posix(): root / 'data' / path
+                  for path in data_files(root)})
+    for source, target in (
+        ('godot.exe', 'runtime/godot.exe'),
+        ('game_engine_godot.dll', 'lib/game_engine_godot.dll'),
+        ('game-engine-windows-x86_64.exe', 'game-engine-windows-x86_64'),
+    ):
+        files[target] = windows_artifacts / source
+    for path in generated.rglob('*'):
+        if path.is_file():
+            files[path.relative_to(generated).as_posix()] = path
+    return files
+
+
 def copy_windows_native(artifacts, bundle):
     for source, target in (
         ('godot.exe', 'runtime/godot.exe'),
