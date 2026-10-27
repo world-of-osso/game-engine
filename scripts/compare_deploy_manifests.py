@@ -57,9 +57,9 @@ def compare_manifests(old, new, old_uid, new_uid):
         raise ValueError(f'manifest paths differ: missing={missing[:10]}, extra={extra[:10]}')
     if UID_PATH not in old_files:
         raise ValueError(f'missing {UID_PATH}')
-    for name in old_files:
-        if name != UID_PATH and old_files[name] != new_files[name]:
-            raise ValueError(f'manifest entry differs: {name}')
+    different = [name for name in old_files if name != UID_PATH and old_files[name] != new_files[name]]
+    if different:
+        raise ValueError(f'{len(different)} manifest entries differ: {different[:10]}')
     for entry, path in ((old_files[UID_PATH], old_uid), (new_files[UID_PATH], new_uid)):
         data = path.read_bytes()
         if len(data) != entry['size'] or hashlib.sha256(data).hexdigest() != entry['sha256']:
