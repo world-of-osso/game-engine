@@ -100,24 +100,33 @@ class PlayerBundleTest(unittest.TestCase):
             self.assertEqual(entry['sha256'], hashlib.sha256(b'after!').hexdigest())
 
     def test_sqlite_snapshot_remains_consistent_after_source_write(self):
+        import importlib
+        sys.path.insert(0, str(Path(bundle.__file__).parent))
+        packs = importlib.import_module('launcher_packs')
         with tempfile.TemporaryDirectory() as directory:
             root = Path(directory)
             source = root / 'catalog.sqlite'
-            with closing(sqlite3.connect(source)) as database, database:
+            with closing(sqlite3.connect(source)) as database:
+                database.execute('PRAGMA journal_mode=WAL')
                 database.execute('CREATE TABLE names (name TEXT)')
                 database.execute("INSERT INTO names VALUES ('before')")
-            paths = {'data/cache/catalog.sqlite': source}
-            selected = bundle.snapshot_sqlite_sources(paths, root / 'snapshots')
-            manifest = bundle.mapped_manifest(selected, root / 'digest-cache.json')
-            with closing(sqlite3.connect(source)) as database, database:
+                database.commit()
+                paths = {'data/cache/catalog.sqlite': source}
+                selected = bundle.snapshot_sqlite_sources(paths, root / 'snapshots')
+                manifest = bundle.mapped_manifest(selected, root / 'digest-cache.json')
                 database.execute("INSERT INTO names VALUES ('after')")
-            with closing(sqlite3.connect(selected['data/cache/catalog.sqlite'])) as snapshot:
-                self.assertEqual(snapshot.execute('SELECT name FROM names').fetchall(), [('before',)])
-            bundle.verify_mapped_manifest(selected, manifest)
-            with closing(sqlite3.connect(selected['data/cache/catalog.sqlite'])) as snapshot, snapshot:
-                snapshot.execute("INSERT INTO names VALUES ('changed')")
-            with self.assertRaisesRegex(ValueError, 'data/cache/catalog.sqlite'):
+                database.commit()
+                with closing(sqlite3.connect(selected['data/cache/catalog.sqlite'])) as snapshot:
+                    self.assertEqual(snapshot.execute('SELECT name FROM names').fetchall(), [('before',)])
                 bundle.verify_mapped_manifest(selected, manifest)
+                packed = packs.build_packs(root, root / 'packs', manifest, source_map=selected)
+                chunks = packed['files'][0]['chunks']
+                payload = b''.join((root / 'packs/packs' / item['pack']).read_bytes()[item['offset']:item['offset'] + item['size']] for item in chunks)
+                self.assertEqual(payload, selected['data/cache/catalog.sqlite'].read_bytes())
+                with closing(sqlite3.connect(selected['data/cache/catalog.sqlite'])) as snapshot, snapshot:
+                    snapshot.execute("INSERT INTO names VALUES ('changed')")
+                with self.assertRaisesRegex(ValueError, 'data/cache/catalog.sqlite'):
+                    bundle.verify_mapped_manifest(selected, manifest)
 
     def test_project_only_cli_prepares_import_without_data(self):
         with tempfile.TemporaryDirectory() as directory:
