@@ -11,6 +11,34 @@ import player_bundle
 
 
 class MappedDeployTest(unittest.TestCase):
+    def test_upload_rejects_mutated_source_before_publishing_manifests(self):
+        import hashlib
+        with tempfile.TemporaryDirectory() as directory:
+            root = Path(directory)
+            source = root / 'source'
+            source.write_bytes(b'mutated!')
+            manifest = {'files': [{'path': 'data/cache/catalog.sqlite', 'size': 8,
+                                   'sha256': hashlib.sha256(b'expected').hexdigest()}]}
+            rclone = root / 'rclone'
+            rclone.write_text('''#!/usr/bin/env python3
+import pathlib, sys
+args = sys.argv[1:]
+if args[0] == "rcat":
+    path = pathlib.Path(args[1]); path.parent.mkdir(parents=True, exist_ok=True)
+    path.write_bytes(sys.stdin.buffer.read())
+elif args[0] == "deletefile":
+    pathlib.Path(args[1]).unlink(missing_ok=True)
+else:
+    raise SystemExit("unexpected publication: " + args[0])
+''')
+            rclone.chmod(0o755)
+            with self.assertRaisesRegex(ValueError, 'data/cache/catalog.sqlite'):
+                mapped_deploy.publish({'data/cache/catalog.sqlite': source}, manifest,
+                                      {}, root / 'output', root / 'packs',
+                                      str(root / 'remote'), str(rclone))
+            self.assertFalse((root / 'remote/manifest.json').exists())
+            self.assertFalse((root / 'remote/manifest-v2.json').exists())
+
     def test_dry_run_generates_both_manifests_and_removes_deleted_files(self):
         with tempfile.TemporaryDirectory() as directory:
             root = Path(directory) / 'root'
