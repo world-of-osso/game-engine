@@ -9,3 +9,9 @@ The census subtype distribution by distinct spell ID is 27:76, 14:69, 30:61, 1:1
 Sources: [SpellVisualKitEffect definition](https://github.com/wowdev/WoWDBDefs/blob/master/definitions/SpellVisualKitEffect.dbd), [SpellProceduralEffect definition](https://github.com/wowdev/WoWDBDefs/blob/master/definitions/SpellProceduralEffect.dbd). The input CSV is `data/db2/active/SpellProceduralEffect.csv`; the full census is in `data/diagnostics/spell-visual-census-2026-10-27/ledger.json`.
 
 **Named gap: modern procedural weapon-trail rendering semantics.** Subtype 27 is strongly identified, but its modern parameter/default behavior is not established by the available sources. No implementation, failing behavior assertion, or after-capture is claimed. Other subtypes remain unimplemented.
+
+## Refraction: composition semantics unresolved
+
+The census reports refraction emitters for 156 distinct supplied spell IDs (398 spec memberships). For Battle Shout 6673, model 6194303 contains refraction emitter 1. `godot/core/src/m2_particles.rs` selects refraction for non-multitexture flag `0x100000`; `godot/rust/src/particles.rs` excludes it from the forward pool. WebWowViewerCpp `wowViewerLib/shaders/slang/forwardRendering/m2ParticleShader.frag.slang` discards refraction and contains an unreachable partial height/alpha calculation. Its code does not specify how the refraction pass turns that result into screen displacement, including blend and ordering. The current [particle spec](../specs/m2-particles.md) expressly records this missing pass.
+
+**Named gap: refraction buffer composition and displacement.** Source evidence identifies the emitter and partial output, but not the final rendered behavior. No substitute distortion equation, behavioral test, or after-capture is claimed.
