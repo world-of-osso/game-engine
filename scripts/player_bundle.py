@@ -116,11 +116,18 @@ def source_identity(stat):
     return (stat.st_dev, stat.st_ino, stat.st_size, stat.st_mtime_ns, stat.st_ctime_ns)
 
 
+def manifest_order(item):
+    name = item[0]
+    relative = Path(name)
+    mutable = relative.parts[0] == 'data' and is_mutable_data(relative.relative_to('data'))
+    return mutable, name
+
+
 def mapped_manifest(paths, cache_path, source_stats=None):
     cache = json.loads(cache_path.read_text()) if cache_path.exists() else {}
     fresh = {}
     files = []
-    for name, path in sorted(paths.items()):
+    for name, path in sorted(paths.items(), key=manifest_order):
         stat = path.stat()
         cached = cache.get(name)
         identity = source_identity(stat)
@@ -139,6 +146,7 @@ def mapped_manifest(paths, cache_path, source_stats=None):
         files.append({'path': name, 'sha256': digest, 'size': stat.st_size})
     cache_path.parent.mkdir(parents=True, exist_ok=True)
     cache_path.write_text(json.dumps(fresh, separators=(',', ':')))
+    files.sort(key=lambda entry: entry['path'])
     return {'version': datetime.date.today().isoformat(), 'files': files}
 
 

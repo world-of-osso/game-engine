@@ -68,6 +68,37 @@ class PlayerBundleTest(unittest.TestCase):
             self.assertEqual([entry['path'] for entry in refreshed['files']],
                              ['data/cache/catalog.sqlite'])
 
+    def test_manifest_captures_catalog_mutation_during_other_source_hashing(self):
+        import threading
+        from unittest.mock import patch
+        with tempfile.TemporaryDirectory() as directory:
+            root = Path(directory)
+            catalog = root / 'catalog.sqlite'
+            other = root / 'other.blp'
+            catalog.write_bytes(b'before')
+            other.write_bytes(b'payload')
+            started, proceed = threading.Event(), threading.Event()
+            digest_file = hashlib.file_digest
+            def synchronized_digest(stream, algorithm):
+                if Path(stream.name) == other:
+                    started.set()
+                    if not proceed.wait(5):
+                        raise TimeoutError('test did not release hash')
+                return digest_file(stream, algorithm)
+            result = []
+            with patch.object(bundle.hashlib, 'file_digest', side_effect=synchronized_digest):
+                worker = threading.Thread(target=lambda: result.append(bundle.mapped_manifest(
+                    {'data/cache/catalog.sqlite': catalog, 'data/textures/other.blp': other},
+                    root / 'cache.json')))
+                worker.start()
+                self.assertTrue(started.wait(5))
+                catalog.write_bytes(b'after!')
+                proceed.set()
+                worker.join(5)
+                self.assertFalse(worker.is_alive())
+            entry = next(item for item in result[0]['files'] if item['path'].endswith('catalog.sqlite'))
+            self.assertEqual(entry['sha256'], hashlib.sha256(b'after!').hexdigest())
+
     def test_project_only_cli_prepares_import_without_data(self):
         with tempfile.TemporaryDirectory() as directory:
             root = Path(directory) / 'root'
