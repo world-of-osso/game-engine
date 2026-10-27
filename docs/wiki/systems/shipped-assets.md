@@ -78,6 +78,10 @@ Separate from P1/CASC policy: hard-linking a mutable SQLite catalog lets later s
 
 The [bundle contract](../../specs/player-bundle.md) replaces full data staging with a source map. SQLite databases use online backups; other changed sources abort. Uploads are verified while streaming to temporary objects before promotion. A local dry run at `f21453ee8` completed for 1,678,640 files without publication. Independent proof checked 36 SQLite snapshots against quiesced source copies and reconstructed every file from 6,296 packs. UID cache byte order and SQLite backup bytes have the documented logical-comparison exceptions; full offline asset closure remains separate.
 
+## Release templates — 2026-10-27
+
+The [player bundle contract](../../specs/player-bundle.md#template-proof--2026-10-27) ships patched release templates and uses host editors for import. `disable_path_overrides=no` is required for a template to run the raw imported project with `--path`. Linux private Xvfb proof observed title `World of Osso`, an IPC `Pong`, and a lead-inspected login screen. The Windows template loaded godot-rust and had the same title; its one capture was blank because the approved old fixture lacked current DB2 files. Windows real-player login proof remains lead-owned after deployment.
+
 ## Sources
 
 - [Shipped-assets contract](../../specs/shipped-assets.md)

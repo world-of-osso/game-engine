@@ -1,3 +1,7 @@
+## 2026-10-27 — Player release templates
+
+[Shipped assets](systems/shipped-assets.md#release-templates--2026-10-27) records patched release templates, raw-project path support and Linux proof. Windows title and extension load passed; login remains unproved with the old data fixture.
+
 ## 2026-10-27 — Mapped player packaging
 
 [Shipped assets](systems/shipped-assets.md#mapped-publication--2026-10-27) records local mapped-deploy proof, SQLite backup and streamed-upload boundaries, and the UID/SQLite comparison exceptions. No publication or complete-closure claim.
