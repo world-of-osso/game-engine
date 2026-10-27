@@ -3,6 +3,7 @@ import importlib.util
 import struct
 import tempfile
 import unittest
+from contextlib import closing
 from pathlib import Path
 
 spec = importlib.util.spec_from_file_location('compare', Path(__file__).parents[1] / 'compare_deploy_manifests.py')
@@ -33,10 +34,10 @@ class CompareManifestsTest(unittest.TestCase):
                 (base / 'data/cache').mkdir(parents=True)
                 (base / 'godot/.godot').mkdir(parents=True)
                 (base / compare.UID_PATH).write_bytes(uid_cache([(1, 'res://one')]))
-                with sqlite3.connect(base / 'data/cache/test.sqlite') as db:
+                with closing(sqlite3.connect(base / 'data/cache/test.sqlite')) as db, db:
                     db.execute('CREATE TABLE names (name TEXT)')
                     db.execute("INSERT INTO names VALUES ('one')")
-            with sqlite3.connect(new_root / 'data/cache/test.sqlite') as db:
+            with closing(sqlite3.connect(new_root / 'data/cache/test.sqlite')) as db, db:
                 db.execute('PRAGMA user_version=1')
             def manifest(base):
                 return {'version': 'today', 'files': [
@@ -47,7 +48,7 @@ class CompareManifestsTest(unittest.TestCase):
             self.assertNotEqual(first['files'][1]['sha256'], second['files'][1]['sha256'])
             compare.compare_manifests(first, second, old_root / compare.UID_PATH,
                                       new_root / compare.UID_PATH, old_root, new_root)
-            with sqlite3.connect(new_root / 'data/cache/test.sqlite') as db:
+            with closing(sqlite3.connect(new_root / 'data/cache/test.sqlite')) as db, db:
                 db.execute("INSERT INTO names VALUES ('two')")
             with self.assertRaisesRegex(ValueError, 'test.sqlite'):
                 compare.compare_manifests(first, manifest(new_root), old_root / compare.UID_PATH,
