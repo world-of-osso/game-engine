@@ -36,7 +36,7 @@ def build_packs(source, output, input_manifest=None):
         if any(part in ('', '.', '..') for part in relative.split('/')) or '\\' in relative or ':' in relative:
             raise ValueError(f'unsafe staged path: {relative}')
     result = subprocess.run([str(CHUNKER), str(source)], input=json.dumps([name for name, _ in paths]),
-                            text=True, capture_output=True, check=True)
+                            text=True, stdout=subprocess.PIPE, check=True)
     indexed = json.loads(result.stdout)
     for (relative, expected), file in zip(paths, indexed, strict=True):
         path = source / relative

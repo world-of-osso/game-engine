@@ -44,19 +44,20 @@ fn index_file(path: &Path, gear: &[u64; 256]) -> io::Result<IndexedFile> {
         }
         file_hash.update(&buffer[..count]);
         size += count as u64;
+        if single {
+            current.extend_from_slice(&buffer[..count]);
+            continue;
+        }
         for &byte in &buffer[..count] {
             current.push(byte);
-            if !single {
-                rolling = rolling.wrapping_shl(1).wrapping_add(gear[byte as usize]);
-                if current.len() >= MIN && (rolling & (MIB as u64 - 1) == 0 || current.len() == MAX)
-                {
-                    chunks.push(Chunk {
-                        size: current.len(),
-                        sha256: digest(&current),
-                    });
-                    current.clear();
-                    rolling = 0;
-                }
+            rolling = rolling.wrapping_shl(1).wrapping_add(gear[byte as usize]);
+            if current.len() >= MIN && (rolling & (MIB as u64 - 1) == 0 || current.len() == MAX) {
+                chunks.push(Chunk {
+                    size: current.len(),
+                    sha256: digest(&current),
+                });
+                current.clear();
+                rolling = 0;
             }
         }
     }
