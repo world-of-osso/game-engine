@@ -97,7 +97,7 @@ if 'target=template_release' not in sys.argv:
     raise SystemExit('wrong Godot target')
 output = pathlib.Path.cwd() / 'bin/godot.linuxbsd.template_release.x86_64'
 output.parent.mkdir(parents=True)
-output.write_bytes(b'template')
+output.write_bytes(b'template' if 'disable_path_overrides=no' in sys.argv else b'path-disabled')
 ''')
             uvx.chmod(0o755)
             env = dict(os.environ, XDG_CACHE_HOME=str(root / 'cache'), GODOT_BUILD_DIR=str(work),

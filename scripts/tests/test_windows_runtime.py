@@ -39,7 +39,8 @@ out.mkdir(exist_ok=True)
 if 'target=editor' in sys.argv:
     (out / 'godot.windows.editor.x86_64.exe').write_bytes(b'editor')
 if 'target=template_release' in sys.argv:
-    (out / 'godot.windows.template_release.x86_64.exe').write_bytes(b'template')
+    payload = b'template' if 'disable_path_overrides=no' in sys.argv else b'path-disabled'
+    (out / 'godot.windows.template_release.x86_64.exe').write_bytes(payload)
 ''')
             uv.chmod(0o755)
             with patch.dict(os.environ, {'PATH': str(bin_dir) + os.pathsep + os.environ['PATH']}):

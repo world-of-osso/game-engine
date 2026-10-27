@@ -80,12 +80,17 @@ git clone --quiet --depth 1 --branch "$tag" https://github.com/godotengine/godot
 }
 git -C "$src" apply "$here/pr123946-wayland-exit-hang.patch" "$here/pr123546-classdb-default-values-race.patch"
 
+template_options=()
+if [ "$target" = template_release ]; then
+  template_options+=(disable_path_overrides=no)
+fi
+
 # PYTHONHASHSEED: editor/editor_builders.py embeds Python hash() of the docs, randomized
 # per process otherwise, so the binary would differ on every build.
 (cd "$src" && PATH="$sdk/bin:$PATH" BUILD_NAME=pr123946-pr123546 PYTHONHASHSEED=0 \
   UV_CACHE_DIR="${UV_CACHE_DIR:-$work/uv-cache}" uvx --from scons==4.10.1 scons \
   -j"$jobs" verbose=yes warnings=all progress=no redirect_build_objects=no \
-  platform=linuxbsd arch=x86_64 production=yes accesskit_sdk_path="$accesskit" "target=$target")
+  platform=linuxbsd arch=x86_64 production=yes accesskit_sdk_path="$accesskit" "target=$target" "${template_options[@]}")
 
 built=$src/bin/godot.linuxbsd.$target.x86_64
 actual=$(sha512sum "$built" | cut -d' ' -f1)
