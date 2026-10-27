@@ -41,6 +41,23 @@ fn warrior(main_hand_subclass: Option<u8>) -> CasterContext {
 }
 
 #[test]
+fn invisibility_aura_resolves_authored_half_alpha() {
+    let caster = CasterContext {
+        race: 1,
+        class: 8,
+        gender: 0,
+        level: 10,
+        ..Default::default()
+    };
+    let visual = catalog().visual_for_spell(66, &caster).unwrap();
+    assert_eq!(visual, 38598);
+    let kits = catalog().kits(visual, VisualEvent::AuraStart);
+    let kit = kits.iter().find(|kit| kit.kit_id == 42982).unwrap();
+    assert_eq!(kit.end, VisualEvent::AuraEnd);
+    assert_eq!(kit.alpha, Some(0.5));
+}
+
+#[test]
 fn toyfx71_rezan_roar_resolves_one_shot_caster_sound_and_animation() {
     let visual = catalog()
         .visual_for_spell(272071, &warrior(None))

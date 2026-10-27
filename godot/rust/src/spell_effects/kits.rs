@@ -106,6 +106,18 @@ impl SpellEffects {
             spell_id,
             ..
         } = start;
+        if start.event == VisualEvent::AuraStart
+            && kit.end == VisualEvent::AuraEnd
+            && let (
+                Some(KitHold::Aura {
+                    unit: aura_unit,
+                    instance,
+                }),
+                Some(alpha),
+            ) = (start.hold, kit.alpha)
+        {
+            self.aura_alpha.add(aura_unit, instance, unit, alpha);
+        }
         let mut errors = Vec::new();
         let played = match play_kit_animation(kit, unit, world) {
             Ok(clip) => clip,

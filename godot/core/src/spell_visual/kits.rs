@@ -5,7 +5,8 @@ impl SpellVisualCatalog {
         self.read_effect_names(dir)?;
         let models = self.read_kit_models(dir)?;
         let anims = read_kit_anims(dir)?;
-        self.read_kit_effects(dir, &models, &anims)
+        let alpha = read_procedural_alpha(dir)?;
+        self.read_kit_effects(dir, &models, &anims, &alpha)
     }
 
     pub(super) fn read_effect_names(&mut self, dir: &Path) -> Result<(), String> {
@@ -41,6 +42,7 @@ impl SpellVisualCatalog {
         dir: &Path,
         models: &HashMap<u32, KitModel>,
         anims: &HashMap<u32, (i32, i32, u32)>,
+        alpha: &HashMap<u32, f32>,
     ) -> Result<(), String> {
         let effects = Table::read(dir, "SpellVisualKitEffect")?;
         let mut rows = effects.ints(["ParentSpellVisualKitID", "EffectType", "Effect", "ID"])?;
@@ -49,6 +51,11 @@ impl SpellVisualCatalog {
         for [kit, kind, effect, _] in rows {
             let kit = self.kits.entry(kit as u32).or_default();
             match kind as u32 {
+                EFFECT_PROCEDURAL => {
+                    if let Some(&value) = alpha.get(&(effect as u32)) {
+                        kit.alpha = Some(value);
+                    }
+                }
                 EFFECT_MODEL_ATTACH => kit.models.extend(models.get(&(effect as u32)).cloned()),
                 EFFECT_SOUND_KIT => kit.sound_kits.push(effect as u32),
                 EFFECT_UNIT_SOUND => kit.unit_sounds.extend(UnitSound::from_db2(effect as u32)),
@@ -162,6 +169,19 @@ fn read_attach_floats(attaches: &Table) -> Result<Vec<[f32; 8]>, String> {
         "Scale",
         "StartDelay",
     ])
+}
+
+fn read_procedural_alpha(dir: &Path) -> Result<HashMap<u32, f32>, String> {
+    let effects = Table::read(dir, "SpellProceduralEffect")?;
+    let ids = effects.ints(["ID", "Type"])?;
+    let values = effects.floats(["Value_0"])?;
+    Ok(ids
+        .into_iter()
+        .zip(values)
+        .filter_map(|([id, kind], [value])| {
+            (kind == 14).then_some((id as u32, value.clamp(0.0, 1.0)))
+        })
+        .collect())
 }
 
 fn read_kit_anims(dir: &Path) -> Result<HashMap<u32, (i32, i32, u32)>, String> {

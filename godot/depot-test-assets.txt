@@ -482,6 +482,7 @@ db2/active/SpellXSpellVisual.csv
 db2/active/SpellVisual.csv
 db2/active/SpellVisualEvent.csv
 db2/active/SpellVisualKitEffect.csv
+db2/active/SpellProceduralEffect.csv
 db2/active/SpellVisualKitModelAttach.csv
 db2/active/SpellVisualEffectName.csv
 db2/active/SpellVisualAnim.csv

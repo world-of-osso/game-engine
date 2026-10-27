@@ -28,14 +28,15 @@ pub use melee::{MeleeHand, SwingResult};
 pub use voice::{UnitSound, VoiceSource, player_displays};
 
 /// Bump when the cached catalog layout or its build rules change.
-const CACHE_FORMAT: u32 = 14;
+const CACHE_FORMAT: u32 = 15;
 
-const SOURCE_TABLES: [&str; 25] = [
+const SOURCE_TABLES: [&str; 26] = [
     "ChrSpecialization",
     "SpellXSpellVisual",
     "SpellVisual",
     "SpellVisualEvent",
     "SpellVisualKitEffect",
+    "SpellProceduralEffect",
     "SpellVisualKitModelAttach",
     "SpellVisualEffectName",
     "SpellVisualAnim",
@@ -60,6 +61,7 @@ const SOURCE_TABLES: [&str; 25] = [
 
 /// `SpellVisualKitEffect.EffectType` of a model attachment, a sound kit and a unit
 /// animation (WoWDBDefs `SpellVisualKitEffect.dbd`: "5: SoundKitID").
+const EFFECT_PROCEDURAL: u32 = 1;
 const EFFECT_MODEL_ATTACH: u32 = 2;
 const EFFECT_SOUND_KIT: u32 = 5;
 const EFFECT_ANIM: u32 = 6;
@@ -305,6 +307,7 @@ struct KitRow {
     models: Vec<KitModel>,
     sound_kits: Vec<u32>,
     unit_sounds: Vec<UnitSound>,
+    alpha: Option<f32>,
     /// (`SpellVisualAnim.InitialAnimID`, `LoopAnimID`, `AnimKitID`).
     anim: Option<(i32, i32, u32)>,
 }
@@ -325,6 +328,8 @@ pub struct VisualKit {
     pub end: VisualEvent,
     pub models: Vec<KitModel>,
     pub animation: Option<KitAnimation>,
+    /// Model alpha while an authored aura kit is active.
+    pub alpha: Option<f32>,
     pub sounds: Vec<KitSound>,
     /// Sounds of the kit's unit's own voice (`CreatureSoundData`).
     pub unit_sounds: Vec<UnitSound>,
@@ -703,6 +708,7 @@ impl SpellVisualCatalog {
             animation: kit
                 .and_then(|kit| kit.anim)
                 .and_then(|anim| self.kit_animation(anim, end)),
+            alpha: kit.and_then(|kit| kit.alpha),
             sounds: kit
                 .into_iter()
                 .flat_map(|kit| &kit.sound_kits)

@@ -17,6 +17,12 @@ The Godot client selects Retail DB2 spell visuals and plays their event kits on 
 
 Behavioral fixture: `godot/core/tests/spell_visual.rs::toyfx6_spitzy_inverted_aura_condition_shows_without_disabling_aura`. Actual journal Spitzy kits/models were captured in both configured skins; precise rear-view attachment alignment and live present-aura exclusion are not certified. Mortar live acceptance remains pending; see the [toy evidence boundary](../wiki/systems/toy-box.md#toy-effects6-conditional-selection-and-summon-coverage-2026-10-10).
 
+## Aura procedural alpha (2026-10-27)
+
+- [ ] Type-1 procedural subtype 14 reads `SpellProceduralEffect.Value_0`, clamps it to 0–1, and applies it to the kit's target while an AuraStart→AuraEnd kit is active. Invisibility 66 / kit 42982 uses 0.5.
+- [ ] Overlapping aura alpha modifiers use the minimum alpha, a project policy; removing the last modifier restores the mesh's prior transparency. New or replaced unit visuals receive active modifiers.
+- [ ] Cast→OneShot subtype-14 kits remain a named gap because their restore timing is unknown. Other procedural subtypes are unchanged.
+
 ## Owner attachment ordering (2026-10-10)
 
 - An available type2 kit model waits while its target unit's visual request is pending. Readiness requires the authored start delay and owner completion; DB2's explicit -1/unit-origin placement does not require a model.

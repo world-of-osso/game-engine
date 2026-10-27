@@ -77,6 +77,7 @@ impl SpellEffects {
                 errors.extend(self.begin_aura(aura, units, world).err());
             }
         }
+        self.aura_alpha.sync(world);
         join_errors(errors)
     }
 
@@ -144,6 +145,7 @@ impl SpellEffects {
             return Ok(());
         };
         let (unit, instance) = key;
+        self.aura_alpha.remove(unit, instance);
         for anim in aura.anims {
             world.stop_unit_action(unit, anim);
         }

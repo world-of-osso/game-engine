@@ -327,6 +327,7 @@ pub struct SpellEffects {
     melee_seen: Vec<melee::MeleeSeen>,
     /// Auras whose kits are held on their units, by (unit, instance).
     auras: HashMap<(u64, u32), auras::HeldAura>,
+    aura_alpha: aura_alpha::AuraAlpha,
     displays: HashMap<u64, displays::HeldDisplay>,
     /// Newest cast starts and resolutions seen, oldest first, bounded.
     casts_seen: Vec<CastSeen>,
@@ -366,6 +367,7 @@ impl SpellEffects {
             swings: HashMap::new(),
             melee_seen: Vec::new(),
             auras: HashMap::new(),
+            aura_alpha: aura_alpha::AuraAlpha::default(),
             displays: HashMap::new(),
             casts_seen: Vec::new(),
             sounds: SpellSounds::default(),
@@ -564,6 +566,7 @@ fn join_errors(errors: Vec<String>) -> Result<(), String> {
     }
 }
 
+mod aura_alpha;
 mod casts;
 mod displays;
 mod kits;

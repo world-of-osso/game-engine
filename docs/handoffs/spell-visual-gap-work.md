@@ -8,7 +8,9 @@ The census subtype distribution by distinct spell ID is 27:76, 14:69, 30:61, 1:1
 
 Sources: [SpellVisualKitEffect definition](https://github.com/wowdev/WoWDBDefs/blob/master/definitions/SpellVisualKitEffect.dbd), [SpellProceduralEffect definition](https://github.com/wowdev/WoWDBDefs/blob/master/definitions/SpellProceduralEffect.dbd). The input CSV is `data/db2/active/SpellProceduralEffect.csv`; the full census is in `data/diagnostics/spell-visual-census-2026-10-27/ledger.json`.
 
-**Named gap: modern procedural weapon-trail rendering semantics.** Subtype 27 is strongly identified, but its modern parameter/default behavior is not established by the available sources. No implementation, failing behavior assertion, or after-capture is claimed. Other subtypes remain unimplemented.
+**Named gap: modern procedural weapon-trail rendering semantics.** Subtype 27 is strongly identified, but its modern parameter/default behavior is not established by the available sources. No implementation or after-capture is claimed for subtype 27.
+
+Wowhead's viewer implements subtype 14 as `clamp(Value[0], 0, 1)` model alpha. Of the selected cases, 13 spell/kit pairs are AuraStart→AuraEnd and 54 are Cast→OneShot; the others are different event pairs. The approved implementation targets only the aura-held case; overlap uses the minimum as explicit project policy. Invisibility 66 / visual 38598 / kit 42982 / procedural 6152 gives alpha 0.5. **Named gap: one-shot alpha restore timing.**
 
 ## Refraction: composition semantics unresolved
 
