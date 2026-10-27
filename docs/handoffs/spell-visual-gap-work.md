@@ -32,3 +32,9 @@ WoWDBDefs identifies type 3 as `CameraEffectID`; the 70448 census reports 44 dis
 
 **Named gap: CameraEffectEntry enum and evaluation rules.** No invented shake, behavioral test or after-capture is claimed.
 
+## Type 10: unit voice IDs unresolved
+
+The census reports 37 distinct spells (78 memberships) with unsupported type-10 values. Existing `godot/core/src/spell_visual_voice.rs` handles inferred values 34–40; WoWDBDefs calls type 10 a possible unit sound ID, without mapping its values. The affected spell/kit pairs use value 1 in 16 pairs, 2 in 15, 24 in 7 and 25 in 2. Examples: Disengage 781 / kit 270943 uses 1; Psychic Scream 8122 / kit 43749 uses 2; Incapacitating Roar 99 / kit 42876 uses 24. The available references do not define those values as specific CreatureSoundData columns. Names and spell themes alone do not prove the mapping.
+
+**Named gap: type-10 values 1, 2, 24 and 25.** No invented voice mapping, behavioral test or after-capture is claimed.
+
