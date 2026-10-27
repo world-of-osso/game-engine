@@ -112,22 +112,30 @@ def is_mutable_data(relative):
     return catalog_directory or catalog_file
 
 
-def mapped_manifest(paths, cache_path):
+def source_identity(stat):
+    return (stat.st_dev, stat.st_ino, stat.st_size, stat.st_mtime_ns, stat.st_ctime_ns)
+
+
+def mapped_manifest(paths, cache_path, source_stats=None):
     cache = json.loads(cache_path.read_text()) if cache_path.exists() else {}
     fresh = {}
     files = []
     for name, path in sorted(paths.items()):
         stat = path.stat()
         cached = cache.get(name)
-        if cached and cached['size'] == stat.st_size and cached['mtime_ns'] == stat.st_mtime_ns:
+        identity = source_identity(stat)
+        if cached and cached.get('identity') == list(identity):
             digest = cached['sha256']
         else:
             with path.open('rb') as stream:
                 digest = hashlib.file_digest(stream, 'sha256').hexdigest()
             after = path.stat()
-            if (stat.st_size, stat.st_mtime_ns) != (after.st_size, after.st_mtime_ns):
+            if identity != source_identity(after):
                 raise ValueError(f'Source changed during hashing: {name}')
-        fresh[name] = {'size': stat.st_size, 'mtime_ns': stat.st_mtime_ns, 'sha256': digest}
+        fresh[name] = {'size': stat.st_size, 'mtime_ns': stat.st_mtime_ns,
+                       'identity': identity, 'sha256': digest}
+        if source_stats is not None:
+            source_stats[name] = identity
         files.append({'path': name, 'sha256': digest, 'size': stat.st_size})
     cache_path.parent.mkdir(parents=True, exist_ok=True)
     cache_path.write_text(json.dumps(fresh, separators=(',', ':')))

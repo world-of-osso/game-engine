@@ -30,6 +30,20 @@ class PackTests(unittest.TestCase):
                 build_packs(source, root / 'new', manifest,
                             source_map={'data/cache/catalog.sqlite': path})
 
+    def test_cached_mapped_file_changed_after_hash_is_rejected(self):
+        import player_bundle
+        with tempfile.TemporaryDirectory() as directory:
+            root = Path(directory)
+            path = root / 'catalog.sqlite'
+            path.write_bytes(b'expected')
+            mapping = {'data/cache/catalog.sqlite': path}
+            stats = {}
+            manifest = player_bundle.mapped_manifest(mapping, root / 'digests.json', stats)
+            build_packs(root, root / 'output', manifest, source_map=mapping, source_stats=stats)
+            path.write_bytes(b'mutated!')
+            with self.assertRaisesRegex(ValueError, 'data/cache/catalog.sqlite'):
+                build_packs(root, root / 'output', manifest, source_map=mapping, source_stats=stats)
+
     def test_native_chunk_index_matches_golden(self):
         import json
         import subprocess
