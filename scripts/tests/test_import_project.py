@@ -9,6 +9,25 @@ spec.loader.exec_module(module)
 
 
 class ImportProjectTest(unittest.TestCase):
+    def test_cli_import_uses_explicit_host_editor_not_shipped_runtime(self):
+        import subprocess
+        import sys
+        with tempfile.TemporaryDirectory() as directory:
+            root = Path(directory) / 'root'
+            (root / 'data').mkdir(parents=True)
+            generated = root / 'generated'
+            (generated / 'godot').mkdir(parents=True)
+            (generated / 'runtime').mkdir()
+            for executable, marker in [(root / 'editor', 'editor'), (generated / 'runtime/godot', 'template')]:
+                executable.write_text('#!/usr/bin/python3\nfrom pathlib import Path\nPath(' + repr(str(generated / 'godot' / marker)) + ').write_text("ran")\n')
+                executable.chmod(0o755)
+            result = subprocess.run([sys.executable, str(Path(module.__file__)), '--root', str(root),
+                                     '--generated', str(generated), '--godot', str(root / 'editor')],
+                                    capture_output=True, text=True)
+            self.assertEqual(result.returncode, 0, result.stderr)
+            self.assertTrue((generated / 'godot/editor').exists())
+            self.assertFalse((generated / 'godot/template').exists())
+
     def test_import_can_read_data_but_cannot_modify_source(self):
         with tempfile.TemporaryDirectory() as directory:
             root = Path(directory) / 'root'

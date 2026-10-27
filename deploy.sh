@@ -50,7 +50,7 @@ EOF
 }
 
 import_project() {
-    python3 "$ROOT/scripts/import_project.py" --root "$ROOT" --generated "$GENERATED"
+    python3 "$ROOT/scripts/import_project.py" --root "$ROOT" --generated "$GENERATED" --godot "$(pinned_godot)"
 }
 
 assemble_generated() {

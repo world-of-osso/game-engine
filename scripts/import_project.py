@@ -30,8 +30,9 @@ def main():
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument('--root', type=Path, required=True)
     parser.add_argument('--generated', type=Path, required=True)
+    parser.add_argument('--godot', type=Path, required=True, help='host editor used for import')
     args = parser.parse_args()
-    import_project(args.root, args.generated, args.generated / 'runtime/godot')
+    import_project(args.root, args.generated, args.godot)
 
 
 if __name__ == '__main__':
