@@ -2,6 +2,7 @@
 """Shared Linux/Windows player project and runtime data assembly. Never copies auth tokens."""
 
 import argparse
+import datetime
 import fnmatch
 import hashlib
 import itertools
@@ -109,6 +110,42 @@ def is_mutable_data(relative):
     )
     catalog_file = relative.suffix.lower() in ('.sqlite', '.csv', '.ron', '.json', '.txt')
     return catalog_directory or catalog_file
+
+
+def mapped_manifest(paths, cache_path):
+    cache = json.loads(cache_path.read_text()) if cache_path.exists() else {}
+    fresh = {}
+    files = []
+    for name, path in sorted(paths.items()):
+        stat = path.stat()
+        cached = cache.get(name)
+        if cached and cached['size'] == stat.st_size and cached['mtime_ns'] == stat.st_mtime_ns:
+            digest = cached['sha256']
+        else:
+            with path.open('rb') as stream:
+                digest = hashlib.file_digest(stream, 'sha256').hexdigest()
+            after = path.stat()
+            if (stat.st_size, stat.st_mtime_ns) != (after.st_size, after.st_mtime_ns):
+                raise ValueError(f'Source changed during hashing: {name}')
+        fresh[name] = {'size': stat.st_size, 'mtime_ns': stat.st_mtime_ns, 'sha256': digest}
+        files.append({'path': name, 'sha256': digest, 'size': stat.st_size})
+    cache_path.parent.mkdir(parents=True, exist_ok=True)
+    cache_path.write_text(json.dumps(fresh, separators=(',', ':')))
+    return {'version': datetime.date.today().isoformat(), 'files': files}
+
+
+def verify_mapped_manifest(paths, manifest, only=None):
+    for entry in manifest['files']:
+        name = entry['path']
+        if only is not None and name not in only:
+            continue
+        path = paths[name]
+        if path.stat().st_size != entry['size']:
+            raise ValueError(f'Source size mismatch: {name}')
+        with path.open('rb') as stream:
+            digest = hashlib.file_digest(stream, 'sha256').hexdigest()
+        if digest != entry['sha256']:
+            raise ValueError(f'Source SHA256 mismatch: {name}')
 
 
 def verify_manifest(bundle, only=None):

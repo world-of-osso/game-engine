@@ -48,6 +48,26 @@ class PlayerBundleTest(unittest.TestCase):
             asset.unlink()
             self.assertNotIn('data/textures/12.blp', bundle.source_map(root, generated, artifacts))
 
+    def test_mapped_manifest_rejects_mutation_and_drops_removed_files(self):
+        with tempfile.TemporaryDirectory() as directory:
+            root = Path(directory)
+            catalog = root / 'catalog.sqlite'
+            extra = root / 'extra'
+            catalog.write_bytes(b'expected')
+            extra.write_bytes(b'extra')
+            paths = {'data/cache/catalog.sqlite': catalog, 'extra': extra}
+            manifest = bundle.mapped_manifest(paths, root / 'digest-cache.json')
+            self.assertEqual([entry['path'] for entry in manifest['files']],
+                             ['data/cache/catalog.sqlite', 'extra'])
+            catalog.write_bytes(b'mutated!')
+            with self.assertRaisesRegex(ValueError, 'data/cache/catalog.sqlite'):
+                bundle.verify_mapped_manifest(paths, manifest)
+            extra.unlink()
+            paths.pop('extra')
+            refreshed = bundle.mapped_manifest(paths, root / 'digest-cache.json')
+            self.assertEqual([entry['path'] for entry in refreshed['files']],
+                             ['data/cache/catalog.sqlite'])
+
     def test_allowlist_excludes_credentials_and_extraction_state(self):
         with tempfile.TemporaryDirectory() as directory:
             root = Path(directory)
