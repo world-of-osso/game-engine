@@ -194,7 +194,7 @@ fn validate_ribbon_references(model: &m2::Model, source: &M2RibbonEmitter) -> Re
             source.bone_index
         ));
     }
-    if source.texture_indices.len() != source.material_indices.len()
+    if source.texture_indices.len() < source.material_indices.len()
         || source.material_indices.is_empty()
     {
         return Err(format!(

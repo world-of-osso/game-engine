@@ -35,7 +35,7 @@ Spell-kit M2 models must render their authored trailing ribbons. Source: authent
 
 ## Known gaps (current cycle)
 - [ ] Final natural-removal/cleanup and current-revision integration gate.
-- [ ] Nonmatching texture/material reference counts remain an explicit unsupported shape; authenticated1417024 has matching counts.
+- [ ] Material passes use the corresponding texture references; additional texture references do not create passes. Missing textures for a material pass remain an error.
 
 ## Out of scope
 
