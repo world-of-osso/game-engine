@@ -128,6 +128,22 @@ class PlayerBundleTest(unittest.TestCase):
                 with self.assertRaisesRegex(ValueError, 'data/cache/catalog.sqlite'):
                     bundle.verify_mapped_manifest(selected, manifest)
 
+    def test_index_selection_rejects_source_changes_and_new_fragments(self):
+        with tempfile.TemporaryDirectory() as directory:
+            root = Path(directory)
+            cache = root / 'data/cache'
+            cache.mkdir(parents=True)
+            index = cache / 'model-asset-index.json'
+            index.write_text('{"version":1,"assets":[]}')
+            state = bundle.model_index_state(root)
+            index.write_text('{"version":1,"assets":[1]}')
+            with self.assertRaisesRegex(ValueError, 'model-asset-index.json'):
+                bundle.verify_model_index_state(root, state)
+            state = bundle.model_index_state(root)
+            (cache / 'model-asset-index-new.json').write_text('{"version":1,"assets":[]}')
+            with self.assertRaisesRegex(ValueError, 'model-asset-index-new.json'):
+                bundle.verify_model_index_state(root, state)
+
     def test_project_only_cli_prepares_import_without_data(self):
         with tempfile.TemporaryDirectory() as directory:
             root = Path(directory) / 'root'

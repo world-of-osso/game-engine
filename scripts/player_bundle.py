@@ -28,6 +28,19 @@ LIBRARIES = {
 }
 
 
+def model_index_state(root):
+    cache = root / 'data/cache'
+    indexes = [cache / 'model-asset-index.json', *sorted(cache.glob('model-asset-index-*.json'))]
+    return {path.name: source_identity(path.stat()) for path in indexes}
+
+
+def verify_model_index_state(root, expected):
+    actual = model_index_state(root)
+    for name in sorted(actual.keys() | expected.keys()):
+        if actual.get(name) != expected.get(name):
+            raise ValueError(f'Model asset index changed during selection: data/cache/{name}')
+
+
 def model_asset_files(data):
     cache = data / 'cache'
     indexes = [cache / 'model-asset-index.json', *sorted(cache.glob('model-asset-index-*.json'))]

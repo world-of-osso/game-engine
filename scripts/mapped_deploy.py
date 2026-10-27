@@ -8,7 +8,8 @@ from pathlib import Path
 
 from launcher_packs import build_packs
 from manifest_diff import diff_manifests
-from player_bundle import mapped_manifest, snapshot_sqlite_sources, source_map
+from player_bundle import (mapped_manifest, model_index_state, snapshot_sqlite_sources,
+                           source_map, verify_model_index_state)
 from verified_upload import upload_file
 
 
@@ -20,9 +21,12 @@ def build(root, generated, windows, output, pack_cache):
     output.mkdir(parents=True, exist_ok=True)
     manifest_path = output / 'manifest.json'
     previous = json.loads(manifest_path.read_text()) if manifest_path.exists() else {'files': []}
+    index_state = model_index_state(root)
     sources = snapshot_sqlite_sources(source_map(root, generated, windows), output / 'sqlite-snapshots')
+    verify_model_index_state(root, index_state)
     source_stats = {}
     manifest = mapped_manifest(sources, output / 'digest-cache.json', source_stats)
+    verify_model_index_state(root, index_state)
     build_packs(root, pack_cache, manifest, source_map=sources, source_stats=source_stats)
     upload, delete = diff_manifests(identities(previous), identities(manifest))
     (output / 'upload.txt').write_text(''.join(f'{name}\n' for name in upload))
