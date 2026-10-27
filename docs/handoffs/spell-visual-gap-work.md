@@ -17,3 +17,12 @@ The census reports refraction emitters for 156 distinct supplied spell IDs (398 
 Wowhead's `modelviewer/live/viewer/viewer.min.js` embeds a particle fragment shader whose `uPixelShader == 4` branch also discards; its particle program has no scene sampler. Installed Retail 12.1.5.70575 CASC contains `refraction.bls` FDID 2990911 and `refractionapply.bls` FDID 2990912. They inflate to DXIL bytecode; the installed LLVM 23 bitcode parser rejects their data layout. No scale or pass order was recovered. Extracted inputs and the viewer script are under `data/diagnostics/spell-visual-census-2026-10-27/refraction-probe/`.
 
 **Named gap: refraction buffer composition and displacement.** Source evidence identifies the emitter and partial output, but not the final rendered behavior. No substitute distortion equation, behavioral test, or after-capture is claimed.
+
+## Type 12: edge-glow shader and lifecycle unresolved
+
+The 70448 census identifies type 12 in 100 distinct spell IDs (248 spec memberships). The 118 distinct spell/kit/effect cases all reference an existing `EdgeGlowEffect` row. For Avatar 107574 / kit 190072, effect 5013 has duration 0.4, fade-in 0.1, fade-out 0.3, Fresnel coefficient 0.7, RGB (0.152941182, 0.450980425, 0.603921592), multiplier 2, flags 8 and curve 106. WoWDBDefs `SpellVisualKitEffect.dbd` calls this `EdgeFlowEffectID`; the actual exported table and WoWDBDefs file are named `EdgeGlowEffect`.
+
+Wowhead's viewer accepts type 12 entries but its effect dispatch skips them. It has a Fresnel calculation for *dissolve* edge glow, not a documented mapping for standalone `EdgeGlowEffect`. The local reference clients contain no `EdgeGlowEffect` implementation. The curve, flags, source blend and lifetime/overlap behavior cannot be inferred from field names alone.
+
+**Named gap: standalone edge-glow shader and lifetime rules.** No generic implementation, real-case behavioral assertion or after-capture is claimed.
+
