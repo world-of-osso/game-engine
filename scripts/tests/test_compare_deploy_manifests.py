@@ -24,6 +24,35 @@ def entry(path, data):
 
 
 class CompareManifestsTest(unittest.TestCase):
+    def test_sqlite_bytes_may_differ_only_when_schema_and_rows_match(self):
+        import sqlite3
+        with tempfile.TemporaryDirectory() as directory:
+            root = Path(directory)
+            old_root, new_root = root / 'old', root / 'new'
+            for base in (old_root, new_root):
+                (base / 'data/cache').mkdir(parents=True)
+                (base / 'godot/.godot').mkdir(parents=True)
+                (base / compare.UID_PATH).write_bytes(uid_cache([(1, 'res://one')]))
+                with sqlite3.connect(base / 'data/cache/test.sqlite') as db:
+                    db.execute('CREATE TABLE names (name TEXT)')
+                    db.execute("INSERT INTO names VALUES ('one')")
+            with sqlite3.connect(new_root / 'data/cache/test.sqlite') as db:
+                db.execute('PRAGMA user_version=1')
+            def manifest(base):
+                return {'version': 'today', 'files': [
+                    entry(compare.UID_PATH, (base / compare.UID_PATH).read_bytes()),
+                    entry('data/cache/test.sqlite', (base / 'data/cache/test.sqlite').read_bytes()),
+                ]}
+            first, second = manifest(old_root), manifest(new_root)
+            self.assertNotEqual(first['files'][1]['sha256'], second['files'][1]['sha256'])
+            compare.compare_manifests(first, second, old_root / compare.UID_PATH,
+                                      new_root / compare.UID_PATH, old_root, new_root)
+            with sqlite3.connect(new_root / 'data/cache/test.sqlite') as db:
+                db.execute("INSERT INTO names VALUES ('two')")
+            with self.assertRaisesRegex(ValueError, 'test.sqlite'):
+                compare.compare_manifests(first, manifest(new_root), old_root / compare.UID_PATH,
+                                          new_root / compare.UID_PATH, old_root, new_root)
+
     def test_uid_record_order_is_ignored_but_all_other_entries_are_exact(self):
         # Two cold imports of the same old bundle produced different cache hashes.
         with tempfile.TemporaryDirectory() as directory:

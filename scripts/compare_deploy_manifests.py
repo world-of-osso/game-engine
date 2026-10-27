@@ -9,9 +9,12 @@ The binary file itself must not be rewritten to force the comparison to pass.
 
 import argparse
 import hashlib
+import itertools
 import json
 from pathlib import Path
+import sqlite3
 import struct
+from contextlib import closing
 
 UID_PATH = 'godot/.godot/uid_cache.bin'
 
@@ -42,7 +45,24 @@ def uid_pairs(path):
         raise ValueError(f'invalid uid_cache.bin {path}: {error}') from error
 
 
-def compare_manifests(old, new, old_uid, new_uid):
+def verify_entry(entry, path):
+    with path.open('rb') as stream:
+        digest = hashlib.file_digest(stream, 'sha256').hexdigest()
+    if path.stat().st_size != entry['size'] or digest != entry['sha256']:
+        raise ValueError(f'file does not match manifest: {path}')
+
+
+def compare_sqlite(name, old_path, new_path, old_entry, new_entry):
+    verify_entry(old_entry, old_path)
+    verify_entry(new_entry, new_path)
+    with closing(sqlite3.connect(old_path.resolve().as_uri() + '?mode=ro', uri=True)) as old_db:
+        with closing(sqlite3.connect(new_path.resolve().as_uri() + '?mode=ro', uri=True)) as new_db:
+            for left, right in itertools.zip_longest(old_db.iterdump(), new_db.iterdump()):
+                if left != right:
+                    raise ValueError(f'SQLite schema or rows differ: {name}')
+
+
+def compare_manifests(old, new, old_uid, new_uid, old_sqlite_root=None, new_sqlite_root=None):
     if {key: value for key, value in old.items() if key != 'files'} != {
         key: value for key, value in new.items() if key != 'files'
     }:
@@ -57,7 +77,13 @@ def compare_manifests(old, new, old_uid, new_uid):
         raise ValueError(f'manifest paths differ: missing={missing[:10]}, extra={extra[:10]}')
     if UID_PATH not in old_files:
         raise ValueError(f'missing {UID_PATH}')
-    different = [name for name in old_files if name != UID_PATH and old_files[name] != new_files[name]]
+    sqlite_names = [name for name in old_files if name.startswith('data/') and Path(name).suffix.lower() == '.sqlite']
+    if sqlite_names and (old_sqlite_root is None or new_sqlite_root is None):
+        raise ValueError('SQLite roots are required for logical comparison')
+    for name in sqlite_names:
+        compare_sqlite(name, old_sqlite_root / name, new_sqlite_root / name, old_files[name], new_files[name])
+    sqlite_names = set(sqlite_names)
+    different = [name for name in old_files if name != UID_PATH and name not in sqlite_names and old_files[name] != new_files[name]]
     if different:
         raise ValueError(f'{len(different)} manifest entries differ: {different[:10]}')
     for entry, path in ((old_files[UID_PATH], old_uid), (new_files[UID_PATH], new_uid)):
@@ -74,10 +100,12 @@ def main():
     parser.add_argument('--new', type=Path, required=True)
     parser.add_argument('--old-uid', type=Path, required=True)
     parser.add_argument('--new-uid', type=Path, required=True)
+    parser.add_argument('--old-sqlite-root', type=Path)
+    parser.add_argument('--new-sqlite-root', type=Path)
     args = parser.parse_args()
     compare_manifests(json.loads(args.old.read_text()), json.loads(args.new.read_text()),
-                      args.old_uid, args.new_uid)
-    print('Manifests match; UID caches have identical UID-to-path pairs')
+                      args.old_uid, args.new_uid, args.old_sqlite_root, args.new_sqlite_root)
+    print('Manifests match; UID mappings and SQLite schema/rows match')
 
 
 if __name__ == '__main__':
