@@ -50,11 +50,7 @@ EOF
 }
 
 import_project() {
-    local home
-    home=$(mktemp -d)
-    XDG_CONFIG_HOME=$home/config XDG_DATA_HOME=$home/data XDG_CACHE_HOME=$home/cache \
-        "$GENERATED/runtime/godot" --headless --path "$GENERATED/godot" --import
-    rm -rf "$home" "$GENERATED/godot/.godot/editor"
+    python3 "$ROOT/scripts/import_project.py" --root "$ROOT" --generated "$GENERATED"
 }
 
 assemble_generated() {
