@@ -8,6 +8,28 @@ from launcher_packs import build_packs
 
 
 class PackTests(unittest.TestCase):
+    def test_source_map_packs_match_staged_files_and_reject_mutation(self):
+        import hashlib
+        with tempfile.TemporaryDirectory() as directory:
+            root = Path(directory)
+            source = root / 'source'
+            source.mkdir()
+            path = source / 'catalog.sqlite'
+            path.write_bytes(b'expected')
+            manifest = {'files': [{'path': 'data/cache/catalog.sqlite', 'size': 8,
+                                   'sha256': hashlib.sha256(b'expected').hexdigest()}]}
+            staged = root / 'staged/data/cache'
+            staged.mkdir(parents=True)
+            (staged / 'catalog.sqlite').write_bytes(b'expected')
+            old = build_packs(root / 'staged', root / 'old', manifest)
+            new = build_packs(source, root / 'new', manifest,
+                              source_map={'data/cache/catalog.sqlite': path})
+            self.assertEqual(new, old)
+            path.write_bytes(b'mutated!')
+            with self.assertRaisesRegex(ValueError, 'data/cache/catalog.sqlite'):
+                build_packs(source, root / 'new', manifest,
+                            source_map={'data/cache/catalog.sqlite': path})
+
     def test_native_chunk_index_matches_golden(self):
         import json
         import subprocess

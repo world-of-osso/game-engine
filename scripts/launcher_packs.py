@@ -15,7 +15,7 @@ HEADER = b'OSSPACK\x01'
 CHUNKER = Path(__file__).resolve().parents[1] / 'target/release/launcher-pack-chunks'
 
 
-def build_packs(source, output, input_manifest=None):
+def build_packs(source, output, input_manifest=None, source_map=None):
     source, output = Path(source), Path(output)
     packdir = output / 'packs'
     packdir.mkdir(parents=True, exist_ok=True)
@@ -35,11 +35,13 @@ def build_packs(source, output, input_manifest=None):
     for relative, _ in paths:
         if any(part in ('', '.', '..') for part in relative.split('/')) or '\\' in relative or ':' in relative:
             raise ValueError(f'unsafe staged path: {relative}')
-    result = subprocess.run([str(CHUNKER), str(source)], input=json.dumps([name for name, _ in paths]),
+    input_paths = [str(Path(source_map[name]).resolve()) if source_map is not None else name
+                   for name, _ in paths]
+    result = subprocess.run([str(CHUNKER), str(source)], input=json.dumps(input_paths),
                             text=True, stdout=subprocess.PIPE, check=True)
     indexed = json.loads(result.stdout)
     for (relative, expected), file in zip(paths, indexed, strict=True):
-        path = source / relative
+        path = Path(source_map[relative]) if source_map is not None else source / relative
         parts = relative.split('/')
         group = '/'.join(parts[:2]) if parts[0] == 'data' and len(parts) > 2 else (parts[0] if len(parts) > 1 else '_root')
         refs = []
