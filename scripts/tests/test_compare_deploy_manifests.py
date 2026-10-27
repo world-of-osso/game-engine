@@ -54,6 +54,20 @@ class CompareManifestsTest(unittest.TestCase):
                 compare.compare_manifests(first, manifest(new_root), old_root / compare.UID_PATH,
                                           new_root / compare.UID_PATH, old_root, new_root)
 
+    def test_v2_file_identity_does_not_depend_on_pack_placement(self):
+        with tempfile.TemporaryDirectory() as directory:
+            root = Path(directory)
+            uid = root / 'uid'
+            uid.write_bytes(uid_cache([(1, 'res://one')]))
+            first = {'version': 2, 'files': [entry(compare.UID_PATH, uid.read_bytes()),
+                                             {**entry('asset', b'bytes'), 'chunks': [{'pack': 'old'}]}]}
+            second = {'version': 2, 'files': [entry(compare.UID_PATH, uid.read_bytes()),
+                                              {**entry('asset', b'bytes'), 'chunks': [{'pack': 'new'}]}]}
+            compare.compare_manifests(first, second, uid, uid)
+            second['files'][1]['sha256'] = hashlib.sha256(b'wrong').hexdigest()
+            with self.assertRaisesRegex(ValueError, 'asset'):
+                compare.compare_manifests(first, second, uid, uid)
+
     def test_uid_record_order_is_ignored_but_all_other_entries_are_exact(self):
         # Two cold imports of the same old bundle produced different cache hashes.
         with tempfile.TemporaryDirectory() as directory:

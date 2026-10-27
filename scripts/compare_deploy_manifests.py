@@ -83,7 +83,12 @@ def compare_manifests(old, new, old_uid, new_uid, old_sqlite_root=None, new_sqli
     for name in sqlite_names:
         compare_sqlite(name, old_sqlite_root / name, new_sqlite_root / name, old_files[name], new_files[name])
     sqlite_names = set(sqlite_names)
-    different = [name for name in old_files if name != UID_PATH and name not in sqlite_names and old_files[name] != new_files[name]]
+    def identity(entry):
+        if old.get('version') == 2:
+            return entry['path'], entry['size'], entry['sha256']
+        return entry
+    different = [name for name in old_files if name != UID_PATH and name not in sqlite_names
+                 and identity(old_files[name]) != identity(new_files[name])]
     if different:
         raise ValueError(f'{len(different)} manifest entries differ: {different[:10]}')
     for entry, path in ((old_files[UID_PATH], old_uid), (new_files[UID_PATH], new_uid)):
