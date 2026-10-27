@@ -46,6 +46,21 @@ class PackTests(unittest.TestCase):
                 self.assertEqual((output / name).read_bytes(), json.dumps(golden[key], sort_keys=True, separators=(',', ':')).encode())
             packs = {path.name: hashlib.sha256(path.read_bytes()).hexdigest() for path in (output / 'packs').iterdir()}
             self.assertEqual(packs, golden['packs'])
+            chunks = {}
+            for entry in golden['manifest']['files']:
+                data = (source / entry['path']).read_bytes()
+                offset = 0
+                for chunk in entry['chunks']:
+                    chunks[chunk['sha256']] = data[offset:offset + chunk['size']]
+                    offset += chunk['size']
+            for pack in packs:
+                records = sorted((item for item in golden['index']['chunks'].values() if item['pack'] == pack), key=lambda item: item['offset'])
+                expected = bytearray(b'OSSPACK\x01')
+                for record in records:
+                    expected.extend(record['size'].to_bytes(4, 'little'))
+                    self.assertEqual(len(expected), record['offset'])
+                    expected.extend(chunks[record['sha256']])
+                self.assertEqual((output / 'packs' / pack).read_bytes(), expected)
 
     def test_reproducible_and_retains_old_chunk_location(self):
         with tempfile.TemporaryDirectory() as directory:
