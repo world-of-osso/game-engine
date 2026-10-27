@@ -5,22 +5,22 @@
 ## Build
 
 1. `python3 scripts/depot-build.py --root <checkout> --release` builds the optimized extension on Depot into `target/release/libgame_engine_godot.so` (see [remote builds](remote-builds.md)). Release builds default to the live realm, `game.worldofosso.com:5000`.
-2. The runtime is the patched pinned Godot `4.7.2-pr123946-pr123546` from `scripts/godot/pinned.sh`, checksum-verified; build it with `scripts/godot/build-patched-godot.sh` if missing.
-3. `scripts/windows-release.py --phase build` builds the Windows extension, patched runtime and native entry on desktop and exports them into `target/windows-release/artifacts/`.
-4. The combined bundle is assembled in `target/deploy/player/` (`BUNDLE_DIR` overrides); the shared project/data assembler runs only once:
+2. The host uses the checksum-verified patched Godot `4.7.2-pr123946-pr123546` editor for import. The shipped Linux runtime is a separately pinned `template_release` build with `disable_path_overrides=no`; build it with `scripts/godot/build-patched-godot.sh --template-release` if missing.
+3. `scripts/windows-release.py --phase build` builds the Windows extension, patched editor and release template on desktop. It exports the template, its verified SHA-512 receipt, and the native entry into `target/windows-release/artifacts/`; the editor stays on the build host.
+4. The combined player is described by the source map (`BUNDLE_DIR` selects the output prefix):
 
 | Path | Content |
 |---|---|
 | `game-engine-linux-x86_64` | `sh` entry: marks `runtime/godot` executable, runs it on `godot/`; every argument is a client option after Godot's `--` |
-| `runtime/godot` | patched Linux Godot editor build, used as the runtime |
+| `runtime/godot` | patched Linux Godot release template |
 | `game-engine-windows-x86_64` | extensionless native PE entry; resolves its own directory and launches `runtime/godot.exe` on `godot/` |
-| `runtime/godot.exe` | patched Windows Win32/Vulkan Godot editor runtime |
+| `runtime/godot.exe` | patched Windows Win32/Vulkan Godot release template |
 | `lib/game_engine_godot.dll` | native GNU Windows release extension |
 | `lib/libgame_engine_godot.so` | release extension (needs only glibc/libstdc++; built on Debian bookworm) |
 | `godot/` | tracked project files without Rust crates or `tests/`, a bundle `game_engine.gdextension` pointing at `lib/`, and the pre-imported `.godot/` cache (without `.godot/editor/`) |
 | `data/` | runtime data allowlist, below |
 
-The import runs once at assembly with `.godot/extension_list.cfg` already written. Without it, Godot hot-loads the extension during its first scan and aborts at exit (134); this happens with official and patched 4.7.2 and with both debug and release extensions (`data/diagnostics/deploygodot-2026-10-03/import-crash/`). The dev launcher's `import_project_once` still runs a cold import.
+The host editor imports the project with `.godot/extension_list.cfg` already written; neither shipped template performs this import. Without it, Godot hot-loads the extension during its first scan and aborts at exit (134); this happens with official and patched 4.7.2 and with both debug and release extensions (`data/diagnostics/deploygodot-2026-10-03/import-crash/`). The dev launcher's `import_project_once` still runs a cold import.
 
 ### Data
 
@@ -84,7 +84,7 @@ With no `--server`, the release client connects to the live realm.
 
 The bundle uses the shared `scripts/player_bundle.py` project/data allowlist and `.gdextension` containing both Linux and Windows selectors. Windows artifacts are `runtime/godot.exe`, `lib/game_engine_godot.dll` and an extensionless PE entry `game-engine-windows-x86_64`. The entry resolves paths relative to itself, forwards client arguments after Godot's `--`, waits for its child and selects extracted-only assets. The actual launcher's exact `Command::new` call is exercised by `scripts/windows-entry-test.py`; Windows does launch this extensionless PE. The launcher and entry keep child CWD at the volume root, rather than changing registry settings. This does not make an overlong project/install root launchable: Godot still changes its CWD to the project directory and fails at the Windows limit (approximately 260 characters). The requirement is the normal `%APPDATA%/WorldOfOsso` install root; long nested assets may transfer and verify, but overlong install roots are unsupported. No Godot CWD patch is planned.
 
-Godot is the same pinned 4.7.2 source commit with PR123546 applied. PR123946 touches only `platform/linuxbsd/wayland` and is not built or needed on Windows. The Windows runtime's SHA-512 receipt is exported with build artifacts, separate from Linux's checksum.
+Godot is the same pinned 4.7.2 source commit with PR123546 applied. PR123946 touches only `platform/linuxbsd/wayland` and is not built or needed on Windows. Both release templates enable `--path` support with `disable_path_overrides=no`. The Windows template's SHA-512 receipt is verified after transfer; the Linux template has a separate checked-in checksum.
 
 For a combined manifest, the launcher filters only exact top-level entry names, not platform-prefixed directories. Thus both platforms download the other platform's runtime/library; the lead must review those measured extra bytes before publishing. Windows-only staging is not a combined-manifest publication or a full offline/world certification. No Windows bundle has been published by this workflow. [Windows unload and packaging investigation](wiki/investigations/windows-extension-unload.md) records the teardown barrier and product-directory omission found by native private login/world proof; include build-qualified assets and their receipts, not only legacy loose paths.
 
