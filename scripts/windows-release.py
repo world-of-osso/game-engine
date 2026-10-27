@@ -3,6 +3,7 @@
 
 import argparse
 import base64
+import hashlib
 import importlib.util
 import json
 import shutil
@@ -130,11 +131,21 @@ def stream_archive(host, archive, destination):
         subprocess.run(['ssh', host, 'powershell.exe -NoProfile -EncodedCommand ' + encoded], stdin=source, check=True)
 
 
+def verify_runtime_checksum(artifacts):
+    runtime = artifacts / 'godot.exe'
+    expected = (artifacts / 'godot.sha512').read_text().strip()
+    with runtime.open('rb') as stream:
+        actual = hashlib.file_digest(stream, 'sha512').hexdigest()
+    if actual != expected:
+        raise ValueError(f'Windows godot.exe SHA-512 mismatch: {runtime}')
+
+
 def fetch_artifacts(work, host, remote):
     artifacts = work / 'artifacts'
     artifacts.mkdir(parents=True, exist_ok=True)
     for name in ('game_engine_godot.dll', 'godot.exe', 'game-engine-windows-x86_64.exe', 'godot.sha512'):
         run('scp', f'{host}:{remote}/artifacts/{name}', str(artifacts / name))
+    verify_runtime_checksum(artifacts)
     return artifacts
 
 

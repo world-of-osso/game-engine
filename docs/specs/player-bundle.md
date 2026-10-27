@@ -5,6 +5,7 @@ Linux and Windows players share one staged project/data bundle. Publisher: `depl
 ## What it must do
 
 - [x] Map shipped paths to source files without copying the full data set. Generate the project import and native files separately. Use SQLite online backups for mutable database files; hash, pack, and upload the backups.
+- [ ] Ship patched release-template Godot runtimes on Linux and Windows. Use editor builds only to import the project, and verify runtime checksums.
 - [x] Generate the download manifest from source bytes. Detect source changes after hashing and reject changed bytes during pack construction.
 - [x] Stream each changed file to a temporary object, verify the streamed size and SHA256 against the manifest, and promote only matching bytes. Missing or changed files abort publication with path-specific errors.
 - [x] A dry run generates both manifests and packs without accessing the live bucket.

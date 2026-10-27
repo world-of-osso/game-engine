@@ -49,12 +49,13 @@ def build_runtime(root, uv, engine):
     if applied.returncode:
         run('git', '-C', str(source), 'apply', '--check', str(patch))
         run('git', '-C', str(source), 'apply', str(patch))
-    run(str(uv), 'run', '--python', '3.12.12', '--with', 'scons==4.10.1', 'scons',
-        '-j4', 'platform=windows', 'arch=x86_64', 'target=editor',
-        'use_mingw=yes', 'production=yes', 'accesskit=no', 'd3d12=no', 'winrt=no', cwd=source)
+    for target in ('editor', 'template_release'):
+        run(str(uv), 'run', '--python', '3.12.12', '--with', 'scons==4.10.1', 'scons',
+            '-j4', 'platform=windows', 'arch=x86_64', f'target={target}',
+            'use_mingw=yes', 'production=yes', 'accesskit=no', 'd3d12=no', 'winrt=no', cwd=source)
     runtime = root / 'artifacts/godot.exe'
     runtime.parent.mkdir(parents=True, exist_ok=True)
-    shutil.copy2(source / 'bin/godot.windows.editor.x86_64.exe', runtime)
+    shutil.copy2(source / 'bin/godot.windows.template_release.x86_64.exe', runtime)
     (runtime.parent / 'godot.sha512').write_text(hashlib.sha512(runtime.read_bytes()).hexdigest() + '\n')
 
 
@@ -109,7 +110,8 @@ def main():
     else:
         bundle = root / 'player'
         os.environ['GAME_ENGINE_ASSET_MODE'] = 'extracted-only'
-        run(str(bundle / 'runtime/godot.exe'), '--headless', '--path', str(bundle / 'godot'), '--import')
+        editor = root / 'godot-source/bin/godot.windows.editor.x86_64.exe'
+        run(str(editor), '--headless', '--path', str(bundle / 'godot'), '--import')
         shutil.rmtree(bundle / 'godot/.godot/editor', ignore_errors=True)
 
 
