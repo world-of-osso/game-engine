@@ -45,6 +45,123 @@ fn native_269_rule19596_checks_dance_of_chiji_stacks() {
     }
 }
 
+// Frozen 70448 rule IDs and operands exercise SimC-mirror predicates.
+fn check_real_rule(id: u32, fields: serde_json::Value, expected: bool) {
+    let rule = native_rules()
+        .into_iter()
+        .find(|rule| rule.id == id)
+        .unwrap();
+    let mut value = serde_json::to_value(AssistedFacts::default()).unwrap();
+    for (key, field) in fields.as_object().unwrap() {
+        value[key] = field.clone();
+    }
+    let facts: AssistedFacts = serde_json::from_value(value).unwrap();
+    assert_eq!(evaluate_rule(&rule, &facts), Ok(expected), "rule {id}");
+}
+
+#[test]
+fn native_rule_type4_simc_boundary() {
+    check_real_rule(49472, serde_json::json!({"target_distance_yd":16}), true);
+}
+
+#[test]
+fn native_rule_type11_simc_boundary() {
+    check_real_rule(12523, serde_json::json!({"active_enemies":3}), true);
+}
+
+#[test]
+fn native_rule_type12_simc_boundary() {
+    check_real_rule(19632, serde_json::json!({"active_enemies":4}), true);
+}
+
+#[test]
+fn native_rule_type13_simc_boundary() {
+    check_real_rule(
+        95076,
+        serde_json::json!({"active_dot_counts":{"1943":1}}),
+        true,
+    );
+}
+
+#[test]
+fn native_rule_type17_simc_boundary() {
+    check_real_rule(
+        20475,
+        serde_json::json!({"player_auras":[268877],"player_aura_remaining_ms":{"268877":1000}}),
+        true,
+    );
+}
+
+#[test]
+fn native_rule_type18_simc_boundary() {
+    check_real_rule(
+        34076,
+        serde_json::json!({"target_aura_remaining_ms":{"335467":1000}}),
+        true,
+    );
+}
+
+#[test]
+fn native_rule_type20_simc_boundary() {
+    check_real_rule(12408, serde_json::json!({"mana_pct":5.0}), true);
+}
+
+#[test]
+fn native_rule_type49_simc_boundary() {
+    check_real_rule(12570, serde_json::json!({"active_enemies":2}), true);
+}
+
+#[test]
+fn native_rule_type50_simc_boundary() {
+    check_real_rule(19874, serde_json::json!({"active_enemies":2}), true);
+}
+
+#[test]
+fn native_rule_type51_simc_boundary() {
+    check_real_rule(
+        64722,
+        serde_json::json!({"active_dot_counts":{"55078":0}}),
+        true,
+    );
+}
+
+#[test]
+fn native_rule_type52_simc_boundary() {
+    check_real_rule(
+        4544,
+        serde_json::json!({"target_aura_stacks":{"1221389":5}}),
+        true,
+    );
+}
+
+#[test]
+fn native_rule_type53_simc_boundary() {
+    check_real_rule(
+        81982,
+        serde_json::json!({"target_aura_stacks":{"1221389":5}}),
+        true,
+    );
+}
+
+#[test]
+fn native_rule_type55_simc_boundary() {
+    check_real_rule(
+        29368,
+        serde_json::json!({"player_aura_stacks":{"195181":6}}),
+        true,
+    );
+}
+
+#[test]
+fn native_rule_type25equality_simc_boundary() {
+    check_real_rule(19911, serde_json::json!({"powers":{"3":75}}), true);
+}
+
+#[test]
+fn native_rule_type42equality_simc_boundary() {
+    check_real_rule(20057, serde_json::json!({"powers":{"12":4}}), true);
+}
+
 fn load_catalog() -> CooldownAssistCatalog {
     let dir = Path::new(env!("CARGO_MANIFEST_DIR")).join("tests/fixtures/assisted_70448");
     CooldownAssistCatalog::load(&dir).unwrap()
