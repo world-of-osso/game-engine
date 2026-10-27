@@ -26,3 +26,9 @@ Wowhead's viewer accepts type 12 entries but its effect dispatch skips them. It 
 
 **Named gap: standalone edge-glow shader and lifetime rules.** No generic implementation, real-case behavioral assertion or after-capture is claimed.
 
+## Type 3: camera effect semantics unresolved
+
+WoWDBDefs identifies type 3 as `CameraEffectID`; the 70448 census reports 44 distinct spell IDs (80 spec memberships). Slam 1464 / kit 278885 references CameraEffect 699, flags 4. Its CameraEffectEntry rows 694 and 700 each have duration 0.4 seconds, but use different `EffectType`, `DirectionType`, `MovementType`, `AttenuationType`, phases, amplitudes and curves. The DBD and available local clients do not identify these enum values, the camera axes, or attenuation and curve application. A field name or a generic camera shake is not enough to establish the authored motion.
+
+**Named gap: CameraEffectEntry enum and evaluation rules.** No invented shake, behavioral test or after-capture is claimed.
+
