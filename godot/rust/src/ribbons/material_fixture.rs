@@ -1,6 +1,7 @@
 //! Debug-only raster fixture through the production ribbon material/mesh path.
 use super::{
-    create_ribbon_material, spawn_ribbon_mesh, update_texture_transforms, upload_geometry,
+    create_ribbon_material, place_ribbon, spawn_ribbon_mesh, update_texture_transforms,
+    upload_geometry,
 };
 use game_engine_core::{
     m2,
@@ -59,6 +60,14 @@ impl RibbonMaterialFixture {
     }
 
     #[func]
+    fn spawn_chaos_bolt_ribbons(&mut self) -> GString {
+        match self.create_chaos_bolt_ribbons() {
+            Ok(()) => GString::new(),
+            Err(error) => error.as_str().into(),
+        }
+    }
+
+    #[func]
     fn sample_real_uv(&mut self, global_ms: u32) -> GString {
         match self.update_real_uv(global_ms) {
             Ok(()) => GString::new(),
@@ -68,6 +77,21 @@ impl RibbonMaterialFixture {
 }
 
 impl RibbonMaterialFixture {
+    fn create_chaos_bolt_ribbons(&mut self) -> Result<(), String> {
+        let base = ProjectSettings::singleton()
+            .globalize_path("res://../data")
+            .to_string();
+        let base = std::path::Path::new(&base);
+        let read =
+            |name: &str| std::fs::read(base.join("models").join(name)).map_err(|e| e.to_string());
+        let model = m2::parse_model(&read("1863946.m2")?, &read("186394600.skin")?)?;
+        let root = self.to_gd().upcast::<Node3D>();
+        for source in &model.ribbon_emitters {
+            place_ribbon(&model, source, &root, &base.join("textures"))?;
+        }
+        Ok(())
+    }
+
     fn update_real_uv(&mut self, global_ms: u32) -> Result<(), String> {
         let model = read_real_uv_model()?;
         let index = m2_ribbons::texture_transform_index(&model, &model.ribbon_emitters[0], 0)?;
