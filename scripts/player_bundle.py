@@ -3,14 +3,17 @@
 
 import argparse
 import datetime
+import filecmp
 import fnmatch
 import hashlib
 import itertools
 import json
 import os
 import shutil
+import sqlite3
 import subprocess
 import sys
+from contextlib import closing
 from pathlib import Path
 
 DATA_DIRS = (
@@ -110,6 +113,38 @@ def is_mutable_data(relative):
     )
     catalog_file = relative.suffix.lower() in ('.sqlite', '.csv', '.ron', '.json', '.txt')
     return catalog_directory or catalog_file
+
+
+def snapshot_sqlite_sources(paths, snapshot_root):
+    """Use consistent SQLite backups for mutable database sources."""
+    selected = paths.copy()
+    retained = set()
+    for name, source in paths.items():
+        relative = Path(name)
+        if relative.parts[0] != 'data' or relative.suffix.lower() != '.sqlite':
+            continue
+        destination = snapshot_root / relative
+        destination.parent.mkdir(parents=True, exist_ok=True)
+        temporary = destination.with_suffix(destination.suffix + '.part')
+        temporary.unlink(missing_ok=True)
+        try:
+            with closing(sqlite3.connect(source.resolve().as_uri() + '?mode=ro', uri=True)) as original:
+                with closing(sqlite3.connect(temporary)) as snapshot:
+                    original.backup(snapshot)
+            if destination.exists() and filecmp.cmp(destination, temporary, shallow=False):
+                temporary.unlink()
+            else:
+                temporary.replace(destination)
+        except (OSError, sqlite3.Error) as error:
+            temporary.unlink(missing_ok=True)
+            raise ValueError(f'Cannot snapshot SQLite source {name}: {error}') from error
+        retained.add(destination)
+        selected[name] = destination
+    if snapshot_root.exists():
+        for path in snapshot_root.rglob('*'):
+            if path.is_file() and path not in retained:
+                path.unlink()
+    return selected
 
 
 def source_identity(stat):

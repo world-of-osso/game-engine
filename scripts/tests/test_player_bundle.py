@@ -99,6 +99,26 @@ class PlayerBundleTest(unittest.TestCase):
             entry = next(item for item in result[0]['files'] if item['path'].endswith('catalog.sqlite'))
             self.assertEqual(entry['sha256'], hashlib.sha256(b'after!').hexdigest())
 
+    def test_sqlite_snapshot_remains_consistent_after_source_write(self):
+        with tempfile.TemporaryDirectory() as directory:
+            root = Path(directory)
+            source = root / 'catalog.sqlite'
+            with sqlite3.connect(source) as database:
+                database.execute('CREATE TABLE names (name TEXT)')
+                database.execute("INSERT INTO names VALUES ('before')")
+            paths = {'data/cache/catalog.sqlite': source}
+            selected = bundle.snapshot_sqlite_sources(paths, root / 'snapshots')
+            manifest = bundle.mapped_manifest(selected, root / 'digest-cache.json')
+            with sqlite3.connect(source) as database:
+                database.execute("INSERT INTO names VALUES ('after')")
+            with sqlite3.connect(selected['data/cache/catalog.sqlite']) as snapshot:
+                self.assertEqual(snapshot.execute('SELECT name FROM names').fetchall(), [('before',)])
+            bundle.verify_mapped_manifest(selected, manifest)
+            with sqlite3.connect(selected['data/cache/catalog.sqlite']) as snapshot:
+                snapshot.execute("INSERT INTO names VALUES ('changed')")
+            with self.assertRaisesRegex(ValueError, 'data/cache/catalog.sqlite'):
+                bundle.verify_mapped_manifest(selected, manifest)
+
     def test_project_only_cli_prepares_import_without_data(self):
         with tempfile.TemporaryDirectory() as directory:
             root = Path(directory) / 'root'
