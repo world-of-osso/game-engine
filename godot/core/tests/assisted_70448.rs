@@ -19,6 +19,28 @@ struct Capture {
     evaluation: Evaluation,
 }
 
+#[test]
+fn native_269_rule19596_checks_dance_of_chiji_stacks() {
+    let rule = native_rules()
+        .into_iter()
+        .find(|rule| rule.id == 19596)
+        .unwrap();
+    assert_eq!(
+        (rule.step_spell, rule.condition_type, rule.values),
+        (101546, 54, [325202, 2, 0])
+    );
+    for (stacks, expected) in [(0, false), (1, false), (2, true), (3, true)] {
+        let mut value = serde_json::to_value(AssistedFacts::default()).unwrap();
+        value["player_aura_stacks"] = serde_json::json!({"325202": stacks});
+        let facts: AssistedFacts = serde_json::from_value(value).unwrap();
+        assert_eq!(
+            evaluate_rule(&rule, &facts),
+            Ok(expected),
+            "stacks={stacks}"
+        );
+    }
+}
+
 fn load_catalog() -> CooldownAssistCatalog {
     let dir = Path::new(env!("CARGO_MANIFEST_DIR")).join("tests/fixtures/assisted_70448");
     CooldownAssistCatalog::load(&dir).unwrap()
