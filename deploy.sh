@@ -35,6 +35,15 @@ pinned_godot() {
     echo "$GODOT_PINNED"
 }
 
+pinned_template() {
+    . "$ROOT/scripts/godot/pinned.sh"
+    if ! python3 "$ROOT/scripts/godot/verify-runtime.py" "$GODOT_TEMPLATE" \
+        "$ROOT/scripts/godot/godot-$GODOT_PINNED_VERSION-template-release.sha512"; then
+        echo "build the pinned release template with scripts/godot/build-patched-godot.sh --template-release" >&2
+        return 1
+    fi
+}
+
 write_launcher() {
     cat > "$GENERATED/game-engine-$PLATFORM" <<'EOF'
 #!/bin/sh
@@ -57,7 +66,7 @@ assemble_generated() {
     rm -rf "$GENERATED"
     mkdir -p "$GENERATED/runtime" "$GENERATED/lib"
     write_launcher
-    cp "$(pinned_godot)" "$GENERATED/runtime/godot"
+    cp "$(pinned_template)" "$GENERATED/runtime/godot"
     install -m 644 "$ROOT/target/release/libgame_engine_godot.so" "$GENERATED/lib/"
     python3 "$ROOT/scripts/player_bundle.py" --root "$ROOT" --bundle "$GENERATED" \
         --platform "$PLATFORM" --project-only
