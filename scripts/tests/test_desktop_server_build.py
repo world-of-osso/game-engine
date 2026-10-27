@@ -50,6 +50,7 @@ class DesktopServerBuildTests(unittest.TestCase):
         self.put(self.root, "crates/server/src/main.rs", "old source")
         self.put(self.root, "crates/server/src/ground_gaps.tsv", "0\tmissing_tile\n")
         self.put(self.root, "crates/server/src/encounter_compat.csv", "map,boss\n")
+        self.put(self.root, "crates/server/src/stacked_uses.in", "[417282]")
         self.put(self.root, "scripts/reference/catalog.json", '{"rows": []}')
         self.put(self.root, "content/trading-post-monthly-catalog.json", '{"month": 46}')
         self.put(self.root, "content/quest-reward-bonus.json", '[{"quest_id":62,"bonus_money":120}]')
@@ -143,6 +144,9 @@ class DesktopServerBuildTests(unittest.TestCase):
         )
         self.assertEqual(
             files["game-server/crates/server/src/encounter_compat.csv"], "map,boss\n"
+        )
+        self.assertEqual(
+            files["game-server/crates/server/src/stacked_uses.in"], "[417282]"
         )
         self.assertEqual(
             files["game-server/scripts/reference/catalog.json"], '{"rows": []}'

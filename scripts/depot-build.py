@@ -61,12 +61,13 @@ def git_files(repo, paths, tracked):
 
 def allowed(repo_name, path, tracked):
     parts = path.parts
-    # Server compile inputs beyond Rust sources: cargo config, vendored Recast, and the
-    # tracked .sql/.tsv/.csv/.json files the crates embed with include_str!.
+    # Server compile inputs beyond Rust sources: cargo config, vendored Recast, the
+    # tracked .sql/.tsv/.csv/.json files the crates embed with include_str!, and the
+    # .in lists they splice in with include!.
     if tracked and repo_name == "game-server" and (
         parts == (".cargo", "config.toml")
         or parts[:2] == ("vendor", "recastnavigation-sys")
-        or path.suffix in {".sql", ".tsv", ".csv", ".json"}
+        or path.suffix in {".sql", ".tsv", ".csv", ".json", ".in"}
     ):
         return True
     if any(part in EXCLUDED_DIRS for part in parts) or any(
