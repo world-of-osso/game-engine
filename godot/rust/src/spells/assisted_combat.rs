@@ -202,6 +202,14 @@ impl GameClient {
                 .filter(|health| health.current > 0.0)
                 .map(|_| true),
         };
+        let player_auras = self.unit_aura_views_now(player);
+        let mut player_aura_stacks = std::collections::BTreeMap::new();
+        for aura in &player_auras {
+            player_aura_stacks
+                .entry(aura.spell_id)
+                .and_modify(|stacks: &mut u8| *stacks = (*stacks).max(aura.stacks))
+                .or_insert(aura.stacks);
+        }
         let mut facts = AssistedFacts {
             has_pet,
             powers,
@@ -209,11 +217,8 @@ impl GameClient {
             player_health_pct: health_pct(player),
             target_health_pct: health_pct(target),
             known: self.account.spells.known().iter().copied().collect(),
-            player_auras: self
-                .unit_aura_views_now(player)
-                .iter()
-                .map(|aura| aura.spell_id)
-                .collect(),
+            player_auras: player_auras.iter().map(|aura| aura.spell_id).collect(),
+            player_aura_stacks: Some(player_aura_stacks),
             target_auras: self
                 .unit_aura_views_now(target)
                 .iter()

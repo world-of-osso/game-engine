@@ -27,6 +27,9 @@ pub struct AssistedFacts {
     pub affordable: BTreeMap<u32, Result<bool, String>>,
     pub in_range: BTreeMap<u32, Result<bool, String>>,
     pub player_auras: BTreeSet<u32>,
+    /// Current player aura stack counts; None means the reading is unavailable.
+    #[serde(default)]
+    pub player_aura_stacks: Option<BTreeMap<u32, u8>>,
     pub target_auras: BTreeSet<u32>,
     pub target_hostile: Option<bool>,
     /// Owner-controlled pet presence; None means no authoritative reading.
@@ -104,6 +107,20 @@ pub fn evaluate_rule(rule: &AssistedRule, facts: &AssistedFacts) -> Result<bool,
         14 => read_boolean(&facts.affordable, spell, "effective caster cost"),
         15 => Ok(!facts.target_auras.contains(&rule.values[0])),
         16 => Ok(!facts.player_auras.contains(&rule.values[0])),
+        // SimC76f8118 player.cpp4054–4057: player buff stack >= value2.
+        54 => {
+            if rule.values[0] == 0 || rule.values[2] != 0 {
+                return Err(format!(
+                    "rule {}: aura stack operands are unverified",
+                    rule.id
+                ));
+            }
+            let stacks = facts
+                .player_aura_stacks
+                .as_ref()
+                .ok_or_else(|| format!("rule {}: player aura stacks not received", rule.id))?;
+            Ok(u32::from(stacks.get(&rule.values[0]).copied().unwrap_or(0)) >= rule.values[1])
+        }
         56 => read_boolean(&facts.in_range, spell, "spell range"),
         57 | 58 => evaluate_pet(rule, facts),
         7 | 8 | 68 | 69 => evaluate_health(rule, facts),

@@ -29,6 +29,10 @@ fn native_269_rule19596_checks_dance_of_chiji_stacks() {
         (rule.step_spell, rule.condition_type, rule.values),
         (101546, 54, [325202, 2, 0])
     );
+    assert!(evaluate_rule(&rule, &AssistedFacts::default()).is_err());
+    let mut invalid = rule.clone();
+    invalid.values[2] = 1;
+    assert!(evaluate_rule(&invalid, &AssistedFacts::default()).is_err());
     for (stacks, expected) in [(0, false), (1, false), (2, true), (3, true)] {
         let mut value = serde_json::to_value(AssistedFacts::default()).unwrap();
         value["player_aura_stacks"] = serde_json::json!({"325202": stacks});
