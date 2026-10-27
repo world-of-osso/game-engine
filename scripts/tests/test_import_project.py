@@ -20,13 +20,14 @@ class ImportProjectTest(unittest.TestCase):
             (generated / 'godot').mkdir(parents=True)
             executable = generated / 'godot-fixture'
             executable.write_text('''#!/usr/bin/python3
-import pathlib, sys
+import errno, pathlib, sys
 project = pathlib.Path(sys.argv[sys.argv.index('--path') + 1])
 source = project.parent / 'data/catalog'
 assert source.read_text() == 'original'
 try:
     source.write_text('modified')
-except PermissionError:
+except OSError as error:
+    assert error.errno == errno.EROFS
     (project / 'imported').write_text('ok')
 else:
     raise SystemExit('source was writable')
