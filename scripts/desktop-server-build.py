@@ -1,6 +1,6 @@
 #!/usr/bin/env python3
 """Build/export bookworm Linux server executables, or run the server workspace tests, on
-desktop or local, or build/test natively on this host; never start the server."""
+local, or build/test natively on this host; never start the server."""
 
 import argparse
 import fcntl
@@ -14,7 +14,7 @@ import sys
 import tempfile
 import time
 
-from build_hosts import CACHE_ROOT, execute
+from build_hosts import execute
 
 # Forward the host key for the server's private git dev-dependency (scripts/desktop-server/Dockerfile).
 SSH_FORWARD = ("--ssh", f"default={Path.home() / '.ssh/id_ed25519'}")
@@ -31,7 +31,6 @@ TEST_DATA = SCRIPTS / "desktop-server/test-data.txt"
 TEST_LOG = Path("target/server-test.log")
 # Synced data mirror on each host, shared by every checkout under one lock.
 TEST_DATA_MIRROR = "server-test-data"
-DESKTOP_RSH = "ssh desktop wsl.exe -d OssoBuild -u root --exec"
 
 
 def snapshot(root, context):
@@ -64,7 +63,7 @@ def build(root, host=None, release=False, binary=None, features=None):
     host = depot.select_build_host(host)
     if release and host == "native":
         raise ValueError(
-            "release artifacts use the bookworm container: --build-host local|desktop"
+            "release artifacts use the bookworm container: --build-host local"
         )
     lock, cache, checkout_key = depot.locked_checkout(root)
     key = "server-" + checkout_key
@@ -155,13 +154,8 @@ def sync_test_data(root, host, cache):
     for catalog in catalogs:
         if not catalog.is_file():
             raise FileNotFoundError(f"missing tracked server catalog: {catalog}")
-    if host == "desktop":
-        mirror = CACHE_ROOT / TEST_DATA_MIRROR
-        # rsync runs `<rsh> <host> rsync --server ...`; the host `env` passes the rest through.
-        destination, transport = f"env:{mirror}", ["-z", "-e", DESKTOP_RSH]
-    else:
-        mirror = destination = cache / TEST_DATA_MIRROR
-        transport = []
+    mirror = destination = cache / TEST_DATA_MIRROR
+    transport = []
     for name, (data, rules) in test_data_filters(root).items():
         subprocess.run(
             ["rsync", "-rtL", "--mkpath", "--delete", "--delete-excluded", *transport,

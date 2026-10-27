@@ -161,7 +161,7 @@ fn successful_build_then_launch_forwards_arguments_and_environment() {
 
 #[test]
 fn build_host_is_consumed_and_forwarded_only_to_helper() {
-    for host in ["desktop", "local"] {
+    for host in ["local", "native"] {
         let fixture = Fixture::new();
         let output = fixture.launch(&[
             "--headless",
@@ -252,13 +252,13 @@ fn build_host_missing_value_fails_before_any_process() {
 
 #[test]
 fn build_host_invalid_value_fails_before_any_process() {
-    for host in ["depot", "Desktop", "", "remote"] {
+    for host in ["desktop", "depot", "Desktop", "", "remote"] {
         let fixture = Fixture::new();
         let output = fixture.launch(&["--build-host", host]);
         assert_eq!(output.status.code(), Some(1), "{output:?}");
         let stderr = String::from_utf8_lossy(&output.stderr);
         assert!(stderr.contains("invalid --build-host"), "{stderr}");
-        assert!(stderr.contains("desktop or local"), "{stderr}");
+        assert!(stderr.contains("local (container) or native"), "{stderr}");
         assert!(fixture.log().is_empty());
     }
 }

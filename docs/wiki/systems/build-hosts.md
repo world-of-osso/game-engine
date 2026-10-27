@@ -1,12 +1,12 @@
-# Desktop and local build hosts
+# Local and native build hosts
 
-The October 3, 2026 trial replaces Depot-only extension builds with explicit desktop/local Docker transports. [Build commands, provisioning status, limits, and runtime/GPU boundaries](../../remote-builds.md) are the operational source of truth; [Godot conversion](../../specs/godot-conversion.md) owns the build contract.
+OssoBuild was unregistered; `desktop` is no longer a build host. Local Docker and native Cargo remain available. [Build commands, provisioning status, limits, and runtime/GPU boundaries](../../remote-builds.md) are the operational source of truth; [Godot conversion](../../specs/godot-conversion.md) owns the build contract.
 
 ## Architecture
 
-The root launcher consumes host selection and invokes `scripts/depot-build.py`; that filename remains unchanged. `scripts/build_hosts.py` supplies local Docker or desktop SSH/WSL transport to the named `game-engine` Linux amd64 buildx builder. Explicit selection overrides the saved user default; neither configuration errors nor host failures select another host.
+The root launcher consumes host selection and invokes `scripts/depot-build.py`; that filename remains unchanged. `scripts/build_hosts.py` supplies local Docker transport to the named `game-engine` Linux amd64 buildx builder. Explicit selection overrides the saved user default; neither configuration errors nor host failures select another host.
 
-The helper retains source-only snapshots, explicit test assets, checkout-specific locked target caches, and artifact export/install rather than exposing a shared Cargo target to worktrees. Each host has its own builder caches. Runtime Godot import/launch remains on the caller; choosing a build host does not move the server or client there.
+The helper retains source-only snapshots, explicit test assets, checkout-specific locked target caches, and artifact export/install rather than exposing a shared Cargo target to worktrees. The local builder keeps its own caches. Runtime Godot import/launch remains on the caller; choosing a build host does not move the server or client there.
 
 ## Evidence boundary
 

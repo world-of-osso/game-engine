@@ -1,6 +1,6 @@
 #!/usr/bin/env python3
 """Build the Linux Godot extension or run workspace tests on this host (native) or in the
-bookworm container on desktop/local. Release artifacts always use the container."""
+local bookworm container. Release artifacts always use the container."""
 
 import argparse
 import contextlib
@@ -37,8 +37,8 @@ CLI = "game-engine-cli"
 FIXTURE_DIR = Path("godot/network/examples")
 TEST_ASSETS = Path("godot/depot-test-assets.txt")
 TEST_LOG = Path("target/depot-test.log")
-HOSTS = ("desktop", "local", "native")
-CONTAINER_HOSTS = ("desktop", "local")
+HOSTS = ("local", "native")
+CONTAINER_HOSTS = ("local",)
 FICLONE = 0x40049409
 SUMMARY_PREFIXES = ("     Running ", "   Doc-tests ", "test result:", "error")
 
@@ -273,16 +273,18 @@ def build_host_setting():
 
 def select_build_host(explicit):
     if explicit is not None:
+        if explicit not in HOSTS:
+            raise ValueError(f"invalid build-host {explicit!r}; choose --build-host local|native")
         return explicit
     setting = build_host_setting()
     if not setting.is_file():
         raise ValueError(
-            "choose --build-host desktop|local|native or --save-build-host desktop|local|native"
+            "choose --build-host local|native or --save-build-host local|native"
         )
     host = setting.read_text().strip()
     if host not in HOSTS:
         raise ValueError(
-            f"invalid build-host {host!r} in {setting}; choose --build-host desktop|local|native"
+            f"invalid build-host {host!r} in {setting}; choose --build-host local|native"
         )
     return host
 
@@ -420,7 +422,7 @@ def build(root, fixture=None, cli=False, release=False, host=None):
     host = select_build_host(host)
     if release and host == "native":
         # glibc portability: a host (Arch) link needs the host's newest glibc.
-        raise ValueError("release artifacts use the bookworm container: --build-host local|desktop")
+        raise ValueError("release artifacts use the bookworm container: --build-host local")
     if fixture and fixture not in fixture_names(root):
         raise ValueError(
             f"unknown fixture {fixture!r}; choose from {', '.join(fixture_names(root))}"
