@@ -223,7 +223,7 @@ class DepotBuildTests(unittest.TestCase):
 
     def test_save_host_only_writes_setting_without_building(self):
         result = subprocess.run(
-            ["python3", str(SCRIPT), "--save-build-host", "desktop"],
+            ["python3", str(SCRIPT), "--save-build-host", "native"],
             env=self.env,
             capture_output=True,
             text=True,
@@ -231,8 +231,29 @@ class DepotBuildTests(unittest.TestCase):
         )
         self.assertEqual(result.returncode, 0, result.stderr)
         self.assertEqual(
-            (self.home / ".config/game-engine/build-host").read_text(), "desktop\n"
+            (self.home / ".config/game-engine/build-host").read_text(), "native\n"
         )
+        self.assertEqual(self.records(), [])
+
+    def test_saving_desktop_is_rejected_without_changing_setting(self):
+        result = subprocess.run(
+            ["python3", str(SCRIPT), "--save-build-host", "desktop"],
+            env=self.env,
+            capture_output=True,
+            text=True,
+            check=False,
+        )
+        self.assertNotEqual(result.returncode, 0)
+        self.assertIn("invalid choice", result.stderr)
+        self.assertEqual((self.home / ".config/game-engine/build-host").read_text(), "local\n")
+        self.assertEqual(self.records(), [])
+
+    def test_saved_desktop_is_rejected_without_starting_a_build(self):
+        self._put(self.home, ".config/game-engine/build-host", "desktop\n")
+        result = self.build()
+        self.assertNotEqual(result.returncode, 0)
+        self.assertIn("invalid build-host 'desktop'", result.stderr)
+        self.assertIn("local|native", result.stderr)
         self.assertEqual(self.records(), [])
 
     def test_explicit_local_overrides_saved_desktop(self):

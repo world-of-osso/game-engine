@@ -106,7 +106,7 @@ class DesktopServerBuildTests(unittest.TestCase):
         spec.loader.exec_module(module)
         self.setting = self.base / "config/game-engine/build-host"
         if not self.setting.exists():
-            self.put(self.base, "config/game-engine/build-host", "desktop\n")
+            self.put(self.base, "config/game-engine/build-host", "local\n")
         setting = patch.object(module.depot, "build_host_setting", lambda: self.setting)
         setting.start()
         self.addCleanup(setting.stop)
@@ -161,7 +161,7 @@ class DesktopServerBuildTests(unittest.TestCase):
         self.assertNotIn("game-server/crates/server/src/untracked.tsv", files)
         self.assertNotIn("game-server/scripts/untracked.json", files)
         self.assertNotIn("SECRET", files.values())
-        self.assertEqual(result["host"], "desktop")
+        self.assertEqual(result["host"], "local")
         self.assertEqual(result["target"], "artifact")
         self.assertIn("TARGET_CACHE=server-target-" + result["key"], result["args"])
         for name in module.BINARIES:
@@ -288,11 +288,9 @@ class DesktopServerBuildTests(unittest.TestCase):
         with patch.object(module, "execute", self.execute):
             module.build(self.root)
         self.assertEqual(json.loads(self.capture.read_text())["host"], "local")
-        self.assertEqual(self.main(module, "--save-build-host", "desktop"), 0)
-        self.assertEqual(self.setting.read_text(), "desktop\n")
-        with patch.object(module, "execute", self.execute):
-            module.build(self.root)
-        self.assertEqual(json.loads(self.capture.read_text())["host"], "desktop")
+        with self.assertRaises(SystemExit):
+            self.main(module, "--save-build-host", "desktop")
+        self.assertEqual(self.setting.read_text(), "local\n")
 
     def test_missing_or_invalid_setting_fails_without_transport(self):
         module = self.load()
@@ -305,8 +303,10 @@ class DesktopServerBuildTests(unittest.TestCase):
             with self.assertRaisesRegex(ValueError, "invalid build-host"):
                 module.build(self.root)
             self.assertFalse(self.capture.exists())
-            module.build(self.root, host="desktop")
-        self.assertEqual(json.loads(self.capture.read_text())["host"], "desktop")
+            with self.assertRaisesRegex(ValueError, "invalid build-host 'desktop'"):
+                module.build(self.root, host="desktop")
+            module.build(self.root, host="local")
+        self.assertEqual(json.loads(self.capture.read_text())["host"], "local")
         self.assertEqual(self.setting.read_text(), "unknown\n")
 
     def test_save_host_rejects_build_options_without_saving_or_building(self):
@@ -320,7 +320,7 @@ class DesktopServerBuildTests(unittest.TestCase):
                 with self.assertRaises(SystemExit) as error:
                     self.main(module, "--save-build-host", "local", *options)
                 self.assertEqual(error.exception.code, 2)
-                self.assertEqual(self.setting.read_text(), "desktop\n")
+                self.assertEqual(self.setting.read_text(), "local\n")
                 self.assertFalse(self.capture.exists())
 
     def test_release_failure_preserves_old_artifacts_without_host_fallback(self):
@@ -415,7 +415,7 @@ class DesktopServerBuildTests(unittest.TestCase):
                         "--root",
                         str(self.root),
                         "--build-host",
-                        "desktop",
+                        "local",
                         "--release",
                         "--bin",
                         binary,
@@ -423,7 +423,7 @@ class DesktopServerBuildTests(unittest.TestCase):
                     0,
                 )
                 result = json.loads(self.capture.read_text())
-                self.assertEqual(result["host"], "desktop")
+                self.assertEqual(result["host"], "local")
                 self.assertIn(f"BINARY={binary}", result["args"])
                 for name in module.BINARIES:
                     expected = f"release {name}" if name == binary else "old executable"
