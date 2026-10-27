@@ -42,3 +42,9 @@ The census reports 37 distinct spells (78 memberships) with unsupported type-10 
 
 **Named gap: type-10 values 1, 2, 24 and 25.** No invented voice mapping, behavioral test or after-capture is claimed.
 
+## Ribbons: extra texture references
+
+Chaos Bolt model 1863946 has three texture references and one material per ribbon. WebWowViewerCpp `CRibbonEmitter::createMaterials` creates one pass per material using the corresponding texture index. The native renderer rejected unequal counts, preventing those ribbons from spawning. It now accepts extra texture references while still rejecting a missing texture for a material pass.
+
+The real-model native fixture failed with the reference-count error before the fix and created one strip after it. Before/after census captures and logs are at `/syncthing/AgentShared/2026-10-27/spell-visual-census/fixes/ribbons/`. All 55 previously flagged cases lost the reference-count error; 54 have no reported error. One now reports priority 135 outside Godot's supported render-priority range. **Named gap: out-of-range ribbon priority rendering.** The strip fixture verifies construction, not rendered pixel fidelity; the contact sheets are detached previews.
+
