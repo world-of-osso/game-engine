@@ -9,7 +9,7 @@ Linux and Windows players share one staged project/data bundle. Publisher: `depl
 - [x] Stream each changed file to a temporary object, verify the streamed size and SHA256 against the manifest, and promote only matching bytes. Missing or changed files abort publication with path-specific errors.
 - [x] A dry run generates both manifests and packs without accessing the live bucket.
 - [x] Compare old and new manifest entries byte-for-byte except `godot/.godot/uid_cache.bin` and SQLite backups. Compare the UID cache's parsed UID-to-path pairs; two cold imports of the same old bundle produced different cache byte order. Do not rewrite the cache to make it deterministic. For each SQLite backup, compare schema and rows with a quiesced copy of its source; online backup bytes can differ from a raw file copy.
-- [x] Preserve the runtime allowlist, product receipt selection and credential/extraction-state exclusions.
+- [x] Preserve the runtime allowlist, product receipt selection and credential/extraction-state exclusions. Abort if model indexes change while selecting or hashing their assets.
 - [x] `model-asset-index*.json` entries must stay within `products/<product>/<build_key>/`. UI audio ships directly through `sounds/` (including `sounds/ui/`); keep its verification receipts outside the model-index filename family. Do not produce model-asset-index fragments for flat UI sound paths.
 
 ## How it works
