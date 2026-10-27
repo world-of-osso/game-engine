@@ -4,6 +4,7 @@ import argparse
 import hashlib
 import json
 import struct
+import subprocess
 from pathlib import Path
 
 MIB = 1024 * 1024
@@ -11,26 +12,7 @@ TARGET = 32 * MIB
 MIN_CHUNK = 256 * 1024
 MAX_CHUNK = 4 * MIB
 HEADER = b'OSSPACK\x01'
-GEAR = [int.from_bytes(hashlib.sha256(bytes([i])).digest()[:8], 'little') for i in range(256)]
-
-
-def chunks(path):
-    if path.stat().st_size <= MIB:
-        yield path.read_bytes()
-        return
-    rolling = 0
-    current = bytearray()
-    with path.open('rb') as source:
-        while block := source.read(64 * 1024):
-            for byte in block:
-                current.append(byte)
-                rolling = ((rolling << 1) + GEAR[byte]) & 0xffffffffffffffff
-                if len(current) >= MIN_CHUNK and (rolling & (MIB - 1) == 0 or len(current) == MAX_CHUNK):
-                    yield bytes(current)
-                    current.clear()
-                    rolling = 0
-        if current:
-            yield bytes(current)
+CHUNKER = Path(__file__).resolve().parents[1] / 'target/release/launcher-pack-chunks'
 
 
 def build_packs(source, output, input_manifest=None):
@@ -49,24 +31,27 @@ def build_packs(source, output, input_manifest=None):
         paths = [(item['path'], item) for item in input_manifest['files']]
     if len({name for name, _ in paths}) != len(paths):
         raise ValueError('duplicate staged path')
-    for relative, expected in sorted(paths):
+    paths.sort()
+    for relative, _ in paths:
         if any(part in ('', '.', '..') for part in relative.split('/')) or '\\' in relative or ':' in relative:
             raise ValueError(f'unsafe staged path: {relative}')
+    result = subprocess.run([str(CHUNKER), str(source)], input=json.dumps([name for name, _ in paths]),
+                            text=True, capture_output=True, check=True)
+    indexed = json.loads(result.stdout)
+    for (relative, expected), file in zip(paths, indexed, strict=True):
         path = source / relative
         parts = relative.split('/')
         group = '/'.join(parts[:2]) if parts[0] == 'data' and len(parts) > 2 else (parts[0] if len(parts) > 1 else '_root')
-        file_hash = hashlib.sha256()
         refs = []
-        size = 0
-        for chunk in chunks(path):
-            digest = hashlib.sha256(chunk).hexdigest()
-            file_hash.update(chunk)
-            size += len(chunk)
-            key = f'{group}:{digest}'
+        offset = 0
+        for chunk in file['chunks']:
+            length = chunk['size']
+            key = f"{group}:{chunk['sha256']}"
             refs.append(key)
             if key not in existing and key not in pending:
-                pending[key] = (path, size - len(chunk), len(chunk))
-        digest = file_hash.hexdigest()
+                pending[key] = (path, offset, length)
+            offset += length
+        size, digest = file['size'], file['sha256']
         if expected is not None and (size != expected['size'] or digest != expected['sha256']):
             raise ValueError(f'staged file does not match manifest: {relative}')
         entries.append((relative, size, digest, refs))

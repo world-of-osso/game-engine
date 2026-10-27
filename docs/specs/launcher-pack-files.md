@@ -63,6 +63,8 @@ The separate `manifest-v2.json` has `version: 2`, `format_version: 1`, and `chun
 
 Files of at most 1 MiB use one chunk. For larger files, the version-1 chunker starts a 64-bit rolling value at zero and updates it for each byte as `(value << 1) + gear[byte]`, modulo 2^64. `gear[i]` is the little-endian integer represented by the first eight bytes of `SHA256(bytes([i]))`. After the minimum, a chunk ends when the low 20 bits are zero, or at the maximum. The rolling value resets at each boundary. The final chunk may be shorter than the minimum.
 
+The publisher builds `launcher-pack-chunks` in release mode before invoking `scripts/launcher_packs.py`; direct invocations require that binary at `target/release/launcher-pack-chunks`. The helper indexes files in parallel and returns chunk digests and sizes without retaining bundle contents in memory.
+
 The publisher retains `chunk-index.json` version 1 beside the packs. Its key is the asset group and chunk digest; an existing key keeps its old pack and offset. New records are sorted by group and digest, and packs target 32 MiB. `data/<directory>` entries have separate groups; other paths use their top-level directory, or `_root` for root files. Old pack objects are not deleted. This implementation is not yet approved for live publication.
 
 ## Local fixture proof (2026-10-26; incomplete implementation)

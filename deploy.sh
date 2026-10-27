@@ -128,6 +128,7 @@ publish() {
     run python3 "$ROOT/scripts/player_bundle.py" --root "$ROOT" --bundle "$BUNDLE" --platform "$PLATFORM" \
         --verify-manifest --only "$work/upload.txt"
     echo "=== Building immutable packs from the verified manifest ==="
+    run cargo build --release --manifest-path "$ROOT/Cargo.toml" -p launcher-pack-chunks
     local pack_cache="$BUNDLE.pack-cache"
     run python3 "$ROOT/scripts/launcher_packs.py" "$BUNDLE" "$pack_cache" --manifest "$BUNDLE/manifest.json"
     echo "=== Uploading changed files to $DESTINATION ==="

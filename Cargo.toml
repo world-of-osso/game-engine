@@ -1,5 +1,5 @@
 [workspace]
-members = ["launcher", "tools"]
+members = ["launcher", "tools", "launcher-pack-chunks"]
 default-members = ["launcher"]
 exclude = ["godot", "vendor/ktx2-rw", "vendor/taffy"]
 resolver = "3"

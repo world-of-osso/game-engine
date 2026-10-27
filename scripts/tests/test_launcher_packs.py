@@ -8,6 +8,45 @@ from launcher_packs import build_packs
 
 
 class PackTests(unittest.TestCase):
+    def test_native_chunk_index_matches_golden(self):
+        import json
+        import subprocess
+        import hashlib
+
+        golden = json.loads((Path(__file__).parent / 'fixtures/launcher-packs-golden.json').read_text())
+        with tempfile.TemporaryDirectory() as directory:
+            root = Path(directory)
+            (root / 'data/textures').mkdir(parents=True)
+            (root / 'small').write_bytes(b'launcher golden fixture\n')
+            (root / 'data/textures/random').write_bytes(hashlib.shake_256(b'launcher pack golden').digest(6 * 1024 * 1024))
+            (root / 'data/textures/max').write_bytes(bytes(5 * 1024 * 1024))
+            binary = Path(__file__).resolve().parents[2] / 'target/release/launcher-pack-chunks'
+            paths = [entry['path'] for entry in golden['manifest']['files']]
+            result = subprocess.run([str(binary), str(root)], input=json.dumps(paths), text=True, capture_output=True, check=True)
+            files = json.loads(result.stdout)
+            for actual, expected in zip(files, golden['manifest']['files'], strict=True):
+                self.assertEqual((actual['size'], actual['sha256']), (expected['size'], expected['sha256']))
+                self.assertEqual([(chunk['size'], chunk['sha256']) for chunk in actual['chunks']], [(chunk['size'], chunk['sha256']) for chunk in expected['chunks']])
+
+    def test_golden_pack_output(self):
+        import hashlib
+        import json
+
+        golden = json.loads((Path(__file__).parent / 'fixtures/launcher-packs-golden.json').read_text())
+        with tempfile.TemporaryDirectory() as directory:
+            root = Path(directory)
+            source = root / 'source'
+            (source / 'data/textures').mkdir(parents=True)
+            (source / 'small').write_bytes(b'launcher golden fixture\n')
+            (source / 'data/textures/random').write_bytes(hashlib.shake_256(b'launcher pack golden').digest(6 * 1024 * 1024))
+            (source / 'data/textures/max').write_bytes(bytes(5 * 1024 * 1024))
+            output = root / 'output'
+            build_packs(source, output)
+            for name, key in [('chunk-index.json', 'index'), ('manifest-v2.json', 'manifest')]:
+                self.assertEqual((output / name).read_bytes(), json.dumps(golden[key], sort_keys=True, separators=(',', ':')).encode())
+            packs = {path.name: hashlib.sha256(path.read_bytes()).hexdigest() for path in (output / 'packs').iterdir()}
+            self.assertEqual(packs, golden['packs'])
+
     def test_reproducible_and_retains_old_chunk_location(self):
         with tempfile.TemporaryDirectory() as directory:
             root = Path(directory)
