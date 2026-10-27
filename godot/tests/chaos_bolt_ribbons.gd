@@ -11,7 +11,7 @@ func run_test() -> void:
 		push_error("Chaos Bolt ribbons: " + error)
 		quit(1)
 		return
-	var strips := fixture.find_children("M2RibbonStrip*", "MeshInstance3D", true, false)
+	var strips: Array[Node] = fixture.find_children("M2RibbonStrip*", "MeshInstance3D", true, false)
 	if strips.is_empty():
 		push_error("Chaos Bolt produced no ribbon strips")
 		quit(1)
