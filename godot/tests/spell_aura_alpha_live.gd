@@ -2,7 +2,6 @@ extends SceneTree
 
 # Private-server test: Evasion 5277 resolves authored aura kit 43868 / alpha 0.5.
 const SPELL := 5277
-const BAR_KEYS := [KEY_1, KEY_2, KEY_3, KEY_4, KEY_5, KEY_6, KEY_7, KEY_8, KEY_9, KEY_0, KEY_MINUS, KEY_EQUAL]
 var client: Node
 var character := ""
 var output := ""
@@ -31,10 +30,6 @@ func run_test() -> void:
 		return
 	if not await wait_until(func(): return client.spells_state().known.has(SPELL), 60000, "known Evasion"):
 		return
-	var slot: int = client.spells_state().bar.find(SPELL)
-	if slot < 0 or slot >= BAR_KEYS.size():
-		fail("Evasion not on main bar: " + str(client.spells_state().bar))
-		return
 	if not await wait_until(func(): return mesh_transparency() >= 0.0, 60000, "player mesh"):
 		return
 	var baseline := mesh_transparency()
@@ -42,7 +37,15 @@ func run_test() -> void:
 		fail("expected opaque player before cast: " + str(baseline))
 		return
 	await screenshot("before.png")
-	await press(BAR_KEYS[slot])
+	await press(KEY_P)
+	if not await wait_until(func(): return client.spells_state().spellbook_open, 5000, "spellbook"):
+		return
+	var icon: Control = client.get_node("SpellBookUI").find_child("SpellBookItem%dButton" % SPELL, true, false)
+	if icon == null:
+		fail("Evasion spellbook button missing")
+		return
+	await click(icon)
+	await press(KEY_ESCAPE)
 	if not await wait_until(func(): return has_aura(), 15000, "replicated Evasion aura"):
 		return
 	if not await wait_until(func(): return absf(mesh_transparency() - 0.5) < 0.001, 10000, "held alpha 0.5"):
@@ -75,19 +78,29 @@ func mesh_transparency() -> float:
 	return -1.0
 
 func enter_world() -> bool:
-	if not await wait_until(func(): return client.account_state().screen == "CharacterSelect" and client.account_state().character_count >= 1, 30000, "character select"):
+	if not await wait_until(func(): return client.account_state().screen == "CharacterSelect" and client.account_state().character_count >= 1 and client.get_node_or_null("CharacterSelectUI") != null, 30000, "character select"):
 		return false
-	var ui: Node = client.get_node_or_null("CharacterSelectUI")
-	if ui == null:
-		fail("character select UI missing")
+	var ui: Node = client.get_node("CharacterSelectUI")
+	var enter: Control = ui.find_child("EnterWorld", true, false)
+	if not await wait_until(func(): return enter.is_visible_in_tree(), 180000, "character preview"):
 		return false
 	await click(ui.find_child("CharCard_0", true, false))
 	var selected = ui.find_child("CharSelectCharacterName", true, false)
 	if selected.text != character:
 		fail("unexpected character: " + str(selected.text))
 		return false
-	await click(ui.find_child("EnterWorld", true, false))
-	return await wait_until(func(): return client.account_state().screen == "InWorld" and client.account_state().local_player_position != null, 120000, "in world")
+	await click(enter)
+	if not await wait_until(func(): return in_world(client.account_state()), 120000, "in world"):
+		return false
+	await wait_frames(60)
+	return true
+
+func in_world(state: Dictionary) -> bool:
+	return state.screen == "InWorld" and state.local_player_position != null and state.terrain.pending_count == 0 and not state.terrain.parsed_tiles.is_empty()
+
+func wait_frames(count: int) -> void:
+	for frame in range(count):
+		await process_frame
 
 func wait_until(predicate: Callable, timeout_ms: int, what: String) -> bool:
 	var deadline := Time.get_ticks_msec() + timeout_ms
@@ -95,7 +108,7 @@ func wait_until(predicate: Callable, timeout_ms: int, what: String) -> bool:
 		await process_frame
 		if predicate.call():
 			return true
-	fail("timeout waiting for " + what)
+	fail("timeout waiting for %s: %s" % [what, client.account_state()])
 	return false
 
 func press(code: Key) -> void:
@@ -112,6 +125,12 @@ func click(control: Control) -> void:
 		fail("missing control")
 		return
 	var point := control.get_global_rect().get_center()
+	var motion := InputEventMouseMotion.new()
+	motion.position = point
+	motion.global_position = point
+	root.push_input(motion, true)
+	Input.warp_mouse(point)
+	await wait_frames(2)
 	for down in [true, false]:
 		var event := InputEventMouseButton.new()
 		event.position = point
@@ -120,6 +139,7 @@ func click(control: Control) -> void:
 		event.pressed = down
 		root.push_input(event, true)
 		await process_frame
+	await wait_frames(3)
 
 func screenshot(name: String) -> void:
 	await RenderingServer.frame_post_draw
