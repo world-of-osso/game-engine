@@ -30,6 +30,18 @@ pub struct AssistedFacts {
     /// Current player aura stack counts; None means the reading is unavailable.
     #[serde(default)]
     pub player_aura_stacks: Option<BTreeMap<u32, u8>>,
+    #[serde(default)]
+    pub target_aura_stacks: Option<BTreeMap<u32, u8>>,
+    #[serde(default)]
+    pub player_aura_remaining_ms: Option<BTreeMap<u32, f64>>,
+    #[serde(default)]
+    pub target_aura_remaining_ms: Option<BTreeMap<u32, f64>>,
+    #[serde(default)]
+    pub active_dot_counts: Option<BTreeMap<u32, u32>>,
+    #[serde(default)]
+    pub active_enemies: Option<u32>,
+    #[serde(default)]
+    pub mana_pct: Option<f64>,
     pub target_auras: BTreeSet<u32>,
     pub target_hostile: Option<bool>,
     /// Owner-controlled pet presence; None means no authoritative reading.
@@ -65,6 +77,14 @@ pub fn evaluate_rule(rule: &AssistedRule, facts: &AssistedFacts) -> Result<bool,
             .get(&power)
             .copied()
             .ok_or_else(|| format!("rule {}: raw power {power} not received", rule.id))?;
+        // SimC76f8118 player.cpp3948–3951/3988–3991: inclusive energy/chi thresholds.
+        if matches!(rule.condition_type, 25 | 42) {
+            return Ok(if greater {
+                value >= f64::from(rule.values[0])
+            } else {
+                value <= f64::from(rule.values[0])
+            });
+        }
         return compare_number(rule, value, f64::from(rule.values[0]), greater);
     }
     match rule.condition_type {
@@ -83,6 +103,55 @@ pub fn evaluate_rule(rule: &AssistedRule, facts: &AssistedFacts) -> Result<bool,
                 }
                 Some(_) => Err(format!("rule {}: invalid target distance", rule.id)),
             }
+        }
+        4 => {
+            require_zero_tail(rule)?;
+            match facts.target_distance_yd {
+                None => Ok(false),
+                Some(distance) if distance.is_finite() && distance >= 0.0 => {
+                    Ok(distance > f64::from(rule.values[0]))
+                }
+                Some(_) => Err(format!("rule {}: invalid target distance", rule.id)),
+            }
+        }
+        11 | 12 | 49 | 50 if rule.id != 1268 => {
+            if rule.values[2] != 0 {
+                return Err(format!(
+                    "rule {}: enemy count operands are unverified",
+                    rule.id
+                ));
+            }
+            // SimC76f8118 player.cpp3901–3909/4031–4038 ignores radius and uses active_enemies.
+            let count = facts
+                .active_enemies
+                .ok_or_else(|| format!("rule {}: active enemies not received", rule.id))?;
+            Ok(if matches!(rule.condition_type, 11 | 12) {
+                count > rule.values[0]
+            } else {
+                count <= rule.values[0]
+            })
+        }
+        13 | 51 => {
+            if rule.values[2] == 0 {
+                return Err(format!(
+                    "rule {}: active dot operands are unverified",
+                    rule.id
+                ));
+            }
+            // SimC76f8118 player.cpp3910–3917/4039–4045 uses active_dot.<name>.
+            let counts = facts
+                .active_dot_counts
+                .as_ref()
+                .ok_or_else(|| format!("rule {}: active dot counts not received", rule.id))?;
+            let count = counts
+                .get(&rule.values[2])
+                .copied()
+                .ok_or_else(|| format!("rule {}: dot identity unverified", rule.id))?;
+            Ok(if rule.condition_type == 13 {
+                count >= rule.values[0]
+            } else {
+                count <= rule.values[0]
+            })
         }
         12 if rule.id == 1268 && rule.step_spell == 190411 => {
             require_zero_tail(rule)?;
@@ -105,21 +174,63 @@ pub fn evaluate_rule(rule: &AssistedRule, facts: &AssistedFacts) -> Result<bool,
             .any(|id| facts.player_auras.contains(id))),
         10 => Ok(facts.target_auras.contains(&rule.values[0])),
         14 => read_boolean(&facts.affordable, spell, "effective caster cost"),
+        17 | 18 => {
+            if rule.values[0] == 0 || rule.values[2] != 0 {
+                return Err(format!(
+                    "rule {}: aura duration operands are unverified",
+                    rule.id
+                ));
+            }
+            // SimC76f8118 player.cpp3932–3941: player aura must be up; target absence has zero remains.
+            let durations = if rule.condition_type == 17 {
+                &facts.player_aura_remaining_ms
+            } else {
+                &facts.target_aura_remaining_ms
+            };
+            let durations = durations
+                .as_ref()
+                .ok_or_else(|| format!("rule {}: aura durations not received", rule.id))?;
+            let remaining = durations.get(&rule.values[0]).copied().unwrap_or(0.0);
+            Ok(
+                (rule.condition_type != 17 || facts.player_auras.contains(&rule.values[0]))
+                    && remaining <= f64::from(rule.values[1]),
+            )
+        }
+        20 => {
+            require_zero_tail(rule)?;
+            let pct = facts
+                .mana_pct
+                .ok_or_else(|| format!("rule {}: mana percentage not received", rule.id))?;
+            if !pct.is_finite() {
+                return Err(format!("rule {}: invalid mana percentage", rule.id));
+            }
+            // SimC76f8118 player.cpp3945–3947: raw threshold is tenths of a percent.
+            Ok(pct <= f64::from(rule.values[0]) / 10.0)
+        }
         15 => Ok(!facts.target_auras.contains(&rule.values[0])),
         16 => Ok(!facts.player_auras.contains(&rule.values[0])),
-        // SimC76f8118 player.cpp4054–4057: player buff stack >= value2.
-        54 => {
+        // SimC76f8118 player.cpp4046–4061: target/player stack inclusive thresholds.
+        52 | 53 | 54 | 55 => {
             if rule.values[0] == 0 || rule.values[2] != 0 {
                 return Err(format!(
                     "rule {}: aura stack operands are unverified",
                     rule.id
                 ));
             }
-            let stacks = facts
-                .player_aura_stacks
+            let stacks = if matches!(rule.condition_type, 52 | 53) {
+                &facts.target_aura_stacks
+            } else {
+                &facts.player_aura_stacks
+            };
+            let stacks = stacks
                 .as_ref()
-                .ok_or_else(|| format!("rule {}: player aura stacks not received", rule.id))?;
-            Ok(u32::from(stacks.get(&rule.values[0]).copied().unwrap_or(0)) >= rule.values[1])
+                .ok_or_else(|| format!("rule {}: aura stacks not received", rule.id))?;
+            let value = u32::from(stacks.get(&rule.values[0]).copied().unwrap_or(0));
+            Ok(if matches!(rule.condition_type, 52 | 54) {
+                value >= rule.values[1]
+            } else {
+                value <= rule.values[1]
+            })
         }
         56 => read_boolean(&facts.in_range, spell, "spell range"),
         57 | 58 => evaluate_pet(rule, facts),
