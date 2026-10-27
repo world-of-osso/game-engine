@@ -69,7 +69,7 @@ func has_aura() -> bool:
 	return false
 
 func mesh_transparency() -> float:
-	var visual: Node = client.get_node_or_null("WorldUnits/" + character + "/NpcVisualRoot")
+	var visual: Node = client.get_node_or_null("WorldUnits/" + character + "/PlayerModel")
 	if visual == null:
 		return -1.0
 	for mesh in visual.find_children("*", "MeshInstance3D", true, false):
