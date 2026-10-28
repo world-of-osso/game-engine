@@ -15,7 +15,7 @@ The Godot client ran Stormwind at about 13–20 FPS (debug build, 1280x720, head
 
 ## Target and Bevy baseline
 
-Target (user, 2026-10-28): at least 120 FPS (8.3 ms per frame) in Stormwind both outdoors and indoors, in a release build at 1080p on this host. Neither client has reached it.
+Target (user, 2026-10-28): at least 120 FPS (8.3 ms per frame) in Stormwind both outdoors and indoors, in a release build at 1080p on this host. Neither client has reached it. At the current 7–55 FPS the client is unusable (user, 2026-10-28). The engine stays Godot.
 
 No Bevy Stormwind FPS measurement was found in `docs/`. The retired Bevy client's recorded in-world numbers:
 
