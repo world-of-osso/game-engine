@@ -13,6 +13,20 @@ The Godot client ran Stormwind at about 13–20 FPS (debug build, 1280x720, head
   - Indoors: Fbfps at (-8785.9, 820.7, 97.65).
   - Stockade exit: (-8766.11, 845.50, 88.00), with the outdoors in view.
 
+## Target and Bevy baseline
+
+Target (user, 2026-10-28): at least 120 FPS (8.3 ms per frame) in Stormwind both outdoors and indoors, in a release build at 1080p on this host. Neither client has reached it.
+
+No Bevy Stormwind FPS measurement was found in `docs/`. The retired Bevy client's recorded in-world numbers:
+
+| Bevy build | Scene | FPS | Source |
+|---|---|---|---|
+| release `bff94c42`, 1280×685 | Northshire spawn, 9 tiles (~9,900 doodads, 81 WMOs) | 9–24 | [movement-performance](movement-performance.md#release-in-world-fps-profile-2026-09-24) |
+| dev `00e7b3b0`, all text enabled | InWorld, 71 remote entities | 12.3 | [rendering-pipeline](../systems/rendering-pipeline.md) |
+| dev, Mailbox present fix `89f58874` | InWorld, unfocused | 28.4–29.3 | [rendering-pipeline](../systems/rendering-pipeline.md) |
+
+The user also observed less than 20 FPS for a similar Stormwind scene in the Bevy client (not reproduced here). Bevy was not faster in comparable scenes: Bevy release was 9–24 FPS and Godot release is 21–55 FPS after the lighting fix. The scenes differ, so this is not a controlled A/B.
+
 ## Material uniform updates (2026-10-28)
 
 A symbolized release profile at the indoor spot attributed about 30% of main-thread time to `MaterialStorage::_update_queued_materials` and 14% to `RenderingServer::free_rid`. Each changing light rebound thousands of material parameters and replaced the terrain cubemap. The fix binds scene-light and fog flags on first use, writes changing water values as global shader parameters, and updates the six faces of one cubemap in place. A changing global texture alone would still queue its dependent materials in Godot's renderer.
