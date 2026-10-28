@@ -1,3 +1,7 @@
+## 2026-10-28 — Stormwind material uniform updates
+
+[Stormwind FPS](investigations/godot-stormwind-fps.md#material-uniform-updates-2026-10-28) records the persistent cubemap and global water inputs, provisional release measurements, passing pixel fixtures, and outstanding visual proof.
+
 ## 2026-10-27 — Player release templates
 
 [Shipped assets](systems/shipped-assets.md#release-templates--2026-10-27) records patched release templates, raw-project path support and Linux proof. Windows title and extension load passed; login remains unproved with the old data fixture.

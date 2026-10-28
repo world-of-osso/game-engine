@@ -13,6 +13,14 @@ The Godot client ran Stormwind at about 13–20 FPS (debug build, 1280x720, head
   - Indoors: Fbfps at (-8785.9, 820.7, 97.65).
   - Stockade exit: (-8766.11, 845.50, 88.00), with the outdoors in view.
 
+## Material uniform updates (2026-10-28)
+
+A symbolized release profile at the indoor spot attributed about 30% of main-thread time to `MaterialStorage::_update_queued_materials` and 14% to `RenderingServer::free_rid`. Each changing light rebound thousands of material parameters and replaced the terrain cubemap. The fix binds scene-light and fog flags on first use, writes changing water values as global shader parameters, and updates the six faces of one cubemap in place. A changing global texture alone would still queue its dependent materials in Godot's renderer.
+
+Back-to-back release harness samples on the same host were 7–9 FPS / 116.95–145.11 ms before and 21–55 FPS / 19.06–46.03 ms after; a later after sample was 18 FPS / 54.55 ms. These are noisy instantaneous readings, not controlled averages. Both runs logged missing asset receipts, and the cage produced 1280×720 screenshots despite the 1920×1080 request. The captures have 44.51 dB PSNR; visual equivalence and the requested resolution remain unproven.
+
+The 20-second post-change main-thread profile (1,759 samples) showed top self costs: render-list submission 5.42%, `std::thread::current` 4.42%, `pthread_mutex_lock` 4.39%, `Node3D::_propagate_transform_changed` 3.25%, and godot-ffi main-thread checking 2.82%. A loaded offline world fixture changes light time and observes zero light-binding material writes. The water, legacy water, retail fog, and terrain pixel fixtures passed; the offline world fixture also reported missing asset receipts.
+
 ## Where the frame went (before)
 
 | Variant (Stockade exit, all objects) | FPS | Draws |
