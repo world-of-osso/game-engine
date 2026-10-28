@@ -2,6 +2,8 @@
 
 Replace the Bevy client engine with Godot while retaining reusable Rust and preserving existing feature behavior and UI appearance. The conversion is an isolated experiment; a partial renderer or launchable scene does not satisfy completion.
 
+Motivation (user, 2026-10-28): better FPS than Bevy. No Bevy Stormwind FPS was recorded before retirement; the available Bevy baselines and the 120 FPS Stormwind target are in [Godot Stormwind FPS](../wiki/investigations/godot-stormwind-fps.md#target-and-bevy-baseline).
+
 ## Retired Bevy client (user decision 2026-10-02)
 
 The Godot client is the only client. The root Bevy package `game-engine` is deleted; historical evidence below that cites root `cargo check -p game-engine`/`--bin game-engine`, root Bevy adapters or root `src/` paths describes the pre-retirement tree and is no longer a gate.
