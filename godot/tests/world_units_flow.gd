@@ -2,6 +2,8 @@ extends SceneTree
 
 # Required environment inputs also apply to every inherited world flow.
 # The account must have at least two characters; these flows select card 1.
+const CharacterSelectReveal = preload("res://tests/character_select_reveal.gd")
+
 var server: String
 var account: String
 var password: String
@@ -35,6 +37,9 @@ func run_test() -> void:
 			return
 		if state.assets_starting or client.get_node_or_null("CharacterSelectUI") == null:
 			continue
+		if not await CharacterSelectReveal.wait_for_reveal(self, client, "CharCard_1"):
+			fail("Timed out waiting for character selection to become visible: " + str(client.account_state()))
+			return
 		await select_second_character(client)
 		return
 	fail("Timed out waiting for character selection")
@@ -52,6 +57,9 @@ func select_second_character(client: Node) -> void:
 		fail("Second character name is empty")
 		return
 	await click_control(card)
+	if not await CharacterSelectReveal.wait_for_reveal(self, client, "CharCard_1", expected_name):
+		fail("Second character preview did not reveal selection: " + str(client.account_state()))
+		return
 	if client.account_state().selected_character_name == expected_name:
 		fail("Selection must be established by server response, not before Enter World")
 		return

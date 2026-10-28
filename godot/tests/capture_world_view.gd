@@ -13,6 +13,7 @@ extends SceneTree
 ##   VIEW_WORLD_TIMEOUT_S            seconds to wait for the world's terrain and objects (300)
 
 const PASSWORD := "fbtest"
+const CharacterSelectReveal = preload("res://tests/character_select_reveal.gd")
 
 var client: Node
 var character := ""
@@ -89,10 +90,16 @@ func enter_world() -> bool:
 	if ui == null:
 		fail("No character select: " + str(client.account_state()))
 		return false
+	if not await CharacterSelectReveal.wait_for_reveal(self, client, "CharCard_0"):
+		fail("Character selection did not become visible: " + str(client.account_state()))
+		return false
+	var card_name = ui.find_child("CharCard_0Name", true, false)
+	if card_name == null or card_name.text != character:
+		fail("Card 0 is not %s" % character)
+		return false
 	await click(ui.find_child("CharCard_0", true, false))
-	var selected = ui.find_child("CharSelectCharacterName", true, false)
-	if selected.text != character:
-		fail("Card 0 is %s, not %s" % [selected.text, character])
+	if not await CharacterSelectReveal.wait_for_reveal(self, client, "CharCard_0", character):
+		fail("Character preview did not reveal selection: " + str(client.account_state()))
 		return false
 	await click(ui.find_child("EnterWorld", true, false))
 	var timeout := int(OS.get_environment("VIEW_WORLD_TIMEOUT_S")) if OS.get_environment("VIEW_WORLD_TIMEOUT_S") != "" else 300

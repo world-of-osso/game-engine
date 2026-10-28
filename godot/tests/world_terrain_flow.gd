@@ -5,7 +5,11 @@ func select_second_character(client: Node) -> void:
 		fail("Native host does not expose server-requested terrain asset state")
 		return
 	var ui = client.get_node("CharacterSelectUI")
+	var expected_name: String = ui.find_child("CharCard_1Name", true, false).text
 	await click_control(ui.find_child("CharCard_1", true, false))
+	if not await CharacterSelectReveal.wait_for_reveal(self, client, "CharCard_1", expected_name):
+		fail("Second character preview did not reveal selection: " + str(client.account_state()))
+		return
 	await click_control(ui.find_child("EnterWorld", true, false))
 	var deadline := Time.get_ticks_msec() + 60000
 	while Time.get_ticks_msec() < deadline:
