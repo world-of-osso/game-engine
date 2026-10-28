@@ -40,16 +40,5 @@ func inspect_material_tiles(client: Node, parsed_tiles: Array) -> bool:
 	if fog.y <= fog.x or int(material.get_shader_parameter("fog_mode")) != 1:
 		fail("Native material has no authored linear fog range")
 		return false
-	# Wait for a light change on a frame without newly created materials.
-	var deadline := Time.get_ticks_msec() + 10000
-	while Time.get_ticks_msec() < deadline:
-		var before: Dictionary = client.account_state().scene_light
-		await process_frame
-		var after: Dictionary = client.account_state().scene_light
-		if before.sun_direction != after.sun_direction:
-			if before.material_light_writes != after.material_light_writes:
-				continue # Material creation can still be in progress.
-			return true
-	fail("No light-change frame without per-material light writes")
-	return false
+	return true
 

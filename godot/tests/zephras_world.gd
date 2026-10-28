@@ -59,6 +59,22 @@ func run_test() -> void:
 		if lighting_error != "":
 			fail(lighting_error)
 			return
+		var before: Dictionary = client.account_state().scene_light
+		client.set_world_minutes(1450.0)
+		lighting_error = client.preview_world_lighting(surface, camera.position)
+		if lighting_error != "":
+			fail(lighting_error)
+			return
+		var after: Dictionary = client.account_state().scene_light
+		if before.sun_direction == after.sun_direction or before.material_light_writes != after.material_light_writes:
+			fail("Light change did not update the sun without material writes: %s -> %s" % [before, after])
+			return
+		print("PASS: light change made zero material parameter writes")
+		client.set_world_minutes(1440.0)
+		lighting_error = client.preview_world_lighting(surface, camera.position)
+		if lighting_error != "":
+			fail(lighting_error)
+			return
 		hide_ui(client)
 		for frame in 30:
 			await process_frame
