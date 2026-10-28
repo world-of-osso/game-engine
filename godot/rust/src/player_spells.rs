@@ -8,6 +8,13 @@ use game_engine_core::spell_catalog::SpellCatalogData;
 use shared::components::AuraView;
 use shared::protocol::{ActionRef, SpellChargesUpdate, SpellCooldownUpdate};
 
+/// The server publishes Rushing Wind Kick as a spell cooldown, not a charge category.
+const RUSHING_WIND_KICK: u32 = 467307;
+
+pub(crate) fn uses_charge_category(spell_id: u32) -> bool {
+    spell_id != RUSHING_WIND_KICK
+}
+
 /// Server action bar slots 0..=179 (TrinityCore Player.h `MAX_ACTION_BUTTONS` 180).
 pub(crate) const ACTION_SLOT_COUNT: usize = 180;
 /// Retail `NUM_ACTIONBAR_BUTTONS` / `NUM_ACTIONBAR_PAGES` (ActionButtonUtil.lua).
@@ -259,6 +266,31 @@ impl PlayerSpells {
         self.charges.get(&category).copied()
     }
 
+    pub fn spell_charges(&self, spell_id: u32, category: u32) -> Option<ChargeTimer> {
+        uses_charge_category(spell_id)
+            .then(|| self.charges(category))
+            .flatten()
+    }
+
+    pub fn assisted_readiness(
+        &self,
+        spell_id: u32,
+        has_charges: bool,
+        charge_category: impl FnOnce() -> Result<u32, String>,
+    ) -> Result<bool, String> {
+        if self.button_cooldown(spell_id, false).is_some() {
+            return Ok(false);
+        }
+        if !has_charges || !uses_charge_category(spell_id) {
+            return Ok(true);
+        }
+        let category = charge_category()?;
+        let charges = self.charges(category).ok_or_else(|| {
+            format!("Assisted spell {spell_id}: server charges category {category} not received")
+        })?;
+        Ok(charges.current > 0)
+    }
+
     pub fn tick(&mut self, dt: f32) {
         for charges in self.charges.values_mut() {
             charges.tick(dt);
@@ -366,6 +398,47 @@ mod tests {
             remaining_ms,
             is_gcd,
         }
+    }
+
+    #[test]
+    fn rushing_wind_kick_uses_its_own_cooldown_not_rising_sun_kick_charges() {
+        const RWK: u32 = 467307;
+        const RSK: u32 = 107428;
+        const CATEGORY: u32 = 1518;
+        let mut spells = PlayerSpells::default();
+        spells.apply_charges(&SpellChargesUpdate {
+            spell_id: RSK,
+            category: CATEGORY,
+            current: 0,
+            max: 2,
+            recharge_ms: 10000,
+            remaining_ms: 8000,
+        });
+        assert_eq!(
+            spells.assisted_readiness(RWK, true, || Ok(CATEGORY)),
+            Ok(true)
+        );
+        assert_eq!(
+            spells.assisted_readiness(RSK, true, || Ok(CATEGORY)),
+            Ok(false)
+        );
+        assert_eq!(spells.spell_charges(RWK, CATEGORY), None);
+        assert_eq!(spells.spell_charges(RSK, CATEGORY).unwrap().remaining, 8.0);
+        spells.apply_cooldown(&cooldown(RWK, 5000, 4000, false));
+        assert_eq!(
+            spells.assisted_readiness(RWK, true, || Ok(CATEGORY)),
+            Ok(false)
+        );
+        assert_eq!(spells.button_cooldown(RWK, false).unwrap().remaining, 4.0);
+        spells.tick(4.0);
+        assert_eq!(
+            spells.assisted_readiness(RWK, true, || Ok(CATEGORY)),
+            Ok(true)
+        );
+        assert_eq!(
+            spells.assisted_readiness(RSK, true, || Ok(CATEGORY)),
+            Ok(false)
+        );
     }
 
     #[test]

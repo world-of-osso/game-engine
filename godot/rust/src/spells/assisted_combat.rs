@@ -239,7 +239,7 @@ impl GameClient {
                 .insert(*id, self.read_assisted_readiness(effective, spell));
             if let ViewerLoad::Ready(data) = &self.spells.cooldowns.load
                 && let Some(category) = data.catalog.charge_category(effective)
-                && let Some(charges) = self.account.spells.charges(category)
+                && let Some(charges) = self.account.spells.spell_charges(effective, category)
             {
                 facts.charges.insert(*id, charges.current);
             }
@@ -260,23 +260,16 @@ impl GameClient {
     }
 
     fn read_assisted_readiness(&self, id: u32, spell: &CatalogSpell) -> Result<bool, String> {
-        if self.account.spells.button_cooldown(id, false).is_some() {
-            return Ok(false);
-        }
-        if spell.charges.is_none() {
-            return Ok(true);
-        }
-        let ViewerLoad::Ready(data) = &self.spells.cooldowns.load else {
-            return Err("Assisted charge categories not loaded".into());
-        };
-        let category = data
-            .catalog
-            .charge_category(id)
-            .ok_or_else(|| format!("Assisted spell {id}: charge category absent"))?;
-        let charges = self.account.spells.charges(category).ok_or_else(|| {
-            format!("Assisted spell {id}: server charges category {category} not received")
-        })?;
-        Ok(charges.current > 0)
+        self.account
+            .spells
+            .assisted_readiness(id, spell.charges.is_some(), || {
+                let ViewerLoad::Ready(data) = &self.spells.cooldowns.load else {
+                    return Err("Assisted charge categories not loaded".into());
+                };
+                data.catalog
+                    .charge_category(id)
+                    .ok_or_else(|| format!("Assisted spell {id}: charge category absent"))
+            })
     }
 
     pub(crate) fn spell_priority_snapshot(&self, target: i64, requested: &[i32]) -> VarDictionary {
@@ -347,7 +340,7 @@ impl GameClient {
             let spell = catalog
                 .get(effective)
                 .ok_or_else(|| format!("Priority spell metadata {effective} absent"))?;
-            if spell.charges.is_none() {
+            if spell.charges.is_none() || !crate::player_spells::uses_charge_category(effective) {
                 continue;
             }
             let category = data

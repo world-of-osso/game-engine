@@ -312,7 +312,7 @@ impl GameClient {
                 let charges = data
                     .catalog
                     .charge_category(id)
-                    .and_then(|category| self.account.spells.charges(category));
+                    .and_then(|category| self.account.spells.spell_charges(id, category));
                 let (duration, remaining) = charges
                     .filter(|charges| charges.current < charges.max)
                     .map(|charges| (charges.recharge, charges.remaining))
