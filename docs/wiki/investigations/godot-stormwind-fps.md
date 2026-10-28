@@ -25,7 +25,7 @@ No Bevy Stormwind FPS measurement was found in `docs/`. The retired Bevy client'
 | dev `00e7b3b0`, all text enabled | InWorld, 71 remote entities | 12.3 | [rendering-pipeline](../systems/rendering-pipeline.md) |
 | dev, Mailbox present fix `89f58874` | InWorld, unfocused | 28.4–29.3 | [rendering-pipeline](../systems/rendering-pipeline.md) |
 
-The user also observed less than 20 FPS for a similar Stormwind scene in the Bevy client (not reproduced here). Bevy was not faster in comparable scenes: Bevy release was 9–24 FPS and Godot release is 21–55 FPS after the lighting fix. The scenes differ, so this is not a controlled A/B.
+The user also observed less than 20 FPS for a similar Stormwind scene in the Bevy client (not reproduced here). No measurement compares the two engines in the same scene.
 
 ## Material uniform updates (2026-10-28)
 
