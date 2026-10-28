@@ -135,6 +135,24 @@ impl TerrainLight {
         ] {
             state.set(name, Vector3::from_array(value));
         }
+        for (name, value) in [
+            ("river_close", self.water.river_close),
+            ("river_far", self.water.river_far),
+        ] {
+            state.set(name, Vector4::from_array(value));
+        }
+        state.set(
+            "underwater_fog_color",
+            Vector3::from_array(self.water.underwater_fog_color),
+        );
+        state.set(
+            "underwater_fog",
+            Vector3::new(
+                self.water.underwater_fog.start,
+                self.water.underwater_fog.end,
+                self.water.underwater_fog.density,
+            ),
+        );
         state.set("fog_range", Vector2::from_array(self.fog.range));
         state.set(
             "material_light_writes",
